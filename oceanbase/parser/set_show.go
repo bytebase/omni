@@ -53,6 +53,19 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
+	// SET OPTION LEAK_MOD = 'x' and SET OPTION LEAK_RATE = n are dump_memory_stmt's
+	// own arm: the observer's memory diagnostics, and no assignment of a
+	// variable called OPTION.
+	if p.atSetOptionLeak() {
+		return p.parseSetOptionLeakStmt(start)
+	}
+
+	// SET CATALOG name is set_catalog_stmt and no assignment of a variable
+	// called CATALOG.
+	if p.atSetCatalog() {
+		return p.parseSetCatalogStmt(start)
+	}
+
 	// Whether the first word names a variable, whichever form it could start.
 	named := p.nextEndsVariableName()
 
@@ -194,19 +207,26 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 			stmt.ToRandom = true
 		}
 	} else {
-		// consume '='
-		p.match('=')
+		// set_password_stmt writes the comparison: `SET PASSWORD 's'` is a 1064.
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
 
-		// Password value: either a string literal or PASSWORD('string')
+		// The value is a string literal, or PASSWORD '(' password ')' with both
+		// parentheses and the password inside them.
 		if p.cur.Type == kwPASSWORD {
-			// PASSWORD('auth_string') form
 			p.advance() // consume PASSWORD
-			p.match('(')
-			if p.cur.Type == tokSCONST {
-				stmt.Password = "PASSWORD(" + p.cur.Str + ")"
-				p.advance()
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
-			p.match(')')
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Password = "PASSWORD(" + p.cur.Str + ")"
+			p.advance()
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == tokSCONST {
 			stmt.Password = p.cur.Str
 			p.advance()
@@ -330,17 +350,35 @@ func (p *Parser) parseSetCharset(stmt *nodes.SetStmt) error {
 	return nil
 }
 
-// parseSetCharsetName reads a charset or collation name: a string, a name, or BINARY. The
-// lexer hands a user variable over as an identifier, and `SET NAMES @a` is a 1064.
+// parseSetCharsetName reads charset_name: a name, a string, BINARY or ASCII.
+// A word OceanBase's lexer makes a keyword of is none of them, so `SET NAMES
+// BINARY_FORMAT` and `SET NAMES DEFAULT_AUTH` are 1064s. The lexer hands a user
+// variable over as an identifier, and `SET NAMES @a` is a 1064 too.
+//
+// Ref: charset_name in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 7442-7480).
 func (p *Parser) parseSetCharsetName() (string, int, error) {
-	if p.cur.Type == kwBINARY {
-		tok := p.advance()
-		return tok.Str, tok.Loc, nil
-	}
 	if p.isVariableRef() {
 		return "", 0, p.syntaxErrorAtCur()
 	}
-	return p.parseIdentOrText()
+	switch p.cur.Type {
+	case tokSCONST:
+		loc := p.cur.Loc
+		s, err := p.parseIntoString()
+		if err != nil {
+			return "", 0, err
+		}
+		return s, loc, nil
+	case kwBINARY, kwASCII:
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	case tokIDENT:
+		if !p.isNameOB(p.cur) {
+			return "", 0, p.syntaxErrorAtCur()
+		}
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
+	return "", 0, p.syntaxErrorAtCur()
 }
 
 // appendSetWord adds the assignment a NAMES or charset word stands for.
@@ -1878,10 +1916,32 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	firstEnd := p.prev.End
+
+	// database_with_catalog_factor takes `catalog.db` beside the plain name:
+	// `relation_name '.' relation_name` or adjacent `id_dot_id`, so `USE a.b`,
+	// `USE a . b`, and `USE a.table` parse, while spaced `USE a . table` does
+	// not.
+	catalog := ""
+	if p.cur.Type == '.' {
+		dot := p.cur
+		p.advance()
+		reserved := reservedNamesAfterDot[p.cur.Type]
+		dbStart := p.cur.Loc
+		db, err := p.parseNameAfterDot()
+		if err != nil {
+			return nil, err
+		}
+		if reserved && !(dot.Loc == firstEnd && dbStart == dot.End) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		catalog, name = name, db
+	}
 
 	return &nodes.UseStmt{
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Database: name,
+		Catalog:  catalog,
 	}, nil
 }
 

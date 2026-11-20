@@ -167,10 +167,16 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		}
 	}
 
+	// opt_approx stands before the LIMIT of a vector search.
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// LIMIT clause
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
 }
@@ -201,6 +207,25 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 			b.WriteString("s3 ")
 		}
 		b.WriteString(str(into.Outfile))
+		// OceanBase's file_partition_opt stands right after the file, before the
+		// format, and its FORMAT (...) list replaces the fields and lines
+		// clauses.
+		if into.PartitionBy != nil {
+			b.WriteString(" partition by ")
+			writeExpr(b, into.PartitionBy)
+		}
+		if len(into.ExternalFormat) > 0 {
+			b.WriteString(" format(")
+			for i, prop := range into.ExternalFormat {
+				if i > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(strings.ToLower(prop.Name))
+				b.WriteString("=")
+				writeExpr(b, prop.Value)
+			}
+			b.WriteString(")")
+		}
 		if into.Charset != "" {
 			b.WriteString(" character set " + into.Charset)
 		}
@@ -244,6 +269,19 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 			b.WriteString(" encryption " + strings.ToLower(into.Encryption))
 			if into.EncryptionKey != "" {
 				b.WriteString(" " + str(into.EncryptionKey))
+			}
+		}
+		// file_opt: SINGLE, MAX_FILE_SIZE and BUFFER_SIZE, which follow the
+		// fields and lines clauses.
+		for _, opt := range into.FileOptions {
+			b.WriteString(" " + strings.ToLower(opt.Name) + " ")
+			switch {
+			case opt.Name == "SINGLE":
+				b.WriteString(strings.ToLower(opt.Value))
+			case opt.ValueIsString:
+				b.WriteString(str(opt.Value))
+			default:
+				b.WriteString(opt.Value)
 			}
 		}
 	default:
@@ -345,12 +383,39 @@ func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bo
 		}
 	}
 
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// Outer LIMIT (applies to the parenthesized result).
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
+}
+
+// writeVectorIndexParams writes opt_with_vector_index_parameters, which follows
+// the LIMIT of a vector search.
+func writeVectorIndexParams(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.VectorIndexParams) == 0 {
+		return
+	}
+	b.WriteString(" parameters(")
+	for i, param := range stmt.VectorIndexParams {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(quoteIdent(param.Name))
+		b.WriteString(" = ")
+		if param.IsName {
+			b.WriteString(quoteIdent(param.Value))
+		} else {
+			b.WriteString(strings.ToLower(param.Value))
+		}
+	}
+	b.WriteString(")")
 }
 
 func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
@@ -510,10 +575,15 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 		}
 	}
 
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// LIMIT clause (applies to the entire set operation)
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
 }
@@ -574,7 +644,10 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 // Used for subquery contexts (IN, EXISTS) where MySQL omits aliases.
 func writeResTargetNoAlias(b *strings.Builder, node ast.ExprNode) {
 	if rt, ok := node.(*ast.ResTarget); ok {
-		writeExpr(b, rt.Val)
+		node = rt.Val
+	}
+	if _, isStar := node.(*ast.StarExpr); isStar {
+		b.WriteByte('*')
 		return
 	}
 	writeExpr(b, node)
@@ -595,6 +668,15 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 		explicitAlias = rt.Name
 	} else {
 		expr = node
+	}
+
+	if _, isStar := expr.(*ast.StarExpr); isStar {
+		b.WriteByte('*')
+		return
+	}
+	if col, isCol := expr.(*ast.ColumnRef); isCol && col.Star {
+		b.WriteString(deparseColumnRef(col))
+		return
 	}
 
 	exprStart := b.Len()
@@ -692,6 +774,23 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	}
 }
 
+// writeColumnRefAlias writes a column reference as the source text of an
+// auto-alias reads it: unquoted, and qualified only as far as it was written.
+func writeColumnRefAlias(b *strings.Builder, n *ast.ColumnRef) {
+	for _, part := range []string{n.Catalog, n.Schema, n.Table} {
+		if part == "" {
+			continue
+		}
+		b.WriteString(part)
+		b.WriteString(".")
+	}
+	if n.Star {
+		b.WriteString("*")
+		return
+	}
+	b.WriteString(n.Column)
+}
+
 // deparseExprAlias generates a human-readable expression text for use as an auto-alias.
 // Unlike deparseExpr, this preserves the original expression text style matching MySQL 8.0's
 // auto-alias behavior: function names stay uppercase, spaces after commas, CASE/CAST
@@ -706,11 +805,7 @@ func deparseExprAlias(node ast.ExprNode) string {
 func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	switch n := node.(type) {
 	case *ast.ColumnRef:
-		if n.Table != "" {
-			b.WriteString(n.Table)
-			b.WriteString(".")
-		}
-		b.WriteString(n.Column)
+		writeColumnRefAlias(b, n)
 	case *ast.IntLit:
 		fmt.Fprintf(b, "%d", n.Value)
 	case *ast.FloatLit:
@@ -889,6 +984,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+			// A treatment written inside the parameter list stays after the
+			// first argument, so the alias keeps it in place.
+			if i == 0 && n.NullTreatment != "" && n.NullTreatmentInArgs {
+				b.WriteString(" ")
+				b.WriteString(strings.ToUpper(n.NullTreatment))
+				b.WriteString(" NULLS")
+			}
 		}
 		if n.Using != "" {
 			// The name keeps CHAR's USING clause as written, whatever the
@@ -897,6 +999,17 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
+		// NTH_VALUE's FROM FIRST/LAST and the trailing RESPECT/IGNORE NULLS
+		// follow the parameter list, as the statement wrote them.
+		if n.FromFirstLast != "" {
+			b.WriteString(" FROM ")
+			b.WriteString(strings.ToUpper(n.FromFirstLast))
+		}
+		if n.NullTreatment != "" && !n.NullTreatmentInArgs {
+			b.WriteString(" ")
+			b.WriteString(strings.ToUpper(n.NullTreatment))
+			b.WriteString(" NULLS")
+		}
 		if n.Over != nil {
 			b.WriteString(" ")
 			writeWindowDefAlias(b, n.Over)
@@ -915,6 +1028,11 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" AS ")
 		b.WriteString(typeName)
+		// sys_view_cast_opt's IGNORE is part of the cast, so the name the
+		// server gives an unaliased cast includes it.
+		if n.Ignore {
+			b.WriteString(" IGNORE")
+		}
 		b.WriteString(")")
 	case *ast.ConvertExpr:
 		b.WriteString("CONVERT(")
@@ -1051,11 +1169,33 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			writeExprAlias(b, item)
 		}
 		b.WriteString(")")
+	case *ast.GroupingSet:
+		writeGroupingSet(b, n)
+	case *ast.QuantifiedExpr:
+		b.WriteString(strings.ToUpper(n.Quantifier))
+		b.WriteString(" (")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(")")
+	case *ast.RemoteSequenceExpr:
+		// The alias is the expression's source-style text, which is unquoted
+		// like every other alias this writer builds.
+		writeColumnRefAlias(b, n.Ref)
+		b.WriteString(formatDblink(n.Dblink))
+	case *ast.OdbcEscapeExpr:
+		b.WriteString("{")
+		b.WriteString(n.Name)
+		b.WriteString(" ")
+		writeExprAlias(b, n.Expr)
+		b.WriteString("}")
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" COLLATE ")
-		b.WriteString(n.Collation)
+		if n.Quoted {
+			b.WriteString(quoteStringValue(n.Collation))
+		} else {
+			b.WriteString(n.Collation)
+		}
 	case *ast.IntervalExpr:
 		// MySQL 8.0 auto-alias: "INTERVAL 1 DAY" — uppercase keywords.
 		b.WriteString("INTERVAL ")
@@ -1141,11 +1281,19 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 	if stmt.TableSource != nil {
 		b.WriteString("TABLE ")
 		if t := stmt.TableSource.Table; t != nil {
+			if t.Catalog != "" {
+				b.WriteString(t.Catalog)
+				b.WriteString(".")
+			}
 			if t.Schema != "" {
 				b.WriteString(t.Schema)
 				b.WriteString(".")
 			}
 			b.WriteString(t.Name)
+			if t.Dblink != "" {
+				b.WriteString("@")
+				b.WriteString(t.Dblink)
+			}
 		}
 		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
 		return
@@ -1293,17 +1441,68 @@ func writeOrderByLimitAlias(b *strings.Builder, orderBy []*ast.OrderByItem, limi
 func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
+		if t.Catalog != "" {
+			b.WriteString(t.Catalog)
+			b.WriteString(".")
+		}
+		if t.Schema != "" {
+			b.WriteString(t.Schema)
+			b.WriteString(".")
+		}
 		b.WriteString(t.Name)
+		if t.Dblink != "" {
+			b.WriteString("@")
+			b.WriteString(t.Dblink)
+		}
 		if t.Alias != "" {
 			b.WriteString(" ")
 			b.WriteString(t.Alias)
 		}
-	case *ast.ExternalTableRef, *ast.RbIterateExpr, *ast.UnnestExpr:
-		// These carry no ExprNode form, so their own writer is the text:
-		// the source as written, as a subquery's is.
-		writeTableExpr(b, tbl)
+	case *ast.JoinClause:
+		writeTableExprAlias(b, t.Left)
+		switch t.Type {
+		case ast.JoinLeft:
+			b.WriteString(" LEFT JOIN ")
+		case ast.JoinRight:
+			b.WriteString(" RIGHT JOIN ")
+		case ast.JoinCross:
+			b.WriteString(" CROSS JOIN ")
+		case ast.JoinStraight:
+			b.WriteString(" STRAIGHT_JOIN ")
+		case ast.JoinNatural:
+			b.WriteString(" NATURAL JOIN ")
+		case ast.JoinNaturalLeft:
+			b.WriteString(" NATURAL LEFT JOIN ")
+		case ast.JoinNaturalRight:
+			b.WriteString(" NATURAL RIGHT JOIN ")
+		case ast.JoinFull:
+			b.WriteString(" FULL JOIN ")
+		case ast.JoinNaturalFull:
+			b.WriteString(" NATURAL FULL JOIN ")
+		default:
+			b.WriteString(" JOIN ")
+		}
+		writeTableExprAlias(b, t.Right)
+		switch cond := t.Condition.(type) {
+		case *ast.OnCondition:
+			b.WriteString(" ON ")
+			writeExprAlias(b, cond.Expr)
+		case *ast.UsingCondition:
+			b.WriteString(" USING (")
+			for i, col := range cond.Columns {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(col)
+			}
+			b.WriteString(")")
+		}
 	default:
-		writeExprAlias(b, tbl.(ast.ExprNode))
+		if expr, ok := tbl.(ast.ExprNode); ok {
+			writeExprAlias(b, expr)
+		} else {
+			writeTableExpr(b, tbl)
+		}
 	}
 }
 
@@ -1312,6 +1511,9 @@ func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 func deparseDataTypeAlias(dt *ast.DataType) string {
 	if dt == nil {
 		return ""
+	}
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
 	}
 	name := strings.ToUpper(dt.Name)
 	switch strings.ToLower(dt.Name) {
@@ -1499,12 +1701,30 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 	case ast.JoinStraight:
 		joinType = "straight_join"
 	case ast.JoinNatural:
-		joinType = "join"
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural join"
+		} else {
+			joinType = "join"
+		}
 	case ast.JoinNaturalLeft:
-		joinType = "left join"
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural left join"
+		} else {
+			joinType = "left join"
+		}
 	case ast.JoinNaturalRight:
-		joinType = "left join"
-		left, right = right, left
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural right join"
+		} else {
+			joinType = "left join"
+			left, right = right, left
+		}
+	case ast.JoinFull:
+		joinType = "full join"
+	case ast.JoinNaturalFull:
+		// A natural join takes no condition, so it keeps its NATURAL rather than
+		// lowering to a FULL JOIN the parser would require an ON for.
+		joinType = "natural full join"
 	default:
 		joinType = "join"
 	}
@@ -1533,10 +1753,10 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 				// Tables were swapped above, so swap names to match original SQL
 				leftName, rightName = rightName, leftName
 			}
-			if leftName == "" || rightName == "" {
-				// A side with no name to qualify its columns, such as an
-				// unaliased table function, keeps its USING: expanding it to ON
-				// would write `on((``.`c` = ...))`, which is no SQL.
+			if leftName == "" || rightName == "" || tableSideHasUnknownColumns(j.Left) || tableSideHasUnknownColumns(j.Right) {
+				// A side with no name to qualify its columns, or an unknown-column
+				// remote/external input where `*` and key merging stay unexpanded,
+				// keeps its USING rather than writing invalid or lossy ON SQL.
 				b.WriteString(" using(")
 				for i, col := range cond.Columns {
 					if i > 0 {
@@ -1577,6 +1797,19 @@ func tableExprName(tbl ast.TableExpr) string {
 		return t.Alias
 	default:
 		return ""
+	}
+}
+
+// tableSideHasUnknownColumns reports in O(1) for non-subquery operands whether a
+// direct USING side is a remote or external table whose USING must stay intact.
+func tableSideHasUnknownColumns(tbl ast.TableExpr) bool {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		return t.Catalog != "" || t.Dblink != ""
+	case *ast.ExternalTableRef:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1628,11 +1861,18 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 // Ref: tbl_name in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 14080).
 func deparseTableRef(t *ast.TableRef) string {
 	var b strings.Builder
+	if t.Catalog != "" {
+		b.WriteString(quoteIdent(t.Catalog))
+		b.WriteString(".")
+	}
 	if t.Schema != "" {
 		b.WriteString(quoteIdent(t.Schema))
 		b.WriteString(".")
 	}
 	b.WriteString(quoteIdent(t.Name))
+	if t.Dblink != "" {
+		b.WriteString(formatDblink(t.Dblink))
+	}
 	switch {
 	case len(t.Partitions) > 0:
 		b.WriteString(" partition(")
@@ -1764,6 +2004,26 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeIsExpr(b, n)
 	case *ast.RowExpr:
 		writeRowExpr(b, n)
+	case *ast.GroupingSet:
+		writeGroupingSet(b, n)
+	case *ast.QuantifiedExpr:
+		word := "any"
+		if strings.EqualFold(n.Quantifier, "ALL") {
+			word = "all"
+		}
+		b.WriteString(word)
+		b.WriteString(" (")
+		writeExpr(b, n.Expr)
+		b.WriteString(")")
+	case *ast.RemoteSequenceExpr:
+		b.WriteString(deparseColumnRef(n.Ref))
+		b.WriteString(formatDblink(n.Dblink))
+	case *ast.OdbcEscapeExpr:
+		b.WriteString("{")
+		b.WriteString(quoteIdent(n.Name))
+		b.WriteString(" ")
+		writeExpr(b, n.Expr)
+		b.WriteString("}")
 	case *ast.CaseExpr:
 		writeCaseExpr(b, n)
 	case *ast.CastExpr:
@@ -1941,14 +2201,51 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 	b.WriteString(")")
 }
 
+// formatDblink returns a `@link` qualifier in parseable user-variable syntax.
+// Parsed qualifiers already keep their original quotes via variableRefText; a
+// synthetically constructed `@a/b` whose name is not a bare user-variable
+// identifier is single-quoted so the output can be parsed back.
+func formatDblink(s string) string {
+	if s == "" || !strings.HasPrefix(s, "@") {
+		return s
+	}
+	rest := s[1:]
+	if len(rest) >= 2 && ((rest[0] == '\'' && rest[len(rest)-1] == '\'') ||
+		(rest[0] == '"' && rest[len(rest)-1] == '"') ||
+		(rest[0] == '`' && rest[len(rest)-1] == '`')) {
+		return s
+	}
+	if rest != "" && isBareUserVarIdent(rest) {
+		return s
+	}
+	return "@" + quoteStringValue(rest)
+}
+
+func isBareUserVarIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$' || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 func deparseColumnRef(n *ast.ColumnRef) string {
+	last := quoteIdent(n.Column)
+	if n.Star {
+		last = "*"
+	}
+	if n.Catalog != "" {
+		return quoteIdent(n.Catalog) + "." + quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + last
+	}
 	if n.Schema != "" {
-		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + last
 	}
 	if n.Table != "" {
-		return quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+		return quoteIdent(n.Table) + "." + last
 	}
-	return quoteIdent(n.Column)
+	return last
 }
 
 func binaryOpToString(op ast.BinaryOp) string {
@@ -2188,6 +2485,37 @@ func writeIsExpr(b *strings.Builder, n *ast.IsExpr) {
 	b.WriteString(")")
 }
 
+// writeGroupingSet writes ROLLUP (...), CUBE (...), GROUPING SETS (...) or the
+// empty set `()`.
+func writeGroupingSet(b *strings.Builder, n *ast.GroupingSet) {
+	if n.Kind == "" {
+		b.WriteString("()")
+		return
+	}
+	b.WriteString(n.Kind)
+	b.WriteString(" (")
+	for i, item := range n.Items {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		// A tuple of one grouping set is written with the parenthesis the
+		// grammar's '(' expr_list ',' expr ')' arm has, not as a ROW (...).
+		if row, ok := item.(*ast.RowExpr); ok {
+			b.WriteString("(")
+			for j, inner := range row.Items {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeExpr(b, inner)
+			}
+			b.WriteString(")")
+			continue
+		}
+		writeExpr(b, item)
+	}
+	b.WriteString(")")
+}
+
 func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
 	b.WriteString("row(")
 	for i, item := range n.Items {
@@ -2227,6 +2555,10 @@ func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	// ARRAY in lowercase in SHOW CREATE TABLE, so emit it to keep the round-trip stable.
 	if n.Array {
 		b.WriteString(" array")
+	}
+	// sys_view_cast_opt's IGNORE is part of the cast, not of the type.
+	if n.Ignore {
+		b.WriteString(" ignore")
 	}
 	b.WriteString(")")
 }
@@ -2269,8 +2601,11 @@ func writeConvertExpr(b *strings.Builder, n *ast.ConvertExpr) {
 // The nested ARRAYs are counted and written into one builder, so the text is built once
 // however deep they go.
 func CastArrayType(dt *ast.DataType) string {
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
+	}
 	depth := 0
-	for dt.ArrayElem != nil && strings.EqualFold(dt.ArrayElem.Name, "array") {
+	for dt.ArrayElem != nil && !dt.ArrayElem.FromStringValue && strings.EqualFold(dt.ArrayElem.Name, "array") {
 		depth++
 		dt = dt.ArrayElem
 	}
@@ -2296,6 +2631,9 @@ func CollectionType(dt *ast.DataType) string {
 
 // castArrayLeaf writes an ARRAY whose element is no ARRAY.
 func castArrayLeaf(dt *ast.DataType) string {
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
+	}
 	if dt.ArrayElem == nil {
 		return "ARRAY"
 	}
@@ -2305,6 +2643,9 @@ func castArrayLeaf(dt *ast.DataType) string {
 // castArrayElement writes the element of an ARRAY, or a MAP's key or value. A
 // MAP writes both, so the text reads back: MAP(INT,VARCHAR(3)).
 func castArrayElement(element *ast.DataType) string {
+	if element.FromStringValue {
+		return quoteStringValue(element.Name)
+	}
 	text := strings.ToUpper(element.Name)
 	switch text {
 	case "ARRAY":
@@ -2352,6 +2693,9 @@ func castArrayElement(element *ast.DataType) string {
 func deparseDataType(dt *ast.DataType) string {
 	if dt == nil {
 		return ""
+	}
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
 	}
 	name := strings.ToLower(dt.Name)
 	switch name {
@@ -2461,7 +2805,11 @@ func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
 	b.WriteString(" collate ")
-	b.WriteString(n.Collation)
+	if n.Quoted {
+		b.WriteString(quoteStringValue(n.Collation))
+	} else {
+		b.WriteString(n.Collation)
+	}
 	b.WriteString(")")
 }
 
@@ -2816,6 +3164,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// name is a stored function and keeps the name it was called by.
 		canonical = "char"
 	}
+	if name == "SCHEMA" && n.Schema == "" {
+		canonical = "database"
+	}
 
 	// Schema-qualified name
 	if n.Schema != "" {
@@ -2845,6 +3196,13 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+			// A treatment written inside the parameter list follows the first
+			// argument, `lead(a ignore nulls, 2)`.
+			if i == 0 && n.NullTreatment != "" && n.NullTreatmentInArgs {
+				b.WriteString(" ")
+				b.WriteString(strings.ToLower(n.NullTreatment))
+				b.WriteString(" nulls")
+			}
 		}
 		if n.Using != "" {
 			// OceanBase 4.3.5 keeps CHAR's charset in a stored view:
@@ -2853,6 +3211,18 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(strings.ToLower(n.Using))
 		}
 		b.WriteString(")")
+	}
+
+	// NTH_VALUE's FROM FIRST/LAST and the trailing RESPECT/IGNORE NULLS follow
+	// the parameter list.
+	if n.FromFirstLast != "" {
+		b.WriteString(" from ")
+		b.WriteString(strings.ToLower(n.FromFirstLast))
+	}
+	if n.NullTreatment != "" && !n.NullTreatmentInArgs {
+		b.WriteString(" ")
+		b.WriteString(strings.ToLower(n.NullTreatment))
+		b.WriteString(" nulls")
 	}
 
 	// Append OVER clause for window functions
@@ -2929,6 +3299,16 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 
 // writeWindowFrame formats a window frame specification.
 // MySQL 8.0 format: ROWS/RANGE/GROUPS BETWEEN start AND end (all uppercase).
+// DeparseWindowFrame formats a window frame specification.
+func DeparseWindowFrame(f *ast.WindowFrame) string {
+	if f == nil {
+		return ""
+	}
+	var b strings.Builder
+	writeWindowFrame(&b, f)
+	return b.String()
+}
+
 func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 	// Frame type
 	switch f.Type {

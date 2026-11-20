@@ -6,6 +6,24 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
+// parseOptTableID reads opt_table_id, `TABLE_ID '=' INTNUM`, and reports whether
+// it was written.
+func (p *Parser) parseOptTableID() (int64, bool, error) {
+	if !p.isBareWord("TABLE_ID") {
+		return 0, false, nil
+	}
+	p.advance()
+	if _, err := p.expect('='); err != nil {
+		return 0, false, err
+	}
+	if p.cur.Type != tokICONST {
+		return 0, false, p.syntaxErrorAtCur()
+	}
+	id := p.cur.Ival
+	p.advance()
+	return id, true, nil
+}
+
 // parseCreateViewStmt parses a CREATE VIEW statement.
 // The caller has already consumed CREATE [OR REPLACE].
 //
@@ -95,6 +113,13 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 		stmt.Columns = cols
 	}
 
+	// opt_table_id: TABLE_ID [=] n, after the column list and before AS.
+	tableID, hasTableID, err := p.parseOptTableID()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableID, stmt.HasTableID = tableID, hasTableID
+
 	// AS
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
@@ -126,11 +151,13 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 			checkOption = "LOCAL"
 			p.advance()
 		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		// CHECK and OPTION are both words of the clause: `WITH CHECK`,
+		// `WITH CASCADED CHECK` and `WITH LOCAL CHECK` are 1064s.
+		if _, err := p.expect(kwCHECK); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwOPTION); err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}

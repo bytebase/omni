@@ -66,7 +66,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.AlterObjectSchemaStmt:
 		return c.ExecAlterObjectSchemaStmt(s)
 	case *nodes.AlterOwnerStmt:
-		return nil // no-op: pgddl has no ownership tracking
+		return c.ExecAlterOwnerStmt(s)
 	case *nodes.TruncateStmt:
 		return c.ExecuteTruncate(s)
 	case *nodes.AlterTypeStmt:
@@ -198,22 +198,17 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	// ---- Tablespaces ----
 	case *nodes.CreateTableSpaceStmt:
-		// CREATE TABLESPACE: no-op for pgddl (physical storage)
-		return nil
+		return c.DefineTablespace(s)
 	case *nodes.DropTableSpaceStmt:
-		// DROP TABLESPACE: no-op for pgddl (physical storage)
-		return nil
+		return c.RemoveTablespace(s)
 	case *nodes.AlterTableSpaceOptionsStmt:
-		// ALTER TABLESPACE ... SET/RESET: no-op for pgddl
-		return nil
+		return c.AlterTablespaceOptions(s)
 	case *nodes.AlterTableMoveAllStmt:
-		// ALTER TABLE ALL IN TABLESPACE ... SET TABLESPACE: no-op for pgddl
-		return nil
+		return c.MoveAllTablespaces(s)
 
 	// ---- Roles/Databases ----
 	case *nodes.CreateRoleStmt:
-		// CREATE ROLE/USER/GROUP: no-op for pgddl
-		return nil
+		return c.DefineRole(s)
 	case *nodes.AlterRoleStmt:
 		// ALTER ROLE: no-op for pgddl
 		return nil
@@ -221,8 +216,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER ROLE ... SET: no-op for pgddl
 		return nil
 	case *nodes.DropRoleStmt:
-		// DROP ROLE/USER/GROUP: no-op for pgddl
-		return nil
+		return c.RemoveRoles(s)
 	case *nodes.GrantRoleStmt:
 		// GRANT role TO role: no-op for pgddl
 		return nil
@@ -253,11 +247,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER SYSTEM: no-op for pgddl
 		return nil
 	case *nodes.DropOwnedStmt:
-		// DROP OWNED: no-op for pgddl
-		return nil
+		return c.DropOwned(s)
 	case *nodes.ReassignOwnedStmt:
-		// REASSIGN OWNED: no-op for pgddl
-		return nil
+		return c.ReassignOwned(s)
 	case *nodes.SecLabelStmt:
 		// SECURITY LABEL: no-op for pgddl
 		return nil
@@ -327,9 +319,17 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 //
 // pg: src/backend/utils/misc/guc.c — ExecSetVariableStmt
 func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
+	if s.Kind == nodes.VAR_RESET_ALL {
+		c.defaultTablespace = ""
+		c.defaultTableAccessMethod = ""
+	}
 	switch s.Name {
 	case "search_path":
 		return c.processSetSearchPath(s)
+	case "default_tablespace":
+		return c.processSetDefaultTablespace(s)
+	case "default_table_access_method":
+		return c.processSetDefaultTableAccessMethod(s)
 	case "role":
 		return c.processSetRole(s)
 	}
@@ -367,6 +367,65 @@ func (c *Catalog) processSetSearchPath(s *nodes.VariableSetStmt) error {
 	return nil
 }
 
+// processSetDefaultTablespace handles SET default_tablespace = ...
+func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
+	switch s.Kind {
+	case nodes.VAR_SET_VALUE:
+		if s.Args == nil {
+			c.defaultTablespace = ""
+			return nil
+		}
+		for _, arg := range s.Args.Items {
+			ac, ok := arg.(*nodes.A_Const)
+			if !ok {
+				continue
+			}
+			sv, ok := ac.Val.(*nodes.String)
+			if !ok {
+				continue
+			}
+			if sv.Str != "" && c.checkTablespace(sv.Str) != nil {
+				return errInvalidParameterValue(fmt.Sprintf("invalid value for parameter \"default_tablespace\": %q", sv.Str))
+			}
+			c.defaultTablespace = sv.Str
+		}
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		c.defaultTablespace = ""
+	}
+	return nil
+}
+
+// processSetDefaultTableAccessMethod handles SET default_table_access_method.
+func (c *Catalog) processSetDefaultTableAccessMethod(s *nodes.VariableSetStmt) error {
+	switch s.Kind {
+	case nodes.VAR_SET_VALUE:
+		if s.Args == nil {
+			c.defaultTableAccessMethod = ""
+			return nil
+		}
+		for _, arg := range s.Args.Items {
+			ac, ok := arg.(*nodes.A_Const)
+			if !ok {
+				continue
+			}
+			sv, ok := ac.Val.(*nodes.String)
+			if !ok {
+				continue
+			}
+			if sv.Str != "" && !c.snapshot {
+				am := c.accessMethodByName[sv.Str]
+				if am == nil || am.Type != 't' {
+					return errInvalidParameterValue(fmt.Sprintf("invalid value for parameter \"default_table_access_method\": %q", sv.Str))
+				}
+			}
+			c.defaultTableAccessMethod = sv.Str
+		}
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		c.defaultTableAccessMethod = ""
+	}
+	return nil
+}
+
 // processSetRole handles SET ROLE, RESET ROLE, SET ROLE NONE.
 //
 // pg: src/backend/commands/variable.c — check_role, assign_role
@@ -393,6 +452,9 @@ func (c *Catalog) processSetRole(s *nodes.VariableSetStmt) error {
 			if roleName == "none" {
 				c.ResetRole()
 			} else {
+				if err := c.checkRole(roleName); err != nil {
+					return err
+				}
 				c.SetRole(roleName)
 			}
 			return nil

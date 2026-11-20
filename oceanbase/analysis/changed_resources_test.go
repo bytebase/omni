@@ -74,6 +74,9 @@ func TestExtractChangedResources(t *testing.T) {
 		{"DROP TRIGGER other_db.tr", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
 		// An unqualified object falls back to the current database, so it records nothing.
 		{"CREATE VIEW v AS SELECT 1", StatementChanges{}},
+		// External catalog and dblink objects belong to remote namespaces, not the local database.
+		{"DROP VIEW ext_cat.other_db.v", StatementChanges{}},
+		{"CREATE VIEW other_db.v@remote_link AS SELECT 1", StatementChanges{}},
 		// CREATE TRIGGER's name carries no qualifier in the AST.
 		{"CREATE TRIGGER other_db.tr BEFORE INSERT ON other_db.t FOR EACH ROW SET NEW.a = 1", StatementChanges{}},
 		{"SELECT * FROM t", StatementChanges{}},

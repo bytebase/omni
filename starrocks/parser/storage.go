@@ -242,9 +242,9 @@ func (p *Parser) parseDropRepository(startLoc ast.Loc) (ast.Node, error) {
 
 // parseCreateFile parses:
 //
-//	CREATE FILE file_name [IN db] PROPERTIES(...)
+//	CREATE FILE string [({FROM | IN} catalog=qualifiedName)] properties
 //
-// CREATE has already been consumed; cur is FILE.
+// (StarRocks.g4:1899.) CREATE has already been consumed; cur is FILE.
 func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume FILE
 
@@ -257,15 +257,11 @@ func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.CreateFileStmt{Name: name}
 
-	// Optional IN db_name
-	if p.cur.Kind == kwIN {
-		p.advance() // consume IN
-		dbName, dbLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Database = dbName
-		endLoc = dbLoc
+	if catalog, loc, ok, err := p.parseFileCatalog(); err != nil {
+		return nil, err
+	} else if ok {
+		stmt.Catalog = catalog
+		endLoc = loc
 	}
 
 	// properties is required (StarRocks.g4 createFileStatement).
@@ -287,9 +283,9 @@ func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 
 // parseDropFile parses:
 //
-//	DROP FILE file_name [FROM db] PROPERTIES(...)
+//	DROP FILE string [({FROM | IN} catalog=qualifiedName)] properties
 //
-// DROP has already been consumed; cur is FILE.
+// (StarRocks.g4:1903.) DROP has already been consumed; cur is FILE.
 func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume FILE
 
@@ -301,15 +297,11 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.DropFileStmt{Name: name}
 
-	// Optional FROM db_name
-	if p.cur.Kind == kwFROM {
-		p.advance() // consume FROM
-		dbName, dbLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Database = dbName
-		endLoc = dbLoc
+	if catalog, loc, ok, err := p.parseFileCatalog(); err != nil {
+		return nil, err
+	} else if ok {
+		stmt.Catalog = catalog
+		endLoc = loc
 	}
 
 	// properties is required (StarRocks.g4 dropFileStatement).
@@ -327,6 +319,22 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
+}
+
+// parseFileCatalog reads the optional {FROM | IN} catalog=qualifiedName of
+// createFileStatement and dropFileStatement (StarRocks.g4:1899, :1903). The
+// name keeps its parts, so `a.b` and “ `a.b` “ stay different catalogs; ok is
+// false when neither FROM nor IN is next.
+func (p *Parser) parseFileCatalog() (*ast.ObjectName, ast.Loc, bool, error) {
+	if p.cur.Kind != kwFROM && p.cur.Kind != kwIN {
+		return nil, ast.NoLoc(), false, nil
+	}
+	p.advance() // consume FROM / IN
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, ast.NoLoc(), false, err
+	}
+	return name, name.Loc, true, nil
 }
 
 // ---------------------------------------------------------------------------

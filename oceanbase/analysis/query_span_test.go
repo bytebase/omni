@@ -119,6 +119,10 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x RIGHT JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, ""},
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL RIGHT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, ""},
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL LEFT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "b<-db.t1.b plain", "d<-db.t2.d plain"}, ""},
+		// FULL JOIN merged keys evaluate COALESCE(left, right) and are not plain fields.
+		{"SELECT * FROM t1 FULL JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a", "b<-db.t1.b plain", "c<-db.t1.c plain", "d<-db.t2.d plain"}, ""},
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL FULL JOIN t2", []string{"a<-db.t1.a,db.t2.a", "b<-db.t1.b plain", "d<-db.t2.d plain"}, ""},
+		{"SELECT a, t1.a, t2.a FROM t1 FULL JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a", "a<-db.t1.a plain", "a<-db.t2.a plain"}, ""},
 		// A subquery's own tables come before the enclosing query's.
 		{"SELECT (SELECT a FROM t2 LIMIT 1) AS x FROM t1", []string{"x<-db.t2.a plain"}, ""},
 		{"SELECT (SELECT y.a FROM t2 AS y LIMIT 1) AS x FROM t1 AS y", []string{"x<-db.t2.a plain"}, ""},
@@ -223,6 +227,8 @@ func TestResolveQuerySpanTableFunctions(t *testing.T) {
 		"SELECT * FROM RB_ITERATE(t1.a)",
 		// A format value may read a table.
 		"SELECT a FROM 's'(FORMAT(FIELD_DELIMITER = (SELECT a FROM t1)))",
+		// Remote DUAL over a database link is a remote relation, not local 0-column DUAL.
+		"SELECT r.x FROM `dual`@remote_link AS r",
 		"FOR COLUMNS",
 	} {
 		if _, err := resolve(t, statement); err != nil {
@@ -241,5 +247,94 @@ func TestResolveQuerySpanMethodOptClassified(t *testing.T) {
 	}
 	if span.Type == analysis.QueryTypeUnknown {
 		t.Errorf("FOR COLUMNS is QueryTypeUnknown, want a class")
+	}
+}
+
+// TestFlashbackAccessResources pins that FLASHBACK's restored table, and the
+// name it is restored under, are access resources of the statement.
+func TestFlashbackAccessResources(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		sources   string
+	}{
+		{"FLASHBACK TABLE db.t1 TO BEFORE DROP", "db.t1."},
+		{"FLASHBACK TABLE db.t1 TO BEFORE DROP RENAME TO db.t2", "db.t1.,db.t2."},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolve(t, tc.statement)
+			require.NoError(t, err)
+			require.Equal(t, tc.sources, renderSet(span.SourceColumns))
+		})
+	}
+}
+
+// TestRemoteCatalogColumnDoesNotBindLocally pins that a four-part reference to
+// another catalog never resolves to a same-named local table that is also in
+// FROM.
+func TestRemoteCatalogColumnDoesNotBindLocally(t *testing.T) {
+	span, err := resolve(t, "SELECT c1.db.t1.a FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	// The remote relation's columns are known only when the query runs, so the
+	// reference reads no local column.
+	require.Equal(t, []string{"a<-"}, renderResults(span))
+
+	// The local reference, without a catalog, keeps the local table's column.
+	span, err = resolve(t, "SELECT t1.a FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+}
+
+// TestRemoteAliasAndWildcardStayRemote pins that an alias-qualified reference to
+// a remote relation resolves (its columns are unknown, not missing), and that a
+// catalog-qualified wildcard never reports a same-named local table's columns.
+func TestRemoteAliasAndWildcardStayRemote(t *testing.T) {
+	span, err := resolve(t, "SELECT x.a FROM c1.db.t1 AS x")
+	require.NoError(t, err)
+	require.Equal(t, []string{"a<-"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c1.db.t1.* FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	require.Empty(t, span.Results)
+	for resource := range span.SourceColumns {
+		if resource.Table == "t1" && resource.Column != "" {
+			t.Errorf("remote wildcard reported a local column: %s", renderSet(span.SourceColumns))
+		}
+	}
+}
+
+func TestRemoteUnknownDoesNotSwallowLocalLineage(t *testing.T) {
+	// Unqualified and qualified references over catalog tables resolve.
+	for _, sql := range []string{
+		"SELECT a FROM c1.db.t1",
+		"SELECT a FROM c1.db.t1 AS x",
+		"SELECT (SELECT a) FROM c1.db.t1",
+		"SELECT POSITION('b' IN a), ? FROM db.t1",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.Nil(t, span.NotFoundError, sql)
+	}
+
+	// Unknown remote/external relations must not wipe out local column lineage.
+	for _, sql := range []string{
+		"SELECT a FROM db.t1, other@remote_link",
+		"SELECT (SELECT a FROM other@remote_link LIMIT 1) AS a FROM db.t1",
+		"SELECT db.t1.a FROM db.t1, db.t1@remote_link",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.Nil(t, span.NotFoundError, sql)
+		require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span), sql)
+	}
+
+	// Qualified alias references (`db.x.a`, `c2.db.x.a`, `c1.db.t1.*` on aliased table) must not bind to the alias.
+	for _, sql := range []string{
+		"SELECT c2.db.x.a FROM c1.db.t1 AS x",
+		"SELECT db.x.a FROM c1.db.t1 AS x",
+		"SELECT c1.db.t1.* FROM c1.db.t1 AS x",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.NotNil(t, span.NotFoundError, sql)
 	}
 }

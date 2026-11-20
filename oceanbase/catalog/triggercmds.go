@@ -20,6 +20,10 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 		}
 	}
 
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
+
 	// Resolve database from the table reference.
 	schema := ""
 	if stmt.Table != nil {

@@ -64,6 +64,8 @@
 // translated equivalent.
 package catalog
 
+import "strings"
+
 // =============================================================================
 // Section 1 — Top-level Query
 // =============================================================================
@@ -127,6 +129,11 @@ type Query struct {
 	// Both forms are normalized into these two fields.
 	LimitCount  AnalyzedExpr
 	LimitOffset AnalyzedExpr
+	// Approx is the vector search's APPROX, which stands before the LIMIT, and
+	// VectorIndexParams its PARAMETERS list after it. Both change which index
+	// the search uses, so a stored view keeps them.
+	Approx            bool
+	VectorIndexParams []*VectorIndexParamQ
 
 	// Distinct is true for SELECT DISTINCT.
 	// Note: PG has a DistinctOn slice for `SELECT DISTINCT ON (...)`;
@@ -342,6 +349,11 @@ type RangeTableEntryQ struct {
 	// name is in Alias / ERef.
 	DBName    string
 	TableName string
+	// Catalog and Dblink qualify a table this catalog does not hold: one another
+	// catalog names (`cat.db.t`) and one a database link reads (`t@link`). Both
+	// keep the statement's text so a stored view writes them back.
+	Catalog string
+	Dblink  string
 
 	// Alias is the user-provided alias (`FROM t AS x` → "x"). Empty if none.
 	Alias string
@@ -507,7 +519,8 @@ const (
 	JoinRight
 	JoinCross
 	JoinStraight // STRAIGHT_JOIN — MySQL-only
-	// Note: MySQL does NOT support FULL OUTER JOIN.
+	// JoinFull is FULL [OUTER] JOIN, which OceanBase has and MySQL does not.
+	JoinFull
 )
 
 // =============================================================================
@@ -683,6 +696,11 @@ type VarExprQ struct {
 	// algorithms port without arithmetic shifts.
 	AttNum int
 
+	// Name is the column's name as written, set only for a column of a relation
+	// whose schema is not known locally (AttNum is 0 then): a table another
+	// catalog holds, or one a database link reads.
+	Name string
+
 	// LevelsUp distinguishes correlated subquery references:
 	//   0 = column from this query level
 	//   1 = column from immediate enclosing query
@@ -757,6 +775,13 @@ type FuncCallExprQ struct {
 	// because no clause holds anything to resolve: its default is a literal, and the literals
 	// it takes (DATE'...', 0x61) keep their spelling here and have no analyzed form.
 	JSONValueClauses string
+
+	// FromFirstLast is NTH_VALUE's FROM FIRST|LAST and NullTreatment the
+	// RESPECT|IGNORE NULLS of the window functions that take it: both change the
+	// window's result, so a stored view keeps them.
+	FromFirstLast       string
+	NullTreatment       string
+	NullTreatmentInArgs bool
 
 	// JSONQueryClauses is what follows JSON_QUERY's path, as the engine stores it, and text
 	// for the same reason: no clause holds anything to resolve.
@@ -1033,11 +1058,224 @@ type CastExprQ struct {
 	// Collation applies when the cast target is a string type with an
 	// explicit COLLATE clause: `CAST(x AS CHAR CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)`.
 	Collation string
+	// Ignore is sys_view_cast_opt's IGNORE: a value that cannot be converted is
+	// the default rather than an error.
+	Ignore bool
 }
 
 func (*CastExprQ) analyzedExprTag()          {}
 func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
+
+// VectorIndexParamQ is one PARAMETERS entry of a vector search: a name and the
+// value as written.
+type VectorIndexParamQ struct {
+	Name   string
+	Value  string
+	IsName bool
+}
+
+// ----------------------------------------------------------------------------
+// GroupingSetExprQ — a GROUP BY grouping set.
+// ----------------------------------------------------------------------------
+
+// GroupingSetExprQ is one GROUP BY item that is a grouping set rather than an
+// expression: ROLLUP (...), CUBE (...), GROUPING SETS (...) or the empty set
+// `()`. Args holds its items; an item of a GROUPING SETS list may itself be a
+// GroupingSetExprQ.
+type GroupingSetExprQ struct {
+	Kind string // "ROLLUP", "CUBE", "GROUPING SETS", or "" for the empty set
+	Args []AnalyzedExpr
+}
+
+func (*GroupingSetExprQ) analyzedExprTag()          {}
+func (g *GroupingSetExprQ) exprType() *ResolvedType { return nil }
+func (*GroupingSetExprQ) exprCollation() string     { return "" }
+
+// QuantifiedExprQ is any_expr's parenthesized-expression arm: the right side
+// of `expr comp_op {ANY|SOME|ALL} (expr)`.
+type QuantifiedExprQ struct {
+	Quantifier string // "ANY", "SOME" or "ALL"
+	Arg        AnalyzedExpr
+}
+
+func (*QuantifiedExprQ) analyzedExprTag()        {}
+func (*QuantifiedExprQ) exprType() *ResolvedType { return nil }
+func (*QuantifiedExprQ) exprCollation() string   { return "" }
+
+// OdbcEscapeExprQ is an ODBC escape (`{fn ABS(a)}`, `{d '2026-01-01'}`): the
+// word that says how its expression is read, and the analyzed expression.
+type OdbcEscapeExprQ struct {
+	Name string
+	Arg  AnalyzedExpr
+}
+
+func (*OdbcEscapeExprQ) analyzedExprTag() {}
+func (o *OdbcEscapeExprQ) exprType() *ResolvedType {
+	if rt := odbcTemporalEscapeType(o.Name, o.Arg); rt != nil {
+		return rt
+	}
+	if o.Arg == nil {
+		return nil
+	}
+	return o.Arg.exprType()
+}
+func (o *OdbcEscapeExprQ) exprCollation() string {
+	if odbcTemporalEscapeType(o.Name, o.Arg) != nil || o.Arg == nil {
+		return ""
+	}
+	return o.Arg.exprCollation()
+}
+
+func odbcTemporalEscapeKind(name string) (string, *ResolvedType) {
+	switch strings.ToLower(name) {
+	case "d":
+		return "DATE", &ResolvedType{BaseType: BaseTypeDate}
+	case "t":
+		return "TIME", &ResolvedType{BaseType: BaseTypeTime}
+	case "ts":
+		return "TIMESTAMP", &ResolvedType{BaseType: BaseTypeTimestamp}
+	default:
+		return "", nil
+	}
+}
+
+func odbcTemporalEscapeType(name string, arg AnalyzedExpr) *ResolvedType {
+	kind, rt := odbcTemporalEscapeKind(name)
+	if rt == nil {
+		return nil
+	}
+	cst, ok := arg.(*ConstExprQ)
+	if !ok || !cst.IsString || !odbcTemporalValid(kind, cst.Value) {
+		return nil
+	}
+	return rt
+}
+
+// odbcTemporalValid reports whether v parses as an ODBC temporal literal of
+// kind ("DATE", "TIME", or "TIMESTAMP"); invalid strings fall back to ordinary
+// string evaluation in OceanBase MySQL mode.
+func odbcTemporalValid(kind, v string) bool {
+	v = strings.TrimSpace(v)
+	atoi := func(s string) (int, bool) {
+		if s == "" {
+			return 0, false
+		}
+		n := 0
+		for i := 0; i < len(s); i++ {
+			if s[i] < '0' || s[i] > '9' {
+				return 0, false
+			}
+			n = n*10 + int(s[i]-'0')
+		}
+		return n, true
+	}
+	digits := func(s string) bool { _, ok := atoi(s); return ok }
+	num := func(s string) int { n, _ := atoi(s); return n }
+	fields := func(part string, seps string) ([]int, []int, bool) {
+		var vals, widths []int
+		cur, w := 0, 0
+		for i := 0; i < len(part); i++ {
+			c := part[i]
+			switch {
+			case c >= '0' && c <= '9':
+				cur, w = cur*10+int(c-'0'), w+1
+				if w > 4 {
+					return nil, nil, false
+				}
+			case w > 0 && strings.IndexByte(seps, c) >= 0:
+				vals, widths = append(vals, cur), append(widths, w)
+				cur, w = 0, 0
+			default:
+				return nil, nil, false
+			}
+		}
+		if w == 0 {
+			return nil, nil, false
+		}
+		return append(vals, cur), append(widths, w), true
+	}
+	dateOK := func(y, m, d int) bool {
+		if m < 1 || m > 12 || d < 1 {
+			return false
+		}
+		days := [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}[m]
+		if m == 2 && y%4 == 0 && (y%100 != 0 || y%400 == 0) {
+			days = 29
+		}
+		return d <= days
+	}
+	date := func(d string) bool {
+		if digits(d) {
+			switch len(d) {
+			case 6:
+				return dateOK(2000+num(d[:2]), num(d[2:4]), num(d[4:]))
+			case 8:
+				return dateOK(num(d[:4]), num(d[4:6]), num(d[6:]))
+			}
+			return false
+		}
+		f, w, ok := fields(d, "-/.:_")
+		return ok && len(f) == 3 && w[1] <= 2 && w[2] <= 2 && dateOK(f[0], f[1], f[2])
+	}
+	frac := func(t string) (string, bool) {
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			if !digits(t[i+1:]) {
+				return "", false
+			}
+			return t[:i], true
+		}
+		return t, true
+	}
+	clock := func(t string, maxHour int) bool {
+		t, ok := frac(t)
+		if !ok {
+			return false
+		}
+		f, w, ok := fields(t, ":")
+		if !ok || len(f) < 2 || len(f) > 3 || w[1] > 2 || (len(f) == 3 && w[2] > 2) {
+			return false
+		}
+		sec := 0
+		if len(f) == 3 {
+			sec = f[2]
+		}
+		return f[0] <= maxHour && f[1] <= 59 && sec <= 59
+	}
+	switch kind {
+	case "DATE":
+		return date(v)
+	case "TIME":
+		t := strings.TrimPrefix(v, "-")
+		if d, ok := frac(t); ok && digits(d) && len(d) == 6 {
+			return num(d[:2]) <= 23 && num(d[2:4]) <= 59 && num(d[4:]) <= 59
+		}
+		return clock(t, 838)
+	default:
+		if digits(v) && (len(v) == 12 || len(v) == 14) {
+			d, t := v[:len(v)-6], v[len(v)-6:]
+			return date(d) && num(t[:2]) <= 23 && num(t[2:4]) <= 59 && num(t[4:]) <= 59
+		}
+		i := strings.IndexAny(v, " T")
+		return i > 0 && date(v[:i]) && clock(strings.TrimSpace(v[i+1:]), 23)
+	}
+}
+
+// ----------------------------------------------------------------------------
+// RawExprQ — an expression the IR keeps as written.
+// ----------------------------------------------------------------------------
+
+// RawExprQ holds an expression whose own grammar the IR does not model, so its
+// text is kept exactly as it parses: a sequence read through a database link
+// (`t.seq@link`) is one, and so is a cast's IGNORE modifier's operand.
+type RawExprQ struct {
+	Text       string
+	ResultType *ResolvedType
+}
+
+func (*RawExprQ) analyzedExprTag()          {}
+func (r *RawExprQ) exprType() *ResolvedType { return r.ResultType }
+func (*RawExprQ) exprCollation() string     { return "" }
 
 // ----------------------------------------------------------------------------
 // Deferred expression nodes
@@ -1088,16 +1326,23 @@ func (c *CastExprQ) exprCollation() string   { return c.Collation }
 // will care).
 //
 // pg: src/include/nodes/parsenodes.h — WindowDef
+type WindowOrderItemQ struct {
+	Expr       AnalyzedExpr
+	Descending bool
+}
+
 type WindowDefQ struct {
 	// Name is the window's identifier:
 	//   - For references: the name being referenced (`OVER w` → "w")
 	//   - For inline definitions: empty
 	//   - For declarations in WindowClause: the declared name
-	Name string
+	Name    string
+	RefName string
 
 	// PartitionBy and OrderBy are analyzed.
 	PartitionBy []AnalyzedExpr
 	OrderBy     []*SortGroupClauseQ
+	OrderExprs  []*WindowOrderItemQ
 
 	// FrameClause is the raw text of the ROWS / RANGE / GROUPS frame
 	// specification, e.g. "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW".

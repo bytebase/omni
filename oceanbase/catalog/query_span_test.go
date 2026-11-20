@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // ---------------------------------------------------------------------------
 // Lineage types and walker — test-only reference implementation.
@@ -92,6 +95,14 @@ func collectVarExprs(q *Query, expr AnalyzedExpr, out *[]columnLineage) {
 	case *ConstExprQ:
 		// No column references in constants.
 	case *RowExprQ:
+		for _, arg := range e.Args {
+			collectVarExprs(q, arg, out)
+		}
+	case *QuantifiedExprQ:
+		collectVarExprs(q, e.Arg, out)
+	case *OdbcEscapeExprQ:
+		collectVarExprs(q, e.Arg, out)
+	case *GroupingSetExprQ:
 		for _, arg := range e.Args {
 			collectVarExprs(q, arg, out)
 		}
@@ -365,4 +376,415 @@ func TestLineage_14_8_ViewInJoin(t *testing.T) {
 		{Name: "name", SourceCols: []columnLineage{{DB: "testdb", Table: "employees", Column: "name"}}},
 		{Name: "budget", SourceCols: []columnLineage{{DB: "testdb", Table: "departments", Column: "budget"}}},
 	})
+}
+
+func TestLineageQuantifiedExprAndRemoteViewIsolation(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE orders (id INT, tags INT, secret INT);
+		CREATE VIEW v_quant AS SELECT id = ANY(tags) AS hit_any, id = ALL(tags) AS hit_all FROM orders;
+		CREATE VIEW v_remote AS SELECT * FROM orders@remote_link;
+		CREATE VIEW v_cat AS SELECT * FROM ext_cat.other_db.orders;
+	`)
+
+	db := c.GetDatabase("testdb")
+	vq := db.Views["v_quant"]
+	if vq == nil || vq.AnalyzedQuery == nil {
+		t.Fatal("expected v_quant to have AnalyzedQuery")
+	}
+	deparsedQ := DeparseQuery(vq.AnalyzedQuery)
+	if want := "select (`orders`.`id` = any (`orders`.`tags`)) as `hit_any`, (`orders`.`id` = all (`orders`.`tags`)) as `hit_all` from `testdb`.`orders`"; deparsedQ != want {
+		t.Errorf("DeparseQuery(v_quant) = %q, want %q", deparsedQ, want)
+	}
+
+	sel := parseSelect(t, "SELECT hit_any, hit_all FROM v_quant")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+	lineage := collectColumnLineage(c, q.ExpandMergeViews(c))
+	assertLineage(t, lineage, []resultLineage{
+		{Name: "hit_any", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "orders", Column: "id"},
+			{DB: "testdb", Table: "orders", Column: "tags"},
+		}},
+		{Name: "hit_all", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "orders", Column: "id"},
+			{DB: "testdb", Table: "orders", Column: "tags"},
+		}},
+	})
+
+	// Aggregate inside QuantifiedExpr sets HasAggs.
+	aggQ, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id = ANY(MAX(tags)) FROM orders"))
+	assertNoError(t, err)
+	if !aggQ.HasAggs {
+		t.Error("expected HasAggs=true for aggregate inside QuantifiedExpr")
+	}
+
+	// Remote/catalog views must not expand `*` to local `orders` columns (`id`, `tags`, `secret`).
+	for _, viewName := range []string{"v_remote", "v_cat"} {
+		v := db.Views[viewName]
+		if v == nil {
+			t.Fatalf("missing view %s", viewName)
+		}
+		for _, col := range v.Columns {
+			if col == "secret" {
+				t.Errorf("view %s leaked local table column %q into view columns %v", viewName, col, v.Columns)
+			}
+		}
+	}
+}
+
+func TestFullJoinQualifiedStarsKeepSideColumns(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_star AS SELECT * FROM l FULL JOIN r USING (id);
+		CREATE VIEW v_lstar AS SELECT l.* FROM l FULL JOIN r USING (id);
+		CREATE VIEW v_rstar AS SELECT r.* FROM l FULL JOIN r USING (id);
+	`)
+
+	db := c.GetDatabase("testdb")
+	if got, want := DeparseQuery(db.Views["v_star"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id`, `l`.`lx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_star) =\n  %s\nwant\n  %s", got, want)
+	}
+	if got, want := DeparseQuery(db.Views["v_lstar"].AnalyzedQuery),
+		"select `l`.`id`, `l`.`lx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_lstar) =\n  %s\nwant\n  %s", got, want)
+	}
+	if got, want := DeparseQuery(db.Views["v_rstar"].AnalyzedQuery),
+		"select `r`.`id`, `r`.`rx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_rstar) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	lQuery, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id, lx FROM v_lstar"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, lQuery.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{{DB: "testdb", Table: "l", Column: "id"}}},
+		{Name: "lx", SourceCols: []columnLineage{{DB: "testdb", Table: "l", Column: "lx"}}},
+	})
+}
+
+func TestRemoteCatalogQualifiedColumnResolution(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (a INT);
+		CREATE VIEW v_multi_cat AS SELECT c1.d.t.a AS a1, c2.d.t.b AS b2 FROM c1.d.t, c2.d.t;
+	`)
+
+	vq := c.GetDatabase("testdb").Views["v_multi_cat"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_multi_cat to have AnalyzedQuery")
+	}
+	v0, ok0 := vq.TargetList[0].Expr.(*VarExprQ)
+	v1, ok1 := vq.TargetList[1].Expr.(*VarExprQ)
+	if !ok0 || !ok1 || v0.RangeIdx != 0 || v1.RangeIdx != 1 {
+		t.Fatalf("expected c1->RangeIdx 0 and c2->RangeIdx 1, got %+v and %+v", vq.TargetList[0].Expr, vq.TargetList[1].Expr)
+	}
+	if got, want := DeparseQuery(vq), "select `c1`.`d`.`t`.`a` as `a1`, `c2`.`d`.`t`.`b` as `b2` from `c1`.`d`.`t`, `c2`.`d`.`t`"; got != want {
+		t.Errorf("DeparseQuery(v_multi_cat) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	// Unqualified-catalog `t.a` across two remote `t` relations is ambiguous (1052).
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT t.a FROM c1.d.t, c2.d.t")); err == nil {
+		t.Fatal("expected ambiguity error for SELECT t.a FROM c1.d.t, c2.d.t")
+	} else if catErr, ok := err.(*Error); !ok || catErr.Code != 1052 {
+		t.Fatalf("expected error 1052, got %v", err)
+	}
+
+	// Four-part `c1.d.t.a` alongside local `t` binds to `c1.d.t` (RangeIdx 1), not local `t` (RangeIdx 0).
+	mixedQ, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT c1.d.t.a FROM t, c1.d.t"))
+	assertNoError(t, err)
+	if mv, ok := mixedQ.TargetList[0].Expr.(*VarExprQ); !ok || mv.RangeIdx != 1 {
+		t.Fatalf("expected c1.d.t.a to bind to RangeIdx 1, got %+v", mixedQ.TargetList[0].Expr)
+	}
+}
+
+func TestFullJoinNestedLeftOperandCoalesces(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE m (id INT, mx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_nested_join AS SELECT * FROM (l JOIN m USING(id)) FULL JOIN r USING(id);
+		CREATE VIEW v_nested_full AS SELECT * FROM (l FULL JOIN m USING(id)) FULL JOIN r USING(id);
+	`)
+
+	db := c.GetDatabase("testdb")
+
+	// The surviving id under an inner join is l.id; the outer FULL join makes it
+	// COALESCE(l.id, r.id) so an r-only row keeps r.id.
+	if got, want := DeparseQuery(db.Views["v_nested_join"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` join `testdb`.`m` using (`id`) full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_nested_join) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	// A nested FULL join nests the coalesce, and the lineage reaches every side.
+	if got, want := DeparseQuery(db.Views["v_nested_full"].AnalyzedQuery),
+		"select coalesce(coalesce(`l`.`id`, `m`.`id`), `r`.`id`) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`m` using (`id`) full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_nested_full) =\n  %s\nwant\n  %s", got, want)
+	}
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id FROM v_nested_full"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, q.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "l", Column: "id"},
+			{DB: "testdb", Table: "m", Column: "id"},
+			{DB: "testdb", Table: "r", Column: "id"},
+		}},
+	})
+}
+
+func TestCorrelatedUnqualifiedRemoteColumn(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE VIEW v_correlated AS SELECT (SELECT a) AS a FROM cat.db.t")
+
+	vq := c.GetDatabase("testdb").Views["v_correlated"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_correlated to have AnalyzedQuery")
+	}
+	sub, ok := vq.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", vq.TargetList[0].Expr)
+	}
+	v, ok := sub.Subquery.TargetList[0].Expr.(*VarExprQ)
+	if !ok || v.LevelsUp != 1 || v.Name != "a" {
+		t.Fatalf("inner target = %+v, want a with LevelsUp 1", sub.Subquery.TargetList[0].Expr)
+	}
+	if got, want := DeparseQuery(vq), "select (select `cat`.`db`.`t`.`a` as `a`) as `a` from `cat`.`db`.`t`"; got != want {
+		t.Errorf("DeparseQuery(v_correlated) =\n  %s\nwant\n  %s", got, want)
+	}
+}
+
+func TestOrderByOrdinalCountsVisibleTargets(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
+
+	// ROLLUP(a) adds a junk target that is no select-list column, so ORDER BY 2
+	// is out of range over a one-column select list.
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT a FROM t GROUP BY ROLLUP(a) ORDER BY 2")); err == nil {
+		t.Fatal("expected ORDER BY position error for a one-column select list")
+	}
+	// ORDER BY 1, the one visible column, still resolves.
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT a FROM t GROUP BY ROLLUP(a) ORDER BY 1")); err != nil {
+		t.Fatalf("ORDER BY 1 over one visible column: %v", err)
+	}
+
+	// A RIGHT-nested FULL join keeps the inner merge, so an r-only row still has r.id.
+	wtExec(t, c, `CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE m (id INT, mx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_right_nested AS SELECT * FROM l FULL JOIN (m FULL JOIN r USING(id)) USING(id);`)
+	if got, want := DeparseQuery(c.GetDatabase("testdb").Views["v_right_nested"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, coalesce(`m`.`id`, `r`.`id`)) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`m` full join `testdb`.`r` using (`id`) using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_right_nested) =\n  %s\nwant\n  %s", got, want)
+	}
+}
+
+func TestOdbcEscapeViewMetadata(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (
+			s VARCHAR(10) NULL,
+			u VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
+		);
+		CREATE VIEW v_escape AS SELECT {fn CONCAT(t.s, 'x')} AS e FROM t;
+		CREATE VIEW v_temporal AS SELECT
+			{d '2026-01-01'} AS d1,
+			{D ('2026-01-01')} AS d2,
+			{t '12:30:45'} AS t1,
+			{ts '2026-01-01 12:30:45'} AS ts1,
+			({d _latin1'2026-01-01'} = t.u) AS cmp,
+			{d 'not-a-date'} AS fallback_str
+		FROM t;
+	`)
+
+	v := c.GetDatabase("testdb").Views["v_escape"]
+	if v == nil {
+		t.Fatal("missing v_escape")
+	}
+	if len(v.Columns) != 1 {
+		t.Fatalf("v_escape columns = %v, want one", v.Columns)
+	}
+	// The escape wraps the call, whose argument is a nullable column, so the
+	// view column is nullable; the collation comes from that argument too.
+	if len(v.ColumnMetadata) != 1 {
+		t.Fatalf("v_escape metadata = %+v, want one column", v.ColumnMetadata)
+	}
+	col := v.ColumnMetadata[0]
+	if !col.Nullable {
+		t.Errorf("v_escape column %q recorded NOT NULL", col.Name)
+	}
+	if col.Collation == "" {
+		t.Errorf("v_escape column %q recorded no collation", col.Name)
+	}
+
+	vt := c.GetDatabase("testdb").Views["v_temporal"]
+	if vt == nil || len(vt.ColumnMetadata) != 6 {
+		t.Fatalf("v_temporal metadata = %+v, want 6 columns", vt)
+	}
+	for i, name := range []string{"d1", "d2", "t1", "ts1"} {
+		mc := vt.ColumnMetadata[i]
+		if mc.Nullable || mc.Charset != "" || mc.Collation != "" {
+			t.Errorf("temporal escape column %q inherited string metadata: %+v", name, mc)
+		}
+	}
+	if fb := vt.ColumnMetadata[5]; fb.Charset == "" || fb.Collation == "" {
+		t.Errorf("invalid temporal escape fallback lost string metadata: %+v", fb)
+	}
+
+	wantTypes := []MySQLBaseType{BaseTypeDate, BaseTypeDate, BaseTypeTime, BaseTypeTimestamp}
+	for i, want := range wantTypes {
+		rt := vt.AnalyzedQuery.TargetList[i].Expr.exprType()
+		if rt == nil || rt.BaseType != want {
+			t.Errorf("target[%d] exprType = %+v, want BaseType %v", i, rt, want)
+		}
+		if coll := vt.AnalyzedQuery.TargetList[i].Expr.exprCollation(); coll != "" {
+			t.Errorf("target[%d] exprCollation = %q, want empty", i, coll)
+		}
+	}
+}
+
+func TestFullJoinExplicitKeyProjection(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_key AS SELECT id FROM l FULL JOIN r USING (id);
+	`)
+
+	if got, want := DeparseQuery(c.GetDatabase("testdb").Views["v_key"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_key) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id FROM v_key"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, q.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "l", Column: "id"},
+			{DB: "testdb", Table: "r", Column: "id"},
+		}},
+	})
+}
+
+func TestCorrelatedUnknownColumnStopsAtNearestScope(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE local_no_a (b INT)")
+
+	// The inner query's own remote relation is the nearest unknown source, so
+	// `a` binds to it rather than to the outer query's remote relation.
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT (SELECT a FROM cat1.db.r, local_no_a) FROM cat2.db.o"))
+	assertNoError(t, err)
+	sub, ok := q.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", q.TargetList[0].Expr)
+	}
+	v, ok := sub.Subquery.TargetList[0].Expr.(*VarExprQ)
+	if !ok || v.LevelsUp != 0 {
+		t.Fatalf("inner target = %+v, want a local reference with LevelsUp 0", sub.Subquery.TargetList[0].Expr)
+	}
+	if rte := sub.Subquery.RangeTable[v.RangeIdx]; rte.TableName != "r" {
+		t.Errorf("inner target binds to %q, want r", rte.TableName)
+	}
+}
+
+func TestCorrelatedFullJoinKeyKeepsCoalesce(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_corr_key AS SELECT (SELECT id) AS id FROM l FULL JOIN r USING (id);
+	`)
+
+	vq := c.GetDatabase("testdb").Views["v_corr_key"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_corr_key to have AnalyzedQuery")
+	}
+	sub, ok := vq.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", vq.TargetList[0].Expr)
+	}
+	coalesce, ok := sub.Subquery.TargetList[0].Expr.(*CoalesceExprQ)
+	if !ok {
+		t.Fatalf("inner target = %T, want the merged *CoalesceExprQ", sub.Subquery.TargetList[0].Expr)
+	}
+	for _, arg := range coalesce.Args {
+		if v, ok := arg.(*VarExprQ); !ok || v.LevelsUp != 1 {
+			t.Fatalf("coalesce argument = %+v, want a variable one level up", arg)
+		}
+	}
+	if got, want := DeparseQuery(vq),
+		"select (select coalesce(`l`.`id`, `r`.`id`) as `id`) as `id` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_corr_key) =\n  %s\nwant\n  %s", got, want)
+	}
+	// View.Definition must also qualify the correlated key rather than leaving bare `id`.
+	if def := c.GetDatabase("testdb").Views["v_corr_key"].Definition; !strings.Contains(def, "coalesce(`l`.`id`,`r`.`id`)") {
+		t.Errorf("v_corr_key.Definition lost correlated coalesce: %s", def)
+	}
+}
+
+func TestRemoteViewMetadataAndMixedFullJoins(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (
+			a VARCHAR(10) NOT NULL COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) NOT NULL COLLATE utf8mb4_unicode_ci
+		);
+		-- Remote relations (catalog or dblink) must not inherit local t's NOT NULL or collations.
+		CREATE VIEW v_remote_alias AS SELECT x.a FROM cat.db.t AS x WHERE x.a = x.b;
+		CREATE VIEW v_remote_both AS SELECT cat.other.t.a FROM t, cat.other.t WHERE cat.other.t.a = cat.other.t.b;
+		CREATE VIEW v_remote_star AS SELECT * FROM cat.db.t;
+		CREATE VIEW v_over_remote_star AS SELECT unknown_col FROM v_remote_star;
+	`)
+
+	db := c.GetDatabase("testdb")
+	for _, name := range []string{"v_remote_alias", "v_remote_both"} {
+		v := db.Views[name]
+		if v == nil || len(v.ColumnMetadata) != 1 {
+			t.Fatalf("%s missing metadata: %+v", name, v)
+		}
+		if !v.ColumnMetadata[0].Nullable || v.ColumnMetadata[0].Collation != "" {
+			t.Errorf("%s inherited local table metadata: %+v", name, v.ColumnMetadata[0])
+		}
+	}
+
+	// Mixed local + remote star must not silently drop remote columns in AnalyzedQuery.
+	wtExec(t, c, `CREATE VIEW v_mixed_star AS SELECT * FROM t, cat.db.remote_u`)
+	if db.Views["v_mixed_star"].AnalyzedQuery != nil {
+		t.Errorf("expected nil AnalyzedQuery on mixed local+remote star, got %s", DeparseQuery(db.Views["v_mixed_star"].AnalyzedQuery))
+	}
+
+	// SELECT alias in ORDER BY / HAVING must win over soleUnknownColumnInChain.
+	wtExec(t, c, `CREATE VIEW v_remote_order_alias AS SELECT 1 AS x FROM cat.db.u ORDER BY x`)
+	if q := db.Views["v_remote_order_alias"].AnalyzedQuery; q != nil {
+		if got := DeparseQuery(q); strings.Contains(got, "`u`.`x`") {
+			t.Errorf("DeparseQuery hijacked SELECT alias x into remote column: %s", got)
+		}
+	}
+
+	// Outer LEFT JOIN over inner FULL JOIN resolves unqualified key to surviving left side,
+	// and GROUP BY / ORDER BY over FULL JOIN key analyze cleanly.
+	wtExec(t, c, `
+		CREATE TABLE ja (id INT, ax INT);
+		CREATE TABLE jb (id INT, bx INT);
+		CREATE TABLE jc (id INT, cx INT);
+		CREATE VIEW v_left_over_full AS SELECT id FROM ja LEFT JOIN (jb FULL JOIN jc USING (id)) USING (id);
+		CREATE VIEW v_full_group_order AS SELECT COUNT(*) AS cnt FROM jb FULL JOIN jc USING (id) GROUP BY id ORDER BY id;
+		CREATE VIEW v_right_then_full AS SELECT * FROM (ja RIGHT JOIN jb USING (id)) FULL JOIN jc USING (id);
+		CREATE VIEW v_row_grouping_set AS SELECT id, ax FROM ja GROUP BY GROUPING SETS ((id, ax), ());
+	`)
+	if got, want := DeparseQuery(db.Views["v_left_over_full"].AnalyzedQuery),
+		"select `ja`.`id` from `testdb`.`ja` left join `testdb`.`jb` full join `testdb`.`jc` using (`id`) using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_left_over_full) =\n  %s\nwant\n  %s", got, want)
+	}
+	if db.Views["v_full_group_order"].AnalyzedQuery == nil {
+		t.Fatal("expected v_full_group_order to analyze")
+	}
+	if got := DeparseQuery(db.Views["v_right_then_full"].AnalyzedQuery); !strings.Contains(got, "coalesce(`jb`.`id`, `jc`.`id`)") {
+		t.Errorf("v_right_then_full lost COALESCE(jb.id, jc.id): %s", got)
+	}
+	if db.Views["v_row_grouping_set"].AnalyzedQuery == nil {
+		t.Fatal("expected v_row_grouping_set to analyze")
+	}
 }

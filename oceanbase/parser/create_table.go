@@ -335,6 +335,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	start := p.pos()
 
+	// column_attribute's `ID INTNUM`, which pins the column's id and is no
+	// keyword of this lexer's.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		col.ID, col.HasID = id.Ival, true
+		return true, nil
+	}
+
 	switch p.cur.Type {
 	case kwNOT:
 		p.advance()
@@ -609,12 +619,17 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	//	SKIP_INDEX ( [MIN_MAX | SUM] [, {MIN_MAX | SUM}] ... )
 	//	CHUNK {n | 'size'}
 	//
-	// Known gap: ID n, which OceanBase parses and then refuses with 1064
-	// (simulate.tsv). Taking it waits for the catalog to refuse it too.
+	// ORIG_DEFAULT and CHUNK are kept: the server parses them and refuses to run
+	// them (1067 and 1235), which the catalog answers from these fields.
 	switch {
 	case p.isBareWord("ORIG_DEFAULT"):
 		p.advance()
-		return true, p.parseNowOrSignedLiteral()
+		value, err := p.parseNowOrSignedLiteralValue()
+		if err != nil {
+			return false, err
+		}
+		col.OrigDefault, col.HasOrigDefault = value, true
+		return true, nil
 	case p.isBareWord("SKIP_INDEX"):
 		p.advance()
 		if _, err := p.expect('('); err != nil {
@@ -640,6 +655,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
 			return false, p.syntaxErrorAtCur()
 		}
+		col.Chunk, col.HasChunk = p.cur.Str, true
 		p.advance()
 		return true, nil
 	}
@@ -677,37 +693,111 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 // Ref: now_or_signed_literal, cur_timestamp_func, opt_time_func_fsp_i and
 // signed_literal in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
 func (p *Parser) parseNowOrSignedLiteral() error {
-	fsp := func(required bool) error {
+	return p.parseNowOrSignedLiteralInto(nil)
+}
+
+// parseNowOrSignedLiteralValue reads now_or_signed_literal and returns it as an
+// expression, for a caller that keeps the value.
+func (p *Parser) parseNowOrSignedLiteralValue() (nodes.ExprNode, error) {
+	var value nodes.ExprNode
+	if err := p.parseNowOrSignedLiteralInto(&value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+// parseNowOrSignedLiteralInto reads now_or_signed_literal, storing the
+// expression it reads in *out where the caller wants it.
+func (p *Parser) parseNowOrSignedLiteralInto(out *nodes.ExprNode) error {
+	// fspArg reads the precision a call writes, which the retained expression
+	// keeps as its argument: `ORIG_DEFAULT NOW(3)` and `ORIG_DEFAULT NOW()` are
+	// different clauses.
+	fspArg := func(required bool) (nodes.ExprNode, error) {
 		if p.cur.Type != '(' {
 			if required {
-				return p.syntaxErrorAtCur()
+				return nil, p.syntaxErrorAtCur()
 			}
-			return nil
+			return nil, nil
 		}
 		p.advance()
+		var arg nodes.ExprNode
 		if p.cur.Type == tokICONST {
+			arg = &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str}
 			p.advance()
 		}
-		_, err := p.expect(')')
-		return err
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return arg, nil
 	}
 	switch {
 	case p.cur.Type == '+' || p.cur.Type == '-':
+		start := p.pos()
+		op := nodes.UnaryPlus
+		if p.cur.Type == '-' {
+			op = nodes.UnaryMinus
+		}
 		p.advance()
 		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 			return p.syntaxErrorAtCur()
 		}
+		if out != nil {
+			// The literal keeps its kind: a decimal stays a FloatLit, whose text
+			// deparses as written, and the sign is the one written.
+			var operand nodes.ExprNode
+			if p.cur.Type == tokFCONST {
+				operand = &nodes.FloatLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Str}
+			} else {
+				operand = &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str}
+			}
+			*out = &nodes.UnaryExpr{
+				Loc:     nodes.Loc{Start: start, End: p.cur.End},
+				Op:      op,
+				Operand: operand,
+			}
+		}
 		p.advance()
 		return nil
 	case p.isBareWord("NOW"):
+		start := p.pos()
 		p.advance()
-		return fsp(true)
+		arg, err := fspArg(true)
+		if err != nil {
+			return err
+		}
+		if out != nil {
+			call := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NOW", HasParens: true}
+			if arg != nil {
+				call.Args = []nodes.ExprNode{arg}
+			}
+			*out = call
+		}
+		return nil
 	case p.isBareWord("CURRENT_TIMESTAMP"), p.isBareWord("LOCALTIME"), p.isBareWord("LOCALTIMESTAMP"):
+		start := p.pos()
+		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		return fsp(false)
+		arg, err := fspArg(false)
+		if err != nil {
+			return err
+		}
+		if out != nil {
+			call := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, HasParens: p.byteAt(p.prev.Loc) == ')'}
+			if arg != nil {
+				call.Args = []nodes.ExprNode{arg}
+			}
+			*out = call
+		}
+		return nil
 	}
-	_, err := p.parseLiteralOnly()
-	return err
+	lit, err := p.parseLiteralOnly()
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		*out = lit
+	}
+	return nil
 }
 
 // refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value, as the
@@ -912,6 +1002,16 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = true
 	}
 
+	// generated_column_attribute's `ID INTNUM`.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		gen.ID, gen.HasID = id.Ival, true
+		gen.Loc.End = p.prev.End
+		return gen, nil
+	}
+
 	gen.Loc.End = p.prev.End
 	return gen, nil
 }
@@ -954,6 +1054,16 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
+	}
+
+	// generated_column_attribute's `ID INTNUM`.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		gen.ID, gen.HasID = id.Ival, true
+		gen.Loc.End = p.prev.End
+		return gen, nil
 	}
 
 	gen.Loc.End = p.prev.End
@@ -1024,8 +1134,12 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		}
 
 	case kwFOREIGN:
+		// FOREIGN KEY is both words: `CONSTRAINT FOREIGN(a) REFERENCES a(a)`
+		// and `FOREIGN(a) REFERENCES a(a)` are 1064s.
 		p.advance()
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		// Optional index name, kept apart from the CONSTRAINT symbol, which
 		// names the foreign key when given (see nodes.Constraint).
@@ -2112,11 +2226,11 @@ func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error)
 		}
 	}
 
-	// opt_range_partition_info: SIZE ('size') before RANGE's partition list. Known
-	// gap: ALTER TABLE takes it too, and OceanBase then refuses it with 1064 after
-	// parsing (simulate.tsv), which the catalog does not yet; until it does, only
-	// CREATE TABLE reads it here.
-	if auto && part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
+	// opt_range_partition_info: SIZE ('size') before RANGE's partition list, which
+	// CREATE TABLE and ALTER TABLE both take. OceanBase refuses the ALTER TABLE
+	// form later with 1064 after parsing it (simulate.tsv), which is no syntax
+	// error.
+	if part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
 		size, err := p.parseSplitSize()
 		if err != nil {
 			return nil, err
@@ -2184,7 +2298,7 @@ func (p *Parser) parseEmptyRangeTail(part *nodes.PartitionClause, auto, columns 
 		part.NumParts = int(p.cur.Ival)
 		p.advance()
 	}
-	if auto && p.isBareWord("SIZE") { // only in CREATE TABLE, as above
+	if p.isBareWord("SIZE") {
 		size, err := p.parseSplitSize()
 		if err != nil {
 			return nil, err

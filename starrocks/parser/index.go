@@ -59,40 +59,38 @@ func (p *Parser) parseCreateIndex(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Optional clauses: USING, COMMENT, PROPERTIES (in any order, each at most once).
+	// (indexType propertyList?)? comment? (StarRocks.g4:2255). The property
+	// list belongs to the index type and follows it without the PROPERTIES
+	// keyword; a PROPERTIES clause is not in the rule, and the server refuses
+	// both it and a second list after the type's own.
 	var indexType string
 	var comment string
 	var properties []*ast.Property
 
-	for {
-		switch p.cur.Kind {
-		case kwUSING:
-			p.advance()
-			typeTok := p.cur
-			if !isIndexTypeToken(typeTok.Kind) {
-				return nil, p.syntaxErrorAtCur()
-			}
-			// Normalize to lowercase for case-insensitive comparison.
-			indexType = strings.ToLower(typeTok.Str)
-			p.advance()
-			continue
-		case kwCOMMENT:
-			p.advance()
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			comment = p.cur.Str
-			p.advance()
-			continue
-		case kwPROPERTIES:
-			var err error
-			properties, err = p.parseProperties()
+	if p.cur.Kind == kwUSING {
+		p.advance() // consume USING
+		typeTok := p.cur
+		if !isIndexTypeToken(typeTok.Kind) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// Normalize to lowercase for case-insensitive comparison.
+		indexType = strings.ToLower(typeTok.Str)
+		p.advance()
+		if p.cur.Kind == int('(') {
+			props, err := p.parsePropertyList()
 			if err != nil {
 				return nil, err
 			}
-			continue
+			properties = props
 		}
-		break
+	}
+	if p.cur.Kind == kwCOMMENT {
+		p.advance() // consume COMMENT
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		comment = p.cur.Str
+		p.advance()
 	}
 
 	endLoc := p.prev.Loc

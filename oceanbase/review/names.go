@@ -56,10 +56,18 @@ func table(ref *ast.TableRef) string {
 	if ref == nil {
 		return ""
 	}
-	if ref.Schema != "" {
-		return ident(ref.Schema) + "." + ident(ref.Name)
+	var out string
+	if ref.Catalog != "" {
+		out = ident(ref.Catalog) + "."
 	}
-	return ident(ref.Name)
+	if ref.Schema != "" || ref.Catalog != "" {
+		out += ident(ref.Schema) + "."
+	}
+	out += ident(ref.Name)
+	if ref.Dblink != "" {
+		out += "@" + ref.Dblink
+	}
+	return out
 }
 
 // tables writes each of a list of table references.
@@ -95,7 +103,7 @@ func tableExprs(exprs []ast.TableExpr) []string {
 // matches them, write its name and its database, or the lack of one,
 // alike.
 func sameCase(a, b *ast.TableRef) bool {
-	return a.Name == b.Name && a.Schema == b.Schema
+	return a.Name == b.Name && a.Schema == b.Schema && a.Catalog == b.Catalog && a.Dblink == b.Dblink
 }
 
 // sameName reports whether two names may name the same object. MySQL
@@ -112,6 +120,9 @@ func sameName(a, b string) bool {
 // the change may have moved, so it matches a reference of any database.
 func sameTable(a, b *ast.TableRef) bool {
 	if a == nil || b == nil || !sameName(a.Name, b.Name) {
+		return false
+	}
+	if !sameName(a.Catalog, b.Catalog) || !sameName(a.Dblink, b.Dblink) {
 		return false
 	}
 	return a.Schema == "" || b.Schema == "" || sameName(a.Schema, b.Schema)

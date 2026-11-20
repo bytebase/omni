@@ -100,6 +100,38 @@ type Catalog struct {
 	// baseline a member's comment is compared with.
 	extensionComments map[commentKey]string
 
+	// Tablespaces: the two the server starts with and the ones CREATE
+	// TABLESPACE names.
+	tablespaces      map[string]bool
+	tablespaceOwners map[string]string
+	databaseName     string
+	databaseOwners   map[string]string
+	// typeOwners maps a user-defined type OID to its owner role. Composite
+	// types are owned through their backing relation instead.
+	typeOwners map[uint32]string
+	// operatorOwners maps a user-defined operator OID to its owner role.
+	operatorOwners map[uint32]string
+	// operatorSchemas maps a user-defined operator OID to the namespace it
+	// was created in, so a qualified ALTER OPERATOR finds the right one.
+	operatorSchemas map[uint32]uint32
+	// extensionCasts records the casts an extension script created, which
+	// carry no object OID of their own to fall in extensionMembers.
+	extensionCasts map[castKey]string
+	// roles are the role names the catalog knows. CREATE ROLE records one;
+	// a snapshot carries none, so an unknown role may still exist there.
+	roles map[string]bool
+	// defaultTablespace is the session's default_tablespace setting, "" for
+	// the database default.
+	defaultTablespace string
+	// defaultTableAccessMethod is the session's default_table_access_method
+	// setting, "" for the server default (heap).
+	defaultTableAccessMethod string
+	// snapshot marks a catalog loaded from a live schema. A snapshot carries
+	// no tablespace or access-method objects, so a name it does not hold may
+	// still exist on the server the snapshot came from.
+	snapshot           bool
+	installingSnapshot bool
+
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod
 	accessMethodByName map[string]*AccessMethod
@@ -171,6 +203,14 @@ func New() *Catalog {
 		extByName:          make(map[string]*Extension),
 		extensionMembers:   make(map[uint32]string),
 		extensionComments:  make(map[commentKey]string),
+		tablespaces:        map[string]bool{"pg_default": true, "pg_global": true},
+		tablespaceOwners:   make(map[string]string),
+		databaseOwners:     make(map[string]string),
+		typeOwners:         make(map[uint32]string),
+		operatorOwners:     make(map[uint32]string),
+		operatorSchemas:    make(map[uint32]uint32),
+		extensionCasts:     make(map[castKey]string),
+		roles:              map[string]bool{"postgres": true},
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),
 		opFamilies:         make(map[uint32]*OpFamily),
@@ -214,6 +254,7 @@ func New() *Catalog {
 	// Register built-in access methods using PG's real OIDs.
 	// pg: src/include/catalog/pg_am.dat
 	for _, am := range []AccessMethod{
+		{OID: 2, Name: "heap", Type: 't'},
 		{OID: 403, Name: "btree", Type: 'i'},
 		{OID: 405, Name: "hash", Type: 'i'},
 		{OID: 783, Name: "gist", Type: 'i'},
@@ -333,6 +374,9 @@ func (c *Catalog) GetRelation(schema, name string) *Relation {
 func (c *Catalog) SetSessionUser(name string) {
 	c.sessionUser = name
 	c.currentUser = name
+	if c.roles != nil {
+		c.roles[name] = true
+	}
 }
 
 // SetRole changes the current user to the given role name.

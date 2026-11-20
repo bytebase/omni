@@ -292,6 +292,19 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.truncateTable(s)
 	case *nodes.UseStmt:
 		return c.useDatabase(s)
+	case *nodes.FlashbackStmt:
+		// Restoring an object out of the recycle bin needs the recycle bin's
+		// state, which this catalog does not hold: reporting success would leave
+		// the statements after it in a catalog without the restored table.
+		return errNotSupported("flashback")
+	case *nodes.CatalogStmt:
+		// SET CATALOG switches the session to another catalog's database, which
+		// this catalog does not model: reporting success would leave the
+		// statements after it in the local catalog.
+		if s.Action == "SET" {
+			return errNotSupported("catalog")
+		}
+		return nil
 	case *nodes.CreateFunctionStmt:
 		return c.createRoutine(s)
 	case *nodes.DropRoutineStmt:
@@ -397,6 +410,18 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.TruncateStmt:
 		return s.Loc.Start
 	case *nodes.UseStmt:
+		return s.Loc.Start
+	case *nodes.PurgeStmt:
+		return s.Loc.Start
+	case *nodes.FlashbackStmt:
+		return s.Loc.Start
+	case *nodes.DumpMemoryStmt:
+		return s.Loc.Start
+	case *nodes.RestorePointStmt:
+		return s.Loc.Start
+	case *nodes.CatalogStmt:
+		return s.Loc.Start
+	case *nodes.DatabaseLinkStmt:
 		return s.Loc.Start
 	case *nodes.CreateFunctionStmt:
 		return s.Loc.Start

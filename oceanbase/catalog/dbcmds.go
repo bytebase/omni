@@ -52,6 +52,12 @@ func (c *Catalog) dropDatabase(stmt *nodes.DropDatabaseStmt) error {
 }
 
 func (c *Catalog) useDatabase(stmt *nodes.UseStmt) error {
+	// `USE catalog.db` selects a database of another catalog, which this catalog
+	// does not hold: switching to the local database of that name would put the
+	// statements that follow in the wrong place.
+	if stmt.Catalog != "" {
+		return errNotSupported("catalog")
+	}
 	name := stmt.Database
 	key := toLower(name)
 	if c.databases[key] == nil {

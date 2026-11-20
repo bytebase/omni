@@ -16,17 +16,21 @@ import (
 
 // parseBackup parses (StarRocks.g4:1765 backupStatement):
 //
-//	BACKUP SNAPSHOT [db.]label TO repo_name
+//	BACKUP [ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierList]
+//	    [DATABASE name]
+//	    SNAPSHOT [db.]label TO repo_name
 //	    [ON (backupRestoreObjectDesc [, ...])]
 //	    [PROPERTIES("key"="value", ...)]
 //
-// On entry, cur is SNAPSHOT (BACKUP was consumed by the dispatch).
+// On entry, BACKUP was consumed by the dispatch.
 func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
+	stmt := &ast.BackupStmt{}
+	if _, err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database, false); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(kwSNAPSHOT); err != nil {
 		return nil, err
 	}
-
-	stmt := &ast.BackupStmt{}
 
 	// [db.]label — parse as multipart identifier
 	labelName, err := p.parseMultipartIdentifier()
@@ -36,6 +40,10 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Label = labelName.String()
 	stmt.LabelParts = labelName.Parts
 	endLoc := ast.NodeLoc(labelName)
+
+	if err := p.checkSnapshotLabelScope(labelName, stmt.Database, stmt.AllExternalCatalogs, stmt.ExternalCatalogs); err != nil {
+		return nil, err
+	}
 
 	// TO repo_name
 	if _, err := p.expect(kwTO); err != nil {
@@ -48,8 +56,15 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (object_list)
+	// Optional ON (object_list). An external-catalog backup takes none: "Can
+	// not sepcify `ON` clause for external catalog".
 	if p.cur.Kind == kwON {
+		if stmt.AllExternalCatalogs || len(stmt.ExternalCatalogs) > 0 {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "an external catalog backup takes no ON clause",
+			}
+		}
 		p.advance() // consume ON
 		tables, loc, err := p.parseBackupObjectList(false)
 		if err != nil {
@@ -261,7 +276,9 @@ func (p *Parser) skipBackupPartitionNames() error {
 
 // parseRestore parses (StarRocks.g4:1780 restoreStatement):
 //
-//	RESTORE SNAPSHOT [db.]label FROM repo_name
+//	RESTORE SNAPSHOT label FROM repo_name
+//	    [ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierWithAliasList]
+//	    [DATABASE name [AS alias]]
 //	    [ON (backupRestoreObjectDesc [, ...])]
 //	    [PROPERTIES("key"="value", ...)]
 //
@@ -295,12 +312,45 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (object_list)
+	// ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierWithAliasList
+	scopeLoc, err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database, true)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.checkSnapshotLabelScope(labelName, stmt.Database, stmt.AllExternalCatalogs, stmt.ExternalCatalogs); err != nil {
+		return nil, err
+	}
+	if scopeLoc.IsValid() {
+		endLoc = scopeLoc
+	}
+	// The alias is DATABASE's own: `RESTORE SNAPSHOT s FROM r AS x` is a
+	// syntax error on the pinned server.
+	if stmt.Database != "" && p.cur.Kind == kwAS {
+		p.advance() // consume AS
+		alias, aliasLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.DatabaseAlias = alias
+		endLoc = aliasLoc
+	}
+
+	// Optional ON (object_list). An external-catalog restore takes none: the
+	// AST builder refuses it.
+	if p.cur.Kind == kwON && (stmt.AllExternalCatalogs || len(stmt.ExternalCatalogs) > 0) {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "an external catalog restore takes no ON clause",
+		}
+	}
 	if p.cur.Kind == kwON {
-		if len(labelName.Parts) < 2 {
+		// "`ON` clause is forbidden if no Database explicitly specified in
+		// Restore stmt.": a DATABASE clause names it, and so does a database
+		// in the label (`RESTORE SNAPSHOT db.s FROM r ON(t)` is accepted).
+		if len(labelName.Parts) < 2 && stmt.Database == "" {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "RESTORE with ON needs the database in the snapshot label",
+				Message: "RESTORE with ON needs a database, in the label or a DATABASE clause",
 			}
 		}
 		p.advance()
@@ -326,6 +376,104 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
+}
+
+// parseBackupScope parses the optional scope BACKUP and RESTORE share, and
+// returns the Loc of its last token (NoLoc when nothing was read):
+//
+//	(ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierList) [DATABASE name]
+//
+// BACKUP lists the catalogs as identifierList; RESTORE leaves the '(' list to
+// the caller, so this reads identifierWithAliasList there through the same
+// parenthesized form.
+func (p *Parser) parseBackupScope(all *bool, catalogs *[]*ast.ExternalCatalogRef, database *string, aliasable bool) (ast.Loc, error) {
+	endLoc := ast.NoLoc()
+	switch p.cur.Kind {
+	case kwALL:
+		p.advance() // consume ALL
+		if _, err := p.expect(kwEXTERNAL); err != nil {
+			return ast.NoLoc(), err
+		}
+		catalogsTok, err := p.expect(kwCATALOGS)
+		if err != nil {
+			return ast.NoLoc(), err
+		}
+		*all = true
+		endLoc = catalogsTok.Loc
+	case kwEXTERNAL:
+		p.advance() // consume EXTERNAL
+		if p.cur.Kind != kwCATALOG && p.cur.Kind != kwCATALOGS {
+			return ast.NoLoc(), p.syntaxErrorAtCur()
+		}
+		p.advance() // consume CATALOG/CATALOGS
+		if _, err := p.expect(int('(')); err != nil {
+			return ast.NoLoc(), err
+		}
+		for {
+			name, nameLoc, err := p.parseIdentifier()
+			if err != nil {
+				return ast.NoLoc(), err
+			}
+			entry := &ast.ExternalCatalogRef{Name: name, Loc: nameLoc}
+			// Only restoreStatement's identifierWithAliasList takes an alias;
+			// the server refuses `BACKUP EXTERNAL CATALOG(a AS b)`.
+			if aliasable && p.cur.Kind == kwAS {
+				p.advance() // consume AS
+				alias, aliasLoc, err := p.parseIdentifier()
+				if err != nil {
+					return ast.NoLoc(), err
+				}
+				entry.Alias = alias
+				entry.Loc = nameLoc.Merge(aliasLoc)
+			}
+			*catalogs = append(*catalogs, entry)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return ast.NoLoc(), err
+		}
+		endLoc = closeTok.Loc
+	}
+	if p.cur.Kind == kwDATABASE {
+		// The database is one scope: "Can not sepcify database name for
+		// external catalog Backup/Restore."
+		if *all || len(*catalogs) > 0 {
+			return ast.NoLoc(), &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "an external catalog snapshot takes no DATABASE clause",
+			}
+		}
+		p.advance() // consume DATABASE
+		name, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return ast.NoLoc(), err
+		}
+		*database = name
+		endLoc = nameLoc
+	}
+	return endLoc, nil
+}
+
+// checkSnapshotLabelScope refuses a snapshot label that names a database beside
+// another scope that names one: the DATABASE clause ("Specifying dbName before
+// snapshot name is forbidden if the DbName is specified in backup statement")
+// and an external-catalog selection ("Can not sepcify database name for
+// external catalog Backup/Restore") both take the database the label holds.
+func (p *Parser) checkSnapshotLabelScope(label *ast.ObjectName, database string, allCatalogs bool, catalogs []*ast.ExternalCatalogRef) error {
+	if len(label.Parts) < 2 {
+		return nil
+	}
+	if database != "" || allCatalogs || len(catalogs) > 0 {
+		return &ParseError{
+			Position: label.Loc.Start, End: label.Loc.End,
+			Message: "the snapshot label names a database the statement's scope already names",
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

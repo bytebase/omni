@@ -41,6 +41,11 @@ type Table struct {
 	EngineOptions []EngineOption
 	Partitioning  *PartitionInfo
 
+	// TablespaceDiscarded is ALTER TABLE ... DISCARD TABLESPACE's effect: the
+	// table's tablespace file is gone, so IMPORT TABLESPACE answers 1030
+	// ("Tablespace is missing") instead of 1813. Measured on mariadb:11.8.8.
+	TablespaceDiscarded bool
+
 	// System versioning (MariaDB temporal). SystemVersioned is set by
 	// WITH SYSTEM VERSIONING or by any versioned/period column.
 	SystemVersioned bool
@@ -329,6 +334,7 @@ func cloneTable(src *Table) Table {
 	for i, si := range src.Indexes {
 		idx := *si
 		idx.Table = src // keep pointing to the original table pointer
+		idx.EngineOptions = append([]string(nil), si.EngineOptions...)
 		cols := make([]*IndexColumn, len(si.Columns))
 		for j, sc := range si.Columns {
 			ic := *sc

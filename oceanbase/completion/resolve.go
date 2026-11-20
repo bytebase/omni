@@ -189,7 +189,15 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 
 	seen := make(map[string]bool)
 	var result []Candidate
+	// localRefs counts the references this catalog can answer for: a remote
+	// one offers nothing, and its presence alone is no reason to fall back to
+	// every local column.
+	localRefs := 0
 	for _, ref := range refs {
+		if ref.Remote {
+			continue
+		}
+		localRefs++
 		// Resolve table in the appropriate database.
 		targetDB := db
 		if ref.Database != "" {
@@ -223,9 +231,9 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 			}
 		}
 	}
-	// If we found refs but couldn't resolve any columns (e.g. CTE name not
+	// If we found local refs but couldn't resolve any columns (e.g. CTE name not
 	// matching any catalog table), fall back to all columns.
-	if len(result) == 0 {
+	if len(result) == 0 && localRefs > 0 {
 		return resolveColumnRef(cat)
 	}
 	return result

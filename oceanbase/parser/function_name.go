@@ -71,9 +71,10 @@ visible wait warnings window without work wrapper x509 xa xid xml zone
 // here: it is in keywordsNotFunctionNames, which the quoted and qualified forms keep
 // accepting as that list's tests require.
 var keywordCallsRefused = wordSet(`
-arbitration calibration checkpoint gts id isolate line_delimiter maximize
-micro_index_clustered minor move multivalue policy pool time_unit times
-tp_name trim_space verbose
+allow api_mode arbitration calibration checkpoint collect_statistics_on_create
+cycle decryption encrypted gts id isolate line_delimiter maximize
+micro_index_clustered minor move multivalue policy pool roaringbitmap root
+successful time_unit times tp_name trim_space ttl valid verbose
 `)
 
 func wordSet(words string) map[string]bool {

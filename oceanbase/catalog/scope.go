@@ -7,18 +7,37 @@ import (
 	"github.com/bytebase/omni/oceanbase/scope"
 )
 
+type rteColKey struct {
+	rteIdx int
+	col    string
+}
+
 // analyzerScope wraps scope.Scope and adds analyzer-specific features:
 // parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	base   *scope.Scope
-	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
-	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	parent *analyzerScope
+	base        *scope.Scope
+	rteMap      []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	rteEntryIdx map[int]int // RTE index -> entry index in base
+	cols        [][]*Column // parallel to base entries: entry index -> catalog Column pointers
+	parent      *analyzerScope
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.
 	firstByName map[string]int
 	indexed     int
+
+	// quals records each relation in scope with its catalog/schema qualifiers,
+	// preserving duplicates and remote relations whose columns are unknown.
+	quals      []rteQualifier
+	hasUnknown bool
+
+	// fullJoinExprs maps `(rteIdx, loweredColumn)` to the expression a FULL
+	// join's merged key takes: COALESCE(left, right), nested as the joins nest.
+	fullJoinExprs map[rteColKey]AnalyzedExpr
+
+	// fullJoinByColumn maps a lowered merged key's name to the RTE index whose
+	// star expansion and unqualified references carry the merged expression.
+	fullJoinByColumn map[string]int
 
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
@@ -103,17 +122,243 @@ func newScopeWithParent(parent *analyzerScope) *analyzerScope {
 	}
 }
 
-// markCoalesced marks a column from a table as coalesced (hidden during star expansion).
-func (s *analyzerScope) markCoalesced(tableName, colName string) {
-	s.base.MarkCoalesced(tableName, colName)
+// addFullJoinExpr records the expression a FULL join's merged column takes in
+// the star expansion of a scope entry (identified by rteIdx).
+func (s *analyzerScope) addFullJoinExpr(rteIdx int, column string, expr AnalyzedExpr) {
+	if s.fullJoinExprs == nil {
+		s.fullJoinExprs = map[rteColKey]AnalyzedExpr{}
+	}
+	if s.fullJoinByColumn == nil {
+		s.fullJoinByColumn = map[string]int{}
+	}
+	lowerCol := strings.ToLower(column)
+	s.fullJoinExprs[rteColKey{rteIdx: rteIdx, col: lowerCol}] = expr
+	s.fullJoinByColumn[lowerCol] = rteIdx
 }
 
-// isCoalesced returns true if the given table.column is coalesced away by USING/NATURAL.
-func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
-	return s.base.IsCoalesced(tableName, colName)
+func (s *analyzerScope) setFullJoinColumn(column string, rteIdx int) {
+	if s.fullJoinByColumn == nil {
+		s.fullJoinByColumn = map[string]int{}
+	}
+	s.fullJoinByColumn[strings.ToLower(column)] = rteIdx
 }
 
-// add registers a table reference in the scope.
+func (s *analyzerScope) clearFullJoinColumn(column string) {
+	if s.fullJoinByColumn != nil {
+		delete(s.fullJoinByColumn, strings.ToLower(column))
+	}
+}
+
+// fullJoinColumn returns the merged expression a FULL join gives an
+// unqualified key of that name, if the scope holds one.
+func (s *analyzerScope) fullJoinColumn(column string) (AnalyzedExpr, bool) {
+	rteIdx, ok := s.fullJoinByColumn[strings.ToLower(column)]
+	if !ok {
+		return nil, false
+	}
+	return s.fullJoinExpr(rteIdx, column)
+}
+
+// ancestor returns the scope levels queries out, or nil.
+func (s *analyzerScope) ancestor(levels int) *analyzerScope {
+	cur := s
+	for i := 0; i < levels && cur != nil; i++ {
+		cur = cur.parent
+	}
+	return cur
+}
+
+// rebaseFullJoinColumn returns the merged FULL-join expression of a key that a
+// column reference resolved to levels scopes out, with the expression's own
+// variables lifted by those levels: `SELECT (SELECT id) FROM l FULL JOIN r
+// USING(id)` reads the outer key's COALESCE through the correlation.
+func (s *analyzerScope) rebaseFullJoinColumn(column string, levels, rteIdx int) (AnalyzedExpr, bool) {
+	if levels <= 0 {
+		return nil, false
+	}
+	owner := s.ancestor(levels)
+	if owner == nil {
+		return nil, false
+	}
+	merged, ok := owner.fullJoinExpr(rteIdx, column)
+	if !ok {
+		// If an outer FULL join sits above another surviving branch, check
+		// fullJoinColumn only when rteIdx is the owner's surviving FULL key.
+		merged, ok = owner.fullJoinColumn(column)
+		if !ok || owner.fullJoinByColumn[strings.ToLower(column)] != rteIdx {
+			return nil, false
+		}
+	}
+	return rebaseAnalyzedLevels(merged, levels), true
+}
+
+// fullJoinExpr returns the expression a FULL join's merged column takes in the
+// star expansion of that RTE and column, if the scope holds one.
+func (s *analyzerScope) fullJoinExpr(rteIdx int, column string) (AnalyzedExpr, bool) {
+	expr, ok := s.fullJoinExprs[rteColKey{rteIdx: rteIdx, col: strings.ToLower(column)}]
+	return expr, ok
+}
+
+// markCoalescedRTE marks a column on an RTE as coalesced (hidden during star expansion).
+func (s *analyzerScope) markCoalescedRTE(rteIdx int, colName string) {
+	if entryIdx, ok := s.rteEntryIdx[rteIdx]; ok {
+		s.base.MarkCoalescedEntry(entryIdx, colName)
+	}
+}
+
+// isCoalescedRTE returns true if the given RTE's column is coalesced away by USING/NATURAL.
+func (s *analyzerScope) isCoalescedRTE(rteIdx int, colName string) bool {
+	if entryIdx, ok := s.rteEntryIdx[rteIdx]; ok {
+		return s.base.IsCoalescedEntry(entryIdx, colName)
+	}
+	return false
+}
+
+type rteQualifier struct {
+	catalog  string
+	schema   string
+	name     string // effective reference name (alias if present, else table name)
+	hasAlias bool
+	unknown  bool
+	rteIdx   int
+	entryIdx int // index in cols when !unknown, -1 when unknown
+}
+
+// addRelation registers a base, view or remote relation in the scope, keeping
+// its catalog and schema qualifiers so qualified references distinguish
+// `c1.d.t` from `c2.d.t` and never overwrite a local table of the same name.
+func (s *analyzerScope) addRelation(rte *RangeTableEntryQ, rteIdx int, columns []*Column, unknown bool) {
+	if unknown {
+		s.hasUnknown = true
+		s.quals = append(s.quals, rteQualifier{
+			catalog:  rte.Catalog,
+			schema:   rte.DBName,
+			name:     rte.ERef,
+			hasAlias: rte.Alias != "",
+			unknown:  true,
+			rteIdx:   rteIdx,
+			entryIdx: -1,
+		})
+		return
+	}
+	s.add(rte.ERef, rteIdx, columns)
+	q := &s.quals[len(s.quals)-1]
+	q.catalog = rte.Catalog
+	q.schema = rte.DBName
+	q.hasAlias = rte.Alias != ""
+}
+
+// soleUnknownColumnRTE returns the RTE index of a relation whose columns are
+// unknown when it is the only scope entry: an unqualified column then belongs to
+// it, and any other entry would make the name ambiguous.
+func (s *analyzerScope) soleUnknownColumnRTE() (int, bool) {
+	if len(s.quals) == 1 && s.quals[0].unknown {
+		return s.quals[0].rteIdx, true
+	}
+	return 0, false
+}
+
+// soleUnknownColumnInChain returns the RTE index of the only relation whose
+// columns are unknown, searching this scope and then the queries around it, and
+// how many scopes out it sits. `SELECT (SELECT a) FROM cat.db.t` reads the
+// remote relation's a through the correlation, so an unqualified name no scope
+// resolves belongs to it.
+//
+// Resolution stops at the nearest scope that holds a relation whose columns are
+// unknown: with two of them the name is ambiguous, and with one it belongs to
+// that one rather than to a relation of an enclosing query. A nearer unknown
+// relation therefore never yields to an outer one.
+func (s *analyzerScope) soleUnknownColumnInChain() (int, int, bool) {
+	for cur, levels := s, 0; cur != nil; cur, levels = cur.parent, levels+1 {
+		var idx int
+		unknowns := 0
+		for _, q := range cur.quals {
+			if q.unknown {
+				if unknowns == 0 {
+					idx = q.rteIdx
+				}
+				unknowns++
+			}
+		}
+		switch unknowns {
+		case 0:
+			continue
+		case 1:
+			return idx, levels, true
+		default:
+			return 0, 0, false
+		}
+	}
+	return 0, 0, false
+}
+
+func (s *analyzerScope) hasUnknownInChain() bool {
+	for cur := s; cur != nil; cur = cur.parent {
+		if cur.hasUnknown {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveQualifiedRefFull resolves a table-qualified column reference
+// (`t.c`, `d.t.c` or `cat.d.t.c`), honoring catalog and schema qualifiers and
+// rejecting ambiguous matches across local and remote relations.
+func (s *analyzerScope) resolveQualifiedRefFull(catalog, schema, tableName, colName string) (*VarExprQ, error) {
+	if catalog == "" && schema == "" && !s.hasUnknownInChain() {
+		rteIdx, attNum, levelsUp, err := s.resolveQualifiedColumnFull(tableName, colName)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+	}
+
+	for cur, levelsUp := s, 0; cur != nil; cur, levelsUp = cur.parent, levelsUp+1 {
+		var matches []rteQualifier
+		for _, q := range cur.quals {
+			if !strings.EqualFold(q.name, tableName) {
+				continue
+			}
+			if catalog != "" {
+				if q.hasAlias || !strings.EqualFold(q.catalog, catalog) || !strings.EqualFold(q.schema, schema) {
+					continue
+				}
+			} else if schema != "" {
+				if q.hasAlias || !strings.EqualFold(q.schema, schema) {
+					continue
+				}
+			}
+			matches = append(matches, q)
+		}
+		if len(matches) > 1 {
+			return nil, s.unsure(&Error{
+				Code:     1052,
+				SQLState: "23000",
+				Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
+			})
+		}
+		if len(matches) == 1 {
+			m := matches[0]
+			if m.unknown {
+				return &VarExprQ{RangeIdx: m.rteIdx, Name: colName, LevelsUp: levelsUp}, nil
+			}
+			lowerCol := strings.ToLower(colName)
+			for j, c := range cur.cols[m.entryIdx] {
+				if strings.ToLower(c.Name) == lowerCol {
+					return &VarExprQ{RangeIdx: m.rteIdx, AttNum: j + 1, LevelsUp: levelsUp}, nil
+				}
+			}
+			return nil, s.unsure(errNoSuchColumn(colName, "field list"))
+		}
+	}
+
+	return nil, s.unsure(&Error{
+		Code:     ErrUnknownTable,
+		SQLState: sqlState(ErrUnknownTable),
+		Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+	})
+}
+
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	visible := make([]*Column, 0, len(columns))
 	for _, c := range columns {
@@ -125,9 +370,19 @@ func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	for i, c := range visible {
 		scopeCols[i] = scope.Column{Name: c.Name, Position: i + 1}
 	}
+	entryIdx := len(s.cols)
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
+	if s.rteEntryIdx == nil {
+		s.rteEntryIdx = make(map[int]int)
+	}
+	s.rteEntryIdx[rteIdx] = entryIdx
 	s.cols = append(s.cols, visible)
+	s.quals = append(s.quals, rteQualifier{
+		name:     name,
+		rteIdx:   rteIdx,
+		entryIdx: entryIdx,
+	})
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.
@@ -153,6 +408,13 @@ func (s *analyzerScope) resolveColumn(colName string) (int, int, error) {
 func (s *analyzerScope) resolveQualifiedColumn(tableName, colName string) (int, int, error) {
 	entryIdx, pos, err := s.base.ResolveQualifiedColumn(tableName, colName)
 	if err != nil {
+		if strings.Contains(err.Error(), "ambiguous") {
+			return 0, 0, &Error{
+				Code:     1052,
+				SQLState: "23000",
+				Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
+			}
+		}
 		if strings.Contains(err.Error(), "unknown table") {
 			return 0, 0, &Error{
 				Code:     ErrUnknownTable,

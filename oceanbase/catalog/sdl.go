@@ -226,8 +226,17 @@ func currentDBPerStatement(stmts []nodes.Node) []string {
 	out := make([]string, len(stmts))
 	current := ""
 	for i, stmt := range stmts {
-		if use, ok := stmt.(*nodes.UseStmt); ok {
-			current = use.Database
+		switch s := stmt.(type) {
+		case *nodes.UseStmt:
+			if s.Catalog != "" {
+				current = ""
+			} else {
+				current = s.Database
+			}
+		case *nodes.CatalogStmt:
+			if s.Action == "SET" {
+				current = ""
+			}
 		}
 		out[i] = current
 	}
@@ -284,7 +293,7 @@ func extractSDLDeps(stmts []nodes.Node) []sdlDep {
 func sdlRefs(stmt nodes.Node, currentDB string) []objectKey {
 	var refs []objectKey
 	add := func(ref *nodes.TableRef) {
-		if ref != nil && ref.Name != "" {
+		if ref != nil && ref.Name != "" && ref.Catalog == "" && ref.Dblink == "" {
 			refs = append(refs, resolveTableRef(ref, currentDB))
 		}
 	}
@@ -374,6 +383,9 @@ func collectQueryTableRefs(sel *nodes.SelectStmt, outer map[string]bool, refs *[
 				return false
 			}
 		case *nodes.TableRef:
+			if node.Catalog != "" || node.Dblink != "" {
+				return true
+			}
 			// Only unqualified references can match a CTE name; a schema-qualified
 			// reference always denotes a real object.
 			if node.Schema == "" && visible[toLower(node.Name)] {

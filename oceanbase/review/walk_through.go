@@ -495,7 +495,7 @@ const (
 
 // ref resolves a table reference's database and name.
 func (b *builder) ref(tr *ast.TableRef) (tableRef, refState) {
-	if tr == nil {
+	if tr == nil || tr.Catalog != "" || tr.Dblink != "" {
 		return tableRef{}, refUnknown
 	}
 	r := tableRef{written: table(tr), rng: rangeOf(tr.Loc)}
@@ -595,6 +595,9 @@ func (b *builder) callsStoredFunction(n ast.Node) bool {
 // mayBeView reports whether a table reference may name a view: anything
 // but a temporary table or a base table the walk knows.
 func (b *builder) mayBeView(tr *ast.TableRef) bool {
+	if tr == nil || tr.Catalog != "" || tr.Dblink != "" {
+		return true
+	}
 	name, ok := b.key(spaceRelation, tr.Name)
 	if !ok {
 		return true

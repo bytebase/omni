@@ -3,25 +3,24 @@ package ast
 // This file holds DDL AST node types for CATALOG statements (T5.2).
 //
 // Supported forms:
-//   CREATE [EXTERNAL] CATALOG [IF NOT EXISTS] name [COMMENT '...'] [PROPERTIES(...)] [WITH RESOURCE name]
-//   ALTER CATALOG name { RENAME new_name | SET PROPERTIES (...) | MODIFY COMMENT 'text' | PROPERTY (...) }
+//   CREATE EXTERNAL CATALOG [IF NOT EXISTS] name [COMMENT '...'] PROPERTIES(...)
+//   ALTER CATALOG name SET (property, ...)
 //   DROP CATALOG [IF EXISTS] name
 //   REFRESH CATALOG name [PROPERTIES(...)]
 
-// CreateCatalogStmt represents:
+// CreateCatalogStmt represents createExternalCatalogStatement
+// (StarRocks.g4:760):
 //
-//	CREATE [EXTERNAL] CATALOG [IF NOT EXISTS] catalog_name
+//	CREATE EXTERNAL CATALOG [IF NOT EXISTS] catalog_name
 //	    [COMMENT 'comment']
-//	    [PROPERTIES ("key"="value", ...)]
-//	    [WITH RESOURCE resource_name]
+//	    PROPERTIES ("key"="value", ...)
 type CreateCatalogStmt struct {
-	Name         string
-	External     bool
-	IfNotExists  bool
-	Comment      string
-	Properties   []*Property
-	WithResource string // non-empty when WITH RESOURCE resource_name is present
-	Loc          Loc
+	Name        string
+	External    bool
+	IfNotExists bool
+	Comment     string
+	Properties  []*Property
+	Loc         Loc
 }
 
 // Tag implements Node.
@@ -29,29 +28,16 @@ func (n *CreateCatalogStmt) Tag() NodeTag { return T_CreateCatalogStmt }
 
 var _ Node = (*CreateCatalogStmt)(nil)
 
-// AlterCatalogAction identifies the kind of action in an ALTER CATALOG statement.
-type AlterCatalogAction int
-
-const (
-	AlterCatalogRename         AlterCatalogAction = iota // RENAME new_name
-	AlterCatalogSetProperties                            // SET PROPERTIES (...)
-	AlterCatalogModifyComment                            // MODIFY COMMENT 'text'
-	AlterCatalogSetProperty                              // PROPERTY ("key"="value")
-)
-
-// AlterCatalogStmt represents:
+// AlterCatalogStmt represents alterCatalogStatement (StarRocks.g4:2152):
 //
-//	ALTER CATALOG name
-//	    { RENAME new_name
-//	    | SET PROPERTIES ("key"="value", ...)
-//	    | MODIFY COMMENT 'text'
-//	    | PROPERTY ("key"="value") }
+//	ALTER CATALOG catalogName=identifierOrString SET '(' property [',' property]* ')'
+//
+// The grammar's modifyPropertiesClause is the statement's only clause: the
+// pinned server refuses RENAME, SET PROPERTIES, MODIFY COMMENT and PROPERTY,
+// which the fork inherited from Doris.
 type AlterCatalogStmt struct {
 	Name       string
-	Action     AlterCatalogAction
-	NewName    string      // for RENAME
-	Properties []*Property // for SET PROPERTIES / PROPERTY
-	Comment    string      // for MODIFY COMMENT
+	Properties []*Property
 	Loc        Loc
 }
 

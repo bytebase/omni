@@ -177,7 +177,7 @@ reject	reject	engine	statement/showColumnStatement!drop-4	SHOW COLUMNS FROM;
 reject	reject	engine	statement/showColumnStatement!truncate	SHOW COLUMNS FROM
 reject	reject	engine	statement/showColumnStatement!insert	SHOW COLUMNS FROM a zzz;
 reject	reject	engine	statement/showColumnStatement!swap	SIGNED COLUMNS FROM a;
-reject	accept	engine	statement/refreshTableStatement	REFRESH EXTERNAL TABLE a;
+accept	accept	engine	statement/refreshTableStatement	REFRESH EXTERNAL TABLE a;
 reject	reject	engine	statement/refreshTableStatement!drop-1	EXTERNAL TABLE a;
 reject	reject	engine	statement/refreshTableStatement!drop-3	REFRESH EXTERNAL a;
 reject	reject	engine	statement/refreshTableStatement!drop-4	REFRESH EXTERNAL TABLE;
@@ -348,7 +348,7 @@ reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!insert	CAN
 reject	reject	engine	statement/cancelRefreshMaterializedViewStatement!swap	CASE REFRESH MATERIALIZED VIEW a;
 accept	accept	engine	statement/createExternalCatalogStatement	CREATE EXTERNAL CATALOG a PROPERTIES('a' = 'a');
 reject	reject	engine	statement/createExternalCatalogStatement!drop-1	EXTERNAL CATALOG a PROPERTIES('a' = 'a');
-accept	reject	engine	statement/createExternalCatalogStatement!drop-2	CREATE CATALOG a PROPERTIES('a' = 'a');
+reject	reject	engine	statement/createExternalCatalogStatement!drop-2	CREATE CATALOG a PROPERTIES('a' = 'a');
 reject	reject	engine	statement/createExternalCatalogStatement!drop-3	CREATE EXTERNAL a PROPERTIES('a' = 'a');
 reject	reject	engine	statement/createExternalCatalogStatement!drop-4	CREATE EXTERNAL CATALOG PROPERTIES('a' = 'a');
 reject	reject	engine	statement/createExternalCatalogStatement!drop-5	CREATE EXTERNAL CATALOG a('a' = 'a');
@@ -370,13 +370,13 @@ reject	reject	engine	statement/showCatalogsStatement!drop-1	CATALOGS;
 reject	reject	engine	statement/showCatalogsStatement!insert	SHOW CATALOGS zzz;
 reject	reject	engine	statement/showCatalogsStatement!swap	SIGNED CATALOGS;
 accept	accept	engine	statement/showCreateExternalCatalogStatement	SHOW CREATE CATALOG a;
-accept	reject	engine	statement/showCreateExternalCatalogStatement!drop-1	CREATE CATALOG a;
+reject	reject	engine	statement/showCreateExternalCatalogStatement!drop-1	CREATE CATALOG a;
 reject	reject	engine	statement/showCreateExternalCatalogStatement!drop-2	SHOW CATALOG a;
 reject	reject	engine	statement/showCreateExternalCatalogStatement!drop-4	SHOW CREATE CATALOG;
 reject	reject	engine	statement/showCreateExternalCatalogStatement!truncate	SHOW CREATE CATALOG
 reject	reject	engine	statement/showCreateExternalCatalogStatement!insert	SHOW CREATE CATALOG a zzz;
 reject	reject	engine	statement/showCreateExternalCatalogStatement!swap	SIGNED CREATE CATALOG a;
-reject	accept	engine	statement/alterCatalogStatement	ALTER CATALOG a SET('a' = 'a');
+accept	accept	engine	statement/alterCatalogStatement	ALTER CATALOG a SET('a' = 'a');
 reject	reject	engine	statement/alterCatalogStatement!drop-1	CATALOG a SET('a' = 'a');
 reject	reject	engine	statement/alterCatalogStatement!drop-2	ALTER a SET('a' = 'a');
 reject	reject	engine	statement/alterCatalogStatement!drop-3	ALTER CATALOG SET('a' = 'a');
@@ -391,7 +391,7 @@ reject	reject	engine	statement/alterCatalogStatement!insert	ALTER CATALOG a SET(
 reject	reject	engine	statement/alterCatalogStatement!swap	ANALYZE CATALOG a SET('a' = 'a');
 accept	accept	engine	statement/insertStatement	INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/insertStatement!drop-1	INTO a SELECT CURRENT_USER;
-accept	reject	engine	statement/insertStatement!drop-2	INSERT a SELECT CURRENT_USER;
+reject	reject	engine	statement/insertStatement!drop-2	INSERT a SELECT CURRENT_USER;
 reject	reject	engine	statement/insertStatement!drop-3	INSERT INTO SELECT CURRENT_USER;
 reject	reject	engine	statement/insertStatement!drop-4	INSERT INTO a CURRENT_USER;
 reject	reject	engine	statement/insertStatement!drop-5	INSERT INTO a SELECT;
@@ -413,7 +413,7 @@ reject	reject	engine	statement/deleteStatement!drop-1	FROM a;
 reject	reject	engine	statement/deleteStatement!drop-2	DELETE a;
 reject	reject	engine	statement/deleteStatement!drop-3	DELETE FROM;
 reject	reject	engine	statement/deleteStatement!truncate	DELETE FROM
-accept	reject	engine	statement/deleteStatement!insert	DELETE FROM a zzz;
+reject	reject	engine	statement/deleteStatement!insert	DELETE FROM a zzz;
 reject	reject	engine	statement/deleteStatement!swap	DENSE_RANK FROM a;
 accept	accept	engine	statement/createRoutineLoadStatement	CREATE ROUTINE LOAD a ON a FROM a;
 reject	reject	engine	statement/createRoutineLoadStatement!drop-1	ROUTINE LOAD a ON a FROM a;
@@ -722,7 +722,7 @@ reject	reject	engine	statement/analyzeProfileStatement!drop-4	ANALYZE PROFILE FR
 reject	reject	engine	statement/analyzeProfileStatement!truncate	ANALYZE PROFILE FROM
 reject	reject	engine	statement/analyzeProfileStatement!insert	ANALYZE PROFILE FROM 'a' zzz;
 reject	reject	engine	statement/analyzeProfileStatement!swap	AND PROFILE FROM 'a';
-reject	accept	engine	statement/createResourceGroupStatement	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	statement/createResourceGroupStatement	CREATE RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	statement/createResourceGroupStatement!drop-1	RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	statement/createResourceGroupStatement!drop-2	CREATE GROUP a WITH('a' = 'a');
 reject	reject	engine	statement/createResourceGroupStatement!drop-3	CREATE RESOURCE a WITH('a' = 'a');
@@ -736,14 +736,14 @@ reject	reject	engine	statement/createResourceGroupStatement!drop-10	CREATE RESOU
 reject	reject	engine	statement/createResourceGroupStatement!truncate	CREATE RESOURCE GROUP a WITH('a' = 'a'
 reject	reject	engine	statement/createResourceGroupStatement!insert	CREATE RESOURCE GROUP a WITH('a' = 'a') zzz;
 reject	reject	engine	statement/createResourceGroupStatement!swap	CROSS RESOURCE GROUP a WITH('a' = 'a');
-reject	accept	engine	statement/dropResourceGroupStatement	DROP RESOURCE GROUP a;
+accept	accept	engine	statement/dropResourceGroupStatement	DROP RESOURCE GROUP a;
 reject	reject	engine	statement/dropResourceGroupStatement!drop-1	RESOURCE GROUP a;
 reject	reject	engine	statement/dropResourceGroupStatement!drop-2	DROP GROUP a;
 reject	reject	engine	statement/dropResourceGroupStatement!drop-4	DROP RESOURCE GROUP;
 reject	reject	engine	statement/dropResourceGroupStatement!truncate	DROP RESOURCE GROUP
 reject	reject	engine	statement/dropResourceGroupStatement!insert	DROP RESOURCE GROUP a zzz;
 reject	reject	engine	statement/dropResourceGroupStatement!swap	DUAL RESOURCE GROUP a;
-reject	accept	engine	statement/alterResourceGroupStatement	ALTER RESOURCE GROUP a DROP ALL;
+accept	accept	engine	statement/alterResourceGroupStatement	ALTER RESOURCE GROUP a DROP ALL;
 reject	reject	engine	statement/alterResourceGroupStatement!drop-1	RESOURCE GROUP a DROP ALL;
 reject	reject	engine	statement/alterResourceGroupStatement!drop-2	ALTER GROUP a DROP ALL;
 reject	reject	engine	statement/alterResourceGroupStatement!drop-3	ALTER RESOURCE a DROP ALL;
@@ -1003,7 +1003,7 @@ accept	accept	engine	statement/showAuthenticationStatement	SHOW AUTHENTICATION;
 reject	reject	engine	statement/showAuthenticationStatement!drop-1	AUTHENTICATION;
 reject	reject	engine	statement/showAuthenticationStatement!insert	SHOW AUTHENTICATION zzz;
 reject	reject	engine	statement/showAuthenticationStatement!swap	SIGNED AUTHENTICATION;
-reject	accept	engine	statement/executeAsStatement	EXECUTE AS a;
+accept	accept	engine	statement/executeAsStatement	EXECUTE AS a;
 reject	reject	engine	statement/executeAsStatement!drop-1	AS a;
 reject	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS;
 reject	reject	engine	statement/executeAsStatement!truncate	EXECUTE AS
@@ -1015,7 +1015,7 @@ reject	reject	engine	statement/createRoleStatement!drop-3	CREATE ROLE;
 reject	reject	engine	statement/createRoleStatement!truncate	CREATE ROLE
 reject	reject	engine	statement/createRoleStatement!insert	CREATE ROLE a zzz;
 reject	reject	engine	statement/createRoleStatement!swap	CROSS ROLE a;
-reject	accept	engine	statement/alterRoleStatement	ALTER ROLE a SET COMMENT = 'a';
+accept	accept	engine	statement/alterRoleStatement	ALTER ROLE a SET COMMENT = 'a';
 reject	reject	engine	statement/alterRoleStatement!drop-1	ROLE a SET COMMENT = 'a';
 reject	reject	engine	statement/alterRoleStatement!drop-2	ALTER a SET COMMENT = 'a';
 reject	reject	engine	statement/alterRoleStatement!drop-3	ALTER ROLE SET COMMENT = 'a';
@@ -1150,14 +1150,14 @@ reject	reject	engine	statement/dropRepositoryStatement!drop-3	DROP REPOSITORY;
 reject	reject	engine	statement/dropRepositoryStatement!truncate	DROP REPOSITORY
 reject	reject	engine	statement/dropRepositoryStatement!insert	DROP REPOSITORY a zzz;
 reject	reject	engine	statement/dropRepositoryStatement!swap	DUAL REPOSITORY a;
-reject	accept	engine	statement/addSqlBlackListStatement	ADD SQLBLACKLIST 'a';
+accept	accept	engine	statement/addSqlBlackListStatement	ADD SQLBLACKLIST 'a';
 reject	reject	engine	statement/addSqlBlackListStatement!drop-1	SQLBLACKLIST 'a';
 reject	reject	engine	statement/addSqlBlackListStatement!drop-2	ADD 'a';
 reject	reject	engine	statement/addSqlBlackListStatement!drop-3	ADD SQLBLACKLIST;
 reject	reject	engine	statement/addSqlBlackListStatement!truncate	ADD SQLBLACKLIST
 reject	reject	engine	statement/addSqlBlackListStatement!insert	ADD SQLBLACKLIST 'a' zzz;
 reject	reject	engine	statement/addSqlBlackListStatement!swap	ADMIN SQLBLACKLIST 'a';
-reject	accept	engine	statement/delSqlBlackListStatement	DELETE SQLBLACKLIST 1;
+accept	accept	engine	statement/delSqlBlackListStatement	DELETE SQLBLACKLIST 1;
 reject	reject	engine	statement/delSqlBlackListStatement!drop-1	SQLBLACKLIST 1;
 reject	reject	engine	statement/delSqlBlackListStatement!drop-2	DELETE 1;
 reject	reject	engine	statement/delSqlBlackListStatement!drop-3	DELETE SQLBLACKLIST;
@@ -1172,7 +1172,7 @@ accept	accept	engine	statement/showWhiteListStatement	SHOW WHITELIST;
 reject	reject	engine	statement/showWhiteListStatement!drop-1	WHITELIST;
 reject	reject	engine	statement/showWhiteListStatement!insert	SHOW WHITELIST zzz;
 reject	reject	engine	statement/showWhiteListStatement!swap	SIGNED WHITELIST;
-reject	accept	engine	statement/addBackendBlackListStatement	ADD BACKEND BLACKLIST 1;
+accept	accept	engine	statement/addBackendBlackListStatement	ADD BACKEND BLACKLIST 1;
 reject	reject	engine	statement/addBackendBlackListStatement!drop-1	BACKEND BLACKLIST 1;
 reject	reject	engine	statement/addBackendBlackListStatement!drop-2	ADD BLACKLIST 1;
 reject	reject	engine	statement/addBackendBlackListStatement!drop-3	ADD BACKEND 1;
@@ -1180,7 +1180,7 @@ reject	reject	engine	statement/addBackendBlackListStatement!drop-4	ADD BACKEND B
 reject	reject	engine	statement/addBackendBlackListStatement!truncate	ADD BACKEND BLACKLIST
 reject	reject	engine	statement/addBackendBlackListStatement!insert	ADD BACKEND BLACKLIST 1 zzz;
 reject	reject	engine	statement/addBackendBlackListStatement!swap	ADMIN BACKEND BLACKLIST 1;
-reject	accept	engine	statement/delBackendBlackListStatement	DELETE BACKEND BLACKLIST 1;
+accept	accept	engine	statement/delBackendBlackListStatement	DELETE BACKEND BLACKLIST 1;
 reject	reject	engine	statement/delBackendBlackListStatement!drop-2	DELETE BLACKLIST 1;
 reject	reject	engine	statement/delBackendBlackListStatement!drop-3	DELETE BACKEND 1;
 reject	reject	engine	statement/delBackendBlackListStatement!drop-4	DELETE BACKEND BLACKLIST;
@@ -1194,7 +1194,7 @@ reject	reject	engine	statement/showBackendBlackListStatement!drop-3	SHOW BACKEND
 reject	reject	engine	statement/showBackendBlackListStatement!truncate	SHOW BACKEND
 reject	reject	engine	statement/showBackendBlackListStatement!insert	SHOW BACKEND BLACKLIST zzz;
 reject	reject	engine	statement/showBackendBlackListStatement!swap	SIGNED BACKEND BLACKLIST;
-reject	accept	engine	statement/createDataCacheRuleStatement	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	statement/createDataCacheRuleStatement	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
 reject	reject	engine	statement/createDataCacheRuleStatement!drop-1	DATACACHE RULE *.*.* PRIORITY = 1;
 reject	reject	engine	statement/createDataCacheRuleStatement!drop-2	CREATE RULE *.*.* PRIORITY = 1;
 reject	reject	engine	statement/createDataCacheRuleStatement!drop-3	CREATE DATACACHE *.*.* PRIORITY = 1;
@@ -1216,7 +1216,7 @@ reject	reject	engine	statement/showDataCacheRulesStatement!drop-3	SHOW DATACACHE
 reject	reject	engine	statement/showDataCacheRulesStatement!truncate	SHOW DATACACHE
 reject	reject	engine	statement/showDataCacheRulesStatement!insert	SHOW DATACACHE RULES zzz;
 reject	reject	engine	statement/showDataCacheRulesStatement!swap	SIGNED DATACACHE RULES;
-reject	accept	engine	statement/dropDataCacheRuleStatement	DROP DATACACHE RULE 1;
+accept	accept	engine	statement/dropDataCacheRuleStatement	DROP DATACACHE RULE 1;
 reject	reject	engine	statement/dropDataCacheRuleStatement!drop-1	DATACACHE RULE 1;
 reject	reject	engine	statement/dropDataCacheRuleStatement!drop-2	DROP RULE 1;
 reject	reject	engine	statement/dropDataCacheRuleStatement!drop-3	DROP DATACACHE 1;
@@ -1224,7 +1224,7 @@ reject	reject	engine	statement/dropDataCacheRuleStatement!drop-4	DROP DATACACHE 
 reject	reject	engine	statement/dropDataCacheRuleStatement!truncate	DROP DATACACHE RULE
 reject	reject	engine	statement/dropDataCacheRuleStatement!insert	DROP DATACACHE RULE 1 zzz;
 reject	reject	engine	statement/dropDataCacheRuleStatement!swap	DUAL DATACACHE RULE 1;
-reject	accept	engine	statement/clearDataCacheRulesStatement	CLEAR DATACACHE RULES;
+accept	accept	engine	statement/clearDataCacheRulesStatement	CLEAR DATACACHE RULES;
 reject	reject	engine	statement/clearDataCacheRulesStatement!drop-2	CLEAR RULES;
 reject	reject	engine	statement/clearDataCacheRulesStatement!drop-3	CLEAR DATACACHE;
 reject	reject	engine	statement/clearDataCacheRulesStatement!truncate	CLEAR DATACACHE
@@ -1371,7 +1371,7 @@ reject	reject	engine	statement/setDefaultStorageVolumeStatement!drop-6	SET a AS 
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!truncate	SET a AS DEFAULT STORAGE
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!insert	SET a AS DEFAULT STORAGE VOLUME zzz;
 reject	reject	engine	statement/setDefaultStorageVolumeStatement!swap	SETS a AS DEFAULT STORAGE VOLUME;
-reject	accept	engine	statement/createPipeStatement	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	statement/createPipeStatement	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/createPipeStatement!drop-1	PIPE a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/createPipeStatement!drop-2	CREATE a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/createPipeStatement!drop-3	CREATE PIPE AS INSERT INTO a SELECT CURRENT_USER;
@@ -1382,15 +1382,15 @@ reject	reject	engine	statement/createPipeStatement!drop-7	CREATE PIPE a AS INSER
 reject	reject	engine	statement/createPipeStatement!drop-8	CREATE PIPE a AS INSERT INTO a CURRENT_USER;
 reject	reject	engine	statement/createPipeStatement!drop-9	CREATE PIPE a AS INSERT INTO a SELECT;
 reject	reject	engine	statement/createPipeStatement!truncate	CREATE PIPE a AS INSERT INTO a SELECT
-reject	accept	engine	statement/createPipeStatement!insert	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER zzz;
+accept	accept	engine	statement/createPipeStatement!insert	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER zzz;
 reject	reject	engine	statement/createPipeStatement!swap	CROSS PIPE a AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	statement/dropPipeStatement	DROP PIPE a;
+accept	accept	engine	statement/dropPipeStatement	DROP PIPE a;
 reject	reject	engine	statement/dropPipeStatement!drop-1	PIPE a;
 reject	reject	engine	statement/dropPipeStatement!drop-3	DROP PIPE;
 reject	reject	engine	statement/dropPipeStatement!truncate	DROP PIPE
 reject	reject	engine	statement/dropPipeStatement!insert	DROP PIPE a zzz;
 reject	reject	engine	statement/dropPipeStatement!swap	DUAL PIPE a;
-reject	accept	engine	statement/alterPipeStatement	ALTER PIPE a SUSPEND;
+accept	accept	engine	statement/alterPipeStatement	ALTER PIPE a SUSPEND;
 reject	reject	engine	statement/alterPipeStatement!drop-1	PIPE a SUSPEND;
 reject	reject	engine	statement/alterPipeStatement!drop-2	ALTER a SUSPEND;
 reject	reject	engine	statement/alterPipeStatement!drop-3	ALTER PIPE SUSPEND;
@@ -1402,7 +1402,7 @@ accept	accept	engine	statement/showPipeStatement	SHOW PIPES;
 reject	reject	engine	statement/showPipeStatement!drop-1	PIPES;
 reject	reject	engine	statement/showPipeStatement!insert	SHOW PIPES zzz;
 reject	reject	engine	statement/showPipeStatement!swap	SIGNED PIPES;
-reject	accept	engine	statement/descPipeStatement	DESC PIPE a;
+accept	accept	engine	statement/descPipeStatement	DESC PIPE a;
 accept	accept	engine	statement/descPipeStatement!drop-3	DESC PIPE;
 accept	accept	engine	statement/descPipeStatement!truncate	DESC PIPE
 reject	reject	engine	statement/descPipeStatement!insert	DESC PIPE a zzz;
@@ -1426,7 +1426,7 @@ accept	accept	engine	statement/showFailPointStatement	SHOW FAILPOINTS;
 reject	reject	engine	statement/showFailPointStatement!drop-1	FAILPOINTS;
 reject	reject	engine	statement/showFailPointStatement!insert	SHOW FAILPOINTS zzz;
 reject	reject	engine	statement/showFailPointStatement!swap	SIGNED FAILPOINTS;
-reject	accept	engine	statement/prepareStatement	PREPARE a FROM SYNC;
+accept	accept	engine	statement/prepareStatement	PREPARE a FROM SYNC;
 reject	reject	engine	statement/prepareStatement!drop-1	a FROM SYNC;
 reject	reject	engine	statement/prepareStatement!drop-2	PREPARE FROM SYNC;
 reject	reject	engine	statement/prepareStatement!drop-3	PREPARE a SYNC;
@@ -1434,12 +1434,12 @@ reject	reject	engine	statement/prepareStatement!drop-4	PREPARE a FROM;
 reject	reject	engine	statement/prepareStatement!truncate	PREPARE a FROM
 reject	reject	engine	statement/prepareStatement!insert	PREPARE a FROM SYNC zzz;
 reject	reject	engine	statement/prepareStatement!swap	PRIMARY a FROM SYNC;
-reject	accept	engine	statement/executeStatement	EXECUTE a;
+accept	accept	engine	statement/executeStatement	EXECUTE a;
 reject	reject	engine	statement/executeStatement!drop-2	EXECUTE;
 reject	reject	engine	statement/executeStatement!truncate	EXECUTE
 reject	reject	engine	statement/executeStatement!insert	EXECUTE a zzz;
 reject	reject	engine	statement/executeStatement!swap	EXISTS a;
-reject	accept	engine	statement/deallocateStatement	DEALLOCATE PREPARE a;
+accept	accept	engine	statement/deallocateStatement	DEALLOCATE PREPARE a;
 reject	reject	engine	statement/deallocateStatement!drop-1	PREPARE a;
 reject	reject	engine	statement/deallocateStatement!drop-2	DEALLOCATE a;
 reject	reject	engine	statement/deallocateStatement!drop-3	DEALLOCATE PREPARE;
@@ -1482,7 +1482,7 @@ reject	reject	engine	statement/cancelRefreshDictionaryStatement!drop-4	CANCEL RE
 reject	reject	engine	statement/cancelRefreshDictionaryStatement!truncate	CANCEL REFRESH DICTIONARY
 reject	reject	engine	statement/cancelRefreshDictionaryStatement!insert	CANCEL REFRESH DICTIONARY a zzz;
 reject	reject	engine	statement/cancelRefreshDictionaryStatement!swap	CASE REFRESH DICTIONARY a;
-reject	accept	engine	statement/alterPlanAdvisorAddStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
+accept	accept	engine	statement/alterPlanAdvisorAddStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-1	PLAN ADVISOR ADD SELECT CURRENT_USER;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-2	ALTER ADVISOR ADD SELECT CURRENT_USER;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-3	ALTER PLAN ADD SELECT CURRENT_USER;
@@ -1490,16 +1490,16 @@ reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-4	ALTER PLAN AD
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-5	ALTER PLAN ADVISOR ADD CURRENT_USER;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!drop-6	ALTER PLAN ADVISOR ADD SELECT;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!truncate	ALTER PLAN ADVISOR ADD SELECT
-reject	accept	engine	statement/alterPlanAdvisorAddStatement!insert	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER zzz;
+accept	accept	engine	statement/alterPlanAdvisorAddStatement!insert	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER zzz;
 reject	reject	engine	statement/alterPlanAdvisorAddStatement!swap	ANALYZE PLAN ADVISOR ADD SELECT CURRENT_USER;
-reject	accept	engine	statement/truncatePlanAdvisorStatement	TRUNCATE PLAN ADVISOR;
+accept	accept	engine	statement/truncatePlanAdvisorStatement	TRUNCATE PLAN ADVISOR;
 reject	reject	engine	statement/truncatePlanAdvisorStatement!drop-1	PLAN ADVISOR;
 reject	reject	engine	statement/truncatePlanAdvisorStatement!drop-2	TRUNCATE ADVISOR;
 reject	reject	engine	statement/truncatePlanAdvisorStatement!drop-3	TRUNCATE PLAN;
 reject	reject	engine	statement/truncatePlanAdvisorStatement!truncate	TRUNCATE PLAN
 reject	reject	engine	statement/truncatePlanAdvisorStatement!insert	TRUNCATE PLAN ADVISOR zzz;
 reject	reject	engine	statement/truncatePlanAdvisorStatement!swap	TYPE PLAN ADVISOR;
-reject	accept	engine	statement/alterPlanAdvisorDropStatement	ALTER PLAN ADVISOR DROP 'a';
+accept	accept	engine	statement/alterPlanAdvisorDropStatement	ALTER PLAN ADVISOR DROP 'a';
 reject	reject	engine	statement/alterPlanAdvisorDropStatement!drop-1	PLAN ADVISOR DROP 'a';
 reject	reject	engine	statement/alterPlanAdvisorDropStatement!drop-2	ALTER ADVISOR DROP 'a';
 reject	reject	engine	statement/alterPlanAdvisorDropStatement!drop-3	ALTER PLAN DROP 'a';
@@ -1563,12 +1563,12 @@ reject	reject	engine	statement/showNodesStatement!drop-4	SHOW NODES FROM;
 reject	reject	engine	statement/showNodesStatement!truncate	SHOW NODES FROM
 reject	reject	engine	statement/showNodesStatement!insert	SHOW NODES FROM WAREHOUSES zzz;
 reject	reject	engine	statement/showNodesStatement!swap	SIGNED NODES FROM WAREHOUSES;
-reject	accept	engine	statement/translateStatement	TRANSLATE a SELECT;
+accept	accept	engine	statement/translateStatement	TRANSLATE a SELECT;
 reject	reject	engine	statement/translateStatement!drop-1	a SELECT;
 reject	reject	engine	statement/translateStatement!drop-2	TRANSLATE SELECT;
-reject	accept	engine	statement/translateStatement!drop-3	TRANSLATE a;
+accept	accept	engine	statement/translateStatement!drop-3	TRANSLATE a;
 reject	reject	engine	statement/translateStatement!truncate	TRANSLATE a
-reject	accept	engine	statement/translateStatement!insert	TRANSLATE a SELECT zzz;
+accept	accept	engine	statement/translateStatement!insert	TRANSLATE a SELECT zzz;
 reject	reject	engine	statement/translateStatement!swap	TRIGGERS a SELECT;
 accept	accept	engine	statement/unsupportedStatement	BEGIN;
 reject	reject	engine	statement/unsupportedStatement!insert	BEGIN zzz;
@@ -2291,7 +2291,7 @@ reject	reject	engine	createIndexStatement(indexType_propertyList?)?/indexType_(p
 reject	reject	engine	createIndexStatement(indexType_propertyList?)?/indexType_(propertyList)?!insert	CREATE INDEX a ON a(a) USING BITMAP zzz;
 reject	reject	engine	createIndexStatement(indexType_propertyList?)?/indexType_(propertyList)?!swap	CREATE INDEX a ON a(a) VALUE BITMAP;
 accept	accept	engine	createIndexStatement(propertyList)?/%empty	CREATE INDEX a ON a(a) USING BITMAP;
-reject	accept	engine	createIndexStatement(propertyList)?/propertyList	CREATE INDEX a ON a(a) USING BITMAP('a' = 'a');
+accept	accept	engine	createIndexStatement(propertyList)?/propertyList	CREATE INDEX a ON a(a) USING BITMAP('a' = 'a');
 reject	reject	engine	createIndexStatement(propertyList)?/propertyList!drop-1	CREATE INDEX a ON a(a) USING BITMAP 'a' = 'a');
 reject	reject	engine	createIndexStatement(propertyList)?/propertyList!drop-2	CREATE INDEX a ON a(a) USING BITMAP(= 'a');
 reject	reject	engine	createIndexStatement(propertyList)?/propertyList!drop-3	CREATE INDEX a ON a(a) USING BITMAP('a' 'a');
@@ -2455,9 +2455,9 @@ reject	reject	engine	showTableStatusStatement((LIKE_string)|(WHERE_expression))?
 reject	reject	engine	showTableStatusStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!truncate	SHOW TABLE STATUS WHERE
 reject	reject	engine	showTableStatusStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!insert	SHOW TABLE STATUS WHERE CURRENT_USER zzz;
 reject	reject	engine	showTableStatusStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!swap	SHOW TABLE STATUS WHITELIST CURRENT_USER;
-reject	accept	engine	refreshTableStatement/REFRESH_EXTERNAL_TABLE_qualifiedName_(PARTITION_(_strin~610c64b6	REFRESH EXTERNAL TABLE a;
-reject	accept	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/%empty	REFRESH EXTERNAL TABLE a;
-reject	accept	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)	REFRESH EXTERNAL TABLE a PARTITION('a');
+accept	accept	engine	refreshTableStatement/REFRESH_EXTERNAL_TABLE_qualifiedName_(PARTITION_(_strin~610c64b6	REFRESH EXTERNAL TABLE a;
+accept	accept	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/%empty	REFRESH EXTERNAL TABLE a;
+accept	accept	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)	REFRESH EXTERNAL TABLE a PARTITION('a');
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!drop-1	REFRESH EXTERNAL TABLE a('a');
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!drop-2	REFRESH EXTERNAL TABLE a PARTITION 'a');
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!drop-3	REFRESH EXTERNAL TABLE a PARTITION();
@@ -2465,9 +2465,9 @@ reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PA
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!truncate	REFRESH EXTERNAL TABLE a PARTITION('a'
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!insert	REFRESH EXTERNAL TABLE a PARTITION('a') zzz;
 reject	reject	engine	refreshTableStatement(PARTITION_(_string_(,_string)*_))?/PARTITION_(_string_(,_string)*_)!swap	REFRESH EXTERNAL TABLE a PARTITIONS('a');
-reject	accept	engine	refreshTableStatement(,_string)*/%empty	REFRESH EXTERNAL TABLE a PARTITION('a');
+accept	accept	engine	refreshTableStatement(,_string)*/%empty	REFRESH EXTERNAL TABLE a PARTITION('a');
 reject	reject	engine	refreshTableStatement(,_string)*/%empty!insert	REFRESH EXTERNAL TABLE a PARTITION('a' zzz);
-reject	accept	engine	refreshTableStatement(,_string)*/,_string_(,_string)*	REFRESH EXTERNAL TABLE a PARTITION('a', 'a');
+accept	accept	engine	refreshTableStatement(,_string)*/,_string_(,_string)*	REFRESH EXTERNAL TABLE a PARTITION('a', 'a');
 reject	reject	engine	refreshTableStatement(,_string)*/,_string_(,_string)*!drop-1	REFRESH EXTERNAL TABLE a PARTITION('a' 'a');
 reject	reject	engine	refreshTableStatement(,_string)*/,_string_(,_string)*!drop-2	REFRESH EXTERNAL TABLE a PARTITION('a',);
 reject	reject	engine	refreshTableStatement(,_string)*/,_string_(,_string)*!truncate	REFRESH EXTERNAL TABLE a PARTITION('a',
@@ -2537,7 +2537,7 @@ reject	reject	engine	descTableStatement(DESC|DESCRIBE)/DESC!insert	DESC zzz a;
 accept	accept	engine	descTableStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE a;
 reject	reject	engine	descTableStatement(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz a;
 accept	accept	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/qualifiedName_(ALL)?	DESC a;
-reject	accept	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/FILES_propertyList	DESC FILES('a' = 'a');
+accept	accept	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/FILES_propertyList	DESC FILES('a' = 'a');
 reject	reject	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/FILES_propertyList!drop-1	DESC('a' = 'a');
 reject	reject	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/FILES_propertyList!drop-2	DESC FILES 'a' = 'a');
 reject	reject	engine	descTableStatement((qualifiedName_ALL?)|(FILES_propertyList))/FILES_propertyList!drop-3	DESC FILES(= 'a');
@@ -2922,14 +2922,14 @@ reject	reject	engine	mvPartitionExprs/primaryExpression	CREATE MATERIALIZED VIEW
 reject	reject	engine	mvPartitionExprs/primaryExpression!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/primaryExpression!truncate	CREATE MATERIALIZED VIEW a PARTITION BY
 reject	reject	engine	mvPartitionExprs/primaryExpression!insert	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER zzz AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/primaryExpression!swap	CREATE MATERIALIZED VIEW a PARTITION BY DATA AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/primaryExpression!swap	CREATE MATERIALIZED VIEW a PARTITION BY DATA AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY() AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!drop-3	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!truncate	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER
 reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) zzz AS SELECT CURRENT_USER;
-accept	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!swap	CREATE MATERIALIZED VIEW a PARTITION BY(DATA) AS SELECT CURRENT_USER;
+reject	reject	engine	mvPartitionExprs/(_primaryExpression_(,_primaryExpression)*_)!swap	CREATE MATERIALIZED VIEW a PARTITION BY(DATA) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/%empty	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/%empty!insert	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER zzz) AS SELECT CURRENT_USER;
 reject	reject	engine	mvPartitionExprs(,_primaryExpression)*/,_primaryExpression_(,_primaryExpression)*	CREATE MATERIALIZED VIEW a PARTITION BY(CURRENT_USER, CURRENT_USER) AS SELECT CURRENT_USER;
@@ -3217,7 +3217,7 @@ reject	reject	engine	dropExternalCatalogStatement(IF_EXISTS)?/IF_EXISTS!truncate
 reject	reject	engine	dropExternalCatalogStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP CATALOG IF EXISTS zzz a;
 reject	reject	engine	dropExternalCatalogStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP CATALOG IGNORE EXISTS a;
 accept	accept	engine	showCatalogsStatement/SHOW_CATALOGS	SHOW CATALOGS;
-reject	accept	engine	alterCatalogStatement/ALTER_CATALOG_identifierOrString_modifyPropertiesClause	ALTER CATALOG a SET('a' = 'a');
+accept	accept	engine	alterCatalogStatement/ALTER_CATALOG_identifierOrString_modifyPropertiesClause	ALTER CATALOG a SET('a' = 'a');
 accept	accept	engine	createStorageVolumeStatement/CREATE_STORAGE_VOLUME_(IF_NOT_EXISTS)?_identifierOrStri~1bccde80	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 accept	accept	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE STORAGE VOLUME zzz a TYPE = a LOCATIONS =('a');
@@ -3353,7 +3353,7 @@ accept	accept	engine	createDictionaryStatement/CREATE_DICTIONARY_dictionaryName_
 accept	accept	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/%empty	CREATE DICTIONARY a USING a(a KEY);
 reject	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/%empty!insert	CREATE DICTIONARY a USING a(a KEY zzz);
 accept	accept	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*	CREATE DICTIONARY a USING a(a KEY, a KEY);
-accept	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*!drop-1	CREATE DICTIONARY a USING a(a KEY a KEY);
+reject	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*!drop-1	CREATE DICTIONARY a USING a(a KEY a KEY);
 reject	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*!drop-2	CREATE DICTIONARY a USING a(a KEY, KEY);
 reject	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*!drop-3	CREATE DICTIONARY a USING a(a KEY, a);
 reject	reject	engine	createDictionaryStatement(,_dictionaryColumnDesc)*/,_dictionaryColumnDesc_(,_dictionaryColumnDesc)*!truncate	CREATE DICTIONARY a USING a(a KEY, a
@@ -3372,7 +3372,7 @@ reject	reject	engine	createDictionaryStatement(properties)?/properties!insert	CR
 reject	reject	engine	createDictionaryStatement(properties)?/properties!swap	CREATE DICTIONARY a USING a(a KEY) PROPERTY('a' = 'a');
 accept	accept	engine	dropDictionaryStatement/DROP_DICTIONARY_qualifiedName_(CACHE)?	DROP DICTIONARY a;
 accept	accept	engine	dropDictionaryStatement(CACHE)?/%empty	DROP DICTIONARY a;
-reject	accept	engine	dropDictionaryStatement(CACHE)?/CACHE	DROP DICTIONARY a CACHE;
+accept	accept	engine	dropDictionaryStatement(CACHE)?/CACHE	DROP DICTIONARY a CACHE;
 accept	accept	engine	dropDictionaryStatement(CACHE)?/CACHE!truncate	DROP DICTIONARY a
 reject	reject	engine	dropDictionaryStatement(CACHE)?/CACHE!insert	DROP DICTIONARY a CACHE zzz;
 reject	reject	engine	dropDictionaryStatement(CACHE)?/CACHE!swap	DROP DICTIONARY a CANCEL;
@@ -4118,10 +4118,10 @@ accept	accept	engine	subfieldName/ARRAY_ELEMENT	ALTER SYSTEM MODIFY COLUMN a DRO
 reject	reject	engine	subfieldName/ARRAY_ELEMENT!insert	ALTER SYSTEM MODIFY COLUMN a DROP FIELD [*] zzz;
 accept	accept	engine	nestedFieldName/subfieldName_(DOT_IDENTIFIER|._subfieldName)*	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a;
 accept	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)*/%empty	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a;
-reject	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)*/(DOT_IDENTIFIER|._subfieldName)_(DOT_IDENTIFIER|._subfieldName)*	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.1a;
+accept	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)*/(DOT_IDENTIFIER|._subfieldName)_(DOT_IDENTIFIER|._subfieldName)*	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.1a;
 accept	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)*/(DOT_IDENTIFIER|._subfieldName)_(DOT_IDENTIFIER|._subfieldName)*!truncate	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a
 reject	reject	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)*/(DOT_IDENTIFIER|._subfieldName)_(DOT_IDENTIFIER|._subfieldName)*!insert	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.1a zzz;
-reject	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)/DOT_IDENTIFIER	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.1a;
+accept	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)/DOT_IDENTIFIER	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.1a;
 accept	accept	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)/._subfieldName	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.a;
 reject	reject	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)/._subfieldName!drop-1	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a a;
 reject	reject	engine	nestedFieldName(DOT_IDENTIFIER|._subfieldName)/._subfieldName!drop-2	ALTER SYSTEM MODIFY COLUMN a DROP FIELD a.;
@@ -4632,7 +4632,7 @@ reject	reject	engine	deleteStatement(withClause)?/withClause!insert	WITH a AS(SE
 reject	reject	engine	deleteStatement(withClause)?/withClause!swap	WORK a AS(SELECT CURRENT_USER) DELETE FROM a;
 accept	accept	engine	deleteStatement(partitionNames)?/%empty	DELETE FROM a;
 accept	accept	engine	deleteStatement(partitionNames)?/partitionNames	DELETE FROM a PARTITION a;
-accept	reject	engine	deleteStatement(partitionNames)?/partitionNames!drop-1	DELETE FROM a a;
+reject	reject	engine	deleteStatement(partitionNames)?/partitionNames!drop-1	DELETE FROM a a;
 reject	reject	engine	deleteStatement(partitionNames)?/partitionNames!drop-2	DELETE FROM a PARTITION;
 reject	reject	engine	deleteStatement(partitionNames)?/partitionNames!truncate	DELETE FROM a PARTITION
 reject	reject	engine	deleteStatement(partitionNames)?/partitionNames!insert	DELETE FROM a PARTITION a zzz;
@@ -5119,7 +5119,7 @@ accept	accept	engine	showAnalyzeStatement(JOB|STATUS)?/STATUS	SHOW ANALYZE STATU
 reject	reject	engine	showAnalyzeStatement(JOB|STATUS)?/STATUS!insert	SHOW ANALYZE STATUS zzz;
 reject	reject	engine	showAnalyzeStatement(JOB|STATUS)?/STATUS!swap	SHOW ANALYZE STOP;
 accept	accept	engine	showAnalyzeStatement(WHERE_expression)?/%empty	SHOW ANALYZE;
-accept	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression	SHOW ANALYZE WHERE CURRENT_USER;
+reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression	SHOW ANALYZE WHERE CURRENT_USER;
 reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression!drop-1	SHOW ANALYZE CURRENT_USER;
 reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression!drop-2	SHOW ANALYZE WHERE;
 reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW ANALYZE WHERE
@@ -5127,7 +5127,7 @@ reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression!in
 reject	reject	engine	showAnalyzeStatement(WHERE_expression)?/WHERE_expression!swap	SHOW ANALYZE WHITELIST CURRENT_USER;
 accept	accept	engine	showStatsMetaStatement/SHOW_STATS_META_(WHERE_expression)?	SHOW STATS META;
 accept	accept	engine	showStatsMetaStatement(WHERE_expression)?/%empty	SHOW STATS META;
-accept	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression	SHOW STATS META WHERE CURRENT_USER;
+reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression	SHOW STATS META WHERE CURRENT_USER;
 reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression!drop-1	SHOW STATS META CURRENT_USER;
 reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression!drop-2	SHOW STATS META WHERE;
 reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW STATS META WHERE
@@ -5135,7 +5135,7 @@ reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression!
 reject	reject	engine	showStatsMetaStatement(WHERE_expression)?/WHERE_expression!swap	SHOW STATS META WHITELIST CURRENT_USER;
 accept	accept	engine	showHistogramMetaStatement/SHOW_HISTOGRAM_META_(WHERE_expression)?	SHOW HISTOGRAM META;
 accept	accept	engine	showHistogramMetaStatement(WHERE_expression)?/%empty	SHOW HISTOGRAM META;
-accept	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression	SHOW HISTOGRAM META WHERE CURRENT_USER;
+reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression	SHOW HISTOGRAM META WHERE CURRENT_USER;
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!drop-1	SHOW HISTOGRAM META CURRENT_USER;
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!drop-2	SHOW HISTOGRAM META WHERE;
 reject	reject	engine	showHistogramMetaStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW HISTOGRAM META WHERE
@@ -5159,24 +5159,24 @@ reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ANALYZE PROFILE FROM 'a', 1,;
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ANALYZE PROFILE FROM 'a', 1,
 reject	reject	engine	analyzeProfileStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	ANALYZE PROFILE FROM 'a', 1, 1 zzz;
-reject	accept	engine	createResourceGroupStatement/CREATE_RESOURCE_GROUP_(IF_NOT_EXISTS)?_(OR_REPLACE)?_id~be682107	CREATE RESOURCE GROUP a WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement/CREATE_RESOURCE_GROUP_(IF_NOT_EXISTS)?_(OR_REPLACE)?_id~be682107	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE RESOURCE GROUP zzz a WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE RESOURCE GROUP IF NOT EXISTS a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE RESOURCE GROUP IF NOT EXISTS a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE RESOURCE GROUP NOT EXISTS a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE RESOURCE GROUP IF EXISTS a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE RESOURCE GROUP IF NOT a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE RESOURCE GROUP IF NOT
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE RESOURCE GROUP IF NOT EXISTS zzz a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE RESOURCE GROUP IGNORE NOT EXISTS a WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(OR_REPLACE)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE	CREATE RESOURCE GROUP OR REPLACE a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(OR_REPLACE)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE	CREATE RESOURCE GROUP OR REPLACE a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE RESOURCE GROUP REPLACE a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE RESOURCE GROUP OR a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE!truncate	CREATE RESOURCE GROUP OR
 reject	reject	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE!insert	CREATE RESOURCE GROUP OR REPLACE zzz a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(OR_REPLACE)?/OR_REPLACE!swap	CREATE RESOURCE GROUP ORDER REPLACE a WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(TO_classifier_(,_classifier)*)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(TO_classifier_(,_classifier)*)?/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(TO_classifier_(,_classifier)*)?/%empty!insert	CREATE RESOURCE GROUP a zzz WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(TO_classifier_(,_classifier)*)?/TO_classifier_(,_classifier)*	CREATE RESOURCE GROUP a TO(CURRENT_USER) WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(TO_classifier_(,_classifier)*)?/TO_classifier_(,_classifier)*!drop-1	CREATE RESOURCE GROUP a(CURRENT_USER) WITH('a' = 'a');
@@ -5195,16 +5195,16 @@ reject	reject	engine	createResourceGroupStatement(,_classifier)*/,_classifier_(,
 reject	reject	engine	createResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!truncate	CREATE RESOURCE GROUP a TO(CURRENT_USER),(CURRENT_USER
 reject	reject	engine	createResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!insert	CREATE RESOURCE GROUP a TO(CURRENT_USER),(CURRENT_USER) zzz WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!swap	CREATE RESOURCE GROUP a TO(CURRENT_USER),(DATA) WITH('a' = 'a');
-reject	accept	engine	createResourceGroupStatement(,_property)*/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	createResourceGroupStatement(,_property)*/%empty	CREATE RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	createResourceGroupStatement(,_property)*/%empty!insert	CREATE RESOURCE GROUP a WITH('a' = 'a' zzz);
-reject	accept	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' = 'a');
+accept	accept	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' = 'a');
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-1	CREATE RESOURCE GROUP a WITH('a' = 'a' 'a' = 'a');
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-2	CREATE RESOURCE GROUP a WITH('a' = 'a', = 'a');
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-3	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' 'a');
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-4	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' =);
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!truncate	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' =
 reject	reject	engine	createResourceGroupStatement(,_property)*/,_property_(,_property)*!insert	CREATE RESOURCE GROUP a WITH('a' = 'a', 'a' = 'a' zzz);
-reject	accept	engine	dropResourceGroupStatement/DROP_RESOURCE_GROUP_identifier	DROP RESOURCE GROUP a;
+accept	accept	engine	dropResourceGroupStatement/DROP_RESOURCE_GROUP_identifier	DROP RESOURCE GROUP a;
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*	ALTER RESOURCE GROUP a ADD(CURRENT_USER);
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*!drop-1	RESOURCE GROUP a ADD(CURRENT_USER);
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*!drop-2	ALTER GROUP a ADD(CURRENT_USER);
@@ -5217,7 +5217,7 @@ reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*!truncate	ALTER RESOURCE GROUP a ADD(CURRENT_USER
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*!insert	ALTER RESOURCE GROUP a ADD(CURRENT_USER) zzz;
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_ADD_classifier_(,_classifier)*!swap	ANALYZE RESOURCE GROUP a ADD(CURRENT_USER);
-reject	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74	ALTER RESOURCE GROUP a DROP(1);
+accept	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74	ALTER RESOURCE GROUP a DROP(1);
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!drop-1	RESOURCE GROUP a DROP(1);
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!drop-2	ALTER GROUP a DROP(1);
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!drop-3	ALTER RESOURCE a DROP(1);
@@ -5229,8 +5229,8 @@ reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!truncate	ALTER RESOURCE GROUP a DROP(1
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!insert	ALTER RESOURCE GROUP a DROP(1) zzz;
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_(_INTEGER_VALUE_(,~02908a74!swap	ANALYZE RESOURCE GROUP a DROP(1);
-reject	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_ALL	ALTER RESOURCE GROUP a DROP ALL;
-reject	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_WITH_(_property_(,_property)*_)	ALTER RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_DROP_ALL	ALTER RESOURCE GROUP a DROP ALL;
+accept	accept	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_WITH_(_property_(,_property)*_)	ALTER RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_WITH_(_property_(,_property)*_)!drop-2	ALTER GROUP a WITH('a' = 'a');
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_WITH_(_property_(,_property)*_)!drop-3	ALTER RESOURCE a WITH('a' = 'a');
 reject	reject	engine	alterResourceGroupStatement/ALTER_RESOURCE_GROUP_identifier_WITH_(_property_(,_property)*_)!drop-4	ALTER RESOURCE GROUP WITH('a' = 'a');
@@ -5252,16 +5252,16 @@ reject	reject	engine	alterResourceGroupStatement(,_classifier)*/,_classifier_(,_
 reject	reject	engine	alterResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!truncate	ALTER RESOURCE GROUP a ADD(CURRENT_USER),(CURRENT_USER
 reject	reject	engine	alterResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!insert	ALTER RESOURCE GROUP a ADD(CURRENT_USER),(CURRENT_USER) zzz;
 reject	reject	engine	alterResourceGroupStatement(,_classifier)*/,_classifier_(,_classifier)*!swap	ALTER RESOURCE GROUP a ADD(CURRENT_USER),(DATA);
-reject	accept	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/%empty	ALTER RESOURCE GROUP a DROP(1);
+accept	accept	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/%empty	ALTER RESOURCE GROUP a DROP(1);
 reject	reject	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/%empty!insert	ALTER RESOURCE GROUP a DROP(1 zzz);
-reject	accept	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ALTER RESOURCE GROUP a DROP(1, 1);
+accept	accept	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ALTER RESOURCE GROUP a DROP(1, 1);
 reject	reject	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	ALTER RESOURCE GROUP a DROP(1 1);
 reject	reject	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ALTER RESOURCE GROUP a DROP(1,);
 reject	reject	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ALTER RESOURCE GROUP a DROP(1,
 reject	reject	engine	alterResourceGroupStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	ALTER RESOURCE GROUP a DROP(1, 1 zzz);
-reject	accept	engine	alterResourceGroupStatement(,_property)*/%empty	ALTER RESOURCE GROUP a WITH('a' = 'a');
+accept	accept	engine	alterResourceGroupStatement(,_property)*/%empty	ALTER RESOURCE GROUP a WITH('a' = 'a');
 reject	reject	engine	alterResourceGroupStatement(,_property)*/%empty!insert	ALTER RESOURCE GROUP a WITH('a' = 'a' zzz);
-reject	accept	engine	alterResourceGroupStatement(,_property)*/,_property_(,_property)*	ALTER RESOURCE GROUP a WITH('a' = 'a', 'a' = 'a');
+accept	accept	engine	alterResourceGroupStatement(,_property)*/,_property_(,_property)*	ALTER RESOURCE GROUP a WITH('a' = 'a', 'a' = 'a');
 reject	reject	engine	alterResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-1	ALTER RESOURCE GROUP a WITH('a' = 'a' 'a' = 'a');
 reject	reject	engine	alterResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-2	ALTER RESOURCE GROUP a WITH('a' = 'a', = 'a');
 reject	reject	engine	alterResourceGroupStatement(,_property)*/,_property_(,_property)*!drop-3	ALTER RESOURCE GROUP a WITH('a' = 'a', 'a' 'a');
@@ -5862,7 +5862,7 @@ reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/L
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!truncate	SHOW PROCEDURE STATUS LIKE
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!insert	SHOW PROCEDURE STATUS LIKE 'a' zzz;
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/LIKE_string!swap	SHOW PROCEDURE STATUS LIMIT 'a';
-accept	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression	SHOW PROCEDURE STATUS WHERE CURRENT_USER;
+reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression	SHOW PROCEDURE STATUS WHERE CURRENT_USER;
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-1	SHOW PROCEDURE STATUS CURRENT_USER;
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!drop-2	SHOW PROCEDURE STATUS WHERE;
 reject	reject	engine	showProcedureStatement((LIKE_string)|(WHERE_expression))?/WHERE_expression!truncate	SHOW PROCEDURE STATUS WHERE
@@ -6097,7 +6097,7 @@ reject	reject	engine	createUserStatement(DEFAULT_ROLE_roleList)?/DEFAULT_ROLE_ro
 reject	reject	engine	createUserStatement(DEFAULT_ROLE_roleList)?/DEFAULT_ROLE_roleList!insert	CREATE USER a DEFAULT ROLE a zzz;
 reject	reject	engine	createUserStatement(DEFAULT_ROLE_roleList)?/DEFAULT_ROLE_roleList!swap	CREATE USER a DEFERRED ROLE a;
 accept	accept	engine	createUserStatement(properties)?/%empty	CREATE USER a;
-reject	accept	engine	createUserStatement(properties)?/properties	CREATE USER a PROPERTIES('a' = 'a');
+accept	accept	engine	createUserStatement(properties)?/properties	CREATE USER a PROPERTIES('a' = 'a');
 reject	reject	engine	createUserStatement(properties)?/properties!drop-1	CREATE USER a('a' = 'a');
 reject	reject	engine	createUserStatement(properties)?/properties!drop-2	CREATE USER a PROPERTIES 'a' = 'a');
 reject	reject	engine	createUserStatement(properties)?/properties!drop-3	CREATE USER a PROPERTIES(= 'a');
@@ -6117,7 +6117,7 @@ reject	reject	engine	dropUserStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP USER 
 reject	reject	engine	dropUserStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP USER IF EXISTS zzz a;
 reject	reject	engine	dropUserStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP USER IGNORE EXISTS a;
 accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_authOption	ALTER USER a IDENTIFIED BY 'a';
-reject	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)	ALTER USER a DEFAULT ROLE NONE;
+accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)	ALTER USER a DEFAULT ROLE NONE;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!drop-1	USER a DEFAULT ROLE NONE;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!drop-2	ALTER a DEFAULT ROLE NONE;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!drop-3	ALTER USER DEFAULT ROLE NONE;
@@ -6127,7 +6127,7 @@ reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROL
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!truncate	ALTER USER a DEFAULT ROLE
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!insert	ALTER USER a DEFAULT ROLE NONE zzz;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!swap	ANALYZE USER a DEFAULT ROLE NONE;
-reject	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties	ALTER USER a SET PROPERTIES('a' = 'a');
+accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties	ALTER USER a SET PROPERTIES('a' = 'a');
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!drop-1	USER a SET PROPERTIES('a' = 'a');
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!drop-3	ALTER USER SET PROPERTIES('a' = 'a');
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!drop-4	ALTER USER a PROPERTIES('a' = 'a');
@@ -6148,12 +6148,12 @@ reject	reject	engine	alterUserStatement(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER USER 
 reject	reject	engine	alterUserStatement(IF_EXISTS)?/IF_EXISTS!truncate	ALTER USER IF
 reject	reject	engine	alterUserStatement(IF_EXISTS)?/IF_EXISTS!insert	ALTER USER IF EXISTS zzz a IDENTIFIED BY 'a';
 reject	reject	engine	alterUserStatement(IF_EXISTS)?/IF_EXISTS!swap	ALTER USER IGNORE EXISTS a IDENTIFIED BY 'a';
-reject	accept	engine	alterUserStatement(NONE|ALL|roleList)/NONE	ALTER USER a DEFAULT ROLE NONE;
+accept	accept	engine	alterUserStatement(NONE|ALL|roleList)/NONE	ALTER USER a DEFAULT ROLE NONE;
 reject	reject	engine	alterUserStatement(NONE|ALL|roleList)/NONE!swap	ALTER USER a DEFAULT ROLE NOT;
-reject	accept	engine	alterUserStatement(NONE|ALL|roleList)/ALL	ALTER USER a DEFAULT ROLE ALL;
+accept	accept	engine	alterUserStatement(NONE|ALL|roleList)/ALL	ALTER USER a DEFAULT ROLE ALL;
 reject	reject	engine	alterUserStatement(NONE|ALL|roleList)/ALL!insert	ALTER USER a DEFAULT ROLE ALL zzz;
 reject	reject	engine	alterUserStatement(NONE|ALL|roleList)/ALL!swap	ALTER USER a DEFAULT ROLE ALTER;
-reject	accept	engine	alterUserStatement(NONE|ALL|roleList)/roleList	ALTER USER a DEFAULT ROLE a;
+accept	accept	engine	alterUserStatement(NONE|ALL|roleList)/roleList	ALTER USER a DEFAULT ROLE a;
 reject	reject	engine	alterUserStatement(NONE|ALL|roleList)/roleList!insert	ALTER USER a DEFAULT ROLE a zzz;
 accept	accept	engine	showUserStatement/SHOW_(USER|USERS)	SHOW USER;
 accept	accept	engine	showUserStatement(USER|USERS)/USER	SHOW USER;
@@ -6174,9 +6174,9 @@ reject	reject	engine	showAuthenticationStatement(FOR_user)?/FOR_user!drop-2	SHOW
 reject	reject	engine	showAuthenticationStatement(FOR_user)?/FOR_user!truncate	SHOW AUTHENTICATION FOR
 reject	reject	engine	showAuthenticationStatement(FOR_user)?/FOR_user!insert	SHOW AUTHENTICATION FOR a zzz;
 reject	reject	engine	showAuthenticationStatement(FOR_user)?/FOR_user!swap	SHOW AUTHENTICATION FORCE a;
-reject	accept	engine	executeAsStatement/EXECUTE_AS_user_(WITH_NO_REVERT)?	EXECUTE AS a;
-reject	accept	engine	executeAsStatement(WITH_NO_REVERT)?/%empty	EXECUTE AS a;
-reject	accept	engine	executeAsStatement(WITH_NO_REVERT)?/WITH_NO_REVERT	EXECUTE AS a WITH NO REVERT;
+accept	accept	engine	executeAsStatement/EXECUTE_AS_user_(WITH_NO_REVERT)?	EXECUTE AS a;
+accept	accept	engine	executeAsStatement(WITH_NO_REVERT)?/%empty	EXECUTE AS a;
+accept	accept	engine	executeAsStatement(WITH_NO_REVERT)?/WITH_NO_REVERT	EXECUTE AS a WITH NO REVERT;
 reject	reject	engine	executeAsStatement(WITH_NO_REVERT)?/WITH_NO_REVERT!drop-1	EXECUTE AS a NO REVERT;
 reject	reject	engine	executeAsStatement(WITH_NO_REVERT)?/WITH_NO_REVERT!drop-2	EXECUTE AS a WITH REVERT;
 reject	reject	engine	executeAsStatement(WITH_NO_REVERT)?/WITH_NO_REVERT!drop-3	EXECUTE AS a WITH NO;
@@ -6200,10 +6200,10 @@ reject	reject	engine	createRoleStatement(comment)?/comment!drop-2	CREATE ROLE a 
 reject	reject	engine	createRoleStatement(comment)?/comment!truncate	CREATE ROLE a COMMENT
 reject	reject	engine	createRoleStatement(comment)?/comment!insert	CREATE ROLE a COMMENT 'a' zzz;
 reject	reject	engine	createRoleStatement(comment)?/comment!swap	CREATE ROLE a COMMIT 'a';
-reject	accept	engine	alterRoleStatement/ALTER_ROLE_(IF_EXISTS)?_roleList_SET_COMMENT_=_string	ALTER ROLE a SET COMMENT = 'a';
-reject	accept	engine	alterRoleStatement(IF_EXISTS)?/%empty	ALTER ROLE a SET COMMENT = 'a';
+accept	accept	engine	alterRoleStatement/ALTER_ROLE_(IF_EXISTS)?_roleList_SET_COMMENT_=_string	ALTER ROLE a SET COMMENT = 'a';
+accept	accept	engine	alterRoleStatement(IF_EXISTS)?/%empty	ALTER ROLE a SET COMMENT = 'a';
 reject	reject	engine	alterRoleStatement(IF_EXISTS)?/%empty!insert	ALTER ROLE zzz a SET COMMENT = 'a';
-reject	accept	engine	alterRoleStatement(IF_EXISTS)?/IF_EXISTS	ALTER ROLE IF EXISTS a SET COMMENT = 'a';
+accept	accept	engine	alterRoleStatement(IF_EXISTS)?/IF_EXISTS	ALTER ROLE IF EXISTS a SET COMMENT = 'a';
 reject	reject	engine	alterRoleStatement(IF_EXISTS)?/IF_EXISTS!drop-1	ALTER ROLE EXISTS a SET COMMENT = 'a';
 reject	reject	engine	alterRoleStatement(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER ROLE IF a SET COMMENT = 'a';
 reject	reject	engine	alterRoleStatement(IF_EXISTS)?/IF_EXISTS!truncate	ALTER ROLE IF
@@ -6489,7 +6489,7 @@ accept	accept	engine	showGrantsStatement(USER)?/USER	SHOW GRANTS FOR USER a;
 reject	reject	engine	showGrantsStatement(USER)?/USER!insert	SHOW GRANTS FOR USER zzz a;
 reject	reject	engine	showGrantsStatement(USER)?/USER!swap	SHOW GRANTS FOR USERS a;
 accept	accept	engine	authOption/IDENTIFIED_BY_(PASSWORD)?_string	CREATE USER a IDENTIFIED BY 'a';
-reject	accept	engine	authOption/IDENTIFIED_WITH_identifierOrString_((BY|AS)_string)?	CREATE USER a IDENTIFIED WITH a;
+accept	accept	engine	authOption/IDENTIFIED_WITH_identifierOrString_((BY|AS)_string)?	CREATE USER a IDENTIFIED WITH a;
 reject	reject	engine	authOption/IDENTIFIED_WITH_identifierOrString_((BY|AS)_string)?!drop-1	CREATE USER a WITH a;
 reject	reject	engine	authOption/IDENTIFIED_WITH_identifierOrString_((BY|AS)_string)?!drop-2	CREATE USER a IDENTIFIED a;
 reject	reject	engine	authOption/IDENTIFIED_WITH_identifierOrString_((BY|AS)_string)?!drop-3	CREATE USER a IDENTIFIED WITH;
@@ -6501,17 +6501,17 @@ reject	reject	engine	authOption(PASSWORD)?/%empty!insert	CREATE USER a IDENTIFIE
 accept	accept	engine	authOption(PASSWORD)?/PASSWORD	CREATE USER a IDENTIFIED BY PASSWORD 'a';
 reject	reject	engine	authOption(PASSWORD)?/PASSWORD!insert	CREATE USER a IDENTIFIED BY PASSWORD zzz 'a';
 reject	reject	engine	authOption(PASSWORD)?/PASSWORD!swap	CREATE USER a IDENTIFIED BY PATH 'a';
-reject	accept	engine	authOption((BY|AS)_string)?/%empty	CREATE USER a IDENTIFIED WITH a;
-reject	accept	engine	authOption((BY|AS)_string)?/(BY|AS)_string	CREATE USER a IDENTIFIED WITH a BY 'a';
+accept	accept	engine	authOption((BY|AS)_string)?/%empty	CREATE USER a IDENTIFIED WITH a;
+accept	accept	engine	authOption((BY|AS)_string)?/(BY|AS)_string	CREATE USER a IDENTIFIED WITH a BY 'a';
 reject	reject	engine	authOption((BY|AS)_string)?/(BY|AS)_string!drop-1	CREATE USER a IDENTIFIED WITH a 'a';
 reject	reject	engine	authOption((BY|AS)_string)?/(BY|AS)_string!drop-2	CREATE USER a IDENTIFIED WITH a BY;
 reject	reject	engine	authOption((BY|AS)_string)?/(BY|AS)_string!truncate	CREATE USER a IDENTIFIED WITH a BY
 reject	reject	engine	authOption((BY|AS)_string)?/(BY|AS)_string!insert	CREATE USER a IDENTIFIED WITH a BY 'a' zzz;
 reject	reject	engine	authOption((BY|AS)_string)?/(BY|AS)_string!swap	CREATE USER a IDENTIFIED WITH a CACHE 'a';
-reject	accept	engine	authOption(BY|AS)/BY	CREATE USER a IDENTIFIED WITH a BY 'a';
-reject	accept	engine	authOption(BY|AS)/BY!truncate	CREATE USER a IDENTIFIED WITH a
+accept	accept	engine	authOption(BY|AS)/BY	CREATE USER a IDENTIFIED WITH a BY 'a';
+accept	accept	engine	authOption(BY|AS)/BY!truncate	CREATE USER a IDENTIFIED WITH a
 reject	reject	engine	authOption(BY|AS)/BY!insert	CREATE USER a IDENTIFIED WITH a BY zzz 'a';
-reject	accept	engine	authOption(BY|AS)/AS	CREATE USER a IDENTIFIED WITH a AS 'a';
+accept	accept	engine	authOption(BY|AS)/AS	CREATE USER a IDENTIFIED WITH a AS 'a';
 reject	reject	engine	authOption(BY|AS)/AS!insert	CREATE USER a IDENTIFIED WITH a AS zzz 'a';
 reject	reject	engine	authOption(BY|AS)/AS!swap	CREATE USER a IDENTIFIED WITH a ASC 'a';
 accept	accept	engine	privObjectName/identifierOrStringOrStar_(._identifierOrStringOrStar)?	GRANT ALL ON * TO a;
@@ -6756,14 +6756,14 @@ reject	reject	engine	privObjectTypePlural/PIPES!swap	GRANT ALL ON ALL PIVOT TO a
 accept	accept	engine	backupStatement/BACKUP_(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?~7e1072bc	BACKUP SNAPSHOT a TO a;
 accept	accept	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/%empty	BACKUP SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/%empty!insert	BACKUP zzz SNAPSHOT a TO a;
-reject	accept	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS	BACKUP ALL EXTERNAL CATALOGS SNAPSHOT a TO a;
+accept	accept	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS	BACKUP ALL EXTERNAL CATALOGS SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!drop-1	BACKUP EXTERNAL CATALOGS SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!drop-2	BACKUP ALL CATALOGS SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!drop-3	BACKUP ALL EXTERNAL SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!truncate	BACKUP ALL EXTERNAL
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!insert	BACKUP ALL EXTERNAL CATALOGS zzz SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/ALL_EXTERNAL_CATALOGS!swap	BACKUP ALTER EXTERNAL CATALOGS SNAPSHOT a TO a;
-reject	accept	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList	BACKUP EXTERNAL CATALOG(a) SNAPSHOT a TO a;
+accept	accept	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList	BACKUP EXTERNAL CATALOG(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!drop-1	BACKUP CATALOG(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!drop-2	BACKUP EXTERNAL(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!drop-3	BACKUP EXTERNAL CATALOG a) SNAPSHOT a TO a;
@@ -6772,14 +6772,14 @@ reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d822
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!truncate	BACKUP EXTERNAL CATALOG(a
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!insert	BACKUP EXTERNAL CATALOG(a) zzz SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~84d82201)?/EXTERNAL_(CATALOG|CATALOGS)_identifierList!swap	BACKUP EXTRACT CATALOG(a) SNAPSHOT a TO a;
-reject	accept	engine	backupStatement(CATALOG|CATALOGS)/CATALOG	BACKUP EXTERNAL CATALOG(a) SNAPSHOT a TO a;
+accept	accept	engine	backupStatement(CATALOG|CATALOGS)/CATALOG	BACKUP EXTERNAL CATALOG(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(CATALOG|CATALOGS)/CATALOG!truncate	BACKUP EXTERNAL
 reject	reject	engine	backupStatement(CATALOG|CATALOGS)/CATALOG!insert	BACKUP EXTERNAL CATALOG zzz(a) SNAPSHOT a TO a;
-reject	accept	engine	backupStatement(CATALOG|CATALOGS)/CATALOGS	BACKUP EXTERNAL CATALOGS(a) SNAPSHOT a TO a;
+accept	accept	engine	backupStatement(CATALOG|CATALOGS)/CATALOGS	BACKUP EXTERNAL CATALOGS(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(CATALOG|CATALOGS)/CATALOGS!insert	BACKUP EXTERNAL CATALOGS zzz(a) SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(CATALOG|CATALOGS)/CATALOGS!swap	BACKUP EXTERNAL CEIL(a) SNAPSHOT a TO a;
 accept	accept	engine	backupStatement(DATABASE_identifier)?/%empty	BACKUP SNAPSHOT a TO a;
-reject	accept	engine	backupStatement(DATABASE_identifier)?/DATABASE_identifier	BACKUP DATABASE a SNAPSHOT a TO a;
+accept	accept	engine	backupStatement(DATABASE_identifier)?/DATABASE_identifier	BACKUP DATABASE a SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(DATABASE_identifier)?/DATABASE_identifier!drop-1	BACKUP a SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(DATABASE_identifier)?/DATABASE_identifier!drop-2	BACKUP DATABASE SNAPSHOT a TO a;
 reject	reject	engine	backupStatement(DATABASE_identifier)?/DATABASE_identifier!truncate	BACKUP DATABASE
@@ -6849,14 +6849,14 @@ reject	reject	engine	showBackupStatement(FROM|IN)/IN!insert	SHOW BACKUP IN zzz a
 reject	reject	engine	showBackupStatement(FROM|IN)/IN!swap	SHOW BACKUP INACTIVE a;
 accept	accept	engine	restoreStatement/RESTORE_SNAPSHOT_qualifiedName_FROM_identifier_(ALL_EXT~4d14454a	RESTORE SNAPSHOT a FROM a;
 accept	accept	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/%empty	RESTORE SNAPSHOT a FROM a;
-reject	accept	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS	RESTORE SNAPSHOT a FROM a ALL EXTERNAL CATALOGS;
+accept	accept	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS	RESTORE SNAPSHOT a FROM a ALL EXTERNAL CATALOGS;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!drop-1	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOGS;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!drop-2	RESTORE SNAPSHOT a FROM a ALL CATALOGS;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!drop-3	RESTORE SNAPSHOT a FROM a ALL EXTERNAL;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!truncate	RESTORE SNAPSHOT a FROM a ALL EXTERNAL
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!insert	RESTORE SNAPSHOT a FROM a ALL EXTERNAL CATALOGS zzz;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/ALL_EXTERNAL_CATALOGS!swap	RESTORE SNAPSHOT a FROM a ALTER EXTERNAL CATALOGS;
-reject	accept	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!drop-1	RESTORE SNAPSHOT a FROM a CATALOG(a);
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!drop-2	RESTORE SNAPSHOT a FROM a EXTERNAL(a);
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!drop-3	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG a);
@@ -6865,21 +6865,21 @@ reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!truncate	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a) zzz;
 reject	reject	engine	restoreStatement(ALL_EXTERNAL_CATALOGS|EXTERNAL_(CATA~197f6f4c)?/EXTERNAL_(CATALOG|CATALOGS)_identifierWithAliasList!swap	RESTORE SNAPSHOT a FROM a EXTRACT CATALOG(a);
-reject	accept	engine	restoreStatement(CATALOG|CATALOGS)/CATALOG	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	restoreStatement(CATALOG|CATALOGS)/CATALOG	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
 reject	reject	engine	restoreStatement(CATALOG|CATALOGS)/CATALOG!truncate	RESTORE SNAPSHOT a FROM a EXTERNAL
 reject	reject	engine	restoreStatement(CATALOG|CATALOGS)/CATALOG!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG zzz(a);
-reject	accept	engine	restoreStatement(CATALOG|CATALOGS)/CATALOGS	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOGS(a);
+accept	accept	engine	restoreStatement(CATALOG|CATALOGS)/CATALOGS	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOGS(a);
 reject	reject	engine	restoreStatement(CATALOG|CATALOGS)/CATALOGS!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOGS zzz(a);
 reject	reject	engine	restoreStatement(CATALOG|CATALOGS)/CATALOGS!swap	RESTORE SNAPSHOT a FROM a EXTERNAL CEIL(a);
 accept	accept	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/%empty	RESTORE SNAPSHOT a FROM a;
-reject	accept	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?	RESTORE SNAPSHOT a FROM a DATABASE a;
+accept	accept	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?	RESTORE SNAPSHOT a FROM a DATABASE a;
 reject	reject	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?!drop-1	RESTORE SNAPSHOT a FROM a a;
 reject	reject	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?!drop-2	RESTORE SNAPSHOT a FROM a DATABASE;
 reject	reject	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?!truncate	RESTORE SNAPSHOT a FROM a DATABASE
 reject	reject	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?!insert	RESTORE SNAPSHOT a FROM a DATABASE a zzz;
 reject	reject	engine	restoreStatement(DATABASE_identifier_(AS_identifier)?)?/DATABASE_identifier_(AS_identifier)?!swap	RESTORE SNAPSHOT a FROM a DATABASES a;
-reject	accept	engine	restoreStatement(AS_identifier)?/%empty	RESTORE SNAPSHOT a FROM a DATABASE a;
-reject	accept	engine	restoreStatement(AS_identifier)?/AS_identifier	RESTORE SNAPSHOT a FROM a DATABASE a AS a;
+accept	accept	engine	restoreStatement(AS_identifier)?/%empty	RESTORE SNAPSHOT a FROM a DATABASE a;
+accept	accept	engine	restoreStatement(AS_identifier)?/AS_identifier	RESTORE SNAPSHOT a FROM a DATABASE a AS a;
 reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!drop-1	RESTORE SNAPSHOT a FROM a DATABASE a a;
 reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!drop-2	RESTORE SNAPSHOT a FROM a DATABASE a AS;
 reject	reject	engine	restoreStatement(AS_identifier)?/AS_identifier!truncate	RESTORE SNAPSHOT a FROM a DATABASE a AS
@@ -6988,48 +6988,48 @@ reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERT
 reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!insert	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!swap	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTY('a' = 'a');
 accept	accept	engine	dropRepositoryStatement/DROP_REPOSITORY_identifier	DROP REPOSITORY a;
-reject	accept	engine	addSqlBlackListStatement/ADD_SQLBLACKLIST_string	ADD SQLBLACKLIST 'a';
-reject	accept	engine	delSqlBlackListStatement/DELETE_SQLBLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE SQLBLACKLIST 1;
-reject	accept	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/%empty	DELETE SQLBLACKLIST 1;
-reject	accept	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE SQLBLACKLIST 1, 1;
+accept	accept	engine	addSqlBlackListStatement/ADD_SQLBLACKLIST_string	ADD SQLBLACKLIST 'a';
+accept	accept	engine	delSqlBlackListStatement/DELETE_SQLBLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE SQLBLACKLIST 1;
+accept	accept	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/%empty	DELETE SQLBLACKLIST 1;
+accept	accept	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE SQLBLACKLIST 1, 1;
 reject	reject	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	DELETE SQLBLACKLIST 1 1;
 reject	reject	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	DELETE SQLBLACKLIST 1,;
 reject	reject	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	DELETE SQLBLACKLIST 1,
 reject	reject	engine	delSqlBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	DELETE SQLBLACKLIST 1, 1 zzz;
 accept	accept	engine	showSqlBlackListStatement/SHOW_SQLBLACKLIST	SHOW SQLBLACKLIST;
 accept	accept	engine	showWhiteListStatement/SHOW_WHITELIST	SHOW WHITELIST;
-reject	accept	engine	addBackendBlackListStatement/ADD_BACKEND_BLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	ADD BACKEND BLACKLIST 1;
-reject	accept	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/%empty	ADD BACKEND BLACKLIST 1;
-reject	accept	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ADD BACKEND BLACKLIST 1, 1;
+accept	accept	engine	addBackendBlackListStatement/ADD_BACKEND_BLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	ADD BACKEND BLACKLIST 1;
+accept	accept	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/%empty	ADD BACKEND BLACKLIST 1;
+accept	accept	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	ADD BACKEND BLACKLIST 1, 1;
 reject	reject	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	ADD BACKEND BLACKLIST 1 1;
 reject	reject	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	ADD BACKEND BLACKLIST 1,;
 reject	reject	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	ADD BACKEND BLACKLIST 1,
 reject	reject	engine	addBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	ADD BACKEND BLACKLIST 1, 1 zzz;
-reject	accept	engine	delBackendBlackListStatement/DELETE_BACKEND_BLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE BACKEND BLACKLIST 1;
-reject	accept	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/%empty	DELETE BACKEND BLACKLIST 1;
-reject	accept	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE BACKEND BLACKLIST 1, 1;
+accept	accept	engine	delBackendBlackListStatement/DELETE_BACKEND_BLACKLIST_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE BACKEND BLACKLIST 1;
+accept	accept	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/%empty	DELETE BACKEND BLACKLIST 1;
+accept	accept	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*	DELETE BACKEND BLACKLIST 1, 1;
 reject	reject	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-1	DELETE BACKEND BLACKLIST 1 1;
 reject	reject	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	DELETE BACKEND BLACKLIST 1,;
 reject	reject	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	DELETE BACKEND BLACKLIST 1,
 reject	reject	engine	delBackendBlackListStatement(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	DELETE BACKEND BLACKLIST 1, 1 zzz;
 accept	accept	engine	showBackendBlackListStatement/SHOW_BACKEND_BLACKLIST	SHOW BACKEND BLACKLIST;
-reject	accept	engine	dataCacheTarget/identifierOrStringOrStar_._identifierOrStringOrStar_._i~506928ef	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	dataCacheTarget/identifierOrStringOrStar_._identifierOrStringOrStar_._i~506928ef	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
 reject	reject	engine	dataCacheTarget/identifierOrStringOrStar_._identifierOrStringOrStar_._i~506928ef!truncate	CREATE DATACACHE RULE *.*.
 reject	reject	engine	dataCacheTarget/identifierOrStringOrStar_._identifierOrStringOrStar_._i~506928ef!insert	CREATE DATACACHE RULE *.*.* zzz PRIORITY = 1;
-reject	accept	engine	createDataCacheRuleStatement/CREATE_DATACACHE_RULE_dataCacheTarget_(WHERE_expression~9ce3b31b	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
-reject	accept	engine	createDataCacheRuleStatement(WHERE_expression)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
-reject	accept	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression	CREATE DATACACHE RULE *.*.* WHERE CURRENT_USER PRIORITY = 1;
+accept	accept	engine	createDataCacheRuleStatement/CREATE_DATACACHE_RULE_dataCacheTarget_(WHERE_expression~9ce3b31b	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	createDataCacheRuleStatement(WHERE_expression)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression	CREATE DATACACHE RULE *.*.* WHERE CURRENT_USER PRIORITY = 1;
 reject	reject	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression!drop-1	CREATE DATACACHE RULE *.*.* CURRENT_USER PRIORITY = 1;
 reject	reject	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression!drop-2	CREATE DATACACHE RULE *.*.* WHERE PRIORITY = 1;
 reject	reject	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression!truncate	CREATE DATACACHE RULE *.*.* WHERE
 reject	reject	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression!insert	CREATE DATACACHE RULE *.*.* WHERE CURRENT_USER zzz PRIORITY = 1;
 reject	reject	engine	createDataCacheRuleStatement(WHERE_expression)?/WHERE_expression!swap	CREATE DATACACHE RULE *.*.* WHITELIST CURRENT_USER PRIORITY = 1;
-reject	accept	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
 reject	reject	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/%empty!insert	CREATE DATACACHE RULE *.*.* PRIORITY = zzz 1;
-reject	accept	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/MINUS_SYMBOL	CREATE DATACACHE RULE *.*.* PRIORITY = - 1;
+accept	accept	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/MINUS_SYMBOL	CREATE DATACACHE RULE *.*.* PRIORITY = - 1;
 reject	reject	engine	createDataCacheRuleStatement(MINUS_SYMBOL)?/MINUS_SYMBOL!insert	CREATE DATACACHE RULE *.*.* PRIORITY = - zzz 1;
-reject	accept	engine	createDataCacheRuleStatement(properties)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
-reject	accept	engine	createDataCacheRuleStatement(properties)?/properties	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTIES('a' = 'a');
+accept	accept	engine	createDataCacheRuleStatement(properties)?/%empty	CREATE DATACACHE RULE *.*.* PRIORITY = 1;
+accept	accept	engine	createDataCacheRuleStatement(properties)?/properties	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTIES('a' = 'a');
 reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!drop-1	CREATE DATACACHE RULE *.*.* PRIORITY = 1('a' = 'a');
 reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!drop-2	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTIES 'a' = 'a');
 reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!drop-3	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTIES(= 'a');
@@ -7040,8 +7040,8 @@ reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!trunca
 reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!insert	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!swap	CREATE DATACACHE RULE *.*.* PRIORITY = 1 PROPERTY('a' = 'a');
 accept	accept	engine	showDataCacheRulesStatement/SHOW_DATACACHE_RULES	SHOW DATACACHE RULES;
-reject	accept	engine	dropDataCacheRuleStatement/DROP_DATACACHE_RULE_INTEGER_VALUE	DROP DATACACHE RULE 1;
-reject	accept	engine	clearDataCacheRulesStatement/CLEAR_DATACACHE_RULES	CLEAR DATACACHE RULES;
+accept	accept	engine	dropDataCacheRuleStatement/DROP_DATACACHE_RULE_INTEGER_VALUE	DROP DATACACHE RULE 1;
+accept	accept	engine	clearDataCacheRulesStatement/CLEAR_DATACACHE_RULES	CLEAR DATACACHE RULES;
 accept	accept	engine	dataCacheSelectStatement/CACHE_SELECT_selectItem_(,_selectItem)*_FROM_qualifiedN~ae1e13ce	CACHE SELECT CURRENT_USER FROM a;
 accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty	CACHE SELECT CURRENT_USER FROM a;
 accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty!insert	CACHE SELECT CURRENT_USER zzz FROM a;
@@ -7072,25 +7072,25 @@ reject	reject	engine	dataCacheSelectStatement(properties)?/properties!swap	CACHE
 accept	accept	engine	exportStatement/EXPORT_TABLE_tableDesc_(columnAliases)?_TO_string_(WITH~c1d29930	EXPORT TABLE a TO 'a';
 accept	accept	engine	exportStatement(columnAliases)?/%empty	EXPORT TABLE a TO 'a';
 reject	reject	engine	exportStatement(columnAliases)?/%empty!insert	EXPORT TABLE a zzz TO 'a';
-reject	accept	engine	exportStatement(columnAliases)?/columnAliases	EXPORT TABLE a(a) TO 'a';
+accept	accept	engine	exportStatement(columnAliases)?/columnAliases	EXPORT TABLE a(a) TO 'a';
 reject	reject	engine	exportStatement(columnAliases)?/columnAliases!drop-1	EXPORT TABLE a a) TO 'a';
 reject	reject	engine	exportStatement(columnAliases)?/columnAliases!drop-2	EXPORT TABLE a() TO 'a';
 reject	reject	engine	exportStatement(columnAliases)?/columnAliases!drop-3	EXPORT TABLE a(a TO 'a';
 reject	reject	engine	exportStatement(columnAliases)?/columnAliases!truncate	EXPORT TABLE a(a
 reject	reject	engine	exportStatement(columnAliases)?/columnAliases!insert	EXPORT TABLE a(a) zzz TO 'a';
 accept	accept	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/%empty	EXPORT TABLE a TO 'a';
-reject	accept	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	EXPORT TABLE a TO 'a' WITH SYNC MODE;
+accept	accept	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE	EXPORT TABLE a TO 'a' WITH SYNC MODE;
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-1	EXPORT TABLE a TO 'a' SYNC MODE;
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-2	EXPORT TABLE a TO 'a' WITH MODE;
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!drop-3	EXPORT TABLE a TO 'a' WITH SYNC;
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!truncate	EXPORT TABLE a TO 'a' WITH SYNC
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!insert	EXPORT TABLE a TO 'a' WITH SYNC MODE zzz;
 reject	reject	engine	exportStatement(WITH_(SYNC|ASYNC)_MODE)?/WITH_(SYNC|ASYNC)_MODE!swap	EXPORT TABLE a TO 'a' WORK SYNC MODE;
-reject	accept	engine	exportStatement(SYNC|ASYNC)/SYNC	EXPORT TABLE a TO 'a' WITH SYNC MODE;
+accept	accept	engine	exportStatement(SYNC|ASYNC)/SYNC	EXPORT TABLE a TO 'a' WITH SYNC MODE;
 reject	reject	engine	exportStatement(SYNC|ASYNC)/SYNC!truncate	EXPORT TABLE a TO 'a' WITH
 reject	reject	engine	exportStatement(SYNC|ASYNC)/SYNC!insert	EXPORT TABLE a TO 'a' WITH SYNC zzz MODE;
 reject	reject	engine	exportStatement(SYNC|ASYNC)/SYNC!swap	EXPORT TABLE a TO 'a' WITH SYSTEM MODE;
-reject	accept	engine	exportStatement(SYNC|ASYNC)/ASYNC	EXPORT TABLE a TO 'a' WITH ASYNC MODE;
+accept	accept	engine	exportStatement(SYNC|ASYNC)/ASYNC	EXPORT TABLE a TO 'a' WITH ASYNC MODE;
 reject	reject	engine	exportStatement(SYNC|ASYNC)/ASYNC!insert	EXPORT TABLE a TO 'a' WITH ASYNC zzz MODE;
 reject	reject	engine	exportStatement(SYNC|ASYNC)/ASYNC!swap	EXPORT TABLE a TO 'a' WITH AUTHENTICATION MODE;
 accept	accept	engine	exportStatement(properties)?/%empty	EXPORT TABLE a TO 'a';
@@ -7105,7 +7105,7 @@ reject	reject	engine	exportStatement(properties)?/properties!truncate	EXPORT TAB
 reject	reject	engine	exportStatement(properties)?/properties!insert	EXPORT TABLE a TO 'a' PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	exportStatement(properties)?/properties!swap	EXPORT TABLE a TO 'a' PROPERTY('a' = 'a');
 accept	accept	engine	exportStatement(brokerDesc)?/%empty	EXPORT TABLE a TO 'a';
-reject	accept	engine	exportStatement(brokerDesc)?/brokerDesc	EXPORT TABLE a TO 'a' WITH BROKER;
+accept	accept	engine	exportStatement(brokerDesc)?/brokerDesc	EXPORT TABLE a TO 'a' WITH BROKER;
 reject	reject	engine	exportStatement(brokerDesc)?/brokerDesc!drop-1	EXPORT TABLE a TO 'a' BROKER;
 reject	reject	engine	exportStatement(brokerDesc)?/brokerDesc!drop-2	EXPORT TABLE a TO 'a' WITH;
 accept	accept	engine	exportStatement(brokerDesc)?/brokerDesc!insert	EXPORT TABLE a TO 'a' WITH BROKER zzz;
@@ -7202,13 +7202,13 @@ accept	accept	engine	uninstallPluginStatement/UNINSTALL_PLUGIN_identifierOrStrin
 accept	accept	engine	createFileStatement/CREATE_FILE_string_((FROM|IN)_qualifiedName)?_properties	CREATE FILE 'a' PROPERTIES('a' = 'a');
 accept	accept	engine	createFileStatement((FROM|IN)_qualifiedName)?/%empty	CREATE FILE 'a' PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/%empty!insert	CREATE FILE 'a' zzz PROPERTIES('a' = 'a');
-reject	accept	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName	CREATE FILE 'a' FROM a PROPERTIES('a' = 'a');
+accept	accept	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName	CREATE FILE 'a' FROM a PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-1	CREATE FILE 'a' a PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!drop-2	CREATE FILE 'a' FROM PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!truncate	CREATE FILE 'a' FROM
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!insert	CREATE FILE 'a' FROM a zzz PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!swap	CREATE FILE 'a' FRONTEND a PROPERTIES('a' = 'a');
-reject	accept	engine	createFileStatement(FROM|IN)/FROM	CREATE FILE 'a' FROM a PROPERTIES('a' = 'a');
+accept	accept	engine	createFileStatement(FROM|IN)/FROM	CREATE FILE 'a' FROM a PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement(FROM|IN)/FROM!truncate	CREATE FILE 'a'
 reject	reject	engine	createFileStatement(FROM|IN)/FROM!insert	CREATE FILE 'a' FROM zzz a PROPERTIES('a' = 'a');
 accept	accept	engine	createFileStatement(FROM|IN)/IN	CREATE FILE 'a' IN a PROPERTIES('a' = 'a');
@@ -7226,7 +7226,7 @@ reject	reject	engine	dropFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_quali
 accept	accept	engine	dropFileStatement(FROM|IN)/FROM	DROP FILE 'a' FROM a PROPERTIES('a' = 'a');
 reject	reject	engine	dropFileStatement(FROM|IN)/FROM!truncate	DROP FILE 'a'
 reject	reject	engine	dropFileStatement(FROM|IN)/FROM!insert	DROP FILE 'a' FROM zzz a PROPERTIES('a' = 'a');
-reject	accept	engine	dropFileStatement(FROM|IN)/IN	DROP FILE 'a' IN a PROPERTIES('a' = 'a');
+accept	accept	engine	dropFileStatement(FROM|IN)/IN	DROP FILE 'a' IN a PROPERTIES('a' = 'a');
 reject	reject	engine	dropFileStatement(FROM|IN)/IN!insert	DROP FILE 'a' IN zzz a PROPERTIES('a' = 'a');
 reject	reject	engine	dropFileStatement(FROM|IN)/IN!swap	DROP FILE 'a' INACTIVE a PROPERTIES('a' = 'a');
 accept	accept	engine	showSmallFilesStatement/SHOW_FILE_((FROM|IN)_qualifiedName)?	SHOW FILE;
@@ -7243,10 +7243,10 @@ reject	reject	engine	showSmallFilesStatement(FROM|IN)/FROM!insert	SHOW FILE FROM
 accept	accept	engine	showSmallFilesStatement(FROM|IN)/IN	SHOW FILE IN a;
 reject	reject	engine	showSmallFilesStatement(FROM|IN)/IN!insert	SHOW FILE IN zzz a;
 reject	reject	engine	showSmallFilesStatement(FROM|IN)/IN!swap	SHOW FILE INACTIVE a;
-reject	accept	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	createPipeStatement(properties)?/%empty	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	createPipeStatement(properties)?/%empty	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/%empty!insert	CREATE PIPE a zzz AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	createPipeStatement(properties)?/properties	CREATE PIPE a PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	createPipeStatement(properties)?/properties	CREATE PIPE a PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/properties!drop-1	CREATE PIPE a('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/properties!drop-2	CREATE PIPE a PROPERTIES 'a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/properties!drop-3	CREATE PIPE a PROPERTIES(= 'a') AS INSERT INTO a SELECT CURRENT_USER;
@@ -7256,34 +7256,34 @@ reject	reject	engine	createPipeStatement(properties)?/properties!drop-6	CREATE P
 reject	reject	engine	createPipeStatement(properties)?/properties!truncate	CREATE PIPE a PROPERTIES('a' = 'a'
 reject	reject	engine	createPipeStatement(properties)?/properties!insert	CREATE PIPE a PROPERTIES('a' = 'a') zzz AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/properties!swap	CREATE PIPE a PROPERTY('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	dropPipeStatement/DROP_PIPE_(IF_EXISTS)?_qualifiedName	DROP PIPE a;
-reject	accept	engine	dropPipeStatement(IF_EXISTS)?/%empty	DROP PIPE a;
+accept	accept	engine	dropPipeStatement/DROP_PIPE_(IF_EXISTS)?_qualifiedName	DROP PIPE a;
+accept	accept	engine	dropPipeStatement(IF_EXISTS)?/%empty	DROP PIPE a;
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/%empty!insert	DROP PIPE zzz a;
-reject	accept	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS	DROP PIPE IF EXISTS a;
+accept	accept	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS	DROP PIPE IF EXISTS a;
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS!drop-1	DROP PIPE EXISTS a;
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS!drop-2	DROP PIPE IF a;
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP PIPE IF
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP PIPE IF EXISTS zzz a;
 reject	reject	engine	dropPipeStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP PIPE IGNORE EXISTS a;
-reject	accept	engine	alterPipeClause/SUSPEND	ALTER PIPE a SUSPEND;
+accept	accept	engine	alterPipeClause/SUSPEND	ALTER PIPE a SUSPEND;
 reject	reject	engine	alterPipeClause/SUSPEND!swap	ALTER PIPE a SWAP;
-reject	accept	engine	alterPipeClause/RESUME	ALTER PIPE a RESUME;
+accept	accept	engine	alterPipeClause/RESUME	ALTER PIPE a RESUME;
 reject	reject	engine	alterPipeClause/RESUME!insert	ALTER PIPE a RESUME zzz;
 reject	reject	engine	alterPipeClause/RESUME!swap	ALTER PIPE a RETAIN;
-reject	accept	engine	alterPipeClause/RETRY_ALL	ALTER PIPE a RETRY ALL;
+accept	accept	engine	alterPipeClause/RETRY_ALL	ALTER PIPE a RETRY ALL;
 reject	reject	engine	alterPipeClause/RETRY_ALL!drop-1	ALTER PIPE a ALL;
 reject	reject	engine	alterPipeClause/RETRY_ALL!drop-2	ALTER PIPE a RETRY;
 reject	reject	engine	alterPipeClause/RETRY_ALL!truncate	ALTER PIPE a RETRY
 reject	reject	engine	alterPipeClause/RETRY_ALL!insert	ALTER PIPE a RETRY ALL zzz;
 reject	reject	engine	alterPipeClause/RETRY_ALL!swap	ALTER PIPE a RETURNS ALL;
-reject	accept	engine	alterPipeClause/RETRY_FILE_string	ALTER PIPE a RETRY FILE 'a';
+accept	accept	engine	alterPipeClause/RETRY_FILE_string	ALTER PIPE a RETRY FILE 'a';
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!drop-1	ALTER PIPE a FILE 'a';
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!drop-2	ALTER PIPE a RETRY 'a';
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!drop-3	ALTER PIPE a RETRY FILE;
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!truncate	ALTER PIPE a RETRY FILE
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!insert	ALTER PIPE a RETRY FILE 'a' zzz;
 reject	reject	engine	alterPipeClause/RETRY_FILE_string!swap	ALTER PIPE a RETURNS FILE 'a';
-reject	accept	engine	alterPipeClause/SET_propertyList	ALTER PIPE a SET('a' = 'a');
+accept	accept	engine	alterPipeClause/SET_propertyList	ALTER PIPE a SET('a' = 'a');
 reject	reject	engine	alterPipeClause/SET_propertyList!drop-1	ALTER PIPE a('a' = 'a');
 reject	reject	engine	alterPipeClause/SET_propertyList!drop-2	ALTER PIPE a SET 'a' = 'a');
 reject	reject	engine	alterPipeClause/SET_propertyList!drop-3	ALTER PIPE a SET(= 'a');
@@ -7293,11 +7293,11 @@ reject	reject	engine	alterPipeClause/SET_propertyList!drop-6	ALTER PIPE a SET('a
 reject	reject	engine	alterPipeClause/SET_propertyList!truncate	ALTER PIPE a SET('a' = 'a'
 reject	reject	engine	alterPipeClause/SET_propertyList!insert	ALTER PIPE a SET('a' = 'a') zzz;
 reject	reject	engine	alterPipeClause/SET_propertyList!swap	ALTER PIPE a SETS('a' = 'a');
-reject	accept	engine	alterPipeStatement/ALTER_PIPE_qualifiedName_alterPipeClause	ALTER PIPE a SUSPEND;
-reject	accept	engine	descPipeStatement/(DESC|DESCRIBE)_PIPE_qualifiedName	DESC PIPE a;
-reject	accept	engine	descPipeStatement(DESC|DESCRIBE)/DESC	DESC PIPE a;
+accept	accept	engine	alterPipeStatement/ALTER_PIPE_qualifiedName_alterPipeClause	ALTER PIPE a SUSPEND;
+accept	accept	engine	descPipeStatement/(DESC|DESCRIBE)_PIPE_qualifiedName	DESC PIPE a;
+accept	accept	engine	descPipeStatement(DESC|DESCRIBE)/DESC	DESC PIPE a;
 reject	reject	engine	descPipeStatement(DESC|DESCRIBE)/DESC!insert	DESC zzz PIPE a;
-reject	accept	engine	descPipeStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE PIPE a;
+accept	accept	engine	descPipeStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE PIPE a;
 reject	reject	engine	descPipeStatement(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz PIPE a;
 reject	reject	engine	descPipeStatement(DESC|DESCRIBE)/DESCRIBE!swap	DICTIONARY PIPE a;
 accept	accept	engine	showPipeStatement/SHOW_PIPES_((LIKE_string)|(WHERE_expression)|(FR~b400cf~2e6972b4	SHOW PIPES;
@@ -7308,7 +7308,7 @@ reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/LIKE_string!truncate	SHOW PIPES LIKE
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/LIKE_string!insert	SHOW PIPES LIKE 'a' zzz;
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/LIKE_string!swap	SHOW PIPES LIMIT 'a';
-accept	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/WHERE_expression	SHOW PIPES WHERE CURRENT_USER;
+reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/WHERE_expression	SHOW PIPES WHERE CURRENT_USER;
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/WHERE_expression!drop-1	SHOW PIPES CURRENT_USER;
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/WHERE_expression!drop-2	SHOW PIPES WHERE;
 reject	reject	engine	showPipeStatement((LIKE_string)|(WHERE_expression)|(FR~b400cf86)?/WHERE_expression!truncate	SHOW PIPES WHERE
@@ -7514,7 +7514,7 @@ reject	reject	engine	setUserPropertyStatement(FOR_string)?/FOR_string!insert	SET
 reject	reject	engine	setUserPropertyStatement(FOR_string)?/FOR_string!swap	SET PROPERTY FORCE 'a' 'a' = 'a';
 accept	accept	engine	roleList/identifierOrString_(,_identifierOrString)*	CREATE ROLE a;
 accept	accept	engine	roleList(,_identifierOrString)*/%empty	CREATE ROLE a;
-reject	accept	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	CREATE ROLE a, a;
+accept	accept	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*	CREATE ROLE a, a;
 reject	reject	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-1	CREATE ROLE a a;
 reject	reject	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!drop-2	CREATE ROLE a,;
 reject	reject	engine	roleList(,_identifierOrString)*/,_identifierOrString_(,_identifierOrString)*!truncate	CREATE ROLE a,
@@ -7614,9 +7614,9 @@ accept	accept	engine	lock_type(LOW_PRIORITY)?/%empty!insert	LOCK TABLES a zzz WR
 accept	accept	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY	LOCK TABLES a LOW_PRIORITY WRITE;
 reject	reject	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY!insert	LOCK TABLES a LOW_PRIORITY zzz WRITE;
 accept	accept	engine	lock_type(LOW_PRIORITY)?/LOW_PRIORITY!swap	LOCK TABLES a MANUAL WRITE;
-reject	accept	engine	alterPlanAdvisorAddStatement/ALTER_PLAN_ADVISOR_ADD_queryStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
-reject	accept	engine	truncatePlanAdvisorStatement/TRUNCATE_PLAN_ADVISOR	TRUNCATE PLAN ADVISOR;
-reject	accept	engine	alterPlanAdvisorDropStatement/ALTER_PLAN_ADVISOR_DROP_string	ALTER PLAN ADVISOR DROP 'a';
+accept	accept	engine	alterPlanAdvisorAddStatement/ALTER_PLAN_ADVISOR_ADD_queryStatement	ALTER PLAN ADVISOR ADD SELECT CURRENT_USER;
+accept	accept	engine	truncatePlanAdvisorStatement/TRUNCATE_PLAN_ADVISOR	TRUNCATE PLAN ADVISOR;
+accept	accept	engine	alterPlanAdvisorDropStatement/ALTER_PLAN_ADVISOR_DROP_string	ALTER PLAN ADVISOR DROP 'a';
 accept	accept	engine	showPlanAdvisorStatement/SHOW_PLAN_ADVISOR	SHOW PLAN ADVISOR;
 accept	accept	engine	createWarehouseStatement/CREATE_WAREHOUSE_(IF_NOT_EXISTS)?_identifierOrString_(c~7a6215e1	CREATE WAREHOUSE a;
 accept	accept	engine	createWarehouseStatement(IF_NOT_EXISTS)?/%empty	CREATE WAREHOUSE a;
@@ -7708,17 +7708,17 @@ reject	reject	engine	showNodesStatement(LIKE_string)?/LIKE_string!drop-2	SHOW NO
 reject	reject	engine	showNodesStatement(LIKE_string)?/LIKE_string!truncate	SHOW NODES FROM WAREHOUSES LIKE
 reject	reject	engine	showNodesStatement(LIKE_string)?/LIKE_string!insert	SHOW NODES FROM WAREHOUSES LIKE 'a' zzz;
 reject	reject	engine	showNodesStatement(LIKE_string)?/LIKE_string!swap	SHOW NODES FROM WAREHOUSES LIMIT 'a';
-reject	accept	engine	translateStatement/TRANSLATE_dialect_translateSQL	TRANSLATE a SELECT;
-reject	accept	engine	dialect/identifier	TRANSLATE a SELECT;
+accept	accept	engine	translateStatement/TRANSLATE_dialect_translateSQL	TRANSLATE a SELECT;
+accept	accept	engine	dialect/identifier	TRANSLATE a SELECT;
 reject	reject	engine	dialect/identifier!truncate	TRANSLATE
-reject	accept	engine	dialect/identifier!insert	TRANSLATE a zzz SELECT;
-reject	accept	engine	translateSQL/(.)+	TRANSLATE a SELECT;
-reject	accept	engine	translateSQL/(.)+!swap	TRANSLATE a SEMI;
-reject	accept	engine	translateSQL(.)+/.	TRANSLATE a SELECT;
-reject	accept	engine	translateSQL(.)+/._(.)+	TRANSLATE a SELECT SELECT;
-reject	accept	engine	translateSQL(.)+/._(.)+!truncate	TRANSLATE a SELECT
-reject	accept	engine	translateSQL(.)+/._(.)+!insert	TRANSLATE a SELECT SELECT zzz;
-reject	accept	engine	translateSQL(.)+/._(.)+!swap	TRANSLATE a SEMI SELECT;
+accept	accept	engine	dialect/identifier!insert	TRANSLATE a zzz SELECT;
+accept	accept	engine	translateSQL/(.)+	TRANSLATE a SELECT;
+accept	accept	engine	translateSQL/(.)+!swap	TRANSLATE a SEMI;
+accept	accept	engine	translateSQL(.)+/.	TRANSLATE a SELECT;
+accept	accept	engine	translateSQL(.)+/._(.)+	TRANSLATE a SELECT SELECT;
+accept	accept	engine	translateSQL(.)+/._(.)+!truncate	TRANSLATE a SELECT
+accept	accept	engine	translateSQL(.)+/._(.)+!insert	TRANSLATE a SELECT SELECT zzz;
+accept	accept	engine	translateSQL(.)+/._(.)+!swap	TRANSLATE a SEMI SELECT;
 accept	accept	engine	queryStatement/(explainDesc|optimizerTrace)?_queryRelation_(outfile)?	SELECT CURRENT_USER;
 accept	accept	engine	queryStatement(explainDesc|optimizerTrace)?/%empty	SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/%empty!insert	zzz SELECT CURRENT_USER;
@@ -7914,7 +7914,7 @@ reject	reject	engine	limitElement/LIMIT_(INTEGER_VALUE|PARAMETER)_,_(INTEGER_VAL
 reject	reject	engine	limitElement/LIMIT_(INTEGER_VALUE|PARAMETER)_,_(INTEGER_VALUE|PARAMETER)!insert	SELECT CURRENT_USER LIMIT 1, 1 zzz;
 reject	reject	engine	limitElement/LIMIT_(INTEGER_VALUE|PARAMETER)_,_(INTEGER_VALUE|PARAMETER)!swap	SELECT CURRENT_USER LIST 1, 1;
 accept	accept	engine	limitElement(INTEGER_VALUE|PARAMETER)/INTEGER_VALUE	SELECT CURRENT_USER LIMIT 1;
-accept	reject	engine	limitElement(INTEGER_VALUE|PARAMETER)/PARAMETER	SELECT CURRENT_USER LIMIT ?;
+reject	reject	engine	limitElement(INTEGER_VALUE|PARAMETER)/PARAMETER	SELECT CURRENT_USER LIMIT ?;
 reject	reject	engine	limitElement(INTEGER_VALUE|PARAMETER)/PARAMETER!insert	SELECT CURRENT_USER LIMIT ? zzz;
 accept	accept	engine	limitElement(OFFSET_(INTEGER_VALUE|PARAMETER))?/%empty	SELECT CURRENT_USER LIMIT 1;
 accept	accept	engine	limitElement(OFFSET_(INTEGER_VALUE|PARAMETER))?/OFFSET_(INTEGER_VALUE|PARAMETER)	SELECT CURRENT_USER LIMIT 1 OFFSET 1;
@@ -7955,7 +7955,7 @@ reject	reject	engine	querySpecification(HAVING_expression)?/HAVING_expression!tr
 reject	reject	engine	querySpecification(HAVING_expression)?/HAVING_expression!insert	SELECT CURRENT_USER HAVING CURRENT_USER zzz;
 reject	reject	engine	querySpecification(HAVING_expression)?/HAVING_expression!swap	SELECT CURRENT_USER HELP CURRENT_USER;
 accept	accept	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/%empty	SELECT CURRENT_USER;
-accept	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE	SELECT CURRENT_USER QUALIFY CURRENT_USER = 1;
+reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE	SELECT CURRENT_USER QUALIFY CURRENT_USER = 1;
 reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE!drop-1	SELECT CURRENT_USER CURRENT_USER = 1;
 reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE!drop-2	SELECT CURRENT_USER QUALIFY = 1;
 reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE!drop-3	SELECT CURRENT_USER QUALIFY CURRENT_USER 1;
@@ -7988,14 +7988,14 @@ reject	reject	engine	fromClause(pivotClause)?/pivotClause!drop-9	SELECT CURRENT_
 reject	reject	engine	fromClause(pivotClause)?/pivotClause!truncate	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL)
 reject	reject	engine	fromClause(pivotClause)?/pivotClause!insert	SELECT CURRENT_USER FROM a PIVOT(CURRENT_USER FOR a IN(NULL)) zzz;
 reject	reject	engine	fromClause(pivotClause)?/pivotClause!swap	SELECT CURRENT_USER FROM a PLAN(CURRENT_USER FOR a IN(NULL));
-accept	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)	SELECT CURRENT_USER GROUP BY ROLLUP();
+reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)	SELECT CURRENT_USER GROUP BY ROLLUP();
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!drop-1	SELECT CURRENT_USER GROUP BY();
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!drop-2	SELECT CURRENT_USER GROUP BY ROLLUP);
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!drop-3	SELECT CURRENT_USER GROUP BY ROLLUP(;
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!truncate	SELECT CURRENT_USER GROUP BY ROLLUP(
 reject	reject	engine	groupingElement/ROLLUP_(_(expressionList)?_)!insert	SELECT CURRENT_USER GROUP BY ROLLUP() zzz;
 accept	accept	engine	groupingElement/ROLLUP_(_(expressionList)?_)!swap	SELECT CURRENT_USER GROUP BY ROUTINE();
-accept	reject	engine	groupingElement/CUBE_(_(expressionList)?_)	SELECT CURRENT_USER GROUP BY CUBE();
+reject	reject	engine	groupingElement/CUBE_(_(expressionList)?_)	SELECT CURRENT_USER GROUP BY CUBE();
 reject	reject	engine	groupingElement/CUBE_(_(expressionList)?_)!drop-2	SELECT CURRENT_USER GROUP BY CUBE);
 reject	reject	engine	groupingElement/CUBE_(_(expressionList)?_)!drop-3	SELECT CURRENT_USER GROUP BY CUBE(;
 reject	reject	engine	groupingElement/CUBE_(_(expressionList)?_)!truncate	SELECT CURRENT_USER GROUP BY CUBE(
@@ -8011,7 +8011,7 @@ reject	reject	engine	groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)
 reject	reject	engine	groupingElement/GROUPING_SETS_(_groupingSet_(,_groupingSet)*_)!swap	SELECT CURRENT_USER GROUP BY GROUPING_ID SETS(());
 accept	accept	engine	groupingElement/expressionList	SELECT CURRENT_USER GROUP BY CURRENT_USER;
 accept	accept	engine	groupingElement/expressionList!swap	SELECT CURRENT_USER GROUP BY DATA;
-accept	reject	engine	groupingElement(expressionList)?/%empty	SELECT CURRENT_USER GROUP BY ROLLUP();
+reject	reject	engine	groupingElement(expressionList)?/%empty	SELECT CURRENT_USER GROUP BY ROLLUP();
 accept	accept	engine	groupingElement(expressionList)?/%empty!insert	SELECT CURRENT_USER GROUP BY ROLLUP(zzz);
 accept	accept	engine	groupingElement(expressionList)?/expressionList	SELECT CURRENT_USER GROUP BY ROLLUP(CURRENT_USER);
 reject	reject	engine	groupingElement(expressionList)?/expressionList!insert	SELECT CURRENT_USER GROUP BY ROLLUP(CURRENT_USER zzz);
@@ -8032,11 +8032,11 @@ accept	accept	engine	groupingSet(expression)?/expression	SELECT CURRENT_USER GRO
 reject	reject	engine	groupingSet(expression)?/expression!insert	SELECT CURRENT_USER GROUP BY GROUPING SETS((CURRENT_USER zzz));
 accept	accept	engine	groupingSet(expression)?/expression!swap	SELECT CURRENT_USER GROUP BY GROUPING SETS((DATA));
 accept	accept	engine	groupingSet(,_expression)*/%empty	SELECT CURRENT_USER GROUP BY GROUPING SETS(());
-reject	accept	engine	groupingSet(,_expression)*/,_expression_(,_expression)*	SELECT CURRENT_USER GROUP BY GROUPING SETS((, CURRENT_USER));
+accept	accept	engine	groupingSet(,_expression)*/,_expression_(,_expression)*	SELECT CURRENT_USER GROUP BY GROUPING SETS((, CURRENT_USER));
 reject	reject	engine	groupingSet(,_expression)*/,_expression_(,_expression)*!drop-2	SELECT CURRENT_USER GROUP BY GROUPING SETS((,));
 reject	reject	engine	groupingSet(,_expression)*/,_expression_(,_expression)*!truncate	SELECT CURRENT_USER GROUP BY GROUPING SETS((,
 reject	reject	engine	groupingSet(,_expression)*/,_expression_(,_expression)*!insert	SELECT CURRENT_USER GROUP BY GROUPING SETS((, CURRENT_USER zzz));
-reject	accept	engine	groupingSet(,_expression)*/,_expression_(,_expression)*!swap	SELECT CURRENT_USER GROUP BY GROUPING SETS((, DATA));
+accept	accept	engine	groupingSet(,_expression)*/,_expression_(,_expression)*!swap	SELECT CURRENT_USER GROUP BY GROUPING SETS((, DATA));
 accept	accept	engine	commonTableExpression/identifier_(columnAliases)?_AS_(_queryRelation_)	WITH a AS(SELECT CURRENT_USER) SELECT CURRENT_USER;
 reject	reject	engine	commonTableExpression/identifier_(columnAliases)?_AS_(_queryRelation_)!swap	WITH a ASC(SELECT CURRENT_USER) SELECT CURRENT_USER;
 accept	accept	engine	commonTableExpression(columnAliases)?/%empty	WITH a AS(SELECT CURRENT_USER) SELECT CURRENT_USER;
@@ -8482,31 +8482,31 @@ reject	reject	engine	tabletList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VAL
 reject	reject	engine	tabletList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!drop-2	SELECT CURRENT_USER FROM a TABLET(1,);
 reject	reject	engine	tabletList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!truncate	SELECT CURRENT_USER FROM a TABLET(1,
 reject	reject	engine	tabletList(,_INTEGER_VALUE)*/,_INTEGER_VALUE_(,_INTEGER_VALUE)*!insert	SELECT CURRENT_USER FROM a TABLET(1, 1 zzz);
-reject	accept	engine	prepareStatement/PREPARE_identifier_FROM_prepareSql	PREPARE a FROM SYNC;
-reject	accept	engine	prepareSql/statement	PREPARE a FROM SYNC;
+accept	accept	engine	prepareStatement/PREPARE_identifier_FROM_prepareSql	PREPARE a FROM SYNC;
+accept	accept	engine	prepareSql/statement	PREPARE a FROM SYNC;
 reject	reject	engine	prepareSql/statement!swap	PREPARE a FROM SYSTEM;
 reject	reject	engine	prepareSql/SINGLE_QUOTED_TEXT	PREPARE a FROM 'a';
 reject	reject	engine	prepareSql/SINGLE_QUOTED_TEXT!insert	PREPARE a FROM 'a' zzz;
-reject	accept	engine	executeStatement/EXECUTE_identifier_(USING_@_identifierOrString_(,_@_ide~64f789c4	EXECUTE a;
-reject	accept	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/%empty	EXECUTE a;
-reject	accept	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*	EXECUTE a USING@a;
+accept	accept	engine	executeStatement/EXECUTE_identifier_(USING_@_identifierOrString_(,_@_ide~64f789c4	EXECUTE a;
+accept	accept	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/%empty	EXECUTE a;
+accept	accept	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*	EXECUTE a USING@a;
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!drop-1	EXECUTE a@a;
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!drop-2	EXECUTE a USING a;
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!drop-3	EXECUTE a USING@;
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!truncate	EXECUTE a USING@
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!insert	EXECUTE a USING@a zzz;
 reject	reject	engine	executeStatement(USING_@_identifierOrString_(,_@_iden~9f8ff291)?/USING_@_identifierOrString_(,_@_identifierOrString)*!swap	EXECUTE a VALUE@a;
-reject	accept	engine	executeStatement(,_@_identifierOrString)*/%empty	EXECUTE a USING@a;
-reject	accept	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*	EXECUTE a USING@a,@a;
+accept	accept	engine	executeStatement(,_@_identifierOrString)*/%empty	EXECUTE a USING@a;
+accept	accept	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*	EXECUTE a USING@a,@a;
 reject	reject	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*!drop-1	EXECUTE a USING@a@a;
 reject	reject	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*!drop-2	EXECUTE a USING@a, a;
 reject	reject	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*!drop-3	EXECUTE a USING@a,@;
 reject	reject	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*!truncate	EXECUTE a USING@a,@
 reject	reject	engine	executeStatement(,_@_identifierOrString)*/,_@_identifierOrString_(,_@_identifierOrString)*!insert	EXECUTE a USING@a,@a zzz;
-reject	accept	engine	deallocateStatement/(DEALLOCATE|DROP)_PREPARE_identifier	DEALLOCATE PREPARE a;
-reject	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DEALLOCATE	DEALLOCATE PREPARE a;
+accept	accept	engine	deallocateStatement/(DEALLOCATE|DROP)_PREPARE_identifier	DEALLOCATE PREPARE a;
+accept	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DEALLOCATE	DEALLOCATE PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DEALLOCATE!insert	DEALLOCATE zzz PREPARE a;
-reject	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DROP	DROP PREPARE a;
+accept	accept	engine	deallocateStatement(DEALLOCATE|DROP)/DROP	DROP PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!insert	DROP zzz PREPARE a;
 reject	reject	engine	deallocateStatement(DEALLOCATE|DROP)/DROP!swap	DUAL PREPARE a;
 accept	accept	engine	replicaList/REPLICA_(_INTEGER_VALUE_(,_INTEGER_VALUE)*_)	SELECT CURRENT_USER FROM a REPLICA(1);
@@ -8640,7 +8640,7 @@ accept	accept	engine	predicate(predicateOperations)?/predicateOperations	SELECT 
 reject	reject	engine	predicate(predicateOperations)?/predicateOperations!drop-2	SELECT CURRENT_USER LIKE;
 reject	reject	engine	predicate(predicateOperations)?/predicateOperations!truncate	SELECT CURRENT_USER LIKE
 accept	accept	engine	predicate(predicateOperations)?/predicateOperations!insert	SELECT CURRENT_USER LIKE CURRENT_USER zzz;
-accept	reject	engine	predicate(predicateOperations)?/predicateOperations!swap	SELECT CURRENT_USER LIMIT CURRENT_USER;
+reject	reject	engine	predicate(predicateOperations)?/predicateOperations!swap	SELECT CURRENT_USER LIMIT CURRENT_USER;
 accept	accept	engine	tupleInSubquery/(_expression_(,_expression)+_)_(NOT)?_IN_(_queryRelation_)	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 accept	accept	engine	tupleInSubquery(,_expression)+/,_expression	SELECT(CURRENT_USER, CURRENT_USER) IN(SELECT CURRENT_USER);
 reject	reject	engine	tupleInSubquery(,_expression)+/,_expression!truncate	SELECT(CURRENT_USER,
@@ -8796,7 +8796,7 @@ accept	accept	engine	primaryExpression/literalExpression!insert	SELECT NULL zzz;
 accept	accept	engine	primaryExpression/columnReference	SELECT a;
 accept	accept	engine	primaryExpression/columnReference!insert	SELECT a zzz;
 accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)	SELECT CURRENT_USER.1a;
-accept	reject	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!drop-1	SELECT.1a;
+reject	reject	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!drop-1	SELECT.1a;
 accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!insert	SELECT CURRENT_USER.1a zzz;
 accept	accept	engine	primaryExpression/primaryExpression_(DOT_IDENTIFIER|._identifier)!swap	SELECT DATA.1a;
 accept	accept	engine	primaryExpression/(MINUS_SYMBOL|PLUS_SYMBOL|BITNOT)_primaryExpression	SELECT - CURRENT_USER;
@@ -8920,7 +8920,7 @@ reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression
 reject	reject	engine	primaryExpression/(identifier|identifierList)_->_expression!truncate	SELECT a ->
 accept	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!insert	SELECT a -> CURRENT_USER zzz;
 accept	accept	engine	primaryExpression/(identifier|identifierList)_->_expression!swap	SELECT a -> DATA;
-reject	accept	engine	primaryExpression/identifierList_->_(_(expressionList)?_)	SELECT(a) ->();
+accept	accept	engine	primaryExpression/identifierList_->_(_(expressionList)?_)	SELECT(a) ->();
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-1	SELECT a) ->();
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-2	SELECT() ->();
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-3	SELECT(a ->();
@@ -8928,11 +8928,11 @@ reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!d
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-5	SELECT(a) ->);
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!drop-6	SELECT(a) ->(;
 reject	reject	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!truncate	SELECT(a) ->(
-reject	accept	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!insert	SELECT(a) ->() zzz;
+accept	accept	engine	primaryExpression/identifierList_->_(_(expressionList)?_)!insert	SELECT(a) ->() zzz;
 accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression	SELECT CURRENT_USER MATCH CURRENT_USER;
 reject	reject	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!drop-1	SELECT MATCH CURRENT_USER;
-reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!drop-3	SELECT CURRENT_USER MATCH;
-reject	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!truncate	SELECT CURRENT_USER MATCH
+accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!drop-3	SELECT CURRENT_USER MATCH;
+accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!truncate	SELECT CURRENT_USER MATCH
 accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!insert	SELECT CURRENT_USER MATCH CURRENT_USER zzz;
 accept	accept	engine	primaryExpression/primaryExpression_(NOT)?_MATCH_primaryExpression!swap	SELECT DATA MATCH CURRENT_USER;
 accept	accept	engine	primaryExpression(identifier|string)/identifier	SELECT CURRENT_USER COLLATE a;
@@ -8995,7 +8995,7 @@ reject	reject	engine	primaryExpression(INTEGER_VALUE)?/INTEGER_VALUE!truncate	SE
 reject	reject	engine	primaryExpression(INTEGER_VALUE)?/INTEGER_VALUE!insert	SELECT CURRENT_USER [ 1 zzz : ];
 accept	accept	engine	primaryExpression(identifier|identifierList)/identifier	SELECT a -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifier!insert	SELECT a zzz -> CURRENT_USER;
-reject	accept	engine	primaryExpression(identifier|identifierList)/identifierList	SELECT(a) -> CURRENT_USER;
+accept	accept	engine	primaryExpression(identifier|identifierList)/identifierList	SELECT(a) -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifierList!drop-1	SELECT a) -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifierList!drop-2	SELECT() -> CURRENT_USER;
 reject	reject	engine	primaryExpression(identifier|identifierList)/identifierList!drop-3	SELECT(a -> CURRENT_USER;
@@ -9172,11 +9172,11 @@ accept	accept	engine	aggregationFunction(ASTERISK_SYMBOL)?/%empty!insert	SELECT 
 accept	accept	engine	aggregationFunction(ASTERISK_SYMBOL)?/ASTERISK_SYMBOL	SELECT COUNT(*);
 reject	reject	engine	aggregationFunction(ASTERISK_SYMBOL)?/ASTERISK_SYMBOL!insert	SELECT COUNT(* zzz);
 accept	accept	engine	aggregationFunction(setQuantifier_bracketHint?)?/%empty	SELECT COUNT();
-accept	reject	engine	aggregationFunction(setQuantifier_bracketHint?)?/setQuantifier_(bracketHint)?	SELECT COUNT(DISTINCT);
+reject	reject	engine	aggregationFunction(setQuantifier_bracketHint?)?/setQuantifier_(bracketHint)?	SELECT COUNT(DISTINCT);
 accept	accept	engine	aggregationFunction(setQuantifier_bracketHint?)?/setQuantifier_(bracketHint)?!insert	SELECT COUNT(DISTINCT zzz);
 accept	accept	engine	aggregationFunction(setQuantifier_bracketHint?)?/setQuantifier_(bracketHint)?!swap	SELECT COUNT(DISTRIBUTED);
-accept	reject	engine	aggregationFunction(bracketHint)?/%empty	SELECT COUNT(DISTINCT);
-accept	reject	engine	aggregationFunction(bracketHint)?/bracketHint	SELECT COUNT(DISTINCT [ a ]);
+reject	reject	engine	aggregationFunction(bracketHint)?/%empty	SELECT COUNT(DISTINCT);
+reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint	SELECT COUNT(DISTINCT [ a ]);
 reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint!drop-1	SELECT COUNT(DISTINCT a ]);
 accept	accept	engine	aggregationFunction(bracketHint)?/bracketHint!drop-2	SELECT COUNT(DISTINCT [ ]);
 reject	reject	engine	aggregationFunction(bracketHint)?/bracketHint!drop-3	SELECT COUNT(DISTINCT [ a);
@@ -9282,12 +9282,12 @@ reject	reject	engine	specialDateTimeExpression((_(INTEGER_VALUE)?_))?/(_(INTEGER
 reject	reject	engine	specialDateTimeExpression((_(INTEGER_VALUE)?_))?/(_(INTEGER_VALUE)?_)!truncate	SELECT CURRENT_TIMESTAMP(
 accept	accept	engine	specialDateTimeExpression((_(INTEGER_VALUE)?_))?/(_(INTEGER_VALUE)?_)!insert	SELECT CURRENT_TIMESTAMP() zzz;
 accept	accept	engine	specialDateTimeExpression(INTEGER_VALUE)?/%empty	SELECT CURRENT_TIMESTAMP();
-accept	reject	engine	specialDateTimeExpression(INTEGER_VALUE)?/%empty!insert	SELECT CURRENT_TIMESTAMP(zzz);
+reject	reject	engine	specialDateTimeExpression(INTEGER_VALUE)?/%empty!insert	SELECT CURRENT_TIMESTAMP(zzz);
 accept	accept	engine	specialDateTimeExpression(INTEGER_VALUE)?/INTEGER_VALUE	SELECT CURRENT_TIMESTAMP(1);
 reject	reject	engine	specialDateTimeExpression(INTEGER_VALUE)?/INTEGER_VALUE!insert	SELECT CURRENT_TIMESTAMP(1 zzz);
 accept	accept	engine	specialFunctionExpression/CHAR_(_expression_)	SELECT CHAR(CURRENT_USER);
 reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-2	SELECT CHAR CURRENT_USER);
-accept	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-3	SELECT CHAR();
+reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-3	SELECT CHAR();
 reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-4	SELECT CHAR(CURRENT_USER;
 reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!truncate	SELECT CHAR(CURRENT_USER
 accept	accept	engine	specialFunctionExpression/CHAR_(_expression_)!insert	SELECT CHAR(CURRENT_USER) zzz;
@@ -9496,7 +9496,7 @@ reject	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expressio
 reject	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ig~3d67a1df!drop-3	SELECT LEAD(OVER();
 reject	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ig~3d67a1df!truncate	SELECT LEAD(
 reject	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ig~3d67a1df!insert	SELECT LEAD() zzz OVER();
-accept	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ig~3d67a1df!swap	SELECT LEFT() OVER();
+reject	reject	engine	windowFunction/LEAD_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ig~3d67a1df!swap	SELECT LEFT() OVER();
 accept	accept	engine	windowFunction/LAG_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ign~42363ab1	SELECT LAG() OVER();
 reject	reject	engine	windowFunction/LAG_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ign~42363ab1!drop-2	SELECT LAG) OVER();
 reject	reject	engine	windowFunction/LAG_(_(expression_ignoreNulls?_(,_expression)*)?_)_(ign~42363ab1!drop-3	SELECT LAG(OVER();
@@ -10149,10 +10149,10 @@ reject	reject	engine	properties(,_property)*/,_property_(,_property)*!drop-4	CRE
 reject	reject	engine	properties(,_property)*/,_property_(,_property)*!truncate	CREATE DATABASE a PROPERTIES('a' = 'a', 'a' =
 reject	reject	engine	properties(,_property)*/,_property_(,_property)*!insert	CREATE DATABASE a PROPERTIES('a' = 'a', 'a' = 'a' zzz);
 reject	reject	engine	extProperties/BROKER_properties	CREATE TABLE a(a) BROKER PROPERTIES('a' = 'a');
-reject	accept	engine	propertyList/(_property_(,_property)*_)	DESC FILES('a' = 'a');
-reject	accept	engine	propertyList(,_property)*/%empty	DESC FILES('a' = 'a');
+accept	accept	engine	propertyList/(_property_(,_property)*_)	DESC FILES('a' = 'a');
+accept	accept	engine	propertyList(,_property)*/%empty	DESC FILES('a' = 'a');
 reject	reject	engine	propertyList(,_property)*/%empty!insert	DESC FILES('a' = 'a' zzz);
-reject	accept	engine	propertyList(,_property)*/,_property_(,_property)*	DESC FILES('a' = 'a', 'a' = 'a');
+accept	accept	engine	propertyList(,_property)*/,_property_(,_property)*	DESC FILES('a' = 'a', 'a' = 'a');
 reject	reject	engine	propertyList(,_property)*/,_property_(,_property)*!drop-1	DESC FILES('a' = 'a' 'a' = 'a');
 reject	reject	engine	propertyList(,_property)*/,_property_(,_property)*!drop-2	DESC FILES('a' = 'a', = 'a');
 reject	reject	engine	propertyList(,_property)*/,_property_(,_property)*!drop-3	DESC FILES('a' = 'a', 'a' 'a');
@@ -10211,7 +10211,7 @@ reject	reject	engine	outfile(properties)?/properties!insert	SELECT CURRENT_USER 
 reject	reject	engine	outfile(properties)?/properties!swap	SELECT CURRENT_USER INTO OUTFILE 'a' PROPERTY('a' = 'a');
 accept	accept	engine	fileFormat/FORMAT_AS_(identifier|string)	SELECT CURRENT_USER INTO OUTFILE 'a' FORMAT AS a;
 accept	accept	engine	fileFormat(identifier|string)/identifier	SELECT CURRENT_USER INTO OUTFILE 'a' FORMAT AS a;
-reject	accept	engine	fileFormat(identifier|string)/string	SELECT CURRENT_USER INTO OUTFILE 'a' FORMAT AS 'a';
+accept	accept	engine	fileFormat(identifier|string)/string	SELECT CURRENT_USER INTO OUTFILE 'a' FORMAT AS 'a';
 reject	reject	engine	fileFormat(identifier|string)/string!insert	SELECT CURRENT_USER INTO OUTFILE 'a' FORMAT AS 'a' zzz;
 accept	accept	engine	string/SINGLE_QUOTED_TEXT	SELECT 'a';
 accept	accept	engine	string/DOUBLE_QUOTED_TEXT	SELECT "a";
@@ -10446,10 +10446,10 @@ reject	reject	engine	decimalType(,_INTEGER_VALUE)?/,_INTEGER_VALUE!truncate	ALTE
 reject	reject	engine	decimalType(,_INTEGER_VALUE)?/,_INTEGER_VALUE!insert	ALTER SYSTEM ADD COLUMN a DECIMAL(1, 1 zzz);
 accept	accept	engine	qualifiedName/identifier_(DOT_IDENTIFIER|._identifier)*	USE a;
 accept	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)*/%empty	USE a;
-reject	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)*/(DOT_IDENTIFIER|._identifier)_(DOT_IDENTIFIER|._identifier)*	USE a.1a;
+accept	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)*/(DOT_IDENTIFIER|._identifier)_(DOT_IDENTIFIER|._identifier)*	USE a.1a;
 accept	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)*/(DOT_IDENTIFIER|._identifier)_(DOT_IDENTIFIER|._identifier)*!truncate	USE a
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)*/(DOT_IDENTIFIER|._identifier)_(DOT_IDENTIFIER|._identifier)*!insert	USE a.1a zzz;
-reject	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	USE a.1a;
+accept	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/DOT_IDENTIFIER	USE a.1a;
 accept	accept	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier	USE a.a;
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!drop-1	USE a a;
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!drop-2	USE a.;
@@ -10466,27 +10466,27 @@ accept	accept	engine	identifier/LETTER_IDENTIFIER	SELECT a;
 accept	accept	engine	identifier/nonReserved	SELECT ACCESS;
 accept	accept	engine	identifier/nonReserved!insert	SELECT ACCESS zzz;
 accept	accept	engine	identifier/DIGIT_IDENTIFIER	SELECT 1a;
-reject	accept	engine	identifier/DIGIT_IDENTIFIER!insert	SELECT 1a zzz;
+accept	accept	engine	identifier/DIGIT_IDENTIFIER!insert	SELECT 1a zzz;
 accept	accept	engine	identifier/BACKQUOTED_IDENTIFIER	SELECT `a`;
 accept	accept	engine	identifier/BACKQUOTED_IDENTIFIER!insert	SELECT `a` zzz;
-reject	accept	engine	identifierWithAlias/identifier_(AS_identifier)?	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	identifierWithAlias/identifier_(AS_identifier)?	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
 reject	reject	engine	identifierWithAlias/identifier_(AS_identifier)?!truncate	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(
 reject	reject	engine	identifierWithAlias/identifier_(AS_identifier)?!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a zzz);
-reject	accept	engine	identifierWithAlias(AS_identifier)?/%empty	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
-reject	accept	engine	identifierWithAlias(AS_identifier)?/AS_identifier	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a AS a);
+accept	accept	engine	identifierWithAlias(AS_identifier)?/%empty	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	identifierWithAlias(AS_identifier)?/AS_identifier	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a AS a);
 reject	reject	engine	identifierWithAlias(AS_identifier)?/AS_identifier!drop-1	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a a);
 reject	reject	engine	identifierWithAlias(AS_identifier)?/AS_identifier!drop-2	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a AS);
 reject	reject	engine	identifierWithAlias(AS_identifier)?/AS_identifier!truncate	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a AS
 reject	reject	engine	identifierWithAlias(AS_identifier)?/AS_identifier!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a AS a zzz);
 reject	reject	engine	identifierWithAlias(AS_identifier)?/AS_identifier!swap	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a ASC a);
-reject	accept	engine	identifierWithAliasList/(_identifierWithAlias_(,_identifierWithAlias)*_)	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
-reject	accept	engine	identifierWithAliasList(,_identifierWithAlias)*/%empty	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
-reject	accept	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifierWithAlias_(,_identifierWithAlias)*	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a, a);
+accept	accept	engine	identifierWithAliasList/(_identifierWithAlias_(,_identifierWithAlias)*_)	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	identifierWithAliasList(,_identifierWithAlias)*/%empty	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a);
+accept	accept	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifierWithAlias_(,_identifierWithAlias)*	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a, a);
 reject	reject	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifierWithAlias_(,_identifierWithAlias)*!drop-2	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a,);
 reject	reject	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifierWithAlias_(,_identifierWithAlias)*!truncate	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a,
 reject	reject	engine	identifierWithAliasList(,_identifierWithAlias)*/,_identifierWithAlias_(,_identifierWithAlias)*!insert	RESTORE SNAPSHOT a FROM a EXTERNAL CATALOG(a, a zzz);
-reject	accept	engine	identifierList/(_identifier_(,_identifier)*_)	SELECT(a) -> CURRENT_USER;
-reject	accept	engine	identifierList(,_identifier)*/%empty	SELECT(a) -> CURRENT_USER;
+accept	accept	engine	identifierList/(_identifier_(,_identifier)*_)	SELECT(a) -> CURRENT_USER;
+accept	accept	engine	identifierList(,_identifier)*/%empty	SELECT(a) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/%empty!insert	SELECT(a zzz) -> CURRENT_USER;
 accept	accept	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*	SELECT(a, a) -> CURRENT_USER;
 reject	reject	engine	identifierList(,_identifier)*/,_identifier_(,_identifier)*!drop-1	SELECT(a a) -> CURRENT_USER;
@@ -10516,7 +10516,7 @@ reject	reject	engine	user/identifierOrString_@_identifierOrString!drop-2	CREATE 
 reject	reject	engine	user/identifierOrString_@_identifierOrString!drop-3	CREATE USER a@;
 reject	reject	engine	user/identifierOrString_@_identifierOrString!truncate	CREATE USER a@
 reject	reject	engine	user/identifierOrString_@_identifierOrString!insert	CREATE USER a@a zzz;
-reject	accept	engine	user/identifierOrString_@_[_identifierOrString_]	CREATE USER a@[ a ];
+accept	accept	engine	user/identifierOrString_@_[_identifierOrString_]	CREATE USER a@[ a ];
 reject	reject	engine	user/identifierOrString_@_[_identifierOrString_]!drop-1	CREATE USER@[ a ];
 reject	reject	engine	user/identifierOrString_@_[_identifierOrString_]!drop-2	CREATE USER a [ a ];
 reject	reject	engine	user/identifierOrString_@_[_identifierOrString_]!drop-3	CREATE USER a@a ];
@@ -12139,7 +12139,7 @@ accept	accept	engine	suite:characters	SELECT 1 AS a¿b
 reject	reject	engine	suite:characters	SELECT 1 😀 2
 reject	reject	engine	suite:characters	SELECT 1 AS a😀b
 reject	reject	engine	suite:characters	SELECT 1 AS 😀
-reject	accept	engine	suite:characters	SELECT 1　AS x
+accept	accept	engine	suite:characters	SELECT 1　AS x
 reject	reject	engine	suite:characters	SELECT　*
 accept	accept	engine	suite:characters	SELECT 1 AS a　b
 reject	reject	engine	suite:characters	SELECT 1　 2

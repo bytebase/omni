@@ -273,15 +273,29 @@ func (q *querySpanExtractor) findTableSchemaInMetadata(instance string, dbMetada
 		}, nil
 	}
 
-	if view != nil && view.Definition != "" {
-		columns, err := q.getColumnsForView(instance, databaseName, view.Definition)
-		if err != nil {
-			return nil, err
+	if view != nil {
+		if view.Definition != "" {
+			columns, err := q.getColumnsForView(instance, databaseName, view.Definition)
+			if err != nil {
+				return nil, err
+			}
+			return &pseudoTable{
+				Name:    view.Name,
+				Columns: columns,
+			}, nil
 		}
-		return &pseudoTable{
-			Name:    view.Name,
-			Columns: columns,
-		}, nil
+		if len(view.GetColumns()) > 0 {
+			var columns []string
+			for _, column := range view.GetColumns() {
+				columns = append(columns, column.Name)
+			}
+			return &physicalTable{
+				Server:   "",
+				Database: databaseName,
+				Name:     view.Name,
+				Columns:  columns,
+			}, nil
+		}
 	}
 
 	if materializedView != nil && materializedView.Definition != "" {
@@ -515,7 +529,27 @@ func (q *querySpanExtractor) findMissingAccessTable(stmt oracleast.StmtNode, acc
 			Table:    &table,
 		}
 	}
-	return nil
+	var missing *NotFoundError
+	oracleast.Inspect(stmt, func(node oracleast.Node) bool {
+		if missing != nil {
+			return false
+		}
+		clause, ok := node.(*oracleast.SubAVClause)
+		if !ok || clause.Using == nil || clause.Using.Name == "" {
+			return true
+		}
+		database := q.databaseOf(clause.Using)
+		if !q.existsTableMetadata(accessResource{Database: database, Table: clause.Using.Name}) {
+			table := clause.Using.Name
+			missing = &NotFoundError{
+				Database: &database,
+				Table:    &table,
+			}
+			return false
+		}
+		return true
+	})
+	return missing
 }
 
 func collectCTENames(stmt oracleast.StmtNode) map[string]bool {
@@ -601,6 +635,24 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 			addResource(node.Name, tableLink(node))
 		case *oracleast.ContainersExpr:
 			addTarget(node.Name)
+		// A derived analytic view, inline in a FROM clause or declared in a
+		// WITH element, reads the persistent analytic view it names; DUAL is a
+		// real object name there, not Oracle's pseudo-table.
+		case *oracleast.SubAVClause:
+			if node.Using != nil && node.Using.Name != "" {
+				database := node.Using.Schema
+				if database == "" {
+					database = defaultDatabase
+				}
+				resource := accessResource{
+					Database: database,
+					Table:    node.Using.Name,
+				}
+				if !seen[resource] {
+					seen[resource] = true
+					local = append(local, resource)
+				}
+			}
 		// A DML target is an ObjectName, not a TableRef, so it is named here.
 		case *oracleast.InsertStmt:
 			addTarget(node.Table)
@@ -761,6 +813,21 @@ func (q *querySpanExtractor) extractCTE(cte *oracleast.CTE) (*pseudoTable, error
 	}
 	name := cte.Name
 	columnNames := stringList(cte.Columns)
+
+	// A WITH subav_factoring_clause names a persistent analytic view, so its
+	// element is that view's span under the element's name.
+	if cte.SubAV != nil {
+		tableSource, err := q.subAVTableSource(cte.SubAV)
+		if err != nil {
+			return nil, err
+		}
+		if tableSource == nil {
+			return &pseudoTable{Name: name}, nil
+		}
+		columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
+		applyColumnAliases(columns, columnNames)
+		return &pseudoTable{Name: name, Columns: columns}, nil
+	}
 
 	selectStmt, ok := cte.Query.(*oracleast.SelectStmt)
 	if ok && selectStmt.Op != 0 && len(columnNames) > 0 {
@@ -939,6 +1006,8 @@ func (q *querySpanExtractor) extractTableExpr(expr oracleast.TableExpr) (spanTab
 		return aliasTableSource(tableSource, expr.Alias), nil
 	case *oracleast.InlineExternalTable:
 		return extractInlineExternalTable(expr), nil
+	case *oracleast.InlineAnalyticView:
+		return q.extractInlineAnalyticView(expr)
 	case *oracleast.TableCollectionExpr:
 		return q.extractTableCollection(expr)
 	case *oracleast.PivotClause:
@@ -1627,6 +1696,93 @@ func extractJSONTableColumns(list *oracleast.List, sourceColumns ColumnSet) []Qu
 		})
 	}
 	return columns
+}
+
+// extractInlineAnalyticView reads a derived analytic view: its span is the
+// persistent analytic view it names under USING, under the reference's alias.
+func (q *querySpanExtractor) extractInlineAnalyticView(ref *oracleast.InlineAnalyticView) (spanTable, error) {
+	tableSource, err := q.subAVTableSource(ref.Clause)
+	if err != nil || tableSource == nil {
+		return nil, err
+	}
+	return aliasTableSource(tableSource, ref.Alias), nil
+}
+
+// subAVTableSource is the span of the persistent analytic view a sub_av_clause
+// names, with the columns its ADD MEASURES adds to the derived view.
+func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (spanTable, error) {
+	if clause == nil || clause.Using == nil || clause.Using.Name == "" {
+		return nil, nil
+	}
+	schemaName := q.databaseOf(clause.Using)
+	dbMetadata, err := q.getDatabaseMetadata(schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database metadata for: %s: %w", schemaName, err)
+	}
+	if dbMetadata == nil {
+		return nil, &NotFoundError{
+			Database: &schemaName,
+		}
+	}
+	tableSource, err := q.findTableSchemaInMetadata(q.instance, dbMetadata, schemaName, clause.Using.Name)
+	if err != nil {
+		return nil, err
+	}
+	if tableSource == nil {
+		return nil, nil
+	}
+	added := q.subAVMeasures(clause, tableSource)
+	if len(added) == 0 {
+		return tableSource, nil
+	}
+	columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
+	columns = append(columns, added...)
+	return &pseudoTable{Name: tableSource.GetTableName(), Columns: columns}, nil
+}
+
+// subAVMeasures returns the columns an ADD MEASURES clause adds, each with
+// the source columns its expression reads in the derived view: the base
+// relation and the measures added before it. A measure whose expression the
+// parser read whole (SubAVClause.OpaqueMeasure) carries none.
+func (q *querySpanExtractor) subAVMeasures(clause *oracleast.SubAVClause, base spanTable) []QuerySpanResult {
+	for _, node := range listItems(clause.Options) {
+		option, ok := node.(*oracleast.DDLOption)
+		if !ok || option.Key != "ADD MEASURES" {
+			continue
+		}
+		// The measures are the derived view's own columns: an expression
+		// resolves against the relation and the measures before it.
+		oldFrom := q.tableSourcesFrom
+		added := &pseudoTable{}
+		q.tableSourcesFrom = []spanTable{base, added}
+		var measures []QuerySpanResult
+		for _, item := range listItems(option.Items) {
+			measure, ok := item.(*oracleast.ResTarget)
+			if !ok || measure.Name == "" {
+				continue
+			}
+			sourceColumns := ColumnSet{}
+			if measure.Expr != nil {
+				if _, columns, err := q.extractExpr(measure.Expr); err == nil {
+					sourceColumns = columns
+				}
+			}
+			measures = append(measures, QuerySpanResult{Name: measure.Name, SourceColumns: sourceColumns})
+			added.Columns = measures
+		}
+		q.tableSourcesFrom = oldFrom
+		return measures
+	}
+	return nil
+}
+
+// databaseOf is the database a name reads from: its own schema, or the
+// statement's default.
+func (q *querySpanExtractor) databaseOf(name *oracleast.ObjectName) string {
+	if name.Schema != "" {
+		return name.Schema
+	}
+	return q.defaultDatabase
 }
 
 func extractInlineExternalTable(ref *oracleast.InlineExternalTable) spanTable {

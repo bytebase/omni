@@ -385,8 +385,9 @@ func TestExecSetRole(t *testing.T) {
 		t.Error("t1 should exist in alice schema")
 	}
 
-	// Now SET ROLE to bob. Create bob's schema first.
+	// Now SET ROLE to bob. Create bob's role and schema first.
 	results, err = c.Exec(`
+		CREATE ROLE bob;
 		CREATE SCHEMA bob;
 		SET ROLE bob;
 		CREATE TABLE t2 (id int);
@@ -429,6 +430,7 @@ func TestExecSetRoleNone(t *testing.T) {
 
 	results, err := c.Exec(`
 		CREATE SCHEMA alice;
+		CREATE ROLE bob;
 		CREATE SCHEMA bob;
 		SET search_path = "$user", public;
 		SET ROLE bob;

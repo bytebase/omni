@@ -13,6 +13,9 @@ type TableRef struct {
 	Database string // database/schema qualifier
 	Table    string // table name
 	Alias    string // AS alias
+	// Remote is set for a reference another catalog holds or a database link
+	// reads: its columns are not the local catalog's, so completion offers none.
+	Remote bool
 }
 
 // extractTableRefs returns the table references visible at the cursor. It reads
@@ -196,13 +199,20 @@ func extractRefsFromTableExpr(te ast.TableExpr) []TableRef {
 	switch v := te.(type) {
 	case *ast.TableRef:
 		if v.Name != "" {
-			return []TableRef{{Database: v.Schema, Table: v.Name, Alias: v.Alias}}
+			return []TableRef{{
+				Database: v.Schema,
+				Table:    v.Name,
+				Alias:    v.Alias,
+				Remote:   v.Catalog != "" || v.Dblink != "",
+			}}
 		}
 	case *ast.JoinClause:
 		var refs []TableRef
 		refs = append(refs, extractRefsFromTableExpr(v.Left)...)
 		refs = append(refs, extractRefsFromTableExpr(v.Right)...)
 		return refs
+	case *ast.ExternalTableRef:
+		return []TableRef{{Alias: v.Alias, Remote: true}}
 	case *ast.SubqueryExpr:
 		// Subquery tables don't leak to the outer scope.
 		return nil
@@ -215,7 +225,12 @@ func extractRefsFromInsert(s *ast.InsertStmt) []TableRef {
 	if s == nil || s.Table == nil {
 		return nil
 	}
-	return []TableRef{{Database: s.Table.Schema, Table: s.Table.Name, Alias: s.Table.Alias}}
+	return []TableRef{{
+		Database: s.Table.Schema,
+		Table:    s.Table.Name,
+		Alias:    s.Table.Alias,
+		Remote:   s.Table.Catalog != "" || s.Table.Dblink != "",
+	}}
 }
 
 // extractRefsFromUpdate extracts table references from an UPDATE statement.
@@ -267,7 +282,7 @@ func extractTableRefsLexer(sql string) []TableRef {
 
 		// FROM table, JOIN table
 		if typ == parser.FROM || typ == parser.JOIN {
-			ref, skip := lexerExtractTableAfter(tokens, i+1)
+			ref, skip := lexerExtractFromSourceAfter(tokens, i+1)
 			if ref != nil {
 				refs = append(refs, *ref)
 			}
@@ -316,7 +331,47 @@ func extractTableRefsLexer(sql string) []TableRef {
 	return refs
 }
 
-// lexerExtractTableAfter extracts a [db.]table [AS alias] reference starting at tokens[j].
+// lexerExtractFromSourceAfter extracts a FROM/JOIN table reference starting at
+// tokens[j], including external file paths ('oss://...') and SOURCE(...)/FILES(...)
+// table functions that have no local catalog columns.
+func lexerExtractFromSourceAfter(tokens []parser.Token, j int) (*TableRef, int) {
+	if j >= len(tokens) {
+		return nil, 0
+	}
+	isExternalPath := parser.IsStringTokenType(tokens[j].Type)
+	isExternalFunc := parser.IsIdentTokenType(tokens[j].Type) &&
+		(strings.EqualFold(tokens[j].Str, "SOURCE") || strings.EqualFold(tokens[j].Str, "FILES")) &&
+		j+1 < len(tokens) && tokens[j+1].Type == '('
+	if isExternalPath || isExternalFunc {
+		consumed := j + 1
+		if consumed < len(tokens) && tokens[consumed].Type == '(' {
+			depth := 1
+			consumed++
+			for consumed < len(tokens) && depth > 0 {
+				switch tokens[consumed].Type {
+				case '(':
+					depth++
+				case ')':
+					depth--
+				}
+				consumed++
+			}
+		}
+		ref := TableRef{Remote: true}
+		if consumed < len(tokens) {
+			if tokens[consumed].Type == parser.AS && consumed+1 < len(tokens) && parser.IsIdentTokenType(tokens[consumed+1].Type) && !strings.HasPrefix(tokens[consumed+1].Str, "@") {
+				ref.Alias = tokens[consumed+1].Str
+			} else if parser.IsIdentTokenType(tokens[consumed].Type) && !isClauseKeyword(tokens[consumed].Type) && !strings.HasPrefix(tokens[consumed].Str, "@") {
+				ref.Alias = tokens[consumed].Str
+			}
+		}
+		return &ref, consumed - j
+	}
+	return lexerExtractTableAfter(tokens, j)
+}
+
+// lexerExtractTableAfter extracts a [[cat.]db.]table[@dblink] [AS alias]
+// reference starting at tokens[j].
 // Returns the TableRef (or nil) and the number of tokens consumed.
 func lexerExtractTableAfter(tokens []parser.Token, j int) (*TableRef, int) {
 	if j >= len(tokens) || !parser.IsIdentTokenType(tokens[j].Type) {
@@ -324,18 +379,32 @@ func lexerExtractTableAfter(tokens []parser.Token, j int) (*TableRef, int) {
 	}
 	ref := TableRef{Table: tokens[j].Str}
 	consumed := j + 1
-	// Check for db.table
-	if j+2 < len(tokens) && tokens[j+1].Type == '.' && parser.IsIdentTokenType(tokens[j+2].Type) {
+	// Check for db.table or cat.db.table
+	if consumed+1 < len(tokens) && tokens[consumed].Type == '.' && parser.IsIdentTokenType(tokens[consumed+1].Type) {
 		ref.Database = ref.Table
-		ref.Table = tokens[j+2].Str
-		consumed = j + 3
+		ref.Table = tokens[consumed+1].Str
+		consumed += 2
+		if consumed+1 < len(tokens) && tokens[consumed].Type == '.' && parser.IsIdentTokenType(tokens[consumed+1].Type) {
+			ref.Database = ref.Table
+			ref.Table = tokens[consumed+1].Str
+			ref.Remote = true
+			consumed += 2
+		}
+	}
+	// Check for @dblink (`@link` or `@` followed by string/ident)
+	if consumed < len(tokens) && strings.HasPrefix(tokens[consumed].Str, "@") {
+		ref.Remote = true
+		consumed++
+		if tokens[consumed-1].Str == "@" && consumed < len(tokens) {
+			consumed++
+		}
 	}
 	// Check for alias (AS alias or bare ident)
 	k := consumed
 	if k < len(tokens) {
-		if tokens[k].Type == parser.AS && k+1 < len(tokens) && parser.IsIdentTokenType(tokens[k+1].Type) {
+		if tokens[k].Type == parser.AS && k+1 < len(tokens) && parser.IsIdentTokenType(tokens[k+1].Type) && !strings.HasPrefix(tokens[k+1].Str, "@") {
 			ref.Alias = tokens[k+1].Str
-		} else if parser.IsIdentTokenType(tokens[k].Type) && !isClauseKeyword(tokens[k].Type) {
+		} else if parser.IsIdentTokenType(tokens[k].Type) && !isClauseKeyword(tokens[k].Type) && !strings.HasPrefix(tokens[k].Str, "@") {
 			ref.Alias = tokens[k].Str
 		}
 	}

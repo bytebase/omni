@@ -16,8 +16,8 @@
 > query
 | SHOW CREATE TABLE c
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -45,8 +45,8 @@
 > query
 | SHOW CREATE TABLE n
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | n
@@ -67,8 +67,8 @@
 > query
 | SHOW CREATE TABLE i
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | i
@@ -91,8 +91,8 @@
 > query
 | SHOW CREATE TABLE v
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -116,8 +116,8 @@
 > query
 | SHOW CREATE TABLE v
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -157,8 +157,8 @@
 > query
 | SHOW CREATE TABLE v
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -208,8 +208,8 @@
 > query
 | SHOW CREATE TABLE o
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | o
@@ -242,8 +242,8 @@
 > query
 | SHOW CREATE TABLE o
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | o
@@ -251,6 +251,39 @@
 | CREATE TABLE `o` (
 |   `a` int(11) DEFAULT NULL,
 |   `b` int(11) DEFAULT NULL `k`=3
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c, p, n, i, o, q, v, pr, pt, ct, `pt (x`
+< ok 0 0
+> exec
+| SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
+< ok 0 0
+> exec
+| CREATE TABLE o (a INT, b INT, KEY k (a) x = 1)
+< ok 0 0
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| ALTER TABLE o ADD c INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE o
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| o
+: bytes
+| CREATE TABLE `o` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   KEY `k` (`a`) /* `x`=1 */
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
 | SET sql_mode = DEFAULT
@@ -273,8 +306,8 @@
 > query
 | SHOW CREATE TABLE o
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | o
@@ -299,8 +332,8 @@
 > query
 | SHOW CREATE TABLE q
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | q
@@ -322,8 +355,8 @@
 > query
 | SHOW CREATE TABLE pr
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pr
@@ -349,8 +382,8 @@
 > query
 | SHOW CREATE TABLE pr
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pr
@@ -377,8 +410,8 @@
 > query
 | SHOW CREATE TABLE pr
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pr
@@ -405,8 +438,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -422,8 +455,8 @@
 > query
 | SHOW CREATE TABLE ct
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | ct
@@ -451,8 +484,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -487,8 +520,8 @@
 > query
 | SHOW CREATE TABLE `pt (x`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt (x
@@ -638,8 +671,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -721,8 +754,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -833,8 +866,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -860,8 +893,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt
@@ -984,8 +1017,8 @@
 > query
 | SHOW CREATE TABLE pt
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | pt

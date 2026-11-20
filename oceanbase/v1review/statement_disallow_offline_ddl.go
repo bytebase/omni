@@ -79,10 +79,10 @@ func StatementDisallowOfflineDDL(stmts []ast.Node, currentDatabase string, extra
 // offlineDDLTable returns the database and table an ALTER TABLE names, the
 // database defaulting to currentDatabase.
 func offlineDDLTable(alter *ast.AlterTableStmt, currentDatabase string) (string, string) {
-	var database, table string
-	if alter.Table != nil {
-		database, table = alter.Table.Schema, alter.Table.Name
+	if alter.Table == nil || alter.Table.Catalog != "" || alter.Table.Dblink != "" {
+		return "", ""
 	}
+	database, table := alter.Table.Schema, alter.Table.Name
 	if database == "" {
 		database = currentDatabase
 	}

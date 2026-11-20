@@ -228,12 +228,18 @@ func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]
 		}
 	}
 	addOperRef := func(opOID uint32) {
+		addRef('O', opOID, 0)
 		if op := c.operByOID[opOID]; op != nil {
 			addRef('f', op.Code, 0)
 		}
 	}
 
 	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		if e != nil {
+			if _, isVar := e.(*VarExpr); !isVar {
+				addRef('t', e.exprType(), 0)
+			}
+		}
 		switch v := e.(type) {
 		case *VarExpr:
 			// pg: find_expr_references_walker — Var case

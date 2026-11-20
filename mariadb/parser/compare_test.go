@@ -2908,6 +2908,15 @@ func TestParseCreateTable(t *testing.T) {
 		if col.TypeName == nil || col.TypeName.Collate != "utf8mb4_unicode_ci" {
 			t.Errorf("TypeName.Collate = %v, want utf8mb4_unicode_ci", col.TypeName)
 		}
+
+		stmtDef := parseCreateTable(t, "CREATE TABLE t (name VARCHAR(100) COLLATE DEFAULT)")
+		if stmtDef.Columns[0].TypeName == nil || stmtDef.Columns[0].TypeName.Collate != "DEFAULT" {
+			t.Errorf("TypeName.Collate = %v, want DEFAULT", stmtDef.Columns[0].TypeName)
+		}
+
+		if _, err := Parse("CREATE TABLE t (name VARCHAR(100) COLLATE DEFAULT NOT NULL COLLATE utf8mb4_bin)"); err == nil {
+			t.Errorf("expected conflicting COLLATE error, got nil")
+		}
 	})
 
 	t.Run("column collate on int", func(t *testing.T) {
@@ -4213,6 +4222,16 @@ func TestParseAlterTableDiscardTablespace(t *testing.T) {
 			t.Errorf("Type = %d, want ATImportTablespace", cmd.Type)
 		}
 	})
+
+	// DISCARD TABLESPACE and IMPORT TABLESPACE are standalone alter_commands
+	// arms in MariaDB 11.8 sql_yacc.yy, not alter_list_items.
+	for _, sql := range []string{
+		"ALTER TABLE t DISCARD TABLESPACE, ALGORITHM=COPY, ADD c INT",
+		"ALTER TABLE t ADD c INT, DISCARD TABLESPACE",
+		"ALTER TABLE t IMPORT TABLESPACE, ADD c INT",
+	} {
+		ParseExpectError(t, sql)
+	}
 }
 
 func TestParseAlterTableValidation(t *testing.T) {
@@ -6352,12 +6371,36 @@ func TestParseCall(t *testing.T) {
 		"CALL my_proc()",
 		"CALL my_proc",
 		"CALL mydb.my_proc()",
+		// MariaDB calls a packaged routine by three parts, where MySQL takes
+		// two: measured on mariadb:11.8.8, `CALL a.a.a` parses.
+		"CALL mydb.mypkg.my_proc()",
+		"CALL mydb.mypkg.my_proc",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	// A list that opens and never closes is 1064, on the two-part and the
+	// three-part form alike: measured on mariadb:11.8.8, `CALL p(1`,
+	// `CALL p(1,` and `CALL db.pkg.proc(1` all answer it.
+	for _, sql := range []string{
+		"CALL p(1", "CALL p(1,", "CALL db.pkg.proc(1", "CALL db.pkg.proc(1,",
+	} {
+		ParseExpectError(t, sql)
+	}
+}
+
+// TestParseCallPackageMemberName: a packaged routine's own name is checked as a
+// routine name, as the two-part form's is (check_routine_name, 1458).
+func TestParseCallPackageMemberName(t *testing.T) {
+	for _, sql := range []string{
+		"CALL db.pkg." + strings.Repeat("a", 65),
+		"CALL db.pkg.`a `",
+	} {
+		ParseExpectError(t, sql)
+	}
+	ParseAndCheck(t, "CALL db.pkg."+strings.Repeat("a", 64))
 }
 
 func TestParseCallWithArgs(t *testing.T) {
@@ -8376,7 +8419,19 @@ func TestParseImportTable(t *testing.T) {
 func TestParseBinlog(t *testing.T) {
 	ParseAndCompare(t, "BINLOG 'base64str'", "{BINLOG :loc 0 :str \"base64str\"}")
 	ParseAndCompare(t, "BINLOG @a, @'b'", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
-	for _, sql := range []string{"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b"} {
+	// MariaDB reads the word after '@' as a hostname, and an '@' the text ends
+	// at leaves it empty: measured on mariadb:11.8.8, `BINLOG @a, @` parses.
+	ParseAndCompare(t, "BINLOG @a, @", "{BINLOG :loc 0 :fragments [\"a\" \"\"]}")
+	ParseAndCompare(t, "BINLOG @, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
+	ParseAndCompare(t, "BINLOG @'', @\"\"", "{BINLOG :loc 0 :fragments [\"\" \"\"]}")
+	ParseAndCompare(t, "BINLOG @`a`, @`b`", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
+	ParseAndCompare(t, "BINLOG @`a``b`, @`c``d`", "{BINLOG :loc 0 :fragments [\"a`b\" \"c`d\"]}")
+	ParseAndCompare(t, "BINLOG @````, @a", "{BINLOG :loc 0 :fragments [\"`\" \"a\"]}")
+	ParseAndCompare(t, "BINLOG @``, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
+	for _, sql := range []string{
+		"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b",
+		"BINLOG `@`, `@`", "BINLOG `@a`, `@b`", "BINLOG @ 'a', @b", "BINLOG @ a, @ b",
+	} {
 		ParseExpectError(t, sql)
 	}
 }

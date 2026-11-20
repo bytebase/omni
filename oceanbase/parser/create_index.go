@@ -203,13 +203,16 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			Column: colName,
 		}
 
-		// Optional (length)
+		// Optional (length), and a length that is written is an INTNUM:
+		// opt_sort_column_key_length is '(' INTNUM ')', so `ADD KEY(a())` is a
+		// 1064.
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				col.Length = int(p.cur.Ival)
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			col.Length = int(p.cur.Ival)
+			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -221,6 +224,15 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		// ASC is default, nothing to set
 	} else if _, ok := p.match(kwDESC); ok {
 		col.Desc = true
+	}
+
+	// opt_column_id: `ID n` after the key part, which pins the index column's
+	// storage id.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		col.ColumnID = p.cur.Ival
+		col.HasColumnID = true
+		p.advance()
 	}
 
 	col.Loc.End = p.prev.End

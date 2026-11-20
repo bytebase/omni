@@ -541,9 +541,44 @@ func (b *builder) callsUserCode(n ast.Node) bool {
 			name := fc.FuncName
 			calls = name == nil || name.Schema != "" || name.DBLink != "" || !sqlBuiltins[name.Name] || b.quoted(name.Loc)
 		}
+		// A calculated measure whose expression the parser reads whole may
+		// call anything: the tree holds none of its calls.
+		if clause, ok := m.(*ast.SubAVClause); ok && clause.OpaqueMeasure {
+			calls = true
+		}
 		return !calls
 	})
 	return calls || b.callsBareFunction(n)
+}
+
+// subAVLocalColumns returns the columns a derived analytic view adds to the
+// relation it reads: the names its ADD MEASURES declares, which the synced
+// metadata of that relation has no column for.
+func subAVLocalColumns(clause *ast.SubAVClause) map[string]bool {
+	if clause == nil || clause.Options == nil {
+		return nil
+	}
+	for _, item := range clause.Options.Items {
+		option, ok := item.(*ast.DDLOption)
+		if !ok || option.Key != "ADD MEASURES" || option.Items == nil {
+			continue
+		}
+		columns := map[string]bool{}
+		for _, measure := range option.Items.Items {
+			if target, ok := measure.(*ast.ResTarget); ok && target.Name != "" {
+				columns[target.Name] = true
+			}
+		}
+		return columns
+	}
+	return nil
+}
+
+func aliasName(alias *ast.Alias) string {
+	if alias == nil {
+		return ""
+	}
+	return alias.Name
 }
 
 // quoted reports whether the text at a location begins with a quoted
@@ -625,10 +660,19 @@ func markRefs(set map[*ast.ColumnRef]bool, l *ast.List) {
 	}
 }
 
-// scoped is a table in scope: its reference and its alias, "" for none.
+// scoped is a table in scope: its reference and its alias, "" for none,
+// the query-local columns it adds to that relation, and whether the
+// statement wrote its schema.
 type scoped struct {
 	ref   objRef
 	alias string
+	// local holds column names the query adds to the relation, which the
+	// synced metadata of it has no column for: a derived analytic view's
+	// ADD MEASURES.
+	local map[string]bool
+	// qualified says the statement wrote the reference's schema, which a
+	// WITH element's name cannot be.
+	qualified bool
 }
 
 // scopeOf returns the tables in scope of a statement of one query block,
@@ -640,7 +684,7 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		if !ok {
 			return false
 		}
-		s := scoped{ref: r}
+		s := scoped{ref: r, qualified: o.Schema != ""}
 		if alias != nil {
 			s.alias = alias.Name
 		}
@@ -652,10 +696,54 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		switch v := e.(type) {
 		case *ast.TableRef:
 			return v.Dblink == "" && add(v.Name, v.Alias)
+		case *ast.InlineAnalyticView:
+			if v.Clause == nil {
+				return false
+			}
+			if !add(v.Clause.Using, v.Alias) {
+				return false
+			}
+			if local := subAVLocalColumns(v.Clause); len(local) > 0 {
+				scope = append(scope, scoped{alias: aliasName(v.Alias), local: local})
+			}
+			return true
 		case *ast.JoinClause:
 			return from(v.Left) && from(v.Right)
 		}
 		return false
+	}
+	// withElements points each FROM reference of a WITH element at the
+	// relation the element reads: a subav_factoring_clause's USING, whose
+	// columns are the element's, with the measures it adds. An element the
+	// query does not read contributes nothing.
+	withElements := func(w *ast.WithClause) {
+		if w == nil || w.CTEs == nil {
+			return
+		}
+		for _, item := range w.CTEs.Items {
+			cte, ok := item.(*ast.CTE)
+			if !ok || cte.SubAV == nil || cte.SubAV.Using == nil || cte.SubAV.Using.Name == "" {
+				continue
+			}
+			for i := range scope {
+				// The element is named by the reference's own name: a FROM
+				// alias replaces it for every other purpose, and a schema the
+				// statement wrote names a table, never the element.
+				if scope[i].qualified || !strings.EqualFold(scope[i].ref.name, cte.Name) {
+					continue
+				}
+				r, ok := b.ref(cte.SubAV.Using)
+				if !ok {
+					break
+				}
+				scope[i].ref = r
+				if scope[i].alias == "" {
+					scope[i].alias = cte.Name
+				}
+				scope[i].local = subAVLocalColumns(cte.SubAV)
+				break
+			}
+		}
 	}
 	fromList := func(l *ast.List) bool {
 		if l == nil {
@@ -671,14 +759,18 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 	}
 	switch v := n.(type) {
 	case *ast.SelectStmt:
-		return scope, blocks == 1 && fromList(v.FromClause)
+		ok := blocks == 1 && fromList(v.FromClause)
+		withElements(v.WithClause)
+		return scope, ok
 	case *ast.InsertStmt:
 		switch {
 		case v.MultiTable != nil:
 			return nil, false
 		case v.Select != nil:
 			// The rows come from the query: VALUES sees no table.
-			return scope, blocks == 1 && fromList(v.Select.FromClause)
+			ok := blocks == 1 && fromList(v.Select.FromClause)
+			withElements(v.Select.WithClause)
+			return scope, ok
 		}
 		return scope, blocks == 0
 	case *ast.UpdateStmt:
@@ -735,6 +827,9 @@ func (b *builder) resolves(c *ast.ColumnRef, scope []scoped) bool {
 		return true
 	}
 	for _, s := range scope {
+		if s.local[c.Column] {
+			return true
+		}
 		if f, _ := b.look(s.ref.childKey(spaceColumn, c.Column)); f == walk.Present {
 			return true
 		}

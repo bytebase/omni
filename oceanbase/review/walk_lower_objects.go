@@ -92,6 +92,10 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 }
 
 func (b *builder) createView(v *ast.CreateViewStmt) bool {
+	if b.w.oceanBase && v.HasTableID {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, b.engine()+" refuses TABLE_ID on a view.")
+		return true
+	}
 	r, st := b.ref(v.Name)
 	switch st {
 	case refFailed:
@@ -275,6 +279,10 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 }
 
 func (b *builder) alterView(v *ast.AlterViewStmt) bool {
+	if b.w.oceanBase && v.HasTableID {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, b.engine()+" refuses TABLE_ID on a view.")
+		return true
+	}
 	r, st := b.ref(v.Name)
 	switch st {
 	case refFailed:

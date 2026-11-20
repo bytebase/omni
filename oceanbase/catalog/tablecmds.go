@@ -10,7 +10,21 @@ import (
 	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
+// rejectRemoteRef refuses a table reference another catalog holds or a database
+// link reads. This catalog models neither namespace, so keying on the local
+// database and table of the same name would change the wrong object: the
+// reference is refused before anything is touched.
+func rejectRemoteRef(ref *nodes.TableRef) error {
+	if ref != nil && (ref.Catalog != "" || ref.Dblink != "") {
+		return errNotSupported("external table reference")
+	}
+	return nil
+}
+
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -514,6 +528,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrForeignKey:
+			if err := rejectRemoteRef(con.RefTable); err != nil {
+				return err
+			}
 			conName := con.Name
 			if conName == "" {
 				conName = c.madeUpConstraintName(tableName, madeUpForeignKeyInfix, func(name string) bool {
@@ -2227,6 +2244,9 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 			// Multi-valued index form: stored with a lowercase trailing array.
 			result += " array"
 		}
+		if n.Ignore {
+			result += " ignore"
+		}
 		return result + ")"
 	case *nodes.PositionExpr:
 		// Oracle mysql:8.0 stored form: locate(_utf8mb4'x',`s`) — the engine
@@ -2700,6 +2720,9 @@ func escapeEnumValue(s string) string {
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
 func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt, nameTaken func() (bool, error)) error {
+	if err := rejectRemoteRef(stmt.Like); err != nil {
+		return err
+	}
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
 	srcDB, err := c.resolveDatabase(srcDBName)

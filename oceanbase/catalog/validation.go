@@ -38,6 +38,19 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
+	// column_attribute's lob_chunk_size and ORIG_DEFAULT are parsed and refused:
+	// the pinned server answers 1235 for CHUNK and 1067 for ORIG_DEFAULT.
+	if colDef.HasChunk {
+		return errNotSupported("column chunk")
+	}
+	if colDef.HasOrigDefault {
+		return &Error{Code: 1067, SQLState: "42000", Message: "Invalid default value"}
+	}
+	// data_type's STRING_VALUE arm is a quoted literal in the type's place, which
+	// the pinned server parses and refuses: 5874, invalid datatype.
+	if hasQuotedDataType(colDef.TypeName) {
+		return &Error{Code: 5874, SQLState: "HY000", Message: "invalid datatype"}
+	}
 	if err := checkCollectionElements(colDef.TypeName); err != nil {
 		return err
 	}
@@ -400,6 +413,13 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 // are integers, BOOL, FLOAT and DOUBLE, VARCHAR, VECTOR and ARRAY: cast_array_test.go
 // measured them on casts, where it refuses ENUM, SET, DECIMAL and VARBINARY, and a
 // column's TINYTEXT[] is refused the same way (simulate.tsv).
+func hasQuotedDataType(dt *nodes.DataType) bool {
+	if dt == nil {
+		return false
+	}
+	return dt.FromStringValue || hasQuotedDataType(dt.ArrayElem) || hasQuotedDataType(dt.MapKey)
+}
+
 func checkCollectionElements(dt *nodes.DataType) error {
 	for dt != nil {
 		switch normalizedTypeName(dt.Name) {

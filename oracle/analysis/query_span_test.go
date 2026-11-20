@@ -50,6 +50,8 @@ func testCatalog() Catalog {
 				},
 				views: map[string]*metadata.ViewMetadata{
 					"V":       {Name: "V", Definition: "SELECT A, A + B AS S FROM T"},
+					"AV_COLS": {Name: "AV_COLS", Columns: columns("A", "S")},
+					"V_EMPTY": {Name: "V_EMPTY"},
 					"V_MIXED": {Name: "V_MIXED", Definition: "SELECT * FROM T, SYS.DBA_USERS"},
 				},
 				materializedViews: map[string]*metadata.MaterializedViewMetadata{
@@ -123,6 +125,83 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 	span = resolve(t, "SELECT * FROM MV, EXT")
 	require.Equal(t, []string{"B", "E"}, []string{span.Results[0].Name, span.Results[1].Name})
 	require.Equal(t, column("DB", "EXT", "E"), span.Results[1].SourceColumns)
+}
+
+// TestResolveQuerySpanDerivedAnalyticView holds both forms of a derived
+// analytic view to the persistent analytic view each names: an inline one in
+// a FROM clause, and a WITH element, whose span is the base view's under the
+// element's name.
+func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
+	span := resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V)")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
+	require.Equal(t, column("DB", "T", "A"), span.Results[0].SourceColumns)
+	require.Equal(t, ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}, span.Results[1].SourceColumns)
+
+	span = resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V) AV WHERE AV.A = 1")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
+
+	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V) SELECT A FROM AV")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	// ADD MEASURES adds a column to the derived view, beside the base's, and
+	// keeps the base view's qualifier when no alias renames it.
+	span = resolve(t, "SELECT V.S, V.LAG_SALES FROM ANALYTIC VIEW(USING V ADD MEASURES(LAG_SALES AS(1)))")
+	require.Equal(t, []string{"S", "LAG_SALES"}, []string{span.Results[0].Name, span.Results[1].Name})
+	require.NotEmpty(t, span.Results[0].SourceColumns)
+	require.Empty(t, span.Results[1].SourceColumns)
+
+	// A parsed measure carries the lineage of what it reads, the measures
+	// before it included; one the parser read whole carries none.
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(A)))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT N FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(A), N AS(M + 1)))")
+	require.Equal(t, []QuerySpanResult{{Name: "N", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(LAG(S) OVER (HIERARCHY H OFFSET 1))))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: ColumnSet{}}}, span.Results)
+
+	// A base measure aggregates its FACT column, or the one of its own name.
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M FACT A AGGREGATE BY SUM))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT S FROM ANALYTIC VIEW(USING V ADD MEASURES(S AGGREGATE BY SUM))")
+	require.Equal(t, []QuerySpanResult{{Name: "S", SourceColumns: ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}}}, span.Results)
+
+	// USING names a persistent analytic view in the schema, never a CTE of the
+	// same name.
+	span = resolve(t, "WITH V AS (SELECT 1 AS X FROM T) SELECT A FROM ANALYTIC VIEW(USING V)")
+	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "WITH NOPE AS (SELECT 1 AS X FROM T) SELECT X FROM NOPE WHERE EXISTS (SELECT 1 FROM ANALYTIC VIEW(USING NOPE))")
+	require.NotNil(t, span.NotFoundError)
+	require.Equal(t, "NOPE", *span.NotFoundError.Table)
+
+	// A base view with no stored definition yields an empty span rather than
+	// cloning a nil source; one carrying synced column metadata resolves them.
+	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V_EMPTY) SELECT * FROM AV")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V_EMPTY"}: true}, span.SourceColumns)
+	require.Empty(t, span.Results)
+
+	span = resolve(t, "SELECT S FROM ANALYTIC VIEW(USING AV_COLS)")
+	require.Equal(t, []QuerySpanResult{{Name: "S", SourceColumns: column("DB", "AV_COLS", "S")}}, span.Results)
+
+	// USING DUAL names a persistent analytic view rather than the pseudo-table.
+	span = resolve(t, "SELECT * FROM ANALYTIC VIEW(USING DUAL)")
+	require.NotNil(t, span.NotFoundError)
+	require.Equal(t, "DUAL", *span.NotFoundError.Table)
+
+	span = resolve(t, "DELETE T FROM ANALYTIC VIEW(USING DUAL)")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "T"}: true, {Database: "DB", Table: "DUAL"}: true}, span.SourceColumns)
 }
 
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {

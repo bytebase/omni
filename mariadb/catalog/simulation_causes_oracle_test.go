@@ -32,9 +32,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 	ctx := context.Background()
 	reset := func() {
 		for _, stmt := range []string{
+			"SET sql_mode = DEFAULT",
+			"SET foreign_key_checks = 1",
+			"ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci",
+			"DROP TEMPORARY TABLE IF EXISTS a",
 			"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a",
-			"DROP SEQUENCE IF EXISTS a", "DROP TABLE IF EXISTS p",
-			"DROP TABLE IF EXISTS x", "DROP TABLE IF EXISTS z",
+			"DROP SEQUENCE IF EXISTS a", "DROP SEQUENCE IF EXISTS id",
+			"DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS x", "DROP TABLE IF EXISTS z",
 		} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
@@ -722,6 +726,441 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:   0,
 			absent: "x",
 		},
+		// SYSTEM_TIME partitioning is a versioned table's (4124), and a
+		// PERIOD FOR SYSTEM_TIME a CREATE TABLE declares needs WITH SYSTEM
+		// VERSIONING (4125), answered before the table's name is looked up. An
+		// ALTER that adds a period over ordinary columns runs and stores nothing.
+		{
+			name:        "PARTITION BY SYSTEM_TIME of a table that is not versioned",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a PARTITION BY SYSTEM_TIME",
+			code:        4124,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE TABLE with a period and no versioning",
+			setup:       []string{oneTable},
+			stmt:        "CREATE TABLE a(PERIOD FOR SYSTEM_TIME(a, a))",
+			code:        4125,
+			keepsSchema: true,
+		},
+		{
+			name:        "ADD PERIOD FOR SYSTEM_TIME over ordinary columns",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a)",
+			code:        0,
+			keepsSchema: true,
+		},
+		// A CHECK or DEFAULT expression names columns of the table (1054).
+		{
+			name:  "ADD CHECK over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(a)",
+			code:  1054,
+		},
+		{
+			name:  "ADD CONSTRAINT CHECK over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a)",
+			code:  1054,
+		},
+		{
+			name:  "ADD a column whose DEFAULT names no column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT DEFAULT VALUE",
+			code:  1054,
+		},
+		// A key names a column once (1060), takes a length over a string column
+		// only (1089), and takes no engine-defined option (1911); USING RTREE is
+		// an R-tree only through SPATIAL (1210).
+		{
+			name:  "ADD KEY naming a column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c, c)",
+			code:  1060,
+		},
+		{
+			name:  "ADD KEY with a length over an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c(1))",
+			code:  1089,
+		},
+		{
+			name:  "ADD KEY USING RTREE over an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY USING RTREE(c)",
+			code:  1210,
+		},
+		{
+			// The key's own type is judged before its name: the table holds an
+			// index called a, and the column is no geometry.
+			name:  "CREATE SPATIAL INDEX of a name the table has over an INT column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY a (c))"},
+			stmt:  "CREATE SPATIAL INDEX a ON a(b)",
+			code:  1210,
+		},
+		{
+			name:  "CREATE FULLTEXT INDEX of a name the table has over an INT column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY a (c))"},
+			stmt:  "CREATE FULLTEXT INDEX a ON a(b)",
+			code:  1283,
+		},
+		{
+			name:  "ADD KEY with an engine-defined option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c) x = 1",
+			code:  1911,
+		},
+		// AUTO_INCREMENT takes the first part of a key (1075), an ENUM lists a
+		// value once (1291), a WITHOUT OVERLAPS part names a period (4156), and
+		// IMPORT TABLESPACE needs a DISCARDed tablespace (1813).
+		{
+			name:        "ADD an AUTO_INCREMENT column no key leads with",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD a INT AUTO_INCREMENT",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD an ENUM column listing a value twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a ENUM('s', 's')",
+			code:  1291,
+		},
+		{
+			name:  "ADD UNIQUE over a period the table does not have",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD UNIQUE(c, c WITHOUT OVERLAPS)",
+			code:  4156,
+		},
+		{
+			name:        "IMPORT TABLESPACE over a table whose tablespace was not DISCARDed",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1813,
+			keepsSchema: true,
+		},
+		{
+			// A DISCARDed tablespace is gone, so there is no file to import: the
+			// import asks for the secondary indexes to go first, and reports the
+			// tablespace missing once they have.
+			name:        "IMPORT TABLESPACE after DISCARD TABLESPACE with a secondary key",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1815,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE after DISCARD TABLESPACE without one",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1030,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE over a MyISAM table",
+			setup:       []string{"CREATE TABLE a (b INT) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
+		},
+		{
+			// An AUTO_INCREMENT column is the first part of a key on InnoDB, and
+			// anywhere in one on MyISAM.
+			name:        "ADD a column to a MyISAM table whose auto column is not first in its key",
+			setup:       []string{"CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a ADD c INT",
+			code:        0,
+			keepsSchema: false,
+		},
+		// ALTER ... RENAME KEY of a key the table does not have is 1176, which the
+		// new name does not change.
+		{
+			name:        "RENAME KEY of a key the table does not have",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a RENAME KEY nosuch TO idx_d",
+			code:        1176,
+			keepsSchema: true,
+		},
+		// The table the statement leaves decides SYSTEM_TIME partitioning, so a
+		// statement that also adds the versioning runs.
+		{
+			name:  "ADD SYSTEM VERSIONING with PARTITION BY SYSTEM_TIME",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SYSTEM VERSIONING PARTITION BY SYSTEM_TIME",
+			code:  0,
+		},
+		// A key part naming no column is 1072 before the repeated name is 1060,
+		// on a CREATE TABLE as much as on an ALTER.
+		{
+			name:   "CREATE TABLE with a key naming a missing column twice",
+			stmt:   "CREATE TABLE a (b INT, KEY k (missing, missing))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:   "CREATE TABLE with a primary key naming a missing column twice",
+			stmt:   "CREATE TABLE a (b INT, PRIMARY KEY (missing, missing))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENUM compares its values with the column's collation, so a
+		// case-sensitive one lists 's' and 'S' as two.
+		{
+			name:     "ENUM of two spellings under a case-sensitive collation",
+			stmt:     "CREATE TABLE a (e ENUM('s', 'S') COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+		},
+		// The auto column's key is the engine's: MEMORY wants it first, as
+		// InnoDB does, where MyISAM and Aria take it anywhere.
+		{
+			name: "CREATE TABLE on MEMORY with the auto column second in its key",
+			stmt: "CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MEMORY",
+			code: 1075,
+		},
+		{
+			name: "CREATE TABLE on MyISAM with the auto column second in its key",
+			stmt: "CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MyISAM",
+			code: 0,
+		},
+		// A key's columns are looked up before its type, on CREATE INDEX too.
+		{
+			name:   "CREATE INDEX USING RTREE over a missing column",
+			setup:  []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:   "CREATE INDEX i USING RTREE ON a (missing)",
+			code:   1072,
+			absent: "i",
+		},
+		{
+			name:  "CREATE INDEX USING RTREE over an INT column",
+			setup: []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:  "CREATE INDEX i USING RTREE ON a (b)",
+			code:  1210,
+		},
+		// A quoted name is a column name all the same, and one the table lacks is
+		// 1072.
+		{
+			name:   "CREATE TABLE with a quoted key column the table lacks",
+			stmt:   "CREATE TABLE a (b INT, KEY k (`missing name`))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENGINE='DEFAULT' is the server's own engine for a tablespace.
+		{
+			name:        "IMPORT TABLESPACE over an ENGINE='DEFAULT' table",
+			setup:       []string{"CREATE TABLE a (b INT) ENGINE='DEFAULT'"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1813,
+			keepsSchema: true,
+		},
+		// CREATE OR REPLACE reads its own collation, not the database's.
+		{
+			name:     "CREATE OR REPLACE TABLE with a case-sensitive table collation",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "CREATE OR REPLACE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+		},
+		// An ENUM's trailing spaces are its collation's: `('a','a ')` lists one
+		// value twice, and `('a ','b ')` is stored as enum('a','b').
+		{
+			name: "ENUM listing a value and its trailing-space form",
+			stmt: "CREATE TABLE a (e ENUM('a', 'a '))",
+			code: 1291,
+		},
+		{
+			name:     "ENUM of two values with trailing spaces",
+			stmt:     "CREATE TABLE a (e ENUM('a ', 'b '))",
+			code:     0,
+			contains: []string{"enum('a','b')"},
+		},
+		// A discarded tablespace leaves nothing to copy into: the ALTERs that
+		// need a copy are 1814, the in-place ones run.
+		{
+			name:        "ROW_FORMAT of a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a ROW_FORMAT=COMPACT",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD COLUMN to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD e INT",
+			code:  0,
+		},
+		// A key IF NOT EXISTS finds is a note, and the definition beside it is
+		// not read.
+		{
+			name:  "ADD KEY IF NOT EXISTS of a name the table holds, with an option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS idx_d (d) x = 1",
+			code:  0,
+		},
+		// The table the statement leaves decides SYSTEM_TIME partitioning: one
+		// that drops the versioning is 4124.
+		{
+			name:        "DROP SYSTEM VERSIONING with PARTITION BY SYSTEM_TIME",
+			setup:       []string{"CREATE TABLE a (b INT) WITH SYSTEM VERSIONING"},
+			stmt:        "ALTER TABLE a DROP SYSTEM VERSIONING PARTITION BY SYSTEM_TIME",
+			code:        4124,
+			keepsSchema: true,
+		},
+		// Turkish is its own case mapping: I and i are different letters, and
+		// i and İ are the same one.
+		{
+			name: "ENUM of I and i under a Turkish collation",
+			stmt: "CREATE TABLE a (e ENUM('I', 'i') COLLATE utf8mb4_turkish_ci)",
+			code: 0,
+		},
+		{
+			name: "ENUM of i and İ under a Turkish collation",
+			stmt: "CREATE TABLE a (e ENUM('i', 'İ') COLLATE utf8mb4_turkish_ci)",
+			code: 1291,
+		},
+		// A FULLTEXT key's parser is looked up before its columns.
+		{
+			name:   "FULLTEXT key over a missing column with an unknown parser",
+			stmt:   "CREATE TABLE a (b TEXT, FULLTEXT KEY f (missing) WITH PARSER unavailable)",
+			code:   1128,
+			absent: "a",
+		},
+		{
+			name:   "FULLTEXT key over a missing column",
+			stmt:   "CREATE TABLE a (b TEXT, FULLTEXT KEY f (missing))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENGINE='DEFAULT' is InnoDB's list, and a key IF NOT EXISTS adds is a
+		// new key whose definition is read.
+		{
+			name:   "key option on an ENGINE='DEFAULT' table",
+			stmt:   "CREATE TABLE a (b INT, KEY k (b) x = 1) ENGINE='DEFAULT'",
+			code:   1911,
+			absent: "a",
+		},
+		{
+			name:  "ADD KEY IF NOT EXISTS of a name the table does not hold, with an option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS j (d) x = 1",
+			code:  1911,
+		},
+		// Every copy ALTER is 1814 on a discarded tablespace: FORCE, ORDER BY, and
+		// the keys that rebuild the table.
+		{
+			name:        "FORCE of a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a FORCE",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD INDEX to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD INDEX i (d)",
+			code:  0,
+		},
+		// TRUNCATE gives the tablespace back, so the import that follows reports
+		// it exists again.
+		{
+			name:  "IMPORT TABLESPACE after TRUNCATE of a discarded table",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE", "TRUNCATE TABLE a"},
+			stmt:  "ALTER TABLE a IMPORT TABLESPACE",
+			code:  1813,
+		},
+		// A key IF NOT EXISTS finds is a note, and its WITHOUT OVERLAPS part is
+		// not read.
+		{
+			name:  "ADD UNIQUE KEY IF NOT EXISTS of a name the table holds, over a missing period",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD UNIQUE KEY IF NOT EXISTS idx_d (d, missing_period WITHOUT OVERLAPS)",
+			code:  0,
+		},
+		// ALGORITHM=COPY asks for the copy by name.
+		{
+			name:        "ALGORITHM=COPY on a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a ALGORITHM=COPY, ADD e INT",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ALGORITHM=INPLACE on a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ALGORITHM=INPLACE, ADD e INT",
+			code:  0,
+		},
+		// A column's own CHARACTER SET gives it that set's default collation, not
+		// the table's.
+		{
+			name: "ENUM under a CHARACTER SET whose default collation folds case",
+			stmt: "CREATE TABLE a (e ENUM('s', 'S') CHARACTER SET latin1) COLLATE utf8mb4_bin",
+			code: 1291,
+		},
+		// A primary key's parts are held to their types before a repeated name.
+		{
+			name:   "primary key of a length over an INT column, repeated",
+			stmt:   "CREATE TABLE a (b INT, PRIMARY KEY (b(1), b))",
+			code:   1089,
+			absent: "a",
+		},
+		{
+			name:   "primary key over a TEXT column",
+			stmt:   "CREATE TABLE a (b TEXT, PRIMARY KEY (b))",
+			code:   1170,
+			absent: "a",
+		},
+		// A CHECK may name a column the same statement adds after it.
+		{
+			name:  "two added columns whose CHECKs read each other",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT CHECK (e > f), ADD f INT CHECK (f < e)",
+			code:  0,
+		},
+		// A column's own UNIQUE and REFERENCES rebuild a discarded table where its
+		// CHECK and DEFAULT do not, and a UNIQUE or FULLTEXT index does where an
+		// ordinary one does not.
+		{
+			name:  "ADD a column with a CHECK to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD e INT CHECK (e > 0)",
+			code:  0,
+		},
+		{
+			name:  "CREATE INDEX over a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "CREATE INDEX i ON a (c)",
+			code:  0,
+		},
+		{
+			name:  "CREATE UNIQUE INDEX over a table whose tablespace was DISCARDed, with a primary key",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "CREATE UNIQUE INDEX u ON a (c)",
+			code:  0,
+		},
+		// A column IF NOT EXISTS finds is a note whose definition is not read, its
+		// ENUM values and its DEFAULT alike.
+		{
+			name:  "ADD COLUMN IF NOT EXISTS of a column the table holds, with duplicated ENUM values",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c ENUM('x', 'x'), ADD e INT AS (1)",
+			code:  0,
+		},
+		{
+			name:  "ADD COLUMN IF NOT EXISTS of a column the table holds, with a DEFAULT that names nobody",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:  0,
+		},
+		// A column the table already holds is 1060 before the key it would be
+		// is read, where the same statement over a free name is 1068.
+		{
+			name:  "ADD an existing column SERIAL KEY KEY",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, a INT, KEY idx_d (b))"},
+			stmt:  "ALTER TABLE a ADD a SERIAL KEY KEY",
+			code:  1060,
+		},
 		// RENAME KEY over a key the table does not hold is 1176, not the 1061
 		// a duplicate name answers.
 		{
@@ -736,6 +1175,629 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT)"},
 			stmt:  "ALTER TABLE a ADD KEY(a, a)",
 			code:  1060,
+		},
+		// Parenthesized ADD (KEY ...) runs the same engine-option check as ADD KEY.
+		{
+			name:        "parenthesized ADD KEY with an engine-defined option",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD (KEY k (c) x = 1)",
+			code:        1911,
+			keepsSchema: true,
+		},
+		// ALTER COLUMN ... SET DEFAULT and GENERATED ALWAYS AS read their
+		// columns against the table the statement leaves (1054).
+		{
+			name:        "ALTER COLUMN SET DEFAULT over a missing column",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ALTER COLUMN c SET DEFAULT missing",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:     "ALTER COLUMN SET DEFAULT naming a column added after it",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ALTER COLUMN c SET DEFAULT e, ADD COLUMN e INT",
+			code:     0,
+			contains: []string{"DEFAULT `e`"},
+		},
+		{
+			name:   "CREATE TABLE generated column over a missing column",
+			stmt:   "CREATE TABLE a (b INT, g INT AS (missing))",
+			code:   1054,
+			absent: "a",
+		},
+		{
+			name:        "ALTER TABLE ADD generated column over a missing column",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD g INT AS (missing)",
+			code:        1054,
+			keepsSchema: true,
+		},
+		// Skipped ADD COLUMN IF NOT EXISTS clauses neither read generated
+		// columns added later nor count as generated columns themselves.
+		{
+			name:  "skipped ADD COLUMN IF NOT EXISTS generated forward ref",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT AS (e), ADD e INT AS (1)",
+			code:  0,
+		},
+		{
+			name:  "generated column reading an existing column beside a skipped generated IF NOT EXISTS",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT AS (c), ADD COLUMN IF NOT EXISTS c INT AS (1)",
+			code:  0,
+		},
+		// ENUM collation in ALTER follows the table collation the statement
+		// leaves, CONVERT TO re-checks existing ENUM values, MODIFY resolves the
+		// column name before 1291, and CREATE OR REPLACE drops the old table
+		// before 1291.
+		{
+			name:     "ADD ENUM followed by table COLLATE utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD e ENUM('s', 'S'), COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+			omits:    []string{"CHARACTER SET utf8mb4 COLLATE"},
+		},
+		{
+			name:        "CONVERT TO case-insensitive charset on a binary-collated ENUM",
+			setup:       []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:        "MODIFY a missing column to a duplicated ENUM",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a MODIFY missing ENUM('s', 's')",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:   "CREATE OR REPLACE TABLE with a duplicated ENUM drops the old table",
+			setup:  []string{"CREATE TABLE a (b INT)"},
+			stmt:   "CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))",
+			code:   1291,
+			absent: "a",
+		},
+		// WITHOUT OVERLAPS resolves its period before missing key columns on
+		// CREATE INDEX and CREATE TABLE alike.
+		{
+			name:        "CREATE UNIQUE INDEX over a missing column and a missing period",
+			setup:       []string{oneTable},
+			stmt:        "CREATE UNIQUE INDEX u ON a (missing, missing WITHOUT OVERLAPS)",
+			code:        4156,
+			keepsSchema: true,
+		},
+		{
+			name:   "CREATE TABLE UNIQUE over a missing column and a missing period",
+			stmt:   "CREATE TABLE a (b INT, UNIQUE (missing, missing WITHOUT OVERLAPS))",
+			code:   4156,
+			absent: "a",
+		},
+		// Table-level CHECK constraints resolve their columns against the table
+		// the atomic ALTER leaves, and DISCARD/IMPORT TABLESPACE refuse
+		// temporary InnoDB tables (3007) and partitioned InnoDB tables (1031).
+		{
+			name:     "table CHECK added before the column it reads",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD CHECK (e > 0), ADD e INT",
+			code:     0,
+			contains: []string{"CHECK (`e` > 0)"},
+		},
+		{
+			name:        "DISCARD TABLESPACE on an InnoDB temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        3007,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE on an InnoDB temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        3007,
+			keepsSchema: true,
+		},
+		{
+			name:        "DISCARD TABLESPACE on a MyISAM temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
+		},
+		{
+			name:        "DISCARD TABLESPACE on a partitioned InnoDB table",
+			setup:       []string{"CREATE TABLE a (b INT) PARTITION BY HASH (b) PARTITIONS 2"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
+		},
+		// Expressions written in an ALTER bind against the final table's column
+		// names rather than pre-rename names: RENAME COLUMN rewrites only stored
+		// expressions from earlier statements.
+		{
+			name:        "added CHECK naming a column renamed later in the same ALTER",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD e INT CHECK (c > 0), RENAME COLUMN c TO z",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:     "added CHECK naming the post-rename column of the same ALTER",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD e INT CHECK (z > 0), RENAME COLUMN c TO z",
+			code:     0,
+			contains: []string{"CHECK (`z` > 0)"},
+		},
+		// A charset or collation written as DEFAULT is resolved while it is read:
+		// `CHARSET DEFAULT` is utf8mb4 with utf8mb4_general_ci, and `COLLATE
+		// DEFAULT` the table's charset with its 11.8 default (a case-insensitive
+		// one for utf8mb4, so an existing ENUM('s','S') is 1291 on CONVERT).
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(3)) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_general_ci"},
+		},
+		{
+			name:  "CONVERT TO CHARACTER SET DEFAULT over a binary-collated ENUM",
+			setup: []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:  1291,
+		},
+		// The collation a CONVERT TO CHARACTER SET DEFAULT leaves is the one an
+		// ENUM the same statement adds is read under, wherever in it they stand.
+		{
+			name:        "CONVERT TO CHARACTER SET DEFAULT with an ENUM added after it",
+			setup:       []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT, ADD e ENUM('s', 'S')",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT with an ENUM added after it, listing two values",
+			setup:    []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT, ADD e ENUM('s', 't')",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_general_ci"},
+		},
+		{
+			name:     "COLLATE DEFAULT on a binary-collated table",
+			setup:    []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		// An engine-defined key option IGNORE_BAD_TABLE_OPTIONS tolerated is
+		// commented out once the mode is gone, a VECTOR key's own M and DISTANCE
+		// excepted.
+		{
+			name:     "VECTOR key option the engine defines beside one it does not",
+			setup:    []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) M=6 DISTANCE=cosine x=1)", "SET sql_mode = DEFAULT"},
+			stmt:     "ALTER TABLE a ADD c INT",
+			code:     0,
+			contains: []string{"VECTOR KEY `i` (`v`) `M`=6 `DISTANCE`=cosine /* `x`=1 */"},
+		},
+		// A CREATE INDEX name the table holds is 1061 before the unknown engine
+		// option is 1911, where a free name answers 1911, and a missing key column
+		// answers 1072 before either.
+		{
+			name:        "CREATE INDEX of a name the table holds, with an engine-defined option",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"},
+			stmt:        "CREATE INDEX idx_d ON a (c) x = 1",
+			code:        1061,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX of a free name, with an engine-defined option",
+			setup:       []string{oneTable},
+			stmt:        "CREATE INDEX i ON a (c) x = 1",
+			code:        1911,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX of a name the table holds, over a missing column, with an engine-defined option",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"},
+			stmt:        "CREATE INDEX idx_d ON a (missing) x = 1",
+			code:        1072,
+			keepsSchema: true,
+		},
+		// CHARSET DEFAULT resolves to the database's character set with its
+		// compiled-in default collation, and column-level COLLATE DEFAULT and
+		// attribute-list COLLATE resolve to the column's effective collation.
+		{
+			name:     "CREATE TABLE CHARSET DEFAULT in a latin1_bin database",
+			setup:    []string{"ALTER DATABASE CHARACTER SET latin1 COLLATE latin1_bin"},
+			stmt:     "CREATE TABLE a (b VARCHAR(10)) CHARSET DEFAULT",
+			code:     0,
+			contains: []string{"CHARSET=latin1 COLLATE=latin1_swedish_ci"},
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT in a binary database",
+			setup:    []string{"ALTER DATABASE CHARACTER SET binary", "CREATE TABLE a (e ENUM('s', 'S') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:     0,
+			contains: []string{"enum('s','S')", "CHARSET=binary"},
+		},
+		{
+			name:   "column COLLATE DEFAULT on a binary-collated table",
+			stmt:   "CREATE TABLE a (e ENUM('s', 'S') COLLATE DEFAULT) COLLATE utf8mb4_bin",
+			code:   1291,
+			absent: "a",
+		},
+		{
+			name:     "column VARCHAR COLLATE DEFAULT on a binary-collated table",
+			stmt:     "CREATE TABLE a (b VARCHAR(10) COLLATE DEFAULT) COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"COLLATE utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:     "ENUM with attribute-list COLLATE utf8mb4_bin after NOT NULL",
+			stmt:     "CREATE TABLE a (e ENUM('s', 'S') NOT NULL COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"enum('s','S')", "COLLATE utf8mb4_bin"},
+		},
+		// Table options combine regardless of order, and CONVERT TO applies to
+		// the columns the atomic ALTER leaves rather than pre-statement columns.
+		{
+			name:     "ALTER TABLE COLLATE latin1_bin followed by CHARACTER SET latin1",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10))"},
+			stmt:     "ALTER TABLE a COLLATE latin1_bin, CHARACTER SET latin1",
+			code:     0,
+			contains: []string{"CHARSET=latin1 COLLATE=latin1_bin"},
+		},
+		{
+			name:     "CONVERT TO utf8mb4 alongside MODIFY replacing duplicated ENUM",
+			setup:    []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, MODIFY e ENUM('s', 't')",
+			code:     0,
+			contains: []string{"enum('s','t')", "COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:  "CONVERT TO utf8mb4 alongside DROP of duplicated ENUM",
+			setup: []string{"CREATE TABLE a (b INT, e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, DROP COLUMN e",
+			code:  0,
+		},
+		{
+			name:        "CONVERT TO utf8mb4 followed by ADD binary-collated duplicated ENUM",
+			setup:       []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, ADD e ENUM('s', 'S') COLLATE utf8mb4_bin",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:     "ADD ENUM followed by CONVERT TO utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD e ENUM('s', 'S'), CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')", "COLLATE=utf8mb4_bin"},
+		},
+		{
+			name:     "CONVERT TO utf8mb4 paired with table COLLATE utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10)) CHARSET latin1"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"COLLATE utf8mb4_uca1400_ai_ci", "COLLATE=utf8mb4_bin"},
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET binary over VARCHAR and ENUM",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10), e ENUM('s', 'S') COLLATE utf8mb4_bin)"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET binary",
+			code:     0,
+			contains: []string{"varbinary(10)", "CHARSET=binary"},
+		},
+		// ADD ... IF NOT EXISTS checks pre-statement names (even when dropped or
+		// renamed in the same ALTER) and names added earlier in the statement.
+		{
+			name:  "DROP COLUMN followed by ADD COLUMN IF NOT EXISTS of the same name",
+			setup: []string{"CREATE TABLE a (b INT, c INT)"},
+			stmt:  "ALTER TABLE a DROP COLUMN c, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:  0,
+			omits: []string{"`c`"},
+		},
+		{
+			name:     "RENAME COLUMN followed by ADD COLUMN IF NOT EXISTS of the old name",
+			setup:    []string{"CREATE TABLE a (b INT, c INT)"},
+			stmt:     "ALTER TABLE a RENAME COLUMN c TO z, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:     0,
+			contains: []string{"`z`"},
+			omits:    []string{"`c`"},
+		},
+		{
+			name:     "ADD COLUMN followed by ADD COLUMN IF NOT EXISTS of the same name",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD COLUMN c INT, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:     0,
+			contains: []string{"`c` int(11)"},
+		},
+		{
+			name:  "DROP KEY followed by ADD KEY IF NOT EXISTS of the same name",
+			setup: []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:  "ALTER TABLE a DROP KEY k, ADD KEY IF NOT EXISTS k (b) x = 1",
+			code:  0,
+			omits: []string{"KEY `k`"},
+		},
+		{
+			name:     "ADD KEY followed by ADD KEY IF NOT EXISTS of the same name",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD KEY k (b), ADD KEY IF NOT EXISTS k (b) x = 1",
+			code:     0,
+			contains: []string{"KEY `k` (`b`)"},
+		},
+		// Discarded tablespaces refuse partitioning and charset-converting
+		// rewrites (1814), while allowing a no-op same-charset CONVERT TO.
+		{
+			name:        "PARTITION BY HASH on a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a PARTITION BY HASH (b) PARTITIONS 2",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:        "CONVERT TO a different charset on a table whose tablespace was DISCARDed",
+			setup:       []string{"CREATE TABLE a (b VARCHAR(10) PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET latin1",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "CONVERT TO the existing charset on a table whose tablespace was DISCARDed",
+			setup: []string{"CREATE TABLE a (b VARCHAR(10) PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:  0,
+		},
+		// Standalone DROP INDEX and CREATE OR REPLACE INDEX enforce AUTO_INCREMENT
+		// key coverage (1075), and CREATE VECTOR INDEX checks column types (1210)
+		// before duplicate key names (1061) and multiple vector keys (1235).
+		{
+			name:        "DROP INDEX unkeying an AUTO_INCREMENT column",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:        "DROP INDEX k ON a",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE OR REPLACE INDEX unkeying an AUTO_INCREMENT column",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:        "CREATE OR REPLACE INDEX k ON a (c)",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:     "CREATE OR REPLACE INDEX preserving leading AUTO_INCREMENT column",
+			setup:    []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:     "CREATE OR REPLACE INDEX k ON a (id, c)",
+			code:     0,
+			contains: []string{"KEY `k` (`id`,`c`)"},
+		},
+		{
+			name:        "CREATE VECTOR INDEX of a colliding name over an INT column",
+			setup:       []string{oneTable},
+			stmt:        "CREATE VECTOR INDEX idx_d ON a (b)",
+			code:        1210,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE VECTOR INDEX of a colliding name over a VECTOR column",
+			setup:       []string{"CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX idx_d (v))"},
+			stmt:        "CREATE VECTOR INDEX idx_d ON a (v)",
+			code:        1061,
+			keepsSchema: true,
+		},
+		// Geometry columns take prefix lengths, foreign keys reject repeated
+		// columns (1060), ENGINE='DEFAULT' enforces column options (1911), and
+		// backtick-escaped unknown options on VECTOR keys are commented out.
+		{
+			name:     "KEY with prefix length over a GEOMETRY column",
+			stmt:     "CREATE TABLE a (g GEOMETRY, KEY k (g(5)))",
+			code:     0,
+			contains: []string{"KEY `k` (`g`(5))"},
+		},
+		{
+			name:   "CREATE TABLE FOREIGN KEY naming a column twice",
+			setup:  []string{"CREATE TABLE p (x INT, y INT, KEY (x, y))"},
+			stmt:   "CREATE TABLE a (b INT, FOREIGN KEY (b, b) REFERENCES p(x, y))",
+			code:   1060,
+			absent: "a",
+		},
+		{
+			name:        "ALTER TABLE ADD FOREIGN KEY naming a column twice before parent lookup",
+			setup:       []string{"CREATE TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a ADD FOREIGN KEY (b, b) REFERENCES z(x, y)",
+			code:        1060,
+			keepsSchema: true,
+		},
+		{
+			name:   "column option on an ENGINE='DEFAULT' table",
+			stmt:   "CREATE TABLE a (b INT x = 1) ENGINE='DEFAULT'",
+			code:   1911,
+			absent: "a",
+		},
+		{
+			name:     "VECTOR key option with escaped backtick is commented out",
+			setup:    []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) M=6 `m``x`=1)", "SET sql_mode = DEFAULT"},
+			stmt:     "ALTER TABLE a ADD c INT",
+			code:     0,
+			contains: []string{"VECTOR KEY `i` (`v`) `M`=6 /* `m``x`=1 */"},
+		},
+		// Qualified column references, NEXTVAL over a same-named sequence, key
+		// checks preceding expression checks on CREATE TABLE, ignored ADD PERIOD
+		// FOR SYSTEM_TIME on implicitly versioned tables, and DROP PERIOD before
+		// WITHOUT OVERLAPS.
+		{
+			name:   "CHECK with same-table qualified missing column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (a.missing > 0))",
+			code:   1054,
+			absent: "a",
+		},
+		{
+			name:   "CHECK with cross-table qualified column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (p.b > 0))",
+			code:   1901,
+			absent: "a",
+		},
+		{
+			name:   "DEFAULT with cross-table qualified column",
+			stmt:   "CREATE TABLE a (b INT DEFAULT (p.b))",
+			code:   1901,
+			absent: "a",
+		},
+		{
+			name:     "DEFAULT NEXTVAL over a sequence sharing the column's name",
+			setup:    []string{"CREATE SEQUENCE id"},
+			stmt:     "CREATE TABLE a (id INT DEFAULT NEXTVAL(id))",
+			code:     0,
+			contains: []string{"DEFAULT nextval("},
+		},
+		{
+			name:   "CREATE TABLE key missing column precedes DEFAULT missing column",
+			stmt:   "CREATE TABLE a (d INT DEFAULT missing, KEY k (nosuch))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:   "CREATE TABLE key missing column precedes CHECK missing column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (missing > 0), KEY k (nosuch))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:        "ADD PERIOD FOR SYSTEM_TIME over ordinary columns on an implicitly versioned table",
+			setup:       []string{"CREATE TABLE a (b INT) WITH SYSTEM VERSIONING"},
+			stmt:        "ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(b, b)",
+			code:        0,
+			keepsSchema: true,
+		},
+		{
+			name:        "DROP PERIOD FOR app_time alongside ADD UNIQUE WITHOUT OVERLAPS",
+			setup:       []string{"CREATE TABLE a (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e))"},
+			stmt:        "ALTER TABLE a DROP PERIOD FOR app_time, ADD UNIQUE u (missing, app_time WITHOUT OVERLAPS)",
+			code:        4156,
+			keepsSchema: true,
+		},
+		{
+			name:     "INT column with COLLATE attribute stays plain int",
+			stmt:     "CREATE TABLE a (b INT COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"`b` int(11) DEFAULT NULL"},
+		},
+		{
+			name:     "JSON column with non-utf8mb4 COLLATE attribute updates column charset",
+			stmt:     "CREATE TABLE a (j JSON COLLATE latin1_swedish_ci)",
+			code:     0,
+			contains: []string{"`j` longtext CHARACTER SET latin1 COLLATE latin1_swedish_ci"},
+		},
+		{
+			name:        "CREATE OR REPLACE INDEX checks AUTO_INCREMENT key before IGNORED implicit PK",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT NOT NULL, c INT NOT NULL, UNIQUE KEY k (id), UNIQUE KEY u (c) IGNORED)"},
+			stmt:        "CREATE OR REPLACE INDEX k ON a (c)",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT COLLATE DEFAULT uses release default collation",
+			setup:    []string{"CREATE TABLE a (s VARCHAR(10)) CHARSET=latin1"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:     "CREATE TABLE CHARSET DEFAULT COLLATE DEFAULT uses release default collation",
+			stmt:     "CREATE TABLE a (s VARCHAR(10)) CHARSET DEFAULT COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:        "RENAME TO before ADD generated column self-referencing original table name",
+			setup:       []string{"CREATE TABLE a (x INT)"},
+			stmt:        "ALTER TABLE a RENAME TO b, ADD c INT AS (a.c)",
+			code:        4029,
+			keepsSchema: true,
+			absent:      "b",
+		},
+		{
+			name:        "RENAME TO before ADD generated column referencing renamed table name",
+			setup:       []string{"CREATE TABLE a (x INT)"},
+			stmt:        "ALTER TABLE a RENAME TO b, ADD c INT AS (b.c)",
+			code:        1901,
+			keepsSchema: true,
+			absent:      "b",
+		},
+		{
+			name:        "RENAME TO before MODIFY generated column self-referencing original table name",
+			setup:       []string{"CREATE TABLE a (x INT, c INT AS (x))"},
+			stmt:        "ALTER TABLE a RENAME TO b, MODIFY c INT AS (a.c)",
+			code:        4029,
+			keepsSchema: true,
+			absent:      "b",
+		},
+		{
+			name:        "RENAME TO before MODIFY plain column DEFAULT self-referencing original table name",
+			setup:       []string{"CREATE TABLE a (c INT)"},
+			stmt:        "ALTER TABLE a RENAME TO b, MODIFY c INT DEFAULT (a.c)",
+			code:        4029,
+			keepsSchema: true,
+			absent:      "b",
+		},
+		{
+			name:        "RENAME TO before ALTER COLUMN SET DEFAULT self-referencing original table name",
+			setup:       []string{"CREATE TABLE a (c INT)"},
+			stmt:        "ALTER TABLE a RENAME TO b, ALTER COLUMN c SET DEFAULT (a.c)",
+			code:        4029,
+			keepsSchema: true,
+			absent:      "b",
+		},
+		{
+			name:        "CREATE INDEX ALGORITHM=COPY on a table whose tablespace was DISCARDed",
+			setup:       []string{"CREATE TABLE a (b INT)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE INDEX i ON a(b) ALGORITHM=COPY",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:     "CREATE INDEX ALGORITHM=INPLACE on a table whose tablespace was DISCARDed",
+			setup:    []string{"CREATE TABLE a (b INT)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:     "CREATE INDEX i ON a(b) ALGORITHM=INPLACE",
+			code:     0,
+			contains: []string{"KEY `i` (`b`)"},
+		},
+		{
+			name:        "CREATE INDEX IF NOT EXISTS of an existing name with ALGORITHM=COPY on DISCARDed tablespace",
+			setup:       []string{"CREATE TABLE a (b INT, KEY k(b))", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE INDEX IF NOT EXISTS k ON a(nosuch) ALGORITHM=COPY",
+			code:        0,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX duplicate key name precedes ALGORITHM=COPY on DISCARDed tablespace",
+			setup:       []string{"CREATE TABLE a (b INT, KEY k(b))", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE INDEX k ON a(b) ALGORITHM=COPY",
+			code:        1061,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX missing column precedes ALGORITHM=COPY on DISCARDed tablespace",
+			setup:       []string{"CREATE TABLE a (b INT)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE INDEX i ON a(missing) ALGORITHM=COPY",
+			code:        1072,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX bad engine option precedes ALGORITHM=COPY on DISCARDed tablespace",
+			setup:       []string{"CREATE TABLE a (b INT)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE INDEX i ON a(b) `bad_opt`=1 ALGORITHM=COPY",
+			code:        1911,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE OR REPLACE INDEX ALGORITHM=COPY on DISCARDed tablespace keeps old index",
+			setup:       []string{"CREATE TABLE a (b INT, KEY k(b))", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "CREATE OR REPLACE INDEX k ON a(b) ALGORITHM=COPY",
+			code:        1814,
+			keepsSchema: true,
 		},
 	}
 

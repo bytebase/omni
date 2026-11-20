@@ -1,6 +1,9 @@
 package catalog
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Warning represents a non-fatal notice emitted during DDL processing,
 // analogous to PostgreSQL's NOTICE/WARNING messages.
@@ -53,9 +56,12 @@ const (
 	CodeCollationMismatch            = "42P21"
 	CodeInvalidColumnReference       = "42P10"
 	CodeObjectNotInPrerequisiteState = "55000"
+	CodeInsufficientPrivilege        = "42501"
+	CodeInternalError                = "XX000"
 	CodeInvalidGrantOperation        = "0LP01"
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"
+	CodeInvalidCatalogName           = "3D000"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.
@@ -159,12 +165,35 @@ func errUndefinedObject(kind, name string) error {
 	return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("%s %q does not exist", kind, name)}
 }
 
+// errInvalidCatalogName reports a database this catalog does not hold.
+//
+// pg: src/backend/utils/cache/lsyscache.c — get_database_oid
+func errInvalidCatalogName(name string) error {
+	return &Error{Code: CodeInvalidCatalogName, Message: fmt.Sprintf("database %q does not exist", name)}
+}
+
 func errWrongObjectType(name, expected string) error {
 	return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not %s", name, expected)}
 }
 
 func errInvalidFunctionDefinition(msg string) *Error {
 	return &Error{Code: CodeInvalidFunctionDefinition, Message: msg}
+}
+
+// missingObject reports whether err is a lookup failure an IF EXISTS form
+// skips: no such relation, index, object or schema. A name that holds another
+// kind of object is not missing, and PostgreSQL refuses it even with IF
+// EXISTS.
+func missingObject(err error) bool {
+	var e *Error
+	if !errors.As(err, &e) {
+		return false
+	}
+	switch e.Code {
+	case CodeUndefinedTable, CodeUndefinedObject, CodeUndefinedSchema, CodeUndefinedFunction:
+		return true
+	}
+	return false
 }
 func errUndefinedTrigger(trigName, tableName string) error {
 	return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("trigger %q on relation %q does not exist", trigName, tableName)}

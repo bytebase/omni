@@ -470,12 +470,14 @@ func (p *Parser) parseTerminatedBy(kw int) (string, error) {
 // EXPORT TABLE (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseExport parses:
+// parseExport parses exportStatement (StarRocks.g4:1873):
 //
-//	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
-//	    TO 'path'
-//	    [PROPERTIES(...)]
-//	    [WITH BROKER name [(key=val, ...)]]
+//	EXPORT TABLE tableDesc columnAliases? TO string
+//	    (WITH {SYNC | ASYNC} MODE)? properties? brokerDesc?
+//
+// tableDesc (:2250) is qualifiedName partitionNames?; columnAliases (:2254) is
+// identifierList. The fork's WHERE clause is not in the rule, and the pinned
+// server refuses it.
 //
 // The EXPORT keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseExport() (ast.Node, error) {
@@ -490,31 +492,57 @@ func (p *Parser) parseExport() (ast.Node, error) {
 		return nil, err
 	}
 
-	// Table name
+	// tableDesc: qualifiedName partitionNames?
 	target, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Target = target
 
-	// Optional PARTITION(p1, p2, ...)
-	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		parts, err := p.parsePartitionNameList()
-		if err != nil {
-			return nil, err
+	if p.cur.Kind == kwTEMPORARY || p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
+		if p.cur.Kind == kwTEMPORARY {
+			stmt.TempPartition = true
+			p.advance() // consume TEMPORARY
 		}
-		stmt.Partition = parts
+		// keyPartitions (:2274) is PARTITION '(' keyPartition (',' keyPartition)* ')':
+		// neither TEMPORARY nor PARTITIONS admits key=literal pairs.
+		keyed := false
+		if !stmt.TempPartition && p.cur.Kind == kwPARTITION && p.peekNext().Kind == int('(') {
+			mark := p.save()
+			p.advance() // consume PARTITION
+			p.advance() // consume '('
+			keyed = isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('=')
+			p.restore(mark)
+		}
+		if keyed {
+			parts, err := p.parseInsertKeyPartition()
+			if err != nil {
+				return nil, err
+			}
+			stmt.KeyPartitions = parts
+		} else {
+			if p.cur.Kind == kwPARTITIONS {
+				p.advance() // consume PARTITIONS
+			} else if _, err := p.expect(kwPARTITION); err != nil {
+				return nil, err
+			}
+			// partitionNames (:2268) takes an identifierOrString, alone or in a
+			// list, so `PARTITION 'p'` and `PARTITION (p, 'q')` both read.
+			parts, err := p.parseIdentifierOrStringNameList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partition = parts
+		}
 	}
 
-	// Optional WHERE expr
-	if p.cur.Kind == kwWHERE {
-		p.advance() // consume WHERE
-		where, err := p.parseExpr()
+	// columnAliases: '(' identifier (',' identifier)* ')'
+	if p.cur.Kind == int('(') {
+		aliases, _, err := p.parseParenIdentifiers()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Where = where
+		stmt.ColumnAliases = aliases
 	}
 
 	// Required TO 'path'
@@ -527,7 +555,17 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	stmt.Path = p.cur.Str
 	p.advance()
 
-	// Optional PROPERTIES(...)
+	// (WITH {SYNC | ASYNC} MODE)?
+	if p.cur.Kind == kwWITH && (p.peekNext().Kind == kwSYNC || p.peekNext().Kind == kwASYNC) {
+		p.advance() // consume WITH
+		stmt.Mode = strings.ToUpper(p.cur.Str)
+		p.advance() // consume SYNC/ASYNC
+		if _, err := p.expect(kwMODE); err != nil {
+			return nil, err
+		}
+	}
+
+	// properties
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
 		if err != nil {
@@ -536,20 +574,20 @@ func (p *Parser) parseExport() (ast.Node, error) {
 		stmt.Properties = props
 	}
 
-	// Optional WITH BROKER broker_name [(key=val, ...)]
+	// brokerDesc (:2260): WITH BROKER [name] [propertyList]
 	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH
 		if _, err := p.expect(kwBROKER); err != nil {
 			return nil, err
 		}
-		brokerName, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+		stmt.Broker = true
+		if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
+			brokerName, _, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			stmt.BrokerName = brokerName
 		}
-		stmt.BrokerName = brokerName
-
-		// Optional broker properties: brokerDesc's props=propertyList?, each
-		// item a string on both sides.
 		if p.cur.Kind == int('(') {
 			props, err := p.parsePropertyList()
 			if err != nil {
@@ -561,4 +599,58 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseIdentifierOrStringNameList parses partitionNames' name list: an
+// identifierOrString, alone or as '(' identifierOrString (',' ...)* ')'.
+func (p *Parser) parseIdentifierOrStringNameList() ([]string, error) {
+	if p.cur.Kind != int('(') {
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		return []string{name}, nil
+	}
+	p.advance() // consume '('
+	var names []string
+	for {
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseParenIdentifiers parses '(' identifier (',' identifier)* ')', the form
+// identifierList (:2855) and StarRocks's other parenthesized name lists take.
+func (p *Parser) parseParenIdentifiers() ([]string, ast.Loc, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, ast.NoLoc(), err
+	}
+	var names []string
+	for {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, ast.NoLoc(), err
+		}
+		names = append(names, name)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, ast.NoLoc(), err
+	}
+	return names, closeTok.Loc, nil
 }

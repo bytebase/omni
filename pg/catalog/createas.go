@@ -25,27 +25,31 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		return err
 	}
 
-	// Check for existing relation.
-	if _, exists := schema.Relations[mvName]; exists {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-			return nil
-		}
-		return errDuplicateTable(mvName)
-	}
-
-	// Check conflict with existing type name.
-	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-			return nil
-		}
-		return errDuplicateTable(mvName)
-	}
-
 	// Analyze the query to infer column types (same approach as DefineView).
 	selStmt, ok := stmt.Query.(*nodes.SelectStmt)
 	if !ok {
+		// A prepared statement is run only after the target name is checked.
+		if _, exists := schema.Relations[mvName]; exists {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
+		if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
+		if _, held := relationNamespaceKind(schema, mvName); held {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
 		return errInvalidParameterValue("CREATE MATERIALIZED VIEW requires a SELECT query")
 	}
 
@@ -53,6 +57,46 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	// pg: src/backend/commands/createas.c — ExecCreateTableAs
 	analyzedQuery, err := c.analyzeSelectStmt(selStmt)
 	if err != nil {
+		return err
+	}
+
+	// The query is read before the target name is checked: CREATE TABLE a AS
+	// SELECT zzz names a column that does not exist even when a does. Only
+	// then is a name another relation holds a duplicate (42P07), whether that
+	// relation is a table or an index.
+	if _, exists := schema.Relations[mvName]; exists {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	if _, ok := relationNamespaceKind(schema, mvName); ok {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	effectiveTablespace := c.effectiveTablespace(into.TableSpaceName)
+	if into.TableSpaceName == "" && rv.Relpersistence == 't' {
+		effectiveTablespace = ""
+	}
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+		return err
+	}
+	ctasAccessMethod := into.AccessMethod
+	if ctasAccessMethod == "" {
+		ctasAccessMethod = c.defaultTableAccessMethod
+	}
+	if err := c.checkTableAccessMethod(ctasAccessMethod); err != nil {
 		return err
 	}
 
@@ -137,11 +181,24 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		relkind = 'r'
 	}
 
+	persistence := rv.Relpersistence
+	if persistence == 0 {
+		persistence = 'p'
+	}
+	if ctasAccessMethod != "" {
+		if am := c.accessMethodByName[ctasAccessMethod]; am != nil {
+			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
+		}
+	}
 	rel := &Relation{
 		OID:           relOID,
 		Name:          mvName,
 		Schema:        schema,
 		RelKind:       relkind,
+		Persistence:   persistence,
+		Tablespace:    normalizeTablespace(effectiveTablespace),
+		AccessMethod:  ctasAccessMethod,
+		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,
 		RowTypeOID:    rowTypeOID,

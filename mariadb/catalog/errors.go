@@ -640,6 +640,89 @@ func errUnknownOption(name string) error {
 	return &Error{Code: 1911, SQLState: "HY000", Message: fmt.Sprintf("Unknown option '%s'", name)}
 }
 
+// errTablespaceExists is 1813, ALTER TABLE ... IMPORT TABLESPACE over a table
+// whose tablespace was not DISCARDed first, which is every table the server
+// created itself: measured on mariadb:11.8.8, `ALTER TABLE a IMPORT TABLESPACE`
+// answers "Tablespace for table 'db/a' exists. Please DISCARD the tablespace
+// before IMPORT".
+func errTablespaceExists(db, table string) error {
+	return &Error{Code: 1813, SQLState: "HY000",
+		Message: fmt.Sprintf("Tablespace for table '%s/%s' exists. Please DISCARD the tablespace before IMPORT", db, table)}
+}
+
+// refuseTablespaceEngine refuses DISCARD and IMPORT TABLESPACE on a table that
+// has no InnoDB file-per-table tablespace: 1031 for MyISAM, Aria, MEMORY and
+// partitioned InnoDB tables, and 3007 for an InnoDB temporary table (after the
+// engine check, so a MyISAM temporary table still answers 1031). Measured on
+// mariadb:11.8.8.
+func refuseTablespaceEngine(tbl *Table) error {
+	// ENGINE='DEFAULT' is the server's own engine, InnoDB on the pin.
+	engine := tbl.Engine
+	if engine == "" || eqFoldStr(engine, "InnoDB") || eqFoldStr(engine, "DEFAULT") {
+		if tbl.Partitioning != nil {
+			return &Error{Code: 1031, SQLState: "HY000",
+				Message: fmt.Sprintf("Storage engine InnoDB of the table `%s`.`%s` doesn't have this option", tbl.Database.Name, tbl.Name)}
+		}
+		if tbl.Temporary {
+			return &Error{Code: 3007, SQLState: "HY000",
+				Message: "Cannot DISCARD/IMPORT tablespace associated with temporary table"}
+		}
+		return nil
+	}
+	return &Error{Code: 1031, SQLState: "HY000",
+		Message: fmt.Sprintf("Storage engine %s of the table `%s`.`%s` doesn't have this option", engine, tbl.Database.Name, tbl.Name)}
+}
+
+// errTablespaceDiscarded is 1814, an ALTER that needs a copy of a table whose
+// tablespace the statement DISCARDed. Measured on mariadb:11.8.8.
+func errTablespaceDiscarded(table string) error {
+	return &Error{Code: 1814, SQLState: "HY000",
+		Message: fmt.Sprintf("Tablespace has been discarded for table `%s`", table)}
+}
+
+// errTablespaceMissing is 1030, IMPORT TABLESPACE over a table whose tablespace
+// the statement DISCARDed and which holds no secondary index: there is no file
+// to import, which the server reports as storage engine error 194. Measured on
+// mariadb:11.8.8.
+func errTablespaceMissing() error {
+	return &Error{Code: 1030, SQLState: "HY000",
+		Message: "Got error 194 \"Tablespace is missing for a table\" from storage engine InnoDB"}
+}
+
+// errImportNeedsIndexesDropped is 1815, IMPORT TABLESPACE over a table whose
+// tablespace the statement DISCARDed and which still holds a secondary index:
+// the import reads the .cfg file DISCARD removed, and asks for the indexes to go
+// first. Measured on mariadb:11.8.8.
+func errImportNeedsIndexesDropped(db, table string) error {
+	return &Error{Code: 1815, SQLState: "HY000",
+		Message: fmt.Sprintf("Internal error: Drop all secondary indexes before importing table %s/%s when .cfg file is missing.", db, table)}
+}
+
+// errDupColumnInKey is 1060 for a key naming a column twice: measured on
+// mariadb:11.8.8, `ALTER TABLE a ADD KEY(b, b)` answers "Duplicate column name
+// 'b'", as CREATE TABLE with the same key does.
+func errDupColumnInKey(name string) error {
+	return &Error{Code: ErrDupColumn, SQLState: sqlState(ErrDupColumn),
+		Message: fmt.Sprintf("Duplicate column name '%s'", name)}
+}
+
+// errKeyPartNotString is 1089 for a key part with a length over a column that
+// takes none: measured on mariadb:11.8.8, `ADD KEY(b(1))` over an INT column b
+// answers it, as the same key part in CREATE TABLE and CREATE INDEX does.
+func errKeyPartNotString() error {
+	return &Error{Code: 1089, SQLState: "HY000",
+		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+// errDupEnumValue is 1291: an ENUM or SET column listing a value twice.
+// MariaDB compares the values case-insensitively and names the first spelling.
+// Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))` answers
+// "Column 'e' has duplicated value 's' in ENUM".
+func errDupEnumValue(column, value, kind string) error {
+	return &Error{Code: 1291, SQLState: "HY000",
+		Message: fmt.Sprintf("Column '%s' has duplicated value '%s' in %s", column, value, kind)}
+}
+
 // errSequenceInvalidTableStructure is 4086: SEQUENCE=1 on a table whose columns
 // are not a sequence's. Measured on mariadb:11.8.8.
 func errSequenceInvalidTableStructure(db, table string) error {

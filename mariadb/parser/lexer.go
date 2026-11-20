@@ -2253,19 +2253,29 @@ func (l *Lexer) scanVariable() Token {
 	var name string
 	if l.pos < len(l.input) && l.input[l.pos] == '`' {
 		l.pos++ // skip opening backtick
-		nameStart := l.pos
-		for l.pos < len(l.input) && l.input[l.pos] != '`' {
+		var sb strings.Builder
+		closed := false
+		for l.pos < len(l.input) {
+			if l.input[l.pos] == '`' {
+				if l.pos+1 < len(l.input) && l.input[l.pos+1] == '`' {
+					sb.WriteByte('`')
+					l.pos += 2
+					continue
+				}
+				l.pos++ // skip closing backtick
+				closed = true
+				break
+			}
+			sb.WriteByte(l.input[l.pos])
 			l.pos++
 		}
-		name = l.input[nameStart:l.pos]
-		if l.pos < len(l.input) {
-			l.pos++ // skip closing backtick
-		} else {
+		if !closed {
 			// EOF reached before the closing backtick: unterminated `-quoted
 			// variable name. Record a clean error rather than accepting a
 			// half-open identifier (mirrors scanBacktickIdent).
 			l.setError("unterminated quoted identifier", start)
 		}
+		name = sb.String()
 	} else {
 		nameStart := l.pos
 		for l.pos < len(l.input) {

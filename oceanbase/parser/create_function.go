@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -42,14 +44,29 @@ func (p *Parser) parseCreateLoadableFunction(start int, isAggregate bool) (*node
 // finishLoadableFunction completes parsing a loadable UDF after the function name
 // has been consumed. Parses: RETURNS {STRING|INTEGER|REAL|DECIMAL} SONAME 'lib'
 func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
-	// RETURNS {STRING|INTEGER|REAL|DECIMAL}
+	// RETURNS ret_type, whose words are a closed list: STRING, INTEGER, REAL,
+	// DECIMAL, FIXED and NUMERIC, with the spellings OceanBase's lexer folds
+	// into them (INT, DEC). A word it lexes as another keyword is no return
+	// type even where this parser reads it as a name.
+	//
+	// Ref: ret_type in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+	// 5829-5864).
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
 	retStart := p.pos()
+	if p.backtickQuotedAt(retStart) {
+		return nil, &ParseError{Message: "unsupported return type", Position: retStart}
+	}
 	retType, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
+	}
+	switch strings.ToUpper(retType) {
+	case "STRING", "INTEGER", "INT", "REAL", "DECIMAL", "DEC", "FIXED", "NUMERIC":
+	default:
+		// The error is the type's own token, not the clause that follows it.
+		return nil, &ParseError{Message: "unsupported return type", Position: retStart}
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},

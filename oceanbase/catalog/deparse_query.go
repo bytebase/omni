@@ -83,11 +83,28 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		writeAnalyzedExpr(b, q.HavingQual, q)
 	}
 
+	if len(q.WindowClause) > 0 {
+		b.WriteString(" window ")
+		for i, wd := range q.WindowClause {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(wd.Name))
+			b.WriteString(" as ")
+			wCopy := *wd
+			wCopy.Name = ""
+			writeWindowDefQ(b, &wCopy, q)
+		}
+	}
+
 	if len(q.SortClause) > 0 {
 		b.WriteString(" order by ")
 		deparseOrderByQ(b, q)
 	}
 
+	if q.Approx {
+		b.WriteString(" approx")
+	}
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
 		writeAnalyzedExpr(b, q.LimitCount, q)
@@ -95,6 +112,22 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 			b.WriteString(" offset ")
 			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
+	}
+	if len(q.VectorIndexParams) > 0 {
+		b.WriteString(" parameters(")
+		for i, param := range q.VectorIndexParams {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(param.Name))
+			b.WriteString(" = ")
+			if param.IsName {
+				b.WriteString(backtickIDQ(param.Value))
+			} else {
+				b.WriteString(strings.ToLower(param.Value))
+			}
+		}
+		b.WriteByte(')')
 	}
 }
 
@@ -182,11 +215,18 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *deparseScope) {
 	rte := q.RangeTable[idx]
 	switch rte.Kind {
 	case RTERelation:
+		if rte.Catalog != "" {
+			b.WriteString(backtickIDQ(rte.Catalog))
+			b.WriteByte('.')
+		}
 		if rte.DBName != "" {
 			b.WriteString(backtickIDQ(rte.DBName))
 			b.WriteByte('.')
 		}
 		b.WriteString(backtickIDQ(rte.TableName))
+		if rte.Dblink != "" {
+			b.WriteString(formatDblinkQ(rte.Dblink))
+		}
 		if rte.Alias != "" && rte.Alias != rte.TableName {
 			b.WriteString(" as ")
 			b.WriteString(backtickIDQ(rte.Alias))
@@ -220,6 +260,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 	b.WriteByte(' ')
 
 	if j.Natural {
+		// The common columns are inferred, not written: a NATURAL join takes no
+		// USING clause, which the parser refuses.
 		b.WriteString("natural ")
 	}
 
@@ -232,6 +274,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 		b.WriteString("cross join ")
 	case JoinStraight:
 		b.WriteString("straight_join ")
+	case JoinFull:
+		b.WriteString("full join ")
 	default: // JoinInner
 		b.WriteString("join ")
 	}
@@ -243,7 +287,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 		writeAnalyzedExpr(b, j.Quals, q)
 	}
 
-	if len(j.UsingClause) > 0 && j.Quals == nil {
+	// A NATURAL join's common columns are inferred and never written.
+	if len(j.UsingClause) > 0 && j.Quals == nil && !j.Natural {
 		b.WriteString(" using (")
 		for i, col := range j.UsingClause {
 			if i > 0 {
@@ -310,6 +355,9 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
+	if q.Approx {
+		b.WriteString(" approx")
+	}
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
 		writeAnalyzedExpr(b, q.LimitCount, q)
@@ -318,9 +366,51 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
 	}
+	if len(q.VectorIndexParams) > 0 {
+		b.WriteString(" parameters(")
+		for i, param := range q.VectorIndexParams {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(param.Name))
+			b.WriteString(" = ")
+			if param.IsName {
+				b.WriteString(backtickIDQ(param.Value))
+			} else {
+				b.WriteString(strings.ToLower(param.Value))
+			}
+		}
+		b.WriteByte(')')
+	}
 }
 
 // backtickIDQ wraps an identifier in backticks.
 func backtickIDQ(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// formatDblinkQ formats a `@link` qualifier so any non-identifier link name is
+// quoted as a valid user variable.
+func formatDblinkQ(s string) string {
+	if s == "" || !strings.HasPrefix(s, "@") {
+		return s
+	}
+	rest := s[1:]
+	if len(rest) >= 2 && ((rest[0] == '\'' && rest[len(rest)-1] == '\'') ||
+		(rest[0] == '"' && rest[len(rest)-1] == '"') ||
+		(rest[0] == '`' && rest[len(rest)-1] == '`')) {
+		return s
+	}
+	for i := 0; i < len(rest); i++ {
+		c := rest[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$' || c == '.') {
+			escaped := strings.ReplaceAll(rest, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+			return "@'" + escaped + "'"
+		}
+	}
+	if rest == "" {
+		return "@''"
+	}
+	return s
 }

@@ -83,7 +83,11 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 	// identifier-capable token is a name here as it is on those three:
 	// `ALTER DATABASE ENCRYPTION = 'N'` and `ALTER DATABASE COMMENT = 'x'` are
 	// each a 1064 on CE 4.3.5.6 too.
-	if p.isIdentToken() && p.cur.Type != kwCHARSET {
+	// opt_database_name is NAME_OB alone, so a word OceanBase's lexer makes a
+	// keyword of starts an option and names no database: `ALTER DATABASE
+	// REPLICA_NUM 1` and `ALTER DATABASE DATABASE_ID 1` set an option of the
+	// current database, where this parser read the keyword as the name.
+	if p.isNameOB(p.cur) && p.cur.Type != kwCHARSET && !p.isVariableRef() {
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -198,9 +202,66 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		switch p.peekNext().Type {
 		case kwCHARACTER, kwCHARSET, kwCOLLATE:
 			p.advance()
+		case kwTABLEGROUP:
+			p.advance()
 		default:
 			return nil, false, nil
 		}
+	}
+
+	// OceanBase's own database options: REPLICA_NUM [=] n, DATABASE_ID [=] n,
+	// and TABLEGROUP [=] (relation_name | NULL), which opt_default_mark may
+	// precede.
+	//
+	// Ref: database_option and default_tablegroup in sql_parser_mysql_mode.y
+	// (v4.3.5_CE_BP6, lines 5089-5130 and 9686-9704).
+	switch {
+	case p.cur.Type == kwREPLICA_NUM:
+		p.advance()
+		p.match('=')
+		if p.cur.Type != tokICONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Str
+		p.advance()
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "REPLICA_NUM",
+			Value: val,
+		}, true, nil
+	case p.isBareWord("DATABASE_ID"):
+		p.advance()
+		p.match('=')
+		if p.cur.Type != tokICONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Str
+		p.advance()
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "DATABASE_ID",
+			Value: val,
+		}, true, nil
+	case p.cur.Type == kwTABLEGROUP:
+		p.advance()
+		p.match('=')
+		if p.cur.Type == kwNULL {
+			p.advance()
+			return &nodes.DatabaseOption{
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+				Name:   "TABLEGROUP",
+				IsNull: true,
+			}, true, nil
+		}
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "TABLEGROUP",
+			Value: name,
+		}, true, nil
 	}
 
 	switch {
@@ -251,24 +312,45 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	return nil, false, nil
 }
 
-// parseCharsetName parses the name a database option's CHARACTER SET or
-// CHARSET takes: ident_or_text plus the reserved word BINARY. That is an
-// identifier, a non-reserved keyword, a backquoted identifier, or a string
-// literal in either quote. An integer and every other reserved keyword are a
-// 1064 -- `CHARSET = 1` and `CHARSET = select` are a syntax error on OceanBase
-// CE 4.3.5.6 as on MySQL 8.0.
+// parseCharsetName parses charset_name: the name a CHARACTER SET or CHARSET
+// option, a CONVERT, a LOAD DATA's CHARACTER SET and a SET NAMES take.
+// OceanBase's arms are NAME_OB, STRING_VALUE, BINARY and ASCII, so a word its
+// lexer makes a keyword of is no charset name here even where this parser
+// reads it as an ordinary identifier: `SET NAMES BINARY_FORMAT` and `SET NAMES
+// DEFAULT_AUTH` are 1064s, and `CHARSET = select` is one as on MySQL 8.0.
 //
-// Ref: charset_name and ident_or_text in MySQL 8.0.46 sql/sql_yacc.yy, which
-// OceanBase forked; read against 5.7.25-OceanBase_CE-v4.3.5.6.
+// Ref: charset_name in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 7442-7480).
 func (p *Parser) parseCharsetName() (string, error) {
-	// BINARY is reserved, so parseIdentOrText would turn `CHARSET = binary`
-	// away; it is a charset name all the same, and CE 4.3.5.6 takes both
-	// `CHARSET = binary` and `CHARACTER SET binary`.
-	if p.cur.Type == kwBINARY {
+	if p.isVariableRef() {
+		return "", p.syntaxErrorAtCur()
+	}
+	switch p.cur.Type {
+	case tokSCONST:
+		return p.parseIntoString()
+	case kwBINARY, kwASCII:
+		tok := p.advance()
+		return tok.Str, nil
+	case tokIDENT:
+		// A quoted name spells a name whatever it says; an unquoted one is a
+		// charset name only if OceanBase's lexer has no keyword or introducer
+		// for it (NAME_OB).
+		if !p.isNameOB(p.cur) {
+			return "", p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	name, _, err := p.parseIdentOrText()
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseCompressionName parses compression_name, which LOAD DATA's COMPRESSION
+// takes: a name, a string, or an unreserved keyword.
+func (p *Parser) parseCompressionName() (string, error) {
+	if p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
+		tok := p.advance()
+		return tok.Str, nil
+	}
+	name, _, err := p.parseIdent()
 	return name, err
 }
 

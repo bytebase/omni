@@ -4,6 +4,9 @@ import nodes "github.com/bytebase/omni/oceanbase/ast"
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -132,6 +135,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 // dropIndex handles standalone DROP INDEX statements.
 func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

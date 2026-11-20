@@ -769,8 +769,8 @@ func TestExprFunctionNameKeywords(t *testing.T) {
 		{"IF(a, 1, 2)", "IF", 3},
 		{"DATABASE()", "DATABASE", 0},
 		{"SCHEMA()", "SCHEMA", 0},
-		{"REGEXP(1)", "REGEXP", 1},
-		{"LIKE(1)", "LIKE", 1},
+		{"REGEXP(1, 2)", "REGEXP", 2},
+		{"LIKE(1, 2)", "LIKE", 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
