@@ -38595,6 +38595,259 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (a INT, KEY ((-a))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s VARCHAR(10), KEY ((-s))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a TINYINT, KEY ((-a))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY ((~a))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY ((+a))) ROW_FORMAT=COMPACT
+< error
+| 3762 HY000 Functional index on a column is not supported. Consider using a regular index instead.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (d DECIMAL(10,2), KEY ((-d))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -44078,6 +44331,356 @@
 : bytes
 | -99999999999999999999
 > exec
+| SET @x = ROUND(3.6)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ROUND(-3.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -4
+> exec
+| SET @x = ROUND(2.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = ROUND(3.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ROUND(1.2345, 2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.23
+> exec
+| SET @x = ROUND(1234.5, -2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1200
+> exec
+| SET @x = ROUND('3.6')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ROUND(1.2, 3)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.2
+> exec
+| SET @x = ROUND(3.14159, 2.6)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3.142
+> exec
+| SET @x = ROUND(-1.25, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -1.3
+> exec
+| SET @x = ROUND(1.25e0, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.2
+> exec
+| SET @x = ROUND(15, -1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 20
+> exec
+| SET @x = ROUND(-15, -1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -20
+> exec
+| SET @x = ROUND(14, -5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = ROUND(1.5, 40)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.5
+> exec
+| SET @x = TRUNCATE(3.69, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3.6
+> exec
+| SET @x = TRUNCATE(-3.69, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -3.6
+> exec
+| SET @x = TRUNCATE(1234, -2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1200
+> exec
+| SET @x = TRUNCATE(1.2, 3)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.2
+> exec
+| SET @x = TRUNCATE('3.69', 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3.6
+> exec
+| SET @x = TRUNCATE(3.69e0, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3.6
+> exec
+| SET @x = FLOOR(-3.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -4
+> exec
+| SET @x = FLOOR(3.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = CEIL(3.2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = CEILING(-3.2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -3
+> exec
+| SET @x = FLOOR(2.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = FLOOR('3.7')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = CEIL('x')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = CEIL(-0.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = FLOOR(99999999999999999999.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 99999999999999999999
+> exec
+| SET @x = SIGN(-2.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -1
+> exec
+| SET @x = SIGN(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = SIGN('x')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = SIGN('-3')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -1
+> exec
+| SET @x = SIGN(2e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
@@ -44236,6 +44839,217 @@
 < column "@b_cast IS NULL" "BIGINT" "int64"
 < row
 : int64 1
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = FLOOR(3.5)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = CEIL(3.2)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| ANSI_QUOTES
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ROUND(3.6)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ROUND(4)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| ANSI_QUOTES
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ROUND(3.6e0)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = TRUNCATE(3.6, 0)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = TRUNCATE(4, 1)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| ANSI_QUOTES
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ROUND(14, -1)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| PIPES_AS_CONCAT,IGNORE_SPACE
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = SIGN(-2.5)
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of '-1'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = SIGN(2.5)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = FLOOR('3.7')
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ABS(-4.0)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = FLOOR(99999999999999999999.5)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ROUND('4')
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET @m_round = ROUND(3.6)
+< ok 0 0
+> exec
+| SET SESSION sql_mode = @m_round
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> exec
+| SET foreign_key_checks = 0, @x_abs = ABS(-9223372036854775808)
+< error
+| 1690 22003 BIGINT value is out of range in 'abs(-(9223372036854775808))'
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
 > exec
 | SET SESSION sql_mode = ''
 < ok 0 0

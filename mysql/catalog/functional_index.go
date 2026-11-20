@@ -374,7 +374,20 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(b), 1)}
 		}
 	case *nodes.UnaryExpr:
-		if e.Op == nodes.UnaryNot {
+		switch e.Op {
+		case nodes.UnaryNot, nodes.UnaryBitNot:
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		case nodes.UnaryMinus, nodes.UnaryPlus:
+			// Negation keeps a number's type and makes a string a double:
+			// mysql:8.0.46 takes KEY ((-a)) and KEY ((-s)) on a COMPACT table.
+			rt := inferFunctionalIndexExprType(tbl, e.Operand)
+			switch {
+			case rt == nil || !isResolvedNumericType(rt):
+				return &ResolvedType{BaseType: BaseTypeDouble}
+			case rt.BaseType == BaseTypeDecimal || rt.BaseType == BaseTypeFloat || rt.BaseType == BaseTypeDouble:
+				cp := *rt
+				return &cp
+			}
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
 	case *nodes.IsExpr, *nodes.InExpr, *nodes.BetweenExpr, *nodes.LikeExpr:
@@ -991,6 +1004,16 @@ func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {
 	switch rt.BaseType {
 	case BaseTypeJSON, BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
 		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
+		return true
+	}
+	return false
+}
+
+// isResolvedNumericType reports an integer, fixed-point or floating-point type.
+func isResolvedNumericType(rt *ResolvedType) bool {
+	switch rt.BaseType {
+	case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt,
+		BaseTypeDecimal, BaseTypeFloat, BaseTypeDouble:
 		return true
 	}
 	return false

@@ -5015,6 +5015,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "COMPACT functional key part: KEY ((a BETWEEN 1 AND 2))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a BETWEEN 1 AND 2))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional key part: KEY ((s LIKE 'x%'))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((s LIKE 'x%'))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional key part: KEY ((a <=> 1))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a <=> 1))) ROW_FORMAT=COMPACT", code: 0},
+		// A unary minus keeps a number's type and makes a string a double.
+		{name: "COMPACT functional unary key part: a INT, KEY ((-a))", stmt: "CREATE TABLE z (a INT, KEY ((-a))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional unary key part: s VARCHAR(10), KEY ((-s))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((-s))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional unary key part: a TINYINT, KEY ((-a))", stmt: "CREATE TABLE z (a TINYINT, KEY ((-a))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional unary key part: a INT, KEY ((~a))", stmt: "CREATE TABLE z (a INT, KEY ((~a))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional unary key part: a INT, KEY ((+a))", stmt: "CREATE TABLE z (a INT, KEY ((+a))) ROW_FORMAT=COMPACT", code: 3762},
+		{name: "COMPACT functional unary key part: d DECIMAL(10,2), KEY ((-d))", stmt: "CREATE TABLE z (d DECIMAL(10,2), KEY ((-d))) ROW_FORMAT=COMPACT", code: 0},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6093,6 +6100,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"SUBSTRING('ANSI', 1.6, 1.6)", "SUBSTRING('ANSI', '2.6')", "SUBSTRING('ANSI', 2.5, 2.5e0)",
 		"LEFT('ANSI', 'x')", "LEFT('ANSI', -0.4)",
 		"-99999999999999999999", "99999999999999999999 + 1", "-(99999999999999999999)",
+		"ROUND(3.6)", "ROUND(-3.5)", "ROUND(2.5e0)", "ROUND(3.5e0)", "ROUND(1.2345, 2)", "ROUND(1234.5, -2)",
+		"ROUND('3.6')", "ROUND(1.2, 3)", "ROUND(3.14159, 2.6)", "ROUND(-1.25, 1)", "ROUND(1.25e0, 1)",
+		"ROUND(15, -1)", "ROUND(-15, -1)", "ROUND(14, -5)", "ROUND(1.5, 40)",
+		"TRUNCATE(3.69, 1)", "TRUNCATE(-3.69, 1)", "TRUNCATE(1234, -2)", "TRUNCATE(1.2, 3)", "TRUNCATE('3.69', 1)", "TRUNCATE(3.69e0, 1)",
+		"FLOOR(-3.5)", "FLOOR(3.5)", "CEIL(3.2)", "CEILING(-3.2)", "FLOOR(2.5e0)", "FLOOR('3.7')", "CEIL('x')", "CEIL(-0.5)",
+		"FLOOR(99999999999999999999.5)", "SIGN(-2.5)", "SIGN(0)", "SIGN('x')", "SIGN('-3')", "SIGN(2e0)",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6195,6 +6208,73 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if got := castCat.userVars["b_cast"].kind == userVarNull; got != srvNull {
 			t.Fatalf("%s: catalog NULL=%v, mysql NULL=%v", stmt, got, srvNull)
 		}
+	}
+
+	// The numeric functions' result types decide what sql_mode takes: an INT
+	// is a mode mask, a DECIMAL or a double is 1232, even ROUND(3.6) = 4.
+	for _, expr := range []string{
+		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
+		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
+		"FLOOR(99999999999999999999.5)", "ROUND('4')",
+	} {
+		stmt := "SET SESSION sql_mode = " + expr
+		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
+			if _, err := conn.ExecContext(ctx, pre); err != nil {
+				t.Fatalf("mysql %s: %v", pre, err)
+			}
+			execAlterClauses(t, castCat, pre+";")
+		}
+		var srvCode int
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			srvCode, _ = simulationEngineRefusal(t, stmt, err)
+		}
+		catCode, _ := simulationCatalogRefusal(t, castCat, stmt)
+		if srvCode != catCode {
+			t.Fatalf("%s: mysql %d, catalog %d", stmt, srvCode, catCode)
+		}
+		var srvMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @m = @@sql_mode;")
+		if got := castCat.userVars["m"].str; got != srvMode {
+			t.Fatalf("%s: catalog sql_mode %q, mysql %q", stmt, got, srvMode)
+		}
+	}
+	// A user variable keeps ROUND's DECIMAL type.
+	for _, stmt := range []string{"SET SESSION sql_mode = ''", "SET @m_round = ROUND(3.6)"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = @m_round"); err == nil {
+		t.Fatal("mysql SET sql_mode = @m_round (ROUND(3.6)) succeeded, want 1232")
+	} else if code, _ := simulationEngineRefusal(t, "SET SESSION sql_mode = @m_round", err); code != 1232 {
+		t.Fatalf("mysql SET sql_mode = @m_round got %d, want 1232", code)
+	}
+	if got, _ := simulationCatalogRefusal(t, castCat, "SET SESSION sql_mode = @m_round"); got != 1232 {
+		t.Fatalf("catalog SET sql_mode = @m_round got %d, want 1232", got)
+	}
+
+	// ABS of the smallest BIGINT is 1690, and the whole multi-assignment SET
+	// fails with it, foreign_key_checks included.
+	absOverflow := "SET foreign_key_checks = 0, @x_abs = ABS(-9223372036854775808)"
+	if _, err := conn.ExecContext(ctx, absOverflow); err == nil {
+		t.Fatalf("mysql %s succeeded, want 1690", absOverflow)
+	} else if code, _ := simulationEngineRefusal(t, absOverflow, err); code != 1690 {
+		t.Fatalf("mysql %s got %d, want 1690", absOverflow, code)
+	}
+	if got, _ := simulationCatalogRefusal(t, castCat, absOverflow); got != 1690 {
+		t.Fatalf("catalog %s got %d, want 1690", absOverflow, got)
+	}
+	var srvFK string
+	if err := conn.QueryRowContext(ctx, "SELECT CAST(@@foreign_key_checks AS CHAR)").Scan(&srvFK); err != nil {
+		t.Fatalf("mysql read foreign_key_checks: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET @fk = @@foreign_key_checks;")
+	if got := castCat.userVars["fk"].str; got != srvFK || srvFK != "1" {
+		t.Fatalf("foreign_key_checks after the failed SET: catalog %q, mysql %q, want 1", got, srvFK)
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.

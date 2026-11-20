@@ -749,7 +749,7 @@ func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
 		return "", errWrongValueForVar("sql_mode", "NULL")
 	case userVarNumeric:
 		s := strings.TrimSpace(val.str)
-		if val.isFloat || strings.ContainsAny(s, ".eE") {
+		if val.isFloat || val.isDecimal || strings.ContainsAny(s, ".eE") {
 			return "", errWrongTypeForVar("sql_mode")
 		}
 		if strings.HasPrefix(s, "-") {
@@ -1345,6 +1345,54 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "round", "truncate":
+			fn := strings.ToUpper(e.Name)
+			if len(e.Args) < 1 || len(e.Args) > 2 || (fn == "TRUNCATE" && len(e.Args) != 2) {
+				return userVarValue{}, false, errWrongParamCount(fn)
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			var d int64
+			if len(e.Args) == 2 {
+				dv, ok, err := c.evalSetExprNode(e.Args[1])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if dv.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				if d, ok = setStringLengthArg(dv); !ok {
+					return userVarValue{}, false, nil
+				}
+			}
+			if x.kind == userVarNull {
+				return x, true, nil
+			}
+			return setRoundValue(x, d, fn == "TRUNCATE")
+		case "floor", "ceil", "ceiling":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || x.kind == userVarNull {
+				return x, ok, err
+			}
+			return setFloorCeilValue(x, toLower(e.Name) != "floor")
+		case "sign":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("SIGN")
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || x.kind == userVarNull {
+				return x, ok, err
+			}
+			r, _, _, ok := setNumKind(x)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(r.Sign())}, true, nil
 		case "abs":
 			// ABS keeps an exact number exact and reads a string as a double by
 			// its numeric prefix: ABS('-4') is 4, ABS(' -3x') is 3, ABS('abc') 0.
@@ -1358,8 +1406,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if v.kind == userVarNumeric && !v.isFloat {
 				t := strings.TrimSpace(v.str)
 				if t == "-9223372036854775808" {
-					// MySQL answers 1690 for ABS of the smallest BIGINT.
-					return userVarValue{}, false, nil
+					// MySQL answers 1690 for ABS of the smallest BIGINT, and the
+					// whole SET fails with it.
+					return userVarValue{}, false, errBigintOutOfRange()
 				}
 				return userVarValue{kind: userVarNumeric, str: strings.TrimPrefix(t, "-")}, true, nil
 			}
@@ -1599,7 +1648,8 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
-				"reverse", "char_length", "character_length", "length", "abs":
+				"reverse", "char_length", "character_length", "length", "abs",
+				"floor", "ceil", "ceiling", "sign":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
@@ -1614,6 +1664,14 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			case "concat", "coalesce":
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "round":
+				if argc < 1 || argc > 2 {
+					err = errWrongParamCount("ROUND")
+				}
+			case "truncate":
+				if argc != 2 {
+					err = errWrongParamCount("TRUNCATE")
 				}
 			case "concat_ws", "elt":
 				if argc < 2 {
@@ -2241,6 +2299,158 @@ func parseSetNumericInt64(v userVarValue) (int64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// setNumKind reads a value as a number and its MySQL type: 'i' an exact
+// integer, 'd' an exact decimal, 'f' a double. A string is a double read by its
+// numeric prefix, as the numeric functions take it.
+func setNumKind(v userVarValue) (*big.Rat, int, byte, bool) {
+	switch v.kind {
+	case userVarString:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+		if !ok {
+			r = new(big.Rat)
+		}
+		return r, 0, 'f', true
+	case userVarNumeric:
+		r, scale, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return nil, 0, 0, false
+		}
+		switch {
+		case v.isFloat:
+			return r, scale, 'f', true
+		case v.isDecimal || scale > 0 || strings.Contains(v.str, "."):
+			return r, scale, 'd', true
+		}
+		return r, 0, 'i', true
+	}
+	return nil, 0, 0, false
+}
+
+// setRatPow10 is 10^n for |n| up to 100; past that every DECIMAL rounds to 0
+// or keeps all its digits.
+func setRatPow10(n int64) *big.Rat {
+	n = max(min(n, 100), -100)
+	p := new(big.Int).Exp(big.NewInt(10), big.NewInt(abs64(n)), nil)
+	if n < 0 {
+		return new(big.Rat).SetFrac(big.NewInt(1), p)
+	}
+	return new(big.Rat).SetInt(p)
+}
+
+func abs64(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// setRatToInt rounds r to an integer: half away from zero, toward zero to
+// truncate, or toward -inf / +inf for FLOOR / CEIL.
+func setRatToInt(r *big.Rat, mode byte) *big.Int {
+	q, m := new(big.Int).QuoRem(r.Num(), r.Denom(), new(big.Int))
+	switch mode {
+	case 'r':
+		twice := new(big.Int).Abs(m)
+		twice.Lsh(twice, 1)
+		if twice.Cmp(r.Denom()) >= 0 {
+			if r.Sign() < 0 {
+				q.Sub(q, big.NewInt(1))
+			} else {
+				q.Add(q, big.NewInt(1))
+			}
+		}
+	case 'f':
+		if m.Sign() < 0 {
+			q.Sub(q, big.NewInt(1))
+		}
+	case 'c':
+		if m.Sign() > 0 {
+			q.Add(q, big.NewInt(1))
+		}
+	}
+	return q
+}
+
+func setFormatDouble(f float64) string {
+	if f == 0 {
+		f = 0 // no -0
+	}
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
+// setRoundValue is ROUND(x, d) or TRUNCATE(x, d) as mysql:8.0.46 answers it:
+// an integer stays an integer (ROUND(15, -1) = 20), a decimal rounds half away
+// from zero and keeps at most its own scale (ROUND(1.2345, 2) = 1.23,
+// ROUND(1.2, 3) = 1.2) as a DECIMAL, and a double or a string rounds half to
+// even as a double (ROUND(2.5e0) = 2, ROUND('3.6') = 4).
+func setRoundValue(x userVarValue, d int64, truncate bool) (userVarValue, bool, error) {
+	r, scale, kind, ok := setNumKind(x)
+	if !ok {
+		return userVarValue{}, false, nil
+	}
+	mode := byte('r')
+	if truncate {
+		mode = 't'
+	}
+	switch kind {
+	case 'f':
+		f, _ := r.Float64()
+		if d < 300 && d > -300 {
+			m := math.Pow(10, float64(d))
+			if truncate {
+				f = math.Trunc(f*m) / m
+			} else {
+				f = math.RoundToEven(f*m) / m
+			}
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+	case 'i':
+		if d >= 0 {
+			return userVarValue{kind: userVarNumeric, str: r.Num().String()}, true, nil
+		}
+		p := setRatPow10(-d)
+		q := setRatToInt(new(big.Rat).Quo(r, p), mode)
+		out := new(big.Rat).Mul(new(big.Rat).SetInt(q), p)
+		return userVarValue{kind: userVarNumeric, str: out.Num().String()}, true, nil
+	}
+	if d >= int64(scale) {
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isDecimal: true}, true, nil
+	}
+	p := setRatPow10(d)
+	q := setRatToInt(new(big.Rat).Mul(r, p), mode)
+	out := new(big.Rat).Quo(new(big.Rat).SetInt(q), p)
+	return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, int(max(d, 0))), isDecimal: true}, true, nil
+}
+
+// setFloorCeilValue is FLOOR(x) or CEIL(x): an integer stays one, a decimal of
+// at most 18 integer digits becomes an INT (FLOOR(3.5) = 3 sets sql_mode 3), a
+// longer one a DECIMAL, and a double or a string a double.
+func setFloorCeilValue(x userVarValue, ceil bool) (userVarValue, bool, error) {
+	r, _, kind, ok := setNumKind(x)
+	if !ok {
+		return userVarValue{}, false, nil
+	}
+	switch kind {
+	case 'f':
+		f, _ := r.Float64()
+		if ceil {
+			f = math.Ceil(f)
+		} else {
+			f = math.Floor(f)
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+	case 'i':
+		return userVarValue{kind: userVarNumeric, str: r.Num().String()}, true, nil
+	}
+	mode := byte('f')
+	if ceil {
+		mode = 'c'
+	}
+	intDigits := len(new(big.Int).Abs(setRatToInt(r, 't')).String())
+	q := setRatToInt(r, mode)
+	return userVarValue{kind: userVarNumeric, str: q.String(), isDecimal: intDigits > 18}, true, nil
 }
 
 // setStringLengthArg reads a LEFT, RIGHT or SUBSTRING position or length as

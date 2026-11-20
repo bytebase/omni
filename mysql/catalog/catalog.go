@@ -19,6 +19,9 @@ type userVarValue struct {
 	str     string
 	binary  bool
 	isFloat bool
+	// isDecimal marks an exact DECIMAL whose text may show no fraction, such
+	// as ROUND(3.6) = 4: sql_mode refuses it (1232) where it takes INT 4.
+	isDecimal bool
 }
 
 // Catalog is the in-memory MySQL catalog.
