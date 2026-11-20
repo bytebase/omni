@@ -46,18 +46,21 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 	case nodes.OBJECT_EXTENSION:
 		return c.removeExtensionObjects(stmt)
 
-	// No-op object types: these objects are not tracked by pgddl.
-	case nodes.OBJECT_COLLATION,
-		nodes.OBJECT_CONVERSION,
-		nodes.OBJECT_OPERATOR,
+	case nodes.OBJECT_COLLATION:
+		return c.removeCollationObjects(stmt)
+	case nodes.OBJECT_RULE:
+		return c.removeRuleObjects(stmt)
+	case nodes.OBJECT_OPERATOR:
+		return c.removeOperatorObjects(stmt)
+	case nodes.OBJECT_ACCESS_METHOD:
+		return c.removeAccessMethodObjects(stmt)
+	case nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
 		nodes.OBJECT_LANGUAGE,
 		nodes.OBJECT_FDW,
 		nodes.OBJECT_FOREIGN_SERVER,
-		nodes.OBJECT_ACCESS_METHOD,
 		nodes.OBJECT_PUBLICATION,
-		nodes.OBJECT_RULE,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,
 		nodes.OBJECT_STATISTIC_EXT,
@@ -736,6 +739,474 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 	}
 	for _, pol := range targets {
 		c.removePolicy(pol)
+	}
+	return nil
+}
+
+func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	type collTarget struct {
+		schema *Schema
+		name   string
+		oid    uint32
+	}
+	var targets []collTarget
+	seen := map[uint32]bool{}
+
+	for _, obj := range stmt.Objects.Items {
+		schemaName, name := extractDropObjectName(obj)
+		var targetSchema *Schema
+		var collOID uint32
+		if schemaName != "" {
+			s := c.schemaByName[schemaName]
+			if s == nil {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q does not exist, skipping", name))
+					continue
+				}
+				return errUndefinedSchema(schemaName)
+			}
+			if s.OID == PGCatalogNamespace && isBuiltinCollationName(name) {
+				return errDependentObjects("system", name)
+			}
+			targetSchema = s
+			if uc := s.Collations[name]; uc != nil {
+				collOID = uc.OID
+			}
+		} else {
+			for _, nsOID := range c.searchPathWithCatalog() {
+				s := c.schemas[nsOID]
+				if s == nil {
+					continue
+				}
+				if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
+					return errDependentObjects("system", name)
+				}
+				if uc := s.Collations[name]; uc != nil {
+					targetSchema = s
+					collOID = uc.OID
+					break
+				}
+			}
+		}
+		if collOID == 0 {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q does not exist, skipping", name))
+				}
+				continue
+			}
+			return errUndefinedObject("collation", name)
+		}
+		if c.isExtensionMember(collOID) {
+			return errDependentObjects("extension", c.extensionMembers[collOID])
+		}
+		if !seen[collOID] {
+			seen[collOID] = true
+			targets = append(targets, collTarget{schema: targetSchema, name: name, oid: collOID})
+		}
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			if len(c.findNormalDependents('L', t.oid)) > 0 {
+				return errDependentObjects("collation", t.name)
+			}
+		}
+	}
+
+	restore := func() {}
+	if cascade && len(targets) > 0 {
+		restore = c.snapshotForAlterRollback()
+	}
+
+	for _, t := range targets {
+		uc := t.schema.Collations[t.name]
+		if uc == nil || uc.OID != t.oid {
+			continue
+		}
+		if cascade {
+			if err := c.cascadeDropCollation(t.schema, t.name, t.oid); err != nil {
+				restore()
+				return err
+			}
+		} else {
+			delete(t.schema.Collations, t.name)
+			c.removeDepsOn('L', t.oid)
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint32) error {
+	deps := c.findNormalDependents('L', collOID)
+
+	type colTarget struct {
+		relOID  uint32
+		colName string
+	}
+	var colDrops []colTarget
+	seenCol := map[colTarget]bool{}
+
+	for _, dep := range deps {
+		if dep.ObjType != 'r' || dep.ObjSubID <= 0 {
+			continue
+		}
+		rel := c.relationByOID[dep.ObjOID]
+		if rel == nil || rel.RelKind == 'c' {
+			continue
+		}
+		for _, col := range rel.Columns {
+			if col.AttNum == int16(dep.ObjSubID) {
+				if col.UserCollationOID == collOID || col.Generated == 's' {
+					ct := colTarget{relOID: rel.OID, colName: col.Name}
+					if !seenCol[ct] {
+						seenCol[ct] = true
+						colDrops = append(colDrops, ct)
+					}
+				} else if col.HasDefault && col.Generated == 0 {
+					c.clearColumnDefaultDeps(rel, col)
+					col.HasDefault = false
+					col.Default = ""
+					col.DefaultAnalyzed = nil
+				}
+				break
+			}
+		}
+	}
+
+	// Drop root column definitions (InhCount == 0) first and recurse down
+	// inheritance/partition hierarchies, repeating until a fixed point so
+	// merged child columns whose InhCount drops to 0 are also removed.
+	for progressed := true; progressed; {
+		progressed = false
+		for _, ct := range colDrops {
+			rel := c.relationByOID[ct.relOID]
+			if rel == nil {
+				continue
+			}
+			idx, exists := rel.colByName[ct.colName]
+			if !exists {
+				continue
+			}
+			col := rel.Columns[idx]
+			if col.InhCount != 0 {
+				continue
+			}
+			if err := c.checkChildColumnDrops(rel, col.Name, true); err != nil {
+				return err
+			}
+			if err := c.atDropColumn(rel.Schema, rel, col.Name, true, true, false); err != nil {
+				return err
+			}
+			for _, childOID := range c.findChildRelations(rel.OID) {
+				if child := c.relationByOID[childOID]; child != nil {
+					if err := c.atDropColumn(child.Schema, child, ct.colName, true, true, true); err != nil {
+						return err
+					}
+				}
+			}
+			progressed = true
+		}
+	}
+
+	// If any dependent column still remains (e.g. an inherited column whose
+	// parent did not depend on collOID), attempt the drop so PostgreSQL's
+	// refusal (42P16) aborts DROP COLLATION before deleting the collation.
+	for _, ct := range colDrops {
+		rel := c.relationByOID[ct.relOID]
+		if rel == nil {
+			continue
+		}
+		if _, exists := rel.colByName[ct.colName]; exists {
+			if err := c.atDropColumn(rel.Schema, rel, ct.colName, true, false, false); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Drop remaining non-column dependents (composites, domains, ranges, views, indexes, etc.).
+	for _, dep := range c.findNormalDependents('L', collOID) {
+		if dep.ObjType == 'r' && dep.ObjSubID > 0 {
+			if rel := c.relationByOID[dep.ObjOID]; rel != nil && rel.RelKind == 'c' {
+				c.cascadeDropRelation(rel)
+			}
+			continue
+		}
+		c.dropDependentObject(dep.ObjType, dep.ObjOID)
+	}
+
+	if schema != nil {
+		delete(schema.Collations, name)
+	}
+	c.removeDepsOn('L', collOID)
+	return nil
+}
+
+// removeRuleObjects handles DROP RULE [IF EXISTS] name ON rel [CASCADE|RESTRICT].
+//
+// pg: src/backend/rewrite/rewriteRemove.c — get_rewrite_oid, RemoveRewriteRuleById
+func (c *Catalog) removeRuleObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	type ruleTarget struct {
+		rel  *Relation
+		rule *Rule
+	}
+	var targets []ruleTarget
+	seenRule := map[uint32]bool{}
+
+	for _, obj := range stmt.Objects.Items {
+		list, ok := obj.(*nodes.List)
+		if !ok || len(list.Items) < 2 {
+			continue
+		}
+		var schemaName, relName string
+		if len(list.Items) == 2 {
+			relName = stringVal(list.Items[0])
+		} else {
+			schemaName = stringVal(list.Items[len(list.Items)-3])
+			relName = stringVal(list.Items[len(list.Items)-2])
+		}
+		ruleName := stringVal(list.Items[len(list.Items)-1])
+
+		rel, otherRelExists, err := c.findRuleTargetRelation(schemaName, relName)
+		if err != nil {
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, relName))
+				continue
+			}
+			return err
+		}
+		if otherRelExists {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, relName))
+				}
+				continue
+			}
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("rule %q for relation %q does not exist", ruleName, relName),
+			}
+		}
+
+		if rel.RelKind == 'v' && ruleName == "_RETURN" {
+			if c.isExtensionMember(rel.OID) {
+				return errDependentObjects("extension", c.extensionMembers[rel.OID])
+			}
+			return errDependentObjects("view", rel.Name)
+		}
+
+		var rule *Rule
+		if rel.Rules != nil {
+			rule = rel.Rules[ruleName]
+		}
+		if rule == nil {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, rel.Name))
+				}
+				continue
+			}
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("rule %q for relation %q does not exist", ruleName, rel.Name),
+			}
+		}
+		if c.isExtensionMember(rule.OID) {
+			return errDependentObjects("extension", c.extensionMembers[rule.OID])
+		}
+		if !seenRule[rule.OID] {
+			seenRule[rule.OID] = true
+			targets = append(targets, ruleTarget{rel: rel, rule: rule})
+		}
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			if t.rule != nil && len(c.findNormalDependents('R', t.rule.OID)) > 0 {
+				return errDependentObjects("rule", t.rule.Name)
+			}
+		}
+	}
+
+	for _, t := range targets {
+		if t.rule == nil || c.rules[t.rule.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('R', t.rule.OID)) > 0 {
+			c.dropDependents('R', t.rule.OID)
+		}
+		if c.rules[t.rule.OID] != nil {
+			c.removeRule(t.rel, t.rule)
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) findRuleTargetRelation(schemaName, relName string) (*Relation, bool, error) {
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, false, errUndefinedSchema(schemaName)
+		}
+		if r := s.Relations[relName]; r != nil && r.RelKind != 'c' {
+			return r, false, nil
+		}
+		if s.Sequences[relName] != nil || s.Indexes[relName] != nil {
+			return nil, true, nil
+		}
+		return nil, false, errUndefinedTable(relName)
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		if r := s.Relations[relName]; r != nil && r.RelKind != 'c' {
+			return r, false, nil
+		}
+		if s.Sequences[relName] != nil || s.Indexes[relName] != nil {
+			return nil, true, nil
+		}
+	}
+	return nil, false, errUndefinedTable(relName)
+}
+
+func (c *Catalog) removeOperatorObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var targets []*BuiltinOperator
+	dropOpOIDs := make(map[uint32]bool)
+	for _, item := range stmt.Objects.Items {
+		owa, ok := item.(*nodes.ObjectWithArgs)
+		if !ok || owa == nil {
+			continue
+		}
+		op, err := c.lookupUserOperator(owa)
+		if err != nil {
+			if (stmt.Missing_ok || c.snapshot) && missingObject(err) {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, "operator does not exist, skipping")
+				}
+				continue
+			}
+			return err
+		}
+		if c.isExtensionMember(op.OID) {
+			return errDependentObjects("extension", c.extensionMembers[op.OID])
+		}
+		if !dropOpOIDs[op.OID] {
+			dropOpOIDs[op.OID] = true
+			targets = append(targets, op)
+		}
+	}
+	if !cascade {
+		for _, op := range targets {
+			for _, dep := range c.findNormalDependents('O', op.OID) {
+				if !(dep.ObjType == 'O' && dropOpOIDs[dep.ObjOID]) {
+					return errDependentObjects("operator", op.Name)
+				}
+			}
+		}
+	}
+	for _, op := range targets {
+		c.detachOperatorFromOpFamilies(op)
+		if cascade {
+			c.dropDependents('O', op.OID)
+		}
+		c.removeOperator(op.OID)
+	}
+	return nil
+}
+
+// detachOperatorFromOpFamilies removes a dropped operator from the families
+// that list it as a loose member (ALTER OPERATOR FAMILY ... ADD), which
+// depend on it automatically: the family stays.
+func (c *Catalog) detachOperatorFromOpFamilies(op *BuiltinOperator) {
+	var fams []uint32
+	for _, d := range c.deps {
+		if d.ObjType == 'Q' && d.RefType == 'O' && d.RefOID == op.OID && d.DepType == DepAuto {
+			fams = append(fams, d.ObjOID)
+		}
+	}
+	for _, famOID := range fams {
+		c.removeDep('Q', famOID, 'O', op.OID)
+		fam := c.opFamilies[famOID]
+		if fam == nil {
+			continue
+		}
+		// Another overload of the same name may remain a member.
+		stillListed := false
+		for _, d := range c.deps {
+			if d.ObjType == 'Q' && d.ObjOID == famOID && d.RefType == 'O' && d.RefOID != op.OID {
+				if other := c.operByOID[d.RefOID]; other != nil && other.Name == op.Name {
+					stillListed = true
+					break
+				}
+			}
+		}
+		if !stillListed {
+			delete(fam.Operators, op.Name)
+		}
+	}
+}
+
+func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var targets []*AccessMethod
+	seen := make(map[uint32]bool)
+	for _, item := range stmt.Objects.Items {
+		name := stringVal(item)
+		if name == "" {
+			if list, ok := item.(*nodes.List); ok && len(list.Items) > 0 {
+				name = stringVal(list.Items[len(list.Items)-1])
+			}
+		}
+		am := c.accessMethodByName[name]
+		if am == nil {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("access method %q does not exist, skipping", name))
+				}
+				continue
+			}
+			return errUndefinedObject("access method", name)
+		}
+		if am.OID < FirstNormalObjectId {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop access method %s because it is required by the database system", am.Name),
+			}
+		}
+		if c.isExtensionMember(am.OID) {
+			return errDependentObjects("extension", c.extensionMembers[am.OID])
+		}
+		if !seen[am.OID] {
+			seen[am.OID] = true
+			targets = append(targets, am)
+		}
+	}
+	if !cascade {
+		for _, am := range targets {
+			if c.accessMethodNeedsCascade(am.OID) {
+				return errDependentObjects("access method", am.Name)
+			}
+		}
+	}
+	for _, am := range targets {
+		c.cascadeDropAccessMethod(am.OID)
 	}
 	return nil
 }

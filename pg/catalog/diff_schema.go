@@ -11,10 +11,16 @@ func diffSchemas(from, to *Catalog) []SchemaDiffEntry {
 	// Build name-based maps.
 	fromMap := make(map[string]*Schema, len(fromSchemas))
 	for _, s := range fromSchemas {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		fromMap[s.Name] = s
 	}
 	toMap := make(map[string]*Schema, len(toSchemas))
 	for _, s := range toSchemas {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		toMap[s.Name] = s
 	}
 
@@ -22,6 +28,9 @@ func diffSchemas(from, to *Catalog) []SchemaDiffEntry {
 
 	// Iterate from: key not in to → DiffDrop
 	for _, s := range fromSchemas {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		if _, ok := toMap[s.Name]; !ok {
 			entries = append(entries, SchemaDiffEntry{
 				Action: DiffDrop,
@@ -33,6 +42,9 @@ func diffSchemas(from, to *Catalog) []SchemaDiffEntry {
 
 	// Iterate to: key not in from → DiffAdd
 	for _, s := range toSchemas {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		if _, ok := fromMap[s.Name]; !ok {
 			entries = append(entries, SchemaDiffEntry{
 				Action: DiffAdd,
@@ -44,6 +56,9 @@ func diffSchemas(from, to *Catalog) []SchemaDiffEntry {
 
 	// Both exist → compare fields
 	for _, fs := range fromSchemas {
+		if isTempSchemaName(fs.Name) {
+			continue
+		}
 		ts, ok := toMap[fs.Name]
 		if !ok {
 			continue

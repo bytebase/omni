@@ -26,6 +26,9 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 
 		tableName := fmt.Sprintf("%s.%s", quoteIdentifier(rel.SchemaName), quoteIdentifier(rel.Name))
+		if (rel.To != nil && rel.To.Persistence == 't') || isTempSchemaName(rel.SchemaName) {
+			tableName = quoteIdentifier(rel.Name)
+		}
 
 		// Resolve the owning relation OID for column metadata.
 		var relOID uint32
@@ -45,6 +48,10 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				}
 				ops = append(ops, colOps...)
 			case DiffDrop:
+				dropRelOID := relOID
+				if rel.From != nil {
+					dropRelOID = rel.From.OID
+				}
 				ops = append(ops, MigrationOp{
 					Type:          OpDropColumn,
 					SchemaName:    rel.SchemaName,
@@ -53,7 +60,7 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					Transactional: true,
 					Phase:         PhasePre,
 					ObjType:       'r',
-					ObjOID:        relOID,
+					ObjOID:        dropRelOID,
 					Priority:      PriorityColumn,
 				})
 			case DiffModify:
@@ -88,7 +95,13 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	c := col.To
 	typeName := to.FormatType(c.TypeOID, c.TypeMod)
 
-	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatCollate(c.CollationName))
+	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatColumnCollate(to, c))
+	if stor := columnExplicitStorage(to, c); stor != "" {
+		ddl += " STORAGE " + stor
+	}
+	if comp := columnExplicitCompression(c); comp != "" {
+		ddl += " COMPRESSION " + comp
+	}
 
 	if c.NotNull {
 		ddl += " NOT NULL"
@@ -185,9 +198,10 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 	}
 
 	// --- Type or collation change ---
-	if typeChanged || oldCol.CollationName != newCol.CollationName {
+	alterTypeEmitted := typeChanged || columnCollationKey(from, oldCol) != columnCollationKey(to, newCol)
+	if alterTypeEmitted {
 		newType := to.FormatType(newCol.TypeOID, newCol.TypeMod)
-		alterType := fmt.Sprintf("%s TYPE %s%s", colRef, newType, formatCollate(newCol.CollationName))
+		alterType := fmt.Sprintf("%s TYPE %s%s", colRef, newType, formatColumnCollate(to, newCol))
 
 		// Check if an implicit (assignment) cast exists.
 		pathway, _ := from.FindCoercionPathway(oldCol.TypeOID, newCol.TypeOID, 'a')
@@ -315,6 +329,36 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 				Transactional: true,
 			})
 		}
+	}
+
+	oldStor := columnExplicitStorage(from, oldCol)
+	newStor := columnExplicitStorage(to, newCol)
+	if oldStor != newStor || (alterTypeEmitted && newStor != "") {
+		mode := newStor
+		if mode == "" {
+			mode = "DEFAULT"
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterColumn,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("%s SET STORAGE %s", colRef, mode),
+			Transactional: true,
+		})
+	}
+
+	if oldCol.Compression != newCol.Compression || (alterTypeEmitted && newCol.Compression != 0) {
+		comp := columnExplicitCompression(newCol)
+		if comp == "" {
+			comp = "DEFAULT"
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterColumn,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("%s SET COMPRESSION %s", colRef, comp),
+			Transactional: true,
+		})
 	}
 
 	return ops

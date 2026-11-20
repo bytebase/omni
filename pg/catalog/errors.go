@@ -31,6 +31,8 @@ const (
 	CodeSchemaNotEmpty               = "2BP01"
 	CodeDependentObjects             = "2BP01"
 	CodeWrongObjectType              = "42809"
+	CodeInvalidTextRepresentation    = "22P02"
+	CodeNumericValueOutOfRange       = "22003"
 	CodeInvalidParameterValue        = "22023"
 	CodeInvalidFK                    = "42830"
 	CodeInvalidTableDefinition       = "42P16"
@@ -41,6 +43,7 @@ const (
 	CodeAmbiguousFunction            = "42725"
 	CodeGroupingError                = "42803"
 	CodeWindowingError               = "42P20"
+	CodeInvalidRecursion             = "42P19"
 	CodeInvalidColumnDefinition      = "42611"
 	CodeTooManyColumns               = "54011"
 	CodeFeatureNotSupported          = "0A000"
@@ -52,6 +55,7 @@ const (
 	CodeNotNullViolation             = "23502"
 	CodeForeignKeyViolation          = "23503"
 	CodeUniqueViolation              = "23505"
+	CodeIndeterminateDatatype        = "42P18"
 	CodeIndeterminateCollation       = "42P22"
 	CodeCollationMismatch            = "42P21"
 	CodeInvalidColumnReference       = "42P10"
@@ -62,6 +66,11 @@ const (
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"
 	CodeInvalidCatalogName           = "3D000"
+	CodeInvalidSQLStatementName      = "26000"
+	CodeDuplicatePstatement          = "42P05"
+	CodeDuplicateAlias               = "42712"
+	CodeUndefinedParameter           = "42P02"
+	CodeAmbiguousParameter           = "42P08"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.

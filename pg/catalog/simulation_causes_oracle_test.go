@@ -3,6 +3,8 @@ package catalog
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -10,6 +12,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
+	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 // TestSimulationCausesOracle holds the relation-namespace refusals
@@ -135,6 +138,138 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE partitioned table under SET default_tablespace = pg_default", "missing", "SET default_tablespace = pg_default;\nCREATE TABLE p (b int) PARTITION BY RANGE (b)", CodeFeatureNotSupported},
 		{"ALTER SEQUENCE OWNER TO another role on a serial sequence", "missing", "DROP ROLE IF EXISTS alice;\nCREATE ROLE alice;\nCREATE TABLE s_tbl (id serial);\nALTER SEQUENCE s_tbl_id_seq OWNER TO alice", CodeFeatureNotSupported},
 		{"ALTER partitioned table and index SET TABLESPACE pg_default", "missing", "CREATE TABLE p (b int) PARTITION BY RANGE (b);\nCREATE INDEX p_idx ON p (b);\nALTER TABLE p SET TABLESPACE pg_default;\nALTER INDEX p_idx SET TABLESPACE pg_default", "0"},
+
+		// Reloptions, storage, compression, collations, and composite self-references.
+		{"CREATE TABLE with unknown reloption", "missing", "CREATE TABLE s (b int) WITH (a)", CodeInvalidParameterValue},
+		{"CREATE TABLE AS SELECT with unknown reloption", "missing", "CREATE TABLE s WITH (a) AS SELECT 1", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption", "table", "ALTER TABLE a SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET duplicate reloption", "table", "ALTER TABLE a SET (fillfactor = 80, fillfactor = 90)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET toast reloption ignored without toast table", "table", "ALTER TABLE a SET (toast.a = 1)", "0"},
+		{"CREATE TABLE with toastable column and unknown toast reloption", "missing", "CREATE TABLE s (t text) WITH (toast.a = 1)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption namespace", "table", "ALTER TABLE a SET (a.a = 1)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption on index", "index", "ALTER TABLE a SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE RESET unknown reloption on index", "index", "ALTER TABLE a RESET (a)", "0"},
+		{"ALTER TABLE ALTER missing column SET reloption", "table", "ALTER TABLE a ALTER a SET (a)", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET unknown reloption", "table", "ALTER TABLE a ALTER b SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE ALTER missing column RESET reloption", "table", "ALTER TABLE a ALTER a RESET (a)", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET valid n_distinct", "table", "ALTER TABLE a ALTER b SET (n_distinct = -0.5)", "0"},
+		{"ALTER TABLE ADD column with invalid compression method", "table", "ALTER TABLE a ADD a a COMPRESSION a", CodeInvalidParameterValue},
+		{"ALTER TABLE ADD self-typed column with DEFAULT compression", "table", "ALTER TABLE a ADD a a COMPRESSION DEFAULT", CodeInvalidTableDefinition},
+		{"ALTER TABLE ADD column with invalid storage", "table", "ALTER TABLE a ADD a a STORAGE a", CodeInvalidParameterValue},
+		{"ALTER TABLE ADD self-typed column with DEFAULT storage", "table", "ALTER TABLE a ADD a a STORAGE DEFAULT", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER missing column SET STORAGE", "table", "ALTER TABLE a ALTER a SET STORAGE a", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET invalid storage", "table", "ALTER TABLE a ALTER b SET STORAGE a", CodeInvalidParameterValue},
+		{"ALTER TABLE ALTER plain-storage column SET STORAGE extended", "table", "ALTER TABLE a ALTER b SET STORAGE extended", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER integer column SET COMPRESSION", "table", "ALTER TABLE a ALTER b SET COMPRESSION a", CodeFeatureNotSupported},
+		{"ALTER TABLE ADD self-typed array column", "table", "ALTER TABLE a ADD x a[]", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER column TYPE to own row type", "table", "ALTER TABLE a ALTER c TYPE a", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER column TYPE with missing collation", "table", "ALTER TABLE a ALTER c TYPE a COLLATE a", CodeUndefinedObject},
+		{"ALTER TABLE ALTER column TYPE integer with C collation", "table", "ALTER TABLE a ALTER c TYPE int COLLATE \"C\"", CodeDatatypeMismatch},
+
+		// CTAS ON COMMIT / EXECUTE, CREATE SEQUENCE on index, duplicate column, COMMENT ON COLUMN.
+		{"CREATE TABLE ON COMMIT DROP AS SELECT on non-temp table", "missing", "CREATE TABLE s ON COMMIT DROP AS SELECT 1", CodeInvalidTableDefinition},
+		{"CREATE TABLE AS EXECUTE missing prepared statement", "missing", "CREATE TABLE s AS EXECUTE a", CodeInvalidSQLStatementName},
+		{"CREATE TABLE IF NOT EXISTS AS EXECUTE missing prepared statement", "missing", "CREATE TABLE IF NOT EXISTS s AS EXECUTE a", CodeInvalidSQLStatementName},
+		{"CREATE SEQUENCE colliding with an index", "index", "CREATE SEQUENCE a", CodeDuplicateTable},
+		{"CREATE TABLE with duplicate column names on existing table name", "table", "CREATE TABLE a (a a, a a)", CodeDuplicateColumn},
+		{"COMMENT ON unqualified COLUMN", "table", "COMMENT ON COLUMN a IS 's'", CodeSyntaxError},
+
+		// Views and materialized views.
+		{"CREATE VIEW AS SELECT WITH CHECK OPTION without base table", "missing", "CREATE VIEW a AS SELECT 1 WITH CHECK OPTION", CodeFeatureNotSupported},
+		{"CREATE VIEW AS SELECT WITH CASCADED CHECK OPTION colliding with table", "table", "CREATE VIEW a AS SELECT 1 WITH CASCADED CHECK OPTION", CodeFeatureNotSupported},
+		{"CREATE VIEW over single table WITH LOCAL CHECK OPTION", "table", "CREATE VIEW v AS SELECT b FROM a WITH LOCAL CHECK OPTION", "0"},
+		{"CREATE VIEW with DISTINCT and WITH CHECK OPTION", "table", "CREATE VIEW v AS SELECT DISTINCT b FROM a WITH CHECK OPTION", CodeFeatureNotSupported},
+		{"ALTER VIEW SET check_option on non-updatable view", "missing", "CREATE VIEW v AS SELECT 1;\nALTER VIEW v SET (check_option = local)", CodeFeatureNotSupported},
+		{"REFRESH MATERIALIZED VIEW on a regular table", "table", "REFRESH MATERIALIZED VIEW a", CodeFeatureNotSupported},
+		{"CREATE RECURSIVE VIEW with more column aliases than target list", "missing", "CREATE RECURSIVE VIEW a (a) AS SELECT", CodeInvalidColumnReference},
+		{"CREATE VIEW with more column names than query columns", "missing", "CREATE VIEW v (x, y) AS SELECT 1", CodeSyntaxError},
+
+		// ALTER / RENAME / IF EXISTS / subcommand kinds and prerequisites.
+		{"ALTER TABLE IF EXISTS on missing relation", "missing", "ALTER TABLE IF EXISTS a DROP a", "0"},
+		{"ALTER VIEW IF EXISTS on missing relation", "missing", "ALTER VIEW IF EXISTS a DROP a", "0"},
+		{"ALTER MATERIALIZED VIEW IF EXISTS on missing relation", "missing", "ALTER MATERIALIZED VIEW IF EXISTS a DROP a", "0"},
+		{"ALTER INDEX DROP on missing relation", "missing", "ALTER INDEX a DROP a", CodeUndefinedTable},
+		{"ALTER INDEX ATTACH PARTITION on missing relation", "missing", "ALTER INDEX a ATTACH PARTITION a", CodeUndefinedTable},
+		{"ALTER INDEX RENAME on missing relation", "missing", "ALTER INDEX a RENAME TO a", CodeUndefinedTable},
+		{"ALTER INDEX DROP column on an index", "index", "ALTER INDEX a DROP a", CodeWrongObjectType},
+		{"ALTER INDEX IF EXISTS DROP column on an index", "index", "ALTER INDEX IF EXISTS a DROP a", CodeWrongObjectType},
+		{"ALTER INDEX ATTACH PARTITION on a non-partitioned index", "index", "ALTER INDEX a ATTACH PARTITION a", CodeWrongObjectType},
+		{"ALTER TABLE RENAME TO same name on an index", "index", "ALTER TABLE a RENAME TO a", CodeDuplicateTable},
+		{"ALTER TABLE RENAME missing column on an index", "index", "ALTER TABLE a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER VIEW RENAME missing column on an index", "index", "ALTER VIEW a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER MATERIALIZED VIEW RENAME missing column on an index", "index", "ALTER MATERIALIZED VIEW a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER TABLE RENAME existing column on an index", "index", "ALTER TABLE a RENAME d TO d2", "0"},
+		{"ALTER TABLE RENAME CONSTRAINT on an index", "index", "ALTER TABLE a RENAME CONSTRAINT a TO b", CodeUndefinedObject},
+		{"ALTER TABLE IF EXISTS RENAME CONSTRAINT on missing relation", "missing", "ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO b", "0"},
+		{"ALTER TABLE ALTER column number SET STATISTICS on a table", "table", "ALTER TABLE a ALTER 1 SET STATISTICS 1", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER non-expression column number SET STATISTICS on an index", "index", "ALTER TABLE a ALTER 1 SET STATISTICS 1", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER missing column SET STATISTICS on a table", "table", "ALTER TABLE a ALTER a SET STATISTICS 1", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER missing column SET STATISTICS on an index", "index", "ALTER TABLE a ALTER a SET STATISTICS 1", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER missing CONSTRAINT", "table", "ALTER TABLE a ALTER CONSTRAINT a", CodeUndefinedObject},
+		{"ALTER TABLE ENABLE missing RULE", "table", "ALTER TABLE a ENABLE RULE a", CodeUndefinedObject},
+		{"ALTER TABLE DISABLE missing RULE", "table", "ALTER TABLE a DISABLE RULE a", CodeUndefinedObject},
+		{"ALTER TABLE SET WITHOUT OIDS", "table", "ALTER TABLE a SET WITHOUT OIDS", "0"},
+		{"ALTER TABLE SET ACCESS METHOD DEFAULT", "table", "ALTER TABLE a SET ACCESS METHOD DEFAULT", "0"},
+		{"ALTER TABLE SET ACCESS METHOD missing", "table", "ALTER TABLE a SET ACCESS METHOD a", CodeUndefinedObject},
+		{"ALTER TABLE SET ACCESS METHOD index AM", "table", "ALTER TABLE a SET ACCESS METHOD btree", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE ALTER non-generated column SET EXPRESSION", "table", "ALTER TABLE a ALTER c SET EXPRESSION AS (b + 1)", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE ALTER non-generated column DROP EXPRESSION", "table", "ALTER TABLE a ALTER c DROP EXPRESSION", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE NO INHERIT non-parent", "table", "ALTER TABLE a NO INHERIT a", CodeUndefinedTable},
+		{"ALTER TABLE DETACH PARTITION FINALIZE non-partition", "table", "ALTER TABLE a DETACH PARTITION a FINALIZE", CodeUndefinedTable},
+		{"ALTER TABLE OF a table row type", "table", "ALTER TABLE a OF a", CodeWrongObjectType},
+		{"ALTER TABLE NOT OF untyped table", "table", "ALTER TABLE a NOT OF", CodeWrongObjectType},
+		{"ALTER TABLE OPTIONS on non-foreign table", "table", "ALTER TABLE a OPTIONS (a 's')", CodeWrongObjectType},
+		{"ALTER TABLE ALTER column OPTIONS on non-foreign table", "table", "ALTER TABLE a ALTER c OPTIONS (a 's')", CodeWrongObjectType},
+
+		// Whole-row CHECK, EXCLUDE operators, and CREATE INDEX checks/naming.
+		{"CREATE TABLE with whole-row CHECK", "missing", "CREATE TABLE a (CHECK (a))", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD whole-row CHECK", "table", "ALTER TABLE a ADD CHECK (a)", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD integer column CHECK", "table", "ALTER TABLE a ADD CHECK (b)", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD EXCLUDE with undefined operator for integer", "table", "ALTER TABLE a ADD EXCLUDE (b WITH ~)", CodeUndefinedFunction},
+		{"ALTER TABLE ADD EXCLUDE with qualified undefined operator for integer", "table", "ALTER TABLE a ADD EXCLUDE (b WITH OPERATOR(pg_catalog.~))", CodeUndefinedFunction},
+		{"CREATE INDEX on parenthesized whole-row var", "table", "CREATE INDEX ON a ((a))", "0"},
+		{"CREATE INDEX on parenthesized whole-row var with missing opclass", "table", "CREATE INDEX ON a ((a) zzz)", CodeUndefinedObject},
+		{"CREATE INDEX on function call over whole-row var", "table", "CREATE INDEX ON a (a(a))", CodeUndefinedFunction},
+		{"CREATE INDEX on CURRENT_DATE", "table", "CREATE INDEX ON a (CURRENT_DATE)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX on CURRENT_DATE with missing opclass", "table", "CREATE INDEX ON a (CURRENT_DATE zzz)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX on CURRENT_ROLE", "table", "CREATE INDEX ON a (CURRENT_ROLE)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX with missing collation", "table", "CREATE INDEX ON a (b COLLATE a)", CodeUndefinedObject},
+		{"CREATE INDEX with collation on non-collatable column", "table", "CREATE INDEX ON a (b COLLATE \"C\")", CodeDatatypeMismatch},
+		{"CREATE INDEX with missing opclass", "table", "CREATE INDEX ON a (b zzz)", CodeUndefinedObject},
+		{"CREATE INDEX with incompatible opclass", "table", "CREATE INDEX ON a (b text_ops)", CodeDatatypeMismatch},
+		{"CREATE INDEX with valid builtin pattern opclass", "missing", "CREATE TABLE s (t varchar(20));\nCREATE INDEX ON s (t varchar_pattern_ops)", "0"},
+		{"CREATE INDEX INCLUDE with opclass", "table", "CREATE INDEX ON a (b) INCLUDE (c zzz)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX with duplicate key columns", "table", "CREATE INDEX ON a (b, b)", "0"},
+		{"CREATE INDEX with duplicate INCLUDE columns", "table", "CREATE INDEX ON a (b) INCLUDE (b, b)", "0"},
+		{"ALTER TABLE ADD UNIQUE with duplicate INCLUDE column", "table", "ALTER TABLE a ADD UNIQUE (b) INCLUDE (b)", "0"},
+
+		// Sequence vs standalone data type collisions, concurrent matview refresh, and collation drops.
+		{"CREATE SEQUENCE colliding with enum type", "missing", "CREATE TYPE s_enum AS ENUM ('a');\nCREATE SEQUENCE s_enum", CodeDuplicateObject},
+		{"CREATE SEQUENCE IF NOT EXISTS colliding with enum type", "missing", "CREATE TYPE s_enum AS ENUM ('a');\nCREATE SEQUENCE IF NOT EXISTS s_enum", CodeDuplicateObject},
+		{"CREATE SEQUENCE colliding with domain type", "missing", "CREATE DOMAIN s_dom AS int;\nCREATE SEQUENCE s_dom", CodeDuplicateObject},
+		{"CREATE SEQUENCE colliding with composite type", "missing", "CREATE TYPE s_comp AS (a int);\nCREATE SEQUENCE s_comp", CodeDuplicateTable},
+		{"CREATE SEQUENCE IF NOT EXISTS colliding with composite type", "missing", "CREATE TYPE s_comp AS (a int);\nCREATE SEQUENCE IF NOT EXISTS s_comp", "0"},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY when unpopulated", "missing", "CREATE MATERIALIZED VIEW mv_u AS SELECT 1 AS id WITH NO DATA;\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_u", CodeFeatureNotSupported},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY without unique index", "missing", "CREATE MATERIALIZED VIEW mv_p AS SELECT 1 AS id;\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_p", CodeObjectNotInPrerequisiteState},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY with qualifying unique index", "missing", "CREATE MATERIALIZED VIEW mv_ok AS SELECT 1 AS id;\nCREATE UNIQUE INDEX mv_ok_idx ON mv_ok (id);\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_ok", "0"},
+		{"DROP COLLATION restricted by table column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a text COLLATE c_dep);\nDROP COLLATION c_dep", CodeDependentObjects},
+		{"DROP COLLATION CASCADE drops dependent column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a int, b text COLLATE c_dep);\nDROP COLLATION c_dep CASCADE", "0"},
+		{"CTAS EXECUTE zero-parameter prepared statement with ignored argument", "missing", "PREPARE q0 AS SELECT 1 AS x;\nCREATE TABLE t0 AS EXECUTE q0(1)", "0"},
+		{"CTAS EXECUTE inferred-parameter prepared statement with wrong arity", "missing", "PREPARE q_inf AS SELECT $1::int AS x, $2::text AS y;\nCREATE TABLE t_inf AS EXECUTE q_inf(1)", CodeSyntaxError},
+		{"duplicate PREPARE rejected with 42P05", "missing", "PREPARE q_dup AS SELECT 1 AS a;\nPREPARE q_dup AS SELECT 2 AS b", CodeDuplicatePstatement},
+		{"ALTER COLUMN TYPE without COLLATE resets collation to type default", "missing", "CREATE COLLATION c_ret (LOCALE = 'C');\nCREATE TABLE t_ret (a text COLLATE c_ret);\nALTER TABLE t_ret ALTER a TYPE varchar;\nDROP COLLATION c_ret", "0"},
+		{"DROP COLLATION restricted by column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def", CodeDependentObjects},
+		{"DROP COLLATION CASCADE drops column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def CASCADE", "0"},
+		{"DEALLOCATE missing prepared statement rejected with 26000", "missing", "DEALLOCATE missing_dealloc_stmt", CodeInvalidSQLStatementName},
+		{"DEALLOCATE ALL succeeds when no prepared statements exist", "missing", "DEALLOCATE ALL;\nDEALLOCATE ALL", "0"},
+		{"CTAS EXECUTE assignment-coerces bigint into inferred integer parameter", "missing", "PREPARE q_r4_inf_add AS SELECT $1 + 1 AS x;\nCREATE TABLE t_r4_inf_add AS EXECUTE q_r4_inf_add(1::bigint)", "0"},
+		{"UNIQUE constraint index reuses standalone enum type name", "missing", "CREATE TYPE t_u_enum_a_key AS ENUM ('x');\nCREATE TABLE t_u_enum (a int UNIQUE)", "0"},
+		{"ALTER TABLE on an index RENAME COLUMN renames expression attribute", "missing", "CREATE TABLE t_ir (a int);\nCREATE INDEX idx_ir ON t_ir ((a + 1));\nALTER TABLE idx_ir RENAME COLUMN expr TO plus_one", "0"},
+		{"ALTER COLUMN SET STORAGE DEFAULT and SET COMPRESSION DEFAULT", "missing", "CREATE TABLE t_scd (a text STORAGE EXTERNAL COMPRESSION lz4);\nALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;\nALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT", "0"},
+		{"DROP DEFAULT sharing column explicit collation keeps single dependency", "missing", "CREATE COLLATION c_same (LOCALE = 'C');\nCREATE TABLE t_same (a text COLLATE c_same DEFAULT ('x' COLLATE c_same));\nALTER TABLE t_same ALTER COLUMN a DROP DEFAULT;\nALTER TABLE t_same ALTER COLUMN a TYPE varchar;\nDROP COLLATION c_same", "0"},
+		{"CREATE COLLATION FROM missing source rejected with 42704", "missing", "CREATE COLLATION c_bad FROM missing_coll", CodeUndefinedObject},
+		{"CREATE COLLATION FROM default rejected with 42P16", "missing", "CREATE COLLATION c_bad_dfl FROM \"default\"", CodeInvalidObjectDefinition},
+		{"CREATE COLLATION without locale rejected with 42P16", "missing", "CREATE COLLATION c_no_loc (PROVIDER = icu)", CodeInvalidObjectDefinition},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -2567,9 +2702,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		c74 := New()
 		for _, stmt := range []string{
 			"CREATE SCHEMA excl_opc_s",
-			"CREATE OPERATOR CLASS excl_opc_s.excl_ops FOR TYPE int USING gist AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
+			// PostgreSQL has no &&(integer, integer); = is a commutative member.
+			"CREATE OPERATOR CLASS excl_opc_s.excl_ops FOR TYPE int USING gist AS OPERATOR 3 =, FUNCTION 1 btint4cmp(int, int)",
 			"CREATE TABLE excl_opc_t (a int)",
-			"ALTER TABLE excl_opc_t ADD CONSTRAINT excl_opc_con EXCLUDE USING gist (a excl_opc_s.excl_ops WITH &&)",
+			"ALTER TABLE excl_opc_t ADD CONSTRAINT excl_opc_con EXCLUDE USING gist (a excl_opc_s.excl_ops WITH =)",
 			"DROP SCHEMA excl_opc_s CASCADE",
 		} {
 			if code := simulationCatalogCode(t, c74, stmt); code != "0" {
@@ -2735,8 +2871,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE ROLE fam_schema_owner",
 			"CREATE SCHEMA owned_fam_s AUTHORIZATION fam_schema_owner",
 			"CREATE OPERATOR FAMILY owned_fam_s.fam USING gist",
-			"CREATE OPERATOR CLASS public.ext_gist_ops FOR TYPE int USING gist FAMILY owned_fam_s.fam AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
-			"CREATE TABLE public.fam_idx_t (a int, CONSTRAINT fam_excl EXCLUDE USING gist (a public.ext_gist_ops WITH &&))",
+			"CREATE OPERATOR CLASS public.ext_gist_ops FOR TYPE int USING gist FAMILY owned_fam_s.fam AS OPERATOR 3 =, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE public.fam_idx_t (a int, CONSTRAINT fam_excl EXCLUDE USING gist (a public.ext_gist_ops WITH =))",
 		} {
 			if code := simulationCatalogCode(t, c79, stmt); code != "0" {
 				t.Fatalf("catalog refused %s with %s", stmt, code)
@@ -3223,6 +3359,2352 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if code := simulationCatalogCode(t, c99, "DROP EXTENSION test_bad_part_tam_ext RESTRICT"); code != "0" {
 			t.Fatalf("DROP EXTENSION RESTRICT after rolled-back CREATE TABLE answered %s, want 0", code)
+		}
+
+		// Failed ALTER TABLE ADD COLUMN with an invalid inline CHECK rolls back
+		// both the added column and any identity sequence it created.
+		c100 := New()
+		if code := simulationCatalogCode(t, c100, "CREATE TABLE add_rb (id int)"); code != "0" {
+			t.Fatalf("CREATE TABLE add_rb: %s", code)
+		}
+		if code := simulationCatalogCode(t, c100, "ALTER TABLE add_rb ADD COLUMN bad int GENERATED ALWAYS AS IDENTITY CHECK (bad)"); code != CodeDatatypeMismatch {
+			t.Fatalf("ALTER TABLE ADD COLUMN with non-boolean CHECK answered %s, want %s", code, CodeDatatypeMismatch)
+		}
+		if rel := c100.schemaByName["public"].Relations["add_rb"]; rel == nil || len(rel.Columns) != 1 {
+			t.Fatalf("failed ADD COLUMN left extra column on add_rb: %+v", rel)
+		}
+		if len(c100.schemaByName["public"].Sequences) != 0 {
+			t.Fatalf("failed ADD COLUMN leaked identity sequence: %+v", c100.schemaByName["public"].Sequences)
+		}
+
+		// Index and UNIQUE INCLUDE naming deduplicates repeated column names
+		// across key and INCLUDE lists, and REPLICA IDENTITY FULL/NOTHING/DEFAULT
+		// round-trips through Diff.
+		c101 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE inc_t (a int, b int)",
+			"CREATE INDEX ON inc_t (a, a)",
+			"CREATE INDEX ON inc_t (a) INCLUDE (a, a)",
+			"ALTER TABLE inc_t ADD UNIQUE (a) INCLUDE (a)",
+		} {
+			if code := simulationCatalogCode(t, c101, stmt); code != "0" {
+				t.Fatalf("inc_t setup %s: %s", stmt, code)
+			}
+		}
+		for _, wantIdx := range []string{"inc_t_a_a1_idx", "inc_t_a_a1_a2_idx", "inc_t_a_a1_key"} {
+			if c101.schemaByName["public"].Indexes[wantIdx] == nil {
+				t.Fatalf("expected auto-named index %q in schema, got %v", wantIdx, c101.schemaByName["public"].Indexes)
+			}
+		}
+
+		// CREATE TABLE ... AS EXECUTE creates a relation from the prepared SELECT
+		// query, and failed multi-subcommand ALTER TABLE restores REPLICA IDENTITY.
+		c102 := New()
+		for _, stmt := range []string{
+			"PREPARE p_ctas AS SELECT 1 AS id, 'ok'::text AS label",
+			"CREATE TABLE t_exec AS EXECUTE p_ctas",
+		} {
+			if code := simulationCatalogCode(t, c102, stmt); code != "0" {
+				t.Fatalf("CTAS EXECUTE %s: %s", stmt, code)
+			}
+		}
+		tExec := c102.schemaByName["public"].Relations["t_exec"]
+		if tExec == nil || len(tExec.Columns) != 2 || tExec.Columns[0].Name != "id" || tExec.Columns[1].Name != "label" {
+			t.Fatalf("unexpected columns on t_exec: %+v", tExec)
+		}
+		if code := simulationCatalogCode(t, c102, "ALTER TABLE t_exec REPLICA IDENTITY FULL, DROP COLUMN missing_col"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE REPLICA IDENTITY + bad DROP answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if tExec.ReplicaIdentity == 'f' {
+			t.Fatal("failed ALTER TABLE left ReplicaIdentity='f' mutated")
+		}
+
+		// Review round 1 regressions:
+		// 1. EXCLUDE ... INCLUDE (...) migration rendering and round-trip.
+		// 2. DISCARD PLANS retains prepared statements; DISCARD ALL drops them.
+		// 3. Top-level whole-row Var deparses with ::typename cast so reparsing
+		//    preserves the single composite column.
+		// 4. Failed multi-action ALTER TABLE restores both ReplicaIdentity and
+		//    index IsReplicaIdent flags.
+		// 5. WITH CHECK OPTION over a non-updatable view checks only the outer
+		//    query locally at definition time.
+		c103Base := New()
+		c103To := New()
+		if code := simulationCatalogCode(t, c103Base, "CREATE TABLE ex_inc (a int4range, b text)"); code != "0" {
+			t.Fatalf("c103Base setup: %s", code)
+		}
+		if code := simulationCatalogCode(t, c103To, "CREATE TABLE ex_inc (a int4range, b text, CONSTRAINT ex_inc_c EXCLUDE USING gist (a WITH &&) INCLUDE (b))"); code != "0" {
+			t.Fatalf("c103To setup: %s", code)
+		}
+		migPlan := GenerateMigration(c103Base, c103To, Diff(c103Base, c103To))
+		if !strings.Contains(migPlan.SQL(), "INCLUDE (b)") {
+			t.Fatalf("expected EXCLUDE migration to emit INCLUDE (b), got:\n%s", migPlan.SQL())
+		}
+		if code := simulationCatalogCode(t, c103Base, migPlan.SQL()); code != "0" {
+			t.Fatalf("applying EXCLUDE INCLUDE migration failed with %s:\n%s", code, migPlan.SQL())
+		}
+		if rem := GenerateMigration(c103Base, c103To, Diff(c103Base, c103To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after applying EXCLUDE INCLUDE, got:\n%s", rem.SQL())
+		}
+
+		c103 := New()
+		for _, stmt := range []string{
+			"PREPARE p_keep AS SELECT 42 AS v",
+			"DISCARD PLANS",
+			"CREATE TABLE t_after_discard_plans AS EXECUTE p_keep",
+			"DISCARD ALL",
+		} {
+			if code := simulationCatalogCode(t, c103, stmt); code != "0" {
+				t.Fatalf("DISCARD PLANS / ALL %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c103, "CREATE TABLE t_after_discard_all AS EXECUTE p_keep"); code != CodeInvalidSQLStatementName {
+			t.Fatalf("CTAS EXECUTE after DISCARD ALL answered %s, want %s", code, CodeInvalidSQLStatementName)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TABLE wr_t (a int NOT NULL, b text)",
+			"CREATE UNIQUE INDEX wr_t_idx ON wr_t (a)",
+			"ALTER TABLE wr_t REPLICA IDENTITY USING INDEX wr_t_idx",
+			"CREATE VIEW wr_v AS SELECT wr_t, (wr_t IS NOT NULL) AS j FROM wr_t",
+			"CREATE VIEW v_agg AS SELECT count(*) AS c FROM wr_t",
+			"CREATE VIEW v_outer_casc AS SELECT c FROM v_agg WITH CHECK OPTION",
+			"CREATE VIEW v_outer_loc AS SELECT c FROM v_agg WITH LOCAL CHECK OPTION",
+		} {
+			if code := simulationCatalogCode(t, c103, stmt); code != "0" {
+				t.Fatalf("c103 view/replica setup %s: %s", stmt, code)
+			}
+		}
+		wrDef, err := c103.GetViewDefinition("", "wr_v")
+		if err != nil {
+			t.Fatalf("GetViewDefinition(wr_v): %v", err)
+		}
+		if !strings.Contains(wrDef, "wr_t.*::wr_t AS wr_t") || !strings.Contains(wrDef, "wr_t.* IS NOT NULL") {
+			t.Fatalf("unexpected whole-row view definition:\n%s", wrDef)
+		}
+		if code := simulationCatalogCode(t, c103, "CREATE VIEW wr_v_reparse AS "+wrDef); code != "0" {
+			t.Fatalf("reparsing whole-row viewdef failed with %s:\n%s", code, wrDef)
+		}
+		if reparsed := c103.schemaByName["public"].Relations["wr_v_reparse"]; reparsed == nil || len(reparsed.Columns) != 2 {
+			t.Fatalf("reparsed whole-row view should keep 2 columns, got %+v", reparsed)
+		}
+		if code := simulationCatalogCode(t, c103, "ALTER TABLE wr_t REPLICA IDENTITY FULL, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE REPLICA IDENTITY + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		wrRel := c103.schemaByName["public"].Relations["wr_t"]
+		wrIdx := c103.schemaByName["public"].Indexes["wr_t_idx"]
+		if wrRel.ReplicaIdentity != 'i' || !wrIdx.IsReplicaIdent {
+			t.Fatalf("failed ALTER TABLE did not restore index replica identity: rel=%q idx=%v", wrRel.ReplicaIdentity, wrIdx.IsReplicaIdent)
+		}
+
+		// Review round 2 regressions:
+		// 1. PREPARE parameter types and EXECUTE argument types propagate to CTAS columns.
+		// 2. Multi-action ALTER TABLE rolls back AT_SetStorage (and other column fields).
+		// 3. Failed REFRESH MATERIALIZED VIEW CONCURRENTLY leaves IsPopulated=false.
+		// 4. DROP COLLATION RESTRICT / CASCADE tracks column and index dependencies.
+		c104 := New()
+		for _, stmt := range []string{
+			"PREPARE q_typed(int4) AS SELECT $1 AS x",
+			"CREATE TABLE t_q_typed AS EXECUTE q_typed(1)",
+			"PREPARE q_inferred AS SELECT $1 AS y",
+			"CREATE TABLE t_q_inferred AS EXECUTE q_inferred('hello'::text)",
+		} {
+			if code := simulationCatalogCode(t, c104, stmt); code != "0" {
+				t.Fatalf("CTAS prepared param %s: %s", stmt, code)
+			}
+		}
+		if r := c104.schemaByName["public"].Relations["t_q_typed"]; r == nil || len(r.Columns) != 1 || r.Columns[0].TypeOID != INT4OID {
+			t.Fatalf("expected t_q_typed.x to have INT4OID, got %+v", r)
+		}
+		if r := c104.schemaByName["public"].Relations["t_q_inferred"]; r == nil || len(r.Columns) != 1 || r.Columns[0].TypeOID != TEXTOID {
+			t.Fatalf("expected t_q_inferred.y to have TEXTOID, got %+v", r)
+		}
+
+		if code := simulationCatalogCode(t, c104, "CREATE TABLE stor_t (a text)"); code != "0" {
+			t.Fatalf("CREATE TABLE stor_t: %s", code)
+		}
+		if code := simulationCatalogCode(t, c104, "ALTER TABLE stor_t ALTER COLUMN a SET STORAGE PLAIN, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE SET STORAGE + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if storCol := c104.schemaByName["public"].Relations["stor_t"].Columns[0]; storCol.Storage != 'x' {
+			t.Fatalf("failed ALTER TABLE left column storage=%q, want 'x'", storCol.Storage)
+		}
+
+		if code := simulationCatalogCode(t, c104, "CREATE MATERIALIZED VIEW mv_unpop_chk AS SELECT 1 AS id WITH NO DATA"); code != "0" {
+			t.Fatalf("CREATE MATERIALIZED VIEW WITH NO DATA: %s", code)
+		}
+		if code := simulationCatalogCode(t, c104, "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_unpop_chk"); code != CodeFeatureNotSupported {
+			t.Fatalf("REFRESH CONCURRENTLY unpopulated answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if c104.schemaByName["public"].Relations["mv_unpop_chk"].IsPopulated {
+			t.Fatal("failed REFRESH CONCURRENTLY marked unpopulated matview as populated")
+		}
+
+		for _, stmt := range []string{
+			"CREATE COLLATION c_use (LOCALE = 'C')",
+			"CREATE TABLE t_c_use (id int, val text COLLATE c_use, plain text)",
+			"CREATE INDEX idx_c_use ON t_c_use (plain COLLATE c_use)",
+		} {
+			if code := simulationCatalogCode(t, c104, stmt); code != "0" {
+				t.Fatalf("collation dep setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION RESTRICT answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c104.schemaByName["public"].Collations["c_use"] == nil {
+			t.Fatal("failed DROP COLLATION removed c_use")
+		}
+		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use CASCADE"); code != "0" {
+			t.Fatalf("DROP COLLATION CASCADE: %s", code)
+		}
+		if len(c104.schemaByName["public"].Relations["t_c_use"].Columns) != 2 || c104.schemaByName["public"].Indexes["idx_c_use"] != nil {
+			t.Fatal("DROP COLLATION CASCADE did not drop dependent column and index")
+		}
+
+		// Review round 3 regressions:
+		// 1. Duplicate PREPARE fails with 42P05 and preserves the original plan.
+		// 2. Inferred-param PREPARE enforces parameter count on EXECUTE.
+		// 3. Multi-action ALTER TABLE restores OfTypeOID on failure.
+		// 4. ALTER COLUMN ... TYPE omitting COLLATE clears CollationName while
+		//    retaining any DEFAULT-expression collation dependency.
+		// 5. DROP COLLATION CASCADE on a DEFAULT expression drops only the default.
+		// 6. Auto-named index does not skip names held by standalone enum/domain types.
+		c105 := New()
+		if code := simulationCatalogCode(t, c105, "PREPARE q_keep AS SELECT 1 AS a"); code != "0" {
+			t.Fatalf("PREPARE q_keep: %s", code)
+		}
+		if code := simulationCatalogCode(t, c105, "PREPARE q_keep AS SELECT 2 AS b"); code != CodeDuplicatePstatement {
+			t.Fatalf("duplicate PREPARE answered %s, want %s", code, CodeDuplicatePstatement)
+		}
+		if code := simulationCatalogCode(t, c105, "CREATE TABLE t_keep AS EXECUTE q_keep"); code != "0" {
+			t.Fatalf("CTAS EXECUTE q_keep: %s", code)
+		}
+		if r := c105.schemaByName["public"].Relations["t_keep"]; r == nil || len(r.Columns) != 1 || r.Columns[0].Name != "a" {
+			t.Fatalf("expected original prepared query column 'a', got %+v", r)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE ty_of AS (a int)",
+			"CREATE TABLE t_of (a int)",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("t_of setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c105, "ALTER TABLE t_of OF ty_of, ALTER COLUMN missing SET STATISTICS 1"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE OF + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if c105.schemaByName["public"].Relations["t_of"].OfTypeOID != 0 {
+			t.Fatal("failed ALTER TABLE left OfTypeOID non-zero")
+		}
+
+		for _, stmt := range []string{
+			"CREATE COLLATION c_col (LOCALE = 'C')",
+			"CREATE COLLATION c_dfl (LOCALE = 'C')",
+			"CREATE TABLE t_col_dfl (a text COLLATE c_col DEFAULT ('x' COLLATE c_dfl))",
+			"ALTER TABLE t_col_dfl ALTER COLUMN a TYPE varchar",
+			"DROP COLLATION c_col",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("c105 collation/default %s: %s", stmt, code)
+			}
+		}
+		colA := c105.schemaByName["public"].Relations["t_col_dfl"].Columns[0]
+		if colA.CollationName != "" {
+			t.Fatalf("expected ALTER COLUMN TYPE without COLLATE to reset CollationName, got %q", colA.CollationName)
+		}
+		if code := simulationCatalogCode(t, c105, "DROP COLLATION c_dfl"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION c_dfl restricted by default answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c105, "DROP COLLATION c_dfl CASCADE"); code != "0" {
+			t.Fatalf("DROP COLLATION c_dfl CASCADE: %s", code)
+		}
+		if len(c105.schemaByName["public"].Relations["t_col_dfl"].Columns) != 1 || colA.HasDefault {
+			t.Fatalf("expected DROP COLLATION CASCADE to drop only default while keeping column a: cols=%d hasDefault=%v",
+				len(c105.schemaByName["public"].Relations["t_col_dfl"].Columns), colA.HasDefault)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE t_enum_idx_a_idx AS ENUM ('x')",
+			"CREATE TABLE t_enum_idx (a int)",
+			"CREATE INDEX ON t_enum_idx (a)",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("auto-named index vs enum setup %s: %s", stmt, code)
+			}
+		}
+		if c105.schemaByName["public"].Indexes["t_enum_idx_a_idx"] == nil {
+			t.Fatalf("expected auto-named index t_enum_idx_a_idx, got %v", c105.schemaByName["public"].Indexes)
+		}
+
+		// Review round 4 regressions:
+		// 1. Structural multi-action ALTER TABLE rollback (ADD COLUMN, DROP COLUMN,
+		//    ADD CONSTRAINT) restores columns, colByName, and constraints on failure.
+		// 2. PREPARE infers parameter types at PREPARE time and defaults unconstrained
+		//    parameters to text; EXECUTE assignment-coerces arguments to inferred types.
+		// 3. Constraint-backed index naming ignores standalone enum/domain types.
+		// 4. Explicit column STORAGE and COMPRESSION diff and emit in migrations.
+		// 5. User collations diff and emit in GenerateMigration in dependency order.
+		// 6. Renamed index columns (ALTER INDEX ... RENAME COLUMN) diff and migrate.
+		// 7. DEALLOCATE on a missing prepared statement fails with 26000.
+		c106 := New()
+		if code := simulationCatalogCode(t, c106, "CREATE TABLE t_rb_struct (a int, b int)"); code != "0" {
+			t.Fatalf("CREATE TABLE t_rb_struct: %s", code)
+		}
+		if code := simulationCatalogCode(t, c106, "ALTER TABLE t_rb_struct ADD COLUMN c int, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE ADD COLUMN + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		rbRel := c106.schemaByName["public"].Relations["t_rb_struct"]
+		if _, hasC := rbRel.colByName["c"]; len(rbRel.Columns) != 2 || hasC {
+			t.Fatalf("failed ALTER TABLE ADD COLUMN leaked column c: cols=%d hasC=%v", len(rbRel.Columns), hasC)
+		}
+		if code := simulationCatalogCode(t, c106, "ALTER TABLE t_rb_struct DROP COLUMN b, ADD UNIQUE (a), ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE DROP COLUMN + ADD UNIQUE + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if bIdx, hasB := rbRel.colByName["b"]; len(rbRel.Columns) != 2 || !hasB || bIdx != 1 || len(c106.consByRel[rbRel.OID]) != 0 || len(c106.indexesByRel[rbRel.OID]) != 0 {
+			t.Fatalf("failed ALTER TABLE DROP COLUMN/ADD UNIQUE did not restore structural state: cols=%d hasB=%v bIdx=%d cons=%d idxs=%d",
+				len(rbRel.Columns), hasB, bIdx, len(c106.consByRel[rbRel.OID]), len(c106.indexesByRel[rbRel.OID]))
+		}
+
+		for _, stmt := range []string{
+			"PREPARE q_r4_add AS SELECT $1 + 1 AS x",
+			"CREATE TABLE t_r4_add AS EXECUTE q_r4_add(1::bigint)",
+			"PREPARE q_r4_bare AS SELECT $1 AS x",
+			"CREATE TABLE t_r4_bare AS EXECUTE q_r4_bare(1)",
+		} {
+			if code := simulationCatalogCode(t, c106, stmt); code != "0" {
+				t.Fatalf("c106 PREPARE/EXECUTE %s: %s", stmt, code)
+			}
+		}
+		if r := c106.schemaByName["public"].Relations["t_r4_add"]; r == nil || r.Columns[0].TypeOID != INT4OID {
+			t.Fatalf("expected t_r4_add.x to have INT4OID (inferred $1 + 1), got %+v", r)
+		}
+		if r := c106.schemaByName["public"].Relations["t_r4_bare"]; r == nil || r.Columns[0].TypeOID != TEXTOID {
+			t.Fatalf("expected t_r4_bare.x to have TEXTOID (unconstrained $1 defaults to text), got %+v", r)
+		}
+		if code := simulationCatalogCode(t, c106, "DEALLOCATE missing_r4_stmt"); code != CodeInvalidSQLStatementName {
+			t.Fatalf("DEALLOCATE missing_r4_stmt answered %s, want %s", code, CodeInvalidSQLStatementName)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE t_u_r4_a_key AS ENUM ('x')",
+			"CREATE TABLE t_u_r4 (a int UNIQUE)",
+		} {
+			if code := simulationCatalogCode(t, c106, stmt); code != "0" {
+				t.Fatalf("c106 constraint vs enum %s: %s", stmt, code)
+			}
+		}
+		if c106.schemaByName["public"].Indexes["t_u_r4_a_key"] == nil {
+			t.Fatalf("expected UNIQUE constraint index t_u_r4_a_key, got %v", c106.schemaByName["public"].Indexes)
+		}
+
+		c106From := New()
+		c106To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_sc_mod (a text, b text STORAGE EXTERNAL COMPRESSION lz4)",
+			"CREATE TABLE t_idx_ren (a int)",
+			"CREATE INDEX idx_ren ON t_idx_ren ((a + 1))",
+		} {
+			if code := simulationCatalogCode(t, c106From, stmt); code != "0" {
+				t.Fatalf("c106From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r4 (LOCALE = 'C')",
+			"CREATE TABLE t_sc_new (a text COLLATE coll_r4 STORAGE EXTERNAL COMPRESSION lz4 NOT NULL)",
+			"CREATE TABLE t_sc_mod (a text STORAGE MAIN COMPRESSION pglz, b text)",
+			"CREATE TABLE t_idx_ren (a int)",
+			"CREATE INDEX idx_ren ON t_idx_ren ((a + 1))",
+			"ALTER TABLE idx_ren RENAME COLUMN expr TO plus_one",
+		} {
+			if code := simulationCatalogCode(t, c106To, stmt); code != "0" {
+				t.Fatalf("c106To setup %s: %s", stmt, code)
+			}
+		}
+		mig106 := GenerateMigration(c106From, c106To, Diff(c106From, c106To))
+		migSQL := mig106.SQL()
+		for _, wantFrag := range []string{
+			"CREATE COLLATION",
+			"STORAGE EXTERNAL",
+			"COMPRESSION lz4",
+			"SET STORAGE MAIN",
+			"SET COMPRESSION pglz",
+			"SET STORAGE DEFAULT",
+			"SET COMPRESSION DEFAULT",
+			"RENAME COLUMN",
+		} {
+			if !strings.Contains(migSQL, wantFrag) {
+				t.Fatalf("expected migration SQL to contain %q, got:\n%s", wantFrag, migSQL)
+			}
+		}
+		if code := simulationCatalogCode(t, c106From, migSQL); code != "0" {
+			t.Fatalf("applying c106 migration failed with %s:\n%s", code, migSQL)
+		}
+		if rem := GenerateMigration(c106From, c106To, Diff(c106From, c106To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c106 round-trip, got:\n%s", rem.SQL())
+		}
+
+		// Review round 5 regressions:
+		// 1. Dropping a DEFAULT that references the same user collation as the
+		//    column's explicit COLLATE leaves exactly one collation dependency so
+		//    subsequent ALTER COLUMN TYPE (without COLLATE) allows DROP COLLATION.
+		// 2. Replacing a collation whose definition changed while retained columns,
+		//    defaults, indexes, constraints, domains, and views reference it
+		//    detaches/rebuilds dependents before DROP COLLATION and restores them
+		//    after CREATE COLLATION.
+		c107 := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_same_r5 (LOCALE = 'C')",
+			"CREATE DOMAIN d_keep_r5 AS text",
+			"CREATE TABLE t_same_r5 (a text COLLATE c_same_r5 DEFAULT ('x' COLLATE c_same_r5), b d_keep_r5 DEFAULT ('y'::d_keep_r5))",
+			"ALTER TABLE t_same_r5 ALTER COLUMN a DROP DEFAULT",
+			"ALTER TABLE t_same_r5 ALTER COLUMN b DROP DEFAULT",
+			"ALTER TABLE t_same_r5 ALTER COLUMN a TYPE varchar",
+			"DROP COLLATION c_same_r5",
+		} {
+			if code := simulationCatalogCode(t, c107, stmt); code != "0" {
+				t.Fatalf("c107 %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c107, "DROP DOMAIN d_keep_r5"); code != CodeDependentObjects {
+			t.Fatalf("DROP DOMAIN d_keep_r5 after DROP DEFAULT answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		c107From := New()
+		c107To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_repl (LOCALE = 'C')",
+			"CREATE DOMAIN dom_repl AS text COLLATE coll_repl",
+			"CREATE TABLE t_repl (a text COLLATE coll_repl STORAGE EXTERNAL DEFAULT ('d' COLLATE coll_repl), b text, d dom_repl, CONSTRAINT t_repl_chk CHECK (b COLLATE coll_repl <> ''))",
+			"CREATE INDEX idx_repl ON t_repl (b COLLATE coll_repl)",
+			"CREATE VIEW v_repl AS SELECT a, b FROM t_repl",
+		} {
+			if code := simulationCatalogCode(t, c107From, stmt); code != "0" {
+				t.Fatalf("c107From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_repl (LOCALE = 'POSIX')",
+			"CREATE DOMAIN dom_repl AS text COLLATE coll_repl",
+			"CREATE TABLE t_repl (a text COLLATE coll_repl STORAGE EXTERNAL DEFAULT ('d' COLLATE coll_repl), b text, d dom_repl, CONSTRAINT t_repl_chk CHECK (b COLLATE coll_repl <> ''))",
+			"CREATE INDEX idx_repl ON t_repl (b COLLATE coll_repl)",
+			"CREATE VIEW v_repl AS SELECT a, b FROM t_repl",
+		} {
+			if code := simulationCatalogCode(t, c107To, stmt); code != "0" {
+				t.Fatalf("c107To setup %s: %s", stmt, code)
+			}
+		}
+		mig107 := GenerateMigration(c107From, c107To, Diff(c107From, c107To))
+		if code := simulationCatalogCode(t, c107From, mig107.SQL()); code != "0" {
+			t.Fatalf("applying c107 collation replacement migration failed with %s:\n%s", code, mig107.SQL())
+		}
+		if rem := GenerateMigration(c107From, c107To, Diff(c107From, c107To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c107 collation replacement, got:\n%s", rem.SQL())
+		}
+
+		// Review round 6 regressions:
+		// 1. Index attribute rename cycles ((a, b) -> (b, a)) unwind without
+		//    duplicate-column errors.
+		// 2. CREATE COLLATION FROM missing fails with 42704 and leaves no
+		//    registered collation; valid CREATE COLLATION FROM copies cleanly.
+		// 3. ALTER TABLE ... SET ACCESS METHOD diffs and round-trips through
+		//    GenerateMigration.
+		c108 := New()
+		if code := simulationCatalogCode(t, c108, "CREATE COLLATION c_bad_r6 FROM missing_r6"); code != CodeUndefinedObject {
+			t.Fatalf("CREATE COLLATION FROM missing_r6 answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if code := simulationCatalogCode(t, c108, "CREATE TABLE t_bad_r6 (a text COLLATE c_bad_r6)"); code != CodeUndefinedObject {
+			t.Fatalf("column referencing uncreated collation answered %s, want %s", code, CodeUndefinedObject)
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_src_r6 (LOCALE = 'C')",
+			"CREATE COLLATION c_copy_r6 FROM c_src_r6",
+			"DROP COLLATION c_src_r6",
+			"CREATE TABLE t_copy_r6 (a text COLLATE c_copy_r6)",
+		} {
+			if code := simulationCatalogCode(t, c108, stmt); code != "0" {
+				t.Fatalf("c108 valid collation copy %s: %s", stmt, code)
+			}
+		}
+
+		c108From := New()
+		c108To := New()
+		tamSetup := []string{
+			"CREATE FUNCTION tam_handler_r6(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD custom_tam_r6 TYPE TABLE HANDLER tam_handler_r6",
+		}
+		for _, stmt := range tamSetup {
+			if code := simulationCatalogCode(t, c108From, stmt); code != "0" {
+				t.Fatalf("c108From tam setup %s: %s", stmt, code)
+			}
+			if code := simulationCatalogCode(t, c108To, stmt); code != "0" {
+				t.Fatalf("c108To tam setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_cyc_r6 (x int, y int)",
+			"CREATE INDEX idx_cyc_r6 ON t_cyc_r6 ((x + 1), (y + 1))",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr TO a",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr1 TO b",
+			"CREATE TABLE t_am_r6 (id int)",
+		} {
+			if code := simulationCatalogCode(t, c108From, stmt); code != "0" {
+				t.Fatalf("c108From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_cyc_r6 (x int, y int)",
+			"CREATE INDEX idx_cyc_r6 ON t_cyc_r6 ((x + 1), (y + 1))",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr TO b",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr1 TO a",
+			"CREATE TABLE t_am_r6 (id int)",
+			"ALTER TABLE t_am_r6 SET ACCESS METHOD custom_tam_r6",
+		} {
+			if code := simulationCatalogCode(t, c108To, stmt); code != "0" {
+				t.Fatalf("c108To setup %s: %s", stmt, code)
+			}
+		}
+		mig108 := GenerateMigration(c108From, c108To, Diff(c108From, c108To))
+		if !strings.Contains(mig108.SQL(), "SET ACCESS METHOD") {
+			t.Fatalf("expected migration SQL to contain SET ACCESS METHOD, got:\n%s", mig108.SQL())
+		}
+		if code := simulationCatalogCode(t, c108From, mig108.SQL()); code != "0" {
+			t.Fatalf("applying c108 migration failed with %s:\n%s", code, mig108.SQL())
+		}
+		if rem := GenerateMigration(c108From, c108To, Diff(c108From, c108To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c108 round-trip, got:\n%s", rem.SQL())
+		}
+
+		// Review round 7 regressions:
+		// 1. Unique index on partitioned table putting partition key only in INCLUDE is rejected (0A000).
+		// 2. Index COLLATE with quoted dots in schema/name round-trips without splitting on literal dots.
+		// 3. Domain collation change replaces the domain safely around dependent columns, constraints, and views.
+		// 4. Range type COLLATION is retained in RangeType, diffed, and emitted in GenerateMigration.
+		// 5. Stored generated column rebuilt for a modified collation preserves unchanged indexes, constraints, inbound FKs, triggers, policies, and views.
+		c109Part := New()
+		if code := simulationCatalogCode(t, c109Part, "CREATE TABLE p_inc_r7 (k int, v int) PARTITION BY LIST (k)"); code != "0" {
+			t.Fatalf("c109Part CREATE TABLE failed: %s", code)
+		}
+		if code := simulationCatalogCode(t, c109Part, "CREATE UNIQUE INDEX p_inc_r7_bad ON p_inc_r7 (v) INCLUDE (k)"); code != CodeFeatureNotSupported {
+			t.Fatalf("unique index with partition key only in INCLUDE answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if code := simulationCatalogCode(t, c109Part, "CREATE UNIQUE INDEX p_inc_r7_ok ON p_inc_r7 (k) INCLUDE (v)"); code != "0" {
+			t.Fatalf("unique index with partition key in key columns answered %s, want 0", code)
+		}
+
+		c109From := New()
+		c109To := New()
+		for _, stmt := range []string{
+			`CREATE COLLATION "a.b" (LOCALE = 'C')`,
+			`CREATE COLLATION coll_gen_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_a_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_b_r7 (LOCALE = 'POSIX')`,
+			`CREATE DOMAIN dom_chg_r7 AS text COLLATE coll_dom_a_r7`,
+			`CREATE TABLE t_gen_r7 (id int PRIMARY KEY, src text, g text COLLATE coll_gen_r7 GENERATED ALWAYS AS (lower(src)) STORED, d dom_chg_r7 DEFAULT 'x'::dom_chg_r7, CONSTRAINT t_gen_r7_uk UNIQUE (g), CONSTRAINT t_gen_r7_chk CHECK (g <> '' AND d <> ''))`,
+			`CREATE INDEX idx_gen_r7 ON t_gen_r7 (g)`,
+			`CREATE INDEX idx_dot_r7 ON t_gen_r7 (src COLLATE public."a.b")`,
+			`CREATE TABLE t_fk_r7 (id int PRIMARY KEY, g_ref text REFERENCES t_gen_r7(g))`,
+			`CREATE VIEW v_gen_r7 AS SELECT id, g, d FROM t_gen_r7`,
+		} {
+			if code := simulationCatalogCode(t, c109From, stmt); code != "0" {
+				t.Fatalf("c109From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			`CREATE COLLATION "a.b" (LOCALE = 'C')`,
+			`CREATE COLLATION coll_gen_r7 (LOCALE = 'POSIX')`,
+			`CREATE COLLATION coll_dom_a_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_b_r7 (LOCALE = 'POSIX')`,
+			`CREATE DOMAIN dom_chg_r7 AS text COLLATE coll_dom_b_r7`,
+			`CREATE TYPE rng_r7 AS RANGE (SUBTYPE = text, COLLATION = public."a.b")`,
+			`CREATE TABLE t_gen_r7 (id int PRIMARY KEY, src text, g text COLLATE coll_gen_r7 GENERATED ALWAYS AS (lower(src)) STORED, d dom_chg_r7 DEFAULT 'x'::dom_chg_r7, CONSTRAINT t_gen_r7_uk UNIQUE (g), CONSTRAINT t_gen_r7_chk CHECK (g <> '' AND d <> ''))`,
+			`CREATE INDEX idx_gen_r7 ON t_gen_r7 (g)`,
+			`CREATE INDEX idx_dot_r7 ON t_gen_r7 (src COLLATE public."a.b")`,
+			`CREATE TABLE t_fk_r7 (id int PRIMARY KEY, g_ref text REFERENCES t_gen_r7(g))`,
+			`CREATE VIEW v_gen_r7 AS SELECT id, g, d FROM t_gen_r7`,
+		} {
+			if code := simulationCatalogCode(t, c109To, stmt); code != "0" {
+				t.Fatalf("c109To setup %s: %s", stmt, code)
+			}
+		}
+		migEmptyDot := GenerateMigration(New(), c109To, Diff(New(), c109To))
+		if !strings.Contains(migEmptyDot.SQL(), `COLLATE public."a.b"`) {
+			t.Fatalf("expected index DDL to preserve quoted dot in collation name, got:\n%s", migEmptyDot.SQL())
+		}
+		if !strings.Contains(migEmptyDot.SQL(), `CREATE TYPE "public"."rng_r7" AS RANGE (SUBTYPE = text, COLLATION = "public"."a.b")`) {
+			t.Fatalf("expected range DDL to retain COLLATION, got:\n%s", migEmptyDot.SQL())
+		}
+		c109Empty := New()
+		if code := simulationCatalogCode(t, c109Empty, migEmptyDot.SQL()); code != "0" {
+			t.Fatalf("applying empty->c109To migration failed with %s:\n%s", code, migEmptyDot.SQL())
+		}
+		if rem := GenerateMigration(c109Empty, c109To, Diff(c109Empty, c109To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c109To, got:\n%s", rem.SQL())
+		}
+
+		mig109 := GenerateMigration(c109From, c109To, Diff(c109From, c109To))
+		if code := simulationCatalogCode(t, c109From, mig109.SQL()); code != "0" {
+			t.Fatalf("applying c109From->c109To migration failed with %s:\n%s", code, mig109.SQL())
+		}
+		if rem := GenerateMigration(c109From, c109To, Diff(c109From, c109To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c109From->c109To (generated column dependents, domain collation, range collation), got:\n%s", rem.SQL())
+		}
+
+		// Review round 8 regressions:
+		// 1. Schema-qualified column collations outside search_path round-trip and diff across schemas.
+		// 2. DISCARD ALL resets search_path, default_tablespace, default_table_access_method, and current role.
+		// 3. CREATE RULE propagates missing-relation (42P01), wrong-relkind (42809/0A000), and duplicate-rule (42710) errors.
+		// 4. CREATE COLLATION rejects RULES when provider != icu (42P17).
+		// 5. ALTER COLUMN ... TYPE resets Column.Compression to 0.
+		c110 := New()
+		if code := simulationCatalogCode(t, c110, "CREATE RULE r_missing AS ON INSERT TO missing_r8 DO NOTHING"); code != CodeUndefinedTable {
+			t.Fatalf("CREATE RULE on missing table answered %s, want %s", code, CodeUndefinedTable)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE SEQUENCE seq_r8; CREATE RULE r_seq AS ON INSERT TO seq_r8 DO NOTHING"); code != CodeWrongObjectType {
+			t.Fatalf("CREATE RULE on sequence answered %s, want %s", code, CodeWrongObjectType)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE MATERIALIZED VIEW mv_r8 AS SELECT 1 AS a; CREATE RULE r_mv AS ON INSERT TO mv_r8 DO NOTHING"); code != CodeFeatureNotSupported {
+			t.Fatalf("CREATE RULE on matview answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE COLLATION c_bad_rules_r8 (PROVIDER = libc, LOCALE = 'C', RULES = '&a < b')"); code != CodeInvalidObjectDefinition {
+			t.Fatalf("CREATE COLLATION with RULES and libc answered %s, want %s", code, CodeInvalidObjectDefinition)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE COLLATION c_icu_rules_r8 (PROVIDER = icu, LOCALE = 'en-x-icu', RULES = '&a < b')"); code != "0" {
+			t.Fatalf("CREATE COLLATION with RULES and icu answered %s, want 0", code)
+		}
+		for _, stmt := range []string{
+			"CREATE SCHEMA s_disc_r8",
+			"CREATE ROLE role_disc_r8",
+			"CREATE TABLESPACE ts_disc_r8 LOCATION '/tmp/ts_disc_r8'",
+			"CREATE FUNCTION tam_disc_r8(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD am_disc_r8 TYPE TABLE HANDLER tam_disc_r8",
+			"SET search_path = s_disc_r8",
+			"SET ROLE role_disc_r8",
+			"SET default_tablespace = ts_disc_r8",
+			"SET default_table_access_method = am_disc_r8",
+			"PREPARE p_disc_r8 AS SELECT 1",
+			"DISCARD ALL",
+			"CREATE TABLE t_after_disc_r8 (a text COMPRESSION pglz)",
+		} {
+			if code := simulationCatalogCode(t, c110, stmt); code != "0" {
+				t.Fatalf("c110 %s: %s", stmt, code)
+			}
+		}
+		relAfter := c110.GetRelation("public", "t_after_disc_r8")
+		if relAfter == nil || relAfter.Tablespace != "" || relAfter.AccessMethod != "" || relAfter.OwnerName != "postgres" {
+			t.Fatalf("expected DISCARD ALL to reset schema/tablespace/am/role, got rel=%+v", relAfter)
+		}
+		if relAfter.Columns[0].Compression != 'p' {
+			t.Fatalf("expected initial Compression 'p', got %q", relAfter.Columns[0].Compression)
+		}
+		if code := simulationCatalogCode(t, c110, "ALTER TABLE t_after_disc_r8 ALTER COLUMN a TYPE varchar"); code != "0" {
+			t.Fatalf("ALTER COLUMN TYPE answered %s, want 0", code)
+		}
+		if relAfter.Columns[0].Compression != 0 {
+			t.Fatalf("expected ALTER COLUMN TYPE to reset Compression to 0, got %q", relAfter.Columns[0].Compression)
+		}
+
+		c110From := New()
+		c110To := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA s1_r8",
+			"CREATE SCHEMA s2_r8",
+			"CREATE COLLATION s1_r8.c_shared (LOCALE = 'C')",
+			"CREATE COLLATION s2_r8.c_shared (LOCALE = 'POSIX')",
+			"CREATE TABLE public.t_qcoll_r8 (a text COLLATE s1_r8.c_shared)",
+		} {
+			if code := simulationCatalogCode(t, c110From, stmt); code != "0" {
+				t.Fatalf("c110From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE SCHEMA s1_r8",
+			"CREATE SCHEMA s2_r8",
+			"CREATE COLLATION s1_r8.c_shared (LOCALE = 'C')",
+			"CREATE COLLATION s2_r8.c_shared (LOCALE = 'POSIX')",
+			"CREATE TABLE public.t_qcoll_r8 (a text COLLATE s2_r8.c_shared)",
+		} {
+			if code := simulationCatalogCode(t, c110To, stmt); code != "0" {
+				t.Fatalf("c110To %s: %s", stmt, code)
+			}
+		}
+		migEmpty110 := GenerateMigration(New(), c110To, Diff(New(), c110To))
+		c110Empty := New()
+		if code := simulationCatalogCode(t, c110Empty, migEmpty110.SQL()); code != "0" {
+			t.Fatalf("applying empty->c110To failed with %s:\n%s", code, migEmpty110.SQL())
+		}
+		if rem := GenerateMigration(c110Empty, c110To, Diff(c110Empty, c110To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c110To, got:\n%s", rem.SQL())
+		}
+		mig110 := GenerateMigration(c110From, c110To, Diff(c110From, c110To))
+		if len(mig110.Ops) == 0 {
+			t.Fatal("expected migration ops when changing column collation from s1_r8.c_shared to s2_r8.c_shared")
+		}
+		if code := simulationCatalogCode(t, c110From, mig110.SQL()); code != "0" {
+			t.Fatalf("applying c110From->c110To failed with %s:\n%s", code, mig110.SQL())
+		}
+		if rem := GenerateMigration(c110From, c110To, Diff(c110From, c110To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c110From->c110To, got:\n%s", rem.SQL())
+		}
+
+		// Review round 9 regressions:
+		// 1. Explicit column collations populate Column.Collation so conflicting
+		//    implicit collations in views fail with 42P22.
+		// 2. RESET ALL preserves the active SET ROLE (unlike DISCARD ALL).
+		// 3. Dropped collations referenced only by a retained column's default
+		//    expression defer DROP COLLATION to PhaseLateDrop after DROP DEFAULT.
+		c111 := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c1_r9 (LOCALE = 'C')",
+			"CREATE COLLATION c2_r9 (LOCALE = 'POSIX')",
+			"CREATE TABLE t_coll_r9 (a text COLLATE c1_r9, b text COLLATE c2_r9)",
+		} {
+			if code := simulationCatalogCode(t, c111, stmt); code != "0" {
+				t.Fatalf("c111 %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_u_r9 AS SELECT a FROM t_coll_r9 UNION SELECT b FROM t_coll_r9"); code != CodeCollationMismatch {
+			t.Fatalf("UNION view over conflicting explicit column collations answered %s, want %s", code, CodeCollationMismatch)
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_ua_r9 AS SELECT a FROM t_coll_r9 UNION ALL SELECT b FROM t_coll_r9"); code != CodeIndeterminateCollation {
+			t.Fatalf("UNION ALL view over conflicting explicit column collations answered %s, want %s", code, CodeIndeterminateCollation)
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_rep_r9 AS SELECT a AS x FROM t_coll_r9; CREATE OR REPLACE VIEW v_coll_rep_r9 AS SELECT b AS x FROM t_coll_r9"); code != CodeInvalidObjectDefinition {
+			t.Fatalf("CREATE OR REPLACE VIEW changing column collation answered %s, want %s", code, CodeInvalidObjectDefinition)
+		}
+		for _, stmt := range []string{
+			"CREATE ROLE app_role_r9",
+			"SET ROLE app_role_r9",
+			"RESET ALL",
+			"CREATE TABLE t_role_r9 (id int)",
+		} {
+			if code := simulationCatalogCode(t, c111, stmt); code != "0" {
+				t.Fatalf("c111 role %s: %s", stmt, code)
+			}
+		}
+		if rel := c111.GetRelation("public", "t_role_r9"); rel == nil || rel.OwnerName != "app_role_r9" {
+			t.Fatalf("expected RESET ALL to preserve active SET ROLE app_role_r9, got %+v", rel)
+		}
+
+		c111From := New()
+		c111To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_dfl_r9 (LOCALE = 'C')",
+			"CREATE TABLE t_dfl_r9 (a text DEFAULT ('x' COLLATE c_dfl_r9))",
+		} {
+			if code := simulationCatalogCode(t, c111From, stmt); code != "0" {
+				t.Fatalf("c111From %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c111To, "CREATE TABLE t_dfl_r9 (a text)"); code != "0" {
+			t.Fatalf("c111To CREATE TABLE: %s", code)
+		}
+		mig111 := GenerateMigration(c111From, c111To, Diff(c111From, c111To))
+		if code := simulationCatalogCode(t, c111From, mig111.SQL()); code != "0" {
+			t.Fatalf("applying c111From->c111To (dropping default + collation) failed with %s:\n%s", code, mig111.SQL())
+		}
+		if rem := GenerateMigration(c111From, c111To, Diff(c111From, c111To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c111From->c111To, got:\n%s", rem.SQL())
+		}
+
+		// Review round 10 regressions:
+		// 1. Bounded varlena columns below TOAST_TUPLE_THRESHOLD (2032) do not
+		//    need a TOAST table (so ALTER TABLE ... SET (toast.*) ignores
+		//    toast.* on varchar(1)/varchar(501) and rejects unknown toast.* on
+		//    varchar(502)/text/domains), while CREATE TABLE validates toast.*
+		//    unconditionally like PostgreSQL's DefineRelation.
+		// 2. REPLICA IDENTITY carries ReplicaIdentityStmt in the AST so AST-only
+		//    ProcessUtility callers apply FULL, NOTHING, DEFAULT, and USING INDEX.
+		// 3. DROP COLLATION ... CASCADE drops inherited and partitioned column
+		//    dependents recursively, and rolls back cleanly when a dependent
+		//    column (such as a partition key) cannot be dropped.
+		// 4. CREATE RULE definitions and firing modes are stored on Relation,
+		//    compared in compareRelation and compareView, and emitted in
+		//    GenerateMigration (including rule renames, mode changes, and view
+		//    rebuilds).
+		c112 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_vc1_r10 (v varchar(1))",
+			"CREATE TABLE t_vc501_r10 (v varchar(501))",
+			"CREATE TABLE t_vc502_r10 (v varchar(502))",
+			"CREATE DOMAIN dom_vc1_r10 AS varchar(1)",
+			"CREATE TABLE t_dom_vc1_r10 (v dom_vc1_r10)",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 toast setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc1_r10 SET (toast.a = 1)"); code != "0" {
+			t.Fatalf("ALTER TABLE varchar(1) SET (toast.a = 1) answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc501_r10 SET (toast.a = 1)"); code != "0" {
+			t.Fatalf("ALTER TABLE varchar(501) SET (toast.a = 1) answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc502_r10 SET (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("ALTER TABLE varchar(502) SET (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_dom_vc1_r10 SET (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("ALTER TABLE domain(varchar(1)) SET (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+		if code := simulationCatalogCode(t, c112, "CREATE TABLE t_ct_vc1_r10 (v varchar(1)) WITH (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("CREATE TABLE varchar(1) WITH (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+
+		// 2. AST-only ProcessUtility for REPLICA IDENTITY (no Exec / raw SQL).
+		if code := simulationCatalogCode(t, c112, "CREATE TABLE t_ri_ast_r10 (id int NOT NULL); CREATE UNIQUE INDEX t_ri_ast_r10_uk ON t_ri_ast_r10 (id)"); code != "0" {
+			t.Fatalf("c112 ri setup: %s", code)
+		}
+		for _, tcRI := range []struct {
+			sql  string
+			want byte
+		}{
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY FULL", 'f'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY NOTHING", 'n'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY USING INDEX t_ri_ast_r10_uk", 'i'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY DEFAULT", 'd'},
+		} {
+			parsed, err := pgparser.Parse(tcRI.sql)
+			if err != nil || parsed == nil || len(parsed.Items) != 1 {
+				t.Fatalf("Parse(%q): %v", tcRI.sql, err)
+			}
+			stmt := parsed.Items[0]
+			if raw, ok := stmt.(*nodes.RawStmt); ok {
+				stmt = raw.Stmt
+			}
+			if err := c112.ProcessUtility(stmt); err != nil {
+				t.Fatalf("ProcessUtility(%q): %v", tcRI.sql, err)
+			}
+			if got := c112.GetRelation("public", "t_ri_ast_r10").ReplicaIdentity; got != tcRI.want {
+				t.Fatalf("ProcessUtility(%q): ReplicaIdentity = %q, want %q", tcRI.sql, got, tcRI.want)
+			}
+		}
+
+		// 3. DROP COLLATION ... CASCADE on inherited, merged, partitioned, and partition-key columns.
+		for _, stmt := range []string{
+			"CREATE COLLATION c_inh_r10 (LOCALE = 'C')",
+			"CREATE TABLE p_inh_r10 (id int, a text COLLATE c_inh_r10, b text COLLATE c_inh_r10)",
+			"CREATE TABLE ch_inh_r10 () INHERITS (p_inh_r10)",
+			"CREATE TABLE ch_merge_r10 (a text COLLATE c_inh_r10) INHERITS (p_inh_r10)",
+			"CREATE TABLE gch_inh_r10 () INHERITS (ch_merge_r10)",
+			"CREATE TABLE p_part_r10 (k int, a text COLLATE c_inh_r10) PARTITION BY LIST (k)",
+			"CREATE TABLE ch_part_r10 PARTITION OF p_part_r10 FOR VALUES IN (1)",
+			"DROP COLLATION c_inh_r10 CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 inh cascade %s: %s", stmt, code)
+			}
+		}
+		for _, tbl := range []string{"p_inh_r10", "ch_inh_r10", "ch_merge_r10", "gch_inh_r10", "p_part_r10", "ch_part_r10"} {
+			r := c112.GetRelation("public", tbl)
+			if r == nil {
+				t.Fatalf("expected %s to remain after DROP COLLATION CASCADE", tbl)
+			}
+			for _, col := range r.Columns {
+				if col.Name == "a" || col.Name == "b" {
+					t.Fatalf("expected column %s.%s to be dropped by DROP COLLATION CASCADE", tbl, col.Name)
+				}
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_pkey_r10 (LOCALE = 'C')",
+			"CREATE TABLE p_pkey_r10 (a text COLLATE c_pkey_r10) PARTITION BY LIST (a)",
+			"CREATE TABLE ch_pkey_r10 PARTITION OF p_pkey_r10 FOR VALUES IN ('x')",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 pkey setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c112, "DROP COLLATION c_pkey_r10 CASCADE"); code != CodeInvalidTableDefinition {
+			t.Fatalf("DROP COLLATION CASCADE on partition-key column answered %s, want %s", code, CodeInvalidTableDefinition)
+		}
+		if c112.schemaByName["public"].Collations["c_pkey_r10"] == nil {
+			t.Fatal("failed DROP COLLATION CASCADE deleted c_pkey_r10 despite partition-key error")
+		}
+		if len(c112.GetRelation("public", "ch_pkey_r10").Columns) != 1 {
+			t.Fatal("failed DROP COLLATION CASCADE mutated child partition columns")
+		}
+
+		// 4. Rules diff and migration on tables and views (create, modify, rename, firing mode, drop, view rebuild).
+		c112From := New()
+		c112To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_rule_r10 (id int, val varchar(10))",
+			"CREATE TABLE t_rule_log_r10 (id int, val text)",
+			"CREATE RULE r_keep_mode_r10 AS ON INSERT TO t_rule_r10 WHERE NEW.id > 0 DO ALSO INSERT INTO t_rule_log_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 DO NOTHING",
+			"CREATE RULE r_drop_r10 AS ON UPDATE TO t_rule_r10 DO NOTHING",
+			"CREATE VIEW v_rule_r10 AS SELECT id, val FROM t_rule_r10",
+			"CREATE RULE r_v_ins_r10 AS ON INSERT TO v_rule_r10 DO INSTEAD INSERT INTO t_rule_r10 (id, val) VALUES (NEW.id, NEW.val)",
+		} {
+			if code := simulationCatalogCode(t, c112From, stmt); code != "0" {
+				t.Fatalf("c112From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_rule_r10 (id int, val varchar(50))",
+			"CREATE TABLE t_rule_log_r10 (id int, val text)",
+			"CREATE RULE r_keep_mode_r10 AS ON INSERT TO t_rule_r10 WHERE NEW.id > 0 DO ALSO INSERT INTO t_rule_log_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"ALTER TABLE t_rule_r10 DISABLE RULE r_keep_mode_r10",
+			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 WHERE OLD.id > 10 DO ALSO (DELETE FROM t_rule_log_r10 WHERE id = OLD.id; INSERT INTO t_rule_log_r10 (id, val) VALUES (OLD.id, 'del'))",
+			"ALTER TABLE t_rule_r10 ENABLE ALWAYS RULE r_mod_r10",
+			"CREATE RULE r_oldname_r10 AS ON UPDATE TO t_rule_r10 DO ALSO NOTIFY rule_ch_r10, 'upd'",
+			"ALTER RULE r_oldname_r10 ON t_rule_r10 RENAME TO r_added_r10",
+			"CREATE VIEW v_rule_r10 AS SELECT id, val FROM t_rule_r10",
+			"CREATE RULE r_v_ins_r10 AS ON INSERT TO v_rule_r10 DO INSTEAD INSERT INTO t_rule_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"CREATE RULE r_v_del_r10 AS ON DELETE TO v_rule_r10 DO INSTEAD DELETE FROM t_rule_r10 WHERE id = OLD.id",
+		} {
+			if code := simulationCatalogCode(t, c112To, stmt); code != "0" {
+				t.Fatalf("c112To %s: %s", stmt, code)
+			}
+		}
+		migEmpty112 := GenerateMigration(New(), c112To, Diff(New(), c112To))
+		c112Empty := New()
+		if code := simulationCatalogCode(t, c112Empty, migEmpty112.SQL()); code != "0" {
+			t.Fatalf("applying empty->c112To failed with %s:\n%s", code, migEmpty112.SQL())
+		}
+		if rem := GenerateMigration(c112Empty, c112To, Diff(c112Empty, c112To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c112To, got:\n%s", rem.SQL())
+		}
+		mig112 := GenerateMigration(c112From, c112To, Diff(c112From, c112To))
+		if !strings.Contains(mig112.SQL(), `DISABLE RULE "r_keep_mode_r10"`) || !strings.Contains(mig112.SQL(), `ENABLE ALWAYS RULE "r_mod_r10"`) {
+			t.Fatalf("expected rule firing mode DDL in migration, got:\n%s", mig112.SQL())
+		}
+		if code := simulationCatalogCode(t, c112From, mig112.SQL()); code != "0" {
+			t.Fatalf("applying c112From->c112To failed with %s:\n%s", code, mig112.SQL())
+		}
+		if rem := GenerateMigration(c112From, c112To, Diff(c112From, c112To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c112From->c112To, got:\n%s", rem.SQL())
+		}
+
+		// Review round 11 regressions:
+		// 1. Rule actions refresh referenced table and column names after renames.
+		// 2. Window function OVER clauses (inline frame specs and WINDOW clauses)
+		//    are preserved when deparsing rule actions.
+		// 3. Unpopulated materialized views (WITH NO DATA) emit WITH NO DATA in
+		//    migration DDL and diff against populated materialized views.
+		// 4. User collations record OwnerName and participate in DROP ROLE,
+		//    RENAME ROLE, REASSIGN OWNED, DROP OWNED, and ALTER COLLATION OWNER/RENAME.
+		c113To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE src_r11 (a int)",
+			"CREATE TABLE dst_r11 (x int, rn bigint)",
+			"CREATE RULE r_ren_r11 AS ON INSERT TO src_r11 WHERE NEW.a > 0 DO ALSO INSERT INTO dst_r11 (x, rn) SELECT NEW.a, row_number() OVER (PARTITION BY NEW.a ORDER BY NEW.a DESC ROWS BETWEEN 1 PRECEDING AND CURRENT ROW EXCLUDE CURRENT ROW)",
+			"CREATE RULE r_win_r11 AS ON DELETE TO src_r11 DO ALSO INSERT INTO dst_r11 (x, rn) SELECT OLD.a, count(*) OVER w FROM src_r11 WINDOW w AS (ORDER BY a)",
+			"ALTER TABLE dst_r11 RENAME TO dst2_r11",
+			"ALTER TABLE dst2_r11 RENAME COLUMN x TO x2",
+			"ALTER TABLE src_r11 RENAME COLUMN a TO a2",
+			"CREATE MATERIALIZED VIEW mv_nodata_r11 AS SELECT a2 FROM src_r11 WITH NO DATA",
+		} {
+			if code := simulationCatalogCode(t, c113To, stmt); code != "0" {
+				t.Fatalf("c113To %s: %s", stmt, code)
+			}
+		}
+		migEmpty113 := GenerateMigration(New(), c113To, Diff(New(), c113To))
+		if !strings.Contains(migEmpty113.SQL(), "OVER (PARTITION BY") || !strings.Contains(migEmpty113.SQL(), "OVER w") {
+			t.Fatalf("expected OVER clauses in rule migration DDL, got:\n%s", migEmpty113.SQL())
+		}
+		if !strings.Contains(migEmpty113.SQL(), `CREATE MATERIALIZED VIEW "public"."mv_nodata_r11" AS`) || !strings.Contains(migEmpty113.SQL(), "WITH NO DATA") {
+			t.Fatalf("expected WITH NO DATA in unpopulated matview DDL, got:\n%s", migEmpty113.SQL())
+		}
+		c113Applied := New()
+		if code := simulationCatalogCode(t, c113Applied, migEmpty113.SQL()); code != "0" {
+			t.Fatalf("applying empty->c113To failed with %s:\n%s", code, migEmpty113.SQL())
+		}
+		if mv := c113Applied.GetRelation("public", "mv_nodata_r11"); mv == nil || mv.IsPopulated {
+			t.Fatalf("expected migrated mv_nodata_r11 to remain unpopulated, got %+v", mv)
+		}
+		if rem := GenerateMigration(c113Applied, c113To, Diff(c113Applied, c113To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c113To, got:\n%s", rem.SQL())
+		}
+
+		// Collation role lifecycle checks.
+		c113Role := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice_r11",
+			"CREATE ROLE bob_r11",
+			"SET ROLE alice_r11",
+			"CREATE COLLATION c_owned_r11 (LOCALE = 'C')",
+			"RESET ROLE",
+			"CREATE TABLE t_uses_c_r11 (v text COLLATE c_owned_r11)",
+		} {
+			if code := simulationCatalogCode(t, c113Role, stmt); code != "0" {
+				t.Fatalf("c113Role setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP ROLE alice_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE owning collation answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "ALTER ROLE alice_r11 RENAME TO alice2_r11"); code != "0" {
+			t.Fatalf("ALTER ROLE RENAME answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP ROLE alice2_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE after rename answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "REASSIGN OWNED BY alice2_r11 TO bob_r11; DROP ROLE alice2_r11"); code != "0" {
+			t.Fatalf("REASSIGN OWNED + DROP ROLE answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP OWNED BY bob_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED RESTRICT with external dependent column answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP OWNED BY bob_r11 CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE answered %s, want 0", code)
+		}
+		if c113Role.schemaByName["public"].Collations["c_owned_r11"] != nil {
+			t.Fatal("expected c_owned_r11 to be dropped by DROP OWNED BY bob_r11 CASCADE")
+		}
+
+		// Review round 12 regressions:
+		// 1. CREATE RULE rejects unresolved relations, columns, OLD in ON INSERT,
+		//    NEW in ON DELETE, and NOTIFY with WHERE.
+		// 2. Rules record dependencies on referenced relations, columns, types,
+		//    collations, and functions (blocking RESTRICT drops and cascading on CASCADE).
+		// 3. DROP RULE validates target relation and rule existence (42P01 / 42704 /
+		//    2BP01 on view _RETURN) and supports IF EXISTS.
+		// 4. Materialized view population changes emit REFRESH MATERIALIZED VIEW
+		//    [WITH NO DATA] without dropping indexes, while recreated matviews
+		//    regenerate their retained standalone indexes.
+		// 5. Explicit or recreated heap tables/matviews emit USING "heap" when
+		//    custom table access methods or recreated tables are involved.
+		c114Rule := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r12 (a int, b int)",
+			"CREATE TABLE ref_r12 (x int, y int)",
+			"CREATE VIEW v_r12 AS SELECT a FROM t_r12",
+			"CREATE SEQUENCE seq_r12",
+		} {
+			if code := simulationCatalogCode(t, c114Rule, stmt); code != "0" {
+				t.Fatalf("c114Rule setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_no_tbl AS ON INSERT TO t_r12 DO ALSO INSERT INTO no_such_tbl VALUES (1)", CodeUndefinedTable},
+			{"CREATE RULE r_no_col AS ON INSERT TO t_r12 WHERE NEW.no_col > 0 DO NOTHING", CodeUndefinedColumn},
+			{"CREATE RULE r_old_ins AS ON INSERT TO t_r12 WHERE OLD.a > 0 DO NOTHING", CodeUndefinedTable},
+			{"CREATE RULE r_new_del AS ON DELETE TO t_r12 WHERE NEW.a > 0 DO NOTHING", CodeUndefinedTable},
+			{"CREATE RULE r_where_notify AS ON INSERT TO t_r12 WHERE NEW.a > 0 DO ALSO NOTIFY ch_r12", CodeInvalidObjectDefinition},
+			{"DROP RULE no_such_rule ON t_r12", CodeUndefinedObject},
+			{"DROP RULE no_such_rule ON no_such_tbl", CodeUndefinedTable},
+			{"DROP RULE no_such_rule ON seq_r12", CodeUndefinedObject},
+			{`DROP RULE "_RETURN" ON v_r12`, CodeDependentObjects},
+		} {
+			if got := simulationCatalogCode(t, c114Rule, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+		for _, okStmt := range []string{
+			"DROP RULE IF EXISTS no_such_rule ON t_r12",
+			"DROP RULE IF EXISTS no_such_rule ON no_such_tbl",
+			"DROP RULE IF EXISTS no_such_rule ON seq_r12",
+			"CREATE RULE r_dep_r12 AS ON INSERT TO t_r12 WHERE NEW.b > 0 DO ALSO INSERT INTO ref_r12 (x) VALUES (NEW.a)",
+		} {
+			if got := simulationCatalogCode(t, c114Rule, okStmt); got != "0" {
+				t.Fatalf("%s answered %s, want 0", okStmt, got)
+			}
+		}
+		if got := simulationCatalogCode(t, c114Rule, "DROP TABLE ref_r12"); got != CodeDependentObjects {
+			t.Fatalf("DROP TABLE ref_r12 RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "ALTER TABLE ref_r12 DROP COLUMN x"); got != CodeDependentObjects {
+			t.Fatalf("ALTER TABLE ref_r12 DROP COLUMN x RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "ALTER TABLE t_r12 DROP COLUMN b"); got != CodeDependentObjects {
+			t.Fatalf("ALTER TABLE t_r12 DROP COLUMN b RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "DROP TABLE ref_r12 CASCADE"); got != "0" {
+			t.Fatalf("DROP TABLE ref_r12 CASCADE answered %s, want 0", got)
+		}
+		if rel := c114Rule.GetRelation("public", "t_r12"); rel == nil || len(rel.Rules) != 0 {
+			t.Fatalf("expected r_dep_r12 to be dropped by DROP TABLE ref_r12 CASCADE, got %+v", rel)
+		}
+
+		// Matview population flip preserves indexes via REFRESH MATERIALIZED VIEW;
+		// matview query change recreates retained indexes.
+		c114MvFrom := New()
+		c114MvTo := New()
+		for _, stmt := range []string{
+			"CREATE TABLE base_mv_r12 (id int, val text)",
+			"CREATE MATERIALIZED VIEW mv_pop_r12 AS SELECT id FROM base_mv_r12 WITH NO DATA",
+			"CREATE INDEX idx_mv_pop_r12 ON mv_pop_r12 (id)",
+			"CREATE MATERIALIZED VIEW mv_q_r12 AS SELECT id FROM base_mv_r12",
+			"CREATE INDEX idx_mv_q_r12 ON mv_q_r12 (id)",
+		} {
+			if code := simulationCatalogCode(t, c114MvFrom, stmt); code != "0" {
+				t.Fatalf("c114MvFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE base_mv_r12 (id int, val text)",
+			"CREATE MATERIALIZED VIEW mv_pop_r12 AS SELECT id FROM base_mv_r12",
+			"CREATE INDEX idx_mv_pop_r12 ON mv_pop_r12 (id)",
+			"CREATE MATERIALIZED VIEW mv_q_r12 AS SELECT id FROM base_mv_r12 WHERE id > 0",
+			"CREATE INDEX idx_mv_q_r12 ON mv_q_r12 (id)",
+		} {
+			if code := simulationCatalogCode(t, c114MvTo, stmt); code != "0" {
+				t.Fatalf("c114MvTo %s: %s", stmt, code)
+			}
+		}
+		mig114Mv := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo))
+		if !strings.Contains(mig114Mv.SQL(), "REFRESH MATERIALIZED VIEW \"public\".\"mv_pop_r12\" WITH DATA") {
+			t.Fatalf("expected REFRESH MATERIALIZED VIEW on mv_pop_r12, got:\n%s", mig114Mv.SQL())
+		}
+		if !strings.Contains(mig114Mv.SQL(), "CREATE INDEX idx_mv_q_r12") {
+			t.Fatalf("expected recreated index idx_mv_q_r12 on rebuilt mv_q_r12, got:\n%s", mig114Mv.SQL())
+		}
+		if code := simulationCatalogCode(t, c114MvFrom, mig114Mv.SQL()); code != "0" {
+			t.Fatalf("applying mig114Mv failed with %s:\n%s", code, mig114Mv.SQL())
+		}
+		if c114MvFrom.GetSchema("public").Indexes["idx_mv_pop_r12"] == nil {
+			t.Fatalf("expected preserved index idx_mv_pop_r12 on mv_pop_r12")
+		}
+		if rem := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after mig114Mv, got:\n%s", rem.SQL())
+		}
+
+		// Explicit USING heap emitted when non-heap table AM is active or table is recreated.
+		RegisterExtensionSQL("test_tam_r12", "CREATE ACCESS METHOD tam_r12 TYPE TABLE HANDLER heap_tableam_handler;")
+		defer delete(extensionScripts, "test_tam_r12")
+		c114AmFrom := New()
+		c114AmTo := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_tam_r12",
+			"SET default_table_access_method = tam_r12",
+			"CREATE TABLE p_r12 (a int)",
+			"CREATE TABLE t_heap_r12 (a int) USING heap",
+		} {
+			if code := simulationCatalogCode(t, c114AmFrom, stmt); code != "0" {
+				t.Fatalf("c114AmFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_tam_r12",
+			"SET default_table_access_method = tam_r12",
+			"CREATE TABLE p_r12 (a int)",
+			"CREATE TABLE t_heap_r12 (a int) INHERITS (p_r12) USING heap",
+			"CREATE MATERIALIZED VIEW mv_heap_r12 USING heap AS SELECT a FROM p_r12",
+		} {
+			if code := simulationCatalogCode(t, c114AmTo, stmt); code != "0" {
+				t.Fatalf("c114AmTo %s: %s", stmt, code)
+			}
+		}
+		mig114Am := GenerateMigration(c114AmFrom, c114AmTo, Diff(c114AmFrom, c114AmTo))
+		if !strings.Contains(mig114Am.SQL(), "USING heap") {
+			t.Fatalf("expected USING heap in migration DDL under non-heap default AM, got:\n%s", mig114Am.SQL())
+		}
+		if code := simulationCatalogCode(t, c114AmFrom, mig114Am.SQL()); code != "0" {
+			t.Fatalf("applying mig114Am failed with %s:\n%s", code, mig114Am.SQL())
+		}
+		if rem := GenerateMigration(c114AmFrom, c114AmTo, Diff(c114AmFrom, c114AmTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after mig114Am, got:\n%s", rem.SQL())
+		}
+
+		// Review round 13 regressions:
+		// 1. XML expressions (XMLPARSE, XMLELEMENT, XMLFOREST, XMLCONCAT, XMLPI,
+		//    XMLROOT, XMLSERIALIZE, IS DOCUMENT) in rule actions are preserved
+		//    and diffed when deparsing rules.
+		// 2. Index COLLATE references update when a user collation is renamed
+		//    or moved to another schema.
+		c115XmlFrom := New()
+		c115XmlTo := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_xml_r13 (id int, payload text)",
+			"CREATE TABLE audit_xml_r13 (doc xml, txt text)",
+			"CREATE RULE r_xml_r13 AS ON INSERT TO t_xml_r13 WHERE XMLPARSE(DOCUMENT NEW.payload) IS DOCUMENT DO ALSO INSERT INTO audit_xml_r13 (doc, txt) VALUES (XMLELEMENT(NAME item, XMLATTRIBUTES(NEW.id AS id), XMLPARSE(DOCUMENT '<a/>')), XMLSERIALIZE(DOCUMENT XMLPARSE(DOCUMENT '<a/>') AS text))",
+		} {
+			if code := simulationCatalogCode(t, c115XmlFrom, stmt); code != "0" {
+				t.Fatalf("c115XmlFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_xml_r13 (id int, payload text)",
+			"CREATE TABLE audit_xml_r13 (doc xml, txt text)",
+			"CREATE RULE r_xml_r13 AS ON INSERT TO t_xml_r13 WHERE XMLPARSE(DOCUMENT NEW.payload) IS DOCUMENT DO ALSO INSERT INTO audit_xml_r13 (doc, txt) VALUES (XMLELEMENT(NAME item, XMLATTRIBUTES(NEW.id AS id), XMLPARSE(DOCUMENT '<b/>')), XMLSERIALIZE(DOCUMENT XMLPARSE(DOCUMENT '<b/>') AS text))",
+		} {
+			if code := simulationCatalogCode(t, c115XmlTo, stmt); code != "0" {
+				t.Fatalf("c115XmlTo %s: %s", stmt, code)
+			}
+		}
+		migEmpty115Xml := GenerateMigration(New(), c115XmlTo, Diff(New(), c115XmlTo))
+		if !strings.Contains(migEmpty115Xml.SQL(), "XMLPARSE(DOCUMENT '<b/>')") || !strings.Contains(migEmpty115Xml.SQL(), "XMLSERIALIZE(DOCUMENT") {
+			t.Fatalf("expected XML expressions in rule migration DDL, got:\n%s", migEmpty115Xml.SQL())
+		}
+		c115XmlApplied := New()
+		if code := simulationCatalogCode(t, c115XmlApplied, migEmpty115Xml.SQL()); code != "0" {
+			t.Fatalf("applying empty->c115XmlTo failed with %s:\n%s", code, migEmpty115Xml.SQL())
+		}
+		if rem := GenerateMigration(c115XmlApplied, c115XmlTo, Diff(c115XmlApplied, c115XmlTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c115XmlTo, got:\n%s", rem.SQL())
+		}
+		mig115XmlDiff := GenerateMigration(c115XmlFrom, c115XmlTo, Diff(c115XmlFrom, c115XmlTo))
+		if !strings.Contains(mig115XmlDiff.SQL(), "XMLPARSE(DOCUMENT '<b/>')") {
+			t.Fatalf("expected XML diff in rule migration, got:\n%s", mig115XmlDiff.SQL())
+		}
+
+		c115IdxColl := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA s_coll_r13",
+			"CREATE COLLATION c_idx_r13 (LOCALE = 'C')",
+			"CREATE TABLE t_idx_r13 (a text)",
+			"CREATE INDEX idx_coll_r13 ON t_idx_r13 (a COLLATE c_idx_r13)",
+			"ALTER COLLATION c_idx_r13 RENAME TO d_idx_r13",
+			"ALTER COLLATION d_idx_r13 SET SCHEMA s_coll_r13",
+		} {
+			if code := simulationCatalogCode(t, c115IdxColl, stmt); code != "0" {
+				t.Fatalf("c115IdxColl %s: %s", stmt, code)
+			}
+		}
+		migEmpty115Idx := GenerateMigration(New(), c115IdxColl, Diff(New(), c115IdxColl))
+		if !strings.Contains(migEmpty115Idx.SQL(), "COLLATE s_coll_r13.d_idx_r13") {
+			t.Fatalf("expected updated index collation in migration DDL, got:\n%s", migEmpty115Idx.SQL())
+		}
+		c115IdxApplied := New()
+		if code := simulationCatalogCode(t, c115IdxApplied, migEmpty115Idx.SQL()); code != "0" {
+			t.Fatalf("applying empty->c115IdxColl failed with %s:\n%s", code, migEmpty115Idx.SQL())
+		}
+		if rem := GenerateMigration(c115IdxApplied, c115IdxColl, Diff(c115IdxApplied, c115IdxColl)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c115IdxColl, got:\n%s", rem.SQL())
+		}
+
+		// Review round 14 regressions:
+		// 1. Table functions (RangeFunction, ROWS FROM, WITH ORDINALITY, aliases,
+		//    and column definitions) in rule actions are rendered by deparseTableRef.
+		// 2. Constraint-backed index attribute renames (ALTER INDEX ... RENAME COLUMN)
+		//    are diffed and emitted in migrations.
+		// 3. Views with duplicated base columns (SELECT a, a FROM t) exclude both
+		//    occurrences from auto-updatability under WITH CHECK OPTION.
+		// 4. Retained rules referencing a modified collation are dropped in PhasePre
+		//    and recreated in PhaseMain around the collation replacement.
+		// 5. DROP COLLATION refuses direct drops of extension-owned collations (2BP01).
+		c116From := New()
+		c116To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_mod_r14 (LOCALE = 'C')",
+			"CREATE TABLE t_r14 (id int CONSTRAINT t_r14_pkey PRIMARY KEY, v text)",
+			"CREATE TABLE audit_r14 (n int, ord bigint, v text)",
+			"CREATE RULE r_tf_r14 AS ON INSERT TO t_r14 WHERE (NEW.v COLLATE c_mod_r14) > 'a' DO ALSO INSERT INTO audit_r14 (n, ord, v) SELECT g.x, g.ord, NEW.v FROM generate_series(1, 2) WITH ORDINALITY AS g(x, ord)",
+		} {
+			if code := simulationCatalogCode(t, c116From, stmt); code != "0" {
+				t.Fatalf("c116From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_mod_r14 (LOCALE = 'POSIX')",
+			"CREATE TABLE t_r14 (id int CONSTRAINT t_r14_pkey PRIMARY KEY, v text)",
+			"ALTER TABLE t_r14_pkey RENAME COLUMN id TO pk_id",
+			"CREATE TABLE audit_r14 (n int, ord bigint, v text)",
+			"CREATE RULE r_tf_r14 AS ON INSERT TO t_r14 WHERE (NEW.v COLLATE c_mod_r14) > 'a' DO ALSO INSERT INTO audit_r14 (n, ord, v) SELECT g.x, g.ord, NEW.v FROM generate_series(1, 2) WITH ORDINALITY AS g(x, ord)",
+		} {
+			if code := simulationCatalogCode(t, c116To, stmt); code != "0" {
+				t.Fatalf("c116To %s: %s", stmt, code)
+			}
+		}
+		migEmpty116 := GenerateMigration(New(), c116To, Diff(New(), c116To))
+		if !strings.Contains(migEmpty116.SQL(), "generate_series(1, 2) WITH ORDINALITY AS g (x, ord)") {
+			t.Fatalf("expected RangeFunction in rule migration DDL, got:\n%s", migEmpty116.SQL())
+		}
+		if !strings.Contains(migEmpty116.SQL(), "RENAME COLUMN id TO pk_id") {
+			t.Fatalf("expected constraint-backed index column rename in empty->c116To DDL, got:\n%s", migEmpty116.SQL())
+		}
+		c116Applied := New()
+		if code := simulationCatalogCode(t, c116Applied, migEmpty116.SQL()); code != "0" {
+			t.Fatalf("applying empty->c116To failed with %s:\n%s", code, migEmpty116.SQL())
+		}
+		if rem := GenerateMigration(c116Applied, c116To, Diff(c116Applied, c116To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c116To, got:\n%s", rem.SQL())
+		}
+		mig116 := GenerateMigration(c116From, c116To, Diff(c116From, c116To))
+		if !strings.Contains(mig116.SQL(), `DROP RULE "r_tf_r14"`) || !strings.Contains(mig116.SQL(), `CREATE RULE "r_tf_r14"`) {
+			t.Fatalf("expected rule rebuild around collation modification, got:\n%s", mig116.SQL())
+		}
+		if !strings.Contains(mig116.SQL(), "RENAME COLUMN id TO pk_id") {
+			t.Fatalf("expected constraint-backed index column rename in c116From->c116To, got:\n%s", mig116.SQL())
+		}
+		if code := simulationCatalogCode(t, c116From, mig116.SQL()); code != "0" {
+			t.Fatalf("applying c116From->c116To failed with %s:\n%s", code, mig116.SQL())
+		}
+		if rem := GenerateMigration(c116From, c116To, Diff(c116From, c116To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c116From->c116To, got:\n%s", rem.SQL())
+		}
+
+		// Duplicate base column projections in a WITH CHECK OPTION view are accepted by PostgreSQL.
+		if code := simulationCatalogCode(t, c116To, "CREATE VIEW v_dup_r14(x, y) AS SELECT id, id FROM t_r14 WITH CHECK OPTION"); code != "0" {
+			t.Fatalf("CREATE VIEW with duplicate base column and WITH CHECK OPTION answered %s, want 0", code)
+		}
+
+		// Extension-owned collation cannot be dropped directly.
+		RegisterExtensionSQL("test_coll_ext_r14", "CREATE COLLATION ext_coll_r14 (LOCALE = 'C');")
+		defer delete(extensionScripts, "test_coll_ext_r14")
+		c116Ext := New()
+		if code := simulationCatalogCode(t, c116Ext, "CREATE EXTENSION test_coll_ext_r14"); code != "0" {
+			t.Fatalf("CREATE EXTENSION test_coll_ext_r14: %s", code)
+		}
+		if code := simulationCatalogCode(t, c116Ext, "DROP COLLATION ext_coll_r14 CASCADE"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION on extension member answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// Review round 15 regressions:
+		// 1. PREPARE validates INSERT, UPDATE, DELETE, and MERGE statements before
+		//    registering them in preparedStmts.
+		// 2. Collation ownership changes (ALTER COLLATION ... OWNER TO) are diffed
+		//    and emitted in migrations without dropping dependent objects.
+		// 3. ON SELECT rules enforce PostgreSQL 17 view-rule restrictions (_RETURN
+		//    name, view target, OR REPLACE, unconditional INSTEAD single SELECT).
+		// 4. Recursive CTE SEARCH and CYCLE clauses are preserved when deparsing rules.
+		// 5. Rule actions with RETURNING require an unconditional INSTEAD rule and
+		//    matching target relation column count.
+		// 6. Three-component whole-row star references (otherdb.public.t.*) reject
+		//    cross-database catalog names (0A000).
+		c117 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r15 (id int, parent_id int, val text)",
+			"CREATE TABLE dst_r15 (id int, val text)",
+			"CREATE VIEW v_r15 AS SELECT id, val FROM t_r15",
+		} {
+			if code := simulationCatalogCode(t, c117, stmt); code != "0" {
+				t.Fatalf("c117 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"PREPARE p_bad_ins AS INSERT INTO no_such_tbl VALUES (1)", CodeUndefinedTable},
+			{"PREPARE p_bad_upd AS UPDATE t_r15 SET no_such_col = 1", CodeUndefinedColumn},
+			{"PREPARE p_bad_del AS DELETE FROM t_r15 WHERE no_such_col = $1", CodeUndefinedColumn},
+			{"PREPARE p_bad_mrg AS MERGE INTO no_such_tbl USING t_r15 ON true WHEN MATCHED THEN DELETE", CodeUndefinedTable},
+			{"CREATE RULE r_sel_tbl AS ON SELECT TO t_r15 DO INSTEAD SELECT * FROM t_r15", CodeWrongObjectType},
+			{"CREATE RULE r_sel_v AS ON SELECT TO v_r15 DO INSTEAD SELECT id, val FROM t_r15", CodeObjectNotInPrerequisiteState},
+			{"CREATE OR REPLACE RULE r_sel_v AS ON SELECT TO v_r15 DO INSTEAD SELECT id, val FROM t_r15", CodeInvalidObjectDefinition},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 WHERE true DO INSTEAD SELECT id, val FROM t_r15`, CodeFeatureNotSupported},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 DO ALSO SELECT id, val FROM t_r15`, CodeFeatureNotSupported},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 DO INSTEAD SELECT id FROM t_r15`, CodeInvalidObjectDefinition},
+			{"CREATE RULE r_ret_also AS ON INSERT TO t_r15 DO ALSO INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING *", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_where AS ON INSERT TO t_r15 WHERE NEW.id > 0 DO INSTEAD INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING *", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_cols AS ON INSERT TO t_r15 DO INSTEAD INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val", CodeInvalidObjectDefinition},
+			{"CREATE VIEW v_cross_db_r15 AS SELECT row(otherdb.public.t_r15.*) FROM t_r15", CodeFeatureNotSupported},
+			{"CREATE VIEW v_cross_db_star_r15 AS SELECT otherdb.public.t_r15.* FROM t_r15", CodeFeatureNotSupported},
+		} {
+			if got := simulationCatalogCode(t, c117, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+		// Failed PREPARE must not occupy the prepared statement name.
+		if got := simulationCatalogCode(t, c117, "PREPARE p_bad_ins AS INSERT INTO dst_r15 (id, val) VALUES ($1, $2)"); got != "0" {
+			t.Fatalf("valid PREPARE after failed PREPARE answered %s, want 0", got)
+		}
+
+		// Recursive CTE SEARCH and CYCLE in rule action + collation owner diff.
+		c117From := New()
+		c117To := New()
+		for _, stmt := range []string{
+			"CREATE ROLE owner_r15",
+			"CREATE COLLATION c_own_r15 (LOCALE = 'C')",
+			"CREATE TABLE tree_r15 (id int, parent_id int)",
+			"CREATE TABLE log_r15 (id int, is_cycle boolean)",
+		} {
+			if code := simulationCatalogCode(t, c117From, stmt); code != "0" {
+				t.Fatalf("c117From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE ROLE owner_r15",
+			"CREATE COLLATION c_own_r15 (LOCALE = 'C')",
+			"ALTER COLLATION c_own_r15 OWNER TO owner_r15",
+			"CREATE TABLE tree_r15 (id int, parent_id int)",
+			"CREATE TABLE log_r15 (id int, is_cycle boolean)",
+			"CREATE RULE r_cte_r15 AS ON INSERT TO tree_r15 DO ALSO WITH RECURSIVE w(id, parent_id) AS (SELECT NEW.id, NEW.parent_id UNION ALL SELECT t.id, t.parent_id FROM tree_r15 t JOIN w ON t.parent_id = w.id) SEARCH DEPTH FIRST BY id SET seq_col CYCLE id SET is_cycle USING path_col INSERT INTO log_r15 (id, is_cycle) SELECT id, is_cycle FROM w ORDER BY seq_col",
+		} {
+			if code := simulationCatalogCode(t, c117To, stmt); code != "0" {
+				t.Fatalf("c117To %s: %s", stmt, code)
+			}
+		}
+		mig117 := GenerateMigration(c117From, c117To, Diff(c117From, c117To))
+		if !strings.Contains(mig117.SQL(), "ALTER COLLATION \"public\".\"c_own_r15\" OWNER TO owner_r15") {
+			t.Fatalf("expected ALTER COLLATION OWNER TO in migration DDL, got:\n%s", mig117.SQL())
+		}
+		if !strings.Contains(mig117.SQL(), "SEARCH DEPTH FIRST BY id SET seq_col") || !strings.Contains(mig117.SQL(), "CYCLE id SET is_cycle") {
+			t.Fatalf("expected SEARCH and CYCLE clauses in rule migration DDL, got:\n%s", mig117.SQL())
+		}
+		if code := simulationCatalogCode(t, c117From, mig117.SQL()); code != "0" {
+			t.Fatalf("applying c117From->c117To failed with %s:\n%s", code, mig117.SQL())
+		}
+		if rem := GenerateMigration(c117From, c117To, Diff(c117From, c117To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c117From->c117To, got:\n%s", rem.SQL())
+		}
+
+		// Round 16 regressions:
+		// 1. Aliased joins in rule FROM clauses are bound in scope and deparsed with
+		//    parentheses and alias.
+		// 2. GroupingSet (ROLLUP, CUBE, GROUPING SETS) is bound and deparsed in rule queries.
+		// 3. FETCH FIRST ... ROWS WITH TIES is preserved when deparsing rules.
+		// 4. LockingClause (FOR UPDATE, FOR SHARE, OF ..., NOWAIT, SKIP LOCKED) is
+		//    bound and deparsed in rule queries.
+		// 5. Columns exposed by virtual range sources (subqueries, CTEs, table
+		//    functions, XMLTABLE, JSON_TABLE, sequences, aliased joins) are validated.
+		// 6. SQLValueFunction precision (CURRENT_TIMESTAMP(3), LOCALTIME(2), etc.)
+		//    is preserved when deparsing rules.
+		// 7. RangeTableFunc (XMLTABLE) and JsonTable (JSON_TABLE) sources are bound
+		//    and deparsed in rule queries.
+		// 8. Domains depending on rebuilt range types are dropped in PhasePre before
+		//    the range and recreated in PhaseMain after the range.
+		c118 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+		} {
+			if code := simulationCatalogCode(t, c118, stmt); code != "0" {
+				t.Fatalf("c118 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_bad_subq AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT s.missing FROM (SELECT 1 AS present) AS s", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_subq_unqual AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT missing FROM (SELECT 1 AS present) AS s", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_cte AS ON INSERT TO t1_r16 DO ALSO WITH w AS (SELECT 1 AS present) INSERT INTO dst_r16 (a) SELECT w.missing FROM w", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_join_alias AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT j.missing FROM (t1_r16 JOIN t2_r16 USING (a)) AS j", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_xmltable AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT xt.missing FROM XMLTABLE('/rows/row' PASSING '<rows/>'::xml COLUMNS id int PATH 'id') AS xt", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_jsontable AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT jt.missing FROM JSON_TABLE('[]'::jsonb, '$[*]' COLUMNS (id int PATH '$.id')) AS jt", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_grouping AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT a FROM t1_r16 GROUP BY ROLLUP (no_such_col)", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_lock_rel AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT a FROM t1_r16 FOR UPDATE OF no_such_rel", CodeUndefinedTable},
+		} {
+			if got := simulationCatalogCode(t, c118, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c118From := New()
+		c118To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r16 (LOCALE = 'C')",
+			"CREATE TYPE rng_r16 AS RANGE (SUBTYPE = text, COLLATION = coll_r16)",
+			"CREATE DOMAIN dom_rng_r16 AS rng_r16",
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+		} {
+			if code := simulationCatalogCode(t, c118From, stmt); code != "0" {
+				t.Fatalf("c118From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r16 (LOCALE = 'POSIX')",
+			"CREATE TYPE rng_r16 AS RANGE (SUBTYPE = text, COLLATION = coll_r16)",
+			"CREATE DOMAIN dom_rng_r16 AS rng_r16",
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+			"CREATE RULE r_join_r16 AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT j.a, CURRENT_TIMESTAMP(3)::text FROM (t1_r16 JOIN t2_r16 USING (a)) AS j ORDER BY j.a FETCH FIRST 1 ROWS WITH TIES FOR UPDATE OF t1_r16 NOWAIT",
+			"CREATE RULE r_grp_r16 AS ON UPDATE TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT a, LOCALTIME(2)::text FROM t1_r16 GROUP BY ROLLUP (a, b)",
+			"CREATE RULE r_xml_json_r16 AS ON DELETE TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT xt.id, jt.name FROM XMLTABLE('/rows/row' PASSING '<rows/>'::xml COLUMNS id int PATH 'id') AS xt, JSON_TABLE('[]'::jsonb, '$[*]' COLUMNS (name text PATH '$.name')) AS jt",
+		} {
+			if code := simulationCatalogCode(t, c118To, stmt); code != "0" {
+				t.Fatalf("c118To %s: %s", stmt, code)
+			}
+		}
+		mig118 := GenerateMigration(c118From, c118To, Diff(c118From, c118To))
+		sql118 := mig118.SQL()
+		for _, wantSubstr := range []string{
+			"DROP DOMAIN \"public\".\"dom_rng_r16\"",
+			"CREATE DOMAIN \"public\".\"dom_rng_r16\" AS rng_r16",
+			"(t1_r16 JOIN t2_r16 USING (a)) AS j",
+			"CURRENT_TIMESTAMP(3)",
+			"FETCH FIRST 1 ROWS WITH TIES",
+			"FOR UPDATE OF t1_r16 NOWAIT",
+			"LOCALTIME(2)",
+			"GROUP BY ROLLUP(a, b)",
+			"XMLTABLE('/rows/row' PASSING ('<rows/>')::xml COLUMNS id integer PATH 'id') AS xt",
+			"JSON_TABLE(('[]')::jsonb, '$[*]' COLUMNS (name text PATH '$.name')) AS jt",
+		} {
+			if !strings.Contains(sql118, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql118)
+			}
+		}
+		if code := simulationCatalogCode(t, c118From, sql118); code != "0" {
+			t.Fatalf("applying c118From->c118To failed with %s:\n%s", code, sql118)
+		}
+		if rem := GenerateMigration(c118From, c118To, Diff(c118From, c118To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c118From->c118To, got:\n%s", rem.SQL())
+		}
+
+		// Round 17 regressions:
+		// 1. ON CONFLICT ON CONSTRAINT binds the constraint by OID and tracks renames.
+		// 2. ON CONFLICT (col COLLATE ... opclass ...) preserves arbiter modifiers.
+		// 3. PREPARE rejects unresolved parameter types with 42P18.
+		// 4. NATURAL JOIN keys in stored rules are frozen at rule creation time.
+		// 5. USING and NATURAL join columns record column dependencies on both inputs.
+		// 6. Functional casts typename(expr) bind to the type OID and track renames/schema moves.
+		// 7. ORDER BY ... USING op binds the operator and records dependencies.
+		c119 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t1_r17 (id int, s text, CONSTRAINT uq_r17 UNIQUE (s))",
+			"CREATE TABLE t2_r17 (id int, s text)",
+			"CREATE TABLE dst_r17 (id int, s text)",
+			"CREATE DOMAIN dom_r17 AS text",
+			"CREATE FUNCTION cmp_lt_r17(int, int) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE OPERATOR <<< (LEFTARG = int, RIGHTARG = int, FUNCTION = cmp_lt_r17)",
+			"CREATE RULE r_using_dep_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO dst_r17 (id, s) SELECT 1, 'x' FROM t1_r17 JOIN t2_r17 USING (id) ORDER BY t1_r17.id USING <<<",
+		} {
+			if code := simulationCatalogCode(t, c119, stmt); code != "0" {
+				t.Fatalf("c119 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"PREPARE q_untyped_r17 AS SELECT ($1 IS NULL)", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_where_r17 AS SELECT 1 WHERE $1 IS NULL", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_gap_r17 AS SELECT $2", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_del_r17 AS DELETE FROM t1_r17 WHERE $1 IS NULL", CodeIndeterminateDatatype},
+			{"ALTER TABLE t2_r17 DROP COLUMN id RESTRICT", CodeDependentObjects},
+			{"DROP OPERATOR <<< (int, int) RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_sort_op_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO dst_r17 (id, s) SELECT id, s FROM t1_r17 ORDER BY id USING >>>", CodeUndefinedFunction},
+			{"CREATE RULE r_bad_con_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) VALUES (NEW.id, NEW.s) ON CONFLICT ON CONSTRAINT no_such_con DO NOTHING", CodeUndefinedObject},
+		} {
+			if got := simulationCatalogCode(t, c119, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c119From := New()
+		c119To := New()
+		for _, stmt := range []string{
+			"CREATE DOMAIN dom_r17_old AS text",
+			"CREATE TABLE t1_r17 (id int, s text, CONSTRAINT uq_r17_old UNIQUE (s))",
+			"CREATE TABLE t2_r17 (id int)",
+			"CREATE TABLE dst_r17 (id int, s text)",
+			`CREATE RULE r_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) SELECT id, dom_r17_old('v') FROM t1_r17 NATURAL JOIN t2_r17 ON CONFLICT ON CONSTRAINT uq_r17_old DO NOTHING`,
+			`CREATE RULE r_arb_r17 AS ON UPDATE TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) VALUES (NEW.id, NEW.s) ON CONFLICT (s COLLATE "C" text_pattern_ops DESC NULLS FIRST) DO NOTHING`,
+			"ALTER DOMAIN dom_r17_old RENAME TO dom_r17_new",
+			"ALTER TABLE t1_r17 RENAME CONSTRAINT uq_r17_old TO uq_r17_new",
+			"ALTER TABLE t1_r17 ADD COLUMN extra int",
+			"ALTER TABLE t2_r17 ADD COLUMN extra int",
+		} {
+			if code := simulationCatalogCode(t, c119To, stmt); code != "0" {
+				t.Fatalf("c119To %s: %s", stmt, code)
+			}
+		}
+		mig119 := GenerateMigration(c119From, c119To, Diff(c119From, c119To))
+		sql119 := mig119.SQL()
+		for _, wantSubstr := range []string{
+			"dom_r17_new('v')",
+			"FROM t1_r17 JOIN t2_r17 USING (id)",
+			"ON CONFLICT ON CONSTRAINT uq_r17_new DO NOTHING",
+			`ON CONFLICT (s COLLATE "C" text_pattern_ops DESC NULLS FIRST) DO NOTHING`,
+		} {
+			if !strings.Contains(sql119, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql119)
+			}
+		}
+		if strings.Contains(sql119, "NATURAL") {
+			t.Fatalf("expected frozen USING instead of NATURAL in migration DDL, got:\n%s", sql119)
+		}
+		if code := simulationCatalogCode(t, c119From, sql119); code != "0" {
+			t.Fatalf("applying c119From->c119To failed with %s:\n%s", code, sql119)
+		}
+		if rem := GenerateMigration(c119From, c119To, Diff(c119From, c119To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c119From->c119To, got:\n%s", rem.SQL())
+		}
+
+		// Round 18 regressions:
+		// 1. Function calls in rules require a matching overload arity.
+		// 2. regclass literals in function calls (e.g. nextval('s')) record sequence/relation
+		//    dependencies and track renames when deparsed.
+		// 3. WHERE CURRENT OF cursor_name is deparsed in rule actions.
+		// 4. Implicit subquery output column names in rules are preserved with AS when
+		//    the underlying table column is renamed.
+		// 5. JOIN ... USING (...) AS join_using_alias is bound in scope and deparsed.
+		// 6. Cross-database RangeVar catalog names in rules are rejected with 0A000.
+		c120 := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r18",
+			"CREATE TABLE t1_r18 (id int, val text)",
+			"CREATE TABLE t2_r18 (id int, val text)",
+			"CREATE TABLE dst_r18 (id bigint, val text)",
+			"CREATE FUNCTION fn_two_args_r18(int, int) RETURNS int LANGUAGE sql AS 'SELECT $1 + $2'",
+			"CREATE RULE r_seq_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) VALUES (nextval('seq_r18'), NEW.val)",
+		} {
+			if code := simulationCatalogCode(t, c120, stmt); code != "0" {
+				t.Fatalf("c120 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_bad_arity_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT fn_two_args_r18(1), 'x'", CodeUndefinedFunction},
+			{"DROP SEQUENCE seq_r18 RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_seq_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) VALUES (nextval('no_such_seq_r18'), NEW.val)", CodeUndefinedTable},
+			{"CREATE RULE r_bad_db_src_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT id, val FROM otherdb.public.t1_r18", CodeFeatureNotSupported},
+			{"CREATE RULE r_bad_db_dst_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO otherdb.public.dst_r18 (id, val) VALUES (1, 'x')", CodeFeatureNotSupported},
+			{"CREATE RULE r_bad_ju_col_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT ju.val, 'x' FROM t1_r18 JOIN t2_r18 USING (id) AS ju", CodeUndefinedColumn},
+		} {
+			if got := simulationCatalogCode(t, c120, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c120From := New()
+		c120To := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r18_old",
+			"CREATE TABLE t1_r18 (id int, a int, val text)",
+			"CREATE TABLE t2_r18 (id int, val text)",
+			"CREATE TABLE dst_r18 (id bigint, val text)",
+			"CREATE RULE r_all_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT s.a + ju.id + nextval('seq_r18_old'), 'ok' FROM (SELECT t1_r18.a FROM t1_r18) AS s, (t1_r18 t1x JOIN t2_r18 USING (id) AS ju)",
+			"CREATE RULE r_cur_r18 AS ON DELETE TO t1_r18 DO ALSO DELETE FROM t2_r18 WHERE CURRENT OF cur_r18",
+			"ALTER SEQUENCE seq_r18_old RENAME TO seq_r18_new",
+			"ALTER TABLE t1_r18 RENAME COLUMN a TO b",
+		} {
+			if code := simulationCatalogCode(t, c120To, stmt); code != "0" {
+				t.Fatalf("c120To %s: %s", stmt, code)
+			}
+		}
+		mig120 := GenerateMigration(c120From, c120To, Diff(c120From, c120To))
+		sql120 := mig120.SQL()
+		for _, wantSubstr := range []string{
+			"nextval('seq_r18_new')",
+			"SELECT t1_r18.b AS a FROM t1_r18",
+			"USING (id) AS ju",
+			"WHERE CURRENT OF cur_r18",
+		} {
+			if !strings.Contains(sql120, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql120)
+			}
+		}
+		if code := simulationCatalogCode(t, c120From, sql120); code != "0" {
+			t.Fatalf("applying c120From->c120To failed with %s:\n%s", code, sql120)
+		}
+		if rem := GenerateMigration(c120From, c120To, Diff(c120From, c120To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c120From->c120To, got:\n%s", rem.SQL())
+		}
+
+		// Round 19 regressions:
+		// 1. Reject INSERT (and MERGE ... INSERT) rows or SELECT lists shorter than their target list (42601).
+		// 2. Resolve bare range names (SELECT src FROM src, bare OLD/NEW) as whole-row references.
+		// 3. Resolve function overloads in rules by argument types and record dependency only on the winning overload.
+		// 4. Resolve operator overloads in rules by operand types and record dependency only on the winning overload.
+		// 5. Freeze expanded * and qual.* target-list entries in stored rule actions at rule creation time.
+		// 6. Require boolean rule qualifications (WHERE, HAVING, JOIN ON, WHEN) (42804).
+		// 7. Validate set-operation (UNION/INTERSECT/EXCEPT) column counts (42601) and type compatibility (42804).
+		// 8. Drop temporary tables, views, and sequences on DISCARD TEMP and DISCARD ALL.
+		c121 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r19 (id int, val text)",
+			"CREATE TABLE dst_r19 (id int, val text)",
+			"CREATE TABLE row_dst_r19 (r t_r19)",
+			"CREATE FUNCTION fn_ov_r19(int) RETURNS int LANGUAGE sql AS 'SELECT $1'",
+			"CREATE FUNCTION fn_ov_r19(text) RETURNS text LANGUAGE sql AS 'SELECT $1'",
+			"CREATE FUNCTION op_int_r19(int, int) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE FUNCTION op_txt_r19(text, text) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE OPERATOR <<< (LEFTARG = int, RIGHTARG = int, FUNCTION = op_int_r19)",
+			"CREATE OPERATOR <<< (LEFTARG = text, RIGHTARG = text, FUNCTION = op_txt_r19)",
+			"CREATE RULE r_ov_r19 AS ON INSERT TO t_r19 WHERE NEW.id <<< 10 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (fn_ov_r19(NEW.id), NEW.val)",
+			"CREATE RULE r_wholerow_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO row_dst_r19 (r) SELECT t_r19 FROM t_r19",
+			// Unreferenced overloads fn_ov_r19(text) and <<< (text, text) can be dropped under RESTRICT.
+			"DROP FUNCTION fn_ov_r19(text) RESTRICT",
+			"DROP OPERATOR <<< (text, text) RESTRICT",
+			// DISCARD TEMP drops temporary tables, views, and sequences.
+			"CREATE TEMP TABLE tmp_t_r19 (id serial, v text)",
+			"CREATE TEMP VIEW tmp_v_r19 AS SELECT id, v FROM tmp_t_r19",
+			"CREATE TEMP SEQUENCE tmp_s_r19",
+			"DISCARD TEMP",
+			"CREATE TABLE tmp_t_r19 (id int)",
+			"CREATE VIEW tmp_v_r19 AS SELECT id FROM tmp_t_r19",
+			"CREATE SEQUENCE tmp_s_r19",
+		} {
+			if code := simulationCatalogCode(t, c121, stmt); code != "0" {
+				t.Fatalf("c121 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"DROP FUNCTION fn_ov_r19(int) RESTRICT", CodeDependentObjects},
+			{"DROP OPERATOR <<< (int, int) RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_fn_type_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (fn_ov_r19(NEW.val), NEW.val)", CodeUndefinedFunction},
+			{"CREATE RULE r_short_vals_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (1)", CodeSyntaxError},
+			{"CREATE RULE r_short_sel_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id FROM t_r19", CodeSyntaxError},
+			{"CREATE RULE r_bad_where_r19 AS ON INSERT TO t_r19 WHERE NEW.id DO ALSO NOTHING", CodeDatatypeMismatch},
+			{"CREATE RULE r_bad_act_where_r19 AS ON INSERT TO t_r19 DO ALSO DELETE FROM dst_r19 WHERE 1", CodeDatatypeMismatch},
+			{"CREATE RULE r_bad_union_cnt_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id, val FROM t_r19 UNION SELECT id FROM t_r19", CodeSyntaxError},
+			{"CREATE RULE r_bad_union_typ_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id, val FROM t_r19 UNION SELECT val, val FROM t_r19", CodeDatatypeMismatch},
+		} {
+			if got := simulationCatalogCode(t, c121, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c121From := New()
+		c121To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE src_r19 (id int, val text)",
+			"CREATE TABLE dst_r19 (id int, val text)",
+			"CREATE TABLE row_dst_r19 (r text)",
+			"CREATE RULE r_star_r19 AS ON INSERT TO src_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT * FROM src_r19",
+			"CREATE RULE r_row_r19 AS ON INSERT TO src_r19 DO ALSO INSERT INTO row_dst_r19 (r) SELECT (src_r19)::text FROM src_r19",
+			"ALTER TABLE src_r19 ADD COLUMN extra int",
+			"ALTER TABLE src_r19 RENAME COLUMN id TO id_new",
+			"ALTER TABLE src_r19 RENAME TO src_r19_new",
+		} {
+			if code := simulationCatalogCode(t, c121To, stmt); code != "0" {
+				t.Fatalf("c121To %s: %s", stmt, code)
+			}
+		}
+		mig121 := GenerateMigration(c121From, c121To, Diff(c121From, c121To))
+		sql121 := mig121.SQL()
+		for _, wantSubstr := range []string{
+			"SELECT src_r19_new.id_new AS id, src_r19_new.val FROM src_r19_new",
+			"SELECT (src_r19_new)::text AS src_r19 FROM src_r19_new",
+		} {
+			if !strings.Contains(sql121, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql121)
+			}
+		}
+		if code := simulationCatalogCode(t, c121From, sql121); code != "0" {
+			t.Fatalf("applying c121From->c121To failed with %s:\n%s", code, sql121)
+		}
+		if rem := GenerateMigration(c121From, c121To, Diff(c121From, c121To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c121From->c121To, got:\n%s", rem.SQL())
+		}
+
+		// Round 20 regressions:
+		// 1. Reject parameter references ($1) in stored rules (42P02).
+		// 2. Reject a second unconditional INSTEAD rule with a RETURNING clause on the same relation/event (0A000),
+		//    while allowing CREATE OR REPLACE RULE of the existing rule, and validate RETURNING column types (42804).
+		// 3. Validate recursive CTE SEARCH and CYCLE source/output column names in rule actions (42703 / 42701).
+		// 4. Reject CREATE/RENAME/SET SCHEMA of a collation colliding with a built-in collation name in pg_catalog (42710).
+		c122 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r20 (id int, val text)",
+			"CREATE TABLE dst_r20 (id int, val text)",
+			"CREATE RULE r_ret1_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val",
+			"CREATE OR REPLACE RULE r_ret1_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val",
+			"CREATE RULE r_cte_ok_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id + 1 FROM cte WHERE id < 5) SEARCH DEPTH FIRST BY id SET ord CYCLE id SET is_cycle USING path INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte",
+			"CREATE COLLATION public.user_c_r20 (LOCALE = 'C')",
+			"CREATE COLLATION IF NOT EXISTS pg_catalog.\"C\" (LOCALE = 'C')",
+		} {
+			if code := simulationCatalogCode(t, c122, stmt); code != "0" {
+				t.Fatalf("c122 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_param_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES ($1, NEW.val)", CodeUndefinedParameter},
+			{"CREATE RULE r_param_where_r20 AS ON INSERT TO t_r20 WHERE NEW.id = $1 DO ALSO NOTHING", CodeUndefinedParameter},
+			{"CREATE RULE r_ret2_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_type_r20 AS ON DELETE TO t_r20 DO INSTEAD DELETE FROM dst_r20 RETURNING val, id", CodeDatatypeMismatch},
+			{"CREATE RULE r_search_missing_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) SEARCH DEPTH FIRST BY missing SET ord INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeUndefinedColumn},
+			{"CREATE RULE r_cycle_missing_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) CYCLE missing SET is_cycle USING path INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeUndefinedColumn},
+			{"CREATE RULE r_search_dup_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) SEARCH DEPTH FIRST BY id SET id INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeDuplicateColumn},
+			{"CREATE COLLATION pg_catalog.\"C\" (LOCALE = 'C')", CodeDuplicateObject},
+			{"ALTER COLLATION public.user_c_r20 SET SCHEMA pg_catalog", "0"},
+			{"ALTER COLLATION pg_catalog.user_c_r20 RENAME TO \"C\"", CodeDuplicateObject},
+			{"ALTER TABLE t_r20 ALTER COLUMN id TYPE bigint", CodeFeatureNotSupported},
+			{"CREATE RULE r_dup_col_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, id) VALUES (1, 2)", CodeSyntaxError},
+			{"CREATE RULE r_type_col_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES ('not_int'::text, 'ok')", CodeDatatypeMismatch},
+			{"CREATE RULE r_coll_int_r20 AS ON INSERT TO t_r20 WHERE (NEW.id COLLATE \"C\") = 1 DO ALSO NOTHING", CodeDatatypeMismatch},
+			{"CREATE RULE r_sublink_cols_r20 AS ON INSERT TO t_r20 WHERE NEW.id = (SELECT id, val FROM dst_r20) DO ALSO NOTHING", CodeSyntaxError},
+			{"CREATE RULE r_limit_type_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 LIMIT 'abc'::text", CodeDatatypeMismatch},
+			{"CREATE RULE r_ord_oob_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 ORDER BY 2", CodeInvalidColumnReference},
+			{"PREPARE q_oob_r21(int) AS SELECT $2::int", CodeUndefinedParameter},
+			{"PREPARE q_oob_null_r26(int) AS SELECT 1 WHERE $2 IS NULL", CodeUndefinedParameter},
+			{"PREPARE q_huge_param_r25 AS SELECT $1000000000::int", CodeUndefinedParameter},
+			{"PREPARE p_upd_from_r26 AS UPDATE t_r20 SET val = s.v FROM (SELECT $1::int AS id, 'x'::text AS v) s WHERE t_r20.id = s.id; CREATE TABLE t_exec_upd_from_r26 AS EXECUTE p_upd_from_r26('2024-01-01'::date)", CodeDatatypeMismatch},
+			{"CREATE RULE r_setop_ord_missing_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 UNION SELECT id FROM dst_r20 ORDER BY no_such_col", CodeUndefinedColumn},
+			{"CREATE RULE r_setop_ord_ok_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 UNION SELECT id FROM dst_r20 ORDER BY id", "0"},
+			{"CREATE RULE r_ungrouped_agg_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id, count(*) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_ungrouped_gb_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id, val FROM t_r20 GROUP BY id", CodeGroupingError},
+			{"CREATE RULE r_grouped_new_ok_r26 AS ON INSERT TO t_r20 DO ALSO SELECT NEW.id, count(*) FROM t_r20", "0"},
+			{"DROP ACCESS METHOD heap", CodeDependentObjects},
+			{"PREPARE p_oid_neg_r27(oid) AS SELECT $1; CREATE TABLE t_oid_neg_r27 AS EXECUTE p_oid_neg_r27('-1')", CodeNumericValueOutOfRange},
+			{"PREPARE p_oid_over_r27(oid) AS SELECT $1; CREATE TABLE t_oid_over_r27 AS EXECUTE p_oid_over_r27('4294967296')", CodeNumericValueOutOfRange},
+			{"PREPARE p_num_big_r27(numeric) AS SELECT $1 AS n; CREATE TABLE t_num_big_r27 AS EXECUTE p_num_big_r27('1e1000')", "0"},
+			{"CREATE VIEW v_shadow_r27 AS SELECT 1 AS a; CREATE OR REPLACE TEMP VIEW v_shadow_r27 AS SELECT 2 AS a; CREATE FUNCTION pg_temp.fn_temp_only_r27() RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE VIEW v_call_temp_fn_r27 AS SELECT fn_temp_only_r27()", CodeUndefinedFunction},
+			{"CREATE COLLATION c_nondet_libc_r25 (PROVIDER = libc, LOCALE = 'C', DETERMINISTIC = false)", CodeFeatureNotSupported},
+			{"PREPARE p_int_r25(int) AS SELECT $1 AS id; CREATE TABLE t_bad_lit_r25 AS EXECUTE p_int_r25('abc')", CodeInvalidTextRepresentation},
+			{"CREATE TABLE t_star_r25 (a int); PREPARE p_star_r25 AS SELECT * FROM t_star_r25; ALTER TABLE t_star_r25 ADD COLUMN b int; CREATE TABLE out_star_r25 AS EXECUTE p_star_r25", CodeFeatureNotSupported},
+			{"CREATE ROLE rep_r25; CREATE INDEX ix_own_r25 ON t_r20 (id); ALTER INDEX ix_own_r25 OWNER TO rep_r25", "0"},
+			{"CREATE VIEW v_ret_dup_r25 AS SELECT id, val::varchar AS v FROM t_r20; CREATE RULE \"_RETURN\" AS ON UPDATE TO v_ret_dup_r25 DO INSTEAD NOTHING", CodeDuplicateObject},
+			{"CREATE OR REPLACE RULE \"_RETURN\" AS ON SELECT TO v_ret_dup_r25 DO INSTEAD SELECT id, val::varchar(5) AS v FROM t_r20", "0"},
+			{"DROP RULE \"_RETURN\" ON v_ret_dup_r25 CASCADE", CodeDependentObjects},
+			{"PREPARE p_ambig_param_r28 AS SELECT $1 + 1, NOT $1", CodeAmbiguousParameter},
+			{"CREATE TABLE t_excl_bad_op_r28 (txt text, EXCLUDE USING btree (txt WITH ||))", CodeUndefinedObject},
+			{"CREATE TABLE t_ri_null_r28 (a int); CREATE UNIQUE INDEX ux_ri_null_r28 ON t_ri_null_r28(a); ALTER TABLE t_ri_null_r28 REPLICA IDENTITY USING INDEX ux_ri_null_r28", CodeInvalidObjectDefinition},
+			{"CREATE TABLE t_ri_part_r28 (a int NOT NULL); CREATE UNIQUE INDEX ux_ri_part_r28 ON t_ri_part_r28(a) WHERE a > 0; ALTER TABLE t_ri_part_r28 REPLICA IDENTITY USING INDEX ux_ri_part_r28", CodeInvalidObjectDefinition},
+			{"CREATE TABLE t_ri_expr_r28 (a int NOT NULL); CREATE UNIQUE INDEX ux_ri_expr_r28 ON t_ri_expr_r28((a + 1)); ALTER TABLE t_ri_expr_r28 REPLICA IDENTITY USING INDEX ux_ri_expr_r28", CodeInvalidObjectDefinition},
+			{"CREATE TABLE t_ri_def_r28 (a int NOT NULL, CONSTRAINT uk_ri_def_r28 UNIQUE (a) DEFERRABLE); ALTER TABLE t_ri_def_r28 REPLICA IDENTITY USING INDEX uk_ri_def_r28", CodeFeatureNotSupported},
+			{"CREATE TABLE t_ret_typmod_r28 (v varchar(3)); CREATE TABLE dst_ret_typmod_r28 (v varchar(10)); CREATE RULE r_ret_typmod_r28 AS ON INSERT TO t_ret_typmod_r28 DO INSTEAD INSERT INTO dst_ret_typmod_r28 VALUES (NEW.v) RETURNING v", CodeDatatypeMismatch},
+			{"CREATE COLLATION c_bad_builtin_r28 (PROVIDER = builtin, LOCALE = 'en_US')", CodeInvalidParameterValue},
+			{"CREATE COLLATION c_ok_builtin_r28 (PROVIDER = builtin, LOCALE = 'C.UTF-8')", "0"},
+			{"CREATE VIEW v_rep_col_chk_r25(x, y) AS SELECT id, id FROM t_r20 WITH LOCAL CHECK OPTION", "0"},
+			{"CREATE OR REPLACE VIEW v_rep_col_chk_r25 AS SELECT id AS renamed_x, id AS y FROM t_r20", CodeInvalidObjectDefinition},
+			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
+			{"CREATE RULE r_select_into_r21 AS ON INSERT TO t_r20 DO ALSO SELECT 1 INTO created_table_r21", CodeSyntaxError},
+			{"CREATE RULE r_bad_tsm_r21 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 TABLESAMPLE no_such_method(10)", CodeUndefinedFunction},
+			{"CREATE RULE r_where_agg_r22 AS ON INSERT TO t_r20 WHERE count(*) > 0 DO ALSO NOTHING", CodeGroupingError},
+			{"CREATE RULE r_where_win_r22 AS ON INSERT TO t_r20 WHERE row_number() OVER () > 0 DO ALSO NOTHING", CodeWindowingError},
+			{"CREATE INDEX idx_io_cast_r22 ON t_r20 ((val::date))", CodeInvalidObjectDefinition},
+			{"ALTER TABLE t_r20 ADD CONSTRAINT u_dup_inc_r22 UNIQUE (id) INCLUDE (val, val)", CodeDuplicateColumn},
+			{"CREATE INDEX idx_bad_opc_opt_r23 ON t_r20 (id int4_ops (foo = 1))", CodeInvalidParameterValue},
+			{"CREATE RULE r_dup_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT 1 FROM dst_r20 AS x, dst_r20 AS x", CodeDuplicateAlias},
+			{"CREATE RULE r_hidden_col_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT x.id FROM dst_r20 AS x(renamed_id)", CodeUndefinedColumn},
+			{"PREPARE p_ret_param_r24 AS UPDATE t_r20 SET val = 'x' RETURNING $1::int; CREATE TABLE t_exec_r24 AS EXECUTE p_ret_param_r24('2024-01-01'::date)", CodeDatatypeMismatch},
+			{"CREATE RULE r_dist_on_order_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT ON (id) id, val FROM t_r20 ORDER BY val", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_on_order_ok_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT ON (id) id, val FROM t_r20 ORDER BY 1, val", "0"},
+			{"CREATE RULE r_lock_dist_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT id FROM t_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_group_r24 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 GROUP BY id FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_agg_r24 AS ON INSERT TO t_r20 DO ALSO SELECT count(*) FROM t_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_setop_r24 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 UNION SELECT id FROM dst_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_oc_upd_no_infer_r24 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) ON CONFLICT DO UPDATE SET val = EXCLUDED.val", CodeSyntaxError},
+			{"CREATE RULE r_win_missing_r25 AS ON INSERT TO t_r20 DO ALSO SELECT row_number() OVER missing_win FROM t_r20", CodeUndefinedObject},
+			{"CREATE RULE r_grouping_no_gb_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(id) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_grouping_non_key_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(val) FROM t_r20 GROUP BY id", CodeGroupingError},
+			{"CREATE TEMP TABLE tmp_ident_r25 (a int); ALTER TABLE tmp_ident_r25 ADD COLUMN id int GENERATED ALWAYS AS IDENTITY; ALTER SEQUENCE tmp_ident_r25_id_seq SET LOGGED", CodeWrongObjectType},
+			// Round 31: rule queries refused as PostgreSQL 17 refuses them, beside forms it accepts.
+			{"CREATE RULE r_rec_shape_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (SELECT * FROM x) INSERT INTO dst_r20 SELECT * FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_rec_left_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT id FROM x UNION ALL SELECT 1) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_rec_mutual_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL SELECT id FROM y), y(id) AS (SELECT 1 UNION ALL SELECT id FROM x) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeFeatureNotSupported},
+			{"CREATE RULE r_rec_ok_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM x WHERE id < 3), y(id) AS (SELECT id FROM x UNION ALL SELECT id FROM y WHERE false) INSERT INTO dst_r20 (id) SELECT id FROM y", "0"},
+			{"CREATE RULE r_win_fwd_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w1 FROM t_r20 WINDOW w1 AS (w2), w2 AS ()", CodeUndefinedObject},
+			{"CREATE RULE r_win_back_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w1 AS (), w2 AS (w1 ORDER BY id)", "0"},
+			{"CREATE RULE r_gb_agg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY count(*)", CodeGroupingError},
+			{"CREATE RULE r_gb_win_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY row_number() OVER ()", CodeWindowingError},
+			{"CREATE RULE r_gb_sub_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY (SELECT count(*) FROM dst_r20)", "0"},
+			{"CREATE RULE r_agg_nest_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(count(*)) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_agg_win_arg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(row_number() OVER ()) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_win_nest_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(row_number() OVER ()) OVER () FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_agg_over_agg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(count(*)) OVER () FROM t_r20", "0"},
+			{"CREATE RULE r_agg_sub_arg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum((SELECT count(*) FROM dst_r20)) FROM t_r20", "0"},
+			{"CREATE RULE r_dist_ord_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT id FROM t_r20 ORDER BY val", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_ord_ok_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT t_r20.id + 1 FROM t_r20 ORDER BY id + 1", "0"},
+			{"CREATE RULE r_dist_alias_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT DISTINCT val AS id FROM t_r20 ORDER BY id", "0"},
+			{"CREATE RULE r_limit_var_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT id", CodeInvalidColumnReference},
+			{"CREATE RULE r_offset_var_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 s OFFSET (SELECT s.id)", CodeInvalidColumnReference},
+			{"CREATE RULE r_limit_outer_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT (SELECT 1 FROM dst_r20 LIMIT t_r20.id) FROM t_r20", "0"},
+			{"CREATE RULE r_limit_sub_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT (SELECT max(id) FROM dst_r20)", "0"},
+			// Round 32.
+			{"CREATE RULE r_rec_shadow_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (WITH x AS (SELECT 1 AS id) SELECT id FROM x) INSERT INTO dst_r20 (id) SELECT id FROM x", "0"},
+			{"CREATE RULE r_rec_shadow_union_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL (WITH x AS (SELECT 2 AS id) SELECT id FROM x)) INSERT INTO dst_r20 (id) SELECT id FROM x", "0"},
+			{"CREATE RULE r_rec_inner_ref_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (WITH y AS (SELECT * FROM x) SELECT 1 AS id FROM y) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_dist_expr_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT id + 1 FROM t_r20 ORDER BY id + 2", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_rows_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS id PRECEDING) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_range_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND id FOLLOWING) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_groups_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w FROM t_r20 WINDOW w AS (ORDER BY id GROUPS id PRECEDING)", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_sub_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS (SELECT 1) PRECEDING) FROM t_r20", "0"},
+			{"CREATE FUNCTION f_big_r32(integer) RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE FUNCTION f_big_r32(bigint) RETURNS text LANGUAGE sql AS 'SELECT 2::text'; CREATE RULE r_big_r32 AS ON INSERT TO t_r20 DO ALSO SELECT f_big_r32(2147483648)", "0"},
+			{"DROP FUNCTION f_big_r32(bigint)", CodeDependentObjects},
+			{"DROP FUNCTION f_big_r32(integer)", "0"},
+			// Round 33.
+			{"CREATE ACCESS METHOD am_noopc_r33 TYPE INDEX HANDLER bthandler", "0"},
+			{"CREATE INDEX ON t_r20 USING am_noopc_r33 (id missing_ops)", CodeUndefinedObject},
+			{"CREATE INDEX ON t_r20 USING am_noopc_r33 (id)", CodeUndefinedObject},
+			{"CREATE OPERATOR FAMILY f_r33 USING am_noopc_r33; CREATE OPERATOR CLASS c_r33 FOR TYPE int USING am_noopc_r33 FAMILY f_r33 AS OPERATOR 1 <", "0"},
+			{"DROP ACCESS METHOD am_noopc_r33", "0"},
+			{"CREATE ACCESS METHOD am_noopc_r33 TYPE INDEX HANDLER bthandler; CREATE OPERATOR FAMILY f_r33 USING am_noopc_r33", "0"},
+			{"EXECUTE missing_r33", CodeInvalidSQLStatementName},
+			{"PREPARE q_exec_r33(int) AS SELECT $1", "0"},
+			{"EXECUTE q_exec_r33", CodeSyntaxError},
+			{"EXECUTE q_exec_r33(1, 2)", CodeSyntaxError},
+			{"EXECUTE q_exec_r33(true)", CodeDatatypeMismatch},
+			{"EXECUTE q_exec_r33('x')", CodeInvalidTextRepresentation},
+			{"EXECUTE q_exec_r33(1)", "0"},
+			// Round 35.
+			{"CREATE RULE r_srf_where_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 WHERE generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_having_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 HAVING generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_limit_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT generate_series(1, 2)", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_case_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT CASE WHEN true THEN generate_series(1, 2) END", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_coalesce_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT coalesce(generate_series(1, 2), 0)", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_join_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a JOIN dst_r20 b ON generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_agg_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(generate_series(1, 2)) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT abs(generate_series(1, 2)) FROM t_r20 GROUP BY generate_series(1, 2) ORDER BY generate_series(1, 2)", "0"},
+			{"CREATE RULE r_osa_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT mode() WITHIN GROUP (ORDER BY t_r20.id) FROM t_r20", "0"},
+			{"CREATE RULE r_osa_pct_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY t_r20.id)::text FROM t_r20", "0"},
+			{"CREATE RULE r_poly_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT array_length(array_agg(DISTINCT id ORDER BY id DESC), 1) FROM t_r20", "0"},
+			{"CREATE RULE r_dist_agg_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT string_agg(DISTINCT val, ',' ORDER BY id::text) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_agg_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT string_agg(DISTINCT val, ',' ORDER BY val) FROM t_r20", "0"},
+			{"CREATE RULE r_fn_lateral_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT g FROM t_r20, generate_series(1, t_r20.id) AS g", "0"},
+			{"CREATE RULE r_sub_nolateral_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT s.id FROM t_r20, (SELECT t_r20.id) s", CodeUndefinedTable},
+			{"CREATE RULE r_join_on_scope_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON a.id = d.id", CodeUndefinedTable},
+			{"CREATE RULE r_join_on_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON b.id = d.id", "0"},
+			// Round 36.
+			{"CREATE RULE r_win_part_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w AS (PARTITION BY id), w2 AS (w PARTITION BY val)", CodeWindowingError},
+			{"CREATE RULE r_win_order_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (w ORDER BY val) FROM t_r20 WINDOW w AS (ORDER BY id)", CodeWindowingError},
+			{"CREATE RULE r_win_frame_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (w) FROM t_r20 WINDOW w AS (ORDER BY id ROWS 1 PRECEDING)", CodeWindowingError},
+			{"CREATE RULE r_win_copy_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w AS (PARTITION BY id), w2 AS (w ORDER BY val ROWS 1 PRECEDING)", "0"},
+			{"CREATE RULE r_win_name_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w FROM t_r20 WINDOW w AS (ORDER BY id ROWS 1 PRECEDING)", "0"},
+			{"CREATE RULE r_frame_agg_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS sum(id) PRECEDING) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_frame_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS row_number() OVER () PRECEDING) FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_frame_srf_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS generate_series(1, 2) PRECEDING) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_part_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (PARTITION BY row_number() OVER ()) FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_part_agg_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (PARTITION BY count(*)) FROM t_r20 GROUP BY id", "0"},
+			{"CREATE RULE r_filter_srf_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) FILTER (WHERE generate_series(1, 2) > 0) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_upd_agg_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = count(*)", CodeGroupingError},
+			{"CREATE RULE r_upd_win_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = row_number() OVER ()", CodeWindowingError},
+			{"CREATE RULE r_upd_srf_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = generate_series(1, 2)", CodeFeatureNotSupported},
+			{"CREATE RULE r_upd_sub_ok_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = (SELECT count(*) FROM t_r20)", "0"},
+			{"CREATE RULE r_values_agg_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (count(*))", CodeGroupingError},
+			{"CREATE RULE r_values_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (row_number() OVER ())", CodeWindowingError},
+			{"CREATE INDEX i_vacuum_scale_r36 ON t_r20 (id) WITH (vacuum_cleanup_index_scale_factor = 0.1)", "0"},
+			// Round 38.
+			{"CREATE FUNCTION eq_r38(int, int) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT $1 = $2'", "0"},
+			{"CREATE OPERATOR ==== (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38)", "0"},
+			{"CREATE OPERATOR FAMILY fam_nc_r38 USING btree; CREATE OPERATOR CLASS opc_nc_r38 FOR TYPE int USING btree FAMILY fam_nc_r38 AS OPERATOR 3 ====, FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_nc_r38 WITH ====)", CodeWrongObjectType},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id WITH <)", CodeWrongObjectType},
+			{"DROP OPERATOR ==== (int, int)", CodeDependentObjects},
+			{"CREATE SCHEMA hid_r38; CREATE OPERATOR hid_r38.<<< (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38, COMMUTATOR = OPERATOR(hid_r38.<<<))", "0"},
+			{"CREATE OPERATOR FAMILY fam_hid_r38 USING btree; CREATE OPERATOR CLASS opc_hid_r38 FOR TYPE int USING btree FAMILY fam_hid_r38 AS OPERATOR 3 hid_r38.<<<, FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_hid_r38 WITH <<<)", CodeUndefinedFunction},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_hid_r38 WITH OPERATOR(hid_r38.<<<))", "0"},
+			{"CREATE OPERATOR ===== (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38); CREATE OPERATOR FAMILY fam_loose_r38 USING btree; ALTER OPERATOR FAMILY fam_loose_r38 USING btree ADD OPERATOR 3 ===== (int, int)", "0"},
+			{"DROP OPERATOR ===== (int, int)", "0"},
+			{"DROP OPERATOR ==== (int, int) CASCADE; CREATE OPERATOR CLASS opc_nc_r38 FOR TYPE int USING btree FAMILY fam_nc_r38 AS FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"CREATE VIEW v_tmp_r38 AS SELECT 1 AS x; CREATE TEMP VIEW v_tmp_r38 AS SELECT 2 AS y", "0"},
+			{"CREATE TEMP VIEW v_tmp_r38 AS SELECT 3 AS z", CodeDuplicateTable},
+			// Round 39.
+			{"CREATE TEMP VIEW v_tmp2_r39 AS SELECT 1 AS x; CREATE TABLE public.v_tmp2_r39 (a int)", "0"},
+			{"CREATE RULE r_values1_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2))", "0"},
+			{"CREATE RULE r_values2_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2)), (3)", CodeFeatureNotSupported},
+			{"CREATE RULE r_values_from_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT * FROM (VALUES (generate_series(1, 2))) v", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_agg_r39 AS ON UPDATE TO t_r20 DO INSTEAD UPDATE dst_r20 SET id = new.id RETURNING count(*)::int, 'x'::text", CodeGroupingError},
+			{"CREATE RULE r_ret_win_r39 AS ON DELETE TO t_r20 DO INSTEAD DELETE FROM dst_r20 WHERE id = old.id RETURNING row_number() OVER ()::int, 'x'::text", CodeWindowingError},
+			{"PREPARE q_ret_srf_r39 AS DELETE FROM dst_r20 RETURNING generate_series(1, 2)", CodeFeatureNotSupported},
+			{"PREPARE q_values_srf_r39 AS INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2)), (3)", CodeFeatureNotSupported},
+			{"CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38); CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = bigint, FUNCTION = int48eq); CREATE OPERATOR FAMILY fam_ovl_r39 USING btree; ALTER OPERATOR FAMILY fam_ovl_r39 USING btree ADD OPERATOR 3 ##> (int, int), OPERATOR 3 ##> (int, bigint)", "0"},
+			{"DROP OPERATOR ##> (int, bigint)", "0"},
+			// Round 40.
+			{"PREPARE q_ctas_dml_r40 AS INSERT INTO dst_r20 (id) VALUES (1) RETURNING id; CREATE TABLE t_ctas_dml_r40 AS EXECUTE q_ctas_dml_r40", CodeWrongObjectType},
+			// Round 43.
+			{"PREPARE q_limit_agg_r43 AS SELECT id FROM t_r20 LIMIT count(*)", CodeGroupingError},
+			{"PREPARE q_offset_win_r43 AS SELECT id FROM t_r20 OFFSET row_number() OVER ()", CodeWindowingError},
+			{"PREPARE q_merge_upd_agg_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN MATCHED THEN UPDATE SET id = count(*)", CodeGroupingError},
+			{"PREPARE q_merge_upd_srf_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN MATCHED THEN UPDATE SET id = generate_series(1, 2)", CodeFeatureNotSupported},
+			{"PREPARE q_merge_ins_agg_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN NOT MATCHED THEN INSERT (id) VALUES (count(*))", CodeGroupingError},
+			{"PREPARE q_merge_ins_srf_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN NOT MATCHED THEN INSERT (id) VALUES (generate_series(1, 2))", "0"},
+		} {
+			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		for _, fam := range c122.opFamilies {
+			if fam.Name == "fam_ovl_r39" && !fam.Operators["##>"] {
+				t.Fatalf("dropping one overload removed its same-name sibling from the family: %v", fam.Operators)
+			}
+		}
+
+		// A cloned operator family owns its member set.
+		cOpf := New()
+		for _, stmt := range []string{
+			"CREATE OPERATOR FAMILY f_clone_r33 USING btree",
+			"ALTER OPERATOR FAMILY f_clone_r33 USING btree ADD OPERATOR 1 < (int4, int4)",
+		} {
+			if code := simulationCatalogCode(t, cOpf, stmt); code != "0" {
+				t.Fatalf("cOpf %s: %s", stmt, code)
+			}
+		}
+		cOpfClone := cOpf.Clone()
+		if code := simulationCatalogCode(t, cOpfClone, "ALTER OPERATOR FAMILY f_clone_r33 USING btree ADD OPERATOR 2 <= (int4, int4)"); code != "0" {
+			t.Fatalf("cOpfClone ALTER OPERATOR FAMILY: %s", code)
+		}
+		for _, fam := range cOpf.opFamilies {
+			if fam.Name == "f_clone_r33" && fam.Operators["<="] {
+				t.Fatalf("ALTER OPERATOR FAMILY on a clone changed the source family: %v", fam.Operators)
+			}
+		}
+
+		// Round 34: a cloned primary key forces NOT NULL on its key columns
+		// only; a rolled-back ALTER TABLE leaves functions on the live schema;
+		// a materialized view changes access method in place.
+		c134 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE pk_inc_r34 (a int, b int, PRIMARY KEY (a) INCLUDE (b)) PARTITION BY RANGE (a)",
+			"CREATE TABLE pk_inc_p1_r34 PARTITION OF pk_inc_r34 FOR VALUES FROM (0) TO (10)",
+			"CREATE TABLE pk_inc_src_r34 (a int, b int, PRIMARY KEY (a) INCLUDE (b))",
+			"CREATE TABLE pk_inc_like_r34 (LIKE pk_inc_src_r34 INCLUDING INDEXES)",
+			"CREATE SCHEMA s_rb_r34",
+			"CREATE FUNCTION s_rb_r34.f_rb_r34() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"CREATE TABLE t_rb_r34 (a int)",
+		} {
+			if code := simulationCatalogCode(t, c134, stmt); code != "0" {
+				t.Fatalf("c134 %s: %s", stmt, code)
+			}
+		}
+		for _, name := range []string{"pk_inc_p1_r34", "pk_inc_like_r34"} {
+			for _, col := range c134.GetRelation("public", name).Columns {
+				if want := col.Name == "a"; col.NotNull != want {
+					t.Fatalf("%s.%s NOT NULL = %v, want %v", name, col.Name, col.NotNull, want)
+				}
+			}
+		}
+		if code := simulationCatalogCode(t, c134, "ALTER TABLE t_rb_r34 ADD COLUMN x int, ALTER COLUMN missing SET STATISTICS 1"); code != CodeUndefinedColumn {
+			t.Fatalf("failing multi-command ALTER TABLE answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if code := simulationCatalogCode(t, c134, "ALTER SCHEMA s_rb_r34 RENAME TO s_rb2_r34"); code != "0" {
+			t.Fatalf("ALTER SCHEMA RENAME: %s", code)
+		}
+		for _, up := range c134.userProcs {
+			if up.Name == "f_rb_r34" && (up.Schema == nil || up.Schema != c134.GetSchema("s_rb2_r34")) {
+				t.Fatalf("f_rb_r34 is bound to a schema copy after the rollback: %+v", up.Schema)
+			}
+		}
+
+		c134From, c134To := New(), New()
+		for i, cat := range []*Catalog{c134From, c134To} {
+			mvAM := ""
+			if i == 1 {
+				mvAM = " USING heap2_r34"
+			}
+			for _, stmt := range []string{
+				"CREATE ACCESS METHOD heap2_r34 TYPE TABLE HANDLER heap_tableam_handler",
+				"CREATE TABLE mv_src_r34 (a int)",
+				"CREATE MATERIALIZED VIEW mv_am_r34" + mvAM + " AS SELECT a FROM mv_src_r34",
+				"CREATE VIEW v_on_mv_r34 AS SELECT a FROM mv_am_r34",
+			} {
+				if code := simulationCatalogCode(t, cat, stmt); code != "0" {
+					t.Fatalf("c134 migration setup %d %s: %s", i, stmt, code)
+				}
+			}
+		}
+		sql134 := GenerateMigration(c134From, c134To, Diff(c134From, c134To)).SQL()
+		if !strings.Contains(sql134, `ALTER MATERIALIZED VIEW "public"."mv_am_r34" SET ACCESS METHOD heap2_r34`) || strings.Contains(sql134, "DROP MATERIALIZED VIEW") {
+			t.Fatalf("expected an in-place access method change, got:\n%s", sql134)
+		}
+		if code := simulationCatalogCode(t, c134From, sql134); code != "0" {
+			t.Fatalf("applying c134From->c134To failed with %s:\n%s", code, sql134)
+		}
+		if rem := GenerateMigration(c134From, c134To, Diff(c134From, c134To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c134From->c134To, got:\n%s", rem.SQL())
+		}
+
+		// Round 37: rebuilt views keep their grants, replica identity follows
+		// its index, views keep security options, and indexes keep operator
+		// class parameters.
+		roundTrip137 := func(name string, fromStmts, toStmts, wantFrags []string) {
+			t.Helper()
+			cFrom, cTo := New(), New()
+			for _, stmt := range fromStmts {
+				if code := simulationCatalogCode(t, cFrom, stmt); code != "0" {
+					t.Fatalf("%s from %s: %s", name, stmt, code)
+				}
+			}
+			for _, stmt := range toStmts {
+				if code := simulationCatalogCode(t, cTo, stmt); code != "0" {
+					t.Fatalf("%s to %s: %s", name, stmt, code)
+				}
+			}
+			sql := GenerateMigration(cFrom, cTo, Diff(cFrom, cTo)).SQL()
+			for _, frag := range wantFrags {
+				if !strings.Contains(sql, frag) {
+					t.Fatalf("%s: expected %q in migration DDL, got:\n%s", name, frag, sql)
+				}
+			}
+			if code := simulationCatalogCode(t, cFrom, sql); code != "0" {
+				t.Fatalf("%s: applying the migration failed with %s:\n%s", name, code, sql)
+			}
+			if rem := GenerateMigration(cFrom, cTo, Diff(cFrom, cTo)); len(rem.Ops) != 0 {
+				t.Fatalf("%s: expected zero remaining ops, got:\n%s", name, rem.SQL())
+			}
+		}
+		roundTrip137("view column change keeps grants",
+			[]string{"CREATE ROLE reader_r37", "CREATE VIEW v_grant_r37 AS SELECT 1 AS a", "GRANT SELECT ON v_grant_r37 TO reader_r37"},
+			[]string{"CREATE ROLE reader_r37", "CREATE VIEW v_grant_r37 AS SELECT 1 AS b", "GRANT SELECT ON v_grant_r37 TO reader_r37"},
+			[]string{"DROP VIEW", "GRANT SELECT ON TABLE"})
+		roundTrip137("collation rebuild keeps view grants",
+			[]string{"CREATE ROLE reader2_r37", "CREATE COLLATION c_grant_r37 (LOCALE = 'C')", "CREATE TABLE t_cg_r37 (v text COLLATE c_grant_r37)", "CREATE VIEW v_cg_r37 AS SELECT v FROM t_cg_r37", "GRANT SELECT ON v_cg_r37 TO reader2_r37"},
+			[]string{"CREATE ROLE reader2_r37", "CREATE COLLATION c_grant_r37 (PROVIDER = builtin, LOCALE = 'C')", "CREATE TABLE t_cg_r37 (v text COLLATE c_grant_r37)", "CREATE VIEW v_cg_r37 AS SELECT v FROM t_cg_r37", "GRANT SELECT ON v_cg_r37 TO reader2_r37"},
+			[]string{"DROP VIEW", "GRANT SELECT ON TABLE"})
+		roundTrip137("replica identity switches index",
+			[]string{"CREATE TABLE t_ri_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX ri_a_r37 ON t_ri_r37 (a)", "CREATE UNIQUE INDEX ri_b_r37 ON t_ri_r37 (b)", "ALTER TABLE t_ri_r37 REPLICA IDENTITY USING INDEX ri_a_r37"},
+			[]string{"CREATE TABLE t_ri_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX ri_a_r37 ON t_ri_r37 (a)", "CREATE UNIQUE INDEX ri_b_r37 ON t_ri_r37 (b)", "ALTER TABLE t_ri_r37 REPLICA IDENTITY USING INDEX ri_b_r37"},
+			[]string{`REPLICA IDENTITY USING INDEX "ri_b_r37"`})
+		roundTrip137("replica identity follows its rebuilt index",
+			[]string{"CREATE TABLE t_rr_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX rr_r37 ON t_rr_r37 (a)", "ALTER TABLE t_rr_r37 REPLICA IDENTITY USING INDEX rr_r37"},
+			[]string{"CREATE TABLE t_rr_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX rr_r37 ON t_rr_r37 (a, b)", "ALTER TABLE t_rr_r37 REPLICA IDENTITY USING INDEX rr_r37"},
+			[]string{"DROP INDEX", `REPLICA IDENTITY USING INDEX "rr_r37"`})
+		roundTrip137("view security options",
+			[]string{"CREATE VIEW v_sec_r37 AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 WITH (security_barrier) AS SELECT 1 AS x"},
+			[]string{"CREATE VIEW v_sec_r37 WITH (security_barrier, security_invoker = on) AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 AS SELECT 1 AS x"},
+			[]string{"WITH (security_barrier=true, security_invoker=true)"})
+		roundTrip137("matview index-only change keeps the view",
+			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39"},
+			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39", "CREATE INDEX mv_ix_a_r39 ON mv_ix_r39 (a)"},
+			[]string{"CREATE INDEX mv_ix_a_r39"})
+		roundTrip137("view created in pg_temp is temporary",
+			nil,
+			[]string{"CREATE VIEW pg_temp.v_pgtemp_r40 AS SELECT 1 AS x"},
+			[]string{`CREATE TEMP VIEW "v_pgtemp_r40"`})
+		roundTrip137("rebuilt table keeps a recreated rule's comment",
+			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
+			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int) INHERITS (p_rc_r40)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 WHERE NEW.a > 0 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
+			[]string{"COMMENT ON RULE", "keep rule comment"})
+		roundTrip137("matview rebuild keeps index comments",
+			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
+			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41 WHERE a > 0", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
+			[]string{"DROP MATERIALIZED VIEW", "COMMENT ON INDEX", "keep index comment"})
+		excSetup141 := []string{
+			"CREATE SCHEMA ext_r41",
+			"CREATE FUNCTION ext_r41.eq_r41(int, int) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT $1 = $2'",
+			"CREATE OPERATOR ext_r41.<<< (LEFTARG = int, RIGHTARG = int, FUNCTION = ext_r41.eq_r41, COMMUTATOR = OPERATOR(ext_r41.<<<))",
+			"CREATE OPERATOR CLASS opc_r41 FOR TYPE int USING btree AS OPERATOR 3 ext_r41.<<<, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE t_exq_r41 (a int)",
+		}
+		roundTrip137("schema-qualified exclusion operator",
+			excSetup141,
+			append(slices.Clone(excSetup141), "ALTER TABLE t_exq_r41 ADD CONSTRAINT exq_r41 EXCLUDE USING btree (a opc_r41 WITH OPERATOR(ext_r41.<<<))"),
+			[]string{"WITH OPERATOR(ext_r41.<<<)"})
+		trigSetup141 := []string{
+			"CREATE TABLE t_tm_r41 (a int)",
+			"CREATE FUNCTION f_tm_r41() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+			"CREATE TRIGGER tg_tm_r41 BEFORE INSERT ON t_tm_r41 FOR EACH ROW EXECUTE FUNCTION f_tm_r41()",
+		}
+		roundTrip137("trigger firing mode",
+			trigSetup141,
+			append(slices.Clone(trigSetup141), "ALTER TABLE t_tm_r41 DISABLE TRIGGER tg_tm_r41"),
+			[]string{`DISABLE TRIGGER "tg_tm_r41"`})
+		// Round 42: Boolean options read as parse_bool does, and a snapshot
+		// catalog that knows its database refuses other databases.
+		c142 := New()
+		for _, tc := range []struct{ sql, want string }{
+			{"CREATE TABLE bool_t_r42 (x int) WITH (autovacuum_enabled = 't')", "0"},
+			{"CREATE TABLE bool_tr_r42 (x int) WITH (autovacuum_enabled = 'tr')", "0"},
+			{"CREATE TABLE bool_n_r42 (x int) WITH (autovacuum_enabled = 'n')", "0"},
+			{"CREATE TABLE bool_o_r42 (x int) WITH (autovacuum_enabled = 'o')", CodeInvalidParameterValue},
+			{"CREATE TABLE bool_sp_r42 (x int) WITH (autovacuum_enabled = ' true')", CodeInvalidParameterValue},
+			{"CREATE VIEW bool_v_r42 WITH (security_invoker = 'of', security_barrier = 'ye') AS SELECT 1 AS x", "0"},
+		} {
+			if got := simulationCatalogCode(t, c142, tc.sql); got != tc.want {
+				t.Fatalf("%s answered %s, want %s", tc.sql, got, tc.want)
+			}
+		}
+		if v := c142.GetRelation("public", "bool_v_r42"); v == nil || v.SecurityInvoker || !v.SecurityBarrier {
+			t.Fatalf("expected security_invoker off and security_barrier on, got %+v", v)
+		}
+		cSnap142 := New()
+		cSnap142.SetSearchPath([]string{"public"})
+		if _, err := cSnap142.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Name: "appdb_r42",
+			Schemas: []*metadata.SchemaMetadata{{Name: "public", Tables: []*metadata.TableMetadata{{
+				Name:    "t_snap_r42",
+				Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer"}},
+			}}}},
+		}, LoadMetadataOptions{Full: true}); err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		for _, tc := range []struct{ sql, want string }{
+			{"CREATE VIEW v_other_db_r42 AS SELECT other_db.public.t_snap_r42.* FROM public.t_snap_r42", CodeFeatureNotSupported},
+			{"CREATE VIEW v_same_db_r42 AS SELECT appdb_r42.public.t_snap_r42.* FROM public.t_snap_r42", "0"},
+		} {
+			if got := simulationCatalogCode(t, cSnap142, tc.sql); got != tc.want {
+				t.Fatalf("%s answered %s, want %s", tc.sql, got, tc.want)
+			}
+		}
+		roundTrip137("rebuilt index keeps its comment",
+			[]string{"CREATE TABLE t_ixc_r43 (a int, b int)", "CREATE INDEX ixc_r43 ON t_ixc_r43 (a)", "COMMENT ON INDEX ixc_r43 IS 'keep this index comment'"},
+			[]string{"CREATE TABLE t_ixc_r43 (a int, b int)", "CREATE INDEX ixc_r43 ON t_ixc_r43 (a, b)", "COMMENT ON INDEX ixc_r43 IS 'keep this index comment'"},
+			[]string{"DROP INDEX", "keep this index comment"})
+		roundTrip137("sequence persistence change keeps grants",
+			[]string{"CREATE ROLE seq_reader_r43", "CREATE SEQUENCE seq_pg_r43", "GRANT USAGE ON SEQUENCE seq_pg_r43 TO seq_reader_r43"},
+			[]string{"CREATE ROLE seq_reader_r43", "CREATE TEMP SEQUENCE seq_pg_r43", "GRANT USAGE ON SEQUENCE seq_pg_r43 TO seq_reader_r43"},
+			[]string{"CREATE TEMP SEQUENCE", `GRANT USAGE ON SEQUENCE "seq_pg_r43"`})
+		roundTrip137("range rebuild recreates a function that uses it",
+			[]string{"CREATE COLLATION c_rg_r43 (LOCALE = 'C')", "CREATE TYPE rg_r43 AS RANGE (SUBTYPE = text, COLLATION = c_rg_r43)", "CREATE FUNCTION f_rg_r43(rg_r43) RETURNS int LANGUAGE sql AS 'SELECT 1'"},
+			[]string{"CREATE COLLATION c_rg_r43 (LOCALE = 'C')", "CREATE TYPE rg_r43 AS RANGE (SUBTYPE = text)", "CREATE FUNCTION f_rg_r43(rg_r43) RETURNS int LANGUAGE sql AS 'SELECT 1'"},
+			[]string{"DROP FUNCTION", "DROP TYPE", "CREATE FUNCTION"})
+		roundTrip137("operator class parameters",
+			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
+			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},
+			[]string{"tsvector_ops (siglen='40')"})
+		cView137 := New()
+		for _, stmt := range []string{
+			"CREATE VIEW v_alter_sec_r37 WITH (security_invoker = true) AS SELECT 1 AS x",
+			"ALTER VIEW v_alter_sec_r37 SET (security_barrier = yes)",
+			"ALTER VIEW v_alter_sec_r37 RESET (security_invoker)",
+		} {
+			if code := simulationCatalogCode(t, cView137, stmt); code != "0" {
+				t.Fatalf("cView137 %s: %s", stmt, code)
+			}
+		}
+		if v := cView137.GetRelation("public", "v_alter_sec_r37"); v == nil || !v.SecurityBarrier || v.SecurityInvoker {
+			t.Fatalf("expected security_barrier only after ALTER VIEW, got %+v", v)
+		}
+
+		// Round 21-24 migration regressions:
+		// 1. Sequence range variables in rules track sequence renames.
+		// 2. Temporary views and sequences preserve CREATE TEMP / DROP without non-temp schema qualifier in GenerateMigration.
+		// 3. Sequence persistence changes emit ALTER SEQUENCE ... SET UNLOGGED / SET LOGGED.
+		// 4. Schema-qualified column references in rules track relation and column renames.
+		c123From := New()
+		c123To := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r23_persist",
+			"CREATE TEMP VIEW tv_r24_drop AS SELECT 1 AS id",
+		} {
+			if code := simulationCatalogCode(t, c123From, stmt); code != "0" {
+				t.Fatalf("c123From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE UNLOGGED SEQUENCE seq_r23_persist",
+			"CREATE TEMP SEQUENCE seq_r23_tmp",
+			"CREATE SEQUENCE seq_r21_old",
+			"CREATE TABLE t_r21 (id bigint)",
+			"CREATE RULE r_seq_r21 AS ON INSERT TO t_r21 DO ALSO INSERT INTO t_r21 (id) SELECT last_value FROM seq_r21_old",
+			"CREATE RULE r_sch_col_r23 AS ON UPDATE TO t_r21 DO ALSO SELECT public.t_r21.id FROM public.t_r21",
+			"ALTER SEQUENCE seq_r21_old RENAME TO seq_r21_new",
+			"ALTER TABLE t_r21 RENAME COLUMN id TO id_renamed",
+			"CREATE TEMP TABLE tmp_r21 (id int)",
+			"CREATE VIEW tv_r21 AS SELECT id FROM tmp_r21",
+		} {
+			if code := simulationCatalogCode(t, c123To, stmt); code != "0" {
+				t.Fatalf("c123To %s: %s", stmt, code)
+			}
+		}
+		mig123 := GenerateMigration(c123From, c123To, Diff(c123From, c123To))
+		sql123 := mig123.SQL()
+		for _, wantFrag := range []string{
+			"DROP VIEW \"tv_r24_drop\"",
+			"CREATE TEMP VIEW \"tv_r21\"",
+			"CREATE TEMP SEQUENCE \"seq_r23_tmp\"",
+			"ALTER SEQUENCE \"public\".\"seq_r23_persist\" SET UNLOGGED",
+			"SELECT t_r21.id_renamed AS id FROM public.t_r21",
+		} {
+			if !strings.Contains(sql123, wantFrag) {
+				t.Fatalf("expected %q in migration SQL, got:\n%s", wantFrag, sql123)
+			}
+		}
+		if code := simulationCatalogCode(t, c123From, sql123); code != "0" {
+			t.Fatalf("applying c123From->c123To failed with %s:\n%s", code, sql123)
+		}
+		if rem := GenerateMigration(c123From, c123To, Diff(c123From, c123To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c123From->c123To, got:\n%s", rem.SQL())
+		}
+
+		// Verify view CheckOption preserved after failed replacement, temp view replacement shadowing,
+		// subquery temp detection, matview refresh on IsPopulated change, replica identity on DiffAdd,
+		// target access method creation, rule comment preservation, and collation option order independence.
+		if v := c122.GetRelation("public", "v_rep_col_chk_r25"); v == nil || v.CheckOption != 'l' {
+			t.Fatalf("expected failed CREATE OR REPLACE VIEW to preserve CheckOption='l', got %+v", v)
+		}
+		c125 := New()
+		for _, stmt := range []string{
+			"CREATE VIEW v_shadow AS SELECT 1 AS a",
+			"CREATE OR REPLACE TEMP VIEW v_shadow AS SELECT 2 AS a",
+			"CREATE TEMP TABLE tmp_sub_r25 (id int)",
+			"CREATE VIEW v_sub_temp_r25 AS SELECT EXISTS (SELECT 1 FROM tmp_sub_r25) AS present",
+		} {
+			if code := simulationCatalogCode(t, c125, stmt); code != "0" {
+				t.Fatalf("c125 %s: %s", stmt, code)
+			}
+		}
+		if vSub := c125.GetRelation("", "v_sub_temp_r25"); vSub == nil || vSub.Persistence != 't' {
+			t.Fatalf("expected v_sub_temp_r25 to be temporary, got %+v", vSub)
+		}
+		if code := simulationCatalogCode(t, c125, "DISCARD TEMP"); code != "0" {
+			t.Fatalf("c125 DISCARD TEMP: %s", code)
+		}
+		if vPerm := c125.GetRelation("public", "v_shadow"); vPerm == nil || vPerm.Persistence == 't' {
+			t.Fatalf("expected permanent public.v_shadow to survive DISCARD TEMP, got %+v", vPerm)
+		}
+
+		c125From := New()
+		c125To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_ord_r25 (PROVIDER = libc, LOCALE = 'C')",
+			"CREATE COLLATION c_mod_r30 (LOCALE = 'C')",
+			"CREATE FUNCTION fn_trig_r29() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+			"CREATE TEMP TABLE tmp_coll_r30 (v text COLLATE c_mod_r30)",
+			"CREATE TRIGGER tr_coll_r30 BEFORE INSERT ON tmp_coll_r30 FOR EACH ROW WHEN (NEW.v COLLATE c_mod_r30 > 'a') EXECUTE FUNCTION fn_trig_r29()",
+			"COMMENT ON TRIGGER tr_coll_r30 ON tmp_coll_r30 IS 'keep trigger comment'",
+			"CREATE ACCESS METHOD mod_am_r27 TYPE TABLE HANDLER heap_tableam_handler",
+			"CREATE TABLE t_mod_am_r27 (id int) USING mod_am_r27",
+			"CREATE TABLE t_mv_r25 (id int)",
+			"CREATE TEMP TABLE tmp_am_r26 (id int)",
+			"CREATE RULE r_tmp_drop_r26 AS ON INSERT TO tmp_am_r26 DO ALSO NOTHING",
+			"CREATE TRIGGER tr_tmp_drop_r29 BEFORE INSERT ON tmp_am_r26 FOR EACH ROW EXECUTE FUNCTION fn_trig_r29()",
+			"CREATE POLICY pol_tmp_drop_r29 ON tmp_am_r26 USING (id > 0)",
+			"CREATE TABLE \"t.dot_r26\" (id int)",
+			"CREATE MATERIALIZED VIEW mv_pop_r25 AS SELECT id FROM t_mv_r25 WITH NO DATA",
+			"CREATE RULE r_comm_r25 AS ON INSERT TO t_mv_r25 DO ALSO NOTHING",
+			"COMMENT ON RULE r_comm_r25 ON t_mv_r25 IS 'keep rule comment'",
+		} {
+			if code := simulationCatalogCode(t, c125From, stmt); code != "0" {
+				t.Fatalf("c125From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_ord_r25 (LOCALE = 'C', PROVIDER = libc)",
+			"CREATE COLLATION c_mod_r30 (PROVIDER = builtin, LOCALE = 'C')",
+			"CREATE FUNCTION fn_trig_r29() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+			"CREATE TEMP TABLE tmp_coll_r30 (v text COLLATE c_mod_r30)",
+			"CREATE TRIGGER tr_coll_r30 BEFORE INSERT ON tmp_coll_r30 FOR EACH ROW WHEN (NEW.v COLLATE c_mod_r30 > 'a') EXECUTE FUNCTION fn_trig_r29()",
+			"COMMENT ON TRIGGER tr_coll_r30 ON tmp_coll_r30 IS 'keep trigger comment'",
+			"CREATE FUNCTION mod_am_handler_r27(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD mod_am_r27 TYPE TABLE HANDLER mod_am_handler_r27",
+			"CREATE TABLE t_mod_am_r27 (id int) USING mod_am_r27",
+			"CREATE ACCESS METHOD alt_heap_r25 TYPE TABLE HANDLER heap_tableam_handler",
+			"CREATE TABLE t_mv_r25 (id int) USING alt_heap_r25",
+			"CREATE TEMP TABLE tmp_am_r26 (id int) USING alt_heap_r25",
+			"CREATE POLICY pol_tmp_add_r29 ON tmp_am_r26 USING (id > 1)",
+			"CREATE TEMP TABLE tmp_part_r29 (id int) PARTITION BY LIST (id)",
+			"CREATE TEMP TABLE tmp_part_c1_r29 PARTITION OF tmp_part_r29 FOR VALUES IN (1)",
+			"CREATE TABLE t_seq_pers_r29 (id int GENERATED ALWAYS AS IDENTITY)",
+			"CREATE TEMP TABLE tmp_seq_own_r32 (c int)",
+			"CREATE TEMP SEQUENCE tmp_seq_r32 OWNED BY tmp_seq_own_r32.c",
+			"ALTER TABLE t_seq_pers_r29 SET UNLOGGED",
+			"CREATE TABLE \"t.dot_r26\" (id int)",
+			"CREATE RULE \"r.dot_r26\" AS ON INSERT TO \"t.dot_r26\" DO ALSO NOTHING",
+			"COMMENT ON RULE \"r.dot_r26\" ON \"t.dot_r26\" IS 'dotted rule comment'",
+			"CREATE TABLE t_repl_r25 (id int)",
+			"ALTER TABLE t_repl_r25 REPLICA IDENTITY FULL",
+			"CREATE MATERIALIZED VIEW mv_pop_r25 AS SELECT id FROM t_mv_r25",
+			"CREATE RULE r_comm_r25 AS ON INSERT TO t_mv_r25 WHERE NEW.id > 0 DO ALSO NOTHING",
+			"COMMENT ON RULE r_comm_r25 ON t_mv_r25 IS 'keep rule comment'",
+		} {
+			if code := simulationCatalogCode(t, c125To, stmt); code != "0" {
+				t.Fatalf("c125To %s: %s", stmt, code)
+			}
+		}
+		mig125 := GenerateMigration(c125From, c125To, Diff(c125From, c125To))
+		sql125 := mig125.SQL()
+		for _, wantFrag := range []string{
+			"CREATE ACCESS METHOD alt_heap_r25 TYPE TABLE HANDLER heap_tableam_handler",
+			"ALTER TABLE \"tmp_am_r26\" SET ACCESS METHOD alt_heap_r25",
+			"DROP RULE \"r_tmp_drop_r26\" ON \"tmp_am_r26\"",
+			"DROP TRIGGER \"tr_tmp_drop_r29\" ON \"tmp_am_r26\"",
+			"DROP POLICY \"pol_tmp_drop_r29\" ON \"tmp_am_r26\"",
+			"CREATE POLICY \"pol_tmp_add_r29\" ON \"tmp_am_r26\"",
+			"CREATE TEMP TABLE \"tmp_part_c1_r29\" PARTITION OF \"tmp_part_r29\" FOR VALUES IN ('1')",
+			"ALTER TABLE \"tmp_coll_r30\" ALTER COLUMN v TYPE text",
+			"COMMENT ON TRIGGER \"tr_coll_r30\" ON \"tmp_coll_r30\" IS 'keep trigger comment'",
+			"ALTER SEQUENCE \"tmp_seq_r32\" OWNED BY \"tmp_seq_own_r32\".\"c\"",
+			"COMMENT ON RULE \"r.dot_r26\" ON \"public\".\"t.dot_r26\" IS 'dotted rule comment'",
+			"REFRESH MATERIALIZED VIEW \"public\".\"mv_pop_r25\" WITH DATA",
+			"ALTER TABLE \"public\".\"t_repl_r25\" REPLICA IDENTITY FULL",
+			"CREATE OR REPLACE RULE \"r_comm_r25\"",
+		} {
+			if !strings.Contains(sql125, wantFrag) {
+				t.Fatalf("expected %q in c125 migration SQL, got:\n%s", wantFrag, sql125)
+			}
+		}
+		if strings.Contains(sql125, "c_ord_r25") {
+			t.Fatalf("expected reordered collation options to produce no collation diff, got:\n%s", sql125)
+		}
+		if code := simulationCatalogCode(t, c125From, sql125); code != "0" {
+			t.Fatalf("applying c125From->c125To failed with %s:\n%s", code, sql125)
+		}
+		if rem := GenerateMigration(c125From, c125To, Diff(c125From, c125To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c125From->c125To, got:\n%s", rem.SQL())
 		}
 	})
 

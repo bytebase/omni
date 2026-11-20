@@ -322,6 +322,8 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if !te.ResJunk && te.Expr.exprType() == UNKNOWNOID {
 			if c, ok := te.Expr.(*ConstExpr); ok {
 				c.TypeOID = TEXTOID
+			} else if p, ok := te.Expr.(*ParamExpr); ok {
+				p.ParamType = TEXTOID
 			}
 		}
 	}
@@ -458,11 +460,17 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if err != nil {
 			return nil, err
 		}
+		if err := checkLimitExprCalls(lc, "LIMIT"); err != nil {
+			return nil, err
+		}
 		q.LimitCount = lc
 	}
 	if stmt.LimitOffset != nil {
 		lo, err := ac.transformExpr(stmt.LimitOffset)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkLimitExprCalls(lo, "OFFSET"); err != nil {
 			return nil, err
 		}
 		q.LimitOffset = lo
@@ -483,6 +491,7 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if hasRealExprs {
 			// DISTINCT ON (col1, col2, ...)
 			q.Distinct = true
+			distinctRefs := make(map[uint32]bool)
 			for _, item := range stmt.DistinctClause.Items {
 				if item == nil {
 					continue
@@ -492,9 +501,25 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 					return nil, err
 				}
 				ref := ac.assignSortGroupRef(tle, q.TargetList)
+				distinctRefs[ref] = true
 				q.DistinctOn = append(q.DistinctOn, &SortGroupClause{
 					TLESortGroupRef: ref,
 				})
+			}
+			if len(distinctRefs) > 0 && len(q.SortClause) > 0 {
+				matched := make(map[uint32]bool)
+				for _, sc := range q.SortClause {
+					if len(matched) == len(distinctRefs) {
+						break
+					}
+					if !distinctRefs[sc.TLESortGroupRef] {
+						return nil, &Error{
+							Code:    CodeInvalidColumnReference,
+							Message: "SELECT DISTINCT ON expressions must match initial ORDER BY expressions",
+						}
+					}
+					matched[sc.TLESortGroupRef] = true
+				}
 			}
 		} else {
 			// Plain DISTINCT
@@ -503,7 +528,25 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 	}
 
 	// 9. FOR UPDATE/SHARE (LockingClause).
-	if stmt.LockingClause != nil {
+	if stmt.LockingClause != nil && len(stmt.LockingClause.Items) > 0 {
+		if q.Distinct {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with DISTINCT clause",
+			}
+		}
+		if len(q.GroupClause) > 0 || len(q.GroupingSets) > 0 {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with GROUP BY clause",
+			}
+		}
+		if q.HavingQual != nil {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with HAVING clause",
+			}
+		}
 		for _, item := range stmt.LockingClause.Items {
 			lc, ok := item.(*nodes.LockingClause)
 			if !ok || lc == nil {
@@ -1565,15 +1608,63 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 	return []*TargetEntry{te}, nil
 }
 
+func (c *Catalog) checkDatabaseQualifier(dbName string) error {
+	if dbName == "" {
+		return nil
+	}
+	// A known database name is checked even in a snapshot catalog: no
+	// definition the server accepted names another database.
+	if c.databaseName == "" && c.snapshot {
+		return nil
+	}
+	if c.databaseName != "" {
+		if dbName == c.databaseName {
+			return nil
+		}
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: fmt.Sprintf("cross-database references are not implemented: %s", dbName),
+		}
+	}
+	if c.databaseOwners[dbName] != "" {
+		return nil
+	}
+	if len(c.databaseOwners) == 0 && dbName == "postgres" {
+		return nil
+	}
+	return &Error{
+		Code:    CodeFeatureNotSupported,
+		Message: fmt.Sprintf("cross-database references are not implemented: %s", dbName),
+	}
+}
+
 // expandStar expands a * or table.* reference.
 //
 // pg: src/backend/parser/parse_target.c — ExpandAllTables / expandNSItemAttrs
 func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEntry, error) {
-	tableName := starTableName(cr)
+	var schemaName, tableName string
+	if cr.Fields != nil && len(cr.Fields.Items) >= 2 {
+		prefix := cr.Fields.Items[:len(cr.Fields.Items)-1]
+		switch len(prefix) {
+		case 1:
+			tableName = stringVal(prefix[0])
+		case 2:
+			schemaName = stringVal(prefix[0])
+			tableName = stringVal(prefix[1])
+		case 3:
+			if err := ac.catalog.checkDatabaseQualifier(stringVal(prefix[0])); err != nil {
+				return nil, err
+			}
+			schemaName = stringVal(prefix[1])
+			tableName = stringVal(prefix[2])
+		default:
+			return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
+		}
+	}
 
 	// The columns of a function whose columns are unknown cannot be listed.
 	for _, rte := range ac.query.RangeTable {
-		if rte.UnknownColumns && (tableName == "" || rte.ERef == tableName) {
+		if rte.UnknownColumns && (tableName == "" || (schemaName == "" && rte.ERef == tableName)) {
 			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot expand * over function %q, whose columns are unknown", rte.ERef)}
 		}
 	}
@@ -1597,6 +1688,15 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 			}
 			if tableName != "" && rte.ERef != tableName {
 				continue
+			}
+			if schemaName != "" {
+				if rte.Kind != RTERelation || rte.Alias != "" {
+					continue
+				}
+				rel := ac.catalog.relationByOID[rte.RelOID]
+				if rel == nil || rel.Schema == nil || rel.Schema.Name != schemaName {
+					continue
+				}
 			}
 			hasSource = true
 			for colIdx, colName := range rte.ColNames {
@@ -1774,6 +1874,21 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 	// EXPR_KIND_COLUMN_DEFAULT rejects ColumnRef before attempting resolution.
 	if ac.exprKind == analyzeExprKindColumnDefault {
 		return nil, errColumnReferenceInDefault()
+	}
+
+	// Qualified whole-row star reference (rel.* or schema.rel.*).
+	if len(items) >= 2 {
+		if _, isStar := items[len(items)-1].(*nodes.A_Star); isStar {
+			return ac.resolveWholeRowStar(items[:len(items)-1])
+		}
+	}
+	if len(items) > 4 {
+		return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
+	}
+	if len(items) == 4 {
+		if err := ac.catalog.checkDatabaseQualifier(stringVal(items[0])); err != nil {
+			return nil, err
+		}
 	}
 
 	// pg: src/backend/commands/typecmds.c — replace_domain_constraint_value
@@ -2127,7 +2242,7 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 			if !inScope(rtIdx) {
 				continue
 			}
-			if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, colName); v != nil {
+			if v := ac.makeWholeRowVar(rtIdx, rte, colName); v != nil {
 				if found != nil {
 					return nil, errAmbiguousColumn(colName)
 				}
@@ -2228,6 +2343,86 @@ func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {
 	}
 }
 
+func (ac *analyzeCtx) makeWholeRowVar(rtIdx int, rte *RangeTableEntry, name string) *VarExpr {
+	if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, name); v != nil {
+		return v
+	}
+	if rte.Kind == RTERelation && rte.ERef == name {
+		rel := ac.catalog.relationByOID[rte.RelOID]
+		if rel != nil && rel.RowTypeOID != 0 {
+			return &VarExpr{
+				RangeIdx: rtIdx,
+				AttNum:   0,
+				TypeOID:  rel.RowTypeOID,
+				TypeMod:  -1,
+			}
+		}
+	}
+	return nil
+}
+
+func (ac *analyzeCtx) resolveWholeRowStar(prefix []nodes.Node) (*VarExpr, error) {
+	var schemaName, relName string
+	switch len(prefix) {
+	case 1:
+		relName = stringVal(prefix[0])
+	case 2:
+		schemaName = stringVal(prefix[0])
+		relName = stringVal(prefix[1])
+	case 3:
+		if err := ac.catalog.checkDatabaseQualifier(stringVal(prefix[0])); err != nil {
+			return nil, err
+		}
+		schemaName = stringVal(prefix[1])
+		relName = stringVal(prefix[2])
+	default:
+		return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
+	}
+	visible := ac.visibleRTEs()
+	inScope := func(i int) bool { return visible == nil || visible[i] }
+	var found *VarExpr
+	for rtIdx, rte := range ac.query.RangeTable {
+		if !inScope(rtIdx) || rte.ERef != relName {
+			continue
+		}
+		if schemaName != "" {
+			if rte.Kind != RTERelation || rte.Alias != "" {
+				continue
+			}
+			rel := ac.catalog.relationByOID[rte.RelOID]
+			if rel == nil || rel.Schema == nil || rel.Schema.Name != schemaName {
+				continue
+			}
+		}
+		v := ac.makeWholeRowVar(rtIdx, rte, relName)
+		if v == nil {
+			continue
+		}
+		if found != nil {
+			return nil, errAmbiguousColumn(relName)
+		}
+		found = v
+	}
+	if found != nil {
+		return found, nil
+	}
+	if ac.outerCols != nil {
+		outerVar, err := ac.outerCols.resolveWholeRowStar(prefix)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExpr{
+			RangeIdx:  outerVar.RangeIdx,
+			AttNum:    outerVar.AttNum,
+			TypeOID:   outerVar.TypeOID,
+			TypeMod:   outerVar.TypeMod,
+			Collation: outerVar.Collation,
+			LevelsUp:  outerVar.LevelsUp + ac.outerColsUp,
+		}, nil
+	}
+	return nil, errUndefinedTable(relName)
+}
+
 func (ac *analyzeCtx) makeScalarFunctionWholeRowVar(rtIdx int, rte *RangeTableEntry, name string) *VarExpr {
 	if rte.Kind != RTEFunction || rte.ERef != name || rte.Ordinality || len(rte.FuncExprs) != 1 {
 		return nil
@@ -2293,7 +2488,7 @@ func (ac *analyzeCtx) transformAConst(ac2 *nodes.A_Const) (AnalyzedExpr, error) 
 //
 // pg: src/backend/parser/parse_func.c — ParseFuncOrColumn
 func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error) {
-	_, funcName := qualifiedName(fc.Funcname)
+	fSchema, funcName := qualifiedName(fc.Funcname)
 	funcName = strings.ToLower(funcName)
 
 	// Transform arguments.
@@ -2378,8 +2573,8 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		}, nil
 	}
 
-	// Resolve function.
-	procs := ac.catalog.procByName[funcName]
+	// Resolve function along routine search_path (excluding implicit pg_temp).
+	procs := ac.catalog.filterProcsBySearchPath(fSchema, ac.catalog.procByName[funcName])
 	if len(procs) == 0 {
 		if ac.opts.OpaqueUnknownFunctions {
 			return ac.opaqueFuncCall(fc, funcName, args, nDirect, aggOrder, aggFilter)
@@ -3479,11 +3674,17 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		if err != nil {
 			return nil, err
 		}
+		if err := checkLimitExprCalls(lc, "LIMIT"); err != nil {
+			return nil, err
+		}
 		q.LimitCount = lc
 	}
 	if stmt.LimitOffset != nil {
 		lo, err := subAc.transformExpr(stmt.LimitOffset)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkLimitExprCalls(lo, "OFFSET"); err != nil {
 			return nil, err
 		}
 		q.LimitOffset = lo
@@ -4229,9 +4430,13 @@ func (ac *analyzeCtx) transformNamedArgExpr(nae *nodes.NamedArgExpr) (AnalyzedEx
 //
 // pg: src/backend/parser/parse_param.c — variable_paramref_hook
 func (ac *analyzeCtx) transformParamRef(pr *nodes.ParamRef) (AnalyzedExpr, error) {
+	paramType := uint32(UNKNOWNOID)
+	if pr.Number > 0 && pr.Number <= len(ac.opts.ParamTypes) && ac.opts.ParamTypes[pr.Number-1] != 0 {
+		paramType = ac.opts.ParamTypes[pr.Number-1]
+	}
 	return &ParamExpr{
 		ParamNum:  pr.Number,
-		ParamType: UNKNOWNOID,
+		ParamType: paramType,
 	}, nil
 }
 
@@ -4245,13 +4450,19 @@ func (ac *analyzeCtx) transformCollateClause(cc *nodes.CollateClause) (AnalyzedE
 	}
 
 	collName := ""
+	var collOID uint32
 	if cc.Collname != nil && len(cc.Collname.Items) > 0 {
 		collName = stringVal(cc.Collname.Items[len(cc.Collname.Items)-1])
+		if _, userOID, rerr := ac.catalog.resolveCollationList(cc.Collname); rerr == nil && userOID != 0 {
+			collOID = userOID
+		} else {
+			collOID = builtinCollationOID(collName)
+		}
 	}
 
 	return &CollateExprQ{
 		Arg:      arg,
-		CollOID:  builtinCollationOID(collName),
+		CollOID:  collOID,
 		CollName: collName,
 	}, nil
 }
@@ -4455,7 +4666,10 @@ func validateCTEAliasCount(name string, aliases []string, query *Query) error {
 	if len(aliases) == 0 || query == nil || len(aliases) <= len(query.TargetList) {
 		return nil
 	}
-	return fmt.Errorf("WITH query %q has %d columns available but %d columns specified", name, len(query.TargetList), len(aliases))
+	return &Error{
+		Code:    CodeInvalidColumnReference,
+		Message: fmt.Sprintf("WITH query %q has %d columns available but %d columns specified", name, len(query.TargetList), len(aliases)),
+	}
 }
 
 // transformCTERef creates a range table entry for a CTE reference.
@@ -4691,6 +4905,10 @@ func (c *Catalog) coerceToTargetTypeWithFormat(expr AnalyzedExpr, srcType, targe
 				Value:   c.Value,
 			}, nil
 		}
+		if p, ok := expr.(*ParamExpr); ok {
+			p.ParamType = targetType
+			return p, nil
+		}
 		return &RelabelExpr{
 			Arg:        expr,
 			ResultType: targetType,
@@ -4736,17 +4954,61 @@ func (c *Catalog) coerceToTargetTypeWithFormat(expr AnalyzedExpr, srcType, targe
 	}
 }
 
+// filterProcsBySearchPath excludes routines in implicit pg_temp when the call
+// is unqualified and pg_temp is not explicitly listed in search_path.
+func (c *Catalog) filterProcsBySearchPath(fSchema string, procs []*BuiltinProc) []*BuiltinProc {
+	if len(procs) == 0 || fSchema != "" || c.schemaByName["pg_temp"] == nil {
+		return procs
+	}
+	for _, name := range c.searchPath {
+		if isTempSchemaName(name) {
+			return procs
+		}
+	}
+	out := make([]*BuiltinProc, 0, len(procs))
+	for _, p := range procs {
+		if p.OID >= FirstNormalObjectId {
+			if up := c.userProcs[p.OID]; up != nil && up.Schema != nil && isTempSchemaName(up.Schema.Name) {
+				continue
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func (c *Catalog) filterOperatorsBySearchPath(ops []*BuiltinOperator) []*BuiltinOperator {
+	if len(ops) == 0 || c.schemaByName["pg_temp"] == nil {
+		return ops
+	}
+	for _, name := range c.searchPath {
+		if isTempSchemaName(name) {
+			return ops
+		}
+	}
+	out := make([]*BuiltinOperator, 0, len(ops))
+	for _, op := range ops {
+		if op.OID >= FirstNormalObjectId {
+			if sc := c.schemas[c.operatorSchemas[op.OID]]; sc != nil && isTempSchemaName(sc.Name) {
+				continue
+			}
+		}
+		out = append(out, op)
+	}
+	return out
+}
+
 // resolveOperator resolves an operator expression and returns the operator
 // along with the resolved types for left and right operands.
 func (c *Catalog) resolveOperator(name string, leftType, rightType uint32, isPrefix bool) (*BuiltinOperator, uint32, uint32, error) {
 	if isPrefix {
 		// Prefix operator.
-		if ops := c.operByKey[operKey{name: name, left: 0, right: rightType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: 0, right: rightType}]); len(ops) > 0 {
 			return ops[0], 0, rightType, nil
 		}
 		if rightType == UNKNOWNOID {
 			for _, commonType := range []uint32{TEXTOID, INT4OID, FLOAT8OID} {
-				if ops := c.operByKey[operKey{name: name, left: 0, right: commonType}]; len(ops) > 0 {
+				if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: 0, right: commonType}]); len(ops) > 0 {
 					return ops[0], 0, commonType, nil
 				}
 			}
@@ -4755,36 +5017,36 @@ func (c *Catalog) resolveOperator(name string, leftType, rightType uint32, isPre
 	}
 
 	// Binary operator: exact match.
-	if ops := c.operByKey[operKey{name: name, left: leftType, right: rightType}]; len(ops) > 0 {
+	if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: leftType, right: rightType}]); len(ops) > 0 {
 		return ops[0], leftType, rightType, nil
 	}
 
 	// If one side is UNKNOWN, try substituting.
 	if leftType == UNKNOWNOID && rightType != UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: rightType, right: rightType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: rightType, right: rightType}]); len(ops) > 0 {
 			return ops[0], rightType, rightType, nil
 		}
 		// pg: src/backend/parser/parse_func.c — func_select_candidate (step 4d)
 		// Try the preferred type of the same category.
 		if pref := c.preferredTypeForCategory(rightType); pref != 0 && pref != rightType {
-			if ops := c.operByKey[operKey{name: name, left: pref, right: pref}]; len(ops) > 0 {
+			if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: pref, right: pref}]); len(ops) > 0 {
 				return ops[0], pref, pref, nil
 			}
 		}
 	}
 	if rightType == UNKNOWNOID && leftType != UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: leftType, right: leftType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: leftType, right: leftType}]); len(ops) > 0 {
 			return ops[0], leftType, leftType, nil
 		}
 		// pg: src/backend/parser/parse_func.c — func_select_candidate (step 4d)
 		if pref := c.preferredTypeForCategory(leftType); pref != 0 && pref != leftType {
-			if ops := c.operByKey[operKey{name: name, left: pref, right: pref}]; len(ops) > 0 {
+			if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: pref, right: pref}]); len(ops) > 0 {
 				return ops[0], pref, pref, nil
 			}
 		}
 	}
 	if leftType == UNKNOWNOID && rightType == UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: TEXTOID, right: TEXTOID}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: TEXTOID, right: TEXTOID}]); len(ops) > 0 {
 			return ops[0], TEXTOID, TEXTOID, nil
 		}
 	}
@@ -5049,13 +5311,13 @@ func (c *Catalog) funcSelectCandidate(inputTypes []uint32, candidates []funcCand
 func (c *Catalog) resolveOpWithCoercionFull(name string, leftType, rightType uint32) (*BuiltinOperator, uint32, uint32, error) {
 	inputTypes := []uint32{leftType, rightType}
 
-	// 1. Collect all binary operators with matching name.
+	// 1. Collect all visible binary operators with matching name (excluding implicit pg_temp).
 	var allCandidates []funcCandidate
 	for key, ops := range c.operByKey {
 		if key.name != name {
 			continue
 		}
-		for _, op := range ops {
+		for _, op := range c.filterOperatorsBySearchPath(ops) {
 			if op.Kind == 'l' {
 				continue // skip prefix operators
 			}
@@ -5428,12 +5690,36 @@ func figureColName(n nodes.Node) string {
 		return figureColName(v.Arg)
 	case *nodes.A_Const:
 		return "?column?"
-	case *nodes.ArrayExpr:
+	case *nodes.ArrayExpr, *nodes.A_ArrayExpr:
 		return "array"
 	case *nodes.RowExpr:
 		return "row"
 	case *nodes.CollateClause:
 		return figureColName(v.Arg)
+	case *nodes.JsonObjectConstructor:
+		return "json_object"
+	case *nodes.JsonArrayConstructor, *nodes.JsonArrayQueryConstructor:
+		return "json_array"
+	case *nodes.JsonObjectAgg:
+		return "json_objectagg"
+	case *nodes.JsonArrayAgg:
+		return "json_arrayagg"
+	case *nodes.JsonParseExpr:
+		return "json"
+	case *nodes.JsonScalarExpr:
+		return "json_scalar"
+	case *nodes.JsonSerializeExpr:
+		return "json_serialize"
+	case *nodes.JsonFuncExpr:
+		switch v.Op {
+		case nodes.JSON_EXISTS_OP:
+			return "json_exists"
+		case nodes.JSON_QUERY_OP:
+			return "json_query"
+		case nodes.JSON_VALUE_OP:
+			return "json_value"
+		}
+		return "?column?"
 	case *nodes.XmlExpr:
 		switch v.Op {
 		case nodes.IS_XMLCONCAT:
@@ -5704,6 +5990,9 @@ type AnalyzeOptions struct {
 	// names is added to it. A * over it fails. Use it to read lineage,
 	// never to decide whether PostgreSQL accepts the query.
 	OpaqueUnknownFunctions bool
+	// ParamTypes supplies resolved parameter type OIDs for $1..$N when
+	// analyzing a prepared query (e.g. CREATE TABLE ... AS EXECUTE).
+	ParamTypes []uint32
 }
 
 // AnalyzeSelectStmtWithOptions is AnalyzeSelectStmt with the relaxations
@@ -5755,10 +6044,13 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.Node, rel *Relation) (Analyze
 	if expr == nil {
 		return nil, nil
 	}
-	rte := c.buildRelationRTE(rel)
+	var rtes []*RangeTableEntry
+	if rel != nil {
+		rtes = []*RangeTableEntry{c.buildRelationRTE(rel)}
+	}
 	ac := &analyzeCtx{
 		catalog: c,
-		query:   &Query{RangeTable: []*RangeTableEntry{rte}},
+		query:   &Query{RangeTable: rtes},
 	}
 	return ac.transformExpr(expr)
 }
@@ -6373,4 +6665,23 @@ func (ac *analyzeCtx) transformJsonSerializeExpr(n *nodes.JsonSerializeExpr) (An
 		Args:            []AnalyzedExpr{inner},
 		ResultType:      TEXTOID,
 	}, nil
+}
+
+// checkLimitExprCalls refuses aggregate and window calls of the query's own
+// level in a LIMIT or OFFSET argument (parse_agg.c check_agglevels_and_constraints).
+func checkLimitExprCalls(expr AnalyzedExpr, construct string) error {
+	var err error
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		if err != nil {
+			return false
+		}
+		switch e.(type) {
+		case *AggExpr:
+			err = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in " + construct}
+		case *WindowFuncExpr:
+			err = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in " + construct}
+		}
+		return err == nil
+	})
+	return err
 }

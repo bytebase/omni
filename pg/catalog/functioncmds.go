@@ -1007,7 +1007,7 @@ func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.Obje
 	}
 	var schema *Schema
 	if schemaName == "" {
-		for _, nsOID := range c.searchPathWithCatalog() {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
 			ns := c.schemas[nsOID]
 			if ns == nil {
 				continue

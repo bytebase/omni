@@ -326,12 +326,14 @@ type DomainConstraint struct {
 
 // DomainType holds metadata for a user-created domain type.
 type DomainType struct {
-	TypeOID     uint32
-	BaseTypeOID uint32
-	BaseTypMod  int32
-	NotNull     bool
-	Default     string
-	Constraints []*DomainConstraint
+	TypeOID          uint32
+	BaseTypeOID      uint32
+	BaseTypMod       int32
+	NotNull          bool
+	Default          string
+	CollationName    string
+	UserCollationOID uint32
+	Constraints      []*DomainConstraint
 }
 
 // DefineDomain creates a new domain type from a parsed CREATE DOMAIN statement.
@@ -354,12 +356,15 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		rawExpr nodes.Node
 	}
 	var checkDefs []domCheckDef
-	var hasCollateClause bool
+	var domCollList *nodes.List
+	if stmt.CollClause != nil {
+		domCollList = stmt.CollClause.Collname
+	}
 	if stmt.Constraints != nil {
 		for _, item := range stmt.Constraints.Items {
 			// pgparser may put COLLATE clause here as *nodes.CollateClause.
-			if _, ok := item.(*nodes.CollateClause); ok {
-				hasCollateClause = true
+			if cc, ok := item.(*nodes.CollateClause); ok {
+				domCollList = cc.Collname
 				continue
 			}
 			con, ok := item.(*nodes.Constraint)
@@ -451,18 +456,24 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		}
 	}
 
-	// Validate COLLATE clause — base type must be collatable.
+	// Validate COLLATE clause — collation must exist and base type must be collatable.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (collation check)
-	// pgparser may put the COLLATE clause in CollClause or in Constraints as *nodes.CollateClause.
-	if stmt.CollClause != nil || hasCollateClause {
-		if bt := c.typeByOID[baseOID]; bt != nil && bt.Collation == 0 && bt.Category != 'S' {
-			return errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", bt.TypeName))
+	var domCollName string
+	var domUserCollOID uint32
+	if domCollList != nil {
+		var cerr error
+		domCollName, domUserCollOID, cerr = c.resolveColumnCollation(domCollList, baseOID)
+		if cerr != nil {
+			return cerr
 		}
 	}
 
 	// Allocate OIDs.
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
+	if domUserCollOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'L', domUserCollOID, 0, DepNormal)
+	}
 
 	// Register the domain type.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (inherits typcategory from base type)
@@ -490,13 +501,13 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		NotNull:   notNull,
 	}
 
-	// Copy properties from base type.
+	// Copy properties from base type, overriding typcollation when COLLATE is given.
 	if bt := c.typeByOID[baseOID]; bt != nil {
 		domType.Len = bt.Len
 		domType.ByVal = bt.ByVal
 		domType.Align = bt.Align
 		domType.Storage = bt.Storage
-		domType.Collation = bt.Collation
+		domType.Collation = c.effectiveColumnCollation(baseOID, domCollName, domUserCollOID)
 	}
 
 	c.typeByOID[typeOID] = domType
@@ -538,11 +549,13 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 
 	// Create domain metadata.
 	dt := &DomainType{
-		TypeOID:     typeOID,
-		BaseTypeOID: baseOID,
-		BaseTypMod:  baseMod,
-		NotNull:     notNull,
-		Default:     defaultExpr,
+		TypeOID:          typeOID,
+		BaseTypeOID:      baseOID,
+		BaseTypMod:       baseMod,
+		NotNull:          notNull,
+		Default:          defaultExpr,
+		CollationName:    domCollName,
+		UserCollationOID: domUserCollOID,
 	}
 
 	// Add CHECK constraints if provided (supports multiple).
@@ -736,12 +749,15 @@ func (c *Catalog) DefineCompositeType(stmt *nodes.CompositeTypeStmt) error {
 
 // RangeType holds the metadata for a user-created range type.
 type RangeType struct {
-	OID           uint32
-	Name          string
-	Namespace     uint32
-	SubTypeOID    uint32
-	ArrayOID      uint32
-	MultirangeOID uint32 // auto-generated multirange type
+	OID              uint32
+	Name             string
+	Namespace        uint32
+	SubTypeOID       uint32
+	ArrayOID         uint32
+	MultirangeOID    uint32 // auto-generated multirange type
+	CollationSchema  string // explicit or user-collation schema (empty for unqualified built-in)
+	CollationName    string // explicit COLLATION name; empty = subtype default
+	UserCollationOID uint32 // OID of user-defined collation, or 0
 }
 
 // DefineRange creates a new range type from a parsed CREATE TYPE ... AS RANGE statement.
@@ -764,6 +780,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	// pg: src/backend/commands/typecmds.c — DefineRange (duplicate param detection)
 	var subtypeOID uint32
 	var hasCollation bool
+	var rangeCollList *nodes.List
 	seenParams := make(map[string]bool)
 	if stmt.Params != nil {
 		for _, item := range stmt.Params.Items {
@@ -795,6 +812,13 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 				}
 			case "collation":
 				hasCollation = true
+				if l, ok := def.Arg.(*nodes.List); ok {
+					rangeCollList = l
+				} else if tn, ok := def.Arg.(*nodes.TypeName); ok && tn.Names != nil {
+					rangeCollList = tn.Names
+				} else if s := defElemString(def); s != "" {
+					rangeCollList = &nodes.List{Items: []nodes.Node{&nodes.String{Str: s}}}
+				}
 			case "subtype_opclass", "canonical", "subtype_diff":
 				// These are accepted but not needed for catalog-only tracking.
 			}
@@ -813,9 +837,31 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Validate collation — subtype must be collatable if collation is specified.
 	// pg: src/backend/commands/typecmds.c — DefineRange (collation validation)
+	var rangeCollSchema, rangeCollName string
+	var rangeUserCollOID uint32
 	if hasCollation {
 		if st := c.typeByOID[subtypeOID]; st != nil && st.Collation == 0 && st.Category != 'S' {
 			return errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", st.TypeName))
+		}
+		if rangeCollList != nil {
+			var cerr error
+			rangeCollSchema, _ = qualifiedName(rangeCollList)
+			rangeCollName, rangeUserCollOID, cerr = c.resolveCollationList(rangeCollList)
+			if cerr != nil {
+				return cerr
+			}
+			if rangeUserCollOID != 0 && rangeCollSchema == "" {
+				for _, s := range c.schemas {
+					if s != nil {
+						if uc := s.Collations[rangeCollName]; uc != nil && uc.OID == rangeUserCollOID {
+							rangeCollSchema = s.Name
+							break
+						}
+					}
+				}
+			} else if rangeUserCollOID == 0 && rangeCollSchema == "pg_catalog" {
+				rangeCollSchema = ""
+			}
 		}
 	}
 
@@ -833,6 +879,9 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	// Allocate OIDs.
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
+	if rangeUserCollOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'L', rangeUserCollOID, 0, DepNormal)
+	}
 
 	c.recordTypeOwner(typeOID)
 	c.recordTypeOwner(arrayOID)
@@ -933,12 +982,15 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
-		OID:           typeOID,
-		Name:          name,
-		Namespace:     schema.OID,
-		SubTypeOID:    subtypeOID,
-		ArrayOID:      arrayOID,
-		MultirangeOID: multirangeOID,
+		OID:              typeOID,
+		Name:             name,
+		Namespace:        schema.OID,
+		SubTypeOID:       subtypeOID,
+		ArrayOID:         arrayOID,
+		MultirangeOID:    multirangeOID,
+		CollationSchema:  rangeCollSchema,
+		CollationName:    rangeCollName,
+		UserCollationOID: rangeUserCollOID,
 	}
 
 	// Range depends on subtype.

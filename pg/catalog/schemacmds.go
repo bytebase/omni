@@ -245,6 +245,24 @@ func (c *Catalog) cascadeDropSchemaContents(s *Schema) {
 	for _, oid := range famOIDs {
 		c.cascadeDropOpFamily(oid)
 	}
+	if len(s.Collations) > 0 {
+		type collEntry struct {
+			name string
+			oid  uint32
+		}
+		colls := make([]collEntry, 0, len(s.Collations))
+		for name, uc := range s.Collations {
+			if uc != nil {
+				colls = append(colls, collEntry{name: name, oid: uc.OID})
+			}
+		}
+		sort.Slice(colls, func(i, j int) bool { return colls[i].oid < colls[j].oid })
+		for _, ce := range colls {
+			if uc := s.Collations[ce.name]; uc != nil && uc.OID == ce.oid {
+				c.cascadeDropCollation(s, ce.name, ce.oid)
+			}
+		}
+	}
 }
 
 func (c *Catalog) deleteSchemaRecord(s *Schema) {

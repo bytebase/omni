@@ -171,7 +171,7 @@ func TestCreateSequenceDuplicate(t *testing.T) {
 	c := New()
 	c.DefineSequence(makeCreateSeqStmt("", "s", false))
 	err := c.DefineSequence(makeCreateSeqStmt("", "s", false))
-	assertCode(t, err, CodeDuplicateObject)
+	assertCode(t, err, CodeDuplicateTable)
 }
 
 func TestCreateSequenceIfNotExists(t *testing.T) {

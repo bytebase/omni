@@ -800,6 +800,18 @@ func (c *Catalog) collationName(oid uint32) string {
 	case 0:
 		return ""
 	default:
+		if c != nil {
+			for _, sc := range c.schemas {
+				if sc == nil {
+					continue
+				}
+				for _, uc := range sc.Collations {
+					if uc != nil && uc.OID == oid {
+						return uc.Name
+					}
+				}
+			}
+		}
 		return fmt.Sprintf("collation(%d)", oid)
 	}
 }

@@ -3,6 +3,8 @@ package catalog
 import (
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // typeKey identifies a type by namespace and name.
@@ -21,6 +23,19 @@ type operKey struct {
 	name  string
 	left  uint32
 	right uint32
+}
+
+type preparedResultCol struct {
+	TypeOID uint32
+	TypeMod int32
+}
+
+type preparedStmt struct {
+	query         nodes.Node
+	argTypes      []uint32
+	numParams     int
+	hasResultCols bool
+	resultCols    []preparedResultCol
 }
 
 // Catalog is the in-memory PostgreSQL catalog.
@@ -72,9 +87,10 @@ type Catalog struct {
 	// User-defined functions/procedures.
 	userProcs map[uint32]*UserProc
 
-	// Triggers.
+	// Triggers and rewrite rules.
 	triggers      map[uint32]*Trigger
 	triggersByRel map[uint32][]*Trigger
+	rules         map[uint32]*Rule
 
 	// Event triggers.
 	eventTriggers      map[uint32]*EventTrigger
@@ -162,6 +178,9 @@ type Catalog struct {
 	// Warnings collected during the most recent statement execution.
 	warnings []Warning
 
+	// Session-local prepared statements registered via PREPARE.
+	preparedStmts map[string]*preparedStmt
+
 	// Temporary CTE list for recursive CTE analysis. Set during analysis of
 	// the recursive term so that nested analyzeSelectStmt calls can see the
 	// partially-defined CTE.
@@ -194,6 +213,7 @@ func New() *Catalog {
 		userProcs:          make(map[uint32]*UserProc),
 		triggers:           make(map[uint32]*Trigger),
 		triggersByRel:      make(map[uint32][]*Trigger),
+		rules:              make(map[uint32]*Rule),
 		eventTriggers:      make(map[uint32]*EventTrigger),
 		eventTriggerByName: make(map[string]*EventTrigger),
 		comments:           make(map[commentKey]string),
@@ -415,16 +435,41 @@ func (c *Catalog) SetSearchPath(schemas []string) {
 	c.searchPath = schemas
 }
 
-// searchPathWithCatalog resolves the search path to namespace OIDs,
-// expanding $user to the current user name and appending pg_catalog
-// if not explicitly listed. Non-existent schemas are silently skipped.
+// searchPathWithCatalog resolves the search path to namespace OIDs for
+// relation and data type lookups, prepending implicit pg_temp when a temp
+// schema exists, expanding $user to the current user name, and appending
+// pg_catalog if not explicitly listed. Non-existent schemas are silently
+// skipped.
 //
 // pg: src/backend/catalog/namespace.c — preprocessNamespacePath, finalNamespacePath
 func (c *Catalog) searchPathWithCatalog() []uint32 {
+	return c.resolveSearchPath(true)
+}
+
+// routineSearchPathWithCatalog resolves the search path to namespace OIDs for
+// function, procedure, aggregate, and operator lookups. Unlike relation/type
+// lookup, PostgreSQL never searches the implicit pg_temp schema for routines
+// or operators unless pg_temp was explicitly listed in search_path.
+//
+// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates, OpernameGetCandidates
+func (c *Catalog) routineSearchPathWithCatalog() []uint32 {
+	return c.resolveSearchPath(false)
+}
+
+func (c *Catalog) resolveSearchPath(includeImplicitTemp bool) []uint32 {
 	hasPGCatalog := false
+	hasPGTemp := false
 
 	// Expand $user and collect schema names.
-	expanded := make([]string, 0, len(c.searchPath)+1)
+	expanded := make([]string, 0, len(c.searchPath)+2)
+	for _, name := range c.searchPath {
+		if name == "pg_temp" {
+			hasPGTemp = true
+		}
+	}
+	if includeImplicitTemp && !hasPGTemp && c.schemaByName["pg_temp"] != nil {
+		expanded = append(expanded, "pg_temp")
+	}
 	for _, name := range c.searchPath {
 		if name == "$user" {
 			// pg: preprocessNamespacePath — "$user" substitution using GetUserId()
@@ -458,6 +503,23 @@ func (c *Catalog) searchPathWithCatalog() []uint32 {
 		oids = append(oids, s.OID)
 	}
 	return oids
+}
+
+func (c *Catalog) ensureTempSchema() *Schema {
+	if s := c.schemaByName["pg_temp"]; s != nil {
+		return s
+	}
+	s := &Schema{
+		OID:        c.oidGen.Next(),
+		Name:       "pg_temp",
+		Relations:  make(map[string]*Relation),
+		Indexes:    make(map[string]*Index),
+		Sequences:  make(map[string]*Sequence),
+		Collations: make(map[string]*UserCollation),
+	}
+	c.schemas[s.OID] = s
+	c.schemaByName[s.Name] = s
+	return s
 }
 
 // resolveTargetSchema determines the schema for a DDL operation.

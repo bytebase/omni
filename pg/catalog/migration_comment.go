@@ -67,37 +67,52 @@ func formatCommentSQL(c *Catalog, objType byte, objDescription string, subID int
 func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID int16) string {
 	switch objType {
 	case 'r': // relation (table, view, matview)
+		var rel *Relation
+		parts := strings.SplitN(objDescription, ".", 2)
+		if len(parts) == 2 && c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
+		targetRelName := formatQualifiedDescription(objDescription)
+		if len(parts) == 2 {
+			targetRelName = formatRelationName(parts[0], parts[1], rel)
+		}
 		if subID != 0 {
 			// Resolve the column name from the catalog using the attnum (subID).
 			colName := ""
-			parts := strings.SplitN(objDescription, ".", 2)
-			if len(parts) == 2 && c != nil {
-				rel := c.GetRelation(parts[0], parts[1])
-				if rel != nil {
-					for _, col := range rel.Columns {
-						if col.AttNum == subID {
-							colName = col.Name
-							break
-						}
+			if rel != nil {
+				for _, col := range rel.Columns {
+					if col.AttNum == subID {
+						colName = col.Name
+						break
 					}
 				}
 			}
 			if colName != "" {
-				return fmt.Sprintf("COLUMN %s.%s", formatQualifiedDescription(objDescription), quoteIdentAlways(colName))
+				return fmt.Sprintf("COLUMN %s.%s", targetRelName, quoteIdentAlways(colName))
 			}
-			return fmt.Sprintf("COLUMN %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("COLUMN %s", targetRelName)
 		}
 		// Determine relation kind from the catalog.
 		relKind := resolveRelKindFromDescription(c, objDescription)
 		switch relKind {
 		case 'v':
-			return fmt.Sprintf("VIEW %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("VIEW %s", targetRelName)
 		case 'm':
-			return fmt.Sprintf("MATERIALIZED VIEW %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("MATERIALIZED VIEW %s", targetRelName)
 		default:
-			return fmt.Sprintf("TABLE %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("TABLE %s", targetRelName)
 		}
 	case 'i': // index
+		parts := strings.SplitN(objDescription, ".", 2)
+		if len(parts) == 2 && c != nil {
+			if sc := c.GetSchema(parts[0]); sc != nil {
+				if idx := sc.Indexes[parts[1]]; idx != nil {
+					if rel := c.GetRelationByOID(idx.RelOID); rel != nil && rel.Persistence == 't' && !isTempSchemaName(parts[0]) {
+						return fmt.Sprintf("INDEX %s", quoteIdentAlways(parts[1]))
+					}
+				}
+			}
+		}
 		return fmt.Sprintf("INDEX %s", formatQualifiedDescription(objDescription))
 	case 'f': // function/procedure
 		// Determine if this is a procedure from the catalog.
@@ -110,18 +125,48 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 	case 't': // type (enum, composite)
 		return fmt.Sprintf("TYPE %s", formatQualifiedDescription(objDescription))
 	case 's': // sequence
+		parts := strings.SplitN(objDescription, ".", 2)
+		if len(parts) == 2 && c != nil {
+			if sc := c.GetSchema(parts[0]); sc != nil {
+				if seq := sc.Sequences[parts[1]]; seq != nil && seq.Persistence == 't' && !isTempSchemaName(parts[0]) {
+					return fmt.Sprintf("SEQUENCE %s", quoteIdentAlways(parts[1]))
+				}
+			}
+		}
 		return fmt.Sprintf("SEQUENCE %s", formatQualifiedDescription(objDescription))
 	case 'c': // constraint (schema.table.constraint)
-		return formatConstraintCommentTarget(objDescription)
+		return formatConstraintCommentTarget(c, objDescription)
+	case 'd': // domain constraint (schema.domain.constraint)
+		return formatDomainConstraintCommentTarget(objDescription)
 	case 'g': // trigger (schema.table.trigger)
-		return formatTriggerCommentTarget(objDescription)
+		return formatTriggerCommentTarget(c, objDescription)
 	case 'E': // event trigger
 		return fmt.Sprintf("EVENT TRIGGER %s", quoteIdentAlways(objDescription))
 	case 'p': // policy (schema.table.policy)
-		return formatPolicyCommentTarget(objDescription)
+		return formatPolicyCommentTarget(c, objDescription)
+	case 'R': // rule (schema.table.rule)
+		return formatRuleCommentTarget(c, objDescription)
 	default:
 		return ""
 	}
+}
+
+func formatRuleCommentTarget(c *Catalog, desc string) string {
+	sep := "."
+	if strings.Contains(desc, "\x00") {
+		sep = "\x00"
+	}
+	parts := strings.SplitN(desc, sep, 3)
+	if len(parts) == 3 {
+		var rel *Relation
+		if c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
+		return fmt.Sprintf("RULE %s ON %s",
+			quoteIdentAlways(parts[2]),
+			formatRelationName(parts[0], parts[1], rel))
+	}
+	return fmt.Sprintf("RULE %s", quoteIdentAlways(desc))
 }
 
 // resolveRelKindFromDescription looks up a relation by "schema.name" description
@@ -167,10 +212,24 @@ func formatQualifiedDescription(desc string) string {
 
 // formatConstraintCommentTarget formats "schema.table.constraint" into
 // CONSTRAINT "constraint" ON "schema"."table".
-func formatConstraintCommentTarget(desc string) string {
+func formatConstraintCommentTarget(c *Catalog, desc string) string {
 	parts := strings.SplitN(desc, ".", 3)
 	if len(parts) == 3 {
+		var rel *Relation
+		if c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
 		return fmt.Sprintf("CONSTRAINT %s ON %s",
+			quoteIdentAlways(parts[2]),
+			formatRelationName(parts[0], parts[1], rel))
+	}
+	return fmt.Sprintf("CONSTRAINT %s", quoteIdentAlways(desc))
+}
+
+func formatDomainConstraintCommentTarget(desc string) string {
+	parts := strings.SplitN(desc, ".", 3)
+	if len(parts) == 3 {
+		return fmt.Sprintf("CONSTRAINT %s ON DOMAIN %s",
 			quoteIdentAlways(parts[2]),
 			migrationQualifiedName(parts[0], parts[1]))
 	}
@@ -179,24 +238,32 @@ func formatConstraintCommentTarget(desc string) string {
 
 // formatTriggerCommentTarget formats "schema.table.trigger" into
 // TRIGGER "trigger" ON "schema"."table".
-func formatTriggerCommentTarget(desc string) string {
+func formatTriggerCommentTarget(c *Catalog, desc string) string {
 	parts := strings.SplitN(desc, ".", 3)
 	if len(parts) == 3 {
+		var rel *Relation
+		if c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
 		return fmt.Sprintf("TRIGGER %s ON %s",
 			quoteIdentAlways(parts[2]),
-			migrationQualifiedName(parts[0], parts[1]))
+			formatRelationName(parts[0], parts[1], rel))
 	}
 	return fmt.Sprintf("TRIGGER %s", quoteIdentAlways(desc))
 }
 
 // formatPolicyCommentTarget formats "schema.table.policy" into
 // POLICY "policy" ON "schema"."table".
-func formatPolicyCommentTarget(desc string) string {
+func formatPolicyCommentTarget(c *Catalog, desc string) string {
 	parts := strings.SplitN(desc, ".", 3)
 	if len(parts) == 3 {
+		var rel *Relation
+		if c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
 		return fmt.Sprintf("POLICY %s ON %s",
 			quoteIdentAlways(parts[2]),
-			migrationQualifiedName(parts[0], parts[1]))
+			formatRelationName(parts[0], parts[1], rel))
 	}
 	return fmt.Sprintf("POLICY %s", quoteIdentAlways(desc))
 }

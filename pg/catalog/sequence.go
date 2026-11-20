@@ -14,6 +14,7 @@ type Sequence struct {
 	Name        string
 	Schema      *Schema
 	OwnerName   string
+	Persistence byte   // 'p'=permanent, 'u'=unlogged, 't'=temp (default 'p')
 	TypeOID     uint32 // int2/int4/int8
 	Start       int64
 	Increment   int64
@@ -146,24 +147,21 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 		return err
 	}
 
-	// Check name conflicts.
-	if _, exists := schema.Sequences[seqName]; exists {
+	// Check name conflicts in the relation and type namespaces.
+	// pg: src/backend/commands/sequence.c — DefineSequence → DefineRelation → heap_create_with_catalog
+	// Relation conflicts (including composite types, which have a RelKind='c'
+	// relation) return 42P07 and honor IF NOT EXISTS; standalone non-relation
+	// types (enums, domains, ranges) fail in heap_create_with_catalog's
+	// TYPENAMENSP check with 42710 even when IF NOT EXISTS is specified.
+	if _, held := relationNamespaceKind(schema, seqName); held {
 		if ifNotExists {
-			return nil
-		}
-		return errDuplicateObject("sequence", seqName)
-	}
-	if _, exists := schema.Relations[seqName]; exists {
-		if ifNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", seqName))
 			return nil
 		}
 		return errDuplicateTable(seqName)
 	}
-	if _, exists := schema.Indexes[seqName]; exists {
-		if ifNotExists {
-			return nil
-		}
-		return errDuplicateObject("index", seqName)
+	if c.typeByName[typeKey{ns: schema.OID, name: seqName}] != nil {
+		return errDuplicateObject("type", seqName)
 	}
 
 	// Resolve type.
@@ -243,19 +241,24 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 	if ownerName == "" {
 		ownerName = c.currentOwner()
 	}
+	persistence := byte('p')
+	if stmt.Sequence != nil && stmt.Sequence.Relpersistence != 0 {
+		persistence = stmt.Sequence.Relpersistence
+	}
 	seqOID := c.oidGen.Next()
 	seq := &Sequence{
-		OID:        seqOID,
-		Name:       seqName,
-		Schema:     schema,
-		OwnerName:  ownerName,
-		TypeOID:    typeOID,
-		Start:      startValue,
-		Increment:  increment,
-		MinValue:   minValue,
-		MaxValue:   maxValue,
-		CacheValue: cacheValue,
-		Cycle:      cycle,
+		OID:         seqOID,
+		Name:        seqName,
+		Schema:      schema,
+		OwnerName:   ownerName,
+		Persistence: persistence,
+		TypeOID:     typeOID,
+		Start:       startValue,
+		Increment:   increment,
+		MinValue:    minValue,
+		MaxValue:    maxValue,
+		CacheValue:  cacheValue,
+		Cycle:       cycle,
 	}
 
 	schema.Sequences[seqName] = seq
@@ -396,6 +399,19 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 				sawCycle = true
 				seq.Cycle = defElemBool(d)
+			case "logged":
+				if seq.Persistence == 't' {
+					*seq = orig
+					return &Error{
+						Code:    CodeWrongObjectType,
+						Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+					}
+				}
+				if defElemBool(d) {
+					seq.Persistence = 'p'
+				} else {
+					seq.Persistence = 'u'
+				}
 			case "owned_by":
 				if sawOwnedBy {
 					*seq = orig

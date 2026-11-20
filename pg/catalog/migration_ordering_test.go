@@ -1185,7 +1185,7 @@ func TestMigrationOrdering(t *testing.T) {
 		// the index OID level, and should be found directly (index has its own op).
 		fromSQL := ``
 		toSQL := `
-			CREATE FUNCTION norm(val text) RETURNS text LANGUAGE sql AS $$ SELECT lower(val) $$;
+			CREATE FUNCTION norm(val text) RETURNS text IMMUTABLE LANGUAGE sql AS $$ SELECT lower(val) $$;
 			CREATE TABLE t (id int, name text);
 			CREATE INDEX idx_norm ON t (norm(name));
 		`

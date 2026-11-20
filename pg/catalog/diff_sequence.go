@@ -130,7 +130,7 @@ func sequenceOwner(c *Catalog, seq *Sequence) string {
 	if rel == nil || rel.Schema == nil {
 		return ""
 	}
-	return migrationQualifiedName(rel.Schema.Name, rel.Name) + "." + quoteIdentAlways(resolveAttNum(rel, seq.OwnerAttNum))
+	return formatRelationName(rel.Schema.Name, rel.Name, rel) + "." + quoteIdentAlways(resolveAttNum(rel, seq.OwnerAttNum))
 }
 
 // seqIsSerialAbsorbed checks if a sequence exists in the catalog as a
@@ -185,6 +185,9 @@ func sequencesChanged(fromCat, toCat *Catalog, a, b *Sequence) bool {
 		return true
 	}
 	if a.Cycle != b.Cycle {
+		return true
+	}
+	if normalizeRelPersistence(a.Persistence) != normalizeRelPersistence(b.Persistence) {
 		return true
 	}
 	// A rebuilt owner takes the sequence along unless it is released first.

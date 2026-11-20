@@ -131,6 +131,8 @@ func TestDefineIndex_CustomAM(t *testing.T) {
 
 	execSQL(t, c, `CREATE FUNCTION my_handler(internal) RETURNS index_am_handler AS 'my_handler' LANGUAGE C;`)
 	execSQL(t, c, `CREATE ACCESS METHOD custom_am TYPE INDEX HANDLER my_handler;`)
+	// PostgreSQL needs a default operator class to index a column without one.
+	execSQL(t, c, `CREATE OPERATOR CLASS int4_custom_ops DEFAULT FOR TYPE integer USING custom_am AS OPERATOR 1 <;`)
 	execSQL(t, c, `CREATE TABLE t (id integer);`)
 	execSQL(t, c, `CREATE INDEX t_idx ON t USING custom_am (id);`)
 
