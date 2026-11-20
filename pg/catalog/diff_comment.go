@@ -286,6 +286,23 @@ func resolveCommentNormKey(c *Catalog, ck commentKey) (commentNormKey, bool) {
 		}
 		return commentNormKey{}, false
 
+	case 'R': // rule
+		r := c.rules[ck.ObjOID]
+		if r == nil {
+			return commentNormKey{}, false
+		}
+		rel := c.relationByOID[r.OwnerRelOID]
+		if rel == nil || rel.Schema == nil {
+			base.Description = r.Name
+			base.ObjectName = r.Name
+			return base, true
+		}
+		base.SchemaName = rel.Schema.Name
+		base.ObjectName = rel.Name
+		base.SubObjName = r.Name
+		base.Description = fmt.Sprintf("%s\x00%s\x00%s", rel.Schema.Name, rel.Name, r.Name)
+		return base, true
+
 	default:
 		return commentNormKey{}, false
 	}

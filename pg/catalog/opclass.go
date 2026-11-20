@@ -26,6 +26,7 @@ type OpFamily struct {
 	AMOID     uint32
 	Schema    uint32
 	OwnerName string
+	Operators map[string]bool
 }
 
 // OpClass represents an operator class for an access method.
@@ -40,6 +41,7 @@ type OpClass struct {
 	IsDefault bool
 	Schema    uint32
 	OwnerName string
+	Operators map[string]bool
 }
 
 // opClassKey identifies a default operator class by (amOID, typeOID).
@@ -111,7 +113,7 @@ func (c *Catalog) resolveAMHandlerOID(handlerName *nodes.List, amType byte) (uin
 		}
 		bp = findInNamespace(schema.OID)
 	} else {
-		for _, nsOID := range c.searchPathWithCatalog() {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
 			if found := findInNamespace(nsOID); found != nil {
 				bp = found
 				break
@@ -307,6 +309,25 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		}
 	}
 
+	var declaredOps map[string]bool
+	if stmt.Items != nil {
+		for _, raw := range stmt.Items.Items {
+			ci, ok := raw.(*nodes.CreateOpClassItem)
+			if !ok || ci.Name == nil {
+				continue
+			}
+			if ci.Itemtype == 1 { // OPCLASS_ITEM_OPERATOR
+				_, opName := qualifiedName(ci.Name.Objname)
+				if opName != "" {
+					if declaredOps == nil {
+						declaredOps = make(map[string]bool)
+					}
+					declaredOps[opName] = true
+				}
+			}
+		}
+	}
+
 	opc := &OpClass{
 		OID:       c.oidGen.Next(),
 		Name:      className,
@@ -316,8 +337,20 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		IsDefault: stmt.IsDefault,
 		Schema:    schema.OID,
 		OwnerName: c.currentOwner(),
+		Operators: declaredOps,
+	}
+	if familyOID != 0 && len(declaredOps) > 0 {
+		if fam := c.opFamilies[familyOID]; fam != nil {
+			if fam.Operators == nil {
+				fam.Operators = make(map[string]bool, len(declaredOps))
+			}
+			for opName := range declaredOps {
+				fam.Operators[opName] = true
+			}
+		}
 	}
 	c.opClasses[opc.OID] = opc
+	c.recordOpClassMemberDeps('q', opc.OID, stmt.Items, typeOID, DepNormal)
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
 	if familyOID != 0 {
 		c.recordDependency('q', opc.OID, 0, 'Q', familyOID, 0, DepNormal)
@@ -343,12 +376,109 @@ func (c *Catalog) AlterOpFamily(stmt *nodes.AlterOpFamilyStmt) error {
 	}
 
 	famSchemaName, famName := qualifiedName(stmt.Opfamilyname)
-	if _, err := c.lookupOpFamily(am, famSchemaName, famName); err != nil {
+	fam, err := c.lookupOpFamily(am, famSchemaName, famName)
+	if err != nil {
 		return err
 	}
 
-	// ADD/DROP members: simplified no-op — pgddl doesn't track individual members.
+	if stmt.Items != nil {
+		for _, raw := range stmt.Items.Items {
+			ci, ok := raw.(*nodes.CreateOpClassItem)
+			if !ok || ci == nil || ci.Name == nil || ci.Itemtype != 1 {
+				continue
+			}
+			_, opName := qualifiedName(ci.Name.Objname)
+			if opName == "" {
+				continue
+			}
+			if stmt.IsDrop {
+				if fam.Operators != nil {
+					delete(fam.Operators, opName)
+				}
+				if opOID := c.opClassMemberOperatorOID(ci, 0); opOID != 0 {
+					c.removeDep('Q', fam.OID, 'O', opOID)
+				}
+			} else {
+				if fam.Operators == nil {
+					fam.Operators = make(map[string]bool)
+				}
+				fam.Operators[opName] = true
+			}
+		}
+		if !stmt.IsDrop {
+			c.recordOpClassMemberDeps('Q', fam.OID, stmt.Items, 0, DepAuto)
+		}
+	}
 	return nil
+}
+
+// recordOpClassMemberDeps records that an operator class or family depends on
+// each user-defined operator it lists (opclasscmds.c storeOperators): an
+// operator class member normally, so DROP OPERATOR needs CASCADE and then
+// drops the class, and a loose family member automatically, so dropping the
+// operator only removes the member.
+func (c *Catalog) recordOpClassMemberDeps(objType byte, objOID uint32, items *nodes.List, typeOID uint32, depType DepType) {
+	if items == nil {
+		return
+	}
+	for _, raw := range items.Items {
+		ci, ok := raw.(*nodes.CreateOpClassItem)
+		if !ok || ci == nil || ci.Name == nil || ci.Itemtype != 1 {
+			continue
+		}
+		if opOID := c.opClassMemberOperatorOID(ci, typeOID); opOID >= FirstNormalObjectId {
+			c.recordDependency(objType, objOID, 0, 'O', opOID, 0, depType)
+		}
+	}
+}
+
+// opClassMemberOperatorOID resolves an operator class item's operator from
+// its argument types, or from the class's input type when it names none.
+func (c *Catalog) opClassMemberOperatorOID(ci *nodes.CreateOpClassItem, typeOID uint32) uint32 {
+	schemaName, opName := qualifiedName(ci.Name.Objname)
+	left, right := typeOID, typeOID
+	if args := ci.Name.Objargs; args != nil && len(args.Items) == 2 {
+		for i, item := range args.Items {
+			tn, ok := item.(*nodes.TypeName)
+			if !ok {
+				return 0
+			}
+			oid, _, err := c.resolveTypeName(tn)
+			if err != nil {
+				return 0
+			}
+			if i == 0 {
+				left = oid
+			} else {
+				right = oid
+			}
+		}
+	}
+	ops := c.operByKey[operKey{name: opName, left: left, right: right}]
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return 0
+		}
+		for _, op := range ops {
+			if op.OID >= FirstNormalObjectId && c.operatorSchemas[op.OID] == s.OID {
+				return op.OID
+			}
+		}
+		return 0
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		for _, op := range ops {
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if opNS == nsOID {
+				return op.OID
+			}
+		}
+	}
+	return 0
 }
 
 // LookupAccessMethod returns the access method with the given name, or nil.
@@ -570,6 +700,44 @@ func (c *Catalog) removeAccessMethod(oid uint32) {
 	c.removeComments('m', oid)
 	c.removeDepsOf('m', oid)
 	c.removeDepsOn('m', oid)
+}
+
+// accessMethodHasOpClass reports whether any operator class belongs to the
+// access method.
+func (c *Catalog) accessMethodHasOpClass(amOID uint32) bool {
+	for _, opc := range c.opClasses {
+		if opc.AMOID == amOID {
+			return true
+		}
+	}
+	return false
+}
+
+// accessMethodNeedsCascade reports whether DROP ACCESS METHOD needs CASCADE.
+// Operator families and classes depend on their access method automatically
+// (opclasscmds.c records DEPENDENCY_AUTO), so they alone do not block the
+// drop; an object that uses one of them, such as an index, does.
+func (c *Catalog) accessMethodNeedsCascade(amOID uint32) bool {
+	opClassUsed := func(oid uint32) bool {
+		return len(c.findNormalDependents('q', oid)) > 0 || len(c.findNormalDependents('o', oid)) > 0
+	}
+	for _, dep := range c.findNormalDependents('m', amOID) {
+		switch dep.ObjType {
+		case 'q':
+			if opClassUsed(dep.ObjOID) {
+				return true
+			}
+		case 'Q':
+			for _, member := range c.findNormalDependents('Q', dep.ObjOID) {
+				if member.ObjType != 'q' || opClassUsed(member.ObjOID) {
+					return true
+				}
+			}
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 // cascadeDropAccessMethod drops all relations, indexes, operator classes, and

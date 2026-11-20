@@ -85,8 +85,17 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
-	// Compare CheckOption (views only).
-	if from.CheckOption != to.CheckOption {
+	// Compare CheckOption (views only), persistence, and populated state (matviews).
+	if from.CheckOption != to.CheckOption || from.SecurityBarrier != to.SecurityBarrier || from.SecurityInvoker != to.SecurityInvoker {
+		changed = true
+	}
+	if normalizeRelPersistence(from.Persistence) != normalizeRelPersistence(to.Persistence) {
+		changed = true
+	}
+	if from.RelKind == 'm' && to.RelKind == 'm' && from.IsPopulated != to.IsPopulated {
+		changed = true
+	}
+	if normalizeRelationAccessMethod(from) != normalizeRelationAccessMethod(to) {
 		changed = true
 	}
 
@@ -111,6 +120,12 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
+	// Rule sub-diff (views can have user-defined rewrite rules).
+	rules := diffRules(fromCat, toCat, from, to)
+	if len(rules) > 0 {
+		changed = true
+	}
+
 	if !changed {
 		return RelationDiffEntry{}, false
 	}
@@ -124,6 +139,7 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		Columns:    cols,
 		Indexes:    idxs,
 		Triggers:   trigs,
+		Rules:      rules,
 	}, true
 }
 

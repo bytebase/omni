@@ -272,7 +272,7 @@ func (c *Catalog) findOperatorFuncInSchema(schemaName, name string, leftType, ri
 		}
 		return 0, nil
 	}
-	for _, nsOID := range c.searchPathWithCatalog() {
+	for _, nsOID := range c.routineSearchPathWithCatalog() {
 		if ns := c.schemas[nsOID]; ns != nil {
 			if bp := c.findExactProc(ns, name, argOIDs); bp != nil {
 				return bp.OID, nil
@@ -348,7 +348,7 @@ func (c *Catalog) lookupUserOperator(owa *nodes.ObjectWithArgs) (*BuiltinOperato
 			}
 			return -1
 		}
-		for i, visible := range c.searchPathWithCatalog() {
+		for i, visible := range c.routineSearchPathWithCatalog() {
 			if visible == nsOID {
 				return i
 			}

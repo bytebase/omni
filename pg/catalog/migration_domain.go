@@ -85,12 +85,78 @@ func domainOpOrder(t MigrationOpType) int {
 	}
 }
 
+func domainCollationResolvedNamespace(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	if cat != nil && d.UserCollationOID != 0 {
+		for _, s := range cat.schemas {
+			if s != nil {
+				if uc := s.Collations[d.CollationName]; uc != nil && uc.OID == d.UserCollationOID {
+					return s.Name
+				}
+			}
+		}
+	}
+	if isBuiltinCollationName(d.CollationName) {
+		return "pg_catalog"
+	}
+	return "public"
+}
+
+// domainCollationSchema resolves the schema of a domain's collation when it
+// must be schema-qualified in DDL.
+func domainCollationSchema(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	ns := domainCollationResolvedNamespace(cat, d)
+	switch ns {
+	case "", "pg_catalog":
+		if cat != nil {
+			for _, s := range cat.schemas {
+				if s != nil && s.OID != PGCatalogNamespace && s.Collations[d.CollationName] != nil {
+					return "pg_catalog"
+				}
+			}
+		}
+		return ""
+	case "public":
+		if d.UserCollationOID != 0 && isBuiltinCollationName(d.CollationName) {
+			return "public"
+		}
+		return ""
+	default:
+		return ns
+	}
+}
+
+func domainCollationKey(d *DomainType, cat *Catalog) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	if ns := domainCollationResolvedNamespace(cat, d); ns != "" {
+		return migrationQualifiedName(ns, d.CollationName)
+	}
+	return quoteIdentAlways(d.CollationName)
+}
+
+func formatDomainCollate(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	if sc := domainCollationSchema(cat, d); sc != "" {
+		return " COLLATE " + migrationQualifiedName(sc, d.CollationName)
+	}
+	return formatCollate(d.CollationName)
+}
+
 // formatCreateDomain renders a CREATE DOMAIN statement.
 func formatCreateDomain(cat *Catalog, schemaName, name string, d *DomainType) string {
 	var buf strings.Builder
 	qn := migrationQualifiedName(schemaName, name)
 	baseType := cat.FormatType(d.BaseTypeOID, d.BaseTypMod)
-	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s", qn, baseType))
+	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s%s", qn, baseType, formatDomainCollate(cat, d)))
 
 	if d.Default != "" {
 		buf.WriteString(fmt.Sprintf(" DEFAULT %s", d.Default))
@@ -136,6 +202,36 @@ func generateDomainAlterOps(from, to *Catalog, entry DomainDiffEntry) []Migratio
 			Transactional: true,
 		})
 		return ops
+	}
+
+	// Collation change: PostgreSQL has no ALTER DOMAIN ... COLLATE; drop in
+	// PhasePre and recreate in PhaseMain (wrapModifiedCollationDependents
+	// detaches and restores any dependent columns, views, and constraints).
+	if domainCollationKey(d0, from) != domainCollationKey(d1, to) {
+		return []MigrationOp{
+			{
+				Type:          OpDropType,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP DOMAIN %s", qn),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       't',
+				ObjOID:        d0.TypeOID,
+				Priority:      PriorityType,
+			},
+			{
+				Type:          OpCreateType,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           formatCreateDomain(to, entry.SchemaName, entry.Name, d1),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        typeOID,
+				Priority:      PriorityType,
+			},
+		}
 	}
 
 	// Default change.

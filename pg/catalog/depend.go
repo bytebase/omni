@@ -265,6 +265,8 @@ func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]
 			addOperRef(v.OpOID)
 		case *NullIfExprQ:
 			addOperRef(v.OpOID)
+		case *CollateExprQ:
+			addRef('L', v.CollOID, 0)
 		case *SubLinkExpr:
 			c.walkExprRefsWithRel(v.TestExpr, relOID, refs, seen)
 			if v.SubQuery != nil {

@@ -74,13 +74,13 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 			if ce.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
+			ops = append(ops, buildDropConstraintOpForRel(rel.SchemaName, rel.Name, rel.From, ce.From))
 		case DiffModify:
 			// Modified constraint = DROP old + ADD new.
 			if ce.From != nil {
-				ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
+				ops = append(ops, buildDropConstraintOpForRel(rel.SchemaName, rel.Name, rel.From, ce.From))
 			}
-			if ce.To != nil {
+			if te := ce.To; te != nil {
 				ops = append(ops, buildAddConstraintOp(to, rel.SchemaName, rel.Name, ce.To))
 			}
 		}
@@ -93,7 +93,14 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 // first, through its priority: it may hold the key it references, and a
 // DROP TABLE ... CASCADE of either table would take it along.
 func buildDropConstraintOp(schemaName, tableName string, con *Constraint) MigrationOp {
+	return buildDropConstraintOpForRel(schemaName, tableName, nil, con)
+}
+
+func buildDropConstraintOpForRel(schemaName, tableName string, rel *Relation, con *Constraint) MigrationOp {
 	qualifiedTable := quoteIdentifier(schemaName) + "." + quoteIdentifier(tableName)
+	if (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+		qualifiedTable = quoteIdentifier(tableName)
+	}
 	priority := PriorityConstraint
 	if con.Type == ConstraintFK {
 		priority = PriorityFKDeferred
@@ -106,6 +113,7 @@ func buildDropConstraintOp(schemaName, tableName string, con *Constraint) Migrat
 		SQL:          fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", qualifiedTable, quoteIdentifier(con.Name)),
 		Phase:        PhasePre,
 		ObjType:      'c',
+		ObjOID:       con.OID,
 		Priority:     priority,
 	}
 }
@@ -113,6 +121,11 @@ func buildDropConstraintOp(schemaName, tableName string, con *Constraint) Migrat
 // buildAddConstraintOp creates an ADD CONSTRAINT operation.
 func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constraint) MigrationOp {
 	qualifiedTable := quoteIdentifier(schemaName) + "." + quoteIdentifier(tableName)
+	if to != nil && con != nil {
+		if rel := to.GetRelationByOID(con.RelOID); (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+			qualifiedTable = quoteIdentifier(tableName)
+		}
+	}
 	var sql string
 
 	switch con.Type {
@@ -120,6 +133,10 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
 		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), joinQuoted(colNames))
+		if len(con.IncludeColumns) > 0 {
+			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
+			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
+		}
 		if con.Deferrable {
 			clause += " DEFERRABLE"
 			if con.Deferred {
@@ -134,6 +151,10 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
 		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), joinQuoted(colNames))
+		if len(con.IncludeColumns) > 0 {
+			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
+			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
+		}
 		if con.Deferrable {
 			clause += " DEFERRABLE"
 			if con.Deferred {
@@ -178,13 +199,28 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 
 	case ConstraintExclude:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
+		var backing *Index
+		if con.IndexOID != 0 {
+			backing = to.GetIndexByOID(con.IndexOID)
+		}
 		var parts []string
 		for i, colName := range colNames {
+			elem := quoteIdentifier(colName)
+			if backing != nil && i < len(backing.OpClasses) && backing.OpClasses[i] != "" {
+				var opc []string
+				for _, part := range strings.Split(backing.OpClasses[i], ".") {
+					opc = append(opc, quoteIdentifier(part))
+				}
+				elem += " " + strings.Join(opc, ".")
+			}
 			op := "="
 			if i < len(con.ExclOps) {
 				op = con.ExclOps[i]
 			}
-			parts = append(parts, fmt.Sprintf("%s WITH %s", quoteIdentifier(colName), op))
+			if i < len(con.ExclOpSchemas) && con.ExclOpSchemas[i] != "" {
+				op = "OPERATOR(" + quoteIdentifier(con.ExclOpSchemas[i]) + "." + op + ")"
+			}
+			parts = append(parts, fmt.Sprintf("%s WITH %s", elem, op))
 		}
 		// Determine the index access method from the backing index.
 		method := "gist" // default for EXCLUDE constraints
@@ -195,6 +231,10 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		}
 		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s EXCLUDE USING %s (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), method, strings.Join(parts, ", "))
+		if len(con.IncludeColumns) > 0 {
+			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
+			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
+		}
 		if con.Deferrable {
 			clause += " DEFERRABLE"
 			if con.Deferred {
@@ -273,6 +313,9 @@ func resolveRelationName(c *Catalog, relOID uint32) string {
 	schemaName := "public"
 	if rel.Schema != nil {
 		schemaName = rel.Schema.Name
+	}
+	if rel.Persistence == 't' && !isTempSchemaName(schemaName) {
+		return quoteIdentifier(rel.Name)
 	}
 	return quoteIdentifier(schemaName) + "." + quoteIdentifier(rel.Name)
 }

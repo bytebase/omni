@@ -27,27 +27,29 @@ type PartitionBound struct {
 
 // Column represents a table column.
 type Column struct {
-	AttNum          int16
-	Name            string
-	TypeOID         uint32
-	TypeMod         int32
-	NotNull         bool
-	HasDefault      bool
-	Default         string
-	Len             int16
-	ByVal           bool
-	Align           byte
-	Storage         byte
-	Collation       uint32
-	DefaultAnalyzed AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
-	Generated       byte         // 's' = stored generated, 0 = none
-	Identity        byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IsLocal         bool         // true if defined locally (not only inherited)
-	InhCount        int          // number of inheritance ancestors that define this column
-	Compression     byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
-	GenerationExpr  string       // expression text for generated columns
-	CollationName   string       // explicit collation name (empty = type default)
-	Ndims           int16        // attndims — declared array dimensions
+	AttNum           int16
+	Name             string
+	TypeOID          uint32
+	TypeMod          int32
+	NotNull          bool
+	HasDefault       bool
+	Default          string
+	Len              int16
+	ByVal            bool
+	Align            byte
+	Storage          byte
+	Collation        uint32
+	DefaultAnalyzed  AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
+	Generated        byte         // 's' = stored generated, 0 = none
+	Identity         byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IsLocal          bool         // true if defined locally (not only inherited)
+	InhCount         int          // number of inheritance ancestors that define this column
+	Compression      byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
+	GenerationExpr   string       // expression text for generated columns
+	CollationSchema  string       // explicit collation schema when outside public/pg_catalog
+	CollationName    string       // explicit collation name (empty = type default)
+	UserCollationOID uint32       // user collation OID when CollationName names a user collation
+	Ndims            int16        // attndims — declared array dimensions
 }
 
 // Relation represents a table, view, or other relation.
@@ -82,6 +84,10 @@ type Relation struct {
 
 	// View options.
 	CheckOption byte // 0=none, 'l'=LOCAL, 'c'=CASCADED (views only)
+	// SecurityBarrier and SecurityInvoker hold the view options of those
+	// names (views only).
+	SecurityBarrier bool
+	SecurityInvoker bool
 
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
@@ -99,11 +105,12 @@ type Relation struct {
 	OwnerName string
 
 	// Relation flags (pg_class).
-	Owner       uint32 // relowner
-	HasRules    bool   // relhasrules
-	HasSubclass bool   // relhassubclass — has child tables/partitions
-	IsPopulated bool   // relispopulated — matview populated state
-	IsPartition bool   // relispartition
+	Owner       uint32           // relowner
+	HasRules    bool             // relhasrules
+	Rules       map[string]*Rule // rule name → rewrite rule definition & firing mode
+	HasSubclass bool             // relhassubclass — has child tables/partitions
+	IsPopulated bool             // relispopulated — matview populated state
+	IsPartition bool             // relispartition
 }
 
 // relationNamespaceKind returns the relkind a schema's relation namespace
@@ -135,6 +142,40 @@ func (c *Catalog) findNamedIndex(schema *Schema, name string) (*Index, error) {
 		return nil, errWrongObjectType(name, "an index")
 	}
 	return nil, errUndefinedObject("index", name)
+}
+
+// findIndexRelation locates an index by schema (or search path) and name as a
+// relation in pg_class (used by ALTER INDEX and RENAME): a missing name is
+// 42P01 (relation does not exist), while another relation kind is 42809.
+//
+// pg: src/backend/catalog/namespace.c — RangeVarGetRelidExtended + relkind check
+func (c *Catalog) findIndexRelation(schemaName, relName string) (*Schema, *Index, error) {
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, nil, errUndefinedSchema(schemaName)
+		}
+		if idx := s.Indexes[relName]; idx != nil {
+			return s, idx, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "an index")
+		}
+		return nil, nil, errUndefinedTable(relName)
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		if idx := s.Indexes[relName]; idx != nil {
+			return s, idx, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "an index")
+		}
+	}
+	return nil, nil, errUndefinedTable(relName)
 }
 
 // findRelation locates a relation by schema (or search path) and name. A
@@ -197,6 +238,9 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 
 	// Remove RLS policies on this relation.
 	c.removePoliciesForRelation(rel.OID)
+
+	// Remove rewrite rules on this relation.
+	c.removeRulesForRelation(rel)
 
 	// Remove grants on this relation.
 	c.removeGrantsForObject('r', rel.OID)

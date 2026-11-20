@@ -317,6 +317,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *AlterTableCmd:
 		return v.Loc
+	case *ReplicaIdentityStmt:
+		return v.Loc
 	case *AlterSeqStmt:
 		return v.Loc
 	case *AlterTableMoveAllStmt:
@@ -461,9 +463,6 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 
 	// --- Section 5.1: Investigation nodes ---
-
-
-
 
 	default:
 		return NoLoc()

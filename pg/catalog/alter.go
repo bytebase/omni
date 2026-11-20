@@ -157,9 +157,14 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 
 	schema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		if stmt.Missing_ok && missingObject(err) {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
+			return nil
+		}
 		// OWNER TO and SET TABLESPACE resolve their role or tablespace before
 		// the relation's kind, so on an index they report that object first;
-		// and ALTER TABLE ... OWNER TO also operates on sequences.
+		// and ALTER TABLE ... OWNER TO also operates on sequences, while
+		// SET/RESET storage parameters and SET STATISTICS also operate on indexes.
 		var refusal *Error
 		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType && stmt.Cmds != nil {
 			for _, item := range stmt.Cmds.Items {
@@ -183,6 +188,11 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_TABLE {
 				if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil && allAlterCmdsChangeOwner(stmt.Cmds) {
 					return c.execAlterSequenceTableCmds(seq, relName, stmt.Cmds)
+				}
+				if _, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
+					if allAlterCmdsAllowedOnIndexViaTable(stmt.Cmds) {
+						return c.execAlterIndexCmds(idx, stmt.Cmds)
+					}
 				}
 			}
 		}
@@ -249,8 +259,8 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		})
 	}
 
-	// Validate every tablespace a subcommand names before any subcommand runs,
-	// so an invalid tablespace cannot leave an earlier mutation behind.
+	// Validate every tablespace or access method a subcommand names before any
+	// subcommand runs, so a later failure cannot leave an earlier mutation behind.
 	for _, p := range pending {
 		switch nodes.AlterTableType(p.cmd.Subtype) {
 		case nodes.AT_SetTableSpace:
@@ -258,6 +268,17 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				return errWrongObjectType(relName, "a table, materialized view, or index")
 			}
 			if err := c.checkRelationTablespace(p.cmd.Name); err != nil {
+				return err
+			}
+		case nodes.AT_SetAccessMethod:
+			if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
+				return errWrongObjectType(relName, "a table or materialized view")
+			}
+			targetAM := p.cmd.Name
+			if targetAM == "" && rel.RelKind != 'p' {
+				targetAM = c.defaultTableAccessMethod
+			}
+			if err := c.checkTableAccessMethod(targetAM); err != nil {
 				return err
 			}
 		case nodes.AT_ChangeOwner:
@@ -287,79 +308,14 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
-	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
-	// mutation this catalog cannot rebuild from another field is a stored
-	// tablespace, so it is restored if a later subcommand fails.
-	needsRollback := false
-	for _, p := range pending {
-		switch nodes.AlterTableType(p.cmd.Subtype) {
-		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner:
-			needsRollback = true
-		}
-	}
-	var relTablespaces map[*Relation]string
-	var idxTablespaces map[*Index]string
-	var relOwners map[*Relation]string
-	var idxOwners map[*Index]string
-	var seqOwners map[*Sequence]string
-	var savedTypeOwners map[uint32]string
-	var savedGrants []Grant
+	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. Snapshot
+	// catalog state (preserving pre-existing object pointer identities on
+	// restore) whenever multiple subcommands run or a command recurses to
+	// child relations.
+	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0)
 	restore := func() {}
 	if needsRollback {
-		rels := []*Relation{rel}
-		for _, childOID := range c.findChildRelations(rel.OID) {
-			if child := c.relationByOID[childOID]; child != nil {
-				rels = append(rels, child)
-			}
-		}
-		relTablespaces = map[*Relation]string{}
-		relOwners = map[*Relation]string{}
-		idxTablespaces = map[*Index]string{}
-		idxOwners = map[*Index]string{}
-		seqOwners = map[*Sequence]string{}
-		savedTypeOwners = make(map[uint32]string, len(c.typeOwners))
-		for oid, owner := range c.typeOwners {
-			savedTypeOwners[oid] = owner
-		}
-		if c.grants != nil {
-			savedGrants = make([]Grant, len(c.grants))
-			for i, g := range c.grants {
-				savedGrants[i] = g
-				savedGrants[i].Columns = slices.Clone(g.Columns)
-			}
-		}
-		for _, r := range rels {
-			relTablespaces[r] = r.Tablespace
-			relOwners[r] = r.OwnerName
-			for _, idx := range c.indexesByRel[r.OID] {
-				idxTablespaces[idx] = idx.Tablespace
-				idxOwners[idx] = idx.OwnerName
-			}
-			for _, seq := range c.sequenceByOID {
-				if seq.OwnerRelOID == r.OID {
-					seqOwners[seq] = seq.OwnerName
-				}
-			}
-		}
-		restore = func() {
-			for r, ts := range relTablespaces {
-				r.Tablespace = ts
-			}
-			for r, owner := range relOwners {
-				r.OwnerName = owner
-			}
-			for idx, ts := range idxTablespaces {
-				idx.Tablespace = ts
-			}
-			for idx, owner := range idxOwners {
-				idx.OwnerName = owner
-			}
-			for seq, owner := range seqOwners {
-				seq.OwnerName = owner
-			}
-			c.typeOwners = savedTypeOwners
-			c.grants = savedGrants
-		}
+		restore = c.snapshotForAlterRollback()
 	}
 
 	// Execute in pass order.
@@ -385,6 +341,157 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	return nil
 }
 
+func (c *Catalog) snapshotForAlterRollback() func() {
+	origSchemas := make(map[uint32]*Schema, len(c.schemas))
+	for oid, s := range c.schemas {
+		origSchemas[oid] = s
+	}
+	origRels := make(map[uint32]*Relation, len(c.relationByOID))
+	origCols := make(map[uint32]map[string]*Column, len(c.relationByOID))
+	for oid, r := range c.relationByOID {
+		origRels[oid] = r
+		cm := make(map[string]*Column, len(r.Columns))
+		for _, col := range r.Columns {
+			cm[col.Name] = col
+		}
+		origCols[oid] = cm
+	}
+	origIndexes := make(map[uint32]*Index, len(c.indexes))
+	for oid, idx := range c.indexes {
+		origIndexes[oid] = idx
+	}
+	origCons := make(map[uint32]*Constraint, len(c.constraints))
+	for oid, con := range c.constraints {
+		origCons[oid] = con
+	}
+	origSeqs := make(map[uint32]*Sequence, len(c.sequenceByOID))
+	for oid, seq := range c.sequenceByOID {
+		origSeqs[oid] = seq
+	}
+	origRules := make(map[uint32]*Rule, len(c.rules))
+	for oid, rule := range c.rules {
+		origRules[oid] = rule
+	}
+	snap := c.Clone()
+
+	return func() {
+		savedWarnings := c.warnings
+		*c = *snap
+		c.warnings = savedWarnings
+
+		c.schemas = make(map[uint32]*Schema, len(snap.schemas))
+		c.schemaByName = make(map[string]*Schema, len(snap.schemaByName))
+		for oid, cs := range snap.schemas {
+			s := origSchemas[oid]
+			if s == nil {
+				s = cs
+			} else {
+				*s = *cs
+				s.Relations = make(map[string]*Relation, len(cs.Relations))
+				s.Indexes = make(map[string]*Index, len(cs.Indexes))
+				s.Sequences = make(map[string]*Sequence, len(cs.Sequences))
+			}
+			c.schemas[oid] = s
+			c.schemaByName[s.Name] = s
+		}
+		// Functions restored from the snapshot point at its schema copies.
+		for _, up := range c.userProcs {
+			if up.Schema != nil {
+				if s := c.schemas[up.Schema.OID]; s != nil {
+					up.Schema = s
+				}
+			}
+		}
+
+		c.relationByOID = make(map[uint32]*Relation, len(snap.relationByOID))
+		c.rules = make(map[uint32]*Rule, len(snap.rules))
+		for oid, cr := range snap.relationByOID {
+			r := origRels[oid]
+			if r == nil {
+				r = cr
+			} else {
+				*r = *cr
+				if cr.Columns != nil {
+					cols := make([]*Column, len(cr.Columns))
+					cm := origCols[oid]
+					for i, ccol := range cr.Columns {
+						if ocol := cm[ccol.Name]; ocol != nil {
+							*ocol = *ccol
+							cols[i] = ocol
+						} else {
+							cols[i] = ccol
+						}
+					}
+					r.Columns = cols
+				}
+			}
+			if cr.Rules != nil {
+				rm := make(map[string]*Rule, len(cr.Rules))
+				for k, crule := range cr.Rules {
+					if crule == nil {
+						continue
+					}
+					if orule := origRules[crule.OID]; orule != nil {
+						*orule = *crule
+						rm[k] = orule
+						c.rules[orule.OID] = orule
+					} else {
+						rm[k] = crule
+						if crule.OID != 0 {
+							c.rules[crule.OID] = crule
+						}
+					}
+				}
+				r.Rules = rm
+			}
+			r.Schema = c.schemas[cr.Schema.OID]
+			c.relationByOID[oid] = r
+			r.Schema.Relations[r.Name] = r
+		}
+
+		c.indexes = make(map[uint32]*Index, len(snap.indexes))
+		c.indexesByRel = make(map[uint32][]*Index, len(snap.indexesByRel))
+		for oid, ci := range snap.indexes {
+			idx := origIndexes[oid]
+			if idx == nil {
+				idx = ci
+			} else {
+				*idx = *ci
+			}
+			idx.Schema = c.schemas[ci.Schema.OID]
+			c.indexes[oid] = idx
+			c.indexesByRel[idx.RelOID] = append(c.indexesByRel[idx.RelOID], idx)
+			idx.Schema.Indexes[idx.Name] = idx
+		}
+
+		c.constraints = make(map[uint32]*Constraint, len(snap.constraints))
+		c.consByRel = make(map[uint32][]*Constraint, len(snap.consByRel))
+		for oid, cc := range snap.constraints {
+			con := origCons[oid]
+			if con == nil {
+				con = cc
+			} else {
+				*con = *cc
+			}
+			c.constraints[oid] = con
+			c.consByRel[con.RelOID] = append(c.consByRel[con.RelOID], con)
+		}
+
+		c.sequenceByOID = make(map[uint32]*Sequence, len(snap.sequenceByOID))
+		for oid, cseq := range snap.sequenceByOID {
+			seq := origSeqs[oid]
+			if seq == nil {
+				seq = cseq
+			} else {
+				*seq = *cseq
+			}
+			seq.Schema = c.schemas[cseq.Schema.OID]
+			c.sequenceByOID[oid] = seq
+			seq.Schema.Sequences[seq.Name] = seq
+		}
+	}
+}
+
 // AlterIndexStmt applies ALTER INDEX commands.
 //
 // pg: src/backend/commands/tablecmds.c — AlterTable dispatch for OBJECT_INDEX
@@ -392,27 +499,44 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 	if stmt.Relation == nil {
 		return errInvalidParameterValue("ALTER INDEX requires an index name")
 	}
-	schema, err := c.resolveTargetSchema(stmt.Relation.Schemaname)
+	_, parentIdx, err := c.findIndexRelation(stmt.Relation.Schemaname, stmt.Relation.Relname)
 	if err != nil {
 		if stmt.Missing_ok && missingObject(err) {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", stmt.Relation.Relname))
 			return nil
 		}
 		return err
 	}
-	parentIdx, err := c.findNamedIndex(schema, stmt.Relation.Relname)
-	if err != nil {
-		if stmt.Missing_ok && missingObject(err) {
-			return nil
-		}
-		return err
+	return c.execAlterIndexCmds(parentIdx, stmt.Cmds)
+}
+
+func allAlterCmdsAllowedOnIndexViaTable(cmds *nodes.List) bool {
+	if cmds == nil || len(cmds.Items) == 0 {
+		return false
 	}
-	if stmt.Cmds == nil {
+	for _, item := range cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok {
+			return false
+		}
+		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
+			nodes.AT_SetStatistics, nodes.AT_SetTableSpace:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
+	if cmds == nil {
 		return nil
 	}
 
 	// Validate every subcommand before any of them runs, so a later failure
 	// leaves the index as PostgreSQL's statement rollback would.
-	for _, item := range stmt.Cmds.Items {
+	for _, item := range cmds.Items {
 		atc, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
 			continue
@@ -420,6 +544,26 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 		switch nodes.AlterTableType(atc.Subtype) {
 		case nodes.AT_SetTableSpace:
 			if err := c.checkRelationTablespace(atc.Name); err != nil {
+				return err
+			}
+		case nodes.AT_ChangeOwner:
+			if atc.Newowner != nil {
+				if err := c.checkRole(c.ownerRoleName(atc.Newowner)); err != nil {
+					return err
+				}
+			}
+		case nodes.AT_SetRelOptions, nodes.AT_ReplaceRelOptions:
+			opts, _ := atc.Def.(*nodes.List)
+			if err := c.validateRelOptions(opts, 'i', parentIdx.AccessMethod); err != nil {
+				return err
+			}
+		case nodes.AT_ResetRelOptions:
+			opts, _ := atc.Def.(*nodes.List)
+			if err := c.validateResetRelOptions(opts, 'i'); err != nil {
+				return err
+			}
+		case nodes.AT_SetStatistics:
+			if err := c.validateIndexSetStatistics(parentIdx, atc); err != nil {
 				return err
 			}
 		case nodes.AT_AttachPartition:
@@ -430,12 +574,14 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 			if err := c.checkAttachIndexPartition(parentIdx, pc); err != nil {
 				return err
 			}
+		default:
+			return errWrongObjectType(parentIdx.Name, "a table")
 		}
 	}
 
 	savedTablespace := parentIdx.Tablespace
 	savedParent := parentIdx.ParentIndexOID
-	for _, item := range stmt.Cmds.Items {
+	for _, item := range cmds.Items {
 		atc, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
 			continue
@@ -443,6 +589,8 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 		switch nodes.AlterTableType(atc.Subtype) {
 		case nodes.AT_SetTableSpace:
 			parentIdx.Tablespace = normalizeTablespace(atc.Name)
+		case nodes.AT_ChangeOwner:
+			c.addWarning(CodeWarning, fmt.Sprintf("cannot change owner of index %q", parentIdx.Name))
 		case nodes.AT_AttachPartition:
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
@@ -453,6 +601,41 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 				parentIdx.ParentIndexOID = savedParent
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) indexColumnNames(idx *Index) []string {
+	if len(idx.ColumnNames) == len(idx.Columns) {
+		return idx.ColumnNames
+	}
+	idx.ColumnNames = defaultIndexColumnNames(c, idx)
+	return idx.ColumnNames
+}
+
+func (c *Catalog) validateIndexSetStatistics(idx *Index, atc *nodes.AlterTableCmd) error {
+	colNames := c.indexColumnNames(idx)
+	if atc.Num != 0 {
+		if atc.Num < 1 || int(atc.Num) > len(idx.Columns) {
+			return errUndefinedColumn(fmt.Sprintf("column %d", atc.Num))
+		}
+		if idx.Columns[atc.Num-1] != 0 {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: fmt.Sprintf("cannot alter statistics on non-expression column %q of index %q", colNames[atc.Num-1], idx.Name),
+			}
+		}
+		return nil
+	}
+	pos := slices.Index(colNames, atc.Name)
+	if pos < 0 {
+		return errUndefinedColumn(atc.Name)
+	}
+	if idx.Columns[pos] != 0 {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: fmt.Sprintf("cannot alter statistics on non-expression column %q of index %q", atc.Name, idx.Name),
 		}
 	}
 	return nil
@@ -471,14 +654,10 @@ func (c *Catalog) resolveAttachIndexPartition(parentIdx *Index, pc *nodes.Partit
 	}
 	parentRel := c.findRelByOID(parentIdx.RelOID)
 	if parentRel == nil || parentRel.RelKind != 'p' {
-		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partitioned table", parentIdx.Name))
+		return nil, nil, errWrongObjectType(parentIdx.Name, "a partitioned index")
 	}
 
-	childSchema, err := c.resolveTargetSchema(pc.Name.Schemaname)
-	if err != nil {
-		return nil, nil, err
-	}
-	childIdx, err := c.findNamedIndex(childSchema, pc.Name.Relname)
+	_, childIdx, err := c.findIndexRelation(pc.Name.Schemaname, pc.Name.Relname)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -531,51 +710,91 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if err := c.atAddColumn(schema, rel, relName, colDef, recursing); err != nil {
 			return err
 		}
+		addedCol := rel.Columns[len(rel.Columns)-1]
+		rollbackAddedCol := func(addedCons []*Constraint) {
+			for _, con := range addedCons {
+				c.removeConstraint(schema, con)
+			}
+			for _, seq := range c.sequenceByOID {
+				if seq.OwnerRelOID == rel.OID && seq.OwnerAttNum == addedCol.AttNum {
+					c.removeSequence(seq.Schema, seq)
+				}
+			}
+			n := 0
+			for _, d := range c.deps {
+				if (d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(addedCol.AttNum)) ||
+					(d.RefType == 'r' && d.RefOID == rel.OID && d.RefSubID == int32(addedCol.AttNum)) {
+					continue
+				}
+				c.deps[n] = d
+				n++
+			}
+			c.deps = c.deps[:n]
+			delete(rel.colByName, addedCol.Name)
+			rel.Columns = rel.Columns[:len(rel.Columns)-1]
+		}
 		// Analyze column default after column is added to the relation.
 		// Coerce to column type to match PG's cookDefault (COERCE_IMPLICIT_CAST format).
 		if colDef.RawDefault != nil {
-			col := rel.Columns[len(rel.Columns)-1]
-			col.HasDefault = true
+			addedCol.HasDefault = true
 			analyzed, err := c.AnalyzeColumnDefaultExpr(colDef.RawDefault, rel)
 			if err != nil {
-				delete(rel.colByName, col.Name)
-				rel.Columns = rel.Columns[:len(rel.Columns)-1]
+				rollbackAddedCol(nil)
 				return err
 			}
 			if analyzed != nil {
-				coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), col.TypeOID, 'a', 'i')
+				coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), addedCol.TypeOID, 'a', 'i')
 				if cerr != nil {
-					delete(rel.colByName, col.Name)
-					rel.Columns = rel.Columns[:len(rel.Columns)-1]
+					rollbackAddedCol(nil)
 					return cerr
 				}
 				if coerced != nil {
 					analyzed = coerced
 				}
-				col.DefaultAnalyzed = analyzed
-				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+				addedCol.DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(addedCol.AttNum), analyzed, rel.OID,
 					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
-				col.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+				addedCol.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 			}
 		}
 		if colDef.RawGenExpr != nil && colDef.Generated == 's' {
-			col := rel.Columns[len(rel.Columns)-1]
-			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawGenExpr, rel); err == nil && analyzed != nil {
-				if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+			if rawExprContainsSubLink(colDef.RawGenExpr) {
+				rollbackAddedCol(nil)
+				return &Error{Code: CodeFeatureNotSupported,
+					Message: "cannot use subquery in column generation expression"}
+			}
+			analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawGenExpr, rel)
+			if err != nil {
+				if !c.installingSnapshot {
+					rollbackAddedCol(nil)
+					return err
+				}
+			} else if analyzed != nil {
+				coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), addedCol.TypeOID, 'i')
+				if cerr != nil {
+					if !c.installingSnapshot {
+						rollbackAddedCol(nil)
+						return cerr
+					}
+				} else if coerced != nil {
 					analyzed = coerced
 				}
-				col.DefaultAnalyzed = analyzed
-				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+				addedCol.DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(addedCol.AttNum), analyzed, rel.OID,
 					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
 				genExpr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-				col.GenerationExpr = genExpr
-				col.Default = genExpr
+				addedCol.GenerationExpr = genExpr
+				addedCol.Default = genExpr
 			}
 		}
+		var addedCons []*Constraint
+		beforeCons := len(c.consByRel[rel.OID])
 		for _, con := range inlineCons {
 			if err := c.addConstraint(schema, rel, con); err != nil {
+				addedCons = append(addedCons, c.consByRel[rel.OID][beforeCons:]...)
+				rollbackAddedCol(addedCons)
 				return err
 			}
 		}
@@ -613,6 +832,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				if coerced != nil {
 					analyzed = coerced
 				}
+				c.clearColumnDefaultDeps(rel, col)
 				col.DefaultAnalyzed = analyzed
 				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
 					DepNormal, DepNormal)
@@ -687,8 +907,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if !ok {
 			return fmt.Errorf("AT_AlterColumnType: expected ColumnDef")
 		}
-		newType := convertTypeNameToInternal(cd.TypeName)
-		return c.atAlterColumnType(rel, atc.Name, newType)
+		return c.atAlterColumnType(rel, atc.Name, cd)
 
 	case nodes.AT_AddIdentity:
 		cd, ok := atc.Def.(*nodes.ColumnDef)
@@ -704,10 +923,32 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atSetIdentity(rel, atc.Name, atc.Def, recurse, recursing)
 
 	case nodes.AT_SetStatistics:
-		return nil // SET STATISTICS: no-op for pgddl (planner hint only)
+		if atc.Num != 0 {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cannot refer to non-index column by number",
+			}
+		}
+		if _, exists := rel.colByName[atc.Name]; !exists {
+			return errUndefinedColumn(atc.Name)
+		}
+		return nil
 
 	case nodes.AT_SetStorage:
-		// pgparser doesn't pass the storage type in Def, so this is a no-op.
+		idx, exists := rel.colByName[atc.Name]
+		if !exists {
+			return errUndefinedColumn(atc.Name)
+		}
+		col := rel.Columns[idx]
+		storageName := ""
+		if s, ok := atc.Def.(*nodes.String); ok {
+			storageName = s.Str
+		}
+		stor, err := c.resolveColumnStorage(c.typeByOID[col.TypeOID], storageName)
+		if err != nil {
+			return err
+		}
+		col.Storage = stor
 		return nil
 
 	case nodes.AT_ChangeOwner:
@@ -744,8 +985,63 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		}
 		return nil
 
-	case nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions:
-		return nil // SET/RESET storage parameters: no-op for pgddl
+	case nodes.AT_SetRelOptions, nodes.AT_ReplaceRelOptions:
+		opts, _ := atc.Def.(*nodes.List)
+		if err := c.validateRelOptionsForCols(opts, rel.RelKind, rel.AccessMethod, columnsNeedToastTable(rel.Columns)); err != nil {
+			return err
+		}
+		if rel.RelKind == 'v' && opts != nil {
+			newCO := rel.CheckOption
+			barrier, invoker := rel.SecurityBarrier, rel.SecurityInvoker
+			if nodes.AlterTableType(atc.Subtype) == nodes.AT_ReplaceRelOptions {
+				newCO = 0
+				barrier, invoker = false, false
+			}
+			barrier, invoker = viewSecurityOptions(opts, barrier, invoker)
+			for _, item := range opts.Items {
+				de, ok := item.(*nodes.DefElem)
+				if !ok || !strings.EqualFold(de.Defname, "check_option") {
+					continue
+				}
+				switch strings.ToLower(defElemString(de)) {
+				case "local":
+					newCO = 'l'
+				case "cascaded":
+					newCO = 'c'
+				}
+			}
+			if newCO != 0 {
+				if err := c.checkViewAutoUpdatable(rel.AnalyzedQuery); err != nil {
+					return err
+				}
+			}
+			rel.CheckOption = newCO
+			rel.SecurityBarrier, rel.SecurityInvoker = barrier, invoker
+		}
+		return nil
+
+	case nodes.AT_ResetRelOptions:
+		opts, _ := atc.Def.(*nodes.List)
+		if err := c.validateResetRelOptions(opts, rel.RelKind); err != nil {
+			return err
+		}
+		if rel.RelKind == 'v' && opts != nil {
+			for _, item := range opts.Items {
+				de, ok := item.(*nodes.DefElem)
+				if !ok {
+					continue
+				}
+				switch strings.ToLower(de.Defname) {
+				case "check_option":
+					rel.CheckOption = 0
+				case "security_barrier":
+					rel.SecurityBarrier = false
+				case "security_invoker":
+					rel.SecurityInvoker = false
+				}
+			}
+		}
+		return nil
 
 	case nodes.AT_EnableTrig:
 		return c.atEnableDisableTrigger(rel, atc.Name, 'O')
@@ -791,10 +1087,26 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return nil
 
 	case nodes.AT_SetOptions, nodes.AT_ResetOptions:
-		return nil // column-level options: no-op for pgddl
+		if _, exists := rel.colByName[atc.Name]; !exists {
+			return errUndefinedColumn(atc.Name)
+		}
+		opts, _ := atc.Def.(*nodes.List)
+		return c.validateAttributeRelOptions(opts, nodes.AlterTableType(atc.Subtype) == nodes.AT_ResetOptions)
+
+	case nodes.AT_GenericOptions:
+		if rel.RelKind != 'f' {
+			return errWrongObjectType(relName, "a foreign table")
+		}
+		return nil
 
 	case nodes.AT_AlterColumnGenericOptions:
-		return nil // ALTER COLUMN SET/RESET options: no-op for pgddl
+		if rel.RelKind != 'f' {
+			return errWrongObjectType(relName, "a foreign table")
+		}
+		if _, exists := rel.colByName[atc.Name]; !exists {
+			return errUndefinedColumn(atc.Name)
+		}
+		return nil
 
 	case nodes.AT_AddIndex:
 		return nil // Used internally by pg_dump restores: no-op
@@ -848,11 +1160,10 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_AlterConstraint:
 		// pg: src/backend/commands/tablecmds.c — ATExecAlterConstraint
-		con, ok := atc.Def.(*nodes.Constraint)
-		if !ok {
-			return nil // no constraint info: no-op
+		if con, ok := atc.Def.(*nodes.Constraint); ok {
+			return c.atAlterConstraint(rel, con)
 		}
-		return c.atAlterConstraint(rel, con)
+		return c.atAlterConstraintByName(rel, atc.Name)
 
 	case nodes.AT_SetExpression:
 		return c.atSetExpression(rel, atc.Name, atc.Def)
@@ -870,12 +1181,52 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		rel.Tablespace = normalizeTablespace(atc.Name)
 		return nil
 
+	case nodes.AT_SetAccessMethod:
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
+			return errWrongObjectType(relName, "a table or materialized view")
+		}
+		targetAM := atc.Name
+		if targetAM == "" && rel.RelKind != 'p' {
+			targetAM = c.defaultTableAccessMethod
+		}
+		if err := c.checkTableAccessMethod(targetAM); err != nil {
+			return err
+		}
+		if rel.AccessMethod != "" {
+			if oldAM := c.accessMethodByName[rel.AccessMethod]; oldAM != nil {
+				c.removeDep('r', rel.OID, 'm', oldAM.OID)
+			}
+		}
+		rel.AccessMethod = targetAM
+		if targetAM != "" {
+			if newAM := c.accessMethodByName[targetAM]; newAM != nil {
+				c.recordDependency('r', rel.OID, 0, 'm', newAM.OID, 0, DepNormal)
+			}
+		}
+		return nil
+
+	case nodes.AT_DropOids:
+		if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			return errWrongObjectType(relName, "a table")
+		}
+		return nil
+
 	case nodes.AT_SetLogged:
 		rel.Persistence = 'p'
+		for _, seq := range c.sequenceByOID {
+			if seq != nil && seq.OwnerRelOID == rel.OID {
+				seq.Persistence = 'p'
+			}
+		}
 		return nil
 
 	case nodes.AT_SetUnLogged:
 		rel.Persistence = 'u'
+		for _, seq := range c.sequenceByOID {
+			if seq != nil && seq.OwnerRelOID == rel.OID {
+				seq.Persistence = 'u'
+			}
+		}
 		return nil
 
 	case nodes.AT_ClusterOn:
@@ -888,16 +1239,11 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atReplicaIdentity(rel, atc)
 
 	case nodes.AT_SetCompression:
-		method := byte(0)
+		compName := "default"
 		if s, ok := atc.Def.(*nodes.String); ok && s.Str != "" {
-			switch s.Str {
-			case "pglz":
-				method = 'p'
-			case "lz4":
-				method = 'l'
-			}
+			compName = s.Str
 		}
-		return c.atSetCompression(rel, atc.Name, method)
+		return c.atSetCompression(rel, atc.Name, compName)
 
 	case nodes.AT_AddOf:
 		return c.atAddOf(rel, atc)
@@ -906,7 +1252,31 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropOf(rel)
 
 	case nodes.AT_EnableRule, nodes.AT_DisableRule, nodes.AT_EnableAlwaysRule, nodes.AT_EnableReplicaRule:
-		return nil // Rules: no-op for pgddl
+		if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			return errWrongObjectType(relName, "a table")
+		}
+		if rel.Rules != nil {
+			if rule := rel.Rules[atc.Name]; rule != nil {
+				switch nodes.AlterTableType(atc.Subtype) {
+				case nodes.AT_DisableRule:
+					rule.Mode = 'D'
+				case nodes.AT_EnableAlwaysRule:
+					rule.Mode = 'A'
+				case nodes.AT_EnableReplicaRule:
+					rule.Mode = 'R'
+				default:
+					rule.Mode = 'O'
+				}
+				return nil
+			}
+		}
+		if c.snapshot {
+			return nil
+		}
+		return &Error{
+			Code:    CodeUndefinedObject,
+			Message: fmt.Sprintf("rule %q for relation %q does not exist", atc.Name, rel.Name),
+		}
 
 	case nodes.AT_AttachPartition:
 		pc, ok := atc.Def.(*nodes.PartitionCmd)
@@ -921,6 +1291,13 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			return fmt.Errorf("AT_DetachPartition: expected PartitionCmd")
 		}
 		return c.atExecDetachPartition(rel, pc)
+
+	case nodes.AT_DetachPartitionFinalize:
+		pc, ok := atc.Def.(*nodes.PartitionCmd)
+		if !ok {
+			return fmt.Errorf("AT_DetachPartitionFinalize: expected PartitionCmd")
+		}
+		return c.atExecDetachPartitionFinalize(rel, pc)
 
 	default:
 		return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("unsupported ALTER TABLE subcommand %d", atc.Subtype)}
@@ -959,6 +1336,10 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameOpFamily(stmt)
 	case nodes.OBJECT_POLICY:
 		return c.renamePolicy(stmt)
+	case nodes.OBJECT_RULE:
+		return c.renameRule(stmt)
+	case nodes.OBJECT_COLLATION:
+		return c.renameCollation(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
 		return nil // Domain constraints: no-op for pgddl
 	case nodes.OBJECT_ATTRIBUTE:
@@ -981,12 +1362,36 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		if stmt.MissingOk && missingObject(err) {
 			return nil
 		}
+		var refusal *Error
+		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+			switch stmt.RenameType {
+			case nodes.OBJECT_TABLE:
+				if idxSchema, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
+					return c.renameIndexRelation(idxSchema, idx, stmt.Newname)
+				}
+				if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil && seq != nil {
+					if _, exists := relationNamespaceKind(seq.Schema, stmt.Newname); exists {
+						return errDuplicateTable(stmt.Newname)
+					}
+					delete(seq.Schema.Sequences, seq.Name)
+					seq.Name = stmt.Newname
+					seq.Schema.Sequences[stmt.Newname] = seq
+					return nil
+				}
+			case nodes.OBJECT_COLUMN:
+				if stmt.RelationType != nodes.OBJECT_FOREIGN_TABLE {
+					if _, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
+						return c.atRenameIndexColumn(idx, stmt.Subname, stmt.Newname)
+					}
+				}
+			}
+		}
 		return err
 	}
 
 	switch stmt.RenameType {
 	case nodes.OBJECT_TABLE:
-		if rel.RelKind != 'r' && rel.RelKind != 'p' {
+		if rel.RelKind == 'c' {
 			return errWrongObjectType(relName, "a table")
 		}
 		return c.renameRelation(schema, rel, stmt.Newname)
@@ -1010,6 +1415,9 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameRelation(schema, rel, stmt.Newname)
 
 	case nodes.OBJECT_COLUMN:
+		if stmt.RelationType == nodes.OBJECT_FOREIGN_TABLE && rel.RelKind != 'f' {
+			return errWrongObjectType(relName, "a foreign table")
+		}
 		return c.atRenameColumn(rel, stmt.Subname, stmt.Newname)
 
 	default:
@@ -1118,6 +1526,11 @@ func (c *Catalog) renameSchema(stmt *nodes.RenameStmt) error {
 	delete(c.schemaByName, oldName)
 	s.Name = newName
 	c.schemaByName[newName] = s
+	for _, uc := range s.Collations {
+		if uc != nil {
+			c.syncRenamedUserCollationRefs(uc.OID, newName, uc.Name)
+		}
+	}
 	return nil
 }
 
@@ -1218,22 +1631,20 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 	}
 	newName := stmt.Newname
 
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		if stmt.MissingOk && missingObject(err) {
-			return nil
-		}
-		return err
-	}
-
-	idx, err := c.findNamedIndex(schema, idxName)
+	schema, idx, err := c.findIndexRelation(schemaName, idxName)
 	if err != nil {
 		// PostgreSQL checks the rename target's name before it reports that
 		// the source is another kind: ALTER INDEX a RENAME TO a on table a
 		// is 42P07, not 42809.
 		if !missingObject(err) && newName != "" {
-			if _, held := relationNamespaceKind(schema, newName); held {
-				return errDuplicateTable(newName)
+			if s, _, relErr := c.findRelation(schemaName, idxName); relErr == nil && s != nil {
+				if _, held := relationNamespaceKind(s, newName); held {
+					return errDuplicateTable(newName)
+				}
+			} else if seq, seqErr := c.findSequence(schemaName, idxName); seqErr == nil && seq != nil {
+				if _, held := relationNamespaceKind(seq.Schema, newName); held {
+					return errDuplicateTable(newName)
+				}
 			}
 		}
 		if stmt.MissingOk && missingObject(err) {
@@ -1336,6 +1747,9 @@ func (c *Catalog) renameTrigger(stmt *nodes.RenameStmt) error {
 
 	_, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -1392,6 +1806,18 @@ func (c *Catalog) renameConstraint(stmt *nodes.RenameStmt) error {
 
 	_, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
+		var refusal *Error
+		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+			if _, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
+				return &Error{
+					Code:    CodeUndefinedObject,
+					Message: fmt.Sprintf("constraint %q of relation %q does not exist", stmt.Subname, relName),
+				}
+			}
+		}
 		return err
 	}
 
@@ -1510,6 +1936,9 @@ func (c *Catalog) renamePolicy(stmt *nodes.RenameStmt) error {
 
 	_, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -1544,6 +1973,9 @@ func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
 
 	_, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -1571,6 +2003,27 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		return err
 	}
 	typ := c.typeByOID[typeOID]
+	var userCollOID uint32
+	collSchema := colDef.CollationSchema
+	if colDef.CollClause != nil {
+		var cerr error
+		_, userCollOID, cerr = c.resolveColumnCollation(colDef.CollClause.Collname, typeOID)
+		if cerr != nil {
+			return cerr
+		}
+		collSchema = c.resolvedCollationSchema(colDef.CollClause.Collname, colDef.CollationName, userCollOID)
+	}
+	stor, err := c.resolveColumnStorage(typ, colDef.StorageName)
+	if err != nil {
+		return err
+	}
+	comp, err := c.resolveColumnCompression(typ, colDef.Compression)
+	if err != nil {
+		return err
+	}
+	if err := c.checkCompositeSelfReference(rel.RowTypeOID, typeOID, rel.Name); err != nil {
+		return err
+	}
 
 	var identitySeq *Sequence
 	var identityDefault string
@@ -1580,6 +2033,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 			if err != nil {
 				return err
 			}
+			if rel.Persistence != 0 {
+				seq.Persistence = rel.Persistence
+			}
 			colDef.IdentitySequence = seqRV
 			identitySeq = seq
 			identityDefault = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
@@ -1588,16 +2044,20 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	}
 
 	col := &Column{
-		AttNum:    int16(len(rel.Columns) + 1),
-		Name:      colDef.Name,
-		TypeOID:   typeOID,
-		TypeMod:   typmod,
-		NotNull:   colDef.NotNull,
-		Len:       typ.Len,
-		ByVal:     typ.ByVal,
-		Align:     typ.Align,
-		Storage:   typ.Storage,
-		Collation: typ.Collation,
+		AttNum:           int16(len(rel.Columns) + 1),
+		Name:             colDef.Name,
+		TypeOID:          typeOID,
+		TypeMod:          typmod,
+		NotNull:          colDef.NotNull,
+		Len:              typ.Len,
+		ByVal:            typ.ByVal,
+		Align:            typ.Align,
+		Storage:          stor,
+		Compression:      comp,
+		Collation:        c.effectiveColumnCollation(typeOID, colDef.CollationName, userCollOID),
+		CollationSchema:  collSchema,
+		CollationName:    colDef.CollationName,
+		UserCollationOID: userCollOID,
 	}
 	if colDef.Default != "" || colDef.RawDefault != nil {
 		col.HasDefault = true
@@ -1618,6 +2078,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 
 	rel.Columns = append(rel.Columns, col)
 	rel.colByName[col.Name] = len(rel.Columns) - 1
+	if userCollOID != 0 {
+		c.recordDependency('r', rel.OID, int32(col.AttNum), 'L', userCollOID, 0, DepNormal)
+	}
 	if identitySeq != nil {
 		identitySeq.OwnerRelOID = rel.OID
 		identitySeq.OwnerAttNum = col.AttNum
@@ -1817,6 +2280,19 @@ func (c *Catalog) atRenameColumn(rel *Relation, oldName, newName string) error {
 	return nil
 }
 
+func (c *Catalog) atRenameIndexColumn(idx *Index, oldName, newName string) error {
+	colNames := c.indexColumnNames(idx)
+	pos := slices.Index(colNames, oldName)
+	if pos < 0 {
+		return errUndefinedColumn(oldName)
+	}
+	if slices.Contains(colNames, newName) {
+		return errColumnAlreadyExists(newName, idx.Name)
+	}
+	idx.ColumnNames[pos] = newName
+	return nil
+}
+
 func (c *Catalog) atSetNotNull(rel *Relation, colName string) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
@@ -1921,15 +2397,43 @@ func (c *Catalog) atDropDefault(rel *Relation, colName string) error {
 			Message: fmt.Sprintf("column %q of relation %q is a generated column", colName, rel.Name)}
 	}
 
+	c.clearColumnDefaultDeps(rel, col)
 	col.HasDefault = false
 	col.Default = ""
+	col.DefaultAnalyzed = nil
 	return nil
+}
+
+func (c *Catalog) clearColumnDefaultDeps(rel *Relation, col *Column) {
+	if rel == nil || col == nil {
+		return
+	}
+	n := 0
+	keptColColl := false
+	keptColType := false
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) {
+			if !keptColColl && d.RefType == 'L' && col.UserCollationOID != 0 && d.RefOID == col.UserCollationOID {
+				// Keep the single entry for the column's own explicit COLLATE dependency.
+				keptColColl = true
+			} else if !keptColType && rel.RelKind == 'c' && d.RefType == 't' && col.TypeOID >= FirstNormalObjectId && d.RefOID == col.TypeOID {
+				// Keep the single entry for a composite attribute's own user-defined type dependency.
+				keptColType = true
+			} else {
+				continue
+			}
+		}
+		c.deps[n] = d
+		n++
+	}
+	c.deps = c.deps[:n]
 }
 
 // atAlterColumnType changes the type of a column.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType
-func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeName) error {
+func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.ColumnDef) error {
+	newType := convertTypeNameToInternal(cd.TypeName)
 	idx, exists := rel.colByName[colName]
 	if !exists {
 		return errUndefinedColumn(colName)
@@ -1939,8 +2443,7 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 
 	// Block if column is an identity column.
 	if col.Identity != 0 {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"cannot alter type of a column used as identity"))
+		return errInvalidObjectDefinition("cannot alter type of a column used as identity")
 	}
 
 	// Block if a view, a generated column or a trigger reads this column.
@@ -1961,6 +2464,11 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 					Message: "cannot alter type of a column used by a view or rule",
 				}
 			}
+		case 'R':
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cannot alter type of a column used by a view or rule",
+			}
 		case 'g':
 			return &Error{
 				Code:    CodeFeatureNotSupported,
@@ -1971,6 +2479,25 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 
 	newOID, newMod, err := c.ResolveType(newType)
 	if err != nil {
+		return err
+	}
+	if cd.TypeName != nil {
+		if rawMods := extractRawTypmods(cd.TypeName.Typmods); len(rawMods) > 0 {
+			newMod = encodeTypModByName(newType.Name, rawMods)
+		}
+	}
+
+	var collSchema, collName string
+	var userCollOID uint32
+	if cd.CollClause != nil {
+		collName, userCollOID, err = c.resolveColumnCollation(cd.CollClause.Collname, newOID)
+		if err != nil {
+			return err
+		}
+		collSchema = c.resolvedCollationSchema(cd.CollClause.Collname, collName, userCollOID)
+	}
+
+	if err := c.checkCompositeSelfReference(rel.RowTypeOID, newOID, rel.Name); err != nil {
 		return err
 	}
 
@@ -1990,8 +2517,50 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 		))
 	}
 
+	oldTypeOID := col.TypeOID
+	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
 	col.TypeMod = newMod
+	// pg: ATExecAlterColumnType sets attcollation to the explicit COLLATE OID,
+	// or resets to the new type's default collation when COLLATE is omitted.
+	col.CollationSchema = collSchema
+	col.CollationName = collName
+	col.Collation = c.effectiveColumnCollation(newOID, collName, userCollOID)
+	col.UserCollationOID = userCollOID
+	if rel.RelKind == 'c' && oldTypeOID != newOID {
+		if oldTypeOID >= FirstNormalObjectId {
+			n := 0
+			removed := false
+			for _, d := range c.deps {
+				if !removed && d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 't' && d.RefOID == oldTypeOID {
+					removed = true
+					continue
+				}
+				c.deps[n] = d
+				n++
+			}
+			c.deps = c.deps[:n]
+		}
+		if newOID >= FirstNormalObjectId {
+			c.recordDependency('r', rel.OID, int32(col.AttNum), 't', newOID, 0, DepNormal)
+		}
+	}
+	if oldUserCollOID != 0 {
+		n := 0
+		removed := false
+		for _, d := range c.deps {
+			if !removed && d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 'L' && d.RefOID == oldUserCollOID {
+				removed = true
+				continue
+			}
+			c.deps[n] = d
+			n++
+		}
+		c.deps = c.deps[:n]
+	}
+	if userCollOID != 0 {
+		c.recordDependency('r', rel.OID, int32(col.AttNum), 'L', userCollOID, 0, DepNormal)
+	}
 
 	typ := c.typeByOID[newOID]
 	if typ != nil {
@@ -2000,6 +2569,8 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 		col.Align = typ.Align
 		col.Storage = typ.Storage
 	}
+	// pg: ATExecAlterColumnType rebuilds the attribute tuple without preserving attcompression.
+	col.Compression = 0
 
 	return nil
 }
@@ -2048,6 +2619,9 @@ func (c *Catalog) atAddIdentity(schema *Schema, rel *Relation, relName, colName 
 		seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colName, rel.OwnerName, col.TypeOID, identityOptions)
 		if err != nil {
 			return err
+		}
+		if rel.Persistence != 0 {
+			seq.Persistence = rel.Persistence
 		}
 		cd.IdentitySequence = seqRV
 		seq.OwnerRelOID = rel.OID
@@ -2207,6 +2781,24 @@ func (c *Catalog) atAlterConstraint(rel *Relation, con *nodes.Constraint) error 
 		if existing.Name == conName {
 			existing.Deferrable = con.Deferrable
 			existing.Deferred = con.Initdeferred
+			return nil
+		}
+	}
+	return &Error{
+		Code:    CodeUndefinedObject,
+		Message: fmt.Sprintf("constraint %q of relation %q does not exist", conName, rel.Name),
+	}
+}
+
+func (c *Catalog) atAlterConstraintByName(rel *Relation, conName string) error {
+	for _, existing := range c.consByRel[rel.OID] {
+		if existing.Name == conName {
+			if existing.Type != ConstraintFK {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("constraint %q of relation %q is not a foreign key constraint", conName, rel.Name),
+				}
+			}
 			return nil
 		}
 	}
@@ -2402,6 +2994,28 @@ func (c *Catalog) atExecDetachPartition(parent *Relation, pc *nodes.PartitionCmd
 	return nil
 }
 
+// atExecDetachPartitionFinalize handles ALTER TABLE ... DETACH PARTITION ... FINALIZE.
+// PostgreSQL looks up the named child relation and verifies it is a partition
+// of parent (reporting 42P01 when not) before detaching.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDetachPartitionFinalize
+func (c *Catalog) atExecDetachPartitionFinalize(parent *Relation, pc *nodes.PartitionCmd) error {
+	if pc.Name == nil {
+		return errInvalidParameterValue("DETACH PARTITION requires a partition name")
+	}
+	_, part, err := c.findRelation(pc.Name.Schemaname, pc.Name.Relname)
+	if err != nil {
+		return err
+	}
+	if parent.PartitionInfo == nil || part.PartitionOf != parent.OID {
+		return &Error{
+			Code:    CodeUndefinedTable,
+			Message: fmt.Sprintf("relation %q is not a partition of relation %q", part.Name, parent.Name),
+		}
+	}
+	return c.atExecDetachPartition(parent, pc)
+}
+
 // renumberColumns rebuilds attnums and colByName after a column removal.
 func (c *Catalog) renumberColumns(rel *Relation) {
 	rel.colByName = make(map[string]int, len(rel.Columns))
@@ -2511,6 +3125,7 @@ func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
 	c.deps = c.deps[:n]
 	for _, con := range c.consByRel[rel.OID] {
 		con.Columns = shiftAll(con.Columns)
+		con.IncludeColumns = shiftAll(con.IncludeColumns)
 		con.FKDelSetCols = shiftAll(con.FKDelSetCols)
 	}
 	for _, con := range c.constraints {
@@ -2528,6 +3143,23 @@ func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
 	}
 	for _, trig := range c.triggersByRel[rel.OID] {
 		trig.Columns = shiftAll(trig.Columns)
+	}
+	for _, rule := range c.rules {
+		if rule == nil || rule.bindings == nil {
+			continue
+		}
+		for ref, cb := range rule.bindings.colByRef {
+			if cb.relOID == rel.OID && cb.attNum > attnum {
+				cb.attNum--
+				rule.bindings.colByRef[ref] = cb
+			}
+		}
+		for rt, cb := range rule.bindings.colByRT {
+			if cb.relOID == rel.OID && cb.attNum > attnum {
+				cb.attNum--
+				rule.bindings.colByRT[rt] = cb
+			}
+		}
 	}
 	if rel.PartitionInfo != nil {
 		rel.PartitionInfo.KeyAttNums = shiftAll(rel.PartitionInfo.KeyAttNums)
@@ -2585,6 +3217,8 @@ func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) e
 		return c.alterOpClassNamespace(stmt, newSchema)
 	case nodes.OBJECT_OPFAMILY:
 		return c.alterOpFamilyNamespace(stmt, newSchema)
+	case nodes.OBJECT_COLLATION:
+		return c.alterCollationNamespace(stmt, newSchema)
 	default:
 		return nil // no-op for unsupported object types
 	}
@@ -2705,8 +3339,116 @@ func (c *Catalog) checkSchemaMoveObject(stmt *nodes.AlterObjectSchemaStmt) (skip
 			}
 			return false, err
 		}
+	case nodes.OBJECT_COLLATION:
+		if _, _, err := c.lookupUserCollation(stmt.Object); err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
 	}
 	return false, nil
+}
+
+func (c *Catalog) renameCollation(stmt *nodes.RenameStmt) error {
+	schema, uc, err := c.lookupUserCollation(stmt.Object)
+	if err != nil {
+		if (stmt.MissingOk || c.snapshot) && missingObject(err) {
+			return nil
+		}
+		return err
+	}
+	if schema == nil || uc == nil {
+		return nil
+	}
+	if stmt.Newname != uc.Name && (schema.Collations[stmt.Newname] != nil || (schema.OID == PGCatalogNamespace && isBuiltinCollationName(stmt.Newname))) {
+		return errDuplicateObject("collation", stmt.Newname)
+	}
+	oldName := uc.Name
+	delete(schema.Collations, oldName)
+	uc.Name = stmt.Newname
+	schema.Collations[stmt.Newname] = uc
+	c.syncRenamedUserCollationRefs(uc.OID, schema.Name, stmt.Newname)
+	return nil
+}
+
+func (c *Catalog) alterCollationNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchema *Schema) error {
+	oldSchema, uc, err := c.lookupUserCollation(stmt.Object)
+	if err != nil {
+		if (stmt.MissingOk || c.snapshot) && missingObject(err) {
+			return nil
+		}
+		return err
+	}
+	if oldSchema == nil || uc == nil || oldSchema.OID == newSchema.OID {
+		return nil
+	}
+	if (newSchema.Collations != nil && newSchema.Collations[uc.Name] != nil) || (newSchema.OID == PGCatalogNamespace && isBuiltinCollationName(uc.Name)) {
+		return errDuplicateObject("collation", uc.Name)
+	}
+	if newSchema.Collations == nil {
+		newSchema.Collations = make(map[string]*UserCollation)
+	}
+	delete(oldSchema.Collations, uc.Name)
+	newSchema.Collations[uc.Name] = uc
+	c.syncRenamedUserCollationRefs(uc.OID, newSchema.Name, uc.Name)
+	return nil
+}
+
+func (c *Catalog) syncRenamedUserCollationRefs(collOID uint32, schemaName, collName string) {
+	qualSchema := ""
+	if schemaName != "public" && schemaName != "pg_catalog" {
+		qualSchema = schemaName
+	}
+	for _, rel := range c.relationByOID {
+		for _, col := range rel.Columns {
+			if col.UserCollationOID == collOID {
+				col.CollationSchema = qualSchema
+				col.CollationName = collName
+			}
+		}
+	}
+	for _, dt := range c.domainTypes {
+		if dt != nil && dt.UserCollationOID == collOID {
+			dt.CollationName = collName
+		}
+	}
+	for _, rt := range c.rangeTypes {
+		if rt != nil && rt.UserCollationOID == collOID {
+			rt.CollationSchema = qualSchema
+			rt.CollationName = collName
+		}
+	}
+	var collParts []string
+	if qualSchema != "" {
+		collParts = []string{qualSchema, collName}
+	} else {
+		collParts = []string{collName}
+	}
+	for _, idx := range c.indexes {
+		if idx == nil {
+			continue
+		}
+		for i, uid := range idx.UserCollationOIDs {
+			if uid == collOID && i < len(idx.Collations) {
+				idx.Collations[i] = slices.Clone(collParts)
+			}
+		}
+		if rel := c.relationByOID[idx.RelOID]; rel != nil {
+			if len(idx.AnalyzedExprs) > 0 && len(idx.AnalyzedExprs) == len(idx.Exprs) {
+				rte := c.buildRelationRTE(rel)
+				for i, ae := range idx.AnalyzedExprs {
+					if ae != nil {
+						idx.Exprs[i] = c.DeparseExpr(ae, []*RangeTableEntry{rte}, true)
+					}
+				}
+			}
+			if idx.AnalyzedWhere != nil {
+				rte := c.buildRelationRTE(rel)
+				idx.WhereClause = c.DeparseExpr(idx.AnalyzedWhere, []*RangeTableEntry{rte}, true)
+			}
+		}
+	}
 }
 
 // alterRelationNamespace moves a relation (table/view/matview/sequence) to a new schema.
@@ -3104,7 +3846,10 @@ func (c *Catalog) atDropInherit(rel *Relation, rv *nodes.RangeVar) error {
 		}
 	}
 	if !found {
-		return errInvalidObjectDefinition(fmt.Sprintf("relation %q is not a parent of %q", parent.Name, rel.Name))
+		return &Error{
+			Code:    CodeUndefinedTable,
+			Message: fmt.Sprintf("relation %q is not a parent of relation %q", parent.Name, rel.Name),
+		}
 	}
 	rel.InhCount--
 
@@ -3200,17 +3945,54 @@ func (c *Catalog) atDropCluster(rel *Relation) error {
 //
 // pg: src/backend/commands/tablecmds.c — ATExecReplicaIdentity
 func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) error {
-	if atc.Name != "" {
+	var mode byte
+	idxName := atc.Name
+	if ri, ok := atc.Def.(*nodes.ReplicaIdentityStmt); ok && ri != nil {
+		mode = ri.IdentityType
+		if idxName == "" {
+			idxName = ri.Name
+		}
+	}
+	if mode == 'i' || idxName != "" {
 		// USING INDEX variant — validate before clearing any existing flag.
-		idx, err := c.findNamedIndex(rel.Schema, atc.Name)
+		idx, err := c.findNamedIndex(rel.Schema, idxName)
 		if err != nil {
 			return err
 		}
 		if idx.RelOID != rel.OID {
-			return errUndefinedObject("index", atc.Name)
+			return errUndefinedObject("index", idxName)
 		}
 		if !idx.IsUnique {
-			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", atc.Name))
+			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", idxName))
+		}
+		if idx.ConstraintOID != 0 {
+			if con := c.constraints[idx.ConstraintOID]; con != nil && con.Deferrable {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: fmt.Sprintf("cannot use non-immediate index %q as replica identity", idxName),
+				}
+			}
+		}
+		if idx.WhereClause != "" {
+			return errInvalidObjectDefinition(fmt.Sprintf("cannot use partial index %q as replica identity", idxName))
+		}
+		nKeys := idx.NKeyColumns
+		if nKeys <= 0 || nKeys > len(idx.Columns) {
+			nKeys = len(idx.Columns)
+		}
+		for i := 0; i < nKeys; i++ {
+			attnum := idx.Columns[i]
+			if attnum == 0 || (i < len(idx.Exprs) && idx.Exprs[i] != "") {
+				return errInvalidObjectDefinition(fmt.Sprintf("cannot use expression index %q as replica identity", idxName))
+			}
+			ci := indexOfAttNum(rel, attnum)
+			if ci < 0 || !rel.Columns[ci].NotNull {
+				colName := ""
+				if ci >= 0 {
+					colName = rel.Columns[ci].Name
+				}
+				return errInvalidObjectDefinition(fmt.Sprintf("index %q cannot be used as replica identity because column %q is nullable", idxName, colName))
+			}
 		}
 		for _, existing := range c.indexesByRel[rel.OID] {
 			existing.IsReplicaIdent = false
@@ -3223,23 +4005,26 @@ func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) err
 	for _, existing := range c.indexesByRel[rel.OID] {
 		existing.IsReplicaIdent = false
 	}
-	// DEFAULT/FULL/NOTHING — pgparser doesn't distinguish, default to 'd'.
-	rel.ReplicaIdentity = 'd'
+	if mode == 'f' || mode == 'n' || mode == 'd' {
+		rel.ReplicaIdentity = mode
+	} else {
+		rel.ReplicaIdentity = 'd'
+	}
 	return nil
 }
 
 // atSetCompression sets the compression method for a column.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecSetCompression
-func (c *Catalog) atSetCompression(rel *Relation, colName string, method byte) error {
+func (c *Catalog) atSetCompression(rel *Relation, colName, compName string) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
 		return errUndefinedColumn(colName)
 	}
 	col := rel.Columns[idx]
-	// Validate column type is variable-length (Len == -1).
-	if col.Len != -1 {
-		return errInvalidObjectDefinition(fmt.Sprintf("column data type %s does not support compression", c.typeByOID[col.TypeOID].TypeName))
+	method, err := c.resolveColumnCompression(c.typeByOID[col.TypeOID], compName)
+	if err != nil {
+		return err
 	}
 	col.Compression = method
 	return nil
@@ -3259,23 +4044,20 @@ func (c *Catalog) atAddOf(rel *Relation, atc *nodes.AlterTableCmd) error {
 		return err
 	}
 
-	bt := c.typeByOID[typeOID]
-	if bt == nil || bt.Type != 'c' {
-		return errWrongObjectType(typName.Name, "a composite type")
+	typeRel, err := c.checkOfType(typeOID)
+	if err != nil {
+		return err
 	}
 
 	// Verify columns match 1:1 with the composite type's relation.
-	if bt.RelID != 0 {
-		typeRel := c.relationByOID[bt.RelID]
-		if typeRel != nil {
-			if len(rel.Columns) != len(typeRel.Columns) {
-				return errDatatypeMismatch(fmt.Sprintf("table has %d columns but type has %d", len(rel.Columns), len(typeRel.Columns)))
-			}
-			for i, tcol := range typeRel.Columns {
-				rcol := rel.Columns[i]
-				if rcol.Name != tcol.Name || rcol.TypeOID != tcol.TypeOID {
-					return errDatatypeMismatch(fmt.Sprintf("table column %q does not match type column %q", rcol.Name, tcol.Name))
-				}
+	if typeRel != nil {
+		if len(rel.Columns) != len(typeRel.Columns) {
+			return errDatatypeMismatch(fmt.Sprintf("table has %d columns but type has %d", len(rel.Columns), len(typeRel.Columns)))
+		}
+		for i, tcol := range typeRel.Columns {
+			rcol := rel.Columns[i]
+			if rcol.Name != tcol.Name || rcol.TypeOID != tcol.TypeOID {
+				return errDatatypeMismatch(fmt.Sprintf("table column %q does not match type column %q", rcol.Name, tcol.Name))
 			}
 		}
 	}
@@ -3289,10 +4071,11 @@ func (c *Catalog) atAddOf(rel *Relation, atc *nodes.AlterTableCmd) error {
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropOf
 func (c *Catalog) atDropOf(rel *Relation) error {
-	if rel.OfTypeOID != 0 {
-		c.removeDep('r', rel.OID, 't', rel.OfTypeOID)
-		rel.OfTypeOID = 0
+	if rel.OfTypeOID == 0 {
+		return errWrongObjectType(rel.Name, "a typed table")
 	}
+	c.removeDep('r', rel.OID, 't', rel.OfTypeOID)
+	rel.OfTypeOID = 0
 	return nil
 }
 
@@ -3306,11 +4089,23 @@ func (c *Catalog) atSetExpression(rel *Relation, colName string, expr nodes.Node
 	}
 	col := rel.Columns[idx]
 	if col.Generated != 's' {
-		return errInvalidObjectDefinition(fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name))
+		return &Error{
+			Code:    CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name),
+		}
 	}
-	if analyzed, err := c.AnalyzeStandaloneExpr(expr, rel); err == nil && analyzed != nil {
+	analyzed, err := c.AnalyzeStandaloneExpr(expr, rel)
+	if err != nil {
+		if !c.installingSnapshot {
+			return err
+		}
+		return nil
+	}
+	if analyzed != nil {
 		if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
 			analyzed = coerced
+		} else if cerr != nil && !c.installingSnapshot {
+			return cerr
 		}
 		col.DefaultAnalyzed = analyzed
 		c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
@@ -3335,12 +4130,17 @@ func (c *Catalog) atDropExpression(rel *Relation, colName string, ifExists bool)
 		if ifExists {
 			return nil
 		}
-		return errInvalidObjectDefinition(fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name))
+		return &Error{
+			Code:    CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name),
+		}
 	}
 	col.Generated = 0
 	col.GenerationExpr = ""
+	c.clearColumnDefaultDeps(rel, col)
 	col.HasDefault = false
 	col.Default = ""
+	col.DefaultAnalyzed = nil
 	return nil
 }
 

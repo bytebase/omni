@@ -1776,16 +1776,41 @@ func (p *Parser) parseAlterTableReplica() (*nodes.AlterTableCmd, error) {
 		return nil, err
 	}
 
+	riLoc := p.pos()
 	switch p.cur.Type {
-	case DEFAULT, FULL, NOTHING:
+	case DEFAULT:
 		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_ReplicaIdentity)}, nil
+		return &nodes.AlterTableCmd{
+			Subtype: int(nodes.AT_ReplicaIdentity),
+			Def:     &nodes.ReplicaIdentityStmt{IdentityType: 'd', Loc: nodes.Loc{Start: riLoc, End: p.prev.End}},
+		}, nil
+	case FULL:
+		p.advance()
+		return &nodes.AlterTableCmd{
+			Subtype: int(nodes.AT_ReplicaIdentity),
+			Def:     &nodes.ReplicaIdentityStmt{IdentityType: 'f', Loc: nodes.Loc{Start: riLoc, End: p.prev.End}},
+		}, nil
+	case NOTHING:
+		p.advance()
+		return &nodes.AlterTableCmd{
+			Subtype: int(nodes.AT_ReplicaIdentity),
+			Def:     &nodes.ReplicaIdentityStmt{IdentityType: 'n', Loc: nodes.Loc{Start: riLoc, End: p.prev.End}},
+		}, nil
 	case USING:
 		p.advance() // USING
 		if _, err := p.expect(INDEX); err != nil {
 			return nil, err
 		}
-		return p.parseAlterTableNamedCmd(nodes.AT_ReplicaIdentity)
+		cmd, err := p.parseAlterTableNamedCmd(nodes.AT_ReplicaIdentity)
+		if err != nil {
+			return nil, err
+		}
+		cmd.Def = &nodes.ReplicaIdentityStmt{
+			IdentityType: 'i',
+			Name:         cmd.Name,
+			Loc:          nodes.Loc{Start: riLoc, End: p.prev.End},
+		}
+		return cmd, nil
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

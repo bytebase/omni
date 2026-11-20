@@ -164,6 +164,22 @@ func TestMigrationDomain(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "alter domain collation replaces domain and detaches dependents",
+			fromSQL: `CREATE DOMAIN mydom AS text COLLATE "C"; CREATE TABLE t (v mydom DEFAULT 'a'::mydom CHECK (v <> '')); CREATE VIEW vw AS SELECT v FROM t;`,
+			toSQL:   `CREATE DOMAIN mydom AS text COLLATE "POSIX"; CREATE TABLE t (v mydom DEFAULT 'a'::mydom CHECK (v <> '')); CREATE VIEW vw AS SELECT v FROM t;`,
+			check: func(t *testing.T, plan *MigrationPlan) {
+				if len(plan.Ops) == 0 {
+					t.Fatal("expected migration ops for domain collation change, got none")
+				}
+				if !strings.Contains(plan.SQL(), `DROP DOMAIN "public"."mydom"`) {
+					t.Fatalf("expected DROP DOMAIN in SQL, got:\n%s", plan.SQL())
+				}
+				if !strings.Contains(plan.SQL(), `CREATE DOMAIN "public"."mydom" AS text COLLATE "POSIX"`) {
+					t.Fatalf("expected CREATE DOMAIN with new collation in SQL, got:\n%s", plan.SQL())
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

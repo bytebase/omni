@@ -87,7 +87,7 @@ func formatCreateCompositeType(cat *Catalog, schemaName, name string, rel *Relat
 	var fields []string
 	for _, col := range rel.Columns {
 		typeName := cat.FormatType(col.TypeOID, col.TypeMod)
-		fields = append(fields, fmt.Sprintf("%s %s%s", quoteIdentAlways(col.Name), typeName, formatCollate(col.CollationName)))
+		fields = append(fields, fmt.Sprintf("%s %s%s", quoteIdentAlways(col.Name), typeName, formatColumnCollate(cat, col)))
 	}
 	return fmt.Sprintf("CREATE TYPE %s AS (%s)", qn, strings.Join(fields, ", "))
 }
@@ -155,7 +155,7 @@ func generateCompositeAlterOps(fromCat, toCat *Catalog, entry CompositeTypeDiffE
 			Type:          OpAlterType,
 			SchemaName:    entry.SchemaName,
 			ObjectName:    entry.Name,
-			SQL:           fmt.Sprintf("ALTER TYPE %s ADD ATTRIBUTE %s %s%s", qn, quoteIdentAlways(c.Name), typeName, formatCollate(c.CollationName)),
+			SQL:           fmt.Sprintf("ALTER TYPE %s ADD ATTRIBUTE %s %s%s", qn, quoteIdentAlways(c.Name), typeName, formatColumnCollate(toCat, c)),
 			Transactional: true,
 			Phase:         PhaseMain,
 			ObjType:       'r',
@@ -172,12 +172,12 @@ func generateCompositeAlterOps(fromCat, toCat *Catalog, entry CompositeTypeDiffE
 		}
 		fromType := fromCat.FormatType(fc.TypeOID, fc.TypeMod)
 		toType := toCat.FormatType(tc.TypeOID, tc.TypeMod)
-		if fromType != toType || fc.CollationName != tc.CollationName {
+		if fromType != toType || columnCollationKey(fromCat, fc) != columnCollationKey(toCat, tc) {
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(tc.Name), toType, formatCollate(tc.CollationName)),
+				SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(tc.Name), toType, formatColumnCollate(toCat, tc)),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'r',

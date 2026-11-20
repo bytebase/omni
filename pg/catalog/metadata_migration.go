@@ -4194,10 +4194,14 @@ func markIdentityColumns(columns []*metadatapb.ColumnMetadata) {
 // that changed, so the recreation silently dropped an unchanged one.
 func restoreRecreatedViewComments(plan *MigrationPlan, meta *metadatapb.DatabaseSchemaMetadata) {
 	commented := make(map[string]bool)
+	commentedTargets := make(map[string]bool)
 	for _, op := range plan.Ops {
 		switch {
 		case op.Type == OpComment:
 			commented[op.ObjectName] = true
+			if target, _, ok := strings.Cut(op.SQL, " IS "); ok {
+				commentedTargets[target] = true
+			}
 		case op.Type == OpCreateView && strings.Contains(op.SQL, "COMMENT ON"):
 			commented[objectKey(op.SchemaName, op.ObjectName)] = true
 		default:
@@ -4206,12 +4210,14 @@ func restoreRecreatedViewComments(plan *MigrationPlan, meta *metadatapb.Database
 	for _, schema := range meta.GetSchemas() {
 		for _, view := range schema.GetViews() {
 			key := objectKey(schema.GetName(), view.GetName())
-			if view.GetComment() != "" && !commented[key] && planCreatesObject(plan, key) {
+			sql := fmt.Sprintf("COMMENT ON VIEW %s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteLiteral(view.GetComment()))
+			target, _, _ := strings.Cut(sql, " IS ")
+			if view.GetComment() != "" && !commented[key] && !commentedTargets[target] && planCreatesObject(plan, key) {
 				plan.Ops = append(plan.Ops, MigrationOp{
 					Type:          OpComment,
 					SchemaName:    schema.GetName(),
 					ObjectName:    key,
-					SQL:           fmt.Sprintf("COMMENT ON VIEW %s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteLiteral(view.GetComment())),
+					SQL:           sql,
 					Transactional: true,
 					Phase:         PhaseMain,
 					ObjType:       'r',
@@ -4220,12 +4226,14 @@ func restoreRecreatedViewComments(plan *MigrationPlan, meta *metadatapb.Database
 		}
 		for _, view := range schema.GetMaterializedViews() {
 			key := objectKey(schema.GetName(), view.GetName())
-			if view.GetComment() != "" && !commented[key] && planCreatesObject(plan, key) {
+			sql := fmt.Sprintf("COMMENT ON MATERIALIZED VIEW %s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteLiteral(view.GetComment()))
+			target, _, _ := strings.Cut(sql, " IS ")
+			if view.GetComment() != "" && !commented[key] && !commentedTargets[target] && planCreatesObject(plan, key) {
 				plan.Ops = append(plan.Ops, MigrationOp{
 					Type:          OpComment,
 					SchemaName:    schema.GetName(),
 					ObjectName:    key,
-					SQL:           fmt.Sprintf("COMMENT ON MATERIALIZED VIEW %s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteLiteral(view.GetComment())),
+					SQL:           sql,
 					Transactional: true,
 					Phase:         PhaseMain,
 					ObjType:       'r',

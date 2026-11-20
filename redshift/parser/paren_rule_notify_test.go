@@ -113,3 +113,22 @@ func TestParenRuleNotifyAction(t *testing.T) {
 		})
 	}
 }
+
+// TestRuleActionWithMerge covers RuleActionStmt's WITH forms: gram.y admits a
+// WITH clause only before SELECT, INSERT, UPDATE and DELETE, so PostgreSQL
+// answers "syntax error at or near MERGE" for a WITH-prefixed MERGE action.
+func TestRuleActionWithMerge(t *testing.T) {
+	const merge = "CREATE RULE r AS ON INSERT TO t DO ALSO WITH x AS (SELECT 1 AS a) MERGE INTO d USING x ON d.a = x.a WHEN NOT MATCHED THEN INSERT VALUES (x.a)"
+	if _, err := Parse(merge); err == nil {
+		t.Fatalf("Parse(%q) succeeded, want a syntax error at MERGE", merge)
+	}
+	for _, ok := range []string{
+		"CREATE RULE r AS ON INSERT TO t DO ALSO WITH x AS (SELECT 1 AS a) INSERT INTO d SELECT a FROM x",
+		"CREATE RULE r AS ON INSERT TO t DO ALSO WITH x AS (SELECT 1 AS a) SELECT a FROM x",
+		"WITH x AS (SELECT 1 AS a) MERGE INTO d USING x ON d.a = x.a WHEN NOT MATCHED THEN INSERT VALUES (x.a)",
+	} {
+		if _, err := Parse(ok); err != nil {
+			t.Fatalf("Parse(%q): %v", ok, err)
+		}
+	}
+}

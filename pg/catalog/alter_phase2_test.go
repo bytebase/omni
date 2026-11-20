@@ -225,7 +225,7 @@ func TestATDropInheritNotAParent(t *testing.T) {
 		Def:     &nodes.RangeVar{Relname: "t1"},
 	}
 	err = c.AlterTableStmt(makeAlterTableStmt("", "t2", cmd))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeUndefinedTable)
 }
 
 // --- AT_SetLogged / AT_SetUnLogged ---
@@ -463,7 +463,7 @@ func TestATSetCompressionOnFixedLenColumn(t *testing.T) {
 		Def:     &nodes.String{Str: "pglz"},
 	}
 	err = c.AlterTableStmt(makeAlterTableStmt("", "t", cmd))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeFeatureNotSupported)
 }
 
 // --- AT_AddOf / AT_DropOf ---
@@ -773,7 +773,7 @@ func TestATDropExpressionNotGenerated(t *testing.T) {
 		Name:    "a",
 	}
 	err = c.AlterTableStmt(makeAlterTableStmt("", "t", cmd))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeObjectNotInPrerequisiteState)
 }
 
 func TestATDropExpressionIfExists(t *testing.T) {

@@ -66,13 +66,13 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 		}
 	}
 
-	// Modified: in both, compare subtype.
+	// Modified: in both, compare subtype and collation.
 	for k, fi := range fromMap {
 		ti, ok := toMap[k]
 		if !ok {
 			continue
 		}
-		if fi.subtype != ti.subtype {
+		if fi.subtype != ti.subtype || formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) {
 			entries = append(entries, RangeDiffEntry{
 				Action:     DiffModify,
 				SchemaName: k.Schema,
