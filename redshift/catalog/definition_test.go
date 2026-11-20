@@ -463,6 +463,9 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
 			{Name: "legacy", Type: "character varying(40)", Default: "pending (old)", Nullable: true},
 			{Name: "created_at", Type: "timestamp", Default: "now()"},
 			{Name: "max_score", Type: "integer", Default: "GREATEST(1, 2)"},
+			{Name: "big_num", Type: "double precision", Default: "2.0e19"},
+			{Name: "opt", Type: "integer", Default: "null", Nullable: true},
+			{Name: "win_path", Type: "character varying(64)", Default: `C:\temp\a'b`, Comment: `\'; DROP TABLE victim; --`, Nullable: true},
 		},
 	})
 	require.NoError(t, err)
@@ -473,8 +476,12 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
   "note" character varying(40) DEFAULT 'timestamp note',
   "legacy" character varying(40) DEFAULT 'pending (old)',
   "created_at" timestamp NOT NULL DEFAULT now(),
-  "max_score" integer NOT NULL DEFAULT GREATEST(1, 2)
+  "max_score" integer NOT NULL DEFAULT GREATEST(1, 2),
+  "big_num" double precision NOT NULL DEFAULT 2.0e19,
+  "opt" integer DEFAULT NULL,
+  "win_path" character varying(64) DEFAULT 'C:\\temp\\a''b'
 );
+COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
 `, tableWithIdentityAndStrings)
 
 	metadata := &metadatapb.DatabaseSchemaMetadata{

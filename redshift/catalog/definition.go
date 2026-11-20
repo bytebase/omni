@@ -609,7 +609,7 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 	return ordered
 }
 
-// writeTable writes one table and the comments that belong to it. Column
+// writeTableWithFKs writes one table and the comments that belong to it. Column
 // comments follow the column order the CREATE TABLE body uses so output is
 // deterministic across runs.
 func writeTable(w io.StringWriter, table *tableState) error {
@@ -622,7 +622,7 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 		return err
 	}
 	if table.comment != "" {
-		if _, err := fmt.Fprintf(buf, "COMMENT ON TABLE %s IS '%s';\n", table.qualifiedName(), escapeSingleQuote(table.comment)); err != nil {
+		if _, err := fmt.Fprintf(buf, "COMMENT ON TABLE %s IS '%s';\n", table.qualifiedName(), escapeStringLiteral(table.comment)); err != nil {
 			return err
 		}
 	}
@@ -630,7 +630,7 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 		if column.comment == "" {
 			continue
 		}
-		if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", table.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeSingleQuote(column.comment)); err != nil {
+		if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", table.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeStringLiteral(column.comment)); err != nil {
 			return err
 		}
 	}
@@ -645,7 +645,7 @@ func writeView(w io.StringWriter, view *viewState) error {
 		return err
 	}
 	if view.comment != "" {
-		if _, err := fmt.Fprintf(buf, "COMMENT ON VIEW %s IS '%s';\n", view.qualifiedName(), escapeSingleQuote(view.comment)); err != nil {
+		if _, err := fmt.Fprintf(buf, "COMMENT ON VIEW %s IS '%s';\n", view.qualifiedName(), escapeStringLiteral(view.comment)); err != nil {
 			return err
 		}
 	}
@@ -735,9 +735,10 @@ func (v *viewState) qualifiedName() string {
 	return qualifyName(v.schema, v.name)
 }
 
-// escapeSingleQuote encodes a comment or literal for a SQL string literal.
-func escapeSingleQuote(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
+// escapeStringLiteral encodes a comment or raw default string for a Redshift
+// SQL string literal, doubling both backslashes and single quotes.
+func escapeStringLiteral(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `'`, `''`).Replace(s)
 }
 
 func newSchemaState() *schemaState {
@@ -1050,7 +1051,7 @@ type defaultValueString struct {
 }
 
 func (d *defaultValueString) toString() string {
-	return fmt.Sprintf("'%s'", escapeSingleQuote(d.value))
+	return fmt.Sprintf("'%s'", escapeStringLiteral(d.value))
 }
 
 type defaultValueExpression struct {
@@ -1122,7 +1123,7 @@ func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnStat
 		identitySeed:      column.IdentitySeed,
 		identityIncrement: column.IdentityIncrement,
 	}
-	if column.Default == "NULL" {
+	if strings.EqualFold(strings.TrimSpace(column.Default), "NULL") {
 		result.defaultValue = &defaultValueNull{}
 	} else if column.Default != "" {
 		if isExpression(column.Default) || isQuotedSQLLiteral(column.Default) || isNumericOrBoolLiteral(column.Default) {
@@ -1174,9 +1175,19 @@ func isExpression(value string) bool {
 	if rt.Val == nil {
 		return false
 	}
-	switch rt.Val.(type) {
-	case *nodes.ColumnRef, *nodes.A_Const:
+	switch v := rt.Val.(type) {
+	case *nodes.ColumnRef:
 		return false
+	case *nodes.A_Const:
+		if v.Isnull {
+			return true
+		}
+		switch v.Val.(type) {
+		case *nodes.Integer, *nodes.Float, *nodes.Boolean, *nodes.BitString:
+			return true
+		default:
+			return false
+		}
 	}
 	// Column defaults cannot reference columns; rejecting ColumnRef keeps
 	// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
@@ -1199,7 +1210,13 @@ func isQuotedSQLLiteral(s string) bool {
 		return false
 	}
 	for i := 1; i < len(s)-1; i++ {
-		if s[i] == '\'' {
+		switch s[i] {
+		case '\\':
+			if i+1 >= len(s)-1 {
+				return false
+			}
+			i++
+		case '\'':
 			if i+1 >= len(s)-1 || s[i+1] != '\'' {
 				return false
 			}
