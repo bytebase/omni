@@ -25,16 +25,20 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			return "", err
 		}
 	}
+	preFuncs, postFuncs, err := partitionFunctions(to)
+	if err != nil {
+		return "", err
+	}
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
-	if err := writeFunctions(&sb, to, false); err != nil {
+	if err := emitFunctions(&sb, preFuncs); err != nil {
 		return "", err
 	}
 	if err := writeTables(&sb, to, toState); err != nil {
 		return "", err
 	}
-	if err := writeFunctions(&sb, to, true); err != nil {
+	if err := emitFunctions(&sb, postFuncs); err != nil {
 		return "", err
 	}
 	if err := writeAllViews(&sb, to, toState); err != nil {
@@ -217,12 +221,25 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 }
 
 type functionEntry struct {
-	schema string
-	name   string
-	def    string
+	schema       string
+	name         string
+	def          string
+	hasTableDeps bool
 }
 
-func writeFunctions(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, withTableDeps bool) error {
+func emitFunctions(w io.StringWriter, fns []functionEntry) error {
+	for _, fn := range fns {
+		if _, err := w.WriteString(getFunctionAnnouncement(fn.name) + fn.def + "\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// partitionFunctions topologically orders all non-skipped functions and splits
+// them into pre-table and post-table passes, propagating table-dependency
+// deferral to any caller of a table-dependent function.
+func partitionFunctions(to *metadatapb.DatabaseSchemaMetadata) (pre, post []functionEntry, err error) {
 	var fns []functionEntry
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -232,32 +249,25 @@ func writeFunctions(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, wi
 			if fn == nil || fn.SkipDump {
 				continue
 			}
-			hasDeps := len(fn.DependencyTables) > 0
-			if hasDeps != withTableDeps {
-				continue
-			}
 			def := strings.TrimSpace(fn.Definition)
 			if def == "" {
-				return fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
+				return nil, nil, fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
 			}
 			if !strings.HasSuffix(def, ";") {
 				def += ";"
 			}
-			fns = append(fns, functionEntry{schema: schema.Name, name: fn.Name, def: def})
+			fns = append(fns, functionEntry{
+				schema:       schema.Name,
+				name:         fn.Name,
+				def:          def,
+				hasTableDeps: len(fn.DependencyTables) > 0,
+			})
 		}
 	}
-	for _, fn := range orderedFunctions(fns) {
-		if _, err := w.WriteString(getFunctionAnnouncement(fn.name) + fn.def + "\n"); err != nil {
-			return err
-		}
+	if len(fns) == 0 {
+		return nil, nil, nil
 	}
-	return nil
-}
 
-func orderedFunctions(fns []functionEntry) []functionEntry {
-	if len(fns) < 2 {
-		return fns
-	}
 	byName := make(map[string][]int, len(fns))
 	for i, fn := range fns {
 		key := objectKey(fn.schema, fn.name)
@@ -292,12 +302,36 @@ func orderedFunctions(fns []functionEntry) []functionEntry {
 			}
 		}
 	}
-	order := topoOrder(len(fns), dependencies)
-	ordered := make([]functionEntry, len(order))
-	for i, idx := range order {
-		ordered[i] = fns[idx]
+
+	postTable := make([]bool, len(fns))
+	for i, fn := range fns {
+		postTable[i] = fn.hasTableDeps
 	}
-	return ordered
+	for changed := true; changed; {
+		changed = false
+		for i, deps := range dependencies {
+			if postTable[i] {
+				continue
+			}
+			for dep := range deps {
+				if postTable[dep] {
+					postTable[i] = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	order := topoOrder(len(fns), dependencies)
+	for _, idx := range order {
+		if postTable[idx] {
+			post = append(post, fns[idx])
+		} else {
+			pre = append(pre, fns[idx])
+		}
+	}
+	return pre, post, nil
 }
 
 func collectFunctionCalls(definition string) []relationRef {
@@ -841,6 +875,9 @@ func writeTable(w io.StringWriter, table *tableState) error {
 }
 
 func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState) error {
+	if len(table.columns) == 0 {
+		return fmt.Errorf("table %s has no columns", table.qualifiedName())
+	}
 	buf := &strings.Builder{}
 	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
 		return err

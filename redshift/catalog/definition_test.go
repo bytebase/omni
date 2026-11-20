@@ -636,6 +636,46 @@ COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 	require.Contains(t, got, `COMMENT ON COLUMN "public"."v"."next_id" IS 'computed';`)
 	require.NotContains(t, got, "skip_fn")
 	require.NotContains(t, got, "skip_proc")
+
+	// A table with no columns returns an error instead of invalid SQL.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{Name: "empty_t"})
+	require.Error(t, err)
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "empty_t"}}},
+		},
+	})
+	require.Error(t, err)
+
+	// A caller without DependencyTables that calls a table-dependent UDF moves
+	// to the post-table pass after its callee.
+	crossPass, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "a_caller",
+						Definition: "CREATE FUNCTION public.a_caller(x int) RETURNS int AS $$ SELECT public.z_table_fn(x) $$ LANGUAGE SQL",
+					},
+					{
+						Name:             "z_table_fn",
+						Definition:       "CREATE FUNCTION public.z_table_fn(x int) RETURNS int AS $$ SELECT x $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "t"}},
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	tPos := strings.Index(crossPass, "Table structure for `t`")
+	zPos := strings.Index(crossPass, "Function structure for `z_table_fn`")
+	aPos := strings.Index(crossPass, "Function structure for `a_caller`")
+	require.Greater(t, zPos, tPos, "expected z_table_fn after table t:\n%s", crossPass)
+	require.Greater(t, aPos, zPos, "expected a_caller after z_table_fn:\n%s", crossPass)
 }
 
 // TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that
