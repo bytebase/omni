@@ -298,7 +298,7 @@ func diffCollations(from, to *Catalog) []CollationDiffEntry {
 			})
 			continue
 		}
-		if fc.DefClause != tc.DefClause {
+		if fc.DefClause != tc.DefClause || fc.OwnerName != tc.OwnerName {
 			out = append(out, CollationDiffEntry{
 				Action:     DiffModify,
 				SchemaName: k.schema,

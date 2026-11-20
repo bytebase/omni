@@ -68,6 +68,7 @@ const (
 	OpAlterType          MigrationOpType = "AlterType"
 	OpCreateCollation    MigrationOpType = "CreateCollation"
 	OpDropCollation      MigrationOpType = "DropCollation"
+	OpAlterCollation     MigrationOpType = "AlterCollation"
 	OpCreateTrigger      MigrationOpType = "CreateTrigger"
 	OpDropTrigger        MigrationOpType = "DropTrigger"
 	OpCreateEventTrigger MigrationOpType = "CreateEventTrigger"
@@ -902,6 +903,19 @@ func generateCollationDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityType,
 			})
+			if entry.To.OwnerName != "" && entry.To.OwnerName != "postgres" {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterCollation,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER COLLATION %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'L',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityType + 1,
+				})
+			}
 		case DiffDrop:
 			ops = append(ops, MigrationOp{
 				Type:          OpDropCollation,
@@ -915,30 +929,57 @@ func generateCollationDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Priority:      PriorityType,
 			})
 		case DiffModify:
-			ops = append(ops,
-				MigrationOp{
-					Type:          OpDropCollation,
+			if entry.From.DefClause != entry.To.DefClause {
+				ops = append(ops,
+					MigrationOp{
+						Type:          OpDropCollation,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("DROP COLLATION %s", qn),
+						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'L',
+						ObjOID:        entry.From.OID,
+						Priority:      PriorityType,
+					},
+					MigrationOp{
+						Type:          OpCreateCollation,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("CREATE COLLATION %s %s", qn, entry.To.DefClause),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'L',
+						ObjOID:        entry.To.OID,
+						Priority:      PriorityType,
+					},
+				)
+				if entry.To.OwnerName != "" && (entry.To.OwnerName != "postgres" || entry.From.OwnerName != entry.To.OwnerName) {
+					ops = append(ops, MigrationOp{
+						Type:          OpAlterCollation,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("ALTER COLLATION %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'L',
+						ObjOID:        entry.To.OID,
+						Priority:      PriorityType + 1,
+					})
+				}
+			} else if entry.From.OwnerName != entry.To.OwnerName && entry.To.OwnerName != "" {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterCollation,
 					SchemaName:    entry.SchemaName,
 					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("DROP COLLATION %s", qn),
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'L',
-					ObjOID:        entry.From.OID,
-					Priority:      PriorityType,
-				},
-				MigrationOp{
-					Type:          OpCreateCollation,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("CREATE COLLATION %s %s", qn, entry.To.DefClause),
+					SQL:           fmt.Sprintf("ALTER COLLATION %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
 					Transactional: true,
 					Phase:         PhaseMain,
 					ObjType:       'L',
 					ObjOID:        entry.To.OID,
 					Priority:      PriorityType,
-				},
-			)
+				})
+			}
 		}
 	}
 	return ops
@@ -1146,7 +1187,7 @@ func fkDependsOnConstraintOrIndex(c *Catalog, fk *Constraint, targetRelOID uint3
 func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) ([]MigrationOp, map[uint32]bool, map[uint32]bool) {
 	modifiedCollOIDs := make(map[uint32]bool)
 	for _, entry := range diff.Collations {
-		if entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil && entry.From.DefClause != entry.To.DefClause {
 			modifiedCollOIDs[entry.From.OID] = true
 		}
 	}

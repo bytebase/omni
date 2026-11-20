@@ -373,6 +373,15 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 					paramTypes[i] = TEXTOID
 				}
 			}
+		} else if s.Query != nil {
+			if err := c.validatePreparedDMLStmt(s.Query); err != nil {
+				return err
+			}
+			for i := range paramTypes {
+				if paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID {
+					paramTypes[i] = TEXTOID
+				}
+			}
 		}
 		if s.Name != "" {
 			if c.preparedStmts == nil {

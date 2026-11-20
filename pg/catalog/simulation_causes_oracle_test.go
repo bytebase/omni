@@ -4639,6 +4639,96 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c116Ext, "DROP COLLATION ext_coll_r14 CASCADE"); code != CodeDependentObjects {
 			t.Fatalf("DROP COLLATION on extension member answered %s, want %s", code, CodeDependentObjects)
 		}
+
+		// Review round 15 regressions:
+		// 1. PREPARE validates INSERT, UPDATE, DELETE, and MERGE statements before
+		//    registering them in preparedStmts.
+		// 2. Collation ownership changes (ALTER COLLATION ... OWNER TO) are diffed
+		//    and emitted in migrations without dropping dependent objects.
+		// 3. ON SELECT rules enforce PostgreSQL 17 view-rule restrictions (_RETURN
+		//    name, view target, OR REPLACE, unconditional INSTEAD single SELECT).
+		// 4. Recursive CTE SEARCH and CYCLE clauses are preserved when deparsing rules.
+		// 5. Rule actions with RETURNING require an unconditional INSTEAD rule and
+		//    matching target relation column count.
+		// 6. Three-component whole-row star references (otherdb.public.t.*) reject
+		//    cross-database catalog names (0A000).
+		c117 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r15 (id int, parent_id int, val text)",
+			"CREATE TABLE dst_r15 (id int, val text)",
+			"CREATE VIEW v_r15 AS SELECT id, val FROM t_r15",
+		} {
+			if code := simulationCatalogCode(t, c117, stmt); code != "0" {
+				t.Fatalf("c117 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"PREPARE p_bad_ins AS INSERT INTO no_such_tbl VALUES (1)", CodeUndefinedTable},
+			{"PREPARE p_bad_upd AS UPDATE t_r15 SET no_such_col = 1", CodeUndefinedColumn},
+			{"PREPARE p_bad_del AS DELETE FROM t_r15 WHERE no_such_col = $1", CodeUndefinedColumn},
+			{"PREPARE p_bad_mrg AS MERGE INTO no_such_tbl USING t_r15 ON true WHEN MATCHED THEN DELETE", CodeUndefinedTable},
+			{"CREATE RULE r_sel_tbl AS ON SELECT TO t_r15 DO INSTEAD SELECT * FROM t_r15", CodeWrongObjectType},
+			{"CREATE RULE r_sel_v AS ON SELECT TO v_r15 DO INSTEAD SELECT id, val FROM t_r15", CodeObjectNotInPrerequisiteState},
+			{"CREATE OR REPLACE RULE r_sel_v AS ON SELECT TO v_r15 DO INSTEAD SELECT id, val FROM t_r15", CodeInvalidObjectDefinition},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 WHERE true DO INSTEAD SELECT id, val FROM t_r15`, CodeFeatureNotSupported},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 DO ALSO SELECT id, val FROM t_r15`, CodeFeatureNotSupported},
+			{`CREATE OR REPLACE RULE "_RETURN" AS ON SELECT TO v_r15 DO INSTEAD SELECT id FROM t_r15`, CodeInvalidObjectDefinition},
+			{"CREATE RULE r_ret_also AS ON INSERT TO t_r15 DO ALSO INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING *", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_where AS ON INSERT TO t_r15 WHERE NEW.id > 0 DO INSTEAD INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING *", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_cols AS ON INSERT TO t_r15 DO INSTEAD INSERT INTO dst_r15 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val", CodeInvalidObjectDefinition},
+			{"CREATE VIEW v_cross_db_r15 AS SELECT row(otherdb.public.t_r15.*) FROM t_r15", CodeFeatureNotSupported},
+			{"CREATE VIEW v_cross_db_star_r15 AS SELECT otherdb.public.t_r15.* FROM t_r15", CodeFeatureNotSupported},
+		} {
+			if got := simulationCatalogCode(t, c117, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+		// Failed PREPARE must not occupy the prepared statement name.
+		if got := simulationCatalogCode(t, c117, "PREPARE p_bad_ins AS INSERT INTO dst_r15 (id, val) VALUES ($1, $2)"); got != "0" {
+			t.Fatalf("valid PREPARE after failed PREPARE answered %s, want 0", got)
+		}
+
+		// Recursive CTE SEARCH and CYCLE in rule action + collation owner diff.
+		c117From := New()
+		c117To := New()
+		for _, stmt := range []string{
+			"CREATE ROLE owner_r15",
+			"CREATE COLLATION c_own_r15 (LOCALE = 'C')",
+			"CREATE TABLE tree_r15 (id int, parent_id int)",
+			"CREATE TABLE log_r15 (id int, is_cycle boolean)",
+		} {
+			if code := simulationCatalogCode(t, c117From, stmt); code != "0" {
+				t.Fatalf("c117From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE ROLE owner_r15",
+			"CREATE COLLATION c_own_r15 (LOCALE = 'C')",
+			"ALTER COLLATION c_own_r15 OWNER TO owner_r15",
+			"CREATE TABLE tree_r15 (id int, parent_id int)",
+			"CREATE TABLE log_r15 (id int, is_cycle boolean)",
+			"CREATE RULE r_cte_r15 AS ON INSERT TO tree_r15 DO ALSO WITH RECURSIVE w(id, parent_id) AS (SELECT NEW.id, NEW.parent_id UNION ALL SELECT t.id, t.parent_id FROM tree_r15 t JOIN w ON t.parent_id = w.id) SEARCH DEPTH FIRST BY id SET seq_col CYCLE id SET is_cycle USING path_col INSERT INTO log_r15 (id, is_cycle) SELECT id, is_cycle FROM w ORDER BY seq_col",
+		} {
+			if code := simulationCatalogCode(t, c117To, stmt); code != "0" {
+				t.Fatalf("c117To %s: %s", stmt, code)
+			}
+		}
+		mig117 := GenerateMigration(c117From, c117To, Diff(c117From, c117To))
+		if !strings.Contains(mig117.SQL(), "ALTER COLLATION \"public\".\"c_own_r15\" OWNER TO owner_r15") {
+			t.Fatalf("expected ALTER COLLATION OWNER TO in migration DDL, got:\n%s", mig117.SQL())
+		}
+		if !strings.Contains(mig117.SQL(), "SEARCH DEPTH FIRST BY id SET seq_col") || !strings.Contains(mig117.SQL(), "CYCLE id SET is_cycle") {
+			t.Fatalf("expected SEARCH and CYCLE clauses in rule migration DDL, got:\n%s", mig117.SQL())
+		}
+		if code := simulationCatalogCode(t, c117From, mig117.SQL()); code != "0" {
+			t.Fatalf("applying c117From->c117To failed with %s:\n%s", code, mig117.SQL())
+		}
+		if rem := GenerateMigration(c117From, c117To, Diff(c117From, c117To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c117From->c117To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

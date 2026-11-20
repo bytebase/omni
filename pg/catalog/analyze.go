@@ -1565,15 +1565,58 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 	return []*TargetEntry{te}, nil
 }
 
+func (c *Catalog) checkDatabaseQualifier(dbName string) error {
+	if dbName == "" || c.snapshot {
+		return nil
+	}
+	if c.databaseName != "" {
+		if dbName == c.databaseName {
+			return nil
+		}
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: fmt.Sprintf("cross-database references are not implemented: %s", dbName),
+		}
+	}
+	if c.databaseOwners[dbName] != "" {
+		return nil
+	}
+	if len(c.databaseOwners) == 0 && dbName == "postgres" {
+		return nil
+	}
+	return &Error{
+		Code:    CodeFeatureNotSupported,
+		Message: fmt.Sprintf("cross-database references are not implemented: %s", dbName),
+	}
+}
+
 // expandStar expands a * or table.* reference.
 //
 // pg: src/backend/parser/parse_target.c — ExpandAllTables / expandNSItemAttrs
 func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEntry, error) {
-	tableName := starTableName(cr)
+	var schemaName, tableName string
+	if cr.Fields != nil && len(cr.Fields.Items) >= 2 {
+		prefix := cr.Fields.Items[:len(cr.Fields.Items)-1]
+		switch len(prefix) {
+		case 1:
+			tableName = stringVal(prefix[0])
+		case 2:
+			schemaName = stringVal(prefix[0])
+			tableName = stringVal(prefix[1])
+		case 3:
+			if err := ac.catalog.checkDatabaseQualifier(stringVal(prefix[0])); err != nil {
+				return nil, err
+			}
+			schemaName = stringVal(prefix[1])
+			tableName = stringVal(prefix[2])
+		default:
+			return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
+		}
+	}
 
 	// The columns of a function whose columns are unknown cannot be listed.
 	for _, rte := range ac.query.RangeTable {
-		if rte.UnknownColumns && (tableName == "" || rte.ERef == tableName) {
+		if rte.UnknownColumns && (tableName == "" || (schemaName == "" && rte.ERef == tableName)) {
 			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot expand * over function %q, whose columns are unknown", rte.ERef)}
 		}
 	}
@@ -1597,6 +1640,15 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 			}
 			if tableName != "" && rte.ERef != tableName {
 				continue
+			}
+			if schemaName != "" {
+				if rte.Kind != RTERelation || rte.Alias != "" {
+					continue
+				}
+				rel := ac.catalog.relationByOID[rte.RelOID]
+				if rel == nil || rel.Schema == nil || rel.Schema.Name != schemaName {
+					continue
+				}
 			}
 			hasSource = true
 			for colIdx, colName := range rte.ColNames {
@@ -1780,6 +1832,14 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 	if len(items) >= 2 {
 		if _, isStar := items[len(items)-1].(*nodes.A_Star); isStar {
 			return ac.resolveWholeRowStar(items[:len(items)-1])
+		}
+	}
+	if len(items) > 4 {
+		return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
+	}
+	if len(items) == 4 {
+		if err := ac.catalog.checkDatabaseQualifier(stringVal(items[0])); err != nil {
+			return nil, err
 		}
 	}
 
@@ -2261,9 +2321,14 @@ func (ac *analyzeCtx) resolveWholeRowStar(prefix []nodes.Node) (*VarExpr, error)
 	case 2:
 		schemaName = stringVal(prefix[0])
 		relName = stringVal(prefix[1])
+	case 3:
+		if err := ac.catalog.checkDatabaseQualifier(stringVal(prefix[0])); err != nil {
+			return nil, err
+		}
+		schemaName = stringVal(prefix[1])
+		relName = stringVal(prefix[2])
 	default:
-		schemaName = stringVal(prefix[len(prefix)-2])
-		relName = stringVal(prefix[len(prefix)-1])
+		return nil, &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
 	}
 	visible := ac.visibleRTEs()
 	inScope := func(i int) bool { return visible == nil || visible[i] }
