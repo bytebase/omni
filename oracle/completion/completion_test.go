@@ -1113,6 +1113,17 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("expected P_IN and V_OUT variable candidates, got %v", resProc)
 		}
 	})
+
+	t.Run("compound query ORDER BY uses first arm aliases", func(t *testing.T) {
+		sqlOrder, posOrder := splitCaret(t, "SELECT album_id AS left_name FROM album UNION SELECT music_id AS right_name FROM music ORDER BY |")
+		resOrder := Complete(sqlOrder, posOrder, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resOrder, candidateSpec{text: "LEFT_NAME", typ: CandidateColumn}) {
+			t.Fatalf("expected first-arm alias LEFT_NAME in compound ORDER BY, got %v", resOrder)
+		}
+		if hasSpec(resOrder, candidateSpec{text: "RIGHT_NAME", typ: CandidateColumn}) {
+			t.Fatalf("did not expect second-arm alias RIGHT_NAME in compound ORDER BY, got %v", resOrder)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

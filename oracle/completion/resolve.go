@@ -1894,25 +1894,50 @@ func (r *resolver) currentQueryBlockSelectFrom() (int, int) {
 	targetDepth := r.depthAtToken(r.caretTokenIndex)
 	selectIdx := -1
 	fromIdx := -1
+	firstArmSelectIdx := -1
+	firstArmFromIdx := -1
+	inSetOp := false
+	inOrderByAfterSetOp := false
 	depth := 0
 	for i := stmtStart; i < stmtEnd && i < r.caretTokenIndex; i++ {
 		if r.tokens[i].Type == ')' && depth > 0 {
 			depth--
 		}
+		if depth < targetDepth {
+			selectIdx, fromIdx = -1, -1
+			firstArmSelectIdx, firstArmFromIdx = -1, -1
+			inSetOp, inOrderByAfterSetOp = false, false
+		}
 		if depth == targetDepth {
-			switch r.tokens[i].Type {
-			case parser.SELECT:
+			switch strings.ToUpper(parser.TokenName(r.tokens[i].Type)) {
+			case "SELECT":
 				selectIdx = i
 				fromIdx = -1
-			case parser.FROM:
+				if firstArmSelectIdx < 0 {
+					firstArmSelectIdx = i
+				}
+			case "FROM":
 				if selectIdx >= 0 && fromIdx < 0 {
 					fromIdx = i
+					if firstArmFromIdx < 0 {
+						firstArmFromIdx = i
+					}
+				}
+			case "UNION", "INTERSECT", "MINUS", "EXCEPT":
+				inSetOp = true
+				inOrderByAfterSetOp = false
+			case "ORDER":
+				if inSetOp {
+					inOrderByAfterSetOp = true
 				}
 			}
 		}
 		if r.tokens[i].Type == '(' {
 			depth++
 		}
+	}
+	if inOrderByAfterSetOp && firstArmSelectIdx >= 0 && firstArmFromIdx >= 0 {
+		return firstArmSelectIdx, firstArmFromIdx
 	}
 	return selectIdx, fromIdx
 }
