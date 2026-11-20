@@ -1190,11 +1190,13 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	preDroppedType := make(map[uint32]bool)
 	preDroppedTrig := make(map[uint32]bool)
 	preDroppedPol := make(map[uint32]bool)
+	preDroppedRule := make(map[uint32]bool)
 	preDroppedFunc := make(map[uint32]bool)
 	mainCreatedIdx := make(map[string]bool)
 	mainAddedCon := make(map[string]bool)
 	mainCreatedTrig := make(map[string]bool)
 	mainCreatedPol := make(map[string]bool)
+	mainCreatedRule := make(map[string]bool)
 	mainCreatedFunc := make(map[string]bool)
 	mainComments := make(map[string]bool)
 
@@ -1223,6 +1225,8 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				preDroppedTrig[op.ObjOID] = true
 			case OpDropPolicy:
 				preDroppedPol[op.ObjOID] = true
+			case OpDropRule:
+				preDroppedRule[op.ObjOID] = true
 			case OpDropFunction:
 				preDroppedFunc[op.ObjOID] = true
 			}
@@ -1241,6 +1245,8 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					mainCreatedPol[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
 				}
 				mainCreatedPol[op.SchemaName+"."+op.ObjectName] = true
+			case OpCreateRule:
+				mainCreatedRule[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
 			case OpCreateFunction, OpAlterFunction:
 				mainCreatedFunc[op.SchemaName+"."+op.ObjectName] = true
 			case OpComment:
@@ -1671,6 +1677,32 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 							}
 						}
 						break
+					}
+				}
+			}
+		}
+
+		// Rules referencing the generated column.
+		for _, rule := range from.rules {
+			if rule == nil || preDroppedRule[rule.OID] || preDroppedRel[rule.OwnerRelOID] {
+				continue
+			}
+			if !objDependsOnColumn(from, 'R', rule.OID, fromRel.OID, fromCol.AttNum) {
+				continue
+			}
+			rOwner := from.GetRelationByOID(rule.OwnerRelOID)
+			if rOwner == nil || rOwner.Schema == nil {
+				continue
+			}
+			rSc := rOwner.Schema.Name
+			preDroppedRule[rule.OID] = true
+			preExtra = append(preExtra, buildDropRuleOp(rSc, rOwner.Name, rule))
+			ruleKey := rSc + "." + rOwner.Name + "." + rule.Name
+			if !mainCreatedRule[ruleKey] {
+				if toOwner := to.GetRelation(rSc, rOwner.Name); toOwner != nil && toOwner.Rules != nil {
+					if toRule := toOwner.Rules[rule.Name]; toRule != nil {
+						mainCreatedRule[ruleKey] = true
+						mainExtra = append(mainExtra, buildCreateAndModeRuleOps(to, rSc, toOwner.Name, toOwner, toRule)...)
 					}
 				}
 			}
@@ -2170,6 +2202,27 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 							mainExtra = append(mainExtra, buildCreatePolicyOp(scName, fromRel.Name, toPol))
 							break
 						}
+					}
+				}
+			}
+		case 'R':
+			rule := from.rules[d.ObjOID]
+			if rule == nil || preDroppedRule[rule.OID] || preDroppedRel[rule.OwnerRelOID] {
+				continue
+			}
+			fromRel := from.GetRelationByOID(rule.OwnerRelOID)
+			if fromRel == nil || fromRel.Schema == nil {
+				continue
+			}
+			scName := fromRel.Schema.Name
+			preDroppedRule[rule.OID] = true
+			preExtra = append(preExtra, buildDropRuleOp(scName, fromRel.Name, rule))
+			ruleKey := scName + "." + fromRel.Name + "." + rule.Name
+			if !mainCreatedRule[ruleKey] {
+				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil && toRel.Rules != nil {
+					if toRule := toRel.Rules[rule.Name]; toRule != nil {
+						mainCreatedRule[ruleKey] = true
+						mainExtra = append(mainExtra, buildCreateAndModeRuleOps(to, scName, toRel.Name, toRel, toRule)...)
 					}
 				}
 			}

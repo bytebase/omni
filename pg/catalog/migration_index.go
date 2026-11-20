@@ -16,12 +16,17 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, relEntry := range diff.Relations {
 		switch relEntry.Action {
 		case DiffAdd:
-			// New table — generate CREATE INDEX for all standalone indexes.
+			// New table — generate CREATE INDEX for all standalone indexes, and
+			// column renames for both standalone and constraint-backed indexes.
 			if relEntry.To != nil {
 				indexes := to.IndexesOf(relEntry.To.OID)
 				for _, idx := range indexes {
-					if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
-						continue // managed by constraint DDL, or by the parent's index
+					if idx.ParentIndexOID != 0 {
+						continue // managed by the parent's index
+					}
+					if idx.ConstraintOID != 0 {
+						renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
+						continue // index creation managed by constraint DDL
 					}
 					sql := buildCreateIndexSQL(idx, relEntry.To, relEntry.SchemaName)
 					ops = append(ops, MigrationOp{
@@ -39,6 +44,24 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		case DiffModify:
+			if relEntry.From != nil && relEntry.To != nil && tableRebuilt(from, to, relEntry.From, relEntry.To) {
+				for _, idx := range to.IndexesOf(relEntry.To.OID) {
+					if idx.ParentIndexOID != 0 {
+						continue
+					}
+					renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
+				}
+				continue
+			}
+			recreatedConIdxOIDs := make(map[uint32]bool)
+			for _, ce := range relEntry.Constraints {
+				if (ce.Action == DiffAdd || ce.Action == DiffModify) && ce.To != nil && ce.To.IndexOID != 0 {
+					recreatedConIdxOIDs[ce.To.IndexOID] = true
+					if idx := to.indexes[ce.To.IndexOID]; idx != nil && idx.ParentIndexOID == 0 {
+						renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
+					}
+				}
+			}
 			for _, idxEntry := range relEntry.Indexes {
 				switch idxEntry.Action {
 				case DiffAdd:
@@ -87,6 +110,9 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					idxFrom := idxEntry.From
 					idxTo := idxEntry.To
 					if idxFrom.ConstraintOID != 0 || idxTo.ConstraintOID != 0 {
+						if idxFrom.ConstraintOID != 0 && idxTo.ConstraintOID != 0 && !recreatedConIdxOIDs[idxTo.OID] && !indexesStructurallyChanged(from, to, idxFrom, idxTo) {
+							renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idxTo, effectiveIndexColumnNames(from, idxFrom), effectiveIndexColumnNames(to, idxTo))...)
+						}
 						continue
 					}
 					if idxTo.ParentIndexOID != 0 {

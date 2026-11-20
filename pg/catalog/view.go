@@ -429,7 +429,16 @@ func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
 		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
 	}
 
-	seenCols := map[int16]bool{}
+	colCounts := map[int16]int{}
+	for _, te := range q.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		if v, ok := te.Expr.(*VarExpr); ok && v.LevelsUp == 0 && v.RangeIdx == rtr.RTIndex && v.AttNum > 0 {
+			colCounts[v.AttNum]++
+		}
+	}
+
 	hasUpdatableCol := false
 	for _, te := range q.TargetList {
 		if te.ResJunk {
@@ -442,10 +451,9 @@ func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
 		if !ok || v.LevelsUp != 0 || v.RangeIdx != rtr.RTIndex || v.AttNum <= 0 {
 			continue
 		}
-		if seenCols[v.AttNum] {
+		if colCounts[v.AttNum] > 1 {
 			continue
 		}
-		seenCols[v.AttNum] = true
 		if ci := indexOfAttNum(baseRel, v.AttNum); ci >= 0 && baseRel.Columns[ci].Generated != 0 {
 			continue
 		}

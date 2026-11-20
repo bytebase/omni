@@ -12,15 +12,23 @@ import "sort"
 func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntry {
 	// Build name→*Index maps, filtering out constraint-backing indexes.
 	fromMap := make(map[string]*Index)
+	fromConIdxMap := make(map[string]*Index)
 	for _, idx := range from.IndexesOf(fromRelOID) {
 		if idx.ConstraintOID != 0 {
+			if idx.ParentIndexOID == 0 {
+				fromConIdxMap[idx.Name] = idx
+			}
 			continue
 		}
 		fromMap[idx.Name] = idx
 	}
 	toMap := make(map[string]*Index)
+	toConIdxMap := make(map[string]*Index)
 	for _, idx := range to.IndexesOf(toRelOID) {
 		if idx.ConstraintOID != 0 {
+			if idx.ParentIndexOID == 0 {
+				toConIdxMap[idx.Name] = idx
+			}
 			continue
 		}
 		toMap[idx.Name] = idx
@@ -60,6 +68,24 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 
 		// Both exist — compare fields.
 		if toIdx.ParentIndexOID != 0 || indexesChanged(from, to, fromIdx, toIdx) {
+			result = append(result, IndexDiffEntry{
+				Action: DiffModify,
+				Name:   name,
+				From:   fromIdx,
+				To:     toIdx,
+			})
+		}
+	}
+
+	// Constraint-backed indexes: surface an in-place column rename when the
+	// backing index itself was not structurally changed.
+	for name, toIdx := range toConIdxMap {
+		fromIdx, ok := fromConIdxMap[name]
+		if !ok {
+			continue
+		}
+		if !indexesStructurallyChanged(from, to, fromIdx, toIdx) &&
+			!stringSliceEqual(effectiveIndexColumnNames(from, fromIdx), effectiveIndexColumnNames(to, toIdx)) {
 			result = append(result, IndexDiffEntry{
 				Action: DiffModify,
 				Name:   name,

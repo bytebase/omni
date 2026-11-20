@@ -799,6 +799,9 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 			}
 			return errUndefinedObject("collation", name)
 		}
+		if c.isExtensionMember(collOID) {
+			return errDependentObjects("extension", c.extensionMembers[collOID])
+		}
 		if !seen[collOID] {
 			seen[collOID] = true
 			targets = append(targets, collTarget{schema: targetSchema, name: name, oid: collOID})

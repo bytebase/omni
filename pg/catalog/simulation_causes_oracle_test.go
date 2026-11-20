@@ -4562,6 +4562,83 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c115IdxApplied, c115IdxColl, Diff(c115IdxApplied, c115IdxColl)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after empty->c115IdxColl, got:\n%s", rem.SQL())
 		}
+
+		// Review round 14 regressions:
+		// 1. Table functions (RangeFunction, ROWS FROM, WITH ORDINALITY, aliases,
+		//    and column definitions) in rule actions are rendered by deparseTableRef.
+		// 2. Constraint-backed index attribute renames (ALTER INDEX ... RENAME COLUMN)
+		//    are diffed and emitted in migrations.
+		// 3. Views with duplicated base columns (SELECT a, a FROM t) exclude both
+		//    occurrences from auto-updatability under WITH CHECK OPTION.
+		// 4. Retained rules referencing a modified collation are dropped in PhasePre
+		//    and recreated in PhaseMain around the collation replacement.
+		// 5. DROP COLLATION refuses direct drops of extension-owned collations (2BP01).
+		c116From := New()
+		c116To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_mod_r14 (LOCALE = 'C')",
+			"CREATE TABLE t_r14 (id int CONSTRAINT t_r14_pkey PRIMARY KEY, v text)",
+			"CREATE TABLE audit_r14 (n int, ord bigint, v text)",
+			"CREATE RULE r_tf_r14 AS ON INSERT TO t_r14 WHERE (NEW.v COLLATE c_mod_r14) > 'a' DO ALSO INSERT INTO audit_r14 (n, ord, v) SELECT g.x, g.ord, NEW.v FROM generate_series(1, 2) WITH ORDINALITY AS g(x, ord)",
+		} {
+			if code := simulationCatalogCode(t, c116From, stmt); code != "0" {
+				t.Fatalf("c116From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_mod_r14 (LOCALE = 'POSIX')",
+			"CREATE TABLE t_r14 (id int CONSTRAINT t_r14_pkey PRIMARY KEY, v text)",
+			"ALTER TABLE t_r14_pkey RENAME COLUMN id TO pk_id",
+			"CREATE TABLE audit_r14 (n int, ord bigint, v text)",
+			"CREATE RULE r_tf_r14 AS ON INSERT TO t_r14 WHERE (NEW.v COLLATE c_mod_r14) > 'a' DO ALSO INSERT INTO audit_r14 (n, ord, v) SELECT g.x, g.ord, NEW.v FROM generate_series(1, 2) WITH ORDINALITY AS g(x, ord)",
+		} {
+			if code := simulationCatalogCode(t, c116To, stmt); code != "0" {
+				t.Fatalf("c116To %s: %s", stmt, code)
+			}
+		}
+		migEmpty116 := GenerateMigration(New(), c116To, Diff(New(), c116To))
+		if !strings.Contains(migEmpty116.SQL(), "generate_series(1, 2) WITH ORDINALITY AS g (x, ord)") {
+			t.Fatalf("expected RangeFunction in rule migration DDL, got:\n%s", migEmpty116.SQL())
+		}
+		if !strings.Contains(migEmpty116.SQL(), "RENAME COLUMN id TO pk_id") {
+			t.Fatalf("expected constraint-backed index column rename in empty->c116To DDL, got:\n%s", migEmpty116.SQL())
+		}
+		c116Applied := New()
+		if code := simulationCatalogCode(t, c116Applied, migEmpty116.SQL()); code != "0" {
+			t.Fatalf("applying empty->c116To failed with %s:\n%s", code, migEmpty116.SQL())
+		}
+		if rem := GenerateMigration(c116Applied, c116To, Diff(c116Applied, c116To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c116To, got:\n%s", rem.SQL())
+		}
+		mig116 := GenerateMigration(c116From, c116To, Diff(c116From, c116To))
+		if !strings.Contains(mig116.SQL(), `DROP RULE "r_tf_r14"`) || !strings.Contains(mig116.SQL(), `CREATE RULE "r_tf_r14"`) {
+			t.Fatalf("expected rule rebuild around collation modification, got:\n%s", mig116.SQL())
+		}
+		if !strings.Contains(mig116.SQL(), "RENAME COLUMN id TO pk_id") {
+			t.Fatalf("expected constraint-backed index column rename in c116From->c116To, got:\n%s", mig116.SQL())
+		}
+		if code := simulationCatalogCode(t, c116From, mig116.SQL()); code != "0" {
+			t.Fatalf("applying c116From->c116To failed with %s:\n%s", code, mig116.SQL())
+		}
+		if rem := GenerateMigration(c116From, c116To, Diff(c116From, c116To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c116From->c116To, got:\n%s", rem.SQL())
+		}
+
+		// Duplicate base column in WITH CHECK OPTION view -> 0A000.
+		if code := simulationCatalogCode(t, c116To, "CREATE VIEW v_dup_r14(x, y) AS SELECT id, id FROM t_r14 WITH CHECK OPTION"); code != CodeFeatureNotSupported {
+			t.Fatalf("CREATE VIEW with duplicate base column and WITH CHECK OPTION answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+
+		// Extension-owned collation cannot be dropped directly.
+		RegisterExtensionSQL("test_coll_ext_r14", "CREATE COLLATION ext_coll_r14 (LOCALE = 'C');")
+		defer delete(extensionScripts, "test_coll_ext_r14")
+		c116Ext := New()
+		if code := simulationCatalogCode(t, c116Ext, "CREATE EXTENSION test_coll_ext_r14"); code != "0" {
+			t.Fatalf("CREATE EXTENSION test_coll_ext_r14: %s", code)
+		}
+		if code := simulationCatalogCode(t, c116Ext, "DROP COLLATION ext_coll_r14 CASCADE"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION on extension member answered %s, want %s", code, CodeDependentObjects)
+		}
 	})
 
 	for _, tc := range cases {

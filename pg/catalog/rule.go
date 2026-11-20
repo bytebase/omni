@@ -526,15 +526,39 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 					if err := c.bindRuleExpr(b, pair.Items[0], fnCtx); err != nil {
 						return err
 					}
+					if len(pair.Items) > 1 {
+						if cdList, ok := pair.Items[1].(*nodes.List); ok {
+							if err := c.bindRuleTableFuncColDefs(b, cdList); err != nil {
+								return err
+							}
+						}
+					}
 				} else if err := c.bindRuleExpr(b, fnItem, fnCtx); err != nil {
 					return err
 				}
 			}
 		}
+		if err := c.bindRuleTableFuncColDefs(b, v.Coldeflist); err != nil {
+			return err
+		}
 		if v.Alias != nil && v.Alias.Aliasname != "" {
 			ctx.scope[v.Alias.Aliasname] = ruleScopeEntry{hasAlias: true, alias: v.Alias.Aliasname, isVirtual: true}
 		}
 		ctx.hasOpenSource = true
+	case *nodes.RangeTableSample:
+		if err := c.collectTableRefScope(b, v.Relation, ctx); err != nil {
+			return err
+		}
+		if v.Args != nil {
+			for _, item := range v.Args.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		if err := c.bindRuleExpr(b, v.Repeatable, ctx); err != nil {
+			return err
+		}
 	case *nodes.JoinExpr:
 		if err := c.collectTableRefScope(b, v.Larg, ctx); err != nil {
 			return err
@@ -1628,6 +1652,46 @@ func (c *Catalog) bindRuleJsonOutput(b *ruleBindings, out *nodes.JsonOutput) err
 	return nil
 }
 
+func (c *Catalog) bindRuleTableFuncColDefs(b *ruleBindings, list *nodes.List) error {
+	if list == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		cd, ok := item.(*nodes.ColumnDef)
+		if !ok || cd == nil {
+			continue
+		}
+		if cd.TypeName != nil {
+			oid, _, err := c.resolveTypeName(cd.TypeName)
+			if err != nil {
+				if !c.snapshot {
+					return err
+				}
+			} else if oid != 0 {
+				isArr := cd.TypeName.ArrayBounds != nil && len(cd.TypeName.ArrayBounds.Items) > 0
+				elemOID := oid
+				if bt := c.typeByOID[oid]; bt != nil && bt.Elem != 0 {
+					elemOID = bt.Elem
+				}
+				b.typeByTN[cd.TypeName] = ruleTypeBinding{typeOID: elemOID, isArray: isArr}
+				b.addTypeDep(elemOID)
+			}
+		}
+		if cd.CollClause != nil {
+			_, uid, err := c.resolveCollationList(cd.CollClause.Collname)
+			if err != nil {
+				if !c.snapshot {
+					return err
+				}
+			} else if uid != 0 {
+				b.collByCC[cd.CollClause] = uid
+				b.addCollDep(uid)
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Catalog) bindRuleJsonAggConstructor(b *ruleBindings, ac *nodes.JsonAggConstructor, ctx *ruleEvalContext) error {
 	if ac == nil {
 		return nil
@@ -2201,6 +2265,22 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		b.WriteString(")")
 		b.WriteString(deparseRawAlias(v.Alias))
 		return b.String()
+	case *nodes.RangeFunction:
+		return d.deparseRangeFunction(v)
+	case *nodes.RangeTableSample:
+		var b strings.Builder
+		b.WriteString(d.deparseTableRef(v.Relation))
+		b.WriteString(" TABLESAMPLE ")
+		b.WriteString(deparseFuncNameList(v.Method))
+		b.WriteString("(")
+		b.WriteString(d.deparseExprList(v.Args))
+		b.WriteString(")")
+		if v.Repeatable != nil {
+			b.WriteString(" REPEATABLE (")
+			b.WriteString(d.deparseExpr(v.Repeatable))
+			b.WriteString(")")
+		}
+		return b.String()
 	case *nodes.JoinExpr:
 		var b strings.Builder
 		b.WriteString(d.deparseTableRef(v.Larg))
@@ -2290,6 +2370,112 @@ func deparseRawAlias(a *nodes.Alias) string {
 		b.WriteString(")")
 	}
 	return b.String()
+}
+
+func (d *ruleDeparser) deparseRangeFunction(v *nodes.RangeFunction) string {
+	if v == nil {
+		return ""
+	}
+	var b strings.Builder
+	if v.Lateral {
+		b.WriteString("LATERAL ")
+	}
+	if v.IsRowsfrom {
+		b.WriteString("ROWS FROM (")
+	}
+	if v.Functions != nil {
+		for i, item := range v.Functions.Items {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			if pair, ok := item.(*nodes.List); ok && len(pair.Items) > 0 {
+				b.WriteString(d.deparseExpr(pair.Items[0]))
+				if len(pair.Items) > 1 {
+					if cdList, ok := pair.Items[1].(*nodes.List); ok && len(cdList.Items) > 0 {
+						b.WriteString(" AS (")
+						b.WriteString(d.deparseTableFuncColDefs(cdList))
+						b.WriteString(")")
+					}
+				}
+			} else {
+				b.WriteString(d.deparseExpr(item))
+			}
+		}
+	}
+	if v.IsRowsfrom {
+		b.WriteString(")")
+	}
+	if v.Ordinality {
+		b.WriteString(" WITH ORDINALITY")
+	}
+	if v.Alias != nil && v.Alias.Aliasname != "" {
+		b.WriteString(" AS ")
+		b.WriteString(quoteIdentifier(v.Alias.Aliasname))
+		if v.Coldeflist != nil && len(v.Coldeflist.Items) > 0 {
+			b.WriteString(" (")
+			b.WriteString(d.deparseTableFuncColDefs(v.Coldeflist))
+			b.WriteString(")")
+		} else if v.Alias.Colnames != nil && len(v.Alias.Colnames.Items) > 0 {
+			b.WriteString(" (")
+			for i, c := range v.Alias.Colnames.Items {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(quoteIdentifier(stringVal(c)))
+			}
+			b.WriteString(")")
+		}
+	} else if v.Coldeflist != nil && len(v.Coldeflist.Items) > 0 {
+		b.WriteString(" AS (")
+		b.WriteString(d.deparseTableFuncColDefs(v.Coldeflist))
+		b.WriteString(")")
+	}
+	return b.String()
+}
+
+func (d *ruleDeparser) deparseTableFuncColDefs(list *nodes.List) string {
+	if list == nil || len(list.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		cd, ok := item.(*nodes.ColumnDef)
+		if !ok || cd == nil {
+			continue
+		}
+		var cb strings.Builder
+		cb.WriteString(quoteIdentifier(cd.Colname))
+		if cd.TypeName != nil {
+			cb.WriteString(" ")
+			cb.WriteString(d.deparseTypeName(cd.TypeName))
+		}
+		if cd.CollClause != nil {
+			collSQL := deparseQualifiedIdentList(cd.CollClause.Collname)
+			if d.cat != nil && d.b != nil {
+				if uid, ok := d.b.collByCC[cd.CollClause]; ok && uid != 0 {
+					for _, s := range d.cat.schemas {
+						if s == nil {
+							continue
+						}
+						for _, uc := range s.Collations {
+							if uc != nil && uc.OID == uid {
+								if s.Name != "public" && s.Name != "pg_catalog" {
+									collSQL = quoteIdentifier(s.Name) + "." + quoteIdentifier(uc.Name)
+								} else {
+									collSQL = quoteIdentifier(uc.Name)
+								}
+								break
+							}
+						}
+					}
+				}
+			}
+			cb.WriteString(" COLLATE ")
+			cb.WriteString(collSQL)
+		}
+		parts = append(parts, cb.String())
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (d *ruleDeparser) deparseSortClause(list *nodes.List) string {
