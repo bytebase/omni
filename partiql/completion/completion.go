@@ -367,48 +367,38 @@ func extractCurrentStatement(statement string, pos int) (string, int) {
 	return statement, pos
 }
 
-// extractActiveQueryScope slices statement to the innermost parenthesized query
-// block containing pos so nested subqueries (e.g. WHERE EXISTS (SELECT ...))
-// do not leak into the enclosing query's FROM list.
+// extractActiveQueryScope slices statement to the innermost subquery
+// parenthesized block containing pos so nested subqueries (e.g. WHERE EXISTS
+// (SELECT ...)) do not leak into the enclosing query, while ordinary expression
+// parentheses such as SELECT (|) FROM Music keep their enclosing FROM scope.
 func extractActiveQueryScope(statement string, pos int) string {
-	var openStack []int
+	var subqueryStack []int
+	var isSubqueryParen []bool
 	start := 0
 	for i := 0; i < len(statement) && i < pos; i++ {
 		switch statement[i] {
 		case '\'':
-			i++
-			for i < len(statement) {
-				if statement[i] == '\'' {
-					if i+1 < len(statement) && statement[i+1] == '\'' {
-						i += 2
-						continue
-					}
-					break
-				}
-				i++
-			}
+			i = skipQuotedLiteral(statement, i, '\'')
 		case '"':
-			i++
-			for i < len(statement) {
-				if statement[i] == '"' {
-					if i+1 < len(statement) && statement[i+1] == '"' {
-						i += 2
-						continue
-					}
-					break
-				}
-				i++
-			}
+			i = skipQuotedLiteral(statement, i, '"')
 		case '(':
-			openStack = append(openStack, i+1)
+			sub := parenOpensSubquery(statement, i+1)
+			isSubqueryParen = append(isSubqueryParen, sub)
+			if sub {
+				subqueryStack = append(subqueryStack, i+1)
+			}
 		case ')':
-			if len(openStack) > 0 {
-				openStack = openStack[:len(openStack)-1]
+			if len(isSubqueryParen) > 0 {
+				wasSub := isSubqueryParen[len(isSubqueryParen)-1]
+				isSubqueryParen = isSubqueryParen[:len(isSubqueryParen)-1]
+				if wasSub && len(subqueryStack) > 0 {
+					subqueryStack = subqueryStack[:len(subqueryStack)-1]
+				}
 			}
 		}
 	}
-	if len(openStack) > 0 {
-		start = openStack[len(openStack)-1]
+	if len(subqueryStack) > 0 {
+		start = subqueryStack[len(subqueryStack)-1]
 	}
 
 	end := len(statement)
@@ -416,33 +406,13 @@ func extractActiveQueryScope(statement string, pos int) string {
 	for i := start; i < len(statement); i++ {
 		switch statement[i] {
 		case '\'':
-			i++
-			for i < len(statement) {
-				if statement[i] == '\'' {
-					if i+1 < len(statement) && statement[i+1] == '\'' {
-						i += 2
-						continue
-					}
-					break
-				}
-				i++
-			}
+			i = skipQuotedLiteral(statement, i, '\'')
 		case '"':
-			i++
-			for i < len(statement) {
-				if statement[i] == '"' {
-					if i+1 < len(statement) && statement[i+1] == '"' {
-						i += 2
-						continue
-					}
-					break
-				}
-				i++
-			}
+			i = skipQuotedLiteral(statement, i, '"')
 		case '(':
 			depth++
 		case ')':
-			if depth == 0 && len(openStack) > 0 {
+			if depth == 0 && len(subqueryStack) > 0 {
 				end = i
 				return statement[start:end]
 			}
@@ -454,29 +424,93 @@ func extractActiveQueryScope(statement string, pos int) string {
 	return statement[start:end]
 }
 
-// extractTableRefsFromScope scans the active query scope at paren depth 0 for
-// table names and optional aliases after FROM, JOIN, INTO, or UPDATE keywords.
+func skipQuotedLiteral(s string, start int, quote byte) int {
+	i := start + 1
+	for i < len(s) {
+		if s[i] == quote {
+			if i+1 < len(s) && s[i+1] == quote {
+				i += 2
+				continue
+			}
+			return i
+		}
+		i++
+	}
+	return len(s) - 1
+}
+
+func parenOpensSubquery(s string, pos int) bool {
+	for pos < len(s) {
+		c := s[pos]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '(' {
+			pos++
+			continue
+		}
+		if c == '-' && pos+1 < len(s) && s[pos+1] == '-' {
+			pos += 2
+			for pos < len(s) && s[pos] != '\n' && s[pos] != '\r' {
+				pos++
+			}
+			continue
+		}
+		if c == '/' && pos+1 < len(s) && s[pos+1] == '*' {
+			pos += 2
+			depth := 1
+			for pos+1 < len(s) && depth > 0 {
+				if s[pos] == '/' && s[pos+1] == '*' {
+					depth++
+					pos += 2
+				} else if s[pos] == '*' && s[pos+1] == '/' {
+					depth--
+					pos += 2
+				} else {
+					pos++
+				}
+			}
+			if depth > 0 {
+				return false
+			}
+			continue
+		}
+		break
+	}
+	end := pos
+	for end < len(s) && isIdentChar(s[end]) {
+		end++
+	}
+	word := strings.ToUpper(s[pos:end])
+	return word == "SELECT" || word == "WITH"
+}
+
+// extractTableRefsFromScope scans the active query scope for table names and
+// optional aliases after FROM, JOIN, INTO, or UPDATE keywords, skipping nested
+// subquery parentheses.
 func extractTableRefsFromScope(statement string) []tableRef {
-	cleaned := stripSQLComments(statement)
+	cleaned := maskStringsAndComments(statement)
 	tokens := tokenizeForTableExtraction(cleaned)
 
 	var refs []tableRef
-	depth := 0
 	i := 0
 	for i < len(tokens) {
 		if tokens[i].paren == '(' {
-			depth++
-			i++
-			continue
-		}
-		if tokens[i].paren == ')' {
-			if depth > 0 {
-				depth--
+			if nextIsSubqueryStart(tokens, i+1) {
+				depth := 1
+				i++
+				for i < len(tokens) && depth > 0 {
+					switch tokens[i].paren {
+					case '(':
+						depth++
+					case ')':
+						depth--
+					}
+					i++
+				}
+				continue
 			}
 			i++
 			continue
 		}
-		if depth != 0 {
+		if tokens[i].paren == ')' {
 			i++
 			continue
 		}
@@ -520,6 +554,17 @@ func extractTableRefsFromScope(statement string) []tableRef {
 		}
 	}
 	return refs
+}
+
+func nextIsSubqueryStart(tokens []tableToken, idx int) bool {
+	for idx < len(tokens) && tokens[idx].paren == '(' {
+		idx++
+	}
+	if idx >= len(tokens) || tokens[idx].quoted {
+		return false
+	}
+	upper := strings.ToUpper(tokens[idx].text)
+	return upper == "SELECT" || upper == "WITH"
 }
 
 type tableToken struct {
@@ -582,21 +627,20 @@ func tokenizeForTableExtraction(s string) []tableToken {
 	return tokens
 }
 
-func stripSQLComments(s string) string {
+func maskStringsAndComments(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	i := 0
 	for i < len(s) {
 		switch {
 		case s[i] == '\'':
-			b.WriteByte(s[i])
+			b.WriteByte('_')
 			i++
 			for i < len(s) {
-				b.WriteByte(s[i])
 				if s[i] == '\'' {
 					i++
 					if i < len(s) && s[i] == '\'' {
-						b.WriteByte(s[i])
+						b.WriteByte('_')
 						i++
 						continue
 					}

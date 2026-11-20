@@ -282,21 +282,22 @@ func (r *resolver) resolve() []Candidate {
 	cs := r.completionCtx.Candidates
 
 	var (
-		keywords  []Candidate
-		functions []Candidate
-		schemas   []Candidate
-		tables    []Candidate
-		columns   []Candidate
-		views     []Candidate
-		mviews    []Candidate
-		sequences []Candidate
-		synonyms  []Candidate
-		dbLinks   []Candidate
-		procs     []Candidate
-		packages  []Candidate
-		indexes   []Candidate
-		triggers  []Candidate
-		types     []Candidate
+		keywords    []Candidate
+		functions   []Candidate
+		schemas     []Candidate
+		tables      []Candidate
+		columns     []Candidate
+		views       []Candidate
+		mviews      []Candidate
+		sequences   []Candidate
+		synonyms    []Candidate
+		dbLinks     []Candidate
+		procs       []Candidate
+		packages    []Candidate
+		indexes     []Candidate
+		triggers    []Candidate
+		constraints []Candidate
+		types       []Candidate
 	)
 
 	addSchemaCandidates := func() {
@@ -414,10 +415,14 @@ func (r *resolver) resolve() []Candidate {
 				r.insertSchemaProcedures(&procs, r.completionSchemaQualifier())
 			case "package_ref":
 				r.insertSchemaPackages(&packages, r.completionSchemaQualifier())
+			case "package_member_ref":
+				r.insertPackageMemberCandidates(&procs, &functions)
 			case "index_ref":
 				r.insertSchemaIndexes(&indexes, r.completionSchemaQualifier())
 			case "trigger_ref":
 				r.insertSchemaTriggers(&triggers, r.completionSchemaQualifier())
+			case "constraint_ref":
+				r.insertConstraintCandidates(&constraints)
 			case "type_name":
 				for _, typ := range oracleDataTypes {
 					types = append(types, Candidate{Type: CandidateType_, Text: typ})
@@ -462,10 +467,14 @@ func (r *resolver) resolve() []Candidate {
 				r.insertSchemaProcedures(&procs, r.completionSchemaQualifier())
 			case parser.ObjectKindPackage:
 				r.insertSchemaPackages(&packages, r.completionSchemaQualifier())
+			case parser.ObjectKindPackageMember:
+				r.insertPackageMemberCandidates(&procs, &functions)
 			case parser.ObjectKindIndex:
 				r.insertSchemaIndexes(&indexes, r.completionSchemaQualifier())
 			case parser.ObjectKindTrigger:
 				r.insertSchemaTriggers(&triggers, r.completionSchemaQualifier())
+			case parser.ObjectKindConstraint:
+				r.insertConstraintCandidates(&constraints)
 			case parser.ObjectKindType:
 				for _, typ := range oracleDataTypes {
 					types = append(types, Candidate{Type: CandidateType_, Text: typ})
@@ -494,6 +503,7 @@ func (r *resolver) resolve() []Candidate {
 	result = append(result, dbLinks...)
 	result = append(result, indexes...)
 	result = append(result, triggers...)
+	result = append(result, constraints...)
 	return result
 }
 
@@ -592,6 +602,78 @@ func (r *resolver) insertSchemaIndexes(dst *[]Candidate, schema string) {
 		for _, t := range sm.GetTables() {
 			for _, idx := range t.GetIndexes() {
 				*dst = append(*dst, Candidate{Type: CandidateIndex, Text: idx.GetName()})
+			}
+		}
+		for _, mv := range sm.GetMaterializedViews() {
+			for _, idx := range mv.GetIndexes() {
+				*dst = append(*dst, Candidate{Type: CandidateIndex, Text: idx.GetName()})
+			}
+		}
+	}
+}
+
+func (r *resolver) insertPackageMemberCandidates(procsOut, funcsOut *[]Candidate) {
+	schema, pkgName := r.columnQualifier()
+	if pkgName == "" && r.completionIntent != nil {
+		pkgName = r.completionIntent.Qualifier.Object
+	}
+	if pkgName == "" {
+		return
+	}
+	for s := range r.completionSchemas(schema) {
+		if s == "" && r.store.defaultSchema != "" {
+			continue
+		}
+		_, sm := r.store.getSchema(s)
+		if sm == nil {
+			continue
+		}
+		for _, pkg := range sm.GetPackages() {
+			if strings.EqualFold(pkg.GetName(), pkgName) {
+				procs, funcs := parsePackageMembers(pkg.GetDefinition())
+				for _, p := range procs {
+					*procsOut = append(*procsOut, Candidate{Type: CandidateProcedure, Text: p})
+				}
+				for _, f := range funcs {
+					*funcsOut = append(*funcsOut, Candidate{Type: CandidateFunction, Text: f})
+				}
+				return
+			}
+		}
+	}
+}
+
+func (r *resolver) insertConstraintCandidates(dst *[]Candidate) {
+	for _, ref := range r.references {
+		phys, ok := ref.(*physicalTableRef)
+		if !ok {
+			continue
+		}
+		schema := phys.Schema
+		if schema == "" {
+			schema = r.store.defaultSchema
+		}
+		_, sm := r.store.getSchema(schema)
+		if sm == nil {
+			continue
+		}
+		t := findTableMeta(sm, phys.Table)
+		if t == nil {
+			continue
+		}
+		for _, cc := range t.GetCheckConstraints() {
+			if cc.GetName() != "" {
+				*dst = append(*dst, Candidate{Type: CandidateConstraint, Text: cc.GetName()})
+			}
+		}
+		for _, fk := range t.GetForeignKeys() {
+			if fk.GetName() != "" {
+				*dst = append(*dst, Candidate{Type: CandidateConstraint, Text: fk.GetName()})
+			}
+		}
+		for _, idx := range t.GetIndexes() {
+			if idx.GetIsConstraint() && idx.GetName() != "" {
+				*dst = append(*dst, Candidate{Type: CandidateConstraint, Text: idx.GetName()})
 			}
 		}
 	}
@@ -794,22 +876,80 @@ func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []ta
 				}
 			}
 		}
-		resolvedSchema, sm := r.store.getSchema(target.schema)
-		if sm == nil {
-			continue
-		}
-		if t := findTableMeta(sm, target.table); t != nil {
+		r.insertColumnsForObject(columnsOut, target.schema, target.table, 0)
+	}
+}
+
+func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name string, depth int) {
+	if depth > 4 || name == "" {
+		return
+	}
+	resolvedSchema, sm := r.store.getSchema(schema)
+	if sm != nil {
+		if t := findTableMeta(sm, name); t != nil {
 			for _, col := range t.GetColumns() {
 				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, t.GetName(), col))
 			}
-			continue
+			return
 		}
-		if v := findViewMeta(sm, target.table); v != nil {
+		if ext := findExternalTableMeta(sm, name); ext != nil {
+			for _, col := range ext.GetColumns() {
+				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, ext.GetName(), col))
+			}
+			return
+		}
+		if v := findViewMeta(sm, name); v != nil {
 			for _, col := range v.GetColumns() {
 				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, v.GetName(), col))
 			}
+			return
+		}
+		if syn := findSynonymMeta(sm.GetSynonyms(), name); syn != nil && syn.GetTargetName() != "" {
+			targetSchema := syn.GetTargetSchema()
+			if targetSchema == "" {
+				targetSchema = resolvedSchema
+			}
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), depth+1)
+			return
 		}
 	}
+	if schema == "" || strings.EqualFold(schema, r.store.defaultSchema) {
+		if syn := findSynonymMeta(r.store.publicSynonyms, name); syn != nil && syn.GetTargetName() != "" {
+			targetSchema := syn.GetTargetSchema()
+			if targetSchema == "" {
+				targetSchema = r.store.defaultSchema
+			}
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), depth+1)
+		}
+	}
+}
+
+func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.ExternalTableMetadata {
+	for _, ext := range sm.GetExternalTables() {
+		if ext.GetName() == name {
+			return ext
+		}
+	}
+	for _, ext := range sm.GetExternalTables() {
+		if strings.EqualFold(ext.GetName(), name) {
+			return ext
+		}
+	}
+	return nil
+}
+
+func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string) *metadatapb.SynonymMetadata {
+	for _, syn := range syns {
+		if syn.GetName() == name {
+			return syn
+		}
+	}
+	for _, syn := range syns {
+		if strings.EqualFold(syn.GetName(), name) {
+			return syn
+		}
+	}
+	return nil
 }
 
 func findTableMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {

@@ -8,7 +8,9 @@ import (
 	"unicode"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/analysis"
+	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/catalog"
 	"github.com/bytebase/omni/oracle/parser"
 )
@@ -32,6 +34,7 @@ const (
 	CandidateTrigger
 	CandidateSynonym
 	CandidateDatabaseLink
+	CandidateConstraint
 )
 
 // String returns the lower-case kind name of CandidateType.
@@ -67,6 +70,8 @@ func (t CandidateType) String() string {
 		return "synonym"
 	case CandidateDatabaseLink:
 		return "database_link"
+	case CandidateConstraint:
+		return "constraint"
 	default:
 		return "unknown"
 	}
@@ -381,4 +386,53 @@ func quoteIdentifierForSQL(identifier string) string {
 		return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
 	}
 	return identifier
+}
+
+func parsePackageMembers(definition string) (procs []string, funcs []string) {
+	if strings.TrimSpace(definition) == "" {
+		return nil, nil
+	}
+	stmts, err := oracle.Parse(definition)
+	if err != nil {
+		stmts, err = oracle.Parse("CREATE OR REPLACE " + definition)
+		if err != nil {
+			return nil, nil
+		}
+	}
+	// Prefer package specification declarations over body declarations when both
+	// are present so private body helpers are not exposed.
+	var specStmts, bodyStmts []*ast.CreatePackageStmt
+	for _, s := range stmts {
+		pkg, ok := s.AST.(*ast.CreatePackageStmt)
+		if !ok || pkg == nil {
+			continue
+		}
+		if pkg.IsBody {
+			bodyStmts = append(bodyStmts, pkg)
+		} else {
+			specStmts = append(specStmts, pkg)
+		}
+	}
+	selected := specStmts
+	if len(selected) == 0 {
+		selected = bodyStmts
+	}
+	for _, pkg := range selected {
+		if pkg.Body == nil {
+			continue
+		}
+		for _, item := range pkg.Body.Items {
+			switch decl := item.(type) {
+			case *ast.CreateProcedureStmt:
+				if decl.Name != nil && decl.Name.Name != "" {
+					procs = append(procs, decl.Name.Name)
+				}
+			case *ast.CreateFunctionStmt:
+				if decl.Name != nil && decl.Name.Name != "" {
+					funcs = append(funcs, decl.Name.Name)
+				}
+			}
+		}
+	}
+	return procs, funcs
 }

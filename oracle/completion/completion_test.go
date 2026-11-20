@@ -637,6 +637,15 @@ func TestCompleteCodexReviewFixes(t *testing.T) {
 						Name:     "T1",
 						Columns:  []*metadatapb.ColumnMetadata{{Name: "S1_T1_COL", Type: "NUMBER"}},
 						Triggers: []*metadatapb.TriggerMetadata{{Name: "TBL_TRG"}},
+						CheckConstraints: []*metadatapb.CheckConstraintMetadata{
+							{Name: "CHK_T1_POS", Expression: "S1_T1_COL > 0"},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							{Name: "FK_T1_T2"},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "PK_T1", Primary: true, IsConstraint: true},
+						},
 					},
 					{
 						Name:    "T2",
@@ -653,10 +662,20 @@ func TestCompleteCodexReviewFixes(t *testing.T) {
 					{
 						Name:     "MV1",
 						Triggers: []*metadatapb.TriggerMetadata{{Name: "MV_TRG"}},
+						Indexes:  []*metadatapb.IndexMetadata{{Name: "MV_IDX"}},
 					},
 				},
 				Synonyms: []*metadatapb.SynonymMetadata{
 					{Name: "PRIV_SYN", TargetSchema: "S1", TargetName: "T1"},
+				},
+				Packages: []*metadatapb.PackageMetadata{
+					{
+						Name: "PKG1",
+						Definition: `CREATE OR REPLACE PACKAGE PKG1 AS
+							PROCEDURE DO_WORK(p_id NUMBER);
+							FUNCTION GET_COUNT RETURN NUMBER;
+						END PKG1;`,
+					},
 				},
 			},
 			{
@@ -733,6 +752,43 @@ func TestCompleteCodexReviewFixes(t *testing.T) {
 		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
 		if hasSpec(res, candidateSpec{text: "S1_T1_COL", typ: CandidateColumn}) {
 			t.Fatalf("unexpected definitionless operand alias S1_T1_COL in %v", res)
+		}
+	})
+
+	t.Run("synonym target columns resolved", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT | FROM PRIV_SYN")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "S1_T1_COL", typ: CandidateColumn}) {
+			t.Fatalf("expected S1_T1_COL via PRIV_SYN, got %v", res)
+		}
+	})
+
+	t.Run("materialized view indexes offered", func(t *testing.T) {
+		sql, pos := splitCaret(t, "DROP INDEX |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "MV_IDX", typ: CandidateIndex}) {
+			t.Fatalf("expected MV_IDX index candidate, got %v", res)
+		}
+	})
+
+	t.Run("table constraints offered on drop constraint", func(t *testing.T) {
+		sql, pos := splitCaret(t, "ALTER TABLE T1 DROP CONSTRAINT |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		for _, want := range []string{"CHK_T1_POS", "FK_T1_T2", "PK_T1"} {
+			if !hasSpec(res, candidateSpec{text: want, typ: CandidateConstraint}) {
+				t.Fatalf("missing constraint %q in %v", want, res)
+			}
+		}
+	})
+
+	t.Run("package members offered after package dot", func(t *testing.T) {
+		sql, pos := splitCaret(t, "BEGIN PKG1.|; END;")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "DO_WORK", typ: CandidateProcedure}) {
+			t.Fatalf("expected DO_WORK procedure, got %v", res)
+		}
+		if !hasSpec(res, candidateSpec{text: "GET_COUNT", typ: CandidateFunction}) {
+			t.Fatalf("expected GET_COUNT function, got %v", res)
 		}
 	})
 }

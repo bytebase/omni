@@ -354,6 +354,18 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: nil,
 		},
+		{
+			name:     "expression parentheses keep outer FROM scope",
+			input:    "SELECT (|) FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "string literal FROM Album does not leak Album columns",
+			input:    "SELECT | FROM Music WHERE Artist = 'x FROM Album WHERE y'",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
 	}
 
 	for _, tc := range tests {
