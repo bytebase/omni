@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/tidb/ast"
 	"github.com/stretchr/testify/require"
 )
 
@@ -446,16 +447,60 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Equal(t, 3, reDB.TiFlashReplica)
 	require.Equal(t, []string{"zone", "host"}, reDB.TiFlashLocationLabels)
 
-	// DatabaseDefinition renders AUTO_ID_CACHE and PRE_SPLIT_REGIONS.
+	// DatabaseDefinition renders AUTO_ID_CACHE, PRE_SPLIT_REGIONS, and TTL options,
+	// and DatabaseMetadata exports functions, procedures, triggers, and events.
 	allocCatalog := New()
 	_, err = allocCatalog.Exec(`
 		CREATE DATABASE alloc_db;
 		USE alloc_db;
-		CREATE TABLE alloc_tbl (id BIGINT PRIMARY KEY) AUTO_ID_CACHE = 200 PRE_SPLIT_REGIONS = 2;
+		CREATE TABLE alloc_tbl (
+			id BIGINT PRIMARY KEY,
+			created_at DATETIME NOT NULL
+		) AUTO_ID_CACHE = 200 PRE_SPLIT_REGIONS = 2 TTL = created_at + INTERVAL 7 DAY TTL_ENABLE = 'OFF' TTL_JOB_INTERVAL = '2h';
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
-	rendered, err := DatabaseDefinition(allocCatalog.DatabaseMetadata("alloc_db"), DefinitionOptions{})
+	require.NoError(t, allocCatalog.DefineFunction(&nodes.CreateFunctionStmt{
+		Name:     &nodes.TableRef{Name: "fn_inc"},
+		Returns:  &nodes.DataType{Name: "INT"},
+		BodyText: "RETURN 1",
+	}))
+	require.NoError(t, allocCatalog.DefineProcedure(&nodes.CreateFunctionStmt{
+		IsProcedure: true,
+		Name:        &nodes.TableRef{Name: "proc_noop"},
+		BodyText:    "BEGIN SELECT 1; END",
+	}))
+	require.NoError(t, allocCatalog.DefineTrigger(&nodes.CreateTriggerStmt{
+		Name:     "trg_alloc",
+		Table:    &nodes.TableRef{Name: "alloc_tbl"},
+		Timing:   "BEFORE",
+		Event:    "INSERT",
+		BodyText: "SET NEW.id = NEW.id",
+	}))
+	require.NoError(t, allocCatalog.DefineEvent(&nodes.CreateEventStmt{
+		Name:     "ev_alloc",
+		Schedule: &nodes.EventSchedule{RawText: "EVERY 1 HOUR"},
+		Comment:  "ev cmt",
+		BodyText: "DO SELECT 1",
+	}))
+	allocMeta := allocCatalog.DatabaseMetadata("alloc_db")
+	rendered, err := DatabaseDefinition(allocMeta, DefinitionOptions{})
 	require.NoError(t, err)
 	require.Contains(t, rendered, "AUTO_ID_CACHE=200")
 	require.Contains(t, rendered, "PRE_SPLIT_REGIONS=2")
+	require.Contains(t, rendered, "TTL=`created_at` + INTERVAL 7 DAY")
+	require.Contains(t, rendered, "TTL_ENABLE='OFF'")
+	require.Contains(t, rendered, "TTL_JOB_INTERVAL='2h'")
+
+	allocSchema := allocMeta.Schemas[0]
+	require.Len(t, allocSchema.Functions, 1)
+	require.Equal(t, "fn_inc", allocSchema.Functions[0].Name)
+	require.Contains(t, allocSchema.Functions[0].Definition, "FUNCTION `fn_inc`")
+	require.Len(t, allocSchema.Procedures, 1)
+	require.Equal(t, "proc_noop", allocSchema.Procedures[0].Name)
+	require.Contains(t, allocSchema.Procedures[0].Definition, "PROCEDURE `proc_noop`")
+	require.Len(t, allocSchema.Events, 1)
+	require.Equal(t, "ev_alloc", allocSchema.Events[0].Name)
+	require.Equal(t, "ev cmt", allocSchema.Events[0].Comment)
+	require.Len(t, allocSchema.Tables[0].Triggers, 1)
+	require.Equal(t, "trg_alloc", allocSchema.Tables[0].Triggers[0].Name)
 }

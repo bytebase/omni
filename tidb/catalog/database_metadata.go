@@ -35,12 +35,40 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		Name: "",
 	}
 
+	tableProtoByLowerName := make(map[string]*metadata.TableMetadata, len(db.Tables))
 	for _, tName := range sortedMapKeys(db.Tables) {
 		t := db.Tables[tName]
 		if t.Temporary {
 			continue
 		}
-		schemaMeta.Tables = append(schemaMeta.Tables, tableToProto(t))
+		tableProto := tableToProto(t)
+		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
+		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
+	}
+
+	triggers := make([]*Trigger, 0, len(db.Triggers))
+	for _, tr := range db.Triggers {
+		triggers = append(triggers, tr)
+	}
+	slices.SortFunc(triggers, func(a, b *Trigger) int {
+		return cmp.Or(
+			cmp.Compare(strings.ToUpper(a.Table), strings.ToUpper(b.Table)),
+			cmp.Compare(strings.ToUpper(a.Event), strings.ToUpper(b.Event)),
+			cmp.Compare(strings.ToUpper(a.Timing), strings.ToUpper(b.Timing)),
+			cmp.Compare(a.Name, b.Name),
+		)
+	})
+	for _, tr := range triggers {
+		tableProto := tableProtoByLowerName[strings.ToLower(tr.Table)]
+		if tableProto == nil {
+			continue
+		}
+		tableProto.Triggers = append(tableProto.Triggers, &metadata.TriggerMetadata{
+			Name:   tr.Name,
+			Event:  tr.Event,
+			Timing: tr.Timing,
+			Body:   tr.Body,
+		})
 	}
 
 	for _, vName := range sortedMapKeys(db.Views) {
@@ -67,6 +95,35 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			CacheSize: strconv.FormatInt(seq.Cache, 10),
 			Cycle:     seq.Cycle,
 			Comment:   seq.Comment,
+		})
+	}
+
+	for _, fName := range sortedMapKeys(db.Functions) {
+		f := db.Functions[fName]
+		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
+			Name:              f.Name,
+			Definition:        c.ShowCreateFunction(dbName, f.Name),
+			DatabaseCollation: db.Collation,
+			Comment:           f.Characteristics["COMMENT"],
+		})
+	}
+
+	for _, pName := range sortedMapKeys(db.Procedures) {
+		p := db.Procedures[pName]
+		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
+			Name:              p.Name,
+			Definition:        c.ShowCreateProcedure(dbName, p.Name),
+			DatabaseCollation: db.Collation,
+			Comment:           p.Characteristics["COMMENT"],
+		})
+	}
+
+	for _, eName := range sortedMapKeys(db.Events) {
+		e := db.Events[eName]
+		schemaMeta.Events = append(schemaMeta.Events, &metadata.EventMetadata{
+			Name:       e.Name,
+			Definition: c.ShowCreateEvent(dbName, e.Name),
+			Comment:    e.Comment,
 		})
 	}
 

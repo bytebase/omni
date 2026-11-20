@@ -810,6 +810,21 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		}
 	}
 
+	if table.TtlColumn != "" {
+		enable := "OFF"
+		if table.TtlEnable {
+			enable = "ON"
+		}
+		job := table.TtlJobInterval
+		if job == "" {
+			job = "1h"
+		}
+		if _, err := fmt.Fprintf(out, " /*T![ttl] TTL=%s + %s */ /*T![ttl] TTL_ENABLE='%s' */ /*T![ttl] TTL_JOB_INTERVAL='%s' */",
+			quoteIdent(table.TtlColumn), ttlInterval(table.TtlInterval), enable, job); err != nil {
+			return err
+		}
+	}
+
 	if len(table.Partitions) > 0 {
 		if err := printPartitionClause(out, table.Partitions); err != nil {
 			return err
