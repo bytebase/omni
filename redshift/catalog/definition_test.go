@@ -339,3 +339,99 @@ func TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted(t *testing.T) {
 	require.NotContains(t, got, `"""MixedCase"""`)
 	require.Contains(t, got, `CONSTRAINT "t_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
 }
+
+// TestDatabaseDefinitionDefersCyclicForeignKeys pins that mutually referencing
+// tables defer the back-edge FK until after both tables exist.
+func TestDatabaseDefinitionDefersCyclicForeignKeys(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "alpha",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+							{Name: "beta_id", Type: "integer", Nullable: true},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							{
+								Name:              "alpha_beta_fk",
+								Columns:           []string{"beta_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "beta",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+					{
+						Name: "beta",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+							{Name: "alpha_id", Type: "integer", Nullable: true},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							{
+								Name:              "beta_alpha_fk",
+								Columns:           []string{"alpha_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "alpha",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	require.Equal(t, `--
+-- Table structure for `+"`alpha`"+`
+--
+CREATE TABLE "public"."alpha" (
+  "id" integer NOT NULL,
+  "beta_id" integer
+);
+
+--
+-- Table structure for `+"`beta`"+`
+--
+CREATE TABLE "public"."beta" (
+  "id" integer NOT NULL,
+  "alpha_id" integer,
+  CONSTRAINT "beta_alpha_fk" FOREIGN KEY ("alpha_id") REFERENCES "public"."alpha"("id")
+);
+
+ALTER TABLE "public"."alpha" ADD CONSTRAINT "alpha_beta_fk" FOREIGN KEY ("beta_id") REFERENCES "public"."beta"("id");
+`, got)
+}
+
+// TestDatabaseDefinitionScopedCTEShadowing pins that a nested CTE with the
+// same name as a real view does not suppress an outer reference to that view.
+func TestDatabaseDefinitionScopedCTEShadowing(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "a_consumer",
+						Definition: `SELECT sub.x, v.x AS y FROM (WITH z_base AS (SELECT 1 AS x) SELECT x FROM z_base) sub JOIN z_base v ON true`,
+					},
+					{
+						Name:       "z_base",
+						Definition: `SELECT 2 AS x`,
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	zIdx := strings.Index(got, "View structure for `z_base`")
+	aIdx := strings.Index(got, "View structure for `a_consumer`")
+	require.Greater(t, aIdx, zIdx, "expected z_base before a_consumer:\n%s", got)
+}

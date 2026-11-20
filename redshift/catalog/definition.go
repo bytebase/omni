@@ -75,12 +75,59 @@ func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) erro
 }
 
 func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	for _, table := range orderedTables(to, state) {
+	tables := orderedTables(to, state)
+	known := make(map[string]bool, len(tables))
+	for _, table := range tables {
+		known[objectKey(table.schema, table.name)] = true
+	}
+
+	type deferredFK struct {
+		table *tableState
+		fk    *foreignKeyState
+	}
+	var deferred []deferredFK
+	emitted := make(map[string]bool, len(tables))
+
+	for _, table := range tables {
 		if _, err := w.WriteString(getTableAnnouncement(table.name)); err != nil {
 			return err
 		}
-		if err := writeTable(w, table); err != nil {
+
+		tableKey := objectKey(table.schema, table.name)
+		var inlineFKs []*foreignKeyState
+		for _, fk := range sortedForeignKeys(table.foreignKeys) {
+			refSchema := fk.referencedSchema
+			if refSchema == "" {
+				refSchema = table.schema
+			}
+			refKey := objectKey(refSchema, fk.referencedTable)
+			// Defer any FK whose target table exists in this dump and has not been
+			// created yet (cyclic references) so every CREATE TABLE stays valid.
+			if refKey != tableKey && known[refKey] && !emitted[refKey] {
+				deferred = append(deferred, deferredFK{table: table, fk: fk})
+				continue
+			}
+			inlineFKs = append(inlineFKs, fk)
+		}
+
+		if err := writeTableWithFKs(w, table, inlineFKs); err != nil {
 			return err
+		}
+		emitted[tableKey] = true
+	}
+
+	if len(deferred) > 0 {
+		if _, err := w.WriteString("\n"); err != nil {
+			return err
+		}
+		for _, item := range deferred {
+			var buf strings.Builder
+			if err := item.fk.toString(&buf); err != nil {
+				return err
+			}
+			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s ADD %s;\n", item.table.qualifiedName(), buf.String())); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -260,24 +307,98 @@ func collectViewRelationRefs(definition string) []relationRef {
 	if err != nil || stmts == nil {
 		return nil
 	}
-	cteNames := map[string]bool{}
-	nodes.Inspect(stmts, func(n nodes.Node) bool {
-		if cte, ok := n.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
-			cteNames[cte.Ctename] = true
-		}
-		return true
-	})
 	var refs []relationRef
-	nodes.Inspect(stmts, func(n nodes.Node) bool {
-		if rv, ok := n.(*nodes.RangeVar); ok && rv.Relname != "" {
-			if rv.Schemaname == "" && cteNames[rv.Relname] {
-				return true
-			}
-			refs = append(refs, relationRef{schema: rv.Schemaname, name: rv.Relname})
-		}
-		return true
-	})
+	nodes.Walk(&scopedRelVisitor{refs: &refs}, stmts)
 	return refs
+}
+
+type scopedRelVisitor struct {
+	cteScope map[string]bool
+	refs     *[]relationRef
+}
+
+func (v *scopedRelVisitor) Visit(node nodes.Node) nodes.Visitor {
+	if node == nil {
+		return nil
+	}
+	switch n := node.(type) {
+	case *nodes.RangeVar:
+		if n.Relname != "" && (n.Schemaname != "" || !v.cteScope[n.Relname]) {
+			*v.refs = append(*v.refs, relationRef{schema: n.Schemaname, name: n.Relname})
+		}
+		return v
+	case *nodes.SelectStmt:
+		if n.WithClause == nil {
+			return v
+		}
+		childScope := make(map[string]bool, len(v.cteScope))
+		for k, val := range v.cteScope {
+			childScope[k] = val
+		}
+		if n.WithClause.Recursive && n.WithClause.Ctes != nil {
+			for _, item := range n.WithClause.Ctes.Items {
+				if cte, ok := item.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
+					childScope[cte.Ctename] = true
+				}
+			}
+		}
+		if n.WithClause.Ctes != nil {
+			for _, item := range n.WithClause.Ctes.Items {
+				cte, ok := item.(*nodes.CommonTableExpr)
+				if !ok {
+					continue
+				}
+				if cte.Ctequery != nil {
+					cteVisitor := v
+					if n.WithClause.Recursive || len(childScope) > len(v.cteScope) {
+						cteVisitor = &scopedRelVisitor{cteScope: childScope, refs: v.refs}
+					}
+					nodes.Walk(cteVisitor, cte.Ctequery)
+				}
+				if !n.WithClause.Recursive && cte.Ctename != "" {
+					childScope[cte.Ctename] = true
+				}
+			}
+		}
+		child := &scopedRelVisitor{cteScope: childScope, refs: v.refs}
+		walkNodeList(child, n.DistinctClause)
+		if n.IntoClause != nil {
+			nodes.Walk(child, n.IntoClause)
+		}
+		walkNodeList(child, n.TargetList)
+		walkNodeList(child, n.FromClause)
+		nodes.Walk(child, n.WhereClause)
+		walkNodeList(child, n.GroupClause)
+		nodes.Walk(child, n.HavingClause)
+		nodes.Walk(child, n.StartWith)
+		nodes.Walk(child, n.ConnectBy)
+		nodes.Walk(child, n.QualifyClause)
+		walkNodeList(child, n.WindowClause)
+		walkNodeList(child, n.ExcludeList)
+		walkNodeList(child, n.ValuesLists)
+		walkNodeList(child, n.SortClause)
+		nodes.Walk(child, n.LimitOffset)
+		nodes.Walk(child, n.LimitCount)
+		walkNodeList(child, n.LockingClause)
+		if n.Larg != nil {
+			nodes.Walk(child, n.Larg)
+		}
+		if n.Rarg != nil {
+			nodes.Walk(child, n.Rarg)
+		}
+		return nil
+	default:
+		return v
+	}
+}
+
+func walkNodeList(v nodes.Visitor, list *nodes.List) {
+	if list == nil {
+		return
+	}
+	for _, item := range list.Items {
+		nodes.Walk(v, item)
+	}
 }
 
 // topoOrder returns indices 0..n-1 ordered so each item follows its
@@ -321,8 +442,12 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 // comments follow the column order the CREATE TABLE body uses so output is
 // deterministic across runs.
 func writeTable(w io.StringWriter, table *tableState) error {
+	return writeTableWithFKs(w, table, sortedForeignKeys(table.foreignKeys))
+}
+
+func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState) error {
 	buf := &strings.Builder{}
-	if err := table.toString(buf); err != nil {
+	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
 		return err
 	}
 	if table.comment != "" {
@@ -461,7 +586,20 @@ type tableState struct {
 	comment     string
 }
 
-func (t *tableState) toString(buf *strings.Builder) error {
+func sortedForeignKeys(fks map[string]*foreignKeyState) []*foreignKeyState {
+	foreignKeys := make([]*foreignKeyState, 0, len(fks))
+	for _, fk := range fks {
+		if len(fk.columns) > 0 && len(fk.referencedColumns) > 0 {
+			foreignKeys = append(foreignKeys, fk)
+		}
+	}
+	slices.SortFunc(foreignKeys, func(a, b *foreignKeyState) int {
+		return strings.Compare(a.name, b.name)
+	})
+	return foreignKeys
+}
+
+func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreignKeyState) error {
 	if _, err := fmt.Fprintf(buf, "CREATE TABLE %s (\n  ", t.qualifiedName()); err != nil {
 		return err
 	}
@@ -503,16 +641,6 @@ func (t *tableState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
-
-	foreignKeys := make([]*foreignKeyState, 0, len(t.foreignKeys))
-	for _, fk := range t.foreignKeys {
-		if len(fk.columns) > 0 && len(fk.referencedColumns) > 0 {
-			foreignKeys = append(foreignKeys, fk)
-		}
-	}
-	slices.SortFunc(foreignKeys, func(a, b *foreignKeyState) int {
-		return strings.Compare(a.name, b.name)
-	})
 
 	for i, fk := range foreignKeys {
 		if i+len(columns)+len(indexes) > 0 {
