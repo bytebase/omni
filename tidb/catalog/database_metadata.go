@@ -10,7 +10,8 @@ import (
 )
 
 // DatabaseMetadata converts the named database in the catalog to a
-// DatabaseSchemaMetadata snapshot matching the TiDB extractor and walk-through format.
+// DatabaseSchemaMetadata snapshot matching the TiDB sync and LoadMetadata
+// round-trip contract.
 func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetadata {
 	dbMeta := &metadata.DatabaseSchemaMetadata{
 		Name: dbName,
@@ -57,6 +58,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
 			Name:       v.Name,
 			Definition: v.Definition,
+			Columns:    viewColumnsToProto(v),
 		})
 	}
 
@@ -64,7 +66,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		f := db.Functions[fName]
 		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
 			Name:       f.Name,
-			Definition: f.Body,
+			Definition: c.ShowCreateFunction(dbName, f.Name),
 		})
 	}
 
@@ -72,7 +74,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		p := db.Procedures[pName]
 		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
 			Name:       p.Name,
-			Definition: p.Body,
+			Definition: c.ShowCreateProcedure(dbName, p.Name),
 		})
 	}
 
@@ -88,6 +90,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		seq := db.Sequences[sName]
 		schemaMeta.Sequences = append(schemaMeta.Sequences, &metadata.SequenceMetadata{
 			Name:      seq.Name,
+			DataType:  "BIGINT",
 			Start:     strconv.FormatInt(seq.Start, 10),
 			MinValue:  strconv.FormatInt(seq.MinValue, 10),
 			MaxValue:  strconv.FormatInt(seq.MaxValue, 10),
@@ -102,6 +105,32 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	return dbMeta
 }
 
+func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
+	if len(v.ColumnMetadata) > 0 {
+		cols := make([]*metadata.ColumnMetadata, 0, len(v.ColumnMetadata))
+		for i, cm := range v.ColumnMetadata {
+			cols = append(cols, &metadata.ColumnMetadata{
+				Name:         cm.Name,
+				Position:     int32(i + 1),
+				CharacterSet: cm.Charset,
+				Collation:    cm.Collation,
+			})
+		}
+		return cols
+	}
+	if len(v.Columns) == 0 {
+		return nil
+	}
+	cols := make([]*metadata.ColumnMetadata, 0, len(v.Columns))
+	for i, name := range v.Columns {
+		cols = append(cols, &metadata.ColumnMetadata{
+			Name:     name,
+			Position: int32(i + 1),
+		})
+	}
+	return cols
+}
+
 func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
 		Name:      t.Name,
@@ -109,7 +138,11 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Collation: t.Collation,
 		Comment:   t.Comment,
 	}
+	if t.Cached {
+		table.CreateOptions = "cached=on"
+	}
 
+	var autoRandCol *Column
 	for _, col := range t.Columns {
 		colMeta := &metadata.ColumnMetadata{
 			Name:         col.Name,
@@ -122,6 +155,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		}
 		switch {
 		case col.AutoRandom:
+			autoRandCol = col
 			switch {
 			case col.AutoRandomShardBits == 0 && col.AutoRandomRangeBits == 0:
 				colMeta.Default = autoRandomSymbol
@@ -151,6 +185,18 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		}
 		colMeta.IsInvisible = col.Invisible
 		table.Columns = append(table.Columns, colMeta)
+	}
+
+	switch {
+	case t.ShardRowIDBits > 0:
+		table.ShardingInfo = fmt.Sprintf("SHARD_BITS=%d", t.ShardRowIDBits)
+	case autoRandCol != nil && autoRandCol.AutoRandomShardBits > 0:
+		if autoRandCol.AutoRandomRangeBits != 0 {
+			table.ShardingInfo = fmt.Sprintf("PK_AUTO_RANDOM_BITS=%d, RANGE BITS=%d", autoRandCol.AutoRandomShardBits, autoRandCol.AutoRandomRangeBits)
+		} else {
+			table.ShardingInfo = fmt.Sprintf("PK_AUTO_RANDOM_BITS=%d", autoRandCol.AutoRandomShardBits)
+		}
+	default:
 	}
 
 	for _, idx := range t.Indexes {
@@ -184,12 +230,20 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 
 	for _, con := range t.Constraints {
 		switch con.Type {
+		case ConPrimaryKey:
+			if con.Clustered != nil && table.PrimaryKeyType == "" {
+				if *con.Clustered {
+					table.PrimaryKeyType = "CLUSTERED"
+				} else {
+					table.PrimaryKeyType = "NONCLUSTERED"
+				}
+			}
 		case ConForeignKey:
 			fk := &metadata.ForeignKeyMetadata{
 				Name:              con.Name,
-				Columns:           con.Columns,
+				Columns:           slices.Clone(con.Columns),
 				ReferencedTable:   con.RefTable,
-				ReferencedColumns: con.RefColumns,
+				ReferencedColumns: slices.Clone(con.RefColumns),
 				OnUpdate:          con.OnUpdate,
 				OnDelete:          con.OnDelete,
 				MatchType:         con.MatchType,

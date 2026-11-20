@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -29,6 +30,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			code VARCHAR(20) NOT NULL DEFAULT 'abc',
 			expr_col INT DEFAULT (1 + 2),
+			bit_col BIT(3) DEFAULT b'101',
 			nullable_col INT,
 			ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			gen_stored VARCHAR(30) GENERATED ALWAYS AS (CONCAT(code, '_s')) STORED,
@@ -36,7 +38,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			g0 GEOMETRY NOT NULL SRID 0,
 			secret INT INVISIBLE NOT NULL DEFAULT 0,
 			SPATIAL INDEX sp_idx (g0)
-		) ENGINE=InnoDB COMMENT='parent table';
+		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT='parent table';
 
 		CREATE TABLE child (
 			id INT PRIMARY KEY,
@@ -56,7 +58,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			PARTITION p1 VALUES LESS THAN MAXVALUE
 		);
 
-		CREATE VIEW v_parent AS SELECT id, code FROM parent;
+		CREATE VIEW v_parent (vid, vcode) AS SELECT id, code FROM parent;
 		CREATE MATERIALIZED VIEW mv_parent AS SELECT id, code FROM parent;
 
 		CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC
@@ -90,6 +92,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	parent := s.Tables[1]
 	require.Equal(t, "parent", parent.Name)
 	require.Equal(t, "parent table", parent.Comment)
+	require.Contains(t, parent.CreateOptions, "row_format=DYNAMIC")
 
 	cols := map[string]*metadata.ColumnMetadata{}
 	for _, col := range parent.Columns {
@@ -98,6 +101,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, "AUTO_INCREMENT", cols["id"].Default)
 	require.Equal(t, "'abc'", cols["code"].Default)
 	require.Equal(t, "((1 + 2))", cols["expr_col"].Default)
+	require.Equal(t, "b'101'", cols["bit_col"].Default)
 	require.Equal(t, "NULL", cols["nullable_col"].Default)
 	require.Equal(t, "CURRENT_TIMESTAMP", cols["ts"].OnUpdate)
 	require.Equal(t, metadata.GenerationMetadata_TYPE_STORED, cols["gen_stored"].Generation.Type)
@@ -111,6 +115,15 @@ func TestDatabaseMetadataFull(t *testing.T) {
 
 	child := s.Tables[0]
 	require.Len(t, child.ForeignKeys, 1)
+	child.ForeignKeys[0].Columns[0] = "mutated"
+	var fkCon *Constraint
+	for _, con := range c.GetDatabase("app").GetTable("child").Constraints {
+		if con.Type == ConForeignKey {
+			fkCon = con
+		}
+	}
+	require.NotNil(t, fkCon)
+	require.Equal(t, "parent_id", fkCon.Columns[0])
 	require.Len(t, child.CheckConstraints, 1)
 
 	partTbl := s.Tables[2]
@@ -119,9 +132,23 @@ func TestDatabaseMetadataFull(t *testing.T) {
 
 	require.Len(t, s.Views, 1)
 	require.Equal(t, "v_parent", s.Views[0].Name)
+	require.Len(t, s.Views[0].Columns, 2)
+	require.Equal(t, "vid", s.Views[0].Columns[0].Name)
 	require.Len(t, s.MaterializedViews, 1)
 	require.Equal(t, "mv_parent", s.MaterializedViews[0].Name)
 	require.Len(t, s.Functions, 1)
+	require.Contains(t, s.Functions[0].Definition, "FUNCTION `fn_add`")
 	require.Len(t, s.Procedures, 1)
+	require.Contains(t, s.Procedures[0].Definition, "PROCEDURE `proc_noop`")
 	require.Len(t, s.Events, 1)
+
+	// Round-trip through LoadMetadata preserves objects cleanly.
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["fn_add"])
+	require.NotNil(t, reloaded.GetDatabase("app").Procedures["proc_noop"])
 }

@@ -9,7 +9,8 @@ import (
 )
 
 // DatabaseMetadata converts the named database in the catalog to a
-// DatabaseSchemaMetadata snapshot matching the MySQL driver sync format.
+// DatabaseSchemaMetadata snapshot matching the MySQL driver sync and
+// LoadMetadata round-trip contract.
 func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetadata {
 	dbMeta := &metadata.DatabaseSchemaMetadata{
 		Name: dbName,
@@ -58,35 +59,77 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
 			Name:       v.Name,
 			Definition: v.Definition,
+			Columns:    viewColumnsToProto(v),
 		})
 	}
 
 	for _, fName := range sortedMapKeys(db.Functions) {
 		f := db.Functions[fName]
 		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
-			Name:       f.Name,
-			Definition: f.Body,
+			Name:                f.Name,
+			Definition:          c.ShowCreateFunction(dbName, f.Name),
+			SqlMode:             f.SQLMode,
+			CharacterSetClient:  f.CharacterSetClient,
+			CollationConnection: f.CollationConnection,
 		})
 	}
 
 	for _, pName := range sortedMapKeys(db.Procedures) {
 		p := db.Procedures[pName]
 		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
-			Name:       p.Name,
-			Definition: p.Body,
+			Name:                p.Name,
+			Definition:          c.ShowCreateProcedure(dbName, p.Name),
+			SqlMode:             p.SQLMode,
+			CharacterSetClient:  p.CharacterSetClient,
+			CollationConnection: p.CollationConnection,
 		})
 	}
 
 	for _, eName := range sortedMapKeys(db.Events) {
 		e := db.Events[eName]
 		schemaMeta.Events = append(schemaMeta.Events, &metadata.EventMetadata{
-			Name:       e.Name,
-			Definition: c.ShowCreateEvent(dbName, e.Name),
+			Name:                e.Name,
+			Definition:          c.ShowCreateEvent(dbName, e.Name),
+			SqlMode:             e.SQLMode,
+			CharacterSetClient:  e.CharacterSetClient,
+			CollationConnection: e.CollationConnection,
+			TimeZone:            e.TimeZone,
 		})
 	}
 
 	dbMeta.Schemas = append(dbMeta.Schemas, schemaMeta)
 	return dbMeta
+}
+
+func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
+	if len(v.ColumnMetadata) > 0 {
+		cols := make([]*metadata.ColumnMetadata, 0, len(v.ColumnMetadata))
+		for i, cm := range v.ColumnMetadata {
+			col := &metadata.ColumnMetadata{
+				Name:         cm.Name,
+				Position:     int32(i + 1),
+				Nullable:     cm.Nullable,
+				CharacterSet: cm.Charset,
+				Collation:    cm.Collation,
+			}
+			if cm.Type != nil {
+				col.Type = deparseResolvedTypeQ(cm.Type)
+			}
+			cols = append(cols, col)
+		}
+		return cols
+	}
+	if len(v.Columns) == 0 {
+		return nil
+	}
+	cols := make([]*metadata.ColumnMetadata, 0, len(v.Columns))
+	for i, name := range v.Columns {
+		cols = append(cols, &metadata.ColumnMetadata{
+			Name:     name,
+			Position: int32(i + 1),
+		})
+	}
+	return cols
 }
 
 func tableToProto(t *Table) *metadata.TableMetadata {
@@ -96,6 +139,9 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Charset:   t.Charset,
 		Collation: t.Collation,
 		Comment:   t.Comment,
+	}
+	if opts := tableCreateOptions(t); opts != "" {
+		table.CreateOptions = opts
 	}
 
 	for _, col := range t.Columns {
@@ -186,9 +232,9 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		case ConForeignKey:
 			fk := &metadata.ForeignKeyMetadata{
 				Name:              con.Name,
-				Columns:           con.Columns,
+				Columns:           slices.Clone(con.Columns),
 				ReferencedTable:   con.RefTable,
-				ReferencedColumns: con.RefColumns,
+				ReferencedColumns: slices.Clone(con.RefColumns),
 				OnUpdate:          con.OnUpdate,
 				OnDelete:          con.OnDelete,
 				MatchType:         con.MatchType,
@@ -213,14 +259,29 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	return table
 }
 
+func tableCreateOptions(t *Table) string {
+	var opts []string
+	if t.RowFormat != "" {
+		opts = append(opts, "row_format="+t.RowFormat)
+	}
+	if t.Partitioning != nil {
+		opts = append(opts, "partitioned")
+	}
+	return strings.Join(opts, " ")
+}
+
 // normalizeDefault converts a catalog default value to the driver representation:
-// static defaults are single-quoted for mysqldump compatibility and expression
-// defaults are wrapped in parentheses.
+// static defaults are single-quoted for mysqldump compatibility (except bit/hex
+// literals) and expression defaults are wrapped in parentheses.
 func normalizeDefault(value string, kind ColumnDefaultKind) string {
 	switch kind {
 	case ColumnDefaultConstant:
 		if strings.EqualFold(value, "NULL") {
 			return "NULL"
+		}
+		if strings.HasPrefix(value, "b'") || strings.HasPrefix(value, "B'") ||
+			strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+			return value
 		}
 		if len(value) >= 2 && strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {
 			return value
@@ -300,10 +361,13 @@ func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata
 
 func triggerToProto(tr *Trigger) *metadata.TriggerMetadata {
 	return &metadata.TriggerMetadata{
-		Name:   tr.Name,
-		Event:  tr.Event,
-		Timing: tr.Timing,
-		Body:   tr.Body,
+		Name:                tr.Name,
+		Event:               tr.Event,
+		Timing:              tr.Timing,
+		Body:                tr.Body,
+		SqlMode:             tr.SQLMode,
+		CharacterSetClient:  tr.CharacterSetClient,
+		CollationConnection: tr.CollationConnection,
 	}
 }
 
