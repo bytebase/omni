@@ -2684,6 +2684,7 @@ type CreateTablespaceStmt struct {
 	DataFile        string // ADD DATAFILE 'file_name'
 	AutoextendSize  string // AUTOEXTEND_SIZE value
 	FileBlockSize   string // FILE_BLOCK_SIZE value
+	HasEncryption   bool   // ENCRYPTION option was specified
 	Encryption      string // ENCRYPTION value ('Y' or 'N')
 	UseLogfileGroup string // USE LOGFILE GROUP name
 	ExtentSize      string // EXTENT_SIZE value
@@ -2713,6 +2714,7 @@ type AlterTablespaceStmt struct {
 	MaxSize         string // MAX_SIZE value
 	RenameTo        string // RENAME TO tablespace_name
 	AutoextendSize  string // AUTOEXTEND_SIZE value
+	HasEncryption   bool   // ENCRYPTION option was specified
 	Encryption      string // ENCRYPTION value
 	Engine          string // ENGINE name
 	EngineAttribute string // ENGINE_ATTRIBUTE value

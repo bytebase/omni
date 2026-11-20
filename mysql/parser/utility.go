@@ -1350,6 +1350,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			stmt.FileBlockSize = o.val
 		case kwENCRYPTION:
 			stmt.Encryption = o.val
+			stmt.HasEncryption = true
 		case kwENGINE_ATTRIBUTE:
 			stmt.EngineAttribute = o.val
 		}
@@ -1438,6 +1439,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			stmt.NoWait = true
 		case kwENCRYPTION:
 			stmt.Encryption = o.val
+			stmt.HasEncryption = true
 		case kwENGINE_ATTRIBUTE:
 			stmt.EngineAttribute = o.val
 		}

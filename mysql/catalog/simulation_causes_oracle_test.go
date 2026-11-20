@@ -3766,6 +3766,35 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "ALTER TABLESPACE ts_ren_slash RENAME TO `a/b`",
 			code:    3119,
 		},
+		// 24. Extended time_zone offset digits accepted by MySQL, arithmetic user-variable
+		//     SET expressions, and empty ENCRYPTION='' rejection.
+		{
+			name:    "SET time_zone '+005:00' accepted and normalizes to +05:00",
+			session: []string{"SET time_zone = '+005:00'"},
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 05:00:00')",
+			code:    1067,
+		},
+		{
+			name:    "SET time_zone '+5:0' accepted and normalizes to +05:00",
+			session: []string{"SET time_zone = '+5:0'"},
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 05:00:00')",
+			code:    1067,
+		},
+		{
+			name:     "SET @mode = 2 + 2 evaluates arithmetic for SET sql_mode",
+			session:  []string{"SET @mode = 2 + 2", "SET sql_mode = @mode"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:     "CREATE TABLE a (c VARCHAR(10) DEFAULT 'abc')",
+			code:     0,
+			contains: []string{"DEFAULT 'abc'"},
+		},
+		{
+			name: "CREATE TABLESPACE with empty ENCRYPTION rejected with 3184",
+			stmt: "CREATE TABLESPACE ts_emp_enc ADD DATAFILE 'ts_emp_enc.ibd' ENCRYPTION=''",
+			code: 3184,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4205,6 +4234,23 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, replacedDirCat, "CREATE TABLESPACE ts_explicit_old ADD DATAFILE '/var/lib/mysql/ts_explicit_old.ibd' ENGINE=InnoDB;")
 	if got, _ := simulationCatalogRefusal(t, replacedDirCat, "CREATE TABLESPACE ts_prev_dd2 ADD DATAFILE '/srv/mysql/ts_prev_dd2.ibd' ENGINE=InnoDB"); got != 3121 {
 		t.Fatalf("second SetDataDir still allowed /srv/mysql: got %d, want 3121", got)
+	}
+
+	// Assigning an unsupported RHS to an existing user variable preserves the
+	// prior value instead of deleting it, and ALTER TABLESPACE ENCRYPTION=''
+	// rejects with 3184.
+	execAlterClauses(t, c, "SET @keep_tz = '+08:00'; SET @keep_tz = ABS(-5); SET time_zone = @keep_tz;")
+	if c.session.TimeZone != "+08:00" {
+		t.Fatalf("unsupported user-var RHS overwrote @keep_tz: session.TimeZone = %q, want +08:00", c.session.TimeZone)
+	}
+	execAlterClauses(t, c, "SET @mode = 2 + 2; SET sql_mode = @mode;")
+	if !strings.Contains(c.session.SQLMode, "ANSI_QUOTES") {
+		t.Fatalf("arithmetic @mode=2+2 did not enable ANSI_QUOTES: %q", c.session.SQLMode)
+	}
+	execAlterClauses(t, c, "SET SESSION sql_mode = DEFAULT; SET SESSION time_zone = DEFAULT;")
+	execAlterClauses(t, c, "CREATE TABLESPACE ts_enc_empty ENGINE=InnoDB;")
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLESPACE ts_enc_empty ENCRYPTION=''"); got != 3184 {
+		t.Fatalf("ALTER TABLESPACE ENCRYPTION='' got %d, want 3184", got)
 	}
 
 	// renderWithSessionContext save/restore framing executes cleanly on a fresh

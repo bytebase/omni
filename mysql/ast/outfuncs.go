@@ -4242,7 +4242,7 @@ func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
 	if n.FileBlockSize != "" {
 		fmt.Fprintf(sb, " :file_block_size %s", n.FileBlockSize)
 	}
-	if n.Encryption != "" {
+	if n.HasEncryption || n.Encryption != "" {
 		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
 	}
 	if n.UseLogfileGroup != "" {
@@ -4303,7 +4303,7 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 	if n.AutoextendSize != "" {
 		fmt.Fprintf(sb, " :autoextend_size %s", n.AutoextendSize)
 	}
-	if n.Encryption != "" {
+	if n.HasEncryption || n.Encryption != "" {
 		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
 	}
 	if n.Engine != "" {

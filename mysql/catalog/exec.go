@@ -114,14 +114,11 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
 		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
 			uName := toLower(strings.TrimPrefix(asgn.Column.Column, "@"))
-			val, ok := c.evalSetExpr(asgn.Value)
-			updates = append(updates, func() {
-				if ok {
+			if val, ok := c.evalSetExpr(asgn.Value); ok {
+				updates = append(updates, func() {
 					c.userVars[uName] = val
-				} else {
-					delete(c.userVars, uName)
-				}
-			})
+				})
+			}
 			continue
 		}
 		varName := normalizeSetVariableName(asgn.Column)
@@ -516,9 +513,25 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 			case *nodes.FloatLit:
 				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true
 			}
-			return userVarValue{kind: userVarNumeric}, true
+			v, ok := c.evalSetExpr(e.Operand)
+			if !ok {
+				return userVarValue{}, false
+			}
+			if v.kind == userVarNull {
+				return v, true
+			}
+			n, ok := parseSetNumericInt64(v)
+			if !ok {
+				return userVarValue{}, false
+			}
+			if e.Op == nodes.UnaryMinus {
+				n = -n
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true
 		}
 		return userVarValue{}, false
+	case *nodes.BinaryExpr:
+		return c.evalSetBinaryExpr(e)
 	case *nodes.VariableRef:
 		if !e.System {
 			if v, exists := c.userVars[toLower(e.Name)]; exists {
@@ -606,6 +619,83 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 		}
 	}
 	return userVarValue{}, false
+}
+
+func (c *Catalog) evalSetBinaryExpr(e *nodes.BinaryExpr) (userVarValue, bool) {
+	if e == nil {
+		return userVarValue{}, false
+	}
+	left, ok := c.evalSetExpr(e.Left)
+	if !ok {
+		return userVarValue{}, false
+	}
+	right, ok := c.evalSetExpr(e.Right)
+	if !ok {
+		return userVarValue{}, false
+	}
+	if left.kind == userVarNull || right.kind == userVarNull {
+		return userVarValue{kind: userVarNull}, true
+	}
+	ln, lok := parseSetNumericInt64(left)
+	rn, rok := parseSetNumericInt64(right)
+	if !lok || !rok {
+		return userVarValue{}, false
+	}
+	var out int64
+	switch e.Op {
+	case nodes.BinOpAdd:
+		out = ln + rn
+	case nodes.BinOpSub:
+		out = ln - rn
+	case nodes.BinOpMul:
+		out = ln * rn
+	case nodes.BinOpDiv, nodes.BinOpDivInt:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true
+		}
+		out = ln / rn
+	case nodes.BinOpMod:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true
+		}
+		out = ln % rn
+	case nodes.BinOpBitOr:
+		out = ln | rn
+	case nodes.BinOpBitAnd:
+		out = ln & rn
+	case nodes.BinOpBitXor:
+		out = ln ^ rn
+	case nodes.BinOpShiftLeft:
+		if rn < 0 || rn >= 64 {
+			out = 0
+		} else {
+			out = int64(uint64(ln) << uint(rn))
+		}
+	case nodes.BinOpShiftRight:
+		if rn < 0 || rn >= 64 {
+			out = 0
+		} else {
+			out = int64(uint64(ln) >> uint(rn))
+		}
+	default:
+		return userVarValue{}, false
+	}
+	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true
+}
+
+func parseSetNumericInt64(v userVarValue) (int64, bool) {
+	if v.kind != userVarNumeric && v.kind != userVarString {
+		return 0, false
+	}
+	s := strings.TrimSpace(v.str)
+	if s == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 func normalizeSetVariableName(col *nodes.ColumnRef) string {

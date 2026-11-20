@@ -376,7 +376,7 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if err != nil {
 		return err
 	}
-	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 		return errInvalidEncryptionOption()
 	}
 	if stmt.Undo {
@@ -403,7 +403,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 				return err
 			}
 		}
-		if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+		if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 			return errInvalidEncryptionOption()
 		}
 		if c.isGeneralTablespaceName(stmt.Name) {
@@ -435,7 +435,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 			return err
 		}
 	}
-	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 		return errInvalidEncryptionOption()
 	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
