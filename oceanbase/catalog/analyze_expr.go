@@ -93,9 +93,20 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		// no literal either.
 		return &RawExprQ{Text: deparse.Deparse(n)}, nil
 	case *nodes.LambdaExpr:
-		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+		body, err := analyzeExpr(c, n.Body, scope.withMaskedColumns(n.Params))
+		if err != nil {
+			return nil, err
+		}
+		return &LambdaExprQ{Params: append([]string(nil), n.Params...), Body: body}, nil
 	case *nodes.ResTarget:
-		return analyzeExpr(c, n.Val, scope)
+		val, err := analyzeExpr(c, n.Val, scope)
+		if err != nil {
+			return nil, err
+		}
+		if n.Name == "" {
+			return val, nil
+		}
+		return &ResTargetExprQ{Name: n.Name, Val: val}, nil
 	case *nodes.GroupingSet:
 		// A GROUP BY item's grouping set keeps its kind and its items, so a view
 		// stores ROLLUP (...) and not the expressions it groups by.
@@ -137,6 +148,37 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
 	if ref.Table != "" {
 		return scope.resolveQualifiedRefFull(ref.Catalog, ref.Schema, ref.Table, ref.Column)
+	}
+	if maskLevels, masked := scope.lambdaMaskLevels(ref.Column); masked {
+		if maskLevels == 0 {
+			return &LambdaParamExprQ{Name: ref.Column}, nil
+		}
+		if rteIdx, attNum, levelsUp, found, err := scope.resolveColumnBeforeLevel(ref.Column, maskLevels); err != nil {
+			return nil, err
+		} else if found {
+			if levelsUp == 0 {
+				if merged, ok := scope.fullJoinColumn(ref.Column); ok {
+					return merged, nil
+				}
+			} else if merged, ok := scope.rebaseFullJoinColumn(ref.Column, levelsUp, rteIdx); ok {
+				return merged, nil
+			}
+			return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+		}
+		aliasTE, aliasLevels := scope.selectAlias(ref.Column)
+		if aliasTE != nil && aliasLevels == 0 {
+			return aliasTE.Expr, nil
+		}
+		if idx, unkLevels, ok := scope.soleUnknownColumnInChain(); ok && unkLevels < maskLevels {
+			return &VarExprQ{RangeIdx: idx, Name: ref.Column, LevelsUp: unkLevels}, nil
+		}
+		if aliasTE != nil && aliasLevels < maskLevels {
+			return nil, errOuterAlias
+		}
+		if scope.uncertainBeforeLevel(maskLevels) {
+			return nil, scope.unsure(errNoSuchColumn(ref.Column, "field list"))
+		}
+		return &LambdaParamExprQ{Name: ref.Column}, nil
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {

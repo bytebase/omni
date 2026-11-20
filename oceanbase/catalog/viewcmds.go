@@ -459,6 +459,28 @@ type viewRelationInfo struct {
 type viewRelationsScope struct {
 	rels       []viewRelationInfo
 	hasUnknown bool
+	maskedCols map[string]bool
+}
+
+func (s *viewRelationsScope) withMasked(params []string) *viewRelationsScope {
+	if len(params) == 0 {
+		return s
+	}
+	var cp viewRelationsScope
+	if s != nil {
+		cp = *s
+	}
+	masked := make(map[string]bool, len(cp.maskedCols)+len(params))
+	for k, v := range cp.maskedCols {
+		masked[k] = v
+	}
+	for _, p := range params {
+		if p != "" {
+			masked[toLower(p)] = true
+		}
+	}
+	cp.maskedCols = masked
+	return &cp
 }
 
 type viewCollationDerivation int
@@ -542,7 +564,7 @@ func (c *Catalog) collectViewRelations(te nodes.TableExpr, db *Database, optiona
 			table:    tbl,
 			optional: optional,
 		})
-	case *nodes.ExternalTableRef:
+	case *nodes.ExternalTableRef, *nodes.TableCollectionExpr, *nodes.UnnestExpr, *nodes.RbIterateExpr:
 		out.hasUnknown = true
 	case *nodes.JoinClause:
 		// OceanBase reports a column of an outer join's optional side as it is in its
@@ -778,6 +800,11 @@ func inferViewExprCollation(expr nodes.ExprNode, relations *viewRelationsScope) 
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.QuantifiedExpr:
 		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.LambdaExpr:
+		if _, err := inferViewExprCollation(e.Body, relations.withMasked(e.Params)); err != nil {
+			return viewCollationInfo{}, err
+		}
+		return viewCollationInfo{}, nil
 	case *nodes.ResTarget:
 		return inferViewExprCollation(e.Val, relations)
 	case *nodes.GroupingSet:
@@ -913,7 +940,7 @@ func inferViewColumnRefCollation(cr *nodes.ColumnRef, relations *viewRelationsSc
 		}
 		return viewCollationInfo{}
 	}
-	if relations == nil || relations.hasUnknown {
+	if relations == nil || relations.hasUnknown || relations.maskedCols[toLower(cr.Column)] {
 		return viewCollationInfo{}
 	}
 	var out viewCollationInfo

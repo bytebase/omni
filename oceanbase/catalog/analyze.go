@@ -869,6 +869,10 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		return exprContainsAggregate(e.Arg)
 	case *OdbcEscapeExprQ:
 		return exprContainsAggregate(e.Arg)
+	case *LambdaExprQ:
+		return exprContainsAggregate(e.Body)
+	case *ResTargetExprQ:
+		return exprContainsAggregate(e.Val)
 	case *GroupingSetExprQ:
 		for _, item := range e.Args {
 			if exprContainsAggregate(item) {

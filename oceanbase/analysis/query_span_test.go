@@ -354,4 +354,34 @@ func TestTableCollectionLambdaAndAliasedCallArgLineage(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, span.NotFoundError)
 	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+
+	// Expression-backed TABLE(...) exposes runtime-determined column names while
+	// retaining any column lineage from its argument expression.
+	span, err = resolve(t, "SELECT c.element FROM TABLE(f()) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c.element FROM db.t1, TABLE(f(db.t1.a)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT element FROM db.t1, TABLE(f(db.t1.a)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT a FROM db.t1, TABLE(f(db.t1.b)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT x.element FROM TABLE(f())")
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+
+	span, err = resolve(t, "SELECT c.element FROM db.t1, TABLE(f(db.t1.missing)) c")
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
 }

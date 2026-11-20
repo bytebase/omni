@@ -1262,6 +1262,49 @@ func odbcTemporalValid(kind, v string) bool {
 }
 
 // ----------------------------------------------------------------------------
+// LambdaExprQ / LambdaParamExprQ / ResTargetExprQ
+// ----------------------------------------------------------------------------
+
+// LambdaExprQ is an analyzed lambda expression (`x -> body` or `(x, y) -> body`).
+type LambdaExprQ struct {
+	Params []string
+	Body   AnalyzedExpr
+}
+
+func (*LambdaExprQ) analyzedExprTag()        {}
+func (*LambdaExprQ) exprType() *ResolvedType { return nil }
+func (*LambdaExprQ) exprCollation() string   { return "" }
+
+// LambdaParamExprQ is an unqualified identifier bound to an enclosing LambdaExprQ parameter.
+type LambdaParamExprQ struct {
+	Name string
+}
+
+func (*LambdaParamExprQ) analyzedExprTag()        {}
+func (*LambdaParamExprQ) exprType() *ResolvedType { return nil }
+func (*LambdaParamExprQ) exprCollation() string   { return "" }
+
+// ResTargetExprQ preserves an alias on an expression inside an argument list (`STATISTICS(a AS b)`).
+type ResTargetExprQ struct {
+	Name string
+	Val  AnalyzedExpr
+}
+
+func (*ResTargetExprQ) analyzedExprTag() {}
+func (r *ResTargetExprQ) exprType() *ResolvedType {
+	if r.Val == nil {
+		return nil
+	}
+	return r.Val.exprType()
+}
+func (r *ResTargetExprQ) exprCollation() string {
+	if r.Val == nil {
+		return ""
+	}
+	return r.Val.exprCollation()
+}
+
+// ----------------------------------------------------------------------------
 // RawExprQ — an expression the IR keeps as written.
 // ----------------------------------------------------------------------------
 

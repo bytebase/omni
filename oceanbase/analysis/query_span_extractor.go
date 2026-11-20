@@ -87,6 +87,11 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 	for _, name := range names {
 		joined[strings.ToLower(name)] = true
 	}
+	firstUnk, firstIsUnk := l.(*unknownColumnsTable)
+	secondUnk, secondIsUnk := r.(*unknownColumnsTable)
+	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
+		firstUnk, firstIsUnk, secondUnk, secondIsUnk = secondUnk, secondIsUnk, firstUnk, firstIsUnk
+	}
 	var columns []QuerySpanResult
 	emittedJoined := make(map[string]bool, len(names))
 	for _, field := range first {
@@ -97,17 +102,22 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 		emittedJoined[lower] = true
 		if other, ok := querySpanResultNamed(second, field.Name); ok {
 			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
+		} else if secondIsUnk && len(secondUnk.SourceColumns) > 0 {
+			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, secondUnk.SourceColumns)
 		}
 		if isFullJoin {
 			field.IsPlainField = false
 		}
 		columns = append(columns, field)
 	}
-	// If the first side is an unknown-columns source (remote/external), still
+	// If the first side is an unknown-columns source (remote/external/collection), still
 	// expose the USING columns known from the second side at the leading position.
 	for _, field := range second {
 		lower := strings.ToLower(field.Name)
 		if joined[lower] && !emittedJoined[lower] {
+			if firstIsUnk && len(firstUnk.SourceColumns) > 0 {
+				field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, firstUnk.SourceColumns)
+			}
 			field.IsPlainField = false
 			columns = append(columns, field)
 		}
@@ -216,7 +226,7 @@ func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName,
 
 func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tableName, fieldName string) (QuerySpanResult, error) {
 	findInTableSource := func(tableSource tableSource, allowUnknown bool) (QuerySpanResult, bool) {
-		_, isUnknown := tableSource.(*unknownColumnsTable)
+		unk, isUnknown := tableSource.(*unknownColumnsTable)
 		if isUnknown != allowUnknown {
 			return QuerySpanResult{}, false
 		}
@@ -224,7 +234,8 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 			return QuerySpanResult{}, false
 		}
 		if isUnknown {
-			return QuerySpanResult{Name: fieldName}, true
+			sources, _ := mergeColumnSet(ColumnSet{}, unk.SourceColumns)
+			return QuerySpanResult{Name: fieldName, SourceColumns: sources}, true
 		}
 		for _, column := range tableSource.GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
@@ -758,9 +769,9 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 			// does for an external table's. Once aliased, qualifiers no longer
 			// apply to the relation.
 			if t.Alias != "" {
-				return &unknownColumnsTable{pseudoTable{Name: t.Alias, Aliased: true}}, nil
+				return &unknownColumnsTable{pseudoTable: pseudoTable{Name: t.Alias, Aliased: true}}, nil
 			}
-			return &unknownColumnsTable{pseudoTable{Name: t.Name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
+			return &unknownColumnsTable{pseudoTable: pseudoTable{Name: t.Name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -797,20 +808,19 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if name == "" {
 			name = t.Path
 		}
-		return &unknownColumnsTable{pseudoTable{Name: name}}, nil
+		return &unknownColumnsTable{pseudoTable: pseudoTable{Name: name}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported omni MySQL table source %T", tableExpr)
 	}
 }
 
-// extractTableFunction reads a table function in FROM — UNNEST or RB_ITERATE —
-// as a pseudo table named by its alias (or its argument), whose columns are the
-// names it declares and whose lineage is the arguments' columns.
+// extractTableFunction reads a table function in FROM — UNNEST, RB_ITERATE or
+// TABLE(...) — as a pseudo table named by its alias (or its column argument),
+// whose columns are the names it declares and whose lineage is the arguments'
+// columns. When no column list is declared and an argument is an expression
+// rather than a bare column, the runtime output column names are unknown while
+// argument lineage is retained on the unknownColumnsTable.
 func (q *querySpanExtractor) extractTableFunction(alias string, columns []string, args []ast.ExprNode) (tableSource, error) {
-	name := alias
-	if name == "" && len(args) > 0 {
-		name = q.exprName(args[0])
-	}
 	fields := make([]QuerySpanResult, len(args))
 	all := ColumnSet{}
 	for i, arg := range args {
@@ -822,16 +832,36 @@ func (q *querySpanExtractor) extractTableFunction(alias string, columns []string
 		all, _ = mergeColumnSet(all, field.SourceColumns)
 	}
 	var result []QuerySpanResult
-	// Without a column alias list the function's outputs are its arguments.
+	// Without a column alias list the function's outputs are its bare column
+	// arguments; expression-backed arguments produce runtime-named columns.
 	if len(columns) == 0 {
-		for i, field := range fields {
-			name := field.Name
-			if name == "" {
-				name = q.exprName(args[i])
+		allCols := len(args) > 0
+		for _, arg := range args {
+			col, ok := arg.(*ast.ColumnRef)
+			if !ok || col.Star {
+				allCols = false
+				break
 			}
-			result = append(result, QuerySpanResult{Name: name, SourceColumns: field.SourceColumns, IsPlainField: field.IsPlainField})
 		}
-		return &pseudoTable{Name: name, Columns: result}, nil
+		if !allCols {
+			return &unknownColumnsTable{
+				pseudoTable:   pseudoTable{Name: alias, Aliased: alias != ""},
+				SourceColumns: all,
+			}, nil
+		}
+		name := alias
+		if name == "" {
+			name = q.exprName(args[0])
+		}
+		for i, field := range fields {
+			col := args[i].(*ast.ColumnRef)
+			result = append(result, QuerySpanResult{Name: col.Column, SourceColumns: field.SourceColumns, IsPlainField: field.IsPlainField})
+		}
+		return &pseudoTable{Name: name, Aliased: alias != "", Columns: result}, nil
+	}
+	name := alias
+	if name == "" && len(args) > 0 {
+		name = q.exprName(args[0])
 	}
 	for i, column := range columns {
 		// UNNEST's outputs follow its arguments: the i-th output is the i-th
@@ -842,7 +872,7 @@ func (q *querySpanExtractor) extractTableFunction(alias string, columns []string
 		}
 		result = append(result, QuerySpanResult{Name: column, SourceColumns: sources})
 	}
-	return &pseudoTable{Name: name, Columns: result}, nil
+	return &pseudoTable{Name: name, Aliased: alias != "", Columns: result}, nil
 }
 
 func (q *querySpanExtractor) extractJSONTable(expr *ast.JsonTableExpr) (tableSource, error) {
