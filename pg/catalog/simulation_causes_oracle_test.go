@@ -5216,6 +5216,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"EXECUTE q_exec_r33(true)", CodeDatatypeMismatch},
 			{"EXECUTE q_exec_r33('x')", CodeInvalidTextRepresentation},
 			{"EXECUTE q_exec_r33(1)", "0"},
+			// Round 35.
+			{"CREATE RULE r_srf_where_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 WHERE generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_having_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 HAVING generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_limit_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT generate_series(1, 2)", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_case_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT CASE WHEN true THEN generate_series(1, 2) END", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_coalesce_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT coalesce(generate_series(1, 2), 0)", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_join_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a JOIN dst_r20 b ON generate_series(1, 2) > 0", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_agg_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(generate_series(1, 2)) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_srf_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT abs(generate_series(1, 2)) FROM t_r20 GROUP BY generate_series(1, 2) ORDER BY generate_series(1, 2)", "0"},
+			{"CREATE RULE r_osa_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT mode() WITHIN GROUP (ORDER BY t_r20.id) FROM t_r20", "0"},
+			{"CREATE RULE r_osa_pct_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY t_r20.id)::text FROM t_r20", "0"},
+			{"CREATE RULE r_poly_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT array_length(array_agg(DISTINCT id ORDER BY id DESC), 1) FROM t_r20", "0"},
+			{"CREATE RULE r_dist_agg_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT string_agg(DISTINCT val, ',' ORDER BY id::text) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_agg_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT string_agg(DISTINCT val, ',' ORDER BY val) FROM t_r20", "0"},
+			{"CREATE RULE r_fn_lateral_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT g FROM t_r20, generate_series(1, t_r20.id) AS g", "0"},
+			{"CREATE RULE r_sub_nolateral_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT s.id FROM t_r20, (SELECT t_r20.id) s", CodeUndefinedTable},
+			{"CREATE RULE r_join_on_scope_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON a.id = d.id", CodeUndefinedTable},
+			{"CREATE RULE r_join_on_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON b.id = d.id", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)

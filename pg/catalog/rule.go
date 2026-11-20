@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -88,6 +89,7 @@ type ruleBindings struct {
 	joinUsing      map[*nodes.JoinExpr][]ruleJoinUsingCol
 	naturalJoined  map[*nodes.JoinExpr]bool
 	stmtCtx        map[*nodes.SelectStmt]*ruleEvalContext
+	srfCalls       map[*nodes.FuncCall]bool
 
 	relDeps  []uint32
 	colDeps  []ruleColDep
@@ -672,6 +674,7 @@ func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 		joinUsing:      make(map[*nodes.JoinExpr][]ruleJoinUsingCol),
 		naturalJoined:  make(map[*nodes.JoinExpr]bool),
 		stmtCtx:        make(map[*nodes.SelectStmt]*ruleEvalContext),
+		srfCalls:       make(map[*nodes.FuncCall]bool),
 		seenRel:        make(map[uint32]bool),
 		seenCol:        make(map[ruleColDep]bool),
 		seenCon:        make(map[uint32]bool),
@@ -770,6 +773,9 @@ type ruleEvalContext struct {
 	hasOpenSource bool
 	disallowAgg   string
 	disallowWin   string
+	// disallowSRF names the construct that refuses set-returning calls
+	// (parse_func.c check_srf_call_placement), or "" where they are allowed.
+	disallowSRF string
 }
 
 func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry, snapshot bool) error {
@@ -818,7 +824,15 @@ func (c *Catalog) bindRuleBoolExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalC
 		return nil
 	}
 	if ctx != nil {
-		prevAgg, prevWin := ctx.disallowAgg, ctx.disallowWin
+		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
+		if ctx.disallowSRF == "" {
+			switch construct {
+			case "WHERE", "HAVING":
+				ctx.disallowSRF = construct
+			case "JOIN/ON":
+				ctx.disallowSRF = "JOIN conditions"
+			}
+		}
 		switch construct {
 		case "WHERE", "JOIN/ON", "WHEN", "FILTER":
 			if ctx.disallowAgg == "" {
@@ -835,6 +849,7 @@ func (c *Catalog) bindRuleBoolExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalC
 		defer func() {
 			ctx.disallowAgg = prevAgg
 			ctx.disallowWin = prevWin
+			ctx.disallowSRF = prevSRF
 		}()
 	}
 	if err := c.bindRuleExpr(b, n, ctx); err != nil {
@@ -1089,10 +1104,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		}
 	case *nodes.RangeFunction:
 		if v.Functions != nil {
+			// A function in FROM sees the items before it with or without
+			// LATERAL, for which it is a noise word (parse_clause.c).
 			fnCtx := ctx
-			if !v.Lateral {
-				fnCtx = &ruleEvalContext{outer: ctx.outer, cteNames: ctx.cteNames, cteCols: ctx.cteCols, cteColTypes: ctx.cteColTypes, cteAny: ctx.cteAny}
-			}
 			for _, fnItem := range v.Functions.Items {
 				if pair, ok := fnItem.(*nodes.List); ok && len(pair.Items) > 0 {
 					if err := c.bindRuleExpr(b, pair.Items[0], fnCtx); err != nil {
@@ -1435,7 +1449,21 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			}
 		}
 		if v.Quals != nil {
-			if err := c.bindRuleBoolExpr(b, v.Quals, ctx, "JOIN/ON"); err != nil {
+			// JOIN/ON sees only the join's own inputs and outer query levels,
+			// not earlier items of the FROM list (parse_clause.c
+			// transformJoinOnClause).
+			onCtx := *ctx
+			onCtx.scope = make(map[string]ruleScopeEntry, len(ctx.scope))
+			onCtx.scopeOrder = nil
+			for _, k := range ctx.scopeOrder {
+				if !beforeKeys[k] {
+					if se, ok := ctx.scope[k]; ok {
+						onCtx.scope[k] = se
+						onCtx.scopeOrder = append(onCtx.scopeOrder, k)
+					}
+				}
+			}
+			if err := c.bindRuleBoolExpr(b, v.Quals, &onCtx, "JOIN/ON"); err != nil {
 				return err
 			}
 		}
@@ -3880,6 +3908,19 @@ func (c *Catalog) bindRuleOperator(b *ruleBindings, opNameList *nodes.List, lTyp
 	return 0, nil
 }
 
+// bindRuleLimitExpr binds a LIMIT or OFFSET argument, where set-returning
+// calls are refused.
+func (c *Catalog) bindRuleLimitExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext, construct string) error {
+	if n == nil {
+		return nil
+	}
+	if ctx != nil && ctx.disallowSRF == "" {
+		ctx.disallowSRF = construct
+		defer func() { ctx.disallowSRF = "" }()
+	}
+	return c.bindRuleExpr(b, n, ctx)
+}
+
 func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ruleEvalContext) error {
 	if err := c.bindRuleSortClause(b, s.SortClause, ctx); err != nil {
 		return err
@@ -3908,7 +3949,7 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 	if s.LimitOption == nodes.LIMIT_OPTION_WITH_TIES && (s.SortClause == nil || len(s.SortClause.Items) == 0) && !c.snapshot {
 		return &Error{Code: CodeSyntaxError, Message: "WITH TIES cannot be specified without ORDER BY clause"}
 	}
-	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
+	if err := c.bindRuleLimitExpr(b, s.LimitCount, ctx, "LIMIT"); err != nil {
 		return err
 	}
 	if s.LimitCount != nil && !c.snapshot && c.ruleExprRefersToLevel(b, s.LimitCount, ctx) {
@@ -3922,7 +3963,7 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 			}
 		}
 	}
-	if err := c.bindRuleExpr(b, s.LimitOffset, ctx); err != nil {
+	if err := c.bindRuleLimitExpr(b, s.LimitOffset, ctx, "OFFSET"); err != nil {
 		return err
 	}
 	if s.LimitOffset != nil && !c.snapshot && c.ruleExprRefersToLevel(b, s.LimitOffset, ctx) {
@@ -4321,11 +4362,32 @@ func (c *Catalog) checkRuleNestedAggOrWindow(b *ruleBindings, v *nodes.FuncCall)
 			if _, win := c.ruleExprHasAggOrWindow(b, v.Args); win {
 				return &Error{Code: CodeWindowingError, Message: "window function calls cannot be nested"}
 			}
+			if ruleExprHasSRF(b, v.Args) {
+				return &Error{Code: CodeFeatureNotSupported, Message: "window function calls cannot contain set-returning function calls"}
+			}
 		}
 		return nil
 	}
 	if !c.isRuleAggFuncCall(b, v) {
 		return nil
+	}
+	for _, list := range []*nodes.List{v.Args, v.AggOrder} {
+		if list != nil && ruleExprHasSRF(b, list) {
+			return &Error{Code: CodeFeatureNotSupported, Message: "aggregate function calls cannot contain set-returning function calls"}
+		}
+	}
+	if v.AggDistinct && v.AggOrder != nil && v.Args != nil {
+		// pg: parse_agg.c transformAggregateCall — with DISTINCT, each
+		// ORDER BY expression must be one of the arguments.
+		argPrints := make(map[string]bool, len(v.Args.Items))
+		for _, arg := range v.Args.Items {
+			argPrints[ruleExprFingerprint(b, arg)] = true
+		}
+		for _, item := range v.AggOrder.Items {
+			if sb, ok := item.(*nodes.SortBy); ok && sb != nil && !argPrints[ruleExprFingerprint(b, sb.Node)] {
+				return &Error{Code: CodeInvalidColumnReference, Message: "in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list"}
+			}
+		}
 	}
 	for _, list := range []*nodes.List{v.Args, v.AggOrder} {
 		if list == nil {
@@ -4340,6 +4402,31 @@ func (c *Catalog) checkRuleNestedAggOrWindow(b *ruleBindings, v *nodes.FuncCall)
 		}
 	}
 	return nil
+}
+
+// ruleExprHasSRF reports whether n holds a set-returning call of its own
+// query level; it does not descend into subqueries.
+func ruleExprHasSRF(b *ruleBindings, n nodes.Node) bool {
+	if b == nil || len(b.srfCalls) == 0 {
+		return false
+	}
+	found := false
+	nodes.Inspect(n, func(x nodes.Node) bool {
+		if found {
+			return false
+		}
+		switch v := x.(type) {
+		case *nodes.SubLink, *nodes.SelectStmt:
+			return false
+		case *nodes.FuncCall:
+			if b.srfCalls[v] {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // ruleExprHasAggOrWindow reports whether n holds an aggregate or a window
@@ -5834,6 +5921,10 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 	case *nodes.BooleanTest:
 		return c.bindRuleBoolExpr(b, v.Arg, ctx, "IS")
 	case *nodes.CoalesceExpr:
+		if ctx != nil && ctx.disallowSRF == "" {
+			ctx.disallowSRF = "COALESCE"
+			defer func() { ctx.disallowSRF = "" }()
+		}
 		if v.Args != nil {
 			var exprs []AnalyzedExpr
 			for _, item := range v.Args.Items {
@@ -5870,6 +5961,10 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		}
 		return nil
 	case *nodes.CaseExpr:
+		if ctx != nil && ctx.disallowSRF == "" {
+			ctx.disallowSRF = "CASE"
+			defer func() { ctx.disallowSRF = "" }()
+		}
 		if err := c.bindRuleExpr(b, v.Arg, ctx); err != nil {
 			return err
 		}
@@ -6604,6 +6699,14 @@ func procMatchesRuleCallArity(p *BuiltinProc, fc *nodes.FuncCall) ([]uint32, boo
 			}
 		}
 	}
+	if fc != nil && fc.AggWithinGroup && fc.AggOrder != nil {
+		argCount += len(fc.AggOrder.Items)
+		if argNames != nil {
+			for range fc.AggOrder.Items {
+				argNames = append(argNames, "")
+			}
+		}
+	}
 	variadic := fc != nil && fc.FuncVariadic
 	if argNames != nil {
 		positions, ok := namedCallPositions(p, argNames, variadic)
@@ -6663,6 +6766,24 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 			}
 			if argTypes[i] == 0 {
 				allKnown = false
+			}
+		}
+	}
+	if v.AggWithinGroup && v.AggOrder != nil {
+		// An ordered-set aggregate takes its WITHIN GROUP ordering
+		// expressions as its trailing arguments (parse_func.c).
+		for _, item := range v.AggOrder.Items {
+			sb, ok := item.(*nodes.SortBy)
+			if !ok || sb == nil {
+				continue
+			}
+			t := c.inferRuleExprType(b, sb.Node, ctx)
+			if t == 0 {
+				allKnown = false
+			}
+			argTypes = append(argTypes, t)
+			if argNames != nil {
+				argNames = append(argNames, "")
 			}
 		}
 	}
@@ -6747,6 +6868,20 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 		}
 	}
 	if matchedProc != nil {
+		if matchedProc.RetSet && b != nil && b.srfCalls != nil {
+			b.srfCalls[v] = true
+		}
+		if matchedProc.RetSet && !c.snapshot {
+			where := ""
+			if b != nil && b.inRuleWhere {
+				where = "WHERE"
+			} else if ctx != nil {
+				where = ctx.disallowSRF
+			}
+			if where != "" {
+				return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("set-returning functions are not allowed in %s", where)}
+			}
+		}
 		if !c.snapshot {
 			disallowAgg := ""
 			disallowWin := ""
@@ -6792,7 +6927,18 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 				}
 			}
 		}
-		retType := c.resolveReturnType(matchedProc, c.withDefaultArgTypes(matchedProc, matchedArgTypes))
+		// A polymorphic result follows the actual argument types, not the
+		// declared ones the overload matched.
+		retArgs := matchedArgTypes
+		if isPolymorphic(matchedProc.RetType) && argNames == nil {
+			retArgs = slices.Clone(matchedArgTypes)
+			for i := range retArgs {
+				if i < len(argTypes) && argTypes[i] != 0 && argTypes[i] != UNKNOWNOID {
+					retArgs[i] = argTypes[i]
+				}
+			}
+		}
+		retType := c.resolveReturnType(matchedProc, c.withDefaultArgTypes(matchedProc, retArgs))
 		if b != nil && b.exprTypeByNode != nil && retType != 0 {
 			b.exprTypeByNode[v] = retType
 		}
