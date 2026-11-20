@@ -236,34 +236,46 @@ type tableRef struct {
 }
 
 // resolveColumnNames extracts column names from tables visible in the active
-// query scope around pos, respecting table/alias qualifiers when present.
+// query scope around pos, searching enclosing outer scopes when a qualified
+// reference targets an outer alias in a correlated subquery.
 func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchemaMetadata) []string {
 	if meta == nil {
 		return nil
 	}
-	scopeText := extractActiveQueryScope(statement, pos)
-	refs := extractTableRefsFromScope(scopeText)
+	scopes := extractQueryScopes(statement, pos)
 	qualifier := columnQualifierBeforeCursor(statement, pos)
 
 	allTables := collectMetadataTables(meta)
 	if qualifier != "" {
-		var cols []string
-		for _, ref := range refs {
-			if strings.EqualFold(ref.alias, qualifier) || (ref.alias == "" && strings.EqualFold(ref.name, qualifier)) || strings.EqualFold(ref.name, qualifier) {
-				table := findMetadataTable(allTables, ref.name)
-				if table == nil {
-					continue
-				}
-				for _, col := range table.GetColumns() {
-					if col.GetName() != "" {
-						cols = append(cols, col.GetName())
+		for _, scopeText := range scopes {
+			refs := extractTableRefsFromScope(scopeText)
+			var cols []string
+			matched := false
+			for _, ref := range refs {
+				if strings.EqualFold(ref.alias, qualifier) || (ref.alias == "" && strings.EqualFold(ref.name, qualifier)) || strings.EqualFold(ref.name, qualifier) {
+					matched = true
+					table := findMetadataTable(allTables, ref.name)
+					if table == nil {
+						continue
+					}
+					for _, col := range table.GetColumns() {
+						if col.GetName() != "" {
+							cols = append(cols, col.GetName())
+						}
 					}
 				}
 			}
+			if matched {
+				return cols
+			}
 		}
-		return cols
+		return nil
 	}
 
+	var refs []tableRef
+	if len(scopes) > 0 {
+		refs = extractTableRefsFromScope(scopes[0])
+	}
 	if len(refs) == 0 {
 		var cols []string
 		for _, table := range allTables {
@@ -367,14 +379,13 @@ func extractCurrentStatement(statement string, pos int) (string, int) {
 	return statement, pos
 }
 
-// extractActiveQueryScope slices statement to the innermost subquery
-// parenthesized block containing pos so nested subqueries (e.g. WHERE EXISTS
-// (SELECT ...)) do not leak into the enclosing query, while ordinary expression
-// parentheses such as SELECT (|) FROM Music keep their enclosing FROM scope.
-func extractActiveQueryScope(statement string, pos int) string {
-	var subqueryStack []int
+// extractQueryScopes returns query block slices enclosing pos, ordered from
+// innermost to outermost. Only parentheses that introduce a subquery (SELECT or
+// WITH) start a new query scope; expression parentheses stay in the enclosing
+// query scope.
+func extractQueryScopes(statement string, pos int) []string {
+	var subqueryStarts []int
 	var isSubqueryParen []bool
-	start := 0
 	for i := 0; i < len(statement) && i < pos; i++ {
 		switch statement[i] {
 		case '\'':
@@ -385,23 +396,29 @@ func extractActiveQueryScope(statement string, pos int) string {
 			sub := parenOpensSubquery(statement, i+1)
 			isSubqueryParen = append(isSubqueryParen, sub)
 			if sub {
-				subqueryStack = append(subqueryStack, i+1)
+				subqueryStarts = append(subqueryStarts, i+1)
 			}
 		case ')':
 			if len(isSubqueryParen) > 0 {
 				wasSub := isSubqueryParen[len(isSubqueryParen)-1]
 				isSubqueryParen = isSubqueryParen[:len(isSubqueryParen)-1]
-				if wasSub && len(subqueryStack) > 0 {
-					subqueryStack = subqueryStack[:len(subqueryStack)-1]
+				if wasSub && len(subqueryStarts) > 0 {
+					subqueryStarts = subqueryStarts[:len(subqueryStarts)-1]
 				}
 			}
 		}
 	}
-	if len(subqueryStack) > 0 {
-		start = subqueryStack[len(subqueryStack)-1]
-	}
 
-	end := len(statement)
+	var scopes []string
+	for k := len(subqueryStarts) - 1; k >= 0; k-- {
+		start := subqueryStarts[k]
+		scopes = append(scopes, statement[start:findSubqueryEnd(statement, start)])
+	}
+	scopes = append(scopes, statement)
+	return scopes
+}
+
+func findSubqueryEnd(statement string, start int) int {
 	depth := 0
 	for i := start; i < len(statement); i++ {
 		switch statement[i] {
@@ -412,16 +429,13 @@ func extractActiveQueryScope(statement string, pos int) string {
 		case '(':
 			depth++
 		case ')':
-			if depth == 0 && len(subqueryStack) > 0 {
-				end = i
-				return statement[start:end]
+			if depth == 0 {
+				return i
 			}
-			if depth > 0 {
-				depth--
-			}
+			depth--
 		}
 	}
-	return statement[start:end]
+	return len(statement)
 }
 
 func skipQuotedLiteral(s string, start int, quote byte) int {

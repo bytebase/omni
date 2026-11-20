@@ -366,6 +366,12 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"Artist", "SongTitle"},
 		},
+		{
+			name:     "correlated subquery resolves outer qualified alias",
+			input:    "SELECT * FROM Album a WHERE EXISTS (SELECT 1 FROM Music m WHERE a.|)",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Title"},
+		},
 	}
 
 	for _, tc := range tests {

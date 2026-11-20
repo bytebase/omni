@@ -660,9 +660,16 @@ func TestCompleteCodexReviewFixes(t *testing.T) {
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
 					{
-						Name:     "MV1",
-						Triggers: []*metadatapb.TriggerMetadata{{Name: "MV_TRG"}},
-						Indexes:  []*metadatapb.IndexMetadata{{Name: "MV_IDX"}},
+						Name:       "MV1",
+						Definition: "CREATE MATERIALIZED VIEW MV1 AS SELECT S1_T1_COL FROM T1",
+						Triggers:   []*metadatapb.TriggerMetadata{{Name: "MV_TRG"}},
+						Indexes:    []*metadatapb.IndexMetadata{{Name: "MV_IDX"}},
+					},
+				},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{
+						Name:    "EXT1",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "EXT_COL", Type: "VARCHAR2(50)"}},
 					},
 				},
 				Synonyms: []*metadatapb.SynonymMetadata{
@@ -789,6 +796,22 @@ func TestCompleteCodexReviewFixes(t *testing.T) {
 		}
 		if !hasSpec(res, candidateSpec{text: "GET_COUNT", typ: CandidateFunction}) {
 			t.Fatalf("expected GET_COUNT function, got %v", res)
+		}
+	})
+
+	t.Run("external tables offered in from clause", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT * FROM |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "EXT1", typ: CandidateTable}) {
+			t.Fatalf("expected EXT1 external table candidate, got %v", res)
+		}
+	})
+
+	t.Run("materialized view columns resolved from definition", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT | FROM MV1")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "S1_T1_COL", typ: CandidateColumn}) {
+			t.Fatalf("expected S1_T1_COL from MV1 definition, got %v", res)
 		}
 	})
 }

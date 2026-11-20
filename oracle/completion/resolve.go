@@ -8,7 +8,9 @@ import (
 	"unicode/utf8"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/analysis"
+	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
 )
 
@@ -327,6 +329,9 @@ func (r *resolver) resolve() []Candidate {
 			if includeTables {
 				for _, t := range sm.GetTables() {
 					tables = append(tables, Candidate{Type: CandidateTable, Text: t.GetName()})
+				}
+				for _, ext := range sm.GetExternalTables() {
+					tables = append(tables, Candidate{Type: CandidateTable, Text: ext.GetName()})
 				}
 			}
 			if includeViews {
@@ -899,8 +904,20 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 			return
 		}
 		if v := findViewMeta(sm, name); v != nil {
-			for _, col := range v.GetColumns() {
-				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, v.GetName(), col))
+			if len(v.GetColumns()) > 0 {
+				for _, col := range v.GetColumns() {
+					*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, v.GetName(), col))
+				}
+				return
+			}
+			if v.GetDefinition() != "" {
+				r.insertResolvedRelationColumns(columnsOut, resolvedSchema, v.GetName(), v.GetDefinition())
+				return
+			}
+		}
+		if mv := findMaterializedViewMeta(sm, name); mv != nil {
+			if mv.GetDefinition() != "" {
+				r.insertResolvedRelationColumns(columnsOut, resolvedSchema, mv.GetName(), mv.GetDefinition())
 			}
 			return
 		}
@@ -936,6 +953,66 @@ func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string) *metadata
 		}
 	}
 	return nil
+}
+
+func findMaterializedViewMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.MaterializedViewMetadata {
+	for _, mv := range sm.GetMaterializedViews() {
+		if mv.GetName() == name {
+			return mv
+		}
+	}
+	for _, mv := range sm.GetMaterializedViews() {
+		if strings.EqualFold(mv.GetName(), name) {
+			return mv
+		}
+	}
+	return nil
+}
+
+func (r *resolver) insertResolvedRelationColumns(columnsOut *[]Candidate, schema, objectName, definition string) {
+	target := quoteIdentifierForSQL(objectName)
+	defaultSchema := r.store.defaultSchema
+	if schema != "" {
+		target = quoteIdentifierForSQL(schema) + "." + target
+		defaultSchema = schema
+	}
+	span, err := analysis.ResolveQuerySpan(fmt.Sprintf("SELECT * FROM %s", target), analysis.ResolveOptions{
+		DefaultDatabase: defaultSchema,
+		Catalog:         r.analysisCatalog(),
+	})
+	if (err != nil || span == nil || span.NotFoundError != nil || len(span.Results) == 0) && definition != "" {
+		if queryText := extractSelectFromViewDefinition(definition); queryText != "" {
+			span, err = analysis.ResolveQuerySpan(queryText, analysis.ResolveOptions{
+				DefaultDatabase: defaultSchema,
+				Catalog:         r.analysisCatalog(),
+			})
+		}
+	}
+	if err != nil || span == nil || span.NotFoundError != nil {
+		return
+	}
+	for _, col := range span.Results {
+		if col.Name != "" {
+			*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col.Name})
+		}
+	}
+}
+
+func extractSelectFromViewDefinition(definition string) string {
+	stmts, err := oracle.Parse(definition)
+	if err != nil {
+		return ""
+	}
+	for _, stmt := range stmts {
+		cv, ok := stmt.AST.(*ast.CreateViewStmt)
+		if !ok || cv == nil || cv.Query == nil {
+			continue
+		}
+		if sel, ok := cv.Query.(*ast.SelectStmt); ok && sel.Loc.Start >= 0 && sel.Loc.End > sel.Loc.Start && sel.Loc.End <= len(definition) {
+			return definition[sel.Loc.Start:sel.Loc.End]
+		}
+	}
+	return ""
 }
 
 func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string) *metadatapb.SynonymMetadata {
