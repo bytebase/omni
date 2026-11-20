@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"path"
@@ -99,24 +100,60 @@ func parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64,
 	return parseAutoextendSize(raw)
 }
 
-func resolveTablespaceFileBlockSize(raw string) (uint64, error) {
+// SetInnoDBPageSize sets the server's configured innodb_page_size in bytes
+// (allowed values: 4096, 8192, 16384, 32768, 65536; 0 resets to 16384).
+func (c *Catalog) SetInnoDBPageSize(bytes uint64) {
+	switch bytes {
+	case 0:
+		c.innodbPageSize = 0
+	case 4096, 8192, 16384, 32768, 65536:
+		c.innodbPageSize = bytes
+	}
+}
+
+// InnoDBPageSize returns the server's configured innodb_page_size in bytes,
+// defaulting to 16384 (16 KiB).
+func (c *Catalog) InnoDBPageSize() uint64 {
+	if c != nil && c.innodbPageSize != 0 {
+		return c.innodbPageSize
+	}
+	return innodbDefaultPageSize
+}
+
+func validateTablespaceEngineAttribute(attr string) error {
+	if attr == "" || json.Valid([]byte(attr)) {
+		return nil
+	}
+	return errInvalidJSONAttribute(attr)
+}
+
+func (c *Catalog) resolveTablespaceFileBlockSize(raw string) (uint64, error) {
+	pageSize := c.InnoDBPageSize()
 	if strings.TrimSpace(raw) == "" {
-		return innodbDefaultPageSize, nil
+		return pageSize, nil
 	}
 	bytes, ok := parseMySQLByteSize(raw)
 	if !ok {
 		return 0, &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%s", strings.TrimSpace(raw))}
 	}
-	if bytes == 0 {
-		return innodbDefaultPageSize, nil
+	if bytes == 0 || bytes == pageSize {
+		if bytes == 0 {
+			return pageSize, nil
+		}
+		return bytes, nil
 	}
 	switch bytes {
-	case 1024, 2048, 4096, 8192, innodbDefaultPageSize:
-		return bytes, nil
-	case 32768, 65536:
+	case 1024, 2048, 4096, 8192, 16384, 32768, 65536:
+		if bytes > pageSize {
+			return 0, &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=%d because INNODB_PAGE_SIZE=%d.", bytes, pageSize)}
+		}
+		if pageSize <= innodbDefaultPageSize {
+			return bytes, nil
+		}
 		return 0, &Error{Code: 1478, SQLState: "HY000",
-			Message: fmt.Sprintf("InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=%d because INNODB_PAGE_SIZE=%d.", bytes, innodbDefaultPageSize)}
+			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%d", bytes)}
 	default:
 		return 0, &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%d", bytes)}
@@ -261,15 +298,16 @@ func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlock
 	if !ok || tsBlockSize == 0 {
 		return nil
 	}
+	pageSize := c.InnoDBPageSize()
 	rfCompressed := strings.EqualFold(strings.TrimSpace(rowFormat), "COMPRESSED")
-	if tsBlockSize == innodbDefaultPageSize {
+	if tsBlockSize == pageSize {
 		if keyBlockSize > 0 || rfCompressed {
 			return &Error{Code: 1478, SQLState: "HY000",
 				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain a COMPRESSED table", ts)}
 		}
 		return nil
 	}
-	var tblPageSize uint64 = innodbDefaultPageSize
+	tblPageSize := pageSize
 	if keyBlockSize > 0 {
 		tblPageSize = uint64(keyBlockSize) * 1024
 	} else if rfCompressed {
@@ -405,10 +443,10 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo || c.tablespaces[stmt.Name] {
 		return errTablespaceExists(stmt.Name)
 	}
-	blockSize := uint64(innodbDefaultPageSize)
+	blockSize := c.InnoDBPageSize()
 	if !stmt.Undo {
 		var bsErr error
-		blockSize, bsErr = resolveTablespaceFileBlockSize(stmt.FileBlockSize)
+		blockSize, bsErr = c.resolveTablespaceFileBlockSize(stmt.FileBlockSize)
 		if bsErr != nil {
 			return bsErr
 		}
@@ -417,6 +455,9 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
 			return err
 		}
+	}
+	if err := validateTablespaceEngineAttribute(stmt.EngineAttribute); err != nil {
+		return err
 	}
 	dfBase, err := c.validateTablespaceDatafile(stmt.Name, stmt.DataFile, stmt.HasDataFile || stmt.Undo, stmt.Undo)
 	if err != nil {
@@ -456,6 +497,9 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 			return errInvalidEncryptionOption()
 		}
+		if err := validateTablespaceEngineAttribute(stmt.EngineAttribute); err != nil {
+			return err
+		}
 		if c.isGeneralTablespaceName(stmt.Name) {
 			return errWrongTablespaceKind("ALTER UNDO TABLESPACE", stmt.Name, "a general", "ALTER TABLESPACE")
 		}
@@ -487,6 +531,9 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	}
 	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 		return errInvalidEncryptionOption()
+	}
+	if err := validateTablespaceEngineAttribute(stmt.EngineAttribute); err != nil {
+		return err
 	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
 		return err

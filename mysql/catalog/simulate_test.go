@@ -165,6 +165,9 @@ func parseCode(pe *mysqlparser.ParseError) string {
 	if pe.Code != 0 {
 		return strconv.Itoa(pe.Code)
 	}
+	if pe.Message == "Invalid json attribute" {
+		return "3980"
+	}
 	return "1064"
 }
 

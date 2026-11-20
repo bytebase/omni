@@ -38,10 +38,11 @@ type Catalog struct {
 	defaultCollation     string
 	charsetClient        string
 	collationConn        string
-	foreignKeyChecks     bool // SET foreign_key_checks (default true)
-	loadingSDL           bool // true while LoadSDLWithVersion executes statements
-	generateGIPK         bool // SET sql_generate_invisible_primary_key
-	showGIPK             bool // SET show_gipk_in_create_table_and_information_schema
+	innodbPageSize       uint64 // configured innodb_page_size (0 => 16384)
+	foreignKeyChecks     bool   // SET foreign_key_checks (default true)
+	loadingSDL           bool   // true while LoadSDLWithVersion executes statements
+	generateGIPK         bool   // SET sql_generate_invisible_primary_key
+	showGIPK             bool   // SET show_gipk_in_create_table_and_information_schema
 	session              SessionState
 }
 

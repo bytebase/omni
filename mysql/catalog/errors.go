@@ -34,6 +34,9 @@ const (
 	ErrTableStorageEngineOption          = 1031
 	ErrUnknownStorageEngine              = 1286
 	ErrUnknownCharacterSet               = 1115
+	ErrUnknownCollation                  = 1273
+	ErrBigintOutOfRange                  = 1690
+	ErrInvalidJSONAttribute              = 3980
 	ErrInvalidPerformanceSchema          = 1683
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
@@ -157,6 +160,9 @@ var sqlStateMap = map[int]string{
 	ErrTableStorageEngineOption:          "HY000",
 	ErrUnknownStorageEngine:              "42000",
 	ErrUnknownCharacterSet:               "42000",
+	ErrUnknownCollation:                  "HY000",
+	ErrBigintOutOfRange:                  "22003",
+	ErrInvalidJSONAttribute:              "HY000",
 	ErrInvalidPerformanceSchema:          "HY000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
@@ -762,6 +768,21 @@ func errUnknownTimeZone(tz string) error {
 func errUnknownCharacterSet(cs string) error {
 	return &Error{Code: ErrUnknownCharacterSet, SQLState: sqlState(ErrUnknownCharacterSet),
 		Message: fmt.Sprintf("Unknown character set: '%s'", cs)}
+}
+
+func errUnknownCollation(coll string) error {
+	return &Error{Code: ErrUnknownCollation, SQLState: sqlState(ErrUnknownCollation),
+		Message: fmt.Sprintf("Unknown collation: '%s'", coll)}
+}
+
+func errBigintOutOfRange() error {
+	return &Error{Code: ErrBigintOutOfRange, SQLState: sqlState(ErrBigintOutOfRange),
+		Message: "BIGINT value is out of range"}
+}
+
+func errInvalidJSONAttribute(attr string) error {
+	return &Error{Code: ErrInvalidJSONAttribute, SQLState: sqlState(ErrInvalidJSONAttribute),
+		Message: fmt.Sprintf("Invalid json attribute: '%s'", attr)}
 }
 
 func errWrongValueForVar(varName, val string) error {

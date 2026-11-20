@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -115,7 +116,11 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
 		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
 			uName := toLower(strings.TrimPrefix(asgn.Column.Column, "@"))
-			if val, ok := c.evalSetExpr(asgn.Value); ok {
+			val, ok, err := c.evalSetExprChecked(asgn.Value)
+			if err != nil {
+				return err
+			}
+			if ok {
 				updates = append(updates, func() {
 					c.userVars[uName] = val
 				})
@@ -160,6 +165,11 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if !isPersistOnly {
 				return errIncorrectGlobalLocalVar("innodb_directories", "read only variable")
 			}
+		case "innodb_page_size":
+			_, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
+			if !isPersistOnly {
+				return errIncorrectGlobalLocalVar("innodb_page_size", "read only variable")
+			}
 		case "sql_mode":
 			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
 			if isDefaultSetKeywordOrIdent(asgn.Value) {
@@ -186,7 +196,11 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				val = userVarValue{kind: userVarString, str: cr.Column}
 			} else {
 				var ok bool
-				val, ok = c.evalSetExpr(asgn.Value)
+				var evalErr error
+				val, ok, evalErr = c.evalSetExprChecked(asgn.Value)
+				if evalErr != nil {
+					return evalErr
+				}
 				if !ok {
 					return errWrongValueForVar("sql_mode", strings.TrimSpace(nodeToSQL(asgn.Value)))
 				}
@@ -232,7 +246,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
 				rawTZ = cr.Column
 			} else {
-				val, ok := c.evalSetExpr(asgn.Value)
+				val, ok, evalErr := c.evalSetExprChecked(asgn.Value)
+				if evalErr != nil {
+					return evalErr
+				}
 				if !ok {
 					return errUnknownTimeZone(strings.TrimSpace(nodeToSQL(asgn.Value)))
 				}
@@ -323,6 +340,43 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 					c.session.CollationConnection = collation
 				})
 			}
+		case "collation_connection":
+			if isDefaultSetKeywordOrIdent(asgn.Value) {
+				defColl := defaultCollationForCharset[toLower(c.defaultCharset)]
+				if defColl == "" {
+					defColl = "utf8mb4_0900_ai_ci"
+				}
+				updates = append(updates, func() {
+					c.collationConn = defColl
+					c.session.CollationConnection = defColl
+				})
+				break
+			}
+			var rawColl string
+			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+				rawColl = cr.Column
+			} else {
+				val, ok, evalErr := c.evalSetExprChecked(asgn.Value)
+				if evalErr != nil {
+					return evalErr
+				}
+				if ok {
+					if val.kind == userVarNull {
+						return errWrongValueForVar("collation_connection", "NULL")
+					}
+					rawColl = val.str
+				} else {
+					rawColl = nodeToSQLValue(asgn.Value)
+				}
+			}
+			if !isValidMySQLCollationName(rawColl) {
+				return errUnknownCollation(rawColl)
+			}
+			coll := toLower(strings.TrimSpace(rawColl))
+			updates = append(updates, func() {
+				c.collationConn = coll
+				c.session.CollationConnection = coll
+			})
 		default:
 			// Silently accept all other SET variables.
 		}
@@ -508,38 +562,61 @@ func isDefaultSetKeywordOrIdent(expr nodes.ExprNode) bool {
 	}
 }
 
+func isValidMySQLCollationName(coll string) bool {
+	c := toLower(strings.TrimSpace(coll))
+	if c == "" {
+		return false
+	}
+	if c == "binary" {
+		return true
+	}
+	cs := charsetForCollation(c)
+	if _, ok := defaultCollationForCharset[cs]; !ok {
+		return false
+	}
+	return strings.HasSuffix(c, "_ci") || strings.HasSuffix(c, "_cs") || strings.HasSuffix(c, "_bin")
+}
+
 func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
+	v, ok, err := c.evalSetExprChecked(expr)
+	if err != nil {
+		return userVarValue{}, false
+	}
+	return v, ok
+}
+
+func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, error) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return c.evalSetExpr(e.Expr)
+		return c.evalSetExprChecked(e.Expr)
 	case *nodes.NullLit:
-		return userVarValue{kind: userVarNull}, true
+		return userVarValue{kind: userVarNull}, true, nil
 	case *nodes.StringLit:
-		return userVarValue{kind: userVarString, str: e.Value}, true
+		return userVarValue{kind: userVarString, str: e.Value}, true, nil
 	case *nodes.HexLit:
 		raw, ok := decodeLiteralRawBytes(cleanHexDigits(e.Value), true)
 		if !ok {
-			return userVarValue{}, false
+			return userVarValue{}, false, nil
 		}
-		return userVarValue{kind: userVarString, str: string(raw)}, true
+		return userVarValue{kind: userVarString, str: string(raw)}, true, nil
 	case *nodes.IntLit:
 		if s, ok := exactIntLiteral(e, ""); ok {
-			return userVarValue{kind: userVarNumeric, str: s}, true
+			return userVarValue{kind: userVarNumeric, str: s}, true, nil
 		}
-		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true
+		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true, nil
 	case *nodes.FloatLit:
-		return userVarValue{kind: userVarNumeric, str: e.Value}, true
+		return userVarValue{kind: userVarNumeric, str: e.Value}, true, nil
 	case *nodes.BoolLit:
 		if e.Value {
-			return userVarValue{kind: userVarNumeric, str: "1"}, true
+			return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
 		}
-		return userVarValue{kind: userVarNumeric, str: "0"}, true
+		return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
 	case *nodes.BitLit:
 		raw, ok := decodeLiteralRawBytes(cleanBitDigits(e.Value), false)
 		if !ok {
-			return userVarValue{}, false
+			return userVarValue{}, false, nil
 		}
-		return userVarValue{kind: userVarString, str: string(raw)}, true
+		return userVarValue{kind: userVarString, str: string(raw)}, true, nil
 	case *nodes.UnaryExpr:
 		if e.Op == nodes.UnaryPlus || e.Op == nodes.UnaryMinus {
 			sign := ""
@@ -549,37 +626,40 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 			switch op := e.Operand.(type) {
 			case *nodes.IntLit:
 				if s, ok := exactIntLiteral(op, sign); ok {
-					return userVarValue{kind: userVarNumeric, str: s}, true
+					return userVarValue{kind: userVarNumeric, str: s}, true, nil
 				}
-				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true
+				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true, nil
 			case *nodes.FloatLit:
-				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true
+				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true, nil
 			}
-			v, ok := c.evalSetExpr(e.Operand)
-			if !ok {
-				return userVarValue{}, false
+			v, ok, err := c.evalSetExprChecked(e.Operand)
+			if err != nil || !ok {
+				return userVarValue{}, false, err
 			}
 			if v.kind == userVarNull {
-				return v, true
+				return v, true, nil
 			}
 			n, ok := parseSetNumericInt64(v)
 			if !ok {
-				return userVarValue{}, false
+				return userVarValue{}, false, nil
 			}
 			if e.Op == nodes.UnaryMinus {
+				if n == math.MinInt64 {
+					return userVarValue{}, false, errBigintOutOfRange()
+				}
 				n = -n
 			}
-			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
 		}
-		return userVarValue{}, false
+		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
-		return c.evalSetBinaryExpr(e)
+		return c.evalSetBinaryExprChecked(e)
 	case *nodes.VariableRef:
 		if !e.System {
 			if v, exists := c.userVars[toLower(e.Name)]; exists {
-				return v, true
+				return v, true, nil
 			}
-			return userVarValue{kind: userVarNull}, true
+			return userVarValue{kind: userVarNull}, true, nil
 		}
 		switch toLower(e.Name) {
 		case "time_zone":
@@ -588,71 +668,73 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 				if tz == "" {
 					tz = "SYSTEM"
 				}
-				return userVarValue{kind: userVarString, str: tz}, true
+				return userVarValue{kind: userVarString, str: tz}, true, nil
 			}
-			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true
+			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true, nil
 		case "system_time_zone":
-			return userVarValue{kind: userVarString, str: c.SystemTimeZone()}, true
+			return userVarValue{kind: userVarString, str: c.SystemTimeZone()}, true, nil
 		case "sql_mode":
 			if strings.EqualFold(e.Scope, "GLOBAL") {
 				mode := c.globalSQLMode
 				if mode == "" {
 					mode = "DEFAULT"
 				}
-				return userVarValue{kind: userVarString, str: expandSQLModeForRead(mode)}, true
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(mode)}, true, nil
 			}
-			return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}, true
+			return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}, true, nil
 		case "foreign_key_checks":
 			if c.session.ForeignKeyChecks {
-				return userVarValue{kind: userVarNumeric, str: "1"}, true
+				return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
 			}
-			return userVarValue{kind: userVarNumeric, str: "0"}, true
+			return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
 		case "character_set_client":
-			return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}, true
+			return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}, true, nil
 		case "character_set_connection":
-			return userVarValue{kind: userVarString, str: c.effectiveConnCharset()}, true
+			return userVarValue{kind: userVarString, str: c.effectiveConnCharset()}, true, nil
 		case "collation_connection":
 			coll := c.collationConn
 			if coll == "" {
 				coll = defaultCollationForCharset[c.effectiveConnCharset()]
 			}
-			return userVarValue{kind: userVarString, str: coll}, true
+			return userVarValue{kind: userVarString, str: coll}, true, nil
+		case "innodb_page_size":
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(c.InnoDBPageSize(), 10)}, true, nil
 		default:
-			return userVarValue{}, false
+			return userVarValue{}, false, nil
 		}
 	case *nodes.FuncCallExpr:
 		switch toLower(e.Name) {
 		case "concat":
 			var b strings.Builder
 			for _, arg := range e.Args {
-				v, ok := c.evalSetExpr(arg)
-				if !ok {
-					return userVarValue{}, false
+				v, ok, err := c.evalSetExprChecked(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
 				}
 				if v.kind == userVarNull {
-					return userVarValue{kind: userVarNull}, true
+					return userVarValue{kind: userVarNull}, true, nil
 				}
 				b.WriteString(v.str)
 			}
-			return userVarValue{kind: userVarString, str: b.String()}, true
+			return userVarValue{kind: userVarString, str: b.String()}, true, nil
 		case "coalesce", "ifnull":
 			for _, arg := range e.Args {
-				v, ok := c.evalSetExpr(arg)
-				if !ok {
-					return userVarValue{}, false
+				v, ok, err := c.evalSetExprChecked(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
 				}
 				if v.kind != userVarNull {
-					return v, true
+					return v, true, nil
 				}
 			}
-			return userVarValue{kind: userVarNull}, true
+			return userVarValue{kind: userVarNull}, true, nil
 		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase":
 			if len(e.Args) != 1 {
-				return userVarValue{}, false
+				return userVarValue{}, false, nil
 			}
-			v, ok := c.evalSetExpr(e.Args[0])
-			if !ok || v.kind == userVarNull {
-				return v, ok
+			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
 			}
 			s := v.str
 			switch toLower(e.Name) {
@@ -667,53 +749,71 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 			case "lower", "lcase":
 				s = strings.ToLower(s)
 			}
-			return userVarValue{kind: userVarString, str: s}, true
+			return userVarValue{kind: userVarString, str: s}, true, nil
 		}
 	}
-	return userVarValue{}, false
+	return userVarValue{}, false, nil
 }
 
-func (c *Catalog) evalSetBinaryExpr(e *nodes.BinaryExpr) (userVarValue, bool) {
+func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, bool, error) {
 	if e == nil {
-		return userVarValue{}, false
+		return userVarValue{}, false, nil
 	}
-	left, ok := c.evalSetExpr(e.Left)
-	if !ok {
-		return userVarValue{}, false
+	left, ok, err := c.evalSetExprChecked(e.Left)
+	if err != nil || !ok {
+		return userVarValue{}, false, err
 	}
-	right, ok := c.evalSetExpr(e.Right)
-	if !ok {
-		return userVarValue{}, false
+	right, ok, err := c.evalSetExprChecked(e.Right)
+	if err != nil || !ok {
+		return userVarValue{}, false, err
 	}
 	if left.kind == userVarNull || right.kind == userVarNull {
-		return userVarValue{kind: userVarNull}, true
+		return userVarValue{kind: userVarNull}, true, nil
 	}
 	ln, lok := parseSetNumericInt64(left)
 	rn, rok := parseSetNumericInt64(right)
 	if !lok || !rok {
-		return userVarValue{}, false
+		return userVarValue{}, false, nil
 	}
 	var out int64
 	switch e.Op {
 	case nodes.BinOpAdd:
+		if (rn > 0 && ln > math.MaxInt64-rn) || (rn < 0 && ln < math.MinInt64-rn) {
+			return userVarValue{}, false, errBigintOutOfRange()
+		}
 		out = ln + rn
 	case nodes.BinOpSub:
+		if (rn < 0 && ln > math.MaxInt64+rn) || (rn > 0 && ln < math.MinInt64+rn) {
+			return userVarValue{}, false, errBigintOutOfRange()
+		}
 		out = ln - rn
 	case nodes.BinOpMul:
-		out = ln * rn
+		if ln != 0 && rn != 0 {
+			if (ln == -1 && rn == math.MinInt64) || (rn == -1 && ln == math.MinInt64) {
+				return userVarValue{}, false, errBigintOutOfRange()
+			}
+			prod := ln * rn
+			if prod/ln != rn {
+				return userVarValue{}, false, errBigintOutOfRange()
+			}
+			out = prod
+		}
 	case nodes.BinOpDiv:
 		if rn == 0 {
-			return userVarValue{kind: userVarNull}, true
+			return userVarValue{kind: userVarNull}, true, nil
 		}
-		return userVarValue{kind: userVarNumeric, str: big.NewRat(ln, rn).FloatString(4)}, true
+		return userVarValue{kind: userVarNumeric, str: big.NewRat(ln, rn).FloatString(4)}, true, nil
 	case nodes.BinOpDivInt:
 		if rn == 0 {
-			return userVarValue{kind: userVarNull}, true
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		if ln == math.MinInt64 && rn == -1 {
+			return userVarValue{}, false, errBigintOutOfRange()
 		}
 		out = ln / rn
 	case nodes.BinOpMod:
 		if rn == 0 {
-			return userVarValue{kind: userVarNull}, true
+			return userVarValue{kind: userVarNull}, true, nil
 		}
 		out = ln % rn
 	case nodes.BinOpBitOr:
@@ -735,9 +835,9 @@ func (c *Catalog) evalSetBinaryExpr(e *nodes.BinaryExpr) (userVarValue, bool) {
 			out = int64(uint64(ln) >> uint(rn))
 		}
 	default:
-		return userVarValue{}, false
+		return userVarValue{}, false, nil
 	}
-	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true
+	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true, nil
 }
 
 func parseSetNumericInt64(v userVarValue) (int64, bool) {

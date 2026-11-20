@@ -10,6 +10,7 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 
+	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
@@ -4040,6 +4041,52 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "CREATE TEMPORARY TABLE a (id INT) TABLESPACE innodb_temporary",
 			code:    0,
 		},
+		{
+			name: "SET user var overflowing multiplication rejected with 1690",
+			stmt: "SET @m = 4294967296 * 4294967296",
+			code: 1690,
+		},
+		{
+			name: "SET user var overflowing addition rejected with 1690",
+			stmt: "SET @m = 9223372036854775807 + 1",
+			code: 1690,
+		},
+		{
+			name: "SET user var overflowing subtraction rejected with 1690",
+			stmt: "SET @m = -9223372036854775808 - 1",
+			code: 1690,
+		},
+		{
+			name:     "SET collation_connection controls unintroduced string literal conversion",
+			session:  []string{"SET NAMES utf8mb4", "SET collation_connection = latin1_swedish_ci"},
+			cleanup:  []string{"SET NAMES utf8mb4"},
+			stmt:     "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT '😀')",
+			code:     0,
+			contains: []string{"DEFAULT '?'"},
+		},
+		{
+			name: "SET collation_connection unknown collation rejected with 1273",
+			stmt: "SET collation_connection = nonexistent_coll",
+			code: 1273,
+		},
+		{
+			name: "CREATE TABLESPACE with non-JSON ENGINE_ATTRIBUTE rejected with 3980",
+			stmt: "CREATE TABLESPACE ts_ea_bad ADD DATAFILE 'ts_ea_bad.ibd' ENGINE_ATTRIBUTE='not-json'",
+			code: 3980,
+		},
+		{
+			name:    "ALTER TABLESPACE with non-JSON ENGINE_ATTRIBUTE rejected with 3980",
+			setup:   []string{"CREATE TABLESPACE ts_ea_ok ADD DATAFILE 'ts_ea_ok.ibd' ENGINE_ATTRIBUTE='{\"a\":1}'"},
+			cleanup: []string{"DROP TABLESPACE ts_ea_ok"},
+			stmt:    "ALTER TABLESPACE ts_ea_ok ENGINE_ATTRIBUTE='not-json'",
+			code:    3980,
+		},
+		{
+			name:    "CREATE UNDO TABLESPACE accepts relative datafile name under datadir",
+			cleanup: []string{"ALTER UNDO TABLESPACE u_rel_ok SET INACTIVE", "SELECT SLEEP(1)", "DROP UNDO TABLESPACE u_rel_ok"},
+			stmt:    "CREATE UNDO TABLESPACE u_rel_ok ADD DATAFILE 'u_rel_ok.ibu'",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4538,5 +4585,25 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, framedCat, "SET @saved_cs = @@character_set_client; SET character_set_client = ascii; SET character_set_client = @saved_cs;")
 	if framedCat.effectiveClientCharset() != "utf8mb4" {
 		t.Fatalf("@@character_set_client round-trip got %q, want utf8mb4", framedCat.effectiveClientCharset())
+	}
+
+	// Configurable innodb_page_size allows matching FILE_BLOCK_SIZE (e.g. 32K)
+	// and defaults tablespaces to that configured page size.
+	pgCat := New()
+	pgCat.SetInnoDBPageSize(32768)
+	if pgCat.InnoDBPageSize() != 32768 {
+		t.Fatalf("InnoDBPageSize() = %d, want 32768", pgCat.InnoDBPageSize())
+	}
+	if got, _ := simulationCatalogRefusal(t, pgCat, "SET innodb_page_size = 32768"); got != 1238 {
+		t.Fatalf("SET innodb_page_size got %d, want 1238", got)
+	}
+	execAlterClauses(t, pgCat, "CREATE DATABASE d; USE d; CREATE TABLESPACE ts32 ADD DATAFILE 'ts32.ibd' FILE_BLOCK_SIZE=32768; CREATE TABLE t32 (id INT) TABLESPACE ts32;")
+	if err := pgCat.createTablespace(&ast.CreateTablespaceStmt{
+		Name:            "ts_ast_bad_ea",
+		DataFile:        "ts_ast_bad_ea.ibd",
+		HasDataFile:     true,
+		EngineAttribute: "not-json",
+	}); err == nil {
+		t.Fatal("direct createTablespace with invalid ENGINE_ATTRIBUTE succeeded, want 3980")
 	}
 }
