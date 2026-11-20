@@ -16,12 +16,12 @@ import (
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
 	if diff == nil || diff.IsEmpty() {
-		return original
+		return proto.CloneOf(original)
 	}
 
 	result, ok := proto.Clone(original).(*metadatapb.DatabaseSchemaMetadata)
 	if !ok {
-		return original
+		return proto.CloneOf(original)
 	}
 
 	for _, s := range diff.Schemas {
@@ -131,6 +131,31 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		}
 	}
 
+	for _, r := range diff.Ranges {
+		if r.Action == DiffDrop {
+			if sm := findSchema(result, r.SchemaName); sm != nil {
+				sm.RangeTypes = removeRangeTypeByName(sm.RangeTypes, r.Name)
+			}
+			continue
+		}
+		if r.To == nil {
+			continue
+		}
+		sm := findOrCreateSchema(result, r.SchemaName)
+		switch r.Action {
+		case DiffAdd:
+			sm.RangeTypes = append(sm.RangeTypes, rangeTypeToProto(catAfter, r.To, nil))
+		case DiffModify:
+			for i, existing := range sm.RangeTypes {
+				if existing.Name == r.Name {
+					sm.RangeTypes[i] = rangeTypeToProto(catAfter, r.To, existing)
+					break
+				}
+			}
+		default:
+		}
+	}
+
 	for _, f := range diff.Functions {
 		isProcedure := f.To != nil && f.To.Kind == 'p'
 		wasProcedure := f.From != nil && f.From.Kind == 'p'
@@ -170,6 +195,8 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		default:
 		}
 	}
+
+	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 
 	return result
 }
@@ -247,6 +274,7 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 		applyColumnDiffs(tbl, cat, rel)
 		applyIndexDiffs(tbl, cat, rel)
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
+		applyTriggerDiffs(tbl, cat, rel)
 	case 'v':
 		sm.Views = removeViewByName(sm.Views, rel.Name)
 		sm.Views = append(sm.Views, relationToViewProto(cat, rel.To))
@@ -257,10 +285,11 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 	}
 }
 
-// renamePartitions renames each partition the diff renames where it stands,
-// with its indexes and constraints as the catalog now has them. The diff shows
-// a rename as a drop and an add of the same relation, which would otherwise
-// turn the partition into a table of its own. It returns the OIDs it handled.
+// renamePartitions renames each partition or table the diff renames where it
+// stands, preserving nested partitions and metadata the catalog does not track.
+// The diff shows a rename as a drop and an add of the same relation, which would
+// otherwise turn a partition into a table of its own or drop a table's
+// partitions. It returns the OIDs it handled.
 func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, relations []RelationDiffEntry) map[uint32]bool {
 	added := make(map[uint32]RelationDiffEntry)
 	for _, rel := range relations {
@@ -275,13 +304,31 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 		}
 		add, ok := added[rel.From.OID]
 		sm := findSchema(result, rel.SchemaName)
-		if !ok || add.SchemaName != rel.SchemaName || sm == nil {
+		if !ok || sm == nil {
 			continue
 		}
-		if p := findPartition(sm, rel.Name); p != nil {
-			tbl := relationToTableProto(catAfter, add.To)
-			p.Name = add.Name
-			p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
+		if add.SchemaName == rel.SchemaName {
+			if p := findPartition(sm, rel.Name); p != nil {
+				tbl := relationToTableProto(catAfter, add.To)
+				p.Name = add.Name
+				p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
+				renamed[rel.From.OID] = true
+				continue
+			}
+		}
+		if tbl := findTable(sm, rel.Name); tbl != nil {
+			rebuilt := relationToTableProto(catAfter, add.To)
+			tbl.Name = add.Name
+			tbl.Columns = rebuilt.Columns
+			tbl.Indexes = rebuilt.Indexes
+			tbl.ForeignKeys = rebuilt.ForeignKeys
+			tbl.CheckConstraints = rebuilt.CheckConstraints
+			tbl.ExcludeConstraints = rebuilt.ExcludeConstraints
+			if add.SchemaName != rel.SchemaName {
+				sm.Tables = removeTableByName(sm.Tables, rel.Name)
+				targetSchema := findOrCreateSchema(result, add.SchemaName)
+				targetSchema.Tables = append(targetSchema.Tables, tbl)
+			}
 			renamed[rel.From.OID] = true
 		}
 	}
@@ -310,7 +357,19 @@ func applyColumnDiffs(tbl *metadatapb.TableMetadata, cat *Catalog, rel RelationD
 			if cd.To != nil {
 				for i, col := range tbl.Columns {
 					if col.Name == cd.Name {
-						tbl.Columns[i] = columnToProto(cat, cd.To)
+						updated := columnToProto(cat, cd.To)
+						updated.Comment = col.Comment
+						updated.CharacterSet = col.CharacterSet
+						updated.Options = col.Options
+						if cd.From != nil && cd.From.CollationName != cd.To.CollationName {
+							if cd.To.CollationName != "" {
+								updated.Collation = quoteIdentAlways(cd.To.CollationName)
+							}
+						} else {
+							updated.Collation = col.Collation
+							updated.CollationSchema = col.CollationSchema
+						}
+						tbl.Columns[i] = updated
 						break
 					}
 				}
@@ -464,8 +523,14 @@ func indexToProto(_ *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMetada
 		IsConstraint: idx.ConstraintOID != 0,
 	}
 
+	nKey := idx.NKeyColumns
+	if nKey <= 0 || nKey > len(idx.Columns) {
+		nKey = len(idx.Columns)
+	}
+
 	exprIdx := 0
-	for i, attnum := range idx.Columns {
+	for i := 0; i < nKey; i++ {
+		attnum := idx.Columns[i]
 		if attnum == 0 {
 			if exprIdx < len(idx.Exprs) {
 				im.Expressions = append(im.Expressions, idx.Exprs[exprIdx])
@@ -487,6 +552,20 @@ func indexToProto(_ *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMetada
 		if i < len(idx.IndOption) {
 			im.Descending = append(im.Descending, idx.IndOption[i]&1 != 0)
 		}
+	}
+
+	if len(idx.OpClasses) > 0 {
+		im.OpclassNames = make([]string, len(idx.OpClasses))
+		im.OpclassDefaults = make([]bool, len(idx.OpClasses))
+		for i, oc := range idx.OpClasses {
+			im.OpclassNames[i] = oc
+			im.OpclassDefaults[i] = oc == ""
+		}
+	}
+
+	if !idx.IsPrimary && idx.ConstraintOID == 0 && rel != nil && rel.Schema != nil &&
+		(idx.WhereClause != "" || nKey < len(idx.Columns) || len(idx.OpClasses) > 0 || idx.NullsNotDistinct) {
+		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
 	}
 
 	return im
@@ -531,7 +610,7 @@ func constraintToFKProto(cat *Catalog, rel *Relation, con *Constraint) *metadata
 }
 
 func sequenceToProto(cat *Catalog, seq *Sequence) *metadatapb.SequenceMetadata {
-	return &metadatapb.SequenceMetadata{
+	sm := &metadatapb.SequenceMetadata{
 		Name:      seq.Name,
 		DataType:  cat.FormatType(seq.TypeOID, -1),
 		Start:     fmt.Sprintf("%d", seq.Start),
@@ -541,6 +620,18 @@ func sequenceToProto(cat *Catalog, seq *Sequence) *metadatapb.SequenceMetadata {
 		Cycle:     seq.Cycle,
 		CacheSize: fmt.Sprintf("%d", seq.CacheValue),
 	}
+	if seq.OwnerRelOID != 0 {
+		if ownerRel := cat.GetRelationByOID(seq.OwnerRelOID); ownerRel != nil {
+			sm.OwnerTable = ownerRel.Name
+			for _, col := range ownerRel.Columns {
+				if col.AttNum == seq.OwnerAttNum {
+					sm.OwnerColumn = col.Name
+					break
+				}
+			}
+		}
+	}
+	return sm
 }
 
 func wtFKActionToString(action byte) string {
@@ -710,38 +801,18 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 	}
 	b.WriteString(up.Name)
 	b.WriteByte('(')
-	argTypes := up.ArgTypes
-	if len(up.AllArgTypes) > 0 {
-		argTypes = up.AllArgTypes
-	}
-	for i, t := range argTypes {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		if i < len(up.ArgModes) {
-			switch up.ArgModes[i] {
-			case 'o':
-				b.WriteString("OUT ")
-			case 'b':
-				b.WriteString("INOUT ")
-			case 'v':
-				b.WriteString("VARIADIC ")
-			default:
-			}
-		}
-		if i < len(up.ArgNames) && up.ArgNames[i] != "" {
-			b.WriteString(up.ArgNames[i])
-			b.WriteByte(' ')
-		}
-		b.WriteString(cat.FormatType(t, -1))
-	}
+	b.WriteString(formatFuncParams(cat, up))
 	b.WriteString(")\n")
 	if up.Kind != 'p' {
 		b.WriteString(" RETURNS ")
-		if up.RetSet {
-			b.WriteString("SETOF ")
+		if hasTableReturn(up) {
+			b.WriteString(formatReturnsTable(cat, up))
+		} else {
+			if up.RetSet {
+				b.WriteString("SETOF ")
+			}
+			b.WriteString(cat.FormatType(up.RetType, -1))
 		}
-		b.WriteString(cat.FormatType(up.RetType, -1))
 		b.WriteByte('\n')
 	}
 	b.WriteString(" LANGUAGE ")
@@ -974,126 +1045,37 @@ func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 		Name: rel.Name,
 	}
 
-	// Columns.
 	for _, col := range rel.Columns {
-		colMeta := &metadatapb.ColumnMetadata{
-			Name:     col.Name,
-			Position: int32(col.AttNum),
-			Type:     c.FormatType(col.TypeOID, col.TypeMod),
-			Nullable: !col.NotNull,
-			Default:  col.Default,
-		}
-		if col.Generated == 's' {
-			colMeta.Generation = &metadatapb.GenerationMetadata{
-				Type:       metadatapb.GenerationMetadata_TYPE_STORED,
-				Expression: col.GenerationExpr,
-			}
-		}
-		if col.Identity != 0 {
-			colMeta.IsIdentity = true
-			switch col.Identity {
-			case 'a':
-				colMeta.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
-			case 'd':
-				colMeta.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
-			default:
-			}
-		}
-		table.Columns = append(table.Columns, colMeta)
+		table.Columns = append(table.Columns, columnToProto(c, col))
 	}
 
-	// Indexes.
 	for _, idx := range c.IndexesOf(rel.OID) {
-		idxMeta := &metadatapb.IndexMetadata{
-			Name:    idx.Name,
-			Type:    idx.AccessMethod,
-			Unique:  idx.IsUnique,
-			Primary: idx.IsPrimary,
-		}
-
-		// Build expressions list.
-		exprIdx := 0
-		for i, attnum := range idx.Columns {
-			if attnum == 0 {
-				// Expression column.
-				if exprIdx < len(idx.Exprs) {
-					idxMeta.Expressions = append(idxMeta.Expressions, idx.Exprs[exprIdx])
-					exprIdx++
-				}
-			} else {
-				// Regular column — find name.
-				colName := ""
-				for _, col := range rel.Columns {
-					if col.AttNum == attnum {
-						colName = col.Name
-						break
-					}
-				}
-				idxMeta.Expressions = append(idxMeta.Expressions, colName)
-			}
-
-			// Descending flag.
-			if i < len(idx.IndOption) {
-				idxMeta.Descending = append(idxMeta.Descending, idx.IndOption[i]&1 != 0)
-			}
-		}
-
-		// IsConstraint: index backs a constraint if ConstraintOID != 0.
-		if idx.ConstraintOID != 0 {
-			idxMeta.IsConstraint = true
-		}
-
-		table.Indexes = append(table.Indexes, idxMeta)
+		table.Indexes = append(table.Indexes, indexToProto(c, rel, idx))
 	}
 
-	// Foreign keys and check constraints from constraints.
 	for _, con := range c.ConstraintsOf(rel.OID) {
 		switch con.Type {
-		case 'f': // FK
-			fk := &metadatapb.ForeignKeyMetadata{
-				Name: con.Name,
-			}
-			// Columns.
-			for _, attnum := range con.Columns {
-				for _, col := range rel.Columns {
-					if col.AttNum == attnum {
-						fk.Columns = append(fk.Columns, col.Name)
-						break
-					}
-				}
-			}
-			// Referenced table.
-			fRel := c.GetRelationByOID(con.FRelOID)
-			if fRel != nil {
-				if fRel.Schema != nil {
-					fk.ReferencedSchema = fRel.Schema.Name
-				}
-				fk.ReferencedTable = fRel.Name
-				for _, attnum := range con.FColumns {
-					for _, col := range fRel.Columns {
-						if col.AttNum == attnum {
-							fk.ReferencedColumns = append(fk.ReferencedColumns, col.Name)
-							break
-						}
-					}
-				}
-			}
-			// Actions.
-			fk.OnUpdate = wtFKActionToString(con.FKUpdAction)
-			fk.OnDelete = wtFKActionToString(con.FKDelAction)
-			fk.MatchType = wtFKMatchToString(con.FKMatchType)
-			table.ForeignKeys = append(table.ForeignKeys, fk)
-		case 'c': // CHECK
+		case 'f':
+			table.ForeignKeys = append(table.ForeignKeys, constraintToFKProto(c, rel, con))
+		case 'c':
 			table.CheckConstraints = append(table.CheckConstraints, &metadatapb.CheckConstraintMetadata{
 				Name:       con.Name,
 				Expression: con.CheckExpr,
 			})
-		case 'x': // EXCLUDE
+		case 'x':
 			table.ExcludeConstraints = append(table.ExcludeConstraints, &metadatapb.ExcludeConstraintMetadata{
 				Name:       con.Name,
 				Expression: con.CheckExpr,
 			})
 		default:
+		}
+	}
+
+	if rel.Schema != nil {
+		for _, trig := range c.TriggersOf(rel.OID) {
+			if trig.ParentTriggerOID == 0 {
+				table.Triggers = append(table.Triggers, triggerToProto(c, rel.Schema.Name, rel.Name, trig))
+			}
 		}
 	}
 
@@ -1109,6 +1091,11 @@ func relationToViewProto(c *Catalog, rel *Relation) *metadatapb.ViewMetadata {
 		if def, err := c.GetViewDefinition(rel.Schema.Name, rel.Name); err == nil {
 			view.Definition = def
 		}
+		for _, trig := range c.TriggersOf(rel.OID) {
+			if trig.ParentTriggerOID == 0 {
+				view.Triggers = append(view.Triggers, triggerToProto(c, rel.Schema.Name, rel.Name, trig))
+			}
+		}
 	}
 	return view
 }
@@ -1122,44 +1109,385 @@ func relationToMatViewProto(c *Catalog, rel *Relation) *metadatapb.MaterializedV
 		if def, err := c.GetMatViewDefinition(rel.Schema.Name, rel.Name); err == nil {
 			mv.Definition = def
 		}
+		for _, trig := range c.TriggersOf(rel.OID) {
+			if trig.ParentTriggerOID == 0 {
+				mv.Triggers = append(mv.Triggers, triggerToProto(c, rel.Schema.Name, rel.Name, trig))
+			}
+		}
 	}
 
-	// Materialized view indexes.
 	for _, idx := range c.IndexesOf(rel.OID) {
-		idxMeta := &metadatapb.IndexMetadata{
-			Name:    idx.Name,
-			Type:    idx.AccessMethod,
-			Unique:  idx.IsUnique,
-			Primary: idx.IsPrimary,
+		mv.Indexes = append(mv.Indexes, indexToProto(c, rel, idx))
+	}
+
+	return mv
+}
+
+func applyTriggerDiffs(tbl *metadatapb.TableMetadata, cat *Catalog, rel RelationDiffEntry) {
+	if len(rel.Triggers) == 0 {
+		return
+	}
+	schemaName := rel.SchemaName
+	tableName := rel.Name
+	for _, td := range rel.Triggers {
+		switch td.Action {
+		case DiffAdd:
+			if td.To != nil {
+				tbl.Triggers = append(tbl.Triggers, triggerToProto(cat, schemaName, tableName, td.To))
+			}
+		case DiffDrop:
+			tbl.Triggers = removeTriggerByName(tbl.Triggers, td.Name)
+		case DiffModify:
+			tbl.Triggers = removeTriggerByName(tbl.Triggers, td.Name)
+			if td.To != nil {
+				tbl.Triggers = append(tbl.Triggers, triggerToProto(cat, schemaName, tableName, td.To))
+			}
+		default:
 		}
-		exprIdx := 0
-		for i, attnum := range idx.Columns {
-			if attnum == 0 {
-				if exprIdx < len(idx.Exprs) {
-					idxMeta.Expressions = append(idxMeta.Expressions, idx.Exprs[exprIdx])
-					exprIdx++
+	}
+}
+
+func triggerToProto(cat *Catalog, schemaName, tableName string, trig *Trigger) *metadatapb.TriggerMetadata {
+	timing := ""
+	switch trig.Timing {
+	case TriggerBefore:
+		timing = "BEFORE"
+	case TriggerAfter:
+		timing = "AFTER"
+	case TriggerInsteadOf:
+		timing = "INSTEAD OF"
+	}
+	var events []string
+	if trig.Events&TriggerEventInsert != 0 {
+		events = append(events, "INSERT")
+	}
+	if trig.Events&TriggerEventUpdate != 0 {
+		events = append(events, "UPDATE")
+	}
+	if trig.Events&TriggerEventDelete != 0 {
+		events = append(events, "DELETE")
+	}
+	if trig.Events&TriggerEventTruncate != 0 {
+		events = append(events, "TRUNCATE")
+	}
+	return &metadatapb.TriggerMetadata{
+		Name:   trig.Name,
+		Timing: timing,
+		Event:  strings.Join(events, " OR "),
+		Body:   buildCreateTriggerOp(cat, schemaName, tableName, trig).SQL,
+	}
+}
+
+func removeTriggerByName(triggers []*metadatapb.TriggerMetadata, name string) []*metadatapb.TriggerMetadata {
+	out := make([]*metadatapb.TriggerMetadata, 0, len(triggers))
+	for _, tr := range triggers {
+		if tr.Name != name {
+			out = append(out, tr)
+		}
+	}
+	return out
+}
+
+func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTypeMetadata) *metadatapb.RangeTypeMetadata {
+	out := &metadatapb.RangeTypeMetadata{
+		Name:    rt.Name,
+		Subtype: qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
+	}
+	if rt.MultirangeOID != 0 {
+		out.MultirangeName = qualifyWalkThroughAttributeType(cat, rt.MultirangeOID, cat.FormatType(rt.MultirangeOID, -1))
+	}
+	if previous != nil {
+		out.SubtypeOpclass = previous.SubtypeOpclass
+		out.Collation = previous.Collation
+		out.Canonical = previous.Canonical
+		out.SubtypeDiff = previous.SubtypeDiff
+		out.Comment = previous.Comment
+		out.SkipDump = previous.SkipDump
+	}
+	return out
+}
+
+func removeRangeTypeByName(ranges []*metadatapb.RangeTypeMetadata, name string) []*metadatapb.RangeTypeMetadata {
+	out := make([]*metadatapb.RangeTypeMetadata, 0, len(ranges))
+	for _, r := range ranges {
+		if r.Name != name {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, comments []CommentDiffEntry) {
+	for _, c := range comments {
+		switch c.ObjType {
+		case 'n':
+			if sm := findSchema(result, c.ObjDescription); sm != nil {
+				sm.Comment = c.To
+			}
+		case 'r':
+			schemaName, relName, ok := strings.Cut(c.ObjDescription, ".")
+			if !ok {
+				continue
+			}
+			sm := findSchema(result, schemaName)
+			if sm == nil {
+				continue
+			}
+			if c.SubID != 0 {
+				colName := resolveCommentColumnName(catAfter, catBefore, schemaName, relName, c.SubID)
+				if colName == "" {
+					continue
 				}
+				if tbl := findTable(sm, relName); tbl != nil {
+					for _, col := range tbl.Columns {
+						if col.Name == colName {
+							col.Comment = c.To
+							break
+						}
+					}
+				}
+				continue
+			}
+			if tbl := findTable(sm, relName); tbl != nil {
+				tbl.Comment = c.To
+			} else if p := findPartition(sm, relName); p != nil {
+				p.Comment = c.To
 			} else {
-				for _, col := range rel.Columns {
-					if col.AttNum == attnum {
-						idxMeta.Expressions = append(idxMeta.Expressions, col.Name)
+				for _, v := range sm.Views {
+					if v.Name == relName {
+						v.Comment = c.To
+						break
+					}
+				}
+				for _, mv := range sm.MaterializedViews {
+					if mv.Name == relName {
+						mv.Comment = c.To
 						break
 					}
 				}
 			}
+		case 'i':
+			schemaName, idxName, ok := strings.Cut(c.ObjDescription, ".")
+			if !ok {
+				continue
+			}
+			sm := findSchema(result, schemaName)
+			if sm == nil {
+				continue
+			}
+			setIndexCommentInSchema(sm, idxName, c.To)
+		case 't':
+			schemaName, typeName, ok := strings.Cut(c.ObjDescription, ".")
+			if !ok {
+				continue
+			}
+			sm := findSchema(result, schemaName)
+			if sm == nil {
+				continue
+			}
+			if c.SubID != 0 {
+				attrName := resolveCommentColumnName(catAfter, catBefore, schemaName, typeName, c.SubID)
+				if attrName == "" {
+					continue
+				}
+				for _, ct := range sm.CompositeTypes {
+					if ct.Name == typeName {
+						for _, attr := range ct.Attributes {
+							if attr.Name == attrName {
+								attr.Comment = c.To
+								break
+							}
+						}
+						break
+					}
+				}
+				continue
+			}
+			for _, ct := range sm.CompositeTypes {
+				if ct.Name == typeName {
+					ct.Comment = c.To
+					break
+				}
+			}
+			for _, et := range sm.EnumTypes {
+				if et.Name == typeName {
+					et.Comment = c.To
+					break
+				}
+			}
+			for _, rt := range sm.RangeTypes {
+				if rt.Name == typeName {
+					rt.Comment = c.To
+					break
+				}
+			}
+		case 's':
+			schemaName, seqName, ok := strings.Cut(c.ObjDescription, ".")
+			if !ok {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
+				for _, seq := range sm.Sequences {
+					if seq.Name == seqName {
+						seq.Comment = c.To
+						break
+					}
+				}
+			}
+		case 'c':
+			parts := strings.SplitN(c.ObjDescription, ".", 3)
+			if len(parts) != 3 {
+				continue
+			}
+			sm := findSchema(result, parts[0])
+			if sm == nil {
+				continue
+			}
+			if tbl := findTable(sm, parts[1]); tbl != nil {
+				setConstraintCommentOnTable(tbl, parts[2], c.To)
+			}
+		case 'g':
+			parts := strings.SplitN(c.ObjDescription, ".", 3)
+			if len(parts) != 3 {
+				continue
+			}
+			sm := findSchema(result, parts[0])
+			if sm == nil {
+				continue
+			}
+			setTriggerCommentInSchema(sm, parts[1], parts[2], c.To)
+		case 'f':
+			schemaName, identity, ok := strings.Cut(c.ObjDescription, ".")
+			if !ok {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
+				for _, fn := range sm.Functions {
+					if fn.Signature == identity || fn.Signature == c.ObjDescription {
+						fn.Comment = c.To
+						break
+					}
+				}
+				for _, p := range sm.Procedures {
+					if p.Signature == identity || p.Signature == c.ObjDescription {
+						p.Comment = c.To
+						break
+					}
+				}
+			}
+		case 'E':
+			for _, et := range result.EventTriggers {
+				if et.Name == c.ObjDescription {
+					et.Comment = c.To
+					break
+				}
+			}
+		default:
+		}
+	}
+}
 
-			// Descending flag.
-			if i < len(idx.IndOption) {
-				idxMeta.Descending = append(idxMeta.Descending, idx.IndOption[i]&1 != 0)
+func resolveCommentColumnName(catAfter, catBefore *Catalog, schemaName, relName string, attNum int16) string {
+	for _, cat := range []*Catalog{catAfter, catBefore} {
+		if cat == nil {
+			continue
+		}
+		if rel := cat.GetRelation(schemaName, relName); rel != nil {
+			for _, col := range rel.Columns {
+				if col.AttNum == attNum {
+					return col.Name
+				}
 			}
 		}
-
-		if idx.ConstraintOID != 0 {
-			idxMeta.IsConstraint = true
-		}
-
-		mv.Indexes = append(mv.Indexes, idxMeta)
 	}
+	return ""
+}
 
-	return mv
+func setIndexCommentInSchema(sm *metadatapb.SchemaMetadata, idxName, comment string) {
+	var setInPartitions func(partitions []*metadatapb.TablePartitionMetadata) bool
+	setInPartitions = func(partitions []*metadatapb.TablePartitionMetadata) bool {
+		for _, p := range partitions {
+			for _, idx := range p.Indexes {
+				if idx.Name == idxName {
+					idx.Comment = comment
+					return true
+				}
+			}
+			if setInPartitions(p.Subpartitions) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, tbl := range sm.Tables {
+		for _, idx := range tbl.Indexes {
+			if idx.Name == idxName {
+				idx.Comment = comment
+				return
+			}
+		}
+		if setInPartitions(tbl.Partitions) {
+			return
+		}
+	}
+	for _, mv := range sm.MaterializedViews {
+		for _, idx := range mv.Indexes {
+			if idx.Name == idxName {
+				idx.Comment = comment
+				return
+			}
+		}
+	}
+}
+
+func setConstraintCommentOnTable(tbl *metadatapb.TableMetadata, conName, comment string) {
+	for _, fk := range tbl.ForeignKeys {
+		if fk.Name == conName {
+			fk.Comment = comment
+			return
+		}
+	}
+	for _, chk := range tbl.CheckConstraints {
+		if chk.Name == conName {
+			chk.Comment = comment
+			return
+		}
+	}
+	for _, idx := range tbl.Indexes {
+		if idx.Name == conName && idx.IsConstraint {
+			idx.Comment = comment
+			return
+		}
+	}
+}
+
+func setTriggerCommentInSchema(sm *metadatapb.SchemaMetadata, relName, trigName, comment string) {
+	if tbl := findTable(sm, relName); tbl != nil {
+		for _, tr := range tbl.Triggers {
+			if tr.Name == trigName {
+				tr.Comment = comment
+				return
+			}
+		}
+	}
+	for _, v := range sm.Views {
+		if v.Name == relName {
+			for _, tr := range v.Triggers {
+				if tr.Name == trigName {
+					tr.Comment = comment
+					return
+				}
+			}
+		}
+	}
+	for _, mv := range sm.MaterializedViews {
+		if mv.Name == relName {
+			for _, tr := range mv.Triggers {
+				if tr.Name == trigName {
+					tr.Comment = comment
+					return
+				}
+			}
+		}
+	}
 }

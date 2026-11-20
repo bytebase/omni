@@ -4322,3 +4322,53 @@ func TestViewDependencyQualificationSeesParenthesizedRegclassCasts(t *testing.T)
 		require.ErrorContains(t, err, `view "public"."w" has an unqualified reference to "public"."t"`, definition)
 	}
 }
+
+func TestSkippedSchemaCommentsAreFiltered(t *testing.T) {
+	oldMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:    "bbdataarchive",
+			Comment: "old comment",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Comment: "old table comment",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "old col comment"}},
+			}},
+		}},
+	}
+	newMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:    "bbdataarchive",
+			Comment: "new comment",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Comment: "new table comment",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "new col comment"}},
+			}},
+		}},
+	}
+	sql, err := testMetadataMigration(oldMeta, newMeta)
+	require.NoError(t, err)
+	require.Empty(t, sql)
+}
+
+func TestChangedCollationIsRefused(t *testing.T) {
+	withCollation := func(locale string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Collations: []*metadatapb.CollationMetadata{{
+					Name:   "custom_col",
+					Locale: locale,
+				}},
+			}},
+		}
+	}
+	// Identical collations do not block unrelated migrations.
+	sql, err := testMetadataMigration(withCollation("en_US.utf8"), withCollation("en_US.utf8"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+
+	// Changed collations are refused rather than silently returning no-op.
+	_, err = testMetadataMigration(withCollation("en_US.utf8"), withCollation("C.utf8"))
+	require.ErrorContains(t, err, "collation")
+}

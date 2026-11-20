@@ -69,6 +69,9 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	if err := refuseUnsupportedCompositeReordering(oldMeta, newMeta, skipSchemas); err != nil {
 		return "", err
 	}
+	if err := refuseUnsupportedCollationChanges(oldMeta, newMeta, skipSchemas); err != nil {
+		return "", err
+	}
 	diff := Diff(from, to)
 	if diff.IsEmpty() && len(sourceDrops) == 0 {
 		return "", nil
@@ -90,10 +93,73 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	plan.Ops = insertSourceOnlyDrops(plan.Ops, sourceDrops)
 	if len(skipSchemas) > 0 {
 		plan = plan.Filter(func(op MigrationOp) bool {
-			return !skipSchemas[op.SchemaName]
+			return !opTargetsSkippedSchema(op, skipSchemas)
 		})
 	}
 	return plan.SQL(), nil
+}
+
+func opTargetsSkippedSchema(op MigrationOp, skipSchemas map[string]bool) bool {
+	if op.SchemaName != "" {
+		return skipSchemas[op.SchemaName]
+	}
+	switch op.Type {
+	case OpComment:
+		if target, ok := parseCommentTarget(op.SQL); ok && target.kind != "EVENT TRIGGER" && len(target.parts) >= 1 {
+			return skipSchemas[target.parts[0]]
+		}
+		if op.ObjType == 'n' {
+			return skipSchemas[op.ObjectName]
+		}
+		if op.ObjType == 'E' {
+			return false
+		}
+		schemaName, _, _ := strings.Cut(op.ObjectName, ".")
+		return skipSchemas[schemaName]
+	case OpGrant, OpRevoke:
+		if op.ObjType == 'n' {
+			return skipSchemas[op.ObjectName]
+		}
+		schemaName, _, _ := strings.Cut(op.ObjectName, ".")
+		return skipSchemas[schemaName]
+	default:
+		return false
+	}
+}
+
+func refuseUnsupportedCollationChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) error {
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]*metadatapb.CollationMetadata {
+		out := make(map[string]*metadatapb.CollationMetadata)
+		for _, s := range meta.GetSchemas() {
+			if skipSchemas[s.GetName()] {
+				continue
+			}
+			for _, col := range s.GetCollations() {
+				out[objectKey(s.GetName(), col.GetName())] = col
+			}
+		}
+		return out
+	}
+	oldCollations := collect(oldMeta)
+	newCollations := collect(newMeta)
+	var changed []string
+	for key, oldCol := range oldCollations {
+		if !proto.Equal(oldCol, newCollations[key]) {
+			schemaName, colName := splitObjectKey(key)
+			changed = append(changed, quoteQualified(schemaName, colName))
+		}
+	}
+	for key := range newCollations {
+		if _, seen := oldCollations[key]; !seen {
+			schemaName, colName := splitObjectKey(key)
+			changed = append(changed, quoteQualified(schemaName, colName))
+		}
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	slices.Sort(changed)
+	return fmt.Errorf("cannot generate a migration for user-defined collations (%s): collation DDL is not supported", strings.Join(changed, ", "))
 }
 
 // loadMetadataForMigration installs a snapshot under the search path its database

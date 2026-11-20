@@ -373,3 +373,154 @@ func TestWalkThroughAppliesCompositeTypeChanges(t *testing.T) {
 	// Original metadata is not mutated.
 	require.Len(t, meta.Schemas[0].CompositeTypes, 4)
 }
+
+func TestApplyDiffToMetadataEmptyDiffClonesOriginal(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "t"}},
+		}},
+	}
+	cloned := ApplyDiffToMetadata(meta, nil, nil, nil)
+	require.NotSame(t, meta, cloned)
+	cloned.Schemas[0].Tables[0].Name = "mutated"
+	require.Equal(t, "t", meta.Schemas[0].Tables[0].Name)
+}
+
+func TestApplyDiffToMetadataRenameParentTablePreservesPartitions(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "orders",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{
+					{Name: "orders_2024"},
+				},
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`ALTER TABLE public.orders RENAME TO orders_new;`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	sm := findSchema(got, "public")
+	require.NotNil(t, sm)
+	require.Nil(t, findTable(sm, "orders"))
+	renamed := findTable(sm, "orders_new")
+	require.NotNil(t, renamed)
+	require.Len(t, renamed.Partitions, 1)
+	require.Equal(t, "orders_2024", renamed.Partitions[0].Name)
+}
+
+func TestApplyDiffToMetadataModifiedColumnRetainsUnchangedFields(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:            "note",
+					Type:            "text",
+					Position:        1,
+					Nullable:        true,
+					Collation:       `"C"`,
+					CollationSchema: "pg_catalog",
+					Comment:         "keep me",
+					Options:         []string{"column_name=note_remote"},
+				}},
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`ALTER TABLE public.t ALTER COLUMN note SET DEFAULT 'x';`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	col := findTable(findSchema(got, "public"), "t").Columns[0]
+	require.Equal(t, "'x'::text", col.Default)
+	require.Equal(t, "keep me", col.Comment)
+	require.Equal(t, `"C"`, col.Collation)
+	require.Equal(t, "pg_catalog", col.CollationSchema)
+	require.Equal(t, []string{"column_name=note_remote"}, col.Options)
+}
+
+func TestApplyDiffToMetadataRangesTriggersCommentsIndexesSequencesAndTableFunctions(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Type: "integer", Position: 1},
+					{Name: "val", Type: "text", Position: 2, Nullable: true},
+				},
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		CREATE TYPE public.float8_range AS RANGE (SUBTYPE = float8);
+		CREATE FUNCTION public.trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE TRIGGER t_audit AFTER INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.trig_fn();
+		COMMENT ON TABLE public.t IS 'table doc';
+		COMMENT ON COLUMN public.t.val IS 'col doc';
+		CREATE INDEX t_partial_idx ON public.t (id) INCLUDE (val) WHERE id > 0;
+		CREATE SEQUENCE public.t_seq OWNED BY public.t.id;
+		CREATE FUNCTION public.tab_fn(p integer) RETURNS TABLE(out_id integer, out_val text) LANGUAGE sql AS $$ SELECT p, 'a' $$;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	sm := findSchema(got, "public")
+	require.NotNil(t, sm)
+	require.Len(t, sm.RangeTypes, 1)
+	require.Equal(t, "float8_range", sm.RangeTypes[0].Name)
+
+	tbl := findTable(sm, "t")
+	require.Equal(t, "table doc", tbl.Comment)
+	require.Equal(t, "col doc", tbl.Columns[1].Comment)
+	require.Len(t, tbl.Triggers, 1)
+	require.Equal(t, "t_audit", tbl.Triggers[0].Name)
+	require.Len(t, tbl.Indexes, 1)
+	require.Equal(t, []string{"id"}, tbl.Indexes[0].Expressions)
+	require.Contains(t, tbl.Indexes[0].Definition, "INCLUDE")
+	require.Contains(t, tbl.Indexes[0].Definition, "WHERE")
+
+	require.Len(t, sm.Sequences, 1)
+	require.Equal(t, "t", sm.Sequences[0].OwnerTable)
+	require.Equal(t, "id", sm.Sequences[0].OwnerColumn)
+
+	var tabFn *metadatapb.FunctionMetadata
+	for _, fn := range sm.Functions {
+		if fn.Name == "tab_fn" {
+			tabFn = fn
+		}
+	}
+	require.NotNil(t, tabFn)
+	require.Contains(t, tabFn.Definition, `tab_fn("p" integer)`)
+	require.Contains(t, tabFn.Definition, "RETURNS TABLE(")
+}
