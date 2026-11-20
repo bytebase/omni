@@ -1218,6 +1218,36 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("direct database-link relation does not resolve local table columns", func(t *testing.T) {
+		sqlRemote, posRemote := splitCaret(t, "SELECT | FROM album@REMOTE")
+		resRemote := Complete(sqlRemote, posRemote, meta, WithDefaultSchema("HR"))
+		if hasSpec(resRemote, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) || hasSpec(resRemote, candidateSpec{text: "TITLE", typ: CandidateColumn}) {
+			t.Fatalf("did not expect local ALBUM columns for remote @REMOTE relation, got %v", resRemote)
+		}
+	})
+
+	t.Run("unaliased quoted table preserves case on qualifier", func(t *testing.T) {
+		sqlQ, posQ := splitCaret(t, `SELECT employees.| FROM "employees"`)
+		resQ := Complete(sqlQ, posQ, meta, WithDefaultSchema("hr"))
+		if hasSpec(resQ, candidateSpec{text: "lower_id", typ: CandidateColumn}) {
+			t.Fatalf(`did not expect "employees" columns for unquoted employees. qualifier, got %v`, resQ)
+		}
+
+		sqlExact, posExact := splitCaret(t, `SELECT "employees".| FROM "employees"`)
+		resExact := Complete(sqlExact, posExact, meta, WithDefaultSchema("hr"))
+		if !hasSpec(resExact, candidateSpec{text: "lower_id", typ: CandidateColumn}) {
+			t.Fatalf(`expected "employees" columns for matching "employees". qualifier, got %v`, resExact)
+		}
+	})
+
+	t.Run("CASE expression END does not close enclosing PL/SQL declaration scope", func(t *testing.T) {
+		sqlCase, posCase := splitCaret(t, "DECLARE v NUMBER; BEGIN v := CASE WHEN 1=1 THEN 1 END; SELECT album_id INTO | FROM album; END;")
+		resCase := Complete(sqlCase, posCase, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resCase, candidateSpec{text: "V", typ: CandidateVariable}) {
+			t.Fatalf("expected V variable candidate after CASE ... END, got %v", resCase)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

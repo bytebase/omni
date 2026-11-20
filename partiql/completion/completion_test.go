@@ -516,6 +516,19 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: nil,
 		},
+		{
+			name:     "unfinished block comment suppresses table suggestions",
+			input:    "SELECT * FROM /* |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{},
+		},
+		{
+			name:     "SELECT VALUE subquery does not invent attribute name",
+			input:    "SELECT s.| FROM (SELECT VALUE m.Artist FROM Music AS m) AS s",
+			cat:      cat,
+			wantCols: nil,
+		},
 	}
 
 	for _, tc := range tests {

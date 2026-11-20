@@ -166,9 +166,16 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
 			i++
 		case c == '-' && i+1 < len(slice) && slice[i+1] == '-':
-			i = skipLineComment(slice, i) + 1
+			end := skipLineComment(slice, i)
+			if slice[end] != '\n' && slice[end] != '\r' {
+				return false, false
+			}
+			i = end + 1
 		case c == '/' && i+1 < len(slice) && slice[i+1] == '*':
-			end, _ := skipBlockComment(slice, i)
+			end, closed := skipBlockComment(slice, i)
+			if !closed {
+				return false, false
+			}
 			i = end + 1
 		case c == '\'' || c == '"':
 			end, closed := skipQuotedLiteralWithState(slice, i, c)
@@ -471,11 +478,17 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 
 	var cols []string
 	itemStart := listStart
-	if itemStart < listEnd && !tokens[itemStart].quoted {
+	for itemStart < listEnd && !tokens[itemStart].quoted {
 		firstUpper := strings.ToUpper(tokens[itemStart].text)
-		if firstUpper == "DISTINCT" || firstUpper == "ALL" || firstUpper == "VALUE" {
-			itemStart++
+		if firstUpper == "VALUE" {
+			// SELECT VALUE expr returns scalar/element values rather than named tuple attributes.
+			return nil
 		}
+		if firstUpper == "DISTINCT" || firstUpper == "ALL" {
+			itemStart++
+			continue
+		}
+		break
 	}
 	nestDepth = 0
 	for i := itemStart; i <= listEnd; i++ {

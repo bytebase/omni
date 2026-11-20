@@ -1329,7 +1329,7 @@ func (r *resolver) collectCompletionCTEs(ctx *parser.CompletionContext) {
 			}
 			inRecursiveMember = true
 		}
-		_, cteQuoted, _ := r.refQuotedFlags(ref)
+		_, cteQuoted, _, _ := r.refQuotedFlags(ref)
 		virtual := convertCompletionVirtualReference(ref, cteQuoted)
 		if virtual == nil {
 			continue
@@ -1398,7 +1398,7 @@ func (r *resolver) collectCompletionScopeReferences(ctx *parser.CompletionContex
 }
 
 func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) tableRef {
-	if ref.Unsupported {
+	if ref.Unsupported || r.hasDatabaseLink(ref) {
 		table := ref.Alias
 		if table == "" {
 			table = ref.Name
@@ -1406,28 +1406,47 @@ func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) ta
 		if table == "" {
 			return nil
 		}
-		_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
+		_, refNameQuoted, refAliasQuoted, hasExplicitAlias := r.refQuotedFlags(ref)
 		quoted := refNameQuoted
-		if ref.Alias != "" {
+		if hasExplicitAlias {
 			quoted = refAliasQuoted
 		}
 		return &virtualTableRef{Table: table, Quoted: quoted}
 	}
 	switch ref.Kind {
 	case parser.RangeReferenceRelation, parser.RangeReferenceDMLTarget, parser.RangeReferenceMergeSource:
-		schemaQuoted, tableQuoted, aliasQuoted := r.refQuotedFlags(ref)
+		if r.hasDatabaseLink(ref) {
+			table := ref.Alias
+			if table == "" {
+				table = ref.Name
+			}
+			if table == "" {
+				return nil
+			}
+			_, refNameQuoted, refAliasQuoted, hasExplicitAlias := r.refQuotedFlags(ref)
+			quoted := refNameQuoted
+			if hasExplicitAlias {
+				quoted = refAliasQuoted
+			}
+			return &virtualTableRef{Table: table, Quoted: quoted}
+		}
+		schemaQuoted, tableQuoted, aliasQuoted, hasExplicitAlias := r.refQuotedFlags(ref)
+		alias := ""
+		if hasExplicitAlias {
+			alias = ref.Alias
+		}
 		return &physicalTableRef{
 			Schema:       ref.Schema,
 			SchemaQuoted: schemaQuoted,
 			Table:        ref.Name,
 			TableQuoted:  tableQuoted,
-			Alias:        ref.Alias,
+			Alias:        alias,
 			AliasQuoted:  aliasQuoted,
 		}
 	case parser.RangeReferenceCTE, parser.RangeReferenceSubquery, parser.RangeReferenceJoinAlias:
-		_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
+		_, refNameQuoted, refAliasQuoted, hasExplicitAlias := r.refQuotedFlags(ref)
 		quoted := refNameQuoted
-		if ref.Alias != "" {
+		if hasExplicitAlias {
 			quoted = refAliasQuoted
 		}
 		virtual := convertCompletionVirtualReference(ref, quoted)
@@ -1442,9 +1461,27 @@ func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) ta
 	}
 }
 
-func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tableQuoted, aliasQuoted bool) {
+func (r *resolver) hasDatabaseLink(ref parser.RangeReference) bool {
+	if ref.Loc.Start < 0 {
+		return false
+	}
+	for _, tok := range r.tokens {
+		if tok.Loc < ref.Loc.Start {
+			continue
+		}
+		if ref.Loc.End >= 0 && tok.Loc > ref.Loc.End {
+			break
+		}
+		if tok.Type == '@' {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tableQuoted, aliasQuoted, hasExplicitAlias bool) {
 	if ref.Loc.Start < 0 || ref.Loc.End <= ref.Loc.Start || ref.Loc.End > len(r.sql) {
-		return false, false, false
+		return false, false, false, false
 	}
 	var toks []parser.Token
 	for _, tok := range r.tokens {
@@ -1460,10 +1497,11 @@ func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tabl
 		for k := len(toks) - 1; k >= 0; k-- {
 			if toks[k].Loc > ref.BodyLoc.End && toks[k].Str != "" && strings.EqualFold(toks[k].Str, ref.Alias) {
 				aliasQuoted = r.isQuotedToken(toks[k])
+				hasExplicitAlias = true
 				break
 			}
 		}
-		return false, aliasQuoted, aliasQuoted
+		return false, aliasQuoted, aliasQuoted, hasExplicitAlias
 	}
 	tableIdx := -1
 	if ref.Schema != "" {
@@ -1491,11 +1529,12 @@ func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tabl
 			}
 			if toks[k].Str != "" && strings.EqualFold(toks[k].Str, ref.Alias) {
 				aliasQuoted = r.isQuotedToken(toks[k])
+				hasExplicitAlias = true
 				break
 			}
 		}
 	}
-	return schemaQuoted, tableQuoted, aliasQuoted
+	return schemaQuoted, tableQuoted, aliasQuoted, hasExplicitAlias
 }
 
 func (r *resolver) isQuotedToken(tok parser.Token) bool {
@@ -1506,11 +1545,11 @@ func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string, ali
 	for _, level := range r.scopeLevels {
 		matched := false
 		for _, ref := range level.scopeRefs {
-			if ref.Unsupported && len(ref.Columns) == 0 {
+			if (ref.Unsupported && len(ref.Columns) == 0) || r.hasDatabaseLink(ref) {
 				continue
 			}
-			_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
-			if ref.Alias != "" {
+			_, refNameQuoted, refAliasQuoted, hasExplicitAlias := r.refQuotedFlags(ref)
+			if hasExplicitAlias {
 				if !nameMatches(ref.Alias, alias, refAliasQuoted || aliasQuoted) {
 					continue
 				}
@@ -1543,7 +1582,7 @@ func (r *resolver) insertLocalVariableCandidates(dst *[]Candidate) {
 		vars   []string
 	}
 	type blockMarker struct {
-		isBegin  bool
+		kind     string
 		hasScope bool
 	}
 	var scopes []varScope
@@ -1604,17 +1643,31 @@ func (r *resolver) insertLocalVariableCandidates(dst *[]Candidate) {
 				scopes[len(scopes)-1].inDecl = false
 				hasDeclScope = true
 			}
-			blocks = append(blocks, blockMarker{isBegin: true, hasScope: hasDeclScope})
+			blocks = append(blocks, blockMarker{kind: "BEGIN", hasScope: hasDeclScope})
+		case "CASE":
+			if len(scopes) > 0 && !scopes[len(scopes)-1].inDecl {
+				blocks = append(blocks, blockMarker{kind: "CASE"})
+			}
 		case "END":
 			nextKw := ""
 			if i+1 < len(toks) {
 				nextKw = strings.ToUpper(parser.TokenName(toks[i+1].Type))
 			}
-			if nextKw != "IF" && nextKw != "LOOP" && nextKw != "CASE" && len(blocks) > 0 {
-				top := blocks[len(blocks)-1]
-				blocks = blocks[:len(blocks)-1]
-				if top.isBegin && top.hasScope && len(scopes) > 0 {
-					scopes = scopes[:len(scopes)-1]
+			switch nextKw {
+			case "IF", "LOOP":
+				i++
+			case "CASE":
+				if len(blocks) > 0 && blocks[len(blocks)-1].kind == "CASE" {
+					blocks = blocks[:len(blocks)-1]
+				}
+				i++
+			default:
+				if len(blocks) > 0 {
+					top := blocks[len(blocks)-1]
+					blocks = blocks[:len(blocks)-1]
+					if top.kind == "BEGIN" && top.hasScope && len(scopes) > 0 {
+						scopes = scopes[:len(scopes)-1]
+					}
 				}
 			}
 		default:
