@@ -4880,6 +4880,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "SET sql_mode = CASE 'ansi' WHEN 'ANSI' THEN 'TRADITIONAL' ELSE '' END",
 			code:    0,
 		},
+		{
+			name:    "SET mixed numeric string comparison coerces nonnumeric string to 0",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(0 = 'abc', 'ANSI', '')",
+			code:    0,
+		},
+		{
+			name:    "SET one-arg TRIM preserves non-space ASCII tab X'09'",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(TRIM(X'09') = X'', 'ANSI', '')",
+			code:    0,
+		},
+		{
+			name:    "SET CHAR_LENGTH counts bytes for binary hex literal X'C3A9'",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(CHAR_LENGTH(X'C3A9') = 2, 'ANSI', '')",
+			code:    0,
+		},
+		{
+			name:    "SET IF rejects missing qualified function in unselected false branch with 1305",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(1, 'ANSI', sim_oracle_missing.no_such())",
+			code:    1305,
+		},
 	}
 
 	for _, tc := range cases {
@@ -6024,5 +6048,43 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, collCat, "SET collation_connection = utf8mb4_bin; SET sql_mode = CASE 'ansi' WHEN 'ANSI' THEN 'TRADITIONAL' ELSE '' END;")
 	if collCat.session.SQLMode != "" {
 		t.Fatalf("CASE under utf8mb4_bin got sql_mode=%q, want empty", collCat.session.SQLMode)
+	}
+
+	// SET mixed numeric-string comparison, ASCII-space TRIM, bytewise CHAR_LENGTH
+	// on binary literals, and unselected-branch function/arity validation.
+	setEdge := New()
+	execAlterClauses(t, setEdge, "CREATE DATABASE d; USE d; SET sql_mode = IF(0 = 'abc', 'ANSI', '');")
+	if !strings.Contains(setEdge.session.SQLMode, "ANSI") {
+		t.Fatalf("IF(0 = 'abc', 'ANSI', '') got %q, want ANSI", setEdge.session.SQLMode)
+	}
+	execAlterClauses(t, setEdge, "SET sql_mode = IF(TRIM(X'09') = X'', 'ANSI', '');")
+	if setEdge.session.SQLMode != "" {
+		t.Fatalf("TRIM(X'09') should preserve tab, got sql_mode=%q", setEdge.session.SQLMode)
+	}
+	execAlterClauses(t, setEdge, "SET sql_mode = IF(CHAR_LENGTH(X'C3A9') = 2, 'ANSI', '');")
+	if !strings.Contains(setEdge.session.SQLMode, "ANSI") {
+		t.Fatalf("CHAR_LENGTH(X'C3A9') should be 2, got sql_mode=%q", setEdge.session.SQLMode)
+	}
+	if got, _ := simulationCatalogRefusal(t, setEdge, "SET sql_mode = IF(1, 'TRADITIONAL', d.no_such())"); got != 1305 {
+		t.Fatalf("IF unselected missing func got %d, want 1305", got)
+	}
+	if !strings.Contains(setEdge.session.SQLMode, "ANSI") {
+		t.Fatalf("failed IF mutated sql_mode to %q", setEdge.session.SQLMode)
+	}
+	if got, _ := simulationCatalogRefusal(t, setEdge, "SET sql_mode = IF(1, 'TRADITIONAL', CONCAT())"); got != 1582 {
+		t.Fatalf("IF unselected bad arity got %d, want 1582", got)
+	}
+
+	// Implicit compressed block size derives half of innodb_page_size (4K/8K/16K).
+	for _, tc := range []struct {
+		pageSize uint64
+		sql      string
+	}{
+		{4096, "CREATE DATABASE d; USE d; CREATE TABLESPACE ts_c ADD DATAFILE 'ts_c.ibd' FILE_BLOCK_SIZE=2K ENGINE=InnoDB; CREATE TABLE t_c (id INT PRIMARY KEY) TABLESPACE ts_c ROW_FORMAT=COMPRESSED;"},
+		{8192, "CREATE DATABASE d; USE d; CREATE TABLESPACE ts_c ADD DATAFILE 'ts_c.ibd' FILE_BLOCK_SIZE=4K ENGINE=InnoDB; CREATE TABLE t_c (id INT PRIMARY KEY) TABLESPACE ts_c ROW_FORMAT=COMPRESSED;"},
+	} {
+		compCat := New()
+		compCat.SetInnoDBPageSize(tc.pageSize)
+		execAlterClauses(t, compCat, tc.sql)
 	}
 }

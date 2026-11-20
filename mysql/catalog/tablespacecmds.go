@@ -344,7 +344,7 @@ func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlock
 	if keyBlockSize > 0 {
 		tblPageSize = uint64(keyBlockSize) * 1024
 	} else if rfCompressed {
-		tblPageSize = 8192
+		tblPageSize = pageSize / 2
 	}
 	if tblPageSize != tsBlockSize {
 		return &Error{Code: 1478, SQLState: "HY000",
