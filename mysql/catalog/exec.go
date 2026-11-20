@@ -1346,7 +1346,6 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{}, false, errWrongParamCount("REPLACE")
 			}
 			args := make([]userVarValue, 3)
-			isBin := false
 			for i := 0; i < 3; i++ {
 				v, ok, err := c.evalSetExprNode(e.Args[i])
 				if err != nil || !ok {
@@ -1355,11 +1354,11 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				if v.kind == userVarNull {
 					return userVarValue{kind: userVarNull}, true, nil
 				}
-				if v.binary {
-					isBin = true
-				}
 				args[i] = v
 			}
+			// REPLACE takes its character set from the first argument only:
+			// REPLACE('ansi', X'78', '') = 'ANSI' compares case-insensitively.
+			isBin := args[0].binary
 			if args[1].str == "" {
 				return userVarValue{kind: userVarString, str: args[0].str, binary: isBin}, true, nil
 			}

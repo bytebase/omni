@@ -503,12 +503,14 @@ func (c *Catalog) validateTablespaceCreateEngine(engine, op string) error {
 	return nil
 }
 
+// isGeneralTablespaceName reports a general tablespace or a built-in one, by
+// its exact name: tablespace names are case-sensitive, so mysql:8.0.46 answers
+// 3510 for DROP UNDO TABLESPACE MYSQL and INNODB_SYSTEM.
 func (c *Catalog) isGeneralTablespaceName(name string) bool {
 	if c.tablespaces[name] {
 		return true
 	}
-	lower := strings.ToLower(name)
-	return lower == "innodb_system" || lower == "innodb_temporary" || lower == "mysql"
+	return name == "innodb_system" || name == "innodb_temporary" || name == "mysql"
 }
 
 func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
@@ -748,9 +750,8 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		if c.isGeneralTablespaceName(stmt.Name) {
 			return errWrongTablespaceKind("DROP UNDO TABLESPACE", stmt.Name, "a general", "DROP TABLESPACE")
 		}
-		if strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
-			return errReservedInnoDBTablespacePrefix()
-		}
+		// An innodb_ prefix is reserved only for CREATE: DROP UNDO TABLESPACE
+		// innodb_x names no tablespace, 3510.
 		active, exists := c.undoTablespaces[stmt.Name]
 		if !exists {
 			return errTablespaceDoesNotExist(stmt.Name)

@@ -123,9 +123,11 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		sort.Strings(names)
 		for _, tblName := range names {
 			tbl := db.Tables[tblName]
-			if tbl == nil || tbl.Temporary {
+			if tbl == nil {
 				continue
 			}
+			// A temporary table needs its AUTO_INCREMENT key too: mysql:8.0.46
+			// answers 1075 for CREATE TEMPORARY TABLE t (a INT AUTO_INCREMENT).
 			if err := validateAutoIncrementKeyed(tbl); err != nil {
 				return c, err
 			}

@@ -356,6 +356,17 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		if col := tbl.GetColumn(e.Column); col != nil {
 			return resolvedTypeFromColumn(col)
 		}
+	case *nodes.HexLit, *nodes.BitLit:
+		// A hex or bit literal is a binary string of its bytes.
+		val, isHex := "", false
+		if h, ok := e.(*nodes.HexLit); ok {
+			val, isHex = cleanHexDigits(h.Value), true
+		} else {
+			val = cleanBitDigits(e.(*nodes.BitLit).Value)
+		}
+		if b, ok := decodeLiteralRawBytes(val, isHex); ok {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(b), 1)}
+		}
 	case *nodes.BinaryExpr:
 		switch e.Op {
 		case nodes.BinOpAdd, nodes.BinOpSub, nodes.BinOpMul, nodes.BinOpDivInt, nodes.BinOpMod:

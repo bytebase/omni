@@ -4938,6 +4938,23 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE z (x DOUBLE DEFAULT (ATAN2(1)))",
 			code: 0,
 		},
+		// A hex or bit literal in a functional CONCAT is a binary string of its bytes.
+		{name: "functional CONCAT with a hex literal", stmt: "CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, X'00'))))", code: 0},
+		{name: "functional CONCAT with a bit literal", stmt: "CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, b'0000000100000001'))))", code: 0},
+		{name: "functional CONCAT of a character column and a hex literal", stmt: "CREATE TABLE z (v VARCHAR(10), KEY ((CONCAT(v, X'4142'))))", code: 0},
+		{name: "functional CONCAT with a long binary REPEAT", stmt: "CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, REPEAT(X'00', 600)))))", code: 3757},
+		// Built-in tablespace names are case-sensitive, and an innodb_ prefix
+		// is reserved only for CREATE.
+		{name: "ALTER UNDO TABLESPACE MYSQL", stmt: "ALTER UNDO TABLESPACE MYSQL SET INACTIVE", code: 3510},
+		{name: "DROP UNDO TABLESPACE MYSQL", stmt: "DROP UNDO TABLESPACE MYSQL", code: 3510},
+		{name: "DROP UNDO TABLESPACE INNODB_SYSTEM", stmt: "DROP UNDO TABLESPACE INNODB_SYSTEM", code: 3510},
+		{name: "ALTER UNDO TABLESPACE mysql", stmt: "ALTER UNDO TABLESPACE mysql SET INACTIVE", code: 3119},
+		{name: "DROP UNDO TABLESPACE mysql", stmt: "DROP UNDO TABLESPACE mysql", code: 3119},
+		{name: "DROP UNDO TABLESPACE innodb_system", stmt: "DROP UNDO TABLESPACE innodb_system", code: 3119},
+		{name: "DROP UNDO TABLESPACE innodb_temporary", stmt: "DROP UNDO TABLESPACE innodb_temporary", code: 3119},
+		{name: "DROP UNDO TABLESPACE with an innodb_ prefix", stmt: "DROP UNDO TABLESPACE innodb_x", code: 3510},
+		{name: "ALTER UNDO TABLESPACE with an innodb_ prefix", stmt: "ALTER UNDO TABLESPACE INNODB_X SET INACTIVE", code: 3510},
+		{name: "temporary table with an unkeyed AUTO_INCREMENT column", stmt: "CREATE TEMPORARY TABLE z (a INT AUTO_INCREMENT)", code: 1075},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6023,6 +6040,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("%s: catalog %q, mysql %q", stmt, got, srv)
 		}
 	}
+	// REPLACE takes its character set from its first argument only, so a
+	// binary search or replacement string leaves the comparison case-insensitive.
+	for _, tc := range []struct{ stmt, want string }{
+		{"SET SESSION sql_mode = IF(REPLACE('ansi', X'78', '') = 'ANSI', 'ANSI', '')", "ANSI"},
+		{"SET SESSION sql_mode = IF(REPLACE('ansi', 'x', X'78') = 'ANSI', 'ANSI', '')", "ANSI"},
+		{"SET SESSION sql_mode = IF(REPLACE(X'616E7369', 'x', '') = 'ANSI', 'ANSI', '')", ""},
+	} {
+		for _, stmt := range []string{"SET SESSION sql_mode = ''", tc.stmt} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("mysql %s: %v", stmt, err)
+			}
+		}
+		var srvMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET SESSION sql_mode = ''; "+tc.stmt+"; SET @m = @@sql_mode;")
+		got := castCat.userVars["m"].str
+		if got != srvMode || strings.Contains(srvMode, "ANSI") != (tc.want == "ANSI") {
+			t.Fatalf("%s: catalog %q, mysql %q, want ANSI=%v", tc.stmt, got, srvMode, tc.want == "ANSI")
+		}
+	}
 	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = CAST(3.6 AS SIGNED)"); err != nil {
 		t.Fatalf("mysql SET sql_mode = CAST(3.6 AS SIGNED): %v", err)
 	}
@@ -6875,6 +6914,20 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		if got, _ := simulationCatalogRefusal(t, mysqlTSCat, stmt); got != 3184 {
 			t.Fatalf("%s got %d, want 3184", stmt, got)
 		}
+	}
+
+	// LoadSDL holds a temporary table to the AUTO_INCREMENT key rule, as
+	// CREATE TEMPORARY TABLE does on mysql:8.0.46 (1075).
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TEMPORARY TABLE t (a INT AUTO_INCREMENT);"); err == nil {
+		t.Fatal("LoadSDL took a temporary table with an unkeyed AUTO_INCREMENT column, want 1075")
+	} else {
+		var ce *Error
+		if !errors.As(err, &ce) || ce.Code != 1075 {
+			t.Fatalf("LoadSDL temporary unkeyed AUTO_INCREMENT: %v, want 1075", err)
+		}
+	}
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TEMPORARY TABLE t (a INT AUTO_INCREMENT); CREATE INDEX i ON t (a);"); err != nil {
+		t.Fatalf("LoadSDL temporary AUTO_INCREMENT keyed by a later index: %v", err)
 	}
 
 	selfFKCat := New()
