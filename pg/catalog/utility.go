@@ -290,7 +290,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CHECKPOINT: no-op for pgddl
 		return nil
 	case *nodes.DiscardStmt:
-		if s.Target == nodes.DISCARD_ALL || s.Target == nodes.DISCARD_PLANS {
+		if s.Target == nodes.DISCARD_ALL {
 			clear(c.preparedStmts)
 		}
 		return nil

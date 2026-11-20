@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -3385,6 +3386,84 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if tExec.ReplicaIdentity == 'f' {
 			t.Fatal("failed ALTER TABLE left ReplicaIdentity='f' mutated")
+		}
+
+		// Review round 1 regressions:
+		// 1. EXCLUDE ... INCLUDE (...) migration rendering and round-trip.
+		// 2. DISCARD PLANS retains prepared statements; DISCARD ALL drops them.
+		// 3. Top-level whole-row Var deparses with ::typename cast so reparsing
+		//    preserves the single composite column.
+		// 4. Failed multi-action ALTER TABLE restores both ReplicaIdentity and
+		//    index IsReplicaIdent flags.
+		// 5. WITH CHECK OPTION over a non-updatable view checks only the outer
+		//    query locally at definition time.
+		c103Base := New()
+		c103To := New()
+		if code := simulationCatalogCode(t, c103Base, "CREATE TABLE ex_inc (a int4range, b text)"); code != "0" {
+			t.Fatalf("c103Base setup: %s", code)
+		}
+		if code := simulationCatalogCode(t, c103To, "CREATE TABLE ex_inc (a int4range, b text, CONSTRAINT ex_inc_c EXCLUDE USING gist (a WITH &&) INCLUDE (b))"); code != "0" {
+			t.Fatalf("c103To setup: %s", code)
+		}
+		migPlan := GenerateMigration(c103Base, c103To, Diff(c103Base, c103To))
+		if !strings.Contains(migPlan.SQL(), "INCLUDE (b)") {
+			t.Fatalf("expected EXCLUDE migration to emit INCLUDE (b), got:\n%s", migPlan.SQL())
+		}
+		if code := simulationCatalogCode(t, c103Base, migPlan.SQL()); code != "0" {
+			t.Fatalf("applying EXCLUDE INCLUDE migration failed with %s:\n%s", code, migPlan.SQL())
+		}
+		if rem := GenerateMigration(c103Base, c103To, Diff(c103Base, c103To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after applying EXCLUDE INCLUDE, got:\n%s", rem.SQL())
+		}
+
+		c103 := New()
+		for _, stmt := range []string{
+			"PREPARE p_keep AS SELECT 42 AS v",
+			"DISCARD PLANS",
+			"CREATE TABLE t_after_discard_plans AS EXECUTE p_keep",
+			"DISCARD ALL",
+		} {
+			if code := simulationCatalogCode(t, c103, stmt); code != "0" {
+				t.Fatalf("DISCARD PLANS / ALL %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c103, "CREATE TABLE t_after_discard_all AS EXECUTE p_keep"); code != CodeInvalidSQLStatementName {
+			t.Fatalf("CTAS EXECUTE after DISCARD ALL answered %s, want %s", code, CodeInvalidSQLStatementName)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TABLE wr_t (a int NOT NULL, b text)",
+			"CREATE UNIQUE INDEX wr_t_idx ON wr_t (a)",
+			"ALTER TABLE wr_t REPLICA IDENTITY USING INDEX wr_t_idx",
+			"CREATE VIEW wr_v AS SELECT wr_t, (wr_t IS NOT NULL) AS j FROM wr_t",
+			"CREATE VIEW v_agg AS SELECT count(*) AS c FROM wr_t",
+			"CREATE VIEW v_outer_casc AS SELECT c FROM v_agg WITH CHECK OPTION",
+			"CREATE VIEW v_outer_loc AS SELECT c FROM v_agg WITH LOCAL CHECK OPTION",
+		} {
+			if code := simulationCatalogCode(t, c103, stmt); code != "0" {
+				t.Fatalf("c103 view/replica setup %s: %s", stmt, code)
+			}
+		}
+		wrDef, err := c103.GetViewDefinition("", "wr_v")
+		if err != nil {
+			t.Fatalf("GetViewDefinition(wr_v): %v", err)
+		}
+		if !strings.Contains(wrDef, "wr_t.*::wr_t AS wr_t") || !strings.Contains(wrDef, "wr_t.* IS NOT NULL") {
+			t.Fatalf("unexpected whole-row view definition:\n%s", wrDef)
+		}
+		if code := simulationCatalogCode(t, c103, "CREATE VIEW wr_v_reparse AS "+wrDef); code != "0" {
+			t.Fatalf("reparsing whole-row viewdef failed with %s:\n%s", code, wrDef)
+		}
+		if reparsed := c103.schemaByName["public"].Relations["wr_v_reparse"]; reparsed == nil || len(reparsed.Columns) != 2 {
+			t.Fatalf("reparsed whole-row view should keep 2 columns, got %+v", reparsed)
+		}
+		if code := simulationCatalogCode(t, c103, "ALTER TABLE wr_t REPLICA IDENTITY FULL, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE REPLICA IDENTITY + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		wrRel := c103.schemaByName["public"].Relations["wr_t"]
+		wrIdx := c103.schemaByName["public"].Indexes["wr_t_idx"]
+		if wrRel.ReplicaIdentity != 'i' || !wrIdx.IsReplicaIdent {
+			t.Fatalf("failed ALTER TABLE did not restore index replica identity: rel=%q idx=%v", wrRel.ReplicaIdentity, wrIdx.IsReplicaIdent)
 		}
 	})
 

@@ -424,13 +424,7 @@ func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
 		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
 	}
 	switch baseRel.RelKind {
-	case 'r', 'p', 'f':
-	case 'v':
-		if baseRel.AnalyzedQuery != nil {
-			if err := c.checkViewAutoUpdatable(baseRel.AnalyzedQuery); err != nil {
-				return err
-			}
-		}
+	case 'r', 'p', 'f', 'v':
 	default:
 		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
 	}

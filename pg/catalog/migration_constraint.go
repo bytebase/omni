@@ -203,6 +203,10 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		}
 		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s EXCLUDE USING %s (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), method, strings.Join(parts, ", "))
+		if len(con.IncludeColumns) > 0 {
+			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
+			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
+		}
 		if con.Deferrable {
 			clause += " DEFERRABLE"
 			if con.Deferred {

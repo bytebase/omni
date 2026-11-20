@@ -375,7 +375,7 @@ func (d *deparseCtx) getTargetList(tlist []*TargetEntry) {
 		// pg: get_target_list — Var uses get_variable directly
 		var attname string
 		if v, ok := te.Expr.(*VarExpr); ok {
-			attname = tmpCtx.getVariableReturningName(v)
+			attname = tmpCtx.getVariableTarget(v, true)
 		} else {
 			tmpCtx.getRuleExpr(te.Expr, true)
 			if d.colNamesVisible {
@@ -820,6 +820,10 @@ func (d *deparseCtx) getVariable(v *VarExpr) {
 // getVariableReturningName deparses a column reference and returns the column name.
 // pg: src/backend/utils/adt/ruleutils.c — get_variable
 func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
+	return d.getVariableTarget(v, false)
+}
+
+func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	// For outer references (LevelsUp > 0), walk up the context chain.
 	// pg: src/backend/utils/adt/ruleutils.c — get_variable uses
 	// deparse_namespace which tracks multiple levels.
@@ -843,6 +847,17 @@ func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
 	if v.AttNum == 0 {
 		d.buf.WriteString(quoteIdentifier(rte.ERef))
 		d.buf.WriteString(".*")
+		if isTopLevel {
+			if v.TypeOID != 0 && v.TypeOID != RECORDOID {
+				d.buf.WriteString("::")
+				if t := d.catalog.typeByOID[v.TypeOID]; t != nil && v.TypeOID >= FirstNormalObjectId && d.catalog.TypeIsVisible(v.TypeOID) {
+					d.buf.WriteString(quoteIdentifier(t.TypeName))
+				} else {
+					d.buf.WriteString(d.catalog.formatType(v.TypeOID, v.TypeMod))
+				}
+			}
+			return ""
+		}
 		return rte.ERef
 	}
 	colIdx := int(v.AttNum - 1)
