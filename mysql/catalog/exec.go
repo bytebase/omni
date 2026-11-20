@@ -981,6 +981,24 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isFloat: v.isFloat}, true, nil
 		}
+		if e.Op == nodes.UnaryBitNot {
+			// ~ complements the operand as an unsigned 64-bit integer, read
+			// as CAST(... AS UNSIGNED) reads it: ~-2 is 1, ~1.6 and ~1.5e0 are
+			// 18446744073709551613, ~'x' is 18446744073709551615.
+			v, ok, err := c.evalSetExprNode(e.Operand)
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			us, ok := setCastInt(v, true)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			u, perr := strconv.ParseUint(us, 10, 64)
+			if perr != nil {
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(^u, 10)}, true, nil
+		}
 		if e.Op == nodes.UnaryNot {
 			// NOT reads its operand as a truth value, a string by its numeric
 			// prefix, and keeps NULL: NOT 0 is 1, NOT 'abc' is 1, NOT '1x' is 0.
@@ -1345,6 +1363,12 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "mod":
+			// MOD(a, b) is the % operator: MOD(5, 4) sets sql_mode 1.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("MOD")
+			}
+			return c.evalSetBinaryExprNode(&nodes.BinaryExpr{Op: nodes.BinOpMod, Left: e.Args[0], Right: e.Args[1]})
 		case "round", "truncate":
 			fn := strings.ToUpper(e.Name)
 			if len(e.Args) < 1 || len(e.Args) > 2 || (fn == "TRUNCATE" && len(e.Args) != 2) {
@@ -1664,6 +1688,10 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			case "concat", "coalesce":
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "mod":
+				if argc != 2 {
+					err = errWrongParamCount("MOD")
 				}
 			case "round":
 				if argc < 1 || argc > 2 {

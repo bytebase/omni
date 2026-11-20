@@ -362,6 +362,30 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		if col := tbl.GetColumn(e.Column); col != nil {
 			return resolvedTypeFromColumn(col)
 		}
+	case *nodes.IntLit, *nodes.BoolLit:
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	case *nodes.FloatLit:
+		// 1.5 is DECIMAL(2,1) and 1e0 a DOUBLE.
+		if strings.ContainsAny(e.Value, "eE") {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
+		digits := strings.TrimLeft(strings.ReplaceAll(strings.TrimLeft(e.Value, "+-"), ".", ""), "0")
+		scale := 0
+		if dot := strings.IndexByte(e.Value, '.'); dot >= 0 {
+			scale = len(e.Value) - dot - 1
+		}
+		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: max(len(digits), scale, 1), Scale: scale}
+	case *nodes.StringLit:
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(utf8.RuneCountInString(e.Value), 1), Charset: e.Charset}
+	case *nodes.TemporalLit:
+		switch strings.ToUpper(e.Type) {
+		case "DATE":
+			return &ResolvedType{BaseType: BaseTypeDate}
+		case "TIME":
+			return &ResolvedType{BaseType: BaseTypeTime}
+		default:
+			return &ResolvedType{BaseType: BaseTypeDateTime}
+		}
 	case *nodes.HexLit, *nodes.BitLit:
 		// A hex or bit literal is a binary string of its bytes.
 		val, isHex := "", false
@@ -434,7 +458,20 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			return dataTypeToResolvedType(e.TypeName)
 		}
 	}
-	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255}
+	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255, widthUnknown: true}
+}
+
+// functionalTypeWidthKnown reports a functional key part type whose width the
+// catalog inferred, rather than a placeholder.
+func functionalTypeWidthKnown(rt *ResolvedType) bool {
+	if rt == nil || rt.widthUnknown {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeBinary, BaseTypeVarBinary:
+		return rt.Length > 0
+	}
+	return true
 }
 
 func extractNonNegIntLit(expr nodes.ExprNode) (int, bool) {
@@ -600,6 +637,38 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 			}
 			return &ResolvedType{BaseType: base, Length: k, Charset: charset}
 		}
+	case "replace":
+		// REPLACE's width, as mysql:8.0.46 measures it, is the subject's
+		// times the replacement's length less one, at least the subject's:
+		// REPLACE(varchar_100, 'x', 'yyy') is varchar(200) and with 'yy' or
+		// 'y' varchar(100), whatever the search string. A binary subject counts
+		// a character replacement at utf8mb4's 4 bytes per character.
+		if len(e.Args) != 3 {
+			return nil
+		}
+		arg0 := inferFunctionalIndexExprType(tbl, e.Args[0])
+		if arg0 == nil || !functionalTypeWidthKnown(arg0) || isFunctionalIndexLOBType(arg0) {
+			return arg0
+		}
+		replLen, ok, _ := inferStringExprLenAndCharset(tbl, e.Args[2])
+		if !ok {
+			if _, isStr := peelFunctionalIndexParens(e.Args[2]).(*nodes.StringLit); !isStr {
+				return nil
+			}
+			replLen = 0
+		}
+		base := BaseTypeVarchar
+		if isResolvedBinaryType(arg0) {
+			base = BaseTypeVarBinary
+			if !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[2])) {
+				replLen *= 4
+			}
+		}
+		n := arg0.Length
+		if replLen > 2 {
+			n = arg0.Length * (replLen - 1)
+		}
+		return &ResolvedType{BaseType: base, Length: n, Charset: arg0.Charset}
 	case "repeat":
 		if len(e.Args) < 2 {
 			return nil

@@ -5022,6 +5022,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "COMPACT functional unary key part: a INT, KEY ((~a))", stmt: "CREATE TABLE z (a INT, KEY ((~a))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional unary key part: a INT, KEY ((+a))", stmt: "CREATE TABLE z (a INT, KEY ((+a))) ROW_FORMAT=COMPACT", code: 3762},
 		{name: "COMPACT functional unary key part: d DECIMAL(10,2), KEY ((-d))", stmt: "CREATE TABLE z (d DECIMAL(10,2), KEY ((-d))) ROW_FORMAT=COMPACT", code: 0},
+		// Literals, REPLACE and functions the catalog cannot size, on a COMPACT
+		// table: a known width meets the 767-byte part limit, an unknown one is
+		// not judged on a placeholder.
+		{name: "COMPACT functional key part width: a INT, KEY ((1))", stmt: "CREATE TABLE z (a INT, KEY ((1))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY ((1.5))", stmt: "CREATE TABLE z (a INT, KEY ((1.5))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY ((1e0))", stmt: "CREATE TABLE z (a INT, KEY ((1e0))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY (('abc'))", stmt: "CREATE TABLE z (a INT, KEY (('abc'))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY ((TRUE))", stmt: "CREATE TABLE z (a INT, KEY ((TRUE))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY ((DATE '2024-01-01'))", stmt: "CREATE TABLE z (a INT, KEY ((DATE '2024-01-01'))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: a INT, KEY ((REPEAT('x', 200)))", stmt: "CREATE TABLE z (a INT, KEY ((REPEAT('x', 200)))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional key part width: s VARCHAR(100), KEY ((REPLACE(s, 'x', 'y')))", stmt: "CREATE TABLE z (s VARCHAR(100), KEY ((REPLACE(s, 'x', 'y')))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: s VARCHAR(100), KEY ((REPLACE(s, 'x', 'yy')))", stmt: "CREATE TABLE z (s VARCHAR(100), KEY ((REPLACE(s, 'x', 'yy')))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: s VARCHAR(100), KEY ((REPLACE(s, 'xx', 'yyy')))", stmt: "CREATE TABLE z (s VARCHAR(100), KEY ((REPLACE(s, 'xx', 'yyy')))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional key part width: s VARCHAR(191), KEY ((REPLACE(s, 'x', '')))", stmt: "CREATE TABLE z (s VARCHAR(191), KEY ((REPLACE(s, 'x', '')))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: s VARCHAR(192), KEY ((REPLACE(s, 'x', '')))", stmt: "CREATE TABLE z (s VARCHAR(192), KEY ((REPLACE(s, 'x', '')))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional key part width: s VARCHAR(100), KEY ((REPLACE(s, '', 'yyyyy')))", stmt: "CREATE TABLE z (s VARCHAR(100), KEY ((REPLACE(s, '', 'yyyyy')))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((SHA1(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((SHA1(s)))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((MD5(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((MD5(s)))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((HEX(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((HEX(s)))) ROW_FORMAT=COMPACT", code: 0},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6106,6 +6125,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"TRUNCATE(3.69, 1)", "TRUNCATE(-3.69, 1)", "TRUNCATE(1234, -2)", "TRUNCATE(1.2, 3)", "TRUNCATE('3.69', 1)", "TRUNCATE(3.69e0, 1)",
 		"FLOOR(-3.5)", "FLOOR(3.5)", "CEIL(3.2)", "CEILING(-3.2)", "FLOOR(2.5e0)", "FLOOR('3.7')", "CEIL('x')", "CEIL(-0.5)",
 		"FLOOR(99999999999999999999.5)", "SIGN(-2.5)", "SIGN(0)", "SIGN('x')", "SIGN('-3')", "SIGN(2e0)",
+		"MOD(5, 4)", "MOD(-5, 4)", "MOD(5.5, 2)", "MOD('7', 4)", "MOD(5e0, 2)",
+		"~-2", "~0", "~'3'", "~1.6", "~1.5e0", "~'x'",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6215,7 +6236,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	for _, expr := range []string{
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
-		"FLOOR(99999999999999999999.5)", "ROUND('4')",
+		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

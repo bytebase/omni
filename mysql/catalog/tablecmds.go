@@ -2498,7 +2498,8 @@ func (c *Catalog) validateIndexTotalKeyWidth(tbl *Table, idxCols []*IndexColumn)
 		// named column does, in strict mode: mysql:8.0.46 answers 1071 (767
 		// bytes) for KEY ((LOWER(varchar_192_utf8mb4))) on a COMPACT table and
 		// takes it with sql_mode ''.
-		if ic.Expr != "" && isInnoDBEngine(tbl.Engine) && c.isStrictSQLMode() {
+		if ic.Expr != "" && isInnoDBEngine(tbl.Engine) && c.isStrictSQLMode() &&
+			functionalTypeWidthKnown(inferFunctionalIndexExprType(tbl, ic.ExprNode)) {
 			if limit := c.maxInnoDBColumnPartBytes(tbl); partBytes > limit {
 				return &Error{Code: 1071, SQLState: "42000",
 					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", limit)}
