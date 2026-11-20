@@ -47,31 +47,45 @@ func parseMySQLByteSize(raw string) (uint64, bool) {
 	return val * mult, true
 }
 
+// minAutoextendSizeBytes returns the minimum non-zero AUTOEXTEND_SIZE step
+// for the catalog's configured innodb_page_size: 4M for 4K/8K/16K, 8M for 32K,
+// and 16M for 64K (4 InnoDB extents).
+func (c *Catalog) minAutoextendSizeBytes() uint64 {
+	if c != nil {
+		if step := c.InnoDBPageSize() * 256; step > minAutoextendSizeBytes {
+			return step
+		}
+	}
+	return minAutoextendSizeBytes
+}
+
 // parseAutoextendSize parses and validates an AUTOEXTEND_SIZE option value as
 // InnoDB enforces it on mysql:8.0.46: 0 disables custom autoextend, and any
-// non-zero value must lie in [4M, 4096M] (4025) and be an exact multiple of 4M (4023).
-func parseAutoextendSize(raw string) (uint64, error) {
+// non-zero value must lie in [minStep, 4096M] (4025) and be an exact multiple
+// of minStep (4023).
+func (c *Catalog) parseAutoextendSize(raw string) (uint64, error) {
 	if strings.TrimSpace(raw) == "" {
 		return 0, nil
 	}
+	minBytes := c.minAutoextendSizeBytes()
 	bytes, ok := parseMySQLByteSize(raw)
 	if !ok {
-		return 0, errAutoextendSizeOutOfRange()
+		return 0, errAutoextendSizeOutOfRange(minBytes)
 	}
 	if bytes == 0 {
 		return 0, nil
 	}
-	if bytes < minAutoextendSizeBytes || bytes > maxAutoextendSizeBytes {
-		return 0, errAutoextendSizeOutOfRange()
+	if bytes < minBytes || bytes > maxAutoextendSizeBytes {
+		return 0, errAutoextendSizeOutOfRange(minBytes)
 	}
-	if bytes%minAutoextendSizeBytes != 0 {
-		return 0, errAutoextendSizeNotMultiple()
+	if bytes%minBytes != 0 {
+		return 0, errAutoextendSizeNotMultiple(minBytes)
 	}
 	return bytes, nil
 }
 
-func validateAutoextendSize(raw string) error {
-	_, err := parseAutoextendSize(raw)
+func (c *Catalog) validateAutoextendSize(raw string) error {
+	_, err := c.parseAutoextendSize(raw)
 	return err
 }
 
@@ -80,7 +94,7 @@ func validateAutoextendSize(raw string) error {
 // (measured on mysql:8.0.46: 0 is accepted everywhere; non-zero answers 4026 on
 // temporary tables, 1478 on innodb_system, and 4024 on general tablespaces
 // ahead of range/alignment checks).
-func parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64, error) {
+func (c *Catalog) parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64, error) {
 	if strings.TrimSpace(raw) == "" {
 		return 0, nil
 	}
@@ -97,7 +111,7 @@ func parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64,
 	if ts != "" && !strings.EqualFold(ts, "innodb_file_per_table") {
 		return 0, errAutoextendSizeGeneralTablespace()
 	}
-	return parseAutoextendSize(raw)
+	return c.parseAutoextendSize(raw)
 }
 
 // SetInnoDBPageSize sets the server's configured innodb_page_size in bytes
@@ -495,7 +509,7 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 		}
 	}
 	if stmt.AutoextendSize != "" {
-		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
+		if err := c.validateAutoextendSize(stmt.AutoextendSize); err != nil {
 			return err
 		}
 	}
@@ -537,7 +551,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 			return err
 		}
 		if stmt.AutoextendSize != "" {
-			if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
+			if err := c.validateAutoextendSize(stmt.AutoextendSize); err != nil {
 				return err
 			}
 		}
@@ -572,7 +586,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
 	}
 	if stmt.AutoextendSize != "" {
-		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
+		if err := c.validateAutoextendSize(stmt.AutoextendSize); err != nil {
 			return err
 		}
 	}

@@ -173,12 +173,20 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				return errWrongValueForVar("character_set_client", charset)
 			}
 			dbCS := c.defaultCharset
+			dbColl := ""
 			if c.currentDB != "" {
-				if db := c.GetDatabase(c.currentDB); db != nil && db.Charset != "" {
-					dbCS = normalizeCharsetName(db.Charset)
+				if db := c.GetDatabase(c.currentDB); db != nil {
+					if db.Collation != "" {
+						dbColl = canonicalMySQLCollationName(db.Collation)
+					}
+					if db.Charset != "" {
+						dbCS = normalizeCharsetName(db.Charset)
+					}
 				}
 			}
-			dbColl := defaultCollationForCharset[toLower(dbCS)]
+			if dbColl == "" {
+				dbColl = defaultCollationForCharset[toLower(dbCS)]
+			}
 			if dbColl == "" {
 				dbColl = defaultCollationForCharset[toLower(c.defaultCharset)]
 			}

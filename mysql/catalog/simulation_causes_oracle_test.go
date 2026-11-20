@@ -4286,6 +4286,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "SET time_zone = 'Invalid/Zone'",
 			code: 1298,
 		},
+		{
+			name:    "CREATE TEMPORARY TABLE LIKE general tablespace source rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_tmp_like ADD DATAFILE 'ts_tmp_like.ibd'", "CREATE TABLE s (a INT) TABLESPACE ts_tmp_like"},
+			cleanup: []string{"DROP TABLE IF EXISTS s", "DROP TABLESPACE ts_tmp_like"},
+			stmt:    "CREATE TEMPORARY TABLE a LIKE s",
+			code:    1478,
+		},
+		{
+			name:    "CREATE TEMPORARY TABLE LIKE innodb_system source rejected with 1478",
+			setup:   []string{"CREATE TABLE s (a INT) TABLESPACE innodb_system"},
+			cleanup: []string{"DROP TABLE IF EXISTS s"},
+			stmt:    "CREATE TEMPORARY TABLE a LIKE s",
+			code:    1478,
+		},
+		{
+			name:    "CREATE TEMPORARY TABLE LIKE innodb_file_per_table source rejected with 1478",
+			setup:   []string{"CREATE TABLE s (a INT) TABLESPACE innodb_file_per_table"},
+			cleanup: []string{"DROP TABLE IF EXISTS s"},
+			stmt:    "CREATE TEMPORARY TABLE a LIKE s",
+			code:    1478,
+		},
+		{
+			name:    "CREATE TEMPORARY TABLE LIKE MyISAM source with TABLESPACE clause accepted",
+			setup:   []string{"CREATE TABLESPACE ts_myisam_like ADD DATAFILE 'ts_myisam_like.ibd'", "CREATE TABLE s (a INT) ENGINE=MyISAM TABLESPACE ts_myisam_like"},
+			cleanup: []string{"DROP TEMPORARY TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP TABLESPACE ts_myisam_like"},
+			stmt:    "CREATE TEMPORARY TABLE a LIKE s",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4528,6 +4556,40 @@ func TestSimulationCausesOracle(t *testing.T) {
 	decCatCreate := encOracleCat.ShowCreateTable("d", "a")
 	if strings.Contains(decEngineCreate, "ENCRYPTION=") || strings.Contains(decCatCreate, "ENCRYPTION=") {
 		t.Fatalf("decrypted resident SHOW CREATE TABLE still had ENCRYPTION:\nmysql:\n%s\ncatalog:\n%s", decEngineCreate, decCatCreate)
+	}
+
+	// SET CHARACTER SET preserves the current database's non-default collation
+	// as @@collation_connection on both live MySQL 8.0.46 and Catalog.
+	reset()
+	var origDB string
+	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&origDB); err != nil {
+		t.Fatalf("mysql SELECT DATABASE(): %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "USE `"+origDB+"`")
+		_, _ = conn.ExecContext(ctx, "DROP DATABASE IF EXISTS db_cs_bin")
+		_, _ = conn.ExecContext(ctx, "SET NAMES utf8mb4")
+	})
+	for _, stmt := range []string{
+		"CREATE DATABASE db_cs_bin CHARACTER SET latin1 COLLATE latin1_bin",
+		"USE db_cs_bin",
+		"SET CHARACTER SET utf8mb4",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var srvCSClient, srvCollConn string
+	if err := conn.QueryRowContext(ctx, "SELECT @@character_set_client, @@collation_connection").Scan(&srvCSClient, &srvCollConn); err != nil {
+		t.Fatalf("mysql SELECT charset/collation: %v", err)
+	}
+	csOracleCat := New()
+	execAlterClauses(t, csOracleCat, "CREATE DATABASE db_cs_bin CHARACTER SET latin1 COLLATE latin1_bin; USE db_cs_bin; SET CHARACTER SET utf8mb4; SET @cc = @@collation_connection;")
+	if srvCSClient != "utf8mb4" || srvCollConn != "latin1_bin" {
+		t.Fatalf("mysql SET CHARACTER SET got client=%q coll=%q, want utf8mb4/latin1_bin", srvCSClient, srvCollConn)
+	}
+	if csOracleCat.effectiveClientCharset() != "utf8mb4" || csOracleCat.effectiveSessionCollationConn() != "latin1_bin" || csOracleCat.userVars["cc"].str != "latin1_bin" {
+		t.Fatalf("catalog SET CHARACTER SET lost db.Collation: client=%q coll=%q var=%q", csOracleCat.effectiveClientCharset(), csOracleCat.effectiveSessionCollationConn(), csOracleCat.userVars["cc"].str)
 	}
 }
 
@@ -5027,4 +5089,36 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	if gotShow := unloadedTZ.ShowCreateTable("d", "t_tz"); !strings.Contains(gotShow, "DEFAULT '2026-06-01 08:00:00'") {
 		t.Fatalf("configured SetNamedTimeZones normalization mismatch:\n%s", gotShow)
 	}
+
+	// Configured 32 KiB and 64 KiB innodb_page_size scale AUTOEXTEND_SIZE minimum
+	// and alignment step to 8M and 16M respectively (matching live mysql:8.0.46).
+	ae32k := New()
+	ae32k.SetInnoDBPageSize(32768)
+	execAlterClauses(t, ae32k, "CREATE DATABASE d; USE d;")
+	if got, _ := simulationCatalogRefusal(t, ae32k, "CREATE TABLESPACE ts32_4 ADD DATAFILE 'ts32_4.ibd' AUTOEXTEND_SIZE=4M"); got != 4025 {
+		t.Fatalf("32K tablespace AUTOEXTEND_SIZE=4M got %d, want 4025", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, ae32k, "CREATE TABLE t32_4 (id INT) AUTOEXTEND_SIZE=4M"); got != 4025 {
+		t.Fatalf("32K table AUTOEXTEND_SIZE=4M got %d, want 4025", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, ae32k, "CREATE TABLESPACE ts32_12 ADD DATAFILE 'ts32_12.ibd' AUTOEXTEND_SIZE=12M"); got != 4023 {
+		t.Fatalf("32K tablespace AUTOEXTEND_SIZE=12M got %d, want 4023", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, ae32k, "CREATE TABLE t32_12 (id INT) AUTOEXTEND_SIZE=12M"); got != 4023 {
+		t.Fatalf("32K table AUTOEXTEND_SIZE=12M got %d, want 4023", got)
+	}
+	execAlterClauses(t, ae32k, "CREATE TABLESPACE ts32_8 ADD DATAFILE 'ts32_8.ibd' AUTOEXTEND_SIZE=8M; CREATE TABLE t32_8 (id INT) AUTOEXTEND_SIZE=8M; ALTER TABLE t32_8 AUTOEXTEND_SIZE=16M;")
+
+	ae64k := New()
+	ae64k.SetInnoDBPageSize(65536)
+	execAlterClauses(t, ae64k, "CREATE DATABASE d; USE d;")
+	for _, bad := range []string{"4M", "8M", "12M"} {
+		if got, _ := simulationCatalogRefusal(t, ae64k, "CREATE TABLESPACE ts64_bad ADD DATAFILE 'ts64_bad.ibd' AUTOEXTEND_SIZE="+bad); got != 4025 {
+			t.Fatalf("64K tablespace AUTOEXTEND_SIZE=%s got %d, want 4025", bad, got)
+		}
+		if got, _ := simulationCatalogRefusal(t, ae64k, "CREATE TABLE t64_bad (id INT) AUTOEXTEND_SIZE="+bad); got != 4025 {
+			t.Fatalf("64K table AUTOEXTEND_SIZE=%s got %d, want 4025", bad, got)
+		}
+	}
+	execAlterClauses(t, ae64k, "CREATE TABLESPACE ts64_16 ADD DATAFILE 'ts64_16.ibd' AUTOEXTEND_SIZE=16M; CREATE TABLE t64_16 (id INT) AUTOEXTEND_SIZE=16M;")
 }

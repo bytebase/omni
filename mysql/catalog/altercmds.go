@@ -93,7 +93,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// option is what the statement fails on.
 	origEngine := tbl.Engine
 	rowOption := refusedRowOption(tbl, stmt.Commands)
-	autoextendBytes, hasAutoextendOpt, autoextendErr := resolveAlterAutoextendSize(tbl, stmt.Commands)
+	autoextendBytes, hasAutoextendOpt, autoextendErr := c.resolveAlterAutoextendSize(tbl, stmt.Commands)
 	var optionSnapshot Table
 	if rowOption != "" || autoextendErr != nil {
 		optionSnapshot = cloneTable(tbl)
@@ -321,7 +321,7 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 	return nil
 }
 
-func resolveAlterAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) (uint64, bool, error) {
+func (c *Catalog) resolveAlterAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) (uint64, bool, error) {
 	hasOpt := false
 	rawVal := ""
 	for _, cmd := range commands {
@@ -338,7 +338,7 @@ func resolveAlterAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) (ui
 		return 0, hasOpt, nil
 	}
 	targetTS := alterTargetTablespace(tbl, commands)
-	bytes, err := parseTableAutoextendSize(rawVal, tbl.Temporary, targetTS)
+	bytes, err := c.parseTableAutoextendSize(rawVal, tbl.Temporary, targetTS)
 	return bytes, true, err
 }
 

@@ -31736,6 +31736,216 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLESPACE ts_tmp_like ADD DATAFILE 'ts_tmp_like.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE s (a INT) TABLESPACE ts_tmp_like
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a LIKE s
+< error
+| 1478 HY000 InnoDB: Tablespace `ts_tmp_like` cannot contain TEMPORARY tables.
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_tmp_like
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE s (a INT) TABLESPACE innodb_system
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a LIKE s
+< error
+| 1478 HY000 InnoDB: Tablespace `innodb_system` cannot contain TEMPORARY tables.
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE s (a INT) TABLESPACE innodb_file_per_table
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a LIKE s
+< error
+| 1478 HY000 InnoDB: TABLESPACE=innodb_file_per_table option is disallowed for temporary tables with INNODB_STRICT_MODE=ON. This option is deprecated and will be removed in a future release
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_myisam_like ADD DATAFILE 'ts_myisam_like.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE s (a INT) ENGINE=MyISAM TABLESPACE ts_myisam_like
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a LIKE s
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_myisam_like
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET NAMES latin1
 < ok 0 0
 > exec
@@ -31960,6 +32170,80 @@
 |   `c2` int DEFAULT NULL,
 |   PRIMARY KEY (`id`)
 | ) /*!50100 TABLESPACE `ts_enc_chain` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> query
+| SELECT DATABASE()
+< result
+< column "DATABASE()" "VARCHAR"
+< row
+: bytes
+| test
+> exec
+| CREATE DATABASE db_cs_bin CHARACTER SET latin1 COLLATE latin1_bin
+< ok 1 0
+> exec
+| USE db_cs_bin
+< ok 0 0
+> exec
+| SET CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SELECT @@character_set_client, @@collation_connection
+< result
+< column "@@character_set_client" "VARCHAR"
+< column "@@collation_connection" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| latin1_bin
+> exec
+| USE `test`
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS db_cs_bin
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
 < ok 0 0

@@ -856,9 +856,9 @@ func errSecondaryEngineNotDefined() error {
 		Message: "Secondary engine operation failed. No secondary engine defined."}
 }
 
-func errAutoextendSizeNotMultiple() error {
+func errAutoextendSizeNotMultiple(minBytes uint64) error {
 	return &Error{Code: ErrAutoextendSizeNotMultiple, SQLState: sqlState(ErrAutoextendSizeNotMultiple),
-		Message: "AUTOEXTEND_SIZE should be a multiple of 4M"}
+		Message: fmt.Sprintf("AUTOEXTEND_SIZE should be a multiple of %dM", minBytes/(1024*1024))}
 }
 
 func errAutoextendSizeGeneralTablespace() error {
@@ -866,9 +866,9 @@ func errAutoextendSizeGeneralTablespace() error {
 		Message: `InnoDB: "AUTOEXTEND_SIZE" not allowed with general tablespaces`}
 }
 
-func errAutoextendSizeOutOfRange() error {
+func errAutoextendSizeOutOfRange(minBytes uint64) error {
 	return &Error{Code: ErrAutoextendSizeOutOfRange, SQLState: sqlState(ErrAutoextendSizeOutOfRange),
-		Message: "AUTOEXTEND_SIZE value should be between 4M and 4096M"}
+		Message: fmt.Sprintf("AUTOEXTEND_SIZE value should be between %dM and 4096M", minBytes/(1024*1024))}
 }
 
 func errAutoextendSizeTemporaryTablespace() error {

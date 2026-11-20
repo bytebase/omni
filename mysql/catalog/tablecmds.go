@@ -252,7 +252,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if hasAutoExtend && isInnoDBEngine(tbl.Engine) {
 		if declared && !c.loadingSDL {
-			aeBytes, err := parseTableAutoextendSize(rawAutoExtend, stmt.Temporary, tbl.Tablespace)
+			aeBytes, err := c.parseTableAutoextendSize(rawAutoExtend, stmt.Temporary, tbl.Tablespace)
 			if err != nil {
 				return err
 			}
@@ -3257,6 +3257,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	srcTbl := srcDB.GetTable(stmt.Like.Name)
 	if srcTbl == nil {
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+	if isInnoDBEngine(srcTbl.Engine) && srcTbl.Tablespace != "" {
+		if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, srcTbl.Tablespace); err != nil {
+			return err
+		}
 	}
 
 	tbl := &Table{
