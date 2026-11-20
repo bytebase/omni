@@ -1828,7 +1828,7 @@ func tableSideHasUnknownColumns(tbl ast.TableExpr) bool {
 	case *ast.ExternalTableRef:
 		return true
 	case *ast.TableCollectionExpr:
-		return true
+		return tableFunctionArgumentName(t.Expr) == ""
 	default:
 		return false
 	}

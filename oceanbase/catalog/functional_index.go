@@ -127,6 +127,8 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
 		return inferFunctionalIndexExprType(tbl, e.Expr)
+	case *nodes.ResTarget:
+		return inferFunctionalIndexExprType(tbl, e.Val)
 	case *nodes.ColumnRef:
 		if col := tbl.GetColumn(e.Column); col != nil {
 			return resolvedTypeFromColumn(col)
@@ -384,11 +386,14 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 
 func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 	for {
-		p, ok := expr.(*nodes.ParenExpr)
-		if !ok {
+		switch e := expr.(type) {
+		case *nodes.ParenExpr:
+			expr = e.Expr
+		case *nodes.ResTarget:
+			expr = e.Val
+		default:
 			return expr
 		}
-		expr = p.Expr
 	}
 }
 
@@ -410,6 +415,26 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 		return true
 	case *nodes.ParenExpr:
 		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.ResTarget:
+		return containsDisallowedFunctionalIndexExpr(e.Val)
+	case *nodes.LambdaExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Body)
+	case *nodes.OdbcEscapeExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.QuantifiedExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.CollateExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.LikeExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr) ||
+			containsDisallowedFunctionalIndexExpr(e.Pattern) ||
+			containsDisallowedFunctionalIndexExpr(e.Escape)
+	case *nodes.RowExpr:
+		for _, item := range e.Items {
+			if containsDisallowedFunctionalIndexExpr(item) {
+				return true
+			}
+		}
 	case *nodes.BinaryExpr:
 		return containsDisallowedFunctionalIndexExpr(e.Left) || containsDisallowedFunctionalIndexExpr(e.Right)
 	case *nodes.UnaryExpr:

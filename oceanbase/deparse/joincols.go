@@ -73,6 +73,11 @@ type fromScope struct {
 	// has unknown columns, so unqualified references stay unqualified instead of
 	// binding to the one local side.
 	unknownUsingCols map[string]bool
+
+	// maskedCols holds lowered lambda parameter names active in the current
+	// expression so resolveColumnRef leaves them unqualified while still
+	// resolving outer table columns in the lambda body.
+	maskedCols map[string]bool
 }
 
 // joinColumn is one column of a FROM item's result.
@@ -125,6 +130,20 @@ func itemHasUnknownColumns(te ast.TableExpr) bool {
 		return t.Catalog != "" || t.Dblink != ""
 	case *ast.ExternalTableRef:
 		return true
+	case *ast.TableCollectionExpr:
+		return tableFunctionArgumentName(t.Expr) == ""
+	case *ast.RbIterateExpr:
+		return t.Column == "" && tableFunctionArgumentName(t.Arg) == ""
+	case *ast.UnnestExpr:
+		if len(t.Columns) > 0 {
+			return false
+		}
+		for _, arg := range t.Args {
+			if tableFunctionArgumentName(arg) != "" {
+				return false
+			}
+		}
+		return true
 	case *ast.JoinClause:
 		return (t.Left != nil && itemHasUnknownColumns(t.Left)) || (t.Right != nil && itemHasUnknownColumns(t.Right))
 	case *ast.SubqueryExpr:
@@ -136,6 +155,37 @@ func itemHasUnknownColumns(te ast.TableExpr) bool {
 // span records the tables registered for a FROM item since lo.
 func (sc *fromScope) span(te ast.TableExpr, lo int) {
 	sc.spans[te] = [2]int{lo, len(sc.tables)}
+}
+
+// prefixBefore returns a view of sc holding only the tables registered before
+// te (plus sc.parent and sc.cteTables), for resolving lateral table-function
+// arguments such as `FROM t, TABLE(arr) c` without binding to te's own alias.
+func (sc *fromScope) prefixBefore(te ast.TableExpr) *fromScope {
+	if sc == nil {
+		return nil
+	}
+	lo := sc.spans[te][0]
+	pre := &fromScope{
+		Scope:          scopepkg.New(),
+		parent:         sc.parent,
+		cteTables:      sc.cteTables,
+		tables:         sc.tables[:lo],
+		unknownColumns: make(map[string]bool),
+		localTables:    sc.localTables,
+		maskedCols:     sc.maskedCols,
+	}
+	for _, entry := range sc.tables[:lo] {
+		pre.Scope.Add(entry.Name, entry.Table)
+	}
+	for _, item := range sc.from {
+		if item == te {
+			break
+		}
+		if itemHasUnknownColumns(item) {
+			pre.hasUnknown = true
+		}
+	}
+	return pre
 }
 
 // within reports whether c belongs to a table under te.

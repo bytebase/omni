@@ -47,16 +47,47 @@ func partitionKeyColumns(tbl *Table, pc *nodes.PartitionClause) []string {
 }
 
 func exprColumnNames(expr nodes.ExprNode) []string {
-	if expr == nil {
+	return freeColumnNames(expr)
+}
+
+// freeColumnNames collects column names referenced under root, excluding
+// unqualified identifiers bound by an enclosing LambdaExpr's parameter list.
+func freeColumnNames(root nodes.Node) []string {
+	if root == nil {
 		return nil
 	}
 	var names []string
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
-			names = append(names, ref.Column)
+	var walk func(n nodes.Node, masked map[string]bool)
+	walk = func(n nodes.Node, masked map[string]bool) {
+		if n == nil {
+			return
 		}
-		return true
-	})
+		if lam, ok := n.(*nodes.LambdaExpr); ok {
+			next := make(map[string]bool, len(masked)+len(lam.Params))
+			for k, v := range masked {
+				next[k] = v
+			}
+			for _, p := range lam.Params {
+				next[toLower(p)] = true
+			}
+			walk(lam.Body, next)
+			return
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			if ref.Table != "" || !masked[toLower(ref.Column)] {
+				names = append(names, ref.Column)
+			}
+			return
+		}
+		nodes.Inspect(n, func(child nodes.Node) bool {
+			if child == nil || child == n {
+				return true
+			}
+			walk(child, masked)
+			return false
+		})
+	}
+	walk(root, nil)
 	return names
 }
 

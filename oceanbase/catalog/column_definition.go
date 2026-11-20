@@ -80,14 +80,7 @@ func errNonBooleanCheck(name string) error {
 }
 
 func hasColumnRef(expr nodes.Node) bool {
-	found := false
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if _, ok := n.(*nodes.ColumnRef); ok {
-			found = true
-		}
-		return !found
-	})
-	return found
+	return len(freeColumnNames(expr)) > 0
 }
 
 func isBareColumn(expr nodes.ExprNode) bool {

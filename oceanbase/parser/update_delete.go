@@ -139,8 +139,12 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	stmt := &nodes.DeleteStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional modifiers: delete_option_list repeats QUICK and LOW_PRIORITY
-	// (sql_parser_mysql_mode.y, lines 4213-4235).
+	// Optional modifiers: opt_ignore comes once before opt_delete_option_list,
+	// which repeats QUICK and LOW_PRIORITY alone (sql_parser_mysql_mode.y, lines
+	// 4163 and 4213-4235).
+	if _, ok := p.match(kwIGNORE); ok {
+		stmt.Ignore = true
+	}
 	for {
 		switch p.cur.Type {
 		case kwLOW_PRIORITY:
@@ -149,10 +153,6 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			continue
 		case kwQUICK:
 			stmt.Quick = true
-			p.advance()
-			continue
-		case kwIGNORE:
-			stmt.Ignore = true
 			p.advance()
 			continue
 		}

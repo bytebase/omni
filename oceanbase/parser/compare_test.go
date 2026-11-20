@@ -1929,7 +1929,7 @@ func TestParseDelete(t *testing.T) {
 	})
 
 	t.Run("modifiers", func(t *testing.T) {
-		stmt := parseDelete(t, "DELETE LOW_PRIORITY QUICK IGNORE FROM users WHERE id = 1")
+		stmt := parseDelete(t, "DELETE IGNORE LOW_PRIORITY QUICK FROM users WHERE id = 1")
 		if !stmt.LowPriority {
 			t.Error("expected LowPriority = true")
 		}

@@ -333,7 +333,7 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 				level = prec
 				continue
 			}
-			saved := p.saveScan()
+			ivStart := p.pos()
 			iv, ivErr := p.parseIntervalExpr()
 			if ivErr != nil {
 				return nil, ivErr
@@ -349,7 +349,21 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 				level = precBitXor
 				continue
 			}
-			p.restoreScan(saved)
+			// INTERVAL(a, b, ...) function call: resume higher-precedence infix
+			// folding without reparsing the call.
+			right, err := p.parseInfixExprPrec(iv, ivStart, prec+1, precJsonAccess)
+			if err != nil {
+				return nil, err
+			}
+			left = &nodes.BinaryExpr{
+				Loc:        nodes.Loc{Start: start, End: p.prev.End},
+				Op:         binOp,
+				Left:       left,
+				Right:      right,
+				OriginalOp: originalOp,
+			}
+			level = prec
+			continue
 		}
 
 		right, err := p.parseExprPrec(prec + 1)

@@ -346,6 +346,9 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			}
 		}
 		if len(names) == 0 {
+			if t.Alias != "" {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			return
 		}
 		var cols []ResolverColumn
@@ -359,12 +362,18 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			name = tableFunctionArgumentName(t.Arg)
 		}
 		if name == "" {
+			if t.Alias != "" {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			return
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
 	case *ast.TableCollectionExpr:
 		name := tableFunctionArgumentName(t.Expr)
 		if name == "" {
+			if t.Alias != "" {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			return
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
@@ -546,6 +555,20 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		return n
 	case *ast.LambdaExpr:
+		if sc == nil {
+			return n
+		}
+		savedMasked := sc.maskedCols
+		masked := make(map[string]bool, len(savedMasked)+len(n.Params))
+		for k, v := range savedMasked {
+			masked[k] = v
+		}
+		for _, param := range n.Params {
+			masked[strings.ToLower(param)] = true
+		}
+		sc.maskedCols = masked
+		n.Body = r.resolveExpr(n.Body, sc)
+		sc.maskedCols = savedMasked
 		return n
 	case *ast.GroupingSet:
 		for i, item := range n.Items {
@@ -681,6 +704,9 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	}
 
 	lowerCol := strings.ToLower(col.Column)
+	if sc != nil && sc.maskedCols[lowerCol] {
+		return col
+	}
 	for cur := sc; cur != nil; cur = cur.parent {
 		// A column a NATURAL or USING join joins on is the one copy the join
 		// keeps, which comes from its right input in a RIGHT join. A FULL join
@@ -756,6 +782,15 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 			if on, ok := t.Condition.(*ast.OnCondition); ok {
 				on.Expr = r.resolveExpr(on.Expr, sc)
 			}
+		}
+	case *ast.TableCollectionExpr:
+		t.Expr = r.resolveExpr(t.Expr, sc.prefixBefore(t))
+	case *ast.RbIterateExpr:
+		t.Arg = r.resolveExpr(t.Arg, sc.prefixBefore(t))
+	case *ast.UnnestExpr:
+		pre := sc.prefixBefore(t)
+		for i, arg := range t.Args {
+			t.Args[i] = r.resolveExpr(arg, pre)
 		}
 	}
 }

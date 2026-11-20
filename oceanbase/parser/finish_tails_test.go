@@ -100,6 +100,9 @@ func TestOceanBaseFinishTails(t *testing.T) {
 		// DELETE modifiers and TABLE(...) collection targets.
 		{"DELETE QUICK QUICK zzz FROM a", true},
 		{"DELETE LOW_PRIORITY QUICK LOW_PRIORITY FROM a", true},
+		{"DELETE IGNORE LOW_PRIORITY QUICK FROM a", true},
+		{"DELETE IGNORE IGNORE FROM a", false},
+		{"DELETE QUICK IGNORE FROM a", false},
 		{"DELETE FROM TABLE(a)", true},
 		{"DELETE FROM TABLE(a) zzz", true},
 		{"DELETE FROM TABLE(a) a", true},
@@ -233,5 +236,25 @@ func TestOceanBaseFinishASTNodes(t *testing.T) {
 	segs := Split("/*HINT+ a */")
 	if len(segs) != 1 || segs[0].Empty() {
 		t.Errorf("Split(/*HINT+ a */) = %+v, want 1 non-empty segment", segs)
+	}
+
+	// KILL disambiguation: unary `+ 1` shifts into `KILL {CONNECTION|QUERY} expr`
+	// (matching OceanBase 4.3.5.6's 1094 Unknown thread id: 1), while `= 1`
+	// reduces CONNECTION as the column of `KILL expr` (1054 Unknown column).
+	killPlus, err := Parse("KILL QUERY + 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ks := killPlus.Items[0].(*ast.KillStmt); !ks.Query {
+		t.Errorf("KILL QUERY + 1: Query = false, want true")
+	}
+	killEq, err := Parse("KILL QUERY = 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ks := killEq.Items[0].(*ast.KillStmt); ks.Query {
+		t.Errorf("KILL QUERY = 1: Query = true, want false")
+	} else if be, ok := ks.ConnectionID.(*ast.BinaryExpr); !ok || be.Op != ast.BinOpEq {
+		t.Errorf("KILL QUERY = 1: ConnectionID = %T, want *ast.BinaryExpr(=)", ks.ConnectionID)
 	}
 }

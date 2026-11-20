@@ -52,6 +52,12 @@ var nestingShapes = []struct {
 	{"date arithmetic expression argument", func(n int) string {
 		return "SELECT " + nest(n, "adddate(a, ", "1", ")")
 	}},
+	{"date arithmetic interval expression", func(n int) string {
+		return "SELECT " + nest(n, "adddate(a, INTERVAL ", "1", " DAY + 1)")
+	}},
+	{"sum with INTERVAL function", func(n int) string {
+		return "SELECT " + nest(n, "1 + INTERVAL(", "1", ", 2) * 3")
+	}},
 	{"interval literal", func(n int) string {
 		return "SELECT " + nest(n, "a + INTERVAL ", "1", " DAY")
 	}},

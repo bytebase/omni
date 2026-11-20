@@ -545,11 +545,13 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional CONNECTION | QUERY. Both words are in unreserved_keyword in
-	// sql_parser_mysql_mode.y (lines 17987-18010), so `KILL CONNECTION` and
-	// `KILL QUERY` with no separate expression after them, or followed by an
-	// operator (`KILL CONNECTION = 1`), reduce as `KILL expr` with CONNECTION
-	// or QUERY naming a column, while `KILL CONNECTION 1` and `KILL QUERY a`
-	// take the modifier.
+	// sql_parser_mysql_mode.y (lines 17987-18010): Bison resolves the shift/reduce
+	// conflict after `KILL CONNECTION` / `KILL QUERY` in favor of shifting any
+	// token in FIRST(expr) into `KILL {CONNECTION|QUERY} expr` (`KILL CONNECTION
+	// 1` and `KILL CONNECTION + 1` both answer 1094 Unknown thread id: 1 on
+	// 4.3.5.6), and reduces CONNECTION or QUERY as the column of `KILL expr` only
+	// when the following token cannot start a separate expr (`KILL CONNECTION`
+	// and `KILL CONNECTION = 1` answer 1054 Unknown column 'CONNECTION').
 	if (p.cur.Type == kwCONNECTION || p.cur.Type == kwQUERY) && !p.backtickQuotedAt(p.cur.Loc) {
 		saved := p.saveScan()
 		isQuery := p.cur.Type == kwQUERY
