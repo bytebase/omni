@@ -68,4 +68,8 @@ func TestParseScript(t *testing.T) {
 	if parsed[0].Text() != "SELECT 1" {
 		t.Errorf("parsed[0].Text() = %q, want %q", parsed[0].Text(), "SELECT 1")
 	}
+	wantSplit := []string{`SELECT 1;`, ``, `SELECT FROM;`, `SELECT 2;`}
+	if diff := cmp.Diff(wantSplit, SplitScript(`SELECT 1; ; SELECT FROM; SELECT 2;`)); diff != "" {
+		t.Errorf("SplitScript() mismatch (-want +got):\n%s", diff)
+	}
 }

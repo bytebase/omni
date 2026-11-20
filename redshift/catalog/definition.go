@@ -66,7 +66,7 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 		return "", nil
 	}
 	var sb strings.Builder
-	if hasUpperASCII(schemaName) || hasUpperASCII(view.Name) {
+	if hasUpperASCII(schemaName) || viewHasUpperIdentifier(view) {
 		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
 			return "", err
 		}
@@ -80,6 +80,55 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 func hasUpperASCII(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if s[i] >= 'A' && s[i] <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+// hasUpperQuotedIdent reports whether sql contains a double-quoted identifier
+// with an uppercase ASCII letter, skipping single-quoted string literals.
+func hasUpperQuotedIdent(sql string) bool {
+	for i := 0; i < len(sql); i++ {
+		switch sql[i] {
+		case '\'':
+			i++
+			for i < len(sql) {
+				if sql[i] == '\'' {
+					if i+1 < len(sql) && sql[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '"':
+			i++
+			for i < len(sql) {
+				if sql[i] == '"' {
+					if i+1 < len(sql) && sql[i+1] == '"' {
+						i += 2
+						continue
+					}
+					break
+				}
+				if sql[i] >= 'A' && sql[i] <= 'Z' {
+					return true
+				}
+				i++
+			}
+		}
+	}
+	return false
+}
+
+func viewHasUpperIdentifier(view *metadatapb.ViewMetadata) bool {
+	if hasUpperASCII(view.Name) || hasUpperQuotedIdent(view.Definition) {
+		return true
+	}
+	for _, col := range view.Columns {
+		if col != nil && hasUpperASCII(col.Name) {
 			return true
 		}
 	}
@@ -135,12 +184,12 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 			}
 		}
 		for _, view := range schema.Views {
-			if view != nil && !view.SkipDump && hasUpperASCII(view.Name) {
+			if view != nil && !view.SkipDump && viewHasUpperIdentifier(view) {
 				return true
 			}
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv != nil && !mv.SkipDump && hasUpperASCII(mv.Name) {
+			if mv != nil && !mv.SkipDump && (hasUpperASCII(mv.Name) || hasUpperQuotedIdent(mv.Definition)) {
 				return true
 			}
 		}
@@ -613,16 +662,20 @@ func writeMaterializedView(w io.StringWriter, mv *viewState) error {
 	return err
 }
 
+func sanitizeBannerName(name string) string {
+	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(name)
+}
+
 func getTableAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", name)
+	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
 func getViewAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", name)
+	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
 func getMaterializedViewAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- Materialized view structure for `%s`\n--\n", name)
+	return fmt.Sprintf("\n--\n-- Materialized view structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
 type databaseState struct {

@@ -532,6 +532,27 @@ CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_ba
 	mixedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "MixedView", Definition: "SELECT 1"})
 	require.NoError(t, err)
 	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nCREATE OR REPLACE VIEW \"public\".\"MixedView\" AS SELECT 1;\n", mixedView)
+
+	mixedColView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v",
+		Columns:    []*metadatapb.ColumnMetadata{{Name: "MixedAlias"}},
+		Definition: `SELECT 1 AS "MixedAlias"`,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nCREATE OR REPLACE VIEW \"public\".\"v\" AS SELECT 1 AS \"MixedAlias\";\n", mixedColView)
+
+	newlineNameDump, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "safe\nDROP TABLE victim; --", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, newlineNameDump, "-- Table structure for `safe DROP TABLE victim; --`\n--\nCREATE TABLE")
 }
 
 // TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that

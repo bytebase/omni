@@ -42,6 +42,12 @@ func ParseScript(script string) ([]ParsedStatement, error) {
 	return out, nil
 }
 
+// SplitScript splits script lexically into statement segments, preserving
+// empty segments as "" so callers can account for every semicolon boundary.
+func SplitScript(script string) []string {
+	return Split(script)
+}
+
 func unwrapStatements(stmts []ParsedStatement) statements.Statements {
 	out := make(statements.Statements, len(stmts))
 	for i, stmt := range stmts {
