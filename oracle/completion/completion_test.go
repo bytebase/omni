@@ -463,7 +463,7 @@ func TestCompletionCoverageMatrix(t *testing.T) {
 		},
 		{
 			name:  "quoted identifier qualifier resolves columns",
-			input: `SELECT "t2".| FROM t2`,
+			input: `SELECT "T2".| FROM t2`,
 			want:  cols("C1", "C2"),
 		},
 		{
@@ -974,6 +974,12 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("did not expect uppercase HR.EMPLOYEES column, got %v", resHit)
 		}
 
+		sqlQualMiss, posQualMiss := splitCaret(t, `SELECT "employees".| FROM EMPLOYEES`)
+		resQualMiss := Complete(sqlQualMiss, posQualMiss, meta, WithDefaultSchema("HR"))
+		if hasSpec(resQualMiss, candidateSpec{text: "UPPER_ID", typ: CandidateColumn}) {
+			t.Fatalf("did not expect uppercase EMPLOYEES column for lowercase quoted qualifier, got %v", resQualMiss)
+		}
+
 		sqlSchema, posSchema := splitCaret(t, `SELECT * FROM "hr".|`)
 		resSchema := Complete(sqlSchema, posSchema, meta, WithDefaultSchema("HR"))
 		if !hasSpec(resSchema, candidateSpec{text: "employees", typ: CandidateTable}) {
@@ -981,6 +987,32 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 		}
 		if hasSpec(resSchema, candidateSpec{text: "EMPLOYEES", typ: CandidateTable}) {
 			t.Fatalf("did not expect uppercase HR.EMPLOYEES table for quoted hr., got %v", resSchema)
+		}
+	})
+
+	t.Run("materialized view DDL offers materialized views", func(t *testing.T) {
+		mvMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "S1",
+					Views: []*metadatapb.ViewMetadata{
+						{Name: "V1"},
+					},
+					MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+						{Name: "MV1"},
+					},
+				},
+			},
+		}
+		for _, query := range []string{"DROP MATERIALIZED VIEW |", "ALTER MATERIALIZED VIEW S1.|"} {
+			sqlMV, posMV := splitCaret(t, query)
+			resMV := Complete(sqlMV, posMV, mvMeta, WithDefaultSchema("S1"))
+			if !hasSpec(resMV, candidateSpec{text: "MV1", typ: CandidateMaterializedView}) {
+				t.Fatalf("%q: expected MV1 materialized view candidate, got %v", query, resMV)
+			}
+			if hasSpec(resMV, candidateSpec{text: "V1", typ: CandidateView}) {
+				t.Fatalf("%q: did not expect regular view V1, got %v", query, resMV)
+			}
 		}
 	})
 }

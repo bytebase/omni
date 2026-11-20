@@ -144,7 +144,7 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 		beforeEnd = 0
 	}
 	activeStart := findActiveQueryScopeStart(statement, beforeEnd)
-	slice := statement[activeStart:beforeEnd]
+	slice := isolateSetOperationArm(statement[activeStart:beforeEnd], beforeEnd-activeStart)
 
 	type clauseTok struct {
 		upper    string
@@ -481,30 +481,103 @@ func isSelectListEndKeyword(upper string) bool {
 func selectItemOutputName(item []tableToken) string {
 	if len(item) >= 2 && !item[len(item)-2].quoted && strings.ToUpper(item[len(item)-2].text) == "AS" {
 		last := item[len(item)-1]
-		if last.paren == 0 && !last.comma && last.text != "" {
+		if isValidProjectedAlias(last) {
 			return last.text
 		}
+		return ""
 	}
 	if len(item) >= 2 {
+		prev := item[len(item)-2]
 		last := item[len(item)-1]
-		if last.paren == 0 && !last.comma && last.text != "" && (last.quoted || !isKeyword(strings.ToUpper(last.text))) {
+		if canPrecedeImplicitAlias(prev) && isValidProjectedAlias(last) {
 			return last.text
 		}
+		return ""
 	}
 	if len(item) == 1 && item[0].paren == 0 && !item[0].comma && item[0].text != "" {
 		name := item[0].text
-		if !item[0].quoted {
-			if dot := strings.LastIndexByte(name, '.'); dot >= 0 && dot+1 < len(name) {
-				name = name[dot+1:]
-			}
-			if strings.EqualFold(name, "NULL") || strings.EqualFold(name, "MISSING") ||
-				strings.EqualFold(name, "TRUE") || strings.EqualFold(name, "FALSE") {
+		if item[0].quoted {
+			return name
+		}
+		if dot := strings.LastIndexByte(name, '.'); dot >= 0 && dot+1 < len(name) {
+			prefix := name[:dot]
+			name = name[dot+1:]
+			if !isPlainIdentifier(prefix) {
 				return ""
 			}
+		}
+		if !isPlainIdentifier(name) {
+			return ""
+		}
+		if strings.EqualFold(name, "NULL") || strings.EqualFold(name, "MISSING") ||
+			strings.EqualFold(name, "TRUE") || strings.EqualFold(name, "FALSE") {
+			return ""
 		}
 		return name
 	}
 	return ""
+}
+
+func isValidProjectedAlias(tok tableToken) bool {
+	if tok.paren != 0 || tok.comma || tok.text == "" {
+		return false
+	}
+	if tok.quoted {
+		return true
+	}
+	if !isPlainIdentifier(tok.text) || isKeyword(strings.ToUpper(tok.text)) {
+		return false
+	}
+	// Reject pure numeric literals such as the "1" in "c1 + 1".
+	allDigits := true
+	for i := 0; i < len(tok.text); i++ {
+		if tok.text[i] < '0' || tok.text[i] > '9' {
+			allDigits = false
+			break
+		}
+	}
+	return !allDigits
+}
+
+func canPrecedeImplicitAlias(prev tableToken) bool {
+	if prev.paren == ')' || prev.quoted {
+		return true
+	}
+	if prev.paren != 0 || prev.comma || prev.text == "" {
+		return false
+	}
+	upper := strings.ToUpper(prev.text)
+	switch upper {
+	case "AND", "OR", "NOT", "IS", "IN", "LIKE", "BETWEEN", "CASE", "WHEN",
+		"THEN", "ELSE", "CAST", "AS", "EXISTS", "DISTINCT", "ALL", "VALUE", "FROM":
+		return false
+	}
+	// Must be a plain identifier or dotted/numeric/literal operand, not an operator like +, -, *, /, ||, =.
+	return isOperandToken(prev.text)
+}
+
+func isPlainIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if !isIdentChar(s[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func isOperandToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if !isIdentChar(s[i]) && s[i] != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 func columnQualifierBeforeCursor(statement string, pos int) string {
@@ -584,18 +657,70 @@ func extractCurrentStatement(statement string, pos int) (string, int) {
 }
 
 // extractQueryScopes returns query block slices enclosing pos, ordered from
-// innermost to outermost. Only parentheses that introduce a subquery (SELECT or
-// WITH) start a new query scope; expression parentheses stay in the enclosing
-// query scope.
+// innermost to outermost, isolating the active UNION/INTERSECT/EXCEPT arm at pos.
+// Only parentheses that introduce a subquery (SELECT or WITH) start a new query
+// scope; expression parentheses stay in the enclosing query scope.
 func extractQueryScopes(statement string, pos int) []string {
 	subqueryStarts := findActiveSubqueryStarts(statement, pos)
 	var scopes []string
 	for k := len(subqueryStarts) - 1; k >= 0; k-- {
 		start := subqueryStarts[k]
-		scopes = append(scopes, statement[start:findSubqueryEnd(statement, start)])
+		end := findSubqueryEnd(statement, start)
+		scopes = append(scopes, isolateSetOperationArm(statement[start:end], pos-start))
 	}
-	scopes = append(scopes, statement)
+	scopes = append(scopes, isolateSetOperationArm(statement, pos))
 	return scopes
+}
+
+func isolateSetOperationArm(scope string, offset int) string {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > len(scope) {
+		offset = len(scope)
+	}
+	armStart := 0
+	depth := 0
+	i := 0
+	for i < len(scope) {
+		c := scope[i]
+		switch {
+		case c == '\'':
+			i = skipQuotedLiteral(scope, i, '\'') + 1
+		case c == '"':
+			i = skipQuotedLiteral(scope, i, '"') + 1
+		case c == '-' && i+1 < len(scope) && scope[i+1] == '-':
+			i = skipLineComment(scope, i) + 1
+		case c == '/' && i+1 < len(scope) && scope[i+1] == '*':
+			end, _ := skipBlockComment(scope, i)
+			i = end + 1
+		case c == '(':
+			depth++
+			i++
+		case c == ')':
+			if depth > 0 {
+				depth--
+			}
+			i++
+		case isIdentChar(c):
+			start := i
+			for i < len(scope) && isIdentChar(scope[i]) {
+				i++
+			}
+			if depth == 0 && (start == 0 || scope[start-1] != '.') {
+				upper := strings.ToUpper(scope[start:i])
+				if upper == "UNION" || upper == "INTERSECT" || upper == "EXCEPT" {
+					if offset < start {
+						return scope[armStart:start]
+					}
+					armStart = i
+				}
+			}
+		default:
+			i++
+		}
+	}
+	return scope[armStart:]
 }
 
 func findActiveQueryScopeStart(statement string, pos int) int {

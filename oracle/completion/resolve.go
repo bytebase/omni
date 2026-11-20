@@ -427,7 +427,11 @@ func (r *resolver) resolve() []Candidate {
 					if schema == "" {
 						addSchemaCandidates()
 					}
-					addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
+					if r.isMaterializedViewContext() {
+						addRelationCandidates(r.completionSchemas(schema, quoted), false, false, true, false, false)
+					} else {
+						addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
+					}
 				default:
 					if schema == "" {
 						addSchemaCandidates()
@@ -464,7 +468,9 @@ func (r *resolver) resolve() []Candidate {
 					types = append(types, Candidate{Type: CandidateType_, Text: typ})
 				}
 			case "columnref":
-				r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
+				if !r.isMaterializedViewContext() {
+					r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
+				}
 			}
 		}
 	}
@@ -485,18 +491,26 @@ func (r *resolver) resolve() []Candidate {
 				if schema == "" {
 					addSchemaCandidates()
 				}
-				addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
+				if r.isMaterializedViewContext() {
+					addRelationCandidates(r.completionSchemas(schema, quoted), false, false, true, false, false)
+				} else {
+					addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
+				}
 			case parser.ObjectKindSequence:
 				addRelationCandidates(r.sequenceCompletionSchemas(), false, false, false, true, false)
 			case parser.ObjectKindSequenceMember:
-				r.insertSequenceMemberCandidates(&keywords)
+				if !r.isMaterializedViewContext() {
+					r.insertSequenceMemberCandidates(&keywords)
+				}
 			case parser.ObjectKindSynonym:
 				schema, quoted := r.completionSchemaQualifier()
 				addRelationCandidates(r.completionSchemas(schema, quoted), false, false, false, false, true)
 			case parser.ObjectKindDatabaseLink:
 				r.insertDatabaseLinkCandidates(&dbLinks)
 			case parser.ObjectKindColumn:
-				r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
+				if !r.isMaterializedViewContext() {
+					r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
+				}
 			case parser.ObjectKindFunction:
 				schema, quoted := r.completionSchemaQualifier()
 				r.insertSchemaFunctions(&functions, schema, quoted)
@@ -507,7 +521,9 @@ func (r *resolver) resolve() []Candidate {
 				schema, quoted := r.completionSchemaQualifier()
 				r.insertSchemaPackages(&packages, schema, quoted)
 			case parser.ObjectKindPackageMember:
-				r.insertPackageMemberCandidates(&procs, &functions)
+				if !r.isMaterializedViewContext() {
+					r.insertPackageMemberCandidates(&procs, &functions)
+				}
 			case parser.ObjectKindIndex:
 				schema, quoted := r.completionSchemaQualifier()
 				r.insertSchemaIndexes(&indexes, schema, quoted)
@@ -524,7 +540,11 @@ func (r *resolver) resolve() []Candidate {
 		}
 	}
 
-	if len(r.qualifierParts()) > 0 && len(columns) == 0 {
+	if r.isMaterializedViewContext() {
+		if parts := r.qualifierParts(); len(parts) == 1 {
+			addRelationCandidates(r.completionSchemas(parts[0].name, parts[0].quoted), false, false, true, false, false)
+		}
+	} else if len(r.qualifierParts()) > 0 && len(columns) == 0 {
 		r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
 	}
 
@@ -838,7 +858,7 @@ func (r *resolver) insertColumnContextCandidates(
 					if schema != "" && ref.Schema != "" && !nameMatches(ref.Schema, schema, ref.SchemaQuoted || schemaQuoted) {
 						continue
 					}
-					if matchPhysicalQualifier(ref, table) {
+					if matchPhysicalQualifier(ref, table, tableQuoted) {
 						targetSchema := ref.Schema
 						targetSchemaQuoted := ref.SchemaQuoted
 						if targetSchema == "" {
@@ -849,7 +869,7 @@ func (r *resolver) insertColumnContextCandidates(
 						matchedRef = true
 					}
 				case *virtualTableRef:
-					if schema == "" && strings.EqualFold(ref.Table, table) {
+					if schema == "" && nameMatches(ref.Table, table, tableQuoted) {
 						for _, col := range ref.Columns {
 							*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
 						}
@@ -898,15 +918,31 @@ func (r *resolver) insertColumnContextCandidates(
 		r.insertColumnsForTargets(columnsOut, targets)
 	}
 	if table != "" && len(*columnsOut) == 0 {
-		r.insertAliasColumns(columnsOut, table)
+		r.insertAliasColumns(columnsOut, table, tableQuoted)
 	}
 }
 
-func matchPhysicalQualifier(ref *physicalTableRef, qualifier string) bool {
-	if ref.Alias != "" && nameMatches(ref.Alias, qualifier, ref.AliasQuoted) {
+func matchPhysicalQualifier(ref *physicalTableRef, qualifier string, qualifierQuoted bool) bool {
+	if ref.Alias != "" && nameMatches(ref.Alias, qualifier, ref.AliasQuoted || qualifierQuoted) {
 		return true
 	}
-	return nameMatches(ref.Table, qualifier, ref.TableQuoted)
+	return nameMatches(ref.Table, qualifier, ref.TableQuoted || qualifierQuoted)
+}
+
+func (r *resolver) isMaterializedViewContext() bool {
+	stmtStart, _ := r.statementTokenBounds()
+	idx := r.caretTokenIndex - 1
+	if idx >= stmtStart && r.tokens[idx].Type == '.' {
+		idx--
+		if idx >= stmtStart && r.isIdentifierToken(r.tokens[idx]) {
+			idx--
+		} else {
+			return false
+		}
+	}
+	return idx-1 >= stmtStart &&
+		r.tokens[idx].Type == parser.VIEW &&
+		strings.EqualFold(r.tokens[idx-1].Str, "MATERIALIZED")
 }
 
 func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
@@ -1321,11 +1357,13 @@ func (r *resolver) isQuotedToken(tok parser.Token) bool {
 	return tok.Loc >= 0 && tok.Loc < len(r.sql) && r.sql[tok.Loc] == '"'
 }
 
-func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string) {
+func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string, aliasQuoted bool) {
 	for _, level := range r.scopeLevels {
 		matched := false
 		for _, ref := range level.scopeRefs {
-			if !strings.EqualFold(ref.Alias, alias) && !strings.EqualFold(ref.Name, alias) {
+			_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
+			if (ref.Alias == "" || !nameMatches(ref.Alias, alias, refAliasQuoted || aliasQuoted)) &&
+				!nameMatches(ref.Name, alias, refNameQuoted || aliasQuoted) {
 				continue
 			}
 			matched = true

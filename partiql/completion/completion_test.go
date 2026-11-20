@@ -423,6 +423,24 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: []string{"Artist", "SongTitle"},
 			wantTabs: []string{},
 		},
+		{
+			name:     "derived select expression without alias does not emit operand as column",
+			input:    "SELECT s.| FROM (SELECT c1 + c2 FROM Music) s",
+			cat:      cat,
+			wantCols: nil,
+		},
+		{
+			name:     "set operation isolates first arm sources",
+			input:    "SELECT | FROM Music UNION SELECT * FROM Album",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "set operation isolates second arm sources",
+			input:    "SELECT * FROM Music UNION ALL SELECT | FROM Album",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Title"},
+		},
 	}
 
 	for _, tc := range tests {
