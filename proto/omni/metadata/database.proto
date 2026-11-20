@@ -764,6 +764,12 @@ message TablePartitionMetadata {
   // PostgreSQL's COMMENT ON TABLE for a partition, MySQL's PARTITION ...
   // COMMENT. An engine that states no partition comment leaves it empty.
   string comment = 11;
+
+  // OceanBase RANGE split size from SIZE ('...'), e.g. "2048MB" or "1G".
+  string split_size = 12;
+
+  // OceanBase automatic partition size from PARTITION SIZE <val> PARTITIONS AUTO.
+  string auto_size = 13;
 }
 
 // ColumnMetadata is the metadata for columns.

@@ -2864,7 +2864,11 @@ type TablePartitionMetadata struct {
 	// The comment is the comment the engine states on the partition itself:
 	// PostgreSQL's COMMENT ON TABLE for a partition, MySQL's PARTITION ...
 	// COMMENT. An engine that states no partition comment leaves it empty.
-	Comment       string `protobuf:"bytes,11,opt,name=comment,proto3" json:"comment,omitempty"`
+	Comment string `protobuf:"bytes,11,opt,name=comment,proto3" json:"comment,omitempty"`
+	// OceanBase RANGE split size from SIZE ('...'), e.g. "2048MB" or "1G".
+	SplitSize string `protobuf:"bytes,12,opt,name=split_size,json=splitSize,proto3" json:"split_size,omitempty"`
+	// OceanBase automatic partition size from PARTITION SIZE <val> PARTITIONS AUTO.
+	AutoSize      string `protobuf:"bytes,13,opt,name=auto_size,json=autoSize,proto3" json:"auto_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2972,6 +2976,20 @@ func (x *TablePartitionMetadata) GetSchema() string {
 func (x *TablePartitionMetadata) GetComment() string {
 	if x != nil {
 		return x.Comment
+	}
+	return ""
+}
+
+func (x *TablePartitionMetadata) GetSplitSize() string {
+	if x != nil {
+		return x.SplitSize
+	}
+	return ""
+}
+
+func (x *TablePartitionMetadata) GetAutoSize() string {
+	if x != nil {
+		return x.AutoSize
 	}
 	return ""
 }
@@ -5283,7 +5301,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
 	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
-	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xb7\x05\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xf3\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5299,7 +5317,10 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x13exclude_constraints\x18\t \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraints\x12\x16\n" +
 	"\x06schema\x18\n" +
 	" \x01(\tR\x06schema\x12\x18\n" +
-	"\acomment\x18\v \x01(\tR\acomment\"\x8a\x01\n" +
+	"\acomment\x18\v \x01(\tR\acomment\x12\x1d\n" +
+	"\n" +
+	"split_size\x18\f \x01(\tR\tsplitSize\x12\x1b\n" +
+	"\tauto_size\x18\r \x01(\tR\bautoSize\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +

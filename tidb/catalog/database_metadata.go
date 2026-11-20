@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -32,7 +33,11 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	}
 
 	for _, tName := range sortedMapKeys(db.Tables) {
-		schemaMeta.Tables = append(schemaMeta.Tables, tableToProto(db.Tables[tName]))
+		t := db.Tables[tName]
+		if t.Temporary {
+			continue
+		}
+		schemaMeta.Tables = append(schemaMeta.Tables, tableToProto(t))
 	}
 
 	for _, vName := range sortedMapKeys(db.Views) {
@@ -158,7 +163,11 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	default:
 	}
 
-	for _, idx := range t.Indexes {
+	sortedIndexes := slices.Clone(t.Indexes)
+	slices.SortStableFunc(sortedIndexes, func(a, b *Index) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	for _, idx := range sortedIndexes {
 		indexType := strings.ToUpper(idx.IndexType)
 		if indexType == "" {
 			indexType = "BTREE"

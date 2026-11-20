@@ -148,3 +148,31 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.NotNil(t, fkCon)
 	require.Equal(t, "item_id", fkCon.Columns[0])
 }
+
+func TestDatabaseMetadataExcludesTempTablesAndSortsIndexes(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TEMPORARY TABLE tmp_scratch (id INT PRIMARY KEY);
+		CREATE TABLE items (
+			id INT NOT NULL,
+			b INT,
+			a INT,
+			PRIMARY KEY (id),
+			KEY idx_zeta (b),
+			KEY idx_alpha (a)
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	require.Len(t, meta.Schemas[0].Tables, 1)
+	tbl := meta.Schemas[0].Tables[0]
+	require.Equal(t, "items", tbl.Name)
+	require.Equal(t, []string{"PRIMARY", "idx_alpha", "idx_zeta"}, []string{
+		tbl.Indexes[0].Name,
+		tbl.Indexes[1].Name,
+		tbl.Indexes[2].Name,
+	})
+}

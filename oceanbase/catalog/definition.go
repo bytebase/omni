@@ -884,7 +884,18 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
-	if useDefault == 0 {
+	if partitions[0].SplitSize != "" {
+		if _, err := fmt.Fprintf(buf, " SIZE (%s)", quoteSplitSize(partitions[0].SplitSize)); err != nil {
+			return err
+		}
+	}
+	if partitions[0].AutoSize != "" {
+		if _, err := fmt.Fprintf(buf, " PARTITION SIZE %s PARTITIONS AUTO", partitions[0].AutoSize); err != nil {
+			return err
+		}
+	}
+
+	if useDefault == 0 && partitions[0].AutoSize == "" && (len(partitions) > 1 || partitions[0].Name != "") {
 		if _, err := fmt.Fprint(buf, "\n("); err != nil {
 			return err
 		}

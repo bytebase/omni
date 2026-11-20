@@ -169,3 +169,69 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Len(t, partTbl.Partitions, 2)
 	require.Len(t, partTbl.Partitions[0].Subpartitions, 2)
 }
+
+func TestDatabaseMetadataExcludesTempTablesSortsIndexesAndAutoPartitions(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TEMPORARY TABLE tmp_scratch (id INT PRIMARY KEY);
+		CREATE TABLE items (
+			id INT NOT NULL,
+			b INT,
+			a INT,
+			PRIMARY KEY (id),
+			KEY idx_zeta (b),
+			KEY idx_alpha (a)
+		);
+		CREATE TABLE auto_part (
+			id INT NOT NULL
+		) PARTITION BY RANGE (id) PARTITION SIZE '1G' PARTITIONS AUTO;
+		CREATE TABLE split_part (
+			id INT NOT NULL
+		) PARTITION BY RANGE (id) SIZE ('512M') (
+			PARTITION p0 VALUES LESS THAN (100)
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	require.Len(t, meta.Schemas[0].Tables, 3)
+	require.Equal(t, "auto_part", meta.Schemas[0].Tables[0].Name)
+	require.Equal(t, "items", meta.Schemas[0].Tables[1].Name)
+	require.Equal(t, "split_part", meta.Schemas[0].Tables[2].Name)
+
+	items := meta.Schemas[0].Tables[1]
+	require.Equal(t, []string{"PRIMARY", "idx_alpha", "idx_zeta"}, []string{
+		items.Indexes[0].Name,
+		items.Indexes[1].Name,
+		items.Indexes[2].Name,
+	})
+
+	autoPart := meta.Schemas[0].Tables[0]
+	require.Len(t, autoPart.Partitions, 1)
+	require.Equal(t, metadata.TablePartitionMetadata_RANGE, autoPart.Partitions[0].Type)
+	require.Equal(t, "`id`", autoPart.Partitions[0].Expression)
+	require.Equal(t, "'1G'", autoPart.Partitions[0].AutoSize)
+
+	splitPart := meta.Schemas[0].Tables[2]
+	require.Len(t, splitPart.Partitions, 1)
+	require.Equal(t, "512M", splitPart.Partitions[0].SplitSize)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reloadedAuto := reloaded.GetDatabase("app").GetTable("auto_part")
+	require.NotNil(t, reloadedAuto.Partitioning)
+	require.Equal(t, "'1G'", reloadedAuto.Partitioning.AutoSize)
+	require.Empty(t, reloadedAuto.Partitioning.Partitions)
+
+	reloadedSplit := reloaded.GetDatabase("app").GetTable("split_part")
+	require.NotNil(t, reloadedSplit.Partitioning)
+	require.Equal(t, "512M", reloadedSplit.Partitioning.SplitSize)
+	require.Len(t, reloadedSplit.Partitioning.Partitions, 1)
+}

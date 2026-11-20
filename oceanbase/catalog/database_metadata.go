@@ -39,6 +39,9 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	tableProtoByLowerName := make(map[string]*metadata.TableMetadata, len(db.Tables))
 	for _, tName := range sortedMapKeys(db.Tables) {
 		t := db.Tables[tName]
+		if t.Temporary {
+			continue
+		}
 		tableProto := tableToProto(t)
 		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
 		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
@@ -213,7 +216,11 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		table.Columns = append(table.Columns, colMeta)
 	}
 
-	for _, idx := range t.Indexes {
+	sortedIndexes := slices.Clone(t.Indexes)
+	slices.SortStableFunc(sortedIndexes, func(a, b *Index) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	for _, idx := range sortedIndexes {
 		indexType := strings.ToUpper(idx.IndexType)
 		if indexType == "" {
 			indexType = "BTREE"
@@ -369,6 +376,24 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 		subUseDefault = strconv.Itoa(p.NumSubParts)
 	}
 
+	if len(p.Partitions) == 0 && (p.AutoSize != "" || p.SplitSize != "") {
+		part := &metadata.TablePartitionMetadata{
+			Type:       partType,
+			Expression: expr,
+			UseDefault: partUseDefault,
+			SplitSize:  p.SplitSize,
+			AutoSize:   p.AutoSize,
+		}
+		if p.SubType != "" {
+			part.Subpartitions = []*metadata.TablePartitionMetadata{{
+				Type:       subType,
+				Expression: subExpr,
+				UseDefault: subUseDefault,
+			}}
+		}
+		return []*metadata.TablePartitionMetadata{part}
+	}
+
 	var result []*metadata.TablePartitionMetadata
 	for _, pd := range p.Partitions {
 		part := &metadata.TablePartitionMetadata{
@@ -378,6 +403,8 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			UseDefault: partUseDefault,
 			Value:      pd.ValueExpr,
 			Comment:    pd.Comment,
+			SplitSize:  p.SplitSize,
+			AutoSize:   p.AutoSize,
 		}
 		if p.SubType != "" {
 			for _, spd := range pd.SubPartitions {
