@@ -993,14 +993,12 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 					{
 						Name:       "f_line_comment",
 						Definition: "CREATE FUNCTION reporting.f_line_comment(a int) RETURNS int IMMUTABLE AS $$ SELECT a -- inside body\n$$ LANGUAGE SQL -- trailing comment",
-						Comment:    "func description",
 					},
 				},
 				Procedures: []*metadatapb.ProcedureMetadata{
 					{
 						Name:       "p_line_comment",
 						Definition: "CREATE PROCEDURE reporting.p_line_comment(x varchar(20)) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql -- trailing proc comment",
-						Comment:    "proc description",
 					},
 				},
 			},
@@ -1009,8 +1007,6 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	require.NoError(t, err)
 	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"t_child_pkey\" ON \"reporting\".\"t_child\" IS 'pk note';\n")
 	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"fk_self\" ON \"reporting\".\"t_child\" IS 'self fk note';\n")
-	require.Contains(t, deferredOwnersAndComments, "COMMENT ON FUNCTION \"reporting\".\"f_line_comment\"(int4) IS 'func description';\n")
-	require.Contains(t, deferredOwnersAndComments, "COMMENT ON PROCEDURE \"reporting\".\"p_line_comment\"(varchar) IS 'proc description';\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")
@@ -1026,43 +1022,64 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	require.Greater(t, tblOwnerPos, createProcPos)
 	require.Greater(t, schemaOwnerPos, tblOwnerPos)
 
-	// 8. Table/UDF default cycle is broken by deferring ALTER COLUMN SET DEFAULT
-	// until after both the table and UDF are created, and apostrophes in SQL
-	// comments do not suppress quoted uppercase identifier detection.
-	cyclicDefault, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
-		Schemas: []*metadatapb.SchemaMetadata{
-			{
-				Name: "public",
-				Functions: []*metadatapb.FunctionMetadata{
-					{
-						Name:             "cyc_next",
-						Definition:       "CREATE FUNCTION public.cyc_next() RETURNS int AS $$ SELECT coalesce(max(id), 0) + 1 FROM public.cyc_tbl $$ LANGUAGE SQL",
-						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "cyc_tbl"}},
-					},
-				},
-				Tables: []*metadatapb.TableMetadata{
-					{
-						Name: "cyc_tbl",
-						Columns: []*metadatapb.ColumnMetadata{
-							{Name: "id", Type: "integer", Default: "public.cyc_next()"},
-						},
-					},
-				},
-				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
-					{
-						Name:       "mv_comment_quote",
-						Definition: "SELECT\n-- don't treat this comment apostrophe as a string\nid AS \"MixedAlias\" FROM public.cyc_tbl",
-					},
-				},
-			},
-		},
+	// 8. Unsupported Redshift metadata returns explicit errors instead of emitting
+	// invalid DDL, and apostrophes in SQL comments do not suppress quoted
+	// uppercase identifier detection.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:      "shared_db",
+		Datashare: true,
+	})
+	require.ErrorContains(t, err, "datashare")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_comment",
+				Definition: "CREATE FUNCTION public.f_comment() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON FUNCTION")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_comment",
+				Definition: "CREATE PROCEDURE public.p_comment() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON PROCEDURE")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:             "cyc_next",
+				Definition:       "CREATE FUNCTION public.cyc_next() RETURNS int AS $$ SELECT coalesce(max(id), 0) + 1 FROM public.cyc_tbl $$ LANGUAGE SQL",
+				DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "cyc_tbl"}},
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "cyc_tbl",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "public.cyc_next()"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclically")
+
+	commentQuoteIdent, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_comment_quote",
+				Definition: "SELECT\n-- don't treat this comment apostrophe as a string\n1 AS \"MixedAlias\"",
+			}},
+		}},
 	})
 	require.NoError(t, err)
-	require.Contains(t, cyclicDefault, "SET enable_case_sensitive_identifier TO true;\n")
-	require.Contains(t, cyclicDefault, "CREATE TABLE \"public\".\"cyc_tbl\" (\n  \"id\" integer NOT NULL\n);\n")
-	cycTblPos := strings.Index(cyclicDefault, `CREATE TABLE "public"."cyc_tbl"`)
-	cycFnPos := strings.Index(cyclicDefault, `CREATE FUNCTION public.cyc_next()`)
-	setDefPos := strings.Index(cyclicDefault, `ALTER TABLE "public"."cyc_tbl" ALTER COLUMN "id" SET DEFAULT public.cyc_next();`)
-	require.Greater(t, cycFnPos, cycTblPos)
-	require.Greater(t, setDefPos, cycFnPos)
+	require.Contains(t, commentQuoteIdent, "SET enable_case_sensitive_identifier TO true;\n")
 }
