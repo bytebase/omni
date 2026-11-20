@@ -1247,3 +1247,152 @@ func TestApplyDiffToMetadataRound7Fixes(t *testing.T) {
 	require.Equal(t, "chk doc", dottedTbl.CheckConstraints[0].Comment)
 	require.Equal(t, "et doc", findEventTrigger(got, "et.dot").Comment)
 }
+
+func TestApplyDiffToMetadataRound8Fixes(t *testing.T) {
+	catBefore := New()
+	for _, stmt := range []string{
+		`CREATE SCHEMA archive;`,
+		`CREATE SERVER srv FOREIGN DATA WRAPPER dummy;`,
+		`CREATE TABLE public.events (id integer) PARTITION BY RANGE (id);`,
+		`CREATE INDEX events_id_idx ON public.events (id);`,
+		`CREATE TABLE public.events_p1 PARTITION OF public.events FOR VALUES FROM (1) TO (10);`,
+		`CREATE TABLE public.items (id serial, qty integer);`,
+		`CREATE VIEW public.v_items AS SELECT id, qty FROM public.items;`,
+		`CREATE VIEW public.v_part AS SELECT id FROM public.events_p1;`,
+		`CREATE FUNCTION public.fn_part() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM public.events_p1 $$;`,
+		`CREATE SEQUENCE public.custom_seq START 10;`,
+		`CREATE FOREIGN TABLE public.ft_orders (id integer, CONSTRAINT chk_ft CHECK (id > 0)) SERVER srv;`,
+	} {
+		_, err := catBefore.Exec(stmt, nil)
+		require.NoError(t, err, stmt)
+	}
+
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "events",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Indexes: []*metadatapb.IndexMetadata{{Name: "events_id_idx", Type: "btree", Expressions: []string{"id"}}},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:  "events_p1",
+							Type:  metadatapb.TablePartitionMetadata_RANGE,
+							Value: "FOR VALUES FROM (1) TO (10)",
+							Indexes: []*metadatapb.IndexMetadata{{
+								Name:              "events_p1_events_id_idx_idx",
+								Type:              "btree",
+								Expressions:       []string{"id"},
+								ParentIndexSchema: "public",
+								ParentIndexName:   "events_id_idx",
+								Comment:           "part idx doc",
+							}},
+						}},
+					},
+					{
+						Name: "items",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer", Position: 1, Default: "nextval('public.items_id_seq'::regclass)"},
+							{Name: "qty", Type: "integer", Position: 2},
+						},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:              "v_items",
+						Definition:        "SELECT id, qty FROM public.items",
+						DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "items", Column: "qty"}, {Schema: "public", Table: "items", Column: "id"}},
+					},
+					{
+						Name:              "v_part",
+						Definition:        "SELECT id FROM public.events_p1",
+						DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "events_p1", Column: "id"}},
+					},
+				},
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:             "fn_part",
+					Signature:        "fn_part()",
+					Definition:       "CREATE FUNCTION public.fn_part() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM public.events_p1 $$",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "events_p1"}},
+				}},
+				Sequences: []*metadatapb.SequenceMetadata{
+					{Name: "items_id_seq", DataType: "integer", Start: "1", MinValue: "1", MaxValue: "2147483647", Increment: "1", CacheSize: "1", OwnerTable: "items", OwnerColumn: "id"},
+					{Name: "custom_seq", DataType: "bigint", Start: "10", MinValue: "1", MaxValue: "9223372036854775807", Increment: "1", CacheSize: "1", LastValue: "42", SkipDump: true, Comment: "seq doc"},
+				},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:               "ft_orders",
+					ExternalServerName: "srv",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					CheckConstraints:   []*metadatapb.CheckConstraintMetadata{{Name: "chk_ft", Expression: "id > 0", Comment: "ft chk doc"}},
+				}},
+			},
+			{Name: "archive"},
+		},
+	}
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		ALTER TABLE public.events_p1 RENAME TO events_p1_ren;
+		ALTER TABLE public.events SET SCHEMA archive;
+		ALTER TABLE public.items RENAME COLUMN id TO item_id;
+		ALTER TABLE public.items RENAME COLUMN qty TO quantity;
+		ALTER SEQUENCE public.custom_seq RENAME TO custom_seq_ren;
+		ALTER FOREIGN TABLE public.ft_orders RENAME TO ft_orders_ren;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+
+	// 1 & 2 & 6: partition rename rewrites deps, preserves index comment, and parent SET SCHEMA updates ParentIndexSchema & preserves child schema.
+	arch := findSchema(got, "archive")
+	require.NotNil(t, arch)
+	movedEvents := findTable(arch, "events")
+	require.NotNil(t, movedEvents)
+	part := findPartitionInSchema(got, "public", "events_p1_ren")
+	require.NotNil(t, part)
+	require.Equal(t, "public", part.Schema)
+	require.Len(t, part.Indexes, 1)
+	require.Equal(t, "part idx doc", part.Indexes[0].Comment)
+	require.Equal(t, "archive", part.Indexes[0].ParentIndexSchema)
+	require.Equal(t, "events_id_idx", part.Indexes[0].ParentIndexName)
+
+	pub := findSchema(got, "public")
+	require.Equal(t, "events_p1_ren", pub.Views[1].DependencyColumns[0].Table)
+	require.Equal(t, "events_p1_ren", pub.Functions[0].DependencyTables[0].Table)
+
+	// 3: Sequence rename preserves LastValue, SkipDump, Comment.
+	var seq *metadatapb.SequenceMetadata
+	for _, s := range pub.Sequences {
+		if s.Name == "custom_seq_ren" {
+			seq = s
+		}
+	}
+	require.NotNil(t, seq)
+	require.Equal(t, "42", seq.LastValue)
+	require.True(t, seq.SkipDump)
+	require.Equal(t, "seq doc", seq.Comment)
+
+	// 4: Foreign table rename preserves CHECK constraint comment.
+	ft := findExternalTable(pub, "ft_orders_ren")
+	require.NotNil(t, ft)
+	require.Len(t, ft.CheckConstraints, 1)
+	require.Equal(t, "ft chk doc", ft.CheckConstraints[0].Comment)
+
+	// 5 & 7: Column renames update view DependencyColumns and serial sequence OwnerColumn.
+	vItems := pub.Views[0]
+	require.Equal(t, "quantity", vItems.DependencyColumns[0].Column)
+	require.Equal(t, "item_id", vItems.DependencyColumns[1].Column)
+	var ownedSeq *metadatapb.SequenceMetadata
+	for _, s := range pub.Sequences {
+		if s.Name == "items_id_seq" {
+			ownedSeq = s
+		}
+	}
+	require.NotNil(t, ownedSeq)
+	require.Equal(t, "item_id", ownedSeq.OwnerColumn)
+}

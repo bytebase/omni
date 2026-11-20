@@ -55,30 +55,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		}
 	}
 
-	for _, seq := range diff.Sequences {
-		schemaName := canonicalSchema(seq.SchemaName)
-		if seq.Action == DiffDrop {
-			if renamedSchemas[seq.SchemaName] != "" && hasMatchingSequenceAdd(diff.Sequences, renamedSchemas[seq.SchemaName], seq.Name) {
-				continue
-			}
-			if sm := findSchema(result, schemaName); sm != nil {
-				sm.Sequences = removeSequenceByName(sm.Sequences, seq.Name)
-			}
-			continue
-		}
-		sm := findOrCreateSchema(result, schemaName)
-		switch seq.Action {
-		case DiffAdd:
-			if seq.To != nil {
-				upsertSequence(sm, sequenceToProto(catAfter, seq.To))
-			}
-		case DiffModify:
-			if seq.To != nil {
-				upsertSequence(sm, sequenceToProto(catAfter, seq.To))
-			}
-		default:
-		}
-	}
+	applySequenceDiffs(result, catAfter, diff.Sequences, renamedSchemas, canonicalSchema)
 
 	for _, e := range diff.Enums {
 		schemaName := canonicalSchema(e.SchemaName)
@@ -139,9 +116,9 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
 	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
-	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyExtensionDiffs(result, catAfter, diff.Extensions)
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
+	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyRelationOwnerChanges(result, catBefore, catAfter)
 
 	return result
@@ -403,6 +380,105 @@ func rewriteDependencyReferences(meta *metadatapb.DatabaseSchemaMetadata, oldSch
 					}
 				}
 			}
+		}
+	}
+}
+
+func rewriteColumnDependencyReferences(meta *metadatapb.DatabaseSchemaMetadata, schema, table, oldCol, newCol string) {
+	if meta == nil || oldCol == newCol {
+		return
+	}
+	for _, s := range meta.Schemas {
+		for _, v := range s.Views {
+			for _, dep := range v.DependencyColumns {
+				if dep.Schema == schema && dep.Table == table && dep.Column == oldCol {
+					dep.Column = newCol
+				}
+			}
+		}
+		for _, mv := range s.MaterializedViews {
+			for _, dep := range mv.DependencyColumns {
+				if dep.Schema == schema && dep.Table == table && dep.Column == oldCol {
+					dep.Column = newCol
+				}
+			}
+		}
+	}
+	if sm := findSchema(meta, schema); sm != nil {
+		for _, seq := range sm.Sequences {
+			if seq.OwnerTable == table && seq.OwnerColumn == oldCol {
+				seq.OwnerColumn = newCol
+			}
+		}
+	}
+}
+
+func rewriteColumnRenamesForRelation(meta *metadatapb.DatabaseSchemaMetadata, schema, table string, fromRel, toRel *Relation) {
+	if meta == nil || fromRel == nil || toRel == nil {
+		return
+	}
+	fromByAttNum := make(map[int16]string, len(fromRel.Columns))
+	for _, col := range fromRel.Columns {
+		if col != nil && col.AttNum > 0 {
+			fromByAttNum[col.AttNum] = col.Name
+		}
+	}
+	for _, col := range toRel.Columns {
+		if col == nil || col.AttNum <= 0 {
+			continue
+		}
+		if oldName, ok := fromByAttNum[col.AttNum]; ok && oldName != col.Name {
+			rewriteColumnDependencyReferences(meta, schema, table, oldName, col.Name)
+		}
+	}
+}
+
+func rewritePartitionSchemasOnParentMove(partitions []*metadatapb.TablePartitionMetadata, oldSchema, newSchema string) {
+	if oldSchema == newSchema {
+		return
+	}
+	for _, p := range partitions {
+		switch p.Schema {
+		case "":
+			p.Schema = oldSchema
+		case newSchema:
+			p.Schema = ""
+		}
+	}
+}
+
+func rewriteParentIndexSchema(meta *metadatapb.DatabaseSchemaMetadata, oldSchema, newSchema string, indexes []*metadatapb.IndexMetadata) {
+	if meta == nil || oldSchema == newSchema || len(indexes) == 0 {
+		return
+	}
+	indexNames := make(map[string]bool, len(indexes))
+	for _, idx := range indexes {
+		if idx.Name != "" {
+			indexNames[idx.Name] = true
+		}
+	}
+	if len(indexNames) == 0 {
+		return
+	}
+	var walkPartitions func(partitions []*metadatapb.TablePartitionMetadata)
+	walkPartitions = func(partitions []*metadatapb.TablePartitionMetadata) {
+		for _, p := range partitions {
+			for _, idx := range p.Indexes {
+				if idx.ParentIndexSchema == oldSchema && indexNames[idx.ParentIndexName] {
+					idx.ParentIndexSchema = newSchema
+				}
+			}
+			walkPartitions(p.Subpartitions)
+		}
+	}
+	for _, s := range meta.Schemas {
+		for _, tbl := range s.Tables {
+			for _, idx := range tbl.Indexes {
+				if idx.ParentIndexSchema == oldSchema && indexNames[idx.ParentIndexName] {
+					idx.ParentIndexSchema = newSchema
+				}
+			}
+			walkPartitions(tbl.Partitions)
 		}
 	}
 }
@@ -672,17 +748,92 @@ func upsertEventTrigger(meta *metadatapb.DatabaseSchemaMetadata, updated *metada
 	meta.EventTriggers = append(meta.EventTriggers, updated)
 }
 
+func popSequenceByName(seqs []*metadatapb.SequenceMetadata, name string) (*metadatapb.SequenceMetadata, []*metadatapb.SequenceMetadata) {
+	var popped *metadatapb.SequenceMetadata
+	out := make([]*metadatapb.SequenceMetadata, 0, len(seqs))
+	for _, s := range seqs {
+		if s.Name == name && popped == nil {
+			popped = s
+			continue
+		}
+		out = append(out, s)
+	}
+	return popped, out
+}
+
+func mergeSequenceMetadata(updated, existing *metadatapb.SequenceMetadata) {
+	if existing == nil {
+		return
+	}
+	if updated.Comment == "" {
+		updated.Comment = existing.Comment
+	}
+	if !updated.SkipDump {
+		updated.SkipDump = existing.SkipDump
+	}
+	if updated.LastValue == "" {
+		updated.LastValue = existing.LastValue
+	}
+}
+
 func upsertSequence(sm *metadatapb.SchemaMetadata, updated *metadatapb.SequenceMetadata) {
 	for i, existing := range sm.Sequences {
 		if existing.Name == updated.Name {
-			updated.Comment = existing.Comment
-			updated.SkipDump = existing.SkipDump
-			updated.LastValue = existing.LastValue
+			mergeSequenceMetadata(updated, existing)
 			sm.Sequences[i] = updated
 			return
 		}
 	}
 	sm.Sequences = append(sm.Sequences, updated)
+}
+
+func applySequenceDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, sequences []SequenceDiffEntry, renamedSchemas map[string]string, canonicalSchema func(string) string) {
+	droppedByOID := make(map[uint32]SequenceDiffEntry)
+	addedByOID := make(map[uint32]SequenceDiffEntry)
+	for _, seq := range sequences {
+		if seq.Action == DiffDrop && seq.From != nil && seq.From.OID != 0 {
+			droppedByOID[seq.From.OID] = seq
+		} else if seq.Action == DiffAdd && seq.To != nil && seq.To.OID != 0 {
+			addedByOID[seq.To.OID] = seq
+		}
+	}
+	handledOIDs := make(map[uint32]bool)
+	for oid, dropEntry := range droppedByOID {
+		addEntry, ok := addedByOID[oid]
+		if !ok {
+			continue
+		}
+		handledOIDs[oid] = true
+		srcSchema := canonicalSchema(dropEntry.SchemaName)
+		dstSchema := canonicalSchema(addEntry.SchemaName)
+		var prevSeq *metadatapb.SequenceMetadata
+		if srcSM := findSchema(result, srcSchema); srcSM != nil {
+			prevSeq, srcSM.Sequences = popSequenceByName(srcSM.Sequences, dropEntry.Name)
+		}
+		updated := sequenceToProto(catAfter, addEntry.To)
+		mergeSequenceMetadata(updated, prevSeq)
+		upsertSequence(findOrCreateSchema(result, dstSchema), updated)
+	}
+	for _, seq := range sequences {
+		if (seq.From != nil && seq.From.OID != 0 && handledOIDs[seq.From.OID]) ||
+			(seq.To != nil && seq.To.OID != 0 && handledOIDs[seq.To.OID]) {
+			continue
+		}
+		schemaName := canonicalSchema(seq.SchemaName)
+		if seq.Action == DiffDrop {
+			if renamedSchemas[seq.SchemaName] != "" && hasMatchingSequenceAdd(sequences, renamedSchemas[seq.SchemaName], seq.Name) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
+				sm.Sequences = removeSequenceByName(sm.Sequences, seq.Name)
+			}
+			continue
+		}
+		sm := findOrCreateSchema(result, schemaName)
+		if (seq.Action == DiffAdd || seq.Action == DiffModify) && seq.To != nil {
+			upsertSequence(sm, sequenceToProto(catAfter, seq.To))
+		}
+	}
 }
 
 func upsertEnum(sm *metadatapb.SchemaMetadata, name string, values []string) {
@@ -980,7 +1131,7 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 			sm.Tables = append(sm.Tables, relationToTableProto(cat, rel.To))
 			return
 		}
-		applyColumnDiffs(&tbl.Columns, cat, rel)
+		applyColumnDiffs(result, sm.Name, rel.Name, &tbl.Columns, cat, rel)
 		applyIndexDiffs(tbl, cat, rel)
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
 		applyTriggerDiffs(&tbl.Triggers, cat, rel)
@@ -1086,7 +1237,7 @@ func applyForeignTableDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore
 				sm.ExternalTables = append(sm.ExternalTables, relationToExternalTableProto(catAfter, rel.To))
 				continue
 			}
-			applyColumnDiffs(&ext.Columns, catAfter, rel)
+			applyColumnDiffs(result, sm.Name, rel.Name, &ext.Columns, catAfter, rel)
 			tbl := &metadatapb.TableMetadata{CheckConstraints: ext.CheckConstraints}
 			applyConstraintDiffs(tbl, catBefore, catAfter, rel)
 			ext.CheckConstraints = tbl.CheckConstraints
@@ -1126,6 +1277,7 @@ func renameForeignTables(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 		}
 		rebuilt := relationToExternalTableProto(catAfter, add.To)
 		preserveColumnMetadata(rebuilt.Columns, ext.Columns, rel.From, add.To)
+		preserveCheckConstraintComments(rebuilt.CheckConstraints, ext.CheckConstraints)
 		preserveTriggerComments(rebuilt.Triggers, ext.Triggers)
 		ext.Name = add.Name
 		ext.Columns = rebuilt.Columns
@@ -1143,6 +1295,7 @@ func renameForeignTables(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 			})
 			findOrCreateSchema(result, add.SchemaName).ExternalTables = append(findOrCreateSchema(result, add.SchemaName).ExternalTables, ext)
 		}
+		rewriteColumnRenamesForRelation(result, srcSchema, rel.Name, rel.From, add.To)
 		rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 		renamed[rel.From.OID] = true
 	}
@@ -1166,6 +1319,23 @@ func preserveTriggerComments(dst, src []*metadatapb.TriggerMetadata) {
 	}
 }
 
+func preserveCheckConstraintComments(dst, src []*metadatapb.CheckConstraintMetadata) {
+	if len(dst) == 0 || len(src) == 0 {
+		return
+	}
+	comments := make(map[string]string, len(src))
+	for _, chk := range src {
+		if chk.Comment != "" {
+			comments[chk.Name] = chk.Comment
+		}
+	}
+	for _, chk := range dst {
+		if c, ok := comments[chk.Name]; ok && chk.Comment == "" {
+			chk.Comment = c
+		}
+	}
+}
+
 func preserveConstraintComments(dst, src *metadatapb.TableMetadata) {
 	if len(dst.ForeignKeys) > 0 && len(src.ForeignKeys) > 0 {
 		fkComments := make(map[string]string, len(src.ForeignKeys))
@@ -1180,19 +1350,7 @@ func preserveConstraintComments(dst, src *metadatapb.TableMetadata) {
 			}
 		}
 	}
-	if len(dst.CheckConstraints) > 0 && len(src.CheckConstraints) > 0 {
-		chkComments := make(map[string]string, len(src.CheckConstraints))
-		for _, chk := range src.CheckConstraints {
-			if chk.Comment != "" {
-				chkComments[chk.Name] = chk.Comment
-			}
-		}
-		for _, chk := range dst.CheckConstraints {
-			if c, ok := chkComments[chk.Name]; ok && chk.Comment == "" {
-				chk.Comment = c
-			}
-		}
-	}
+	preserveCheckConstraintComments(dst.CheckConstraints, src.CheckConstraints)
 }
 
 func preserveIndexMetadata(dst, src []*metadatapb.IndexMetadata) {
@@ -1242,9 +1400,13 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 		}
 		if p := findPartitionInSchema(result, srcSchema, rel.Name); p != nil {
 			tbl := relationToTableProto(catAfter, add.To)
+			preserveIndexMetadata(tbl.Indexes, p.Indexes)
+			preserveCheckConstraintComments(tbl.CheckConstraints, p.CheckConstraints)
 			p.Name = add.Name
 			p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
 			if add.SchemaName != srcSchema {
+				rewritePartitionSchemasOnParentMove(p.Subpartitions, srcSchema, add.SchemaName)
+				rewriteParentIndexSchema(result, srcSchema, add.SchemaName, tbl.Indexes)
 				parentRel := catAfter.GetRelationByOID(add.To.PartitionOf)
 				if parentRel != nil && parentRel.Schema != nil && parentRel.Schema.Name == add.SchemaName {
 					p.Schema = ""
@@ -1252,6 +1414,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 					p.Schema = add.SchemaName
 				}
 			}
+			rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 			renamed[rel.From.OID] = true
 			continue
 		}
@@ -1309,10 +1472,19 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 				tbl.Owner = add.To.OwnerName
 			}
 			if add.SchemaName != srcSchema {
+				rewritePartitionSchemasOnParentMove(tbl.Partitions, srcSchema, add.SchemaName)
+				rewriteParentIndexSchema(result, srcSchema, add.SchemaName, tbl.Indexes)
 				sm.Tables = removeTableByName(sm.Tables, rel.Name)
 				targetSchema := findOrCreateSchema(result, add.SchemaName)
 				targetSchema.Tables = append(targetSchema.Tables, tbl)
+			} else if add.Name != rel.Name {
+				for _, seq := range sm.Sequences {
+					if seq.OwnerTable == rel.Name {
+						seq.OwnerTable = add.Name
+					}
+				}
 			}
+			rewriteColumnRenamesForRelation(result, srcSchema, rel.Name, rel.From, add.To)
 			rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 			renamed[rel.From.OID] = true
 		}
@@ -1406,7 +1578,7 @@ func preserveColumnMetadata(dst, src []*metadatapb.ColumnMetadata, fromRel, toRe
 	}
 }
 
-func applyColumnDiffs(cols *[]*metadatapb.ColumnMetadata, cat *Catalog, rel RelationDiffEntry) {
+func applyColumnDiffs(result *metadatapb.DatabaseSchemaMetadata, schemaName, tableName string, cols *[]*metadatapb.ColumnMetadata, cat *Catalog, rel RelationDiffEntry) {
 	addedByAttNum := make(map[int16]ColumnDiffEntry)
 	for _, cd := range rel.Columns {
 		if cd.Action == DiffAdd && cd.To != nil && cd.To.AttNum > 0 {
@@ -1426,6 +1598,7 @@ func applyColumnDiffs(cols *[]*metadatapb.ColumnMetadata, cat *Catalog, rel Rela
 			if col.Name == cd.Name {
 				(*cols)[i] = mergeColumnProto(cat, col, cd.From, add.To)
 				handledAttNum[cd.From.AttNum] = true
+				rewriteColumnDependencyReferences(result, schemaName, tableName, cd.Name, add.To.Name)
 				break
 			}
 		}
@@ -2462,6 +2635,13 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 			}
 			if tbl := findTable(sm, tableName); tbl != nil {
 				setConstraintCommentOnTable(tbl, conName, c.To)
+			} else if ext := findExternalTable(sm, tableName); ext != nil {
+				for _, chk := range ext.CheckConstraints {
+					if chk.Name == conName {
+						chk.Comment = c.To
+						break
+					}
+				}
 			}
 		case 'g':
 			schemaName, tableName, trigName, ok := commentParts3(c)
