@@ -5060,6 +5060,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// Integer-returning functions are small key parts, not placeholders.
 		{name: "functional key of 13 ASCII parts", stmt: "CREATE TABLE z (c1 VARCHAR(10), c2 VARCHAR(10), c3 VARCHAR(10), c4 VARCHAR(10), c5 VARCHAR(10), c6 VARCHAR(10), c7 VARCHAR(10), c8 VARCHAR(10), c9 VARCHAR(10), c10 VARCHAR(10), c11 VARCHAR(10), c12 VARCHAR(10), c13 VARCHAR(10), KEY ((ASCII(c1)), (ASCII(c2)), (ASCII(c3)), (ASCII(c4)), (ASCII(c5)), (ASCII(c6)), (ASCII(c7)), (ASCII(c8)), (ASCII(c9)), (ASCII(c10)), (ASCII(c11)), (ASCII(c12)), (ASCII(c13))))", code: 0},
 		{name: "COMPACT functional ASCII part", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((ASCII(s)))) ROW_FORMAT=COMPACT", code: 0},
+		// A binary CONCAT_WS counts a character separator at 4 bytes.
+		{name: "functional CONCAT_WS of binary columns at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(254), KEY ((CONCAT_WS('x', b, b))))", code: 0},
+		{name: "functional CONCAT_WS of binary columns past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(255), KEY ((CONCAT_WS('x', b, b))))", code: 3757},
+		{name: "functional CONCAT_WS with a binary separator", stmt: "CREATE TABLE z (b VARBINARY(10), KEY ((CONCAT_WS(X'00', b, b, b))))", code: 0},
+		// IGNORE_SPACE makes a spaced call a built-in in a functional key part.
+		{name: "functional spaced SUBSTRING under IGNORE_SPACE", session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((SUBSTRING (a,1,1))))", code: 0},
+		{name: "functional spaced SUBSTRING under ANSI", session: []string{"SET SESSION sql_mode = 'ANSI'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((SUBSTRING (a,1,1))))", code: 0},
+		{name: "functional spaced SUBSTRING without IGNORE_SPACE", stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((SUBSTRING (a,1,1))))", code: 3758},
+		{name: "functional spaced unknown function under IGNORE_SPACE", session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((nosuch (a))))", code: 3758},
+		{name: "functional spaced NOW under IGNORE_SPACE", session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((NOW ())))", code: 3758},
+		{name: "CREATE INDEX spaced SUBSTRING under IGNORE_SPACE", setup: []string{oneTable}, session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE INDEX i ON a ((SUBSTRING (c,1,1)))", code: 0},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6149,6 +6160,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(1)", "BIT_COUNT(-1)", "BIT_COUNT('3')", "BIT_COUNT(1.6)", "BIT_COUNT(1.5e0)", "BIT_COUNT('x')",
 		"BIT_COUNT(18446744073709551615)", "BIT_COUNT(X'FF')", "BIT_COUNT(b'101')",
 		"ASCII(X'01')", "ASCII('A')", "ASCII('')", "ASCII(65)",
+		"ORD(X'01')", "ORD('A')", "ORD('')", "ORD('é')", "ORD('€')", "ORD('😀')", "ORD(65)", "ORD(_binary'é')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6260,7 +6272,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
-		"ASCII(X'01')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"ASCII(X'01')", "ORD(X'01')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

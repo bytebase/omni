@@ -916,7 +916,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 	case *nodes.NullLit:
 		return userVarValue{kind: userVarNull}, true, nil
 	case *nodes.StringLit:
-		return userVarValue{kind: userVarString, str: e.Value}, true, nil
+		// A _binary introducer makes a binary string, compared bytewise:
+		// IF(_binary'a' = 'A', ...) is false on mysql:8.0.46.
+		return userVarValue{kind: userVarString, str: e.Value, binary: isBinaryIntroducer(e.Charset)}, true, nil
 	case *nodes.HexLit:
 		raw, ok := decodeLiteralRawBytes(cleanHexDigits(e.Value), true)
 		if !ok {
@@ -1364,6 +1366,29 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "ord":
+			// ORD is the first character's bytes read big-endian, a binary
+			// string's first byte: ORD('é') is 50089, ORD(X'01') is 1.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ORD")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			var n uint64
+			if len(v.str) > 0 {
+				w := 1
+				if !v.binary {
+					if _, size := utf8.DecodeRuneInString(v.str); size > 1 {
+						w = size
+					}
+				}
+				for i := 0; i < w; i++ {
+					n = n<<8 | uint64(v.str[i])
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(n, 10)}, true, nil
 		case "ascii":
 			// ASCII is the first byte of the string form, 0 for an empty one:
 			// ASCII(X'01') is 1 and sets sql_mode REAL_AS_FLOAT.
@@ -1727,7 +1752,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "abs",
-				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii":
+				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
@@ -1833,6 +1858,12 @@ func (c *Catalog) setCastCharLengthError(dt *nodes.DataType) error {
 	return nil
 }
 
+// isBinaryIntroducer reports a _binary charset introducer, however the parser
+// spells it.
+func isBinaryIntroducer(cs string) bool {
+	return strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(cs), "_"), "binary")
+}
+
 // setMaxAllowedPacket is max_allowed_packet's default on mysql:8.0.46.
 const setMaxAllowedPacket = 67108864
 
@@ -1912,7 +1943,7 @@ func (c *Catalog) setExprResultIsStringOrBinary(expr nodes.ExprNode) (isStr, isB
 	case *nodes.ParenExpr:
 		return c.setExprResultIsStringOrBinary(e.Expr)
 	case *nodes.StringLit:
-		return true, false
+		return true, isBinaryIntroducer(e.Charset)
 	case *nodes.HexLit, *nodes.BitLit:
 		return true, true
 	case *nodes.CastExpr:

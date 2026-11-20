@@ -35,11 +35,11 @@ func allocFunctionalIndexName(tbl *Table) string {
 	}
 }
 
-func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
-	return synthesizeFunctionalIndexColumnsForStmt(tbl, idx, nil, true)
+func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index, ignoreSpace bool) error {
+	return synthesizeFunctionalIndexColumnsForStmt(tbl, idx, nil, true, ignoreSpace)
 }
 
-func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[string]bool, checkRefs bool) error {
+func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[string]bool, checkRefs, ignoreSpace bool) error {
 	for _, idxCol := range idx.Columns {
 		if idxCol.Expr == "" {
 			continue
@@ -50,9 +50,9 @@ func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[
 			}
 		}
 		if idx.Fulltext || idx.Spatial {
-			return validateFulltextSpatialFunctionalExpr(tbl, idx.Name, idxCol.ExprNode, idx.Spatial)
+			return validateFulltextSpatialFunctionalExpr(tbl, idx.Name, idxCol.ExprNode, idx.Spatial, ignoreSpace)
 		}
-		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
+		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode, ignoreSpace); err != nil {
 			return err
 		}
 	}
@@ -159,7 +159,7 @@ func rebindTableExprQualifiers(expr nodes.ExprNode, oldDB, oldTable string, clon
 	return target, nodeToSQL(target), true
 }
 
-func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index) error {
+func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index, ignoreSpace bool) error {
 	for _, idx := range added {
 		if idx == nil {
 			continue
@@ -171,7 +171,7 @@ func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index) error {
 			if err := validateFunctionalIndexColumnRefs(tbl, nil, idxCol.ExprNode); err != nil {
 				return err
 			}
-			if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
+			if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode, ignoreSpace); err != nil {
 				return err
 			}
 			if col := tbl.GetColumn(idxCol.Name); col != nil && col.Hidden == ColumnHiddenSystem {
@@ -590,6 +590,16 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 				base = BaseTypeVarBinary
 			}
 		}
+		// A binary CONCAT_WS counts a character separator at utf8mb4's 4
+		// bytes per character too: mysql:8.0.46 takes
+		// CONCAT_WS('x', varbinary_254, varbinary_254) and answers 3757 at 255.
+		if name == "concat_ws" && base == BaseTypeVarBinary && !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[0])) {
+			w := "utf8mb4"
+			if charset != "" {
+				w = charset
+			}
+			sepLen *= max(charsetMaxBytes(w), 1)
+		}
 		totalLen := 0
 		for i := start; i < len(e.Args); i++ {
 			argLen, ok, cs := inferStringExprLenAndCharset(tbl, e.Args[i])
@@ -892,11 +902,11 @@ func isResolvedStringType(rt *ResolvedType) bool {
 	}
 }
 
-func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode) error {
+func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode, ignoreSpace bool) error {
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
 		return errFunctionalIndexOnField()
 	}
-	if err := functionalIndexExprRefusal(indexName, expr); err != nil {
+	if err := functionalIndexExprRefusal(indexName, expr, ignoreSpace); err != nil {
 		return err
 	}
 	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
@@ -923,11 +933,11 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 // first, as for any functional key part, and its type only for a BLOB or TEXT
 // result: FULLTEXT ((NOW())) is 3758, FULLTEXT ((CONCAT(a, REPEAT(a, 10000))))
 // is 3757, and FULLTEXT ((CAST(a AS JSON))) is 3759, not 3753.
-func validateFulltextSpatialFunctionalExpr(tbl *Table, indexName string, expr nodes.ExprNode, spatial bool) error {
+func validateFulltextSpatialFunctionalExpr(tbl *Table, indexName string, expr nodes.ExprNode, spatial, ignoreSpace bool) error {
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
 		return errFunctionalIndexOnField()
 	}
-	if err := functionalIndexExprRefusal(indexName, expr); err != nil {
+	if err := functionalIndexExprRefusal(indexName, expr, ignoreSpace); err != nil {
 		return err
 	}
 	if rt := inferFunctionalIndexExprType(tbl, expr); isFunctionalIndexLOBType(rt) && !isFunctionalIndexJSONOrGeometryType(rt) {
@@ -945,7 +955,7 @@ func validateFulltextSpatialFunctionalExpr(tbl *Table, indexName string, expr no
 
 // validateFulltextSpatialFunctionalParts judges the functional key parts of a
 // FULLTEXT or SPATIAL key a table definition declares, after its plain key parts.
-func validateFulltextSpatialFunctionalParts(tbl *Table, leaves map[string]bool, checkRefs bool, indexName string, idxCols []*IndexColumn, spatial bool) error {
+func validateFulltextSpatialFunctionalParts(tbl *Table, leaves map[string]bool, checkRefs bool, indexName string, idxCols []*IndexColumn, spatial, ignoreSpace bool) error {
 	if indexName == "" {
 		indexName = "functional_index"
 	}
@@ -958,7 +968,7 @@ func validateFulltextSpatialFunctionalParts(tbl *Table, leaves map[string]bool, 
 				return err
 			}
 		}
-		return validateFulltextSpatialFunctionalExpr(tbl, indexName, ic.ExprNode, spatial)
+		return validateFulltextSpatialFunctionalExpr(tbl, indexName, ic.ExprNode, spatial, ignoreSpace)
 	}
 	return nil
 }
@@ -979,8 +989,8 @@ func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 // KEY ((SLEEP(@x))) are 3772, KEY ((NOW() + @x)) is 3758. Aggregates (1111)
 // and window functions (3593) are judged only after the whole expression
 // passes: KEY ((COUNT(a) + NOW())) is 3758, KEY ((COUNT(a))) is 1111.
-func functionalIndexExprRefusal(indexName string, expr nodes.ExprNode) error {
-	v := &functionalIndexJudge{}
+func functionalIndexExprRefusal(indexName string, expr nodes.ExprNode, ignoreSpace bool) error {
+	v := &functionalIndexJudge{ignoreSpace: ignoreSpace}
 	nodes.Walk(v, expr)
 	switch v.code {
 	case ErrDefaultValExprRefVariable:
@@ -1010,8 +1020,9 @@ func functionalIndexExprRefusal(indexName string, expr nodes.ExprNode) error {
 }
 
 type functionalIndexJudge struct {
-	stack []nodes.Node
-	code  int
+	stack       []nodes.Node
+	code        int
+	ignoreSpace bool
 }
 
 func (v *functionalIndexJudge) Visit(n nodes.Node) nodes.Visitor {
@@ -1027,7 +1038,7 @@ func (v *functionalIndexJudge) Visit(n nodes.Node) nodes.Visitor {
 		case *nodes.DefaultExpr, *nodes.MatchExpr:
 			v.code = 3758
 		case *nodes.FuncCallExpr:
-			if isFunctionalIndexDisallowedFunc(e) {
+			if isFunctionalIndexDisallowedFunc(e, v.ignoreSpace) {
 				v.code = 3758
 			}
 		}
@@ -1052,8 +1063,11 @@ func (v *functionalIndexJudge) Visit(n nodes.Node) nodes.Visitor {
 // gated keyword such as `position (a)`), a built-in DEFAULT (expr) refuses too
 // (LAST_INSERT_ID, VERSION, VALUES, ...), and the built-ins DEFAULT takes but a
 // generated column does not. Aggregates and window functions are judged apart.
-func isFunctionalIndexDisallowedFunc(e *nodes.FuncCallExpr) bool {
-	if e.Schema != "" || e.SpacedParen {
+func isFunctionalIndexDisallowedFunc(e *nodes.FuncCallExpr, ignoreSpace bool) bool {
+	// A spaced call names a stored function unless IGNORE_SPACE makes it the
+	// built-in: mysql:8.0.46 takes KEY ((SUBSTRING (a,1,1))) under
+	// IGNORE_SPACE or ANSI and answers 3758 without it.
+	if e.Schema != "" || (e.SpacedParen && !ignoreSpace) {
 		return true
 	}
 	name := strings.ToLower(e.Name)

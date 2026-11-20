@@ -123,7 +123,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
 		return err
 	}
-	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+	if err := synthesizeFunctionalIndexColumns(tbl, idx, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
 	}
 	if !idx.Fulltext && !idx.Spatial && hasFunctionalIndexColumns(idx.Columns) {

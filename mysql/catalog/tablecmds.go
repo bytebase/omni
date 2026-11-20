@@ -743,7 +743,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, uqIdx)
-			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, nil, declared); err != nil {
+			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, nil, declared, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			if hasFunctionalIndexColumns(uqIdx.Columns) {
@@ -865,7 +865,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, keyIdx)
-			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, nil, declared); err != nil {
+			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, nil, declared, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			if !spatial && hasFunctionalIndexColumns(keyIdx.Columns) {
@@ -899,7 +899,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 				return err
 			}
-			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, false); err != nil {
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, false, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			ftIdx := &Index{
@@ -937,7 +937,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 				return err
 			}
-			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, true); err != nil {
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, true, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

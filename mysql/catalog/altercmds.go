@@ -639,7 +639,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 	if alterChangesIndexCapacity(commands) {
 		recheckTargets = tbl.Indexes
 	}
-	if err := recheckFunctionalIndexesOnFinalTable(tbl, recheckTargets); err != nil {
+	if err := recheckFunctionalIndexesOnFinalTable(tbl, recheckTargets, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
 	}
 	checkAllIndexes := alterChangesIndexCapacity(commands)
@@ -1509,7 +1509,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, uqIdx)
-		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, leaves, true); err != nil {
+		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, leaves, true, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		if checkWidths && hasFunctionalIndexColumns(uqIdx.Columns) {
@@ -1632,7 +1632,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		// added by ALTER lost its comment, visibility and block size.
 		applyIndexOptions(keyIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, keyIdx)
-		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, leaves, true); err != nil {
+		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, leaves, true, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		if checkWidths && !spatial && hasFunctionalIndexColumns(keyIdx.Columns) {
@@ -1664,7 +1664,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 			return err
 		}
-		if err := validateFulltextSpatialFunctionalParts(tbl, leaves, true, idxName, idxCols, false); err != nil {
+		if err := validateFulltextSpatialFunctionalParts(tbl, leaves, true, idxName, idxCols, false, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		ftIdx := &Index{
@@ -1700,7 +1700,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 			return err
 		}
-		if err := validateFulltextSpatialFunctionalParts(tbl, leaves, true, idxName, idxCols, true); err != nil {
+		if err := validateFulltextSpatialFunctionalParts(tbl, leaves, true, idxName, idxCols, true, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
