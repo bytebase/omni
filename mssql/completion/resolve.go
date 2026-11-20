@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -40,49 +41,28 @@ var tsqlQueryHints = []string{
 	"LOOP JOIN", "FORCE ORDER",
 }
 
-// builtinFunctions lists T-SQL built-in scalar, aggregate, and metadata functions.
-var builtinFunctions = []string{
-	"ABS", "ACOS", "APP_NAME", "APPLOCK_MODE", "APPLOCK_TEST", "ASCII", "ASIN",
-	"ASSEMBLYPROPERTY", "ATAN", "ATN2", "BINARY_CHECKSUM", "CAST", "CEILING",
-	"CERT_ID", "CERTENCODED", "CERTPRIVATEKEY", "CHAR", "CHARINDEX", "CHECKSUM",
-	"COALESCE", "COL_LENGTH", "COL_NAME", "COLUMNPROPERTY", "COMPRESS", "CONCAT",
-	"CONCAT_WS", "CONNECTIONPROPERTY", "CONTEXT_INFO", "CONVERT", "COS", "COT",
-	"CURRENT_DATE", "CURRENT_REQUEST_ID", "CURRENT_TIMESTAMP", "CURRENT_TIMEZONE",
-	"CURRENT_TIMEZONE_ID", "CURRENT_TRANSACTION_ID", "CURRENT_USER", "CURSOR_ROWS",
-	"CURSOR_STATUS", "DATABASE_PRINCIPAL_ID", "DATABASEPROPERTYEX", "DATALENGTH",
-	"DATE_BUCKET", "DATEADD", "DATEDIFF", "DATEDIFF_BIG", "DATEFROMPARTS",
-	"DATENAME", "DATEPART", "DATETIME2FROMPARTS", "DATETIMEFROMPARTS",
-	"DATETIMEOFFSETFROMPARTS", "DATETRUNC", "DAY", "DB_ID", "DB_NAME",
-	"DECOMPRESS", "DEGREES", "DIFFERENCE", "EOMONTH", "ERROR_LINE",
-	"ERROR_MESSAGE", "ERROR_NUMBER", "ERROR_PROCEDURE", "ERROR_SEVERITY",
-	"ERROR_STATE", "EXP", "FETCH_STATUS", "FILE_ID", "FILE_IDEX", "FILE_NAME",
-	"FILEGROUP_ID", "FILEGROUP_NAME", "FILEGROUPPROPERTY", "FILEPROPERTY",
-	"FILEPROPERTYEX", "FLOOR", "FORMAT", "FORMATMESSAGE",
-	"FULLTEXTCATALOGPROPERTY", "FULLTEXTSERVICEPROPERTY",
-	"GET_FILESTREAM_TRANSACTION_CONTEXT", "GETANSINULL", "GETDATE", "GETUTCDATE",
-	"GREATEST", "HAS_DBACCESS", "HAS_PERMS_BY_NAME", "HOST_ID", "HOST_NAME",
-	"IDENT_CURRENT", "IDENT_INCR", "IDENT_SEED", "IDENTITY", "IIF", "INDEX_COL",
-	"INDEXKEY_PROPERTY", "INDEXPROPERTY", "IS_MEMBER", "IS_ROLEMEMBER",
-	"IS_SRVROLEMEMBER", "ISDATE", "ISJSON", "ISNULL", "ISNUMERIC", "JSON_ARRAY",
-	"JSON_MODIFY", "JSON_OBJECT", "JSON_PATH_EXISTS", "JSON_QUERY", "JSON_VALUE",
-	"LEAST", "LEFT", "LEN", "LOG", "LOG10", "LOGINPROPERTY", "LOWER", "LTRIM",
-	"MATH_SIGN", "MIN_ACTIVE_ROWVERSION", "MONTH", "NCHAR", "NEWID",
-	"NEWSEQUENTIALID", "NEXT_VALUE_FOR", "NULLIF", "OBJECT_DEFINITION",
-	"OBJECT_ID", "OBJECT_NAME", "OBJECT_SCHEMA_NAME", "OBJECTPROPERTY",
-	"OBJECTPROPERTYEX", "ORIGINAL_DB_NAME", "ORIGINAL_LOGIN", "PARSE",
-	"PARSENAME", "PATINDEX", "PERMISSIONS", "PI", "POWER", "PWDCOMPARE",
-	"PWDENCRYPT", "QUOTENAME", "RADIANS", "RAND", "REPLACE", "REPLICATE",
-	"REVERSE", "RIGHT", "ROUND", "ROWCOUNT_BIG", "RTRIM", "SCHEMA_ID",
-	"SCHEMA_NAME", "SCOPE_IDENTITY", "SERVERPROPERTY", "SESSION_CONTEXT",
-	"SESSIONPROPERTY", "SIN", "SMALLDATETIMEFROMPARTS", "SOUNDEX", "SPACE",
-	"SQL_VARIANT_PROPERTY", "SQRT", "SQUARE", "STATS_DATE", "STR",
-	"STRING_ESCAPE", "STRINGAGG", "STUFF", "SUBSTRING", "SUSER_ID", "SUSER_NAME",
-	"SUSER_SID", "SUSER_SNAME", "SWITCHOFFSET", "SYSDATETIME",
-	"SYSDATETIMEOFFSET", "SYSTEM_USER", "SYSUTCDATETIME", "TAN", "TIMEFROMPARTS",
-	"TODATETIMEOFFSET", "TRANSLATE", "TRIM", "TRY_CAST", "TYPE_ID", "TYPE_NAME",
-	"TYPEPROPERTY", "UNICODE", "UPPER", "USER", "USER_ID", "USER_NAME",
-	"XACT_STATE", "XML_DATA_TYPE_FUNC", "YEAR",
-}
+// builtinFunctions combines the parser's canonical SQL Server built-in
+// function list with the special keyword-dispatched scalar functions.
+var builtinFunctions = sync.OnceValue(func() []string {
+	base := parser.BuiltinFunctionNames()
+	extras := []string{"COALESCE", "CONVERT", "NULLIF", "TRY_CONVERT"}
+	merged := make([]string, 0, len(base)+len(extras))
+	seen := make(map[string]bool, len(base)+len(extras))
+	for _, fn := range base {
+		if !seen[fn] {
+			seen[fn] = true
+			merged = append(merged, fn)
+		}
+	}
+	for _, fn := range extras {
+		if !seen[fn] {
+			seen[fn] = true
+			merged = append(merged, fn)
+		}
+	}
+	slices.Sort(merged)
+	return merged
+})
 
 const asciiWhitespace = " \t\r\n"
 
@@ -166,8 +146,9 @@ func resolveTypeNames() []Candidate {
 }
 
 func resolveBuiltinFunctions() []Candidate {
-	result := make([]Candidate, 0, len(builtinFunctions))
-	for _, fn := range builtinFunctions {
+	fns := builtinFunctions()
+	result := make([]Candidate, 0, len(fns))
+	for _, fn := range fns {
 		result = append(result, Candidate{Text: fn, Type: CandidateFunction})
 	}
 	return result

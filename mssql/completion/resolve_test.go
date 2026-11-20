@@ -285,4 +285,44 @@ func TestCompleteWithCatalog(t *testing.T) {
 	if !hasCandidate(mergeOut, "$action", CandidateColumn) {
 		t.Fatalf("missing $action pseudo-column in %#v", mergeOut)
 	}
+
+	// Canonical built-in functions (including aggregates & STRING_AGG)
+	for _, prefix := range []string{"COU", "STRING_"} {
+		sql := "SELECT " + prefix
+		cands := Complete(sql, len(sql), cat)
+		want := "COUNT"
+		if prefix == "STRING_" {
+			want = "STRING_AGG"
+		}
+		if !hasCandidate(cands, want, CandidateFunction) {
+			t.Fatalf("missing %s function for prefix %q in %#v", want, prefix, cands)
+		}
+	}
+	for _, invalid := range []string{"MATH_SIGN", "STRINGAGG"} {
+		sql := "SELECT " + invalid
+		if hasCandidate(Complete(sql, len(sql), cat), invalid, CandidateFunction) {
+			t.Fatalf("unexpected non-standard function %q", invalid)
+		}
+	}
+
+	// Contextual keyword GO as identifier must not trigger batch isolation
+	goIdent := Complete("SELECT GO +  FROM Employees", len("SELECT GO + "), cat)
+	if !hasCandidate(goIdent, "Employees", CandidateTable) && !hasCandidate(goIdent, "Id", CandidateColumn) {
+		t.Fatalf("expected Employees columns in expression after GO identifier, got %#v", goIdent)
+	}
+
+	// Following statements after cursor are excluded from statement scope
+	isolated := Complete("SELECT e.; SELECT Id FROM Secret AS e", len("SELECT e."), cat)
+	if hasCandidate(isolated, "Id", CandidateColumn) {
+		t.Fatalf("following statement leaked columns across semicolon: %#v", isolated)
+	}
+
+	// ALTER TABLE column completion scopes only to the altered table
+	alterCols := Complete("ALTER TABLE Employees ADD CONSTRAINT pk PRIMARY KEY (", len("ALTER TABLE Employees ADD CONSTRAINT pk PRIMARY KEY ("), cat)
+	if !hasCandidate(alterCols, "Id", CandidateColumn) || !hasCandidate(alterCols, "Name", CandidateColumn) {
+		t.Fatalf("missing Employees columns in ALTER TABLE PK: %#v", alterCols)
+	}
+	if hasCandidate(alterCols, "DepartmentId", CandidateColumn) || hasCandidate(alterCols, "EmployeeId", CandidateColumn) {
+		t.Fatalf("unexpected other-table columns in ALTER TABLE PK: %#v", alterCols)
+	}
 }

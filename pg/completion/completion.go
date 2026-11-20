@@ -74,24 +74,20 @@ func extractPrefix(sql string, cursorOffset int) string {
 }
 
 func insideDoubleQuotes(sql string, offset int) bool {
+	if offset <= 0 {
+		return false
+	}
 	if offset > len(sql) {
 		offset = len(sql)
 	}
-	inSingle := false
-	inDouble := false
-	for i := 0; i < offset; i++ {
-		switch sql[i] {
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-			}
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-			}
+	lex := parser.NewLexerRange(sql, 0, offset)
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
 		}
 	}
-	return inDouble
+	return lex.Err != nil && lex.Err.Error() == "unterminated quoted identifier"
 }
 
 // filterByPrefix filters candidates whose text starts with prefix (case-insensitive).

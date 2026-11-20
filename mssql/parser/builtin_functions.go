@@ -2,6 +2,22 @@
 // 2022 calls without a schema.
 package parser
 
+import (
+	"maps"
+	"slices"
+	"sync"
+)
+
+var sortedBuiltinFunctionNames = sync.OnceValue(func() []string {
+	return slices.Sorted(maps.Keys(builtinFunctions))
+})
+
+// BuiltinFunctionNames returns the sorted canonical names of SQL Server built-in
+// functions accepted without a schema prefix.
+func BuiltinFunctionNames() []string {
+	return sortedBuiltinFunctionNames()
+}
+
 // builtinFunctions holds the names SQL Server's parser takes in an
 // unqualified function call, upper-cased. Any other name is refused with Msg
 // 195 ("'a' is not a recognized built-in function name"), and so is a

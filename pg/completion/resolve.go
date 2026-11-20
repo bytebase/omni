@@ -145,11 +145,18 @@ func qualifierBeforeCursor(sql string, offset int) string {
 	for i > 0 {
 		c := sql[i-1]
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '_' {
+			(c >= '0' && c <= '9') || c == '_' || c == '$' || c >= 128 {
 			i--
 			continue
 		}
 		break
+	}
+	if i == offset-1 {
+		return ""
+	}
+	first := sql[i]
+	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_' || first >= 128) {
+		return ""
 	}
 	return sql[i : offset-1]
 }
@@ -235,7 +242,13 @@ func syntaxOutputColumns(sql string, ref parser.RangeReference) []string {
 		return nil
 	}
 	stmt, ok := raw.Stmt.(*ast.SelectStmt)
-	if !ok || stmt.TargetList == nil {
+	if !ok {
+		return nil
+	}
+	for stmt != nil && stmt.TargetList == nil && stmt.Larg != nil {
+		stmt = stmt.Larg
+	}
+	if stmt == nil || stmt.TargetList == nil {
 		return nil
 	}
 
