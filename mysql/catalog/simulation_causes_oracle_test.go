@@ -4418,6 +4418,16 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (id INT) TABLESPACE innodb_system ROW_FORMAT=COMPRESSED",
 			code: 1478,
 		},
+		{
+			name: "SET sql_mode missing schema-qualified function rejected with 1305",
+			stmt: "SET sql_mode = missing_fn_db.CONCAT('ANSI')",
+			code: 1305,
+		},
+		{
+			name: "SET user var missing schema-qualified function rejected with 1305",
+			stmt: "SET @u_qfn = missing_fn_db.CONCAT('ANSI')",
+			code: 1305,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4781,6 +4791,42 @@ func TestSimulationCausesOracle(t *testing.T) {
 	execAlterClauses(t, atomCat, "SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''); SET @sm = @@sql_mode;")
 	if atomCat.userVars["sm"].str != srvModeAfter {
 		t.Fatalf("REPLACE(@@sql_mode, ...) mismatch: catalog=%q mysql=%q", atomCat.userVars["sm"].str, srvModeAfter)
+	}
+
+	// Schema-qualified SET function resolves stored functions (1305 when missing,
+	// accepted without evaluating the builtin when defined on the schema).
+	reset()
+	var qfnOrigDB string
+	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&qfnOrigDB); err != nil {
+		t.Fatalf("mysql SELECT DATABASE() (qfn): %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "USE `"+qfnOrigDB+"`")
+		_, _ = conn.ExecContext(ctx, "DROP DATABASE IF EXISTS d_qfn")
+		_, _ = conn.ExecContext(ctx, "SET SESSION sql_mode = DEFAULT")
+	})
+	if _, err := conn.ExecContext(ctx, "CREATE DATABASE d_qfn; USE d_qfn;"); err != nil {
+		t.Fatalf("mysql CREATE DATABASE d_qfn: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SET sql_mode = d_qfn.CONCAT('ANSI')"); err == nil {
+		t.Fatal("mysql missing d_qfn.CONCAT succeeded, want 1305")
+	} else if code, _ := simulationEngineRefusal(t, "SET sql_mode = d_qfn.CONCAT('ANSI')", err); code != 1305 {
+		t.Fatalf("mysql missing d_qfn.CONCAT got %d, want 1305", code)
+	}
+	qfnCat := New()
+	execAlterClauses(t, qfnCat, "CREATE DATABASE d_qfn; USE d_qfn;")
+	if got, _ := simulationCatalogRefusal(t, qfnCat, "SET sql_mode = d_qfn.CONCAT('ANSI')"); got != 1305 {
+		t.Fatalf("catalog missing d_qfn.CONCAT got %d, want 1305", got)
+	}
+	if _, err := conn.ExecContext(ctx, "CREATE FUNCTION d_qfn.CONCAT(s VARCHAR(20)) RETURNS VARCHAR(20) DETERMINISTIC RETURN ''"); err != nil {
+		t.Fatalf("mysql CREATE FUNCTION d_qfn.CONCAT: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SET sql_mode = d_qfn.CONCAT('ANSI')"); err != nil {
+		t.Fatalf("mysql defined d_qfn.CONCAT: %v", err)
+	}
+	execAlterClauses(t, qfnCat, "CREATE FUNCTION d_qfn.CONCAT(s VARCHAR(20)) RETURNS VARCHAR(20) DETERMINISTIC RETURN ''; SET sql_mode = d_qfn.CONCAT('ANSI');")
+	if strings.Contains(qfnCat.session.SQLMode, "ANSI") {
+		t.Fatalf("catalog evaluated builtin CONCAT instead of stored d_qfn.CONCAT: sql_mode=%q", qfnCat.session.SQLMode)
 	}
 }
 

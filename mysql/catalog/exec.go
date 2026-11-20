@@ -468,6 +468,9 @@ func assignSQLModeSysvar(c *Catalog, varName string, scope setVarScope, expr nod
 			return nil, evalErr
 		}
 		if !ok {
+			if c.isDefinedStoredFuncCall(expr) {
+				return nil, nil
+			}
 			return nil, errWrongValueForVar(varName, strings.TrimSpace(nodeToSQL(expr)))
 		}
 	}
@@ -1005,6 +1008,25 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 		}
 		return spec.readSess(c), true, nil
 	case *nodes.FuncCallExpr:
+		if e.Schema != "" || (e.SpacedParen && !c.isIgnoreSpaceSQLMode()) {
+			targetDBName := e.Schema
+			if targetDBName == "" {
+				targetDBName = c.currentDB
+			}
+			if db := c.GetDatabase(targetDBName); db != nil && db.Functions[toLower(e.Name)] != nil {
+				for _, arg := range e.Args {
+					if _, _, err := c.evalSetExprChecked(arg); err != nil {
+						return userVarValue{}, false, err
+					}
+				}
+				return userVarValue{}, false, nil
+			}
+			qual := e.Name
+			if targetDBName != "" {
+				qual = targetDBName + "." + e.Name
+			}
+			return userVarValue{}, false, errNoSuchFunction(qual)
+		}
 		switch toLower(e.Name) {
 		case "concat":
 			var b strings.Builder
@@ -1097,6 +1119,19 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 		}
 	}
 	return userVarValue{}, false, nil
+}
+
+func (c *Catalog) isDefinedStoredFuncCall(expr nodes.ExprNode) bool {
+	fc, ok := expr.(*nodes.FuncCallExpr)
+	if !ok || fc == nil {
+		return false
+	}
+	targetDBName := fc.Schema
+	if targetDBName == "" {
+		targetDBName = c.currentDB
+	}
+	db := c.GetDatabase(targetDBName)
+	return db != nil && db.Functions[toLower(fc.Name)] != nil
 }
 
 func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, bool, error) {
