@@ -1176,6 +1176,9 @@ message IndexMetadata {
   // OceanBase full-text WITH PARSER name and PARSER_PROPERTIES.
   string parser = 24;
   map<string, string> parser_properties = 25;
+
+  // Per-index KEY_BLOCK_SIZE option (0 when unset).
+  int64 key_block_size = 26;
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.

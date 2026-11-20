@@ -561,4 +561,16 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.Equal(t, "sec idx", mvMeta.Indexes[1].Comment)
 	require.Equal(t, []int64{10}, mvMeta.Indexes[1].KeyLength)
 	require.Equal(t, []bool{true}, mvMeta.Indexes[1].Descending)
+
+	// Per-index KEY_BLOCK_SIZE round-trips cleanly.
+	kbsCatalog := New()
+	_, err = kbsCatalog.Exec(`CREATE DATABASE app; USE app; CREATE TABLE idx_kbs (id INT PRIMARY KEY, a INT, KEY ka (a) KEY_BLOCK_SIZE = 4);`, nil)
+	require.NoError(t, err)
+	kbsMeta := kbsCatalog.DatabaseMetadata("app")
+	require.Equal(t, int64(4), kbsMeta.Schemas[0].Tables[0].Indexes[1].KeyBlockSize)
+	kbsReloaded := New()
+	kbsReport, err := kbsReloaded.LoadMetadata(context.Background(), kbsMeta)
+	require.NoError(t, err)
+	require.Empty(t, kbsReport.Incomplete)
+	require.Equal(t, 4, kbsReloaded.GetDatabase("app").GetTable("idx_kbs").Indexes[1].KeyBlockSize)
 }

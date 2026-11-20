@@ -478,6 +478,7 @@ func indexToProto(idx *Index, engine string) *metadata.IndexMetadata {
 		Primary:          idx.Primary,
 		Visible:          idx.Visible,
 		Comment:          idx.Comment,
+		KeyBlockSize:     int64(idx.KeyBlockSize),
 		IsVector:         idx.Vector,
 		IsGlobal:         strings.EqualFold(idx.Scope, "GLOBAL"),
 		Scope:            idx.Scope,

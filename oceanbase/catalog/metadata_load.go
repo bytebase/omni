@@ -653,6 +653,7 @@ func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index 
 			Primary:          meta.GetPrimary(),
 			Visible:          meta.GetVisible() || meta.GetPrimary(),
 			Comment:          meta.GetComment(),
+			KeyBlockSize:     int(meta.GetKeyBlockSize()),
 			IndexType:        idxType,
 			Fulltext:         idxType == "FULLTEXT",
 			Spatial:          spatial,
@@ -829,6 +830,9 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 	}
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
+	}
+	if idx.GetKeyBlockSize() > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "KEY_BLOCK_SIZE", Value: &nodes.IntLit{Value: idx.GetKeyBlockSize()}})
 	}
 	if len(idx.GetStoringColumns()) > 0 {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "STORING", Columns: slices.Clone(idx.GetStoringColumns())})

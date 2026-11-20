@@ -487,3 +487,44 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	require.Equal(t, "utf8mb4_0900_ai_ci", nameColl)
 	require.Equal(t, "latin1_swedish_ci", csColl)
 }
+
+func TestDatabaseMetadataIndexKeyBlockSizeRoundTrip(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE idx_kbs (
+			id INT PRIMARY KEY,
+			a INT,
+			KEY ka (a) KEY_BLOCK_SIZE = 4
+		);
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	tblMeta := meta.Schemas[0].Tables[0]
+	var ka *metadata.IndexMetadata
+	for _, idx := range tblMeta.Indexes {
+		if idx.Name == "ka" {
+			ka = idx
+		}
+	}
+	require.NotNil(t, ka)
+	require.Equal(t, int64(4), ka.KeyBlockSize)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	var reKA *Index
+	for _, idx := range reloaded.GetDatabase("app").GetTable("idx_kbs").Indexes {
+		if idx.Name == "ka" {
+			reKA = idx
+		}
+	}
+	require.NotNil(t, reKA)
+	require.Equal(t, 4, reKA.KeyBlockSize)
+}

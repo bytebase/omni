@@ -679,6 +679,9 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
+	if idx.GetKeyBlockSize() > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "KEY_BLOCK_SIZE", Value: &nodes.IntLit{Value: idx.GetKeyBlockSize()}})
+	}
 	if idx.GetIsGlobal() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "GLOBAL"})
 	}

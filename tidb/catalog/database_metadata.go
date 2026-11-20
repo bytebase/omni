@@ -199,14 +199,15 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			indexType = "BTREE"
 		}
 		idxMeta := &metadata.IndexMetadata{
-			Name:     idx.Name,
-			Type:     indexType,
-			Unique:   idx.Unique,
-			Primary:  idx.Primary,
-			Visible:  idx.Visible,
-			Comment:  idx.Comment,
-			IsVector: idx.Vector,
-			IsGlobal: idx.Global,
+			Name:         idx.Name,
+			Type:         indexType,
+			Unique:       idx.Unique,
+			Primary:      idx.Primary,
+			Visible:      idx.Visible,
+			Comment:      idx.Comment,
+			KeyBlockSize: int64(idx.KeyBlockSize),
+			IsVector:     idx.Vector,
+			IsGlobal:     idx.Global,
 		}
 		for _, col := range idx.Columns {
 			if col.Expr != "" {

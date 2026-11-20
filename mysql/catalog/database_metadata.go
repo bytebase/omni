@@ -244,12 +244,13 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			}
 		}
 		idxMeta := &metadata.IndexMetadata{
-			Name:    idx.Name,
-			Type:    indexType,
-			Unique:  idx.Unique,
-			Primary: idx.Primary,
-			Visible: idx.Visible,
-			Comment: idx.Comment,
+			Name:         idx.Name,
+			Type:         indexType,
+			Unique:       idx.Unique,
+			Primary:      idx.Primary,
+			Visible:      idx.Visible,
+			Comment:      idx.Comment,
+			KeyBlockSize: int64(idx.KeyBlockSize),
 		}
 		for _, col := range idx.Columns {
 			if col.Expr != "" {

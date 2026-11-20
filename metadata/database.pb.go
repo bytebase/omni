@@ -4208,8 +4208,10 @@ type IndexMetadata struct {
 	// OceanBase full-text WITH PARSER name and PARSER_PROPERTIES.
 	Parser           string            `protobuf:"bytes,24,opt,name=parser,proto3" json:"parser,omitempty"`
 	ParserProperties map[string]string `protobuf:"bytes,25,rep,name=parser_properties,json=parserProperties,proto3" json:"parser_properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Per-index KEY_BLOCK_SIZE option (0 when unset).
+	KeyBlockSize  int64 `protobuf:"varint,26,opt,name=key_block_size,json=keyBlockSize,proto3" json:"key_block_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IndexMetadata) Reset() {
@@ -4415,6 +4417,13 @@ func (x *IndexMetadata) GetParserProperties() map[string]string {
 		return x.ParserProperties
 	}
 	return nil
+}
+
+func (x *IndexMetadata) GetKeyBlockSize() int64 {
+	if x != nil {
+		return x.KeyBlockSize
+	}
+	return 0
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.
@@ -5743,7 +5752,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"definition\x18\x02 \x01(\tR\n" +
-	"definition\"\x81\b\n" +
+	"definition\"\xa7\b\n" +
 	"\rIndexMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vexpressions\x18\x02 \x03(\tR\vexpressions\x12\x1d\n" +
@@ -5775,7 +5784,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x0fstoring_columns\x18\x16 \x03(\tR\x0estoringColumns\x12#\n" +
 	"\rvector_params\x18\x17 \x03(\tR\fvectorParams\x12\x16\n" +
 	"\x06parser\x18\x18 \x01(\tR\x06parser\x12_\n" +
-	"\x11parser_properties\x18\x19 \x03(\v22.omni.metadata.IndexMetadata.ParserPropertiesEntryR\x10parserProperties\x1aC\n" +
+	"\x11parser_properties\x18\x19 \x03(\v22.omni.metadata.IndexMetadata.ParserPropertiesEntryR\x10parserProperties\x12$\n" +
+	"\x0ekey_block_size\x18\x1a \x01(\x03R\fkeyBlockSize\x1aC\n" +
 	"\x15ParserPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"a\n" +
