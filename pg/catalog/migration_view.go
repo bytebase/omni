@@ -91,6 +91,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				case 'm':
 					ops = append(ops, buildCreateMatViewOpWithContext(from, to, entry))
 				}
+				ops = append(ops, restoreGrantOps(to, 'r', entry.To.OID)...)
 				continue
 			}
 
@@ -111,6 +112,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Priority:      PriorityView,
 					})
 					ops = append(ops, buildCreateViewOp(to, entry))
+					ops = append(ops, restoreGrantOps(to, 'r', entry.To.OID)...)
 				} else if viewSelfChanged(from, to, entry) {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
@@ -148,6 +150,7 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 		b.WriteString("CREATE VIEW ")
 	}
 	b.WriteString(qn)
+	b.WriteString(viewWithOptions(entry.To))
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 
@@ -242,6 +245,8 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 		b.WriteString("CREATE OR REPLACE VIEW ")
 	}
 	b.WriteString(qn)
+	// CREATE OR REPLACE VIEW replaces the options, so name every one kept.
+	b.WriteString(viewWithOptions(entry.To))
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 
@@ -321,7 +326,7 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 	}
 
 	createOp := buildCreateMatViewOpWithContext(from, to, entry)
-	return []MigrationOp{dropOp, createOp}
+	return append([]MigrationOp{dropOp, createOp}, restoreGrantOps(to, 'r', entry.To.OID)...)
 }
 
 // viewRef identifies a view by schema and name.
@@ -370,7 +375,7 @@ func viewSelfChanged(from, to *Catalog, entry RelationDiffEntry) bool {
 	if getViewDef(from, key, entry.From) != getViewDef(to, key, entry.To) {
 		return true
 	}
-	if entry.From.CheckOption != entry.To.CheckOption {
+	if entry.From.CheckOption != entry.To.CheckOption || entry.From.SecurityBarrier != entry.To.SecurityBarrier || entry.From.SecurityInvoker != entry.To.SecurityInvoker {
 		return true
 	}
 	if normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
@@ -411,4 +416,23 @@ func viewColumnsChanged(entry RelationDiffEntry) bool {
 		}
 	}
 	return false
+}
+
+// viewWithOptions renders a view's security options as a WITH clause, or ""
+// when it has none.
+func viewWithOptions(rel *Relation) string {
+	if rel == nil {
+		return ""
+	}
+	var opts []string
+	if rel.SecurityBarrier {
+		opts = append(opts, "security_barrier=true")
+	}
+	if rel.SecurityInvoker {
+		opts = append(opts, "security_invoker=true")
+	}
+	if len(opts) == 0 {
+		return ""
+	}
+	return " WITH (" + strings.Join(opts, ", ") + ")"
 }

@@ -84,6 +84,10 @@ type Relation struct {
 
 	// View options.
 	CheckOption byte // 0=none, 'l'=LOCAL, 'c'=CASCADED (views only)
+	// SecurityBarrier and SecurityInvoker hold the view options of those
+	// names (views only).
+	SecurityBarrier bool
+	SecurityInvoker bool
 
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop

@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -31,6 +33,9 @@ type Index struct {
 	// OpClasses holds, per key column, the operator class the statement
 	// named, dotted when qualified, or "" for the default.
 	OpClasses []string
+	// OpClassOptions holds, per key column, the operator class parameters
+	// rendered as pg_get_indexdef does (siglen='32'), or "" for none.
+	OpClassOptions []string
 	// Collations holds, per key column, the explicit COLLATE identifier parts
 	// the statement named, or nil when omitted.
 	Collations [][]string
@@ -138,6 +143,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
+	var opClassOptions []string
 	var collations [][]string
 	var opClassRefs []opClassRef
 	var userCollOIDs []uint32
@@ -285,6 +291,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				opClassRefs = append(opClassRefs, opClassRef{typeOID: opClassTypeOID})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
+			opClassOptions = append(opClassOptions, formatOpClassOptions(elem.Opclassopts))
 			namedOpClass = namedOpClass || len(opClass) > 0
 			collations = append(collations, collParts)
 			keyUserCollOIDs = append(keyUserCollOIDs, elemUserCollOID)
@@ -293,6 +300,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	}
 	if !namedOpClass {
 		opClasses = nil
+		opClassOptions = nil
+	} else if !slices.ContainsFunc(opClassOptions, func(s string) bool { return s != "" }) {
+		opClassOptions = nil
 	}
 	if !namedCollation {
 		collations = nil
@@ -454,6 +464,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		NullsNotDistinct:  stmt.Nulls_not_distinct,
 		Exprs:             exprTexts,
 		OpClasses:         opClasses,
+		OpClassOptions:    opClassOptions,
 		Collations:        collations,
 		UserCollationOIDs: keyUserCollOIDs,
 		AnalyzedExprs:     analyzedExprs,
@@ -1200,4 +1211,44 @@ func (c *Catalog) validateIndexOpClass(ref opClassRef, am *AccessMethod, opclass
 		}
 	}
 	return nil
+}
+
+// formatOpClassOptions renders an index element's operator class parameters
+// as pg_get_indexdef does: name='value', comma separated.
+func formatOpClassOptions(opts *nodes.List) string {
+	if opts == nil || len(opts.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(opts.Items))
+	for _, item := range opts.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok || de == nil {
+			continue
+		}
+		parts = append(parts, quoteIdentifier(de.Defname)+"="+quoteLiteral(relOptionValueText(de.Arg)))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// relOptionValueText renders an option value as PostgreSQL stores it in
+// reloptions; a bare option name stands for true.
+func relOptionValueText(arg nodes.Node) string {
+	switch v := arg.(type) {
+	case nil:
+		return "true"
+	case *nodes.Integer:
+		return strconv.FormatInt(v.Ival, 10)
+	case *nodes.Float:
+		return v.Fval
+	case *nodes.Boolean:
+		return strconv.FormatBool(v.Boolval)
+	case *nodes.String:
+		return v.Str
+	case *nodes.TypeName:
+		_, n := typeNameParts(v)
+		return n
+	case *nodes.A_Const:
+		return relOptionValueText(v.Val)
+	}
+	return fmt.Sprintf("%v", arg)
 }

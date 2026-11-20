@@ -150,6 +150,9 @@ func indexesStructurallyChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	if !stringSliceEqual(a.OpClasses, b.OpClasses) {
 		return true
 	}
+	if !stringSliceEqual(a.OpClassOptions, b.OpClassOptions) {
+		return true
+	}
 	if !stringSlicesEqual(a.Collations, b.Collations) {
 		return true
 	}

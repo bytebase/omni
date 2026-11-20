@@ -992,9 +992,12 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		}
 		if rel.RelKind == 'v' && opts != nil {
 			newCO := rel.CheckOption
+			barrier, invoker := rel.SecurityBarrier, rel.SecurityInvoker
 			if nodes.AlterTableType(atc.Subtype) == nodes.AT_ReplaceRelOptions {
 				newCO = 0
+				barrier, invoker = false, false
 			}
+			barrier, invoker = viewSecurityOptions(opts, barrier, invoker)
 			for _, item := range opts.Items {
 				de, ok := item.(*nodes.DefElem)
 				if !ok || !strings.EqualFold(de.Defname, "check_option") {
@@ -1013,6 +1016,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				}
 			}
 			rel.CheckOption = newCO
+			rel.SecurityBarrier, rel.SecurityInvoker = barrier, invoker
 		}
 		return nil
 
@@ -1023,8 +1027,17 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		}
 		if rel.RelKind == 'v' && opts != nil {
 			for _, item := range opts.Items {
-				if de, ok := item.(*nodes.DefElem); ok && strings.EqualFold(de.Defname, "check_option") {
+				de, ok := item.(*nodes.DefElem)
+				if !ok {
+					continue
+				}
+				switch strings.ToLower(de.Defname) {
+				case "check_option":
 					rel.CheckOption = 0
+				case "security_barrier":
+					rel.SecurityBarrier = false
+				case "security_invoker":
+					rel.SecurityInvoker = false
 				}
 			}
 		}

@@ -232,6 +232,7 @@ func (c *Catalog) Clone() *Catalog {
 			copy(ci.Exprs, idx.Exprs)
 		}
 		ci.OpClasses = slices.Clone(idx.OpClasses)
+		ci.OpClassOptions = slices.Clone(idx.OpClassOptions)
 		ci.Collations = cloneStringSlices(idx.Collations)
 		ci.UserCollationOIDs = slices.Clone(idx.UserCollationOIDs)
 		ci.AnalyzedExprs = slices.Clone(idx.AnalyzedExprs)

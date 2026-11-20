@@ -52,8 +52,11 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 
-			// Replica identity changed.
-			if normalizeReplicaIdentity(entry.From.ReplicaIdentity) != normalizeReplicaIdentity(entry.To.ReplicaIdentity) {
+			// Replica identity changed, or its index is rebuilt: a new index
+			// does not inherit the replica identity of the one it replaces.
+			if normalizeReplicaIdentity(entry.From.ReplicaIdentity) != normalizeReplicaIdentity(entry.To.ReplicaIdentity) ||
+				replicaIdentityIndexName(from, entry.From) != replicaIdentityIndexName(to, entry.To) ||
+				replicaIdentityIndexRebuilt(to, entry) {
 				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 			}
 
@@ -215,6 +218,27 @@ func formatPartitionValue(v string) string {
 }
 
 // generateReplicaIdentityDDL generates ALTER TABLE ... REPLICA IDENTITY ...
+// replicaIdentityIndexRebuilt reports whether the migration drops and
+// recreates the index, or the constraint owning it, that the target table
+// uses as its replica identity.
+func replicaIdentityIndexRebuilt(to *Catalog, entry RelationDiffEntry) bool {
+	name := replicaIdentityIndexName(to, entry.To)
+	if name == "" {
+		return false
+	}
+	for _, ie := range entry.Indexes {
+		if ie.Name == name {
+			return true
+		}
+	}
+	for _, ce := range entry.Constraints {
+		if ce.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := formatRelationName(entry.SchemaName, entry.Name, entry.To)
 
@@ -237,13 +261,19 @@ func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []Migration
 		clause = "DEFAULT"
 	}
 
+	// USING INDEX names an index this migration may create or rebuild, so it
+	// waits for every index to exist.
+	phase := PhaseMain
+	if entry.To.ReplicaIdentity == 'i' {
+		phase = PhasePost
+	}
 	return []MigrationOp{{
 		Type:          OpAlterTable,
 		SchemaName:    entry.SchemaName,
 		ObjectName:    entry.Name,
 		SQL:           fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY %s", qn, clause),
 		Transactional: true,
-		Phase:         PhaseMain,
+		Phase:         phase,
 		ObjType:       'r',
 		ObjOID:        entry.To.OID,
 		Priority:      PriorityIndex + 1,

@@ -86,7 +86,7 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 	}
 
 	// Compare CheckOption (views only), persistence, and populated state (matviews).
-	if from.CheckOption != to.CheckOption {
+	if from.CheckOption != to.CheckOption || from.SecurityBarrier != to.SecurityBarrier || from.SecurityInvoker != to.SecurityInvoker {
 		changed = true
 	}
 	if normalizeRelPersistence(from.Persistence) != normalizeRelPersistence(to.Persistence) {

@@ -468,6 +468,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			} else {
 				extraOps = append(extraOps, buildCreateViewOp(to, vEntry))
 			}
+			extraOps = append(extraOps, restoreGrantOps(to, 'r', toRel.OID)...)
 			vDesc := v.schema + "." + v.name
 			if txt, ok := to.GetComment('r', toRel.OID, 0); ok && txt != "" {
 				if csql := formatCommentSQL(to, 'r', vDesc, 0, txt); csql != "" {

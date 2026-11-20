@@ -216,6 +216,8 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 			existing.Persistence = 't'
 		}
 		existing.CheckOption = checkOption
+		// CREATE OR REPLACE VIEW replaces the view's options outright.
+		existing.SecurityBarrier, existing.SecurityInvoker = viewSecurityOptions(stmt.Options, false, false)
 		return nil
 	}
 
@@ -268,6 +270,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		AnalyzedQuery: analyzedQuery,
 		CheckOption:   checkOption,
 	}
+	rel.SecurityBarrier, rel.SecurityInvoker = viewSecurityOptions(stmt.Options, false, false)
 
 	schema.Relations[viewName] = rel
 	c.relationByOID[relOID] = rel
@@ -913,4 +916,46 @@ func (w *viewDepWalker) varDep(v *VarExpr) {
 			return true
 		})
 	}
+}
+
+// viewSecurityOptions applies the security_barrier and security_invoker
+// entries of a view option list to the given values.
+func viewSecurityOptions(opts *nodes.List, barrier, invoker bool) (bool, bool) {
+	if opts == nil {
+		return barrier, invoker
+	}
+	for _, item := range opts.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok || de == nil {
+			continue
+		}
+		switch strings.ToLower(de.Defname) {
+		case "security_barrier":
+			barrier = relOptionBool(de)
+		case "security_invoker":
+			invoker = relOptionBool(de)
+		}
+	}
+	return barrier, invoker
+}
+
+// relOptionBool reads a boolean relation option as parse_bool does: a bare
+// name is true, and true/false, on/off, yes/no, 1/0 and their unambiguous
+// prefixes are accepted (validation has already refused anything else).
+func relOptionBool(de *nodes.DefElem) bool {
+	if de.Arg == nil {
+		return true
+	}
+	if b, ok := de.Arg.(*nodes.Boolean); ok {
+		return b.Boolval
+	}
+	if i, ok := de.Arg.(*nodes.Integer); ok {
+		return i.Ival != 0
+	}
+	v := strings.ToLower(strings.TrimSpace(defElemString(de)))
+	switch {
+	case v == "on", v == "1", v != "" && strings.HasPrefix("true", v), v != "" && strings.HasPrefix("yes", v):
+		return true
+	}
+	return false
 }

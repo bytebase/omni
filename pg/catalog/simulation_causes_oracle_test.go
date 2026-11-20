@@ -5343,6 +5343,73 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("expected zero remaining ops after c134From->c134To, got:\n%s", rem.SQL())
 		}
 
+		// Round 37: rebuilt views keep their grants, replica identity follows
+		// its index, views keep security options, and indexes keep operator
+		// class parameters.
+		roundTrip137 := func(name string, fromStmts, toStmts, wantFrags []string) {
+			t.Helper()
+			cFrom, cTo := New(), New()
+			for _, stmt := range fromStmts {
+				if code := simulationCatalogCode(t, cFrom, stmt); code != "0" {
+					t.Fatalf("%s from %s: %s", name, stmt, code)
+				}
+			}
+			for _, stmt := range toStmts {
+				if code := simulationCatalogCode(t, cTo, stmt); code != "0" {
+					t.Fatalf("%s to %s: %s", name, stmt, code)
+				}
+			}
+			sql := GenerateMigration(cFrom, cTo, Diff(cFrom, cTo)).SQL()
+			for _, frag := range wantFrags {
+				if !strings.Contains(sql, frag) {
+					t.Fatalf("%s: expected %q in migration DDL, got:\n%s", name, frag, sql)
+				}
+			}
+			if code := simulationCatalogCode(t, cFrom, sql); code != "0" {
+				t.Fatalf("%s: applying the migration failed with %s:\n%s", name, code, sql)
+			}
+			if rem := GenerateMigration(cFrom, cTo, Diff(cFrom, cTo)); len(rem.Ops) != 0 {
+				t.Fatalf("%s: expected zero remaining ops, got:\n%s", name, rem.SQL())
+			}
+		}
+		roundTrip137("view column change keeps grants",
+			[]string{"CREATE ROLE reader_r37", "CREATE VIEW v_grant_r37 AS SELECT 1 AS a", "GRANT SELECT ON v_grant_r37 TO reader_r37"},
+			[]string{"CREATE ROLE reader_r37", "CREATE VIEW v_grant_r37 AS SELECT 1 AS b", "GRANT SELECT ON v_grant_r37 TO reader_r37"},
+			[]string{"DROP VIEW", "GRANT SELECT ON TABLE"})
+		roundTrip137("collation rebuild keeps view grants",
+			[]string{"CREATE ROLE reader2_r37", "CREATE COLLATION c_grant_r37 (LOCALE = 'C')", "CREATE TABLE t_cg_r37 (v text COLLATE c_grant_r37)", "CREATE VIEW v_cg_r37 AS SELECT v FROM t_cg_r37", "GRANT SELECT ON v_cg_r37 TO reader2_r37"},
+			[]string{"CREATE ROLE reader2_r37", "CREATE COLLATION c_grant_r37 (PROVIDER = builtin, LOCALE = 'C')", "CREATE TABLE t_cg_r37 (v text COLLATE c_grant_r37)", "CREATE VIEW v_cg_r37 AS SELECT v FROM t_cg_r37", "GRANT SELECT ON v_cg_r37 TO reader2_r37"},
+			[]string{"DROP VIEW", "GRANT SELECT ON TABLE"})
+		roundTrip137("replica identity switches index",
+			[]string{"CREATE TABLE t_ri_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX ri_a_r37 ON t_ri_r37 (a)", "CREATE UNIQUE INDEX ri_b_r37 ON t_ri_r37 (b)", "ALTER TABLE t_ri_r37 REPLICA IDENTITY USING INDEX ri_a_r37"},
+			[]string{"CREATE TABLE t_ri_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX ri_a_r37 ON t_ri_r37 (a)", "CREATE UNIQUE INDEX ri_b_r37 ON t_ri_r37 (b)", "ALTER TABLE t_ri_r37 REPLICA IDENTITY USING INDEX ri_b_r37"},
+			[]string{`REPLICA IDENTITY USING INDEX "ri_b_r37"`})
+		roundTrip137("replica identity follows its rebuilt index",
+			[]string{"CREATE TABLE t_rr_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX rr_r37 ON t_rr_r37 (a)", "ALTER TABLE t_rr_r37 REPLICA IDENTITY USING INDEX rr_r37"},
+			[]string{"CREATE TABLE t_rr_r37 (a int NOT NULL, b int NOT NULL)", "CREATE UNIQUE INDEX rr_r37 ON t_rr_r37 (a, b)", "ALTER TABLE t_rr_r37 REPLICA IDENTITY USING INDEX rr_r37"},
+			[]string{"DROP INDEX", `REPLICA IDENTITY USING INDEX "rr_r37"`})
+		roundTrip137("view security options",
+			[]string{"CREATE VIEW v_sec_r37 AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 WITH (security_barrier) AS SELECT 1 AS x"},
+			[]string{"CREATE VIEW v_sec_r37 WITH (security_barrier, security_invoker = on) AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 AS SELECT 1 AS x"},
+			[]string{"WITH (security_barrier=true, security_invoker=true)"})
+		roundTrip137("operator class parameters",
+			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
+			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},
+			[]string{"tsvector_ops (siglen='40')"})
+		cView137 := New()
+		for _, stmt := range []string{
+			"CREATE VIEW v_alter_sec_r37 WITH (security_invoker = true) AS SELECT 1 AS x",
+			"ALTER VIEW v_alter_sec_r37 SET (security_barrier = yes)",
+			"ALTER VIEW v_alter_sec_r37 RESET (security_invoker)",
+		} {
+			if code := simulationCatalogCode(t, cView137, stmt); code != "0" {
+				t.Fatalf("cView137 %s: %s", stmt, code)
+			}
+		}
+		if v := cView137.GetRelation("public", "v_alter_sec_r37"); v == nil || !v.SecurityBarrier || v.SecurityInvoker {
+			t.Fatalf("expected security_barrier only after ALTER VIEW, got %+v", v)
+		}
+
 		// Round 21-24 migration regressions:
 		// 1. Sequence range variables in rules track sequence renames.
 		// 2. Temporary views and sequences preserve CREATE TEMP / DROP without non-temp schema qualifier in GenerateMigration.

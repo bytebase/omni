@@ -86,7 +86,8 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.Persistence != to.Persistence {
 		changed = true
 	}
-	if normalizeReplicaIdentity(from.ReplicaIdentity) != normalizeReplicaIdentity(to.ReplicaIdentity) {
+	if normalizeReplicaIdentity(from.ReplicaIdentity) != normalizeReplicaIdentity(to.ReplicaIdentity) ||
+		replicaIdentityIndexName(fromCat, from) != replicaIdentityIndexName(toCat, to) {
 		changed = true
 	}
 	if from.RowSecurity != to.RowSecurity {
@@ -186,6 +187,20 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		entry.ForceRLSEnabled = to.ForceRowSecurity
 	}
 	return entry, true
+}
+
+// replicaIdentityIndexName returns the name of the index a table uses as its
+// replica identity, or "" when it uses none.
+func replicaIdentityIndexName(c *Catalog, rel *Relation) string {
+	if c == nil || rel == nil || normalizeReplicaIdentity(rel.ReplicaIdentity) != 'i' {
+		return ""
+	}
+	for _, idx := range c.IndexesOf(rel.OID) {
+		if idx.IsReplicaIdent {
+			return idx.Name
+		}
+	}
+	return ""
 }
 
 // normalizeReplicaIdentity maps zero (unset on newly created tables) to 'd'

@@ -361,6 +361,9 @@ func buildCreateIndexSQL(idx *Index, rel *Relation, schemaName string) string {
 				}
 				b.WriteString(quoteIdentifier(part))
 			}
+			if i < len(idx.OpClassOptions) && idx.OpClassOptions[i] != "" {
+				b.WriteString(" (" + idx.OpClassOptions[i] + ")")
+			}
 		}
 		// IndOption flags: bit 0 is DESC, bit 1 NULLS FIRST. DESC alone
 		// sorts nulls first, so DESC without the bit needs NULLS LAST.
