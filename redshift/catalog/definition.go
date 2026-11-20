@@ -26,11 +26,23 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to.Datashare {
 		return "", fmt.Errorf("datashare database %q cannot be restored because DatabaseSchemaMetadata does not capture FROM DATASHARE configuration", to.Name)
 	}
+	caseSensitive := needsCaseSensitiveIdentifiers(to)
+	seenSchemas := make(map[string]struct{}, len(to.Schemas))
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		key := identKey(schema.Name, caseSensitive)
+		if _, exists := seenSchemas[key]; exists {
+			return "", fmt.Errorf("database %s has duplicate schema %s", quoteDefinitionIdentifier(to.Name), quoteDefinitionIdentifier(schema.Name))
+		}
+		seenSchemas[key] = struct{}{}
+	}
 	toState := convertToDatabaseState(to)
 
 	var sb strings.Builder
 
-	if needsCaseSensitiveIdentifiers(to) {
+	if caseSensitive {
 		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n"); err != nil {
 			return "", err
 		}
@@ -38,7 +50,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
-	if err := writeOrderedObjects(&sb, to, toState); err != nil {
+	if err := writeOrderedObjects(&sb, to, toState, caseSensitive); err != nil {
 		return "", err
 	}
 	if err := writeProcedures(&sb, to); err != nil {
@@ -262,6 +274,7 @@ type functionEntry struct {
 	def        string
 	params     []functionParam
 	returnType string
+	parsed     bool
 	depTables  []*metadatapb.DependencyTable
 }
 
@@ -293,24 +306,33 @@ func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int 
 }
 
 func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []string) []int {
-	if len(candidates) <= 1 {
-		return candidates
+	if len(candidates) == 0 {
+		return nil
 	}
 	var arityMatches []int
 	for _, idx := range candidates {
-		if len(fns[idx].params) == len(argTypes) {
+		if !fns[idx].parsed || len(fns[idx].params) == len(argTypes) {
 			arityMatches = append(arityMatches, idx)
 		}
 	}
 	if len(arityMatches) == 0 {
-		return candidates
+		return nil
 	}
-	if len(arityMatches) == 1 {
+	if len(argTypes) == 0 {
 		return arityMatches
 	}
 	bestScore := -1
 	var best []int
 	for _, idx := range arityMatches {
+		if !fns[idx].parsed {
+			if bestScore < 0 {
+				bestScore = 0
+				best = []int{idx}
+			} else if bestScore == 0 {
+				best = append(best, idx)
+			}
+			continue
+		}
 		score := 0
 		compatible := true
 		for i, argType := range argTypes {
@@ -340,10 +362,7 @@ func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []s
 			best = append(best, idx)
 		}
 	}
-	if len(best) > 0 {
-		return best
-	}
-	return arityMatches
+	return best
 }
 
 func isNumericType(t string) bool {
@@ -408,10 +427,10 @@ func normalizeSQLTypeName(tn *nodes.TypeName) string {
 	return normalizeTypeAlias(parts[len(parts)-1])
 }
 
-func parseFunctionSignature(definition string) (params []functionParam, returnType string) {
+func parseFunctionSignature(definition string) (declName []string, params []functionParam, returnType string, parsed bool) {
 	stmts, err := pgparser.Parse(definition)
 	if err != nil || stmts == nil || len(stmts.Items) != 1 {
-		return nil, ""
+		return nil, nil, "", false
 	}
 	stmt := stmts.Items[0]
 	if raw, ok := stmt.(*nodes.RawStmt); ok {
@@ -419,11 +438,12 @@ func parseFunctionSignature(definition string) (params []functionParam, returnTy
 	}
 	cf, ok := stmt.(*nodes.CreateFunctionStmt)
 	if !ok {
-		return nil, ""
+		return nil, nil, "", false
 	}
+	declName = extractNodeStringParts(cf.Funcname)
 	returnType = normalizeSQLTypeName(cf.ReturnType)
 	if cf.Parameters == nil {
-		return nil, returnType
+		return declName, nil, returnType, true
 	}
 	for _, item := range cf.Parameters.Items {
 		fp, ok := item.(*nodes.FunctionParameter)
@@ -435,7 +455,21 @@ func parseFunctionSignature(definition string) (params []functionParam, returnTy
 			typeName: normalizeSQLTypeName(fp.ArgType),
 		})
 	}
-	return params, returnType
+	return declName, params, returnType, true
+}
+
+func identKey(name string, caseSensitive bool) string {
+	if caseSensitive {
+		return name
+	}
+	return strings.ToLower(name)
+}
+
+func identEqual(a, b string, caseSensitive bool) bool {
+	if caseSensitive {
+		return a == b
+	}
+	return strings.EqualFold(a, b)
 }
 
 var (
@@ -832,6 +866,24 @@ func scanCallRefs(body string) []functionCall {
 	return calls
 }
 
+func writeWithSchemaSearchPath(w io.StringWriter, schemaName, body string) error {
+	needsPath := schemaName != "" && schemaName != "public"
+	if needsPath {
+		if _, err := w.WriteString(fmt.Sprintf("SET search_path TO %s, public;\n", quoteDefinitionIdentifier(schemaName))); err != nil {
+			return err
+		}
+	}
+	if _, err := w.WriteString(body); err != nil {
+		return err
+	}
+	if needsPath {
+		if _, err := w.WriteString("RESET search_path;\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -848,8 +900,10 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) e
 			if proc.Comment != "" {
 				return fmt.Errorf("procedure %s comment cannot be restored because Redshift does not support COMMENT ON PROCEDURE", qualifyName(schema.Name, proc.Name))
 			}
-			def = appendTerminator(def)
-			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name) + def + "\n"); err != nil {
+			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name)); err != nil {
+				return err
+			}
+			if err := writeWithSchemaSearchPath(w, schema.Name, appendTerminator(def)+"\n"); err != nil {
 				return err
 			}
 		}
@@ -1099,7 +1153,7 @@ func isPythonUDF(definition string) (string, bool) {
 // writeOrderedObjects emits functions, tables, views, and materialized views
 // in one topological order so cross-kind dependencies (such as view-dependent
 // UDFs) always follow their prerequisites.
-func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
+func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState, caseSensitive bool) error {
 	var items []orderedObject
 	var fnEntries []functionEntry
 	var fnNodeIndices []int
@@ -1110,7 +1164,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		}
 		seenRels := make(map[string]string, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
 		checkRel := func(kind, name string) error {
-			key := strings.ToLower(name)
+			key := identKey(name, caseSensitive)
 			if prev, exists := seenRels[key]; exists {
 				return fmt.Errorf("schema %s has duplicate relation %s (%s and %s)", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(name), prev, kind)
 			}
@@ -1166,13 +1220,31 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				return fmt.Errorf("function %s uses language %s, which Redshift no longer supports", qualifyName(schema.Name, fn.Name), lang)
 			}
 			def = appendTerminator(def)
-			params, retType := parseFunctionSignature(def)
+			declName, params, retType, parsed := parseFunctionSignature(def)
+			if len(declName) > 0 {
+				mismatch := func() error {
+					return fmt.Errorf("function %s definition name %q does not match metadata identity", qualifyName(schema.Name, fn.Name), strings.Join(declName, "."))
+				}
+				switch len(declName) {
+				case 1:
+					if !identEqual(declName[0], fn.Name, caseSensitive) {
+						return mismatch()
+					}
+				case 2:
+					if !identEqual(declName[0], schema.Name, caseSensitive) || !identEqual(declName[1], fn.Name, caseSensitive) {
+						return mismatch()
+					}
+				default:
+					return mismatch()
+				}
+			}
 			entry := functionEntry{
 				schema:     schema.Name,
 				name:       fn.Name,
 				def:        def,
 				params:     params,
 				returnType: retType,
+				parsed:     parsed,
 				depTables:  fn.DependencyTables,
 			}
 			fnEntries = append(fnEntries, entry)
@@ -1427,19 +1499,8 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if _, err := w.WriteString(getFunctionAnnouncement(item.fn.name)); err != nil {
 				return err
 			}
-			needsPath := item.schema != "" && item.schema != "public"
-			if needsPath {
-				if _, err := w.WriteString(fmt.Sprintf("SET search_path TO %s, public;\n", quoteDefinitionIdentifier(item.schema))); err != nil {
-					return err
-				}
-			}
-			if _, err := w.WriteString(item.fn.def + "\n"); err != nil {
+			if err := writeWithSchemaSearchPath(w, item.schema, item.fn.def+"\n"); err != nil {
 				return err
-			}
-			if needsPath {
-				if _, err := w.WriteString("RESET search_path;\n"); err != nil {
-					return err
-				}
 			}
 		case objectKindTable:
 			if _, err := w.WriteString(getTableAnnouncement(item.table.name)); err != nil {

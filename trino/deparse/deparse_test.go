@@ -668,7 +668,7 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 			Functions: []*metadatapb.FunctionMetadata{
 				{
 					Name:       "elem_fn",
-					Definition: "CREATE FUNCTION s.elem_fn(v varchar) RETURNS varchar RETURN s.elem_caller(ARRAY['a'])",
+					Definition: "CREATE FUNCTION s.elem_fn(v varchar) RETURNS varchar RETURN CAST(s.elem_caller(ARRAY[CAST(v AS integer)]) AS varchar)",
 				},
 				{
 					Name:       "elem_caller",
@@ -693,7 +693,7 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 			Functions: []*metadatapb.FunctionMetadata{
 				{
 					Name:       "row_fn",
-					Definition: "CREATE FUNCTION s.row_fn(v varchar) RETURNS varchar RETURN s.row_caller(ROW('a'))",
+					Definition: "CREATE FUNCTION s.row_fn(v varchar) RETURNS varchar RETURN CAST(s.row_caller(ROW(CAST(v AS integer))) AS varchar)",
 				},
 				{
 					Name:       "row_caller",
@@ -773,4 +773,50 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "identity")
+
+	// Single local candidate with different arity than a built-in call (length(x) vs length(varchar, varchar))
+	// does not add a false edge.
+	aritySingle, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "length",
+					Definition: "CREATE FUNCTION s.length(a varchar, b varchar) RETURNS bigint RETURN s.str_caller(a)",
+				},
+				{
+					Name:       "str_caller",
+					Definition: "CREATE FUNCTION s.str_caller(x varchar) RETURNS bigint RETURN length(x)",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(aritySingle, "CREATE FUNCTION s.str_caller("), strings.Index(aritySingle, "CREATE FUNCTION s.length("))
+
+	// Named arguments map by parameter name rather than call-site position.
+	namedArgs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "named_fn",
+					Definition: "CREATE FUNCTION s.named_fn(a integer, b varchar) RETURNS varchar RETURN s.named_caller()",
+				},
+				{
+					Name:       "named_caller",
+					Definition: "CREATE FUNCTION s.named_caller() RETURNS varchar RETURN s.named_fn(b => 1, a => 'x')",
+				},
+				{
+					Name:       "named_fn",
+					Definition: "CREATE FUNCTION s.named_fn(a varchar, b integer) RETURNS varchar RETURN a",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a varchar, b integer)"), strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"))
+	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"), strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a integer, b varchar)"))
 }

@@ -482,6 +482,7 @@ type functionCallRef struct {
 	catalog  string
 	schema   string
 	name     string
+	argNames []string
 	argTypes []string
 	argCount int
 }
@@ -498,15 +499,8 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 		targetSchema = callerSchema
 	}
 	candidates := c.byKey[objectKey(strings.ToLower(targetSchema), strings.ToLower(call.name))]
-	if len(candidates) <= 1 {
-		if len(candidates) == 1 && len(call.argTypes) == 0 && call.argCount > 0 {
-			// Single candidate matches name; check arity only if parsed.
-			idx := candidates[0]
-			if c.parsed[idx].parsed && len(c.parsed[idx].params) != call.argCount {
-				return nil
-			}
-		}
-		return candidates
+	if len(candidates) == 0 {
+		return nil
 	}
 	var arityMatches []int
 	for _, idx := range candidates {
@@ -517,21 +511,31 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	if len(arityMatches) == 0 {
 		return nil
 	}
-	if len(arityMatches) == 1 || len(call.argTypes) == 0 {
+	if len(call.argTypes) == 0 {
 		return arityMatches
 	}
 	bestScore := -1
 	var best []int
 	for _, idx := range arityMatches {
 		if !c.parsed[idx].parsed {
+			if bestScore < 0 {
+				bestScore = 0
+				best = []int{idx}
+			} else if bestScore == 0 {
+				best = append(best, idx)
+			}
+			continue
+		}
+		argTypes, ok := reorderTrinoCallArgs(c.parsed[idx].params, call)
+		if !ok {
 			continue
 		}
 		score := 0
 		compatible := true
-		for i, argType := range call.argTypes {
+		for i, argType := range argTypes {
 			paramType := c.parsed[idx].params[i].typeName
-			s, ok := trinoTypeCompatScore(argType, paramType)
-			if !ok {
+			s, compat := trinoTypeCompatScore(argType, paramType)
+			if !compat {
 				compatible = false
 				break
 			}
@@ -547,10 +551,58 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 			best = append(best, idx)
 		}
 	}
-	if len(best) > 0 {
-		return best
+	return best
+}
+
+func reorderTrinoCallArgs(params []trinoFuncParam, call functionCallRef) ([]string, bool) {
+	if len(call.argNames) == 0 {
+		return call.argTypes, true
 	}
-	return arityMatches
+	hasNamed := false
+	for _, n := range call.argNames {
+		if n != "" {
+			hasNamed = true
+			break
+		}
+	}
+	if !hasNamed {
+		return call.argTypes, true
+	}
+	ordered := make([]string, len(params))
+	assigned := make([]bool, len(params))
+	seenNamed := false
+	for i, argName := range call.argNames {
+		if argName == "" {
+			if seenNamed || i >= len(params) || assigned[i] {
+				return nil, false
+			}
+			assigned[i] = true
+			ordered[i] = call.argTypes[i]
+			continue
+		}
+		seenNamed = true
+		matched := false
+		for p, param := range params {
+			if param.name != "" && strings.EqualFold(param.name, argName) {
+				if assigned[p] {
+					return nil, false
+				}
+				assigned[p] = true
+				ordered[p] = call.argTypes[i]
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, false
+		}
+	}
+	for _, ok := range assigned {
+		if !ok {
+			return nil, false
+		}
+	}
+	return ordered, true
 }
 
 func trinoTypeCompatScore(argType, paramType string) (int, bool) {
@@ -1103,8 +1155,19 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			}
 		case *trinoparser.FuncCall:
 			argTypes := make([]string, len(e.Args))
+			var argNames []string
 			for j, a := range e.Args {
-				argTypes[j] = walkExpr(a, curEnv)
+				if na, ok := a.(*trinoparser.NamedArgument); ok && na != nil {
+					argTypes[j] = walkExpr(na.Value, curEnv)
+					if na.Name != nil && na.Name.Value != "" {
+						if argNames == nil {
+							argNames = make([]string, len(e.Args))
+						}
+						argNames[j] = na.Name.Value
+					}
+				} else {
+					argTypes[j] = walkExpr(a, curEnv)
+				}
 			}
 			for _, ob := range e.OrderBy {
 				walkExpr(ob.Expr, curEnv)
@@ -1144,6 +1207,7 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 					catalog:  catalog,
 					schema:   schema,
 					name:     name,
+					argNames: argNames,
 					argTypes: argTypes,
 					argCount: len(argTypes),
 				}

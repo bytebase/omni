@@ -1327,10 +1327,77 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name:              "public",
 			Views:             []*metadatapb.ViewMetadata{{Name: "mv_dup", Definition: "SELECT 1"}},
-			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "MV_DUP", Definition: "SELECT 1"}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_dup", Definition: "SELECT 1"}},
 		}},
 	})
 	require.ErrorContains(t, err, "duplicate relation")
+
+	// Case-distinct relation names ("t" and "T") are preserved when enable_case_sensitive_identifier is enabled.
+	caseDistinctRels, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			Views:  []*metadatapb.ViewMetadata{{Name: "T", Definition: "SELECT 1"}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, caseDistinctRels, `CREATE TABLE "public"."t"`)
+	require.Contains(t, caseDistinctRels, `CREATE OR REPLACE VIEW "public"."T"`)
+
+	// Duplicate schema names fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "app"},
+			{Name: "app"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate schema")
+
+	// Redshift function identity mismatch is rejected explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION s.g() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
+
+	// Single-candidate UDF with different arity than a built-in call (e.g. length(text) vs s.length(int, int))
+	// must not form a false dependency edge.
+	aritySingle, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "length",
+					Definition: "CREATE FUNCTION s.length(a int, b int) RETURNS int IMMUTABLE AS $$ SELECT s.txt_caller('hi') $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "txt_caller",
+					Definition: "CREATE FUNCTION s.txt_caller(v text) RETURNS int IMMUTABLE AS $$ SELECT length(v) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(aritySingle, "CREATE FUNCTION s.txt_caller"), strings.Index(aritySingle, "CREATE FUNCTION s.length"))
+
+	// Unqualified non-public procedures set and reset search_path around creation.
+	procOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "reporting",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_unqual",
+				Definition: "CREATE PROCEDURE p_unqual() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, procOut, "SET search_path TO \"reporting\", public;\nCREATE PROCEDURE p_unqual()")
+	require.Contains(t, procOut, "RESET search_path;\n")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
