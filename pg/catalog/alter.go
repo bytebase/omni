@@ -2000,7 +2000,7 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		Align:            typ.Align,
 		Storage:          stor,
 		Compression:      comp,
-		Collation:        typ.Collation,
+		Collation:        c.effectiveColumnCollation(typeOID, colDef.CollationName, userCollOID),
 		CollationSchema:  collSchema,
 		CollationName:    colDef.CollationName,
 		UserCollationOID: userCollOID,
@@ -2457,11 +2457,11 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
 	col.TypeMod = newMod
-	// pg: ATExecAlterColumnType resets attcollation to the new type's default
-	// collation when COLLATE is omitted.
+	// pg: ATExecAlterColumnType sets attcollation to the explicit COLLATE OID,
+	// or resets to the new type's default collation when COLLATE is omitted.
 	col.CollationSchema = collSchema
 	col.CollationName = collName
-	col.Collation = c.typeCollation(newOID)
+	col.Collation = c.effectiveColumnCollation(newOID, collName, userCollOID)
 	col.UserCollationOID = userCollOID
 	if rel.RelKind == 'c' && oldTypeOID != newOID {
 		if oldTypeOID >= FirstNormalObjectId {

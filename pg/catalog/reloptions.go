@@ -598,6 +598,19 @@ func (c *Catalog) resolvedCollationSchema(collname *nodes.List, leafName string,
 	return ""
 }
 
+func (c *Catalog) effectiveColumnCollation(typeOID uint32, collName string, userOID uint32) uint32 {
+	typeColl := c.typeCollation(typeOID)
+	if userOID != 0 {
+		return userOID
+	}
+	if collName != "" && typeColl != 0 {
+		if oid := builtinCollationOID(collName); oid != 0 {
+			return oid
+		}
+	}
+	return typeColl
+}
+
 // checkCompositeSelfReference refuses making a composite row type a direct or
 // transitive member of itself (42P16).
 //

@@ -629,7 +629,6 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 		c.SetSearchPath([]string{"$user", "public"})
 		c.defaultTablespace = ""
 		c.defaultTableAccessMethod = ""
-		c.ResetRole()
 		return nil
 	}
 	switch s.Name {

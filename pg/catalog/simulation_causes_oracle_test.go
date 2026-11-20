@@ -4044,6 +4044,66 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c110From, c110To, Diff(c110From, c110To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c110From->c110To, got:\n%s", rem.SQL())
 		}
+
+		// Review round 9 regressions:
+		// 1. Explicit column collations populate Column.Collation so conflicting
+		//    implicit collations in views fail with 42P22.
+		// 2. RESET ALL preserves the active SET ROLE (unlike DISCARD ALL).
+		// 3. Dropped collations referenced only by a retained column's default
+		//    expression defer DROP COLLATION to PhaseLateDrop after DROP DEFAULT.
+		c111 := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c1_r9 (LOCALE = 'C')",
+			"CREATE COLLATION c2_r9 (LOCALE = 'POSIX')",
+			"CREATE TABLE t_coll_r9 (a text COLLATE c1_r9, b text COLLATE c2_r9)",
+		} {
+			if code := simulationCatalogCode(t, c111, stmt); code != "0" {
+				t.Fatalf("c111 %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_u_r9 AS SELECT a FROM t_coll_r9 UNION SELECT b FROM t_coll_r9"); code != CodeCollationMismatch {
+			t.Fatalf("UNION view over conflicting explicit column collations answered %s, want %s", code, CodeCollationMismatch)
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_ua_r9 AS SELECT a FROM t_coll_r9 UNION ALL SELECT b FROM t_coll_r9"); code != CodeIndeterminateCollation {
+			t.Fatalf("UNION ALL view over conflicting explicit column collations answered %s, want %s", code, CodeIndeterminateCollation)
+		}
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_rep_r9 AS SELECT a AS x FROM t_coll_r9; CREATE OR REPLACE VIEW v_coll_rep_r9 AS SELECT b AS x FROM t_coll_r9"); code != CodeInvalidObjectDefinition {
+			t.Fatalf("CREATE OR REPLACE VIEW changing column collation answered %s, want %s", code, CodeInvalidObjectDefinition)
+		}
+		for _, stmt := range []string{
+			"CREATE ROLE app_role_r9",
+			"SET ROLE app_role_r9",
+			"RESET ALL",
+			"CREATE TABLE t_role_r9 (id int)",
+		} {
+			if code := simulationCatalogCode(t, c111, stmt); code != "0" {
+				t.Fatalf("c111 role %s: %s", stmt, code)
+			}
+		}
+		if rel := c111.GetRelation("public", "t_role_r9"); rel == nil || rel.OwnerName != "app_role_r9" {
+			t.Fatalf("expected RESET ALL to preserve active SET ROLE app_role_r9, got %+v", rel)
+		}
+
+		c111From := New()
+		c111To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_dfl_r9 (LOCALE = 'C')",
+			"CREATE TABLE t_dfl_r9 (a text DEFAULT ('x' COLLATE c_dfl_r9))",
+		} {
+			if code := simulationCatalogCode(t, c111From, stmt); code != "0" {
+				t.Fatalf("c111From %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c111To, "CREATE TABLE t_dfl_r9 (a text)"); code != "0" {
+			t.Fatalf("c111To CREATE TABLE: %s", code)
+		}
+		mig111 := GenerateMigration(c111From, c111To, Diff(c111From, c111To))
+		if code := simulationCatalogCode(t, c111From, mig111.SQL()); code != "0" {
+			t.Fatalf("applying c111From->c111To (dropping default + collation) failed with %s:\n%s", code, mig111.SQL())
+		}
+		if rem := GenerateMigration(c111From, c111To, Diff(c111From, c111To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c111From->c111To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

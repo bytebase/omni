@@ -749,7 +749,7 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 		if op.Phase == PhasePre && op.Type == OpDropType && !created[op.SchemaName+"."+op.ObjectName] && typeUsedByKeptColumn(from, to, rebuilt, typeOID(op)) {
 			late[i] = true
 		}
-		if op.Phase == PhasePre && op.Type == OpDropCollation && !createdColl[op.SchemaName+"."+op.ObjectName] && collUsedByKeptColumn(from, to, rebuilt, op.ObjOID) {
+		if op.Phase == PhasePre && op.Type == OpDropCollation && !createdColl[op.SchemaName+"."+op.ObjectName] && collUsedInPhaseMain(from, to, ops, rebuilt, op.ObjOID) {
 			late[i] = true
 		}
 	}
@@ -776,7 +776,7 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 					continue
 				}
 				for _, j := range liftDepToOp(from, d.RefType, d.RefOID, oidToIdx) {
-					if !late[j] && ops[j].Type == OpDropType {
+					if !late[j] && (ops[j].Type == OpDropType || ops[j].Type == OpDropCollation) {
 						late[j], changed = true, true
 					}
 				}
@@ -931,6 +931,138 @@ func generateCollationDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 	return ops
+}
+
+func collUsedInPhaseMain(from, to *Catalog, ops []MigrationOp, dropped map[uint32]bool, collOID uint32) bool {
+	if collOID == 0 {
+		return false
+	}
+	if collUsedByKeptColumn(from, to, dropped, collOID) {
+		return true
+	}
+	preDroppedType := make(map[uint32]bool)
+	preDroppedCon := make(map[uint32]bool)
+	preDroppedConSQL := make(map[string]bool)
+	preDroppedIdx := make(map[uint32]bool)
+	preDroppedTrig := make(map[uint32]bool)
+	preDroppedPol := make(map[uint32]bool)
+	preDroppedFunc := make(map[uint32]bool)
+	preDroppedCol := make(map[string]bool)
+	for _, op := range ops {
+		if op.Phase != PhasePre {
+			continue
+		}
+		switch op.Type {
+		case OpDropType:
+			if op.ObjType == 't' {
+				preDroppedType[op.ObjOID] = true
+			}
+		case OpDropConstraint:
+			if op.ObjOID != 0 {
+				preDroppedCon[op.ObjOID] = true
+			}
+			preDroppedConSQL[op.SQL] = true
+			if op.ParentObject != "" {
+				preDroppedConSQL[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+			}
+		case OpDropIndex:
+			preDroppedIdx[op.ObjOID] = true
+		case OpDropTrigger:
+			preDroppedTrig[op.ObjOID] = true
+		case OpDropPolicy:
+			preDroppedPol[op.ObjOID] = true
+		case OpDropFunction:
+			preDroppedFunc[op.ObjOID] = true
+		case OpDropColumn:
+			preDroppedCol[op.SQL] = true
+		}
+	}
+
+	for _, d := range from.deps {
+		if d.DepType == DepInternal || d.RefType != 'L' || d.RefOID != collOID {
+			continue
+		}
+		switch d.ObjType {
+		case 'r':
+			if dropped[d.ObjOID] {
+				continue
+			}
+			rel := from.GetRelationByOID(d.ObjOID)
+			if rel == nil || rel.Schema == nil {
+				continue
+			}
+			toRel := to.GetRelation(rel.Schema.Name, rel.Name)
+			if toRel == nil || toRel.RelKind != rel.RelKind {
+				continue
+			}
+			if d.ObjSubID > 0 {
+				for _, col := range rel.Columns {
+					if int32(col.AttNum) == d.ObjSubID {
+						dropColSQL := fmt.Sprintf("ALTER TABLE %s.%s DROP COLUMN %s", quoteIdentifier(rel.Schema.Name), quoteIdentifier(rel.Name), quoteIdentifier(col.Name))
+						if !preDroppedCol[dropColSQL] {
+							return true
+						}
+						break
+					}
+				}
+			} else if rel.RelKind == 'v' {
+				return true
+			}
+		case 'f':
+			if !preDroppedFunc[d.ObjOID] {
+				return true
+			}
+		case 'p':
+			if pol := from.policies[d.ObjOID]; pol != nil && !dropped[pol.RelOID] && !preDroppedPol[pol.OID] {
+				return true
+			}
+		case 'c':
+			if preDroppedCon[d.ObjOID] {
+				continue
+			}
+			if con := from.constraints[d.ObjOID]; con != nil {
+				if dropped[con.RelOID] {
+					continue
+				}
+				if rel := from.GetRelationByOID(con.RelOID); rel != nil && rel.Schema != nil {
+					key := rel.Schema.Name + "." + rel.Name + "." + con.Name
+					if !preDroppedConSQL[key] {
+						return true
+					}
+				}
+			} else {
+				for domOID, dt := range from.domainTypes {
+					if preDroppedType[domOID] || dt == nil {
+						continue
+					}
+					for _, dc := range dt.Constraints {
+						if dc.OID == d.ObjOID {
+							return true
+						}
+					}
+				}
+			}
+		case 'i':
+			if idx := from.indexes[d.ObjOID]; idx != nil && !dropped[idx.RelOID] && !preDroppedIdx[idx.OID] {
+				if idx.ConstraintOID != 0 {
+					if con := from.constraints[idx.ConstraintOID]; con != nil {
+						if rel := from.GetRelationByOID(con.RelOID); rel != nil && rel.Schema != nil {
+							key := rel.Schema.Name + "." + rel.Name + "." + con.Name
+							if preDroppedCon[con.OID] || preDroppedConSQL[key] {
+								continue
+							}
+						}
+					}
+				}
+				return true
+			}
+		case 'g':
+			if trig := from.triggers[d.ObjOID]; trig != nil && !dropped[trig.RelOID] && !preDroppedTrig[trig.OID] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func collUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, collOID uint32) bool {

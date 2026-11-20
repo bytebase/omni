@@ -501,13 +501,13 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		NotNull:   notNull,
 	}
 
-	// Copy properties from base type.
+	// Copy properties from base type, overriding typcollation when COLLATE is given.
 	if bt := c.typeByOID[baseOID]; bt != nil {
 		domType.Len = bt.Len
 		domType.ByVal = bt.ByVal
 		domType.Align = bt.Align
 		domType.Storage = bt.Storage
-		domType.Collation = bt.Collation
+		domType.Collation = c.effectiveColumnCollation(baseOID, domCollName, domUserCollOID)
 	}
 
 	c.typeByOID[typeOID] = domType

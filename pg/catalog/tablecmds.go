@@ -489,8 +489,8 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			return err
 		}
 		// pg: src/backend/catalog/heap.c — InsertPgAttributeTuples
-		// attcollation is derived from type; for arrays, inherited from element type.
-		coll := c.typeCollation(typeOID)
+		// attcollation uses the explicit COLLATE OID when specified, else the type's collation.
+		coll := c.effectiveColumnCollation(typeOID, cd.CollationName, colUserCollOIDs[i])
 		columns[i] = &Column{
 			AttNum:           int16(i + 1),
 			Name:             cd.Name,
