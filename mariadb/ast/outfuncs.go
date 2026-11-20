@@ -3839,6 +3839,9 @@ func writeOrderByList(sb *strings.Builder, items []*OrderByItem) {
 func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	sb.WriteString("{CALL")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Package != "" {
+		fmt.Fprintf(sb, " :package %q", n.Package)
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)

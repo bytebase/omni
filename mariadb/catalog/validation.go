@@ -135,13 +135,14 @@ func errUninitializedField(field, uninitialized string) error {
 		Message: fmt.Sprintf("Expression for field `%s` is referring to uninitialized field `%s`", field, uninitialized)}
 }
 
-// columnExprRefs returns the columns a generated or default expression reads. The
-// server reads both the same way here, whichever spelling wrote the default:
-// `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)` all answer 4029.
-func columnExprRefs(colDef *nodes.ColumnDef) []string {
+// columnExprRefs returns the columns of targetDB.targetTable a generated or
+// default expression reads. The server reads both the same way here, whichever
+// spelling wrote the default: `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)`
+// all answer 4029.
+func columnExprRefs(targetDB, targetTable string, colDef *nodes.ColumnDef) []string {
 	var refs []string
 	add := func(expr nodes.ExprNode) {
-		refs = append(refs, generatedColumnRefs(expr)...)
+		refs = append(refs, tableColumnRefs(targetDB, targetTable, expr)...)
 	}
 	add(colDef.DefaultValue)
 	if colDef.Generated != nil {
@@ -161,9 +162,9 @@ func columnExprRefs(colDef *nodes.ColumnDef) []string {
 // `ALTER TABLE t ADD a INT DEFAULT a` and `ALTER TABLE t ALTER a SET DEFAULT a`. A
 // column name the table already holds is 1060 first, and a name the table does not
 // hold at all is 1054, so this runs where the column is built.
-func validateColumnSelfReference(colDef *nodes.ColumnDef) error {
+func validateColumnSelfReference(targetDB, targetTable string, colDef *nodes.ColumnDef) error {
 	key := toLower(colDef.Name)
-	for _, ref := range columnExprRefs(colDef) {
+	for _, ref := range columnExprRefs(targetDB, targetTable, colDef) {
 		if toLower(ref) == key {
 			return errUninitializedField(colDef.Name, colDef.Name)
 		}
@@ -177,11 +178,11 @@ func validateColumnSelfReference(colDef *nodes.ColumnDef) error {
 // A plain column defined later is initialized by the time the value is computed, so
 // `CREATE TABLE z (a INT AS(b), b INT)` runs, as does `CREATE TABLE z (a INT DEFAULT
 // b, b INT)`: the order is judged for a generated expression only.
-func validateColumnGeneratedOrder(colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
+func validateColumnGeneratedOrder(targetDB, targetTable string, colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
 	if colDef.Generated == nil {
 		return nil
 	}
-	for _, ref := range generatedColumnRefs(colDef.Generated.Expr) {
+	for _, ref := range tableColumnRefs(targetDB, targetTable, colDef.Generated.Expr) {
 		for _, other := range later {
 			if other.Generated != nil && toLower(other.Name) == toLower(ref) {
 				return errUninitializedField(colDef.Name, other.Name)
@@ -317,6 +318,380 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 // Measured on mariadb:11.8.8.
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
 	return validateCheckExpr(conName, expr)
+}
+
+// validateExprColumns refuses an expression that names a column the table does
+// not have (1054) or qualifies a column with another table or database (1901).
+// MariaDB reads a bare word, or a reference qualified with the statement's own
+// table, as a column of the table (`ALTER TABLE a ADD CHECK(a)` and
+// `CHECK(a.missing)` answer 1054, `DEFAULT (b + 1)` and `CHECK(a.b > 0)` run),
+// and answers 1901 when the qualifier names another table (`CHECK(other.b > 0)`,
+// `DEFAULT (other.b)`, `AS (other.b)`). Measured on mariadb:11.8.8.
+func validateExprColumns(tbl *Table, targetDB, targetTable string, extraCols map[string]bool, expr nodes.ExprNode, context, owner string) error {
+	if expr == nil {
+		return nil
+	}
+	sequences := sequenceArgColumnRefs(expr)
+	var exprErr error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if exprErr != nil {
+			return false
+		}
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" || sequences[cr] {
+			return true
+		}
+		if cr.Table != "" || cr.Schema != "" {
+			if (cr.Schema == "" || eqFoldStr(cr.Schema, targetDB)) && eqFoldStr(cr.Table, targetTable) {
+				if tbl.GetColumn(cr.Column) == nil && !extraCols[toLower(cr.Column)] {
+					exprErr = errNoSuchColumn(cr.Column, context)
+				}
+				return true
+			}
+			exprErr = &Error{
+				Code:     1901,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Function or expression '%s' cannot be used in the %s clause of `%s`", formatQualifiedColumnRef(cr), context, owner),
+			}
+			return false
+		}
+		if tbl.GetColumn(cr.Column) == nil && !extraCols[toLower(cr.Column)] {
+			exprErr = errNoSuchColumn(cr.Column, context)
+		}
+		return true
+	})
+	return exprErr
+}
+
+func formatQualifiedColumnRef(cr *nodes.ColumnRef) string {
+	if cr.Schema != "" {
+		return cr.Schema + "." + cr.Table + "." + cr.Column
+	}
+	if cr.Table != "" {
+		return cr.Table + "." + cr.Column
+	}
+	return cr.Column
+}
+
+// sequenceArgColumnRefs returns the ColumnRef nodes that name sequences in
+// NEXTVAL(s), LASTVAL(s) and SETVAL(s, ...), parenthesized or not, so column
+// checks do not treat a sequence's name as a column of the table.
+func sequenceArgColumnRefs(expr nodes.ExprNode) map[*nodes.ColumnRef]bool {
+	sequences := map[*nodes.ColumnRef]bool{}
+	if expr == nil {
+		return sequences
+	}
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		fc, ok := n.(*nodes.FuncCallExpr)
+		if !ok || fc.Schema != "" || len(fc.Args) == 0 {
+			return true
+		}
+		switch strings.ToUpper(fc.Name) {
+		case "NEXTVAL", "LASTVAL", "SETVAL":
+			if cr, ok := fc.Args[0].(*nodes.ColumnRef); ok {
+				sequences[cr] = true
+			}
+			if cr, ok := unwrapParenColumnRef(fc.Args[0]); ok {
+				sequences[cr] = true
+			}
+		}
+		return true
+	})
+	return sequences
+}
+
+// unwrapParenColumnRef returns the column reference a parenthesized argument
+// holds, as `NEXTVAL((s))` writes it.
+func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
+	if p, ok := expr.(*nodes.ParenExpr); ok {
+		return unwrapParenColumnRef(p.Expr)
+	}
+	cr, ok := expr.(*nodes.ColumnRef)
+	return cr, ok
+}
+
+// validateAlteredColumnExprColumns holds the DEFAULT, GENERATED ALWAYS AS, and
+// CHECK expressions an ALTER adds, modifies or changes to the table the
+// statement leaves: measured on mariadb:11.8.8,
+// `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` and
+// `ALTER TABLE t ADD CHECK (b > 0), ADD b INT` run over a table with neither
+// column, where a name no column of the result has is 1054. A same-ALTER
+// rename rewrites only expressions that existed before the statement began:
+// `ALTER TABLE a ADD e INT CHECK (c > 0), RENAME COLUMN c TO z` answers 1054
+// for c while `ADD e INT CHECK (z > 0), RENAME COLUMN c TO z` runs (recorded in
+// TestSimulationCausesOracle).
+func validateAlteredColumnExprColumns(tbl *Table, targetDB, targetTable string, cmds []*nodes.AlterTableCmd, skippedColumns map[*nodes.ColumnDef]bool, skippedKeys map[*nodes.Constraint]bool, checkNames map[*nodes.Constraint]string) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAlterColumnDefault:
+			owner := cmd.Name
+			if col := tbl.GetColumn(cmd.Name); col != nil {
+				owner = col.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, nil, cmd.DefaultExpr, "DEFAULT", owner); err != nil {
+				return err
+			}
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+			for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+				// A column IF NOT EXISTS finds is a note whose definition is never
+				// read.
+				if colDef == nil || skippedColumns[colDef] {
+					continue
+				}
+				if err := validateColumnExprColumns(tbl, targetDB, targetTable, nil, colDef); err != nil {
+					return err
+				}
+			}
+		}
+		for _, con := range append([]*nodes.Constraint{cmd.Constraint}, cmd.Constraints...) {
+			if con == nil || con.Type != nodes.ConstrCheck || skippedKeys[con] {
+				continue
+			}
+			owner := checkNames[con]
+			if owner == "" {
+				owner = con.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, nil, con.Expr, "CHECK", owner); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateColumnExprColumns holds the expressions a column definition carries to
+// validateExprColumns: the column's own DEFAULT, its GENERATED ALWAYS AS
+// expression, and each CHECK written beside it. A column-level CHECK may name
+// the column it is declared on, which the table holds once the column is in.
+func validateColumnExprColumns(tbl *Table, targetDB, targetTable string, extraCols map[string]bool, colDef *nodes.ColumnDef) error {
+	if colDef == nil {
+		return nil
+	}
+	if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, colDef.DefaultValue, "DEFAULT", colDef.Name); err != nil {
+		return err
+	}
+	if colDef.Generated != nil && colDef.Generated.RowBound == nodes.RowBoundNone {
+		if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, colDef.Generated.Expr, "GENERATED ALWAYS AS", colDef.Name); err != nil {
+			return err
+		}
+	}
+	for _, cc := range colDef.Constraints {
+		switch cc.Type {
+		case nodes.ColConstrDefault:
+			if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, cc.Expr, "DEFAULT", colDef.Name); err != nil {
+				return err
+			}
+		case nodes.ColConstrCheck:
+			owner := cc.Name
+			if owner == "" {
+				owner = colDef.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, cc.Expr, "CHECK", owner); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateEnumSetValues refuses an ENUM or SET column that lists one value
+// twice under strict sql_mode: 1291, which MariaDB compares with the column's
+// collation and answers with the first trimmed spelling. Outside strict mode
+// (`SET sql_mode = ”` or `'ANSI'`) MariaDB keeps the definition with a 1291
+// note. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))` and
+// `SET ('a','A')` answer 1291 under DEFAULT, TRADITIONAL and
+// STRICT_TRANS_TABLES, and `ENUM('a ','a')` names `'a'`.
+func (c *Catalog) validateEnumSetValues(colDef *nodes.ColumnDef, collation string) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
+	kind := strings.ToUpper(colDef.TypeName.Name)
+	if kind != "ENUM" && kind != "SET" {
+		return nil
+	}
+	return c.validateEnumSetList(colDef.Name, kind, colDef.TypeName.EnumValues, collation)
+}
+
+func (c *Catalog) validateEnumSetList(colName, kind string, values []string, collation string) error {
+	if !c.isStrictSQLMode() {
+		return nil
+	}
+	// MariaDB compares the values with the column's collation, so a
+	// case-sensitive one lists `('s','S')` twice over: measured on
+	// mariadb:11.8.8, `ENUM('s','S') COLLATE utf8mb4_bin`, `BINARY` and a
+	// table's `COLLATE utf8mb4_bin` are all accepted, where the default
+	// utf8mb4_uca1400_ai_ci answers 1291.
+	fold := !collationCaseSensitive(collation)
+	seen := make(map[string]string, len(values))
+	for _, value := range values {
+		// A trailing space is the collation's: MariaDB stores `ENUM('a ','b ')`
+		// as enum('a','b') and answers 1291 for `('a','a ')`, whatever the
+		// collation, naming the trimmed value ('a'). Measured on mariadb:11.8.8,
+		// a tab being kept.
+		trimmed := strings.TrimRight(value, " ")
+		key := trimmed
+		if fold {
+			key = foldEnumValue(key, collation)
+		}
+		if first, ok := seen[key]; ok {
+			// The message names the first spelling: `ENUM('s','S')` over a
+			// case-insensitive collation reports "duplicated value 's'".
+			return errDupEnumValue(colName, first, kind)
+		}
+		seen[key] = trimmed
+	}
+	return nil
+}
+
+// isStrictSQLMode reports whether session sql_mode promotes warnings such as
+// 1291 to errors: STRICT_TRANS_TABLES (part of DEFAULT on MariaDB 11.8.8),
+// STRICT_ALL_TABLES, or TRADITIONAL.
+func (c *Catalog) isStrictSQLMode() bool {
+	for _, mode := range strings.Split(strings.ToUpper(c.session.SQLMode), ",") {
+		switch strings.TrimSpace(mode) {
+		case "DEFAULT", "TRADITIONAL", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES":
+			return true
+		}
+	}
+	return false
+}
+
+// parseColumnEnumSetValues reads the member list back from a stored ColumnType
+// (`enum('a','b”c')`), where escapeEnumValue doubled single quotes.
+func parseColumnEnumSetValues(columnType string) []string {
+	open := strings.IndexByte(columnType, '(')
+	close := strings.LastIndexByte(columnType, ')')
+	if open < 0 || close <= open {
+		return nil
+	}
+	s := columnType[open+1 : close]
+	var values []string
+	for i := 0; i < len(s); {
+		if s[i] != '\'' {
+			i++
+			continue
+		}
+		i++ // skip opening '\''
+		var b strings.Builder
+		for i < len(s) {
+			if s[i] == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					b.WriteByte('\'')
+					i += 2
+					continue
+				}
+				i++ // skip closing '\''
+				break
+			}
+			b.WriteByte(s[i])
+			i++
+		}
+		values = append(values, b.String())
+	}
+	return values
+}
+
+// effectiveColumnCollation is the collation a column definition's ENUM or SET
+// values are compared with: the one it names (DEFAULT resolved to the column
+// charset's default), the binary one BINARY or CHARACTER SET binary gives it,
+// the default of the CHARACTER SET it names, and otherwise the table's. A named
+// character set drops the table's collation even where they share one: measured
+// on mariadb:11.8.8, `ENUM('s','S') CHARACTER SET utf8mb4` and `COLLATE
+// DEFAULT` under a table `COLLATE utf8mb4_bin` both answer 1291.
+// declaredColumnCollate returns the collation a column definition writes, on
+// its type (`VARCHAR(10) COLLATE ...`) or among its column attributes
+// (`VARCHAR(10) NOT NULL COLLATE ...`).
+func declaredColumnCollate(colDef *nodes.ColumnDef) string {
+	if colDef == nil {
+		return ""
+	}
+	if colDef.TypeName != nil && colDef.TypeName.Collate != "" {
+		return colDef.TypeName.Collate
+	}
+	collate := ""
+	for _, cc := range colDef.Constraints {
+		if cc == nil || cc.Type != nodes.ColConstrCollate {
+			continue
+		}
+		if cc.Name != "" {
+			collate = cc.Name
+		} else if s, ok := cc.Expr.(*nodes.StringLit); ok && s.Value != "" {
+			collate = s.Value
+		}
+	}
+	return collate
+}
+
+func (c *Catalog) effectiveColumnCollation(db *Database, colDef *nodes.ColumnDef, tableCharset, tableCollation string) string {
+	dt := colDef.TypeName
+	if dt == nil {
+		return tableCollation
+	}
+	collate := declaredColumnCollate(colDef)
+	colCharset := ""
+	if isNationalStringType(dt.Name) {
+		colCharset = "utf8mb3"
+	}
+	if dt.Charset != "" {
+		colCharset = normalizeCharsetName(dt.Charset)
+	}
+	if collate != "" && !eqFoldStr(collate, "DEFAULT") && colCharset == "" {
+		colCharset = normalizeCharsetName(charsetForCollation(collate))
+	}
+	if colCharset == "" {
+		colCharset = tableCharset
+	}
+	if collate != "" {
+		if eqFoldStr(collate, "DEFAULT") {
+			if dt.Binary || eqFoldStr(colCharset, "binary") {
+				return "binary"
+			}
+			if db != nil {
+				return versionCollation(db, colCharset)
+			}
+			return c.charsetCollation(colCharset)
+		}
+		return collate
+	}
+	if dt.Binary || eqFoldStr(colCharset, "binary") {
+		return "binary"
+	}
+	if dt.Charset != "" || isNationalStringType(dt.Name) {
+		if db != nil {
+			if dc := versionCollation(db, colCharset); dc != "" {
+				return dc
+			}
+		} else if dc := c.charsetCollation(colCharset); dc != "" {
+			return dc
+		}
+	}
+	return tableCollation
+}
+
+// foldEnumValue folds one value the way a case-insensitive collation reads it.
+// Case is all it folds: a collation's weights also make `a` and `á` one value
+// under an accent-insensitive one, which needs the collation's table and is not
+// modeled here.
+// Turkish is its own case mapping: "I" and "i" are different letters there, the
+// pairs being I with ı (dotless) and İ with i (dotted). Measured on
+// mariadb:11.8.8 under utf8mb4_turkish_ci: `ENUM('I','i')` runs, `('i','İ')` and
+// `('s','S')` answer 1291.
+func foldEnumValue(value, collation string) string {
+	if strings.Contains(strings.ToLower(collation), "turkish") {
+		value = strings.ReplaceAll(value, "I", "ı")
+		value = strings.ReplaceAll(value, "İ", "i")
+	}
+	return strings.ToLower(value)
+}
+
+// collationCaseSensitive reports whether a collation tells two spellings apart
+// by case: MariaDB's binary ones name it, `binary`, `_bin` and `_cs`.
+func collationCaseSensitive(collation string) bool {
+	name := strings.ToLower(collation)
+	return name == "binary" || strings.HasSuffix(name, "_bin") || strings.HasSuffix(name, "_cs")
 }
 
 func hasColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
@@ -475,13 +850,36 @@ func nondeterministicFuncName(name string) string {
 }
 
 // generatedColumnRefs returns the columns a generated expression reads, in the
-// order it reads them.
+// order it reads them, skipping sequence names in NEXTVAL/LASTVAL/SETVAL.
 func generatedColumnRefs(expr nodes.ExprNode) []string {
+	sequences := sequenceArgColumnRefs(expr)
 	var out []string
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && !sequences[cr] {
 			out = append(out, cr.Column)
 		}
+		return true
+	})
+	return out
+}
+
+// tableColumnRefs returns the columns of targetDB.targetTable an expression
+// reads, skipping sequence arguments and references qualified with another
+// table or database.
+func tableColumnRefs(targetDB, targetTable string, expr nodes.ExprNode) []string {
+	sequences := sequenceArgColumnRefs(expr)
+	var out []string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" || sequences[cr] {
+			return true
+		}
+		if cr.Table != "" || cr.Schema != "" {
+			if targetTable == "" || !eqFoldStr(cr.Table, targetTable) || (cr.Schema != "" && !eqFoldStr(cr.Schema, targetDB)) {
+				return true
+			}
+		}
+		out = append(out, cr.Column)
 		return true
 	})
 	return out

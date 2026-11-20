@@ -25,15 +25,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return err
 	}
 
-	// Check for duplicate key name.
-	if indexNameExists(tbl, stmt.IndexName) {
-		if stmt.IfNotExists {
-			return nil
-		}
-		if stmt.OrReplace {
-			return c.replaceIndex(tbl, stmt)
-		}
-		return errDupKeyName(stmt.IndexName)
+	// A name the table holds is a note under IF NOT EXISTS, which MariaDB reads
+	// before the key: `CREATE INDEX IF NOT EXISTS k (nosuch)` over a table that
+	// has k runs. Otherwise the name waits for the key's own errors below (1061,
+	// or another one).
+	nameExists := indexNameExists(tbl, stmt.IndexName)
+	if nameExists && stmt.IfNotExists {
+		return nil
 	}
 
 	// Build index columns from AST columns.
@@ -62,13 +60,53 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return err
 		}
 	}
+	// A WITHOUT OVERLAPS part's period is looked up before the key's columns,
+	// type, and colliding name: measured on mariadb:11.8.8, `CREATE UNIQUE
+	// INDEX u ON a (missing, missing WITHOUT OVERLAPS)` answers 4156.
+	if err := validateDeclaredWithoutOverlapsParts(tbl.AppPeriodName, stmt.Columns); err != nil {
+		return err
+	}
+	// The key's own validity is judged before a name it collides with:
+	// measured on mariadb:11.8.8, `CREATE SPATIAL INDEX idx_d ON a (b)` over an
+	// INT b answers 1210 and `CREATE FULLTEXT INDEX idx_d ON a (b)` 1283 where
+	// the table already holds idx_d (1061), and a column that is no column of
+	// the table answers 1072 and a length over an INT column 1089, where a plain
+	// repeated column answers 1061.
+	for _, ic := range idxCols {
+		if ic.Name != "" && !ic.WithoutOverlaps && tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
+	}
+	// The key's columns are looked up before its type: measured on
+	// mariadb:11.8.8, `CREATE INDEX k USING RTREE ON t(missing)` answers 1072,
+	// and `ON t(b)` over an INT column 1210.
+	if err := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options)); err != nil {
+		return err
+	}
 	long := false
-	if stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {
+	switch {
+	case stmt.Vector:
+		if err := validateVectorColumns(tbl, idxCols); err != nil {
+			return err
+		}
+	case stmt.Unique && !stmt.Fulltext && !stmt.Spatial:
 		var err error
 		if long, err = validateUniqueIndexColumns(tbl, idxCols); err != nil {
 			return err
 		}
-	} else if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+	default:
+		if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+			return err
+		}
+	}
+
+	if nameExists {
+		if stmt.OrReplace {
+			return c.replaceIndex(tbl, stmt)
+		}
+		return errDupKeyName(stmt.IndexName)
+	}
+	if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 		return err
 	}
 
@@ -128,6 +166,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
+		*tbl = snapshot
+		return err
+	}
 	// An IGNORED UNIQUE index can become the implicit primary key.
 	if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
 		*tbl = snapshot
@@ -150,6 +192,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			IndexName: stmt.IndexName,
 		})
 	}
+	if err := c.validateKeyEngineOptions(tbl, stmt.Options, stmt.Vector); err != nil {
+		*tbl = snapshot
+		return err
+	}
+	if tbl.TablespaceDiscarded && eqFoldStr(stmt.Algorithm, "COPY") {
+		*tbl = snapshot
+		return errTablespaceDiscarded(tbl.Name)
+	}
 
 	return nil
 }
@@ -161,13 +211,17 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 func (c *Catalog) replaceIndex(tbl *Table, stmt *nodes.CreateIndexStmt) error {
 	snapshot := cloneTable(tbl)
 	drop := &nodes.DropIndexStmt{Name: stmt.IndexName, Table: stmt.Table}
-	if err := c.dropIndex(drop); err != nil {
+	if _, err := removeIndexFromTable(tbl, drop); err != nil {
 		*tbl = snapshot
 		return err
 	}
 	create := *stmt
 	create.OrReplace = false
 	if err := c.createIndex(&create); err != nil {
+		*tbl = snapshot
+		return err
+	}
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
 		*tbl = snapshot
 		return err
 	}
@@ -192,36 +246,52 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	// Dropping a key can promote an IGNORED one to the implicit primary key,
-	// which MariaDB refuses (4174, verified on 11.8.8), so keep the table to
-	// put back.
+	// Dropping a key can unkey an AUTO_INCREMENT column (1075) or promote an
+	// IGNORED index to the implicit primary key (4174), both verified on 11.8.8,
+	// so keep the table to put back when either fails.
 	var snapshot *Table
-	if hasIgnoredIndex(tbl) {
+	if hasIgnoredIndex(tbl) || needsAutoIncrementCheck(tbl, nil) {
 		s := cloneTable(tbl)
 		snapshot = &s
 	}
 
-	// Find and remove index.
+	removed, err := removeIndexFromTable(tbl, stmt)
+	if err != nil || !removed {
+		return err
+	}
+
+	if snapshot != nil {
+		if err := validateAutoIncrementKeyed(tbl); err != nil {
+			*tbl = *snapshot
+			return err
+		}
+		if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
+			*tbl = *snapshot
+			return err
+		}
+	}
+	return nil
+}
+
+func removeIndexFromTable(tbl *Table, stmt *nodes.DropIndexStmt) (bool, error) {
 	key := toLower(stmt.Name)
-	found := false
 	var dropped *Index
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
 			dropped = idx
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
-			found = true
 			break
 		}
 	}
-	if !found {
+	if dropped == nil {
 		// IF EXISTS turns the missing index into a warning and leaves the table
 		// as it was: mariadb:11.8.8 answers 1091 for DROP INDEX nope ON t and 0
 		// for DROP INDEX IF EXISTS nope ON t. A missing table is still an error
 		// either way (1146), which the lookup above has already raised.
 		if stmt.IfExists {
-			return nil
+			return false, nil
 		}
-		return errCantDropKey("INDEX", stmt.Name)
+		return false, errCantDropKey("INDEX", stmt.Name)
 	}
 	removeFunctionalIndexHiddenColumns(tbl, dropped)
 
@@ -232,14 +302,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 			break
 		}
 	}
-
-	if snapshot != nil {
-		if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
-			*tbl = *snapshot
-			return err
-		}
-	}
-	return nil
+	return true, nil
 }
 
 // constraintOfIndex reports whether con is what the index named key holds up: its primary or unique

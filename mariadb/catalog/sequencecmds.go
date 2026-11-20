@@ -413,6 +413,10 @@ func qualifySequenceCalls(expr nodes.ExprNode, tbl *Table) nodes.ExprNode {
 	if tbl != nil && tbl.Database != nil {
 		db = tbl.Database.Name
 	}
+	return qualifySequenceCallsInDB(expr, db)
+}
+
+func qualifySequenceCallsInDB(expr nodes.ExprNode, db string) nodes.ExprNode {
 	ref := func(schema, name string) nodes.ExprNode {
 		if schema == "" {
 			schema = db

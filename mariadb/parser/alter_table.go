@@ -96,9 +96,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		// EXCHANGE PARTITION and the two CONVERT arms are whole alter_commands
-		// of their own, not alter_list_items: MariaDB 11.8.8 answers 1064 for
-		// one with another action, or a partitioning clause, before or after it.
+		// EXCHANGE PARTITION, the two CONVERT arms, and DISCARD/IMPORT
+		// TABLESPACE are whole alter_commands of their own, not
+		// alter_list_items: MariaDB 11.8.8 answers 1064 for one with another
+		// action, or a partitioning clause, before or after it.
 		if standsAlone(cmd) {
 			if len(stmt.Commands) > 0 {
 				return nil, &ParseError{Message: "syntax error", Position: cmd.Loc.Start}
@@ -156,7 +157,8 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 // Ref: alter_commands in MariaDB 11.8 sql/sql_yacc.yy.
 func standsAlone(cmd *nodes.AlterTableCmd) bool {
 	switch cmd.Type {
-	case nodes.ATExchangePartition, nodes.ATConvertPartitionToTable, nodes.ATConvertTableToPartition:
+	case nodes.ATExchangePartition, nodes.ATConvertPartitionToTable, nodes.ATConvertTableToPartition,
+		nodes.ATDiscardTablespace, nodes.ATImportTablespace:
 		return true
 	}
 	return false

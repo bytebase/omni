@@ -803,6 +803,22 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
 	}
+	// MariaDB reads a packaged routine's name whole, `[db.]package.routine`:
+	// measured on mariadb:11.8.8, `CALL a.a.a` parses. MySQL takes the two
+	// parts only, so this is MariaDB's own alternative.
+	if p.cur.Type == '.' {
+		p.advance() // consume '.'
+		routineStart := p.pos()
+		routine, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		if err := refuseRoutineName(routine, routineStart); err != nil {
+			return nil, err
+		}
+		stmt.Package = name.Name
+		stmt.Name = &nodes.TableRef{Loc: nodes.Loc{Start: name.Loc.Start, End: p.prev.End}, Schema: name.Schema, Name: routine}
+	}
 
 	// Optional argument list in parentheses
 	if p.cur.Type == '(' {
@@ -824,7 +840,12 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 				p.advance() // consume ','
 			}
 		}
-		p.expect(')')
+		// The list's ')' is required: `CALL p(1` is 1064, not a statement whose
+		// list the parser stopped reading (measured on mariadb:11.8.8), so the
+		// error is returned rather than dropped.
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -2009,14 +2030,29 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 				return nil, err
 			}
 		}
-		if !p.atUserVar() {
-			return nil, p.syntaxErrorAtCur()
+		// MariaDB reads the word after '@' as a hostname, `ident_or_text`, and an
+		// '@' whose text ends there leaves it empty: measured on mariadb:11.8.8,
+		// `BINLOG @a, @`, `BINLOG @'', @""` and `BINLOG @`a`, @`b`` parse where
+		// `BINLOG `@`, `@``, `BINLOG @ 'a', @b`, `BINLOG @a, @@` and `BINLOG @a, 1`
+		// do not.
+		if p.cur.Type == tokIDENT && p.byteAt(p.cur.Loc) == '@' {
+			if p.cur.Str == "@" {
+				at := p.advance()
+				if at.End == at.Loc+1 && p.cur.Type == tokSCONST && p.cur.Loc == at.End {
+					stmt.Fragments = append(stmt.Fragments, p.advance().Str)
+				} else {
+					stmt.Fragments = append(stmt.Fragments, "")
+				}
+				continue
+			}
+			ref, err := p.parseVariableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Fragments = append(stmt.Fragments, ref.Name)
+			continue
 		}
-		ref, err := p.parseVariableRef()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Fragments = append(stmt.Fragments, ref.Name)
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End

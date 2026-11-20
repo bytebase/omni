@@ -1097,7 +1097,7 @@ reject	reject	engine	call/CALL_SYM_ident_._ident_opt_sp_cparam_list!drop-4	CALL 
 reject	reject	engine	call/CALL_SYM_ident_._ident_opt_sp_cparam_list!truncate	CALL a.
 reject	reject	engine	call/CALL_SYM_ident_._ident_opt_sp_cparam_list!insert	CALL a.a zzz;
 reject	reject	engine	call/CALL_SYM_ident_._ident_opt_sp_cparam_list!swap	CASCADE a.a;
-reject	accept	engine	call/CALL_SYM_ident_._ident_._ident_opt_sp_cparam_list	CALL a.a.a;
+accept	accept	engine	call/CALL_SYM_ident_._ident_._ident_opt_sp_cparam_list	CALL a.a.a;
 reject	reject	engine	call/CALL_SYM_ident_._ident_._ident_opt_sp_cparam_list!drop-1	a.a.a;
 reject	reject	engine	call/CALL_SYM_ident_._ident_._ident_opt_sp_cparam_list!drop-2	CALL.a.a;
 reject	reject	engine	call/CALL_SYM_ident_._ident_._ident_opt_sp_cparam_list!drop-3	CALL a a.a;
@@ -4586,11 +4586,11 @@ accept	accept	engine	binlog_base64_event/BINLOG_SYM_TEXT_STRING_sys	BINLOG 's';
 accept	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text	BINLOG@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-1	@a,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-2	BINLOG a,@a;
-reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-3	BINLOG@,@a;
+accept	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-3	BINLOG@,@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-4	BINLOG@a@a;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-5	BINLOG@a, a;
-reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-6	BINLOG@a,@;
-reject	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!truncate	BINLOG@a,@
+accept	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!drop-6	BINLOG@a,@;
+accept	accept	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!truncate	BINLOG@a,@
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!insert	BINLOG@a,@a zzz;
 reject	reject	engine	binlog_base64_event/BINLOG_SYM_@_ident_or_text_,_@_ident_or_text!swap	BIT@a,@a;
 accept	accept	engine	check_view_or_table/table_or_tables_table_list_opt_mi_check_type	CHECK TABLE a;

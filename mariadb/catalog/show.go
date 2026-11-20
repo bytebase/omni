@@ -105,7 +105,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector} {
 		for _, idx := range group {
-			parts = append(parts, showIndex(idx))
+			parts = append(parts, showIndexOptions(idx, plainOptions))
 		}
 	}
 
@@ -685,6 +685,16 @@ func isTextBlobType(dt string) bool {
 }
 
 func showIndex(idx *Index) string {
+	return showIndexOptions(idx, true)
+}
+
+// showIndexOptions is showIndex for one table, whose engine-defined key options
+// are the engine's to know: InnoDB knows none of an ordinary key's, so they are
+// written inside a comment, /* `x`=1 */, unless sql_mode has
+// IGNORE_BAD_TABLE_OPTIONS as SHOW CREATE TABLE runs (plainOptions). Measured on
+// mariadb:11.8.8: a key given `x`=1 under the mode and printed without it
+// reports KEY `k` (`a`) /* `x`=1 */, where a VECTOR key prints `M`=6 bare.
+func showIndexOptions(idx *Index, plainOptions bool) string {
 	var b strings.Builder
 
 	if idx.Primary {
@@ -726,10 +736,32 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
 	}
 
-	// Engine-defined options follow the comment and precede IGNORED, as MariaDB 11.8.8
-	// prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine.
-	for _, opt := range idx.EngineOptions {
-		b.WriteString(" " + opt)
+	// Engine-defined options follow the comment and precede IGNORED, as MariaDB
+	// 11.8.8 prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine,
+	// and inside a comment where the engine knows none of them.
+	// A VECTOR key's options are the ones its engine defines, M and DISTANCE, and
+	// it prints those bare: VECTOR KEY `i` (`v`) `M`=6. One it does not define —
+	// which only IGNORE_BAD_TABLE_OPTIONS lets in — is commented like an ordinary
+	// key's: measured on mariadb:11.8.8, `VECTOR INDEX i (v) M=6 x=1` created
+	// under the mode reports VECTOR KEY `i` (`v`) `M`=6 /* `x`=1 */ once it is
+	// gone, and both bare while it is on (plainOptions).
+	if len(idx.EngineOptions) > 0 && plainOptions {
+		b.WriteString(" " + strings.Join(idx.EngineOptions, " "))
+	} else if len(idx.EngineOptions) > 0 {
+		var bare, commented []string
+		for _, opt := range idx.EngineOptions {
+			if idx.Vector && vectorEngineOption(opt) {
+				bare = append(bare, opt)
+				continue
+			}
+			commented = append(commented, opt)
+		}
+		if len(bare) > 0 {
+			b.WriteString(" " + strings.Join(bare, " "))
+		}
+		if len(commented) > 0 {
+			b.WriteString(" /* " + strings.Join(commented, " ") + " */")
+		}
 	}
 
 	// Ignored, last, as MariaDB 11.8.8 prints it: KEY `i` (`a`) COMMENT 'c' IGNORED.
@@ -738,6 +770,36 @@ func showIndex(idx *Index) string {
 	}
 
 	return b.String()
+}
+
+// vectorEngineOption reports whether an engine-defined key option, as
+// SHOW CREATE TABLE writes it (`M`=6), is one a VECTOR key's engine defines.
+// MariaDB 11.8.8 takes M and DISTANCE on a VECTOR key and answers 1911 for
+// every other one, so those two are the bare ones (see validateKeyEngineOptions).
+func vectorEngineOption(opt string) bool {
+	name := opt
+	if strings.HasPrefix(name, "`") {
+		var b strings.Builder
+		for i := 1; i < len(name); i++ {
+			if name[i] == '`' {
+				if i+1 < len(name) && name[i+1] == '`' {
+					b.WriteByte('`')
+					i++
+					continue
+				}
+				break
+			}
+			b.WriteByte(name[i])
+		}
+		name = b.String()
+	} else if eq := strings.IndexByte(name, '='); eq >= 0 {
+		name = strings.TrimSpace(name[:eq])
+	}
+	switch toLower(name) {
+	case "m", "distance":
+		return true
+	}
+	return false
 }
 
 func showIndexColumn(ic *IndexColumn) string {

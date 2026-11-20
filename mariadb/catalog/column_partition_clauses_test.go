@@ -85,6 +85,17 @@ var columnPartitionClauseCases = []struct {
 		tables: []string{"o"},
 	},
 	{
+		// A key option IGNORE_BAD_TABLE_OPTIONS tolerated is the engine's to
+		// keep, and a later ALTER over the table runs: measured on
+		// mariadb:11.8.8, `CREATE TABLE o (a INT, KEY k (a) x = 1)` under the
+		// mode, `SET sql_mode = DEFAULT`, `ALTER TABLE o ADD b INT` answers
+		// nothing where `ALTER TABLE o ADD KEY (a) y = 1` answers 1911.
+		name:   "key options IGNORE_BAD_TABLE_OPTIONS tolerated outlive the mode",
+		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE o (a INT, b INT, KEY k (a) x = 1)", "SET sql_mode = DEFAULT"},
+		sql:    "ALTER TABLE o ADD c INT",
+		tables: []string{"o"},
+	},
+	{
 		name:   "options outside IGNORE_BAD_TABLE_OPTIONS print in a comment",
 		setup:  []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE o (a INT x = 1, b INT y = 2 z = 3)", "SET sql_mode = DEFAULT"},
 		sql:    "ALTER TABLE o ADD c INT",
