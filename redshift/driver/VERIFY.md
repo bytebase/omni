@@ -81,7 +81,7 @@ what the server disagreed with in these documents:
 | `Session.Query` (decode, limit, explain, `MaxResultBytes`, search path) | ported, recorded from a cluster |
 | `Execute` (one transaction, autocommit, `CreateDatabase`) | ported, recorded from a cluster |
 | `CountAffectedRows` | ported, recorded from a cluster |
-| `Dump` | **not implemented**: `redshift/catalog` has no `DatabaseDefinition` |
+| `Dump` | implemented via `redshift/catalog.DatabaseDefinition` (`dump_test.go` verifies against `testdata/sync/dev.json`; live restore tape needs `REDSHIFT_DSN`) |
 | tapes (`testdata/tapes`) | six, recorded on 2026-11-17 and byte-identical across two recordings |
 | sync goldens (`testdata/sync`) | `dev.json`, compared with `proto.Equal` |
 | `driver` row in `redshift/testdata/pins.tsv` | `aws:redshift:1.0.539507`, digest of `SELECT version()` |
@@ -265,24 +265,11 @@ because Step 2 produced no share.
 
 ## Step 7 — the dump
 
-`Dump` is not implemented and must not be declared until a metadata → DDL
-renderer exists. `redshift/catalog` loads a definition from SQL (`LoadSQL`,
-`LoadSDL`), executes DDL, diffs two catalogs and generates a migration, so the
-cheap path looks open — `LoadMetadata`, `Diff`, `GenerateMigration` — and is
-not: `LoadMetadata` installs a column's *coarse* type because completion reads
-only the shape, so a dump built on it would write types the sync never read.
-What is missing is the renderer `pg/catalog/definition.go` provides for the
-parent engine. Two ways forward, in order of preference:
-
-1. port `pg/catalog/definition.go` and the table/sequence/index/constraint
-   renderers it calls into `redshift/catalog`, re-verified per engine (Redshift
-   has no `serial`, its `IDENTITY` and `DISTKEY`/`SORTKEY` are its own, and its
-   deparse of a query is `ruleutils.go`'s), then `Dump` becomes
-   `catalog.DatabaseDefinition(db, catalog.DefinitionOptions{PrintHeader: true})`
-   with `TestDump`, `TestDumpRestores` and `TestDumpGaps` beside it;
-2. leave it out and say so, which is today's state: Bytebase's Redshift `Dump`
-   is `return nil` — it wrote nothing at all — so implementing it here is an
-   improvement over Bytebase, not a cutover requirement.
+`Dump` delegates to `redshift/catalog.DatabaseDefinition` and is tested offline
+in `dump_test.go` against the recorded `testdata/sync/dev.json` snapshot (via
+`redshift/parser.Parse` and `redshift/catalog.New().Exec`). Recording a live
+restore-and-resync fidelity tape (`TestDumpRestores`) remains pending a scratch
+`REDSHIFT_DSN` cluster because Redshift has no container image CI can run.
 
 ## Step 8 — the parity harness
 

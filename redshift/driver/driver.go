@@ -21,14 +21,11 @@
 //
 // # What it implements
 //
-// It implements Driver, Syncer, Querier and Executor, and the row estimate
-// CountAffectedRows that a review's affected-row limit reads. There is no
-// Dumper: redshift/catalog loads a definition from SQL, simulates it, diffs two
-// catalogs and generates a migration, but it has no renderer for a synced
-// snapshot. Its LoadMetadata installs a column's coarse type because completion
-// reads the shape, so a dump built on LoadMetadata, Diff and GenerateMigration
-// would write types the sync did not read. Bytebase's Dump wrote nothing either,
-// so nothing is lost yet; VERIFY.md says what a dump needs.
+// It implements Driver, Syncer, Dumper, Querier and Executor, and the row
+// estimate CountAffectedRows that a review's affected-row limit reads. Dump
+// delegates to redshift/catalog.DatabaseDefinition to render logical DDL from
+// synced metadatapb snapshots (physical storage clauses not captured by sync,
+// such as DISTSTYLE/DISTKEY/SORTKEY/ENCODE, are omitted).
 //
 // # The connection
 //
@@ -102,6 +99,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )
