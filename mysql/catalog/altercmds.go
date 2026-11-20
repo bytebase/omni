@@ -310,6 +310,9 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 			}
 		}
 	}
+	if err := c.validateInnoDBCompressedTableOption(tbl.Name, effTS, effRowFormat, effKeyBlockSize, true); err != nil {
+		return err
+	}
 	if effTS != "" {
 		if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
 			return err
@@ -499,6 +502,18 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	return nil
 }
 
+func alterChangesRowFormatOrEngine(commands []*nodes.AlterTableCmd) bool {
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		if eqFoldStr(cmd.Option.Name, "ROW_FORMAT") || engineOptionName(cmd.Option.Name) {
+			return true
+		}
+	}
+	return false
+}
+
 func collectDroppedOrRenamedColumns(tbl *Table, commands []*nodes.AlterTableCmd) []string {
 	var out []string
 	for _, cmd := range commands {
@@ -591,6 +606,16 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 	for _, idx := range tbl.Indexes {
 		if !beforeIndexes[idx] {
 			addedIndexes = append(addedIndexes, idx)
+		}
+	}
+	if alterChangesRowFormatOrEngine(commands) {
+		for _, idx := range tbl.Indexes {
+			if idx == nil || !beforeIndexes[idx] || idx.Fulltext || isSpatialIndexType(idx.IndexType) {
+				continue
+			}
+			if err := c.validateIndexColumns(tbl, idx.Columns, false, false); err != nil {
+				return err
+			}
 		}
 	}
 	if err := recheckFunctionalIndexesOnFinalTable(tbl, addedIndexes); err != nil {

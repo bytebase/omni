@@ -298,15 +298,15 @@ func init() {
 			func(c *Catalog, v bool) { c.session.DefaultTableEncryption = v },
 		),
 		"innodb_directories": {
-			kind: sysvarGlobalOnlyStatic,
+			kind: sysvarGlobalOnlyNonPersist,
 			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
-				return checkReadOnlySysvarWrite(varName, scope, true)
+				return checkReadOnlySysvarWrite(varName, scope, false)
 			},
 		},
 		"innodb_page_size": {
-			kind: sysvarGlobalOnlyStatic,
+			kind: sysvarGlobalOnlyNonPersist,
 			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
-				return checkReadOnlySysvarWrite(varName, scope, true)
+				return checkReadOnlySysvarWrite(varName, scope, false)
 			},
 			readGlobal: func(c *Catalog) userVarValue {
 				return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(c.InnoDBPageSize(), 10)}
@@ -778,7 +778,7 @@ func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
 		for _, rawPart := range strings.Split(val.str, ",") {
 			tok := strings.ToUpper(strings.TrimSpace(rawPart))
 			if tok == "" {
-				return "", errWrongValueForVar("sql_mode", val.str)
+				continue
 			}
 			canon, ok := validMySQL80SQLModes[tok]
 			if !ok {
@@ -1052,6 +1052,48 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				s = strings.ToLower(s)
 			}
 			return userVarValue{kind: userVarString, str: s}, true, nil
+		case "replace":
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, nil
+			}
+			args := make([]userVarValue, 3)
+			for i := 0; i < 3; i++ {
+				v, ok, err := c.evalSetExprChecked(e.Args[i])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			if args[1].str == "" {
+				return userVarValue{kind: userVarString, str: args[0].str}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: strings.ReplaceAll(args[0].str, args[1].str, args[2].str)}, true, nil
+		case "concat_ws":
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, nil
+			}
+			sep, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sep.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			var parts []string
+			for _, arg := range e.Args[1:] {
+				v, ok, err := c.evalSetExprChecked(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					continue
+				}
+				parts = append(parts, v.str)
+			}
+			return userVarValue{kind: userVarString, str: strings.Join(parts, sep.str)}, true, nil
 		}
 	}
 	return userVarValue{}, false, nil

@@ -300,6 +300,25 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 	}
 }
 
+func (c *Catalog) validateInnoDBCompressedTableOption(tableName, rawTS, rowFormat string, keyBlockSize int, forAlter bool) error {
+	rfCompressed := strings.EqualFold(strings.TrimSpace(rowFormat), "COMPRESSED")
+	if !rfCompressed && keyBlockSize <= 0 {
+		return nil
+	}
+	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	if strings.EqualFold(ts, "innodb_system") {
+		return &Error{Code: 1478, SQLState: "HY000",
+			Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain a COMPRESSED table", ts)}
+	}
+	if c.InnoDBPageSize() > 16384 && (ts == "" || strings.EqualFold(ts, "innodb_file_per_table")) {
+		if forAlter {
+			return errUnsupportedRowOption("ROW_TYPE")
+		}
+		return errTableStorageEngineOption(tableName)
+	}
+	return nil
+}
+
 func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlockSize int) error {
 	ts := unquoteTableOption(strings.TrimSpace(rawTS))
 	if ts == "" || ts == "innodb_file_per_table" || ts == "innodb_system" || ts == "innodb_temporary" {

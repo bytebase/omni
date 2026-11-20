@@ -4365,6 +4365,59 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(600), b(500))) ENGINE=MyISAM",
 			code: 1071,
 		},
+		{
+			name:    "SET SESSION sql_mode REPLACE expression accepted",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')",
+			code:    0,
+		},
+		{
+			name: "SET PERSIST_ONLY innodb_page_size 32768 rejected with 1238",
+			stmt: "SET PERSIST_ONLY innodb_page_size = 32768",
+			code: 1238,
+		},
+		{
+			name: "SET PERSIST_ONLY innodb_page_size invalid value rejected with 1238",
+			stmt: "SET PERSIST_ONLY innodb_page_size = 12345",
+			code: 1238,
+		},
+		{
+			name: "SET PERSIST_ONLY innodb_directories rejected with 1238",
+			stmt: "SET PERSIST_ONLY innodb_directories = '/var/lib/mysql'",
+			code: 1238,
+		},
+		{
+			name: "CREATE TABLE ROW_FORMAT=COMPACT key over 767 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(300) CHARACTER SET utf8mb4, KEY(a(200))) ROW_FORMAT=COMPACT",
+			code: 1071,
+		},
+		{
+			name: "CREATE TABLE ROW_FORMAT=REDUNDANT key over 767 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(300) CHARACTER SET utf8mb4, KEY(a(200))) ROW_FORMAT=REDUNDANT",
+			code: 1071,
+		},
+		{
+			name: "CREATE TABLE ROW_FORMAT=COMPACT key within 767 bytes accepted",
+			stmt: "CREATE TABLE a (a VARCHAR(300) CHARACTER SET utf8mb4, KEY(a(191))) ROW_FORMAT=COMPACT",
+			code: 0,
+		},
+		{
+			name:  "ALTER TABLE ROW_FORMAT=COMPACT revalidates existing index key limit with 1071",
+			setup: []string{"CREATE TABLE a (a VARCHAR(300) CHARACTER SET utf8mb4, KEY(a(200))) ROW_FORMAT=DYNAMIC"},
+			stmt:  "ALTER TABLE a ROW_FORMAT=COMPACT",
+			code:  1071,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY on ROW_FORMAT=COMPACT table over 767 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (a VARCHAR(300) CHARACTER SET utf8mb4, KEY(a(191))) ROW_FORMAT=COMPACT"},
+			stmt:  "ALTER TABLE a ADD KEY k2 (a(200))",
+			code:  1071,
+		},
+		{
+			name: "CREATE TABLE innodb_system ROW_FORMAT=COMPRESSED rejected with 1478",
+			stmt: "CREATE TABLE a (id INT) TABLESPACE innodb_system ROW_FORMAT=COMPRESSED",
+			code: 1478,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4497,6 +4550,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 	// Named time zones behave identically to live MySQL 8.0.46 when configured
 	// on the catalog via SetNamedTimeZones.
 	reset()
+	if _, err := conn.ExecContext(ctx, "SET SESSION foreign_key_checks = 1"); err != nil {
+		t.Fatalf("mysql reset foreign_key_checks: %v", err)
+	}
 	t.Cleanup(func() {
 		_, _ = conn.ExecContext(ctx, "SET time_zone = DEFAULT")
 	})
@@ -4525,6 +4581,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 	// SHOW CREATE TABLE output for a general-tablespace table loaded via
 	// LoadSDL preserves tablespace encryption inference across subsequent ALTER.
 	reset()
+	if _, err := conn.ExecContext(ctx, "SET SESSION foreign_key_checks = 1"); err != nil {
+		t.Fatalf("mysql reset foreign_key_checks: %v", err)
+	}
 	t.Cleanup(func() {
 		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a")
 		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_sdl_plain")
@@ -4554,6 +4613,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 	// ENCRYPTION='Y'/'N' propagation to resident tables AND LoadSDL of an
 	// encrypted general-tablespace table from live SHOW CREATE TABLE output.
 	reset()
+	if _, err := conn.ExecContext(ctx, "SET SESSION foreign_key_checks = 1"); err != nil {
+		t.Fatalf("mysql reset foreign_key_checks: %v", err)
+	}
 	t.Cleanup(func() {
 		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a")
 		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_enc_chain")
@@ -4671,6 +4733,54 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	if csOracleCat.effectiveClientCharset() != "utf8mb4" || csOracleCat.effectiveSessionCollationConn() != "latin1_bin" || csOracleCat.userVars["cc"].str != "latin1_bin" {
 		t.Fatalf("catalog SET CHARACTER SET lost db.Collation: client=%q coll=%q var=%q", csOracleCat.effectiveClientCharset(), csOracleCat.effectiveSessionCollationConn(), csOracleCat.userVars["cc"].str)
+	}
+
+	// Pin multi-assignment SET atomicity, pre-statement RHS evaluation, and
+	// REPLACE(@@sql_mode, ...) directly against live MySQL 8.0.46.
+	reset()
+	if _, err := conn.ExecContext(ctx, "SET SESSION foreign_key_checks = 1"); err != nil {
+		t.Fatalf("mysql reset foreign_key_checks: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET SESSION foreign_key_checks = 1")
+		_, _ = conn.ExecContext(ctx, "SET SESSION sql_mode = DEFAULT")
+	})
+	_, errFailSET := conn.ExecContext(ctx, "SET foreign_key_checks = 0, sql_mode = 'NO_SUCH_MODE'")
+	if code, _ := simulationEngineRefusal(t, "SET foreign_key_checks = 0, sql_mode = 'NO_SUCH_MODE'", errFailSET); code != 1231 {
+		t.Fatalf("mysql partial-fail SET got %d, want 1231", code)
+	}
+	var fkAfter int
+	if err := conn.QueryRowContext(ctx, "SELECT @@foreign_key_checks").Scan(&fkAfter); err != nil {
+		t.Fatalf("mysql SELECT @@foreign_key_checks: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SET @x_seq = 1, @y_seq = @x_seq + 1"); err != nil {
+		t.Fatalf("mysql SET @x_seq,@y_seq: %v", err)
+	}
+	var seqY *string
+	if err := conn.QueryRowContext(ctx, "SELECT @y_seq").Scan(&seqY); err != nil {
+		t.Fatalf("mysql SELECT @y_seq: %v", err)
+	}
+	atomCat := New()
+	if got, _ := simulationCatalogRefusal(t, atomCat, "SET foreign_key_checks = 0, sql_mode = 'NO_SUCH_MODE'"); got != 1231 {
+		t.Fatalf("catalog partial-fail SET got %d, want 1231", got)
+	}
+	if fkAfter != 1 || !atomCat.ForeignKeyChecks() {
+		t.Fatalf("SET partial failure leaked foreign_key_checks=0: mysql=%d catalog=%v", fkAfter, atomCat.ForeignKeyChecks())
+	}
+	execAlterClauses(t, atomCat, "SET @x_seq = 1, @y_seq = @x_seq + 1;")
+	if seqY != nil || atomCat.userVars["y_seq"].kind != userVarNull {
+		t.Fatalf("SET RHS read uncommitted earlier assignment: mysql=%v catalog=%+v", seqY, atomCat.userVars["y_seq"])
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')"); err != nil {
+		t.Fatalf("mysql SET REPLACE sql_mode: %v", err)
+	}
+	var srvModeAfter string
+	if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvModeAfter); err != nil {
+		t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+	}
+	execAlterClauses(t, atomCat, "SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', ''); SET @sm = @@sql_mode;")
+	if atomCat.userVars["sm"].str != srvModeAfter {
+		t.Fatalf("REPLACE(@@sql_mode, ...) mismatch: catalog=%q mysql=%q", atomCat.userVars["sm"].str, srvModeAfter)
 	}
 }
 
@@ -5234,4 +5344,28 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("4K composite KEY(a(400),b(400)) got %d, want 1071", got)
 	}
 	execAlterClauses(t, comp4k, "CREATE TABLE t4k_comp_ok (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(400), b(368)));")
+
+	// Configured 32K/64K InnoDB page size rejects file-per-table COMPRESSED and
+	// KEY_BLOCK_SIZE tables (1031 on CREATE, 1478 on innodb_system and ALTER).
+	for _, pgSize := range []uint64{32768, 65536} {
+		compPG := New()
+		compPG.SetInnoDBPageSize(pgSize)
+		execAlterClauses(t, compPG, "CREATE DATABASE d; USE d;")
+		if got, _ := simulationCatalogRefusal(t, compPG, "CREATE TABLE t_cmp (id INT) ROW_FORMAT=COMPRESSED"); got != 1031 {
+			t.Fatalf("%d CREATE COMPRESSED got %d, want 1031", pgSize, got)
+		}
+		if got, _ := simulationCatalogRefusal(t, compPG, "CREATE TABLE t_fpt (id INT) TABLESPACE innodb_file_per_table ROW_FORMAT=COMPRESSED"); got != 1031 {
+			t.Fatalf("%d CREATE file_per_table COMPRESSED got %d, want 1031", pgSize, got)
+		}
+		if got, _ := simulationCatalogRefusal(t, compPG, "CREATE TABLE t_kbs (id INT) KEY_BLOCK_SIZE=8"); got != 1031 {
+			t.Fatalf("%d CREATE KEY_BLOCK_SIZE=8 got %d, want 1031", pgSize, got)
+		}
+		if got, _ := simulationCatalogRefusal(t, compPG, "CREATE TABLE t_sys (id INT) TABLESPACE innodb_system ROW_FORMAT=COMPRESSED"); got != 1478 {
+			t.Fatalf("%d CREATE innodb_system COMPRESSED got %d, want 1478", pgSize, got)
+		}
+		execAlterClauses(t, compPG, "CREATE TABLE t_dyn (id INT) ROW_FORMAT=DYNAMIC; CREATE TABLE t_myisam (id INT) ENGINE=MyISAM KEY_BLOCK_SIZE=8;")
+		if got, _ := simulationCatalogRefusal(t, compPG, "ALTER TABLE t_dyn ROW_FORMAT=COMPRESSED"); got != 1478 {
+			t.Fatalf("%d ALTER COMPRESSED got %d, want 1478", pgSize, got)
+		}
+	}
 }

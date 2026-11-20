@@ -115,15 +115,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				}
 			}
 		}
-		if effTS != "" && isInnoDBEngine(effEngine) {
-			if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, effTS); err != nil {
+		if isInnoDBEngine(effEngine) {
+			if err := c.validateInnoDBCompressedTableOption(tableName, effTS, effRowFormat, effKeyBlockSize, false); err != nil {
 				return err
 			}
-			if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
-				return err
-			}
-			if err := c.validateInnoDBTablespaceEncryption(effTS, effEncryption); err != nil {
-				return err
+			if effTS != "" {
+				if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, effTS); err != nil {
+					return err
+				}
+				if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
+					return err
+				}
+				if err := c.validateInnoDBTablespaceEncryption(effTS, effEncryption); err != nil {
+					return err
+				}
 			}
 		}
 		if stmt.Partitions != nil {
@@ -2377,7 +2382,13 @@ func charsetMaxBytes(charset string) int {
 	}
 }
 
-func (c *Catalog) maxInnoDBIndexKeyBytes() int {
+func (c *Catalog) maxInnoDBIndexKeyBytes(tbl *Table) int {
+	if tbl != nil {
+		rf := strings.ToUpper(strings.TrimSpace(tbl.RowFormat))
+		if rf == "COMPACT" || rf == "REDUNDANT" {
+			return 767
+		}
+	}
 	switch c.InnoDBPageSize() {
 	case 4096:
 		return 768
@@ -2396,7 +2407,7 @@ func (c *Catalog) maxIndexTotalKeyBytes(tbl *Table) (int, bool) {
 		return 1000, true
 	}
 	if isInnoDBEngine(tbl.Engine) {
-		return c.maxInnoDBIndexKeyBytes(), true
+		return c.maxInnoDBIndexKeyBytes(tbl), true
 	}
 	return 0, false
 }
@@ -2408,7 +2419,7 @@ func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
 	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
 		return 1000
 	}
-	return c.maxInnoDBIndexKeyBytes()
+	return c.maxInnoDBIndexKeyBytes(tbl)
 }
 
 func indexKeyPartBytes(col *Column, ic *IndexColumn) int {
