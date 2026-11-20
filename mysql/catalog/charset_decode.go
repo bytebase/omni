@@ -9,7 +9,38 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
+
+// decodeStringLiteralDefault resolves a StringLit literal DEFAULT in its own
+// declared charset (`N'...'` as `utf8mb3`, `_charset'...'` as `charset`, or
+// connection UTF-8 when neither is specified) before column-charset validation.
+func decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string, bool) {
+	if sl == nil {
+		return "", true
+	}
+	var litCS string
+	switch {
+	case sl.National:
+		litCS = "utf8mb3"
+	default:
+		litCS = strings.ToLower(strings.TrimSpace(sl.Charset))
+	}
+	if litCS == "" {
+		if !utf8.ValidString(sl.Value) {
+			return "", false
+		}
+		return sl.Value, true
+	}
+	if litCS == "binary" {
+		if strings.EqualFold(strings.TrimSpace(colCharset), "binary") {
+			return sl.Value, true
+		}
+		return decodeBytesInColumnCharset([]byte(sl.Value), colCharset)
+	}
+	return decodeBytesInColumnCharset([]byte(sl.Value), litCS)
+}
 
 // decodeBytesInColumnCharset validates and decodes raw binary literal bytes
 // (0x... / b'...') according to the column's declared MySQL 8.0 character set
@@ -32,13 +63,22 @@ func decodeBytesInColumnCharset(raw []byte, charset string) (string, bool) {
 		return s, true
 	case "binary":
 		return string(raw), true
-	case "ascii", "swe7":
+	case "ascii":
 		for _, b := range raw {
 			if b >= 0x80 {
 				return "", false
 			}
 		}
 		return string(raw), true
+	case "swe7":
+		var b strings.Builder
+		for _, c := range raw {
+			if c >= 0x80 {
+				return "", false
+			}
+			b.WriteRune(decodeSWE7Byte(c))
+		}
+		return b.String(), true
 	case "ucs2", "utf16", "utf16le":
 		if len(raw)%2 != 0 {
 			raw = append([]byte{0}, raw...)
@@ -99,15 +139,43 @@ func decodeBytesInColumnCharset(raw []byte, charset string) (string, bool) {
 				if c < 0x80 {
 					b.WriteByte(c)
 				} else {
-					b.WriteRune(tbl[c-0x80])
+					r := tbl[c-0x80]
+					if r == 0 || r == '?' || r == utf8.RuneError {
+						return "", false
+					}
+					b.WriteRune(r)
 				}
 			}
 			return b.String(), true
 		}
-		if !utf8.Valid(raw) {
-			return "", false
-		}
-		return string(raw), true
+		return "", false
+	}
+}
+
+func decodeSWE7Byte(c byte) rune {
+	switch c {
+	case 0x40:
+		return 'É'
+	case 0x5B:
+		return 'Ä'
+	case 0x5C:
+		return 'Ö'
+	case 0x5D:
+		return 'Å'
+	case 0x5E:
+		return 'Ü'
+	case 0x60:
+		return 'é'
+	case 0x7B:
+		return 'ä'
+	case 0x7C:
+		return 'ö'
+	case 0x7D:
+		return 'å'
+	case 0x7E:
+		return 'ü'
+	default:
+		return rune(c)
 	}
 }
 
@@ -148,7 +216,11 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 				} else {
 					row = 31 + int(b0-0xE0)
 				}
-				b.WriteRune(tbl[63+row*188+col])
+				r := tbl[63+row*188+col]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}
@@ -165,13 +237,21 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 			}
 			if b0 >= 0xA1 && b0 <= 0xFE && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
 				idx := 63 + int(b0-0xA1)*94 + int(raw[i+1]-0xA1)
-				b.WriteRune(tbl[idx])
+				r := tbl[idx]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}
 			if b0 == 0x8F && i+2 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE && raw[i+2] >= 0xA1 && raw[i+2] <= 0xFE {
 				idx := 63 + 8836 + int(raw[i+1]-0xA1)*94 + int(raw[i+2]-0xA1)
-				b.WriteRune(tbl[idx])
+				r := tbl[idx]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 3
 				continue
 			}
@@ -179,7 +259,11 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 		case "gb2312":
 			if b0 >= 0xA1 && b0 <= 0xF7 && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
 				idx := int(b0-0xA1)*94 + int(raw[i+1]-0xA1)
-				b.WriteRune(charsetTables.gb2312[idx])
+				r := charsetTables.gb2312[idx]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}
@@ -195,7 +279,11 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 				} else {
 					return "", false
 				}
-				b.WriteRune(charsetTables.gbk[int(b0-0x81)*190+col])
+				r := charsetTables.gbk[int(b0-0x81)*190+col]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}
@@ -208,18 +296,26 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 					if b1 >= 0x80 {
 						col = 63 + int(b1-0x80)
 					}
-					b.WriteRune(charsetTables.gb18030_2b[int(b0-0x81)*190+col])
+					r := charsetTables.gb18030_2b[int(b0-0x81)*190+col]
+					if r == 0 || r == '?' || r == utf8.RuneError {
+						return "", false
+					}
+					b.WriteRune(r)
 					i += 2
 					continue
 				}
 				if b1 >= 0x30 && b1 <= 0x39 && i+3 < len(raw) && raw[i+2] >= 0x81 && raw[i+2] <= 0xFE && raw[i+3] >= 0x30 && raw[i+3] <= 0x39 {
 					lin := ((int(b0-0x81)*10+int(b1-0x30))*126+int(raw[i+2]-0x81))*10 + int(raw[i+3]-0x30)
 					if lin < len(charsetTables.gb18030_4b) {
-						b.WriteRune(charsetTables.gb18030_4b[lin])
+						r := charsetTables.gb18030_4b[lin]
+						if r == 0 || r == '?' || r == utf8.RuneError {
+							return "", false
+						}
+						b.WriteRune(r)
 					} else if lin >= 189000 && lin <= 1237575 {
 						b.WriteRune(rune(0x10000 + (lin - 189000)))
 					} else {
-						b.WriteRune('?')
+						return "", false
 					}
 					i += 4
 					continue
@@ -237,7 +333,11 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 				} else {
 					return "", false
 				}
-				b.WriteRune(charsetTables.big5[int(b0-0xA1)*157+col])
+				r := charsetTables.big5[int(b0-0xA1)*157+col]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}
@@ -255,7 +355,11 @@ func decodeLegacyMultibyteBytes(raw []byte, cs string) (string, bool) {
 				} else {
 					return "", false
 				}
-				b.WriteRune(charsetTables.euckr[int(b0-0x81)*178+col])
+				r := charsetTables.euckr[int(b0-0x81)*178+col]
+				if r == 0 || r == '?' || r == utf8.RuneError {
+					return "", false
+				}
+				b.WriteRune(r)
 				i += 2
 				continue
 			}

@@ -25347,3 +25347,592 @@
 > exec
 | DROP EVENT IF EXISTS e
 < ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT N'😀')
+< error
+| 1067 42000 Invalid default value for 'c'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _utf8mb3'😀')
+< error
+| 1067 42000 Invalid default value for 'c'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _ascii'é')
+< error
+| 1067 42000 Invalid default value for 'c'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _sjis'😀')
+< error
+| 1067 42000 Invalid default value for 'c'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _latin1'€')
+< error
+| 1067 42000 Invalid default value for 'c'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT _latin1'€')
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT PRIMARY KEY) ENGINE=InnoDB
+< ok 0 0
+> exec
+| ALTER TABLE a DISCARD TABLESPACE
+< ok 0 0
+> exec
+| ALTER TABLE a ADD COLUMN c INT
+< error
+| 1814 HY000 Tablespace has been discarded for table 'test/a'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT PRIMARY KEY) ENGINE=InnoDB
+< ok 0 0
+> exec
+| ALTER TABLE a DISCARD TABLESPACE
+< ok 0 0
+> exec
+| ALTER TABLE a COMMENT = 'ok'
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ok'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE p_fk (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))
+< ok 0 0
+> exec
+| ALTER TABLE p_fk DISCARD TABLESPACE
+< error
+| 1451 23000 Cannot delete or update a parent row: a foreign key constraint fails ()
+> exec
+| DROP TABLE IF EXISTS c_fk
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p_fk
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE p_fk (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))
+< ok 0 0
+> exec
+| ALTER TABLE c_fk DISCARD TABLESPACE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c_fk
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p_fk
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE p_fk (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| ALTER TABLE p_fk DISCARD TABLESPACE
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c_fk
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p_fk
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE `a/b` ENGINE=InnoDB
+< error
+| 3119 42000 InnoDB: A general tablespace name cannot contain '/'.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_ren_slash ENGINE=InnoDB
+< ok 0 0
+> exec
+| ALTER TABLESPACE ts_ren_slash RENAME TO `a/b`
+< error
+| 3119 42000 InnoDB: A general tablespace name cannot contain '/'.
+> exec
+| DROP TABLESPACE ts_ren_slash
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0

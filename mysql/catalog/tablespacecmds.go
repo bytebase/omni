@@ -311,6 +311,9 @@ func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
 }
 
 func validateTablespaceCreateName(name string) error {
+	if strings.Contains(name, "/") {
+		return errTablespaceSlashInName()
+	}
 	if strings.HasPrefix(strings.ToLower(name), "innodb_") {
 		return errReservedInnoDBTablespacePrefix()
 	}
@@ -529,13 +532,18 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, isImport bool) error 
 	if tbl.Tablespace != "" && !strings.EqualFold(unquoteTableOption(tbl.Tablespace), "innodb_file_per_table") {
 		return errNotAllowedCommand()
 	}
-	if !isImport {
-		tbl.TablespaceDiscarded = true
-		return nil
-	}
 	dbName := ""
 	if tbl.Database != nil {
 		dbName = tbl.Database.Name
+	}
+	if !isImport {
+		if c.foreignKeyChecks && dbName != "" {
+			if _, _, referenced := c.findReferencingFK(dbName, tbl.Name); referenced {
+				return errRowIsReferenced2()
+			}
+		}
+		tbl.TablespaceDiscarded = true
+		return nil
 	}
 	if !tbl.TablespaceDiscarded {
 		if tbl.Partitioning != nil && len(tbl.Partitioning.Partitions) > 0 {

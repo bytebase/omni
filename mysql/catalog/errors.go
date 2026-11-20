@@ -92,6 +92,7 @@ const (
 	ErrIncorrectGlobalLocalVar           = 1238
 	ErrWrongFkDef                        = 1239
 	ErrDuplicatedValueInType             = 1291
+	ErrRowIsReferenced2                  = 1451
 	ErrTablespaceMissing                 = 1812
 	ErrTablespaceExists                  = 1813
 	ErrTablespaceDiscarded               = 1814
@@ -200,6 +201,7 @@ var sqlStateMap = map[int]string{
 	ErrIncorrectGlobalLocalVar:           "HY000",
 	ErrWrongFkDef:                        "42000",
 	ErrDuplicatedValueInType:             "HY000",
+	ErrRowIsReferenced2:                  "23000",
 	ErrTablespaceMissing:                 "HY000",
 	ErrTablespaceExists:                  "HY000",
 	ErrTablespaceDiscarded:               "HY000",
@@ -802,6 +804,16 @@ func errDefaultValExprSubquery(colName string) error {
 func errDefaultValExprVariable(colName string) error {
 	return &Error{Code: ErrDefaultValExprRefVariable, SQLState: sqlState(ErrDefaultValExprRefVariable),
 		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to user or system variables.", colName)}
+}
+
+func errRowIsReferenced2() error {
+	return &Error{Code: ErrRowIsReferenced2, SQLState: sqlState(ErrRowIsReferenced2),
+		Message: "Cannot delete or update a parent row: a foreign key constraint fails ()"}
+}
+
+func errTablespaceSlashInName() error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: "InnoDB: A general tablespace name cannot contain '/'."}
 }
 
 func errDefaultValExprDisallowedFunc(colName string) error {

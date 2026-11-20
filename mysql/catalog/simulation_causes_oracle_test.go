@@ -3686,6 +3686,86 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (x INT DEFAULT (ABS(-1)), y VARCHAR(36) DEFAULT (UUID()), z INT DEFAULT (IF(1,2,3)), g GEOMETRY DEFAULT (POINT(0,0)))",
 			code: 0,
 		},
+		// 23. Literal introducer/national charset defaults, discarded-table ALTER blocking,
+		//     FK check on DISCARD TABLESPACE, and slash rejection in tablespace names.
+		{
+			name: "CREATE TABLE utf8mb4 DEFAULT N supplementary rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT N'😀')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE utf8mb4 DEFAULT _utf8mb3 supplementary rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _utf8mb3'😀')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE utf8mb4 DEFAULT _ascii non-ASCII rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _ascii'é')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE utf8mb4 DEFAULT _sjis invalid sequence rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _sjis'😀')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf8mb4 DEFAULT _latin1 multi-byte UTF-8 input overflows width with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT _latin1'€')",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE CHAR(10) utf8mb4 DEFAULT _latin1 decodes introducer bytes",
+			stmt:     "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT _latin1'€')",
+			code:     0,
+			contains: []string{"DEFAULT 'â‚¬'"},
+		},
+		{
+			name:  "ALTER TABLE ADD COLUMN after DISCARD TABLESPACE rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD COLUMN c INT",
+			code:  1814,
+		},
+		{
+			name:     "ALTER TABLE COMMENT after DISCARD TABLESPACE accepted",
+			setup:    []string{"CREATE TABLE a (id INT PRIMARY KEY) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:     "ALTER TABLE a COMMENT = 'ok'",
+			code:     0,
+			contains: []string{"COMMENT='ok'"},
+		},
+		{
+			name:    "ALTER TABLE DISCARD TABLESPACE on FK parent with foreign_key_checks=1 rejected with 1451",
+			setup:   []string{"CREATE TABLE p_fk (id INT PRIMARY KEY)", "CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))"},
+			cleanup: []string{"DROP TABLE IF EXISTS c_fk", "DROP TABLE IF EXISTS p_fk"},
+			stmt:    "ALTER TABLE p_fk DISCARD TABLESPACE",
+			code:    1451,
+		},
+		{
+			name:    "ALTER TABLE DISCARD TABLESPACE on FK child with outbound FK accepted",
+			setup:   []string{"CREATE TABLE p_fk (id INT PRIMARY KEY)", "CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))"},
+			cleanup: []string{"DROP TABLE IF EXISTS c_fk", "DROP TABLE IF EXISTS p_fk"},
+			stmt:    "ALTER TABLE c_fk DISCARD TABLESPACE",
+			code:    0,
+		},
+		{
+			name:    "ALTER TABLE DISCARD TABLESPACE on FK parent with foreign_key_checks=0 accepted",
+			setup:   []string{"CREATE TABLE p_fk (id INT PRIMARY KEY)", "CREATE TABLE c_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_p FOREIGN KEY (pid) REFERENCES p_fk(id))"},
+			session: []string{"SET foreign_key_checks = 0"},
+			cleanup: []string{"SET foreign_key_checks = 1", "DROP TABLE IF EXISTS c_fk", "DROP TABLE IF EXISTS p_fk"},
+			stmt:    "ALTER TABLE p_fk DISCARD TABLESPACE",
+			code:    0,
+		},
+		{
+			name: "CREATE TABLESPACE with slash in name rejected with 3119",
+			stmt: "CREATE TABLESPACE `a/b` ENGINE=InnoDB",
+			code: 3119,
+		},
+		{
+			name:    "ALTER TABLESPACE RENAME TO with slash in name rejected with 3119",
+			setup:   []string{"CREATE TABLESPACE ts_ren_slash ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLESPACE ts_ren_slash"},
+			stmt:    "ALTER TABLESPACE ts_ren_slash RENAME TO `a/b`",
+			code:    3119,
+		},
 	}
 
 	for _, tc := range cases {

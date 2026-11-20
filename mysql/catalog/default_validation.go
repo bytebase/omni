@@ -438,6 +438,15 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 	if kind == litNone {
 		return nil
 	}
+	if kind == litString {
+		if sl, ok := expr.(*nodes.StringLit); ok {
+			decoded, decOK := decodeStringLiteralDefault(sl, col.Charset)
+			if !decOK {
+				return errInvalidDefault(col.Name)
+			}
+			val = decoded
+		}
+	}
 	if kind == litNumber && strings.ContainsAny(val, "eE") {
 		s := strings.TrimSpace(val)
 		if isStrictNumberSyntax(s) {
@@ -904,9 +913,18 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 		return
 	}
 	if sl, ok := expr.(*nodes.StringLit); ok {
-		if normVal, changed := normalizeCharDefaultStringLiteral(col, sl.Value); changed {
+		litVal := sl.Value
+		decoded := false
+		if sl.Charset != "" || sl.National {
+			if dv, decOK := decodeStringLiteralDefault(sl, col.Charset); decOK {
+				litVal = dv
+				decoded = true
+			}
+		}
+		if normVal, changed := normalizeCharDefaultStringLiteral(col, litVal); changed || (decoded && !strings.EqualFold(strings.TrimSpace(sl.Charset), "binary")) {
 			cp := *sl
 			cp.Charset = ""
+			cp.National = false
 			cp.Value = normVal
 			v := nodeToSQL(&cp)
 			col.Default = &v

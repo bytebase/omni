@@ -790,6 +790,9 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string) error {
+	if tbl.TablespaceDiscarded && alterCmdRequiresTablespace(cmd) {
+		return errTablespaceDiscarded(db.Name, tbl.Name)
+	}
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd, leaves)
@@ -866,6 +869,34 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
+	}
+}
+
+func alterCmdRequiresTablespace(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATDropColumn, nodes.ATModifyColumn, nodes.ATChangeColumn,
+		nodes.ATDropConstraint, nodes.ATAlterCheckEnforced,
+		nodes.ATConvertCharset, nodes.ATAddPartition, nodes.ATDropPartition,
+		nodes.ATTruncatePartition, nodes.ATCoalescePartition, nodes.ATReorganizePartition,
+		nodes.ATExchangePartition, nodes.ATRebuildPartition, nodes.ATRemovePartitioning:
+		return true
+	case nodes.ATAddConstraint:
+		if cmd.Constraint == nil {
+			return false
+		}
+		switch cmd.Constraint.Type {
+		case nodes.ConstrIndex, nodes.ConstrUnique, nodes.ConstrFulltextIndex, nodes.ConstrSpatialIndex:
+			return false
+		default:
+			return true
+		}
+	case nodes.ATTableOption:
+		return cmd.Option != nil && !strings.EqualFold(cmd.Option.Name, "comment")
+	default:
+		return false
 	}
 }
 

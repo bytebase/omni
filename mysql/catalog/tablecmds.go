@@ -1365,9 +1365,18 @@ func timestampZeroDefault(fsp int) string {
 
 func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	if sl, ok := expr.(*nodes.StringLit); ok {
-		if normVal, changed := normalizeCharDefaultStringLiteral(col, sl.Value); changed {
+		litVal := sl.Value
+		decoded := false
+		if sl.Charset != "" || sl.National {
+			if dv, decOK := decodeStringLiteralDefault(sl, col.Charset); decOK {
+				litVal = dv
+				decoded = true
+			}
+		}
+		if normVal, changed := normalizeCharDefaultStringLiteral(col, litVal); changed || (decoded && !strings.EqualFold(strings.TrimSpace(sl.Charset), "binary")) {
 			cp := *sl
 			cp.Charset = ""
+			cp.National = false
 			cp.Value = normVal
 			expr = &cp
 		}
