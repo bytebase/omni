@@ -246,9 +246,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if c.databaseByName == nil {
-		c.databaseByName = make(map[string]*Catalog)
-	}
+	c.databaseOrder = nil
+	c.databaseByName = make(map[string]*Catalog)
 	c.loadPrimaryMetadata(meta, meta.GetName())
 	if c.database != "" {
 		c.registerDatabaseName(c.database)

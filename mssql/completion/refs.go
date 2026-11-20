@@ -151,6 +151,11 @@ func collectTableRefsFromNode(n ast.Node) []TableRef {
 			refs = append(refs, astTableRefToRef(v))
 		}
 
+	case *ast.AlterTableStmt:
+		if v != nil && v.Name != nil && v.Name.Object != "" {
+			refs = append(refs, astTableRefToRef(v.Name))
+		}
+
 	case *ast.TableVarRef:
 		if v != nil && v.Name != "" {
 			refs = append(refs, TableRef{Table: v.Name, Alias: v.Alias})
@@ -284,6 +289,16 @@ func extractTableRefsLexer(sql string, cursorOffset int) []TableRef {
 			continue
 		}
 
+		// DDL: ALTER TABLE [db.][schema.]table
+		if kw == "alter" && i+1 < len(tokens) && strings.ToLower(tokens[i+1].Str) == "table" {
+			ref, skip := lexerExtractMultipartTableAfter(tokens, i+2, false)
+			if ref != nil {
+				refs = append(refs, *ref)
+			}
+			i += 1 + skip
+			continue
+		}
+
 		// MERGE [INTO] table — skip optional INTO, extract target.
 		if kw == "merge" {
 			j := i + 1
@@ -325,27 +340,39 @@ func extractTableRefsLexer(sql string, cursorOffset int) []TableRef {
 // lexerExtractTableAfter extracts a [schema.]table reference starting at tokens[j].
 // Returns the TableRef (or nil) and the number of tokens consumed beyond the trigger keyword.
 func lexerExtractTableAfter(tokens []parser.Token, j int) (*TableRef, int) {
+	return lexerExtractMultipartTableAfter(tokens, j, true)
+}
+
+func lexerExtractMultipartTableAfter(tokens []parser.Token, j int, allowAlias bool) (*TableRef, int) {
 	if j >= len(tokens) || !isIdentLikeToken(tokens[j]) {
 		return nil, 0
 	}
-	ref := TableRef{Table: tokens[j].Str}
-	consumed := 1
-
-	// Check for schema.table (dot-qualified name).
-	if j+2 < len(tokens) && tokens[j+1].Type == '.' && isIdentLikeToken(tokens[j+2]) {
-		ref.Schema = ref.Table
-		ref.Table = tokens[j+2].Str
-		consumed = 3
+	parts := []string{tokens[j].Str}
+	idx := j + 1
+	for idx+1 < len(tokens) && tokens[idx].Type == '.' && isIdentLikeToken(tokens[idx+1]) && len(parts) < 3 {
+		parts = append(parts, tokens[idx+1].Str)
+		idx += 2
+	}
+	consumed := idx - j
+	var ref TableRef
+	switch len(parts) {
+	case 1:
+		ref.Table = parts[0]
+	case 2:
+		ref.Schema = parts[0]
+		ref.Table = parts[1]
+	default:
+		ref.Database = parts[0]
+		ref.Schema = parts[1]
+		ref.Table = parts[2]
 	}
 
-	// Check for alias: AS alias, or bare identifier alias.
-	k := j + consumed
-	if k < len(tokens) {
-		kw := strings.ToLower(tokens[k].Str)
-		if kw == "as" && k+1 < len(tokens) && isIdentLikeToken(tokens[k+1]) {
-			ref.Alias = tokens[k+1].Str
-		} else if isIdentLikeToken(tokens[k]) && !isReservedTableTerminator(kw) {
-			ref.Alias = tokens[k].Str
+	if allowAlias && idx < len(tokens) {
+		kw := strings.ToLower(tokens[idx].Str)
+		if kw == "as" && idx+1 < len(tokens) && isIdentLikeToken(tokens[idx+1]) {
+			ref.Alias = tokens[idx+1].Str
+		} else if isIdentLikeToken(tokens[idx]) && !isReservedTableTerminator(kw) {
+			ref.Alias = tokens[idx].Str
 		}
 	}
 
