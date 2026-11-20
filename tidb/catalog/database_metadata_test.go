@@ -199,11 +199,15 @@ func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *
 			CONSTRAINT fk_alpha FOREIGN KEY (ref_a) REFERENCES ref_tbl (id),
 			CONSTRAINT chk_zeta CHECK (id > 0) NOT ENFORCED,
 			CONSTRAINT chk_alpha CHECK (id < 1000)
-		);
+		) COMPRESSION='ZLIB';
 		ALTER TABLE full_tbl ALTER COLUMN drop_col DROP DEFAULT;
+		CREATE GLOBAL TEMPORARY TABLE gtt_tbl (
+			id INT NOT NULL PRIMARY KEY
+		) ON COMMIT DELETE ROWS;
 		CREATE TABLE part_tbl (
 			id INT NOT NULL
 		) PARTITION BY HASH (id) PARTITIONS 2;
+		CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v_exec AS SELECT 1 AS x;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 
@@ -240,11 +244,21 @@ func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *
 	require.True(t, cols["drop_col"].DefaultDropped)
 	require.False(t, cols["keep_null"].DefaultDropped)
 
-	partMeta := s.Tables[1]
+	partMeta := s.Tables[2]
+	require.Equal(t, "part_tbl", partMeta.Name)
 	require.Equal(t, "2", partMeta.Partitions[0].UseDefault)
 	require.Len(t, partMeta.Partitions[0].Subpartitions, 2)
 	require.Equal(t, "2", partMeta.Partitions[0].Subpartitions[0].UseDefault)
 	require.Equal(t, int32(1), partMeta.Partitions[0].Subpartitions[0].Algorithm)
+
+	gttMeta := s.Tables[1]
+	require.Equal(t, "gtt_tbl", gttMeta.Name)
+	require.True(t, gttMeta.IsGlobalTemporary)
+	require.Equal(t, "DELETE ROWS", gttMeta.OnCommit)
+	require.Contains(t, full.CreateOptions, "compression='ZLIB'")
+	require.Len(t, s.Views, 1)
+	require.Equal(t, "TEMPTABLE", s.Views[0].Algorithm)
+	require.Equal(t, "INVOKER", s.Views[0].SqlSecurity)
 
 	reloaded := New()
 	report, err := reloaded.LoadMetadata(context.Background(), meta)
@@ -254,8 +268,15 @@ func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *
 	require.Empty(t, report.Incomplete)
 
 	reloadedFull := reloaded.GetDatabase("app").GetTable("full_tbl")
+	require.Equal(t, "ZLIB", reloadedFull.Compression)
 	require.True(t, reloadedFull.GetColumn("drop_col").DefaultDropped)
 	require.False(t, reloadedFull.GetColumn("keep_null").DefaultDropped)
+	reloadedGTT := reloaded.GetDatabase("app").GetTable("gtt_tbl")
+	require.True(t, reloadedGTT.GlobalTemporary)
+	require.Equal(t, "DELETE ROWS", reloadedGTT.OnCommit)
+	reView := reloaded.GetDatabase("app").Views["v_exec"]
+	require.Equal(t, "TEMPTABLE", reView.Algorithm)
+	require.Equal(t, "INVOKER", reView.SqlSecurity)
 	reExportedFull := reloaded.DatabaseMetadata("app").Schemas[0].Tables[0]
 	reIdxByName := map[string]*metadata.IndexMetadata{}
 	for _, idx := range reExportedFull.Indexes {

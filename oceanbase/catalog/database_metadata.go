@@ -3,6 +3,7 @@ package catalog
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -163,11 +164,12 @@ func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
 
 func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
-		Name:      t.Name,
-		Engine:    t.Engine,
-		Charset:   t.Charset,
-		Collation: t.Collation,
-		Comment:   t.Comment,
+		Name:         t.Name,
+		Engine:       t.Engine,
+		Charset:      t.Charset,
+		Collation:    t.Collation,
+		Comment:      t.Comment,
+		ColumnGroups: t.ColumnGroups.String(),
 	}
 	if opts := tableCreateOptions(t); opts != "" {
 		table.CreateOptions = opts
@@ -225,19 +227,26 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	})
 	for _, idx := range sortedIndexes {
 		indexType := strings.ToUpper(idx.IndexType)
-		if indexType == "" {
+		if indexType == "" && !idx.Vector && !idx.Fulltext && !idx.Spatial {
 			indexType = "BTREE"
 			if strings.EqualFold(t.Engine, "MEMORY") || strings.EqualFold(t.Engine, "HEAP") {
 				indexType = "HASH"
 			}
 		}
 		idxMeta := &metadata.IndexMetadata{
-			Name:    idx.Name,
-			Type:    indexType,
-			Unique:  idx.Unique,
-			Primary: idx.Primary,
-			Visible: idx.Visible,
-			Comment: idx.Comment,
+			Name:             idx.Name,
+			Type:             indexType,
+			Unique:           idx.Unique,
+			Primary:          idx.Primary,
+			Visible:          idx.Visible,
+			Comment:          idx.Comment,
+			IsVector:         idx.Vector,
+			IsGlobal:         strings.EqualFold(idx.Scope, "GLOBAL"),
+			Scope:            idx.Scope,
+			StoringColumns:   slices.Clone(idx.Storing),
+			VectorParams:     slices.Clone(idx.VectorParams),
+			Parser:           idx.Parser,
+			ParserProperties: maps.Clone(idx.ParserProperties),
 		}
 		for _, col := range idx.Columns {
 			if col.Expr != "" {

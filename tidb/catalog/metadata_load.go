@@ -382,7 +382,11 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omitted = e
 		}
 	}
-	stmt = &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
+	stmt = &nodes.CreateTableStmt{
+		Table:    &nodes.TableRef{Name: t.GetName()},
+		Global:   t.GetIsGlobalTemporary(),
+		OnCommit: t.GetOnCommit(),
+	}
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
 			continue
@@ -441,12 +445,26 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"SHARD_ROW_ID_BITS", shardRowIDBits(t.GetShardingInfo())},
+		{"COMPRESSION", unquoteTableOption(createOption(t.GetCreateOptions(), "compression"))},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
 		}
 	}
 	return stmt, omitted, nil
+}
+
+func createOption(options, name string) string {
+	for _, opt := range strings.Fields(options) {
+		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
+			return v
+		}
+	}
+	return ""
+}
+
+func unquoteTableOption(s string) string {
+	return strings.Trim(s, "'\"`")
 }
 
 // shardRowIDBits returns n from the TIDB_ROW_ID_SHARDING_INFO sync records for
@@ -736,7 +754,14 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+	}, nil
 }
 
 // stripViewBodyDatabaseQualifier removes the qualifier of database dbName from

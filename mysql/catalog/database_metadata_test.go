@@ -320,6 +320,7 @@ func TestDatabaseMetadataRoundTripOptionsConstraintsDefaultsAndKeyAlgorithm(t *t
 		);
 		CREATE FUNCTION fn_coll() RETURNS INT DETERMINISTIC RETURN 1;
 		CREATE PROCEDURE proc_coll() BEGIN SELECT 1; END;
+		CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v_exec AS SELECT 1 AS x;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 
@@ -374,4 +375,11 @@ func TestDatabaseMetadataRoundTripOptionsConstraintsDefaultsAndKeyAlgorithm(t *t
 	require.Equal(t, int32(1), reloaded.DatabaseMetadata("app").Schemas[0].Tables[1].Partitions[0].Algorithm)
 	require.Equal(t, int32(1), reloaded.DatabaseMetadata("app").Schemas[0].Tables[3].Partitions[0].Subpartitions[0].Algorithm)
 	require.True(t, reloaded.DatabaseMetadata("app").Schemas[0].Tables[0].CheckConstraints[1].NotEnforced)
+
+	require.Len(t, s.Views, 1)
+	require.Equal(t, "TEMPTABLE", s.Views[0].Algorithm)
+	require.Equal(t, "INVOKER", s.Views[0].SqlSecurity)
+	reView := reloaded.GetDatabase("app").Views["v_exec"]
+	require.Equal(t, "TEMPTABLE", reView.Algorithm)
+	require.Equal(t, "INVOKER", reView.SqlSecurity)
 }

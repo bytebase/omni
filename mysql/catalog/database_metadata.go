@@ -74,9 +74,11 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	for _, vName := range sortedMapKeys(db.Views) {
 		v := db.Views[vName]
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
-			Name:       v.Name,
-			Definition: v.Definition,
-			Columns:    viewColumnsToProto(v),
+			Name:        v.Name,
+			Definition:  v.Definition,
+			Columns:     viewColumnsToProto(v),
+			Algorithm:   v.Algorithm,
+			SqlSecurity: v.SqlSecurity,
 		})
 	}
 

@@ -331,3 +331,84 @@ func TestDatabaseMetadataRoundTripOptionsConstraintsDefaultsAndSubpartitions(t *
 	require.Len(t, reExported.Tables[3].Partitions[0].Subpartitions, 2)
 	require.Equal(t, "MAXVALUE", reExported.Tables[3].Partitions[0].Subpartitions[1].Value)
 }
+
+func TestDatabaseMetadataRoundTripColumnGroupsAndIndexSemantics(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE cg_tbl (
+			id INT NOT NULL PRIMARY KEY,
+			b INT,
+			c INT,
+			KEY idx_global (b) STORING (c) GLOBAL,
+			KEY idx_local (b) LOCAL
+		) PARTITION BY HASH (id) PARTITIONS 2
+		  WITH COLUMN GROUP (ALL COLUMNS, EACH COLUMN);
+		CREATE TABLE vec_tbl (
+			id INT PRIMARY KEY,
+			v VECTOR(3) NOT NULL,
+			VECTOR INDEX idx_vec (v) WITH (distance=cosine, type=hnsw)
+		);
+		CREATE TABLE ft_tbl (
+			id INT PRIMARY KEY,
+			txt TEXT,
+			FULLTEXT INDEX idx_ft (txt) WITH PARSER ik PARSER_PROPERTIES=(ik_mode='smart')
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	// Tables sorted alphabetically: cg_tbl, ft_tbl, vec_tbl
+	cg := s.Tables[0]
+	require.Equal(t, "cg_tbl", cg.Name)
+	require.Equal(t, "all columns, each column", cg.ColumnGroups)
+	cgIdx := map[string]*metadata.IndexMetadata{}
+	for _, idx := range cg.Indexes {
+		cgIdx[idx.Name] = idx
+	}
+	require.Equal(t, "GLOBAL", cgIdx["idx_global"].Scope)
+	require.True(t, cgIdx["idx_global"].IsGlobal)
+	require.Equal(t, []string{"c"}, cgIdx["idx_global"].StoringColumns)
+	require.Equal(t, "LOCAL", cgIdx["idx_local"].Scope)
+	require.False(t, cgIdx["idx_local"].IsGlobal)
+
+	ft := s.Tables[1]
+	ftIdx := map[string]*metadata.IndexMetadata{}
+	for _, idx := range ft.Indexes {
+		ftIdx[idx.Name] = idx
+	}
+	require.Equal(t, "ik", ftIdx["idx_ft"].Parser)
+	require.Equal(t, "smart", ftIdx["idx_ft"].ParserProperties["ik_mode"])
+
+	vec := s.Tables[2]
+	vecIdx := map[string]*metadata.IndexMetadata{}
+	for _, idx := range vec.Indexes {
+		vecIdx[idx.Name] = idx
+	}
+	require.True(t, vecIdx["idx_vec"].IsVector)
+	require.Contains(t, vecIdx["idx_vec"].VectorParams, "DISTANCE=COSINE")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reCG := reloaded.GetDatabase("app").GetTable("cg_tbl")
+	require.Equal(t, "all columns, each column", reCG.ColumnGroups.String())
+	reMeta := reloaded.DatabaseMetadata("app").Schemas[0]
+	reCGIdx := map[string]*metadata.IndexMetadata{}
+	for _, idx := range reMeta.Tables[0].Indexes {
+		reCGIdx[idx.Name] = idx
+	}
+	require.Equal(t, "GLOBAL", reCGIdx["idx_global"].Scope)
+	require.Equal(t, []string{"c"}, reCGIdx["idx_global"].StoringColumns)
+	require.Equal(t, "LOCAL", reCGIdx["idx_local"].Scope)
+	require.Equal(t, "ik", reMeta.Tables[1].Indexes[1].Parser)
+	require.Equal(t, "smart", reMeta.Tables[1].Indexes[1].ParserProperties["ik_mode"])
+	require.True(t, reMeta.Tables[2].Indexes[1].IsVector)
+	require.Contains(t, reMeta.Tables[2].Indexes[1].VectorParams, "DISTANCE=COSINE")
+}

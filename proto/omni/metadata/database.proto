@@ -612,6 +612,13 @@ message TableMetadata {
 
   // The exclude_constraints is the list of EXCLUDE constraints in a table (PostgreSQL specific).
   repeated ExcludeConstraintMetadata exclude_constraints = 25;
+
+  // OceanBase WITH COLUMN GROUP (...) specification (e.g. "all columns, each column").
+  string column_groups = 26;
+
+  // TiDB CREATE GLOBAL TEMPORARY TABLE flag and ON COMMIT clause.
+  bool is_global_temporary = 27;
+  string on_commit = 28;
 }
 
 message CheckConstraintMetadata {
@@ -921,6 +928,10 @@ message ViewMetadata {
 
   // The rules is the list of rules in a view (PostgreSQL specific).
   repeated RuleMetadata rules = 8;
+
+  // View execution algorithm (UNDEFINED, MERGE, TEMPTABLE) and SQL security (DEFINER, INVOKER).
+  string algorithm = 9;
+  string sql_security = 10;
 }
 
 // DependencyColumn is the metadata for dependency columns.
@@ -1112,6 +1123,19 @@ message IndexMetadata {
 
   // TiDB global partitioned index flag (/*T![global_index] GLOBAL */).
   bool is_global = 20;
+
+  // OceanBase index scope ("GLOBAL", "LOCAL", or empty).
+  string scope = 21;
+
+  // OceanBase STORING (...) columns carried by an index.
+  repeated string storing_columns = 22;
+
+  // OceanBase VECTOR INDEX ... WITH (...) parameter entries ("KEY=VAL").
+  repeated string vector_params = 23;
+
+  // OceanBase full-text WITH PARSER name and PARSER_PROPERTIES.
+  string parser = 24;
+  map<string, string> parser_properties = 25;
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.

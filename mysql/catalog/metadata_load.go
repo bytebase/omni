@@ -759,7 +759,14 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+	}, nil
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a

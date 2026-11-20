@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -454,7 +455,10 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omitted = e
 		}
 	}
-	stmt = &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
+	stmt = &nodes.CreateTableStmt{
+		Table:       &nodes.TableRef{Name: t.GetName()},
+		ColumnGroup: t.GetColumnGroups(),
+	}
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
 			continue
@@ -660,6 +664,8 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrPrimaryKey, indexType
 	case idx.GetUnique():
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
+	case idx.GetIsVector():
+		c.Type, c.IndexType = nodes.ConstrVector, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
 	case indexType == "SPATIAL":
@@ -676,7 +682,50 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
+	if len(idx.GetStoringColumns()) > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "STORING", Columns: slices.Clone(idx.GetStoringColumns())})
+	}
+	if len(idx.GetVectorParams()) > 0 {
+		props := make([]*nodes.ParserProperty, 0, len(idx.GetVectorParams()))
+		for _, entry := range idx.GetVectorParams() {
+			if k, v, ok := strings.Cut(entry, "="); ok {
+				props = append(props, &nodes.ParserProperty{Name: k, Value: parsePropertyNode(v)})
+			}
+		}
+		if len(props) > 0 {
+			c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "WITH", Properties: props})
+		}
+	}
+	if idx.GetParser() != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "PARSER", Value: &nodes.StringLit{Value: idx.GetParser()}})
+	}
+	if len(idx.GetParserProperties()) > 0 {
+		keys := make([]string, 0, len(idx.GetParserProperties()))
+		for k := range idx.GetParserProperties() {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		props := make([]*nodes.ParserProperty, 0, len(keys))
+		for _, k := range keys {
+			props = append(props, &nodes.ParserProperty{Name: k, Value: parsePropertyNode(idx.GetParserProperties()[k])})
+		}
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "PARSER_PROPERTIES", Properties: props})
+	}
+	scope := idx.GetScope()
+	if scope == "" && idx.GetIsGlobal() {
+		scope = "GLOBAL"
+	}
+	if scope != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: strings.ToUpper(scope)})
+	}
 	return c, err
+}
+
+func parsePropertyNode(val string) nodes.Node {
+	if n, err := strconv.ParseInt(val, 10, 64); err == nil {
+		return &nodes.IntLit{Value: n}
+	}
+	return &nodes.StringLit{Value: val}
 }
 
 // indexKeyParts splits an index's key parts: plain column names, or, where a

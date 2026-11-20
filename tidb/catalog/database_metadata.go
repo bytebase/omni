@@ -43,9 +43,11 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	for _, vName := range sortedMapKeys(db.Views) {
 		v := db.Views[vName]
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
-			Name:       v.Name,
-			Definition: v.Definition,
-			Columns:    viewColumnsToProto(v),
+			Name:        v.Name,
+			Definition:  v.Definition,
+			Columns:     viewColumnsToProto(v),
+			Algorithm:   v.Algorithm,
+			SqlSecurity: v.SqlSecurity,
 		})
 	}
 
@@ -96,14 +98,23 @@ func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
 
 func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
-		Name:      t.Name,
-		Engine:    t.Engine,
-		Charset:   t.Charset,
-		Collation: t.Collation,
-		Comment:   t.Comment,
+		Name:              t.Name,
+		Engine:            t.Engine,
+		Charset:           t.Charset,
+		Collation:         t.Collation,
+		Comment:           t.Comment,
+		IsGlobalTemporary: t.GlobalTemporary,
+		OnCommit:          t.OnCommit,
+	}
+	var opts []string
+	if t.Compression != "" {
+		opts = append(opts, fmt.Sprintf("compression='%s'", escapeComment(strings.Trim(t.Compression, "'\"`"))))
 	}
 	if t.Cached {
-		table.CreateOptions = "cached=on"
+		opts = append(opts, "cached=on")
+	}
+	if len(opts) > 0 {
+		table.CreateOptions = strings.Join(opts, " ")
 	}
 
 	var autoRandCol *Column
