@@ -575,4 +575,54 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	for _, callee := range []string{"cmp_callee", "null_callee", "between_callee", "in_callee", "like_callee"} {
 		assert.Less(t, strings.Index(predFuncs, "CREATE FUNCTION s."+callee+"("), callerPos, "expected %s before pred_caller:\n%s", callee, predFuncs)
 	}
+
+	// Parameterized overloads (array(integer) vs array(varchar)) disambiguate
+	// via element type instead of forming cycles through unrelated overloads.
+	arrayOverloads, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "arr_fn",
+					Definition: "CREATE FUNCTION s.arr_fn(a array(varchar)) RETURNS varchar RETURN s.arr_caller()",
+				},
+				{
+					Name:       "arr_caller",
+					Definition: "CREATE FUNCTION s.arr_caller() RETURNS bigint RETURN CAST(cardinality(s.arr_fn(ARRAY[1])) AS bigint)",
+				},
+				{
+					Name:       "arr_fn",
+					Definition: "CREATE FUNCTION s.arr_fn(a array(integer)) RETURNS array(integer) RETURN a",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_fn(a array(integer))"), strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_caller()"))
+	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_caller()"), strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_fn(a array(varchar))"))
+
+	// Non-skipped Trino procedures fail explicitly; SkipDump procedures are ignored.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{
+				{Name: "sync_partitions"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "procedure")
+
+	skippedProcOut, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{
+				{Name: "sync_partitions", SkipDump: true},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "CREATE SCHEMA IF NOT EXISTS \"s\";\n\n", skippedProcOut)
 }

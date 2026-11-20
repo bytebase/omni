@@ -211,7 +211,7 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 		if schema == nil || schema.SkipDump {
 			continue
 		}
-		if hasUpperASCII(schema.Name) || (schema.Name != "public" && hasUpperASCII(schema.Owner)) {
+		if hasUpperASCII(schema.Name) || hasUpperASCII(schema.Owner) {
 			return true
 		}
 		for _, table := range schema.Tables {
@@ -870,7 +870,7 @@ func writeOwners(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error
 				return err
 			}
 		}
-		if schema.Name != "" && schema.Name != "public" && schema.Owner != "" {
+		if schema.Name != "" && schema.Owner != "" {
 			if _, err := w.WriteString(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;\n", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(schema.Owner))); err != nil {
 				return err
 			}

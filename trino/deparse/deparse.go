@@ -53,6 +53,12 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				Comment:    fn.Comment,
 			})
 		}
+		for _, p := range s.Procedures {
+			if p == nil || p.SkipDump {
+				continue
+			}
+			return nil, fmt.Errorf("procedure %s.%s cannot be restored because Trino does not support restoring procedures", s.Name, p.Name)
+		}
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
 				continue
@@ -455,21 +461,13 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 		score := 0
 		compatible := true
 		for i, argType := range call.argTypes {
-			if argType == "" {
-				continue
-			}
 			paramType := c.parsed[idx].params[i].typeName
-			if paramType == "" {
-				continue
-			}
-			if paramType == argType {
-				score += 2
-			} else if isTrinoNumericType(argType) && isTrinoNumericType(paramType) && trinoNumericRank(paramType) >= trinoNumericRank(argType) {
-				score++
-			} else {
+			s, ok := trinoTypeCompatScore(argType, paramType)
+			if !ok {
 				compatible = false
 				break
 			}
+			score += s
 		}
 		if !compatible {
 			continue
@@ -487,6 +485,83 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	return arityMatches
 }
 
+func trinoTypeCompatScore(argType, paramType string) (int, bool) {
+	if argType == "" || paramType == "" {
+		return 0, true
+	}
+	if paramType == argType {
+		return 2, true
+	}
+	if isTrinoNumericType(argType) && isTrinoNumericType(paramType) && trinoNumericRank(paramType) >= trinoNumericRank(argType) {
+		return 1, true
+	}
+	argBase, argInner, argHasInner := splitParameterizedType(argType)
+	paramBase, paramInner, paramHasInner := splitParameterizedType(paramType)
+	if argBase != paramBase {
+		return 0, false
+	}
+	if !argHasInner || !paramHasInner {
+		return 0, true
+	}
+	argParts := splitTopLevelComma(argInner)
+	paramParts := splitTopLevelComma(paramInner)
+	if len(argParts) != len(paramParts) {
+		return 0, false
+	}
+	allExact := true
+	anyUnknown := false
+	for i := range argParts {
+		s, ok := trinoTypeCompatScore(argParts[i], paramParts[i])
+		if !ok {
+			return 0, false
+		}
+		if s < 2 {
+			allExact = false
+		}
+		if s == 0 {
+			anyUnknown = true
+		}
+	}
+	if allExact {
+		return 2, true
+	}
+	if anyUnknown {
+		return 0, true
+	}
+	return 1, true
+}
+
+func splitParameterizedType(t string) (base, inner string, hasInner bool) {
+	idx := strings.IndexByte(t, '(')
+	if idx < 0 || !strings.HasSuffix(t, ")") {
+		return t, "", false
+	}
+	return t[:idx], t[idx+1 : len(t)-1], true
+}
+
+func splitTopLevelComma(s string) []string {
+	var parts []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				parts = append(parts, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, s[start:])
+	return parts
+}
+
 func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 	if dt == nil {
 		return ""
@@ -497,13 +572,49 @@ func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 	case trinoparser.TypeInterval:
 		return "interval"
 	case trinoparser.TypeRow:
-		return "row"
+		if len(dt.Fields) == 0 {
+			return "row"
+		}
+		fields := make([]string, len(dt.Fields))
+		for i, f := range dt.Fields {
+			ft := normalizeTrinoDataType(f.Type)
+			if ft == "" {
+				return "row"
+			}
+			fields[i] = ft
+		}
+		return "row(" + strings.Join(fields, ",") + ")"
 	case trinoparser.TypeArray:
+		if elem := normalizeTrinoDataType(dt.ElementType); elem != "" {
+			return "array(" + elem + ")"
+		}
 		return "array"
 	case trinoparser.TypeMap:
+		kt := normalizeTrinoDataType(dt.KeyType)
+		vt := normalizeTrinoDataType(dt.ValueType)
+		if kt != "" && vt != "" {
+			return "map(" + kt + "," + vt + ")"
+		}
 		return "map"
 	default:
-		return normalizeTrinoTypeName(dt.Name)
+		base := normalizeTrinoTypeName(dt.Name)
+		switch base {
+		case "array":
+			if len(dt.Params) == 1 && dt.Params[0].Type != nil {
+				if elem := normalizeTrinoDataType(dt.Params[0].Type); elem != "" {
+					return "array(" + elem + ")"
+				}
+			}
+		case "map":
+			if len(dt.Params) == 2 && dt.Params[0].Type != nil && dt.Params[1].Type != nil {
+				kt := normalizeTrinoDataType(dt.Params[0].Type)
+				vt := normalizeTrinoDataType(dt.Params[1].Type)
+				if kt != "" && vt != "" {
+					return "map(" + kt + "," + vt + ")"
+				}
+			}
+		}
+		return base
 	}
 }
 
@@ -575,7 +686,27 @@ func combineTrinoTypes(a, b string) string {
 	if b == "" || a == b {
 		return a
 	}
-	return commonTrinoNumericType(a, b)
+	if common := commonTrinoNumericType(a, b); common != "" {
+		return common
+	}
+	aBase, aInner, aHas := splitParameterizedType(a)
+	bBase, bInner, bHas := splitParameterizedType(b)
+	if aBase == bBase && aHas && bHas {
+		aParts := splitTopLevelComma(aInner)
+		bParts := splitTopLevelComma(bInner)
+		if len(aParts) == len(bParts) {
+			combined := make([]string, len(aParts))
+			for i := range aParts {
+				ct := combineTrinoTypes(aParts[i], bParts[i])
+				if ct == "" {
+					return aBase
+				}
+				combined[i] = ct
+			}
+			return aBase + "(" + strings.Join(combined, ",") + ")"
+		}
+	}
+	return ""
 }
 
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
@@ -686,13 +817,26 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 		case *trinoparser.AtLocalExpr:
 			return walkExpr(e.Value, curEnv)
 		case *trinoparser.ArrayConstructor:
+			elemType := ""
 			for _, el := range e.Elements {
-				walkExpr(el, curEnv)
+				elemType = combineTrinoTypes(elemType, walkExpr(el, curEnv))
+			}
+			if elemType != "" {
+				return "array(" + elemType + ")"
 			}
 			return "array"
 		case *trinoparser.RowConstructor:
-			for _, el := range e.Elements {
-				walkExpr(el, curEnv)
+			fieldTypes := make([]string, len(e.Elements))
+			allKnown := len(e.Elements) > 0
+			for j, el := range e.Elements {
+				ft := walkExpr(el, curEnv)
+				if ft == "" {
+					allKnown = false
+				}
+				fieldTypes[j] = ft
+			}
+			if allKnown {
+				return "row(" + strings.Join(fieldTypes, ",") + ")"
 			}
 			return "row"
 		case *trinoparser.OverlayExpr:

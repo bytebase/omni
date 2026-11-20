@@ -1038,6 +1038,17 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	require.NoError(t, err)
 	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"t_child_pkey\" ON \"reporting\".\"t_child\" IS 'pk note';\n")
 	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"fk_self\" ON \"reporting\".\"t_child\" IS 'self fk note';\n")
+
+	publicOwned, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Owner: "PublicOwner",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+ALTER SCHEMA "public" OWNER TO "PublicOwner";
+`, publicOwned)
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")
