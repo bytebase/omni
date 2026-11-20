@@ -468,6 +468,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		beforeIndexes[idx] = true
 	}
 
+	if tbl.TablespaceDiscarded && alterUsesAlgorithmCopy(stmt.Commands) {
+		undoAlter(db, origKey, tbl, snapshot)
+		return errTablespaceDiscarded(db.Name, tbl.Name)
+	}
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine); err != nil {
@@ -934,6 +938,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	}
 }
 
+func alterUsesAlgorithmCopy(commands []*nodes.AlterTableCmd) bool {
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATAlgorithm && strings.EqualFold(strings.TrimSpace(cmd.Name), "COPY") {
+			return true
+		}
+	}
+	return false
+}
+
 func alterCmdRequiresTablespace(cmd *nodes.AlterTableCmd) bool {
 	if cmd == nil {
 		return false
@@ -941,11 +954,14 @@ func alterCmdRequiresTablespace(cmd *nodes.AlterTableCmd) bool {
 	switch cmd.Type {
 	case nodes.ATAddColumn, nodes.ATDropColumn, nodes.ATModifyColumn, nodes.ATChangeColumn,
 		nodes.ATDropConstraint, nodes.ATAlterCheckEnforced,
+		nodes.ATForce, nodes.ATOrderBy, nodes.ATPartitionBy,
 		nodes.ATConvertCharset, nodes.ATAddPartition, nodes.ATDropPartition,
 		nodes.ATTruncatePartition, nodes.ATCoalescePartition, nodes.ATReorganizePartition,
 		nodes.ATExchangePartition, nodes.ATRebuildPartition, nodes.ATRemovePartitioning:
 		return true
-	case nodes.ATAddConstraint:
+	case nodes.ATAlgorithm:
+		return strings.EqualFold(strings.TrimSpace(cmd.Name), "COPY")
+	case nodes.ATAddIndex, nodes.ATAddConstraint:
 		if cmd.Constraint == nil {
 			return false
 		}

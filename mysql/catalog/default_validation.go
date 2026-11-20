@@ -263,19 +263,40 @@ var defaultBuiltinFuncStep = map[string]int{
 	"json_array_insert": 2,
 }
 
+var defaultNormalizedFuncArity = map[string]funcArity{
+	"trim_leading":  {1, 2},
+	"trim_trailing": {1, 2},
+	"trim_both":     {1, 2},
+	"trim_from":     {2, 2},
+}
+
+func canonicalDefaultBuiltinName(raw string) string {
+	switch raw {
+	case "trim_leading", "trim_trailing", "trim_both", "trim_from":
+		return "trim"
+	default:
+		return raw
+	}
+}
+
 func validateDefaultFuncCall(fn *nodes.FuncCallExpr, colName string, ignoreSpace bool) error {
 	if fn == nil {
 		return nil
 	}
-	if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
+	rawName := strings.ToLower(strings.TrimSpace(fn.Name))
+	canonicalName := canonicalDefaultBuiltinName(rawName)
+	if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(canonicalName) {
 		return errDefaultValExprDisallowedFunc(colName)
 	}
-	name := strings.ToLower(strings.TrimSpace(fn.Name))
-	if arity, ok := defaultBuiltinFuncArity[name]; ok {
+	arity, ok := defaultNormalizedFuncArity[rawName]
+	if !ok {
+		arity, ok = defaultBuiltinFuncArity[canonicalName]
+	}
+	if ok {
 		n := len(fn.Args)
-		step := defaultBuiltinFuncStep[name]
+		step := defaultBuiltinFuncStep[canonicalName]
 		if n < arity.min || (arity.max >= 0 && n > arity.max) || (step > 0 && (n-arity.min)%step != 0) {
-			return errWrongParamCount(strings.ToUpper(name))
+			return errWrongParamCount(strings.ToUpper(canonicalName))
 		}
 	}
 	return nil

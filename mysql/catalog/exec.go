@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -976,6 +977,8 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
 		return c.evalSetBinaryExprChecked(e)
+	case *nodes.CaseExpr:
+		return c.evalSetCaseExprChecked(e)
 	case *nodes.VariableRef:
 		if !e.System {
 			if v, exists := c.userVars[toLower(e.Name)]; exists {
@@ -1028,6 +1031,50 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			return userVarValue{}, false, errNoSuchFunction(qual)
 		}
 		switch toLower(e.Name) {
+		case "if":
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, errWrongParamCount("IF")
+			}
+			cond, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			branch := e.Args[2]
+			if evalSetValueTruthy(cond) {
+				branch = e.Args[1]
+			}
+			return c.evalSetExprChecked(branch)
+		case "nullif":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("NULLIF")
+			}
+			v0, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			v1, ok, err := c.evalSetExprChecked(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v0.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			if v1.kind != userVarNull && compareSetValues(v0, v1) == 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			return v0, true, nil
+		case "isnull":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ISNULL")
+			}
+			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v.kind == userVarNull {
+				return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
 		case "concat":
 			if len(e.Args) == 0 {
 				return userVarValue{}, false, errWrongParamCount("CONCAT")
@@ -1074,7 +1121,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				return userVarValue{}, false, err
 			}
 			return v1, true, nil
-		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase":
+		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase", "reverse":
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
@@ -1094,8 +1141,137 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				s = strings.ToUpper(s)
 			case "lower", "lcase":
 				s = strings.ToLower(s)
+			case "reverse":
+				runes := []rune(s)
+				for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+					runes[i], runes[j] = runes[j], runes[i]
+				}
+				s = string(runes)
 			}
 			return userVarValue{kind: userVarString, str: s}, true, nil
+		case "trim_leading", "trim_trailing", "trim_both", "trim_from":
+			if len(e.Args) < 1 || len(e.Args) > 2 {
+				return userVarValue{}, false, errWrongParamCount("TRIM")
+			}
+			rem := " "
+			strExpr := e.Args[0]
+			if len(e.Args) == 2 {
+				rv, ok, err := c.evalSetExprChecked(e.Args[0])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if rv.kind == userVarNull {
+					// Evaluate string arg to validate any sysvar/func errors first.
+					if _, ok2, err2 := c.evalSetExprChecked(e.Args[1]); err2 != nil || !ok2 {
+						return userVarValue{}, false, err2
+					}
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				rem = rv.str
+				strExpr = e.Args[1]
+			}
+			sv, ok, err := c.evalSetExprChecked(strExpr)
+			if err != nil || !ok || sv.kind == userVarNull {
+				return sv, ok, err
+			}
+			return userVarValue{kind: userVarString, str: trimSetString(toLower(e.Name), sv.str, rem)}, true, nil
+		case "left", "right":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			sv, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			nv, ok, err := c.evalSetExprChecked(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sv.kind == userVarNull || nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n, nok := parseSetNumericInt64(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n <= 0 {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			runes := []rune(sv.str)
+			if int(n) >= len(runes) {
+				return userVarValue{kind: userVarString, str: sv.str}, true, nil
+			}
+			if toLower(e.Name) == "left" {
+				return userVarValue{kind: userVarString, str: string(runes[:n])}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: string(runes[len(runes)-int(n):])}, true, nil
+		case "substr", "substring", "mid":
+			if len(e.Args) < 2 || len(e.Args) > 3 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			sv, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			pv, ok, err := c.evalSetExprChecked(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			var lv userVarValue
+			hasLen := len(e.Args) == 3
+			if hasLen {
+				lv, ok, err = c.evalSetExprChecked(e.Args[2])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+			}
+			if sv.kind == userVarNull || pv.kind == userVarNull || (hasLen && lv.kind == userVarNull) {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			pos, pok := parseSetNumericInt64(pv)
+			if !pok {
+				return userVarValue{}, false, nil
+			}
+			runes := []rune(sv.str)
+			startIdx := 0
+			if pos > 0 {
+				startIdx = int(pos - 1)
+			} else if pos < 0 {
+				startIdx = len(runes) + int(pos)
+			} else {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			if startIdx < 0 || startIdx >= len(runes) {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			if !hasLen {
+				return userVarValue{kind: userVarString, str: string(runes[startIdx:])}, true, nil
+			}
+			length, lok := parseSetNumericInt64(lv)
+			if !lok {
+				return userVarValue{}, false, nil
+			}
+			if length <= 0 {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			endIdx := startIdx + int(length)
+			if endIdx > len(runes) {
+				endIdx = len(runes)
+			}
+			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "char_length", "character_length", "length":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n := len(v.str)
+			if toLower(e.Name) != "length" {
+				n = utf8.RuneCountInString(v.str)
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "replace":
 			if len(e.Args) != 3 {
 				return userVarValue{}, false, errWrongParamCount("REPLACE")
@@ -1156,6 +1332,116 @@ func (c *Catalog) isDefinedStoredFuncCall(expr nodes.ExprNode) bool {
 	return db != nil && db.Functions[toLower(fc.Name)] != nil
 }
 
+func evalSetValueTruthy(v userVarValue) bool {
+	if v.kind == userVarNull {
+		return false
+	}
+	if r, _, ok := parseSetDecimalRat(v); ok {
+		return r.Sign() != 0
+	}
+	return leadingMySQLNumericNonZero(v.str)
+}
+
+func leadingMySQLNumericNonZero(s string) bool {
+	s = strings.TrimSpace(s)
+	if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
+		s = s[1:]
+	}
+	hasDigit := false
+	hasNonZero := false
+	sawDot := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch >= '0' && ch <= '9' {
+			hasDigit = true
+			if ch != '0' {
+				hasNonZero = true
+			}
+			continue
+		}
+		if ch == '.' && !sawDot {
+			sawDot = true
+			continue
+		}
+		break
+	}
+	return hasDigit && hasNonZero
+}
+
+func trimSetString(mode, s, rem string) string {
+	if rem == "" {
+		return s
+	}
+	if mode == "trim_leading" || mode == "trim_both" || mode == "trim_from" {
+		for strings.HasPrefix(s, rem) {
+			s = strings.TrimPrefix(s, rem)
+		}
+	}
+	if mode == "trim_trailing" || mode == "trim_both" || mode == "trim_from" {
+		for strings.HasSuffix(s, rem) {
+			s = strings.TrimSuffix(s, rem)
+		}
+	}
+	return s
+}
+
+func compareSetValues(left, right userVarValue) int {
+	if left.kind == userVarNumeric || right.kind == userVarNumeric {
+		if lr, _, lok := parseSetDecimalRat(left); lok {
+			if rr, _, rok := parseSetDecimalRat(right); rok {
+				return lr.Cmp(rr)
+			}
+		}
+	}
+	return strings.Compare(left.str, right.str)
+}
+
+func boolSetVar(b bool) userVarValue {
+	if b {
+		return userVarValue{kind: userVarNumeric, str: "1"}
+	}
+	return userVarValue{kind: userVarNumeric, str: "0"}
+}
+
+func (c *Catalog) evalSetCaseExprChecked(e *nodes.CaseExpr) (userVarValue, bool, error) {
+	if e == nil {
+		return userVarValue{}, false, nil
+	}
+	var hasOperand bool
+	var opVal userVarValue
+	if e.Operand != nil {
+		var ok bool
+		var err error
+		opVal, ok, err = c.evalSetExprChecked(e.Operand)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		hasOperand = true
+	}
+	for _, w := range e.Whens {
+		if w == nil {
+			continue
+		}
+		cond, ok, err := c.evalSetExprChecked(w.Cond)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		matched := false
+		if hasOperand {
+			matched = opVal.kind != userVarNull && cond.kind != userVarNull && compareSetValues(opVal, cond) == 0
+		} else {
+			matched = evalSetValueTruthy(cond)
+		}
+		if matched {
+			return c.evalSetExprChecked(w.Result)
+		}
+	}
+	if e.Default != nil {
+		return c.evalSetExprChecked(e.Default)
+	}
+	return userVarValue{kind: userVarNull}, true, nil
+}
+
 func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, bool, error) {
 	if e == nil {
 		return userVarValue{}, false, nil
@@ -1168,8 +1454,53 @@ func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, b
 	if err != nil || !ok {
 		return userVarValue{}, false, err
 	}
+	switch e.Op {
+	case nodes.BinOpNullSafeEq:
+		if left.kind == userVarNull && right.kind == userVarNull {
+			return boolSetVar(true), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return boolSetVar(false), true, nil
+		}
+		return boolSetVar(compareSetValues(left, right) == 0), true, nil
+	case nodes.BinOpAnd:
+		if (left.kind != userVarNull && !evalSetValueTruthy(left)) || (right.kind != userVarNull && !evalSetValueTruthy(right)) {
+			return boolSetVar(false), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(true), true, nil
+	case nodes.BinOpOr:
+		if (left.kind != userVarNull && evalSetValueTruthy(left)) || (right.kind != userVarNull && evalSetValueTruthy(right)) {
+			return boolSetVar(true), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(false), true, nil
+	case nodes.BinOpXor:
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(evalSetValueTruthy(left) != evalSetValueTruthy(right)), true, nil
+	}
 	if left.kind == userVarNull || right.kind == userVarNull {
 		return userVarValue{kind: userVarNull}, true, nil
+	}
+	switch e.Op {
+	case nodes.BinOpEq:
+		return boolSetVar(compareSetValues(left, right) == 0), true, nil
+	case nodes.BinOpNe:
+		return boolSetVar(compareSetValues(left, right) != 0), true, nil
+	case nodes.BinOpLt:
+		return boolSetVar(compareSetValues(left, right) < 0), true, nil
+	case nodes.BinOpLe:
+		return boolSetVar(compareSetValues(left, right) <= 0), true, nil
+	case nodes.BinOpGt:
+		return boolSetVar(compareSetValues(left, right) > 0), true, nil
+	case nodes.BinOpGe:
+		return boolSetVar(compareSetValues(left, right) >= 0), true, nil
 	}
 	ln, lok := parseSetNumericInt64(left)
 	rn, rok := parseSetNumericInt64(right)

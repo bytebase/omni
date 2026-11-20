@@ -4702,6 +4702,62 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (a TEXT, b TEXT, KEY ((SUBSTRING(a, 1, 400)), (SUBSTRING(b, 1, 400))))",
 			code: 1071,
 		},
+		{
+			name: "CREATE TABLE DEFAULT (TRIM(LEADING 'x' FROM 'xxx')) accepted with 0",
+			stmt: "CREATE TABLE a (s VARCHAR(10) DEFAULT (TRIM(LEADING 'x' FROM 'xxx')))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (TRIM(TRAILING 'x' FROM 'xxx')) accepted with 0",
+			stmt: "CREATE TABLE a (s VARCHAR(10) DEFAULT (TRIM(TRAILING 'x' FROM 'xxx')))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (TRIM(BOTH 'x' FROM 'xxx')) accepted with 0",
+			stmt: "CREATE TABLE a (s VARCHAR(10) DEFAULT (TRIM(BOTH 'x' FROM 'xxx')))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (TRIM('x' FROM 'xxx')) accepted with 0",
+			stmt: "CREATE TABLE a (s VARCHAR(10) DEFAULT (TRIM('x' FROM 'xxx')))",
+			code: 0,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY after DISCARD TABLESPACE accepted with 0 on mysql 8.0.46",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, v INT) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD KEY k (v)",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY ALGORITHM=COPY after DISCARD TABLESPACE rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, v INT) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD KEY k (v), ALGORITHM=COPY",
+			code:  1814,
+		},
+		{
+			name:  "ALTER TABLE ADD PRIMARY KEY after DISCARD TABLESPACE rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT, v INT) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY (id)",
+			code:  1814,
+		},
+		{
+			name:  "ALTER TABLE FORCE after DISCARD TABLESPACE rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a FORCE",
+			code:  1814,
+		},
+		{
+			name:  "CREATE INDEX after DISCARD TABLESPACE accepted with 0 on mysql 8.0.46",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, v INT) ENGINE=InnoDB", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "CREATE INDEX idx_v ON a (v)",
+			code:  0,
+		},
+		{
+			name:    "SET sql_mode = IF(1, 'ANSI', '') enables ANSI mode on both server and catalog",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(1, 'ANSI', '')",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -5718,5 +5774,33 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, fnCat, "CREATE DATABASE d; USE d;")
 	if got, _ := simulationCatalogRefusal(t, fnCat, "CREATE TABLE t_fn_width (a VARCHAR(1000), KEY ((LOWER(a))))"); got != 1071 {
 		t.Fatalf("functional KEY ((LOWER(VARCHAR(1000)))) got %d, want 1071", got)
+	}
+
+	// SET IF(), CASE, TRIM_*, NULLIF, comparison/logical ops, and ContinueOnError
+	// state propagation.
+	ifCat := New()
+	execAlterClauses(t, ifCat, "CREATE DATABASE d; USE d;")
+	res1, err := ifCat.Exec("SET sql_mode = IF(1 = 1, 'ANSI', '');", &ExecOptions{ContinueOnError: true})
+	if err != nil || len(res1) != 1 || res1[0].Error != nil {
+		t.Fatalf("ifCat ANSI SET failed: res=%+v err=%v", res1, err)
+	}
+	if !strings.Contains(ifCat.session.SQLMode, "ANSI") {
+		t.Fatalf("expected ANSI enabled, got %q", ifCat.session.SQLMode)
+	}
+	res2, err := ifCat.Exec(
+		"SET sql_mode = IF('abc', 'ANSI', TRIM(LEADING 'x' FROM 'xxSTRICT_ALL_TABLES,NO_ZERO_DATE')); CREATE TABLE t_strict_def (d DATE DEFAULT '0000-00-00'); SET @nz = CASE WHEN 1 > 2 THEN 'a' ELSE NULLIF('b', 'c') END;",
+		&ExecOptions{ContinueOnError: true},
+	)
+	if err != nil || len(res2) != 3 {
+		t.Fatalf("ifCat.Exec chained: res=%+v err=%v", res2, err)
+	}
+	if res2[0].Error != nil || res2[1].Error == nil || res2[2].Error != nil {
+		t.Fatalf("ifCat chained unexpected errors: [0]=%v [1]=%v [2]=%v", res2[0].Error, res2[1].Error, res2[2].Error)
+	}
+	if !strings.Contains(ifCat.session.SQLMode, "STRICT_ALL_TABLES") {
+		t.Fatalf("sql_mode=%q, want STRICT_ALL_TABLES", ifCat.session.SQLMode)
+	}
+	if ifCat.userVars["nz"].str != "b" {
+		t.Fatalf("userVars[nz]=%+v, want b", ifCat.userVars["nz"])
 	}
 }
