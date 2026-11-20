@@ -1443,6 +1443,42 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				n = p.day
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "find_in_set":
+			// FIND_IN_SET(str, list) is str's 1-based place among list's
+			// comma-separated items, 0 when absent or when str holds a comma:
+			// FIND_IN_SET('a', 'a') is 1 and sets sql_mode REAL_AS_FLOAT. Items
+			// match under the collation (FIND_IN_SET('A', 'a,b') is 1 under a
+			// _ci one) with trailing spaces and accents kept ('a ' and 'é' do
+			// not match 'a' and 'e'), so only ASCII text is evaluated here.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("FIND_IN_SET")
+			}
+			args := make([]userVarValue, 2)
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			needle, list := args[0].str, args[1].str
+			if args[0].binary || args[1].binary || !isASCII(needle) || !isASCII(list) {
+				return userVarValue{}, false, nil
+			}
+			n := 0
+			if list != "" && !strings.Contains(needle, ",") {
+				ci := strings.HasSuffix(strings.ToLower(c.effectiveSessionCollationConn()), "_ci")
+				for i, item := range strings.Split(list, ",") {
+					if item == needle || (ci && strings.EqualFold(item, needle)) {
+						n = i + 1
+						break
+					}
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "crc32":
 			// CRC32 is the IEEE checksum of the value's string form: a double
 			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.
@@ -1933,7 +1969,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
-			case "mod", "instr":
+			case "mod", "instr", "find_in_set":
 				if argc != 2 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}

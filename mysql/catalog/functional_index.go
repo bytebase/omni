@@ -484,6 +484,88 @@ func functionalTypeWidthKnown(rt *ResolvedType) bool {
 	return true
 }
 
+// numericColumnStringWidth is the width a numeric or temporal column takes as
+// a string in a functional key part, as mysql:8.0.46 measures it: CONCAT(
+// varbinary_501, int_col) is 512 bytes. Integers take their display width
+// (INT 11, INT UNSIGNED 10, BIGINT 20, TINYINT(1) 1), DECIMAL(M,D) M+1 and one
+// more for a fraction, DOUBLE 22, FLOAT 23, DATE 10, DATETIME 19 and its
+// fraction, TIME 10, YEAR 5, BIT(n) n.
+func numericColumnStringWidth(col *Column) (int, bool) {
+	ct := strings.ToLower(col.ColumnType)
+	unsigned := strings.Contains(ct, "unsigned")
+	arg := func() (int, int, bool) {
+		open, close := strings.IndexByte(ct, '('), strings.IndexByte(ct, ')')
+		if open < 0 || close <= open {
+			return 0, 0, false
+		}
+		m, d, _ := strings.Cut(ct[open+1:close], ",")
+		mi, err := strconv.Atoi(strings.TrimSpace(m))
+		if err != nil {
+			return 0, 0, false
+		}
+		di, _ := strconv.Atoi(strings.TrimSpace(d))
+		return mi, di, true
+	}
+	switch strings.ToLower(col.DataType) {
+	case "tinyint":
+		if m, _, ok := arg(); ok && m == 1 {
+			return 1, true
+		}
+		if unsigned {
+			return 3, true
+		}
+		return 4, true
+	case "smallint":
+		if unsigned {
+			return 5, true
+		}
+		return 6, true
+	case "mediumint":
+		if unsigned {
+			return 8, true
+		}
+		return 9, true
+	case "int", "integer":
+		if unsigned {
+			return 10, true
+		}
+		return 11, true
+	case "bigint":
+		return 20, true
+	case "decimal", "numeric":
+		m, d, ok := arg()
+		if !ok {
+			m, d = 10, 0
+		}
+		n := m + 1
+		if d > 0 {
+			n++
+		}
+		return n, true
+	case "double", "real":
+		return 22, true
+	case "float":
+		return 23, true
+	case "date":
+		return 10, true
+	case "datetime", "timestamp":
+		if fsp, _, ok := arg(); ok && fsp > 0 {
+			return 20 + fsp, true
+		}
+		return 19, true
+	case "time":
+		return 10, true
+	case "year":
+		return 5, true
+	case "bit":
+		if m, _, ok := arg(); ok {
+			return m, true
+		}
+		return 1, true
+	}
+	return 0, false
+}
+
 func extractNonNegIntLit(expr nodes.ExprNode) (int, bool) {
 	lit, ok := peelFunctionalIndexParens(expr).(*nodes.IntLit)
 	if !ok || lit.Value < 0 {
@@ -534,6 +616,17 @@ func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, s
 			return len(e.Value), true, cs
 		}
 		return utf8.RuneCountInString(e.Value), true, cs
+	case *nodes.ColumnRef:
+		if col := tbl.GetColumn(e.Column); col != nil {
+			if n, ok := numericColumnStringWidth(col); ok {
+				return n, true, "ascii"
+			}
+		}
+		rt := inferFunctionalIndexExprType(tbl, e)
+		if rt != nil && rt.Length > 0 {
+			return rt.Length, true, rt.Charset
+		}
+		return 0, false, ""
 	case *nodes.IntLit:
 		// A number renders in a one-byte charset, even in a binary result:
 		// CONCAT(varbinary_510, -1) is 512 bytes on mysql:8.0.46.

@@ -5127,6 +5127,41 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// An explicit ENCRYPTION='N' is the default, and SHOW CREATE TABLE
 		// leaves it out, so a migration reads it as no encryption.
 		{name: "CREATE TABLE ENCRYPTION='N' reads back without it", stmt: "CREATE TABLE a (id INT) ENCRYPTION='N'", code: 0, omits: []string{"ENCRYPTION"}},
+		// A numeric or temporal column counts at its string width in a binary CONCAT.
+		{name: "functional binary CONCAT with a INT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(501), i INT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a INT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(502), i INT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a INT UNSIGNED column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(502), i INT UNSIGNED, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a INT UNSIGNED column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(503), i INT UNSIGNED, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a BIGINT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(492), i BIGINT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a BIGINT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(493), i BIGINT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a TINYINT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(508), i TINYINT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a TINYINT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(509), i TINYINT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a TINYINT(1) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(511), i TINYINT(1), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a TINYINT(1) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(512), i TINYINT(1), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a SMALLINT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(506), i SMALLINT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a SMALLINT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(507), i SMALLINT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a MEDIUMINT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(503), i MEDIUMINT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a MEDIUMINT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(504), i MEDIUMINT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DECIMAL(10,2) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(500), i DECIMAL(10,2), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DECIMAL(10,2) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(501), i DECIMAL(10,2), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DECIMAL(5,0) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(506), i DECIMAL(5,0), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DECIMAL(5,0) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(507), i DECIMAL(5,0), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DOUBLE column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(490), i DOUBLE, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DOUBLE column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(491), i DOUBLE, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a FLOAT column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(489), i FLOAT, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a FLOAT column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(490), i FLOAT, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DATE column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(502), i DATE, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DATE column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(503), i DATE, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DATETIME column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(493), i DATETIME, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DATETIME column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(494), i DATETIME, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a DATETIME(3) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(489), i DATETIME(3), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a DATETIME(3) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(490), i DATETIME(3), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a TIME column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(502), i TIME, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a TIME column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(503), i TIME, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a YEAR column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(507), i YEAR, KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a YEAR column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(508), i YEAR, KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a BIT(8) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(504), i BIT(8), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a BIT(8) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(505), i BIT(8), KEY ((CONCAT(b, i))))", code: 3757},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6239,6 +6274,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"CAST(123.4 AS DECIMAL)", "CAST(12345678901.5 AS DECIMAL)", "CAST(1.5 AS DECIMAL(5))", "CAST('x' AS DECIMAL(3,1))",
 		"DAYOFWEEK('2008-01-06')", "DAYOFWEEK('2008-01-05')", "DAYOFWEEK(20080107)", "DAYOFWEEK('2008-01-06 23:59:59')",
 		"WEEKDAY('2008-01-06')", "WEEKDAY('2008-01-07')", "DAYOFYEAR('2008-12-31')",
+		"FIND_IN_SET('A', 'a,b')", "FIND_IN_SET('b', 'a,b')", "FIND_IN_SET('', 'a,,b')", "FIND_IN_SET('a ', 'a')",
+		"FIND_IN_SET('x', '')", "FIND_IN_SET('a,b', 'a,b')", "FIND_IN_SET('b', 'a, b')", "FIND_IN_SET(2, '1,2')", "FIND_IN_SET('', '')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6356,7 +6393,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
