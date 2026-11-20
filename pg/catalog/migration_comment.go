@@ -13,7 +13,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, entry := range diff.Comments {
 		switch entry.Action {
 		case DiffAdd, DiffModify:
-			sql := formatCommentSQL(to, entry.ObjType, entry.ObjDescription, entry.SubID, entry.To)
+			sql := formatCommentSQL(to, entry, entry.To)
 			if sql != "" {
 				ops = append(ops, MigrationOp{
 					Type:          OpComment,
@@ -26,7 +26,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				})
 			}
 		case DiffDrop:
-			sql := formatCommentSQL(from, entry.ObjType, entry.ObjDescription, entry.SubID, "")
+			sql := formatCommentSQL(from, entry, "")
 			if sql != "" {
 				ops = append(ops, MigrationOp{
 					Type:          OpComment,
@@ -50,8 +50,8 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.
-func formatCommentSQL(c *Catalog, objType byte, objDescription string, subID int16, text string) string {
-	objTarget := commentObjectTarget(c, objType, objDescription, subID)
+func formatCommentSQL(c *Catalog, entry CommentDiffEntry, text string) string {
+	objTarget := commentObjectTarget(c, entry)
 	if objTarget == "" {
 		return ""
 	}
@@ -64,18 +64,22 @@ func formatCommentSQL(c *Catalog, objType byte, objDescription string, subID int
 
 // commentObjectTarget returns the COMMENT ON target string (e.g. "TABLE \"public\".\"t\"").
 // The catalog c is used to resolve relation kind (view, matview) and function kind (procedure).
-func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID int16) string {
-	switch objType {
+func commentObjectTarget(c *Catalog, entry CommentDiffEntry) string {
+	qualifiedTarget := func() string {
+		if schema, name, ok := commentParts2(entry); ok {
+			return migrationQualifiedName(schema, name)
+		}
+		return formatQualifiedDescription(entry.ObjDescription)
+	}
+
+	switch entry.ObjType {
 	case 'r': // relation (table, view, matview)
-		if subID != 0 {
-			// Resolve the column name from the catalog using the attnum (subID).
+		if entry.SubID != 0 {
 			colName := ""
-			parts := strings.SplitN(objDescription, ".", 2)
-			if len(parts) == 2 && c != nil {
-				rel := c.GetRelation(parts[0], parts[1])
-				if rel != nil {
+			if schema, relName, ok := commentParts2(entry); ok && c != nil {
+				if rel := c.GetRelation(schema, relName); rel != nil {
 					for _, col := range rel.Columns {
-						if col.AttNum == subID {
+						if col.AttNum == entry.SubID {
 							colName = col.Name
 							break
 						}
@@ -83,58 +87,69 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 				}
 			}
 			if colName != "" {
-				return fmt.Sprintf("COLUMN %s.%s", formatQualifiedDescription(objDescription), quoteIdentAlways(colName))
+				return fmt.Sprintf("COLUMN %s.%s", qualifiedTarget(), quoteIdentAlways(colName))
 			}
-			return fmt.Sprintf("COLUMN %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("COLUMN %s", qualifiedTarget())
 		}
-		// Determine relation kind from the catalog.
-		relKind := resolveRelKindFromDescription(c, objDescription)
-		switch relKind {
+		switch resolveRelKindFromEntry(c, entry) {
 		case 'v':
-			return fmt.Sprintf("VIEW %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("VIEW %s", qualifiedTarget())
 		case 'm':
-			return fmt.Sprintf("MATERIALIZED VIEW %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("MATERIALIZED VIEW %s", qualifiedTarget())
 		default:
-			return fmt.Sprintf("TABLE %s", formatQualifiedDescription(objDescription))
+			return fmt.Sprintf("TABLE %s", qualifiedTarget())
 		}
 	case 'i': // index
-		return fmt.Sprintf("INDEX %s", formatQualifiedDescription(objDescription))
+		return fmt.Sprintf("INDEX %s", qualifiedTarget())
 	case 'f': // function/procedure
-		// Determine if this is a procedure from the catalog.
-		if resolveIsProcedure(c, objDescription) {
-			return fmt.Sprintf("PROCEDURE %s", objDescription)
+		target := entry.ObjDescription
+		if schema, obj, ok := commentParts2(entry); ok {
+			if name, args, hasParen := strings.Cut(obj, "("); hasParen && strings.ContainsAny(schema+name, `. "`) {
+				target = migrationQualifiedName(schema, name) + "(" + args
+			}
 		}
-		return fmt.Sprintf("FUNCTION %s", objDescription)
+		if resolveIsProcedure(c, entry.ObjDescription) {
+			return fmt.Sprintf("PROCEDURE %s", target)
+		}
+		return fmt.Sprintf("FUNCTION %s", target)
 	case 'n': // schema
-		return fmt.Sprintf("SCHEMA %s", quoteIdentAlways(objDescription))
+		name := entry.ObjDescription
+		if len(entry.objParts) > 0 {
+			name = entry.objParts[0]
+		}
+		return fmt.Sprintf("SCHEMA %s", quoteIdentAlways(name))
 	case 't': // type (enum, composite)
-		return fmt.Sprintf("TYPE %s", formatQualifiedDescription(objDescription))
+		return fmt.Sprintf("TYPE %s", qualifiedTarget())
 	case 's': // sequence
-		return fmt.Sprintf("SEQUENCE %s", formatQualifiedDescription(objDescription))
+		return fmt.Sprintf("SEQUENCE %s", qualifiedTarget())
 	case 'c': // constraint (schema.table.constraint)
-		return formatConstraintCommentTarget(objDescription)
+		return formatSubObjectCommentTarget("CONSTRAINT", entry)
 	case 'g': // trigger (schema.table.trigger)
-		return formatTriggerCommentTarget(objDescription)
+		return formatSubObjectCommentTarget("TRIGGER", entry)
 	case 'E': // event trigger
-		return fmt.Sprintf("EVENT TRIGGER %s", quoteIdentAlways(objDescription))
+		name := entry.ObjDescription
+		if len(entry.objParts) > 0 {
+			name = entry.objParts[0]
+		}
+		return fmt.Sprintf("EVENT TRIGGER %s", quoteIdentAlways(name))
 	case 'p': // policy (schema.table.policy)
-		return formatPolicyCommentTarget(objDescription)
+		return formatSubObjectCommentTarget("POLICY", entry)
 	default:
 		return ""
 	}
 }
 
-// resolveRelKindFromDescription looks up a relation by "schema.name" description
-// and returns its RelKind. Returns 0 if not found.
-func resolveRelKindFromDescription(c *Catalog, desc string) byte {
+// resolveRelKindFromEntry looks up a relation from entry's structured parts or
+// flattened description and returns its RelKind. Returns 0 if not found.
+func resolveRelKindFromEntry(c *Catalog, entry CommentDiffEntry) byte {
 	if c == nil {
 		return 0
 	}
-	parts := strings.SplitN(desc, ".", 2)
-	if len(parts) != 2 {
+	schema, relName, ok := commentParts2(entry)
+	if !ok {
 		return 0
 	}
-	rel := c.GetRelation(parts[0], parts[1])
+	rel := c.GetRelation(schema, relName)
 	if rel == nil {
 		return 0
 	}
@@ -165,40 +180,11 @@ func formatQualifiedDescription(desc string) string {
 	return quoteIdentAlways(desc)
 }
 
-// formatConstraintCommentTarget formats "schema.table.constraint" into
-// CONSTRAINT "constraint" ON "schema"."table".
-func formatConstraintCommentTarget(desc string) string {
-	parts := strings.SplitN(desc, ".", 3)
-	if len(parts) == 3 {
-		return fmt.Sprintf("CONSTRAINT %s ON %s",
-			quoteIdentAlways(parts[2]),
-			migrationQualifiedName(parts[0], parts[1]))
+func formatSubObjectCommentTarget(keyword string, entry CommentDiffEntry) string {
+	if schema, table, sub, ok := commentParts3(entry); ok {
+		return fmt.Sprintf("%s %s ON %s", keyword, quoteIdentAlways(sub), migrationQualifiedName(schema, table))
 	}
-	return fmt.Sprintf("CONSTRAINT %s", quoteIdentAlways(desc))
-}
-
-// formatTriggerCommentTarget formats "schema.table.trigger" into
-// TRIGGER "trigger" ON "schema"."table".
-func formatTriggerCommentTarget(desc string) string {
-	parts := strings.SplitN(desc, ".", 3)
-	if len(parts) == 3 {
-		return fmt.Sprintf("TRIGGER %s ON %s",
-			quoteIdentAlways(parts[2]),
-			migrationQualifiedName(parts[0], parts[1]))
-	}
-	return fmt.Sprintf("TRIGGER %s", quoteIdentAlways(desc))
-}
-
-// formatPolicyCommentTarget formats "schema.table.policy" into
-// POLICY "policy" ON "schema"."table".
-func formatPolicyCommentTarget(desc string) string {
-	parts := strings.SplitN(desc, ".", 3)
-	if len(parts) == 3 {
-		return fmt.Sprintf("POLICY %s ON %s",
-			quoteIdentAlways(parts[2]),
-			migrationQualifiedName(parts[0], parts[1]))
-	}
-	return fmt.Sprintf("POLICY %s", quoteIdentAlways(desc))
+	return fmt.Sprintf("%s %s", keyword, quoteIdentAlways(entry.ObjDescription))
 }
 
 // quoteLiteral returns a single-quoted SQL string literal with proper escaping.

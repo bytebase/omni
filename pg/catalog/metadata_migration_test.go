@@ -4652,3 +4652,90 @@ func TestFunctionRemovingDefaultDropsBeforeCreate(t *testing.T) {
 	require.Contains(t, sql, `CREATE FUNCTION`)
 	require.NotContains(t, sql, `CREATE OR REPLACE FUNCTION`)
 }
+
+func TestDottedCommentTargetsMigration(t *testing.T) {
+	base := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app.data",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events.v1",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				Indexes: []*metadatapb.IndexMetadata{{
+					Name:         "pk.v1",
+					Type:         "btree",
+					Expressions:  []string{"id"},
+					Primary:      true,
+					Unique:       true,
+					IsConstraint: true,
+				}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "fn.dot",
+				Signature:  `"app.data"."fn.dot"(integer)`,
+				Definition: `CREATE FUNCTION "app.data"."fn.dot"(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$`,
+			}},
+		}},
+	}
+	commented := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app.data",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events.v1",
+				Comment: "tbl doc",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1, Comment: "col doc"}},
+				Indexes: []*metadatapb.IndexMetadata{{
+					Name:         "pk.v1",
+					Type:         "btree",
+					Expressions:  []string{"id"},
+					Primary:      true,
+					Unique:       true,
+					IsConstraint: true,
+					Comment:      "pk doc",
+				}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "fn.dot",
+				Signature:  `"app.data"."fn.dot"(integer)`,
+				Definition: `CREATE FUNCTION "app.data"."fn.dot"(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$`,
+				Comment:    "fn doc",
+			}},
+		}},
+	}
+
+	sql, err := testMetadataMigration(base, commented)
+	require.NoError(t, err)
+	require.Contains(t, sql, `COMMENT ON TABLE "app.data"."events.v1" IS 'tbl doc'`)
+	require.Contains(t, sql, `COMMENT ON COLUMN "app.data"."events.v1"."id" IS 'col doc'`)
+	require.Contains(t, sql, `COMMENT ON CONSTRAINT "pk.v1" ON "app.data"."events.v1" IS 'pk doc'`)
+	require.Contains(t, sql, `COMMENT ON FUNCTION "app.data"."fn.dot"(integer) IS 'fn doc'`)
+}
+
+func TestListPartitionNullBoundMigration(t *testing.T) {
+	empty := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	withNullList := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "code", Type: "integer", Position: 1}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:       "events_null",
+					Type:       metadatapb.TablePartitionMetadata_LIST,
+					Expression: "LIST (code)",
+					Value:      "FOR VALUES IN (NULL, 1)",
+				}},
+			}},
+		}},
+	}
+
+	sql, err := testMetadataMigration(empty, withNullList)
+	require.NoError(t, err)
+	require.Contains(t, sql, `FOR VALUES IN (NULL, '1')`)
+	require.NotContains(t, sql, `'NULL'`)
+
+	c := New()
+	_, err = c.Exec(sql, nil)
+	require.NoError(t, err)
+}

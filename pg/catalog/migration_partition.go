@@ -190,11 +190,11 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 }
 
 // formatPartitionValue formats a single partition bound value.
-// Values that look like special keywords (MINVALUE, MAXVALUE) are passed through.
+// Values that look like special keywords (MINVALUE, MAXVALUE, NULL) are passed through.
 // String values are single-quoted; numeric values are passed through.
 func formatPartitionValue(v string) string {
 	upper := strings.ToUpper(v)
-	if upper == "MINVALUE" || upper == "MAXVALUE" {
+	if upper == "MINVALUE" || upper == "MAXVALUE" || upper == "NULL" {
 		return upper
 	}
 	return "'" + strings.ReplaceAll(v, "'", "''") + "'"

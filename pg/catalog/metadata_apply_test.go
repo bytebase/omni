@@ -1396,3 +1396,91 @@ func TestApplyDiffToMetadataRound8Fixes(t *testing.T) {
 	require.NotNil(t, ownedSeq)
 	require.Equal(t, "item_id", ownedSeq.OwnerColumn)
 }
+
+func TestApplyDiffToMetadataRound9Fixes(t *testing.T) {
+	// 1. DROP EXTENSION removes extension-owned members from result.
+	// 2. COMMENT ON TRIGGER updates ExternalTableMetadata.Triggers.
+	extName := "test_r9_ext"
+	RegisterExtensionSQL(extName, `
+		CREATE TABLE public.ext_tbl (id integer);
+		CREATE SEQUENCE public.ext_seq;
+		CREATE TYPE public.ext_enum AS ENUM ('a', 'b');
+		CREATE FUNCTION public.ext_fn() RETURNS integer LANGUAGE sql AS 'SELECT 1';
+	`)
+	t.Cleanup(func() { delete(extensionScripts, extName) })
+
+	catBefore := New()
+	for _, stmt := range []string{
+		`CREATE EXTENSION test_r9_ext;`,
+		`CREATE SERVER srv FOREIGN DATA WRAPPER dummy;`,
+		`CREATE FOREIGN TABLE public.ft_events (id integer) SERVER srv;`,
+		`CREATE FUNCTION public.ft_trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;`,
+		`CREATE TRIGGER ft_trig BEFORE INSERT ON public.ft_events FOR EACH ROW EXECUTE FUNCTION public.ft_trig_fn();`,
+	} {
+		_, err := catBefore.Exec(stmt, nil)
+		require.NoError(t, err, stmt)
+	}
+
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name:       "postgres",
+		Extensions: []*metadatapb.ExtensionMetadata{{Name: extName, Schema: "public", Version: "1.0"}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:     "ext_tbl",
+				SkipDump: true,
+				Columns:  []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+			}},
+			Sequences: []*metadatapb.SequenceMetadata{{
+				Name:      "ext_seq",
+				DataType:  "bigint",
+				SkipDump:  true,
+				Start:     "1",
+				MinValue:  "1",
+				MaxValue:  "9223372036854775807",
+				Increment: "1",
+				CacheSize: "1",
+			}},
+			EnumTypes: []*metadatapb.EnumTypeMetadata{{
+				Name:     "ext_enum",
+				Values:   []string{"a", "b"},
+				SkipDump: true,
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "ext_fn", Signature: "ext_fn()", Definition: "CREATE FUNCTION public.ext_fn() RETURNS integer LANGUAGE sql AS 'SELECT 1'", SkipDump: true},
+				{Name: "ft_trig_fn", Signature: "ft_trig_fn()", Definition: "CREATE FUNCTION public.ft_trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+			},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ft_events",
+				ExternalServerName: "srv",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				Triggers:           []*metadatapb.TriggerMetadata{{Name: "ft_trig", Body: "CREATE TRIGGER ft_trig BEFORE INSERT ON public.ft_events FOR EACH ROW EXECUTE FUNCTION public.ft_trig_fn()"}},
+			}},
+		}},
+	}
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		DROP EXTENSION test_r9_ext;
+		COMMENT ON TRIGGER ft_trig ON public.ft_events IS 'ft trigger doc';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	require.Empty(t, got.Extensions)
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+	require.Nil(t, findTable(pub, "ext_tbl"))
+	require.Empty(t, pub.Sequences)
+	require.Empty(t, pub.EnumTypes)
+	require.Len(t, pub.Functions, 1)
+	require.Equal(t, "ft_trig_fn", pub.Functions[0].Name)
+
+	ft := findExternalTable(pub, "ft_events")
+	require.NotNil(t, ft)
+	require.Len(t, ft.Triggers, 1)
+	require.Equal(t, "ft trigger doc", ft.Triggers[0].Comment)
+}

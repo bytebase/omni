@@ -116,7 +116,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
 	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
-	applyExtensionDiffs(result, catAfter, diff.Extensions)
+	applyExtensionDiffs(result, catBefore, catAfter, diff.Extensions, canonicalSchema)
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyRelationOwnerChanges(result, catBefore, catAfter)
@@ -493,13 +493,14 @@ func extSchemaName(cat *Catalog, ext *Extension) string {
 	return ""
 }
 
-func applyExtensionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, extensions []ExtensionDiffEntry) {
+func applyExtensionDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, extensions []ExtensionDiffEntry, canonicalSchema func(string) string) {
 	for _, e := range extensions {
 		switch e.Action {
 		case DiffDrop:
 			result.Extensions = slices.DeleteFunc(result.Extensions, func(ext *metadatapb.ExtensionMetadata) bool {
 				return ext.Name == e.Name
 			})
+			removeExtensionMembers(result, catBefore, e.Name, canonicalSchema)
 		case DiffAdd:
 			if e.To == nil {
 				continue
@@ -538,6 +539,86 @@ func applyExtensionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 			}
 		default:
 		}
+	}
+}
+
+func removeExtensionMembers(result *metadatapb.DatabaseSchemaMetadata, catBefore *Catalog, extName string, canonicalSchema func(string) string) {
+	if result == nil || catBefore == nil || extName == "" {
+		return
+	}
+	var dropSchemas []string
+	for oid, memberExt := range catBefore.extensionMembers {
+		if memberExt != extName {
+			continue
+		}
+		if s := catBefore.schemas[oid]; s != nil && oid != PGCatalogNamespace && oid != PGToastNamespace {
+			dropSchemas = append(dropSchemas, canonicalSchema(s.Name))
+			continue
+		}
+		if rel := catBefore.relationByOID[oid]; rel != nil && rel.Schema != nil {
+			schemaName := canonicalSchema(rel.Schema.Name)
+			if sm := findSchema(result, schemaName); sm != nil {
+				switch rel.RelKind {
+				case 'v':
+					sm.Views = removeViewByName(sm.Views, rel.Name)
+				case 'm':
+					sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, rel.Name)
+				case 'f':
+					sm.ExternalTables = slices.DeleteFunc(sm.ExternalTables, func(ext *metadatapb.ExternalTableMetadata) bool {
+						return ext.Name == rel.Name
+					})
+				default:
+					sm.Tables = removeTableByName(sm.Tables, rel.Name)
+					_ = popPartitionInSchema(result, schemaName, rel.Name)
+				}
+			}
+		}
+		if seq := catBefore.sequenceByOID[oid]; seq != nil && seq.Schema != nil {
+			if sm := findSchema(result, canonicalSchema(seq.Schema.Name)); sm != nil {
+				sm.Sequences = removeSequenceByName(sm.Sequences, seq.Name)
+			}
+		}
+		if up := catBefore.userProcs[oid]; up != nil && up.Schema != nil {
+			if sm := findSchema(result, canonicalSchema(up.Schema.Name)); sm != nil {
+				identity := funcIdentity(catBefore, up)
+				shortIdentity := strings.TrimPrefix(identity, up.Schema.Name+".")
+				if up.Kind == 'p' {
+					var popped *metadatapb.ProcedureMetadata
+					popped, sm.Procedures = popProcedureByIdentity(sm.Procedures, identity)
+					if popped == nil && shortIdentity != identity {
+						_, sm.Procedures = popProcedureByIdentity(sm.Procedures, shortIdentity)
+					}
+				} else {
+					var popped *metadatapb.FunctionMetadata
+					popped, sm.Functions = popFunctionByIdentity(sm.Functions, identity)
+					if popped == nil && shortIdentity != identity {
+						_, sm.Functions = popFunctionByIdentity(sm.Functions, shortIdentity)
+					}
+				}
+			}
+		}
+		if bt := catBefore.typeByOID[oid]; bt != nil {
+			if ns := catBefore.schemas[bt.Namespace]; ns != nil {
+				if sm := findSchema(result, canonicalSchema(ns.Name)); sm != nil {
+					switch bt.Type {
+					case 'e':
+						sm.EnumTypes = removeEnumByName(sm.EnumTypes, bt.TypeName)
+					case 'c':
+						sm.CompositeTypes = removeCompositeTypeByName(sm.CompositeTypes, bt.TypeName)
+					case 'r':
+						_, sm.RangeTypes = popRangeTypeByName(sm.RangeTypes, bt.TypeName)
+					}
+				}
+			}
+		}
+		if evt := catBefore.eventTriggers[oid]; evt != nil {
+			_, result.EventTriggers = popEventTriggerByName(result.EventTriggers, evt.Name)
+		}
+	}
+	for _, schemaName := range dropSchemas {
+		result.Schemas = slices.DeleteFunc(result.Schemas, func(s *metadatapb.SchemaMetadata) bool {
+			return s.Name == schemaName
+		})
 	}
 }
 
@@ -2813,33 +2894,31 @@ func setConstraintCommentOnTable(tbl *metadatapb.TableMetadata, conName, comment
 	}
 }
 
-func setTriggerCommentInSchema(sm *metadatapb.SchemaMetadata, relName, trigName, comment string) {
-	if tbl := findTable(sm, relName); tbl != nil {
-		for _, tr := range tbl.Triggers {
-			if tr.Name == trigName {
-				tr.Comment = comment
-				return
-			}
+func setTriggerCommentInList(triggers []*metadatapb.TriggerMetadata, trigName, comment string) bool {
+	for _, tr := range triggers {
+		if tr.Name == trigName {
+			tr.Comment = comment
+			return true
 		}
 	}
+	return false
+}
+
+func setTriggerCommentInSchema(sm *metadatapb.SchemaMetadata, relName, trigName, comment string) {
+	if tbl := findTable(sm, relName); tbl != nil && setTriggerCommentInList(tbl.Triggers, trigName, comment) {
+		return
+	}
+	if ext := findExternalTable(sm, relName); ext != nil && setTriggerCommentInList(ext.Triggers, trigName, comment) {
+		return
+	}
 	for _, v := range sm.Views {
-		if v.Name == relName {
-			for _, tr := range v.Triggers {
-				if tr.Name == trigName {
-					tr.Comment = comment
-					return
-				}
-			}
+		if v.Name == relName && setTriggerCommentInList(v.Triggers, trigName, comment) {
+			return
 		}
 	}
 	for _, mv := range sm.MaterializedViews {
-		if mv.Name == relName {
-			for _, tr := range mv.Triggers {
-				if tr.Name == trigName {
-					tr.Comment = comment
-					return
-				}
-			}
+		if mv.Name == relName && setTriggerCommentInList(mv.Triggers, trigName, comment) {
+			return
 		}
 	}
 }
