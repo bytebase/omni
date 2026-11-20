@@ -736,6 +736,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *KillStmt:
 		Walk(v, n.ConnectionID)
+	case *LambdaExpr:
+		Walk(v, n.Body)
 	case *LikeExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Pattern)
@@ -1042,6 +1044,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Flashback != nil {
 			Walk(v, n.Flashback)
 		}
+	case *TableCollectionExpr:
+		Walk(v, n.Expr)
 	case *TableFlashback:
 		Walk(v, n.Snapshot)
 	case *TableRef:

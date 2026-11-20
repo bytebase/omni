@@ -544,13 +544,33 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional CONNECTION | QUERY. Each takes an expression after it, so
-	// `KILL CONNECTION` alone is a 1064.
-	if p.cur.Type == kwCONNECTION {
+	// Optional CONNECTION | QUERY. Both words are in unreserved_keyword in
+	// sql_parser_mysql_mode.y (lines 17987-18010): Bison resolves the shift/reduce
+	// conflict after `KILL CONNECTION` / `KILL QUERY` in favor of shifting any
+	// token in FIRST(expr) into `KILL {CONNECTION|QUERY} expr` (`KILL CONNECTION
+	// 1` and `KILL CONNECTION + 1` both answer 1094 Unknown thread id: 1 on
+	// 4.3.5.6), and reduces CONNECTION or QUERY as the column of `KILL expr` only
+	// when the following token cannot start a separate expr (`KILL CONNECTION`
+	// and `KILL CONNECTION = 1` answer 1054 Unknown column 'CONNECTION').
+	if (p.cur.Type == kwCONNECTION || p.cur.Type == kwQUERY) && !p.backtickQuotedAt(p.cur.Loc) {
+		saved := p.saveScan()
+		isQuery := p.cur.Type == kwQUERY
 		p.advance()
-	} else if p.cur.Type == kwQUERY {
-		stmt.Query = true
-		p.advance()
+		if p.killModifierReducesToIdent() {
+			p.restoreScan(saved)
+		} else {
+			stmt.Query = isQuery
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.ConnectionID = expr
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
+		}
 	}
 
 	// Process ID
@@ -565,6 +585,29 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// killModifierReducesToIdent reports whether the token following unquoted
+// `KILL CONNECTION` or `KILL QUERY` cannot start an `expr` in Bison's LALR(1)
+// table, causing `CONNECTION` / `QUERY` to reduce as the leading column of
+// `KILL expr` rather than shifting into `KILL {CONNECTION|QUERY} expr`.
+func (p *Parser) killModifierReducesToIdent() bool {
+	if p.reservedPairAhead() {
+		return false
+	}
+	switch p.cur.Type {
+	case tokEOF, ';',
+		kwOR, tokOrOr, kwXOR, kwAND, tokAndAnd,
+		'=', tokNullSafeEq, tokNotEq, '<', '>', tokLessEq, tokGreaterEq,
+		kwIS, kwLIKE, kwREGEXP, kwRLIKE, kwIN, kwBETWEEN,
+		'|', '&', tokShiftLeft, tokShiftRight,
+		'*', '/', kwDIV, '%', '^',
+		kwCOLLATE, tokJsonExtract, tokJsonUnquote:
+		return true
+	case kwMOD:
+		return p.peekNext().Type != '('
+	}
+	return false
 }
 
 // parseCallStmt parses a CALL statement.
@@ -720,6 +763,7 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 	// Optional WHERE clause
 	if p.cur.Type == kwWHERE {
 		p.advance() // consume WHERE
+		p.match(tokHintValue)
 		where, err := p.parseExpr()
 		if err != nil {
 			return nil, err

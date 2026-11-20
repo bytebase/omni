@@ -12,7 +12,14 @@ import (
 // AnalyzeSelectStmt performs semantic analysis on a parsed SELECT statement,
 // returning a resolved Query IR.
 func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
-	return c.analyzeSelectStmtInternal(stmt, nil)
+	q, err := c.analyzeSelectStmtInternal(stmt, nil)
+	if err != nil {
+		return nil, err
+	}
+	if q != nil && q.unfaithful {
+		return nil, errTableSourceUnfaithful
+	}
+	return q, nil
 }
 
 // analyzeSelectStmtInternal is the core analysis routine. parentScope is non-nil
@@ -142,6 +149,7 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	// What this query's own names are worth: an unaliased expression of its select
 	// list, or a star or reference to something already uncertain (scope.namesUncertain).
 	q.namesUncertain = scope.namesUncertain || selectDerivesNames(stmt)
+	q.unfaithful = q.unfaithful || scope.unfaithful
 
 	return q, nil
 }
@@ -203,9 +211,99 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 	case *nodes.SubqueryExpr:
 		return analyzeFromSubquery(c, ref, q, scope, cteMap)
 
+	case *nodes.TableCollectionExpr:
+		if _, err := analyzeExpr(c, ref.Expr, scope); err != nil {
+			return nil, err
+		}
+		return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
+
+	case *nodes.RbIterateExpr:
+		if _, err := analyzeExpr(c, ref.Arg, scope); err != nil {
+			return nil, err
+		}
+		colName := ref.Column
+		if colName == "" {
+			if col, ok := ref.Arg.(*nodes.ColumnRef); ok && !col.Star {
+				colName = col.Column
+			}
+		}
+		if colName == "" {
+			return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
+		}
+		return registerKnownFunctionRTE(ref.Alias, []string{colName}, q, scope), nil
+
+	case *nodes.UnnestExpr:
+		for _, arg := range ref.Args {
+			if _, err := analyzeExpr(c, arg, scope); err != nil {
+				return nil, err
+			}
+		}
+		colNames := ref.Columns
+		if len(colNames) == 0 && len(ref.Args) > 0 {
+			allCols := true
+			var derived []string
+			for _, arg := range ref.Args {
+				col, ok := arg.(*nodes.ColumnRef)
+				if !ok || col.Star {
+					allCols = false
+					break
+				}
+				derived = append(derived, col.Column)
+			}
+			if allCols {
+				colNames = derived
+			}
+		}
+		if len(colNames) == 0 {
+			return registerUnknownFunctionRTE(ref.Alias, q, scope), nil
+		}
+		return registerKnownFunctionRTE(ref.Alias, colNames, q, scope), nil
+
 	default:
 		return nil, fmt.Errorf("unsupported FROM clause element: %T", te)
 	}
+}
+
+func registerUnknownFunctionRTE(alias string, q *Query, scope *analyzerScope) JoinNode {
+	if scope.hasUnknown {
+		scope.namesUncertain = true
+	}
+	scope.markUnfaithful()
+	q.unfaithful = true
+	rte := &RangeTableEntryQ{
+		Kind:    RTEFunction,
+		Alias:   alias,
+		ERef:    alias,
+		Lateral: true,
+	}
+	idx := len(q.RangeTable)
+	q.RangeTable = append(q.RangeTable, rte)
+	scope.addRelation(rte, idx, nil, true)
+	return &RangeTableRefQ{RTIndex: idx}
+}
+
+func registerKnownFunctionRTE(alias string, colNames []string, q *Query, scope *analyzerScope) JoinNode {
+	scope.markUnfaithful()
+	q.unfaithful = true
+	eref := alias
+	if eref == "" {
+		eref = fmt.Sprintf("__func_%d", len(q.RangeTable))
+	}
+	rte := &RangeTableEntryQ{
+		Kind:     RTEFunction,
+		Alias:    alias,
+		ERef:     eref,
+		ColNames: colNames,
+		Lateral:  true,
+	}
+	idx := len(q.RangeTable)
+	q.RangeTable = append(q.RangeTable, rte)
+	cols := make([]*Column, len(colNames))
+	for i, name := range colNames {
+		cols[i] = &Column{Position: i + 1, Name: name}
+	}
+	scope.add(eref, idx, cols)
+	return &RangeTableRefQ{RTIndex: idx}
 }
 
 // analyzeJoinInput analyzes one input of a join, returning with it the buffer
@@ -540,6 +638,10 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 	if err != nil {
 		return nil, err
 	}
+	if innerQ.unfaithful {
+		scope.markUnfaithful()
+		q.unfaithful = true
+	}
 	if len(subq.Columns) == 0 && innerQ.namesUncertain {
 		scope.namesUncertain = true
 	}
@@ -869,6 +971,10 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		return exprContainsAggregate(e.Arg)
 	case *OdbcEscapeExprQ:
 		return exprContainsAggregate(e.Arg)
+	case *LambdaExprQ:
+		return exprContainsAggregate(e.Body)
+	case *ResTargetExprQ:
+		return exprContainsAggregate(e.Val)
 	case *GroupingSetExprQ:
 		for _, item := range e.Args {
 			if exprContainsAggregate(item) {
@@ -1100,6 +1206,9 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 			return nil, err
 		}
 
+		if innerQ.unfaithful {
+			q.unfaithful = true
+		}
 		// Derive column names.
 		colNames := cte.Columns
 		if len(colNames) == 0 {
@@ -1196,6 +1305,7 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 		TargetList:     targetList,
 		JoinTree:       &JoinTreeQ{},
 		namesUncertain: larg.namesUncertain,
+		unfaithful:     larg.unfaithful || rarg.unfaithful,
 	}
 	return q, nil
 }
@@ -1303,6 +1413,7 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	// query's: SELECT b+1 FROM a UNION ALL SELECT b+2 FROM a ORDER BY `b+1` names
 	// a column deriveColumnName wrote as ?.
 	q.namesUncertain = larg.namesUncertain
+	q.unfaithful = q.unfaithful || larg.unfaithful || rarg.unfaithful
 
 	// Handle ORDER BY / LIMIT on the outer set-op query using a
 	// scope built from result columns.
@@ -1376,7 +1487,7 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil && !stmt.Approx && len(stmt.VectorIndexParams) == 0 {
 		return inner, nil
 	}
-	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}, unfaithful: inner.unfaithful}
 	var cols []*Column
 	for _, te := range inner.TargetList {
 		if te.ResJunk {
@@ -1417,6 +1528,8 @@ var errOuterAlias = errors.New("a subquery names an outer query's select alias, 
 var errOrderByAliasLiteral = errors.New("an ordering names an alias of a number, which the analyzed query cannot hold")
 
 var errParenthesizedOuter = errors.New("a parenthesized query's own WITH, ORDER BY or LIMIT has no place in the analyzed query")
+
+var errTableSourceUnfaithful = errors.New("a table function in FROM has no writer in DeparseQuery")
 
 // visibleCTEs is the CTEs the queries around a query make visible: inherited, then
 // those of each enclosing scope, the nearest first.

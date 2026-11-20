@@ -368,6 +368,12 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		kwGEOMETRYCOLLECTION:
 		dt.Name = p.cur.Str
 		p.advance()
+	case kwGEOMCOLLECTION:
+		// geometry_collection in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+		// 2668-2671) lists GEOMETRYCOLLECTION and GEOMCOLLECTION alike, and
+		// SHOW CREATE TABLE prints geomcollection for both.
+		dt.Name = "GEOMETRYCOLLECTION"
+		p.advance()
 
 	// SERIAL → BIGINT UNSIGNED AUTO_INCREMENT UNIQUE
 	case kwSERIAL:

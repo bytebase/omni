@@ -56,6 +56,33 @@ What this cannot tell:
   tail before it runs that reduction's action. The grammar's actions raise
   almost nothing but 1064, which needs no probe.
 
+### Remaining `compat.tsv` disagreements (3 rows: `DO`)
+
+Three rows in `compat.tsv` disagree because `pl_expr_stmt: DO expr` in
+`sql_parser_mysql_mode.y` (line 779) aborts outside PL (`!is_pl_parse_`), while
+OceanBase's SQL layer rewrites SQL `DO expr_list` before or around the grammar
+and raises two different syntax errors on invalid `DO` forms that contradict
+under the `PREPARE` tail probe on `5.7.25-OceanBase_CE-v4.3.5.6`:
+
+- **Lines 603 (`stmt/pl_expr_stmt`) and 719 (`pl_expr_stmt/DO_expr`): `DO a`**
+  (`omni=accept`, `expected=reject`). Valid SQL `DO` expressions prepare and
+  execute (`DO 1`, `DO 1, 2`, `DO SLEEP(0)`, `DO @x := 1`, `DO @@version` all
+  answer `OK`), while `DO a` answers `1064 (42000): You have an error in your
+  SQL syntax; ... near 'a' at line 1` on both `PREPARE` and `EXEC`.
+- **Line 605 (`stmt/pl_expr_stmt!insert`): `DO a zzz`** (`omni=reject`,
+  `expected=accept`). Alone, `PREPARE` and `EXEC` of `DO a zzz` answer
+  `1149 (42000): You have an error in your SQL syntax; check the manual that
+  corresponds to your OceanBase version for the right syntax to use` (not 1064,
+  and with no `near` clause). When `compatJudge` appends `\n @@@ (((`,
+  `PREPARE` answers `1064 (42000): You have an error in your SQL syntax; ...
+  near 'a zzz\n @@@ (((' at line 1`, whose substring `(((` makes
+  `compat.PrepareVerdict` record `accept` even though the syntax error starts
+  at `a`, not at the probe tail.
+
+Because `DO` is valid SQL in OceanBase MySQL mode (`DO 1`) and `DO a`
+(`reject`) contradicts `DO a zzz` (`accept`), `parseDoStmt` keeps accepting SQL
+`DO expr_list` and rejecting `DO a zzz`, leaving these three rows documented.
+
 ### Statements that crash the server
 
 `SET ROLE ALL EXCEPT ALL` and `SET ROLE ALL EXCEPT ALL PRIVILEGES` crash

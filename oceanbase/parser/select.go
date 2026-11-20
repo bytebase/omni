@@ -31,7 +31,11 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 	}
 
 	recursive := false
-	if _, ok := p.match(kwRECURSIVE); ok {
+	// RECURSIVE is an unreserved_keyword in sql_parser_mysql_mode.y, so in
+	// `WITH RECURSIVE AS (...)` and `WITH RECURSIVE (c) AS (...)` it is the
+	// CTE's relation_name and not the modifier.
+	if p.cur.Type == kwRECURSIVE && !p.backtickQuotedAt(p.cur.Loc) && p.peekNext().Type != kwAS && p.peekNext().Type != '(' {
+		p.advance()
 		recursive = true
 	}
 
@@ -861,6 +865,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	// WHERE clause — MySQL allows WHERE without FROM (e.g., SELECT 1 WHERE 1=1)
 	if p.cur.Type == kwWHERE {
 		p.advance()
+		p.match(tokHintValue)
 		where, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1815,6 +1820,8 @@ func (p *Parser) parseOdbcTableReference() (nodes.TableExpr, error) {
 		inner.Loc.Start, inner.Loc.End = start, p.prev.End
 	case *nodes.RbIterateExpr:
 		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.TableCollectionExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
 	}
 	return inner, nil
 }
@@ -2006,6 +2013,11 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	// JSON_TABLE(expr, path COLUMNS (...)) [AS] alias
 	if p.cur.Type == kwJSON_TABLE && p.peekNext().Type == '(' {
 		return p.parseJsonTable()
+	}
+
+	// TABLE(simple_expr) [[AS] relation_name]
+	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
+		return p.parseTableCollection()
 	}
 
 	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
@@ -3142,6 +3154,8 @@ func tableExprLoc(te nodes.TableExpr) nodes.Loc {
 	case *nodes.RbIterateExpr:
 		return t.Loc
 	case *nodes.UnnestExpr:
+		return t.Loc
+	case *nodes.TableCollectionExpr:
 		return t.Loc
 	}
 	return nodes.NoLoc()

@@ -69,6 +69,16 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		b.WriteString(" ")
 		writeAnalyzedExpr(b, e.Arg, q)
 		b.WriteString("}")
+	case *LambdaExprQ:
+		writeLambdaExprQ(b, e, q)
+	case *LambdaParamExprQ:
+		b.WriteString(backtickIDQ(e.Name))
+	case *ResTargetExprQ:
+		writeAnalyzedExpr(b, e.Val, q)
+		if e.Name != "" {
+			b.WriteString(" as ")
+			b.WriteString(backtickIDQ(e.Name))
+		}
 	case *RawExprQ:
 		b.WriteString(e.Text)
 	default:
@@ -536,6 +546,39 @@ func isNumericLiteralQ(s string) bool {
 func isBoolLiteralQ(s string) bool {
 	upper := strings.ToUpper(s)
 	return upper == "TRUE" || upper == "FALSE"
+}
+
+func writeLambdaExprQ(b *strings.Builder, e *LambdaExprQ, q *deparseScope) {
+	if len(e.Params) == 1 {
+		b.WriteString(backtickIDQ(e.Params[0]))
+	} else {
+		b.WriteByte('(')
+		for i, p := range e.Params {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(p))
+		}
+		b.WriteByte(')')
+	}
+	b.WriteString(" -> ")
+	if needsLambdaBodyParens(e.Body) {
+		b.WriteByte('(')
+		writeAnalyzedExpr(b, e.Body, q)
+		b.WriteByte(')')
+		return
+	}
+	writeAnalyzedExpr(b, e.Body, q)
+}
+
+func needsLambdaBodyParens(e AnalyzedExpr) bool {
+	switch v := e.(type) {
+	case *InListExprQ, *LambdaExprQ:
+		return true
+	case *SubLinkExprQ:
+		return v.Kind == SubLinkIn
+	}
+	return false
 }
 
 // needsDocumentParens reports a JSON_VALUE document whose writer leaves it bare where the grammar

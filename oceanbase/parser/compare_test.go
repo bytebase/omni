@@ -1051,7 +1051,7 @@ func TestParseLiterals(t *testing.T) {
 		{"TRUE", "{BOOL_LIT :val true :loc 0}"},
 		{"FALSE", "{BOOL_LIT :val false :loc 0}"},
 		{"NULL", "{NULL_LIT :loc 0}"},
-		{"DEFAULT", "{DEFAULT :loc 0}"},
+		{"DEFAULT(a)", "{DEFAULT :loc 0 :col a}"},
 	}
 
 	for _, tt := range tests {
@@ -1929,7 +1929,7 @@ func TestParseDelete(t *testing.T) {
 	})
 
 	t.Run("modifiers", func(t *testing.T) {
-		stmt := parseDelete(t, "DELETE LOW_PRIORITY QUICK IGNORE FROM users WHERE id = 1")
+		stmt := parseDelete(t, "DELETE IGNORE LOW_PRIORITY QUICK FROM users WHERE id = 1")
 		if !stmt.LowPriority {
 			t.Error("expected LowPriority = true")
 		}

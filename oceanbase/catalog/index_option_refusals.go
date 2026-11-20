@@ -21,6 +21,11 @@ func checkIndexOptions(opts []*nodes.IndexOption, createIndex bool) error {
 				return &Error{Code: 4179, SQLState: "HY000", Message: "create index with index_table_id/data_table_id not allowed"}
 			}
 			return errIndexOptionNotSupported("specify " + strings.ToLower(strings.TrimSuffix(opt.Name, "_ID")) + " id not for restore purpose in create index")
+		case "VIRTUAL_COLUMN_ID":
+			if createIndex {
+				return &Error{Code: 1064, SQLState: "42000", Message: "Parse error"}
+			}
+			return errIndexOptionNotSupported("specify virtual column id not for restore purpose in create index")
 		case "STORAGE_CACHE_POLICY":
 			return errIndexOptionNotSupported("storage cache policy is not supported in shared storage mode")
 		}

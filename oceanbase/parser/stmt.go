@@ -276,6 +276,10 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume START
 
+	if _, ok := p.match(tokHintValue); ok {
+		return p.parseStartTransactionTail(start)
+	}
+
 	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
 		p.advance() // consume REPLICA or SLAVE
 		return p.parseStartReplicaStmt(start)

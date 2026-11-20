@@ -298,7 +298,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 			if _, err := p.expect('='); err != nil {
 				return nil, err
 			}
-			val, err := p.parseExpr()
+			val, err := p.parseExprOrDefault()
 			if err != nil {
 				return nil, err
 			}

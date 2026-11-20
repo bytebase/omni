@@ -269,6 +269,36 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  5031,
 			state: "HY000",
 		},
+		{
+			name:  "VIRTUAL_COLUMN_ID on a missing table",
+			stmt:  "ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1",
+			code:  1146,
+			state: "42S02",
+		},
+		{
+			name:  "VIRTUAL_COLUMN_ID on an added key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(b) VIRTUAL_COLUMN_ID 1",
+			code:  1235,
+			state: "0A000",
+		},
+		{
+			name:  "VIRTUAL_COLUMN_ID with equals on an added key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(b) VIRTUAL_COLUMN_ID = 1",
+			code:  1235,
+			state: "0A000",
+		},
+		{
+			name:  "a GEOMETRYCOLLECTION column added to a table",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a GEOMETRYCOLLECTION",
+		},
+		{
+			name:  "a GEOMCOLLECTION column added to a table",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a GEOMCOLLECTION",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
