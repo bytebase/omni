@@ -50,8 +50,9 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeCollationObjects(stmt)
 	case nodes.OBJECT_RULE:
 		return c.removeRuleObjects(stmt)
+	case nodes.OBJECT_OPERATOR:
+		return c.removeOperatorObjects(stmt)
 	case nodes.OBJECT_CONVERSION,
-		nodes.OBJECT_OPERATOR,
 		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
 		nodes.OBJECT_LANGUAGE,
@@ -1090,4 +1091,52 @@ func (c *Catalog) findRuleTargetRelation(schemaName, relName string) (*Relation,
 		}
 	}
 	return nil, false, errUndefinedTable(relName)
+}
+
+func (c *Catalog) removeOperatorObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var targets []*BuiltinOperator
+	dropOpOIDs := make(map[uint32]bool)
+	for _, item := range stmt.Objects.Items {
+		owa, ok := item.(*nodes.ObjectWithArgs)
+		if !ok || owa == nil {
+			continue
+		}
+		op, err := c.lookupUserOperator(owa)
+		if err != nil {
+			if (stmt.Missing_ok || c.snapshot) && missingObject(err) {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, "operator does not exist, skipping")
+				}
+				continue
+			}
+			return err
+		}
+		if c.isExtensionMember(op.OID) {
+			return errDependentObjects("extension", c.extensionMembers[op.OID])
+		}
+		if !dropOpOIDs[op.OID] {
+			dropOpOIDs[op.OID] = true
+			targets = append(targets, op)
+		}
+	}
+	if !cascade {
+		for _, op := range targets {
+			for _, dep := range c.findNormalDependents('O', op.OID) {
+				if !(dep.ObjType == 'O' && dropOpOIDs[dep.ObjOID]) {
+					return errDependentObjects("operator", op.Name)
+				}
+			}
+		}
+	}
+	for _, op := range targets {
+		if cascade {
+			c.dropDependents('O', op.OID)
+		}
+		c.removeOperator(op.OID)
+	}
+	return nil
 }

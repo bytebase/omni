@@ -4826,6 +4826,86 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c118From, c118To, Diff(c118From, c118To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c118From->c118To, got:\n%s", rem.SQL())
 		}
+
+		// Round 17 regressions:
+		// 1. ON CONFLICT ON CONSTRAINT binds the constraint by OID and tracks renames.
+		// 2. ON CONFLICT (col COLLATE ... opclass ...) preserves arbiter modifiers.
+		// 3. PREPARE rejects unresolved parameter types with 42P18.
+		// 4. NATURAL JOIN keys in stored rules are frozen at rule creation time.
+		// 5. USING and NATURAL join columns record column dependencies on both inputs.
+		// 6. Functional casts typename(expr) bind to the type OID and track renames/schema moves.
+		// 7. ORDER BY ... USING op binds the operator and records dependencies.
+		c119 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t1_r17 (id int, s text, CONSTRAINT uq_r17 UNIQUE (s))",
+			"CREATE TABLE t2_r17 (id int, s text)",
+			"CREATE TABLE dst_r17 (id int, s text)",
+			"CREATE DOMAIN dom_r17 AS text",
+			"CREATE FUNCTION cmp_lt_r17(int, int) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE OPERATOR <<< (LEFTARG = int, RIGHTARG = int, FUNCTION = cmp_lt_r17)",
+			"CREATE RULE r_using_dep_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO dst_r17 (id, s) SELECT 1, 'x' FROM t1_r17 JOIN t2_r17 USING (id) ORDER BY t1_r17.id USING <<<",
+		} {
+			if code := simulationCatalogCode(t, c119, stmt); code != "0" {
+				t.Fatalf("c119 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"PREPARE q_untyped_r17 AS SELECT ($1 IS NULL)", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_where_r17 AS SELECT 1 WHERE $1 IS NULL", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_gap_r17 AS SELECT $2", CodeIndeterminateDatatype},
+			{"PREPARE q_untyped_del_r17 AS DELETE FROM t1_r17 WHERE $1 IS NULL", CodeIndeterminateDatatype},
+			{"ALTER TABLE t2_r17 DROP COLUMN id RESTRICT", CodeDependentObjects},
+			{"DROP OPERATOR <<< (int, int) RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_sort_op_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO dst_r17 (id, s) SELECT id, s FROM t1_r17 ORDER BY id USING >>>", CodeUndefinedFunction},
+			{"CREATE RULE r_bad_con_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) VALUES (NEW.id, NEW.s) ON CONFLICT ON CONSTRAINT no_such_con DO NOTHING", CodeUndefinedObject},
+		} {
+			if got := simulationCatalogCode(t, c119, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c119From := New()
+		c119To := New()
+		for _, stmt := range []string{
+			"CREATE DOMAIN dom_r17_old AS text",
+			"CREATE TABLE t1_r17 (id int, s text, CONSTRAINT uq_r17_old UNIQUE (s))",
+			"CREATE TABLE t2_r17 (id int)",
+			"CREATE TABLE dst_r17 (id int, s text)",
+			`CREATE RULE r_r17 AS ON INSERT TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) SELECT id, dom_r17_old('v') FROM t1_r17 NATURAL JOIN t2_r17 ON CONFLICT ON CONSTRAINT uq_r17_old DO NOTHING`,
+			`CREATE RULE r_arb_r17 AS ON UPDATE TO t1_r17 DO ALSO INSERT INTO t1_r17 (id, s) VALUES (NEW.id, NEW.s) ON CONFLICT (s COLLATE "C" text_pattern_ops DESC NULLS FIRST) DO NOTHING`,
+			"ALTER DOMAIN dom_r17_old RENAME TO dom_r17_new",
+			"ALTER TABLE t1_r17 RENAME CONSTRAINT uq_r17_old TO uq_r17_new",
+			"ALTER TABLE t1_r17 ADD COLUMN extra int",
+			"ALTER TABLE t2_r17 ADD COLUMN extra int",
+		} {
+			if code := simulationCatalogCode(t, c119To, stmt); code != "0" {
+				t.Fatalf("c119To %s: %s", stmt, code)
+			}
+		}
+		mig119 := GenerateMigration(c119From, c119To, Diff(c119From, c119To))
+		sql119 := mig119.SQL()
+		for _, wantSubstr := range []string{
+			"dom_r17_new('v')",
+			"FROM t1_r17 JOIN t2_r17 USING (id)",
+			"ON CONFLICT ON CONSTRAINT uq_r17_new DO NOTHING",
+			`ON CONFLICT (s COLLATE "C" text_pattern_ops DESC NULLS FIRST) DO NOTHING`,
+		} {
+			if !strings.Contains(sql119, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql119)
+			}
+		}
+		if strings.Contains(sql119, "NATURAL") {
+			t.Fatalf("expected frozen USING instead of NATURAL in migration DDL, got:\n%s", sql119)
+		}
+		if code := simulationCatalogCode(t, c119From, sql119); code != "0" {
+			t.Fatalf("applying c119From->c119To failed with %s:\n%s", code, sql119)
+		}
+		if rem := GenerateMigration(c119From, c119To, Diff(c119From, c119To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c119From->c119To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

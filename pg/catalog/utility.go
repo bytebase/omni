@@ -369,17 +369,23 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			}
 			collectQueryParamTypes(q, paramTypes)
 			for i := range paramTypes {
-				if paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID {
-					paramTypes[i] = TEXTOID
+				if (paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID) && !c.snapshot {
+					return &Error{
+						Code:    CodeIndeterminateDatatype,
+						Message: fmt.Sprintf("could not determine data type of parameter $%d", i+1),
+					}
 				}
 			}
 		} else if s.Query != nil {
-			if err := c.validatePreparedDMLStmt(s.Query); err != nil {
+			if err := c.validatePreparedDMLStmt(s.Query, paramTypes); err != nil {
 				return err
 			}
 			for i := range paramTypes {
-				if paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID {
-					paramTypes[i] = TEXTOID
+				if (paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID) && !c.snapshot {
+					return &Error{
+						Code:    CodeIndeterminateDatatype,
+						Message: fmt.Sprintf("could not determine data type of parameter $%d", i+1),
+					}
 				}
 			}
 		}
@@ -443,6 +449,11 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 	if q == nil || len(paramTypes) == 0 {
 		return
 	}
+	setParamType := func(num int, typ uint32) {
+		if num > 0 && num <= len(paramTypes) && typ != 0 && typ != UNKNOWNOID && (paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID) {
+			paramTypes[num-1] = typ
+		}
+	}
 	var scanExpr func(e AnalyzedExpr)
 	scanExpr = func(e AnalyzedExpr) {
 		if e == nil {
@@ -451,10 +462,26 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 		WalkAnalyzedExpr(e, func(n AnalyzedExpr) bool {
 			switch v := n.(type) {
 			case *ParamExpr:
-				if v.ParamNum > 0 && v.ParamNum <= len(paramTypes) && v.ParamType != 0 && v.ParamType != UNKNOWNOID && paramTypes[v.ParamNum-1] == 0 {
-					paramTypes[v.ParamNum-1] = v.ParamType
+				setParamType(v.ParamNum, v.ParamType)
+			case *BoolExprQ:
+				for _, a := range v.Args {
+					if pe, ok := a.(*ParamExpr); ok {
+						setParamType(pe.ParamNum, BOOLOID)
+					}
+				}
+			case *BooleanTestExpr:
+				if pe, ok := v.Arg.(*ParamExpr); ok {
+					setParamType(pe.ParamNum, BOOLOID)
 				}
 			case *SubLinkExpr:
+				if pe, ok := v.TestExpr.(*ParamExpr); ok && v.SubQuery != nil {
+					for _, te := range v.SubQuery.TargetList {
+						if te != nil && !te.ResJunk && te.Expr != nil {
+							setParamType(pe.ParamNum, te.Expr.exprType())
+							break
+						}
+					}
+				}
 				scanExpr(v.TestExpr)
 				collectQueryParamTypes(v.SubQuery, paramTypes)
 				return false
@@ -462,13 +489,25 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 			return true
 		})
 	}
+	scanBoolQual := func(e AnalyzedExpr) {
+		if pe, ok := e.(*ParamExpr); ok {
+			setParamType(pe.ParamNum, BOOLOID)
+		}
+		scanExpr(e)
+	}
+	scanLimitExpr := func(e AnalyzedExpr) {
+		if pe, ok := e.(*ParamExpr); ok {
+			setParamType(pe.ParamNum, INT8OID)
+		}
+		scanExpr(e)
+	}
 	var scanJoin func(jn JoinNode)
 	scanJoin = func(jn JoinNode) {
 		switch j := jn.(type) {
 		case *JoinExprNode:
 			scanJoin(j.Left)
 			scanJoin(j.Right)
-			scanExpr(j.Quals)
+			scanBoolQual(j.Quals)
 		}
 	}
 	for _, cte := range q.CTEList {
@@ -481,6 +520,12 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 		for _, fe := range rte.FuncExprs {
 			scanExpr(fe)
 		}
+		if rte.Tablesample != nil {
+			for _, a := range rte.Tablesample.Args {
+				scanExpr(a)
+			}
+			scanExpr(rte.Tablesample.Repeatable)
+		}
 	}
 	for _, te := range q.TargetList {
 		scanExpr(te.Expr)
@@ -489,11 +534,17 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 		for _, fn := range q.JoinTree.FromList {
 			scanJoin(fn)
 		}
-		scanExpr(q.JoinTree.Quals)
+		scanBoolQual(q.JoinTree.Quals)
 	}
-	scanExpr(q.HavingQual)
-	scanExpr(q.LimitCount)
-	scanExpr(q.LimitOffset)
+	scanBoolQual(q.HavingQual)
+	scanLimitExpr(q.LimitCount)
+	scanLimitExpr(q.LimitOffset)
+	for _, wc := range q.WindowClause {
+		if wc != nil {
+			scanExpr(wc.StartOffset)
+			scanExpr(wc.EndOffset)
+		}
+	}
 	collectQueryParamTypes(q.LArg, paramTypes)
 	collectQueryParamTypes(q.RArg, paramTypes)
 }

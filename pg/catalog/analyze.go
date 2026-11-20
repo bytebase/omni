@@ -322,6 +322,8 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if !te.ResJunk && te.Expr.exprType() == UNKNOWNOID {
 			if c, ok := te.Expr.(*ConstExpr); ok {
 				c.TypeOID = TEXTOID
+			} else if p, ok := te.Expr.(*ParamExpr); ok {
+				p.ParamType = TEXTOID
 			}
 		}
 	}

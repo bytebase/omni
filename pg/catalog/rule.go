@@ -37,21 +37,36 @@ type ruleColDep struct {
 	attNum int16
 }
 
+type ruleJoinUsingCol struct {
+	name string
+	deps []ruleColDep
+}
+
 type ruleBindings struct {
-	ownerRelOID uint32
-	isOnSelect  bool
-	allowOld    bool
-	allowNew    bool
-	relByRV     map[*nodes.RangeVar]uint32
-	colByRef    map[*nodes.ColumnRef]ruleColBinding
-	colByRT     map[*nodes.ResTarget]ruleColBinding
-	typeByTN    map[*nodes.TypeName]ruleTypeBinding
-	collByCC    map[*nodes.CollateClause]uint32
-	funcByFC    map[*nodes.FuncCall]uint32
-	stmtCtx     map[*nodes.SelectStmt]*ruleEvalContext
+	ownerRelOID   uint32
+	isOnSelect    bool
+	allowOld      bool
+	allowNew      bool
+	relByRV       map[*nodes.RangeVar]uint32
+	colByRef      map[*nodes.ColumnRef]ruleColBinding
+	colByRT       map[*nodes.ResTarget]ruleColBinding
+	colByIE       map[*nodes.IndexElem]ruleColBinding
+	collByIE      map[*nodes.IndexElem]uint32
+	opcByIE       map[*nodes.IndexElem]uint32
+	conByInfer    map[*nodes.InferClause]uint32
+	typeByTN      map[*nodes.TypeName]ruleTypeBinding
+	collByCC      map[*nodes.CollateClause]uint32
+	funcByFC      map[*nodes.FuncCall]uint32
+	castTypeByFC  map[*nodes.FuncCall]uint32
+	operByList    map[*nodes.List]uint32
+	joinUsing     map[*nodes.JoinExpr][]ruleJoinUsingCol
+	naturalJoined map[*nodes.JoinExpr]bool
+	stmtCtx       map[*nodes.SelectStmt]*ruleEvalContext
 
 	relDeps  []uint32
 	colDeps  []ruleColDep
+	conDeps  []uint32
+	opcDeps  []uint32
 	seqDeps  []uint32
 	typeDeps []uint32
 	collDeps []uint32
@@ -60,6 +75,8 @@ type ruleBindings struct {
 
 	seenRel  map[uint32]bool
 	seenCol  map[ruleColDep]bool
+	seenCon  map[uint32]bool
+	seenOpc  map[uint32]bool
 	seenSeq  map[uint32]bool
 	seenType map[uint32]bool
 	seenColl map[uint32]bool
@@ -72,22 +89,33 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 		return nil
 	}
 	cp := &ruleBindings{
-		ownerRelOID: b.ownerRelOID,
-		allowOld:    b.allowOld,
-		allowNew:    b.allowNew,
-		relByRV:     make(map[*nodes.RangeVar]uint32, len(b.relByRV)),
-		colByRef:    make(map[*nodes.ColumnRef]ruleColBinding, len(b.colByRef)),
-		colByRT:     make(map[*nodes.ResTarget]ruleColBinding, len(b.colByRT)),
-		typeByTN:    make(map[*nodes.TypeName]ruleTypeBinding, len(b.typeByTN)),
-		collByCC:    make(map[*nodes.CollateClause]uint32, len(b.collByCC)),
-		funcByFC:    make(map[*nodes.FuncCall]uint32, len(b.funcByFC)),
-		relDeps:     append([]uint32(nil), b.relDeps...),
-		colDeps:     append([]ruleColDep(nil), b.colDeps...),
-		seqDeps:     append([]uint32(nil), b.seqDeps...),
-		typeDeps:    append([]uint32(nil), b.typeDeps...),
-		collDeps:    append([]uint32(nil), b.collDeps...),
-		funcDeps:    append([]uint32(nil), b.funcDeps...),
-		operDeps:    append([]uint32(nil), b.operDeps...),
+		ownerRelOID:   b.ownerRelOID,
+		isOnSelect:    b.isOnSelect,
+		allowOld:      b.allowOld,
+		allowNew:      b.allowNew,
+		relByRV:       make(map[*nodes.RangeVar]uint32, len(b.relByRV)),
+		colByRef:      make(map[*nodes.ColumnRef]ruleColBinding, len(b.colByRef)),
+		colByRT:       make(map[*nodes.ResTarget]ruleColBinding, len(b.colByRT)),
+		colByIE:       make(map[*nodes.IndexElem]ruleColBinding, len(b.colByIE)),
+		collByIE:      make(map[*nodes.IndexElem]uint32, len(b.collByIE)),
+		opcByIE:       make(map[*nodes.IndexElem]uint32, len(b.opcByIE)),
+		conByInfer:    make(map[*nodes.InferClause]uint32, len(b.conByInfer)),
+		typeByTN:      make(map[*nodes.TypeName]ruleTypeBinding, len(b.typeByTN)),
+		collByCC:      make(map[*nodes.CollateClause]uint32, len(b.collByCC)),
+		funcByFC:      make(map[*nodes.FuncCall]uint32, len(b.funcByFC)),
+		castTypeByFC:  make(map[*nodes.FuncCall]uint32, len(b.castTypeByFC)),
+		operByList:    make(map[*nodes.List]uint32, len(b.operByList)),
+		joinUsing:     make(map[*nodes.JoinExpr][]ruleJoinUsingCol, len(b.joinUsing)),
+		naturalJoined: make(map[*nodes.JoinExpr]bool, len(b.naturalJoined)),
+		relDeps:       append([]uint32(nil), b.relDeps...),
+		colDeps:       append([]ruleColDep(nil), b.colDeps...),
+		conDeps:       append([]uint32(nil), b.conDeps...),
+		opcDeps:       append([]uint32(nil), b.opcDeps...),
+		seqDeps:       append([]uint32(nil), b.seqDeps...),
+		typeDeps:      append([]uint32(nil), b.typeDeps...),
+		collDeps:      append([]uint32(nil), b.collDeps...),
+		funcDeps:      append([]uint32(nil), b.funcDeps...),
+		operDeps:      append([]uint32(nil), b.operDeps...),
 	}
 	for k, v := range b.relByRV {
 		cp.relByRV[k] = v
@@ -98,6 +126,18 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	for k, v := range b.colByRT {
 		cp.colByRT[k] = v
 	}
+	for k, v := range b.colByIE {
+		cp.colByIE[k] = v
+	}
+	for k, v := range b.collByIE {
+		cp.collByIE[k] = v
+	}
+	for k, v := range b.opcByIE {
+		cp.opcByIE[k] = v
+	}
+	for k, v := range b.conByInfer {
+		cp.conByInfer[k] = v
+	}
 	for k, v := range b.typeByTN {
 		cp.typeByTN[k] = v
 	}
@@ -106,6 +146,25 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	}
 	for k, v := range b.funcByFC {
 		cp.funcByFC[k] = v
+	}
+	for k, v := range b.castTypeByFC {
+		cp.castTypeByFC[k] = v
+	}
+	for k, v := range b.operByList {
+		cp.operByList[k] = v
+	}
+	for k, v := range b.joinUsing {
+		cpCols := make([]ruleJoinUsingCol, len(v))
+		for i, uc := range v {
+			cpCols[i] = ruleJoinUsingCol{
+				name: uc.name,
+				deps: append([]ruleColDep(nil), uc.deps...),
+			}
+		}
+		cp.joinUsing[k] = cpCols
+	}
+	for k, v := range b.naturalJoined {
+		cp.naturalJoined[k] = v
 	}
 	return cp
 }
@@ -128,6 +187,22 @@ func (b *ruleBindings) addColDep(relOID uint32, attNum int16) {
 	}
 	b.seenCol[key] = true
 	b.colDeps = append(b.colDeps, key)
+}
+
+func (b *ruleBindings) addConDep(oid uint32) {
+	if oid < FirstNormalObjectId || b.seenCon[oid] {
+		return
+	}
+	b.seenCon[oid] = true
+	b.conDeps = append(b.conDeps, oid)
+}
+
+func (b *ruleBindings) addOpcDep(oid uint32) {
+	if oid < FirstNormalObjectId || b.seenOpc[oid] {
+		return
+	}
+	b.seenOpc[oid] = true
+	b.opcDeps = append(b.opcDeps, oid)
 }
 
 func (b *ruleBindings) addSeqDep(oid uint32) {
@@ -265,6 +340,12 @@ func (c *Catalog) recordRuleDependencies(rule *Rule) {
 	}
 	for _, cd := range b.colDeps {
 		c.recordDependency('R', rule.OID, 0, 'r', cd.relOID, int32(cd.attNum), DepNormal)
+	}
+	for _, conOID := range b.conDeps {
+		c.recordDependency('R', rule.OID, 0, 'c', conOID, 0, DepNormal)
+	}
+	for _, opcOID := range b.opcDeps {
+		c.recordDependency('R', rule.OID, 0, 'q', opcOID, 0, DepNormal)
 	}
 	for _, seqOID := range b.seqDeps {
 		c.recordDependency('R', rule.OID, 0, 's', seqOID, 0, DepNormal)
@@ -455,24 +536,46 @@ func (c *Catalog) validateRuleReturningClauses(rel *Relation, s *nodes.RuleStmt)
 	return nil
 }
 
-func (c *Catalog) validatePreparedDMLStmt(n nodes.Node) error {
-	b := &ruleBindings{
-		relByRV:  make(map[*nodes.RangeVar]uint32),
-		colByRef: make(map[*nodes.ColumnRef]ruleColBinding),
-		colByRT:  make(map[*nodes.ResTarget]ruleColBinding),
-		typeByTN: make(map[*nodes.TypeName]ruleTypeBinding),
-		collByCC: make(map[*nodes.CollateClause]uint32),
-		funcByFC: make(map[*nodes.FuncCall]uint32),
-		stmtCtx:  make(map[*nodes.SelectStmt]*ruleEvalContext),
-		seenRel:  make(map[uint32]bool),
-		seenCol:  make(map[ruleColDep]bool),
-		seenSeq:  make(map[uint32]bool),
-		seenType: make(map[uint32]bool),
-		seenColl: make(map[uint32]bool),
-		seenFunc: make(map[uint32]bool),
-		seenOper: make(map[uint32]bool),
+func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
+	return &ruleBindings{
+		ownerRelOID:   ownerRelOID,
+		isOnSelect:    event == nodes.CMD_SELECT,
+		allowOld:      event == nodes.CMD_UPDATE || event == nodes.CMD_DELETE,
+		allowNew:      event == nodes.CMD_INSERT || event == nodes.CMD_UPDATE,
+		relByRV:       make(map[*nodes.RangeVar]uint32),
+		colByRef:      make(map[*nodes.ColumnRef]ruleColBinding),
+		colByRT:       make(map[*nodes.ResTarget]ruleColBinding),
+		colByIE:       make(map[*nodes.IndexElem]ruleColBinding),
+		collByIE:      make(map[*nodes.IndexElem]uint32),
+		opcByIE:       make(map[*nodes.IndexElem]uint32),
+		conByInfer:    make(map[*nodes.InferClause]uint32),
+		typeByTN:      make(map[*nodes.TypeName]ruleTypeBinding),
+		collByCC:      make(map[*nodes.CollateClause]uint32),
+		funcByFC:      make(map[*nodes.FuncCall]uint32),
+		castTypeByFC:  make(map[*nodes.FuncCall]uint32),
+		operByList:    make(map[*nodes.List]uint32),
+		joinUsing:     make(map[*nodes.JoinExpr][]ruleJoinUsingCol),
+		naturalJoined: make(map[*nodes.JoinExpr]bool),
+		stmtCtx:       make(map[*nodes.SelectStmt]*ruleEvalContext),
+		seenRel:       make(map[uint32]bool),
+		seenCol:       make(map[ruleColDep]bool),
+		seenCon:       make(map[uint32]bool),
+		seenOpc:       make(map[uint32]bool),
+		seenSeq:       make(map[uint32]bool),
+		seenType:      make(map[uint32]bool),
+		seenColl:      make(map[uint32]bool),
+		seenFunc:      make(map[uint32]bool),
+		seenOper:      make(map[uint32]bool),
 	}
-	return c.bindRuleStmt(b, n, &ruleEvalContext{})
+}
+
+func (c *Catalog) validatePreparedDMLStmt(n nodes.Node, paramTypes []uint32) error {
+	b := newRuleBindings(0, 0)
+	if err := c.bindRuleStmt(b, n, &ruleEvalContext{}); err != nil {
+		return err
+	}
+	c.inferPreparedDMLParamTypes(b, n, paramTypes)
+	return nil
 }
 
 // renameRule handles ALTER RULE name ON table RENAME TO new_name.
@@ -546,26 +649,7 @@ type ruleEvalContext struct {
 }
 
 func (c *Catalog) buildRuleBindings(ownerRel *Relation, event nodes.CmdType, whereClause nodes.Node, actions *nodes.List) (*ruleBindings, error) {
-	b := &ruleBindings{
-		ownerRelOID: ownerRel.OID,
-		isOnSelect:  event == nodes.CMD_SELECT,
-		allowOld:    event == nodes.CMD_UPDATE || event == nodes.CMD_DELETE,
-		allowNew:    event == nodes.CMD_INSERT || event == nodes.CMD_UPDATE,
-		relByRV:     make(map[*nodes.RangeVar]uint32),
-		colByRef:    make(map[*nodes.ColumnRef]ruleColBinding),
-		colByRT:     make(map[*nodes.ResTarget]ruleColBinding),
-		typeByTN:    make(map[*nodes.TypeName]ruleTypeBinding),
-		collByCC:    make(map[*nodes.CollateClause]uint32),
-		funcByFC:    make(map[*nodes.FuncCall]uint32),
-		stmtCtx:     make(map[*nodes.SelectStmt]*ruleEvalContext),
-		seenRel:     make(map[uint32]bool),
-		seenCol:     make(map[ruleColDep]bool),
-		seenSeq:     make(map[uint32]bool),
-		seenType:    make(map[uint32]bool),
-		seenColl:    make(map[uint32]bool),
-		seenFunc:    make(map[uint32]bool),
-		seenOper:    make(map[uint32]bool),
-	}
+	b := newRuleBindings(ownerRel.OID, event)
 	if whereClause != nil {
 		if err := c.bindRuleExpr(b, whereClause, &ruleEvalContext{}); err != nil {
 			return nil, err
@@ -950,6 +1034,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				ctx.usingCols = make(map[string]int)
 			}
 			seenUsing := make(map[string]bool)
+			var usingBindings []ruleJoinUsingCol
 			for _, u := range v.UsingClause.Items {
 				uCol := stringVal(u)
 				if uCol == "" {
@@ -960,20 +1045,46 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 						return errUndefinedColumn(uCol)
 					}
 				}
+				lDeps := c.resolveTableRefColDeps(b, v.Larg, ctx, uCol)
+				rDeps := c.resolveTableRefColDeps(b, v.Rarg, ctx, uCol)
+				usingBindings = append(usingBindings, ruleJoinUsingCol{
+					name: uCol,
+					deps: append(lDeps, rDeps...),
+				})
 				if len(aliasCols) == 0 && !seenUsing[uCol] {
 					seenUsing[uCol] = true
 					ctx.usingCols[uCol]++
 				}
+			}
+			if b != nil && b.joinUsing != nil {
+				b.joinUsing[v] = usingBindings
 			}
 		} else if v.IsNatural {
 			if ctx.usingCols == nil {
 				ctx.usingCols = make(map[string]int)
 			}
 			seenNat := make(map[string]bool)
+			var usingBindings []ruleJoinUsingCol
 			for _, lc := range lCols {
-				if lc != "" && stringSliceContains(rCols, lc) && len(aliasCols) == 0 && !seenNat[lc] {
+				if lc != "" && stringSliceContains(rCols, lc) && !seenNat[lc] {
 					seenNat[lc] = true
-					ctx.usingCols[lc]++
+					lDeps := c.resolveTableRefColDeps(b, v.Larg, ctx, lc)
+					rDeps := c.resolveTableRefColDeps(b, v.Rarg, ctx, lc)
+					usingBindings = append(usingBindings, ruleJoinUsingCol{
+						name: lc,
+						deps: append(lDeps, rDeps...),
+					})
+					if len(aliasCols) == 0 {
+						ctx.usingCols[lc]++
+					}
+				}
+			}
+			if b != nil && !lAny && !rAny {
+				if b.naturalJoined != nil {
+					b.naturalJoined[v] = true
+				}
+				if b.joinUsing != nil {
+					b.joinUsing[v] = usingBindings
 				}
 			}
 		}
@@ -1090,6 +1201,51 @@ func stringSliceContains(xs []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func (c *Catalog) resolveTableRefColDeps(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext, colName string) []ruleColDep {
+	if n == nil || ctx == nil || colName == "" {
+		return nil
+	}
+	switch v := n.(type) {
+	case *nodes.RangeVar:
+		if v == nil {
+			return nil
+		}
+		name := v.Relname
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			name = v.Alias.Aliasname
+		}
+		se, ok := ctx.scope[name]
+		if !ok || se.isVirtual {
+			return nil
+		}
+		rel := c.relationByOID[se.relOID]
+		if rel == nil {
+			return nil
+		}
+		if attNum, found := resolveScopeColumn(rel, se, colName); found {
+			b.addColDep(se.relOID, attNum)
+			if len(se.colAliases) == 0 {
+				return []ruleColDep{{relOID: se.relOID, attNum: attNum}}
+			}
+		}
+	case *nodes.RangeTableSample:
+		return c.resolveTableRefColDeps(b, v.Relation, ctx, colName)
+	case *nodes.JoinExpr:
+		if v.Alias != nil && v.Alias.Aliasname != "" && len(extractAliasColnames(v.Alias)) > 0 {
+			if se, ok := ctx.scope[v.Alias.Aliasname]; ok {
+				for _, rOID := range se.joinRels {
+					recordAllRelColumnDeps(c, b, rOID)
+				}
+			}
+			return nil
+		}
+		lDeps := c.resolveTableRefColDeps(b, v.Larg, ctx, colName)
+		rDeps := c.resolveTableRefColDeps(b, v.Rarg, ctx, colName)
+		return append(lDeps, rDeps...)
+	}
+	return nil
 }
 
 func combineJoinCols(lCols, rCols []string, usingClause *nodes.List, isNatural bool) []string {
@@ -1833,26 +1989,95 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		if s.OnConflictClause != nil {
 			oc := s.OnConflictClause
 			if oc.Infer != nil {
-				if oc.Infer.IndexElems != nil && targetOID != 0 {
+				if oc.Infer.Conname != "" && targetOID != 0 {
+					var matchedCon *Constraint
+					for _, con := range c.consByRel[targetOID] {
+						if con != nil && con.Name == oc.Infer.Conname {
+							matchedCon = con
+							break
+						}
+					}
+					relName := ""
 					if rel := c.relationByOID[targetOID]; rel != nil {
-						for _, ie := range oc.Infer.IndexElems.Items {
-							elem, ok := ie.(*nodes.IndexElem)
-							if !ok {
-								continue
+						relName = rel.Name
+					}
+					if matchedCon == nil {
+						if !c.snapshot {
+							return &Error{
+								Code:    CodeUndefinedObject,
+								Message: fmt.Sprintf("constraint %q for table %q does not exist", oc.Infer.Conname, relName),
 							}
-							if elem.Name != "" {
-								idx, exists := rel.colByName[elem.Name]
-								if !exists {
-									if !c.snapshot {
-										return errUndefinedColumn(elem.Name)
-									}
-								} else {
-									b.addColDep(targetOID, rel.Columns[idx].AttNum)
+						}
+					} else {
+						if matchedCon.Type != ConstraintPK && matchedCon.Type != ConstraintUnique && matchedCon.Type != ConstraintExclude && !c.snapshot {
+							return &Error{
+								Code:    CodeInvalidObjectDefinition,
+								Message: fmt.Sprintf("constraint %q for table %q is not a unique, primary key, or exclusion constraint", oc.Infer.Conname, relName),
+							}
+						}
+						b.conByInfer[oc.Infer] = matchedCon.OID
+						b.addConDep(matchedCon.OID)
+					}
+				}
+				if oc.Infer.IndexElems != nil {
+					var rel *Relation
+					if targetOID != 0 {
+						rel = c.relationByOID[targetOID]
+					}
+					am := c.accessMethodByName["btree"]
+					for _, ie := range oc.Infer.IndexElems.Items {
+						elem, ok := ie.(*nodes.IndexElem)
+						if !ok || elem == nil {
+							continue
+						}
+						var colTypeOID uint32
+						if elem.Name != "" && rel != nil {
+							idx, exists := rel.colByName[elem.Name]
+							if !exists {
+								if !c.snapshot {
+									return errUndefinedColumn(elem.Name)
 								}
+							} else {
+								attNum := rel.Columns[idx].AttNum
+								colTypeOID = rel.Columns[idx].TypeOID
+								b.colByIE[elem] = ruleColBinding{relOID: targetOID, attNum: attNum}
+								b.addColDep(targetOID, attNum)
 							}
-							if elem.Expr != nil {
-								if err := c.bindRuleExpr(b, elem.Expr, ctx); err != nil {
+						}
+						if elem.Expr != nil {
+							if err := c.bindRuleExpr(b, elem.Expr, ctx); err != nil {
+								return err
+							}
+						}
+						if elem.Collation != nil && len(elem.Collation.Items) > 0 {
+							_, uid, err := c.resolveCollationList(elem.Collation)
+							if err != nil {
+								if !c.snapshot {
 									return err
+								}
+							} else if uid != 0 {
+								b.collByIE[elem] = uid
+								b.addCollDep(uid)
+							}
+						}
+						if elem.Opclass != nil && len(elem.Opclass.Items) > 0 {
+							var opClassParts []string
+							for _, part := range elem.Opclass.Items {
+								opClassParts = append(opClassParts, stringVal(part))
+							}
+							ref := opClassRef{
+								schema:  strings.Join(opClassParts[:len(opClassParts)-1], "."),
+								name:    opClassParts[len(opClassParts)-1],
+								typeOID: colTypeOID,
+							}
+							if err := c.validateIndexOpClass(ref, am, elem.Opclassopts); err != nil {
+								if !c.snapshot {
+									return err
+								}
+							} else if am != nil {
+								if opcOID := c.resolveOpClassOID(ref, am.OID); opcOID >= FirstNormalObjectId {
+									b.opcByIE[elem] = opcOID
+									b.addOpcDep(opcOID)
 								}
 							}
 						}
@@ -2102,15 +2327,91 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 	return nil
 }
 
-func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ruleEvalContext) error {
-	if s.SortClause != nil {
-		for _, item := range s.SortClause.Items {
-			if sb, ok := item.(*nodes.SortBy); ok {
-				if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
-					return err
+func (c *Catalog) bindRuleSortClause(b *ruleBindings, list *nodes.List, ctx *ruleEvalContext) error {
+	if list == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		sb, ok := item.(*nodes.SortBy)
+		if !ok || sb == nil {
+			continue
+		}
+		if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
+			return err
+		}
+		if sb.SortbyDir == nodes.SORTBY_USING && sb.UseOp != nil {
+			if err := c.bindRuleOperatorName(b, sb.UseOp, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) bindRuleOperatorName(b *ruleBindings, opNameList *nodes.List, requireExists bool) error {
+	if opNameList == nil || len(opNameList.Items) == 0 {
+		return nil
+	}
+	opSchema, opName := qualifiedName(opNameList)
+	if opName == "" {
+		return nil
+	}
+	if opSchema != "" && c.schemaByName[opSchema] == nil && !c.snapshot {
+		return errUndefinedSchema(opSchema)
+	}
+	var searchNS []uint32
+	if opSchema != "" {
+		if s := c.schemaByName[opSchema]; s != nil {
+			searchNS = []uint32{s.OID}
+		}
+	} else {
+		searchNS = c.searchPathWithCatalog()
+	}
+	foundAny := false
+	var firstUserOID uint32
+	for _, nsOID := range searchNS {
+		for oid, op := range c.operByOID {
+			if op.Name != opName {
+				continue
+			}
+			opNS := uint32(PGCatalogNamespace)
+			if oid >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[oid]
+			}
+			if opNS != nsOID {
+				continue
+			}
+			foundAny = true
+			if oid >= FirstNormalObjectId {
+				if firstUserOID == 0 {
+					firstUserOID = oid
+				}
+				b.addOperDep(oid)
+				if op.Code >= FirstNormalObjectId {
+					b.addFuncDep(op.Code)
 				}
 			}
 		}
+	}
+	if firstUserOID != 0 && b != nil && b.operByList != nil {
+		b.operByList[opNameList] = firstUserOID
+	}
+	if requireExists && !foundAny && !c.snapshot {
+		shown := opName
+		if opSchema != "" {
+			shown = opSchema + "." + opName
+		}
+		return &Error{
+			Code:    CodeUndefinedFunction,
+			Message: fmt.Sprintf("operator does not exist: %s", shown),
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ruleEvalContext) error {
+	if err := c.bindRuleSortClause(b, s.SortClause, ctx); err != nil {
+		return err
 	}
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
@@ -2150,14 +2451,8 @@ func (c *Catalog) bindWindowDef(b *ruleBindings, wd *nodes.WindowDef, ctx *ruleE
 			}
 		}
 	}
-	if wd.OrderClause != nil {
-		for _, item := range wd.OrderClause.Items {
-			if sb, ok := item.(*nodes.SortBy); ok {
-				if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
-					return err
-				}
-			}
-		}
+	if err := c.bindRuleSortClause(b, wd.OrderClause, ctx); err != nil {
+		return err
 	}
 	if err := c.bindRuleExpr(b, wd.StartOffset, ctx); err != nil {
 		return err
@@ -2524,14 +2819,8 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				}
 			}
 		}
-		if v.AggOrder != nil {
-			for _, item := range v.AggOrder.Items {
-				if sb, ok := item.(*nodes.SortBy); ok {
-					if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
-						return err
-					}
-				}
-			}
+		if err := c.bindRuleSortClause(b, v.AggOrder, ctx); err != nil {
+			return err
 		}
 		if err := c.bindRuleExpr(b, v.AggFilter, ctx); err != nil {
 			return err
@@ -2581,24 +2870,8 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 			return err
 		}
 		if v.Name != nil && (v.Kind == nodes.AEXPR_OP || v.Kind == nodes.AEXPR_OP_ANY || v.Kind == nodes.AEXPR_OP_ALL) {
-			opSchema, opName := qualifiedName(v.Name)
-			if opSchema != "" && c.schemaByName[opSchema] == nil && !c.snapshot {
-				return errUndefinedSchema(opSchema)
-			}
-			for oid, op := range c.operByOID {
-				if oid < FirstNormalObjectId || op.Name != opName {
-					continue
-				}
-				if opSchema != "" {
-					nsOID := c.operatorSchemas[oid]
-					if s := c.schemas[nsOID]; s == nil || s.Name != opSchema {
-						continue
-					}
-				}
-				b.addOperDep(oid)
-				if op.Code >= FirstNormalObjectId {
-					b.addFuncDep(op.Code)
-				}
+			if err := c.bindRuleOperatorName(b, v.Name, false); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -2671,6 +2944,11 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 	case *nodes.SubLink:
 		if err := c.bindRuleExpr(b, v.Testexpr, ctx); err != nil {
 			return err
+		}
+		if v.OperName != nil {
+			if err := c.bindRuleOperatorName(b, v.OperName, false); err != nil {
+				return err
+			}
 		}
 		subCtx := &ruleEvalContext{}
 		if ctx != nil {
@@ -2922,14 +3200,8 @@ func (c *Catalog) bindRuleJsonAggConstructor(b *ruleBindings, ac *nodes.JsonAggC
 	if ac == nil {
 		return nil
 	}
-	if ac.Agg_order != nil {
-		for _, item := range ac.Agg_order.Items {
-			if sb, ok := item.(*nodes.SortBy); ok {
-				if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
-					return err
-				}
-			}
-		}
+	if err := c.bindRuleSortClause(b, ac.Agg_order, ctx); err != nil {
+		return err
 	}
 	if err := c.bindRuleExpr(b, ac.Agg_filter, ctx); err != nil {
 		return err
@@ -3029,6 +3301,9 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 				if bt.Elem != 0 {
 					elemOID = bt.Elem
 				}
+				if b.castTypeByFC != nil {
+					b.castTypeByFC[v] = elemOID
+				}
 				b.addTypeDep(elemOID)
 				return nil
 			}
@@ -3101,6 +3376,363 @@ func (d *ruleDeparser) resolveBoundColName(cb ruleColBinding, fallback string) s
 		}
 	}
 	return fallback
+}
+
+func (d *ruleDeparser) resolveJoinUsingColName(uc ruleJoinUsingCol) string {
+	for _, dep := range uc.deps {
+		if name := d.resolveBoundColName(ruleColBinding{relOID: dep.relOID, attNum: dep.attNum}, ""); name != "" {
+			return name
+		}
+	}
+	return uc.name
+}
+
+func (d *ruleDeparser) deparseIndexElem(elem *nodes.IndexElem) string {
+	if elem == nil {
+		return ""
+	}
+	var b strings.Builder
+	if elem.Name != "" {
+		colName := elem.Name
+		if d.b != nil {
+			if cb, ok := d.b.colByIE[elem]; ok {
+				colName = d.resolveBoundColName(cb, colName)
+			}
+		}
+		b.WriteString(quoteIdentifier(colName))
+	} else if elem.Expr != nil {
+		b.WriteString("(")
+		b.WriteString(d.deparseExpr(elem.Expr))
+		b.WriteString(")")
+	}
+	if elem.Collation != nil && len(elem.Collation.Items) > 0 {
+		collSQL := deparseQualifiedIdentList(elem.Collation)
+		if d.cat != nil && d.b != nil {
+			if uid, ok := d.b.collByIE[elem]; ok && uid != 0 {
+				for _, s := range d.cat.schemas {
+					if s == nil {
+						continue
+					}
+					for _, uc := range s.Collations {
+						if uc != nil && uc.OID == uid {
+							if s.Name != "public" && s.Name != "pg_catalog" {
+								collSQL = quoteIdentifier(s.Name) + "." + quoteIdentifier(uc.Name)
+							} else {
+								collSQL = quoteIdentifier(uc.Name)
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+		b.WriteString(" COLLATE ")
+		b.WriteString(collSQL)
+	}
+	if elem.Opclass != nil && len(elem.Opclass.Items) > 0 {
+		opcSQL := deparseFuncNameList(elem.Opclass)
+		if d.cat != nil && d.b != nil {
+			if opcOID, ok := d.b.opcByIE[elem]; ok && opcOID != 0 {
+				if opc := d.cat.opClasses[opcOID]; opc != nil {
+					if sc := d.cat.schemas[opc.Schema]; sc != nil && (len(elem.Opclass.Items) > 1 || (sc.Name != "public" && sc.Name != "pg_catalog")) {
+						opcSQL = quoteIdentifier(sc.Name) + "." + quoteIdentifier(opc.Name)
+					} else {
+						opcSQL = quoteIdentifier(opc.Name)
+					}
+				}
+			}
+		}
+		b.WriteString(" ")
+		b.WriteString(opcSQL)
+		if elem.Opclassopts != nil && len(elem.Opclassopts.Items) > 0 {
+			b.WriteString(" (")
+			var optParts []string
+			for _, item := range elem.Opclassopts.Items {
+				if de, ok := item.(*nodes.DefElem); ok && de != nil {
+					if de.Arg != nil {
+						optParts = append(optParts, quoteIdentifier(de.Defname)+" = "+d.deparseDefElemArg(de.Arg))
+					} else {
+						optParts = append(optParts, quoteIdentifier(de.Defname))
+					}
+				}
+			}
+			b.WriteString(strings.Join(optParts, ", "))
+			b.WriteString(")")
+		}
+	}
+	switch elem.Ordering {
+	case nodes.SORTBY_ASC:
+		b.WriteString(" ASC")
+	case nodes.SORTBY_DESC:
+		b.WriteString(" DESC")
+	}
+	switch elem.NullsOrdering {
+	case nodes.SORTBY_NULLS_FIRST:
+		b.WriteString(" NULLS FIRST")
+	case nodes.SORTBY_NULLS_LAST:
+		b.WriteString(" NULLS LAST")
+	}
+	return b.String()
+}
+
+func (d *ruleDeparser) deparseDefElemArg(n nodes.Node) string {
+	switch v := n.(type) {
+	case *nodes.String:
+		return v.Str
+	case *nodes.Integer, *nodes.Float, *nodes.Boolean, *nodes.BitString:
+		return deparseRawConstVal(v)
+	case *nodes.TypeName:
+		return d.deparseTypeName(v)
+	default:
+		return d.deparseExpr(n)
+	}
+}
+
+func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, paramTypes []uint32) {
+	if len(paramTypes) == 0 || n == nil {
+		return
+	}
+	setParam := func(num int, typ uint32) {
+		if num > 0 && num <= len(paramTypes) && typ != 0 && typ != UNKNOWNOID && (paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID) {
+			paramTypes[num-1] = typ
+		}
+	}
+	resolveExprType := func(expr nodes.Node) uint32 {
+		switch ev := expr.(type) {
+		case *nodes.ColumnRef:
+			if b != nil {
+				if cb, ok := b.colByRef[ev]; ok && cb.relOID != 0 {
+					if rel := c.relationByOID[cb.relOID]; rel != nil {
+						for _, col := range rel.Columns {
+							if col.AttNum == cb.attNum {
+								return col.TypeOID
+							}
+						}
+					}
+				}
+			}
+		case *nodes.TypeCast:
+			if ev.TypeName != nil {
+				if oid, _, err := c.resolveTypeName(ev.TypeName); err == nil {
+					return oid
+				}
+			}
+		case *nodes.A_Const:
+			if !ev.Isnull {
+				switch ev.Val.(type) {
+				case *nodes.Integer:
+					return INT4OID
+				case *nodes.Float:
+					return NUMERICOID
+				case *nodes.Boolean:
+					return BOOLOID
+				case *nodes.String:
+					return TEXTOID
+				}
+			}
+		}
+		return 0
+	}
+	var walkExpr func(expr nodes.Node, expectedType uint32)
+	walkExpr = func(expr nodes.Node, expectedType uint32) {
+		if expr == nil {
+			return
+		}
+		switch ev := expr.(type) {
+		case *nodes.ParamRef:
+			setParam(ev.Number, expectedType)
+		case *nodes.TypeCast:
+			var castOID uint32
+			if ev.TypeName != nil {
+				castOID, _, _ = c.resolveTypeName(ev.TypeName)
+			}
+			walkExpr(ev.Arg, castOID)
+		case *nodes.CollateClause:
+			walkExpr(ev.Arg, expectedType)
+		case *nodes.A_Expr:
+			lType := resolveExprType(ev.Lexpr)
+			rType := resolveExprType(ev.Rexpr)
+			walkExpr(ev.Lexpr, rType)
+			if list, ok := ev.Rexpr.(*nodes.List); ok {
+				for _, item := range list.Items {
+					walkExpr(item, lType)
+				}
+			} else {
+				walkExpr(ev.Rexpr, lType)
+			}
+		case *nodes.BoolExpr:
+			if ev.Args != nil {
+				for _, item := range ev.Args.Items {
+					walkExpr(item, BOOLOID)
+				}
+			}
+		case *nodes.BooleanTest:
+			walkExpr(ev.Arg, BOOLOID)
+		case *nodes.NullTest:
+			walkExpr(ev.Arg, 0)
+		case *nodes.CoalesceExpr:
+			if ev.Args != nil {
+				var common uint32
+				for _, item := range ev.Args.Items {
+					if t := resolveExprType(item); t != 0 {
+						common = t
+						break
+					}
+				}
+				if common == 0 {
+					common = expectedType
+				}
+				for _, item := range ev.Args.Items {
+					walkExpr(item, common)
+				}
+			}
+		case *nodes.FuncCall:
+			if ev.Args != nil {
+				_, fName := qualifiedName(ev.Funcname)
+				var argTypes []uint32
+				for _, p := range c.procByName[fName] {
+					if int(p.NArgs) == len(ev.Args.Items) {
+						argTypes = p.ArgTypes
+						break
+					}
+				}
+				for i, arg := range ev.Args.Items {
+					var at uint32
+					if i < len(argTypes) {
+						at = argTypes[i]
+					}
+					walkExpr(arg, at)
+				}
+			}
+		}
+	}
+	targetColType := func(rt *nodes.ResTarget, rel *Relation) uint32 {
+		if rt == nil || rel == nil {
+			return 0
+		}
+		if idx, ok := rel.colByName[rt.Name]; ok {
+			return rel.Columns[idx].TypeOID
+		}
+		return 0
+	}
+	switch s := n.(type) {
+	case *nodes.InsertStmt:
+		var rel *Relation
+		if b != nil && s.Relation != nil {
+			rel = c.relationByOID[b.relByRV[s.Relation]]
+		}
+		var colTypes []uint32
+		if rel != nil {
+			if s.Cols != nil && len(s.Cols.Items) > 0 {
+				for _, item := range s.Cols.Items {
+					if rt, ok := item.(*nodes.ResTarget); ok {
+						colTypes = append(colTypes, targetColType(rt, rel))
+					}
+				}
+			} else {
+				for _, col := range rel.Columns {
+					colTypes = append(colTypes, col.TypeOID)
+				}
+			}
+		}
+		if sel, ok := s.SelectStmt.(*nodes.SelectStmt); ok && sel != nil {
+			if sel.ValuesLists != nil {
+				for _, rowNode := range sel.ValuesLists.Items {
+					if row, ok := rowNode.(*nodes.List); ok {
+						for i, cell := range row.Items {
+							var ct uint32
+							if i < len(colTypes) {
+								ct = colTypes[i]
+							}
+							walkExpr(cell, ct)
+						}
+					}
+				}
+			} else {
+				if sel.TargetList != nil {
+					for i, item := range sel.TargetList.Items {
+						if rt, ok := item.(*nodes.ResTarget); ok {
+							var ct uint32
+							if i < len(colTypes) {
+								ct = colTypes[i]
+							}
+							walkExpr(rt.Val, ct)
+						}
+					}
+				}
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
+					collectQueryParamTypes(q, paramTypes)
+				}
+			}
+		}
+		if s.OnConflictClause != nil && rel != nil {
+			if s.OnConflictClause.TargetList != nil {
+				for _, item := range s.OnConflictClause.TargetList.Items {
+					if rt, ok := item.(*nodes.ResTarget); ok {
+						walkExpr(rt.Val, targetColType(rt, rel))
+					}
+				}
+			}
+			walkExpr(s.OnConflictClause.WhereClause, BOOLOID)
+		}
+	case *nodes.UpdateStmt:
+		var rel *Relation
+		if b != nil && s.Relation != nil {
+			rel = c.relationByOID[b.relByRV[s.Relation]]
+		}
+		if s.TargetList != nil {
+			for _, item := range s.TargetList.Items {
+				if rt, ok := item.(*nodes.ResTarget); ok {
+					walkExpr(rt.Val, targetColType(rt, rel))
+				}
+			}
+		}
+		walkExpr(s.WhereClause, BOOLOID)
+	case *nodes.DeleteStmt:
+		walkExpr(s.WhereClause, BOOLOID)
+	case *nodes.MergeStmt:
+		var rel *Relation
+		if b != nil && s.Relation != nil {
+			rel = c.relationByOID[b.relByRV[s.Relation]]
+		}
+		walkExpr(s.JoinCondition, BOOLOID)
+		if s.MergeWhenClauses != nil {
+			for _, item := range s.MergeWhenClauses.Items {
+				mwc, ok := item.(*nodes.MergeWhenClause)
+				if !ok || mwc == nil {
+					continue
+				}
+				walkExpr(mwc.Condition, BOOLOID)
+				if mwc.CommandType == nodes.CMD_INSERT && mwc.Values != nil && rel != nil {
+					var colTypes []uint32
+					if mwc.TargetList != nil && len(mwc.TargetList.Items) > 0 {
+						for _, tlItem := range mwc.TargetList.Items {
+							if rt, ok := tlItem.(*nodes.ResTarget); ok {
+								colTypes = append(colTypes, targetColType(rt, rel))
+							}
+						}
+					} else {
+						for _, col := range rel.Columns {
+							colTypes = append(colTypes, col.TypeOID)
+						}
+					}
+					for i, valExpr := range mwc.Values.Items {
+						var ct uint32
+						if i < len(colTypes) {
+							ct = colTypes[i]
+						}
+						walkExpr(valExpr, ct)
+					}
+				} else if mwc.CommandType == nodes.CMD_UPDATE && mwc.TargetList != nil && rel != nil {
+					for _, tlItem := range mwc.TargetList.Items {
+						if rt, ok := tlItem.(*nodes.ResTarget); ok {
+							walkExpr(rt.Val, targetColType(rt, rel))
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func (d *ruleDeparser) deparseActionStmt(n nodes.Node) string {
@@ -3414,22 +4046,24 @@ func (d *ruleDeparser) deparseInsertStmt(s *nodes.InsertStmt) string {
 		b.WriteString(" ON CONFLICT")
 		if oc.Infer != nil {
 			if oc.Infer.Conname != "" {
+				conName := oc.Infer.Conname
+				if d.cat != nil && d.b != nil {
+					if conOID, ok := d.b.conByInfer[oc.Infer]; ok && conOID != 0 {
+						if con := d.cat.constraints[conOID]; con != nil && con.Name != "" {
+							conName = con.Name
+						}
+					}
+				}
 				b.WriteString(" ON CONSTRAINT ")
-				b.WriteString(quoteIdentifier(oc.Infer.Conname))
+				b.WriteString(quoteIdentifier(conName))
 			} else if oc.Infer.IndexElems != nil && len(oc.Infer.IndexElems.Items) > 0 {
 				b.WriteString(" (")
 				for i, ie := range oc.Infer.IndexElems.Items {
 					if i > 0 {
 						b.WriteString(", ")
 					}
-					if elem, ok := ie.(*nodes.IndexElem); ok {
-						if elem.Name != "" {
-							b.WriteString(quoteIdentifier(elem.Name))
-						} else if elem.Expr != nil {
-							b.WriteString("(")
-							b.WriteString(d.deparseExpr(elem.Expr))
-							b.WriteString(")")
-						}
+					if elem, ok := ie.(*nodes.IndexElem); ok && elem != nil {
+						b.WriteString(d.deparseIndexElem(elem))
 					}
 				}
 				b.WriteString(")")
@@ -3609,7 +4243,12 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 			b.WriteString("(")
 		}
 		b.WriteString(d.deparseTableRef(v.Larg))
-		if v.IsNatural {
+		naturalResolved := d.b != nil && d.b.naturalJoined[v]
+		var boundUsing []ruleJoinUsingCol
+		if d.b != nil {
+			boundUsing = d.b.joinUsing[v]
+		}
+		if v.IsNatural && !naturalResolved {
 			b.WriteString(" NATURAL")
 		}
 		switch v.Jointype {
@@ -3620,14 +4259,25 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		case nodes.JOIN_FULL:
 			b.WriteString(" FULL JOIN ")
 		default:
-			if v.Quals == nil && v.UsingClause == nil && !v.IsNatural {
+			if v.Quals == nil && v.UsingClause == nil && (!v.IsNatural || (naturalResolved && len(boundUsing) == 0)) {
 				b.WriteString(" CROSS JOIN ")
 			} else {
 				b.WriteString(" JOIN ")
 			}
 		}
 		b.WriteString(d.deparseTableRef(v.Rarg))
-		if v.UsingClause != nil && len(v.UsingClause.Items) > 0 {
+		if len(boundUsing) > 0 {
+			b.WriteString(" USING (")
+			for i, uc := range boundUsing {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(quoteIdentifier(d.resolveJoinUsingColName(uc)))
+			}
+			b.WriteString(")")
+		} else if naturalResolved && v.Jointype != nodes.JOIN_INNER {
+			b.WriteString(" ON true")
+		} else if v.UsingClause != nil && len(v.UsingClause.Items) > 0 {
 			b.WriteString(" USING (")
 			for i, u := range v.UsingClause.Items {
 				if i > 0 {
@@ -4030,7 +4680,7 @@ func (d *ruleDeparser) deparseSortClause(list *nodes.List) string {
 			s += " DESC"
 		case nodes.SORTBY_USING:
 			if sb.UseOp != nil {
-				s += " USING " + deparseOperatorName(sb.UseOp)
+				s += " USING " + d.deparseOperatorRef(sb.UseOp)
 			}
 		}
 		switch sb.SortbyNulls {
@@ -4256,7 +4906,7 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		return fmt.Sprintf("(%s)%s", d.deparseExpr(v.Arg), d.deparseIndirection(v.Indirection))
 
 	case *nodes.A_Expr:
-		op := deparseOperatorName(v.Name)
+		op := d.deparseOperatorRef(v.Name)
 		switch v.Kind {
 		case nodes.AEXPR_OP:
 			if v.Lexpr == nil {
@@ -4365,6 +5015,14 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 						fnSQL = quoteIdentifier(up.Name)
 					}
 				}
+			} else if typeOID, ok := d.b.castTypeByFC[v]; ok && typeOID != 0 {
+				if bt := d.cat.typeByOID[typeOID]; bt != nil {
+					if sc := d.cat.schemas[bt.Namespace]; sc != nil && (len(v.Funcname.Items) > 1 || (sc.Name != "public" && sc.Name != "pg_catalog")) {
+						fnSQL = quoteIdentifier(sc.Name) + "." + quoteIdentifier(bt.TypeName)
+					} else {
+						fnSQL = quoteIdentifier(bt.TypeName)
+					}
+				}
 			}
 		}
 		b.WriteString(fnSQL)
@@ -4470,7 +5128,7 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		case nodes.ANY_SUBLINK:
 			op := "="
 			if v.OperName != nil {
-				op = deparseOperatorName(v.OperName)
+				op = d.deparseOperatorRef(v.OperName)
 			}
 			if op == "=" {
 				return fmt.Sprintf("(%s IN (%s))", d.deparseExpr(v.Testexpr), sub)
@@ -4479,7 +5137,7 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		case nodes.ALL_SUBLINK:
 			op := "="
 			if v.OperName != nil {
-				op = deparseOperatorName(v.OperName)
+				op = d.deparseOperatorRef(v.OperName)
 			}
 			return fmt.Sprintf("(%s %s ALL (%s))", d.deparseExpr(v.Testexpr), op, sub)
 		default:
@@ -5071,6 +5729,24 @@ func deparseRawConstVal(n nodes.Node) string {
 
 func quoteRuleLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+func (d *ruleDeparser) deparseOperatorRef(list *nodes.List) string {
+	if list == nil || len(list.Items) == 0 {
+		return ""
+	}
+	if d.cat != nil && d.b != nil && d.b.operByList != nil {
+		if opOID, ok := d.b.operByList[list]; ok && opOID >= FirstNormalObjectId {
+			if op := d.cat.operByOID[opOID]; op != nil {
+				nsOID := d.cat.operatorSchemas[opOID]
+				if sc := d.cat.schemas[nsOID]; sc != nil && (len(list.Items) > 1 || (sc.Name != "public" && sc.Name != "pg_catalog")) {
+					return fmt.Sprintf("OPERATOR(%s.%s)", quoteIdentifier(sc.Name), op.Name)
+				}
+				return op.Name
+			}
+		}
+	}
+	return deparseOperatorName(list)
 }
 
 func deparseOperatorName(list *nodes.List) string {

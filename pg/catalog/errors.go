@@ -52,6 +52,7 @@ const (
 	CodeNotNullViolation             = "23502"
 	CodeForeignKeyViolation          = "23503"
 	CodeUniqueViolation              = "23505"
+	CodeIndeterminateDatatype        = "42P18"
 	CodeIndeterminateCollation       = "42P22"
 	CodeCollationMismatch            = "42P21"
 	CodeInvalidColumnReference       = "42P10"
