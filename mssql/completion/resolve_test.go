@@ -2,6 +2,7 @@ package completion
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -324,5 +325,35 @@ func TestCompleteWithCatalog(t *testing.T) {
 	}
 	if hasCandidate(alterCols, "DepartmentId", CandidateColumn) || hasCandidate(alterCols, "EmployeeId", CandidateColumn) {
 		t.Fatalf("unexpected other-table columns in ALTER TABLE PK: %#v", alterCols)
+	}
+
+	// Contextual GO inside a CTE query keeps CTE virtual columns in scope.
+	cteGoSQL := "WITH cte AS (SELECT Id, Name FROM Employees) SELECT GO +  FROM cte"
+	cteGoCols := Complete(cteGoSQL, strings.Index(cteGoSQL, " FROM cte"), cat)
+	if !hasCandidate(cteGoCols, "Id", CandidateColumn) || !hasCandidate(cteGoCols, "Name", CandidateColumn) {
+		t.Fatalf("missing CTE columns after contextual GO in %#v", cteGoCols)
+	}
+
+	// Parenthesized cursor before following semicolon still excludes following statement.
+	parenIsolated := Complete("SELECT COALESCE(e., 0); SELECT Id FROM Secret AS e", len("SELECT COALESCE(e."), cat)
+	if hasCandidate(parenIsolated, "Id", CandidateColumn) {
+		t.Fatalf("following statement leaked columns across semicolon from inside parens: %#v", parenIsolated)
+	}
+
+	// Niladic keyword-dispatched built-in functions remain available.
+	for _, fn := range []string{"CURRENT_TIMESTAMP", "CURRENT_USER", "SESSION_USER", "SYSTEM_USER", "USER"} {
+		sql := "SELECT " + fn[:len(fn)-1]
+		if fn == "USER" {
+			sql = "SELECT US"
+		}
+		if !hasCandidate(Complete(sql, len(sql), cat), fn, CandidateFunction) {
+			t.Fatalf("missing niladic built-in function %q for %q", fn, sql)
+		}
+	}
+
+	// Unknown REFERENCES target in ALTER TABLE does not leak source table columns.
+	unknownFKCols := Complete("ALTER TABLE Employees ADD CONSTRAINT fk FOREIGN KEY (Id) REFERENCES UnknownTable (", len("ALTER TABLE Employees ADD CONSTRAINT fk FOREIGN KEY (Id) REFERENCES UnknownTable ("), cat)
+	if hasCandidate(unknownFKCols, "Id", CandidateColumn) || hasCandidate(unknownFKCols, "Name", CandidateColumn) {
+		t.Fatalf("leaked source table columns into unknown REFERENCES target: %#v", unknownFKCols)
 	}
 }

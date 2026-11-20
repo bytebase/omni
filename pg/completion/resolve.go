@@ -142,23 +142,21 @@ func qualifierBeforeCursor(sql string, offset int) string {
 		}
 		return ""
 	}
-	for i > 0 {
-		c := sql[i-1]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '_' || c == '$' || c >= 128 {
-			i--
-			continue
-		}
-		break
+	for i > 0 && isPGIdentCont(sql[i-1]) {
+		i--
 	}
-	if i == offset-1 {
-		return ""
-	}
-	first := sql[i]
-	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_' || first >= 128) {
+	if i == offset-1 || !isPGIdentStart(sql[i]) {
 		return ""
 	}
 	return sql[i : offset-1]
+}
+
+func isPGIdentStart(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c >= 128
+}
+
+func isPGIdentCont(c byte) bool {
+	return isPGIdentStart(c) || (c >= '0' && c <= '9') || c == '$'
 }
 
 func tableRefMatchesQualifier(ref TableRef, qual string) bool {

@@ -126,7 +126,7 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 
 func collectCompletionScopeAndCTEs(sql string, cursorOffset int) (*ScopeSnapshot, []RangeReference) {
 	tokens := completionScopeTokens(Tokenize(sql))
-	start, end := statementTokenBounds(tokens, cursorOffset)
+	start, end, _, _ := statementBoundsFromTokens(sql, tokens, cursorOffset)
 	if start >= end {
 		return &ScopeSnapshot{}, nil
 	}
@@ -138,6 +138,15 @@ func collectCompletionScopeAndCTEs(sql string, cursorOffset int) (*ScopeSnapshot
 		return scope, ctes
 	}
 	return collectSelectScope(stmtTokens[mainStart:], cursorOffset, cteMap), ctes
+}
+
+// StatementBounds returns the [startByte, endByte) slice of sql containing the
+// statement at cursorOffset, bounded by top-level semicolons and standalone GO
+// batch separators.
+func StatementBounds(sql string, cursorOffset int) (int, int) {
+	tokens := completionScopeTokens(Tokenize(sql))
+	_, _, startByte, endByte := statementBoundsFromTokens(sql, tokens, cursorOffset)
+	return startByte, endByte
 }
 
 func completionScopeTokens(tokens []Token) []completionScopeToken {
@@ -157,27 +166,92 @@ func completionScopeTokens(tokens []Token) []completionScopeToken {
 	return result
 }
 
-func statementTokenBounds(tokens []completionScopeToken, cursorOffset int) (int, int) {
-	start := 0
-	for i, tok := range tokens {
-		if tok.Loc >= cursorOffset {
-			break
-		}
-		if tok.Type == ';' || tok.Type == kwGO {
-			start = i + 1
-		}
+func statementBoundsFromTokens(sql string, tokens []completionScopeToken, cursorOffset int) (startTok, endTok, startByte, endByte int) {
+	if cursorOffset < 0 {
+		cursorOffset = 0
 	}
-	end := len(tokens)
-	for i := start; i < len(tokens); i++ {
-		if tokens[i].Loc < cursorOffset {
+	if cursorOffset > len(sql) {
+		cursorOffset = len(sql)
+	}
+
+	startTok = 0
+	startByte = 0
+	for i := 0; i < len(tokens) && tokens[i].Loc < cursorOffset; {
+		tok := tokens[i]
+		switch tok.Type {
+		case ';':
+			if tok.End <= cursorOffset {
+				startTok = i + 1
+				startByte = tok.End
+			}
+		case kwGO:
+			if tok.depth == 0 {
+				if nextIdx, sepEnd, ok := goBatchSeparatorEnd(sql, tokens, i); ok && sepEnd < cursorOffset {
+					startTok = nextIdx
+					startByte = sepEnd
+					i = nextIdx
+					continue
+				}
+			}
+		}
+		i++
+	}
+
+	endTok = len(tokens)
+	endByte = len(sql)
+	for i := startTok; i < len(tokens); i++ {
+		tok := tokens[i]
+		if tok.Loc < cursorOffset {
 			continue
 		}
-		if tokens[i].Type == ';' || tokens[i].Type == kwGO {
-			end = i
+		if tok.Type == ';' {
+			endTok = i
+			endByte = tok.Loc
 			break
 		}
+		if tok.Type == kwGO && tok.depth == 0 {
+			if _, _, ok := goBatchSeparatorEnd(sql, tokens, i); ok {
+				endTok = i
+				endByte = tok.Loc
+				break
+			}
+		}
 	}
-	return start, end
+	return startTok, endTok, startByte, endByte
+}
+
+func goBatchSeparatorEnd(sql string, tokens []completionScopeToken, i int) (int, int, bool) {
+	if i < 0 || i >= len(tokens) || tokens[i].Type != kwGO {
+		return 0, 0, false
+	}
+	if i > 0 && sameLine(sql, tokens[i-1].End, tokens[i].Loc) && tokens[i-1].Type != ';' {
+		return 0, 0, false
+	}
+	endTok := tokens[i].Token
+	nextIdx := i + 1
+	if nextIdx < len(tokens) && tokens[nextIdx].Type == tokICONST && sameLine(sql, tokens[i].End, tokens[nextIdx].Loc) {
+		endTok = tokens[nextIdx].Token
+		nextIdx++
+	}
+	if nextIdx < len(tokens) && sameLine(sql, endTok.End, tokens[nextIdx].Loc) {
+		return 0, 0, false
+	}
+	return nextIdx, endTok.End, true
+}
+
+func sameLine(sql string, start, end int) bool {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(sql) {
+		end = len(sql)
+	}
+	for i := start; i < end; i++ {
+		if sql[i] == '\n' || sql[i] == '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 func collectCTEs(tokens []completionScopeToken) ([]RangeReference, int) {
@@ -259,9 +333,23 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 		return collectDeleteScope(tokens, first, ctes)
 	case kwMERGE:
 		return collectMergeScope(tokens, first, ctes)
+	case kwALTER:
+		if first+1 < len(tokens) && tokens[first+1].Type == kwTABLE {
+			return collectAlterTableScope(tokens, first)
+		}
+		return nil
 	default:
 		return nil
 	}
+}
+
+func collectAlterTableScope(tokens []completionScopeToken, alterIdx int) *ScopeSnapshot {
+	target, _, ok := parseRangeReference(tokens, alterIdx+2)
+	if !ok {
+		return nil
+	}
+	target.Kind = RangeReferenceDMLTarget
+	return scopeWithDMLTarget([]RangeReference{target}, target)
 }
 
 func collectUpdateScope(tokens []completionScopeToken, updateIdx int, ctes map[string]RangeReference) *ScopeSnapshot {
