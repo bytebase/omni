@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/pg/ast"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -72,8 +73,12 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	if err := refuseUnsupportedCollationChanges(oldMeta, newMeta, skipSchemas); err != nil {
 		return "", err
 	}
+	if err := refuseUnsupportedExternalTableChanges(oldMeta, newMeta, skipSchemas); err != nil {
+		return "", err
+	}
 	diff := Diff(from, to)
-	if diff.IsEmpty() && len(sourceDrops) == 0 {
+	extraRoutineOps := routineDefaultAlterOps(oldMeta, newMeta, nil, from, to, skipSchemas)
+	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 {
 		return "", nil
 	}
 	if err := rejectAmbiguousUserTypes(oldMeta, newMeta, sourceSearchPath, targetSearchPath, skipSchemas); err != nil {
@@ -82,6 +87,7 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	plan := GenerateMigration(from, to, diff)
 	orderTypeAndTableCreates(plan, newMeta, targetSearchPath)
 	restoreIndexDefinitions(plan, newMeta)
+	restoreRoutineDefinitionsForDefaults(plan, oldMeta, newMeta, from, to, skipSchemas)
 	restored, releasedRoutines, err := restoreUnloadableDependentViews(plan, from, oldMeta, newMeta, sourceSearchPath, sourceDrops, skipSchemas, fromReport, toReport)
 	if err != nil {
 		return "", err
@@ -160,6 +166,206 @@ func refuseUnsupportedCollationChanges(oldMeta, newMeta *metadatapb.DatabaseSche
 	}
 	slices.Sort(changed)
 	return fmt.Errorf("cannot generate a migration for user-defined collations (%s): collation DDL is not supported", strings.Join(changed, ", "))
+}
+
+func refuseUnsupportedExternalTableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) error {
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]*metadatapb.ExternalTableMetadata {
+		out := make(map[string]*metadatapb.ExternalTableMetadata)
+		for _, s := range meta.GetSchemas() {
+			if skipSchemas[s.GetName()] {
+				continue
+			}
+			for _, ext := range s.GetExternalTables() {
+				out[objectKey(s.GetName(), ext.GetName())] = ext
+			}
+		}
+		return out
+	}
+	oldExt := collect(oldMeta)
+	newExt := collect(newMeta)
+	var changed []string
+	for key, oldTable := range oldExt {
+		if !proto.Equal(oldTable, newExt[key]) {
+			schemaName, tableName := splitObjectKey(key)
+			changed = append(changed, quoteQualified(schemaName, tableName))
+		}
+	}
+	for key := range newExt {
+		if _, seen := oldExt[key]; !seen {
+			schemaName, tableName := splitObjectKey(key)
+			changed = append(changed, quoteQualified(schemaName, tableName))
+		}
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	slices.Sort(changed)
+	return fmt.Errorf("cannot generate a migration for external tables (%s): external table DDL is not supported", strings.Join(changed, ", "))
+}
+
+type routineDefEntry struct {
+	key        string
+	schemaName string
+	identity   string
+	definition string
+}
+
+func routineDefIdentity(cat *Catalog, schemaName, routineName, signature, definition string) string {
+	if cat != nil && definition != "" {
+		if stmt, err := parseStatement[*nodes.CreateFunctionStmt](definition); err == nil {
+			argStrs := make([]string, 0)
+			resolved := true
+			if stmt.Parameters != nil {
+				for _, item := range stmt.Parameters.Items {
+					fp, ok := item.(*nodes.FunctionParameter)
+					if !ok || fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE || fp.ArgType == nil {
+						continue
+					}
+					toid, _, err := cat.ResolveType(convertTypeNameToInternal(fp.ArgType))
+					if err != nil {
+						resolved = false
+						break
+					}
+					argStrs = append(argStrs, cat.FormatType(toid, -1))
+				}
+			}
+			if resolved {
+				return fmt.Sprintf("%s.%s(%s)", schemaName, routineName, strings.Join(argStrs, ","))
+			}
+		}
+	}
+	return fmt.Sprintf("%s.%s(%s)", schemaName, routineName, normalizeRoutineArgs(routineArgs(signature, definition)))
+}
+
+func collectRoutineDefinitions(meta *metadatapb.DatabaseSchemaMetadata, cat *Catalog, skipSchemas map[string]bool) map[string]routineDefEntry {
+	out := make(map[string]routineDefEntry)
+	for _, s := range meta.GetSchemas() {
+		if skipSchemas[s.GetName()] {
+			continue
+		}
+		for _, fn := range s.GetFunctions() {
+			if fn.GetDefinition() == "" {
+				continue
+			}
+			key := routineDefIdentity(cat, s.GetName(), fn.GetName(), fn.GetSignature(), fn.GetDefinition())
+			out[key] = routineDefEntry{
+				key:        key,
+				schemaName: s.GetName(),
+				identity:   key,
+				definition: fn.GetDefinition(),
+			}
+		}
+		for _, proc := range s.GetProcedures() {
+			if proc.GetDefinition() == "" {
+				continue
+			}
+			key := routineDefIdentity(cat, s.GetName(), proc.GetName(), proc.GetSignature(), proc.GetDefinition())
+			out[key] = routineDefEntry{
+				key:        key,
+				schemaName: s.GetName(),
+				identity:   key,
+				definition: proc.GetDefinition(),
+			}
+		}
+	}
+	return out
+}
+
+func normalizeRoutineDDL(def string, orReplace bool) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(def), ";")
+	trimmed = strings.TrimSpace(trimmed)
+	upper := strings.ToUpper(trimmed)
+	if orReplace {
+		switch {
+		case strings.HasPrefix(upper, "CREATE OR REPLACE "):
+			return trimmed
+		case strings.HasPrefix(upper, "CREATE FUNCTION "):
+			return "CREATE OR REPLACE FUNCTION " + trimmed[len("CREATE FUNCTION "):]
+		case strings.HasPrefix(upper, "CREATE PROCEDURE "):
+			return "CREATE OR REPLACE PROCEDURE " + trimmed[len("CREATE PROCEDURE "):]
+		}
+		return trimmed
+	}
+	if strings.HasPrefix(upper, "CREATE OR REPLACE FUNCTION ") {
+		return "CREATE FUNCTION " + trimmed[len("CREATE OR REPLACE FUNCTION "):]
+	}
+	if strings.HasPrefix(upper, "CREATE OR REPLACE PROCEDURE ") {
+		return "CREATE PROCEDURE " + trimmed[len("CREATE OR REPLACE PROCEDURE "):]
+	}
+	return trimmed
+}
+
+func toProcDefaultsByKey(to *Catalog) map[string]bool {
+	out := make(map[string]bool)
+	if to == nil {
+		return out
+	}
+	for _, up := range to.userProcs {
+		if up.NArgDefaults <= 0 || up.Schema == nil {
+			continue
+		}
+		out[funcIdentity(to, up)] = true
+	}
+	return out
+}
+
+func restoreRoutineDefinitionsForDefaults(plan *MigrationPlan, oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, from, to *Catalog, skipSchemas map[string]bool) {
+	newDefs := collectRoutineDefinitions(newMeta, to, skipSchemas)
+	hasDefaults := toProcDefaultsByKey(to)
+	handled := make(map[string]bool)
+	for i, op := range plan.Ops {
+		if op.Type != OpCreateFunction && op.Type != OpAlterFunction {
+			continue
+		}
+		if !hasDefaults[op.ObjectName] {
+			continue
+		}
+		if entry, ok := newDefs[op.ObjectName]; ok {
+			plan.Ops[i].SQL = normalizeRoutineDDL(entry.definition, op.Type == OpAlterFunction)
+			handled[op.ObjectName] = true
+		}
+	}
+	extraOps := routineDefaultAlterOps(oldMeta, newMeta, handled, from, to, skipSchemas)
+	plan.Ops = append(plan.Ops, extraOps...)
+}
+
+func routineDefaultAlterOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, handled map[string]bool, from, to *Catalog, skipSchemas map[string]bool) []MigrationOp {
+	oldDefs := collectRoutineDefinitions(oldMeta, from, skipSchemas)
+	newDefs := collectRoutineDefinitions(newMeta, to, skipSchemas)
+	hasDefaults := toProcDefaultsByKey(to)
+	keys := make([]string, 0, len(newDefs))
+	for k := range newDefs {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	var ops []MigrationOp
+	for _, key := range keys {
+		if handled != nil && handled[key] {
+			continue
+		}
+		if !hasDefaults[key] {
+			continue
+		}
+		newEntry := newDefs[key]
+		oldEntry, existed := oldDefs[key]
+		if !existed {
+			continue
+		}
+		if normalizeRoutineDDL(oldEntry.definition, true) == normalizeRoutineDDL(newEntry.definition, true) {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterFunction,
+			SchemaName:    newEntry.schemaName,
+			ObjectName:    newEntry.identity,
+			SQL:           normalizeRoutineDDL(newEntry.definition, true),
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'f',
+			Priority:      PriorityFunction,
+		})
+	}
+	return ops
 }
 
 // loadMetadataForMigration installs a snapshot under the search path its database

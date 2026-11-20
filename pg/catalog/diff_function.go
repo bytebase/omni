@@ -122,5 +122,8 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if fp.RetSet != tp.RetSet {
 		return true
 	}
+	if fp.NArgDefaults != tp.NArgDefaults {
+		return true
+	}
 	return false
 }

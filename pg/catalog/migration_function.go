@@ -95,9 +95,11 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	b.WriteString("\nLANGUAGE ")
 	b.WriteString(proc.Language)
 
-	// Attributes (functions only).
+	// Attributes (functions only), or SECURITY DEFINER for procedures.
 	if proc.Kind != 'p' {
 		b.WriteString(formatFuncAttributes(proc))
+	} else if proc.SecDef {
+		b.WriteString("\nSECURITY DEFINER")
 	}
 
 	// Body.
@@ -219,7 +221,7 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 				param.WriteString("INOUT ")
 			case 'v':
 				param.WriteString("VARIADIC ")
-			// 'i' (IN) is implicit, 't' (TABLE) handled separately
+				// 'i' (IN) is implicit, 't' (TABLE) handled separately
 			}
 		}
 
@@ -279,7 +281,7 @@ func formatFuncAttributes(proc *UserProc) string {
 		parts = append(parts, "IMMUTABLE")
 	case 's':
 		parts = append(parts, "STABLE")
-	// 'v' (VOLATILE) is default, omit.
+		// 'v' (VOLATILE) is default, omit.
 	}
 
 	// Strictness.
@@ -303,7 +305,7 @@ func formatFuncAttributes(proc *UserProc) string {
 		parts = append(parts, "PARALLEL SAFE")
 	case 'r':
 		parts = append(parts, "PARALLEL RESTRICTED")
-	// 'u' (UNSAFE) is default, omit.
+		// 'u' (UNSAFE) is default, omit.
 	}
 
 	if len(parts) == 0 {
@@ -325,6 +327,10 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	b.WriteString("\nLANGUAGE ")
 	b.WriteString(proc.Language)
+
+	if proc.SecDef {
+		b.WriteString("\nSECURITY DEFINER")
+	}
 
 	b.WriteString("\nAS ")
 	b.WriteString(dollarQuote(proc.Body))

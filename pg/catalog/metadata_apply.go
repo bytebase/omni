@@ -24,31 +24,30 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		return proto.CloneOf(original)
 	}
 
-	for _, s := range diff.Schemas {
-		switch s.Action {
-		case DiffAdd:
-			result.Schemas = append(result.Schemas, &metadatapb.SchemaMetadata{Name: s.Name})
-		case DiffDrop:
-			result.Schemas = removeSchema(result.Schemas, s.Name)
-		default:
+	renamedSchemas := applySchemaDiffs(result, diff.Schemas)
+	canonicalSchema := func(name string) string {
+		if renamed, ok := renamedSchemas[name]; ok {
+			return renamed
 		}
+		return name
 	}
 
-	renamed := renamePartitions(result, catAfter, diff.Relations)
+	renamed := renamePartitions(result, catAfter, diff.Relations, canonicalSchema)
 	for _, rel := range diff.Relations {
 		if (rel.From != nil && renamed[rel.From.OID]) || (rel.To != nil && renamed[rel.To.OID]) {
 			continue
 		}
+		schemaName := canonicalSchema(rel.SchemaName)
 		if rel.Action == DiffDrop {
-			if sm := findSchema(result, rel.SchemaName); sm != nil {
+			if sm := findSchema(result, schemaName); sm != nil {
 				dropRelation(sm, rel)
 			}
 			continue
 		}
-		sm := findOrCreateSchema(result, rel.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch rel.Action {
 		case DiffAdd:
-			addRelation(sm, catAfter, rel)
+			addRelation(result, sm, catAfter, rel)
 		case DiffModify:
 			modifyRelation(sm, catBefore, catAfter, rel)
 		default:
@@ -56,59 +55,58 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	}
 
 	for _, seq := range diff.Sequences {
+		schemaName := canonicalSchema(seq.SchemaName)
 		if seq.Action == DiffDrop {
-			if sm := findSchema(result, seq.SchemaName); sm != nil {
+			if renamedSchemas[seq.SchemaName] != "" && hasMatchingSequenceAdd(diff.Sequences, renamedSchemas[seq.SchemaName], seq.Name) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				sm.Sequences = removeSequenceByName(sm.Sequences, seq.Name)
 			}
 			continue
 		}
-		sm := findOrCreateSchema(result, seq.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch seq.Action {
 		case DiffAdd:
 			if seq.To != nil {
-				sm.Sequences = append(sm.Sequences, sequenceToProto(catAfter, seq.To))
+				upsertSequence(sm, sequenceToProto(catAfter, seq.To))
 			}
 		case DiffModify:
 			if seq.To != nil {
-				for i, s := range sm.Sequences {
-					if s.Name == seq.Name {
-						sm.Sequences[i] = sequenceToProto(catAfter, seq.To)
-						break
-					}
-				}
+				upsertSequence(sm, sequenceToProto(catAfter, seq.To))
 			}
 		default:
 		}
 	}
 
 	for _, e := range diff.Enums {
+		schemaName := canonicalSchema(e.SchemaName)
 		if e.Action == DiffDrop {
-			if sm := findSchema(result, e.SchemaName); sm != nil {
+			if renamedSchemas[e.SchemaName] != "" && hasMatchingEnumAdd(diff.Enums, renamedSchemas[e.SchemaName], e.Name) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				sm.EnumTypes = removeEnumByName(sm.EnumTypes, e.Name)
 			}
 			continue
 		}
-		sm := findOrCreateSchema(result, e.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch e.Action {
 		case DiffAdd:
-			sm.EnumTypes = append(sm.EnumTypes, &metadatapb.EnumTypeMetadata{
-				Name:   e.Name,
-				Values: e.ToValues,
-			})
+			upsertEnum(sm, e.Name, e.ToValues)
 		case DiffModify:
-			for i, et := range sm.EnumTypes {
-				if et.Name == e.Name {
-					sm.EnumTypes[i].Values = e.ToValues
-					break
-				}
-			}
+			upsertEnum(sm, e.Name, e.ToValues)
 		default:
 		}
 	}
 
 	for _, ct := range diff.CompositeTypes {
+		schemaName := canonicalSchema(ct.SchemaName)
 		if ct.Action == DiffDrop {
-			if sm := findSchema(result, ct.SchemaName); sm != nil {
+			if renamedSchemas[ct.SchemaName] != "" && hasMatchingCompositeAdd(diff.CompositeTypes, renamedSchemas[ct.SchemaName], ct.Name) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				sm.CompositeTypes = removeCompositeTypeByName(sm.CompositeTypes, ct.Name)
 			}
 			continue
@@ -116,24 +114,32 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		if ct.To == nil {
 			continue
 		}
-		sm := findOrCreateSchema(result, ct.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch ct.Action {
-		case DiffAdd:
-			sm.CompositeTypes = append(sm.CompositeTypes, compositeTypeToProto(catAfter, ct.Name, nil, ct.To, nil))
-		case DiffModify:
+		case DiffAdd, DiffModify:
+			idx := -1
 			for i, existing := range sm.CompositeTypes {
 				if existing.Name == ct.Name {
-					sm.CompositeTypes[i] = compositeTypeToProto(catAfter, ct.Name, ct.From, ct.To, existing)
+					idx = i
 					break
 				}
+			}
+			if idx >= 0 {
+				sm.CompositeTypes[idx] = compositeTypeToProto(catAfter, ct.Name, ct.From, ct.To, sm.CompositeTypes[idx])
+			} else {
+				sm.CompositeTypes = append(sm.CompositeTypes, compositeTypeToProto(catAfter, ct.Name, nil, ct.To, nil))
 			}
 		default:
 		}
 	}
 
 	for _, r := range diff.Ranges {
+		schemaName := canonicalSchema(r.SchemaName)
 		if r.Action == DiffDrop {
-			if sm := findSchema(result, r.SchemaName); sm != nil {
+			if renamedSchemas[r.SchemaName] != "" && hasMatchingRangeAdd(diff.Ranges, renamedSchemas[r.SchemaName], r.Name) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				sm.RangeTypes = removeRangeTypeByName(sm.RangeTypes, r.Name)
 			}
 			continue
@@ -141,64 +147,269 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		if r.To == nil {
 			continue
 		}
-		sm := findOrCreateSchema(result, r.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch r.Action {
-		case DiffAdd:
-			sm.RangeTypes = append(sm.RangeTypes, rangeTypeToProto(catAfter, r.To, nil))
-		case DiffModify:
+		case DiffAdd, DiffModify:
+			idx := -1
 			for i, existing := range sm.RangeTypes {
 				if existing.Name == r.Name {
-					sm.RangeTypes[i] = rangeTypeToProto(catAfter, r.To, existing)
+					idx = i
 					break
 				}
+			}
+			if idx >= 0 {
+				sm.RangeTypes[idx] = rangeTypeToProto(catAfter, r.To, sm.RangeTypes[idx])
+			} else {
+				sm.RangeTypes = append(sm.RangeTypes, rangeTypeToProto(catAfter, r.To, nil))
 			}
 		default:
 		}
 	}
 
 	for _, f := range diff.Functions {
+		schemaName := canonicalSchema(f.SchemaName)
 		isProcedure := f.To != nil && f.To.Kind == 'p'
 		wasProcedure := f.From != nil && f.From.Kind == 'p'
 		if f.Action == DiffDrop {
-			if sm := findSchema(result, f.SchemaName); sm != nil {
+			if renamedSchemas[f.SchemaName] != "" && hasMatchingFunctionAdd(diff.Functions, renamedSchemas[f.SchemaName], f) {
+				continue
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				if wasProcedure {
-					sm.Procedures = removeProcedureByIdentity(sm.Procedures, f.Identity)
+					_, sm.Procedures = popProcedureByIdentity(sm.Procedures, f.Identity)
 				} else {
-					sm.Functions = removeFunctionByIdentity(sm.Functions, f.Identity)
+					_, sm.Functions = popFunctionByIdentity(sm.Functions, f.Identity)
 				}
 			}
 			continue
 		}
-		sm := findOrCreateSchema(result, f.SchemaName)
+		sm := findOrCreateSchema(result, schemaName)
 		switch f.Action {
-		case DiffAdd:
-			if f.To != nil {
-				if isProcedure {
-					sm.Procedures = append(sm.Procedures, procedureToProto(catAfter, f.To, f.Identity))
-				} else {
-					sm.Functions = append(sm.Functions, functionToProto(catAfter, f.To, f.Identity))
+		case DiffAdd, DiffModify:
+			if oldSchema := renamedSchemas[f.SchemaName]; oldSchema == "" {
+				// Check if this DiffAdd belongs to a schema renamed from oldSchema.
+				for oldName, newName := range renamedSchemas {
+					if newName == f.SchemaName {
+						oldIdent := oldName + strings.TrimPrefix(f.Identity, f.SchemaName)
+						if isProcedure {
+							prev, procs := popProcedureByIdentity(sm.Procedures, oldIdent)
+							sm.Procedures = procs
+							if f.To != nil {
+								p := procedureToProto(catAfter, f.To, f.Identity)
+								if prev != nil {
+									p.Comment = prev.Comment
+									p.SkipDump = prev.SkipDump
+								}
+								sm.Procedures = append(sm.Procedures, p)
+							}
+						} else {
+							prev, funcs := popFunctionByIdentity(sm.Functions, oldIdent)
+							sm.Functions = funcs
+							if f.To != nil {
+								fn := functionToProto(catAfter, f.To, f.Identity)
+								if prev != nil {
+									fn.Comment = prev.Comment
+									fn.SkipDump = prev.SkipDump
+									fn.DependencyTables = prev.DependencyTables
+								}
+								sm.Functions = append(sm.Functions, fn)
+							}
+						}
+						goto nextFunction
+					}
 				}
 			}
-		case DiffModify:
-			if wasProcedure {
-				sm.Procedures = removeProcedureByIdentity(sm.Procedures, f.Identity)
-			} else {
-				sm.Functions = removeFunctionByIdentity(sm.Functions, f.Identity)
-			}
 			if f.To != nil {
 				if isProcedure {
-					sm.Procedures = append(sm.Procedures, procedureToProto(catAfter, f.To, f.Identity))
+					var prev *metadatapb.ProcedureMetadata
+					if f.Action == DiffModify {
+						prev, sm.Procedures = popProcedureByIdentity(sm.Procedures, f.Identity)
+					}
+					p := procedureToProto(catAfter, f.To, f.Identity)
+					if prev != nil {
+						p.Comment = prev.Comment
+						p.SkipDump = prev.SkipDump
+					}
+					sm.Procedures = append(sm.Procedures, p)
 				} else {
-					sm.Functions = append(sm.Functions, functionToProto(catAfter, f.To, f.Identity))
+					var prev *metadatapb.FunctionMetadata
+					if f.Action == DiffModify {
+						prev, sm.Functions = popFunctionByIdentity(sm.Functions, f.Identity)
+					}
+					fn := functionToProto(catAfter, f.To, f.Identity)
+					if prev != nil {
+						fn.Comment = prev.Comment
+						fn.SkipDump = prev.SkipDump
+						fn.DependencyTables = prev.DependencyTables
+					}
+					sm.Functions = append(sm.Functions, fn)
 				}
 			}
 		default:
 		}
+	nextFunction:
 	}
 
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 
 	return result
+}
+
+func applySchemaDiffs(result *metadatapb.DatabaseSchemaMetadata, schemas []SchemaDiffEntry) map[string]string {
+	dropped := make(map[uint32]SchemaDiffEntry)
+	added := make(map[uint32]SchemaDiffEntry)
+	for _, s := range schemas {
+		if s.Action == DiffDrop && s.From != nil {
+			dropped[s.From.OID] = s
+		} else if s.Action == DiffAdd && s.To != nil {
+			added[s.To.OID] = s
+		}
+	}
+
+	renamed := make(map[string]string)
+	handledDrop := make(map[string]bool)
+	handledAdd := make(map[string]bool)
+	for oid, dropEntry := range dropped {
+		addEntry, ok := added[oid]
+		if !ok {
+			continue
+		}
+		oldName := dropEntry.Name
+		newName := addEntry.Name
+		renamed[oldName] = newName
+		handledDrop[oldName] = true
+		handledAdd[newName] = true
+		if sm := findSchema(result, oldName); sm != nil {
+			if owner := addEntry.To.effectiveOwner(); owner != "" && (dropEntry.From == nil || dropEntry.From.effectiveOwner() != owner) {
+				sm.Owner = owner
+			}
+			sm.Name = newName
+		} else {
+			sm := findOrCreateSchema(result, newName)
+			if owner := addEntry.To.effectiveOwner(); owner != "" {
+				sm.Owner = owner
+			}
+		}
+		rewritePartitionSchemaReferences(result, oldName, newName)
+	}
+
+	for _, s := range schemas {
+		switch s.Action {
+		case DiffAdd:
+			if handledAdd[s.Name] {
+				continue
+			}
+			sm := findOrCreateSchema(result, s.Name)
+			if s.To != nil {
+				if owner := s.To.effectiveOwner(); owner != "" {
+					sm.Owner = owner
+				}
+			}
+		case DiffDrop:
+			if handledDrop[s.Name] {
+				continue
+			}
+			result.Schemas = removeSchema(result.Schemas, s.Name)
+		case DiffModify:
+			if s.To != nil {
+				sm := findOrCreateSchema(result, s.Name)
+				sm.Owner = s.To.Owner
+			}
+		default:
+		}
+	}
+	return renamed
+}
+
+func rewritePartitionSchemaReferences(meta *metadatapb.DatabaseSchemaMetadata, oldName, newName string) {
+	var walk func(partitions []*metadatapb.TablePartitionMetadata)
+	walk = func(partitions []*metadatapb.TablePartitionMetadata) {
+		for _, p := range partitions {
+			if p.Schema == oldName {
+				p.Schema = newName
+			}
+			walk(p.Subpartitions)
+		}
+	}
+	for _, s := range meta.Schemas {
+		for _, tbl := range s.Tables {
+			walk(tbl.Partitions)
+		}
+	}
+}
+
+func hasMatchingSequenceAdd(entries []SequenceDiffEntry, newSchema, name string) bool {
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMatchingEnumAdd(entries []EnumDiffEntry, newSchema, name string) bool {
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMatchingCompositeAdd(entries []CompositeTypeDiffEntry, newSchema, name string) bool {
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMatchingRangeAdd(entries []RangeDiffEntry, newSchema, name string) bool {
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMatchingFunctionAdd(entries []FunctionDiffEntry, newSchema string, dropEntry FunctionDiffEntry) bool {
+	if dropEntry.From == nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.SchemaName == newSchema && e.To != nil && e.To.OID == dropEntry.From.OID {
+			return true
+		}
+	}
+	return false
+}
+
+func upsertSequence(sm *metadatapb.SchemaMetadata, updated *metadatapb.SequenceMetadata) {
+	for i, existing := range sm.Sequences {
+		if existing.Name == updated.Name {
+			updated.Comment = existing.Comment
+			updated.SkipDump = existing.SkipDump
+			updated.LastValue = existing.LastValue
+			sm.Sequences[i] = updated
+			return
+		}
+	}
+	sm.Sequences = append(sm.Sequences, updated)
+}
+
+func upsertEnum(sm *metadatapb.SchemaMetadata, name string, values []string) {
+	for _, existing := range sm.EnumTypes {
+		if existing.Name == name {
+			existing.Values = slices.Clone(values)
+			return
+		}
+	}
+	sm.EnumTypes = append(sm.EnumTypes, &metadatapb.EnumTypeMetadata{
+		Name:   name,
+		Values: values,
+	})
 }
 
 func findSchema(meta *metadatapb.DatabaseSchemaMetadata, name string) *metadatapb.SchemaMetadata {
@@ -231,12 +442,17 @@ func removeSchema(schemas []*metadatapb.SchemaMetadata, name string) []*metadata
 	return out
 }
 
-func addRelation(sm *metadatapb.SchemaMetadata, cat *Catalog, rel RelationDiffEntry) {
+func addRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.SchemaMetadata, cat *Catalog, rel RelationDiffEntry) {
 	if rel.To == nil {
 		return
 	}
 	switch rel.To.RelKind {
 	case 'r', 'p', 'f':
+		if rel.To.PartitionOf != 0 {
+			if appendPartitionToParent(result, sm, cat, rel) {
+				return
+			}
+		}
 		sm.Tables = append(sm.Tables, relationToTableProto(cat, rel.To))
 	case 'v':
 		sm.Views = append(sm.Views, relationToViewProto(cat, rel.To))
@@ -244,6 +460,64 @@ func addRelation(sm *metadatapb.SchemaMetadata, cat *Catalog, rel RelationDiffEn
 		sm.MaterializedViews = append(sm.MaterializedViews, relationToMatViewProto(cat, rel.To))
 	default:
 	}
+}
+
+func appendPartitionToParent(result *metadatapb.DatabaseSchemaMetadata, fallbackSchema *metadatapb.SchemaMetadata, cat *Catalog, rel RelationDiffEntry) bool {
+	parentRel := cat.GetRelationByOID(rel.To.PartitionOf)
+	if parentRel == nil {
+		return false
+	}
+	parentSchemaName := rel.SchemaName
+	if parentRel.Schema != nil && parentRel.Schema.Name != "" {
+		parentSchemaName = parentRel.Schema.Name
+	}
+	part := relationToPartitionProto(cat, rel.To, parentRel, parentSchemaName)
+	parentSM := findSchema(result, parentSchemaName)
+	if parentSM == nil {
+		parentSM = fallbackSchema
+	}
+	if parentSM == nil {
+		return false
+	}
+	if parentTbl := findTable(parentSM, parentRel.Name); parentTbl != nil {
+		parentTbl.Partitions = append(parentTbl.Partitions, part)
+		return true
+	}
+	if parentPart := findPartition(parentSM, parentRel.Name); parentPart != nil {
+		parentPart.Subpartitions = append(parentPart.Subpartitions, part)
+		return true
+	}
+	return false
+}
+
+func relationToPartitionProto(c *Catalog, rel, parentRel *Relation, parentSchema string) *metadatapb.TablePartitionMetadata {
+	part := &metadatapb.TablePartitionMetadata{
+		Name:  rel.Name,
+		Value: formatPartitionBound(rel.PartitionBound),
+	}
+	if rel.Schema != nil && rel.Schema.Name != "" && rel.Schema.Name != parentSchema {
+		part.Schema = rel.Schema.Name
+	}
+	var strategy byte
+	if parentRel != nil && parentRel.PartitionInfo != nil {
+		strategy = parentRel.PartitionInfo.Strategy
+		part.Expression = strings.TrimPrefix(formatPartitionByClause(parentRel), " PARTITION BY ")
+	} else if rel.PartitionBound != nil {
+		strategy = rel.PartitionBound.Strategy
+	}
+	switch strategy {
+	case 'r':
+		part.Type = metadatapb.TablePartitionMetadata_RANGE
+	case 'l':
+		part.Type = metadatapb.TablePartitionMetadata_LIST
+	case 'h':
+		part.Type = metadatapb.TablePartitionMetadata_HASH
+	}
+	tbl := relationToTableProto(c, rel)
+	part.Indexes = tbl.Indexes
+	part.CheckConstraints = tbl.CheckConstraints
+	part.ExcludeConstraints = tbl.ExcludeConstraints
+	return part
 }
 
 func dropRelation(sm *metadatapb.SchemaMetadata, rel RelationDiffEntry) {
@@ -275,13 +549,75 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 		applyIndexDiffs(tbl, cat, rel)
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
 		applyTriggerDiffs(tbl, cat, rel)
+		if (rel.From != nil && rel.From.OwnerName != rel.To.OwnerName) || (rel.To.OwnerName != "" && tbl.Owner != rel.To.OwnerName) {
+			tbl.Owner = rel.To.OwnerName
+		}
 	case 'v':
-		sm.Views = removeViewByName(sm.Views, rel.Name)
-		sm.Views = append(sm.Views, relationToViewProto(cat, rel.To))
+		updated := relationToViewProto(cat, rel.To)
+		for i, existing := range sm.Views {
+			if existing.Name == rel.Name {
+				updated.Comment = existing.Comment
+				updated.DependencyColumns = existing.DependencyColumns
+				if len(updated.Columns) == 0 {
+					updated.Columns = existing.Columns
+				}
+				updated.Rules = existing.Rules
+				updated.SkipDump = existing.SkipDump
+				preserveTriggerComments(updated.Triggers, existing.Triggers)
+				sm.Views[i] = updated
+				return
+			}
+		}
+		sm.Views = append(sm.Views, updated)
 	case 'm':
-		sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, rel.Name)
-		sm.MaterializedViews = append(sm.MaterializedViews, relationToMatViewProto(cat, rel.To))
+		updated := relationToMatViewProto(cat, rel.To)
+		for i, existing := range sm.MaterializedViews {
+			if existing.Name == rel.Name {
+				updated.Comment = existing.Comment
+				updated.DependencyColumns = existing.DependencyColumns
+				updated.SkipDump = existing.SkipDump
+				preserveTriggerComments(updated.Triggers, existing.Triggers)
+				preserveIndexComments(updated.Indexes, existing.Indexes)
+				sm.MaterializedViews[i] = updated
+				return
+			}
+		}
+		sm.MaterializedViews = append(sm.MaterializedViews, updated)
 	default:
+	}
+}
+
+func preserveTriggerComments(dst, src []*metadatapb.TriggerMetadata) {
+	if len(dst) == 0 || len(src) == 0 {
+		return
+	}
+	comments := make(map[string]string, len(src))
+	for _, tr := range src {
+		if tr.Comment != "" {
+			comments[tr.Name] = tr.Comment
+		}
+	}
+	for _, tr := range dst {
+		if c, ok := comments[tr.Name]; ok && tr.Comment == "" {
+			tr.Comment = c
+		}
+	}
+}
+
+func preserveIndexComments(dst, src []*metadatapb.IndexMetadata) {
+	if len(dst) == 0 || len(src) == 0 {
+		return
+	}
+	comments := make(map[string]string, len(src))
+	for _, idx := range src {
+		if idx.Comment != "" {
+			comments[idx.Name] = idx.Comment
+		}
+	}
+	for _, idx := range dst {
+		if c, ok := comments[idx.Name]; ok && idx.Comment == "" {
+			idx.Comment = c
+		}
 	}
 }
 
@@ -290,7 +626,7 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 // The diff shows a rename as a drop and an add of the same relation, which would
 // otherwise turn a partition into a table of its own or drop a table's
 // partitions. It returns the OIDs it handled.
-func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, relations []RelationDiffEntry) map[uint32]bool {
+func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, relations []RelationDiffEntry, canonicalSchema func(string) string) map[uint32]bool {
 	added := make(map[uint32]RelationDiffEntry)
 	for _, rel := range relations {
 		if rel.Action == DiffAdd && rel.To != nil {
@@ -303,18 +639,37 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 			continue
 		}
 		add, ok := added[rel.From.OID]
-		sm := findSchema(result, rel.SchemaName)
+		srcSchema := canonicalSchema(rel.SchemaName)
+		sm := findSchema(result, srcSchema)
 		if !ok || sm == nil {
 			continue
 		}
-		if add.SchemaName == rel.SchemaName {
-			if p := findPartition(sm, rel.Name); p != nil {
-				tbl := relationToTableProto(catAfter, add.To)
-				p.Name = add.Name
-				p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
-				renamed[rel.From.OID] = true
-				continue
+		var p *metadatapb.TablePartitionMetadata
+		if add.SchemaName == srcSchema {
+			p = findPartition(sm, rel.Name)
+		}
+		if p == nil && add.To.PartitionOf != 0 {
+			for _, candidate := range result.Schemas {
+				if found := findPartition(candidate, rel.Name); found != nil {
+					p = found
+					break
+				}
 			}
+		}
+		if p != nil {
+			tbl := relationToTableProto(catAfter, add.To)
+			p.Name = add.Name
+			p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
+			if add.SchemaName != srcSchema {
+				parentRel := catAfter.GetRelationByOID(add.To.PartitionOf)
+				if parentRel != nil && parentRel.Schema != nil && parentRel.Schema.Name == add.SchemaName {
+					p.Schema = ""
+				} else {
+					p.Schema = add.SchemaName
+				}
+			}
+			renamed[rel.From.OID] = true
+			continue
 		}
 		if tbl := findTable(sm, rel.Name); tbl != nil {
 			rebuilt := relationToTableProto(catAfter, add.To)
@@ -324,7 +679,10 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 			tbl.ForeignKeys = rebuilt.ForeignKeys
 			tbl.CheckConstraints = rebuilt.CheckConstraints
 			tbl.ExcludeConstraints = rebuilt.ExcludeConstraints
-			if add.SchemaName != rel.SchemaName {
+			if rel.From.OwnerName != add.To.OwnerName {
+				tbl.Owner = add.To.OwnerName
+			}
+			if add.SchemaName != srcSchema {
 				sm.Tables = removeTableByName(sm.Tables, rel.Name)
 				targetSchema := findOrCreateSchema(result, add.SchemaName)
 				targetSchema.Tables = append(targetSchema.Tables, tbl)
@@ -847,24 +1205,30 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 	return b.String()
 }
 
-func removeProcedureByIdentity(procs []*metadatapb.ProcedureMetadata, identity string) []*metadatapb.ProcedureMetadata {
+func popProcedureByIdentity(procs []*metadatapb.ProcedureMetadata, identity string) (*metadatapb.ProcedureMetadata, []*metadatapb.ProcedureMetadata) {
+	var matched *metadatapb.ProcedureMetadata
 	out := make([]*metadatapb.ProcedureMetadata, 0, len(procs))
 	for _, p := range procs {
-		if p.Signature != identity {
-			out = append(out, p)
+		if p.Signature == identity {
+			matched = p
+			continue
 		}
+		out = append(out, p)
 	}
-	return out
+	return matched, out
 }
 
-func removeFunctionByIdentity(funcs []*metadatapb.FunctionMetadata, identity string) []*metadatapb.FunctionMetadata {
+func popFunctionByIdentity(funcs []*metadatapb.FunctionMetadata, identity string) (*metadatapb.FunctionMetadata, []*metadatapb.FunctionMetadata) {
+	var matched *metadatapb.FunctionMetadata
 	out := make([]*metadatapb.FunctionMetadata, 0, len(funcs))
 	for _, f := range funcs {
-		if f.Signature != identity {
-			out = append(out, f)
+		if f.Signature == identity {
+			matched = f
+			continue
 		}
+		out = append(out, f)
 	}
-	return out
+	return matched, out
 }
 
 // compositeTypeToProto builds metadata from the catalog relation, preserving
@@ -1042,7 +1406,8 @@ func wtIsSystemSchema(s string) bool {
 // relationToTableProto converts an omni Relation to a metadatapb.TableMetadata.
 func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 	table := &metadatapb.TableMetadata{
-		Name: rel.Name,
+		Name:  rel.Name,
+		Owner: rel.OwnerName,
 	}
 
 	for _, col := range rel.Columns {

@@ -4372,3 +4372,55 @@ func TestChangedCollationIsRefused(t *testing.T) {
 	_, err = testMetadataMigration(withCollation("en_US.utf8"), withCollation("C.utf8"))
 	require.ErrorContains(t, err, "collation")
 }
+
+func TestExternalTableChangesAreRefused(t *testing.T) {
+	withExternalTable := func(option string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:    "ext_users",
+					Options: []string{option},
+				}},
+			}},
+		}
+	}
+	sql, err := testMetadataMigration(withExternalTable("table_name=users"), withExternalTable("table_name=users"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+
+	_, err = testMetadataMigration(&metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}, withExternalTable("table_name=users"))
+	require.ErrorContains(t, err, "external table")
+
+	_, err = testMetadataMigration(withExternalTable("table_name=users"), withExternalTable("table_name=accounts"))
+	require.ErrorContains(t, err, "external table")
+}
+
+func TestRoutineParameterDefaultsPreserved(t *testing.T) {
+	empty := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	withFunc := func(def string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "greet",
+					Signature:  "public.greet(name text DEFAULT 'world', times integer DEFAULT 1)",
+					Definition: def,
+				}},
+			}},
+		}
+	}
+
+	def1 := "CREATE FUNCTION public.greet(name text DEFAULT 'world', times integer DEFAULT 1) RETURNS text LANGUAGE sql AS $$ SELECT name $$"
+	def2 := "CREATE FUNCTION public.greet(name text DEFAULT 'world', times integer DEFAULT 2) RETURNS text LANGUAGE sql AS $$ SELECT name $$"
+
+	sql, err := testMetadataMigration(empty, withFunc(def1))
+	require.NoError(t, err)
+	require.Contains(t, sql, "DEFAULT 'world'")
+	require.Contains(t, sql, "DEFAULT 1")
+
+	sql, err = testMetadataMigration(withFunc(def1), withFunc(def2))
+	require.NoError(t, err)
+	require.Contains(t, sql, "CREATE OR REPLACE FUNCTION")
+	require.Contains(t, sql, "DEFAULT 2")
+}

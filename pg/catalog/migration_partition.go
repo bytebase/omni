@@ -102,40 +102,9 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 	b.WriteString(qn)
 	b.WriteString(" PARTITION OF ")
 	b.WriteString(parentQN)
-
-	bound := rel.PartitionBound
-	if bound.IsDefault {
-		b.WriteString(" DEFAULT")
-	} else {
-		switch bound.Strategy {
-		case 'l': // LIST
-			b.WriteString(" FOR VALUES IN (")
-			for i, v := range bound.ListValues {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(formatPartitionValue(v))
-			}
-			b.WriteString(")")
-		case 'r': // RANGE
-			b.WriteString(" FOR VALUES FROM (")
-			for i, v := range bound.LowerBound {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(formatPartitionValue(v))
-			}
-			b.WriteString(") TO (")
-			for i, v := range bound.UpperBound {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(formatPartitionValue(v))
-			}
-			b.WriteString(")")
-		case 'h': // HASH
-			b.WriteString(fmt.Sprintf(" FOR VALUES WITH (MODULUS %d, REMAINDER %d)", bound.Modulus, bound.Remainder))
-		}
+	if boundClause := formatPartitionBound(rel.PartitionBound); boundClause != "" {
+		b.WriteString(" ")
+		b.WriteString(boundClause)
 	}
 	// A partition with subpartitions is itself partitioned.
 	b.WriteString(formatPartitionByClause(rel))
@@ -320,4 +289,45 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 	}
 
 	return ops
+}
+
+// formatPartitionBound formats a partition bound clause (e.g. "FOR VALUES IN (...)", "DEFAULT").
+func formatPartitionBound(bound *PartitionBound) string {
+	if bound == nil {
+		return ""
+	}
+	if bound.IsDefault {
+		return "DEFAULT"
+	}
+	var b strings.Builder
+	switch bound.Strategy {
+	case 'l':
+		b.WriteString("FOR VALUES IN (")
+		for i, v := range bound.ListValues {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(formatPartitionValue(v))
+		}
+		b.WriteString(")")
+	case 'r':
+		b.WriteString("FOR VALUES FROM (")
+		for i, v := range bound.LowerBound {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(formatPartitionValue(v))
+		}
+		b.WriteString(") TO (")
+		for i, v := range bound.UpperBound {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(formatPartitionValue(v))
+		}
+		b.WriteString(")")
+	case 'h':
+		fmt.Fprintf(&b, "FOR VALUES WITH (MODULUS %d, REMAINDER %d)", bound.Modulus, bound.Remainder)
+	}
+	return b.String()
 }

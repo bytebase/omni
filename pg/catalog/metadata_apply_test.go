@@ -524,3 +524,113 @@ func TestApplyDiffToMetadataRangesTriggersCommentsIndexesSequencesAndTableFuncti
 	require.Contains(t, tabFn.Definition, `tab_fn("p" integer)`)
 	require.Contains(t, tabFn.Definition, "RETURNS TABLE(")
 }
+
+func TestApplyDiffToMetadataPreservesMetadataOnRenamePartitionViewSequenceAndOwner(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "s1",
+			Owner: "alice",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events",
+				Owner:   "alice",
+				Comment: "events table",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Type: "integer", Position: 1},
+					{Name: "region", Type: "text", Position: 2},
+				},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:       "events_us",
+					Type:       metadatapb.TablePartitionMetadata_LIST,
+					Expression: "LIST (region)",
+					Value:      "FOR VALUES IN ('us')",
+					Comment:    "us partition",
+				}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:              "v_events",
+				Definition:        "SELECT id FROM s1.events;",
+				Comment:           "view doc",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "s1", Table: "events", Column: "id"}},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:              "mv_events",
+				Definition:        "SELECT id FROM s1.events;",
+				Comment:           "mv doc",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "s1", Table: "events", Column: "id"}},
+			}},
+			Sequences: []*metadatapb.SequenceMetadata{{
+				Name:      "seq_id",
+				DataType:  "bigint",
+				Start:     "1",
+				MinValue:  "1",
+				MaxValue:  "9223372036854775807",
+				Increment: "1",
+				CacheSize: "1",
+				LastValue: "42",
+				Comment:   "seq doc",
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	// Case 1: new partition, view update preserving comment/deps, sequence alter, owner change.
+	catMod := catBefore.Clone()
+	results, err := catMod.Exec(`
+		CREATE TABLE s1.events_eu PARTITION OF s1.events FOR VALUES IN ('eu');
+		CREATE OR REPLACE VIEW s1.v_events AS SELECT id, region FROM s1.events;
+		ALTER SEQUENCE s1.seq_id INCREMENT BY 2;
+		ALTER TABLE s1.events OWNER TO bob;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	modGot := ApplyDiffToMetadata(meta, catBefore, catMod, Diff(catBefore, catMod))
+	modSM := findSchema(modGot, "s1")
+	require.NotNil(t, modSM)
+	tbl := findTable(modSM, "events")
+	require.NotNil(t, tbl)
+	require.Equal(t, "bob", tbl.Owner)
+	require.Nil(t, findTable(modSM, "events_eu"), "new partition must nest under parent table")
+	require.Len(t, tbl.Partitions, 2)
+	require.Equal(t, "events_eu", tbl.Partitions[1].Name)
+	require.Equal(t, "FOR VALUES IN ('eu')", tbl.Partitions[1].Value)
+	require.Equal(t, metadatapb.TablePartitionMetadata_LIST, tbl.Partitions[1].Type)
+
+	require.Len(t, modSM.Views, 1)
+	require.Equal(t, "view doc", modSM.Views[0].Comment)
+	require.Len(t, modSM.Views[0].DependencyColumns, 1)
+
+	require.Len(t, modSM.Sequences, 1)
+	require.Equal(t, "2", modSM.Sequences[0].Increment)
+	require.Equal(t, "seq doc", modSM.Sequences[0].Comment)
+	require.Equal(t, "42", modSM.Sequences[0].LastValue)
+
+	// Case 2: schema rename preserves tables, partitions, views, sequences, and owner.
+	catRenamed := catBefore.Clone()
+	results, err = catRenamed.Exec(`ALTER SCHEMA s1 RENAME TO s2;`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	renGot := ApplyDiffToMetadata(meta, catBefore, catRenamed, Diff(catBefore, catRenamed))
+	require.Nil(t, findSchema(renGot, "s1"))
+	renSM := findSchema(renGot, "s2")
+	require.NotNil(t, renSM)
+	require.Equal(t, "alice", renSM.Owner)
+	renTbl := findTable(renSM, "events")
+	require.NotNil(t, renTbl)
+	require.Equal(t, "alice", renTbl.Owner)
+	require.Equal(t, "events table", renTbl.Comment)
+	require.Len(t, renTbl.Partitions, 1)
+	require.Equal(t, "us partition", renTbl.Partitions[0].Comment)
+	require.Len(t, renSM.Sequences, 1)
+	require.Equal(t, "seq doc", renSM.Sequences[0].Comment)
+	require.Len(t, renSM.Views, 1)
+	require.Equal(t, "view doc", renSM.Views[0].Comment)
+	require.Len(t, renSM.MaterializedViews, 1)
+	require.Equal(t, "mv doc", renSM.MaterializedViews[0].Comment)
+}
