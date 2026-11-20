@@ -1,0 +1,852 @@
+package completion
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/catalog"
+)
+
+type candidateSpec struct {
+	text string
+	typ  CandidateType
+	def  string
+}
+
+func TestCompletionGoldenCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []Candidate
+	}{
+		{
+			name: "multiple statements limits to current statement",
+			input: `select count(1) from t1 where id; SELECT * FROM |
+select * from QRTZ_J0B_DETAILS qjd where J0B_NAME like '%gray';`,
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "derived table star expansion",
+			input: "SELECT x.| FROM (SELECT * FROM t2) x",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "C1"},
+				{Type: CandidateColumn, Text: "C2"},
+			},
+		},
+		{
+			name:  "cte star expansion",
+			input: "WITH x AS (SELECT * FROM t2) SELECT x.| FROM x;",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "C1"},
+				{Type: CandidateColumn, Text: "C2"},
+			},
+		},
+		{
+			name:  "cte explicit column list",
+			input: "WITH x(x1, x2) AS (SELECT * FROM t2) SELECT x.| FROM x;",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "X1"},
+				{Type: CandidateColumn, Text: "X2"},
+			},
+		},
+		{
+			name:  "cte explicit columns unqualified select",
+			input: "WITH x(x1, x2) AS (SELECT * FROM t2) SELECT | FROM x",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateTable, Text: "X"},
+				{Type: CandidateColumn, Text: "X1"},
+				{Type: CandidateColumn, Text: "X2"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "select aliases in group by",
+			input: "SELECT c1 as eid, c2 as xid FROM t2 GROUP BY |",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "C2", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "EID"},
+				{Type: CandidateColumn, Text: "XID"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "select aliases in order by",
+			input: "SELECT c1 as eid, c2 as xid FROM t2 ORDER BY |",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "C2", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "EID"},
+				{Type: CandidateColumn, Text: "XID"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name: "select columns after invalid first statement",
+			input: `SELECT FROM basdkfjasldf;
+SELECT | FROM t1`,
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T1 | int, NOT NULL"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "derived table alias and columns",
+			input: "SELECT | FROM (SELECT c1 FROM t1) cc1",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "CC1"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateColumn, Text: "C1"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "join left alias qualified",
+			input: "SELECT cc1.| FROM t1 cc1 JOIN t2 on NOT cc1.c1 = t2.c1",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T1 | int, NOT NULL"},
+			},
+		},
+		{
+			name:  "join right table qualified in on",
+			input: "SELECT * from t1 cc1 JOIN t2 on cc1.c1 = t2.|",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "C2", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+			},
+		},
+		{
+			name:  "function argument qualified alias",
+			input: "SELECT MAX(cc1.|) FROM t2 cc1",
+			want: []Candidate{
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+				{Type: CandidateColumn, Text: "C2", Definition: "SCHEMA1.T2 | int, NOT NULL"},
+			},
+		},
+		{
+			name:  "select list physical alias offered as table",
+			input: "SELECT | FROM t1 x",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateTable, Text: "X"},
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T1 | int, NOT NULL"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+		{
+			name:  "schema qualified table in from",
+			input: "SELECT | FROM schema1.t1",
+			want: []Candidate{
+				{Type: CandidateSchema, Text: "SCHEMA1"},
+				{Type: CandidateSchema, Text: "SCHEMA2"},
+				{Type: CandidateSchema, Text: "SCHEMA3"},
+				{Type: CandidateTable, Text: "T1"},
+				{Type: CandidateTable, Text: "T2"},
+				{Type: CandidateColumn, Text: "C1", Definition: "SCHEMA1.T1 | int, NOT NULL"},
+				{Type: CandidateView, Text: "V1"},
+				{Type: CandidateSequence, Text: "SEQ1"},
+				{Type: CandidateSequence, Text: "USER_ID_SEQ"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := completeTestSQL(t, tt.input)
+			var filtered []Candidate
+			for _, c := range result {
+				if c.Type == CandidateKeyword || c.Type == CandidateFunction {
+					continue
+				}
+				filtered = append(filtered, c)
+			}
+			want := dedupAndSort(tt.want)
+			if !slices.Equal(filtered, want) {
+				t.Fatalf("got:\n%#v\nwant:\n%#v", filtered, want)
+			}
+		})
+	}
+}
+
+func TestCompletionLongTailTableSources(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantColumns []string
+	}{
+		{
+			name:        "json table explicit columns",
+			input:       "SELECT jt.| FROM t1, JSON_TABLE(t1.c1, '$.rows[*]' COLUMNS (id NUMBER PATH '$.id', name VARCHAR2(100) PATH '$.name')) jt",
+			wantColumns: []string{"ID", "NAME"},
+		},
+		{
+			name:        "xmltable explicit columns",
+			input:       "SELECT xt.| FROM t1, XMLTABLE('/root/row' PASSING t1.c1 COLUMNS id NUMBER PATH 'id', name VARCHAR2(100) PATH 'name') xt",
+			wantColumns: []string{"ID", "NAME"},
+		},
+		{
+			name:        "inline external declared columns",
+			input:       "SELECT ext.| FROM EXTERNAL ((a NUMBER, b VARCHAR2(10)) TYPE ORACLE_LOADER DEFAULT DIRECTORY data_dir LOCATION ('x.csv')) ext",
+			wantColumns: []string{"A", "B"},
+		},
+		{
+			name:        "lateral inline view columns",
+			input:       "SELECT l.| FROM t1, LATERAL (SELECT c1 FROM t2 WHERE t2.c1 = t1.c1) l",
+			wantColumns: []string{"C1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := completeTestSQL(t, tt.input)
+			var got []string
+			for _, c := range result {
+				if c.Type == CandidateColumn {
+					got = append(got, c.Text)
+				}
+			}
+			slices.Sort(got)
+			if !slices.Equal(got, tt.wantColumns) {
+				t.Fatalf("columns = %v, want %v", got, tt.wantColumns)
+			}
+		})
+	}
+}
+
+func TestCompletionCoverageMatrix(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []candidateSpec
+		notWant []candidateSpec
+	}{
+		{
+			name:  "select list uses table columns",
+			input: "SELECT | FROM t1",
+			want:  cols("C1"),
+		},
+		{
+			name:  "select list uses alias columns",
+			input: "SELECT a.| FROM t1 a",
+			want:  cols("C1"),
+		},
+		{
+			name:  "select list uses schema qualified table columns",
+			input: "SELECT | FROM schema1.t2",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "column prefix keeps matching column available",
+			input: "SELECT C2| FROM t2",
+			want:  cols("C2"),
+		},
+		{
+			name:  "qualified column prefix keeps matching column available",
+			input: "SELECT t2.C2| FROM t2",
+			want:  cols("C2"),
+		},
+		{
+			name:    "unknown qualifier offers no columns",
+			input:   "SELECT missing.| FROM t1",
+			notWant: cols("C1", "C2"),
+		},
+		{
+			name:  "join on left alias columns",
+			input: "SELECT * FROM t1 a JOIN t2 b ON a.|",
+			want:  cols("C1"),
+		},
+		{
+			name:  "join on right alias columns",
+			input: "SELECT * FROM t1 a JOIN t2 b ON b.|",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "join where sees both table columns",
+			input: "SELECT * FROM t1 a JOIN t2 b ON a.c1 = b.c1 WHERE |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:    "left alias excludes right only column",
+			input:   "SELECT a.| FROM t1 a JOIN t2 b ON a.c1 = b.c1",
+			want:    cols("C1"),
+			notWant: cols("C2"),
+		},
+		{
+			name:  "join table reference offers tables",
+			input: "SELECT * FROM t1 JOIN |",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "using clause offers joined columns",
+			input: "SELECT * FROM t1 JOIN t2 USING (|)",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "cte explicit columns are available",
+			input: "WITH x(x1, x2) AS (SELECT * FROM t2) SELECT x.| FROM x",
+			want:  cols("X1", "X2"),
+		},
+		{
+			name:  "cte star body expands",
+			input: "WITH x AS (SELECT * FROM t2) SELECT x.| FROM x",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "cte table candidate is available without schema qualifier",
+			input: "WITH x AS (SELECT * FROM t2) SELECT * FROM |",
+			want:  tbls("X", "T1", "T2"),
+		},
+		{
+			name:    "cte table candidate is excluded from schema qualified table reference",
+			input:   "WITH x AS (SELECT * FROM t2) SELECT * FROM schema1.|",
+			want:    tbls("T1", "T2"),
+			notWant: tbls("X"),
+		},
+		{
+			name:  "multiple ctes expose selected cte columns",
+			input: "WITH a AS (SELECT c1 FROM t1), b AS (SELECT c1, c2 FROM t2) SELECT b.| FROM a JOIN b ON a.c1 = b.c1",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "derived table explicit projection columns",
+			input: "SELECT x.| FROM (SELECT c1 FROM t1) x",
+			want:  cols("C1"),
+		},
+		{
+			name:  "derived table star body expands",
+			input: "SELECT x.| FROM (SELECT * FROM t2) x",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:    "unqualified select from derived table exposes derived columns",
+			input:   "SELECT | FROM (SELECT c1 FROM t2) x",
+			want:    cols("C1"),
+			notWant: cols("C2"),
+		},
+		{
+			name:  "lateral alias columns",
+			input: "SELECT l.| FROM t1, LATERAL (SELECT c1 FROM t2 WHERE t2.c1 = t1.c1) l",
+			want:  cols("C1"),
+		},
+		{
+			name:    "lateral body sees left outer reference",
+			input:   "SELECT * FROM t1, LATERAL (SELECT t1.| FROM t2) l",
+			want:    cols("C1"),
+			notWant: cols("C2"),
+		},
+		{
+			name:  "containers alias resolves base object columns",
+			input: "SELECT c.| FROM CONTAINERS(schema1.t2) c",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:    "table function alias does not invent columns",
+			input:   "SELECT x.| FROM TABLE(pkg.values()) x",
+			notWant: cols("C1", "C2"),
+		},
+		{
+			name:  "insert target table reference",
+			input: "INSERT INTO |",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "insert column list uses target table columns",
+			input: "INSERT INTO t2 (|) VALUES (1)",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "insert select uses source table columns",
+			input: "INSERT INTO t1 SELECT | FROM t2",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "update target table reference",
+			input: "UPDATE | SET c1 = 1",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "update set uses target table columns",
+			input: "UPDATE t2 SET |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "update where uses target table columns",
+			input: "UPDATE t2 SET c1 = 1 WHERE |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "delete target table reference",
+			input: "DELETE FROM |",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "delete where uses target table columns",
+			input: "DELETE FROM t2 WHERE |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "merge target table reference",
+			input: "MERGE INTO |",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:    "merge source table reference offers real tables",
+			input:   "MERGE INTO t1 target USING |",
+			want:    tbls("T1", "T2"),
+			notWant: tbls("TARGET"),
+		},
+		{
+			name:  "merge on uses target and source columns",
+			input: "MERGE INTO t1 target USING t2 source ON |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "schema qualified table reference offers schema tables",
+			input: "SELECT * FROM schema1.|",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "table prefix keeps matching table available",
+			input: "SELECT * FROM t|",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "quoted identifier qualifier resolves columns",
+			input: `SELECT "t2".| FROM t2`,
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "select alias is available in order by",
+			input: "SELECT c1 AS c_alias FROM t1 ORDER BY |",
+			want:  cols("C1", "C_ALIAS"),
+		},
+		{
+			name:    "select alias is not available in where",
+			input:   "SELECT c1 AS c_alias FROM t1 WHERE |",
+			want:    cols("C1"),
+			notWant: cols("C_ALIAS"),
+		},
+		{
+			name:  "correlated subquery can qualify outer table",
+			input: "SELECT * FROM t1 outer_t WHERE EXISTS (SELECT * FROM t2 WHERE outer_t.|)",
+			want:  cols("C1"),
+		},
+		{
+			name:  "correlated subquery can qualify inner table",
+			input: "SELECT * FROM t1 outer_t WHERE EXISTS (SELECT * FROM t2 inner_t WHERE inner_t.|)",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:    "schema qualified alias excludes same table from other schema",
+			input:   "SELECT a.| FROM schema1.t1 a JOIN schema4.t1 b ON a.c1 = b.c1",
+			want:    cols("C1"),
+			notWant: cols("SCHEMA4_ONLY"),
+		},
+		{
+			name:    "pivot does not invent transformed columns",
+			input:   "SELECT | FROM t2 PIVOT (COUNT(*) FOR c1 IN (1 AS one))",
+			notWant: cols("ONE"),
+		},
+		{
+			name:    "unpivot does not invent transformed columns",
+			input:   "SELECT | FROM t2 UNPIVOT (val FOR col IN (c1 AS 'C1', c2 AS 'C2'))",
+			notWant: cols("VAL", "COL"),
+		},
+		{
+			name:    "model does not invent transformed columns",
+			input:   "SELECT | FROM t2 MODEL DIMENSION BY (c1) MEASURES (c2) RULES (c2[1] = 1)",
+			notWant: cols("VAL", "COL"),
+		},
+		{
+			name:  "alter drop column offers table columns",
+			input: "ALTER TABLE t2 DROP COLUMN |",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "comment on schema qualified column offers columns",
+			input: "COMMENT ON COLUMN schema1.t2.|",
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:    "drop schema qualified view reference offers only views",
+			input:   "DROP VIEW schema1.|",
+			want:    vws("V1"),
+			notWant: append(tbls("T1", "T2"), seqs("SEQ1", "USER_ID_SEQ")...),
+		},
+		{
+			name:    "sequence schema qualified reference uses non default schema",
+			input:   "DROP SEQUENCE schema2.|",
+			want:    seqs("SCHEMA2_SEQ"),
+			notWant: seqs("SEQ1", "USER_ID_SEQ"),
+		},
+		{
+			name:  "create table datatype offers NUMBER",
+			input: "CREATE TABLE t (c |)",
+			want:  typs("NUMBER"),
+		},
+		{
+			name:  "create table references offers tables",
+			input: "CREATE TABLE child (parent_id NUMBER REFERENCES |)",
+			want:  tbls("T1", "T2"),
+		},
+		{
+			name:  "quoted table alias columns",
+			input: `SELECT "Alias".| FROM t2 "Alias"`,
+			want:  cols("C1", "C2"),
+		},
+		{
+			name:  "quoted cte alias columns",
+			input: `WITH "X"(x1, x2) AS (SELECT * FROM t2) SELECT "X".| FROM "X"`,
+			want:  cols("X1", "X2"),
+		},
+		{
+			name:    "database link table keeps local table columns unavailable when metadata missing",
+			input:   "SELECT remote_t.| FROM t2@remote remote_t",
+			notWant: cols("C1", "C2"),
+		},
+		{
+			name:    "unknown schema table reference offers no local tables",
+			input:   "SELECT * FROM missing_schema.|",
+			notWant: tbls("T1", "T2"),
+		},
+		{
+			name:  "function offered in select list",
+			input: "SELECT | FROM t1",
+			want:  []candidateSpec{{text: "FN1", typ: CandidateFunction}, {text: "CAST", typ: CandidateFunction}},
+		},
+		{
+			name:  "procedure offered in alter procedure",
+			input: "ALTER PROCEDURE |",
+			want:  []candidateSpec{{text: "PROC1", typ: CandidateProcedure}},
+		},
+		{
+			name:  "sequence member nextval currval offered after sequence dot",
+			input: "SELECT seq1.| FROM dual",
+			want:  []candidateSpec{{text: "NEXTVAL", typ: CandidateKeyword}, {text: "CURRVAL", typ: CandidateKeyword}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := completeTestSQL(t, tt.input)
+			for _, w := range tt.want {
+				if !hasSpec(result, w) {
+					t.Errorf("missing %s candidate %q in %v", w.typ, w.text, result)
+				}
+			}
+			for _, nw := range tt.notWant {
+				if hasSpec(result, nw) {
+					t.Errorf("unexpected %s candidate %q in %v", nw.typ, nw.text, result)
+				}
+			}
+		})
+	}
+}
+
+func TestCompleteMaterializedViewsAndPackages(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "APP",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "APP",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "T1", Columns: []*metadatapb.ColumnMetadata{{Name: "C1", Type: "NUMBER"}}},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "MV1", Definition: "CREATE MATERIALIZED VIEW mv1 AS SELECT * FROM t1"},
+				},
+				Packages: []*metadatapb.PackageMetadata{
+					{Name: "PKG1"},
+				},
+			},
+		},
+	}
+
+	sql, pos := splitCaret(t, "SELECT * FROM |")
+	res := Complete(sql, pos, meta)
+	if !hasSpec(res, candidateSpec{text: "MV1", typ: CandidateMaterializedView}) {
+		t.Fatalf("expected MV1 materialized view candidate, got %v", res)
+	}
+}
+
+func TestCompleteWithSingleCatalogAndNoOptions(t *testing.T) {
+	cat, err := catalog.LoadSQL(`
+		CREATE TABLE employees (
+			emp_id NUMBER NOT NULL,
+			emp_name VARCHAR2(100)
+		);
+		CREATE VIEW emp_v AS SELECT emp_id FROM employees;
+		CREATE SEQUENCE emp_seq;
+	`)
+	if err != nil {
+		t.Fatalf("LoadSQL failed: %v", err)
+	}
+
+	sql, pos := splitCaret(t, "SELECT | FROM employees")
+	result := Complete(sql, pos, nil, WithCatalog(cat))
+	if !hasSpec(result, candidateSpec{text: "EMP_ID", typ: CandidateColumn}) {
+		t.Fatalf("expected EMP_ID column from catalog, got %v", result)
+	}
+	if !hasSpec(result, candidateSpec{text: "EMP_NAME", typ: CandidateColumn}) {
+		t.Fatalf("expected EMP_NAME column from catalog, got %v", result)
+	}
+
+	sql2, pos2 := splitCaret(t, "SELECT * FROM |")
+	result2 := Complete(sql2, pos2, cat.Metadata())
+	if !hasSpec(result2, candidateSpec{text: "EMPLOYEES", typ: CandidateTable}) {
+		t.Fatalf("expected EMPLOYEES table, got %v", result2)
+	}
+	if !hasSpec(result2, candidateSpec{text: "EMP_V", typ: CandidateView}) {
+		t.Fatalf("expected EMP_V view, got %v", result2)
+	}
+	if !hasSpec(result2, candidateSpec{text: "EMP_SEQ", typ: CandidateSequence}) {
+		t.Fatalf("expected EMP_SEQ sequence, got %v", result2)
+	}
+}
+
+func TestCompleteOutOfRangeAndNilMetadata(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		pos  int
+	}{
+		{name: "empty negative", sql: "", pos: -5},
+		{name: "empty past end", sql: "", pos: 100},
+		{name: "select past end", sql: "SELECT * FROM ", pos: 999},
+		{name: "garbage", sql: "))) ??? ''' \"\"\"", pos: 5},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_ = Complete(tc.sql, tc.pos, nil)
+		})
+	}
+}
+
+func TestCompleteTrickySelectWithoutSemicolon(t *testing.T) {
+	input := "SELECT * FROM broken(\nSELECT | FROM t2"
+	result := completeTestSQL(t, input)
+	if !hasSpec(result, candidateSpec{text: "C1", typ: CandidateColumn}) || !hasSpec(result, candidateSpec{text: "C2", typ: CandidateColumn}) {
+		t.Fatalf("expected C1 and C2 after unseparated SELECT, got %v", result)
+	}
+}
+
+func TestCompleteInsideQuotedPrefix(t *testing.T) {
+	input := `SELECT * FROM "T|`
+	result := completeTestSQL(t, input)
+	if !hasSpec(result, candidateSpec{text: "T1", typ: CandidateTable}) || !hasSpec(result, candidateSpec{text: "T2", typ: CandidateTable}) {
+		t.Fatalf("expected T1 and T2 inside open quote, got %v", result)
+	}
+}
+
+func completeTestSQL(t *testing.T, input string) []Candidate {
+	t.Helper()
+	sql, pos := splitCaret(t, input)
+	return Complete(
+		sql,
+		pos,
+		nil,
+		WithDefaultSchema("SCHEMA1"),
+		WithSchemaNames([]string{"SCHEMA1", "SCHEMA2", "SCHEMA3"}),
+		WithSchemaLoader(loadTestSchema),
+	)
+}
+
+func splitCaret(t *testing.T, input string) (string, int) {
+	t.Helper()
+	idx := strings.Index(input, "|")
+	if idx < 0 {
+		t.Fatalf("missing '|' caret in %q", input)
+	}
+	return input[:idx] + input[idx+1:], idx
+}
+
+func hasSpec(candidates []Candidate, want candidateSpec) bool {
+	for _, c := range candidates {
+		if c.Type == want.typ && c.Text == want.text {
+			if want.def == "" || c.Definition == want.def {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func cols(texts ...string) []candidateSpec { return specs(CandidateColumn, texts...) }
+func tbls(texts ...string) []candidateSpec { return specs(CandidateTable, texts...) }
+func vws(texts ...string) []candidateSpec  { return specs(CandidateView, texts...) }
+func seqs(texts ...string) []candidateSpec { return specs(CandidateSequence, texts...) }
+func typs(texts ...string) []candidateSpec { return specs(CandidateType_, texts...) }
+
+func specs(typ CandidateType, texts ...string) []candidateSpec {
+	out := make([]candidateSpec, 0, len(texts))
+	for _, t := range texts {
+		out = append(out, candidateSpec{text: t, typ: typ})
+	}
+	return out
+}
+
+func loadTestSchema(name string) *metadatapb.DatabaseSchemaMetadata {
+	switch name {
+	case "SCHEMA1":
+		return &metadatapb.DatabaseSchemaMetadata{
+			Name: "SCHEMA1",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "T1",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "C1", Type: "int"},
+							},
+						},
+						{
+							Name: "T2",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "C1", Type: "int"},
+								{Name: "C2", Type: "int"},
+							},
+						},
+					},
+					Views: []*metadatapb.ViewMetadata{
+						{
+							Name:       "V1",
+							Definition: "CREATE VIEW v1 AS SELECT * FROM t1",
+						},
+					},
+					Sequences: []*metadatapb.SequenceMetadata{
+						{Name: "SEQ1"},
+						{Name: "USER_ID_SEQ"},
+					},
+					Functions: []*metadatapb.FunctionMetadata{
+						{Name: "FN1"},
+					},
+					Procedures: []*metadatapb.ProcedureMetadata{
+						{Name: "PROC1"},
+					},
+					Packages: []*metadatapb.PackageMetadata{
+						{Name: "PKG1"},
+					},
+				},
+			},
+		}
+	case "SCHEMA2":
+		return &metadatapb.DatabaseSchemaMetadata{
+			Name: "SCHEMA2",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name:    "T1",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "C1", Type: "int"}},
+						},
+						{
+							Name: "T2",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "C1", Type: "int"},
+								{Name: "C2", Type: "int"},
+							},
+						},
+					},
+					Views:     []*metadatapb.ViewMetadata{{Name: "V1", Definition: "CREATE VIEW v1 AS SELECT * FROM t1"}},
+					Sequences: []*metadatapb.SequenceMetadata{{Name: "SCHEMA2_SEQ"}},
+				},
+			},
+		}
+	case "SCHEMA3":
+		return &metadatapb.DatabaseSchemaMetadata{
+			Name: "SCHEMA3",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name:    "T1",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "C1", Type: "int"}},
+						},
+						{
+							Name: "T2",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "C1", Type: "int"},
+								{Name: "C2", Type: "int"},
+							},
+						},
+					},
+					Views: []*metadatapb.ViewMetadata{{Name: "V1", Definition: "CREATE VIEW v1 AS SELECT * FROM t1"}},
+				},
+			},
+		}
+	case "SCHEMA4":
+		return &metadatapb.DatabaseSchemaMetadata{
+			Name: "SCHEMA4",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "T1",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "C1", Type: "int"},
+								{Name: "SCHEMA4_ONLY", Type: "int"},
+							},
+						},
+					},
+				},
+			},
+		}
+	default:
+		return nil
+	}
+}

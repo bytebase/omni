@@ -3,6 +3,7 @@ package completion
 import (
 	"testing"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/partiql/catalog"
 )
 
@@ -193,4 +194,197 @@ func countKind(cs []Candidate, kind string) int {
 		}
 	}
 	return n
+}
+
+func TestCompleteWithMetadataColumns(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "xx-ap-east-1",
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Music",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Artist"},
+							{Name: "SongTitle"},
+						},
+					},
+					{
+						Name: "Album",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "AlbumId"},
+							{Name: "Title"},
+						},
+					},
+					{
+						Name: "order",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "OrderId"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cat := catalog.New()
+	cat.LoadMetadata(meta)
+
+	tests := []struct {
+		name     string
+		input    string
+		cat      *catalog.Catalog
+		wantCols []string
+		wantTabs []string
+	}{
+		{
+			name:     "select item from table",
+			input:    "SELECT | FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "select item with prefix",
+			input:    "SELECT Ar| FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist"},
+		},
+		{
+			name:     "where clause columns",
+			input:    "SELECT * FROM Music WHERE |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "having clause columns",
+			input:    "SELECT Artist FROM Music GROUP BY Artist HAVING |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "order by clause columns",
+			input:    "SELECT * FROM Music ORDER BY |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "update set columns",
+			input:    "UPDATE Music SET |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "comma separated tables",
+			input:    "SELECT | FROM Music,Album",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Artist", "SongTitle", "Title"},
+		},
+		{
+			name:     "aliased table with comment",
+			input:    "SELECT | FROM Music AS m /* music */",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "quoted keyword table name",
+			input:    `SELECT | FROM "order"`,
+			cat:      cat,
+			wantCols: []string{"OrderId"},
+		},
+		{
+			name:     "multi statement semicolon isolation",
+			input:    "SELECT * FROM Album; SELECT | FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "semicolon inside string literal",
+			input:    "SELECT | FROM Music WHERE Artist = 'a;b'",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "no from clause falls back to all tables",
+			input:    "SELECT |",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Artist", "OrderId", "SongTitle", "Title"},
+		},
+		{
+			name:     "from clause offers tables not columns",
+			input:    "SELECT * FROM |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "nil catalog derives tables and columns from metadata",
+			input:    "SELECT * FROM |",
+			cat:      nil,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "nil catalog resolves columns from metadata",
+			input:    "SELECT | FROM Music",
+			cat:      nil,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sql, pos := splitMarker(t, tc.input)
+			got := CompleteWithMetadata(sql, pos, tc.cat, meta)
+
+			var gotCols, gotTabs []string
+			for _, c := range got {
+				switch c.Kind {
+				case "column":
+					gotCols = append(gotCols, c.Text)
+				case "table":
+					gotTabs = append(gotTabs, c.Text)
+				}
+			}
+			if !equalStringSlices(gotCols, tc.wantCols) {
+				t.Errorf("columns = %v, want %v", gotCols, tc.wantCols)
+			}
+			if tc.wantTabs != nil && !equalStringSlices(gotTabs, tc.wantTabs) {
+				t.Errorf("tables = %v, want %v", gotTabs, tc.wantTabs)
+			}
+		})
+	}
+}
+
+func TestCompleteNilCatalogDoesNotPanic(t *testing.T) {
+	got := Complete("SELECT * FROM ", 14, nil)
+	if countKind(got, "table") != 0 {
+		t.Errorf("expected no tables for nil catalog, got %v", got)
+	}
+	if countKind(got, "keyword") == 0 {
+		t.Errorf("expected keyword candidates for nil catalog")
+	}
+}
+
+func splitMarker(t *testing.T, input string) (string, int) {
+	t.Helper()
+	for i := 0; i < len(input); i++ {
+		if input[i] == '|' {
+			return input[:i] + input[i+1:], i
+		}
+	}
+	t.Fatalf("missing '|' marker in %q", input)
+	return "", 0
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
