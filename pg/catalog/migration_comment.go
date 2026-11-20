@@ -107,7 +107,9 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 		if len(parts) == 2 && c != nil {
 			if sc := c.GetSchema(parts[0]); sc != nil {
 				if idx := sc.Indexes[parts[1]]; idx != nil {
-					return fmt.Sprintf("INDEX %s", formatIndexTargetName(parts[0], idx))
+					if rel := c.GetRelationByOID(idx.RelOID); rel != nil && rel.Persistence == 't' && !isTempSchemaName(parts[0]) {
+						return fmt.Sprintf("INDEX %s", quoteIdentAlways(parts[1]))
+					}
 				}
 			}
 		}
@@ -126,8 +128,8 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 		parts := strings.SplitN(objDescription, ".", 2)
 		if len(parts) == 2 && c != nil {
 			if sc := c.GetSchema(parts[0]); sc != nil {
-				if seq := sc.Sequences[parts[1]]; seq != nil {
-					return fmt.Sprintf("SEQUENCE %s", formatSequenceTargetName(parts[0], seq))
+				if seq := sc.Sequences[parts[1]]; seq != nil && seq.Persistence == 't' && !isTempSchemaName(parts[0]) {
+					return fmt.Sprintf("SEQUENCE %s", quoteIdentAlways(parts[1]))
 				}
 			}
 		}
