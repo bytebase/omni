@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
-	pgparser "github.com/bytebase/omni/redshift/parser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -788,7 +787,7 @@ func TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView(t *testing.
 func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testing.T) {
 	// 1 & 2. Unified cross-kind ordering: view-dependent functions follow views,
 	// table-dependent functions precede tables whose DEFAULT calls them, and
-	// views reading external tables follow external tables.
+	// SkipDump external tables are ignored cleanly.
 	unified, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{
 			{
@@ -819,63 +818,46 @@ func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testi
 				},
 				ExternalTables: []*metadatapb.ExternalTableMetadata{
 					{Name: "skip_ext", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}, SkipDump: true},
-					{
-						Name:     "ExtEvents",
-						Columns:  []*metadatapb.ColumnMetadata{{Name: "EventId", Type: "integer"}, {Name: "payload", Type: "varchar(100)"}},
-						Format:   "PARQUET",
-						Location: "s3://example-bucket/events/'v1'",
-						Options:  []string{"compression_type=gzip", "quote_key=a=b'c"},
-					},
 				},
 				Views: []*metadatapb.ViewMetadata{
 					{
 						Name:       "v_events",
-						Definition: `SELECT "EventId" FROM "public"."ExtEvents"`,
+						Definition: `SELECT id FROM "public"."base_tbl"`,
 					},
 				},
 			},
 		},
 	})
 	require.NoError(t, err)
-	require.Contains(t, unified, "SET enable_case_sensitive_identifier TO true;\n")
 	require.NotContains(t, unified, "skip_ext")
 
 	basePos := strings.Index(unified, "Table structure for `base_tbl`")
 	nextFnPos := strings.Index(unified, "Function structure for `next_code_fn`")
 	consumerPos := strings.Index(unified, "Table structure for `consumer_tbl`")
-	extPos := strings.Index(unified, "External table structure for `ExtEvents`")
 	viewPos := strings.Index(unified, "View structure for `v_events`")
 	vFnPos := strings.Index(unified, "Function structure for `v_summary_fn`")
 
 	require.Greater(t, nextFnPos, basePos, "expected base_tbl before next_code_fn:\n%s", unified)
 	require.Greater(t, consumerPos, nextFnPos, "expected next_code_fn before consumer_tbl:\n%s", unified)
-	require.Greater(t, viewPos, extPos, "expected ExtEvents before v_events:\n%s", unified)
+	require.Greater(t, viewPos, basePos, "expected base_tbl before v_events:\n%s", unified)
 	require.Greater(t, vFnPos, viewPos, "expected v_events before v_summary_fn:\n%s", unified)
 
-	require.Contains(t, unified, `CREATE EXTERNAL TABLE "public"."ExtEvents" (
-  "EventId" integer,
-  "payload" varchar(100)
-)
-STORED AS PARQUET
-LOCATION 's3://example-bucket/events/''v1'''
-TABLE PROPERTIES (
-  'compression_type' = 'gzip',
-  'quote_key' = 'a=b''c'
-);`)
-
-	// Verify emitted CREATE EXTERNAL TABLE parses under Redshift parser.
-	extStart := strings.Index(unified, "CREATE EXTERNAL TABLE")
-	extEnd := strings.Index(unified[extStart:], ";")
-	_, parseErr := pgparser.Parse(unified[extStart : extStart+extEnd+1])
-	require.NoError(t, parseErr)
-
-	// Empty external table fails explicitly.
+	// Non-skipped external table returns an explicit error because SchemaMetadata
+	// does not capture CREATE EXTERNAL SCHEMA configuration.
 	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{
-			{Name: "spectrum", ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "empty_ext"}}},
+			{
+				Name: "spectrum",
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{
+						Name:    "ext_events",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					},
+				},
+			},
 		},
 	})
-	require.Error(t, err)
+	require.ErrorContains(t, err, "external schema")
 
 	// 4. Same-arity overload resolution via nested builtin / expression return type:
 	// fmt_val(int) -> caller_wrap(text) -> fmt_val(text), where caller_wrap calls fmt_val(length(x)).

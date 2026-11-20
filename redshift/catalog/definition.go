@@ -172,18 +172,6 @@ func tableHasUpperIdentifier(table *metadatapb.TableMetadata) bool {
 	return false
 }
 
-func externalTableHasUpperIdentifier(et *metadatapb.ExternalTableMetadata) bool {
-	if hasUpperASCII(et.Name) {
-		return true
-	}
-	for _, col := range et.Columns {
-		if col != nil && hasUpperASCII(col.Name) {
-			return true
-		}
-	}
-	return false
-}
-
 func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -194,11 +182,6 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 		}
 		for _, table := range schema.Tables {
 			if table != nil && !table.SkipDump && tableHasUpperIdentifier(table) {
-				return true
-			}
-		}
-		for _, et := range schema.ExternalTables {
-			if et != nil && !et.SkipDump && externalTableHasUpperIdentifier(et) {
 				return true
 			}
 		}
@@ -823,7 +806,6 @@ type objectKind int
 const (
 	objectKindFunc objectKind = iota
 	objectKindTable
-	objectKindExternalTable
 	objectKindView
 	objectKindMaterializedView
 )
@@ -834,17 +816,16 @@ type orderedObject struct {
 	name         string
 	fn           functionEntry
 	table        *tableState
-	extTable     *externalTableState
 	view         *viewState
 	viewMeta     *metadatapb.ViewMetadata
 	mvMeta       *metadatapb.MaterializedViewMetadata
 	materialized bool
 }
 
-// writeOrderedObjects emits functions, tables, external tables, views, and
-// materialized views in one topological order so cross-kind dependencies
-// (such as view-dependent UDFs, tables whose defaults call table-dependent
-// UDFs, and views reading external tables) always follow their prerequisites.
+// writeOrderedObjects emits functions, tables, views, and materialized views
+// in one topological order so cross-kind dependencies (such as view-dependent
+// UDFs and tables whose defaults call table-dependent UDFs) always follow
+// their prerequisites.
 func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
 	var items []orderedObject
 	var fnEntries []functionEntry
@@ -853,6 +834,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
+		}
+		for _, et := range schema.ExternalTables {
+			if et != nil && !et.SkipDump {
+				return fmt.Errorf("external table %s cannot be restored because SchemaMetadata does not capture external schema definitions", qualifyName(schema.Name, et.Name))
+			}
 		}
 		for _, fn := range schema.Functions {
 			if fn == nil || fn.SkipDump {
@@ -911,32 +897,6 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				schema: ts.schema,
 				name:   ts.name,
 				table:  ts,
-			})
-		}
-	}
-
-	for _, schema := range to.Schemas {
-		if schema == nil || schema.SkipDump {
-			continue
-		}
-		schemaState, ok := state.schemas[schema.Name]
-		if !ok {
-			continue
-		}
-		for _, et := range schema.ExternalTables {
-			if et == nil || et.SkipDump {
-				continue
-			}
-			ets, ok := schemaState.externalTables[et.Name]
-			if !ok {
-				continue
-			}
-			delete(schemaState.externalTables, et.Name)
-			items = append(items, orderedObject{
-				kind:     objectKindExternalTable,
-				schema:   ets.schema,
-				name:     ets.name,
-				extTable: ets,
 			})
 		}
 	}
@@ -1158,13 +1118,6 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				if err := flushDeferred(); err != nil {
 					return err
 				}
-			}
-		case objectKindExternalTable:
-			if _, err := w.WriteString(getExternalTableAnnouncement(item.extTable.name)); err != nil {
-				return err
-			}
-			if err := writeExternalTable(w, item.extTable); err != nil {
-				return err
 			}
 		case objectKindView:
 			if _, err := w.WriteString(getViewAnnouncement(item.view.name)); err != nil {
@@ -1456,10 +1409,6 @@ func getTableAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
-func getExternalTableAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- External table structure for `%s`\n--\n", sanitizeBannerName(name))
-}
-
 func getViewAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", sanitizeBannerName(name))
 }
@@ -1494,7 +1443,6 @@ func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata) *databa
 type schemaState struct {
 	name              string
 	tables            map[string]*tableState
-	externalTables    map[string]*externalTableState
 	views             map[string]*viewState
 	materializedViews map[string]*viewState
 }
@@ -1522,10 +1470,6 @@ func (t *tableState) qualifiedName() string {
 	return qualifyName(t.schema, t.name)
 }
 
-func (e *externalTableState) qualifiedName() string {
-	return qualifyName(e.schema, e.name)
-}
-
 func (v *viewState) qualifiedName() string {
 	return qualifyName(v.schema, v.name)
 }
@@ -1539,7 +1483,6 @@ func escapeStringLiteral(s string) string {
 func newSchemaState() *schemaState {
 	return &schemaState{
 		tables:            make(map[string]*tableState),
-		externalTables:    make(map[string]*externalTableState),
 		views:             make(map[string]*viewState),
 		materializedViews: make(map[string]*viewState),
 	}
@@ -1554,12 +1497,6 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 		}
 		state.tables[table.Name] = convertToTableState(i, schema.Name, table)
 	}
-	for i, et := range schema.ExternalTables {
-		if et == nil || et.SkipDump {
-			continue
-		}
-		state.externalTables[et.Name] = convertToExternalTableState(i, schema.Name, et)
-	}
 	for i, view := range schema.Views {
 		if view == nil || view.SkipDump {
 			continue
@@ -1573,100 +1510,6 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 		state.materializedViews[mv.Name] = convertToMaterializedViewState(i, schema.Name, mv)
 	}
 	return state
-}
-
-type externalTableColumn struct {
-	name string
-	tp   string
-}
-
-type externalTableState struct {
-	id       int
-	schema   string
-	name     string
-	columns  []externalTableColumn
-	format   string
-	location string
-	options  []string
-}
-
-func convertToExternalTableState(id int, schemaName string, et *metadatapb.ExternalTableMetadata) *externalTableState {
-	cols := make([]externalTableColumn, 0, len(et.Columns))
-	for _, col := range et.Columns {
-		if col == nil {
-			continue
-		}
-		cols = append(cols, externalTableColumn{
-			name: col.Name,
-			tp:   col.Type,
-		})
-	}
-	return &externalTableState{
-		id:       id,
-		schema:   schemaName,
-		name:     et.Name,
-		columns:  cols,
-		format:   strings.TrimSpace(et.Format),
-		location: et.Location,
-		options:  et.Options,
-	}
-}
-
-func writeExternalTable(w io.StringWriter, et *externalTableState) error {
-	if len(et.columns) == 0 {
-		return fmt.Errorf("external table %s has no columns", et.qualifiedName())
-	}
-	var buf strings.Builder
-	if _, err := fmt.Fprintf(&buf, "CREATE EXTERNAL TABLE %s (\n  ", et.qualifiedName()); err != nil {
-		return err
-	}
-	for i, col := range et.columns {
-		if i > 0 {
-			if _, err := buf.WriteString(",\n  "); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprintf(&buf, "%s %s", quoteDefinitionIdentifier(col.name), col.tp); err != nil {
-			return err
-		}
-	}
-	if _, err := buf.WriteString("\n)"); err != nil {
-		return err
-	}
-	if et.format != "" {
-		if _, err := fmt.Fprintf(&buf, "\nSTORED AS %s", et.format); err != nil {
-			return err
-		}
-	}
-	if et.location != "" {
-		if _, err := fmt.Fprintf(&buf, "\nLOCATION '%s'", escapeStringLiteral(et.location)); err != nil {
-			return err
-		}
-	}
-	if len(et.options) > 0 {
-		if _, err := buf.WriteString("\nTABLE PROPERTIES (\n"); err != nil {
-			return err
-		}
-		for i, opt := range et.options {
-			if i > 0 {
-				if _, err := buf.WriteString(",\n"); err != nil {
-					return err
-				}
-			}
-			k, v, _ := strings.Cut(opt, "=")
-			if _, err := fmt.Fprintf(&buf, "  '%s' = '%s'", escapeStringLiteral(k), escapeStringLiteral(v)); err != nil {
-				return err
-			}
-		}
-		if _, err := buf.WriteString("\n)"); err != nil {
-			return err
-		}
-	}
-	if _, err := buf.WriteString(";\n"); err != nil {
-		return err
-	}
-	_, err := w.WriteString(buf.String())
-	return err
 }
 
 type tableState struct {
