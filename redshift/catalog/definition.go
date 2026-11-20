@@ -189,7 +189,7 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 		if schema == nil || schema.SkipDump {
 			continue
 		}
-		if hasUpperASCII(schema.Name) {
+		if hasUpperASCII(schema.Name) || (schema.Name != "public" && hasUpperASCII(schema.Owner)) {
 			return true
 		}
 		for _, table := range schema.Tables {
@@ -221,11 +221,23 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 	return false
 }
 
+type functionParam struct {
+	name     string
+	typeName string
+}
+
 type functionEntry struct {
 	schema       string
 	name         string
 	def          string
+	params       []functionParam
 	hasTableDeps bool
+}
+
+type functionCall struct {
+	schema   string
+	name     string
+	argTypes []string
 }
 
 func emitFunctions(w io.StringWriter, fns []functionEntry) error {
@@ -261,6 +273,7 @@ func partitionFunctions(to *metadatapb.DatabaseSchemaMetadata) (pre, post []func
 				schema:       schema.Name,
 				name:         fn.Name,
 				def:          def,
+				params:       parseFunctionParams(def),
 				hasTableDeps: len(fn.DependencyTables) > 0,
 			})
 		}
@@ -285,21 +298,17 @@ func partitionFunctions(to *metadatapb.DatabaseSchemaMetadata) (pre, post []func
 		dependencies[i][dep] = struct{}{}
 	}
 	for i, fn := range fns {
-		for _, call := range collectFunctionCalls(fn.def) {
+		for _, call := range collectFunctionCalls(fn.def, fn.params) {
+			var candidates []int
 			if call.schema != "" {
-				for _, depIdx := range byName[objectKey(call.schema, call.name)] {
-					addDep(i, depIdx)
-				}
-				continue
+				candidates = byName[objectKey(call.schema, call.name)]
+			} else if cands, ok := byName[objectKey(fn.schema, call.name)]; ok {
+				candidates = cands
+			} else {
+				candidates = byName[objectKey("public", call.name)]
 			}
-			if deps, ok := byName[objectKey(fn.schema, call.name)]; ok {
-				for _, depIdx := range deps {
-					addDep(i, depIdx)
-				}
-			} else if deps, ok := byName[objectKey("public", call.name)]; ok {
-				for _, depIdx := range deps {
-					addDep(i, depIdx)
-				}
+			for _, depIdx := range resolveFunctionOverload(fns, candidates, call.argTypes) {
+				addDep(i, depIdx)
 			}
 		}
 	}
@@ -335,8 +344,179 @@ func partitionFunctions(to *metadatapb.DatabaseSchemaMetadata) (pre, post []func
 	return pre, post, nil
 }
 
-func collectFunctionCalls(definition string) []relationRef {
-	var calls []relationRef
+func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []string) []int {
+	if len(candidates) <= 1 {
+		return candidates
+	}
+	var arityMatches []int
+	for _, idx := range candidates {
+		if len(fns[idx].params) == len(argTypes) {
+			arityMatches = append(arityMatches, idx)
+		}
+	}
+	if len(arityMatches) == 0 {
+		return candidates
+	}
+	if len(arityMatches) == 1 {
+		return arityMatches
+	}
+	bestScore := -1
+	var best []int
+	for _, idx := range arityMatches {
+		score := 0
+		compatible := true
+		for i, argType := range argTypes {
+			if argType == "" {
+				continue
+			}
+			paramType := fns[idx].params[i].typeName
+			if paramType == "" {
+				continue
+			}
+			if paramType == argType {
+				score += 2
+			} else if isNumericType(argType) && isNumericType(paramType) {
+				score++
+			} else {
+				compatible = false
+				break
+			}
+		}
+		if !compatible {
+			continue
+		}
+		if score > bestScore {
+			bestScore = score
+			best = []int{idx}
+		} else if score == bestScore {
+			best = append(best, idx)
+		}
+	}
+	if len(best) > 0 {
+		return best
+	}
+	return arityMatches
+}
+
+func isNumericType(t string) bool {
+	switch t {
+	case "int2", "int4", "int8", "numeric", "float4", "float8":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeSQLTypeName(tn *nodes.TypeName) string {
+	if tn == nil || tn.Names == nil || len(tn.Names.Items) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, item := range tn.Names.Items {
+		if s, ok := item.(*nodes.String); ok && s.Str != "" {
+			parts = append(parts, strings.ToLower(s.Str))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	name := parts[len(parts)-1]
+	switch name {
+	case "smallint", "int2":
+		return "int2"
+	case "int", "integer", "int4":
+		return "int4"
+	case "bigint", "int8":
+		return "int8"
+	case "decimal", "numeric":
+		return "numeric"
+	case "real", "float4":
+		return "float4"
+	case "double precision", "float8", "float":
+		return "float8"
+	case "boolean", "bool":
+		return "bool"
+	case "varchar", "character varying", "text", "char", "character", "bpchar":
+		return "text"
+	default:
+		return name
+	}
+}
+
+func parseFunctionParams(definition string) []functionParam {
+	stmts, err := pgparser.Parse(definition)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return nil
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	cf, ok := stmt.(*nodes.CreateFunctionStmt)
+	if !ok || cf.Parameters == nil {
+		return nil
+	}
+	var params []functionParam
+	for _, item := range cf.Parameters.Items {
+		fp, ok := item.(*nodes.FunctionParameter)
+		if !ok {
+			continue
+		}
+		params = append(params, functionParam{
+			name:     fp.Name,
+			typeName: normalizeSQLTypeName(fp.ArgType),
+		})
+	}
+	return params
+}
+
+func inferArgTypes(args *nodes.List, callerParams []functionParam) []string {
+	if args == nil || len(args.Items) == 0 {
+		return nil
+	}
+	out := make([]string, len(args.Items))
+	for i, arg := range args.Items {
+		out[i] = inferExprType(arg, callerParams)
+	}
+	return out
+}
+
+func inferExprType(node nodes.Node, callerParams []functionParam) string {
+	switch n := node.(type) {
+	case *nodes.ParamRef:
+		idx := n.Number - 1
+		if idx >= 0 && idx < len(callerParams) {
+			return callerParams[idx].typeName
+		}
+	case *nodes.ColumnRef:
+		if n.Fields != nil && len(n.Fields.Items) == 1 {
+			if s, ok := n.Fields.Items[0].(*nodes.String); ok {
+				for _, p := range callerParams {
+					if strings.EqualFold(p.name, s.Str) {
+						return p.typeName
+					}
+				}
+			}
+		}
+	case *nodes.TypeCast:
+		return normalizeSQLTypeName(n.TypeName)
+	case *nodes.A_Const:
+		switch n.Val.(type) {
+		case *nodes.Integer:
+			return "int4"
+		case *nodes.Float:
+			return "numeric"
+		case *nodes.String:
+			return "text"
+		case *nodes.Boolean:
+			return "bool"
+		}
+	}
+	return ""
+}
+
+func collectFunctionCalls(definition string, callerParams []functionParam) []functionCall {
+	var calls []functionCall
 	walkAST := func(node nodes.Node) {
 		nodes.Inspect(node, func(n nodes.Node) bool {
 			fc, ok := n.(*nodes.FuncCall)
@@ -349,11 +529,12 @@ func collectFunctionCalls(definition string) []relationRef {
 					parts = append(parts, s.Str)
 				}
 			}
+			argTypes := inferArgTypes(fc.Args, callerParams)
 			switch len(parts) {
 			case 1:
-				calls = append(calls, relationRef{name: parts[0]})
+				calls = append(calls, functionCall{name: parts[0], argTypes: argTypes})
 			case 2:
-				calls = append(calls, relationRef{schema: parts[0], name: parts[1]})
+				calls = append(calls, functionCall{schema: parts[0], name: parts[1], argTypes: argTypes})
 			}
 			return true
 		})
@@ -409,7 +590,7 @@ func extractDefElemStrings(arg nodes.Node) []string {
 	return nil
 }
 
-func scanCallRefs(body string) []relationRef {
+func scanCallRefs(body string) []functionCall {
 	lex := pgparser.NewLexer(body)
 	var toks []pgparser.Token
 	for {
@@ -419,14 +600,37 @@ func scanCallRefs(body string) []relationRef {
 		}
 		toks = append(toks, tok)
 	}
-	var calls []relationRef
+	countArgs := func(openIdx int) int {
+		if openIdx+1 < len(toks) && toks[openIdx+1].Type == ')' {
+			return 0
+		}
+		depth := 0
+		args := 1
+		for j := openIdx; j < len(toks); j++ {
+			switch toks[j].Type {
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 {
+					return args
+				}
+			case ',':
+				if depth == 1 {
+					args++
+				}
+			}
+		}
+		return args
+	}
+	var calls []functionCall
 	for i := 0; i+1 < len(toks); i++ {
 		if i+3 < len(toks) && toks[i+1].Type == '.' && toks[i+3].Type == '(' && toks[i].Str != "" && toks[i+2].Str != "" {
-			calls = append(calls, relationRef{schema: toks[i].Str, name: toks[i+2].Str})
+			calls = append(calls, functionCall{schema: toks[i].Str, name: toks[i+2].Str, argTypes: make([]string, countArgs(i+3))})
 			continue
 		}
 		if toks[i+1].Type == '(' && toks[i].Str != "" && (i == 0 || toks[i-1].Type != '.') {
-			calls = append(calls, relationRef{name: toks[i].Str})
+			calls = append(calls, functionCall{name: toks[i].Str, argTypes: make([]string, countArgs(i+1))})
 		}
 	}
 	return calls
@@ -458,11 +662,23 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) e
 
 func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
 	for _, schema := range to.Schemas {
-		if schema == nil || schema.SkipDump || schema.Name == "" || schema.Name == "public" {
+		if schema == nil || schema.SkipDump || schema.Name == "" {
 			continue
 		}
-		if _, err := w.WriteString(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;\n", quoteDefinitionIdentifier(schema.Name))); err != nil {
-			return err
+		if schema.Name != "public" {
+			if _, err := w.WriteString(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;\n", quoteDefinitionIdentifier(schema.Name))); err != nil {
+				return err
+			}
+			if schema.Owner != "" {
+				if _, err := w.WriteString(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;\n", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(schema.Owner))); err != nil {
+					return err
+				}
+			}
+		}
+		if schema.Comment != "" {
+			if _, err := w.WriteString(fmt.Sprintf("COMMENT ON SCHEMA %s IS '%s';\n", quoteDefinitionIdentifier(schema.Name), escapeStringLiteral(schema.Comment))); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -910,6 +1126,11 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
+	for _, fk := range sortedForeignKeys(table.foreignKeys) {
+		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
+			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
+		}
+	}
 	buf := &strings.Builder{}
 	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
 		return err
@@ -1097,9 +1318,7 @@ type tableState struct {
 func sortedForeignKeys(fks map[string]*foreignKeyState) []*foreignKeyState {
 	foreignKeys := make([]*foreignKeyState, 0, len(fks))
 	for _, fk := range fks {
-		if len(fk.columns) > 0 && len(fk.referencedColumns) > 0 {
-			foreignKeys = append(foreignKeys, fk)
-		}
+		foreignKeys = append(foreignKeys, fk)
 	}
 	slices.SortFunc(foreignKeys, func(a, b *foreignKeyState) int {
 		return strings.Compare(a.name, b.name)
@@ -1247,10 +1466,10 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 }
 
 func (f *foreignKeyState) toString(buf *strings.Builder) error {
-	n := min(len(f.columns), len(f.referencedColumns))
-	if n == 0 {
-		return nil
+	if len(f.columns) == 0 || len(f.columns) != len(f.referencedColumns) {
+		return fmt.Errorf("foreign key %s has %d columns and %d referenced columns", f.name, len(f.columns), len(f.referencedColumns))
 	}
+	n := len(f.columns)
 	if f.name != "" {
 		if _, err := fmt.Fprintf(buf, "CONSTRAINT %s ", quoteDefinitionIdentifier(f.name)); err != nil {
 			return err

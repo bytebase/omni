@@ -678,6 +678,59 @@ COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 	aPos := strings.Index(crossPass, "Function structure for `a_caller`")
 	require.Greater(t, zPos, tPos, "expected z_table_fn after table t:\n%s", crossPass)
 	require.Greater(t, aPos, zPos, "expected a_caller after z_table_fn:\n%s", crossPass)
+
+	// Overloaded UDFs: f(int) calls wrapper(int) which calls f(int, int).
+	// Name-only matching would create a false cycle between f and wrapper.
+	overloaded, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:    "analytics",
+				Owner:   "app_owner",
+				Comment: "analytics schema",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f",
+						Definition: "CREATE FUNCTION analytics.f(a int) RETURNS int IMMUTABLE AS $$ SELECT analytics.wrapper(a) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "wrapper",
+						Definition: "CREATE FUNCTION analytics.wrapper(x int) RETURNS int IMMUTABLE AS $$ SELECT analytics.f(x, 0) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "f",
+						Definition: "CREATE FUNCTION analytics.f(a int, b int) RETURNS int IMMUTABLE AS $$ SELECT a + b $$ LANGUAGE SQL",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, overloaded, "ALTER SCHEMA \"analytics\" OWNER TO \"app_owner\";\n")
+	require.Contains(t, overloaded, "COMMENT ON SCHEMA \"analytics\" IS 'analytics schema';\n")
+	fTwoPos := strings.Index(overloaded, "CREATE FUNCTION analytics.f(a int, b int)")
+	wrapPos := strings.Index(overloaded, "CREATE FUNCTION analytics.wrapper(x int)")
+	fOnePos := strings.Index(overloaded, "CREATE FUNCTION analytics.f(a int)")
+	require.Greater(t, wrapPos, fTwoPos, "expected f(int,int) before wrapper(int):\n%s", overloaded)
+	require.Greater(t, fOnePos, wrapPos, "expected wrapper(int) before f(int):\n%s", overloaded)
+
+	// Mismatched FK column counts return an error instead of truncating.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "bad_fk",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "a", Type: "integer"},
+			{Name: "b", Type: "integer"},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "bad_fk",
+				Columns:           []string{"a", "b"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"x"},
+			},
+		},
+	})
+	require.Error(t, err)
 }
 
 // TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that
