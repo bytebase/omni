@@ -213,6 +213,15 @@ var defaultBuiltinFuncArity = map[string]funcArity{
 	"year": {1, 1}, "yearweek": {1, 2},
 }
 
+var defaultBuiltinFuncStep = map[string]int{
+	"json_object":       2,
+	"json_set":          2,
+	"json_insert":       2,
+	"json_replace":      2,
+	"json_array_append": 2,
+	"json_array_insert": 2,
+}
+
 func validateDefaultFuncCall(fn *nodes.FuncCallExpr, colName string, ignoreSpace bool) error {
 	if fn == nil {
 		return nil
@@ -223,7 +232,8 @@ func validateDefaultFuncCall(fn *nodes.FuncCallExpr, colName string, ignoreSpace
 	name := strings.ToLower(strings.TrimSpace(fn.Name))
 	if arity, ok := defaultBuiltinFuncArity[name]; ok {
 		n := len(fn.Args)
-		if n < arity.min || (arity.max >= 0 && n > arity.max) {
+		step := defaultBuiltinFuncStep[name]
+		if n < arity.min || (arity.max >= 0 && n > arity.max) || (step > 0 && (n-arity.min)%step != 0) {
 			return errWrongParamCount(strings.ToUpper(name))
 		}
 	}

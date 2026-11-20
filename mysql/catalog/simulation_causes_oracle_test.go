@@ -4583,6 +4583,56 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (a INT DEFAULT (IFNULL(1, 2)))",
 			code: 0,
 		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_OBJECT('k')) odd arg count rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_OBJECT('k')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_OBJECT('k', 1, 'k2')) odd arg count rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_OBJECT('k', 1, 'k2')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_OBJECT()) empty accepted",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_OBJECT()))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_OBJECT('k', 1)) pair accepted",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_OBJECT('k', 1)))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_SET('{}', '$.a')) missing value arg rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_SET('{}', '$.a')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_SET('{}', '$.a', 1)) valid pair accepted",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_SET('{}', '$.a', 1)))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_INSERT('{}', '$.a')) missing value arg rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_INSERT('{}', '$.a')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_REPLACE('{}', '$.a')) missing value arg rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_REPLACE('{}', '$.a')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_ARRAY_APPEND('[]', '$')) missing value arg rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_ARRAY_APPEND('[]', '$')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (JSON_ARRAY_INSERT('[]', '$[0]')) missing value arg rejected with 1582",
+			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_ARRAY_INSERT('[]', '$[0]')))",
+			code: 1582,
+		},
 	}
 
 	for _, tc := range cases {
