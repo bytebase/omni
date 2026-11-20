@@ -191,6 +191,10 @@ func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns 
 type unknownColumnsTable struct {
 	pseudoTable
 	SourceColumns ColumnSet
+	// Local marks a table-function / collection source in the local query
+	// (TABLE(...), UNNEST, RB_ITERATE) whose runtime columns shadow outer query
+	// tables, unlike remote/external tables which defer to known local tables.
+	Local bool
 }
 
 // physicalView is a catalog view with its resolved columns.

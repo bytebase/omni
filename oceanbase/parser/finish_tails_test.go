@@ -257,4 +257,18 @@ func TestOceanBaseFinishASTNodes(t *testing.T) {
 	} else if be, ok := ks.ConnectionID.(*ast.BinaryExpr); !ok || be.Op != ast.BinOpEq {
 		t.Errorf("KILL QUERY = 1: ConnectionID = %T, want *ast.BinaryExpr(=)", ks.ConnectionID)
 	}
+	// Once lookahead is in FIRST(expr), KILL commits to the modifier arm and
+	// propagates operand parse errors rather than reparsing CONNECTION/QUERY as a column.
+	for _, badKill := range []string{
+		"KILL CONNECTION + INTERVAL 1 DAY",
+		"KILL QUERY - INTERVAL 1 DAY",
+		"KILL CONNECTION NOT IN (1)",
+	} {
+		if _, err := Parse(badKill); err == nil {
+			t.Errorf("Parse(%q) = nil, want error", badKill)
+		}
+	}
+	if _, err := Parse("KILL `CONNECTION` + INTERVAL 1 DAY"); err != nil {
+		t.Errorf("Parse(backtick CONNECTION + INTERVAL): %v", err)
+	}
 }

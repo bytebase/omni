@@ -207,9 +207,12 @@ func (q *querySpanExtractor) matchesSourceQualifiers(catalogName, databaseName, 
 }
 
 func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName, tableName string) ([]QuerySpanResult, bool) {
-	findInTableSource := func(tableSource tableSource, allowUnknown bool) ([]QuerySpanResult, bool) {
-		_, isUnknown := tableSource.(*unknownColumnsTable)
-		if isUnknown != allowUnknown {
+	findInTableSource := func(tableSource tableSource, wantUnknown bool, localUnknownOnly bool) ([]QuerySpanResult, bool) {
+		unk, isUnknown := tableSource.(*unknownColumnsTable)
+		if isUnknown != wantUnknown {
+			return nil, false
+		}
+		if isUnknown && localUnknownOnly && !unk.Local {
 			return nil, false
 		}
 		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
@@ -218,19 +221,33 @@ func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName,
 		return tableSource.GetQuerySpanResult(), true
 	}
 
-	// Search known local relations first, then unknown remote/external relations.
-	for _, allowUnknown := range []bool{false, true} {
+	for _, wantUnknown := range []bool{false, true} {
 		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-			if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+			if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i], wantUnknown, true); ok {
 				return querySpanResult, true
 			}
 		}
-		for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
-			sources := q.outerScopes[sIdx].sources
+	}
+	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+		sources := q.outerScopes[sIdx].sources
+		for _, wantUnknown := range []bool{false, true} {
 			for i := len(sources) - 1; i >= 0; i-- {
-				if querySpanResult, ok := findInTableSource(sources[i], allowUnknown); ok {
+				if querySpanResult, ok := findInTableSource(sources[i], wantUnknown, true); ok {
 					return querySpanResult, true
 				}
+			}
+		}
+	}
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i], true, false); ok {
+			return querySpanResult, true
+		}
+	}
+	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+		sources := q.outerScopes[sIdx].sources
+		for i := len(sources) - 1; i >= 0; i-- {
+			if querySpanResult, ok := findInTableSource(sources[i], true, false); ok {
+				return querySpanResult, true
 			}
 		}
 	}
@@ -244,9 +261,12 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 		return QuerySpanResult{Name: fieldName, SourceColumns: ColumnSet{}}, nil
 	}
 
-	findInTableSource := func(tableSource tableSource, allowUnknown bool) (QuerySpanResult, bool) {
+	findInTableSource := func(tableSource tableSource, wantUnknown bool, localUnknownOnly bool) (QuerySpanResult, bool) {
 		unk, isUnknown := tableSource.(*unknownColumnsTable)
-		if isUnknown != allowUnknown {
+		if isUnknown != wantUnknown {
+			return QuerySpanResult{}, false
+		}
+		if isUnknown && localUnknownOnly && !unk.Local {
 			return QuerySpanResult{}, false
 		}
 		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
@@ -264,44 +284,20 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 		return QuerySpanResult{}, false
 	}
 
-	// Pass 1: resolve against known relations across the scope chain first so
-	// remote or external unknown-column tables never swallow known column
-	// lineage, stopping at any enclosing scope where an unqualified name is
-	// masked by a lambda parameter.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.tableSourceFrom[i], false); ok {
-			return source, nil
-		}
-	}
-	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.priorTableInFrom[i], false); ok {
-			return source, nil
-		}
-	}
-	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
-		frame := q.outerScopes[sIdx]
-		if unqualified && frame.lambdaParams[lowerField] {
-			break
-		}
-		for i := len(frame.sources) - 1; i >= 0; i-- {
-			if source, ok := findInTableSource(frame.sources[i], false); ok {
+	// Pass 1: walk from the innermost select scope outward, checking known
+	// relations and then local collection/table-function unknown sources in each
+	// scope before advancing to an enclosing scope. Remote/external unknown
+	// sources are deferred to Pass 2 so they never swallow known local lineage.
+	for _, wantUnknown := range []bool{false, true} {
+		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.tableSourceFrom[i], wantUnknown, true); ok {
 				return source, nil
 			}
 		}
-	}
-
-	// Pass 2: resolve against unknown-column sources and enclosing lambda
-	// parameters from innermost scope outward so an inner unknown source (such
-	// as TABLE(arr) c) shadows an outer lambda parameter while an outer lambda
-	// parameter still shadows unknown sources outside it.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.tableSourceFrom[i], true); ok {
-			return source, nil
-		}
-	}
-	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.priorTableInFrom[i], true); ok {
-			return source, nil
+		for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.priorTableInFrom[i], wantUnknown, true); ok {
+				return source, nil
+			}
 		}
 	}
 	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
@@ -309,8 +305,31 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 		if unqualified && frame.lambdaParams[lowerField] {
 			return QuerySpanResult{Name: fieldName, SourceColumns: ColumnSet{}}, nil
 		}
+		for _, wantUnknown := range []bool{false, true} {
+			for i := len(frame.sources) - 1; i >= 0; i-- {
+				if source, ok := findInTableSource(frame.sources[i], wantUnknown, true); ok {
+					return source, nil
+				}
+			}
+		}
+	}
+
+	// Pass 2: fallback to remote/external unknown-column sources from innermost
+	// scope outward.
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.tableSourceFrom[i], true, false); ok {
+			return source, nil
+		}
+	}
+	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.priorTableInFrom[i], true, false); ok {
+			return source, nil
+		}
+	}
+	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+		frame := q.outerScopes[sIdx]
 		for i := len(frame.sources) - 1; i >= 0; i-- {
-			if source, ok := findInTableSource(frame.sources[i], true); ok {
+			if source, ok := findInTableSource(frame.sources[i], true, false); ok {
 				return source, nil
 			}
 		}
@@ -873,6 +892,7 @@ func (q *querySpanExtractor) extractTableCollection(t *ast.TableCollectionExpr) 
 	return &unknownColumnsTable{
 		pseudoTable:   pseudoTable{Name: t.Alias, Aliased: t.Alias != ""},
 		SourceColumns: field.SourceColumns,
+		Local:         true,
 	}, nil
 }
 
@@ -909,6 +929,7 @@ func (q *querySpanExtractor) extractTableFunction(alias string, columns []string
 			return &unknownColumnsTable{
 				pseudoTable:   pseudoTable{Name: alias, Aliased: alias != ""},
 				SourceColumns: all,
+				Local:         true,
 			}, nil
 		}
 		name := alias

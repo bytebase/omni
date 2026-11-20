@@ -556,17 +556,21 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 		saved := p.saveScan()
 		isQuery := p.cur.Type == kwQUERY
 		p.advance()
-		if p.cur.Type != tokEOF && p.cur.Type != ';' {
-			if expr, err := p.parseExpr(); err == nil && expr != nil && (p.cur.Type == tokEOF || p.cur.Type == ';') {
-				stmt.Query = isQuery
-				stmt.ConnectionID = expr
-				stmt.Loc.End = p.prev.End
-				return stmt, nil
-			} else if isNestingError(err) {
+		if p.killModifierReducesToIdent() {
+			p.restoreScan(saved)
+		} else {
+			stmt.Query = isQuery
+			expr, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.ConnectionID = expr
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
 		}
-		p.restoreScan(saved)
 	}
 
 	// Process ID
@@ -581,6 +585,29 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// killModifierReducesToIdent reports whether the token following unquoted
+// `KILL CONNECTION` or `KILL QUERY` cannot start an `expr` in Bison's LALR(1)
+// table, causing `CONNECTION` / `QUERY` to reduce as the leading column of
+// `KILL expr` rather than shifting into `KILL {CONNECTION|QUERY} expr`.
+func (p *Parser) killModifierReducesToIdent() bool {
+	if p.reservedPairAhead() {
+		return false
+	}
+	switch p.cur.Type {
+	case tokEOF, ';',
+		kwOR, tokOrOr, kwXOR, kwAND, tokAndAnd,
+		'=', tokNullSafeEq, tokNotEq, '<', '>', tokLessEq, tokGreaterEq,
+		kwIS, kwLIKE, kwREGEXP, kwRLIKE, kwIN, kwBETWEEN,
+		'|', '&', tokShiftLeft, tokShiftRight,
+		'*', '/', kwDIV, '%', '^',
+		kwCOLLATE, tokJsonExtract, tokJsonUnquote:
+		return true
+	case kwMOD:
+		return p.peekNext().Type != '('
+	}
+	return false
 }
 
 // parseCallStmt parses a CALL statement.

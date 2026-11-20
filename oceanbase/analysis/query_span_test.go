@@ -360,7 +360,12 @@ func TestTableCollectionLambdaAndAliasedCallArgLineage(t *testing.T) {
 	require.Nil(t, span.NotFoundError)
 	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
 
-	// Inner unknown-column source shadows enclosing lambda parameter and retains argument lineage.
+	// Inner unknown-column source shadows both outer known columns and outer lambda parameters.
+	span, err = resolve(t, "SELECT (SELECT a FROM TABLE(b) c) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.b"}, renderResults(span))
+
 	span, err = resolve(t, "SELECT ARRAY_FILTER(x -> (SELECT x FROM TABLE(a) c), b) AS res FROM db.t1")
 	require.NoError(t, err)
 	require.Nil(t, span.NotFoundError)
