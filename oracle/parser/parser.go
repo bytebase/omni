@@ -134,6 +134,12 @@ type Parser struct {
 	// parseSelectStmt clears it for a query inside.
 	dmlFromClause bool
 
+	// inSelectQuery is set while a SELECT query is parsed, where RETURNING
+	// names a table alias (SELECT ... FROM dual RETURNING; INSERT INTO t
+	// SELECT ... FROM dual RETURNING ...). Outside a query, RETURNING opens
+	// a DML statement's returning_clause.
+	inSelectQuery bool
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode

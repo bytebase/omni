@@ -539,9 +539,9 @@ func (p *Parser) parseATInmemoryRest() error {
 		if p.cur.Type == kwALL {
 			p.advance()
 		}
-	case p.atWord("NO") && p.atNextWord("DUPLICATE"):
+	case p.atWord("NO") && !p.atNextWord("INMEMORY") && p.peekNext().Type != kwFLASHBACK:
 		p.advance()
-		p.advance()
+		return p.atExpectWord("DUPLICATE")
 	}
 	return nil
 }
@@ -690,6 +690,13 @@ func (p *Parser) parseATIlmPolicy() error {
 	case p.cur.Type == kwMODIFY && p.atNextWord("INMEMORY"):
 		p.advance()
 		p.advance()
+		if p.atWord("NO") {
+			p.advance()
+			if err := p.atExpectWord("MEMCOMPRESS"); err != nil {
+				return err
+			}
+			return p.parseATIlmCondition(false, true)
+		}
 		if !p.isATInmemoryMemcompressStart() {
 			return p.syntaxErrorAtCur()
 		}
@@ -1374,10 +1381,10 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 		return atcOverflowTablespace
 	case has(atcOverflow) && p.atWord("OVERFLOW"):
 		return atcOverflow
-	case has(atcLobStorage) && p.isATLobStorageStart():
-		return atcLobStorage
 	case has(atcLobModify) && p.isATLobModifyStart():
 		return atcLobModify
+	case has(atcLobStorage) && p.isATLobStorageStart():
+		return atcLobStorage
 	case has(atcNestedTable) && p.cur.Type == kwNESTED:
 		return atcNestedTable
 	case has(atcExternal) && p.isATExternalDataPropStart():

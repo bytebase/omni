@@ -50,10 +50,13 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	if p.isStatementEnd() {
 		return nil, p.syntaxErrorAtCur()
 	}
-	enableDisable := false
+	enableDisable, upgrade := false, false
 	for !p.isStatementEnd() {
 		tok := p.cur
 		if enableDisable && p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if upgrade && (p.atWord("ALLOW") || p.atWord("DISALLOW")) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		cmd, err := p.parseAlterTableAction()
@@ -79,6 +82,10 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		switch cmd.Action {
 		case nodes.AT_ENABLE_DISABLE, nodes.AT_ENABLE_DISABLE_TABLE_LOCK, nodes.AT_ENABLE_DISABLE_TRIGGERS:
 			enableDisable = true
+		case nodes.AT_ALTER_PROPERTY:
+			if cmd.Subtype == "UPGRADE" {
+				upgrade = true
+			}
 		}
 	}
 
@@ -145,7 +152,8 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 		p.cur.Type == kwCACHE, p.atWord("NOCACHE"),
 		p.cur.Type == kwRESULT_CACHE, p.atWord("MEMOPTIMIZE"),
 		p.atWord("UPGRADE"), p.atWord("ANNOTATIONS"),
-		p.atWord("MINIMIZE"), p.atWord("NOMINIMIZE"):
+		p.atWord("MINIMIZE"), p.atWord("NOMINIMIZE"),
+		p.atWord("ALLOW"), p.atWord("DISALLOW"):
 		return p.parseAlterTableProperty()
 	case p.isATTableCompressionStart():
 		return p.parseAlterTableCompression()
@@ -1644,6 +1652,12 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		propName += " RECORDS_PER_BLOCK"
+	case p.atWord("ALLOW"), p.atWord("DISALLOW"):
+		p.advance()
+		if err := p.atExpectWord("CLUSTERING"); err != nil {
+			return nil, err
+		}
+		propName += " CLUSTERING"
 	default:
 		// LOGGING, NOLOGGING, CACHE, NOCACHE
 		p.advance()
@@ -1778,6 +1792,11 @@ func (p *Parser) parseAlterTableIOT() (*nodes.AlterTableCmd, error) {
 			}
 		case p.isATDeallocateStart():
 			if err := p.parseATDeallocateUnused(); err != nil {
+				return nil, err
+			}
+		case !p.alterMview && (p.atWord("ALLOW") || p.atWord("DISALLOW")):
+			p.advance()
+			if err := p.atExpectWord("CLUSTERING"); err != nil {
 				return nil, err
 			}
 		default:

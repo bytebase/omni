@@ -1108,7 +1108,7 @@ func (r *oracleRefReader) inlineAVOptionalAlias(idx, hi int, sampleSeen bool) (i
 	}
 	if tokens[idx].Type == tokIDENT {
 		switch strings.ToUpper(tokens[idx].Str) {
-		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
+		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE",
 			"SIBLINGS", "APPLY", "SEARCH", "CYCLE", "VERSIONS", "PERIOD", "XML":
 			return idx, Token{}, false
 		}

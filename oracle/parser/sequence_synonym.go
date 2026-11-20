@@ -316,16 +316,19 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	// [ SHARING = NONE ]
+	// [ SHARING = NONE ]: Oracle refuses METADATA and any other value here
+	// at the word after '=' (ORA-65021, ORA-65014).
 	if p.isKeywordStr("SHARING") {
-		toks := p.peekAhead(3)
-		if len(toks) == 3 && toks[0].Type == '=' && p.isIdentLikeStrAt(toks[1], "NONE") {
-			sharing, err := p.parseSharingClause()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Sharing = sharing
+		p.advance() // SHARING
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // =
+		if !p.isKeywordStr("NONE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Sharing = "NONE"
+		p.advance()
 	}
 
 	if p.cur.Type != kwFOR {
@@ -399,9 +402,9 @@ func (p *Parser) parseDatabaseLinkUser() (string, string, error) {
 	return user, password, nil
 }
 
-// parseCreateDatabaseLinkStmt parses a CREATE [PUBLIC] DATABASE LINK statement.
-// The CREATE keyword has already been consumed. The caller has already parsed
-// PUBLIC if present and passes it in.
+// parseCreateDatabaseLinkStmt parses a CREATE [SHARED] [PUBLIC] DATABASE LINK
+// statement. The CREATE keyword has already been consumed. The caller has
+// already parsed SHARED and PUBLIC if present and passes them in.
 //
 // BNF: oracle/parser/bnf/CREATE-DATABASE-LINK.bnf
 //
@@ -417,8 +420,13 @@ func (p *Parser) parseDatabaseLinkUser() (string, string, error) {
 //
 //	dblink_authentication:
 //	    AUTHENTICATED BY user IDENTIFIED BY password
-func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.CreateDatabaseLinkStmt, error) {
+//
+// Oracle 23ai requires dblink_authentication on a SHARED link (ORA-00922 at
+// USING without it) and refuses AUTHENTICATED on a non-SHARED link at the
+// token after AUTHENTICATED (ORA-00905).
+func (p *Parser) parseCreateDatabaseLinkStmt(start int, public, shared bool) (*nodes.CreateDatabaseLinkStmt, error) {
 	stmt := &nodes.CreateDatabaseLinkStmt{
+		Shared: shared,
 		Public: public,
 		Loc:    nodes.Loc{Start: start},
 	}
@@ -481,6 +489,25 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.Cre
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
+	}
+
+	// [ AUTHENTICATED BY user IDENTIFIED BY password ]
+	if p.isKeywordStr("AUTHENTICATED") {
+		p.advance() // AUTHENTICATED
+		if !shared {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != kwBY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // BY
+		stmt.AuthenticatedUser, stmt.AuthenticatedPass, err = p.parseDatabaseLinkUser()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if shared && stmt.AuthenticatedUser == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// USING 'connect_string'
