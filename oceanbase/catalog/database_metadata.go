@@ -82,9 +82,12 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			continue
 		}
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
-			Name:       v.Name,
-			Definition: v.Definition,
-			Columns:    viewColumnsToProto(v),
+			Name:        v.Name,
+			Definition:  v.Definition,
+			Columns:     viewColumnsToProto(v),
+			Algorithm:   v.Algorithm,
+			SqlSecurity: v.SqlSecurity,
+			CheckOption: v.CheckOption,
 		})
 	}
 
@@ -170,6 +173,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Collation:    t.Collation,
 		Comment:      t.Comment,
 		ColumnGroups: t.ColumnGroups.String(),
+		Tablespace:   t.Tablespace,
 	}
 	if opts := tableCreateOptions(t); opts != "" {
 		table.CreateOptions = opts
@@ -181,14 +185,18 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			// indexes) are not reported by information_schema.
 			continue
 		}
+		charsetExplicit := col.CharsetExplicit
+		collationExplicit := col.CollationExplicit
 		colMeta := &metadata.ColumnMetadata{
-			Name:         col.Name,
-			Position:     int32(col.Position),
-			Type:         col.ColumnType,
-			Nullable:     col.Nullable,
-			CharacterSet: col.Charset,
-			Collation:    col.Collation,
-			Comment:      col.Comment,
+			Name:              col.Name,
+			Position:          int32(col.Position),
+			Type:              col.ColumnType,
+			Nullable:          col.Nullable,
+			CharacterSet:      col.Charset,
+			Collation:         col.Collation,
+			Comment:           col.Comment,
+			CharsetExplicit:   &charsetExplicit,
+			CollationExplicit: &collationExplicit,
 		}
 		switch {
 		case col.AutoIncrement:

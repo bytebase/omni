@@ -208,22 +208,31 @@ func (c *Catalog) installedTable(name string) *Table {
 	return db.GetTable(name)
 }
 
-func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
+func applyColumnMetadataFlags(tbl *Table, meta *metadata.TableMetadata) {
 	if tbl == nil {
 		return
 	}
 	dropped := make(map[string]bool)
+	gipk := make(map[string]bool)
 	for _, col := range meta.GetColumns() {
+		key := toLower(col.GetName())
 		if col.GetDefaultDropped() {
-			dropped[toLower(col.GetName())] = true
+			dropped[key] = true
+		}
+		if col.GetIsGeneratedInvisiblePrimaryKey() {
+			gipk[key] = true
 		}
 	}
-	if len(dropped) == 0 {
+	if len(dropped) == 0 && len(gipk) == 0 {
 		return
 	}
 	for _, col := range tbl.Columns {
-		if dropped[toLower(col.Name)] && col.Default == nil {
+		key := toLower(col.Name)
+		if dropped[key] && col.Default == nil {
 			col.DefaultDropped = true
+		}
+		if gipk[key] {
+			col.GeneratedInvisiblePrimaryKey = true
 		}
 	}
 }
@@ -353,12 +362,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				if o.incomplete == nil {
 					o.incomplete = fmt.Errorf("partitioning: %w", err)
 				}
-				applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+				applyColumnMetadataFlags(c.installedTable(o.name), o.table)
 				return nil
 			}
 		}
 		if err == nil {
-			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+			applyColumnMetadataFlags(c.installedTable(o.name), o.table)
 		}
 		return err
 	case metadataView:
@@ -497,6 +506,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"PACK_KEYS", createOption(opts, "pack_keys")},
 		{"CHECKSUM", createOption(opts, "checksum")},
 		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
+		{"TABLESPACE", unquoteTableOption(t.GetTablespace())},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -542,10 +552,12 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 		return nil, nil, err
 	}
 	// The type text may carry its own character set and collation.
-	if typeName.Charset == "" {
+	// Unset explicitness flags (from legacy live syncs) keep copying the
+	// column's recorded Charset/Collation onto the type.
+	if typeName.Charset == "" && (col.CharsetExplicit == nil || col.GetCharsetExplicit()) {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" {
+	if typeName.Collate == "" && (col.CollationExplicit == nil || col.GetCollationExplicit()) {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.
@@ -564,6 +576,9 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 	}
 	if col.GetIsInvisible() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})
+	}
+	if col.GetNotSecondary() {
+		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotSecondary})
 	}
 	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
 	def.DefaultValue, omitted = columnDefault(col)
@@ -766,6 +781,7 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 		SelectText:  body,
 		Algorithm:   v.GetAlgorithm(),
 		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
 	}, nil
 }
 

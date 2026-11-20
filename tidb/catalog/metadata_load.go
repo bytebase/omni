@@ -266,16 +266,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	o.incomplete = omitted
 	err = c.DefineTable(stmt)
 	if err == nil {
-		// CACHE is not a CREATE TABLE option the grammar takes, so the synced
-		// table's `cached=on` in CREATE_OPTIONS is read here rather than
-		// parsed: SHOW CREATE TABLE writes the attribute back, and a plan that
-		// follows it has to NOCACHE the table before any other DDL (8242).
-		if isCachedCreateOptions(o.table.GetCreateOptions()) {
-			if tbl := c.installedTable(o.name); tbl != nil {
-				tbl.Cached = true
-			}
-		}
-		applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+		applyTableMetadataExtras(c.installedTable(o.name), o.table)
 	}
 	if err != nil && stmt.Partitions != nil {
 		// The partitioning parsed but the catalog refuses it, as it does a RANGE
@@ -286,11 +277,32 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if o.incomplete == nil {
 				o.incomplete = fmt.Errorf("partitioning: %w", err)
 			}
-			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+			applyTableMetadataExtras(c.installedTable(o.name), o.table)
 			return nil
 		}
 	}
 	return err
+}
+
+func applyTableMetadataExtras(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	// CACHE is not a CREATE TABLE option the grammar takes, so the synced
+	// table's `cached=on` in CREATE_OPTIONS is read here rather than
+	// parsed: SHOW CREATE TABLE writes the attribute back, and a plan that
+	// follows it has to NOCACHE the table before any other DDL (8242).
+	if isCachedCreateOptions(meta.GetCreateOptions()) {
+		tbl.Cached = true
+	}
+	if meta.GetPlacementPolicy() != "" {
+		tbl.PlacementPolicy = resolvePolicyRef(meta.GetPlacementPolicy())
+	}
+	if meta.GetTiflashReplica() > 0 || len(meta.GetTiflashLocationLabels()) > 0 {
+		tbl.TiFlashReplica = int(meta.GetTiflashReplica())
+		tbl.TiFlashLocationLabels = slices.Clone(meta.GetTiflashLocationLabels())
+	}
+	applyDroppedColumnDefaults(tbl, meta)
 }
 
 func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
@@ -449,6 +461,25 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
+		}
+	}
+	if t.GetAutoIdCache() != 0 {
+		stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "AUTO_ID_CACHE", Value: strconv.FormatInt(t.GetAutoIdCache(), 10)})
+	}
+	if t.GetPreSplitRegions() != 0 {
+		stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "PRE_SPLIT_REGIONS", Value: strconv.FormatInt(int64(t.GetPreSplitRegions()), 10)})
+	}
+	if t.GetTtlColumn() != "" && t.GetTtlInterval() != "" {
+		ttlEnable := "OFF"
+		if t.GetTtlEnable() {
+			ttlEnable = "ON"
+		}
+		stmt.Options = append(stmt.Options,
+			&nodes.TableOption{Name: "TTL", Value: fmt.Sprintf("%s + %s", quoteIdent(t.GetTtlColumn()), t.GetTtlInterval())},
+			&nodes.TableOption{Name: "TTL_ENABLE", Value: ttlEnable},
+		)
+		if t.GetTtlJobInterval() != "" {
+			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "TTL_JOB_INTERVAL", Value: t.GetTtlJobInterval()})
 		}
 	}
 	return stmt, omitted, nil
@@ -761,6 +792,7 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 		SelectText:  body,
 		Algorithm:   v.GetAlgorithm(),
 		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
 	}, nil
 }
 

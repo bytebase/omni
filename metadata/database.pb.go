@@ -2349,8 +2349,22 @@ type TableMetadata struct {
 	// TiDB CREATE GLOBAL TEMPORARY TABLE flag and ON COMMIT clause.
 	IsGlobalTemporary bool   `protobuf:"varint,27,opt,name=is_global_temporary,json=isGlobalTemporary,proto3" json:"is_global_temporary,omitempty"`
 	OnCommit          string `protobuf:"bytes,28,opt,name=on_commit,json=onCommit,proto3" json:"on_commit,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// TiDB placement policy name (PLACEMENT POLICY = ...).
+	PlacementPolicy string `protobuf:"bytes,29,opt,name=placement_policy,json=placementPolicy,proto3" json:"placement_policy,omitempty"`
+	// TiDB TTL settings (TTL, TTL_ENABLE, TTL_JOB_INTERVAL).
+	TtlColumn      string `protobuf:"bytes,30,opt,name=ttl_column,json=ttlColumn,proto3" json:"ttl_column,omitempty"`
+	TtlInterval    string `protobuf:"bytes,31,opt,name=ttl_interval,json=ttlInterval,proto3" json:"ttl_interval,omitempty"`
+	TtlEnable      bool   `protobuf:"varint,32,opt,name=ttl_enable,json=ttlEnable,proto3" json:"ttl_enable,omitempty"`
+	TtlJobInterval string `protobuf:"bytes,33,opt,name=ttl_job_interval,json=ttlJobInterval,proto3" json:"ttl_job_interval,omitempty"`
+	// TiDB allocation and TiFlash settings.
+	AutoIdCache           int64    `protobuf:"varint,34,opt,name=auto_id_cache,json=autoIdCache,proto3" json:"auto_id_cache,omitempty"`
+	PreSplitRegions       int32    `protobuf:"varint,35,opt,name=pre_split_regions,json=preSplitRegions,proto3" json:"pre_split_regions,omitempty"`
+	TiflashReplica        int32    `protobuf:"varint,36,opt,name=tiflash_replica,json=tiflashReplica,proto3" json:"tiflash_replica,omitempty"`
+	TiflashLocationLabels []string `protobuf:"bytes,37,rep,name=tiflash_location_labels,json=tiflashLocationLabels,proto3" json:"tiflash_location_labels,omitempty"`
+	// MySQL / OceanBase table tablespace name.
+	Tablespace    string `protobuf:"bytes,38,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TableMetadata) Reset() {
@@ -2561,6 +2575,76 @@ func (x *TableMetadata) GetIsGlobalTemporary() bool {
 func (x *TableMetadata) GetOnCommit() string {
 	if x != nil {
 		return x.OnCommit
+	}
+	return ""
+}
+
+func (x *TableMetadata) GetPlacementPolicy() string {
+	if x != nil {
+		return x.PlacementPolicy
+	}
+	return ""
+}
+
+func (x *TableMetadata) GetTtlColumn() string {
+	if x != nil {
+		return x.TtlColumn
+	}
+	return ""
+}
+
+func (x *TableMetadata) GetTtlInterval() string {
+	if x != nil {
+		return x.TtlInterval
+	}
+	return ""
+}
+
+func (x *TableMetadata) GetTtlEnable() bool {
+	if x != nil {
+		return x.TtlEnable
+	}
+	return false
+}
+
+func (x *TableMetadata) GetTtlJobInterval() string {
+	if x != nil {
+		return x.TtlJobInterval
+	}
+	return ""
+}
+
+func (x *TableMetadata) GetAutoIdCache() int64 {
+	if x != nil {
+		return x.AutoIdCache
+	}
+	return 0
+}
+
+func (x *TableMetadata) GetPreSplitRegions() int32 {
+	if x != nil {
+		return x.PreSplitRegions
+	}
+	return 0
+}
+
+func (x *TableMetadata) GetTiflashReplica() int32 {
+	if x != nil {
+		return x.TiflashReplica
+	}
+	return 0
+}
+
+func (x *TableMetadata) GetTiflashLocationLabels() []string {
+	if x != nil {
+		return x.TiflashLocationLabels
+	}
+	return nil
+}
+
+func (x *TableMetadata) GetTablespace() string {
+	if x != nil {
+		return x.Tablespace
 	}
 	return ""
 }
@@ -2905,9 +2989,11 @@ type TablePartitionMetadata struct {
 	// OceanBase automatic partition size from PARTITION SIZE <val> PARTITIONS AUTO.
 	AutoSize string `protobuf:"bytes,13,opt,name=auto_size,json=autoSize,proto3" json:"auto_size,omitempty"`
 	// KEY / LINEAR KEY partitioning algorithm (1 or 2; 0 when omitted/default).
-	Algorithm     int32 `protobuf:"varint,14,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Algorithm int32 `protobuf:"varint,14,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	// Unexpanded TiDB RANGE INTERVAL (...) FIRST ... LAST ... clause.
+	IntervalClause string `protobuf:"bytes,15,opt,name=interval_clause,json=intervalClause,proto3" json:"interval_clause,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TablePartitionMetadata) Reset() {
@@ -3038,6 +3124,13 @@ func (x *TablePartitionMetadata) GetAlgorithm() int32 {
 	return 0
 }
 
+func (x *TablePartitionMetadata) GetIntervalClause() string {
+	if x != nil {
+		return x.IntervalClause
+	}
+	return ""
+}
+
 // ColumnMetadata is the metadata for columns.
 type ColumnMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3118,8 +3211,17 @@ type ColumnMetadata struct {
 	// Whether an explicit ALTER COLUMN DROP DEFAULT removed the default on a
 	// nullable column (MySQL, OceanBase, TiDB).
 	DefaultDropped bool `protobuf:"varint,25,opt,name=default_dropped,json=defaultDropped,proto3" json:"default_dropped,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// MySQL-generated invisible primary key column (my_row_id).
+	IsGeneratedInvisiblePrimaryKey bool `protobuf:"varint,26,opt,name=is_generated_invisible_primary_key,json=isGeneratedInvisiblePrimaryKey,proto3" json:"is_generated_invisible_primary_key,omitempty"`
+	// MySQL NOT SECONDARY column attribute.
+	NotSecondary bool `protobuf:"varint,27,opt,name=not_secondary,json=notSecondary,proto3" json:"not_secondary,omitempty"`
+	// Whether CharacterSet and Collation were explicitly declared on the column
+	// rather than inherited from its table (MySQL / OceanBase). Unset preserves
+	// legacy live-sync inference.
+	CharsetExplicit   *bool `protobuf:"varint,28,opt,name=charset_explicit,json=charsetExplicit,proto3,oneof" json:"charset_explicit,omitempty"`
+	CollationExplicit *bool `protobuf:"varint,29,opt,name=collation_explicit,json=collationExplicit,proto3,oneof" json:"collation_explicit,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ColumnMetadata) Reset() {
@@ -3299,6 +3401,34 @@ func (x *ColumnMetadata) GetDefaultDropped() bool {
 	return false
 }
 
+func (x *ColumnMetadata) GetIsGeneratedInvisiblePrimaryKey() bool {
+	if x != nil {
+		return x.IsGeneratedInvisiblePrimaryKey
+	}
+	return false
+}
+
+func (x *ColumnMetadata) GetNotSecondary() bool {
+	if x != nil {
+		return x.NotSecondary
+	}
+	return false
+}
+
+func (x *ColumnMetadata) GetCharsetExplicit() bool {
+	if x != nil && x.CharsetExplicit != nil {
+		return *x.CharsetExplicit
+	}
+	return false
+}
+
+func (x *ColumnMetadata) GetCollationExplicit() bool {
+	if x != nil && x.CollationExplicit != nil {
+		return *x.CollationExplicit
+	}
+	return false
+}
+
 type GenerationMetadata struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	Type          GenerationMetadata_Type `protobuf:"varint,1,opt,name=type,proto3,enum=omni.metadata.GenerationMetadata_Type" json:"type,omitempty"`
@@ -3370,8 +3500,10 @@ type ViewMetadata struct {
 	// The rules is the list of rules in a view (PostgreSQL specific).
 	Rules []*RuleMetadata `protobuf:"bytes,8,rep,name=rules,proto3" json:"rules,omitempty"`
 	// View execution algorithm (UNDEFINED, MERGE, TEMPTABLE) and SQL security (DEFINER, INVOKER).
-	Algorithm     string `protobuf:"bytes,9,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
-	SqlSecurity   string `protobuf:"bytes,10,opt,name=sql_security,json=sqlSecurity,proto3" json:"sql_security,omitempty"`
+	Algorithm   string `protobuf:"bytes,9,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	SqlSecurity string `protobuf:"bytes,10,opt,name=sql_security,json=sqlSecurity,proto3" json:"sql_security,omitempty"`
+	// View check option clause ("LOCAL", "CASCADED", or empty).
+	CheckOption   string `protobuf:"bytes,11,opt,name=check_option,json=checkOption,proto3" json:"check_option,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3472,6 +3604,13 @@ func (x *ViewMetadata) GetAlgorithm() string {
 func (x *ViewMetadata) GetSqlSecurity() string {
 	if x != nil {
 		return x.SqlSecurity
+	}
+	return ""
+}
+
+func (x *ViewMetadata) GetCheckOption() string {
+	if x != nil {
+		return x.CheckOption
 	}
 	return ""
 }
@@ -5381,7 +5520,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fMODE_DEFAULT\x10\x01\x12\x14\n" +
 	"\x10MODE_APPEND_ONLY\x10\x02\x12\x14\n" +
-	"\x10MODE_INSERT_ONLY\x10\x03\"\xe4\b\n" +
+	"\x10MODE_INSERT_ONLY\x10\x03\"\xeb\v\n" +
 	"\rTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\acolumns\x18\x02 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\x126\n" +
@@ -5412,7 +5551,21 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x13exclude_constraints\x18\x19 \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraints\x12#\n" +
 	"\rcolumn_groups\x18\x1a \x01(\tR\fcolumnGroups\x12.\n" +
 	"\x13is_global_temporary\x18\x1b \x01(\bR\x11isGlobalTemporary\x12\x1b\n" +
-	"\ton_commit\x18\x1c \x01(\tR\bonCommitJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
+	"\ton_commit\x18\x1c \x01(\tR\bonCommit\x12)\n" +
+	"\x10placement_policy\x18\x1d \x01(\tR\x0fplacementPolicy\x12\x1d\n" +
+	"\n" +
+	"ttl_column\x18\x1e \x01(\tR\tttlColumn\x12!\n" +
+	"\fttl_interval\x18\x1f \x01(\tR\vttlInterval\x12\x1d\n" +
+	"\n" +
+	"ttl_enable\x18  \x01(\bR\tttlEnable\x12(\n" +
+	"\x10ttl_job_interval\x18! \x01(\tR\x0ettlJobInterval\x12\"\n" +
+	"\rauto_id_cache\x18\" \x01(\x03R\vautoIdCache\x12*\n" +
+	"\x11pre_split_regions\x18# \x01(\x05R\x0fpreSplitRegions\x12'\n" +
+	"\x0ftiflash_replica\x18$ \x01(\x05R\x0etiflashReplica\x126\n" +
+	"\x17tiflash_location_labels\x18% \x03(\tR\x15tiflashLocationLabels\x12\x1e\n" +
+	"\n" +
+	"tablespace\x18& \x01(\tR\n" +
+	"tablespaceJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
 	"\x17CheckConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5438,7 +5591,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
 	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
-	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\x91\x06\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xba\x06\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5458,7 +5611,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\n" +
 	"split_size\x18\f \x01(\tR\tsplitSize\x12\x1b\n" +
 	"\tauto_size\x18\r \x01(\tR\bautoSize\x12\x1c\n" +
-	"\talgorithm\x18\x0e \x01(\x05R\talgorithm\"\x8a\x01\n" +
+	"\talgorithm\x18\x0e \x01(\x05R\talgorithm\x12'\n" +
+	"\x0finterval_clause\x18\x0f \x01(\tR\x0eintervalClause\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +
@@ -5469,7 +5623,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vLINEAR_HASH\x10\x06\x12\a\n" +
 	"\x03KEY\x10\a\x12\x0e\n" +
 	"\n" +
-	"LINEAR_KEY\x10\b\"\x95\a\n" +
+	"LINEAR_KEY\x10\b\"\x96\t\n" +
 	"\x0eColumnMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x05R\bposition\x12\x18\n" +
@@ -5495,14 +5649,20 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04srid\x18\x15 \x01(\rH\x00R\x04srid\x88\x01\x01\x12!\n" +
 	"\fis_invisible\x18\x16 \x01(\bR\visInvisible\x12)\n" +
 	"\x10collation_schema\x18\x17 \x01(\tR\x0fcollationSchema\x12'\n" +
-	"\x0fdefault_dropped\x18\x19 \x01(\bR\x0edefaultDropped\"U\n" +
+	"\x0fdefault_dropped\x18\x19 \x01(\bR\x0edefaultDropped\x12J\n" +
+	"\"is_generated_invisible_primary_key\x18\x1a \x01(\bR\x1eisGeneratedInvisiblePrimaryKey\x12#\n" +
+	"\rnot_secondary\x18\x1b \x01(\bR\fnotSecondary\x12.\n" +
+	"\x10charset_explicit\x18\x1c \x01(\bH\x01R\x0fcharsetExplicit\x88\x01\x01\x122\n" +
+	"\x12collation_explicit\x18\x1d \x01(\bH\x02R\x11collationExplicit\x88\x01\x01\"U\n" +
 	"\x12IdentityGeneration\x12#\n" +
 	"\x1fIDENTITY_GENERATION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06ALWAYS\x10\x01\x12\x0e\n" +
 	"\n" +
 	"BY_DEFAULT\x10\x02B\a\n" +
-	"\x05_sridJ\x04\b\x04\x10\x06J\x04\b\v\x10\r\"\xb1\x01\n" +
+	"\x05_sridB\x13\n" +
+	"\x11_charset_explicitB\x15\n" +
+	"\x13_collation_explicitJ\x04\b\x04\x10\x06J\x04\b\v\x10\r\"\xb1\x01\n" +
 	"\x12GenerationMetadata\x12:\n" +
 	"\x04type\x18\x01 \x01(\x0e2&.omni.metadata.GenerationMetadata.TypeR\x04type\x12\x1e\n" +
 	"\n" +
@@ -5511,7 +5671,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fTYPE_VIRTUAL\x10\x01\x12\x0f\n" +
-	"\vTYPE_STORED\x10\x02\"\xb2\x03\n" +
+	"\vTYPE_STORED\x10\x02\"\xd5\x03\n" +
 	"\fViewMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5525,7 +5685,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x05rules\x18\b \x03(\v2\x1b.omni.metadata.RuleMetadataR\x05rules\x12\x1c\n" +
 	"\talgorithm\x18\t \x01(\tR\talgorithm\x12!\n" +
 	"\fsql_security\x18\n" +
-	" \x01(\tR\vsqlSecurity\"X\n" +
+	" \x01(\tR\vsqlSecurity\x12!\n" +
+	"\fcheck_option\x18\v \x01(\tR\vcheckOption\"X\n" +
 	"\x10DependencyColumn\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12\x14\n" +
 	"\x05table\x18\x02 \x01(\tR\x05table\x12\x16\n" +

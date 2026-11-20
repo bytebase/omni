@@ -48,6 +48,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Columns:     viewColumnsToProto(v),
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
+			CheckOption: v.CheckOption,
 		})
 	}
 
@@ -98,13 +99,22 @@ func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
 
 func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
-		Name:              t.Name,
-		Engine:            t.Engine,
-		Charset:           t.Charset,
-		Collation:         t.Collation,
-		Comment:           t.Comment,
-		IsGlobalTemporary: t.GlobalTemporary,
-		OnCommit:          t.OnCommit,
+		Name:                  t.Name,
+		Engine:                t.Engine,
+		Charset:               t.Charset,
+		Collation:             t.Collation,
+		Comment:               t.Comment,
+		IsGlobalTemporary:     t.GlobalTemporary,
+		OnCommit:              t.OnCommit,
+		PlacementPolicy:       t.PlacementPolicy,
+		TtlColumn:             t.TTLColumn,
+		TtlInterval:           t.TTLInterval,
+		TtlEnable:             t.TTLEnable,
+		TtlJobInterval:        t.TTLJobInterval,
+		AutoIdCache:           t.AutoIDCache,
+		PreSplitRegions:       int32(t.PreSplitRegions),
+		TiflashReplica:        int32(t.TiFlashReplica),
+		TiflashLocationLabels: slices.Clone(t.TiFlashLocationLabels),
 	}
 	var opts []string
 	if t.Compression != "" {
@@ -279,16 +289,26 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 		subUseDefault = strconv.Itoa(p.NumSubParts)
 	}
 
+	if len(p.Partitions) == 0 && p.IntervalText != "" {
+		return []*metadata.TablePartitionMetadata{{
+			Type:           partType,
+			Expression:     expr,
+			IntervalClause: p.IntervalText,
+			Algorithm:      int32(p.Algorithm),
+		}}
+	}
+
 	var result []*metadata.TablePartitionMetadata
 	for _, pd := range p.Partitions {
 		part := &metadata.TablePartitionMetadata{
-			Name:       pd.Name,
-			Type:       partType,
-			Expression: expr,
-			UseDefault: partUseDefault,
-			Value:      pd.ValueExpr,
-			Comment:    pd.Comment,
-			Algorithm:  int32(p.Algorithm),
+			Name:           pd.Name,
+			Type:           partType,
+			Expression:     expr,
+			UseDefault:     partUseDefault,
+			Value:          pd.ValueExpr,
+			Comment:        pd.Comment,
+			Algorithm:      int32(p.Algorithm),
+			IntervalClause: p.IntervalText,
 		}
 		if p.SubType != "" {
 			if len(pd.SubPartitions) > 0 {

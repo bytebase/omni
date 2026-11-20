@@ -863,6 +863,11 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	}
+	if partitions[0].IntervalClause != "" {
+		if _, err := fmt.Fprintf(buf, " %s", partitions[0].IntervalClause); err != nil {
+			return err
+		}
+	}
 
 	if len(partitions[0].Subpartitions) > 0 {
 		if _, err := fmt.Fprint(buf, "\nSUBPARTITION BY "); err != nil {
@@ -905,7 +910,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
-	if useDefault == 0 {
+	if useDefault == 0 && !(len(partitions) == 1 && partitions[0].Name == "" && partitions[0].IntervalClause != "") {
 		if _, err := fmt.Fprint(buf, "\n("); err != nil {
 			return err
 		}

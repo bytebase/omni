@@ -412,3 +412,75 @@ func TestDatabaseMetadataRoundTripColumnGroupsAndIndexSemantics(t *testing.T) {
 	require.True(t, reMeta.Tables[2].Indexes[1].IsVector)
 	require.Contains(t, reMeta.Tables[2].Indexes[1].VectorParams, "DISTANCE=COSINE")
 }
+
+func TestDatabaseMetadataViewOptionsTablespaceAndCharsetExplicit(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+		USE app;
+
+		CREATE TABLE t_cs (
+			id INT PRIMARY KEY,
+			bare_col VARCHAR(40),
+			cs_col VARCHAR(40) CHARACTER SET latin1,
+			col_col VARCHAR(40) COLLATE utf8mb4_bin
+		) TABLESPACE ts_ob;
+
+		CREATE VIEW v_local AS SELECT bare_col FROM t_cs WITH LOCAL CHECK OPTION;
+		CREATE VIEW v_cascaded AS SELECT bare_col FROM t_cs WITH CASCADED CHECK OPTION;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	// Simulate non-default Algorithm/SqlSecurity on View struct if set.
+	c.GetDatabase("app").Views["v_local"].Algorithm = "TEMPTABLE"
+	c.GetDatabase("app").Views["v_local"].SqlSecurity = "INVOKER"
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	require.Equal(t, "ts_ob", s.Tables[0].Tablespace)
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range s.Tables[0].Columns {
+		cols[col.Name] = col
+	}
+	require.False(t, *cols["bare_col"].CharsetExplicit)
+	require.False(t, *cols["bare_col"].CollationExplicit)
+	require.True(t, *cols["cs_col"].CharsetExplicit)
+	require.False(t, *cols["cs_col"].CollationExplicit)
+	require.False(t, *cols["col_col"].CharsetExplicit)
+	require.True(t, *cols["col_col"].CollationExplicit)
+
+	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
+	require.Equal(t, "LOCAL", s.Views[1].CheckOption)
+	require.Equal(t, "TEMPTABLE", s.Views[1].Algorithm)
+	require.Equal(t, "INVOKER", s.Views[1].SqlSecurity)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reTbl := reloaded.GetDatabase("app").GetTable("t_cs")
+	require.Equal(t, "ts_ob", reTbl.Tablespace)
+	require.False(t, reTbl.GetColumn("bare_col").CharsetExplicit)
+	require.False(t, reTbl.GetColumn("bare_col").CollationExplicit)
+	require.True(t, reTbl.GetColumn("cs_col").CharsetExplicit)
+	require.False(t, reTbl.GetColumn("cs_col").CollationExplicit)
+	require.False(t, reTbl.GetColumn("col_col").CharsetExplicit)
+	require.True(t, reTbl.GetColumn("col_col").CollationExplicit)
+
+	reLocal := reloaded.GetDatabase("app").Views["v_local"]
+	require.Equal(t, "LOCAL", reLocal.CheckOption)
+	require.Equal(t, "TEMPTABLE", reLocal.Algorithm)
+	require.Equal(t, "INVOKER", reLocal.SqlSecurity)
+	require.Equal(t, "CASCADED", reloaded.GetDatabase("app").Views["v_cascaded"].CheckOption)
+
+	_, err = reloaded.Exec(`ALTER TABLE t_cs COLLATE = utf8mb4_bin;`, nil)
+	require.NoError(t, err)
+	n := NormalizerFor(MySQL80)
+	_, bareColl := n.ResolveColumnCharsetCollation(reTbl, reTbl.GetColumn("bare_col"))
+	_, csColl := n.ResolveColumnCharsetCollation(reTbl, reTbl.GetColumn("cs_col"))
+	require.Equal(t, "utf8mb4_bin", bareColl)
+	require.Equal(t, "latin1_swedish_ci", csColl)
+}

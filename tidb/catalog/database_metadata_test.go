@@ -286,3 +286,80 @@ func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *
 	require.True(t, reIdxByName["idx_vec"].IsVector)
 	require.True(t, reExportedFull.CheckConstraints[1].NotEnforced)
 }
+
+func TestDatabaseMetadataTTLPlacementIntervalAndViewCheckOption(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE PLACEMENT POLICY p_hot PRIMARY_REGION="us-east" REGIONS="us-east";
+		CREATE DATABASE app;
+		USE app;
+
+		CREATE TABLE ttl_tbl (
+			id BIGINT PRIMARY KEY,
+			created_at DATETIME NOT NULL
+		) PLACEMENT POLICY = p_hot
+		  AUTO_ID_CACHE = 200
+		  PRE_SPLIT_REGIONS = 2
+		  TTL = created_at + INTERVAL 30 DAY
+		  TTL_ENABLE = 'OFF'
+		  TTL_JOB_INTERVAL = '2h';
+
+		ALTER TABLE ttl_tbl SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';
+
+		CREATE TABLE iv_tbl (
+			a INT NOT NULL
+		) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (ABS(10)) LAST PARTITION LESS THAN (100);
+
+		CREATE VIEW v_check AS SELECT id FROM ttl_tbl WITH CASCADED CHECK OPTION;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	// Tables sorted: iv_tbl, ttl_tbl
+	ivMeta := s.Tables[0]
+	require.Equal(t, "iv_tbl", ivMeta.Name)
+	require.Len(t, ivMeta.Partitions, 1)
+	require.Contains(t, ivMeta.Partitions[0].IntervalClause, "INTERVAL")
+	require.Empty(t, ivMeta.Partitions[0].Name)
+
+	ttlMeta := s.Tables[1]
+	require.Equal(t, "ttl_tbl", ttlMeta.Name)
+	require.Equal(t, "p_hot", ttlMeta.PlacementPolicy)
+	require.Equal(t, "created_at", ttlMeta.TtlColumn)
+	require.Equal(t, "interval 30 day", ttlMeta.TtlInterval)
+	require.False(t, ttlMeta.TtlEnable)
+	require.Equal(t, "2h", ttlMeta.TtlJobInterval)
+	require.Equal(t, int64(200), ttlMeta.AutoIdCache)
+	require.Equal(t, int32(2), ttlMeta.PreSplitRegions)
+	require.Equal(t, int32(2), ttlMeta.TiflashReplica)
+	require.Equal(t, []string{"zone", "host"}, ttlMeta.TiflashLocationLabels)
+
+	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
+
+	// Reload into a fresh catalog with NO placement policies loaded separately.
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reTTL := reloaded.GetDatabase("app").GetTable("ttl_tbl")
+	require.Equal(t, "p_hot", reTTL.PlacementPolicy)
+	require.Equal(t, "created_at", reTTL.TTLColumn)
+	require.Equal(t, "interval 30 day", reTTL.TTLInterval)
+	require.False(t, reTTL.TTLEnable)
+	require.Equal(t, "2h", reTTL.TTLJobInterval)
+	require.Equal(t, int64(200), reTTL.AutoIDCache)
+	require.Equal(t, 2, reTTL.PreSplitRegions)
+	require.Equal(t, 2, reTTL.TiFlashReplica)
+	require.Equal(t, []string{"zone", "host"}, reTTL.TiFlashLocationLabels)
+
+	reIV := reloaded.GetDatabase("app").GetTable("iv_tbl")
+	require.NotNil(t, reIV.Partitioning)
+	require.Contains(t, reIV.Partitioning.IntervalText, "INTERVAL")
+	require.Empty(t, reIV.Partitioning.Partitions)
+
+	require.Equal(t, "CASCADED", reloaded.GetDatabase("app").Views["v_check"].CheckOption)
+}

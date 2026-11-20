@@ -619,6 +619,24 @@ message TableMetadata {
   // TiDB CREATE GLOBAL TEMPORARY TABLE flag and ON COMMIT clause.
   bool is_global_temporary = 27;
   string on_commit = 28;
+
+  // TiDB placement policy name (PLACEMENT POLICY = ...).
+  string placement_policy = 29;
+
+  // TiDB TTL settings (TTL, TTL_ENABLE, TTL_JOB_INTERVAL).
+  string ttl_column = 30;
+  string ttl_interval = 31;
+  bool ttl_enable = 32;
+  string ttl_job_interval = 33;
+
+  // TiDB allocation and TiFlash settings.
+  int64 auto_id_cache = 34;
+  int32 pre_split_regions = 35;
+  int32 tiflash_replica = 36;
+  repeated string tiflash_location_labels = 37;
+
+  // MySQL / OceanBase table tablespace name.
+  string tablespace = 38;
 }
 
 message CheckConstraintMetadata {
@@ -783,6 +801,9 @@ message TablePartitionMetadata {
 
   // KEY / LINEAR KEY partitioning algorithm (1 or 2; 0 when omitted/default).
   int32 algorithm = 14;
+
+  // Unexpanded TiDB RANGE INTERVAL (...) FIRST ... LAST ... clause.
+  string interval_clause = 15;
 }
 
 // ColumnMetadata is the metadata for columns.
@@ -891,6 +912,18 @@ message ColumnMetadata {
   // Whether an explicit ALTER COLUMN DROP DEFAULT removed the default on a
   // nullable column (MySQL, OceanBase, TiDB).
   bool default_dropped = 25;
+
+  // MySQL-generated invisible primary key column (my_row_id).
+  bool is_generated_invisible_primary_key = 26;
+
+  // MySQL NOT SECONDARY column attribute.
+  bool not_secondary = 27;
+
+  // Whether CharacterSet and Collation were explicitly declared on the column
+  // rather than inherited from its table (MySQL / OceanBase). Unset preserves
+  // legacy live-sync inference.
+  optional bool charset_explicit = 28;
+  optional bool collation_explicit = 29;
 }
 
 message GenerationMetadata {
@@ -932,6 +965,9 @@ message ViewMetadata {
   // View execution algorithm (UNDEFINED, MERGE, TEMPTABLE) and SQL security (DEFINER, INVOKER).
   string algorithm = 9;
   string sql_security = 10;
+
+  // View check option clause ("LOCAL", "CASCADED", or empty).
+  string check_option = 11;
 }
 
 // DependencyColumn is the metadata for dependency columns.

@@ -390,8 +390,18 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if err := c.DefineMaterializedView(stmt); err != nil {
 				return err
 			}
-		} else if err := c.DefineView(stmt); err != nil {
-			return err
+		} else {
+			if err := c.DefineView(stmt); err != nil {
+				return err
+			}
+			if inst := c.installedView(o.name); inst != nil {
+				if o.view.GetAlgorithm() != "" {
+					inst.Algorithm = o.view.GetAlgorithm()
+				}
+				if o.view.GetSqlSecurity() != "" {
+					inst.SqlSecurity = o.view.GetSqlSecurity()
+				}
+			}
 		}
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
 		return nil
@@ -525,6 +535,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"PACK_KEYS", createOption(opts, "pack_keys")},
 		{"CHECKSUM", createOption(opts, "checksum")},
 		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
+		{"TABLESPACE", unquoteTableOption(t.GetTablespace())},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -570,10 +581,12 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 		return nil, nil, err
 	}
 	// The type text may carry its own character set and collation.
-	if typeName.Charset == "" {
+	// Unset explicitness flags (from legacy live syncs) keep copying the
+	// column's recorded Charset/Collation onto the type.
+	if typeName.Charset == "" && (col.CharsetExplicit == nil || col.GetCharsetExplicit()) {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" {
+	if typeName.Collate == "" && (col.CollationExplicit == nil || col.GetCollationExplicit()) {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.
@@ -837,7 +850,15 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
+	}, nil
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a

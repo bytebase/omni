@@ -79,6 +79,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Columns:     viewColumnsToProto(v),
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
+			CheckOption: v.CheckOption,
 		})
 	}
 
@@ -158,11 +159,12 @@ func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
 
 func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
-		Name:      t.Name,
-		Engine:    t.Engine,
-		Charset:   t.Charset,
-		Collation: t.Collation,
-		Comment:   t.Comment,
+		Name:       t.Name,
+		Engine:     t.Engine,
+		Charset:    t.Charset,
+		Collation:  t.Collation,
+		Comment:    t.Comment,
+		Tablespace: t.Tablespace,
 	}
 	if opts := tableCreateOptions(t); opts != "" {
 		table.CreateOptions = opts
@@ -174,14 +176,20 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			// indexes) are not reported by information_schema.
 			continue
 		}
+		charsetExplicit := col.CharsetExplicit
+		collationExplicit := col.CollationExplicit
 		colMeta := &metadata.ColumnMetadata{
-			Name:         col.Name,
-			Position:     int32(col.Position),
-			Type:         col.ColumnType,
-			Nullable:     col.Nullable,
-			CharacterSet: col.Charset,
-			Collation:    col.Collation,
-			Comment:      col.Comment,
+			Name:                           col.Name,
+			Position:                       int32(col.Position),
+			Type:                           col.ColumnType,
+			Nullable:                       col.Nullable,
+			CharacterSet:                   col.Charset,
+			Collation:                      col.Collation,
+			Comment:                        col.Comment,
+			NotSecondary:                   col.NotSecondary,
+			IsGeneratedInvisiblePrimaryKey: col.GeneratedInvisiblePrimaryKey,
+			CharsetExplicit:                &charsetExplicit,
+			CollationExplicit:              &collationExplicit,
 		}
 		switch {
 		case col.AutoIncrement:

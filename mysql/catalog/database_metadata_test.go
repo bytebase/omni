@@ -383,3 +383,97 @@ func TestDatabaseMetadataRoundTripOptionsConstraintsDefaultsAndKeyAlgorithm(t *t
 	require.Equal(t, "TEMPTABLE", reView.Algorithm)
 	require.Equal(t, "INVOKER", reView.SqlSecurity)
 }
+
+func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		SET SESSION sql_generate_invisible_primary_key = ON;
+		CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+		USE app;
+
+		CREATE TABLE gipk_tbl (
+			name VARCHAR(50),
+			cs_col VARCHAR(50) CHARACTER SET latin1,
+			col_col VARCHAR(50) COLLATE utf8mb4_bin,
+			no_sec INT NOT NULL NOT SECONDARY
+		) TABLESPACE ts1;
+
+		CREATE VIEW v_local AS SELECT name FROM gipk_tbl WITH LOCAL CHECK OPTION;
+		CREATE VIEW v_cascaded AS SELECT name FROM gipk_tbl WITH CASCADED CHECK OPTION;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	require.Len(t, s.Views, 2)
+	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
+	require.Equal(t, "LOCAL", s.Views[1].CheckOption)
+
+	tblMeta := s.Tables[0]
+	require.Equal(t, "ts1", tblMeta.Tablespace)
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range tblMeta.Columns {
+		cols[col.Name] = col
+	}
+	require.True(t, cols["my_row_id"].IsGeneratedInvisiblePrimaryKey)
+	require.True(t, cols["no_sec"].NotSecondary)
+	require.NotNil(t, cols["name"].CharsetExplicit)
+	require.False(t, *cols["name"].CharsetExplicit)
+	require.NotNil(t, cols["name"].CollationExplicit)
+	require.False(t, *cols["name"].CollationExplicit)
+	require.True(t, *cols["cs_col"].CharsetExplicit)
+	require.False(t, *cols["cs_col"].CollationExplicit)
+	require.False(t, *cols["col_col"].CharsetExplicit)
+	require.True(t, *cols["col_col"].CollationExplicit)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reTbl := reloaded.GetDatabase("app").GetTable("gipk_tbl")
+	require.Equal(t, "ts1", reTbl.Tablespace)
+	require.True(t, reTbl.GetColumn("my_row_id").GeneratedInvisiblePrimaryKey)
+	require.True(t, reTbl.GetColumn("no_sec").NotSecondary)
+	require.False(t, reTbl.GetColumn("name").CharsetExplicit)
+	require.False(t, reTbl.GetColumn("name").CollationExplicit)
+	require.True(t, reTbl.GetColumn("cs_col").CharsetExplicit)
+	require.False(t, reTbl.GetColumn("cs_col").CollationExplicit)
+	require.False(t, reTbl.GetColumn("col_col").CharsetExplicit)
+	require.True(t, reTbl.GetColumn("col_col").CollationExplicit)
+	require.Equal(t, "LOCAL", reloaded.GetDatabase("app").Views["v_local"].CheckOption)
+	require.Equal(t, "CASCADED", reloaded.GetDatabase("app").Views["v_cascaded"].CheckOption)
+
+	// Reloaded GIPK table must match a user target without my_row_id (no phantom DROP).
+	target := New()
+	_, err = target.Exec(`
+		CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+		USE app;
+		CREATE TABLE gipk_tbl (
+			name VARCHAR(50),
+			cs_col VARCHAR(50) CHARACTER SET latin1,
+			col_col VARCHAR(50) COLLATE utf8mb4_bin,
+			no_sec INT NOT NULL NOT SECONDARY
+		) TABLESPACE ts1;
+		CREATE VIEW v_local AS SELECT name FROM gipk_tbl WITH LOCAL CHECK OPTION;
+		CREATE VIEW v_cascaded AS SELECT name FROM gipk_tbl WITH CASCADED CHECK OPTION;
+	`, nil)
+	require.NoError(t, err)
+	diff := Diff(reloaded, target)
+	require.True(t, diff.IsEmpty(), "unexpected diff after reload: %s", GenerateMigration(reloaded, target, diff).SQL())
+
+	// Inherited column collation must propagate when table collation changes after reload.
+	reloadedAlt := New()
+	_, err = reloadedAlt.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	_, err = reloadedAlt.Exec(`ALTER TABLE gipk_tbl COLLATE = utf8mb4_0900_ai_ci;`, nil)
+	require.NoError(t, err)
+	n := NormalizerFor(MySQL80)
+	altTbl := reloadedAlt.GetDatabase("app").GetTable("gipk_tbl")
+	_, nameColl := n.ResolveColumnCharsetCollation(altTbl, altTbl.GetColumn("name"))
+	_, csColl := n.ResolveColumnCharsetCollation(altTbl, altTbl.GetColumn("cs_col"))
+	require.Equal(t, "utf8mb4_0900_ai_ci", nameColl)
+	require.Equal(t, "latin1_swedish_ci", csColl)
+}
