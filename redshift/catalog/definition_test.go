@@ -502,6 +502,7 @@ COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
 					{
 						Name:       "late_v",
 						Definition: `CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING`,
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "ignored on late-binding view"}},
 					},
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
@@ -590,6 +591,10 @@ COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "skip_fn", SkipDump: true},
 					{
+						Name:       "a_wrapper",
+						Definition: "CREATE FUNCTION public.a_wrapper(x int) RETURNS int IMMUTABLE AS $$ SELECT public.f_inc(x) * 2 $$ LANGUAGE SQL",
+					},
+					{
 						Name:       "f_inc",
 						Definition: "CREATE FUNCTION public.f_inc(x int) RETURNS int IMMUTABLE AS $$ SELECT x + 1 $$ LANGUAGE SQL",
 					},
@@ -619,11 +624,13 @@ COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 	})
 	require.NoError(t, err)
 	fnIdx := strings.Index(got, "Function structure for `f_inc`")
+	wrapperIdx := strings.Index(got, "Function structure for `a_wrapper`")
 	tblIdx := strings.Index(got, "Table structure for `t`")
 	viewIdx := strings.Index(got, "View structure for `v`")
 	procIdx := strings.Index(got, "Procedure structure for `p_cleanup`")
 	require.GreaterOrEqual(t, fnIdx, 0)
-	require.Greater(t, tblIdx, fnIdx)
+	require.Greater(t, wrapperIdx, fnIdx)
+	require.Greater(t, tblIdx, wrapperIdx)
 	require.Greater(t, viewIdx, tblIdx)
 	require.Greater(t, procIdx, viewIdx)
 	require.Contains(t, got, `COMMENT ON COLUMN "public"."v"."next_id" IS 'computed';`)

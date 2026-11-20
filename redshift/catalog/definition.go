@@ -216,7 +216,14 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 	return false
 }
 
+type functionEntry struct {
+	schema string
+	name   string
+	def    string
+}
+
 func writeFunctions(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, withTableDeps bool) error {
+	var fns []functionEntry
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -236,12 +243,158 @@ func writeFunctions(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, wi
 			if !strings.HasSuffix(def, ";") {
 				def += ";"
 			}
-			if _, err := w.WriteString(getFunctionAnnouncement(fn.Name) + def + "\n"); err != nil {
-				return err
-			}
+			fns = append(fns, functionEntry{schema: schema.Name, name: fn.Name, def: def})
+		}
+	}
+	for _, fn := range orderedFunctions(fns) {
+		if _, err := w.WriteString(getFunctionAnnouncement(fn.name) + fn.def + "\n"); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func orderedFunctions(fns []functionEntry) []functionEntry {
+	if len(fns) < 2 {
+		return fns
+	}
+	byName := make(map[string][]int, len(fns))
+	for i, fn := range fns {
+		key := objectKey(fn.schema, fn.name)
+		byName[key] = append(byName[key], i)
+	}
+	dependencies := make([]map[int]struct{}, len(fns))
+	addDep := func(i, dep int) {
+		if dep == i {
+			return
+		}
+		if dependencies[i] == nil {
+			dependencies[i] = map[int]struct{}{}
+		}
+		dependencies[i][dep] = struct{}{}
+	}
+	for i, fn := range fns {
+		for _, call := range collectFunctionCalls(fn.def) {
+			if call.schema != "" {
+				for _, depIdx := range byName[objectKey(call.schema, call.name)] {
+					addDep(i, depIdx)
+				}
+				continue
+			}
+			if deps, ok := byName[objectKey(fn.schema, call.name)]; ok {
+				for _, depIdx := range deps {
+					addDep(i, depIdx)
+				}
+			} else if deps, ok := byName[objectKey("public", call.name)]; ok {
+				for _, depIdx := range deps {
+					addDep(i, depIdx)
+				}
+			}
+		}
+	}
+	order := topoOrder(len(fns), dependencies)
+	ordered := make([]functionEntry, len(order))
+	for i, idx := range order {
+		ordered[i] = fns[idx]
+	}
+	return ordered
+}
+
+func collectFunctionCalls(definition string) []relationRef {
+	var calls []relationRef
+	walkAST := func(node nodes.Node) {
+		nodes.Inspect(node, func(n nodes.Node) bool {
+			fc, ok := n.(*nodes.FuncCall)
+			if !ok || fc.Funcname == nil || len(fc.Funcname.Items) == 0 {
+				return true
+			}
+			var parts []string
+			for _, item := range fc.Funcname.Items {
+				if s, ok := item.(*nodes.String); ok && s.Str != "" {
+					parts = append(parts, s.Str)
+				}
+			}
+			switch len(parts) {
+			case 1:
+				calls = append(calls, relationRef{name: parts[0]})
+			case 2:
+				calls = append(calls, relationRef{schema: parts[0], name: parts[1]})
+			}
+			return true
+		})
+	}
+	stmts, err := pgparser.Parse(definition)
+	if err == nil && stmts != nil {
+		for _, item := range stmts.Items {
+			stmt := item
+			if raw, ok := stmt.(*nodes.RawStmt); ok {
+				stmt = raw.Stmt
+			}
+			cf, ok := stmt.(*nodes.CreateFunctionStmt)
+			if !ok {
+				continue
+			}
+			if cf.SqlBody != nil {
+				walkAST(cf.SqlBody)
+			}
+			if cf.Options != nil {
+				for _, optItem := range cf.Options.Items {
+					de, ok := optItem.(*nodes.DefElem)
+					if !ok || de.Defname != "as" {
+						continue
+					}
+					for _, body := range extractDefElemStrings(de.Arg) {
+						if bodyStmts, err := pgparser.Parse(body); err == nil && bodyStmts != nil {
+							walkAST(bodyStmts)
+						} else {
+							calls = append(calls, scanCallRefs(body)...)
+						}
+					}
+				}
+			}
+		}
+		return calls
+	}
+	return scanCallRefs(definition)
+}
+
+func extractDefElemStrings(arg nodes.Node) []string {
+	switch v := arg.(type) {
+	case *nodes.String:
+		return []string{v.Str}
+	case *nodes.List:
+		var out []string
+		for _, item := range v.Items {
+			if s, ok := item.(*nodes.String); ok {
+				out = append(out, s.Str)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+func scanCallRefs(body string) []relationRef {
+	lex := pgparser.NewLexer(body)
+	var toks []pgparser.Token
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		toks = append(toks, tok)
+	}
+	var calls []relationRef
+	for i := 0; i+1 < len(toks); i++ {
+		if i+3 < len(toks) && toks[i+1].Type == '.' && toks[i+3].Type == '(' && toks[i].Str != "" && toks[i+2].Str != "" {
+			calls = append(calls, relationRef{schema: toks[i].Str, name: toks[i+2].Str})
+			continue
+		}
+		if toks[i+1].Type == '(' && toks[i].Str != "" && (i == 0 || toks[i-1].Type != '.') {
+			calls = append(calls, relationRef{name: toks[i].Str})
+		}
+	}
+	return calls
 }
 
 func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
@@ -720,12 +873,14 @@ func writeView(w io.StringWriter, view *viewState) error {
 			return err
 		}
 	}
-	for _, column := range sortedColumns(view.columns) {
-		if column.comment == "" {
-			continue
-		}
-		if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", view.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeStringLiteral(column.comment)); err != nil {
-			return err
+	if !isLateBindingView(view.definition) {
+		for _, column := range sortedColumns(view.columns) {
+			if column.comment == "" {
+				continue
+			}
+			if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", view.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeStringLiteral(column.comment)); err != nil {
+				return err
+			}
 		}
 	}
 	_, err := w.WriteString(buf.String())
@@ -1410,16 +1565,35 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 // CREATE [OR REPLACE] VIEW statement (as SHOW VIEW returns for late-binding
 // views with WITH NO SCHEMA BINDING).
 func isCompleteCreateView(definition string) bool {
+	return parseViewStmt(definition) != nil
+}
+
+// isLateBindingView reports whether definition is a CREATE VIEW ... WITH NO
+// SCHEMA BINDING statement, whose columns Redshift does not allow commenting.
+func isLateBindingView(definition string) bool {
+	vs := parseViewStmt(strings.TrimSpace(definition))
+	if vs == nil || vs.Options == nil {
+		return false
+	}
+	for _, item := range vs.Options.Items {
+		if de, ok := item.(*nodes.DefElem); ok && de.Defname == "no_schema_binding" {
+			return true
+		}
+	}
+	return false
+}
+
+func parseViewStmt(definition string) *nodes.ViewStmt {
 	stmts, err := pgparser.Parse(definition)
 	if err != nil || stmts == nil || len(stmts.Items) != 1 {
-		return false
+		return nil
 	}
 	stmt := stmts.Items[0]
 	if raw, ok := stmt.(*nodes.RawStmt); ok {
 		stmt = raw.Stmt
 	}
-	_, ok := stmt.(*nodes.ViewStmt)
-	return ok
+	vs, _ := stmt.(*nodes.ViewStmt)
+	return vs
 }
 
 func isCompleteCreateMaterializedView(definition string) bool {
