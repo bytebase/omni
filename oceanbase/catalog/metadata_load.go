@@ -581,12 +581,12 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 		return nil, nil, err
 	}
 	// The type text may carry its own character set and collation.
-	// Unset explicitness flags (from legacy live syncs) keep copying the
-	// column's recorded Charset/Collation onto the type.
-	if typeName.Charset == "" && (col.CharsetExplicit == nil || col.GetCharsetExplicit()) {
+	// Inherited flags skip copying table-derived defaults onto the type so
+	// subsequent table-level collation changes still propagate.
+	if typeName.Charset == "" && !col.GetCharsetInherited() {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" && (col.CollationExplicit == nil || col.GetCollationExplicit()) {
+	if typeName.Collate == "" && !col.GetCollationInherited() {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.

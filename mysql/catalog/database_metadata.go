@@ -85,41 +85,50 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 
 	for _, fName := range sortedMapKeys(db.Functions) {
 		f := db.Functions[fName]
-		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
-			Name:                f.Name,
-			Definition:          c.ShowCreateFunction(dbName, f.Name),
-			SqlMode:             f.SQLMode,
-			CharacterSetClient:  f.CharacterSetClient,
-			CollationConnection: f.CollationConnection,
-			DatabaseCollation:   db.Collation,
-			Comment:             f.Characteristics["COMMENT"],
-		})
+		fnMeta := &metadata.FunctionMetadata{
+			Name:              f.Name,
+			Definition:        c.ShowCreateFunction(dbName, f.Name),
+			DatabaseCollation: db.Collation,
+			Comment:           f.Characteristics["COMMENT"],
+		}
+		if f.HasSessionContext {
+			fnMeta.SqlMode = f.SQLMode
+			fnMeta.CharacterSetClient = f.CharacterSetClient
+			fnMeta.CollationConnection = f.CollationConnection
+		}
+		schemaMeta.Functions = append(schemaMeta.Functions, fnMeta)
 	}
 
 	for _, pName := range sortedMapKeys(db.Procedures) {
 		p := db.Procedures[pName]
-		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
-			Name:                p.Name,
-			Definition:          c.ShowCreateProcedure(dbName, p.Name),
-			SqlMode:             p.SQLMode,
-			CharacterSetClient:  p.CharacterSetClient,
-			CollationConnection: p.CollationConnection,
-			DatabaseCollation:   db.Collation,
-			Comment:             p.Characteristics["COMMENT"],
-		})
+		procMeta := &metadata.ProcedureMetadata{
+			Name:              p.Name,
+			Definition:        c.ShowCreateProcedure(dbName, p.Name),
+			DatabaseCollation: db.Collation,
+			Comment:           p.Characteristics["COMMENT"],
+		}
+		if p.HasSessionContext {
+			procMeta.SqlMode = p.SQLMode
+			procMeta.CharacterSetClient = p.CharacterSetClient
+			procMeta.CollationConnection = p.CollationConnection
+		}
+		schemaMeta.Procedures = append(schemaMeta.Procedures, procMeta)
 	}
 
 	for _, eName := range sortedMapKeys(db.Events) {
 		e := db.Events[eName]
-		schemaMeta.Events = append(schemaMeta.Events, &metadata.EventMetadata{
-			Name:                e.Name,
-			Definition:          c.ShowCreateEvent(dbName, e.Name),
-			SqlMode:             e.SQLMode,
-			CharacterSetClient:  e.CharacterSetClient,
-			CollationConnection: e.CollationConnection,
-			TimeZone:            e.TimeZone,
-			Comment:             e.Comment,
-		})
+		evMeta := &metadata.EventMetadata{
+			Name:       e.Name,
+			Definition: c.ShowCreateEvent(dbName, e.Name),
+			Comment:    e.Comment,
+		}
+		if e.HasSessionContext {
+			evMeta.SqlMode = e.SQLMode
+			evMeta.CharacterSetClient = e.CharacterSetClient
+			evMeta.CollationConnection = e.CollationConnection
+			evMeta.TimeZone = e.TimeZone
+		}
+		schemaMeta.Events = append(schemaMeta.Events, evMeta)
 	}
 
 	dbMeta.Schemas = append(dbMeta.Schemas, schemaMeta)
@@ -176,8 +185,6 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			// indexes) are not reported by information_schema.
 			continue
 		}
-		charsetExplicit := col.CharsetExplicit
-		collationExplicit := col.CollationExplicit
 		colMeta := &metadata.ColumnMetadata{
 			Name:                           col.Name,
 			Position:                       int32(col.Position),
@@ -188,8 +195,8 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			Comment:                        col.Comment,
 			NotSecondary:                   col.NotSecondary,
 			IsGeneratedInvisiblePrimaryKey: col.GeneratedInvisiblePrimaryKey,
-			CharsetExplicit:                &charsetExplicit,
-			CollationExplicit:              &collationExplicit,
+			CharsetInherited:               col.Charset != "" && !col.CharsetExplicit,
+			CollationInherited:             col.Collation != "" && !col.CollationExplicit,
 		}
 		switch {
 		case col.AutoIncrement:
@@ -463,15 +470,18 @@ func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata
 }
 
 func triggerToProto(tr *Trigger) *metadata.TriggerMetadata {
-	return &metadata.TriggerMetadata{
-		Name:                tr.Name,
-		Event:               tr.Event,
-		Timing:              tr.Timing,
-		Body:                tr.Body,
-		SqlMode:             tr.SQLMode,
-		CharacterSetClient:  tr.CharacterSetClient,
-		CollationConnection: tr.CollationConnection,
+	tm := &metadata.TriggerMetadata{
+		Name:   tr.Name,
+		Event:  tr.Event,
+		Timing: tr.Timing,
+		Body:   tr.Body,
 	}
+	if tr.HasSessionContext {
+		tm.SqlMode = tr.SQLMode
+		tm.CharacterSetClient = tr.CharacterSetClient
+		tm.CollationConnection = tr.CollationConnection
+	}
+	return tm
 }
 
 func sortedMapKeys[V any](m map[string]V) []string {

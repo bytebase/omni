@@ -3215,13 +3215,13 @@ type ColumnMetadata struct {
 	IsGeneratedInvisiblePrimaryKey bool `protobuf:"varint,26,opt,name=is_generated_invisible_primary_key,json=isGeneratedInvisiblePrimaryKey,proto3" json:"is_generated_invisible_primary_key,omitempty"`
 	// MySQL NOT SECONDARY column attribute.
 	NotSecondary bool `protobuf:"varint,27,opt,name=not_secondary,json=notSecondary,proto3" json:"not_secondary,omitempty"`
-	// Whether CharacterSet and Collation were explicitly declared on the column
-	// rather than inherited from its table (MySQL / OceanBase). Unset preserves
-	// legacy live-sync inference.
-	CharsetExplicit   *bool `protobuf:"varint,28,opt,name=charset_explicit,json=charsetExplicit,proto3,oneof" json:"charset_explicit,omitempty"`
-	CollationExplicit *bool `protobuf:"varint,29,opt,name=collation_explicit,json=collationExplicit,proto3,oneof" json:"collation_explicit,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// True when a string column's character_set or collation was inherited from
+	// its table rather than explicitly declared (MySQL / OceanBase). Unset on
+	// explicit declarations and legacy live syncs.
+	CharsetInherited   bool `protobuf:"varint,28,opt,name=charset_inherited,json=charsetInherited,proto3" json:"charset_inherited,omitempty"`
+	CollationInherited bool `protobuf:"varint,29,opt,name=collation_inherited,json=collationInherited,proto3" json:"collation_inherited,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ColumnMetadata) Reset() {
@@ -3415,16 +3415,16 @@ func (x *ColumnMetadata) GetNotSecondary() bool {
 	return false
 }
 
-func (x *ColumnMetadata) GetCharsetExplicit() bool {
-	if x != nil && x.CharsetExplicit != nil {
-		return *x.CharsetExplicit
+func (x *ColumnMetadata) GetCharsetInherited() bool {
+	if x != nil {
+		return x.CharsetInherited
 	}
 	return false
 }
 
-func (x *ColumnMetadata) GetCollationExplicit() bool {
-	if x != nil && x.CollationExplicit != nil {
-		return *x.CollationExplicit
+func (x *ColumnMetadata) GetCollationInherited() bool {
+	if x != nil {
+		return x.CollationInherited
 	}
 	return false
 }
@@ -5623,7 +5623,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vLINEAR_HASH\x10\x06\x12\a\n" +
 	"\x03KEY\x10\a\x12\x0e\n" +
 	"\n" +
-	"LINEAR_KEY\x10\b\"\x96\t\n" +
+	"LINEAR_KEY\x10\b\"\xe4\b\n" +
 	"\x0eColumnMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x05R\bposition\x12\x18\n" +
@@ -5651,18 +5651,16 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x10collation_schema\x18\x17 \x01(\tR\x0fcollationSchema\x12'\n" +
 	"\x0fdefault_dropped\x18\x19 \x01(\bR\x0edefaultDropped\x12J\n" +
 	"\"is_generated_invisible_primary_key\x18\x1a \x01(\bR\x1eisGeneratedInvisiblePrimaryKey\x12#\n" +
-	"\rnot_secondary\x18\x1b \x01(\bR\fnotSecondary\x12.\n" +
-	"\x10charset_explicit\x18\x1c \x01(\bH\x01R\x0fcharsetExplicit\x88\x01\x01\x122\n" +
-	"\x12collation_explicit\x18\x1d \x01(\bH\x02R\x11collationExplicit\x88\x01\x01\"U\n" +
+	"\rnot_secondary\x18\x1b \x01(\bR\fnotSecondary\x12+\n" +
+	"\x11charset_inherited\x18\x1c \x01(\bR\x10charsetInherited\x12/\n" +
+	"\x13collation_inherited\x18\x1d \x01(\bR\x12collationInherited\"U\n" +
 	"\x12IdentityGeneration\x12#\n" +
 	"\x1fIDENTITY_GENERATION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06ALWAYS\x10\x01\x12\x0e\n" +
 	"\n" +
 	"BY_DEFAULT\x10\x02B\a\n" +
-	"\x05_sridB\x13\n" +
-	"\x11_charset_explicitB\x15\n" +
-	"\x13_collation_explicitJ\x04\b\x04\x10\x06J\x04\b\v\x10\r\"\xb1\x01\n" +
+	"\x05_sridJ\x04\b\x04\x10\x06J\x04\b\v\x10\r\"\xb1\x01\n" +
 	"\x12GenerationMetadata\x12:\n" +
 	"\x04type\x18\x01 \x01(\x0e2&.omni.metadata.GenerationMetadata.TypeR\x04type\x12\x1e\n" +
 	"\n" +

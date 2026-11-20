@@ -442,12 +442,14 @@ func TestDatabaseMetadataViewOptionsTablespaceAndCharsetExplicit(t *testing.T) {
 	for _, col := range s.Tables[0].Columns {
 		cols[col.Name] = col
 	}
-	require.False(t, *cols["bare_col"].CharsetExplicit)
-	require.False(t, *cols["bare_col"].CollationExplicit)
-	require.True(t, *cols["cs_col"].CharsetExplicit)
-	require.False(t, *cols["cs_col"].CollationExplicit)
-	require.False(t, *cols["col_col"].CharsetExplicit)
-	require.True(t, *cols["col_col"].CollationExplicit)
+	require.True(t, cols["bare_col"].CharsetInherited)
+	require.True(t, cols["bare_col"].CollationInherited)
+	require.False(t, cols["cs_col"].CharsetInherited)
+	require.True(t, cols["cs_col"].CollationInherited)
+	require.True(t, cols["col_col"].CharsetInherited)
+	require.False(t, cols["col_col"].CollationInherited)
+	require.False(t, cols["id"].CharsetInherited)
+	require.False(t, cols["id"].CollationInherited)
 
 	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
 	require.Equal(t, "LOCAL", s.Views[1].CheckOption)

@@ -258,6 +258,16 @@ func TestDatabaseMetadataSessionContext(t *testing.T) {
 	require.Equal(t, "utf8mb4", ev.CharacterSetClient)
 	require.Equal(t, "utf8mb4_bin", ev.CollationConnection)
 	require.Equal(t, "+08:00", ev.TimeZone)
+
+	// Triggers created directly from DDL without synced session context must not
+	// invent session context on export.
+	plain := New()
+	_, err = plain.Exec(`CREATE DATABASE app; USE app; CREATE TABLE t (id INT); CREATE TRIGGER tr_plain BEFORE INSERT ON t FOR EACH ROW BEGIN END;`, nil)
+	require.NoError(t, err)
+	plainTrg := plain.DatabaseMetadata("app").Schemas[0].Tables[0].Triggers[0]
+	require.Empty(t, plainTrg.SqlMode)
+	require.Empty(t, plainTrg.CharacterSetClient)
+	require.Empty(t, plainTrg.CollationConnection)
 }
 
 func TestDatabaseMetadataExcludesTempTablesAndSortsIndexes(t *testing.T) {
@@ -417,14 +427,14 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	}
 	require.True(t, cols["my_row_id"].IsGeneratedInvisiblePrimaryKey)
 	require.True(t, cols["no_sec"].NotSecondary)
-	require.NotNil(t, cols["name"].CharsetExplicit)
-	require.False(t, *cols["name"].CharsetExplicit)
-	require.NotNil(t, cols["name"].CollationExplicit)
-	require.False(t, *cols["name"].CollationExplicit)
-	require.True(t, *cols["cs_col"].CharsetExplicit)
-	require.False(t, *cols["cs_col"].CollationExplicit)
-	require.False(t, *cols["col_col"].CharsetExplicit)
-	require.True(t, *cols["col_col"].CollationExplicit)
+	require.True(t, cols["name"].CharsetInherited)
+	require.True(t, cols["name"].CollationInherited)
+	require.False(t, cols["cs_col"].CharsetInherited)
+	require.True(t, cols["cs_col"].CollationInherited)
+	require.True(t, cols["col_col"].CharsetInherited)
+	require.False(t, cols["col_col"].CollationInherited)
+	require.False(t, cols["no_sec"].CharsetInherited)
+	require.False(t, cols["no_sec"].CollationInherited)
 
 	reloaded := New()
 	report, err := reloaded.LoadMetadata(context.Background(), meta)

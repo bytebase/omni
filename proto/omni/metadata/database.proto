@@ -919,11 +919,11 @@ message ColumnMetadata {
   // MySQL NOT SECONDARY column attribute.
   bool not_secondary = 27;
 
-  // Whether CharacterSet and Collation were explicitly declared on the column
-  // rather than inherited from its table (MySQL / OceanBase). Unset preserves
-  // legacy live-sync inference.
-  optional bool charset_explicit = 28;
-  optional bool collation_explicit = 29;
+  // True when a string column's character_set or collation was inherited from
+  // its table rather than explicitly declared (MySQL / OceanBase). Unset on
+  // explicit declarations and legacy live syncs.
+  bool charset_inherited = 28;
+  bool collation_inherited = 29;
 }
 
 message GenerationMetadata {
