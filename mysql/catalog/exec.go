@@ -106,86 +106,315 @@ func LoadSQL(sql string) (*Catalog, error) {
 // CHARACTER SET, sql_mode). Variables that affect DDL behavior (foreign_key_checks)
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
+	// MySQL evaluates and checks every assignment in a SET statement before
+	// applying any variable update, so a failure rolls back the whole SET and an
+	// RHS reading @var sees the value from before this statement.
+	var updates []func()
 	for _, asgn := range stmt.Assignments {
 		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
-			rhs := strings.ToLower(strings.TrimSpace(nodeToSQL(asgn.Value)))
-			if rhs == "@@time_zone" || rhs == "@@session.time_zone" || rhs == "@@local.time_zone" {
-				c.savedUserVars[toLower(asgn.Column.Column)] = c.session.TimeZone
-			}
+			uName := toLower(strings.TrimPrefix(asgn.Column.Column, "@"))
+			val, ok := c.evalSetExpr(asgn.Value)
+			updates = append(updates, func() {
+				if ok {
+					c.userVars[uName] = val
+				} else {
+					delete(c.userVars, uName)
+				}
+			})
 			continue
 		}
 		varName := normalizeSetVariableName(asgn.Column)
 		switch varName {
 		case "foreign_key_checks":
 			if v, ok := parseSetBool(asgn.Value); ok {
-				c.foreignKeyChecks = v
-				c.session.ForeignKeyChecks = v
+				updates = append(updates, func() {
+					c.foreignKeyChecks = v
+					c.session.ForeignKeyChecks = v
+				})
 			}
 		case "sql_generate_invisible_primary_key":
 			if v, ok := parseSetBool(asgn.Value); ok {
-				c.generateGIPK = v
-				c.session.GenerateInvisiblePrimaryKey = v
+				updates = append(updates, func() {
+					c.generateGIPK = v
+					c.session.GenerateInvisiblePrimaryKey = v
+				})
 			}
 		case "show_gipk_in_create_table_and_information_schema":
 			if v, ok := parseSetBool(asgn.Value); ok {
-				c.showGIPK = v
-				c.session.ShowGIPK = v
+				updates = append(updates, func() {
+					c.showGIPK = v
+					c.session.ShowGIPK = v
+				})
 			}
 		case "explicit_defaults_for_timestamp":
-			if isDefaultSetValue(asgn.Value) {
-				c.session.ExplicitDefaultsForTimestamp = true
+			if isDefaultSetKeywordOrIdent(asgn.Value) {
+				updates = append(updates, func() {
+					c.session.ExplicitDefaultsForTimestamp = true
+				})
 			} else if v, ok := parseSetBool(asgn.Value); ok {
-				c.session.ExplicitDefaultsForTimestamp = v
+				updates = append(updates, func() {
+					c.session.ExplicitDefaultsForTimestamp = v
+				})
 			}
 		case "sql_mode":
-			c.session.SQLMode = nodeToSQLValue(asgn.Value)
-			if c.session.SQLMode == "" && isDefaultSetValue(asgn.Value) {
-				c.session.SQLMode = "DEFAULT"
-			}
-		case "time_zone":
-			if isDefaultSetValue(asgn.Value) {
-				c.session.TimeZone = "SYSTEM"
-				continue
-			}
-			rawExpr := strings.TrimSpace(nodeToSQL(asgn.Value))
-			if strings.HasPrefix(rawExpr, "@") && !strings.HasPrefix(rawExpr, "@@") {
-				if saved, ok := c.savedUserVars[toLower(rawExpr)]; ok && saved != "" {
-					c.session.TimeZone = saved
-				} else {
-					c.session.TimeZone = "SYSTEM"
+			if vref, isVar := asgn.Value.(*nodes.VariableRef); isVar && !vref.System {
+				if v, exists := c.userVars[toLower(vref.Name)]; exists && v.kind == userVarString {
+					mode := v.str
+					updates = append(updates, func() {
+						c.session.SQLMode = mode
+					})
 				}
 				continue
 			}
-			if strings.HasPrefix(rawExpr, "@@") {
+			mode := nodeToSQLValue(asgn.Value)
+			if mode == "" && isDefaultSetKeywordOrIdent(asgn.Value) {
+				mode = "DEFAULT"
+			}
+			updates = append(updates, func() {
+				c.session.SQLMode = mode
+			})
+		case "time_zone":
+			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
+			if isDefaultSetKeywordOrIdent(asgn.Value) {
+				if isPersistOnly {
+					continue
+				}
+				if isGlobal {
+					updates = append(updates, func() {
+						c.globalTimeZone = "SYSTEM"
+					})
+				} else {
+					defTZ := c.globalTimeZone
+					if defTZ == "" {
+						defTZ = "SYSTEM"
+					}
+					updates = append(updates, func() {
+						c.session.TimeZone = defTZ
+					})
+				}
 				continue
 			}
-			tz, err := validateAndNormalizeSessionTimeZone(nodeToSQLValue(asgn.Value))
+			var rawTZ string
+			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+				rawTZ = cr.Column
+			} else {
+				val, ok := c.evalSetExpr(asgn.Value)
+				if !ok {
+					return errUnknownTimeZone(strings.TrimSpace(nodeToSQL(asgn.Value)))
+				}
+				switch val.kind {
+				case userVarNull:
+					return errWrongValueForVar("time_zone", "NULL")
+				case userVarNumeric:
+					return errWrongTypeForVar("time_zone")
+				case userVarString:
+					rawTZ = val.str
+				}
+			}
+			tz, err := validateAndNormalizeSessionTimeZone(rawTZ)
 			if err != nil {
 				return err
 			}
-			c.session.TimeZone = tz
+			if isPersistOnly {
+				continue
+			}
+			if isGlobal {
+				updates = append(updates, func() {
+					c.globalTimeZone = tz
+				})
+			} else {
+				updates = append(updates, func() {
+					c.session.TimeZone = tz
+				})
+			}
 		case "names", "character set":
 			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
 			if strings.EqualFold(charset, "DEFAULT") || charset == "" {
 				charset = c.defaultCharset
 			}
-			c.charsetClient = charset
-			c.session.CharsetClient = charset
-			if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
-				c.collationConn = coll
-				c.session.CollationConnection = coll
-			}
+			updates = append(updates, func() {
+				c.charsetClient = charset
+				c.session.CharsetClient = charset
+				if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
+					c.collationConn = coll
+					c.session.CollationConnection = coll
+				}
+			})
 		case "collate":
 			collation := nodeToSQLValue(asgn.Value)
 			if collation != "" {
-				c.collationConn = collation
-				c.session.CollationConnection = collation
+				updates = append(updates, func() {
+					c.collationConn = collation
+					c.session.CollationConnection = collation
+				})
 			}
 		default:
-			// Silently accept all other SET variables (sql_mode, etc.).
+			// Silently accept all other SET variables.
 		}
 	}
+	for _, fn := range updates {
+		fn()
+	}
 	return nil
+}
+
+func setAssignmentIsGlobalOrPersist(asgn *nodes.Assignment) (isGlobal, isPersistOnly bool) {
+	if asgn == nil {
+		return false, false
+	}
+	switch strings.ToUpper(asgn.Scope) {
+	case "PERSIST_ONLY":
+		return true, true
+	case "GLOBAL", "PERSIST":
+		return true, false
+	}
+	if asgn.Column != nil {
+		col := toLower(strings.TrimPrefix(asgn.Column.Column, "@@"))
+		if strings.HasPrefix(col, "persist_only.") {
+			return true, true
+		}
+		if strings.HasPrefix(col, "global.") || strings.HasPrefix(col, "persist.") {
+			return true, false
+		}
+	}
+	return false, false
+}
+
+func isDefaultSetKeywordOrIdent(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.DefaultExpr:
+		return true
+	case *nodes.ColumnRef:
+		return e.Schema == "" && e.Table == "" && strings.EqualFold(e.Column, "DEFAULT")
+	default:
+		return false
+	}
+}
+
+func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return c.evalSetExpr(e.Expr)
+	case *nodes.NullLit:
+		return userVarValue{kind: userVarNull}, true
+	case *nodes.StringLit:
+		return userVarValue{kind: userVarString, str: e.Value}, true
+	case *nodes.HexLit:
+		raw, ok := decodeLiteralRawBytes(cleanHexDigits(e.Value), true)
+		if !ok {
+			return userVarValue{}, false
+		}
+		return userVarValue{kind: userVarString, str: string(raw)}, true
+	case *nodes.IntLit:
+		if s, ok := exactIntLiteral(e, ""); ok {
+			return userVarValue{kind: userVarNumeric, str: s}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true
+	case *nodes.FloatLit:
+		return userVarValue{kind: userVarNumeric, str: e.Value}, true
+	case *nodes.BoolLit:
+		if e.Value {
+			return userVarValue{kind: userVarNumeric, str: "1"}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: "0"}, true
+	case *nodes.BitLit:
+		return userVarValue{kind: userVarNumeric}, true
+	case *nodes.UnaryExpr:
+		if e.Op == nodes.UnaryPlus || e.Op == nodes.UnaryMinus {
+			sign := ""
+			if e.Op == nodes.UnaryMinus {
+				sign = "-"
+			}
+			switch op := e.Operand.(type) {
+			case *nodes.IntLit:
+				if s, ok := exactIntLiteral(op, sign); ok {
+					return userVarValue{kind: userVarNumeric, str: s}, true
+				}
+				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true
+			case *nodes.FloatLit:
+				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true
+			}
+			return userVarValue{kind: userVarNumeric}, true
+		}
+		return userVarValue{}, false
+	case *nodes.VariableRef:
+		if !e.System {
+			if v, exists := c.userVars[toLower(e.Name)]; exists {
+				return v, true
+			}
+			return userVarValue{kind: userVarNull}, true
+		}
+		switch toLower(e.Name) {
+		case "time_zone":
+			if strings.EqualFold(e.Scope, "GLOBAL") {
+				tz := c.globalTimeZone
+				if tz == "" {
+					tz = "SYSTEM"
+				}
+				return userVarValue{kind: userVarString, str: tz}, true
+			}
+			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true
+		case "sql_mode":
+			return userVarValue{kind: userVarString, str: c.session.SQLMode}, true
+		case "foreign_key_checks":
+			if c.session.ForeignKeyChecks {
+				return userVarValue{kind: userVarNumeric, str: "1"}, true
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}, true
+		default:
+			return userVarValue{}, false
+		}
+	case *nodes.FuncCallExpr:
+		switch toLower(e.Name) {
+		case "concat":
+			var b strings.Builder
+			for _, arg := range e.Args {
+				v, ok := c.evalSetExpr(arg)
+				if !ok {
+					return userVarValue{}, false
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true
+				}
+				b.WriteString(v.str)
+			}
+			return userVarValue{kind: userVarString, str: b.String()}, true
+		case "coalesce", "ifnull":
+			for _, arg := range e.Args {
+				v, ok := c.evalSetExpr(arg)
+				if !ok {
+					return userVarValue{}, false
+				}
+				if v.kind != userVarNull {
+					return v, true
+				}
+			}
+			return userVarValue{kind: userVarNull}, true
+		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false
+			}
+			v, ok := c.evalSetExpr(e.Args[0])
+			if !ok || v.kind == userVarNull {
+				return v, ok
+			}
+			s := v.str
+			switch toLower(e.Name) {
+			case "trim":
+				s = strings.TrimSpace(s)
+			case "ltrim":
+				s = strings.TrimLeft(s, " ")
+			case "rtrim":
+				s = strings.TrimRight(s, " ")
+			case "upper", "ucase":
+				s = strings.ToUpper(s)
+			case "lower", "lcase":
+				s = strings.ToLower(s)
+			}
+			return userVarValue{kind: userVarString, str: s}, true
+		}
+	}
+	return userVarValue{}, false
 }
 
 func normalizeSetVariableName(col *nodes.ColumnRef) string {

@@ -1,11 +1,25 @@
 package catalog
 
+type userVarKind int
+
+const (
+	userVarNull userVarKind = iota
+	userVarString
+	userVarNumeric
+)
+
+type userVarValue struct {
+	kind userVarKind
+	str  string
+}
+
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases        map[string]*Database // lowered name -> Database
-	tablespaces      map[string]bool      // exact general tablespace names
-	undoTablespaces  map[string]bool      // exact undo tablespace names -> active
-	savedUserVars    map[string]string    // @var -> value for session save/restore
+	databases        map[string]*Database    // lowered name -> Database
+	tablespaces      map[string]bool         // exact general tablespace names
+	undoTablespaces  map[string]bool         // exact undo tablespace names -> active
+	userVars         map[string]userVarValue // lowered user var name (without @) -> value
+	globalTimeZone   string
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string
@@ -38,7 +52,8 @@ func New() *Catalog {
 		databases:        make(map[string]*Database),
 		tablespaces:      make(map[string]bool),
 		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
-		savedUserVars:    make(map[string]string),
+		userVars:         make(map[string]userVarValue),
+		globalTimeZone:   "SYSTEM",
 		defaultCharset:   "utf8mb4",
 		defaultCollation: "utf8mb4_0900_ai_ci",
 		charsetClient:    session.CharsetClient,

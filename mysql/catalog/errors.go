@@ -87,6 +87,8 @@ const (
 
 	ErrIncorrectPrefixKey                = 1089
 	ErrNotAllowedCommand                 = 1148
+	ErrWrongValueForVar                  = 1231
+	ErrWrongTypeForVar                   = 1232
 	ErrWrongFkDef                        = 1239
 	ErrDuplicatedValueInType             = 1291
 	ErrTablespaceMissing                 = 1812
@@ -188,6 +190,8 @@ var sqlStateMap = map[int]string{
 	ErrSRSMissingAttribute:               "SR006",
 	ErrIncorrectPrefixKey:                "HY000",
 	ErrNotAllowedCommand:                 "42000",
+	ErrWrongValueForVar:                  "42000",
+	ErrWrongTypeForVar:                   "42000",
 	ErrWrongFkDef:                        "42000",
 	ErrDuplicatedValueInType:             "HY000",
 	ErrTablespaceMissing:                 "HY000",
@@ -738,6 +742,16 @@ func errSpatialUniqueIndex() error {
 func errUnknownTimeZone(tz string) error {
 	return &Error{Code: ErrUnknownTimeZone, SQLState: sqlState(ErrUnknownTimeZone),
 		Message: fmt.Sprintf("Unknown or incorrect time zone: '%s'", tz)}
+}
+
+func errWrongValueForVar(varName, val string) error {
+	return &Error{Code: ErrWrongValueForVar, SQLState: sqlState(ErrWrongValueForVar),
+		Message: fmt.Sprintf("Variable '%s' can't be set to the value of '%s'", varName, val)}
+}
+
+func errWrongTypeForVar(varName string) error {
+	return &Error{Code: ErrWrongTypeForVar, SQLState: sqlState(ErrWrongTypeForVar),
+		Message: fmt.Sprintf("Incorrect argument type to variable '%s'", varName)}
 }
 
 func errDependentByDefaultValExpr(colName, tableName string) error {

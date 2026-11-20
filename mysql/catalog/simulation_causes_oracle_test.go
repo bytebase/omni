@@ -2925,6 +2925,188 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"SUBPARTITION sp0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB", "SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB"},
 		},
+		// Round-7 review oracle cases: user-variable time_zone assignments, padded
+		// numeric temporal defaults and rounding, and UTF-16/Unicode binary defaults.
+		{
+			name:    "SET time_zone via user variable enforces TIMESTAMP UTC lower bound",
+			session: []string{"SET @tz = '+14:00'", "SET time_zone = @tz"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:01')",
+			code:    1067,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name:    "SET time_zone via quoted user variable enforces TIMESTAMP UTC upper bound",
+			session: []string{"SET @'tz_q' = '-13:59'", "SET time_zone = @tz_q"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '2038-01-19 03:14:07')",
+			code:    1067,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name:    "SET time_zone via CONCAT user variable accepts valid offset",
+			session: []string{"SET @tz_cat = CONCAT('+', '14:00')", "SET time_zone = @tz_cat"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 14:00:01')",
+			code:    0,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name: "SET time_zone to unset user variable rejected with 1231",
+			stmt: "SET time_zone = @omni_unset_tz",
+			code: 1231,
+		},
+		{
+			name:    "SET time_zone to NULL user variable rejected with 1231",
+			session: []string{"SET @tz_null = NULL"},
+			stmt:    "SET time_zone = @tz_null",
+			code:    1231,
+		},
+		{
+			name:    "SET time_zone to numeric user variable rejected with 1232",
+			session: []string{"SET @tz_num = 1"},
+			stmt:    "SET time_zone = @tz_num",
+			code:    1232,
+		},
+		{
+			name:    "SET time_zone to invalid user variable rejected with 1298",
+			session: []string{"SET @tz_bad = 'not_a_tz'"},
+			stmt:    "SET time_zone = @tz_bad",
+			code:    1298,
+		},
+		{
+			name:     "CREATE TABLE DATE DEFAULT 10101 pads to 2001-01-01",
+			stmt:     "CREATE TABLE a (c DATE DEFAULT 10101)",
+			code:     0,
+			contains: []string{"DEFAULT '2001-01-01'"},
+		},
+		{
+			name:     "CREATE TABLE DATE DEFAULT 101 pads to 2000-01-01",
+			stmt:     "CREATE TABLE a (c DATE DEFAULT 101)",
+			code:     0,
+			contains: []string{"DEFAULT '2000-01-01'"},
+		},
+		{
+			name: "CREATE TABLE DATE DEFAULT 100 rejected with 1067",
+			stmt: "CREATE TABLE a (c DATE DEFAULT 100)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATE DEFAULT '10101' parses as 2010-10-01",
+			stmt: "CREATE TABLE a (c DATE DEFAULT '10101')",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DATE DEFAULT 13101 pads to invalid month 31",
+			stmt: "CREATE TABLE a (c DATE DEFAULT 13101)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATE DEFAULT '13101' parses as valid 2013-10-01",
+			stmt: "CREATE TABLE a (c DATE DEFAULT '13101')",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DATE DEFAULT '101' rejected with 1067",
+			stmt: "CREATE TABLE a (c DATE DEFAULT '101')",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE DATE DEFAULT 1010101 pads 7 digits to 0101-01-01",
+			stmt:     "CREATE TABLE a (c DATE DEFAULT 1010101)",
+			code:     0,
+			contains: []string{"DEFAULT '0101-01-01'"},
+		},
+		{
+			name: "CREATE TABLE TIMESTAMP DEFAULT 1010101 rejected before 1970",
+			stmt: "CREATE TABLE a (c TIMESTAMP DEFAULT 1010101)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE TIMESTAMP DEFAULT 00010101 evaluates as 10101 (2001-01-01)",
+			stmt:     "CREATE TABLE a (c TIMESTAMP DEFAULT 00010101)",
+			code:     0,
+			contains: []string{"DEFAULT '2001-01-01 00:00:00'"},
+		},
+		{
+			name:     "CREATE TABLE DATETIME(3) DEFAULT 101010101.5 pads 9 digits with fraction",
+			stmt:     "CREATE TABLE a (c DATETIME(3) DEFAULT 101010101.5)",
+			code:     0,
+			contains: []string{"DEFAULT '2000-01-01 01:01:01.500'"},
+		},
+		{
+			name: "CREATE TABLE DATETIME DEFAULT 20200101.5 rejects fraction on date-only integer",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT 20200101.5)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATETIME DEFAULT '9999-12-31 23:59:59.6' overflows on rounding",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '9999-12-31 23:59:59.6')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE TIMESTAMP DEFAULT '2038-01-19 03:14:07.6' overflows on rounding",
+			stmt: "CREATE TABLE a (c TIMESTAMP DEFAULT '2038-01-19 03:14:07.6')",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE TIMESTAMP(1) DEFAULT '2038-01-19 03:14:07.6' accepted within max UTC",
+			stmt:     "CREATE TABLE a (c TIMESTAMP(1) DEFAULT '2038-01-19 03:14:07.6')",
+			code:     0,
+			contains: []string{"DEFAULT '2038-01-19 03:14:07.6'"},
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0xFFFD accepts replacement character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0xFFFD)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16le DEFAULT 0xFDFF accepts replacement character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16le DEFAULT 0xFDFF)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0xD800 rejects unpaired high surrogate",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0xD800)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0xDC00 rejects unpaired low surrogate",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0xDC00)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0xD83DDE00 accepts supplementary surrogate pair",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0xD83DDE00)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0x41 left-pads single byte",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0x41)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf16 DEFAULT 0x004142 left-pads 3 bytes to 2 chars and rejects",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf16 DEFAULT 0x004142)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(2) utf16 DEFAULT 0x004142 left-pads 3 bytes to 2 chars and accepts",
+			stmt: "CREATE TABLE a (c CHAR(2) CHARACTER SET utf16 DEFAULT 0x004142)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf32 DEFAULT 0x41 left-pads single byte",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf32 DEFAULT 0x41)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf8mb3 DEFAULT supplementary emoji rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb3 DEFAULT '😀')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) ascii DEFAULT non-ASCII character rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ascii DEFAULT 'é')",
+			code: 1067,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3225,4 +3407,30 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_shared ENGINE=InnoDB"); got != 1478 {
 		t.Fatalf("ALTER non-InnoDB partitioned table with shared partition tablespace to InnoDB got %d, want 1478", got)
 	}
+
+	// SET GLOBAL time_zone updates global default without clobbering session time_zone,
+	// and numeric temporal defaults round-trip cleanly via ShowCreateTable.
+	execAlterClauses(t, c, "SET SESSION time_zone = '+00:00'; SET GLOBAL time_zone = '+14:00';")
+	if c.session.TimeZone != "+00:00" || c.globalTimeZone != "+14:00" {
+		t.Fatalf("unexpected time zones after SET GLOBAL: session=%q global=%q", c.session.TimeZone, c.globalTimeZone)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "SET @tz_atomic = '+05:00', time_zone = @tz_atomic"); got != 1231 {
+		t.Fatalf("single-SET read-before-update @tz_atomic got %d, want 1231", got)
+	}
+	if _, exists := c.userVars["tz_atomic"]; exists {
+		t.Fatalf("failed SET mutated @tz_atomic: %+v", c.userVars["tz_atomic"])
+	}
+	execAlterClauses(t, c, "SET SESSION time_zone = DEFAULT;")
+	if c.session.TimeZone != "+14:00" {
+		t.Fatalf("SET SESSION time_zone = DEFAULT got %q, want +14:00", c.session.TimeZone)
+	}
+	execAlterClauses(t, c, "SET GLOBAL time_zone = DEFAULT; SET SESSION time_zone = DEFAULT;")
+	execAlterClauses(t, c, "CREATE TABLE num_temp_def (d DATE DEFAULT 10101, dt DATETIME(2) DEFAULT 101010101.25, tm TIME DEFAULT 10203);")
+	numTempDDL := c.ShowCreateTable("d", "num_temp_def")
+	for _, want := range []string{"`d` date DEFAULT '2001-01-01'", "`dt` datetime(2) DEFAULT '2000-01-01 01:01:01.25'", "`tm` time DEFAULT '01:02:03'"} {
+		if !strings.Contains(numTempDDL, want) {
+			t.Fatalf("ShowCreateTable missing %s:\n%s", want, numTempDDL)
+		}
+	}
+	execAlterClauses(t, reloaded, numTempDDL)
 }
