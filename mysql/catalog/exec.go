@@ -2163,10 +2163,29 @@ func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (
 		}
 		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true
 	case "decimal", "numeric":
+		// DECIMAL(M,D) rounds to D places and clips to M digits: mysql:8.0.46
+		// gives CAST(998 AS DECIMAL(2,0)) = 99 and CAST(12345678901.5 AS
+		// DECIMAL) = 9999999999, M defaulting to 10.
 		r := parseSetCoercedNumberRat(v)
 		scale := dt.Scale
 		if scale < 0 {
 			scale = 0
+		}
+		prec := 10
+		if dt.Length > 0 {
+			prec = dt.Length
+		}
+		if rounded, ok := new(big.Rat).SetString(formatSetDecimalRat(r, scale)); ok {
+			r = rounded
+		}
+		if prec >= scale {
+			limit := new(big.Rat).Sub(setRatPow10(int64(prec-scale)), setRatPow10(int64(-scale)))
+			switch {
+			case r.Cmp(limit) > 0:
+				r = limit
+			case r.Cmp(new(big.Rat).Neg(limit)) < 0:
+				r = new(big.Rat).Neg(limit)
+			}
 		}
 		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isDecimal: true}, true
 	default:

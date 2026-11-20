@@ -1046,3 +1046,30 @@ func TestLoadMetadataEncryptedGeneralTablespace(t *testing.T) {
 		t.Fatalf("unencrypted table in the loaded encrypted tablespace: %v, want 3825", results[1].Error)
 	}
 }
+
+// TestLoadMetadataQuotedSpacedTablespace loads a table in a general tablespace
+// whose quoted name holds a space, which mysql:8.0.46 takes: the create option
+// is split outside quotes, so the whole name is recorded and registered.
+func TestLoadMetadataQuotedSpacedTablespace(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:          "hot",
+		Engine:        "InnoDB",
+		CreateOptions: "tablespace=`hot data` row_format=DYNAMIC",
+		Columns:       []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+	}))
+	requireReport(t, report, nil, nil)
+	if tbl := requireTable(t, c, "hot"); tbl.Tablespace != "hot data" || !strings.EqualFold(tbl.RowFormat, "DYNAMIC") {
+		t.Fatalf("loaded tablespace %q, row format %q; want hot data, DYNAMIC", tbl.Tablespace, tbl.RowFormat)
+	}
+	results, err := c.Exec("CREATE TABLESPACE `hot data` ADD DATAFILE 'hot_data.ibd'; CREATE TABLE u (id INT) TABLESPACE `hot data`;", &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ce *Error
+	if !errors.As(results[0].Error, &ce) || ce.Code != 1813 {
+		t.Fatalf("CREATE TABLESPACE over the loaded `hot data`: %v, want 1813", results[0].Error)
+	}
+	if results[1].Error != nil {
+		t.Fatalf("table in the loaded `hot data`: %v", results[1].Error)
+	}
+}

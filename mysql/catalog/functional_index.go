@@ -542,6 +542,10 @@ func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, s
 		if !strings.ContainsAny(e.Value, "eE") {
 			return len(e.Value), true, "ascii"
 		}
+		// A double counts at the 22 characters MySQL reserves for one,
+		// whatever its value: CONCAT(varbinary_490, 1e0) is 512 bytes and
+		// varbinary_491 a LOB on mysql:8.0.46.
+		return 22, true, "ascii"
 	case *nodes.UnaryExpr:
 		// A signed literal renders with its sign: CONCAT(varbinary_511, -1)
 		// is 513 bytes, a LOB, on mysql:8.0.46.
@@ -555,6 +559,9 @@ func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, s
 		}
 	default:
 		rt := inferFunctionalIndexExprType(tbl, e)
+		if rt != nil && rt.BaseType == BaseTypeDouble {
+			return 22, true, "ascii"
+		}
 		if rt != nil && rt.Length > 0 {
 			return rt.Length, true, rt.Charset
 		}

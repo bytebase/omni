@@ -478,12 +478,50 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 // createOption returns the value of one CREATE_OPTIONS entry; sync keeps them
 // as space-separated name=value pairs.
 func createOption(options, name string) string {
-	for _, opt := range strings.Fields(options) {
+	for _, opt := range splitCreateOptions(options) {
 		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
 			return v
 		}
 	}
 	return ""
+}
+
+// splitCreateOptions splits CREATE_OPTIONS at whitespace outside quotes, so a
+// quoted value keeps its spaces: tablespace=`hot data` is one option, a name
+// MySQL takes for a general tablespace.
+func splitCreateOptions(options string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	for i := 0; i < len(options); i++ {
+		ch := options[i]
+		switch {
+		case quote != 0:
+			cur.WriteByte(ch)
+			if ch == quote {
+				if i+1 < len(options) && options[i+1] == quote {
+					cur.WriteByte(options[i+1])
+					i++
+				} else {
+					quote = 0
+				}
+			}
+		case ch == '`' || ch == '\'' || ch == '"':
+			quote = ch
+			cur.WriteByte(ch)
+		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteByte(ch)
+		}
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
