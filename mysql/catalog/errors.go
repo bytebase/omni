@@ -97,6 +97,7 @@ const (
 	ErrTablespaceIsNotEmpty              = 3120
 	ErrWrongTablespaceFileext            = 3121
 	ErrJSONUsedAsKey                     = 3152
+	ErrUnknownTimeZone                   = 1298
 	ErrIllegalValueForType               = 1367
 	ErrDropTablespaceFailed              = 1529
 	ErrTablespaceDoesNotExist            = 3510
@@ -208,6 +209,7 @@ var sqlStateMap = map[int]string{
 	ErrSecondaryEngineNotDefined:         "HY000",
 	ErrAutoextendSizeNotMultiple:         "HY000",
 	ErrAutoextendSizeOutOfRange:          "HY000",
+	ErrUnknownTimeZone:                   "HY000",
 	ErrIllegalValueForType:               "22007",
 	ErrDropTablespaceFailed:              "HY000",
 	ErrWrongTablespaceFileext:            "HY000",
@@ -731,6 +733,11 @@ func errWrongTablespaceKind(op, name, actualKind, suggestOp string) error {
 func errSpatialUniqueIndex() error {
 	return &Error{Code: ErrSpatialUniqueIndex, SQLState: sqlState(ErrSpatialUniqueIndex),
 		Message: "Spatial indexes can't be primary or unique indexes."}
+}
+
+func errUnknownTimeZone(tz string) error {
+	return &Error{Code: ErrUnknownTimeZone, SQLState: sqlState(ErrUnknownTimeZone),
+		Message: fmt.Sprintf("Unknown or incorrect time zone: '%s'", tz)}
 }
 
 func errDependentByDefaultValExpr(colName, tableName string) error {

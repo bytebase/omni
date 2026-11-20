@@ -5,6 +5,7 @@ type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
 	tablespaces      map[string]bool      // exact general tablespace names
 	undoTablespaces  map[string]bool      // exact undo tablespace names -> active
+	savedUserVars    map[string]string    // @var -> value for session save/restore
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string
@@ -25,6 +26,7 @@ type SessionState struct {
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
 	SQLMode                      string
+	TimeZone                     string
 	// Version is the MySQL major version whose stored form the diff/generate
 	// canonicalizer reproduces. MySQL80 is the only one.
 	Version Version
@@ -36,6 +38,7 @@ func New() *Catalog {
 		databases:        make(map[string]*Database),
 		tablespaces:      make(map[string]bool),
 		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
+		savedUserVars:    make(map[string]string),
 		defaultCharset:   "utf8mb4",
 		defaultCollation: "utf8mb4_0900_ai_ci",
 		charsetClient:    session.CharsetClient,
@@ -54,6 +57,7 @@ func defaultSessionState() SessionState {
 		CollationConnection:          "utf8mb4_0900_ai_ci",
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
+		TimeZone:                     "SYSTEM",
 		Version:                      MySQL80,
 	}
 }

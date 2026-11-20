@@ -61,11 +61,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := validateAlterColumnSources(tbl, stmt.Commands); err != nil {
 		return err
 	}
-	if err := c.validateAlterTablespaceOptions(tbl, stmt.Commands); err != nil {
+	repartition := alterRepartition(stmt.Commands)
+	if err := c.validateAlterTablespaceOptions(tbl, stmt.Commands, repartition); err != nil {
 		return err
 	}
 
-	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
 		// What the clause says about the table's columns is judged here, in the order
 		// MySQL judges it (1492, 1500, 1652, 1488, 1054). The unique keys that must
@@ -230,29 +230,65 @@ func alterRemovesPartitioning(commands []*nodes.AlterTableCmd) bool {
 	return false
 }
 
-func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.AlterTableCmd) error {
+func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.AlterTableCmd, repartition *nodes.PartitionClause) error {
 	engine := alterTargetEngine(tbl, commands)
 	if !isInnoDBEngine(engine) {
 		return nil
 	}
 	sawExplicit := false
+	droppedParts := make(map[string]bool)
 	for _, cmd := range commands {
-		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+		if cmd == nil {
 			continue
 		}
-		if strings.EqualFold(cmd.Option.Name, "tablespace") {
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && strings.EqualFold(cmd.Option.Name, "tablespace") {
 			sawExplicit = true
 			if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
 				return err
 			}
 		}
+		if cmd.Type == nodes.ATDropPartition || cmd.Type == nodes.ATReorganizePartition {
+			for _, name := range cmd.PartitionNames {
+				droppedParts[toLower(name)] = true
+			}
+		}
 	}
-	// If a non-InnoDB table (which retained a syntactic TABLESPACE clause) is
-	// converted to InnoDB without overriding TABLESPACE, InnoDB validates the
-	// inherited tablespace option on rebuild.
-	if !sawExplicit && !isInnoDBEngine(tbl.Engine) && tbl.Tablespace != "" {
-		if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, tbl.Tablespace); err != nil {
-			return err
+	// If a non-InnoDB table (which retained syntactic TABLESPACE clauses on the
+	// table, partitions, or subpartitions) is converted to InnoDB without
+	// overriding them, InnoDB validates every surviving tablespace on rebuild.
+	if !isInnoDBEngine(tbl.Engine) {
+		if !sawExplicit && tbl.Tablespace != "" {
+			if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, tbl.Tablespace); err != nil {
+				return err
+			}
+		}
+		if tbl.Partitioning != nil && repartition == nil && !alterRemovesPartitioning(commands) {
+			for _, pd := range tbl.Partitioning.Partitions {
+				if pd == nil || droppedParts[toLower(pd.Name)] {
+					continue
+				}
+				if pd.Tablespace != "" && isInnoDBEngine(effectivePartEngine(engine, pd.Engine, "")) {
+					if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, pd.Tablespace); err != nil {
+						return err
+					}
+					if err := validateInnoDBPartitionedSharedTablespace(pd.Tablespace); err != nil {
+						return err
+					}
+				}
+				for _, spd := range pd.SubPartitions {
+					if spd == nil {
+						continue
+					}
+					if spd.Tablespace != "" && isInnoDBEngine(effectivePartEngine(engine, pd.Engine, spd.Engine)) {
+						if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, spd.Tablespace); err != nil {
+							return err
+						}
+						if err := validateInnoDBPartitionedSharedTablespace(spd.Tablespace); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -876,7 +912,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			return err
 		}
 	}
-	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
+	if err := c.validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef)); err != nil {
 		return err
 	}
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
@@ -1148,7 +1184,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return err
 		}
 	}
-	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
+	if err := c.validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef)); err != nil {
 		return err
 	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
@@ -1773,10 +1809,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		if err := validateColumnLiteralDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
+		if err := c.validateColumnLiteralDefault(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
+		normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode())
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil

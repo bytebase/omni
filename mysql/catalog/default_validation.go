@@ -275,8 +275,14 @@ func cleanHexDigits(s string) string {
 }
 
 // validateColumnLiteralDefault checks an unparenthesized literal DEFAULT against
-// the column's type and length/range (1067, measured on mysql:8.0.46).
-func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZeroDate, noZeroInDate, allowInvalidDates bool) error {
+// the column's type and length/range (1067, measured on mysql:8.0.46), and
+// stores the coerced value MySQL records in the data dictionary.
+func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode) error {
+	strict := c.isStrictSQLMode()
+	noZeroDate := c.isNoZeroDateSQLMode()
+	noZeroInDate := c.isNoZeroInDateSQLMode()
+	allowInvalidDates := c.isAllowInvalidDatesSQLMode()
+	sessionTZ := c.session.TimeZone
 	if col == nil || expr == nil {
 		return nil
 	}
@@ -383,7 +389,7 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 			return errInvalidDefault(col.Name)
 		}
 	case "date", "datetime", "timestamp":
-		if !validDateOrDatetimeLiteralDefault(dt, kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates) {
+		if !validDateOrDatetimeLiteralDefault(dt, kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, sessionTZ) {
 			return errInvalidDefault(col.Name)
 		}
 	case "time":
@@ -391,6 +397,7 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 			return errInvalidDefault(col.Name)
 		}
 	}
+	normalizeColumnStoredDefault(col, expr, strict)
 	return nil
 }
 
@@ -487,50 +494,224 @@ func intBoundsForType(dt string, unsigned bool) (*big.Int, *big.Int) {
 	}
 }
 
-func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string) bool {
-	minB, maxB := intBoundsForType(dt, unsigned)
-	var n *big.Int
+func evalIntegerLiteralBigInt(kind literalDefaultKind, val string) (*big.Int, bool) {
 	switch kind {
 	case litBit:
 		trimmed := strings.TrimLeft(val, "0")
 		if len(trimmed) > 64 {
-			return false
+			return nil, false
 		}
 		if trimmed == "" {
-			n = big.NewInt(0)
-		} else {
-			var ok bool
-			n, ok = new(big.Int).SetString(trimmed, 2)
-			if !ok {
-				return false
-			}
+			return big.NewInt(0), true
 		}
+		return new(big.Int).SetString(trimmed, 2)
 	case litHex:
 		trimmed := strings.TrimLeft(val, "0")
 		if len(trimmed) > 16 {
-			return false
+			return nil, false
 		}
 		if trimmed == "" {
-			n = big.NewInt(0)
-		} else {
-			var ok bool
-			n, ok = new(big.Int).SetString(trimmed, 16)
-			if !ok {
-				return false
-			}
+			return big.NewInt(0), true
 		}
+		return new(big.Int).SetString(trimmed, 16)
 	default:
 		s := strings.TrimSpace(val)
 		if !isStrictNumberSyntax(s) {
-			return false
+			return nil, false
 		}
 		r, ok := new(big.Rat).SetString(s)
 		if !ok {
-			return false
+			return nil, false
 		}
-		n = roundRatHalfAwayFromZero(r)
+		return roundRatHalfAwayFromZero(r), true
+	}
+}
+
+func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string) bool {
+	minB, maxB := intBoundsForType(dt, unsigned)
+	n, ok := evalIntegerLiteralBigInt(kind, val)
+	if !ok {
+		return false
 	}
 	return n.Cmp(minB) >= 0 && n.Cmp(maxB) <= 0
+}
+
+func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) (string, bool) {
+	pt := parseColumnType(colType)
+	m, d := 10, 0
+	if pt.hasLen {
+		m = pt.length
+	}
+	if pt.hasScale && pt.scale >= 0 {
+		d = pt.scale
+	}
+	if kind == litBit || kind == litHex {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return "", false
+		}
+		n := new(big.Int).SetBytes(raw)
+		intDigits := m - d
+		if intDigits < 0 {
+			intDigits = 0
+		}
+		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
+		if n.Cmp(maxInt) >= 0 {
+			return "", false
+		}
+		if d == 0 {
+			return n.String(), true
+		}
+		return n.String() + "." + strings.Repeat("0", d), true
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		if strict {
+			return "", false
+		}
+		s = leadingNumericPrefix(s)
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return "", false
+	}
+	if unsigned && r.Sign() < 0 {
+		return "", false
+	}
+	scalePow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(d)), nil)
+	scaled := new(big.Rat).Mul(new(big.Rat).Abs(r), new(big.Rat).SetInt(scalePow))
+	roundedScaled := roundRatHalfAwayFromZero(scaled)
+	maxDigits := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(m)), nil)
+	if roundedScaled.Cmp(maxDigits) >= 0 {
+		return "", false
+	}
+	neg := r.Sign() < 0 && roundedScaled.Sign() > 0
+	digits := roundedScaled.String()
+	if d == 0 {
+		if neg {
+			return "-" + digits, true
+		}
+		return digits, true
+	}
+	if len(digits) <= d {
+		digits = strings.Repeat("0", d+1-len(digits)) + digits
+	}
+	formatted := digits[:len(digits)-d] + "." + digits[len(digits)-d:]
+	if neg {
+		return "-" + formatted, true
+	}
+	return formatted, true
+}
+
+func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict bool) (string, bool) {
+	if col == nil || expr == nil {
+		return "", false
+	}
+	if _, isParen := expr.(*nodes.ParenExpr); isParen {
+		return "", false
+	}
+	if isNullDefault(expr) {
+		return "", false
+	}
+	kind, val, _ := extractDefaultLiteral(expr)
+	if kind == litNone {
+		return "", false
+	}
+	unsigned := strings.Contains(strings.ToLower(col.ColumnType), "unsigned")
+	dt := strings.ToLower(col.DataType)
+	switch dt {
+	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
+		n, ok := evalIntegerLiteralBigInt(kind, val)
+		if !ok {
+			return "", false
+		}
+		minB, maxB := intBoundsForType(dt, unsigned)
+		if n.Cmp(minB) < 0 || n.Cmp(maxB) > 0 {
+			return "", false
+		}
+		return n.String(), true
+	case "decimal", "numeric", "dec", "fixed":
+		return formatDecimalLiteralDefault(col.ColumnType, unsigned, kind, val, strict)
+	case "float", "double", "real":
+		if !validFloatLiteralDefault(dt, col.ColumnType, unsigned, kind, val, strict) {
+			return "", false
+		}
+		pt := parseColumnType(col.ColumnType)
+		hasMD := pt.hasLen && pt.hasScale && pt.scale >= 0
+		isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
+		var f float64
+		if kind == litBit || kind == litHex {
+			raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+			if !ok {
+				return "", false
+			}
+			f, _ = new(big.Float).SetInt(new(big.Int).SetBytes(raw)).Float64()
+		} else {
+			var err error
+			f, err = strconv.ParseFloat(strings.TrimSpace(val), 64)
+			if err != nil {
+				return "", false
+			}
+		}
+		if hasMD {
+			bitSize := 64
+			if isFloat32 {
+				bitSize = 32
+				f = float64(float32(f))
+			}
+			formatted := strconv.FormatFloat(math.Abs(f), 'f', pt.scale, bitSize)
+			if f < 0 && strings.Trim(formatted, "0.") != "" {
+				return "-" + formatted, true
+			}
+			return formatted, true
+		}
+		if isFloat32 {
+			return myGcvtFloat32(float32(f)), true
+		}
+		res, ok := myGcvtFormat(f, 325)
+		return res, ok
+	}
+	return "", false
+}
+
+func myGcvtFloat32(f float32) string {
+	if f == 0 {
+		return "0"
+	}
+	raw := strconv.FormatFloat(float64(f), 'g', 6, 32)
+	ePos := strings.IndexByte(raw, 'e')
+	if ePos < 0 {
+		return raw
+	}
+	expVal, _ := strconv.Atoi(raw[ePos+1:])
+	return raw[:ePos] + "e" + strconv.Itoa(expVal)
+}
+
+func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict bool) {
+	if col == nil || expr == nil || col.Default == nil {
+		return
+	}
+	if _, isParen := expr.(*nodes.ParenExpr); isParen {
+		return
+	}
+	if sl, ok := expr.(*nodes.StringLit); ok {
+		if normVal, changed := normalizeCharDefaultStringLiteral(col, sl.Value); changed {
+			cp := *sl
+			cp.Charset = ""
+			cp.Value = normVal
+			v := nodeToSQL(&cp)
+			col.Default = &v
+			return
+		}
+	}
+	if coerced, ok := coerceNumericDefaultForCharColumn(col, expr); ok {
+		v := nodeToSQL(&nodes.StringLit{Value: coerced})
+		col.Default = &v
+		return
+	}
+	if coerced, ok := coerceNumericColumnDefault(col, expr, strict); ok {
+		col.Default = &coerced
+	}
 }
 
 func decodeLiteralRawBytes(val string, isHex bool) ([]byte, bool) {
@@ -1182,7 +1363,75 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 	return setContainsStringMembers(members, val, col)
 }
 
-func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates bool) bool {
+// validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
+// 8.0.46 (`SYSTEM`, `[+-]HH:MM` in `[-13:59, +14:00]`, or a known IANA zone).
+func validateAndNormalizeSessionTimeZone(raw string) (string, error) {
+	tz := strings.TrimSpace(raw)
+	if tz == "" || strings.EqualFold(tz, "Local") {
+		return "", errUnknownTimeZone(raw)
+	}
+	if strings.EqualFold(tz, "SYSTEM") {
+		return "SYSTEM", nil
+	}
+	if tz[0] == '+' || tz[0] == '-' {
+		if len(tz) != 6 || !isASCIIDigit(tz[1]) || !isASCIIDigit(tz[2]) ||
+			tz[3] != ':' || !isASCIIDigit(tz[4]) || !isASCIIDigit(tz[5]) {
+			return "", errUnknownTimeZone(raw)
+		}
+		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
+		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
+		total := hh*60 + mm
+		if mm > 59 {
+			return "", errUnknownTimeZone(raw)
+		}
+		if tz[0] == '-' {
+			if total == 0 {
+				return "+00:00", nil
+			}
+			if total > 13*60+59 {
+				return "", errUnknownTimeZone(raw)
+			}
+			return tz, nil
+		}
+		if total > 14*60 {
+			return "", errUnknownTimeZone(raw)
+		}
+		return tz, nil
+	}
+	if _, err := time.LoadLocation(tz); err != nil {
+		return "", errUnknownTimeZone(raw)
+	}
+	return tz, nil
+}
+
+func convertSessionLocalToUTC(year, month, day, hour, min, sec int, sessionTZ string) (time.Time, bool) {
+	tz := strings.TrimSpace(sessionTZ)
+	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
+		return time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC), true
+	}
+	if len(tz) == 6 && (tz[0] == '+' || tz[0] == '-') && tz[3] == ':' {
+		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
+		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
+		off := hh*60 + mm
+		if tz[0] == '-' {
+			off = -off
+		}
+		return time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC).Add(-time.Duration(off) * time.Minute), true
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC), true
+	}
+	localT := time.Date(year, time.Month(month), day, hour, min, sec, 0, loc)
+	// Reject spring-forward DST gap times that do not exist in loc.
+	if localT.Year() != year || localT.Month() != time.Month(month) || localT.Day() != day ||
+		localT.Hour() != hour || localT.Minute() != min || localT.Second() != sec {
+		return time.Time{}, false
+	}
+	return localT.UTC(), true
+}
+
+func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates bool, sessionTZ string) bool {
 	if kind != litString && kind != litNumber {
 		return false
 	}
@@ -1213,28 +1462,21 @@ func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val s
 	if (dt == "timestamp" || hasTZ || !allowInvalidDates) && day > daysInMonth(year, month) {
 		return false
 	}
+	minUTC := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
+	maxUTC := time.Date(2038, time.January, 19, 3, 14, 7, 0, time.UTC)
 	if hasTZ {
 		utc := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC).Add(-time.Duration(tzOffsetMin) * time.Minute)
 		if utc.Year() < 0 || utc.Year() > 9999 {
 			return false
 		}
-		if dt == "timestamp" {
-			minUTC := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
-			maxUTC := time.Date(2038, time.January, 19, 3, 14, 7, 0, time.UTC)
-			if utc.Before(minUTC) || utc.After(maxUTC) {
-				return false
-			}
+		if dt == "timestamp" && (utc.Before(minUTC) || utc.After(maxUTC)) {
+			return false
 		}
 		return true
 	}
 	if dt == "timestamp" {
-		if year < 1970 || year > 2038 {
-			return false
-		}
-		if year == 1970 && month == 1 && day == 1 && hour == 0 && min == 0 && sec == 0 {
-			return false
-		}
-		if year == 2038 && (month > 1 || day > 19 || (day == 19 && (hour > 3 || (hour == 3 && (min > 14 || (min == 14 && sec > 7)))))) {
+		utc, validLocal := convertSessionLocalToUTC(year, month, day, hour, min, sec, sessionTZ)
+		if !validLocal || utc.Before(minUTC) || utc.After(maxUTC) {
 			return false
 		}
 	}

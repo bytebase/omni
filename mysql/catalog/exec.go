@@ -107,6 +107,13 @@ func LoadSQL(sql string) (*Catalog, error) {
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
+		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
+			rhs := strings.ToLower(strings.TrimSpace(nodeToSQL(asgn.Value)))
+			if rhs == "@@time_zone" || rhs == "@@session.time_zone" || rhs == "@@local.time_zone" {
+				c.savedUserVars[toLower(asgn.Column.Column)] = c.session.TimeZone
+			}
+			continue
+		}
 		varName := normalizeSetVariableName(asgn.Column)
 		switch varName {
 		case "foreign_key_checks":
@@ -135,6 +142,28 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if c.session.SQLMode == "" && isDefaultSetValue(asgn.Value) {
 				c.session.SQLMode = "DEFAULT"
 			}
+		case "time_zone":
+			if isDefaultSetValue(asgn.Value) {
+				c.session.TimeZone = "SYSTEM"
+				continue
+			}
+			rawExpr := strings.TrimSpace(nodeToSQL(asgn.Value))
+			if strings.HasPrefix(rawExpr, "@") && !strings.HasPrefix(rawExpr, "@@") {
+				if saved, ok := c.savedUserVars[toLower(rawExpr)]; ok && saved != "" {
+					c.session.TimeZone = saved
+				} else {
+					c.session.TimeZone = "SYSTEM"
+				}
+				continue
+			}
+			if strings.HasPrefix(rawExpr, "@@") {
+				continue
+			}
+			tz, err := validateAndNormalizeSessionTimeZone(nodeToSQLValue(asgn.Value))
+			if err != nil {
+				return err
+			}
+			c.session.TimeZone = tz
 		case "names", "character set":
 			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
 			if strings.EqualFold(charset, "DEFAULT") || charset == "" {

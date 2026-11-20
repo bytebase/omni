@@ -2825,6 +2825,73 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE s ADD UNIQUE KEY u (pt) USING RTREE",
 			code:  3728,
 		},
+		// Round-5 review oracle cases: session time_zone TIMESTAMP bounds, locale-
+		// tailored collations, and stored coerced numeric defaults.
+		{
+			name:    "CREATE TABLE TIMESTAMP overflowing 2038 UTC under negative session time_zone",
+			session: []string{"SET SESSION time_zone = '-13:59'"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '2038-01-19 03:14:07')",
+			code:    1067,
+		},
+		{
+			name:    "CREATE TABLE TIMESTAMP underflowing 1970 UTC under positive session time_zone",
+			session: []string{"SET SESSION time_zone = '+14:00'"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:01')",
+			code:    1067,
+		},
+		{
+			name:    "CREATE TABLE TIMESTAMP valid in UTC under positive session time_zone",
+			session: []string{"SET SESSION time_zone = '+14:00'"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 14:00:01')",
+			code:    0,
+		},
+		{
+			name: "SET time_zone -14:00 rejected with 1298",
+			stmt: "SET SESSION time_zone = '-14:00'",
+			code: 1298,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with ae and a-umlaut under utf8mb4_de_pb_0900_ai_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ae', 'ä') COLLATE utf8mb4_de_pb_0900_ai_ci",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with ae and decomposed a-umlaut distinct under utf8mb4_de_pb_0900_ai_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ae', 'a\u0308') COLLATE utf8mb4_de_pb_0900_ai_ci",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with ae and a-umlaut under utf8mb4_german2_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ae', 'ä') COLLATE utf8mb4_german2_ci",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with aa and a-ring under utf8mb4_da_0900_ai_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('aa', 'å') COLLATE utf8mb4_da_0900_ai_ci",
+			code:  1291,
+		},
+		{
+			name:     "CREATE TABLE INT DEFAULT 1.5 stores rounded DEFAULT '2'",
+			stmt:     "CREATE TABLE a (c INT DEFAULT 1.5)",
+			code:     0,
+			contains: []string{"DEFAULT '2'"},
+		},
+		{
+			name:     "CREATE TABLE DECIMAL(5,2) DEFAULT 1.235 stores rounded DEFAULT '1.24'",
+			stmt:     "CREATE TABLE a (c DECIMAL(5,2) DEFAULT 1.235)",
+			code:     0,
+			contains: []string{"DEFAULT '1.24'"},
+		},
+		{
+			name:     "CREATE TABLE FLOAT(4,2) DEFAULT 1.5 stores scaled DEFAULT '1.50'",
+			stmt:     "CREATE TABLE a (c FLOAT(4,2) DEFAULT 1.5)",
+			code:     0,
+			contains: []string{"DEFAULT '1.50'"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -3070,5 +3137,20 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts_p2"); got != 3120 {
 		t.Fatalf("DROP renamed partition-referenced TABLESPACE got %d, want 3120", got)
+	}
+
+	// Snapshot-loaded non-InnoDB partitioned table with partition TABLESPACE is
+	// validated when converted to ENGINE=InnoDB (3510 when missing, 1478 when shared).
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_myisam_miss (b INT) ENGINE=MyISAM PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE = ts_gone)")); err != nil {
+		t.Fatalf("DefineTable non-InnoDB partition missing tablespace: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_miss ENGINE=InnoDB"); got != 3510 {
+		t.Fatalf("ALTER non-InnoDB partitioned table with missing partition tablespace to InnoDB got %d, want 3510", got)
+	}
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_myisam_shared (b INT) ENGINE=MyISAM PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE = ts_p2)")); err != nil {
+		t.Fatalf("DefineTable non-InnoDB partition shared tablespace: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_shared ENGINE=InnoDB"); got != 1478 {
+		t.Fatalf("ALTER non-InnoDB partitioned table with shared partition tablespace to InnoDB got %d, want 1478", got)
 	}
 }

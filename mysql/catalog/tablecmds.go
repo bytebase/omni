@@ -497,9 +497,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 					return err
 				}
 			}
-			if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
+			if err := c.validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef)); err != nil {
 				return err
 			}
+		} else if effDef := columnDefEffectiveDefaultExpr(colDef); effDef != nil {
+			normalizeColumnStoredDefault(col, effDef, true)
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -1363,6 +1365,11 @@ func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 		expr = &nodes.StringLit{Value: coerced}
 	}
 	val, kind := columnDefaultValue(expr)
+	if _, isParen := expr.(*nodes.ParenExpr); !isParen {
+		if coerced, ok := coerceNumericColumnDefault(col, expr, true); ok {
+			val = coerced
+		}
+	}
 	col.Default = &val
 	col.DefaultKind = kind
 	col.DefaultDropped = false
