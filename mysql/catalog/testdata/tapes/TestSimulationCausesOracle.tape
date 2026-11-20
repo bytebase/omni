@@ -37560,6 +37560,311 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, REPEAT(X'00', 128)))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, REPEAT(X'00', 512)))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(10), KEY ((REPEAT(b, 51))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(10), KEY ((REPEAT(b, 52))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (v VARCHAR(2), KEY ((REPEAT(v, 9223372036854775807))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY i ((c + 1)))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY j ((`!hidden!i!0!0` + 1))
+< error
+| 1054 42S22 Unknown column '!hidden!i!0!0' in 'functional index'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY i ((c + 1)))
+< ok 0 0
+> exec
+| CREATE INDEX j ON a ((`!hidden!i!0!0` + 1))
+< error
+| 1054 42S22 Unknown column '!hidden!i!0!0' in 'functional index'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -42743,6 +43048,106 @@
 : bytes
 | ANSI
 > exec
+| SET @x = ABS(-4)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ABS('-4')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ABS(-4.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4.5
+> exec
+| SET @x = ABS('abc')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = ABS('-1.5e0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.5
+> exec
+| SET @x = ABS(-1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1.5
+> exec
+| SET @x = ABS(' -3x')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = ABS(4)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = ABS(-9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = ABS(18446744073709551615)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
@@ -42782,6 +43187,86 @@
 : bytes
 |
 > exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET @m_abs = ABS(-4)
+< ok 0 0
+> exec
+| SET SESSION sql_mode = @m_abs
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| ANSI_QUOTES
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+00:00'
+< ok 0 0
+> exec
+| CREATE TABLE z (ts TIMESTAMP DEFAULT _utf8mb4'2026-01-01 12:00:00', tn TIMESTAMP DEFAULT N'2026-01-01 12:00:00')
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+03:00'
+< ok 0 0
+> query
+| SHOW CREATE TABLE z
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| z
+: bytes
+| CREATE TABLE `z` (
+|   `ts` timestamp NULL DEFAULT '2026-01-01 15:00:00',
+|   `tn` timestamp NULL DEFAULT '2026-01-01 15:00:00'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
 | SET SESSION sql_mode = CAST(3.6 AS SIGNED)
 < ok 0 0
 > query
@@ -42795,6 +43280,9 @@
 | SET SESSION sql_mode = DEFAULT
 < ok 0 0
 > exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
 | ALTER TABLESPACE mysql ENCRYPTION='N'
 < ok 0 0
 > exec
@@ -42805,7 +43293,7 @@
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS d_qual_own
-< ok 1 0
+< ok 2 0
 > exec
 | USE `db_cs_bin`
 < ok 0 0

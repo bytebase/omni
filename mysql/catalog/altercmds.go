@@ -286,7 +286,9 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 				if pd == nil || droppedParts[toLower(pd.Name)] {
 					continue
 				}
-				if pd.Tablespace != "" && isInnoDBEngine(effectivePartEngine(engine, pd.Engine, "")) {
+				// A whole-table ENGINE conversion rebuilds every partition in
+				// the target engine, whatever engine a loaded partition records.
+				if pd.Tablespace != "" {
 					if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, pd.Tablespace); err != nil {
 						return err
 					}
@@ -298,7 +300,7 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 					if spd == nil {
 						continue
 					}
-					if spd.Tablespace != "" && isInnoDBEngine(effectivePartEngine(engine, pd.Engine, spd.Engine)) {
+					if spd.Tablespace != "" {
 						if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, spd.Tablespace); err != nil {
 							return err
 						}
@@ -1925,6 +1927,23 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		// it: a MyISAM table reads back InnoDB (measured on mysql:8.0.46). A
 		// name the server substitutes for reads as that default too.
 		tbl.Engine = storedEngineName(opt.Value)
+		// The partitions are rebuilt in the new engine too; a partition that
+		// records its engine records the new one.
+		if tbl.Partitioning != nil {
+			for _, pd := range tbl.Partitioning.Partitions {
+				if pd == nil {
+					continue
+				}
+				if pd.Engine != "" {
+					pd.Engine = tbl.Engine
+				}
+				for _, spd := range pd.SubPartitions {
+					if spd != nil && spd.Engine != "" {
+						spd.Engine = tbl.Engine
+					}
+				}
+			}
+		}
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.

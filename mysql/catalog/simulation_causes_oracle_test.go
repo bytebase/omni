@@ -4955,6 +4955,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "DROP UNDO TABLESPACE with an innodb_ prefix", stmt: "DROP UNDO TABLESPACE innodb_x", code: 3510},
 		{name: "ALTER UNDO TABLESPACE with an innodb_ prefix", stmt: "ALTER UNDO TABLESPACE INNODB_X SET INACTIVE", code: 3510},
 		{name: "temporary table with an unkeyed AUTO_INCREMENT column", stmt: "CREATE TEMPORARY TABLE z (a INT AUTO_INCREMENT)", code: 1075},
+		// REPEAT keeps a binary argument binary, and a huge count is a LOB.
+		{name: "functional CONCAT with a binary REPEAT", stmt: "CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, REPEAT(X'00', 128)))))", code: 0},
+		{name: "functional CONCAT with a long binary REPEAT of 512", stmt: "CREATE TABLE z (b VARBINARY(1), KEY ((CONCAT(b, REPEAT(X'00', 512)))))", code: 3757},
+		{name: "functional REPEAT of a binary column within 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(10), KEY ((REPEAT(b, 51))))", code: 0},
+		{name: "functional REPEAT of a binary column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(10), KEY ((REPEAT(b, 52))))", code: 3757},
+		{name: "functional REPEAT with a huge count", stmt: "CREATE TABLE z (v VARCHAR(2), KEY ((REPEAT(v, 9223372036854775807))))", code: 3757},
+		// A functional index's hidden column resolves in no expression.
+		{
+			name:  "ALTER ADD functional KEY over another's hidden column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY i ((c + 1)))"},
+			stmt:  "ALTER TABLE a ADD KEY j ((`!hidden!i!0!0` + 1))",
+			code:  1054,
+		},
+		{
+			name:  "CREATE INDEX over another's hidden column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY i ((c + 1)))"},
+			stmt:  "CREATE INDEX j ON a ((`!hidden!i!0!0` + 1))",
+			code:  1054,
+		},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6026,6 +6045,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"SUBSTRING('ANSI', -9223372036854775807, 2)", "SUBSTRING('ANSI', 2, 18446744073709551615)",
 		"SUBSTRING('ANSI', 18446744073709551615)", "SUBSTRING('ANSI', 2, -1)",
 		"LEFT('ANSI', 9223372036854775807)", "LEFT('ANSI', 18446744073709551615)", "RIGHT('ANSI', 9223372036854775807)",
+		"ABS(-4)", "ABS('-4')", "ABS(-4.5)", "ABS('abc')", "ABS('-1.5e0')", "ABS(-1.5e0)", "ABS(' -3x')",
+		"ABS(4)", "ABS(-9223372036854775807)", "ABS(18446744073709551615)",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6061,6 +6082,46 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if got != srvMode || strings.Contains(srvMode, "ANSI") != (tc.want == "ANSI") {
 			t.Fatalf("%s: catalog %q, mysql %q, want ANSI=%v", tc.stmt, got, srvMode, tc.want == "ANSI")
 		}
+	}
+	// ABS(-4) chains into sql_mode as mode 4, ANSI_QUOTES.
+	for _, stmt := range []string{"SET SESSION sql_mode = ''", "SET @m_abs = ABS(-4)", "SET SESSION sql_mode = @m_abs"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var absMode string
+	if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&absMode); err != nil {
+		t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET SESSION sql_mode = ''; SET @m_abs = ABS(-4); SET SESSION sql_mode = @m_abs; SET @m = @@sql_mode;")
+	if got := castCat.userVars["m"].str; got != absMode || absMode != "ANSI_QUOTES" {
+		t.Fatalf("SET sql_mode = ABS(-4): catalog %q, mysql %q, want ANSI_QUOTES", got, absMode)
+	}
+
+	// A TIMESTAMP default written with an introducer follows the session time
+	// zone like any other: stored under +00:00, it shows 15:00:00 under +03:00.
+	reset()
+	introTSCat := New()
+	execAlterClauses(t, introTSCat, "CREATE DATABASE d; USE d;")
+	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT") })
+	for _, stmt := range []string{"SET SESSION time_zone = '+00:00'", "CREATE TABLE z (ts TIMESTAMP DEFAULT _utf8mb4'2026-01-01 12:00:00', tn TIMESTAMP DEFAULT N'2026-01-01 12:00:00')", "SET SESSION time_zone = '+03:00'"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, introTSCat, stmt+";")
+	}
+	var tsName, tsCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE z").Scan(&tsName, &tsCreate); err != nil {
+		t.Fatalf("mysql SHOW CREATE TABLE z: %v", err)
+	}
+	introCreate := introTSCat.ShowCreateTable("d", "z")
+	for _, want := range []string{"`ts` timestamp NULL DEFAULT '2026-01-01 15:00:00'", "`tn` timestamp NULL DEFAULT '2026-01-01 15:00:00'"} {
+		if !strings.Contains(tsCreate, want) || !strings.Contains(introCreate, want) {
+			t.Fatalf("introduced TIMESTAMP default under +03:00: want %s\nmysql:\n%s\ncatalog:\n%s", want, tsCreate, introCreate)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT"); err != nil {
+		t.Fatalf("mysql reset time_zone: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = CAST(3.6 AS SIGNED)"); err != nil {
 		t.Fatalf("mysql SET sql_mode = CAST(3.6 AS SIGNED): %v", err)
@@ -6286,6 +6347,23 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("ALTER non-InnoDB partitioned table REORGANIZE PARTITION shared tablespace + ENGINE=InnoDB got %d, want 1478", got)
 	}
 
+	// A partition that records ENGINE=MyISAM is rebuilt in the ALTER's target
+	// engine: its missing tablespace is judged (3510), and a conversion that
+	// succeeds records the new engine on the partition.
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_myisam_rec (b INT) ENGINE=MyISAM PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM TABLESPACE = ts_gone)")); err != nil {
+		t.Fatalf("DefineTable partition recording MyISAM: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_rec ENGINE=InnoDB"); got != 3510 {
+		t.Fatalf("ALTER partition recording MyISAM with a missing tablespace to InnoDB got %d, want 3510", got)
+	}
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_myisam_rec2 (b INT) ENGINE=MyISAM PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) ENGINE = MyISAM)")); err != nil {
+		t.Fatalf("DefineTable partition recording MyISAM: %v", err)
+	}
+	execAlterClauses(t, c, "ALTER TABLE p_myisam_rec2 ENGINE=InnoDB;")
+	if got := c.ShowCreateTable(c.currentDB, "p_myisam_rec2"); strings.Contains(got, "MyISAM") {
+		t.Fatalf("converted partitioned table still records MyISAM:\n%s", got)
+	}
+
 	// SET GLOBAL time_zone updates global default without clobbering session time_zone,
 	// and numeric temporal defaults round-trip cleanly via ShowCreateTable.
 	execAlterClauses(t, c, "SET SESSION time_zone = '+00:00'; SET GLOBAL time_zone = '+14:00';")
@@ -6420,7 +6498,7 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	// Assigning an unsupported RHS to an existing user variable preserves the
 	// prior value instead of deleting it, and ALTER TABLESPACE ENCRYPTION=''
 	// rejects with 3184.
-	execAlterClauses(t, c, "SET @keep_tz = '+08:00'; SET @keep_tz = ABS(-5); SET time_zone = @keep_tz;")
+	execAlterClauses(t, c, "SET @keep_tz = '+08:00'; SET @keep_tz = SHA1('x'); SET time_zone = @keep_tz;")
 	if c.session.TimeZone != "+08:00" {
 		t.Fatalf("unsupported user-var RHS overwrote @keep_tz: session.TimeZone = %q, want +08:00", c.session.TimeZone)
 	}

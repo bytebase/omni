@@ -1143,6 +1143,7 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 			if isHex {
 				v := normVal
 				col.Default = &v
+				c.setDefaultTimestampUTC(col, expr, truncateFrac)
 				return
 			}
 			cp := *sl
@@ -1151,6 +1152,10 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 			cp.Value = normVal
 			v := nodeToSQL(&cp)
 			col.Default = &v
+			// A TIMESTAMP default written with an introducer still follows
+			// the session time zone: _utf8mb4'2026-01-01 12:00:00' stored
+			// under +00:00 shows as 15:00:00 under +03:00 on mysql:8.0.46.
+			c.setDefaultTimestampUTC(col, &cp, truncateFrac)
 			return
 		}
 	}
@@ -1159,19 +1164,22 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 		col.Default = &v
 		return
 	}
-	if strings.EqualFold(col.DataType, "timestamp") &&
-		col.DefaultKind != ColumnDefaultCurrentTimestamp &&
-		col.DefaultKind != ColumnDefaultExpression {
-		if utc, ok := parseTimestampLiteralUTC(temporalColumnFSP(col.ColumnType), expr, truncateFrac, c.resolveEffectiveTimeZone()); ok {
-			col.DefaultTimestampUTC = &utc
-		} else {
-			col.DefaultTimestampUTC = nil
-		}
-	} else {
-		col.DefaultTimestampUTC = nil
-	}
+	c.setDefaultTimestampUTC(col, expr, truncateFrac)
 	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, c.resolveEffectiveTimeZone()); ok {
 		col.Default = &coerced
+	}
+}
+
+// setDefaultTimestampUTC records the UTC instant a TIMESTAMP column's literal
+// default names in the session time zone, or clears it for any other column.
+func (c *Catalog) setDefaultTimestampUTC(col *Column, expr nodes.ExprNode, truncateFrac bool) {
+	col.DefaultTimestampUTC = nil
+	if !strings.EqualFold(col.DataType, "timestamp") ||
+		col.DefaultKind == ColumnDefaultCurrentTimestamp || col.DefaultKind == ColumnDefaultExpression {
+		return
+	}
+	if utc, ok := parseTimestampLiteralUTC(temporalColumnFSP(col.ColumnType), expr, truncateFrac, c.resolveEffectiveTimeZone()); ok {
+		col.DefaultTimestampUTC = &utc
 	}
 }
 

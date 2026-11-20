@@ -1328,6 +1328,30 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "abs":
+			// ABS keeps an exact number exact and reads a string as a double by
+			// its numeric prefix: ABS('-4') is 4, ABS(' -3x') is 3, ABS('abc') 0.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ABS")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			if v.kind == userVarNumeric && !v.isFloat {
+				t := strings.TrimSpace(v.str)
+				if t == "-9223372036854775808" {
+					// MySQL answers 1690 for ABS of the smallest BIGINT.
+					return userVarValue{}, false, nil
+				}
+				return userVarValue{kind: userVarNumeric, str: strings.TrimPrefix(t, "-")}, true, nil
+			}
+			r, _, _, rok := parseSetNumberPrefixRat(v.str, false)
+			f := 0.0
+			if rok {
+				f, _ = r.Float64()
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatFloat(math.Abs(f), 'g', -1, 64), isFloat: true}, true, nil
 		case "char_length", "character_length", "length":
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
@@ -1558,7 +1582,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
-				"reverse", "char_length", "character_length", "length":
+				"reverse", "char_length", "character_length", "length", "abs":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}

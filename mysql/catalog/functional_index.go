@@ -229,7 +229,13 @@ func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr 
 			return false
 		}
 		if leaves != nil {
+			// A functional index's hidden column is no name an expression
+			// resolves, on ALTER as on CREATE: mysql:8.0.46 answers 1054.
 			if !leaves[toLower(cr.Column)] {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+			if col := tbl.GetColumn(cr.Column); col != nil && col.Hidden == ColumnHiddenSystem {
 				err = errNoSuchColumn(cr.Column, "functional index")
 				return false
 			}
@@ -567,7 +573,20 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		}
 		argLen, argOK, charset := inferStringExprLenAndCharset(tbl, e.Args[0])
 		if k, ok := extractNonNegIntLit(e.Args[1]); ok && argOK && k > 0 {
-			return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(argLen*k, 1), Charset: charset}
+			// REPEAT keeps a binary argument binary, and its length saturates
+			// past any limit an index checks: mysql:8.0.46 takes
+			// CONCAT(varbinary_1, REPEAT(X'00', 128)) and refuses
+			// REPEAT(varchar_2, 9223372036854775807) with 3757.
+			base := BaseTypeVarchar
+			if isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[0])) {
+				base = BaseTypeVarBinary
+			}
+			const lengthCap = 1 << 30
+			n := lengthCap
+			if argLen <= lengthCap/k {
+				n = max(argLen*k, 1)
+			}
+			return &ResolvedType{BaseType: base, Length: n, Charset: charset}
 		}
 	}
 	return nil
