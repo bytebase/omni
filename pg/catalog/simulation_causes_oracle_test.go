@@ -4244,9 +4244,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE TABLE t_rule_log_r10 (id int, val text)",
 			"CREATE RULE r_keep_mode_r10 AS ON INSERT TO t_rule_r10 WHERE NEW.id > 0 DO ALSO INSERT INTO t_rule_log_r10 (id, val) VALUES (NEW.id, NEW.val)",
 			"ALTER TABLE t_rule_r10 DISABLE RULE r_keep_mode_r10",
-			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 WHERE OLD.id > 10 DO ALSO (DELETE FROM t_rule_log_r10 WHERE id = OLD.id; NOTIFY rule_ch_r10, 'del')",
+			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 WHERE OLD.id > 10 DO ALSO (DELETE FROM t_rule_log_r10 WHERE id = OLD.id; INSERT INTO t_rule_log_r10 (id, val) VALUES (OLD.id, 'del'))",
 			"ALTER TABLE t_rule_r10 ENABLE ALWAYS RULE r_mod_r10",
-			"CREATE RULE r_oldname_r10 AS ON UPDATE TO t_rule_r10 DO NOTHING",
+			"CREATE RULE r_oldname_r10 AS ON UPDATE TO t_rule_r10 DO ALSO NOTIFY rule_ch_r10, 'upd'",
 			"ALTER RULE r_oldname_r10 ON t_rule_r10 RENAME TO r_added_r10",
 			"CREATE VIEW v_rule_r10 AS SELECT id, val FROM t_rule_r10",
 			"CREATE RULE r_v_ins_r10 AS ON INSERT TO v_rule_r10 DO INSTEAD INSERT INTO t_rule_r10 (id, val) VALUES (NEW.id, NEW.val)",
@@ -4350,6 +4350,150 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c113Role.schemaByName["public"].Collations["c_owned_r11"] != nil {
 			t.Fatal("expected c_owned_r11 to be dropped by DROP OWNED BY bob_r11 CASCADE")
+		}
+
+		// Review round 12 regressions:
+		// 1. CREATE RULE rejects unresolved relations, columns, OLD in ON INSERT,
+		//    NEW in ON DELETE, and NOTIFY with WHERE.
+		// 2. Rules record dependencies on referenced relations, columns, types,
+		//    collations, and functions (blocking RESTRICT drops and cascading on CASCADE).
+		// 3. DROP RULE validates target relation and rule existence (42P01 / 42704 /
+		//    2BP01 on view _RETURN) and supports IF EXISTS.
+		// 4. Materialized view population changes emit REFRESH MATERIALIZED VIEW
+		//    [WITH NO DATA] without dropping indexes, while recreated matviews
+		//    regenerate their retained standalone indexes.
+		// 5. Explicit or recreated heap tables/matviews emit USING "heap" when
+		//    custom table access methods or recreated tables are involved.
+		c114Rule := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r12 (a int, b int)",
+			"CREATE TABLE ref_r12 (x int, y int)",
+			"CREATE VIEW v_r12 AS SELECT a FROM t_r12",
+			"CREATE SEQUENCE seq_r12",
+		} {
+			if code := simulationCatalogCode(t, c114Rule, stmt); code != "0" {
+				t.Fatalf("c114Rule setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_no_tbl AS ON INSERT TO t_r12 DO ALSO INSERT INTO no_such_tbl VALUES (1)", CodeUndefinedTable},
+			{"CREATE RULE r_no_col AS ON INSERT TO t_r12 WHERE NEW.no_col > 0 DO NOTHING", CodeUndefinedColumn},
+			{"CREATE RULE r_old_ins AS ON INSERT TO t_r12 WHERE OLD.a > 0 DO NOTHING", CodeUndefinedTable},
+			{"CREATE RULE r_new_del AS ON DELETE TO t_r12 WHERE NEW.a > 0 DO NOTHING", CodeUndefinedTable},
+			{"CREATE RULE r_where_notify AS ON INSERT TO t_r12 WHERE NEW.a > 0 DO ALSO NOTIFY ch_r12", CodeInvalidObjectDefinition},
+			{"DROP RULE no_such_rule ON t_r12", CodeUndefinedObject},
+			{"DROP RULE no_such_rule ON no_such_tbl", CodeUndefinedTable},
+			{"DROP RULE no_such_rule ON seq_r12", CodeUndefinedObject},
+			{`DROP RULE "_RETURN" ON v_r12`, CodeDependentObjects},
+		} {
+			if got := simulationCatalogCode(t, c114Rule, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+		for _, okStmt := range []string{
+			"DROP RULE IF EXISTS no_such_rule ON t_r12",
+			"DROP RULE IF EXISTS no_such_rule ON no_such_tbl",
+			"DROP RULE IF EXISTS no_such_rule ON seq_r12",
+			"CREATE RULE r_dep_r12 AS ON INSERT TO t_r12 WHERE NEW.b > 0 DO ALSO INSERT INTO ref_r12 (x) VALUES (NEW.a)",
+		} {
+			if got := simulationCatalogCode(t, c114Rule, okStmt); got != "0" {
+				t.Fatalf("%s answered %s, want 0", okStmt, got)
+			}
+		}
+		if got := simulationCatalogCode(t, c114Rule, "DROP TABLE ref_r12"); got != CodeDependentObjects {
+			t.Fatalf("DROP TABLE ref_r12 RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "ALTER TABLE ref_r12 DROP COLUMN x"); got != CodeDependentObjects {
+			t.Fatalf("ALTER TABLE ref_r12 DROP COLUMN x RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "ALTER TABLE t_r12 DROP COLUMN b"); got != CodeDependentObjects {
+			t.Fatalf("ALTER TABLE t_r12 DROP COLUMN b RESTRICT with dependent rule answered %s, want %s", got, CodeDependentObjects)
+		}
+		if got := simulationCatalogCode(t, c114Rule, "DROP TABLE ref_r12 CASCADE"); got != "0" {
+			t.Fatalf("DROP TABLE ref_r12 CASCADE answered %s, want 0", got)
+		}
+		if rel := c114Rule.GetRelation("public", "t_r12"); rel == nil || len(rel.Rules) != 0 {
+			t.Fatalf("expected r_dep_r12 to be dropped by DROP TABLE ref_r12 CASCADE, got %+v", rel)
+		}
+
+		// Matview population flip preserves indexes via REFRESH MATERIALIZED VIEW;
+		// matview query change recreates retained indexes.
+		c114MvFrom := New()
+		c114MvTo := New()
+		for _, stmt := range []string{
+			"CREATE TABLE base_mv_r12 (id int, val text)",
+			"CREATE MATERIALIZED VIEW mv_pop_r12 AS SELECT id FROM base_mv_r12 WITH NO DATA",
+			"CREATE INDEX idx_mv_pop_r12 ON mv_pop_r12 (id)",
+			"CREATE MATERIALIZED VIEW mv_q_r12 AS SELECT id FROM base_mv_r12",
+			"CREATE INDEX idx_mv_q_r12 ON mv_q_r12 (id)",
+		} {
+			if code := simulationCatalogCode(t, c114MvFrom, stmt); code != "0" {
+				t.Fatalf("c114MvFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE base_mv_r12 (id int, val text)",
+			"CREATE MATERIALIZED VIEW mv_pop_r12 AS SELECT id FROM base_mv_r12",
+			"CREATE INDEX idx_mv_pop_r12 ON mv_pop_r12 (id)",
+			"CREATE MATERIALIZED VIEW mv_q_r12 AS SELECT id FROM base_mv_r12 WHERE id > 0",
+			"CREATE INDEX idx_mv_q_r12 ON mv_q_r12 (id)",
+		} {
+			if code := simulationCatalogCode(t, c114MvTo, stmt); code != "0" {
+				t.Fatalf("c114MvTo %s: %s", stmt, code)
+			}
+		}
+		mig114Mv := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo))
+		if !strings.Contains(mig114Mv.SQL(), "CREATE INDEX idx_mv_pop_r12") {
+			t.Fatalf("expected preserved index idx_mv_pop_r12 on mv_pop_r12, got:\n%s", mig114Mv.SQL())
+		}
+		if !strings.Contains(mig114Mv.SQL(), "CREATE INDEX idx_mv_q_r12") {
+			t.Fatalf("expected recreated index idx_mv_q_r12 on rebuilt mv_q_r12, got:\n%s", mig114Mv.SQL())
+		}
+		if code := simulationCatalogCode(t, c114MvFrom, mig114Mv.SQL()); code != "0" {
+			t.Fatalf("applying mig114Mv failed with %s:\n%s", code, mig114Mv.SQL())
+		}
+		if rem := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after mig114Mv, got:\n%s", rem.SQL())
+		}
+
+		// Explicit USING heap emitted when non-heap table AM is active or table is recreated.
+		RegisterExtensionSQL("test_tam_r12", "CREATE ACCESS METHOD tam_r12 TYPE TABLE HANDLER heap_tableam_handler;")
+		defer delete(extensionScripts, "test_tam_r12")
+		c114AmFrom := New()
+		c114AmTo := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_tam_r12",
+			"SET default_table_access_method = tam_r12",
+			"CREATE TABLE p_r12 (a int)",
+			"CREATE TABLE t_heap_r12 (a int) USING heap",
+		} {
+			if code := simulationCatalogCode(t, c114AmFrom, stmt); code != "0" {
+				t.Fatalf("c114AmFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_tam_r12",
+			"SET default_table_access_method = tam_r12",
+			"CREATE TABLE p_r12 (a int)",
+			"CREATE TABLE t_heap_r12 (a int) INHERITS (p_r12) USING heap",
+			"CREATE MATERIALIZED VIEW mv_heap_r12 USING heap AS SELECT a FROM p_r12",
+		} {
+			if code := simulationCatalogCode(t, c114AmTo, stmt); code != "0" {
+				t.Fatalf("c114AmTo %s: %s", stmt, code)
+			}
+		}
+		mig114Am := GenerateMigration(c114AmFrom, c114AmTo, Diff(c114AmFrom, c114AmTo))
+		if !strings.Contains(mig114Am.SQL(), "USING heap") {
+			t.Fatalf("expected USING heap in migration DDL under non-heap default AM, got:\n%s", mig114Am.SQL())
+		}
+		if code := simulationCatalogCode(t, c114AmFrom, mig114Am.SQL()); code != "0" {
+			t.Fatalf("applying mig114Am failed with %s:\n%s", code, mig114Am.SQL())
+		}
+		if rem := GenerateMigration(c114AmFrom, c114AmTo, Diff(c114AmFrom, c114AmTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after mig114Am, got:\n%s", rem.SQL())
 		}
 	})
 

@@ -232,6 +232,9 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 	// Remove RLS policies on this relation.
 	c.removePoliciesForRelation(rel.OID)
 
+	// Remove rewrite rules on this relation.
+	c.removeRulesForRelation(rel)
+
 	// Remove grants on this relation.
 	c.removeGrantsForObject('r', rel.OID)
 

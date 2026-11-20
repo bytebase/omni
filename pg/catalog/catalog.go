@@ -80,9 +80,10 @@ type Catalog struct {
 	// User-defined functions/procedures.
 	userProcs map[uint32]*UserProc
 
-	// Triggers.
+	// Triggers and rewrite rules.
 	triggers      map[uint32]*Trigger
 	triggersByRel map[uint32][]*Trigger
+	rules         map[uint32]*Rule
 
 	// Event triggers.
 	eventTriggers      map[uint32]*EventTrigger
@@ -205,6 +206,7 @@ func New() *Catalog {
 		userProcs:          make(map[uint32]*UserProc),
 		triggers:           make(map[uint32]*Trigger),
 		triggersByRel:      make(map[uint32][]*Trigger),
+		rules:              make(map[uint32]*Rule),
 		eventTriggers:      make(map[uint32]*EventTrigger),
 		eventTriggerByName: make(map[string]*EventTrigger),
 		comments:           make(map[commentKey]string),

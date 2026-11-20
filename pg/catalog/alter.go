@@ -376,6 +376,10 @@ func (c *Catalog) snapshotForAlterRollback() func() {
 	for oid, seq := range c.sequenceByOID {
 		origSeqs[oid] = seq
 	}
+	origRules := make(map[uint32]*Rule, len(c.rules))
+	for oid, rule := range c.rules {
+		origRules[oid] = rule
+	}
 	snap := c.Clone()
 
 	return func() {
@@ -400,6 +404,7 @@ func (c *Catalog) snapshotForAlterRollback() func() {
 		}
 
 		c.relationByOID = make(map[uint32]*Relation, len(snap.relationByOID))
+		c.rules = make(map[uint32]*Rule, len(snap.rules))
 		for oid, cr := range snap.relationByOID {
 			r := origRels[oid]
 			if r == nil {
@@ -419,6 +424,25 @@ func (c *Catalog) snapshotForAlterRollback() func() {
 					}
 					r.Columns = cols
 				}
+			}
+			if cr.Rules != nil {
+				rm := make(map[string]*Rule, len(cr.Rules))
+				for k, crule := range cr.Rules {
+					if crule == nil {
+						continue
+					}
+					if orule := origRules[crule.OID]; orule != nil {
+						*orule = *crule
+						rm[k] = orule
+						c.rules[orule.OID] = orule
+					} else {
+						rm[k] = crule
+						if crule.OID != 0 {
+							c.rules[crule.OID] = crule
+						}
+					}
+				}
+				r.Rules = rm
 			}
 			r.Schema = c.schemas[cr.Schema.OID]
 			c.relationByOID[oid] = r
@@ -3066,6 +3090,23 @@ func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
 	}
 	for _, trig := range c.triggersByRel[rel.OID] {
 		trig.Columns = shiftAll(trig.Columns)
+	}
+	for _, rule := range c.rules {
+		if rule == nil || rule.bindings == nil {
+			continue
+		}
+		for ref, cb := range rule.bindings.colByRef {
+			if cb.relOID == rel.OID && cb.attNum > attnum {
+				cb.attNum--
+				rule.bindings.colByRef[ref] = cb
+			}
+		}
+		for rt, cb := range rule.bindings.colByRT {
+			if cb.relOID == rel.OID && cb.attNum > attnum {
+				cb.attNum--
+				rule.bindings.colByRT[rt] = cb
+			}
+		}
 	}
 	if rel.PartitionInfo != nil {
 		rel.PartitionInfo.KeyAttNums = shiftAll(rel.PartitionInfo.KeyAttNums)

@@ -21,7 +21,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 			// Partition child: generate CREATE TABLE ... PARTITION OF ... FOR VALUES ...
 			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
-				ops = append(ops, generatePartitionChildDDL(to, entry)...)
+				ops = append(ops, generatePartitionChildDDL(from, to, entry)...)
 			}
 
 		case DiffModify:
@@ -108,7 +108,7 @@ func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
 }
 
 // generatePartitionChildDDL generates CREATE TABLE ... PARTITION OF ... FOR VALUES ...
-func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationOp {
+func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []MigrationOp {
 	rel := entry.To
 	parentRel := c.GetRelationByOID(rel.PartitionOf)
 	if parentRel == nil {
@@ -172,9 +172,12 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 			b.WriteString(" USING ")
 			b.WriteString(quoteIdentifier(rel.AccessMethod))
 		}
-	} else if am := normalizeRelationAccessMethod(rel); am != "" && am != "heap" && am != normalizeRelationAccessMethod(parentRel) {
-		b.WriteString(" USING ")
-		b.WriteString(quoteIdentifier(am))
+	} else if am := normalizeRelationAccessMethod(rel); am != "" {
+		if (parentRel.AccessMethod != "" && am != parentRel.AccessMethod) ||
+			(parentRel.AccessMethod == "" && (am != "heap" || rel.AccessMethod != "" || catalogHasNonDefaultTableAM(from) || catalogHasNonDefaultTableAM(c))) {
+			b.WriteString(" USING ")
+			b.WriteString(quoteIdentifier(am))
+		}
 	}
 
 	return []MigrationOp{{
@@ -322,7 +325,7 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 		Priority:      PriorityTable,
 	})
 
-	ddl := FormatCreateTable(to, entry.SchemaName, entry.To)
+	ddl := formatCreateTable(from, to, entry.SchemaName, entry.From, entry.To, false)
 	ops = append(ops, MigrationOp{
 		Type:          OpCreateTable,
 		SchemaName:    entry.SchemaName,

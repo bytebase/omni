@@ -49,25 +49,7 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 	case nodes.OBJECT_COLLATION:
 		return c.removeCollationObjects(stmt)
 	case nodes.OBJECT_RULE:
-		if stmt.Objects != nil {
-			for _, obj := range stmt.Objects.Items {
-				if list, ok := obj.(*nodes.List); ok && len(list.Items) >= 2 {
-					var schemaName, relName string
-					if len(list.Items) == 2 {
-						relName = stringVal(list.Items[0])
-					} else {
-						schemaName = stringVal(list.Items[len(list.Items)-3])
-						relName = stringVal(list.Items[len(list.Items)-2])
-					}
-					ruleName := stringVal(list.Items[len(list.Items)-1])
-					if _, rel, err := c.findRelation(schemaName, relName); err == nil && rel != nil {
-						delete(rel.Rules, ruleName)
-						rel.HasRules = len(rel.Rules) > 0
-					}
-				}
-			}
-		}
-		return nil
+		return c.removeRuleObjects(stmt)
 	case nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPERATOR,
 		nodes.OBJECT_OPCLASS,
@@ -957,4 +939,152 @@ func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint
 	}
 	c.removeDepsOn('L', collOID)
 	return nil
+}
+
+// removeRuleObjects handles DROP RULE [IF EXISTS] name ON rel [CASCADE|RESTRICT].
+//
+// pg: src/backend/rewrite/rewriteRemove.c — get_rewrite_oid, RemoveRewriteRuleById
+func (c *Catalog) removeRuleObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	type ruleTarget struct {
+		rel      *Relation
+		rule     *Rule
+		dropView bool
+	}
+	var targets []ruleTarget
+	seenRule := map[uint32]bool{}
+	seenView := map[uint32]bool{}
+
+	for _, obj := range stmt.Objects.Items {
+		list, ok := obj.(*nodes.List)
+		if !ok || len(list.Items) < 2 {
+			continue
+		}
+		var schemaName, relName string
+		if len(list.Items) == 2 {
+			relName = stringVal(list.Items[0])
+		} else {
+			schemaName = stringVal(list.Items[len(list.Items)-3])
+			relName = stringVal(list.Items[len(list.Items)-2])
+		}
+		ruleName := stringVal(list.Items[len(list.Items)-1])
+
+		rel, otherRelExists, err := c.findRuleTargetRelation(schemaName, relName)
+		if err != nil {
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, relName))
+				continue
+			}
+			return err
+		}
+		if otherRelExists {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, relName))
+				}
+				continue
+			}
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("rule %q for relation %q does not exist", ruleName, relName),
+			}
+		}
+
+		if rel.RelKind == 'v' && ruleName == "_RETURN" {
+			if c.isExtensionMember(rel.OID) {
+				return errDependentObjects("extension", c.extensionMembers[rel.OID])
+			}
+			if !cascade {
+				return errDependentObjects("view", rel.Name)
+			}
+			if !seenView[rel.OID] {
+				seenView[rel.OID] = true
+				targets = append(targets, ruleTarget{rel: rel, dropView: true})
+			}
+			continue
+		}
+
+		var rule *Rule
+		if rel.Rules != nil {
+			rule = rel.Rules[ruleName]
+		}
+		if rule == nil {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("rule %q for relation %q does not exist, skipping", ruleName, rel.Name))
+				}
+				continue
+			}
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("rule %q for relation %q does not exist", ruleName, rel.Name),
+			}
+		}
+		if c.isExtensionMember(rule.OID) {
+			return errDependentObjects("extension", c.extensionMembers[rule.OID])
+		}
+		if !seenRule[rule.OID] {
+			seenRule[rule.OID] = true
+			targets = append(targets, ruleTarget{rel: rel, rule: rule})
+		}
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			if t.rule != nil && len(c.findNormalDependents('R', t.rule.OID)) > 0 {
+				return errDependentObjects("rule", t.rule.Name)
+			}
+		}
+	}
+
+	for _, t := range targets {
+		if t.dropView {
+			if c.relationByOID[t.rel.OID] != nil {
+				c.cascadeDropRelation(t.rel)
+			}
+			continue
+		}
+		if t.rule == nil || c.rules[t.rule.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('R', t.rule.OID)) > 0 {
+			c.dropDependents('R', t.rule.OID)
+		}
+		if c.rules[t.rule.OID] != nil {
+			c.removeRule(t.rel, t.rule)
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) findRuleTargetRelation(schemaName, relName string) (*Relation, bool, error) {
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, false, errUndefinedSchema(schemaName)
+		}
+		if r := s.Relations[relName]; r != nil && r.RelKind != 'c' {
+			return r, false, nil
+		}
+		if s.Sequences[relName] != nil || s.Indexes[relName] != nil {
+			return nil, true, nil
+		}
+		return nil, false, errUndefinedTable(relName)
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		if r := s.Relations[relName]; r != nil && r.RelKind != 'c' {
+			return r, false, nil
+		}
+		if s.Sequences[relName] != nil || s.Indexes[relName] != nil {
+			return nil, true, nil
+		}
+	}
+	return nil, false, errUndefinedTable(relName)
 }

@@ -1404,6 +1404,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		case 'p':
 			pol := c.policies[objOID]
 			return pol != nil && ownedRelOIDs[pol.RelOID]
+		case 'R':
+			rule := c.rules[objOID]
+			return rule != nil && ownedRelOIDs[rule.OwnerRelOID]
 		case 'E':
 			return ownedEventTriggerOIDs[objOID]
 		case 'O':

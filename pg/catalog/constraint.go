@@ -1238,6 +1238,12 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			return
 		}
 		c.removePolicy(pol)
+	case 'R':
+		rule := c.rules[objOID]
+		if rule == nil {
+			return
+		}
+		c.removeRule(c.relationByOID[rule.OwnerRelOID], rule)
 	case 'E':
 		evt := c.eventTriggers[objOID]
 		if evt == nil {

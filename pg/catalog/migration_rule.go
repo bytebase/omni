@@ -65,10 +65,6 @@ func createAllRelationRuleOps(to *Catalog, schemaName, relName string, toRel *Re
 
 func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, toRel *Relation, rules []RuleDiffEntry) []MigrationOp {
 	var ops []MigrationOp
-	var fromOID uint32
-	if fromRel != nil {
-		fromOID = fromRel.OID
-	}
 
 	for _, re := range rules {
 		switch re.Action {
@@ -81,7 +77,7 @@ func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, 
 			if re.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropRuleOp(schemaName, relName, re.From.Name, fromOID))
+			ops = append(ops, buildDropRuleOp(schemaName, relName, re.From))
 		case DiffModify:
 			if re.From == nil || re.To == nil || toRel == nil {
 				continue
@@ -91,7 +87,7 @@ func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, 
 					ops = append(ops, modeOp)
 				}
 			} else {
-				ops = append(ops, buildDropRuleOp(schemaName, relName, re.From.Name, fromOID))
+				ops = append(ops, buildDropRuleOp(schemaName, relName, re.From))
 				ops = append(ops, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, re.To)...)
 			}
 		}
@@ -99,24 +95,24 @@ func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, 
 	return ops
 }
 
-func buildDropRuleOp(schemaName, relName, ruleName string, fromRelOID uint32) MigrationOp {
+func buildDropRuleOp(schemaName, relName string, fromRule *Rule) MigrationOp {
 	qualifiedRel := migrationQualifiedName(schemaName, relName)
 	return MigrationOp{
 		Type:          OpDropRule,
 		SchemaName:    schemaName,
-		ObjectName:    ruleName,
+		ObjectName:    fromRule.Name,
 		ParentObject:  relName,
-		SQL:           fmt.Sprintf("DROP RULE %s ON %s", quoteIdentAlways(ruleName), qualifiedRel),
+		SQL:           fmt.Sprintf("DROP RULE %s ON %s", quoteIdentAlways(fromRule.Name), qualifiedRel),
 		Transactional: true,
 		Phase:         PhasePre,
-		ObjType:       'r',
-		ObjOID:        fromRelOID,
+		ObjType:       'R',
+		ObjOID:        fromRule.OID,
 		Priority:      PriorityRule,
 	}
 }
 
 func buildCreateAndModeRuleOps(to *Catalog, schemaName, relName string, toRel *Relation, r *Rule) []MigrationOp {
-	ops := []MigrationOp{buildCreateRuleOp(to, schemaName, relName, toRel.OID, r)}
+	ops := []MigrationOp{buildCreateRuleOp(to, schemaName, relName, r)}
 	if normalizeRuleMode(r.Mode) != 'O' {
 		if modeOp, ok := buildRuleModeOp(schemaName, relName, toRel, r); ok {
 			ops = append(ops, modeOp)
@@ -125,7 +121,7 @@ func buildCreateAndModeRuleOps(to *Catalog, schemaName, relName string, toRel *R
 	return ops
 }
 
-func buildCreateRuleOp(to *Catalog, schemaName, relName string, toRelOID uint32, r *Rule) MigrationOp {
+func buildCreateRuleOp(to *Catalog, schemaName, relName string, r *Rule) MigrationOp {
 	qualifiedRel := migrationQualifiedName(schemaName, relName)
 	whereSQL := to.deparseRuleWhere(r)
 	actionsSQL := to.deparseRuleActions(r)
@@ -166,8 +162,8 @@ func buildCreateRuleOp(to *Catalog, schemaName, relName string, toRelOID uint32,
 		SQL:           b.String(),
 		Transactional: true,
 		Phase:         PhaseMain,
-		ObjType:       'r',
-		ObjOID:        toRelOID,
+		ObjType:       'R',
+		ObjOID:        r.OID,
 		Priority:      PriorityRule,
 	}
 }
@@ -196,25 +192,47 @@ func buildRuleModeOp(schemaName, relName string, toRel *Relation, r *Rule) (Migr
 		SQL:           fmt.Sprintf("ALTER TABLE %s %s %s", qualifiedRel, action, quoteIdentAlways(r.Name)),
 		Transactional: true,
 		Phase:         PhaseMain,
-		ObjType:       'r',
-		ObjOID:        toRel.OID,
+		ObjType:       'R',
+		ObjOID:        r.OID,
 		Priority:      PriorityRule + 1,
 	}, true
 }
 
-// reconcileRulesWithDroppedRelations ensures that when a table or view is
-// dropped and recreated (e.g. view column changes or dependent view rebuilds),
-// redundant DROP RULE ops on the dropped relation are pruned and all target
-// rules on the recreated relation are emitted in PhaseMain.
+// reconcileRulesWithDroppedRelations ensures that when a table, view, or
+// materialized view is dropped and recreated (e.g. view column changes, matview
+// definition changes, or dependent view rebuilds), redundant DROP ops for its
+// sub-objects are pruned and retained rules, standalone indexes (on views/matviews),
+// and triggers (on views) are emitted in PhaseMain.
 func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	droppedRels := make(map[string]bool)  // "schema\x00name"
-	createdRules := make(map[string]bool) // "schema\x00rel\x00rule"
+	droppedViews := make(map[string]bool) // "schema\x00name" (OpDropView only)
+	droppedViewFromOIDs := make(map[uint32]bool)
+	createdRules := make(map[string]bool)    // "schema\x00rel\x00rule"
+	createdIndexes := make(map[string]bool)  // "schema\x00idx"
+	createdTriggers := make(map[string]bool) // "schema\x00rel\x00trig"
+
 	for _, op := range ops {
 		if op.Phase == PhasePre && (op.Type == OpDropTable || op.Type == OpDropView) {
-			droppedRels[op.SchemaName+"\x00"+op.ObjectName] = true
+			key := op.SchemaName + "\x00" + op.ObjectName
+			droppedRels[key] = true
+			if op.Type == OpDropView {
+				droppedViews[key] = true
+				if from != nil {
+					if fromRel := from.GetRelation(op.SchemaName, op.ObjectName); fromRel != nil {
+						droppedViewFromOIDs[fromRel.OID] = true
+					}
+				}
+			}
 		}
-		if op.Phase == PhaseMain && op.Type == OpCreateRule {
-			createdRules[op.SchemaName+"\x00"+op.ParentObject+"\x00"+op.ObjectName] = true
+		if op.Phase == PhaseMain {
+			switch op.Type {
+			case OpCreateRule:
+				createdRules[op.SchemaName+"\x00"+op.ParentObject+"\x00"+op.ObjectName] = true
+			case OpCreateIndex:
+				createdIndexes[op.SchemaName+"\x00"+op.ObjectName] = true
+			case OpCreateTrigger:
+				createdTriggers[op.SchemaName+"\x00"+op.ParentObject+"\x00"+op.ObjectName] = true
+			}
 		}
 	}
 	if len(droppedRels) == 0 {
@@ -223,27 +241,77 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 
 	filtered := make([]MigrationOp, 0, len(ops))
 	for _, op := range ops {
-		if op.Phase == PhasePre && op.Type == OpDropRule && droppedRels[op.SchemaName+"\x00"+op.ParentObject] {
-			continue
+		if op.Phase == PhasePre {
+			if op.Type == OpDropRule && droppedRels[op.SchemaName+"\x00"+op.ParentObject] {
+				continue
+			}
+			if op.Type == OpDropTrigger && droppedViews[op.SchemaName+"\x00"+op.ParentObject] {
+				continue
+			}
+			if op.Type == OpDropIndex && from != nil && op.ObjOID != 0 {
+				if idx := from.indexes[op.ObjOID]; idx != nil && droppedViewFromOIDs[idx.RelOID] {
+					continue
+				}
+			}
 		}
 		filtered = append(filtered, op)
 	}
 
+	relKeys := make([]string, 0, len(droppedRels))
 	for relKeyStr := range droppedRels {
+		relKeys = append(relKeys, relKeyStr)
+	}
+	sort.Strings(relKeys)
+
+	for _, relKeyStr := range relKeys {
 		schemaName, relName, _ := strings.Cut(relKeyStr, "\x00")
 		toRel := to.GetRelation(schemaName, relName)
-		if toRel == nil || len(toRel.Rules) == 0 {
+		if toRel == nil {
 			continue
 		}
-		names := make([]string, 0, len(toRel.Rules))
-		for name, r := range toRel.Rules {
-			if r != nil && !createdRules[schemaName+"\x00"+relName+"\x00"+name] {
-				names = append(names, name)
+		if len(toRel.Rules) > 0 {
+			names := make([]string, 0, len(toRel.Rules))
+			for name, r := range toRel.Rules {
+				if r != nil && !createdRules[schemaName+"\x00"+relName+"\x00"+name] {
+					names = append(names, name)
+				}
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRel.Rules[name])...)
 			}
 		}
-		sort.Strings(names)
-		for _, name := range names {
-			filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRel.Rules[name])...)
+		if droppedViews[relKeyStr] {
+			for _, idx := range to.IndexesOf(toRel.OID) {
+				if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 {
+					continue
+				}
+				if createdIndexes[schemaName+"\x00"+idx.Name] {
+					continue
+				}
+				sql := buildCreateIndexSQL(idx, toRel, schemaName)
+				filtered = append(filtered, MigrationOp{
+					Type:          OpCreateIndex,
+					SchemaName:    schemaName,
+					ObjectName:    idx.Name,
+					SQL:           sql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'i',
+					ObjOID:        idx.OID,
+					Priority:      PriorityIndex,
+				})
+				filtered = append(filtered, buildIndexColumnRenameOps(schemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
+			}
+			for _, trig := range to.TriggersOf(toRel.OID) {
+				if trig.ParentTriggerOID != 0 {
+					continue
+				}
+				if createdTriggers[schemaName+"\x00"+relName+"\x00"+trig.Name] {
+					continue
+				}
+				filtered = append(filtered, buildCreateTriggerOp(to, schemaName, relName, trig))
+			}
 		}
 	}
 	return filtered

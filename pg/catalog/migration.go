@@ -539,6 +539,12 @@ func liftDepToOp(c *Catalog, objType byte, objOID uint32, oidToIdx map[depKey][]
 			return oidToIdx[depKey{'r', trig.RelOID}]
 		}
 	}
+	// Lift rule ('R' in deps) → owning relation if no dedicated rule op exists.
+	if objType == 'R' {
+		if rule, ok := c.rules[objOID]; ok {
+			return oidToIdx[depKey{'r', rule.OwnerRelOID}]
+		}
+	}
 	return nil
 }
 

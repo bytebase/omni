@@ -35,7 +35,7 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
 				continue
 			}
-			ddl := FormatCreateTable(to, entry.SchemaName, entry.To)
+			ddl := formatCreateTable(from, to, entry.SchemaName, entry.From, entry.To, false)
 			ops = append(ops, MigrationOp{
 				Type:          OpCreateTable,
 				SchemaName:    entry.SchemaName,
@@ -94,6 +94,10 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 // FormatCreateTable generates a full CREATE TABLE DDL statement for a relation.
 // Exported so that section 1.7 (partitions) can reuse it.
 func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
+	return formatCreateTable(nil, c, schemaName, nil, rel, false)
+}
+
+func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relation, forceExplicitHeap bool) string {
 	var b strings.Builder
 
 	// Persistence prefix.
@@ -150,18 +154,50 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 	// Append INHERITS clause for table inheritance.
 	b.WriteString(formatInheritsClause(c, rel))
 
-	// Append USING clause for explicit non-default table access method.
-	if rel.RelKind == 'p' {
-		if rel.AccessMethod != "" {
-			b.WriteString(" USING ")
-			b.WriteString(quoteIdentifier(rel.AccessMethod))
-		}
-	} else if am := normalizeRelationAccessMethod(rel); am != "" && am != "heap" {
-		b.WriteString(" USING ")
-		b.WriteString(quoteIdentifier(am))
-	}
+	// Append USING clause for explicit or non-default table access method.
+	b.WriteString(formatRelationUsingClause(from, c, fromRel, rel, forceExplicitHeap))
 
 	return b.String()
+}
+
+func formatRelationUsingClause(from, to *Catalog, fromRel, toRel *Relation, forceExplicitHeap bool) string {
+	if toRel == nil {
+		return ""
+	}
+	if toRel.RelKind == 'p' {
+		if toRel.AccessMethod != "" {
+			return " USING " + quoteIdentifier(toRel.AccessMethod)
+		}
+		return ""
+	}
+	am := normalizeRelationAccessMethod(toRel)
+	if am == "" {
+		return ""
+	}
+	if am != "heap" ||
+		toRel.AccessMethod != "" ||
+		(fromRel != nil && fromRel.AccessMethod != "") ||
+		catalogHasNonDefaultTableAM(from) ||
+		catalogHasNonDefaultTableAM(to) ||
+		forceExplicitHeap {
+		return " USING " + quoteIdentifier(am)
+	}
+	return ""
+}
+
+func catalogHasNonDefaultTableAM(c *Catalog) bool {
+	if c == nil {
+		return false
+	}
+	if c.defaultTableAccessMethod != "" {
+		return true
+	}
+	for _, am := range c.accessMethods {
+		if am != nil && am.Type == 't' && am.OID >= FirstNormalObjectId {
+			return true
+		}
+	}
+	return false
 }
 
 // formatColumnDef formats a single column definition for CREATE TABLE.

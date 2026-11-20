@@ -106,6 +106,7 @@ func (c *Catalog) Clone() *Catalog {
 
 	// --- Relations: deep copy + fix Schema pointer ---
 	clone.relationByOID = make(map[uint32]*Relation, len(c.relationByOID))
+	clone.rules = make(map[uint32]*Rule, len(c.rules))
 	for oid, r := range c.relationByOID {
 		cr := *r // shallow copy struct
 		// Deep copy slices.
@@ -129,7 +130,11 @@ func (c *Catalog) Clone() *Catalog {
 					continue
 				}
 				rc := *v
+				rc.bindings = cloneRuleBindings(v.bindings)
 				cr.Rules[k] = &rc
+				if rc.OID != 0 {
+					clone.rules[rc.OID] = &rc
+				}
 			}
 		}
 		if r.InhParents != nil {
