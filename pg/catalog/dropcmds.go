@@ -1166,6 +1166,12 @@ func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {
 			}
 			return errUndefinedObject("access method", name)
 		}
+		if am.OID < FirstNormalObjectId {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop access method %s because it is required by the database system", am.Name),
+			}
+		}
 		if c.isExtensionMember(am.OID) {
 			return errDependentObjects("extension", c.extensionMembers[am.OID])
 		}

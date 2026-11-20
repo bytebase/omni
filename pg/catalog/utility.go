@@ -349,6 +349,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			}
 		}
 		var argTypes []uint32
+		fixedParams := s.Argtypes != nil && len(s.Argtypes.Items) > 0
 		if s.Argtypes != nil {
 			argTypes = make([]uint32, 0, len(s.Argtypes.Items))
 			for _, item := range s.Argtypes.Items {
@@ -366,13 +367,19 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		numParams := len(argTypes)
 		maxParam := maxParamRefInNode(s.Query)
 		const maxPreparedParams = 65535
+		if fixedParams && maxParam > numParams && !c.snapshot {
+			return &Error{
+				Code:    CodeUndefinedParameter,
+				Message: fmt.Sprintf("there is no parameter $%d", maxParam),
+			}
+		}
 		if maxParam > maxPreparedParams {
 			return &Error{
 				Code:    CodeUndefinedParameter,
 				Message: fmt.Sprintf("there is no parameter $%d", maxParam),
 			}
 		}
-		if maxParam > numParams {
+		if !fixedParams && maxParam > numParams {
 			numParams = maxParam
 		}
 		paramTypes := make([]uint32, numParams)

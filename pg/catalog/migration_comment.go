@@ -127,7 +127,11 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 }
 
 func formatRuleCommentTarget(c *Catalog, desc string) string {
-	parts := strings.SplitN(desc, ".", 3)
+	sep := "."
+	if strings.Contains(desc, "\x00") {
+		sep = "\x00"
+	}
+	parts := strings.SplitN(desc, sep, 3)
 	if len(parts) == 3 {
 		var rel *Relation
 		if c != nil {

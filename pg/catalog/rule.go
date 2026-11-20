@@ -2416,7 +2416,22 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					}
 				}
 			}
-			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, hasOpenSource: true}
+			qCols, qAny := c.extractRuleQueryCols(b, s)
+			setOpAliases := make(map[string]bool, len(qCols))
+			for _, col := range qCols {
+				if col != "" {
+					setOpAliases[col] = true
+				}
+			}
+			sortCtx := &ruleEvalContext{
+				outer:         outer,
+				cteNames:      cteNames,
+				cteCols:       cteCols,
+				cteColTypes:   cteColTypes,
+				cteAny:        cteAny,
+				targetAliases: setOpAliases,
+				hasOpenSource: qAny,
+			}
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		if s.ValuesLists != nil {
@@ -2455,7 +2470,22 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					}
 				}
 			}
-			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, hasOpenSource: true}
+			qCols, qAny := c.extractRuleQueryCols(b, s)
+			setOpAliases := make(map[string]bool, len(qCols))
+			for _, col := range qCols {
+				if col != "" {
+					setOpAliases[col] = true
+				}
+			}
+			sortCtx := &ruleEvalContext{
+				outer:         outer,
+				cteNames:      cteNames,
+				cteCols:       cteCols,
+				cteColTypes:   cteColTypes,
+				cteAny:        cteAny,
+				targetAliases: setOpAliases,
+				hasOpenSource: qAny,
+			}
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		windowNames := make(map[string]bool)
@@ -3570,6 +3600,9 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 		if err := c.checkRuleGroupingFuncs(b, s); err != nil {
 			return err
 		}
+		if err := c.checkRuleUngroupedColumns(b, s, ctx); err != nil {
+			return err
+		}
 	}
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
@@ -3920,6 +3953,504 @@ func (c *Catalog) selectHasTopLevelAggOrWindow(b *ruleBindings, s *nodes.SelectS
 		walk(s.SortClause)
 	}
 	return hasAgg, hasWin
+}
+
+func (c *Catalog) isRuleAggFuncCall(b *ruleBindings, v *nodes.FuncCall) bool {
+	if v == nil || v.Over != nil {
+		return false
+	}
+	if v.AggStar || v.AggDistinct || v.AggFilter != nil || (v.AggOrder != nil && len(v.AggOrder.Items) > 0) {
+		return true
+	}
+	if b != nil && b.funcByFC != nil {
+		if oid, ok := b.funcByFC[v]; ok && oid != 0 {
+			if p := c.procByOID[oid]; p != nil {
+				return p.Kind == 'a'
+			}
+		}
+	}
+	_, fName := qualifiedName(v.Funcname)
+	for _, p := range c.procByName[strings.ToLower(fName)] {
+		if p != nil && p.Kind == 'a' {
+			return true
+		}
+	}
+	return false
+}
+
+func localScopeHasCol(c *Catalog, ctx *ruleEvalContext, colName string) bool {
+	if ctx == nil || colName == "" {
+		return false
+	}
+	for k, se := range ctx.scope {
+		if k == "excluded" || se.hiddenByJoinColAlias {
+			continue
+		}
+		if se.isVirtual {
+			if se.isJoinAlias && !se.hasJoinColAliases {
+				continue
+			}
+			if se.virtualCols[colName] > 0 || se.anyCol {
+				return true
+			}
+			continue
+		}
+		if rel := c.relationByOID[se.relOID]; rel != nil {
+			if _, ok := resolveScopeColumn(rel, se, colName); ok {
+				return true
+			}
+		}
+	}
+	if se, ok := ctx.scope[colName]; ok && colName != "excluded" {
+		if !se.isVirtual && se.relOID != 0 {
+			return true
+		}
+		if len(se.joinRels) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Catalog) checkRuleUngroupedColumns(b *ruleBindings, s *nodes.SelectStmt, ctx *ruleEvalContext) error {
+	if s == nil || s.Op != nodes.SETOP_NONE || s.ValuesLists != nil || ctx == nil || ctx.hasOpenSource {
+		return nil
+	}
+	for k, se := range ctx.scope {
+		if k != "excluded" && se.isVirtual && se.anyCol {
+			return nil
+		}
+	}
+
+	hasGroupClause := s.GroupClause != nil && len(s.GroupClause.Items) > 0
+	hasHaving := s.HavingClause != nil
+	hasAgg, _ := c.selectHasTopLevelAggOrWindow(b, s)
+	if !hasAgg && s.HavingClause != nil {
+		tmpStmt := &nodes.SelectStmt{TargetList: &nodes.List{Items: []nodes.Node{s.HavingClause}}}
+		hasAgg, _ = c.selectHasTopLevelAggOrWindow(b, tmpStmt)
+	}
+	if !hasGroupClause && !hasHaving && !hasAgg {
+		return nil
+	}
+
+	relOIDCount := make(map[uint32]int)
+	for k, se := range ctx.scope {
+		if k == "excluded" || se.isVirtual || se.relOID == 0 {
+			continue
+		}
+		relOIDCount[se.relOID]++
+	}
+
+	colBindingKey := func(cb ruleColBinding) string {
+		if cb.relOID == 0 {
+			return ""
+		}
+		if relOIDCount[cb.relOID] > 1 && cb.prefix != "" {
+			return fmt.Sprintf("col:%s:%d:%d", cb.prefix, cb.relOID, cb.attNum)
+		}
+		return fmt.Sprintf("col:%d:%d", cb.relOID, cb.attNum)
+	}
+
+	type targetKeyEntry struct {
+		alias string
+		key   string
+		expr  nodes.Node
+	}
+	dep := ruleDeparser{cat: c, b: b}
+	exprCanonicalKey := func(expr nodes.Node) string {
+		if expr == nil {
+			return ""
+		}
+		if cr, ok := expr.(*nodes.ColumnRef); ok && b != nil {
+			if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum != 0 {
+				return colBindingKey(cb)
+			}
+		}
+		return "expr:" + dep.deparseExpr(expr)
+	}
+
+	var targets []targetKeyEntry
+	if s.TargetList != nil {
+		for _, item := range s.TargetList.Items {
+			rt, ok := item.(*nodes.ResTarget)
+			if !ok || rt == nil {
+				continue
+			}
+			if cr, isCR := rt.Val.(*nodes.ColumnRef); isCR && isStarColumnRef(cr) {
+				if b != nil && b.starExpandByRT != nil {
+					if starCols, found := b.starExpandByRT[rt]; found && len(starCols) > 0 {
+						for _, sc := range starCols {
+							colName := sc.colAlias
+							if colName == "" {
+								colName = sc.origName
+							}
+							key := "expr:" + quoteIdent(colName)
+							if sc.relOID != 0 && sc.attNum != 0 {
+								key = colBindingKey(ruleColBinding{relOID: sc.relOID, attNum: sc.attNum, prefix: sc.prefix})
+							}
+							targets = append(targets, targetKeyEntry{alias: colName, key: key})
+						}
+						continue
+					}
+				}
+				return nil
+			}
+			alias := rt.Name
+			if alias == "" && b != nil && b.targetNameByRT != nil {
+				alias = b.targetNameByRT[rt]
+			}
+			targets = append(targets, targetKeyEntry{
+				alias: alias,
+				key:   exprCanonicalKey(rt.Val),
+				expr:  rt.Val,
+			})
+		}
+	}
+
+	resolveSortGroupKey := func(expr nodes.Node) (string, nodes.Node) {
+		var iv *nodes.Integer
+		switch v := expr.(type) {
+		case *nodes.A_Const:
+			if !v.Isnull {
+				iv, _ = v.Val.(*nodes.Integer)
+			}
+		case *nodes.Integer:
+			iv = v
+		}
+		if iv != nil && iv.Ival >= 1 && int(iv.Ival) <= len(targets) {
+			t := targets[iv.Ival-1]
+			return t.key, t.expr
+		}
+		if cr, ok := expr.(*nodes.ColumnRef); ok && cr != nil && cr.Fields != nil && len(cr.Fields.Items) == 1 {
+			if b == nil || b.colByRef[cr].relOID == 0 {
+				if str, isStr := cr.Fields.Items[0].(*nodes.String); isStr && str.Str != "" {
+					for _, t := range targets {
+						if t.alias == str.Str {
+							return t.key, t.expr
+						}
+					}
+				}
+			}
+		}
+		return exprCanonicalKey(expr), expr
+	}
+
+	groupKeys := make(map[string]bool)
+	pkCoveredRels := make(map[uint32]bool)
+	var addGroupItem func(n nodes.Node)
+	addGroupItem = func(n nodes.Node) {
+		if n == nil {
+			return
+		}
+		switch v := n.(type) {
+		case *nodes.GroupingSet:
+			if v.Content != nil {
+				for _, item := range v.Content.Items {
+					addGroupItem(item)
+				}
+			}
+		case *nodes.RowExpr:
+			if v.Args != nil {
+				for _, item := range v.Args.Items {
+					addGroupItem(item)
+				}
+			}
+		default:
+			k, resolvedExpr := resolveSortGroupKey(n)
+			if k != "" {
+				groupKeys[k] = true
+			}
+			for _, candidate := range []nodes.Node{n, resolvedExpr} {
+				cr, ok := candidate.(*nodes.ColumnRef)
+				if !ok || cr == nil || cr.Fields == nil || len(cr.Fields.Items) == 0 {
+					continue
+				}
+				if b != nil {
+					if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum == 0 && relOIDCount[cb.relOID] == 1 {
+						pkCoveredRels[cb.relOID] = true
+					}
+				}
+				lastCol := stringVal(cr.Fields.Items[len(cr.Fields.Items)-1])
+				if lastCol != "" {
+					groupKeys["vcol:"+lastCol] = true
+				}
+			}
+		}
+	}
+	if s.GroupClause != nil {
+		for _, item := range s.GroupClause.Items {
+			addGroupItem(item)
+		}
+	}
+
+	for relOID, cnt := range relOIDCount {
+		if cnt != 1 {
+			continue
+		}
+		for _, con := range c.consByRel[relOID] {
+			if con.Type != ConstraintPK || len(con.Columns) == 0 {
+				continue
+			}
+			allGrouped := true
+			for _, attNum := range con.Columns {
+				if !groupKeys[fmt.Sprintf("col:%d:%d", relOID, attNum)] {
+					allGrouped = false
+					break
+				}
+			}
+			if allGrouped {
+				pkCoveredRels[relOID] = true
+				break
+			}
+		}
+	}
+
+	checkColRef := func(cr *nodes.ColumnRef, inOrderByTop bool) error {
+		if cr == nil || cr.Fields == nil || len(cr.Fields.Items) == 0 || isStarColumnRef(cr) {
+			return nil
+		}
+		items := cr.Fields.Items
+		if len(items) == 4 {
+			items = items[1:]
+		}
+		switch len(items) {
+		case 1:
+			colName := stringVal(items[0])
+			if colName == "" {
+				return nil
+			}
+			if inOrderByTop && ctx.targetAliases[colName] {
+				return nil
+			}
+			if !localScopeHasCol(c, ctx, colName) {
+				return nil
+			}
+			if b != nil {
+				if cb, ok := b.colByRef[cr]; ok && cb.relOID != 0 {
+					if pkCoveredRels[cb.relOID] || groupKeys[colBindingKey(cb)] {
+						return nil
+					}
+					return &Error{
+						Code:    CodeGroupingError,
+						Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+					}
+				}
+			}
+			if groupKeys[exprCanonicalKey(cr)] || groupKeys["vcol:"+colName] {
+				return nil
+			}
+			return &Error{
+				Code:    CodeGroupingError,
+				Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+			}
+		case 2:
+			qual := stringVal(items[0])
+			colName := stringVal(items[1])
+			if (strings.EqualFold(qual, "old") && b != nil && b.allowOld) || (strings.EqualFold(qual, "new") && b != nil && b.allowNew) {
+				return nil
+			}
+			if _, ok := ctx.scope[qual]; !ok {
+				return nil
+			}
+			if b != nil {
+				if cb, ok := b.colByRef[cr]; ok && cb.relOID != 0 && cb.attNum != 0 {
+					if (relOIDCount[cb.relOID] == 1 && pkCoveredRels[cb.relOID]) || groupKeys[colBindingKey(cb)] {
+						return nil
+					}
+					return &Error{
+						Code:    CodeGroupingError,
+						Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+					}
+				}
+			}
+			if groupKeys[exprCanonicalKey(cr)] || groupKeys["vcol:"+colName] {
+				return nil
+			}
+			return &Error{
+				Code:    CodeGroupingError,
+				Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+			}
+		case 3:
+			relName := stringVal(items[1])
+			colName := stringVal(items[2])
+			se, ok := ctx.scope[relName]
+			if !ok || se.hasAlias {
+				return nil
+			}
+			if b != nil {
+				if cb, ok := b.colByRef[cr]; ok && cb.relOID != 0 && cb.attNum != 0 {
+					if (relOIDCount[cb.relOID] == 1 && pkCoveredRels[cb.relOID]) || groupKeys[colBindingKey(cb)] {
+						return nil
+					}
+					return &Error{
+						Code:    CodeGroupingError,
+						Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+					}
+				}
+			}
+			if groupKeys[exprCanonicalKey(cr)] || groupKeys["vcol:"+colName] {
+				return nil
+			}
+			return &Error{
+				Code:    CodeGroupingError,
+				Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", dep.deparseExpr(cr)),
+			}
+		}
+		return nil
+	}
+
+	var walk func(n nodes.Node, inOrderByTop bool) error
+	walk = func(n nodes.Node, inOrderByTop bool) error {
+		if n == nil {
+			return nil
+		}
+		if len(groupKeys) > 0 {
+			if k := exprCanonicalKey(n); k != "" && groupKeys[k] {
+				return nil
+			}
+		}
+		switch v := n.(type) {
+		case *nodes.SubLink:
+			return walk(v.Testexpr, false)
+		case *nodes.RangeSubselect, *nodes.SelectStmt, *nodes.JsonArrayQueryConstructor, *nodes.GroupingFunc:
+			return nil
+		case *nodes.List:
+			for _, item := range v.Items {
+				if err := walk(item, false); err != nil {
+					return err
+				}
+			}
+		case *nodes.ResTarget:
+			if cr, isCR := v.Val.(*nodes.ColumnRef); isCR && isStarColumnRef(cr) {
+				if b != nil && b.starExpandByRT != nil {
+					if starCols, found := b.starExpandByRT[v]; found {
+						for _, sc := range starCols {
+							if sc.relOID != 0 && sc.attNum != 0 {
+								key := colBindingKey(ruleColBinding{relOID: sc.relOID, attNum: sc.attNum, prefix: sc.prefix})
+								if (relOIDCount[sc.relOID] == 1 && pkCoveredRels[sc.relOID]) || groupKeys[key] {
+									continue
+								}
+								return &Error{
+									Code:    CodeGroupingError,
+									Message: fmt.Sprintf("column %q must appear in the GROUP BY clause or be used in an aggregate function", sc.origName),
+								}
+							}
+						}
+					}
+				}
+				return nil
+			}
+			return walk(v.Val, false)
+		case *nodes.SortBy:
+			return walk(v.Node, true)
+		case *nodes.ColumnRef:
+			return checkColRef(v, inOrderByTop)
+		case *nodes.FuncCall:
+			if c.isRuleAggFuncCall(b, v) {
+				return nil
+			}
+			if v.Args != nil {
+				if err := walk(v.Args, false); err != nil {
+					return err
+				}
+			}
+			if err := walk(v.AggFilter, false); err != nil {
+				return err
+			}
+			if wd, ok := v.Over.(*nodes.WindowDef); ok && wd != nil {
+				if wd.PartitionClause != nil {
+					if err := walk(wd.PartitionClause, false); err != nil {
+						return err
+					}
+				}
+				if wd.OrderClause != nil {
+					if err := walk(wd.OrderClause, false); err != nil {
+						return err
+					}
+				}
+			}
+		case *nodes.A_Expr:
+			if err := walk(v.Lexpr, false); err != nil {
+				return err
+			}
+			return walk(v.Rexpr, false)
+		case *nodes.BoolExpr:
+			if v.Args != nil {
+				return walk(v.Args, false)
+			}
+		case *nodes.NullTest:
+			return walk(v.Arg, false)
+		case *nodes.BooleanTest:
+			return walk(v.Arg, false)
+		case *nodes.TypeCast:
+			return walk(v.Arg, false)
+		case *nodes.CollateClause:
+			return walk(v.Arg, false)
+		case *nodes.CaseExpr:
+			if err := walk(v.Arg, false); err != nil {
+				return err
+			}
+			if v.Args != nil {
+				if err := walk(v.Args, false); err != nil {
+					return err
+				}
+			}
+			return walk(v.Defresult, false)
+		case *nodes.CaseWhen:
+			if err := walk(v.Expr, false); err != nil {
+				return err
+			}
+			return walk(v.Result, false)
+		case *nodes.CoalesceExpr:
+			if v.Args != nil {
+				return walk(v.Args, false)
+			}
+		case *nodes.MinMaxExpr:
+			if v.Args != nil {
+				return walk(v.Args, false)
+			}
+		case *nodes.RowExpr:
+			if v.Args != nil {
+				return walk(v.Args, false)
+			}
+		case *nodes.A_ArrayExpr:
+			if v.Elements != nil {
+				return walk(v.Elements, false)
+			}
+		case *nodes.ArrayExpr:
+			if v.Elements != nil {
+				return walk(v.Elements, false)
+			}
+		case *nodes.A_Indirection:
+			if err := walk(v.Arg, false); err != nil {
+				return err
+			}
+			if v.Indirection != nil {
+				return walk(v.Indirection, false)
+			}
+		case *nodes.A_Indices:
+			if err := walk(v.Lidx, false); err != nil {
+				return err
+			}
+			return walk(v.Uidx, false)
+		}
+		return nil
+	}
+
+	if s.TargetList != nil {
+		if err := walk(s.TargetList, false); err != nil {
+			return err
+		}
+	}
+	if err := walk(s.HavingClause, false); err != nil {
+		return err
+	}
+	if s.SortClause != nil {
+		if err := walk(s.SortClause, false); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Catalog) bindWindowDef(b *ruleBindings, wd *nodes.WindowDef, ctx *ruleEvalContext) error {
@@ -6369,6 +6900,64 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 			}
 		}
 	}
+	var walkFromItem func(item nodes.Node)
+	walkFromItem = func(item nodes.Node) {
+		if item == nil {
+			return
+		}
+		switch v := item.(type) {
+		case *nodes.JoinExpr:
+			walkFromItem(v.Larg)
+			walkFromItem(v.Rarg)
+			walkExpr(v.Quals, BOOLOID)
+		case *nodes.RangeSubselect:
+			if sel, ok := v.Subquery.(*nodes.SelectStmt); ok && sel != nil {
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
+					collectQueryParamTypes(q, paramTypes)
+				}
+			}
+			c.inferPreparedDMLParamTypes(b, v.Subquery, paramTypes)
+		case *nodes.RangeFunction:
+			if v.Functions != nil {
+				for _, fnItem := range v.Functions.Items {
+					if fnList, ok := fnItem.(*nodes.List); ok && fnList != nil {
+						for _, elem := range fnList.Items {
+							walkExpr(elem, 0)
+						}
+					} else {
+						walkExpr(fnItem, 0)
+					}
+				}
+			}
+		case *nodes.RangeTableSample:
+			walkFromItem(v.Relation)
+			if v.Args != nil {
+				for _, arg := range v.Args.Items {
+					walkExpr(arg, 0)
+				}
+			}
+			walkExpr(v.Repeatable, FLOAT8OID)
+		case *nodes.RangeTableFunc:
+			walkExpr(v.Docexpr, 0)
+			walkExpr(v.Rowexpr, 0)
+			if v.Columns != nil {
+				for _, colItem := range v.Columns.Items {
+					if col, ok := colItem.(*nodes.RangeTableFuncCol); ok && col != nil {
+						walkExpr(col.Colexpr, 0)
+						walkExpr(col.Coldefexpr, 0)
+					}
+				}
+			}
+		}
+	}
+	walkFromList := func(list *nodes.List) {
+		if list == nil {
+			return
+		}
+		for _, item := range list.Items {
+			walkFromItem(item)
+		}
+	}
 	targetColType := func(rt *nodes.ResTarget, rel *Relation) uint32 {
 		if rt == nil || rel == nil {
 			return 0
@@ -6387,6 +6976,7 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		if s.Rarg != nil {
 			c.inferPreparedDMLParamTypes(b, s.Rarg, paramTypes)
 		}
+		walkFromList(s.FromClause)
 		walkReturning(s.TargetList)
 		walkExpr(s.WhereClause, BOOLOID)
 		walkExpr(s.HavingClause, BOOLOID)
@@ -6477,10 +7067,12 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 				}
 			}
 		}
+		walkFromList(s.FromClause)
 		walkExpr(s.WhereClause, BOOLOID)
 		walkReturning(s.ReturningList)
 	case *nodes.DeleteStmt:
 		walkWithClause(s.WithClause)
+		walkFromList(s.UsingClause)
 		walkExpr(s.WhereClause, BOOLOID)
 		walkReturning(s.ReturningList)
 	case *nodes.MergeStmt:
@@ -6489,6 +7081,7 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		if b != nil && s.Relation != nil {
 			rel = c.relationByOID[b.relByRV[s.Relation]]
 		}
+		walkFromItem(s.SourceRelation)
 		walkExpr(s.JoinCondition, BOOLOID)
 		if s.MergeWhenClauses != nil {
 			for _, item := range s.MergeWhenClauses.Items {

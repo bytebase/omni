@@ -77,7 +77,7 @@ func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, 
 			if re.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropRuleOp(schemaName, relName, re.From))
+			ops = append(ops, buildDropRuleOpForRel(schemaName, relName, fromRel, re.From))
 		case DiffModify:
 			if re.From == nil || re.To == nil || toRel == nil {
 				continue
@@ -120,7 +120,7 @@ func buildRuleCommentRestoreOp(from, to *Catalog, schemaName, relName string, fr
 			return MigrationOp{}, false
 		}
 	}
-	desc := schemaName + "." + relName + "." + toRule.Name
+	desc := schemaName + "\x00" + relName + "\x00" + toRule.Name
 	csql := formatCommentSQL(to, 'R', desc, 0, toTxt)
 	if csql == "" {
 		return MigrationOp{}, false

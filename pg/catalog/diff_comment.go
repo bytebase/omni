@@ -237,7 +237,7 @@ func resolveCommentDescription(c *Catalog, ck commentKey) string {
 		if rel == nil || rel.Schema == nil {
 			return r.Name
 		}
-		return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, r.Name)
+		return fmt.Sprintf("%s\x00%s\x00%s", rel.Schema.Name, rel.Name, r.Name)
 
 	default:
 		return ""

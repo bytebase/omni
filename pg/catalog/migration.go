@@ -385,9 +385,10 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	}
 
 	type ruleInfo struct {
-		schema string
-		rel    string
-		rule   *Rule
+		schema   string
+		rel      string
+		ownerRel *Relation
+		rule     *Rule
 	}
 	seenRules := make(map[uint32]bool)
 	var rulesToDrop []ruleInfo
@@ -407,7 +408,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			continue
 		}
 		seenRules[d.ObjOID] = true
-		rulesToDrop = append(rulesToDrop, ruleInfo{schema: ownerRel.Schema.Name, rel: ownerRel.Name, rule: rule})
+		rulesToDrop = append(rulesToDrop, ruleInfo{schema: ownerRel.Schema.Name, rel: ownerRel.Name, ownerRel: ownerRel, rule: rule})
 	}
 
 	if len(viewsToDrop) == 0 && len(rulesToDrop) == 0 {
@@ -472,7 +473,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	dropRules := make(map[string]bool) // "schema.rel.rule" for dedup
 	for _, ri := range rulesToDrop {
 		dropRules[ri.schema+"."+ri.rel+"."+ri.rule.Name] = true
-		extraOps = append(extraOps, buildDropRuleOp(ri.schema, ri.rel, ri.rule))
+		extraOps = append(extraOps, buildDropRuleOpForRel(ri.schema, ri.rel, ri.ownerRel, ri.rule))
 		if toRel := to.GetRelation(ri.schema, ri.rel); toRel != nil && toRel.Rules != nil {
 			if toRule := toRel.Rules[ri.rule.Name]; toRule != nil {
 				extraOps = append(extraOps, buildCreateAndModeRuleOps(to, ri.schema, ri.rel, toRel, toRule)...)
@@ -1950,7 +1951,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			rSc := rOwner.Schema.Name
 			preDroppedRule[rule.OID] = true
-			preExtra = append(preExtra, buildDropRuleOp(rSc, rOwner.Name, rule))
+			preExtra = append(preExtra, buildDropRuleOpForRel(rSc, rOwner.Name, rOwner, rule))
 			ruleKey := rSc + "." + rOwner.Name + "." + rule.Name
 			if !mainCreatedRule[ruleKey] {
 				if toOwner := to.GetRelation(rSc, rOwner.Name); toOwner != nil && toOwner.Rules != nil {
@@ -2474,7 +2475,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			scName := fromRel.Schema.Name
 			preDroppedRule[rule.OID] = true
-			preExtra = append(preExtra, buildDropRuleOp(scName, fromRel.Name, rule))
+			preExtra = append(preExtra, buildDropRuleOpForRel(scName, fromRel.Name, fromRel, rule))
 			ruleKey := scName + "." + fromRel.Name + "." + rule.Name
 			if !mainCreatedRule[ruleKey] {
 				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil && toRel.Rules != nil {

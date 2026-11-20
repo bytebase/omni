@@ -60,7 +60,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			// Table access method changed (views/matviews are handled by generateViewDDL).
 			if fromIsTable && toIsTable {
 				if fromAM, toAM := normalizeRelationAccessMethod(entry.From), normalizeRelationAccessMethod(entry.To); fromAM != toAM {
-					qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+					qn := formatRelationName(entry.SchemaName, entry.Name, entry.To)
 					target := "DEFAULT"
 					if !(entry.To.RelKind == 'p' && toAM == "") {
 						target = quoteIdentifier(toAM)
