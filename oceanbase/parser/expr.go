@@ -91,6 +91,15 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, ok := left.(*nodes.IntervalExpr); ok {
+		// An INTERVAL literal in an expression only opens `INTERVAL expr
+		// date_unit '+' bit_expr` (sql_parser_mysql_mode.y, line 1747): it is
+		// no operand of a unary operator (minPrec > precAdd) and '+' must follow
+		// it directly.
+		if minPrec > precAdd || p.cur.Type != '+' {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	return p.parseInfixExprPrec(left, start, minPrec, precJsonAccess)
 }
 
@@ -213,10 +222,28 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 		case p.cur.Type == tokAndAnd:
 			originalOp = "&&"
 		}
-		// -> and ->> take a column_definition_ref on the left, which has neither the
-		// leading dot nor the reserved words of column_ref: `. t . c ->> '$'` is a 1064.
-		if prec == precJsonAccess && p.reservedColumnRef != nil && left == nodes.ExprNode(p.reservedColumnRef) {
-			return nil, p.syntaxErrorAtCur()
+		// -> and ->> are `column_definition_ref JSON_EXTRACT[_UNQUOTED]
+		// complex_string_literal` (sql_parser_mysql_mode.y, lines 24938-24968):
+		// the left side is a 1..3-part column reference without a star or
+		// reserved-word escape, and the right side is a string literal.
+		if prec == precJsonAccess {
+			colRef, ok := left.(*nodes.ColumnRef)
+			if !ok || colRef.Star || colRef.Catalog != "" || (p.reservedColumnRef != nil && left == nodes.ExprNode(p.reservedColumnRef)) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume -> or ->>
+			right, err := p.parseComplexStringLiteral()
+			if err != nil {
+				return nil, err
+			}
+			left = &nodes.BinaryExpr{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Op:    binOp,
+				Left:  left,
+				Right: right,
+			}
+			level = prec
+			continue
 		}
 		isComparison := prec == precComparison
 		p.advance() // consume operator
@@ -283,6 +310,46 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			}
 			level = precComparison
 			continue
+		}
+
+		// `bit_expr '+' INTERVAL expr date_unit` and `bit_expr '-' INTERVAL expr
+		// date_unit` (sql_parser_mysql_mode.y, lines 1734-1765). When left itself
+		// is an INTERVAL literal (`INTERVAL ... '+' bit_expr`), its right operand
+		// is a bit_expr, which may open with another `INTERVAL ... '+' ...` at
+		// precAdd.
+		if prec == precAdd && p.cur.Type == kwINTERVAL {
+			if _, leftIsInterval := left.(*nodes.IntervalExpr); leftIsInterval {
+				right, err := p.parseExprPrec(precAdd)
+				if err != nil {
+					return nil, err
+				}
+				left = &nodes.BinaryExpr{
+					Loc:        nodes.Loc{Start: start, End: p.prev.End},
+					Op:         binOp,
+					Left:       left,
+					Right:      right,
+					OriginalOp: originalOp,
+				}
+				level = prec
+				continue
+			}
+			saved := p.saveScan()
+			iv, ivErr := p.parseIntervalExpr()
+			if ivErr != nil {
+				return nil, ivErr
+			}
+			if _, isLit := iv.(*nodes.IntervalExpr); isLit {
+				left = &nodes.BinaryExpr{
+					Loc:        nodes.Loc{Start: start, End: p.prev.End},
+					Op:         binOp,
+					Left:       left,
+					Right:      iv,
+					OriginalOp: originalOp,
+				}
+				level = precBitXor
+				continue
+			}
+			p.restoreScan(saved)
 		}
 
 		right, err := p.parseExprPrec(prec + 1)
@@ -429,14 +496,10 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	case '-':
 		return p.parseUnaryExpr(nodes.UnaryMinus)
 	case '+':
-		// Unary plus — just parse the operand. It recurses here rather than
-		// through parseExprPrec, so it counts its own nesting.
-		if err := p.enterNesting(); err != nil {
-			return nil, err
-		}
-		defer p.leaveNesting()
+		// Unary plus — drop the sign and parse the operand at unary precedence,
+		// so `+ INTERVAL a DAY` is refused just like `- INTERVAL a DAY`.
 		p.advance()
-		return p.parsePrefixExpr()
+		return p.parseExprPrec(precUnary)
 	case '~':
 		return p.parseUnaryExpr(nodes.UnaryBitNot)
 	case '!':
@@ -819,12 +882,25 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		// function_name lists DATABASE, SCHEMA, REPEAT, RIGHT and REPLACE
 		// explicitly, so `db.schema()` and `db.replace(...)` are qualified
 		// function calls even though those keywords also appear in
-		// reservedNamesAfterDot.
+		// reservedNamesAfterDot, and cur_user_func carries `relation_name '.'
+		// CURRENT_USER '(' ')'` (sql_parser_mysql_mode.y, line 3842).
 		if p.peekNext().Type == '(' {
 			switch p.cur.Type {
 			case kwDATABASE, kwSCHEMA, kwREPEAT, kwRIGHT, kwREPLACE:
 				tok := p.advance()
 				return p.parseFuncCall(start, name, tok.Str)
+			case kwCURRENT_USER:
+				p.advance() // consume CURRENT_USER
+				p.advance() // consume '('
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				return &nodes.FuncCallExpr{
+					Loc:       nodes.Loc{Start: start, End: p.prev.End},
+					Schema:    name,
+					Name:      "CURRENT_USER",
+					HasParens: true,
+				}, nil
 			}
 		}
 
@@ -845,6 +921,16 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 		// name.name( — schema.func()
 		if p.cur.Type == '(' {
+			// Without adjacency (`a . f()`), the grammar uses `relation_name '.'
+			// function_name '(' opt_expr_as_list ')'` rather than `id_dot_id`, so an
+			// unquoted OceanBase keyword outside function_name is a 1064 (`SELECT a .
+			// STATS_AUTO_RECALC()`).
+			if !idDotID && !p.backtickQuotedAt(name2Start) {
+				lower := strings.ToLower(name2)
+				if !functionNameKeywords[lower] && (keywordsNotFunctionNames[lower] || keywordCallsRefused[lower]) {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
 			return p.parseFuncCall(start, name, name2)
 		}
 
@@ -1041,6 +1127,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// test.substring(b FROM 1), `sum`(a) OVER () and the other special forms
 	// under a quoted or qualified name. p.prev is the name's token.
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc)
+	nameTok := p.prev
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -1089,6 +1176,11 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			// ARRAY_AGG(opt_distinct expr order_by_opt_null), the one
 			// aggregate whose arm carries an ORDER BY and NULLS order.
 			return p.parseArrayAggFunc(fc)
+		case "ARRAY_MAP", "ARRAY_FIRST", "ARRAY_SORTBY", "ARRAY_FILTER":
+			// ARRAY_MAP / ARRAY_FIRST / ARRAY_SORTBY / ARRAY_FILTER take
+			// `(lambda_expr, expr_list)` in func_expr (sql_parser_mysql_mode.y,
+			// lines 3563-3578).
+			return p.parseArrayLambdaFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -1146,7 +1238,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	}
 
 	// Regular argument list
+	allowArgAlias := funcTakesExprAsList(builtin, upperName, nameTok)
 	for {
+		argStart := p.pos()
 		// A call's arguments are expressions, which neither * nor a bare
 		// INTERVAL is: OceanBase 4.3.5 answers 1064 for abs(*), `count`(*) and
 		// `date_add`(d, INTERVAL 1 DAY), and parses `f`(d + INTERVAL 1 DAY).
@@ -1161,6 +1255,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 		if isBareInterval(arg) {
 			return nil, p.syntaxErrorAtCur()
+		}
+		if allowArgAlias && p.cur.Type != ',' && p.cur.Type != ')' {
+			arg, err = p.parseFuncArgOptAlias(arg, argStart)
+			if err != nil {
+				return nil, err
+			}
 		}
 		fc.Args = append(fc.Args, arg)
 		// win_fun_first_last_params and win_fun_lead_lag_params write RESPECT
@@ -3349,14 +3449,11 @@ func checkRowItem(e nodes.ExprNode, start int) error {
 	return nil
 }
 
-// parseDefaultExpr parses DEFAULT or DEFAULT(col_name).
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html#function_default
-//
-//	DEFAULT
-//	DEFAULT(col_name)
+// parseDefaultExpr parses DEFAULT(col_name) in an expression. Bare DEFAULT
+// belongs to expr_or_default and set_expr_or_default alone; see
+// parseExprOrDefault.
 func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
-	if p.noBareDefault && p.peekNext().Type != '(' {
+	if p.peekNext().Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	start := p.pos()
@@ -3364,21 +3461,206 @@ func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
 
 	de := &nodes.DefaultExpr{Loc: nodes.Loc{Start: start}}
 
-	// Check for DEFAULT(col_name) form
-	if p.cur.Type == '(' {
-		p.advance() // consume '('
-		col, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		de.Column = col
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
+	p.advance() // consume '('
+	col, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	de.Column = col
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
 
 	de.Loc.End = p.prev.End
 	return de, nil
+}
+
+// parseExprOrDefault parses expr_or_default: bare DEFAULT, or an expression.
+func (p *Parser) parseExprOrDefault() (nodes.ExprNode, error) {
+	if p.cur.Type == kwDEFAULT && p.peekNext().Type != '(' {
+		tok := p.advance()
+		return &nodes.DefaultExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+	}
+	return p.parseExpr()
+}
+
+// parseComplexStringLiteral parses complex_string_literal (sql_parser_mysql_mode.y,
+// lines 1083-1115): STRING_VALUE or charset_introducer STRING_VALUE (including N”).
+func (p *Parser) parseComplexStringLiteral() (*nodes.StringLit, error) {
+	switch {
+	case p.cur.Type == tokSCONST:
+		tok := p.advance()
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
+	case p.atNationalString():
+		nTok := p.advance()
+		strTok := p.advance()
+		lit := &nodes.StringLit{
+			Loc:      nodes.Loc{Start: nTok.Loc, End: strTok.End},
+			Value:    strTok.Str,
+			National: true,
+		}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
+	case p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) && p.peekNext().Type == tokSCONST:
+		charsetTok := p.advance()
+		strTok := p.advance()
+		lit := &nodes.StringLit{
+			Loc:     nodes.Loc{Start: charsetTok.Loc, End: strTok.End},
+			Value:   strTok.Str,
+			Charset: charsetTok.Str,
+		}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+}
+
+// parseArrayLambdaFunc parses `(lambda_expr, expr_list)` after the opening '('
+// of ARRAY_MAP, ARRAY_FIRST, ARRAY_SORTBY or ARRAY_FILTER.
+//
+// Ref: lambda_expr and lambda_expr_params in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 3563-3625).
+func (p *Parser) parseArrayLambdaFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	lambdaStart := p.pos()
+	var params []string
+	if p.cur.Type == '(' {
+		p.advance()
+		for {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, name)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	} else {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		params = []string{name}
+	}
+	if _, err := p.expect(tokJsonExtract); err != nil {
+		return nil, err
+	}
+	body, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if body == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = append(fc.Args, &nodes.LambdaExpr{
+		Loc:    nodes.Loc{Start: lambdaStart, End: p.prev.End},
+		Params: params,
+		Body:   body,
+	})
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	rest, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
+	fc.Args = append(fc.Args, rest...)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}
+
+// funcTakesExprAsList reports whether a function call uses opt_expr_as_list
+// (`function_name (...)`, `relation_name . function_name (...)` or
+// `id_dot_id (...)` in sql_parser_mysql_mode.y, lines 3311-3355), where each
+// argument may carry `[AS] column_label | STRING_VALUE`.
+func funcTakesExprAsList(builtin bool, upperName string, nameTok Token) bool {
+	if !builtin {
+		return true
+	}
+	if functionNameKeywords[strings.ToLower(upperName)] {
+		return true
+	}
+	if nameTok.Type != tokIDENT {
+		return false
+	}
+	if requiresFuncArgs[upperName] {
+		return false
+	}
+	if _, ok := fixedFuncArity[upperName]; ok {
+		return false
+	}
+	if _, ok := windowFuncArity[upperName]; ok {
+		return false
+	}
+	if _, ok := aggArgSpecs[upperName]; ok {
+		return false
+	}
+	switch upperName {
+	case "VECTOR_DISTANCE", "VECTOR_SIMILARITY", "LISTAGG",
+		"PERCENTILE_CONT", "PERCENTILE_DISC",
+		"CALC_PARTITION_ID", "SPLIT", "CONTAINS",
+		"POINT", "GEOMETRYCOLLECTION", "GEOMCOLLECTION":
+		return false
+	}
+	return true
+}
+
+// parseFuncArgOptAlias reads the optional `[AS] column_label | STRING_VALUE` of
+// expr_with_opt_alias (sql_parser_mysql_mode.y, lines 822-865). `t.*` takes no
+// alias there (`table.* as label is invalid`).
+func (p *Parser) parseFuncArgOptAlias(arg nodes.ExprNode, argStart int) (nodes.ExprNode, error) {
+	starCol := false
+	if ref, ok := arg.(*nodes.ColumnRef); ok && ref.Star {
+		starCol = true
+	}
+	var alias string
+	switch {
+	case p.cur.Type == kwAS:
+		p.advance()
+		if starCol {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == tokSCONST {
+			alias = p.parseStringRun()
+		} else {
+			var err error
+			alias, _, err = p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+		}
+	case p.cur.Type == tokSCONST:
+		if starCol {
+			return nil, p.syntaxErrorAtCur()
+		}
+		alias = p.parseStringRun()
+	case p.isIdentToken() && !p.curIsVariableOrIntroducer():
+		if starCol {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var err error
+		alias, _, err = p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return arg, nil
+	}
+	return &nodes.ResTarget{
+		Loc:  nodes.Loc{Start: argStart, End: p.prev.End},
+		Name: alias,
+		Val:  arg,
+	}, nil
 }
 
 // parseValuesFunc parses VALUES(col_name) used in INSERT ... ON DUPLICATE KEY UPDATE.

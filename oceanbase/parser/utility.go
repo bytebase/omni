@@ -544,13 +544,27 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional CONNECTION | QUERY. Each takes an expression after it, so
-	// `KILL CONNECTION` alone is a 1064.
-	if p.cur.Type == kwCONNECTION {
+	// Optional CONNECTION | QUERY. Both words are in unreserved_keyword in
+	// sql_parser_mysql_mode.y (lines 17987-18010), so `KILL CONNECTION` and
+	// `KILL QUERY` with no separate expression after them, or followed by an
+	// operator (`KILL CONNECTION = 1`), reduce as `KILL expr` with CONNECTION
+	// or QUERY naming a column, while `KILL CONNECTION 1` and `KILL QUERY a`
+	// take the modifier.
+	if (p.cur.Type == kwCONNECTION || p.cur.Type == kwQUERY) && !p.backtickQuotedAt(p.cur.Loc) {
+		saved := p.saveScan()
+		isQuery := p.cur.Type == kwQUERY
 		p.advance()
-	} else if p.cur.Type == kwQUERY {
-		stmt.Query = true
-		p.advance()
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			if expr, err := p.parseExpr(); err == nil && expr != nil && (p.cur.Type == tokEOF || p.cur.Type == ';') {
+				stmt.Query = isQuery
+				stmt.ConnectionID = expr
+				stmt.Loc.End = p.prev.End
+				return stmt, nil
+			} else if isNestingError(err) {
+				return nil, err
+			}
+		}
+		p.restoreScan(saved)
 	}
 
 	// Process ID
@@ -720,6 +734,7 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 	// Optional WHERE clause
 	if p.cur.Type == kwWHERE {
 		p.advance() // consume WHERE
+		p.match(tokHintValue)
 		where, err := p.parseExpr()
 		if err != nil {
 			return nil, err

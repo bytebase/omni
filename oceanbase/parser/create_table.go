@@ -2537,7 +2537,7 @@ func (p *Parser) parsePartitionValues() (nodes.Node, partitionValuesKind, error)
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
 					} else {
-						expr, err := p.parseExpr()
+						expr, err := p.parseExprOrDefault()
 						if err != nil {
 							return nil, 0, err
 						}

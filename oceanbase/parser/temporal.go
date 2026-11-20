@@ -162,13 +162,25 @@ func (p *Parser) parseDateArgs(fc *nodes.FuncCallExpr, intervalOnly bool) error 
 			return p.syntaxErrorAtCur()
 		}
 	} else {
-		written := p.cur.Type == kwINTERVAL
-		second, err = p.parseExpr()
-		if err != nil {
-			return err
+		if p.cur.Type == kwINTERVAL {
+			saved := p.saveScan()
+			if iv, ivErr := p.parseIntervalExpr(); ivErr == nil && p.cur.Type == ')' {
+				if _, literal := iv.(*nodes.IntervalExpr); literal {
+					second = iv
+				}
+			}
+			if second == nil {
+				p.restoreScan(saved)
+			}
 		}
-		if second == nil || (!written && isBareInterval(second)) {
-			return p.syntaxErrorAtCur()
+		if second == nil {
+			second, err = p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if second == nil || isBareInterval(second) {
+				return p.syntaxErrorAtCur()
+			}
 		}
 	}
 

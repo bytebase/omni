@@ -198,13 +198,13 @@ func allKnownNodes() []Node {
 		&KeywordArg{}, &WeightStringExpr{},
 		&ParenExpr{}, &RowExpr{},
 		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
-		&RemoteSequenceExpr{}, &QuantifiedExpr{}, &OdbcEscapeExpr{},
+		&RemoteSequenceExpr{}, &QuantifiedExpr{}, &OdbcEscapeExpr{}, &LambdaExpr{},
 		&GroupingSet{}, &PositionExpr{},
 		&ValuesStmt{}, // also an expression in some contexts
 		&JsonTableExpr{}, &JsonTableColumn{},
 
 		// Table expressions
-		&TableRef{}, &JoinClause{}, &ExternalTableRef{}, &RbIterateExpr{}, &UnnestExpr{},
+		&TableRef{}, &JoinClause{}, &ExternalTableRef{}, &RbIterateExpr{}, &UnnestExpr{}, &TableCollectionExpr{},
 		&TableFlashback{}, &TableSample{},
 
 		// DDL components

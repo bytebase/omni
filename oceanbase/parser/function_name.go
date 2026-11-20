@@ -73,8 +73,18 @@ visible wait warnings window without work wrapper x509 xa xid xml zone
 var keywordCallsRefused = wordSet(`
 allow api_mode arbitration calibration checkpoint collect_statistics_on_create
 cycle decryption encrypted gts id isolate line_delimiter maximize
-micro_index_clustered minor move multivalue policy pool roaringbitmap root
+micro_index_clustered minor move multivalue policy pool roaringbitmap root rowid
 successful time_unit times tp_name trim_space ttl valid verbose
+`)
+
+// functionNameKeywords are the keywords listed explicitly in function_name in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 24423-24515) beside NAME_OB.
+// They may follow `relation_name .` when whitespace separates the dot, and
+// their argument list is opt_expr_as_list.
+var functionNameKeywords = wordSet(`
+charset coalesce collation database decrypt dump encrypt format normal password
+repeat replace reverse right row_count schema session_user statistics
+system_user truncate user version
 `)
 
 func wordSet(words string) map[string]bool {

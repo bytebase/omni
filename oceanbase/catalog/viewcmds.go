@@ -587,6 +587,8 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.QuantifiedExpr:
 		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.ResTarget:
+		return inferViewExprNullable(e.Val, relations)
 	case *nodes.BinaryExpr:
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.UnaryExpr:
@@ -776,6 +778,8 @@ func inferViewExprCollation(expr nodes.ExprNode, relations *viewRelationsScope) 
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.QuantifiedExpr:
 		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.ResTarget:
+		return inferViewExprCollation(e.Val, relations)
 	case *nodes.GroupingSet:
 		// A grouping set's items are expressions like any other: each is checked
 		// for a comparison of collations it cannot make, though the set itself

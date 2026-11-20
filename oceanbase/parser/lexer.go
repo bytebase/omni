@@ -35,6 +35,7 @@ const (
 	tokAt2         // @@ (system variable prefix)
 	tokOrOr        // || (logical OR outside PIPES_AS_CONCAT)
 	tokAndAnd      // && (logical AND)
+	tokHintValue   // /*HINT+ ... */ (OceanBase HINT_VALUE)
 )
 
 // Keyword token constants. Values start at 700.
@@ -2099,6 +2100,20 @@ func (l *Lexer) nextToken() Token {
 		return l.scanIdentOrKeyword()
 	}
 
+	// OceanBase /*HINT+ ... */ token (HINT_VALUE in sql_parser_mysql_mode.y).
+	if ch == '/' && hasHintPrefix(l.input, l.pos) {
+		l.pos += 7
+		for l.pos < len(l.input) {
+			if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+				l.pos += 2
+				return Token{Type: tokHintValue, Str: l.input[l.start:l.pos], Loc: l.start}
+			}
+			l.pos++
+		}
+		l.setError("unterminated comment", l.start)
+		return Token{Type: tokEOF, Loc: l.pos}
+	}
+
 	// Multi-character operators
 	if l.pos+1 < len(l.input) {
 		next := l.input[l.pos+1]
@@ -2222,6 +2237,11 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				// the comment closes, so tokens keep their offsets in the input.
 				l.enterExecComment(vpos, closeStart)
 				continue
+			}
+
+			// /*HINT+ ... */ is OceanBase's HINT_VALUE token, not a skipped comment.
+			if hasHintPrefix(l.input, l.pos) {
+				break
 			}
 
 			l.pos += 2

@@ -92,6 +92,10 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		// the IR keeps as written: it is no column of a local table, and it is
 		// no literal either.
 		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.LambdaExpr:
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.ResTarget:
+		return analyzeExpr(c, n.Val, scope)
 	case *nodes.GroupingSet:
 		// A GROUP BY item's grouping set keeps its kind and its items, so a view
 		// stores ROLLUP (...) and not the expressions it groups by.

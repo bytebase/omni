@@ -338,3 +338,20 @@ func TestRemoteUnknownDoesNotSwallowLocalLineage(t *testing.T) {
 		require.NotNil(t, span.NotFoundError, sql)
 	}
 }
+
+func TestTableCollectionLambdaAndAliasedCallArgLineage(t *testing.T) {
+	span, err := resolve(t, "SELECT ARRAY_FILTER(x -> x > a, a) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT STATISTICS(a zzz) AS s FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"s<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c.a FROM db.t1, TABLE(db.t1.a) AS c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+}

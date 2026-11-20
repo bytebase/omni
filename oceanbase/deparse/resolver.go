@@ -362,6 +362,12 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			return
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
+	case *ast.TableCollectionExpr:
+		name := tableFunctionArgumentName(t.Expr)
+		if name == "" {
+			return
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so there is
 		// nothing to expand here.
@@ -538,6 +544,8 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.OdbcEscapeExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
+		return n
+	case *ast.LambdaExpr:
 		return n
 	case *ast.GroupingSet:
 		for i, item := range n.Items {
@@ -899,6 +907,10 @@ func (r *Resolver) resolveCastCharsets(node ast.ExprNode) {
 		r.resolveCastCharsets(n.Expr)
 	case *ast.OdbcEscapeExpr:
 		r.resolveCastCharsets(n.Expr)
+	case *ast.LambdaExpr:
+		r.resolveCastCharsets(n.Body)
+	case *ast.ResTarget:
+		r.resolveCastCharsets(n.Val)
 	case *ast.GroupingSet:
 		for _, item := range n.Items {
 			r.resolveCastCharsets(item)

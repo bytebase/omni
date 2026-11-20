@@ -788,6 +788,8 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 			columns = []string{t.Column}
 		}
 		return q.extractTableFunction(t.Alias, columns, []ast.ExprNode{t.Arg})
+	case *ast.TableCollectionExpr:
+		return q.extractTableFunction(t.Alias, nil, []ast.ExprNode{t.Expr})
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so the source
 		// has a name and no columns; any column reference to it resolves.
@@ -1049,6 +1051,8 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 			SourceColumns: ColumnSet{},
 			IsPlainField:  true,
 		}, nil
+	case *ast.ResTarget:
+		return q.extractTarget(e)
 	case *ast.ColumnRef:
 		if e.Star {
 			return QuerySpanResult{}, fmt.Errorf("asterisk is not a scalar expression")
@@ -1253,6 +1257,19 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
 	case *ast.OdbcEscapeExpr:
 		sourceColumns, err := q.mergeExprSources(e.Expr)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.LambdaExpr:
+		var paramCols []QuerySpanResult
+		for _, param := range e.Params {
+			paramCols = append(paramCols, QuerySpanResult{Name: param, SourceColumns: ColumnSet{}})
+		}
+		savedFrom := q.tableSourceFrom
+		q.tableSourceFrom = append(slices.Clone(q.tableSourceFrom), &pseudoTable{Columns: paramCols})
+		sourceColumns, err := q.mergeExprSources(e.Body)
+		q.tableSourceFrom = savedFrom
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
@@ -1522,6 +1539,8 @@ func exprNodeLoc(node ast.Node) (ast.Loc, bool) {
 	case *ast.QuantifiedExpr:
 		return n.Loc, true
 	case *ast.OdbcEscapeExpr:
+		return n.Loc, true
+	case *ast.LambdaExpr:
 		return n.Loc, true
 	case *ast.RemoteSequenceExpr:
 		return n.Loc, true
@@ -2012,6 +2031,8 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 		}
 	case *ast.RbIterateExpr:
 		collectAccessTablesFromExpr(result, n.Arg, defaultDatabase)
+	case *ast.TableCollectionExpr:
+		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
 	case *ast.ExternalTableRef:
 		// A format or property value may hold an expression, as FIELD_DELIMITER
 		// = (SELECT a FROM t1) does.
@@ -2043,6 +2064,8 @@ func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDat
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
 	case *ast.OdbcEscapeExpr:
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.LambdaExpr:
+		collectAccessTablesFromExpr(result, e.Body, defaultDatabase)
 	case *ast.GroupingSet:
 		for _, item := range e.Items {
 			collectAccessTablesFromExpr(result, item, defaultDatabase)

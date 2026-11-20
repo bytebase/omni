@@ -1187,6 +1187,16 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(" ")
 		writeExprAlias(b, n.Expr)
 		b.WriteString("}")
+	case *ast.LambdaExpr:
+		writeLambdaParams(b, n.Params, false)
+		b.WriteString(" -> ")
+		writeExprAlias(b, n.Body)
+	case *ast.ResTarget:
+		writeExprAlias(b, n.Val)
+		if n.Name != "" {
+			b.WriteString(" AS ")
+			b.WriteString(n.Name)
+		}
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		writeExprAlias(b, n.Expr)
@@ -1605,6 +1615,13 @@ func writeTableExpr(b *strings.Builder, tbl ast.TableExpr) {
 				b.WriteString(")")
 			}
 		}
+	case *ast.TableCollectionExpr:
+		b.WriteString("table(")
+		writeExpr(b, t.Expr)
+		b.WriteString(")")
+		if t.Alias != "" {
+			b.WriteString(" " + quoteIdent(t.Alias))
+		}
 	default:
 		fmt.Fprintf(b, "/* unsupported table expr: %T */", tbl)
 	}
@@ -1791,6 +1808,8 @@ func tableExprName(tbl ast.TableExpr) string {
 		return t.Alias
 	case *ast.RbIterateExpr:
 		return t.Alias
+	case *ast.TableCollectionExpr:
+		return t.Alias
 	case *ast.ExternalTableRef:
 		// A location is no relation name: with no alias the side keeps its
 		// USING rather than qualifying columns by a path.
@@ -1807,6 +1826,8 @@ func tableSideHasUnknownColumns(tbl ast.TableExpr) bool {
 	case *ast.TableRef:
 		return t.Catalog != "" || t.Dblink != ""
 	case *ast.ExternalTableRef:
+		return true
+	case *ast.TableCollectionExpr:
 		return true
 	default:
 		return false
@@ -2024,6 +2045,16 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(" ")
 		writeExpr(b, n.Expr)
 		b.WriteString("}")
+	case *ast.LambdaExpr:
+		writeLambdaParams(b, n.Params, true)
+		b.WriteString(" -> ")
+		writeExpr(b, n.Body)
+	case *ast.ResTarget:
+		writeExpr(b, n.Val)
+		if n.Name != "" {
+			b.WriteString(" AS ")
+			b.WriteString(quoteIdent(n.Name))
+		}
 	case *ast.CaseExpr:
 		writeCaseExpr(b, n)
 	case *ast.CastExpr:
@@ -2135,6 +2166,29 @@ func isLogicalOrComparison(op ast.BinaryOp) bool {
 //
 // OceanBase 4.3.5 keeps the operator and the outer parentheses and stores SOME as any,
 // so unlike MySQL `a = ANY (q)` stays as it is.
+func writeLambdaParams(b *strings.Builder, params []string, quote bool) {
+	if len(params) == 1 {
+		if quote {
+			b.WriteString(quoteIdent(params[0]))
+		} else {
+			b.WriteString(params[0])
+		}
+		return
+	}
+	b.WriteString("(")
+	for i, param := range params {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if quote {
+			b.WriteString(quoteIdent(param))
+		} else {
+			b.WriteString(param)
+		}
+	}
+	b.WriteString(")")
+}
+
 func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.SubqueryExpr) {
 	word := "any"
 	if sub.Quantifier == "ALL" {

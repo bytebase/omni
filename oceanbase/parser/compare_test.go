@@ -1051,7 +1051,7 @@ func TestParseLiterals(t *testing.T) {
 		{"TRUE", "{BOOL_LIT :val true :loc 0}"},
 		{"FALSE", "{BOOL_LIT :val false :loc 0}"},
 		{"NULL", "{NULL_LIT :loc 0}"},
-		{"DEFAULT", "{DEFAULT :loc 0}"},
+		{"DEFAULT(a)", "{DEFAULT :loc 0 :col a}"},
 	}
 
 	for _, tt := range tests {

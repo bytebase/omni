@@ -347,6 +347,8 @@ var locSpanCases = []struct {
 	{"StatsForColumnsItem", "FOR COLUMNS a SIZE AUTO", "a SIZE AUTO", 0},
 	{"RbIterateExpr", "SELECT a FROM RB_ITERATE(a) AS b", "RB_ITERATE(a) AS b", 0},
 	{"UnnestExpr", "SELECT a FROM UNNEST(a, a) AS b(c, d)", "UNNEST(a, a) AS b(c, d)", 0},
+	{"TableCollectionExpr", "DELETE FROM TABLE(a) AS b", "TABLE(a) AS b", 0},
+	{"LambdaExpr", "SELECT ARRAY_FILTER(a -> a, b)", "a -> a", 0},
 	{"TableRef", "SELECT * FROM t1", "t1", 0},
 	{"TableSample", "SELECT * FROM t1 SAMPLE (1) SEED (2) a", "SAMPLE (1) SEED (2)", 0},
 	{"TemporalLit", "SELECT DATE '2024-01-01' FROM t", "DATE '2024-01-01'", 0},
