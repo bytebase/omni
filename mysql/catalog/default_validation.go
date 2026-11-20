@@ -2013,8 +2013,9 @@ func parseTimeZoneOffset(tz string) (norm string, offsetMin int, ok bool) {
 }
 
 // validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
-// 8.0.46 (`SYSTEM`, `[+-][H]H:MM` in `[-13:59, +14:00]`, or a known IANA zone).
-func validateAndNormalizeSessionTimeZone(raw string) (string, error) {
+// 8.0.46 (`SYSTEM`, `[+-][H]H:MM` in `[-13:59, +14:00]`, or a configured
+// named zone from c.namedTimeZones).
+func (c *Catalog) validateAndNormalizeSessionTimeZone(raw string) (string, error) {
 	tz := strings.TrimSpace(raw)
 	if tz == "" || strings.EqualFold(tz, "Local") {
 		return "", errUnknownTimeZone(raw)
@@ -2029,7 +2030,7 @@ func validateAndNormalizeSessionTimeZone(raw string) (string, error) {
 		}
 		return norm, nil
 	}
-	if _, err := time.LoadLocation(tz); err != nil {
+	if _, ok := c.lookupNamedTimeZone(tz); !ok {
 		return "", errUnknownTimeZone(raw)
 	}
 	return tz, nil
@@ -2063,7 +2064,7 @@ func utcResolvedTimeZone() resolvedTimeZone {
 	return resolvedTimeZone{raw: "UTC", valid: true, hasFixed: true, fixedMin: 0}
 }
 
-func resolveTimeZoneString(raw string) resolvedTimeZone {
+func (c *Catalog) resolveTimeZoneString(raw string) resolvedTimeZone {
 	tz := strings.TrimSpace(raw)
 	if tz == "" || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
 		return resolvedTimeZone{raw: tz, valid: true, hasFixed: true, fixedMin: 0}
@@ -2074,8 +2075,8 @@ func resolveTimeZoneString(raw string) resolvedTimeZone {
 		}
 		return resolvedTimeZone{raw: raw}
 	}
-	loc, err := time.LoadLocation(tz)
-	if err != nil {
+	loc, ok := c.lookupNamedTimeZone(tz)
+	if !ok {
 		return resolvedTimeZone{raw: raw}
 	}
 	return resolvedTimeZone{raw: tz, valid: true, loc: loc}

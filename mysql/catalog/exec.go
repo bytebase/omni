@@ -114,6 +114,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	// RHS reading @var sees the value from before this statement.
 	var updates []func()
 	pendingNamesCharset := ""
+	activeScope := setScopeSession
 	for _, asgn := range stmt.Assignments {
 		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
 			pendingNamesCharset = ""
@@ -130,7 +131,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			continue
 		}
 		varName := normalizeSetVariableName(asgn.Column)
-		scope := parseSetAssignmentScope(asgn)
+		scope := resolveSetAssignmentScope(asgn, &activeScope)
 		if varName != "collate" {
 			pendingNamesCharset = ""
 		}
@@ -490,7 +491,7 @@ func assignTimeZoneSysvar(c *Catalog, varName string, scope setVarScope, expr no
 			rawTZ = val.str
 		}
 	}
-	tz, err := validateAndNormalizeSessionTimeZone(rawTZ)
+	tz, err := c.validateAndNormalizeSessionTimeZone(rawTZ)
 	if err != nil {
 		return nil, err
 	}
@@ -598,17 +599,22 @@ func assignCollationConnSysvar(c *Catalog, varName string, scope setVarScope, ex
 	), nil
 }
 
-func parseSetAssignmentScope(asgn *nodes.Assignment) setVarScope {
+func resolveSetAssignmentScope(asgn *nodes.Assignment, activeScope *setVarScope) setVarScope {
 	if asgn == nil {
-		return setScopeSession
+		return *activeScope
 	}
-	switch strings.ToUpper(asgn.Scope) {
-	case "PERSIST_ONLY":
-		return setScopePersistOnly
-	case "PERSIST":
-		return setScopePersist
-	case "GLOBAL":
-		return setScopeGlobal
+	if asgn.Scope != "" {
+		switch strings.ToUpper(asgn.Scope) {
+		case "PERSIST_ONLY":
+			*activeScope = setScopePersistOnly
+		case "PERSIST":
+			*activeScope = setScopePersist
+		case "GLOBAL":
+			*activeScope = setScopeGlobal
+		case "SESSION", "LOCAL":
+			*activeScope = setScopeSession
+		}
+		return *activeScope
 	}
 	if asgn.Column != nil {
 		col := toLower(strings.TrimPrefix(asgn.Column.Column, "@@"))
@@ -622,9 +628,11 @@ func parseSetAssignmentScope(asgn *nodes.Assignment) setVarScope {
 			return setScopePersist
 		case strings.HasPrefix(col, "global."):
 			return setScopeGlobal
+		case strings.HasPrefix(col, "session."), strings.HasPrefix(col, "local."):
+			return setScopeSession
 		}
 	}
-	return setScopeSession
+	return *activeScope
 }
 
 var validMySQL80SQLModes = map[string]string{

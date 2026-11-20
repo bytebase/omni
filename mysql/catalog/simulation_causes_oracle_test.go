@@ -4246,6 +4246,46 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "SET foreign_key_checks = 'bad'",
 			code: 1231,
 		},
+		{
+			name:    "SET GLOBAL keyword carries into subsequent assignments without changing session foreign_key_checks",
+			session: []string{"SET GLOBAL sql_mode='', foreign_key_checks=0"},
+			cleanup: []string{"SET GLOBAL sql_mode = DEFAULT", "SET GLOBAL foreign_key_checks = DEFAULT"},
+			stmt:    "CREATE TABLE a (id INT, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES missing_parent(id))",
+			code:    1824,
+		},
+		{
+			name:    "SET GLOBAL keyword carries across user variable assignment without changing session foreign_key_checks",
+			session: []string{"SET GLOBAL sql_mode='', @u=1, foreign_key_checks=0"},
+			cleanup: []string{"SET GLOBAL sql_mode = DEFAULT", "SET GLOBAL foreign_key_checks = DEFAULT"},
+			stmt:    "CREATE TABLE a (id INT, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES missing_parent(id))",
+			code:    1824,
+		},
+		{
+			name:    "SET @@GLOBAL qualifier does not carry into subsequent assignments",
+			session: []string{"SET @@GLOBAL.sql_mode='', foreign_key_checks=0"},
+			cleanup: []string{"SET GLOBAL sql_mode = DEFAULT", "SET SESSION foreign_key_checks = DEFAULT"},
+			stmt:    "CREATE TABLE a (id INT, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES missing_parent(id))",
+			code:    0,
+		},
+		{
+			name:    "CREATE TABLE encrypted in unencrypted general tablespace rejected with 3825",
+			setup:   []string{"CREATE TABLESPACE ts_enc_def ADD DATAFILE 'ts_enc_def.ibd'"},
+			cleanup: []string{"DROP TABLESPACE ts_enc_def"},
+			stmt:    "CREATE TABLE a (id INT) TABLESPACE ts_enc_def ENCRYPTION='Y'",
+			code:    3825,
+		},
+		{
+			name:    "ALTER TABLE moving encrypted table into unencrypted general tablespace rejected with 3825",
+			setup:   []string{"CREATE TABLESPACE ts_enc_n ADD DATAFILE 'ts_enc_n.ibd' ENCRYPTION='N'", "CREATE TABLE a (id INT)"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_enc_n"},
+			stmt:    "ALTER TABLE a ENCRYPTION='Y', TABLESPACE ts_enc_n",
+			code:    3825,
+		},
+		{
+			name: "SET time_zone with unknown zone rejected with 1298",
+			stmt: "SET time_zone = 'Invalid/Zone'",
+			code: 1298,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4373,6 +4413,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 	execAlterClauses(t, latinCat, "SET @saved_cs = @@character_set_client; SET character_set_client = ascii; SET character_set_client = @saved_cs;")
 	if latinCat.effectiveClientCharset() != "utf8mb4" {
 		t.Fatalf("@@character_set_client round-trip got %q, want utf8mb4", latinCat.effectiveClientCharset())
+	}
+
+	// Named time zones behave identically to live MySQL 8.0.46 when configured
+	// on the catalog via SetNamedTimeZones.
+	reset()
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET time_zone = DEFAULT")
+	})
+	for _, stmt := range []string{
+		"SET time_zone = 'America/New_York'",
+		"CREATE TABLE a (dt DATETIME DEFAULT '2026-06-01 12:00:00+00:00')",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var tzName, tzEngineCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&tzName, &tzEngineCreate); err != nil {
+		t.Fatalf("mysql SHOW CREATE TABLE a (tz): %v", err)
+	}
+	tzOracleCat := New()
+	tzOracleCat.SetNamedTimeZones("America/New_York")
+	execAlterClauses(t, tzOracleCat, "CREATE DATABASE d; USE d; SET time_zone = 'America/New_York'; CREATE TABLE a (dt DATETIME DEFAULT '2026-06-01 12:00:00+00:00');")
+	if !strings.Contains(tzEngineCreate, "DEFAULT '2026-06-01 08:00:00'") {
+		t.Fatalf("mysql named time_zone SHOW CREATE TABLE:\n%s", tzEngineCreate)
+	}
+	if gotShow := tzOracleCat.ShowCreateTable("d", "a"); !strings.Contains(gotShow, "DEFAULT '2026-06-01 08:00:00'") {
+		t.Fatalf("catalog named time_zone SHOW CREATE TABLE:\n%s", gotShow)
 	}
 }
 
@@ -4783,5 +4851,57 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if svCat.userVars["g_cs"].str != "latin1" || svCat.userVars["s_cs"].str != "utf8mb4" || svCat.userVars["g_fk"].str != "0" || svCat.userVars["s_fk"].str != "1" {
 		t.Fatalf("unexpected @@GLOBAL/@@SESSION readback: %+v", svCat.userVars)
+	}
+
+	// SET GLOBAL/PERSIST/SESSION scope keywords carry into subsequent
+	// assignments in the same SET statement while @@GLOBAL prefixes do not.
+	stickyCat := New()
+	execAlterClauses(t, stickyCat, "SET GLOBAL sql_mode='', @u=1, foreign_key_checks=0; SET @gf=@@GLOBAL.foreign_key_checks, @sf=@@SESSION.foreign_key_checks;")
+	if stickyCat.userVars["gf"].str != "0" || stickyCat.userVars["sf"].str != "1" || !stickyCat.ForeignKeyChecks() {
+		t.Fatalf("SET GLOBAL sticky scope mismatch: %+v, fk=%v", stickyCat.userVars, stickyCat.ForeignKeyChecks())
+	}
+	execAlterClauses(t, stickyCat, "SET GLOBAL foreign_key_checks=1, SESSION sql_mode='ANSI', show_gipk_in_create_table_and_information_schema=1;")
+	if !stickyCat.globalForeignKeyChecks || !stickyCat.session.ShowGIPK || stickyCat.globalShowGIPK {
+		t.Fatalf("SET GLOBAL ..., SESSION ... scope override mismatch: globalFK=%v sessionGIPK=%v globalGIPK=%v", stickyCat.globalForeignKeyChecks, stickyCat.session.ShowGIPK, stickyCat.globalShowGIPK)
+	}
+	execAlterClauses(t, stickyCat, "SET @@GLOBAL.sql_mode='STRICT_ALL_TABLES', foreign_key_checks=0; SET @gf2=@@GLOBAL.foreign_key_checks, @sf2=@@SESSION.foreign_key_checks;")
+	if stickyCat.userVars["gf2"].str != "1" || stickyCat.userVars["sf2"].str != "0" || stickyCat.ForeignKeyChecks() {
+		t.Fatalf("SET @@GLOBAL prefix leak: %+v, fk=%v", stickyCat.userVars, stickyCat.ForeignKeyChecks())
+	}
+
+	// General tablespace ENCRYPTION state persists across ALTER/RENAME/DROP and
+	// validates table encryption compatibility (3825).
+	encCat := New()
+	execAlterClauses(t, encCat, "CREATE DATABASE d; USE d; CREATE TABLESPACE ts_y ADD DATAFILE 'ts_y.ibd' ENCRYPTION='Y';")
+	if got, _ := simulationCatalogRefusal(t, encCat, "CREATE TABLE t_plain (id INT) TABLESPACE ts_y"); got != 3825 {
+		t.Fatalf("unencrypted table in encrypted tablespace got %d, want 3825", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, encCat, "CREATE TABLE t_n (id INT) TABLESPACE ts_y ENCRYPTION='N'"); got != 3825 {
+		t.Fatalf("ENCRYPTION='N' table in encrypted tablespace got %d, want 3825", got)
+	}
+	execAlterClauses(t, encCat, "CREATE TABLE t_ok_y (id INT) TABLESPACE ts_y ENCRYPTION='Y';")
+	execAlterClauses(t, encCat, "ALTER TABLESPACE ts_y RENAME TO ts_y2;")
+	if got, _ := simulationCatalogRefusal(t, encCat, "CREATE TABLE t_n2 (id INT) TABLESPACE ts_y2"); got != 3825 {
+		t.Fatalf("renamed encrypted tablespace did not keep encryption: got %d, want 3825", got)
+	}
+	execAlterClauses(t, encCat, "CREATE TABLESPACE ts_toggle ADD DATAFILE 'ts_toggle.ibd' ENCRYPTION='Y'; ALTER TABLESPACE ts_toggle ENCRYPTION='N';")
+	if got, _ := simulationCatalogRefusal(t, encCat, "CREATE TABLE t_tog_y (id INT) TABLESPACE ts_toggle ENCRYPTION='Y'"); got != 3825 {
+		t.Fatalf("altered unencrypted tablespace accepted ENCRYPTION='Y': got %d, want 3825", got)
+	}
+	execAlterClauses(t, encCat, "DROP TABLESPACE ts_toggle;")
+
+	// Named time zones do not consult host OS tzdata unless explicitly
+	// configured on the catalog via SetNamedTimeZones/SetNamedTimeZone.
+	unloadedTZ := New()
+	if got, _ := simulationCatalogRefusal(t, unloadedTZ, "SET time_zone = 'America/New_York'"); got != 1298 {
+		t.Fatalf("unloaded named time_zone got %d, want 1298", got)
+	}
+	unloadedTZ.SetNamedTimeZones("America/New_York")
+	if got, _ := simulationCatalogRefusal(t, unloadedTZ, "SET time_zone = 'Europe/London'"); got != 1298 {
+		t.Fatalf("unconfigured Europe/London got %d, want 1298", got)
+	}
+	execAlterClauses(t, unloadedTZ, "CREATE DATABASE d; USE d; SET time_zone = 'America/New_York'; CREATE TABLE t_tz (dt DATETIME DEFAULT '2026-06-01 12:00:00+00:00');")
+	if gotShow := unloadedTZ.ShowCreateTable("d", "t_tz"); !strings.Contains(gotShow, "DEFAULT '2026-06-01 08:00:00'") {
+		t.Fatalf("configured SetNamedTimeZones normalization mismatch:\n%s", gotShow)
 	}
 }

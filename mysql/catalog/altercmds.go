@@ -240,6 +240,7 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 	}
 	sawExplicit := false
 	effTS := tbl.Tablespace
+	effEncryption := tbl.Encryption
 	effRowFormat := tbl.RowFormat
 	effKeyBlockSize := tbl.KeyBlockSize
 	droppedParts := make(map[string]bool)
@@ -255,6 +256,8 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 				if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
 					return err
 				}
+			case "encryption":
+				effEncryption = cmd.Option.Value
 			case "row_format":
 				effRowFormat = cmd.Option.Value
 			case "key_block_size":
@@ -309,6 +312,9 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 	}
 	if effTS != "" {
 		if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
+			return err
+		}
+		if err := c.validateInnoDBTablespaceEncryption(effTS, effEncryption); err != nil {
 			return err
 		}
 	}

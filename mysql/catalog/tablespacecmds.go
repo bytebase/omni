@@ -320,6 +320,25 @@ func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlock
 	return nil
 }
 
+// validateInnoDBTablespaceEncryption checks that an InnoDB table's effective
+// ENCRYPTION setting matches the general tablespace's ENCRYPTION state (3825).
+func (c *Catalog) validateInnoDBTablespaceEncryption(rawTS, tblEncryption string) error {
+	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	if ts == "" || !c.tablespaces[ts] {
+		return nil
+	}
+	enc := unquoteTableOption(strings.TrimSpace(tblEncryption))
+	if enc != "" && !strings.EqualFold(enc, "Y") && !strings.EqualFold(enc, "N") {
+		return nil
+	}
+	tsEnc := c.tablespaceEncrypted[ts]
+	tblEnc := strings.EqualFold(enc, "Y")
+	if tsEnc != tblEnc {
+		return errTablespaceEncryptionMismatch(tblEnc)
+	}
+	return nil
+}
+
 func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
 	ts := unquoteTableOption(strings.TrimSpace(rawTS))
 	if ts != "" && ts != "innodb_file_per_table" {
@@ -478,6 +497,10 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 		c.tablespaceBlockSizes = make(map[string]uint64)
 	}
 	c.tablespaceBlockSizes[stmt.Name] = blockSize
+	if c.tablespaceEncrypted == nil {
+		c.tablespaceEncrypted = make(map[string]bool)
+	}
+	c.tablespaceEncrypted[stmt.Name] = strings.EqualFold(stmt.Encryption, "Y")
 	if dfBase != "" {
 		c.tablespaceFiles[stmt.Name] = dfBase
 	}
@@ -550,6 +573,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		}
 		return errAlterTablespaceFailed(stmt.Name)
 	}
+	targetName := stmt.Name
 	if stmt.RenameTo != "" {
 		if err := validateTablespaceCreateName(stmt.RenameTo); err != nil {
 			return err
@@ -563,6 +587,10 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 			delete(c.tablespaceBlockSizes, stmt.Name)
 			c.tablespaceBlockSizes[stmt.RenameTo] = bs
 		}
+		if enc, ok := c.tablespaceEncrypted[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
+			delete(c.tablespaceEncrypted, stmt.Name)
+			c.tablespaceEncrypted[stmt.RenameTo] = enc
+		}
 		if df, ok := c.tablespaceFiles[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
 			delete(c.tablespaceFiles, stmt.Name)
 			c.tablespaceFiles[stmt.RenameTo] = df
@@ -572,6 +600,13 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 				renameTableTablespaceRefs(tbl, stmt.Name, stmt.RenameTo)
 			}
 		}
+		targetName = stmt.RenameTo
+	}
+	if stmt.HasEncryption || stmt.Encryption != "" {
+		if c.tablespaceEncrypted == nil {
+			c.tablespaceEncrypted = make(map[string]bool)
+		}
+		c.tablespaceEncrypted[targetName] = strings.EqualFold(stmt.Encryption, "Y")
 	}
 	return nil
 }
@@ -624,6 +659,7 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	}
 	delete(c.tablespaces, stmt.Name)
 	delete(c.tablespaceBlockSizes, stmt.Name)
+	delete(c.tablespaceEncrypted, stmt.Name)
 	delete(c.tablespaceFiles, stmt.Name)
 	return nil
 }

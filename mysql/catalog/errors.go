@@ -27,6 +27,7 @@ const (
 	ErrKeyDoesNotExist                   = 1176
 	ErrIncorrectUsage                    = 1221
 	ErrInvalidEncryption                 = 3184
+	ErrTablespaceEncryptionMismatch      = 3825
 	ErrStartTransactionInAlter           = 3979
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
@@ -908,4 +909,13 @@ func errAlterTablespaceFailed(tsName string) error {
 func errTablespaceNoSuchFile(tsName, fileName string) error {
 	return &Error{Code: ErrTablespaceNoSuchFile, SQLState: sqlState(ErrTablespaceNoSuchFile),
 		Message: fmt.Sprintf("Tablespace '%s' does not have a file named '%s'", tsName, fileName)}
+}
+
+func errTablespaceEncryptionMismatch(tblEncrypted bool) error {
+	tblState, tsState := "unencrypted", "encrypted"
+	if tblEncrypted {
+		tblState, tsState = "encrypted", "unencrypted"
+	}
+	return &Error{Code: ErrTablespaceEncryptionMismatch, SQLState: sqlState(ErrTablespaceEncryptionMismatch),
+		Message: fmt.Sprintf("Request to create '%s' table while using an '%s' tablespace.", tblState, tsState)}
 }

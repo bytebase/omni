@@ -21,16 +21,18 @@ type userVarValue struct {
 
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases                map[string]*Database    // lowered name -> Database
-	tablespaces              map[string]bool         // exact general tablespace names
-	tablespaceBlockSizes     map[string]uint64       // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
-	undoTablespaces          map[string]bool         // exact undo tablespace names -> active
-	tablespaceFiles          map[string]string       // tablespace name -> normalized datafile path
-	tablespaceDirs           map[string]bool         // known InnoDB datafile directories
-	dataDir                  string                  // InnoDB/server datadir (default /var/lib/mysql)
-	userVars                 map[string]userVarValue // lowered user var name (without @) -> value
-	systemTimeZone           string                  // @@system_time_zone (default UTC)
-	systemTimeZoneLoc        *time.Location          // optional host Location when @@system_time_zone is an abbreviation
+	databases                map[string]*Database      // lowered name -> Database
+	tablespaces              map[string]bool           // exact general tablespace names
+	tablespaceBlockSizes     map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
+	tablespaceEncrypted      map[string]bool           // general tablespace name -> ENCRYPTION='Y'
+	undoTablespaces          map[string]bool           // exact undo tablespace names -> active
+	tablespaceFiles          map[string]string         // tablespace name -> normalized datafile path
+	tablespaceDirs           map[string]bool           // known InnoDB datafile directories
+	dataDir                  string                    // InnoDB/server datadir (default /var/lib/mysql)
+	userVars                 map[string]userVarValue   // lowered user var name (without @) -> value
+	systemTimeZone           string                    // @@system_time_zone (default UTC)
+	systemTimeZoneLoc        *time.Location            // optional host Location when @@system_time_zone is an abbreviation
+	namedTimeZones           map[string]*time.Location // lowercased mysql.time_zone_name entries -> Location
 	globalTimeZone           string
 	globalSQLMode            string
 	globalCharsetClient      string
@@ -73,6 +75,7 @@ func New() *Catalog {
 		databases:                make(map[string]*Database),
 		tablespaces:              make(map[string]bool),
 		tablespaceBlockSizes:     make(map[string]uint64),
+		tablespaceEncrypted:      make(map[string]bool),
 		undoTablespaces:          map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
 		tablespaceFiles:          map[string]string{"innodb_undo_001": "/var/lib/mysql/undo_001", "innodb_undo_002": "/var/lib/mysql/undo_002"},
 		tablespaceDirs:           make(map[string]bool),
@@ -165,6 +168,48 @@ func (c *Catalog) SetSystemTimeZoneLocation(loc *time.Location) {
 	c.systemTimeZoneLoc = loc
 }
 
+// SetNamedTimeZones replaces the catalog's loaded named time zone table
+// (modeling mysql.time_zone_name) by loading each IANA zone name via
+// time.LoadLocation. Unloadable or empty zone names are ignored.
+func (c *Catalog) SetNamedTimeZones(zones ...string) {
+	m := make(map[string]*time.Location, len(zones))
+	for _, z := range zones {
+		name := strings.TrimSpace(z)
+		if name == "" {
+			continue
+		}
+		if loc, err := time.LoadLocation(name); err == nil && loc != nil {
+			m[toLower(name)] = loc
+		}
+	}
+	c.namedTimeZones = m
+}
+
+// SetNamedTimeZone registers or removes a single named time zone entry
+// (modeling a row in mysql.time_zone_name). Passing loc == nil deletes it.
+func (c *Catalog) SetNamedTimeZone(name string, loc *time.Location) {
+	key := toLower(strings.TrimSpace(name))
+	if key == "" {
+		return
+	}
+	if loc == nil {
+		delete(c.namedTimeZones, key)
+		return
+	}
+	if c.namedTimeZones == nil {
+		c.namedTimeZones = make(map[string]*time.Location)
+	}
+	c.namedTimeZones[key] = loc
+}
+
+func (c *Catalog) lookupNamedTimeZone(name string) (*time.Location, bool) {
+	if c == nil || len(c.namedTimeZones) == 0 {
+		return nil, false
+	}
+	loc, ok := c.namedTimeZones[toLower(strings.TrimSpace(name))]
+	return loc, ok && loc != nil
+}
+
 func (c *Catalog) effectiveSessionTimeZone() string {
 	tz := strings.TrimSpace(c.session.TimeZone)
 	if tz == "" || strings.EqualFold(tz, "SYSTEM") {
@@ -183,9 +228,9 @@ func (c *Catalog) resolveEffectiveTimeZone() resolvedTimeZone {
 				loc:   c.systemTimeZoneLoc,
 			}
 		}
-		return resolveTimeZoneString(c.SystemTimeZone())
+		return c.resolveTimeZoneString(c.SystemTimeZone())
 	}
-	return resolveTimeZoneString(tz)
+	return c.resolveTimeZoneString(tz)
 }
 
 // DataDir returns the configured MySQL/InnoDB data directory (default "/var/lib/mysql").

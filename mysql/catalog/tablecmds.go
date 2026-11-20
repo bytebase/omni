@@ -94,6 +94,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	if declared {
 		effEngine := ""
 		effTS := ""
+		effEncryption := ""
 		effRowFormat := ""
 		effKeyBlockSize := 0
 		for _, opt := range stmt.Options {
@@ -104,6 +105,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				effEngine = storedEngineName(opt.Value)
 			} else if strings.EqualFold(opt.Name, "tablespace") {
 				effTS = opt.Value
+			} else if strings.EqualFold(opt.Name, "encryption") {
+				effEncryption = opt.Value
 			} else if strings.EqualFold(opt.Name, "row_format") {
 				effRowFormat = opt.Value
 			} else if strings.EqualFold(opt.Name, "key_block_size") {
@@ -117,6 +120,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
+				return err
+			}
+			if err := c.validateInnoDBTablespaceEncryption(effTS, effEncryption); err != nil {
 				return err
 			}
 		}
