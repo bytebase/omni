@@ -359,16 +359,68 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		}
 	}
 
-	if len(viewsToDrop) == 0 {
+	preDroppedRels := make(map[uint32]bool)
+	preDroppedRules := make(map[uint32]bool)
+	for _, op := range ops {
+		if op.Phase == PhasePre {
+			switch op.Type {
+			case OpDropTable, OpDropView:
+				if op.ObjOID != 0 {
+					preDroppedRels[op.ObjOID] = true
+				}
+			case OpDropRule:
+				if op.ObjOID != 0 {
+					preDroppedRules[op.ObjOID] = true
+				}
+			}
+		}
+	}
+
+	type ruleInfo struct {
+		schema string
+		rel    string
+		rule   *Rule
+	}
+	seenRules := make(map[uint32]bool)
+	var rulesToDrop []ruleInfo
+	for _, d := range from.deps {
+		if d.RefType != 'r' || d.ObjType != 'R' || (!tableOIDs[d.RefOID] && !seen[d.RefOID]) {
+			continue
+		}
+		if seenRules[d.ObjOID] || preDroppedRules[d.ObjOID] {
+			continue
+		}
+		rule := from.rules[d.ObjOID]
+		if rule == nil || seen[rule.OwnerRelOID] || preDroppedRels[rule.OwnerRelOID] {
+			continue
+		}
+		ownerRel := from.GetRelationByOID(rule.OwnerRelOID)
+		if ownerRel == nil || ownerRel.Schema == nil {
+			continue
+		}
+		seenRules[d.ObjOID] = true
+		rulesToDrop = append(rulesToDrop, ruleInfo{schema: ownerRel.Schema.Name, rel: ownerRel.Name, rule: rule})
+	}
+
+	if len(viewsToDrop) == 0 && len(rulesToDrop) == 0 {
 		return ops
 	}
 
-	// Sort views for determinism.
+	// Sort views and rules for determinism.
 	sort.Slice(viewsToDrop, func(i, j int) bool {
 		if viewsToDrop[i].schema != viewsToDrop[j].schema {
 			return viewsToDrop[i].schema < viewsToDrop[j].schema
 		}
 		return viewsToDrop[i].name < viewsToDrop[j].name
+	})
+	sort.Slice(rulesToDrop, func(i, j int) bool {
+		if rulesToDrop[i].schema != rulesToDrop[j].schema {
+			return rulesToDrop[i].schema < rulesToDrop[j].schema
+		}
+		if rulesToDrop[i].rel != rulesToDrop[j].rel {
+			return rulesToDrop[i].rel < rulesToDrop[j].rel
+		}
+		return rulesToDrop[i].rule.Name < rulesToDrop[j].rule.Name
 	})
 
 	// Build drop and create ops. Resolve OIDs from `to` catalog for CREATE.
@@ -406,7 +458,18 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		}
 	}
 
-	// Filter out any existing view ops for these views (avoid duplicates).
+	dropRules := make(map[string]bool) // "schema.rel.rule" for dedup
+	for _, ri := range rulesToDrop {
+		dropRules[ri.schema+"."+ri.rel+"."+ri.rule.Name] = true
+		extraOps = append(extraOps, buildDropRuleOp(ri.schema, ri.rel, ri.rule))
+		if toRel := to.GetRelation(ri.schema, ri.rel); toRel != nil && toRel.Rules != nil {
+			if toRule := toRel.Rules[ri.rule.Name]; toRule != nil {
+				extraOps = append(extraOps, buildCreateAndModeRuleOps(to, ri.schema, ri.rel, toRel, toRule)...)
+			}
+		}
+	}
+
+	// Filter out any existing view or rule ops for these objects (avoid duplicates).
 	var filteredOps []MigrationOp
 	for _, op := range ops {
 		skip := false
@@ -414,6 +477,10 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			if dropViews[op.SchemaName+"."+op.ObjectName] {
 				skip = true
 			}
+		}
+		if (op.Type == OpDropRule || op.Type == OpCreateRule || (op.Type == OpAlterTable && op.ObjType == 'R')) &&
+			dropRules[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] {
+			skip = true
 		}
 		if !skip {
 			filteredOps = append(filteredOps, op)

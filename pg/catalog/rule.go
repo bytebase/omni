@@ -533,6 +533,29 @@ func (c *Catalog) createOnSelectRule(rel *Relation, s *nodes.RuleStmt) error {
 	return nil
 }
 
+func ruleActionsHaveReturning(actions *nodes.List) bool {
+	if actions == nil {
+		return false
+	}
+	for _, item := range actions.Items {
+		var retList *nodes.List
+		switch act := item.(type) {
+		case *nodes.InsertStmt:
+			retList = act.ReturningList
+		case *nodes.UpdateStmt:
+			retList = act.ReturningList
+		case *nodes.DeleteStmt:
+			retList = act.ReturningList
+		case *nodes.MergeStmt:
+			retList = act.ReturningList
+		}
+		if retList != nil && len(retList.Items) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // validateRuleReturningClauses enforces PostgreSQL's checkRuleResultList rules
 // on RETURNING clauses inside rule actions.
 //
@@ -551,6 +574,8 @@ func (c *Catalog) validateRuleReturningClauses(rel *Relation, s *nodes.RuleStmt)
 			retList = act.ReturningList
 		case *nodes.DeleteStmt:
 			retList = act.ReturningList
+		case *nodes.MergeStmt:
+			retList = act.ReturningList
 		}
 		if retList == nil || len(retList.Items) == 0 {
 			continue
@@ -566,6 +591,22 @@ func (c *Catalog) validateRuleReturningClauses(rel *Relation, s *nodes.RuleStmt)
 			return &Error{
 				Code:    CodeFeatureNotSupported,
 				Message: "cannot have RETURNING lists in multiple rules",
+			}
+		}
+	}
+	if returningCount > 0 && rel != nil && rel.Rules != nil {
+		for name, existing := range rel.Rules {
+			if existing == nil || existing.Event != s.Event {
+				continue
+			}
+			if s.Replace && name == s.Rulename {
+				continue
+			}
+			if ruleActionsHaveReturning(existing.Actions) {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "cannot have RETURNING lists in multiple rules",
+				}
 			}
 		}
 	}
@@ -873,7 +914,14 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 		default:
 			baseAny = true
 		}
-		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, extractAliasColnames(rv.Alias))
+		aliasCols := extractAliasColnames(rv.Alias)
+		if !baseAny && len(aliasCols) > len(baseCols) && !c.snapshot {
+			return 0, &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", name, len(baseCols), len(aliasCols)),
+			}
+		}
+		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, aliasCols)
 		ctx.setScope(name, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           alias,
@@ -889,11 +937,18 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 		return 0, nil
 	}
 	if relOID != 0 {
+		aliasCols := extractAliasColnames(rv.Alias)
+		if rel := c.relationByOID[relOID]; rel != nil && len(aliasCols) > len(rel.Columns) && !c.snapshot {
+			return 0, &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", name, len(rel.Columns), len(aliasCols)),
+			}
+		}
 		ctx.setScope(name, ruleScopeEntry{
 			relOID:     relOID,
 			hasAlias:   hasAlias,
 			alias:      alias,
-			colAliases: extractAliasColnames(rv.Alias),
+			colAliases: aliasCols,
 		})
 	}
 	return relOID, nil
@@ -926,7 +981,18 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		}
 		baseCols, baseAny := c.extractRuleQueryCols(b, v.Subquery)
 		baseTypes, _ := c.extractRuleQueryColTypes(b, v.Subquery)
-		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, extractAliasColnames(v.Alias))
+		aliasCols := extractAliasColnames(v.Alias)
+		if !baseAny && len(aliasCols) > len(baseCols) && !c.snapshot {
+			aliasName := ""
+			if v.Alias != nil {
+				aliasName = v.Alias.Aliasname
+			}
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", aliasName, len(baseCols), len(aliasCols)),
+			}
+		}
+		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, aliasCols)
 		if v.Alias != nil && v.Alias.Aliasname != "" {
 			ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
 				hasAlias:        true,
@@ -968,7 +1034,8 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			return err
 		}
 		baseCols, baseAny := c.extractRangeFunctionCols(v)
-		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, nil, baseAny, extractAliasColnames(v.Alias))
+		aliasCols := extractAliasColnames(v.Alias)
+		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, nil, baseAny, aliasCols)
 		scopeName := ""
 		hasAlias := false
 		aliasName := ""
@@ -978,6 +1045,12 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			aliasName = v.Alias.Aliasname
 		} else if v.Functions != nil && len(v.Functions.Items) == 1 {
 			scopeName = singleRangeFuncName(v.Functions.Items[0])
+		}
+		if !baseAny && len(aliasCols) > len(baseCols) && !c.snapshot {
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", scopeName, len(baseCols), len(aliasCols)),
+			}
 		}
 		if scopeName == "" {
 			scopeName = fmt.Sprintf("\x00rowsfrom_%d", len(ctx.scope))
@@ -1045,11 +1118,18 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				}
 			}
 		}
-		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, false, extractAliasColnames(v.Alias))
+		aliasCols := extractAliasColnames(v.Alias)
 		scopeName, hasAlias, aliasName := "xmltable", false, ""
 		if v.Alias != nil && v.Alias.Aliasname != "" {
 			scopeName, hasAlias, aliasName = v.Alias.Aliasname, true, v.Alias.Aliasname
 		}
+		if len(aliasCols) > len(baseCols) && !c.snapshot {
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", scopeName, len(baseCols), len(aliasCols)),
+			}
+		}
+		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, false, aliasCols)
 		ctx.setScope(scopeName, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           aliasName,
@@ -1092,11 +1172,18 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				return err
 			}
 		}
-		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, nil, false, extractAliasColnames(v.Alias))
+		aliasCols := extractAliasColnames(v.Alias)
 		scopeName, hasAlias, aliasName := "json_table", false, ""
 		if v.Alias != nil && v.Alias.Aliasname != "" {
 			scopeName, hasAlias, aliasName = v.Alias.Aliasname, true, v.Alias.Aliasname
 		}
+		if len(aliasCols) > len(baseCols) && !c.snapshot {
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", scopeName, len(baseCols), len(aliasCols)),
+			}
+		}
+		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, nil, false, aliasCols)
 		ctx.setScope(scopeName, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           aliasName,
@@ -1145,6 +1232,12 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				if uCol == "" {
 					continue
 				}
+				if seenUsing[uCol] && !c.snapshot {
+					return &Error{
+						Code:    CodeDuplicateColumn,
+						Message: fmt.Sprintf("column name %q appears more than once in USING clause", uCol),
+					}
+				}
 				if (!lAny && !stringSliceContains(lCols, uCol)) || (!rAny && !stringSliceContains(rCols, uCol)) {
 					if !c.snapshot {
 						return errUndefinedColumn(uCol)
@@ -1156,9 +1249,11 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 					name: uCol,
 					deps: append(lDeps, rDeps...),
 				})
-				if len(aliasCols) == 0 && !seenUsing[uCol] {
+				if !seenUsing[uCol] {
 					seenUsing[uCol] = true
-					ctx.usingCols[uCol]++
+					if len(aliasCols) == 0 {
+						ctx.usingCols[uCol]++
+					}
 				}
 			}
 			if b != nil && b.joinUsing != nil {
@@ -1227,6 +1322,12 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				}
 			}
 			combinedCols := combineJoinCols(lCols, rCols, v.UsingClause, v.IsNatural)
+			if !(lAny || rAny) && len(aliasCols) > len(combinedCols) && !c.snapshot {
+				return &Error{
+					Code:    CodeInvalidColumnReference,
+					Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", v.Alias.Aliasname, len(combinedCols), len(aliasCols)),
+				}
+			}
 			vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(combinedCols, nil, lAny || rAny, aliasCols)
 			joinRels := append(append([]uint32(nil), lRels...), rRels...)
 			ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
@@ -1825,8 +1926,18 @@ func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *r
 			}
 		}
 	}
+	seenCTEName := make(map[string]bool)
 	for _, item := range w.Ctes.Items {
 		if cte, ok := item.(*nodes.CommonTableExpr); ok {
+			if cte.Ctename != "" {
+				if seenCTEName[cte.Ctename] && !c.snapshot {
+					return nil, nil, nil, nil, &Error{
+						Code:    CodeDuplicateAlias,
+						Message: fmt.Sprintf("WITH query name %q specified more than once", cte.Ctename),
+					}
+				}
+				seenCTEName[cte.Ctename] = true
+			}
 			var outer *ruleEvalContext
 			if parent != nil {
 				outer = parent
@@ -1842,22 +1953,91 @@ func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *r
 				if err := c.bindRuleExpr(b, cc.CycleMarkDefault, cteCtx); err != nil {
 					return nil, nil, nil, nil, err
 				}
+				if cc.CycleMarkValue != nil && cc.CycleMarkDefault != nil && !c.snapshot {
+					vt := c.inferRuleExprType(b, cc.CycleMarkValue, cteCtx)
+					dt := c.inferRuleExprType(b, cc.CycleMarkDefault, cteCtx)
+					if vt != 0 && dt != 0 && vt != UNKNOWNOID && dt != UNKNOWNOID && vt != dt {
+						if _, err := c.selectCommonType([]AnalyzedExpr{
+							&ConstExpr{TypeOID: vt, TypeMod: -1},
+							&ConstExpr{TypeOID: dt, TypeMod: -1},
+						}, "CYCLE"); err != nil {
+							return nil, nil, nil, nil, errDatatypeMismatch(err.Error())
+						}
+					}
+				}
 			}
 			if cte.Ctename != "" {
 				cteNames[cte.Ctename] = true
 				baseCols, baseAny := c.extractRuleQueryCols(b, cte.Ctequery)
 				baseTypes, _ := c.extractRuleQueryColTypes(b, cte.Ctequery)
-				_, _, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, extractNodeListStrings(cte.Aliascolnames))
-				if sc, ok := cte.SearchClause.(*nodes.CTESearchClause); ok && sc != nil && sc.SearchSeqColumn != "" {
-					vOrder = append(vOrder, sc.SearchSeqColumn)
-					baseTypes = append(baseTypes, RECORDOID)
+				aliasCols := extractNodeListStrings(cte.Aliascolnames)
+				if !baseAny && len(aliasCols) > len(baseCols) && !c.snapshot {
+					return nil, nil, nil, nil, &Error{
+						Code:    CodeInvalidColumnReference,
+						Message: fmt.Sprintf("WITH query %q has %d columns available but %d columns specified", cte.Ctename, len(baseCols), len(aliasCols)),
+					}
+				}
+				_, _, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, aliasCols)
+				cteOutputCols := append([]string(nil), vOrder...)
+				if sc, ok := cte.SearchClause.(*nodes.CTESearchClause); ok && sc != nil {
+					if !w.Recursive && !c.snapshot {
+						return nil, nil, nil, nil, &Error{
+							Code:    CodeSyntaxError,
+							Message: "SEARCH clause can only be specified for recursive WITH queries",
+						}
+					}
+					if sc.SearchColList != nil {
+						seenSearch := make(map[string]bool, len(sc.SearchColList.Items))
+						for _, colNode := range sc.SearchColList.Items {
+							cName := stringVal(colNode)
+							if !vAny && !stringSliceContains(cteOutputCols, cName) && !c.snapshot {
+								return nil, nil, nil, nil, errUndefinedColumn(cName)
+							}
+							if seenSearch[cName] && !c.snapshot {
+								return nil, nil, nil, nil, errDuplicateColumn(cName)
+							}
+							seenSearch[cName] = true
+						}
+					}
+					if sc.SearchSeqColumn != "" {
+						if !vAny && stringSliceContains(vOrder, sc.SearchSeqColumn) && !c.snapshot {
+							return nil, nil, nil, nil, errDuplicateColumn(sc.SearchSeqColumn)
+						}
+						vOrder = append(vOrder, sc.SearchSeqColumn)
+						baseTypes = append(baseTypes, RECORDOID)
+					}
 				}
 				if cc, ok := cte.CycleClause.(*nodes.CTECycleClause); ok && cc != nil {
+					if !w.Recursive && !c.snapshot {
+						return nil, nil, nil, nil, &Error{
+							Code:    CodeSyntaxError,
+							Message: "CYCLE clause can only be specified for recursive WITH queries",
+						}
+					}
+					if cc.CycleColList != nil {
+						seenCycle := make(map[string]bool, len(cc.CycleColList.Items))
+						for _, colNode := range cc.CycleColList.Items {
+							cName := stringVal(colNode)
+							if !vAny && !stringSliceContains(cteOutputCols, cName) && !c.snapshot {
+								return nil, nil, nil, nil, errUndefinedColumn(cName)
+							}
+							if seenCycle[cName] && !c.snapshot {
+								return nil, nil, nil, nil, errDuplicateColumn(cName)
+							}
+							seenCycle[cName] = true
+						}
+					}
 					if cc.CycleMarkColumn != "" {
+						if !vAny && stringSliceContains(vOrder, cc.CycleMarkColumn) && !c.snapshot {
+							return nil, nil, nil, nil, errDuplicateColumn(cc.CycleMarkColumn)
+						}
 						vOrder = append(vOrder, cc.CycleMarkColumn)
 						baseTypes = append(baseTypes, BOOLOID)
 					}
 					if cc.CyclePathColumn != "" {
+						if !vAny && stringSliceContains(vOrder, cc.CyclePathColumn) && !c.snapshot {
+							return nil, nil, nil, nil, errDuplicateColumn(cc.CyclePathColumn)
+						}
 						vOrder = append(vOrder, cc.CyclePathColumn)
 						baseTypes = append(baseTypes, RECORDARRAYOID)
 					}
@@ -1879,6 +2059,7 @@ func (c *Catalog) bindTargetColumns(b *ruleBindings, relOID uint32, list *nodes.
 	if rel == nil {
 		return nil
 	}
+	seenDirectCol := make(map[int16]bool)
 	for _, item := range list.Items {
 		rt, ok := item.(*nodes.ResTarget)
 		if !ok || rt.Name == "" {
@@ -1892,8 +2073,104 @@ func (c *Catalog) bindTargetColumns(b *ruleBindings, relOID uint32, list *nodes.
 			return errUndefinedColumn(rt.Name)
 		}
 		attNum := rel.Columns[idx].AttNum
+		if (rt.Indirection == nil || len(rt.Indirection.Items) == 0) && !c.snapshot {
+			if seenDirectCol[attNum] {
+				return &Error{
+					Code:    CodeSyntaxError,
+					Message: fmt.Sprintf("column %q specified more than once", rt.Name),
+				}
+			}
+			seenDirectCol[attNum] = true
+		}
 		b.colByRT[rt] = ruleColBinding{relOID: relOID, attNum: attNum}
 		b.addColDep(relOID, attNum)
+	}
+	return nil
+}
+
+func (c *Catalog) checkRuleTypeAssignable(col *Column, valType uint32) error {
+	if c.snapshot || col == nil || col.TypeOID == 0 || col.TypeOID == UNKNOWNOID || valType == 0 || valType == UNKNOWNOID {
+		return nil
+	}
+	if !c.CanCoerce(valType, col.TypeOID, 'a') {
+		return &Error{
+			Code:    CodeDatatypeMismatch,
+			Message: fmt.Sprintf("column %q is of type %s but expression is of type %s", col.Name, c.typeName(col.TypeOID), c.typeName(valType)),
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) checkRuleTargetListTypes(b *ruleBindings, relOID uint32, list *nodes.List, ctx *ruleEvalContext) error {
+	if c.snapshot || relOID == 0 || list == nil {
+		return nil
+	}
+	rel := c.relationByOID[relOID]
+	if rel == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		rt, ok := item.(*nodes.ResTarget)
+		if !ok || rt == nil || rt.Name == "" || (rt.Indirection != nil && len(rt.Indirection.Items) > 0) {
+			continue
+		}
+		idx, exists := rel.colByName[rt.Name]
+		if !exists {
+			continue
+		}
+		valType := c.inferRuleExprType(b, rt.Val, ctx)
+		if err := c.checkRuleTypeAssignable(rel.Columns[idx], valType); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) resolveInsertTargetCols(relOID uint32, cols *nodes.List) []*Column {
+	if relOID == 0 {
+		return nil
+	}
+	rel := c.relationByOID[relOID]
+	if rel == nil {
+		return nil
+	}
+	if cols == nil || len(cols.Items) == 0 {
+		return rel.Columns
+	}
+	out := make([]*Column, len(cols.Items))
+	for i, item := range cols.Items {
+		rt, ok := item.(*nodes.ResTarget)
+		if !ok || rt == nil || rt.Name == "" || (rt.Indirection != nil && len(rt.Indirection.Items) > 0) {
+			continue
+		}
+		if idx, exists := rel.colByName[rt.Name]; exists {
+			out[i] = rel.Columns[idx]
+		}
+	}
+	return out
+}
+
+func (c *Catalog) checkRuleOrdinalExpr(n nodes.Node, numCols int, hasUnknownCols bool, clause string) error {
+	if c.snapshot || hasUnknownCols || n == nil {
+		return nil
+	}
+	var iv *nodes.Integer
+	switch v := n.(type) {
+	case *nodes.A_Const:
+		if !v.Isnull {
+			iv, _ = v.Val.(*nodes.Integer)
+		}
+	case *nodes.Integer:
+		iv = v
+	}
+	if iv == nil {
+		return nil
+	}
+	if iv.Ival < 1 || int(iv.Ival) > numCols {
+		return &Error{
+			Code:    CodeInvalidColumnReference,
+			Message: fmt.Sprintf("%s position %d is not in select list", clause, iv.Ival),
+		}
 	}
 	return nil
 }
@@ -2115,8 +2392,12 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			}
 		}
 		if s.GroupClause != nil {
+			qCols, qAny := c.extractRuleQueryCols(b, s)
 			for _, item := range s.GroupClause.Items {
 				if err := c.bindRuleExpr(b, item, aliasCtx); err != nil {
+					return err
+				}
+				if err := c.checkRuleOrdinalExpr(item, len(qCols), qAny, "GROUP BY"); err != nil {
 					return err
 				}
 			}
@@ -2189,6 +2470,19 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 									Code:    CodeSyntaxError,
 									Message: "INSERT has more target columns than expressions",
 								}
+							}
+						}
+					}
+				}
+			}
+			if targetOID != 0 && !c.snapshot {
+				targetColDefs := c.resolveInsertTargetCols(targetOID, s.Cols)
+				qTypes, qAny := c.extractRuleQueryColTypes(b, s.SelectStmt)
+				if !qAny {
+					for i, valType := range qTypes {
+						if i < len(targetColDefs) && targetColDefs[i] != nil {
+							if err := c.checkRuleTypeAssignable(targetColDefs[i], valType); err != nil {
+								return err
 							}
 						}
 					}
@@ -2322,6 +2616,9 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 						}
 					}
 				}
+				if err := c.checkRuleTargetListTypes(b, targetOID, oc.TargetList, ctx); err != nil {
+					return err
+				}
 			}
 			if err := c.bindRuleBoolExpr(b, oc.WhereClause, ctx, "WHERE"); err != nil {
 				return err
@@ -2363,6 +2660,9 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 						return err
 					}
 				}
+			}
+			if err := c.checkRuleTargetListTypes(b, targetOID, s.TargetList, ctx); err != nil {
+				return err
 			}
 		}
 		if err := c.bindRuleBoolExpr(b, s.WhereClause, ctx, "WHERE"); err != nil {
@@ -2465,6 +2765,15 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 									Message: "INSERT has more expressions than target columns",
 								}
 							}
+							targetColDefs := c.resolveInsertTargetCols(targetOID, mwc.TargetList)
+							for i, valExpr := range mwc.Values.Items {
+								if i < len(targetColDefs) && targetColDefs[i] != nil {
+									valType := c.inferRuleExprType(b, valExpr, ctx)
+									if err := c.checkRuleTypeAssignable(targetColDefs[i], valType); err != nil {
+										return err
+									}
+								}
+							}
 						}
 					}
 				} else if mwc.CommandType == nodes.CMD_UPDATE {
@@ -2478,6 +2787,9 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 									return err
 								}
 							}
+						}
+						if err := c.checkRuleTargetListTypes(b, targetOID, mwc.TargetList, ctx); err != nil {
+							return err
 						}
 					}
 				}
@@ -2498,6 +2810,7 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 		return nil
 	}
 	expandedCols := 0
+	var retTypes []uint32
 	unknownCount := false
 	for _, item := range list.Items {
 		rt, ok := item.(*nodes.ResTarget)
@@ -2521,10 +2834,14 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 				unknownCount = true
 			} else {
 				expandedCols += len(starCols)
+				for _, sc := range starCols {
+					retTypes = append(retTypes, sc.typeOID)
+				}
 			}
 			continue
 		}
 		expandedCols++
+		retTypes = append(retTypes, c.inferRuleExprType(b, rt.Val, ctx))
 	}
 	if b.ownerRelOID != 0 && !unknownCount && !c.snapshot {
 		if ownerRel := c.relationByOID[b.ownerRelOID]; ownerRel != nil {
@@ -2538,6 +2855,14 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 				return &Error{
 					Code:    CodeInvalidObjectDefinition,
 					Message: "RETURNING list has too few entries",
+				}
+			}
+			for i, col := range ownerRel.Columns {
+				if i < len(retTypes) && retTypes[i] != 0 && retTypes[i] != UNKNOWNOID && retTypes[i] != col.TypeOID {
+					return &Error{
+						Code:    CodeDatatypeMismatch,
+						Message: fmt.Sprintf("RETURNING list's entry %d has different type from column %q", i+1, col.Name),
+					}
 				}
 			}
 		}
@@ -3061,11 +3386,37 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 	if err := c.bindRuleSortClause(b, s.SortClause, ctx); err != nil {
 		return err
 	}
+	if s.SortClause != nil && !c.snapshot {
+		qCols, qAny := c.extractRuleQueryCols(b, s)
+		for _, item := range s.SortClause.Items {
+			if sb, ok := item.(*nodes.SortBy); ok && sb != nil {
+				if err := c.checkRuleOrdinalExpr(sb.Node, len(qCols), qAny, "ORDER BY"); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
 	}
+	if s.LimitCount != nil && !c.snapshot {
+		if t := c.inferRuleExprType(b, s.LimitCount, ctx); t != 0 && t != UNKNOWNOID && !c.CanCoerce(t, INT8OID, 'a') {
+			return &Error{
+				Code:    CodeDatatypeMismatch,
+				Message: fmt.Sprintf("argument of LIMIT must be type bigint, not type %s", c.typeName(t)),
+			}
+		}
+	}
 	if err := c.bindRuleExpr(b, s.LimitOffset, ctx); err != nil {
 		return err
+	}
+	if s.LimitOffset != nil && !c.snapshot {
+		if t := c.inferRuleExprType(b, s.LimitOffset, ctx); t != 0 && t != UNKNOWNOID && !c.CanCoerce(t, INT8OID, 'a') {
+			return &Error{
+				Code:    CodeDatatypeMismatch,
+				Message: fmt.Sprintf("argument of OFFSET must be type bigint, not type %s", c.typeName(t)),
+			}
+		}
 	}
 	if s.LockingClause != nil {
 		for _, item := range s.LockingClause.Items {
@@ -3541,6 +3892,15 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 			b.collByCC[v] = uid
 			b.addCollDep(uid)
 		}
+		if !c.snapshot {
+			argType := c.inferRuleExprType(b, v.Arg, ctx)
+			if argType != 0 && argType != UNKNOWNOID && c.typeCollation(argType) == 0 {
+				return &Error{
+					Code:    CodeDatatypeMismatch,
+					Message: fmt.Sprintf("collations are not supported by type %s", c.typeName(argType)),
+				}
+			}
+		}
 		return nil
 
 	case *nodes.FuncCall:
@@ -3629,6 +3989,40 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				if b != nil && b.exprTypeByNode != nil {
 					b.exprTypeByNode[v] = BOOLOID
 				}
+			case nodes.AEXPR_IN:
+				lType := c.inferRuleExprType(b, v.Lexpr, ctx)
+				if list, ok := v.Rexpr.(*nodes.List); ok {
+					for _, item := range list.Items {
+						rType := c.inferRuleExprType(b, item, ctx)
+						if _, err := c.bindRuleOperator(b, v.Name, lType, rType, false, true); err != nil {
+							return err
+						}
+					}
+				}
+				if b != nil && b.exprTypeByNode != nil {
+					b.exprTypeByNode[v] = BOOLOID
+				}
+			case nodes.AEXPR_DISTINCT, nodes.AEXPR_NOT_DISTINCT, nodes.AEXPR_NULLIF:
+				lType := c.inferRuleExprType(b, v.Lexpr, ctx)
+				rType := c.inferRuleExprType(b, v.Rexpr, ctx)
+				if _, err := c.bindRuleOperator(b, v.Name, lType, rType, false, true); err != nil {
+					return err
+				}
+			case nodes.AEXPR_BETWEEN, nodes.AEXPR_NOT_BETWEEN, nodes.AEXPR_BETWEEN_SYM, nodes.AEXPR_NOT_BETWEEN_SYM:
+				lType := c.inferRuleExprType(b, v.Lexpr, ctx)
+				if list, ok := v.Rexpr.(*nodes.List); ok && len(list.Items) == 2 {
+					lowType := c.inferRuleExprType(b, list.Items[0], ctx)
+					highType := c.inferRuleExprType(b, list.Items[1], ctx)
+					if _, err := c.bindRuleOperator(b, &nodes.List{Items: []nodes.Node{&nodes.String{Str: ">="}}}, lType, lowType, false, true); err != nil {
+						return err
+					}
+					if _, err := c.bindRuleOperator(b, &nodes.List{Items: []nodes.Node{&nodes.String{Str: "<="}}}, lType, highType, false, true); err != nil {
+						return err
+					}
+				}
+				if b != nil && b.exprTypeByNode != nil {
+					b.exprTypeByNode[v] = BOOLOID
+				}
 			}
 		}
 		return nil
@@ -3654,18 +4048,36 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		return c.bindRuleBoolExpr(b, v.Arg, ctx, "IS")
 	case *nodes.CoalesceExpr:
 		if v.Args != nil {
+			var exprs []AnalyzedExpr
 			for _, item := range v.Args.Items {
 				if err := c.bindRuleExpr(b, item, ctx); err != nil {
 					return err
+				}
+				if t := c.inferRuleExprType(b, item, ctx); t != 0 && t != UNKNOWNOID {
+					exprs = append(exprs, &ConstExpr{TypeOID: t, TypeMod: -1})
+				}
+			}
+			if !c.snapshot && len(exprs) > 1 {
+				if _, err := c.selectCommonType(exprs, "COALESCE"); err != nil {
+					return errDatatypeMismatch(err.Error())
 				}
 			}
 		}
 		return nil
 	case *nodes.MinMaxExpr:
 		if v.Args != nil {
+			var exprs []AnalyzedExpr
 			for _, item := range v.Args.Items {
 				if err := c.bindRuleExpr(b, item, ctx); err != nil {
 					return err
+				}
+				if t := c.inferRuleExprType(b, item, ctx); t != 0 && t != UNKNOWNOID {
+					exprs = append(exprs, &ConstExpr{TypeOID: t, TypeMod: -1})
+				}
+			}
+			if !c.snapshot && len(exprs) > 1 {
+				if _, err := c.selectCommonType(exprs, "GREATEST/LEAST"); err != nil {
+					return errDatatypeMismatch(err.Error())
 				}
 			}
 		}
@@ -3674,6 +4086,8 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		if err := c.bindRuleExpr(b, v.Arg, ctx); err != nil {
 			return err
 		}
+		argType := c.inferRuleExprType(b, v.Arg, ctx)
+		var resExprs []AnalyzedExpr
 		if v.Args != nil {
 			for _, item := range v.Args.Items {
 				if cw, ok := item.(*nodes.CaseWhen); ok {
@@ -3681,21 +4095,52 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 						if err := c.bindRuleBoolExpr(b, cw.Expr, ctx, "CASE/WHEN"); err != nil {
 							return err
 						}
-					} else if err := c.bindRuleExpr(b, cw.Expr, ctx); err != nil {
-						return err
+					} else {
+						if err := c.bindRuleExpr(b, cw.Expr, ctx); err != nil {
+							return err
+						}
+						whenType := c.inferRuleExprType(b, cw.Expr, ctx)
+						if _, err := c.bindRuleOperator(b, &nodes.List{Items: []nodes.Node{&nodes.String{Str: "="}}}, argType, whenType, false, true); err != nil {
+							return err
+						}
 					}
 					if err := c.bindRuleExpr(b, cw.Result, ctx); err != nil {
 						return err
 					}
+					if t := c.inferRuleExprType(b, cw.Result, ctx); t != 0 && t != UNKNOWNOID {
+						resExprs = append(resExprs, &ConstExpr{TypeOID: t, TypeMod: -1})
+					}
 				}
 			}
 		}
-		return c.bindRuleExpr(b, v.Defresult, ctx)
+		if err := c.bindRuleExpr(b, v.Defresult, ctx); err != nil {
+			return err
+		}
+		if v.Defresult != nil {
+			if t := c.inferRuleExprType(b, v.Defresult, ctx); t != 0 && t != UNKNOWNOID {
+				resExprs = append(resExprs, &ConstExpr{TypeOID: t, TypeMod: -1})
+			}
+		}
+		if !c.snapshot && len(resExprs) > 1 {
+			if _, err := c.selectCommonType(resExprs, "CASE"); err != nil {
+				return errDatatypeMismatch(err.Error())
+			}
+		}
+		return nil
 	case *nodes.A_ArrayExpr:
 		if v.Elements != nil {
+			var exprs []AnalyzedExpr
 			for _, item := range v.Elements.Items {
 				if err := c.bindRuleExpr(b, item, ctx); err != nil {
 					return err
+				}
+				if t := c.inferRuleExprType(b, item, ctx); t != 0 && t != UNKNOWNOID {
+					exprs = append(exprs, &ConstExpr{TypeOID: t, TypeMod: -1})
+				}
+			}
+			if !c.snapshot && len(exprs) > 1 {
+				if _, err := c.selectCommonType(exprs, "ARRAY"); err != nil {
+					return errDatatypeMismatch(err.Error())
 				}
 			}
 		}
@@ -3724,14 +4169,53 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		if err := c.bindRuleStmt(b, v.Subselect, subCtx); err != nil {
 			return err
 		}
+		qCols, qAny := c.extractRuleQueryColTypes(b, v.Subselect)
+		if !c.snapshot && !qAny {
+			switch nodes.SubLinkType(v.SubLinkType) {
+			case nodes.EXPR_SUBLINK, nodes.ARRAY_SUBLINK:
+				if len(qCols) > 1 {
+					return &Error{
+						Code:    CodeSyntaxError,
+						Message: "subquery must return only one column",
+					}
+				}
+				if len(qCols) < 1 {
+					return &Error{
+						Code:    CodeSyntaxError,
+						Message: "subquery must return a column",
+					}
+				}
+			case nodes.ANY_SUBLINK, nodes.ALL_SUBLINK:
+				if row, isRow := v.Testexpr.(*nodes.RowExpr); isRow && row != nil && row.Args != nil {
+					if len(row.Args.Items) > len(qCols) {
+						return &Error{Code: CodeSyntaxError, Message: "subquery has too few columns"}
+					}
+					if len(row.Args.Items) < len(qCols) {
+						return &Error{Code: CodeSyntaxError, Message: "subquery has too many columns"}
+					}
+				} else if len(qCols) > 1 {
+					return &Error{
+						Code:    CodeSyntaxError,
+						Message: "subquery must return only one column",
+					}
+				}
+			}
+		}
 		if v.OperName != nil {
 			lType := c.inferRuleExprType(b, v.Testexpr, ctx)
 			var rType uint32
-			if cols, any := c.extractRuleQueryColTypes(b, v.Subselect); !any && len(cols) == 1 {
-				rType = cols[0]
+			if !qAny && len(qCols) == 1 {
+				rType = qCols[0]
 			}
 			if _, err := c.bindRuleOperator(b, v.OperName, lType, rType, false, true); err != nil {
 				return err
+			}
+		} else if (nodes.SubLinkType(v.SubLinkType) == nodes.ANY_SUBLINK || nodes.SubLinkType(v.SubLinkType) == nodes.ALL_SUBLINK) && !qAny && len(qCols) == 1 {
+			if _, isRow := v.Testexpr.(*nodes.RowExpr); !isRow {
+				lType := c.inferRuleExprType(b, v.Testexpr, ctx)
+				if _, err := c.bindRuleOperator(b, &nodes.List{Items: []nodes.Node{&nodes.String{Str: "="}}}, lType, qCols[0], false, true); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -3906,6 +4390,22 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 			return err
 		}
 		return c.bindRuleJsonAggConstructor(b, v.Constructor, ctx)
+	case *nodes.ParamRef:
+		if b != nil && b.ownerRelOID != 0 && !c.snapshot {
+			return &Error{
+				Code:    CodeUndefinedParameter,
+				Message: fmt.Sprintf("there is no parameter $%d", v.Number),
+			}
+		}
+		return nil
+	case *nodes.CurrentOfExpr:
+		if v != nil && v.CursorParam > 0 && b != nil && b.ownerRelOID != 0 && !c.snapshot {
+			return &Error{
+				Code:    CodeUndefinedParameter,
+				Message: fmt.Sprintf("there is no parameter $%d", v.CursorParam),
+			}
+		}
+		return nil
 	}
 	return nil
 }
@@ -5083,11 +5583,93 @@ func (d *ruleDeparser) deparseActionStmt(n nodes.Node) string {
 		return d.deparseUpdateStmt(s)
 	case *nodes.DeleteStmt:
 		return d.deparseDeleteStmt(s)
+	case *nodes.MergeStmt:
+		return d.deparseMergeStmt(s)
 	case *nodes.NotifyStmt:
 		return deparseRawNotifyStmt(s)
 	default:
 		return ""
 	}
+}
+
+func (d *ruleDeparser) deparseMergeStmt(s *nodes.MergeStmt) string {
+	if s == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(d.deparseWithClause(s.WithClause))
+	b.WriteString("MERGE INTO ")
+	b.WriteString(d.deparseRangeVar(s.Relation, true))
+	if s.SourceRelation != nil {
+		b.WriteString(" USING ")
+		b.WriteString(d.deparseTableRef(s.SourceRelation))
+	}
+	if s.JoinCondition != nil {
+		b.WriteString(" ON ")
+		b.WriteString(d.deparseExpr(s.JoinCondition))
+	}
+	if s.MergeWhenClauses != nil {
+		for _, item := range s.MergeWhenClauses.Items {
+			mwc, ok := item.(*nodes.MergeWhenClause)
+			if !ok || mwc == nil {
+				continue
+			}
+			switch mwc.Kind {
+			case nodes.MERGE_WHEN_MATCHED:
+				b.WriteString(" WHEN MATCHED")
+			case nodes.MERGE_WHEN_NOT_MATCHED_BY_SOURCE:
+				b.WriteString(" WHEN NOT MATCHED BY SOURCE")
+			default:
+				b.WriteString(" WHEN NOT MATCHED")
+			}
+			if mwc.Condition != nil {
+				b.WriteString(" AND ")
+				b.WriteString(d.deparseExpr(mwc.Condition))
+			}
+			b.WriteString(" THEN ")
+			switch mwc.CommandType {
+			case nodes.CMD_INSERT:
+				b.WriteString("INSERT")
+				if mwc.TargetList != nil && len(mwc.TargetList.Items) > 0 {
+					b.WriteString(" (")
+					for i, tlItem := range mwc.TargetList.Items {
+						if i > 0 {
+							b.WriteString(", ")
+						}
+						if rt, ok := tlItem.(*nodes.ResTarget); ok {
+							b.WriteString(d.deparseUpdateTargetCol(rt))
+						}
+					}
+					b.WriteString(")")
+				}
+				switch mwc.Override {
+				case nodes.OVERRIDING_USER_VALUE:
+					b.WriteString(" OVERRIDING USER VALUE")
+				case nodes.OVERRIDING_SYSTEM_VALUE:
+					b.WriteString(" OVERRIDING SYSTEM VALUE")
+				}
+				if mwc.Values == nil {
+					b.WriteString(" DEFAULT VALUES")
+				} else {
+					b.WriteString(" VALUES (")
+					b.WriteString(d.deparseExprList(mwc.Values))
+					b.WriteString(")")
+				}
+			case nodes.CMD_UPDATE:
+				b.WriteString("UPDATE SET ")
+				b.WriteString(d.deparseUpdateTargetList(mwc.TargetList))
+			case nodes.CMD_DELETE:
+				b.WriteString("DELETE")
+			default:
+				b.WriteString("DO NOTHING")
+			}
+		}
+	}
+	if s.ReturningList != nil && len(s.ReturningList.Items) > 0 {
+		b.WriteString(" RETURNING ")
+		b.WriteString(d.deparseTargetList(s.ReturningList))
+	}
+	return b.String()
 }
 
 func deparseRawNotifyStmt(s *nodes.NotifyStmt) string {

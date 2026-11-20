@@ -5069,6 +5069,53 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c121From, c121To, Diff(c121From, c121To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c121From->c121To, got:\n%s", rem.SQL())
 		}
+
+		// Round 20 regressions:
+		// 1. Reject parameter references ($1) in stored rules (42P02).
+		// 2. Reject a second unconditional INSTEAD rule with a RETURNING clause on the same relation/event (0A000),
+		//    while allowing CREATE OR REPLACE RULE of the existing rule, and validate RETURNING column types (42804).
+		// 3. Validate recursive CTE SEARCH and CYCLE source/output column names in rule actions (42703 / 42701).
+		// 4. Reject CREATE/RENAME/SET SCHEMA of a collation colliding with a built-in collation name in pg_catalog (42710).
+		c122 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r20 (id int, val text)",
+			"CREATE TABLE dst_r20 (id int, val text)",
+			"CREATE RULE r_ret1_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val",
+			"CREATE OR REPLACE RULE r_ret1_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val",
+			"CREATE RULE r_cte_ok_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id + 1 FROM cte WHERE id < 5) SEARCH DEPTH FIRST BY id SET ord CYCLE id SET is_cycle USING path INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte",
+			"CREATE COLLATION public.user_c_r20 (LOCALE = 'C')",
+			"CREATE COLLATION IF NOT EXISTS pg_catalog.\"C\" (LOCALE = 'C')",
+		} {
+			if code := simulationCatalogCode(t, c122, stmt); code != "0" {
+				t.Fatalf("c122 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_param_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES ($1, NEW.val)", CodeUndefinedParameter},
+			{"CREATE RULE r_param_where_r20 AS ON INSERT TO t_r20 WHERE NEW.id = $1 DO ALSO NOTHING", CodeUndefinedParameter},
+			{"CREATE RULE r_ret2_r20 AS ON INSERT TO t_r20 DO INSTEAD INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) RETURNING id, val", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_type_r20 AS ON DELETE TO t_r20 DO INSTEAD DELETE FROM dst_r20 RETURNING val, id", CodeDatatypeMismatch},
+			{"CREATE RULE r_search_missing_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) SEARCH DEPTH FIRST BY missing SET ord INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeUndefinedColumn},
+			{"CREATE RULE r_cycle_missing_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) CYCLE missing SET is_cycle USING path INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeUndefinedColumn},
+			{"CREATE RULE r_search_dup_r20 AS ON UPDATE TO t_r20 DO ALSO WITH RECURSIVE cte(id) AS (SELECT id FROM t_r20 UNION ALL SELECT id FROM cte) SEARCH DEPTH FIRST BY id SET id INSERT INTO dst_r20 (id, val) SELECT id, 'x' FROM cte", CodeDuplicateColumn},
+			{"CREATE COLLATION pg_catalog.\"C\" (LOCALE = 'C')", CodeDuplicateObject},
+			{"ALTER COLLATION public.user_c_r20 SET SCHEMA pg_catalog", "0"},
+			{"ALTER COLLATION pg_catalog.user_c_r20 RENAME TO \"C\"", CodeDuplicateObject},
+			{"ALTER TABLE t_r20 ALTER COLUMN id TYPE bigint", CodeFeatureNotSupported},
+			{"CREATE RULE r_dup_col_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, id) VALUES (1, 2)", CodeSyntaxError},
+			{"CREATE RULE r_type_col_r20 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES ('not_int'::text, 'ok')", CodeDatatypeMismatch},
+			{"CREATE RULE r_coll_int_r20 AS ON INSERT TO t_r20 WHERE (NEW.id COLLATE \"C\") = 1 DO ALSO NOTHING", CodeDatatypeMismatch},
+			{"CREATE RULE r_sublink_cols_r20 AS ON INSERT TO t_r20 WHERE NEW.id = (SELECT id, val FROM dst_r20) DO ALSO NOTHING", CodeSyntaxError},
+			{"CREATE RULE r_limit_type_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 LIMIT 'abc'::text", CodeDatatypeMismatch},
+			{"CREATE RULE r_ord_oob_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 ORDER BY 2", CodeInvalidColumnReference},
+		} {
+			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
 	})
 
 	for _, tc := range cases {

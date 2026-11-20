@@ -65,6 +65,8 @@ const (
 	CodeInvalidCatalogName           = "3D000"
 	CodeInvalidSQLStatementName      = "26000"
 	CodeDuplicatePstatement          = "42P05"
+	CodeDuplicateAlias               = "42712"
+	CodeUndefinedParameter           = "42P02"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.

@@ -2424,6 +2424,11 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 					Message: "cannot alter type of a column used by a view or rule",
 				}
 			}
+		case 'R':
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cannot alter type of a column used by a view or rule",
+			}
 		case 'g':
 			return &Error{
 				Code:    CodeFeatureNotSupported,
@@ -3313,7 +3318,7 @@ func (c *Catalog) renameCollation(stmt *nodes.RenameStmt) error {
 	if schema == nil || uc == nil {
 		return nil
 	}
-	if stmt.Newname != uc.Name && schema.Collations[stmt.Newname] != nil {
+	if stmt.Newname != uc.Name && (schema.Collations[stmt.Newname] != nil || (schema.OID == PGCatalogNamespace && isBuiltinCollationName(stmt.Newname))) {
 		return errDuplicateObject("collation", stmt.Newname)
 	}
 	oldName := uc.Name
@@ -3335,7 +3340,7 @@ func (c *Catalog) alterCollationNamespace(stmt *nodes.AlterObjectSchemaStmt, new
 	if oldSchema == nil || uc == nil || oldSchema.OID == newSchema.OID {
 		return nil
 	}
-	if newSchema.Collations != nil && newSchema.Collations[uc.Name] != nil {
+	if (newSchema.Collations != nil && newSchema.Collations[uc.Name] != nil) || (newSchema.OID == PGCatalogNamespace && isBuiltinCollationName(uc.Name)) {
 		return errDuplicateObject("collation", uc.Name)
 	}
 	if newSchema.Collations == nil {

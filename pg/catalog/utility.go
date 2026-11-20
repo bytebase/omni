@@ -94,7 +94,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				return err
 			}
 			if name != "" {
-				if schema.Collations != nil && schema.Collations[name] != nil {
+				if (schema.Collations != nil && schema.Collations[name] != nil) || (schema.OID == PGCatalogNamespace && isBuiltinCollationName(name)) {
 					if s.IfNotExists {
 						c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q already exists, skipping", name))
 						return nil
@@ -218,7 +218,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	// ---- Operators/Collations ----
 	case *nodes.AlterCollationStmt:
-		// ALTER COLLATION: no-op for pgddl
+		if _, _, err := c.resolveCollationList(s.Collname); err != nil {
+			return err
+		}
 		return nil
 	case *nodes.AlterOperatorStmt:
 		// ALTER OPERATOR: no-op for pgddl
