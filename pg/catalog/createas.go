@@ -57,51 +57,12 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 			return errDuplicateTable(mvName)
 		}
 		if execStmt, isExec := stmt.Query.(*nodes.ExecuteStmt); isExec {
-			prep, exists := c.preparedStmts[execStmt.Name]
-			if !exists || prep == nil {
-				return &Error{
-					Code:    CodeInvalidSQLStatementName,
-					Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
-				}
+			prep, err := c.checkExecuteStmt(execStmt)
+			if err != nil {
+				return err
 			}
 			execPrep = prep
 			paramTypes := slices.Clone(prep.argTypes)
-			// pg: src/backend/commands/prepare.c — ExecuteQuery wraps EvaluateParams
-			// inside `if (entry->plansource->num_params > 0)`, so PostgreSQL 17 ignores
-			// trailing EXECUTE arguments when a prepared statement has 0 parameters
-			// (verified against PostgreSQL 17 in TestSimulationCausesOracle.tape:1959-1961).
-			if prep.numParams > 0 {
-				gotParams := 0
-				if execStmt.Params != nil {
-					gotParams = len(execStmt.Params.Items)
-				}
-				if gotParams != prep.numParams {
-					return &Error{
-						Code:    CodeSyntaxError,
-						Message: fmt.Sprintf("wrong number of parameters for prepared statement %q", execStmt.Name),
-					}
-				}
-				if execStmt.Params != nil {
-					for i, item := range execStmt.Params.Items {
-						pExpr, perr := c.AnalyzeStandaloneExpr(item, nil)
-						if perr != nil {
-							return perr
-						}
-						if i < len(paramTypes) && paramTypes[i] != 0 && pExpr != nil {
-							if pExpr.exprType() == UNKNOWNOID {
-								if ce, isConst := pExpr.(*ConstExpr); isConst && !ce.IsNull {
-									if lerr := c.validateLiteralForType(ce.Value, paramTypes[i]); lerr != nil {
-										return lerr
-									}
-								}
-							}
-							if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'a'); cerr != nil {
-								return cerr
-							}
-						}
-					}
-				}
-			}
 			analyzeOpts.ParamTypes = paramTypes
 			if prepSel, isSel := prep.query.(*nodes.SelectStmt); isSel {
 				selStmt = prepSel
@@ -546,4 +507,56 @@ func validateNumericLiteral(raw, trimmed string) error {
 		}
 	}
 	return nil
+}
+
+// checkExecuteStmt validates an EXECUTE against the session's prepared
+// statements: the statement exists, and its arguments match the parameter
+// count and coerce to the parameter types.
+func (c *Catalog) checkExecuteStmt(execStmt *nodes.ExecuteStmt) (*preparedStmt, error) {
+	prep, exists := c.preparedStmts[execStmt.Name]
+	if !exists || prep == nil {
+		return nil, &Error{
+			Code:    CodeInvalidSQLStatementName,
+			Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
+		}
+	}
+	// pg: src/backend/commands/prepare.c — ExecuteQuery wraps EvaluateParams
+	// inside `if (entry->plansource->num_params > 0)`, so PostgreSQL 17 ignores
+	// trailing EXECUTE arguments when a prepared statement has 0 parameters
+	// (verified against PostgreSQL 17 in TestSimulationCausesOracle.tape:1959-1961).
+	if prep.numParams == 0 {
+		return prep, nil
+	}
+	gotParams := 0
+	if execStmt.Params != nil {
+		gotParams = len(execStmt.Params.Items)
+	}
+	if gotParams != prep.numParams {
+		return nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("wrong number of parameters for prepared statement %q", execStmt.Name),
+		}
+	}
+	if execStmt.Params == nil {
+		return prep, nil
+	}
+	for i, item := range execStmt.Params.Items {
+		pExpr, perr := c.AnalyzeStandaloneExpr(item, nil)
+		if perr != nil {
+			return nil, perr
+		}
+		if i < len(prep.argTypes) && prep.argTypes[i] != 0 && pExpr != nil {
+			if pExpr.exprType() == UNKNOWNOID {
+				if ce, isConst := pExpr.(*ConstExpr); isConst && !ce.IsNull {
+					if lerr := c.validateLiteralForType(ce.Value, prep.argTypes[i]); lerr != nil {
+						return nil, lerr
+					}
+				}
+			}
+			if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), prep.argTypes[i], 'a'); cerr != nil {
+				return nil, cerr
+			}
+		}
+	}
+	return prep, nil
 }

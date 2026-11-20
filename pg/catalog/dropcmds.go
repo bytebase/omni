@@ -1167,7 +1167,7 @@ func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {
 	}
 	if !cascade {
 		for _, am := range targets {
-			if len(c.findNormalDependents('m', am.OID)) > 0 {
+			if c.accessMethodNeedsCascade(am.OID) {
 				return errDependentObjects("access method", am.Name)
 			}
 		}

@@ -438,8 +438,13 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		}
 		return nil
 	case *nodes.ExecuteStmt:
-		// EXECUTE: no-op for pgddl
-		return nil
+		// EXECUTE changes no schema, but PostgreSQL still refuses one that
+		// names no prepared statement or passes unfit arguments.
+		if c.snapshot {
+			return nil
+		}
+		_, err := c.checkExecuteStmt(s)
+		return err
 	case *nodes.DeallocateStmt:
 		if s.IsAll || s.Name == "" {
 			clear(c.preparedStmts)

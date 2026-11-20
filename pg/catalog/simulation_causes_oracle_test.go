@@ -5202,9 +5202,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE FUNCTION f_big_r32(integer) RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE FUNCTION f_big_r32(bigint) RETURNS text LANGUAGE sql AS 'SELECT 2::text'; CREATE RULE r_big_r32 AS ON INSERT TO t_r20 DO ALSO SELECT f_big_r32(2147483648)", "0"},
 			{"DROP FUNCTION f_big_r32(bigint)", CodeDependentObjects},
 			{"DROP FUNCTION f_big_r32(integer)", "0"},
+			// Round 33.
+			{"CREATE ACCESS METHOD am_noopc_r33 TYPE INDEX HANDLER bthandler", "0"},
+			{"CREATE INDEX ON t_r20 USING am_noopc_r33 (id missing_ops)", CodeUndefinedObject},
+			{"CREATE INDEX ON t_r20 USING am_noopc_r33 (id)", CodeUndefinedObject},
+			{"CREATE OPERATOR FAMILY f_r33 USING am_noopc_r33; CREATE OPERATOR CLASS c_r33 FOR TYPE int USING am_noopc_r33 FAMILY f_r33 AS OPERATOR 1 <", "0"},
+			{"DROP ACCESS METHOD am_noopc_r33", "0"},
+			{"CREATE ACCESS METHOD am_noopc_r33 TYPE INDEX HANDLER bthandler; CREATE OPERATOR FAMILY f_r33 USING am_noopc_r33", "0"},
+			{"EXECUTE missing_r33", CodeInvalidSQLStatementName},
+			{"PREPARE q_exec_r33(int) AS SELECT $1", "0"},
+			{"EXECUTE q_exec_r33", CodeSyntaxError},
+			{"EXECUTE q_exec_r33(1, 2)", CodeSyntaxError},
+			{"EXECUTE q_exec_r33(true)", CodeDatatypeMismatch},
+			{"EXECUTE q_exec_r33('x')", CodeInvalidTextRepresentation},
+			{"EXECUTE q_exec_r33(1)", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		// A cloned operator family owns its member set.
+		cOpf := New()
+		for _, stmt := range []string{
+			"CREATE OPERATOR FAMILY f_clone_r33 USING btree",
+			"ALTER OPERATOR FAMILY f_clone_r33 USING btree ADD OPERATOR 1 < (int4, int4)",
+		} {
+			if code := simulationCatalogCode(t, cOpf, stmt); code != "0" {
+				t.Fatalf("cOpf %s: %s", stmt, code)
+			}
+		}
+		cOpfClone := cOpf.Clone()
+		if code := simulationCatalogCode(t, cOpfClone, "ALTER OPERATOR FAMILY f_clone_r33 USING btree ADD OPERATOR 2 <= (int4, int4)"); code != "0" {
+			t.Fatalf("cOpfClone ALTER OPERATOR FAMILY: %s", code)
+		}
+		for _, fam := range cOpf.opFamilies {
+			if fam.Name == "f_clone_r33" && fam.Operators["<="] {
+				t.Fatalf("ALTER OPERATOR FAMILY on a clone changed the source family: %v", fam.Operators)
 			}
 		}
 

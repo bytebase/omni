@@ -626,6 +626,44 @@ func (c *Catalog) removeAccessMethod(oid uint32) {
 	c.removeDepsOn('m', oid)
 }
 
+// accessMethodHasOpClass reports whether any operator class belongs to the
+// access method.
+func (c *Catalog) accessMethodHasOpClass(amOID uint32) bool {
+	for _, opc := range c.opClasses {
+		if opc.AMOID == amOID {
+			return true
+		}
+	}
+	return false
+}
+
+// accessMethodNeedsCascade reports whether DROP ACCESS METHOD needs CASCADE.
+// Operator families and classes depend on their access method automatically
+// (opclasscmds.c records DEPENDENCY_AUTO), so they alone do not block the
+// drop; an object that uses one of them, such as an index, does.
+func (c *Catalog) accessMethodNeedsCascade(amOID uint32) bool {
+	opClassUsed := func(oid uint32) bool {
+		return len(c.findNormalDependents('q', oid)) > 0 || len(c.findNormalDependents('o', oid)) > 0
+	}
+	for _, dep := range c.findNormalDependents('m', amOID) {
+		switch dep.ObjType {
+		case 'q':
+			if opClassUsed(dep.ObjOID) {
+				return true
+			}
+		case 'Q':
+			for _, member := range c.findNormalDependents('Q', dep.ObjOID) {
+				if member.ObjType != 'q' || opClassUsed(member.ObjOID) {
+					return true
+				}
+			}
+		default:
+			return true
+		}
+	}
+	return false
+}
+
 // cascadeDropAccessMethod drops all relations, indexes, operator classes, and
 // operator families that use an access method, then unregisters it.
 func (c *Catalog) cascadeDropAccessMethod(oid uint32) {

@@ -276,6 +276,12 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			} else {
 				// No opclass named: PostgreSQL still picks the default one for
 				// the access method and column/expression type, and depends on it.
+				if am != nil && am.OID >= FirstNormalObjectId && !c.snapshot && !c.installingSnapshot && !c.isExtensionMember(am.OID) && !c.accessMethodHasOpClass(am.OID) && opClassTypeOID != 0 {
+					return &Error{
+						Code:    CodeUndefinedObject,
+						Message: fmt.Sprintf("data type %s has no default operator class for access method %q", c.typeName(opClassTypeOID), am.Name),
+					}
+				}
 				opClassRefs = append(opClassRefs, opClassRef{typeOID: opClassTypeOID})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
@@ -1122,17 +1128,11 @@ func (c *Catalog) validateIndexOpClass(ref opClassRef, am *AccessMethod, opclass
 	if c.snapshot || c.installingSnapshot {
 		return nil
 	}
-	if am.OID >= FirstNormalObjectId {
-		hasAny := false
-		for _, opc := range c.opClasses {
-			if opc.AMOID == am.OID {
-				hasAny = true
-				break
-			}
-		}
-		if !hasAny {
-			return nil
-		}
+	if am.OID >= FirstNormalObjectId && c.isExtensionMember(am.OID) && !c.accessMethodHasOpClass(am.OID) {
+		// An extension's operator classes may be missing from its modeled
+		// script; an access method created directly has exactly the classes
+		// this catalog recorded.
+		return nil
 	}
 
 	collectInNamespace := func(nsOID uint32) ([]uint32, bool) {

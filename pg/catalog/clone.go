@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"maps"
 	"slices"
 )
 
@@ -500,6 +501,7 @@ func (c *Catalog) Clone() *Catalog {
 	clone.opFamilies = make(map[uint32]*OpFamily, len(c.opFamilies))
 	for oid, fam := range c.opFamilies {
 		cf := *fam
+		cf.Operators = maps.Clone(fam.Operators)
 		clone.opFamilies[oid] = &cf
 	}
 
@@ -508,12 +510,7 @@ func (c *Catalog) Clone() *Catalog {
 	clone.opClassByKey = make(map[opClassKey]*OpClass, len(c.opClassByKey))
 	for oid, opc := range c.opClasses {
 		cc := *opc
-		if len(opc.Operators) > 0 {
-			cc.Operators = make(map[string]bool, len(opc.Operators))
-			for k, v := range opc.Operators {
-				cc.Operators[k] = v
-			}
-		}
+		cc.Operators = maps.Clone(opc.Operators)
 		clone.opClasses[oid] = &cc
 		if cc.IsDefault {
 			clone.opClassByKey[opClassKey{amOID: cc.AMOID, typeOID: cc.TypeOID}] = &cc
