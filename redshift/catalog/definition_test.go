@@ -1,11 +1,14 @@
 package catalog
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	pgparser "github.com/bytebase/omni/redshift/parser"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestGetObjectDefinition(t *testing.T) {
@@ -1309,4 +1312,51 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		},
 	})
 	require.ErrorContains(t, err, "duplicate column")
+
+	// 12. Colliding relation names across tables, views, and materialized views fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "events", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			Views:  []*metadatapb.ViewMetadata{{Name: "events", Definition: "SELECT 1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate relation")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:              "public",
+			Views:             []*metadatapb.ViewMetadata{{Name: "mv_dup", Definition: "SELECT 1"}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "MV_DUP", Definition: "SELECT 1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate relation")
+}
+
+// TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
+// recorded Redshift 1.0.539507 cluster sync snapshot (../driver/testdata/sync/dev.json),
+// parsing every statement and executing it against the Redshift catalog simulator.
+func TestDatabaseDefinitionDevSnapshotReplay(t *testing.T) {
+	body, err := os.ReadFile("../driver/testdata/sync/dev.json")
+	require.NoError(t, err)
+	db := &metadatapb.DatabaseSchemaMetadata{}
+	require.NoError(t, protojson.Unmarshal(body, db))
+
+	ddl, err := DatabaseDefinition(db)
+	require.NoError(t, err)
+	require.NotEmpty(t, ddl)
+
+	lookupPos := strings.Index(ddl, `CREATE TABLE "public"."lookup"`)
+	factsPos := strings.Index(ddl, `CREATE TABLE "app"."facts"`)
+	require.Greater(t, lookupPos, -1)
+	require.Greater(t, factsPos, lookupPos)
+
+	_, err = pgparser.Parse(ddl)
+	require.NoError(t, err)
+
+	results, err := New().Exec(ddl, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error)
+	}
 }

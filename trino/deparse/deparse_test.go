@@ -747,4 +747,30 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(d date)"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"))
 	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(v varchar)"))
+
+	// Unrendered table constraints/indexes and function identity mismatches fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t_idx",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+				Indexes: []*metadatapb.IndexMetadata{{Name: "t_idx_pkey", Primary: true, Expressions: []string{"id"}}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "constraints")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "expected_name",
+				Definition: "CREATE FUNCTION s.other_name() RETURNS bigint RETURN 1",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
 }

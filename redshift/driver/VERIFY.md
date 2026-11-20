@@ -81,7 +81,7 @@ what the server disagreed with in these documents:
 | `Session.Query` (decode, limit, explain, `MaxResultBytes`, search path) | ported, recorded from a cluster |
 | `Execute` (one transaction, autocommit, `CreateDatabase`) | ported, recorded from a cluster |
 | `CountAffectedRows` | ported, recorded from a cluster |
-| `Dump` | implemented via `redshift/catalog.DatabaseDefinition` (`dump_test.go` verifies against `testdata/sync/dev.json`; live restore tape needs `REDSHIFT_DSN`) |
+| `Dump` | **not implemented**: `catalog.DatabaseDefinition` exists, but `SyncDatabase` does not yet sync functions, procedures, MVs, or storage attributes |
 | tapes (`testdata/tapes`) | six, recorded on 2026-11-17 and byte-identical across two recordings |
 | sync goldens (`testdata/sync`) | `dev.json`, compared with `proto.Equal` |
 | `driver` row in `redshift/testdata/pins.tsv` | `aws:redshift:1.0.539507`, digest of `SELECT version()` |
@@ -265,11 +265,12 @@ because Step 2 produced no share.
 
 ## Step 7 — the dump
 
-`Dump` delegates to `redshift/catalog.DatabaseDefinition` and is tested offline
-in `dump_test.go` against the recorded `testdata/sync/dev.json` snapshot (via
-`redshift/parser.Parse` and `redshift/catalog.New().Exec`). Recording a live
-restore-and-resync fidelity tape (`TestDumpRestores`) remains pending a scratch
-`REDSHIFT_DSN` cluster because Redshift has no container image CI can run.
+`Dump` is not enabled on `redshift/driver` yet: although
+`redshift/catalog.DatabaseDefinition` renders synced snapshots (and is verified
+against `testdata/sync/dev.json` in `redshift/catalog/definition_test.go`),
+`SyncDatabase` does not yet query functions, procedures, materialized views, or
+storage options (`DISTSTYLE`/`DISTKEY`/`SORTKEY`/`ENCODE`), and changing `sync.go`
+queries requires re-recording `TestSyncDatabase.tape` against `REDSHIFT_DSN`.
 
 ## Step 8 — the parity harness
 

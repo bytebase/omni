@@ -1108,6 +1108,39 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		if schema == nil || schema.SkipDump {
 			continue
 		}
+		seenRels := make(map[string]string, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
+		checkRel := func(kind, name string) error {
+			key := strings.ToLower(name)
+			if prev, exists := seenRels[key]; exists {
+				return fmt.Errorf("schema %s has duplicate relation %s (%s and %s)", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(name), prev, kind)
+			}
+			seenRels[key] = kind
+			return nil
+		}
+		for _, table := range schema.Tables {
+			if table == nil || table.SkipDump {
+				continue
+			}
+			if err := checkRel("table", table.Name); err != nil {
+				return err
+			}
+		}
+		for _, view := range schema.Views {
+			if view == nil || view.SkipDump {
+				continue
+			}
+			if err := checkRel("view", view.Name); err != nil {
+				return err
+			}
+		}
+		for _, mv := range schema.MaterializedViews {
+			if mv == nil || mv.SkipDump {
+				continue
+			}
+			if err := checkRel("materialized view", mv.Name); err != nil {
+				return err
+			}
+		}
 		for _, et := range schema.ExternalTables {
 			if et != nil && !et.SkipDump {
 				return fmt.Errorf("external table %s cannot be restored because SchemaMetadata does not capture external schema definitions", qualifyName(schema.Name, et.Name))

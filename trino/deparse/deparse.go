@@ -53,6 +53,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if fn == nil || fn.SkipDump {
 				continue
 			}
+			if err := validateTrinoFunctionIdentity(metadata.Name, s.Name, fn); err != nil {
+				return nil, err
+			}
 			schemaMeta.Functions = append(schemaMeta.Functions, &FunctionMetadata{
 				Name:       fn.Name,
 				Definition: fn.Definition,
@@ -75,6 +78,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("schema %s has duplicate table %s", s.Name, quoteIdentifier(t.Name))
 			}
 			seenRelations[relKey] = struct{}{}
+			if len(t.Indexes) > 0 || len(t.ForeignKeys) > 0 || len(t.CheckConstraints) > 0 || len(t.ExcludeConstraints) > 0 || len(t.Partitions) > 0 || len(t.Triggers) > 0 || len(t.Rules) > 0 || t.CreateOptions != "" {
+				return nil, fmt.Errorf("table %s.%s constraints or table options cannot be restored by Trino SDL renderer", s.Name, t.Name)
+			}
 			cols := fromProtoColumns(t.Columns)
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
 			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
@@ -133,6 +139,40 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		out.Schemas = append(out.Schemas, schemaMeta)
 	}
 	return out, nil
+}
+
+func validateTrinoFunctionIdentity(dbName, schemaName string, fn *metadatapb.FunctionMetadata) error {
+	file, err := trinoparser.Parse(fn.Definition)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return nil
+	}
+	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
+		return nil
+	}
+	parts := cfs.Spec.Declaration.Name.Parts
+	mismatch := func() error {
+		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fn.Name, cfs.Spec.Declaration.Name.String())
+	}
+	switch len(parts) {
+	case 1:
+		if !strings.EqualFold(parts[0].Value, fn.Name) {
+			return mismatch()
+		}
+	case 2:
+		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
+			return mismatch()
+		}
+	case 3:
+		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
+			!strings.EqualFold(parts[1].Value, schemaName) ||
+			!strings.EqualFold(parts[2].Value, fn.Name) {
+			return mismatch()
+		}
+	default:
+		return mismatch()
+	}
+	return nil
 }
 
 func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {

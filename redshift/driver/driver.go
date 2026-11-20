@@ -21,11 +21,13 @@
 //
 // # What it implements
 //
-// It implements Driver, Syncer, Dumper, Querier and Executor, and the row
-// estimate CountAffectedRows that a review's affected-row limit reads. Dump
-// delegates to redshift/catalog.DatabaseDefinition to render logical DDL from
-// synced metadatapb snapshots (physical storage clauses not captured by sync,
-// such as DISTSTYLE/DISTKEY/SORTKEY/ENCODE, are omitted).
+// It implements Driver, Syncer, Querier and Executor, and the row estimate
+// CountAffectedRows that a review's affected-row limit reads. There is no
+// Dumper: although redshift/catalog provides DatabaseDefinition for rendering
+// synced snapshots, SyncDatabase here only populates tables and ordinary views
+// (not functions, procedures, materialized views, or storage attributes such as
+// DISTSTYLE/DISTKEY/SORTKEY/ENCODE), so advertising driver.Dumper before sync is
+// extended and re-recorded against Redshift would produce incomplete dumps.
 //
 // # The connection
 //
@@ -99,7 +101,6 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
-	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )
