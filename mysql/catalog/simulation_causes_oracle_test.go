@@ -5171,6 +5171,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET POWER overflow", stmt: "SET @x = POWER(10, 400)", code: 1690},
 		{name: "SET POWER of zero to a negative exponent", stmt: "SET @x = POWER(0, -1)", code: 1690},
 		{name: "SET POWER with one argument", stmt: "SET @x = POWER(2)", code: 1582},
+		// A user variable's new value replaces its old one even when the catalog
+		// cannot compute it: no later SET reads the stale value.
+		{name: "SET sql_mode from a user variable reassigned a hash", setup: []string{"SET @m_stale = 1", "SET @m_stale = SHA1('x')"}, stmt: "SET sql_mode = @m_stale", code: 1231},
+		{name: "SET sql_mode from a user variable reassigned an uncomputed value", setup: []string{"SET @m_stale = 1", "SET @m_stale = UUID()"}, stmt: "SET sql_mode = @m_stale", code: 1231},
+		{name: "SET time_zone from a user variable reassigned a hash", setup: []string{"SET @tz_stale = '+08:00'", "SET @tz_stale = SHA1('x')"}, stmt: "SET time_zone = @tz_stale", code: 1298},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6286,6 +6291,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FIND_IN_SET('A', 'a,b')", "FIND_IN_SET('b', 'a,b')", "FIND_IN_SET('', 'a,,b')", "FIND_IN_SET('a ', 'a')",
 		"FIND_IN_SET('x', '')", "FIND_IN_SET('a,b', 'a,b')", "FIND_IN_SET('b', 'a, b')", "FIND_IN_SET(2, '1,2')", "FIND_IN_SET('', '')",
 		"POWER(2, 2)", "POW(2, -1)", "POWER(2, 0.5)", "POWER('3', 2)", "POWER(0, 0)", "POWER(1.5, 2)", "POWER(-2, 3)",
+		"SHA1('x')", "SHA('x')", "MD5('x')", "SHA2('x', 256)", "SHA2('x', 0)", "SHA2('x', 224)", "SHA2('x', 384)",
+		"SHA2('x', 512)", "SHA1(1)", "MD5('é')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -7011,12 +7018,18 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("second SetDataDir still allowed /srv/mysql: got %d, want 3121", got)
 	}
 
-	// Assigning an unsupported RHS to an existing user variable preserves the
-	// prior value instead of deleting it, and ALTER TABLESPACE ENCRYPTION=''
-	// rejects with 3184.
-	execAlterClauses(t, c, "SET @keep_tz = '+08:00'; SET @keep_tz = SHA1('x'); SET time_zone = @keep_tz;")
-	if c.session.TimeZone != "+08:00" {
-		t.Fatalf("unsupported user-var RHS overwrote @keep_tz: session.TimeZone = %q, want +08:00", c.session.TimeZone)
+	// A user variable assigned a new value holds it, computed or not: after
+	// SET @keep_tz = SHA1('x') (or the unevaluated UUID()), SET time_zone =
+	// @keep_tz is 1298 as on mysql:8.0.46, never the old '+08:00'. And ALTER
+	// TABLESPACE ENCRYPTION='' rejects with 3184.
+	for _, rhs := range []string{"SHA1('x')", "UUID()"} {
+		execAlterClauses(t, c, "SET time_zone = '+00:00'; SET @keep_tz = '+08:00'; SET @keep_tz = "+rhs+";")
+		if got, _ := simulationCatalogRefusal(t, c, "SET time_zone = @keep_tz"); got != 1298 {
+			t.Fatalf("SET time_zone = @keep_tz after @keep_tz = %s got %d, want 1298", rhs, got)
+		}
+		if c.session.TimeZone != "+00:00" {
+			t.Fatalf("SET time_zone = @keep_tz after @keep_tz = %s changed the session time zone to %q", rhs, c.session.TimeZone)
+		}
 	}
 	execAlterClauses(t, c, "SET @mode = 2 + 2; SET sql_mode = @mode;")
 	if !strings.Contains(c.session.SQLMode, "ANSI_QUOTES") {

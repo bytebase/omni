@@ -1,6 +1,11 @@
 package catalog
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"hash/crc32"
 	"math"
@@ -128,12 +133,17 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if err != nil {
 				return err
 			}
-			if ok {
-				updates = append(updates, func() {
-					val.hexLit = false // a user variable holds a binary string, not a literal
-					c.userVars[uName] = val
-				})
+			if !ok {
+				// The server assigns a value the catalog cannot compute: the
+				// variable's old value is gone, so mark it unknown. After
+				// SET @m = 1; SET @m = <unevaluated>, SET sql_mode = @m must not
+				// read 1.
+				val = userVarValue{kind: userVarUnknown}
 			}
+			updates = append(updates, func() {
+				val.hexLit = false // a user variable holds a binary string, not a literal
+				c.userVars[uName] = val
+			})
 			continue
 		}
 		varName := normalizeSetVariableName(asgn.Column)
@@ -436,7 +446,7 @@ func makeBoolSysvarSpec(factoryDefault bool, getG func(*Catalog) bool, setG func
 				return nil, err
 			}
 			if !ok {
-				return nil, errWrongValueForVar(varName, strings.TrimSpace(nodeToSQL(expr)))
+				return nil, errWrongValueForVar(varName, setExprText(expr))
 			}
 			return applyScopedUpdate(scope, func() { setG(c, v) }, func() { setS(c, v) }), nil
 		},
@@ -477,7 +487,7 @@ func assignSQLModeSysvar(c *Catalog, varName string, scope setVarScope, expr nod
 			if c.isDefinedStoredFuncCall(expr) {
 				return nil, nil
 			}
-			return nil, errWrongValueForVar(varName, strings.TrimSpace(nodeToSQL(expr)))
+			return nil, errWrongValueForVar(varName, setExprText(expr))
 		}
 	}
 	mode, err := validateAndNormalizeSQLMode(val)
@@ -504,7 +514,7 @@ func assignTimeZoneSysvar(c *Catalog, varName string, scope setVarScope, expr no
 			return nil, evalErr
 		}
 		if !ok {
-			return nil, errUnknownTimeZone(strings.TrimSpace(nodeToSQL(expr)))
+			return nil, errUnknownTimeZone(setExprText(expr))
 		}
 		switch val.kind {
 		case userVarNull:
@@ -1062,6 +1072,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 	case *nodes.VariableRef:
 		if !e.System {
 			if v, exists := c.userVars[toLower(e.Name)]; exists {
+				if v.kind == userVarUnknown {
+					return userVarValue{}, false, nil
+				}
 				return v, true, nil
 			}
 			return userVarValue{kind: userVarNull}, true, nil
@@ -1503,6 +1516,64 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				}
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "sha1", "sha", "md5", "sha2":
+			// The hex digest of the value's string form, in lowercase:
+			// SET @m = SHA1('x') stores 11f6ad8e...; SHA2 takes 224, 256 (or
+			// 0), 384 or 512 bits and is NULL for any other length.
+			fn := toLower(e.Name)
+			want := 1
+			if fn == "sha2" {
+				want = 2
+			}
+			if len(e.Args) != want {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			str := v.str
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			var sum []byte
+			switch fn {
+			case "md5":
+				h := md5.Sum([]byte(str))
+				sum = h[:]
+			case "sha2":
+				bv, ok, err := c.evalSetExprNode(e.Args[1])
+				if err != nil || !ok || bv.kind == userVarNull {
+					return bv, ok, err
+				}
+				n, nok := setStringLengthArg(bv)
+				if !nok {
+					return userVarValue{}, false, nil
+				}
+				switch n {
+				case 0, 256:
+					h := sha256.Sum256([]byte(str))
+					sum = h[:]
+				case 224:
+					h := sha256.Sum224([]byte(str))
+					sum = h[:]
+				case 384:
+					h := sha512.Sum384([]byte(str))
+					sum = h[:]
+				case 512:
+					h := sha512.Sum512([]byte(str))
+					sum = h[:]
+				default:
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			default:
+				h := sha1.Sum([]byte(str))
+				sum = h[:]
+			}
+			return userVarValue{kind: userVarString, str: hex.EncodeToString(sum)}, true, nil
 		case "crc32":
 			// CRC32 is the IEEE checksum of the value's string form: a double
 			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.
@@ -1975,7 +2046,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
-				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs",
+				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs", "sha1", "sha", "md5",
 				"quarter", "month", "year", "dayofmonth", "day", "dayofweek", "weekday", "dayofyear",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
@@ -1993,7 +2064,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
-			case "mod", "instr", "find_in_set", "power", "pow":
+			case "mod", "instr", "find_in_set", "power", "pow", "sha2":
 				if argc != 2 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
@@ -2101,6 +2172,15 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+// setExprText is an unevaluated SET value as an error message shows it: a
+// user variable by its name, anything else as SQL.
+func setExprText(expr nodes.ExprNode) string {
+	if v, ok := expr.(*nodes.VariableRef); ok && !v.System {
+		return "@" + v.Name
+	}
+	return strings.TrimSpace(nodeToSQL(expr))
 }
 
 // isBinaryIntroducer reports a _binary charset introducer, however the parser

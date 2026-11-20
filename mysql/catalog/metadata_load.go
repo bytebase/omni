@@ -444,7 +444,8 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
-		{"TABLESPACE", unquoteTableOption(createOption(t.GetCreateOptions(), "tablespace"))},
+		// The tablespace is an identifier: a doubled backtick in it is one.
+		{"TABLESPACE", unquoteIdent(createOption(t.GetCreateOptions(), "tablespace"))},
 		// ENCRYPTION='Y' is in the server's CREATE_OPTIONS, and it is what a
 		// general tablespace the table names is inferred to be.
 		{"ENCRYPTION", unquoteTableOption(createOption(t.GetCreateOptions(), "encryption"))},

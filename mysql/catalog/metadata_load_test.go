@@ -1073,3 +1073,22 @@ func TestLoadMetadataQuotedSpacedTablespace(t *testing.T) {
 		t.Fatalf("table in the loaded `hot data`: %v", results[1].Error)
 	}
 }
+
+// TestLoadMetadataEscapedBacktickTablespace loads a tablespace identifier with
+// a doubled backtick, which decodes to one, and SHOW CREATE TABLE quotes it
+// back with the backtick doubled.
+func TestLoadMetadataEscapedBacktickTablespace(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:          "bt",
+		Engine:        "InnoDB",
+		CreateOptions: "tablespace=`hot``data`",
+		Columns:       []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+	}))
+	requireReport(t, report, nil, nil)
+	if tbl := requireTable(t, c, "bt"); tbl.Tablespace != "hot`data" {
+		t.Fatalf("loaded tablespace %q, want hot`data", tbl.Tablespace)
+	}
+	if got := c.ShowCreateTable(snapshotDB, "bt"); !strings.Contains(got, "TABLESPACE `hot``data`") {
+		t.Fatalf("SHOW CREATE TABLE does not quote the tablespace back:\n%s", got)
+	}
+}

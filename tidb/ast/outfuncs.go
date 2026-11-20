@@ -3721,7 +3721,8 @@ func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
 	sb.WriteString("{IDX_COL")
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
-	if n.Length > 0 {
+	// A written (length) shows even when it is 0: KEY (s(0)) is not KEY (s).
+	if n.HasPrefix || n.Length > 0 {
 		fmt.Fprintf(sb, " :len %d", n.Length)
 	}
 	if n.Desc {

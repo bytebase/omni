@@ -12,6 +12,10 @@ const (
 	userVarNull userVarKind = iota
 	userVarString
 	userVarNumeric
+	// userVarUnknown is a user variable assigned a value the catalog cannot
+	// compute: it holds something on the server, and no expression that
+	// reads it is evaluated, rather than one reading a stale value.
+	userVarUnknown
 )
 
 type userVarValue struct {
