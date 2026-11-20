@@ -5242,6 +5242,70 @@ func TestSimulationCausesOracle(t *testing.T) {
 			}
 		}
 
+		// Round 34: a cloned primary key forces NOT NULL on its key columns
+		// only; a rolled-back ALTER TABLE leaves functions on the live schema;
+		// a materialized view changes access method in place.
+		c134 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE pk_inc_r34 (a int, b int, PRIMARY KEY (a) INCLUDE (b)) PARTITION BY RANGE (a)",
+			"CREATE TABLE pk_inc_p1_r34 PARTITION OF pk_inc_r34 FOR VALUES FROM (0) TO (10)",
+			"CREATE TABLE pk_inc_src_r34 (a int, b int, PRIMARY KEY (a) INCLUDE (b))",
+			"CREATE TABLE pk_inc_like_r34 (LIKE pk_inc_src_r34 INCLUDING INDEXES)",
+			"CREATE SCHEMA s_rb_r34",
+			"CREATE FUNCTION s_rb_r34.f_rb_r34() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"CREATE TABLE t_rb_r34 (a int)",
+		} {
+			if code := simulationCatalogCode(t, c134, stmt); code != "0" {
+				t.Fatalf("c134 %s: %s", stmt, code)
+			}
+		}
+		for _, name := range []string{"pk_inc_p1_r34", "pk_inc_like_r34"} {
+			for _, col := range c134.GetRelation("public", name).Columns {
+				if want := col.Name == "a"; col.NotNull != want {
+					t.Fatalf("%s.%s NOT NULL = %v, want %v", name, col.Name, col.NotNull, want)
+				}
+			}
+		}
+		if code := simulationCatalogCode(t, c134, "ALTER TABLE t_rb_r34 ADD COLUMN x int, ALTER COLUMN missing SET STATISTICS 1"); code != CodeUndefinedColumn {
+			t.Fatalf("failing multi-command ALTER TABLE answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if code := simulationCatalogCode(t, c134, "ALTER SCHEMA s_rb_r34 RENAME TO s_rb2_r34"); code != "0" {
+			t.Fatalf("ALTER SCHEMA RENAME: %s", code)
+		}
+		for _, up := range c134.userProcs {
+			if up.Name == "f_rb_r34" && (up.Schema == nil || up.Schema != c134.GetSchema("s_rb2_r34")) {
+				t.Fatalf("f_rb_r34 is bound to a schema copy after the rollback: %+v", up.Schema)
+			}
+		}
+
+		c134From, c134To := New(), New()
+		for i, cat := range []*Catalog{c134From, c134To} {
+			mvAM := ""
+			if i == 1 {
+				mvAM = " USING heap2_r34"
+			}
+			for _, stmt := range []string{
+				"CREATE ACCESS METHOD heap2_r34 TYPE TABLE HANDLER heap_tableam_handler",
+				"CREATE TABLE mv_src_r34 (a int)",
+				"CREATE MATERIALIZED VIEW mv_am_r34" + mvAM + " AS SELECT a FROM mv_src_r34",
+				"CREATE VIEW v_on_mv_r34 AS SELECT a FROM mv_am_r34",
+			} {
+				if code := simulationCatalogCode(t, cat, stmt); code != "0" {
+					t.Fatalf("c134 migration setup %d %s: %s", i, stmt, code)
+				}
+			}
+		}
+		sql134 := GenerateMigration(c134From, c134To, Diff(c134From, c134To)).SQL()
+		if !strings.Contains(sql134, `ALTER MATERIALIZED VIEW "public"."mv_am_r34" SET ACCESS METHOD heap2_r34`) || strings.Contains(sql134, "DROP MATERIALIZED VIEW") {
+			t.Fatalf("expected an in-place access method change, got:\n%s", sql134)
+		}
+		if code := simulationCatalogCode(t, c134From, sql134); code != "0" {
+			t.Fatalf("applying c134From->c134To failed with %s:\n%s", code, sql134)
+		}
+		if rem := GenerateMigration(c134From, c134To, Diff(c134From, c134To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c134From->c134To, got:\n%s", rem.SQL())
+		}
+
 		// Round 21-24 migration regressions:
 		// 1. Sequence range variables in rules track sequence renames.
 		// 2. Temporary views and sequences preserve CREATE TEMP / DROP without non-temp schema qualifier in GenerateMigration.

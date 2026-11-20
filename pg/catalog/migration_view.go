@@ -267,7 +267,7 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	return ops
 }
 
-// buildModifyMatViewOps creates REFRESH or DROP + CREATE ops for a modified matview.
+// buildModifyMatViewOps creates in-place ALTER/REFRESH or DROP + CREATE ops for a modified matview.
 // Materialized views don't support CREATE OR REPLACE.
 func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
@@ -276,22 +276,35 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 		sameDef := getViewDef(from, key, entry.From) == getViewDef(to, key, entry.To)
 		samePers := normalizeRelPersistence(entry.From.Persistence) == normalizeRelPersistence(entry.To.Persistence)
 		sameAM := normalizeRelationAccessMethod(entry.From) == normalizeRelationAccessMethod(entry.To)
-		if sameDef && samePers && sameAM && len(entry.Columns) == 0 && len(entry.Indexes) == 0 && entry.From.IsPopulated != entry.To.IsPopulated {
-			withClause := "WITH DATA"
-			if !entry.To.IsPopulated {
-				withClause = "WITH NO DATA"
+		samePop := entry.From.IsPopulated == entry.To.IsPopulated
+		if sameDef && samePers && len(entry.Columns) == 0 && len(entry.Indexes) == 0 && (!sameAM || !samePop) {
+			// An access method or population change alters the view in place,
+			// which keeps its indexes, dependents, privileges and comments.
+			var ops []MigrationOp
+			alter := func(sql string) {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterView,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           sql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityView,
+				})
 			}
-			return []MigrationOp{{
-				Type:          OpAlterView,
-				SchemaName:    entry.SchemaName,
-				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("REFRESH MATERIALIZED VIEW %s %s", qn, withClause),
-				Transactional: true,
-				Phase:         PhaseMain,
-				ObjType:       'r',
-				ObjOID:        entry.To.OID,
-				Priority:      PriorityView,
-			}}
+			if !sameAM {
+				alter(fmt.Sprintf("ALTER MATERIALIZED VIEW %s SET ACCESS METHOD %s", qn, quoteIdentifier(normalizeRelationAccessMethod(entry.To))))
+			}
+			if !samePop {
+				withClause := "WITH DATA"
+				if !entry.To.IsPopulated {
+					withClause = "WITH NO DATA"
+				}
+				alter(fmt.Sprintf("REFRESH MATERIALIZED VIEW %s %s", qn, withClause))
+			}
+			return ops
 		}
 	}
 

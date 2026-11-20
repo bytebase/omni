@@ -1828,9 +1828,9 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			c.recordDependency('i', partIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
 		}
 
-		// Force NOT NULL on PK columns.
+		// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
 		if idx.IsPrimary {
-			for _, attnum := range partAttnums {
+			for _, attnum := range indexKeyAttnums(idx, partAttnums) {
 				if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
 					partition.Columns[attnum-1].NotNull = true
 				}
@@ -2134,9 +2134,9 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 		c.recordDependency('i', newIdx.OID, 0, 'r', dst.OID, 0, DepAuto)
 		c.recordColumnDependencies('i', newIdx.OID, dst.OID, dstAttnums, DepAuto)
 
-		// Force NOT NULL on PK columns.
+		// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
 		if idx.IsPrimary {
-			for _, attnum := range dstAttnums {
+			for _, attnum := range indexKeyAttnums(idx, dstAttnums) {
 				if int(attnum) > 0 && int(attnum) <= len(dst.Columns) {
 					dst.Columns[attnum-1].NotNull = true
 				}
@@ -2208,4 +2208,13 @@ func rawExprContainsSubLink(expr nodes.Node) bool {
 		return true
 	})
 	return found
+}
+
+// indexKeyAttnums returns the key part of attnums, a copy of idx's columns
+// mapped to another relation: the included columns follow the keys.
+func indexKeyAttnums(idx *Index, attnums []int16) []int16 {
+	if idx.NKeyColumns > 0 && idx.NKeyColumns < len(attnums) {
+		return attnums[:idx.NKeyColumns]
+	}
+	return attnums
 }

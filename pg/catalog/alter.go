@@ -394,6 +394,14 @@ func (c *Catalog) snapshotForAlterRollback() func() {
 			c.schemas[oid] = s
 			c.schemaByName[s.Name] = s
 		}
+		// Functions restored from the snapshot point at its schema copies.
+		for _, up := range c.userProcs {
+			if up.Schema != nil {
+				if s := c.schemas[up.Schema.OID]; s != nil {
+					up.Schema = s
+				}
+			}
+		}
 
 		c.relationByOID = make(map[uint32]*Relation, len(snap.relationByOID))
 		c.rules = make(map[uint32]*Rule, len(snap.rules))
