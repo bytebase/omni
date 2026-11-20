@@ -275,6 +275,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				tbl.Cached = true
 			}
 		}
+		applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
 	}
 	if err != nil && stmt.Partitions != nil {
 		// The partitioning parsed but the catalog refuses it, as it does a RANGE
@@ -285,10 +286,31 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if o.incomplete == nil {
 				o.incomplete = fmt.Errorf("partitioning: %w", err)
 			}
+			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
 			return nil
 		}
 	}
 	return err
+}
+
+func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	for _, col := range meta.GetColumns() {
+		if col.GetDefaultDropped() {
+			dropped[toLower(col.GetName())] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if dropped[toLower(col.Name)] && col.Default == nil {
+			col.DefaultDropped = true
+		}
+	}
 }
 
 // installMetadataSequence installs a synced sequence as information_schema
@@ -399,7 +421,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
 			continue
 		}
-		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{
+			Type:        nodes.ConstrCheck,
+			Name:        check.GetName(),
+			Expr:        expr,
+			NotEnforced: check.GetNotEnforced(),
+		})
 	}
 	if len(t.GetPartitions()) > 0 {
 		partitions, err := metadataPartitionClause(t)
@@ -581,10 +608,13 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
-	case indexType == "HNSW":
+	case idx.GetIsVector() || indexType == "HNSW":
 		// A vector index syncs as an index of type HNSW. Left an ordinary index,
 		// SHOW CREATE TABLE would write KEY for it and a change could not tell it
 		// from one.
+		if indexType == "" {
+			indexType = "HNSW"
+		}
 		c.Type, c.IndexType = nodes.ConstrVector, indexType
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
@@ -599,6 +629,9 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 	}
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
+	}
+	if idx.GetIsGlobal() {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "GLOBAL"})
 	}
 	return c, nil
 }

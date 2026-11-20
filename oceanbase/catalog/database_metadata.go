@@ -95,6 +95,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			SqlMode:             f.SQLMode,
 			CharacterSetClient:  f.CharacterSetClient,
 			CollationConnection: f.CollationConnection,
+			DatabaseCollation:   db.Collation,
 			Comment:             f.Characteristics["COMMENT"],
 		})
 	}
@@ -107,6 +108,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			SqlMode:             p.SQLMode,
 			CharacterSetClient:  p.CharacterSetClient,
 			CollationConnection: p.CollationConnection,
+			DatabaseCollation:   db.Collation,
 			Comment:             p.Characteristics["COMMENT"],
 		})
 	}
@@ -191,10 +193,11 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			colMeta.Default = autoIncrementSymbol
 		case col.Default != nil:
 			colMeta.Default = normalizeDefault(*col.Default, col.DefaultKind)
-		case col.Nullable:
+		case col.Nullable && !col.DefaultDropped:
 			colMeta.Default = "NULL"
 		default:
 		}
+		colMeta.DefaultDropped = col.DefaultDropped
 		if col.OnUpdate != "" {
 			colMeta.OnUpdate = col.OnUpdate
 		}
@@ -273,12 +276,20 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			table.ForeignKeys = append(table.ForeignKeys, fk)
 		case ConCheck:
 			table.CheckConstraints = append(table.CheckConstraints, &metadata.CheckConstraintMetadata{
-				Name:       con.Name,
-				Expression: con.CheckExpr,
+				Name:        con.Name,
+				Expression:  con.CheckExpr,
+				NotEnforced: con.NotEnforced,
 			})
 		default:
 		}
 	}
+
+	slices.SortStableFunc(table.ForeignKeys, func(a, b *metadata.ForeignKeyMetadata) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	slices.SortStableFunc(table.CheckConstraints, func(a, b *metadata.CheckConstraintMetadata) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	if t.Partitioning != nil {
 		table.Partitions = partitionsToProto(t.Partitioning)
@@ -383,12 +394,14 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			UseDefault: partUseDefault,
 			SplitSize:  p.SplitSize,
 			AutoSize:   p.AutoSize,
+			Algorithm:  int32(p.Algorithm),
 		}
 		if p.SubType != "" {
 			part.Subpartitions = []*metadata.TablePartitionMetadata{{
 				Type:       subType,
 				Expression: subExpr,
 				UseDefault: subUseDefault,
+				Algorithm:  int32(p.SubAlgo),
 			}}
 		}
 		return []*metadata.TablePartitionMetadata{part}
@@ -405,17 +418,28 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			Comment:    pd.Comment,
 			SplitSize:  p.SplitSize,
 			AutoSize:   p.AutoSize,
+			Algorithm:  int32(p.Algorithm),
 		}
 		if p.SubType != "" {
-			for _, spd := range pd.SubPartitions {
-				part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
-					Name:       spd.Name,
+			if len(pd.SubPartitions) > 0 {
+				for _, spd := range pd.SubPartitions {
+					part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
+						Name:       spd.Name,
+						Type:       subType,
+						Expression: subExpr,
+						UseDefault: subUseDefault,
+						Value:      spd.ValueExpr,
+						Comment:    spd.Comment,
+						Algorithm:  int32(p.SubAlgo),
+					})
+				}
+			} else if subUseDefault != "" {
+				part.Subpartitions = []*metadata.TablePartitionMetadata{{
 					Type:       subType,
 					Expression: subExpr,
 					UseDefault: subUseDefault,
-					Value:      spd.ValueExpr,
-					Comment:    spd.Comment,
-				})
+					Algorithm:  int32(p.SubAlgo),
+				}}
 			}
 		}
 		result = append(result, part)

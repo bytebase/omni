@@ -835,7 +835,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_KEY:
-		if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_HASH:
@@ -843,7 +843,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_KEY:
-		if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	default:
@@ -878,11 +878,11 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				return err
 			}
 		case metadata.TablePartitionMetadata_KEY:
-			if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
+			if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(partitions[0].Subpartitions[0].Algorithm), partitions[0].Subpartitions[0].Expression); err != nil {
 				return err
 			}
 		case metadata.TablePartitionMetadata_LINEAR_KEY:
-			if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
+			if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(partitions[0].Subpartitions[0].Algorithm), partitions[0].Subpartitions[0].Expression); err != nil {
 				return err
 			}
 		default:
@@ -1043,9 +1043,21 @@ func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) st
 	return "\n/*!50100"
 }
 
+func keyAlgorithmClause(algorithm int32) string {
+	if algorithm > 0 {
+		return fmt.Sprintf(" ALGORITHM = %d", algorithm)
+	}
+	return ""
+}
+
 func printCheckClause(buf *strings.Builder, check *metadata.CheckConstraintMetadata) error {
 	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT `%s` CHECK %s", check.Name, check.Expression); err != nil {
 		return err
+	}
+	if check.NotEnforced {
+		if _, err := buf.WriteString(" NOT ENFORCED"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1109,22 +1121,27 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 		return err
 	}
 
-	if index.Unique {
-		if _, err := fmt.Fprint(buf, "UNIQUE "); err != nil {
+	switch {
+	case index.Unique:
+		if _, err := fmt.Fprintf(buf, "UNIQUE KEY `%s` (", index.Name); err != nil {
 			return err
 		}
-	} else if strings.EqualFold(index.Type, mysqlIndexFullText) {
-		if _, err := fmt.Fprint(buf, "FULLTEXT "); err != nil {
+	case index.IsVector || strings.EqualFold(index.Type, "HNSW"):
+		if _, err := fmt.Fprintf(buf, "VECTOR INDEX `%s` (", index.Name); err != nil {
 			return err
 		}
-	} else if strings.EqualFold(index.Type, mysqlIndexSpatial) {
-		if _, err := fmt.Fprint(buf, "SPATIAL "); err != nil {
+	case strings.EqualFold(index.Type, mysqlIndexFullText):
+		if _, err := fmt.Fprintf(buf, "FULLTEXT KEY `%s` (", index.Name); err != nil {
 			return err
 		}
-	}
-
-	if _, err := fmt.Fprintf(buf, "KEY `%s` (", index.Name); err != nil {
-		return err
+	case strings.EqualFold(index.Type, mysqlIndexSpatial):
+		if _, err := fmt.Fprintf(buf, "SPATIAL KEY `%s` (", index.Name); err != nil {
+			return err
+		}
+	default:
+		if _, err := fmt.Fprintf(buf, "KEY `%s` (", index.Name); err != nil {
+			return err
+		}
 	}
 
 	for i, expr := range index.Expressions {
@@ -1152,6 +1169,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 
 	if index.Comment != "" {
 		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+			return err
+		}
+	}
+
+	if index.IsGlobal {
+		if _, err := fmt.Fprint(buf, " /*T![global_index] GLOBAL */"); err != nil {
 			return err
 		}
 	}

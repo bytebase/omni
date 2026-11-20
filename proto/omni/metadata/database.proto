@@ -626,6 +626,9 @@ message CheckConstraintMetadata {
   // extended property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds
   // no constraint comment (MySQL and its forks, Oracle) leaves it empty.
   string comment = 3;
+
+  // Whether the check constraint is NOT ENFORCED (MySQL 8.0.16+, OceanBase, TiDB).
+  bool not_enforced = 4;
 }
 
 message ExcludeConstraintMetadata {
@@ -770,6 +773,9 @@ message TablePartitionMetadata {
 
   // OceanBase automatic partition size from PARTITION SIZE <val> PARTITIONS AUTO.
   string auto_size = 13;
+
+  // KEY / LINEAR KEY partitioning algorithm (1 or 2; 0 when omitted/default).
+  int32 algorithm = 14;
 }
 
 // ColumnMetadata is the metadata for columns.
@@ -874,6 +880,10 @@ message ColumnMetadata {
   // restores with an empty search_path, so a collation outside pg_catalog needs
   // this written beside the name.
   string collation_schema = 23;
+
+  // Whether an explicit ALTER COLUMN DROP DEFAULT removed the default on a
+  // nullable column (MySQL, OceanBase, TiDB).
+  bool default_dropped = 25;
 }
 
 message GenerationMetadata {
@@ -1096,6 +1106,12 @@ message IndexMetadata {
   repeated string opclass_names = 16;
   // True if the operator class is the default. (PostgreSQL specific).
   repeated bool opclass_defaults = 17;
+
+  // TiDB vector index flag (VECTOR INDEX).
+  bool is_vector = 19;
+
+  // TiDB global partitioned index flag (/*T![global_index] GLOBAL */).
+  bool is_global = 20;
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.

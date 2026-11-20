@@ -200,6 +200,34 @@ func (c *Catalog) installedView(name string) *View {
 	return db.Views[toLower(name)]
 }
 
+func (c *Catalog) installedTable(name string) *Table {
+	db := c.GetDatabase(c.CurrentDatabase())
+	if db == nil {
+		return nil
+	}
+	return db.GetTable(name)
+}
+
+func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	for _, col := range meta.GetColumns() {
+		if col.GetDefaultDropped() {
+			dropped[toLower(col.GetName())] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if dropped[toLower(col.Name)] && col.Default == nil {
+			col.DefaultDropped = true
+		}
+	}
+}
+
 // --- Objects ---
 
 // metadataObjectKind lists the kinds in the order they install. Only a
@@ -325,8 +353,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				if o.incomplete == nil {
 					o.incomplete = fmt.Errorf("partitioning: %w", err)
 				}
+				applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
 				return nil
 			}
+		}
+		if err == nil {
+			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
 		}
 		return err
 	case metadataView:
@@ -432,7 +464,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
 			continue
 		}
-		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{
+			Type:        nodes.ConstrCheck,
+			Name:        check.GetName(),
+			Expr:        expr,
+			NotEnforced: check.GetNotEnforced(),
+		})
 	}
 	if len(t.GetPartitions()) > 0 {
 		partitions, err := metadataPartitionClause(t)
@@ -441,12 +478,25 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Partitions = partitions
 	}
+	opts := t.GetCreateOptions()
 	for _, opt := range []struct{ name, value string }{
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
-		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
+		{"KEY_BLOCK_SIZE", createOption(opts, "key_block_size")},
+		{"ROW_FORMAT", createOption(opts, "row_format")},
+		{"COMPRESSION", unquoteTableOption(createOption(opts, "compression"))},
+		{"ENCRYPTION", unquoteTableOption(createOption(opts, "encryption"))},
+		{"STATS_PERSISTENT", createOption(opts, "stats_persistent")},
+		{"STATS_AUTO_RECALC", createOption(opts, "stats_auto_recalc")},
+		{"STATS_SAMPLE_PAGES", createOption(opts, "stats_sample_pages")},
+		{"MIN_ROWS", createOption(opts, "min_rows")},
+		{"MAX_ROWS", createOption(opts, "max_rows")},
+		{"AVG_ROW_LENGTH", createOption(opts, "avg_row_length")},
+		{"PACK_KEYS", createOption(opts, "pack_keys")},
+		{"CHECKSUM", createOption(opts, "checksum")},
+		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})

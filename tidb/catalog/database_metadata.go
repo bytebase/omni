@@ -148,6 +148,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			}
 		}
 		colMeta.IsInvisible = col.Invisible
+		colMeta.DefaultDropped = col.DefaultDropped
 		table.Columns = append(table.Columns, colMeta)
 	}
 
@@ -173,12 +174,14 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			indexType = "BTREE"
 		}
 		idxMeta := &metadata.IndexMetadata{
-			Name:    idx.Name,
-			Type:    indexType,
-			Unique:  idx.Unique,
-			Primary: idx.Primary,
-			Visible: idx.Visible,
-			Comment: idx.Comment,
+			Name:     idx.Name,
+			Type:     indexType,
+			Unique:   idx.Unique,
+			Primary:  idx.Primary,
+			Visible:  idx.Visible,
+			Comment:  idx.Comment,
+			IsVector: idx.Vector,
+			IsGlobal: idx.Global,
 		}
 		for _, col := range idx.Columns {
 			if col.Expr != "" {
@@ -222,12 +225,20 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			table.ForeignKeys = append(table.ForeignKeys, fk)
 		case ConCheck:
 			table.CheckConstraints = append(table.CheckConstraints, &metadata.CheckConstraintMetadata{
-				Name:       con.Name,
-				Expression: con.CheckExpr,
+				Name:        con.Name,
+				Expression:  con.CheckExpr,
+				NotEnforced: con.NotEnforced,
 			})
 		default:
 		}
 	}
+
+	slices.SortStableFunc(table.ForeignKeys, func(a, b *metadata.ForeignKeyMetadata) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	slices.SortStableFunc(table.CheckConstraints, func(a, b *metadata.CheckConstraintMetadata) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	if t.Partitioning != nil {
 		table.Partitions = partitionsToProto(t.Partitioning)
@@ -242,15 +253,54 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 		expr = strings.Join(p.Columns, ",")
 	}
 	partType := partitionTypeToProto(p.Type, p.Linear)
+	subExpr := p.SubExpr
+	if subExpr == "" && len(p.SubColumns) > 0 {
+		subExpr = strings.Join(p.SubColumns, ",")
+	}
+	subType := partitionTypeToProto(p.SubType, p.SubLinear)
+
+	var partUseDefault string
+	if p.NumParts > 0 && (p.Type == "HASH" || p.Type == "KEY") {
+		partUseDefault = strconv.Itoa(p.NumParts)
+	}
+	var subUseDefault string
+	if p.SubType != "" && p.NumSubParts > 0 {
+		subUseDefault = strconv.Itoa(p.NumSubParts)
+	}
+
 	var result []*metadata.TablePartitionMetadata
 	for _, pd := range p.Partitions {
-		result = append(result, &metadata.TablePartitionMetadata{
+		part := &metadata.TablePartitionMetadata{
 			Name:       pd.Name,
 			Type:       partType,
 			Expression: expr,
+			UseDefault: partUseDefault,
 			Value:      pd.ValueExpr,
 			Comment:    pd.Comment,
-		})
+			Algorithm:  int32(p.Algorithm),
+		}
+		if p.SubType != "" {
+			if len(pd.SubPartitions) > 0 {
+				for _, spd := range pd.SubPartitions {
+					part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
+						Name:       spd.Name,
+						Type:       subType,
+						Expression: subExpr,
+						UseDefault: subUseDefault,
+						Comment:    spd.Comment,
+						Algorithm:  int32(p.SubAlgo),
+					})
+				}
+			} else {
+				part.Subpartitions = []*metadata.TablePartitionMetadata{{
+					Type:       subType,
+					Expression: subExpr,
+					UseDefault: subUseDefault,
+					Algorithm:  int32(p.SubAlgo),
+				}}
+			}
+		}
+		result = append(result, part)
 	}
 	return result
 }

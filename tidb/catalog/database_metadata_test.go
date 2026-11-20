@@ -176,3 +176,92 @@ func TestDatabaseMetadataExcludesTempTablesAndSortsIndexes(t *testing.T) {
 		tbl.Indexes[2].Name,
 	})
 }
+
+func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		SET tidb_enable_check_constraint = 1;
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE ref_tbl (id INT PRIMARY KEY);
+		CREATE TABLE full_tbl (
+			id INT NOT NULL,
+			ref_z INT,
+			ref_a INT,
+			drop_col INT NULL DEFAULT 7,
+			keep_null INT NULL,
+			vec VECTOR(3),
+			u INT,
+			PRIMARY KEY (id),
+			UNIQUE KEY uq_u (u) GLOBAL,
+			VECTOR INDEX idx_vec ((VEC_COSINE_DISTANCE(vec))),
+			CONSTRAINT fk_zeta FOREIGN KEY (ref_z) REFERENCES ref_tbl (id),
+			CONSTRAINT fk_alpha FOREIGN KEY (ref_a) REFERENCES ref_tbl (id),
+			CONSTRAINT chk_zeta CHECK (id > 0) NOT ENFORCED,
+			CONSTRAINT chk_alpha CHECK (id < 1000)
+		);
+		ALTER TABLE full_tbl ALTER COLUMN drop_col DROP DEFAULT;
+		CREATE TABLE part_tbl (
+			id INT NOT NULL
+		) PARTITION BY HASH (id) PARTITIONS 2;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	// Populate SubType/Subpartitions on part_tbl to verify subpartition serialization.
+	partTbl := c.GetDatabase("app").GetTable("part_tbl")
+	partTbl.Partitioning.SubType = "KEY"
+	partTbl.Partitioning.SubColumns = []string{"id"}
+	partTbl.Partitioning.SubAlgo = 1
+	partTbl.Partitioning.NumSubParts = 2
+	for _, p := range partTbl.Partitioning.Partitions {
+		p.SubPartitions = []*SubPartitionDefInfo{{Name: "s0"}, {Name: "s1"}}
+	}
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	full := s.Tables[0]
+	require.Equal(t, "full_tbl", full.Name)
+	require.Equal(t, []string{"fk_alpha", "fk_zeta"}, []string{full.ForeignKeys[0].Name, full.ForeignKeys[1].Name})
+	require.Equal(t, []string{"chk_alpha", "chk_zeta"}, []string{full.CheckConstraints[0].Name, full.CheckConstraints[1].Name})
+	require.False(t, full.CheckConstraints[0].NotEnforced)
+	require.True(t, full.CheckConstraints[1].NotEnforced)
+
+	idxByName := map[string]*metadata.IndexMetadata{}
+	for _, idx := range full.Indexes {
+		idxByName[idx.Name] = idx
+	}
+	require.True(t, idxByName["uq_u"].IsGlobal)
+	require.True(t, idxByName["idx_vec"].IsVector)
+
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range full.Columns {
+		cols[col.Name] = col
+	}
+	require.True(t, cols["drop_col"].DefaultDropped)
+	require.False(t, cols["keep_null"].DefaultDropped)
+
+	partMeta := s.Tables[1]
+	require.Equal(t, "2", partMeta.Partitions[0].UseDefault)
+	require.Len(t, partMeta.Partitions[0].Subpartitions, 2)
+	require.Equal(t, "2", partMeta.Partitions[0].Subpartitions[0].UseDefault)
+	require.Equal(t, int32(1), partMeta.Partitions[0].Subpartitions[0].Algorithm)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reloadedFull := reloaded.GetDatabase("app").GetTable("full_tbl")
+	require.True(t, reloadedFull.GetColumn("drop_col").DefaultDropped)
+	require.False(t, reloadedFull.GetColumn("keep_null").DefaultDropped)
+	reExportedFull := reloaded.DatabaseMetadata("app").Schemas[0].Tables[0]
+	reIdxByName := map[string]*metadata.IndexMetadata{}
+	for _, idx := range reExportedFull.Indexes {
+		reIdxByName[idx.Name] = idx
+	}
+	require.True(t, reIdxByName["uq_u"].IsGlobal)
+	require.True(t, reIdxByName["idx_vec"].IsVector)
+	require.True(t, reExportedFull.CheckConstraints[1].NotEnforced)
+}

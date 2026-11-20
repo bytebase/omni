@@ -2549,7 +2549,9 @@ type CheckConstraintMetadata struct {
 	// as a first-class attribute of the constraint: SQL Server's MS_Description
 	// extended property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds
 	// no constraint comment (MySQL and its forks, Oracle) leaves it empty.
-	Comment       string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
+	Comment string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
+	// Whether the check constraint is NOT ENFORCED (MySQL 8.0.16+, OceanBase, TiDB).
+	NotEnforced   bool `protobuf:"varint,4,opt,name=not_enforced,json=notEnforced,proto3" json:"not_enforced,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2603,6 +2605,13 @@ func (x *CheckConstraintMetadata) GetComment() string {
 		return x.Comment
 	}
 	return ""
+}
+
+func (x *CheckConstraintMetadata) GetNotEnforced() bool {
+	if x != nil {
+		return x.NotEnforced
+	}
+	return false
 }
 
 type ExcludeConstraintMetadata struct {
@@ -2868,7 +2877,9 @@ type TablePartitionMetadata struct {
 	// OceanBase RANGE split size from SIZE ('...'), e.g. "2048MB" or "1G".
 	SplitSize string `protobuf:"bytes,12,opt,name=split_size,json=splitSize,proto3" json:"split_size,omitempty"`
 	// OceanBase automatic partition size from PARTITION SIZE <val> PARTITIONS AUTO.
-	AutoSize      string `protobuf:"bytes,13,opt,name=auto_size,json=autoSize,proto3" json:"auto_size,omitempty"`
+	AutoSize string `protobuf:"bytes,13,opt,name=auto_size,json=autoSize,proto3" json:"auto_size,omitempty"`
+	// KEY / LINEAR KEY partitioning algorithm (1 or 2; 0 when omitted/default).
+	Algorithm     int32 `protobuf:"varint,14,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2994,6 +3005,13 @@ func (x *TablePartitionMetadata) GetAutoSize() string {
 	return ""
 }
 
+func (x *TablePartitionMetadata) GetAlgorithm() int32 {
+	if x != nil {
+		return x.Algorithm
+	}
+	return 0
+}
+
 // ColumnMetadata is the metadata for columns.
 type ColumnMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3071,8 +3089,11 @@ type ColumnMetadata struct {
 	// restores with an empty search_path, so a collation outside pg_catalog needs
 	// this written beside the name.
 	CollationSchema string `protobuf:"bytes,23,opt,name=collation_schema,json=collationSchema,proto3" json:"collation_schema,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Whether an explicit ALTER COLUMN DROP DEFAULT removed the default on a
+	// nullable column (MySQL, OceanBase, TiDB).
+	DefaultDropped bool `protobuf:"varint,25,opt,name=default_dropped,json=defaultDropped,proto3" json:"default_dropped,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ColumnMetadata) Reset() {
@@ -3243,6 +3264,13 @@ func (x *ColumnMetadata) GetCollationSchema() string {
 		return x.CollationSchema
 	}
 	return ""
+}
+
+func (x *ColumnMetadata) GetDefaultDropped() bool {
+	if x != nil {
+		return x.DefaultDropped
+	}
+	return false
 }
 
 type GenerationMetadata struct {
@@ -3975,8 +4003,12 @@ type IndexMetadata struct {
 	OpclassNames []string `protobuf:"bytes,16,rep,name=opclass_names,json=opclassNames,proto3" json:"opclass_names,omitempty"`
 	// True if the operator class is the default. (PostgreSQL specific).
 	OpclassDefaults []bool `protobuf:"varint,17,rep,packed,name=opclass_defaults,json=opclassDefaults,proto3" json:"opclass_defaults,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// TiDB vector index flag (VECTOR INDEX).
+	IsVector bool `protobuf:"varint,19,opt,name=is_vector,json=isVector,proto3" json:"is_vector,omitempty"`
+	// TiDB global partitioned index flag (/*T![global_index] GLOBAL */).
+	IsGlobal      bool `protobuf:"varint,20,opt,name=is_global,json=isGlobal,proto3" json:"is_global,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IndexMetadata) Reset() {
@@ -4133,6 +4165,20 @@ func (x *IndexMetadata) GetOpclassDefaults() []bool {
 		return x.OpclassDefaults
 	}
 	return nil
+}
+
+func (x *IndexMetadata) GetIsVector() bool {
+	if x != nil {
+		return x.IsVector
+	}
+	return false
+}
+
+func (x *IndexMetadata) GetIsGlobal() bool {
+	if x != nil {
+		return x.IsGlobal
+	}
+	return false
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.
@@ -5276,13 +5322,14 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x05rules\x18\x18 \x03(\v2\x1b.omni.metadata.RuleMetadataR\x05rules\x12#\n" +
 	"\rsharding_info\x18\x16 \x01(\tR\fshardingInfo\x12(\n" +
 	"\x10primary_key_type\x18\x17 \x01(\tR\x0eprimaryKeyType\x12Y\n" +
-	"\x13exclude_constraints\x18\x19 \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraintsJ\x04\b\r\x10\x0f\"g\n" +
+	"\x13exclude_constraints\x18\x19 \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraintsJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
 	"\x17CheckConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
 	"expression\x12\x18\n" +
-	"\acomment\x18\x03 \x01(\tR\acomment\"O\n" +
+	"\acomment\x18\x03 \x01(\tR\acomment\x12!\n" +
+	"\fnot_enforced\x18\x04 \x01(\bR\vnotEnforced\"O\n" +
 	"\x19ExcludeConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5301,7 +5348,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
 	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
-	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xf3\x05\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\x91\x06\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5320,7 +5367,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\acomment\x18\v \x01(\tR\acomment\x12\x1d\n" +
 	"\n" +
 	"split_size\x18\f \x01(\tR\tsplitSize\x12\x1b\n" +
-	"\tauto_size\x18\r \x01(\tR\bautoSize\"\x8a\x01\n" +
+	"\tauto_size\x18\r \x01(\tR\bautoSize\x12\x1c\n" +
+	"\talgorithm\x18\x0e \x01(\x05R\talgorithm\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +
@@ -5331,7 +5379,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vLINEAR_HASH\x10\x06\x12\a\n" +
 	"\x03KEY\x10\a\x12\x0e\n" +
 	"\n" +
-	"LINEAR_KEY\x10\b\"\xec\x06\n" +
+	"LINEAR_KEY\x10\b\"\x95\a\n" +
 	"\x0eColumnMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x05R\bposition\x12\x18\n" +
@@ -5356,7 +5404,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x17default_constraint_name\x18\x14 \x01(\tR\x15defaultConstraintName\x12\x17\n" +
 	"\x04srid\x18\x15 \x01(\rH\x00R\x04srid\x88\x01\x01\x12!\n" +
 	"\fis_invisible\x18\x16 \x01(\bR\visInvisible\x12)\n" +
-	"\x10collation_schema\x18\x17 \x01(\tR\x0fcollationSchema\"U\n" +
+	"\x10collation_schema\x18\x17 \x01(\tR\x0fcollationSchema\x12'\n" +
+	"\x0fdefault_dropped\x18\x19 \x01(\bR\x0edefaultDropped\"U\n" +
 	"\x12IdentityGeneration\x12#\n" +
 	"\x1fIDENTITY_GENERATION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -5431,7 +5480,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"definition\x18\x02 \x01(\tR\n" +
-	"definition\"\xa5\x05\n" +
+	"definition\"\xdf\x05\n" +
 	"\rIndexMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vexpressions\x18\x02 \x03(\tR\vexpressions\x12\x1d\n" +
@@ -5456,7 +5505,9 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vconstraints\x18\x12 \x03(\v2&.omni.metadata.IndexConstraintMetadataR\vconstraints\x12H\n" +
 	"\x0espatial_config\x18\x0f \x01(\v2!.omni.metadata.SpatialIndexConfigR\rspatialConfig\x12#\n" +
 	"\ropclass_names\x18\x10 \x03(\tR\fopclassNames\x12)\n" +
-	"\x10opclass_defaults\x18\x11 \x03(\bR\x0fopclassDefaults\"a\n" +
+	"\x10opclass_defaults\x18\x11 \x03(\bR\x0fopclassDefaults\x12\x1b\n" +
+	"\tis_vector\x18\x13 \x01(\bR\bisVector\x12\x1b\n" +
+	"\tis_global\x18\x14 \x01(\bR\bisGlobal\"a\n" +
 	"\x17IndexConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\acolumns\x18\x02 \x03(\tR\acolumns\x12\x18\n" +

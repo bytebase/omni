@@ -287,3 +287,91 @@ func TestDatabaseMetadataExcludesTempTablesAndSortsIndexes(t *testing.T) {
 		tbl.Indexes[2].Name,
 	})
 }
+
+func TestDatabaseMetadataRoundTripOptionsConstraintsDefaultsAndKeyAlgorithm(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app COLLATE utf8mb4_unicode_ci;
+		USE app;
+		CREATE TABLE ref_tbl (id INT PRIMARY KEY);
+		CREATE TABLE full_tbl (
+			id INT NOT NULL,
+			ref_z INT,
+			ref_a INT,
+			drop_col INT NULL DEFAULT 7,
+			keep_null INT NULL,
+			PRIMARY KEY (id),
+			CONSTRAINT fk_zeta FOREIGN KEY (ref_z) REFERENCES ref_tbl (id),
+			CONSTRAINT fk_alpha FOREIGN KEY (ref_a) REFERENCES ref_tbl (id),
+			CONSTRAINT chk_zeta CHECK (id > 0) NOT ENFORCED,
+			CONSTRAINT chk_alpha CHECK (id < 1000)
+		) KEY_BLOCK_SIZE=8 COMPRESSION='ZLIB' ENCRYPTION='Y' STATS_PERSISTENT=0 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=32 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=64 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1;
+		ALTER TABLE full_tbl ALTER COLUMN drop_col DROP DEFAULT;
+		CREATE TABLE key_alg (
+			id INT NOT NULL,
+			sub INT NOT NULL
+		) PARTITION BY KEY ALGORITHM = 1 (id) PARTITIONS 2;
+		CREATE TABLE sub_key_alg (
+			id INT NOT NULL,
+			sub INT NOT NULL
+		) PARTITION BY RANGE (id) SUBPARTITION BY LINEAR KEY ALGORITHM = 1 (sub) SUBPARTITIONS 2 (
+			PARTITION p0 VALUES LESS THAN (10),
+			PARTITION p1 VALUES LESS THAN MAXVALUE
+		);
+		CREATE FUNCTION fn_coll() RETURNS INT DETERMINISTIC RETURN 1;
+		CREATE PROCEDURE proc_coll() BEGIN SELECT 1; END;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	require.Equal(t, "utf8mb4_unicode_ci", s.Functions[0].DatabaseCollation)
+	require.Equal(t, "utf8mb4_unicode_ci", s.Procedures[0].DatabaseCollation)
+
+	full := s.Tables[0]
+	require.Equal(t, "full_tbl", full.Name)
+	require.Equal(t, []string{"fk_alpha", "fk_zeta"}, []string{full.ForeignKeys[0].Name, full.ForeignKeys[1].Name})
+	require.Equal(t, []string{"chk_alpha", "chk_zeta"}, []string{full.CheckConstraints[0].Name, full.CheckConstraints[1].Name})
+	require.False(t, full.CheckConstraints[0].NotEnforced)
+	require.True(t, full.CheckConstraints[1].NotEnforced)
+
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range full.Columns {
+		cols[col.Name] = col
+	}
+	require.Empty(t, cols["drop_col"].Default)
+	require.True(t, cols["drop_col"].DefaultDropped)
+	require.Equal(t, "NULL", cols["keep_null"].Default)
+	require.False(t, cols["keep_null"].DefaultDropped)
+
+	keyAlg := s.Tables[1]
+	require.Equal(t, int32(1), keyAlg.Partitions[0].Algorithm)
+	subKeyAlg := s.Tables[3]
+	require.Equal(t, int32(1), subKeyAlg.Partitions[0].Subpartitions[0].Algorithm)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reloadedFull := reloaded.GetDatabase("app").GetTable("full_tbl")
+	require.Equal(t, 8, reloadedFull.KeyBlockSize)
+	require.Equal(t, "ZLIB", reloadedFull.Compression)
+	require.Equal(t, "Y", reloadedFull.Encryption)
+	require.Equal(t, "0", reloadedFull.StatsPersistent)
+	require.Equal(t, "1", reloadedFull.StatsAutoRecalc)
+	require.Equal(t, "32", reloadedFull.StatsSamplePages)
+	require.Equal(t, "10", reloadedFull.MinRows)
+	require.Equal(t, "100", reloadedFull.MaxRows)
+	require.Equal(t, "64", reloadedFull.AvgRowLength)
+	require.Equal(t, "1", reloadedFull.PackKeys)
+	require.Equal(t, "1", reloadedFull.Checksum)
+	require.Equal(t, "1", reloadedFull.DelayKeyWrite)
+	require.True(t, reloadedFull.GetColumn("drop_col").DefaultDropped)
+	require.False(t, reloadedFull.GetColumn("keep_null").DefaultDropped)
+	require.Equal(t, int32(1), reloaded.DatabaseMetadata("app").Schemas[0].Tables[1].Partitions[0].Algorithm)
+	require.Equal(t, int32(1), reloaded.DatabaseMetadata("app").Schemas[0].Tables[3].Partitions[0].Subpartitions[0].Algorithm)
+	require.True(t, reloaded.DatabaseMetadata("app").Schemas[0].Tables[0].CheckConstraints[1].NotEnforced)
+}
