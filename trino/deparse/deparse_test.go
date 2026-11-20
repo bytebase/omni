@@ -464,4 +464,75 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	fVarcharPos := strings.Index(overloaded, "CREATE FUNCTION s.f(v varchar)")
 	require.Greater(t, wrapPos, fBigintPos, "expected f(bigint) before wrap(bigint):\n%s", overloaded)
 	require.Greater(t, fVarcharPos, wrapPos, "expected wrap(bigint) before f(varchar):\n%s", overloaded)
+
+	// Small integer literal (1) selects f(integer) over f(bigint), and CASE
+	// widens arms (1, 1.5) to decimal over bigint: snapshot order puts callers
+	// before their callees to ensure cycles aren't formed and callees lead.
+	litAndCase, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "num_fn",
+					Definition: "CREATE FUNCTION s.num_fn(n bigint) RETURNS bigint RETURN s.lit_caller()",
+				},
+				{
+					Name:       "lit_caller",
+					Definition: "CREATE FUNCTION s.lit_caller() RETURNS bigint RETURN s.num_fn(1)",
+				},
+				{
+					Name:       "num_fn",
+					Definition: "CREATE FUNCTION s.num_fn(n integer) RETURNS bigint RETURN CAST(n AS bigint)",
+				},
+				{
+					Name:       "wide_fn",
+					Definition: "CREATE FUNCTION s.wide_fn(n bigint) RETURNS decimal RETURN s.case_caller(n)",
+				},
+				{
+					Name:       "case_caller",
+					Definition: "CREATE FUNCTION s.case_caller(n bigint) RETURNS decimal RETURN s.wide_fn(CASE WHEN n > 0 THEN 1 ELSE 1.5 END)",
+				},
+				{
+					Name:       "wide_fn",
+					Definition: "CREATE FUNCTION s.wide_fn(d decimal) RETURNS decimal RETURN d",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.num_fn(n integer)"), strings.Index(litAndCase, "CREATE FUNCTION s.lit_caller()"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.lit_caller()"), strings.Index(litAndCase, "CREATE FUNCTION s.num_fn(n bigint)"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.wide_fn(d decimal)"), strings.Index(litAndCase, "CREATE FUNCTION s.case_caller(n bigint)"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.case_caller(n bigint)"), strings.Index(litAndCase, "CREATE FUNCTION s.wide_fn(n bigint)"))
+
+	// Case-insensitive duplicate columns fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "dup_cols",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Type: "bigint"},
+					{Name: "ID", Type: "bigint"},
+				},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate column")
+
+	// Case-insensitive relation lookup in orderedViews.
+	caseViews, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "Cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "S",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "TopView", Definition: `SELECT id FROM "cat"."s"."baseview"`},
+				{Name: "BaseView", Definition: "SELECT 1 AS id"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(caseViews, `CREATE OR REPLACE VIEW "S"."BaseView"`), strings.Index(caseViews, `CREATE OR REPLACE VIEW "S"."TopView"`))
 }

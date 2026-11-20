@@ -2,6 +2,8 @@ package deparse
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -61,6 +63,14 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			// rejects columnless tables because Trino cannot restore them.
 			if len(cols) == 0 {
 				return nil, fmt.Errorf("table %s.%s has no columns", s.Name, t.Name)
+			}
+			seenCols := make(map[string]struct{}, len(cols))
+			for _, c := range cols {
+				colKey := strings.ToLower(c.Name)
+				if _, exists := seenCols[colKey]; exists {
+					return nil, fmt.Errorf("table %s.%s has duplicate column %s", s.Name, t.Name, quoteIdentifier(c.Name))
+				}
+				seenCols[colKey] = struct{}{}
 			}
 			schemaMeta.Tables = append(schemaMeta.Tables, &TableMetadata{
 				Name:    t.Name,
@@ -558,6 +568,16 @@ func commonTrinoNumericType(a, b string) string {
 	return b
 }
 
+func combineTrinoTypes(a, b string) string {
+	if a == "" {
+		return b
+	}
+	if b == "" || a == b {
+		return a
+	}
+	return commonTrinoNumericType(a, b)
+}
+
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
 	var calls []functionCallRef
 	env := make(map[string]string, len(params))
@@ -589,6 +609,9 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			case trinoparser.LiteralBool:
 				return "boolean"
 			case trinoparser.LiteralInteger:
+				if v, err := strconv.ParseInt(e.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
+					return "integer"
+				}
 				return "bigint"
 			case trinoparser.LiteralDecimal:
 				return "decimal"
@@ -607,6 +630,14 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			walkExpr(e.Expr, curEnv)
 			return normalizeTrinoDataType(e.Type)
 		case *trinoparser.UnaryExpr:
+			if e.Op == "-" {
+				if lit, ok := e.Operand.(*trinoparser.Literal); ok && lit.Kind == trinoparser.LiteralInteger {
+					if v, err := strconv.ParseInt("-"+lit.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
+						return "integer"
+					}
+					return "bigint"
+				}
+			}
 			return walkExpr(e.Operand, curEnv)
 		case *trinoparser.ParenExpr:
 			return walkExpr(e.Expr, curEnv)
@@ -631,13 +662,9 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			res := ""
 			for _, w := range e.Whens {
 				walkExpr(w.Cond, curEnv)
-				if wt := walkExpr(w.Result, curEnv); wt != "" && res == "" {
-					res = wt
-				}
+				res = combineTrinoTypes(res, walkExpr(w.Result, curEnv))
 			}
-			if et := walkExpr(e.Else, curEnv); et != "" && res == "" {
-				res = et
-			}
+			res = combineTrinoTypes(res, walkExpr(e.Else, curEnv))
 			return res
 		case *trinoparser.AtTimeZoneExpr:
 			t := walkExpr(e.Value, curEnv)
@@ -1116,14 +1143,14 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 
 	index := make(map[string]int, len(views))
 	for i, view := range views {
-		index[objectKey(view.schema, view.view.Name)] = i
+		index[objectKey(strings.ToLower(view.schema), strings.ToLower(view.view.Name))] = i
 	}
 	dependencies := make([]map[int]struct{}, len(views))
 	addDep := func(i int, depSchema, depTable string) {
 		if depSchema == "" {
 			depSchema = views[i].schema
 		}
-		dependency, ok := index[objectKey(depSchema, depTable)]
+		dependency, ok := index[objectKey(strings.ToLower(depSchema), strings.ToLower(depTable))]
 		if !ok || dependency == i {
 			return
 		}
@@ -1141,7 +1168,7 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 			continue
 		}
 		for _, access := range span.AccessTables {
-			if access.Catalog != "" && metadata.Name != "" && access.Catalog != metadata.Name {
+			if access.Catalog != "" && metadata.Name != "" && !strings.EqualFold(access.Catalog, metadata.Name) {
 				continue
 			}
 			addDep(i, access.Schema, access.Table)
