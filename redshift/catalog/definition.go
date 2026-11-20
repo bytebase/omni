@@ -138,7 +138,7 @@ func viewHasUpperIdentifier(view *metadatapb.ViewMetadata) bool {
 }
 
 func tableHasUpperIdentifier(table *metadatapb.TableMetadata) bool {
-	if hasUpperASCII(table.Name) {
+	if hasUpperASCII(table.Name) || hasUpperASCII(table.Owner) {
 		return true
 	}
 	for _, col := range table.Columns {
@@ -1342,6 +1342,11 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
 		return err
 	}
+	if table.owner != "" {
+		if _, err := fmt.Fprintf(buf, "ALTER TABLE %s OWNER TO %s;\n", table.qualifiedName(), quoteDefinitionIdentifier(table.owner)); err != nil {
+			return err
+		}
+	}
 	if table.comment != "" {
 		if _, err := fmt.Fprintf(buf, "COMMENT ON TABLE %s IS '%s';\n", table.qualifiedName(), escapeStringLiteral(table.comment)); err != nil {
 			return err
@@ -1516,6 +1521,7 @@ type tableState struct {
 	id           int
 	schema       string
 	name         string
+	owner        string
 	columns      map[string]*columnState
 	defaultExprs []string
 	indexes      []*indexState
@@ -1640,6 +1646,7 @@ func sortedColumns(columns map[string]*columnState) []*columnState {
 func convertToTableState(id int, schemaName string, table *metadatapb.TableMetadata) *tableState {
 	state := newTableState(id, table.Name)
 	state.schema = schemaName
+	state.owner = table.Owner
 	state.comment = table.Comment
 	for i, column := range table.Columns {
 		if column == nil {

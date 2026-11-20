@@ -930,4 +930,19 @@ func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testi
 		Indexes: []*metadatapb.IndexMetadata{{Name: "empty_uk_key", Unique: true}},
 	})
 	require.Error(t, err)
+
+	// 7. Table owner is restored via ALTER TABLE ... OWNER TO ...
+	ownedTbl, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "owned_tbl",
+		Owner:   "AppOwner",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+CREATE TABLE "public"."owned_tbl" (
+  "id" integer NOT NULL
+);
+ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
+`, ownedTbl)
 }
