@@ -40571,6 +40571,219 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (a INT, KEY ((N'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY ((N'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT
+< error
+| 1071 42000 Specified key was too long; max key length is 767 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY ((_latin1'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY (('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT
+< error
+| 1071 42000 Specified key was too long; max key length is 767 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT, KEY ((_utf8mb3'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT
+< error
+| 1071 42000 Specified key was too long; max key length is 767 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -46724,6 +46937,96 @@
 : bytes
 | 195
 > exec
+| SET @x = BIT_LENGTH('a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 8
+> exec
+| SET @x = BIT_LENGTH('é')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 16
+> exec
+| SET @x = BIT_LENGTH(X'0102')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 16
+> exec
+| SET @x = BIT_LENGTH(123)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 24
+> exec
+| SET @x = BIT_LENGTH('')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = BIT_LENGTH(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 24
+> exec
+| SET @x = LENGTH(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = OCTET_LENGTH('é')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = CHAR_LENGTH(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -47249,6 +47552,19 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = BIT_LENGTH('a')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| IGNORE_SPACE
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -47350,7 +47666,108 @@
 | SET @x_scope = @@max_connections
 < ok 0 0
 > exec
+| SET collation_connection = utf8mb4_0900_ai_ci
+< ok 0 0
+> exec
 | SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET collation_connection = utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET collation_connection = utf8mb4_bin
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET collation_connection = utf8mb4_0900_bin
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET collation_connection = latin1_swedish_ci
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET collation_connection = utf8mb4_unicode_ci
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec ^
 < ok 0 0
 > exec
 | SET SESSION sql_mode = NOT 0

@@ -1511,7 +1511,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				f, _ = r.Float64()
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.FormatFloat(math.Abs(f), 'g', -1, 64), isFloat: true}, true, nil
-		case "char_length", "character_length", "length":
+		case "char_length", "character_length", "length", "octet_length", "bit_length":
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
@@ -1519,9 +1519,23 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if err != nil || !ok || v.kind == userVarNull {
 				return v, ok, err
 			}
-			n := len(v.str)
-			if !v.binary && toLower(e.Name) != "length" {
-				n = utf8.RuneCountInString(v.str)
+			str := v.str
+			// A double is measured in the form MySQL prints it: 1.5e0 is 1.5.
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			n := len(str)
+			switch toLower(e.Name) {
+			case "char_length", "character_length":
+				if !v.binary {
+					n = utf8.RuneCountInString(str)
+				}
+			case "bit_length":
+				// BIT_LENGTH('a') is 8 and sets sql_mode IGNORE_SPACE.
+				n *= 8
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "replace":
@@ -1751,7 +1765,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
-				"reverse", "char_length", "character_length", "length", "abs",
+				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "abs",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
@@ -1821,8 +1835,15 @@ func (c *Catalog) compareSetValues(left, right userVarValue) int {
 	}
 	coll := c.effectiveSessionCollationConn()
 	cs := charsetForCollation(coll)
-	lk := collationComparisonKey(left.str, coll, cs)
-	rk := collationComparisonKey(right.str, coll, cs)
+	ls, rs := left.str, right.str
+	// A PAD SPACE collation, every one but the _0900_ family and binary,
+	// ignores trailing spaces: under utf8mb4_general_ci, latin1_swedish_ci
+	// and even utf8mb4_bin, mysql:8.0.46 answers 'a' = 'a ' with 1.
+	if !strings.Contains(strings.ToLower(coll), "_0900_") {
+		ls, rs = strings.TrimRight(ls, " "), strings.TrimRight(rs, " ")
+	}
+	lk := collationComparisonKey(ls, coll, cs)
+	rk := collationComparisonKey(rs, coll, cs)
 	return strings.Compare(lk, rk)
 }
 

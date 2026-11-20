@@ -5071,6 +5071,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "functional spaced unknown function under IGNORE_SPACE", session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((nosuch (a))))", code: 3758},
 		{name: "functional spaced NOW under IGNORE_SPACE", session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE TABLE z (a VARCHAR(10), KEY ((NOW ())))", code: 3758},
 		{name: "CREATE INDEX spaced SUBSTRING under IGNORE_SPACE", setup: []string{oneTable}, session: []string{"SET SESSION sql_mode = 'IGNORE_SPACE'"}, stmt: "CREATE INDEX i ON a ((SUBSTRING (c,1,1)))", code: 0},
+		// A literal's own charset sizes its key part: N'' is utf8mb3.
+		{name: "COMPACT functional literal N of 255 characters", stmt: "CREATE TABLE z (a INT, KEY ((N'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional literal N of 256 characters", stmt: "CREATE TABLE z (a INT, KEY ((N'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional literal _latin1 of 256 characters", stmt: "CREATE TABLE z (a INT, KEY ((_latin1'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional literal plain of 192 characters", stmt: "CREATE TABLE z (a INT, KEY (('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 1071},
+		{name: "COMPACT functional literal _utf8mb3 of 256 characters", stmt: "CREATE TABLE z (a INT, KEY ((_utf8mb3'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 1071},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6161,6 +6167,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(18446744073709551615)", "BIT_COUNT(X'FF')", "BIT_COUNT(b'101')",
 		"ASCII(X'01')", "ASCII('A')", "ASCII('')", "ASCII(65)",
 		"ORD(X'01')", "ORD('A')", "ORD('')", "ORD('é')", "ORD('€')", "ORD('😀')", "ORD(65)", "ORD(_binary'é')",
+		"BIT_LENGTH('a')", "BIT_LENGTH('é')", "BIT_LENGTH(X'0102')", "BIT_LENGTH(123)", "BIT_LENGTH('')", "BIT_LENGTH(1.5e0)",
+		"LENGTH(1.5e0)", "OCTET_LENGTH('é')", "CHAR_LENGTH(1.5e0)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6272,7 +6280,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
-		"ASCII(X'01')", "ORD(X'01')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6365,6 +6373,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if got, _ := simulationCatalogRefusal(t, castCat, stmt); got != 0 {
 			t.Fatalf("catalog %s got %d, want 0", stmt, got)
 		}
+	}
+
+	// PAD SPACE collations ignore trailing spaces; the _0900_ ones do not.
+	for _, coll := range []string{"utf8mb4_0900_ai_ci", "utf8mb4_general_ci", "utf8mb4_bin", "utf8mb4_0900_bin", "latin1_swedish_ci", "utf8mb4_unicode_ci"} {
+		for _, stmt := range []string{"SET collation_connection = " + coll, "SET SESSION sql_mode = ''", "SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')"} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("mysql %s: %v", stmt, err)
+			}
+			execAlterClauses(t, castCat, stmt+";")
+		}
+		var padMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&padMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @m = @@sql_mode;")
+		if got := castCat.userVars["m"].str; got != padMode {
+			t.Fatalf("'a' = 'a ' under %s: catalog sql_mode %q, mysql %q", coll, got, padMode)
+		}
+	}
+	for _, stmt := range []string{"SET NAMES utf8mb4", "SET SESSION sql_mode = ''"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.

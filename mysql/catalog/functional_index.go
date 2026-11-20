@@ -376,7 +376,17 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		}
 		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: max(len(digits), scale, 1), Scale: scale}
 	case *nodes.StringLit:
-		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(utf8.RuneCountInString(e.Value), 1), Charset: e.Charset}
+		// N'...' is utf8mb3 and _cs'...' is cs, whatever the table's charset:
+		// on a COMPACT table, mysql:8.0.46 takes N'<255 chars>' and
+		// _latin1'<256 chars>' and answers 1071 for N'<256 chars>'.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		if e.National {
+			cs = "utf8mb3"
+		}
+		if cs == "binary" {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(e.Value), 1)}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(utf8.RuneCountInString(e.Value), 1), Charset: cs}
 	case *nodes.TemporalLit:
 		switch strings.ToUpper(e.Type) {
 		case "DATE":
