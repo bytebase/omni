@@ -112,7 +112,7 @@ func (c *Catalog) resolveAMHandlerOID(handlerName *nodes.List, amType byte) (uin
 		}
 		bp = findInNamespace(schema.OID)
 	} else {
-		for _, nsOID := range c.searchPathWithCatalog() {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
 			if found := findInNamespace(nsOID); found != nil {
 				bp = found
 				break

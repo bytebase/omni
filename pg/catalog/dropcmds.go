@@ -955,13 +955,11 @@ func (c *Catalog) removeRuleObjects(stmt *nodes.DropStmt) error {
 	}
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
 	type ruleTarget struct {
-		rel      *Relation
-		rule     *Rule
-		dropView bool
+		rel  *Relation
+		rule *Rule
 	}
 	var targets []ruleTarget
 	seenRule := map[uint32]bool{}
-	seenView := map[uint32]bool{}
 
 	for _, obj := range stmt.Objects.Items {
 		list, ok := obj.(*nodes.List)
@@ -1002,14 +1000,7 @@ func (c *Catalog) removeRuleObjects(stmt *nodes.DropStmt) error {
 			if c.isExtensionMember(rel.OID) {
 				return errDependentObjects("extension", c.extensionMembers[rel.OID])
 			}
-			if !cascade {
-				return errDependentObjects("view", rel.Name)
-			}
-			if !seenView[rel.OID] {
-				seenView[rel.OID] = true
-				targets = append(targets, ruleTarget{rel: rel, dropView: true})
-			}
-			continue
+			return errDependentObjects("view", rel.Name)
 		}
 
 		var rule *Rule
@@ -1046,12 +1037,6 @@ func (c *Catalog) removeRuleObjects(stmt *nodes.DropStmt) error {
 	}
 
 	for _, t := range targets {
-		if t.dropView {
-			if c.relationByOID[t.rel.OID] != nil {
-				c.cascadeDropRelation(t.rel)
-			}
-			continue
-		}
 		if t.rule == nil || c.rules[t.rule.OID] == nil {
 			continue
 		}

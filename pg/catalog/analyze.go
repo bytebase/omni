@@ -2477,7 +2477,7 @@ func (ac *analyzeCtx) transformAConst(ac2 *nodes.A_Const) (AnalyzedExpr, error) 
 //
 // pg: src/backend/parser/parse_func.c — ParseFuncOrColumn
 func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error) {
-	_, funcName := qualifiedName(fc.Funcname)
+	fSchema, funcName := qualifiedName(fc.Funcname)
 	funcName = strings.ToLower(funcName)
 
 	// Transform arguments.
@@ -2562,8 +2562,8 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		}, nil
 	}
 
-	// Resolve function.
-	procs := ac.catalog.procByName[funcName]
+	// Resolve function along routine search_path (excluding implicit pg_temp).
+	procs := ac.catalog.filterProcsBySearchPath(fSchema, ac.catalog.procByName[funcName])
 	if len(procs) == 0 {
 		if ac.opts.OpaqueUnknownFunctions {
 			return ac.opaqueFuncCall(fc, funcName, args, nDirect, aggOrder, aggFilter)
@@ -4937,17 +4937,61 @@ func (c *Catalog) coerceToTargetTypeWithFormat(expr AnalyzedExpr, srcType, targe
 	}
 }
 
+// filterProcsBySearchPath excludes routines in implicit pg_temp when the call
+// is unqualified and pg_temp is not explicitly listed in search_path.
+func (c *Catalog) filterProcsBySearchPath(fSchema string, procs []*BuiltinProc) []*BuiltinProc {
+	if len(procs) == 0 || fSchema != "" || c.schemaByName["pg_temp"] == nil {
+		return procs
+	}
+	for _, name := range c.searchPath {
+		if isTempSchemaName(name) {
+			return procs
+		}
+	}
+	out := make([]*BuiltinProc, 0, len(procs))
+	for _, p := range procs {
+		if p.OID >= FirstNormalObjectId {
+			if up := c.userProcs[p.OID]; up != nil && up.Schema != nil && isTempSchemaName(up.Schema.Name) {
+				continue
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func (c *Catalog) filterOperatorsBySearchPath(ops []*BuiltinOperator) []*BuiltinOperator {
+	if len(ops) == 0 || c.schemaByName["pg_temp"] == nil {
+		return ops
+	}
+	for _, name := range c.searchPath {
+		if isTempSchemaName(name) {
+			return ops
+		}
+	}
+	out := make([]*BuiltinOperator, 0, len(ops))
+	for _, op := range ops {
+		if op.OID >= FirstNormalObjectId {
+			if sc := c.schemas[c.operatorSchemas[op.OID]]; sc != nil && isTempSchemaName(sc.Name) {
+				continue
+			}
+		}
+		out = append(out, op)
+	}
+	return out
+}
+
 // resolveOperator resolves an operator expression and returns the operator
 // along with the resolved types for left and right operands.
 func (c *Catalog) resolveOperator(name string, leftType, rightType uint32, isPrefix bool) (*BuiltinOperator, uint32, uint32, error) {
 	if isPrefix {
 		// Prefix operator.
-		if ops := c.operByKey[operKey{name: name, left: 0, right: rightType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: 0, right: rightType}]); len(ops) > 0 {
 			return ops[0], 0, rightType, nil
 		}
 		if rightType == UNKNOWNOID {
 			for _, commonType := range []uint32{TEXTOID, INT4OID, FLOAT8OID} {
-				if ops := c.operByKey[operKey{name: name, left: 0, right: commonType}]; len(ops) > 0 {
+				if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: 0, right: commonType}]); len(ops) > 0 {
 					return ops[0], 0, commonType, nil
 				}
 			}
@@ -4956,36 +5000,36 @@ func (c *Catalog) resolveOperator(name string, leftType, rightType uint32, isPre
 	}
 
 	// Binary operator: exact match.
-	if ops := c.operByKey[operKey{name: name, left: leftType, right: rightType}]; len(ops) > 0 {
+	if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: leftType, right: rightType}]); len(ops) > 0 {
 		return ops[0], leftType, rightType, nil
 	}
 
 	// If one side is UNKNOWN, try substituting.
 	if leftType == UNKNOWNOID && rightType != UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: rightType, right: rightType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: rightType, right: rightType}]); len(ops) > 0 {
 			return ops[0], rightType, rightType, nil
 		}
 		// pg: src/backend/parser/parse_func.c — func_select_candidate (step 4d)
 		// Try the preferred type of the same category.
 		if pref := c.preferredTypeForCategory(rightType); pref != 0 && pref != rightType {
-			if ops := c.operByKey[operKey{name: name, left: pref, right: pref}]; len(ops) > 0 {
+			if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: pref, right: pref}]); len(ops) > 0 {
 				return ops[0], pref, pref, nil
 			}
 		}
 	}
 	if rightType == UNKNOWNOID && leftType != UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: leftType, right: leftType}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: leftType, right: leftType}]); len(ops) > 0 {
 			return ops[0], leftType, leftType, nil
 		}
 		// pg: src/backend/parser/parse_func.c — func_select_candidate (step 4d)
 		if pref := c.preferredTypeForCategory(leftType); pref != 0 && pref != leftType {
-			if ops := c.operByKey[operKey{name: name, left: pref, right: pref}]; len(ops) > 0 {
+			if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: pref, right: pref}]); len(ops) > 0 {
 				return ops[0], pref, pref, nil
 			}
 		}
 	}
 	if leftType == UNKNOWNOID && rightType == UNKNOWNOID {
-		if ops := c.operByKey[operKey{name: name, left: TEXTOID, right: TEXTOID}]; len(ops) > 0 {
+		if ops := c.filterOperatorsBySearchPath(c.operByKey[operKey{name: name, left: TEXTOID, right: TEXTOID}]); len(ops) > 0 {
 			return ops[0], TEXTOID, TEXTOID, nil
 		}
 	}
@@ -5250,13 +5294,13 @@ func (c *Catalog) funcSelectCandidate(inputTypes []uint32, candidates []funcCand
 func (c *Catalog) resolveOpWithCoercionFull(name string, leftType, rightType uint32) (*BuiltinOperator, uint32, uint32, error) {
 	inputTypes := []uint32{leftType, rightType}
 
-	// 1. Collect all binary operators with matching name.
+	// 1. Collect all visible binary operators with matching name (excluding implicit pg_temp).
 	var allCandidates []funcCandidate
 	for key, ops := range c.operByKey {
 		if key.name != name {
 			continue
 		}
-		for _, op := range ops {
+		for _, op := range c.filterOperatorsBySearchPath(ops) {
 			if op.Kind == 'l' {
 				continue // skip prefix operators
 			}

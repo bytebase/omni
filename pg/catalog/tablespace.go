@@ -480,7 +480,7 @@ func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
 		if argErr != nil {
 			return argErr
 		}
-		for _, nsOID := range c.searchPathWithCatalog() {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
 			ns := c.schemas[nsOID]
 			if ns == nil {
 				continue

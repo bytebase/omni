@@ -1788,7 +1788,7 @@ func (c *Catalog) resolveTableFuncCols(fc *nodes.FuncCall, alias *nodes.Alias, i
 			searchNS = []uint32{ns.OID}
 		}
 	} else {
-		searchNS = c.searchPathWithCatalog()
+		searchNS = c.routineSearchPathWithCatalog()
 	}
 	procs := c.procByName[fName]
 	var matched []*BuiltinProc
@@ -3394,7 +3394,7 @@ func (c *Catalog) bindRuleOperator(b *ruleBindings, opNameList *nodes.List, lTyp
 			searchNS = []uint32{s.OID}
 		}
 	} else {
-		searchNS = c.searchPathWithCatalog()
+		searchNS = c.routineSearchPathWithCatalog()
 	}
 
 	opNamespace := func(op *BuiltinOperator) uint32 {
@@ -6094,6 +6094,7 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 		return nil
 	}
 	var searchNS []uint32
+	var typeSearchNS []uint32
 	if fSchema != "" {
 		ns := c.schemaByName[fSchema]
 		if ns == nil {
@@ -6103,8 +6104,10 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 			return errUndefinedSchema(fSchema)
 		}
 		searchNS = []uint32{ns.OID}
+		typeSearchNS = []uint32{ns.OID}
 	} else {
-		searchNS = c.searchPathWithCatalog()
+		searchNS = c.routineSearchPathWithCatalog()
+		typeSearchNS = c.searchPathWithCatalog()
 	}
 
 	var argTypes []uint32
@@ -6272,7 +6275,7 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 
 	// PostgreSQL allows single-argument functional cast syntax: typename(expr).
 	if argCount == 1 && !v.AggStar && !v.AggDistinct && v.Over == nil && argNames == nil && !v.FuncVariadic {
-		for _, nsOID := range searchNS {
+		for _, nsOID := range typeSearchNS {
 			if bt := c.typeByName[typeKey{ns: nsOID, name: fName}]; bt != nil && bt.IsDefined {
 				if len(argTypes) == 1 && argTypes[0] != 0 && argTypes[0] != UNKNOWNOID && !c.CanCoerce(argTypes[0], bt.OID, 'e') {
 					break
@@ -7925,7 +7928,7 @@ func (c *Catalog) resolveTablesampleHandler(method *nodes.List) (uint32, error) 
 		}
 		searchNS = []uint32{ns.OID}
 	} else {
-		searchNS = c.searchPathWithCatalog()
+		searchNS = c.routineSearchPathWithCatalog()
 	}
 	shown := fName
 	if fSchema != "" {

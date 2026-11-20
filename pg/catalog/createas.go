@@ -439,8 +439,12 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			}
 			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
 		}
-		if targetType == INT4OID && (v < -2147483648 || v > 2147483647) {
-			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type integer", val)}
+		if targetType == INT4OID {
+			if v < -2147483648 || v > 2147483647 {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type integer", val)}
+			}
+		} else if v < 0 || v > 4294967295 {
+			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
 		}
 	case INT8OID:
 		if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
@@ -449,17 +453,23 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			}
 			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type bigint: %q", val)}
 		}
-	case FLOAT4OID, FLOAT8OID, NUMERICOID:
+	case FLOAT4OID, FLOAT8OID:
 		switch strings.ToLower(trimmed) {
 		case "nan", "infinity", "+infinity", "-infinity", "inf", "+inf", "-inf":
 			return nil
 		}
-		if _, err := strconv.ParseFloat(trimmed, 64); err != nil {
+		bitSize := 64
+		if targetType == FLOAT4OID {
+			bitSize = 32
+		}
+		if _, err := strconv.ParseFloat(trimmed, bitSize); err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
 			}
 			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
 		}
+	case NUMERICOID:
+		return validateNumericLiteral(val, trimmed)
 	case BOOLOID:
 		switch strings.ToLower(trimmed) {
 		case "t", "tr", "tru", "true", "f", "fa", "fal", "fals", "false",
@@ -473,6 +483,66 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			if et.labelMap[val] == nil {
 				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input value for enum %s: %q", c.typeName(targetType), val)}
 			}
+		}
+	}
+	return nil
+}
+
+func validateNumericLiteral(raw, trimmed string) error {
+	switch strings.ToLower(trimmed) {
+	case "nan", "infinity", "+infinity", "-infinity", "inf", "+inf", "-inf":
+		return nil
+	}
+	s := trimmed
+	if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
+		s = s[1:]
+	}
+	if s == "" {
+		return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+	}
+	mantissa := s
+	expStr := ""
+	if idx := strings.IndexAny(s, "eE"); idx >= 0 {
+		mantissa = s[:idx]
+		expStr = s[idx+1:]
+		if expStr == "" {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+	}
+	digitsBefore := 0
+	digitsAfter := 0
+	seenDot := false
+	for i := 0; i < len(mantissa); i++ {
+		ch := mantissa[i]
+		if ch == '.' {
+			if seenDot {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+			}
+			seenDot = true
+			continue
+		}
+		if ch < '0' || ch > '9' {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		if seenDot {
+			digitsAfter++
+		} else {
+			digitsBefore++
+		}
+	}
+	if digitsBefore+digitsAfter == 0 {
+		return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+	}
+	if expStr != "" {
+		exp, err := strconv.ParseInt(expStr, 10, 64)
+		if err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: "value overflows numeric format"}
+			}
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		if exp > 131072 || exp < -16383 {
+			return &Error{Code: CodeNumericValueOutOfRange, Message: "value overflows numeric format"}
 		}
 	}
 	return nil

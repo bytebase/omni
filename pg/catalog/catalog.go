@@ -435,12 +435,28 @@ func (c *Catalog) SetSearchPath(schemas []string) {
 	c.searchPath = schemas
 }
 
-// searchPathWithCatalog resolves the search path to namespace OIDs,
-// expanding $user to the current user name and appending pg_catalog
-// if not explicitly listed. Non-existent schemas are silently skipped.
+// searchPathWithCatalog resolves the search path to namespace OIDs for
+// relation and data type lookups, prepending implicit pg_temp when a temp
+// schema exists, expanding $user to the current user name, and appending
+// pg_catalog if not explicitly listed. Non-existent schemas are silently
+// skipped.
 //
 // pg: src/backend/catalog/namespace.c — preprocessNamespacePath, finalNamespacePath
 func (c *Catalog) searchPathWithCatalog() []uint32 {
+	return c.resolveSearchPath(true)
+}
+
+// routineSearchPathWithCatalog resolves the search path to namespace OIDs for
+// function, procedure, aggregate, and operator lookups. Unlike relation/type
+// lookup, PostgreSQL never searches the implicit pg_temp schema for routines
+// or operators unless pg_temp was explicitly listed in search_path.
+//
+// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates, OpernameGetCandidates
+func (c *Catalog) routineSearchPathWithCatalog() []uint32 {
+	return c.resolveSearchPath(false)
+}
+
+func (c *Catalog) resolveSearchPath(includeImplicitTemp bool) []uint32 {
 	hasPGCatalog := false
 	hasPGTemp := false
 
@@ -451,7 +467,7 @@ func (c *Catalog) searchPathWithCatalog() []uint32 {
 			hasPGTemp = true
 		}
 	}
-	if !hasPGTemp && c.schemaByName["pg_temp"] != nil {
+	if includeImplicitTemp && !hasPGTemp && c.schemaByName["pg_temp"] != nil {
 		expanded = append(expanded, "pg_temp")
 	}
 	for _, name := range c.searchPath {

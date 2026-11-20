@@ -239,9 +239,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateCommentDDL(from, to, diff)...)
 	ops = append(ops, generateGrantDDL(from, to, diff)...)
 
-	// Post-processing: detach/rebuild dependents of modified collations before
-	// DROP COLLATION in PhasePre, and wrap ALTER COLUMN TYPE ops with DROP VIEW /
-	// CREATE VIEW for dependent views.
+	// Post-processing: detach/rebuild dependents of modified access methods
+	// and collations before PhasePre drops, and wrap ALTER COLUMN TYPE ops with
+	// DROP VIEW / CREATE VIEW for dependent views.
+	ops = wrapModifiedAccessMethodDependents(from, to, diff, ops)
 	var extraViewTables, directViews map[uint32]bool
 	ops, extraViewTables, directViews = wrapModifiedCollationDependents(from, to, diff, ops)
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops, extraViewTables, directViews)
@@ -1083,6 +1084,199 @@ func generateAccessMethodDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 			)
 		}
 	}
+	return ops
+}
+
+func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) []MigrationOp {
+	modifiedAMs := make(map[string]AccessMethodDiffEntry)
+	for _, entry := range diff.AccessMethods {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+			modifiedAMs[entry.Name] = entry
+		}
+	}
+	if len(modifiedAMs) == 0 {
+		return ops
+	}
+
+	preDroppedRel := make(map[uint32]bool)
+	preDroppedIdx := make(map[uint32]bool)
+	preDroppedCon := make(map[uint32]bool)
+	mainCreatedIdx := make(map[string]bool)
+	mainAddedCon := make(map[string]bool)
+	mainSetAMSQL := make(map[string]bool)
+	for _, op := range ops {
+		if op.Phase == PhasePre {
+			switch op.Type {
+			case OpDropTable, OpDropView:
+				preDroppedRel[op.ObjOID] = true
+			case OpDropIndex:
+				preDroppedIdx[op.ObjOID] = true
+			case OpDropConstraint:
+				if op.ObjOID != 0 {
+					preDroppedCon[op.ObjOID] = true
+				}
+			}
+		} else {
+			switch op.Type {
+			case OpCreateIndex:
+				mainCreatedIdx[op.SchemaName+"."+op.ObjectName] = true
+			case OpAddConstraint:
+				if op.ParentObject != "" {
+					mainAddedCon[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				}
+			case OpAlterTable, OpAlterView:
+				mainSetAMSQL[op.SQL] = true
+			}
+		}
+	}
+
+	var preExtra, mainExtra []MigrationOp
+
+	// 1. Tables, partitioned tables, and materialized views using a modified access method.
+	var fromRels []*Relation
+	for _, rel := range from.relationByOID {
+		if rel == nil || rel.Schema == nil || preDroppedRel[rel.OID] {
+			continue
+		}
+		if _, ok := modifiedAMs[rel.AccessMethod]; !ok {
+			continue
+		}
+		if rel.RelKind == 'r' || rel.RelKind == 'p' || rel.RelKind == 'm' {
+			fromRels = append(fromRels, rel)
+		}
+	}
+	sort.Slice(fromRels, func(i, j int) bool {
+		if fromRels[i].Schema.Name != fromRels[j].Schema.Name {
+			return fromRels[i].Schema.Name < fromRels[j].Schema.Name
+		}
+		return fromRels[i].Name < fromRels[j].Name
+	})
+	for _, fromRel := range fromRels {
+		scName := fromRel.Schema.Name
+		target := formatRelationName(scName, fromRel.Name, fromRel)
+		alterKind := "TABLE"
+		opType := OpAlterTable
+		if fromRel.RelKind == 'm' {
+			alterKind = "MATERIALIZED VIEW"
+			opType = OpAlterView
+		}
+		preExtra = append(preExtra, MigrationOp{
+			Type:          opType,
+			SchemaName:    scName,
+			ObjectName:    fromRel.Name,
+			SQL:           fmt.Sprintf("ALTER %s %s SET ACCESS METHOD heap", alterKind, target),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        fromRel.OID,
+			Priority:      PriorityTable,
+		})
+		if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil && toRel.RelKind == fromRel.RelKind && toRel.AccessMethod == fromRel.AccessMethod {
+			toTarget := formatRelationName(scName, toRel.Name, toRel)
+			restoreSQL := fmt.Sprintf("ALTER %s %s SET ACCESS METHOD %s", alterKind, toTarget, quoteIdentifier(toRel.AccessMethod))
+			if !mainSetAMSQL[restoreSQL] {
+				mainSetAMSQL[restoreSQL] = true
+				mainExtra = append(mainExtra, MigrationOp{
+					Type:          opType,
+					SchemaName:    scName,
+					ObjectName:    toRel.Name,
+					SQL:           restoreSQL,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        toRel.OID,
+					Priority:      PriorityTable,
+				})
+			}
+		}
+	}
+
+	// 2. Indexes and constraint-backed indexes using a modified access method.
+	var fromIdxs []*Index
+	for _, idx := range from.indexes {
+		if idx == nil || idx.Schema == nil || preDroppedRel[idx.RelOID] || idx.ParentIndexOID != 0 {
+			continue
+		}
+		if _, ok := modifiedAMs[idx.AccessMethod]; !ok {
+			continue
+		}
+		fromIdxs = append(fromIdxs, idx)
+	}
+	sort.Slice(fromIdxs, func(i, j int) bool {
+		if fromIdxs[i].Schema.Name != fromIdxs[j].Schema.Name {
+			return fromIdxs[i].Schema.Name < fromIdxs[j].Schema.Name
+		}
+		return fromIdxs[i].Name < fromIdxs[j].Name
+	})
+	for _, idx := range fromIdxs {
+		fromRel := from.GetRelationByOID(idx.RelOID)
+		if fromRel == nil || fromRel.Schema == nil {
+			continue
+		}
+		scName := idx.Schema.Name
+		if idx.ConstraintOID != 0 {
+			con := from.constraints[idx.ConstraintOID]
+			if con == nil || preDroppedCon[con.OID] || con.ConParentID != 0 {
+				continue
+			}
+			relSc := fromRel.Schema.Name
+			preDroppedCon[con.OID] = true
+			preExtra = append(preExtra, buildDropConstraintOp(relSc, fromRel.Name, con))
+			conKey := relSc + "." + fromRel.Name + "." + con.Name
+			if !mainAddedCon[conKey] {
+				if toRel := to.GetRelation(relSc, fromRel.Name); toRel != nil {
+					for _, toCon := range to.ConstraintsOf(toRel.OID) {
+						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
+							mainAddedCon[conKey] = true
+							mainExtra = append(mainExtra, buildAddConstraintOp(to, relSc, fromRel.Name, toCon))
+							break
+						}
+					}
+				}
+			}
+			continue
+		}
+		if preDroppedIdx[idx.OID] {
+			continue
+		}
+		preDroppedIdx[idx.OID] = true
+		preExtra = append(preExtra, MigrationOp{
+			Type:          OpDropIndex,
+			SchemaName:    scName,
+			ObjectName:    idx.Name,
+			SQL:           fmt.Sprintf("DROP INDEX %s", formatIndexTargetName(scName, idx)),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'i',
+			ObjOID:        idx.OID,
+			Priority:      PriorityIndex,
+		})
+		idxKey := scName + "." + idx.Name
+		if !mainCreatedIdx[idxKey] {
+			if toSc := to.GetSchema(scName); toSc != nil {
+				if toIdx := toSc.Indexes[idx.Name]; toIdx != nil && toIdx.ConstraintOID == 0 {
+					if toRel := to.GetRelationByOID(toIdx.RelOID); toRel != nil {
+						mainCreatedIdx[idxKey] = true
+						mainExtra = append(mainExtra, MigrationOp{
+							Type:          OpCreateIndex,
+							SchemaName:    scName,
+							ObjectName:    toIdx.Name,
+							SQL:           buildCreateIndexSQL(toIdx, toRel, scName),
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'i',
+							ObjOID:        toIdx.OID,
+							Priority:      PriorityIndex,
+						})
+						mainExtra = append(mainExtra, buildIndexColumnRenameOps(scName, toIdx, defaultIndexColumnNames(to, toIdx), effectiveIndexColumnNames(to, toIdx))...)
+					}
+				}
+			}
+		}
+	}
+
+	ops = append(ops, preExtra...)
+	ops = append(ops, mainExtra...)
 	return ops
 }
 

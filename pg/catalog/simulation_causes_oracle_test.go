@@ -5124,12 +5124,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_ungrouped_gb_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id, val FROM t_r20 GROUP BY id", CodeGroupingError},
 			{"CREATE RULE r_grouped_new_ok_r26 AS ON INSERT TO t_r20 DO ALSO SELECT NEW.id, count(*) FROM t_r20", "0"},
 			{"DROP ACCESS METHOD heap", CodeDependentObjects},
+			{"PREPARE p_oid_neg_r27(oid) AS SELECT $1; CREATE TABLE t_oid_neg_r27 AS EXECUTE p_oid_neg_r27('-1')", CodeNumericValueOutOfRange},
+			{"PREPARE p_oid_over_r27(oid) AS SELECT $1; CREATE TABLE t_oid_over_r27 AS EXECUTE p_oid_over_r27('4294967296')", CodeNumericValueOutOfRange},
+			{"PREPARE p_num_big_r27(numeric) AS SELECT $1 AS n; CREATE TABLE t_num_big_r27 AS EXECUTE p_num_big_r27('1e1000')", "0"},
+			{"CREATE VIEW v_shadow_r27 AS SELECT 1 AS a; CREATE OR REPLACE TEMP VIEW v_shadow_r27 AS SELECT 2 AS a; CREATE FUNCTION pg_temp.fn_temp_only_r27() RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE VIEW v_call_temp_fn_r27 AS SELECT fn_temp_only_r27()", CodeUndefinedFunction},
 			{"CREATE COLLATION c_nondet_libc_r25 (PROVIDER = libc, LOCALE = 'C', DETERMINISTIC = false)", CodeFeatureNotSupported},
 			{"PREPARE p_int_r25(int) AS SELECT $1 AS id; CREATE TABLE t_bad_lit_r25 AS EXECUTE p_int_r25('abc')", CodeInvalidTextRepresentation},
 			{"CREATE TABLE t_star_r25 (a int); PREPARE p_star_r25 AS SELECT * FROM t_star_r25; ALTER TABLE t_star_r25 ADD COLUMN b int; CREATE TABLE out_star_r25 AS EXECUTE p_star_r25", CodeFeatureNotSupported},
 			{"CREATE ROLE rep_r25; CREATE INDEX ix_own_r25 ON t_r20 (id); ALTER INDEX ix_own_r25 OWNER TO rep_r25", "0"},
 			{"CREATE VIEW v_ret_dup_r25 AS SELECT id, val::varchar AS v FROM t_r20; CREATE RULE \"_RETURN\" AS ON UPDATE TO v_ret_dup_r25 DO INSTEAD NOTHING", CodeDuplicateObject},
 			{"CREATE OR REPLACE RULE \"_RETURN\" AS ON SELECT TO v_ret_dup_r25 DO INSTEAD SELECT id, val::varchar(5) AS v FROM t_r20", "0"},
+			{"DROP RULE \"_RETURN\" ON v_ret_dup_r25 CASCADE", CodeDependentObjects},
 			{"CREATE VIEW v_rep_col_chk_r25(x, y) AS SELECT id, id FROM t_r20 WITH LOCAL CHECK OPTION", "0"},
 			{"CREATE OR REPLACE VIEW v_rep_col_chk_r25 AS SELECT id AS renamed_x, id AS y FROM t_r20", CodeInvalidObjectDefinition},
 			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
@@ -5242,6 +5247,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		c125To := New()
 		for _, stmt := range []string{
 			"CREATE COLLATION c_ord_r25 (PROVIDER = libc, LOCALE = 'C')",
+			"CREATE ACCESS METHOD mod_am_r27 TYPE TABLE HANDLER heap_tableam_handler",
+			"CREATE TABLE t_mod_am_r27 (id int) USING mod_am_r27",
 			"CREATE TABLE t_mv_r25 (id int)",
 			"CREATE TEMP TABLE tmp_am_r26 (id int)",
 			"CREATE RULE r_tmp_drop_r26 AS ON INSERT TO tmp_am_r26 DO ALSO NOTHING",
@@ -5256,6 +5263,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		for _, stmt := range []string{
 			"CREATE COLLATION c_ord_r25 (LOCALE = 'C', PROVIDER = libc)",
+			"CREATE FUNCTION mod_am_handler_r27(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD mod_am_r27 TYPE TABLE HANDLER mod_am_handler_r27",
+			"CREATE TABLE t_mod_am_r27 (id int) USING mod_am_r27",
 			"CREATE ACCESS METHOD alt_heap_r25 TYPE TABLE HANDLER heap_tableam_handler",
 			"CREATE TABLE t_mv_r25 (id int) USING alt_heap_r25",
 			"CREATE TEMP TABLE tmp_am_r26 (id int) USING alt_heap_r25",
