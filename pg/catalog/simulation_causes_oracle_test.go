@@ -5234,6 +5234,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_sub_nolateral_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT s.id FROM t_r20, (SELECT t_r20.id) s", CodeUndefinedTable},
 			{"CREATE RULE r_join_on_scope_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON a.id = d.id", CodeUndefinedTable},
 			{"CREATE RULE r_join_on_ok_r35 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 a, t_r20 b JOIN dst_r20 d ON b.id = d.id", "0"},
+			// Round 36.
+			{"CREATE RULE r_win_part_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w AS (PARTITION BY id), w2 AS (w PARTITION BY val)", CodeWindowingError},
+			{"CREATE RULE r_win_order_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (w ORDER BY val) FROM t_r20 WINDOW w AS (ORDER BY id)", CodeWindowingError},
+			{"CREATE RULE r_win_frame_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (w) FROM t_r20 WINDOW w AS (ORDER BY id ROWS 1 PRECEDING)", CodeWindowingError},
+			{"CREATE RULE r_win_copy_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w AS (PARTITION BY id), w2 AS (w ORDER BY val ROWS 1 PRECEDING)", "0"},
+			{"CREATE RULE r_win_name_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w FROM t_r20 WINDOW w AS (ORDER BY id ROWS 1 PRECEDING)", "0"},
+			{"CREATE RULE r_frame_agg_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS sum(id) PRECEDING) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_frame_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS row_number() OVER () PRECEDING) FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_frame_srf_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS generate_series(1, 2) PRECEDING) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_part_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (PARTITION BY row_number() OVER ()) FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_part_agg_ok_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (PARTITION BY count(*)) FROM t_r20 GROUP BY id", "0"},
+			{"CREATE RULE r_filter_srf_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) FILTER (WHERE generate_series(1, 2) > 0) FROM t_r20", CodeFeatureNotSupported},
+			{"CREATE RULE r_upd_agg_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = count(*)", CodeGroupingError},
+			{"CREATE RULE r_upd_win_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = row_number() OVER ()", CodeWindowingError},
+			{"CREATE RULE r_upd_srf_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = generate_series(1, 2)", CodeFeatureNotSupported},
+			{"CREATE RULE r_upd_sub_ok_r36 AS ON INSERT TO t_r20 DO ALSO UPDATE dst_r20 SET id = (SELECT count(*) FROM t_r20)", "0"},
+			{"CREATE RULE r_values_agg_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (count(*))", CodeGroupingError},
+			{"CREATE RULE r_values_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (row_number() OVER ())", CodeWindowingError},
+			{"CREATE INDEX i_vacuum_scale_r36 ON t_r20 (id) WITH (vacuum_cleanup_index_scale_factor = 0.1)", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)

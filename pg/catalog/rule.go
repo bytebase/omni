@@ -770,6 +770,7 @@ type ruleEvalContext struct {
 	usingCols     map[string]int
 	targetAliases map[string]bool
 	windowNames   map[string]bool
+	windowDefs    map[string]*nodes.WindowDef
 	hasOpenSource bool
 	disallowAgg   string
 	disallowWin   string
@@ -827,7 +828,7 @@ func (c *Catalog) bindRuleBoolExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalC
 		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
 		if ctx.disallowSRF == "" {
 			switch construct {
-			case "WHERE", "HAVING":
+			case "WHERE", "HAVING", "FILTER":
 				ctx.disallowSRF = construct
 			case "JOIN/ON":
 				ctx.disallowSRF = "JOIN conditions"
@@ -2649,7 +2650,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		if s.ValuesLists != nil {
-			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny}
+			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, disallowAgg: "VALUES", disallowWin: "VALUES"}
 			firstRowLen := -1
 			var colExprs [][]AnalyzedExpr
 			for _, rowNode := range s.ValuesLists.Items {
@@ -2703,9 +2704,11 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		windowNames := make(map[string]bool)
+		windowDefs := make(map[string]*nodes.WindowDef)
 		if s.WindowClause != nil {
 			for _, item := range s.WindowClause.Items {
 				if wd, ok := item.(*nodes.WindowDef); ok && wd != nil && wd.Name != "" {
+					windowDefs[wd.Name] = wd
 					if windowNames[wd.Name] && !c.snapshot {
 						return &Error{
 							Code:    CodeWindowingError,
@@ -2724,6 +2727,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			cteColTypes: cteColTypes,
 			cteAny:      cteAny,
 			windowNames: windowNames,
+			windowDefs:  windowDefs,
 		}
 		if err := c.collectFromScope(b, s.FromClause, ctx); err != nil {
 			return err
@@ -2771,6 +2775,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			usingCols:     ctx.usingCols,
 			targetAliases: targetAliases,
 			windowNames:   windowNames,
+			windowDefs:    windowDefs,
 			hasOpenSource: ctx.hasOpenSource,
 		}
 		if s.DistinctClause != nil {
@@ -3036,7 +3041,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			if oc.TargetList != nil {
 				for _, item := range oc.TargetList.Items {
 					if rt, ok := item.(*nodes.ResTarget); ok {
-						if err := c.bindRuleExpr(b, rt.Val, ctx); err != nil {
+						if err := c.bindRuleUpdateSource(b, rt.Val, ctx); err != nil {
 							return err
 						}
 					}
@@ -3081,7 +3086,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		if s.TargetList != nil {
 			for _, item := range s.TargetList.Items {
 				if rt, ok := item.(*nodes.ResTarget); ok {
-					if err := c.bindRuleExpr(b, rt.Val, ctx); err != nil {
+					if err := c.bindRuleUpdateSource(b, rt.Val, ctx); err != nil {
 						return err
 					}
 				}
@@ -3906,6 +3911,17 @@ func (c *Catalog) bindRuleOperator(b *ruleBindings, opNameList *nodes.List, lTyp
 		}
 	}
 	return 0, nil
+}
+
+// bindRuleUpdateSource binds an UPDATE assignment value, where aggregate,
+// window and set-returning calls are refused (EXPR_KIND_UPDATE_SOURCE).
+func (c *Catalog) bindRuleUpdateSource(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext) error {
+	if ctx != nil {
+		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
+		ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = "UPDATE", "UPDATE", "UPDATE"
+		defer func() { ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = prevAgg, prevWin, prevSRF }()
+	}
+	return c.bindRuleExpr(b, n, ctx)
 }
 
 // bindRuleLimitExpr binds a LIMIT or OFFSET argument, where set-returning
@@ -5071,6 +5087,18 @@ func (c *Catalog) bindWindowDefInternal(b *ruleBindings, wd *nodes.WindowDef, ct
 					Message: fmt.Sprintf("window %q does not exist", wd.Refname),
 				}
 			}
+			if err := checkRuleWindowCopy(wd, ctx.windowDefs[wd.Refname]); err != nil {
+				return err
+			}
+		}
+	}
+	if ctx != nil {
+		// Window definitions refuse window calls; frame offsets also refuse
+		// aggregates and set-returning calls (parse_agg.c, parse_func.c).
+		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
+		defer func() { ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = prevAgg, prevWin, prevSRF }()
+		if ctx.disallowWin == "" {
+			ctx.disallowWin = "window definitions"
 		}
 	}
 	if wd.PartitionClause != nil {
@@ -5082,6 +5110,20 @@ func (c *Catalog) bindWindowDefInternal(b *ruleBindings, wd *nodes.WindowDef, ct
 	}
 	if err := c.bindRuleSortClause(b, wd.OrderClause, ctx); err != nil {
 		return err
+	}
+	if ctx != nil {
+		mode := "RANGE"
+		if wd.FrameOptions&nodes.FRAMEOPTION_ROWS != 0 {
+			mode = "ROWS"
+		} else if wd.FrameOptions&nodes.FRAMEOPTION_GROUPS != 0 {
+			mode = "GROUPS"
+		}
+		if ctx.disallowAgg == "" {
+			ctx.disallowAgg = "window " + mode
+		}
+		if ctx.disallowSRF == "" {
+			ctx.disallowSRF = "window definitions"
+		}
 	}
 	if err := c.bindRuleExpr(b, wd.StartOffset, ctx); err != nil {
 		return err
@@ -5103,6 +5145,26 @@ func (c *Catalog) bindWindowDefInternal(b *ruleBindings, wd *nodes.WindowDef, ct
 				return &Error{Code: CodeInvalidColumnReference, Message: fmt.Sprintf("argument of %s must not contain variables", mode)}
 			}
 		}
+	}
+	return nil
+}
+
+// checkRuleWindowCopy applies parse_clause.c's rules for a window that
+// copies an earlier one: it may not override PARTITION BY, may add ORDER BY
+// only when the copied window has none, and may not copy a window that has a
+// frame clause.
+func checkRuleWindowCopy(wd, ref *nodes.WindowDef) error {
+	if ref == nil {
+		return nil
+	}
+	if wd.PartitionClause != nil && len(wd.PartitionClause.Items) > 0 {
+		return &Error{Code: CodeWindowingError, Message: fmt.Sprintf("cannot override PARTITION BY clause of window %q", wd.Refname)}
+	}
+	if wd.OrderClause != nil && len(wd.OrderClause.Items) > 0 && ref.OrderClause != nil && len(ref.OrderClause.Items) > 0 {
+		return &Error{Code: CodeWindowingError, Message: fmt.Sprintf("cannot override ORDER BY clause of window %q", wd.Refname)}
+	}
+	if ref.FrameOptions&nodes.FRAMEOPTION_NONDEFAULT != 0 {
+		return &Error{Code: CodeWindowingError, Message: fmt.Sprintf("cannot copy window %q because it has a frame clause", wd.Refname)}
 	}
 	return nil
 }
