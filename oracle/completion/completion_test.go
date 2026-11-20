@@ -620,6 +620,123 @@ func TestCompleteMaterializedViewsAndPackages(t *testing.T) {
 	}
 }
 
+func TestCompleteCodexReviewFixes(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "S1",
+		PublicSynonyms: []*metadatapb.SynonymMetadata{
+			{Name: "PUB_SYN", TargetSchema: "S1", TargetName: "T1"},
+		},
+		LinkedDatabases: []*metadatapb.LinkedDatabaseMetadata{
+			{Name: "REMOTE_DB"},
+		},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "S1",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:     "T1",
+						Columns:  []*metadatapb.ColumnMetadata{{Name: "S1_T1_COL", Type: "NUMBER"}},
+						Triggers: []*metadatapb.TriggerMetadata{{Name: "TBL_TRG"}},
+					},
+					{
+						Name:    "T2",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "S1_T2_COL", Type: "NUMBER"}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:     "V1",
+						Triggers: []*metadatapb.TriggerMetadata{{Name: "VIEW_TRG"}},
+					},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{
+						Name:     "MV1",
+						Triggers: []*metadatapb.TriggerMetadata{{Name: "MV_TRG"}},
+					},
+				},
+				Synonyms: []*metadatapb.SynonymMetadata{
+					{Name: "PRIV_SYN", TargetSchema: "S1", TargetName: "T1"},
+				},
+			},
+			{
+				Name: "S2",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "T1",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "S2_T1_COL", Type: "NUMBER"}},
+					},
+					{
+						Name:    "T2",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "S2_T2_COL", Type: "NUMBER"}},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("synonyms in relation completion", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT * FROM |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "PRIV_SYN", typ: CandidateSynonym}) {
+			t.Fatalf("expected PRIV_SYN synonym candidate, got %v", res)
+		}
+		if !hasSpec(res, candidateSpec{text: "PUB_SYN", typ: CandidateSynonym}) {
+			t.Fatalf("expected PUB_SYN public synonym candidate, got %v", res)
+		}
+	})
+
+	t.Run("database links after at sign", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT * FROM t1@|")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "REMOTE_DB", typ: CandidateDatabaseLink}) {
+			t.Fatalf("expected REMOTE_DB link candidate, got %v", res)
+		}
+	})
+
+	t.Run("triggers from tables views and mviews", func(t *testing.T) {
+		sql, pos := splitCaret(t, "DROP TRIGGER |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		for _, want := range []string{"TBL_TRG", "VIEW_TRG", "MV_TRG"} {
+			if !hasSpec(res, candidateSpec{text: want, typ: CandidateTrigger}) {
+				t.Fatalf("missing trigger %q in %v", want, res)
+			}
+		}
+	})
+
+	t.Run("schema table pairs do not cartesian product", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT | FROM S1.T1, S2.T2")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if !hasSpec(res, candidateSpec{text: "S1_T1_COL", typ: CandidateColumn}) ||
+			!hasSpec(res, candidateSpec{text: "S2_T2_COL", typ: CandidateColumn}) {
+			t.Fatalf("expected S1_T1_COL and S2_T2_COL in %v", res)
+		}
+		if hasSpec(res, candidateSpec{text: "S1_T2_COL", typ: CandidateColumn}) ||
+			hasSpec(res, candidateSpec{text: "S2_T1_COL", typ: CandidateColumn}) {
+			t.Fatalf("unexpected cross-product columns in %v", res)
+		}
+	})
+
+	t.Run("later cte hidden inside earlier cte body", func(t *testing.T) {
+		sql, pos := splitCaret(t, "WITH first AS (SELECT * FROM |), later AS (SELECT * FROM t1) SELECT * FROM later")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if hasSpec(res, candidateSpec{text: "later", typ: CandidateTable}) || hasSpec(res, candidateSpec{text: "LATER", typ: CandidateTable}) {
+			t.Fatalf("unexpected later CTE in earlier CTE body: %v", res)
+		}
+		if hasSpec(res, candidateSpec{text: "first", typ: CandidateTable}) || hasSpec(res, candidateSpec{text: "FIRST", typ: CandidateTable}) {
+			t.Fatalf("unexpected self CTE before completion: %v", res)
+		}
+	})
+
+	t.Run("expression operand not suggested as select alias", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT S1_T2_COL + S1_T1_COL FROM t2 ORDER BY |")
+		res := Complete(sql, pos, meta, WithDefaultSchema("S1"))
+		if hasSpec(res, candidateSpec{text: "S1_T1_COL", typ: CandidateColumn}) {
+			t.Fatalf("unexpected definitionless operand alias S1_T1_COL in %v", res)
+		}
+	})
+}
+
 func TestCompleteWithSingleCatalogAndNoOptions(t *testing.T) {
 	cat, err := catalog.LoadSQL(`
 		CREATE TABLE employees (

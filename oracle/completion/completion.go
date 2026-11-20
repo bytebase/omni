@@ -31,6 +31,7 @@ const (
 	CandidateIndex
 	CandidateTrigger
 	CandidateSynonym
+	CandidateDatabaseLink
 )
 
 // String returns the lower-case kind name of CandidateType.
@@ -64,6 +65,8 @@ func (t CandidateType) String() string {
 		return "trigger"
 	case CandidateSynonym:
 		return "synonym"
+	case CandidateDatabaseLink:
+		return "database_link"
 	default:
 		return "unknown"
 	}

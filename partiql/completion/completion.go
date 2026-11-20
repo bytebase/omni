@@ -36,11 +36,12 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 		pos = 0
 	}
 
-	prefix := extractPrefix(input, pos)
+	stmtSQL, localPos := extractCurrentStatement(input, pos)
+	prefix := extractPrefix(stmtSQL, localPos)
 
 	// Strip the partial word being typed so context detection inspects the
 	// token before it.
-	beforeCursor := strings.ToUpper(input[:pos-len(prefix)])
+	beforeCursor := strings.ToUpper(stmtSQL[:localPos-len(prefix)])
 	inFromContext := isInFromContext(beforeCursor)
 
 	var candidates []Candidate
@@ -62,8 +63,8 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 		}
 	}
 
-	if meta != nil && isColumnContext(input, pos) {
-		for _, col := range resolveColumnNames(input, pos, meta) {
+	if meta != nil && isColumnContext(stmtSQL, localPos) {
+		for _, col := range resolveColumnNames(stmtSQL, localPos, meta) {
 			if matchesPrefix(col, prefix) {
 				addCandidate(col, "column")
 			}
@@ -114,6 +115,9 @@ func collectTableNames(cat *catalog.Catalog, meta *metadata.DatabaseSchemaMetada
 func extractPrefix(input string, pos int) string {
 	if pos > len(input) {
 		pos = len(input)
+	}
+	if pos < 0 {
+		pos = 0
 	}
 	start := pos
 	for start > 0 && isIdentChar(input[start-1]) {
@@ -172,9 +176,9 @@ func isColumnContext(statement string, pos int) bool {
 	if pos > len(statement) {
 		pos = len(statement)
 	}
-	// Strip quoted identifiers before uppercasing so "order" does not match
-	// the ORDER keyword in lastKeywordIndex.
-	before := strings.ToUpper(stripQuotedIdentifiers(statement[:pos]))
+	// Mask comments, string literals, and quoted identifiers before uppercasing
+	// so neither literals like 'FROM' nor identifiers like "order" match keywords.
+	before := strings.ToUpper(maskCommentsStringsAndQuotedIdents(statement[:pos]))
 
 	trimmed := strings.TrimRight(before, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$\"")
 	trimmed = strings.TrimRight(trimmed, " \t\n\r")
@@ -226,18 +230,41 @@ func isIdentRune(r rune) bool {
 		(r >= '0' && r <= '9') || r == '_' || r == '$'
 }
 
-// resolveColumnNames extracts column names from tables referenced in the active
-// statement around pos. If no FROM/JOIN/INTO table is found, it falls back to
-// all tables in meta.
+type tableRef struct {
+	name  string
+	alias string
+}
+
+// resolveColumnNames extracts column names from tables visible in the active
+// query scope around pos, respecting table/alias qualifiers when present.
 func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchemaMetadata) []string {
 	if meta == nil {
 		return nil
 	}
-	currentStmt := extractCurrentStatement(statement, pos)
-	targetTables := extractTableNamesFromStatement(currentStmt)
+	scopeText := extractActiveQueryScope(statement, pos)
+	refs := extractTableRefsFromScope(scopeText)
+	qualifier := columnQualifierBeforeCursor(statement, pos)
 
 	allTables := collectMetadataTables(meta)
-	if len(targetTables) == 0 {
+	if qualifier != "" {
+		var cols []string
+		for _, ref := range refs {
+			if strings.EqualFold(ref.alias, qualifier) || (ref.alias == "" && strings.EqualFold(ref.name, qualifier)) || strings.EqualFold(ref.name, qualifier) {
+				table := findMetadataTable(allTables, ref.name)
+				if table == nil {
+					continue
+				}
+				for _, col := range table.GetColumns() {
+					if col.GetName() != "" {
+						cols = append(cols, col.GetName())
+					}
+				}
+			}
+		}
+		return cols
+	}
+
+	if len(refs) == 0 {
 		var cols []string
 		for _, table := range allTables {
 			for _, col := range table.GetColumns() {
@@ -250,8 +277,8 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 	}
 
 	var cols []string
-	for _, tableName := range targetTables {
-		table := findMetadataTable(allTables, tableName)
+	for _, ref := range refs {
+		table := findMetadataTable(allTables, ref.name)
 		if table == nil {
 			continue
 		}
@@ -262,6 +289,35 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 		}
 	}
 	return cols
+}
+
+func columnQualifierBeforeCursor(statement string, pos int) string {
+	prefix := extractPrefix(statement, pos)
+	before := strings.TrimRight(statement[:pos-len(prefix)], " \t\n\r")
+	if !strings.HasSuffix(before, ".") {
+		return ""
+	}
+	before = strings.TrimRight(strings.TrimSuffix(before, "."), " \t\n\r")
+	if before == "" {
+		return ""
+	}
+	if before[len(before)-1] == '"' {
+		for i := len(before) - 2; i >= 0; i-- {
+			if before[i] == '"' {
+				if i > 0 && before[i-1] == '"' {
+					i--
+					continue
+				}
+				return strings.ReplaceAll(before[i+1:len(before)-1], `""`, `"`)
+			}
+		}
+		return ""
+	}
+	start := len(before)
+	for start > 0 && isIdentChar(before[start-1]) {
+		start--
+	}
+	return before[start:]
 }
 
 func collectMetadataTables(meta *metadata.DatabaseSchemaMetadata) []*metadata.TableMetadata {
@@ -286,48 +342,173 @@ func findMetadataTable(tables []*metadata.TableMetadata, name string) *metadata.
 	return nil
 }
 
-// extractCurrentStatement returns the statement segment containing pos using
-// partiql.Split so semicolons inside strings, comments, or Ion literals are
-// respected.
-func extractCurrentStatement(statement string, pos int) string {
+// extractCurrentStatement returns the statement segment containing pos and pos
+// relative to that segment. Segment end offsets are exclusive at statement
+// boundaries so a cursor immediately after ';' begins a new empty statement.
+func extractCurrentStatement(statement string, pos int) (string, int) {
 	segs := partiql.Split(statement)
-	for _, seg := range segs {
-		if pos >= seg.ByteStart && pos <= seg.ByteEnd {
-			return seg.Text
+	for i, seg := range segs {
+		if pos < seg.ByteStart {
+			continue
+		}
+		if pos < seg.ByteEnd {
+			return seg.Text, pos - seg.ByteStart
+		}
+		if pos == seg.ByteEnd {
+			if strings.HasSuffix(strings.TrimRight(seg.Text, " \t\r\n"), ";") {
+				if i+1 < len(segs) {
+					continue
+				}
+				return "", 0
+			}
+			return seg.Text, pos - seg.ByteStart
 		}
 	}
-	return statement
+	return statement, pos
 }
 
-// extractTableNamesFromStatement scans a statement for table names after FROM,
-// JOIN, or INTO keywords, handling comma-separated tables, quoted identifiers,
-// aliases, and comments.
-func extractTableNamesFromStatement(statement string) []string {
+// extractActiveQueryScope slices statement to the innermost parenthesized query
+// block containing pos so nested subqueries (e.g. WHERE EXISTS (SELECT ...))
+// do not leak into the enclosing query's FROM list.
+func extractActiveQueryScope(statement string, pos int) string {
+	var openStack []int
+	start := 0
+	for i := 0; i < len(statement) && i < pos; i++ {
+		switch statement[i] {
+		case '\'':
+			i++
+			for i < len(statement) {
+				if statement[i] == '\'' {
+					if i+1 < len(statement) && statement[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '"':
+			i++
+			for i < len(statement) {
+				if statement[i] == '"' {
+					if i+1 < len(statement) && statement[i+1] == '"' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '(':
+			openStack = append(openStack, i+1)
+		case ')':
+			if len(openStack) > 0 {
+				openStack = openStack[:len(openStack)-1]
+			}
+		}
+	}
+	if len(openStack) > 0 {
+		start = openStack[len(openStack)-1]
+	}
+
+	end := len(statement)
+	depth := 0
+	for i := start; i < len(statement); i++ {
+		switch statement[i] {
+		case '\'':
+			i++
+			for i < len(statement) {
+				if statement[i] == '\'' {
+					if i+1 < len(statement) && statement[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '"':
+			i++
+			for i < len(statement) {
+				if statement[i] == '"' {
+					if i+1 < len(statement) && statement[i+1] == '"' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 && len(openStack) > 0 {
+				end = i
+				return statement[start:end]
+			}
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return statement[start:end]
+}
+
+// extractTableRefsFromScope scans the active query scope at paren depth 0 for
+// table names and optional aliases after FROM, JOIN, INTO, or UPDATE keywords.
+func extractTableRefsFromScope(statement string) []tableRef {
 	cleaned := stripSQLComments(statement)
 	tokens := tokenizeForTableExtraction(cleaned)
 
-	var tables []string
+	var refs []tableRef
+	depth := 0
 	i := 0
 	for i < len(tokens) {
+		if tokens[i].paren == '(' {
+			depth++
+			i++
+			continue
+		}
+		if tokens[i].paren == ')' {
+			if depth > 0 {
+				depth--
+			}
+			i++
+			continue
+		}
+		if depth != 0 {
+			i++
+			continue
+		}
 		upper := strings.ToUpper(tokens[i].text)
 		if (upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && i+1 < len(tokens) {
 			i++
 			for i < len(tokens) {
-				tok := tokens[i]
-				name := tok.text
-				if tok.quoted {
-					tables = append(tables, name)
-				} else if isKeyword(strings.ToUpper(name)) {
+				if tokens[i].paren == '(' || tokens[i].paren == ')' {
 					break
-				} else {
-					tables = append(tables, name)
 				}
+				tok := tokens[i]
+				if tok.comma {
+					break
+				}
+				name := tok.text
+				if !tok.quoted && isKeyword(strings.ToUpper(name)) {
+					break
+				}
+				ref := tableRef{name: name}
 				i++
 				if i < len(tokens) && strings.ToUpper(tokens[i].text) == "AS" {
-					i += 2
-				} else if i < len(tokens) && !tokens[i].comma && !isKeyword(strings.ToUpper(tokens[i].text)) {
+					if i+1 < len(tokens) && !tokens[i+1].comma && tokens[i+1].paren == 0 {
+						ref.alias = tokens[i+1].text
+						i += 2
+					} else {
+						i++
+					}
+				} else if i < len(tokens) && !tokens[i].comma && tokens[i].paren == 0 && !isKeyword(strings.ToUpper(tokens[i].text)) {
+					ref.alias = tokens[i].text
 					i++
 				}
+				refs = append(refs, ref)
 				if i < len(tokens) && tokens[i].comma {
 					i++
 					continue
@@ -338,13 +519,14 @@ func extractTableNamesFromStatement(statement string) []string {
 			i++
 		}
 	}
-	return tables
+	return refs
 }
 
 type tableToken struct {
 	text   string
 	quoted bool
 	comma  bool
+	paren  byte
 }
 
 func tokenizeForTableExtraction(s string) []tableToken {
@@ -357,6 +539,11 @@ func tokenizeForTableExtraction(s string) []tableToken {
 		}
 		if s[i] == ',' {
 			tokens = append(tokens, tableToken{comma: true})
+			i++
+			continue
+		}
+		if s[i] == '(' || s[i] == ')' {
+			tokens = append(tokens, tableToken{paren: s[i]})
 			i++
 			continue
 		}
@@ -449,18 +636,20 @@ func stripSQLComments(s string) string {
 	return b.String()
 }
 
-func stripQuotedIdentifiers(s string) string {
+func maskCommentsStringsAndQuotedIdents(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	i := 0
 	for i < len(s) {
-		if s[i] == '"' {
+		switch {
+		case s[i] == '"' || s[i] == '\'':
+			q := s[i]
 			b.WriteByte('_')
 			i++
 			for i < len(s) {
-				if s[i] == '"' {
+				if s[i] == q {
 					i++
-					if i < len(s) && s[i] == '"' {
+					if i < len(s) && s[i] == q {
 						b.WriteByte('_')
 						b.WriteByte('_')
 						i++
@@ -472,7 +661,31 @@ func stripQuotedIdentifiers(s string) string {
 				b.WriteByte('_')
 				i++
 			}
-		} else {
+		case s[i] == '-' && i+1 < len(s) && s[i+1] == '-':
+			b.WriteByte(' ')
+			i += 2
+			for i < len(s) && s[i] != '\n' && s[i] != '\r' {
+				i++
+			}
+		case s[i] == '/' && i+1 < len(s) && s[i+1] == '*':
+			b.WriteByte(' ')
+			i += 2
+			depth := 1
+			for i+1 < len(s) && depth > 0 {
+				if s[i] == '/' && s[i+1] == '*' {
+					depth++
+					i += 2
+				} else if s[i] == '*' && s[i+1] == '/' {
+					depth--
+					i += 2
+				} else {
+					i++
+				}
+			}
+			if depth > 0 {
+				i = len(s)
+			}
+		default:
 			b.WriteByte(s[i])
 			i++
 		}

@@ -330,6 +330,30 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      nil,
 			wantCols: []string{"Artist", "SongTitle"},
 		},
+		{
+			name:     "qualified alias restricts columns to that table",
+			input:    "SELECT m.| FROM Music m, Album a",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "nested subquery does not leak table into outer query",
+			input:    "SELECT | FROM Album WHERE EXISTS (SELECT 1 FROM Music)",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Title"},
+		},
+		{
+			name:     "string literal FROM does not suppress column completion",
+			input:    "SELECT * FROM Music WHERE Artist = 'FROM' |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "cursor immediately after semicolon starts new statement",
+			input:    "SELECT * FROM Music WHERE Artist;|",
+			cat:      cat,
+			wantCols: nil,
+		},
 	}
 
 	for _, tc := range tests {
