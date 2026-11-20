@@ -1592,6 +1592,12 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 	if allFKs {
 		foreignKeys = sortedForeignKeys(table.foreignKeys)
 	}
+	if table.duplicateColumn != "" {
+		return fmt.Errorf("table %s has duplicate column %s", table.qualifiedName(), quoteDefinitionIdentifier(table.duplicateColumn))
+	}
+	if table.hasCheckConstraints {
+		return fmt.Errorf("table %s check constraints cannot be restored because Redshift does not support CHECK constraints", table.qualifiedName())
+	}
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
@@ -1810,15 +1816,17 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 }
 
 type tableState struct {
-	id           int
-	schema       string
-	name         string
-	owner        string
-	columns      map[string]*columnState
-	defaultExprs []string
-	indexes      []*indexState
-	foreignKeys  []*foreignKeyState
-	comment      string
+	id                  int
+	schema              string
+	name                string
+	owner               string
+	duplicateColumn     string
+	hasCheckConstraints bool
+	columns             map[string]*columnState
+	defaultExprs        []string
+	indexes             []*indexState
+	foreignKeys         []*foreignKeyState
+	comment             string
 }
 
 func sortedForeignKeys(fks []*foreignKeyState) []*foreignKeyState {
@@ -1917,9 +1925,18 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 	state.schema = schemaName
 	state.owner = table.Owner
 	state.comment = table.Comment
+	for _, cc := range table.CheckConstraints {
+		if cc != nil {
+			state.hasCheckConstraints = true
+			break
+		}
+	}
 	for i, column := range table.Columns {
 		if column == nil {
 			continue
+		}
+		if _, exists := state.columns[column.Name]; exists && state.duplicateColumn == "" {
+			state.duplicateColumn = column.Name
 		}
 		colState := convertToColumnState(i, column)
 		state.columns[column.Name] = colState

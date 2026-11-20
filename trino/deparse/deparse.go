@@ -6,6 +6,7 @@ import (
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/analysis"
+	trinoparser "github.com/bytebase/omni/trino/parser"
 )
 
 // DatabaseDefinitionFromProto renders a Trino database schema proto as SDL.
@@ -31,9 +32,22 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		}
 		schemaMeta := &SchemaMetadata{
 			Name:              s.Name,
+			Functions:         make([]*FunctionMetadata, 0, len(s.Functions)),
 			Tables:            make([]*TableMetadata, 0, len(s.Tables)),
 			Views:             make([]*ViewMetadata, 0, len(s.Views)),
 			MaterializedViews: make([]*ViewMetadata, 0, len(s.MaterializedViews)),
+		}
+		for _, fn := range s.Functions {
+			if fn == nil || fn.SkipDump {
+				continue
+			}
+			if fn.Comment != "" {
+				return nil, fmt.Errorf("function %s.%s comment cannot be emitted separately from Definition", s.Name, fn.Name)
+			}
+			schemaMeta.Functions = append(schemaMeta.Functions, &FunctionMetadata{
+				Name:       fn.Name,
+				Definition: fn.Definition,
+			})
 		}
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
@@ -42,6 +56,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			tableMeta := &TableMetadata{
 				Name:    t.Name,
 				Columns: make([]*ColumnMetadata, 0, len(t.Columns)),
+				Comment: t.Comment,
 			}
 			for _, c := range t.Columns {
 				if c == nil {
@@ -51,6 +66,8 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 					Name:     c.Name,
 					Type:     c.Type,
 					Nullable: c.Nullable,
+					Default:  c.Default,
+					Comment:  c.Comment,
 				})
 			}
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
@@ -120,6 +137,20 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		if schema == nil {
 			continue
 		}
+		for _, fn := range schema.Functions {
+			if fn == nil {
+				continue
+			}
+			if err := writeCreateFunction(&buf, schema.Name, fn); err != nil {
+				return "", err
+			}
+			buf.WriteString("\n\n")
+		}
+	}
+	for _, schema := range metadata.Schemas {
+		if schema == nil {
+			continue
+		}
 		for _, table := range schema.Tables {
 			if table == nil {
 				continue
@@ -150,18 +181,54 @@ func writeCreateSchema(buf *strings.Builder, schemaName string) {
 	fmt.Fprintf(buf, "CREATE SCHEMA IF NOT EXISTS %s;", quoteIdentifier(schemaName))
 }
 
+func formatTrinoDefault(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	expr, errs := trinoparser.ParseExpression(trimmed)
+	if len(errs) == 0 && expr != nil && isTrinoDefaultAST(expr) {
+		return trimmed
+	}
+	return fmt.Sprintf("'%s'", escapeStringLiteral(raw))
+}
+
+func isTrinoDefaultAST(expr trinoparser.Expr) bool {
+	switch e := expr.(type) {
+	case *trinoparser.Literal, *trinoparser.IntervalLiteral:
+		return true
+	case *trinoparser.UnaryExpr:
+		return isTrinoDefaultAST(e.Operand)
+	case *trinoparser.BinaryExpr:
+		return isTrinoDefaultAST(e.Left) && isTrinoDefaultAST(e.Right)
+	case *trinoparser.ParenExpr:
+		return isTrinoDefaultAST(e.Expr)
+	case *trinoparser.RowConstructor:
+		for _, el := range e.Elements {
+			if !isTrinoDefaultAST(el) {
+				return false
+			}
+		}
+		return true
+	case *trinoparser.ColumnRef, *trinoparser.Dereference, *trinoparser.Parameter:
+		return false
+	default:
+		return true
+	}
+}
+
+func writeCreateFunction(buf *strings.Builder, schemaName string, fn *FunctionMetadata) error {
+	definition := strings.TrimSpace(fn.Definition)
+	if definition == "" {
+		return fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
+	}
+	buf.WriteString(appendTerminator(definition))
+	return nil
+}
+
 // writeCreateTable appends a single CREATE TABLE statement for table (qualified
 // by schemaName) to buf. It does not append the inter-statement blank line; the
-// caller does. The emitted form is:
-//
-//	CREATE TABLE IF NOT EXISTS "schema"."table" (
-//	    "col1" type1 NOT NULL,
-//	    "col2" type2
-//	);
-//
-// matching the legacy bytebase plugin/schema/trino output exactly, including the
-// four-space column indent and the leading newline before the closing paren
-// (which, for a table with no columns, leaves a blank line inside the parens).
+// caller does.
 func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetadata) {
 	fmt.Fprintf(buf, "CREATE TABLE IF NOT EXISTS %s.%s (\n", quoteIdentifier(schemaName), quoteIdentifier(table.Name))
 
@@ -170,14 +237,24 @@ func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetad
 		if column == nil {
 			continue
 		}
-		nullable := ""
-		if !column.Nullable {
-			nullable = " NOT NULL"
+		colDef := fmt.Sprintf("    %s %s", quoteIdentifier(column.Name), column.Type)
+		if column.Default != "" {
+			colDef += " DEFAULT " + formatTrinoDefault(column.Default)
 		}
-		columnDefs = append(columnDefs, fmt.Sprintf("    %s %s%s", quoteIdentifier(column.Name), column.Type, nullable))
+		if !column.Nullable {
+			colDef += " NOT NULL"
+		}
+		if column.Comment != "" {
+			colDef += fmt.Sprintf(" COMMENT '%s'", escapeStringLiteral(column.Comment))
+		}
+		columnDefs = append(columnDefs, colDef)
 	}
 
 	buf.WriteString(strings.Join(columnDefs, ",\n"))
+	if table.Comment != "" {
+		fmt.Fprintf(buf, "\n) COMMENT '%s';", escapeStringLiteral(table.Comment))
+		return
+	}
 	buf.WriteString("\n);")
 }
 

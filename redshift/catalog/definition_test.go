@@ -1152,4 +1152,21 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	})
 	require.NoError(t, err)
 	require.Contains(t, noActionFK, `CONSTRAINT "fk_parent" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
+
+	// 11. Check constraints and duplicate column names are rejected explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:             "chk_tbl",
+		Columns:          []*metadatapb.ColumnMetadata{{Name: "age", Type: "integer"}},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "chk_age", Expression: "age > 0"}},
+	})
+	require.ErrorContains(t, err, "CHECK")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "dup_tbl",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer"},
+			{Name: "id", Type: "bigint"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate column")
 }

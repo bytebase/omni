@@ -330,22 +330,28 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 			{Name: "skipped_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t_hidden"}}},
 			{
 				Name: "s",
+				Functions: []*metadatapb.FunctionMetadata{
+					nil,
+					{Name: "fn_skip", Definition: "CREATE FUNCTION s.fn_skip() RETURNS int RETURN 1", SkipDump: true},
+					{Name: "inc", Definition: "CREATE FUNCTION s.inc(x bigint) RETURNS bigint RETURN x + 1 -- udf note"},
+				},
 				Tables: []*metadatapb.TableMetadata{
 					nil,
 					{Name: "t_skip", SkipDump: true},
 					{
-						Name: "t",
+						Name:    "t",
+						Comment: "events table",
 						Columns: []*metadatapb.ColumnMetadata{
 							nil,
-							{Name: "id", Type: "bigint", Nullable: false},
-							{Name: "label", Type: "varchar", Nullable: true},
+							{Name: "id", Type: "bigint", Nullable: false, Default: "0", Comment: "pk col"},
+							{Name: "label", Type: "varchar", Nullable: true, Default: "pending"},
 						},
 					},
 				},
 				Views: []*metadatapb.ViewMetadata{
 					nil,
 					{Name: "v_skip", Definition: "SELECT 1", SkipDump: true},
-					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base" -- trailing view comment`},
+					{Name: "v_top", Definition: `SELECT s.inc(id) FROM "s"."v_base" -- trailing view comment`},
 					{Name: "v_base", Definition: `SELECT id FROM "s"."mv_base"`, Comment: "ordinary note"},
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
@@ -360,10 +366,13 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE SCHEMA IF NOT EXISTS "s";
 
+CREATE FUNCTION s.inc(x bigint) RETURNS bigint RETURN x + 1 -- udf note
+;
+
 CREATE TABLE IF NOT EXISTS "s"."t" (
-    "id" bigint NOT NULL,
-    "label" varchar
-);
+    "id" bigint DEFAULT 0 NOT NULL COMMENT 'pk col',
+    "label" varchar DEFAULT 'pending'
+) COMMENT 'events table';
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" COMMENT 'mv''s note' AS
 SELECT id FROM "s"."t" -- trailing mv comment
@@ -373,7 +382,7 @@ CREATE OR REPLACE VIEW "s"."v_base" COMMENT 'ordinary note' AS
 SELECT id FROM "s"."mv_base";
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
-SELECT id FROM "s"."v_base" -- trailing view comment
+SELECT s.inc(id) FROM "s"."v_base" -- trailing view comment
 ;
 
 `, got)
@@ -386,4 +395,13 @@ SELECT id FROM "s"."v_base" -- trailing view comment
 		}},
 	})
 	require.ErrorContains(t, err, "no columns")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "s",
+			Functions: []*metadatapb.FunctionMetadata{{Name: "empty_fn"}},
+		}},
+	})
+	require.ErrorContains(t, err, "no definition")
 }

@@ -45,6 +45,9 @@ type SchemaMetadata struct {
 	// Name is the schema name, emitted double-quoted in CREATE SCHEMA and as
 	// the first qualifier of every CREATE TABLE and CREATE VIEW.
 	Name string
+	// Functions are the schema's user-defined functions, in snapshot order;
+	// each becomes one CREATE FUNCTION statement before tables and views.
+	Functions []*FunctionMetadata
 	// Tables are the schema's tables, in snapshot order; each becomes one
 	// CREATE TABLE statement.
 	Tables []*TableMetadata
@@ -54,6 +57,12 @@ type SchemaMetadata struct {
 	// MaterializedViews are the schema's materialized views, in snapshot order;
 	// each becomes one CREATE MATERIALIZED VIEW statement in dependency order.
 	MaterializedViews []*ViewMetadata
+}
+
+// FunctionMetadata is one user-defined function; Definition holds its CREATE FUNCTION DDL.
+type FunctionMetadata struct {
+	Name       string
+	Definition string
 }
 
 // ViewMetadata is one view; it renders to a single CREATE OR REPLACE VIEW
@@ -74,6 +83,8 @@ type TableMetadata struct {
 	// Columns are the table's columns, in ordinal order; the order is preserved
 	// in the emitted column list.
 	Columns []*ColumnMetadata
+	// Comment is the optional table comment, emitted as COMMENT '...'.
+	Comment string
 }
 
 // ColumnMetadata is one column of a table.
@@ -86,4 +97,8 @@ type ColumnMetadata struct {
 	// Nullable reports whether the column accepts NULL. A non-nullable column
 	// gets a trailing NOT NULL.
 	Nullable bool
+	// Default is the optional column default expression/literal.
+	Default string
+	// Comment is the optional column comment, emitted as COMMENT '...'.
+	Comment string
 }
