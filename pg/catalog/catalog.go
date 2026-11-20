@@ -25,6 +25,11 @@ type operKey struct {
 	right uint32
 }
 
+type preparedStmt struct {
+	query    nodes.Node
+	argTypes []uint32
+}
+
 // Catalog is the in-memory PostgreSQL catalog.
 type Catalog struct {
 	oidGen *OIDGenerator
@@ -165,7 +170,7 @@ type Catalog struct {
 	warnings []Warning
 
 	// Session-local prepared statements registered via PREPARE.
-	preparedStmts map[string]nodes.Node
+	preparedStmts map[string]*preparedStmt
 
 	// currentStmtSQL holds the raw SQL slice of the statement currently executing in Exec.
 	currentStmtSQL string

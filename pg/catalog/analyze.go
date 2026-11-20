@@ -4311,9 +4311,13 @@ func (ac *analyzeCtx) transformNamedArgExpr(nae *nodes.NamedArgExpr) (AnalyzedEx
 //
 // pg: src/backend/parser/parse_param.c — variable_paramref_hook
 func (ac *analyzeCtx) transformParamRef(pr *nodes.ParamRef) (AnalyzedExpr, error) {
+	paramType := uint32(UNKNOWNOID)
+	if pr.Number > 0 && pr.Number <= len(ac.opts.ParamTypes) && ac.opts.ParamTypes[pr.Number-1] != 0 {
+		paramType = ac.opts.ParamTypes[pr.Number-1]
+	}
 	return &ParamExpr{
 		ParamNum:  pr.Number,
-		ParamType: UNKNOWNOID,
+		ParamType: paramType,
 	}, nil
 }
 
@@ -4327,13 +4331,19 @@ func (ac *analyzeCtx) transformCollateClause(cc *nodes.CollateClause) (AnalyzedE
 	}
 
 	collName := ""
+	var collOID uint32
 	if cc.Collname != nil && len(cc.Collname.Items) > 0 {
 		collName = stringVal(cc.Collname.Items[len(cc.Collname.Items)-1])
+		if _, userOID, rerr := ac.catalog.resolveCollationList(cc.Collname); rerr == nil && userOID != 0 {
+			collOID = userOID
+		} else {
+			collOID = builtinCollationOID(collName)
+		}
 	}
 
 	return &CollateExprQ{
 		Arg:      arg,
-		CollOID:  builtinCollationOID(collName),
+		CollOID:  collOID,
 		CollName: collName,
 	}, nil
 }
@@ -5789,6 +5799,9 @@ type AnalyzeOptions struct {
 	// names is added to it. A * over it fails. Use it to read lineage,
 	// never to decide whether PostgreSQL accepts the query.
 	OpaqueUnknownFunctions bool
+	// ParamTypes supplies resolved parameter type OIDs for $1..$N when
+	// analyzing a prepared query (e.g. CREATE TABLE ... AS EXECUTE).
+	ParamTypes []uint32
 }
 
 // AnalyzeSelectStmtWithOptions is AnalyzeSelectStmt with the relaxations
@@ -5840,10 +5853,13 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.Node, rel *Relation) (Analyze
 	if expr == nil {
 		return nil, nil
 	}
-	rte := c.buildRelationRTE(rel)
+	var rtes []*RangeTableEntry
+	if rel != nil {
+		rtes = []*RangeTableEntry{c.buildRelationRTE(rel)}
+	}
 	ac := &analyzeCtx{
 		catalog: c,
-		query:   &Query{RangeTable: []*RangeTableEntry{rte}},
+		query:   &Query{RangeTable: rtes},
 	}
 	return ac.transformExpr(expr)
 }

@@ -240,6 +240,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE INDEX with duplicate key columns", "table", "CREATE INDEX ON a (b, b)", "0"},
 		{"CREATE INDEX with duplicate INCLUDE columns", "table", "CREATE INDEX ON a (b) INCLUDE (b, b)", "0"},
 		{"ALTER TABLE ADD UNIQUE with duplicate INCLUDE column", "table", "ALTER TABLE a ADD UNIQUE (b) INCLUDE (b)", "0"},
+
+		// Sequence vs standalone data type collisions, concurrent matview refresh, and collation drops.
+		{"CREATE SEQUENCE colliding with enum type", "missing", "CREATE TYPE s_enum AS ENUM ('a');\nCREATE SEQUENCE s_enum", CodeDuplicateObject},
+		{"CREATE SEQUENCE IF NOT EXISTS colliding with enum type", "missing", "CREATE TYPE s_enum AS ENUM ('a');\nCREATE SEQUENCE IF NOT EXISTS s_enum", CodeDuplicateObject},
+		{"CREATE SEQUENCE colliding with domain type", "missing", "CREATE DOMAIN s_dom AS int;\nCREATE SEQUENCE s_dom", CodeDuplicateObject},
+		{"CREATE SEQUENCE colliding with composite type", "missing", "CREATE TYPE s_comp AS (a int);\nCREATE SEQUENCE s_comp", CodeDuplicateTable},
+		{"CREATE SEQUENCE IF NOT EXISTS colliding with composite type", "missing", "CREATE TYPE s_comp AS (a int);\nCREATE SEQUENCE IF NOT EXISTS s_comp", "0"},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY when unpopulated", "missing", "CREATE MATERIALIZED VIEW mv_u AS SELECT 1 AS id WITH NO DATA;\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_u", CodeFeatureNotSupported},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY without unique index", "missing", "CREATE MATERIALIZED VIEW mv_p AS SELECT 1 AS id;\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_p", CodeObjectNotInPrerequisiteState},
+		{"REFRESH MATERIALIZED VIEW CONCURRENTLY with qualifying unique index", "missing", "CREATE MATERIALIZED VIEW mv_ok AS SELECT 1 AS id;\nCREATE UNIQUE INDEX mv_ok_idx ON mv_ok (id);\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_ok", "0"},
+		{"DROP COLLATION restricted by table column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a text COLLATE c_dep);\nDROP COLLATION c_dep", CodeDependentObjects},
+		{"DROP COLLATION CASCADE drops dependent column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a int, b text COLLATE c_dep);\nDROP COLLATION c_dep CASCADE", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3464,6 +3476,71 @@ func TestSimulationCausesOracle(t *testing.T) {
 		wrIdx := c103.schemaByName["public"].Indexes["wr_t_idx"]
 		if wrRel.ReplicaIdentity != 'i' || !wrIdx.IsReplicaIdent {
 			t.Fatalf("failed ALTER TABLE did not restore index replica identity: rel=%q idx=%v", wrRel.ReplicaIdentity, wrIdx.IsReplicaIdent)
+		}
+
+		// Review round 2 regressions:
+		// 1. PREPARE parameter types and EXECUTE argument types propagate to CTAS columns.
+		// 2. Multi-action ALTER TABLE rolls back AT_SetStorage (and other column fields).
+		// 3. Failed REFRESH MATERIALIZED VIEW CONCURRENTLY leaves IsPopulated=false.
+		// 4. DROP COLLATION RESTRICT / CASCADE tracks column and index dependencies.
+		c104 := New()
+		for _, stmt := range []string{
+			"PREPARE q_typed(int4) AS SELECT $1 AS x",
+			"CREATE TABLE t_q_typed AS EXECUTE q_typed(1)",
+			"PREPARE q_inferred AS SELECT $1 AS y",
+			"CREATE TABLE t_q_inferred AS EXECUTE q_inferred('hello'::text)",
+		} {
+			if code := simulationCatalogCode(t, c104, stmt); code != "0" {
+				t.Fatalf("CTAS prepared param %s: %s", stmt, code)
+			}
+		}
+		if r := c104.schemaByName["public"].Relations["t_q_typed"]; r == nil || len(r.Columns) != 1 || r.Columns[0].TypeOID != INT4OID {
+			t.Fatalf("expected t_q_typed.x to have INT4OID, got %+v", r)
+		}
+		if r := c104.schemaByName["public"].Relations["t_q_inferred"]; r == nil || len(r.Columns) != 1 || r.Columns[0].TypeOID != TEXTOID {
+			t.Fatalf("expected t_q_inferred.y to have TEXTOID, got %+v", r)
+		}
+
+		if code := simulationCatalogCode(t, c104, "CREATE TABLE stor_t (a text)"); code != "0" {
+			t.Fatalf("CREATE TABLE stor_t: %s", code)
+		}
+		if code := simulationCatalogCode(t, c104, "ALTER TABLE stor_t ALTER COLUMN a SET STORAGE PLAIN, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE SET STORAGE + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if storCol := c104.schemaByName["public"].Relations["stor_t"].Columns[0]; storCol.Storage != 'x' {
+			t.Fatalf("failed ALTER TABLE left column storage=%q, want 'x'", storCol.Storage)
+		}
+
+		if code := simulationCatalogCode(t, c104, "CREATE MATERIALIZED VIEW mv_unpop_chk AS SELECT 1 AS id WITH NO DATA"); code != "0" {
+			t.Fatalf("CREATE MATERIALIZED VIEW WITH NO DATA: %s", code)
+		}
+		if code := simulationCatalogCode(t, c104, "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_unpop_chk"); code != CodeFeatureNotSupported {
+			t.Fatalf("REFRESH CONCURRENTLY unpopulated answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if c104.schemaByName["public"].Relations["mv_unpop_chk"].IsPopulated {
+			t.Fatal("failed REFRESH CONCURRENTLY marked unpopulated matview as populated")
+		}
+
+		for _, stmt := range []string{
+			"CREATE COLLATION c_use (LOCALE = 'C')",
+			"CREATE TABLE t_c_use (id int, val text COLLATE c_use, plain text)",
+			"CREATE INDEX idx_c_use ON t_c_use (plain COLLATE c_use)",
+		} {
+			if code := simulationCatalogCode(t, c104, stmt); code != "0" {
+				t.Fatalf("collation dep setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION RESTRICT answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c104.schemaByName["public"].Collations["c_use"] == 0 {
+			t.Fatal("failed DROP COLLATION removed c_use")
+		}
+		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use CASCADE"); code != "0" {
+			t.Fatalf("DROP COLLATION CASCADE: %s", code)
+		}
+		if len(c104.schemaByName["public"].Relations["t_c_use"].Columns) != 2 || c104.schemaByName["public"].Indexes["idx_c_use"] != nil {
+			t.Fatal("DROP COLLATION CASCADE did not drop dependent column and index")
 		}
 	})
 

@@ -11,7 +11,7 @@ type Schema struct {
 	Relations  map[string]*Relation
 	Indexes    map[string]*Index
 	Sequences  map[string]*Sequence
-	Collations map[string]bool
+	Collations map[string]uint32
 }
 
 func (s *Schema) effectiveOwner() string {
@@ -23,7 +23,7 @@ func (s *Schema) effectiveOwner() string {
 
 // schemaHasObjects returns true if the schema contains any objects.
 func (c *Catalog) schemaHasObjects(s *Schema) bool {
-	if len(s.Relations) > 0 || len(s.Indexes) > 0 || len(s.Sequences) > 0 {
+	if len(s.Relations) > 0 || len(s.Indexes) > 0 || len(s.Sequences) > 0 || len(s.Collations) > 0 {
 		return true
 	}
 	// Check for user-defined types in this namespace.

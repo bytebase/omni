@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
@@ -26,6 +27,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	}
 
 	// Analyze the query to infer column types (same approach as DefineView).
+	var analyzeOpts AnalyzeOptions
 	selStmt, ok := stmt.Query.(*nodes.SelectStmt)
 	if !ok {
 		// A prepared statement is run only after the target name is checked.
@@ -51,14 +53,50 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 			return errDuplicateTable(mvName)
 		}
 		if execStmt, isExec := stmt.Query.(*nodes.ExecuteStmt); isExec {
-			prepQuery, exists := c.preparedStmts[execStmt.Name]
-			if !exists {
+			prep, exists := c.preparedStmts[execStmt.Name]
+			if !exists || prep == nil {
 				return &Error{
 					Code:    CodeInvalidSQLStatementName,
 					Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
 				}
 			}
-			if prepSel, isSel := prepQuery.(*nodes.SelectStmt); isSel {
+			paramTypes := slices.Clone(prep.argTypes)
+			if len(prep.argTypes) > 0 {
+				gotParams := 0
+				if execStmt.Params != nil {
+					gotParams = len(execStmt.Params.Items)
+				}
+				if gotParams != len(prep.argTypes) {
+					return &Error{
+						Code:    CodeSyntaxError,
+						Message: fmt.Sprintf("wrong number of parameters for prepared statement %q", execStmt.Name),
+					}
+				}
+			}
+			if execStmt.Params != nil {
+				for i, item := range execStmt.Params.Items {
+					pExpr, perr := c.AnalyzeStandaloneExpr(item, nil)
+					if perr != nil {
+						return perr
+					}
+					if i < len(paramTypes) && paramTypes[i] != 0 {
+						if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
+							if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'i'); cerr != nil {
+								return cerr
+							}
+						}
+					} else {
+						for len(paramTypes) <= i {
+							paramTypes = append(paramTypes, 0)
+						}
+						if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
+							paramTypes[i] = pExpr.exprType()
+						}
+					}
+				}
+			}
+			analyzeOpts.ParamTypes = paramTypes
+			if prepSel, isSel := prep.query.(*nodes.SelectStmt); isSel {
 				selStmt = prepSel
 				ok = true
 			}
@@ -70,7 +108,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 
 	// Analyze the query — single pipeline.
 	// pg: src/backend/commands/createas.c — ExecCreateTableAs
-	analyzedQuery, err := c.analyzeSelectStmt(selStmt)
+	analyzedQuery, err := c.analyzeSelectStmtWithOptions(selStmt, analyzeOpts)
 	if err != nil {
 		return err
 	}
@@ -230,6 +268,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		RowTypeOID:    rowTypeOID,
 		ArrayOID:      arrayOID,
 		AnalyzedQuery: analyzedQuery,
+		IsPopulated:   relkind == 'm' && !into.SkipData,
 	}
 
 	schema.Relations[mvName] = rel
@@ -294,6 +333,50 @@ func (c *Catalog) ExecRefreshMatView(stmt *nodes.RefreshMatViewStmt) error {
 		return err
 	}
 	if rel.RelKind == 'm' {
+		if stmt.Concurrent {
+			if stmt.SkipData {
+				return &Error{
+					Code:    CodeSyntaxError,
+					Message: "CONCURRENTLY and WITH NO DATA options cannot be used together",
+				}
+			}
+			if !rel.IsPopulated {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "CONCURRENTLY cannot be used when the materialized view is not populated",
+				}
+			}
+			hasUniqueIdx := false
+			for _, idx := range c.indexesByRel[rel.OID] {
+				if !idx.IsUnique || idx.WhereClause != "" || len(idx.Exprs) > 0 {
+					continue
+				}
+				nKey := idx.NKeyColumns
+				if nKey <= 0 || nKey > len(idx.Columns) {
+					nKey = len(idx.Columns)
+				}
+				if nKey == 0 {
+					continue
+				}
+				allCols := true
+				for k := 0; k < nKey; k++ {
+					if idx.Columns[k] <= 0 {
+						allCols = false
+						break
+					}
+				}
+				if allCols {
+					hasUniqueIdx = true
+					break
+				}
+			}
+			if !hasUniqueIdx {
+				return &Error{
+					Code:    CodeObjectNotInPrerequisiteState,
+					Message: fmt.Sprintf("cannot refresh materialized view %q concurrently", rel.Name),
+				}
+			}
+		}
 		rel.IsPopulated = !stmt.SkipData
 		return nil
 	}

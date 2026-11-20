@@ -1833,3 +1833,119 @@
 > exec
 | ALTER TABLE a ADD UNIQUE (b) INCLUDE (b)
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE s_enum AS ENUM ('a');
+| CREATE SEQUENCE s_enum
+< error
+| 42710 type "s_enum" already exists
+| hint: A relation has an associated type of the same name, so you must use a name that doesn't conflict with any existing type.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE s_enum AS ENUM ('a');
+| CREATE SEQUENCE IF NOT EXISTS s_enum
+< error
+| 42710 type "s_enum" already exists
+| hint: A relation has an associated type of the same name, so you must use a name that doesn't conflict with any existing type.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE DOMAIN s_dom AS int;
+| CREATE SEQUENCE s_dom
+< error
+| 42710 type "s_dom" already exists
+| hint: A relation has an associated type of the same name, so you must use a name that doesn't conflict with any existing type.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE s_comp AS (a int);
+| CREATE SEQUENCE s_comp
+< error
+| 42P07 relation "s_comp" already exists
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE s_comp AS (a int);
+| CREATE SEQUENCE IF NOT EXISTS s_comp
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_u AS SELECT 1 AS id WITH NO DATA;
+| REFRESH MATERIALIZED VIEW CONCURRENTLY mv_u
+< error
+| 0A000 CONCURRENTLY cannot be used when the materialized view is not populated
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_p AS SELECT 1 AS id;
+| REFRESH MATERIALIZED VIEW CONCURRENTLY mv_p
+< error
+| 55000 cannot refresh materialized view "public.mv_p" concurrently
+| hint: Create a unique index with no WHERE clause on one or more columns of the materialized view.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_ok AS SELECT 1 AS id;
+| CREATE UNIQUE INDEX mv_ok_idx ON mv_ok (id);
+| REFRESH MATERIALIZED VIEW CONCURRENTLY mv_ok
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_dep (LOCALE = 'C');
+| CREATE TABLE t_dep (a text COLLATE c_dep);
+| DROP COLLATION c_dep
+< error
+| 2BP01 cannot drop collation c_dep because other objects depend on it
+| detail: column a of table t_dep depends on collation c_dep
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_dep (LOCALE = 'C');
+| CREATE TABLE t_dep (a int, b text COLLATE c_dep);
+| DROP COLLATION c_dep CASCADE
+< ok 0 -

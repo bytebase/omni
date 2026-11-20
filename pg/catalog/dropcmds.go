@@ -46,17 +46,8 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 	case nodes.OBJECT_EXTENSION:
 		return c.removeExtensionObjects(stmt)
 
-	// No-op object types: these objects are not tracked by pgddl.
 	case nodes.OBJECT_COLLATION:
-		if stmt.Objects != nil {
-			for _, obj := range stmt.Objects.Items {
-				schemaName, name := extractDropObjectName(obj)
-				if schema, err := c.resolveTargetSchema(schemaName); err == nil && schema != nil {
-					delete(schema.Collations, name)
-				}
-			}
-		}
-		return nil
+		return c.removeCollationObjects(stmt)
 	case nodes.OBJECT_RULE:
 		if stmt.Objects != nil {
 			for _, obj := range stmt.Objects.Items {
@@ -765,4 +756,116 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 		c.removePolicy(pol)
 	}
 	return nil
+}
+
+func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	type collTarget struct {
+		schema *Schema
+		name   string
+		oid    uint32
+	}
+	var targets []collTarget
+	seen := map[uint32]bool{}
+
+	for _, obj := range stmt.Objects.Items {
+		schemaName, name := extractDropObjectName(obj)
+		var targetSchema *Schema
+		var collOID uint32
+		if schemaName != "" {
+			s := c.schemaByName[schemaName]
+			if s == nil {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q does not exist, skipping", name))
+					continue
+				}
+				return errUndefinedSchema(schemaName)
+			}
+			if s.OID == PGCatalogNamespace && isBuiltinCollationName(name) {
+				return errDependentObjects("system", name)
+			}
+			targetSchema = s
+			collOID = s.Collations[name]
+		} else {
+			for _, nsOID := range c.searchPathWithCatalog() {
+				s := c.schemas[nsOID]
+				if s == nil {
+					continue
+				}
+				if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
+					return errDependentObjects("system", name)
+				}
+				if oid := s.Collations[name]; oid != 0 {
+					targetSchema = s
+					collOID = oid
+					break
+				}
+			}
+		}
+		if collOID == 0 {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q does not exist, skipping", name))
+				}
+				continue
+			}
+			return errUndefinedObject("collation", name)
+		}
+		if !seen[collOID] {
+			seen[collOID] = true
+			targets = append(targets, collTarget{schema: targetSchema, name: name, oid: collOID})
+		}
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			if len(c.findNormalDependents('L', t.oid)) > 0 {
+				return errDependentObjects("collation", t.name)
+			}
+		}
+	}
+
+	for _, t := range targets {
+		if t.schema.Collations[t.name] != t.oid {
+			continue
+		}
+		if cascade {
+			c.cascadeDropCollation(t.schema, t.name, t.oid)
+		} else {
+			delete(t.schema.Collations, t.name)
+			c.removeDepsOn('L', t.oid)
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint32) {
+	deps := c.findNormalDependents('L', collOID)
+	for _, dep := range deps {
+		if dep.ObjType == 'r' && dep.ObjSubID > 0 {
+			rel := c.relationByOID[dep.ObjOID]
+			if rel == nil {
+				continue
+			}
+			if rel.RelKind == 'c' {
+				c.cascadeDropRelation(rel)
+				continue
+			}
+			for _, col := range rel.Columns {
+				if col.AttNum == int16(dep.ObjSubID) {
+					_ = c.atDropColumn(rel.Schema, rel, col.Name, true, true, false)
+					break
+				}
+			}
+			continue
+		}
+		c.dropDependentObject(dep.ObjType, dep.ObjOID)
+	}
+	if schema != nil {
+		delete(schema.Collations, name)
+	}
+	c.removeDepsOn('L', collOID)
 }

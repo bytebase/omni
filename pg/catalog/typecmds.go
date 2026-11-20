@@ -354,12 +354,15 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		rawExpr nodes.Node
 	}
 	var checkDefs []domCheckDef
-	var hasCollateClause bool
+	var domCollList *nodes.List
+	if stmt.CollClause != nil {
+		domCollList = stmt.CollClause.Collname
+	}
 	if stmt.Constraints != nil {
 		for _, item := range stmt.Constraints.Items {
 			// pgparser may put COLLATE clause here as *nodes.CollateClause.
-			if _, ok := item.(*nodes.CollateClause); ok {
-				hasCollateClause = true
+			if cc, ok := item.(*nodes.CollateClause); ok {
+				domCollList = cc.Collname
 				continue
 			}
 			con, ok := item.(*nodes.Constraint)
@@ -451,18 +454,23 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 		}
 	}
 
-	// Validate COLLATE clause — base type must be collatable.
+	// Validate COLLATE clause — collation must exist and base type must be collatable.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (collation check)
-	// pgparser may put the COLLATE clause in CollClause or in Constraints as *nodes.CollateClause.
-	if stmt.CollClause != nil || hasCollateClause {
-		if bt := c.typeByOID[baseOID]; bt != nil && bt.Collation == 0 && bt.Category != 'S' {
-			return errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", bt.TypeName))
+	var domUserCollOID uint32
+	if domCollList != nil {
+		var cerr error
+		_, domUserCollOID, cerr = c.resolveColumnCollation(domCollList, baseOID)
+		if cerr != nil {
+			return cerr
 		}
 	}
 
 	// Allocate OIDs.
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
+	if domUserCollOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'L', domUserCollOID, 0, DepNormal)
+	}
 
 	// Register the domain type.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (inherits typcategory from base type)
@@ -764,6 +772,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	// pg: src/backend/commands/typecmds.c — DefineRange (duplicate param detection)
 	var subtypeOID uint32
 	var hasCollation bool
+	var rangeCollList *nodes.List
 	seenParams := make(map[string]bool)
 	if stmt.Params != nil {
 		for _, item := range stmt.Params.Items {
@@ -795,6 +804,13 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 				}
 			case "collation":
 				hasCollation = true
+				if l, ok := def.Arg.(*nodes.List); ok {
+					rangeCollList = l
+				} else if tn, ok := def.Arg.(*nodes.TypeName); ok && tn.Names != nil {
+					rangeCollList = tn.Names
+				} else if s := defElemString(def); s != "" {
+					rangeCollList = &nodes.List{Items: []nodes.Node{&nodes.String{Str: s}}}
+				}
 			case "subtype_opclass", "canonical", "subtype_diff":
 				// These are accepted but not needed for catalog-only tracking.
 			}
@@ -813,9 +829,17 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Validate collation — subtype must be collatable if collation is specified.
 	// pg: src/backend/commands/typecmds.c — DefineRange (collation validation)
+	var rangeUserCollOID uint32
 	if hasCollation {
 		if st := c.typeByOID[subtypeOID]; st != nil && st.Collation == 0 && st.Category != 'S' {
 			return errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", st.TypeName))
+		}
+		if rangeCollList != nil {
+			var cerr error
+			_, rangeUserCollOID, cerr = c.resolveCollationList(rangeCollList)
+			if cerr != nil {
+				return cerr
+			}
 		}
 	}
 
@@ -833,6 +857,9 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	// Allocate OIDs.
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
+	if rangeUserCollOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'L', rangeUserCollOID, 0, DepNormal)
+	}
 
 	c.recordTypeOwner(typeOID)
 	c.recordTypeOwner(arrayOID)

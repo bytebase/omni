@@ -84,11 +84,22 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			return c.DefineAggregate(s)
 		case nodes.OBJECT_COLLATION:
 			schemaName, name := qualifiedName(s.Defnames)
-			if schema, err := c.resolveTargetSchema(schemaName); err == nil && name != "" {
-				if schema.Collations == nil {
-					schema.Collations = make(map[string]bool)
+			schema, err := c.resolveTargetSchema(schemaName)
+			if err != nil {
+				return err
+			}
+			if name != "" {
+				if schema.Collations != nil && schema.Collations[name] != 0 {
+					if s.IfNotExists {
+						c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q already exists, skipping", name))
+						return nil
+					}
+					return errDuplicateObject("collation", name)
 				}
-				schema.Collations[name] = true
+				if schema.Collations == nil {
+					schema.Collations = make(map[string]uint32)
+				}
+				schema.Collations[name] = c.oidGen.Next()
 			}
 			return nil
 		default:
@@ -319,11 +330,29 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CALL: no-op for pgddl
 		return nil
 	case *nodes.PrepareStmt:
+		var argTypes []uint32
+		if s.Argtypes != nil {
+			argTypes = make([]uint32, 0, len(s.Argtypes.Items))
+			for _, item := range s.Argtypes.Items {
+				tn, ok := item.(*nodes.TypeName)
+				if !ok {
+					continue
+				}
+				oid, _, err := c.resolveTypeName(tn)
+				if err != nil {
+					return err
+				}
+				argTypes = append(argTypes, oid)
+			}
+		}
 		if s.Name != "" {
 			if c.preparedStmts == nil {
-				c.preparedStmts = make(map[string]nodes.Node)
+				c.preparedStmts = make(map[string]*preparedStmt)
 			}
-			c.preparedStmts[s.Name] = s.Query
+			c.preparedStmts[s.Name] = &preparedStmt{
+				query:    s.Query,
+				argTypes: argTypes,
+			}
 		}
 		return nil
 	case *nodes.ExecuteStmt:

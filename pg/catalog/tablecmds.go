@@ -441,6 +441,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Resolve column types and check for duplicates.
 	colByName := make(map[string]int, len(colDefs))
 	columns := make([]*Column, len(colDefs))
+	colUserCollOIDs := make([]uint32, len(colDefs))
 
 	for i, cd := range colDefs {
 		if _, dup := colByName[cd.Name]; dup {
@@ -455,9 +456,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 		typ := c.typeByOID[typeOID]
 		if cd.CollClause != nil {
-			if _, err := c.checkColumnCollation(cd.CollClause.Collname, typeOID); err != nil {
-				return err
+			_, collOID, cerr := c.resolveColumnCollation(cd.CollClause.Collname, typeOID)
+			if cerr != nil {
+				return cerr
 			}
+			colUserCollOIDs[i] = collOID
 		}
 		stor, err := c.resolveColumnStorage(typ, cd.StorageName)
 		if err != nil {
@@ -758,6 +761,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Register relation.
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
+	for i, collOID := range colUserCollOIDs {
+		if collOID != 0 {
+			c.recordDependency('r', relOID, int32(columns[i].AttNum), 'L', collOID, 0, DepNormal)
+		}
+	}
 	if tableAccessMethod != "" {
 		if am := c.accessMethodByName[tableAccessMethod]; am != nil {
 			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)

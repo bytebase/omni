@@ -2,8 +2,6 @@ package catalog
 
 import (
 	"slices"
-
-	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // Clone creates a deep copy of the Catalog.
@@ -82,9 +80,9 @@ func (c *Catalog) Clone() *Catalog {
 	clone.schemas = make(map[uint32]*Schema, len(c.schemas))
 	clone.schemaByName = make(map[string]*Schema, len(c.schemaByName))
 	for oid, s := range c.schemas {
-		var collations map[string]bool
+		var collations map[string]uint32
 		if len(s.Collations) > 0 {
-			collations = make(map[string]bool, len(s.Collations))
+			collations = make(map[string]uint32, len(s.Collations))
 			for k, v := range s.Collations {
 				collations[k] = v
 			}
@@ -522,9 +520,13 @@ func (c *Catalog) Clone() *Catalog {
 	clone.sessionUser = c.sessionUser
 	clone.currentUser = c.currentUser
 	if len(c.preparedStmts) > 0 {
-		clone.preparedStmts = make(map[string]nodes.Node, len(c.preparedStmts))
+		clone.preparedStmts = make(map[string]*preparedStmt, len(c.preparedStmts))
 		for k, v := range c.preparedStmts {
-			clone.preparedStmts[k] = v
+			if v != nil {
+				cp := *v
+				cp.argTypes = slices.Clone(v.argTypes)
+				clone.preparedStmts[k] = &cp
+			}
 		}
 	}
 

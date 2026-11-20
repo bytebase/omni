@@ -483,35 +483,57 @@ func (c *Catalog) resolveColumnCompression(typ *BuiltinType, compName string) (b
 //
 // pg: src/backend/parser/parse_collate.c — LookupCollation
 func (c *Catalog) checkCollationList(collname *nodes.List) (string, error) {
+	name, _, err := c.resolveCollationList(collname)
+	return name, err
+}
+
+func (c *Catalog) resolveCollationList(collname *nodes.List) (string, uint32, error) {
 	if collname == nil || len(collname.Items) == 0 {
-		return "", nil
+		return "", 0, nil
 	}
 	schemaName, name := qualifiedName(collname)
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
 		if s == nil {
-			return "", errUndefinedSchema(schemaName)
+			return "", 0, errUndefinedSchema(schemaName)
 		}
 		if c.snapshot {
-			return name, nil
+			return name, s.Collations[name], nil
 		}
 		if s.OID == PGCatalogNamespace && isBuiltinCollationName(name) {
-			return name, nil
+			return name, 0, nil
 		}
-		if s.Collations[name] {
-			return name, nil
+		if oid := s.Collations[name]; oid != 0 {
+			return name, oid, nil
 		}
-		return "", errUndefinedObject("collation", name)
+		return "", 0, errUndefinedObject("collation", name)
 	}
-	if c.snapshot || isBuiltinCollationName(name) {
-		return name, nil
+	if !c.snapshot {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			s := c.schemas[nsOID]
+			if s == nil {
+				continue
+			}
+			if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
+				return name, 0, nil
+			}
+			if oid := s.Collations[name]; oid != 0 {
+				return name, oid, nil
+			}
+		}
+		if isBuiltinCollationName(name) {
+			return name, 0, nil
+		}
+		return "", 0, errUndefinedObject("collation", name)
 	}
 	for _, nsOID := range c.searchPathWithCatalog() {
-		if s := c.schemas[nsOID]; s != nil && s.Collations[name] {
-			return name, nil
+		if s := c.schemas[nsOID]; s != nil {
+			if oid := s.Collations[name]; oid != 0 {
+				return name, oid, nil
+			}
 		}
 	}
-	return "", errUndefinedObject("collation", name)
+	return name, 0, nil
 }
 
 func isBuiltinCollationName(name string) bool {
@@ -528,21 +550,26 @@ func isBuiltinCollationName(name string) bool {
 //
 // pg: src/backend/commands/tablecmds.c — GetColumnDefCollation
 func (c *Catalog) checkColumnCollation(collname *nodes.List, typeOID uint32) (string, error) {
+	name, _, err := c.resolveColumnCollation(collname, typeOID)
+	return name, err
+}
+
+func (c *Catalog) resolveColumnCollation(collname *nodes.List, typeOID uint32) (string, uint32, error) {
 	if collname == nil || len(collname.Items) == 0 {
-		return "", nil
+		return "", 0, nil
 	}
-	name, err := c.checkCollationList(collname)
+	name, userOID, err := c.resolveCollationList(collname)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if typeOID != 0 && c.typeCollation(typeOID) == 0 {
 		tname := "unknown"
 		if bt := c.typeByOID[typeOID]; bt != nil {
 			tname = bt.TypeName
 		}
-		return "", errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", tname))
+		return "", 0, errDatatypeMismatch(fmt.Sprintf("collations are not supported by type %s", tname))
 	}
-	return name, nil
+	return name, userOID, nil
 }
 
 // checkCompositeSelfReference refuses making a composite row type a direct or

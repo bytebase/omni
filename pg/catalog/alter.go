@@ -328,7 +328,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
 	// mutation this catalog cannot rebuild from another field is a stored
 	// tablespace, so it is restored if a later subcommand fails.
-	needsRollback := false
+	needsRollback := len(pending) > 1
 	for _, p := range pending {
 		switch nodes.AlterTableType(p.cmd.Subtype) {
 		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner, nodes.AT_SetAccessMethod,
@@ -341,9 +341,13 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	var relAccessMethods map[*Relation]string
 	var relCheckOptions map[*Relation]byte
 	var relReplicaIdents map[*Relation]byte
+	var relRowSec map[*Relation][2]bool
+	var relHasRules map[*Relation]bool
+	var relRules map[*Relation]map[string]byte
+	var savedCols map[*Column]Column
 	var idxTablespaces map[*Index]string
 	var idxReplicaIdents map[*Index]bool
-	var conDeferStates map[*Constraint][2]bool
+	var conDeferStates map[*Constraint][3]bool
 	var relOwners map[*Relation]string
 	var idxOwners map[*Index]string
 	var seqOwners map[*Sequence]string
@@ -362,10 +366,14 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		relAccessMethods = map[*Relation]string{}
 		relCheckOptions = map[*Relation]byte{}
 		relReplicaIdents = map[*Relation]byte{}
+		relRowSec = map[*Relation][2]bool{}
+		relHasRules = map[*Relation]bool{}
+		relRules = map[*Relation]map[string]byte{}
+		savedCols = map[*Column]Column{}
 		relOwners = map[*Relation]string{}
 		idxTablespaces = map[*Index]string{}
 		idxReplicaIdents = map[*Index]bool{}
-		conDeferStates = map[*Constraint][2]bool{}
+		conDeferStates = map[*Constraint][3]bool{}
 		idxOwners = map[*Index]string{}
 		seqOwners = map[*Sequence]string{}
 		savedTypeOwners = make(map[uint32]string, len(c.typeOwners))
@@ -385,6 +393,18 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			relAccessMethods[r] = r.AccessMethod
 			relCheckOptions[r] = r.CheckOption
 			relReplicaIdents[r] = r.ReplicaIdentity
+			relRowSec[r] = [2]bool{r.RowSecurity, r.ForceRowSecurity}
+			relHasRules[r] = r.HasRules
+			if r.Rules != nil {
+				rcp := make(map[string]byte, len(r.Rules))
+				for k, v := range r.Rules {
+					rcp[k] = v
+				}
+				relRules[r] = rcp
+			}
+			for _, col := range r.Columns {
+				savedCols[col] = *col
+			}
 			relOwners[r] = r.OwnerName
 			for _, idx := range c.indexesByRel[r.OID] {
 				idxTablespaces[idx] = idx.Tablespace
@@ -392,7 +412,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				idxOwners[idx] = idx.OwnerName
 			}
 			for _, con := range c.consByRel[r.OID] {
-				conDeferStates[con] = [2]bool{con.Deferrable, con.Deferred}
+				conDeferStates[con] = [3]bool{con.Deferrable, con.Deferred, con.Validated}
 			}
 			for _, seq := range c.sequenceByOID {
 				if seq.OwnerRelOID == r.OID {
@@ -413,6 +433,17 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			for r, ri := range relReplicaIdents {
 				r.ReplicaIdentity = ri
 			}
+			for r, rs := range relRowSec {
+				r.RowSecurity = rs[0]
+				r.ForceRowSecurity = rs[1]
+			}
+			for r, hr := range relHasRules {
+				r.HasRules = hr
+				r.Rules = relRules[r]
+			}
+			for col, orig := range savedCols {
+				*col = orig
+			}
 			for r, owner := range relOwners {
 				r.OwnerName = owner
 			}
@@ -428,6 +459,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			for con, st := range conDeferStates {
 				con.Deferrable = st[0]
 				con.Deferred = st[1]
+				con.Validated = st[2]
 			}
 			for seq, owner := range seqOwners {
 				seq.OwnerName = owner
@@ -1936,9 +1968,12 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		return err
 	}
 	typ := c.typeByOID[typeOID]
+	var userCollOID uint32
 	if colDef.CollClause != nil {
-		if _, err := c.checkColumnCollation(colDef.CollClause.Collname, typeOID); err != nil {
-			return err
+		var cerr error
+		_, userCollOID, cerr = c.resolveColumnCollation(colDef.CollClause.Collname, typeOID)
+		if cerr != nil {
+			return cerr
 		}
 	}
 	stor, err := c.resolveColumnStorage(typ, colDef.StorageName)
@@ -2001,6 +2036,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 
 	rel.Columns = append(rel.Columns, col)
 	rel.colByName[col.Name] = len(rel.Columns) - 1
+	if userCollOID != 0 {
+		c.recordDependency('r', rel.OID, int32(col.AttNum), 'L', userCollOID, 0, DepNormal)
+	}
 	if identitySeq != nil {
 		identitySeq.OwnerRelOID = rel.OID
 		identitySeq.OwnerAttNum = col.AttNum
@@ -2371,8 +2409,9 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	}
 
 	var collName string
+	var userCollOID uint32
 	if cd.CollClause != nil {
-		collName, err = c.checkColumnCollation(cd.CollClause.Collname, newOID)
+		collName, userCollOID, err = c.resolveColumnCollation(cd.CollClause.Collname, newOID)
 		if err != nil {
 			return err
 		}
@@ -2402,6 +2441,20 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	col.TypeMod = newMod
 	if cd.CollClause != nil {
 		col.CollationName = collName
+	} else if c.typeCollation(newOID) == 0 {
+		col.CollationName = ""
+	}
+	n := 0
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 'L' {
+			continue
+		}
+		c.deps[n] = d
+		n++
+	}
+	c.deps = c.deps[:n]
+	if userCollOID != 0 {
+		c.recordDependency('r', rel.OID, int32(col.AttNum), 'L', userCollOID, 0, DepNormal)
 	}
 
 	typ := c.typeByOID[newOID]

@@ -148,12 +148,19 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 
 	// Check name conflicts in the relation and type namespaces.
 	// pg: src/backend/commands/sequence.c — DefineSequence → DefineRelation → heap_create_with_catalog
-	if _, held := relationNamespaceKind(schema, seqName); held || c.typeByName[typeKey{ns: schema.OID, name: seqName}] != nil {
+	// Relation conflicts (including composite types, which have a RelKind='c'
+	// relation) return 42P07 and honor IF NOT EXISTS; standalone non-relation
+	// types (enums, domains, ranges) fail in heap_create_with_catalog's
+	// TYPENAMENSP check with 42710 even when IF NOT EXISTS is specified.
+	if _, held := relationNamespaceKind(schema, seqName); held {
 		if ifNotExists {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", seqName))
 			return nil
 		}
 		return errDuplicateTable(seqName)
+	}
+	if c.typeByName[typeKey{ns: schema.OID, name: seqName}] != nil {
+		return errDuplicateObject("type", seqName)
 	}
 
 	// Resolve type.

@@ -131,6 +131,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
 	var opClassRefs []opClassRef
+	var userCollOIDs []uint32
 	namedOpClass := false
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
@@ -213,8 +214,12 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			}
 
 			if elem.Collation != nil && len(elem.Collation.Items) > 0 {
-				if _, err := c.checkColumnCollation(elem.Collation, opClassTypeOID); err != nil {
+				_, collOID, err := c.resolveColumnCollation(elem.Collation, opClassTypeOID)
+				if err != nil {
 					return err
+				}
+				if collOID != 0 {
+					userCollOIDs = append(userCollOIDs, collOID)
 				}
 			}
 
@@ -438,6 +443,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
 	c.recordOpClassDependencies('i', idx.OID, opClassRefs, accessMethod)
+	for _, collOID := range userCollOIDs {
+		c.recordDependency('i', idx.OID, 0, 'L', collOID, 0, DepNormal)
+	}
 	if am := c.accessMethodByName[accessMethod]; am != nil {
 		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
 	}
