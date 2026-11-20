@@ -3,6 +3,7 @@ package catalog
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -106,6 +107,28 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		c.SetForeignKeyChecks(false)
 		if err := c.processUtility(stmts[idx], sql); err != nil {
 			return c, err
+		}
+	}
+
+	// Standalone CREATE INDEX statements in SDL run after CREATE TABLE, so verify
+	// MySQL's post-DDL AUTO_INCREMENT key requirement across all loaded tables now.
+	for _, db := range c.Databases() {
+		if db == nil {
+			continue
+		}
+		names := make([]string, 0, len(db.Tables))
+		for name := range db.Tables {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, tblName := range names {
+			tbl := db.Tables[tblName]
+			if tbl == nil || tbl.Temporary {
+				continue
+			}
+			if err := validateAutoIncrementKeyed(tbl); err != nil {
+				return c, err
+			}
 		}
 	}
 

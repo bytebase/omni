@@ -104,7 +104,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl))
+		parts = append(parts, c.showColumnWithTable(col, tbl))
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -192,7 +192,19 @@ func showColumn(col *Column) string {
 	return showColumnWithTable(col, nil)
 }
 
+func (c *Catalog) showColumnWithTable(col *Column, tbl *Table) string {
+	var tz resolvedTimeZone
+	if c != nil {
+		tz = c.resolveEffectiveTimeZone()
+	}
+	return showColumnWithTableTZ(col, tbl, tz)
+}
+
 func showColumnWithTable(col *Column, tbl *Table) string {
+	return showColumnWithTableTZ(col, tbl, resolvedTimeZone{})
+}
+
+func showColumnWithTableTZ(col *Column, tbl *Table, sessionTZ resolvedTimeZone) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
 
@@ -292,7 +304,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	// DEFAULT.
 	if col.Default != nil {
 		b.WriteString(" DEFAULT ")
-		b.WriteString(formatDefault(*col.Default, col))
+		b.WriteString(formatDefaultForTZ(*col.Default, col, sessionTZ))
 	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
 		b.WriteString(" DEFAULT NULL")
 	}
@@ -323,6 +335,10 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 // formatDefault formats a default value for SHOW CREATE TABLE output.
 // MySQL 8.0 quotes numeric defaults as strings (e.g. DEFAULT '0').
 func formatDefault(val string, col *Column) string {
+	return formatDefaultForTZ(val, col, resolvedTimeZone{})
+}
+
+func formatDefaultForTZ(val string, col *Column, sessionTZ resolvedTimeZone) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
 	}
@@ -331,6 +347,20 @@ func formatDefault(val string, col *Column) string {
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
 		return "(" + val + ")"
+	}
+	if col.DefaultTimestampUTC != nil && sessionTZ.valid && strings.EqualFold(col.DataType, "timestamp") {
+		if localT, ok := convertUTCToSessionLocal(*col.DefaultTimestampUTC, sessionTZ); ok {
+			p := parsedMySQLDateTime{
+				year:   localT.Year(),
+				month:  int(localT.Month()),
+				day:    localT.Day(),
+				hour:   localT.Hour(),
+				min:    localT.Minute(),
+				sec:    localT.Second(),
+				micros: localT.Nanosecond() / 1000,
+			}
+			return formatParsedDateOrDatetime("timestamp", temporalColumnFSP(col.ColumnType), p)
+		}
 	}
 	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
 	if ts, ok := currentTimestampSQL(val); ok {

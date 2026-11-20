@@ -1,6 +1,10 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/mysql/ast"
+import (
+	"time"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
+)
 
 type Table struct {
 	Name                string
@@ -73,6 +77,7 @@ type PartitionDefInfo struct {
 	Engine        string // ENGINE option for this partition
 	Tablespace    string // TABLESPACE option for this partition
 	Comment       string // COMMENT option for this partition
+	Discarded     bool
 	SubPartitions []*SubPartitionDefInfo
 }
 
@@ -95,15 +100,16 @@ type Column struct {
 	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL
 	// only when the column has NO explicit nullability clause — a bare `TIMESTAMP` and an
 	// explicit `TIMESTAMP NULL` are otherwise indistinguishable once loaded.
-	NullExplicit    bool
-	Default         *string
-	DefaultKind     ColumnDefaultKind
-	DefaultIsExpr   bool
-	DefaultExprNode nodes.ExprNode
-	DefaultDropped  bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement   bool
-	Charset         string
-	Collation       string
+	NullExplicit        bool
+	Default             *string
+	DefaultTimestampUTC *time.Time
+	DefaultKind         ColumnDefaultKind
+	DefaultIsExpr       bool
+	DefaultExprNode     nodes.ExprNode
+	DefaultDropped      bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement       bool
+	Charset             string
+	Collation           string
 	// CharsetExplicit / CollationExplicit record whether the user wrote a column-level
 	// CHARACTER SET / COLLATE clause, as opposed to the value being inherited from the
 	// table at load time. The diff-time canonicalizer (normalize.go) needs this to

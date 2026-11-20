@@ -539,10 +539,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
 		if isSerial {
 			idxName := allocIndexName(tbl, colDef.Name)
+			serialCols := []*IndexColumn{{Name: colDef.Name}}
+			if declared {
+				if err := c.validateIndexColumns(tbl, serialCols, false, false, true); err != nil {
+					return err
+				}
+			}
 			serialIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
-				Columns:   []*IndexColumn{{Name: colDef.Name}},
+				Columns:   serialCols,
 				Unique:    true,
 				IndexType: "",
 				Visible:   true,
@@ -572,10 +578,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				if err := validatePrimaryKeyColumns(tbl, []string{colDef.Name}); err != nil {
 					return err
 				}
+				pkCols := []*IndexColumn{{Name: colDef.Name}}
+				if declared {
+					if err := c.validateIndexColumns(tbl, pkCols, false, false, true); err != nil {
+						return err
+					}
+				}
 				tbl.Indexes = append(tbl.Indexes, &Index{
 					Name:      "PRIMARY",
 					Table:     tbl,
-					Columns:   []*IndexColumn{{Name: colDef.Name}},
+					Columns:   pkCols,
 					Unique:    true,
 					Primary:   true,
 					IndexType: "",
@@ -590,10 +602,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				})
 			case nodes.ColConstrUnique:
 				idxName := allocIndexName(tbl, colDef.Name)
+				uqCols := []*IndexColumn{{Name: colDef.Name}}
+				if declared {
+					if err := c.validateIndexColumns(tbl, uqCols, false, false, true); err != nil {
+						return err
+					}
+				}
 				uqIdx := &Index{
 					Name:      idxName,
 					Table:     tbl,
-					Columns:   []*IndexColumn{{Name: colDef.Name}},
+					Columns:   uqCols,
 					Unique:    true,
 					IndexType: "",
 					Visible:   true,
@@ -2309,6 +2327,10 @@ func indexNameExists(tbl *Table, name string) bool {
 }
 
 func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique bool) error {
+	return c.validateIndexColumnsOpts(tbl, idxCols, fulltext, spatial, unique, true)
+}
+
+func (c *Catalog) validateIndexColumnsOpts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique, checkWidths bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2352,17 +2374,89 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 		}
 		if ic.Length > 0 {
 			strict := c == nil || c.isStrictSQLMode()
-			if err := c.validateKeyPrefixLength(tbl, col, ic, strict || unique); err != nil {
+			if err := c.validateKeyPrefixLength(tbl, col, ic, strict || unique || !checkWidths); err != nil {
 				return err
 			}
 		}
 	}
-	if !fulltext && !spatial {
-		if err := c.validateIndexTotalKeyWidth(tbl, idxCols); err != nil {
+	if checkWidths && !fulltext && !spatial {
+		if err := c.validateIndexWidths(tbl, idxCols, unique); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func isAutoTruncatableKeyType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "binary", "varbinary",
+		"tinytext", "text", "mediumtext", "longtext",
+		"tinyblob", "blob", "mediumblob", "longblob":
+		return true
+	default:
+		return false
+	}
+}
+
+func indexKeyPartCharsetBytes(col *Column) int {
+	if col == nil {
+		return 1
+	}
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return charsetMaxBytes(col.Charset)
+	default:
+		return 1
+	}
+}
+
+func (c *Catalog) validateIndexWidths(tbl *Table, idxCols []*IndexColumn, unique bool) error {
+	partMax, hasPartMax := c.maxIndexColumnPartBytes(tbl)
+	totalMax, hasTotalMax := c.maxIndexTotalKeyBytes(tbl)
+
+	if !unique && c != nil && !c.isStrictSQLMode() && len(idxCols) == 1 {
+		if ic := idxCols[0]; ic != nil && ic.Expr == "" && ic.Name != "" {
+			if col := tbl.GetColumn(ic.Name); col != nil && isAutoTruncatableKeyType(col.DataType) {
+				limit := 0
+				hasLimit := false
+				if hasPartMax {
+					limit = partMax
+					hasLimit = true
+				}
+				if hasTotalMax && (!hasLimit || totalMax < limit) {
+					limit = totalMax
+					hasLimit = true
+				}
+				if hasLimit && indexKeyPartBytes(col, ic) > limit {
+					mb := indexKeyPartCharsetBytes(col)
+					if mb <= 0 {
+						mb = 1
+					}
+					if truncLen := limit / mb; truncLen > 0 {
+						ic.Length = truncLen
+					}
+				}
+			}
+		}
+	}
+
+	if hasPartMax {
+		for _, ic := range idxCols {
+			if ic == nil || ic.Name == "" {
+				continue
+			}
+			col := tbl.GetColumn(ic.Name)
+			if col == nil {
+				continue
+			}
+			if indexKeyPartBytes(col, ic) > partMax {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", partMax)}
+			}
+		}
+	}
+
+	return c.validateIndexTotalKeyWidth(tbl, idxCols)
 }
 
 func (c *Catalog) validateIndexTotalKeyWidth(tbl *Table, idxCols []*IndexColumn) error {
@@ -2401,13 +2495,17 @@ func charsetMaxBytes(charset string) int {
 	}
 }
 
-func (c *Catalog) maxInnoDBIndexKeyBytes(tbl *Table) int {
+func (c *Catalog) maxInnoDBColumnPartBytes(tbl *Table) int {
 	if tbl != nil {
 		rf := strings.ToUpper(strings.TrimSpace(tbl.RowFormat))
 		if rf == "COMPACT" || rf == "REDUNDANT" {
 			return 767
 		}
 	}
+	return c.maxInnoDBIndexKeyBytes(tbl)
+}
+
+func (c *Catalog) maxInnoDBIndexKeyBytes(tbl *Table) int {
 	switch c.InnoDBPageSize() {
 	case 4096:
 		return 768
@@ -2416,6 +2514,19 @@ func (c *Catalog) maxInnoDBIndexKeyBytes(tbl *Table) int {
 	default:
 		return 3072
 	}
+}
+
+func (c *Catalog) maxIndexColumnPartBytes(tbl *Table) (int, bool) {
+	if tbl == nil {
+		return 0, false
+	}
+	if strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000, true
+	}
+	if isInnoDBEngine(tbl.Engine) {
+		return c.maxInnoDBColumnPartBytes(tbl), true
+	}
+	return 0, false
 }
 
 func (c *Catalog) maxIndexTotalKeyBytes(tbl *Table) (int, bool) {
@@ -2438,7 +2549,7 @@ func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
 	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
 		return 1000
 	}
-	return c.maxInnoDBIndexKeyBytes(tbl)
+	return c.maxInnoDBColumnPartBytes(tbl)
 }
 
 func indexKeyPartBytes(col *Column, ic *IndexColumn) int {
@@ -3537,6 +3648,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		if srcCol.Default != nil {
 			def := *srcCol.Default
 			col.Default = &def
+			if srcCol.DefaultTimestampUTC != nil {
+				tsUTC := *srcCol.DefaultTimestampUTC
+				col.DefaultTimestampUTC = &tsUTC
+			}
 			col.DefaultKind = srcCol.DefaultKind
 			col.DefaultIsExpr = srcCol.DefaultIsExpr
 			col.DefaultExprNode = srcCol.DefaultExprNode
@@ -3600,6 +3715,12 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+
+	likeSrcDB := srcDB.Name
+	if srcTbl.Database != nil {
+		likeSrcDB = srcTbl.Database.Name
+	}
+	stripTableQualifiersFromTableExprs(tbl, likeSrcDB, srcTbl.Name, true)
 
 	db.Tables[key] = tbl
 	return nil

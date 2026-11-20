@@ -130,6 +130,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 	if !idx.Fulltext && !idx.Spatial && hasFunctionalIndexColumns(idx.Columns) {
 		if err := c.validateIndexTotalKeyWidth(tbl, idx.Columns); err != nil {
+			removeFunctionalIndexHiddenColumns(tbl, idx)
 			return err
 		}
 	}

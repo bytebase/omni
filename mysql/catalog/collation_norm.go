@@ -262,8 +262,12 @@ func implicitUCAWeight(r rune) (string, string) {
 	return string(buf[:]), "\x00\x20"
 }
 
-func implicitU4Weight(r rune) string {
+func implicitU4Weight(r rune, unicode520 bool) string {
 	if r > 0xFFFF {
+		if unicode520 {
+			l1, _ := implicitUCAWeight(r)
+			return l1
+		}
 		return "\xff\xfd"
 	}
 	base := uint16(0xFB80)
@@ -287,11 +291,15 @@ func lookupRuneUCA900(r rune) (string, string) {
 	return implicitUCAWeight(r)
 }
 
-func lookupRuneUCA400(r rune) string {
+func lookupRuneUCA400(r rune, unicode520 bool) string {
+	if unicode520 && r > 0xFFFF {
+		l1, _ := implicitUCAWeight(r)
+		return l1
+	}
 	if w, ok := u4WeightMap[r]; ok {
 		return w
 	}
-	return implicitU4Weight(r)
+	return implicitU4Weight(r, unicode520)
 }
 
 func baseUCA900Key(s string, includeSecondary bool) string {
@@ -315,6 +323,10 @@ func baseUCA900Key(s string, includeSecondary bool) string {
 }
 
 func baseUCA400Key(s string) string {
+	return baseUCA400KeyWith520(s, false)
+}
+
+func baseUCA400KeyWith520(s string, unicode520 bool) string {
 	runes := make([]rune, 0, len(s))
 	for _, r := range s {
 		decomposeRuneNFD(r, u4PrecomposedKeep, &runes)
@@ -322,7 +334,7 @@ func baseUCA400Key(s string) string {
 	canonicalOrderRunes(runes)
 	var b strings.Builder
 	for _, r := range runes {
-		b.WriteString(lookupRuneUCA400(r))
+		b.WriteString(lookupRuneUCA400(r, unicode520))
 	}
 	return b.String()
 }
@@ -355,7 +367,7 @@ func toNFC(s string) string {
 	return string(out)
 }
 
-func tailoredKey(s string, lt *localeTailoring) string {
+func tailoredKey(s string, lt *localeTailoring, unicode520 bool) string {
 	if lt.kind == 3 {
 		// Tailored _0900_as_cs (e.g. ja_0900_as_cs_ks / ja_0900_as_cs)
 		nfd := toNFD(s)
@@ -392,7 +404,7 @@ func tailoredKey(s string, lt *localeTailoring) string {
 		if lt.kind == 1 {
 			b.WriteString(baseUCA900Key(string(r), false))
 		} else {
-			b.WriteString(baseUCA400Key(string(r)))
+			b.WriteString(baseUCA400KeyWith520(string(r), unicode520))
 		}
 	}
 	return b.String()
@@ -423,6 +435,20 @@ func extractCollationSuffix(coll string) string {
 	return coll
 }
 
+func latin1GeneralCIKey(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			r += 'a' - 'A'
+		} else if (r >= 0xC0 && r <= 0xD6) || (r >= 0xD8 && r <= 0xDE) {
+			r += 0x20
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // collationComparisonKey returns a canonical comparison key for s under coll / charset.
 func collationComparisonKey(s, coll, charset string) string {
 	initCollationTables()
@@ -440,10 +466,14 @@ func collationComparisonKey(s, coll, charset string) string {
 	if c == "binary" || strings.HasSuffix(c, "_bin") {
 		return s
 	}
+	if c == "latin1_general_ci" {
+		return latin1GeneralCIKey(s)
+	}
 	suf := extractCollationSuffix(c)
+	unicode520 := suf == "unicode_520_ci" || strings.HasPrefix(suf, "unicode_520_")
 	// Map single-byte legacy charset suffixes to their UCA/localized equivalents where MySQL shares rules.
 	if lt, ok := tailoringBySuffix[suf]; ok {
-		return tailoredKey(s, lt)
+		return tailoredKey(s, lt, unicode520)
 	}
 	if strings.HasSuffix(c, "_cs") {
 		return toNFD(s)
@@ -454,8 +484,11 @@ func collationComparisonKey(s, coll, charset string) string {
 	if strings.Contains(c, "_0900_") {
 		return baseUCA900Key(s, false)
 	}
+	if unicode520 {
+		return baseUCA400KeyWith520(s, true)
+	}
 	if suf == "unicode_ci" || strings.HasSuffix(suf, "_uca_ci") {
-		return baseUCA400Key(s)
+		return baseUCA400KeyWith520(s, false)
 	}
 	return generalCIWeightKey(s)
 }

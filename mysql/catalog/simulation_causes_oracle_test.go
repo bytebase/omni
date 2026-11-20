@@ -4758,6 +4758,128 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "SET sql_mode = IF(1, 'ANSI', '')",
 			code:    0,
 		},
+		{
+			name: "CREATE TABLE DEFAULT (REPLACE('abc', 'a', 'd')) accepted with 0",
+			stmt: "CREATE TABLE a (id INT, s VARCHAR(16) DEFAULT (REPLACE('abc', 'a', 'd')))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ATAN2(1)) 1-arg form accepted with 0",
+			stmt: "CREATE TABLE a (d DOUBLE DEFAULT (ATAN2(1)))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (AES_ENCRYPT 6-arg HKDF form) accepted with 0",
+			stmt: "CREATE TABLE a (s VARBINARY(64) DEFAULT (AES_ENCRYPT('a', 'b', 'c', 'd', 'e', 'f')))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (AES_DECRYPT 6-arg HKDF form) accepted with 0",
+			stmt: "CREATE TABLE a (s VARCHAR(64) DEFAULT (AES_DECRYPT('a', 'b', 'c', 'd', 'e', 'f')))",
+			code: 0,
+		},
+		{
+			name:  "ALTER TABLE MODIFY COLUMN widening existing indexed column past 3072 rejected with 1071",
+			setup: []string{"CREATE TABLE a (v VARCHAR(20) CHARACTER SET utf8mb4, KEY k(v))"},
+			stmt:  "ALTER TABLE a MODIFY COLUMN v VARCHAR(1000) CHARACTER SET utf8mb4",
+			code:  1071,
+		},
+		{
+			name:  "ALTER TABLE CONVERT TO CHARSET utf8mb4 widening indexed latin1 column past 3072 rejected with 1071",
+			setup: []string{"CREATE TABLE a (v VARCHAR(800)) DEFAULT CHARSET=latin1, ENGINE=InnoDB", "ALTER TABLE a ADD KEY k(v)"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:  1071,
+		},
+		{
+			name: "CREATE TABLE with table-qualified DEFAULT and functional index accepted",
+			stmt: "CREATE TABLE a (x INT, y INT DEFAULT (a.x + 1), KEY ((a.x + 1)))",
+			code: 0,
+		},
+		{
+			name:     "ALTER TABLE CONVERT TO CHARSET utf8mb4 promotes TEXT to MEDIUMTEXT",
+			setup:    []string{"CREATE TABLE a (c1 TINYTEXT, c2 TEXT, c3 MEDIUMTEXT) DEFAULT CHARSET=latin1"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:     0,
+			contains: []string{"`c1` text", "`c2` mediumtext", "`c3` longtext"},
+		},
+		{
+			name: "CREATE TABLE COMPACT composite key exceeding 767 total but <=767 per part accepted",
+			stmt: "CREATE TABLE a (x VARBINARY(600), y VARBINARY(600), KEY k(x, y)) ROW_FORMAT=COMPACT",
+			code: 0,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY with ROW_FORMAT=DYNAMIC on COMPACT table accepted",
+			setup: []string{"CREATE TABLE a (v VARCHAR(200) CHARACTER SET utf8mb4) ROW_FORMAT=COMPACT"},
+			stmt:  "ALTER TABLE a ADD KEY k(v), ROW_FORMAT=DYNAMIC",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE inline JSON UNIQUE rejected with 3152",
+			stmt: "CREATE TABLE a (j JSON UNIQUE)",
+			code: 3152,
+		},
+		{
+			name: "CREATE TABLE inline oversized VARCHAR PRIMARY KEY rejected with 1071",
+			stmt: "CREATE TABLE a (v VARCHAR(900) CHARACTER SET utf8mb4 PRIMARY KEY)",
+			code: 1071,
+		},
+		{
+			name:     "Non-strict sql_mode shortens single-column non-unique index prefix to 768",
+			session:  []string{"SET sql_mode = ''"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:     "CREATE TABLE a (v VARCHAR(900) CHARACTER SET utf8mb4, KEY i(v))",
+			code:     0,
+			contains: []string{"KEY `i` (`v`(768))"},
+		},
+		{
+			name: "CONCAT functional index uses aggregated utf8mb4 charset and rejects >3072 with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(1) CHARACTER SET latin1, b VARCHAR(510) CHARACTER SET utf8mb4, c VARBINARY(1050), KEY ((CONCAT(a, b)), c))",
+			code: 1071,
+		},
+		{
+			name:     "Approximate numeric literal DEFAULT 2.5E0 uses round-half-to-even while exact 2.5 rounds away from zero",
+			stmt:     "CREATE TABLE a (i INT DEFAULT 2.5E0, j INT DEFAULT 2.5, k TINYINT DEFAULT -128.5E0)",
+			code:     0,
+			contains: []string{"DEFAULT '2'", "DEFAULT '3'", "DEFAULT '-128'"},
+		},
+		{
+			name:    "ENUM latin1_general_ci distinguishes e and e-acute under STRICT_ALL_TABLES",
+			session: []string{"SET sql_mode = 'STRICT_ALL_TABLES'"},
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "CREATE TABLE a (c ENUM('e', 'é') COLLATE latin1_general_ci)",
+			code:    0,
+		},
+		{
+			name:    "ENUM utf8mb4_unicode_520_ci distinguishes supplementary emoji under STRICT_ALL_TABLES",
+			session: []string{"SET sql_mode = 'STRICT_ALL_TABLES'"},
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "CREATE TABLE a (c ENUM('😀', '😁') COLLATE utf8mb4_unicode_520_ci)",
+			code:    0,
+		},
+		{
+			name:  "IMPORT PARTITION on non-discarded p1 rejected with 1813 when p0 is discarded",
+			setup: []string{"CREATE TABLE a (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "ALTER TABLE a DISCARD PARTITION p0 TABLESPACE"},
+			stmt:  "ALTER TABLE a IMPORT PARTITION p1 TABLESPACE",
+			code:  1813,
+		},
+		{
+			name:  "TRUNCATE PARTITION on discarded p0 rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "ALTER TABLE a DISCARD PARTITION p0 TABLESPACE"},
+			stmt:  "ALTER TABLE a TRUNCATE PARTITION p0",
+			code:  1814,
+		},
+		{
+			name:  "TRUNCATE PARTITION on non-discarded p1 accepted when p0 is discarded",
+			setup: []string{"CREATE TABLE a (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))", "ALTER TABLE a DISCARD PARTITION p0 TABLESPACE"},
+			stmt:  "ALTER TABLE a TRUNCATE PARTITION p1",
+			code:  0,
+		},
+		{
+			name:    "SET sql_mode CASE uses session collation case-insensitivity",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = CASE 'ansi' WHEN 'ANSI' THEN 'TRADITIONAL' ELSE '' END",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -5174,6 +5296,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 	if strings.Contains(qfnCat.session.SQLMode, "ANSI") {
 		t.Fatalf("catalog evaluated builtin CONCAT instead of stored d_qfn.CONCAT: sql_mode=%q", qfnCat.session.SQLMode)
 	}
+
+	// Schema-and-table qualified references (d.t.a) in column DEFAULT expressions
+	// and functional indexes are accepted when schema and table match the owning table.
+	reset()
+	if _, err := conn.ExecContext(ctx, "CREATE DATABASE d_qual_own; USE d_qual_own;"); err != nil {
+		t.Fatalf("mysql CREATE DATABASE d_qual_own: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "USE `"+qfnOrigDB+"`")
+		_, _ = conn.ExecContext(ctx, "DROP DATABASE IF EXISTS d_qual_own")
+	})
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)))"); err != nil {
+		t.Fatalf("mysql schema+table qualified CREATE TABLE: %v", err)
+	}
+	qualCat := New()
+	execAlterClauses(t, qualCat, "CREATE DATABASE d_qual_own; USE d_qual_own; CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)));")
 }
 
 // simulationEngineRefusal reads the server's answer as the error number and
@@ -5761,10 +5899,21 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		}
 	}
 
-	// Every builtin allowed in DEFAULT expressions has an explicit arity entry.
+	// Every builtin allowed in DEFAULT expressions has an explicit arity entry,
+	// and every entry in defaultBuiltinFuncArity / defaultBuiltinFuncStep is allowed.
 	for fn := range allowedDefaultExprBuiltinFuncs {
 		if _, ok := defaultBuiltinFuncArity[fn]; !ok {
 			t.Errorf("allowedDefaultExprBuiltinFuncs[%q] missing from defaultBuiltinFuncArity", fn)
+		}
+	}
+	for fn := range defaultBuiltinFuncArity {
+		if !allowedDefaultExprBuiltinFuncs[fn] {
+			t.Errorf("defaultBuiltinFuncArity[%q] missing from allowedDefaultExprBuiltinFuncs", fn)
+		}
+	}
+	for fn := range defaultBuiltinFuncStep {
+		if !allowedDefaultExprBuiltinFuncs[fn] {
+			t.Errorf("defaultBuiltinFuncStep[%q] missing from allowedDefaultExprBuiltinFuncs", fn)
 		}
 	}
 
@@ -5802,5 +5951,78 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if ifCat.userVars["nz"].str != "b" {
 		t.Fatalf("userVars[nz]=%+v, want b", ifCat.userVars["nz"])
+	}
+
+	// #2/#6: Diff, GenerateMigration, and LoadMetadata preserve AUTOEXTEND_SIZE and SECONDARY_ENGINE.
+	optFrom := New()
+	execAlterClauses(t, optFrom, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY);")
+	optTo := New()
+	execAlterClauses(t, optTo, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY) /*!80023 AUTOEXTEND_SIZE=4M */ SECONDARY_ENGINE=RAPID;")
+	optDiff := Diff(optFrom, optTo)
+	if len(optDiff.Tables) != 1 || optDiff.Tables[0].Action != DiffModify {
+		t.Fatalf("Diff missed AUTOEXTEND_SIZE/SECONDARY_ENGINE: %+v", optDiff.Tables)
+	}
+	optMig := GenerateMigration(optFrom, optTo, optDiff)
+	if len(optMig.Ops) != 1 || !strings.Contains(optMig.Ops[0].SQL, "AUTOEXTEND_SIZE=4194304") || !strings.Contains(optMig.Ops[0].SQL, "SECONDARY_ENGINE=RAPID") {
+		t.Fatalf("GenerateMigration alter missing options: %+v", optMig.Ops)
+	}
+	optAdd := GenerateMigration(New(), optTo, Diff(New(), optTo))
+	foundCreateOpt := false
+	for _, op := range optAdd.Ops {
+		if op.Type == OpCreateTable && strings.Contains(op.SQL, "AUTOEXTEND_SIZE=4194304") && strings.Contains(op.SQL, "SECONDARY_ENGINE=RAPID") {
+			foundCreateOpt = true
+		}
+	}
+	if !foundCreateOpt {
+		t.Fatalf("GenerateMigration CREATE TABLE missing options: %+v", optAdd.Ops)
+	}
+
+	// #3: Failed CREATE INDEX rolls back synthesized hidden column so that column name can be added afterwards.
+	ciCat := New()
+	execAlterClauses(t, ciCat, "CREATE DATABASE d; USE d; CREATE TABLE t (a VARCHAR(100) CHARACTER SET utf8mb4, b VARBINARY(2850));")
+	if got, _ := simulationCatalogRefusal(t, ciCat, "CREATE INDEX orphan ON t (b, (LOWER(a)))"); got != 1071 {
+		t.Fatalf("oversized CREATE INDEX got %d, want 1071", got)
+	}
+	execAlterClauses(t, ciCat, "ALTER TABLE t ADD COLUMN `!hidden!orphan!1!0` INT;")
+
+	// #5: TIMESTAMP literal default renders shifted to current session time_zone in SHOW CREATE TABLE.
+	tzTSCat := New()
+	execAlterClauses(t, tzTSCat, "CREATE DATABASE d; USE d; SET time_zone = '+00:00'; CREATE TABLE ts_tz (ts TIMESTAMP DEFAULT '2026-01-01 12:00:00+00:00'); SET time_zone = '+03:00';")
+	if show := tzTSCat.ShowCreateTable("d", "ts_tz"); !strings.Contains(show, "DEFAULT '2026-01-01 15:00:00'") {
+		t.Fatalf("TIMESTAMP ShowCreateTable after TZ switch got:\n%s", show)
+	}
+
+	// #7: LoadSDL checks deferred AUTO_INCREMENT key requirement across final tables.
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TABLE bad_ai (a INT AUTO_INCREMENT);"); err == nil {
+		t.Fatal("LoadSDL accepted unindexed AUTO_INCREMENT, want 1075")
+	}
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE INDEX i ON ok_ai (a); CREATE TABLE ok_ai (a INT AUTO_INCREMENT);"); err != nil {
+		t.Fatalf("LoadSDL rejected indexed AUTO_INCREMENT: %v", err)
+	}
+
+	// #9: LIKE and RENAME TABLE rebind source table qualifiers on defaults and functional indexes.
+	likeRenCat := New()
+	execAlterClauses(t, likeRenCat, "CREATE DATABASE d; USE d; CREATE TABLE src (a INT, b INT DEFAULT (src.a + 1)); CREATE TABLE dst LIKE src; ALTER TABLE dst ADD c INT; CREATE TABLE src_fn (a INT, KEY ((src_fn.a + 1))); CREATE TABLE dst_fn LIKE src_fn;")
+	if got, _ := simulationCatalogRefusal(t, likeRenCat, "ALTER TABLE dst_fn DROP COLUMN a"); got != 3837 {
+		t.Fatalf("dst_fn functional index column dependency got %d, want 3837", got)
+	}
+	execAlterClauses(t, likeRenCat, "RENAME TABLE src TO src2, src_fn TO src_fn2; ALTER TABLE src2 ADD c INT;")
+	if got, _ := simulationCatalogRefusal(t, likeRenCat, "ALTER TABLE src_fn2 DROP COLUMN a"); got != 3837 {
+		t.Fatalf("src_fn2 functional index column dependency got %d, want 3837", got)
+	}
+
+	// #18: SET GLOBAL sql_mode='' followed by SET SESSION sql_mode=DEFAULT inherits empty mode.
+	gmCat := New()
+	execAlterClauses(t, gmCat, "CREATE DATABASE d; USE d; SET GLOBAL sql_mode = ''; SET SESSION sql_mode = DEFAULT; CREATE TABLE t_ns (c ENUM('a', 'A')); SET SESSION sql_mode = @@GLOBAL.sql_mode; CREATE TABLE t_ns2 (c ENUM('b', 'B'));")
+
+	// Session collation comparison in SET CASE/equality: case-insensitive default vs _bin.
+	collCat := New()
+	execAlterClauses(t, collCat, "SET sql_mode = CASE 'ansi' WHEN 'ANSI' THEN 'TRADITIONAL' ELSE '' END;")
+	if !strings.Contains(collCat.session.SQLMode, "TRADITIONAL") {
+		t.Fatalf("CASE under utf8mb4_0900_ai_ci got sql_mode=%q, want TRADITIONAL", collCat.session.SQLMode)
+	}
+	execAlterClauses(t, collCat, "SET collation_connection = utf8mb4_bin; SET sql_mode = CASE 'ansi' WHEN 'ANSI' THEN 'TRADITIONAL' ELSE '' END;")
+	if collCat.session.SQLMode != "" {
+		t.Fatalf("CASE under utf8mb4_bin got sql_mode=%q, want empty", collCat.session.SQLMode)
 	}
 }

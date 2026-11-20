@@ -727,9 +727,26 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	return nil
 }
 
+func tableHasDiscardedTablespace(tbl *Table) bool {
+	if tbl == nil {
+		return false
+	}
+	if tbl.TablespaceDiscarded {
+		return true
+	}
+	if tbl.Partitioning != nil {
+		for _, pd := range tbl.Partitioning.Partitions {
+			if pd != nil && pd.Discarded {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // alterDiscardImportTablespace handles ALTER TABLE ... DISCARD/IMPORT TABLESPACE
 // as InnoDB enforces it on mysql:8.0.46.
-func (c *Catalog) alterDiscardImportTablespace(tbl *Table, isImport bool) error {
+func (c *Catalog) alterDiscardImportTablespace(tbl *Table, partitionNames []string, isImport bool) error {
 	if !isInnoDBEngine(tbl.Engine) {
 		return errTableStorageEngineOption(tbl.Name)
 	}
@@ -743,6 +760,48 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, isImport bool) error 
 	if tbl.Database != nil {
 		dbName = tbl.Database.Name
 	}
+	if len(partitionNames) > 0 {
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
+		targetAll := len(partitionNames) == 1 && strings.EqualFold(partitionNames[0], "ALL")
+		var targets []*PartitionDefInfo
+		if targetAll {
+			targets = tbl.Partitioning.Partitions
+		} else {
+			for _, name := range partitionNames {
+				var found *PartitionDefInfo
+				for _, pd := range tbl.Partitioning.Partitions {
+					if pd != nil && strings.EqualFold(pd.Name, name) {
+						found = pd
+						break
+					}
+				}
+				if found == nil {
+					return &Error{Code: 1735, SQLState: "HY000",
+						Message: fmt.Sprintf("Unknown partition '%s' in table '%s'", name, tbl.Name)}
+				}
+				targets = append(targets, found)
+			}
+		}
+		if !isImport {
+			if c.foreignKeyChecks && dbName != "" {
+				if _, _, referenced := c.findReferencingFK(dbName, tbl.Name); referenced {
+					return errRowIsReferenced2()
+				}
+			}
+			for _, pd := range targets {
+				pd.Discarded = true
+			}
+			return nil
+		}
+		for _, pd := range targets {
+			if !pd.Discarded && !tbl.TablespaceDiscarded {
+				return errTablespaceExists(fmt.Sprintf("%s/%s#p#%s", dbName, tbl.Name, pd.Name))
+			}
+		}
+		return errTablespaceMissing(dbName, tbl.Name)
+	}
 	if !isImport {
 		if c.foreignKeyChecks && dbName != "" {
 			if _, _, referenced := c.findReferencingFK(dbName, tbl.Name); referenced {
@@ -752,11 +811,23 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, isImport bool) error 
 		// On mysql:8.0.46, repeating DISCARD TABLESPACE after a prior discard
 		// succeeds (0) with Warning 1812 rather than failing with 1814.
 		tbl.TablespaceDiscarded = true
+		if tbl.Partitioning != nil {
+			for _, pd := range tbl.Partitioning.Partitions {
+				if pd != nil {
+					pd.Discarded = true
+				}
+			}
+		}
 		return nil
 	}
 	if !tbl.TablespaceDiscarded {
 		if tbl.Partitioning != nil && len(tbl.Partitioning.Partitions) > 0 {
-			return errTablespaceExists(fmt.Sprintf("%s/%s#p#%s", dbName, tbl.Name, tbl.Partitioning.Partitions[0].Name))
+			for _, pd := range tbl.Partitioning.Partitions {
+				if pd != nil && !pd.Discarded {
+					return errTablespaceExists(fmt.Sprintf("%s/%s#p#%s", dbName, tbl.Name, pd.Name))
+				}
+			}
+			return errTablespaceMissing(dbName, tbl.Name)
 		}
 		return errTablespaceExists(fmt.Sprintf("%s/%s", dbName, tbl.Name))
 	}

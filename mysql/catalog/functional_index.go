@@ -77,6 +77,76 @@ func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[
 	return nil
 }
 
+func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, cloneAST bool) {
+	if tbl == nil || oldTable == "" {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if col == nil {
+			continue
+		}
+		if col.DefaultExprNode != nil {
+			rebound, sql, changed := rebindTableExprQualifiers(col.DefaultExprNode, oldDB, oldTable, cloneAST)
+			col.DefaultExprNode = rebound
+			if changed && sql != "" {
+				col.Default = &sql
+			}
+		}
+		if col.Generated != nil && col.Generated.Expr != "" {
+			if parsed, err := parseExpr(col.Generated.Expr); err == nil && parsed != nil {
+				_, sql, changed := rebindTableExprQualifiers(parsed, oldDB, oldTable, false)
+				if changed && sql != "" {
+					col.Generated.Expr = sql
+				}
+			}
+		}
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if ic == nil || ic.ExprNode == nil {
+				continue
+			}
+			rebound, sql, changed := rebindTableExprQualifiers(ic.ExprNode, oldDB, oldTable, cloneAST)
+			ic.ExprNode = rebound
+			if changed && sql != "" {
+				ic.Expr = sql
+			}
+		}
+	}
+}
+
+func rebindTableExprQualifiers(expr nodes.ExprNode, oldDB, oldTable string, cloneAST bool) (nodes.ExprNode, string, bool) {
+	if expr == nil {
+		return nil, "", false
+	}
+	target := expr
+	if cloneAST {
+		if cloned, err := parseExpr(nodeToSQL(expr)); err == nil && cloned != nil {
+			target = cloned
+		}
+	}
+	changed := false
+	nodes.Inspect(target, func(n nodes.Node) bool {
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Table == "" {
+			return true
+		}
+		if (cr.Schema == "" || eqFoldStr(cr.Schema, oldDB)) && eqFoldStr(cr.Table, oldTable) {
+			cr.Schema = ""
+			cr.Table = ""
+			changed = true
+		}
+		return true
+	})
+	if !changed {
+		return target, "", false
+	}
+	return target, nodeToSQL(target), true
+}
+
 func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index) error {
 	for _, idx := range added {
 		if idx == nil {
@@ -140,7 +210,9 @@ func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr 
 		if !ok || cr.Column == "" {
 			return true
 		}
-		if cr.Schema != "" || (cr.Table != "" && !strings.EqualFold(cr.Table, tbl.Name)) {
+		schemaOK := cr.Schema == "" || (tbl.Database != nil && strings.EqualFold(cr.Schema, tbl.Database.Name))
+		tableOK := cr.Table == "" || strings.EqualFold(cr.Table, tbl.Name)
+		if !schemaOK || !tableOK {
 			err = errNoSuchColumn(cr.Column, "functional index")
 			return false
 		}
@@ -317,14 +389,39 @@ func extractNonNegIntLit(expr nodes.ExprNode) (int, bool) {
 	return int(lit.Value), true
 }
 
+func exprCharsetRank(cs string) int {
+	c := strings.ToLower(strings.TrimSpace(cs))
+	switch {
+	case c == "":
+		return 0
+	case c == "utf8mb4" || c == "utf16" || c == "utf16le" || c == "utf32":
+		return 50
+	case c == "gb18030":
+		return 45
+	case c == "utf8" || c == "utf8mb3" || c == "ucs2":
+		return 40
+	case charsetMaxBytes(c) == 3:
+		return 30
+	case charsetMaxBytes(c) == 2:
+		return 20
+	case c == "ascii":
+		return 5
+	default:
+		return 10
+	}
+}
+
+func aggregateExprCharset(a, b string) string {
+	if exprCharsetRank(b) > exprCharsetRank(a) {
+		return b
+	}
+	return a
+}
+
 func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, string) {
 	switch e := peelFunctionalIndexParens(expr).(type) {
 	case *nodes.StringLit:
-		cs := ""
-		if tbl != nil {
-			cs = tbl.Charset
-		}
-		return utf8.RuneCountInString(e.Value), true, cs
+		return utf8.RuneCountInString(e.Value), true, ""
 	case *nodes.IntLit:
 		return len(strconv.FormatInt(e.Value, 10)), true, ""
 	default:
@@ -393,9 +490,7 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 				return nil
 			}
 			totalLen += argLen
-			if charset == "" && cs != "" {
-				charset = cs
-			}
+			charset = aggregateExprCharset(charset, cs)
 			if name == "concat_ws" && i > start {
 				totalLen += sepLen
 			}

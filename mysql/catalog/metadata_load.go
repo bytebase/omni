@@ -443,6 +443,8 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
+		{"SECONDARY_ENGINE", unquoteTableOption(createOption(t.GetCreateOptions(), "secondary_engine"))},
+		{"AUTOEXTEND_SIZE", createOption(t.GetCreateOptions(), "autoextend_size")},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})

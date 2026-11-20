@@ -326,7 +326,7 @@ func init() {
 			kind:   sysvarSessionAndGlobal,
 			assign: assignSQLModeSysvar,
 			readGlobal: func(c *Catalog) userVarValue {
-				return userVarValue{kind: userVarString, str: expandSQLModeForRead(effectiveNonEmpty(c.globalSQLMode, "DEFAULT"))}
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.globalSQLMode)}
 			},
 			readSess: func(c *Catalog) userVarValue {
 				return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}
@@ -455,7 +455,7 @@ func assignSQLModeSysvar(c *Catalog, varName string, scope setVarScope, expr nod
 		if scope == setScopeGlobal || scope == setScopePersist {
 			return func() { c.globalSQLMode = "DEFAULT" }, nil
 		}
-		defMode := effectiveNonEmpty(c.globalSQLMode, "DEFAULT")
+		defMode := c.globalSQLMode
 		return applyScopedUpdate(scope, nil, func() { c.session.SQLMode = defMode }), nil
 	}
 	var val userVarValue
@@ -1059,7 +1059,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if v0.kind == userVarNull {
 				return userVarValue{kind: userVarNull}, true, nil
 			}
-			if v1.kind != userVarNull && compareSetValues(v0, v1) == 0 {
+			if v1.kind != userVarNull && c.compareSetValues(v0, v1) == 0 {
 				return userVarValue{kind: userVarNull}, true, nil
 			}
 			return v0, true, nil
@@ -1385,7 +1385,7 @@ func trimSetString(mode, s, rem string) string {
 	return s
 }
 
-func compareSetValues(left, right userVarValue) int {
+func (c *Catalog) compareSetValues(left, right userVarValue) int {
 	if left.kind == userVarNumeric || right.kind == userVarNumeric {
 		if lr, _, lok := parseSetDecimalRat(left); lok {
 			if rr, _, rok := parseSetDecimalRat(right); rok {
@@ -1393,7 +1393,11 @@ func compareSetValues(left, right userVarValue) int {
 			}
 		}
 	}
-	return strings.Compare(left.str, right.str)
+	coll := c.effectiveSessionCollationConn()
+	cs := charsetForCollation(coll)
+	lk := collationComparisonKey(left.str, coll, cs)
+	rk := collationComparisonKey(right.str, coll, cs)
+	return strings.Compare(lk, rk)
 }
 
 func boolSetVar(b bool) userVarValue {
@@ -1428,7 +1432,7 @@ func (c *Catalog) evalSetCaseExprChecked(e *nodes.CaseExpr) (userVarValue, bool,
 		}
 		matched := false
 		if hasOperand {
-			matched = opVal.kind != userVarNull && cond.kind != userVarNull && compareSetValues(opVal, cond) == 0
+			matched = opVal.kind != userVarNull && cond.kind != userVarNull && c.compareSetValues(opVal, cond) == 0
 		} else {
 			matched = evalSetValueTruthy(cond)
 		}
@@ -1462,7 +1466,7 @@ func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, b
 		if left.kind == userVarNull || right.kind == userVarNull {
 			return boolSetVar(false), true, nil
 		}
-		return boolSetVar(compareSetValues(left, right) == 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) == 0), true, nil
 	case nodes.BinOpAnd:
 		if (left.kind != userVarNull && !evalSetValueTruthy(left)) || (right.kind != userVarNull && !evalSetValueTruthy(right)) {
 			return boolSetVar(false), true, nil
@@ -1490,17 +1494,17 @@ func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, b
 	}
 	switch e.Op {
 	case nodes.BinOpEq:
-		return boolSetVar(compareSetValues(left, right) == 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) == 0), true, nil
 	case nodes.BinOpNe:
-		return boolSetVar(compareSetValues(left, right) != 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) != 0), true, nil
 	case nodes.BinOpLt:
-		return boolSetVar(compareSetValues(left, right) < 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) < 0), true, nil
 	case nodes.BinOpLe:
-		return boolSetVar(compareSetValues(left, right) <= 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) <= 0), true, nil
 	case nodes.BinOpGt:
-		return boolSetVar(compareSetValues(left, right) > 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) > 0), true, nil
 	case nodes.BinOpGe:
-		return boolSetVar(compareSetValues(left, right) >= 0), true, nil
+		return boolSetVar(c.compareSetValues(left, right) >= 0), true, nil
 	}
 	ln, lok := parseSetNumericInt64(left)
 	rn, rok := parseSetNumericInt64(right)

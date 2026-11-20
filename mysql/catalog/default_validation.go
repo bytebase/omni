@@ -109,7 +109,9 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 				if x.Column == "" {
 					return true
 				}
-				if x.Schema != "" || (x.Table != "" && !strings.EqualFold(x.Table, tbl.Name)) {
+				schemaOK := x.Schema == "" || (tbl.Database != nil && strings.EqualFold(x.Schema, tbl.Database.Name))
+				tableOK := x.Table == "" || strings.EqualFold(x.Table, tbl.Name)
+				if !schemaOK || !tableOK {
 					err = errNoSuchColumn(x.Column, "default value expression")
 					return false
 				}
@@ -146,8 +148,8 @@ type funcArity struct {
 // allowed MySQL 8.0 default-expression scalar built-ins.
 var defaultBuiltinFuncArity = map[string]funcArity{
 	"abs": {1, 1}, "acos": {1, 1}, "adddate": {2, 2}, "addtime": {2, 2},
-	"aes_decrypt": {2, 4}, "aes_encrypt": {2, 4}, "any_value": {1, 1}, "ascii": {1, 1},
-	"asin": {1, 1}, "atan": {1, 2}, "atan2": {2, 2},
+	"aes_decrypt": {2, 6}, "aes_encrypt": {2, 6}, "any_value": {1, 1}, "ascii": {1, 1},
+	"asin": {1, 1}, "atan": {1, 2}, "atan2": {1, 2},
 	"bin": {1, 1}, "bin_to_uuid": {1, 2}, "bit_count": {1, 1}, "bit_length": {1, 1},
 	"can_access_user": {2, 2}, "can_access_view": {4, 4}, "cast": {1, 1},
 	"ceil": {1, 1}, "ceiling": {1, 1}, "char": {1, -1}, "character_length": {1, 1},
@@ -390,7 +392,7 @@ var allowedDefaultExprBuiltinFuncs = map[string]bool{
 	"power": true, "ps_current_thread_id": true, "ps_thread_id": true,
 	"quarter": true, "quote": true,
 	"radians": true, "rand": true, "random_bytes": true, "regexp_instr": true,
-	"regexp_like": true, "regexp_replace": true, "regexp_substr": true,
+	"regexp_like": true, "regexp_replace": true, "regexp_substr": true, "replace": true,
 	"reverse": true, "right": true, "roles_graphml": true, "round": true,
 	"rpad": true, "rtrim": true,
 	"schema": true, "second": true, "sec_to_time": true, "session_user": true,
@@ -860,6 +862,14 @@ func evalIntegerLiteralBigInt(kind literalDefaultKind, val string, unsigned, str
 		if !isStrictNumberSyntax(s) {
 			return nil, false
 		}
+		if strings.ContainsAny(s, "eE") {
+			f, err := strconv.ParseFloat(s, 64)
+			if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+				return nil, false
+			}
+			n, _ := new(big.Float).SetFloat64(math.RoundToEven(f)).Int(nil)
+			return n, true
+		}
 		r, ok := new(big.Rat).SetString(s)
 		if !ok {
 			return nil, false
@@ -1106,9 +1116,52 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 		col.Default = &v
 		return
 	}
+	if strings.EqualFold(col.DataType, "timestamp") &&
+		col.DefaultKind != ColumnDefaultCurrentTimestamp &&
+		col.DefaultKind != ColumnDefaultExpression {
+		if utc, ok := parseTimestampLiteralUTC(temporalColumnFSP(col.ColumnType), expr, truncateFrac, c.resolveEffectiveTimeZone()); ok {
+			col.DefaultTimestampUTC = &utc
+		} else {
+			col.DefaultTimestampUTC = nil
+		}
+	} else {
+		col.DefaultTimestampUTC = nil
+	}
 	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, c.resolveEffectiveTimeZone()); ok {
 		col.Default = &coerced
 	}
+}
+
+func parseTimestampLiteralUTC(fsp int, expr nodes.ExprNode, truncateFrac bool, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind == litNone || !sessionTZ.valid {
+		return time.Time{}, false
+	}
+	var (
+		p  parsedMySQLDateTime
+		ok bool
+	)
+	switch {
+	case kind == litNumber && unquotedNum:
+		p, ok = parseMySQLNumberDateTime("timestamp", fsp, val, truncateFrac)
+	case kind == litString:
+		p, ok = parseMySQLStringDateTime("timestamp", fsp, strings.TrimSpace(val), truncateFrac)
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return time.Time{}, false
+		}
+		p, ok = parseMySQLStringDateTime("timestamp", fsp, string(raw), truncateFrac)
+	}
+	if !ok || p.allZero {
+		return time.Time{}, false
+	}
+	nsec := p.micros * 1000
+	if p.hasTZ {
+		utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
+		return utc, true
+	}
+	return convertSessionLocalToUTC(p.year, p.month, p.day, p.hour, p.min, p.sec, nsec, sessionTZ)
 }
 
 func decodeLiteralRawBytes(val string, isHex bool) ([]byte, bool) {

@@ -150,6 +150,12 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 	if rowFormatChanged(from, to, n) {
 		return true
 	}
+	if from.AutoExtendSize != to.AutoExtendSize {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(from.SecondaryEngine), strings.TrimSpace(to.SecondaryEngine)) {
+		return true
+	}
 	return false
 }
 
