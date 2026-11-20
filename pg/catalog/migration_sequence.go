@@ -52,7 +52,7 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if ownerDropped(from, to, entry.From) {
 				continue
 			}
-			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			qn := formatSequenceTargetName(entry.SchemaName, entry.From)
 			phase := PhasePre
 			if sequenceDrawnByKeptColumn(from, to, entry.From) {
 				// The ALTER COLUMN that changes that default runs first.

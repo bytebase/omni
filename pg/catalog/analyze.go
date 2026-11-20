@@ -485,6 +485,7 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if hasRealExprs {
 			// DISTINCT ON (col1, col2, ...)
 			q.Distinct = true
+			distinctRefs := make(map[uint32]bool)
 			for _, item := range stmt.DistinctClause.Items {
 				if item == nil {
 					continue
@@ -494,9 +495,25 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 					return nil, err
 				}
 				ref := ac.assignSortGroupRef(tle, q.TargetList)
+				distinctRefs[ref] = true
 				q.DistinctOn = append(q.DistinctOn, &SortGroupClause{
 					TLESortGroupRef: ref,
 				})
+			}
+			if len(distinctRefs) > 0 && len(q.SortClause) > 0 {
+				matched := make(map[uint32]bool)
+				for _, sc := range q.SortClause {
+					if len(matched) == len(distinctRefs) {
+						break
+					}
+					if !distinctRefs[sc.TLESortGroupRef] {
+						return nil, &Error{
+							Code:    CodeInvalidColumnReference,
+							Message: "SELECT DISTINCT ON expressions must match initial ORDER BY expressions",
+						}
+					}
+					matched[sc.TLESortGroupRef] = true
+				}
 			}
 		} else {
 			// Plain DISTINCT
@@ -505,7 +522,25 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 	}
 
 	// 9. FOR UPDATE/SHARE (LockingClause).
-	if stmt.LockingClause != nil {
+	if stmt.LockingClause != nil && len(stmt.LockingClause.Items) > 0 {
+		if q.Distinct {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with DISTINCT clause",
+			}
+		}
+		if len(q.GroupClause) > 0 || len(q.GroupingSets) > 0 {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with GROUP BY clause",
+			}
+		}
+		if q.HavingQual != nil {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "FOR UPDATE/SHARE is not allowed with HAVING clause",
+			}
+		}
 		for _, item := range stmt.LockingClause.Items {
 			lc, ok := item.(*nodes.LockingClause)
 			if !ok || lc == nil {

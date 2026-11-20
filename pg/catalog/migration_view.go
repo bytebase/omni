@@ -30,7 +30,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			}
 			switch entry.From.RelKind {
 			case 'v':
-				qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+				qn := formatRelationTargetName(entry.SchemaName, entry.From)
 				ops = append(ops, MigrationOp{
 					Type:          OpDropView,
 					SchemaName:    entry.SchemaName,
@@ -67,7 +67,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			fromIsView := entry.From.RelKind == 'v' || entry.From.RelKind == 'm'
 			toIsView := entry.To.RelKind == 'v' || entry.To.RelKind == 'm'
 			if (fromIsView || toIsView) && entry.From.RelKind != entry.To.RelKind {
-				qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+				qn := formatRelationTargetName(entry.SchemaName, entry.From)
 				// Drop the original kind.
 				dropSQL := fmt.Sprintf("DROP VIEW %s", qn)
 				if entry.From.RelKind == 'm' {
@@ -98,7 +98,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			case 'v':
 				if viewColumnsChanged(entry) || normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
 					// Column order/names/types or persistence changed — can't use CREATE OR REPLACE.
-					qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+					qn := formatRelationTargetName(entry.SchemaName, entry.From)
 					ops = append(ops, MigrationOp{
 						Type:          OpDropView,
 						SchemaName:    entry.SchemaName,
@@ -138,10 +138,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 // buildCreateViewOp creates a CREATE VIEW op for an added view.
 func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	if entry.To != nil && entry.To.Persistence == 't' && !isTempSchemaName(entry.SchemaName) {
-		qn = quoteIdentAlways(entry.Name)
-	}
+	qn := formatRelationTargetName(entry.SchemaName, entry.To)
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder

@@ -17,6 +17,16 @@ func migrationQualifiedName(schema, name string) string {
 	return quoteIdentAlways(schema) + "." + quoteIdentAlways(name)
 }
 
+func formatRelationTargetName(schemaName string, rel *Relation) string {
+	if rel != nil && rel.Persistence == 't' && !isTempSchemaName(schemaName) {
+		return quoteIdentAlways(rel.Name)
+	}
+	if rel != nil {
+		return migrationQualifiedName(schemaName, rel.Name)
+	}
+	return migrationQualifiedName(schemaName, "")
+}
+
 // generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
 func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
@@ -56,7 +66,7 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if rk != 'r' && rk != 'p' {
 				continue
 			}
-			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			qn := formatRelationTargetName(entry.SchemaName, entry.From)
 			ops = append(ops, MigrationOp{
 				Type:          OpDropTable,
 				SchemaName:    entry.SchemaName,

@@ -319,10 +319,11 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 
 	// Use from.deps to find views/matviews that depend on these tables (transitively).
 	type viewInfo struct {
-		schema  string
-		name    string
-		oid     uint32
-		relKind byte
+		schema      string
+		name        string
+		oid         uint32
+		relKind     byte
+		persistence byte
 	}
 	seen := make(map[uint32]bool)
 	var viewsToDrop []viewInfo
@@ -337,7 +338,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			continue
 		}
 		seen[oid] = true
-		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind})
+		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
 		queue = append(queue, oid)
 	}
 	for len(queue) > 0 {
@@ -358,7 +359,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			if rel.Schema == nil {
 				continue
 			}
-			viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind})
+			viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
 			queue = append(queue, d.ObjOID)
 		}
 	}
@@ -433,6 +434,9 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	for _, v := range viewsToDrop {
 		dropViews[v.schema+"."+v.name] = true
 		qn := migrationQualifiedName(v.schema, v.name)
+		if v.persistence == 't' && !isTempSchemaName(v.schema) {
+			qn = quoteIdentAlways(v.name)
+		}
 		dropKind := "VIEW"
 		if v.relKind == 'm' {
 			dropKind = "MATERIALIZED VIEW"

@@ -5122,21 +5122,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE INDEX idx_bad_opc_opt_r23 ON t_r20 (id int4_ops (foo = 1))", CodeInvalidParameterValue},
 			{"CREATE RULE r_dup_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT 1 FROM dst_r20 AS x, dst_r20 AS x", CodeDuplicateAlias},
 			{"CREATE RULE r_hidden_col_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT x.id FROM dst_r20 AS x(renamed_id)", CodeUndefinedColumn},
+			{"PREPARE p_ret_param_r24 AS UPDATE t_r20 SET val = 'x' RETURNING $1::int; CREATE TABLE t_exec_r24 AS EXECUTE p_ret_param_r24('2024-01-01'::date)", CodeDatatypeMismatch},
+			{"CREATE RULE r_dist_on_order_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT ON (id) id, val FROM t_r20 ORDER BY val", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_on_order_ok_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT ON (id) id, val FROM t_r20 ORDER BY 1, val", "0"},
+			{"CREATE RULE r_lock_dist_r24 AS ON INSERT TO t_r20 DO ALSO SELECT DISTINCT id FROM t_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_group_r24 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 GROUP BY id FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_agg_r24 AS ON INSERT TO t_r20 DO ALSO SELECT count(*) FROM t_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_lock_setop_r24 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 UNION SELECT id FROM dst_r20 FOR UPDATE", CodeFeatureNotSupported},
+			{"CREATE RULE r_oc_upd_no_infer_r24 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) ON CONFLICT DO UPDATE SET val = EXCLUDED.val", CodeSyntaxError},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
 			}
 		}
 
-		// Round 21-23 migration regressions:
+		// Round 21-24 migration regressions:
 		// 1. Sequence range variables in rules track sequence renames.
-		// 2. Temporary views and sequences preserve CREATE TEMP without non-temp schema qualifier in GenerateMigration.
+		// 2. Temporary views and sequences preserve CREATE TEMP / DROP without non-temp schema qualifier in GenerateMigration.
 		// 3. Sequence persistence changes emit ALTER SEQUENCE ... SET UNLOGGED / SET LOGGED.
 		// 4. Schema-qualified column references in rules track relation and column renames.
 		c123From := New()
 		c123To := New()
 		for _, stmt := range []string{
 			"CREATE SEQUENCE seq_r23_persist",
+			"CREATE TEMP VIEW tv_r24_drop AS SELECT 1 AS id",
 		} {
 			if code := simulationCatalogCode(t, c123From, stmt); code != "0" {
 				t.Fatalf("c123From %s: %s", stmt, code)
@@ -5161,6 +5170,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		mig123 := GenerateMigration(c123From, c123To, Diff(c123From, c123To))
 		sql123 := mig123.SQL()
 		for _, wantFrag := range []string{
+			"DROP VIEW \"tv_r24_drop\"",
 			"CREATE TEMP VIEW \"tv_r21\"",
 			"CREATE TEMP SEQUENCE \"seq_r23_tmp\"",
 			"ALTER SEQUENCE \"public\".\"seq_r23_persist\" SET UNLOGGED",

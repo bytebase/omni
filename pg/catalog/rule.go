@@ -2496,9 +2496,15 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			hasOpenSource: ctx.hasOpenSource,
 		}
 		if s.DistinctClause != nil {
+			qCols, qAny := c.extractRuleQueryCols(b, s)
 			for _, item := range s.DistinctClause.Items {
 				if err := c.bindRuleExpr(b, item, aliasCtx); err != nil {
 					return err
+				}
+				if item != nil {
+					if err := c.checkRuleOrdinalExpr(item, len(qCols), qAny, "DISTINCT ON"); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -2625,6 +2631,14 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		}
 		if s.OnConflictClause != nil {
 			oc := s.OnConflictClause
+			isDoUpdate := oc.TargetList != nil && len(oc.TargetList.Items) > 0
+			hasInferTarget := oc.Infer != nil && (oc.Infer.Conname != "" || (oc.Infer.IndexElems != nil && len(oc.Infer.IndexElems.Items) > 0))
+			if isDoUpdate && !hasInferTarget && !c.snapshot {
+				return &Error{
+					Code:    CodeSyntaxError,
+					Message: "ON CONFLICT DO UPDATE requires inference specification or constraint name",
+				}
+			}
 			if oc.Infer != nil {
 				if oc.Infer.Conname != "" && targetOID != 0 {
 					var matchedCon *Constraint
@@ -3514,6 +3528,9 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 				}
 			}
 		}
+		if err := c.checkRuleDistinctOnMatchesOrderBy(b, s); err != nil {
+			return err
+		}
 	}
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
@@ -3537,7 +3554,12 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 			}
 		}
 	}
-	if s.LockingClause != nil {
+	if s.LockingClause != nil && len(s.LockingClause.Items) > 0 {
+		if !c.snapshot {
+			if err := c.checkRuleLockingClauseAllowed(b, s); err != nil {
+				return err
+			}
+		}
 		for _, item := range s.LockingClause.Items {
 			lc, ok := item.(*nodes.LockingClause)
 			if !ok || lc == nil || lc.LockedRels == nil {
@@ -3561,6 +3583,304 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.SelectStmt) error {
+	if s == nil || s.DistinctClause == nil || s.SortClause == nil || len(s.SortClause.Items) == 0 {
+		return nil
+	}
+	hasDistinctOn := false
+	for _, item := range s.DistinctClause.Items {
+		if item != nil {
+			hasDistinctOn = true
+			break
+		}
+	}
+	if !hasDistinctOn {
+		return nil
+	}
+
+	type targetKeyEntry struct {
+		alias string
+		key   string
+	}
+	dep := ruleDeparser{cat: c, b: b}
+	exprCanonicalKey := func(expr nodes.Node) string {
+		if expr == nil {
+			return ""
+		}
+		if cr, ok := expr.(*nodes.ColumnRef); ok && b != nil {
+			if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum != 0 {
+				return fmt.Sprintf("col:%d:%d", cb.relOID, cb.attNum)
+			}
+		}
+		return "expr:" + dep.deparseExpr(expr)
+	}
+
+	var targets []targetKeyEntry
+	if s.TargetList != nil {
+		for _, item := range s.TargetList.Items {
+			rt, ok := item.(*nodes.ResTarget)
+			if !ok || rt == nil {
+				continue
+			}
+			if cr, isCR := rt.Val.(*nodes.ColumnRef); isCR && isStarColumnRef(cr) {
+				if b != nil && b.starExpandByRT != nil {
+					if starCols, found := b.starExpandByRT[rt]; found && len(starCols) > 0 {
+						for _, sc := range starCols {
+							colName := sc.colAlias
+							if colName == "" {
+								colName = sc.origName
+							}
+							key := "expr:" + quoteIdent(colName)
+							if sc.relOID != 0 && sc.attNum != 0 {
+								key = fmt.Sprintf("col:%d:%d", sc.relOID, sc.attNum)
+							}
+							targets = append(targets, targetKeyEntry{alias: colName, key: key})
+						}
+						continue
+					}
+				}
+				return nil
+			}
+			alias := rt.Name
+			if alias == "" && b != nil && b.targetNameByRT != nil {
+				alias = b.targetNameByRT[rt]
+			}
+			targets = append(targets, targetKeyEntry{
+				alias: alias,
+				key:   exprCanonicalKey(rt.Val),
+			})
+		}
+	}
+
+	resolveSortGroupKey := func(expr nodes.Node) string {
+		var iv *nodes.Integer
+		switch v := expr.(type) {
+		case *nodes.A_Const:
+			if !v.Isnull {
+				iv, _ = v.Val.(*nodes.Integer)
+			}
+		case *nodes.Integer:
+			iv = v
+		}
+		if iv != nil && iv.Ival >= 1 && int(iv.Ival) <= len(targets) {
+			return targets[iv.Ival-1].key
+		}
+		if cr, ok := expr.(*nodes.ColumnRef); ok && cr != nil && cr.Fields != nil && len(cr.Fields.Items) == 1 {
+			if b == nil || b.colByRef[cr].relOID == 0 {
+				if str, isStr := cr.Fields.Items[0].(*nodes.String); isStr && str.Str != "" {
+					for _, t := range targets {
+						if t.alias == str.Str {
+							return t.key
+						}
+					}
+				}
+			}
+		}
+		return exprCanonicalKey(expr)
+	}
+
+	distinctKeys := make(map[string]bool)
+	for _, item := range s.DistinctClause.Items {
+		if item == nil {
+			continue
+		}
+		k := resolveSortGroupKey(item)
+		if k != "" {
+			distinctKeys[k] = true
+		}
+	}
+	if len(distinctKeys) == 0 {
+		return nil
+	}
+
+	matched := make(map[string]bool)
+	for _, item := range s.SortClause.Items {
+		if len(matched) == len(distinctKeys) {
+			break
+		}
+		sb, ok := item.(*nodes.SortBy)
+		if !ok || sb == nil || sb.Node == nil {
+			continue
+		}
+		k := resolveSortGroupKey(sb.Node)
+		if !distinctKeys[k] {
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: "SELECT DISTINCT ON expressions must match initial ORDER BY expressions",
+			}
+		}
+		matched[k] = true
+	}
+	return nil
+}
+
+func (c *Catalog) checkRuleLockingClauseAllowed(b *ruleBindings, s *nodes.SelectStmt) error {
+	if s == nil {
+		return nil
+	}
+	if s.Op != nodes.SETOP_NONE {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with UNION/INTERSECT/EXCEPT",
+		}
+	}
+	if s.ValuesLists != nil {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with VALUES",
+		}
+	}
+	if s.DistinctClause != nil && len(s.DistinctClause.Items) > 0 {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with DISTINCT clause",
+		}
+	}
+	if s.GroupClause != nil && len(s.GroupClause.Items) > 0 {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with GROUP BY clause",
+		}
+	}
+	if s.HavingClause != nil {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with HAVING clause",
+		}
+	}
+	hasAgg, hasWin := c.selectHasTopLevelAggOrWindow(b, s)
+	if hasAgg {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with aggregate functions",
+		}
+	}
+	if hasWin {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "FOR UPDATE/SHARE is not allowed with window functions",
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) selectHasTopLevelAggOrWindow(b *ruleBindings, s *nodes.SelectStmt) (hasAgg bool, hasWin bool) {
+	if s == nil {
+		return false, false
+	}
+	var walk func(n nodes.Node)
+	walk = func(n nodes.Node) {
+		if n == nil || (hasAgg && hasWin) {
+			return
+		}
+		switch v := n.(type) {
+		case *nodes.SubLink, *nodes.RangeSubselect, *nodes.SelectStmt, *nodes.JsonArrayQueryConstructor:
+			return
+		case *nodes.List:
+			for _, item := range v.Items {
+				walk(item)
+			}
+		case *nodes.ResTarget:
+			walk(v.Val)
+		case *nodes.SortBy:
+			walk(v.Node)
+		case *nodes.FuncCall:
+			if v.Over != nil {
+				hasWin = true
+			} else if v.AggStar || v.AggDistinct || v.AggFilter != nil || (v.AggOrder != nil && len(v.AggOrder.Items) > 0) {
+				hasAgg = true
+			} else if b != nil && b.funcByFC != nil {
+				if oid, ok := b.funcByFC[v]; ok && oid != 0 {
+					if p := c.procByOID[oid]; p != nil {
+						if p.Kind == 'a' {
+							hasAgg = true
+						} else if p.Kind == 'w' {
+							hasWin = true
+						}
+					}
+				}
+			}
+			if !hasAgg && !hasWin && v.Over == nil {
+				_, fName := qualifiedName(v.Funcname)
+				for _, p := range c.procByName[strings.ToLower(fName)] {
+					if p != nil && p.Kind == 'a' {
+						hasAgg = true
+						break
+					}
+				}
+			}
+			if v.Args != nil {
+				walk(v.Args)
+			}
+			walk(v.AggFilter)
+			if v.AggOrder != nil {
+				walk(v.AggOrder)
+			}
+		case *nodes.A_Expr:
+			walk(v.Lexpr)
+			walk(v.Rexpr)
+		case *nodes.BoolExpr:
+			if v.Args != nil {
+				walk(v.Args)
+			}
+		case *nodes.NullTest:
+			walk(v.Arg)
+		case *nodes.BooleanTest:
+			walk(v.Arg)
+		case *nodes.TypeCast:
+			walk(v.Arg)
+		case *nodes.CollateClause:
+			walk(v.Arg)
+		case *nodes.CaseExpr:
+			walk(v.Arg)
+			if v.Args != nil {
+				walk(v.Args)
+			}
+			walk(v.Defresult)
+		case *nodes.CaseWhen:
+			walk(v.Expr)
+			walk(v.Result)
+		case *nodes.CoalesceExpr:
+			if v.Args != nil {
+				walk(v.Args)
+			}
+		case *nodes.MinMaxExpr:
+			if v.Args != nil {
+				walk(v.Args)
+			}
+		case *nodes.RowExpr:
+			if v.Args != nil {
+				walk(v.Args)
+			}
+		case *nodes.A_ArrayExpr:
+			if v.Elements != nil {
+				walk(v.Elements)
+			}
+		case *nodes.ArrayExpr:
+			if v.Elements != nil {
+				walk(v.Elements)
+			}
+		case *nodes.A_Indirection:
+			walk(v.Arg)
+			if v.Indirection != nil {
+				walk(v.Indirection)
+			}
+		case *nodes.A_Indices:
+			walk(v.Lidx)
+			walk(v.Uidx)
+		case *nodes.GroupingFunc:
+			hasAgg = true
+		}
+	}
+	if s.TargetList != nil {
+		walk(s.TargetList)
+	}
+	if s.SortClause != nil {
+		walk(s.SortClause)
+	}
+	return hasAgg, hasWin
 }
 
 func (c *Catalog) bindWindowDef(b *ruleBindings, wd *nodes.WindowDef, ctx *ruleEvalContext) error {
@@ -5563,6 +5883,9 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 				}
 			}
 		}
+		if t := c.inferRuleExprType(b, expr, nil); t != 0 && t != UNKNOWNOID {
+			return t
+		}
 		return 0
 	}
 	var walkExpr func(expr nodes.Node, expectedType uint32)
@@ -5618,6 +5941,87 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 					walkExpr(item, common)
 				}
 			}
+		case *nodes.MinMaxExpr:
+			if ev.Args != nil {
+				var common uint32
+				for _, item := range ev.Args.Items {
+					if t := resolveExprType(item); t != 0 {
+						common = t
+						break
+					}
+				}
+				if common == 0 {
+					common = expectedType
+				}
+				for _, item := range ev.Args.Items {
+					walkExpr(item, common)
+				}
+			}
+		case *nodes.CaseExpr:
+			argType := resolveExprType(ev.Arg)
+			walkExpr(ev.Arg, 0)
+			var resCommon uint32
+			if ev.Args != nil {
+				for _, item := range ev.Args.Items {
+					if cw, ok := item.(*nodes.CaseWhen); ok && cw != nil {
+						if resCommon == 0 {
+							resCommon = resolveExprType(cw.Result)
+						}
+					}
+				}
+			}
+			if resCommon == 0 {
+				resCommon = resolveExprType(ev.Defresult)
+			}
+			if resCommon == 0 {
+				resCommon = expectedType
+			}
+			whenExpected := uint32(BOOLOID)
+			if ev.Arg != nil {
+				whenExpected = argType
+			}
+			if ev.Args != nil {
+				for _, item := range ev.Args.Items {
+					if cw, ok := item.(*nodes.CaseWhen); ok && cw != nil {
+						walkExpr(cw.Expr, whenExpected)
+						walkExpr(cw.Result, resCommon)
+					}
+				}
+			}
+			walkExpr(ev.Defresult, resCommon)
+		case *nodes.A_ArrayExpr:
+			if ev.Elements != nil {
+				var elemCommon uint32
+				for _, item := range ev.Elements.Items {
+					if t := resolveExprType(item); t != 0 {
+						elemCommon = t
+						break
+					}
+				}
+				for _, item := range ev.Elements.Items {
+					walkExpr(item, elemCommon)
+				}
+			}
+		case *nodes.ArrayExpr:
+			if ev.Elements != nil {
+				for _, item := range ev.Elements.Items {
+					walkExpr(item, 0)
+				}
+			}
+		case *nodes.RowExpr:
+			if ev.Args != nil {
+				for _, item := range ev.Args.Items {
+					walkExpr(item, 0)
+				}
+			}
+		case *nodes.SubLink:
+			walkExpr(ev.Testexpr, 0)
+			if sel, ok := ev.Subselect.(*nodes.SelectStmt); ok && sel != nil {
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
+					collectQueryParamTypes(q, paramTypes)
+				}
+				c.inferPreparedDMLParamTypes(b, sel, paramTypes)
+			}
 		case *nodes.FuncCall:
 			if ev.Args != nil {
 				_, fName := qualifiedName(ev.Funcname)
@@ -5636,6 +6040,34 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 					walkExpr(arg, at)
 				}
 			}
+			walkExpr(ev.AggFilter, BOOLOID)
+		}
+	}
+	walkReturning := func(list *nodes.List) {
+		if list == nil {
+			return
+		}
+		for _, item := range list.Items {
+			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil {
+				walkExpr(rt.Val, 0)
+			} else {
+				walkExpr(item, 0)
+			}
+		}
+	}
+	walkWithClause := func(wc *nodes.WithClause) {
+		if wc == nil || wc.Ctes == nil {
+			return
+		}
+		for _, item := range wc.Ctes.Items {
+			if cte, ok := item.(*nodes.CommonTableExpr); ok && cte != nil && cte.Ctequery != nil {
+				if sel, isSel := cte.Ctequery.(*nodes.SelectStmt); isSel && sel != nil {
+					if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
+						collectQueryParamTypes(q, paramTypes)
+					}
+				}
+				c.inferPreparedDMLParamTypes(b, cte.Ctequery, paramTypes)
+			}
 		}
 	}
 	targetColType := func(rt *nodes.ResTarget, rel *Relation) uint32 {
@@ -5648,7 +6080,21 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		return 0
 	}
 	switch s := n.(type) {
+	case *nodes.SelectStmt:
+		walkWithClause(s.WithClause)
+		if s.Larg != nil {
+			c.inferPreparedDMLParamTypes(b, s.Larg, paramTypes)
+		}
+		if s.Rarg != nil {
+			c.inferPreparedDMLParamTypes(b, s.Rarg, paramTypes)
+		}
+		walkReturning(s.TargetList)
+		walkExpr(s.WhereClause, BOOLOID)
+		walkExpr(s.HavingClause, BOOLOID)
+		walkExpr(s.LimitCount, INT8OID)
+		walkExpr(s.LimitOffset, INT8OID)
 	case *nodes.InsertStmt:
+		walkWithClause(s.WithClause)
 		var rel *Relation
 		if b != nil && s.Relation != nil {
 			rel = c.relationByOID[b.relByRV[s.Relation]]
@@ -5695,10 +6141,21 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
 					collectQueryParamTypes(q, paramTypes)
 				}
+				c.inferPreparedDMLParamTypes(b, sel, paramTypes)
 			}
 		}
-		if s.OnConflictClause != nil && rel != nil {
-			if s.OnConflictClause.TargetList != nil {
+		if s.OnConflictClause != nil {
+			if s.OnConflictClause.Infer != nil {
+				if s.OnConflictClause.Infer.IndexElems != nil {
+					for _, ie := range s.OnConflictClause.Infer.IndexElems.Items {
+						if elem, ok := ie.(*nodes.IndexElem); ok && elem != nil {
+							walkExpr(elem.Expr, 0)
+						}
+					}
+				}
+				walkExpr(s.OnConflictClause.Infer.WhereClause, BOOLOID)
+			}
+			if rel != nil && s.OnConflictClause.TargetList != nil {
 				for _, item := range s.OnConflictClause.TargetList.Items {
 					if rt, ok := item.(*nodes.ResTarget); ok {
 						walkExpr(rt.Val, targetColType(rt, rel))
@@ -5707,7 +6164,9 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 			}
 			walkExpr(s.OnConflictClause.WhereClause, BOOLOID)
 		}
+		walkReturning(s.ReturningList)
 	case *nodes.UpdateStmt:
+		walkWithClause(s.WithClause)
 		var rel *Relation
 		if b != nil && s.Relation != nil {
 			rel = c.relationByOID[b.relByRV[s.Relation]]
@@ -5720,9 +6179,13 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 			}
 		}
 		walkExpr(s.WhereClause, BOOLOID)
+		walkReturning(s.ReturningList)
 	case *nodes.DeleteStmt:
+		walkWithClause(s.WithClause)
 		walkExpr(s.WhereClause, BOOLOID)
+		walkReturning(s.ReturningList)
 	case *nodes.MergeStmt:
+		walkWithClause(s.WithClause)
 		var rel *Relation
 		if b != nil && s.Relation != nil {
 			rel = c.relationByOID[b.relByRV[s.Relation]]
@@ -5764,6 +6227,7 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 				}
 			}
 		}
+		walkReturning(s.ReturningList)
 	}
 }
 
