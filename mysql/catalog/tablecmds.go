@@ -403,7 +403,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			setColumnDefaultFromExpr(col, colDef.DefaultValue)
+			c.setColumnDefaultFromExpr(col, colDef.DefaultValue)
 		}
 		if colDef.OnUpdate != nil {
 			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -439,7 +439,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				col.NullExplicit = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					setColumnDefaultFromExpr(col, cc.Expr)
+					c.setColumnDefaultFromExpr(col, cc.Expr)
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {
@@ -1374,17 +1374,25 @@ func timestampZeroDefault(fsp int) string {
 	return "0000-00-00 00:00:00"
 }
 
-func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
-	if sl, ok := expr.(*nodes.StringLit); ok {
-		litVal := sl.Value
-		decoded := false
-		if sl.Charset != "" || sl.National {
-			if dv, decOK := decodeStringLiteralDefault(sl, col.Charset); decOK {
-				litVal = dv
-				decoded = true
-			}
+func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.StringLit) (string, bool) {
+	litVal := sl.Value
+	decoded := false
+	hasSessionCS := c != nil && (c.effectiveClientCharset() != "utf8mb4" || c.effectiveConnCharset() != "utf8mb4")
+	if sl.Charset != "" || sl.National || hasSessionCS {
+		if dv, decOK := c.decodeStringLiteralDefault(sl, col.Charset); decOK {
+			litVal = dv
+			decoded = true
 		}
-		if normVal, changed := normalizeCharDefaultStringLiteral(col, litVal); changed || (decoded && !strings.EqualFold(strings.TrimSpace(sl.Charset), "binary")) {
+	}
+	litIsBinary := strings.EqualFold(strings.TrimSpace(sl.Charset), "binary") ||
+		(sl.Charset == "" && !sl.National && strings.EqualFold(col.Charset, "binary"))
+	normVal, changed := normalizeCharDefaultStringLiteral(col, litVal)
+	return normVal, changed || (decoded && !litIsBinary)
+}
+
+func (c *Catalog) setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+	if sl, ok := expr.(*nodes.StringLit); ok {
+		if normVal, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
 			cp := *sl
 			cp.Charset = ""
 			cp.National = false

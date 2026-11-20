@@ -30,7 +30,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2", "DROP EVENT IF EXISTS e"} {
+		for _, stmt := range []string{"SET NAMES utf8mb4", "SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2", "DROP EVENT IF EXISTS e"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -3858,6 +3858,103 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "ALTER TABLE a TABLESPACE ts_fbs8_alt ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4",
 			code:    1478,
 		},
+		{
+			name:    "SET NAMES ascii rejects utf8mb4 quoted literal DEFAULT with 1067",
+			session: []string{"SET NAMES ascii"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES ascii rejects ENUM non-ascii DEFAULT with 1067",
+			session: []string{"SET NAMES ascii"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (s ENUM('a') DEFAULT 'é')",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES sjis rejects 4-byte utf8mb4 quoted DEFAULT with 1067",
+			session: []string{"SET NAMES sjis"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT '😀')",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES latin1 interprets UTF-8 bytes as 2 chars so CHAR(1) rejects with 1067",
+			session: []string{"SET NAMES latin1"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES latin1 ALTER TABLE ADD COLUMN CHAR(1) DEFAULT rejects with 1067",
+			setup:   []string{"CREATE TABLE a (id INT)"},
+			session: []string{"SET NAMES latin1"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "ALTER TABLE a ADD COLUMN d CHAR(1) CHARACTER SET utf8mb4 DEFAULT 'é'",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES latin1 ALTER COLUMN SET DEFAULT on CHAR(1) rejects with 1067",
+			setup:   []string{"CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4)"},
+			session: []string{"SET NAMES latin1"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "ALTER TABLE a ALTER COLUMN c SET DEFAULT 'é'",
+			code:    1067,
+		},
+		{
+			name:    "SET NAMES binary accepts valid raw utf8mb4 bytes in utf8mb4 column DEFAULT",
+			session: []string{"SET NAMES binary"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    0,
+		},
+		{
+			name:    "SET NAMES binary rejects ENUM DEFAULT not in list with 1067",
+			session: []string{"SET NAMES binary"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (s ENUM('a') DEFAULT 'é')",
+			code:    1067,
+		},
+		{
+			name:     "SET character_set_client=ascii with utf8mb4 connection replaces non-ascii with question marks",
+			session:  []string{"SET NAMES utf8mb4", "SET character_set_client = ascii"},
+			cleanup:  []string{"SET NAMES utf8mb4"},
+			stmt:     "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:     0,
+			contains: []string{"DEFAULT '??'"},
+		},
+		{
+			name:     "SET character_set_client=utf8mb4 with ascii connection replaces non-ascii with question mark",
+			session:  []string{"SET NAMES ascii", "SET character_set_client = utf8mb4"},
+			cleanup:  []string{"SET NAMES utf8mb4"},
+			stmt:     "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:     0,
+			contains: []string{"DEFAULT '?'"},
+		},
+		{
+			name:    "SET CHARACTER SET latin1 with utf8mb4 connection decodes latin1 bytes for CHAR(1) length check",
+			session: []string{"SET CHARACTER SET latin1"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    1067,
+		},
+		{
+			name: "SET NAMES unknown charset rejected with 1115",
+			stmt: "SET NAMES nonexistent",
+			code: 1115,
+		},
+		{
+			name: "SET character_set_client unknown charset rejected with 1115",
+			stmt: "SET character_set_client = nonexistent",
+			code: 1115,
+		},
+		{
+			name:  "ALTER TABLE DROP PRIMARY KEY after DISCARD TABLESPACE rejected with 1814",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a DROP PRIMARY KEY",
+			code:  1814,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3957,6 +4054,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 				}
 			}
 		})
+	}
+
+	// Chained SET NAMES latin1 -> CREATE TABLE DEFAULT -> SET NAMES utf8mb4
+	// stores decoded latin1 characters on both live MySQL 8.0.46 and Catalog,
+	// and @@character_set_client save/restore round-trips cleanly.
+	reset()
+	for _, stmt := range []string{
+		"SET NAMES latin1",
+		"CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+		"SET NAMES utf8mb4",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var srvTblName, srvCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&srvTblName, &srvCreate); err != nil {
+		t.Fatalf("SHOW CREATE TABLE a: %v", err)
+	}
+	latinCat := New()
+	execAlterClauses(t, latinCat, "CREATE DATABASE d; USE d; SET NAMES latin1; CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é'); SET NAMES utf8mb4;")
+	catCreate := latinCat.ShowCreateTable("d", "a")
+	if !strings.Contains(srvCreate, "DEFAULT 'Ã©'") || !strings.Contains(catCreate, "DEFAULT 'Ã©'") {
+		t.Fatalf("SET NAMES latin1 decoded default mismatch:\nmysql:\n%s\ncatalog:\n%s", srvCreate, catCreate)
+	}
+	execAlterClauses(t, latinCat, "SET @saved_cs = @@character_set_client; SET character_set_client = ascii; SET character_set_client = @saved_cs;")
+	if latinCat.effectiveClientCharset() != "utf8mb4" {
+		t.Fatalf("@@character_set_client round-trip got %q, want utf8mb4", latinCat.effectiveClientCharset())
 	}
 }
 
@@ -4324,5 +4449,9 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, framedCat, framedSQL+";")
 	if !framedCat.isStrictSQLMode() {
 		t.Fatalf("renderWithSessionContext did not restore default strict sql_mode: %q", framedCat.session.SQLMode)
+	}
+	execAlterClauses(t, framedCat, "SET @saved_cs = @@character_set_client; SET character_set_client = ascii; SET character_set_client = @saved_cs;")
+	if framedCat.effectiveClientCharset() != "utf8mb4" {
+		t.Fatalf("@@character_set_client round-trip got %q, want utf8mb4", framedCat.effectiveClientCharset())
 	}
 }

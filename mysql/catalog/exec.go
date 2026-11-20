@@ -261,18 +261,59 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 					c.session.TimeZone = tz
 				})
 			}
-		case "names", "character set":
-			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
-			if strings.EqualFold(charset, "DEFAULT") || charset == "" {
-				charset = c.defaultCharset
+		case "names":
+			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			coll, ok := defaultCollationForCharset[toLower(charset)]
+			if !ok {
+				return errUnknownCharacterSet(raw)
 			}
 			updates = append(updates, func() {
 				c.charsetClient = charset
 				c.session.CharsetClient = charset
-				if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
-					c.collationConn = coll
-					c.session.CollationConnection = coll
+				c.collationConn = coll
+				c.session.CollationConnection = coll
+			})
+		case "character set":
+			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
+				return errUnknownCharacterSet(raw)
+			}
+			dbCS := c.defaultCharset
+			if c.currentDB != "" {
+				if db := c.GetDatabase(c.currentDB); db != nil && db.Charset != "" {
+					dbCS = normalizeCharsetName(db.Charset)
 				}
+			}
+			dbColl := defaultCollationForCharset[toLower(dbCS)]
+			if dbColl == "" {
+				dbColl = defaultCollationForCharset[toLower(c.defaultCharset)]
+			}
+			updates = append(updates, func() {
+				c.charsetClient = charset
+				c.session.CharsetClient = charset
+				if dbColl != "" {
+					c.collationConn = dbColl
+					c.session.CollationConnection = dbColl
+				}
+			})
+		case "character_set_client":
+			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
+				return errUnknownCharacterSet(raw)
+			}
+			updates = append(updates, func() {
+				c.charsetClient = charset
+				c.session.CharsetClient = charset
+			})
+		case "character_set_connection":
+			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			coll, ok := defaultCollationForCharset[toLower(charset)]
+			if !ok {
+				return errUnknownCharacterSet(raw)
+			}
+			updates = append(updates, func() {
+				c.collationConn = coll
+				c.session.CollationConnection = coll
 			})
 		case "collate":
 			collation := nodeToSQLValue(asgn.Value)
@@ -566,6 +607,16 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 				return userVarValue{kind: userVarNumeric, str: "1"}, true
 			}
 			return userVarValue{kind: userVarNumeric, str: "0"}, true
+		case "character_set_client":
+			return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}, true
+		case "character_set_connection":
+			return userVarValue{kind: userVarString, str: c.effectiveConnCharset()}, true
+		case "collation_connection":
+			coll := c.collationConn
+			if coll == "" {
+				coll = defaultCollationForCharset[c.effectiveConnCharset()]
+			}
+			return userVarValue{kind: userVarString, str: coll}, true
 		default:
 			return userVarValue{}, false
 		}
@@ -756,6 +807,23 @@ func nodeToSQLValue(expr nodes.ExprNode) string {
 	default:
 		return ""
 	}
+}
+
+func (c *Catalog) resolveSetCharsetValue(expr nodes.ExprNode) (string, string) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		return "DEFAULT", c.defaultCharset
+	}
+	if ev, ok := c.evalSetExpr(expr); ok {
+		if ev.kind == userVarNull {
+			return "NULL", ""
+		}
+		return ev.str, normalizeCharsetName(ev.str)
+	}
+	raw := nodeToSQLValue(expr)
+	if strings.EqualFold(raw, "DEFAULT") {
+		return raw, c.defaultCharset
+	}
+	return raw, normalizeCharsetName(raw)
 }
 
 func isDML(stmt nodes.Node) bool {

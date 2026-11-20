@@ -29,7 +29,7 @@ func charsetForCollation(collation string) string {
 	return ""
 }
 
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset returns the default collation for MySQL 8.0 charsets.
 var defaultCollationForCharset = map[string]string{
 	"utf8mb4":  "utf8mb4_0900_ai_ci",
 	"utf8mb3":  "utf8mb3_general_ci",
@@ -42,6 +42,7 @@ var defaultCollationForCharset = map[string]string{
 	"euckr":    "euckr_korean_ci",
 	"gb2312":   "gb2312_chinese_ci",
 	"sjis":     "sjis_japanese_ci",
+	"ujis":     "ujis_japanese_ci",
 	"cp1252":   "cp1252_general_ci",
 	"ucs2":     "ucs2_general_ci",
 	"utf16":    "utf16_general_ci",
@@ -55,6 +56,24 @@ var defaultCollationForCharset = map[string]string{
 	"hebrew":   "hebrew_general_ci",
 	"greek":    "greek_general_ci",
 	"armscii8": "armscii8_general_ci",
+	"cp1250":   "cp1250_general_ci",
+	"cp1251":   "cp1251_general_ci",
+	"cp1256":   "cp1256_general_ci",
+	"cp1257":   "cp1257_general_ci",
+	"cp850":    "cp850_general_ci",
+	"cp852":    "cp852_general_ci",
+	"cp866":    "cp866_general_ci",
+	"dec8":     "dec8_swedish_ci",
+	"hp8":      "hp8_english_ci",
+	"keybcs2":  "keybcs2_general_ci",
+	"koi8r":    "koi8r_general_ci",
+	"koi8u":    "koi8u_general_ci",
+	"latin2":   "latin2_general_ci",
+	"latin5":   "latin5_turkish_ci",
+	"latin7":   "latin7_general_ci",
+	"macce":    "macce_general_ci",
+	"macroman": "macroman_general_ci",
+	"swe7":     "swe7_swedish_ci",
 }
 
 // ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.

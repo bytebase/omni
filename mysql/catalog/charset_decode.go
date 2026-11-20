@@ -14,9 +14,49 @@ import (
 )
 
 // decodeStringLiteralDefault resolves a StringLit literal DEFAULT in its own
-// declared charset (`N'...'` as `utf8mb3`, `_charset'...'` as `charset`, or
-// connection UTF-8 when neither is specified) before column-charset validation.
+// declared charset (`N'...'` as `utf8mb3`, `_charset'...'` as `charset`, or the
+// session client/connection charset when neither is specified) before column-
+// charset validation.
+func (c *Catalog) effectiveClientCharset() string {
+	cs := ""
+	if c != nil {
+		cs = c.charsetClient
+		if cs == "" {
+			cs = c.session.CharsetClient
+		}
+		if cs == "" {
+			cs = c.defaultCharset
+		}
+	}
+	cs = strings.ToLower(strings.TrimSpace(normalizeCharsetName(cs)))
+	if cs == "" {
+		return "utf8mb4"
+	}
+	return cs
+}
+
+func (c *Catalog) effectiveConnCharset() string {
+	if c != nil {
+		coll := c.collationConn
+		if coll == "" {
+			coll = c.session.CollationConnection
+		}
+		if cs := strings.ToLower(strings.TrimSpace(normalizeCharsetName(charsetForCollation(coll)))); cs != "" {
+			return cs
+		}
+	}
+	return c.effectiveClientCharset()
+}
+
+func (c *Catalog) decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string, bool) {
+	return decodeStringLiteralDefaultWithSession(sl, colCharset, c.effectiveClientCharset(), c.effectiveConnCharset())
+}
+
 func decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string, bool) {
+	return decodeStringLiteralDefaultWithSession(sl, colCharset, "utf8mb4", "utf8mb4")
+}
+
+func decodeStringLiteralDefaultWithSession(sl *nodes.StringLit, colCharset, clientCharset, connCharset string) (string, bool) {
 	if sl == nil {
 		return "", true
 	}
@@ -28,10 +68,31 @@ func decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string,
 		litCS = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(sl.Charset)), "_")
 	}
 	if litCS == "" {
-		if !utf8.ValidString(sl.Value) {
-			return "", false
+		clientCS := strings.ToLower(strings.TrimSpace(normalizeCharsetName(clientCharset)))
+		if clientCS == "" {
+			clientCS = "utf8mb4"
 		}
-		return sl.Value, true
+		connCS := strings.ToLower(strings.TrimSpace(normalizeCharsetName(connCharset)))
+		if connCS == "" {
+			connCS = clientCS
+		}
+		if clientCS != connCS {
+			transcoded := transcodeClientToConnString(sl.Value, clientCS, connCS)
+			if connCS == "binary" {
+				if strings.EqualFold(strings.TrimSpace(colCharset), "binary") {
+					return transcoded, true
+				}
+				return decodeBytesInColumnCharset([]byte(transcoded), colCharset)
+			}
+			return transcoded, true
+		}
+		litCS = clientCS
+		if litCS == "utf8mb4" {
+			if !utf8.ValidString(sl.Value) {
+				return "", false
+			}
+			return sl.Value, true
+		}
 	}
 	if litCS == "binary" {
 		if strings.EqualFold(strings.TrimSpace(colCharset), "binary") {
@@ -40,6 +101,57 @@ func decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string,
 		return decodeBytesInColumnCharset([]byte(sl.Value), colCharset)
 	}
 	return decodeBytesInColumnCharset([]byte(sl.Value), litCS)
+}
+
+func transcodeClientToConnString(raw, clientCS, connCS string) string {
+	decoded, ok := decodeBytesInColumnCharset([]byte(raw), clientCS)
+	if !ok {
+		var decBuf strings.Builder
+		b := []byte(raw)
+		for i := 0; i < len(b); {
+			if clientCS == "utf8mb4" || clientCS == "utf8mb3" || clientCS == "utf8" {
+				r, sz := utf8.DecodeRune(b[i:])
+				if r == utf8.RuneError && sz <= 1 {
+					decBuf.WriteByte('?')
+					i++
+					continue
+				}
+				if (clientCS == "utf8" || clientCS == "utf8mb3") && r > 0xFFFF {
+					decBuf.WriteByte('?')
+				} else {
+					decBuf.WriteRune(r)
+				}
+				i += sz
+				continue
+			}
+			matched := false
+			for step := 1; step <= 4 && i+step <= len(b); step++ {
+				if piece, pieceOK := decodeBytesInColumnCharset(b[i:i+step], clientCS); pieceOK {
+					decBuf.WriteString(piece)
+					i += step
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				decBuf.WriteByte('?')
+				i++
+			}
+		}
+		decoded = decBuf.String()
+	}
+	if connCS == "" || connCS == "utf8mb4" || connCS == "binary" {
+		return decoded
+	}
+	var out strings.Builder
+	for _, r := range decoded {
+		if validStringForColumnCharset(string(r), connCS) {
+			out.WriteRune(r)
+		} else {
+			out.WriteByte('?')
+		}
+	}
+	return out.String()
 }
 
 // decodeBytesInColumnCharset validates and decodes raw binary literal bytes

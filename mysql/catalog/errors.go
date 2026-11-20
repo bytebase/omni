@@ -33,6 +33,7 @@ const (
 	ErrIncorrectTableDefinition          = 1075
 	ErrTableStorageEngineOption          = 1031
 	ErrUnknownStorageEngine              = 1286
+	ErrUnknownCharacterSet               = 1115
 	ErrInvalidPerformanceSchema          = 1683
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
@@ -155,6 +156,7 @@ var sqlStateMap = map[int]string{
 	ErrIncorrectTableDefinition:          "42000",
 	ErrTableStorageEngineOption:          "HY000",
 	ErrUnknownStorageEngine:              "42000",
+	ErrUnknownCharacterSet:               "42000",
 	ErrInvalidPerformanceSchema:          "HY000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
@@ -755,6 +757,11 @@ func errSpatialUniqueIndex() error {
 func errUnknownTimeZone(tz string) error {
 	return &Error{Code: ErrUnknownTimeZone, SQLState: sqlState(ErrUnknownTimeZone),
 		Message: fmt.Sprintf("Unknown or incorrect time zone: '%s'", tz)}
+}
+
+func errUnknownCharacterSet(cs string) error {
+	return &Error{Code: ErrUnknownCharacterSet, SQLState: sqlState(ErrUnknownCharacterSet),
+		Message: fmt.Sprintf("Unknown character set: '%s'", cs)}
 }
 
 func errWrongValueForVar(varName, val string) error {

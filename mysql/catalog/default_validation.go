@@ -440,7 +440,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 	}
 	if kind == litString {
 		if sl, ok := expr.(*nodes.StringLit); ok {
-			decoded, decOK := decodeStringLiteralDefault(sl, col.Charset)
+			decoded, decOK := c.decodeStringLiteralDefault(sl, col.Charset)
 			if !decOK {
 				return errInvalidDefault(col.Name)
 			}
@@ -913,15 +913,7 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 		return
 	}
 	if sl, ok := expr.(*nodes.StringLit); ok {
-		litVal := sl.Value
-		decoded := false
-		if sl.Charset != "" || sl.National {
-			if dv, decOK := decodeStringLiteralDefault(sl, col.Charset); decOK {
-				litVal = dv
-				decoded = true
-			}
-		}
-		if normVal, changed := normalizeCharDefaultStringLiteral(col, litVal); changed || (decoded && !strings.EqualFold(strings.TrimSpace(sl.Charset), "binary")) {
+		if normVal, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
 			cp := *sl
 			cp.Charset = ""
 			cp.National = false

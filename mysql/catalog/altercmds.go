@@ -978,7 +978,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 		return err
 	}
 
-	col := buildColumnFromDef(tbl, colDef)
+	col := c.buildColumnFromDef(tbl, colDef)
 	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
 		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
 	}
@@ -1250,7 +1250,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
-	col := buildColumnFromDef(tbl, colDef)
+	col := c.buildColumnFromDef(tbl, colDef)
 	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
 		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
 	}
@@ -1886,7 +1886,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := c.validateColumnLiteralDefault(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
+		c.setColumnDefaultFromExpr(col, cmd.DefaultExpr)
 		c.normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isTimeTruncateFractionalSQLMode())
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
@@ -1956,7 +1956,7 @@ func rebuildColIndex(tbl *Table) {
 }
 
 // buildColumnFromDef builds a catalog Column from an AST ColumnDef.
-func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
+func (c *Catalog) buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	col := &Column{
 		Name:     colDef.Name,
 		Nullable: true,
@@ -2034,7 +2034,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.HasSRID = true
 	}
 	if colDef.DefaultValue != nil {
-		setColumnDefaultFromExpr(col, colDef.DefaultValue)
+		c.setColumnDefaultFromExpr(col, colDef.DefaultValue)
 	}
 	if colDef.OnUpdate != nil {
 		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -2063,7 +2063,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.NullExplicit = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				setColumnDefaultFromExpr(col, cc.Expr)
+				c.setColumnDefaultFromExpr(col, cc.Expr)
 			}
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true
