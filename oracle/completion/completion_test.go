@@ -1421,6 +1421,87 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf(`expected "Item-Code" for quoted column prefix "Item-C, got %v`, resCol)
 		}
 	})
+
+	t.Run("non-ASCII unquoted identifier prefix preserved", func(t *testing.T) {
+		uniMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{Name: "ÉCOLE"},
+						{Name: "CATHÉDRALE"},
+					},
+				},
+			},
+		}
+		sqlUni, posUni := splitCaret(t, "SELECT * FROM ÉC|")
+		resUni := Complete(sqlUni, posUni, uniMeta, WithDefaultSchema("HR"))
+		if !hasSpec(resUni, candidateSpec{text: "ÉCOLE", typ: CandidateTable}) {
+			t.Fatalf("expected ÉCOLE for ÉC prefix, got %v", resUni)
+		}
+		if hasSpec(resUni, candidateSpec{text: "CATHÉDRALE", typ: CandidateTable}) {
+			t.Fatalf("did not expect CATHÉDRALE for ÉC prefix, got %v", resUni)
+		}
+	})
+
+	t.Run("derived subquery resolves quoted lowercase table exactly via analysis catalog", func(t *testing.T) {
+		sqlDer, posDer := splitCaret(t, `SELECT s.| FROM (SELECT * FROM "employees") s`)
+		resDer := Complete(sqlDer, posDer, meta, WithDefaultSchema("hr"))
+		if !hasSpec(resDer, candidateSpec{text: "lower_id", typ: CandidateColumn}) {
+			t.Fatalf(`expected lower_id for derived subquery over quoted "employees", got %v`, resDer)
+		}
+		if hasSpec(resDer, candidateSpec{text: "UPPER_ID", typ: CandidateColumn}) {
+			t.Fatalf(`did not expect UPPER_ID for quoted "employees", got %v`, resDer)
+		}
+	})
+
+	t.Run("view and materialized view explicit column aliases override query projection", func(t *testing.T) {
+		viewAliasMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "S1",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "T1",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "X", Type: "NUMBER"},
+								{Name: "Y", Type: "NUMBER"},
+							},
+						},
+					},
+					Views: []*metadatapb.ViewMetadata{
+						{
+							Name:       "V_ALIAS",
+							Definition: "CREATE VIEW V_ALIAS (A, B) AS SELECT X, Y FROM T1",
+						},
+					},
+					MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+						{
+							Name:       "MV_ALIAS",
+							Definition: "CREATE MATERIALIZED VIEW MV_ALIAS (M_A, M_B) AS SELECT X, Y FROM T1",
+						},
+					},
+				},
+			},
+		}
+		sqlV, posV := splitCaret(t, "SELECT | FROM V_ALIAS")
+		resV := Complete(sqlV, posV, viewAliasMeta, WithDefaultSchema("S1"))
+		if !hasSpec(resV, candidateSpec{text: "A", typ: CandidateColumn}) || !hasSpec(resV, candidateSpec{text: "B", typ: CandidateColumn}) {
+			t.Fatalf("expected explicit view aliases A, B, got %v", resV)
+		}
+		if hasSpec(resV, candidateSpec{text: "X", typ: CandidateColumn}) || hasSpec(resV, candidateSpec{text: "Y", typ: CandidateColumn}) {
+			t.Fatalf("did not expect underlying X, Y instead of explicit view aliases, got %v", resV)
+		}
+
+		sqlMV, posMV := splitCaret(t, "SELECT | FROM MV_ALIAS")
+		resMV := Complete(sqlMV, posMV, viewAliasMeta, WithDefaultSchema("S1"))
+		if !hasSpec(resMV, candidateSpec{text: "M_A", typ: CandidateColumn}) || !hasSpec(resMV, candidateSpec{text: "M_B", typ: CandidateColumn}) {
+			t.Fatalf("expected explicit MV aliases M_A, M_B, got %v", resMV)
+		}
+		if hasSpec(resMV, candidateSpec{text: "X", typ: CandidateColumn}) || hasSpec(resMV, candidateSpec{text: "Y", typ: CandidateColumn}) {
+			t.Fatalf("did not expect underlying X, Y instead of explicit MV aliases, got %v", resMV)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

@@ -1210,6 +1210,12 @@ func findMaterializedViewMeta(sm *metadatapb.SchemaMetadata, name string, quoted
 }
 
 func (r *resolver) insertResolvedRelationColumns(columnsOut *[]Candidate, schema, objectName, definition string) {
+	if cols := extractExplicitViewColumns(definition); len(cols) > 0 {
+		for _, col := range cols {
+			*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+		}
+		return
+	}
 	target := quoteIdentifierForSQL(objectName)
 	defaultSchema := r.store.defaultSchema
 	if schema != "" {
@@ -1236,6 +1242,33 @@ func (r *resolver) insertResolvedRelationColumns(columnsOut *[]Candidate, schema
 			*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col.Name})
 		}
 	}
+}
+
+func extractExplicitViewColumns(definition string) []string {
+	if strings.TrimSpace(definition) == "" {
+		return nil
+	}
+	// Definition comes from an engine-accepted synced view or materialized view; downgrade parse errors to no explicit aliases.
+	stmts, err := oracle.Parse(definition)
+	if err != nil {
+		return nil
+	}
+	for _, stmt := range stmts {
+		cv, ok := stmt.AST.(*ast.CreateViewStmt)
+		if !ok || cv == nil || cv.Columns == nil || cv.Columns.Len() == 0 {
+			continue
+		}
+		var cols []string
+		for _, item := range cv.Columns.Items {
+			if str, ok := item.(*ast.String); ok && str != nil && str.Str != "" {
+				cols = append(cols, str.Str)
+			}
+		}
+		if len(cols) > 0 {
+			return cols
+		}
+	}
+	return nil
 }
 
 func extractSelectFromViewDefinition(definition string) string {
@@ -1841,7 +1874,12 @@ func (r *resolver) resolveVirtualColumnsFromSQL(statement string) []string {
 func (r *resolver) analysisCatalog() analysis.Catalog {
 	return analysis.Catalog{
 		GetDatabase: func(_, database string) (analysis.Database, error) {
-			_, sm := r.store.getSchema(database)
+			var sm *metadatapb.SchemaMetadata
+			if database == "" {
+				_, sm = r.store.getSchema("")
+			} else {
+				_, sm = r.store.getSchemaExact(database)
+			}
 			if sm == nil {
 				return nil, nil
 			}
@@ -1857,19 +1895,19 @@ type analysisDatabase struct {
 func (d *analysisDatabase) HasSchema() bool { return d.schema != nil }
 
 func (d *analysisDatabase) GetTable(name string) *metadatapb.TableMetadata {
-	return findTableMeta(d.schema, name, false)
+	return findTableMeta(d.schema, name, true)
 }
 
 func (d *analysisDatabase) GetView(name string) *metadatapb.ViewMetadata {
-	return findViewMeta(d.schema, name, false)
+	return findViewMeta(d.schema, name, true)
 }
 
 func (d *analysisDatabase) GetMaterializedView(name string) *metadatapb.MaterializedViewMetadata {
-	return findMaterializedViewMeta(d.schema, name, false)
+	return findMaterializedViewMeta(d.schema, name, true)
 }
 
 func (d *analysisDatabase) GetExternalTable(name string) *metadatapb.ExternalTableMetadata {
-	return findExternalTableMeta(d.schema, name, false)
+	return findExternalTableMeta(d.schema, name, true)
 }
 
 func (r *resolver) withClausePrefix() string {

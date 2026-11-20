@@ -607,6 +607,34 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: nil,
 			wantTabs: []string{"Album", "Music", "order"},
 		},
+		{
+			name:     "CREATE INDEX path list suggests target table columns",
+			input:    "CREATE INDEX ON Music (|)",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "CREATE INDEX path list after comma suggests target table columns",
+			input:    "CREATE INDEX ON Music (Artist, |)",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "DROP TABLE suggests existing catalog tables",
+			input:    "DROP TABLE |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "CREATE TABLE does not suggest existing catalog tables",
+			input:    "CREATE TABLE |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {

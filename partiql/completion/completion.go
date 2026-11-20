@@ -262,13 +262,20 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 		}
 	}
 
+	if exprDepth > 0 && isDDLIndexPathContext(clauseToks) {
+		return false, true, false
+	}
+
 	if !prevDot && exprDepth == 0 && len(clauseToks) > 0 {
 		last := clauseToks[len(clauseToks)-1]
 		if !last.afterDot {
 			isConflictDoUpdate := last.upper == "UPDATE" && len(clauseToks) >= 2 &&
 				!clauseToks[len(clauseToks)-2].afterDot && clauseToks[len(clauseToks)-2].upper == "DO"
+			isDropTable := last.upper == "TABLE" && len(clauseToks) >= 2 &&
+				!clauseToks[len(clauseToks)-2].afterDot && clauseToks[len(clauseToks)-2].upper == "DROP"
 			if last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" ||
 				(last.upper == "UPDATE" && !isConflictDoUpdate) ||
+				isDropTable ||
 				(last.upper == "ON" && isDDLIndexOn(clauseToks)) {
 				return true, false, false
 			}
@@ -328,6 +335,10 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 		}
 	}
 	return false, false, false
+}
+
+func isDDLIndexPathContext(toks []clauseTok) bool {
+	return len(toks) == 4 && isDDLIndexOn(toks[:3])
 }
 
 func isDDLIndexOn(toks []clauseTok) bool {
@@ -1182,7 +1193,11 @@ func extractTableRefsFromTokens(tokens []tableToken) []tableRef {
 			continue
 		}
 		upper := strings.ToUpper(tokens[i].text)
-		if (upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && i+1 < len(tokens) && !tokens[i].quoted {
+		isDDLIndexTarget := upper == "ON" && !tokens[i].quoted && i == 2 &&
+			!tokens[0].quoted && !tokens[1].quoted &&
+			strings.ToUpper(tokens[0].text) == "CREATE" &&
+			strings.ToUpper(tokens[1].text) == "INDEX"
+		if ((upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && !tokens[i].quoted || isDDLIndexTarget) && i+1 < len(tokens) {
 			i++
 			for i < len(tokens) {
 				parsed, next, ok := parseTableRefAt(tokens, i)

@@ -270,7 +270,7 @@ func isOracleIdentByte(c byte) bool {
 	return (c >= 'a' && c <= 'z') ||
 		(c >= 'A' && c <= 'Z') ||
 		(c >= '0' && c <= '9') ||
-		c == '_' || c == '$' || c == '#'
+		c == '_' || c == '$' || c == '#' || c >= 128
 }
 
 func scanSQLState(sql string, offset int) (suppressed bool, dQuoteStart int, inDQuote bool) {
@@ -378,7 +378,7 @@ func scanSQLState(sql string, offset int) (suppressed bool, dQuoteStart int, inD
 }
 
 func isQQuoteStart(sql string, i, limit int) bool {
-	if i > 0 && isOracleIdentChar(sql[i-1]) {
+	if i > 0 && isOracleIdentByte(sql[i-1]) {
 		return false
 	}
 	if (sql[i] == 'q' || sql[i] == 'Q') && i+1 < limit && sql[i+1] == '\'' {
@@ -403,11 +403,6 @@ func qQuoteCloseDelim(openDelim byte) byte {
 	default:
 		return openDelim
 	}
-}
-
-func isOracleIdentChar(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		(c >= '0' && c <= '9') || c == '_' || c == '$' || c == '#'
 }
 
 func standardComplete(sql string, collectOffset int, store *schemaStore) []Candidate {
