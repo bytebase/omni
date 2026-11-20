@@ -651,7 +651,10 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		if err := validateTablespaceCreateName(stmt.RenameTo); err != nil {
 			return err
 		}
-		if _, isUndo := c.undoTablespaces[stmt.RenameTo]; stmt.RenameTo != stmt.Name && (c.tablespaces[stmt.RenameTo] || isUndo) {
+		// The target may not exist, the tablespace itself included:
+		// mysql:8.0.46 answers 1813 for ALTER TABLESPACE ts RENAME TO ts and
+		// takes RENAME TO TS, a name of its own.
+		if _, isUndo := c.undoTablespaces[stmt.RenameTo]; c.tablespaces[stmt.RenameTo] || isUndo {
 			return errTablespaceExists(stmt.RenameTo)
 		}
 		delete(c.tablespaces, stmt.Name)

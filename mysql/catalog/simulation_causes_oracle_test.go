@@ -5162,6 +5162,15 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "functional binary CONCAT with a YEAR column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(508), i YEAR, KEY ((CONCAT(b, i))))", code: 3757},
 		{name: "functional binary CONCAT with a BIT(8) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(504), i BIT(8), KEY ((CONCAT(b, i))))", code: 0},
 		{name: "functional binary CONCAT with a BIT(8) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(505), i BIT(8), KEY ((CONCAT(b, i))))", code: 3757},
+		// A tablespace cannot be renamed to its own name; a name differing in
+		// case is another name.
+		{name: "ALTER TABLESPACE RENAME TO its own name", setup: []string{"CREATE TABLESPACE ts_self ADD DATAFILE 'ts_self.ibd'"}, stmt: "ALTER TABLESPACE ts_self RENAME TO ts_self", code: 1813, cleanup: []string{"DROP TABLESPACE ts_self"}},
+		{name: "ALTER TABLESPACE RENAME TO its name in another case", setup: []string{"CREATE TABLESPACE ts_self ADD DATAFILE 'ts_self.ibd'"}, stmt: "ALTER TABLESPACE ts_self RENAME TO TS_SELF", code: 0, cleanup: []string{"DROP TABLESPACE TS_SELF"}},
+		// POWER past a finite double is 1690.
+		{name: "SET POWER of a negative base to a fraction", stmt: "SET @x = POWER(-8, 0.5)", code: 1690},
+		{name: "SET POWER overflow", stmt: "SET @x = POWER(10, 400)", code: 1690},
+		{name: "SET POWER of zero to a negative exponent", stmt: "SET @x = POWER(0, -1)", code: 1690},
+		{name: "SET POWER with one argument", stmt: "SET @x = POWER(2)", code: 1582},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6276,6 +6285,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"WEEKDAY('2008-01-06')", "WEEKDAY('2008-01-07')", "DAYOFYEAR('2008-12-31')",
 		"FIND_IN_SET('A', 'a,b')", "FIND_IN_SET('b', 'a,b')", "FIND_IN_SET('', 'a,,b')", "FIND_IN_SET('a ', 'a')",
 		"FIND_IN_SET('x', '')", "FIND_IN_SET('a,b', 'a,b')", "FIND_IN_SET('b', 'a, b')", "FIND_IN_SET(2, '1,2')", "FIND_IN_SET('', '')",
+		"POWER(2, 2)", "POW(2, -1)", "POWER(2, 0.5)", "POWER('3', 2)", "POWER(0, 0)", "POWER(1.5, 2)", "POWER(-2, 3)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6393,7 +6403,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

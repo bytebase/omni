@@ -1443,6 +1443,30 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				n = p.day
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "power", "pow":
+			// POWER is a double; a result that is no finite double is 1690:
+			// POWER(-8, 0.5), POWER(10, 400) and POWER(0, -1) on mysql:8.0.46.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			var xs [2]float64
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			f := math.Pow(xs[0], xs[1])
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in 'pow(%s,%s)'", setFormatDouble(xs[0]), setFormatDouble(xs[1]))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
 		case "find_in_set":
 			// FIND_IN_SET(str, list) is str's 1-based place among list's
 			// comma-separated items, 0 when absent or when str holds a comma:
@@ -1969,7 +1993,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
-			case "mod", "instr", "find_in_set":
+			case "mod", "instr", "find_in_set", "power", "pow":
 				if argc != 2 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
