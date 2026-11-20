@@ -4524,6 +4524,65 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a MODIFY COLUMN a VARCHAR(20)",
 			code:  0,
 		},
+		{
+			name:    "SET time_zone numeric +014:00 normalized per mysql str_to_time_zone",
+			cleanup: []string{"SET time_zone = DEFAULT"},
+			stmt:    "SET time_zone = '+014:00'",
+			code:    0,
+		},
+		{
+			name:    "SET time_zone numeric +1:000 normalized per mysql str_to_time_zone",
+			cleanup: []string{"SET time_zone = DEFAULT"},
+			stmt:    "SET time_zone = '+1:000'",
+			code:    0,
+		},
+		{
+			name: "SET time_zone ++01:00 rejected with 1298",
+			stmt: "SET time_zone = '++01:00'",
+			code: 1298,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (IFNULL(1)) wrong arity rejected with 1582",
+			stmt: "CREATE TABLE a (a INT DEFAULT (IFNULL(1)))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (IFNULL(1, 2, 3)) wrong arity rejected with 1582",
+			stmt: "CREATE TABLE a (a INT DEFAULT (IFNULL(1, 2, 3)))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (CONCAT()) wrong arity rejected with 1582",
+			stmt: "CREATE TABLE a (a VARCHAR(10) DEFAULT (CONCAT()))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ABS()) wrong arity rejected with 1582",
+			stmt: "CREATE TABLE a (a INT DEFAULT (ABS()))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ABS(1, 2)) wrong arity rejected with 1582",
+			stmt: "CREATE TABLE a (a INT DEFAULT (ABS(1, 2)))",
+			code: 1582,
+		},
+		{
+			name:  "ALTER TABLE ADD COLUMN DEFAULT (IFNULL(1)) wrong arity rejected with 1582",
+			setup: []string{"CREATE TABLE a (id INT)"},
+			stmt:  "ALTER TABLE a ADD COLUMN b INT DEFAULT (IFNULL(1))",
+			code:  1582,
+		},
+		{
+			name:  "ALTER TABLE SET DEFAULT (IFNULL(1)) wrong arity rejected with 1582",
+			setup: []string{"CREATE TABLE a (id INT)"},
+			stmt:  "ALTER TABLE a ALTER COLUMN id SET DEFAULT (IFNULL(1))",
+			code:  1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (IFNULL(1, 2)) valid arity accepted",
+			stmt: "CREATE TABLE a (a INT DEFAULT (IFNULL(1, 2)))",
+			code: 0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4801,6 +4860,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	if got, _ := simulationCatalogRefusal(t, encOracleCat, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc"); got != 3825 {
 		t.Fatalf("catalog plain table in default-encrypted tablespace got %d, want 3825", got)
+	}
+	if _, err := conn.ExecContext(ctx, "CREATE TABLESPACE ts_omit_enc ADD DATAFILE 'ts_omit_enc.ibd' ENCRYPTION='Y'"); err != nil {
+		t.Fatalf("mysql CREATE TABLESPACE ts_omit_enc: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a_def_omit_y")
+		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_omit_enc")
+	})
+	execAlterClauses(t, encOracleCat, "CREATE TABLESPACE ts_omit_enc ADD DATAFILE 'ts_omit_enc.ibd' ENCRYPTION='Y';")
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE a_def_omit_y (id INT) TABLESPACE ts_omit_enc"); err == nil {
+		t.Fatal("mysql plain table with omitted ENCRYPTION in encrypted tablespace succeeded, want 3825")
+	} else if code, _ := simulationEngineRefusal(t, "CREATE TABLE a_def_omit_y (id INT) TABLESPACE ts_omit_enc", err); code != 3825 {
+		t.Fatalf("mysql plain table in encrypted ts_omit_enc got %d, want 3825", code)
+	}
+	if got, _ := simulationCatalogRefusal(t, encOracleCat, "CREATE TABLE a_def_omit_y (id INT) TABLESPACE ts_omit_enc"); got != 3825 {
+		t.Fatalf("catalog plain table in encrypted ts_omit_enc got %d, want 3825", got)
 	}
 	if _, err := conn.ExecContext(ctx, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc ENCRYPTION='Y'"); err != nil {
 		t.Fatalf("mysql encrypted table in default-encrypted tablespace: %v", err)

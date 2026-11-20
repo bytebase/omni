@@ -101,8 +101,8 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 				err = errDefaultValExprDisallowedFunc(col.Name)
 				return false
 			case *nodes.FuncCallExpr:
-				if isDisallowedDefaultFuncCall(x, c.isIgnoreSpaceSQLMode()) {
-					err = errDefaultValExprDisallowedFunc(col.Name)
+				if fErr := validateDefaultFuncCall(x, col.Name, c.isIgnoreSpaceSQLMode()); fErr != nil {
+					err = fErr
 					return false
 				}
 			case *nodes.ColumnRef:
@@ -137,31 +137,117 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 	return nil
 }
 
-func isDisallowedDefaultFuncCall(fn *nodes.FuncCallExpr, ignoreSpace bool) bool {
-	if fn == nil {
-		return false
-	}
-	return fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name)
+type funcArity struct {
+	min int
+	max int // -1 means unbounded
 }
 
-func exprHasDisallowedDefaultFunc(expr nodes.ExprNode, ignoreSpace bool) bool {
-	if expr == nil {
-		return false
+// defaultBuiltinFuncArity records exact parameter-count constraints for
+// allowed MySQL 8.0 default-expression scalar built-ins.
+var defaultBuiltinFuncArity = map[string]funcArity{
+	"abs": {1, 1}, "acos": {1, 1}, "adddate": {2, 2}, "addtime": {2, 2},
+	"aes_decrypt": {2, 4}, "aes_encrypt": {2, 4}, "any_value": {1, 1}, "ascii": {1, 1},
+	"asin": {1, 1}, "atan": {1, 2}, "atan2": {2, 2},
+	"bin": {1, 1}, "bin_to_uuid": {1, 2}, "bit_count": {1, 1}, "bit_length": {1, 1},
+	"ceil": {1, 1}, "ceiling": {1, 1}, "char": {1, -1}, "character_length": {1, 1},
+	"char_length": {1, 1}, "charset": {1, 1}, "coalesce": {1, -1}, "coercibility": {1, 1},
+	"collation": {1, 1}, "compress": {1, 1}, "concat": {1, -1}, "concat_ws": {2, -1},
+	"connection_id": {0, 0}, "conv": {3, 3}, "convert_tz": {3, 3}, "cos": {1, 1},
+	"cot": {1, 1}, "crc32": {1, 1}, "curdate": {0, 0}, "current_date": {0, 0},
+	"current_role": {0, 0}, "current_time": {0, 1}, "current_timestamp": {0, 1},
+	"current_user": {0, 0}, "curtime": {0, 1},
+	"database": {0, 0}, "date": {1, 1}, "datediff": {2, 2}, "date_add": {2, 2},
+	"date_format": {2, 2}, "date_sub": {2, 2}, "day": {1, 1}, "dayname": {1, 1},
+	"dayofmonth": {1, 1}, "dayofweek": {1, 1}, "dayofyear": {1, 1}, "degrees": {1, 1},
+	"elt": {2, -1}, "exp": {1, 1}, "export_set": {3, 5}, "extractvalue": {2, 2},
+	"field": {2, -1}, "find_in_set": {2, 2}, "floor": {1, 1}, "format": {2, 3},
+	"format_bytes": {1, 1}, "format_pico_time": {1, 1}, "from_base64": {1, 1},
+	"from_days": {1, 1}, "from_unixtime": {1, 2}, "get_format": {2, 2},
+	"greatest": {2, -1}, "gtid_subset": {2, 2}, "gtid_subtract": {2, 2},
+	"hex": {1, 1}, "hour": {1, 1},
+	"if": {3, 3}, "ifnull": {2, 2}, "inet6_aton": {1, 1}, "inet6_ntoa": {1, 1},
+	"inet_aton": {1, 1}, "inet_ntoa": {1, 1}, "insert": {4, 4}, "instr": {2, 2},
+	"interval": {2, -1}, "isnull": {1, 1}, "is_ipv4": {1, 1}, "is_ipv4_compat": {1, 1},
+	"is_ipv4_mapped": {1, 1}, "is_ipv6": {1, 1}, "is_uuid": {1, 1},
+	"json_array": {0, -1}, "json_array_append": {3, -1}, "json_array_insert": {3, -1},
+	"json_contains": {2, 3}, "json_contains_path": {3, -1}, "json_depth": {1, 1},
+	"json_extract": {2, -1}, "json_insert": {3, -1}, "json_keys": {1, 2},
+	"json_length": {1, 2}, "json_merge_patch": {2, -1}, "json_merge_preserve": {2, -1},
+	"json_object": {0, -1}, "json_overlaps": {2, 2}, "json_pretty": {1, 1},
+	"json_quote": {1, 1}, "json_remove": {2, -1}, "json_replace": {3, -1},
+	"json_schema_valid": {2, 2}, "json_schema_validation_report": {2, 2},
+	"json_search": {3, -1}, "json_set": {3, -1}, "json_storage_free": {1, 1},
+	"json_storage_size": {1, 1}, "json_type": {1, 1}, "json_unquote": {1, 1},
+	"json_valid": {1, 1},
+	"last_day":   {1, 1}, "lcase": {1, 1}, "least": {2, -1}, "left": {2, 2},
+	"length": {1, 1}, "ln": {1, 1}, "localtime": {0, 1}, "localtimestamp": {0, 1},
+	"locate": {2, 3}, "log": {1, 2}, "log10": {1, 1}, "log2": {1, 1},
+	"lower": {1, 1}, "lpad": {3, 3}, "ltrim": {1, 1},
+	"makedate": {2, 2}, "maketime": {3, 3}, "make_set": {2, -1},
+	"md5": {1, 1}, "microsecond": {1, 1}, "mid": {2, 3}, "minute": {1, 1},
+	"mod": {2, 2}, "month": {1, 1}, "monthname": {1, 1},
+	"now": {0, 1}, "nullif": {2, 2},
+	"oct": {1, 1}, "octet_length": {1, 1}, "ord": {1, 1},
+	"period_add": {2, 2}, "period_diff": {2, 2}, "pi": {0, 0},
+	"pow": {2, 2}, "power": {2, 2}, "ps_current_thread_id": {0, 0}, "ps_thread_id": {1, 1},
+	"quarter": {1, 1}, "quote": {1, 1},
+	"radians": {1, 1}, "rand": {0, 1}, "random_bytes": {1, 1},
+	"regexp_instr": {2, 6}, "regexp_like": {2, 3}, "regexp_replace": {3, 6}, "regexp_substr": {2, 5},
+	"reverse": {1, 1}, "right": {2, 2}, "round": {1, 2}, "rpad": {3, 3}, "rtrim": {1, 1},
+	"schema": {0, 0}, "second": {1, 1}, "sec_to_time": {1, 1}, "session_user": {0, 0},
+	"sha": {1, 1}, "sha1": {1, 1}, "sha2": {2, 2}, "sign": {1, 1}, "sin": {1, 1},
+	"soundex": {1, 1}, "space": {1, 1}, "sqrt": {1, 1},
+	"statement_digest": {1, 1}, "statement_digest_text": {1, 1}, "strcmp": {2, 2},
+	"str_to_date": {2, 2}, "subdate": {2, 2}, "substr": {2, 3}, "substring": {2, 3},
+	"substring_index": {3, 3}, "subtime": {2, 2}, "sysdate": {0, 1}, "system_user": {0, 0},
+	"tan": {1, 1}, "time": {1, 1}, "timediff": {2, 2}, "timestamp": {1, 2},
+	"timestampadd": {3, 3}, "timestampdiff": {3, 3}, "time_format": {2, 2},
+	"time_to_sec": {1, 1}, "to_base64": {1, 1}, "to_days": {1, 1}, "to_seconds": {1, 1},
+	"trim": {1, 1}, "truncate": {2, 2},
+	"ucase": {1, 1}, "uncompress": {1, 1}, "uncompressed_length": {1, 1}, "unhex": {1, 1},
+	"unix_timestamp": {0, 1}, "upper": {1, 1}, "user": {0, 0},
+	"utc_date": {0, 0}, "utc_time": {0, 1}, "utc_timestamp": {0, 1},
+	"uuid": {0, 0}, "uuid_short": {0, 0}, "uuid_to_bin": {1, 2},
+	"validate_password_strength": {1, 1},
+	"week":                       {1, 2}, "weekday": {1, 1}, "weekofyear": {1, 1}, "weight_string": {1, 4},
+	"year": {1, 1}, "yearweek": {1, 2},
+}
+
+func validateDefaultFuncCall(fn *nodes.FuncCallExpr, colName string, ignoreSpace bool) error {
+	if fn == nil {
+		return nil
 	}
-	found := false
+	if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
+		return errDefaultValExprDisallowedFunc(colName)
+	}
+	name := strings.ToLower(strings.TrimSpace(fn.Name))
+	if arity, ok := defaultBuiltinFuncArity[name]; ok {
+		n := len(fn.Args)
+		if n < arity.min || (arity.max >= 0 && n > arity.max) {
+			return errWrongParamCount(strings.ToUpper(name))
+		}
+	}
+	return nil
+}
+
+func validateDefaultExprFuncs(expr nodes.ExprNode, colName string, ignoreSpace bool) error {
+	if expr == nil {
+		return nil
+	}
+	var err error
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if found {
+		if err != nil {
 			return false
 		}
 		if fn, ok := n.(*nodes.FuncCallExpr); ok {
-			if isDisallowedDefaultFuncCall(fn, ignoreSpace) {
-				found = true
+			if fErr := validateDefaultFuncCall(fn, colName, ignoreSpace); fErr != nil {
+				err = fErr
 				return false
 			}
 		}
 		return true
 	})
-	return found
+	return err
 }
 
 func isAllowedDefaultExprBuiltinFunc(name string) bool {

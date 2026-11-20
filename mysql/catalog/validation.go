@@ -118,8 +118,8 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef, ignoreSpace bool) error
 	// `DEFAULT (position (1))`. (Other disallowed functions in a general default
 	// expression are not validated here yet.)
 	for _, expr := range columnDefDefaultExprs(colDef) {
-		if exprHasDisallowedDefaultFunc(expr, ignoreSpace) {
-			return errDefaultValExprDisallowedFunc(colDef.Name)
+		if err := validateDefaultExprFuncs(expr, colDef.Name, ignoreSpace); err != nil {
+			return err
 		}
 	}
 	return nil

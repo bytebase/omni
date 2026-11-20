@@ -1917,8 +1917,8 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		if exprHasDisallowedDefaultFunc(cmd.DefaultExpr, c.isIgnoreSpaceSQLMode()) {
-			return errDefaultValExprDisallowedFunc(col.Name)
+		if err := validateDefaultExprFuncs(cmd.DefaultExpr, col.Name, c.isIgnoreSpaceSQLMode()); err != nil {
+			return err
 		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
