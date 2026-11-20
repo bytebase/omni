@@ -130,7 +130,7 @@ func sequenceOwner(c *Catalog, seq *Sequence) string {
 	if rel == nil || rel.Schema == nil {
 		return ""
 	}
-	return migrationQualifiedName(rel.Schema.Name, rel.Name) + "." + quoteIdentAlways(resolveAttNum(rel, seq.OwnerAttNum))
+	return formatRelationName(rel.Schema.Name, rel.Name, rel) + "." + quoteIdentAlways(resolveAttNum(rel, seq.OwnerAttNum))
 }
 
 // seqIsSerialAbsorbed checks if a sequence exists in the catalog as a

@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"math"
+	"reflect"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -2264,18 +2266,98 @@ func checkRuleRecursiveWith(w *nodes.WithClause) error {
 }
 
 // ruleCTERefs returns the items of index that n names as an unqualified
-// relation.
+// relation. A nested WITH item of the same name shadows the outer one within
+// its scope.
 func ruleCTERefs(n nodes.Node, index map[string]int) map[int]bool {
 	out := make(map[int]bool)
-	nodes.Inspect(n, func(x nodes.Node) bool {
-		if rv, ok := x.(*nodes.RangeVar); ok && rv.Schemaname == "" && rv.Catalogname == "" {
-			if i, found := index[rv.Relname]; found {
-				out[i] = true
+	nodes.Walk(ruleCTERefFinder{index: index, out: out}, n)
+	return out
+}
+
+// ruleCTERefFinder walks a query for references to the items of index.
+// shadow holds the nested WITH names in scope, and outer the names in scope
+// before the WITH clause of the statement being walked.
+type ruleCTERefFinder struct {
+	index  map[string]int
+	out    map[int]bool
+	shadow map[string]bool
+	outer  map[string]bool
+}
+
+func (f ruleCTERefFinder) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil {
+		return nil
+	}
+	switch v := n.(type) {
+	case *nodes.RangeVar:
+		if v.Schemaname == "" && v.Catalogname == "" && !f.shadow[v.Relname] {
+			if i, found := f.index[v.Relname]; found {
+				f.out[i] = true
 			}
 		}
-		return true
-	})
+	case *nodes.WithClause:
+		// A WITH RECURSIVE item sees every name of its list; another item
+		// sees only the items before it.
+		var names []string
+		if v.Ctes != nil {
+			for _, item := range v.Ctes.Items {
+				if cte, ok := item.(*nodes.CommonTableExpr); ok {
+					names = append(names, cte.Ctename)
+				}
+			}
+			for i, item := range v.Ctes.Items {
+				cte, ok := item.(*nodes.CommonTableExpr)
+				if !ok {
+					continue
+				}
+				visible := names[:i]
+				if v.Recursive {
+					visible = names
+				}
+				scope := withShadowNames(f.outer, visible)
+				nodes.Walk(ruleCTERefFinder{index: f.index, out: f.out, shadow: scope, outer: scope}, cte.Ctequery)
+			}
+		}
+		return nil
+	default:
+		if w := ruleStmtWithClause(n); w != nil && w.Ctes != nil {
+			var names []string
+			for _, item := range w.Ctes.Items {
+				if cte, ok := item.(*nodes.CommonTableExpr); ok {
+					names = append(names, cte.Ctename)
+				}
+			}
+			return ruleCTERefFinder{index: f.index, out: f.out, shadow: withShadowNames(f.shadow, names), outer: f.shadow}
+		}
+	}
+	return f
+}
+
+func withShadowNames(base map[string]bool, names []string) map[string]bool {
+	out := make(map[string]bool, len(base)+len(names))
+	for k := range base {
+		out[k] = true
+	}
+	for _, name := range names {
+		out[name] = true
+	}
 	return out
+}
+
+func ruleStmtWithClause(n nodes.Node) *nodes.WithClause {
+	switch v := n.(type) {
+	case *nodes.SelectStmt:
+		return v.WithClause
+	case *nodes.InsertStmt:
+		return v.WithClause
+	case *nodes.UpdateStmt:
+		return v.WithClause
+	case *nodes.DeleteStmt:
+		return v.WithClause
+	case *nodes.MergeStmt:
+		return v.WithClause
+	}
+	return nil
 }
 
 func (c *Catalog) bindTargetColumns(b *ruleBindings, relOID uint32, list *nodes.List) error {
@@ -4049,34 +4131,26 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 
 	if !hasDistinctOn {
 		// Plain DISTINCT: every ORDER BY expression must be an output column
-		// (parse_clause.c transformDistinctClause). Expressions are compared
-		// by text, which can differ in qualification, so an unmatched one is
-		// refused only when it uses a column that no output expression uses.
+		// (parse_clause.c transformDistinctClause). Expressions compare by
+		// structure, with each column reduced to the column it binds to.
 		targetKeys := make(map[string]bool, len(targets))
-		targetCols := make(map[string]bool)
 		for _, t := range targets {
 			targetKeys[t.key] = true
-			if strings.HasPrefix(t.key, "col:") {
-				targetCols[t.key] = true
-			}
 		}
+		targetPrints := make(map[string]bool)
 		for _, item := range s.TargetList.Items {
-			for k := range ruleBoundColumnKeys(b, item) {
-				targetCols[k] = true
+			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil {
+				targetPrints[ruleExprFingerprint(b, rt.Val)] = true
 			}
 		}
 		for _, item := range s.SortClause.Items {
 			sb, ok := item.(*nodes.SortBy)
-			if !ok || sb == nil || sb.Node == nil || targetKeys[resolveSortGroupKey(sb.Node)] {
+			if !ok || sb == nil || sb.Node == nil || targetKeys[resolveSortGroupKey(sb.Node)] || targetPrints[ruleExprFingerprint(b, sb.Node)] {
 				continue
 			}
-			for k := range ruleBoundColumnKeys(b, sb.Node) {
-				if !targetCols[k] {
-					return &Error{
-						Code:    CodeInvalidColumnReference,
-						Message: "for SELECT DISTINCT, ORDER BY expressions must appear in select list",
-					}
-				}
+			return &Error{
+				Code:    CodeInvalidColumnReference,
+				Message: "for SELECT DISTINCT, ORDER BY expressions must appear in select list",
 			}
 		}
 		return nil
@@ -4117,22 +4191,60 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 	return nil
 }
 
-// ruleBoundColumnKeys returns the bound table columns n refers to at any
-// level, keyed as checkRuleDistinctOnMatchesOrderBy keys them.
-func ruleBoundColumnKeys(b *ruleBindings, n nodes.Node) map[string]bool {
-	out := make(map[string]bool)
-	if b == nil {
-		return out
-	}
-	nodes.Inspect(n, func(x nodes.Node) bool {
-		if cr, ok := x.(*nodes.ColumnRef); ok {
-			if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum != 0 {
-				out[fmt.Sprintf("col:%d:%d", cb.relOID, cb.attNum)] = true
+// ruleExprFingerprint renders n's structure without source positions. A
+// column bound to a table column renders as that column, and any other
+// column as its last name, so a qualified and an unqualified reference to the
+// same column compare equal.
+func ruleExprFingerprint(b *ruleBindings, n nodes.Node) string {
+	var sb strings.Builder
+	locType := reflect.TypeOf(nodes.Loc{})
+	var walk func(v reflect.Value)
+	walk = func(v reflect.Value) {
+		switch v.Kind() {
+		case reflect.Interface, reflect.Pointer:
+			if v.IsNil() {
+				sb.WriteString("nil")
+				return
 			}
+			if cr, ok := v.Interface().(*nodes.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) > 0 {
+				if b != nil {
+					if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum != 0 {
+						fmt.Fprintf(&sb, "col:%d:%d", cb.relOID, cb.attNum)
+						return
+					}
+				}
+				if str, isStr := cr.Fields.Items[len(cr.Fields.Items)-1].(*nodes.String); isStr {
+					sb.WriteString("name:" + str.Str)
+					return
+				}
+			}
+			walk(v.Elem())
+		case reflect.Struct:
+			if v.Type() == locType {
+				return
+			}
+			sb.WriteString(v.Type().Name())
+			sb.WriteByte('{')
+			for i := 0; i < v.NumField(); i++ {
+				if v.Type().Field(i).IsExported() {
+					walk(v.Field(i))
+					sb.WriteByte(',')
+				}
+			}
+			sb.WriteByte('}')
+		case reflect.Slice:
+			sb.WriteByte('[')
+			for i := 0; i < v.Len(); i++ {
+				walk(v.Index(i))
+				sb.WriteByte(',')
+			}
+			sb.WriteByte(']')
+		default:
+			fmt.Fprint(&sb, v.Interface())
 		}
-		return true
-	})
-	return out
+	}
+	walk(reflect.ValueOf(n))
+	return sb.String()
 }
 
 func (c *Catalog) checkRuleLockingClauseAllowed(b *ruleBindings, s *nodes.SelectStmt) error {
@@ -4887,7 +4999,25 @@ func (c *Catalog) bindWindowDefInternal(b *ruleBindings, wd *nodes.WindowDef, ct
 	if err := c.bindRuleExpr(b, wd.StartOffset, ctx); err != nil {
 		return err
 	}
-	return c.bindRuleExpr(b, wd.EndOffset, ctx)
+	if err := c.bindRuleExpr(b, wd.EndOffset, ctx); err != nil {
+		return err
+	}
+	if !c.snapshot {
+		// A frame offset may not use the query's own columns
+		// (parse_clause.c transformFrameOffset, checkExprIsVarFree).
+		for _, off := range []nodes.Node{wd.StartOffset, wd.EndOffset} {
+			if off != nil && c.ruleExprRefersToLevel(b, off, ctx) {
+				mode := "RANGE"
+				if wd.FrameOptions&nodes.FRAMEOPTION_ROWS != 0 {
+					mode = "ROWS"
+				} else if wd.FrameOptions&nodes.FRAMEOPTION_GROUPS != 0 {
+					mode = "GROUPS"
+				}
+				return &Error{Code: CodeInvalidColumnReference, Message: fmt.Sprintf("argument of %s must not contain variables", mode)}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Catalog) checkRuleGroupingFuncs(b *ruleBindings, s *nodes.SelectStmt) error {
@@ -6414,10 +6544,19 @@ func (c *Catalog) inferRuleExprType(b *ruleBindings, n nodes.Node, ctx *ruleEval
 	return 0
 }
 
+// ruleIntegerConstType types an integer literal as make_const does: int4
+// when it fits, otherwise int8.
+func ruleIntegerConstType(v *nodes.Integer) uint32 {
+	if v.Ival < math.MinInt32 || v.Ival > math.MaxInt32 {
+		return INT8OID
+	}
+	return INT4OID
+}
+
 func inferRuleRawConstType(n nodes.Node) uint32 {
-	switch n.(type) {
+	switch v := n.(type) {
 	case *nodes.Integer:
-		return INT4OID
+		return ruleIntegerConstType(v)
 	case *nodes.Float:
 		return NUMERICOID
 	case *nodes.Boolean:
@@ -7108,9 +7247,9 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 			}
 		case *nodes.A_Const:
 			if !ev.Isnull {
-				switch ev.Val.(type) {
+				switch cv := ev.Val.(type) {
 				case *nodes.Integer:
-					return INT4OID
+					return ruleIntegerConstType(cv)
 				case *nodes.Float:
 					return NUMERICOID
 				case *nodes.Boolean:

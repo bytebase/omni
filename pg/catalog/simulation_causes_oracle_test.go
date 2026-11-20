@@ -5190,6 +5190,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_offset_var_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 s OFFSET (SELECT s.id)", CodeInvalidColumnReference},
 			{"CREATE RULE r_limit_outer_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT (SELECT 1 FROM dst_r20 LIMIT t_r20.id) FROM t_r20", "0"},
 			{"CREATE RULE r_limit_sub_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT (SELECT max(id) FROM dst_r20)", "0"},
+			// Round 32.
+			{"CREATE RULE r_rec_shadow_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (WITH x AS (SELECT 1 AS id) SELECT id FROM x) INSERT INTO dst_r20 (id) SELECT id FROM x", "0"},
+			{"CREATE RULE r_rec_shadow_union_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL (WITH x AS (SELECT 2 AS id) SELECT id FROM x)) INSERT INTO dst_r20 (id) SELECT id FROM x", "0"},
+			{"CREATE RULE r_rec_inner_ref_r32 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (WITH y AS (SELECT * FROM x) SELECT 1 AS id FROM y) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_dist_expr_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT id + 1 FROM t_r20 ORDER BY id + 2", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_rows_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS id PRECEDING) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_range_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND id FOLLOWING) FROM t_r20", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_groups_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w FROM t_r20 WINDOW w AS (ORDER BY id GROUPS id PRECEDING)", CodeInvalidColumnReference},
+			{"CREATE RULE r_frame_sub_r32 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER (ROWS (SELECT 1) PRECEDING) FROM t_r20", "0"},
+			{"CREATE FUNCTION f_big_r32(integer) RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE FUNCTION f_big_r32(bigint) RETURNS text LANGUAGE sql AS 'SELECT 2::text'; CREATE RULE r_big_r32 AS ON INSERT TO t_r20 DO ALSO SELECT f_big_r32(2147483648)", "0"},
+			{"DROP FUNCTION f_big_r32(bigint)", CodeDependentObjects},
+			{"DROP FUNCTION f_big_r32(integer)", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
@@ -5316,6 +5328,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE TEMP TABLE tmp_part_r29 (id int) PARTITION BY LIST (id)",
 			"CREATE TEMP TABLE tmp_part_c1_r29 PARTITION OF tmp_part_r29 FOR VALUES IN (1)",
 			"CREATE TABLE t_seq_pers_r29 (id int GENERATED ALWAYS AS IDENTITY)",
+			"CREATE TEMP TABLE tmp_seq_own_r32 (c int)",
+			"CREATE TEMP SEQUENCE tmp_seq_r32 OWNED BY tmp_seq_own_r32.c",
 			"ALTER TABLE t_seq_pers_r29 SET UNLOGGED",
 			"CREATE TABLE \"t.dot_r26\" (id int)",
 			"CREATE RULE \"r.dot_r26\" AS ON INSERT TO \"t.dot_r26\" DO ALSO NOTHING",
@@ -5342,6 +5356,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE TEMP TABLE \"tmp_part_c1_r29\" PARTITION OF \"tmp_part_r29\" FOR VALUES IN ('1')",
 			"ALTER TABLE \"tmp_coll_r30\" ALTER COLUMN v TYPE text",
 			"COMMENT ON TRIGGER \"tr_coll_r30\" ON \"tmp_coll_r30\" IS 'keep trigger comment'",
+			"ALTER SEQUENCE \"tmp_seq_r32\" OWNED BY \"tmp_seq_own_r32\".\"c\"",
 			"COMMENT ON RULE \"r.dot_r26\" ON \"public\".\"t.dot_r26\" IS 'dotted rule comment'",
 			"REFRESH MATERIALIZED VIEW \"public\".\"mv_pop_r25\" WITH DATA",
 			"ALTER TABLE \"public\".\"t_repl_r25\" REPLICA IDENTITY FULL",
