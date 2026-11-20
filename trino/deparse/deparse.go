@@ -28,10 +28,16 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		Name:    metadata.Name,
 		Schemas: make([]*SchemaMetadata, 0, len(metadata.Schemas)),
 	}
+	seenSchemas := make(map[string]struct{}, len(metadata.Schemas))
 	for _, s := range metadata.Schemas {
 		if s == nil || s.SkipDump {
 			continue
 		}
+		schemaKey := strings.ToLower(s.Name)
+		if _, exists := seenSchemas[schemaKey]; exists {
+			return nil, fmt.Errorf("database %s has duplicate schema %s", quoteIdentifier(metadata.Name), quoteIdentifier(s.Name))
+		}
+		seenSchemas[schemaKey] = struct{}{}
 		if s.Comment != "" {
 			return nil, fmt.Errorf("schema %s comment cannot be restored because Trino does not support COMMENT ON SCHEMA", s.Name)
 		}
@@ -59,16 +65,16 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			return nil, fmt.Errorf("procedure %s.%s cannot be restored because Trino does not support restoring procedures", s.Name, p.Name)
 		}
-		seenTables := make(map[string]struct{}, len(s.Tables))
+		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
 				continue
 			}
-			tableKey := strings.ToLower(t.Name)
-			if _, exists := seenTables[tableKey]; exists {
+			relKey := strings.ToLower(t.Name)
+			if _, exists := seenRelations[relKey]; exists {
 				return nil, fmt.Errorf("schema %s has duplicate table %s", s.Name, quoteIdentifier(t.Name))
 			}
-			seenTables[tableKey] = struct{}{}
+			seenRelations[relKey] = struct{}{}
 			cols := fromProtoColumns(t.Columns)
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
 			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
@@ -95,6 +101,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if v == nil || v.SkipDump {
 				continue
 			}
+			relKey := strings.ToLower(v.Name)
+			if _, exists := seenRelations[relKey]; exists {
+				return nil, fmt.Errorf("schema %s has duplicate view %s", s.Name, quoteIdentifier(v.Name))
+			}
+			seenRelations[relKey] = struct{}{}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:         v.Name,
 				Definition:   v.Definition,
@@ -107,6 +118,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if mv == nil || mv.SkipDump {
 				continue
 			}
+			relKey := strings.ToLower(mv.Name)
+			if _, exists := seenRelations[relKey]; exists {
+				return nil, fmt.Errorf("schema %s has duplicate materialized view %s", s.Name, quoteIdentifier(mv.Name))
+			}
+			seenRelations[relKey] = struct{}{}
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
 				Name:         mv.Name,
 				Definition:   mv.Definition,
@@ -523,7 +539,12 @@ func trinoTypeCompatScore(argType, paramType string) (int, bool) {
 	allExact := true
 	anyUnknown := false
 	for i := range argParts {
-		s, ok := trinoTypeCompatScore(argParts[i], paramParts[i])
+		aPart, pPart := argParts[i], paramParts[i]
+		if argBase == "row" {
+			_, aPart = splitRowField(aPart)
+			_, pPart = splitRowField(pPart)
+		}
+		s, ok := trinoTypeCompatScore(aPart, pPart)
 		if !ok {
 			return 0, false
 		}
@@ -541,6 +562,15 @@ func trinoTypeCompatScore(argType, paramType string) (int, bool) {
 		return 0, true
 	}
 	return 1, true
+}
+
+func splitRowField(part string) (name, typ string) {
+	colon := strings.IndexByte(part, ':')
+	paren := strings.IndexByte(part, '(')
+	if colon > 0 && (paren < 0 || colon < paren) {
+		return part[:colon], part[colon+1:]
+	}
+	return "", part
 }
 
 func splitParameterizedType(t string) (base, inner string, hasInner bool) {
@@ -580,7 +610,11 @@ func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 	}
 	switch dt.Kind {
 	case trinoparser.TypeDateTime:
-		return strings.ToLower(dt.Name)
+		base := strings.ToLower(dt.Name)
+		if dt.WithTimeZone {
+			return base + " with time zone"
+		}
+		return base
 	case trinoparser.TypeInterval:
 		return "interval"
 	case trinoparser.TypeRow:
@@ -592,6 +626,9 @@ func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 			ft := normalizeTrinoDataType(f.Type)
 			if ft == "" {
 				return "row"
+			}
+			if f.Name != nil && f.Name.Value != "" {
+				ft = strings.ToLower(f.Name.Value) + ":" + ft
 			}
 			fields[i] = ft
 		}
@@ -756,7 +793,17 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 				return curEnv[strings.ToLower(e.Name.Value)]
 			}
 		case *trinoparser.Dereference:
-			walkExpr(e.Base, curEnv)
+			baseType := walkExpr(e.Base, curEnv)
+			if e.FieldName != nil && e.FieldName.Value != "" {
+				if base, inner, ok := splitParameterizedType(baseType); ok && base == "row" {
+					target := strings.ToLower(e.FieldName.Value)
+					for _, part := range splitTopLevelComma(inner) {
+						if name, typ := splitRowField(part); name == target {
+							return typ
+						}
+					}
+				}
+			}
 		case *trinoparser.Subscript:
 			baseType := walkExpr(e.Value, curEnv)
 			walkExpr(e.Index, curEnv)
@@ -792,6 +839,21 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			return normalizeTrinoTypeName(e.Name)
 		case *trinoparser.IntervalLiteral:
 			return "interval"
+		case *trinoparser.SpecialFuncExpr:
+			switch strings.ToUpper(e.Name) {
+			case "CURRENT_DATE":
+				return "date"
+			case "LOCALTIME":
+				return "time"
+			case "LOCALTIMESTAMP":
+				return "timestamp"
+			case "CURRENT_TIME":
+				return "time with time zone"
+			case "CURRENT_TIMESTAMP":
+				return "timestamp with time zone"
+			case "CURRENT_USER", "CURRENT_CATALOG", "CURRENT_SCHEMA", "CURRENT_PATH":
+				return "varchar"
+			}
 		case *trinoparser.CastExpr:
 			walkExpr(e.Expr, curEnv)
 			return normalizeTrinoDataType(e.Type)

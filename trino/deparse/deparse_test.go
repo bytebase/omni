@@ -684,4 +684,67 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(n integer)"), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("))
 	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(v varchar)"))
+
+	// Named ROW field dereference propagates field type into overload disambiguation.
+	rowOverloads, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "row_fn",
+					Definition: "CREATE FUNCTION s.row_fn(v varchar) RETURNS varchar RETURN s.row_caller(ROW('a'))",
+				},
+				{
+					Name:       "row_caller",
+					Definition: "CREATE FUNCTION s.row_caller(r ROW(a integer)) RETURNS integer RETURN s.row_fn(r.a)",
+				},
+				{
+					Name:       "row_fn",
+					Definition: "CREATE FUNCTION s.row_fn(n integer) RETURNS integer RETURN n",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION s.row_fn(n integer)"), strings.Index(rowOverloads, "CREATE FUNCTION s.row_caller("))
+	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION s.row_caller("), strings.Index(rowOverloads, "CREATE FUNCTION s.row_fn(v varchar)"))
+
+	// Duplicate view identifiers (case-insensitive) fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v", Definition: "SELECT 1"},
+				{Name: "V", Definition: "SELECT 2"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate view")
+
+	// Special SQL functions (CURRENT_DATE, CURRENT_USER) infer result types for overload disambiguation.
+	specialFuncs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "dt_fn",
+					Definition: "CREATE FUNCTION s.dt_fn(v varchar) RETURNS varchar RETURN s.dt_caller()",
+				},
+				{
+					Name:       "dt_caller",
+					Definition: "CREATE FUNCTION s.dt_caller() RETURNS date RETURN s.dt_fn(CURRENT_DATE)",
+				},
+				{
+					Name:       "dt_fn",
+					Definition: "CREATE FUNCTION s.dt_fn(d date) RETURNS date RETURN d",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(d date)"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"))
+	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(v varchar)"))
 }

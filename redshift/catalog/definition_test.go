@@ -1106,6 +1106,47 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Owner: "DbAdmin",
 	})
 	require.ErrorContains(t, err, "database name is empty")
+
+	// Late-binding views (WITH NO SCHEMA BINDING) must not add reverse relation
+	// dependencies onto views that later depend on them.
+	lbvOrder, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "regular_v", Definition: "SELECT x FROM s.late_v"},
+				{Name: "late_v", Definition: "CREATE VIEW s.late_v AS SELECT x FROM s.regular_v WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(lbvOrder, `CREATE VIEW s.late_v AS`), strings.Index(lbvOrder, `CREATE OR REPLACE VIEW "s"."regular_v"`))
+
+	// Unrepresented table/column options fail explicitly rather than dropping attributes.
+	_, err = GetTableDefinition("s", &metadatapb.TableMetadata{
+		Name:          "t",
+		CreateOptions: "DISTSTYLE EVEN",
+		Columns:       []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+	})
+	require.ErrorContains(t, err, "create options")
+
+	_, err = GetTableDefinition("s", &metadatapb.TableMetadata{
+		Name:    "t",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Options: []string{"encode=az64"}}},
+	})
+	require.ErrorContains(t, err, "options")
+
+	// Non-skipped PostgreSQL sequences fail explicitly; SkipDump sequences are ignored.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			Sequences: []*metadatapb.SequenceMetadata{{Name: "ord_seq"}},
+		}},
+	})
+	require.ErrorContains(t, err, "sequence")
+
+	// Non-public schema UDFs set search_path so unqualified sibling calls resolve.
+	require.Contains(t, narrowCastFuncs, "SET search_path TO \"s\", public;\nCREATE FUNCTION s.caller_big")
+	require.Contains(t, narrowCastFuncs, "RESET search_path;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")

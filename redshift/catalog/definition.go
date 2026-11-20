@@ -1113,6 +1113,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				return fmt.Errorf("external table %s cannot be restored because SchemaMetadata does not capture external schema definitions", qualifyName(schema.Name, et.Name))
 			}
 		}
+		for _, seq := range schema.Sequences {
+			if seq != nil && !seq.SkipDump {
+				return fmt.Errorf("sequence %s cannot be restored because Redshift does not support PostgreSQL sequences", qualifyName(schema.Name, seq.Name))
+			}
+		}
 		for _, fn := range schema.Functions {
 			if fn == nil || fn.SkipDump {
 				continue
@@ -1386,8 +1391,22 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		item := items[idx]
 		switch item.kind {
 		case objectKindFunc:
-			if _, err := w.WriteString(getFunctionAnnouncement(item.fn.name) + item.fn.def + "\n"); err != nil {
+			if _, err := w.WriteString(getFunctionAnnouncement(item.fn.name)); err != nil {
 				return err
+			}
+			needsPath := item.schema != "" && item.schema != "public"
+			if needsPath {
+				if _, err := w.WriteString(fmt.Sprintf("SET search_path TO %s, public;\n", quoteDefinitionIdentifier(item.schema))); err != nil {
+					return err
+				}
+			}
+			if _, err := w.WriteString(item.fn.def + "\n"); err != nil {
+				return err
+			}
+			if needsPath {
+				if _, err := w.WriteString("RESET search_path;\n"); err != nil {
+					return err
+				}
 			}
 		case objectKindTable:
 			if _, err := w.WriteString(getTableAnnouncement(item.table.name)); err != nil {
