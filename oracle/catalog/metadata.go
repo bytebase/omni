@@ -9,12 +9,42 @@ import (
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
+	"github.com/bytebase/omni/oracle/analysis"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
 // GetDatabaseMetadata parses Oracle DDL and returns the schema it defines.
+// Unlike LoadSQL, it skips SQL*Plus commands, allows constraints backed by an
+// existing index (USING INDEX), and keeps materialized view definitions as the
+// query text synced snapshots store.
 func GetDatabaseMetadata(schemaText string) (*metadatapb.DatabaseSchemaMetadata, error) {
-	return metadataFromSQL(schemaText)
+	list, err := analysis.Parse(schemaText)
+	if err != nil {
+		return nil, fmt.Errorf("parse Oracle schema: %w", err)
+	}
+	if list == nil || len(list.Items) == 0 {
+		return nil, fmt.Errorf("no parse results")
+	}
+
+	extractor := newMetadataExtractor(schemaText)
+	extractor.allowUsingExistingIndex = true
+	extractor.omitMaterializedViewClauses = true
+	for _, item := range list.Items {
+		raw, ok := item.(*ast.RawStmt)
+		if !ok || raw.Stmt == nil {
+			continue
+		}
+		node, ok := raw.Stmt.(ast.StmtNode)
+		if !ok || node == nil {
+			continue
+		}
+		extractor.extractStatement(node)
+	}
+
+	if extractor.err != nil {
+		return nil, extractor.err
+	}
+	return extractor.databaseMetadata(), nil
 }
 
 // metadataFromSQL parses Oracle DDL and returns the schema it defines.
@@ -61,24 +91,26 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 }
 
 type oracleMetadataExtractor struct {
-	err               error
-	namedNotNull      map[string]bool
-	primaryKeyNotNull map[string]bool
-	explicitSchema    bool
-	owner             string
-	currentDatabase   string
-	currentSchema     string
-	tables            map[string]*metadatapb.TableMetadata
-	views             map[string]*metadatapb.ViewMetadata
-	materializedViews map[string]*metadatapb.MaterializedViewMetadata
-	functions         map[string]*metadatapb.FunctionMetadata
-	procedures        map[string]*metadatapb.ProcedureMetadata
-	triggers          map[string]*metadatapb.TriggerMetadata
-	sequences         map[string]*metadatapb.SequenceMetadata
-	packages          map[string]*metadatapb.PackageMetadata
-	checkNames        map[string]map[string]bool
-	checkNameNext     map[string]map[string]int
-	schemaText        string
+	err                         error
+	allowUsingExistingIndex     bool
+	omitMaterializedViewClauses bool
+	namedNotNull                map[string]bool
+	primaryKeyNotNull           map[string]bool
+	explicitSchema              bool
+	owner                       string
+	currentDatabase             string
+	currentSchema               string
+	tables                      map[string]*metadatapb.TableMetadata
+	views                       map[string]*metadatapb.ViewMetadata
+	materializedViews           map[string]*metadatapb.MaterializedViewMetadata
+	functions                   map[string]*metadatapb.FunctionMetadata
+	procedures                  map[string]*metadatapb.ProcedureMetadata
+	triggers                    map[string]*metadatapb.TriggerMetadata
+	sequences                   map[string]*metadatapb.SequenceMetadata
+	packages                    map[string]*metadatapb.PackageMetadata
+	checkNames                  map[string]map[string]bool
+	checkNameNext               map[string]map[string]int
+	schemaText                  string
 }
 
 func (e *oracleMetadataExtractor) databaseMetadata() *metadatapb.DatabaseSchemaMetadata {
@@ -427,7 +459,10 @@ func (e *oracleMetadataExtractor) clearNamedNotNull(table *metadatapb.TableMetad
 }
 
 func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
-	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
+	if e.constraintDisabled(n.Loc) {
+		return
+	}
+	if !e.allowUsingExistingIndex && e.constraintUsesExistingIndex(n.UsingIndex) {
 		return
 	}
 	switch n.Type {
@@ -451,9 +486,13 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 		if pkMadeNotNull {
 			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
 		}
+		constraintName := fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name))
+		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, []string{column.Name}, true) {
+			return
+		}
 		if !hasPrimaryIndex(table) {
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
-				Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
+				Name:         constraintName,
 				Primary:      true,
 				Unique:       true,
 				Type:         "NORMAL",
@@ -470,6 +509,9 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			return
 		}
 		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
+		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, name, []string{column.Name}, false) {
+			return
+		}
 		if !hasUniqueIndex(table, []string{column.Name}) {
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
 				Name:         name,
@@ -501,7 +543,10 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 }
 
 func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint, table *metadatapb.TableMetadata) {
-	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
+	if e.constraintDisabled(n.Loc) {
+		return
+	}
+	if !e.allowUsingExistingIndex && e.constraintUsesExistingIndex(n.UsingIndex) {
 		return
 	}
 	columns := stringList(n.Columns)
@@ -523,8 +568,13 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 				}
 			}
 		}
+		constraintName := fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name))
+		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, true) {
+			markColumnsNotNull(table, columns)
+			return
+		}
 		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
-			Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
+			Name:         constraintName,
 			Primary:      true,
 			Unique:       true,
 			Type:         "NORMAL",
@@ -543,8 +593,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 		if len(columns) == 0 {
 			return
 		}
+		constraintName := fallbackName(n.Name, fmt.Sprintf("UK_%s_%d", table.Name, len(table.Indexes)+1))
+		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, false) {
+			return
+		}
 		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
-			Name:         fallbackName(n.Name, fmt.Sprintf("UK_%s_%d", table.Name, len(table.Indexes)+1)),
+			Name:         constraintName,
 			Unique:       true,
 			Type:         "NORMAL",
 			Expressions:  columns,
@@ -1416,6 +1470,35 @@ func (e *oracleMetadataExtractor) dropTrigger(name string) {
 	}
 }
 
+func (e *oracleMetadataExtractor) attachConstraintToExistingIndex(table *metadatapb.TableMetadata, indexName, constraintName string, columns []string, primary bool) bool {
+	for _, index := range table.Indexes {
+		if index.Name != indexName {
+			continue
+		}
+		index.IsConstraint = true
+		if primary {
+			index.Primary = true
+		}
+		for _, existing := range index.Constraints {
+			if existing.Name == constraintName {
+				return true
+			}
+		}
+		constraint := &metadatapb.IndexConstraintMetadata{
+			Name:    constraintName,
+			Columns: append([]string(nil), columns...),
+			Primary: primary,
+		}
+		if primary {
+			index.Constraints = append([]*metadatapb.IndexConstraintMetadata{constraint}, index.Constraints...)
+		} else {
+			index.Constraints = append(index.Constraints, constraint)
+		}
+		return true
+	}
+	return false
+}
+
 // constraintUsesExistingIndex reports a constraint that Oracle backs with an
 // index the statement names (USING INDEX [schema.]index), or that it asks
 // Oracle to create inline (USING INDEX (CREATE INDEX ...)). The snapshot holds
@@ -1690,7 +1773,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 		definition = strings.TrimSpace(definition) + restriction
 	}
 	if n.Materialized {
-		if prefix := e.materializedViewPrefix(n); prefix != "" {
+		if prefix := e.materializedViewPrefix(n); !e.omitMaterializedViewClauses && prefix != "" {
 			definition = prefix + " AS " + strings.TrimSpace(definition)
 		}
 		materializedView := &metadatapb.MaterializedViewMetadata{

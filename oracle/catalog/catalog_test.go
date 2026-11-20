@@ -359,4 +359,75 @@ END financial_utils;
 			t.Fatalf("packages = %+v, want FINANCIAL_UTILS", schema.Packages)
 		}
 	})
+
+	t.Run("skips SQL*Plus commands and normalizes MV query and USING INDEX", func(t *testing.T) {
+		meta, err := GetDatabaseMetadata(`
+SET DEFINE OFF;
+PROMPT Creating schema objects
+REM Leading SQL*Plus comment
+SPOOL out.log
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+SET SERVEROUTPUT ON
+
+CREATE TABLE "HR"."T" (
+    "ID" NUMBER,
+    "CODE" VARCHAR2(20)
+);
+CREATE UNIQUE INDEX "HR"."T_ID_UX" ON "HR"."T" ("ID");
+CREATE INDEX "HR"."T_CODE_IX" ON "HR"."T" ("CODE");
+ALTER TABLE "HR"."T" ADD CONSTRAINT "PK_T" PRIMARY KEY ("ID") USING INDEX "HR"."T_ID_UX";
+ALTER TABLE "HR"."T" ADD CONSTRAINT "UK_T_CODE" UNIQUE ("CODE") USING INDEX "T_CODE_IX";
+
+CREATE MATERIALIZED VIEW "HR"."MV_T"
+    BUILD IMMEDIATE
+    REFRESH COMPLETE ON DEMAND
+    AS SELECT "ID", "CODE" FROM "HR"."T";
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(meta.Schemas) != 1 || meta.Schemas[0].Name != "HR" {
+			t.Fatalf("schemas = %+v, want HR", meta.Schemas)
+		}
+		schema := meta.Schemas[0]
+		if len(schema.MaterializedViews) != 1 {
+			t.Fatalf("mvs = %+v, want 1", schema.MaterializedViews)
+		}
+		mv := schema.MaterializedViews[0]
+		if mv.Definition != "SELECT \"ID\", \"CODE\" FROM \"HR\".\"T\"\n" {
+			t.Fatalf("mv.Definition = %q, want query-only SELECT with trailing newline", mv.Definition)
+		}
+		if len(schema.Tables) != 1 {
+			t.Fatalf("tables = %+v, want 1", schema.Tables)
+		}
+		table := schema.Tables[0]
+		if table.Columns[0].Nullable {
+			t.Fatalf("ID column Nullable = true, want false after PK USING INDEX")
+		}
+		if len(table.Indexes) != 2 {
+			t.Fatalf("indexes = %+v, want 2 reused indexes", table.Indexes)
+		}
+		idIdx := table.Indexes[0]
+		if idIdx.Name != "T_ID_UX" || !idIdx.Primary || !idIdx.Unique || !idIdx.IsConstraint {
+			t.Fatalf("T_ID_UX = %+v, want primary unique constraint index", idIdx)
+		}
+		if len(idIdx.Constraints) != 1 || idIdx.Constraints[0].Name != "PK_T" || !idIdx.Constraints[0].Primary {
+			t.Fatalf("T_ID_UX.Constraints = %+v, want PK_T", idIdx.Constraints)
+		}
+		codeIdx := table.Indexes[1]
+		if codeIdx.Name != "T_CODE_IX" || codeIdx.Primary || !codeIdx.IsConstraint {
+			t.Fatalf("T_CODE_IX = %+v, want non-primary constraint index", codeIdx)
+		}
+		if len(codeIdx.Constraints) != 1 || codeIdx.Constraints[0].Name != "UK_T_CODE" || codeIdx.Constraints[0].Primary {
+			t.Fatalf("T_CODE_IX.Constraints = %+v, want UK_T_CODE", codeIdx.Constraints)
+		}
+		// LoadCatalog/LoadSQL still preserves the BUILD/REFRESH prefix on MVs.
+		cat, err := LoadSQL(`CREATE MATERIALIZED VIEW "HR"."MV_T" BUILD IMMEDIATE REFRESH COMPLETE ON DEMAND AS SELECT 1 FROM DUAL;`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(cat.Metadata().Schemas[0].MaterializedViews[0].Definition, "BUILD IMMEDIATE") {
+			t.Fatalf("LoadSQL mv.Definition = %q, want BUILD IMMEDIATE prefix preserved", cat.Metadata().Schemas[0].MaterializedViews[0].Definition)
+		}
+	})
 }

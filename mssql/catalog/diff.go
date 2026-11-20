@@ -144,13 +144,13 @@ func (d *SchemaDiff) IsEmpty() bool {
 		len(d.Sequences) == 0
 }
 
-// Diff compares from and to. from is the current state and to the desired one.
+// Diff compares from and to. from is the current state and to is the desired one.
 func Diff(from, to *Catalog) *SchemaDiff {
 	diff := &SchemaDiff{DatabaseName: to.DatabaseName()}
 
 	for _, name := range sortedSchemaNames(from.schemas) {
-		if to.schemaByName[normalize(name)] == nil {
-			oldSchema := from.schemaByName[normalize(name)]
+		oldSchema := from.schemaByName[name]
+		if peerSchema(to, from, name) == nil {
 			diff.Schemas = append(diff.Schemas, &SchemaDiffEntry{
 				Action:     DiffDrop,
 				SchemaName: name,
@@ -163,11 +163,11 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	}
 
 	for _, name := range sortedSchemaNames(to.schemas) {
-		newSchema := to.schemaByName[normalize(name)]
+		newSchema := to.schemaByName[name]
 		if newSchema == nil {
 			continue
 		}
-		oldSchema := from.schemaByName[normalize(name)]
+		oldSchema := peerSchema(from, to, name)
 		if oldSchema == nil {
 			diff.Schemas = append(diff.Schemas, &SchemaDiffEntry{
 				Action:     DiffCreate,
@@ -182,6 +182,18 @@ func Diff(from, to *Catalog) *SchemaDiff {
 
 	sortDiff(diff)
 	return diff
+}
+
+func peerSchema(target, peer *Catalog, name string) *metadata.SchemaMetadata {
+	if schema := target.schemaByName[name]; schema != nil {
+		return schema
+	}
+	targetFold := target.schemasByFold[normalize(name)]
+	peerFold := peer.schemasByFold[normalize(name)]
+	if len(targetFold) == 1 && len(peerFold) == 1 {
+		return targetFold[0]
+	}
+	return nil
 }
 
 // addDroppedSchemaObjects turns a removed schema into object-level drops, so
