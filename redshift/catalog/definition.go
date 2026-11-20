@@ -1028,10 +1028,47 @@ type orderedObject struct {
 	materialized bool
 }
 
+func isPythonUDF(definition string) (string, bool) {
+	stmts, err := pgparser.Parse(definition)
+	if err == nil && stmts != nil {
+		for _, item := range stmts.Items {
+			stmt := item
+			if raw, ok := stmt.(*nodes.RawStmt); ok {
+				stmt = raw.Stmt
+			}
+			cf, ok := stmt.(*nodes.CreateFunctionStmt)
+			if !ok || cf.Options == nil {
+				continue
+			}
+			for _, optItem := range cf.Options.Items {
+				de, ok := optItem.(*nodes.DefElem)
+				if !ok || !strings.EqualFold(de.Defname, "language") {
+					continue
+				}
+				if s, ok := de.Arg.(*nodes.String); ok && strings.HasPrefix(strings.ToLower(s.Str), "plpython") {
+					return s.Str, true
+				}
+			}
+		}
+		return "", false
+	}
+	lex := pgparser.NewLexer(definition)
+	prevLang := false
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			return "", false
+		}
+		if prevLang && tok.Str != "" && strings.HasPrefix(strings.ToLower(tok.Str), "plpython") {
+			return tok.Str, true
+		}
+		prevLang = strings.EqualFold(tok.Str, "language")
+	}
+}
+
 // writeOrderedObjects emits functions, tables, views, and materialized views
 // in one topological order so cross-kind dependencies (such as view-dependent
-// UDFs and tables whose defaults call table-dependent UDFs) always follow
-// their prerequisites.
+// UDFs) always follow their prerequisites.
 func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
 	var items []orderedObject
 	var fnEntries []functionEntry
@@ -1056,6 +1093,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			def := strings.TrimSpace(fn.Definition)
 			if def == "" {
 				return fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
+			}
+			if lang, isPy := isPythonUDF(def); isPy {
+				return fmt.Errorf("function %s uses language %s, which Redshift no longer supports", qualifyName(schema.Name, fn.Name), lang)
 			}
 			def = appendTerminator(def)
 			params, retType := parseFunctionSignature(def)
@@ -1260,60 +1300,16 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		}
 	}
 
-	canReach := func(starts []int, target int) bool {
-		if len(starts) == 0 {
-			return false
-		}
-		visited := make([]bool, len(items))
-		queue := make([]int, 0, len(starts))
-		for _, s := range starts {
-			if s == target {
-				return true
-			}
-			if !visited[s] {
-				visited[s] = true
-				queue = append(queue, s)
-			}
-		}
-		for head := 0; head < len(queue); head++ {
-			cur := queue[head]
-			for dep := range dependencies[cur] {
-				if dep == target {
-					return true
-				}
-				if !visited[dep] {
-					visited[dep] = true
-					queue = append(queue, dep)
-				}
-			}
-		}
-		return false
-	}
-
-	for i, item := range items {
+	for _, item := range items {
 		if item.kind != objectKindTable {
 			continue
 		}
 		for _, expr := range item.table.defaultExprs {
-			var reqFns []int
-			seen := make(map[int]bool)
 			for _, call := range collectSQLFunctionCalls("SELECT "+expr, item.schema, fnCat) {
-				for _, fnEntryIdx := range fnCat.resolveCall(item.schema, call) {
-					fnNode := fnCat.nodeIdx[fnEntryIdx]
-					if fnNode != i && !seen[fnNode] {
-						seen[fnNode] = true
-						reqFns = append(reqFns, fnNode)
-					}
+				if matches := fnCat.resolveCall(item.schema, call); len(matches) > 0 {
+					fnNode := fnCat.nodeIdx[matches[0]]
+					return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", item.table.qualifiedName(), qualifyName(items[fnNode].schema, items[fnNode].name))
 				}
-			}
-			if len(reqFns) == 0 {
-				continue
-			}
-			if canReach(reqFns, i) {
-				return fmt.Errorf("table %s column default depends cyclically on function %s, which Redshift cannot restore via ALTER TABLE SET DEFAULT", item.table.qualifiedName(), qualifyName(items[reqFns[0]].schema, items[reqFns[0]].name))
-			}
-			for _, fnNode := range reqFns {
-				addDep(i, fnNode)
 			}
 		}
 	}

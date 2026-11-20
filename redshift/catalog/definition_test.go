@@ -604,7 +604,7 @@ COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 				Tables: []*metadatapb.TableMetadata{
 					{
 						Name:    "t",
-						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "public.f_inc(0)"}},
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "0"}},
 					},
 				},
 				Views: []*metadatapb.ViewMetadata{
@@ -786,8 +786,7 @@ func TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView(t *testing.
 
 func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testing.T) {
 	// 1 & 2. Unified cross-kind ordering: view-dependent functions follow views,
-	// table-dependent functions precede tables whose DEFAULT calls them, and
-	// SkipDump external tables are ignored cleanly.
+	// table-dependent functions follow tables, and SkipDump external tables are ignored cleanly.
 	unified, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{
 			{
@@ -805,12 +804,6 @@ func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testi
 					},
 				},
 				Tables: []*metadatapb.TableMetadata{
-					{
-						Name: "consumer_tbl",
-						Columns: []*metadatapb.ColumnMetadata{
-							{Name: "code", Type: "integer", Default: "public.next_code_fn()"},
-						},
-					},
 					{
 						Name:    "base_tbl",
 						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
@@ -833,14 +826,52 @@ func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testi
 
 	basePos := strings.Index(unified, "Table structure for `base_tbl`")
 	nextFnPos := strings.Index(unified, "Function structure for `next_code_fn`")
-	consumerPos := strings.Index(unified, "Table structure for `consumer_tbl`")
 	viewPos := strings.Index(unified, "View structure for `v_events`")
 	vFnPos := strings.Index(unified, "Function structure for `v_summary_fn`")
 
 	require.Greater(t, nextFnPos, basePos, "expected base_tbl before next_code_fn:\n%s", unified)
-	require.Greater(t, consumerPos, nextFnPos, "expected next_code_fn before consumer_tbl:\n%s", unified)
 	require.Greater(t, viewPos, basePos, "expected base_tbl before v_events:\n%s", unified)
 	require.Greater(t, vFnPos, viewPos, "expected v_events before v_summary_fn:\n%s", unified)
+
+	// Any table column DEFAULT referencing a UDF (even without a cycle) is rejected.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "pure_fn",
+						Definition: "CREATE FUNCTION public.pure_fn() RETURNS int IMMUTABLE AS $$ SELECT 42 $$ LANGUAGE SQL",
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "consumer_tbl",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "code", Type: "integer", Default: "public.pure_fn()"},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	// Obsolete Python UDFs (LANGUAGE plpythonu) are rejected explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "py_add",
+						Definition: "CREATE FUNCTION public.py_add(a int, b int) RETURNS int IMMUTABLE AS $$ return a + b $$ LANGUAGE plpythonu",
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "plpythonu")
 
 	// Non-skipped external table returns an explicit error because SchemaMetadata
 	// does not capture CREATE EXTERNAL SCHEMA configuration.
@@ -1081,7 +1112,7 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 			}},
 		}},
 	})
-	require.ErrorContains(t, err, "cyclically")
+	require.ErrorContains(t, err, "default_expr")
 
 	commentQuoteIdent, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{{

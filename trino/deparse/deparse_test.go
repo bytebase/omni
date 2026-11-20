@@ -426,4 +426,42 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "no definition")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:    "s",
+			Comment: "schema note",
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON SCHEMA")
+
+	// Same-arity overloaded UDFs resolved by argument type:
+	// [f(varchar) calls wrap(bigint), wrap(bigint) calls f(bigint), f(bigint) independent].
+	overloaded, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION s.f(v varchar) RETURNS bigint RETURN s.wrap(length(v))",
+				},
+				{
+					Name:       "wrap",
+					Definition: "CREATE FUNCTION s.wrap(n bigint) RETURNS bigint RETURN s.f(n) + 1",
+				},
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION s.f(n bigint) RETURNS bigint RETURN n * 2",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	fBigintPos := strings.Index(overloaded, "CREATE FUNCTION s.f(n bigint)")
+	wrapPos := strings.Index(overloaded, "CREATE FUNCTION s.wrap(n bigint)")
+	fVarcharPos := strings.Index(overloaded, "CREATE FUNCTION s.f(v varchar)")
+	require.Greater(t, wrapPos, fBigintPos, "expected f(bigint) before wrap(bigint):\n%s", overloaded)
+	require.Greater(t, fVarcharPos, wrapPos, "expected wrap(bigint) before f(varchar):\n%s", overloaded)
 }

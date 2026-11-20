@@ -30,6 +30,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		if s == nil || s.SkipDump {
 			continue
 		}
+		if s.Comment != "" {
+			return nil, fmt.Errorf("schema %s comment cannot be restored because Trino does not support COMMENT ON SCHEMA", s.Name)
+		}
 		schemaMeta := &SchemaMetadata{
 			Name:              s.Name,
 			Owner:             s.Owner,
@@ -295,6 +298,24 @@ type orderedFunction struct {
 	fn     *FunctionMetadata
 }
 
+type trinoFuncParam struct {
+	name     string
+	typeName string
+}
+
+type parsedTrinoFn struct {
+	params     []trinoFuncParam
+	returnType string
+	bodyStmt   trinoparser.RoutineStatement
+	parsed     bool
+}
+
+type trinoFuncCatalog struct {
+	fns    []orderedFunction
+	parsed []parsedTrinoFn
+	byKey  map[string][]int
+}
+
 func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 	var fns []orderedFunction
 	for _, schema := range metadata.Schemas {
@@ -312,12 +333,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 		return fns
 	}
 
-	type parsedFn struct {
-		paramCount int
-		bodyText   string
-		parsed     bool
-	}
-	parsed := make([]parsedFn, len(fns))
+	parsed := make([]parsedTrinoFn, len(fns))
 	byKey := make(map[string][]int, len(fns))
 	for i, f := range fns {
 		key := objectKey(strings.ToLower(f.schema), strings.ToLower(f.fn.Name))
@@ -326,35 +342,44 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 		file, err := trinoparser.Parse(f.fn.Definition)
 		if err == nil && file != nil && len(file.Stmts) == 1 {
 			if cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt); ok && cfs.Spec.Body != nil {
-				span := cfs.Spec.Body.Span()
-				if span.Start >= 0 && span.End <= len(f.fn.Definition) && span.Start <= span.End {
-					parsed[i] = parsedFn{
-						paramCount: len(cfs.Spec.Declaration.Parameters),
-						bodyText:   f.fn.Definition[span.Start:span.End],
-						parsed:     true,
+				params := make([]trinoFuncParam, len(cfs.Spec.Declaration.Parameters))
+				for j, p := range cfs.Spec.Declaration.Parameters {
+					name := ""
+					if p.Name != nil {
+						name = p.Name.Value
 					}
-					continue
+					params[j] = trinoFuncParam{
+						name:     name,
+						typeName: normalizeTrinoDataType(p.Type),
+					}
+				}
+				parsed[i] = parsedTrinoFn{
+					params:     params,
+					returnType: normalizeTrinoDataType(cfs.Spec.ReturnType),
+					bodyStmt:   cfs.Spec.Body,
+					parsed:     true,
 				}
 			}
 		}
-		parsed[i] = parsedFn{bodyText: f.fn.Definition}
+	}
+
+	cat := &trinoFuncCatalog{
+		fns:    fns,
+		parsed: parsed,
+		byKey:  byKey,
 	}
 
 	dependencies := make([]map[int]struct{}, len(fns))
 	for i, f := range fns {
-		for _, call := range scanFunctionCallRefs(parsed[i].bodyText) {
-			var candidates []int
-			switch call.schema {
-			case "":
-				candidates = byKey[objectKey(strings.ToLower(f.schema), strings.ToLower(call.name))]
-			default:
-				candidates = byKey[objectKey(strings.ToLower(call.schema), strings.ToLower(call.name))]
-			}
-			for _, depIdx := range candidates {
+		var calls []functionCallRef
+		if parsed[i].parsed {
+			calls = collectTrinoASTFunctionCalls(parsed[i].bodyStmt, f.schema, parsed[i].params, cat)
+		} else {
+			calls = scanFunctionCallRefs(f.fn.Definition)
+		}
+		for _, call := range calls {
+			for _, depIdx := range cat.resolveCall(f.schema, call) {
 				if depIdx == i {
-					continue
-				}
-				if parsed[depIdx].parsed && parsed[depIdx].paramCount != call.argCount {
 					continue
 				}
 				if dependencies[i] == nil {
@@ -376,7 +401,410 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 type functionCallRef struct {
 	schema   string
 	name     string
+	argTypes []string
 	argCount int
+}
+
+func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef) []int {
+	if c == nil || len(c.fns) == 0 {
+		return nil
+	}
+	targetSchema := call.schema
+	if targetSchema == "" {
+		targetSchema = callerSchema
+	}
+	candidates := c.byKey[objectKey(strings.ToLower(targetSchema), strings.ToLower(call.name))]
+	if len(candidates) <= 1 {
+		if len(candidates) == 1 && len(call.argTypes) == 0 && call.argCount > 0 {
+			// Single candidate matches name; check arity only if parsed.
+			idx := candidates[0]
+			if c.parsed[idx].parsed && len(c.parsed[idx].params) != call.argCount {
+				return nil
+			}
+		}
+		return candidates
+	}
+	var arityMatches []int
+	for _, idx := range candidates {
+		if !c.parsed[idx].parsed || len(c.parsed[idx].params) == call.argCount {
+			arityMatches = append(arityMatches, idx)
+		}
+	}
+	if len(arityMatches) == 0 {
+		return nil
+	}
+	if len(arityMatches) == 1 || len(call.argTypes) == 0 {
+		return arityMatches
+	}
+	bestScore := -1
+	var best []int
+	for _, idx := range arityMatches {
+		if !c.parsed[idx].parsed {
+			continue
+		}
+		score := 0
+		compatible := true
+		for i, argType := range call.argTypes {
+			if argType == "" {
+				continue
+			}
+			paramType := c.parsed[idx].params[i].typeName
+			if paramType == "" {
+				continue
+			}
+			if paramType == argType {
+				score += 2
+			} else if isTrinoNumericType(argType) && isTrinoNumericType(paramType) && trinoNumericRank(paramType) >= trinoNumericRank(argType) {
+				score++
+			} else {
+				compatible = false
+				break
+			}
+		}
+		if !compatible {
+			continue
+		}
+		if score > bestScore {
+			bestScore = score
+			best = []int{idx}
+		} else if score == bestScore {
+			best = append(best, idx)
+		}
+	}
+	if len(best) > 0 {
+		return best
+	}
+	return arityMatches
+}
+
+func normalizeTrinoDataType(dt *trinoparser.DataType) string {
+	if dt == nil {
+		return ""
+	}
+	switch dt.Kind {
+	case trinoparser.TypeDateTime:
+		return strings.ToLower(dt.Name)
+	case trinoparser.TypeInterval:
+		return "interval"
+	case trinoparser.TypeRow:
+		return "row"
+	case trinoparser.TypeArray:
+		return "array"
+	case trinoparser.TypeMap:
+		return "map"
+	default:
+		return normalizeTrinoTypeName(dt.Name)
+	}
+}
+
+func normalizeTrinoTypeName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "int1", "tinyint":
+		return "tinyint"
+	case "int2", "smallint":
+		return "smallint"
+	case "int", "integer", "int4":
+		return "integer"
+	case "int8", "bigint":
+		return "bigint"
+	case "dec", "decimal", "numeric":
+		return "decimal"
+	case "float", "real":
+		return "real"
+	case "double precision", "double":
+		return "double"
+	case "bool", "boolean":
+		return "boolean"
+	case "varchar", "char", "character", "character varying", "text":
+		return "varchar"
+	default:
+		return strings.ToLower(strings.TrimSpace(name))
+	}
+}
+
+func trinoNumericRank(t string) int {
+	switch t {
+	case "tinyint":
+		return 1
+	case "smallint":
+		return 2
+	case "integer":
+		return 3
+	case "bigint":
+		return 4
+	case "decimal":
+		return 5
+	case "real":
+		return 6
+	case "double":
+		return 7
+	default:
+		return 0
+	}
+}
+
+func isTrinoNumericType(t string) bool {
+	return trinoNumericRank(t) > 0
+}
+
+func commonTrinoNumericType(a, b string) string {
+	ra, rb := trinoNumericRank(a), trinoNumericRank(b)
+	if ra == 0 || rb == 0 {
+		return ""
+	}
+	if ra >= rb {
+		return a
+	}
+	return b
+}
+
+func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
+	var calls []functionCallRef
+	env := make(map[string]string, len(params))
+	for _, p := range params {
+		if p.name != "" {
+			env[strings.ToLower(p.name)] = p.typeName
+		}
+	}
+
+	var walkExpr func(expr trinoparser.Expr, curEnv map[string]string) string
+	walkExpr = func(expr trinoparser.Expr, curEnv map[string]string) string {
+		if expr == nil {
+			return ""
+		}
+		switch e := expr.(type) {
+		case *trinoparser.NamedArgument:
+			return walkExpr(e.Value, curEnv)
+		case *trinoparser.ColumnRef:
+			if e.Name != nil {
+				return curEnv[strings.ToLower(e.Name.Value)]
+			}
+		case *trinoparser.Dereference:
+			walkExpr(e.Base, curEnv)
+		case *trinoparser.Subscript:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Index, curEnv)
+		case *trinoparser.Literal:
+			switch e.Kind {
+			case trinoparser.LiteralBool:
+				return "boolean"
+			case trinoparser.LiteralInteger:
+				return "bigint"
+			case trinoparser.LiteralDecimal:
+				return "decimal"
+			case trinoparser.LiteralDouble:
+				return "double"
+			case trinoparser.LiteralString:
+				return "varchar"
+			case trinoparser.LiteralBinary:
+				return "varbinary"
+			}
+		case *trinoparser.TypeConstructor:
+			return normalizeTrinoTypeName(e.Name)
+		case *trinoparser.IntervalLiteral:
+			return "interval"
+		case *trinoparser.CastExpr:
+			walkExpr(e.Expr, curEnv)
+			return normalizeTrinoDataType(e.Type)
+		case *trinoparser.UnaryExpr:
+			return walkExpr(e.Operand, curEnv)
+		case *trinoparser.ParenExpr:
+			return walkExpr(e.Expr, curEnv)
+		case *trinoparser.NotExpr:
+			walkExpr(e.Operand, curEnv)
+			return "boolean"
+		case *trinoparser.LogicalExpr:
+			walkExpr(e.Left, curEnv)
+			walkExpr(e.Right, curEnv)
+			return "boolean"
+		case *trinoparser.BinaryExpr:
+			lt := walkExpr(e.Left, curEnv)
+			rt := walkExpr(e.Right, curEnv)
+			switch e.Op {
+			case "||":
+				return "varchar"
+			case "+", "-", "*", "/", "%":
+				return commonTrinoNumericType(lt, rt)
+			}
+		case *trinoparser.CaseExpr:
+			walkExpr(e.Operand, curEnv)
+			res := ""
+			for _, w := range e.Whens {
+				walkExpr(w.Cond, curEnv)
+				if wt := walkExpr(w.Result, curEnv); wt != "" && res == "" {
+					res = wt
+				}
+			}
+			if et := walkExpr(e.Else, curEnv); et != "" && res == "" {
+				res = et
+			}
+			return res
+		case *trinoparser.AtTimeZoneExpr:
+			t := walkExpr(e.Value, curEnv)
+			walkExpr(e.Zone, curEnv)
+			return t
+		case *trinoparser.AtLocalExpr:
+			return walkExpr(e.Value, curEnv)
+		case *trinoparser.ArrayConstructor:
+			for _, el := range e.Elements {
+				walkExpr(el, curEnv)
+			}
+			return "array"
+		case *trinoparser.RowConstructor:
+			for _, el := range e.Elements {
+				walkExpr(el, curEnv)
+			}
+			return "row"
+		case *trinoparser.OverlayExpr:
+			walkExpr(e.Source, curEnv)
+			walkExpr(e.Replacing, curEnv)
+			walkExpr(e.From, curEnv)
+			walkExpr(e.For, curEnv)
+			return "varchar"
+		case *trinoparser.ExtractExpr:
+			walkExpr(e.Source, curEnv)
+			return "bigint"
+		case *trinoparser.SubstringExpr:
+			walkExpr(e.Source, curEnv)
+			walkExpr(e.From, curEnv)
+			walkExpr(e.For, curEnv)
+			return "varchar"
+		case *trinoparser.MethodCall:
+			walkExpr(e.Value, curEnv)
+			for _, a := range e.Args {
+				walkExpr(a, curEnv)
+			}
+		case *trinoparser.StaticMethodCall:
+			for _, a := range e.Args {
+				walkExpr(a, curEnv)
+			}
+		case *trinoparser.FuncCall:
+			argTypes := make([]string, len(e.Args))
+			for j, a := range e.Args {
+				argTypes[j] = walkExpr(a, curEnv)
+			}
+			walkExpr(e.Filter, curEnv)
+			var schema, name string
+			if e.Name != nil && len(e.Name.Parts) > 0 {
+				parts := e.Name.Parts
+				switch len(parts) {
+				case 1:
+					name = parts[0].Value
+				case 2:
+					schema, name = parts[0].Value, parts[1].Value
+				default:
+					schema, name = parts[len(parts)-2].Value, parts[len(parts)-1].Value
+				}
+			}
+			if name != "" {
+				ref := functionCallRef{
+					schema:   schema,
+					name:     name,
+					argTypes: argTypes,
+					argCount: len(argTypes),
+				}
+				calls = append(calls, ref)
+				if matches := cat.resolveCall(callerSchema, ref); len(matches) > 0 {
+					ret := cat.parsed[matches[0]].returnType
+					same := ret != ""
+					for _, m := range matches[1:] {
+						if cat.parsed[m].returnType != ret {
+							same = false
+							break
+						}
+					}
+					if same {
+						return ret
+					}
+				}
+				switch strings.ToLower(name) {
+				case "length", "cardinality", "strpos", "count":
+					return "bigint"
+				case "lower", "upper", "trim", "ltrim", "rtrim", "concat", "substr", "substring", "replace", "reverse":
+					return "varchar"
+				case "coalesce", "nullif":
+					for _, at := range argTypes {
+						if at != "" {
+							return at
+						}
+					}
+				}
+			}
+		}
+		return ""
+	}
+
+	var walkStmt func(stmt trinoparser.RoutineStatement, curEnv map[string]string)
+	walkStmt = func(stmt trinoparser.RoutineStatement, curEnv map[string]string) {
+		if stmt == nil {
+			return
+		}
+		switch s := stmt.(type) {
+		case *trinoparser.ReturnStatement:
+			walkExpr(s.Value, curEnv)
+		case *trinoparser.AssignmentStatement:
+			walkExpr(s.Value, curEnv)
+		case *trinoparser.IfStatement:
+			walkExpr(s.Condition, curEnv)
+			for _, st := range s.Then {
+				walkStmt(st, curEnv)
+			}
+			for _, elif := range s.ElseIfs {
+				walkExpr(elif.Condition, curEnv)
+				for _, st := range elif.Body {
+					walkStmt(st, curEnv)
+				}
+			}
+			for _, st := range s.Else {
+				walkStmt(st, curEnv)
+			}
+		case *trinoparser.CaseStatement:
+			walkExpr(s.Operand, curEnv)
+			for _, w := range s.Whens {
+				walkExpr(w.Condition, curEnv)
+				for _, st := range w.Body {
+					walkStmt(st, curEnv)
+				}
+			}
+			for _, st := range s.Else {
+				walkStmt(st, curEnv)
+			}
+		case *trinoparser.LoopStatement:
+			for _, st := range s.Body {
+				walkStmt(st, curEnv)
+			}
+		case *trinoparser.WhileStatement:
+			walkExpr(s.Condition, curEnv)
+			for _, st := range s.Body {
+				walkStmt(st, curEnv)
+			}
+		case *trinoparser.RepeatStatement:
+			for _, st := range s.Body {
+				walkStmt(st, curEnv)
+			}
+			walkExpr(s.Condition, curEnv)
+		case *trinoparser.CompoundStatement:
+			childEnv := make(map[string]string, len(curEnv)+len(s.Declarations))
+			for k, v := range curEnv {
+				childEnv[k] = v
+			}
+			for _, decl := range s.Declarations {
+				walkExpr(decl.Default, childEnv)
+				dt := normalizeTrinoDataType(decl.Type)
+				for _, n := range decl.Names {
+					if n != nil && dt != "" {
+						childEnv[strings.ToLower(n.Value)] = dt
+					}
+				}
+			}
+			for _, st := range s.Body {
+				walkStmt(st, childEnv)
+			}
+		}
+	}
+
+	walkStmt(root, env)
+	return calls
 }
 
 // scanFunctionCallRefs extracts unqualified and schema-qualified call sites
