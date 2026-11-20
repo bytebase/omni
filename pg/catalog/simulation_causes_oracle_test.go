@@ -4906,6 +4906,79 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c119From, c119To, Diff(c119From, c119To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c119From->c119To, got:\n%s", rem.SQL())
 		}
+
+		// Round 18 regressions:
+		// 1. Function calls in rules require a matching overload arity.
+		// 2. regclass literals in function calls (e.g. nextval('s')) record sequence/relation
+		//    dependencies and track renames when deparsed.
+		// 3. WHERE CURRENT OF cursor_name is deparsed in rule actions.
+		// 4. Implicit subquery output column names in rules are preserved with AS when
+		//    the underlying table column is renamed.
+		// 5. JOIN ... USING (...) AS join_using_alias is bound in scope and deparsed.
+		// 6. Cross-database RangeVar catalog names in rules are rejected with 0A000.
+		c120 := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r18",
+			"CREATE TABLE t1_r18 (id int, val text)",
+			"CREATE TABLE t2_r18 (id int, val text)",
+			"CREATE TABLE dst_r18 (id bigint, val text)",
+			"CREATE FUNCTION fn_two_args_r18(int, int) RETURNS int LANGUAGE sql AS 'SELECT $1 + $2'",
+			"CREATE RULE r_seq_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) VALUES (nextval('seq_r18'), NEW.val)",
+		} {
+			if code := simulationCatalogCode(t, c120, stmt); code != "0" {
+				t.Fatalf("c120 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_bad_arity_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT fn_two_args_r18(1), 'x'", CodeUndefinedFunction},
+			{"DROP SEQUENCE seq_r18 RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_seq_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) VALUES (nextval('no_such_seq_r18'), NEW.val)", CodeUndefinedTable},
+			{"CREATE RULE r_bad_db_src_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT id, val FROM otherdb.public.t1_r18", CodeFeatureNotSupported},
+			{"CREATE RULE r_bad_db_dst_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO otherdb.public.dst_r18 (id, val) VALUES (1, 'x')", CodeFeatureNotSupported},
+			{"CREATE RULE r_bad_ju_col_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT ju.val, 'x' FROM t1_r18 JOIN t2_r18 USING (id) AS ju", CodeUndefinedColumn},
+		} {
+			if got := simulationCatalogCode(t, c120, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c120From := New()
+		c120To := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r18_old",
+			"CREATE TABLE t1_r18 (id int, a int, val text)",
+			"CREATE TABLE t2_r18 (id int, val text)",
+			"CREATE TABLE dst_r18 (id bigint, val text)",
+			"CREATE RULE r_all_r18 AS ON INSERT TO t1_r18 DO ALSO INSERT INTO dst_r18 (id, val) SELECT s.a + ju.id + nextval('seq_r18_old'), 'ok' FROM (SELECT t1_r18.a FROM t1_r18) AS s, (t1_r18 t1x JOIN t2_r18 USING (id) AS ju)",
+			"CREATE RULE r_cur_r18 AS ON DELETE TO t1_r18 DO ALSO DELETE FROM t2_r18 WHERE CURRENT OF cur_r18",
+			"ALTER SEQUENCE seq_r18_old RENAME TO seq_r18_new",
+			"ALTER TABLE t1_r18 RENAME COLUMN a TO b",
+		} {
+			if code := simulationCatalogCode(t, c120To, stmt); code != "0" {
+				t.Fatalf("c120To %s: %s", stmt, code)
+			}
+		}
+		mig120 := GenerateMigration(c120From, c120To, Diff(c120From, c120To))
+		sql120 := mig120.SQL()
+		for _, wantSubstr := range []string{
+			"nextval('seq_r18_new')",
+			"SELECT t1_r18.b AS a FROM t1_r18",
+			"USING (id) AS ju",
+			"WHERE CURRENT OF cur_r18",
+		} {
+			if !strings.Contains(sql120, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql120)
+			}
+		}
+		if code := simulationCatalogCode(t, c120From, sql120); code != "0" {
+			t.Fatalf("applying c120From->c120To failed with %s:\n%s", code, sql120)
+		}
+		if rem := GenerateMigration(c120From, c120To, Diff(c120From, c120To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c120From->c120To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

@@ -42,26 +42,34 @@ type ruleJoinUsingCol struct {
 	deps []ruleColDep
 }
 
+type ruleRegclassBinding struct {
+	seqOID uint32
+	relOID uint32
+	idxOID uint32
+}
+
 type ruleBindings struct {
-	ownerRelOID   uint32
-	isOnSelect    bool
-	allowOld      bool
-	allowNew      bool
-	relByRV       map[*nodes.RangeVar]uint32
-	colByRef      map[*nodes.ColumnRef]ruleColBinding
-	colByRT       map[*nodes.ResTarget]ruleColBinding
-	colByIE       map[*nodes.IndexElem]ruleColBinding
-	collByIE      map[*nodes.IndexElem]uint32
-	opcByIE       map[*nodes.IndexElem]uint32
-	conByInfer    map[*nodes.InferClause]uint32
-	typeByTN      map[*nodes.TypeName]ruleTypeBinding
-	collByCC      map[*nodes.CollateClause]uint32
-	funcByFC      map[*nodes.FuncCall]uint32
-	castTypeByFC  map[*nodes.FuncCall]uint32
-	operByList    map[*nodes.List]uint32
-	joinUsing     map[*nodes.JoinExpr][]ruleJoinUsingCol
-	naturalJoined map[*nodes.JoinExpr]bool
-	stmtCtx       map[*nodes.SelectStmt]*ruleEvalContext
+	ownerRelOID    uint32
+	isOnSelect     bool
+	allowOld       bool
+	allowNew       bool
+	relByRV        map[*nodes.RangeVar]uint32
+	colByRef       map[*nodes.ColumnRef]ruleColBinding
+	colByRT        map[*nodes.ResTarget]ruleColBinding
+	targetNameByRT map[*nodes.ResTarget]string
+	colByIE        map[*nodes.IndexElem]ruleColBinding
+	collByIE       map[*nodes.IndexElem]uint32
+	opcByIE        map[*nodes.IndexElem]uint32
+	conByInfer     map[*nodes.InferClause]uint32
+	typeByTN       map[*nodes.TypeName]ruleTypeBinding
+	collByCC       map[*nodes.CollateClause]uint32
+	funcByFC       map[*nodes.FuncCall]uint32
+	castTypeByFC   map[*nodes.FuncCall]uint32
+	operByList     map[*nodes.List]uint32
+	regclassByNode map[nodes.Node]ruleRegclassBinding
+	joinUsing      map[*nodes.JoinExpr][]ruleJoinUsingCol
+	naturalJoined  map[*nodes.JoinExpr]bool
+	stmtCtx        map[*nodes.SelectStmt]*ruleEvalContext
 
 	relDeps  []uint32
 	colDeps  []ruleColDep
@@ -89,33 +97,35 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 		return nil
 	}
 	cp := &ruleBindings{
-		ownerRelOID:   b.ownerRelOID,
-		isOnSelect:    b.isOnSelect,
-		allowOld:      b.allowOld,
-		allowNew:      b.allowNew,
-		relByRV:       make(map[*nodes.RangeVar]uint32, len(b.relByRV)),
-		colByRef:      make(map[*nodes.ColumnRef]ruleColBinding, len(b.colByRef)),
-		colByRT:       make(map[*nodes.ResTarget]ruleColBinding, len(b.colByRT)),
-		colByIE:       make(map[*nodes.IndexElem]ruleColBinding, len(b.colByIE)),
-		collByIE:      make(map[*nodes.IndexElem]uint32, len(b.collByIE)),
-		opcByIE:       make(map[*nodes.IndexElem]uint32, len(b.opcByIE)),
-		conByInfer:    make(map[*nodes.InferClause]uint32, len(b.conByInfer)),
-		typeByTN:      make(map[*nodes.TypeName]ruleTypeBinding, len(b.typeByTN)),
-		collByCC:      make(map[*nodes.CollateClause]uint32, len(b.collByCC)),
-		funcByFC:      make(map[*nodes.FuncCall]uint32, len(b.funcByFC)),
-		castTypeByFC:  make(map[*nodes.FuncCall]uint32, len(b.castTypeByFC)),
-		operByList:    make(map[*nodes.List]uint32, len(b.operByList)),
-		joinUsing:     make(map[*nodes.JoinExpr][]ruleJoinUsingCol, len(b.joinUsing)),
-		naturalJoined: make(map[*nodes.JoinExpr]bool, len(b.naturalJoined)),
-		relDeps:       append([]uint32(nil), b.relDeps...),
-		colDeps:       append([]ruleColDep(nil), b.colDeps...),
-		conDeps:       append([]uint32(nil), b.conDeps...),
-		opcDeps:       append([]uint32(nil), b.opcDeps...),
-		seqDeps:       append([]uint32(nil), b.seqDeps...),
-		typeDeps:      append([]uint32(nil), b.typeDeps...),
-		collDeps:      append([]uint32(nil), b.collDeps...),
-		funcDeps:      append([]uint32(nil), b.funcDeps...),
-		operDeps:      append([]uint32(nil), b.operDeps...),
+		ownerRelOID:    b.ownerRelOID,
+		isOnSelect:     b.isOnSelect,
+		allowOld:       b.allowOld,
+		allowNew:       b.allowNew,
+		relByRV:        make(map[*nodes.RangeVar]uint32, len(b.relByRV)),
+		colByRef:       make(map[*nodes.ColumnRef]ruleColBinding, len(b.colByRef)),
+		colByRT:        make(map[*nodes.ResTarget]ruleColBinding, len(b.colByRT)),
+		targetNameByRT: make(map[*nodes.ResTarget]string, len(b.targetNameByRT)),
+		colByIE:        make(map[*nodes.IndexElem]ruleColBinding, len(b.colByIE)),
+		collByIE:       make(map[*nodes.IndexElem]uint32, len(b.collByIE)),
+		opcByIE:        make(map[*nodes.IndexElem]uint32, len(b.opcByIE)),
+		conByInfer:     make(map[*nodes.InferClause]uint32, len(b.conByInfer)),
+		typeByTN:       make(map[*nodes.TypeName]ruleTypeBinding, len(b.typeByTN)),
+		collByCC:       make(map[*nodes.CollateClause]uint32, len(b.collByCC)),
+		funcByFC:       make(map[*nodes.FuncCall]uint32, len(b.funcByFC)),
+		castTypeByFC:   make(map[*nodes.FuncCall]uint32, len(b.castTypeByFC)),
+		operByList:     make(map[*nodes.List]uint32, len(b.operByList)),
+		regclassByNode: make(map[nodes.Node]ruleRegclassBinding, len(b.regclassByNode)),
+		joinUsing:      make(map[*nodes.JoinExpr][]ruleJoinUsingCol, len(b.joinUsing)),
+		naturalJoined:  make(map[*nodes.JoinExpr]bool, len(b.naturalJoined)),
+		relDeps:        append([]uint32(nil), b.relDeps...),
+		colDeps:        append([]ruleColDep(nil), b.colDeps...),
+		conDeps:        append([]uint32(nil), b.conDeps...),
+		opcDeps:        append([]uint32(nil), b.opcDeps...),
+		seqDeps:        append([]uint32(nil), b.seqDeps...),
+		typeDeps:       append([]uint32(nil), b.typeDeps...),
+		collDeps:       append([]uint32(nil), b.collDeps...),
+		funcDeps:       append([]uint32(nil), b.funcDeps...),
+		operDeps:       append([]uint32(nil), b.operDeps...),
 	}
 	for k, v := range b.relByRV {
 		cp.relByRV[k] = v
@@ -125,6 +135,9 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	}
 	for k, v := range b.colByRT {
 		cp.colByRT[k] = v
+	}
+	for k, v := range b.targetNameByRT {
+		cp.targetNameByRT[k] = v
 	}
 	for k, v := range b.colByIE {
 		cp.colByIE[k] = v
@@ -152,6 +165,9 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	}
 	for k, v := range b.operByList {
 		cp.operByList[k] = v
+	}
+	for k, v := range b.regclassByNode {
+		cp.regclassByNode[k] = v
 	}
 	for k, v := range b.joinUsing {
 		cpCols := make([]ruleJoinUsingCol, len(v))
@@ -538,34 +554,36 @@ func (c *Catalog) validateRuleReturningClauses(rel *Relation, s *nodes.RuleStmt)
 
 func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 	return &ruleBindings{
-		ownerRelOID:   ownerRelOID,
-		isOnSelect:    event == nodes.CMD_SELECT,
-		allowOld:      event == nodes.CMD_UPDATE || event == nodes.CMD_DELETE,
-		allowNew:      event == nodes.CMD_INSERT || event == nodes.CMD_UPDATE,
-		relByRV:       make(map[*nodes.RangeVar]uint32),
-		colByRef:      make(map[*nodes.ColumnRef]ruleColBinding),
-		colByRT:       make(map[*nodes.ResTarget]ruleColBinding),
-		colByIE:       make(map[*nodes.IndexElem]ruleColBinding),
-		collByIE:      make(map[*nodes.IndexElem]uint32),
-		opcByIE:       make(map[*nodes.IndexElem]uint32),
-		conByInfer:    make(map[*nodes.InferClause]uint32),
-		typeByTN:      make(map[*nodes.TypeName]ruleTypeBinding),
-		collByCC:      make(map[*nodes.CollateClause]uint32),
-		funcByFC:      make(map[*nodes.FuncCall]uint32),
-		castTypeByFC:  make(map[*nodes.FuncCall]uint32),
-		operByList:    make(map[*nodes.List]uint32),
-		joinUsing:     make(map[*nodes.JoinExpr][]ruleJoinUsingCol),
-		naturalJoined: make(map[*nodes.JoinExpr]bool),
-		stmtCtx:       make(map[*nodes.SelectStmt]*ruleEvalContext),
-		seenRel:       make(map[uint32]bool),
-		seenCol:       make(map[ruleColDep]bool),
-		seenCon:       make(map[uint32]bool),
-		seenOpc:       make(map[uint32]bool),
-		seenSeq:       make(map[uint32]bool),
-		seenType:      make(map[uint32]bool),
-		seenColl:      make(map[uint32]bool),
-		seenFunc:      make(map[uint32]bool),
-		seenOper:      make(map[uint32]bool),
+		ownerRelOID:    ownerRelOID,
+		isOnSelect:     event == nodes.CMD_SELECT,
+		allowOld:       event == nodes.CMD_UPDATE || event == nodes.CMD_DELETE,
+		allowNew:       event == nodes.CMD_INSERT || event == nodes.CMD_UPDATE,
+		relByRV:        make(map[*nodes.RangeVar]uint32),
+		colByRef:       make(map[*nodes.ColumnRef]ruleColBinding),
+		colByRT:        make(map[*nodes.ResTarget]ruleColBinding),
+		targetNameByRT: make(map[*nodes.ResTarget]string),
+		colByIE:        make(map[*nodes.IndexElem]ruleColBinding),
+		collByIE:       make(map[*nodes.IndexElem]uint32),
+		opcByIE:        make(map[*nodes.IndexElem]uint32),
+		conByInfer:     make(map[*nodes.InferClause]uint32),
+		typeByTN:       make(map[*nodes.TypeName]ruleTypeBinding),
+		collByCC:       make(map[*nodes.CollateClause]uint32),
+		funcByFC:       make(map[*nodes.FuncCall]uint32),
+		castTypeByFC:   make(map[*nodes.FuncCall]uint32),
+		operByList:     make(map[*nodes.List]uint32),
+		regclassByNode: make(map[nodes.Node]ruleRegclassBinding),
+		joinUsing:      make(map[*nodes.JoinExpr][]ruleJoinUsingCol),
+		naturalJoined:  make(map[*nodes.JoinExpr]bool),
+		stmtCtx:        make(map[*nodes.SelectStmt]*ruleEvalContext),
+		seenRel:        make(map[uint32]bool),
+		seenCol:        make(map[ruleColDep]bool),
+		seenCon:        make(map[uint32]bool),
+		seenOpc:        make(map[uint32]bool),
+		seenSeq:        make(map[uint32]bool),
+		seenType:       make(map[uint32]bool),
+		seenColl:       make(map[uint32]bool),
+		seenFunc:       make(map[uint32]bool),
+		seenOper:       make(map[uint32]bool),
 	}
 }
 
@@ -715,6 +733,11 @@ func applyVirtualAliasCols(baseCols []string, baseAny bool, aliasCols []string) 
 func (c *Catalog) bindRangeVar(b *ruleBindings, rv *nodes.RangeVar, cteNames map[string]bool, forDMLTarget bool) (uint32, string, error) {
 	if rv == nil {
 		return 0, "", nil
+	}
+	if rv.Catalogname != "" {
+		if err := c.checkDatabaseQualifier(rv.Catalogname); err != nil {
+			return 0, "", err
+		}
 	}
 	if !forDMLTarget && rv.Schemaname == "" && cteNames[rv.Relname] {
 		return 0, "cte", nil
@@ -1058,6 +1081,25 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			}
 			if b != nil && b.joinUsing != nil {
 				b.joinUsing[v] = usingBindings
+			}
+			if v.JoinUsing != nil && v.JoinUsing.Aliasname != "" {
+				juCols := make(map[string]int, len(usingBindings))
+				juOrder := make([]string, 0, len(usingBindings))
+				for _, ub := range usingBindings {
+					if ub.name != "" {
+						juCols[ub.name]++
+						juOrder = append(juOrder, ub.name)
+					}
+				}
+				ctx.scope[v.JoinUsing.Aliasname] = ruleScopeEntry{
+					hasAlias:        true,
+					alias:           v.JoinUsing.Aliasname,
+					isVirtual:       true,
+					virtualCols:     juCols,
+					virtualColOrder: juOrder,
+					isJoinAlias:     true,
+					joinRels:        append(append([]uint32(nil), lRels...), rRels...),
+				}
 			}
 		} else if v.IsNatural {
 			if ctx.usingCols == nil {
@@ -1441,14 +1483,10 @@ func (c *Catalog) resolveTableFuncCols(fc *nodes.FuncCall, alias *nodes.Alias, i
 	} else {
 		searchNS = c.searchPathWithCatalog()
 	}
-	argCount := 0
-	if fc.Args != nil {
-		argCount = len(fc.Args.Items)
-	}
 	procs := c.procByName[fName]
 	var matched []*BuiltinProc
 	for _, nsOID := range searchNS {
-		var exact, any []*BuiltinProc
+		var exact []*BuiltinProc
 		for _, p := range procs {
 			if p.Kind == 'p' {
 				continue
@@ -1464,17 +1502,12 @@ func (c *Catalog) resolveTableFuncCols(fc *nodes.FuncCall, alias *nodes.Alias, i
 			if pNS != nsOID {
 				continue
 			}
-			any = append(any, p)
-			if int(p.NArgs) == argCount {
+			if _, ok := procMatchesRuleCallArity(p, fc); ok {
 				exact = append(exact, p)
 			}
 		}
 		if len(exact) > 0 {
 			matched = exact
-			break
-		}
-		if len(any) > 0 {
-			matched = any
 			break
 		}
 	}
@@ -1889,6 +1922,10 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 				if rt, ok := item.(*nodes.ResTarget); ok {
 					if rt.Name != "" {
 						targetAliases[rt.Name] = true
+					} else if b != nil && b.targetNameByRT != nil {
+						if inferred := inferRuleTargetColName(rt.Val); inferred != "" && inferred != "?column?" {
+							b.targetNameByRT[rt] = inferred
+						}
 					}
 					if err := c.bindRuleExpr(b, rt.Val, ctx); err != nil {
 						return err
@@ -2427,6 +2464,11 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 			}
 			for _, rItem := range lc.LockedRels.Items {
 				if rv, ok := rItem.(*nodes.RangeVar); ok && rv != nil && rv.Relname != "" {
+					if rv.Catalogname != "" {
+						if err := c.checkDatabaseQualifier(rv.Catalogname); err != nil {
+							return err
+						}
+					}
 					if _, found := lookupScopeEntry(ctx, rv.Relname); !found && !ctx.hasOpenSource && !c.snapshot {
 						return &Error{
 							Code:    CodeUndefinedTable,
@@ -2788,6 +2830,11 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				}
 				b.typeByTN[v.TypeName] = ruleTypeBinding{typeOID: elemOID, isArray: isArr}
 				b.addTypeDep(elemOID)
+				if oid == REGCLASSOID {
+					if err := c.bindRegclassLiteral(b, v.Arg); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
@@ -3224,6 +3271,45 @@ func (ctx *ruleEvalContext) colAliasesFor(relOID uint32) []string {
 	return nil
 }
 
+func procMatchesRuleCallArity(p *BuiltinProc, fc *nodes.FuncCall) ([]uint32, bool) {
+	if p == nil {
+		return nil, false
+	}
+	if fc != nil && fc.AggStar {
+		return nil, p.NArgs == 0
+	}
+	var argNames []string
+	argCount := 0
+	if fc != nil && fc.Args != nil {
+		argCount = len(fc.Args.Items)
+		for i, a := range fc.Args.Items {
+			if na, ok := a.(*nodes.NamedArgExpr); ok && na != nil {
+				if argNames == nil {
+					argNames = make([]string, i, argCount)
+				}
+				argNames = append(argNames, na.Name)
+			} else if argNames != nil {
+				argNames = append(argNames, "")
+			}
+		}
+	}
+	variadic := fc != nil && fc.FuncVariadic
+	if argNames != nil {
+		positions, ok := namedCallPositions(p, argNames, variadic)
+		if !ok {
+			return nil, false
+		}
+		types := make([]uint32, len(positions))
+		for i, pos := range positions {
+			if pos >= 0 && pos < len(p.ArgTypes) {
+				types[i] = p.ArgTypes[pos]
+			}
+		}
+		return types, true
+	}
+	return candidateArgTypesForCall(p, argCount, variadic)
+}
+
 func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount int) error {
 	fSchema, fName := qualifiedName(v.Funcname)
 	if fName == "" {
@@ -3246,8 +3332,11 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 	procs := c.procByName[fName]
 	foundAny := false
 	var matchedUserOID uint32
+	var matchedArgTypes []uint32
 	for _, nsOID := range searchNS {
-		var exactUserOID, anyUserOID uint32
+		var exactUserOID uint32
+		var nsFound bool
+		var firstArgTypes []uint32
 		for _, p := range procs {
 			if p.Kind == 'p' {
 				continue
@@ -3263,25 +3352,33 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 			if pNS != nsOID {
 				continue
 			}
-			foundAny = true
-			if p.OID >= FirstNormalObjectId {
-				if anyUserOID == 0 {
-					anyUserOID = p.OID
-				}
-				if int(p.NArgs) == argCount && exactUserOID == 0 {
-					exactUserOID = p.OID
-				}
+			candTypes, ok := procMatchesRuleCallArity(p, v)
+			if !ok {
+				continue
+			}
+			nsFound = true
+			if firstArgTypes == nil {
+				firstArgTypes = candTypes
+			}
+			if p.OID >= FirstNormalObjectId && exactUserOID == 0 {
+				exactUserOID = p.OID
+				firstArgTypes = candTypes
 			}
 		}
-		if exactUserOID != 0 {
+		if nsFound {
+			foundAny = true
 			matchedUserOID = exactUserOID
+			matchedArgTypes = firstArgTypes
 			break
 		}
-		if anyUserOID != 0 && matchedUserOID == 0 {
-			matchedUserOID = anyUserOID
-		}
-		if foundAny && matchedUserOID != 0 {
-			break
+	}
+	if foundAny && v.Args != nil {
+		for i, arg := range v.Args.Items {
+			if i < len(matchedArgTypes) && matchedArgTypes[i] == REGCLASSOID {
+				if err := c.bindRegclassLiteral(b, arg); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	if matchedUserOID != 0 {
@@ -3305,6 +3402,11 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 					b.castTypeByFC[v] = elemOID
 				}
 				b.addTypeDep(elemOID)
+				if bt.OID == REGCLASSOID && v.Args != nil && len(v.Args.Items) == 1 {
+					if err := c.bindRegclassLiteral(b, v.Args.Items[0]); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
 		}
@@ -3321,6 +3423,161 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) bindRegclassLiteral(b *ruleBindings, arg nodes.Node) error {
+	if arg == nil {
+		return nil
+	}
+	if na, ok := arg.(*nodes.NamedArgExpr); ok && na != nil {
+		arg = na.Arg
+	}
+	for {
+		if tc, ok := arg.(*nodes.TypeCast); ok && tc != nil {
+			arg = tc.Arg
+			continue
+		}
+		break
+	}
+	var litNode nodes.Node
+	var raw string
+	switch v := arg.(type) {
+	case *nodes.A_Const:
+		if v == nil || v.Isnull {
+			return nil
+		}
+		s, ok := v.Val.(*nodes.String)
+		if !ok || s == nil {
+			return nil
+		}
+		litNode = v
+		raw = s.Str
+	case *nodes.String:
+		if v == nil {
+			return nil
+		}
+		litNode = v
+		raw = v.Str
+	default:
+		return nil
+	}
+	schemaName, objName := parseRegclassIdent(raw)
+	if objName == "" {
+		return nil
+	}
+	if seq, err := c.findSequence(schemaName, objName); err == nil && seq != nil {
+		if b != nil && b.regclassByNode != nil {
+			b.regclassByNode[litNode] = ruleRegclassBinding{seqOID: seq.OID}
+		}
+		if b != nil {
+			b.addSeqDep(seq.OID)
+		}
+		return nil
+	}
+	if _, rel, err := c.findRelation(schemaName, objName); err == nil && rel != nil {
+		if b != nil && b.regclassByNode != nil {
+			b.regclassByNode[litNode] = ruleRegclassBinding{relOID: rel.OID}
+		}
+		if b != nil {
+			b.addRelDep(rel.OID)
+		}
+		return nil
+	}
+	if idx := c.findRegclassIndex(schemaName, objName); idx != nil {
+		if b != nil && b.regclassByNode != nil {
+			b.regclassByNode[litNode] = ruleRegclassBinding{idxOID: idx.OID}
+		}
+		return nil
+	}
+	if !c.snapshot {
+		return errUndefinedTable(raw)
+	}
+	return nil
+}
+
+func (c *Catalog) findRegclassIndex(schemaName, idxName string) *Index {
+	if schemaName != "" {
+		if s := c.schemaByName[schemaName]; s != nil {
+			return s.Indexes[idxName]
+		}
+		return nil
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		if s := c.schemas[nsOID]; s != nil {
+			if idx := s.Indexes[idxName]; idx != nil {
+				return idx
+			}
+		}
+	}
+	return nil
+}
+
+func parseRegclassIdent(raw string) (string, string) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return "", ""
+	}
+	var parts []string
+	for i := 0; i < len(s); {
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+		if i >= len(s) {
+			break
+		}
+		if s[i] == '"' {
+			i++
+			var b strings.Builder
+			for i < len(s) {
+				if s[i] == '"' {
+					if i+1 < len(s) && s[i+1] == '"' {
+						b.WriteByte('"')
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				b.WriteByte(s[i])
+				i++
+			}
+			parts = append(parts, b.String())
+			for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+				i++
+			}
+			if i < len(s) && s[i] == '.' {
+				i++
+			}
+		} else {
+			start := i
+			for i < len(s) && s[i] != '.' && s[i] != '"' {
+				i++
+			}
+			part := strings.ToLower(strings.TrimSpace(s[start:i]))
+			parts = append(parts, part)
+			if i < len(s) && s[i] == '.' {
+				i++
+			}
+		}
+	}
+	if len(parts) == 1 {
+		return "", parts[0]
+	}
+	if len(parts) >= 2 {
+		return parts[len(parts)-2], parts[len(parts)-1]
+	}
+	return "", ""
+}
+
+func inferRuleTargetColName(n nodes.Node) string {
+	if cr, ok := n.(*nodes.ColumnRef); ok && cr != nil && cr.Fields != nil && len(cr.Fields.Items) > 0 {
+		last := cr.Fields.Items[len(cr.Fields.Items)-1]
+		if _, isStar := last.(*nodes.A_Star); isStar {
+			return ""
+		}
+		return stringVal(last)
+	}
+	return figureColName(n)
 }
 
 type ruleDeparser struct {
@@ -3385,6 +3642,48 @@ func (d *ruleDeparser) resolveJoinUsingColName(uc ruleJoinUsingCol) string {
 		}
 	}
 	return uc.name
+}
+
+func (d *ruleDeparser) deparseBoundRegclassLiteral(n nodes.Node) string {
+	if d.cat == nil || d.b == nil || d.b.regclassByNode == nil || n == nil {
+		return ""
+	}
+	rb, ok := d.b.regclassByNode[n]
+	if !ok {
+		return ""
+	}
+	if rb.seqOID != 0 {
+		for _, s := range d.cat.schemas {
+			if s == nil {
+				continue
+			}
+			for _, seq := range s.Sequences {
+				if seq != nil && seq.OID == rb.seqOID {
+					if s.Name != "public" && s.Name != "pg_catalog" {
+						return quoteRuleLiteral(quoteIdentifier(s.Name) + "." + quoteIdentifier(seq.Name))
+					}
+					return quoteRuleLiteral(quoteIdentifier(seq.Name))
+				}
+			}
+		}
+	}
+	if rb.relOID != 0 {
+		if rel := d.cat.relationByOID[rb.relOID]; rel != nil {
+			if rel.Schema != nil && rel.Schema.Name != "public" && rel.Schema.Name != "pg_catalog" {
+				return quoteRuleLiteral(quoteIdentifier(rel.Schema.Name) + "." + quoteIdentifier(rel.Name))
+			}
+			return quoteRuleLiteral(quoteIdentifier(rel.Name))
+		}
+	}
+	if rb.idxOID != 0 {
+		if idx := d.cat.indexes[rb.idxOID]; idx != nil {
+			if idx.Schema != nil && idx.Schema.Name != "public" && idx.Schema.Name != "pg_catalog" {
+				return quoteRuleLiteral(quoteIdentifier(idx.Schema.Name) + "." + quoteIdentifier(idx.Name))
+			}
+			return quoteRuleLiteral(quoteIdentifier(idx.Name))
+		}
+	}
+	return ""
 }
 
 func (d *ruleDeparser) deparseIndexElem(elem *nodes.IndexElem) string {
@@ -4147,11 +4446,55 @@ func (d *ruleDeparser) deparseTargetList(list *nodes.List) string {
 		val := d.deparseExpr(rt.Val)
 		if rt.Name != "" {
 			parts = append(parts, val+" AS "+quoteIdentifier(rt.Name))
+		} else if d.b != nil && d.b.targetNameByRT != nil {
+			if origName, hasOrig := d.b.targetNameByRT[rt]; hasOrig && origName != "" && d.currentInferredTargetColName(rt.Val, origName) != origName {
+				parts = append(parts, val+" AS "+quoteIdentifier(origName))
+			} else {
+				parts = append(parts, val)
+			}
 		} else {
 			parts = append(parts, val)
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+func (d *ruleDeparser) currentInferredTargetColName(n nodes.Node, fallback string) string {
+	if d.b == nil || n == nil {
+		return fallback
+	}
+	switch v := n.(type) {
+	case *nodes.ColumnRef:
+		if cb, ok := d.b.colByRef[v]; ok {
+			return d.resolveBoundColName(cb, fallback)
+		}
+	case *nodes.FuncCall:
+		if procOID, ok := d.b.funcByFC[v]; ok && d.cat != nil {
+			if up := d.cat.userProcs[procOID]; up != nil && up.Name != "" {
+				return up.Name
+			}
+		}
+		if typeOID, ok := d.b.castTypeByFC[v]; ok && d.cat != nil {
+			if bt := d.cat.typeByOID[typeOID]; bt != nil && bt.TypeName != "" {
+				return bt.TypeName
+			}
+		}
+	case *nodes.TypeCast:
+		inner := inferRuleTargetColName(v.Arg)
+		if inner != "" && inner != "?column?" {
+			return d.currentInferredTargetColName(v.Arg, inner)
+		}
+		if v.TypeName != nil {
+			if tb, ok := d.b.typeByTN[v.TypeName]; ok && d.cat != nil {
+				if bt := d.cat.typeByOID[tb.typeOID]; bt != nil && bt.TypeName != "" {
+					return bt.TypeName
+				}
+			}
+		}
+	case *nodes.CollateClause:
+		return d.currentInferredTargetColName(v.Arg, fallback)
+	}
+	return fallback
 }
 
 func (d *ruleDeparser) deparseUpdateTargetCol(rt *nodes.ResTarget) string {
@@ -4275,6 +4618,10 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 				b.WriteString(quoteIdentifier(d.resolveJoinUsingColName(uc)))
 			}
 			b.WriteString(")")
+			if v.JoinUsing != nil && v.JoinUsing.Aliasname != "" {
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdentifier(v.JoinUsing.Aliasname))
+			}
 		} else if naturalResolved && v.Jointype != nodes.JOIN_INNER {
 			b.WriteString(" ON true")
 		} else if v.UsingClause != nil && len(v.UsingClause.Items) > 0 {
@@ -4286,6 +4633,10 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 				b.WriteString(quoteIdentifier(stringVal(u)))
 			}
 			b.WriteString(")")
+			if v.JoinUsing != nil && v.JoinUsing.Aliasname != "" {
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdentifier(v.JoinUsing.Aliasname))
+			}
 		} else if v.Quals != nil {
 			b.WriteString(" ON ")
 			b.WriteString(d.deparseExpr(v.Quals))
@@ -4862,10 +5213,25 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		if v.Isnull {
 			return "NULL"
 		}
+		if s := d.deparseBoundRegclassLiteral(v); s != "" {
+			return s
+		}
 		return deparseRawConstVal(v.Val)
 
 	case *nodes.Integer, *nodes.Float, *nodes.String, *nodes.Boolean, *nodes.BitString:
+		if s := d.deparseBoundRegclassLiteral(v); s != "" {
+			return s
+		}
 		return deparseRawConstVal(v)
+
+	case *nodes.CurrentOfExpr:
+		if v.CursorName != "" {
+			return "CURRENT OF " + quoteIdentifier(v.CursorName)
+		}
+		if v.CursorParam > 0 {
+			return fmt.Sprintf("CURRENT OF $%d", v.CursorParam)
+		}
+		return "CURRENT OF"
 
 	case *nodes.ParamRef:
 		return fmt.Sprintf("$%d", v.Number)
