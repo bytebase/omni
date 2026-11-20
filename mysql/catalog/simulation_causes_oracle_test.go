@@ -4922,6 +4922,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "SET sql_mode = IF(IF(1, 1, 'x') = '01', 'ANSI', '')",
 			code:    0,
 		},
+		{
+			name:  "DISCARD TABLESPACE on self-referencing FK table with foreign_key_checks=1 accepted with 0 on mysql 8.0.46",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_self FOREIGN KEY (pid) REFERENCES a(id))"},
+			stmt:  "ALTER TABLE a DISCARD TABLESPACE",
+			code:  0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -6125,13 +6131,26 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 
 	renFailCat := New()
-	execAlterClauses(t, renFailCat, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT DEFAULT (t.a + 1), KEY ((t.a + 1)));")
+	execAlterClauses(t, renFailCat, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT DEFAULT (t.a + 1), KEY ((t.a + 1))); CREATE TABLE u_def (c INT, d INT DEFAULT (c + 1));")
 	if got, _ := simulationCatalogRefusal(t, renFailCat, "ALTER TABLE t RENAME TO u, ADD COLUMN a INT"); got != 1060 {
 		t.Fatalf("failed RENAME+ADD COLUMN got %d, want 1060", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, renFailCat, "ALTER TABLE u_def RENAME TO u_def2, RENAME COLUMN c TO c2, ADD COLUMN c INT"); got != 3766 {
+		t.Fatalf("RENAME TABLE + RENAME COLUMN + ADD COLUMN bypassing default dependency got %d, want 3766", got)
 	}
 	execAlterClauses(t, renFailCat, "ALTER TABLE t RENAME TO u2; ALTER TABLE u2 ADD COLUMN c INT;")
 
 	metaCat := New()
 	metaCat.tablespacesPartial = true
 	execAlterClauses(t, metaCat, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB; ALTER TABLE t TABLESPACE pre_existing_ts; CREATE TABLE u (id INT PRIMARY KEY) TABLESPACE pre_existing_ts ENGINE=InnoDB;")
+	if err := metaCat.DefineTable(mustParseTable(t, "CREATE TABLE loaded_ts_tbl (id INT PRIMARY KEY) TABLESPACE loaded_ts ENGINE=InnoDB")); err != nil {
+		t.Fatalf("DefineTable loaded_ts_tbl: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, metaCat, "CREATE TABLESPACE loaded_ts ADD DATAFILE 'loaded_ts.ibd' ENGINE=InnoDB"); got != 1813 {
+		t.Fatalf("CREATE TABLESPACE on metadata-loaded tablespace got %d, want 1813", got)
+	}
+	execAlterClauses(t, metaCat, "ALTER TABLESPACE loaded_ts ENCRYPTION='N';")
+
+	selfFKCat := New()
+	execAlterClauses(t, selfFKCat, "CREATE DATABASE d; USE d; CREATE TABLE s_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_s FOREIGN KEY (pid) REFERENCES s_fk(id)); ALTER TABLE s_fk DISCARD TABLESPACE;")
 }

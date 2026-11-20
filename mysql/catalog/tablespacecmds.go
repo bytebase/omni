@@ -740,6 +740,52 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	return nil
 }
 
+func isBuiltinTablespaceName(ts string) bool {
+	switch strings.ToLower(strings.TrimSpace(ts)) {
+	case "", "innodb_file_per_table", "innodb_system", "innodb_temporary":
+		return true
+	}
+	return false
+}
+
+func (c *Catalog) registerMetadataTableTablespaces(tbl *Table) {
+	if c == nil || tbl == nil || !isInnoDBEngine(tbl.Engine) {
+		return
+	}
+	registerTS := func(raw string, encrypted bool) {
+		ts := unquoteTableOption(strings.TrimSpace(raw))
+		if isBuiltinTablespaceName(ts) {
+			return
+		}
+		if c.tablespaces == nil {
+			c.tablespaces = make(map[string]bool)
+		}
+		c.tablespaces[ts] = true
+		delete(c.droppedTablespaces, ts)
+		if c.tablespaceEncrypted == nil {
+			c.tablespaceEncrypted = make(map[string]bool)
+		}
+		if _, known := c.tablespaceEncrypted[ts]; !known {
+			c.tablespaceEncrypted[ts] = encrypted
+		}
+	}
+	tblEnc := strings.EqualFold(unquoteTableOption(strings.TrimSpace(tbl.Encryption)), "Y")
+	registerTS(tbl.Tablespace, tblEnc)
+	if tbl.Partitioning != nil {
+		for _, pd := range tbl.Partitioning.Partitions {
+			if pd == nil {
+				continue
+			}
+			registerTS(pd.Tablespace, tblEnc)
+			for _, spd := range pd.SubPartitions {
+				if spd != nil {
+					registerTS(spd.Tablespace, tblEnc)
+				}
+			}
+		}
+	}
+}
+
 func tableHasDiscardedTablespace(tbl *Table) bool {
 	if tbl == nil {
 		return false

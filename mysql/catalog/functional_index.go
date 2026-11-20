@@ -77,7 +77,7 @@ func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[
 	return nil
 }
 
-func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, cloneAST bool) {
+func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, cloneAST bool, preExprs map[nodes.ExprNode]bool) {
 	if tbl == nil || oldTable == "" {
 		return
 	}
@@ -86,10 +86,17 @@ func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, clon
 			continue
 		}
 		if col.DefaultExprNode != nil {
-			rebound, sql, changed := rebindTableExprQualifiers(col.DefaultExprNode, oldDB, oldTable, cloneAST)
-			col.DefaultExprNode = rebound
-			if changed && sql != "" {
-				col.Default = &sql
+			oldNode := col.DefaultExprNode
+			rebound, sql, changed := rebindTableExprQualifiers(oldNode, oldDB, oldTable, cloneAST)
+			if changed {
+				col.DefaultExprNode = rebound
+				if sql != "" {
+					col.Default = &sql
+				}
+				if preExprs != nil && preExprs[oldNode] {
+					delete(preExprs, oldNode)
+					preExprs[rebound] = true
+				}
 			}
 		}
 		if col.Generated != nil && col.Generated.Expr != "" {
@@ -110,9 +117,11 @@ func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, clon
 				continue
 			}
 			rebound, sql, changed := rebindTableExprQualifiers(ic.ExprNode, oldDB, oldTable, cloneAST)
-			ic.ExprNode = rebound
-			if changed && sql != "" {
-				ic.Expr = sql
+			if changed {
+				ic.ExprNode = rebound
+				if sql != "" {
+					ic.Expr = sql
+				}
 			}
 		}
 	}

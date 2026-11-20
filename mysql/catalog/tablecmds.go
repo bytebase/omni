@@ -1035,6 +1035,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if !declared {
+		c.registerMetadataTableTablespaces(tbl)
+	}
+
 	db.Tables[key] = tbl
 	return nil
 }
@@ -3720,7 +3724,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	if srcTbl.Database != nil {
 		likeSrcDB = srcTbl.Database.Name
 	}
-	stripTableQualifiersFromTableExprs(tbl, likeSrcDB, srcTbl.Name, true)
+	stripTableQualifiersFromTableExprs(tbl, likeSrcDB, srcTbl.Name, true, nil)
 
 	db.Tables[key] = tbl
 	return nil

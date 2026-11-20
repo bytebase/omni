@@ -29,7 +29,7 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		tbl.Name = pair.New.Name
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
-		stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true)
+		stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true, nil)
 	}
 	return nil
 }

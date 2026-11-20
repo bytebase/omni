@@ -475,7 +475,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	deferKeyWidths := alterChangesIndexCapacity(stmt.Commands)
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
 	for _, cmd := range stmt.Commands {
-		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths, preExprs); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
@@ -870,7 +870,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string, checkIndexWidths bool) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string, checkIndexWidths bool, preExprs map[nodes.ExprNode]bool) error {
 	if tableHasDiscardedTablespace(tbl) && alterCmdRequiresTablespace(cmd) &&
 		!(cmd.Type == nodes.ATDropPartition && tbl.Partitioning != nil && !tbl.TablespaceDiscarded) {
 		return errTablespaceDiscarded(db.Name, tbl.Name)
@@ -895,7 +895,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRenameIndex:
 		return c.alterRenameIndex(tbl, cmd)
 	case nodes.ATRenameTable:
-		return c.alterRenameTable(db, tbl, cmd)
+		return c.alterRenameTable(db, tbl, cmd, preExprs)
 	case nodes.ATTableOption:
 		return c.alterTableOption(tbl, cmd)
 	case nodes.ATAlterColumnDefault:
@@ -1862,7 +1862,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 }
 
 // alterRenameTable moves a table to a new name.
-func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, preExprs map[nodes.ExprNode]bool) error {
 	newTable := cmd.NewTable
 	if newTable == nil {
 		newTable = &nodes.TableRef{Name: cmd.NewName}
@@ -1895,7 +1895,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
-	stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true)
+	stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true, preExprs)
 	return nil
 }
 
