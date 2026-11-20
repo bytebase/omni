@@ -66,10 +66,16 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		idxCols = append(idxCols, col)
 	}
 	// USING RTREE makes a plain CREATE INDEX a SPATIAL one, as it does in a table
-	// definition (mysql:8.0.46 stores `SPATIAL KEY g (g)`). A unique index is left as
-	// it was: MySQL refuses one that is spatial with 3728, which the catalog does not
-	// answer.
-	usingSpatial := !stmt.Unique && isSpatialIndexType(resolveIndexUsingType(stmt.IndexType, stmt.Options))
+	// definition (mysql:8.0.46 stores `SPATIAL KEY g (g)`). On a UNIQUE index,
+	// MySQL checks that every key part is geometrical (1687) and then refuses a
+	// unique spatial index with 3728.
+	effUsingType := resolveIndexUsingType(stmt.IndexType, stmt.Options)
+	if stmt.Unique {
+		if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, effUsingType); err != nil {
+			return err
+		}
+	}
+	usingSpatial := !stmt.Unique && isSpatialIndexType(effUsingType)
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial); err != nil {
 		return err
 	}

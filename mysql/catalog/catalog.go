@@ -4,6 +4,7 @@ package catalog
 type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
 	tablespaces      map[string]bool      // exact general tablespace names
+	undoTablespaces  map[string]bool      // exact undo tablespace names -> active
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string
@@ -34,6 +35,7 @@ func New() *Catalog {
 	return &Catalog{
 		databases:        make(map[string]*Database),
 		tablespaces:      make(map[string]bool),
+		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
 		defaultCharset:   "utf8mb4",
 		defaultCollation: "utf8mb4_0900_ai_ci",
 		charsetClient:    session.CharsetClient,

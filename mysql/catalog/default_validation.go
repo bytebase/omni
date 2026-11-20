@@ -319,7 +319,7 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 			return errInvalidDefault(col.Name)
 		}
 	case "float", "double", "real":
-		if !validFloatLiteralDefault(dt, unsigned, kind, val) {
+		if !validFloatLiteralDefault(dt, col.ColumnType, unsigned, kind, val, strict) {
 			return errInvalidDefault(col.Name)
 		}
 	case "char", "varchar":
@@ -746,9 +746,24 @@ func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefau
 	return roundedScaled.Cmp(maxDigits) < 0
 }
 
-func validFloatLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string) bool {
+func validFloatLiteralDefault(dt, colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
+	pt := parseColumnType(colType)
+	hasMD := pt.hasLen && pt.hasScale && pt.scale >= 0
 	if kind == litBit || kind == litHex {
-		return true
+		if !hasMD {
+			return true
+		}
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return false
+		}
+		n := new(big.Int).SetBytes(raw)
+		intDigits := pt.length - pt.scale
+		if intDigits < 0 {
+			intDigits = 0
+		}
+		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
+		return n.Cmp(maxInt) < 0
 	}
 	s := strings.TrimSpace(val)
 	if !isStrictNumberSyntax(s) {
@@ -761,8 +776,12 @@ func validFloatLiteralDefault(dt string, unsigned bool, kind literalDefaultKind,
 	if unsigned && f < 0 {
 		return false
 	}
-	if dt == "float" && math.Abs(f) > math.MaxFloat32 {
+	isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
+	if isFloat32 && math.Abs(f) > math.MaxFloat32 {
 		return false
+	}
+	if hasMD {
+		return validDecimalLiteralDefault(colType, unsigned, kind, val, strict)
 	}
 	return true
 }
@@ -842,22 +861,63 @@ func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bo
 	return (len(s) <= 2 && n >= 1 && n <= 99) || (n >= 1901 && n <= 2155)
 }
 
-func validNumericDefaultForStringLen(val string, maxLen int) bool {
+func coercedNumericStringForCharLen(val string, maxLen int) (string, bool) {
 	if maxLen <= 0 {
-		return false
+		return "", false
 	}
 	s := strings.TrimSpace(val)
 	if !isStrictNumberSyntax(s) {
-		return len(s) <= maxLen
+		if len(s) <= maxLen {
+			return s, true
+		}
+		return "", false
 	}
 	if strings.ContainsAny(s, "eE") {
 		f, err := strconv.ParseFloat(s, 64)
 		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
-			return false
+			return "", false
 		}
-		return myGcvtFits(f, maxLen)
+		return myGcvtFormat(f, maxLen)
 	}
-	return len(coercedExactNumericString(s)) <= maxLen
+	exact := coercedExactNumericString(s)
+	if len(exact) > maxLen {
+		return "", false
+	}
+	return exact, true
+}
+
+func validNumericDefaultForStringLen(val string, maxLen int) bool {
+	_, ok := coercedNumericStringForCharLen(val, maxLen)
+	return ok
+}
+
+// coerceNumericDefaultForCharColumn returns the string MySQL stores in the data
+// dictionary when an unparenthesized numeric literal default is declared on a
+// CHAR or VARCHAR column (e.g. `CHAR(1) DEFAULT 01` -> `'1'`).
+func coerceNumericDefaultForCharColumn(col *Column, expr nodes.ExprNode) (string, bool) {
+	if col == nil {
+		return "", false
+	}
+	dt := strings.ToLower(col.DataType)
+	if dt != "char" && dt != "varchar" {
+		return "", false
+	}
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind != litNumber || !unquotedNum {
+		return "", false
+	}
+	maxLen, ok := fixedLengthStringColumnLimit(col)
+	if !ok {
+		maxLen = 325
+	}
+	coerced, ok := coercedNumericStringForCharLen(val, maxLen)
+	if !ok {
+		return "", false
+	}
+	if norm, changed := normalizeCharDefaultStringLiteral(col, coerced); changed {
+		return norm, true
+	}
+	return coerced, true
 }
 
 // coercedExactNumericString normalizes an exact integer or fixed-point decimal
@@ -909,24 +969,53 @@ func allNinePrefix(digits string, n int) bool {
 	return true
 }
 
-// myGcvtFits reports whether MySQL's my_gcvt(f, MY_GCVT_ARG_DOUBLE, width, ...)
-// formats f within width bytes without reporting an overflow error.
-func myGcvtFits(f float64, width int) bool {
+func formatGcvtFixed(av float64, neg bool, fracDigits int) string {
+	raw := strconv.FormatFloat(av, 'f', fracDigits, 64)
+	if strings.IndexByte(raw, '.') >= 0 {
+		raw = strings.TrimRight(raw, "0")
+		raw = strings.TrimSuffix(raw, ".")
+	}
+	if raw == "0" || !neg {
+		return raw
+	}
+	return "-" + raw
+}
+
+func formatGcvtSci(av float64, neg bool, ndigits int) string {
+	raw := strconv.FormatFloat(av, 'e', ndigits-1, 64)
+	ePos := strings.IndexByte(raw, 'e')
+	mPart := raw[:ePos]
+	if strings.IndexByte(mPart, '.') >= 0 {
+		mPart = strings.TrimRight(mPart, "0")
+		mPart = strings.TrimSuffix(mPart, ".")
+	}
+	expVal, _ := strconv.Atoi(raw[ePos+1:])
+	res := mPart + "e" + strconv.Itoa(expVal)
+	if neg {
+		return "-" + res
+	}
+	return res
+}
+
+// myGcvtFormat reproduces MySQL's my_gcvt(f, MY_GCVT_ARG_DOUBLE, width, ...)
+// string output and reports whether f fits within width bytes without overflow.
+func myGcvtFormat(f float64, width int) (string, bool) {
 	if width <= 0 {
-		return false
+		return "", false
 	}
 	if f == 0 {
-		return true
+		return "0", true
 	}
+	neg := f < 0
 	sign := 0
 	av := f
-	if f < 0 {
+	if neg {
 		sign = 1
 		av = -f
 	}
 	avail := width - sign
 	if avail <= 0 {
-		return false
+		return "", false
 	}
 	sci := strconv.FormatFloat(av, 'e', -1, 64)
 	ePos := strings.IndexByte(sci, 'e')
@@ -938,17 +1027,21 @@ func myGcvtFits(f float64, width int) bool {
 	exp, _ := strconv.Atoi(sci[ePos+1:])
 	decpt := exp + 1
 
-	// Fixed-point path in my_gcvt.
-	if decpt <= 0 {
-		if -decpt < avail-1 || (decpt >= -2 && avail >= 2) {
-			return true
+	if decpt >= 1 {
+		if decpt < avail {
+			fracDigits := avail - decpt - 1
+			if fracDigits < 0 {
+				fracDigits = 0
+			}
+			return formatGcvtFixed(av, neg, fracDigits), true
 		}
-	} else if decpt < avail {
-		return true
-	} else if decpt == avail {
-		if len(mant) <= decpt || !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
-			return true
+		if decpt == avail {
+			if len(mant) <= decpt || !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
+				return formatGcvtFixed(av, neg, 0), true
+			}
 		}
+	} else if decpt >= -4 && avail >= 3-decpt {
+		return formatGcvtFixed(av, neg, avail-2), true
 	}
 
 	// Scientific notation path (`d[.ddd]e[+-]exp`). When len(mant) > 1, my_gcvt
@@ -959,16 +1052,17 @@ func myGcvtFits(f float64, width int) bool {
 		dot = 1
 	}
 	ndigits := avail - expLen - dot
-	if ndigits < 1 {
-		return false
-	}
-	if ndigits < len(mant) && allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' {
-		newExpLen := 1 + len(strconv.Itoa(exp+1))
-		if avail-newExpLen-dot < 1 {
-			return false
+	if ndigits >= 1 {
+		if !(ndigits < len(mant) && allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' && avail-(1+len(strconv.Itoa(exp+1)))-dot < 1) {
+			return formatGcvtSci(av, neg, ndigits), true
 		}
 	}
-	return true
+
+	// Sub-unit fixed fallback ('0') when decpt in {-2, -1, 0} and avail >= 2.
+	if decpt <= 0 && decpt >= -2 && avail >= 2 {
+		return formatGcvtFixed(av, neg, avail-2), true
+	}
+	return "", false
 }
 
 func coercedDefaultLiteralString(s string) (string, bool) {

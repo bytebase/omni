@@ -95,11 +95,14 @@ const (
 	ErrCannotDiscardImportTempTable      = 3007
 	ErrWrongTablespaceName               = 3119
 	ErrTablespaceIsNotEmpty              = 3120
+	ErrWrongTablespaceFileext            = 3121
 	ErrJSONUsedAsKey                     = 3152
 	ErrIllegalValueForType               = 1367
+	ErrDropTablespaceFailed              = 1529
 	ErrTablespaceDoesNotExist            = 3510
 	ErrTablespaceEngineMismatch          = 3642
 	ErrReservedTablespaceName            = 3723
+	ErrSpatialUniqueIndex                = 3728
 	ErrFunctionalIndexPrimaryKey         = 3756
 	ErrFunctionalIndexOnField            = 3762
 	ErrDependentByDefaultVal             = 3766
@@ -206,7 +209,10 @@ var sqlStateMap = map[int]string{
 	ErrAutoextendSizeNotMultiple:         "HY000",
 	ErrAutoextendSizeOutOfRange:          "HY000",
 	ErrIllegalValueForType:               "22007",
+	ErrDropTablespaceFailed:              "HY000",
+	ErrWrongTablespaceFileext:            "HY000",
 	ErrTablespaceEngineMismatch:          "HY000",
+	ErrSpatialUniqueIndex:                "HY000",
 }
 
 func sqlState(code int) string {
@@ -705,6 +711,26 @@ func errTablespaceEngineMismatch(engine, tsName string) error {
 func errIllegalValueForType(typeName, val string) error {
 	return &Error{Code: ErrIllegalValueForType, SQLState: sqlState(ErrIllegalValueForType),
 		Message: fmt.Sprintf("Illegal %s '%s' value found during parsing", typeName, val)}
+}
+
+func errDropUndoTablespaceFailed(name string) error {
+	return &Error{Code: ErrDropTablespaceFailed, SQLState: sqlState(ErrDropTablespaceFailed),
+		Message: fmt.Sprintf("Failed to drop UNDO TABLESPACE %s", name)}
+}
+
+func errUndoTablespaceDatafileExt() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The ADD DATAFILE filepath must end with '.ibu'."}
+}
+
+func errWrongTablespaceKind(op, name, actualKind, suggestOp string) error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: fmt.Sprintf("Cannot %s `%s` because it is %s tablespace.  Please use %s.", op, name, actualKind, suggestOp)}
+}
+
+func errSpatialUniqueIndex() error {
+	return &Error{Code: ErrSpatialUniqueIndex, SQLState: sqlState(ErrSpatialUniqueIndex),
+		Message: "Spatial indexes can't be primary or unique indexes."}
 }
 
 func errDependentByDefaultValExpr(colName, tableName string) error {

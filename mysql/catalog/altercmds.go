@@ -459,7 +459,11 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 					return err
 				}
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+				pkCols := buildIndexColumns(con)
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, pkCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
+				if err := validateIndexColumns(tbl, pkCols, false, false); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -470,7 +474,15 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 						col.Nullable = false
 					}
 				}
-			case nodes.ConstrUnique, nodes.ConstrIndex:
+			case nodes.ConstrUnique:
+				uqCols := buildIndexColumns(con)
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, uqCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
+				if err := validateIndexColumns(tbl, uqCols, false, false); err != nil {
+					return err
+				}
+			case nodes.ConstrIndex:
 				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
 					return err
 				}

@@ -179,6 +179,14 @@ func (c *Catalog) validateTablespaceCreateEngine(engine, op string) error {
 	return nil
 }
 
+func (c *Catalog) isGeneralTablespaceName(name string) bool {
+	if c.tablespaces[name] {
+		return true
+	}
+	lower := strings.ToLower(name)
+	return lower == "innodb_system" || lower == "innodb_temporary" || lower == "mysql"
+}
+
 func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	op := "CREATE TABLESPACE"
 	if stmt.Undo {
@@ -195,14 +203,18 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 		return errInvalidEncryptionOption()
 	}
-	if stmt.Undo {
-		return nil
-	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
 		return err
 	}
-	if c.tablespaces[stmt.Name] {
+	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo || c.tablespaces[stmt.Name] {
 		return errTablespaceExists(stmt.Name)
+	}
+	if stmt.Undo {
+		if stmt.DataFile != "" && !strings.HasSuffix(strings.ToLower(stmt.DataFile), ".ibu") {
+			return errUndoTablespaceDatafileExt()
+		}
+		c.undoTablespaces[stmt.Name] = true
+		return nil
 	}
 	c.tablespaces[stmt.Name] = true
 	return nil
@@ -221,7 +233,21 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 			return errInvalidEncryptionOption()
 		}
+		if c.isGeneralTablespaceName(stmt.Name) {
+			return errWrongTablespaceKind("ALTER UNDO TABLESPACE", stmt.Name, "a general", "ALTER TABLESPACE")
+		}
+		if _, exists := c.undoTablespaces[stmt.Name]; !exists {
+			return errTablespaceDoesNotExist(stmt.Name)
+		}
+		if stmt.SetInactive {
+			c.undoTablespaces[stmt.Name] = false
+		} else if stmt.SetActive {
+			c.undoTablespaces[stmt.Name] = true
+		}
 		return nil
+	}
+	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo {
+		return errWrongTablespaceKind("ALTER TABLESPACE", stmt.Name, "an undo", "ALTER UNDO TABLESPACE")
 	}
 	lower := strings.ToLower(stmt.Name)
 	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
@@ -249,7 +275,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		if err := validateTablespaceCreateName(stmt.RenameTo); err != nil {
 			return err
 		}
-		if stmt.RenameTo != stmt.Name && c.tablespaces[stmt.RenameTo] {
+		if _, isUndo := c.undoTablespaces[stmt.RenameTo]; stmt.RenameTo != stmt.Name && (c.tablespaces[stmt.RenameTo] || isUndo) {
 			return errTablespaceExists(stmt.RenameTo)
 		}
 		delete(c.tablespaces, stmt.Name)
@@ -268,7 +294,24 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		if err := c.validateTablespaceCreateEngine(stmt.Engine, "DROP UNDO TABLESPACE"); err != nil {
 			return err
 		}
+		if c.isGeneralTablespaceName(stmt.Name) {
+			return errWrongTablespaceKind("DROP UNDO TABLESPACE", stmt.Name, "a general", "DROP TABLESPACE")
+		}
+		if strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
+			return errReservedInnoDBTablespacePrefix()
+		}
+		active, exists := c.undoTablespaces[stmt.Name]
+		if !exists {
+			return errTablespaceDoesNotExist(stmt.Name)
+		}
+		if active {
+			return errDropUndoTablespaceFailed(stmt.Name)
+		}
+		delete(c.undoTablespaces, stmt.Name)
 		return nil
+	}
+	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo && !strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
+		return errWrongTablespaceKind("DROP TABLESPACE", stmt.Name, "an undo", "DROP UNDO TABLESPACE")
 	}
 	lower := strings.ToLower(stmt.Name)
 	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"

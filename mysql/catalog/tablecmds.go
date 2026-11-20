@@ -607,6 +607,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			idxCols := buildIndexColumns(con)
 			if declared {
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
 				if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 					return err
 				}
@@ -664,6 +667,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			if err := checkKeyColumns(con); err != nil {
 				return err
+			}
+			if declared {
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
 			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
@@ -1351,6 +1359,8 @@ func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 			cp.Value = normVal
 			expr = &cp
 		}
+	} else if coerced, ok := coerceNumericDefaultForCharColumn(col, expr); ok {
+		expr = &nodes.StringLit{Value: coerced}
 	}
 	val, kind := columnDefaultValue(expr)
 	col.Default = &val
@@ -2300,6 +2310,24 @@ func isSpatialIndexType(indexType string) bool {
 		return true
 	}
 	return false
+}
+
+// validateUniqueOrPrimaryNotSpatial rejects PRIMARY KEY / UNIQUE KEY / CREATE
+// UNIQUE INDEX with USING RTREE: mysql:8.0.46 checks that every key part is
+// geometrical (1687) and then refuses unique/primary spatial indexes with 3728.
+func validateUniqueOrPrimaryNotSpatial(tbl *Table, idxCols []*IndexColumn, indexType string) error {
+	if !isSpatialIndexType(indexType) {
+		return nil
+	}
+	for _, ic := range idxCols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		if col := tbl.GetColumn(ic.Name); col != nil && !isGeometryColumnType(col.DataType) {
+			return errSpatialNotGeometrical()
+		}
+	}
+	return errSpatialUniqueIndex()
 }
 
 // storedIndexType is the type an index whose USING names a spatial access method is
