@@ -3212,6 +3212,140 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (c SET('a','b') DEFAULT b'1')",
 			code: 1067,
 		},
+		// 16. Offset-bearing temporal defaults normalized to session time_zone, tablespace
+		//     ADD DATAFILE / FILE_BLOCK_SIZE checks, and table AUTOEXTEND_SIZE preservation.
+		{
+			name:     "CREATE TABLE DATETIME and TIMESTAMP defaults with explicit offsets normalize into session time_zone",
+			session:  []string{"SET SESSION time_zone = '+08:00'"},
+			stmt:     "CREATE TABLE a (dt DATETIME DEFAULT '2024-01-01 00:00:00+14:00', ts TIMESTAMP DEFAULT '2024-01-01 00:00:00+14:00', d DATE DEFAULT '2024-01-01 00:00:00+14:00')",
+			code:     0,
+			contains: []string{"`dt` datetime DEFAULT '2023-12-31 18:00:00'", "`ts` timestamp NULL DEFAULT '2023-12-31 18:00:00'", "`d` date DEFAULT '2023-12-31'"},
+			omits:    []string{"+14:00"},
+		},
+		{
+			name:     "CREATE TABLE DATETIME(3) default with offset and hex offset normalize into session time_zone",
+			session:  []string{"SET SESSION time_zone = '+00:00'"},
+			stmt:     "CREATE TABLE a (dt3 DATETIME(3) DEFAULT '2024-01-01 00:00:00.5678+05:30', dth DATETIME DEFAULT 0x323032342D30312D30312030303A30303A30302B31343A3030)",
+			code:     0,
+			contains: []string{"`dt3` datetime(3) DEFAULT '2023-12-31 18:30:00.568'", "`dth` datetime DEFAULT '2023-12-31 10:00:00'"},
+		},
+		{
+			name:    "CREATE TABLE DATETIME default with offset overflowing year 9999 in session time_zone rejected",
+			session: []string{"SET SESSION time_zone = '+05:00'"},
+			stmt:    "CREATE TABLE a (dt DATETIME DEFAULT '9999-12-31 23:00:00+00:00')",
+			code:    1067,
+		},
+		{
+			name:    "CREATE TABLE DATETIME default with offset underflowing year 0 in session time_zone rejected",
+			session: []string{"SET SESSION time_zone = '-05:00'"},
+			stmt:    "CREATE TABLE a (dt DATETIME DEFAULT '0000-01-01 01:00:00+00:00')",
+			code:    1067,
+		},
+		{
+			name:     "ALTER TABLE ALTER COLUMN SET DEFAULT with explicit offset normalizes into session time_zone",
+			setup:    []string{"CREATE TABLE a (dt DATETIME, ts TIMESTAMP NULL)"},
+			session:  []string{"SET SESSION time_zone = '-05:00'"},
+			stmt:     "ALTER TABLE a ALTER COLUMN dt SET DEFAULT '2024-01-01 02:00:00+00:00'",
+			code:     0,
+			contains: []string{"`dt` datetime DEFAULT '2023-12-31 21:00:00'"},
+		},
+		{
+			name: "CREATE TABLESPACE ADD DATAFILE without .ibd extension rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_bad_ext ADD DATAFILE 'ts_bad_ext.txt' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name: "CREATE TABLESPACE ADD DATAFILE empty filename rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_emp_df ADD DATAFILE '' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name: "CREATE TABLESPACE ADD DATAFILE bare .ibd filename rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_dot_df ADD DATAFILE '.ibd' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name: "CREATE TABLESPACE ADD DATAFILE uppercase .IBD rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_up_df ADD DATAFILE 'ts_up_df.IBD' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name: "CREATE TABLESPACE ADD DATAFILE outside directory rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_dir_df ADD DATAFILE '../ts_dir_df.ibd' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name:    "CREATE TABLESPACE duplicate ADD DATAFILE rejected with 3606",
+			setup:   []string{"CREATE TABLESPACE ts_df1 ADD DATAFILE 'shared_df.ibd' ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLESPACE ts_df1"},
+			stmt:    "CREATE TABLESPACE ts_df2 ADD DATAFILE 'shared_df.ibd' ENGINE=InnoDB",
+			code:    3606,
+		},
+		{
+			name: "CREATE TABLESPACE FILE_BLOCK_SIZE=1 rejected with 1478",
+			stmt: "CREATE TABLESPACE ts_fbs_bad1 ADD DATAFILE 'ts_fbs_bad1.ibd' FILE_BLOCK_SIZE=1 ENGINE=InnoDB",
+			code: 1478,
+		},
+		{
+			name: "CREATE TABLESPACE FILE_BLOCK_SIZE=32K rejected above innodb_page_size with 1478",
+			stmt: "CREATE TABLESPACE ts_fbs_32k ADD DATAFILE 'ts_fbs_32k.ibd' FILE_BLOCK_SIZE=32K ENGINE=InnoDB",
+			code: 1478,
+		},
+		{
+			name:    "CREATE TABLESPACE FILE_BLOCK_SIZE=8K accepted",
+			cleanup: []string{"DROP TABLESPACE ts_fbs_8k"},
+			stmt:    "CREATE TABLESPACE ts_fbs_8k ADD DATAFILE 'ts_fbs_8k.ibd' FILE_BLOCK_SIZE=8K ENGINE=InnoDB",
+			code:    0,
+		},
+		{
+			name: "CREATE TABLESPACE FILE_BLOCK_SIZE validated ahead of AUTOEXTEND_SIZE and DATAFILE",
+			stmt: "CREATE TABLESPACE ts_fbs_prec ADD DATAFILE 'ts_fbs_prec.txt' FILE_BLOCK_SIZE=1 AUTOEXTEND_SIZE=1 ENGINE=InnoDB",
+			code: 1478,
+		},
+		{
+			name:     "CREATE TABLE AUTOEXTEND_SIZE=4M preserved as byte value in SHOW CREATE TABLE",
+			stmt:     "CREATE TABLE a (c INT) AUTOEXTEND_SIZE=4M",
+			code:     0,
+			contains: []string{"/*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB"},
+		},
+		{
+			name:     "ALTER TABLE AUTOEXTEND_SIZE=8M preserved in SHOW CREATE TABLE",
+			setup:    []string{"CREATE TABLE a (c INT)"},
+			stmt:     "ALTER TABLE a AUTOEXTEND_SIZE=8M",
+			code:     0,
+			contains: []string{"/*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB"},
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE=0 clears stored AUTOEXTEND_SIZE",
+			setup: []string{"CREATE TABLE a (c INT) AUTOEXTEND_SIZE=8M"},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE=0",
+			code:  0,
+			omits: []string{"AUTOEXTEND_SIZE"},
+		},
+		{
+			name:     "CREATE TABLE LIKE preserves AUTOEXTEND_SIZE",
+			setup:    []string{"CREATE TABLE src_ae (c INT) AUTOEXTEND_SIZE=12M"},
+			stmt:     "CREATE TABLE a LIKE src_ae",
+			code:     0,
+			contains: []string{"/*!80023 AUTOEXTEND_SIZE=12582912 */ ENGINE=InnoDB"},
+		},
+		{
+			name:    "CREATE TABLE AUTOEXTEND_SIZE on general tablespace rejected with 4024",
+			setup:   []string{"CREATE TABLESPACE ts_ae_gen ADD DATAFILE 'ts_ae_gen.ibd'"},
+			cleanup: []string{"DROP TABLESPACE ts_ae_gen"},
+			stmt:    "CREATE TABLE a (c INT) TABLESPACE ts_ae_gen AUTOEXTEND_SIZE=8M",
+			code:    4024,
+		},
+		{
+			name: "CREATE TEMPORARY TABLE non-zero AUTOEXTEND_SIZE rejected with 4026",
+			stmt: "CREATE TEMPORARY TABLE a_tmp_ae (c INT) AUTOEXTEND_SIZE=8M",
+			code: 4026,
+		},
+		{
+			name: "CREATE TABLE AUTOEXTEND_SIZE on innodb_system rejected with 1478",
+			stmt: "CREATE TABLE a (c INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=8M",
+			code: 1478,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3557,5 +3691,20 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if got, _ := simulationCatalogRefusal(t, sdlCat, "DROP TABLESPACE ts_part"); got != 3120 {
 		t.Fatalf("DROP SDL-registered partition tablespace got %d, want 3120", got)
+	}
+
+	// LoadSDL round-trips ShowCreateTable output with /*!80023 AUTOEXTEND_SIZE=... */
+	// and offset-normalized temporal defaults.
+	execAlterClauses(t, c, "SET SESSION time_zone = '+08:00'; CREATE TABLE t_ae_sdl (id INT PRIMARY KEY, dt DATETIME DEFAULT '2024-01-01 00:00:00+14:00') AUTOEXTEND_SIZE=16M;")
+	aeSDL := c.ShowCreateTable("d", "t_ae_sdl")
+	if !strings.Contains(aeSDL, "/*!80023 AUTOEXTEND_SIZE=16777216 */ ENGINE=InnoDB") || !strings.Contains(aeSDL, "DEFAULT '2023-12-31 18:00:00'") {
+		t.Fatalf("unexpected ShowCreateTable for t_ae_sdl:\n%s", aeSDL)
+	}
+	sdlCat2, err := LoadSDL("CREATE DATABASE d;\nUSE d;\n" + aeSDL + ";")
+	if err != nil {
+		t.Fatalf("LoadSDL with AUTOEXTEND_SIZE failed: %v", err)
+	}
+	if gotSDL := sdlCat2.ShowCreateTable("d", "t_ae_sdl"); gotSDL != aeSDL {
+		t.Fatalf("LoadSDL round-trip mismatch:\ngot:\n%s\nwant:\n%s", gotSDL, aeSDL)
 	}
 }

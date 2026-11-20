@@ -1301,6 +1301,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 	}
 
 	if _, ok := p.match(kwADD); ok {
+		stmt.HasDataFile = true
 		if stmt.DataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}

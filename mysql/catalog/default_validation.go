@@ -401,7 +401,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			return errInvalidDefault(col.Name)
 		}
 	}
-	normalizeColumnStoredDefault(col, expr, strict, truncateFrac)
+	normalizeColumnStoredDefault(col, expr, strict, truncateFrac, sessionTZ)
 	return nil
 }
 
@@ -607,7 +607,7 @@ func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefa
 	return formatted, true
 }
 
-func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) (string, bool) {
+func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ string) (string, bool) {
 	if col == nil || expr == nil {
 		return "", false
 	}
@@ -625,7 +625,7 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, trunca
 	dt := strings.ToLower(col.DataType)
 	switch dt {
 	case "date", "datetime", "timestamp":
-		return coerceDateOrDatetimeDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
+		return coerceDateOrDatetimeDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac, sessionTZ)
 	case "time":
 		return coerceTimeDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
 	case "year":
@@ -710,7 +710,7 @@ func myGcvtFloat32(f float32) string {
 	return raw[:ePos] + "e" + strconv.Itoa(expVal)
 }
 
-func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) {
+func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ string) {
 	if col == nil || expr == nil || col.Default == nil {
 		return
 	}
@@ -732,7 +732,7 @@ func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, trun
 		col.Default = &v
 		return
 	}
-	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac); ok {
+	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, sessionTZ); ok {
 		col.Default = &coerced
 	}
 }
@@ -2087,6 +2087,10 @@ func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKi
 		if dt == "timestamp" && (utc.Before(minUTC) || utc.After(maxUTC)) {
 			return false
 		}
+		localT := convertUTCToSessionLocal(utc, sessionTZ)
+		if localT.Year() < 0 || localT.Year() > 9999 {
+			return false
+		}
 		return true
 	}
 	if dt == "timestamp" {
@@ -2096,6 +2100,51 @@ func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKi
 		}
 	}
 	return true
+}
+
+func convertUTCToSessionLocal(utc time.Time, sessionTZ string) time.Time {
+	tz := strings.TrimSpace(sessionTZ)
+	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
+		return utc.UTC()
+	}
+	if len(tz) == 6 && (tz[0] == '+' || tz[0] == '-') && tz[3] == ':' {
+		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
+		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
+		off := hh*60 + mm
+		if tz[0] == '-' {
+			off = -off
+		}
+		return utc.UTC().Add(time.Duration(off) * time.Minute)
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		return utc.UTC()
+	}
+	return utc.In(loc)
+}
+
+func resolveTimezoneDateTimeToSession(p parsedMySQLDateTime, sessionTZ string) (parsedMySQLDateTime, bool) {
+	if !p.hasTZ {
+		return p, true
+	}
+	nsec := p.micros * 1000
+	utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
+	if utc.Year() < 0 || utc.Year() > 9999 {
+		return parsedMySQLDateTime{}, false
+	}
+	localT := convertUTCToSessionLocal(utc, sessionTZ)
+	if localT.Year() < 0 || localT.Year() > 9999 {
+		return parsedMySQLDateTime{}, false
+	}
+	return parsedMySQLDateTime{
+		year:   localT.Year(),
+		month:  int(localT.Month()),
+		day:    localT.Day(),
+		hour:   localT.Hour(),
+		min:    localT.Minute(),
+		sec:    localT.Second(),
+		micros: localT.Nanosecond() / 1000,
+	}, true
 }
 
 func formatParsedDateOrDatetime(dt string, fsp int, p parsedMySQLDateTime) string {
@@ -2116,7 +2165,7 @@ func formatParsedDateOrDatetime(dt string, fsp int, p parsedMySQLDateTime) strin
 		p.year, p.month, p.day, p.hour, p.min, p.sec, fracSuffix)
 }
 
-func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) (string, bool) {
+func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool, sessionTZ string) (string, bool) {
 	switch {
 	case kind == litNumber && unquotedNum:
 		p, ok := parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
@@ -2130,18 +2179,32 @@ func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, va
 			return "", false
 		}
 		p, ok := parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
-		if !ok || p.hasTZ {
+		if !ok {
+			return "", false
+		}
+		p, ok = resolveTimezoneDateTimeToSession(p, sessionTZ)
+		if !ok {
 			return "", false
 		}
 		return formatParsedDateOrDatetime(dt, fsp, p), true
-	case kind == litString && dt != "date":
+	case kind == litString:
 		s := strings.TrimSpace(val)
-		_, frac := splitDateTimeTrailingFraction(s)
-		if len(frac) <= fsp {
+		p, ok := parseMySQLStringDateTime(dt, fsp, s, truncateFrac)
+		if !ok {
 			return "", false
 		}
-		p, ok := parseMySQLStringDateTime(dt, fsp, s, truncateFrac)
-		if !ok || p.hasTZ {
+		if p.hasTZ {
+			p, ok = resolveTimezoneDateTimeToSession(p, sessionTZ)
+			if !ok {
+				return "", false
+			}
+			return formatParsedDateOrDatetime(dt, fsp, p), true
+		}
+		if dt == "date" {
+			return "", false
+		}
+		_, frac := splitDateTimeTrailingFraction(s)
+		if len(frac) <= fsp {
 			return "", false
 		}
 		return formatParsedDateOrDatetime(dt, fsp, p), true

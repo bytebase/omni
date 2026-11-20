@@ -28,6 +28,7 @@ type Table struct {
 	AvgRowLength        string
 	Tablespace          string
 	TablespaceDiscarded bool
+	AutoExtendSize      uint64
 	PackKeys            string
 	Checksum            string
 	DelayKeyWrite       string

@@ -4233,7 +4233,7 @@ func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
 		sb.WriteString(" :undo true")
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.DataFile != "" {
+	if n.HasDataFile || n.DataFile != "" {
 		fmt.Fprintf(sb, " :datafile %q", n.DataFile)
 	}
 	if n.AutoextendSize != "" {

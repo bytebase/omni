@@ -21871,3 +21871,1005 @@
 > exec
 | DROP EVENT IF EXISTS e
 < ok 0 0
+> exec
+| SET SESSION time_zone = '+08:00'
+< ok 0 0
+> exec
+| CREATE TABLE a (dt DATETIME DEFAULT '2024-01-01 00:00:00+14:00', ts TIMESTAMP DEFAULT '2024-01-01 00:00:00+14:00', d DATE DEFAULT '2024-01-01 00:00:00+14:00')
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `dt` datetime DEFAULT '2023-12-31 18:00:00',
+|   `ts` timestamp NULL DEFAULT '2023-12-31 18:00:00',
+|   `d` date DEFAULT '2023-12-31'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+00:00'
+< ok 0 0
+> exec
+| CREATE TABLE a (dt3 DATETIME(3) DEFAULT '2024-01-01 00:00:00.5678+05:30', dth DATETIME DEFAULT 0x323032342D30312D30312030303A30303A30302B31343A3030)
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `dt3` datetime(3) DEFAULT '2023-12-31 18:30:00.568',
+|   `dth` datetime DEFAULT '2023-12-31 10:00:00'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+05:00'
+< ok 0 0
+> exec
+| CREATE TABLE a (dt DATETIME DEFAULT '9999-12-31 23:00:00+00:00')
+< error
+| 1067 42000 Invalid default value for 'dt'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION time_zone = '-05:00'
+< ok 0 0
+> exec
+| CREATE TABLE a (dt DATETIME DEFAULT '0000-01-01 01:00:00+00:00')
+< error
+| 1067 42000 Invalid default value for 'dt'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (dt DATETIME, ts TIMESTAMP NULL)
+< ok 0 0
+> exec
+| SET SESSION time_zone = '-05:00'
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER COLUMN dt SET DEFAULT '2024-01-01 02:00:00+00:00'
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `dt` datetime DEFAULT '2023-12-31 21:00:00',
+|   `ts` timestamp NULL DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_bad_ext ADD DATAFILE 'ts_bad_ext.txt' ENGINE=InnoDB
+< error
+| 3121 HY000 The ADD DATAFILE filepath must end with '.ibd'.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_emp_df ADD DATAFILE '' ENGINE=InnoDB
+< error
+| 3121 HY000 The ADD DATAFILE filepath does not have a proper filename.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_dot_df ADD DATAFILE '.ibd' ENGINE=InnoDB
+< error
+| 3121 HY000 The ADD DATAFILE filepath does not have a proper filename.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_up_df ADD DATAFILE 'ts_up_df.IBD' ENGINE=InnoDB
+< error
+| 3121 HY000 The ADD DATAFILE filepath must end with '.ibd'.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_dir_df ADD DATAFILE '../ts_dir_df.ibd' ENGINE=InnoDB
+< error
+| 3121 HY000 The DATAFILE location must be in a known directory.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_df1 ADD DATAFILE 'shared_df.ibd' ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_df2 ADD DATAFILE 'shared_df.ibd' ENGINE=InnoDB
+< error
+| 3606 HY000 Duplicate file name for tablespace 'ts_df2'
+> exec
+| DROP TABLESPACE ts_df1
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_fbs_bad1 ADD DATAFILE 'ts_fbs_bad1.ibd' FILE_BLOCK_SIZE=1 ENGINE=InnoDB
+< error
+| 1478 HY000 InnoDB does not support FILE_BLOCK_SIZE=1
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_fbs_32k ADD DATAFILE 'ts_fbs_32k.ibd' FILE_BLOCK_SIZE=32K ENGINE=InnoDB
+< error
+| 1478 HY000 InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=32768 because INNODB_PAGE_SIZE=16384.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_fbs_8k ADD DATAFILE 'ts_fbs_8k.ibd' FILE_BLOCK_SIZE=8K ENGINE=InnoDB
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_fbs_8k
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_fbs_prec ADD DATAFILE 'ts_fbs_prec.txt' FILE_BLOCK_SIZE=1 AUTOEXTEND_SIZE=1 ENGINE=InnoDB
+< error
+| 1478 HY000 InnoDB does not support FILE_BLOCK_SIZE=1
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c INT) AUTOEXTEND_SIZE=4M
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `c` int DEFAULT NULL
+| ) /*!80023 AUTOEXTEND_SIZE=4194304 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c INT)
+< ok 0 0
+> exec
+| ALTER TABLE a AUTOEXTEND_SIZE=8M
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `c` int DEFAULT NULL
+| ) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c INT) AUTOEXTEND_SIZE=8M
+< ok 0 0
+> exec
+| ALTER TABLE a AUTOEXTEND_SIZE=0
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `c` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE src_ae (c INT) AUTOEXTEND_SIZE=12M
+< ok 0 0
+> exec
+| CREATE TABLE a LIKE src_ae
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `c` int DEFAULT NULL
+| ) /*!80023 AUTOEXTEND_SIZE=12582912 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_ae_gen ADD DATAFILE 'ts_ae_gen.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (c INT) TABLESPACE ts_ae_gen AUTOEXTEND_SIZE=8M
+< error
+| 4024 HY000 InnoDB: "AUTOEXTEND_SIZE" not allowed with general tablespaces
+> exec
+| DROP TABLESPACE ts_ae_gen
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a_tmp_ae (c INT) AUTOEXTEND_SIZE=8M
+< error
+| 4026 HY000 AUTOEXTEND_SIZE clause is not valid for temporary tablespace.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (c INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=8M
+< error
+| 1478 HY000 InnoDB : AUTOEXTEND_SIZE is not accepted for system tablespace.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0

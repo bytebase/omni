@@ -12,15 +12,13 @@ import (
 const (
 	minAutoextendSizeBytes = 4 * 1024 * 1024    // 4M
 	maxAutoextendSizeBytes = 4096 * 1024 * 1024 // 4096M (4G)
+	innodbDefaultPageSize  = 16384              // 16K
 )
 
-// validateAutoextendSize validates an AUTOEXTEND_SIZE option value as InnoDB
-// enforces it on mysql:8.0.46: 0 disables custom autoextend, and any non-zero
-// value must lie in [4M, 4096M] (4025) and be an exact multiple of 4M (4023).
-func validateAutoextendSize(raw string) error {
+func parseMySQLByteSize(raw string) (uint64, bool) {
 	s := strings.TrimSpace(raw)
 	if s == "" {
-		return nil
+		return 0, false
 	}
 	mult := uint64(1)
 	switch s[len(s)-1] {
@@ -36,22 +34,128 @@ func validateAutoextendSize(raw string) error {
 	}
 	val, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return errAutoextendSizeOutOfRange()
+		return 0, false
 	}
 	if val == 0 {
-		return nil
+		return 0, true
 	}
 	if val > math.MaxUint64/mult {
-		return errAutoextendSizeOutOfRange()
+		return 0, false
 	}
-	bytes := val * mult
+	return val * mult, true
+}
+
+// parseAutoextendSize parses and validates an AUTOEXTEND_SIZE option value as
+// InnoDB enforces it on mysql:8.0.46: 0 disables custom autoextend, and any
+// non-zero value must lie in [4M, 4096M] (4025) and be an exact multiple of 4M (4023).
+func parseAutoextendSize(raw string) (uint64, error) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, nil
+	}
+	bytes, ok := parseMySQLByteSize(raw)
+	if !ok {
+		return 0, errAutoextendSizeOutOfRange()
+	}
+	if bytes == 0 {
+		return 0, nil
+	}
 	if bytes < minAutoextendSizeBytes || bytes > maxAutoextendSizeBytes {
-		return errAutoextendSizeOutOfRange()
+		return 0, errAutoextendSizeOutOfRange()
 	}
 	if bytes%minAutoextendSizeBytes != 0 {
-		return errAutoextendSizeNotMultiple()
+		return 0, errAutoextendSizeNotMultiple()
 	}
-	return nil
+	return bytes, nil
+}
+
+func validateAutoextendSize(raw string) error {
+	_, err := parseAutoextendSize(raw)
+	return err
+}
+
+// parseTableAutoextendSize validates and resolves an InnoDB table's effective
+// AUTOEXTEND_SIZE option against temporary/system/general tablespace rules
+// (measured on mysql:8.0.46: 0 is accepted everywhere; non-zero answers 4026 on
+// temporary tables, 1478 on innodb_system, and 4024 on general tablespaces
+// ahead of range/alignment checks).
+func parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64, error) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, nil
+	}
+	if bytes, ok := parseMySQLByteSize(raw); ok && bytes == 0 {
+		return 0, nil
+	}
+	if temporary {
+		return 0, errAutoextendSizeTemporaryTablespace()
+	}
+	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	if strings.EqualFold(ts, "innodb_system") {
+		return 0, errAutoextendSizeSystemTablespace()
+	}
+	if ts != "" && !strings.EqualFold(ts, "innodb_file_per_table") {
+		return 0, errAutoextendSizeGeneralTablespace()
+	}
+	return parseAutoextendSize(raw)
+}
+
+func validateTablespaceFileBlockSize(raw string) error {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	bytes, ok := parseMySQLByteSize(raw)
+	if !ok {
+		return &Error{Code: 1478, SQLState: "HY000",
+			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%s", strings.TrimSpace(raw))}
+	}
+	if bytes == 0 {
+		return nil
+	}
+	switch bytes {
+	case 1024, 2048, 4096, 8192, innodbDefaultPageSize:
+		return nil
+	case 32768, 65536:
+		return &Error{Code: 1478, SQLState: "HY000",
+			Message: fmt.Sprintf("InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=%d because INNODB_PAGE_SIZE=%d.", bytes, innodbDefaultPageSize)}
+	default:
+		return &Error{Code: 1478, SQLState: "HY000",
+			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%d", bytes)}
+	}
+}
+
+func (c *Catalog) validateTablespaceDatafile(tsName, df string, hasDF, undo bool) (string, error) {
+	if !undo && !hasDF {
+		return "", nil
+	}
+	ext := ".ibd"
+	if undo {
+		ext = ".ibu"
+	}
+	if df == "" {
+		return "", errTablespaceDatafileProperFilename()
+	}
+	sepIdx := strings.LastIndexAny(df, `/\`)
+	dir := ""
+	base := df
+	if sepIdx >= 0 {
+		dir = df[:sepIdx]
+		base = df[sepIdx+1:]
+	}
+	if base == "" || base == ext {
+		return "", errTablespaceDatafileProperFilename()
+	}
+	// On Linux mysql:8.0.46, InnoDB checks the lowercase '.ibd'/'.ibu' suffix case-sensitively.
+	if !strings.HasSuffix(base, ext) {
+		return "", errTablespaceDatafileExt(ext)
+	}
+	if sepIdx >= 0 && dir != "." {
+		return "", errTablespaceDatafileKnownDir()
+	}
+	for _, used := range c.tablespaceFiles {
+		if used == base {
+			return "", errDupTablespaceDatafile(tsName)
+		}
+	}
+	return base, nil
 }
 
 // validateInnoDBTablespace validates a TABLESPACE option on an InnoDB table or
@@ -200,28 +304,40 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if err := c.validateTablespaceCreateEngine(stmt.Engine, op); err != nil {
 		return err
 	}
-	if stmt.AutoextendSize != "" {
-		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
-			return err
-		}
-	}
-	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
-		return errInvalidEncryptionOption()
-	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
 		return err
 	}
 	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo || c.tablespaces[stmt.Name] {
 		return errTablespaceExists(stmt.Name)
 	}
-	if stmt.Undo {
-		if stmt.DataFile != "" && !strings.HasSuffix(strings.ToLower(stmt.DataFile), ".ibu") {
-			return errUndoTablespaceDatafileExt()
+	if !stmt.Undo && stmt.FileBlockSize != "" {
+		if err := validateTablespaceFileBlockSize(stmt.FileBlockSize); err != nil {
+			return err
 		}
+	}
+	if stmt.AutoextendSize != "" {
+		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
+			return err
+		}
+	}
+	dfBase, err := c.validateTablespaceDatafile(stmt.Name, stmt.DataFile, stmt.HasDataFile || stmt.Undo, stmt.Undo)
+	if err != nil {
+		return err
+	}
+	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+		return errInvalidEncryptionOption()
+	}
+	if stmt.Undo {
 		c.undoTablespaces[stmt.Name] = true
+		if dfBase != "" {
+			c.tablespaceFiles[stmt.Name] = dfBase
+		}
 		return nil
 	}
 	c.tablespaces[stmt.Name] = true
+	if dfBase != "" {
+		c.tablespaceFiles[stmt.Name] = dfBase
+	}
 	return nil
 }
 
@@ -276,6 +392,9 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	if !c.tablespaces[stmt.Name] {
 		return errTablespaceDoesNotExist(stmt.Name)
 	}
+	if stmt.AddDataFile != "" || stmt.DropDataFile != "" {
+		return errAlterTablespaceFailed(stmt.Name)
+	}
 	if stmt.RenameTo != "" {
 		if err := validateTablespaceCreateName(stmt.RenameTo); err != nil {
 			return err
@@ -285,6 +404,10 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		}
 		delete(c.tablespaces, stmt.Name)
 		c.tablespaces[stmt.RenameTo] = true
+		if df, ok := c.tablespaceFiles[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
+			delete(c.tablespaceFiles, stmt.Name)
+			c.tablespaceFiles[stmt.RenameTo] = df
+		}
 		for _, db := range c.databases {
 			for _, tbl := range db.Tables {
 				renameTableTablespaceRefs(tbl, stmt.Name, stmt.RenameTo)
@@ -313,6 +436,7 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 			return errDropUndoTablespaceFailed(stmt.Name)
 		}
 		delete(c.undoTablespaces, stmt.Name)
+		delete(c.tablespaceFiles, stmt.Name)
 		return nil
 	}
 	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo && !strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
@@ -340,6 +464,7 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		}
 	}
 	delete(c.tablespaces, stmt.Name)
+	delete(c.tablespaceFiles, stmt.Name)
 	return nil
 }
 

@@ -495,6 +495,9 @@ func showTableOptions(tbl *Table) string {
 	if engine == "" {
 		engine = "InnoDB"
 	}
+	if tbl.AutoExtendSize > 0 && isInnoDBEngine(engine) {
+		parts = append(parts, fmt.Sprintf("/*!80023 AUTOEXTEND_SIZE=%d */", tbl.AutoExtendSize))
+	}
 	if engine != "" {
 		parts = append(parts, fmt.Sprintf("ENGINE=%s", engine))
 	}

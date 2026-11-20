@@ -2680,6 +2680,7 @@ type CreateTablespaceStmt struct {
 	Loc             Loc
 	Undo            bool   // UNDO tablespace
 	Name            string // tablespace name
+	HasDataFile     bool   // ADD DATAFILE clause was specified
 	DataFile        string // ADD DATAFILE 'file_name'
 	AutoextendSize  string // AUTOEXTEND_SIZE value
 	FileBlockSize   string // FILE_BLOCK_SIZE value
@@ -2818,11 +2819,11 @@ type CreateSpatialRefSysStmt struct {
 	// an empty literal does: `NAME ''` is present, where a NAME the statement leaves
 	// out is absent. The server answers the two differently, and the strings alone
 	// cannot tell them apart.
-	HasName      bool
+	HasName       bool
 	HasDefinition bool
-	Organization string // ORGANIZATION 'org_name'
-	OrgSRID      int64  // IDENTIFIED BY srid (under ORGANIZATION)
-	Description  string // DESCRIPTION 'description'
+	Organization  string // ORGANIZATION 'org_name'
+	OrgSRID       int64  // IDENTIFIED BY srid (under ORGANIZATION)
+	Description   string // DESCRIPTION 'description'
 }
 
 func (s *CreateSpatialRefSysStmt) nodeTag()  {}

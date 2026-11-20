@@ -90,8 +90,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
 	// MySQL leaves the table as it found it, so hold a copy to put back when the
 	// option is what the statement fails on.
+	origEngine := tbl.Engine
 	rowOption := refusedRowOption(tbl, stmt.Commands)
-	autoextendErr := refusedAutoextendSize(tbl, stmt.Commands)
+	autoextendBytes, hasAutoextendOpt, autoextendErr := resolveAlterAutoextendSize(tbl, stmt.Commands)
 	var optionSnapshot Table
 	if rowOption != "" || autoextendErr != nil {
 		optionSnapshot = cloneTable(tbl)
@@ -108,6 +109,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			undoAlter(db, key, tbl, optionSnapshot)
 			return errUnsupportedRowOption(rowOption)
 		}
+		applyAlteredAutoextendSize(tbl, origEngine, hasAutoextendOpt, autoextendBytes)
 		return nil
 	}
 	if tbl.Partitioning == nil && repartition == nil {
@@ -294,22 +296,44 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 	return nil
 }
 
-func refusedAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) error {
-	engine := alterTargetEngine(tbl, commands)
-	if !isInnoDBEngine(engine) {
-		return nil
-	}
+func resolveAlterAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) (uint64, bool, error) {
+	hasOpt := false
+	rawVal := ""
 	for _, cmd := range commands {
 		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
 			continue
 		}
 		if strings.EqualFold(cmd.Option.Name, "autoextend_size") {
-			if err := validateAutoextendSize(cmd.Option.Value); err != nil {
-				return err
-			}
+			hasOpt = true
+			rawVal = cmd.Option.Value
 		}
 	}
-	return nil
+	engine := alterTargetEngine(tbl, commands)
+	if !isInnoDBEngine(engine) || !hasOpt {
+		return 0, hasOpt, nil
+	}
+	targetTS := alterTargetTablespace(tbl, commands)
+	bytes, err := parseTableAutoextendSize(rawVal, tbl.Temporary, targetTS)
+	return bytes, true, err
+}
+
+func applyAlteredAutoextendSize(tbl *Table, origEngine string, hasOpt bool, optBytes uint64) {
+	if !isInnoDBEngine(tbl.Engine) {
+		tbl.AutoExtendSize = 0
+		return
+	}
+	if hasOpt {
+		tbl.AutoExtendSize = optBytes
+		return
+	}
+	if !isInnoDBEngine(origEngine) {
+		tbl.AutoExtendSize = 0
+		return
+	}
+	ts := unquoteTableOption(strings.TrimSpace(tbl.Tablespace))
+	if ts != "" && !strings.EqualFold(ts, "innodb_file_per_table") {
+		tbl.AutoExtendSize = 0
+	}
 }
 
 // validateTableEngineReplaceable refuses an ENGINE the table cannot take:
@@ -1813,7 +1837,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return err
 		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
-		normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isTimeTruncateFractionalSQLMode())
+		normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isTimeTruncateFractionalSQLMode(), c.session.TimeZone)
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil

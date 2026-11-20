@@ -103,6 +103,7 @@ const (
 	ErrIllegalValueForType               = 1367
 	ErrDropTablespaceFailed              = 1529
 	ErrTablespaceDoesNotExist            = 3510
+	ErrDupTablespaceDatafile             = 3606
 	ErrTablespaceEngineMismatch          = 3642
 	ErrReservedTablespaceName            = 3723
 	ErrSpatialUniqueIndex                = 3728
@@ -115,7 +116,9 @@ const (
 	ErrDefaultValExprRefVariable         = 3772
 	ErrSecondaryEngineNotDefined         = 3889
 	ErrAutoextendSizeNotMultiple         = 4023
+	ErrAutoextendSizeGeneralTablespace   = 4024
 	ErrAutoextendSizeOutOfRange          = 4025
+	ErrAutoextendSizeTemporaryTablespace = 4026
 )
 
 const (
@@ -212,11 +215,14 @@ var sqlStateMap = map[int]string{
 	ErrDefaultValExprRefVariable:         "HY000",
 	ErrSecondaryEngineNotDefined:         "HY000",
 	ErrAutoextendSizeNotMultiple:         "HY000",
+	ErrAutoextendSizeGeneralTablespace:   "HY000",
 	ErrAutoextendSizeOutOfRange:          "HY000",
+	ErrAutoextendSizeTemporaryTablespace: "HY000",
 	ErrUnknownTimeZone:                   "HY000",
 	ErrIllegalValueForType:               "22007",
 	ErrDropTablespaceFailed:              "HY000",
 	ErrWrongTablespaceFileext:            "HY000",
+	ErrDupTablespaceDatafile:             "HY000",
 	ErrTablespaceEngineMismatch:          "HY000",
 	ErrSpatialUniqueIndex:                "HY000",
 }
@@ -799,7 +805,47 @@ func errAutoextendSizeNotMultiple() error {
 		Message: "AUTOEXTEND_SIZE should be a multiple of 4M"}
 }
 
+func errAutoextendSizeGeneralTablespace() error {
+	return &Error{Code: ErrAutoextendSizeGeneralTablespace, SQLState: sqlState(ErrAutoextendSizeGeneralTablespace),
+		Message: `InnoDB: "AUTOEXTEND_SIZE" not allowed with general tablespaces`}
+}
+
 func errAutoextendSizeOutOfRange() error {
 	return &Error{Code: ErrAutoextendSizeOutOfRange, SQLState: sqlState(ErrAutoextendSizeOutOfRange),
 		Message: "AUTOEXTEND_SIZE value should be between 4M and 4096M"}
+}
+
+func errAutoextendSizeTemporaryTablespace() error {
+	return &Error{Code: ErrAutoextendSizeTemporaryTablespace, SQLState: sqlState(ErrAutoextendSizeTemporaryTablespace),
+		Message: "AUTOEXTEND_SIZE clause is not valid for temporary tablespace."}
+}
+
+func errAutoextendSizeSystemTablespace() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB : AUTOEXTEND_SIZE is not accepted for system tablespace."}
+}
+
+func errTablespaceDatafileExt(ext string) error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: fmt.Sprintf("The ADD DATAFILE filepath must end with '%s'.", ext)}
+}
+
+func errTablespaceDatafileProperFilename() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The ADD DATAFILE filepath does not have a proper filename."}
+}
+
+func errTablespaceDatafileKnownDir() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The DATAFILE location must be in a known directory."}
+}
+
+func errDupTablespaceDatafile(tsName string) error {
+	return &Error{Code: ErrDupTablespaceDatafile, SQLState: sqlState(ErrDupTablespaceDatafile),
+		Message: fmt.Sprintf("Duplicate file name for tablespace '%s'", tsName)}
+}
+
+func errAlterTablespaceFailed(tsName string) error {
+	return &Error{Code: 1533, SQLState: "HY000",
+		Message: fmt.Sprintf("Failed to alter: TABLESPACE %s", tsName)}
 }

@@ -18,6 +18,7 @@ type Catalog struct {
 	databases        map[string]*Database    // lowered name -> Database
 	tablespaces      map[string]bool         // exact general tablespace names
 	undoTablespaces  map[string]bool         // exact undo tablespace names -> active
+	tablespaceFiles  map[string]string       // tablespace name -> normalized datafile basename
 	userVars         map[string]userVarValue // lowered user var name (without @) -> value
 	globalTimeZone   string
 	currentDB        string
@@ -52,6 +53,7 @@ func New() *Catalog {
 		databases:        make(map[string]*Database),
 		tablespaces:      make(map[string]bool),
 		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
+		tablespaceFiles:  map[string]string{"innodb_undo_001": "undo_001", "innodb_undo_002": "undo_002"},
 		userVars:         make(map[string]userVarValue),
 		globalTimeZone:   "SYSTEM",
 		defaultCharset:   "utf8mb4",

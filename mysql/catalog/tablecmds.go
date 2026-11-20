@@ -225,13 +225,23 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 		}
 	}
-	if declared && isInnoDBEngine(tbl.Engine) {
-		for _, opt := range stmt.Options {
-			if opt != nil && strings.EqualFold(opt.Name, "autoextend_size") {
-				if err := validateAutoextendSize(opt.Value); err != nil {
-					return err
-				}
+	hasAutoExtend := false
+	rawAutoExtend := ""
+	for _, opt := range stmt.Options {
+		if opt != nil && strings.EqualFold(opt.Name, "autoextend_size") {
+			hasAutoExtend = true
+			rawAutoExtend = opt.Value
+		}
+	}
+	if hasAutoExtend && isInnoDBEngine(tbl.Engine) {
+		if declared && !c.loadingSDL {
+			aeBytes, err := parseTableAutoextendSize(rawAutoExtend, stmt.Temporary, tbl.Tablespace)
+			if err != nil {
+				return err
 			}
+			tbl.AutoExtendSize = aeBytes
+		} else if aeBytes, ok := parseMySQLByteSize(rawAutoExtend); ok {
+			tbl.AutoExtendSize = aeBytes
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -501,7 +511,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 		} else if effDef := columnDefEffectiveDefaultExpr(colDef); effDef != nil {
-			normalizeColumnStoredDefault(col, effDef, true, false)
+			normalizeColumnStoredDefault(col, effDef, true, false, c.session.TimeZone)
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -1366,7 +1376,7 @@ func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	}
 	val, kind := columnDefaultValue(expr)
 	if _, isParen := expr.(*nodes.ParenExpr); !isParen {
-		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false); ok {
+		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false, "SYSTEM"); ok {
 			val = coerced
 		}
 	}
@@ -3121,6 +3131,13 @@ func escapeEnumValue(s string) string {
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
+func likeAutoExtendSize(srcTbl *Table, temporary bool) uint64 {
+	if temporary || srcTbl == nil {
+		return 0
+	}
+	return srcTbl.AutoExtendSize
+}
+
 func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
@@ -3156,6 +3173,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		MaxRows:          srcTbl.MaxRows,
 		AvgRowLength:     srcTbl.AvgRowLength,
 		Tablespace:       srcTbl.Tablespace,
+		AutoExtendSize:   likeAutoExtendSize(srcTbl, stmt.Temporary),
 		PackKeys:         srcTbl.PackKeys,
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
