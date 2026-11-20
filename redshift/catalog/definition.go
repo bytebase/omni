@@ -58,7 +58,7 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 			return "", err
 		}
 	}
-	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, true, true); err != nil {
+	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, nil, true, true); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
@@ -92,11 +92,35 @@ func hasUpperASCII(s string) bool {
 }
 
 // hasUpperQuotedIdent reports whether sql contains a double-quoted identifier
-// with an uppercase ASCII letter, skipping single-quoted string literals.
+// with an uppercase ASCII letter, skipping single-quoted string literals and
+// SQL comments.
 func hasUpperQuotedIdent(sql string) bool {
-	for i := 0; i < len(sql); i++ {
-		switch sql[i] {
-		case '\'':
+	blockDepth := 0
+	for i := 0; i < len(sql); {
+		if blockDepth > 0 {
+			if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+				blockDepth++
+				i += 2
+				continue
+			}
+			if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+				blockDepth--
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
+		switch {
+		case sql[i] == '-' && i+1 < len(sql) && sql[i+1] == '-':
+			i += 2
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			blockDepth++
+			i += 2
+		case sql[i] == '\'':
 			i++
 			for i < len(sql) {
 				if sql[i] == '\'' {
@@ -104,11 +128,12 @@ func hasUpperQuotedIdent(sql string) bool {
 						i += 2
 						continue
 					}
+					i++
 					break
 				}
 				i++
 			}
-		case '"':
+		case sql[i] == '"':
 			i++
 			for i < len(sql) {
 				if sql[i] == '"' {
@@ -116,6 +141,7 @@ func hasUpperQuotedIdent(sql string) bool {
 						i += 2
 						continue
 					}
+					i++
 					break
 				}
 				if sql[i] >= 'A' && sql[i] <= 'Z' {
@@ -123,6 +149,8 @@ func hasUpperQuotedIdent(sql string) bool {
 				}
 				i++
 			}
+		default:
+			i++
 		}
 	}
 	return false
@@ -221,6 +249,8 @@ type functionEntry struct {
 	schema     string
 	name       string
 	def        string
+	signature  string
+	comment    string
 	params     []functionParam
 	returnType string
 	depTables  []*metadatapb.DependencyTable
@@ -773,9 +803,79 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) e
 			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name) + def + "\n"); err != nil {
 				return err
 			}
+			if proc.Comment != "" {
+				if target, ok := formatRoutineCommentTarget(schema.Name, proc.Name, proc.Signature, def); ok {
+					if _, err := w.WriteString(fmt.Sprintf("COMMENT ON PROCEDURE %s IS '%s';\n", target, escapeStringLiteral(proc.Comment))); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 	return nil
+}
+
+func formatRoutineCommentTarget(schemaName, routineName, signature, def string) (string, bool) {
+	sig := strings.TrimSpace(signature)
+	if sig != "" {
+		if open := strings.IndexByte(sig, '('); open >= 0 && strings.HasSuffix(sig, ")") {
+			return qualifyName(schemaName, routineName) + sig[open:], true
+		}
+		return qualifyName(schemaName, routineName) + "(" + sig + ")", true
+	}
+	stmts, err := pgparser.Parse(def)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return "", false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	cf, ok := stmt.(*nodes.CreateFunctionStmt)
+	if !ok {
+		return "", false
+	}
+	var args []string
+	if cf.Parameters != nil {
+		for _, item := range cf.Parameters.Items {
+			fp, ok := item.(*nodes.FunctionParameter)
+			if !ok {
+				continue
+			}
+			if fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
+				continue
+			}
+			argType := formatASTTypeName(fp.ArgType)
+			if argType == "" {
+				return "", false
+			}
+			if fp.Mode == nodes.FUNC_PARAM_VARIADIC {
+				argType = "VARIADIC " + argType
+			}
+			args = append(args, argType)
+		}
+	}
+	return fmt.Sprintf("%s(%s)", qualifyName(schemaName, routineName), strings.Join(args, ", ")), true
+}
+
+func formatASTTypeName(tn *nodes.TypeName) string {
+	if tn == nil {
+		return ""
+	}
+	parts := extractNodeStringParts(tn.Names)
+	if len(parts) == 0 {
+		return ""
+	}
+	var base string
+	if len(parts) == 2 && strings.EqualFold(parts[0], "pg_catalog") {
+		base = parts[1]
+	} else {
+		base = strings.Join(parts, ".")
+	}
+	if tn.ArrayBounds != nil {
+		base += strings.Repeat("[]", len(tn.ArrayBounds.Items))
+	}
+	return base
 }
 
 func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
@@ -1003,6 +1103,8 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				schema:     schema.Name,
 				name:       fn.Name,
 				def:        def,
+				signature:  fn.Signature,
+				comment:    fn.Comment,
 				params:     params,
 				returnType: retType,
 				depTables:  fn.DependencyTables,
@@ -1180,9 +1282,6 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 					addDep(i, depIdx)
 				}
 			}
-			for _, expr := range item.table.defaultExprs {
-				addCallDeps(i, item.schema, collectSQLFunctionCalls("SELECT "+expr, item.schema, fnCat))
-			}
 		case objectKindView, objectKindMaterializedView:
 			var depCols []*metadatapb.DependencyColumn
 			if item.viewMeta != nil {
@@ -1203,12 +1302,95 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		}
 	}
 
+	type deferredDefault struct {
+		tableNode   int
+		table       *tableState
+		colName     string
+		expr        string
+		requiredFns []int
+		emitted     bool
+	}
+	var deferredDefaults []deferredDefault
+	deferredDefaultCols := make(map[int]map[string]bool)
+	canReach := func(starts []int, target int) bool {
+		if len(starts) == 0 {
+			return false
+		}
+		visited := make([]bool, len(items))
+		queue := make([]int, 0, len(starts))
+		for _, s := range starts {
+			if s == target {
+				return true
+			}
+			if !visited[s] {
+				visited[s] = true
+				queue = append(queue, s)
+			}
+		}
+		for head := 0; head < len(queue); head++ {
+			cur := queue[head]
+			for dep := range dependencies[cur] {
+				if dep == target {
+					return true
+				}
+				if !visited[dep] {
+					visited[dep] = true
+					queue = append(queue, dep)
+				}
+			}
+		}
+		return false
+	}
+
+	for i, item := range items {
+		if item.kind != objectKindTable {
+			continue
+		}
+		for _, d := range item.table.defaultExprs {
+			var reqFns []int
+			seen := make(map[int]bool)
+			for _, call := range collectSQLFunctionCalls("SELECT "+d.expr, item.schema, fnCat) {
+				for _, fnEntryIdx := range fnCat.resolveCall(item.schema, call) {
+					fnNode := fnCat.nodeIdx[fnEntryIdx]
+					if fnNode != i && !seen[fnNode] {
+						seen[fnNode] = true
+						reqFns = append(reqFns, fnNode)
+					}
+				}
+			}
+			if len(reqFns) == 0 {
+				continue
+			}
+			// If any required UDF transitively depends on this table, adding
+			// table->fn would form a cycle; omit the default from CREATE TABLE
+			// and restore it via ALTER COLUMN SET DEFAULT once both exist.
+			if canReach(reqFns, i) {
+				if deferredDefaultCols[i] == nil {
+					deferredDefaultCols[i] = make(map[string]bool)
+				}
+				deferredDefaultCols[i][d.colName] = true
+				deferredDefaults = append(deferredDefaults, deferredDefault{
+					tableNode:   i,
+					table:       item.table,
+					colName:     d.colName,
+					expr:        d.expr,
+					requiredFns: reqFns,
+				})
+				continue
+			}
+			for _, fnNode := range reqFns {
+				addDep(i, fnNode)
+			}
+		}
+	}
+
 	type deferredFK struct {
 		table *tableState
 		fk    *foreignKeyState
 	}
 	var deferred []deferredFK
 	emittedTables := make(map[string]bool, len(knownTables))
+	emittedNodes := make([]bool, len(items))
 	flushDeferred := func() error {
 		if len(deferred) == 0 {
 			return nil
@@ -1233,6 +1415,29 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		deferred = nil
 		return nil
 	}
+	flushReadyDefaults := func() error {
+		for j := range deferredDefaults {
+			dd := &deferredDefaults[j]
+			if dd.emitted || !emittedNodes[dd.tableNode] {
+				continue
+			}
+			ready := true
+			for _, fnNode := range dd.requiredFns {
+				if !emittedNodes[fnNode] {
+					ready = false
+					break
+				}
+			}
+			if !ready {
+				continue
+			}
+			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s SET DEFAULT %s;\n", dd.table.qualifiedName(), quoteDefinitionIdentifier(dd.colName), dd.expr)); err != nil {
+				return err
+			}
+			dd.emitted = true
+		}
+		return nil
+	}
 
 	for _, idx := range topoOrder(len(items), dependencies) {
 		item := items[idx]
@@ -1240,6 +1445,13 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		case objectKindFunc:
 			if _, err := w.WriteString(getFunctionAnnouncement(item.fn.name) + item.fn.def + "\n"); err != nil {
 				return err
+			}
+			if item.fn.comment != "" {
+				if target, ok := formatRoutineCommentTarget(item.schema, item.fn.name, item.fn.signature, item.fn.def); ok {
+					if _, err := w.WriteString(fmt.Sprintf("COMMENT ON FUNCTION %s IS '%s';\n", target, escapeStringLiteral(item.fn.comment))); err != nil {
+						return err
+					}
+				}
 			}
 		case objectKindTable:
 			if _, err := w.WriteString(getTableAnnouncement(item.table.name)); err != nil {
@@ -1261,7 +1473,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 				inlineFKs = append(inlineFKs, fk)
 			}
-			if err := writeTableWithOptions(w, item.table, inlineFKs, false, false); err != nil {
+			if err := writeTableWithOptions(w, item.table, inlineFKs, deferredDefaultCols[idx], false, false); err != nil {
 				return err
 			}
 			emittedTables[tableKey] = true
@@ -1285,6 +1497,10 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if err := writeMaterializedView(w, item.view); err != nil {
 				return err
 			}
+		}
+		emittedNodes[idx] = true
+		if err := flushReadyDefaults(); err != nil {
+			return err
 		}
 	}
 	return flushDeferred()
@@ -1473,7 +1689,7 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 // named key/FK constraints), and optionally its ownership transfer. Column
 // comments follow the column order the CREATE TABLE body uses so output is
 // deterministic across runs.
-func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState, allFKs, emitOwner bool) error {
+func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState, deferredDefaultCols map[string]bool, allFKs, emitOwner bool) error {
 	if allFKs {
 		foreignKeys = sortedForeignKeys(table.foreignKeys)
 	}
@@ -1491,7 +1707,7 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		}
 	}
 	buf := &strings.Builder{}
-	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
+	if err := table.toStringWithFKsAndDeferred(buf, foreignKeys, deferredDefaultCols); err != nil {
 		return err
 	}
 	if table.comment != "" {
@@ -1685,13 +1901,18 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 	return state
 }
 
+type tableColumnDefault struct {
+	colName string
+	expr    string
+}
+
 type tableState struct {
 	id           int
 	schema       string
 	name         string
 	owner        string
 	columns      map[string]*columnState
-	defaultExprs []string
+	defaultExprs []tableColumnDefault
 	indexes      []*indexState
 	foreignKeys  []*foreignKeyState
 	comment      string
@@ -1714,7 +1935,7 @@ func sortedForeignKeys(fks []*foreignKeyState) []*foreignKeyState {
 	return foreignKeys
 }
 
-func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreignKeyState) error {
+func (t *tableState) toStringWithFKsAndDeferred(buf *strings.Builder, foreignKeys []*foreignKeyState, deferredDefaultCols map[string]bool) error {
 	if _, err := fmt.Fprintf(buf, "CREATE TABLE %s (\n  ", t.qualifiedName()); err != nil {
 		return err
 	}
@@ -1725,7 +1946,7 @@ func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreig
 				return err
 			}
 		}
-		if err := column.toString(buf); err != nil {
+		if err := column.toString(buf, deferredDefaultCols[column.name]); err != nil {
 			return err
 		}
 	}
@@ -1800,7 +2021,7 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		colState := convertToColumnState(i, column)
 		state.columns[column.Name] = colState
 		if _, ok := colState.defaultValue.(*defaultValueExpression); ok {
-			state.defaultExprs = append(state.defaultExprs, column.Default)
+			state.defaultExprs = append(state.defaultExprs, tableColumnDefault{colName: column.Name, expr: column.Default})
 		}
 	}
 	for i, index := range table.Indexes {
@@ -2019,7 +2240,7 @@ type columnState struct {
 	identityIncrement  int64
 }
 
-func (c *columnState) toString(buf *strings.Builder) error {
+func (c *columnState) toString(buf *strings.Builder, skipDefault bool) error {
 	if _, err := fmt.Fprintf(buf, "%s ", quoteDefinitionIdentifier(c.name)); err != nil {
 		return err
 	}
@@ -2051,7 +2272,7 @@ func (c *columnState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
-	if !c.isIdentity && c.defaultValue != nil {
+	if !c.isIdentity && !skipDefault && c.defaultValue != nil {
 		if _, err := fmt.Fprintf(buf, " DEFAULT %s", c.defaultValue.toString()); err != nil {
 			return err
 		}
