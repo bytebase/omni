@@ -429,5 +429,11 @@ CREATE MATERIALIZED VIEW "HR"."MV_T"
 		if !strings.HasPrefix(cat.Metadata().Schemas[0].MaterializedViews[0].Definition, "BUILD IMMEDIATE") {
 			t.Fatalf("LoadSQL mv.Definition = %q, want BUILD IMMEDIATE prefix preserved", cat.Metadata().Schemas[0].MaterializedViews[0].Definition)
 		}
+		if _, err := GetDatabaseMetadata(`
+CREATE TABLE "HR"."T" (
+    "ID" NUMBER CONSTRAINT "PK_T" PRIMARY KEY USING INDEX (CREATE UNIQUE INDEX "HR"."IDX_T" ON "HR"."T" ("ID"))
+);`); err == nil {
+			t.Fatal("GetDatabaseMetadata with unmatched inline USING INDEX = nil error, want error")
+		}
 	})
 }

@@ -1032,8 +1032,12 @@ ALTER TABLE [S].[t] ADD CONSTRAINT [PK_S_t] PRIMARY KEY ([b]);
 		require.NoError(t, err)
 		require.NotNil(t, cat.GetTable("s", "t"))
 		require.Equal(t, "a", cat.GetTable("s", "t").Columns[0].Name)
+		require.NotNil(t, cat.GetTable("s", "T"))
+		require.Equal(t, "a", cat.GetTable("s", "T").Columns[0].Name)
 		require.NotNil(t, cat.GetTable("S", "t"))
 		require.Equal(t, "b", cat.GetTable("S", "t").Columns[0].Name)
+		require.NotNil(t, cat.GetTable("S", "T"))
+		require.Equal(t, "b", cat.GetTable("S", "T").Columns[0].Name)
 		require.True(t, Diff(cat, cat).IsEmpty())
 	})
 

@@ -38,7 +38,6 @@ type Catalog struct {
 	schemaByName                      map[string]*metadata.SchemaMetadata
 	schemasByFold                     map[string][]*metadata.SchemaMetadata
 	tableByName                       map[tableKey]*metadata.TableMetadata
-	tablesByFold                      map[tableKey][]*metadata.TableMetadata
 	indexCounter                      int
 	databaseOrder                     []string
 	databaseByName                    map[string]*Catalog
@@ -58,7 +57,6 @@ func New() *Catalog {
 		schemaByName:   make(map[string]*metadata.SchemaMetadata),
 		schemasByFold:  make(map[string][]*metadata.SchemaMetadata),
 		tableByName:    make(map[tableKey]*metadata.TableMetadata),
-		tablesByFold:   make(map[tableKey][]*metadata.TableMetadata),
 		databaseByName: make(map[string]*Catalog),
 	}
 }
@@ -201,17 +199,23 @@ func (c *Catalog) ListSchemaNames() []string {
 
 // GetTable returns the named table in the named schema, or nil.
 func (c *Catalog) GetTable(schemaName, tableName string) *metadata.TableMetadata {
-	if schemaName == "" {
-		schemaName = c.defaultSchema
+	schema := c.GetSchema(schemaName)
+	if schema == nil {
+		return nil
 	}
-	if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil {
+	if table := c.tableByName[tableKey{schema: schema.Name, table: tableName}]; table != nil {
 		return table
 	}
-	matches := c.tablesByFold[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
-	if len(matches) == 1 {
-		return matches[0]
+	var match *metadata.TableMetadata
+	for _, table := range schema.Tables {
+		if strings.EqualFold(table.Name, tableName) {
+			if match != nil {
+				return nil
+			}
+			match = table
+		}
 	}
-	return nil
+	return match
 }
 
 // Metadata returns a copy of the catalog as the metadata snapshot Bytebase
@@ -251,7 +255,6 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	c.schemaByName = make(map[string]*metadata.SchemaMetadata)
 	c.schemasByFold = make(map[string][]*metadata.SchemaMetadata)
 	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
-	c.tablesByFold = make(map[tableKey][]*metadata.TableMetadata)
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))
 	}
@@ -1084,8 +1087,6 @@ func (c *Catalog) addSchema(schema *metadata.SchemaMetadata) {
 
 func (c *Catalog) indexTable(schemaName string, table *metadata.TableMetadata) {
 	c.tableByName[tableKey{schema: schemaName, table: table.Name}] = table
-	foldKey := tableKey{schema: normalize(schemaName), table: normalize(table.Name)}
-	c.tablesByFold[foldKey] = append(c.tablesByFold[foldKey], table)
 }
 
 func (c *Catalog) resolveOrCreateTable(schemaName, tableName string) *metadata.TableMetadata {

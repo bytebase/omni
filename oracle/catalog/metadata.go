@@ -487,7 +487,10 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
 		}
 		constraintName := fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name))
-		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, []string{column.Name}, true) {
+		if e.allowUsingExistingIndex && n.UsingIndex != "" {
+			if !e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, []string{column.Name}, true) {
+				_ = e.constraintUsesExistingIndex(n.UsingIndex)
+			}
 			return
 		}
 		if !hasPrimaryIndex(table) {
@@ -509,7 +512,10 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			return
 		}
 		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
-		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, name, []string{column.Name}, false) {
+		if e.allowUsingExistingIndex && n.UsingIndex != "" {
+			if !e.attachConstraintToExistingIndex(table, n.UsingIndex, name, []string{column.Name}, false) {
+				_ = e.constraintUsesExistingIndex(n.UsingIndex)
+			}
 			return
 		}
 		if !hasUniqueIndex(table, []string{column.Name}) {
@@ -569,8 +575,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 			}
 		}
 		constraintName := fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name))
-		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, true) {
-			markColumnsNotNull(table, columns)
+		if e.allowUsingExistingIndex && n.UsingIndex != "" {
+			if e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, true) {
+				markColumnsNotNull(table, columns)
+			} else {
+				_ = e.constraintUsesExistingIndex(n.UsingIndex)
+			}
 			return
 		}
 		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
@@ -594,7 +604,10 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 			return
 		}
 		constraintName := fallbackName(n.Name, fmt.Sprintf("UK_%s_%d", table.Name, len(table.Indexes)+1))
-		if e.allowUsingExistingIndex && n.UsingIndex != "" && e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, false) {
+		if e.allowUsingExistingIndex && n.UsingIndex != "" {
+			if !e.attachConstraintToExistingIndex(table, n.UsingIndex, constraintName, columns, false) {
+				_ = e.constraintUsesExistingIndex(n.UsingIndex)
+			}
 			return
 		}
 		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
