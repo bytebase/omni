@@ -36919,6 +36919,48 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (x DOUBLE DEFAULT (ATAN2(1)))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c VARCHAR(10))
 < ok 0 0
 > exec
@@ -39880,6 +39922,439 @@
 < row
 : bytes
 | N
+> exec
+| SET @x = CAST(3.6 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = CAST(-3.6 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -4
+> exec
+| SET @x = CAST(2.5 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = CAST(-2.5 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -3
+> exec
+| SET @x = CAST(2.5e0 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = CAST(3.5e0 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = CAST(-1.5e0 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -2
+> exec
+| SET @x = CAST('3.6' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = CAST(' 3.6x' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 3
+> exec
+| SET @x = CAST('1e2' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET @x = CAST(3.6 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 4
+> exec
+| SET @x = CAST(-1.6 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551614
+> exec
+| SET @x = CAST(-1 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
+| SET @x = CAST('-1' AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
+| SET @x = CAST(99999999999999999999 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = CAST(-99999999999999999999 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -9223372036854775808
+> exec
+| SET @x = CAST(99999999999999999999 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
+| SET @x = CAST(-99999999999999999999 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775808
+> exec
+| SET @x = CAST('99999999999999999999' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -1
+> exec
+| SET @x = CAST('10000000000000000000' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -8446744073709551616
+> exec
+| SET @x = CAST('-99999999999999999999' AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -9223372036854775808
+> exec
+| SET @x = CAST('-99999999999999999999' AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775808
+> exec
+| SET @x = CAST(18446744073709551615 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -1
+> exec
+| SET @x = CAST(9223372036854775808 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| -9223372036854775808
+> exec
+| SET @x = CAST(9223372036854775807.5 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = CAST(1e30 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = CAST(1e30 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = CAST(1.5e19 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775807
+> exec
+| SET @x = CAST(-2.5e0 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551614
+> exec
+| SET @x = CAST(0.5 AS SIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET @x = CAST(-0.5 AS UNSIGNED)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
+| SET @x = SUBSTRING('ANSI', 2, 9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| NSI
+> exec
+| SET @x = SUBSTRING('ANSI', -2, 9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| SI
+> exec
+| SET @x = SUBSTRING(_binary'ANSI', 2, 9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| NSI
+> exec
+| SET @x = SUBSTRING('ANSI', 9223372036854775807, 2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+|
+> exec
+| SET @x = SUBSTRING('ANSI', -9223372036854775807, 2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+|
+> exec
+| SET @x = SUBSTRING('ANSI', 2, 18446744073709551615)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| NSI
+> exec
+| SET @x = SUBSTRING('ANSI', 18446744073709551615)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+|
+> exec
+| SET @x = SUBSTRING('ANSI', 2, -1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+|
+> exec
+| SET @x = LEFT('ANSI', 9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| ANSI
+> exec
+| SET @x = LEFT('ANSI', 18446744073709551615)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| ANSI
+> exec
+| SET @x = RIGHT('ANSI', 9223372036854775807)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "LONGTEXT"
+< row
+: bytes
+| ANSI
+> exec
+| SET SESSION sql_mode = CAST(3.6 AS SIGNED)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| ANSI_QUOTES
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
 > exec
 | ALTER TABLESPACE mysql ENCRYPTION='N'
 < ok 0 0

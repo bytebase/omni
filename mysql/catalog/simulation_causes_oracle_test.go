@@ -4932,6 +4932,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a DISCARD TABLESPACE",
 			code:  0,
 		},
+		{
+			// ATAN2 takes one argument as ATAN does: mysql:8.0.46 stores it.
+			name: "DEFAULT (ATAN2(1))",
+			stmt: "CREATE TABLE z (x DOUBLE DEFAULT (ATAN2(1)))",
+			code: 0,
+		},
 		// Functional key parts (mysql:8.0.46): the built-ins DEFAULT (expr)
 		// takes but a generated column does not, the ones DEFAULT refuses too,
 		// stored and unknown functions, variables judged in post-order,
@@ -5794,6 +5800,54 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	}
 
+	// CAST(... AS SIGNED / UNSIGNED) and SUBSTRING bounds in SET: the value a
+	// user variable holds after each, and the sql_mode a cast chains into.
+	castCat := New()
+	for _, expr := range []string{
+		"CAST(3.6 AS SIGNED)", "CAST(-3.6 AS SIGNED)", "CAST(2.5 AS SIGNED)", "CAST(-2.5 AS SIGNED)",
+		"CAST(2.5e0 AS SIGNED)", "CAST(3.5e0 AS SIGNED)", "CAST(-1.5e0 AS SIGNED)",
+		"CAST('3.6' AS SIGNED)", "CAST(' 3.6x' AS SIGNED)", "CAST('1e2' AS SIGNED)",
+		"CAST(3.6 AS UNSIGNED)", "CAST(-1.6 AS UNSIGNED)", "CAST(-1 AS UNSIGNED)", "CAST('-1' AS UNSIGNED)",
+		"CAST(99999999999999999999 AS SIGNED)", "CAST(-99999999999999999999 AS SIGNED)",
+		"CAST(99999999999999999999 AS UNSIGNED)", "CAST(-99999999999999999999 AS UNSIGNED)",
+		"CAST('99999999999999999999' AS SIGNED)", "CAST('10000000000000000000' AS SIGNED)",
+		"CAST('-99999999999999999999' AS SIGNED)", "CAST('-99999999999999999999' AS UNSIGNED)",
+		"CAST(18446744073709551615 AS SIGNED)", "CAST(9223372036854775808 AS SIGNED)",
+		"CAST(9223372036854775807.5 AS SIGNED)", "CAST(1e30 AS SIGNED)", "CAST(1e30 AS UNSIGNED)",
+		"CAST(1.5e19 AS UNSIGNED)", "CAST(-2.5e0 AS UNSIGNED)", "CAST(0.5 AS SIGNED)", "CAST(-0.5 AS UNSIGNED)",
+		"SUBSTRING('ANSI', 2, 9223372036854775807)", "SUBSTRING('ANSI', -2, 9223372036854775807)",
+		"SUBSTRING(_binary'ANSI', 2, 9223372036854775807)", "SUBSTRING('ANSI', 9223372036854775807, 2)",
+		"SUBSTRING('ANSI', -9223372036854775807, 2)", "SUBSTRING('ANSI', 2, 18446744073709551615)",
+		"SUBSTRING('ANSI', 18446744073709551615)", "SUBSTRING('ANSI', 2, -1)",
+		"LEFT('ANSI', 9223372036854775807)", "LEFT('ANSI', 18446744073709551615)", "RIGHT('ANSI', 9223372036854775807)",
+	} {
+		stmt := "SET @x = " + expr
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		var srv string
+		if err := conn.QueryRowContext(ctx, "SELECT CAST(@x AS CHAR)").Scan(&srv); err != nil {
+			t.Fatalf("mysql read @x after %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
+		if got := castCat.userVars["x"].str; got != srv {
+			t.Fatalf("%s: catalog %q, mysql %q", stmt, got, srv)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = CAST(3.6 AS SIGNED)"); err != nil {
+		t.Fatalf("mysql SET sql_mode = CAST(3.6 AS SIGNED): %v", err)
+	}
+	var castMode string
+	if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&castMode); err != nil {
+		t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET SESSION sql_mode = CAST(3.6 AS SIGNED); SET @m = @@sql_mode;")
+	if got := castCat.userVars["m"].str; got != castMode || castMode != "ANSI_QUOTES" {
+		t.Fatalf("SET sql_mode = CAST(3.6 AS SIGNED): catalog %q, mysql %q, want ANSI_QUOTES", got, castMode)
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = DEFAULT"); err != nil {
+		t.Fatalf("mysql reset sql_mode: %v", err)
+	}
 }
 
 // simulationEngineRefusal reads the server's answer as the error number and

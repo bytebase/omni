@@ -1299,9 +1299,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				if length <= 0 {
 					return userVarValue{kind: userVarString, str: "", binary: true}, true, nil
 				}
-				endIdx := startIdx + int(length)
-				if endIdx > len(sv.str) {
-					endIdx = len(sv.str)
+				endIdx := len(sv.str)
+				if length < int64(endIdx-startIdx) {
+					endIdx = startIdx + int(length)
 				}
 				return userVarValue{kind: userVarString, str: sv.str[startIdx:endIdx], binary: true}, true, nil
 			}
@@ -1323,9 +1323,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if length <= 0 {
 				return userVarValue{kind: userVarString, str: ""}, true, nil
 			}
-			endIdx := startIdx + int(length)
-			if endIdx > len(runes) {
-				endIdx = len(runes)
+			endIdx := len(runes)
+			if length < int64(endIdx-startIdx) {
+				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
 		case "char_length", "character_length", "length":
@@ -1644,18 +1644,12 @@ func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (
 			}
 		}
 		return userVarValue{kind: userVarString, str: s, binary: true}, true
-	case "signed":
-		r := parseSetCoercedNumberRat(v)
-		q := new(big.Int).Quo(r.Num(), r.Denom())
-		return userVarValue{kind: userVarNumeric, str: q.String()}, true
-	case "unsigned":
-		r := parseSetCoercedNumberRat(v)
-		q := new(big.Int).Quo(r.Num(), r.Denom())
-		if q.Sign() < 0 {
-			var u uint64 = uint64(q.Int64())
-			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(u, 10)}, true
+	case "signed", "unsigned":
+		s, ok := setCastInt(v, strings.EqualFold(strings.TrimSpace(dt.Name), "unsigned"))
+		if !ok {
+			return userVarValue{}, false
 		}
-		return userVarValue{kind: userVarNumeric, str: q.String()}, true
+		return userVarValue{kind: userVarNumeric, str: s}, true
 	case "decimal", "numeric", "float", "double", "real":
 		r := parseSetCoercedNumberRat(v)
 		scale := dt.Scale
@@ -1972,6 +1966,97 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true, nil
 }
 
+var (
+	setInt64Min  = big.NewInt(math.MinInt64)
+	setInt64Max  = big.NewInt(math.MaxInt64)
+	setUint64Max = new(big.Int).SetUint64(math.MaxUint64)
+	setTwoTo64   = new(big.Int).Lsh(big.NewInt(1), 64)
+)
+
+// setCastInt is CAST(v AS SIGNED / UNSIGNED) as mysql:8.0.46 answers it. A
+// string is read by its integer prefix (CAST('3.6' AS SIGNED) is 3, '1e2' is
+// 1) and saturates at 2^64-1 or -2^63 before wrapping into the target. An
+// exact number rounds half away from zero (CAST(3.6 AS SIGNED) is 4,
+// CAST(-1.6 AS UNSIGNED) is 18446744073709551614); an integer up to 2^64-1
+// wraps (CAST(18446744073709551615 AS SIGNED) is -1), a decimal saturates
+// (CAST(9223372036854775807.5 AS SIGNED) is 9223372036854775807). A float
+// rounds half to even and saturates at the signed bounds, for UNSIGNED too
+// (CAST(1.5e19 AS UNSIGNED) is 9223372036854775807).
+func setCastInt(v userVarValue, unsigned bool) (string, bool) {
+	var n *big.Int
+	wrapPositive := false
+	switch v.kind {
+	case userVarString:
+		t := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(t) && (t[i] == '+' || t[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(t) && t[j] >= '0' && t[j] <= '9' {
+			j++
+		}
+		n = new(big.Int)
+		if j > i {
+			n.SetString(t[i:j], 10)
+			if t[0] == '-' {
+				n.Neg(n)
+			}
+		}
+		if n.Cmp(setUint64Max) > 0 {
+			n.Set(setUint64Max)
+		}
+		wrapPositive = true
+	case userVarNumeric:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return "", false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			switch {
+			case f >= math.MaxInt64:
+				n = new(big.Int).Set(setInt64Max)
+			case f <= math.MinInt64:
+				n = new(big.Int).Set(setInt64Min)
+			default:
+				n = big.NewInt(int64(f))
+			}
+			break
+		}
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		n = num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			n.Neg(n)
+		}
+		integral := r.IsInt() && !strings.ContainsAny(v.str, ".eE")
+		switch {
+		case unsigned && n.Cmp(setUint64Max) > 0:
+			n.Set(setUint64Max)
+		case !unsigned && n.Cmp(setInt64Max) > 0 && !(integral && n.Cmp(setUint64Max) <= 0):
+			n.Set(setInt64Max)
+		}
+		wrapPositive = integral
+	default:
+		return "", false
+	}
+	if n.Cmp(setInt64Min) < 0 {
+		n.Set(setInt64Min)
+	}
+	if unsigned {
+		if n.Sign() < 0 {
+			n.Add(n, setTwoTo64)
+		}
+		return n.String(), true
+	}
+	if wrapPositive && n.Cmp(setInt64Max) > 0 {
+		n.Sub(n, setTwoTo64)
+	}
+	return n.String(), true
+}
+
 // setValInt reads a value as MySQL's val_int does: a string by its integer
 // prefix (' 2' is 2, '1.6' and '1e1' are 1, 'x' is 0); an exact number
 // rounded half away from zero (1.5 is 2, 2.5 is 3); an approximate one
@@ -2037,6 +2122,11 @@ func parseSetNumericInt64(v userVarValue) (int64, bool) {
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
+		// An integer past the int64 range saturates, as val_int does:
+		// SUBSTRING('ANSI', 2, 18446744073709551615) is 'NSI'.
+		if ne, ok := err.(*strconv.NumError); ok && ne.Err == strconv.ErrRange {
+			return n, true
+		}
 		return 0, false
 	}
 	return n, true
