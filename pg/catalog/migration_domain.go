@@ -85,31 +85,58 @@ func domainOpOrder(t MigrationOpType) int {
 	}
 }
 
-// domainCollationSchema resolves the schema of a domain's user-defined collation
-// when it lives outside public, or "" otherwise.
-func domainCollationSchema(cat *Catalog, d *DomainType) string {
-	if cat == nil || d == nil || d.UserCollationOID == 0 {
+func domainCollationResolvedNamespace(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
 		return ""
 	}
-	for _, s := range cat.schemas {
-		if s != nil {
-			if uc := s.Collations[d.CollationName]; uc != nil && uc.OID == d.UserCollationOID {
-				if s.Name != "public" {
+	if cat != nil && d.UserCollationOID != 0 {
+		for _, s := range cat.schemas {
+			if s != nil {
+				if uc := s.Collations[d.CollationName]; uc != nil && uc.OID == d.UserCollationOID {
 					return s.Name
 				}
-				return ""
 			}
 		}
 	}
-	return ""
+	if isBuiltinCollationName(d.CollationName) {
+		return "pg_catalog"
+	}
+	return "public"
+}
+
+// domainCollationSchema resolves the schema of a domain's collation when it
+// must be schema-qualified in DDL.
+func domainCollationSchema(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	ns := domainCollationResolvedNamespace(cat, d)
+	switch ns {
+	case "", "pg_catalog":
+		if cat != nil {
+			for _, s := range cat.schemas {
+				if s != nil && s.OID != PGCatalogNamespace && s.Collations[d.CollationName] != nil {
+					return "pg_catalog"
+				}
+			}
+		}
+		return ""
+	case "public":
+		if d.UserCollationOID != 0 && isBuiltinCollationName(d.CollationName) {
+			return "public"
+		}
+		return ""
+	default:
+		return ns
+	}
 }
 
 func domainCollationKey(d *DomainType, cat *Catalog) string {
 	if d == nil || d.CollationName == "" {
 		return ""
 	}
-	if sc := domainCollationSchema(cat, d); sc != "" {
-		return migrationQualifiedName(sc, d.CollationName)
+	if ns := domainCollationResolvedNamespace(cat, d); ns != "" {
+		return migrationQualifiedName(ns, d.CollationName)
 	}
 	return quoteIdentAlways(d.CollationName)
 }

@@ -31,6 +31,8 @@ const (
 	CodeSchemaNotEmpty               = "2BP01"
 	CodeDependentObjects             = "2BP01"
 	CodeWrongObjectType              = "42809"
+	CodeInvalidTextRepresentation    = "22P02"
+	CodeNumericValueOutOfRange       = "22003"
 	CodeInvalidParameterValue        = "22023"
 	CodeInvalidFK                    = "42830"
 	CodeInvalidTableDefinition       = "42P16"

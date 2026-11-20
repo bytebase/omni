@@ -148,41 +148,24 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
-	// Check for existing relation with the same name.
-	if existing, exists := schema.Relations[viewName]; exists {
-		if !stmt.Replace {
-			return errDuplicateTable(viewName)
+	isTempView := (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery)
+	if isTempView {
+		if schemaName != "" && !isTempSchemaName(schemaName) {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: "cannot create temporary relation in non-temporary schema",
+			}
 		}
-		// OR REPLACE: must be a view.
-		if existing.RelKind != 'v' {
-			return errWrongObjectType(viewName, "a view")
+		if schemaName == "" && stmt.Replace {
+			if existingInDefault := schema.Relations[viewName]; existingInDefault != nil && existingInDefault.Persistence != 't' {
+				schema = c.ensureTempSchema()
+			} else if tempSc := c.schemaByName["pg_temp"]; tempSc != nil && tempSc.Relations[viewName] != nil {
+				schema = tempSc
+			}
 		}
-		// checkViewColumns: validate column compatibility.
-		if err := c.checkViewColumns(cols, existing); err != nil {
-			return err
-		}
-		if (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery) {
-			existing.Persistence = 't'
-		}
-		existing.CheckOption = checkOption
-		// Update existing view in place.
-		return c.replaceView(schema, existing, cols, analyzedQuery)
 	}
 
-	// An index or sequence holds the name in the relation namespace.
-	if _, held := relationNamespaceKind(schema, viewName); held {
-		if stmt.Replace {
-			return errWrongObjectType(viewName, "a view")
-		}
-		return errDuplicateTable(viewName)
-	}
-
-	// Check conflict with existing type name.
-	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
-		return errDuplicateTable(viewName)
-	}
-
-	// Build Column objects.
+	// Build Column objects and check for duplicate column names before any view replacement mutation.
 	columns := make([]*Column, len(cols))
 	colByName := make(map[string]int, len(cols))
 	for i, rc := range cols {
@@ -211,6 +194,42 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 			col.Storage = typ.Storage
 		}
 		columns[i] = col
+	}
+
+	// Check for existing relation with the same name.
+	if existing, exists := schema.Relations[viewName]; exists {
+		if !stmt.Replace {
+			return errDuplicateTable(viewName)
+		}
+		// OR REPLACE: must be a view.
+		if existing.RelKind != 'v' {
+			return errWrongObjectType(viewName, "a view")
+		}
+		// checkViewColumns: validate column compatibility before mutating view options.
+		if err := c.checkViewColumns(cols, existing); err != nil {
+			return err
+		}
+		if err := c.replaceView(schema, existing, cols, analyzedQuery); err != nil {
+			return err
+		}
+		if isTempView {
+			existing.Persistence = 't'
+		}
+		existing.CheckOption = checkOption
+		return nil
+	}
+
+	// An index or sequence holds the name in the relation namespace.
+	if _, held := relationNamespaceKind(schema, viewName); held {
+		if stmt.Replace {
+			return errWrongObjectType(viewName, "a view")
+		}
+		return errDuplicateTable(viewName)
+	}
+
+	// Check conflict with existing type name.
+	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
+		return errDuplicateTable(viewName)
 	}
 
 	// Allocate OIDs.
@@ -395,6 +414,30 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 	if c == nil || q == nil {
 		return false
 	}
+	exprHasTemp := func(expr AnalyzedExpr) bool {
+		if expr == nil {
+			return false
+		}
+		found := false
+		WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+			if found {
+				return false
+			}
+			if sl, ok := e.(*SubLinkExpr); ok && queryReferencesTempRelation(c, sl.SubQuery) {
+				found = true
+				return false
+			}
+			return true
+		})
+		return found
+	}
+	var joinHasTemp func(jn JoinNode) bool
+	joinHasTemp = func(jn JoinNode) bool {
+		if je, ok := jn.(*JoinExprNode); ok && je != nil {
+			return joinHasTemp(je.Left) || joinHasTemp(je.Right) || exprHasTemp(je.Quals)
+		}
+		return false
+	}
 	for _, rte := range q.RangeTable {
 		if rte.Kind == RTERelation && rte.RelOID != 0 {
 			if r := c.relationByOID[rte.RelOID]; r != nil && r.Persistence == 't' {
@@ -404,6 +447,21 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 		if rte.Subquery != nil && queryReferencesTempRelation(c, rte.Subquery) {
 			return true
 		}
+		for _, fe := range rte.FuncExprs {
+			if exprHasTemp(fe) {
+				return true
+			}
+		}
+		if rte.Tablesample != nil {
+			for _, a := range rte.Tablesample.Args {
+				if exprHasTemp(a) {
+					return true
+				}
+			}
+			if exprHasTemp(rte.Tablesample.Repeatable) {
+				return true
+			}
+		}
 	}
 	for _, cte := range q.CTEList {
 		if cte != nil && queryReferencesTempRelation(c, cte.Query) {
@@ -412,6 +470,29 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 	}
 	if q.SetOp != SetOpNone {
 		if queryReferencesTempRelation(c, q.LArg) || queryReferencesTempRelation(c, q.RArg) {
+			return true
+		}
+	}
+	for _, te := range q.TargetList {
+		if te != nil && exprHasTemp(te.Expr) {
+			return true
+		}
+	}
+	if q.JoinTree != nil {
+		for _, jn := range q.JoinTree.FromList {
+			if joinHasTemp(jn) {
+				return true
+			}
+		}
+		if exprHasTemp(q.JoinTree.Quals) {
+			return true
+		}
+	}
+	if exprHasTemp(q.HavingQual) || exprHasTemp(q.LimitCount) || exprHasTemp(q.LimitOffset) {
+		return true
+	}
+	for _, wc := range q.WindowClause {
+		if wc != nil && (exprHasTemp(wc.StartOffset) || exprHasTemp(wc.EndOffset)) {
 			return true
 		}
 	}
@@ -471,16 +552,11 @@ func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
 		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
 	}
 
-	colCounts := map[int16]int{}
-	for _, te := range q.TargetList {
-		if te.ResJunk {
-			continue
-		}
-		if v, ok := te.Expr.(*VarExpr); ok && v.LevelsUp == 0 && v.RangeIdx == rtr.RTIndex && v.AttNum > 0 {
-			colCounts[v.AttNum]++
-		}
-	}
-
+	// pg: src/backend/rewrite/rewriteHandler.c — view_col_is_auto_updatable
+	// At CREATE VIEW time, view_col_is_auto_updatable inspects only the immediate
+	// base relation's pg_attribute entry (attnum > 0 and attgenerated == '\0')
+	// without recursing into a base view's query (since a base view may have or
+	// later gain an INSTEAD OF trigger or DO INSTEAD rule).
 	hasUpdatableCol := false
 	for _, te := range q.TargetList {
 		if te.ResJunk {
@@ -491,9 +567,6 @@ func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
 		}
 		v, ok := te.Expr.(*VarExpr)
 		if !ok || v.LevelsUp != 0 || v.RangeIdx != rtr.RTIndex || v.AttNum <= 0 {
-			continue
-		}
-		if colCounts[v.AttNum] > 1 {
 			continue
 		}
 		if ci := indexOfAttNum(baseRel, v.AttNum); ci >= 0 && baseRel.Columns[ci].Generated != 0 {

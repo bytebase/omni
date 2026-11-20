@@ -93,7 +93,11 @@ func buildDropTriggerOp(schemaName, tableName, trigName string, trigOID uint32) 
 
 // buildCreateTriggerOp creates a CREATE TRIGGER operation.
 func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigger) MigrationOp {
-	qualifiedTable := migrationQualifiedName(schemaName, tableName)
+	var rel *Relation
+	if c != nil && trig != nil {
+		rel = c.GetRelationByOID(trig.RelOID)
+	}
+	qualifiedTable := formatRelationName(schemaName, tableName, rel)
 
 	var b strings.Builder
 	if trig.IsConstraint {

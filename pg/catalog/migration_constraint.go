@@ -113,6 +113,11 @@ func buildDropConstraintOp(schemaName, tableName string, con *Constraint) Migrat
 // buildAddConstraintOp creates an ADD CONSTRAINT operation.
 func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constraint) MigrationOp {
 	qualifiedTable := quoteIdentifier(schemaName) + "." + quoteIdentifier(tableName)
+	if to != nil && con != nil {
+		if rel := to.GetRelationByOID(con.RelOID); (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+			qualifiedTable = quoteIdentifier(tableName)
+		}
+	}
 	var sql string
 
 	switch con.Type {

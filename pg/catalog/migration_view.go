@@ -267,10 +267,33 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	return ops
 }
 
-// buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
+// buildModifyMatViewOps creates REFRESH or DROP + CREATE ops for a modified matview.
 // Materialized views don't support CREATE OR REPLACE.
 func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	if entry.From != nil && entry.To != nil {
+		key := relKey{schema: entry.SchemaName, name: entry.Name}
+		sameDef := getViewDef(from, key, entry.From) == getViewDef(to, key, entry.To)
+		samePers := normalizeRelPersistence(entry.From.Persistence) == normalizeRelPersistence(entry.To.Persistence)
+		sameAM := normalizeRelationAccessMethod(entry.From) == normalizeRelationAccessMethod(entry.To)
+		if sameDef && samePers && sameAM && len(entry.Columns) == 0 && len(entry.Indexes) == 0 && entry.From.IsPopulated != entry.To.IsPopulated {
+			withClause := "WITH DATA"
+			if !entry.To.IsPopulated {
+				withClause = "WITH NO DATA"
+			}
+			return []MigrationOp{{
+				Type:          OpAlterView,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("REFRESH MATERIALIZED VIEW %s %s", qn, withClause),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityView,
+			}}
+		}
+	}
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,

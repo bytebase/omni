@@ -86,17 +86,62 @@ func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, 
 				if modeOp, ok := buildRuleModeOp(schemaName, relName, toRel, re.To); ok {
 					ops = append(ops, modeOp)
 				}
+			} else if re.From.Event == re.To.Event {
+				ops = append(ops, buildCreateRuleOpWithReplace(to, schemaName, relName, re.To, true))
+				if normalizeRuleMode(re.From.Mode) != normalizeRuleMode(re.To.Mode) {
+					if modeOp, ok := buildRuleModeOp(schemaName, relName, toRel, re.To); ok {
+						ops = append(ops, modeOp)
+					}
+				}
 			} else {
-				ops = append(ops, buildDropRuleOp(schemaName, relName, re.From))
+				ops = append(ops, buildDropRuleOpForRel(schemaName, relName, fromRel, re.From))
 				ops = append(ops, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, re.To)...)
+				if cOp, ok := buildRuleCommentRestoreOp(from, to, schemaName, relName, re.From, re.To); ok {
+					ops = append(ops, cOp)
+				}
 			}
 		}
 	}
 	return ops
 }
 
+func buildRuleCommentRestoreOp(from, to *Catalog, schemaName, relName string, fromRule, toRule *Rule) (MigrationOp, bool) {
+	if to == nil || toRule == nil {
+		return MigrationOp{}, false
+	}
+	toTxt, ok := to.GetComment('R', toRule.OID, 0)
+	if !ok || toTxt == "" {
+		return MigrationOp{}, false
+	}
+	if from != nil && fromRule != nil {
+		fromTxt, _ := from.GetComment('R', fromRule.OID, 0)
+		if fromTxt != toTxt {
+			// Already emitted by generateCommentDDL.
+			return MigrationOp{}, false
+		}
+	}
+	desc := schemaName + "." + relName + "." + toRule.Name
+	csql := formatCommentSQL(to, 'R', desc, 0, toTxt)
+	if csql == "" {
+		return MigrationOp{}, false
+	}
+	return MigrationOp{
+		Type:          OpComment,
+		ObjectName:    desc,
+		SQL:           csql,
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'R',
+		Priority:      PriorityMetadata,
+	}, true
+}
+
 func buildDropRuleOp(schemaName, relName string, fromRule *Rule) MigrationOp {
-	qualifiedRel := migrationQualifiedName(schemaName, relName)
+	return buildDropRuleOpForRel(schemaName, relName, nil, fromRule)
+}
+
+func buildDropRuleOpForRel(schemaName, relName string, fromRel *Relation, fromRule *Rule) MigrationOp {
+	qualifiedRel := formatRelationName(schemaName, relName, fromRel)
 	return MigrationOp{
 		Type:          OpDropRule,
 		SchemaName:    schemaName,
@@ -122,12 +167,24 @@ func buildCreateAndModeRuleOps(to *Catalog, schemaName, relName string, toRel *R
 }
 
 func buildCreateRuleOp(to *Catalog, schemaName, relName string, r *Rule) MigrationOp {
-	qualifiedRel := migrationQualifiedName(schemaName, relName)
+	return buildCreateRuleOpWithReplace(to, schemaName, relName, r, false)
+}
+
+func buildCreateRuleOpWithReplace(to *Catalog, schemaName, relName string, r *Rule, replace bool) MigrationOp {
+	var toRel *Relation
+	if to != nil && r != nil {
+		toRel = to.GetRelationByOID(r.OwnerRelOID)
+	}
+	qualifiedRel := formatRelationName(schemaName, relName, toRel)
 	whereSQL := to.deparseRuleWhere(r)
 	actionsSQL := to.deparseRuleActions(r)
 
 	var b strings.Builder
-	b.WriteString("CREATE RULE ")
+	if replace {
+		b.WriteString("CREATE OR REPLACE RULE ")
+	} else {
+		b.WriteString("CREATE RULE ")
+	}
 	b.WriteString(quoteIdentAlways(r.Name))
 	b.WriteString(" AS ON ")
 	b.WriteString(ruleEventKeyword(r.Event))
@@ -183,7 +240,7 @@ func buildRuleModeOp(schemaName, relName string, toRel *Relation, r *Rule) (Migr
 	default:
 		action = "ENABLE RULE"
 	}
-	qualifiedRel := migrationQualifiedName(schemaName, relName)
+	qualifiedRel := formatRelationName(schemaName, relName, toRel)
 	return MigrationOp{
 		Type:          OpAlterTable,
 		SchemaName:    schemaName,
@@ -278,7 +335,17 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 			}
 			sort.Strings(names)
 			for _, name := range names {
-				filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRel.Rules[name])...)
+				toRule := toRel.Rules[name]
+				filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRule)...)
+				var fromRule *Rule
+				if from != nil {
+					if fromRel := from.GetRelation(schemaName, relName); fromRel != nil && fromRel.Rules != nil {
+						fromRule = fromRel.Rules[name]
+					}
+				}
+				if cOp, ok := buildRuleCommentRestoreOp(from, to, schemaName, relName, fromRule, toRule); ok {
+					filtered = append(filtered, cOp)
+				}
 			}
 		}
 		if droppedViews[relKeyStr] {

@@ -291,6 +291,11 @@ func (c *Catalog) validateRelOptionsForCols(opts *nodes.List, relkind byte, acce
 // validateResetRelOptions validates ALTER ... RESET (...) parameters.
 //
 // pg: src/backend/access/common/reloptions.c — transformRelOptions (isReset=true)
+// Note: In PostgreSQL 17, transformRelOptions with isReset=true only removes matching
+// names from existing Datum reloptions and never appends reset entries, so
+// parseRelOptionsInternal does not reject unknown option names on RESET
+// (verified against PostgreSQL 17 in testdata/simulate.tsv:366,637,908 and
+// TestSimulationCausesOracle.tape for ALTER_TABLE_RESET_unknown_reloption_on_index).
 func (c *Catalog) validateResetRelOptions(opts *nodes.List, relkind byte) error {
 	switch relkind {
 	case 'c', 'f', 'S':
@@ -669,8 +674,13 @@ func (c *Catalog) resolvedCollationSchema(collname *nodes.List, leafName string,
 		for _, s := range c.schemas {
 			if s != nil {
 				if uc := s.Collations[leafName]; uc != nil && uc.OID == userOID {
-					if s.Name != "public" {
+					if s.Name != "public" || isBuiltinCollationName(leafName) {
 						return s.Name
+					}
+					if collname != nil {
+						if sc, _ := qualifiedName(collname); sc == "public" {
+							return "public"
+						}
 					}
 					return ""
 				}
@@ -679,7 +689,7 @@ func (c *Catalog) resolvedCollationSchema(collname *nodes.List, leafName string,
 	}
 	if collname != nil {
 		sc, _ := qualifiedName(collname)
-		if sc != "" && sc != "public" && sc != "pg_catalog" {
+		if sc != "" {
 			return sc
 		}
 	}

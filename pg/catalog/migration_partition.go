@@ -23,6 +23,9 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
 				ops = append(ops, generatePartitionChildDDL(from, to, entry)...)
 			}
+			if (entry.To.RelKind == 'r' || entry.To.RelKind == 'p') && normalizeReplicaIdentity(entry.To.ReplicaIdentity) != 'd' {
+				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
+			}
 
 		case DiffModify:
 			if entry.From == nil || entry.To == nil {
@@ -206,7 +209,7 @@ func formatPartitionValue(v string) string {
 
 // generateReplicaIdentityDDL generates ALTER TABLE ... REPLICA IDENTITY ...
 func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []MigrationOp {
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	qn := formatRelationName(entry.SchemaName, entry.Name, entry.To)
 
 	var clause string
 	switch entry.To.ReplicaIdentity {
@@ -236,7 +239,7 @@ func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []Migration
 		Phase:         PhaseMain,
 		ObjType:       'r',
 		ObjOID:        entry.To.OID,
-		Priority:      PriorityTable,
+		Priority:      PriorityIndex + 1,
 	}}
 }
 
@@ -357,6 +360,9 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 			ObjOID:        idx.OID,
 			Priority:      PriorityIndex,
 		})
+	}
+	if normalizeReplicaIdentity(entry.To.ReplicaIdentity) != 'd' {
+		ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 	}
 
 	return ops

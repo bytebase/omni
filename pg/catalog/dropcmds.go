@@ -52,13 +52,14 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeRuleObjects(stmt)
 	case nodes.OBJECT_OPERATOR:
 		return c.removeOperatorObjects(stmt)
+	case nodes.OBJECT_ACCESS_METHOD:
+		return c.removeAccessMethodObjects(stmt)
 	case nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
 		nodes.OBJECT_LANGUAGE,
 		nodes.OBJECT_FDW,
 		nodes.OBJECT_FOREIGN_SERVER,
-		nodes.OBJECT_ACCESS_METHOD,
 		nodes.OBJECT_PUBLICATION,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,
@@ -1137,6 +1138,51 @@ func (c *Catalog) removeOperatorObjects(stmt *nodes.DropStmt) error {
 			c.dropDependents('O', op.OID)
 		}
 		c.removeOperator(op.OID)
+	}
+	return nil
+}
+
+func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var targets []*AccessMethod
+	seen := make(map[uint32]bool)
+	for _, item := range stmt.Objects.Items {
+		name := stringVal(item)
+		if name == "" {
+			if list, ok := item.(*nodes.List); ok && len(list.Items) > 0 {
+				name = stringVal(list.Items[len(list.Items)-1])
+			}
+		}
+		am := c.accessMethodByName[name]
+		if am == nil {
+			if stmt.Missing_ok || c.snapshot {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("access method %q does not exist, skipping", name))
+				}
+				continue
+			}
+			return errUndefinedObject("access method", name)
+		}
+		if c.isExtensionMember(am.OID) {
+			return errDependentObjects("extension", c.extensionMembers[am.OID])
+		}
+		if !seen[am.OID] {
+			seen[am.OID] = true
+			targets = append(targets, am)
+		}
+	}
+	if !cascade {
+		for _, am := range targets {
+			if len(c.findNormalDependents('m', am.OID)) > 0 {
+				return errDependentObjects("access method", am.Name)
+			}
+		}
+	}
+	for _, am := range targets {
+		c.cascadeDropAccessMethod(am.OID)
 	}
 	return nil
 }

@@ -310,17 +310,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 
 	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. Snapshot
 	// catalog state (preserving pre-existing object pointer identities on
-	// restore) whenever multiple subcommands run or a single subcommand mutates
-	// state across relations/dependents before a later failure.
+	// restore) whenever multiple subcommands run or a command recurses to
+	// child relations.
 	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0)
-	for _, p := range pending {
-		switch nodes.AlterTableType(p.cmd.Subtype) {
-		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner, nodes.AT_SetAccessMethod,
-			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
-			nodes.AT_ReplicaIdentity, nodes.AT_AlterConstraint, nodes.AT_AddColumn:
-			needsRollback = true
-		}
-	}
 	restore := func() {}
 	if needsRollback {
 		restore = c.snapshotForAlterRollback()
@@ -546,6 +538,12 @@ func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
 			if err := c.checkRelationTablespace(atc.Name); err != nil {
 				return err
 			}
+		case nodes.AT_ChangeOwner:
+			if atc.Newowner != nil {
+				if err := c.checkRole(c.ownerRoleName(atc.Newowner)); err != nil {
+					return err
+				}
+			}
 		case nodes.AT_SetRelOptions, nodes.AT_ReplaceRelOptions:
 			opts, _ := atc.Def.(*nodes.List)
 			if err := c.validateRelOptions(opts, 'i', parentIdx.AccessMethod); err != nil {
@@ -583,6 +581,8 @@ func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
 		switch nodes.AlterTableType(atc.Subtype) {
 		case nodes.AT_SetTableSpace:
 			parentIdx.Tablespace = normalizeTablespace(atc.Name)
+		case nodes.AT_ChangeOwner:
+			c.addWarning(CodeWarning, fmt.Sprintf("cannot change owner of index %q", parentIdx.Name))
 		case nodes.AT_AttachPartition:
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
@@ -1996,6 +1996,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 			if err != nil {
 				return err
 			}
+			if rel.Persistence != 0 {
+				seq.Persistence = rel.Persistence
+			}
 			colDef.IdentitySequence = seqRV
 			identitySeq = seq
 			identityDefault = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
@@ -2579,6 +2582,9 @@ func (c *Catalog) atAddIdentity(schema *Schema, rel *Relation, relName, colName 
 		seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colName, rel.OwnerName, col.TypeOID, identityOptions)
 		if err != nil {
 			return err
+		}
+		if rel.Persistence != 0 {
+			seq.Persistence = rel.Persistence
 		}
 		cd.IdentitySequence = seqRV
 		seq.OwnerRelOID = rel.OID

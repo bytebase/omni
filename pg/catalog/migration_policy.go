@@ -12,7 +12,11 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
 
 	for _, rel := range diff.Relations {
-		qualifiedTable := migrationQualifiedName(rel.SchemaName, rel.Name)
+		targetRel := rel.To
+		if targetRel == nil {
+			targetRel = rel.From
+		}
+		qualifiedTable := formatRelationName(rel.SchemaName, rel.Name, targetRel)
 
 		// RLS flag changes (ENABLE/DISABLE ROW LEVEL SECURITY, FORCE/NO FORCE).
 		if rel.RLSChanged {

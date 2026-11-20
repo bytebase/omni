@@ -18,13 +18,17 @@ func migrationQualifiedName(schema, name string) string {
 }
 
 func formatRelationTargetName(schemaName string, rel *Relation) string {
-	if rel != nil && rel.Persistence == 't' && !isTempSchemaName(schemaName) {
-		return quoteIdentAlways(rel.Name)
-	}
 	if rel != nil {
-		return migrationQualifiedName(schemaName, rel.Name)
+		return formatRelationName(schemaName, rel.Name, rel)
 	}
-	return migrationQualifiedName(schemaName, "")
+	return formatRelationName(schemaName, "", nil)
+}
+
+func formatRelationName(schemaName, relName string, rel *Relation) string {
+	if (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+		return quoteIdentAlways(relName)
+	}
+	return migrationQualifiedName(schemaName, relName)
 }
 
 // generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
@@ -340,7 +344,7 @@ func formatCollate(collation string) string {
 	return " COLLATE " + quoteIdentAlways(collation)
 }
 
-func columnCollationSchema(c *Catalog, col *Column) string {
+func columnCollationResolvedNamespace(c *Catalog, col *Column) string {
 	if col == nil || col.CollationName == "" {
 		return ""
 	}
@@ -348,26 +352,57 @@ func columnCollationSchema(c *Catalog, col *Column) string {
 		for _, s := range c.schemas {
 			if s != nil {
 				if uc := s.Collations[col.CollationName]; uc != nil && uc.OID == col.UserCollationOID {
-					if s.Name != "public" {
-						return s.Name
-					}
-					return ""
+					return s.Name
 				}
 			}
 		}
 	}
-	if col.CollationSchema != "" && col.CollationSchema != "public" && col.CollationSchema != "pg_catalog" {
+	if col.CollationSchema != "" {
 		return col.CollationSchema
 	}
-	return ""
+	if isBuiltinCollationName(col.CollationName) {
+		return "pg_catalog"
+	}
+	return "public"
+}
+
+func columnCollationSchema(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	ns := columnCollationResolvedNamespace(c, col)
+	switch ns {
+	case "", "pg_catalog":
+		if col.CollationSchema == "pg_catalog" {
+			return "pg_catalog"
+		}
+		if c != nil {
+			for _, s := range c.schemas {
+				if s != nil && s.OID != PGCatalogNamespace && s.Collations[col.CollationName] != nil {
+					return "pg_catalog"
+				}
+			}
+		}
+		return ""
+	case "public":
+		if col.UserCollationOID != 0 && (isBuiltinCollationName(col.CollationName) || col.CollationSchema == "public") {
+			return "public"
+		}
+		if col.CollationSchema == "public" {
+			return "public"
+		}
+		return ""
+	default:
+		return ns
+	}
 }
 
 func columnCollationKey(c *Catalog, col *Column) string {
 	if col == nil || col.CollationName == "" {
 		return ""
 	}
-	if sc := columnCollationSchema(c, col); sc != "" {
-		return migrationQualifiedName(sc, col.CollationName)
+	if ns := columnCollationResolvedNamespace(c, col); ns != "" {
+		return migrationQualifiedName(ns, col.CollationName)
 	}
 	return quoteIdentAlways(col.CollationName)
 }

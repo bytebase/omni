@@ -1220,7 +1220,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	if cd.CollClause != nil && cd.CollClause.Collname != nil && len(cd.CollClause.Collname.Items) > 0 {
 		result.CollClause = cd.CollClause
 		sc, nm := qualifiedName(cd.CollClause.Collname)
-		if sc != "public" && sc != "pg_catalog" {
+		if sc != "" {
 			result.CollationSchema = sc
 		}
 		result.CollationName = nm

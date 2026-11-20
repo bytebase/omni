@@ -296,6 +296,33 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		}
 		key = commentKey{ObjType: 'E', ObjOID: evt.OID}
 
+	case nodes.OBJECT_RULE:
+		var schemaName, tableName, ruleName string
+		if list, ok := stmt.Object.(*nodes.List); ok {
+			items := list.Items
+			switch len(items) {
+			case 2:
+				tableName = stringVal(items[0])
+				ruleName = stringVal(items[1])
+			case 3:
+				schemaName = stringVal(items[0])
+				tableName = stringVal(items[1])
+				ruleName = stringVal(items[2])
+			}
+		}
+		_, rel, err := c.findRelation(schemaName, tableName)
+		if err != nil {
+			return err
+		}
+		var rule *Rule
+		if rel.Rules != nil {
+			rule = rel.Rules[ruleName]
+		}
+		if rule == nil {
+			return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("rule %q for relation %q does not exist", ruleName, rel.Name)}
+		}
+		key = commentKey{ObjType: 'R', ObjOID: rule.OID}
+
 	case nodes.OBJECT_COLLATION,
 		nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPERATOR,
@@ -304,7 +331,6 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		nodes.OBJECT_LANGUAGE,
 		nodes.OBJECT_FDW,
 		nodes.OBJECT_FOREIGN_SERVER,
-		nodes.OBJECT_RULE,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,
 		nodes.OBJECT_STATISTIC_EXT,

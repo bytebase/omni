@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
@@ -28,6 +31,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 
 	// Analyze the query to infer column types (same approach as DefineView).
 	var analyzeOpts AnalyzeOptions
+	var execPrep *preparedStmt
 	selStmt, ok := stmt.Query.(*nodes.SelectStmt)
 	if !ok {
 		// A prepared statement is run only after the target name is checked.
@@ -60,6 +64,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 					Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
 				}
 			}
+			execPrep = prep
 			paramTypes := slices.Clone(prep.argTypes)
 			// pg: src/backend/commands/prepare.c — ExecuteQuery wraps EvaluateParams
 			// inside `if (entry->plansource->num_params > 0)`, so PostgreSQL 17 ignores
@@ -82,11 +87,16 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 						if perr != nil {
 							return perr
 						}
-						if i < len(paramTypes) && paramTypes[i] != 0 {
-							if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
-								if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'a'); cerr != nil {
-									return cerr
+						if i < len(paramTypes) && paramTypes[i] != 0 && pExpr != nil {
+							if pExpr.exprType() == UNKNOWNOID {
+								if ce, isConst := pExpr.(*ConstExpr); isConst && !ce.IsNull {
+									if lerr := c.validateLiteralForType(ce.Value, paramTypes[i]); lerr != nil {
+										return lerr
+									}
 								}
+							}
+							if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'a'); cerr != nil {
+								return cerr
 							}
 						}
 					}
@@ -108,6 +118,24 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	analyzedQuery, err := c.analyzeSelectStmtWithOptions(selStmt, analyzeOpts)
 	if err != nil {
 		return err
+	}
+	if execPrep != nil && execPrep.hasResultCols && analyzedQuery != nil && !c.snapshot {
+		outEntries := nonJunkTargetEntries(analyzedQuery.TargetList)
+		if len(outEntries) != len(execPrep.resultCols) {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cached plan must not change result type",
+			}
+		}
+		for i, te := range outEntries {
+			want := execPrep.resultCols[i]
+			if te.Expr.exprType() != want.TypeOID || te.Expr.exprTypMod() != want.TypeMod {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "cached plan must not change result type",
+				}
+			}
+		}
 	}
 
 	// The query is read before the target name is checked: CREATE TABLE a AS
@@ -384,4 +412,68 @@ func (c *Catalog) ExecRefreshMatView(stmt *nodes.RefreshMatViewStmt) error {
 		}
 	}
 	return errWrongObjectType(rel.Name, "a materialized view")
+}
+
+func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
+	for dt := c.domainTypes[targetType]; dt != nil; dt = c.domainTypes[targetType] {
+		targetType = dt.BaseTypeOID
+	}
+	trimmed := strings.TrimSpace(val)
+	switch targetType {
+	case INT2OID:
+		v, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
+			}
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type smallint: %q", val)}
+		}
+		if v < -32768 || v > 32767 {
+			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
+		}
+	case INT4OID, OIDOID, XIDOID, CIDOID:
+		v, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
+			}
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
+		}
+		if targetType == INT4OID && (v < -2147483648 || v > 2147483647) {
+			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type integer", val)}
+		}
+	case INT8OID:
+		if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type bigint", val)}
+			}
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type bigint: %q", val)}
+		}
+	case FLOAT4OID, FLOAT8OID, NUMERICOID:
+		switch strings.ToLower(trimmed) {
+		case "nan", "infinity", "+infinity", "-infinity", "inf", "+inf", "-inf":
+			return nil
+		}
+		if _, err := strconv.ParseFloat(trimmed, 64); err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
+			}
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
+		}
+	case BOOLOID:
+		switch strings.ToLower(trimmed) {
+		case "t", "tr", "tru", "true", "f", "fa", "fal", "fals", "false",
+			"y", "ye", "yes", "n", "no", "on", "of", "off", "1", "0":
+			return nil
+		default:
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type boolean: %q", val)}
+		}
+	default:
+		if et := c.enumTypes[targetType]; et != nil {
+			if et.labelMap[val] == nil {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input value for enum %s: %q", c.typeName(targetType), val)}
+			}
+		}
+	}
+	return nil
 }

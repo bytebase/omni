@@ -25,10 +25,17 @@ type operKey struct {
 	right uint32
 }
 
+type preparedResultCol struct {
+	TypeOID uint32
+	TypeMod int32
+}
+
 type preparedStmt struct {
-	query     nodes.Node
-	argTypes  []uint32
-	numParams int
+	query         nodes.Node
+	argTypes      []uint32
+	numParams     int
+	hasResultCols bool
+	resultCols    []preparedResultCol
 }
 
 // Catalog is the in-memory PostgreSQL catalog.
@@ -435,9 +442,18 @@ func (c *Catalog) SetSearchPath(schemas []string) {
 // pg: src/backend/catalog/namespace.c — preprocessNamespacePath, finalNamespacePath
 func (c *Catalog) searchPathWithCatalog() []uint32 {
 	hasPGCatalog := false
+	hasPGTemp := false
 
 	// Expand $user and collect schema names.
-	expanded := make([]string, 0, len(c.searchPath)+1)
+	expanded := make([]string, 0, len(c.searchPath)+2)
+	for _, name := range c.searchPath {
+		if name == "pg_temp" {
+			hasPGTemp = true
+		}
+	}
+	if !hasPGTemp && c.schemaByName["pg_temp"] != nil {
+		expanded = append(expanded, "pg_temp")
+	}
 	for _, name := range c.searchPath {
 		if name == "$user" {
 			// pg: preprocessNamespacePath — "$user" substitution using GetUserId()
@@ -471,6 +487,23 @@ func (c *Catalog) searchPathWithCatalog() []uint32 {
 		oids = append(oids, s.OID)
 	}
 	return oids
+}
+
+func (c *Catalog) ensureTempSchema() *Schema {
+	if s := c.schemaByName["pg_temp"]; s != nil {
+		return s
+	}
+	s := &Schema{
+		OID:        c.oidGen.Next(),
+		Name:       "pg_temp",
+		Relations:  make(map[string]*Relation),
+		Indexes:    make(map[string]*Index),
+		Sequences:  make(map[string]*Sequence),
+		Collations: make(map[string]*UserCollation),
+	}
+	c.schemas[s.OID] = s
+	c.schemaByName[s.Name] = s
+	return s
 }
 
 // resolveTargetSchema determines the schema for a DDL operation.

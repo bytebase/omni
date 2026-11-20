@@ -119,9 +119,25 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 		return fmt.Sprintf("EVENT TRIGGER %s", quoteIdentAlways(objDescription))
 	case 'p': // policy (schema.table.policy)
 		return formatPolicyCommentTarget(objDescription)
+	case 'R': // rule (schema.table.rule)
+		return formatRuleCommentTarget(c, objDescription)
 	default:
 		return ""
 	}
+}
+
+func formatRuleCommentTarget(c *Catalog, desc string) string {
+	parts := strings.SplitN(desc, ".", 3)
+	if len(parts) == 3 {
+		var rel *Relation
+		if c != nil {
+			rel = c.GetRelation(parts[0], parts[1])
+		}
+		return fmt.Sprintf("RULE %s ON %s",
+			quoteIdentAlways(parts[2]),
+			formatRelationName(parts[0], parts[1], rel))
+	}
+	return fmt.Sprintf("RULE %s", quoteIdentAlways(desc))
 }
 
 // resolveRelKindFromDescription looks up a relation by "schema.name" description

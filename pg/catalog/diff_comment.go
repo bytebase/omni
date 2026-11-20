@@ -228,6 +228,17 @@ func resolveCommentDescription(c *Catalog, ck commentKey) string {
 		}
 		return ""
 
+	case 'R': // rule
+		r := c.rules[ck.ObjOID]
+		if r == nil {
+			return ""
+		}
+		rel := c.relationByOID[r.OwnerRelOID]
+		if rel == nil || rel.Schema == nil {
+			return r.Name
+		}
+		return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, r.Name)
+
 	default:
 		return ""
 	}

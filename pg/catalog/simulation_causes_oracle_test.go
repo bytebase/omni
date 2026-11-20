@@ -4446,14 +4446,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 			}
 		}
 		mig114Mv := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo))
-		if !strings.Contains(mig114Mv.SQL(), "CREATE INDEX idx_mv_pop_r12") {
-			t.Fatalf("expected preserved index idx_mv_pop_r12 on mv_pop_r12, got:\n%s", mig114Mv.SQL())
+		if !strings.Contains(mig114Mv.SQL(), "REFRESH MATERIALIZED VIEW \"public\".\"mv_pop_r12\" WITH DATA") {
+			t.Fatalf("expected REFRESH MATERIALIZED VIEW on mv_pop_r12, got:\n%s", mig114Mv.SQL())
 		}
 		if !strings.Contains(mig114Mv.SQL(), "CREATE INDEX idx_mv_q_r12") {
 			t.Fatalf("expected recreated index idx_mv_q_r12 on rebuilt mv_q_r12, got:\n%s", mig114Mv.SQL())
 		}
 		if code := simulationCatalogCode(t, c114MvFrom, mig114Mv.SQL()); code != "0" {
 			t.Fatalf("applying mig114Mv failed with %s:\n%s", code, mig114Mv.SQL())
+		}
+		if c114MvFrom.GetSchema("public").Indexes["idx_mv_pop_r12"] == nil {
+			t.Fatalf("expected preserved index idx_mv_pop_r12 on mv_pop_r12")
 		}
 		if rem := GenerateMigration(c114MvFrom, c114MvTo, Diff(c114MvFrom, c114MvTo)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after mig114Mv, got:\n%s", rem.SQL())
@@ -4624,9 +4627,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("expected zero remaining ops after c116From->c116To, got:\n%s", rem.SQL())
 		}
 
-		// Duplicate base column in WITH CHECK OPTION view -> 0A000.
-		if code := simulationCatalogCode(t, c116To, "CREATE VIEW v_dup_r14(x, y) AS SELECT id, id FROM t_r14 WITH CHECK OPTION"); code != CodeFeatureNotSupported {
-			t.Fatalf("CREATE VIEW with duplicate base column and WITH CHECK OPTION answered %s, want %s", code, CodeFeatureNotSupported)
+		// Duplicate base column projections in a WITH CHECK OPTION view are accepted by PostgreSQL.
+		if code := simulationCatalogCode(t, c116To, "CREATE VIEW v_dup_r14(x, y) AS SELECT id, id FROM t_r14 WITH CHECK OPTION"); code != "0" {
+			t.Fatalf("CREATE VIEW with duplicate base column and WITH CHECK OPTION answered %s, want 0", code)
 		}
 
 		// Extension-owned collation cannot be dropped directly.
@@ -5111,7 +5114,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_sublink_cols_r20 AS ON INSERT TO t_r20 WHERE NEW.id = (SELECT id, val FROM dst_r20) DO ALSO NOTHING", CodeSyntaxError},
 			{"CREATE RULE r_limit_type_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 LIMIT 'abc'::text", CodeDatatypeMismatch},
 			{"CREATE RULE r_ord_oob_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 ORDER BY 2", CodeInvalidColumnReference},
-			{"PREPARE q_oob_r21(int) AS SELECT $2::int", CodeUndefinedParameter},
+			{"PREPARE q_oob_r21(int) AS SELECT 1 WHERE $2 IS NULL", CodeIndeterminateDatatype},
+			{"PREPARE q_trail_r25(int) AS SELECT $1, $2::text", "0"},
+			{"PREPARE q_huge_param_r25 AS SELECT $1000000000::int", CodeUndefinedParameter},
+			{"CREATE COLLATION c_nondet_libc_r25 (PROVIDER = libc, LOCALE = 'C', DETERMINISTIC = false)", CodeFeatureNotSupported},
+			{"PREPARE p_int_r25(int) AS SELECT $1 AS id; CREATE TABLE t_bad_lit_r25 AS EXECUTE p_int_r25('abc')", CodeInvalidTextRepresentation},
+			{"CREATE TABLE t_star_r25 (a int); PREPARE p_star_r25 AS SELECT * FROM t_star_r25; ALTER TABLE t_star_r25 ADD COLUMN b int; CREATE TABLE out_star_r25 AS EXECUTE p_star_r25", CodeFeatureNotSupported},
+			{"CREATE ROLE rep_r25; CREATE INDEX ix_own_r25 ON t_r20 (id); ALTER INDEX ix_own_r25 OWNER TO rep_r25", "0"},
+			{"CREATE VIEW v_ret_dup_r25 AS SELECT id, val::varchar AS v FROM t_r20; CREATE RULE \"_RETURN\" AS ON UPDATE TO v_ret_dup_r25 DO INSTEAD NOTHING", CodeDuplicateObject},
+			{"CREATE OR REPLACE RULE \"_RETURN\" AS ON SELECT TO v_ret_dup_r25 DO INSTEAD SELECT id, val::varchar(5) AS v FROM t_r20", "0"},
+			{"CREATE VIEW v_rep_col_chk_r25(x, y) AS SELECT id, id FROM t_r20 WITH LOCAL CHECK OPTION", "0"},
+			{"CREATE OR REPLACE VIEW v_rep_col_chk_r25 AS SELECT id AS renamed_x, id AS y FROM t_r20", CodeInvalidObjectDefinition},
 			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
 			{"CREATE RULE r_select_into_r21 AS ON INSERT TO t_r20 DO ALSO SELECT 1 INTO created_table_r21", CodeSyntaxError},
 			{"CREATE RULE r_bad_tsm_r21 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 TABLESAMPLE no_such_method(10)", CodeUndefinedFunction},
@@ -5130,6 +5143,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_lock_agg_r24 AS ON INSERT TO t_r20 DO ALSO SELECT count(*) FROM t_r20 FOR UPDATE", CodeFeatureNotSupported},
 			{"CREATE RULE r_lock_setop_r24 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM t_r20 UNION SELECT id FROM dst_r20 FOR UPDATE", CodeFeatureNotSupported},
 			{"CREATE RULE r_oc_upd_no_infer_r24 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id, val) VALUES (NEW.id, NEW.val) ON CONFLICT DO UPDATE SET val = EXCLUDED.val", CodeSyntaxError},
+			{"CREATE RULE r_win_missing_r25 AS ON INSERT TO t_r20 DO ALSO SELECT row_number() OVER missing_win FROM t_r20", CodeUndefinedObject},
+			{"CREATE RULE r_grouping_no_gb_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(id) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_grouping_non_key_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(val) FROM t_r20 GROUP BY id", CodeGroupingError},
+			{"CREATE TEMP TABLE tmp_ident_r25 (a int); ALTER TABLE tmp_ident_r25 ADD COLUMN id int GENERATED ALWAYS AS IDENTITY; ALTER SEQUENCE tmp_ident_r25_id_seq SET LOGGED", CodeWrongObjectType},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
@@ -5185,6 +5202,82 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rem := GenerateMigration(c123From, c123To, Diff(c123From, c123To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c123From->c123To, got:\n%s", rem.SQL())
+		}
+
+		// Verify view CheckOption preserved after failed replacement, temp view replacement shadowing,
+		// subquery temp detection, matview refresh on IsPopulated change, replica identity on DiffAdd,
+		// target access method creation, rule comment preservation, and collation option order independence.
+		if v := c122.GetRelation("public", "v_rep_col_chk_r25"); v == nil || v.CheckOption != 'l' {
+			t.Fatalf("expected failed CREATE OR REPLACE VIEW to preserve CheckOption='l', got %+v", v)
+		}
+		c125 := New()
+		for _, stmt := range []string{
+			"CREATE VIEW v_shadow AS SELECT 1 AS a",
+			"CREATE OR REPLACE TEMP VIEW v_shadow AS SELECT 2 AS a",
+			"CREATE TEMP TABLE tmp_sub_r25 (id int)",
+			"CREATE VIEW v_sub_temp_r25 AS SELECT EXISTS (SELECT 1 FROM tmp_sub_r25) AS present",
+		} {
+			if code := simulationCatalogCode(t, c125, stmt); code != "0" {
+				t.Fatalf("c125 %s: %s", stmt, code)
+			}
+		}
+		if vSub := c125.GetRelation("", "v_sub_temp_r25"); vSub == nil || vSub.Persistence != 't' {
+			t.Fatalf("expected v_sub_temp_r25 to be temporary, got %+v", vSub)
+		}
+		if code := simulationCatalogCode(t, c125, "DISCARD TEMP"); code != "0" {
+			t.Fatalf("c125 DISCARD TEMP: %s", code)
+		}
+		if vPerm := c125.GetRelation("public", "v_shadow"); vPerm == nil || vPerm.Persistence == 't' {
+			t.Fatalf("expected permanent public.v_shadow to survive DISCARD TEMP, got %+v", vPerm)
+		}
+
+		c125From := New()
+		c125To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_ord_r25 (PROVIDER = libc, LOCALE = 'C')",
+			"CREATE TABLE t_mv_r25 (id int)",
+			"CREATE MATERIALIZED VIEW mv_pop_r25 AS SELECT id FROM t_mv_r25 WITH NO DATA",
+			"CREATE RULE r_comm_r25 AS ON INSERT TO t_mv_r25 DO ALSO NOTHING",
+			"COMMENT ON RULE r_comm_r25 ON t_mv_r25 IS 'keep rule comment'",
+		} {
+			if code := simulationCatalogCode(t, c125From, stmt); code != "0" {
+				t.Fatalf("c125From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_ord_r25 (LOCALE = 'C', PROVIDER = libc)",
+			"CREATE ACCESS METHOD alt_heap_r25 TYPE TABLE HANDLER heap_tableam_handler",
+			"CREATE TABLE t_mv_r25 (id int) USING alt_heap_r25",
+			"CREATE TABLE t_repl_r25 (id int)",
+			"ALTER TABLE t_repl_r25 REPLICA IDENTITY FULL",
+			"CREATE MATERIALIZED VIEW mv_pop_r25 AS SELECT id FROM t_mv_r25",
+			"CREATE RULE r_comm_r25 AS ON INSERT TO t_mv_r25 WHERE NEW.id > 0 DO ALSO NOTHING",
+			"COMMENT ON RULE r_comm_r25 ON t_mv_r25 IS 'keep rule comment'",
+		} {
+			if code := simulationCatalogCode(t, c125To, stmt); code != "0" {
+				t.Fatalf("c125To %s: %s", stmt, code)
+			}
+		}
+		mig125 := GenerateMigration(c125From, c125To, Diff(c125From, c125To))
+		sql125 := mig125.SQL()
+		for _, wantFrag := range []string{
+			"CREATE ACCESS METHOD alt_heap_r25 TYPE TABLE HANDLER heap_tableam_handler",
+			"REFRESH MATERIALIZED VIEW \"public\".\"mv_pop_r25\" WITH DATA",
+			"ALTER TABLE \"public\".\"t_repl_r25\" REPLICA IDENTITY FULL",
+			"CREATE OR REPLACE RULE \"r_comm_r25\"",
+		} {
+			if !strings.Contains(sql125, wantFrag) {
+				t.Fatalf("expected %q in c125 migration SQL, got:\n%s", wantFrag, sql125)
+			}
+		}
+		if strings.Contains(sql125, "c_ord_r25") {
+			t.Fatalf("expected reordered collation options to produce no collation diff, got:\n%s", sql125)
+		}
+		if code := simulationCatalogCode(t, c125From, sql125); code != "0" {
+			t.Fatalf("applying c125From->c125To failed with %s:\n%s", code, sql125)
+		}
+		if rem := GenerateMigration(c125From, c125To, Diff(c125From, c125To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c125From->c125To, got:\n%s", rem.SQL())
 		}
 	})
 

@@ -189,6 +189,14 @@ type CollationDiffEntry struct {
 	To         *UserCollation
 }
 
+// AccessMethodDiffEntry describes a user-defined access method change.
+type AccessMethodDiffEntry struct {
+	Action DiffAction
+	Name   string
+	From   *AccessMethod
+	To     *AccessMethod
+}
+
 // ---------------------------------------------------------------------------
 // SchemaDiff — aggregate result of comparing two catalogs
 // ---------------------------------------------------------------------------
@@ -197,6 +205,7 @@ type CollationDiffEntry struct {
 type SchemaDiff struct {
 	Schemas        []SchemaDiffEntry
 	Collations     []CollationDiffEntry
+	AccessMethods  []AccessMethodDiffEntry
 	Relations      []RelationDiffEntry
 	Sequences      []SequenceDiffEntry
 	Functions      []FunctionDiffEntry
@@ -214,6 +223,7 @@ type SchemaDiff struct {
 func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.Schemas) == 0 &&
 		len(d.Collations) == 0 &&
+		len(d.AccessMethods) == 0 &&
 		len(d.Relations) == 0 &&
 		len(d.Sequences) == 0 &&
 		len(d.Functions) == 0 &&
@@ -235,6 +245,7 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	return &SchemaDiff{
 		Schemas:        diffSchemas(from, to),
 		Collations:     diffCollations(from, to),
+		AccessMethods:  diffAccessMethods(from, to),
 		Relations:      relations,
 		Sequences:      diffSequences(from, to),
 		Functions:      diffFunctions(from, to),
@@ -247,6 +258,61 @@ func Diff(from, to *Catalog) *SchemaDiff {
 		Comments:       diffComments(from, to),
 		Grants:         diffGrants(from, to),
 	}
+}
+
+func diffAccessMethods(from, to *Catalog) []AccessMethodDiffEntry {
+	fromMap := map[string]*AccessMethod{}
+	if from != nil {
+		for _, am := range from.accessMethods {
+			if am != nil && am.OID >= FirstNormalObjectId && !from.isExtensionMember(am.OID) {
+				fromMap[am.Name] = am
+			}
+		}
+	}
+	toMap := map[string]*AccessMethod{}
+	if to != nil {
+		for _, am := range to.accessMethods {
+			if am != nil && am.OID >= FirstNormalObjectId && !to.isExtensionMember(am.OID) {
+				toMap[am.Name] = am
+			}
+		}
+	}
+	var out []AccessMethodDiffEntry
+	for name, fam := range fromMap {
+		if _, ok := toMap[name]; !ok {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffDrop,
+				Name:   name,
+				From:   fam,
+			})
+		}
+	}
+	for name, tam := range toMap {
+		fam, ok := fromMap[name]
+		if !ok {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffAdd,
+				Name:   name,
+				To:     tam,
+			})
+			continue
+		}
+		if fam.Type != tam.Type || formatAccessMethodHandler(from, fam.Handler) != formatAccessMethodHandler(to, tam.Handler) {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffModify,
+				Name:   name,
+				From:   fam,
+				To:     tam,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Action < out[j].Action
+	})
+	return out
 }
 
 func diffCollations(from, to *Catalog) []CollationDiffEntry {

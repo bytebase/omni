@@ -26,6 +26,9 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 
 		tableName := fmt.Sprintf("%s.%s", quoteIdentifier(rel.SchemaName), quoteIdentifier(rel.Name))
+		if (rel.To != nil && rel.To.Persistence == 't') || isTempSchemaName(rel.SchemaName) {
+			tableName = quoteIdentifier(rel.Name)
+		}
 
 		// Resolve the owning relation OID for column metadata.
 		var relOID uint32

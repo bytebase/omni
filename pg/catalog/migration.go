@@ -80,6 +80,8 @@ const (
 	OpCreateExtension    MigrationOpType = "CreateExtension"
 	OpDropExtension      MigrationOpType = "DropExtension"
 	OpAlterExtension     MigrationOpType = "AlterExtension"
+	OpCreateAccessMethod MigrationOpType = "CreateAccessMethod"
+	OpDropAccessMethod   MigrationOpType = "DropAccessMethod"
 	OpCreatePolicy       MigrationOpType = "CreatePolicy"
 	OpDropPolicy         MigrationOpType = "DropPolicy"
 	OpAlterPolicy        MigrationOpType = "AlterPolicy"
@@ -223,6 +225,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// functions referenced by CHECK/DEFAULT deps are placed before tables,
 	// functions with RETURNS SETOF deps are placed after tables.
 	ops = append(ops, generateFunctionDDL(from, to, diff)...)
+	ops = append(ops, generateAccessMethodDDL(from, to, diff)...)
 	ops = append(ops, generateTableDDL(from, to, diff)...)
 	ops = append(ops, generateColumnDDL(from, to, diff)...)
 	ops = append(ops, generateConstraintDDL(from, to, diff)...)
@@ -473,6 +476,9 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		if toRel := to.GetRelation(ri.schema, ri.rel); toRel != nil && toRel.Rules != nil {
 			if toRule := toRel.Rules[ri.rule.Name]; toRule != nil {
 				extraOps = append(extraOps, buildCreateAndModeRuleOps(to, ri.schema, ri.rel, toRel, toRule)...)
+				if cOp, ok := buildRuleCommentRestoreOp(from, to, ri.schema, ri.rel, ri.rule, toRule); ok {
+					extraOps = append(extraOps, cOp)
+				}
 			}
 		}
 	}
@@ -995,6 +1001,90 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	return result
 }
 
+func formatAccessMethodHandler(c *Catalog, handlerOID uint32) string {
+	if c != nil && handlerOID != 0 {
+		if up := c.userProcs[handlerOID]; up != nil && up.Schema != nil {
+			return migrationQualifiedName(up.Schema.Name, up.Name)
+		}
+		if bp := c.procByOID[handlerOID]; bp != nil {
+			return quoteIdentifier(bp.Name)
+		}
+	}
+	return "bthandler"
+}
+
+func formatCreateAccessMethod(c *Catalog, am *AccessMethod) string {
+	typeKw := "INDEX"
+	if am.Type == 't' {
+		typeKw = "TABLE"
+	}
+	return fmt.Sprintf("CREATE ACCESS METHOD %s TYPE %s HANDLER %s",
+		quoteIdentifier(am.Name), typeKw, formatAccessMethodHandler(c, am.Handler))
+}
+
+func generateAccessMethodDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.AccessMethods {
+		switch entry.Action {
+		case DiffAdd:
+			if entry.To == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateAccessMethod,
+				ObjectName:    entry.Name,
+				SQL:           formatCreateAccessMethod(to, entry.To),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'm',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityFunction,
+			})
+		case DiffDrop:
+			if entry.From == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropAccessMethod,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP ACCESS METHOD %s", quoteIdentifier(entry.Name)),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'm',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityFunction,
+			})
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			ops = append(ops,
+				MigrationOp{
+					Type:          OpDropAccessMethod,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("DROP ACCESS METHOD %s", quoteIdentifier(entry.Name)),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'm',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityFunction,
+				},
+				MigrationOp{
+					Type:          OpCreateAccessMethod,
+					ObjectName:    entry.Name,
+					SQL:           formatCreateAccessMethod(to, entry.To),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'm',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityFunction,
+				},
+			)
+		}
+	}
+	return ops
+}
+
 func generateCollationDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
 	for _, entry := range diff.Collations {
@@ -1394,7 +1484,6 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				if op.ParentObject != "" {
 					mainCreatedPol[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
 				}
-				mainCreatedPol[op.SchemaName+"."+op.ObjectName] = true
 			case OpCreateRule:
 				mainCreatedRule[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
 			case OpCreateFunction, OpAlterFunction:
@@ -1821,7 +1910,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
 			}
 			polKey := scName + "." + fromRel.Name + "." + pol.Name
-			if !mainCreatedPol[polKey] && !mainCreatedPol[scName+"."+pol.Name] {
+			if !mainCreatedPol[polKey] {
 				for _, toPol := range to.policiesByRel[toRel.OID] {
 					if toPol.Name == pol.Name {
 						mainCreatedPol[polKey] = true
@@ -1868,6 +1957,10 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					if toRule := toOwner.Rules[rule.Name]; toRule != nil {
 						mainCreatedRule[ruleKey] = true
 						mainExtra = append(mainExtra, buildCreateAndModeRuleOps(to, rSc, toOwner.Name, toOwner, toRule)...)
+						if cOp, ok := buildRuleCommentRestoreOp(from, to, rSc, toOwner.Name, rule, toRule); ok && !mainComments[cOp.SQL] {
+							mainComments[cOp.SQL] = true
+							mainExtra = append(mainExtra, cOp)
+						}
 					}
 				}
 			}
@@ -2358,7 +2451,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			scName := fromRel.Schema.Name
 			preDroppedPol[pol.OID] = true
 			preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
-			polKey := scName + "." + pol.Name
+			polKey := scName + "." + fromRel.Name + "." + pol.Name
 			if !mainCreatedPol[polKey] {
 				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
 					for _, toPol := range to.policiesByRel[toRel.OID] {
@@ -2388,6 +2481,10 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					if toRule := toRel.Rules[rule.Name]; toRule != nil {
 						mainCreatedRule[ruleKey] = true
 						mainExtra = append(mainExtra, buildCreateAndModeRuleOps(to, scName, toRel.Name, toRel, toRule)...)
+						if cOp, ok := buildRuleCommentRestoreOp(from, to, scName, toRel.Name, rule, toRule); ok && !mainComments[cOp.SQL] {
+							mainComments[cOp.SQL] = true
+							mainExtra = append(mainExtra, cOp)
+						}
 					}
 				}
 			}

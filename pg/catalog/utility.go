@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -348,7 +349,6 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			}
 		}
 		var argTypes []uint32
-		fixedParams := s.Argtypes != nil && len(s.Argtypes.Items) > 0
 		if s.Argtypes != nil {
 			argTypes = make([]uint32, 0, len(s.Argtypes.Items))
 			for _, item := range s.Argtypes.Items {
@@ -365,17 +365,20 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		}
 		numParams := len(argTypes)
 		maxParam := maxParamRefInNode(s.Query)
-		if !fixedParams && maxParam > numParams {
-			numParams = maxParam
-		}
-		if fixedParams && maxParam > numParams && !c.snapshot {
+		const maxPreparedParams = 65535
+		if maxParam > maxPreparedParams {
 			return &Error{
 				Code:    CodeUndefinedParameter,
 				Message: fmt.Sprintf("there is no parameter $%d", maxParam),
 			}
 		}
+		if maxParam > numParams {
+			numParams = maxParam
+		}
 		paramTypes := make([]uint32, numParams)
 		copy(paramTypes, argTypes)
+		var resultCols []preparedResultCol
+		var hasResultCols bool
 		if sel, isSel := s.Query.(*nodes.SelectStmt); isSel {
 			q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes})
 			if err != nil {
@@ -388,6 +391,15 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 						Code:    CodeIndeterminateDatatype,
 						Message: fmt.Sprintf("could not determine data type of parameter $%d", i+1),
 					}
+				}
+			}
+			if q != nil {
+				hasResultCols = true
+				for _, te := range nonJunkTargetEntries(q.TargetList) {
+					resultCols = append(resultCols, preparedResultCol{
+						TypeOID: te.Expr.exprType(),
+						TypeMod: te.Expr.exprTypMod(),
+					})
 				}
 			}
 		} else if s.Query != nil {
@@ -408,9 +420,11 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				c.preparedStmts = make(map[string]*preparedStmt)
 			}
 			c.preparedStmts[s.Name] = &preparedStmt{
-				query:     s.Query,
-				argTypes:  paramTypes,
-				numParams: numParams,
+				query:         s.Query,
+				argTypes:      paramTypes,
+				numParams:     numParams,
+				hasResultCols: hasResultCols,
+				resultCols:    resultCols,
 			}
 		}
 		return nil
@@ -631,6 +645,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 	seen := make(map[string]bool, len(def.Items))
 	var fromList *nodes.List
 	var hasLocale, hasLCCollate, hasLCCtype, hasRules bool
+	deterministic := true
 	var provider string
 	var parts []string
 
@@ -657,6 +672,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 			if !ok {
 				return "", &Error{Code: CodeSyntaxError, Message: "deterministic requires a Boolean value"}
 			}
+			deterministic = b
 			if b {
 				parts = append(parts, "DETERMINISTIC = true")
 			} else {
@@ -676,6 +692,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 				hasLCCtype = true
 			case "provider":
 				provider = strings.ToLower(val)
+				val = provider
 			case "rules":
 				hasRules = true
 			}
@@ -717,6 +734,12 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 	default:
 		return "", errInvalidObjectDefinition(fmt.Sprintf("unrecognized collation provider: %s", provider))
 	}
+	if !deterministic && provider != "icu" {
+		return "", &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "nondeterministic collations are not supported with this provider",
+		}
+	}
 	if hasRules && provider != "icu" {
 		return "", errInvalidObjectDefinition("ICU rules cannot be specified unless locale provider is ICU")
 	}
@@ -729,6 +752,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 		}
 		return "", errInvalidObjectDefinition("parameter \"locale\" must be specified")
 	}
+	sort.Strings(parts)
 	return "(" + strings.Join(parts, ", ") + ")", nil
 }
 

@@ -92,9 +92,7 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					if idx.ConstraintOID != 0 {
 						continue
 					}
-					sql := fmt.Sprintf("DROP INDEX %s.%s",
-						quoteIdentifier(relEntry.SchemaName),
-						quoteIdentifier(idx.Name))
+					sql := fmt.Sprintf("DROP INDEX %s", formatIndexTargetName(relEntry.SchemaName, idx))
 					ops = append(ops, MigrationOp{
 						Type:          OpDropIndex,
 						SchemaName:    relEntry.SchemaName,
@@ -183,6 +181,33 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	return append(ops, attachOps...)
 }
 
+func isTempIndex(schemaName string, idx *Index) bool {
+	if isTempSchemaName(schemaName) {
+		return true
+	}
+	if idx != nil && idx.Schema != nil {
+		if isTempSchemaName(idx.Schema.Name) {
+			return true
+		}
+		for _, r := range idx.Schema.Relations {
+			if r != nil && r.OID == idx.RelOID && r.Persistence == 't' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func formatIndexTargetName(schemaName string, idx *Index) string {
+	if idx == nil {
+		return ""
+	}
+	if isTempIndex(schemaName, idx) {
+		return quoteIdentifier(idx.Name)
+	}
+	return quoteIdentifier(schemaName) + "." + quoteIdentifier(idx.Name)
+}
+
 func buildIndexColumnRenameOps(schemaName string, idx *Index, fromNames, toNames []string) []MigrationOp {
 	if len(fromNames) != len(toNames) || stringSliceEqual(fromNames, toNames) {
 		return nil
@@ -198,7 +223,7 @@ func buildIndexColumnRenameOps(schemaName string, idx *Index, fromNames, toNames
 		targetSet[n] = true
 	}
 	var ops []MigrationOp
-	qIdx := quoteIdentifier(schemaName) + "." + quoteIdentifier(idx.Name)
+	qIdx := formatIndexTargetName(schemaName, idx)
 	for {
 		progressed := false
 		for i := range cur {
@@ -284,9 +309,13 @@ func buildCreateIndexSQL(idx *Index, rel *Relation, schemaName string) string {
 	b.WriteString("INDEX ")
 	b.WriteString(quoteIdentifier(idx.Name))
 	b.WriteString(" ON ")
-	b.WriteString(quoteIdentifier(schemaName))
-	b.WriteString(".")
-	b.WriteString(quoteIdentifier(rel.Name))
+	if (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+		b.WriteString(quoteIdentifier(rel.Name))
+	} else {
+		b.WriteString(quoteIdentifier(schemaName))
+		b.WriteString(".")
+		b.WriteString(quoteIdentifier(rel.Name))
+	}
 
 	// Access method — omit default btree.
 	if idx.AccessMethod != "" && idx.AccessMethod != "btree" {
