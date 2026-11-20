@@ -8,19 +8,22 @@ the pinned Oracle's (`../../testdata/pins.tsv`). `TestCompatibility`
 (`../compat_test.go`) reads it through `enginetest/compat` and starts no
 server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
-same file. A rejection carries the byte Oracle reports it at.
+same file. A rejection carries the byte Oracle reports it at. The counts here
+are the file as it stands at judge revision 3, after #1473, #1475, #1480 and
+#1483: 45,852 generated rows and 1,010 hand rows.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,809 | 7,549 | 1,723 | 2,488 | 3,049 |
-| Near-misses | 31,920 | 9,725 | 10,334 | 2,136 | 9,725 |
+| One per alternative | 14,534 | 13,362 | 547 | 4 | 621 |
+| Near-misses | 31,318 | 26,525 | 4,612 | 108 | 73 |
+| Hand rows | 1,010 | 888 | 103 | 17 | 2 |
 
-Most of what only Oracle accepts is materialized views (2,018 rows of
-`CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and `CREATE TABLE`
-(913), `GRANT` and `REVOKE` (382) and `SELECT` (189). Most of what only omni
-accepts is `ALTER TABLE` (1,881), materialized view logs (1,072), databases,
-pluggable databases and tablespaces (3,566) and `CREATE TABLE` (648): forms
-omni reads loosely. No parser gap is fixed here.
+At the recording, most of what only Oracle accepts was materialized views
+(2,018 rows of `CREATE` and `ALTER MATERIALIZED VIEW`), `ALTER TABLE` and
+`CREATE TABLE` (913), `GRANT` and `REVOKE` (382) and `SELECT` (189). Most of
+what only omni accepted was `ALTER TABLE` (1,881), materialized view logs
+(1,072), databases, pluggable databases and tablespaces (3,566) and `CREATE
+TABLE` (648): forms omni read loosely. No parser gap is fixed here.
 
 ## The grammar
 
@@ -55,9 +58,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 57 | 7 | 9 | 4 |
-| `suite:reference` | 321 | 223 | 77 | 21 | 0 |
-| `suite:manifest` | 612 | 588 | 2 | 2 | 20 |
+| `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
+| `suite:reference` | 321 | 229 | 76 | 16 | 0 |
+| `suite:manifest` | 612 | 589 | 20 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this
@@ -164,8 +167,7 @@ missing `DATAFILE` the truncated text leaves.
 ## Rows only omni accepts, measured
 
 The other direction: the 696 rows whose cells are `accept` where the pinned
-Oracle says `reject` (left of the 796 originally measured after the closed
-families below, #1475's 2 and #1480's 51). Each was measured the same way, at judge revision 3,
+Oracle says `reject`. Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
@@ -174,9 +176,13 @@ here instead of closed. Fifteen rows were text the page refuses too, and were
 closed, and so were the thirty-two `PARTITIONSET` rows: the page's clause is
 only reachable in a composite-sharded database, which `OracleDocs.g4` records
 where the converter could drop the rule (its `fix:` notes on
-`alter_table_partitioning_clauses`' neighbours) and this server is not. All
-696 here are a name Oracle looks up, a check of the parsed statement, or the
-server's own setup, and stay rows.
+`alter_table_partitioning_clauses`' neighbours) and this server is not.
+#1475, #1480 and #1483 closed rows of this direction too: an external table's
+`AS QUERY` (2), the `ALTER SYSTEM SET`, `ALTER SESSION SET` and `ALTER SYSTEM
+RESET` rows whose parameter names `oracle/parser` now carries (51), and the
+derived analytic view the `SELECT.bnf` quote drew wrongly. All 696 here are a
+name Oracle looks up, a check of the parsed statement, or the server's own
+setup, and stay rows.
 
 ### Closed
 
@@ -203,7 +209,10 @@ holds the form beside it, which Oracle takes, to the parser.
 A byte is `DBMS_SQL.LAST_ERROR_POSITION` unless the row says otherwise. Each
 group's code was measured on the pinned server, and the control beside it,
 which is the same text with the missing feature added, is what tells a check
-from the grammar; the controls are named where a reader would ask.
+from the grammar; the controls are named where a reader would ask. These are
+the causes measured, largest first: they are the largest groups, not a
+partition of the 696, since one row can answer more than one cause and the
+long tail below holds the rest.
 
 | Cause | Rows | Oracle's answer |
 | --- | --- | --- |
@@ -244,7 +253,7 @@ from the grammar; the controls are named where a reader would ask.
 | `... ILM ADD POLICY COMPRESS ROW ...` on a tablespace | 3 | `ORA-38336` at 0: the policy is invalid for a tablespace |
 | `CREATE FUNCTION a ... SHARING = { METADATA \| NONE }` | 3 | `ORA-24344` with no byte, a unit created with compilation errors: as `ORA-65021` is for a sequence, SHARING is the application root's |
 
-Forty-three rows answer a code no other row has, or one they share with a
+Forty-two rows answer a code no other row has, or one they share with a
 single other row: a date literal out of range (`ORA-01841` at 74), `UPDATE
 INDEXES(a(PARTITION NOCOMPRESS))`
 (`ORA-14006` at 40), a segment name (`ORA-64223` at 0), `ALTER TABLE a ENABLE

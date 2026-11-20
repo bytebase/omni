@@ -11,15 +11,18 @@ server wrote the same file.
 
 | Rows | Total | Agree | Only StarRocks accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,062 | 2,184 | 720 | 158 |
-| Near-misses | 8,196 | 5,606 | 152 | 2,438 |
+| One per alternative | 3,062 | 3,062 | 0 | 0 |
+| Near-misses | 8,196 | 8,196 | 0 | 0 |
 
-Most of what only omni accepts is a statement cut short or with a word
-dropped that omni's parser reads loosely: a bare `SHOW` and `SHOW <anything>`,
-`ALTER TABLE` clauses (here behind `ALTER SYSTEM`, the shortest statement
-that reaches them), partition and column definitions. Most of what only
-StarRocks accepts is a non-reserved keyword as a name (`SELECT ADMIN`),
-`USE 'a'`, `COLLATE`, privileges, and `LOAD` and `BACKUP` forms. 3
+Every row agrees: the 11,258 generated rows and the 914 `suite:` rows below,
+12,172 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
+row. The generated ones were mostly statements omni did not read at all:
+`PIPE`, resource groups, `CATALOG`, data cache rules, `TRANSLATE`, the SQL and
+backend blacklists, plan advisors, `REFRESH EXTERNAL TABLE`, `EXECUTE AS` and
+`RESTORE SNAPSHOT`; the rest were forms StarRocks refuses and omni accepted, a
+reserved word read as a name (`SELECT FLOOR`), `SELECT COUNT(DISTINCT)`,
+`GROUP BY ROLLUP()`, `SHOW … WHERE`, and `CREATE CATALOG a` with no
+`PROPERTIES`. 3
 alternatives get no row: `expressionSingleton`, another entry point,
 `hintMap`, which StarRocks reads apart from a hint comment, and `CONCAT`,
 which `||` is only under sql_mode `PIPES_AS_CONCAT`.
@@ -27,11 +30,17 @@ which `||` is only under sql_mode `PIPES_AS_CONCAT`.
 ## Suites
 
 Eight container tests compared `Parse` with a running StarRocks. Their 434
-cases are `suite:` rows named after them, judged by the same recording; all
+cases are `suite:` rows named after them, judged by the same recording; all 434
 agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
 `suite:explain-modifiers` (18), `suite:no-job-statements` (46), and
 `suite:pr2a`, `pr2b`, `pr3`, `pr4a` and `pr4b` (89, the parity matrices of
-the PRs that added those forms). A statement added to one is a row with `?` in
+the PRs that added those forms). The 15 `suite:characters` rows, the
+characters no rule of `StarRocksLex.g4` matches, are a group of their own; the
+one that disagreed, `SELECT 1　AS x` with an ideographic space, agrees now that
+omni reads the character as one StarRocks refuses (#1467). The other 465 rows
+are 7 `suite:comments`, 5 `suite:copy-into`, 396 `suite:keywords` and 57
+`suite:doris-residue`; all agree. A statement added
+to one is a row with `?` in
 both verdict cells, judged by a recording:
 
 ```text
