@@ -510,7 +510,7 @@ COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
 					{Name: "skip_mv", Definition: "SELECT 1", SkipDump: true},
 					{Name: "a_mv_top", Definition: `SELECT id FROM "public"."z_mv_base"`},
-					{Name: "z_mv_base", Definition: `SELECT id FROM "public"."Events"`, Comment: "matview note"},
+					{Name: "z_mv_base", Definition: `SELECT id FROM "public"."Events"`},
 				},
 			},
 		},
@@ -1054,6 +1054,18 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 		}},
 	})
 	require.ErrorContains(t, err, "COMMENT ON PROCEDURE")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_comment",
+				Definition: "SELECT 1",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON MATERIALIZED VIEW")
 
 	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{{

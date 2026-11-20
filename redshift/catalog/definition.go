@@ -1650,6 +1650,9 @@ func writeView(w io.StringWriter, view *viewState) error {
 }
 
 func writeMaterializedView(w io.StringWriter, mv *viewState) error {
+	if mv.comment != "" {
+		return fmt.Errorf("materialized view %s comment cannot be restored because Redshift does not support COMMENT ON MATERIALIZED VIEW", mv.qualifiedName())
+	}
 	buf := &strings.Builder{}
 	if err := mv.toMaterializedString(buf); err != nil {
 		return err

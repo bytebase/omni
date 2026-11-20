@@ -26,9 +26,10 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			continue
 		}
 		schemaMeta := &SchemaMetadata{
-			Name:   s.Name,
-			Tables: make([]*TableMetadata, 0, len(s.Tables)),
-			Views:  make([]*ViewMetadata, 0, len(s.Views)),
+			Name:              s.Name,
+			Tables:            make([]*TableMetadata, 0, len(s.Tables)),
+			Views:             make([]*ViewMetadata, 0, len(s.Views)),
+			MaterializedViews: make([]*ViewMetadata, 0, len(s.MaterializedViews)),
 		}
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
@@ -57,6 +58,15 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:       v.Name,
 				Definition: v.Definition,
+			})
+		}
+		for _, mv := range s.MaterializedViews {
+			if mv == nil || mv.SkipDump {
+				continue
+			}
+			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
+				Name:       mv.Name,
+				Definition: mv.Definition,
 			})
 		}
 		out.Schemas = append(out.Schemas, schemaMeta)
@@ -107,7 +117,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		}
 	}
 	for _, view := range orderedViews(metadata) {
-		if err := writeCreateView(&buf, view.schema, view.view); err != nil {
+		if err := writeCreateView(&buf, view.schema, view.view, view.materialized); err != nil {
 			return "", err
 		}
 		buf.WriteString("\n\n")
@@ -159,30 +169,38 @@ func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetad
 	buf.WriteString("\n);")
 }
 
-// writeCreateView appends a single CREATE OR REPLACE VIEW statement for view
-// (qualified by schemaName) to buf. It does not append the inter-statement
-// blank line; the caller does. OR REPLACE matches CREATE TABLE IF NOT EXISTS:
-// a dump run twice restores rather than fails.
-func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata) error {
+// writeCreateView appends a single CREATE OR REPLACE VIEW (or CREATE
+// MATERIALIZED VIEW IF NOT EXISTS) statement for view (qualified by schemaName)
+// to buf. It does not append the inter-statement blank line; the caller does.
+func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata, materialized bool) error {
 	definition := strings.TrimSpace(view.Definition)
 	if definition == "" {
+		if materialized {
+			return fmt.Errorf("materialized view %s.%s has no definition to restore", schemaName, view.Name)
+		}
 		return fmt.Errorf("view %s.%s has no definition to restore", schemaName, view.Name)
+	}
+	if materialized {
+		fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW IF NOT EXISTS %s.%s AS\n%s;", quoteIdentifier(schemaName), quoteIdentifier(view.Name), definition)
+		return nil
 	}
 	fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s.%s AS\n%s;", quoteIdentifier(schemaName), quoteIdentifier(view.Name), definition)
 	return nil
 }
 
-// orderedView is one view and the schema that owns it, in snapshot order.
+// orderedView is one ordinary or materialized view and the schema that owns
+// it, in snapshot order.
 type orderedView struct {
-	schema string
-	view   *ViewMetadata
+	schema       string
+	view         *ViewMetadata
+	materialized bool
 }
 
-// orderedViews returns metadata's views in dependency order: every view comes
-// after the views its definition reads. Independent views keep snapshot order.
-// A definition the local parser cannot read contributes no edges rather than
-// failing the dump; Trino accepted it, and a dependency the local parser cannot
-// see is no reason to lose the statement.
+// orderedViews returns metadata's views and materialized views in dependency
+// order: every entry follows the views/materialized views its definition reads.
+// Independent entries keep snapshot order. A definition the local parser cannot
+// read contributes no edges rather than failing the dump; Trino accepted it, and
+// a dependency the local parser cannot see is no reason to lose the statement.
 func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 	var views []orderedView
 	for _, schema := range metadata.Schemas {
@@ -194,6 +212,12 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 				continue
 			}
 			views = append(views, orderedView{schema: schema.Name, view: view})
+		}
+		for _, mv := range schema.MaterializedViews {
+			if mv == nil {
+				continue
+			}
+			views = append(views, orderedView{schema: schema.Name, view: mv, materialized: true})
 		}
 	}
 	if len(views) < 2 {

@@ -346,7 +346,12 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 					nil,
 					{Name: "v_skip", Definition: "SELECT 1", SkipDump: true},
 					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base"`},
-					{Name: "v_base", Definition: `SELECT id FROM "s"."t"`},
+					{Name: "v_base", Definition: `SELECT id FROM "s"."mv_base"`},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					nil,
+					{Name: "mv_skip", Definition: "SELECT 1", SkipDump: true},
+					{Name: "mv_base", Definition: `SELECT id FROM "s"."t"`},
 				},
 			},
 		},
@@ -360,8 +365,11 @@ CREATE TABLE IF NOT EXISTS "s"."t" (
     "label" varchar
 );
 
-CREATE OR REPLACE VIEW "s"."v_base" AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" AS
 SELECT id FROM "s"."t";
+
+CREATE OR REPLACE VIEW "s"."v_base" AS
+SELECT id FROM "s"."mv_base";
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
 SELECT id FROM "s"."v_base";

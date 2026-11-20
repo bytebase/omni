@@ -51,6 +51,9 @@ type SchemaMetadata struct {
 	// Views are the schema's views, in snapshot order; each becomes one
 	// CREATE OR REPLACE VIEW statement after every schema's tables.
 	Views []*ViewMetadata
+	// MaterializedViews are the schema's materialized views, in snapshot order;
+	// each becomes one CREATE MATERIALIZED VIEW statement in dependency order.
+	MaterializedViews []*ViewMetadata
 }
 
 // ViewMetadata is one view; it renders to a single CREATE OR REPLACE VIEW
