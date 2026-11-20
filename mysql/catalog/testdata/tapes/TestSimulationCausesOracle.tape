@@ -40087,6 +40087,90 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (c1 VARCHAR(10), c2 VARCHAR(10), c3 VARCHAR(10), c4 VARCHAR(10), c5 VARCHAR(10), c6 VARCHAR(10), c7 VARCHAR(10), c8 VARCHAR(10), c9 VARCHAR(10), c10 VARCHAR(10), c11 VARCHAR(10), c12 VARCHAR(10), c13 VARCHAR(10), KEY ((ASCII(c1)), (ASCII(c2)), (ASCII(c3)), (ASCII(c4)), (ASCII(c5)), (ASCII(c6)), (ASCII(c7)), (ASCII(c8)), (ASCII(c9)), (ASCII(c10)), (ASCII(c11)), (ASCII(c12)), (ASCII(c13))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s VARCHAR(10), KEY ((ASCII(s)))) ROW_FORMAT=COMPACT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -46120,6 +46204,126 @@
 : bytes
 | 2
 > exec
+| SET @x = ASCII(X'01')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET @x = ASCII('A')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 65
+> exec
+| SET @x = ASCII('')
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = ASCII(65)
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 54
+> exec
+| SET @x = 1 << 63
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 9223372036854775808
+> exec
+| SET @x = (1 << 63) > 0
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET @x = -1 | 0
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 18446744073709551615
+> exec
+| SET @x = 1 << 64
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 0
+> exec
+| SET @x = 5 >> 1
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = 1.6 | 0
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = '3' ^ 1
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 2
+> exec
+| SET @x = -1 & 255
+< ok 0 0
+> query
+| SELECT CAST(@x AS CHAR)
+< result
+< column "CAST(@x AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 255
+> exec
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
@@ -46539,6 +46743,45 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = ASCII(X'01')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ((1 << 63) > 0)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET @m_round = ROUND(3.6)
 < ok 0 0
 > exec
@@ -46556,6 +46799,37 @@
 < row
 : bytes
 | 1
+> exec
+| SET foreign_key_checks = 0, @x_scope = @@SESSION.max_connections
+< error
+| 1238 HY000 Variable 'max_connections' is a GLOBAL variable
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET foreign_key_checks = 0, @x_scope = @@GLOBAL.warning_count
+< error
+| 1238 HY000 Variable 'warning_count' is a SESSION variable
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET @x_scope = @@GLOBAL.max_connections
+< ok 0 0
+> exec
+| SET @x_scope = @@SESSION.warning_count
+< ok 0 0
+> exec
+| SET @x_scope = @@max_connections
+< ok 0 0
 > exec
 | SET SESSION sql_mode = ''
 < ok 0 0

@@ -5057,6 +5057,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "functional SPACE of a column", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(a))))", code: 3757},
 		{name: "COMPACT functional SPACE(191)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(191)))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional SPACE(192)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(192)))) ROW_FORMAT=COMPACT", code: 1071},
+		// Integer-returning functions are small key parts, not placeholders.
+		{name: "functional key of 13 ASCII parts", stmt: "CREATE TABLE z (c1 VARCHAR(10), c2 VARCHAR(10), c3 VARCHAR(10), c4 VARCHAR(10), c5 VARCHAR(10), c6 VARCHAR(10), c7 VARCHAR(10), c8 VARCHAR(10), c9 VARCHAR(10), c10 VARCHAR(10), c11 VARCHAR(10), c12 VARCHAR(10), c13 VARCHAR(10), KEY ((ASCII(c1)), (ASCII(c2)), (ASCII(c3)), (ASCII(c4)), (ASCII(c5)), (ASCII(c6)), (ASCII(c7)), (ASCII(c8)), (ASCII(c9)), (ASCII(c10)), (ASCII(c11)), (ASCII(c12)), (ASCII(c13))))", code: 0},
+		{name: "COMPACT functional ASCII part", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((ASCII(s)))) ROW_FORMAT=COMPACT", code: 0},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6145,6 +6148,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"~-2", "~0", "~'3'", "~1.6", "~1.5e0", "~'x'",
 		"BIT_COUNT(1)", "BIT_COUNT(-1)", "BIT_COUNT('3')", "BIT_COUNT(1.6)", "BIT_COUNT(1.5e0)", "BIT_COUNT('x')",
 		"BIT_COUNT(18446744073709551615)", "BIT_COUNT(X'FF')", "BIT_COUNT(b'101')",
+		"ASCII(X'01')", "ASCII('A')", "ASCII('')", "ASCII(65)",
+		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6255,6 +6260,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
+		"ASCII(X'01')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6314,6 +6320,39 @@ func TestSimulationCausesOracle(t *testing.T) {
 	execAlterClauses(t, castCat, "SET @fk = @@foreign_key_checks;")
 	if got := castCat.userVars["fk"].str; got != srvFK || srvFK != "1" {
 		t.Fatalf("foreign_key_checks after the failed SET: catalog %q, mysql %q, want 1", got, srvFK)
+	}
+
+	// A system variable the catalog does not model keeps its scope: reading a
+	// global-only one at session scope, or a session-only one at global scope,
+	// is 1238 and fails the whole SET.
+	for _, stmt := range []string{
+		"SET foreign_key_checks = 0, @x_scope = @@SESSION.max_connections",
+		"SET foreign_key_checks = 0, @x_scope = @@GLOBAL.warning_count",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err == nil {
+			t.Fatalf("mysql %s succeeded, want 1238", stmt)
+		} else if code, _ := simulationEngineRefusal(t, stmt, err); code != 1238 {
+			t.Fatalf("mysql %s got %d, want 1238", stmt, code)
+		}
+		if got, _ := simulationCatalogRefusal(t, castCat, stmt); got != 1238 {
+			t.Fatalf("catalog %s got %d, want 1238", stmt, got)
+		}
+		var fk string
+		if err := conn.QueryRowContext(ctx, "SELECT CAST(@@foreign_key_checks AS CHAR)").Scan(&fk); err != nil {
+			t.Fatalf("mysql read foreign_key_checks: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @fk = @@foreign_key_checks;")
+		if got := castCat.userVars["fk"].str; got != fk || fk != "1" {
+			t.Fatalf("%s: foreign_key_checks catalog %q, mysql %q, want 1", stmt, got, fk)
+		}
+	}
+	for _, stmt := range []string{"SET @x_scope = @@GLOBAL.max_connections", "SET @x_scope = @@SESSION.warning_count", "SET @x_scope = @@max_connections"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		if got, _ := simulationCatalogRefusal(t, castCat, stmt); got != 0 {
+			t.Fatalf("catalog %s got %d, want 0", stmt, got)
+		}
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.

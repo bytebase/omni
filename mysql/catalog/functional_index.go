@@ -637,6 +637,17 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 			}
 			return &ResolvedType{BaseType: base, Length: k, Charset: charset}
 		}
+	case "ascii", "ord", "bit_length", "char_length", "character_length", "length", "octet_length",
+		"crc32", "bit_count", "sign", "instr", "locate", "position", "field", "find_in_set",
+		"strcmp", "interval", "inet_aton", "is_ipv4", "is_ipv6", "is_ipv4_compat", "is_ipv4_mapped",
+		"is_uuid", "json_length", "json_depth", "json_valid", "json_contains", "json_contains_path",
+		"json_overlaps", "regexp_instr", "regexp_like", "year", "month", "day", "dayofmonth",
+		"dayofweek", "dayofyear", "weekday", "week", "weekofyear", "yearweek", "quarter",
+		"hour", "minute", "second", "microsecond", "to_days", "to_seconds", "datediff",
+		"period_add", "period_diff", "timestampdiff", "time_to_sec", "isnull":
+		// An integer result: mysql:8.0.46 holds KEY ((ASCII(c1)), ..., (ASCII(c13)))
+		// to 13 small integer parts, not to placeholder strings.
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "space":
 		// SPACE(n) is n characters, and SPACE of anything but a constant
 		// is as long as a LOB: mysql:8.0.46 takes KEY ((SPACE(512))) and

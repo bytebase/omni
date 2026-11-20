@@ -1364,6 +1364,21 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "ascii":
+			// ASCII is the first byte of the string form, 0 for an empty one:
+			// ASCII(X'01') is 1 and sets sql_mode REAL_AS_FLOAT.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ASCII")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n := 0
+			if len(v.str) > 0 {
+				n = int(v.str[0])
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "bit_count":
 			// BIT_COUNT counts a binary string's bits byte by byte and any other
 			// value's as CAST(... AS UNSIGNED) reads it: BIT_COUNT(-1) is 64,
@@ -1604,6 +1619,16 @@ func validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
 				Message:  fmt.Sprintf("Unknown system variable '%s'", x.Name),
 			}
 		}
+		// A variable the catalog does not model still has a scope the server
+		// checks: SET foreign_key_checks = 0, @x = @@SESSION.max_connections
+		// is 1238 and applies neither assignment on mysql:8.0.46.
+		globalOnly, sessionOnly := validate.SystemVariableScope(lowerName)
+		if globalOnly && (strings.EqualFold(x.Scope, "SESSION") || strings.EqualFold(x.Scope, "LOCAL")) {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "GLOBAL variable")
+		}
+		if sessionOnly && strings.EqualFold(x.Scope, "GLOBAL") {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "SESSION variable")
+		}
 		return sysvarSpec{}, false, nil
 	}
 	if spec.kind != sysvarSessionAndGlobal {
@@ -1702,7 +1727,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "abs",
-				"floor", "ceil", "ceiling", "sign", "bit_count":
+				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
@@ -1937,9 +1962,16 @@ func (c *Catalog) setExprResultIsStringOrBinary(expr nodes.ExprNode) (isStr, isB
 		return isStr, isBin
 	case *nodes.FuncCallExpr:
 		switch toLower(e.Name) {
+		case "replace":
+			// REPLACE takes its character set from its first argument only.
+			if len(e.Args) > 0 {
+				_, b := c.setExprResultIsStringOrBinary(e.Args[0])
+				return true, b
+			}
+			return true, false
 		case "concat", "concat_ws", "trim", "ltrim", "rtrim", "upper", "lower",
 			"ucase", "lcase", "reverse", "trim_leading", "trim_trailing", "trim_both",
-			"trim_from", "left", "right", "substr", "substring", "mid", "replace":
+			"trim_from", "left", "right", "substr", "substring", "mid":
 			for _, arg := range e.Args {
 				_, b := c.setExprResultIsStringOrBinary(arg)
 				isBin = isBin || b
@@ -2122,6 +2154,41 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 		return boolSetVar(c.compareSetValues(left, right) > 0), true, nil
 	case nodes.BinOpGe:
 		return boolSetVar(c.compareSetValues(left, right) >= 0), true, nil
+	case nodes.BinOpBitOr, nodes.BinOpBitAnd, nodes.BinOpBitXor, nodes.BinOpShiftLeft, nodes.BinOpShiftRight:
+		// Bitwise operators work on unsigned 64-bit integers read as
+		// CAST(... AS UNSIGNED) reads them, and answer one: mysql:8.0.46
+		// gives 1 << 63 = 9223372036854775808, so (1 << 63) > 0 is 1.
+		// Binary strings combine bytewise and keep the other path.
+		if !(left.kind == userVarString && left.binary) && !(right.kind == userVarString && right.binary) {
+			ls, lok := setCastInt(left, true)
+			rs, rok := setCastInt(right, true)
+			if !lok || !rok {
+				return userVarValue{}, false, nil
+			}
+			lu, lerr := strconv.ParseUint(ls, 10, 64)
+			ru, rerr := strconv.ParseUint(rs, 10, 64)
+			if lerr != nil || rerr != nil {
+				return userVarValue{}, false, nil
+			}
+			var u uint64
+			switch e.Op {
+			case nodes.BinOpBitOr:
+				u = lu | ru
+			case nodes.BinOpBitAnd:
+				u = lu & ru
+			case nodes.BinOpBitXor:
+				u = lu ^ ru
+			case nodes.BinOpShiftLeft:
+				if ru < 64 {
+					u = lu << ru
+				}
+			case nodes.BinOpShiftRight:
+				if ru < 64 {
+					u = lu >> ru
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(u, 10)}, true, nil
+		}
 	}
 	var ln, rn int64
 	var lok, rok bool
