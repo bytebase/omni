@@ -1366,6 +1366,61 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "locate", "instr":
+			// LOCATE(sub, str[, pos]) and INSTR(str, sub) find sub's first
+			// position, from pos, in characters: LOCATE('a', 'a') is 1 and
+			// sets sql_mode REAL_AS_FLOAT. The match follows the collation
+			// (LOCATE('A', 'a') is 1 under a _ci one), and beyond ASCII its
+			// rules (LOCATE('ß', 'ss') is 1, LOCATE('é', 'e') is 0) are the
+			// server's, so only ASCII text is evaluated here.
+			fn := toLower(e.Name)
+			if (fn == "instr" && len(e.Args) != 2) || (fn == "locate" && (len(e.Args) < 2 || len(e.Args) > 3)) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			args := make([]userVarValue, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				args[i] = v
+			}
+			for _, v := range args {
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			}
+			sub, str := args[0], args[1]
+			if fn == "instr" {
+				sub, str = args[1], args[0]
+			}
+			if sub.binary || str.binary || !isASCII(sub.str) || !isASCII(str.str) {
+				return userVarValue{}, false, nil
+			}
+			pos := int64(1)
+			if len(args) == 3 {
+				p, ok := setStringLengthArg(args[2])
+				if !ok {
+					return userVarValue{}, false, nil
+				}
+				pos = p
+			}
+			n := int64(0)
+			switch {
+			case pos < 1 || pos > int64(len(str.str))+1:
+			case sub.str == "":
+				n = pos
+			default:
+				hay, needle := str.str[pos-1:], sub.str
+				coll := strings.ToLower(c.effectiveSessionCollationConn())
+				if strings.HasSuffix(coll, "_ci") {
+					hay, needle = strings.ToLower(hay), strings.ToLower(needle)
+				}
+				if i := strings.Index(hay, needle); i >= 0 {
+					n = pos + int64(i)
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
 		case "ord":
 			// ORD is the first character's bytes read big-endian, a binary
 			// string's first byte: ORD('é') is 50089, ORD(X'01') is 1.
@@ -1782,9 +1837,13 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
-			case "mod":
+			case "mod", "instr":
 				if argc != 2 {
-					err = errWrongParamCount("MOD")
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "locate":
+				if argc < 2 || argc > 3 {
+					err = errWrongParamCount("LOCATE")
 				}
 			case "round":
 				if argc < 1 || argc > 2 {
@@ -1877,6 +1936,15 @@ func (c *Catalog) setCastCharLengthError(dt *nodes.DataType) error {
 		return &Error{Code: 1690, SQLState: "22003", Message: "char(n) value is out of range in 'cast_as_char'"}
 	}
 	return nil
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // isBinaryIntroducer reports a _binary charset introducer, however the parser

@@ -6169,6 +6169,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"ORD(X'01')", "ORD('A')", "ORD('')", "ORD('é')", "ORD('€')", "ORD('😀')", "ORD(65)", "ORD(_binary'é')",
 		"BIT_LENGTH('a')", "BIT_LENGTH('é')", "BIT_LENGTH(X'0102')", "BIT_LENGTH(123)", "BIT_LENGTH('')", "BIT_LENGTH(1.5e0)",
 		"LENGTH(1.5e0)", "OCTET_LENGTH('é')", "CHAR_LENGTH(1.5e0)",
+		"LOCATE('a', 'a')", "LOCATE('A', 'a')", "LOCATE('b', 'abcb')", "LOCATE('b', 'abcb', 3)", "LOCATE('b', 'abcb', 0)",
+		"LOCATE('', 'abc')", "LOCATE('', 'abc', 3)", "LOCATE('', 'abc', 4)", "LOCATE('', 'abc', 5)", "LOCATE('b', 'abcb', -1)",
+		"INSTR('abcb', 'b')", "INSTR('a', 'A')", "LOCATE('b', 'abcb', 2.6)", "LOCATE(1, 21)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6280,7 +6283,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
-		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6397,6 +6400,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("mysql %s: %v", stmt, err)
 		}
 		execAlterClauses(t, castCat, stmt+";")
+	}
+
+	// A scope keyword carries to the assignments after it: SET GLOBAL
+	// foreign_key_checks = 1, sql_mode = 'ANSI' sets the global sql_mode and
+	// leaves the session's alone.
+	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "SET GLOBAL sql_mode = DEFAULT") })
+	for _, stmt := range []string{"SET SESSION sql_mode = ''", "SET GLOBAL foreign_key_checks = 1, sql_mode = 'ANSI'"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
+	}
+	var scopeMode string
+	if err := conn.QueryRowContext(ctx, "SELECT @@SESSION.sql_mode").Scan(&scopeMode); err != nil {
+		t.Fatalf("mysql SELECT @@SESSION.sql_mode: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SET GLOBAL sql_mode = DEFAULT"); err != nil {
+		t.Fatalf("mysql reset global sql_mode: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET @m = @@SESSION.sql_mode; SET GLOBAL sql_mode = DEFAULT;")
+	if got := castCat.userVars["m"].str; got != scopeMode || scopeMode != "" {
+		t.Fatalf("SET GLOBAL ..., sql_mode = 'ANSI': catalog session sql_mode %q, mysql %q, want ''", got, scopeMode)
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.
