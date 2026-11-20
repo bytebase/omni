@@ -6,6 +6,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"sync"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -26,23 +27,10 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			return "", err
 		}
 	}
-	preFuncs, postFuncs, err := partitionFunctions(to)
-	if err != nil {
-		return "", err
-	}
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
-	if err := emitFunctions(&sb, preFuncs); err != nil {
-		return "", err
-	}
-	if err := writeTables(&sb, to, toState); err != nil {
-		return "", err
-	}
-	if err := emitFunctions(&sb, postFuncs); err != nil {
-		return "", err
-	}
-	if err := writeAllViews(&sb, to, toState); err != nil {
+	if err := writeOrderedObjects(&sb, to, toState); err != nil {
 		return "", err
 	}
 	if err := writeProcedures(&sb, to); err != nil {
@@ -184,6 +172,18 @@ func tableHasUpperIdentifier(table *metadatapb.TableMetadata) bool {
 	return false
 }
 
+func externalTableHasUpperIdentifier(et *metadatapb.ExternalTableMetadata) bool {
+	if hasUpperASCII(et.Name) {
+		return true
+	}
+	for _, col := range et.Columns {
+		if col != nil && hasUpperASCII(col.Name) {
+			return true
+		}
+	}
+	return false
+}
+
 func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -194,6 +194,11 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 		}
 		for _, table := range schema.Tables {
 			if table != nil && !table.SkipDump && tableHasUpperIdentifier(table) {
+				return true
+			}
+		}
+		for _, et := range schema.ExternalTables {
+			if et != nil && !et.SkipDump && externalTableHasUpperIdentifier(et) {
 				return true
 			}
 		}
@@ -227,11 +232,18 @@ type functionParam struct {
 }
 
 type functionEntry struct {
-	schema       string
-	name         string
-	def          string
-	params       []functionParam
-	hasTableDeps bool
+	schema     string
+	name       string
+	def        string
+	params     []functionParam
+	returnType string
+	depTables  []*metadatapb.DependencyTable
+}
+
+type funcCatalog struct {
+	entries []functionEntry
+	byName  map[string][]int
+	nodeIdx []int
 }
 
 type functionCall struct {
@@ -240,108 +252,19 @@ type functionCall struct {
 	argTypes []string
 }
 
-func emitFunctions(w io.StringWriter, fns []functionEntry) error {
-	for _, fn := range fns {
-		if _, err := w.WriteString(getFunctionAnnouncement(fn.name) + fn.def + "\n"); err != nil {
-			return err
-		}
+func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int {
+	if c == nil || len(c.entries) == 0 {
+		return nil
 	}
-	return nil
-}
-
-// partitionFunctions topologically orders all non-skipped functions and splits
-// them into pre-table and post-table passes, propagating table-dependency
-// deferral to any caller of a table-dependent function.
-func partitionFunctions(to *metadatapb.DatabaseSchemaMetadata) (pre, post []functionEntry, err error) {
-	var fns []functionEntry
-	for _, schema := range to.Schemas {
-		if schema == nil || schema.SkipDump {
-			continue
-		}
-		for _, fn := range schema.Functions {
-			if fn == nil || fn.SkipDump {
-				continue
-			}
-			def := strings.TrimSpace(fn.Definition)
-			if def == "" {
-				return nil, nil, fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
-			}
-			if !strings.HasSuffix(def, ";") {
-				def += ";"
-			}
-			fns = append(fns, functionEntry{
-				schema:       schema.Name,
-				name:         fn.Name,
-				def:          def,
-				params:       parseFunctionParams(def),
-				hasTableDeps: len(fn.DependencyTables) > 0,
-			})
-		}
+	var candidates []int
+	if call.schema != "" {
+		candidates = c.byName[objectKey(call.schema, call.name)]
+	} else if cands, ok := c.byName[objectKey(callerSchema, call.name)]; ok {
+		candidates = cands
+	} else {
+		candidates = c.byName[objectKey("public", call.name)]
 	}
-	if len(fns) == 0 {
-		return nil, nil, nil
-	}
-
-	byName := make(map[string][]int, len(fns))
-	for i, fn := range fns {
-		key := objectKey(fn.schema, fn.name)
-		byName[key] = append(byName[key], i)
-	}
-	dependencies := make([]map[int]struct{}, len(fns))
-	addDep := func(i, dep int) {
-		if dep == i {
-			return
-		}
-		if dependencies[i] == nil {
-			dependencies[i] = map[int]struct{}{}
-		}
-		dependencies[i][dep] = struct{}{}
-	}
-	for i, fn := range fns {
-		for _, call := range collectFunctionCalls(fn.def, fn.params) {
-			var candidates []int
-			if call.schema != "" {
-				candidates = byName[objectKey(call.schema, call.name)]
-			} else if cands, ok := byName[objectKey(fn.schema, call.name)]; ok {
-				candidates = cands
-			} else {
-				candidates = byName[objectKey("public", call.name)]
-			}
-			for _, depIdx := range resolveFunctionOverload(fns, candidates, call.argTypes) {
-				addDep(i, depIdx)
-			}
-		}
-	}
-
-	postTable := make([]bool, len(fns))
-	for i, fn := range fns {
-		postTable[i] = fn.hasTableDeps
-	}
-	for changed := true; changed; {
-		changed = false
-		for i, deps := range dependencies {
-			if postTable[i] {
-				continue
-			}
-			for dep := range deps {
-				if postTable[dep] {
-					postTable[i] = true
-					changed = true
-					break
-				}
-			}
-		}
-	}
-
-	order := topoOrder(len(fns), dependencies)
-	for _, idx := range order {
-		if postTable[idx] {
-			post = append(post, fns[idx])
-		} else {
-			pre = append(pre, fns[idx])
-		}
-	}
-	return pre, post, nil
+	return resolveFunctionOverload(c.entries, candidates, call.argTypes)
 }
 
 func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []string) []int {
@@ -407,21 +330,8 @@ func isNumericType(t string) bool {
 	}
 }
 
-func normalizeSQLTypeName(tn *nodes.TypeName) string {
-	if tn == nil || tn.Names == nil || len(tn.Names.Items) == 0 {
-		return ""
-	}
-	var parts []string
-	for _, item := range tn.Names.Items {
-		if s, ok := item.(*nodes.String); ok && s.Str != "" {
-			parts = append(parts, strings.ToLower(s.Str))
-		}
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	name := parts[len(parts)-1]
-	switch name {
+func normalizeTypeAlias(name string) string {
+	switch strings.ToLower(name) {
 	case "smallint", "int2":
 		return "int2"
 	case "int", "integer", "int4":
@@ -436,27 +346,46 @@ func normalizeSQLTypeName(tn *nodes.TypeName) string {
 		return "float8"
 	case "boolean", "bool":
 		return "bool"
-	case "varchar", "character varying", "text", "char", "character", "bpchar":
+	case "varchar", "character varying", "text", "char", "character", "bpchar", "nvarchar":
 		return "text"
 	default:
-		return name
+		return strings.ToLower(name)
 	}
 }
 
-func parseFunctionParams(definition string) []functionParam {
+func normalizeSQLTypeName(tn *nodes.TypeName) string {
+	if tn == nil || tn.Names == nil || len(tn.Names.Items) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, item := range tn.Names.Items {
+		if s, ok := item.(*nodes.String); ok && s.Str != "" {
+			parts = append(parts, strings.ToLower(s.Str))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return normalizeTypeAlias(parts[len(parts)-1])
+}
+
+func parseFunctionSignature(definition string) (params []functionParam, returnType string) {
 	stmts, err := pgparser.Parse(definition)
 	if err != nil || stmts == nil || len(stmts.Items) != 1 {
-		return nil
+		return nil, ""
 	}
 	stmt := stmts.Items[0]
 	if raw, ok := stmt.(*nodes.RawStmt); ok {
 		stmt = raw.Stmt
 	}
 	cf, ok := stmt.(*nodes.CreateFunctionStmt)
-	if !ok || cf.Parameters == nil {
-		return nil
+	if !ok {
+		return nil, ""
 	}
-	var params []functionParam
+	returnType = normalizeSQLTypeName(cf.ReturnType)
+	if cf.Parameters == nil {
+		return nil, returnType
+	}
 	for _, item := range cf.Parameters.Items {
 		fp, ok := item.(*nodes.FunctionParameter)
 		if !ok {
@@ -467,21 +396,144 @@ func parseFunctionParams(definition string) []functionParam {
 			typeName: normalizeSQLTypeName(fp.ArgType),
 		})
 	}
-	return params
+	return params, returnType
 }
 
-func inferArgTypes(args *nodes.List, callerParams []functionParam) []string {
+var (
+	builtinCatalogOnce sync.Once
+	builtinTypeByOID   map[uint32]string
+	builtinProcsByName map[string][]BuiltinProc
+)
+
+func initBuiltinCatalog() {
+	builtinCatalogOnce.Do(func() {
+		builtinTypeByOID = make(map[uint32]string, len(BuiltinTypes))
+		for _, t := range BuiltinTypes {
+			builtinTypeByOID[t.OID] = normalizeTypeAlias(t.TypeName)
+		}
+		builtinProcsByName = make(map[string][]BuiltinProc, len(BuiltinProcs))
+		for _, p := range BuiltinProcs {
+			if p.Kind != 'f' {
+				continue
+			}
+			key := strings.ToLower(p.Name)
+			builtinProcsByName[key] = append(builtinProcsByName[key], p)
+		}
+	})
+}
+
+func resolveBuiltinProcReturnType(schema, name string, argTypes []string) string {
+	if schema != "" && !strings.EqualFold(schema, "pg_catalog") {
+		return ""
+	}
+	initBuiltinCatalog()
+	procs := builtinProcsByName[strings.ToLower(name)]
+	if len(procs) == 0 {
+		return ""
+	}
+	bestScore := -1
+	var matchedRet string
+	ambiguous := false
+	for _, p := range procs {
+		if int(p.NArgs) != len(argTypes) || len(p.ArgTypes) != len(argTypes) {
+			continue
+		}
+		score := 0
+		compatible := true
+		for i, argType := range argTypes {
+			if argType == "" {
+				continue
+			}
+			paramType := builtinTypeByOID[p.ArgTypes[i]]
+			if paramType == "" || strings.HasPrefix(paramType, "any") {
+				continue
+			}
+			if paramType == argType {
+				score += 2
+			} else if isNumericType(argType) && isNumericType(paramType) {
+				score++
+			} else {
+				compatible = false
+				break
+			}
+		}
+		if !compatible {
+			continue
+		}
+		retType := builtinTypeByOID[p.RetType]
+		if retType == "" || strings.HasPrefix(retType, "any") {
+			continue
+		}
+		switch {
+		case score > bestScore:
+			bestScore = score
+			matchedRet = retType
+			ambiguous = false
+		case score == bestScore && matchedRet != retType:
+			ambiguous = true
+		}
+	}
+	if ambiguous {
+		return ""
+	}
+	return matchedRet
+}
+
+func numericRank(t string) int {
+	switch t {
+	case "int2":
+		return 1
+	case "int4":
+		return 2
+	case "int8":
+		return 3
+	case "numeric":
+		return 4
+	case "float4":
+		return 5
+	case "float8":
+		return 6
+	default:
+		return 0
+	}
+}
+
+func commonNumericType(a, b string) string {
+	ra, rb := numericRank(a), numericRank(b)
+	if ra == 0 || rb == 0 {
+		return ""
+	}
+	if ra >= rb {
+		return a
+	}
+	return b
+}
+
+func extractNodeStringParts(list *nodes.List) []string {
+	if list == nil {
+		return nil
+	}
+	var parts []string
+	for _, item := range list.Items {
+		if s, ok := item.(*nodes.String); ok && s.Str != "" {
+			parts = append(parts, s.Str)
+		}
+	}
+	return parts
+}
+
+func inferArgTypes(args *nodes.List, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) []string {
 	if args == nil || len(args.Items) == 0 {
 		return nil
 	}
 	out := make([]string, len(args.Items))
 	for i, arg := range args.Items {
-		out[i] = inferExprType(arg, callerParams)
+		out[i] = inferExprType(arg, callerSchema, callerParams, fnCat)
 	}
 	return out
 }
 
-func inferExprType(node nodes.Node, callerParams []functionParam) string {
+func inferExprType(node nodes.Node, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) string {
 	switch n := node.(type) {
 	case *nodes.ParamRef:
 		idx := n.Number - 1
@@ -501,6 +553,9 @@ func inferExprType(node nodes.Node, callerParams []functionParam) string {
 	case *nodes.TypeCast:
 		return normalizeSQLTypeName(n.TypeName)
 	case *nodes.A_Const:
+		if n.Isnull {
+			return ""
+		}
 		switch n.Val.(type) {
 		case *nodes.Integer:
 			return "int4"
@@ -511,34 +566,100 @@ func inferExprType(node nodes.Node, callerParams []functionParam) string {
 		case *nodes.Boolean:
 			return "bool"
 		}
+	case *nodes.BoolExpr, *nodes.NullTest, *nodes.BooleanTest:
+		return "bool"
+	case *nodes.CoalesceExpr:
+		return inferFirstNonEmptyArgType(n.Args, callerSchema, callerParams, fnCat)
+	case *nodes.MinMaxExpr:
+		return inferFirstNonEmptyArgType(n.Args, callerSchema, callerParams, fnCat)
+	case *nodes.A_Expr:
+		if n.Kind == nodes.AEXPR_NULLIF {
+			return inferExprType(n.Lexpr, callerSchema, callerParams, fnCat)
+		}
+		if n.Kind != nodes.AEXPR_OP {
+			return "bool"
+		}
+		parts := extractNodeStringParts(n.Name)
+		if len(parts) == 0 {
+			return ""
+		}
+		op := parts[len(parts)-1]
+		switch op {
+		case "=", "<>", "!=", "<", "<=", ">", ">=", "~", "~*", "!~", "!~*":
+			return "bool"
+		case "||":
+			return "text"
+		case "+", "-", "*", "/", "%", "^":
+			if n.Lexpr == nil {
+				return inferExprType(n.Rexpr, callerSchema, callerParams, fnCat)
+			}
+			return commonNumericType(
+				inferExprType(n.Lexpr, callerSchema, callerParams, fnCat),
+				inferExprType(n.Rexpr, callerSchema, callerParams, fnCat),
+			)
+		}
+	case *nodes.FuncCall:
+		parts := extractNodeStringParts(n.Funcname)
+		var callSchema, callName string
+		switch len(parts) {
+		case 1:
+			callName = parts[0]
+		case 2:
+			callSchema, callName = parts[0], parts[1]
+		default:
+			return ""
+		}
+		argTypes := inferArgTypes(n.Args, callerSchema, callerParams, fnCat)
+		if matches := fnCat.resolveCall(callerSchema, functionCall{schema: callSchema, name: callName, argTypes: argTypes}); len(matches) > 0 {
+			ret := fnCat.entries[matches[0]].returnType
+			same := ret != ""
+			for _, m := range matches[1:] {
+				if fnCat.entries[m].returnType != ret {
+					same = false
+					break
+				}
+			}
+			if same {
+				return ret
+			}
+		}
+		return resolveBuiltinProcReturnType(callSchema, callName, argTypes)
 	}
 	return ""
 }
 
-func collectFunctionCalls(definition string, callerParams []functionParam) []functionCall {
-	var calls []functionCall
-	walkAST := func(node nodes.Node) {
-		nodes.Inspect(node, func(n nodes.Node) bool {
-			fc, ok := n.(*nodes.FuncCall)
-			if !ok || fc.Funcname == nil || len(fc.Funcname.Items) == 0 {
-				return true
-			}
-			var parts []string
-			for _, item := range fc.Funcname.Items {
-				if s, ok := item.(*nodes.String); ok && s.Str != "" {
-					parts = append(parts, s.Str)
-				}
-			}
-			argTypes := inferArgTypes(fc.Args, callerParams)
-			switch len(parts) {
-			case 1:
-				calls = append(calls, functionCall{name: parts[0], argTypes: argTypes})
-			case 2:
-				calls = append(calls, functionCall{schema: parts[0], name: parts[1], argTypes: argTypes})
-			}
-			return true
-		})
+func inferFirstNonEmptyArgType(args *nodes.List, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) string {
+	if args == nil {
+		return ""
 	}
+	for _, item := range args.Items {
+		if t := inferExprType(item, callerSchema, callerParams, fnCat); t != "" {
+			return t
+		}
+	}
+	return ""
+}
+
+func walkASTFunctionCalls(node nodes.Node, callerSchema string, callerParams []functionParam, fnCat *funcCatalog, calls *[]functionCall) {
+	nodes.Inspect(node, func(n nodes.Node) bool {
+		fc, ok := n.(*nodes.FuncCall)
+		if !ok || fc.Funcname == nil || len(fc.Funcname.Items) == 0 {
+			return true
+		}
+		parts := extractNodeStringParts(fc.Funcname)
+		argTypes := inferArgTypes(fc.Args, callerSchema, callerParams, fnCat)
+		switch len(parts) {
+		case 1:
+			*calls = append(*calls, functionCall{name: parts[0], argTypes: argTypes})
+		case 2:
+			*calls = append(*calls, functionCall{schema: parts[0], name: parts[1], argTypes: argTypes})
+		}
+		return true
+	})
+}
+
+func collectFunctionCalls(definition, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) []functionCall {
+	var calls []functionCall
 	stmts, err := pgparser.Parse(definition)
 	if err == nil && stmts != nil {
 		for _, item := range stmts.Items {
@@ -551,7 +672,7 @@ func collectFunctionCalls(definition string, callerParams []functionParam) []fun
 				continue
 			}
 			if cf.SqlBody != nil {
-				walkAST(cf.SqlBody)
+				walkASTFunctionCalls(cf.SqlBody, callerSchema, callerParams, fnCat, &calls)
 			}
 			if cf.Options != nil {
 				for _, optItem := range cf.Options.Items {
@@ -561,7 +682,7 @@ func collectFunctionCalls(definition string, callerParams []functionParam) []fun
 					}
 					for _, body := range extractDefElemStrings(de.Arg) {
 						if bodyStmts, err := pgparser.Parse(body); err == nil && bodyStmts != nil {
-							walkAST(bodyStmts)
+							walkASTFunctionCalls(bodyStmts, callerSchema, callerParams, fnCat, &calls)
 						} else {
 							calls = append(calls, scanCallRefs(body)...)
 						}
@@ -572,6 +693,19 @@ func collectFunctionCalls(definition string, callerParams []functionParam) []fun
 		return calls
 	}
 	return scanCallRefs(definition)
+}
+
+func collectSQLFunctionCalls(sql, callerSchema string, fnCat *funcCatalog) []functionCall {
+	if strings.TrimSpace(sql) == "" {
+		return nil
+	}
+	stmts, err := pgparser.Parse(sql)
+	if err != nil || stmts == nil {
+		return nil
+	}
+	var calls []functionCall
+	walkASTFunctionCalls(stmts, callerSchema, nil, fnCat, &calls)
+	return calls
 }
 
 func extractDefElemStrings(arg nodes.Node) []string {
@@ -684,101 +818,75 @@ func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) erro
 	return nil
 }
 
-func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	tables := orderedTables(to, state)
-	known := make(map[string]bool, len(tables))
-	for _, table := range tables {
-		known[objectKey(table.schema, table.name)] = true
-	}
+type objectKind int
 
-	type deferredFK struct {
-		table *tableState
-		fk    *foreignKeyState
-	}
-	var deferred []deferredFK
-	emitted := make(map[string]bool, len(tables))
+const (
+	objectKindFunc objectKind = iota
+	objectKindTable
+	objectKindExternalTable
+	objectKindView
+	objectKindMaterializedView
+)
 
-	for _, table := range tables {
-		if _, err := w.WriteString(getTableAnnouncement(table.name)); err != nil {
-			return err
-		}
-
-		tableKey := objectKey(table.schema, table.name)
-		var inlineFKs []*foreignKeyState
-		for _, fk := range sortedForeignKeys(table.foreignKeys) {
-			refSchema := fk.referencedSchema
-			if refSchema == "" {
-				refSchema = table.schema
-			}
-			refKey := objectKey(refSchema, fk.referencedTable)
-			// Defer any FK whose target table exists in this dump and has not been
-			// created yet (cyclic references) so every CREATE TABLE stays valid.
-			if refKey != tableKey && known[refKey] && !emitted[refKey] {
-				deferred = append(deferred, deferredFK{table: table, fk: fk})
-				continue
-			}
-			inlineFKs = append(inlineFKs, fk)
-		}
-
-		if err := writeTableWithFKs(w, table, inlineFKs); err != nil {
-			return err
-		}
-		emitted[tableKey] = true
-	}
-
-	if len(deferred) > 0 {
-		if _, err := w.WriteString("\n"); err != nil {
-			return err
-		}
-		for _, item := range deferred {
-			var buf strings.Builder
-			if err := item.fk.toString(&buf); err != nil {
-				return err
-			}
-			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s ADD %s;\n", item.table.qualifiedName(), buf.String())); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-type orderedViewEntry struct {
-	state        *viewState
-	meta         *metadatapb.ViewMetadata
-	depCols      []*metadatapb.DependencyColumn
+type orderedObject struct {
+	kind         objectKind
+	schema       string
+	name         string
+	fn           functionEntry
+	table        *tableState
+	extTable     *externalTableState
+	view         *viewState
+	viewMeta     *metadatapb.ViewMetadata
+	mvMeta       *metadatapb.MaterializedViewMetadata
 	materialized bool
 }
 
-func writeAllViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	for _, entry := range orderedAllViews(to, state) {
-		if entry.materialized {
-			if _, err := w.WriteString(getMaterializedViewAnnouncement(entry.state.name)); err != nil {
-				return err
-			}
-			if err := writeMaterializedView(w, entry.state); err != nil {
-				return err
-			}
+// writeOrderedObjects emits functions, tables, external tables, views, and
+// materialized views in one topological order so cross-kind dependencies
+// (such as view-dependent UDFs, tables whose defaults call table-dependent
+// UDFs, and views reading external tables) always follow their prerequisites.
+func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
+	var items []orderedObject
+	var fnEntries []functionEntry
+	var fnNodeIndices []int
+
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
-		if _, err := w.WriteString(getViewAnnouncement(entry.state.name)); err != nil {
-			return err
-		}
-		if err := writeView(w, entry.state); err != nil {
-			return err
+		for _, fn := range schema.Functions {
+			if fn == nil || fn.SkipDump {
+				continue
+			}
+			def := strings.TrimSpace(fn.Definition)
+			if def == "" {
+				return fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
+			}
+			if !strings.HasSuffix(def, ";") {
+				def += ";"
+			}
+			params, retType := parseFunctionSignature(def)
+			entry := functionEntry{
+				schema:     schema.Name,
+				name:       fn.Name,
+				def:        def,
+				params:     params,
+				returnType: retType,
+				depTables:  fn.DependencyTables,
+			}
+			fnEntries = append(fnEntries, entry)
+			fnNodeIndices = append(fnNodeIndices, len(items))
+			items = append(items, orderedObject{
+				kind:   objectKindFunc,
+				schema: schema.Name,
+				name:   fn.Name,
+				fn:     entry,
+			})
 		}
 	}
-	return nil
-}
 
-func objectKey(schemaName, objectName string) string {
-	return schemaName + "\x00" + objectName
-}
-
-// orderedTables returns tables in snapshot order, topologically sorted so
-// foreign-key referenced parent tables are created before child tables.
-func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*tableState {
-	var tables []*tableState
+	knownTables := make(map[string]bool)
+	tablesRemaining := 0
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -795,49 +903,44 @@ func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) 
 			if !ok {
 				continue
 			}
-			tables = append(tables, ts)
 			delete(schemaState.tables, table.Name)
+			knownTables[objectKey(ts.schema, ts.name)] = true
+			tablesRemaining++
+			items = append(items, orderedObject{
+				kind:   objectKindTable,
+				schema: ts.schema,
+				name:   ts.name,
+				table:  ts,
+			})
 		}
 	}
-	if len(tables) < 2 {
-		return tables
-	}
 
-	index := make(map[string]int, len(tables))
-	for i, t := range tables {
-		index[objectKey(t.schema, t.name)] = i
-	}
-	dependencies := make([]map[int]struct{}, len(tables))
-	for i, t := range tables {
-		for _, fk := range t.foreignKeys {
-			refSchema := fk.referencedSchema
-			if refSchema == "" {
-				refSchema = t.schema
-			}
-			dep, ok := index[objectKey(refSchema, fk.referencedTable)]
-			if !ok || dep == i {
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		schemaState, ok := state.schemas[schema.Name]
+		if !ok {
+			continue
+		}
+		for _, et := range schema.ExternalTables {
+			if et == nil || et.SkipDump {
 				continue
 			}
-			if dependencies[i] == nil {
-				dependencies[i] = map[int]struct{}{}
+			ets, ok := schemaState.externalTables[et.Name]
+			if !ok {
+				continue
 			}
-			dependencies[i][dep] = struct{}{}
+			delete(schemaState.externalTables, et.Name)
+			items = append(items, orderedObject{
+				kind:     objectKindExternalTable,
+				schema:   ets.schema,
+				name:     ets.name,
+				extTable: ets,
+			})
 		}
 	}
 
-	order := topoOrder(len(tables), dependencies)
-	ordered := make([]*tableState, len(order))
-	for i, idx := range order {
-		ordered[i] = tables[idx]
-	}
-	return ordered
-}
-
-// orderedAllViews returns ordinary and materialized views in one topological
-// order so cross-kind dependencies (e.g., an ordinary view reading a
-// materialized view) emit the dependency first.
-func orderedAllViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []orderedViewEntry {
-	var entries []orderedViewEntry
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -854,10 +957,17 @@ func orderedAllViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState
 			if !ok {
 				continue
 			}
-			entries = append(entries, orderedViewEntry{state: vs, meta: view})
 			delete(schemaState.views, view.Name)
+			items = append(items, orderedObject{
+				kind:     objectKindView,
+				schema:   vs.schema,
+				name:     vs.name,
+				view:     vs,
+				viewMeta: view,
+			})
 		}
 	}
+
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -874,23 +984,42 @@ func orderedAllViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState
 			if !ok {
 				continue
 			}
-			entries = append(entries, orderedViewEntry{state: vs, depCols: mv.DependencyColumns, materialized: true})
 			delete(schemaState.materializedViews, mv.Name)
+			items = append(items, orderedObject{
+				kind:         objectKindMaterializedView,
+				schema:       vs.schema,
+				name:         vs.name,
+				view:         vs,
+				mvMeta:       mv,
+				materialized: true,
+			})
 		}
 	}
-	return sortViewEntries(entries)
-}
 
-func sortViewEntries(entries []orderedViewEntry) []orderedViewEntry {
-	if len(entries) < 2 {
-		return entries
+	if len(items) == 0 {
+		return nil
 	}
 
-	index := make(map[string]int, len(entries))
-	for i, e := range entries {
-		index[objectKey(e.state.schema, e.state.name)] = i
+	fnByName := make(map[string][]int, len(fnEntries))
+	for i, fn := range fnEntries {
+		key := objectKey(fn.schema, fn.name)
+		fnByName[key] = append(fnByName[key], i)
 	}
-	dependencies := make([]map[int]struct{}, len(entries))
+	fnCat := &funcCatalog{
+		entries: fnEntries,
+		byName:  fnByName,
+		nodeIdx: fnNodeIndices,
+	}
+
+	relIndex := make(map[string]int, len(items))
+	for i, item := range items {
+		if item.kind == objectKindFunc {
+			continue
+		}
+		relIndex[objectKey(item.schema, item.name)] = i
+	}
+
+	dependencies := make([]map[int]struct{}, len(items))
 	addDep := func(i, dep int) {
 		if dep == i {
 			return
@@ -900,44 +1029,164 @@ func sortViewEntries(entries []orderedViewEntry) []orderedViewEntry {
 		}
 		dependencies[i][dep] = struct{}{}
 	}
-	for i, e := range entries {
-		depCols := e.depCols
-		if e.meta != nil {
-			depCols = e.meta.DependencyColumns
+	addRelDep := func(i int, defaultSchema, relSchema, relName string) {
+		if relName == "" {
+			return
 		}
-		for _, dep := range depCols {
-			if dep == nil {
-				continue
-			}
-			depSchema := dep.Schema
-			if depSchema == "" {
-				depSchema = e.state.schema
-			}
-			if depIdx, ok := index[objectKey(depSchema, dep.Table)]; ok {
+		if relSchema != "" {
+			if depIdx, ok := relIndex[objectKey(relSchema, relName)]; ok {
 				addDep(i, depIdx)
 			}
+			return
 		}
-		for _, ref := range collectViewRelationRefs(e.state.definition) {
-			if ref.schema != "" {
-				if depIdx, ok := index[objectKey(ref.schema, ref.name)]; ok {
-					addDep(i, depIdx)
-				}
-				continue
-			}
-			if depIdx, ok := index[objectKey(e.state.schema, ref.name)]; ok {
-				addDep(i, depIdx)
-			} else if depIdx, ok := index[objectKey("public", ref.name)]; ok {
-				addDep(i, depIdx)
+		if depIdx, ok := relIndex[objectKey(defaultSchema, relName)]; ok {
+			addDep(i, depIdx)
+		} else if depIdx, ok := relIndex[objectKey("public", relName)]; ok {
+			addDep(i, depIdx)
+		}
+	}
+	addCallDeps := func(i int, callerSchema string, calls []functionCall) {
+		for _, call := range calls {
+			for _, fnEntryIdx := range fnCat.resolveCall(callerSchema, call) {
+				addDep(i, fnCat.nodeIdx[fnEntryIdx])
 			}
 		}
 	}
 
-	order := topoOrder(len(entries), dependencies)
-	ordered := make([]orderedViewEntry, len(order))
-	for i, idx := range order {
-		ordered[i] = entries[idx]
+	for i, item := range items {
+		switch item.kind {
+		case objectKindFunc:
+			for _, dep := range item.fn.depTables {
+				if dep == nil {
+					continue
+				}
+				addRelDep(i, item.schema, dep.Schema, dep.Table)
+			}
+			addCallDeps(i, item.schema, collectFunctionCalls(item.fn.def, item.schema, item.fn.params, fnCat))
+		case objectKindTable:
+			for _, fk := range item.table.foreignKeys {
+				refSchema := fk.referencedSchema
+				if refSchema == "" {
+					refSchema = item.schema
+				}
+				if depIdx, ok := relIndex[objectKey(refSchema, fk.referencedTable)]; ok {
+					addDep(i, depIdx)
+				}
+			}
+			for _, expr := range item.table.defaultExprs {
+				addCallDeps(i, item.schema, collectSQLFunctionCalls("SELECT "+expr, item.schema, fnCat))
+			}
+		case objectKindView, objectKindMaterializedView:
+			var depCols []*metadatapb.DependencyColumn
+			if item.viewMeta != nil {
+				depCols = item.viewMeta.DependencyColumns
+			} else if item.mvMeta != nil {
+				depCols = item.mvMeta.DependencyColumns
+			}
+			for _, dep := range depCols {
+				if dep == nil {
+					continue
+				}
+				addRelDep(i, item.schema, dep.Schema, dep.Table)
+			}
+			for _, ref := range collectViewRelationRefs(item.view.definition) {
+				addRelDep(i, item.schema, ref.schema, ref.name)
+			}
+			addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat))
+		}
 	}
-	return ordered
+
+	type deferredFK struct {
+		table *tableState
+		fk    *foreignKeyState
+	}
+	var deferred []deferredFK
+	emittedTables := make(map[string]bool, len(knownTables))
+	flushDeferred := func() error {
+		if len(deferred) == 0 {
+			return nil
+		}
+		if _, err := w.WriteString("\n"); err != nil {
+			return err
+		}
+		for _, item := range deferred {
+			var buf strings.Builder
+			if err := item.fk.toString(&buf); err != nil {
+				return err
+			}
+			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s ADD %s;\n", item.table.qualifiedName(), buf.String())); err != nil {
+				return err
+			}
+		}
+		deferred = nil
+		return nil
+	}
+
+	for _, idx := range topoOrder(len(items), dependencies) {
+		item := items[idx]
+		switch item.kind {
+		case objectKindFunc:
+			if _, err := w.WriteString(getFunctionAnnouncement(item.fn.name) + item.fn.def + "\n"); err != nil {
+				return err
+			}
+		case objectKindTable:
+			if _, err := w.WriteString(getTableAnnouncement(item.table.name)); err != nil {
+				return err
+			}
+			tableKey := objectKey(item.table.schema, item.table.name)
+			var inlineFKs []*foreignKeyState
+			for _, fk := range sortedForeignKeys(item.table.foreignKeys) {
+				refSchema := fk.referencedSchema
+				if refSchema == "" {
+					refSchema = item.table.schema
+				}
+				refKey := objectKey(refSchema, fk.referencedTable)
+				// Defer any FK whose target table exists in this dump and has not been
+				// created yet (cyclic references) so every CREATE TABLE stays valid.
+				if refKey != tableKey && knownTables[refKey] && !emittedTables[refKey] {
+					deferred = append(deferred, deferredFK{table: item.table, fk: fk})
+					continue
+				}
+				inlineFKs = append(inlineFKs, fk)
+			}
+			if err := writeTableWithFKs(w, item.table, inlineFKs); err != nil {
+				return err
+			}
+			emittedTables[tableKey] = true
+			tablesRemaining--
+			if tablesRemaining == 0 {
+				if err := flushDeferred(); err != nil {
+					return err
+				}
+			}
+		case objectKindExternalTable:
+			if _, err := w.WriteString(getExternalTableAnnouncement(item.extTable.name)); err != nil {
+				return err
+			}
+			if err := writeExternalTable(w, item.extTable); err != nil {
+				return err
+			}
+		case objectKindView:
+			if _, err := w.WriteString(getViewAnnouncement(item.view.name)); err != nil {
+				return err
+			}
+			if err := writeView(w, item.view); err != nil {
+				return err
+			}
+		case objectKindMaterializedView:
+			if _, err := w.WriteString(getMaterializedViewAnnouncement(item.view.name)); err != nil {
+				return err
+			}
+			if err := writeMaterializedView(w, item.view); err != nil {
+				return err
+			}
+		}
+	}
+	return flushDeferred()
+}
+
+func objectKey(schemaName, objectName string) string {
+	return schemaName + "\x00" + objectName
 }
 
 type relationRef struct {
@@ -1126,6 +1375,11 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
+	for _, idx := range table.indexes {
+		if (idx.primary || idx.unique) && len(idx.keys) == 0 {
+			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
+		}
+	}
 	for _, fk := range sortedForeignKeys(table.foreignKeys) {
 		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
 			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
@@ -1202,6 +1456,10 @@ func getTableAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
+func getExternalTableAnnouncement(name string) string {
+	return fmt.Sprintf("\n--\n-- External table structure for `%s`\n--\n", sanitizeBannerName(name))
+}
+
 func getViewAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", sanitizeBannerName(name))
 }
@@ -1236,6 +1494,7 @@ func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata) *databa
 type schemaState struct {
 	name              string
 	tables            map[string]*tableState
+	externalTables    map[string]*externalTableState
 	views             map[string]*viewState
 	materializedViews map[string]*viewState
 }
@@ -1263,6 +1522,10 @@ func (t *tableState) qualifiedName() string {
 	return qualifyName(t.schema, t.name)
 }
 
+func (e *externalTableState) qualifiedName() string {
+	return qualifyName(e.schema, e.name)
+}
+
 func (v *viewState) qualifiedName() string {
 	return qualifyName(v.schema, v.name)
 }
@@ -1276,6 +1539,7 @@ func escapeStringLiteral(s string) string {
 func newSchemaState() *schemaState {
 	return &schemaState{
 		tables:            make(map[string]*tableState),
+		externalTables:    make(map[string]*externalTableState),
 		views:             make(map[string]*viewState),
 		materializedViews: make(map[string]*viewState),
 	}
@@ -1289,6 +1553,12 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 			continue
 		}
 		state.tables[table.Name] = convertToTableState(i, schema.Name, table)
+	}
+	for i, et := range schema.ExternalTables {
+		if et == nil || et.SkipDump {
+			continue
+		}
+		state.externalTables[et.Name] = convertToExternalTableState(i, schema.Name, et)
 	}
 	for i, view := range schema.Views {
 		if view == nil || view.SkipDump {
@@ -1305,23 +1575,124 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 	return state
 }
 
-type tableState struct {
-	id          int
-	schema      string
-	name        string
-	columns     map[string]*columnState
-	indexes     map[string]*indexState
-	foreignKeys map[string]*foreignKeyState
-	comment     string
+type externalTableColumn struct {
+	name string
+	tp   string
 }
 
-func sortedForeignKeys(fks map[string]*foreignKeyState) []*foreignKeyState {
-	foreignKeys := make([]*foreignKeyState, 0, len(fks))
-	for _, fk := range fks {
-		foreignKeys = append(foreignKeys, fk)
+type externalTableState struct {
+	id       int
+	schema   string
+	name     string
+	columns  []externalTableColumn
+	format   string
+	location string
+	options  []string
+}
+
+func convertToExternalTableState(id int, schemaName string, et *metadatapb.ExternalTableMetadata) *externalTableState {
+	cols := make([]externalTableColumn, 0, len(et.Columns))
+	for _, col := range et.Columns {
+		if col == nil {
+			continue
+		}
+		cols = append(cols, externalTableColumn{
+			name: col.Name,
+			tp:   col.Type,
+		})
 	}
+	return &externalTableState{
+		id:       id,
+		schema:   schemaName,
+		name:     et.Name,
+		columns:  cols,
+		format:   strings.TrimSpace(et.Format),
+		location: et.Location,
+		options:  et.Options,
+	}
+}
+
+func writeExternalTable(w io.StringWriter, et *externalTableState) error {
+	if len(et.columns) == 0 {
+		return fmt.Errorf("external table %s has no columns", et.qualifiedName())
+	}
+	var buf strings.Builder
+	if _, err := fmt.Fprintf(&buf, "CREATE EXTERNAL TABLE %s (\n  ", et.qualifiedName()); err != nil {
+		return err
+	}
+	for i, col := range et.columns {
+		if i > 0 {
+			if _, err := buf.WriteString(",\n  "); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(&buf, "%s %s", quoteDefinitionIdentifier(col.name), col.tp); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString("\n)"); err != nil {
+		return err
+	}
+	if et.format != "" {
+		if _, err := fmt.Fprintf(&buf, "\nSTORED AS %s", et.format); err != nil {
+			return err
+		}
+	}
+	if et.location != "" {
+		if _, err := fmt.Fprintf(&buf, "\nLOCATION '%s'", escapeStringLiteral(et.location)); err != nil {
+			return err
+		}
+	}
+	if len(et.options) > 0 {
+		if _, err := buf.WriteString("\nTABLE PROPERTIES (\n"); err != nil {
+			return err
+		}
+		for i, opt := range et.options {
+			if i > 0 {
+				if _, err := buf.WriteString(",\n"); err != nil {
+					return err
+				}
+			}
+			k, v, _ := strings.Cut(opt, "=")
+			if _, err := fmt.Fprintf(&buf, "  '%s' = '%s'", escapeStringLiteral(k), escapeStringLiteral(v)); err != nil {
+				return err
+			}
+		}
+		if _, err := buf.WriteString("\n)"); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(";\n"); err != nil {
+		return err
+	}
+	_, err := w.WriteString(buf.String())
+	return err
+}
+
+type tableState struct {
+	id           int
+	schema       string
+	name         string
+	columns      map[string]*columnState
+	defaultExprs []string
+	indexes      []*indexState
+	foreignKeys  []*foreignKeyState
+	comment      string
+}
+
+func sortedForeignKeys(fks []*foreignKeyState) []*foreignKeyState {
+	foreignKeys := slices.Clone(fks)
 	slices.SortFunc(foreignKeys, func(a, b *foreignKeyState) int {
-		return strings.Compare(a.name, b.name)
+		if cmp := strings.Compare(a.name, b.name); cmp != 0 {
+			return cmp
+		}
+		if a.id < b.id {
+			return -1
+		}
+		if a.id > b.id {
+			return 1
+		}
+		return 0
 	})
 	return foreignKeys
 }
@@ -1355,7 +1726,16 @@ func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreig
 		if !a.primary && b.primary {
 			return 1
 		}
-		return strings.Compare(a.name, b.name)
+		if cmp := strings.Compare(a.name, b.name); cmp != 0 {
+			return cmp
+		}
+		if a.id < b.id {
+			return -1
+		}
+		if a.id > b.id {
+			return 1
+		}
+		return 0
 	})
 
 	for i, index := range indexes {
@@ -1388,11 +1768,9 @@ func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreig
 
 func newTableState(id int, name string) *tableState {
 	return &tableState{
-		id:          id,
-		name:        name,
-		columns:     make(map[string]*columnState),
-		indexes:     make(map[string]*indexState),
-		foreignKeys: make(map[string]*foreignKeyState),
+		id:      id,
+		name:    name,
+		columns: make(map[string]*columnState),
 	}
 }
 
@@ -1424,19 +1802,23 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		if column == nil {
 			continue
 		}
-		state.columns[column.Name] = convertToColumnState(i, column)
+		colState := convertToColumnState(i, column)
+		state.columns[column.Name] = colState
+		if _, ok := colState.defaultValue.(*defaultValueExpression); ok {
+			state.defaultExprs = append(state.defaultExprs, column.Default)
+		}
 	}
 	for i, index := range table.Indexes {
 		if index == nil {
 			continue
 		}
-		state.indexes[index.Name] = convertToIndexState(i, index)
+		state.indexes = append(state.indexes, convertToIndexState(i, index))
 	}
 	for i, fk := range table.ForeignKeys {
 		if fk == nil {
 			continue
 		}
-		state.foreignKeys[fk.Name] = convertToForeignKeyState(i, schemaName, fk)
+		state.foreignKeys = append(state.foreignKeys, convertToForeignKeyState(i, schemaName, fk))
 	}
 	return state
 }
@@ -1540,6 +1922,9 @@ func (i *indexState) toString(buf *strings.Builder) error {
 		keyword = "UNIQUE ("
 	default:
 		return nil
+	}
+	if len(i.keys) == 0 {
+		return fmt.Errorf("index %s has no columns", i.name)
 	}
 	if i.name != "" {
 		if _, err := fmt.Fprintf(buf, "CONSTRAINT %s ", quoteDefinitionIdentifier(i.name)); err != nil {

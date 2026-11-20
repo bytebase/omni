@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	pgparser "github.com/bytebase/omni/redshift/parser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -782,4 +783,169 @@ func TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView(t *testing.
 	mvIdx := strings.Index(got, "Materialized view structure for `mv_base`")
 	vIdx := strings.Index(got, "View structure for `v_uses_mv`")
 	require.Greater(t, vIdx, mvIdx, "expected mv_base before v_uses_mv:\n%s", got)
+}
+
+func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testing.T) {
+	// 1 & 2. Unified cross-kind ordering: view-dependent functions follow views,
+	// table-dependent functions precede tables whose DEFAULT calls them, and
+	// views reading external tables follow external tables.
+	unified, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:             "v_summary_fn",
+						Definition:       "CREATE FUNCTION public.v_summary_fn() RETURNS int AS $$ SELECT count(*)::int FROM public.v_events $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "v_events"}},
+					},
+					{
+						Name:             "next_code_fn",
+						Definition:       "CREATE FUNCTION public.next_code_fn() RETURNS int AS $$ SELECT coalesce(max(id), 0) + 1 FROM public.base_tbl $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "base_tbl"}},
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "consumer_tbl",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "code", Type: "integer", Default: "public.next_code_fn()"},
+						},
+					},
+					{
+						Name:    "base_tbl",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					},
+				},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{Name: "skip_ext", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}, SkipDump: true},
+					{
+						Name:     "ExtEvents",
+						Columns:  []*metadatapb.ColumnMetadata{{Name: "EventId", Type: "integer"}, {Name: "payload", Type: "varchar(100)"}},
+						Format:   "PARQUET",
+						Location: "s3://example-bucket/events/'v1'",
+						Options:  []string{"compression_type=gzip", "quote_key=a=b'c"},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v_events",
+						Definition: `SELECT "EventId" FROM "public"."ExtEvents"`,
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, unified, "SET enable_case_sensitive_identifier TO true;\n")
+	require.NotContains(t, unified, "skip_ext")
+
+	basePos := strings.Index(unified, "Table structure for `base_tbl`")
+	nextFnPos := strings.Index(unified, "Function structure for `next_code_fn`")
+	consumerPos := strings.Index(unified, "Table structure for `consumer_tbl`")
+	extPos := strings.Index(unified, "External table structure for `ExtEvents`")
+	viewPos := strings.Index(unified, "View structure for `v_events`")
+	vFnPos := strings.Index(unified, "Function structure for `v_summary_fn`")
+
+	require.Greater(t, nextFnPos, basePos, "expected base_tbl before next_code_fn:\n%s", unified)
+	require.Greater(t, consumerPos, nextFnPos, "expected next_code_fn before consumer_tbl:\n%s", unified)
+	require.Greater(t, viewPos, extPos, "expected ExtEvents before v_events:\n%s", unified)
+	require.Greater(t, vFnPos, viewPos, "expected v_events before v_summary_fn:\n%s", unified)
+
+	require.Contains(t, unified, `CREATE EXTERNAL TABLE "public"."ExtEvents" (
+  "EventId" integer,
+  "payload" varchar(100)
+)
+STORED AS PARQUET
+LOCATION 's3://example-bucket/events/''v1'''
+TABLE PROPERTIES (
+  'compression_type' = 'gzip',
+  'quote_key' = 'a=b''c'
+);`)
+
+	// Verify emitted CREATE EXTERNAL TABLE parses under Redshift parser.
+	extStart := strings.Index(unified, "CREATE EXTERNAL TABLE")
+	extEnd := strings.Index(unified[extStart:], ";")
+	_, parseErr := pgparser.Parse(unified[extStart : extStart+extEnd+1])
+	require.NoError(t, parseErr)
+
+	// Empty external table fails explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "spectrum", ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "empty_ext"}}},
+		},
+	})
+	require.Error(t, err)
+
+	// 4. Same-arity overload resolution via nested builtin / expression return type:
+	// fmt_val(int) -> caller_wrap(text) -> fmt_val(text), where caller_wrap calls fmt_val(length(x)).
+	sameArity, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "fmt_val",
+						Definition: "CREATE FUNCTION public.fmt_val(s text) RETURNS text IMMUTABLE AS $$ SELECT public.caller_wrap(s) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "caller_wrap",
+						Definition: "CREATE FUNCTION public.caller_wrap(s text) RETURNS text IMMUTABLE AS $$ SELECT public.fmt_val(length(s)) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "fmt_val",
+						Definition: "CREATE FUNCTION public.fmt_val(n int) RETURNS text IMMUTABLE AS $$ SELECT n::text $$ LANGUAGE SQL",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	intFnPos := strings.Index(sameArity, "CREATE FUNCTION public.fmt_val(n int)")
+	wrapFnPos := strings.Index(sameArity, "CREATE FUNCTION public.caller_wrap(s text)")
+	textFnPos := strings.Index(sameArity, "CREATE FUNCTION public.fmt_val(s text)")
+	require.Greater(t, wrapFnPos, intFnPos, "expected fmt_val(int) before caller_wrap(text):\n%s", sameArity)
+	require.Greater(t, textFnPos, wrapFnPos, "expected caller_wrap(text) before fmt_val(text):\n%s", sameArity)
+
+	// 5. Multiple unnamed foreign keys are both emitted.
+	unnamedFKs, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "order_items",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "order_id", Type: "integer"},
+			{Name: "product_id", Type: "integer"},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "",
+				Columns:           []string{"order_id"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "orders",
+				ReferencedColumns: []string{"id"},
+			},
+			{
+				Name:              "",
+				Columns:           []string{"product_id"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "products",
+				ReferencedColumns: []string{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, unnamedFKs, `FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id")`)
+	require.Contains(t, unnamedFKs, `FOREIGN KEY ("product_id") REFERENCES "public"."products"("id")`)
+
+	// 6. Primary/unique key constraints without columns fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "empty_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "empty_pk_pkey", Primary: true}},
+	})
+	require.Error(t, err)
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "empty_uk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "code", Type: "text"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "empty_uk_key", Unique: true}},
+	})
+	require.Error(t, err)
 }
