@@ -157,6 +157,13 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 					c.session.ExplicitDefaultsForTimestamp = v
 				})
 			}
+		case "innodb_directories":
+			if v, ok := c.evalSetExpr(asgn.Value); ok && v.kind == userVarString {
+				dirList := v.str
+				updates = append(updates, func() {
+					c.AddTablespaceDir(dirList)
+				})
+			}
 		case "sql_mode":
 			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
 			if isDefaultSetKeywordOrIdent(asgn.Value) {
@@ -366,6 +373,40 @@ var sqlModeBitFlags = []struct {
 
 const unsupportedMySQL80SQLModeBits uint64 = 0x1003FF00
 
+func expandSQLModeForRead(mode string) string {
+	trimmed := strings.TrimSpace(mode)
+	if trimmed == "" {
+		return ""
+	}
+	if strings.EqualFold(trimmed, "DEFAULT") {
+		return strings.Join(compositeSQLModes["DEFAULT"], ",")
+	}
+	seen := make(map[string]bool)
+	for _, part := range strings.Split(trimmed, ",") {
+		tok := strings.ToUpper(strings.TrimSpace(part))
+		if tok == "" {
+			continue
+		}
+		if expanded, isComp := compositeSQLModes[tok]; isComp {
+			for _, f := range expanded {
+				seen[f] = true
+			}
+			continue
+		}
+		seen[tok] = true
+	}
+	var out []string
+	for _, bf := range sqlModeBitFlags {
+		if bf.name == "ANSI" || bf.name == "TRADITIONAL" {
+			continue
+		}
+		if seen[bf.name] {
+			out = append(out, bf.name)
+		}
+	}
+	return strings.Join(out, ",")
+}
+
 func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
 	switch val.kind {
 	case userVarNull:
@@ -497,15 +538,17 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 				return userVarValue{kind: userVarString, str: tz}, true
 			}
 			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true
+		case "system_time_zone":
+			return userVarValue{kind: userVarString, str: c.SystemTimeZone()}, true
 		case "sql_mode":
 			if strings.EqualFold(e.Scope, "GLOBAL") {
 				mode := c.globalSQLMode
 				if mode == "" {
 					mode = "DEFAULT"
 				}
-				return userVarValue{kind: userVarString, str: mode}, true
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(mode)}, true
 			}
-			return userVarValue{kind: userVarString, str: c.session.SQLMode}, true
+			return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}, true
 		case "foreign_key_checks":
 			if c.session.ForeignKeyChecks {
 				return userVarValue{kind: userVarNumeric, str: "1"}, true

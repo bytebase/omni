@@ -283,7 +283,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 	noZeroInDate := c.isNoZeroInDateSQLMode()
 	allowInvalidDates := c.isAllowInvalidDatesSQLMode()
 	truncateFrac := c.isTimeTruncateFractionalSQLMode()
-	sessionTZ := c.session.TimeZone
+	sessionTZ := c.effectiveSessionTimeZone()
 	if col == nil || expr == nil {
 		return nil
 	}
@@ -1645,6 +1645,16 @@ func setContainsStringMembers(members []string, val string, col *Column) bool {
 	return true
 }
 
+// validEnumLiteralDefault validates an unparenthesized literal DEFAULT on an
+// ENUM column per MySQL 8.0.46's two-phase DDL check (`sql_table.cc` +
+// `Field_enum::store`, measured on mysql:8.0.46):
+//   - Unlike DML (`INSERT`), DDL first converts unquoted numeric defaults to
+//     their string spelling (`coercedDefaultLiteralString`) and requires that
+//     string to match a declared ENUM member (`ENUM('a','b') DEFAULT 1` answers
+//     1067, whereas `ENUM('2','y') DEFAULT 2` passes string membership on `'2'`
+//     and then stores ordinal 2 -> `'y'`).
+//   - Binary (`0x...`/`b'...'`) defaults are decoded in `col.Charset` before
+//     collation comparison.
 func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
 	members := enumMembersFromColumnType(col.ColumnType)
 	if unquotedNum {
@@ -1665,10 +1675,14 @@ func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, u
 	}
 	if kind == litHex || kind == litBit {
 		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
-		if !ok || !utf8.Valid(raw) {
+		if !ok {
 			return false
 		}
-		return enumContainsStringMember(members, string(raw), col, strict)
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return false
+		}
+		return enumContainsStringMember(members, decoded, col, strict)
 	}
 	if kind != litString {
 		return false
@@ -1676,6 +1690,10 @@ func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, u
 	return enumContainsStringMember(members, val, col, strict)
 }
 
+// validSetLiteralDefault validates an unparenthesized literal DEFAULT on a SET
+// column per MySQL 8.0.46 (`SET('a','b') DEFAULT 3` answers 1067 unless `'3'`
+// is also a member name; `SET('1','3','y') DEFAULT 3` passes string membership
+// on `'3'` and then stores bitmask 3 -> `'1,3'`).
 func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) bool {
 	members := enumMembersFromColumnType(col.ColumnType)
 	if unquotedNum {
@@ -1696,10 +1714,14 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 	}
 	if kind == litHex || kind == litBit {
 		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
-		if !ok || !utf8.Valid(raw) {
+		if !ok {
 			return false
 		}
-		return setContainsStringMembers(members, string(raw), col)
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return false
+		}
+		return setContainsStringMembers(members, decoded, col)
 	}
 	if kind != litString {
 		return false
@@ -1746,10 +1768,14 @@ func coerceEnumDefault(col *Column, kind literalDefaultKind, val string, unquote
 	}
 	if kind == litHex || kind == litBit {
 		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
-		if !ok || !utf8.Valid(raw) {
+		if !ok {
 			return "", false
 		}
-		return coerceEnumDefaultByString(col, string(raw), strict)
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return "", false
+		}
+		return coerceEnumDefaultByString(col, decoded, strict)
 	}
 	if kind == litString {
 		return coerceEnumDefaultByString(col, val, strict)
@@ -1810,10 +1836,14 @@ func coerceSetDefault(col *Column, kind literalDefaultKind, val string, unquoted
 	}
 	if kind == litHex || kind == litBit {
 		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
-		if !ok || !utf8.Valid(raw) {
+		if !ok {
 			return "", false
 		}
-		return coerceSetDefaultByString(col, string(raw))
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return "", false
+		}
+		return coerceSetDefaultByString(col, decoded)
 	}
 	if kind == litString {
 		return coerceSetDefaultByString(col, val)

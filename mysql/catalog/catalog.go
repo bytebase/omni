@@ -1,5 +1,10 @@
 package catalog
 
+import (
+	"path"
+	"strings"
+)
+
 type userVarKind int
 
 const (
@@ -19,8 +24,10 @@ type Catalog struct {
 	tablespaces      map[string]bool         // exact general tablespace names
 	undoTablespaces  map[string]bool         // exact undo tablespace names -> active
 	tablespaceFiles  map[string]string       // tablespace name -> normalized datafile path
-	tablespaceDirs   map[string]bool         // additional known InnoDB datafile directories
+	tablespaceDirs   map[string]bool         // known InnoDB datafile directories
+	dataDir          string                  // InnoDB/server datadir (default /var/lib/mysql)
 	userVars         map[string]userVarValue // lowered user var name (without @) -> value
+	systemTimeZone   string                  // @@system_time_zone (default UTC)
 	globalTimeZone   string
 	globalSQLMode    string
 	currentDB        string
@@ -44,6 +51,7 @@ type SessionState struct {
 	ExplicitDefaultsForTimestamp bool
 	SQLMode                      string
 	TimeZone                     string
+	SystemTimeZone               string
 	// Version is the MySQL major version whose stored form the diff/generate
 	// canonicalizer reproduces. MySQL80 is the only one.
 	Version Version
@@ -57,7 +65,9 @@ func New() *Catalog {
 		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
 		tablespaceFiles:  map[string]string{"innodb_undo_001": "/var/lib/mysql/undo_001", "innodb_undo_002": "/var/lib/mysql/undo_002"},
 		tablespaceDirs:   map[string]bool{"/var/lib/mysql": true},
+		dataDir:          "/var/lib/mysql",
 		userVars:         make(map[string]userVarValue),
+		systemTimeZone:   session.SystemTimeZone,
 		globalTimeZone:   "SYSTEM",
 		globalSQLMode:    "DEFAULT",
 		defaultCharset:   "utf8mb4",
@@ -79,6 +89,7 @@ func defaultSessionState() SessionState {
 		ExplicitDefaultsForTimestamp: true,
 		SQLMode:                      "DEFAULT",
 		TimeZone:                     "SYSTEM",
+		SystemTimeZone:               "UTC",
 		Version:                      MySQL80,
 	}
 }
@@ -99,6 +110,89 @@ func (c *Catalog) Version() Version { return c.session.Version }
 // SetVersion fixes the MySQL major version whose stored form the diff/generate
 // canonicalizer reproduces for this catalog. MySQL80 is the only one.
 func (c *Catalog) SetVersion(v Version) { c.session.Version = v }
+
+// SystemTimeZone returns the server's configured system_time_zone (default "UTC")
+// used whenever the session or global time_zone is "SYSTEM".
+func (c *Catalog) SystemTimeZone() string {
+	if tz := strings.TrimSpace(c.session.SystemTimeZone); tz != "" {
+		return tz
+	}
+	if tz := strings.TrimSpace(c.systemTimeZone); tz != "" {
+		return tz
+	}
+	return "UTC"
+}
+
+// SetSystemTimeZone configures the server's system_time_zone resolved when
+// session time_zone is "SYSTEM".
+func (c *Catalog) SetSystemTimeZone(tz string) {
+	tz = strings.TrimSpace(tz)
+	if tz == "" {
+		tz = "UTC"
+	}
+	c.systemTimeZone = tz
+	c.session.SystemTimeZone = tz
+}
+
+func (c *Catalog) effectiveSessionTimeZone() string {
+	tz := strings.TrimSpace(c.session.TimeZone)
+	if tz == "" || strings.EqualFold(tz, "SYSTEM") {
+		return c.SystemTimeZone()
+	}
+	return tz
+}
+
+// DataDir returns the configured MySQL/InnoDB data directory (default "/var/lib/mysql").
+func (c *Catalog) DataDir() string {
+	if d := strings.TrimSpace(c.dataDir); d != "" {
+		return d
+	}
+	return "/var/lib/mysql"
+}
+
+// SetDataDir sets the server's data directory and registers it as a known
+// InnoDB tablespace directory.
+func (c *Catalog) SetDataDir(dir string) {
+	norm := normalizeTablespaceConfigDir(dir)
+	if norm == "" {
+		return
+	}
+	c.dataDir = norm
+	if c.tablespaceDirs == nil {
+		c.tablespaceDirs = make(map[string]bool)
+	}
+	c.tablespaceDirs[norm] = true
+}
+
+// AddTablespaceDir registers one or more known InnoDB tablespace directories
+// (accepting individual paths or ';'-separated innodb_directories lists).
+func (c *Catalog) AddTablespaceDir(dirs ...string) {
+	if c.tablespaceDirs == nil {
+		c.tablespaceDirs = make(map[string]bool)
+	}
+	for _, raw := range dirs {
+		for _, part := range strings.Split(raw, ";") {
+			if norm := normalizeTablespaceConfigDir(part); norm != "" {
+				c.tablespaceDirs[norm] = true
+			}
+		}
+	}
+}
+
+// SetTablespaceDirs replaces the set of known InnoDB tablespace directories
+// (always retaining DataDir).
+func (c *Catalog) SetTablespaceDirs(dirs ...string) {
+	c.tablespaceDirs = map[string]bool{c.DataDir(): true}
+	c.AddTablespaceDir(dirs...)
+}
+
+func normalizeTablespaceConfigDir(dir string) string {
+	s := strings.TrimSpace(strings.ReplaceAll(dir, `\`, "/"))
+	if s == "" {
+		return ""
+	}
+	return path.Clean(s)
+}
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }
 func (c *Catalog) CurrentDatabase() string        { return c.currentDB }

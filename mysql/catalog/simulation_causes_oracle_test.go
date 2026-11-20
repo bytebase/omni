@@ -3544,6 +3544,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (c CHAR(2) CHARACTER SET ucs2 DEFAULT 0xD83DDE00)",
 			code: 3507,
 		},
+		// 20. Numeric ENUM/SET DDL string-membership check, column-charset binary
+		// ENUM/SET decoding, and @@sql_mode DEFAULT expansion.
+		{
+			name: "CREATE TABLE ENUM('a','b') DEFAULT 1 rejected with 1067 when '1' not a member",
+			stmt: "CREATE TABLE a (c ENUM('a','b') DEFAULT 1)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE SET('a','b') DEFAULT 3 rejected with 1067 when '3' not a member",
+			stmt: "CREATE TABLE a (c SET('a','b') DEFAULT 3)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE ENUM sjis DEFAULT 0x82A0 decodes in column charset",
+			stmt:     "CREATE TABLE a (c ENUM('あ') CHARACTER SET sjis DEFAULT 0x82A0)",
+			code:     0,
+			contains: []string{"DEFAULT 'あ'"},
+		},
+		{
+			name:     "CREATE TABLE SET sjis DEFAULT 0x82A22C82A0 decodes and orders in column charset",
+			stmt:     "CREATE TABLE a (c SET('あ','い') CHARACTER SET sjis DEFAULT 0x82A22C82A0)",
+			code:     0,
+			contains: []string{"DEFAULT 'あ,い'"},
+		},
+		{
+			name:     "CREATE TABLE ENUM utf16 and latin1 hex defaults decode in column charset",
+			stmt:     "CREATE TABLE a (e1 ENUM('a','b') CHARACTER SET utf16 DEFAULT 0x41, e2 ENUM('é','b') CHARACTER SET latin1 DEFAULT 0xE9)",
+			code:     0,
+			contains: []string{"DEFAULT 'a'", "DEFAULT 'é'"},
+		},
+		{
+			name:    "SET sql_mode = @@sql_mode and @saved_sql_mode round-trip default mode",
+			session: []string{"SET @saved_sql_mode = @@sql_mode", "SET sql_mode = ''", "SET sql_mode = @saved_sql_mode", "SET sql_mode = @@sql_mode"},
+			stmt:    "CREATE TABLE a (c DATE DEFAULT '0000-00-00')",
+			code:    1067,
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -3913,5 +3950,40 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if gotSDL := sdlCat2.ShowCreateTable("d", "t_ae_sdl"); gotSDL != aeSDL {
 		t.Fatalf("LoadSDL round-trip mismatch:\ngot:\n%s\nwant:\n%s", gotSDL, aeSDL)
+	}
+
+	// Configured system_time_zone governs session time_zone = 'SYSTEM' in both
+	// TIMESTAMP UTC bounds and offset-bearing DATETIME normalization.
+	sysTZCat := New()
+	sysTZCat.SetSystemTimeZone("+14:00")
+	execAlterClauses(t, sysTZCat, "CREATE DATABASE d; USE d;")
+	if got, _ := simulationCatalogRefusal(t, sysTZCat, "CREATE TABLE ts_bad (c TIMESTAMP DEFAULT '1970-01-01 00:00:01')"); got != 1067 {
+		t.Fatalf("SYSTEM=+14:00 TIMESTAMP lower bound got %d, want 1067", got)
+	}
+	execAlterClauses(t, sysTZCat, "CREATE TABLE ts_ok (ts TIMESTAMP DEFAULT '1970-01-01 14:00:01', dt DATETIME DEFAULT '2024-01-01 00:00:00+00:00');")
+	if gotShow := sysTZCat.ShowCreateTable("d", "ts_ok"); !strings.Contains(gotShow, "`dt` datetime DEFAULT '2024-01-01 14:00:00'") {
+		t.Fatalf("SYSTEM=+14:00 offset DATETIME normalization mismatch:\n%s", gotShow)
+	}
+
+	// Configured InnoDB tablespace directories (via AddTablespaceDir and SET
+	// GLOBAL innodb_directories) permit external datafiles while still rejecting
+	// unconfigured directories with 3121.
+	dirCat := New()
+	dirCat.AddTablespaceDir("/srv/mysql")
+	execAlterClauses(t, dirCat, "CREATE TABLESPACE ts_srv ADD DATAFILE '/srv/mysql/ts_srv.ibd' ENGINE=InnoDB;")
+	execAlterClauses(t, dirCat, "SET GLOBAL innodb_directories = '/opt/innodb1;/opt/innodb2';")
+	execAlterClauses(t, dirCat, "CREATE TABLESPACE ts_opt ADD DATAFILE '/opt/innodb2/ts_opt.ibd' ENGINE=InnoDB;")
+	if got, _ := simulationCatalogRefusal(t, dirCat, "CREATE TABLESPACE ts_unconf ADD DATAFILE '/unconfigured/ts_unconf.ibd' ENGINE=InnoDB"); got != 3121 {
+		t.Fatalf("unconfigured tablespace directory got %d, want 3121", got)
+	}
+
+	// renderWithSessionContext save/restore framing executes cleanly on a fresh
+	// catalog whose session sql_mode starts at "DEFAULT".
+	framedCat := New()
+	execAlterClauses(t, framedCat, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT);")
+	framedSQL := renderWithSessionContext("CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @x = 1", SessionContext{SQLMode: ""}, false)
+	execAlterClauses(t, framedCat, framedSQL+";")
+	if !framedCat.isStrictSQLMode() {
+		t.Fatalf("renderWithSessionContext did not restore default strict sql_mode: %q", framedCat.session.SQLMode)
 	}
 }

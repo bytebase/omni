@@ -146,12 +146,13 @@ func (c *Catalog) validateTablespaceDatafile(tsName, df string, hasDF, undo bool
 	if !strings.HasSuffix(base, ext) {
 		return "", errTablespaceDatafileExt(ext)
 	}
+	baseDir := c.DataDir()
 	if sepIdx >= 0 {
 		resolvedDir, ok := c.resolveTablespaceDatafileDir(df)
 		if !ok {
 			return "", errTablespaceDatafileKnownDir()
 		}
-		fullPath := resolvedDir + "/" + base
+		fullPath := path.Clean(resolvedDir + "/" + base)
 		for _, used := range c.tablespaceFiles {
 			if used == fullPath {
 				return "", errDupTablespaceDatafile(tsName)
@@ -159,7 +160,7 @@ func (c *Catalog) validateTablespaceDatafile(tsName, df string, hasDF, undo bool
 		}
 		return fullPath, nil
 	}
-	fullPath := "/var/lib/mysql/" + base
+	fullPath := path.Clean(baseDir + "/" + base)
 	for _, used := range c.tablespaceFiles {
 		if used == fullPath {
 			return "", errDupTablespaceDatafile(tsName)
@@ -173,10 +174,11 @@ func (c *Catalog) validateTablespaceDatafile(tsName, df string, hasDF, undo bool
 // server datadir `/var/lib/mysql`, measured on mysql:8.0.46). Circular `..`
 // segments following a non-`..` path component are rejected per Fil_path::is_circular.
 func (c *Catalog) resolveTablespaceDatafileDir(df string) (string, bool) {
+	baseDir := c.DataDir()
 	norm := strings.ReplaceAll(df, `\`, "/")
 	lastSlash := strings.LastIndexByte(norm, '/')
 	if lastSlash < 0 {
-		return "/var/lib/mysql", true
+		return baseDir, true
 	}
 	rawDir := norm[:lastSlash]
 	seenNamedSeg := false
@@ -196,10 +198,10 @@ func (c *Catalog) resolveTablespaceDatafileDir(df string) (string, bool) {
 	if strings.HasPrefix(norm, "/") {
 		cleanFull = path.Clean(norm)
 	} else {
-		cleanFull = path.Clean("/var/lib/mysql/" + norm)
+		cleanFull = path.Clean(baseDir + "/" + norm)
 	}
 	cleanDir := path.Dir(cleanFull)
-	if cleanDir == "/var/lib/mysql" || c.tablespaceDirs[cleanDir] {
+	if cleanDir == baseDir || c.tablespaceDirs[cleanDir] {
 		return cleanDir, true
 	}
 	return "", false
