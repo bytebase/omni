@@ -22,7 +22,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 		Schemas: make([]*SchemaMetadata, 0, len(metadata.Schemas)),
 	}
 	for _, s := range metadata.Schemas {
-		if s == nil {
+		if s == nil || s.SkipDump {
 			continue
 		}
 		schemaMeta := &SchemaMetadata{
@@ -31,7 +31,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			Views:  make([]*ViewMetadata, 0, len(s.Views)),
 		}
 		for _, t := range s.Tables {
-			if t == nil {
+			if t == nil || t.SkipDump {
 				continue
 			}
 			tableMeta := &TableMetadata{
@@ -51,7 +51,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			schemaMeta.Tables = append(schemaMeta.Tables, tableMeta)
 		}
 		for _, v := range s.Views {
-			if v == nil {
+			if v == nil || v.SkipDump {
 				continue
 			}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{

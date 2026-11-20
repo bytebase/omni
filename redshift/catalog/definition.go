@@ -31,10 +31,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeTables(&sb, to, toState); err != nil {
 		return "", err
 	}
-	if err := writeViews(&sb, to, toState); err != nil {
-		return "", err
-	}
-	if err := writeMaterializedViews(&sb, to, toState); err != nil {
+	if err := writeAllViews(&sb, to, toState); err != nil {
 		return "", err
 	}
 
@@ -208,29 +205,27 @@ func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state
 }
 
 type orderedViewEntry struct {
-	state   *viewState
-	meta    *metadatapb.ViewMetadata
-	depCols []*metadatapb.DependencyColumn
+	state        *viewState
+	meta         *metadatapb.ViewMetadata
+	depCols      []*metadatapb.DependencyColumn
+	materialized bool
 }
 
-func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	for _, view := range orderedViews(to, state) {
-		if _, err := w.WriteString(getViewAnnouncement(view.name)); err != nil {
+func writeAllViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
+	for _, entry := range orderedAllViews(to, state) {
+		if entry.materialized {
+			if _, err := w.WriteString(getMaterializedViewAnnouncement(entry.state.name)); err != nil {
+				return err
+			}
+			if err := writeMaterializedView(w, entry.state); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := w.WriteString(getViewAnnouncement(entry.state.name)); err != nil {
 			return err
 		}
-		if err := writeView(w, view); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func writeMaterializedViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	for _, mv := range orderedMaterializedViews(to, state) {
-		if _, err := w.WriteString(getMaterializedViewAnnouncement(mv.name)); err != nil {
-			return err
-		}
-		if err := writeMaterializedView(w, mv); err != nil {
+		if err := writeView(w, entry.state); err != nil {
 			return err
 		}
 	}
@@ -299,9 +294,10 @@ func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) 
 	return ordered
 }
 
-// orderedViews returns views in snapshot order, topologically sorted so each
-// view follows any view it references.
-func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*viewState {
+// orderedAllViews returns ordinary and materialized views in one topological
+// order so cross-kind dependencies (e.g., an ordinary view reading a
+// materialized view) emit the dependency first.
+func orderedAllViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []orderedViewEntry {
 	var entries []orderedViewEntry
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -323,11 +319,6 @@ func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) [
 			delete(schemaState.views, view.Name)
 		}
 	}
-	return sortViewEntries(entries)
-}
-
-func orderedMaterializedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*viewState {
-	var entries []orderedViewEntry
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -344,20 +335,16 @@ func orderedMaterializedViews(to *metadatapb.DatabaseSchemaMetadata, state *data
 			if !ok {
 				continue
 			}
-			entries = append(entries, orderedViewEntry{state: vs, depCols: mv.DependencyColumns})
+			entries = append(entries, orderedViewEntry{state: vs, depCols: mv.DependencyColumns, materialized: true})
 			delete(schemaState.materializedViews, mv.Name)
 		}
 	}
 	return sortViewEntries(entries)
 }
 
-func sortViewEntries(entries []orderedViewEntry) []*viewState {
+func sortViewEntries(entries []orderedViewEntry) []orderedViewEntry {
 	if len(entries) < 2 {
-		out := make([]*viewState, len(entries))
-		for i, e := range entries {
-			out[i] = e.state
-		}
-		return out
+		return entries
 	}
 
 	index := make(map[string]int, len(entries))
@@ -407,9 +394,9 @@ func sortViewEntries(entries []orderedViewEntry) []*viewState {
 	}
 
 	order := topoOrder(len(entries), dependencies)
-	ordered := make([]*viewState, len(order))
+	ordered := make([]orderedViewEntry, len(order))
 	for i, idx := range order {
-		ordered[i] = entries[idx].state
+		ordered[i] = entries[idx]
 	}
 	return ordered
 }
@@ -855,7 +842,7 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		if fk == nil {
 			continue
 		}
-		state.foreignKeys[fk.Name] = convertToForeignKeyState(i, fk)
+		state.foreignKeys[fk.Name] = convertToForeignKeyState(i, schemaName, fk)
 	}
 	return state
 }
@@ -869,12 +856,16 @@ type foreignKeyState struct {
 	referencedColumns []string
 }
 
-func convertToForeignKeyState(id int, foreignKey *metadatapb.ForeignKeyMetadata) *foreignKeyState {
+func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb.ForeignKeyMetadata) *foreignKeyState {
+	refSchema := foreignKey.ReferencedSchema
+	if refSchema == "" {
+		refSchema = tableSchema
+	}
 	return &foreignKeyState{
 		id:                id,
 		name:              foreignKey.Name,
 		columns:           foreignKey.Columns,
-		referencedSchema:  foreignKey.ReferencedSchema,
+		referencedSchema:  refSchema,
 		referencedTable:   foreignKey.ReferencedTable,
 		referencedColumns: foreignKey.ReferencedColumns,
 	}
@@ -1094,14 +1085,42 @@ func formatRedshiftCollation(schema, name string) string {
 }
 
 func isExpression(value string) bool {
-	if strings.ContainsAny(value, "()") || strings.Contains(value, "::") || strings.Contains(value, "||") {
-		return true
-	}
-	switch strings.ToUpper(strings.TrimSpace(value)) {
+	trimmed := strings.TrimSpace(value)
+	switch strings.ToUpper(trimmed) {
 	case "SYSDATE", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
 		"CURRENT_USER", "CURRENT_SCHEMA", "LOCALTIME", "LOCALTIMESTAMP",
 		"SESSION_USER", "USER":
 		return true
+	}
+	stmts, err := pgparser.Parse("SELECT " + trimmed)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	sel, ok := stmt.(*nodes.SelectStmt)
+	if !ok || sel.TargetList == nil || len(sel.TargetList.Items) != 1 {
+		return false
+	}
+	rt, ok := sel.TargetList.Items[0].(*nodes.ResTarget)
+	if !ok || rt.Name != "" {
+		return false
+	}
+	switch rt.Val.(type) {
+	case *nodes.FuncCall, *nodes.TypeCast, *nodes.A_Expr, *nodes.SQLValueFunction, *nodes.CoalesceExpr, *nodes.CaseExpr:
+		// Column defaults cannot reference columns; rejecting ColumnRef keeps
+		// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
+		hasColRef := false
+		nodes.Inspect(rt.Val, func(n nodes.Node) bool {
+			if _, ok := n.(*nodes.ColumnRef); ok {
+				hasColRef = true
+				return false
+			}
+			return true
+		})
+		return !hasColRef
 	default:
 		return false
 	}
@@ -1181,6 +1200,9 @@ func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.Ma
 
 func (v *viewState) toString(buf io.StringWriter) error {
 	trimmed := strings.TrimSpace(v.definition)
+	if trimmed == "" {
+		return fmt.Errorf("view %s has no definition to restore", v.qualifiedName())
+	}
 	var stmt string
 	if isCompleteCreateView(trimmed) {
 		stmt = trimmed
@@ -1197,6 +1219,9 @@ func (v *viewState) toString(buf io.StringWriter) error {
 
 func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 	trimmed := strings.TrimSpace(v.definition)
+	if trimmed == "" {
+		return fmt.Errorf("materialized view %s has no definition to restore", v.qualifiedName())
+	}
 	var stmt string
 	if isCompleteCreateMaterializedView(trimmed) {
 		stmt = trimmed

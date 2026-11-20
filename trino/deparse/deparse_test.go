@@ -327,10 +327,12 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 		Name: "cat",
 		Schemas: []*metadatapb.SchemaMetadata{
 			nil,
+			{Name: "skipped_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t_hidden"}}},
 			{
 				Name: "s",
 				Tables: []*metadatapb.TableMetadata{
 					nil,
+					{Name: "t_skip", SkipDump: true},
 					{
 						Name: "t",
 						Columns: []*metadatapb.ColumnMetadata{
@@ -342,6 +344,7 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 				},
 				Views: []*metadatapb.ViewMetadata{
 					nil,
+					{Name: "v_skip", Definition: "SELECT 1", SkipDump: true},
 					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base"`},
 					{Name: "v_base", Definition: `SELECT id FROM "s"."t"`},
 				},

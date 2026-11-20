@@ -457,6 +457,8 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
 			{Name: "weather", Type: "character varying(20)", Default: "snow", Nullable: true},
 			{Name: "status", Type: "character varying(20)", Default: "current_status", Nullable: true},
 			{Name: "note", Type: "character varying(40)", Default: "timestamp note", Nullable: true},
+			{Name: "legacy", Type: "character varying(40)", Default: "pending (old)", Nullable: true},
+			{Name: "created_at", Type: "timestamp", Default: "now()"},
 		},
 	})
 	require.NoError(t, err)
@@ -464,7 +466,9 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
   "id" bigint IDENTITY(10, 5) NOT NULL,
   "weather" character varying(20) DEFAULT 'snow',
   "status" character varying(20) DEFAULT 'current_status',
-  "note" character varying(40) DEFAULT 'timestamp note'
+  "note" character varying(40) DEFAULT 'timestamp note',
+  "legacy" character varying(40) DEFAULT 'pending (old)',
+  "created_at" timestamp NOT NULL DEFAULT now()
 );
 `, tableWithIdentityAndStrings)
 
@@ -520,4 +524,55 @@ COMMENT ON MATERIALIZED VIEW "public"."z_mv_base" IS 'matview note';
 --
 CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_base";
 `, got)
+}
+
+// TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that
+// materialized views precede ordinary views that read them, omitted FK
+// ReferencedSchema defaults to the table's schema, and empty view definitions
+// return an error.
+func TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView(t *testing.T) {
+	fkTable, err := GetTableDefinition("analytics", &metadatapb.TableMetadata{
+		Name: "child",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "parent_id", Type: "integer", Nullable: true},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "child_parent_fk",
+				Columns:           []string{"parent_id"},
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fkTable, `REFERENCES "analytics"."parent"("id")`)
+
+	_, err = GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "empty_v", Definition: "   "})
+	require.Error(t, err)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public", Views: []*metadatapb.ViewMetadata{{Name: "empty_v"}}},
+		},
+	})
+	require.Error(t, err)
+
+	got, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{
+					{Name: "v_uses_mv", Definition: `SELECT id FROM "public"."mv_base"`},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "mv_base", Definition: `SELECT 1 AS id`},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	mvIdx := strings.Index(got, "Materialized view structure for `mv_base`")
+	vIdx := strings.Index(got, "View structure for `v_uses_mv`")
+	require.Greater(t, vIdx, mvIdx, "expected mv_base before v_uses_mv:\n%s", got)
 }
