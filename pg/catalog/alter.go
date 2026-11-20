@@ -1198,6 +1198,12 @@ func (c *Catalog) renameType(stmt *nodes.RenameStmt) error {
 		}
 	}
 
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil {
+			rt.Name = newName
+		}
+	}
+
 	return nil
 }
 

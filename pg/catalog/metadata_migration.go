@@ -382,6 +382,36 @@ func toProcDefaultsByKey(to *Catalog) map[string]bool {
 	return out
 }
 
+func stmtHasUnsupportedRoutineOptions(def string) bool {
+	if def == "" {
+		return false
+	}
+	stmt, err := parseStatement[*nodes.CreateFunctionStmt](def)
+	if err != nil {
+		return false
+	}
+	if stmt.Parameters != nil {
+		for _, item := range stmt.Parameters.Items {
+			if fp, ok := item.(*nodes.FunctionParameter); ok && fp.Defexpr != nil {
+				return true
+			}
+		}
+	}
+	if stmt.Options != nil {
+		for _, item := range stmt.Options.Items {
+			de, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(de.Defname) {
+			case "set", "cost", "rows", "support", "transform", "window":
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func restoreRoutineDefinitionsForDefaults(plan *MigrationPlan, oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, from, to *Catalog, skipSchemas map[string]bool) {
 	newDefs := collectRoutineDefinitions(newMeta, to, skipSchemas)
 	hasDefaults := toProcDefaultsByKey(to)
@@ -390,13 +420,15 @@ func restoreRoutineDefinitionsForDefaults(plan *MigrationPlan, oldMeta, newMeta 
 		if op.Type != OpCreateFunction && op.Type != OpAlterFunction {
 			continue
 		}
-		if !hasDefaults[op.ObjectName] {
+		entry, ok := newDefs[op.ObjectName]
+		if !ok {
 			continue
 		}
-		if entry, ok := newDefs[op.ObjectName]; ok {
-			plan.Ops[i].SQL = normalizeRoutineDDL(entry.definition, op.Type == OpAlterFunction)
-			handled[op.ObjectName] = true
+		if !hasDefaults[op.ObjectName] && !stmtHasUnsupportedRoutineOptions(entry.definition) {
+			continue
 		}
+		plan.Ops[i].SQL = normalizeRoutineDDL(entry.definition, op.Type == OpAlterFunction)
+		handled[op.ObjectName] = true
 	}
 	extraOps := routineDefaultAlterOps(oldMeta, newMeta, handled, from, to, skipSchemas)
 	plan.Ops = append(plan.Ops, extraOps...)
@@ -416,12 +448,12 @@ func routineDefaultAlterOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
 		if handled != nil && handled[key] {
 			continue
 		}
-		if !hasDefaults[key] {
-			continue
-		}
 		newEntry := newDefs[key]
 		oldEntry, existed := oldDefs[key]
 		if !existed {
+			continue
+		}
+		if !hasDefaults[key] && !stmtHasUnsupportedRoutineOptions(newEntry.definition) && !stmtHasUnsupportedRoutineOptions(oldEntry.definition) {
 			continue
 		}
 		if normalizeRoutineDDL(oldEntry.definition, true) == normalizeRoutineDDL(newEntry.definition, true) {

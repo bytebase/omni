@@ -42,9 +42,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		}
 		schemaName := canonicalSchema(rel.SchemaName)
 		if rel.Action == DiffDrop {
-			if sm := findSchema(result, schemaName); sm != nil {
-				dropRelation(sm, rel)
-			}
+			dropRelation(result, schemaName, rel)
 			continue
 		}
 		sm := findOrCreateSchema(result, schemaName)
@@ -136,41 +134,11 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		}
 	}
 
-	for _, r := range diff.Ranges {
-		schemaName := canonicalSchema(r.SchemaName)
-		if r.Action == DiffDrop {
-			if renamedSchemas[r.SchemaName] != "" && hasMatchingRangeAdd(diff.Ranges, renamedSchemas[r.SchemaName], r.Name) {
-				continue
-			}
-			if sm := findSchema(result, schemaName); sm != nil {
-				sm.RangeTypes = removeRangeTypeByName(sm.RangeTypes, r.Name)
-			}
-			continue
-		}
-		if r.To == nil {
-			continue
-		}
-		sm := findOrCreateSchema(result, schemaName)
-		switch r.Action {
-		case DiffAdd, DiffModify:
-			idx := -1
-			for i, existing := range sm.RangeTypes {
-				if existing.Name == r.Name {
-					idx = i
-					break
-				}
-			}
-			if idx >= 0 {
-				sm.RangeTypes[idx] = rangeTypeToProto(catAfter, r.To, sm.RangeTypes[idx])
-			} else {
-				sm.RangeTypes = append(sm.RangeTypes, rangeTypeToProto(catAfter, r.To, nil))
-			}
-		default:
-		}
-	}
+	applyRangeDiffs(result, catAfter, diff.Ranges, canonicalSchema)
 
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
+	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyExtensionDiffs(result, catAfter, diff.Extensions)
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
@@ -394,6 +362,49 @@ func rewritePartitionSchemaReferences(meta *metadatapb.DatabaseSchemaMetadata, o
 			ext.Schema = newName
 		}
 	}
+	rewriteDependencyReferences(meta, oldName, "", newName, "")
+}
+
+func rewriteTableDependencyReferences(meta *metadatapb.DatabaseSchemaMetadata, oldSchema, oldTable, newSchema, newTable string) {
+	if oldSchema == newSchema && oldTable == newTable {
+		return
+	}
+	rewriteDependencyReferences(meta, oldSchema, oldTable, newSchema, newTable)
+}
+
+func rewriteDependencyReferences(meta *metadatapb.DatabaseSchemaMetadata, oldSchema, oldTable, newSchema, newTable string) {
+	for _, s := range meta.Schemas {
+		for _, v := range s.Views {
+			for _, dep := range v.DependencyColumns {
+				if dep.Schema == oldSchema && (oldTable == "" || dep.Table == oldTable) {
+					dep.Schema = newSchema
+					if oldTable != "" {
+						dep.Table = newTable
+					}
+				}
+			}
+		}
+		for _, mv := range s.MaterializedViews {
+			for _, dep := range mv.DependencyColumns {
+				if dep.Schema == oldSchema && (oldTable == "" || dep.Table == oldTable) {
+					dep.Schema = newSchema
+					if oldTable != "" {
+						dep.Table = newTable
+					}
+				}
+			}
+		}
+		for _, fn := range s.Functions {
+			for _, dep := range fn.DependencyTables {
+				if dep.Schema == oldSchema && (oldTable == "" || dep.Table == oldTable) {
+					dep.Schema = newSchema
+					if oldTable != "" {
+						dep.Table = newTable
+					}
+				}
+			}
+		}
+	}
 }
 
 func extSchemaName(cat *Catalog, ext *Extension) string {
@@ -481,13 +492,184 @@ func hasMatchingCompositeAdd(entries []CompositeTypeDiffEntry, newSchema, name s
 	return false
 }
 
-func hasMatchingRangeAdd(entries []RangeDiffEntry, newSchema, name string) bool {
-	for _, e := range entries {
-		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
-			return true
+func applyRangeDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, ranges []RangeDiffEntry, canonicalSchema func(string) string) {
+	if len(ranges) == 0 {
+		return
+	}
+	addedByOID := make(map[uint32]RangeDiffEntry)
+	for _, r := range ranges {
+		if r.Action == DiffAdd && r.To != nil && r.To.OID != 0 {
+			addedByOID[r.To.OID] = r
 		}
 	}
-	return false
+
+	handledDropOIDs := make(map[uint32]bool)
+	handledAddOIDs := make(map[uint32]bool)
+	for _, r := range ranges {
+		if r.Action != DiffDrop || r.From == nil || r.From.OID == 0 {
+			continue
+		}
+		add, ok := addedByOID[r.From.OID]
+		if !ok || add.To == nil {
+			continue
+		}
+		var prev *metadatapb.RangeTypeMetadata
+		if srcSM := findSchema(result, canonicalSchema(r.SchemaName)); srcSM != nil {
+			prev, srcSM.RangeTypes = popRangeTypeByName(srcSM.RangeTypes, r.Name)
+		}
+		dstSM := findOrCreateSchema(result, add.SchemaName)
+		upsertRangeType(dstSM, rangeTypeToProto(catAfter, add.To, prev))
+		handledDropOIDs[r.From.OID] = true
+		handledAddOIDs[add.To.OID] = true
+	}
+
+	for _, r := range ranges {
+		if r.Action == DiffDrop && r.From != nil && handledDropOIDs[r.From.OID] {
+			continue
+		}
+		if r.Action == DiffAdd && r.To != nil && handledAddOIDs[r.To.OID] {
+			continue
+		}
+		schemaName := canonicalSchema(r.SchemaName)
+		if r.Action == DiffDrop {
+			if sm := findSchema(result, schemaName); sm != nil {
+				_, sm.RangeTypes = popRangeTypeByName(sm.RangeTypes, r.Name)
+			}
+			continue
+		}
+		if r.To == nil {
+			continue
+		}
+		sm := findOrCreateSchema(result, schemaName)
+		switch r.Action {
+		case DiffAdd, DiffModify:
+			upsertRangeType(sm, rangeTypeToProto(catAfter, r.To, findRangeType(sm, r.Name)))
+		default:
+		}
+	}
+}
+
+func findRangeType(sm *metadatapb.SchemaMetadata, name string) *metadatapb.RangeTypeMetadata {
+	for _, rt := range sm.RangeTypes {
+		if rt.Name == name {
+			return rt
+		}
+	}
+	return nil
+}
+
+func upsertRangeType(sm *metadatapb.SchemaMetadata, updated *metadatapb.RangeTypeMetadata) {
+	for i, existing := range sm.RangeTypes {
+		if existing.Name == updated.Name {
+			sm.RangeTypes[i] = updated
+			return
+		}
+	}
+	sm.RangeTypes = append(sm.RangeTypes, updated)
+}
+
+func applyEventTriggerDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, entries []EventTriggerDiffEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	addedByOID := make(map[uint32]EventTriggerDiffEntry)
+	for _, e := range entries {
+		if e.Action == DiffAdd && e.To != nil && e.To.OID != 0 {
+			addedByOID[e.To.OID] = e
+		}
+	}
+
+	handledDropOIDs := make(map[uint32]bool)
+	handledAddOIDs := make(map[uint32]bool)
+	for _, e := range entries {
+		if e.Action != DiffDrop || e.From == nil || e.From.OID == 0 {
+			continue
+		}
+		add, ok := addedByOID[e.From.OID]
+		if !ok || add.To == nil {
+			continue
+		}
+		var prev *metadatapb.EventTriggerMetadata
+		prev, result.EventTriggers = popEventTriggerByName(result.EventTriggers, e.Name)
+		upsertEventTrigger(result, eventTriggerToProto(catAfter, add.To, prev))
+		handledDropOIDs[e.From.OID] = true
+		handledAddOIDs[add.To.OID] = true
+	}
+
+	for _, e := range entries {
+		if e.Action == DiffDrop && e.From != nil && handledDropOIDs[e.From.OID] {
+			continue
+		}
+		if e.Action == DiffAdd && e.To != nil && handledAddOIDs[e.To.OID] {
+			continue
+		}
+		switch e.Action {
+		case DiffDrop:
+			_, result.EventTriggers = popEventTriggerByName(result.EventTriggers, e.Name)
+		case DiffAdd, DiffModify:
+			if e.To == nil {
+				continue
+			}
+			upsertEventTrigger(result, eventTriggerToProto(catAfter, e.To, findEventTrigger(result, e.Name)))
+		default:
+		}
+	}
+}
+
+func eventTriggerToProto(cat *Catalog, evt *EventTrigger, previous *metadatapb.EventTriggerMetadata) *metadatapb.EventTriggerMetadata {
+	out := &metadatapb.EventTriggerMetadata{
+		Name:    evt.Name,
+		Event:   evt.EventName,
+		Tags:    slices.Clone(evt.Tags),
+		Enabled: evt.Enabled != 'D',
+	}
+	if cat != nil {
+		if up := cat.userProcs[evt.FuncOID]; up != nil {
+			if up.Schema != nil {
+				out.FunctionSchema = up.Schema.Name
+			}
+			out.FunctionName = up.Name
+		} else if p := cat.procByOID[evt.FuncOID]; p != nil {
+			out.FunctionName = p.Name
+		}
+	}
+	if previous != nil {
+		out.Comment = previous.Comment
+		out.SkipDump = previous.SkipDump
+	}
+	return out
+}
+
+func findEventTrigger(meta *metadatapb.DatabaseSchemaMetadata, name string) *metadatapb.EventTriggerMetadata {
+	for _, et := range meta.EventTriggers {
+		if et.Name == name {
+			return et
+		}
+	}
+	return nil
+}
+
+func popEventTriggerByName(triggers []*metadatapb.EventTriggerMetadata, name string) (*metadatapb.EventTriggerMetadata, []*metadatapb.EventTriggerMetadata) {
+	var popped *metadatapb.EventTriggerMetadata
+	out := make([]*metadatapb.EventTriggerMetadata, 0, len(triggers))
+	for _, et := range triggers {
+		if et.Name == name && popped == nil {
+			popped = et
+			continue
+		}
+		out = append(out, et)
+	}
+	return popped, out
+}
+
+func upsertEventTrigger(meta *metadatapb.DatabaseSchemaMetadata, updated *metadatapb.EventTriggerMetadata) {
+	for i, existing := range meta.EventTriggers {
+		if existing.Name == updated.Name {
+			meta.EventTriggers[i] = updated
+			return
+		}
+	}
+	meta.EventTriggers = append(meta.EventTriggers, updated)
 }
 
 func upsertSequence(sm *metadatapb.SchemaMetadata, updated *metadatapb.SequenceMetadata) {
@@ -624,14 +806,34 @@ func relationToPartitionProto(c *Catalog, rel, parentRel *Relation, parentSchema
 	return part
 }
 
-func dropRelation(sm *metadatapb.SchemaMetadata, rel RelationDiffEntry) {
+func dropRelation(result *metadatapb.DatabaseSchemaMetadata, schemaName string, rel RelationDiffEntry) {
 	name := rel.Name
-	sm.Tables = removeTableByName(sm.Tables, name)
-	sm.Views = removeViewByName(sm.Views, name)
-	sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, name)
-	for _, t := range sm.Tables {
-		t.Partitions = removePartitionByName(t.Partitions, name)
+	if sm := findSchema(result, schemaName); sm != nil {
+		sm.Tables = removeTableByName(sm.Tables, name)
+		sm.Views = removeViewByName(sm.Views, name)
+		sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, name)
 	}
+	for _, s := range result.Schemas {
+		for _, t := range s.Tables {
+			t.Partitions = removePartitionInSchema(t.Partitions, s.Name, schemaName, name)
+		}
+	}
+}
+
+func removePartitionInSchema(partitions []*metadatapb.TablePartitionMetadata, parentSchema, targetSchema, name string) []*metadatapb.TablePartitionMetadata {
+	if len(partitions) == 0 {
+		return partitions
+	}
+	out := make([]*metadatapb.TablePartitionMetadata, 0, len(partitions))
+	for _, p := range partitions {
+		partSchema := partitionSchemaName(parentSchema, p)
+		if p.Name == name && partSchema == targetSchema {
+			continue
+		}
+		p.Subpartitions = removePartitionInSchema(p.Subpartitions, partSchema, targetSchema, name)
+		out = append(out, p)
+	}
+	return out
 }
 
 func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel RelationDiffEntry) {
@@ -812,6 +1014,7 @@ func renameForeignTables(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 			})
 			findOrCreateSchema(result, add.SchemaName).ExternalTables = append(findOrCreateSchema(result, add.SchemaName).ExternalTables, ext)
 		}
+		rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 		renamed[rel.From.OID] = true
 	}
 	return renamed
@@ -830,6 +1033,35 @@ func preserveTriggerComments(dst, src []*metadatapb.TriggerMetadata) {
 	for _, tr := range dst {
 		if c, ok := comments[tr.Name]; ok && tr.Comment == "" {
 			tr.Comment = c
+		}
+	}
+}
+
+func preserveConstraintComments(dst, src *metadatapb.TableMetadata) {
+	if len(dst.ForeignKeys) > 0 && len(src.ForeignKeys) > 0 {
+		fkComments := make(map[string]string, len(src.ForeignKeys))
+		for _, fk := range src.ForeignKeys {
+			if fk.Comment != "" {
+				fkComments[fk.Name] = fk.Comment
+			}
+		}
+		for _, fk := range dst.ForeignKeys {
+			if c, ok := fkComments[fk.Name]; ok && fk.Comment == "" {
+				fk.Comment = c
+			}
+		}
+	}
+	if len(dst.CheckConstraints) > 0 && len(src.CheckConstraints) > 0 {
+		chkComments := make(map[string]string, len(src.CheckConstraints))
+		for _, chk := range src.CheckConstraints {
+			if chk.Comment != "" {
+				chkComments[chk.Name] = chk.Comment
+			}
+		}
+		for _, chk := range dst.CheckConstraints {
+			if c, ok := chkComments[chk.Name]; ok && chk.Comment == "" {
+				chk.Comment = c
+			}
 		}
 	}
 }
@@ -916,6 +1148,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 					} else {
 						sm.Views[i] = updated
 					}
+					rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 					renamed[rel.From.OID] = true
 					break
 				}
@@ -932,6 +1165,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 					} else {
 						sm.MaterializedViews[i] = updated
 					}
+					rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 					renamed[rel.From.OID] = true
 					break
 				}
@@ -942,6 +1176,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 			rebuilt := relationToTableProto(catAfter, add.To)
 			preserveColumnMetadata(rebuilt.Columns, tbl.Columns, rel.From, add.To)
 			preserveIndexMetadata(rebuilt.Indexes, tbl.Indexes)
+			preserveConstraintComments(rebuilt, tbl)
 			preserveTriggerComments(rebuilt.Triggers, tbl.Triggers)
 			tbl.Name = add.Name
 			tbl.Columns = rebuilt.Columns
@@ -958,6 +1193,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 				targetSchema := findOrCreateSchema(result, add.SchemaName)
 				targetSchema.Tables = append(targetSchema.Tables, tbl)
 			}
+			rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 			renamed[rel.From.OID] = true
 		}
 	}
@@ -1122,11 +1358,16 @@ func applyConstraintDiffs(tbl *metadatapb.TableMetadata, catBefore, catAfter *Ca
 				removeConstraintFromTable(tbl, catBefore, cd.From)
 			}
 		case DiffModify:
+			var prevComment string
 			if cd.From != nil {
+				prevComment = constraintCommentOnTable(tbl, catBefore, cd.From)
 				removeConstraintFromTable(tbl, catBefore, cd.From)
 			}
 			if cd.To != nil {
 				addConstraintToTable(tbl, catAfter, rel, cd.To)
+				if prevComment != "" {
+					setAddedConstraintCommentOnTable(tbl, catAfter, cd.To, prevComment)
+				}
 			}
 		default:
 		}
@@ -1399,15 +1640,6 @@ func findPartition(sm *metadatapb.SchemaMetadata, name string) *metadatapb.Table
 		}
 	}
 	return nil
-}
-
-// removePartitionByName removes the partition named name, at any depth.
-func removePartitionByName(partitions []*metadatapb.TablePartitionMetadata, name string) []*metadatapb.TablePartitionMetadata {
-	partitions = slices.DeleteFunc(partitions, func(p *metadatapb.TablePartitionMetadata) bool { return p.Name == name })
-	for _, p := range partitions {
-		p.Subpartitions = removePartitionByName(p.Subpartitions, name)
-	}
-	return partitions
 }
 
 func removeTableByName(tables []*metadatapb.TableMetadata, name string) []*metadatapb.TableMetadata {
@@ -1912,8 +2144,12 @@ func removeTriggerByName(triggers []*metadatapb.TriggerMetadata, name string) []
 }
 
 func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTypeMetadata) *metadatapb.RangeTypeMetadata {
+	name := rt.Name
+	if bt := cat.TypeByOID(rt.OID); bt != nil && bt.TypeName != "" {
+		name = bt.TypeName
+	}
 	out := &metadatapb.RangeTypeMetadata{
-		Name:    rt.Name,
+		Name:    name,
 		Subtype: qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
 	}
 	if rt.MultirangeOID != 0 {
@@ -1930,14 +2166,17 @@ func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTyp
 	return out
 }
 
-func removeRangeTypeByName(ranges []*metadatapb.RangeTypeMetadata, name string) []*metadatapb.RangeTypeMetadata {
+func popRangeTypeByName(ranges []*metadatapb.RangeTypeMetadata, name string) (*metadatapb.RangeTypeMetadata, []*metadatapb.RangeTypeMetadata) {
+	var popped *metadatapb.RangeTypeMetadata
 	out := make([]*metadatapb.RangeTypeMetadata, 0, len(ranges))
 	for _, r := range ranges {
-		if r.Name != name {
-			out = append(out, r)
+		if r.Name == name && popped == nil {
+			popped = r
+			continue
 		}
+		out = append(out, r)
 	}
-	return out
+	return popped, out
 }
 
 func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, comments []CommentDiffEntry) {
@@ -2167,6 +2406,48 @@ func setIndexCommentInSchema(sm *metadatapb.SchemaMetadata, idxName, comment str
 				return
 			}
 		}
+	}
+}
+
+func constraintCommentSlot(tbl *metadatapb.TableMetadata, cat *Catalog, con *Constraint) *string {
+	switch con.Type {
+	case ConstraintPK, ConstraintUnique:
+		idxName := con.Name
+		if idx := cat.GetIndexByOID(con.IndexOID); idx != nil {
+			idxName = idx.Name
+		}
+		for _, idx := range tbl.Indexes {
+			if idx.Name == idxName {
+				return &idx.Comment
+			}
+		}
+	case ConstraintFK:
+		for _, fk := range tbl.ForeignKeys {
+			if fk.Name == con.Name {
+				return &fk.Comment
+			}
+		}
+	case ConstraintCheck:
+		for _, chk := range tbl.CheckConstraints {
+			if chk.Name == con.Name {
+				return &chk.Comment
+			}
+		}
+	default:
+	}
+	return nil
+}
+
+func constraintCommentOnTable(tbl *metadatapb.TableMetadata, cat *Catalog, con *Constraint) string {
+	if slot := constraintCommentSlot(tbl, cat, con); slot != nil {
+		return *slot
+	}
+	return ""
+}
+
+func setAddedConstraintCommentOnTable(tbl *metadatapb.TableMetadata, cat *Catalog, con *Constraint, comment string) {
+	if slot := constraintCommentSlot(tbl, cat, con); slot != nil {
+		*slot = comment
 	}
 }
 

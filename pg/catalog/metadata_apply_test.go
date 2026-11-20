@@ -838,5 +838,170 @@ func TestApplyDiffToMetadataTableAndFunctionRenamesAndOwnerOnly(t *testing.T) {
 	require.NotNil(t, fnNew)
 	require.Equal(t, "ren doc", fnNew.Comment)
 	require.Len(t, fnNew.DependencyTables, 1)
-	require.Equal(t, "orders", fnNew.DependencyTables[0].Table)
+	require.Equal(t, "orders_new", fnNew.DependencyTables[0].Table)
+}
+
+func TestApplyDiffToMetadataRound5Fixes(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Range rename & SET SCHEMA preserve metadata.
+	// 2. EventTrigger add/modify(disable)/rename/drop preserve Comment & SkipDump.
+	// 3. Constraint DiffModify preserves Comment.
+	// 4. Cross-schema partition drop removes partition from parent schema table.
+	// 5. Table rename rewrites ViewMetadata.DependencyColumns as well as FunctionMetadata.DependencyTables.
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "parents",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:         "parents_pkey",
+							Expressions:  []string{"id"},
+							Primary:      true,
+							Unique:       true,
+							IsConstraint: true,
+							Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "parents_pkey", Primary: true}},
+						}},
+					},
+					{
+						Name:    "orders",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}, {Name: "parent_id", Type: "integer", Position: 2}},
+					},
+					{
+						Name:    "items",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}, {Name: "parent_id", Type: "integer", Position: 2}},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+							Name:              "items_parent_fk",
+							Columns:           []string{"parent_id"},
+							ReferencedSchema:  "public",
+							ReferencedTable:   "parents",
+							ReferencedColumns: []string{"id"},
+							OnDelete:          "NO ACTION",
+							Comment:           "fk comment",
+						}},
+					},
+					{
+						Name:    "logs",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:   "logs_2026",
+							Schema: "archive",
+							Type:   metadatapb.TablePartitionMetadata_RANGE,
+							Value:  "FOR VALUES FROM (2026) TO (2027)",
+						}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "orders_v",
+					Definition:        "SELECT id FROM public.orders",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "orders", Column: "id"}},
+				}},
+				RangeTypes: []*metadatapb.RangeTypeMetadata{{
+					Name:           "float8_range",
+					Subtype:        "float8",
+					SubtypeOpclass: "float8_ops",
+					Canonical:      "custom_canon",
+					Comment:        "range comment",
+					SkipDump:       true,
+				}},
+			},
+			{Name: "archive"},
+		},
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{
+			Name:           "et_existing",
+			Event:          "ddl_command_end",
+			FunctionSchema: "public",
+			FunctionName:   "et_fn",
+			Enabled:        true,
+			Comment:        "et doc",
+			SkipDump:       true,
+		}},
+	}
+
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(ctx, meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	// Install objects that LoadMetadata does not install natively (range type, partitioned parent + cross-schema child, event trigger).
+	for _, stmt := range []string{
+		`CREATE FUNCTION public.et_fn() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END; $$;`,
+		`CREATE EVENT TRIGGER et_existing ON ddl_command_end EXECUTE FUNCTION public.et_fn();`,
+		`CREATE TYPE public.float8_range AS RANGE (subtype = float8);`,
+		`CREATE TABLE public.logs (id integer) PARTITION BY RANGE (id);`,
+		`CREATE TABLE archive.logs_2026 PARTITION OF public.logs FOR VALUES FROM (2026) TO (2027);`,
+	} {
+		_, err = catBefore.Exec(stmt, nil)
+		require.NoError(t, err, stmt)
+	}
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		ALTER TYPE public.float8_range RENAME TO f8_range;
+		ALTER TYPE public.f8_range SET SCHEMA archive;
+		ALTER EVENT TRIGGER et_existing DISABLE;
+		ALTER EVENT TRIGGER et_existing RENAME TO et_renamed;
+		CREATE EVENT TRIGGER et_new ON sql_drop WHEN TAG IN ('DROP TABLE') EXECUTE FUNCTION public.et_fn();
+		ALTER TABLE public.items DROP CONSTRAINT items_parent_fk, ADD CONSTRAINT items_parent_fk FOREIGN KEY (parent_id) REFERENCES public.parents(id) ON DELETE CASCADE;
+		DROP TABLE archive.logs_2026;
+		ALTER TABLE public.orders RENAME TO orders_renamed;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+
+	// 1. Range metadata preserved after RENAME + SET SCHEMA.
+	pub := findSchema(got, "public")
+	arch := findSchema(got, "archive")
+	require.Empty(t, pub.RangeTypes)
+	require.Len(t, arch.RangeTypes, 1)
+	require.Equal(t, "f8_range", arch.RangeTypes[0].Name)
+	require.Equal(t, "range comment", arch.RangeTypes[0].Comment)
+	require.True(t, arch.RangeTypes[0].SkipDump)
+	require.Equal(t, "custom_canon", arch.RangeTypes[0].Canonical)
+
+	// 2. Event triggers updated, rename preserved Comment & SkipDump, Disable reflected.
+	require.Len(t, got.EventTriggers, 2)
+	var etRen, etNew *metadatapb.EventTriggerMetadata
+	for _, et := range got.EventTriggers {
+		switch et.Name {
+		case "et_renamed":
+			etRen = et
+		case "et_new":
+			etNew = et
+		}
+	}
+	require.NotNil(t, etRen)
+	require.False(t, etRen.Enabled)
+	require.Equal(t, "et doc", etRen.Comment)
+	require.True(t, etRen.SkipDump)
+	require.NotNil(t, etNew)
+	require.True(t, etNew.Enabled)
+	require.Equal(t, "sql_drop", etNew.Event)
+	require.Equal(t, []string{"DROP TABLE"}, etNew.Tags)
+	require.Equal(t, "public", etNew.FunctionSchema)
+	require.Equal(t, "et_fn", etNew.FunctionName)
+
+	// 3. Constraint DiffModify preserved Comment.
+	itemsTbl := findTable(pub, "items")
+	require.NotNil(t, itemsTbl)
+	require.Len(t, itemsTbl.ForeignKeys, 1)
+	require.Equal(t, "CASCADE", itemsTbl.ForeignKeys[0].OnDelete)
+	require.Equal(t, "fk comment", itemsTbl.ForeignKeys[0].Comment)
+
+	// 4. Cross-schema partition removed from public.logs.
+	logsTbl := findTable(pub, "logs")
+	require.NotNil(t, logsTbl)
+	require.Empty(t, logsTbl.Partitions)
+
+	// 5. View DependencyColumns rewritten on table rename.
+	require.NotNil(t, findTable(pub, "orders_renamed"))
+	require.Len(t, pub.Views, 1)
+	require.Len(t, pub.Views[0].DependencyColumns, 1)
+	require.Equal(t, "orders_renamed", pub.Views[0].DependencyColumns[0].Table)
 }

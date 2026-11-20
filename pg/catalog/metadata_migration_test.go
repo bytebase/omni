@@ -4476,3 +4476,32 @@ func TestTableOwnerOnlyChangeDoesNotProduceSpuriousDiff(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, sql)
 }
+
+func TestFunctionSetClauseWithoutDefaultsPreserved(t *testing.T) {
+	empty := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	withFunc := func(def string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "do_work",
+					Signature:  "public.do_work(x integer)",
+					Definition: def,
+				}},
+			}},
+		}
+	}
+
+	def1 := "CREATE FUNCTION public.do_work(x integer) RETURNS integer LANGUAGE plpgsql SET search_path = public AS $$ BEGIN RETURN x; END; $$"
+	def2 := "CREATE FUNCTION public.do_work(x integer) RETURNS integer LANGUAGE plpgsql SET search_path = archive AS $$ BEGIN RETURN x; END; $$"
+
+	sql, err := testMetadataMigration(empty, withFunc(def1))
+	require.NoError(t, err)
+	require.Contains(t, sql, "SET search_path")
+
+	sql, err = testMetadataMigration(withFunc(def1), withFunc(def2))
+	require.NoError(t, err)
+	require.Contains(t, sql, "CREATE OR REPLACE FUNCTION")
+	require.Contains(t, sql, "SET search_path")
+	require.Contains(t, sql, "archive")
+}
