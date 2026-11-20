@@ -265,6 +265,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER TABLE on an index RENAME COLUMN renames expression attribute", "missing", "CREATE TABLE t_ir (a int);\nCREATE INDEX idx_ir ON t_ir ((a + 1));\nALTER TABLE idx_ir RENAME COLUMN expr TO plus_one", "0"},
 		{"ALTER COLUMN SET STORAGE DEFAULT and SET COMPRESSION DEFAULT", "missing", "CREATE TABLE t_scd (a text STORAGE EXTERNAL COMPRESSION lz4);\nALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;\nALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT", "0"},
 		{"DROP DEFAULT sharing column explicit collation keeps single dependency", "missing", "CREATE COLLATION c_same (LOCALE = 'C');\nCREATE TABLE t_same (a text COLLATE c_same DEFAULT ('x' COLLATE c_same));\nALTER TABLE t_same ALTER COLUMN a DROP DEFAULT;\nALTER TABLE t_same ALTER COLUMN a TYPE varchar;\nDROP COLLATION c_same", "0"},
+		{"CREATE COLLATION FROM missing source rejected with 42704", "missing", "CREATE COLLATION c_bad FROM missing_coll", CodeUndefinedObject},
+		{"CREATE COLLATION FROM default rejected with 42P16", "missing", "CREATE COLLATION c_bad_dfl FROM \"default\"", CodeInvalidObjectDefinition},
+		{"CREATE COLLATION without locale rejected with 42P16", "missing", "CREATE COLLATION c_no_loc (PROVIDER = icu)", CodeInvalidObjectDefinition},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3795,6 +3798,79 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rem := GenerateMigration(c107From, c107To, Diff(c107From, c107To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining migration ops after c107 collation replacement, got:\n%s", rem.SQL())
+		}
+
+		// Review round 6 regressions:
+		// 1. Index attribute rename cycles ((a, b) -> (b, a)) unwind without
+		//    duplicate-column errors.
+		// 2. CREATE COLLATION FROM missing fails with 42704 and leaves no
+		//    registered collation; valid CREATE COLLATION FROM copies cleanly.
+		// 3. ALTER TABLE ... SET ACCESS METHOD diffs and round-trips through
+		//    GenerateMigration.
+		c108 := New()
+		if code := simulationCatalogCode(t, c108, "CREATE COLLATION c_bad_r6 FROM missing_r6"); code != CodeUndefinedObject {
+			t.Fatalf("CREATE COLLATION FROM missing_r6 answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if code := simulationCatalogCode(t, c108, "CREATE TABLE t_bad_r6 (a text COLLATE c_bad_r6)"); code != CodeUndefinedObject {
+			t.Fatalf("column referencing uncreated collation answered %s, want %s", code, CodeUndefinedObject)
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_src_r6 (LOCALE = 'C')",
+			"CREATE COLLATION c_copy_r6 FROM c_src_r6",
+			"DROP COLLATION c_src_r6",
+			"CREATE TABLE t_copy_r6 (a text COLLATE c_copy_r6)",
+		} {
+			if code := simulationCatalogCode(t, c108, stmt); code != "0" {
+				t.Fatalf("c108 valid collation copy %s: %s", stmt, code)
+			}
+		}
+
+		c108From := New()
+		c108To := New()
+		tamSetup := []string{
+			"CREATE FUNCTION tam_handler_r6(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD custom_tam_r6 TYPE TABLE HANDLER tam_handler_r6",
+		}
+		for _, stmt := range tamSetup {
+			if code := simulationCatalogCode(t, c108From, stmt); code != "0" {
+				t.Fatalf("c108From tam setup %s: %s", stmt, code)
+			}
+			if code := simulationCatalogCode(t, c108To, stmt); code != "0" {
+				t.Fatalf("c108To tam setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_cyc_r6 (x int, y int)",
+			"CREATE INDEX idx_cyc_r6 ON t_cyc_r6 ((x + 1), (y + 1))",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr TO a",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr1 TO b",
+			"CREATE TABLE t_am_r6 (id int)",
+		} {
+			if code := simulationCatalogCode(t, c108From, stmt); code != "0" {
+				t.Fatalf("c108From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_cyc_r6 (x int, y int)",
+			"CREATE INDEX idx_cyc_r6 ON t_cyc_r6 ((x + 1), (y + 1))",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr TO b",
+			"ALTER TABLE idx_cyc_r6 RENAME COLUMN expr1 TO a",
+			"CREATE TABLE t_am_r6 (id int)",
+			"ALTER TABLE t_am_r6 SET ACCESS METHOD custom_tam_r6",
+		} {
+			if code := simulationCatalogCode(t, c108To, stmt); code != "0" {
+				t.Fatalf("c108To setup %s: %s", stmt, code)
+			}
+		}
+		mig108 := GenerateMigration(c108From, c108To, Diff(c108From, c108To))
+		if !strings.Contains(mig108.SQL(), "SET ACCESS METHOD") {
+			t.Fatalf("expected migration SQL to contain SET ACCESS METHOD, got:\n%s", mig108.SQL())
+		}
+		if code := simulationCatalogCode(t, c108From, mig108.SQL()); code != "0" {
+			t.Fatalf("applying c108 migration failed with %s:\n%s", code, mig108.SQL())
+		}
+		if rem := GenerateMigration(c108From, c108To, Diff(c108From, c108To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c108 round-trip, got:\n%s", rem.SQL())
 		}
 	})
 

@@ -53,6 +53,34 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if normalizeReplicaIdentity(entry.From.ReplicaIdentity) != normalizeReplicaIdentity(entry.To.ReplicaIdentity) {
 				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 			}
+
+			// Table access method changed (views/matviews are handled by generateViewDDL).
+			if fromIsTable && toIsTable {
+				if fromAM, toAM := normalizeRelationAccessMethod(entry.From), normalizeRelationAccessMethod(entry.To); fromAM != toAM {
+					qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+					target := "DEFAULT"
+					if !(entry.To.RelKind == 'p' && toAM == "") {
+						target = quoteIdentifier(toAM)
+					}
+					phase := PhaseMain
+					objOID := entry.To.OID
+					if fromAM != "" && fromAM != "heap" && to.accessMethodByName[fromAM] == nil {
+						phase = PhasePre
+						objOID = entry.From.OID
+					}
+					ops = append(ops, MigrationOp{
+						Type:          OpAlterTable,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("ALTER TABLE %s SET ACCESS METHOD %s", qn, target),
+						Transactional: true,
+						Phase:         phase,
+						ObjType:       'r',
+						ObjOID:        objOID,
+						Priority:      PriorityTable,
+					})
+				}
+			}
 		}
 	}
 
@@ -139,6 +167,15 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 	}
 	// A partition with subpartitions is itself partitioned.
 	b.WriteString(formatPartitionByClause(rel))
+	if rel.RelKind == 'p' {
+		if rel.AccessMethod != "" {
+			b.WriteString(" USING ")
+			b.WriteString(quoteIdentifier(rel.AccessMethod))
+		}
+	} else if am := normalizeRelationAccessMethod(rel); am != "" && am != "heap" && am != normalizeRelationAccessMethod(parentRel) {
+		b.WriteString(" USING ")
+		b.WriteString(quoteIdentifier(am))
+	}
 
 	return []MigrationOp{{
 		Type:          OpCreateTable,

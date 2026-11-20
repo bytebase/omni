@@ -101,6 +101,9 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.RelKind != to.RelKind {
 		changed = true
 	}
+	if normalizeRelationAccessMethod(from) != normalizeRelationAccessMethod(to) {
+		changed = true
+	}
 
 	// Partition info comparison.
 	if !partitionInfoEqual(from.PartitionInfo, to.PartitionInfo) {
@@ -185,6 +188,16 @@ func normalizeReplicaIdentity(ri byte) byte {
 		return 'd'
 	}
 	return ri
+}
+
+func normalizeRelationAccessMethod(rel *Relation) string {
+	if rel == nil {
+		return ""
+	}
+	if (rel.RelKind == 'r' || rel.RelKind == 'm') && rel.AccessMethod == "" {
+		return "heap"
+	}
+	return rel.AccessMethod
 }
 
 // partitionInfoEqual returns true if two PartitionInfo values are equivalent.

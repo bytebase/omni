@@ -150,6 +150,17 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 	// Append INHERITS clause for table inheritance.
 	b.WriteString(formatInheritsClause(c, rel))
 
+	// Append USING clause for explicit non-default table access method.
+	if rel.RelKind == 'p' {
+		if rel.AccessMethod != "" {
+			b.WriteString(" USING ")
+			b.WriteString(quoteIdentifier(rel.AccessMethod))
+		}
+	} else if am := normalizeRelationAccessMethod(rel); am != "" && am != "heap" {
+		b.WriteString(" USING ")
+		b.WriteString(quoteIdentifier(am))
+	}
+
 	return b.String()
 }
 

@@ -167,23 +167,23 @@ func buildIndexColumnRenameOps(schemaName string, idx *Index, fromNames, toNames
 	for _, n := range cur {
 		used[n] = true
 	}
+	targetSet := make(map[string]bool, len(toNames))
+	for _, n := range toNames {
+		targetSet[n] = true
+	}
 	var ops []MigrationOp
 	qIdx := quoteIdentifier(schemaName) + "." + quoteIdentifier(idx.Name)
-	// First move any colliding entries to temporary names so swaps like (a,b)->(b,a) work.
-	for i := range cur {
-		if cur[i] == toNames[i] {
-			continue
-		}
-		if used[toNames[i]] {
-			tmp := fmt.Sprintf("__omni_idx_col_%d", i)
-			for k := 1; used[tmp]; k++ {
-				tmp = fmt.Sprintf("__omni_idx_col_%d_%d", i, k)
+	for {
+		progressed := false
+		for i := range cur {
+			if cur[i] == toNames[i] || used[toNames[i]] {
+				continue
 			}
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterTable,
 				SchemaName:    schemaName,
 				ObjectName:    idx.Name,
-				SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[i]), quoteIdentifier(tmp)),
+				SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[i]), quoteIdentifier(toNames[i])),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'i',
@@ -191,28 +191,43 @@ func buildIndexColumnRenameOps(schemaName string, idx *Index, fromNames, toNames
 				Priority:      PriorityIndex,
 			})
 			delete(used, cur[i])
-			cur[i] = tmp
-			used[tmp] = true
+			cur[i] = toNames[i]
+			used[toNames[i]] = true
+			progressed = true
 		}
-	}
-	for i := range cur {
-		if cur[i] == toNames[i] {
+		if progressed {
 			continue
+		}
+		// Remaining mismatches form rename cycles; move one participant aside to
+		// an unused temporary name so the cycle unwinds cleanly.
+		cycIdx := -1
+		for i := range cur {
+			if cur[i] != toNames[i] {
+				cycIdx = i
+				break
+			}
+		}
+		if cycIdx < 0 {
+			break
+		}
+		tmp := fmt.Sprintf("__omni_idx_col_%d", cycIdx)
+		for k := 1; used[tmp] || targetSet[tmp]; k++ {
+			tmp = fmt.Sprintf("__omni_idx_col_%d_%d", cycIdx, k)
 		}
 		ops = append(ops, MigrationOp{
 			Type:          OpAlterTable,
 			SchemaName:    schemaName,
 			ObjectName:    idx.Name,
-			SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[i]), quoteIdentifier(toNames[i])),
+			SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[cycIdx]), quoteIdentifier(tmp)),
 			Transactional: true,
 			Phase:         PhaseMain,
 			ObjType:       'i',
 			ObjOID:        idx.OID,
 			Priority:      PriorityIndex,
 		})
-		delete(used, cur[i])
-		cur[i] = toNames[i]
-		used[toNames[i]] = true
+		delete(used, cur[cycIdx])
+		cur[cycIdx] = tmp
+		used[tmp] = true
 	}
 	return ops
 }

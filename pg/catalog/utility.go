@@ -89,6 +89,10 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			if err != nil {
 				return err
 			}
+			defClause, err := c.validateAndFormatCollationDef(s.Definition)
+			if err != nil {
+				return err
+			}
 			if name != "" {
 				if schema.Collations != nil && schema.Collations[name] != nil {
 					if s.IfNotExists {
@@ -103,7 +107,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				schema.Collations[name] = &UserCollation{
 					OID:       c.oidGen.Next(),
 					Name:      name,
-					DefClause: formatCollationDefClause(s.Definition),
+					DefClause: defClause,
 				}
 			}
 			return nil
@@ -489,51 +493,107 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 	collectQueryParamTypes(q.RArg, paramTypes)
 }
 
-func formatCollationDefClause(def *nodes.List) string {
+func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error) {
 	if def == nil || len(def.Items) == 0 {
-		return "(LOCALE = 'C')"
+		return "", errInvalidObjectDefinition("parameter \"locale\" must be specified")
 	}
-	if len(def.Items) == 1 {
-		if d, ok := def.Items[0].(*nodes.DefElem); ok && strings.EqualFold(d.Defname, "from") {
-			if l, ok := d.Arg.(*nodes.List); ok && len(l.Items) > 0 {
-				parts := make([]string, 0, len(l.Items))
-				for _, item := range l.Items {
-					parts = append(parts, quoteIdentifier(stringVal(item)))
-				}
-				return "FROM " + strings.Join(parts, ".")
-			}
-		}
-	}
+	seen := make(map[string]bool, len(def.Items))
+	var fromList *nodes.List
+	var hasLocale, hasLCCollate, hasLCCtype bool
+	var provider string
 	var parts []string
+
 	for _, item := range def.Items {
 		d, ok := item.(*nodes.DefElem)
 		if !ok {
 			continue
 		}
-		key := strings.ToUpper(d.Defname)
-		if d.Arg == nil {
-			parts = append(parts, key)
-			continue
+		opt := strings.ToLower(d.Defname)
+		if seen[opt] {
+			return "", &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 		}
-		switch v := d.Arg.(type) {
-		case *nodes.Boolean:
-			if v.Boolval {
-				parts = append(parts, key+" = true")
+		seen[opt] = true
+
+		switch opt {
+		case "from":
+			l, ok := d.Arg.(*nodes.List)
+			if !ok || len(l.Items) == 0 {
+				return "", &Error{Code: CodeSyntaxError, Message: "collation FROM requires a collation name"}
+			}
+			fromList = l
+		case "deterministic":
+			b, ok := parseDefElemBoolStrict(d)
+			if !ok {
+				return "", &Error{Code: CodeSyntaxError, Message: "deterministic requires a Boolean value"}
+			}
+			if b {
+				parts = append(parts, "DETERMINISTIC = true")
 			} else {
-				parts = append(parts, key+" = false")
+				parts = append(parts, "DETERMINISTIC = false")
 			}
-		case *nodes.Integer:
-			parts = append(parts, fmt.Sprintf("%s = %d", key, v.Ival))
+		case "locale", "lc_collate", "lc_ctype", "provider", "rules", "version":
+			val, ok := parseDefElemStringStrict(d)
+			if !ok {
+				return "", &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("%s requires a string value", opt)}
+			}
+			switch opt {
+			case "locale":
+				hasLocale = true
+			case "lc_collate":
+				hasLCCollate = true
+			case "lc_ctype":
+				hasLCCtype = true
+			case "provider":
+				provider = strings.ToLower(val)
+			}
+			parts = append(parts, strings.ToUpper(opt)+" = "+singleQuote(val))
 		default:
-			if s, ok := parseDefElemStringStrict(d); ok {
-				parts = append(parts, key+" = "+singleQuote(s))
-			}
+			return "", &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("collation attribute %q not recognized", d.Defname)}
 		}
 	}
-	if len(parts) == 0 {
-		return "(LOCALE = 'C')"
+
+	if fromList != nil {
+		if len(seen) > 1 {
+			return "", &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+		}
+		srcName, srcUserOID, err := c.resolveCollationList(fromList)
+		if err != nil {
+			return "", err
+		}
+		if srcUserOID == 0 && srcName == "default" {
+			return "", errInvalidObjectDefinition("collation \"default\" cannot be copied")
+		}
+		if srcUserOID != 0 {
+			for _, sc := range c.schemas {
+				for _, uc := range sc.Collations {
+					if uc != nil && uc.OID == srcUserOID {
+						return uc.DefClause, nil
+					}
+				}
+			}
+		}
+		qParts := make([]string, 0, len(fromList.Items))
+		for _, item := range fromList.Items {
+			qParts = append(qParts, quoteIdentifier(stringVal(item)))
+		}
+		return "FROM " + strings.Join(qParts, "."), nil
 	}
-	return "(" + strings.Join(parts, ", ") + ")"
+
+	switch provider {
+	case "", "libc", "icu", "builtin":
+	default:
+		return "", errInvalidObjectDefinition(fmt.Sprintf("unrecognized collation provider: %s", provider))
+	}
+	if hasLocale && (hasLCCollate || hasLCCtype) {
+		return "", errInvalidObjectDefinition("conflicting or redundant options")
+	}
+	if !hasLocale && !(hasLCCollate && hasLCCtype) {
+		if hasLCCollate || hasLCCtype {
+			return "", errInvalidObjectDefinition("parameters \"lc_collate\" and \"lc_ctype\" must both be specified")
+		}
+		return "", errInvalidObjectDefinition("parameter \"locale\" must be specified")
+	}
+	return "(" + strings.Join(parts, ", ") + ")", nil
 }
 
 // processVariableSet handles SET/RESET variable statements.

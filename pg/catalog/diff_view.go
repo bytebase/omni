@@ -89,6 +89,9 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 	if from.CheckOption != to.CheckOption {
 		changed = true
 	}
+	if normalizeRelationAccessMethod(from) != normalizeRelationAccessMethod(to) {
+		changed = true
+	}
 
 	// Column sub-diff (views are relations too).
 	cols := diffColumns(fromCat, toCat, from, to)

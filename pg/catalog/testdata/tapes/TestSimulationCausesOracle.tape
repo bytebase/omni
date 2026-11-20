@@ -2094,3 +2094,33 @@
 | ALTER TABLE t_same ALTER COLUMN a TYPE varchar;
 | DROP COLLATION c_same
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_bad FROM missing_coll
+< error
+| 42704 collation "missing_coll" for encoding "UTF8" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_bad_dfl FROM "default"
+< error
+| 42P17 collation "default" cannot be copied
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_no_loc (PROVIDER = icu)
+< error
+| 42P17 parameter "locale" must be specified

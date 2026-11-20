@@ -172,9 +172,15 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+	usingClause := ""
+	if entry.To != nil {
+		if am := normalizeRelationAccessMethod(entry.To); am != "" && am != "heap" {
+			usingClause = " USING " + quoteIdentifier(am)
+		}
+	}
 
-	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
+	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+		qn, usingClause, strings.TrimRight(def, " \t\n\r;"))
 
 	return MigrationOp{
 		Type:          OpCreateView,
@@ -252,7 +258,6 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 // Materialized views don't support CREATE OR REPLACE.
 func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,
@@ -266,21 +271,7 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		Priority:      PriorityView,
 	}
 
-	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
-
-	createOp := MigrationOp{
-		Type:          OpCreateView,
-		SchemaName:    entry.SchemaName,
-		ObjectName:    entry.Name,
-		SQL:           createSQL,
-		Transactional: true,
-		Phase:         PhaseMain,
-		ObjType:       'r',
-		ObjOID:        entry.To.OID,
-		Priority:      PriorityView,
-	}
-
+	createOp := buildCreateMatViewOp(to, entry)
 	return []MigrationOp{dropOp, createOp}
 }
 
