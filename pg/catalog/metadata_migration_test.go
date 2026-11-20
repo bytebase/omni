@@ -4555,4 +4555,100 @@ func TestPartitionAttachAndDetachMigration(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, sqlDetach, `ALTER TABLE "public"."p" DETACH PARTITION "public"."c1"`)
 	require.NotContains(t, sqlDetach, `DROP TABLE`)
+
+	// Bound change under the same parent detaches and reattaches with the new bound.
+	rebound := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "p",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				Partitions: []*metadatapb.TablePartitionMetadata{
+					c0,
+					{
+						Name:       "c1",
+						Type:       metadatapb.TablePartitionMetadata_RANGE,
+						Expression: "RANGE (id)",
+						Value:      "FOR VALUES FROM (10) TO (20)",
+					},
+				},
+			}},
+		}},
+	}
+	sqlRebound, err := testMetadataMigration(attached, rebound)
+	require.NoError(t, err)
+	require.Contains(t, sqlRebound, `ALTER TABLE "public"."p" DETACH PARTITION "public"."c1"`)
+	require.Contains(t, sqlRebound, `ALTER TABLE "public"."p" ATTACH PARTITION "public"."c1" FOR VALUES FROM ('10') TO ('20')`)
+	require.NotContains(t, sqlRebound, `DROP TABLE`)
+
+	// Cross-schema partition attach is excluded when the child schema is skipped.
+	crossStandalone := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:       "p",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					Partitions: []*metadatapb.TablePartitionMetadata{c0},
+				}},
+			},
+			{
+				Name: "bbdataarchive",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "c_skip",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				}},
+			},
+		},
+	}
+	crossAttached := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "p",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					Partitions: []*metadatapb.TablePartitionMetadata{
+						c0,
+						{
+							Name:   "c_skip",
+							Schema: "bbdataarchive",
+							Type:   metadatapb.TablePartitionMetadata_RANGE,
+							Value:  "FOR VALUES FROM (1) TO (10)",
+						},
+					},
+				}},
+			},
+			{Name: "bbdataarchive"},
+		},
+	}
+	sqlSkipped, err := MetadataMigration(context.Background(), crossStandalone, crossAttached, MetadataMigrationOptions{
+		SkipSchemas: []string{"bbdataarchive"},
+	})
+	require.NoError(t, err)
+	require.NotContains(t, sqlSkipped, `ATTACH PARTITION`)
+	require.NotContains(t, sqlSkipped, `DETACH PARTITION`)
+}
+
+func TestFunctionRemovingDefaultDropsBeforeCreate(t *testing.T) {
+	withDef := func(def string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "greet",
+					Signature:  "public.greet(name text)",
+					Definition: def,
+				}},
+			}},
+		}
+	}
+	oldDef := "CREATE FUNCTION public.greet(name text DEFAULT 'world') RETURNS text LANGUAGE sql AS $$ SELECT name $$"
+	newDef := "CREATE FUNCTION public.greet(name text) RETURNS text LANGUAGE sql AS $$ SELECT name $$"
+
+	sql, err := testMetadataMigration(withDef(oldDef), withDef(newDef))
+	require.NoError(t, err)
+	require.Contains(t, sql, `DROP FUNCTION "public"."greet"(text)`)
+	require.Contains(t, sql, `CREATE FUNCTION`)
+	require.NotContains(t, sql, `CREATE OR REPLACE FUNCTION`)
 }

@@ -160,6 +160,7 @@ type CommentDiffEntry struct {
 	SubID          int16
 	From           string
 	To             string
+	objParts       []string
 }
 
 // GrantDiffEntry describes a grant change.

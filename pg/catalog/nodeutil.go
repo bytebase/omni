@@ -63,6 +63,18 @@ func deparseAConst(n nodes.Node) string {
 			return "true"
 		}
 		return "false"
+	case *nodes.ColumnRef:
+		if v.Fields != nil && len(v.Fields.Items) == 1 {
+			name := stringVal(v.Fields.Items[0])
+			upper := strings.ToUpper(name)
+			if upper == "MINVALUE" || upper == "MAXVALUE" {
+				return upper
+			}
+			if name != "" {
+				return name
+			}
+		}
+		return fmt.Sprintf("%v", n)
 	default:
 		return fmt.Sprintf("%v", n)
 	}

@@ -392,6 +392,10 @@ func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *User
 			return true
 		}
 	}
+	// PG doesn't allow removing input parameter defaults via CREATE OR REPLACE.
+	if from.NArgDefaults > to.NArgDefaults {
+		return true
+	}
 	return false
 }
 

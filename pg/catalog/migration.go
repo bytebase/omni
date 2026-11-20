@@ -96,10 +96,11 @@ type MigrationOp struct {
 	ParentObject  string // optional, for FK deferred creation
 
 	// Metadata for dependency-driven ordering (used by sortMigrationOps).
-	Phase    MigrationPhase // PhasePre, PhaseMain, or PhasePost
-	ObjType  byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
-	ObjOID   uint32         // OID in source catalog (from for DROP, to for CREATE)
-	Priority int            // tie-breaker for topo sort (lower = earlier)
+	Phase           MigrationPhase // PhasePre, PhaseMain, or PhasePost
+	ObjType         byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
+	ObjOID          uint32         // OID in source catalog (from for DROP, to for CREATE)
+	Priority        int            // tie-breaker for topo sort (lower = earlier)
+	secondarySchema string         // child or parent schema for cross-schema partition operations
 }
 
 // MigrationPlan holds an ordered list of DDL operations that transform

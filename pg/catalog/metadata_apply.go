@@ -1237,22 +1237,10 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 		add, ok := added[rel.From.OID]
 		srcSchema := canonicalSchema(rel.SchemaName)
 		sm := findSchema(result, srcSchema)
-		if !ok || sm == nil {
+		if !ok {
 			continue
 		}
-		var p *metadatapb.TablePartitionMetadata
-		if add.SchemaName == srcSchema {
-			p = findPartition(sm, rel.Name)
-		}
-		if p == nil && add.To.PartitionOf != 0 {
-			for _, candidate := range result.Schemas {
-				if found := findPartition(candidate, rel.Name); found != nil {
-					p = found
-					break
-				}
-			}
-		}
-		if p != nil {
+		if p := findPartitionInSchema(result, srcSchema, rel.Name); p != nil {
 			tbl := relationToTableProto(catAfter, add.To)
 			p.Name = add.Name
 			p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
@@ -1265,6 +1253,9 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 				}
 			}
 			renamed[rel.From.OID] = true
+			continue
+		}
+		if sm == nil {
 			continue
 		}
 		if rel.From.RelKind == 'v' {
@@ -1329,9 +1320,22 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 	return renamed
 }
 
-// applyPartitionDiffs applies a partition's index and constraint changes. A
-// partition's metadata holds only those; its columns are its parent table's.
+// applyPartitionDiffs applies a partition's bound, index, and constraint
+// changes. A partition's metadata holds only those; its columns belong to its
+// parent table.
 func applyPartitionDiffs(p *metadatapb.TablePartitionMetadata, catBefore, cat *Catalog, rel RelationDiffEntry) {
+	if rel.To != nil && rel.To.PartitionBound != nil && rel.To.PartitionOf != 0 {
+		parentRel := cat.GetRelationByOID(rel.To.PartitionOf)
+		parentSchema := rel.SchemaName
+		if parentRel != nil && parentRel.Schema != nil && parentRel.Schema.Name != "" {
+			parentSchema = parentRel.Schema.Name
+		}
+		meta := relationToPartitionProto(cat, rel.To, parentRel, parentSchema)
+		p.Value = meta.Value
+		p.Type = meta.Type
+		p.Expression = meta.Expression
+		p.Schema = meta.Schema
+	}
 	tbl := &metadatapb.TableMetadata{Indexes: p.Indexes, CheckConstraints: p.CheckConstraints, ExcludeConstraints: p.ExcludeConstraints}
 	applyIndexDiffs(tbl, cat, rel)
 	applyConstraintDiffs(tbl, catBefore, cat, rel)
@@ -1759,28 +1763,6 @@ func findTable(sm *metadatapb.SchemaMetadata, name string) *metadatapb.TableMeta
 	for _, t := range sm.Tables {
 		if t.Name == name {
 			return t
-		}
-	}
-	return nil
-}
-
-// findPartition returns the partition named name, at any depth, of a table in sm.
-func findPartition(sm *metadatapb.SchemaMetadata, name string) *metadatapb.TablePartitionMetadata {
-	var find func(partitions []*metadatapb.TablePartitionMetadata) *metadatapb.TablePartitionMetadata
-	find = func(partitions []*metadatapb.TablePartitionMetadata) *metadatapb.TablePartitionMetadata {
-		for _, p := range partitions {
-			if p.Name == name {
-				return p
-			}
-			if sub := find(p.Subpartitions); sub != nil {
-				return sub
-			}
-		}
-		return nil
-	}
-	for _, t := range sm.Tables {
-		if p := find(t.Partitions); p != nil {
-			return p
 		}
 	}
 	return nil
@@ -2323,15 +2305,37 @@ func popRangeTypeByName(ranges []*metadatapb.RangeTypeMetadata, name string) (*m
 	return popped, out
 }
 
+func commentParts2(c CommentDiffEntry) (string, string, bool) {
+	if len(c.objParts) >= 2 {
+		return c.objParts[0], c.objParts[1], true
+	}
+	return strings.Cut(c.ObjDescription, ".")
+}
+
+func commentParts3(c CommentDiffEntry) (string, string, string, bool) {
+	if len(c.objParts) >= 3 {
+		return c.objParts[0], c.objParts[1], c.objParts[2], true
+	}
+	parts := strings.SplitN(c.ObjDescription, ".", 3)
+	if len(parts) != 3 {
+		return "", "", "", false
+	}
+	return parts[0], parts[1], parts[2], true
+}
+
 func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, comments []CommentDiffEntry) {
 	for _, c := range comments {
 		switch c.ObjType {
 		case 'n':
-			if sm := findSchema(result, c.ObjDescription); sm != nil {
+			schemaName := c.ObjDescription
+			if len(c.objParts) > 0 {
+				schemaName = c.objParts[0]
+			}
+			if sm := findSchema(result, schemaName); sm != nil {
 				sm.Comment = c.To
 			}
 		case 'r':
-			schemaName, relName, ok := strings.Cut(c.ObjDescription, ".")
+			schemaName, relName, ok := commentParts2(c)
 			if !ok {
 				continue
 			}
@@ -2384,13 +2388,13 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 			}
 		case 'i':
-			schemaName, idxName, ok := strings.Cut(c.ObjDescription, ".")
+			schemaName, idxName, ok := commentParts2(c)
 			if !ok {
 				continue
 			}
 			setIndexComment(result, schemaName, idxName, c.To)
 		case 't':
-			schemaName, typeName, ok := strings.Cut(c.ObjDescription, ".")
+			schemaName, typeName, ok := commentParts2(c)
 			if !ok {
 				continue
 			}
@@ -2435,7 +2439,7 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 			}
 		case 's':
-			schemaName, seqName, ok := strings.Cut(c.ObjDescription, ".")
+			schemaName, seqName, ok := commentParts2(c)
 			if !ok {
 				continue
 			}
@@ -2448,29 +2452,29 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 			}
 		case 'c':
-			parts := strings.SplitN(c.ObjDescription, ".", 3)
-			if len(parts) != 3 {
+			schemaName, tableName, conName, ok := commentParts3(c)
+			if !ok {
 				continue
 			}
-			sm := findSchema(result, parts[0])
+			sm := findSchema(result, schemaName)
 			if sm == nil {
 				continue
 			}
-			if tbl := findTable(sm, parts[1]); tbl != nil {
-				setConstraintCommentOnTable(tbl, parts[2], c.To)
+			if tbl := findTable(sm, tableName); tbl != nil {
+				setConstraintCommentOnTable(tbl, conName, c.To)
 			}
 		case 'g':
-			parts := strings.SplitN(c.ObjDescription, ".", 3)
-			if len(parts) != 3 {
+			schemaName, tableName, trigName, ok := commentParts3(c)
+			if !ok {
 				continue
 			}
-			sm := findSchema(result, parts[0])
+			sm := findSchema(result, schemaName)
 			if sm == nil {
 				continue
 			}
-			setTriggerCommentInSchema(sm, parts[1], parts[2], c.To)
+			setTriggerCommentInSchema(sm, tableName, trigName, c.To)
 		case 'f':
-			schemaName, identity, ok := strings.Cut(c.ObjDescription, ".")
+			schemaName, identity, ok := commentParts2(c)
 			if !ok {
 				continue
 			}
@@ -2489,8 +2493,12 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 			}
 		case 'E':
+			etName := c.ObjDescription
+			if len(c.objParts) > 0 {
+				etName = c.objParts[0]
+			}
 			for _, et := range result.EventTriggers {
-				if et.Name == c.ObjDescription {
+				if et.Name == etName {
 					et.Comment = c.To
 					break
 				}

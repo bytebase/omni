@@ -45,7 +45,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			// Partition attach/detach/reattach: generate ALTER TABLE ... DETACH/ATTACH
 			// PARTITION rather than dropping and recreating the table.
 			if fromIsTable && toIsTable && (isPartitionRelation(entry.From) || isPartitionRelation(entry.To)) {
-				if !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
+				if !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) || !partitionBoundEqual(entry.From.PartitionBound, entry.To.PartitionBound) {
 					ops = append(ops, generatePartitionAttachmentOps(from, to, entry)...)
 				}
 			} else if fromIsTable && toIsTable && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
@@ -95,15 +95,16 @@ func generatePartitionAttachmentOps(from, to *Catalog, entry RelationDiffEntry) 
 		if parentRel := from.GetRelationByOID(entry.From.PartitionOf); parentRel != nil {
 			parentSchema := relationSchemaOrDefault(parentRel, entry.SchemaName)
 			ops = append(ops, MigrationOp{
-				Type:          OpAlterTable,
-				SchemaName:    parentSchema,
-				ObjectName:    parentRel.Name,
-				SQL:           fmt.Sprintf("ALTER TABLE %s DETACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN),
-				Transactional: true,
-				Phase:         PhasePre,
-				ObjType:       'r',
-				ObjOID:        entry.From.OID,
-				Priority:      PriorityTrigger,
+				Type:            OpAlterTable,
+				SchemaName:      parentSchema,
+				ObjectName:      parentRel.Name,
+				SQL:             fmt.Sprintf("ALTER TABLE %s DETACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN),
+				Transactional:   true,
+				Phase:           PhasePre,
+				ObjType:         'r',
+				ObjOID:          entry.From.OID,
+				Priority:        PriorityTrigger,
+				secondarySchema: entry.SchemaName,
 			})
 		}
 	}
@@ -117,15 +118,16 @@ func generatePartitionAttachmentOps(from, to *Catalog, entry RelationDiffEntry) 
 				sql += " " + boundClause
 			}
 			ops = append(ops, MigrationOp{
-				Type:          OpAlterTable,
-				SchemaName:    parentSchema,
-				ObjectName:    parentRel.Name,
-				SQL:           sql,
-				Transactional: true,
-				Phase:         PhaseMain,
-				ObjType:       'r',
-				ObjOID:        entry.To.OID,
-				Priority:      PriorityIndex,
+				Type:            OpAlterTable,
+				SchemaName:      parentSchema,
+				ObjectName:      parentRel.Name,
+				SQL:             sql,
+				Transactional:   true,
+				Phase:           PhaseMain,
+				ObjType:         'r',
+				ObjOID:          entry.To.OID,
+				Priority:        PriorityIndex,
+				secondarySchema: entry.SchemaName,
 			})
 		}
 	}
@@ -174,15 +176,16 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 	b.WriteString(formatPartitionByClause(rel))
 
 	return []MigrationOp{{
-		Type:          OpCreateTable,
-		SchemaName:    entry.SchemaName,
-		ObjectName:    entry.Name,
-		SQL:           b.String(),
-		Transactional: true,
-		Phase:         PhaseMain,
-		ObjType:       'r',
-		ObjOID:        rel.OID,
-		Priority:      PriorityTable,
+		Type:            OpCreateTable,
+		SchemaName:      entry.SchemaName,
+		ObjectName:      entry.Name,
+		SQL:             b.String(),
+		Transactional:   true,
+		Phase:           PhaseMain,
+		ObjType:         'r',
+		ObjOID:          rel.OID,
+		Priority:        PriorityTable,
+		secondarySchema: parentSchema,
 	}}
 }
 

@@ -3,14 +3,34 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // commentNormKey is a name-based key for matching comments across catalogs
-// (where OIDs differ).
+// (where OIDs differ). Storing schema, object, and sub-object separately avoids
+// ambiguity when identifiers contain periods.
 type commentNormKey struct {
 	ObjType     byte
-	Description string // name-based description of the object
+	Description string // human/migration-op description of the object
+	SchemaName  string
+	ObjectName  string
+	SubObjName  string
 	SubID       int16
+}
+
+func (k commentNormKey) parts() []string {
+	switch {
+	case k.SubObjName != "":
+		return []string{k.SchemaName, k.ObjectName, k.SubObjName}
+	case k.SchemaName != "" && k.ObjectName != "":
+		return []string{k.SchemaName, k.ObjectName}
+	case k.ObjectName != "":
+		return []string{k.ObjectName}
+	case k.SchemaName != "":
+		return []string{k.SchemaName}
+	default:
+		return nil
+	}
 }
 
 // diffComments compares comments between two catalogs and returns diff entries.
@@ -29,6 +49,7 @@ func diffComments(from, to *Catalog) []CommentDiffEntry {
 				ObjDescription: nk.Description,
 				SubID:          nk.SubID,
 				From:           text,
+				objParts:       nk.parts(),
 			})
 		}
 	}
@@ -42,6 +63,7 @@ func diffComments(from, to *Catalog) []CommentDiffEntry {
 				ObjDescription: nk.Description,
 				SubID:          nk.SubID,
 				To:             text,
+				objParts:       nk.parts(),
 			})
 		}
 	}
@@ -60,11 +82,12 @@ func diffComments(from, to *Catalog) []CommentDiffEntry {
 				SubID:          nk.SubID,
 				From:           fromText,
 				To:             toText,
+				objParts:       nk.parts(),
 			})
 		}
 	}
 
-	// Sort for determinism: by ObjType, then Description, then SubID.
+	// Sort for determinism: by ObjType, then Description, then parts, then SubID.
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].ObjType != entries[j].ObjType {
 			return entries[i].ObjType < entries[j].ObjType
@@ -86,149 +109,184 @@ func buildCommentNormMap(c, other *Catalog, isFrom bool) map[commentNormKey]stri
 		if base, ok := c.extensionComments[ck]; !c.diffsMemberSetting(ck.ObjOID, other, isFrom, ok && base == text) {
 			continue
 		}
-		desc := resolveCommentDescription(c, ck)
-		if desc == "" {
+		nk, ok := resolveCommentNormKey(c, ck)
+		if !ok {
 			continue // object not found — skip
-		}
-		nk := commentNormKey{
-			ObjType:     ck.ObjType,
-			Description: desc,
-			SubID:       ck.SubID,
 		}
 		m[nk] = text
 	}
 	return m
 }
 
-// resolveCommentDescription converts an OID-based comment key into a
-// name-based description string for cross-catalog comparison.
-func resolveCommentDescription(c *Catalog, ck commentKey) string {
+// resolveCommentNormKey converts an OID-based comment key into a structured
+// name-based key for cross-catalog comparison.
+func resolveCommentNormKey(c *Catalog, ck commentKey) (commentNormKey, bool) {
+	base := commentNormKey{ObjType: ck.ObjType, SubID: ck.SubID}
 	switch ck.ObjType {
 	case 'r': // relation (table, view, matview, foreign table)
 		rel := c.relationByOID[ck.ObjOID]
 		if rel == nil || rel.Schema == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		return fmt.Sprintf("%s.%s", rel.Schema.Name, rel.Name)
+		base.SchemaName = rel.Schema.Name
+		base.ObjectName = rel.Name
+		base.Description = fmt.Sprintf("%s.%s", rel.Schema.Name, rel.Name)
+		return base, true
 
 	case 'i': // index
 		idx := c.indexes[ck.ObjOID]
 		if idx == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		// Find the schema for this index.
 		for _, s := range c.schemas {
 			for name, si := range s.Indexes {
 				if si.OID == ck.ObjOID {
-					return fmt.Sprintf("%s.%s", s.Name, name)
+					base.SchemaName = s.Name
+					base.ObjectName = name
+					base.Description = fmt.Sprintf("%s.%s", s.Name, name)
+					return base, true
 				}
 			}
 		}
-		return ""
+		return commentNormKey{}, false
 
 	case 'f': // function/procedure
 		up := c.userProcs[ck.ObjOID]
 		if up == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		return funcIdentity(c, up)
+		desc := funcIdentity(c, up)
+		base.Description = desc
+		if up.Schema != nil {
+			base.SchemaName = up.Schema.Name
+			base.ObjectName = strings.TrimPrefix(desc, up.Schema.Name+".")
+		}
+		return base, desc != ""
 
 	case 'n': // schema
 		for _, s := range c.schemas {
 			if s.OID == ck.ObjOID {
-				return s.Name
+				base.SchemaName = s.Name
+				base.Description = s.Name
+				return base, true
 			}
 		}
-		return ""
+		return commentNormKey{}, false
 
-	case 't': // type (enum/domain)
+	case 't': // type (enum/domain/range)
 		bt := c.typeByOID[ck.ObjOID]
 		if bt == nil {
-			return ""
+			return commentNormKey{}, false
 		}
 		ns := c.schemas[bt.Namespace]
 		if ns == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		return fmt.Sprintf("%s.%s", ns.Name, bt.TypeName)
+		base.SchemaName = ns.Name
+		base.ObjectName = bt.TypeName
+		base.Description = fmt.Sprintf("%s.%s", ns.Name, bt.TypeName)
+		return base, true
 
 	case 's': // sequence
 		seq := c.sequenceByOID[ck.ObjOID]
 		if seq == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		// Find the schema for this sequence.
 		for _, s := range c.schemas {
 			for name, ss := range s.Sequences {
 				if ss.OID == ck.ObjOID {
-					return fmt.Sprintf("%s.%s", s.Name, name)
+					base.SchemaName = s.Name
+					base.ObjectName = name
+					base.Description = fmt.Sprintf("%s.%s", s.Name, name)
+					return base, true
 				}
 			}
 		}
-		return ""
+		return commentNormKey{}, false
 
 	case 'c': // constraint
 		con := c.constraints[ck.ObjOID]
 		if con == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		// Build "schema.table.constraint" for uniqueness.
 		rel := c.relationByOID[con.RelOID]
 		if rel == nil || rel.Schema == nil {
-			return con.Name
+			base.Description = con.Name
+			return base, true
 		}
-		return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, con.Name)
+		base.SchemaName = rel.Schema.Name
+		base.ObjectName = rel.Name
+		base.SubObjName = con.Name
+		base.Description = fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, con.Name)
+		return base, true
 
 	case 'g': // trigger
 		trig := c.triggers[ck.ObjOID]
 		if trig == nil {
-			return ""
+			return commentNormKey{}, false
 		}
 		rel := c.relationByOID[trig.RelOID]
 		if rel == nil || rel.Schema == nil {
-			return trig.Name
+			base.Description = trig.Name
+			return base, true
 		}
-		return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, trig.Name)
+		base.SchemaName = rel.Schema.Name
+		base.ObjectName = rel.Name
+		base.SubObjName = trig.Name
+		base.Description = fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, trig.Name)
+		return base, true
 
 	case 'E': // event trigger
 		evt := c.eventTriggers[ck.ObjOID]
 		if evt == nil {
-			return ""
+			return commentNormKey{}, false
 		}
-		return evt.Name
+		base.ObjectName = evt.Name
+		base.Description = evt.Name
+		return base, true
 
 	case 'd': // domain constraint
-		// Domain constraints are stored on DomainType.Constraints.
 		for _, dt := range c.domainTypes {
 			for _, dc := range dt.Constraints {
 				if dc.OID == ck.ObjOID {
 					bt := c.typeByOID[dt.TypeOID]
 					if bt == nil {
-						return dc.Name
+						base.Description = dc.Name
+						return base, true
 					}
 					ns := c.schemas[bt.Namespace]
 					if ns == nil {
-						return dc.Name
+						base.Description = dc.Name
+						return base, true
 					}
-					return fmt.Sprintf("%s.%s.%s", ns.Name, bt.TypeName, dc.Name)
+					base.SchemaName = ns.Name
+					base.ObjectName = bt.TypeName
+					base.SubObjName = dc.Name
+					base.Description = fmt.Sprintf("%s.%s.%s", ns.Name, bt.TypeName, dc.Name)
+					return base, true
 				}
 			}
 		}
-		return ""
+		return commentNormKey{}, false
 
 	case 'p': // policy
 		for _, p := range c.policies {
 			if p.OID == ck.ObjOID {
 				rel := c.relationByOID[p.RelOID]
 				if rel == nil || rel.Schema == nil {
-					return p.Name
+					base.Description = p.Name
+					return base, true
 				}
-				return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, p.Name)
+				base.SchemaName = rel.Schema.Name
+				base.ObjectName = rel.Name
+				base.SubObjName = p.Name
+				base.Description = fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, p.Name)
+				return base, true
 			}
 		}
-		return ""
+		return commentNormKey{}, false
 
 	default:
-		return ""
+		return commentNormKey{}, false
 	}
 }

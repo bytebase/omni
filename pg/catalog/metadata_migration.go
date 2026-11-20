@@ -109,8 +109,14 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 }
 
 func opTargetsSkippedSchema(op MigrationOp, skipSchemas map[string]bool) bool {
+	if op.SchemaName != "" && skipSchemas[op.SchemaName] {
+		return true
+	}
+	if op.secondarySchema != "" && skipSchemas[op.secondarySchema] {
+		return true
+	}
 	if op.SchemaName != "" {
-		return skipSchemas[op.SchemaName]
+		return false
 	}
 	switch op.Type {
 	case OpComment:
@@ -424,11 +430,11 @@ func restoreRoutineDefinitionsForDefaults(plan *MigrationPlan, oldMeta, newMeta 
 		if !ok {
 			continue
 		}
+		handled[op.ObjectName] = true
 		if !hasDefaults[op.ObjectName] && !stmtHasUnsupportedRoutineOptions(entry.definition) {
 			continue
 		}
 		plan.Ops[i].SQL = normalizeRoutineDDL(entry.definition, op.Type == OpAlterFunction)
-		handled[op.ObjectName] = true
 	}
 	extraOps := routineDefaultAlterOps(oldMeta, newMeta, handled, from, to, skipSchemas)
 	plan.Ops = append(plan.Ops, extraOps...)

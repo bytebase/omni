@@ -1152,3 +1152,98 @@ func TestApplyDiffToMetadataRound6Fixes(t *testing.T) {
 	require.NotNil(t, detachedIdx)
 	require.Equal(t, "p1 idx doc", detachedIdx.Comment)
 }
+
+func TestApplyDiffToMetadataRound7Fixes(t *testing.T) {
+	// 1. Same-parent detach+reattach with bound change updates Value.
+	// 2. Partition rename with colliding name in another schema mutates only matching effective schema.
+	// 3. Dotted quoted schema/table identifier comment is applied accurately.
+	catBefore := New()
+	for _, stmt := range []string{
+		`CREATE SCHEMA archive;`,
+		`CREATE SCHEMA "app.data";`,
+		`CREATE TABLE public.events (id integer) PARTITION BY RANGE (id);`,
+		`CREATE TABLE public.logs (id integer) PARTITION BY RANGE (id);`,
+		`CREATE TABLE public.dup PARTITION OF public.events FOR VALUES FROM (1) TO (10);`,
+		`CREATE TABLE archive.dup PARTITION OF public.logs FOR VALUES FROM (1) TO (10);`,
+		`CREATE TABLE "app.data"."events.v1" (id integer, CONSTRAINT "chk.v1" CHECK (id > 0));`,
+		`CREATE FUNCTION public.et_r7() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END; $$;`,
+		`CREATE EVENT TRIGGER "et.dot" ON ddl_command_end EXECUTE FUNCTION public.et_r7();`,
+	} {
+		_, err := catBefore.Exec(stmt, nil)
+		require.NoError(t, err, stmt)
+	}
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "events",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:  "dup",
+							Type:  metadatapb.TablePartitionMetadata_RANGE,
+							Value: "FOR VALUES FROM (1) TO (10)",
+						}},
+					},
+					{
+						Name:    "logs",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:   "dup",
+							Schema: "archive",
+							Type:   metadatapb.TablePartitionMetadata_RANGE,
+							Value:  "FOR VALUES FROM (1) TO (10)",
+						}},
+					},
+				},
+			},
+			{Name: "archive"},
+			{
+				Name: "app.data",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:             "events.v1",
+					Columns:          []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "chk.v1", Expression: "id > 0"}},
+				}},
+			},
+		},
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{
+			Name:           "et.dot",
+			Event:          "ddl_command_end",
+			FunctionSchema: "public",
+			FunctionName:   "et_r7",
+			Enabled:        true,
+		}},
+	}
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		ALTER TABLE public.events DETACH PARTITION public.dup;
+		ALTER TABLE public.events ATTACH PARTITION public.dup FOR VALUES FROM (100) TO (200);
+		ALTER TABLE archive.dup RENAME TO dup_renamed;
+		COMMENT ON TABLE "app.data"."events.v1" IS 'dotted doc';
+		COMMENT ON CONSTRAINT "chk.v1" ON "app.data"."events.v1" IS 'chk doc';
+		COMMENT ON EVENT TRIGGER "et.dot" IS 'et doc';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	pubDup := findPartitionInSchema(got, "public", "dup")
+	require.NotNil(t, pubDup)
+	require.Equal(t, "FOR VALUES FROM ('100') TO ('200')", pubDup.Value)
+
+	require.Nil(t, findPartitionInSchema(got, "archive", "dup"))
+	archRen := findPartitionInSchema(got, "archive", "dup_renamed")
+	require.NotNil(t, archRen)
+
+	dottedTbl := findTable(findSchema(got, "app.data"), "events.v1")
+	require.NotNil(t, dottedTbl)
+	require.Equal(t, "dotted doc", dottedTbl.Comment)
+	require.Equal(t, "chk doc", dottedTbl.CheckConstraints[0].Comment)
+	require.Equal(t, "et doc", findEventTrigger(got, "et.dot").Comment)
+}
