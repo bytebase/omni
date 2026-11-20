@@ -693,6 +693,13 @@ func errCannotDiscardImportTempTable() error {
 		Message: "Cannot DISCARD/IMPORT tablespace associated with temporary table"}
 }
 
+// errWrongTablespaceNameReserved is what ALTER TABLESPACE mysql RENAME
+// answers: the data dictionary tablespace keeps its name.
+func errWrongTablespaceNameReserved(name string) error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: fmt.Sprintf("InnoDB: `%s` is a reserved tablespace name.", name)}
+}
+
 func errReservedInnoDBTablespacePrefix() error {
 	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
 		Message: "InnoDB: Tablespace names starting with `innodb_` are reserved."}

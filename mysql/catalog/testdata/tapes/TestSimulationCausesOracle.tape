@@ -37493,6 +37493,253 @@
 < error
 | 1232 42000 Incorrect argument type to variable 'sql_mode'
 > exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET sql_mode = ELT(1, 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT('2', '', 'STRICT_ALL_TABLES')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_ALL_TABLES
+> exec
+| SET sql_mode = ELT('1.6', 'ANSI', 'STRICT_ALL_TABLES')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(1.6, 'ANSI', 'STRICT_ALL_TABLES')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_ALL_TABLES
+> exec
+| SET sql_mode = ELT(2.5, 'ANSI', 'TRADITIONAL', 'STRICT_ALL_TABLES')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_ALL_TABLES
+> exec
+| SET sql_mode = ELT(2.5e0, 'ANSI', 'TRADITIONAL', 'STRICT_ALL_TABLES')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+> exec
+| SET sql_mode = ELT(' 2', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET sql_mode = ELT(1, 'ANSI', @@sql_mode)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(4294967297, 'ANSI', 'TRADITIONAL')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(0, 'ANSI')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(-1, 'ANSI')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(NULL, 'ANSI')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT('x', 'ANSI')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(1, NULL, 'ANSI')
+< error
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'NULL'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(1)
+< error
+| 1582 42000 Incorrect parameter count in the call to native function 'ELT'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = ELT(1, 'ANSI', @@no_such_variable)
+< error
+| 1193 HY000 Unknown system variable 'no_such_variable'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| ALTER TABLESPACE mysql AUTOEXTEND_SIZE=4M
+< ok 0 0
+> exec
+| ALTER TABLESPACE mysql ENGINE=InnoDB
+< ok 0 0
+> exec
+| ALTER TABLESPACE mysql AUTOEXTEND_SIZE=3M
+< error
+| 4025 HY000 AUTOEXTEND_SIZE value should be between 4M and 4096M
+> exec
+| ALTER TABLESPACE mysql ENGINE=MyISAM
+< error
+| 3642 HY000 Engine 'MyISAM' does not match stored engine 'InnoDB' for tablespace 'mysql'
+> exec
+| ALTER TABLESPACE mysql ENCRYPTION='Z' ENGINE_ATTRIBUTE='bad'
+< error
+| 3980 HY000 Invalid json attribute, error: "Invalid value." at pos 0: 'bad'
+> exec
+| ALTER TABLESPACE mysql ADD DATAFILE 'x.ibd'
+< error
+| 1533 HY000 Failed to alter: TABLESPACE mysql
+> exec
+| ALTER TABLESPACE mysql DROP DATAFILE 'x.ibd'
+< error
+| 3629 HY000 Tablespace 'mysql' does not have a file named 'x.ibd'
+> exec
+| ALTER TABLESPACE mysql DROP DATAFILE 'mysql.ibd'
+< error
+| 1533 HY000 Failed to alter: TABLESPACE mysql
+> exec
+| ALTER TABLESPACE mysql RENAME TO x
+< error
+| 3119 42000 InnoDB: `mysql` is a reserved tablespace name.
+> exec
+| ALTER TABLESPACE mysql RENAME TO MYSQL
+< error
+| 3119 42000 InnoDB: `mysql` is a reserved tablespace name.
+> exec
+| ALTER TABLESPACE mysql RENAME TO mysql
+< error
+| 1813 HY000 Tablespace 'mysql' exists.
+> exec
+| ALTER TABLESPACE mysql RENAME TO innodb_temporary
+< error
+| 1813 HY000 Tablespace 'innodb_temporary' exists.
+> exec
+| ALTER TABLESPACE MYSQL ENCRYPTION='N'
+< error
+| 3510 HY000 Tablespace MYSQL doesn't exist.
+> exec
+| ALTER TABLESPACE mysql ENCRYPTION='Y'
+< ok 0 0
+> query
+| SELECT ENCRYPTION FROM information_schema.INNODB_TABLESPACES WHERE NAME = 'mysql'
+< result
+< column "ENCRYPTION" "VARCHAR"
+< row
+: bytes
+| Y
+> exec
+| ALTER TABLESPACE mysql ENCRYPTION='N'
+< ok 0 0
+> query
+| SELECT ENCRYPTION FROM information_schema.INNODB_TABLESPACES WHERE NAME = 'mysql'
+< result
+< column "ENCRYPTION" "VARCHAR"
+< row
+: bytes
+| N
+> exec
+| ALTER TABLESPACE mysql ENCRYPTION='N'
+< ok 0 0
+> exec
 | SET SESSION sql_mode = DEFAULT
 < ok 0 0
 > exec

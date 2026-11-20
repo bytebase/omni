@@ -5411,6 +5411,103 @@ func TestSimulationCausesOracle(t *testing.T) {
 	if got, _ := simulationCatalogRefusal(t, setExprOracleCat, "SET sql_mode = 1e2 + 1"); got != 1232 {
 		t.Fatalf("catalog SET sql_mode = 1e2 + 1 got %d, want 1232", got)
 	}
+
+	// ELT in SET: N read as val_int reads it (a string by its integer prefix,
+	// an exact number half away from zero, an approximate one half to even),
+	// only strN evaluated, and a NULL answer refused by sql_mode.
+	eltCat := New()
+	execAlterClauses(t, eltCat, "SET SESSION sql_mode = '';")
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = ''"); err != nil {
+		t.Fatalf("mysql reset sql_mode: %v", err)
+	}
+	for _, stmt := range []string{
+		"SET sql_mode = ELT(1, 'ANSI', '')",
+		"SET sql_mode = ELT('2', '', 'STRICT_ALL_TABLES')",
+		"SET sql_mode = ELT('1.6', 'ANSI', 'STRICT_ALL_TABLES')",
+		"SET sql_mode = ELT(1.6, 'ANSI', 'STRICT_ALL_TABLES')",
+		"SET sql_mode = ELT(2.5, 'ANSI', 'TRADITIONAL', 'STRICT_ALL_TABLES')",
+		"SET sql_mode = ELT(2.5e0, 'ANSI', 'TRADITIONAL', 'STRICT_ALL_TABLES')",
+		"SET sql_mode = ELT(' 2', 'ANSI', '')",
+		"SET sql_mode = ELT(1, 'ANSI', @@sql_mode)",
+		"SET sql_mode = ELT(4294967297, 'ANSI', 'TRADITIONAL')",
+		"SET sql_mode = ELT(0, 'ANSI')",
+		"SET sql_mode = ELT(-1, 'ANSI')",
+		"SET sql_mode = ELT(NULL, 'ANSI')",
+		"SET sql_mode = ELT('x', 'ANSI')",
+		"SET sql_mode = ELT(1, NULL, 'ANSI')",
+		"SET sql_mode = ELT(1)",
+		"SET sql_mode = ELT(1, 'ANSI', @@no_such_variable)",
+	} {
+		var srvCode int
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			srvCode, _ = simulationEngineRefusal(t, stmt, err)
+		}
+		catCode, _ := simulationCatalogRefusal(t, eltCat, stmt)
+		if catCode != srvCode {
+			t.Fatalf("%s: catalog %d, mysql %d", stmt, catCode, srvCode)
+		}
+		var srvMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, eltCat, "SET @m = @@sql_mode;")
+		if got := eltCat.userVars["m"].str; got != srvMode {
+			t.Fatalf("%s: catalog sql_mode %q, mysql %q", stmt, got, srvMode)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = DEFAULT"); err != nil {
+		t.Fatalf("mysql reset sql_mode: %v", err)
+	}
+
+	// ALTER TABLESPACE on the data dictionary tablespace `mysql`: it exists,
+	// is InnoDB, keeps mysql.ibd and its name.
+	for _, tc := range []struct {
+		stmt string
+		code int
+	}{
+		{"ALTER TABLESPACE mysql AUTOEXTEND_SIZE=4M", 0},
+		{"ALTER TABLESPACE mysql ENGINE=InnoDB", 0},
+		{"ALTER TABLESPACE mysql AUTOEXTEND_SIZE=3M", 4025},
+		{"ALTER TABLESPACE mysql ENGINE=MyISAM", 3642},
+		{"ALTER TABLESPACE mysql ENCRYPTION='Z' ENGINE_ATTRIBUTE='bad'", 3980},
+		{"ALTER TABLESPACE mysql ADD DATAFILE 'x.ibd'", 1533},
+		{"ALTER TABLESPACE mysql DROP DATAFILE 'x.ibd'", 3629},
+		{"ALTER TABLESPACE mysql DROP DATAFILE 'mysql.ibd'", 1533},
+		{"ALTER TABLESPACE mysql RENAME TO x", 3119},
+		{"ALTER TABLESPACE mysql RENAME TO MYSQL", 3119},
+		{"ALTER TABLESPACE mysql RENAME TO mysql", 1813},
+		{"ALTER TABLESPACE mysql RENAME TO innodb_temporary", 1813},
+		{"ALTER TABLESPACE MYSQL ENCRYPTION='N'", 3510},
+	} {
+		var srvCode int
+		if _, err := conn.ExecContext(ctx, tc.stmt); err != nil {
+			srvCode, _ = simulationEngineRefusal(t, tc.stmt, err)
+		}
+		if srvCode != tc.code {
+			t.Fatalf("mysql %s got %d, want %d", tc.stmt, srvCode, tc.code)
+		}
+		if got, _ := simulationCatalogRefusal(t, New(), tc.stmt); got != tc.code {
+			t.Fatalf("catalog %s got %d, want %d", tc.stmt, got, tc.code)
+		}
+	}
+	// ENCRYPTION is the documented way to encrypt the tablespace: 'Y' and 'N'
+	// both take, and the server's INNODB_TABLESPACES row follows.
+	mysqlTSCat := New()
+	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "ALTER TABLESPACE mysql ENCRYPTION='N'") })
+	for _, enc := range []string{"Y", "N"} {
+		stmt := "ALTER TABLESPACE mysql ENCRYPTION='" + enc + "'"
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		var srvEnc string
+		if err := conn.QueryRowContext(ctx, "SELECT ENCRYPTION FROM information_schema.INNODB_TABLESPACES WHERE NAME = 'mysql'").Scan(&srvEnc); err != nil {
+			t.Fatalf("mysql read mysql tablespace encryption: %v", err)
+		}
+		execAlterClauses(t, mysqlTSCat, stmt+";")
+		if srvEnc != enc || mysqlTSCat.tablespaceEncrypted["mysql"] != (enc == "Y") {
+			t.Fatalf("%s: mysql ENCRYPTION=%q, catalog encrypted=%v", stmt, srvEnc, mysqlTSCat.tablespaceEncrypted["mysql"])
+		}
+	}
 }
 
 // simulationEngineRefusal reads the server's answer as the error number and
@@ -6231,6 +6328,23 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 	if got, _ := simulationCatalogRefusal(t, sciCat, "SET sql_mode = (1e2 * 2) + 1"); got != 1232 {
 		t.Fatalf("compound float arithmetic SQLMode got %d, want 1232", got)
+	}
+
+	// ALTER TABLESPACE mysql ENCRYPTION takes 'Y' and 'N' in any case and
+	// refuses any other value with 3184.
+	mysqlTSCat := New()
+	execAlterClauses(t, mysqlTSCat, "ALTER TABLESPACE mysql ENCRYPTION='Y';")
+	if !mysqlTSCat.tablespaceEncrypted["mysql"] {
+		t.Fatal("ALTER TABLESPACE mysql ENCRYPTION='Y' left the tablespace unencrypted")
+	}
+	execAlterClauses(t, mysqlTSCat, "ALTER TABLESPACE mysql ENCRYPTION='n';")
+	if mysqlTSCat.tablespaceEncrypted["mysql"] {
+		t.Fatal("ALTER TABLESPACE mysql ENCRYPTION='n' left the tablespace encrypted")
+	}
+	for _, stmt := range []string{"ALTER TABLESPACE mysql ENCRYPTION='Z'", "ALTER TABLESPACE mysql ENCRYPTION=''"} {
+		if got, _ := simulationCatalogRefusal(t, mysqlTSCat, stmt); got != 3184 {
+			t.Fatalf("%s got %d, want 3184", stmt, got)
+		}
 	}
 
 	selfFKCat := New()

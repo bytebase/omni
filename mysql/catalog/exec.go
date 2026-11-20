@@ -1364,6 +1364,33 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{kind: userVarString, str: args[0].str, binary: isBin}, true, nil
 			}
 			return userVarValue{kind: userVarString, str: strings.ReplaceAll(args[0].str, args[1].str, args[2].str), binary: isBin}, true, nil
+		case "elt":
+			// ELT(N, str1, ...) evaluates N and then only strN; N below 1 or
+			// past the last string, or NULL, answers NULL.
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount("ELT")
+			}
+			nv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n, nok := setValInt(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n < 1 || n >= int64(len(e.Args)) {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[n])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			// The result's collation aggregates the strings, not N.
+			_, isBin := c.setExprResultIsStringOrBinary(e)
+			return userVarValue{kind: userVarString, str: v.str, binary: isBin || v.binary}, true, nil
 		case "concat_ws":
 			if len(e.Args) < 2 {
 				return userVarValue{}, false, errWrongParamCount("CONCAT_WS")
@@ -1523,9 +1550,9 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc == 0 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
-			case "concat_ws":
+			case "concat_ws", "elt":
 				if argc < 2 {
-					err = errWrongParamCount("CONCAT_WS")
+					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "substr", "substring", "mid":
 				if argc < 2 || argc > 3 {
@@ -1704,6 +1731,14 @@ func (c *Catalog) setExprResultIsStringOrBinary(expr nodes.ExprNode) (isStr, isB
 			for _, arg := range e.Args {
 				_, b := c.setExprResultIsStringOrBinary(arg)
 				isBin = isBin || b
+			}
+			return true, isBin
+		case "elt":
+			for i, arg := range e.Args {
+				if i > 0 {
+					_, b := c.setExprResultIsStringOrBinary(arg)
+					isBin = isBin || b
+				}
 			}
 			return true, isBin
 		case "if":
@@ -1935,6 +1970,61 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 		return userVarValue{}, false, nil
 	}
 	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true, nil
+}
+
+// setValInt reads a value as MySQL's val_int does: a string by its integer
+// prefix (' 2' is 2, '1.6' and '1e1' are 1, 'x' is 0); an exact number
+// rounded half away from zero (1.5 is 2, 2.5 is 3); an approximate one
+// rounded half to even, as rint does (2.5e0 is 2).
+func setValInt(v userVarValue) (int64, bool) {
+	switch v.kind {
+	case userVarString:
+		s := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(s) && (s[i] == '+' || s[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+			j++
+		}
+		if j == i {
+			return 0, true
+		}
+		n, err := strconv.ParseInt(s[:j], 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return n, true
+	case userVarNumeric:
+		if n, err := strconv.ParseInt(strings.TrimSpace(v.str), 10, 64); err == nil {
+			return n, true
+		}
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return 0, false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			if f < math.MinInt64 || f >= math.MaxInt64 {
+				return 0, false
+			}
+			return int64(f), true
+		}
+		// Half away from zero, exactly: (2|num| + den) / 2den.
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		q := num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			q.Neg(q)
+		}
+		if !q.IsInt64() {
+			return 0, false
+		}
+		return q.Int64(), true
+	}
+	return 0, false
 }
 
 func parseSetNumericInt64(v userVarValue) (int64, bool) {

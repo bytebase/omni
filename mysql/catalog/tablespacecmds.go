@@ -607,6 +607,9 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo {
 		return errWrongTablespaceKind("ALTER TABLESPACE", stmt.Name, "an undo", "ALTER UNDO TABLESPACE")
 	}
+	if stmt.Name == "mysql" {
+		return c.alterMySQLTablespace(stmt)
+	}
 	lower := strings.ToLower(stmt.Name)
 	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
 	if !exists && !strings.HasPrefix(lower, "innodb_") && lower != "mysql" {
@@ -620,11 +623,11 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 			return err
 		}
 	}
-	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
-		return errInvalidEncryptionOption()
-	}
 	if err := validateTablespaceEngineAttribute(stmt.EngineAttribute); err != nil {
 		return err
+	}
+	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+		return errInvalidEncryptionOption()
 	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
 		return err
@@ -681,6 +684,58 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		}
 		c.tablespaceEncrypted[targetName] = enc
 		c.updateTablespaceTablesEncryption(targetName, enc)
+	}
+	return nil
+}
+
+// alterMySQLTablespace applies ALTER TABLESPACE to the data dictionary
+// tablespace `mysql` (the name is case-sensitive; MYSQL is no tablespace). It
+// exists on every server, is InnoDB, keeps its one file mysql.ibd and its name,
+// and takes AUTOEXTEND_SIZE, ENGINE_ATTRIBUTE and ENCRYPTION. ENCRYPTION is the
+// documented way to encrypt it; a server with no keyring answers 3185, which
+// the catalog, like CREATE TABLESPACE ... ENCRYPTION='Y', does not model.
+func (c *Catalog) alterMySQLTablespace(stmt *nodes.AlterTablespaceStmt) error {
+	if stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
+		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
+	}
+	if stmt.AutoextendSize != "" {
+		if err := c.validateAutoextendSize(stmt.AutoextendSize); err != nil {
+			return err
+		}
+	}
+	if err := validateTablespaceEngineAttribute(stmt.EngineAttribute); err != nil {
+		return err
+	}
+	if (stmt.HasEncryption || stmt.Encryption != "") && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+		return errInvalidEncryptionOption()
+	}
+	if stmt.HasAddDataFile || stmt.AddDataFile != "" {
+		return errAlterTablespaceFailed(stmt.Name)
+	}
+	if stmt.HasDropDataFile || stmt.DropDataFile != "" {
+		if stmt.DropDataFile != "mysql.ibd" {
+			return errTablespaceNoSuchFile(stmt.Name, stmt.DropDataFile)
+		}
+		return errAlterTablespaceFailed(stmt.Name)
+	}
+	if stmt.RenameTo != "" {
+		// The target is looked up by its exact name: RENAME TO MYSQL or
+		// INNODB_SYSTEM names no tablespace and answers 3119.
+		_, taken := c.undoTablespaces[stmt.RenameTo]
+		switch stmt.RenameTo {
+		case "mysql", "innodb_system", "innodb_temporary":
+			taken = true
+		}
+		if taken || c.tablespaces[stmt.RenameTo] {
+			return errTablespaceExists(stmt.RenameTo)
+		}
+		return errWrongTablespaceNameReserved(stmt.Name)
+	}
+	if stmt.HasEncryption || stmt.Encryption != "" {
+		if c.tablespaceEncrypted == nil {
+			c.tablespaceEncrypted = make(map[string]bool)
+		}
+		c.tablespaceEncrypted[stmt.Name] = strings.EqualFold(stmt.Encryption, "Y")
 	}
 	return nil
 }
