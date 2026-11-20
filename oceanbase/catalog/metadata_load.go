@@ -222,8 +222,9 @@ const (
 type metadataObject struct {
 	kind metadataObjectKind
 	name string
-	// parent is a trigger's table.
+	// parent is a trigger's table; order preserves the snapshot's action order.
 	parent string
+	order  int
 	// snapshotDatabase is the database the snapshot's references qualify
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
@@ -272,9 +273,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				continue
 			}
 			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
-			for _, trg := range t.GetTriggers() {
+			for i, trg := range t.GetTriggers() {
 				if trg.GetName() != "" {
-					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), trigger: trg})
+					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), order: i, trigger: trg})
 				}
 			}
 		}
@@ -316,6 +317,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
+		if a.kind == metadataTrigger && b.kind == metadataTrigger {
+			return cmp.Or(cmp.Compare(a.parent, b.parent), cmp.Compare(a.order, b.order), cmp.Compare(a.name, b.name))
+		}
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name), cmp.Compare(a.parent, b.parent))
 	})
 	return out

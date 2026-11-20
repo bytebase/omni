@@ -93,6 +93,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
 		Name:      t.Name,
 		Engine:    t.Engine,
+		Charset:   t.Charset,
 		Collation: t.Collation,
 		Comment:   t.Comment,
 	}
@@ -125,7 +126,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		case col.AutoIncrement:
 			colMeta.Default = autoIncrementSymbol
 		case col.Default != nil:
-			colMeta.Default = *col.Default
+			colMeta.Default = formatDefault(*col.Default, col)
 		default:
 		}
 		if col.OnUpdate != "" {

@@ -1,8 +1,10 @@
 package catalog
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -43,9 +45,22 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	}
 
 	// Triggers are database-level in OceanBase MySQL mode (db.Triggers), each bound
-	// to a table via Trigger.Table; the proto nests them under TableMetadata.Triggers.
-	for _, trName := range sortedMapKeys(db.Triggers) {
-		tr := db.Triggers[trName]
+	// to a table via Trigger.Table; the proto nests them under TableMetadata.Triggers
+	// in ACTION_ORDER, matching live sync.
+	triggers := make([]*Trigger, 0, len(db.Triggers))
+	for _, tr := range db.Triggers {
+		triggers = append(triggers, tr)
+	}
+	slices.SortFunc(triggers, func(a, b *Trigger) int {
+		return cmp.Or(
+			cmp.Compare(strings.ToUpper(a.Table), strings.ToUpper(b.Table)),
+			cmp.Compare(strings.ToUpper(a.Event), strings.ToUpper(b.Event)),
+			cmp.Compare(strings.ToUpper(a.Timing), strings.ToUpper(b.Timing)),
+			cmp.Compare(a.ActionOrder, b.ActionOrder),
+			cmp.Compare(a.Name, b.Name),
+		)
+	})
+	for _, tr := range triggers {
 		tableProto := tableProtoByLowerName[strings.ToLower(tr.Table)]
 		if tableProto == nil {
 			continue
@@ -345,12 +360,22 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 	}
 	subType := partitionTypeToProto(p.SubType, p.SubLinear)
 
+	var partUseDefault string
+	if p.NumParts > 0 && (p.Type == "HASH" || p.Type == "KEY") && (p.SubType == "" || p.UseDefaultSubpartitions) {
+		partUseDefault = strconv.Itoa(p.NumParts)
+	}
+	var subUseDefault string
+	if p.SubType != "" && p.UseDefaultSubpartitions && !p.UseDefaultNumSubpartitions && p.NumSubParts > 0 {
+		subUseDefault = strconv.Itoa(p.NumSubParts)
+	}
+
 	var result []*metadata.TablePartitionMetadata
 	for _, pd := range p.Partitions {
 		part := &metadata.TablePartitionMetadata{
 			Name:       pd.Name,
 			Type:       partType,
 			Expression: expr,
+			UseDefault: partUseDefault,
 			Value:      pd.ValueExpr,
 			Comment:    pd.Comment,
 		}
@@ -360,6 +385,7 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 					Name:       spd.Name,
 					Type:       subType,
 					Expression: subExpr,
+					UseDefault: subUseDefault,
 					Value:      spd.ValueExpr,
 					Comment:    spd.Comment,
 				})

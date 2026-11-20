@@ -76,6 +76,11 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			INSERT INTO child(id) VALUES (NEW.id);
 		END;
 
+		CREATE TRIGGER trg_z_first AFTER INSERT ON parent FOR EACH ROW PRECEDES trg_parent
+		BEGIN
+			INSERT INTO child(id) VALUES (NEW.id + 1);
+		END;
+
 		CREATE EVENT ev_daily ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 	`, nil)
 	require.NoError(t, err)
@@ -113,8 +118,10 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, uint32(0), *cols["g0"].Srid)
 	require.True(t, cols["secret"].IsInvisible)
 
-	require.Len(t, parent.Triggers, 1)
-	require.Equal(t, "trg_parent", parent.Triggers[0].Name)
+	require.Len(t, parent.Triggers, 2)
+	require.Equal(t, []string{"trg_z_first", "trg_parent"}, []string{
+		parent.Triggers[0].Name, parent.Triggers[1].Name,
+	})
 
 	require.Len(t, s.Views, 1)
 	require.Equal(t, "v_parent", s.Views[0].Name)
@@ -139,6 +146,11 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Empty(t, report.Incomplete)
 	require.NotNil(t, reloaded.GetDatabase("app").Functions["fn_add"])
 	require.NotNil(t, reloaded.GetDatabase("app").Procedures["proc_noop"])
+	reloadedExported := reloaded.DatabaseMetadata("app")
+	require.Equal(t, []string{"trg_z_first", "trg_parent"}, []string{
+		reloadedExported.Schemas[0].Tables[1].Triggers[0].Name,
+		reloadedExported.Schemas[0].Tables[1].Triggers[1].Name,
+	})
 
 	child := s.Tables[0]
 	require.Len(t, child.ForeignKeys, 1)

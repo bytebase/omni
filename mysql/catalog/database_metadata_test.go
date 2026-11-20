@@ -87,6 +87,11 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			INSERT INTO child(id) VALUES (NEW.id);
 		END;
 
+		CREATE TRIGGER trg_z_first AFTER INSERT ON parent FOR EACH ROW PRECEDES trg_parent
+		BEGIN
+			INSERT INTO child(id) VALUES (NEW.id + 1);
+		END;
+
 		CREATE EVENT ev_daily ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 	`, nil)
 	require.NoError(t, err)
@@ -144,10 +149,18 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, "SPATIAL", spIdx.Type)
 	require.Equal(t, []int64{32}, spIdx.KeyLength)
 
-	require.Len(t, parent.Triggers, 1)
-	require.Equal(t, "trg_parent", parent.Triggers[0].Name)
-	require.Equal(t, "INSERT", parent.Triggers[0].Event)
-	require.Equal(t, "AFTER", parent.Triggers[0].Timing)
+	require.Len(t, parent.Triggers, 2)
+	require.Equal(t, []string{"trg_z_first", "trg_parent"}, []string{
+		parent.Triggers[0].Name, parent.Triggers[1].Name,
+	})
+	require.Equal(t, "INSERT", parent.Triggers[1].Event)
+	require.Equal(t, "AFTER", parent.Triggers[1].Timing)
+
+	linPart := s.Tables[1]
+	require.Len(t, linPart.Partitions, 2)
+	require.Equal(t, "2", linPart.Partitions[0].UseDefault)
+	require.Len(t, s.Tables[4].Partitions[0].Subpartitions, 2)
+	require.Equal(t, "2", s.Tables[4].Partitions[0].Subpartitions[0].UseDefault)
 
 	mem := s.Tables[2]
 	require.Len(t, mem.Indexes, 1)
@@ -180,6 +193,12 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, []string{"vid", "vcode"}, reloaded.GetDatabase("app").Views["v_parent"].Columns)
 	require.NotNil(t, reloaded.GetDatabase("app").Functions["fn_add"])
 	require.NotNil(t, reloaded.GetDatabase("app").Procedures["proc_noop"])
+	require.Equal(t, 2, reloaded.GetDatabase("app").GetTable("linear_part_tbl").Partitioning.NumParts)
+	reloadedExported := reloaded.DatabaseMetadata("app")
+	require.Equal(t, []string{"trg_z_first", "trg_parent"}, []string{
+		reloadedExported.Schemas[0].Tables[3].Triggers[0].Name,
+		reloadedExported.Schemas[0].Tables[3].Triggers[1].Name,
+	})
 
 	// Mutating exported FK slices must not mutate catalog state.
 	child := s.Tables[0]

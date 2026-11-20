@@ -233,6 +233,7 @@ type Trigger struct {
 	// CharacterSetClient/CollationConnection at load, so the gate is on HasSessionContext, not
 	// on those fields being non-empty, to keep a trigger loaded without synced context bare.
 	HasSessionContext bool
+	ActionOrder       int // 1-based position among triggers on the same (table, timing, event)
 	Order             *TriggerOrderInfo
 }
 

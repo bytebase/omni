@@ -30,6 +30,10 @@ func TestDatabaseMetadataFull(t *testing.T) {
 		CREATE TABLE items (
 			id BIGINT AUTO_RANDOM(5, 54) PRIMARY KEY CLUSTERED,
 			code VARCHAR(20) NOT NULL DEFAULT 'abc',
+			num INT DEFAULT 5,
+			bit_col BIT(3) DEFAULT b'101',
+			hex_str VARCHAR(10) DEFAULT 0x41,
+			hex_int INT DEFAULT 0x41,
 			nullable_col INT,
 			ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			gen_col VARCHAR(30) GENERATED ALWAYS AS (CONCAT(code, '_g')) STORED,
@@ -76,7 +80,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 
 	items := s.Tables[1]
 	require.Equal(t, "items", items.Name)
-	require.Empty(t, items.Charset)
+	require.Equal(t, "utf8mb4", items.Charset)
 	require.Equal(t, "utf8mb4_bin", items.Collation)
 	require.Equal(t, "items table", items.Comment)
 	require.Equal(t, "CLUSTERED", items.PrimaryKeyType)
@@ -89,6 +93,10 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	}
 	require.Equal(t, "AUTO_RANDOM(5, 54)", cols["id"].Default)
 	require.Equal(t, "'abc'", cols["code"].Default)
+	require.Equal(t, "'5'", cols["num"].Default)
+	require.Equal(t, "b'101'", cols["bit_col"].Default)
+	require.Equal(t, "'A'", cols["hex_str"].Default)
+	require.Equal(t, "'65'", cols["hex_int"].Default)
 	require.Empty(t, cols["nullable_col"].Default, "TiDB leaves nullable column without default empty")
 	require.Equal(t, "CURRENT_TIMESTAMP", cols["ts"].Default)
 	require.Equal(t, "CURRENT_TIMESTAMP", cols["ts"].OnUpdate)
