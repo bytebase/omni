@@ -1,0 +1,272 @@
+package catalog
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/bytebase/omni/metadata"
+)
+
+// DatabaseMetadata converts the named database in the catalog to a
+// DatabaseSchemaMetadata snapshot matching the TiDB extractor and walk-through format.
+func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetadata {
+	dbMeta := &metadata.DatabaseSchemaMetadata{
+		Name: dbName,
+	}
+	if c == nil {
+		return dbMeta
+	}
+	db := c.GetDatabase(dbName)
+	if db == nil {
+		return dbMeta
+	}
+
+	dbMeta.CharacterSet = db.Charset
+	dbMeta.Collation = db.Collation
+
+	schemaMeta := &metadata.SchemaMetadata{
+		Name: "",
+	}
+
+	tableProtoByLowerName := make(map[string]*metadata.TableMetadata, len(db.Tables))
+	for _, tName := range sortedMapKeys(db.Tables) {
+		t := db.Tables[tName]
+		tableProto := tableToProto(t)
+		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
+		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
+	}
+
+	for _, trName := range sortedMapKeys(db.Triggers) {
+		tr := db.Triggers[trName]
+		tableProto := tableProtoByLowerName[strings.ToLower(tr.Table)]
+		if tableProto == nil {
+			continue
+		}
+		tableProto.Triggers = append(tableProto.Triggers, &metadata.TriggerMetadata{
+			Name:   tr.Name,
+			Event:  tr.Event,
+			Timing: tr.Timing,
+			Body:   tr.Body,
+		})
+	}
+
+	for _, vName := range sortedMapKeys(db.Views) {
+		v := db.Views[vName]
+		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
+			Name:       v.Name,
+			Definition: v.Definition,
+		})
+	}
+
+	for _, fName := range sortedMapKeys(db.Functions) {
+		f := db.Functions[fName]
+		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
+			Name:       f.Name,
+			Definition: f.Body,
+		})
+	}
+
+	for _, pName := range sortedMapKeys(db.Procedures) {
+		p := db.Procedures[pName]
+		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
+			Name:       p.Name,
+			Definition: p.Body,
+		})
+	}
+
+	for _, eName := range sortedMapKeys(db.Events) {
+		e := db.Events[eName]
+		schemaMeta.Events = append(schemaMeta.Events, &metadata.EventMetadata{
+			Name:       e.Name,
+			Definition: c.ShowCreateEvent(dbName, e.Name),
+		})
+	}
+
+	for _, sName := range sortedMapKeys(db.Sequences) {
+		seq := db.Sequences[sName]
+		schemaMeta.Sequences = append(schemaMeta.Sequences, &metadata.SequenceMetadata{
+			Name:      seq.Name,
+			Start:     strconv.FormatInt(seq.Start, 10),
+			MinValue:  strconv.FormatInt(seq.MinValue, 10),
+			MaxValue:  strconv.FormatInt(seq.MaxValue, 10),
+			Increment: strconv.FormatInt(seq.Increment, 10),
+			CacheSize: strconv.FormatInt(seq.Cache, 10),
+			Cycle:     seq.Cycle,
+			Comment:   seq.Comment,
+		})
+	}
+
+	dbMeta.Schemas = append(dbMeta.Schemas, schemaMeta)
+	return dbMeta
+}
+
+func tableToProto(t *Table) *metadata.TableMetadata {
+	table := &metadata.TableMetadata{
+		Name:      t.Name,
+		Engine:    t.Engine,
+		Collation: t.Collation,
+		Comment:   t.Comment,
+	}
+
+	for _, col := range t.Columns {
+		colMeta := &metadata.ColumnMetadata{
+			Name:         col.Name,
+			Position:     int32(col.Position),
+			Type:         col.ColumnType,
+			Nullable:     col.Nullable,
+			CharacterSet: col.Charset,
+			Collation:    col.Collation,
+			Comment:      col.Comment,
+		}
+		switch {
+		case col.AutoRandom:
+			switch {
+			case col.AutoRandomShardBits == 0 && col.AutoRandomRangeBits == 0:
+				colMeta.Default = autoRandomSymbol
+			case col.AutoRandomRangeBits != 0:
+				colMeta.Default = fmt.Sprintf("%s(%d, %d)", autoRandomSymbol, col.AutoRandomShardBits, col.AutoRandomRangeBits)
+			default:
+				colMeta.Default = fmt.Sprintf("%s(%d)", autoRandomSymbol, col.AutoRandomShardBits)
+			}
+		case col.AutoIncrement:
+			colMeta.Default = autoIncrementSymbol
+		case col.Default != nil:
+			colMeta.Default = *col.Default
+		default:
+		}
+		if col.OnUpdate != "" {
+			colMeta.OnUpdate = col.OnUpdate
+		}
+		if col.Generated != nil {
+			genType := metadata.GenerationMetadata_TYPE_VIRTUAL
+			if col.Generated.Stored {
+				genType = metadata.GenerationMetadata_TYPE_STORED
+			}
+			colMeta.Generation = &metadata.GenerationMetadata{
+				Type:       genType,
+				Expression: col.Generated.Expr,
+			}
+		}
+		colMeta.IsInvisible = col.Invisible
+		table.Columns = append(table.Columns, colMeta)
+	}
+
+	for _, idx := range t.Indexes {
+		indexType := strings.ToUpper(idx.IndexType)
+		if indexType == "" {
+			indexType = "BTREE"
+		}
+		idxMeta := &metadata.IndexMetadata{
+			Name:    idx.Name,
+			Type:    indexType,
+			Unique:  idx.Unique,
+			Primary: idx.Primary,
+			Visible: idx.Visible,
+			Comment: idx.Comment,
+		}
+		for _, col := range idx.Columns {
+			if col.Expr != "" {
+				idxMeta.Expressions = append(idxMeta.Expressions, col.Expr)
+			} else {
+				idxMeta.Expressions = append(idxMeta.Expressions, col.Name)
+			}
+			keyLength := int64(col.Length)
+			if keyLength == 0 {
+				keyLength = -1
+			}
+			idxMeta.KeyLength = append(idxMeta.KeyLength, keyLength)
+			idxMeta.Descending = append(idxMeta.Descending, col.Descending)
+		}
+		table.Indexes = append(table.Indexes, idxMeta)
+	}
+
+	for _, con := range t.Constraints {
+		switch con.Type {
+		case ConForeignKey:
+			fk := &metadata.ForeignKeyMetadata{
+				Name:              con.Name,
+				Columns:           con.Columns,
+				ReferencedTable:   con.RefTable,
+				ReferencedColumns: con.RefColumns,
+				OnUpdate:          con.OnUpdate,
+				OnDelete:          con.OnDelete,
+				MatchType:         con.MatchType,
+			}
+			if con.RefDatabase != "" {
+				fk.ReferencedSchema = con.RefDatabase
+			}
+			table.ForeignKeys = append(table.ForeignKeys, fk)
+		case ConCheck:
+			table.CheckConstraints = append(table.CheckConstraints, &metadata.CheckConstraintMetadata{
+				Name:       con.Name,
+				Expression: con.CheckExpr,
+			})
+		default:
+		}
+	}
+
+	if t.Partitioning != nil {
+		table.Partitions = partitionsToProto(t.Partitioning)
+	}
+
+	return table
+}
+
+func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
+	expr := p.Expr
+	if expr == "" && len(p.Columns) > 0 {
+		expr = strings.Join(p.Columns, ",")
+	}
+	partType := partitionTypeToProto(p.Type, p.Linear)
+	var result []*metadata.TablePartitionMetadata
+	for _, pd := range p.Partitions {
+		result = append(result, &metadata.TablePartitionMetadata{
+			Name:       pd.Name,
+			Type:       partType,
+			Expression: expr,
+			Value:      pd.ValueExpr,
+			Comment:    pd.Comment,
+		})
+	}
+	return result
+}
+
+func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata_Type {
+	switch strings.ToUpper(t) {
+	case "RANGE":
+		return metadata.TablePartitionMetadata_RANGE
+	case "RANGE COLUMNS":
+		return metadata.TablePartitionMetadata_RANGE_COLUMNS
+	case "LIST":
+		return metadata.TablePartitionMetadata_LIST
+	case "LIST COLUMNS":
+		return metadata.TablePartitionMetadata_LIST_COLUMNS
+	case "HASH":
+		if linear {
+			return metadata.TablePartitionMetadata_LINEAR_HASH
+		}
+		return metadata.TablePartitionMetadata_HASH
+	case "LINEAR HASH":
+		return metadata.TablePartitionMetadata_LINEAR_HASH
+	case "KEY":
+		if linear {
+			return metadata.TablePartitionMetadata_LINEAR_KEY
+		}
+		return metadata.TablePartitionMetadata_KEY
+	case "LINEAR KEY":
+		return metadata.TablePartitionMetadata_LINEAR_KEY
+	default:
+		return metadata.TablePartitionMetadata_TYPE_UNSPECIFIED
+	}
+}
+
+func sortedMapKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
+}
