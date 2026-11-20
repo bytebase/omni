@@ -108,6 +108,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 					OID:       c.oidGen.Next(),
 					Name:      name,
 					DefClause: defClause,
+					OwnerName: c.currentOwner(),
 				}
 			}
 			return nil

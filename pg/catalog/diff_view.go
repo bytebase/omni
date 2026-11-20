@@ -85,8 +85,11 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
-	// Compare CheckOption (views only).
+	// Compare CheckOption (views only) and populated state (matviews).
 	if from.CheckOption != to.CheckOption {
+		changed = true
+	}
+	if from.RelKind == 'm' && to.RelKind == 'm' && from.IsPopulated != to.IsPopulated {
 		changed = true
 	}
 	if normalizeRelationAccessMethod(from) != normalizeRelationAccessMethod(to) {
@@ -115,7 +118,7 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 	}
 
 	// Rule sub-diff (views can have user-defined rewrite rules).
-	rules := diffRules(from, to)
+	rules := diffRules(fromCat, toCat, from, to)
 	if len(rules) > 0 {
 		changed = true
 	}

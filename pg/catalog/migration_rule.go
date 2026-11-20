@@ -15,13 +15,13 @@ func generateRuleDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		switch rel.Action {
 		case DiffModify:
 			if rel.From != nil && rel.To != nil && tableRebuilt(from, to, rel.From, rel.To) {
-				ops = append(ops, createAllRelationRuleOps(rel.SchemaName, rel.Name, rel.To)...)
+				ops = append(ops, createAllRelationRuleOps(to, rel.SchemaName, rel.Name, rel.To)...)
 				continue
 			}
-			ops = append(ops, ruleOpsForRelation(rel.SchemaName, rel.Name, rel.From, rel.To, rel.Rules)...)
+			ops = append(ops, ruleOpsForRelation(from, to, rel.SchemaName, rel.Name, rel.From, rel.To, rel.Rules)...)
 		case DiffAdd:
 			if rel.To != nil {
-				ops = append(ops, createAllRelationRuleOps(rel.SchemaName, rel.Name, rel.To)...)
+				ops = append(ops, createAllRelationRuleOps(to, rel.SchemaName, rel.Name, rel.To)...)
 			}
 		}
 	}
@@ -45,7 +45,7 @@ func generateRuleDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	return ops
 }
 
-func createAllRelationRuleOps(schemaName, relName string, toRel *Relation) []MigrationOp {
+func createAllRelationRuleOps(to *Catalog, schemaName, relName string, toRel *Relation) []MigrationOp {
 	if toRel == nil || len(toRel.Rules) == 0 {
 		return nil
 	}
@@ -58,12 +58,12 @@ func createAllRelationRuleOps(schemaName, relName string, toRel *Relation) []Mig
 	sort.Strings(names)
 	var ops []MigrationOp
 	for _, name := range names {
-		ops = append(ops, buildCreateAndModeRuleOps(schemaName, relName, toRel, toRel.Rules[name])...)
+		ops = append(ops, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRel.Rules[name])...)
 	}
 	return ops
 }
 
-func ruleOpsForRelation(schemaName, relName string, fromRel, toRel *Relation, rules []RuleDiffEntry) []MigrationOp {
+func ruleOpsForRelation(from, to *Catalog, schemaName, relName string, fromRel, toRel *Relation, rules []RuleDiffEntry) []MigrationOp {
 	var ops []MigrationOp
 	var fromOID uint32
 	if fromRel != nil {
@@ -76,7 +76,7 @@ func ruleOpsForRelation(schemaName, relName string, fromRel, toRel *Relation, ru
 			if re.To == nil || toRel == nil {
 				continue
 			}
-			ops = append(ops, buildCreateAndModeRuleOps(schemaName, relName, toRel, re.To)...)
+			ops = append(ops, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, re.To)...)
 		case DiffDrop:
 			if re.From == nil {
 				continue
@@ -86,13 +86,13 @@ func ruleOpsForRelation(schemaName, relName string, fromRel, toRel *Relation, ru
 			if re.From == nil || re.To == nil || toRel == nil {
 				continue
 			}
-			if ruleDefinitionEqual(re.From, re.To) {
+			if ruleDefinitionEqual(from, to, re.From, re.To) {
 				if modeOp, ok := buildRuleModeOp(schemaName, relName, toRel, re.To); ok {
 					ops = append(ops, modeOp)
 				}
 			} else {
 				ops = append(ops, buildDropRuleOp(schemaName, relName, re.From.Name, fromOID))
-				ops = append(ops, buildCreateAndModeRuleOps(schemaName, relName, toRel, re.To)...)
+				ops = append(ops, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, re.To)...)
 			}
 		}
 	}
@@ -115,8 +115,8 @@ func buildDropRuleOp(schemaName, relName, ruleName string, fromRelOID uint32) Mi
 	}
 }
 
-func buildCreateAndModeRuleOps(schemaName, relName string, toRel *Relation, r *Rule) []MigrationOp {
-	ops := []MigrationOp{buildCreateRuleOp(schemaName, relName, toRel.OID, r)}
+func buildCreateAndModeRuleOps(to *Catalog, schemaName, relName string, toRel *Relation, r *Rule) []MigrationOp {
+	ops := []MigrationOp{buildCreateRuleOp(to, schemaName, relName, toRel.OID, r)}
 	if normalizeRuleMode(r.Mode) != 'O' {
 		if modeOp, ok := buildRuleModeOp(schemaName, relName, toRel, r); ok {
 			ops = append(ops, modeOp)
@@ -125,8 +125,11 @@ func buildCreateAndModeRuleOps(schemaName, relName string, toRel *Relation, r *R
 	return ops
 }
 
-func buildCreateRuleOp(schemaName, relName string, toRelOID uint32, r *Rule) MigrationOp {
+func buildCreateRuleOp(to *Catalog, schemaName, relName string, toRelOID uint32, r *Rule) MigrationOp {
 	qualifiedRel := migrationQualifiedName(schemaName, relName)
+	whereSQL := to.deparseRuleWhere(r)
+	actionsSQL := to.deparseRuleActions(r)
+
 	var b strings.Builder
 	b.WriteString("CREATE RULE ")
 	b.WriteString(quoteIdentAlways(r.Name))
@@ -134,9 +137,9 @@ func buildCreateRuleOp(schemaName, relName string, toRelOID uint32, r *Rule) Mig
 	b.WriteString(ruleEventKeyword(r.Event))
 	b.WriteString(" TO ")
 	b.WriteString(qualifiedRel)
-	if r.WhereSQL != "" {
+	if whereSQL != "" {
 		b.WriteString(" WHERE ")
-		b.WriteString(r.WhereSQL)
+		b.WriteString(whereSQL)
 	}
 	b.WriteString(" DO ")
 	if r.Instead {
@@ -144,14 +147,14 @@ func buildCreateRuleOp(schemaName, relName string, toRelOID uint32, r *Rule) Mig
 	} else {
 		b.WriteString("ALSO ")
 	}
-	switch len(r.ActionsSQL) {
+	switch len(actionsSQL) {
 	case 0:
 		b.WriteString("NOTHING")
 	case 1:
-		b.WriteString(r.ActionsSQL[0])
+		b.WriteString(actionsSQL[0])
 	default:
 		b.WriteString("(")
-		b.WriteString(strings.Join(r.ActionsSQL, "; "))
+		b.WriteString(strings.Join(actionsSQL, "; "))
 		b.WriteString(")")
 	}
 
@@ -240,7 +243,7 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			filtered = append(filtered, buildCreateAndModeRuleOps(schemaName, relName, toRel, toRel.Rules[name])...)
+			filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRel.Rules[name])...)
 		}
 	}
 	return filtered

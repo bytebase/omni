@@ -4274,6 +4274,83 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c112From, c112To, Diff(c112From, c112To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c112From->c112To, got:\n%s", rem.SQL())
 		}
+
+		// Review round 11 regressions:
+		// 1. Rule actions refresh referenced table and column names after renames.
+		// 2. Window function OVER clauses (inline frame specs and WINDOW clauses)
+		//    are preserved when deparsing rule actions.
+		// 3. Unpopulated materialized views (WITH NO DATA) emit WITH NO DATA in
+		//    migration DDL and diff against populated materialized views.
+		// 4. User collations record OwnerName and participate in DROP ROLE,
+		//    RENAME ROLE, REASSIGN OWNED, DROP OWNED, and ALTER COLLATION OWNER/RENAME.
+		c113To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE src_r11 (a int)",
+			"CREATE TABLE dst_r11 (x int, rn bigint)",
+			"CREATE RULE r_ren_r11 AS ON INSERT TO src_r11 WHERE NEW.a > 0 DO ALSO INSERT INTO dst_r11 (x, rn) SELECT NEW.a, row_number() OVER (PARTITION BY NEW.a ORDER BY NEW.a DESC ROWS BETWEEN 1 PRECEDING AND CURRENT ROW EXCLUDE CURRENT ROW)",
+			"CREATE RULE r_win_r11 AS ON DELETE TO src_r11 DO ALSO INSERT INTO dst_r11 (x, rn) SELECT OLD.a, count(*) OVER w FROM src_r11 WINDOW w AS (ORDER BY a)",
+			"ALTER TABLE dst_r11 RENAME TO dst2_r11",
+			"ALTER TABLE dst2_r11 RENAME COLUMN x TO x2",
+			"ALTER TABLE src_r11 RENAME COLUMN a TO a2",
+			"CREATE MATERIALIZED VIEW mv_nodata_r11 AS SELECT a2 FROM src_r11 WITH NO DATA",
+		} {
+			if code := simulationCatalogCode(t, c113To, stmt); code != "0" {
+				t.Fatalf("c113To %s: %s", stmt, code)
+			}
+		}
+		migEmpty113 := GenerateMigration(New(), c113To, Diff(New(), c113To))
+		if !strings.Contains(migEmpty113.SQL(), "OVER (PARTITION BY") || !strings.Contains(migEmpty113.SQL(), "OVER w") {
+			t.Fatalf("expected OVER clauses in rule migration DDL, got:\n%s", migEmpty113.SQL())
+		}
+		if !strings.Contains(migEmpty113.SQL(), `CREATE MATERIALIZED VIEW "public"."mv_nodata_r11" AS`) || !strings.Contains(migEmpty113.SQL(), "WITH NO DATA") {
+			t.Fatalf("expected WITH NO DATA in unpopulated matview DDL, got:\n%s", migEmpty113.SQL())
+		}
+		c113Applied := New()
+		if code := simulationCatalogCode(t, c113Applied, migEmpty113.SQL()); code != "0" {
+			t.Fatalf("applying empty->c113To failed with %s:\n%s", code, migEmpty113.SQL())
+		}
+		if mv := c113Applied.GetRelation("public", "mv_nodata_r11"); mv == nil || mv.IsPopulated {
+			t.Fatalf("expected migrated mv_nodata_r11 to remain unpopulated, got %+v", mv)
+		}
+		if rem := GenerateMigration(c113Applied, c113To, Diff(c113Applied, c113To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c113To, got:\n%s", rem.SQL())
+		}
+
+		// Collation role lifecycle checks.
+		c113Role := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice_r11",
+			"CREATE ROLE bob_r11",
+			"SET ROLE alice_r11",
+			"CREATE COLLATION c_owned_r11 (LOCALE = 'C')",
+			"RESET ROLE",
+			"CREATE TABLE t_uses_c_r11 (v text COLLATE c_owned_r11)",
+		} {
+			if code := simulationCatalogCode(t, c113Role, stmt); code != "0" {
+				t.Fatalf("c113Role setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP ROLE alice_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE owning collation answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "ALTER ROLE alice_r11 RENAME TO alice2_r11"); code != "0" {
+			t.Fatalf("ALTER ROLE RENAME answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP ROLE alice2_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE after rename answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "REASSIGN OWNED BY alice2_r11 TO bob_r11; DROP ROLE alice2_r11"); code != "0" {
+			t.Fatalf("REASSIGN OWNED + DROP ROLE answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP OWNED BY bob_r11"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED RESTRICT with external dependent column answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c113Role, "DROP OWNED BY bob_r11 CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE answered %s, want 0", code)
+		}
+		if c113Role.schemaByName["public"].Collations["c_owned_r11"] != nil {
+			t.Fatal("expected c_owned_r11 to be dropped by DROP OWNED BY bob_r11 CASCADE")
+		}
 	})
 
 	for _, tc := range cases {

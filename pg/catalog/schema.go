@@ -7,6 +7,7 @@ type UserCollation struct {
 	OID       uint32
 	Name      string
 	DefClause string
+	OwnerName string
 }
 
 // Schema represents a PostgreSQL namespace.

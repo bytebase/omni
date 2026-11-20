@@ -129,9 +129,6 @@ func (c *Catalog) Clone() *Catalog {
 					continue
 				}
 				rc := *v
-				if v.ActionsSQL != nil {
-					rc.ActionsSQL = append([]string(nil), v.ActionsSQL...)
-				}
 				cr.Rules[k] = &rc
 			}
 		}

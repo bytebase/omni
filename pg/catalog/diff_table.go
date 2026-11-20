@@ -151,7 +151,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	}
 
 	// Rule sub-diff.
-	ruleDiffs := diffRules(from, to)
+	ruleDiffs := diffRules(fromCat, toCat, from, to)
 	if len(ruleDiffs) > 0 {
 		changed = true
 	}

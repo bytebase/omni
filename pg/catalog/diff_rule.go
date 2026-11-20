@@ -3,7 +3,7 @@ package catalog
 import "sort"
 
 // diffRules compares rewrite rules between two versions of a relation.
-func diffRules(fromRel, toRel *Relation) []RuleDiffEntry {
+func diffRules(fromCat, toCat *Catalog, fromRel, toRel *Relation) []RuleDiffEntry {
 	var fromRules, toRules map[string]*Rule
 	if fromRel != nil {
 		fromRules = fromRel.Rules
@@ -41,7 +41,7 @@ func diffRules(fromRel, toRel *Relation) []RuleDiffEntry {
 			})
 			continue
 		}
-		if rulesChanged(fr, tr) {
+		if rulesChanged(fromCat, toCat, fr, tr) {
 			result = append(result, RuleDiffEntry{
 				Action: DiffModify,
 				Name:   name,
@@ -67,18 +67,18 @@ func normalizeRuleMode(m byte) byte {
 	return m
 }
 
-func ruleDefinitionEqual(a, b *Rule) bool {
+func ruleDefinitionEqual(fromCat, toCat *Catalog, a, b *Rule) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
 	return a.Event == b.Event &&
 		a.Instead == b.Instead &&
-		a.WhereSQL == b.WhereSQL &&
-		stringSliceEqual(a.ActionsSQL, b.ActionsSQL)
+		fromCat.deparseRuleWhere(a) == toCat.deparseRuleWhere(b) &&
+		stringSliceEqual(fromCat.deparseRuleActions(a), toCat.deparseRuleActions(b))
 }
 
-func rulesChanged(a, b *Rule) bool {
-	if !ruleDefinitionEqual(a, b) {
+func rulesChanged(fromCat, toCat *Catalog, a, b *Rule) bool {
+	if !ruleDefinitionEqual(fromCat, toCat, a, b) {
 		return true
 	}
 	return normalizeRuleMode(a.Mode) != normalizeRuleMode(b.Mode)

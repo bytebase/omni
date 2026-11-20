@@ -181,6 +181,9 @@ func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 
 	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
 		qn, usingClause, strings.TrimRight(def, " \t\n\r;"))
+	if entry.To != nil && !entry.To.IsPopulated {
+		sql += " WITH NO DATA"
+	}
 
 	return MigrationOp{
 		Type:          OpCreateView,

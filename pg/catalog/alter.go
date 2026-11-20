@@ -1283,6 +1283,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renamePolicy(stmt)
 	case nodes.OBJECT_RULE:
 		return c.renameRule(stmt)
+	case nodes.OBJECT_COLLATION:
+		return c.renameCollation(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
 		return nil // Domain constraints: no-op for pgddl
 	case nodes.OBJECT_ATTRIBUTE:
@@ -3121,6 +3123,8 @@ func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) e
 		return c.alterOpClassNamespace(stmt, newSchema)
 	case nodes.OBJECT_OPFAMILY:
 		return c.alterOpFamilyNamespace(stmt, newSchema)
+	case nodes.OBJECT_COLLATION:
+		return c.alterCollationNamespace(stmt, newSchema)
 	default:
 		return nil // no-op for unsupported object types
 	}
@@ -3241,8 +3245,86 @@ func (c *Catalog) checkSchemaMoveObject(stmt *nodes.AlterObjectSchemaStmt) (skip
 			}
 			return false, err
 		}
+	case nodes.OBJECT_COLLATION:
+		if _, _, err := c.lookupUserCollation(stmt.Object); err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
 	}
 	return false, nil
+}
+
+func (c *Catalog) renameCollation(stmt *nodes.RenameStmt) error {
+	schema, uc, err := c.lookupUserCollation(stmt.Object)
+	if err != nil {
+		if (stmt.MissingOk || c.snapshot) && missingObject(err) {
+			return nil
+		}
+		return err
+	}
+	if schema == nil || uc == nil {
+		return nil
+	}
+	if stmt.Newname != uc.Name && schema.Collations[stmt.Newname] != nil {
+		return errDuplicateObject("collation", stmt.Newname)
+	}
+	oldName := uc.Name
+	delete(schema.Collations, oldName)
+	uc.Name = stmt.Newname
+	schema.Collations[stmt.Newname] = uc
+	c.syncRenamedUserCollationRefs(uc.OID, schema.Name, stmt.Newname)
+	return nil
+}
+
+func (c *Catalog) alterCollationNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchema *Schema) error {
+	oldSchema, uc, err := c.lookupUserCollation(stmt.Object)
+	if err != nil {
+		if (stmt.MissingOk || c.snapshot) && missingObject(err) {
+			return nil
+		}
+		return err
+	}
+	if oldSchema == nil || uc == nil || oldSchema.OID == newSchema.OID {
+		return nil
+	}
+	if newSchema.Collations != nil && newSchema.Collations[uc.Name] != nil {
+		return errDuplicateObject("collation", uc.Name)
+	}
+	if newSchema.Collations == nil {
+		newSchema.Collations = make(map[string]*UserCollation)
+	}
+	delete(oldSchema.Collations, uc.Name)
+	newSchema.Collations[uc.Name] = uc
+	c.syncRenamedUserCollationRefs(uc.OID, newSchema.Name, uc.Name)
+	return nil
+}
+
+func (c *Catalog) syncRenamedUserCollationRefs(collOID uint32, schemaName, collName string) {
+	qualSchema := ""
+	if schemaName != "public" && schemaName != "pg_catalog" {
+		qualSchema = schemaName
+	}
+	for _, rel := range c.relationByOID {
+		for _, col := range rel.Columns {
+			if col.UserCollationOID == collOID {
+				col.CollationSchema = qualSchema
+				col.CollationName = collName
+			}
+		}
+	}
+	for _, dt := range c.domainTypes {
+		if dt != nil && dt.UserCollationOID == collOID {
+			dt.CollationName = collName
+		}
+	}
+	for _, rt := range c.rangeTypes {
+		if rt != nil && rt.UserCollationOID == collOID {
+			rt.CollationSchema = qualSchema
+			rt.CollationName = collName
+		}
+	}
 }
 
 // alterRelationNamespace moves a relation (table/view/matview/sequence) to a new schema.
