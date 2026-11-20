@@ -1050,6 +1050,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		return err
 	}
 
+	if index.KeyBlockSize > 0 {
+		if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+			return err
+		}
+	}
+
 	if index.Comment != "" {
 		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
 			return err
@@ -1261,6 +1267,11 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 			}
 			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
+			}
+			if index.KeyBlockSize > 0 {
+				if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+					return err
+				}
 			}
 			if index.Comment != "" {
 				if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {

@@ -44,6 +44,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			continue
 		}
 		tableProto := tableToProto(t)
+		tableProto.HasMaterializedViewLog = db.MaterializedViewLogs[strings.ToLower(t.Name)]
 		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
 		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
 	}

@@ -163,7 +163,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Engine:                t.Engine,
 		Charset:               t.Charset,
 		Collation:             t.Collation,
-		Comment:               t.Comment,
+		Comment:               formatSyncedComment(t.Comment),
 		IsGlobalTemporary:     t.GlobalTemporary,
 		OnCommit:              t.OnCommit,
 		PlacementPolicy:       t.PlacementPolicy,
@@ -196,7 +196,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			Nullable:     col.Nullable,
 			CharacterSet: col.Charset,
 			Collation:    col.Collation,
-			Comment:      col.Comment,
+			Comment:      formatSyncedComment(col.Comment),
 		}
 		switch {
 		case col.AutoRandom:
@@ -428,6 +428,29 @@ func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata
 	default:
 		return metadata.TablePartitionMetadata_TYPE_UNSPECIFIED
 	}
+}
+
+func formatSyncedComment(s string) string {
+	if !strings.ContainsAny(s, "\\'\x00\x1a") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 4)
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			b.WriteString(`\\`)
+		case '\'':
+			b.WriteString(`\'`)
+		case 0:
+			b.WriteString(`\0`)
+		case 26:
+			b.WriteString(`\Z`)
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 func sortedMapKeys[V any](m map[string]V) []string {

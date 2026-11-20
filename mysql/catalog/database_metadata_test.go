@@ -527,6 +527,10 @@ func TestDatabaseMetadataIndexKeyBlockSizeRoundTrip(t *testing.T) {
 	}
 	require.NotNil(t, reKA)
 	require.Equal(t, 4, reKA.KeyBlockSize)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "KEY `ka` (`a`) KEY_BLOCK_SIZE=4")
 }
 
 func TestDatabaseDefinitionFidelityForViewOptionsTablespaceAndComments(t *testing.T) {

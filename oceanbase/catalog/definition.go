@@ -799,8 +799,15 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 		}
 	}
 
-	_, err := io.WriteString(buf, ";\n\n")
-	return err
+	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
+		return err
+	}
+	if table.HasMaterializedViewLog {
+		if _, err := fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW LOG ON %s;\n\n", quoteIdent(table.Name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string) error {
@@ -1241,6 +1248,40 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 		return err
 	}
 
+	if isFullText {
+		if index.Parser != "" {
+			if _, err := fmt.Fprintf(buf, " WITH PARSER %s", index.Parser); err != nil {
+				return err
+			}
+		}
+		if len(index.ParserProperties) > 0 {
+			parts := make([]string, 0, len(index.ParserProperties))
+			for _, key := range parserPropertyOrder {
+				v, ok := index.ParserProperties[key]
+				if !ok {
+					continue
+				}
+				if stringParserProperties[key] {
+					v = quoteStringLiteral(v)
+				}
+				parts = append(parts, key+"="+v)
+			}
+			if _, err := fmt.Fprintf(buf, " PARSER_PROPERTIES=(%s)", strings.Join(parts, ",")); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(index.StoringColumns) > 0 {
+		names := make([]string, 0, len(index.StoringColumns))
+		for _, col := range index.StoringColumns {
+			names = append(names, quoteIdent(col))
+		}
+		if _, err := fmt.Fprintf(buf, " STORING (%s)", strings.Join(names, ", ")); err != nil {
+			return err
+		}
+	}
+
 	if index.IsVector && len(index.VectorParams) > 0 {
 		if _, err := fmt.Fprintf(buf, " WITH (%s)", strings.Join(index.VectorParams, ", ")); err != nil {
 			return err
@@ -1249,6 +1290,12 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 
 	if using := indexUsingClause(index.Type, engine); using != "" {
 		if _, err := buf.WriteString(using); err != nil {
+			return err
+		}
+	}
+
+	if index.KeyBlockSize > 0 {
+		if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
 			return err
 		}
 	}
@@ -1474,6 +1521,11 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 			}
 			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
+			}
+			if index.KeyBlockSize > 0 {
+				if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+					return err
+				}
 			}
 			return nil
 		}

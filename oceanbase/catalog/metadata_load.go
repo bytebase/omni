@@ -382,6 +382,13 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		}
 		if err == nil {
 			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+			if o.table.GetHasMaterializedViewLog() {
+				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+					key := toLower(o.table.GetName())
+					db.MaterializedViewLogs[key] = true
+					db.MaterializedViewLogsKnown[key] = true
+				}
+			}
 		}
 		return err
 	case metadataView:

@@ -646,6 +646,9 @@ message TableMetadata {
 
   // MySQL / OceanBase table tablespace name.
   string tablespace = 38;
+
+  // OceanBase materialized view log state on this base table (CREATE MATERIALIZED VIEW LOG).
+  bool has_materialized_view_log = 39;
 }
 
 message CheckConstraintMetadata {

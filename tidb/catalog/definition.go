@@ -265,50 +265,8 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 		return err
 	}
 
-	// Set charset, collation, sql mode and timezone.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setTimezone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.TimeZone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
+	// Set charset, collation, sql mode and timezone when present.
+	if err := writeSessionContextIfSet(out, event.CharacterSetClient, event.CollationConnection, event.SqlMode, event.TimeZone, true); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -352,41 +310,8 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 		return err
 	}
 
-	// Set charset, collation, and sql mode.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
+	// Set charset, collation, and sql mode when present.
+	if err := writeSessionContextIfSet(out, trigger.CharacterSetClient, trigger.CollationConnection, trigger.SqlMode, "", false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -457,41 +382,8 @@ func writeProcedure(out io.Writer, procedure *metadata.ProcedureMetadata) error 
 		return err
 	}
 
-	// Set charset, collation, and sql mode.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, procedure.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, procedure.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, procedure.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, procedure.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
+	// Set charset, collation, and sql mode when present.
+	if err := writeSessionContextIfSet(out, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode, "", false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -535,41 +427,8 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 		return err
 	}
 
-	// Set charset, collation, and sql mode.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, function.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, function.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, function.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, function.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
+	// Set charset, collation, and sql mode when present.
+	if err := writeSessionContextIfSet(out, function.CharacterSetClient, function.CollationConnection, function.SqlMode, "", false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -817,6 +676,12 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		}
 	}
 
+	if comp := unquoteTableOption(createOption(table.CreateOptions, "compression")); comp != "" {
+		if _, err := fmt.Fprintf(out, " COMPRESSION='%s'", escapeComment(comp)); err != nil {
+			return err
+		}
+	}
+
 	if table.Comment != "" {
 		if _, err := fmt.Fprintf(out, " COMMENT='%s'", table.Comment); err != nil {
 			return err
@@ -856,8 +721,67 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		}
 	}
 
-	_, err := io.WriteString(out, ";\n\n")
-	return err
+	if _, err := io.WriteString(out, ";\n\n"); err != nil {
+		return err
+	}
+
+	// TiFlash replica precedes CACHE because a cached table rejects other ALTER TABLE statements (8242).
+	if table.TiflashReplica > 0 || len(table.TiflashLocationLabels) > 0 {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` SET TIFLASH REPLICA %d", table.Name, table.TiflashReplica); err != nil {
+			return err
+		}
+		if len(table.TiflashLocationLabels) > 0 {
+			labels := make([]string, len(table.TiflashLocationLabels))
+			for i, l := range table.TiflashLocationLabels {
+				labels[i] = "'" + outputFormat(l) + "'"
+			}
+			if _, err := fmt.Fprintf(out, " LOCATION LABELS %s", strings.Join(labels, ", ")); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, ";\n\n"); err != nil {
+			return err
+		}
+	}
+
+	if isCachedCreateOptions(table.CreateOptions) {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` CACHE;\n\n", table.Name); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeSessionContextIfSet(out io.Writer, charClient, collation, sqlMode, timeZone string, includeTimezone bool) error {
+	for _, stmt := range []struct {
+		prefix string
+		value  string
+		quote  bool
+	}{
+		{setCharacterSetClient, charClient, false},
+		{setCharacterSetResult, charClient, false},
+		{setCollation, collation, false},
+		{setSQLMode, sqlMode, true},
+		{setTimezone, timeZone, true},
+	} {
+		if stmt.prefix == setTimezone && !includeTimezone {
+			continue
+		}
+		if stmt.value == "" {
+			continue
+		}
+		if stmt.quote {
+			if _, err := fmt.Fprintf(out, "%s'%s';\n", stmt.prefix, escapeComment(stmt.value)); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fmt.Fprintf(out, "%s%s;\n", stmt.prefix, stmt.value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // printPartitionClause writes the PARTITION BY clause of a CREATE TABLE.
@@ -1229,6 +1153,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 		return err
 	}
 
+	if index.KeyBlockSize > 0 {
+		if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+			return err
+		}
+	}
+
 	if index.Comment != "" {
 		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
 			return err
@@ -1308,6 +1238,11 @@ func printPrimaryKeyClause(buf *strings.Builder, table *metadata.TableMetadata) 
 			}
 			if _, err := fmt.Fprint(buf, ")"); err != nil {
 				return err
+			}
+			if index.KeyBlockSize > 0 {
+				if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+					return err
+				}
 			}
 			if _, err := fmt.Fprintf(buf, " /*T![clustered_index] %s */", table.PrimaryKeyType); err != nil {
 				return err

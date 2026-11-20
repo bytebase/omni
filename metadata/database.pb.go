@@ -2389,9 +2389,11 @@ type TableMetadata struct {
 	TiflashReplica        int32    `protobuf:"varint,36,opt,name=tiflash_replica,json=tiflashReplica,proto3" json:"tiflash_replica,omitempty"`
 	TiflashLocationLabels []string `protobuf:"bytes,37,rep,name=tiflash_location_labels,json=tiflashLocationLabels,proto3" json:"tiflash_location_labels,omitempty"`
 	// MySQL / OceanBase table tablespace name.
-	Tablespace    string `protobuf:"bytes,38,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Tablespace string `protobuf:"bytes,38,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
+	// OceanBase materialized view log state on this base table (CREATE MATERIALIZED VIEW LOG).
+	HasMaterializedViewLog bool `protobuf:"varint,39,opt,name=has_materialized_view_log,json=hasMaterializedViewLog,proto3" json:"has_materialized_view_log,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *TableMetadata) Reset() {
@@ -2674,6 +2676,13 @@ func (x *TableMetadata) GetTablespace() string {
 		return x.Tablespace
 	}
 	return ""
+}
+
+func (x *TableMetadata) GetHasMaterializedViewLog() bool {
+	if x != nil {
+		return x.HasMaterializedViewLog
+	}
+	return false
 }
 
 type CheckConstraintMetadata struct {
@@ -5569,7 +5578,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fMODE_DEFAULT\x10\x01\x12\x14\n" +
 	"\x10MODE_APPEND_ONLY\x10\x02\x12\x14\n" +
-	"\x10MODE_INSERT_ONLY\x10\x03\"\xeb\v\n" +
+	"\x10MODE_INSERT_ONLY\x10\x03\"\xa6\f\n" +
 	"\rTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\acolumns\x18\x02 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\x126\n" +
@@ -5614,7 +5623,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x17tiflash_location_labels\x18% \x03(\tR\x15tiflashLocationLabels\x12\x1e\n" +
 	"\n" +
 	"tablespace\x18& \x01(\tR\n" +
-	"tablespaceJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
+	"tablespace\x129\n" +
+	"\x19has_materialized_view_log\x18' \x01(\bR\x16hasMaterializedViewLogJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
 	"\x17CheckConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +

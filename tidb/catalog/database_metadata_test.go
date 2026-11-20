@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -490,6 +491,8 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Contains(t, rendered, "TTL=`created_at` + INTERVAL 7 DAY")
 	require.Contains(t, rendered, "TTL_ENABLE='OFF'")
 	require.Contains(t, rendered, "TTL_JOB_INTERVAL='2h'")
+	require.NotContains(t, rendered, "= ;")
+	require.NotContains(t, rendered, "SET character_set_client")
 
 	allocSchema := allocMeta.Schemas[0]
 	require.Len(t, allocSchema.Functions, 1)
@@ -504,13 +507,20 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Len(t, allocSchema.Tables[0].Triggers, 1)
 	require.Equal(t, "trg_alloc", allocSchema.Tables[0].Triggers[0].Name)
 
-	// DatabaseDefinition renders view execution attributes, placement policy, and global temp tables.
+	// DatabaseDefinition renders view execution attributes, placement policy, TiFlash, cache, compression, key block size, escaped comments, and global temp tables.
 	defCatalog := New()
 	_, err = defCatalog.Exec(`
 		CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION="us-east" REGIONS="us-east";
 		CREATE DATABASE def_db;
 		USE def_db;
-		CREATE TABLE placed_tbl (id INT PRIMARY KEY) PLACEMENT POLICY = p_tbl;
+		CREATE TABLE placed_tbl (
+			id INT PRIMARY KEY,
+			k INT,
+			note VARCHAR(50) COMMENT 'it''s a \\ path',
+			KEY k_blk (k) KEY_BLOCK_SIZE = 4
+		) COMPRESSION='zlib' COMMENT='O''Reilly' PLACEMENT POLICY = p_tbl;
+		ALTER TABLE placed_tbl SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';
+		ALTER TABLE placed_tbl CACHE;
 		CREATE GLOBAL TEMPORARY TABLE gtt_tbl (id INT PRIMARY KEY) ON COMMIT DELETE ROWS;
 		CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_attr AS SELECT id FROM placed_tbl WITH CASCADED CHECK OPTION;
 	`, &ExecOptions{ContinueOnError: false})
@@ -518,8 +528,26 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	defRendered, err := DatabaseDefinition(defCatalog.DatabaseMetadata("def_db"), DefinitionOptions{})
 	require.NoError(t, err)
 	require.Contains(t, defRendered, "/*T![placement] PLACEMENT POLICY=`p_tbl` */")
+	require.Contains(t, defRendered, "COMPRESSION='zlib'")
+	require.Contains(t, defRendered, `COMMENT='O\'Reilly'`)
+	require.Contains(t, defRendered, `COMMENT 'it\'s a \\ path'`)
+	require.Contains(t, defRendered, "KEY `k_blk` (`k`) KEY_BLOCK_SIZE=4")
+	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';")
+	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` CACHE;")
+	require.Less(t, strings.Index(defRendered, "SET TIFLASH REPLICA"), strings.Index(defRendered, "ALTER TABLE `placed_tbl` CACHE"))
 	require.Contains(t, defRendered, "CREATE GLOBAL TEMPORARY TABLE `gtt_tbl`")
 	require.Contains(t, defRendered, "ON COMMIT DELETE ROWS")
 	require.Contains(t, defRendered, "CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_attr`")
 	require.Contains(t, defRendered, "WITH CASCADED CHECK OPTION")
+
+	restored := New()
+	_, err = restored.Exec("CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION=\"us-east\" REGIONS=\"us-east\";\nCREATE DATABASE def_db;\nUSE def_db;\n"+defRendered, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	rePlaced := restored.GetDatabase("def_db").GetTable("placed_tbl")
+	require.Equal(t, "O'Reilly", rePlaced.Comment)
+	require.Equal(t, `it's a \ path`, rePlaced.GetColumn("note").Comment)
+	require.Equal(t, "zlib", rePlaced.Compression)
+	require.Equal(t, 2, rePlaced.TiFlashReplica)
+	require.Equal(t, []string{"zone", "host"}, rePlaced.TiFlashLocationLabels)
+	require.True(t, rePlaced.Cached)
 }
