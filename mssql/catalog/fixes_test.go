@@ -990,6 +990,7 @@ GO
 CREATE TABLE [sales].[orders] (
 	[id] INT IDENTITY(1,1) NOT NULL,
 	[amount] DECIMAL(10,2) CONSTRAINT [DF_orders_amount] DEFAULT (0),
+	[status] INT DEFAULT 1,
 	CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id])
 );
 GO
@@ -1002,8 +1003,73 @@ CREATE NONCLUSTERED INDEX [IX_orders_amount] ON [sales].[orders] ([amount] DESC)
 		table := meta.Schemas[0].Tables[0]
 		require.Equal(t, "orders", table.Name)
 		require.Equal(t, "DF_orders_amount", table.Columns[1].DefaultConstraintName)
+		require.Equal(t, "", table.Columns[2].DefaultConstraintName)
 		require.Len(t, table.Indexes, 2)
 		require.Equal(t, "WHERE [amount] > 0", table.Indexes[1].Definition)
+	})
+
+	t.Run("preserves case-distinct schema names without merging tables", func(t *testing.T) {
+		ddl := `
+CREATE TABLE [s].[t] ([a] INT NOT NULL);
+CREATE TABLE [S].[t] ([b] INT NOT NULL);
+ALTER TABLE [S].[t] ADD CONSTRAINT [PK_S_t] PRIMARY KEY ([b]);
+`
+		meta, err := GetDatabaseMetadata(ddl)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas, 2)
+		require.Equal(t, "S", meta.Schemas[0].Name)
+		require.Len(t, meta.Schemas[0].Tables, 1)
+		require.Len(t, meta.Schemas[0].Tables[0].Columns, 1)
+		require.Equal(t, "b", meta.Schemas[0].Tables[0].Columns[0].Name)
+		require.Len(t, meta.Schemas[0].Tables[0].Indexes, 1)
+		require.Equal(t, "s", meta.Schemas[1].Name)
+		require.Len(t, meta.Schemas[1].Tables, 1)
+		require.Len(t, meta.Schemas[1].Tables[0].Columns, 1)
+		require.Equal(t, "a", meta.Schemas[1].Tables[0].Columns[0].Name)
+		require.Empty(t, meta.Schemas[1].Tables[0].Indexes)
+
+		cat, err := LoadSQL(ddl)
+		require.NoError(t, err)
+		require.NotNil(t, cat.GetTable("s", "t"))
+		require.Equal(t, "a", cat.GetTable("s", "t").Columns[0].Name)
+		require.NotNil(t, cat.GetTable("s", "T"))
+		require.Equal(t, "a", cat.GetTable("s", "T").Columns[0].Name)
+		require.NotNil(t, cat.GetTable("S", "t"))
+		require.Equal(t, "b", cat.GetTable("S", "t").Columns[0].Name)
+		require.NotNil(t, cat.GetTable("S", "T"))
+		require.Equal(t, "b", cat.GetTable("S", "T").Columns[0].Name)
+		require.True(t, Diff(cat, cat).IsEmpty())
+	})
+
+	t.Run("skips indexes on views instead of failing whole script", func(t *testing.T) {
+		ddl := `
+CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT 1 AS [id];
+GO
+CREATE UNIQUE CLUSTERED INDEX [ix_v] ON [dbo].[v] ([id]);
+GO
+CREATE TABLE [dbo].[t] ([id] INT NOT NULL);
+`
+		meta, err := GetDatabaseMetadata(ddl)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas, 1)
+		require.Len(t, meta.Schemas[0].Views, 1)
+		require.Len(t, meta.Schemas[0].Tables, 1)
+		require.Equal(t, "t", meta.Schemas[0].Tables[0].Name)
+
+		_, loadErr := LoadSQL(ddl)
+		require.ErrorContains(t, loadErr, "indexes on views are not supported")
+	})
+
+	t.Run("avoids synthetic DF_ name collisions on unnamed defaults", func(t *testing.T) {
+		ddl := `
+CREATE TABLE [dbo].[a_b] ([c] INT NOT NULL DEFAULT 0);
+CREATE TABLE [dbo].[a] ([b_c] INT NOT NULL DEFAULT 1);
+`
+		meta, err := GetDatabaseMetadata(ddl)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas[0].Tables, 2)
+		require.Empty(t, meta.Schemas[0].Tables[0].Columns[0].DefaultConstraintName)
+		require.Empty(t, meta.Schemas[0].Tables[1].Columns[0].DefaultConstraintName)
 	})
 }
 
