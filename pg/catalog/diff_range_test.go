@@ -115,6 +115,19 @@ func TestDiffRange(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "range collation changed",
+			fromSQL: `CREATE COLLATION c1 (LOCALE = 'C'); CREATE COLLATION c2 (LOCALE = 'POSIX'); CREATE TYPE trange AS RANGE (SUBTYPE = text, COLLATION = c1);`,
+			toSQL:   `CREATE COLLATION c1 (LOCALE = 'C'); CREATE COLLATION c2 (LOCALE = 'POSIX'); CREATE TYPE trange AS RANGE (SUBTYPE = text, COLLATION = c2);`,
+			check: func(t *testing.T, entries []RangeDiffEntry) {
+				if len(entries) != 1 {
+					t.Fatalf("expected 1 entry, got %d", len(entries))
+				}
+				if entries[0].Action != DiffModify {
+					t.Fatalf("expected DiffModify, got %v", entries[0].Action)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

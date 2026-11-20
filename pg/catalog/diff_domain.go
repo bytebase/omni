@@ -117,7 +117,7 @@ func domainsChanged(a *DomainType, aCat *Catalog, b *DomainType, bCat *Catalog) 
 	if a.NotNull != b.NotNull {
 		return true
 	}
-	if a.CollationName != b.CollationName {
+	if domainCollationKey(a, aCat) != domainCollationKey(b, bCat) {
 		return true
 	}
 	if a.Default != b.Default {

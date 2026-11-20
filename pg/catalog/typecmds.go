@@ -749,12 +749,15 @@ func (c *Catalog) DefineCompositeType(stmt *nodes.CompositeTypeStmt) error {
 
 // RangeType holds the metadata for a user-created range type.
 type RangeType struct {
-	OID           uint32
-	Name          string
-	Namespace     uint32
-	SubTypeOID    uint32
-	ArrayOID      uint32
-	MultirangeOID uint32 // auto-generated multirange type
+	OID              uint32
+	Name             string
+	Namespace        uint32
+	SubTypeOID       uint32
+	ArrayOID         uint32
+	MultirangeOID    uint32 // auto-generated multirange type
+	CollationSchema  string // explicit or user-collation schema (empty for unqualified built-in)
+	CollationName    string // explicit COLLATION name; empty = subtype default
+	UserCollationOID uint32 // OID of user-defined collation, or 0
 }
 
 // DefineRange creates a new range type from a parsed CREATE TYPE ... AS RANGE statement.
@@ -834,6 +837,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Validate collation — subtype must be collatable if collation is specified.
 	// pg: src/backend/commands/typecmds.c — DefineRange (collation validation)
+	var rangeCollSchema, rangeCollName string
 	var rangeUserCollOID uint32
 	if hasCollation {
 		if st := c.typeByOID[subtypeOID]; st != nil && st.Collation == 0 && st.Category != 'S' {
@@ -841,9 +845,22 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		}
 		if rangeCollList != nil {
 			var cerr error
-			_, rangeUserCollOID, cerr = c.resolveCollationList(rangeCollList)
+			rangeCollSchema, _ = qualifiedName(rangeCollList)
+			rangeCollName, rangeUserCollOID, cerr = c.resolveCollationList(rangeCollList)
 			if cerr != nil {
 				return cerr
+			}
+			if rangeUserCollOID != 0 && rangeCollSchema == "" {
+				for _, s := range c.schemas {
+					if s != nil {
+						if uc := s.Collations[rangeCollName]; uc != nil && uc.OID == rangeUserCollOID {
+							rangeCollSchema = s.Name
+							break
+						}
+					}
+				}
+			} else if rangeUserCollOID == 0 && rangeCollSchema == "pg_catalog" {
+				rangeCollSchema = ""
 			}
 		}
 	}
@@ -965,12 +982,15 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
-		OID:           typeOID,
-		Name:          name,
-		Namespace:     schema.OID,
-		SubTypeOID:    subtypeOID,
-		ArrayOID:      arrayOID,
-		MultirangeOID: multirangeOID,
+		OID:              typeOID,
+		Name:             name,
+		Namespace:        schema.OID,
+		SubTypeOID:       subtypeOID,
+		ArrayOID:         arrayOID,
+		MultirangeOID:    multirangeOID,
+		CollationSchema:  rangeCollSchema,
+		CollationName:    rangeCollName,
+		UserCollationOID: rangeUserCollOID,
 	}
 
 	// Range depends on subtype.

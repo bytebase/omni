@@ -31,9 +31,9 @@ type Index struct {
 	// OpClasses holds, per key column, the operator class the statement
 	// named, dotted when qualified, or "" for the default.
 	OpClasses []string
-	// Collations holds, per key column, the explicit COLLATE name the statement
-	// named, dotted when qualified, or "" when omitted.
-	Collations []string
+	// Collations holds, per key column, the explicit COLLATE identifier parts
+	// the statement named, or nil when omitted.
+	Collations [][]string
 	// ParentIndexOID is the partitioned table's index this partition's index
 	// is attached to, or 0. Such an index comes and goes with its parent.
 	ParentIndexOID uint32
@@ -133,7 +133,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
-	var collations []string
+	var collations [][]string
 	var opClassRefs []opClassRef
 	var userCollOIDs []uint32
 	namedOpClass := false
@@ -272,7 +272,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
-			collations = append(collations, strings.Join(collParts, "."))
+			collations = append(collations, collParts)
 			namedCollation = namedCollation || len(collParts) > 0
 		}
 	}
@@ -333,7 +333,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	chosenColNames := chooseIndexColumnNames(rawColNames)
 
 	// For unique indexes on partitioned tables, all partition key columns
-	// must be included in the index.
+	// must be included in the index key (INCLUDE columns do not enforce uniqueness).
 	// pg: src/backend/commands/indexcmds.c — DefineIndex (line 709-756)
 	if stmt.Unique && rel.RelKind == 'p' && rel.PartitionInfo != nil {
 		for _, keyAttNum := range rel.PartitionInfo.KeyAttNums {
@@ -341,7 +341,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				continue // expression key, skip (can't validate without expression evaluation)
 			}
 			found := false
-			for _, idxAttNum := range attnums {
+			for _, idxAttNum := range attnums[:nKeyColumns] {
 				if idxAttNum == keyAttNum {
 					found = true
 					break

@@ -2359,8 +2359,8 @@ func (c *Catalog) clearColumnDefaultDeps(rel *Relation, col *Column) {
 			if !keptColColl && d.RefType == 'L' && col.UserCollationOID != 0 && d.RefOID == col.UserCollationOID {
 				// Keep the single entry for the column's own explicit COLLATE dependency.
 				keptColColl = true
-			} else if !keptColType && d.RefType == 't' && col.TypeOID >= FirstNormalObjectId && d.RefOID == col.TypeOID {
-				// Keep the single entry for the column's own user-defined type dependency.
+			} else if !keptColType && rel.RelKind == 'c' && d.RefType == 't' && col.TypeOID >= FirstNormalObjectId && d.RefOID == col.TypeOID {
+				// Keep the single entry for a composite attribute's own user-defined type dependency.
 				keptColType = true
 			} else {
 				continue
@@ -2449,6 +2449,7 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		))
 	}
 
+	oldTypeOID := col.TypeOID
 	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
 	col.TypeMod = newMod
@@ -2457,6 +2458,24 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	col.CollationName = collName
 	col.Collation = c.typeCollation(newOID)
 	col.UserCollationOID = userCollOID
+	if rel.RelKind == 'c' && oldTypeOID != newOID {
+		if oldTypeOID >= FirstNormalObjectId {
+			n := 0
+			removed := false
+			for _, d := range c.deps {
+				if !removed && d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 't' && d.RefOID == oldTypeOID {
+					removed = true
+					continue
+				}
+				c.deps[n] = d
+				n++
+			}
+			c.deps = c.deps[:n]
+		}
+		if newOID >= FirstNormalObjectId {
+			c.recordDependency('r', rel.OID, int32(col.AttNum), 't', newOID, 0, DepNormal)
+		}
+	}
 	if oldUserCollOID != 0 {
 		n := 0
 		removed := false

@@ -1731,7 +1731,7 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			NullsNotDistinct: idx.NullsNotDistinct,
 			Exprs:            slices.Clone(idx.Exprs),
 			OpClasses:        slices.Clone(idx.OpClasses),
-			Collations:       slices.Clone(idx.Collations),
+			Collations:       cloneStringSlices(idx.Collations),
 			ParentIndexOID:   idx.OID,
 		}
 
@@ -2029,7 +2029,7 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			NullsNotDistinct: idx.NullsNotDistinct,
 			Exprs:            slices.Clone(idx.Exprs),
 			OpClasses:        slices.Clone(idx.OpClasses),
-			Collations:       slices.Clone(idx.Collations),
+			Collations:       cloneStringSlices(idx.Collations),
 		}
 
 		// If the source index backs a constraint, clone the constraint too.

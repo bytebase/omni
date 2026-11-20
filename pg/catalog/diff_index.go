@@ -124,11 +124,36 @@ func indexesStructurallyChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	if !stringSliceEqual(a.OpClasses, b.OpClasses) {
 		return true
 	}
-	if !stringSliceEqual(a.Collations, b.Collations) {
+	if !stringSlicesEqual(a.Collations, b.Collations) {
 		return true
 	}
 
 	return false
+}
+
+func cloneStringSlices(in [][]string) [][]string {
+	if in == nil {
+		return nil
+	}
+	out := make([][]string, len(in))
+	for i, s := range in {
+		if s != nil {
+			out[i] = append([]string(nil), s...)
+		}
+	}
+	return out
+}
+
+func stringSlicesEqual(a, b [][]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !stringSliceEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func defaultIndexColumnNames(cat *Catalog, idx *Index) []string {

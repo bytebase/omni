@@ -954,10 +954,52 @@ func collUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, collOID ui
 	return false
 }
 
+func attnumSliceContains(xs []int16, target int16) bool {
+	for _, x := range xs {
+		if x == target {
+			return true
+		}
+	}
+	return false
+}
+
+func objDependsOnColumn(c *Catalog, objType byte, objOID, relOID uint32, attnum int16) bool {
+	for _, d := range c.deps {
+		if d.ObjType == objType && d.ObjOID == objOID && d.RefType == 'r' && d.RefOID == relOID && d.RefSubID == int32(attnum) {
+			return true
+		}
+	}
+	return false
+}
+
+func fkDependsOnConstraintOrIndex(c *Catalog, fk *Constraint, targetRelOID uint32, targetCon *Constraint, targetIdxOID uint32) bool {
+	if fk == nil || fk.Type != ConstraintFK || fk.FRelOID != targetRelOID {
+		return false
+	}
+	for _, d := range c.deps {
+		if d.ObjType == 'c' && d.ObjOID == fk.OID {
+			if targetCon != nil && ((d.RefType == 'c' && d.RefOID == targetCon.OID) || (targetCon.IndexOID != 0 && d.RefType == 'i' && d.RefOID == targetCon.IndexOID)) {
+				return true
+			}
+			if targetIdxOID != 0 && d.RefType == 'i' && d.RefOID == targetIdxOID {
+				return true
+			}
+		}
+	}
+	if targetCon != nil {
+		for _, fc := range fk.FColumns {
+			if attnumSliceContains(targetCon.Columns, fc) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // wrapModifiedCollationDependents detaches or rebuilds retained dependents of
-// collations whose definition changed (DiffModify) so PhasePre DROP COLLATION
-// succeeds cleanly and PhaseMain restores the dependents against the new
-// collation definition.
+// collations whose definition changed (DiffModify), as well as domains and
+// ranges whose collation changed, so PhasePre drops succeed cleanly and
+// PhaseMain restores the dependents against the new definition.
 func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) ([]MigrationOp, map[uint32]bool, map[uint32]bool) {
 	modifiedCollOIDs := make(map[uint32]bool)
 	for _, entry := range diff.Collations {
@@ -965,13 +1007,43 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			modifiedCollOIDs[entry.From.OID] = true
 		}
 	}
-	if len(modifiedCollOIDs) == 0 {
+	collChangedDomainOIDs := make(map[uint32]bool)
+	for _, entry := range diff.Domains {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+			fromType := from.FormatType(entry.From.BaseTypeOID, entry.From.BaseTypMod)
+			toType := to.FormatType(entry.To.BaseTypeOID, entry.To.BaseTypMod)
+			if fromType == toType && domainCollationKey(entry.From, from) != domainCollationKey(entry.To, to) {
+				collChangedDomainOIDs[entry.From.TypeOID] = true
+			}
+		}
+	}
+	rebuiltRangeOIDs := make(map[uint32]bool)
+	for _, entry := range diff.Ranges {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+			fromSub := from.FormatType(entry.From.SubTypeOID, -1)
+			toSub := to.FormatType(entry.To.SubTypeOID, -1)
+			if fromSub == toSub && !typeUsedByKeptColumn(from, to, nil, entry.From.OID) && !typeUsedByKeptColumn(from, to, nil, entry.From.MultirangeOID) {
+				rebuiltRangeOIDs[entry.From.OID] = true
+			}
+		}
+	}
+	for oid, rt := range from.rangeTypes {
+		if rt != nil && modifiedCollOIDs[rt.UserCollationOID] {
+			if sc := from.schemas[rt.Namespace]; sc != nil && resolveTypeOIDByName(to, sc.Name, rt.Name) != 0 {
+				if !typeUsedByKeptColumn(from, to, nil, oid) && !typeUsedByKeptColumn(from, to, nil, rt.MultirangeOID) {
+					rebuiltRangeOIDs[oid] = true
+				}
+			}
+		}
+	}
+	if len(modifiedCollOIDs) == 0 && len(collChangedDomainOIDs) == 0 && len(rebuiltRangeOIDs) == 0 {
 		return ops, nil, nil
 	}
 
 	preDroppedRel := make(map[uint32]bool)
 	preDroppedIdx := make(map[uint32]bool)
 	preDroppedCon := make(map[uint32]bool)
+	preDroppedConKey := make(map[string]bool)
 	preDroppedType := make(map[uint32]bool)
 	preDroppedTrig := make(map[uint32]bool)
 	preDroppedPol := make(map[uint32]bool)
@@ -981,6 +1053,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	mainCreatedTrig := make(map[string]bool)
 	mainCreatedPol := make(map[string]bool)
 	mainCreatedFunc := make(map[string]bool)
+	mainComments := make(map[string]bool)
 
 	for _, op := range ops {
 		if op.Phase == PhasePre {
@@ -990,13 +1063,19 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			case OpDropType:
 				if op.ObjType == 'r' {
 					preDroppedRel[op.ObjOID] = true
-				} else if op.ObjType == 't' {
+				} else if op.ObjType == 't' && !collChangedDomainOIDs[op.ObjOID] && !rebuiltRangeOIDs[op.ObjOID] {
 					preDroppedType[op.ObjOID] = true
 				}
 			case OpDropIndex:
 				preDroppedIdx[op.ObjOID] = true
 			case OpDropConstraint:
-				preDroppedCon[op.ObjOID] = true
+				if op.ObjOID != 0 {
+					preDroppedCon[op.ObjOID] = true
+				}
+				if op.ParentObject != "" {
+					preDroppedConKey[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				}
+				preDroppedConKey[op.SQL] = true
 			case OpDropTrigger:
 				preDroppedTrig[op.ObjOID] = true
 			case OpDropPolicy:
@@ -1009,13 +1088,20 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			case OpCreateIndex:
 				mainCreatedIdx[op.SchemaName+"."+op.ObjectName] = true
 			case OpAddConstraint:
-				mainAddedCon[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				if op.ParentObject != "" {
+					mainAddedCon[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				}
 			case OpCreateTrigger:
 				mainCreatedTrig[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
 			case OpCreatePolicy:
+				if op.ParentObject != "" {
+					mainCreatedPol[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				}
 				mainCreatedPol[op.SchemaName+"."+op.ObjectName] = true
 			case OpCreateFunction, OpAlterFunction:
 				mainCreatedFunc[op.SchemaName+"."+op.ObjectName] = true
+			case OpComment:
+				mainComments[op.SQL] = true
 			}
 		}
 	}
@@ -1024,18 +1110,54 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	directViews := make(map[uint32]bool)
 	var preExtra, mainExtra []MigrationOp
 
-	// 1. Rebuild kept domains whose own COLLATE references a modified collation.
+	// 1. Rebuild kept domains and ranges whose own COLLATE changed or references a modified collation.
 	rebuiltDomains := make(map[uint32]*DomainType) // from domain TypeOID -> from DomainType
 	rebuiltDomainNames := make(map[string]bool)
-	var domOIDs []uint32
+	rebuiltTypeRefOIDs := make(map[uint32]bool)
 	for oid, dt := range from.domainTypes {
-		if dt != nil && modifiedCollOIDs[dt.UserCollationOID] && !preDroppedType[oid] {
-			domOIDs = append(domOIDs, oid)
+		if dt == nil || preDroppedType[oid] {
+			continue
 		}
+		if modifiedCollOIDs[dt.UserCollationOID] || collChangedDomainOIDs[oid] {
+			bt := from.typeByOID[oid]
+			if bt == nil {
+				continue
+			}
+			if sc := from.schemas[bt.Namespace]; sc != nil && resolveTypeOIDByName(to, sc.Name, bt.TypeName) != 0 {
+				rebuiltDomains[oid] = dt
+			}
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for oid, dt := range from.domainTypes {
+			if dt == nil || preDroppedType[oid] || rebuiltDomains[oid] != nil {
+				continue
+			}
+			baseRebuilt := rebuiltDomains[dt.BaseTypeOID] != nil
+			if !baseRebuilt {
+				if baseBT := from.typeByOID[dt.BaseTypeOID]; baseBT != nil && baseBT.Category == 'A' && rebuiltDomains[baseBT.Elem] != nil {
+					baseRebuilt = true
+				}
+			}
+			if baseRebuilt {
+				bt := from.typeByOID[oid]
+				if bt == nil {
+					continue
+				}
+				if sc := from.schemas[bt.Namespace]; sc != nil && resolveTypeOIDByName(to, sc.Name, bt.TypeName) != 0 {
+					rebuiltDomains[oid] = dt
+					changed = true
+				}
+			}
+		}
+	}
+	var domOIDs []uint32
+	for oid := range rebuiltDomains {
+		domOIDs = append(domOIDs, oid)
 	}
 	sort.Slice(domOIDs, func(i, j int) bool { return domOIDs[i] < domOIDs[j] })
 	for _, oid := range domOIDs {
-		dt := from.domainTypes[oid]
 		bt := from.typeByOID[oid]
 		if bt == nil {
 			continue
@@ -1046,8 +1168,11 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		}
 		qn := migrationQualifiedName(sc.Name, bt.TypeName)
 		key := sc.Name + "." + bt.TypeName
-		rebuiltDomains[oid] = dt
 		rebuiltDomainNames[key] = true
+		rebuiltTypeRefOIDs[oid] = true
+		if bt.Array != 0 {
+			rebuiltTypeRefOIDs[bt.Array] = true
+		}
 		preDroppedType[oid] = true
 		preExtra = append(preExtra, MigrationOp{
 			Type:          OpDropType,
@@ -1076,15 +1201,354 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 		}
 	}
-	if len(rebuiltDomainNames) > 0 {
+
+	rebuiltRangeNames := make(map[string]bool)
+	var rangeOIDs []uint32
+	for oid := range rebuiltRangeOIDs {
+		rangeOIDs = append(rangeOIDs, oid)
+	}
+	sort.Slice(rangeOIDs, func(i, j int) bool { return rangeOIDs[i] < rangeOIDs[j] })
+	for _, oid := range rangeOIDs {
+		rt := from.rangeTypes[oid]
+		if rt == nil {
+			continue
+		}
+		sc := from.schemas[rt.Namespace]
+		if sc == nil {
+			continue
+		}
+		qn := migrationQualifiedName(sc.Name, rt.Name)
+		key := sc.Name + "." + rt.Name
+		rebuiltRangeNames[key] = true
+		rebuiltTypeRefOIDs[oid] = true
+		if rt.ArrayOID != 0 {
+			rebuiltTypeRefOIDs[rt.ArrayOID] = true
+		}
+		if rt.MultirangeOID != 0 {
+			rebuiltTypeRefOIDs[rt.MultirangeOID] = true
+			if mrBT := from.typeByOID[rt.MultirangeOID]; mrBT != nil && mrBT.Array != 0 {
+				rebuiltTypeRefOIDs[mrBT.Array] = true
+			}
+		}
+		preDroppedType[oid] = true
+		preExtra = append(preExtra, MigrationOp{
+			Type:          OpDropType,
+			SchemaName:    sc.Name,
+			ObjectName:    rt.Name,
+			SQL:           fmt.Sprintf("DROP TYPE %s", qn),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       't',
+			ObjOID:        oid,
+			Priority:      PriorityType,
+		})
+		if toOID := resolveTypeOIDByName(to, sc.Name, rt.Name); toOID != 0 {
+			if toRT := to.rangeTypes[toOID]; toRT != nil {
+				mainExtra = append(mainExtra, MigrationOp{
+					Type:          OpCreateType,
+					SchemaName:    sc.Name,
+					ObjectName:    rt.Name,
+					SQL:           formatCreateRange(to, sc.Name, rt.Name, toRT),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       't',
+					ObjOID:        toOID,
+					Priority:      PriorityType,
+				})
+			}
+		}
+	}
+
+	if len(rebuiltDomainNames) > 0 || len(rebuiltRangeNames) > 0 {
 		filtered := ops[:0]
 		for _, op := range ops {
-			if (op.Type == OpAlterType || op.Type == OpCreateType || op.Type == OpDropType) && op.ObjType == 't' && rebuiltDomainNames[op.SchemaName+"."+op.ObjectName] {
-				continue
+			if (op.Type == OpAlterType || op.Type == OpCreateType || op.Type == OpDropType) && op.ObjType == 't' {
+				key := op.SchemaName + "." + op.ObjectName
+				if rebuiltDomainNames[key] || rebuiltRangeNames[key] {
+					continue
+				}
 			}
 			filtered = append(filtered, op)
 		}
 		ops = filtered
+	}
+
+	unwrappedDetachType := func(typeOID uint32) (string, bool) {
+		isArr := false
+		curOID := typeOID
+		if bt := from.typeByOID[curOID]; bt != nil && bt.Category == 'A' && rebuiltDomains[bt.Elem] != nil {
+			isArr = true
+			curOID = bt.Elem
+		}
+		dt := rebuiltDomains[curOID]
+		if dt == nil {
+			return "", false
+		}
+		baseOID, baseMod := dt.BaseTypeOID, dt.BaseTypMod
+		for rebuiltDomains[baseOID] != nil {
+			inner := rebuiltDomains[baseOID]
+			baseOID, baseMod = inner.BaseTypeOID, inner.BaseTypMod
+		}
+		if baseBT := from.typeByOID[baseOID]; baseBT != nil && baseBT.Category == 'A' && rebuiltDomains[baseBT.Elem] != nil {
+			isArr = true
+			inner := rebuiltDomains[baseBT.Elem]
+			baseOID, baseMod = inner.BaseTypeOID, inner.BaseTypMod
+			for rebuiltDomains[baseOID] != nil {
+				inner = rebuiltDomains[baseOID]
+				baseOID, baseMod = inner.BaseTypeOID, inner.BaseTypMod
+			}
+		}
+		res := from.FormatType(baseOID, baseMod)
+		if isArr {
+			res += "[]"
+		}
+		return res, true
+	}
+
+	dropAndRestoreConstraint := func(con *Constraint) {
+		if con == nil || con.ConParentID != 0 || con.Type == ConstraintTrigger || preDroppedRel[con.RelOID] {
+			return
+		}
+		cRel := from.GetRelationByOID(con.RelOID)
+		if cRel == nil || cRel.Schema == nil {
+			return
+		}
+		cSc := cRel.Schema.Name
+		conKey := cSc + "." + cRel.Name + "." + con.Name
+		dropOp := buildDropConstraintOp(cSc, cRel.Name, con)
+		if !preDroppedCon[con.OID] && !preDroppedConKey[conKey] && !preDroppedConKey[dropOp.SQL] {
+			preDroppedCon[con.OID] = true
+			preDroppedConKey[conKey] = true
+			preDroppedConKey[dropOp.SQL] = true
+			preExtra = append(preExtra, dropOp)
+		}
+		if !mainAddedCon[conKey] {
+			if toCRel := to.GetRelation(cSc, cRel.Name); toCRel != nil {
+				for _, toCon := range to.ConstraintsOf(toCRel.OID) {
+					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type != ConstraintTrigger {
+						mainAddedCon[conKey] = true
+						mainExtra = append(mainExtra, buildAddConstraintOp(to, cSc, cRel.Name, toCon))
+						if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
+							desc := cSc + "." + cRel.Name + "." + toCon.Name
+							if csql := formatCommentSQL(to, 'c', desc, 0, txt); csql != "" && !mainComments[csql] {
+								mainComments[csql] = true
+								mainExtra = append(mainExtra, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    desc,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'c',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
+	rebuildGenColDependents := func(fromRel *Relation, fromCol *Column, toRel *Relation, toCol *Column) {
+		scName := fromRel.Schema.Name
+
+		// Standalone indexes referencing the generated column (key, INCLUDE, expr, or WHERE).
+		for _, idx := range from.IndexesOf(fromRel.OID) {
+			if idx.ConstraintOID != 0 || idx.ParentIndexOID != 0 || idx.Schema == nil {
+				continue
+			}
+			if !attnumSliceContains(idx.Columns, fromCol.AttNum) && !objDependsOnColumn(from, 'i', idx.OID, fromRel.OID, fromCol.AttNum) {
+				continue
+			}
+			if idx.IsUnique {
+				for _, otherCon := range from.constraints {
+					if fkDependsOnConstraintOrIndex(from, otherCon, fromRel.OID, nil, idx.OID) {
+						dropAndRestoreConstraint(otherCon)
+					}
+				}
+			}
+			idxSc := idx.Schema.Name
+			if !preDroppedIdx[idx.OID] {
+				preDroppedIdx[idx.OID] = true
+				preExtra = append(preExtra, MigrationOp{
+					Type:          OpDropIndex,
+					SchemaName:    idxSc,
+					ObjectName:    idx.Name,
+					SQL:           fmt.Sprintf("DROP INDEX %s.%s", quoteIdentifier(idxSc), quoteIdentifier(idx.Name)),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'i',
+					ObjOID:        idx.OID,
+					Priority:      PriorityIndex,
+				})
+			}
+			idxKey := idxSc + "." + idx.Name
+			if !mainCreatedIdx[idxKey] {
+				if toSc := to.GetSchema(idxSc); toSc != nil {
+					if toIdx := toSc.Indexes[idx.Name]; toIdx != nil && toIdx.ConstraintOID == 0 && toIdx.ParentIndexOID == 0 {
+						if toIdxRel := to.GetRelationByOID(toIdx.RelOID); toIdxRel != nil {
+							mainCreatedIdx[idxKey] = true
+							mainExtra = append(mainExtra, MigrationOp{
+								Type:          OpCreateIndex,
+								SchemaName:    idxSc,
+								ObjectName:    toIdx.Name,
+								SQL:           buildCreateIndexSQL(toIdx, toIdxRel, idxSc),
+								Transactional: true,
+								Phase:         PhaseMain,
+								ObjType:       'i',
+								ObjOID:        toIdx.OID,
+								Priority:      PriorityIndex,
+							})
+							mainExtra = append(mainExtra, buildIndexColumnRenameOps(idxSc, toIdx, defaultIndexColumnNames(to, toIdx), effectiveIndexColumnNames(to, toIdx))...)
+							if txt, ok := to.GetComment('i', toIdx.OID, 0); ok && txt != "" {
+								desc := idxSc + "." + toIdx.Name
+								if csql := formatCommentSQL(to, 'i', desc, 0, txt); csql != "" && !mainComments[csql] {
+									mainComments[csql] = true
+									mainExtra = append(mainExtra, MigrationOp{
+										Type:          OpComment,
+										ObjectName:    desc,
+										SQL:           csql,
+										Transactional: true,
+										Phase:         PhaseMain,
+										ObjType:       'i',
+										Priority:      PriorityMetadata,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Constraints on fromRel referencing the generated column.
+		for _, con := range from.ConstraintsOf(fromRel.OID) {
+			if con.ConParentID != 0 || con.Type == ConstraintTrigger {
+				continue
+			}
+			refsCol := attnumSliceContains(con.Columns, fromCol.AttNum) ||
+				attnumSliceContains(con.IncludeColumns, fromCol.AttNum) ||
+				attnumSliceContains(con.FKDelSetCols, fromCol.AttNum) ||
+				(con.Type == ConstraintCheck && containsColumnRef(con.CheckExpr, fromCol.Name)) ||
+				objDependsOnColumn(from, 'c', con.OID, fromRel.OID, fromCol.AttNum)
+			if !refsCol {
+				continue
+			}
+			if con.Type == ConstraintPK || con.Type == ConstraintUnique {
+				for _, otherCon := range from.constraints {
+					if fkDependsOnConstraintOrIndex(from, otherCon, fromRel.OID, con, con.IndexOID) {
+						dropAndRestoreConstraint(otherCon)
+					}
+				}
+			}
+			dropAndRestoreConstraint(con)
+		}
+
+		// Inbound foreign keys on any table directly referencing (fromRel.OID, fromCol.AttNum).
+		for _, otherCon := range from.constraints {
+			if otherCon.Type == ConstraintFK && otherCon.ConParentID == 0 && otherCon.FRelOID == fromRel.OID && attnumSliceContains(otherCon.FColumns, fromCol.AttNum) {
+				dropAndRestoreConstraint(otherCon)
+			}
+		}
+
+		// Triggers on fromRel referencing the generated column.
+		for _, trig := range from.TriggersOf(fromRel.OID) {
+			if trig.ParentTriggerOID != 0 {
+				continue
+			}
+			refsCol := attnumSliceContains(trig.Columns, fromCol.AttNum) ||
+				(trig.WhenExpr != "" && containsColumnRef(trig.WhenExpr, fromCol.Name)) ||
+				objDependsOnColumn(from, 'g', trig.OID, fromRel.OID, fromCol.AttNum)
+			if !refsCol {
+				continue
+			}
+			if !preDroppedTrig[trig.OID] {
+				preDroppedTrig[trig.OID] = true
+				preExtra = append(preExtra, buildDropTriggerOp(scName, fromRel.Name, trig.Name, trig.OID))
+			}
+			trigKey := scName + "." + fromRel.Name + "." + trig.Name
+			if !mainCreatedTrig[trigKey] {
+				for _, toTrig := range to.TriggersOf(toRel.OID) {
+					if toTrig.Name == trig.Name && toTrig.ParentTriggerOID == 0 {
+						mainCreatedTrig[trigKey] = true
+						mainExtra = append(mainExtra, buildCreateTriggerOp(to, scName, fromRel.Name, toTrig))
+						if txt, ok := to.GetComment('g', toTrig.OID, 0); ok && txt != "" {
+							desc := scName + "." + fromRel.Name + "." + toTrig.Name
+							if csql := formatCommentSQL(to, 'g', desc, 0, txt); csql != "" && !mainComments[csql] {
+								mainComments[csql] = true
+								mainExtra = append(mainExtra, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    desc,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'g',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
+						break
+					}
+				}
+			}
+		}
+
+		// Policies on fromRel referencing the generated column.
+		for _, pol := range from.policiesByRel[fromRel.OID] {
+			refsCol := (pol.UsingExpr != "" && containsColumnRef(pol.UsingExpr, fromCol.Name)) ||
+				(pol.CheckExpr != "" && containsColumnRef(pol.CheckExpr, fromCol.Name)) ||
+				objDependsOnColumn(from, 'p', pol.OID, fromRel.OID, fromCol.AttNum)
+			if !refsCol {
+				continue
+			}
+			if !preDroppedPol[pol.OID] {
+				preDroppedPol[pol.OID] = true
+				preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
+			}
+			polKey := scName + "." + fromRel.Name + "." + pol.Name
+			if !mainCreatedPol[polKey] && !mainCreatedPol[scName+"."+pol.Name] {
+				for _, toPol := range to.policiesByRel[toRel.OID] {
+					if toPol.Name == pol.Name {
+						mainCreatedPol[polKey] = true
+						mainExtra = append(mainExtra, buildCreatePolicyOp(scName, fromRel.Name, toPol))
+						if txt, ok := to.GetComment('p', toPol.OID, 0); ok && txt != "" {
+							desc := scName + "." + fromRel.Name + "." + toPol.Name
+							if csql := formatCommentSQL(to, 'p', desc, 0, txt); csql != "" && !mainComments[csql] {
+								mainComments[csql] = true
+								mainExtra = append(mainExtra, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    desc,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'p',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
+						break
+					}
+				}
+			}
+		}
+
+		// Unchanged column comment on toCol.
+		if txt, ok := to.GetComment('r', toRel.OID, toCol.AttNum); ok && txt != "" {
+			desc := scName + "." + fromRel.Name
+			if csql := formatCommentSQL(to, 'r', desc, toCol.AttNum, txt); csql != "" && !mainComments[csql] {
+				mainComments[csql] = true
+				mainExtra = append(mainExtra, MigrationOp{
+					Type:          OpComment,
+					ObjectName:    desc,
+					SQL:           csql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					Priority:      PriorityMetadata,
+				})
+			}
+		}
 	}
 
 	// 2. Detach or rebuild kept table columns and composite attributes.
@@ -1117,18 +1581,23 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		for _, fromCol := range fromRel.Columns {
 			colUsesModColl := modifiedCollOIDs[fromCol.UserCollationOID]
 			modCollDepCount := 0
+			exprUsesRebuiltType := false
 			for _, d := range from.deps {
-				if d.ObjType == 'r' && d.ObjOID == fromRel.OID && d.ObjSubID == int32(fromCol.AttNum) && d.RefType == 'L' && modifiedCollOIDs[d.RefOID] {
-					modCollDepCount++
+				if d.ObjType == 'r' && d.ObjOID == fromRel.OID && d.ObjSubID == int32(fromCol.AttNum) {
+					if d.RefType == 'L' && modifiedCollOIDs[d.RefOID] {
+						modCollDepCount++
+					}
+					if d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID] && d.RefOID != fromCol.TypeOID {
+						exprUsesRebuiltType = true
+					}
 				}
 			}
 			ownCount := 0
 			if colUsesModColl {
 				ownCount = 1
 			}
-			exprUsesModColl := modCollDepCount > ownCount
-			rebuiltDom := rebuiltDomains[fromCol.TypeOID]
-			colUsesRebuiltDom := rebuiltDom != nil
+			exprUsesModColl := modCollDepCount > ownCount || exprUsesRebuiltType
+			rebuiltDomBase, colUsesRebuiltDom := unwrappedDetachType(fromCol.TypeOID)
 
 			toIdx, kept := toRel.colByName[fromCol.Name]
 			if !kept {
@@ -1146,7 +1615,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			if fromRel.RelKind == 'c' {
 				detachType := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
 				if colUsesRebuiltDom {
-					detachType = from.FormatType(rebuiltDom.BaseTypeOID, rebuiltDom.BaseTypMod)
+					detachType = rebuiltDomBase
 				}
 				preExtra = append(preExtra, MigrationOp{
 					Type:          OpAlterType,
@@ -1177,9 +1646,10 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				continue
 			}
 
-			// Stored generated column: drop in PhasePre and re-add in PhaseMain.
+			// Stored generated column: drop dependents and column in PhasePre, re-add in PhaseMain.
 			if fromCol.Generated == 's' {
 				extraViewTables[fromRel.OID] = true
+				rebuildGenColDependents(fromRel, fromCol, toRel, toCol)
 				colRef := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s", tableName, quoteIdentifier(fromCol.Name))
 				rebuiltGenColPrefix[colRef] = true
 				preExtra = append(preExtra, MigrationOp{
@@ -1232,25 +1702,14 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				extraViewTables[fromRel.OID] = true
 				if colUsesRebuiltDom {
 					for _, con := range from.ConstraintsOf(fromRel.OID) {
-						if con.Type == ConstraintCheck && !preDroppedCon[con.OID] && containsColumnRef(con.CheckExpr, fromCol.Name) {
-							preDroppedCon[con.OID] = true
-							preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
-							conKey := scName + "." + fromRel.Name + "." + con.Name
-							if !mainAddedCon[conKey] {
-								for _, toCon := range to.ConstraintsOf(toRel.OID) {
-									if toCon.Type == ConstraintCheck && toCon.Name == con.Name {
-										mainAddedCon[conKey] = true
-										mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
-										break
-									}
-								}
-							}
+						if con.Type == ConstraintCheck && containsColumnRef(con.CheckExpr, fromCol.Name) {
+							dropAndRestoreConstraint(con)
 						}
 					}
 				}
 				detachType := fromTypeStr
 				if colUsesRebuiltDom {
-					detachType = from.FormatType(rebuiltDom.BaseTypeOID, rebuiltDom.BaseTypMod)
+					detachType = rebuiltDomBase
 				}
 				preExtra = append(preExtra, MigrationOp{
 					Type:          OpAlterColumn,
@@ -1346,9 +1805,13 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	}
 
 	// 3. Rebuild kept constraints, indexes, triggers, policies, functions, and views
-	// that directly reference a modified collation in from.deps.
+	// that directly reference a modified collation or rebuilt domain/range type in from.deps.
 	for _, d := range from.deps {
-		if d.DepType == DepInternal || d.RefType != 'L' || !modifiedCollOIDs[d.RefOID] {
+		if d.DepType == DepInternal {
+			continue
+		}
+		refMatch := (d.RefType == 'L' && modifiedCollOIDs[d.RefOID]) || (d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID])
+		if !refMatch {
 			continue
 		}
 		switch d.ObjType {

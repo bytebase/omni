@@ -85,12 +85,51 @@ func domainOpOrder(t MigrationOpType) int {
 	}
 }
 
+// domainCollationSchema resolves the schema of a domain's user-defined collation
+// when it lives outside public, or "" otherwise.
+func domainCollationSchema(cat *Catalog, d *DomainType) string {
+	if cat == nil || d == nil || d.UserCollationOID == 0 {
+		return ""
+	}
+	for _, s := range cat.schemas {
+		if s != nil {
+			if uc := s.Collations[d.CollationName]; uc != nil && uc.OID == d.UserCollationOID {
+				if s.Name != "public" {
+					return s.Name
+				}
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+func domainCollationKey(d *DomainType, cat *Catalog) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	if sc := domainCollationSchema(cat, d); sc != "" {
+		return migrationQualifiedName(sc, d.CollationName)
+	}
+	return quoteIdentAlways(d.CollationName)
+}
+
+func formatDomainCollate(cat *Catalog, d *DomainType) string {
+	if d == nil || d.CollationName == "" {
+		return ""
+	}
+	if sc := domainCollationSchema(cat, d); sc != "" {
+		return " COLLATE " + migrationQualifiedName(sc, d.CollationName)
+	}
+	return formatCollate(d.CollationName)
+}
+
 // formatCreateDomain renders a CREATE DOMAIN statement.
 func formatCreateDomain(cat *Catalog, schemaName, name string, d *DomainType) string {
 	var buf strings.Builder
 	qn := migrationQualifiedName(schemaName, name)
 	baseType := cat.FormatType(d.BaseTypeOID, d.BaseTypMod)
-	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s%s", qn, baseType, formatCollate(d.CollationName)))
+	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s%s", qn, baseType, formatDomainCollate(cat, d)))
 
 	if d.Default != "" {
 		buf.WriteString(fmt.Sprintf(" DEFAULT %s", d.Default))
@@ -136,6 +175,36 @@ func generateDomainAlterOps(from, to *Catalog, entry DomainDiffEntry) []Migratio
 			Transactional: true,
 		})
 		return ops
+	}
+
+	// Collation change: PostgreSQL has no ALTER DOMAIN ... COLLATE; drop in
+	// PhasePre and recreate in PhaseMain (wrapModifiedCollationDependents
+	// detaches and restores any dependent columns, views, and constraints).
+	if domainCollationKey(d0, from) != domainCollationKey(d1, to) {
+		return []MigrationOp{
+			{
+				Type:          OpDropType,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP DOMAIN %s", qn),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       't',
+				ObjOID:        d0.TypeOID,
+				Priority:      PriorityType,
+			},
+			{
+				Type:          OpCreateType,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           formatCreateDomain(to, entry.SchemaName, entry.Name, d1),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        typeOID,
+				Priority:      PriorityType,
+			},
+		}
 	}
 
 	// Default change.

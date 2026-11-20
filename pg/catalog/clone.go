@@ -222,7 +222,7 @@ func (c *Catalog) Clone() *Catalog {
 			copy(ci.Exprs, idx.Exprs)
 		}
 		ci.OpClasses = slices.Clone(idx.OpClasses)
-		ci.Collations = slices.Clone(idx.Collations)
+		ci.Collations = cloneStringSlices(idx.Collations)
 		ci.ColumnNames = slices.Clone(idx.ColumnNames)
 		ci.Schema = clone.schemas[idx.Schema.OID]
 		clone.indexes[oid] = &ci
@@ -262,13 +262,7 @@ func (c *Catalog) Clone() *Catalog {
 	// --- Domain types: deep copy ---
 	clone.domainTypes = make(map[uint32]*DomainType, len(c.domainTypes))
 	for oid, dt := range c.domainTypes {
-		cd := DomainType{
-			TypeOID:     dt.TypeOID,
-			BaseTypeOID: dt.BaseTypeOID,
-			BaseTypMod:  dt.BaseTypMod,
-			NotNull:     dt.NotNull,
-			Default:     dt.Default,
-		}
+		cd := *dt
 		if dt.Constraints != nil {
 			cd.Constraints = make([]*DomainConstraint, len(dt.Constraints))
 			for i, dc := range dt.Constraints {

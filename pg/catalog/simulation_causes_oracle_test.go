@@ -3872,6 +3872,81 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c108From, c108To, Diff(c108From, c108To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining migration ops after c108 round-trip, got:\n%s", rem.SQL())
 		}
+
+		// Review round 7 regressions:
+		// 1. Unique index on partitioned table putting partition key only in INCLUDE is rejected (0A000).
+		// 2. Index COLLATE with quoted dots in schema/name round-trips without splitting on literal dots.
+		// 3. Domain collation change replaces the domain safely around dependent columns, constraints, and views.
+		// 4. Range type COLLATION is retained in RangeType, diffed, and emitted in GenerateMigration.
+		// 5. Stored generated column rebuilt for a modified collation preserves unchanged indexes, constraints, inbound FKs, triggers, policies, and views.
+		c109Part := New()
+		if code := simulationCatalogCode(t, c109Part, "CREATE TABLE p_inc_r7 (k int, v int) PARTITION BY LIST (k)"); code != "0" {
+			t.Fatalf("c109Part CREATE TABLE failed: %s", code)
+		}
+		if code := simulationCatalogCode(t, c109Part, "CREATE UNIQUE INDEX p_inc_r7_bad ON p_inc_r7 (v) INCLUDE (k)"); code != CodeFeatureNotSupported {
+			t.Fatalf("unique index with partition key only in INCLUDE answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if code := simulationCatalogCode(t, c109Part, "CREATE UNIQUE INDEX p_inc_r7_ok ON p_inc_r7 (k) INCLUDE (v)"); code != "0" {
+			t.Fatalf("unique index with partition key in key columns answered %s, want 0", code)
+		}
+
+		c109From := New()
+		c109To := New()
+		for _, stmt := range []string{
+			`CREATE COLLATION "a.b" (LOCALE = 'C')`,
+			`CREATE COLLATION coll_gen_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_a_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_b_r7 (LOCALE = 'POSIX')`,
+			`CREATE DOMAIN dom_chg_r7 AS text COLLATE coll_dom_a_r7`,
+			`CREATE TABLE t_gen_r7 (id int PRIMARY KEY, src text, g text COLLATE coll_gen_r7 GENERATED ALWAYS AS (lower(src)) STORED, d dom_chg_r7 DEFAULT 'x'::dom_chg_r7, CONSTRAINT t_gen_r7_uk UNIQUE (g), CONSTRAINT t_gen_r7_chk CHECK (g <> '' AND d <> ''))`,
+			`CREATE INDEX idx_gen_r7 ON t_gen_r7 (g)`,
+			`CREATE INDEX idx_dot_r7 ON t_gen_r7 (src COLLATE public."a.b")`,
+			`CREATE TABLE t_fk_r7 (id int PRIMARY KEY, g_ref text REFERENCES t_gen_r7(g))`,
+			`CREATE VIEW v_gen_r7 AS SELECT id, g, d FROM t_gen_r7`,
+		} {
+			if code := simulationCatalogCode(t, c109From, stmt); code != "0" {
+				t.Fatalf("c109From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			`CREATE COLLATION "a.b" (LOCALE = 'C')`,
+			`CREATE COLLATION coll_gen_r7 (LOCALE = 'POSIX')`,
+			`CREATE COLLATION coll_dom_a_r7 (LOCALE = 'C')`,
+			`CREATE COLLATION coll_dom_b_r7 (LOCALE = 'POSIX')`,
+			`CREATE DOMAIN dom_chg_r7 AS text COLLATE coll_dom_b_r7`,
+			`CREATE TYPE rng_r7 AS RANGE (SUBTYPE = text, COLLATION = public."a.b")`,
+			`CREATE TABLE t_gen_r7 (id int PRIMARY KEY, src text, g text COLLATE coll_gen_r7 GENERATED ALWAYS AS (lower(src)) STORED, d dom_chg_r7 DEFAULT 'x'::dom_chg_r7, CONSTRAINT t_gen_r7_uk UNIQUE (g), CONSTRAINT t_gen_r7_chk CHECK (g <> '' AND d <> ''))`,
+			`CREATE INDEX idx_gen_r7 ON t_gen_r7 (g)`,
+			`CREATE INDEX idx_dot_r7 ON t_gen_r7 (src COLLATE public."a.b")`,
+			`CREATE TABLE t_fk_r7 (id int PRIMARY KEY, g_ref text REFERENCES t_gen_r7(g))`,
+			`CREATE VIEW v_gen_r7 AS SELECT id, g, d FROM t_gen_r7`,
+		} {
+			if code := simulationCatalogCode(t, c109To, stmt); code != "0" {
+				t.Fatalf("c109To setup %s: %s", stmt, code)
+			}
+		}
+		migEmptyDot := GenerateMigration(New(), c109To, Diff(New(), c109To))
+		if !strings.Contains(migEmptyDot.SQL(), `COLLATE public."a.b"`) {
+			t.Fatalf("expected index DDL to preserve quoted dot in collation name, got:\n%s", migEmptyDot.SQL())
+		}
+		if !strings.Contains(migEmptyDot.SQL(), `CREATE TYPE "public"."rng_r7" AS RANGE (SUBTYPE = text, COLLATION = "public"."a.b")`) {
+			t.Fatalf("expected range DDL to retain COLLATION, got:\n%s", migEmptyDot.SQL())
+		}
+		c109Empty := New()
+		if code := simulationCatalogCode(t, c109Empty, migEmptyDot.SQL()); code != "0" {
+			t.Fatalf("applying empty->c109To migration failed with %s:\n%s", code, migEmptyDot.SQL())
+		}
+		if rem := GenerateMigration(c109Empty, c109To, Diff(c109Empty, c109To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c109To, got:\n%s", rem.SQL())
+		}
+
+		mig109 := GenerateMigration(c109From, c109To, Diff(c109From, c109To))
+		if code := simulationCatalogCode(t, c109From, mig109.SQL()); code != "0" {
+			t.Fatalf("applying c109From->c109To migration failed with %s:\n%s", code, mig109.SQL())
+		}
+		if rem := GenerateMigration(c109From, c109To, Diff(c109From, c109To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c109From->c109To (generated column dependents, domain collation, range collation), got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {
