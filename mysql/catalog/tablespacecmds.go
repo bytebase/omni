@@ -331,12 +331,36 @@ func (c *Catalog) validateInnoDBTablespaceEncryption(rawTS, tblEncryption string
 	if enc != "" && !strings.EqualFold(enc, "Y") && !strings.EqualFold(enc, "N") {
 		return nil
 	}
-	tsEnc := c.tablespaceEncrypted[ts]
 	tblEnc := strings.EqualFold(enc, "Y")
+	tsEnc, known := c.tablespaceEncrypted[ts]
+	if !known {
+		if c.loadingSDL {
+			if c.tablespaceEncrypted == nil {
+				c.tablespaceEncrypted = make(map[string]bool)
+			}
+			c.tablespaceEncrypted[ts] = tblEnc
+		}
+		return nil
+	}
 	if tsEnc != tblEnc {
 		return errTablespaceEncryptionMismatch(tblEnc)
 	}
 	return nil
+}
+
+func (c *Catalog) updateTablespaceTablesEncryption(tsName string, encrypted bool) {
+	for _, db := range c.databases {
+		for _, tbl := range db.Tables {
+			if tbl == nil || !isInnoDBEngine(tbl.Engine) || unquoteTableOption(tbl.Tablespace) != tsName {
+				continue
+			}
+			if encrypted {
+				tbl.Encryption = "Y"
+			} else {
+				tbl.Encryption = ""
+			}
+		}
+	}
 }
 
 func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
@@ -603,10 +627,12 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		targetName = stmt.RenameTo
 	}
 	if stmt.HasEncryption || stmt.Encryption != "" {
+		enc := strings.EqualFold(stmt.Encryption, "Y")
 		if c.tablespaceEncrypted == nil {
 			c.tablespaceEncrypted = make(map[string]bool)
 		}
-		c.tablespaceEncrypted[targetName] = strings.EqualFold(stmt.Encryption, "Y")
+		c.tablespaceEncrypted[targetName] = enc
+		c.updateTablespaceTablesEncryption(targetName, enc)
 	}
 	return nil
 }

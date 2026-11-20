@@ -4282,6 +4282,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    3825,
 		},
 		{
+			name:    "ALTER TABLE ADD COLUMN after ALTER TABLESPACE ENCRYPTION='N' accepted",
+			setup:   []string{"CREATE TABLESPACE ts_enc_n_chain ADD DATAFILE 'ts_enc_n_chain.ibd' ENCRYPTION='N'", "CREATE TABLE a (id INT) TABLESPACE ts_enc_n_chain", "ALTER TABLESPACE ts_enc_n_chain ENCRYPTION='N'"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_enc_n_chain"},
+			stmt:    "ALTER TABLE a ADD COLUMN c INT",
+			code:    0,
+		},
+		{
 			name: "SET time_zone with unknown zone rejected with 1298",
 			stmt: "SET time_zone = 'Invalid/Zone'",
 			code: 1298,
@@ -4441,6 +4448,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	if gotShow := tzOracleCat.ShowCreateTable("d", "a"); !strings.Contains(gotShow, "DEFAULT '2026-06-01 08:00:00'") {
 		t.Fatalf("catalog named time_zone SHOW CREATE TABLE:\n%s", gotShow)
+	}
+
+	// SHOW CREATE TABLE output for a general-tablespace table loaded via
+	// LoadSDL preserves tablespace encryption inference across subsequent ALTER.
+	reset()
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a")
+		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_sdl_plain")
+	})
+	for _, stmt := range []string{
+		"CREATE TABLESPACE ts_sdl_plain ADD DATAFILE 'ts_sdl_plain.ibd'",
+		"CREATE TABLE a (id INT PRIMARY KEY) TABLESPACE ts_sdl_plain",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var sdlTblName, sdlEngineCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&sdlTblName, &sdlEngineCreate); err != nil {
+		t.Fatalf("mysql SHOW CREATE TABLE a (sdl): %v", err)
+	}
+	sdlCat, err := LoadSDL("CREATE DATABASE d; USE d; " + sdlEngineCreate + ";")
+	if err != nil {
+		t.Fatalf("LoadSDL(%s): %v", sdlEngineCreate, err)
+	}
+	execAlterClauses(t, sdlCat, "ALTER TABLE a ADD COLUMN c INT;")
+	if got, _ := simulationCatalogRefusal(t, sdlCat, "ALTER TABLE a ENCRYPTION='Y'"); got != 3825 {
+		t.Fatalf("post-SDL conflicting ENCRYPTION='Y' got %d, want 3825", got)
 	}
 }
 
@@ -4889,6 +4924,42 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("altered unencrypted tablespace accepted ENCRYPTION='Y': got %d, want 3825", got)
 	}
 	execAlterClauses(t, encCat, "DROP TABLESPACE ts_toggle;")
+
+	// ALTER TABLESPACE ... ENCRYPTION updates resident InnoDB tables (as verified
+	// against live mysql:8.0.46 with keyring_file.so) so SHOW CREATE TABLE and
+	// subsequent ALTER TABLE statements stay consistent.
+	execAlterClauses(t, encCat, "CREATE TABLESPACE ts_prop ADD DATAFILE 'ts_prop.ibd'; CREATE TABLE t_prop (id INT PRIMARY KEY) TABLESPACE ts_prop; ALTER TABLESPACE ts_prop ENCRYPTION='Y'; ALTER TABLE t_prop ADD COLUMN c INT;")
+	if gotShow := encCat.ShowCreateTable("d", "t_prop"); !strings.Contains(gotShow, "ENCRYPTION='Y'") {
+		t.Fatalf("resident table missing ENCRYPTION='Y' after ALTER TABLESPACE ENCRYPTION='Y':\n%s", gotShow)
+	}
+	execAlterClauses(t, encCat, "ALTER TABLESPACE ts_prop ENCRYPTION='N'; ALTER TABLE t_prop ADD COLUMN c2 INT;")
+	if gotShow := encCat.ShowCreateTable("d", "t_prop"); strings.Contains(gotShow, "ENCRYPTION=") {
+		t.Fatalf("resident table still showed ENCRYPTION after ALTER TABLESPACE ENCRYPTION='N':\n%s", gotShow)
+	}
+	if got, _ := simulationCatalogRefusal(t, encCat, "ALTER TABLE t_prop ENCRYPTION='Y'"); got != 3825 {
+		t.Fatalf("ALTER TABLE t_prop ENCRYPTION='Y' on decrypted tablespace got %d, want 3825", got)
+	}
+
+	// LoadSDL infers unknown general tablespace encryption from loaded tables
+	// instead of assuming false.
+	sdlEncCat, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TABLE t_sdl_y (id INT PRIMARY KEY) TABLESPACE ts_sdl_y ENCRYPTION='Y';")
+	if err != nil {
+		t.Fatalf("LoadSDL encrypted general tablespace failed: %v", err)
+	}
+	execAlterClauses(t, sdlEncCat, "ALTER TABLE t_sdl_y ADD COLUMN c INT;")
+	if got, _ := simulationCatalogRefusal(t, sdlEncCat, "CREATE TABLE t_sdl_plain (id INT) TABLESPACE ts_sdl_y"); got != 3825 {
+		t.Fatalf("table omitting ENCRYPTION in SDL-inferred encrypted tablespace got %d, want 3825", got)
+	}
+	if _, err := LoadSDL("CREATE DATABASE d; USE d; CREATE TABLE t1 (id INT) TABLESPACE ts_s ENCRYPTION='Y'; CREATE TABLE t2 (id INT) TABLESPACE ts_s;"); err == nil {
+		t.Fatal("LoadSDL accepted conflicting encryption states for the same general tablespace, want 3825")
+	}
+
+	// Deeply nested DEFAULT (ABS(...)) validates in linear time without quadratic
+	// AST re-traversal.
+	const absDepth = 2000
+	deepExpr := strings.Repeat("ABS(", absDepth) + "1" + strings.Repeat(")", absDepth)
+	deepCat := New()
+	execAlterClauses(t, deepCat, "CREATE DATABASE d; USE d; CREATE TABLE t_deep (a INT DEFAULT ("+deepExpr+"));")
 
 	// Named time zones do not consult host OS tzdata unless explicitly
 	// configured on the catalog via SetNamedTimeZones/SetNamedTimeZone.

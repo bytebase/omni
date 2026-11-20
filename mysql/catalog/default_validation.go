@@ -101,7 +101,7 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 				err = errDefaultValExprDisallowedFunc(col.Name)
 				return false
 			case *nodes.FuncCallExpr:
-				if exprHasDisallowedDefaultFunc(x, c.isIgnoreSpaceSQLMode()) {
+				if isDisallowedDefaultFuncCall(x, c.isIgnoreSpaceSQLMode()) {
 					err = errDefaultValExprDisallowedFunc(col.Name)
 					return false
 				}
@@ -137,6 +137,13 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 	return nil
 }
 
+func isDisallowedDefaultFuncCall(fn *nodes.FuncCallExpr, ignoreSpace bool) bool {
+	if fn == nil {
+		return false
+	}
+	return fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name)
+}
+
 func exprHasDisallowedDefaultFunc(expr nodes.ExprNode, ignoreSpace bool) bool {
 	if expr == nil {
 		return false
@@ -147,7 +154,7 @@ func exprHasDisallowedDefaultFunc(expr nodes.ExprNode, ignoreSpace bool) bool {
 			return false
 		}
 		if fn, ok := n.(*nodes.FuncCallExpr); ok {
-			if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
+			if isDisallowedDefaultFuncCall(fn, ignoreSpace) {
 				found = true
 				return false
 			}
