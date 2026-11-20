@@ -2701,9 +2701,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		c74 := New()
 		for _, stmt := range []string{
 			"CREATE SCHEMA excl_opc_s",
-			"CREATE OPERATOR CLASS excl_opc_s.excl_ops FOR TYPE int USING gist AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
+			// PostgreSQL has no &&(integer, integer); = is a commutative member.
+			"CREATE OPERATOR CLASS excl_opc_s.excl_ops FOR TYPE int USING gist AS OPERATOR 3 =, FUNCTION 1 btint4cmp(int, int)",
 			"CREATE TABLE excl_opc_t (a int)",
-			"ALTER TABLE excl_opc_t ADD CONSTRAINT excl_opc_con EXCLUDE USING gist (a excl_opc_s.excl_ops WITH &&)",
+			"ALTER TABLE excl_opc_t ADD CONSTRAINT excl_opc_con EXCLUDE USING gist (a excl_opc_s.excl_ops WITH =)",
 			"DROP SCHEMA excl_opc_s CASCADE",
 		} {
 			if code := simulationCatalogCode(t, c74, stmt); code != "0" {
@@ -2869,8 +2870,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE ROLE fam_schema_owner",
 			"CREATE SCHEMA owned_fam_s AUTHORIZATION fam_schema_owner",
 			"CREATE OPERATOR FAMILY owned_fam_s.fam USING gist",
-			"CREATE OPERATOR CLASS public.ext_gist_ops FOR TYPE int USING gist FAMILY owned_fam_s.fam AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
-			"CREATE TABLE public.fam_idx_t (a int, CONSTRAINT fam_excl EXCLUDE USING gist (a public.ext_gist_ops WITH &&))",
+			"CREATE OPERATOR CLASS public.ext_gist_ops FOR TYPE int USING gist FAMILY owned_fam_s.fam AS OPERATOR 3 =, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE public.fam_idx_t (a int, CONSTRAINT fam_excl EXCLUDE USING gist (a public.ext_gist_ops WITH =))",
 		} {
 			if code := simulationCatalogCode(t, c79, stmt); code != "0" {
 				t.Fatalf("catalog refused %s with %s", stmt, code)
@@ -5253,6 +5254,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_values_agg_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (count(*))", CodeGroupingError},
 			{"CREATE RULE r_values_win_r36 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (row_number() OVER ())", CodeWindowingError},
 			{"CREATE INDEX i_vacuum_scale_r36 ON t_r20 (id) WITH (vacuum_cleanup_index_scale_factor = 0.1)", "0"},
+			// Round 38.
+			{"CREATE FUNCTION eq_r38(int, int) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT $1 = $2'", "0"},
+			{"CREATE OPERATOR ==== (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38)", "0"},
+			{"CREATE OPERATOR FAMILY fam_nc_r38 USING btree; CREATE OPERATOR CLASS opc_nc_r38 FOR TYPE int USING btree FAMILY fam_nc_r38 AS OPERATOR 3 ====, FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_nc_r38 WITH ====)", CodeWrongObjectType},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id WITH <)", CodeWrongObjectType},
+			{"DROP OPERATOR ==== (int, int)", CodeDependentObjects},
+			{"CREATE SCHEMA hid_r38; CREATE OPERATOR hid_r38.<<< (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38, COMMUTATOR = OPERATOR(hid_r38.<<<))", "0"},
+			{"CREATE OPERATOR FAMILY fam_hid_r38 USING btree; CREATE OPERATOR CLASS opc_hid_r38 FOR TYPE int USING btree FAMILY fam_hid_r38 AS OPERATOR 3 hid_r38.<<<, FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_hid_r38 WITH <<<)", CodeUndefinedFunction},
+			{"ALTER TABLE t_r20 ADD EXCLUDE USING btree (id opc_hid_r38 WITH OPERATOR(hid_r38.<<<))", "0"},
+			{"CREATE OPERATOR ===== (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38); CREATE OPERATOR FAMILY fam_loose_r38 USING btree; ALTER OPERATOR FAMILY fam_loose_r38 USING btree ADD OPERATOR 3 ===== (int, int)", "0"},
+			{"DROP OPERATOR ===== (int, int)", "0"},
+			{"DROP OPERATOR ==== (int, int) CASCADE; CREATE OPERATOR CLASS opc_nc_r38 FOR TYPE int USING btree FAMILY fam_nc_r38 AS FUNCTION 1 btint4cmp(int, int)", "0"},
+			{"CREATE VIEW v_tmp_r38 AS SELECT 1 AS x; CREATE TEMP VIEW v_tmp_r38 AS SELECT 2 AS y", "0"},
+			{"CREATE TEMP VIEW v_tmp_r38 AS SELECT 3 AS z", CodeDuplicateTable},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)

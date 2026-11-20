@@ -746,9 +746,19 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 			}
 			if inFamily && opSchema == "" {
 				if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID != 0 {
+					if err := c.checkExclusionOperatorCommutes(opOID); err != nil {
+						return err
+					}
 					resolvedExclOpOIDs[i] = opOID
+					continue
 				}
-				continue
+				// The class names an operator the search path does not show.
+				if !c.snapshot && !c.installingSnapshot && !c.operatorVisibleFor(opName, colType) {
+					return &Error{
+						Code:    CodeUndefinedFunction,
+						Message: fmt.Sprintf("operator does not exist: %s %s %s", c.typeName(colType), opName, c.typeName(colType)),
+					}
+				}
 			}
 		}
 		opOID, err := c.resolveExclusionOperatorOID(opSchema, opName, colType)
@@ -756,6 +766,9 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 			return err
 		}
 		if err := c.validateExclusionOpFamilyMember(am, opcOID, opOID, opName); err != nil {
+			return err
+		}
+		if err := c.checkExclusionOperatorCommutes(opOID); err != nil {
 			return err
 		}
 		resolvedExclOpOIDs[i] = opOID
@@ -903,6 +916,22 @@ func (c *Catalog) resolveExclusionOperatorOID(opSchema, opName string, colType u
 		return 0, err
 	}
 	return op.OID, nil
+}
+
+// checkExclusionOperatorCommutes refuses an exclusion operator that is not
+// its own commutator (indexcmds.c ComputeIndexAttrs).
+func (c *Catalog) checkExclusionOperatorCommutes(opOID uint32) error {
+	if opOID == 0 || c.snapshot || c.installingSnapshot {
+		return nil
+	}
+	op := c.operByOID[opOID]
+	if op == nil || op.Com == op.OID {
+		return nil
+	}
+	return &Error{
+		Code:    CodeWrongObjectType,
+		Message: fmt.Sprintf("operator %s(%s,%s) is not commutative", op.Name, c.typeName(op.Left), c.typeName(op.Right)),
+	}
 }
 
 func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOID uint32, opName string) error {
@@ -1099,7 +1128,34 @@ func (c *Catalog) resolveVisibleOperatorOID(name string, left, right uint32) uin
 			}
 		}
 	}
-	return ops[0].OID
+	return 0
+}
+
+// operatorVisibleFor reports whether an operator of the name that takes the
+// type on both sides, directly or by coercion, lies on the search path.
+func (c *Catalog) operatorVisibleFor(name string, colType uint32) bool {
+	visible := make(map[uint32]bool)
+	for _, nsOID := range c.searchPathWithCatalog() {
+		visible[nsOID] = true
+	}
+	for key, ops := range c.operByKey {
+		if key.name != name {
+			continue
+		}
+		for _, op := range ops {
+			if op.Kind == 'l' {
+				continue
+			}
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if visible[opNS] && c.canCoerceArgs([]uint32{colType, colType}, []uint32{op.Left, op.Right}) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // removeConstraint removes a single constraint and its backing index (if any).

@@ -1119,12 +1119,31 @@ func (c *Catalog) removeOperatorObjects(stmt *nodes.DropStmt) error {
 		}
 	}
 	for _, op := range targets {
+		c.detachOperatorFromOpFamilies(op)
 		if cascade {
 			c.dropDependents('O', op.OID)
 		}
 		c.removeOperator(op.OID)
 	}
 	return nil
+}
+
+// detachOperatorFromOpFamilies removes a dropped operator from the families
+// that list it as a loose member (ALTER OPERATOR FAMILY ... ADD), which
+// depend on it automatically: the family stays.
+func (c *Catalog) detachOperatorFromOpFamilies(op *BuiltinOperator) {
+	var fams []uint32
+	for _, d := range c.deps {
+		if d.ObjType == 'Q' && d.RefType == 'O' && d.RefOID == op.OID && d.DepType == DepAuto {
+			fams = append(fams, d.ObjOID)
+		}
+	}
+	for _, famOID := range fams {
+		if fam := c.opFamilies[famOID]; fam != nil {
+			delete(fam.Operators, op.Name)
+		}
+		c.removeDep('Q', famOID, 'O', op.OID)
+	}
 }
 
 func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {

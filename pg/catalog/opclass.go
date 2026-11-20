@@ -350,6 +350,7 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		}
 	}
 	c.opClasses[opc.OID] = opc
+	c.recordOpClassMemberDeps('q', opc.OID, stmt.Items, typeOID, DepNormal)
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
 	if familyOID != 0 {
 		c.recordDependency('q', opc.OID, 0, 'Q', familyOID, 0, DepNormal)
@@ -394,6 +395,9 @@ func (c *Catalog) AlterOpFamily(stmt *nodes.AlterOpFamilyStmt) error {
 				if fam.Operators != nil {
 					delete(fam.Operators, opName)
 				}
+				if opOID := c.opClassMemberOperatorOID(ci, 0); opOID != 0 {
+					c.removeDep('Q', fam.OID, 'O', opOID)
+				}
 			} else {
 				if fam.Operators == nil {
 					fam.Operators = make(map[string]bool)
@@ -401,8 +405,80 @@ func (c *Catalog) AlterOpFamily(stmt *nodes.AlterOpFamilyStmt) error {
 				fam.Operators[opName] = true
 			}
 		}
+		if !stmt.IsDrop {
+			c.recordOpClassMemberDeps('Q', fam.OID, stmt.Items, 0, DepAuto)
+		}
 	}
 	return nil
+}
+
+// recordOpClassMemberDeps records that an operator class or family depends on
+// each user-defined operator it lists (opclasscmds.c storeOperators): an
+// operator class member normally, so DROP OPERATOR needs CASCADE and then
+// drops the class, and a loose family member automatically, so dropping the
+// operator only removes the member.
+func (c *Catalog) recordOpClassMemberDeps(objType byte, objOID uint32, items *nodes.List, typeOID uint32, depType DepType) {
+	if items == nil {
+		return
+	}
+	for _, raw := range items.Items {
+		ci, ok := raw.(*nodes.CreateOpClassItem)
+		if !ok || ci == nil || ci.Name == nil || ci.Itemtype != 1 {
+			continue
+		}
+		if opOID := c.opClassMemberOperatorOID(ci, typeOID); opOID >= FirstNormalObjectId {
+			c.recordDependency(objType, objOID, 0, 'O', opOID, 0, depType)
+		}
+	}
+}
+
+// opClassMemberOperatorOID resolves an operator class item's operator from
+// its argument types, or from the class's input type when it names none.
+func (c *Catalog) opClassMemberOperatorOID(ci *nodes.CreateOpClassItem, typeOID uint32) uint32 {
+	schemaName, opName := qualifiedName(ci.Name.Objname)
+	left, right := typeOID, typeOID
+	if args := ci.Name.Objargs; args != nil && len(args.Items) == 2 {
+		for i, item := range args.Items {
+			tn, ok := item.(*nodes.TypeName)
+			if !ok {
+				return 0
+			}
+			oid, _, err := c.resolveTypeName(tn)
+			if err != nil {
+				return 0
+			}
+			if i == 0 {
+				left = oid
+			} else {
+				right = oid
+			}
+		}
+	}
+	ops := c.operByKey[operKey{name: opName, left: left, right: right}]
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return 0
+		}
+		for _, op := range ops {
+			if op.OID >= FirstNormalObjectId && c.operatorSchemas[op.OID] == s.OID {
+				return op.OID
+			}
+		}
+		return 0
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		for _, op := range ops {
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if opNS == nsOID {
+				return op.OID
+			}
+		}
+	}
+	return 0
 }
 
 // LookupAccessMethod returns the access method with the given name, or nil.
