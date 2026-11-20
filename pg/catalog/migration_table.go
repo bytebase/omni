@@ -114,7 +114,11 @@ func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relati
 		b.WriteString("CREATE TABLE ")
 	}
 
-	b.WriteString(migrationQualifiedName(schemaName, rel.Name))
+	if persistence == 't' && !isTempSchemaName(schemaName) {
+		b.WriteString(quoteIdentAlways(rel.Name))
+	} else {
+		b.WriteString(migrationQualifiedName(schemaName, rel.Name))
+	}
 	b.WriteString(" (\n")
 
 	// Column definitions.

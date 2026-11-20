@@ -139,6 +139,9 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 // buildCreateViewOp creates a CREATE VIEW op for an added view.
 func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	if entry.To != nil && entry.To.Persistence == 't' && !isTempSchemaName(entry.SchemaName) {
+		qn = quoteIdentAlways(entry.Name)
+	}
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder
@@ -230,6 +233,9 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	}
 
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	if entry.To != nil && entry.To.Persistence == 't' && !isTempSchemaName(entry.SchemaName) {
+		qn = quoteIdentAlways(entry.Name)
+	}
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder

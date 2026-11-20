@@ -74,8 +74,42 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil || entry.To == nil {
 				continue
 			}
+			fromPers := normalizeRelPersistence(entry.From.Persistence)
+			toPers := normalizeRelPersistence(entry.To.Persistence)
+			fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To)
+			if fromPers != toPers && (fromPers == 't' || toPers == 't') {
+				if fromOwner != "" && !ownerDropped(from, to, entry.From) {
+					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("DROP SEQUENCE %s", formatSequenceTargetName(entry.SchemaName, entry.From)),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       preSequenceObjType,
+					ObjOID:        entry.From.OID,
+					Priority:      PrioritySequence,
+				})
+				ops = append(ops, MigrationOp{
+					Type:          OpCreateSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           formatCreateSequence(to, entry.SchemaName, entry.To),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        entry.To.OID,
+					Priority:      PrioritySequence,
+				})
+				if toOwner != "" {
+					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, toOwner, PhasePost))
+				}
+				continue
+			}
 			sql := formatAlterSequence(from, to, entry.SchemaName, entry.From, entry.To)
-			if fromOwner, toOwner := sequenceOwner(from, entry.From), sequenceOwner(to, entry.To); fromOwner != toOwner || fromOwner != "" && ownerDropped(from, to, entry.From) {
+			if fromOwner != toOwner || fromOwner != "" && ownerDropped(from, to, entry.From) {
 				// Release the old owner first: dropping it would take the sequence.
 				if fromOwner != "" {
 					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.From, "NONE", PhasePre))
@@ -83,6 +117,23 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				if toOwner != "" {
 					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, toOwner, PhasePost))
 				}
+			}
+			if fromPers != toPers {
+				mode := "LOGGED"
+				if toPers == 'u' {
+					mode = "UNLOGGED"
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER SEQUENCE %s SET %s", formatSequenceTargetName(entry.SchemaName, entry.To), mode),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        entry.To.OID,
+					Priority:      PrioritySequence,
+				})
 			}
 			if sql != "" {
 				ops = append(ops, MigrationOp{
@@ -157,6 +208,13 @@ func ownerDropped(from, to *Catalog, seq *Sequence) bool {
 // owner while the owner's default depends on it.
 const preSequenceObjType = 's'
 
+func formatSequenceTargetName(schemaName string, seq *Sequence) string {
+	if seq != nil && seq.Persistence == 't' && !isTempSchemaName(schemaName) {
+		return quoteIdentAlways(seq.Name)
+	}
+	return migrationQualifiedName(schemaName, seq.Name)
+}
+
 // sequenceOwnedByOp sets the column that owns seq, or NONE. A new owner is
 // set after every table exists; NONE runs among the drops.
 func sequenceOwnedByOp(schemaName string, seq *Sequence, owner string, phase MigrationPhase) MigrationOp {
@@ -168,7 +226,7 @@ func sequenceOwnedByOp(schemaName string, seq *Sequence, owner string, phase Mig
 		Type:          OpAlterSequence,
 		SchemaName:    schemaName,
 		ObjectName:    seq.Name,
-		SQL:           fmt.Sprintf("ALTER SEQUENCE %s OWNED BY %s", migrationQualifiedName(schemaName, seq.Name), owner),
+		SQL:           fmt.Sprintf("ALTER SEQUENCE %s OWNED BY %s", formatSequenceTargetName(schemaName, seq), owner),
 		Transactional: true,
 		Phase:         phase,
 		ObjType:       objType,
@@ -227,7 +285,7 @@ func formatCreateSequence(c *Catalog, schemaName string, seq *Sequence) string {
 	default:
 		b.WriteString("CREATE SEQUENCE ")
 	}
-	b.WriteString(migrationQualifiedName(schemaName, seq.Name))
+	b.WriteString(formatSequenceTargetName(schemaName, seq))
 	if seq.TypeOID != 0 && seq.TypeOID != INT8OID {
 		b.WriteString("\n    AS " + c.FormatType(seq.TypeOID, -1))
 	}
@@ -282,6 +340,6 @@ func formatAlterSequence(fromCat, toCat *Catalog, schemaName string, from, to *S
 	}
 
 	return fmt.Sprintf("ALTER SEQUENCE %s\n    %s",
-		migrationQualifiedName(schemaName, to.Name),
+		formatSequenceTargetName(schemaName, to),
 		strings.Join(clauses, "\n    "))
 }

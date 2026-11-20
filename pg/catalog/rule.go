@@ -748,17 +748,25 @@ type ruleEvalContext struct {
 	disallowWin   string
 }
 
-func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry) {
+func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry, snapshot bool) error {
 	if ctx == nil || name == "" {
-		return
+		return nil
 	}
 	if ctx.scope == nil {
 		ctx.scope = make(map[string]ruleScopeEntry)
 	}
-	if _, exists := ctx.scope[name]; !exists {
+	if _, exists := ctx.scope[name]; exists {
+		if !snapshot && !strings.HasPrefix(name, "\x00") {
+			return &Error{
+				Code:    CodeDuplicateAlias,
+				Message: fmt.Sprintf("table name %q specified more than once", name),
+			}
+		}
+	} else {
 		ctx.scopeOrder = append(ctx.scopeOrder, name)
 	}
 	ctx.scope[name] = se
+	return nil
 }
 
 func (c *Catalog) buildRuleBindings(ownerRel *Relation, event nodes.CmdType, whereClause nodes.Node, actions *nodes.List) (*ruleBindings, error) {
@@ -964,7 +972,7 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 			}
 		}
 		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, aliasCols)
-		ctx.setScope(name, ruleScopeEntry{
+		if err := ctx.setScope(name, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           alias,
 			isVirtual:       true,
@@ -972,7 +980,9 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 			virtualColTypes: vTypes,
 			virtualColOrder: vOrder,
 			anyCol:          vAny,
-		})
+		}, c.snapshot); err != nil {
+			return 0, err
+		}
 		if vAny {
 			ctx.hasOpenSource = true
 		}
@@ -986,12 +996,14 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 				Message: fmt.Sprintf("table %q has %d columns available but %d columns specified", name, len(rel.Columns), len(aliasCols)),
 			}
 		}
-		ctx.setScope(name, ruleScopeEntry{
+		if err := ctx.setScope(name, ruleScopeEntry{
 			relOID:     relOID,
 			hasAlias:   hasAlias,
 			alias:      alias,
 			colAliases: aliasCols,
-		})
+		}, c.snapshot); err != nil {
+			return 0, err
+		}
 	}
 	return relOID, nil
 }
@@ -1036,7 +1048,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		}
 		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, baseAny, aliasCols)
 		if v.Alias != nil && v.Alias.Aliasname != "" {
-			ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
+			if err := ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
 				hasAlias:        true,
 				alias:           v.Alias.Aliasname,
 				isVirtual:       true,
@@ -1044,7 +1056,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				virtualColTypes: vTypes,
 				virtualColOrder: vOrder,
 				anyCol:          vAny,
-			})
+			}, c.snapshot); err != nil {
+				return err
+			}
 		}
 		if vAny {
 			ctx.hasOpenSource = true
@@ -1097,7 +1111,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		if scopeName == "" {
 			scopeName = fmt.Sprintf("\x00rowsfrom_%d", len(ctx.scope))
 		}
-		ctx.setScope(scopeName, ruleScopeEntry{
+		if err := ctx.setScope(scopeName, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           aliasName,
 			isVirtual:       true,
@@ -1105,7 +1119,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			virtualColTypes: vTypes,
 			virtualColOrder: vOrder,
 			anyCol:          vAny,
-		})
+		}, c.snapshot); err != nil {
+			return err
+		}
 		if vAny {
 			ctx.hasOpenSource = true
 		}
@@ -1172,7 +1188,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			}
 		}
 		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, baseTypes, false, aliasCols)
-		ctx.setScope(scopeName, ruleScopeEntry{
+		if err := ctx.setScope(scopeName, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           aliasName,
 			isVirtual:       true,
@@ -1180,7 +1196,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			virtualColTypes: vTypes,
 			virtualColOrder: vOrder,
 			anyCol:          vAny,
-		})
+		}, c.snapshot); err != nil {
+			return err
+		}
 	case *nodes.JsonTable:
 		fnCtx := ctx
 		if !v.Lateral {
@@ -1226,7 +1244,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			}
 		}
 		vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(baseCols, nil, false, aliasCols)
-		ctx.setScope(scopeName, ruleScopeEntry{
+		if err := ctx.setScope(scopeName, ruleScopeEntry{
 			hasAlias:        hasAlias,
 			alias:           aliasName,
 			isVirtual:       true,
@@ -1234,7 +1252,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			virtualColTypes: vTypes,
 			virtualColOrder: vOrder,
 			anyCol:          vAny,
-		})
+		}, c.snapshot); err != nil {
+			return err
+		}
 	case *nodes.RangeTableSample:
 		if err := c.collectTableRefScope(b, v.Relation, ctx); err != nil {
 			return err
@@ -1349,7 +1369,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 						juOrder = append(juOrder, ub.name)
 					}
 				}
-				ctx.setScope(v.JoinUsing.Aliasname, ruleScopeEntry{
+				if err := ctx.setScope(v.JoinUsing.Aliasname, ruleScopeEntry{
 					hasAlias:        true,
 					alias:           v.JoinUsing.Aliasname,
 					isVirtual:       true,
@@ -1357,7 +1377,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 					virtualColOrder: juOrder,
 					isJoinAlias:     true,
 					joinRels:        append(append([]uint32(nil), lRels...), rRels...),
-				})
+				}, c.snapshot); err != nil {
+					return err
+				}
 			}
 		} else if v.IsNatural {
 			if ctx.usingCols == nil {
@@ -1411,7 +1433,7 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			}
 			vCols, vTypes, vOrder, vAny := applyVirtualAliasCols(combinedCols, nil, lAny || rAny, aliasCols)
 			joinRels := append(append([]uint32(nil), lRels...), rRels...)
-			ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
+			if err := ctx.setScope(v.Alias.Aliasname, ruleScopeEntry{
 				hasAlias:          true,
 				alias:             v.Alias.Aliasname,
 				isVirtual:         true,
@@ -1422,7 +1444,9 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 				isJoinAlias:       true,
 				hasJoinColAliases: len(aliasCols) > 0,
 				joinRels:          joinRels,
-			})
+			}, c.snapshot); err != nil {
+				return err
+			}
 			if vAny {
 				ctx.hasOpenSource = true
 			}
@@ -2585,11 +2609,19 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		}
 		if targetOID != 0 && s.Relation != nil {
 			if s.Relation.Alias != nil && s.Relation.Alias.Aliasname != "" {
-				ctx.setScope(s.Relation.Alias.Aliasname, ruleScopeEntry{relOID: targetOID, hasAlias: true, alias: s.Relation.Alias.Aliasname})
+				if err := ctx.setScope(s.Relation.Alias.Aliasname, ruleScopeEntry{relOID: targetOID, hasAlias: true, alias: s.Relation.Alias.Aliasname}, c.snapshot); err != nil {
+					return err
+				}
 			} else {
-				ctx.setScope(s.Relation.Relname, ruleScopeEntry{relOID: targetOID})
+				if err := ctx.setScope(s.Relation.Relname, ruleScopeEntry{relOID: targetOID}, c.snapshot); err != nil {
+					return err
+				}
 			}
-			ctx.setScope("excluded", ruleScopeEntry{relOID: targetOID, hasAlias: true, alias: "excluded"})
+			if s.OnConflictClause != nil && s.OnConflictClause.TargetList != nil && len(s.OnConflictClause.TargetList.Items) > 0 {
+				if err := ctx.setScope("excluded", ruleScopeEntry{relOID: targetOID, hasAlias: true, alias: "excluded"}, c.snapshot); err != nil {
+					return err
+				}
+			}
 		}
 		if s.OnConflictClause != nil {
 			oc := s.OnConflictClause
@@ -3573,7 +3605,7 @@ func resolveScopeColumn(rel *Relation, se ruleScopeEntry, colName string) (int16
 			}
 		}
 	}
-	if idx, exists := rel.colByName[colName]; exists {
+	if idx, exists := rel.colByName[colName]; exists && idx >= len(se.colAliases) {
 		return rel.Columns[idx].AttNum, true
 	}
 	return 0, false
@@ -3921,6 +3953,14 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 					return errUndefinedColumn(colName)
 				}
 				return nil
+			}
+			if len(se.colAliases) == 0 {
+				b.colByRef[v] = ruleColBinding{
+					relOID:     se.relOID,
+					attNum:     attNum,
+					prefix:     se.alias,
+					useRelName: !se.hasAlias,
+				}
 			}
 			if b != nil && b.exprTypeByNode != nil {
 				for _, col := range rel.Columns {

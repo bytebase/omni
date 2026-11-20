@@ -399,6 +399,19 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 				sawCycle = true
 				seq.Cycle = defElemBool(d)
+			case "logged":
+				if seq.Persistence == 't' {
+					*seq = orig
+					return &Error{
+						Code:    CodeWrongObjectType,
+						Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+					}
+				}
+				if defElemBool(d) {
+					seq.Persistence = 'p'
+				} else {
+					seq.Persistence = 'u'
+				}
 			case "owned_by":
 				if sawOwnedBy {
 					*seq = orig

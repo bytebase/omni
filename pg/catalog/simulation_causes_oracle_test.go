@@ -5119,22 +5119,38 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_where_win_r22 AS ON INSERT TO t_r20 WHERE row_number() OVER () > 0 DO ALSO NOTHING", CodeWindowingError},
 			{"CREATE INDEX idx_io_cast_r22 ON t_r20 ((val::date))", CodeInvalidObjectDefinition},
 			{"ALTER TABLE t_r20 ADD CONSTRAINT u_dup_inc_r22 UNIQUE (id) INCLUDE (val, val)", CodeDuplicateColumn},
+			{"CREATE INDEX idx_bad_opc_opt_r23 ON t_r20 (id int4_ops (foo = 1))", CodeInvalidParameterValue},
+			{"CREATE RULE r_dup_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT 1 FROM dst_r20 AS x, dst_r20 AS x", CodeDuplicateAlias},
+			{"CREATE RULE r_hidden_col_alias_r23 AS ON INSERT TO t_r20 DO ALSO SELECT x.id FROM dst_r20 AS x(renamed_id)", CodeUndefinedColumn},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
 			}
 		}
 
-		// Round 21 migration regressions:
+		// Round 21-23 migration regressions:
 		// 1. Sequence range variables in rules track sequence renames.
-		// 2. Temporary views preserve CREATE TEMP VIEW in GenerateMigration.
+		// 2. Temporary views and sequences preserve CREATE TEMP without non-temp schema qualifier in GenerateMigration.
+		// 3. Sequence persistence changes emit ALTER SEQUENCE ... SET UNLOGGED / SET LOGGED.
+		// 4. Schema-qualified column references in rules track relation and column renames.
 		c123From := New()
 		c123To := New()
 		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r23_persist",
+		} {
+			if code := simulationCatalogCode(t, c123From, stmt); code != "0" {
+				t.Fatalf("c123From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE UNLOGGED SEQUENCE seq_r23_persist",
+			"CREATE TEMP SEQUENCE seq_r23_tmp",
 			"CREATE SEQUENCE seq_r21_old",
 			"CREATE TABLE t_r21 (id bigint)",
 			"CREATE RULE r_seq_r21 AS ON INSERT TO t_r21 DO ALSO INSERT INTO t_r21 (id) SELECT last_value FROM seq_r21_old",
+			"CREATE RULE r_sch_col_r23 AS ON UPDATE TO t_r21 DO ALSO SELECT public.t_r21.id FROM public.t_r21",
 			"ALTER SEQUENCE seq_r21_old RENAME TO seq_r21_new",
+			"ALTER TABLE t_r21 RENAME COLUMN id TO id_renamed",
 			"CREATE TEMP TABLE tmp_r21 (id int)",
 			"CREATE VIEW tv_r21 AS SELECT id FROM tmp_r21",
 		} {
@@ -5144,8 +5160,15 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		mig123 := GenerateMigration(c123From, c123To, Diff(c123From, c123To))
 		sql123 := mig123.SQL()
-		if !strings.Contains(sql123, "CREATE TEMP VIEW") {
-			t.Fatalf("expected CREATE TEMP VIEW in migration SQL, got:\n%s", sql123)
+		for _, wantFrag := range []string{
+			"CREATE TEMP VIEW \"tv_r21\"",
+			"CREATE TEMP SEQUENCE \"seq_r23_tmp\"",
+			"ALTER SEQUENCE \"public\".\"seq_r23_persist\" SET UNLOGGED",
+			"SELECT t_r21.id_renamed AS id FROM public.t_r21",
+		} {
+			if !strings.Contains(sql123, wantFrag) {
+				t.Fatalf("expected %q in migration SQL, got:\n%s", wantFrag, sql123)
+			}
 		}
 		if code := simulationCatalogCode(t, c123From, sql123); code != "0" {
 			t.Fatalf("applying c123From->c123To failed with %s:\n%s", code, sql123)

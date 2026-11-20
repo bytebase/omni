@@ -624,6 +624,22 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 				return err
 			}
 			return errWrongObjectType(relName, "a table, materialized view, or index")
+		case nodes.AT_SetLogged:
+			if seq.Persistence == 't' {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+				}
+			}
+			seq.Persistence = 'p'
+		case nodes.AT_SetUnLogged:
+			if seq.Persistence == 't' {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+				}
+			}
+			seq.Persistence = 'u'
 		case nodes.AT_ChangeOwner:
 			if atc.Newowner == nil {
 				continue

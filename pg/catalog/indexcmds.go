@@ -1083,30 +1083,25 @@ var builtinOpClasses = map[[2]string][]uint32{
 }
 
 func (c *Catalog) opClassAcceptsType(attrTypeOID, opcTypeOID uint32) bool {
-	if attrTypeOID == 0 || opcTypeOID == 0 || attrTypeOID == opcTypeOID {
+	if attrTypeOID == 0 || opcTypeOID == 0 {
 		return true
 	}
-	baseOID := c.getBaseType(attrTypeOID)
-	if baseOID == opcTypeOID {
-		return true
-	}
-	bt := c.typeByOID[baseOID]
-	switch opcTypeOID {
-	case ANYOID, ANYELEMENTOID:
-		return true
-	case ANYARRAYOID:
-		return bt != nil && bt.Category == 'A'
-	case ANYENUMOID:
-		return bt != nil && bt.Type == 'e'
-	case ANYRANGEOID:
-		return bt != nil && bt.Type == 'r'
-	case ANYMULTIRANGEOID:
-		return bt != nil && bt.Type == 'm'
-	case 2249: // RECORDOID
-		return baseOID == 2249 || (bt != nil && bt.Type == 'c')
-	}
-	if cast := c.castIndex[castKey{source: baseOID, target: opcTypeOID}]; cast != nil && cast.Method == 'b' && (cast.Context == 'i' || cast.Context == 'a') {
-		return true
+	return c.IsBinaryCoercible(attrTypeOID, opcTypeOID)
+}
+
+func builtinOpClassAcceptsOption(amName, opcName, optKey string) bool {
+	switch amName {
+	case "brin":
+		if strings.HasSuffix(opcName, "_minmax_multi_ops") {
+			return optKey == "values_per_range"
+		}
+		if strings.HasSuffix(opcName, "_bloom_ops") {
+			return optKey == "n_distinct_per_range" || optKey == "false_positive_rate"
+		}
+	case "gist":
+		if opcName == "tsvector_ops" {
+			return optKey == "siglen"
+		}
 	}
 	return false
 }
@@ -1140,26 +1135,29 @@ func (c *Catalog) validateIndexOpClass(ref opClassRef, am *AccessMethod, opclass
 		}
 	}
 
-	collectInNamespace := func(nsOID uint32) []uint32 {
+	collectInNamespace := func(nsOID uint32) ([]uint32, bool) {
 		var types []uint32
+		hasUserOpc := false
 		for _, opc := range c.opClasses {
 			if opc.Schema == nsOID && opc.AMOID == am.OID && opc.Name == ref.name {
 				types = append(types, opc.TypeOID)
+				hasUserOpc = true
 			}
 		}
 		if nsOID == PGCatalogNamespace && am.OID < FirstNormalObjectId {
 			types = append(types, builtinOpClasses[[2]string{am.Name, ref.name}]...)
 		}
-		return types
+		return types, hasUserOpc
 	}
 
 	var matchedTypes []uint32
+	hasUserOpc := false
 	if ref.schema != "" {
 		s := c.schemaByName[ref.schema]
-		matchedTypes = collectInNamespace(s.OID)
+		matchedTypes, hasUserOpc = collectInNamespace(s.OID)
 	} else {
 		for _, nsOID := range c.searchPathWithCatalog() {
-			matchedTypes = collectInNamespace(nsOID)
+			matchedTypes, hasUserOpc = collectInNamespace(nsOID)
 			if len(matchedTypes) > 0 {
 				break
 			}
@@ -1196,6 +1194,9 @@ func (c *Catalog) validateIndexOpClass(ref opClassRef, am *AccessMethod, opclass
 				return errInvalidParameterValue(fmt.Sprintf("parameter %q specified more than once", d.Defname))
 			}
 			seen[key] = true
+			if !hasUserOpc && am.OID < FirstNormalObjectId && !builtinOpClassAcceptsOption(am.Name, ref.name, key) {
+				return errInvalidParameterValue(fmt.Sprintf("unrecognized parameter %q", d.Defname))
+			}
 		}
 	}
 	return nil
