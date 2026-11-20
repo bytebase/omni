@@ -588,6 +588,19 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 	}
 
 	var walkExpr func(expr trinoparser.Expr, curEnv map[string]string) string
+	walkJSONPath := func(path *trinoparser.JSONPathInvocation, curEnv map[string]string) {
+		if path == nil {
+			return
+		}
+		if path.Input != nil {
+			walkExpr(path.Input.Expr, curEnv)
+		}
+		for _, p := range path.Passing {
+			if p.Value != nil {
+				walkExpr(p.Value.Expr, curEnv)
+			}
+		}
+	}
 	walkExpr = func(expr trinoparser.Expr, curEnv map[string]string) string {
 		if expr == nil {
 			return ""
@@ -696,6 +709,121 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			walkExpr(e.From, curEnv)
 			walkExpr(e.For, curEnv)
 			return "varchar"
+		case *trinoparser.ComparisonExpr:
+			walkExpr(e.Left, curEnv)
+			walkExpr(e.Right, curEnv)
+			return "boolean"
+		case *trinoparser.QuantifiedComparisonExpr:
+			walkExpr(e.Left, curEnv)
+			walkExpr(e.Subquery, curEnv)
+			return "boolean"
+		case *trinoparser.BetweenExpr:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Lower, curEnv)
+			walkExpr(e.Upper, curEnv)
+			return "boolean"
+		case *trinoparser.InListExpr:
+			walkExpr(e.Value, curEnv)
+			for _, item := range e.List {
+				walkExpr(item, curEnv)
+			}
+			return "boolean"
+		case *trinoparser.InSubqueryExpr:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Subquery, curEnv)
+			return "boolean"
+		case *trinoparser.LikeExpr:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Pattern, curEnv)
+			walkExpr(e.Escape, curEnv)
+			return "boolean"
+		case *trinoparser.IsNullExpr:
+			walkExpr(e.Value, curEnv)
+			return "boolean"
+		case *trinoparser.IsDistinctFromExpr:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Right, curEnv)
+			return "boolean"
+		case *trinoparser.IsBooleanExpr:
+			walkExpr(e.Value, curEnv)
+			return "boolean"
+		case *trinoparser.MatchExpr:
+			walkExpr(e.Value, curEnv)
+			walkExpr(e.Subquery, curEnv)
+			return "boolean"
+		case *trinoparser.UniqueExpr:
+			walkExpr(e.Subquery, curEnv)
+			return "boolean"
+		case *trinoparser.SubqueryExpr:
+			if e.RawText != "" {
+				calls = append(calls, scanFunctionCallRefs(e.RawText)...)
+			}
+			if e.Kind == trinoparser.SubqueryExists || e.Kind == trinoparser.SubqueryUnique {
+				return "boolean"
+			}
+		case *trinoparser.TrimExpr:
+			walkExpr(e.Char, curEnv)
+			walkExpr(e.Source, curEnv)
+			return "varchar"
+		case *trinoparser.NormalizeExpr:
+			walkExpr(e.Source, curEnv)
+			return "varchar"
+		case *trinoparser.PositionExpr:
+			walkExpr(e.Needle, curEnv)
+			walkExpr(e.Haystack, curEnv)
+			return "bigint"
+		case *trinoparser.ListaggExpr:
+			walkExpr(e.Arg, curEnv)
+			walkExpr(e.Separator, curEnv)
+			for _, ob := range e.WithinGroupBy {
+				walkExpr(ob.Expr, curEnv)
+			}
+			walkExpr(e.Filter, curEnv)
+			return "varchar"
+		case *trinoparser.LambdaExpr:
+			lambdaEnv := curEnv
+			if len(e.Params) > 0 {
+				lambdaEnv = make(map[string]string, len(curEnv))
+				for k, v := range curEnv {
+					lambdaEnv[k] = v
+				}
+				for _, p := range e.Params {
+					if p != nil {
+						delete(lambdaEnv, strings.ToLower(p.Value))
+					}
+				}
+			}
+			walkExpr(e.Body, lambdaEnv)
+		case *trinoparser.JSONExistsExpr:
+			walkJSONPath(e.Path, curEnv)
+			return "boolean"
+		case *trinoparser.JSONValueFunc:
+			walkJSONPath(e.Path, curEnv)
+			if e.OnEmpty != nil {
+				walkExpr(e.OnEmpty.Default, curEnv)
+			}
+			if e.OnError != nil {
+				walkExpr(e.OnError.Default, curEnv)
+			}
+			return normalizeTrinoDataType(e.Returning)
+		case *trinoparser.JSONQueryFunc:
+			walkJSONPath(e.Path, curEnv)
+			return normalizeTrinoDataType(e.Returning)
+		case *trinoparser.JSONObjectExpr:
+			for _, m := range e.Members {
+				walkExpr(m.Key, curEnv)
+				if m.Value != nil {
+					walkExpr(m.Value.Expr, curEnv)
+				}
+			}
+			return normalizeTrinoDataType(e.Returning)
+		case *trinoparser.JSONArrayExpr:
+			for _, el := range e.Elements {
+				if el != nil {
+					walkExpr(el.Expr, curEnv)
+				}
+			}
+			return normalizeTrinoDataType(e.Returning)
 		case *trinoparser.MethodCall:
 			walkExpr(e.Value, curEnv)
 			for _, a := range e.Args {
@@ -710,7 +838,24 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			for j, a := range e.Args {
 				argTypes[j] = walkExpr(a, curEnv)
 			}
+			for _, ob := range e.OrderBy {
+				walkExpr(ob.Expr, curEnv)
+			}
 			walkExpr(e.Filter, curEnv)
+			if e.Over != nil {
+				for _, pb := range e.Over.PartitionBy {
+					walkExpr(pb, curEnv)
+				}
+				for _, ob := range e.Over.OrderBy {
+					walkExpr(ob.Expr, curEnv)
+				}
+				if e.Over.Frame != nil {
+					walkExpr(e.Over.Frame.Start.Value, curEnv)
+					if e.Over.Frame.End != nil {
+						walkExpr(e.Over.Frame.End.Value, curEnv)
+					}
+				}
+			}
 			var schema, name string
 			if e.Name != nil && len(e.Name.Parts) > 0 {
 				parts := e.Name.Parts

@@ -535,4 +535,44 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	})
 	require.NoError(t, err)
 	assert.Less(t, strings.Index(caseViews, `CREATE OR REPLACE VIEW "S"."BaseView"`), strings.Index(caseViews, `CREATE OR REPLACE VIEW "S"."TopView"`))
+
+	// Callees inside SQL predicate expressions (=, IS NULL, BETWEEN, IN, LIKE)
+	// must also precede their callers even when listed later in snapshot order.
+	predFuncs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "pred_caller",
+					Definition: "CREATE FUNCTION s.pred_caller(x bigint, p varchar) RETURNS boolean RETURN s.cmp_callee(x) = 1 AND s.null_callee(x) IS NOT NULL AND s.between_callee(x) BETWEEN 1 AND 10 AND s.in_callee(x) IN (1, 2) AND s.like_callee(p) LIKE 'a%'",
+				},
+				{
+					Name:       "cmp_callee",
+					Definition: "CREATE FUNCTION s.cmp_callee(x bigint) RETURNS bigint RETURN x",
+				},
+				{
+					Name:       "null_callee",
+					Definition: "CREATE FUNCTION s.null_callee(x bigint) RETURNS bigint RETURN x",
+				},
+				{
+					Name:       "between_callee",
+					Definition: "CREATE FUNCTION s.between_callee(x bigint) RETURNS bigint RETURN x",
+				},
+				{
+					Name:       "in_callee",
+					Definition: "CREATE FUNCTION s.in_callee(x bigint) RETURNS bigint RETURN x",
+				},
+				{
+					Name:       "like_callee",
+					Definition: "CREATE FUNCTION s.like_callee(p varchar) RETURNS varchar RETURN p",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	callerPos := strings.Index(predFuncs, "CREATE FUNCTION s.pred_caller(")
+	for _, callee := range []string{"cmp_callee", "null_callee", "between_callee", "in_callee", "like_callee"} {
+		assert.Less(t, strings.Index(predFuncs, "CREATE FUNCTION s."+callee+"("), callerPos, "expected %s before pred_caller:\n%s", callee, predFuncs)
+	}
 }
