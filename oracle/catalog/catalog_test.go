@@ -292,3 +292,71 @@ func parseMetadataFixture(t *testing.T, encoded string) *metadatapb.DatabaseSche
 	}
 	return meta
 }
+
+func TestGetDatabaseMetadata(t *testing.T) {
+	t.Run("empty and comment-only scripts fail with no parse results", func(t *testing.T) {
+		for _, sql := range []string{"", "   \n\t", "-- comment only\n"} {
+			if _, err := GetDatabaseMetadata(sql); err == nil {
+				t.Fatalf("GetDatabaseMetadata(%q) = nil error, want error", sql)
+			}
+		}
+	})
+
+	t.Run("invalid syntax returns parse error", func(t *testing.T) {
+		if _, err := GetDatabaseMetadata("CREATE TABLE ("); err == nil {
+			t.Fatal("GetDatabaseMetadata(invalid) = nil error, want error")
+		}
+	})
+
+	t.Run("slash-terminated PL/SQL units and schema authorization", func(t *testing.T) {
+		meta, err := GetDatabaseMetadata(`
+CREATE SCHEMA AUTHORIZATION HR
+CREATE TABLE AUDIT_LOG (
+    LOG_ID NUMBER PRIMARY KEY,
+    STATUS VARCHAR2(20) DEFAULT ON NULL 'PENDING'
+)
+CREATE VIEW LOG_VIEW AS
+SELECT LOG_ID, STATUS FROM AUDIT_LOG;
+
+CREATE OR REPLACE TRIGGER audit_log_trigger
+    BEFORE INSERT ON AUDIT_LOG
+    FOR EACH ROW
+BEGIN
+    NULL;
+END;
+/
+
+CREATE OR REPLACE PACKAGE financial_utils AS
+    FUNCTION format_currency(p_amount NUMBER) RETURN VARCHAR2;
+END financial_utils;
+/
+
+CREATE OR REPLACE PACKAGE BODY financial_utils AS
+    FUNCTION format_currency(p_amount NUMBER) RETURN VARCHAR2 IS
+    BEGIN
+        RETURN TO_CHAR(p_amount, 'FM9999990.00');
+    END format_currency;
+END financial_utils;
+/
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(meta.Schemas) != 1 || meta.Schemas[0].Name != "HR" {
+			t.Fatalf("schemas = %+v, want single schema HR", meta.Schemas)
+		}
+		schema := meta.Schemas[0]
+		if len(schema.Tables) != 1 || schema.Tables[0].Name != "AUDIT_LOG" {
+			t.Fatalf("tables = %+v, want AUDIT_LOG", schema.Tables)
+		}
+		if len(schema.Tables[0].Triggers) != 1 || schema.Tables[0].Triggers[0].Name != "AUDIT_LOG_TRIGGER" {
+			t.Fatalf("triggers = %+v, want AUDIT_LOG_TRIGGER", schema.Tables[0].Triggers)
+		}
+		if len(schema.Views) != 1 || schema.Views[0].Name != "LOG_VIEW" {
+			t.Fatalf("views = %+v, want LOG_VIEW", schema.Views)
+		}
+		if len(schema.Packages) != 1 || schema.Packages[0].Name != "FINANCIAL_UTILS" {
+			t.Fatalf("packages = %+v, want FINANCIAL_UTILS", schema.Packages)
+		}
+	})
+}

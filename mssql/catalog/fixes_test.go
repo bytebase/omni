@@ -968,3 +968,89 @@ func TestLoadMetadataReloadReplacesPrimaryDatabaseRegistration(t *testing.T) {
 	require.NotNil(t, c.DatabaseCatalog("db_new"))
 	require.NotNil(t, c.GetTable("dbo", "new_tbl"))
 }
+
+func TestGetDatabaseMetadata(t *testing.T) {
+	t.Run("empty SQL returns default dbo schema", func(t *testing.T) {
+		meta, err := GetDatabaseMetadata("")
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas, 1)
+		require.Equal(t, "dbo", meta.Schemas[0].Name)
+		require.Empty(t, meta.Schemas[0].Tables)
+	})
+
+	t.Run("invalid syntax returns parse error", func(t *testing.T) {
+		_, err := GetDatabaseMetadata("CREATE TABLE [dbo].[t] (")
+		require.Error(t, err)
+	})
+
+	t.Run("extracts tables, constraints, indexes, and routines", func(t *testing.T) {
+		meta, err := GetDatabaseMetadata(`
+CREATE SCHEMA [sales];
+GO
+CREATE TABLE [sales].[orders] (
+	[id] INT IDENTITY(1,1) NOT NULL,
+	[amount] DECIMAL(10,2) CONSTRAINT [DF_orders_amount] DEFAULT (0),
+	CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id])
+);
+GO
+CREATE NONCLUSTERED INDEX [IX_orders_amount] ON [sales].[orders] ([amount] DESC) WHERE [amount] > 0;
+`)
+		require.NoError(t, err)
+		require.Len(t, meta.Schemas, 1)
+		require.Equal(t, "sales", meta.Schemas[0].Name)
+		require.Len(t, meta.Schemas[0].Tables, 1)
+		table := meta.Schemas[0].Tables[0]
+		require.Equal(t, "orders", table.Name)
+		require.Equal(t, "DF_orders_amount", table.Columns[1].DefaultConstraintName)
+		require.Len(t, table.Indexes, 2)
+		require.Equal(t, "WHERE [amount] > 0", table.Indexes[1].Definition)
+	})
+}
+
+func TestGetTableDefinition(t *testing.T) {
+	t.Run("nil or SkipDump table returns empty", func(t *testing.T) {
+		got, err := GetTableDefinition("dbo", nil, nil)
+		require.NoError(t, err)
+		require.Empty(t, got)
+
+		got, err = GetTableDefinition("dbo", &metadata.TableMetadata{Name: "t", SkipDump: true}, nil)
+		require.NoError(t, err)
+		require.Empty(t, got)
+	})
+
+	t.Run("empty schema falls back to dbo", func(t *testing.T) {
+		got, err := GetTableDefinition("", &metadata.TableMetadata{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+		}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "CREATE TABLE [dbo].[t] (\n    [id] int NOT NULL\n);\n\n", got)
+	})
+
+	t.Run("renders constraints, indexes, and comments", func(t *testing.T) {
+		table := &metadata.TableMetadata{
+			Name:    "orders",
+			Comment: "order records",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", IsIdentity: true, IdentitySeed: 1, IdentityIncrement: 1, Nullable: false},
+				{Name: "total", Type: "decimal(10,2)", Default: "((0))", DefaultConstraintName: "DF_orders_total", Nullable: false, Comment: "gross total"},
+			},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "PK_orders", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}},
+				{Name: "IX_orders_total", Type: "NONCLUSTERED", Expressions: []string{"total"}, Descending: []bool{true}, Definition: "WHERE [total] > 0"},
+			},
+			CheckConstraints: []*metadata.CheckConstraintMetadata{
+				{Name: "CK_orders_total", Expression: "([total]>=(0))"},
+			},
+		}
+		got, err := GetTableDefinition("sales", table, nil)
+		require.NoError(t, err)
+		require.Contains(t, got, "CREATE TABLE [sales].[orders] (")
+		require.Contains(t, got, "[id] int IDENTITY(1,1) NOT NULL")
+		require.Contains(t, got, "[total] decimal(10,2) CONSTRAINT [DF_orders_total] DEFAULT ((0)) NOT NULL")
+		require.Contains(t, got, "CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC)")
+		require.Contains(t, got, "CONSTRAINT [CK_orders_total] CHECK ([total]>=(0))")
+		require.Contains(t, got, "CREATE NONCLUSTERED INDEX [IX_orders_total] ON\n[sales].[orders] (\n    [total] DESC\n)\nWHERE [total] > 0;")
+		require.Contains(t, got, "sp_addextendedproperty")
+	})
+}
