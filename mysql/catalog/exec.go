@@ -1029,6 +1029,9 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 		}
 		switch toLower(e.Name) {
 		case "concat":
+			if len(e.Args) == 0 {
+				return userVarValue{}, false, errWrongParamCount("CONCAT")
+			}
 			var b strings.Builder
 			for _, arg := range e.Args {
 				v, ok, err := c.evalSetExprChecked(arg)
@@ -1041,7 +1044,10 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				b.WriteString(v.str)
 			}
 			return userVarValue{kind: userVarString, str: b.String()}, true, nil
-		case "coalesce", "ifnull":
+		case "coalesce":
+			if len(e.Args) == 0 {
+				return userVarValue{}, false, errWrongParamCount("COALESCE")
+			}
 			for _, arg := range e.Args {
 				v, ok, err := c.evalSetExprChecked(arg)
 				if err != nil || !ok {
@@ -1052,9 +1058,25 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				}
 			}
 			return userVarValue{kind: userVarNull}, true, nil
+		case "ifnull":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("IFNULL")
+			}
+			v0, ok, err := c.evalSetExprChecked(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v0.kind != userVarNull {
+				return v0, true, nil
+			}
+			v1, ok, err := c.evalSetExprChecked(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			return v1, true, nil
 		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase":
 			if len(e.Args) != 1 {
-				return userVarValue{}, false, nil
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
 			v, ok, err := c.evalSetExprChecked(e.Args[0])
 			if err != nil || !ok || v.kind == userVarNull {
@@ -1076,7 +1098,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			return userVarValue{kind: userVarString, str: s}, true, nil
 		case "replace":
 			if len(e.Args) != 3 {
-				return userVarValue{}, false, nil
+				return userVarValue{}, false, errWrongParamCount("REPLACE")
 			}
 			args := make([]userVarValue, 3)
 			for i := 0; i < 3; i++ {
@@ -1095,7 +1117,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			return userVarValue{kind: userVarString, str: strings.ReplaceAll(args[0].str, args[1].str, args[2].str)}, true, nil
 		case "concat_ws":
 			if len(e.Args) < 2 {
-				return userVarValue{}, false, nil
+				return userVarValue{}, false, errWrongParamCount("CONCAT_WS")
 			}
 			sep, ok, err := c.evalSetExprChecked(e.Args[0])
 			if err != nil || !ok {

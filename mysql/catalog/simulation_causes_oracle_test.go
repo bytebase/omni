@@ -4428,6 +4428,102 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "SET @u_qfn = missing_fn_db.CONCAT('ANSI')",
 			code: 1305,
 		},
+		{
+			name:    "Non-strict CREATE TABLE UNIQUE TEXT prefix over limit rejected with 1071",
+			session: []string{"SET sql_mode = ''"},
+			stmt:    "CREATE TABLE a (a TEXT CHARACTER SET utf8mb4, UNIQUE KEY(a(1000)))",
+			code:    1071,
+		},
+		{
+			name:    "Non-strict CREATE TABLE non-unique TEXT prefix clamped to 0",
+			session: []string{"SET sql_mode = ''"},
+			stmt:    "CREATE TABLE a (a TEXT CHARACTER SET utf8mb4, KEY(a(1000)))",
+			code:    0,
+		},
+		{
+			name:    "Non-strict ALTER TABLE ADD UNIQUE KEY TEXT prefix over limit rejected with 1071",
+			setup:   []string{"CREATE TABLE a (a TEXT CHARACTER SET utf8mb4)"},
+			session: []string{"SET sql_mode = ''"},
+			stmt:    "ALTER TABLE a ADD UNIQUE KEY (a(1000))",
+			code:    1071,
+		},
+		{
+			name:    "Non-strict CREATE UNIQUE INDEX TEXT prefix over limit rejected with 1071",
+			setup:   []string{"CREATE TABLE a (a TEXT CHARACTER SET utf8mb4)"},
+			session: []string{"SET sql_mode = ''"},
+			stmt:    "CREATE UNIQUE INDEX idx_uq ON a (a(1000))",
+			code:    1071,
+		},
+		{
+			name: "Mixed composite TEXT+BIGINT exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, n BIGINT, KEY(a(3072), n))",
+			code: 1071,
+		},
+		{
+			name: "Mixed composite TEXT+BIGINT at exact 3072 bytes accepted",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, n BIGINT, KEY(a(3064), n))",
+			code: 0,
+		},
+		{
+			name: "Mixed composite TEXT+DATETIME(6) exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, d DATETIME(6), KEY(a(3065), d))",
+			code: 1071,
+		},
+		{
+			name: "Mixed composite TEXT+DECIMAL(10,2) exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, d DECIMAL(10,2), KEY(a(3068), d))",
+			code: 1071,
+		},
+		{
+			name: "Mixed composite TEXT+BIT(16) exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, b BIT(16), KEY(a(3071), b))",
+			code: 1071,
+		},
+		{
+			name: "Mixed composite TEXT+ENUM exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, e ENUM('x','y'), KEY(a(3072), e))",
+			code: 1071,
+		},
+		{
+			name: "SET sql_mode IFNULL wrong parameter count rejected with 1582",
+			stmt: "SET sql_mode = IFNULL('', 'ANSI', 'TRADITIONAL')",
+			code: 1582,
+		},
+		{
+			name: "SET sql_mode empty CONCAT rejected with 1582",
+			stmt: "SET sql_mode = CONCAT()",
+			code: 1582,
+		},
+		{
+			name:  "ALTER TABLE RENAME COLUMN referenced by surviving functional index rejected with 3837",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY idx ((LOWER(a))))"},
+			stmt:  "ALTER TABLE a RENAME COLUMN a TO b",
+			code:  3837,
+		},
+		{
+			name:  "ALTER TABLE DROP COLUMN referenced by surviving functional index rejected with 3837",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY idx ((LOWER(a))))"},
+			stmt:  "ALTER TABLE a DROP COLUMN a",
+			code:  3837,
+		},
+		{
+			name:  "ALTER TABLE CHANGE COLUMN renaming functional index column rejected with 3837",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY idx ((LOWER(a))))"},
+			stmt:  "ALTER TABLE a CHANGE COLUMN a b INT",
+			code:  3837,
+		},
+		{
+			name:  "ALTER TABLE RENAME COLUMN accepted when same ALTER drops dependent functional index",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY idx ((LOWER(a))))"},
+			stmt:  "ALTER TABLE a RENAME COLUMN a TO b, DROP INDEX idx",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE MODIFY COLUMN preserving functional index column name accepted",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY idx ((LOWER(a))))"},
+			stmt:  "ALTER TABLE a MODIFY COLUMN a VARCHAR(20)",
+			code:  0,
+		},
 	}
 
 	for _, tc := range cases {

@@ -118,6 +118,8 @@ const (
 	ErrFunctionalIndexPrimaryKey         = 3756
 	ErrFunctionalIndexOnField            = 3762
 	ErrDependentByDefaultVal             = 3766
+	ErrFunctionalIndexColumnDep          = 3837
+	ErrWrongParamcountToNativeFct        = 1582
 	ErrDefaultValExprNamedFuncNotAllowed = 3767
 	ErrDefaultValExprRefAutoInc          = 3768
 	ErrDefaultValExprContainSubquery     = 3769
@@ -918,4 +920,14 @@ func errTablespaceEncryptionMismatch(tblEncrypted bool) error {
 	}
 	return &Error{Code: ErrTablespaceEncryptionMismatch, SQLState: sqlState(ErrTablespaceEncryptionMismatch),
 		Message: fmt.Sprintf("Request to create '%s' table while using an '%s' tablespace.", tblState, tsState)}
+}
+
+func errWrongParamCount(fnName string) error {
+	return &Error{Code: ErrWrongParamcountToNativeFct, SQLState: "42000",
+		Message: fmt.Sprintf("Incorrect parameter count in the call to native function '%s'", fnName)}
+}
+
+func errFunctionalIndexColumnDep(colName string) error {
+	return &Error{Code: ErrFunctionalIndexColumnDep, SQLState: sqlState(ErrFunctionalIndexColumnDep),
+		Message: fmt.Sprintf("Column '%s' has a functional index dependency and cannot be dropped or renamed.", colName)}
 }

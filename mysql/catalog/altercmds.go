@@ -475,15 +475,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	if err := validateDroppedOrRenamedDefaultExprDeps(tbl, origTableName, droppedOrRenamed, preExprs); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := validateDroppedOrRenamedFunctionalIndexDeps(tbl, origTableName, droppedOrRenamed, beforeIndexes); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	// A table must keep a visible column, judged over the table the statement
 	// leaves (mysql:8.0.46).
 	if !tableHasVisibleColumn(tbl) {
 		undoAlter(db, origKey, tbl, snapshot)
 		return errTableMustHaveColumns()
-	}
-	if err := validateDroppedOrRenamedDefaultExprDeps(tbl, origTableName, droppedOrRenamed, preExprs); err != nil {
-		undoAlter(db, origKey, tbl, snapshot)
-		return err
 	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeIndexes, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
@@ -564,7 +568,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, pkCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := c.validateIndexColumns(tbl, pkCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, pkCols, false, false, true); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -580,23 +584,23 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, uqCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := c.validateIndexColumns(tbl, uqCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, uqCols, false, false, true); err != nil {
 					return err
 				}
 			case nodes.ConstrIndex:
-				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con)), false); err != nil {
 					return err
 				}
 			case nodes.ConstrFulltextIndex:
-				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), true, false); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), true, false, false); err != nil {
 					return err
 				}
 			case nodes.ConstrSpatialIndex:
-				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, true, false); err != nil {
 					return err
 				}
 			case nodes.ConstrForeignKey:
-				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, false, false); err != nil {
 					return err
 				}
 			}
@@ -613,7 +617,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 			if idx == nil || !beforeIndexes[idx] || idx.Fulltext || isSpatialIndexType(idx.IndexType) {
 				continue
 			}
-			if err := c.validateIndexColumns(tbl, idx.Columns, false, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idx.Columns, false, false, idx.Unique); err != nil {
 				return err
 			}
 		}
@@ -1149,8 +1153,13 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return errCantRemoveAllFields()
 	}
 
-	// Check if column is referenced by a generated column expression.
+	// Check if column is referenced by a generated column expression (functional
+	// index hidden columns are validated by validateDroppedOrRenamedFunctionalIndexDeps
+	// so DROP COLUMN + DROP INDEX is allowed and un-dropped dependencies answer 3837).
 	for _, col := range tbl.Columns {
+		if col.Hidden == ColumnHiddenSystem {
+			continue
+		}
 		if col.Generated != nil && generatedExprReferencesColumn(col.Generated.Expr, cmd.Name) {
 			return errDependentByGeneratedColumn(cmd.Name, col.Name, tbl.Name)
 		}
@@ -1381,7 +1390,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1436,7 +1445,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
-		if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1469,7 +1478,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		fkIdxCols := buildIndexColumns(con)
-		if err := c.validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, fkIdxCols, false, false, false); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1552,7 +1561,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
-		if err := c.validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, spatial, false); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1591,7 +1600,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := c.validateIndexColumns(tbl, idxCols, true, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 			return err
 		}
 		ftIdx := &Index{
@@ -1621,7 +1630,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := c.validateIndexColumns(tbl, idxCols, false, true); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

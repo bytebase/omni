@@ -159,6 +159,44 @@ func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr 
 	return err
 }
 
+func validateDroppedOrRenamedFunctionalIndexDeps(tbl *Table, origTableName string, droppedOrRenamed []string, beforeIndexes map[*Index]bool) error {
+	if len(droppedOrRenamed) == 0 {
+		return nil
+	}
+	droppedSet := make(map[string]bool, len(droppedOrRenamed))
+	for _, name := range droppedOrRenamed {
+		droppedSet[toLower(name)] = true
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil || !beforeIndexes[idx] {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if ic == nil || ic.ExprNode == nil {
+				continue
+			}
+			var depCol string
+			nodes.Inspect(ic.ExprNode, func(n nodes.Node) bool {
+				if depCol != "" {
+					return false
+				}
+				if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && cr.Schema == "" &&
+					(cr.Table == "" || strings.EqualFold(cr.Table, origTableName) || strings.EqualFold(cr.Table, tbl.Name)) {
+					if droppedSet[toLower(cr.Column)] {
+						depCol = cr.Column
+						return false
+					}
+				}
+				return true
+			})
+			if depCol != "" {
+				return errFunctionalIndexColumnDep(depCol)
+			}
+		}
+	}
+	return nil
+}
+
 func removeFunctionalIndexHiddenColumns(tbl *Table, idx *Index) {
 	remove := make(map[string]bool)
 	for _, idxCol := range idx.Columns {

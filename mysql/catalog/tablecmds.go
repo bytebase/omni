@@ -644,7 +644,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -707,7 +707,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 					return err
 				}
 			}
-			if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 				return err
 			}
 			if declared {
@@ -744,7 +744,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			fkIdxCols := buildIndexColumns(con)
 			if declared {
-				if err := c.validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, fkIdxCols, false, false, false); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -824,7 +824,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			spatial := isSpatialIndexType(resolveConstraintIndexType(con))
-			if err := c.validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, spatial, false); err != nil {
 				return err
 			}
 			if declared {
@@ -863,7 +863,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := c.validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 				return err
 			}
 			ftIdx := &Index{
@@ -893,7 +893,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := c.validateIndexColumns(tbl, idxCols, false, true); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
@@ -2298,7 +2298,7 @@ func indexNameExists(tbl *Table, name string) bool {
 	return false
 }
 
-func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2342,7 +2342,7 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 		}
 		if ic.Length > 0 {
 			strict := c == nil || c.isStrictSQLMode()
-			if err := c.validateKeyPrefixLength(tbl, col, ic, strict); err != nil {
+			if err := c.validateKeyPrefixLength(tbl, col, ic, strict || unique); err != nil {
 				return err
 			}
 		}
@@ -2438,7 +2438,138 @@ func indexKeyPartBytes(col *Column, ic *IndexColumn) int {
 	if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 		return maxLen * mb
 	}
-	return 0
+	return fixedWidthScalarColumnBytes(col)
+}
+
+func fixedWidthScalarColumnBytes(col *Column) int {
+	dt := strings.ToLower(col.DataType)
+	switch dt {
+	case "tinyint", "bool", "boolean", "year":
+		return 1
+	case "smallint":
+		return 2
+	case "mediumint", "date":
+		return 3
+	case "int", "integer":
+		return 4
+	case "bigint", "double", "real", "double precision":
+		return 8
+	case "float":
+		if p, _, ok := parseNumericTypeArgs(col.ColumnType); ok && p > 24 {
+			return 8
+		}
+		return 4
+	case "time":
+		return 3 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "timestamp":
+		return 4 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "datetime":
+		return 5 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "decimal", "numeric":
+		prec, scale, ok := parseNumericTypeArgs(col.ColumnType)
+		if !ok {
+			prec, scale = 10, 0
+		}
+		if prec < scale {
+			prec = scale
+		}
+		return decimalPackedBytes(prec-scale) + decimalPackedBytes(scale)
+	case "bit":
+		bits, _, ok := parseNumericTypeArgs(col.ColumnType)
+		if !ok || bits <= 0 {
+			bits = 1
+		}
+		return (bits + 7) / 8
+	case "enum":
+		if countQuotedListArgs(col.ColumnType) > 255 {
+			return 2
+		}
+		return 1
+	case "set":
+		n := countQuotedListArgs(col.ColumnType)
+		if n <= 0 {
+			return 1
+		}
+		b := (n + 7) / 8
+		if b > 4 {
+			return 8
+		}
+		return b
+	default:
+		return 0
+	}
+}
+
+func fspStorageBytes(fsp int) int {
+	switch {
+	case fsp <= 0:
+		return 0
+	case fsp <= 2:
+		return 1
+	case fsp <= 4:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func decimalPackedBytes(digits int) int {
+	if digits <= 0 {
+		return 0
+	}
+	dig2bytes := [10]int{0, 1, 1, 2, 2, 3, 3, 4, 4, 4}
+	return (digits/9)*4 + dig2bytes[digits%9]
+}
+
+func parseNumericTypeArgs(colType string) (int, int, bool) {
+	open := strings.IndexByte(colType, '(')
+	close := strings.LastIndexByte(colType, ')')
+	if open < 0 || close <= open+1 {
+		return 0, 0, false
+	}
+	inner := colType[open+1 : close]
+	parts := strings.Split(inner, ",")
+	a, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	b := 0
+	if len(parts) > 1 {
+		if bv, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			b = bv
+		}
+	}
+	return a, b, true
+}
+
+func countQuotedListArgs(colType string) int {
+	open := strings.IndexByte(colType, '(')
+	close := strings.LastIndexByte(colType, ')')
+	if open < 0 || close <= open+1 {
+		return 0
+	}
+	inner := colType[open+1 : close]
+	count := 1
+	inQuote := false
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '\'':
+			if inQuote && i+1 < len(inner) && inner[i+1] == '\'' {
+				i++
+			} else {
+				inQuote = !inQuote
+			}
+		case '\\':
+			if inQuote && i+1 < len(inner) {
+				i++
+			}
+		case ',':
+			if !inQuote {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 // validateKeyPrefixLength validates a non-zero key part prefix length against
