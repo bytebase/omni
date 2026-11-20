@@ -4974,6 +4974,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "CREATE INDEX j ON a ((`!hidden!i!0!0` + 1))",
 			code:  1054,
 		},
+		// A functional key part meets the 767-byte per-part limit of a COMPACT
+		// or REDUNDANT table in strict mode.
+		{
+			name:  "CREATE INDEX functional over 767 bytes on a COMPACT table",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(300)) ROW_FORMAT=COMPACT"},
+			stmt:  "CREATE INDEX i ON a ((LOWER(s)))",
+			code:  1071,
+		},
+		{
+			name:  "ALTER ADD functional KEY over 767 bytes on a REDUNDANT table",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(300)) ROW_FORMAT=REDUNDANT"},
+			stmt:  "ALTER TABLE a ADD KEY ((LOWER(s)))",
+			code:  1071,
+		},
+		{
+			name:  "CREATE INDEX functional over 767 bytes on a DYNAMIC table",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(300)) ROW_FORMAT=DYNAMIC"},
+			stmt:  "CREATE INDEX i ON a ((LOWER(s)))",
+			code:  0,
+		},
+		{name: "CREATE TABLE functional key part of 764 bytes on a COMPACT table", stmt: "CREATE TABLE z (s VARCHAR(191), KEY ((LOWER(s)))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "CREATE TABLE functional key part of 768 bytes on a COMPACT table", stmt: "CREATE TABLE z (s VARCHAR(192), KEY ((LOWER(s)))) ROW_FORMAT=COMPACT", code: 1071},
+		{
+			name:    "CREATE TABLE functional key part over 767 bytes on a COMPACT table under sql_mode ''",
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLE z (s VARCHAR(300), KEY ((LOWER(s)))) ROW_FORMAT=COMPACT",
+			code:    0,
+		},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6083,6 +6111,74 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("%s: catalog %q, mysql %q, want ANSI=%v", tc.stmt, got, srvMode, tc.want == "ANSI")
 		}
 	}
+	// AND and OR stop at a deciding left operand; the right is not evaluated.
+	if _, err := conn.ExecContext(ctx, "SET @x_max = 9223372036854775807"); err != nil {
+		t.Fatalf("mysql SET @x_max: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET @x_max = 9223372036854775807;")
+	for _, tc := range []struct {
+		stmt string
+		code int
+	}{
+		{"SET SESSION sql_mode = 0 AND (@x_max + 1)", 0},
+		{"SET SESSION sql_mode = 1 OR (@x_max + 1)", 0},
+		{"SET SESSION sql_mode = 1 AND (@x_max + 1)", 1690},
+		{"SET SESSION sql_mode = NULL AND (@x_max + 1)", 1690},
+		{"SET SESSION sql_mode = 0 OR (@x_max + 1)", 1690},
+	} {
+		for _, stmt := range []string{"SET SESSION sql_mode = 'ANSI'"} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("mysql %s: %v", stmt, err)
+			}
+			execAlterClauses(t, castCat, stmt+";")
+		}
+		var srvCode int
+		if _, err := conn.ExecContext(ctx, tc.stmt); err != nil {
+			srvCode, _ = simulationEngineRefusal(t, tc.stmt, err)
+		}
+		catCode, _ := simulationCatalogRefusal(t, castCat, tc.stmt)
+		if srvCode != tc.code || catCode != tc.code {
+			t.Fatalf("%s: mysql %d, catalog %d, want %d", tc.stmt, srvCode, catCode, tc.code)
+		}
+		var srvMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @m = @@sql_mode;")
+		if got := castCat.userVars["m"].str; got != srvMode {
+			t.Fatalf("%s: catalog sql_mode %q, mysql %q", tc.stmt, got, srvMode)
+		}
+	}
+
+	// A CAST result longer than max_allowed_packet (64 MiB by default) is NULL;
+	// a CHAR(n) whose widest bytes pass 2^32-1 is 1690 first.
+	if got, _ := simulationCatalogRefusal(t, castCat, "SET @b_cast = CAST('a' AS CHAR(4294967295))"); got != 1690 {
+		t.Fatalf("catalog CAST('a' AS CHAR(4294967295)) under utf8mb4 got %d, want 1690", got)
+	}
+	if _, err := conn.ExecContext(ctx, "SET @b_cast = CAST('a' AS CHAR(4294967295))"); err == nil {
+		t.Fatal("mysql CAST('a' AS CHAR(4294967295)) under utf8mb4 succeeded, want 1690")
+	} else if code, _ := simulationEngineRefusal(t, "SET @b_cast = CAST('a' AS CHAR(4294967295))", err); code != 1690 {
+		t.Fatalf("mysql CAST('a' AS CHAR(4294967295)) got %d, want 1690", code)
+	}
+	for _, expr := range []string{
+		"CAST('a' AS BINARY(4294967295))", "CAST('a' AS BINARY(67108865))",
+		"CAST('a' AS CHAR(67108865))", "CAST('a' AS CHAR(67108864))",
+		"CAST('a' AS CHAR(4294967295) CHARACTER SET latin1)",
+	} {
+		stmt := "SET @b_cast = " + expr
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		var srvNull bool
+		if err := conn.QueryRowContext(ctx, "SELECT @b_cast IS NULL").Scan(&srvNull); err != nil {
+			t.Fatalf("mysql read @b_cast after %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
+		if got := castCat.userVars["b_cast"].kind == userVarNull; got != srvNull {
+			t.Fatalf("%s: catalog NULL=%v, mysql NULL=%v", stmt, got, srvNull)
+		}
+	}
+
 	// ABS(-4) chains into sql_mode as mode 4, ANSI_QUOTES.
 	for _, stmt := range []string{"SET SESSION sql_mode = ''", "SET @m_abs = ABS(-4)", "SET SESSION sql_mode = @m_abs"} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {

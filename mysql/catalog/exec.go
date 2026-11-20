@@ -991,12 +991,20 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		if err != nil || !ok {
 			return userVarValue{}, false, err
 		}
+		if err := c.setCastCharLengthError(e.TypeName); err != nil {
+			return userVarValue{}, false, err
+		}
 		out, ok := evalSetCastValue(v, e.TypeName, "")
 		return out, ok, nil
 	case *nodes.ConvertExpr:
 		v, ok, err := c.evalSetExprNode(e.Expr)
 		if err != nil || !ok {
 			return userVarValue{}, false, err
+		}
+		if e.Charset == "" {
+			if err := c.setCastCharLengthError(e.TypeName); err != nil {
+				return userVarValue{}, false, err
+			}
 		}
 		out, ok := evalSetCastValue(v, e.TypeName, e.Charset)
 		return out, ok, nil
@@ -1651,6 +1659,34 @@ func boolSetVar(b bool) userVarValue {
 	return userVarValue{kind: userVarNumeric, str: "0"}
 }
 
+// setCastCharLengthError refuses a CAST to CHAR(n) whose n characters, at its
+// character set's widest, pass 2^32-1 bytes: mysql:8.0.46 answers 1690 for
+// CAST('a' AS CHAR(4294967295)) under utf8mb4 and takes it under latin1.
+func (c *Catalog) setCastCharLengthError(dt *nodes.DataType) error {
+	if dt == nil || !dt.HasLength {
+		return nil
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar":
+	default:
+		return nil
+	}
+	cs := dt.Charset
+	if cs == "" {
+		cs = charsetForCollation(c.effectiveSessionCollationConn())
+	}
+	if strings.EqualFold(cs, "binary") {
+		return nil
+	}
+	if uint64(dt.Length)*uint64(max(charsetMaxBytes(cs), 1)) > math.MaxUint32 {
+		return &Error{Code: 1690, SQLState: "22003", Message: "char(n) value is out of range in 'cast_as_char'"}
+	}
+	return nil
+}
+
+// setMaxAllowedPacket is max_allowed_packet's default on mysql:8.0.46.
+const setMaxAllowedPacket = 67108864
+
 func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (userVarValue, bool) {
 	if v.kind == userVarNull {
 		return userVarValue{kind: userVarNull}, true
@@ -1664,6 +1700,16 @@ func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (
 	}
 	if dt == nil {
 		return userVarValue{}, false
+	}
+	// A result longer than max_allowed_packet is NULL with warning 1301:
+	// mysql:8.0.46, at its default 64 MiB, answers NULL for
+	// CAST('a' AS BINARY(67108865)) and CAST('a' AS CHAR(67108865)). The
+	// catalog does not track the variable and holds the default.
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar", "binary", "varbinary":
+		if dt.HasLength && dt.Length > setMaxAllowedPacket {
+			return userVarValue{kind: userVarNull}, true
+		}
 	}
 	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
 	case "char", "nchar", "varchar":
@@ -1887,6 +1933,19 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 	left, ok, err := c.evalSetExprNode(e.Left)
 	if err != nil || !ok {
 		return userVarValue{}, false, err
+	}
+	// AND and OR stop at a left operand that decides them, so the right one is
+	// never evaluated: mysql:8.0.46 takes SET sql_mode = 0 AND (@max + 1) and
+	// 1 OR (@max + 1), where 1 AND, NULL AND and XOR answer 1690.
+	switch e.Op {
+	case nodes.BinOpAnd:
+		if left.kind != userVarNull && !evalSetValueTruthy(left) {
+			return boolSetVar(false), true, nil
+		}
+	case nodes.BinOpOr:
+		if left.kind != userVarNull && evalSetValueTruthy(left) {
+			return boolSetVar(true), true, nil
+		}
 	}
 	right, ok, err := c.evalSetExprNode(e.Right)
 	if err != nil || !ok {

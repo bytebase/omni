@@ -2493,7 +2493,18 @@ func (c *Catalog) validateIndexTotalKeyWidth(tbl *Table, idxCols []*IndexColumn)
 		if col == nil {
 			continue
 		}
-		totalBytes += indexKeyPartBytes(col, ic)
+		partBytes := indexKeyPartBytes(col, ic)
+		// A functional key part's hidden column meets the per-part limit a
+		// named column does, in strict mode: mysql:8.0.46 answers 1071 (767
+		// bytes) for KEY ((LOWER(varchar_192_utf8mb4))) on a COMPACT table and
+		// takes it with sql_mode ''.
+		if ic.Expr != "" && isInnoDBEngine(tbl.Engine) && c.isStrictSQLMode() {
+			if limit := c.maxInnoDBColumnPartBytes(tbl); partBytes > limit {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", limit)}
+			}
+		}
+		totalBytes += partBytes
 	}
 	if totalBytes > maxBytes {
 		return &Error{Code: 1071, SQLState: "42000",
