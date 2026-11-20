@@ -421,4 +421,41 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, kbsReport.Incomplete)
 	require.Equal(t, 4, kbsReloaded.GetDatabase("app").GetTable("idx_kbs").Indexes[1].KeyBlockSize)
+
+	// Database-level PLACEMENT POLICY and TIFLASH REPLICA round-trip cleanly.
+	dbCatalog := New()
+	_, err = dbCatalog.Exec(`
+		CREATE PLACEMENT POLICY p_db PRIMARY_REGION="us-east" REGIONS="us-east";
+		CREATE DATABASE db_placed PLACEMENT POLICY = p_db;
+		ALTER DATABASE db_placed SET TIFLASH REPLICA 3 LOCATION LABELS 'zone', 'host';
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	dbMeta := dbCatalog.DatabaseMetadata("db_placed")
+	require.Equal(t, "p_db", dbMeta.PlacementPolicy)
+	require.Equal(t, int32(3), dbMeta.TiflashReplica)
+	require.Equal(t, []string{"zone", "host"}, dbMeta.TiflashLocationLabels)
+
+	dbReloaded := New()
+	dbReport, err := dbReloaded.LoadMetadata(context.Background(), dbMeta)
+	require.NoError(t, err)
+	require.Empty(t, dbReport.Degraded)
+	require.Empty(t, dbReport.Missing)
+	require.Empty(t, dbReport.Incomplete)
+	reDB := dbReloaded.GetDatabase("db_placed")
+	require.Equal(t, "p_db", reDB.PlacementPolicy)
+	require.Equal(t, 3, reDB.TiFlashReplica)
+	require.Equal(t, []string{"zone", "host"}, reDB.TiFlashLocationLabels)
+
+	// DatabaseDefinition renders AUTO_ID_CACHE and PRE_SPLIT_REGIONS.
+	allocCatalog := New()
+	_, err = allocCatalog.Exec(`
+		CREATE DATABASE alloc_db;
+		USE alloc_db;
+		CREATE TABLE alloc_tbl (id BIGINT PRIMARY KEY) AUTO_ID_CACHE = 200 PRE_SPLIT_REGIONS = 2;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	rendered, err := DatabaseDefinition(allocCatalog.DatabaseMetadata("alloc_db"), DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, rendered, "AUTO_ID_CACHE=200")
+	require.Contains(t, rendered, "PRE_SPLIT_REGIONS=2")
 }

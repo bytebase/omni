@@ -27,6 +27,9 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 
 	dbMeta.CharacterSet = db.Charset
 	dbMeta.Collation = db.Collation
+	dbMeta.PlacementPolicy = db.PlacementPolicy
+	dbMeta.TiflashReplica = int32(db.TiFlashReplica)
+	dbMeta.TiflashLocationLabels = slices.Clone(db.TiFlashLocationLabels)
 
 	schemaMeta := &metadata.SchemaMetadata{
 		Name: "",

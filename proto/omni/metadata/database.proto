@@ -63,6 +63,15 @@ message DatabaseSchemaMetadata {
   // the extension creates it. An engine that holds no foreign data wrapper
   // leaves it empty.
   repeated ForeignDataWrapperMetadata foreign_data_wrappers = 15;
+
+  // TiDB database-level PLACEMENT POLICY name (empty when unset).
+  string placement_policy = 16;
+
+  // TiDB database-level TIFLASH REPLICA count (0 when unset).
+  int32 tiflash_replica = 17;
+
+  // TiDB database-level TIFLASH LOCATION LABELS list.
+  repeated string tiflash_location_labels = 18;
 }
 
 // ForeignDataWrapperMetadata is a foreign data wrapper the database declares

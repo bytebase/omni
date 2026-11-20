@@ -781,8 +781,25 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		}
 	}
 
+	if table.AutoIdCache != 0 {
+		if _, err := fmt.Fprintf(out, " /*T![auto_id_cache] AUTO_ID_CACHE=%d */", table.AutoIdCache); err != nil {
+			return err
+		}
+	}
+
 	if strings.HasPrefix(table.ShardingInfo, "SHARD_BITS=") {
-		if _, err := fmt.Fprintf(out, " /*T! %s */", strings.ReplaceAll(table.ShardingInfo, "SHARD_BITS", "SHARD_ROW_ID_BITS")); err != nil {
+		shardBits := strings.ReplaceAll(table.ShardingInfo, "SHARD_BITS", "SHARD_ROW_ID_BITS")
+		if table.PreSplitRegions > 0 {
+			if _, err := fmt.Fprintf(out, " /*T! %s PRE_SPLIT_REGIONS=%d */", shardBits, table.PreSplitRegions); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fmt.Fprintf(out, " /*T! %s */", shardBits); err != nil {
+				return err
+			}
+		}
+	} else if table.PreSplitRegions > 0 {
+		if _, err := fmt.Fprintf(out, " /*T! PRE_SPLIT_REGIONS=%d */", table.PreSplitRegions); err != nil {
 			return err
 		}
 	}

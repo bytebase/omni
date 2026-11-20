@@ -387,8 +387,14 @@ type DatabaseSchemaMetadata struct {
 	// the extension creates it. An engine that holds no foreign data wrapper
 	// leaves it empty.
 	ForeignDataWrappers []*ForeignDataWrapperMetadata `protobuf:"bytes,15,rep,name=foreign_data_wrappers,json=foreignDataWrappers,proto3" json:"foreign_data_wrappers,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// TiDB database-level PLACEMENT POLICY name (empty when unset).
+	PlacementPolicy string `protobuf:"bytes,16,opt,name=placement_policy,json=placementPolicy,proto3" json:"placement_policy,omitempty"`
+	// TiDB database-level TIFLASH REPLICA count (0 when unset).
+	TiflashReplica int32 `protobuf:"varint,17,opt,name=tiflash_replica,json=tiflashReplica,proto3" json:"tiflash_replica,omitempty"`
+	// TiDB database-level TIFLASH LOCATION LABELS list.
+	TiflashLocationLabels []string `protobuf:"bytes,18,rep,name=tiflash_location_labels,json=tiflashLocationLabels,proto3" json:"tiflash_location_labels,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *DatabaseSchemaMetadata) Reset() {
@@ -522,6 +528,27 @@ func (x *DatabaseSchemaMetadata) GetForeignServers() []*ForeignServerMetadata {
 func (x *DatabaseSchemaMetadata) GetForeignDataWrappers() []*ForeignDataWrapperMetadata {
 	if x != nil {
 		return x.ForeignDataWrappers
+	}
+	return nil
+}
+
+func (x *DatabaseSchemaMetadata) GetPlacementPolicy() string {
+	if x != nil {
+		return x.PlacementPolicy
+	}
+	return ""
+}
+
+func (x *DatabaseSchemaMetadata) GetTiflashReplica() int32 {
+	if x != nil {
+		return x.TiflashReplica
+	}
+	return 0
+}
+
+func (x *DatabaseSchemaMetadata) GetTiflashLocationLabels() []string {
+	if x != nil {
+		return x.TiflashLocationLabels
 	}
 	return nil
 }
@@ -5330,7 +5357,7 @@ var File_omni_metadata_database_proto protoreflect.FileDescriptor
 
 const file_omni_metadata_database_proto_rawDesc = "" +
 	"\n" +
-	"\x1comni/metadata/database.proto\x12\romni.metadata\"\x9e\x06\n" +
+	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xaa\a\n" +
 	"\x16DatabaseSchemaMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\aschemas\x18\x02 \x03(\v2\x1d.omni.metadata.SchemaMetadataR\aschemas\x12#\n" +
@@ -5350,7 +5377,10 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x0fpublic_synonyms\x18\f \x03(\v2\x1e.omni.metadata.SynonymMetadataR\x0epublicSynonyms\x12%\n" +
 	"\x0edefault_schema\x18\r \x01(\tR\rdefaultSchema\x12M\n" +
 	"\x0fforeign_servers\x18\x0e \x03(\v2$.omni.metadata.ForeignServerMetadataR\x0eforeignServers\x12]\n" +
-	"\x15foreign_data_wrappers\x18\x0f \x03(\v2).omni.metadata.ForeignDataWrapperMetadataR\x13foreignDataWrappers\"\x82\x01\n" +
+	"\x15foreign_data_wrappers\x18\x0f \x03(\v2).omni.metadata.ForeignDataWrapperMetadataR\x13foreignDataWrappers\x12)\n" +
+	"\x10placement_policy\x18\x10 \x01(\tR\x0fplacementPolicy\x12'\n" +
+	"\x0ftiflash_replica\x18\x11 \x01(\x05R\x0etiflashReplica\x126\n" +
+	"\x17tiflash_location_labels\x18\x12 \x03(\tR\x15tiflashLocationLabels\"\x82\x01\n" +
 	"\x1aForeignDataWrapperMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\ahandler\x18\x02 \x01(\tR\ahandler\x12\x1c\n" +

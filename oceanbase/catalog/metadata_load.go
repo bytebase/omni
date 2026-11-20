@@ -688,8 +688,10 @@ func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index 
 			}
 			idx.Columns = append(idx.Columns, col)
 		}
-		if parseErr != nil && *omitted == nil {
-			*omitted = fmt.Errorf("index %q: %w", meta.GetName(), parseErr)
+		if parseErr != nil {
+			if *omitted == nil {
+				*omitted = fmt.Errorf("index %q: %w", meta.GetName(), parseErr)
+			}
 			continue
 		}
 		out = append(out, idx)

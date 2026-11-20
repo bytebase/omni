@@ -573,4 +573,32 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.NoError(t, err)
 	require.Empty(t, kbsReport.Incomplete)
 	require.Equal(t, 4, kbsReloaded.GetDatabase("app").GetTable("idx_kbs").Indexes[1].KeyBlockSize)
+
+	// Multiple invalid functional indexes on a materialized view must all be skipped.
+	badMVCatalog := New()
+	badMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+			}},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name:       "mv_bad",
+				Definition: "select `app`.`t`.`id` AS `id` from `app`.`t`",
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "idx_good", Type: "BTREE", Visible: true, Expressions: []string{"id"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+					{Name: "idx_bad_1", Type: "BTREE", Visible: true, Expressions: []string{"(id + )"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+					{Name: "idx_bad_2", Type: "BTREE", Visible: true, Expressions: []string{"(id * )"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+				},
+			}},
+		}},
+	}
+	badReport, err := badMVCatalog.LoadMetadata(context.Background(), badMeta)
+	require.NoError(t, err)
+	require.Contains(t, badReport.Incomplete, "view:mv_bad")
+	reMV := badMVCatalog.GetDatabase("app").Views["mv_bad"]
+	require.NotNil(t, reMV)
+	require.Len(t, reMV.Indexes, 1)
+	require.Equal(t, "idx_good", reMV.Indexes[0].Name)
 }
