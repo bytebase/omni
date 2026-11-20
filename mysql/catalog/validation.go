@@ -118,9 +118,8 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	// `DEFAULT (position (1))`. (Other disallowed functions in a general default
 	// expression are not validated here yet.)
 	for _, expr := range columnDefDefaultExprs(colDef) {
-		if exprHasSpacedFuncCall(expr) {
-			return &Error{Code: 3770, SQLState: "HY000",
-				Message: "Default value expression of column '" + colDef.Name + "' contains a disallowed function."}
+		if exprHasDisallowedDefaultFunc(expr) {
+			return errDefaultValExprDisallowedFunc(colDef.Name)
 		}
 	}
 	return nil

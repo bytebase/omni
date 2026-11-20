@@ -98,13 +98,11 @@ func validateTableDefaultExpressions(tbl *Table) error {
 				err = errDefaultValExprVariable(col.Name)
 				return false
 			case *nodes.DefaultExpr:
-				err = &Error{Code: 3770, SQLState: "HY000",
-					Message: "Default value expression of column '" + col.Name + "' contains a disallowed function."}
+				err = errDefaultValExprDisallowedFunc(col.Name)
 				return false
 			case *nodes.FuncCallExpr:
-				if x.SpacedParen {
-					err = &Error{Code: 3770, SQLState: "HY000",
-						Message: "Default value expression of column '" + col.Name + "' contains a disallowed function."}
+				if exprHasDisallowedDefaultFunc(x) {
+					err = errDefaultValExprDisallowedFunc(col.Name)
 					return false
 				}
 			case *nodes.ColumnRef:
@@ -137,6 +135,141 @@ func validateTableDefaultExpressions(tbl *Table) error {
 		}
 	}
 	return nil
+}
+
+func exprHasDisallowedDefaultFunc(expr nodes.ExprNode) bool {
+	if expr == nil {
+		return false
+	}
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok {
+			if fn.Schema != "" || fn.SpacedParen || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
+func isAllowedDefaultExprBuiltinFunc(name string) bool {
+	return allowedDefaultExprBuiltinFuncs[strings.ToLower(strings.TrimSpace(name))]
+}
+
+// allowedDefaultExprBuiltinFuncs lists MySQL 8.0.46 built-in scalar functions
+// permitted inside column DEFAULT (expr) definitions (verified against mysql:8.0.46).
+// Stored functions, UDFs, aggregate/window functions, and disallowed built-ins
+// (e.g., VERSION, LAST_INSERT_ID, ROW_COUNT, FOUND_ROWS, SLEEP, GET_LOCK,
+// LOAD_FILE, BENCHMARK, UPDATEXML, VALUES) are excluded and fail with 3770.
+var allowedDefaultExprBuiltinFuncs = map[string]bool{
+	"abs": true, "acos": true, "adddate": true, "addtime": true,
+	"aes_decrypt": true, "aes_encrypt": true, "any_value": true, "ascii": true,
+	"asin": true, "atan": true, "atan2": true,
+	"bin": true, "bin_to_uuid": true, "bit_count": true, "bit_length": true,
+	"can_access_user": true, "can_access_view": true, "cast": true, "ceil": true,
+	"ceiling": true, "char": true, "character_length": true, "charset": true,
+	"char_length": true, "coalesce": true, "coercibility": true, "collation": true,
+	"compress": true, "concat": true, "concat_ws": true, "connection_id": true,
+	"conv": true, "convert": true, "convert_tz": true, "cos": true, "cot": true,
+	"crc32": true, "create_digest": true, "curdate": true, "current_date": true,
+	"current_role": true, "current_time": true, "current_timestamp": true,
+	"current_user": true, "curtime": true,
+	"database": true, "date": true, "datediff": true, "date_add": true,
+	"date_format": true, "date_sub": true, "day": true, "dayname": true,
+	"dayofmonth": true, "dayofweek": true, "dayofyear": true, "degrees": true,
+	"elt": true, "exp": true, "export_set": true, "extract": true,
+	"extractvalue": true,
+	"field":        true, "find_in_set": true, "floor": true, "format": true,
+	"format_bytes": true, "format_pico_time": true, "from_base64": true,
+	"from_days": true, "from_unixtime": true,
+	"geomcollfromtext": true, "geomcollfromwkb": true, "geomcollection": true,
+	"geometrycollection": true, "geometrycollectionfromtext": true,
+	"geometrycollectionfromwkb": true, "geomfromtext": true, "geomfromwkb": true,
+	"get_format": true, "greatest": true, "gtid_subset": true, "gtid_subtract": true,
+	"hex": true, "hour": true,
+	"if": true, "ifnull": true, "inet6_aton": true, "inet6_ntoa": true,
+	"inet_aton": true, "inet_ntoa": true, "insert": true, "instr": true,
+	"interval": true, "isnull": true, "is_ipv4": true, "is_ipv4_compat": true,
+	"is_ipv4_mapped": true, "is_ipv6": true, "is_uuid": true,
+	"json_array": true, "json_array_append": true, "json_array_insert": true,
+	"json_contains": true, "json_contains_path": true, "json_depth": true,
+	"json_extract": true, "json_insert": true, "json_keys": true, "json_length": true,
+	"json_merge_patch": true, "json_merge_preserve": true, "json_object": true,
+	"json_overlaps": true, "json_pretty": true, "json_quote": true,
+	"json_remove": true, "json_replace": true, "json_schema_valid": true,
+	"json_schema_validation_report": true, "json_search": true, "json_set": true,
+	"json_storage_free": true, "json_storage_size": true, "json_type": true,
+	"json_unquote": true, "json_valid": true, "json_value": true,
+	"last_day": true, "lcase": true, "least": true, "left": true, "length": true,
+	"linefromtext": true, "linefromwkb": true, "linestring": true, "ln": true,
+	"localtime": true, "localtimestamp": true, "locate": true, "log": true,
+	"log10": true, "log2": true, "lower": true, "lpad": true, "ltrim": true,
+	"makedate": true, "maketime": true, "make_set": true,
+	"mbrcontains": true, "mbrcoveredby": true, "mbrcovers": true, "mbrdisjoint": true,
+	"mbrequals": true, "mbrintersects": true, "mbroverlaps": true, "mbrtouches": true,
+	"mbrwithin": true, "md5": true, "microsecond": true, "mid": true, "minute": true,
+	"mlinefromtext": true, "mlinefromwkb": true, "mod": true, "month": true,
+	"monthname": true, "mpointfromtext": true, "mpointfromwkb": true,
+	"mpolyfromtext": true, "mpolyfromwkb": true, "multilinestring": true,
+	"multipoint": true, "multipolygon": true,
+	"now": true, "nullif": true,
+	"oct": true, "octet_length": true, "ord": true,
+	"period_add": true, "period_diff": true, "pi": true, "point": true,
+	"pointfromtext": true, "pointfromwkb": true, "polyfromtext": true,
+	"polyfromwkb": true, "polygon": true, "position": true, "pow": true,
+	"power": true, "ps_current_thread_id": true, "ps_thread_id": true,
+	"quarter": true, "quote": true,
+	"radians": true, "rand": true, "random_bytes": true, "regexp_instr": true,
+	"regexp_like": true, "regexp_replace": true, "regexp_substr": true,
+	"reverse": true, "right": true, "roles_graphml": true, "round": true,
+	"rpad": true, "rtrim": true,
+	"schema": true, "second": true, "sec_to_time": true, "session_user": true,
+	"sha": true, "sha1": true, "sha2": true, "sign": true, "sin": true,
+	"soundex": true, "space": true, "sqrt": true, "statement_digest": true,
+	"statement_digest_text": true, "strcmp": true, "str_to_date": true,
+	"st_area": true, "st_asbinary": true, "st_asgeojson": true, "st_astext": true,
+	"st_buffer": true, "st_buffer_strategy": true, "st_centroid": true,
+	"st_contains": true, "st_convexhull": true, "st_crosses": true,
+	"st_difference": true, "st_dimension": true, "st_disjoint": true,
+	"st_distance": true, "st_distance_sphere": true, "st_endpoint": true,
+	"st_envelope": true, "st_equals": true, "st_exteriorring": true,
+	"st_frechetdistance": true, "st_geohash": true, "st_geomcollfromtext": true,
+	"st_geomcollfromwkb": true, "st_geometryn": true, "st_geometrytype": true,
+	"st_geomfromgeojson": true, "st_geomfromtext": true, "st_geomfromwkb": true,
+	"st_hausdorffdistance": true, "st_interiorringn": true, "st_intersection": true,
+	"st_intersects": true, "st_isclosed": true, "st_isempty": true,
+	"st_issimple": true, "st_isvalid": true, "st_latfromgeohash": true,
+	"st_latitude": true, "st_length": true, "st_linefromtext": true,
+	"st_linefromwkb": true, "st_lineinterpolatepoint": true,
+	"st_lineinterpolatepoints": true, "st_longfromgeohash": true,
+	"st_longitude": true, "st_makeenvelope": true, "st_mlinefromtext": true,
+	"st_mlinefromwkb": true, "st_mpointfromtext": true, "st_mpointfromwkb": true,
+	"st_mpolyfromtext": true, "st_mpolyfromwkb": true, "st_numgeometries": true,
+	"st_numinteriorrings": true, "st_numpoints": true, "st_overlaps": true,
+	"st_pointatdistance": true, "st_pointfromgeohash": true,
+	"st_pointfromtext": true, "st_pointfromwkb": true, "st_pointn": true,
+	"st_polyfromtext": true, "st_polyfromwkb": true, "st_simplify": true,
+	"st_srid": true, "st_startpoint": true, "st_swapxy": true,
+	"st_symdifference": true, "st_touches": true, "st_transform": true,
+	"st_union": true, "st_validate": true, "st_within": true, "st_x": true,
+	"st_y": true, "subdate": true, "substr": true, "substring": true,
+	"substring_index": true, "subtime": true, "sysdate": true, "system_user": true,
+	"tan": true, "time": true, "timediff": true, "timestamp": true,
+	"timestampadd": true, "timestampdiff": true, "time_format": true,
+	"time_to_sec": true, "to_base64": true, "to_days": true, "to_seconds": true,
+	"trim": true, "truncate": true,
+	"ucase": true, "uncompress": true, "uncompressed_length": true, "unhex": true,
+	"unix_timestamp": true, "upper": true, "user": true, "utc_date": true,
+	"utc_time": true, "utc_timestamp": true, "uuid": true, "uuid_short": true,
+	"uuid_to_bin":                true,
+	"validate_password_strength": true,
+	"week":                       true, "weekday": true, "weekofyear": true, "weight_string": true,
+	"year": true, "yearweek": true,
 }
 
 // validateDroppedOrRenamedDefaultExprDeps enforces MySQL 3766 when an ALTER
@@ -1012,47 +1145,6 @@ func countLegacyMultibyteTrimmedChars(raw []byte, cs string) (int, bool) {
 		i += step
 	}
 	return trimmedChars, true
-}
-
-func validStringForColumnCharset(val, charset string) bool {
-	if !utf8.ValidString(val) {
-		return false
-	}
-	switch strings.ToLower(strings.TrimSpace(charset)) {
-	case "ascii":
-		for i := 0; i < len(val); i++ {
-			if val[i] >= 0x80 {
-				return false
-			}
-		}
-	case "utf8", "utf8mb3", "ucs2":
-		for _, r := range val {
-			if r > 0xFFFF {
-				return false
-			}
-		}
-	case "latin1":
-		for _, r := range val {
-			if !isMySQLLatin1Rune(r) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func isMySQLLatin1Rune(r rune) bool {
-	if r >= 0 && r <= 0xFF {
-		return true
-	}
-	switch r {
-	case 0x20AC, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6,
-		0x2030, 0x0160, 0x2039, 0x0152, 0x017D, 0x2018, 0x2019, 0x201C,
-		0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A,
-		0x0153, 0x017E, 0x0178:
-		return true
-	}
-	return false
 }
 
 // normalizeCharDefaultStringLiteral applies MySQL's trailing-space coercion when

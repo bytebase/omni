@@ -66,7 +66,7 @@ func New() *Catalog {
 		tablespaces:      make(map[string]bool),
 		undoTablespaces:  map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
 		tablespaceFiles:  map[string]string{"innodb_undo_001": "/var/lib/mysql/undo_001", "innodb_undo_002": "/var/lib/mysql/undo_002"},
-		tablespaceDirs:   map[string]bool{"/var/lib/mysql": true},
+		tablespaceDirs:   make(map[string]bool),
 		dataDir:          "/var/lib/mysql",
 		userVars:         make(map[string]userVarValue),
 		systemTimeZone:   session.SystemTimeZone,
@@ -181,18 +181,15 @@ func (c *Catalog) DataDir() string {
 	return "/var/lib/mysql"
 }
 
-// SetDataDir sets the server's data directory and registers it as a known
-// InnoDB tablespace directory.
+// SetDataDir sets the server's data directory. Replacing the active datadir
+// automatically replaces the implicit datadir allowance without removing
+// directories explicitly configured via AddTablespaceDir or SetTablespaceDirs.
 func (c *Catalog) SetDataDir(dir string) {
 	norm := normalizeTablespaceConfigDir(dir)
 	if norm == "" {
 		return
 	}
 	c.dataDir = norm
-	if c.tablespaceDirs == nil {
-		c.tablespaceDirs = make(map[string]bool)
-	}
-	c.tablespaceDirs[norm] = true
 }
 
 // AddTablespaceDir registers one or more known InnoDB tablespace directories
@@ -210,10 +207,10 @@ func (c *Catalog) AddTablespaceDir(dirs ...string) {
 	}
 }
 
-// SetTablespaceDirs replaces the set of known InnoDB tablespace directories
-// (always retaining DataDir).
+// SetTablespaceDirs replaces the set of explicitly configured InnoDB
+// tablespace directories (DataDir remains allowed implicitly).
 func (c *Catalog) SetTablespaceDirs(dirs ...string) {
-	c.tablespaceDirs = map[string]bool{c.DataDir(): true}
+	c.tablespaceDirs = make(map[string]bool)
 	c.AddTablespaceDir(dirs...)
 }
 

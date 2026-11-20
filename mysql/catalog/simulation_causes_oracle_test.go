@@ -3611,6 +3611,81 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"FULLTEXT KEY `fk3` (`c`)"},
 			omits:    []string{"(100)"},
 		},
+		// 22. Quoted CHAR/VARCHAR charset representability and stored/disallowed functions in DEFAULT (expr).
+		{
+			name: "CREATE TABLE CHAR sjis DEFAULT unrepresentable emoji rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET sjis DEFAULT '😀')",
+			code: 1067,
+		},
+		{
+			name:    "CREATE TABLE CHAR sjis DEFAULT unrepresentable emoji rejected even in non-strict sql_mode",
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLE a (c CHAR(1) CHARACTER SET sjis DEFAULT '😀')",
+			code:    1067,
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+		},
+		{
+			name: "CREATE TABLE CHAR cp1251 DEFAULT 'é' rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET cp1251 DEFAULT 'é')",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE CHAR cp1251 DEFAULT 'Д' accepted",
+			stmt:     "CREATE TABLE a (c CHAR(1) CHARACTER SET cp1251 DEFAULT 'Д')",
+			code:     0,
+			contains: []string{"DEFAULT 'Д'"},
+		},
+		{
+			name: "CREATE TABLE CHAR swe7 DEFAULT '[' rejected with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET swe7 DEFAULT '[')",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE CHAR swe7 DEFAULT 'Å' accepted",
+			stmt:     "CREATE TABLE a (c CHAR(1) CHARACTER SET swe7 DEFAULT 'Å')",
+			code:     0,
+			contains: []string{"DEFAULT 'Å'"},
+		},
+		{
+			name:     "CREATE TABLE CHAR latin1 DEFAULT '€' accepted",
+			stmt:     "CREATE TABLE a (c CHAR(1) CHARACTER SET latin1 DEFAULT '€')",
+			code:     0,
+			contains: []string{"DEFAULT '€'"},
+		},
+		{
+			name:     "CREATE TABLE CHAR gb18030 DEFAULT '😀' accepted",
+			stmt:     "CREATE TABLE a (c CHAR(4) CHARACTER SET gb18030 DEFAULT '😀')",
+			code:     0,
+			contains: []string{"`c` char(4) CHARACTER SET gb18030"},
+		},
+		{
+			name:    "CREATE TABLE DEFAULT calling stored function rejected with 3770",
+			setup:   []string{"CREATE FUNCTION f() RETURNS INT DETERMINISTIC RETURN 1"},
+			cleanup: []string{"DROP FUNCTION IF EXISTS f"},
+			stmt:    "CREATE TABLE a (c INT DEFAULT (f()))",
+			code:    3770,
+		},
+		{
+			name: "CREATE TABLE DEFAULT calling unknown function rejected with 3770",
+			stmt: "CREATE TABLE a (c INT DEFAULT (unknown_fn()))",
+			code: 3770,
+		},
+		{
+			name: "CREATE TABLE DEFAULT calling disallowed builtin VERSION() rejected with 3770",
+			stmt: "CREATE TABLE a (c VARCHAR(64) DEFAULT (VERSION()))",
+			code: 3770,
+		},
+		{
+			name:  "ALTER TABLE ALTER COLUMN SET DEFAULT calling unknown function rejected with 3770",
+			setup: []string{"CREATE TABLE a (c INT)"},
+			stmt:  "ALTER TABLE a ALTER COLUMN c SET DEFAULT (unknown_fn())",
+			code:  3770,
+		},
+		{
+			name: "CREATE TABLE DEFAULT calling allowed builtins accepted",
+			stmt: "CREATE TABLE a (x INT DEFAULT (ABS(-1)), y VARCHAR(36) DEFAULT (UUID()), z INT DEFAULT (IF(1,2,3)), g GEOMETRY DEFAULT (POINT(0,0)))",
+			code: 0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4035,6 +4110,21 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, dirCat, "CREATE TABLESPACE ts_opt ADD DATAFILE '/opt/innodb2/ts_opt.ibd' ENGINE=InnoDB;")
 	if got, _ := simulationCatalogRefusal(t, dirCat, "CREATE TABLESPACE ts_unconf ADD DATAFILE '/unconfigured/ts_unconf.ibd' ENGINE=InnoDB"); got != 3121 {
 		t.Fatalf("unconfigured tablespace directory got %d, want 3121", got)
+	}
+
+	// Replacing DataDir removes the previous automatic /var/lib/mysql allowance
+	// unless /var/lib/mysql was explicitly added via AddTablespaceDir.
+	replacedDirCat := New()
+	replacedDirCat.SetDataDir("/srv/mysql")
+	if got, _ := simulationCatalogRefusal(t, replacedDirCat, "CREATE TABLESPACE ts_old_dd ADD DATAFILE '/var/lib/mysql/ts_old_dd.ibd' ENGINE=InnoDB"); got != 3121 {
+		t.Fatalf("replaced DataDir still allowed previous /var/lib/mysql datadir: got %d, want 3121", got)
+	}
+	execAlterClauses(t, replacedDirCat, "CREATE TABLESPACE ts_new_dd ADD DATAFILE '/srv/mysql/ts_new_dd.ibd' ENGINE=InnoDB;")
+	replacedDirCat.AddTablespaceDir("/var/lib/mysql")
+	replacedDirCat.SetDataDir("/srv/mysql2")
+	execAlterClauses(t, replacedDirCat, "CREATE TABLESPACE ts_explicit_old ADD DATAFILE '/var/lib/mysql/ts_explicit_old.ibd' ENGINE=InnoDB;")
+	if got, _ := simulationCatalogRefusal(t, replacedDirCat, "CREATE TABLESPACE ts_prev_dd2 ADD DATAFILE '/srv/mysql/ts_prev_dd2.ibd' ENGINE=InnoDB"); got != 3121 {
+		t.Fatalf("second SetDataDir still allowed /srv/mysql: got %d, want 3121", got)
 	}
 
 	// renderWithSessionContext save/restore framing executes cleanly on a fresh

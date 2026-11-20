@@ -372,6 +372,98 @@ func ensureCharsetTablesLoaded() {
 	})
 }
 
+var (
+	charsetAllowedRunesOnce sync.Once
+	charsetAllowedRunes     map[string]map[rune]bool
+)
+
+func getCharsetAllowedRunes(cs string) map[rune]bool {
+	charsetAllowedRunesOnce.Do(func() {
+		ensureCharsetTablesLoaded()
+		build := func(tbl []rune) map[rune]bool {
+			m := make(map[rune]bool, len(tbl))
+			for _, r := range tbl {
+				if r != 0 && r != '?' && r != utf8.RuneError {
+					m[r] = true
+				}
+			}
+			return m
+		}
+		m := make(map[string]map[rune]bool, len(singleByteCharsetIndex)+8)
+		for name, idx := range singleByteCharsetIndex {
+			m[name] = build(charsetTables.sb[idx*128 : (idx+1)*128])
+		}
+		m["sjis"] = build(charsetTables.sjis)
+		m["cp932"] = build(charsetTables.cp932)
+		m["ujis"] = build(charsetTables.ujis)
+		m["eucjpms"] = build(charsetTables.eucjpms)
+		m["gbk"] = build(charsetTables.gbk)
+		m["gb2312"] = build(charsetTables.gb2312)
+		m["big5"] = build(charsetTables.big5)
+		m["euckr"] = build(charsetTables.euckr)
+		charsetAllowedRunes = m
+	})
+	return charsetAllowedRunes[cs]
+}
+
+// validStringForColumnCharset reports whether val can be encoded into the
+// column's declared MySQL 8.0 character set without loss/unmapped characters.
+func validStringForColumnCharset(val, charset string) bool {
+	if !utf8.ValidString(val) {
+		return false
+	}
+	cs := strings.ToLower(strings.TrimSpace(charset))
+	switch cs {
+	case "", "utf8mb4", "utf16", "utf16le", "utf32", "gb18030", "binary":
+		return true
+	case "utf8", "utf8mb3", "ucs2":
+		for _, r := range val {
+			if r > 0xFFFF {
+				return false
+			}
+		}
+		return true
+	case "ascii":
+		for i := 0; i < len(val); i++ {
+			if val[i] >= 0x80 {
+				return false
+			}
+		}
+		return true
+	case "swe7":
+		for _, r := range val {
+			if !isValidSWE7Rune(r) {
+				return false
+			}
+		}
+		return true
+	default:
+		allowed := getCharsetAllowedRunes(cs)
+		if allowed == nil {
+			return false
+		}
+		for _, r := range val {
+			if r >= 0 && r < 0x80 {
+				continue
+			}
+			if !allowed[r] {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func isValidSWE7Rune(r rune) bool {
+	switch r {
+	case '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~':
+		return false
+	case 'É', 'Ä', 'Ö', 'Å', 'Ü', 'é', 'ä', 'ö', 'å', 'ü':
+		return true
+	}
+	return r >= 0 && r < 0x80
+}
+
 const csTableSB = "" +
 	"eNrtWg1w1MUV37t4ISUtX1NFvi4XOBBsS4kSaqVY8HO0UlELLeAHITEkBBScVvmcAhVLBSoCohSEqI0JdexYATW0WlvapE61FKgI" +
 	"DeQu8WssXwa1QMix/T3295/b+3OXHBCbMHAzb97b3ff27e7bt/vef2+OUsrTwvB0H6Xyd2lde4FSxfX6xG8Z6j8BLsxQqmtY62/6" +

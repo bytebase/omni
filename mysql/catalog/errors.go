@@ -114,6 +114,7 @@ const (
 	ErrDefaultValExprNamedFuncNotAllowed = 3767
 	ErrDefaultValExprRefAutoInc          = 3768
 	ErrDefaultValExprContainSubquery     = 3769
+	ErrDefaultValExprFuncIsNotAllowed    = 3770
 	ErrDefaultValExprRefVariable         = 3772
 	ErrSecondaryEngineNotDefined         = 3889
 	ErrAutoextendSizeNotMultiple         = 4023
@@ -214,6 +215,7 @@ var sqlStateMap = map[int]string{
 	ErrDefaultValExprNamedFuncNotAllowed: "HY000",
 	ErrDefaultValExprRefAutoInc:          "HY000",
 	ErrDefaultValExprContainSubquery:     "HY000",
+	ErrDefaultValExprFuncIsNotAllowed:    "HY000",
 	ErrDefaultValExprRefVariable:         "HY000",
 	ErrSecondaryEngineNotDefined:         "HY000",
 	ErrAutoextendSizeNotMultiple:         "HY000",
@@ -800,6 +802,11 @@ func errDefaultValExprSubquery(colName string) error {
 func errDefaultValExprVariable(colName string) error {
 	return &Error{Code: ErrDefaultValExprRefVariable, SQLState: sqlState(ErrDefaultValExprRefVariable),
 		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to user or system variables.", colName)}
+}
+
+func errDefaultValExprDisallowedFunc(colName string) error {
+	return &Error{Code: ErrDefaultValExprFuncIsNotAllowed, SQLState: sqlState(ErrDefaultValExprFuncIsNotAllowed),
+		Message: fmt.Sprintf("Default value expression of column '%s' contains a disallowed function.", colName)}
 }
 
 func errSecondaryEngineNotDefined() error {

@@ -1827,9 +1827,8 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		if exprHasSpacedFuncCall(cmd.DefaultExpr) {
-			return &Error{Code: 3770, SQLState: "HY000",
-				Message: "Default value expression of column '" + col.Name + "' contains a disallowed function."}
+		if exprHasDisallowedDefaultFunc(cmd.DefaultExpr) {
+			return errDefaultValExprDisallowedFunc(col.Name)
 		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
