@@ -2415,6 +2415,165 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a DROP COLUMN c, DROP COLUMN x",
 			code:  0,
 		},
+		// Round-2 review oracle cases: 64-bit SET masks, general tablespace engines,
+		// coerced numeric string defaults, and non-InnoDB TABLESPACE occupancy.
+		{
+			name: "CREATE TABLE with 64-member SET and MaxUint64 numeric DEFAULT",
+			stmt: "CREATE TABLE s (c SET('18446744073709551615','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16','m17','m18','m19','m20','m21','m22','m23','m24','m25','m26','m27','m28','m29','m30','m31','m32','m33','m34','m35','m36','m37','m38','m39','m40','m41','m42','m43','m44','m45','m46','m47','m48','m49','m50','m51','m52','m53','m54','m55','m56','m57','m58','m59','m60','m61','m62','m63') DEFAULT 18446744073709551615)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with 64-member SET and 2^64 decimal-lexed DEFAULT matching member",
+			stmt: "CREATE TABLE s (c SET('18446744073709551616','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16','m17','m18','m19','m20','m21','m22','m23','m24','m25','m26','m27','m28','m29','m30','m31','m32','m33','m34','m35','m36','m37','m38','m39','m40','m41','m42','m43','m44','m45','m46','m47','m48','m49','m50','m51','m52','m53','m54','m55','m56','m57','m58','m59','m60','m61','m62','m63') DEFAULT 18446744073709551616)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with 64-member SET and MaxUint64 DEFAULT not in member names",
+			stmt: "CREATE TABLE s (c SET('m0','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13','m14','m15','m16','m17','m18','m19','m20','m21','m22','m23','m24','m25','m26','m27','m28','m29','m30','m31','m32','m33','m34','m35','m36','m37','m38','m39','m40','m41','m42','m43','m44','m45','m46','m47','m48','m49','m50','m51','m52','m53','m54','m55','m56','m57','m58','m59','m60','m61','m62','m63') DEFAULT 18446744073709551615)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with SET bitmask DEFAULT matching a member name",
+			stmt: "CREATE TABLE a (c SET('a','3') DEFAULT 3)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with SET bitmask DEFAULT exceeding member mask",
+			stmt: "CREATE TABLE a (c SET('a','4') DEFAULT 4)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLESPACE with ENGINE=MyISAM",
+			stmt: "CREATE TABLESPACE ts_myisam ADD DATAFILE 'ts_myisam.ibd' ENGINE=MyISAM",
+			code: 1478,
+		},
+		{
+			name: "CREATE TABLESPACE with ENGINE=MEMORY",
+			stmt: "CREATE TABLESPACE ts_mem ADD DATAFILE 'ts_mem.ibd' ENGINE=MEMORY",
+			code: 1478,
+		},
+		{
+			name: "CREATE TABLESPACE with unknown ENGINE",
+			stmt: "CREATE TABLESPACE ts_bogus ADD DATAFILE 'ts_bogus.ibd' ENGINE=Bogus",
+			code: 1286,
+		},
+		{
+			name:    "CREATE TABLESPACE with unknown ENGINE substituted under empty sql_mode",
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLESPACE ts_sub ADD DATAFILE 'ts_sub.ibd' ENGINE=Bogus",
+			code:    0,
+			cleanup: []string{"DROP TABLESPACE ts_sub"},
+		},
+		{
+			name:    "ALTER TABLESPACE with mismatched ENGINE=MyISAM",
+			setup:   []string{"CREATE TABLESPACE ts_eng ADD DATAFILE 'ts_eng.ibd' ENGINE=InnoDB"},
+			stmt:    "ALTER TABLESPACE ts_eng ENGINE=MyISAM",
+			code:    3642,
+			cleanup: []string{"DROP TABLESPACE ts_eng"},
+		},
+		{
+			name:    "DROP TABLESPACE with mismatched ENGINE=MyISAM",
+			setup:   []string{"CREATE TABLESPACE ts_eng ADD DATAFILE 'ts_eng.ibd' ENGINE=InnoDB"},
+			stmt:    "DROP TABLESPACE ts_eng ENGINE=MyISAM",
+			code:    3642,
+			cleanup: []string{"DROP TABLESPACE ts_eng"},
+		},
+		{
+			name: "DROP missing TABLESPACE with ENGINE=MyISAM",
+			stmt: "DROP TABLESPACE ts_missing ENGINE=MyISAM",
+			code: 3510,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) with leading-zero numeric DEFAULT 01",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 01)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) with signed zero DEFAULT -0",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT -0)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) with scientific DEFAULT 1e0",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 1e0)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(3) with trailing-zero decimal DEFAULT 1.50",
+			stmt: "CREATE TABLE a (c CHAR(3) DEFAULT 1.50)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(2) with leading-dot decimal DEFAULT .5",
+			stmt: "CREATE TABLE a (c CHAR(2) DEFAULT .5)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(3) with leading-dot decimal DEFAULT .5",
+			stmt: "CREATE TABLE a (c CHAR(3) DEFAULT .5)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) with scientific DEFAULT 1e-2",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 1e-2)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(2) with scientific DEFAULT 1e-2 rounded by gcvt",
+			stmt: "CREATE TABLE a (c CHAR(2) DEFAULT 1e-2)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(4) with inexact scientific DEFAULT 1.23e10",
+			stmt: "CREATE TABLE a (c CHAR(4) DEFAULT 1.23e10)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(5) with scientific DEFAULT 1.23e10",
+			stmt: "CREATE TABLE a (c CHAR(5) DEFAULT 1.23e10)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE BINARY(1) with leading-zero numeric DEFAULT 01",
+			stmt: "CREATE TABLE a (c BINARY(1) DEFAULT 01)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE BINARY(3) with trailing-zero decimal DEFAULT 1.50",
+			stmt: "CREATE TABLE a (c BINARY(3) DEFAULT 1.50)",
+			code: 1067,
+		},
+		{
+			name: "ALTER TABLE to MyISAM retains syntactic TABLESPACE in SHOW CREATE TABLE",
+			setup: []string{
+				"CREATE TABLESPACE ts_m ADD DATAFILE 'ts_m.ibd'",
+				oneTable,
+			},
+			stmt:     "ALTER TABLE a ENGINE=MyISAM, TABLESPACE ts_m",
+			code:     0,
+			contains: []string{"TABLESPACE `ts_m`", "ENGINE=MyISAM"},
+			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_m"},
+		},
+		{
+			name: "DROP TABLESPACE succeeds when only a MyISAM table names it",
+			setup: []string{
+				"CREATE TABLESPACE ts_m ADD DATAFILE 'ts_m.ibd'",
+				"CREATE TABLE a (b INT) ENGINE=InnoDB TABLESPACE ts_m",
+				"ALTER TABLE a ENGINE=MyISAM",
+			},
+			stmt: "DROP TABLESPACE ts_m",
+			code: 0,
+		},
+		{
+			name: "ALTER TABLE converting MyISAM back to InnoDB validates retained missing TABLESPACE",
+			setup: []string{
+				"CREATE TABLESPACE ts_m ADD DATAFILE 'ts_m.ibd'",
+				"CREATE TABLE a (b INT) ENGINE=MyISAM TABLESPACE ts_m",
+				"DROP TABLESPACE ts_m",
+			},
+			stmt: "ALTER TABLE a ENGINE=InnoDB",
+			code: 3510,
+		},
 	}
 
 	for _, tc := range cases {

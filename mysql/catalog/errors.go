@@ -96,7 +96,9 @@ const (
 	ErrWrongTablespaceName               = 3119
 	ErrTablespaceIsNotEmpty              = 3120
 	ErrJSONUsedAsKey                     = 3152
+	ErrIllegalValueForType               = 1367
 	ErrTablespaceDoesNotExist            = 3510
+	ErrTablespaceEngineMismatch          = 3642
 	ErrReservedTablespaceName            = 3723
 	ErrFunctionalIndexPrimaryKey         = 3756
 	ErrFunctionalIndexOnField            = 3762
@@ -203,6 +205,8 @@ var sqlStateMap = map[int]string{
 	ErrSecondaryEngineNotDefined:         "HY000",
 	ErrAutoextendSizeNotMultiple:         "HY000",
 	ErrAutoextendSizeOutOfRange:          "HY000",
+	ErrIllegalValueForType:               "22007",
+	ErrTablespaceEngineMismatch:          "HY000",
 }
 
 func sqlState(code int) string {
@@ -686,6 +690,21 @@ func errTempTablespaceNonTempTable() error {
 func errPartitionedTableSharedTablespace() error {
 	return &Error{Code: 1478, SQLState: "HY000",
 		Message: "InnoDB : A partitioned table is not allowed in a shared tablespace."}
+}
+
+func errTablespaceUnsupportedEngine(engine, op string) error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine '%s' does not support the create option '%s'", engine, op)}
+}
+
+func errTablespaceEngineMismatch(engine, tsName string) error {
+	return &Error{Code: ErrTablespaceEngineMismatch, SQLState: sqlState(ErrTablespaceEngineMismatch),
+		Message: fmt.Sprintf("Engine '%s' does not match stored engine 'InnoDB' for tablespace '%s'", engine, tsName)}
+}
+
+func errIllegalValueForType(typeName, val string) error {
+	return &Error{Code: ErrIllegalValueForType, SQLState: sqlState(ErrIllegalValueForType),
+		Message: fmt.Sprintf("Illegal %s '%s' value found during parsing", typeName, val)}
 }
 
 func errDependentByDefaultValExpr(colName, tableName string) error {

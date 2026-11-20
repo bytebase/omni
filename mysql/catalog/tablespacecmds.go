@@ -89,11 +89,25 @@ func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
 	return nil
 }
 
+func effectivePartEngine(tblEngine, partEngine, subEngine string) string {
+	if subEngine != "" {
+		return subEngine
+	}
+	if partEngine != "" {
+		return partEngine
+	}
+	return tblEngine
+}
+
+// tableUsesTablespace reports whether tbl occupies general tablespace tsName in
+// InnoDB. On mysql:8.0.46, non-InnoDB engines such as MyISAM retain a syntactic
+// TABLESPACE clause in SHOW CREATE TABLE without occupying the InnoDB tablespace,
+// so DROP TABLESPACE succeeds while only a non-InnoDB table names it.
 func tableUsesTablespace(tbl *Table, tsName string) bool {
 	if tbl == nil {
 		return false
 	}
-	if unquoteTableOption(tbl.Tablespace) == tsName {
+	if isInnoDBEngine(tbl.Engine) && unquoteTableOption(tbl.Tablespace) == tsName {
 		return true
 	}
 	if tbl.Partitioning != nil {
@@ -101,11 +115,11 @@ func tableUsesTablespace(tbl *Table, tsName string) bool {
 			if pd == nil {
 				continue
 			}
-			if unquoteTableOption(pd.Tablespace) == tsName {
+			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && unquoteTableOption(pd.Tablespace) == tsName {
 				return true
 			}
 			for _, spd := range pd.SubPartitions {
-				if spd != nil && unquoteTableOption(spd.Tablespace) == tsName {
+				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && unquoteTableOption(spd.Tablespace) == tsName {
 					return true
 				}
 			}
@@ -118,7 +132,7 @@ func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
 	if tbl == nil {
 		return
 	}
-	if unquoteTableOption(tbl.Tablespace) == oldName {
+	if isInnoDBEngine(tbl.Engine) && unquoteTableOption(tbl.Tablespace) == oldName {
 		tbl.Tablespace = newName
 	}
 	if tbl.Partitioning != nil {
@@ -126,11 +140,11 @@ func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
 			if pd == nil {
 				continue
 			}
-			if unquoteTableOption(pd.Tablespace) == oldName {
+			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && unquoteTableOption(pd.Tablespace) == oldName {
 				pd.Tablespace = newName
 			}
 			for _, spd := range pd.SubPartitions {
-				if spd != nil && unquoteTableOption(spd.Tablespace) == oldName {
+				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && unquoteTableOption(spd.Tablespace) == oldName {
 					spd.Tablespace = newName
 				}
 			}
@@ -148,11 +162,30 @@ func validateTablespaceCreateName(name string) error {
 	return nil
 }
 
-func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
-	if stmt.Engine != "" {
-		if err := validateStorageEngine(stmt.Engine, c.noEngineSubstitution()); err != nil {
-			return err
+func (c *Catalog) validateTablespaceCreateEngine(engine, op string) error {
+	if engine == "" {
+		return nil
+	}
+	if err := validateStorageEngine(engine, c.noEngineSubstitution()); err != nil {
+		return err
+	}
+	canon := storedEngineName(engine)
+	if !isInnoDBEngine(canon) {
+		if strings.EqualFold(canon, "MRG_MyISAM") {
+			canon = "MRG_MYISAM"
 		}
+		return errTablespaceUnsupportedEngine(canon, op)
+	}
+	return nil
+}
+
+func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
+	op := "CREATE TABLESPACE"
+	if stmt.Undo {
+		op = "CREATE UNDO TABLESPACE"
+	}
+	if err := c.validateTablespaceCreateEngine(stmt.Engine, op); err != nil {
+		return err
 	}
 	if stmt.AutoextendSize != "" {
 		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
@@ -176,10 +209,27 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 }
 
 func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
-	if stmt.Engine != "" {
-		if err := validateStorageEngine(stmt.Engine, c.noEngineSubstitution()); err != nil {
+	if stmt.Undo {
+		if err := c.validateTablespaceCreateEngine(stmt.Engine, "ALTER UNDO TABLESPACE"); err != nil {
 			return err
 		}
+		if stmt.AutoextendSize != "" {
+			if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
+				return err
+			}
+		}
+		if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
+			return errInvalidEncryptionOption()
+		}
+		return nil
+	}
+	lower := strings.ToLower(stmt.Name)
+	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
+	if !exists && !strings.HasPrefix(lower, "innodb_") && lower != "mysql" {
+		return errTablespaceDoesNotExist(stmt.Name)
+	}
+	if exists && stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
+		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
 	}
 	if stmt.AutoextendSize != "" {
 		if err := validateAutoextendSize(stmt.AutoextendSize); err != nil {
@@ -188,9 +238,6 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	}
 	if stmt.Encryption != "" && !strings.EqualFold(stmt.Encryption, "Y") && !strings.EqualFold(stmt.Encryption, "N") {
 		return errInvalidEncryptionOption()
-	}
-	if stmt.Undo {
-		return nil
 	}
 	if err := validateTablespaceCreateName(stmt.Name); err != nil {
 		return err
@@ -217,15 +264,21 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 }
 
 func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
-	if stmt.Engine != "" {
-		if err := validateStorageEngine(stmt.Engine, c.noEngineSubstitution()); err != nil {
+	if stmt.Undo {
+		if err := c.validateTablespaceCreateEngine(stmt.Engine, "DROP UNDO TABLESPACE"); err != nil {
 			return err
 		}
-	}
-	if stmt.Undo {
 		return nil
 	}
-	if strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
+	lower := strings.ToLower(stmt.Name)
+	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
+	if !exists && !strings.HasPrefix(lower, "innodb_") {
+		return errTablespaceDoesNotExist(stmt.Name)
+	}
+	if exists && stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
+		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
+	}
+	if strings.HasPrefix(lower, "innodb_") {
 		return errReservedInnoDBTablespacePrefix()
 	}
 	if !c.tablespaces[stmt.Name] {

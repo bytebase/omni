@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"encoding/hex"
+	"errors"
 	"math"
 	"math/big"
 	"math/bits"
@@ -294,6 +295,14 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 	if kind == litNone {
 		return nil
 	}
+	if kind == litNumber && strings.ContainsAny(val, "eE") {
+		s := strings.TrimSpace(val)
+		if isStrictNumberSyntax(s) {
+			if _, err := strconv.ParseFloat(s, 64); errors.Is(err, strconv.ErrRange) {
+				return errIllegalValueForType("double", s)
+			}
+		}
+	}
 
 	unsigned := strings.Contains(strings.ToLower(col.ColumnType), "unsigned")
 
@@ -313,8 +322,12 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 	case "char", "varchar":
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 			switch kind {
-			case litString, litNumber:
+			case litString:
 				if utf8.RuneCountInString(val) > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			case litNumber:
+				if !validNumericDefaultForStringLen(val, maxLen) {
 					return errInvalidDefault(col.Name)
 				}
 			}
@@ -322,8 +335,12 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 	case "binary", "varbinary":
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 			switch kind {
-			case litString, litNumber:
+			case litString:
 				if len(val) > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			case litNumber:
+				if !validNumericDefaultForStringLen(val, maxLen) {
 					return errInvalidDefault(col.Name)
 				}
 			case litHex:
@@ -629,21 +646,176 @@ func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bo
 	return (len(s) <= 2 && n >= 1 && n <= 99) || (n >= 1901 && n <= 2155)
 }
 
-func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
-	members := enumMembersFromColumnType(col.ColumnType)
-	if unquotedNum {
-		n, err := strconv.Atoi(strings.TrimSpace(val))
-		if err != nil || n < 0 || n > len(members) {
+func validNumericDefaultForStringLen(val string, maxLen int) bool {
+	if maxLen <= 0 {
+		return false
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		return len(s) <= maxLen
+	}
+	if strings.ContainsAny(s, "eE") {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
 			return false
 		}
-		if n == 0 && strict {
+		return myGcvtFits(f, maxLen)
+	}
+	return len(coercedExactNumericString(s)) <= maxLen
+}
+
+// coercedExactNumericString normalizes an exact integer or fixed-point decimal
+// literal to the string Item_int / Item_decimal::val_str produces in MySQL
+// (e.g. `01` -> `"1"`, `-0` -> `"0"`, `+1` -> `"1"`, `.5` -> `"0.5"`, `1.50` -> `"1.50"`).
+func coercedExactNumericString(s string) string {
+	neg := false
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = s[1:]
+	} else if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	}
+	dot := strings.IndexByte(s, '.')
+	if dot < 0 {
+		intPart := strings.TrimLeft(s, "0")
+		if intPart == "" {
+			return "0"
+		}
+		if neg {
+			return "-" + intPart
+		}
+		return intPart
+	}
+	intPart := strings.TrimLeft(s[:dot], "0")
+	fracPart := s[dot+1:]
+	allZero := intPart == "" && strings.TrimLeft(fracPart, "0") == ""
+	if intPart == "" {
+		intPart = "0"
+	}
+	if fracPart == "" {
+		if allZero || !neg {
+			return intPart
+		}
+		return "-" + intPart
+	}
+	if neg && !allZero {
+		return "-" + intPart + "." + fracPart
+	}
+	return intPart + "." + fracPart
+}
+
+func allNinePrefix(digits string, n int) bool {
+	for i := 0; i < n && i < len(digits); i++ {
+		if digits[i] != '9' {
 			return false
 		}
+	}
+	return true
+}
+
+// myGcvtFits reports whether MySQL's my_gcvt(f, MY_GCVT_ARG_DOUBLE, width, ...)
+// formats f within width bytes without reporting an overflow error.
+func myGcvtFits(f float64, width int) bool {
+	if width <= 0 {
+		return false
+	}
+	if f == 0 {
 		return true
 	}
-	if kind != litString {
-		return true
+	sign := 0
+	av := f
+	if f < 0 {
+		sign = 1
+		av = -f
 	}
+	avail := width - sign
+	if avail <= 0 {
+		return false
+	}
+	sci := strconv.FormatFloat(av, 'e', -1, 64)
+	ePos := strings.IndexByte(sci, 'e')
+	mant := strings.ReplaceAll(sci[:ePos], ".", "")
+	mant = strings.TrimRight(mant, "0")
+	if mant == "" {
+		mant = "0"
+	}
+	exp, _ := strconv.Atoi(sci[ePos+1:])
+	decpt := exp + 1
+
+	// Fixed-point path in my_gcvt.
+	if decpt <= 0 {
+		if -decpt < avail-1 || (decpt >= -2 && avail >= 2) {
+			return true
+		}
+	} else if decpt < avail {
+		return true
+	} else if decpt == avail {
+		if len(mant) <= decpt || !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
+			return true
+		}
+	}
+
+	// Scientific notation path (`d[.ddd]e[+-]exp`). When len(mant) > 1, my_gcvt
+	// reserves 1 byte for '.' when computing available significant digits.
+	expLen := 1 + len(strconv.Itoa(exp))
+	dot := 0
+	if len(mant) > 1 {
+		dot = 1
+	}
+	ndigits := avail - expLen - dot
+	if ndigits < 1 {
+		return false
+	}
+	if ndigits < len(mant) && allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' {
+		newExpLen := 1 + len(strconv.Itoa(exp+1))
+		if avail-newExpLen-dot < 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func coercedDefaultLiteralString(s string) (string, bool) {
+	if !isStrictNumberSyntax(s) {
+		return "", false
+	}
+	if strings.ContainsAny(s, "eE") {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+			return "", false
+		}
+		return strconv.FormatFloat(f, 'g', -1, 64), true
+	}
+	return coercedExactNumericString(s), true
+}
+
+// parseMySQLIntOrUintLiteral reports whether MySQL's lexer produces Item_int or
+// Item_uint for s (an integer token with no '.' or exponent fitting in int64 or
+// uint64), returning its sign and uint64 magnitude when non-negative.
+func parseMySQLIntOrUintLiteral(s string) (isIntToken bool, nonNeg bool, mag uint64) {
+	if strings.ContainsAny(s, ".eE") {
+		return false, false, 0
+	}
+	if strings.HasPrefix(s, "-") {
+		digits := strings.TrimLeft(s[1:], "0")
+		if digits == "" {
+			return true, true, 0
+		}
+		if _, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return true, false, 0
+		}
+		// Negative integer below MinInt64 is lexed as DECIMAL_NUM by MySQL.
+		return false, false, 0
+	}
+	u, err := strconv.ParseUint(strings.TrimPrefix(s, "+"), 10, 64)
+	if err != nil {
+		// Positive integer above MaxUint64 is lexed as DECIMAL_NUM by MySQL.
+		return false, false, 0
+	}
+	return true, true, u
+}
+
+func enumContainsStringMember(members []string, val string, col *Column, strict bool) bool {
 	target := collationComparisonKey(strings.TrimRight(val, " "), col.Collation, col.Charset)
 	for _, m := range members {
 		if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == target {
@@ -656,21 +828,7 @@ func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, u
 	return false
 }
 
-func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) bool {
-	members := enumMembersFromColumnType(col.ColumnType)
-	if unquotedNum {
-		n, err := strconv.ParseInt(strings.TrimSpace(val), 10, 64)
-		if err != nil || n < 0 {
-			return false
-		}
-		if len(members) < 63 && n >= (int64(1)<<len(members)) {
-			return false
-		}
-		return true
-	}
-	if kind != litString {
-		return true
-	}
+func setContainsStringMembers(members []string, val string, col *Column) bool {
 	if val == "" {
 		return true
 	}
@@ -684,6 +842,54 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 		}
 	}
 	return true
+}
+
+func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return false
+		}
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || u > uint64(len(members)) {
+				return false
+			}
+			if u == 0 && strict {
+				return false
+			}
+		}
+		return enumContainsStringMember(members, coerced, col, strict)
+	}
+	if kind != litString {
+		return true
+	}
+	return enumContainsStringMember(members, val, col, strict)
+}
+
+func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) bool {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return false
+		}
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg {
+				return false
+			}
+			if len(members) < 64 && u >= (uint64(1)<<len(members)) {
+				return false
+			}
+		}
+		return setContainsStringMembers(members, coerced, col)
+	}
+	if kind != litString {
+		return true
+	}
+	return setContainsStringMembers(members, val, col)
 }
 
 func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates bool) bool {

@@ -235,14 +235,24 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 	if !isInnoDBEngine(engine) {
 		return nil
 	}
+	sawExplicit := false
 	for _, cmd := range commands {
 		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
 			continue
 		}
 		if strings.EqualFold(cmd.Option.Name, "tablespace") {
+			sawExplicit = true
 			if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
 				return err
 			}
+		}
+	}
+	// If a non-InnoDB table (which retained a syntactic TABLESPACE clause) is
+	// converted to InnoDB without overriding TABLESPACE, InnoDB validates the
+	// inherited tablespace option on rebuild.
+	if !sawExplicit && !isInnoDBEngine(tbl.Engine) && tbl.Tablespace != "" {
+		if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, tbl.Tablespace); err != nil {
+			return err
 		}
 	}
 	return nil
