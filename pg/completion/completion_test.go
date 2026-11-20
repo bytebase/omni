@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/pg/catalog"
@@ -639,5 +640,24 @@ func TestCompleteSchemaQualifiedAndVirtualColumns(t *testing.T) {
 	unionCTE := Complete("WITH u AS (SELECT id FROM users UNION SELECT id FROM users) SELECT u. FROM u", len("WITH u AS (SELECT id FROM users UNION SELECT id FROM users) SELECT u."), cat)
 	if !hasCandidate(unionCTE, "id", CandidateColumn) {
 		t.Fatalf("missing id column from UNION CTE left branch in %#v", unionCTE)
+	}
+
+	// Prefix containing $ and non-ASCII continuation bytes backs up cleanly to '.'.
+	cat2 := catalog.New()
+	if _, err := cat2.Exec(`CREATE TABLE users (id int, col$1 text, café$1 text); CREATE TABLE orders (order_id int);`, nil); err != nil {
+		t.Fatal(err)
+	}
+	prefDollar := "SELECT t$1.col$ FROM users AS t$1 JOIN orders AS o ON true"
+	prefDollarCands := Complete(prefDollar, strings.Index(prefDollar, " FROM"), cat2)
+	if !hasCandidate(prefDollarCands, "col$1", CandidateColumn) {
+		t.Fatalf("missing col$1 for t$1.col$ prefix in %#v", prefDollarCands)
+	}
+	prefUTF8 := "SELECT café$1.caf FROM users AS café$1 JOIN orders AS o ON true"
+	prefUTF8Cands := Complete(prefUTF8, strings.Index(prefUTF8, " FROM"), cat2)
+	if !hasCandidate(prefUTF8Cands, "café$1", CandidateColumn) {
+		t.Fatalf("missing café$1 for café$1.caf prefix in %#v", prefUTF8Cands)
+	}
+	if hasCandidate(prefUTF8Cands, "order_id", CandidateColumn) {
+		t.Fatalf("unexpected orders.order_id for café$1 qualifier in %#v", prefUTF8Cands)
 	}
 }

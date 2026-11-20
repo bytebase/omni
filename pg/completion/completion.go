@@ -61,14 +61,11 @@ func extractPrefix(sql string, cursorOffset int) string {
 		cursorOffset = len(sql)
 	}
 	i := cursorOffset
-	for i > 0 {
-		c := sql[i-1]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '_' {
-			i--
-		} else {
-			break
-		}
+	for i > 0 && isPGIdentCont(sql[i-1]) {
+		i--
+	}
+	for i < cursorOffset && !isPGIdentStart(sql[i]) {
+		i++
 	}
 	return sql[i:cursorOffset]
 }
