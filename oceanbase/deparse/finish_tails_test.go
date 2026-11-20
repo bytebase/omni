@@ -72,4 +72,17 @@ func TestResolveLambdaAndTableCollection(t *testing.T) {
 		"select `c`.* from table(f()) `c`"; got != want {
 		t.Errorf("TABLE(f()) qualified star:\n got: %s\nwant: %s", got, want)
 	}
+	if got, want := resolveAndDeparse(t, "SELECT * FROM t, TABLE(arr) c"),
+		"select * from (`t` join table(`t`.`arr`) `c`)"; got != want {
+		t.Errorf("TABLE(arr) star:\n got: %s\nwant: %s", got, want)
+	}
+	// Mixed bare-column + expression UNNEST without explicit column list keeps `*` and `u.*` unexpanded.
+	if got, want := resolveAndDeparse(t, "SELECT * FROM t, UNNEST(t.a, f()) u"),
+		"select * from (`t` join unnest(`t`.`a`, f()) `u`)"; got != want {
+		t.Errorf("UNNEST mixed star:\n got: %s\nwant: %s", got, want)
+	}
+	if got, want := resolveAndDeparse(t, "SELECT u.* FROM t, UNNEST(t.a, f()) u"),
+		"select `u`.* from (`t` join unnest(`t`.`a`, f()) `u`)"; got != want {
+		t.Errorf("UNNEST mixed qualified star:\n got: %s\nwant: %s", got, want)
+	}
 }

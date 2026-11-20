@@ -61,6 +61,16 @@ type analyzerScope struct {
 	// this query level so unqualified references bind to the lambda parameter
 	// while free columns and subqueries inside the lambda body are still analyzed.
 	maskedCols map[string]bool
+
+	// unfaithful records that this query (or a subquery inside one of its
+	// expressions) used a FROM source that DeparseQuery cannot write back.
+	unfaithful bool
+}
+
+func (s *analyzerScope) markUnfaithful() {
+	for cur := s; cur != nil; cur = cur.parent {
+		cur.unfaithful = true
+	}
 }
 
 // withMaskedColumns returns a shallow copy of s at the same query level with

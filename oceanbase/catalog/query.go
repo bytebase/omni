@@ -86,6 +86,11 @@ type Query struct {
 	// result columns is not known to be missing, and its error is no refusal.
 	namesUncertain bool
 
+	// unfaithful marks a query that contains a FROM construct (such as TABLE(...),
+	// UNNEST, or RB_ITERATE) whose columns/arguments were validated by the analyzer
+	// but whose RangeTableEntryQ has no round-trip writer in DeparseQuery.
+	unfaithful bool
+
 	// CommandType discriminates SELECT / INSERT / UPDATE / DELETE.
 	// Phase 1 only emits CmdSelect; the field exists so the IR shape is stable
 	// when DML analysis is added in Phase 8+.

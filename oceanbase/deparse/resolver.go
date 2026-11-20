@@ -335,14 +335,22 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 	case *ast.UnnestExpr:
 		// A table function's outputs are the columns it declares, or, without a
-		// column alias list, the arguments it returns rows from. Without an
-		// alias its columns are unqualified.
+		// column alias list, the arguments it returns rows from when every
+		// argument has a statically known column name.
 		names := t.Columns
-		if len(names) == 0 {
+		if len(names) == 0 && len(t.Args) > 0 {
+			allNamed := true
+			var argNames []string
 			for _, arg := range t.Args {
-				if name := tableFunctionArgumentName(arg); name != "" {
-					names = append(names, name)
+				name := tableFunctionArgumentName(arg)
+				if name == "" {
+					allNamed = false
+					break
 				}
+				argNames = append(argNames, name)
+			}
+			if allNamed {
+				names = argNames
 			}
 		}
 		if len(names) == 0 {
@@ -369,14 +377,11 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
 	case *ast.TableCollectionExpr:
-		name := tableFunctionArgumentName(t.Expr)
-		if name == "" {
-			if t.Alias != "" {
-				sc.unknownColumns[strings.ToLower(t.Alias)] = true
-			}
-			return
+		// A TABLE(...) collection unpacks runtime/UDT element columns rather than
+		// naming its output after the collection expression itself.
+		if t.Alias != "" {
+			sc.unknownColumns[strings.ToLower(t.Alias)] = true
 		}
-		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so there is
 		// nothing to expand here.

@@ -44,6 +44,12 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> x > zz, b) AS f FROM a", 1054},
 		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> EXISTS (SELECT 1 FROM missing_tbl WHERE c = x), b) AS f FROM a", 1146},
 		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> EXISTS (SELECT zz FROM a WHERE b = x), b) AS f FROM a", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE(missing) c", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM TABLE(b) c, a", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE((SELECT 1 FROM missing_tbl)) c", 1146},
+		{"CREATE VIEW v AS SELECT a.zz FROM a, TABLE(a.b) c", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE(a.b) c, missing_tbl", 1146},
+		{"CREATE VIEW v AS SELECT c.element FROM a, TABLE(a.b) c", 0},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
 		if err != nil {

@@ -131,19 +131,22 @@ func itemHasUnknownColumns(te ast.TableExpr) bool {
 	case *ast.ExternalTableRef:
 		return true
 	case *ast.TableCollectionExpr:
-		return tableFunctionArgumentName(t.Expr) == ""
+		return true
 	case *ast.RbIterateExpr:
 		return t.Column == "" && tableFunctionArgumentName(t.Arg) == ""
 	case *ast.UnnestExpr:
 		if len(t.Columns) > 0 {
 			return false
 		}
+		if len(t.Args) == 0 {
+			return true
+		}
 		for _, arg := range t.Args {
-			if tableFunctionArgumentName(arg) != "" {
-				return false
+			if tableFunctionArgumentName(arg) == "" {
+				return true
 			}
 		}
-		return true
+		return false
 	case *ast.JoinClause:
 		return (t.Left != nil && itemHasUnknownColumns(t.Left)) || (t.Right != nil && itemHasUnknownColumns(t.Right))
 	case *ast.SubqueryExpr:

@@ -12,6 +12,11 @@ import (
 	"github.com/bytebase/omni/oceanbase/parser"
 )
 
+type outerScope struct {
+	sources      []tableSource
+	lambdaParams map[string]bool
+}
+
 type querySpanExtractor struct {
 	defaultDatabase string
 
@@ -22,14 +27,19 @@ type querySpanExtractor struct {
 	// ctes records common table expressions visible to the current select scope.
 	ctes []*pseudoTable
 
-	// outerTableSources resolves correlated subquery column references.
-	outerTableSources []tableSource
+	// outerScopes holds enclosing select scopes (outermost first, innermost last)
+	// with their table sources and active lambda parameter bindings.
+	outerScopes []outerScope
 
 	// tableSourceFrom is the set of table sources visible from the current FROM clause.
 	tableSourceFrom []tableSource
 
-	// priorTableInFrom resolves JSON_TABLE document expressions against preceding FROM items.
+	// priorTableInFrom resolves lateral expressions in FROM against preceding FROM items.
 	priorTableInFrom []tableSource
+
+	// lambdaParams holds lowered parameter names bound by enclosing LambdaExprs in
+	// the current select scope.
+	lambdaParams map[string]bool
 
 	viewResolutionStack map[string]bool
 	// source is the original SQL text, used to slice expression names via Loc.
@@ -215,9 +225,12 @@ func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName,
 				return querySpanResult, true
 			}
 		}
-		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-			if querySpanResult, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
-				return querySpanResult, true
+		for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+			sources := q.outerScopes[sIdx].sources
+			for i := len(sources) - 1; i >= 0; i-- {
+				if querySpanResult, ok := findInTableSource(sources[i], allowUnknown); ok {
+					return querySpanResult, true
+				}
 			}
 		}
 	}
@@ -225,6 +238,12 @@ func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName,
 }
 
 func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+	unqualified := catalogName == "" && databaseName == "" && tableName == ""
+	lowerField := strings.ToLower(fieldName)
+	if unqualified && q.lambdaParams[lowerField] {
+		return QuerySpanResult{Name: fieldName, SourceColumns: ColumnSet{}}, nil
+	}
+
 	findInTableSource := func(tableSource tableSource, allowUnknown bool) (QuerySpanResult, bool) {
 		unk, isUnknown := tableSource.(*unknownColumnsTable)
 		if isUnknown != allowUnknown {
@@ -245,21 +264,53 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 		return QuerySpanResult{}, false
 	}
 
-	// Resolve against known relations across the scope chain first so remote or
-	// external unknown-column tables never swallow local column lineage.
-	for _, allowUnknown := range []bool{false, true} {
-		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-			if source, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+	// Pass 1: resolve against known relations across the scope chain first so
+	// remote or external unknown-column tables never swallow known column
+	// lineage, stopping at any enclosing scope where an unqualified name is
+	// masked by a lambda parameter.
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.tableSourceFrom[i], false); ok {
+			return source, nil
+		}
+	}
+	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.priorTableInFrom[i], false); ok {
+			return source, nil
+		}
+	}
+	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+		frame := q.outerScopes[sIdx]
+		if unqualified && frame.lambdaParams[lowerField] {
+			break
+		}
+		for i := len(frame.sources) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(frame.sources[i], false); ok {
 				return source, nil
 			}
 		}
-		for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-			if source, ok := findInTableSource(q.priorTableInFrom[i], allowUnknown); ok {
-				return source, nil
-			}
+	}
+
+	// Pass 2: resolve against unknown-column sources and enclosing lambda
+	// parameters from innermost scope outward so an inner unknown source (such
+	// as TABLE(arr) c) shadows an outer lambda parameter while an outer lambda
+	// parameter still shadows unknown sources outside it.
+	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.tableSourceFrom[i], true); ok {
+			return source, nil
 		}
-		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-			if source, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
+	}
+	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+		if source, ok := findInTableSource(q.priorTableInFrom[i], true); ok {
+			return source, nil
+		}
+	}
+	for sIdx := len(q.outerScopes) - 1; sIdx >= 0; sIdx-- {
+		frame := q.outerScopes[sIdx]
+		if unqualified && frame.lambdaParams[lowerField] {
+			return QuerySpanResult{Name: fieldName, SourceColumns: ColumnSet{}}, nil
+		}
+		for i := len(frame.sources) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(frame.sources[i], true); ok {
 				return source, nil
 			}
 		}
@@ -800,7 +851,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		}
 		return q.extractTableFunction(t.Alias, columns, []ast.ExprNode{t.Arg})
 	case *ast.TableCollectionExpr:
-		return q.extractTableFunction(t.Alias, nil, []ast.ExprNode{t.Expr})
+		return q.extractTableCollection(t)
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so the source
 		// has a name and no columns; any column reference to it resolves.
@@ -814,12 +865,23 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 	}
 }
 
-// extractTableFunction reads a table function in FROM — UNNEST, RB_ITERATE or
-// TABLE(...) — as a pseudo table named by its alias (or its column argument),
-// whose columns are the names it declares and whose lineage is the arguments'
-// columns. When no column list is declared and an argument is an expression
-// rather than a bare column, the runtime output column names are unknown while
-// argument lineage is retained on the unknownColumnsTable.
+func (q *querySpanExtractor) extractTableCollection(t *ast.TableCollectionExpr) (tableSource, error) {
+	field, err := q.extractExpr(t.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &unknownColumnsTable{
+		pseudoTable:   pseudoTable{Name: t.Alias, Aliased: t.Alias != ""},
+		SourceColumns: field.SourceColumns,
+	}, nil
+}
+
+// extractTableFunction reads a table function in FROM — UNNEST or RB_ITERATE —
+// as a pseudo table named by its alias (or its column argument), whose columns
+// are the names it declares and whose lineage is the arguments' columns. When
+// no column list is declared and any argument is an expression rather than a
+// bare column, the runtime output column names are unknown while argument
+// lineage is retained on the unknownColumnsTable.
 func (q *querySpanExtractor) extractTableFunction(alias string, columns []string, args []ast.ExprNode) (tableSource, error) {
 	fields := make([]QuerySpanResult, len(args))
 	all := ColumnSet{}
@@ -970,10 +1032,7 @@ func (q *querySpanExtractor) extractSubquery(expr *ast.SubqueryExpr) (*pseudoTab
 	if expr == nil {
 		return &pseudoTable{}, nil
 	}
-	subqueryExtractor := q.cloneForSubquery()
-	if expr.Lateral {
-		subqueryExtractor.outerTableSources = append(subqueryExtractor.outerTableSources, q.priorTableInFrom...)
-	}
+	subqueryExtractor := q.cloneForSubquery(expr.Lateral)
 	tableSource, err := subqueryExtractor.extractSelectStmt(expr.Select)
 	if err != nil {
 		return nil, err
@@ -996,12 +1055,20 @@ func (q *querySpanExtractor) extractSubquery(expr *ast.SubqueryExpr) (*pseudoTab
 	}, nil
 }
 
-func (q *querySpanExtractor) cloneForSubquery() *querySpanExtractor {
+func (q *querySpanExtractor) cloneForSubquery(includePrior bool) *querySpanExtractor {
+	sources := slices.Clone(q.tableSourceFrom)
+	if includePrior {
+		sources = append(sources, q.priorTableInFrom...)
+	}
+	frame := outerScope{
+		sources:      sources,
+		lambdaParams: q.lambdaParams,
+	}
 	return &querySpanExtractor{
 		defaultDatabase:     q.defaultDatabase,
 		catalog:             q.catalog,
 		ctes:                q.ctes,
-		outerTableSources:   append(slices.Clone(q.outerTableSources), q.tableSourceFrom...),
+		outerScopes:         append(slices.Clone(q.outerScopes), frame),
 		tableSourceFrom:     []tableSource{},
 		ignoreCaseSensitive: q.ignoreCaseSensitive,
 		viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
@@ -1292,14 +1359,19 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		}
 		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
 	case *ast.LambdaExpr:
-		var paramCols []QuerySpanResult
-		for _, param := range e.Params {
-			paramCols = append(paramCols, QuerySpanResult{Name: param, SourceColumns: ColumnSet{}})
+		savedLambda := q.lambdaParams
+		next := make(map[string]bool, len(q.lambdaParams)+len(e.Params))
+		for k, v := range q.lambdaParams {
+			next[k] = v
 		}
-		savedFrom := q.tableSourceFrom
-		q.tableSourceFrom = append(slices.Clone(q.tableSourceFrom), &pseudoTable{Columns: paramCols})
+		for _, param := range e.Params {
+			if param != "" {
+				next[strings.ToLower(param)] = true
+			}
+		}
+		q.lambdaParams = next
 		sourceColumns, err := q.mergeExprSources(e.Body)
-		q.tableSourceFrom = savedFrom
+		q.lambdaParams = savedLambda
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
@@ -1327,7 +1399,7 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 }
 
 func (q *querySpanExtractor) extractSelectSourceColumns(selectStmt *ast.SelectStmt) (ColumnSet, bool, error) {
-	subqueryExtractor := q.cloneForSubquery()
+	subqueryExtractor := q.cloneForSubquery(true)
 	tableSource, err := subqueryExtractor.extractSelectStmt(selectStmt)
 	if err != nil {
 		return nil, false, err
