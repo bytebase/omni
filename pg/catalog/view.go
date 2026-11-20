@@ -156,15 +156,11 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 				Message: "cannot create temporary relation in non-temporary schema",
 			}
 		}
-		// An unqualified temporary view shares no name with the permanent
-		// relations of the default schema: it lives in pg_temp when one of
-		// them holds its name, or when pg_temp already does.
+		// An unqualified temporary view lives in pg_temp, apart from the
+		// relations of the default schema (namespace.c
+		// RangeVarGetCreationNamespace).
 		if schemaName == "" {
-			if existingInDefault := schema.Relations[viewName]; existingInDefault != nil && existingInDefault.Persistence != 't' {
-				schema = c.ensureTempSchema()
-			} else if tempSc := c.schemaByName["pg_temp"]; tempSc != nil && tempSc.Relations[viewName] != nil {
-				schema = tempSc
-			}
+			schema = c.ensureTempSchema()
 		}
 	}
 

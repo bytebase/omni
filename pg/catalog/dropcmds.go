@@ -1139,10 +1139,24 @@ func (c *Catalog) detachOperatorFromOpFamilies(op *BuiltinOperator) {
 		}
 	}
 	for _, famOID := range fams {
-		if fam := c.opFamilies[famOID]; fam != nil {
+		c.removeDep('Q', famOID, 'O', op.OID)
+		fam := c.opFamilies[famOID]
+		if fam == nil {
+			continue
+		}
+		// Another overload of the same name may remain a member.
+		stillListed := false
+		for _, d := range c.deps {
+			if d.ObjType == 'Q' && d.ObjOID == famOID && d.RefType == 'O' && d.RefOID != op.OID {
+				if other := c.operByOID[d.RefOID]; other != nil && other.Name == op.Name {
+					stillListed = true
+					break
+				}
+			}
+		}
+		if !stillListed {
 			delete(fam.Operators, op.Name)
 		}
-		c.removeDep('Q', famOID, 'O', op.OID)
 	}
 }
 

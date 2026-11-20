@@ -282,6 +282,11 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 		samePers := normalizeRelPersistence(entry.From.Persistence) == normalizeRelPersistence(entry.To.Persistence)
 		sameAM := normalizeRelationAccessMethod(entry.From) == normalizeRelationAccessMethod(entry.To)
 		samePop := entry.From.IsPopulated == entry.To.IsPopulated
+		if sameDef && samePers && sameAM && samePop && len(entry.Columns) == 0 {
+			// Only the view's indexes (or other sub-objects) changed; their
+			// own generators migrate them.
+			return nil
+		}
 		if sameDef && samePers && len(entry.Columns) == 0 && len(entry.Indexes) == 0 && (!sameAM || !samePop) {
 			// An access method or population change alters the view in place,
 			// which keeps its indexes, dependents, privileges and comments.

@@ -777,6 +777,10 @@ type ruleEvalContext struct {
 	// disallowSRF names the construct that refuses set-returning calls
 	// (parse_func.c check_srf_call_placement), or "" where they are allowed.
 	disallowSRF string
+	// insertSource marks the context an INSERT binds its source query in: a
+	// single VALUES row there is a target list, which allows set-returning
+	// calls (analyze.c transformInsertStmt).
+	insertSource bool
 }
 
 func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry, snapshot bool) error {
@@ -2650,7 +2654,10 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		if s.ValuesLists != nil {
-			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, disallowAgg: "VALUES", disallowWin: "VALUES"}
+			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, disallowAgg: "VALUES", disallowWin: "VALUES", disallowSRF: "VALUES"}
+			if parent != nil && parent.insertSource && len(s.ValuesLists.Items) == 1 {
+				valCtx.disallowSRF = ""
+			}
 			firstRowLen := -1
 			var colExprs [][]AnalyzedExpr
 			for _, rowNode := range s.ValuesLists.Items {
@@ -2843,7 +2850,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			return err
 		}
 		if s.SelectStmt != nil {
-			if err := c.bindRuleStmt(b, s.SelectStmt, &ruleEvalContext{cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny}); err != nil {
+			if err := c.bindRuleStmt(b, s.SelectStmt, &ruleEvalContext{cteNames: cteNames, cteCols: cteCols, cteColTypes: cteColTypes, cteAny: cteAny, insertSource: true}); err != nil {
 				return err
 			}
 			if s.Cols == nil {
@@ -3238,6 +3245,12 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List, targetOID uint32, ctx *ruleEvalContext) error {
 	if list == nil {
 		return nil
+	}
+	if ctx != nil {
+		// RETURNING refuses aggregate, window and set-returning calls.
+		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
+		ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = "RETURNING", "RETURNING", "RETURNING"
+		defer func() { ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = prevAgg, prevWin, prevSRF }()
 	}
 	expandedCols := 0
 	var retTypes []uint32

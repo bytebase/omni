@@ -5270,9 +5270,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"DROP OPERATOR ==== (int, int) CASCADE; CREATE OPERATOR CLASS opc_nc_r38 FOR TYPE int USING btree FAMILY fam_nc_r38 AS FUNCTION 1 btint4cmp(int, int)", "0"},
 			{"CREATE VIEW v_tmp_r38 AS SELECT 1 AS x; CREATE TEMP VIEW v_tmp_r38 AS SELECT 2 AS y", "0"},
 			{"CREATE TEMP VIEW v_tmp_r38 AS SELECT 3 AS z", CodeDuplicateTable},
+			// Round 39.
+			{"CREATE TEMP VIEW v_tmp2_r39 AS SELECT 1 AS x; CREATE TABLE public.v_tmp2_r39 (a int)", "0"},
+			{"CREATE RULE r_values1_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2))", "0"},
+			{"CREATE RULE r_values2_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2)), (3)", CodeFeatureNotSupported},
+			{"CREATE RULE r_values_from_srf_r39 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT * FROM (VALUES (generate_series(1, 2))) v", CodeFeatureNotSupported},
+			{"CREATE RULE r_ret_agg_r39 AS ON UPDATE TO t_r20 DO INSTEAD UPDATE dst_r20 SET id = new.id RETURNING count(*)::int, 'x'::text", CodeGroupingError},
+			{"CREATE RULE r_ret_win_r39 AS ON DELETE TO t_r20 DO INSTEAD DELETE FROM dst_r20 WHERE id = old.id RETURNING row_number() OVER ()::int, 'x'::text", CodeWindowingError},
+			{"PREPARE q_ret_srf_r39 AS DELETE FROM dst_r20 RETURNING generate_series(1, 2)", CodeFeatureNotSupported},
+			{"PREPARE q_values_srf_r39 AS INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2)), (3)", CodeFeatureNotSupported},
+			{"CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38); CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = bigint, FUNCTION = int48eq); CREATE OPERATOR FAMILY fam_ovl_r39 USING btree; ALTER OPERATOR FAMILY fam_ovl_r39 USING btree ADD OPERATOR 3 ##> (int, int), OPERATOR 3 ##> (int, bigint)", "0"},
+			{"DROP OPERATOR ##> (int, bigint)", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		for _, fam := range c122.opFamilies {
+			if fam.Name == "fam_ovl_r39" && !fam.Operators["##>"] {
+				t.Fatalf("dropping one overload removed its same-name sibling from the family: %v", fam.Operators)
 			}
 		}
 
@@ -5409,6 +5426,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			[]string{"CREATE VIEW v_sec_r37 AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 WITH (security_barrier) AS SELECT 1 AS x"},
 			[]string{"CREATE VIEW v_sec_r37 WITH (security_barrier, security_invoker = on) AS SELECT 1 AS x", "CREATE VIEW v_sec2_r37 AS SELECT 1 AS x"},
 			[]string{"WITH (security_barrier=true, security_invoker=true)"})
+		roundTrip137("matview index-only change keeps the view",
+			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39"},
+			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39", "CREATE INDEX mv_ix_a_r39 ON mv_ix_r39 (a)"},
+			[]string{"CREATE INDEX mv_ix_a_r39"})
 		roundTrip137("operator class parameters",
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},
