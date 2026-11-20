@@ -31814,6 +31814,168 @@
 |   `dt` datetime DEFAULT '2026-06-01 08:00:00'
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_sdl_plain ADD DATAFILE 'ts_sdl_plain.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT PRIMARY KEY) TABLESPACE ts_sdl_plain
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) /*!50100 TABLESPACE `ts_sdl_plain` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| INSTALL PLUGIN keyring_file SONAME 'keyring_file.so'
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_enc_chain ADD DATAFILE 'ts_enc_chain.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT PRIMARY KEY) TABLESPACE ts_enc_chain
+< ok 0 0
+> exec
+| ALTER TABLESPACE ts_enc_chain ENCRYPTION='Y'
+< ok 0 0
+> exec
+| ALTER TABLE a ADD COLUMN c INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) /*!50100 TABLESPACE `ts_enc_chain` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+> exec
+| ALTER TABLESPACE ts_enc_chain ENCRYPTION='N'
+< ok 0 0
+> exec
+| ALTER TABLE a ADD COLUMN c2 INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `c2` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) /*!50100 TABLESPACE `ts_enc_chain` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_enc_chain
+< ok 0 0
+> exec
+| UNINSTALL PLUGIN keyring_file
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_sdl_plain
+< ok 0 0
+> exec
 | SET time_zone = DEFAULT
 < ok 0 0
 > exec

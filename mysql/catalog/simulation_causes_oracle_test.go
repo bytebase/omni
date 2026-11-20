@@ -4282,13 +4282,6 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    3825,
 		},
 		{
-			name:    "ALTER TABLE ADD COLUMN after ALTER TABLESPACE ENCRYPTION='N' accepted",
-			setup:   []string{"CREATE TABLESPACE ts_enc_n_chain ADD DATAFILE 'ts_enc_n_chain.ibd' ENCRYPTION='N'", "CREATE TABLE a (id INT) TABLESPACE ts_enc_n_chain", "ALTER TABLESPACE ts_enc_n_chain ENCRYPTION='N'"},
-			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_enc_n_chain"},
-			stmt:    "ALTER TABLE a ADD COLUMN c INT",
-			code:    0,
-		},
-		{
 			name: "SET time_zone with unknown zone rejected with 1298",
 			stmt: "SET time_zone = 'Invalid/Zone'",
 			code: 1298,
@@ -4476,6 +4469,65 @@ func TestSimulationCausesOracle(t *testing.T) {
 	execAlterClauses(t, sdlCat, "ALTER TABLE a ADD COLUMN c INT;")
 	if got, _ := simulationCatalogRefusal(t, sdlCat, "ALTER TABLE a ENCRYPTION='Y'"); got != 3825 {
 		t.Fatalf("post-SDL conflicting ENCRYPTION='Y' got %d, want 3825", got)
+	}
+
+	// With keyring_file loaded on live MySQL 8.0.46, pin ALTER TABLESPACE
+	// ENCRYPTION='Y'/'N' propagation to resident tables AND LoadSDL of an
+	// encrypted general-tablespace table from live SHOW CREATE TABLE output.
+	reset()
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a")
+		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_enc_chain")
+		_, _ = conn.ExecContext(ctx, "UNINSTALL PLUGIN keyring_file")
+	})
+	if _, err := conn.ExecContext(ctx, "INSTALL PLUGIN keyring_file SONAME 'keyring_file.so'"); err != nil {
+		t.Fatalf("mysql INSTALL PLUGIN keyring_file: %v", err)
+	}
+	encOracleCat := New()
+	execAlterClauses(t, encOracleCat, "CREATE DATABASE d; USE d;")
+	for _, stmt := range []string{
+		"CREATE TABLESPACE ts_enc_chain ADD DATAFILE 'ts_enc_chain.ibd'",
+		"CREATE TABLE a (id INT PRIMARY KEY) TABLESPACE ts_enc_chain",
+		"ALTER TABLESPACE ts_enc_chain ENCRYPTION='Y'",
+		"ALTER TABLE a ADD COLUMN c INT",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, encOracleCat, stmt+";")
+	}
+	var encTblName, encEngineCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&encTblName, &encEngineCreate); err != nil {
+		t.Fatalf("mysql SHOW CREATE TABLE a (encrypted): %v", err)
+	}
+	encCatCreate := encOracleCat.ShowCreateTable("d", "a")
+	if !strings.Contains(encEngineCreate, "ENCRYPTION='Y'") || !strings.Contains(encCatCreate, "ENCRYPTION='Y'") {
+		t.Fatalf("encrypted resident SHOW CREATE TABLE mismatch:\nmysql:\n%s\ncatalog:\n%s", encEngineCreate, encCatCreate)
+	}
+	sdlEncLiveCat, err := LoadSDL("CREATE DATABASE d; USE d; " + encEngineCreate + ";")
+	if err != nil {
+		t.Fatalf("LoadSDL(%s): %v", encEngineCreate, err)
+	}
+	execAlterClauses(t, sdlEncLiveCat, "ALTER TABLE a ADD COLUMN c_sdl INT;")
+	if got, _ := simulationCatalogRefusal(t, sdlEncLiveCat, "CREATE TABLE t_plain_sdl (id INT) TABLESPACE ts_enc_chain"); got != 3825 {
+		t.Fatalf("post-encrypted-SDL plain table got %d, want 3825", got)
+	}
+	for _, stmt := range []string{
+		"ALTER TABLESPACE ts_enc_chain ENCRYPTION='N'",
+		"ALTER TABLE a ADD COLUMN c2 INT",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, encOracleCat, stmt+";")
+	}
+	var decTblName, decEngineCreate string
+	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&decTblName, &decEngineCreate); err != nil {
+		t.Fatalf("mysql SHOW CREATE TABLE a (decrypted): %v", err)
+	}
+	decCatCreate := encOracleCat.ShowCreateTable("d", "a")
+	if strings.Contains(decEngineCreate, "ENCRYPTION=") || strings.Contains(decCatCreate, "ENCRYPTION=") {
+		t.Fatalf("decrypted resident SHOW CREATE TABLE still had ENCRYPTION:\nmysql:\n%s\ncatalog:\n%s", decEngineCreate, decCatCreate)
 	}
 }
 
