@@ -2018,14 +2018,17 @@ func (n *CreateSynonymStmt) stmtNode() {}
 // CreateDatabaseLinkStmt represents a CREATE DATABASE LINK statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-DATABASE-LINK.html
 type CreateDatabaseLinkStmt struct {
-	Public      bool        // PUBLIC
-	IfNotExists bool        // IF NOT EXISTS
-	Name        string      // link name
-	ConnectTo   string      // CONNECT TO user, or CURRENT_USER
-	Identified  string      // IDENTIFIED BY password
-	ConnectWith *ObjectName // CONNECT WITH credential
-	Using       string      // USING connect string
-	Loc         Loc         // start location
+	Shared            bool        // SHARED
+	Public            bool        // PUBLIC
+	IfNotExists       bool        // IF NOT EXISTS
+	Name              string      // link name
+	ConnectTo         string      // CONNECT TO user, or CURRENT_USER
+	Identified        string      // IDENTIFIED BY password
+	AuthenticatedUser string      // AUTHENTICATED BY user
+	AuthenticatedPass string      // IDENTIFIED BY password (for AUTHENTICATED)
+	ConnectWith       *ObjectName // CONNECT WITH credential
+	Using             string      // USING connect string
+	Loc               Loc         // start location
 }
 
 func (n *CreateDatabaseLinkStmt) nodeTag()  {}

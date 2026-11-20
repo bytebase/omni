@@ -14,8 +14,8 @@ are the file as it stands at judge revision 3, after #1473, #1475, #1480 and
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 13,362 | 547 | 4 | 621 |
-| Near-misses | 31,318 | 26,525 | 4,612 | 108 | 73 |
+| One per alternative | 14,534 | 13,414 | 495 | 4 | 621 |
+| Near-misses | 31,318 | 26,714 | 4,423 | 108 | 73 |
 | Hand rows | 1,010 | 888 | 103 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -287,7 +287,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,262 rows, 1,021 of them where omni stops first and 3,839
+different byte: 5,021 rows, 800 of them where omni stops first and 3,819
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -372,7 +372,25 @@ for ALTER SYSTEM RESET), while a name it holds is read on, so a value where the
 accepting to both refusing; the 10 rows below are what the list cannot answer,
 all at Oracle's byte 0.
 
-The remaining rows are spread thin: 3,033 name no family below. These are the
+This change moved 241 more to Oracle's byte (221 where omni stopped first and
+20 where Oracle did), with no verdict change and no `suite:` row moved.
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `... FROM a CONTAINERS(...)` and `... SHARDS(...)` in `SELECT` and `DELETE` | 44 | the `(` (26 and 22): `CONTAINERS` and `SHARDS` open a clause only in place of a table; after one they name its alias |
+| `CREATE TABLE a COLUMN ...` | 32 | inside or after `object_type_col_properties` (`ELEMENT` is refused at 24 with `ORA-00905`, unlike on a collection column; `CREATE TABLE a COLUMN a IS OF(a)` stays in "Rows only Oracle accepts" at 15), plus `COLUMN COMPRESS` (22) and `COLUMN STORE COMPRESS FOR` (40) |
+| `MODIFY [SUB]PARTITION a VARRAY ...` in `ALTER TABLE` and `ALTER MATERIALIZED VIEW` | 30 | where `STORE` belongs (41, 44, 53, 56) or at the missing item: a partition's `VARRAY` reads `varray_col_properties`, not `(modify_LOB_parameters)` |
+| `CREATE TABLE` and `ALTER TABLE` constraint, `DEFAULT COLLATION` and `OF ... NOT` near-misses | 29 | the unconsumed token before an unclosed column list's `)` (16), after `REFERENCES ... ON` where `DELETE` belongs (5), after `REF(a) WITH` or inline `WITH` where `ROWID` belongs (6), `DEFAULT a` at 23 (1), and `OF a NOT zzz` at 24 (1) |
+| `ALLOW` and `DISALLOW` in `ALTER TABLE` and `ALTER MATERIALIZED VIEW` | 20 | the token where `CLUSTERING` belongs: Oracle reads `allow_disallow_clustering` in `ALTER TABLE` properties, its `OVERFLOW`, and `MODIFY [SUB]PARTITION` |
+| `INSERT INTO a SELECT 1 FROM dual RETURNING ...` | 20 | the token after `RETURNING` (43): `RETURNING` is not reserved in a query and is read as `dual`'s alias |
+| `CREATE VIEW` and `ALTER VIEW` out-of-line `FOREIGN KEY ... ON ...` | 20 | `ON` (45): a view's declarative foreign key takes no `ON DELETE` (`ORA-00922`) |
+| `... INMEMORY NO ...` in `CREATE`/`ALTER TABLE`, `ILM` and `CREATE MATERIALIZED VIEW` | 13 | the token after `NO`, where `MEMCOMPRESS` or `DUPLICATE` belongs |
+| `CREATE [SHARED] [PUBLIC] DATABASE LINK` and `AUTHENTICATED BY` | 11 | `USING` on a `SHARED` link without `AUTHENTICATED BY` (30), the non-`DATABASE` token after `SHARED` (14), and the token after `AUTHENTICATED` on a non-`SHARED` link (37, `ORA-00905`) |
+| `CREATE SYNONYM a SHARING = ...` | 8 | the token after `=` when not `NONE` (`ORA-65021`, `ORA-65014`), or where `=` belongs (25) |
+| `DELETE`/`UPDATE` `(SELECT 1 FROM dual WITH ...)` | 7 | the token after `WITH` (31, 38), where `READ` or `CHECK` belongs |
+| `CREATE NOFORCE ...` and `CREATE VIEW ... CONSTRAINTS` | 7 | the token after `NOFORCE` when no view or analytic object follows (5), and past `CONSTRAINTS` on a view constraint (2) |
+
+The remaining rows are spread thin: 2,826 name no family below. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
@@ -384,6 +402,9 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 78 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
 | `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): a near-miss puts a `)` where a `(` belongs, and the delimiter scan answers for it before the statement parsers run |
+| `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 59 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
+| `CREATE TABLE a ORGANIZATION INDEX ...` | 52 | `INDEX` (28): `ORA-25175`, "no PRIMARY KEY constraint found", checked on the table's element list as soon as `ORGANIZATION INDEX` is read and before the rest of `index_org_table_clause` (`CREATE TABLE a (id NUMBER PRIMARY KEY) ORGANIZATION INDEX` parses, and `CREATE TABLE a (a NUMBER) ORGANIZATION INDEX` answers `ORA-25175` at `INDEX` too) |
+| `CREATE VIEW a OF XMLTYPE ...` | 34 | `'s'` (35) on the 31 `XMLSCHEMA 's'` rows (`ORA-19002`, the schema URL looked up before `WITH OBJECT IDENTIFIER` or `AS subquery` is read, so even the page's valid forms carry `reject@35`), and 25 or 43 on the 3 near-misses without `'s'` (`CREATE VIEW a OF XMLTYPE WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual`, with no `XMLSCHEMA`, parses to `ORA-22980`) |
 | `CREATE TABLE a ORGANIZATION EXTERNAL ...` behind a `)` | 2 | the clause is read and refused at the table's name, but the statement carries a stray `)` the scan answers first: `... EXTERNAL TYPE a)` and `... EXTERNAL(TYPE a LOCATION 's'))` |
 | `ALTER DIMENSION ...` | 39 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 72 `ALTER DIMENSION` rows here, 30 more carry `reject@0` (a clause word Oracle has no form for) and 3 sit behind the scan's `)` and end-of-input answers |
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 10 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see below) |

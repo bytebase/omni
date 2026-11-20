@@ -185,7 +185,7 @@ func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 	stmt.Columns = &nodes.List{}
 	for {
 		if p.isViewConstraintStart() {
-			viewConstraint, err := p.parseTableConstraintBody()
+			viewConstraint, err := p.parseTableConstraintBody(false)
 			if err != nil {
 				return err
 			}
@@ -232,7 +232,7 @@ func (p *Parser) parsePlainViewAliases(stmt *nodes.CreateViewStmt) error {
 // inline_constraint starts here.
 func (p *Parser) isPlainViewInlineConstraintStart() bool {
 	switch p.cur.Type {
-	case kwCONSTRAINT, kwUNIQUE, kwPRIMARY, kwREFERENCES:
+	case kwCONSTRAINT, kwCONSTRAINTS, kwUNIQUE, kwPRIMARY, kwREFERENCES:
 		return true
 	}
 	return false
@@ -244,7 +244,7 @@ func (p *Parser) isPlainViewInlineConstraintStart() bool {
 //	{ UNIQUE | PRIMARY KEY | REFERENCES [ schema. ] table [ ( column ) ] }
 //	[ RELY | NORELY ] DISABLE [ NOVALIDATE ]
 func (p *Parser) parsePlainViewInlineConstraint() error {
-	if p.cur.Type == kwCONSTRAINT {
+	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
 		p.advance()
 		if err := p.parseCreateTableName(); err != nil {
 			return err
