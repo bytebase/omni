@@ -74,7 +74,7 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 // by their mandatory next token. CHECK constraints do not exist on views.
 func (p *Parser) isViewConstraintStart() bool {
 	switch p.cur.Type {
-	case kwCONSTRAINT:
+	case kwCONSTRAINT, kwCONSTRAINTS:
 		return true
 	case kwPRIMARY, kwFOREIGN:
 		return p.peekNext().Type == kwKEY

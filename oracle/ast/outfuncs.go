@@ -3281,6 +3281,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 
 func writeCreateDatabaseLinkStmt(sb *strings.Builder, n *CreateDatabaseLinkStmt) {
 	sb.WriteString("{CREATEDBLINK")
+	if n.Shared {
+		sb.WriteString(" :shared true")
+	}
 	if n.Public {
 		sb.WriteString(" :public true")
 	}
@@ -3295,6 +3298,12 @@ func writeCreateDatabaseLinkStmt(sb *strings.Builder, n *CreateDatabaseLinkStmt)
 	}
 	if n.Identified != "" {
 		sb.WriteString(fmt.Sprintf(" :identified %q", n.Identified))
+	}
+	if n.AuthenticatedUser != "" {
+		sb.WriteString(fmt.Sprintf(" :authenticatedUser %q", n.AuthenticatedUser))
+	}
+	if n.AuthenticatedPass != "" {
+		sb.WriteString(fmt.Sprintf(" :authenticatedPass %q", n.AuthenticatedPass))
 	}
 	if n.ConnectWith != nil {
 		sb.WriteString(" :connectWith ")

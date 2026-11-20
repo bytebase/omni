@@ -9156,7 +9156,7 @@ reject@53	reject@53	engine	alterMaterializedView_modify_table_partition(REBUILD)
 reject@45	reject@45	engine	alterMaterializedView_modify_table_partition(REBUILD)?/REBUILD!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a RECORDS_PER_BLOCK UNUSABLE LOCAL INDEXES
 accept	accept	engine	alterMaterializedView_modify_table_subpartition/MODIFY_SUBPARTITION_ID_(alterMaterializedView_allocate_~8cfac7d2	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a ALLOCATE EXTENT
 accept	accept	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_allocate_extent_clause	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a ALLOCATE EXTENT
-reject@48	reject@54	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a ALLOW EXTENT
+reject@54	reject@54	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a ALLOW EXTENT
 accept	accept	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_deallocate_unused_clause	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a DEALLOCATE UNUSED
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_deallocate_unused_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a UNUSED
 reject@58	reject@58	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/alterMaterializedView_deallocate_unused_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a DEALLOCATE
@@ -9167,12 +9167,12 @@ reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alter
 reject@54	reject@54	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/SHRINK_SPACE_(CASCADE)?!drop-2	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a SHRINK
 reject@61	reject@61	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/SHRINK_SPACE_(CASCADE)?!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a SHRINK SPACE zzz
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/SHRINK_SPACE_(CASCADE)?!swap	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a SHUTDOWN SPACE
-reject@48	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a()
+reject@56	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a()
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-1	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a a()
-reject@48	reject@54	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-2	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY()
+reject@54	reject@54	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-2	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY()
 reject@56	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-3	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a)
-reject@48	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-4	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a(
-reject@48	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a() zzz
+reject@56	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!drop-4	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a(
+reject@56	reject@56	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a() zzz
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~493ff2fd!swap	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAYS a()
 accept	accept	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(REBUILD)?_UNUSABLE_LOCAL_INDEXES	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a UNUSABLE LOCAL INDEXES
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(alterMaterializedView_allocate_exten~d7d65c47)/(REBUILD)?_UNUSABLE_LOCAL_INDEXES!drop-1	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a LOCAL INDEXES
@@ -9210,9 +9210,9 @@ reject@55	reject	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID
 reject@53	reject@53	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!truncate	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a LOB(a
 reject@55	reject@55	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a LOB(a) zzz()
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!swap	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a LOBS(a)()
-reject@48	reject@56	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a()
-reject@48	reject@54	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY
-reject@48	reject@57	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a zzz()
+reject@56	reject@56	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a()
+reject@54	reject@54	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY
+reject@57	reject@57	engine	alterMaterializedView_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a VARRAY a zzz()
 accept	accept	engine	alterMaterializedView_modify_table_subpartition(REBUILD)?/%empty	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a UNUSABLE LOCAL INDEXES
 reject@48	reject@48	engine	alterMaterializedView_modify_table_subpartition(REBUILD)?/%empty!insert	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a zzz UNUSABLE LOCAL INDEXES
 accept	accept	engine	alterMaterializedView_modify_table_subpartition(REBUILD)?/REBUILD	ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
@@ -10135,7 +10135,7 @@ accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterialize
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes(alterMaterializedView_allocate_extent_clause)?/alterMaterializedView_allocate_extent_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a EXTENT
 reject@53	reject@53	engine	alterMaterializedView_partition_attributes(alterMaterializedView_allocate_extent_clause)?/alterMaterializedView_allocate_extent_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ALLOCATE
 reject@61	reject@61	engine	alterMaterializedView_partition_attributes(alterMaterializedView_allocate_extent_clause)?/alterMaterializedView_allocate_extent_clause!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ALLOCATE EXTENT zzz
-reject@45	reject@51	engine	alterMaterializedView_partition_attributes(alterMaterializedView_allocate_extent_clause)?/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ALLOW EXTENT
+reject@51	reject@51	engine	alterMaterializedView_partition_attributes(alterMaterializedView_allocate_extent_clause)?/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ALLOW EXTENT
 accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_deallocate_unu~5c2cca84)?/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_deallocate_unu~5c2cca84)?/alterMaterializedView_deallocate_unused_clause	ALTER MATERIALIZED VIEW a MODIFY PARTITION a DEALLOCATE UNUSED
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes(alterMaterializedView_deallocate_unu~5c2cca84)?/alterMaterializedView_deallocate_unused_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a UNUSED
@@ -10163,12 +10163,12 @@ accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterialize
 reject@54	reject@54	engine	alterMaterializedView_partition_attributes(alterMaterializedView_inmemory_clause)?/alterMaterializedView_inmemory_clause!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a INMEMORY zzz
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes(alterMaterializedView_inmemory_clause)?/alterMaterializedView_inmemory_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a INNER
 accept	accept	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
-reject@45	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a()
+reject@53	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a()
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a a()
-reject@45	reject@51	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY()
+reject@51	reject@51	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY()
 reject@53	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-3	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a)
-reject@45	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-4	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a(
-reject@45	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a() zzz
+reject@53	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!drop-4	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a(
+reject@53	reject@53	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a() zzz
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterMateri~70425074)*/(LOB_(_ID_)|VARRAY_ID)_(_alterMaterializedView_modify_l~cfcc536b!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAYS a()
 reject@52	reject@52	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)	ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOB(a)()
 reject@44	reject@44	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a(a)()
@@ -10178,9 +10178,9 @@ reject@52	reject	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VA
 reject@50	reject@50	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!truncate	ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOB(a
 reject@52	reject@52	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOB(a) zzz()
 reject@45	reject@45	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOBS(a)()
-reject@45	reject@53	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a()
-reject@45	reject@51	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY
-reject@45	reject@54	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a zzz()
+reject@53	reject@53	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a()
+reject@51	reject@51	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY
+reject@54	reject@54	engine	alterMaterializedView_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a VARRAY a zzz()
 accept	accept	engine	alterMaterializedView_partition_attributes(OVERFLOW_(alterMaterializedView_phys~e003dd21)?/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 accept	accept	engine	alterMaterializedView_partition_attributes(OVERFLOW_(alterMaterializedView_phys~e003dd21)?/OVERFLOW_(alterMaterializedView_physical_attri~620d5457)	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 reject@54	reject@54	engine	alterMaterializedView_partition_attributes(OVERFLOW_(alterMaterializedView_phys~e003dd21)?/OVERFLOW_(alterMaterializedView_physical_attri~620d5457)!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW zzz
@@ -10193,7 +10193,7 @@ accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterialize
 reject@54	reject@54	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_allocate_extent_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW EXTENT
 reject@62	reject@62	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_allocate_extent_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW ALLOCATE
 reject@70	reject@70	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_allocate_extent_clause!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW ALLOCATE EXTENT zzz
-reject@54	reject@60	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW ALLOW EXTENT
+reject@60	reject@60	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_allocate_extent_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW ALLOW EXTENT
 accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_deallocate_unused_clause	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW DEALLOCATE UNUSED
 reject@54	reject@54	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_deallocate_unused_clause!drop-1	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW UNUSED
 reject@64	reject@64	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/alterMaterializedView_deallocate_unused_clause!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW DEALLOCATE
@@ -13353,7 +13353,7 @@ accept	accept	engine	alterTable_alter_table_properties(alterTable_physical_attri
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_allocate_extent_clause!drop-1	ALTER TABLE a EXTENT
 reject@22	reject@22	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_allocate_extent_clause!drop-2	ALTER TABLE a ALLOCATE
 reject@30	reject@30	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_allocate_extent_clause!insert	ALTER TABLE a ALLOCATE EXTENT zzz
-reject@14	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_allocate_extent_clause!swap	ALTER TABLE a ALLOW EXTENT
+reject@20	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_allocate_extent_clause!swap	ALTER TABLE a ALLOW EXTENT
 accept	accept	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_deallocate_unused_clause	ALTER TABLE a DEALLOCATE UNUSED
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_deallocate_unused_clause!drop-1	ALTER TABLE a UNUSED
 reject@24	reject@24	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_deallocate_unused_clause!drop-2	ALTER TABLE a DEALLOCATE
@@ -13424,10 +13424,10 @@ reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical
 reject@23	reject@23	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_iot_clauses	ALTER TABLE a NOMAPPING
 reject@24	reject@24	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_iot_clauses!insert	ALTER TABLE a NOMAPPING zzz
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_iot_clauses!swap	ALTER TABLE a NOMAXVALUE
-reject@14	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause	ALTER TABLE a ALLOW ANYSCHEMA
+reject@20	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause	ALTER TABLE a ALLOW ANYSCHEMA
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!drop-1	ALTER TABLE a ANYSCHEMA
-reject@14	reject@19	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!drop-2	ALTER TABLE a ALLOW
-reject@14	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!insert	ALTER TABLE a ALLOW ANYSCHEMA zzz
+reject@19	reject@19	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!drop-2	ALTER TABLE a ALLOW
+reject@20	reject@20	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!insert	ALTER TABLE a ALLOW ANYSCHEMA zzz
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/alterTable_alter_xmlschema_clause!swap	ALTER TABLE a ALTER ANYSCHEMA
 accept	accept	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/MEMOPTIMIZE_FOR_READ	ALTER TABLE a MEMOPTIMIZE FOR READ
 reject@14	reject@14	engine	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/MEMOPTIMIZE_FOR_READ!drop-1	ALTER TABLE a FOR READ
@@ -13578,7 +13578,7 @@ reject@23	reject@23	engine	alterTable_constraint_clauses(alterTable_out_of_line_
 reject@22	reject@22	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-3	ALTER TABLE a ADD REF() WITH ROWID
 reject@34	reject@24	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-4	ALTER TABLE a ADD REF(a WITH ROWID
 reject@25	reject@25	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-5	ALTER TABLE a ADD REF(a) ROWID
-reject@25	reject@29	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-6	ALTER TABLE a ADD REF(a) WITH
+reject@29	reject@29	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-6	ALTER TABLE a ADD REF(a) WITH
 reject@36	reject@36	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!insert	ALTER TABLE a ADD REF(a) WITH ROWID zzz
 reject@27	reject@27	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!swap	ALTER TABLE a ADD REFERENCE(a) WITH ROWID
 reject@17	reject@17	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_constraint_state	ALTER TABLE a ADD
@@ -14305,17 +14305,17 @@ reject@14	reject@14	engine	alterTable_alter_iot_clauses(alterTable_index_org_tab
 accept	accept	engine	alterTable_alter_iot_clauses(alterTable_index_org_table_clause|al~7a6dedfd)/COALESCE	ALTER TABLE a COALESCE
 reject@23	reject@23	engine	alterTable_alter_iot_clauses(alterTable_index_org_table_clause|al~7a6dedfd)/COALESCE!insert	ALTER TABLE a COALESCE zzz
 reject@14	reject@14	engine	alterTable_alter_iot_clauses(alterTable_index_org_table_clause|al~7a6dedfd)/COALESCE!swap	ALTER TABLE a COARSE
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause/ALLOW_(ANYSCHEMA|NONSCHEMA)	ALTER TABLE a ALLOW ANYSCHEMA
-reject@14	reject@23	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA	ALTER TABLE a DISALLOW NONSCHEMA
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause/ALLOW_(ANYSCHEMA|NONSCHEMA)	ALTER TABLE a ALLOW ANYSCHEMA
+reject@23	reject@23	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA	ALTER TABLE a DISALLOW NONSCHEMA
 reject@14	reject@14	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!drop-1	ALTER TABLE a NONSCHEMA
-reject@14	reject@22	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!drop-2	ALTER TABLE a DISALLOW
-reject@14	reject@23	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!insert	ALTER TABLE a DISALLOW NONSCHEMA zzz
+reject@22	reject@22	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!drop-2	ALTER TABLE a DISALLOW
+reject@23	reject@23	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!insert	ALTER TABLE a DISALLOW NONSCHEMA zzz
 reject@14	reject@14	engine	alterTable_alter_xmlschema_clause/DISALLOW_NONSCHEMA!swap	ALTER TABLE a DISASSOCIATE NONSCHEMA
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/ANYSCHEMA	ALTER TABLE a ALLOW ANYSCHEMA
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/ANYSCHEMA!swap	ALTER TABLE a ALLOW APPLICATION
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA	ALTER TABLE a ALLOW NONSCHEMA
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA!insert	ALTER TABLE a ALLOW NONSCHEMA zzz
-reject@14	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA!swap	ALTER TABLE a ALLOW NOORDER
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/ANYSCHEMA	ALTER TABLE a ALLOW ANYSCHEMA
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/ANYSCHEMA!swap	ALTER TABLE a ALLOW APPLICATION
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA	ALTER TABLE a ALLOW NONSCHEMA
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA!insert	ALTER TABLE a ALLOW NONSCHEMA zzz
+reject@20	reject@20	engine	alterTable_alter_xmlschema_clause(ANYSCHEMA|NONSCHEMA)/NONSCHEMA!swap	ALTER TABLE a ALLOW NOORDER
 accept	accept	engine	alterTable_annotations_clause/ANNOTATIONS_(_(ADD|DROP|REPLACE)_alterTable_annotation_~1a19cfaf	ALTER TABLE a ANNOTATIONS(ADD a)
 accept	accept	engine	alterTable_annotations_clause(ADD|DROP|REPLACE)/ADD	ALTER TABLE a ANNOTATIONS(ADD a)
 reject@26	reject@26	engine	alterTable_annotations_clause(ADD|DROP|REPLACE)/ADD!truncate	ALTER TABLE a ANNOTATIONS(
@@ -14542,7 +14542,7 @@ reject@49	reject@49	engine	alterTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_
 accept	accept	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 accept	accept	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 reject@46	reject@46	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a DELETE CASCADE
-reject@46	reject@49	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON CASCADE
+reject@49	reject@49	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON CASCADE
 reject@55	reject@55	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE
 reject@64	reject@64	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz
 reject@46	reject@46	engine	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!swap	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ONE DELETE CASCADE
@@ -14854,7 +14854,7 @@ reject@41	reject@41	engine	alterTable_modify_table_partition(REBUILD)?/REBUILD!i
 reject@33	reject@33	engine	alterTable_modify_table_partition(REBUILD)?/REBUILD!swap	ALTER TABLE a MODIFY PARTITION a RECORDS_PER_BLOCK UNUSABLE LOCAL INDEXES
 accept	accept	engine	alterTable_modify_table_subpartition/MODIFY_SUBPARTITION_ID_(alterTable_allocate_extent_clau~52564db0	ALTER TABLE a MODIFY SUBPARTITION a ALLOCATE EXTENT
 accept	accept	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_allocate_extent_clause	ALTER TABLE a MODIFY SUBPARTITION a ALLOCATE EXTENT
-reject@36	reject@42	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY SUBPARTITION a ALLOW EXTENT
+reject@42	reject@42	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY SUBPARTITION a ALLOW EXTENT
 accept	accept	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_deallocate_unused_clause	ALTER TABLE a MODIFY SUBPARTITION a DEALLOCATE UNUSED
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_deallocate_unused_clause!drop-1	ALTER TABLE a MODIFY SUBPARTITION a UNUSED
 reject@46	reject@46	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/alterTable_deallocate_unused_clause!drop-2	ALTER TABLE a MODIFY SUBPARTITION a DEALLOCATE
@@ -14865,13 +14865,13 @@ reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_alloc
 reject@42	reject@42	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/SHRINK_SPACE_(CASCADE)?!drop-2	ALTER TABLE a MODIFY SUBPARTITION a SHRINK
 reject@49	reject@49	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/SHRINK_SPACE_(CASCADE)?!insert	ALTER TABLE a MODIFY SUBPARTITION a SHRINK SPACE zzz
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/SHRINK_SPACE_(CASCADE)?!swap	ALTER TABLE a MODIFY SUBPARTITION a SHUTDOWN SPACE
-reject@36	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION)
+reject@44	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION)
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-1	ALTER TABLE a MODIFY SUBPARTITION a a(RETENTION)
-reject@36	reject@42	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-2	ALTER TABLE a MODIFY SUBPARTITION a VARRAY(RETENTION)
+reject@42	reject@42	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-2	ALTER TABLE a MODIFY SUBPARTITION a VARRAY(RETENTION)
 reject@54	reject@45	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-3	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a RETENTION)
-reject@36	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-4	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a()
-reject@36	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-5	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION
-reject@36	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!insert	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION) zzz
+reject@44	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-4	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a()
+reject@44	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!drop-5	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION
+reject@44	reject@44	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!insert	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION) zzz
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_parameters_)!swap	ALTER TABLE a MODIFY SUBPARTITION a VARRAYS a(RETENTION)
 accept	accept	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(REBUILD)?_UNUSABLE_LOCAL_INDEXES	ALTER TABLE a MODIFY SUBPARTITION a UNUSABLE LOCAL INDEXES
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(alterTable_allocate_extent_clause|al~26d0b8ea)/(REBUILD)?_UNUSABLE_LOCAL_INDEXES!drop-1	ALTER TABLE a MODIFY SUBPARTITION a LOCAL INDEXES
@@ -14909,9 +14909,9 @@ reject@52	accept	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_I
 reject@41	reject@41	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!truncate	ALTER TABLE a MODIFY SUBPARTITION a LOB(a
 reject@43	reject@43	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!insert	ALTER TABLE a MODIFY SUBPARTITION a LOB(a) zzz(RETENTION)
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!swap	ALTER TABLE a MODIFY SUBPARTITION a LOBS(a)(RETENTION)
-reject@36	reject@44	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION)
-reject@36	reject@42	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER TABLE a MODIFY SUBPARTITION a VARRAY
-reject@36	reject@45	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a zzz(RETENTION)
+reject@44	reject@44	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a(RETENTION)
+reject@42	reject@42	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER TABLE a MODIFY SUBPARTITION a VARRAY
+reject@45	reject@45	engine	alterTable_modify_table_subpartition(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER TABLE a MODIFY SUBPARTITION a VARRAY a zzz(RETENTION)
 accept	accept	engine	alterTable_modify_table_subpartition(REBUILD)?/%empty	ALTER TABLE a MODIFY SUBPARTITION a UNUSABLE LOCAL INDEXES
 reject@36	reject@36	engine	alterTable_modify_table_subpartition(REBUILD)?/%empty!insert	ALTER TABLE a MODIFY SUBPARTITION a zzz UNUSABLE LOCAL INDEXES
 accept	accept	engine	alterTable_modify_table_subpartition(REBUILD)?/REBUILD	ALTER TABLE a MODIFY SUBPARTITION a REBUILD UNUSABLE LOCAL INDEXES
@@ -16071,7 +16071,7 @@ accept	accept	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent
 reject@23	reject@23	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_allocate_extent_clause!drop-1	ALTER TABLE a OVERFLOW EXTENT
 reject@31	reject@31	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_allocate_extent_clause!drop-2	ALTER TABLE a OVERFLOW ALLOCATE
 reject@39	reject@39	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_allocate_extent_clause!insert	ALTER TABLE a OVERFLOW ALLOCATE EXTENT zzz
-reject@23	reject@29	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_allocate_extent_clause!swap	ALTER TABLE a OVERFLOW ALLOW EXTENT
+reject@29	reject@29	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_allocate_extent_clause!swap	ALTER TABLE a OVERFLOW ALLOW EXTENT
 accept	accept	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_deallocate_unused_clause	ALTER TABLE a OVERFLOW DEALLOCATE UNUSED
 reject@23	reject@23	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_deallocate_unused_clause!drop-1	ALTER TABLE a OVERFLOW UNUSED
 reject@33	reject@33	engine	alterTable_alter_overflow_clause(alterTable_allocate_extent_clause|al~63af555d)/alterTable_deallocate_unused_clause!drop-2	ALTER TABLE a OVERFLOW DEALLOCATE
@@ -16148,7 +16148,7 @@ reject@27	reject@27	engine	alterTable_column_definition(alterTable_inline_constr
 accept	accept	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/%empty	ALTER TABLE a ADD(a NUMBER)
 accept	accept	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 reject@27	reject@27	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!drop-1	ALTER TABLE a ADD(a NUMBER ROWID)
-reject@27	reject@31	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!drop-2	ALTER TABLE a ADD(a NUMBER WITH)
+reject@31	reject@31	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!drop-2	ALTER TABLE a ADD(a NUMBER WITH)
 reject@31	reject@31	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!truncate	ALTER TABLE a ADD(a NUMBER WITH
 reject@38	reject@38	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!insert	ALTER TABLE a ADD(a NUMBER WITH ROWID zzz)
 reject@27	reject@27	engine	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint!swap	ALTER TABLE a ADD(a NUMBER WITHOUT ROWID)
@@ -16562,7 +16562,7 @@ accept	accept	engine	alterTable_partition_attributes(alterTable_allocate_extent_
 reject@33	reject@33	engine	alterTable_partition_attributes(alterTable_allocate_extent_clause)?/alterTable_allocate_extent_clause!drop-1	ALTER TABLE a MODIFY PARTITION a EXTENT
 reject@41	reject@41	engine	alterTable_partition_attributes(alterTable_allocate_extent_clause)?/alterTable_allocate_extent_clause!drop-2	ALTER TABLE a MODIFY PARTITION a ALLOCATE
 reject@49	reject@49	engine	alterTable_partition_attributes(alterTable_allocate_extent_clause)?/alterTable_allocate_extent_clause!insert	ALTER TABLE a MODIFY PARTITION a ALLOCATE EXTENT zzz
-reject@33	reject@39	engine	alterTable_partition_attributes(alterTable_allocate_extent_clause)?/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY PARTITION a ALLOW EXTENT
+reject@39	reject@39	engine	alterTable_partition_attributes(alterTable_allocate_extent_clause)?/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY PARTITION a ALLOW EXTENT
 accept	accept	engine	alterTable_partition_attributes(alterTable_deallocate_unused_clause)?/%empty	ALTER TABLE a MODIFY PARTITION a
 accept	accept	engine	alterTable_partition_attributes(alterTable_deallocate_unused_clause)?/alterTable_deallocate_unused_clause	ALTER TABLE a MODIFY PARTITION a DEALLOCATE UNUSED
 reject@33	reject@33	engine	alterTable_partition_attributes(alterTable_deallocate_unused_clause)?/alterTable_deallocate_unused_clause!drop-1	ALTER TABLE a MODIFY PARTITION a UNUSED
@@ -16590,13 +16590,13 @@ accept	accept	engine	alterTable_partition_attributes(alterTable_inmemory_clause)
 reject@42	reject@42	engine	alterTable_partition_attributes(alterTable_inmemory_clause)?/alterTable_inmemory_clause!insert	ALTER TABLE a MODIFY PARTITION a INMEMORY zzz
 reject@33	reject@33	engine	alterTable_partition_attributes(alterTable_inmemory_clause)?/alterTable_inmemory_clause!swap	ALTER TABLE a MODIFY PARTITION a INNER
 accept	accept	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/%empty	ALTER TABLE a MODIFY PARTITION a
-reject@33	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION)
+reject@41	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION)
 reject@33	reject@33	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-1	ALTER TABLE a MODIFY PARTITION a a(RETENTION)
-reject@33	reject@39	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-2	ALTER TABLE a MODIFY PARTITION a VARRAY(RETENTION)
+reject@39	reject@39	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-2	ALTER TABLE a MODIFY PARTITION a VARRAY(RETENTION)
 reject@51	reject@42	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-3	ALTER TABLE a MODIFY PARTITION a VARRAY a RETENTION)
-reject@33	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-4	ALTER TABLE a MODIFY PARTITION a VARRAY a()
-reject@33	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-5	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION
-reject@33	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!insert	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION) zzz
+reject@41	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-4	ALTER TABLE a MODIFY PARTITION a VARRAY a()
+reject@41	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!drop-5	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION
+reject@41	reject@41	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!insert	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION) zzz
 reject@33	reject@33	engine	alterTable_partition_attributes((LOB_(_ID_)|VARRAY_ID)_(_alterTable_~a35df025)*/(LOB_(_ID_)|VARRAY_ID)_(_alterTable_modify_lob_paramete~f45289c0!swap	ALTER TABLE a MODIFY PARTITION a VARRAYS a(RETENTION)
 accept	accept	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)	ALTER TABLE a MODIFY PARTITION a LOB(a)(RETENTION)
 reject@32	reject@32	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!drop-1	ALTER TABLE a MODIFY PARTITION a(a)(RETENTION)
@@ -16606,9 +16606,9 @@ reject@49	accept	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LO
 reject@38	reject@38	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!truncate	ALTER TABLE a MODIFY PARTITION a LOB(a
 reject@40	reject@40	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!insert	ALTER TABLE a MODIFY PARTITION a LOB(a) zzz(RETENTION)
 reject@33	reject@33	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/LOB_(_ID_)!swap	ALTER TABLE a MODIFY PARTITION a LOBS(a)(RETENTION)
-reject@33	reject@41	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION)
-reject@33	reject@39	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER TABLE a MODIFY PARTITION a VARRAY
-reject@33	reject@42	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER TABLE a MODIFY PARTITION a VARRAY a zzz(RETENTION)
+reject@41	reject@41	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID	ALTER TABLE a MODIFY PARTITION a VARRAY a(RETENTION)
+reject@39	reject@39	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!truncate	ALTER TABLE a MODIFY PARTITION a VARRAY
+reject@42	reject@42	engine	alterTable_partition_attributes(LOB_(_ID_)|VARRAY_ID)/VARRAY_ID!insert	ALTER TABLE a MODIFY PARTITION a VARRAY a zzz(RETENTION)
 accept	accept	engine	alterTable_partition_attributes(OVERFLOW_(alterTable_physical_attrib~0d925f29)?/%empty	ALTER TABLE a MODIFY PARTITION a
 accept	accept	engine	alterTable_partition_attributes(OVERFLOW_(alterTable_physical_attrib~0d925f29)?/OVERFLOW_(alterTable_physical_attributes_claus~3f5ebc95)	ALTER TABLE a MODIFY PARTITION a OVERFLOW LOGGING
 accept	accept	engine	alterTable_partition_attributes(OVERFLOW_(alterTable_physical_attrib~0d925f29)?/OVERFLOW_(alterTable_physical_attributes_claus~3f5ebc95)!drop-2	ALTER TABLE a MODIFY PARTITION a OVERFLOW
@@ -16625,7 +16625,7 @@ accept	accept	engine	alterTable_partition_attributes(alterTable_physical_attribu
 reject@42	reject@42	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_allocate_extent_clause!drop-1	ALTER TABLE a MODIFY PARTITION a OVERFLOW EXTENT
 reject@50	reject@50	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_allocate_extent_clause!drop-2	ALTER TABLE a MODIFY PARTITION a OVERFLOW ALLOCATE
 reject@58	reject@58	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_allocate_extent_clause!insert	ALTER TABLE a MODIFY PARTITION a OVERFLOW ALLOCATE EXTENT zzz
-reject@42	reject@48	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY PARTITION a OVERFLOW ALLOW EXTENT
+reject@48	reject@48	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_allocate_extent_clause!swap	ALTER TABLE a MODIFY PARTITION a OVERFLOW ALLOW EXTENT
 accept	accept	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_deallocate_unused_clause	ALTER TABLE a MODIFY PARTITION a OVERFLOW DEALLOCATE UNUSED
 reject@42	reject@42	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_deallocate_unused_clause!drop-1	ALTER TABLE a MODIFY PARTITION a OVERFLOW UNUSED
 reject@52	reject@52	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/alterTable_deallocate_unused_clause!drop-2	ALTER TABLE a MODIFY PARTITION a OVERFLOW DEALLOCATE
@@ -17780,8 +17780,8 @@ accept	accept	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inme
 reject@29	reject@29	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!drop-1	ALTER TABLE a ILM ADD POLICY INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@29	reject@36	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!drop-2	ALTER TABLE a ILM ADD POLICY MODIFY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@57	reject@57	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!drop-3	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
-reject@45	reject@48	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!drop-4	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY NO SEGMENT AFTER 1 DAY OF CREATION
-reject@45	reject@47	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!truncate	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY NO
+reject@48	reject@48	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!drop-4	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY NO SEGMENT AFTER 1 DAY OF CREATION
+reject@47	reject@47	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!truncate	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY NO
 reject@60	reject@60	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!insert	ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY NO MEMCOMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@29	reject@29	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/MODIFY_INMEMORY_alterTable_inmemory_memcompress!swap	ALTER TABLE a ILM ADD POLICY MODULE INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTable_inmemory_mem~8085eb76)/NO_INMEMORY	ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
@@ -17792,8 +17792,8 @@ reject@29	reject@29	engine	alterTable_ilm_inmemory_policy(SET_INMEMORY_alterTabl
 accept	accept	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/%empty	ALTER TABLE a ILM ADD POLICY SET INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 reject@54	reject@54	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-1	ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
-reject@42	reject@45	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-2	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO SEGMENT AFTER 1 DAY OF CREATION
-reject@42	reject@44	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!truncate	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO
+reject@45	reject@45	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-2	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO SEGMENT AFTER 1 DAY OF CREATION
+reject@44	reject@44	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!truncate	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO
 reject@57	reject@57	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!insert	ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS zzz SEGMENT AFTER 1 DAY OF CREATION
 reject@42	reject@42	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!swap	ALTER TABLE a ILM ADD POLICY SET INMEMORY NOARCHIVELOG MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTable_ilm_inmemory_policy(alterTable_inmemory_priority)?/%empty	ALTER TABLE a ILM ADD POLICY SET INMEMORY SEGMENT AFTER 1 DAY OF CREATION
@@ -17919,7 +17919,7 @@ reject@39	reject@39	engine	alterTable_inline_constraint((_ID_))?/(_ID_)!insert	A
 accept	accept	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	ALTER TABLE a MODIFY(a REFERENCES a)
 accept	accept	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE)
 reject@36	reject@36	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	ALTER TABLE a MODIFY(a REFERENCES a DELETE CASCADE)
-reject@36	reject@39	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a MODIFY(a REFERENCES a ON CASCADE)
+reject@39	reject@39	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a MODIFY(a REFERENCES a ON CASCADE)
 reject@45	reject@45	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE)
 reject@45	reject@45	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!truncate	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE
 reject@54	reject@54	engine	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE zzz)
@@ -17980,7 +17980,7 @@ reject@45	reject@43	engine	alterTable_inline_ref_constraint(,_ID)*/,_ID_(,_ID)*!
 accept	accept	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	ALTER TABLE a ADD(a NUMBER REFERENCES a)
 accept	accept	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE CASCADE)
 reject@40	reject@40	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	ALTER TABLE a ADD(a NUMBER REFERENCES a DELETE CASCADE)
-reject@40	reject@43	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a ADD(a NUMBER REFERENCES a ON CASCADE)
+reject@43	reject@43	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER TABLE a ADD(a NUMBER REFERENCES a ON CASCADE)
 reject@49	reject@49	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE)
 reject@49	reject@49	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!truncate	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE
 reject@58	reject@58	engine	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE CASCADE zzz)
@@ -18089,7 +18089,7 @@ accept	accept	engine	alterTable_inmemory_attributes/(alterTable_inmemory_memcomp
 accept	accept	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/%empty	ALTER TABLE a ADD PARTITION INMEMORY
 accept	accept	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress	ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
 reject@48	reject@48	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-1	ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS
-reject@37	reject@39	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-2	ALTER TABLE a ADD PARTITION INMEMORY NO
+reject@39	reject@39	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!drop-2	ALTER TABLE a ADD PARTITION INMEMORY NO
 reject@52	reject@52	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!insert	ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS zzz
 reject@37	reject@37	engine	alterTable_inmemory_attributes(alterTable_inmemory_memcompress)?/alterTable_inmemory_memcompress!swap	ALTER TABLE a ADD PARTITION INMEMORY NOARCHIVELOG MEMCOMPRESS
 accept	accept	engine	alterTable_inmemory_attributes(alterTable_inmemory_priority)?/%empty	ALTER TABLE a ADD PARTITION INMEMORY
@@ -21078,19 +21078,19 @@ reject@45	reject@45	engine	alterView_out_of_line_constraint((_ID_(,_ID)*_))?/(_I
 reject@46	reject@46	engine	alterView_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-3	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a(a
 reject@48	reject@48	engine	alterView_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a(a) zzz
 reject@44	reject@44	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a
-reject@62	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
+reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a DELETE CASCADE
 reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON CASCADE
-reject@54	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE
-reject@63	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz
+reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE
+reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz
 reject@45	reject@45	engine	alterView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ONE DELETE CASCADE
-reject@62	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
-reject@55	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASE
-reject@63	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
-reject@55	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-1	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE NULL
-reject@58	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-2	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET
-reject@64	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz
-reject@55	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASE
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-1	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE NULL
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-2	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz
+reject@45	reject@45	engine	alterView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	ALTER VIEW a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL
 reject@26	reject@26	engine	alterView_out_of_line_constraint(alterView_constraint_state)?/%empty	ALTER VIEW a ADD UNIQUE(a)
 reject@26	reject@26	engine	alterView_out_of_line_constraint(alterView_constraint_state)?/alterView_constraint_state	ALTER VIEW a ADD UNIQUE(a)
 reject@41	reject@41	engine	alterView_annotations_clause/(ADD_OR_REPLACE|DROP)_ANNOTATIONS_(_alterView_annotatio~e0745213	ALTER VIEW a ANNOTATIONS(DROP ANNOTATIONS(a))
@@ -21741,7 +21741,7 @@ reject@13	reject@13	engine	createAnalyticView((FORCE|NOFORCE))?/(FORCE|NOFORCE)!
 reject@7	reject@7	engine	createAnalyticView((FORCE|NOFORCE))?/(FORCE|NOFORCE)!swap	CREATE FOREIGN ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
 accept	accept	engine	createAnalyticView(FORCE|NOFORCE)/FORCE	CREATE FORCE ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
 accept	accept	engine	createAnalyticView(FORCE|NOFORCE)/NOFORCE	CREATE NOFORCE ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
-reject@7	reject@15	engine	createAnalyticView(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
+reject@15	reject@15	engine	createAnalyticView(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
 reject@7	reject@7	engine	createAnalyticView(FORCE|NOFORCE)/NOFORCE!swap	CREATE NOGUARANTEE ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
 accept	accept	engine	createAnalyticView(ID_.)?/%empty	CREATE ANALYTIC VIEW a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
 reject@25	reject@25	engine	createAnalyticView(ID_.)?/%empty!insert	CREATE ANALYTIC VIEW zzz a USING a DIMENSION BY(a KEY a REFERENCES a HIERARCHIES(a)) MEASURES(a)
@@ -22142,7 +22142,7 @@ reject@13	reject@13	engine	createAttributeDimension((FORCE|NOFORCE))?/(FORCE|NOF
 reject@7	reject@7	engine	createAttributeDimension((FORCE|NOFORCE))?/(FORCE|NOFORCE)!swap	CREATE FOREIGN ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 accept	accept	engine	createAttributeDimension(FORCE|NOFORCE)/FORCE	CREATE FORCE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 accept	accept	engine	createAttributeDimension(FORCE|NOFORCE)/NOFORCE	CREATE NOFORCE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
-reject@7	reject@15	engine	createAttributeDimension(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
+reject@15	reject@15	engine	createAttributeDimension(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 reject@7	reject@7	engine	createAttributeDimension(FORCE|NOFORCE)/NOFORCE!swap	CREATE NOGUARANTEE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 accept	accept	engine	createAttributeDimension(ID_.)?/%empty	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a
 reject@31	reject@31	engine	createAttributeDimension(ID_.)?/%empty!insert	CREATE ATTRIBUTE DIMENSION zzz a USING a ATTRIBUTES(a) LEVEL a KEY a
@@ -23350,8 +23350,8 @@ reject@25	reject@25	engine	createContext(ACCESSED_GLOBALLY)?/ACCESSED_GLOBALLY!s
 accept	accept	engine	createDatabaseLink/CREATE_(SHARED)?_(PUBLIC)?_DATABASE_LINK_(IF_NOT_EXISTS~51da20d6	CREATE DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(SHARED)?/%empty	CREATE DATABASE LINK a USING 's'
 reject@7	reject@7	engine	createDatabaseLink(SHARED)?/%empty!insert	CREATE zzz DATABASE LINK a USING 's'
-reject@7	reject@30	engine	createDatabaseLink(SHARED)?/SHARED	CREATE SHARED DATABASE LINK a USING 's'
-reject@7	reject@14	engine	createDatabaseLink(SHARED)?/SHARED!insert	CREATE SHARED zzz DATABASE LINK a USING 's'
+reject@30	reject@30	engine	createDatabaseLink(SHARED)?/SHARED	CREATE SHARED DATABASE LINK a USING 's'
+reject@14	reject@14	engine	createDatabaseLink(SHARED)?/SHARED!insert	CREATE SHARED zzz DATABASE LINK a USING 's'
 reject@7	reject@7	engine	createDatabaseLink(SHARED)?/SHARED!swap	CREATE SHARED_POOL DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(PUBLIC)?/%empty	CREATE DATABASE LINK a USING 's'
 accept	accept	engine	createDatabaseLink(PUBLIC)?/PUBLIC	CREATE PUBLIC DATABASE LINK a USING 's'
@@ -23393,17 +23393,17 @@ reject@49	reject@49	engine	createDatabaseLink(CURRENT_USER|ID_IDENTIFIED_BY_ID_c
 reject@52	reject@52	engine	createDatabaseLink(CURRENT_USER|ID_IDENTIFIED_BY_ID_cre~c3a1e1f7)/ID_IDENTIFIED_BY_ID_(createDatabaseLink_dblink_authentication)?!insert	CREATE DATABASE LINK a CONNECT TO a IDENTIFIED BY a zzz USING 's'
 reject@36	reject@36	engine	createDatabaseLink(CURRENT_USER|ID_IDENTIFIED_BY_ID_cre~c3a1e1f7)/ID_IDENTIFIED_BY_ID_(createDatabaseLink_dblink_authentication)?!swap	CREATE DATABASE LINK a CONNECT TO a IDENTIFIER BY a USING 's'
 accept	accept	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/%empty	CREATE DATABASE LINK a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a USING 's'
 reject@23	reject@23	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-1	CREATE DATABASE LINK a BY a IDENTIFIED BY a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-2	CREATE DATABASE LINK a AUTHENTICATED a IDENTIFIED BY a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-3	CREATE DATABASE LINK a AUTHENTICATED BY IDENTIFIED BY a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-4	CREATE DATABASE LINK a AUTHENTICATED BY a BY a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-5	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED a USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-6	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY USING 's'
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!truncate	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY
-reject@23	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!insert	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a zzz USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-2	CREATE DATABASE LINK a AUTHENTICATED a IDENTIFIED BY a USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-3	CREATE DATABASE LINK a AUTHENTICATED BY IDENTIFIED BY a USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-4	CREATE DATABASE LINK a AUTHENTICATED BY a BY a USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-5	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED a USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!drop-6	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY USING 's'
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!truncate	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY
+reject@37	reject@37	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!insert	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a zzz USING 's'
 reject@23	reject@23	engine	createDatabaseLink(createDatabaseLink_dblink_authentication)?/createDatabaseLink_dblink_authentication!swap	CREATE DATABASE LINK a AUTHENTICATION BY a IDENTIFIED BY a USING 's'
-reject@23	reject@37	engine	createDatabaseLink_dblink_authentication/AUTHENTICATED_BY_ID_IDENTIFIED_BY_ID	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a USING 's'
+reject@37	reject@37	engine	createDatabaseLink_dblink_authentication/AUTHENTICATED_BY_ID_IDENTIFIED_BY_ID	CREATE DATABASE LINK a AUTHENTICATED BY a IDENTIFIED BY a USING 's'
 reject@35	reject@35	engine	createDimension/CREATE_DIMENSION_(ID_.)?_ID_createDimension_level_claus~a714af14	CREATE DIMENSION a LEVEL a IS(a.a) JOIN KEY(a) REFERENCES a
 reject@35	reject@35	engine	createDimension(ID_.)?/%empty	CREATE DIMENSION a LEVEL a IS(a.a) JOIN KEY(a) REFERENCES a
 reject@21	reject@21	engine	createDimension(ID_.)?/%empty!insert	CREATE DIMENSION zzz a LEVEL a IS(a.a) JOIN KEY(a) REFERENCES a
@@ -23886,7 +23886,7 @@ reject@13	reject@13	engine	createHierarchy((FORCE|NOFORCE))?/(FORCE|NOFORCE)!ins
 reject@7	reject@7	engine	createHierarchy((FORCE|NOFORCE))?/(FORCE|NOFORCE)!swap	CREATE FOREIGN HIERARCHY a USING a(a)
 accept	accept	engine	createHierarchy(FORCE|NOFORCE)/FORCE	CREATE FORCE HIERARCHY a USING a(a)
 accept	accept	engine	createHierarchy(FORCE|NOFORCE)/NOFORCE	CREATE NOFORCE HIERARCHY a USING a(a)
-reject@7	reject@15	engine	createHierarchy(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz HIERARCHY a USING a(a)
+reject@15	reject@15	engine	createHierarchy(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz HIERARCHY a USING a(a)
 reject@7	reject@7	engine	createHierarchy(FORCE|NOFORCE)/NOFORCE!swap	CREATE NOGUARANTEE HIERARCHY a USING a(a)
 accept	accept	engine	createHierarchy(ID_.)?/%empty	CREATE HIERARCHY a USING a(a)
 reject@21	reject@21	engine	createHierarchy(ID_.)?/%empty!insert	CREATE HIERARCHY zzz a USING a(a)
@@ -24893,7 +24893,7 @@ reject@19	reject@19	engine	createJava(RESOLVE|COMPILE)/COMPILE!insert	CREATE AND
 reject@11	reject@11	engine	createJava(RESOLVE|COMPILE)/COMPILE!swap	CREATE AND COMPLETE JAVA SOURCE USING a
 reject@25	reject@25	engine	createJava(NOFORCE)?/%empty	CREATE JAVA SOURCE USING a
 reject@33	reject@33	engine	createJava(NOFORCE)?/NOFORCE	CREATE NOFORCE JAVA SOURCE USING a
-reject@7	reject@15	engine	createJava(NOFORCE)?/NOFORCE!insert	CREATE NOFORCE zzz JAVA SOURCE USING a
+reject@15	reject@15	engine	createJava(NOFORCE)?/NOFORCE!insert	CREATE NOFORCE zzz JAVA SOURCE USING a
 reject@7	reject@7	engine	createJava(NOFORCE)?/NOFORCE!swap	CREATE NOGUARANTEE JAVA SOURCE USING a
 reject@25	reject@25	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE	CREATE JAVA SOURCE USING a
 reject@11	reject@11	engine	createJava(SOURCE|CLASS|RESOURCE)/SOURCE!truncate	CREATE JAVA
@@ -27747,8 +27747,8 @@ accept	accept	engine	createMaterializedView_inmemory_attributes/(createMateriali
 accept	accept	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress	CREATE MATERIALIZED VIEW a INMEMORY NO MEMCOMPRESS AS SELECT 1 FROM dual
 reject@48	reject@48	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-1	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS AS SELECT 1 FROM dual
-reject@36	reject@39	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-2	CREATE MATERIALIZED VIEW a INMEMORY NO AS SELECT 1 FROM dual
-reject@36	reject@38	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!truncate	CREATE MATERIALIZED VIEW a INMEMORY NO
+reject@39	reject@39	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-2	CREATE MATERIALIZED VIEW a INMEMORY NO AS SELECT 1 FROM dual
+reject@38	reject@38	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!truncate	CREATE MATERIALIZED VIEW a INMEMORY NO
 reject@51	reject@51	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!insert	CREATE MATERIALIZED VIEW a INMEMORY NO MEMCOMPRESS zzz AS SELECT 1 FROM dual
 reject@36	reject@36	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!swap	CREATE MATERIALIZED VIEW a INMEMORY NOARCHIVELOG MEMCOMPRESS AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_attributes(createMaterializedView_inmemory_priority)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY AS SELECT 1 FROM dual
@@ -27784,8 +27784,8 @@ reject@39	reject@39	engine	createMaterializedView_inmemory_column_clause(INMEMOR
 accept	reject@65	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 accept	reject@80	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO MEMCOMPRESS AS SELECT 1 FROM dual
 reject@60	reject@60	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY MEMCOMPRESS AS SELECT 1 FROM dual
-reject@48	reject@51	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO AS SELECT 1 FROM dual
-reject@48	reject@50	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO
+reject@51	reject@51	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO AS SELECT 1 FROM dual
+reject@50	reject@50	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO
 reject@63	reject@63	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!insert	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NO MEMCOMPRESS zzz AS SELECT 1 FROM dual
 reject@48	reject@48	engine	createMaterializedView_inmemory_column_clause(createMaterializedView_inmemory_memcompress)?/createMaterializedView_inmemory_memcompress!swap	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY NOARCHIVELOG MEMCOMPRESS AS SELECT 1 FROM dual
 reject@27	reject@27	engine	createMaterializedView_object_type_col_properties/COLUMN_ID_createMaterializedView_substitutable_column_clause	CREATE MATERIALIZED VIEW a COLUMN a SUBSTITUTABLE AT ALL LEVELS AS SELECT 1 FROM dual
@@ -31662,18 +31662,18 @@ reject@16	reject@16	engine	createSynonym(ID_.)?/ID_.!truncate	CREATE SYNONYM a
 reject@21	reject@21	engine	createSynonym(ID_.)?/ID_.!insert	CREATE SYNONYM a.zzz a FOR a
 accept	accept	engine	createSynonym(SHARING_=_(METADATA|NONE))?/%empty	CREATE SYNONYM a FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/%empty!insert	CREATE SYNONYM a zzz FOR a
-reject@17	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+reject@27	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-1	CREATE SYNONYM a = METADATA FOR a
-reject@17	reject@25	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE SYNONYM a SHARING METADATA FOR a
-reject@17	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE SYNONYM a SHARING = FOR a
-reject@17	reject@26	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE SYNONYM a SHARING =
-reject@17	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE SYNONYM a SHARING = METADATA zzz FOR a
+reject@25	reject@25	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-2	CREATE SYNONYM a SHARING METADATA FOR a
+reject@27	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!drop-3	CREATE SYNONYM a SHARING = FOR a
+reject@26	reject@26	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!truncate	CREATE SYNONYM a SHARING =
+reject@27	reject@27	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!insert	CREATE SYNONYM a SHARING = METADATA zzz FOR a
 reject@17	reject@17	engine	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)!swap	CREATE SYNONYM a SHOW = METADATA FOR a
-reject@17	reject@27	engine	createSynonym(METADATA|NONE)/METADATA	CREATE SYNONYM a SHARING = METADATA FOR a
-reject@17	reject@27	engine	createSynonym(METADATA|NONE)/METADATA!swap	CREATE SYNONYM a SHARING = MIGRATE FOR a
+reject@27	reject@27	engine	createSynonym(METADATA|NONE)/METADATA	CREATE SYNONYM a SHARING = METADATA FOR a
+reject@27	reject@27	engine	createSynonym(METADATA|NONE)/METADATA!swap	CREATE SYNONYM a SHARING = MIGRATE FOR a
 accept	accept	engine	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 reject@32	reject@32	engine	createSynonym(METADATA|NONE)/NONE!insert	CREATE SYNONYM a SHARING = NONE zzz FOR a
-reject@17	reject@27	engine	createSynonym(METADATA|NONE)/NONE!swap	CREATE SYNONYM a SHARING = NONEDITIONABLE FOR a
+reject@27	reject@27	engine	createSynonym(METADATA|NONE)/NONE!swap	CREATE SYNONYM a SHARING = NONEDITIONABLE FOR a
 accept	accept	engine	createSynonym(@_ID)?/%empty	CREATE SYNONYM a FOR a
 accept	accept	engine	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 reject@23	reject@23	engine	createSynonym(@_ID)?/@_ID!drop-1	CREATE SYNONYM a FOR a a
@@ -31774,7 +31774,7 @@ reject@14	reject@14	engine	createTable_relational_table(createTable_blockchain_t
 reject@14	reject@14	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/%empty	CREATE TABLE a
 accept	reject@0	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE TABLE a DEFAULT COLLATION a
 reject@15	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-1	CREATE TABLE a COLLATION a
-reject@15	reject@23	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE TABLE a DEFAULT a
+reject@23	reject@23	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-2	CREATE TABLE a DEFAULT a
 accept	accept	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!drop-3	CREATE TABLE a DEFAULT COLLATION
 reject@35	reject@0	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!insert	CREATE TABLE a DEFAULT COLLATION a zzz
 reject@15	reject@15	engine	createTable_relational_table(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID!swap	CREATE TABLE a DEFAULT_COLLATION COLLATION a
@@ -31927,7 +31927,7 @@ reject@24	reject@15	engine	createTable_relational_properties(createTable_column_
 reject@22	reject@22	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!drop-3	CREATE TABLE a(UNIQUE())
 reject@24	reject@24	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!drop-4	CREATE TABLE a(UNIQUE(a)
 reject@23	reject@23	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!truncate	CREATE TABLE a(UNIQUE(a
-reject@15	reject@25	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!insert	CREATE TABLE a(UNIQUE(a) zzz)
+reject@25	reject@25	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!insert	CREATE TABLE a(UNIQUE(a) zzz)
 reject@20	reject@20	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_constraint!swap	CREATE TABLE a(UNITE(a))
 reject@32	reject@32	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint	CREATE TABLE a(REF(a) WITH ROWID)
 reject@15	reject@15	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-1	CREATE TABLE a((a) WITH ROWID)
@@ -31935,9 +31935,9 @@ reject@32	reject@22	engine	createTable_relational_properties(createTable_column_
 reject@19	reject@19	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-3	CREATE TABLE a(REF() WITH ROWID)
 reject@32	reject@21	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-4	CREATE TABLE a(REF(a WITH ROWID)
 reject@22	reject@22	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-5	CREATE TABLE a(REF(a) ROWID)
-reject@22	reject@26	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-6	CREATE TABLE a(REF(a) WITH)
+reject@26	reject@26	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!drop-6	CREATE TABLE a(REF(a) WITH)
 reject@26	reject@26	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!truncate	CREATE TABLE a(REF(a) WITH
-reject@15	reject@33	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!insert	CREATE TABLE a(REF(a) WITH ROWID zzz)
+reject@33	reject@33	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!insert	CREATE TABLE a(REF(a) WITH ROWID zzz)
 reject@24	reject@24	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_out_of_line_ref_constraint!swap	CREATE TABLE a(REFERENCE(a) WITH ROWID)
 reject@42	reject@42	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_supplemental_logging_props	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a))
 reject@19	reject@19	engine	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_supplemental_logging_props!drop-1	CREATE TABLE a(LOG GROUP a(a))
@@ -32138,7 +32138,7 @@ accept	accept	engine	createTable_object_table_substitution/(NOT)?_SUBSTITUTABLE_
 accept	accept	engine	createTable_object_table_substitution(NOT)?/%empty	CREATE TABLE a OF a SUBSTITUTABLE AT ALL LEVELS
 reject@20	reject@20	engine	createTable_object_table_substitution(NOT)?/%empty!insert	CREATE TABLE a OF a zzz SUBSTITUTABLE AT ALL LEVELS
 accept	accept	engine	createTable_object_table_substitution(NOT)?/NOT	CREATE TABLE a OF a NOT SUBSTITUTABLE AT ALL LEVELS
-reject@20	reject@24	engine	createTable_object_table_substitution(NOT)?/NOT!insert	CREATE TABLE a OF a NOT zzz SUBSTITUTABLE AT ALL LEVELS
+reject@24	reject@24	engine	createTable_object_table_substitution(NOT)?/NOT!insert	CREATE TABLE a OF a NOT zzz SUBSTITUTABLE AT ALL LEVELS
 reject@20	reject@20	engine	createTable_object_table_substitution(NOT)?/NOT!swap	CREATE TABLE a OF a NOTHING SUBSTITUTABLE AT ALL LEVELS
 reject@21	reject@21	engine	createTable_object_properties/(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)_(,_(ID_~745f00d9	CREATE TABLE a OF a(a)
 reject@20	reject@20	engine	createTable_object_properties/(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)_(,_(ID_~745f00d9!truncate	CREATE TABLE a OF a(
@@ -32158,7 +32158,7 @@ reject@37	reject@24	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((cr
 reject@24	reject@24	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!drop-3	CREATE TABLE a OF a(REF() WITH ROWID)
 reject@37	reject@26	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!drop-4	CREATE TABLE a OF a(REF(a WITH ROWID)
 reject@27	reject@27	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!drop-5	CREATE TABLE a OF a(REF(a) ROWID)
-reject@27	reject@31	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!drop-6	CREATE TABLE a OF a(REF(a) WITH)
+reject@31	reject@31	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!drop-6	CREATE TABLE a OF a(REF(a) WITH)
 reject@31	reject@31	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!truncate	CREATE TABLE a OF a(REF(a) WITH
 reject@38	reject@38	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!insert	CREATE TABLE a OF a(REF(a) WITH ROWID zzz)
 reject@29	reject@29	engine	createTable_object_properties(ID_(DEFAULT_EXPR)?_((createTable_inl~fe09fc7f)/createTable_out_of_line_ref_constraint!swap	CREATE TABLE a OF a(REFERENCE(a) WITH ROWID)
@@ -32192,7 +32192,7 @@ reject@22	reject@22	engine	createTable_object_properties(createTable_inline_cons
 accept	accept	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_constraint	CREATE TABLE a OF a(a NULL)
 accept	accept	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint	CREATE TABLE a OF a(a WITH ROWID)
 reject@22	reject@22	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!drop-1	CREATE TABLE a OF a(a ROWID)
-reject@22	reject@26	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!drop-2	CREATE TABLE a OF a(a WITH)
+reject@26	reject@26	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!drop-2	CREATE TABLE a OF a(a WITH)
 reject@26	reject@26	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!truncate	CREATE TABLE a OF a(a WITH
 reject@33	reject@33	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!insert	CREATE TABLE a OF a(a WITH ROWID zzz)
 reject@22	reject@22	engine	createTable_object_properties(createTable_inline_constraint|create~35606dee)/createTable_inline_ref_constraint!swap	CREATE TABLE a OF a(a WITHOUT ROWID)
@@ -32393,7 +32393,7 @@ reject@22	reject@22	engine	createTable_column_definition(createTable_inline_cons
 accept	accept	engine	createTable_column_definition(createTable_inline_ref_constraint)?/%empty	CREATE TABLE a(a)
 accept	accept	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint	CREATE TABLE a(a WITH ROWID)
 accept	accept	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!drop-1	CREATE TABLE a(a ROWID)
-reject@17	reject@21	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!drop-2	CREATE TABLE a(a WITH)
+reject@21	reject@21	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!drop-2	CREATE TABLE a(a WITH)
 reject@21	reject@21	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!truncate	CREATE TABLE a(a WITH
 reject@28	reject@28	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!insert	CREATE TABLE a(a WITH ROWID zzz)
 reject@25	reject@25	engine	createTable_column_definition(createTable_inline_ref_constraint)?/createTable_inline_ref_constraint!swap	CREATE TABLE a(a WITHOUT ROWID)
@@ -32494,7 +32494,7 @@ reject@29	reject@27	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)
 reject@27	reject@27	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a(PRIMARY KEY())
 reject@29	reject@29	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a(PRIMARY KEY(a)
 reject@28	reject@28	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!truncate	CREATE TABLE a(PRIMARY KEY(a
-reject@15	reject@30	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!insert	CREATE TABLE a(PRIMARY KEY(a) zzz)
+reject@30	reject@30	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!insert	CREATE TABLE a(PRIMARY KEY(a) zzz)
 reject@24	reject@24	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!swap	CREATE TABLE a(PRIORITY KEY(a))
 reject@42	reject@42	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@18	reject@18	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!drop-1	CREATE TABLE a(KEY(a) REFERENCES a)
@@ -32505,7 +32505,7 @@ reject@42	reject@29	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)
 reject@30	reject@30	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!drop-6	CREATE TABLE a(FOREIGN KEY(a) a)
 reject@40	reject@40	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!drop-7	CREATE TABLE a(FOREIGN KEY(a) REFERENCES)
 reject@40	reject@40	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!truncate	CREATE TABLE a(FOREIGN KEY(a) REFERENCES
-reject@15	reject@43	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a zzz)
+reject@43	reject@43	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a zzz)
 reject@25	reject@25	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605!swap	CREATE TABLE a(FREEPOOLS KEY(a) REFERENCES a)
 reject@27	reject@27	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/CHECK_(_CONDITION_)	CREATE TABLE a(CHECK(1 = 1))
 reject@15	reject@15	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/CHECK_(_CONDITION_)!drop-1	CREATE TABLE a((1 = 1))
@@ -32523,34 +32523,34 @@ reject@24	reject@24	engine	createTable_out_of_line_constraint(,_ID)*/,_ID_(,_ID)
 reject@24	reject@24	engine	createTable_out_of_line_constraint(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a(UNIQUE(a,
 reject@27	reject@25	engine	createTable_out_of_line_constraint(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a(UNIQUE(a, a zzz))
 reject@42	reject@42	engine	createTable_out_of_line_constraint(ID_.)?/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
-reject@15	reject@45	engine	createTable_out_of_line_constraint(ID_.)?/%empty!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES zzz a)
+reject@45	reject@45	engine	createTable_out_of_line_constraint(ID_.)?/%empty!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES zzz a)
 reject@44	reject@44	engine	createTable_out_of_line_constraint(ID_.)?/ID_.	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a.a)
 reject@40	reject@40	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!drop-1	CREATE TABLE a(FOREIGN KEY(a) REFERENCES.a)
-reject@15	reject@43	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a a)
+reject@43	reject@43	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a a)
 reject@42	reject@42	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!truncate	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a
-reject@15	reject@47	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a.zzz a)
+reject@47	reject@47	engine	createTable_out_of_line_constraint(ID_.)?/ID_.!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a.zzz a)
 reject@42	reject@42	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@45	reject@45	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 reject@45	reject@43	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-1	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a a))
 reject@43	reject@43	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a())
 reject@45	reject@45	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-3	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a)
 reject@44	reject@44	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!truncate	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a
-reject@15	reject@46	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a) zzz)
+reject@46	reject@46	engine	createTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a) zzz)
 reject@42	reject@42	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@60	reject@60	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE)
-reject@15	reject@43	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a DELETE CASCADE)
-reject@15	reject@46	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON CASCADE)
+reject@43	reject@43	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a DELETE CASCADE)
+reject@46	reject@46	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON CASCADE)
 reject@52	reject@52	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE)
 reject@52	reject@52	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!truncate	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE
-reject@15	reject@61	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz)
-reject@15	reject@43	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!swap	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ONE DELETE CASCADE)
+reject@61	reject@61	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz)
+reject@43	reject@43	engine	createTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!swap	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ONE DELETE CASCADE)
 reject@60	reject@60	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE)
 reject@53	reject@53	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE!swap	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE CASE)
 reject@61	reject@61	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL)
 reject@53	reject@53	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-1	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE NULL)
 reject@56	reject@56	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-2	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SET)
 reject@56	reject@56	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!truncate	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SET
-reject@15	reject@62	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz)
+reject@62	reject@62	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz)
 reject@53	reject@53	engine	createTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL)
 reject@24	reject@24	engine	createTable_out_of_line_constraint(createTable_constraint_state)?/%empty	CREATE TABLE a(UNIQUE(a))
 reject@24	reject@24	engine	createTable_out_of_line_constraint(createTable_constraint_state)?/createTable_constraint_state	CREATE TABLE a(UNIQUE(a))
@@ -32564,17 +32564,17 @@ reject@32	reject@27	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID
 reject@28	reject@28	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!drop-6	CREATE TABLE a(SCOPE FOR(a) a)
 reject@30	reject@30	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!drop-7	CREATE TABLE a(SCOPE FOR(a) IS)
 reject@30	reject@30	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!truncate	CREATE TABLE a(SCOPE FOR(a) IS
-reject@15	reject@33	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!insert	CREATE TABLE a(SCOPE FOR(a) IS a zzz)
+reject@33	reject@33	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!insert	CREATE TABLE a(SCOPE FOR(a) IS a zzz)
 reject@21	reject@21	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID!swap	CREATE TABLE a(SCRUB FOR(a) IS a)
 reject@32	reject@32	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/REF_(_ID_)_WITH_ROWID	CREATE TABLE a(REF(a) WITH ROWID)
 reject@42	reject@42	engine	createTable_out_of_line_ref_constraint(SCOPE_FOR_(_ID_)_IS_(ID_.)?_ID|REF_(~e3675f3f)/(CONSTRAINT_ID)?_FOREIGN_KEY_(_ID_)_REFERENCES_(ID_.)?_~ee0c6898	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@32	reject@32	engine	createTable_out_of_line_ref_constraint(ID_.)?/%empty	CREATE TABLE a(SCOPE FOR(a) IS a)
-reject@15	reject@35	engine	createTable_out_of_line_ref_constraint(ID_.)?/%empty!insert	CREATE TABLE a(SCOPE FOR(a) IS zzz a)
+reject@35	reject@35	engine	createTable_out_of_line_ref_constraint(ID_.)?/%empty!insert	CREATE TABLE a(SCOPE FOR(a) IS zzz a)
 reject@34	reject@34	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.	CREATE TABLE a(SCOPE FOR(a) IS a.a)
 reject@30	reject@30	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!drop-1	CREATE TABLE a(SCOPE FOR(a) IS.a)
-reject@15	reject@33	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!drop-2	CREATE TABLE a(SCOPE FOR(a) IS a a)
+reject@33	reject@33	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!drop-2	CREATE TABLE a(SCOPE FOR(a) IS a a)
 reject@32	reject@32	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!truncate	CREATE TABLE a(SCOPE FOR(a) IS a
-reject@15	reject@37	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!insert	CREATE TABLE a(SCOPE FOR(a) IS a.zzz a)
+reject@37	reject@37	engine	createTable_out_of_line_ref_constraint(ID_.)?/ID_.!insert	CREATE TABLE a(SCOPE FOR(a) IS a.zzz a)
 reject@42	reject@42	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@19	reject@27	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/%empty!insert	CREATE TABLE a(zzz FOREIGN KEY(a) REFERENCES a)
 reject@55	reject@55	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE TABLE a(CONSTRAINT a FOREIGN KEY(a) REFERENCES a)
@@ -32677,10 +32677,10 @@ reject@34	reject@34	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_CO
 reject@31	reject@31	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/ROW_STORE_COMPRESS_(BASIC|ADVANCED)?!swap	CREATE TABLE a ROWDEPENDENCIES STORE COMPRESS
 reject@15	reject@15	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?	CREATE TABLE a COLUMN STORE COMPRESS FOR QUERY
 reject@15	reject@15	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-1	CREATE TABLE a STORE COMPRESS FOR QUERY
-reject@15	reject@22	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-2	CREATE TABLE a COLUMN COMPRESS FOR QUERY
+reject@22	reject@22	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-2	CREATE TABLE a COLUMN COMPRESS FOR QUERY
 reject@28	reject@28	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-3	CREATE TABLE a COLUMN STORE FOR QUERY
 reject@37	reject@37	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-4	CREATE TABLE a COLUMN STORE COMPRESS QUERY
-reject@15	reject@40	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-5	CREATE TABLE a COLUMN STORE COMPRESS FOR
+reject@40	reject@40	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-5	CREATE TABLE a COLUMN STORE COMPRESS FOR
 reject@47	reject@47	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!insert	CREATE TABLE a COLUMN STORE COMPRESS FOR QUERY zzz
 reject@15	reject@15	engine	createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!swap	CREATE TABLE a COLUMNS STORE COMPRESS FOR QUERY
 reject@15	reject@15	engine	createTable_table_compression(BASIC|ADVANCED)?/%empty	CREATE TABLE a ROW STORE COMPRESS
@@ -32850,12 +32850,12 @@ reject@15	reject@35	engine	createTable_column_properties(createTable_object_type
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)+/(createTable_object_type_col_properti~c0b978c1)_(create~a6ab8e89!swap	CREATE TABLE a XS a XMLTYPE a
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-1	CREATE TABLE a a SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@36	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-2	CREATE TABLE a COLUMN SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@24	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-3	CREATE TABLE a COLUMN a AT ALL LEVELS
-reject@15	reject@38	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-4	CREATE TABLE a COLUMN a SUBSTITUTABLE ALL LEVELS
-reject@15	reject@41	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-5	CREATE TABLE a COLUMN a SUBSTITUTABLE AT LEVELS
-reject@15	reject@44	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-6	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL
-reject@15	reject@52	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!insert	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS zzz
+reject@36	reject@36	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-2	CREATE TABLE a COLUMN SUBSTITUTABLE AT ALL LEVELS
+reject@24	reject@24	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-3	CREATE TABLE a COLUMN a AT ALL LEVELS
+reject@38	reject@38	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-4	CREATE TABLE a COLUMN a SUBSTITUTABLE ALL LEVELS
+reject@41	reject@41	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-5	CREATE TABLE a COLUMN a SUBSTITUTABLE AT LEVELS
+reject@44	reject@44	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!drop-6	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL
+reject@52	reject@52	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!insert	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS zzz
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_object_type_col_properties!swap	CREATE TABLE a COLUMNS a SUBSTITUTABLE AT ALL LEVELS
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_nested_table_col_properties	CREATE TABLE a NESTED TABLE a STORE AS a
 reject@15	reject@15	engine	createTable_column_properties(createTable_object_type_col_properti~c0b978c1)/createTable_nested_table_col_properties!drop-1	CREATE TABLE a TABLE a STORE AS a
@@ -33275,7 +33275,7 @@ reject@33	reject@33	engine	createTable_inline_constraint((_ID_))?/(_ID_)!insert	
 accept	accept	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	CREATE TABLE a(a REFERENCES a)
 accept	accept	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE)
 reject@30	reject@30	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	CREATE TABLE a(a REFERENCES a DELETE CASCADE)
-reject@30	reject@33	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	CREATE TABLE a(a REFERENCES a ON CASCADE)
+reject@33	reject@33	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	CREATE TABLE a(a REFERENCES a ON CASCADE)
 reject@39	reject@39	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	CREATE TABLE a(a REFERENCES a ON DELETE)
 reject@39	reject@39	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!truncate	CREATE TABLE a(a REFERENCES a ON DELETE
 reject@48	reject@48	engine	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE zzz)
@@ -33667,7 +33667,7 @@ reject@15	reject@15	engine	createTable_inmemory_attributes/(createTable_inmemory
 reject@15	reject@15	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/%empty	CREATE TABLE a INMEMORY
 reject@15	reject@15	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress	CREATE TABLE a INMEMORY NO MEMCOMPRESS
 reject@35	reject@35	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress!drop-1	CREATE TABLE a INMEMORY MEMCOMPRESS
-reject@24	reject@26	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress!drop-2	CREATE TABLE a INMEMORY NO
+reject@26	reject@26	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress!drop-2	CREATE TABLE a INMEMORY NO
 reject@39	reject@39	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress!insert	CREATE TABLE a INMEMORY NO MEMCOMPRESS zzz
 reject@24	reject@24	engine	createTable_inmemory_attributes(createTable_inmemory_memcompress)?/createTable_inmemory_memcompress!swap	CREATE TABLE a INMEMORY NOARCHIVELOG MEMCOMPRESS
 reject@15	reject@15	engine	createTable_inmemory_attributes(createTable_inmemory_priority)?/%empty	CREATE TABLE a INMEMORY
@@ -33688,7 +33688,7 @@ reject@35	reject@35	engine	createTable_inmemory_column_clause/(INMEMORY_createTa
 reject@35	reject@35	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/INMEMORY_(createTable_inmemory_memcompress)?	CREATE TABLE a INMEMORY INMEMORY(a)
 reject@33	reject@33	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/INMEMORY_(createTable_inmemory_memcompress)?!insert	CREATE TABLE a INMEMORY INMEMORY zzz(a)
 reject@38	reject@38	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/NO_INMEMORY	CREATE TABLE a INMEMORY NO INMEMORY(a)
-reject@24	reject@26	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/NO_INMEMORY!drop-2	CREATE TABLE a INMEMORY NO(a)
+reject@26	reject@26	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/NO_INMEMORY!drop-2	CREATE TABLE a INMEMORY NO(a)
 reject@24	reject@24	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/NO_INMEMORY!insert	CREATE TABLE a INMEMORY NO INMEMORY zzz(a)
 reject@24	reject@24	engine	createTable_inmemory_column_clause(INMEMORY_createTable_inmemory_memcom~ec89b9ae)/NO_INMEMORY!swap	CREATE TABLE a INMEMORY NOARCHIVELOG INMEMORY(a)
 reject@35	reject@35	engine	createTable_inmemory_column_clause(createTable_inmemory_memcompress)?/%empty	CREATE TABLE a INMEMORY INMEMORY(a)
@@ -34793,8 +34793,8 @@ reject@15	reject@15	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTa
 reject@30	reject@30	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!drop-1	CREATE TABLE a ILM ADD POLICY INMEMORY NO MEMCOMPRESS SEGMENT ON a
 reject@37	reject@37	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!drop-2	CREATE TABLE a ILM ADD POLICY MODIFY NO MEMCOMPRESS SEGMENT ON a
 reject@58	reject@58	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!drop-3	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS SEGMENT ON a
-reject@46	reject@49	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!drop-4	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY NO SEGMENT ON a
-reject@46	reject@48	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!truncate	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY NO
+reject@49	reject@49	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!drop-4	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY NO SEGMENT ON a
+reject@48	reject@48	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!truncate	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY NO
 reject@61	reject@61	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!insert	CREATE TABLE a ILM ADD POLICY MODIFY INMEMORY NO MEMCOMPRESS zzz SEGMENT ON a
 reject@30	reject@30	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/MODIFY_INMEMORY_createTable_inmemory_memcompress!swap	CREATE TABLE a ILM ADD POLICY MODULE INMEMORY NO MEMCOMPRESS SEGMENT ON a
 reject@15	reject@15	engine	createTable_ilm_inmemory_policy(SET_INMEMORY_createTable_inmemory_at~550de852)/NO_INMEMORY	CREATE TABLE a ILM ADD POLICY NO INMEMORY SEGMENT ON a
@@ -34826,35 +34826,35 @@ reject@66	reject@66	engine	createTable_ilm_inmemory_policy(NO_ACCESS|NO_MODIFICA
 reject@15	reject@15	engine	createTable_ilm_inmemory_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/CREATION	CREATE TABLE a ILM ADD POLICY SET INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 reject@66	reject@66	engine	createTable_ilm_inmemory_policy(NO_ACCESS|NO_MODIFICATION|CREATION)/CREATION!swap	CREATE TABLE a ILM ADD POLICY SET INMEMORY SEGMENT AFTER 1 DAY OF CREDENTIAL
 reject@15	reject@15	engine	createTable_substitutable_column_clause/(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@24	engine	createTable_substitutable_column_clause/(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)!swap	CREATE TABLE a COLUMN a SUCCESSFUL AT ALL LEVELS
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause/(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)!swap	CREATE TABLE a COLUMN a SUCCESSFUL AT ALL LEVELS
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
 reject@15	accept	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-1	CREATE TABLE a COLUMN a IS OF(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-2	CREATE TABLE a COLUMN a ELEMENT OF(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-3	CREATE TABLE a COLUMN a ELEMENT IS(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-2	CREATE TABLE a COLUMN a ELEMENT OF(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-3	CREATE TABLE a COLUMN a ELEMENT IS(a)
 reject@39	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-4	CREATE TABLE a COLUMN a ELEMENT IS OF a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-5	CREATE TABLE a COLUMN a ELEMENT IS OF()
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-6	CREATE TABLE a COLUMN a ELEMENT IS OF(a
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(a) zzz
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!swap	CREATE TABLE a COLUMN a ELSE IS OF(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-5	CREATE TABLE a COLUMN a ELEMENT IS OF()
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!drop-6	CREATE TABLE a COLUMN a ELEMENT IS OF(a
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(a) zzz
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/ELEMENT_IS_OF_(TYPE)?_(_(ONLY)?_ID_)!swap	CREATE TABLE a COLUMN a ELSE IS OF(a)
 reject@15	reject@15	engine	createTable_substitutable_column_clause(ELEMENT_IS_OF_TYPE?_(_ONLY?_ID_)|NOT~1be2ae3b)/(NOT)?_SUBSTITUTABLE_AT_ALL_LEVELS	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/%empty	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/%empty!insert	CREATE TABLE a COLUMN a ELEMENT IS OF zzz(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE	CREATE TABLE a COLUMN a ELEMENT IS OF TYPE(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!truncate	CREATE TABLE a COLUMN a ELEMENT IS OF
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!insert	CREATE TABLE a COLUMN a ELEMENT IS OF TYPE zzz(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!swap	CREATE TABLE a COLUMN a ELEMENT IS OF TYPES(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/%empty	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/%empty!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(zzz a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY	CREATE TABLE a COLUMN a ELEMENT IS OF(ONLY a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!truncate	CREATE TABLE a COLUMN a ELEMENT IS OF(
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(ONLY zzz a)
-reject@15	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!swap	CREATE TABLE a COLUMN a ELEMENT IS OF(OPAQUE a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/%empty	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/%empty!insert	CREATE TABLE a COLUMN a ELEMENT IS OF zzz(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE	CREATE TABLE a COLUMN a ELEMENT IS OF TYPE(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!truncate	CREATE TABLE a COLUMN a ELEMENT IS OF
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!insert	CREATE TABLE a COLUMN a ELEMENT IS OF TYPE zzz(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(TYPE)?/TYPE!swap	CREATE TABLE a COLUMN a ELEMENT IS OF TYPES(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/%empty	CREATE TABLE a COLUMN a ELEMENT IS OF(a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/%empty!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(zzz a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY	CREATE TABLE a COLUMN a ELEMENT IS OF(ONLY a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!truncate	CREATE TABLE a COLUMN a ELEMENT IS OF(
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!insert	CREATE TABLE a COLUMN a ELEMENT IS OF(ONLY zzz a)
+reject@24	reject@24	engine	createTable_substitutable_column_clause(ONLY)?/ONLY!swap	CREATE TABLE a COLUMN a ELEMENT IS OF(OPAQUE a)
 reject@15	reject@15	engine	createTable_substitutable_column_clause(NOT)?/%empty	CREATE TABLE a COLUMN a SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@24	engine	createTable_substitutable_column_clause(NOT)?/%empty!insert	CREATE TABLE a COLUMN a zzz SUBSTITUTABLE AT ALL LEVELS
+reject@24	reject@24	engine	createTable_substitutable_column_clause(NOT)?/%empty!insert	CREATE TABLE a COLUMN a zzz SUBSTITUTABLE AT ALL LEVELS
 reject@15	reject@15	engine	createTable_substitutable_column_clause(NOT)?/NOT	CREATE TABLE a COLUMN a NOT SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@23	engine	createTable_substitutable_column_clause(NOT)?/NOT!truncate	CREATE TABLE a COLUMN a
-reject@15	reject@28	engine	createTable_substitutable_column_clause(NOT)?/NOT!insert	CREATE TABLE a COLUMN a NOT zzz SUBSTITUTABLE AT ALL LEVELS
-reject@15	reject@24	engine	createTable_substitutable_column_clause(NOT)?/NOT!swap	CREATE TABLE a COLUMN a NOTHING SUBSTITUTABLE AT ALL LEVELS
+reject@23	reject@23	engine	createTable_substitutable_column_clause(NOT)?/NOT!truncate	CREATE TABLE a COLUMN a
+reject@28	reject@28	engine	createTable_substitutable_column_clause(NOT)?/NOT!insert	CREATE TABLE a COLUMN a NOT zzz SUBSTITUTABLE AT ALL LEVELS
+reject@24	reject@24	engine	createTable_substitutable_column_clause(NOT)?/NOT!swap	CREATE TABLE a COLUMN a NOTHING SUBSTITUTABLE AT ALL LEVELS
 reject@15	reject@15	engine	createTable_range_values_clause/VALUES_LESS_THAN_(_(EXPR|MAXVALUE)_(,_(EXPR|MAXVALUE))*_)	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@65	reject@65	engine	createTable_range_values_clause/VALUES_LESS_THAN_(_(EXPR|MAXVALUE)_(,_(EXPR|MAXVALUE))*_)!truncate	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1
 reject@56	reject@56	engine	createTable_range_values_clause/VALUES_LESS_THAN_(_(EXPR|MAXVALUE)_(,_(EXPR|MAXVALUE))*_)!swap	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VARIANCE LESS THAN(1))
@@ -37360,7 +37360,7 @@ reject@13	reject@13	engine	createView((FORCE|NOFORCE))?/(FORCE|NOFORCE)!insert	C
 reject@7	reject@7	engine	createView((FORCE|NOFORCE))?/(FORCE|NOFORCE)!swap	CREATE FOREIGN VIEW a AS SELECT 1 FROM dual
 accept	accept	engine	createView(FORCE|NOFORCE)/FORCE	CREATE FORCE VIEW a AS SELECT 1 FROM dual
 accept	accept	engine	createView(FORCE|NOFORCE)/NOFORCE	CREATE NOFORCE VIEW a AS SELECT 1 FROM dual
-reject@7	reject@15	engine	createView(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz VIEW a AS SELECT 1 FROM dual
+reject@15	reject@15	engine	createView(FORCE|NOFORCE)/NOFORCE!insert	CREATE NOFORCE zzz VIEW a AS SELECT 1 FROM dual
 reject@7	reject@7	engine	createView(FORCE|NOFORCE)/NOFORCE!swap	CREATE NOGUARANTEE VIEW a AS SELECT 1 FROM dual
 accept	accept	engine	createView(EDITIONING)?/%empty	CREATE VIEW a AS SELECT 1 FROM dual
 reject@35	reject@35	engine	createView(EDITIONING)?/EDITIONING	CREATE EDITIONING VIEW a AS SELECT 1 FROM dual
@@ -37505,7 +37505,7 @@ reject@16	reject@16	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAI
 reject@27	reject@27	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE VIEW a(a CONSTRAINT UNIQUE) AS SELECT 1 FROM dual
 reject@26	reject@26	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	CREATE VIEW a(a CONSTRAINT
 reject@29	reject@16	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE VIEW a(a CONSTRAINT a zzz UNIQUE) AS SELECT 1 FROM dual
-reject@16	reject@36	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE VIEW a(a CONSTRAINTS a UNIQUE) AS SELECT 1 FROM dual
+reject@36	reject@36	engine	createView_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE VIEW a(a CONSTRAINTS a UNIQUE) AS SELECT 1 FROM dual
 reject@16	reject@16	engine	createView_inline_constraint(NOT_NULL|UNIQUE|PRIMARY_KEY|REFERENC~6012b2d8)/NOT_NULL	CREATE VIEW a(a NOT NULL) AS SELECT 1 FROM dual
 reject@16	reject@16	engine	createView_inline_constraint(NOT_NULL|UNIQUE|PRIMARY_KEY|REFERENC~6012b2d8)/NOT_NULL!drop-1	CREATE VIEW a(a NULL) AS SELECT 1 FROM dual
 reject@16	reject@16	engine	createView_inline_constraint(NOT_NULL|UNIQUE|PRIMARY_KEY|REFERENC~6012b2d8)/NOT_NULL!drop-2	CREATE VIEW a(a NOT) AS SELECT 1 FROM dual
@@ -37592,7 +37592,7 @@ reject@25	reject@17	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CON
 reject@34	reject@28	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE VIEW a(a, CONSTRAINT UNIQUE(a)) AS SELECT 1 FROM dual
 reject@27	reject@27	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	CREATE VIEW a(a, CONSTRAINT
 reject@30	reject@40	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE VIEW a(a, CONSTRAINT a zzz UNIQUE(a)) AS SELECT 1 FROM dual
-reject@29	reject@40	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE VIEW a(a, CONSTRAINTS a UNIQUE(a)) AS SELECT 1 FROM dual
+reject@40	reject@40	engine	createView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE VIEW a(a, CONSTRAINTS a UNIQUE(a)) AS SELECT 1 FROM dual
 reject@26	reject@26	engine	createView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/UNIQUE_(_ID_(,_ID)*_)	CREATE VIEW a(a, UNIQUE(a)) AS SELECT 1 FROM dual
 reject@31	reject@31	engine	createView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	CREATE VIEW a(a, PRIMARY KEY(a)) AS SELECT 1 FROM dual
 reject@20	reject@20	engine	createView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-1	CREATE VIEW a(a, KEY(a)) AS SELECT 1 FROM dual
@@ -37644,21 +37644,21 @@ reject@69	reject@48	engine	createView_out_of_line_constraint((_ID_(,_ID)*_))?/(_
 reject@46	reject@46	engine	createView_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!truncate	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a(a
 reject@48	reject@48	engine	createView_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a(a) zzz) AS SELECT 1 FROM dual
 reject@44	reject@44	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a) AS SELECT 1 FROM dual
-reject@62	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE) AS SELECT 1 FROM dual
 reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-1	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a DELETE CASCADE) AS SELECT 1 FROM dual
 reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-2	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON CASCADE) AS SELECT 1 FROM dual
-reject@54	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!drop-3	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE) AS SELECT 1 FROM dual
 reject@54	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!truncate	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE
-reject@63	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!insert	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE zzz) AS SELECT 1 FROM dual
 reject@45	reject@45	engine	createView_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)!swap	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ONE DELETE CASCADE) AS SELECT 1 FROM dual
-reject@62	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE) AS SELECT 1 FROM dual
-reject@55	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE!swap	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASE) AS SELECT 1 FROM dual
-reject@63	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL) AS SELECT 1 FROM dual
-reject@55	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-1	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE NULL) AS SELECT 1 FROM dual
-reject@58	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-2	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/CASCADE!swap	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE CASE) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-1	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE NULL) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!drop-2	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET) AS SELECT 1 FROM dual
 reject@58	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!truncate	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET
-reject@64	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz) AS SELECT 1 FROM dual
-reject@55	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!insert	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL zzz) AS SELECT 1 FROM dual
+reject@45	reject@45	engine	createView_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL!swap	CREATE VIEW a(a, FOREIGN KEY(a) REFERENCES a ON DELETE SETS NULL) AS SELECT 1 FROM dual
 reject@26	reject@26	engine	createView_out_of_line_constraint(RELY|NORELY)?/%empty	CREATE VIEW a(a, UNIQUE(a)) AS SELECT 1 FROM dual
 reject@31	reject@31	engine	createView_out_of_line_constraint(RELY|NORELY)?/RELY	CREATE VIEW a(a, UNIQUE(a) RELY) AS SELECT 1 FROM dual
 reject@26	reject@26	engine	createView_out_of_line_constraint(RELY|NORELY)?/RELY!truncate	CREATE VIEW a(a, UNIQUE(a)
@@ -37837,7 +37837,7 @@ accept	accept	engine	delete_dml_table_expression_clause(delete_subquery_restrict
 accept	accept	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/%empty!insert	DELETE(SELECT 1 FROM dual zzz)
 accept	accept	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause	DELETE(SELECT 1 FROM dual WITH READ ONLY)
 reject@31	reject@31	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-1	DELETE(SELECT 1 FROM dual READ ONLY)
-reject@26	reject@31	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-2	DELETE(SELECT 1 FROM dual WITH ONLY)
+reject@31	reject@31	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-2	DELETE(SELECT 1 FROM dual WITH ONLY)
 reject@35	reject@35	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-3	DELETE(SELECT 1 FROM dual WITH READ)
 reject@35	reject@35	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!truncate	DELETE(SELECT 1 FROM dual WITH READ
 reject@41	reject@41	engine	delete_dml_table_expression_clause(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!insert	DELETE(SELECT 1 FROM dual WITH READ ONLY zzz)
@@ -37928,7 +37928,7 @@ accept	accept	engine	delete_subquery_restriction_clause/(WITH_READ_ONLY|WITH_CHE
 accept	accept	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_READ_ONLY	DELETE(SELECT 1 FROM dual WITH READ ONLY)
 accept	accept	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	DELETE(SELECT 1 FROM dual WITH CHECK OPTION)
 reject@26	reject@26	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!drop-1	DELETE(SELECT 1 FROM dual CHECK OPTION)
-reject@26	reject@31	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!drop-2	DELETE(SELECT 1 FROM dual WITH OPTION)
+reject@31	reject@31	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!drop-2	DELETE(SELECT 1 FROM dual WITH OPTION)
 reject@36	reject@36	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!drop-3	DELETE(SELECT 1 FROM dual WITH CHECK)
 reject@36	reject@36	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!truncate	DELETE(SELECT 1 FROM dual WITH CHECK
 reject@44	reject@44	engine	delete_subquery_restriction_clause(WITH_READ_ONLY|WITH_CHECK_OPTION_(CO~8360be2c)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!insert	DELETE(SELECT 1 FROM dual WITH CHECK OPTION zzz)
@@ -38038,7 +38038,7 @@ accept	accept	engine	delete_query_table_expression(delete_subquery_restriction_c
 accept	accept	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/%empty!insert	DELETE a FROM(SELECT 1 FROM dual zzz)
 accept	accept	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause	DELETE a FROM(SELECT 1 FROM dual WITH READ ONLY)
 reject@42	reject@38	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-1	DELETE a FROM(SELECT 1 FROM dual READ ONLY)
-reject@33	reject@38	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-2	DELETE a FROM(SELECT 1 FROM dual WITH ONLY)
+reject@38	reject@38	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-2	DELETE a FROM(SELECT 1 FROM dual WITH ONLY)
 reject@42	reject@42	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!drop-3	DELETE a FROM(SELECT 1 FROM dual WITH READ)
 reject@42	reject@42	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!truncate	DELETE a FROM(SELECT 1 FROM dual WITH READ
 reject@51	reject@48	engine	delete_query_table_expression(delete_subquery_restriction_clause)?/delete_subquery_restriction_clause!insert	DELETE a FROM(SELECT 1 FROM dual WITH READ ONLY zzz)
@@ -38103,18 +38103,18 @@ reject@60	reject@60	engine	delete_query_table_expression(delete_row_pattern_clau
 reject@16	reject	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1) zzz
 reject@27	reject@27	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!swap	DELETE a FROM a MATERIALIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	delete_query_table_expression(delete_containers_clause)?/%empty	DELETE a FROM a
-reject@16	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause	DELETE a FROM a CONTAINERS(a)
+reject@26	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause	DELETE a FROM a CONTAINERS(a)
 reject@28	reject@27	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!drop-2	DELETE a FROM a CONTAINERS a)
-reject@16	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!drop-3	DELETE a FROM a CONTAINERS()
-reject@16	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!drop-4	DELETE a FROM a CONTAINERS(a
-reject@16	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!insert	DELETE a FROM a CONTAINERS(a) zzz
+reject@26	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!drop-3	DELETE a FROM a CONTAINERS()
+reject@26	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!drop-4	DELETE a FROM a CONTAINERS(a
+reject@26	reject@26	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!insert	DELETE a FROM a CONTAINERS(a) zzz
 reject@34	reject@34	engine	delete_query_table_expression(delete_containers_clause)?/delete_containers_clause!swap	DELETE a FROM a CONTAINERS_DEFAULT(a)
 accept	accept	engine	delete_query_table_expression(delete_shards_clause)?/%empty	DELETE a FROM a
-reject@16	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause	DELETE a FROM a SHARDS(a)
+reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause	DELETE a FROM a SHARDS(a)
 reject@24	reject@23	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-2	DELETE a FROM a SHARDS a)
-reject@16	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-3	DELETE a FROM a SHARDS()
-reject@16	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-4	DELETE a FROM a SHARDS(a
-reject@16	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!insert	DELETE a FROM a SHARDS(a) zzz
+reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-3	DELETE a FROM a SHARDS()
+reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-4	DELETE a FROM a SHARDS(a
+reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!insert	DELETE a FROM a SHARDS(a) zzz
 reject@26	reject@26	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!swap	DELETE a FROM a SHARDSPACE(a)
 accept	reject@39	engine	delete_inline_external_table/EXTERNAL_(_(_delete_column_definition_(,_delete_column_~4f613c46	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 accept	reject@39	engine	delete_inline_external_table(,_delete_column_definition)*/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -38488,20 +38488,20 @@ reject@16	reject@66	engine	delete_row_pattern_clause(,_delete_row_pattern_defini
 reject@66	reject@66	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS
 reject@16	reject@73	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1 zzz)
 reject@16	reject@64	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a ASC 1 = 1)
-reject@16	reject@26	engine	delete_containers_clause/CONTAINERS_(_(ID_.)?_ID_)	DELETE a FROM a CONTAINERS(a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/%empty	DELETE a FROM a CONTAINERS(a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/%empty!insert	DELETE a FROM a CONTAINERS(zzz a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/ID_.	DELETE a FROM a CONTAINERS(a.a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!drop-1	DELETE a FROM a CONTAINERS(.a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!drop-2	DELETE a FROM a CONTAINERS(a a)
-reject@16	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!insert	DELETE a FROM a CONTAINERS(a.zzz a)
-reject@16	reject@22	engine	delete_shards_clause/SHARDS_(_(ID_.)?_ID_)	DELETE a FROM a SHARDS(a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/%empty	DELETE a FROM a SHARDS(a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/%empty!insert	DELETE a FROM a SHARDS(zzz a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/ID_.	DELETE a FROM a SHARDS(a.a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-1	DELETE a FROM a SHARDS(.a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-2	DELETE a FROM a SHARDS(a a)
-reject@16	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!insert	DELETE a FROM a SHARDS(a.zzz a)
+reject@26	reject@26	engine	delete_containers_clause/CONTAINERS_(_(ID_.)?_ID_)	DELETE a FROM a CONTAINERS(a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/%empty	DELETE a FROM a CONTAINERS(a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/%empty!insert	DELETE a FROM a CONTAINERS(zzz a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/ID_.	DELETE a FROM a CONTAINERS(a.a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!drop-1	DELETE a FROM a CONTAINERS(.a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!drop-2	DELETE a FROM a CONTAINERS(a a)
+reject@26	reject@26	engine	delete_containers_clause(ID_.)?/ID_.!insert	DELETE a FROM a CONTAINERS(a.zzz a)
+reject@22	reject@22	engine	delete_shards_clause/SHARDS_(_(ID_.)?_ID_)	DELETE a FROM a SHARDS(a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/%empty	DELETE a FROM a SHARDS(a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/%empty!insert	DELETE a FROM a SHARDS(zzz a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.	DELETE a FROM a SHARDS(a.a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-1	DELETE a FROM a SHARDS(.a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-2	DELETE a FROM a SHARDS(a a)
+reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!insert	DELETE a FROM a SHARDS(a.zzz a)
 accept	reject@39	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@25	reject@25	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121!truncate	DELETE a FROM EXTERNAL((a
 reject@26	reject@26	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121!swap	DELETE a FROM EXTERNAL((a OBJECT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -40515,12 +40515,12 @@ reject@21	reject@21	engine	insert_single_table_insert(insert_values_clause|QUERY
 accept	accept	engine	insert_single_table_insert(insert_values_clause|QUERY|insert_in~c019531f)/insert_by_name_position_clause!insert	INSERT INTO a BY NAME SELECT 1 FROM dual zzz
 reject@20	reject@20	engine	insert_single_table_insert(insert_values_clause|QUERY|insert_in~c019531f)/insert_by_name_position_clause!swap	INSERT INTO a CACHE NAME SELECT 1 FROM dual
 accept	accept	engine	insert_single_table_insert(insert_returning_clause)?/%empty	INSERT INTO a SELECT 1 FROM dual
-reject@33	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
+reject@43	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
 reject@33	reject@33	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-1	INSERT INTO a SELECT 1 FROM dual 1 INTO a
-reject@33	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING INTO a
-reject@33	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-3	INSERT INTO a SELECT 1 FROM dual RETURNING 1 a
-reject@33	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-4	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO
-reject@33	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a zzz
+reject@43	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING INTO a
+reject@43	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-3	INSERT INTO a SELECT 1 FROM dual RETURNING 1 a
+reject@43	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!drop-4	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO
+reject@43	reject@43	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a zzz
 reject@39	reject@39	engine	insert_single_table_insert(insert_returning_clause)?/insert_returning_clause!swap	INSERT INTO a SELECT 1 FROM dual REUSE 1 INTO a
 accept	accept	engine	insert_single_table_insert(insert_error_logging_clause)?/%empty	INSERT INTO a SELECT 1 FROM dual
 accept	accept	engine	insert_single_table_insert(insert_error_logging_clause)?/insert_error_logging_clause	INSERT INTO a SELECT 1 FROM dual LOG ERRORS
@@ -40624,23 +40624,23 @@ reject@17	reject@17	engine	insert_by_name_position_clause(NAME|POSITION)/NAME!sw
 accept	accept	engine	insert_by_name_position_clause(NAME|POSITION)/POSITION	INSERT INTO a BY POSITION SELECT 1 FROM dual
 reject@26	reject@26	engine	insert_by_name_position_clause(NAME|POSITION)/POSITION!insert	INSERT INTO a BY POSITION zzz SELECT 1 FROM dual
 reject@17	reject@17	engine	insert_by_name_position_clause(NAME|POSITION)/POSITION!swap	INSERT INTO a BY POST_TRANSACTION SELECT 1 FROM dual
-reject@33	reject@43	engine	insert_returning_clause/(RETURNING|RETURN)_EXPR_(,_EXPR)*_INTO_ID_(,_ID)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(RETURNING|RETURN)/RETURNING	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(RETURNING|RETURN)/RETURNING!insert	INSERT INTO a SELECT 1 FROM dual RETURNING zzz 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause/(RETURNING|RETURN)_EXPR_(,_EXPR)*_INTO_ID_(,_ID)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(RETURNING|RETURN)/RETURNING	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(RETURNING|RETURN)/RETURNING!insert	INSERT INTO a SELECT 1 FROM dual RETURNING zzz 1 INTO a
 reject@40	reject@40	engine	insert_returning_clause(RETURNING|RETURN)/RETURN	INSERT INTO a SELECT 1 FROM dual RETURN 1 INTO a
 reject@40	reject@40	engine	insert_returning_clause(RETURNING|RETURN)/RETURN!insert	INSERT INTO a SELECT 1 FROM dual RETURN zzz 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/%empty	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/%empty!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 zzz INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1, 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	INSERT INTO a SELECT 1 FROM dual RETURNING 1 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING 1, INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	INSERT INTO a SELECT 1 FROM dual RETURNING 1,
-reject@33	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1, 1 zzz INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_ID)*/%empty	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
-reject@33	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a, a
-reject@33	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!drop-1	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a a
-reject@33	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a,
-reject@33	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a, a zzz
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/%empty	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/%empty!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 zzz INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1, 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	INSERT INTO a SELECT 1 FROM dual RETURNING 1 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING 1, INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	INSERT INTO a SELECT 1 FROM dual RETURNING 1,
+reject@43	reject@43	engine	insert_returning_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1, 1 zzz INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_ID)*/%empty	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a
+reject@43	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a, a
+reject@43	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!drop-1	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a a
+reject@43	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!drop-2	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a,
+reject@43	reject@43	engine	insert_returning_clause(,_ID)*/,_ID_(,_ID)*!insert	INSERT INTO a SELECT 1 FROM dual RETURNING 1 INTO a, a zzz
 accept	accept	engine	insert_error_logging_clause/LOG_ERRORS_(INTO_(ID_.)?_ID)?_((_EXPR_))?_(REJECT_LIMIT~85e40c3c	INSERT INTO a SELECT 1 FROM dual LOG ERRORS
 accept	accept	engine	insert_error_logging_clause(INTO_(ID_.)?_ID)?/%empty	INSERT INTO a SELECT 1 FROM dual LOG ERRORS
 accept	accept	engine	insert_error_logging_clause(INTO_(ID_.)?_ID)?/INTO_(ID_.)?_ID	INSERT INTO a SELECT 1 FROM dual LOG ERRORS INTO a
@@ -42168,18 +42168,18 @@ reject@60	reject@60	engine	select_query_table_expression(select_row_pattern_clau
 accept	accept	engine	select_query_table_expression(select_row_pattern_clause)?/select_row_pattern_clause!insert	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1) zzz
 reject@27	reject@27	engine	select_query_table_expression(select_row_pattern_clause)?/select_row_pattern_clause!swap	SELECT * FROM a MATERIALIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_query_table_expression(select_containers_clause)?/%empty	SELECT * FROM a
-reject@16	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause	SELECT * FROM a CONTAINERS(a)
+reject@26	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause	SELECT * FROM a CONTAINERS(a)
 reject@28	reject@27	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!drop-2	SELECT * FROM a CONTAINERS a)
-reject@16	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!drop-3	SELECT * FROM a CONTAINERS()
-reject@16	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!drop-4	SELECT * FROM a CONTAINERS(a
-reject@16	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!insert	SELECT * FROM a CONTAINERS(a) zzz
+reject@26	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!drop-3	SELECT * FROM a CONTAINERS()
+reject@26	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!drop-4	SELECT * FROM a CONTAINERS(a
+reject@26	reject@26	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!insert	SELECT * FROM a CONTAINERS(a) zzz
 reject@34	reject@34	engine	select_query_table_expression(select_containers_clause)?/select_containers_clause!swap	SELECT * FROM a CONTAINERS_DEFAULT(a)
 accept	accept	engine	select_query_table_expression(select_shards_clause)?/%empty	SELECT * FROM a
-reject@16	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause	SELECT * FROM a SHARDS(a)
+reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause	SELECT * FROM a SHARDS(a)
 reject@24	reject@23	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-2	SELECT * FROM a SHARDS a)
-reject@16	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-3	SELECT * FROM a SHARDS()
-reject@16	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-4	SELECT * FROM a SHARDS(a
-reject@16	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!insert	SELECT * FROM a SHARDS(a) zzz
+reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-3	SELECT * FROM a SHARDS()
+reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-4	SELECT * FROM a SHARDS(a
+reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!insert	SELECT * FROM a SHARDS(a) zzz
 reject@26	reject@26	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!swap	SELECT * FROM a SHARDSPACE(a)
 accept	reject@39	engine	select_inline_external_table/EXTERNAL_(_(_select_column_definition_(,_select_column_~7dda8b52	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 accept	reject@39	engine	select_inline_external_table(,_select_column_definition)*/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -42719,20 +42719,20 @@ reject@66	reject@66	engine	select_row_pattern_clause(,_select_row_pattern_defini
 reject@66	reject@66	engine	select_row_pattern_clause(,_select_row_pattern_definition)*/,_select_row_pattern_definition_(,_select_row_pattern_d~dd8aee63!truncate	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS
 reject@73	reject@73	engine	select_row_pattern_clause(,_select_row_pattern_definition)*/,_select_row_pattern_definition_(,_select_row_pattern_d~dd8aee63!insert	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1 zzz)
 reject@64	reject@64	engine	select_row_pattern_clause(,_select_row_pattern_definition)*/,_select_row_pattern_definition_(,_select_row_pattern_d~dd8aee63!swap	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a ASC 1 = 1)
-reject@16	reject@26	engine	select_containers_clause/CONTAINERS_(_(ID_.)?_ID_)	SELECT * FROM a CONTAINERS(a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/%empty	SELECT * FROM a CONTAINERS(a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/%empty!insert	SELECT * FROM a CONTAINERS(zzz a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/ID_.	SELECT * FROM a CONTAINERS(a.a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/ID_.!drop-1	SELECT * FROM a CONTAINERS(.a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/ID_.!drop-2	SELECT * FROM a CONTAINERS(a a)
-reject@16	reject@26	engine	select_containers_clause(ID_.)?/ID_.!insert	SELECT * FROM a CONTAINERS(a.zzz a)
-reject@16	reject@22	engine	select_shards_clause/SHARDS_(_(ID_.)?_ID_)	SELECT * FROM a SHARDS(a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/%empty	SELECT * FROM a SHARDS(a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/%empty!insert	SELECT * FROM a SHARDS(zzz a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/ID_.	SELECT * FROM a SHARDS(a.a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-1	SELECT * FROM a SHARDS(.a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-2	SELECT * FROM a SHARDS(a a)
-reject@16	reject@22	engine	select_shards_clause(ID_.)?/ID_.!insert	SELECT * FROM a SHARDS(a.zzz a)
+reject@26	reject@26	engine	select_containers_clause/CONTAINERS_(_(ID_.)?_ID_)	SELECT * FROM a CONTAINERS(a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/%empty	SELECT * FROM a CONTAINERS(a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/%empty!insert	SELECT * FROM a CONTAINERS(zzz a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/ID_.	SELECT * FROM a CONTAINERS(a.a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/ID_.!drop-1	SELECT * FROM a CONTAINERS(.a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/ID_.!drop-2	SELECT * FROM a CONTAINERS(a a)
+reject@26	reject@26	engine	select_containers_clause(ID_.)?/ID_.!insert	SELECT * FROM a CONTAINERS(a.zzz a)
+reject@22	reject@22	engine	select_shards_clause/SHARDS_(_(ID_.)?_ID_)	SELECT * FROM a SHARDS(a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/%empty	SELECT * FROM a SHARDS(a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/%empty!insert	SELECT * FROM a SHARDS(zzz a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.	SELECT * FROM a SHARDS(a.a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-1	SELECT * FROM a SHARDS(.a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-2	SELECT * FROM a SHARDS(a a)
+reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!insert	SELECT * FROM a SHARDS(a.zzz a)
 accept	reject@39	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@25	reject@25	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5!truncate	SELECT * FROM EXTERNAL((a
 reject@26	reject@26	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5!swap	SELECT * FROM EXTERNAL((a OBJECT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -44086,7 +44086,7 @@ accept	accept	engine	update(update_subquery_restriction_clause)?/%empty	UPDATE(S
 accept	accept	engine	update(update_subquery_restriction_clause)?/%empty!insert	UPDATE(SELECT 1 FROM dual zzz) SET a = 1
 accept	accept	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause	UPDATE(SELECT 1 FROM dual WITH READ ONLY) SET a = 1
 reject@31	reject@31	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!drop-1	UPDATE(SELECT 1 FROM dual READ ONLY) SET a = 1
-reject@26	reject@31	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!drop-2	UPDATE(SELECT 1 FROM dual WITH ONLY) SET a = 1
+reject@31	reject@31	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!drop-2	UPDATE(SELECT 1 FROM dual WITH ONLY) SET a = 1
 reject@35	reject@35	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!drop-3	UPDATE(SELECT 1 FROM dual WITH READ) SET a = 1
 reject@35	reject@35	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!truncate	UPDATE(SELECT 1 FROM dual WITH READ
 reject@41	reject@41	engine	update(update_subquery_restriction_clause)?/update_subquery_restriction_clause!insert	UPDATE(SELECT 1 FROM dual WITH READ ONLY zzz) SET a = 1
@@ -44151,13 +44151,13 @@ reject@25	reject@25	engine	update_partition_extension_clause(,_EXPR)*/,_EXPR_(,_
 reject@28	reject@28	engine	update_partition_extension_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	UPDATE a PARTITION FOR(1, 1 zzz) SET a = 1
 accept	accept	engine	update_subquery_restriction_clause/WITH_(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)	UPDATE(SELECT 1 FROM dual WITH READ ONLY) SET a = 1
 accept	accept	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/READ_ONLY	UPDATE(SELECT 1 FROM dual WITH READ ONLY) SET a = 1
-reject@26	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/READ_ONLY!swap	UPDATE(SELECT 1 FROM dual WITH READS ONLY) SET a = 1
+reject@31	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/READ_ONLY!swap	UPDATE(SELECT 1 FROM dual WITH READS ONLY) SET a = 1
 accept	accept	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?	UPDATE(SELECT 1 FROM dual WITH CHECK OPTION) SET a = 1
-reject@26	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!drop-1	UPDATE(SELECT 1 FROM dual WITH OPTION) SET a = 1
+reject@31	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!drop-1	UPDATE(SELECT 1 FROM dual WITH OPTION) SET a = 1
 reject@36	reject@36	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!drop-2	UPDATE(SELECT 1 FROM dual WITH CHECK) SET a = 1
 reject@36	reject@36	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!truncate	UPDATE(SELECT 1 FROM dual WITH CHECK
 reject@44	reject@44	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!insert	UPDATE(SELECT 1 FROM dual WITH CHECK OPTION zzz) SET a = 1
-reject@26	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!swap	UPDATE(SELECT 1 FROM dual WITH CHECKPOINT OPTION) SET a = 1
+reject@31	reject@31	engine	update_subquery_restriction_clause(READ_ONLY|CHECK_OPTION_(CONSTRAINT_ID)?)/CHECK_OPTION_(CONSTRAINT_ID)?!swap	UPDATE(SELECT 1 FROM dual WITH CHECKPOINT OPTION) SET a = 1
 accept	accept	engine	update_subquery_restriction_clause(CONSTRAINT_ID)?/%empty	UPDATE(SELECT 1 FROM dual WITH CHECK OPTION) SET a = 1
 reject@44	reject@44	engine	update_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	UPDATE(SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a) SET a = 1
 reject@44	reject@44	engine	update_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	UPDATE(SELECT 1 FROM dual WITH CHECK OPTION a) SET a = 1

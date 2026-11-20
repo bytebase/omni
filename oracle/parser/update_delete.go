@@ -486,10 +486,6 @@ func (p *Parser) parseDMLSubqueryRestriction(query *nodes.SelectStmt) (*nodes.Su
 	if p.cur.Type != kwWITH {
 		return nil, nil
 	}
-	next := p.peekNext()
-	if next.Type != kwREAD && next.Type != kwCHECK {
-		return nil, nil
-	}
 	last := query
 	for last != nil && last.Rarg != nil {
 		last = last.Rarg
