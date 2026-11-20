@@ -305,7 +305,9 @@ func TestIdentifiersNeedingQuotesSurvive(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, `CREATE TABLE "Sales Data"."MixedCase" (
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+CREATE TABLE "Sales Data"."MixedCase" (
   "od""d" integer NOT NULL
 );
 COMMENT ON COLUMN "Sales Data"."MixedCase"."od""d" IS 'quoted name';
@@ -337,6 +339,7 @@ func TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	require.True(t, strings.HasPrefix(got, "SET enable_case_sensitive_identifier TO true;\n\n"))
 	require.Contains(t, got, `CONSTRAINT "t_pkey" PRIMARY KEY ("MixedCase")`)
 	require.NotContains(t, got, `"""MixedCase"""`)
 	require.Contains(t, got, `CONSTRAINT "t_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
@@ -459,6 +462,7 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
 			{Name: "note", Type: "character varying(40)", Default: "timestamp note", Nullable: true},
 			{Name: "legacy", Type: "character varying(40)", Default: "pending (old)", Nullable: true},
 			{Name: "created_at", Type: "timestamp", Default: "now()"},
+			{Name: "max_score", Type: "integer", Default: "GREATEST(1, 2)"},
 		},
 	})
 	require.NoError(t, err)
@@ -468,7 +472,8 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
   "status" character varying(20) DEFAULT 'current_status',
   "note" character varying(40) DEFAULT 'timestamp note',
   "legacy" character varying(40) DEFAULT 'pending (old)',
-  "created_at" timestamp NOT NULL DEFAULT now()
+  "created_at" timestamp NOT NULL DEFAULT now(),
+  "max_score" integer NOT NULL DEFAULT GREATEST(1, 2)
 );
 `, tableWithIdentityAndStrings)
 
@@ -517,13 +522,16 @@ CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA
 -- Materialized view structure for `+"`z_mv_base`"+`
 --
 CREATE MATERIALIZED VIEW "public"."z_mv_base" AS SELECT id FROM "public"."Events";
-COMMENT ON MATERIALIZED VIEW "public"."z_mv_base" IS 'matview note';
 
 --
 -- Materialized view structure for `+"`a_mv_top`"+`
 --
 CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_base";
 `, got)
+
+	mixedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "MixedView", Definition: "SELECT 1"})
+	require.NoError(t, err)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nCREATE OR REPLACE VIEW \"public\".\"MixedView\" AS SELECT 1;\n", mixedView)
 }
 
 // TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that

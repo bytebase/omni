@@ -48,6 +48,11 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 		return "", nil
 	}
 	var sb strings.Builder
+	if hasUpperASCII(schemaName) || tableHasUpperIdentifier(table) {
+		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
+			return "", err
+		}
+	}
 	if err := writeTable(&sb, convertToTableState(0, schemaName, table)); err != nil {
 		return "", err
 	}
@@ -61,71 +66,81 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 		return "", nil
 	}
 	var sb strings.Builder
+	if hasUpperASCII(schemaName) || hasUpperASCII(view.Name) {
+		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
+			return "", err
+		}
+	}
 	if err := writeView(&sb, convertToViewState(0, schemaName, view)); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
 }
 
-func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
-	hasUpper := func(s string) bool {
-		for i := 0; i < len(s); i++ {
-			if s[i] >= 'A' && s[i] <= 'Z' {
+func hasUpperASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+func tableHasUpperIdentifier(table *metadatapb.TableMetadata) bool {
+	if hasUpperASCII(table.Name) {
+		return true
+	}
+	for _, col := range table.Columns {
+		if col != nil && hasUpperASCII(col.Name) {
+			return true
+		}
+	}
+	for _, idx := range table.Indexes {
+		if idx != nil && (idx.Primary || idx.Unique) && hasUpperASCII(idx.Name) {
+			return true
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if fk == nil {
+			continue
+		}
+		if hasUpperASCII(fk.Name) || hasUpperASCII(fk.ReferencedSchema) || hasUpperASCII(fk.ReferencedTable) {
+			return true
+		}
+		for _, c := range fk.Columns {
+			if hasUpperASCII(c) {
 				return true
 			}
 		}
-		return false
+		for _, c := range fk.ReferencedColumns {
+			if hasUpperASCII(c) {
+				return true
+			}
+		}
 	}
+	return false
+}
+
+func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
 		}
-		if hasUpper(schema.Name) {
+		if hasUpperASCII(schema.Name) {
 			return true
 		}
 		for _, table := range schema.Tables {
-			if table == nil || table.SkipDump {
-				continue
-			}
-			if hasUpper(table.Name) {
+			if table != nil && !table.SkipDump && tableHasUpperIdentifier(table) {
 				return true
-			}
-			for _, col := range table.Columns {
-				if col != nil && hasUpper(col.Name) {
-					return true
-				}
-			}
-			for _, idx := range table.Indexes {
-				if idx != nil && (idx.Primary || idx.Unique) && hasUpper(idx.Name) {
-					return true
-				}
-			}
-			for _, fk := range table.ForeignKeys {
-				if fk == nil {
-					continue
-				}
-				if hasUpper(fk.Name) || hasUpper(fk.ReferencedSchema) || hasUpper(fk.ReferencedTable) {
-					return true
-				}
-				for _, c := range fk.Columns {
-					if hasUpper(c) {
-						return true
-					}
-				}
-				for _, c := range fk.ReferencedColumns {
-					if hasUpper(c) {
-						return true
-					}
-				}
 			}
 		}
 		for _, view := range schema.Views {
-			if view != nil && !view.SkipDump && hasUpper(view.Name) {
+			if view != nil && !view.SkipDump && hasUpperASCII(view.Name) {
 				return true
 			}
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv != nil && !mv.SkipDump && hasUpper(mv.Name) {
+			if mv != nil && !mv.SkipDump && hasUpperASCII(mv.Name) {
 				return true
 			}
 		}
@@ -593,11 +608,6 @@ func writeMaterializedView(w io.StringWriter, mv *viewState) error {
 	buf := &strings.Builder{}
 	if err := mv.toMaterializedString(buf); err != nil {
 		return err
-	}
-	if mv.comment != "" {
-		if _, err := fmt.Fprintf(buf, "COMMENT ON MATERIALIZED VIEW %s IS '%s';\n", mv.qualifiedName(), escapeSingleQuote(mv.comment)); err != nil {
-			return err
-		}
 	}
 	_, err := w.WriteString(buf.String())
 	return err
@@ -1108,22 +1118,24 @@ func isExpression(value string) bool {
 	if !ok || rt.Name != "" {
 		return false
 	}
-	switch rt.Val.(type) {
-	case *nodes.FuncCall, *nodes.TypeCast, *nodes.A_Expr, *nodes.SQLValueFunction, *nodes.CoalesceExpr, *nodes.CaseExpr:
-		// Column defaults cannot reference columns; rejecting ColumnRef keeps
-		// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
-		hasColRef := false
-		nodes.Inspect(rt.Val, func(n nodes.Node) bool {
-			if _, ok := n.(*nodes.ColumnRef); ok {
-				hasColRef = true
-				return false
-			}
-			return true
-		})
-		return !hasColRef
-	default:
+	if rt.Val == nil {
 		return false
 	}
+	switch rt.Val.(type) {
+	case *nodes.ColumnRef, *nodes.A_Const:
+		return false
+	}
+	// Column defaults cannot reference columns; rejecting ColumnRef keeps
+	// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
+	hasColRef := false
+	nodes.Inspect(rt.Val, func(n nodes.Node) bool {
+		if _, ok := n.(*nodes.ColumnRef); ok {
+			hasColRef = true
+			return false
+		}
+		return true
+	})
+	return !hasColRef
 }
 
 // isQuotedSQLLiteral reports whether s is already a single-quoted SQL string
