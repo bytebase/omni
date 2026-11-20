@@ -941,3 +941,30 @@ func TestColumnLevelKeyNamesALaterColumn(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadMetadataReloadReplacesPrimaryDatabaseRegistration(t *testing.T) {
+	c := New()
+	ctx := context.Background()
+
+	require.NoError(t, c.LoadMetadata(ctx, &metadata.DatabaseSchemaMetadata{
+		Name: "db_old",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name:   "dbo",
+			Tables: []*metadata.TableMetadata{{Name: "old_tbl"}},
+		}},
+	}))
+	require.Equal(t, []string{"db_old"}, c.Databases())
+	require.NotNil(t, c.DatabaseCatalog("db_old"))
+
+	require.NoError(t, c.LoadMetadata(ctx, &metadata.DatabaseSchemaMetadata{
+		Name: "db_new",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name:   "dbo",
+			Tables: []*metadata.TableMetadata{{Name: "new_tbl"}},
+		}},
+	}))
+	require.Equal(t, []string{"db_new"}, c.Databases())
+	require.Nil(t, c.DatabaseCatalog("db_old"))
+	require.NotNil(t, c.DatabaseCatalog("db_new"))
+	require.NotNil(t, c.GetTable("dbo", "new_tbl"))
+}

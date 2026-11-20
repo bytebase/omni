@@ -57,9 +57,9 @@ func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 }
 
 // isolateStatementAtCursor slices sql to the statement containing cursorOffset
-// when top-level semicolons or GO batch separators precede the cursor, so
-// syntax errors or table references in earlier statements do not leak into the
-// active completion scope.
+// between surrounding top-level semicolons or standalone GO batch commands, so
+// syntax errors or table references in earlier or following statements do not
+// leak into the active completion scope.
 func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 	if cursorOffset < 0 {
 		cursorOffset = 0
@@ -70,9 +70,21 @@ func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 	tokens := parser.Tokenize(sql)
 	depth := 0
 	startByte := 0
-	for _, tok := range tokens {
+	endByte := len(sql)
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if sepEnd, ok := statementSeparatorEnd(sql, tokens, i, depth); ok {
+			if sepEnd <= cursorOffset {
+				startByte = sepEnd
+				continue
+			}
+			if tok.Loc >= cursorOffset {
+				endByte = tok.Loc
+				break
+			}
+		}
 		if tok.Loc >= cursorOffset {
-			break
+			continue
 		}
 		switch tok.Type {
 		case '(':
@@ -81,16 +93,65 @@ func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 			if depth > 0 {
 				depth--
 			}
-		case ';', parser.GO:
-			if depth == 0 && tok.End <= cursorOffset {
-				startByte = tok.End
-			}
 		}
 	}
-	if startByte == 0 {
+	if endByte < cursorOffset {
+		endByte = cursorOffset
+	}
+	if startByte > cursorOffset {
+		startByte = 0
+	}
+	if startByte == 0 && endByte == len(sql) {
 		return sql, cursorOffset
 	}
-	return sql[startByte:], cursorOffset - startByte
+	return sql[startByte:endByte], cursorOffset - startByte
+}
+
+func statementSeparatorEnd(sql string, tokens []parser.Token, i int, depth int) (int, bool) {
+	tok := tokens[i]
+	if tok.Type == ';' {
+		if depth == 0 {
+			return tok.End, true
+		}
+		return 0, false
+	}
+	if depth != 0 || tok.Type != parser.GO {
+		return 0, false
+	}
+	return standaloneGoSeparatorEnd(sql, tokens, i)
+}
+
+func standaloneGoSeparatorEnd(sql string, tokens []parser.Token, i int) (int, bool) {
+	tok := tokens[i]
+	if tok.Loc < 0 || tok.Loc >= len(sql) || sql[tok.Loc] == '[' || sql[tok.Loc] == '"' {
+		return 0, false
+	}
+	if i > 0 && tokens[i-1].Type != ';' && !hasLineBreakBetween(sql, tokens[i-1].End, tok.Loc) {
+		return 0, false
+	}
+	sepEnd := tok.End
+	nextIdx := i + 1
+	if nextIdx < len(tokens) && tokens[nextIdx].Type == parser.ICONST && !hasLineBreakBetween(sql, sepEnd, tokens[nextIdx].Loc) {
+		sepEnd = tokens[nextIdx].End
+		nextIdx++
+	}
+	if nextIdx < len(tokens) && tokens[nextIdx].Type != ';' && !hasLineBreakBetween(sql, sepEnd, tokens[nextIdx].Loc) {
+		return 0, false
+	}
+	return sepEnd, true
+}
+
+func hasLineBreakBetween(sql string, start, end int) bool {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(sql) {
+		end = len(sql)
+	}
+	if start >= end {
+		return false
+	}
+	return strings.ContainsAny(sql[start:end], "\r\n")
 }
 
 // extractPrefix returns the partial token the user is typing at cursorOffset.

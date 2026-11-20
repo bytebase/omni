@@ -628,4 +628,16 @@ func TestCompleteSchemaQualifiedAndVirtualColumns(t *testing.T) {
 			t.Fatalf("missing subquery output column %q in %#v", col, subqueryCols)
 		}
 	}
+
+	// Dollar-signed qualifier identifier in alias-qualified column completion.
+	dollarAlias := Complete("SELECT t$1. FROM users AS t$1", len("SELECT t$1."), cat)
+	if !hasCandidate(dollarAlias, "id", CandidateColumn) || !hasCandidate(dollarAlias, "name", CandidateColumn) {
+		t.Fatalf("missing columns for t$1 qualifier in %#v", dollarAlias)
+	}
+
+	// Set-operation CTE infers output columns from its left branch.
+	unionCTE := Complete("WITH u AS (SELECT id FROM users UNION SELECT id FROM users) SELECT u. FROM u", len("WITH u AS (SELECT id FROM users UNION SELECT id FROM users) SELECT u."), cat)
+	if !hasCandidate(unionCTE, "id", CandidateColumn) {
+		t.Fatalf("missing id column from UNION CTE left branch in %#v", unionCTE)
+	}
 }
