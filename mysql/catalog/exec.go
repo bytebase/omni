@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -649,7 +650,12 @@ func (c *Catalog) evalSetBinaryExpr(e *nodes.BinaryExpr) (userVarValue, bool) {
 		out = ln - rn
 	case nodes.BinOpMul:
 		out = ln * rn
-	case nodes.BinOpDiv, nodes.BinOpDivInt:
+	case nodes.BinOpDiv:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: big.NewRat(ln, rn).FloatString(4)}, true
+	case nodes.BinOpDivInt:
 		if rn == 0 {
 			return userVarValue{kind: userVarNull}, true
 		}

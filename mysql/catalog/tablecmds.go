@@ -94,6 +94,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	if declared {
 		effEngine := ""
 		effTS := ""
+		effRowFormat := ""
+		effKeyBlockSize := 0
 		for _, opt := range stmt.Options {
 			if opt == nil {
 				continue
@@ -102,10 +104,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				effEngine = storedEngineName(opt.Value)
 			} else if strings.EqualFold(opt.Name, "tablespace") {
 				effTS = opt.Value
+			} else if strings.EqualFold(opt.Name, "row_format") {
+				effRowFormat = opt.Value
+			} else if strings.EqualFold(opt.Name, "key_block_size") {
+				if n, err := strconv.Atoi(strings.TrimSpace(opt.Value)); err == nil {
+					effKeyBlockSize = n
+				}
 			}
 		}
 		if effTS != "" && isInnoDBEngine(effEngine) {
 			if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, effTS); err != nil {
+				return err
+			}
+			if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
 				return err
 			}
 		}

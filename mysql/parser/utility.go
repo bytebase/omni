@@ -1401,12 +1401,14 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		opts, err = p.parseTablespaceOptions(tsUndoOptions, false)
 	case p.cur.Type == kwADD:
 		p.advance()
+		stmt.HasAddDataFile = true
 		if stmt.AddDataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}
 		opts, err = p.parseTablespaceOptions(tsAlterOptions, false)
 	case p.cur.Type == kwDROP:
 		p.advance()
+		stmt.HasDropDataFile = true
 		if stmt.DropDataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -238,15 +239,28 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 		return nil
 	}
 	sawExplicit := false
+	effTS := tbl.Tablespace
+	effRowFormat := tbl.RowFormat
+	effKeyBlockSize := tbl.KeyBlockSize
 	droppedParts := make(map[string]bool)
 	for _, cmd := range commands {
 		if cmd == nil {
 			continue
 		}
-		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && strings.EqualFold(cmd.Option.Name, "tablespace") {
-			sawExplicit = true
-			if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
-				return err
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil {
+			switch toLower(cmd.Option.Name) {
+			case "tablespace":
+				sawExplicit = true
+				effTS = cmd.Option.Value
+				if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
+					return err
+				}
+			case "row_format":
+				effRowFormat = cmd.Option.Value
+			case "key_block_size":
+				if n, err := strconv.Atoi(strings.TrimSpace(cmd.Option.Value)); err == nil {
+					effKeyBlockSize = n
+				}
 			}
 		}
 		if cmd.Type == nodes.ATDropPartition || cmd.Type == nodes.ATReorganizePartition {
@@ -291,6 +305,11 @@ func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.A
 					}
 				}
 			}
+		}
+	}
+	if effTS != "" {
+		if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
+			return err
 		}
 	}
 	return nil

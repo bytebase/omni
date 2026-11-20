@@ -2706,7 +2706,9 @@ type AlterTablespaceStmt struct {
 	Loc             Loc
 	Undo            bool   // UNDO tablespace
 	Name            string // tablespace name
+	HasAddDataFile  bool   // ADD DATAFILE clause was specified
 	AddDataFile     string // ADD DATAFILE 'file_name'
+	HasDropDataFile bool   // DROP DATAFILE clause was specified
 	DropDataFile    string // DROP DATAFILE 'file_name'
 	InitialSize     string // INITIAL_SIZE value
 	Wait            bool   // WAIT

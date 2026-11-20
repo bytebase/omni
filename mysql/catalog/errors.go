@@ -106,6 +106,7 @@ const (
 	ErrDropTablespaceFailed              = 1529
 	ErrTablespaceDoesNotExist            = 3510
 	ErrDupTablespaceDatafile             = 3606
+	ErrTablespaceNoSuchFile              = 3629
 	ErrTablespaceEngineMismatch          = 3642
 	ErrReservedTablespaceName            = 3723
 	ErrSpatialUniqueIndex                = 3728
@@ -874,4 +875,9 @@ func errDupTablespaceDatafile(tsName string) error {
 func errAlterTablespaceFailed(tsName string) error {
 	return &Error{Code: 1533, SQLState: "HY000",
 		Message: fmt.Sprintf("Failed to alter: TABLESPACE %s", tsName)}
+}
+
+func errTablespaceNoSuchFile(tsName, fileName string) error {
+	return &Error{Code: ErrTablespaceNoSuchFile, SQLState: sqlState(ErrTablespaceNoSuchFile),
+		Message: fmt.Sprintf("Tablespace '%s' does not have a file named '%s'", tsName, fileName)}
 }

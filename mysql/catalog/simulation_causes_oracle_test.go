@@ -3795,6 +3795,69 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLESPACE ts_emp_enc ADD DATAFILE 'ts_emp_enc.ibd' ENCRYPTION=''",
 			code: 3184,
 		},
+		// 25. Division preserving fractional decimals, ALTER TABLESPACE empty DATAFILE
+		//     clauses, and general tablespace FILE_BLOCK_SIZE compatibility.
+		{
+			name:    "SET @m = 3 / 2 preserves fractional decimal so SET sql_mode rejects with 1232",
+			session: []string{"SET @m = 3 / 2"},
+			stmt:    "SET sql_mode = @m",
+			code:    1232,
+		},
+		{
+			name:    "SET @m = 4 / 2 preserves fractional decimal so SET sql_mode rejects with 1232",
+			session: []string{"SET @m = 4 / 2"},
+			stmt:    "SET sql_mode = @m",
+			code:    1232,
+		},
+		{
+			name:    "ALTER TABLESPACE ADD DATAFILE empty filename rejected with 1533",
+			setup:   []string{"CREATE TABLESPACE ts_alt_emp ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLESPACE ts_alt_emp"},
+			stmt:    "ALTER TABLESPACE ts_alt_emp ADD DATAFILE ''",
+			code:    1533,
+		},
+		{
+			name:    "ALTER TABLESPACE DROP DATAFILE empty filename rejected with 3629",
+			setup:   []string{"CREATE TABLESPACE ts_alt_drp ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLESPACE ts_alt_drp"},
+			stmt:    "ALTER TABLESPACE ts_alt_drp DROP DATAFILE ''",
+			code:    3629,
+		},
+		{
+			name:    "CREATE TABLE COMPRESSED KEY_BLOCK_SIZE=4 in FILE_BLOCK_SIZE=8K tablespace rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_fbs8 ADD DATAFILE 'ts_fbs8.ibd' FILE_BLOCK_SIZE=8192 ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_fbs8"},
+			stmt:    "CREATE TABLE a (id INT) TABLESPACE ts_fbs8 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4",
+			code:    1478,
+		},
+		{
+			name:    "CREATE TABLE COMPRESSED KEY_BLOCK_SIZE=8 in FILE_BLOCK_SIZE=8K tablespace accepted",
+			setup:   []string{"CREATE TABLESPACE ts_fbs8_ok ADD DATAFILE 'ts_fbs8_ok.ibd' FILE_BLOCK_SIZE=8192 ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_fbs8_ok"},
+			stmt:    "CREATE TABLE a (id INT) TABLESPACE ts_fbs8_ok ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8",
+			code:    0,
+		},
+		{
+			name:    "CREATE TABLE uncompressed in FILE_BLOCK_SIZE=8K tablespace rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_fbs8_uncomp ADD DATAFILE 'ts_fbs8_uncomp.ibd' FILE_BLOCK_SIZE=8192 ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_fbs8_uncomp"},
+			stmt:    "CREATE TABLE a (id INT) TABLESPACE ts_fbs8_uncomp",
+			code:    1478,
+		},
+		{
+			name:    "CREATE TABLE COMPRESSED in default 16K general tablespace rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_fbs16 ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_fbs16"},
+			stmt:    "CREATE TABLE a (id INT) TABLESPACE ts_fbs16 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8",
+			code:    1478,
+		},
+		{
+			name:    "ALTER TABLE ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 into FILE_BLOCK_SIZE=8K tablespace rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_fbs8_alt ADD DATAFILE 'ts_fbs8_alt.ibd' FILE_BLOCK_SIZE=8192 ENGINE=InnoDB", "CREATE TABLE a (id INT) ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_fbs8_alt"},
+			stmt:    "ALTER TABLE a TABLESPACE ts_fbs8_alt ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4",
+			code:    1478,
+		},
 	}
 
 	for _, tc := range cases {

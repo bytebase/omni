@@ -4285,10 +4285,10 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 		sb.WriteString(" :undo true")
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.AddDataFile != "" {
+	if n.HasAddDataFile || n.AddDataFile != "" {
 		fmt.Fprintf(sb, " :add_datafile %q", n.AddDataFile)
 	}
-	if n.DropDataFile != "" {
+	if n.HasDropDataFile || n.DropDataFile != "" {
 		fmt.Fprintf(sb, " :drop_datafile %q", n.DropDataFile)
 	}
 	if n.InitialSize != "" {

@@ -99,26 +99,26 @@ func parseTableAutoextendSize(raw string, temporary bool, rawTS string) (uint64,
 	return parseAutoextendSize(raw)
 }
 
-func validateTablespaceFileBlockSize(raw string) error {
+func resolveTablespaceFileBlockSize(raw string) (uint64, error) {
 	if strings.TrimSpace(raw) == "" {
-		return nil
+		return innodbDefaultPageSize, nil
 	}
 	bytes, ok := parseMySQLByteSize(raw)
 	if !ok {
-		return &Error{Code: 1478, SQLState: "HY000",
+		return 0, &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%s", strings.TrimSpace(raw))}
 	}
 	if bytes == 0 {
-		return nil
+		return innodbDefaultPageSize, nil
 	}
 	switch bytes {
 	case 1024, 2048, 4096, 8192, innodbDefaultPageSize:
-		return nil
+		return bytes, nil
 	case 32768, 65536:
-		return &Error{Code: 1478, SQLState: "HY000",
+		return 0, &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=%d because INNODB_PAGE_SIZE=%d.", bytes, innodbDefaultPageSize)}
 	default:
-		return &Error{Code: 1478, SQLState: "HY000",
+		return 0, &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB does not support FILE_BLOCK_SIZE=%d", bytes)}
 	}
 }
@@ -237,6 +237,39 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 	default:
 		return errTablespaceDoesNotExist(ts)
 	}
+}
+
+func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlockSize int) error {
+	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	if ts == "" || ts == "innodb_file_per_table" || ts == "innodb_system" || ts == "innodb_temporary" {
+		return nil
+	}
+	if c.tablespaceBlockSizes == nil {
+		return nil
+	}
+	tsBlockSize, ok := c.tablespaceBlockSizes[ts]
+	if !ok || tsBlockSize == 0 {
+		return nil
+	}
+	rfCompressed := strings.EqualFold(strings.TrimSpace(rowFormat), "COMPRESSED")
+	if tsBlockSize == innodbDefaultPageSize {
+		if keyBlockSize > 0 || rfCompressed {
+			return &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain a COMPRESSED table", ts)}
+		}
+		return nil
+	}
+	var tblPageSize uint64 = innodbDefaultPageSize
+	if keyBlockSize > 0 {
+		tblPageSize = uint64(keyBlockSize) * 1024
+	} else if rfCompressed {
+		tblPageSize = 8192
+	}
+	if tblPageSize != tsBlockSize {
+		return &Error{Code: 1478, SQLState: "HY000",
+			Message: fmt.Sprintf("InnoDB: Tablespace `%s` uses block size %d and cannot contain a table with physical page size %d", ts, tsBlockSize, tblPageSize)}
+	}
+	return nil
 }
 
 func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
@@ -362,9 +395,12 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo || c.tablespaces[stmt.Name] {
 		return errTablespaceExists(stmt.Name)
 	}
-	if !stmt.Undo && stmt.FileBlockSize != "" {
-		if err := validateTablespaceFileBlockSize(stmt.FileBlockSize); err != nil {
-			return err
+	blockSize := uint64(innodbDefaultPageSize)
+	if !stmt.Undo {
+		var bsErr error
+		blockSize, bsErr = resolveTablespaceFileBlockSize(stmt.FileBlockSize)
+		if bsErr != nil {
+			return bsErr
 		}
 	}
 	if stmt.AutoextendSize != "" {
@@ -387,6 +423,10 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 		return nil
 	}
 	c.tablespaces[stmt.Name] = true
+	if c.tablespaceBlockSizes == nil {
+		c.tablespaceBlockSizes = make(map[string]uint64)
+	}
+	c.tablespaceBlockSizes[stmt.Name] = blockSize
 	if dfBase != "" {
 		c.tablespaceFiles[stmt.Name] = dfBase
 	}
@@ -444,7 +484,13 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	if !c.tablespaces[stmt.Name] {
 		return errTablespaceDoesNotExist(stmt.Name)
 	}
-	if stmt.AddDataFile != "" || stmt.DropDataFile != "" {
+	if stmt.HasAddDataFile || stmt.AddDataFile != "" {
+		return errAlterTablespaceFailed(stmt.Name)
+	}
+	if stmt.HasDropDataFile || stmt.DropDataFile != "" {
+		if stmt.DropDataFile == "" {
+			return errTablespaceNoSuchFile(stmt.Name, "")
+		}
 		return errAlterTablespaceFailed(stmt.Name)
 	}
 	if stmt.RenameTo != "" {
@@ -456,6 +502,10 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		}
 		delete(c.tablespaces, stmt.Name)
 		c.tablespaces[stmt.RenameTo] = true
+		if bs, ok := c.tablespaceBlockSizes[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
+			delete(c.tablespaceBlockSizes, stmt.Name)
+			c.tablespaceBlockSizes[stmt.RenameTo] = bs
+		}
 		if df, ok := c.tablespaceFiles[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
 			delete(c.tablespaceFiles, stmt.Name)
 			c.tablespaceFiles[stmt.RenameTo] = df
@@ -516,6 +566,7 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		}
 	}
 	delete(c.tablespaces, stmt.Name)
+	delete(c.tablespaceBlockSizes, stmt.Name)
 	delete(c.tablespaceFiles, stmt.Name)
 	return nil
 }
