@@ -934,6 +934,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		// diff/drop logic treats SERIAL and IDENTITY sequences as managed objects.
 		for i, si := range serials {
 			seq := createdSeqs[i]
+			seq.Persistence = rel.Persistence
 			seq.OwnerRelOID = rel.OID
 			seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
 			c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[si.colIdx].AttNum), DepAuto)

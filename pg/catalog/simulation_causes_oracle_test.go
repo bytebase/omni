@@ -4979,6 +4979,96 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c120From, c120To, Diff(c120From, c120To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c120From->c120To, got:\n%s", rem.SQL())
 		}
+
+		// Round 19 regressions:
+		// 1. Reject INSERT (and MERGE ... INSERT) rows or SELECT lists shorter than their target list (42601).
+		// 2. Resolve bare range names (SELECT src FROM src, bare OLD/NEW) as whole-row references.
+		// 3. Resolve function overloads in rules by argument types and record dependency only on the winning overload.
+		// 4. Resolve operator overloads in rules by operand types and record dependency only on the winning overload.
+		// 5. Freeze expanded * and qual.* target-list entries in stored rule actions at rule creation time.
+		// 6. Require boolean rule qualifications (WHERE, HAVING, JOIN ON, WHEN) (42804).
+		// 7. Validate set-operation (UNION/INTERSECT/EXCEPT) column counts (42601) and type compatibility (42804).
+		// 8. Drop temporary tables, views, and sequences on DISCARD TEMP and DISCARD ALL.
+		c121 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_r19 (id int, val text)",
+			"CREATE TABLE dst_r19 (id int, val text)",
+			"CREATE TABLE row_dst_r19 (r t_r19)",
+			"CREATE FUNCTION fn_ov_r19(int) RETURNS int LANGUAGE sql AS 'SELECT $1'",
+			"CREATE FUNCTION fn_ov_r19(text) RETURNS text LANGUAGE sql AS 'SELECT $1'",
+			"CREATE FUNCTION op_int_r19(int, int) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE FUNCTION op_txt_r19(text, text) RETURNS boolean LANGUAGE sql AS 'SELECT $1 < $2'",
+			"CREATE OPERATOR <<< (LEFTARG = int, RIGHTARG = int, FUNCTION = op_int_r19)",
+			"CREATE OPERATOR <<< (LEFTARG = text, RIGHTARG = text, FUNCTION = op_txt_r19)",
+			"CREATE RULE r_ov_r19 AS ON INSERT TO t_r19 WHERE NEW.id <<< 10 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (fn_ov_r19(NEW.id), NEW.val)",
+			"CREATE RULE r_wholerow_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO row_dst_r19 (r) SELECT t_r19 FROM t_r19",
+			// Unreferenced overloads fn_ov_r19(text) and <<< (text, text) can be dropped under RESTRICT.
+			"DROP FUNCTION fn_ov_r19(text) RESTRICT",
+			"DROP OPERATOR <<< (text, text) RESTRICT",
+			// DISCARD TEMP drops temporary tables, views, and sequences.
+			"CREATE TEMP TABLE tmp_t_r19 (id serial, v text)",
+			"CREATE TEMP VIEW tmp_v_r19 AS SELECT id, v FROM tmp_t_r19",
+			"CREATE TEMP SEQUENCE tmp_s_r19",
+			"DISCARD TEMP",
+			"CREATE TABLE tmp_t_r19 (id int)",
+			"CREATE VIEW tmp_v_r19 AS SELECT id FROM tmp_t_r19",
+			"CREATE SEQUENCE tmp_s_r19",
+		} {
+			if code := simulationCatalogCode(t, c121, stmt); code != "0" {
+				t.Fatalf("c121 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"DROP FUNCTION fn_ov_r19(int) RESTRICT", CodeDependentObjects},
+			{"DROP OPERATOR <<< (int, int) RESTRICT", CodeDependentObjects},
+			{"CREATE RULE r_bad_fn_type_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (fn_ov_r19(NEW.val), NEW.val)", CodeUndefinedFunction},
+			{"CREATE RULE r_short_vals_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) VALUES (1)", CodeSyntaxError},
+			{"CREATE RULE r_short_sel_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id FROM t_r19", CodeSyntaxError},
+			{"CREATE RULE r_bad_where_r19 AS ON INSERT TO t_r19 WHERE NEW.id DO ALSO NOTHING", CodeDatatypeMismatch},
+			{"CREATE RULE r_bad_act_where_r19 AS ON INSERT TO t_r19 DO ALSO DELETE FROM dst_r19 WHERE 1", CodeDatatypeMismatch},
+			{"CREATE RULE r_bad_union_cnt_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id, val FROM t_r19 UNION SELECT id FROM t_r19", CodeSyntaxError},
+			{"CREATE RULE r_bad_union_typ_r19 AS ON INSERT TO t_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT id, val FROM t_r19 UNION SELECT val, val FROM t_r19", CodeDatatypeMismatch},
+		} {
+			if got := simulationCatalogCode(t, c121, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c121From := New()
+		c121To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE src_r19 (id int, val text)",
+			"CREATE TABLE dst_r19 (id int, val text)",
+			"CREATE TABLE row_dst_r19 (r text)",
+			"CREATE RULE r_star_r19 AS ON INSERT TO src_r19 DO ALSO INSERT INTO dst_r19 (id, val) SELECT * FROM src_r19",
+			"CREATE RULE r_row_r19 AS ON INSERT TO src_r19 DO ALSO INSERT INTO row_dst_r19 (r) SELECT (src_r19)::text FROM src_r19",
+			"ALTER TABLE src_r19 ADD COLUMN extra int",
+			"ALTER TABLE src_r19 RENAME COLUMN id TO id_new",
+			"ALTER TABLE src_r19 RENAME TO src_r19_new",
+		} {
+			if code := simulationCatalogCode(t, c121To, stmt); code != "0" {
+				t.Fatalf("c121To %s: %s", stmt, code)
+			}
+		}
+		mig121 := GenerateMigration(c121From, c121To, Diff(c121From, c121To))
+		sql121 := mig121.SQL()
+		for _, wantSubstr := range []string{
+			"SELECT src_r19_new.id_new AS id, src_r19_new.val FROM src_r19_new",
+			"SELECT (src_r19_new)::text AS src_r19 FROM src_r19_new",
+		} {
+			if !strings.Contains(sql121, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql121)
+			}
+		}
+		if code := simulationCatalogCode(t, c121From, sql121); code != "0" {
+			t.Fatalf("applying c121From->c121To failed with %s:\n%s", code, sql121)
+		}
+		if rem := GenerateMigration(c121From, c121To, Diff(c121From, c121To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c121From->c121To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

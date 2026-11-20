@@ -224,11 +224,20 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	persistence := byte('p')
+	if rv != nil && rv.Relpersistence != 0 {
+		persistence = rv.Relpersistence
+	}
+	if queryReferencesTempRelation(c, analyzedQuery) {
+		persistence = 't'
+	}
+
 	rel := &Relation{
 		OID:           relOID,
 		Name:          viewName,
 		Schema:        schema,
 		RelKind:       'v',
+		Persistence:   persistence,
 		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,
@@ -368,12 +377,42 @@ func (c *Catalog) replaceView(schema *Schema, rel *Relation, newCols []*ResultCo
 
 	// Update the query.
 	rel.AnalyzedQuery = analyzedQuery
+	if queryReferencesTempRelation(c, analyzedQuery) {
+		rel.Persistence = 't'
+	}
 
 	// Re-record dependencies on source tables/views.
 	// pg: src/backend/catalog/dependency.c — recordDependencyOnExpr
 	c.recordViewDepsQ(rel.OID, analyzedQuery)
 
 	return nil
+}
+
+func queryReferencesTempRelation(c *Catalog, q *Query) bool {
+	if c == nil || q == nil {
+		return false
+	}
+	for _, rte := range q.RangeTable {
+		if rte.Kind == RTERelation && rte.RelOID != 0 {
+			if r := c.relationByOID[rte.RelOID]; r != nil && r.Persistence == 't' {
+				return true
+			}
+		}
+		if rte.Subquery != nil && queryReferencesTempRelation(c, rte.Subquery) {
+			return true
+		}
+	}
+	for _, cte := range q.CTEList {
+		if cte != nil && queryReferencesTempRelation(c, cte.Query) {
+			return true
+		}
+	}
+	if q.SetOp != SetOpNone {
+		if queryReferencesTempRelation(c, q.LArg) || queryReferencesTempRelation(c, q.RArg) {
+			return true
+		}
+	}
+	return false
 }
 
 // checkViewAutoUpdatable verifies that a view query satisfies PostgreSQL's

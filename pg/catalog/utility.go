@@ -302,12 +302,16 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CHECKPOINT: no-op for pgddl
 		return nil
 	case *nodes.DiscardStmt:
-		if s.Target == nodes.DISCARD_ALL {
+		switch s.Target {
+		case nodes.DISCARD_TEMP:
+			c.discardTempObjects()
+		case nodes.DISCARD_ALL:
 			clear(c.preparedStmts)
 			c.SetSearchPath([]string{"$user", "public"})
 			c.defaultTablespace = ""
 			c.defaultTableAccessMethod = ""
 			c.ResetRole()
+			c.discardTempObjects()
 		}
 		return nil
 	case *nodes.LockStmt:
@@ -419,6 +423,67 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	default:
 		return errInvalidParameterValue(fmt.Sprintf("unsupported utility statement: %T", stmt))
+	}
+}
+
+func isTempSchemaName(name string) bool {
+	return name == "pg_temp" || strings.HasPrefix(name, "pg_temp_")
+}
+
+func (c *Catalog) discardTempObjects() {
+	var tempRels []*Relation
+	for _, rel := range c.relationByOID {
+		if rel == nil {
+			continue
+		}
+		if rel.Persistence == 't' || (rel.Schema != nil && isTempSchemaName(rel.Schema.Name)) {
+			tempRels = append(tempRels, rel)
+		}
+	}
+	for _, rel := range tempRels {
+		if c.relationByOID[rel.OID] != nil {
+			c.cascadeDropRelation(rel)
+		}
+	}
+
+	var tempSeqs []*Sequence
+	for _, seq := range c.sequenceByOID {
+		if seq == nil {
+			continue
+		}
+		if seq.Persistence == 't' || (seq.Schema != nil && isTempSchemaName(seq.Schema.Name)) {
+			tempSeqs = append(tempSeqs, seq)
+		}
+	}
+	for _, seq := range tempSeqs {
+		if c.sequenceByOID[seq.OID] == nil {
+			continue
+		}
+		if len(c.findNormalDependents('s', seq.OID)) > 0 {
+			c.dropDependents('s', seq.OID)
+		}
+		if c.sequenceByOID[seq.OID] != nil {
+			c.removeSequence(seq.Schema, seq)
+		}
+	}
+
+	for _, sc := range c.schemas {
+		if sc == nil || !isTempSchemaName(sc.Name) {
+			continue
+		}
+		c.removeFunctionsInSchema(sc)
+		c.removeTypesInSchema(sc)
+		for name, idx := range sc.Indexes {
+			if idx != nil {
+				c.removeIndex(sc, name, idx)
+			}
+		}
+		for name, uc := range sc.Collations {
+			if uc != nil {
+				delete(sc.Collations, name)
+				c.removeDepsOn('L', uc.OID)
+			}
+		}
 	}
 }
 

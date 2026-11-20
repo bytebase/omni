@@ -14,6 +14,7 @@ type Sequence struct {
 	Name        string
 	Schema      *Schema
 	OwnerName   string
+	Persistence byte   // 'p'=permanent, 'u'=unlogged, 't'=temp (default 'p')
 	TypeOID     uint32 // int2/int4/int8
 	Start       int64
 	Increment   int64
@@ -240,19 +241,24 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 	if ownerName == "" {
 		ownerName = c.currentOwner()
 	}
+	persistence := byte('p')
+	if stmt.Sequence != nil && stmt.Sequence.Relpersistence != 0 {
+		persistence = stmt.Sequence.Relpersistence
+	}
 	seqOID := c.oidGen.Next()
 	seq := &Sequence{
-		OID:        seqOID,
-		Name:       seqName,
-		Schema:     schema,
-		OwnerName:  ownerName,
-		TypeOID:    typeOID,
-		Start:      startValue,
-		Increment:  increment,
-		MinValue:   minValue,
-		MaxValue:   maxValue,
-		CacheValue: cacheValue,
-		Cycle:      cycle,
+		OID:         seqOID,
+		Name:        seqName,
+		Schema:      schema,
+		OwnerName:   ownerName,
+		Persistence: persistence,
+		TypeOID:     typeOID,
+		Start:       startValue,
+		Increment:   increment,
+		MinValue:    minValue,
+		MaxValue:    maxValue,
+		CacheValue:  cacheValue,
+		Cycle:       cycle,
 	}
 
 	schema.Sequences[seqName] = seq
