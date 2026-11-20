@@ -1953,12 +1953,14 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	}
 	typ := c.typeByOID[typeOID]
 	var userCollOID uint32
+	collSchema := colDef.CollationSchema
 	if colDef.CollClause != nil {
 		var cerr error
 		_, userCollOID, cerr = c.resolveColumnCollation(colDef.CollClause.Collname, typeOID)
 		if cerr != nil {
 			return cerr
 		}
+		collSchema = c.resolvedCollationSchema(colDef.CollClause.Collname, colDef.CollationName, userCollOID)
 	}
 	stor, err := c.resolveColumnStorage(typ, colDef.StorageName)
 	if err != nil {
@@ -1999,6 +2001,7 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		Storage:          stor,
 		Compression:      comp,
 		Collation:        typ.Collation,
+		CollationSchema:  collSchema,
 		CollationName:    colDef.CollationName,
 		UserCollationOID: userCollOID,
 	}
@@ -2420,13 +2423,14 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		return err
 	}
 
-	var collName string
+	var collSchema, collName string
 	var userCollOID uint32
 	if cd.CollClause != nil {
 		collName, userCollOID, err = c.resolveColumnCollation(cd.CollClause.Collname, newOID)
 		if err != nil {
 			return err
 		}
+		collSchema = c.resolvedCollationSchema(cd.CollClause.Collname, collName, userCollOID)
 	}
 
 	if err := c.checkCompositeSelfReference(rel.RowTypeOID, newOID, rel.Name); err != nil {
@@ -2455,6 +2459,7 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	col.TypeMod = newMod
 	// pg: ATExecAlterColumnType resets attcollation to the new type's default
 	// collation when COLLATE is omitted.
+	col.CollationSchema = collSchema
 	col.CollationName = collName
 	col.Collation = c.typeCollation(newOID)
 	col.UserCollationOID = userCollOID
@@ -2500,6 +2505,8 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		col.Align = typ.Align
 		col.Storage = typ.Storage
 	}
+	// pg: ATExecAlterColumnType rebuilds the attribute tuple without preserving attcompression.
+	col.Compression = 0
 
 	return nil
 }

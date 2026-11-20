@@ -278,11 +278,23 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					}
 					// Collation must match.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (collation check)
-					if existCD.CollationName != "" && pcol.CollationName != "" &&
-						existCD.CollationName != pcol.CollationName {
-						return errDatatypeMismatch(fmt.Sprintf(
-							"column %q has a collation conflict", pcol.Name,
-						))
+					if existCD.CollationName != "" && pcol.CollationName != "" {
+						childCollSchema := existCD.CollationSchema
+						if existCD.CollClause != nil {
+							if _, cid, cerr := c.resolveCollationList(existCD.CollClause.Collname); cerr == nil {
+								childCollSchema = c.resolvedCollationSchema(existCD.CollClause.Collname, existCD.CollationName, cid)
+							}
+						}
+						parentCollSchema := columnCollationSchema(c, pcol)
+						if existCD.CollationName != pcol.CollationName || childCollSchema != parentCollSchema {
+							return errDatatypeMismatch(fmt.Sprintf(
+								"column %q has a collation conflict", pcol.Name,
+							))
+						}
+					} else if existCD.CollationName == "" && pcol.CollationName != "" {
+						existCD.CollationSchema = columnCollationSchema(c, pcol)
+						existCD.CollationName = pcol.CollationName
+						existCD.UserCollationOID = pcol.UserCollationOID
 					}
 					// Merge NOT NULL from parent.
 					if pcol.NotNull {
@@ -310,12 +322,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				} else {
 					// New inherited column — not locally defined.
 					newCD := ColumnDef{
-						Name:     pcol.Name,
-						Type:     c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
-						NotNull:  pcol.NotNull,
-						Default:  pcol.Default,
-						IsLocal:  false,
-						InhCount: 1,
+						Name:             pcol.Name,
+						Type:             c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
+						NotNull:          pcol.NotNull,
+						Default:          pcol.Default,
+						IsLocal:          false,
+						InhCount:         1,
+						CollationSchema:  columnCollationSchema(c, pcol),
+						CollationName:    pcol.CollationName,
+						UserCollationOID: pcol.UserCollationOID,
 					}
 					// Partitions inherit identity; regular inheritance does not.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (identity handling)
@@ -455,12 +470,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 
 		typ := c.typeByOID[typeOID]
+		collSchema := cd.CollationSchema
+		colUserCollOIDs[i] = cd.UserCollationOID
 		if cd.CollClause != nil {
 			_, collOID, cerr := c.resolveColumnCollation(cd.CollClause.Collname, typeOID)
 			if cerr != nil {
 				return cerr
 			}
 			colUserCollOIDs[i] = collOID
+			collSchema = c.resolvedCollationSchema(cd.CollClause.Collname, cd.CollationName, collOID)
 		}
 		stor, err := c.resolveColumnStorage(typ, cd.StorageName)
 		if err != nil {
@@ -487,6 +505,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			Collation:        coll,
 			IsLocal:          cd.IsLocal,
 			InhCount:         cd.InhCount,
+			CollationSchema:  collSchema,
 			CollationName:    cd.CollationName,
 			UserCollationOID: colUserCollOIDs[i],
 		}
@@ -1197,7 +1216,11 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	// pg: src/backend/commands/tablecmds.c — DefineRelation (COLLATE / STORAGE / COMPRESSION)
 	if cd.CollClause != nil && cd.CollClause.Collname != nil && len(cd.CollClause.Collname.Items) > 0 {
 		result.CollClause = cd.CollClause
-		result.CollationName = stringVal(cd.CollClause.Collname.Items[len(cd.CollClause.Collname.Items)-1])
+		sc, nm := qualifiedName(cd.CollClause.Collname)
+		if sc != "public" && sc != "pg_catalog" {
+			result.CollationSchema = sc
+		}
+		result.CollationName = nm
 	}
 	result.StorageName = cd.StorageName
 	result.Compression = cd.Compression

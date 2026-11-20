@@ -46,6 +46,7 @@ type Column struct {
 	InhCount         int          // number of inheritance ancestors that define this column
 	Compression      byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
 	GenerationExpr   string       // expression text for generated columns
+	CollationSchema  string       // explicit collation schema when outside public/pg_catalog
 	CollationName    string       // explicit collation name (empty = type default)
 	UserCollationOID uint32       // user collation OID when CollationName names a user collation
 	Ndims            int16        // attndims — declared array dimensions

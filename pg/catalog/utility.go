@@ -116,12 +116,28 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			return nil
 		}
 	case *nodes.RuleStmt:
-		if s.Relation != nil && s.Rulename != "" {
-			if _, rel, err := c.findRelation(s.Relation.Schemaname, s.Relation.Relname); err == nil && rel != nil {
+		if s.Relation != nil {
+			_, rel, err := c.findRelation(s.Relation.Schemaname, s.Relation.Relname)
+			if err != nil {
+				return err
+			}
+			switch rel.RelKind {
+			case 'r', 'v', 'p':
+			case 'm':
+				return &Error{Code: CodeFeatureNotSupported, Message: "rules on materialized views are not supported"}
+			default:
+				return errWrongObjectType(rel.Name, "a table or view")
+			}
+			if s.Rulename != "" {
+				if !s.Replace && rel.Rules != nil && rel.Rules[s.Rulename] != 0 {
+					return errDuplicateObject("rule", s.Rulename)
+				}
 				if rel.Rules == nil {
 					rel.Rules = make(map[string]byte)
 				}
-				rel.Rules[s.Rulename] = 'O'
+				if _, exists := rel.Rules[s.Rulename]; !exists {
+					rel.Rules[s.Rulename] = 'O'
+				}
 				rel.HasRules = true
 			}
 		}
@@ -312,6 +328,10 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.DiscardStmt:
 		if s.Target == nodes.DISCARD_ALL {
 			clear(c.preparedStmts)
+			c.SetSearchPath([]string{"$user", "public"})
+			c.defaultTablespace = ""
+			c.defaultTableAccessMethod = ""
+			c.ResetRole()
 		}
 		return nil
 	case *nodes.LockStmt:
@@ -499,7 +519,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 	}
 	seen := make(map[string]bool, len(def.Items))
 	var fromList *nodes.List
-	var hasLocale, hasLCCollate, hasLCCtype bool
+	var hasLocale, hasLCCollate, hasLCCtype, hasRules bool
 	var provider string
 	var parts []string
 
@@ -545,6 +565,8 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 				hasLCCtype = true
 			case "provider":
 				provider = strings.ToLower(val)
+			case "rules":
+				hasRules = true
 			}
 			parts = append(parts, strings.ToUpper(opt)+" = "+singleQuote(val))
 		default:
@@ -584,6 +606,9 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 	default:
 		return "", errInvalidObjectDefinition(fmt.Sprintf("unrecognized collation provider: %s", provider))
 	}
+	if hasRules && provider != "icu" {
+		return "", errInvalidObjectDefinition("ICU rules cannot be specified unless locale provider is ICU")
+	}
 	if hasLocale && (hasLCCollate || hasLCCtype) {
 		return "", errInvalidObjectDefinition("conflicting or redundant options")
 	}
@@ -601,8 +626,11 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 // pg: src/backend/utils/misc/guc.c — ExecSetVariableStmt
 func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 	if s.Kind == nodes.VAR_RESET_ALL {
+		c.SetSearchPath([]string{"$user", "public"})
 		c.defaultTablespace = ""
 		c.defaultTableAccessMethod = ""
+		c.ResetRole()
+		return nil
 	}
 	switch s.Name {
 	case "search_path":

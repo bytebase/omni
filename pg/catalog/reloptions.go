@@ -576,6 +576,28 @@ func (c *Catalog) resolveColumnCollation(collname *nodes.List, typeOID uint32) (
 	return name, userOID, nil
 }
 
+func (c *Catalog) resolvedCollationSchema(collname *nodes.List, leafName string, userOID uint32) string {
+	if userOID != 0 {
+		for _, s := range c.schemas {
+			if s != nil {
+				if uc := s.Collations[leafName]; uc != nil && uc.OID == userOID {
+					if s.Name != "public" {
+						return s.Name
+					}
+					return ""
+				}
+			}
+		}
+	}
+	if collname != nil {
+		sc, _ := qualifiedName(collname)
+		if sc != "" && sc != "public" && sc != "pg_catalog" {
+			return sc
+		}
+	}
+	return ""
+}
+
 // checkCompositeSelfReference refuses making a composite row type a direct or
 // transitive member of itself (42P16).
 //

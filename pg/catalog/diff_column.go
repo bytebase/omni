@@ -86,7 +86,7 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 	if a.GenerationExpr != b.GenerationExpr {
 		return true
 	}
-	if a.CollationName != b.CollationName {
+	if columnCollationKey(from, a) != columnCollationKey(to, b) {
 		return true
 	}
 	if columnExplicitStorage(from, a) != columnExplicitStorage(to, b) {

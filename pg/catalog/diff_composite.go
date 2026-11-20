@@ -92,7 +92,7 @@ func compositeColumnsEqual(fromCat, toCat *Catalog, from, to *Relation) bool {
 		if fromCat.FormatType(fc.TypeOID, fc.TypeMod) != toCat.FormatType(tc.TypeOID, tc.TypeMod) {
 			return false
 		}
-		if fc.CollationName != tc.CollationName {
+		if columnCollationKey(fromCat, fc) != columnCollationKey(toCat, tc) {
 			return false
 		}
 	}

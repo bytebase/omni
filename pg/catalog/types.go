@@ -31,7 +31,9 @@ type ColumnDef struct {
 	IdentitySequence *nodes.RangeVar      // selected sequence name after transform/expansion
 	IsLocal          bool                 // true if defined locally (not only inherited)
 	InhCount         int                  // number of inheritance ancestors that define this column
+	CollationSchema  string               // explicit COLLATE schema when outside public/pg_catalog
 	CollationName    string               // explicit COLLATE clause; empty = type default
+	UserCollationOID uint32               // inherited/resolved user collation OID, or 0
 	CollClause       *nodes.CollateClause // raw COLLATE clause for resolution check
 	StorageName      string               // explicit STORAGE directive; empty = default
 	Compression      string               // explicit COMPRESSION directive; empty = default

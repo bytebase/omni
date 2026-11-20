@@ -179,7 +179,7 @@ func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 		return strings.Join(parts, " ")
 	}
 
-	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatCollate(col.CollationName))
+	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatColumnCollate(c, col))
 
 	if stor := columnExplicitStorage(c, col); stor != "" {
 		parts = append(parts, "STORAGE "+stor)
@@ -286,6 +286,48 @@ func formatCollate(collation string) string {
 		return ""
 	}
 	return " COLLATE " + quoteIdentAlways(collation)
+}
+
+func columnCollationSchema(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if c != nil && col.UserCollationOID != 0 {
+		for _, s := range c.schemas {
+			if s != nil {
+				if uc := s.Collations[col.CollationName]; uc != nil && uc.OID == col.UserCollationOID {
+					if s.Name != "public" {
+						return s.Name
+					}
+					return ""
+				}
+			}
+		}
+	}
+	if col.CollationSchema != "" && col.CollationSchema != "public" && col.CollationSchema != "pg_catalog" {
+		return col.CollationSchema
+	}
+	return ""
+}
+
+func columnCollationKey(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if sc := columnCollationSchema(c, col); sc != "" {
+		return migrationQualifiedName(sc, col.CollationName)
+	}
+	return quoteIdentAlways(col.CollationName)
+}
+
+func formatColumnCollate(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if sc := columnCollationSchema(c, col); sc != "" {
+		return " COLLATE " + migrationQualifiedName(sc, col.CollationName)
+	}
+	return formatCollate(col.CollationName)
 }
 
 func columnExplicitStorage(c *Catalog, col *Column) string {

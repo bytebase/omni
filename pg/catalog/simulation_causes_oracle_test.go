@@ -3947,6 +3947,103 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c109From, c109To, Diff(c109From, c109To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c109From->c109To (generated column dependents, domain collation, range collation), got:\n%s", rem.SQL())
 		}
+
+		// Review round 8 regressions:
+		// 1. Schema-qualified column collations outside search_path round-trip and diff across schemas.
+		// 2. DISCARD ALL resets search_path, default_tablespace, default_table_access_method, and current role.
+		// 3. CREATE RULE propagates missing-relation (42P01), wrong-relkind (42809/0A000), and duplicate-rule (42710) errors.
+		// 4. CREATE COLLATION rejects RULES when provider != icu (42P17).
+		// 5. ALTER COLUMN ... TYPE resets Column.Compression to 0.
+		c110 := New()
+		if code := simulationCatalogCode(t, c110, "CREATE RULE r_missing AS ON INSERT TO missing_r8 DO NOTHING"); code != CodeUndefinedTable {
+			t.Fatalf("CREATE RULE on missing table answered %s, want %s", code, CodeUndefinedTable)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE SEQUENCE seq_r8; CREATE RULE r_seq AS ON INSERT TO seq_r8 DO NOTHING"); code != CodeWrongObjectType {
+			t.Fatalf("CREATE RULE on sequence answered %s, want %s", code, CodeWrongObjectType)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE MATERIALIZED VIEW mv_r8 AS SELECT 1 AS a; CREATE RULE r_mv AS ON INSERT TO mv_r8 DO NOTHING"); code != CodeFeatureNotSupported {
+			t.Fatalf("CREATE RULE on matview answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE COLLATION c_bad_rules_r8 (PROVIDER = libc, LOCALE = 'C', RULES = '&a < b')"); code != CodeInvalidObjectDefinition {
+			t.Fatalf("CREATE COLLATION with RULES and libc answered %s, want %s", code, CodeInvalidObjectDefinition)
+		}
+		if code := simulationCatalogCode(t, c110, "CREATE COLLATION c_icu_rules_r8 (PROVIDER = icu, LOCALE = 'en-x-icu', RULES = '&a < b')"); code != "0" {
+			t.Fatalf("CREATE COLLATION with RULES and icu answered %s, want 0", code)
+		}
+		for _, stmt := range []string{
+			"CREATE SCHEMA s_disc_r8",
+			"CREATE ROLE role_disc_r8",
+			"CREATE TABLESPACE ts_disc_r8 LOCATION '/tmp/ts_disc_r8'",
+			"CREATE FUNCTION tam_disc_r8(internal) RETURNS table_am_handler LANGUAGE internal AS 'heap_tableam_handler'",
+			"CREATE ACCESS METHOD am_disc_r8 TYPE TABLE HANDLER tam_disc_r8",
+			"SET search_path = s_disc_r8",
+			"SET ROLE role_disc_r8",
+			"SET default_tablespace = ts_disc_r8",
+			"SET default_table_access_method = am_disc_r8",
+			"PREPARE p_disc_r8 AS SELECT 1",
+			"DISCARD ALL",
+			"CREATE TABLE t_after_disc_r8 (a text COMPRESSION pglz)",
+		} {
+			if code := simulationCatalogCode(t, c110, stmt); code != "0" {
+				t.Fatalf("c110 %s: %s", stmt, code)
+			}
+		}
+		relAfter := c110.GetRelation("public", "t_after_disc_r8")
+		if relAfter == nil || relAfter.Tablespace != "" || relAfter.AccessMethod != "" || relAfter.OwnerName != "postgres" {
+			t.Fatalf("expected DISCARD ALL to reset schema/tablespace/am/role, got rel=%+v", relAfter)
+		}
+		if relAfter.Columns[0].Compression != 'p' {
+			t.Fatalf("expected initial Compression 'p', got %q", relAfter.Columns[0].Compression)
+		}
+		if code := simulationCatalogCode(t, c110, "ALTER TABLE t_after_disc_r8 ALTER COLUMN a TYPE varchar"); code != "0" {
+			t.Fatalf("ALTER COLUMN TYPE answered %s, want 0", code)
+		}
+		if relAfter.Columns[0].Compression != 0 {
+			t.Fatalf("expected ALTER COLUMN TYPE to reset Compression to 0, got %q", relAfter.Columns[0].Compression)
+		}
+
+		c110From := New()
+		c110To := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA s1_r8",
+			"CREATE SCHEMA s2_r8",
+			"CREATE COLLATION s1_r8.c_shared (LOCALE = 'C')",
+			"CREATE COLLATION s2_r8.c_shared (LOCALE = 'POSIX')",
+			"CREATE TABLE public.t_qcoll_r8 (a text COLLATE s1_r8.c_shared)",
+		} {
+			if code := simulationCatalogCode(t, c110From, stmt); code != "0" {
+				t.Fatalf("c110From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE SCHEMA s1_r8",
+			"CREATE SCHEMA s2_r8",
+			"CREATE COLLATION s1_r8.c_shared (LOCALE = 'C')",
+			"CREATE COLLATION s2_r8.c_shared (LOCALE = 'POSIX')",
+			"CREATE TABLE public.t_qcoll_r8 (a text COLLATE s2_r8.c_shared)",
+		} {
+			if code := simulationCatalogCode(t, c110To, stmt); code != "0" {
+				t.Fatalf("c110To %s: %s", stmt, code)
+			}
+		}
+		migEmpty110 := GenerateMigration(New(), c110To, Diff(New(), c110To))
+		c110Empty := New()
+		if code := simulationCatalogCode(t, c110Empty, migEmpty110.SQL()); code != "0" {
+			t.Fatalf("applying empty->c110To failed with %s:\n%s", code, migEmpty110.SQL())
+		}
+		if rem := GenerateMigration(c110Empty, c110To, Diff(c110Empty, c110To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c110To, got:\n%s", rem.SQL())
+		}
+		mig110 := GenerateMigration(c110From, c110To, Diff(c110From, c110To))
+		if len(mig110.Ops) == 0 {
+			t.Fatal("expected migration ops when changing column collation from s1_r8.c_shared to s2_r8.c_shared")
+		}
+		if code := simulationCatalogCode(t, c110From, mig110.SQL()); code != "0" {
+			t.Fatalf("applying c110From->c110To failed with %s:\n%s", code, mig110.SQL())
+		}
+		if rem := GenerateMigration(c110From, c110To, Diff(c110From, c110To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c110From->c110To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

@@ -289,7 +289,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 				// Column type or collation change: both are ALTER COLUMN TYPE.
 				oldType := from.FormatType(col.From.TypeOID, col.From.TypeMod)
 				newType := to.FormatType(col.To.TypeOID, col.To.TypeMod)
-				if oldType != newType || col.From.CollationName != col.To.CollationName {
+				if oldType != newType || columnCollationKey(from, col.From) != columnCollationKey(to, col.To) {
 					needsViewWrap = true
 					break
 				}
@@ -1630,12 +1630,12 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				})
 				fromTypeStr := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
 				toTypeStr := to.FormatType(toCol.TypeOID, toCol.TypeMod)
-				if fromTypeStr == toTypeStr && fromCol.CollationName == toCol.CollationName {
+				if fromTypeStr == toTypeStr && columnCollationKey(from, fromCol) == columnCollationKey(to, toCol) {
 					mainExtra = append(mainExtra, MigrationOp{
 						Type:          OpAlterType,
 						SchemaName:    scName,
 						ObjectName:    fromRel.Name,
-						SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(toCol.Name), toTypeStr, formatCollate(toCol.CollationName)),
+						SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(toCol.Name), toTypeStr, formatColumnCollate(to, toCol)),
 						Transactional: true,
 						Phase:         PhaseMain,
 						ObjType:       'r',
@@ -1678,7 +1678,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			fromTypeStr := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
 			toTypeStr := to.FormatType(toCol.TypeOID, toCol.TypeMod)
 			typeChanged := fromTypeStr != toTypeStr
-			alterTypeAlreadyInMain := typeChanged || fromCol.CollationName != toCol.CollationName
+			alterTypeAlreadyInMain := typeChanged || columnCollationKey(from, fromCol) != columnCollationKey(to, toCol)
 			needDetachType := colUsesModColl || colUsesRebuiltDom
 			needDropDefault := exprUsesModColl || (needDetachType && fromCol.HasDefault && fromCol.Default != "")
 
@@ -1727,7 +1727,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						Type:          OpAlterColumn,
 						SchemaName:    scName,
 						ObjectName:    fromRel.Name,
-						SQL:           fmt.Sprintf("%s TYPE %s%s", colRef, toTypeStr, formatCollate(toCol.CollationName)),
+						SQL:           fmt.Sprintf("%s TYPE %s%s", colRef, toTypeStr, formatColumnCollate(to, toCol)),
 						Transactional: true,
 						Phase:         PhaseMain,
 						ObjType:       'r',
@@ -1740,6 +1740,19 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 							SchemaName:    scName,
 							ObjectName:    fromRel.Name,
 							SQL:           fmt.Sprintf("%s SET STORAGE %s", colRef, stor),
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        toRel.OID,
+							Priority:      PriorityColumn,
+						})
+					}
+					if comp := columnExplicitCompression(toCol); comp != "" && fromCol.Compression == toCol.Compression {
+						mainExtra = append(mainExtra, MigrationOp{
+							Type:          OpAlterColumn,
+							SchemaName:    scName,
+							ObjectName:    fromRel.Name,
+							SQL:           fmt.Sprintf("%s SET COMPRESSION %s", colRef, comp),
 							Transactional: true,
 							Phase:         PhaseMain,
 							ObjType:       'r',

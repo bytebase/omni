@@ -92,7 +92,7 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	c := col.To
 	typeName := to.FormatType(c.TypeOID, c.TypeMod)
 
-	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatCollate(c.CollationName))
+	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatColumnCollate(to, c))
 	if stor := columnExplicitStorage(to, c); stor != "" {
 		ddl += " STORAGE " + stor
 	}
@@ -195,9 +195,10 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 	}
 
 	// --- Type or collation change ---
-	if typeChanged || oldCol.CollationName != newCol.CollationName {
+	alterTypeEmitted := typeChanged || columnCollationKey(from, oldCol) != columnCollationKey(to, newCol)
+	if alterTypeEmitted {
 		newType := to.FormatType(newCol.TypeOID, newCol.TypeMod)
-		alterType := fmt.Sprintf("%s TYPE %s%s", colRef, newType, formatCollate(newCol.CollationName))
+		alterType := fmt.Sprintf("%s TYPE %s%s", colRef, newType, formatColumnCollate(to, newCol))
 
 		// Check if an implicit (assignment) cast exists.
 		pathway, _ := from.FindCoercionPathway(oldCol.TypeOID, newCol.TypeOID, 'a')
@@ -329,7 +330,7 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 
 	oldStor := columnExplicitStorage(from, oldCol)
 	newStor := columnExplicitStorage(to, newCol)
-	if oldStor != newStor || (typeChanged && newStor != "") {
+	if oldStor != newStor || (alterTypeEmitted && newStor != "") {
 		mode := newStor
 		if mode == "" {
 			mode = "DEFAULT"
@@ -343,7 +344,7 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 		})
 	}
 
-	if oldCol.Compression != newCol.Compression || (typeChanged && newCol.Compression != 0) {
+	if oldCol.Compression != newCol.Compression || (alterTypeEmitted && newCol.Compression != 0) {
 		comp := columnExplicitCompression(newCol)
 		if comp == "" {
 			comp = "DEFAULT"
