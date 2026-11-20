@@ -1074,13 +1074,14 @@ func validNumericDefaultForStringLen(val string, maxLen int) bool {
 
 // coerceNumericDefaultForCharColumn returns the string MySQL stores in the data
 // dictionary when an unparenthesized numeric literal default is declared on a
-// CHAR or VARCHAR column (e.g. `CHAR(1) DEFAULT 01` -> `'1'`).
+// CHAR, VARCHAR, BINARY, or VARBINARY column (e.g. `CHAR(1) DEFAULT 01` or
+// `BINARY(1) DEFAULT 01` -> `'1'`, `VARBINARY(2) DEFAULT 007` -> `'7'`).
 func coerceNumericDefaultForCharColumn(col *Column, expr nodes.ExprNode) (string, bool) {
 	if col == nil {
 		return "", false
 	}
 	dt := strings.ToLower(col.DataType)
-	if dt != "char" && dt != "varchar" {
+	if dt != "char" && dt != "varchar" && dt != "binary" && dt != "varbinary" {
 		return "", false
 	}
 	kind, val, unquotedNum := extractDefaultLiteral(expr)

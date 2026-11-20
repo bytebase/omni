@@ -712,6 +712,9 @@ func showPartitioning(pi *PartitionInfo) string {
 				}
 			}
 			if pi.SubType == "" || pi.UseDefaultSubpartitions {
+				if pd.Tablespace != "" {
+					b.WriteString(fmt.Sprintf(" TABLESPACE = `%s`", unquoteTableOption(pd.Tablespace)))
+				}
 				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
 				if pd.Comment != "" {
 					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
@@ -726,6 +729,9 @@ func showPartitioning(pi *PartitionInfo) string {
 					}
 					b.WriteString("SUBPARTITION ")
 					b.WriteString(spd.Name)
+					if spd.Tablespace != "" {
+						b.WriteString(fmt.Sprintf(" TABLESPACE = `%s`", unquoteTableOption(spd.Tablespace)))
+					}
 					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))

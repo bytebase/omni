@@ -2540,9 +2540,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"DEFAULT '1e10'"},
 		},
 		{
-			name: "CREATE TABLE BINARY(1) with leading-zero numeric DEFAULT 01",
-			stmt: "CREATE TABLE a (c BINARY(1) DEFAULT 01)",
-			code: 0,
+			name:     "CREATE TABLE BINARY(1) with leading-zero numeric DEFAULT 01",
+			stmt:     "CREATE TABLE a (c BINARY(1) DEFAULT 01)",
+			code:     0,
+			contains: []string{"DEFAULT '1'"},
 		},
 		{
 			name: "CREATE TABLE BINARY(3) with trailing-zero decimal DEFAULT 1.50",
@@ -2892,6 +2893,38 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"DEFAULT '1.50'"},
 		},
+		// Round-6 review oracle cases: BINARY/VARBINARY numeric default coercion
+		// and partition/subpartition TABLESPACE rendering in SHOW CREATE TABLE.
+		{
+			name:     "CREATE TABLE VARBINARY(2) with leading-zero numeric DEFAULT 007",
+			stmt:     "CREATE TABLE a (c VARBINARY(2) DEFAULT 007)",
+			code:     0,
+			contains: []string{"DEFAULT '7'"},
+		},
+		{
+			name:     "CREATE TABLE VARBINARY(4) with scientific numeric DEFAULT 1e-2",
+			stmt:     "CREATE TABLE a (c VARBINARY(4) DEFAULT 1e-2)",
+			code:     0,
+			contains: []string{"DEFAULT '0.01'"},
+		},
+		{
+			name:     "CREATE TABLE BINARY(3) with negative-zero decimal DEFAULT -0.0",
+			stmt:     "CREATE TABLE a (c BINARY(3) DEFAULT -0.0)",
+			code:     0,
+			contains: []string{"DEFAULT '0.0'"},
+		},
+		{
+			name:     "CREATE TABLE with partition TABLESPACE renders TABLESPACE in SHOW CREATE TABLE",
+			stmt:     "CREATE TABLE a (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE = innodb_file_per_table)",
+			code:     0,
+			contains: []string{"PARTITION p0 VALUES LESS THAN (10) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB"},
+		},
+		{
+			name:     "CREATE TABLE with subpartition TABLESPACE renders TABLESPACE in SHOW CREATE TABLE",
+			stmt:     "CREATE TABLE a (b INT) PARTITION BY RANGE (b) SUBPARTITION BY HASH (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE = innodb_file_per_table (SUBPARTITION sp0, SUBPARTITION sp1))",
+			code:     0,
+			contains: []string{"SUBPARTITION sp0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB", "SUBPARTITION sp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -3135,9 +3168,48 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	if pSnap := c.GetDatabase("d").GetTable("p_snap"); pSnap.Partitioning.Partitions[0].Tablespace != "ts_p2" {
 		t.Fatalf("partition tablespace after rename = %q, want ts_p2", pSnap.Partitioning.Partitions[0].Tablespace)
 	}
+	pSnapDDL := c.ShowCreateTable("d", "p_snap")
+	if !strings.Contains(pSnapDDL, "TABLESPACE = `ts_p2`") {
+		t.Fatalf("ShowCreateTable omitted partition TABLESPACE:\n%s", pSnapDDL)
+	}
 	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts_p2"); got != 3120 {
 		t.Fatalf("DROP renamed partition-referenced TABLESPACE got %d, want 3120", got)
 	}
+
+	// Subpartition TABLESPACE also renders in ShowCreateTable and survives reload.
+	execAlterClauses(t, c, "CREATE TABLESPACE ts_sub ADD DATAFILE 'ts_sub.ibd';")
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_sub_snap (b INT) PARTITION BY RANGE (b) SUBPARTITION BY HASH (b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION sp0 TABLESPACE = ts_sub, SUBPARTITION sp1))")); err != nil {
+		t.Fatalf("DefineTable with subpartition tablespace: %v", err)
+	}
+	pSubSnapDDL := c.ShowCreateTable("d", "p_sub_snap")
+	if !strings.Contains(pSubSnapDDL, "SUBPARTITION sp0 TABLESPACE = `ts_sub` ENGINE = InnoDB") {
+		t.Fatalf("ShowCreateTable omitted subpartition TABLESPACE:\n%s", pSubSnapDDL)
+	}
+	if strings.Contains(pSubSnapDDL, "SUBPARTITION sp1 TABLESPACE") {
+		t.Fatalf("ShowCreateTable unexpectedly emitted TABLESPACE on sp1:\n%s", pSubSnapDDL)
+	}
+	reloaded := New()
+	execAlterClauses(t, reloaded, "CREATE DATABASE d; USE d; CREATE TABLESPACE ts_p2 ADD DATAFILE 'ts_p2.ibd'; CREATE TABLESPACE ts_sub ADD DATAFILE 'ts_sub.ibd';")
+	if err := reloaded.DefineTable(mustParseTable(t, pSnapDDL)); err != nil {
+		t.Fatalf("reload p_snap ShowCreateTable: %v", err)
+	}
+	if err := reloaded.DefineTable(mustParseTable(t, pSubSnapDDL)); err != nil {
+		t.Fatalf("reload p_sub_snap ShowCreateTable: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, reloaded, "DROP TABLESPACE ts_p2"); got != 3120 {
+		t.Fatalf("reloaded DROP partition-referenced TABLESPACE got %d, want 3120", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, reloaded, "DROP TABLESPACE ts_sub"); got != 3120 {
+		t.Fatalf("reloaded DROP subpartition-referenced TABLESPACE got %d, want 3120", got)
+	}
+
+	// BINARY and VARBINARY numeric defaults coerce and replay cleanly via ShowCreateTable.
+	execAlterClauses(t, c, "CREATE TABLE bin_num_def (b1 BINARY(1) DEFAULT 01, vb2 VARBINARY(2) DEFAULT 007);")
+	binNumDDL := c.ShowCreateTable("d", "bin_num_def")
+	if !strings.Contains(binNumDDL, "`b1` binary(1) DEFAULT '1'") || !strings.Contains(binNumDDL, "`vb2` varbinary(2) DEFAULT '7'") {
+		t.Fatalf("ShowCreateTable did not coerce BINARY/VARBINARY numeric defaults:\n%s", binNumDDL)
+	}
+	execAlterClauses(t, reloaded, binNumDDL)
 
 	// Snapshot-loaded non-InnoDB partitioned table with partition TABLESPACE is
 	// validated when converted to ENGINE=InnoDB (3510 when missing, 1478 when shared).
