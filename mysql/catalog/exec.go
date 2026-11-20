@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -157,22 +158,52 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				})
 			}
 		case "sql_mode":
-			if vref, isVar := asgn.Value.(*nodes.VariableRef); isVar && !vref.System {
-				if v, exists := c.userVars[toLower(vref.Name)]; exists && v.kind == userVarString {
-					mode := v.str
+			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
+			if isDefaultSetKeywordOrIdent(asgn.Value) {
+				if isPersistOnly {
+					continue
+				}
+				if isGlobal {
 					updates = append(updates, func() {
-						c.session.SQLMode = mode
+						c.globalSQLMode = "DEFAULT"
+					})
+				} else {
+					defMode := c.globalSQLMode
+					if defMode == "" {
+						defMode = "DEFAULT"
+					}
+					updates = append(updates, func() {
+						c.session.SQLMode = defMode
 					})
 				}
 				continue
 			}
-			mode := nodeToSQLValue(asgn.Value)
-			if mode == "" && isDefaultSetKeywordOrIdent(asgn.Value) {
-				mode = "DEFAULT"
+			var val userVarValue
+			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+				val = userVarValue{kind: userVarString, str: cr.Column}
+			} else {
+				var ok bool
+				val, ok = c.evalSetExpr(asgn.Value)
+				if !ok {
+					return errWrongValueForVar("sql_mode", strings.TrimSpace(nodeToSQL(asgn.Value)))
+				}
 			}
-			updates = append(updates, func() {
-				c.session.SQLMode = mode
-			})
+			mode, err := validateAndNormalizeSQLMode(val)
+			if err != nil {
+				return err
+			}
+			if isPersistOnly {
+				continue
+			}
+			if isGlobal {
+				updates = append(updates, func() {
+					c.globalSQLMode = mode
+				})
+			} else {
+				updates = append(updates, func() {
+					c.session.SQLMode = mode
+				})
+			}
 		case "time_zone":
 			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
 			if isDefaultSetKeywordOrIdent(asgn.Value) {
@@ -280,6 +311,114 @@ func setAssignmentIsGlobalOrPersist(asgn *nodes.Assignment) (isGlobal, isPersist
 	return false, false
 }
 
+var validMySQL80SQLModes = map[string]string{
+	"REAL_AS_FLOAT":              "REAL_AS_FLOAT",
+	"PIPES_AS_CONCAT":            "PIPES_AS_CONCAT",
+	"ANSI_QUOTES":                "ANSI_QUOTES",
+	"IGNORE_SPACE":               "IGNORE_SPACE",
+	"NOT_USED":                   "NOT_USED",
+	"ONLY_FULL_GROUP_BY":         "ONLY_FULL_GROUP_BY",
+	"NO_UNSIGNED_SUBTRACTION":    "NO_UNSIGNED_SUBTRACTION",
+	"NO_DIR_IN_CREATE":           "NO_DIR_IN_CREATE",
+	"ANSI":                       "ANSI",
+	"NO_AUTO_VALUE_ON_ZERO":      "NO_AUTO_VALUE_ON_ZERO",
+	"NO_BACKSLASH_ESCAPES":       "NO_BACKSLASH_ESCAPES",
+	"STRICT_TRANS_TABLES":        "STRICT_TRANS_TABLES",
+	"STRICT_ALL_TABLES":          "STRICT_ALL_TABLES",
+	"NO_ZERO_IN_DATE":            "NO_ZERO_IN_DATE",
+	"NO_ZERO_DATE":               "NO_ZERO_DATE",
+	"ALLOW_INVALID_DATES":        "ALLOW_INVALID_DATES",
+	"ERROR_FOR_DIVISION_BY_ZERO": "ERROR_FOR_DIVISION_BY_ZERO",
+	"TRADITIONAL":                "TRADITIONAL",
+	"HIGH_NOT_PRECEDENCE":        "HIGH_NOT_PRECEDENCE",
+	"NO_ENGINE_SUBSTITUTION":     "NO_ENGINE_SUBSTITUTION",
+	"PAD_CHAR_TO_FULL_LENGTH":    "PAD_CHAR_TO_FULL_LENGTH",
+	"TIME_TRUNCATE_FRACTIONAL":   "TIME_TRUNCATE_FRACTIONAL",
+}
+
+var sqlModeBitFlags = []struct {
+	bit  uint64
+	name string
+}{
+	{1 << 0, "REAL_AS_FLOAT"},
+	{1 << 1, "PIPES_AS_CONCAT"},
+	{1 << 2, "ANSI_QUOTES"},
+	{1 << 3, "IGNORE_SPACE"},
+	{1 << 4, "NOT_USED"},
+	{1 << 5, "ONLY_FULL_GROUP_BY"},
+	{1 << 6, "NO_UNSIGNED_SUBTRACTION"},
+	{1 << 7, "NO_DIR_IN_CREATE"},
+	{1 << 18, "ANSI"},
+	{1 << 19, "NO_AUTO_VALUE_ON_ZERO"},
+	{1 << 20, "NO_BACKSLASH_ESCAPES"},
+	{1 << 21, "STRICT_TRANS_TABLES"},
+	{1 << 22, "STRICT_ALL_TABLES"},
+	{1 << 23, "NO_ZERO_IN_DATE"},
+	{1 << 24, "NO_ZERO_DATE"},
+	{1 << 25, "ALLOW_INVALID_DATES"},
+	{1 << 26, "ERROR_FOR_DIVISION_BY_ZERO"},
+	{1 << 27, "TRADITIONAL"},
+	{1 << 29, "HIGH_NOT_PRECEDENCE"},
+	{1 << 30, "NO_ENGINE_SUBSTITUTION"},
+	{1 << 31, "PAD_CHAR_TO_FULL_LENGTH"},
+	{1 << 32, "TIME_TRUNCATE_FRACTIONAL"},
+}
+
+const unsupportedMySQL80SQLModeBits uint64 = 0x1003FF00
+
+func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
+	switch val.kind {
+	case userVarNull:
+		return "", errWrongValueForVar("sql_mode", "NULL")
+	case userVarNumeric:
+		s := strings.TrimSpace(val.str)
+		if strings.ContainsAny(s, ".eE") {
+			return "", errWrongTypeForVar("sql_mode")
+		}
+		if strings.HasPrefix(s, "-") {
+			digits := strings.TrimLeft(s[1:], "0")
+			if digits != "" {
+				return "", errWrongValueForVar("sql_mode", s)
+			}
+			return "", nil
+		}
+		u, err := strconv.ParseUint(strings.TrimPrefix(s, "+"), 10, 64)
+		if err != nil || u >= (uint64(1)<<33) {
+			return "", errWrongValueForVar("sql_mode", s)
+		}
+		if bad := u & unsupportedMySQL80SQLModeBits; bad != 0 {
+			return "", &Error{Code: 3899, SQLState: "HY000",
+				Message: fmt.Sprintf("sql_mode=0x%x is not supported.", bad)}
+		}
+		var names []string
+		for _, bf := range sqlModeBitFlags {
+			if (u & bf.bit) != 0 {
+				names = append(names, bf.name)
+			}
+		}
+		return strings.Join(names, ","), nil
+	case userVarString:
+		if strings.TrimSpace(val.str) == "" {
+			return "", nil
+		}
+		var out []string
+		for _, rawPart := range strings.Split(val.str, ",") {
+			tok := strings.ToUpper(strings.TrimSpace(rawPart))
+			if tok == "" {
+				return "", errWrongValueForVar("sql_mode", val.str)
+			}
+			canon, ok := validMySQL80SQLModes[tok]
+			if !ok {
+				return "", errWrongValueForVar("sql_mode", val.str)
+			}
+			out = append(out, canon)
+		}
+		return strings.Join(out, ","), nil
+	default:
+		return "", errWrongValueForVar("sql_mode", val.str)
+	}
+}
+
 func isDefaultSetKeywordOrIdent(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {
 	case *nodes.DefaultExpr:
@@ -359,6 +498,13 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 			}
 			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true
 		case "sql_mode":
+			if strings.EqualFold(e.Scope, "GLOBAL") {
+				mode := c.globalSQLMode
+				if mode == "" {
+					mode = "DEFAULT"
+				}
+				return userVarValue{kind: userVarString, str: mode}, true
+			}
 			return userVarValue{kind: userVarString, str: c.session.SQLMode}, true
 		case "foreign_key_checks":
 			if c.session.ForeignKeyChecks {

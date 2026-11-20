@@ -355,6 +355,9 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 				}
 			}
 		}
+		if strings.EqualFold(col.Charset, "ucs2") && (kind == litHex || kind == litBit) && ucs2BinaryContainsSurrogate(val, kind == litHex) {
+			return &Error{Code: 3507, SQLState: "HY000", Message: "Failed to update columns dictionary object."}
+		}
 	case "binary", "varbinary":
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 			switch kind {
@@ -813,6 +816,29 @@ func decodeLiteralRawBytes(val string, isHex bool) ([]byte, bool) {
 		out[i] = v
 	}
 	return out, true
+}
+
+func ucs2BinaryContainsSurrogate(val string, isHex bool) bool {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return false
+	}
+	if len(raw)%2 != 0 {
+		raw = append([]byte{0}, raw...)
+	}
+	u16 := make([]uint16, len(raw)/2)
+	for i := 0; i < len(u16); i++ {
+		u16[i] = uint16(raw[2*i])<<8 | uint16(raw[2*i+1])
+	}
+	for len(u16) > 0 && u16[len(u16)-1] == 0x0020 {
+		u16 = u16[:len(u16)-1]
+	}
+	for _, w := range u16 {
+		if w >= 0xD800 && w <= 0xDFFF {
+			return true
+		}
+	}
+	return false
 }
 
 func validBinaryBytesForCharColumn(val string, isHex bool, charset string, maxLen int) bool {
@@ -1795,8 +1821,50 @@ func coerceSetDefault(col *Column, kind literalDefaultKind, val string, unquoted
 	return "", false
 }
 
+func parseTimeZoneOffset(tz string) (norm string, offsetMin int, ok bool) {
+	if len(tz) < 4 || (tz[0] != '+' && tz[0] != '-') {
+		return "", 0, false
+	}
+	rest := tz[1:]
+	colon := strings.IndexByte(rest, ':')
+	if colon < 1 || colon >= len(rest)-1 {
+		return "", 0, false
+	}
+	hStr := rest[:colon]
+	mStr := rest[colon+1:]
+	for i := 0; i < len(hStr); i++ {
+		if !isASCIIDigit(hStr[i]) {
+			return "", 0, false
+		}
+	}
+	for i := 0; i < len(mStr); i++ {
+		if !isASCIIDigit(mStr[i]) {
+			return "", 0, false
+		}
+	}
+	hh, errH := strconv.Atoi(hStr)
+	mm, errM := strconv.Atoi(mStr)
+	if errH != nil || errM != nil || mm > 59 {
+		return "", 0, false
+	}
+	total := hh*60 + mm
+	if tz[0] == '-' {
+		if total == 0 {
+			return "+00:00", 0, true
+		}
+		if total > 13*60+59 {
+			return "", 0, false
+		}
+		return fmt.Sprintf("-%02d:%02d", hh, mm), -total, true
+	}
+	if total > 14*60 {
+		return "", 0, false
+	}
+	return fmt.Sprintf("+%02d:%02d", hh, mm), total, true
+}
+
 // validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
-// 8.0.46 (`SYSTEM`, `[+-]HH:MM` in `[-13:59, +14:00]`, or a known IANA zone).
+// 8.0.46 (`SYSTEM`, `[+-][H]H:MM` in `[-13:59, +14:00]`, or a known IANA zone).
 func validateAndNormalizeSessionTimeZone(raw string) (string, error) {
 	tz := strings.TrimSpace(raw)
 	if tz == "" || strings.EqualFold(tz, "Local") {
@@ -1806,29 +1874,11 @@ func validateAndNormalizeSessionTimeZone(raw string) (string, error) {
 		return "SYSTEM", nil
 	}
 	if tz[0] == '+' || tz[0] == '-' {
-		if len(tz) != 6 || !isASCIIDigit(tz[1]) || !isASCIIDigit(tz[2]) ||
-			tz[3] != ':' || !isASCIIDigit(tz[4]) || !isASCIIDigit(tz[5]) {
+		norm, _, ok := parseTimeZoneOffset(tz)
+		if !ok {
 			return "", errUnknownTimeZone(raw)
 		}
-		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
-		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
-		total := hh*60 + mm
-		if mm > 59 {
-			return "", errUnknownTimeZone(raw)
-		}
-		if tz[0] == '-' {
-			if total == 0 {
-				return "+00:00", nil
-			}
-			if total > 13*60+59 {
-				return "", errUnknownTimeZone(raw)
-			}
-			return tz, nil
-		}
-		if total > 14*60 {
-			return "", errUnknownTimeZone(raw)
-		}
-		return tz, nil
+		return norm, nil
 	}
 	if _, err := time.LoadLocation(tz); err != nil {
 		return "", errUnknownTimeZone(raw)
@@ -1857,13 +1907,7 @@ func convertSessionLocalToUTC(year, month, day, hour, min, sec, nsec int, sessio
 	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
 		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC), true
 	}
-	if len(tz) == 6 && (tz[0] == '+' || tz[0] == '-') && tz[3] == ':' {
-		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
-		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
-		off := hh*60 + mm
-		if tz[0] == '-' {
-			off = -off
-		}
+	if _, off, ok := parseTimeZoneOffset(tz); ok {
 		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC).Add(-time.Duration(off) * time.Minute), true
 	}
 	loc, err := time.LoadLocation(tz)
@@ -2354,13 +2398,7 @@ func convertUTCToSessionLocal(utc time.Time, sessionTZ string) time.Time {
 	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
 		return utc.UTC()
 	}
-	if len(tz) == 6 && (tz[0] == '+' || tz[0] == '-') && tz[3] == ':' {
-		hh := int(tz[1]-'0')*10 + int(tz[2]-'0')
-		mm := int(tz[4]-'0')*10 + int(tz[5]-'0')
-		off := hh*60 + mm
-		if tz[0] == '-' {
-			off = -off
-		}
+	if _, off, ok := parseTimeZoneOffset(tz); ok {
 		return utc.UTC().Add(time.Duration(off) * time.Minute)
 	}
 	loc, err := time.LoadLocation(tz)

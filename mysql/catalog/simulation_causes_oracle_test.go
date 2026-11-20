@@ -3478,6 +3478,72 @@ func TestSimulationCausesOracle(t *testing.T) {
 				"`s1` set('a','b') DEFAULT 'a,b'",
 			},
 		},
+		// 19. Single-digit time_zone offsets, datadir tablespace paths, sql_mode
+		// user-variable validation, and UCS-2 surrogate defaults.
+		{
+			name:    "SET time_zone '+5:00' accepted and enforces TIMESTAMP UTC lower bound",
+			session: []string{"SET time_zone = '+5:00'"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 05:00:00')",
+			code:    1067,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name:     "SET time_zone '-5:00' accepted and shifts offset DATETIME default",
+			session:  []string{"SET time_zone = '-5:00'"},
+			stmt:     "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00+00:00')",
+			code:     0,
+			contains: []string{"DEFAULT '2023-12-31 19:00:00'"},
+			cleanup:  []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name:    "CREATE TABLESPACE in /var/lib/mysql datadir accepted",
+			stmt:    "CREATE TABLESPACE ts_datadir_abs ADD DATAFILE '/var/lib/mysql/ts_datadir_abs.ibd' ENGINE=InnoDB",
+			code:    0,
+			cleanup: []string{"DROP TABLESPACE ts_datadir_abs"},
+		},
+		{
+			name: "CREATE TABLESPACE with circular .. directory rejected with 3121",
+			stmt: "CREATE TABLESPACE ts_circ ADD DATAFILE '/var/lib/mysql/no_such_dir/../ts_circ.ibd' ENGINE=InnoDB",
+			code: 3121,
+		},
+		{
+			name:    "SET sql_mode to NULL user variable rejected with 1231",
+			session: []string{"SET @mode_null = NULL"},
+			stmt:    "SET sql_mode = @mode_null",
+			code:    1231,
+		},
+		{
+			name: "SET sql_mode to unset user variable rejected with 1231",
+			stmt: "SET sql_mode = @omni_unset_mode",
+			code: 1231,
+		},
+		{
+			name:    "SET sql_mode to invalid string user variable rejected with 1231",
+			session: []string{"SET @mode_bad = 'NOT_A_REAL_MODE'"},
+			stmt:    "SET sql_mode = @mode_bad",
+			code:    1231,
+		},
+		{
+			name:    "SET sql_mode to float user variable rejected with 1232",
+			session: []string{"SET @mode_flt = 1.5"},
+			stmt:    "SET sql_mode = @mode_flt",
+			code:    1232,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) ucs2 DEFAULT 0xD800 rejected with 3507",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ucs2 DEFAULT 0xD800)",
+			code: 3507,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) ucs2 DEFAULT 0xD83DDE00 rejected for width first with 1067",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ucs2 DEFAULT 0xD83DDE00)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(2) ucs2 DEFAULT 0xD83DDE00 rejected for surrogates with 3507",
+			stmt: "CREATE TABLE a (c CHAR(2) CHARACTER SET ucs2 DEFAULT 0xD83DDE00)",
+			code: 3507,
+		},
 	}
 
 	for _, tc := range cases {
