@@ -1813,7 +1813,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return err
 		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
-		normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode())
+		normalizeColumnStoredDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isTimeTruncateFractionalSQLMode())
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil

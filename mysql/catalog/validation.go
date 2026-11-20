@@ -501,6 +501,10 @@ func (c *Catalog) isAllowInvalidDatesSQLMode() bool {
 	return sqlModeHas(c.session.SQLMode, "ALLOW_INVALID_DATES")
 }
 
+func (c *Catalog) isTimeTruncateFractionalSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "TIME_TRUNCATE_FRACTIONAL")
+}
+
 // sqlModeHas reports whether mode holds the flag, expanding a composite mode as
 // MySQL does. `DEFAULT` expands to MySQL 8.0's default mode list.
 func sqlModeHas(mode, flag string) bool {

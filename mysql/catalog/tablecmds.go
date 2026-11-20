@@ -501,7 +501,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 		} else if effDef := columnDefEffectiveDefaultExpr(colDef); effDef != nil {
-			normalizeColumnStoredDefault(col, effDef, true)
+			normalizeColumnStoredDefault(col, effDef, true, false)
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -963,7 +963,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
-		if declared && isInnoDBEngine(tbl.Engine) {
+		if declared && !c.loadingSDL && isInnoDBEngine(tbl.Engine) {
 			if err := validateInnoDBPartitionedSharedTablespace(tbl.Tablespace); err != nil {
 				return err
 			}
@@ -1366,7 +1366,7 @@ func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	}
 	val, kind := columnDefaultValue(expr)
 	if _, isParen := expr.(*nodes.ParenExpr); !isParen {
-		if coerced, ok := coerceNumericColumnDefault(col, expr, true); ok {
+		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false); ok {
 			val = coerced
 		}
 	}

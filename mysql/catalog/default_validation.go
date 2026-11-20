@@ -282,6 +282,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 	noZeroDate := c.isNoZeroDateSQLMode()
 	noZeroInDate := c.isNoZeroInDateSQLMode()
 	allowInvalidDates := c.isAllowInvalidDatesSQLMode()
+	truncateFrac := c.isTimeTruncateFractionalSQLMode()
 	sessionTZ := c.session.TimeZone
 	if col == nil || expr == nil {
 		return nil
@@ -392,15 +393,15 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			return errInvalidDefault(col.Name)
 		}
 	case "date", "datetime", "timestamp":
-		if !validDateOrDatetimeLiteralDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, sessionTZ) {
+		if !validDateOrDatetimeLiteralDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac, sessionTZ) {
 			return errInvalidDefault(col.Name)
 		}
 	case "time":
-		if !validTimeLiteralDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum) {
+		if !validTimeLiteralDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac) {
 			return errInvalidDefault(col.Name)
 		}
 	}
-	normalizeColumnStoredDefault(col, expr, strict)
+	normalizeColumnStoredDefault(col, expr, strict, truncateFrac)
 	return nil
 }
 
@@ -606,7 +607,7 @@ func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefa
 	return formatted, true
 }
 
-func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict bool) (string, bool) {
+func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) (string, bool) {
 	if col == nil || expr == nil {
 		return "", false
 	}
@@ -624,15 +625,24 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict bool) (
 	dt := strings.ToLower(col.DataType)
 	switch dt {
 	case "date", "datetime", "timestamp":
-		if !unquotedNum {
-			return "", false
-		}
-		return formatNumericDateOrDatetimeDefault(dt, temporalColumnFSP(col.ColumnType), val)
+		return coerceDateOrDatetimeDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
 	case "time":
-		if !unquotedNum {
-			return "", false
+		return coerceTimeDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
+	case "year":
+		if kind == litHex || kind == litBit {
+			return coerceBinaryYearDefault(kind == litHex, val)
 		}
-		return formatNumericTimeDefault(temporalColumnFSP(col.ColumnType), val)
+		return "", false
+	case "enum":
+		if kind == litHex || kind == litBit {
+			return coerceBinaryEnumDefault(col, kind == litHex, val, strict)
+		}
+		return "", false
+	case "set":
+		if kind == litHex || kind == litBit {
+			return coerceBinarySetDefault(col, kind == litHex, val)
+		}
+		return "", false
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
 		n, ok := evalIntegerLiteralBigInt(kind, val)
 		if !ok {
@@ -700,7 +710,7 @@ func myGcvtFloat32(f float32) string {
 	return raw[:ePos] + "e" + strconv.Itoa(expVal)
 }
 
-func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict bool) {
+func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) {
 	if col == nil || expr == nil || col.Default == nil {
 		return
 	}
@@ -722,7 +732,7 @@ func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict bool)
 		col.Default = &v
 		return
 	}
-	if coerced, ok := coerceNumericColumnDefault(col, expr, strict); ok {
+	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac); ok {
 		col.Default = &coerced
 	}
 }
@@ -1076,9 +1086,31 @@ func validBitLiteralDefault(colType string, kind literalDefaultKind, val string,
 	return new(big.Int).SetBytes([]byte(val)).BitLen() <= width
 }
 
+func evalBinaryYearUint(isHex bool, val string) (uint64, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return 0, false
+	}
+	for len(raw) > 0 && raw[0] == 0 {
+		raw = raw[1:]
+	}
+	if len(raw) > 8 {
+		return 0, false
+	}
+	var u uint64
+	for _, b := range raw {
+		u = (u << 8) | uint64(b)
+	}
+	return u, true
+}
+
 func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) bool {
 	if kind == litBit || kind == litHex {
-		return false
+		u, ok := evalBinaryYearUint(kind == litHex, val)
+		if !ok {
+			return false
+		}
+		return u == 0 || (u >= 1 && u <= 99) || (u >= 1901 && u <= 2155)
 	}
 	s := strings.TrimSpace(val)
 	if s == "" {
@@ -1107,6 +1139,25 @@ func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bo
 		return true
 	}
 	return (len(s) <= 2 && n >= 1 && n <= 99) || (n >= 1901 && n <= 2155)
+}
+
+func coerceBinaryYearDefault(isHex bool, val string) (string, bool) {
+	u, ok := evalBinaryYearUint(isHex, val)
+	if !ok {
+		return "", false
+	}
+	switch {
+	case u == 0:
+		return "'0000'", true
+	case u >= 1 && u <= 69:
+		return fmt.Sprintf("'%04d'", 2000+u), true
+	case u >= 70 && u <= 99:
+		return fmt.Sprintf("'%04d'", 1900+u), true
+	case u >= 1901 && u <= 2155:
+		return fmt.Sprintf("'%04d'", u), true
+	default:
+		return "", false
+	}
 }
 
 func coercedNumericStringForCharLen(val string, maxLen int) (string, bool) {
@@ -1401,8 +1452,15 @@ func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, u
 		}
 		return enumContainsStringMember(members, coerced, col, strict)
 	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok || !utf8.Valid(raw) {
+			return false
+		}
+		return enumContainsStringMember(members, string(raw), col, strict)
+	}
 	if kind != litString {
-		return true
+		return false
 	}
 	return enumContainsStringMember(members, val, col, strict)
 }
@@ -1425,10 +1483,69 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 		}
 		return setContainsStringMembers(members, coerced, col)
 	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok || !utf8.Valid(raw) {
+			return false
+		}
+		return setContainsStringMembers(members, string(raw), col)
+	}
 	if kind != litString {
-		return true
+		return false
 	}
 	return setContainsStringMembers(members, val, col)
+}
+
+func coerceBinaryEnumDefault(col *Column, isHex bool, val string, strict bool) (string, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok || !utf8.Valid(raw) {
+		return "", false
+	}
+	members := enumMembersFromColumnType(col.ColumnType)
+	target := collationComparisonKey(strings.TrimRight(string(raw), " "), col.Collation, col.Charset)
+	for _, m := range members {
+		if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == target {
+			return nodeToSQL(&nodes.StringLit{Value: m}), true
+		}
+	}
+	if target == "" && !strict {
+		return "''", true
+	}
+	return "", false
+}
+
+func coerceBinarySetDefault(col *Column, isHex bool, val string) (string, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok || !utf8.Valid(raw) {
+		return "", false
+	}
+	s := string(raw)
+	if s == "" {
+		return "''", true
+	}
+	members := enumMembersFromColumnType(col.ColumnType)
+	chosen := make([]bool, len(members))
+	for _, part := range strings.Split(s, ",") {
+		pk := collationComparisonKey(strings.TrimRight(part, " "), col.Collation, col.Charset)
+		matched := false
+		for i, m := range members {
+			if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == pk {
+				chosen[i] = true
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return "", false
+		}
+	}
+	var out []string
+	for i, m := range members {
+		if chosen[i] {
+			out = append(out, m)
+		}
+	}
+	return nodeToSQL(&nodes.StringLit{Value: strings.Join(out, ",")}), true
 }
 
 // validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
@@ -1524,12 +1641,16 @@ type parsedMySQLDateTime struct {
 	tzOffsetMin      int
 }
 
-func roundFractionRatToFSP(frac *big.Rat, fsp int) (micros int, carrySec bool) {
+func roundOrTruncateFractionRatToFSP(frac *big.Rat, fsp int, truncate bool) (micros int, carrySec bool) {
 	if frac == nil || frac.Sign() <= 0 {
 		return 0, false
 	}
 	scale := pow10Int(fsp)
 	scaled := new(big.Rat).Mul(frac, big.NewRat(int64(scale), 1))
+	if truncate {
+		ticks := int(new(big.Int).Quo(scaled.Num(), scaled.Denom()).Int64())
+		return ticks * pow10Int(6-fsp), false
+	}
 	ticks := int(roundRatHalfAwayFromZero(scaled).Int64())
 	if ticks >= scale {
 		return 0, true
@@ -1537,7 +1658,7 @@ func roundFractionRatToFSP(frac *big.Rat, fsp int) (micros int, carrySec bool) {
 	return ticks * pow10Int(6-fsp), false
 }
 
-func roundFractionDigitsToFSP(fracDigits string, fsp int) (micros int, carrySec bool) {
+func roundOrTruncateFractionDigitsToFSP(fracDigits string, fsp int, truncate bool) (micros int, carrySec bool) {
 	trimmed := strings.TrimRight(fracDigits, "0")
 	if trimmed == "" {
 		return 0, false
@@ -1546,7 +1667,7 @@ func roundFractionDigitsToFSP(fracDigits string, fsp int) (micros int, carrySec 
 	if !ok {
 		return 0, false
 	}
-	return roundFractionRatToFSP(r, fsp)
+	return roundOrTruncateFractionRatToFSP(r, fsp, truncate)
 }
 
 func addOneSecondToDateTime(year, month, day, hour, min, sec int) (int, int, int, int, int, int, bool) {
@@ -1588,7 +1709,7 @@ func addOneSecondToDateTime(year, month, day, hour, min, sec int) (int, int, int
 //   - 1000000000000..99999999999999 -> left-padded to 14 digits YYYYMMDDHHMMSS (4-digit year)
 //
 // Date-only values (< 100000000) reject non-zero fractional seconds.
-func parseMySQLNumberDateTime(dt string, fsp int, val string) (parsedMySQLDateTime, bool) {
+func parseMySQLNumberDateTime(dt string, fsp int, val string, truncateFrac bool) (parsedMySQLDateTime, bool) {
 	s := strings.TrimSpace(val)
 	if !isStrictNumberSyntax(s) {
 		return parsedMySQLDateTime{}, false
@@ -1648,7 +1769,7 @@ func parseMySQLNumberDateTime(dt string, fsp int, val string) (parsedMySQLDateTi
 	}
 	if dt != "date" && rem.Sign() > 0 {
 		frac := new(big.Rat).SetFrac(rem, r.Denom())
-		micros, carry := roundFractionRatToFSP(frac, fsp)
+		micros, carry := roundOrTruncateFractionRatToFSP(frac, fsp, truncateFrac)
 		out.micros = micros
 		if carry {
 			var carryOK bool
@@ -1662,7 +1783,7 @@ func parseMySQLNumberDateTime(dt string, fsp int, val string) (parsedMySQLDateTi
 	return out, true
 }
 
-func parseMySQLStringDateTime(dt string, fsp int, s string) (parsedMySQLDateTime, bool) {
+func parseMySQLStringDateTime(dt string, fsp int, s string, truncateFrac bool) (parsedMySQLDateTime, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" || !isASCIIDigit(s[0]) {
 		return parsedMySQLDateTime{}, false
@@ -1881,11 +2002,12 @@ func parseMySQLStringDateTime(dt string, fsp int, s string) (parsedMySQLDateTime
 		return parsedMySQLDateTime{}, false
 	}
 	if dt != "date" && fracDigits != "" {
-		// MySQL truncates string microseconds beyond 6 digits before rounding to fsp.
+		// MySQL truncates string microseconds beyond 6 digits before rounding or
+		// truncating to fsp.
 		if len(fracDigits) > 6 {
 			fracDigits = fracDigits[:6]
 		}
-		micros, carry := roundFractionDigitsToFSP(fracDigits, fsp)
+		micros, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
 		out.micros = micros
 		if carry {
 			var carryOK bool
@@ -1919,20 +2041,20 @@ func splitDateTimeTrailingFraction(s string) (string, string) {
 	return s, ""
 }
 
-func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates bool, sessionTZ string) bool {
+func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac bool, sessionTZ string) bool {
 	var p parsedMySQLDateTime
 	var ok bool
 	switch {
 	case kind == litNumber && unquotedNum:
-		p, ok = parseMySQLNumberDateTime(dt, fsp, val)
+		p, ok = parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
 	case kind == litString:
-		p, ok = parseMySQLStringDateTime(dt, fsp, val)
-	case kind == litHex:
-		raw, decOK := decodeLiteralRawBytes(val, true)
+		p, ok = parseMySQLStringDateTime(dt, fsp, val, truncateFrac)
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
 		if !decOK {
 			return false
 		}
-		p, ok = parseMySQLStringDateTime(dt, fsp, string(raw))
+		p, ok = parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
 	default:
 		return false
 	}
@@ -1976,26 +2098,56 @@ func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKi
 	return true
 }
 
-func formatNumericDateOrDatetimeDefault(dt string, fsp int, val string) (string, bool) {
-	p, ok := parseMySQLNumberDateTime(dt, fsp, val)
-	if !ok {
-		return "", false
-	}
+func formatParsedDateOrDatetime(dt string, fsp int, p parsedMySQLDateTime) string {
 	if dt == "date" {
 		if p.allZero {
-			return "'0000-00-00'", true
+			return "'0000-00-00'"
 		}
-		return fmt.Sprintf("'%04d-%02d-%02d'", p.year, p.month, p.day), true
+		return fmt.Sprintf("'%04d-%02d-%02d'", p.year, p.month, p.day)
 	}
 	fracSuffix := ""
 	if fsp > 0 {
 		fracSuffix = fmt.Sprintf(".%0*d", fsp, p.micros/pow10Int(6-fsp))
 	}
 	if p.allZero {
-		return fmt.Sprintf("'0000-00-00 00:00:00%s'", fracSuffix), true
+		return fmt.Sprintf("'0000-00-00 00:00:00%s'", fracSuffix)
 	}
 	return fmt.Sprintf("'%04d-%02d-%02d %02d:%02d:%02d%s'",
-		p.year, p.month, p.day, p.hour, p.min, p.sec, fracSuffix), true
+		p.year, p.month, p.day, p.hour, p.min, p.sec, fracSuffix)
+}
+
+func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) (string, bool) {
+	switch {
+	case kind == litNumber && unquotedNum:
+		p, ok := parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return "", false
+		}
+		p, ok := parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
+		if !ok || p.hasTZ {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	case kind == litString && dt != "date":
+		s := strings.TrimSpace(val)
+		_, frac := splitDateTimeTrailingFraction(s)
+		if len(frac) <= fsp {
+			return "", false
+		}
+		p, ok := parseMySQLStringDateTime(dt, fsp, s, truncateFrac)
+		if !ok || p.hasTZ {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	default:
+		return "", false
+	}
 }
 
 func isASCIIDigit(b byte) bool {
@@ -2027,7 +2179,7 @@ func expandTwoDigitYear(y, m, d int) int {
 	return 2000 + y
 }
 
-func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, mm, ss, micros int, ok bool) {
+func parseTimeValue(fsp int, s string, unquotedNum, truncateFrac bool) (neg bool, totalHours, mm, ss, micros int, ok bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return false, 0, 0, 0, 0, false
@@ -2049,7 +2201,7 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 		}
 		nr := intPart.Uint64()
 		if !neg && nr >= 100000000 {
-			p, dtOK := parseMySQLNumberDateTime("datetime", fsp, s)
+			p, dtOK := parseMySQLNumberDateTime("datetime", fsp, s, truncateFrac)
 			if !dtOK || (!p.allZero && p.day > daysInMonth(p.year, p.month)) {
 				return false, 0, 0, 0, 0, false
 			}
@@ -2062,9 +2214,15 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 			return false, 0, 0, 0, 0, false
 		}
 		if rem.Sign() > 0 {
+			// MySQL's number_to_time enforces TIME_MAX_VALUE (838:59:59.000000)
+			// on the input microseconds before TIME_TRUNCATE_FRACTIONAL applies.
 			frac := new(big.Rat).SetFrac(rem, absR.Denom())
+			rawMicros, rawCarry := roundOrTruncateFractionRatToFSP(frac, 6, true)
+			if totalHours == 838 && mm == 59 && ss == 59 && (rawMicros > 0 || rawCarry) {
+				return false, 0, 0, 0, 0, false
+			}
 			var carry bool
-			micros, carry = roundFractionRatToFSP(frac, fsp)
+			micros, carry = roundOrTruncateFractionRatToFSP(frac, fsp, truncateFrac)
 			if carry {
 				ss++
 				if ss >= 60 {
@@ -2109,6 +2267,7 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 		}
 		s = s[:dot]
 	}
+	hasRawNonZeroFrac := strings.TrimRight(fracDigits, "0") != ""
 	plainTime := len(s) > 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -2143,7 +2302,10 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 				if err1 == nil && err2 == nil && err3 == nil {
 					th := days*24 + hh
 					if m < 60 && sec < 60 && th <= 838 {
-						mc, carry := roundFractionDigitsToFSP(fracDigits, fsp)
+						if th == 838 && m == 59 && sec == 59 && hasRawNonZeroFrac {
+							return false, 0, 0, 0, 0, false
+						}
+						mc, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
 						if carry {
 							sec++
 							if sec >= 60 {
@@ -2171,7 +2333,10 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 				m := (n / 100) % 100
 				th := n / 10000
 				if m < 60 && sec < 60 && th <= 838 {
-					mc, carry := roundFractionDigitsToFSP(fracDigits, fsp)
+					if th == 838 && m == 59 && sec == 59 && hasRawNonZeroFrac {
+						return false, 0, 0, 0, 0, false
+					}
+					mc, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
 					if carry {
 						sec++
 						if sec >= 60 {
@@ -2195,38 +2360,34 @@ func parseTimeValue(fsp int, s string, unquotedNum bool) (neg bool, totalHours, 
 		}
 	}
 	if !neg {
-		if p, dtOK := parseMySQLStringDateTime("datetime", fsp, orig); dtOK && (!p.allZero && p.month >= 1 && p.day >= 1 && p.day <= daysInMonth(p.year, p.month)) {
+		if p, dtOK := parseMySQLStringDateTime("datetime", fsp, orig, truncateFrac); dtOK && (!p.allZero && p.month >= 1 && p.day >= 1 && p.day <= daysInMonth(p.year, p.month)) {
 			return false, p.hour, p.min, p.sec, p.micros, true
 		}
 	}
 	return false, 0, 0, 0, 0, false
 }
 
-func validTimeLiteralDefault(fsp int, kind literalDefaultKind, val string, unquotedNum bool) bool {
+func validTimeLiteralDefault(fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) bool {
 	switch kind {
 	case litNumber:
-		_, _, _, _, _, ok := parseTimeValue(fsp, val, unquotedNum)
+		_, _, _, _, _, ok := parseTimeValue(fsp, val, unquotedNum, truncateFrac)
 		return ok
 	case litString:
-		_, _, _, _, _, ok := parseTimeValue(fsp, val, false)
+		_, _, _, _, _, ok := parseTimeValue(fsp, val, false, truncateFrac)
 		return ok
-	case litHex:
-		raw, decOK := decodeLiteralRawBytes(val, true)
+	case litHex, litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
 		if !decOK {
 			return false
 		}
-		_, _, _, _, _, ok := parseTimeValue(fsp, string(raw), false)
+		_, _, _, _, _, ok := parseTimeValue(fsp, string(raw), false, truncateFrac)
 		return ok
 	default:
 		return false
 	}
 }
 
-func formatNumericTimeDefault(fsp int, val string) (string, bool) {
-	neg, th, mm, ss, micros, ok := parseTimeValue(fsp, val, true)
-	if !ok {
-		return "", false
-	}
+func formatParsedTime(fsp int, neg bool, th, mm, ss, micros int) string {
 	sign := ""
 	if neg {
 		sign = "-"
@@ -2235,5 +2396,39 @@ func formatNumericTimeDefault(fsp int, val string) (string, bool) {
 	if fsp > 0 {
 		fracSuffix = fmt.Sprintf(".%0*d", fsp, micros/pow10Int(6-fsp))
 	}
-	return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, th, mm, ss, fracSuffix), true
+	return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, th, mm, ss, fracSuffix)
+}
+
+func coerceTimeDefault(fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) (string, bool) {
+	switch {
+	case kind == litNumber && unquotedNum:
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, val, true, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return "", false
+		}
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, string(raw), false, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	case kind == litString:
+		s := strings.TrimSpace(val)
+		dot := strings.LastIndexByte(s, '.')
+		if dot < 0 || len(s[dot+1:]) <= fsp {
+			return "", false
+		}
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, s, false, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	default:
+		return "", false
+	}
 }

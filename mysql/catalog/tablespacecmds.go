@@ -76,6 +76,11 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 		return errReservedInnoDBTablespacePrefix()
 	case c.tablespaces[ts]:
 		return nil
+	case c.loadingSDL:
+		// SDL captures schema-scoped DDL without instance-wide CREATE TABLESPACE
+		// statements; accept and register general tablespaces referenced by SDL tables.
+		c.tablespaces[ts] = true
+		return nil
 	default:
 		return errTablespaceDoesNotExist(ts)
 	}
@@ -390,8 +395,10 @@ func (c *Catalog) validatePartitionTablespaces(tableName string, temporary bool,
 			if err := c.validateInnoDBTablespace(tableName, temporary, partTS); err != nil {
 				return err
 			}
-			if err := validateInnoDBPartitionedSharedTablespace(partTS); err != nil {
-				return err
+			if !c.loadingSDL {
+				if err := validateInnoDBPartitionedSharedTablespace(partTS); err != nil {
+					return err
+				}
 			}
 		}
 		for _, sub := range pd.SubPartitions {
@@ -414,8 +421,10 @@ func (c *Catalog) validatePartitionTablespaces(tableName string, temporary bool,
 				if err := c.validateInnoDBTablespace(tableName, temporary, subTS); err != nil {
 					return err
 				}
-				if err := validateInnoDBPartitionedSharedTablespace(subTS); err != nil {
-					return err
+				if !c.loadingSDL {
+					if err := validateInnoDBPartitionedSharedTablespace(subTS); err != nil {
+						return err
+					}
 				}
 			}
 		}

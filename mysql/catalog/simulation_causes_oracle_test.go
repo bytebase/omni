@@ -3107,6 +3107,111 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ascii DEFAULT 'é')",
 			code: 1067,
 		},
+		// Round-8 review oracle cases: TIME_TRUNCATE_FRACTIONAL temporal defaults
+		// and bit/hex defaults across TIME, DATE, DATETIME, TIMESTAMP, YEAR, ENUM, SET.
+		{
+			name:     "CREATE TABLE DATETIME DEFAULT '9999-12-31 23:59:59.9' truncates under TIME_TRUNCATE_FRACTIONAL",
+			session:  []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:     "CREATE TABLE a (c DATETIME DEFAULT '9999-12-31 23:59:59.9')",
+			code:     0,
+			contains: []string{"DEFAULT '9999-12-31 23:59:59'"},
+		},
+		{
+			name:     "CREATE TABLE TIMESTAMP DEFAULT '2038-01-19 03:14:07.9' truncates under TIME_TRUNCATE_FRACTIONAL",
+			session:  []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:     "CREATE TABLE a (c TIMESTAMP DEFAULT '2038-01-19 03:14:07.9')",
+			code:     0,
+			contains: []string{"DEFAULT '2038-01-19 03:14:07'"},
+		},
+		{
+			name:    "CREATE TABLE TIMESTAMP DEFAULT '1970-01-01 00:00:00.9' truncates below min UTC under TIME_TRUNCATE_FRACTIONAL",
+			session: []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:00.9')",
+			code:    1067,
+		},
+		{
+			name:     "CREATE TABLE TIMESTAMP DEFAULT '1970-01-01 00:00:00.9' rounds up to min UTC by default",
+			stmt:     "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:00.9')",
+			code:     0,
+			contains: []string{"DEFAULT '1970-01-01 00:00:01'"},
+		},
+		{
+			name:    "CREATE TABLE TIME DEFAULT '838:59:59.9' still exceeds input max under TIME_TRUNCATE_FRACTIONAL",
+			session: []string{"SET SESSION sql_mode = 'TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:    "CREATE TABLE a (c TIME DEFAULT '838:59:59.9')",
+			code:    1067,
+		},
+		{
+			name:     "CREATE TABLE TIME DEFAULT '838:59:58.9' truncates to 838:59:58 under TIME_TRUNCATE_FRACTIONAL",
+			session:  []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:     "CREATE TABLE a (c TIME DEFAULT '838:59:58.9')",
+			code:     0,
+			contains: []string{"DEFAULT '838:59:58'"},
+		},
+		{
+			name:     "CREATE TABLE TIME DEFAULT '838:59:58.9' rounds to 838:59:59 by default",
+			stmt:     "CREATE TABLE a (c TIME DEFAULT '838:59:58.9')",
+			code:     0,
+			contains: []string{"DEFAULT '838:59:59'"},
+		},
+		{
+			name:     "CREATE TABLE TIME(2) DEFAULT 10203.459 truncates to 01:02:03.45 under TIME_TRUNCATE_FRACTIONAL",
+			session:  []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,TIME_TRUNCATE_FRACTIONAL'"},
+			stmt:     "CREATE TABLE a (c TIME(2) DEFAULT 10203.459)",
+			code:     0,
+			contains: []string{"DEFAULT '01:02:03.45'"},
+		},
+		{
+			name:     "CREATE TABLE TIME DEFAULT bit literal '12:00:00' decodes and coerces",
+			stmt:     "CREATE TABLE a (c TIME DEFAULT b'0011000100110010001110100011000000110000001110100011000000110000')",
+			code:     0,
+			contains: []string{"DEFAULT '12:00:00'"},
+		},
+		{
+			name:     "CREATE TABLE TIME DEFAULT hex literal '12:00:00' decodes and coerces",
+			stmt:     "CREATE TABLE a (c TIME DEFAULT 0x31323A30303A3030)",
+			code:     0,
+			contains: []string{"DEFAULT '12:00:00'"},
+		},
+		{
+			name:     "CREATE TABLE DATE DEFAULT bit literal '2020-01-01' decodes and coerces",
+			stmt:     "CREATE TABLE a (c DATE DEFAULT b'00110010001100000011001000110000001011010011000000110001001011010011000000110001')",
+			code:     0,
+			contains: []string{"DEFAULT '2020-01-01'"},
+		},
+		{
+			name:     "CREATE TABLE YEAR DEFAULT 0x07E4 evaluates as integer 2020",
+			stmt:     "CREATE TABLE a (c YEAR DEFAULT 0x07E4)",
+			code:     0,
+			contains: []string{"DEFAULT '2020'"},
+		},
+		{
+			name: "CREATE TABLE YEAR DEFAULT 0x32303230 rejected out of YEAR integer range",
+			stmt: "CREATE TABLE a (c YEAR DEFAULT 0x32303230)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE ENUM DEFAULT b'01100001' matches 'a'",
+			stmt:     "CREATE TABLE a (c ENUM('a','b') DEFAULT b'01100001')",
+			code:     0,
+			contains: []string{"DEFAULT 'a'"},
+		},
+		{
+			name: "CREATE TABLE ENUM DEFAULT 0x7A rejected when not a member",
+			stmt: "CREATE TABLE a (c ENUM('a','b') DEFAULT 0x7A)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE SET DEFAULT 0x612C62 matches 'a,b'",
+			stmt:     "CREATE TABLE a (c SET('a','b') DEFAULT 0x612C62)",
+			code:     0,
+			contains: []string{"DEFAULT 'a,b'"},
+		},
+		{
+			name: "CREATE TABLE SET DEFAULT b'1' rejected when not a member",
+			stmt: "CREATE TABLE a (c SET('a','b') DEFAULT b'1')",
+			code: 1067,
+		},
 	}
 
 	for _, tc := range cases {
@@ -3433,4 +3538,24 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		}
 	}
 	execAlterClauses(t, reloaded, numTempDDL)
+
+	// LoadSDL accepts InnoDB tables and partitions referencing general tablespaces
+	// without CREATE TABLESPACE statements in SDL, and registers them on the catalog.
+	sdlCat, err := LoadSDL(`
+		CREATE DATABASE d_sdl;
+		USE d_sdl;
+		CREATE TABLE t_ts (id INT PRIMARY KEY) ENGINE=InnoDB TABLESPACE ts_general;
+		CREATE TABLE t_part_ts (id INT) ENGINE=InnoDB PARTITION BY RANGE (id) (
+			PARTITION p0 VALUES LESS THAN (10) TABLESPACE = ts_part
+		);
+	`)
+	if err != nil {
+		t.Fatalf("LoadSDL with general tablespace failed: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, sdlCat, "DROP TABLESPACE ts_general"); got != 3120 {
+		t.Fatalf("DROP SDL-registered general tablespace got %d, want 3120", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, sdlCat, "DROP TABLESPACE ts_part"); got != 3120 {
+		t.Fatalf("DROP SDL-registered partition tablespace got %d, want 3120", got)
+	}
 }
