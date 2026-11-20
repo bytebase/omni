@@ -318,7 +318,11 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 		}
 		return userVarValue{kind: userVarNumeric, str: "0"}, true
 	case *nodes.BitLit:
-		return userVarValue{kind: userVarNumeric}, true
+		raw, ok := decodeLiteralRawBytes(cleanBitDigits(e.Value), false)
+		if !ok {
+			return userVarValue{}, false
+		}
+		return userVarValue{kind: userVarString, str: string(raw)}, true
 	case *nodes.UnaryExpr:
 		if e.Op == nodes.UnaryPlus || e.Op == nodes.UnaryMinus {
 			sign := ""

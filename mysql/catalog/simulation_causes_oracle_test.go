@@ -3398,6 +3398,86 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"DEFAULT '9.223372036854776e18'", "DEFAULT '9223372036854775807'"},
 			cleanup:  []string{"SET SESSION sql_mode = DEFAULT"},
 		},
+		// 18. Legacy multibyte binary defaults, bit-literal user-variable time_zone,
+		// and YEAR / ENUM / SET default canonicalization.
+		{
+			name: "CREATE TABLE CHAR(1) sjis DEFAULT 0x82A0 accepts single 2-byte character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET sjis DEFAULT 0x82A0)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) sjis DEFAULT 0x82 rejects truncated lead byte",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET sjis DEFAULT 0x82)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) ujis DEFAULT 0x8FA2AF accepts single 3-byte character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ujis DEFAULT 0x8FA2AF)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) ujis DEFAULT 0x8FA2 rejects truncated 3-byte sequence",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET ujis DEFAULT 0x8FA2)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) gb18030 DEFAULT 0x81308130 accepts single 4-byte character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET gb18030 DEFAULT 0x81308130)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) gb18030 DEFAULT 0x813081 rejects truncated 4-byte sequence",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET gb18030 DEFAULT 0x813081)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) big5 DEFAULT 0xA440 accepts single 2-byte character",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET big5 DEFAULT 0xA440)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) euckr DEFAULT 0x815B rejects invalid trail byte",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET euckr DEFAULT 0x815B)",
+			code: 1067,
+		},
+		{
+			name:    "SET time_zone via bit-literal user variable enforces TIMESTAMP UTC lower bound",
+			session: []string{"SET @tz = b'001010110011000100110100001110100011000000110000'", "SET time_zone = @tz"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:01')",
+			code:    1067,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name:    "SET time_zone via bit-literal user variable accepts valid offset",
+			session: []string{"SET @tz_b = b'001010110011000100110100001110100011000000110000'", "SET time_zone = @tz_b"},
+			stmt:    "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 14:00:01')",
+			code:    0,
+			cleanup: []string{"SET SESSION time_zone = DEFAULT"},
+		},
+		{
+			name: "CREATE TABLE YEAR normalizes string and numeric two-digit defaults",
+			stmt: "CREATE TABLE a (y0 YEAR DEFAULT 0, ys0 YEAR DEFAULT '0', ys000 YEAR DEFAULT '000', ys0000 YEAR DEFAULT '0000', y70 YEAR DEFAULT 70, ys01 YEAR DEFAULT '01')",
+			code: 0,
+			contains: []string{
+				"`y0` year DEFAULT '0000'",
+				"`ys0` year DEFAULT '2000'",
+				"`ys000` year DEFAULT '2000'",
+				"`ys0000` year DEFAULT '0000'",
+				"`y70` year DEFAULT '1970'",
+				"`ys01` year DEFAULT '2001'",
+			},
+		},
+		{
+			name: "CREATE TABLE ENUM and SET canonicalize textual and numeric defaults to member spellings",
+			stmt: "CREATE TABLE a (e1 ENUM('a','b') DEFAULT 'A', e2 ENUM('2','y') DEFAULT 2, e3 ENUM('ae','b') COLLATE utf8mb4_de_pb_0900_ai_ci DEFAULT 'ä', s1 SET('a','b') DEFAULT 'B,A,b')",
+			code: 0,
+			contains: []string{
+				"`e1` enum('a','b') DEFAULT 'a'",
+				"`e2` enum('2','y') DEFAULT 'y'",
+				"COLLATE utf8mb4_de_pb_0900_ai_ci DEFAULT 'ae'",
+				"`s1` set('a','b') DEFAULT 'a,b'",
+			},
+		},
 	}
 
 	for _, tc := range cases {

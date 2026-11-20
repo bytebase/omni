@@ -644,20 +644,11 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, trunca
 	case "time":
 		return coerceTimeDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
 	case "year":
-		if kind == litHex || kind == litBit {
-			return coerceBinaryYearDefault(kind == litHex, val)
-		}
-		return "", false
+		return evalYearLiteralDefault(kind, val, unquotedNum)
 	case "enum":
-		if kind == litHex || kind == litBit {
-			return coerceBinaryEnumDefault(col, kind == litHex, val, strict)
-		}
-		return "", false
+		return coerceEnumDefault(col, kind, val, unquotedNum, strict)
 	case "set":
-		if kind == litHex || kind == litBit {
-			return coerceBinarySetDefault(col, kind == litHex, val)
-		}
-		return "", false
+		return coerceSetDefault(col, kind, val, unquotedNum)
 	case "bit":
 		if !strict && (kind == litBit || kind == litHex) {
 			if raw, ok := decodeLiteralRawBytes(val, kind == litHex); ok && len(raw) > 8 {
@@ -844,7 +835,7 @@ func validBinaryBytesForCharColumn(val string, isHex bool, charset string, maxLe
 			}
 		}
 		return utf8.RuneCountInString(strings.TrimRight(s, " ")) <= maxLen
-	case "ascii":
+	case "ascii", "swe7":
 		for _, b := range raw {
 			if b >= 0x80 {
 				return false
@@ -903,9 +894,94 @@ func validBinaryBytesForCharColumn(val string, isHex bool, charset string, maxLe
 			runes[i] = rune(cp)
 		}
 		return utf8.RuneCountInString(strings.TrimRight(string(runes), " ")) <= maxLen
+	case "sjis", "cp932", "ujis", "eucjpms", "gbk", "gb2312", "gb18030", "big5", "euckr":
+		n, valid := countLegacyMultibyteTrimmedChars(raw, cs)
+		return valid && n <= maxLen
 	default:
 		return len(bytes.TrimRight(raw, " ")) <= maxLen
 	}
+}
+
+// countLegacyMultibyteTrimmedChars validates raw against MySQL 8.0's legacy
+// multibyte character set byte-sequence rules (strings/ctype-*.cc, measured on
+// mysql:8.0.46) and returns the character count after trimming trailing ASCII
+// U+0020 spaces.
+func countLegacyMultibyteTrimmedChars(raw []byte, cs string) (int, bool) {
+	totalChars := 0
+	trimmedChars := 0
+	for i := 0; i < len(raw); {
+		b0 := raw[i]
+		if b0 <= 0x7F {
+			totalChars++
+			if b0 != 0x20 {
+				trimmedChars = totalChars
+			}
+			i++
+			continue
+		}
+		step := 0
+		switch cs {
+		case "sjis", "cp932":
+			if b0 >= 0xA1 && b0 <= 0xDF {
+				step = 1
+			} else if ((b0 >= 0x81 && b0 <= 0x9F) || (b0 >= 0xE0 && b0 <= 0xFC)) && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFC) {
+					step = 2
+				}
+			}
+		case "ujis", "eucjpms":
+			if b0 == 0x8E && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xDF {
+				step = 2
+			} else if b0 == 0x8F && i+2 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE && raw[i+2] >= 0xA1 && raw[i+2] <= 0xFE {
+				step = 3
+			} else if b0 >= 0xA1 && b0 <= 0xFE && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
+				step = 2
+			}
+		case "gb2312":
+			if b0 >= 0xA1 && b0 <= 0xF7 && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
+				step = 2
+			}
+		case "gbk":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		case "gb18030":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFE) {
+					step = 2
+				} else if b1 >= 0x30 && b1 <= 0x39 && i+3 < len(raw) &&
+					raw[i+2] >= 0x81 && raw[i+2] <= 0xFE && raw[i+3] >= 0x30 && raw[i+3] <= 0x39 {
+					step = 4
+				}
+			}
+		case "big5":
+			if b0 >= 0xA1 && b0 <= 0xF9 && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0xA1 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		case "euckr":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x41 && b1 <= 0x5A) || (b1 >= 0x61 && b1 <= 0x7A) || (b1 >= 0x81 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		}
+		if step == 0 {
+			return 0, false
+		}
+		totalChars++
+		trimmedChars = totalChars
+		i += step
+	}
+	return trimmedChars, true
 }
 
 func validStringForColumnCharset(val, charset string) bool {
@@ -1147,48 +1223,7 @@ func evalBinaryYearUint(isHex bool, val string) (uint64, bool) {
 	return u, true
 }
 
-func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) bool {
-	if kind == litBit || kind == litHex {
-		u, ok := evalBinaryYearUint(kind == litHex, val)
-		if !ok {
-			return false
-		}
-		return u == 0 || (u >= 1 && u <= 99) || (u >= 1901 && u <= 2155)
-	}
-	s := strings.TrimSpace(val)
-	if s == "" {
-		return false
-	}
-	if unquotedNum {
-		n, err := strconv.Atoi(s)
-		if err != nil {
-			return false
-		}
-		return n == 0 || (n >= 1 && n <= 99) || (n >= 1901 && n <= 2155)
-	}
-	if len(s) > 4 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return false
-	}
-	if n == 0 {
-		return true
-	}
-	return (len(s) <= 2 && n >= 1 && n <= 99) || (n >= 1901 && n <= 2155)
-}
-
-func coerceBinaryYearDefault(isHex bool, val string) (string, bool) {
-	u, ok := evalBinaryYearUint(isHex, val)
-	if !ok {
-		return "", false
-	}
+func formatStoredYearUint(u uint64) (string, bool) {
 	switch {
 	case u == 0:
 		return "'0000'", true
@@ -1201,6 +1236,67 @@ func coerceBinaryYearDefault(isHex bool, val string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+func evalYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) (string, bool) {
+	if kind == litBit || kind == litHex {
+		u, ok := evalBinaryYearUint(kind == litHex, val)
+		if !ok {
+			return "", false
+		}
+		return formatStoredYearUint(u)
+	}
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if !isStrictNumberSyntax(s) {
+			return "", false
+		}
+		r, ok := new(big.Rat).SetString(s)
+		if !ok {
+			return "", false
+		}
+		nr := roundRatHalfAwayFromZero(r)
+		if nr.Sign() < 0 || !nr.IsUint64() {
+			return "", false
+		}
+		return formatStoredYearUint(nr.Uint64())
+	}
+	rawLen := len(val)
+	s := strings.TrimSpace(val)
+	if s == "" {
+		return "", false
+	}
+	start := 0
+	if s[0] == '+' || s[0] == '-' {
+		start = 1
+	}
+	if start >= len(s) {
+		return "", false
+	}
+	for i := start; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return "", false
+		}
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n < 0 {
+		return "", false
+	}
+	if n == 0 {
+		// MySQL Field_year::store(const char*, size_t, ...): raw string length 4
+		// ('0000', '-000') stores zero year '0000'; any other zero string ('0',
+		// '00', '000', '00000', ' 0000 ') expands to '2000'.
+		if rawLen == 4 {
+			return "'0000'", true
+		}
+		return "'2000'", true
+	}
+	return formatStoredYearUint(uint64(n))
+}
+
+func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) bool {
+	_, ok := evalYearLiteralDefault(kind, val, unquotedNum)
+	return ok
 }
 
 func coercedNumericStringForCharLen(val string, maxLen int) (string, bool) {
@@ -1585,16 +1681,13 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 	return setContainsStringMembers(members, val, col)
 }
 
-func coerceBinaryEnumDefault(col *Column, isHex bool, val string, strict bool) (string, bool) {
-	raw, ok := decodeLiteralRawBytes(val, isHex)
-	if !ok || !utf8.Valid(raw) {
-		return "", false
-	}
+func coerceEnumDefaultByString(col *Column, s string, strict bool) (string, bool) {
 	members := enumMembersFromColumnType(col.ColumnType)
-	target := collationComparisonKey(strings.TrimRight(string(raw), " "), col.Collation, col.Charset)
+	target := collationComparisonKey(strings.TrimRight(s, " "), col.Collation, col.Charset)
 	for _, m := range members {
-		if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == target {
-			return nodeToSQL(&nodes.StringLit{Value: m}), true
+		trimmedM := strings.TrimRight(m, " ")
+		if collationComparisonKey(trimmedM, col.Collation, col.Charset) == target {
+			return nodeToSQL(&nodes.StringLit{Value: trimmedM}), true
 		}
 	}
 	if target == "" && !strict {
@@ -1603,12 +1696,42 @@ func coerceBinaryEnumDefault(col *Column, isHex bool, val string, strict bool) (
 	return "", false
 }
 
-func coerceBinarySetDefault(col *Column, isHex bool, val string) (string, bool) {
-	raw, ok := decodeLiteralRawBytes(val, isHex)
-	if !ok || !utf8.Valid(raw) {
-		return "", false
+func coerceEnumDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) (string, bool) {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || u > uint64(len(members)) {
+				return "", false
+			}
+			if u == 0 {
+				if strict {
+					return "", false
+				}
+				return "''", true
+			}
+			return nodeToSQL(&nodes.StringLit{Value: strings.TrimRight(members[u-1], " ")}), true
+		}
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return "", false
+		}
+		return coerceEnumDefaultByString(col, coerced, strict)
 	}
-	s := string(raw)
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok || !utf8.Valid(raw) {
+			return "", false
+		}
+		return coerceEnumDefaultByString(col, string(raw), strict)
+	}
+	if kind == litString {
+		return coerceEnumDefaultByString(col, val, strict)
+	}
+	return "", false
+}
+
+func coerceSetDefaultByString(col *Column, s string) (string, bool) {
 	if s == "" {
 		return "''", true
 	}
@@ -1631,10 +1754,45 @@ func coerceBinarySetDefault(col *Column, isHex bool, val string) (string, bool) 
 	var out []string
 	for i, m := range members {
 		if chosen[i] {
-			out = append(out, m)
+			out = append(out, strings.TrimRight(m, " "))
 		}
 	}
 	return nodeToSQL(&nodes.StringLit{Value: strings.Join(out, ",")}), true
+}
+
+func coerceSetDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) (string, bool) {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || (len(members) < 64 && u >= (uint64(1)<<len(members))) {
+				return "", false
+			}
+			var out []string
+			for i, m := range members {
+				if i < 64 && (u&(uint64(1)<<i)) != 0 {
+					out = append(out, strings.TrimRight(m, " "))
+				}
+			}
+			return nodeToSQL(&nodes.StringLit{Value: strings.Join(out, ",")}), true
+		}
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return "", false
+		}
+		return coerceSetDefaultByString(col, coerced)
+	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok || !utf8.Valid(raw) {
+			return "", false
+		}
+		return coerceSetDefaultByString(col, string(raw))
+	}
+	if kind == litString {
+		return coerceSetDefaultByString(col, val)
+	}
+	return "", false
 }
 
 // validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
