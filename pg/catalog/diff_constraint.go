@@ -76,6 +76,9 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	if !sameColumns(from, a.RelOID, a.Columns, to, b.RelOID, b.Columns) {
 		return false
 	}
+	if !sameColumns(from, a.RelOID, a.IncludeColumns, to, b.RelOID, b.IncludeColumns) {
+		return false
+	}
 	if a.CheckExpr != b.CheckExpr {
 		return false
 	}

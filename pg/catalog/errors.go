@@ -62,6 +62,7 @@ const (
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"
 	CodeInvalidCatalogName           = "3D000"
+	CodeInvalidSQLStatementName      = "26000"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.

@@ -47,8 +47,36 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeExtensionObjects(stmt)
 
 	// No-op object types: these objects are not tracked by pgddl.
-	case nodes.OBJECT_COLLATION,
-		nodes.OBJECT_CONVERSION,
+	case nodes.OBJECT_COLLATION:
+		if stmt.Objects != nil {
+			for _, obj := range stmt.Objects.Items {
+				schemaName, name := extractDropObjectName(obj)
+				if schema, err := c.resolveTargetSchema(schemaName); err == nil && schema != nil {
+					delete(schema.Collations, name)
+				}
+			}
+		}
+		return nil
+	case nodes.OBJECT_RULE:
+		if stmt.Objects != nil {
+			for _, obj := range stmt.Objects.Items {
+				if list, ok := obj.(*nodes.List); ok && len(list.Items) >= 2 {
+					var schemaName, relName string
+					if len(list.Items) == 2 {
+						relName = stringVal(list.Items[0])
+					} else {
+						schemaName = stringVal(list.Items[len(list.Items)-3])
+						relName = stringVal(list.Items[len(list.Items)-2])
+					}
+					ruleName := stringVal(list.Items[len(list.Items)-1])
+					if _, rel, err := c.findRelation(schemaName, relName); err == nil && rel != nil {
+						delete(rel.Rules, ruleName)
+					}
+				}
+			}
+		}
+		return nil
+	case nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPERATOR,
 		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
@@ -57,7 +85,6 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		nodes.OBJECT_FOREIGN_SERVER,
 		nodes.OBJECT_ACCESS_METHOD,
 		nodes.OBJECT_PUBLICATION,
-		nodes.OBJECT_RULE,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,
 		nodes.OBJECT_STATISTIC_EXT,

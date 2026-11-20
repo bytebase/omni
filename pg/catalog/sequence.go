@@ -146,24 +146,14 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 		return err
 	}
 
-	// Check name conflicts.
-	if _, exists := schema.Sequences[seqName]; exists {
+	// Check name conflicts in the relation and type namespaces.
+	// pg: src/backend/commands/sequence.c — DefineSequence → DefineRelation → heap_create_with_catalog
+	if _, held := relationNamespaceKind(schema, seqName); held || c.typeByName[typeKey{ns: schema.OID, name: seqName}] != nil {
 		if ifNotExists {
-			return nil
-		}
-		return errDuplicateObject("sequence", seqName)
-	}
-	if _, exists := schema.Relations[seqName]; exists {
-		if ifNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", seqName))
 			return nil
 		}
 		return errDuplicateTable(seqName)
-	}
-	if _, exists := schema.Indexes[seqName]; exists {
-		if ifNotExists {
-			return nil
-		}
-		return errDuplicateObject("index", seqName)
 	}
 
 	// Resolve type.

@@ -40,6 +40,7 @@ type OpClass struct {
 	IsDefault bool
 	Schema    uint32
 	OwnerName string
+	Operators map[string]bool
 }
 
 // opClassKey identifies a default operator class by (amOID, typeOID).
@@ -307,6 +308,25 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		}
 	}
 
+	var declaredOps map[string]bool
+	if stmt.Items != nil {
+		for _, raw := range stmt.Items.Items {
+			ci, ok := raw.(*nodes.CreateOpClassItem)
+			if !ok || ci.Name == nil {
+				continue
+			}
+			if ci.Itemtype == 1 { // OPCLASS_ITEM_OPERATOR
+				_, opName := qualifiedName(ci.Name.Objname)
+				if opName != "" {
+					if declaredOps == nil {
+						declaredOps = make(map[string]bool)
+					}
+					declaredOps[opName] = true
+				}
+			}
+		}
+	}
+
 	opc := &OpClass{
 		OID:       c.oidGen.Next(),
 		Name:      className,
@@ -316,6 +336,7 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		IsDefault: stmt.IsDefault,
 		Schema:    schema.OID,
 		OwnerName: c.currentOwner(),
+		Operators: declaredOps,
 	}
 	c.opClasses[opc.OID] = opc
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)

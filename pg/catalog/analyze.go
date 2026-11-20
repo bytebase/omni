@@ -1776,6 +1776,13 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 		return nil, errColumnReferenceInDefault()
 	}
 
+	// Qualified whole-row star reference (rel.* or schema.rel.*).
+	if len(items) >= 2 {
+		if _, isStar := items[len(items)-1].(*nodes.A_Star); isStar {
+			return ac.resolveWholeRowStar(items[:len(items)-1])
+		}
+	}
+
 	// pg: src/backend/commands/typecmds.c — replace_domain_constraint_value
 	// In domain CHECK constraints, "value" is replaced with CoerceToDomainValue.
 	if ac.domainConstraint && tableName == "" && strings.EqualFold(colName, "value") {
@@ -2127,7 +2134,7 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 			if !inScope(rtIdx) {
 				continue
 			}
-			if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, colName); v != nil {
+			if v := ac.makeWholeRowVar(rtIdx, rte, colName); v != nil {
 				if found != nil {
 					return nil, errAmbiguousColumn(colName)
 				}
@@ -2226,6 +2233,81 @@ func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {
 		TypeMod:   rte.ColTypMods[colIdx],
 		Collation: coll,
 	}
+}
+
+func (ac *analyzeCtx) makeWholeRowVar(rtIdx int, rte *RangeTableEntry, name string) *VarExpr {
+	if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, name); v != nil {
+		return v
+	}
+	if rte.Kind == RTERelation && rte.ERef == name {
+		rel := ac.catalog.relationByOID[rte.RelOID]
+		if rel != nil && rel.RowTypeOID != 0 {
+			return &VarExpr{
+				RangeIdx: rtIdx,
+				AttNum:   0,
+				TypeOID:  rel.RowTypeOID,
+				TypeMod:  -1,
+			}
+		}
+	}
+	return nil
+}
+
+func (ac *analyzeCtx) resolveWholeRowStar(prefix []nodes.Node) (*VarExpr, error) {
+	var schemaName, relName string
+	switch len(prefix) {
+	case 1:
+		relName = stringVal(prefix[0])
+	case 2:
+		schemaName = stringVal(prefix[0])
+		relName = stringVal(prefix[1])
+	default:
+		schemaName = stringVal(prefix[len(prefix)-2])
+		relName = stringVal(prefix[len(prefix)-1])
+	}
+	visible := ac.visibleRTEs()
+	inScope := func(i int) bool { return visible == nil || visible[i] }
+	var found *VarExpr
+	for rtIdx, rte := range ac.query.RangeTable {
+		if !inScope(rtIdx) || rte.ERef != relName {
+			continue
+		}
+		if schemaName != "" {
+			if rte.Kind != RTERelation || rte.Alias != "" {
+				continue
+			}
+			rel := ac.catalog.relationByOID[rte.RelOID]
+			if rel == nil || rel.Schema == nil || rel.Schema.Name != schemaName {
+				continue
+			}
+		}
+		v := ac.makeWholeRowVar(rtIdx, rte, relName)
+		if v == nil {
+			continue
+		}
+		if found != nil {
+			return nil, errAmbiguousColumn(relName)
+		}
+		found = v
+	}
+	if found != nil {
+		return found, nil
+	}
+	if ac.outerCols != nil {
+		outerVar, err := ac.outerCols.resolveWholeRowStar(prefix)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExpr{
+			RangeIdx:  outerVar.RangeIdx,
+			AttNum:    outerVar.AttNum,
+			TypeOID:   outerVar.TypeOID,
+			TypeMod:   outerVar.TypeMod,
+			Collation: outerVar.Collation,
+			LevelsUp:  outerVar.LevelsUp + ac.outerColsUp,
+		}, nil
+	}
+	return nil, errUndefinedTable(relName)
 }
 
 func (ac *analyzeCtx) makeScalarFunctionWholeRowVar(rtIdx int, rte *RangeTableEntry, name string) *VarExpr {
@@ -4455,7 +4537,10 @@ func validateCTEAliasCount(name string, aliases []string, query *Query) error {
 	if len(aliases) == 0 || query == nil || len(aliases) <= len(query.TargetList) {
 		return nil
 	}
-	return fmt.Errorf("WITH query %q has %d columns available but %d columns specified", name, len(query.TargetList), len(aliases))
+	return &Error{
+		Code:    CodeInvalidColumnReference,
+		Message: fmt.Sprintf("WITH query %q has %d columns available but %d columns specified", name, len(query.TargetList), len(aliases)),
+	}
 }
 
 // transformCTERef creates a range table entry for a CTE reference.

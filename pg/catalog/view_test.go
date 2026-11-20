@@ -374,7 +374,7 @@ func TestCreateViewColumnCountMismatch(t *testing.T) {
 			},
 			From: []*FromItem{{Kind: FromTable, Table: "t"}},
 		}, []string{"a", "b", "c"})) // 3 names, but query produces 2
-	assertErrorCode(t, err, CodeDatatypeMismatch)
+	assertErrorCode(t, err, CodeSyntaxError)
 }
 
 func TestCreateViewWithExpression(t *testing.T) {

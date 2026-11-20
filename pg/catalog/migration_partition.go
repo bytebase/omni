@@ -50,7 +50,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			}
 
 			// Replica identity changed.
-			if entry.From.ReplicaIdentity != entry.To.ReplicaIdentity {
+			if normalizeReplicaIdentity(entry.From.ReplicaIdentity) != normalizeReplicaIdentity(entry.To.ReplicaIdentity) {
 				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 			}
 		}

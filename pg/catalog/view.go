@@ -94,12 +94,43 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	if len(columnNames) > 0 {
 		if len(columnNames) > len(cols) {
 			return &Error{
-				Code:    CodeDatatypeMismatch,
+				Code:    CodeSyntaxError,
 				Message: fmt.Sprintf("CREATE VIEW specifies %d column names, but query produces %d columns", len(columnNames), len(cols)),
 			}
 		}
 		for i, name := range columnNames {
 			cols[i].Name = name
+		}
+	}
+
+	if err := c.validateRelOptions(stmt.Options, 'v', ""); err != nil {
+		return err
+	}
+
+	var checkOption byte
+	switch stmt.WithCheckOption {
+	case 1: // LOCAL
+		checkOption = 'l'
+	case 2: // CASCADED
+		checkOption = 'c'
+	}
+	if checkOption == 0 && stmt.Options != nil {
+		for _, opt := range stmt.Options.Items {
+			de, ok := opt.(*nodes.DefElem)
+			if !ok || !strings.EqualFold(de.Defname, "check_option") {
+				continue
+			}
+			switch strings.ToLower(defElemString(de)) {
+			case "local":
+				checkOption = 'l'
+			case "cascaded":
+				checkOption = 'c'
+			}
+		}
+	}
+	if checkOption != 0 {
+		if err := c.checkViewAutoUpdatable(analyzedQuery); err != nil {
+			return err
 		}
 	}
 
@@ -130,6 +161,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		if err := c.checkViewColumns(cols, existing); err != nil {
 			return err
 		}
+		existing.CheckOption = checkOption
 		// Update existing view in place.
 		return c.replaceView(schema, existing, cols, analyzedQuery)
 	}
@@ -203,43 +235,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		RowTypeOID:    rowTypeOID,
 		ArrayOID:      arrayOID,
 		AnalyzedQuery: analyzedQuery,
-	}
-
-	// Store CHECK OPTION.
-	// pg: src/backend/commands/view.c — DefineView (checkOption)
-	// pgparser may set WithCheckOption (1=LOCAL, 2=CASCADED) or store it in Options.
-	switch stmt.WithCheckOption {
-	case 1: // LOCAL
-		rel.CheckOption = 'l'
-	case 2: // CASCADED
-		rel.CheckOption = 'c'
-	}
-	// Also check Options list for check_option (pgparser stores it there for WITH clause).
-	if rel.CheckOption == 0 && stmt.Options != nil {
-		for _, opt := range stmt.Options.Items {
-			de, ok := opt.(*nodes.DefElem)
-			if !ok || de.Defname != "check_option" {
-				continue
-			}
-			val := defElemString(de)
-			switch strings.ToLower(val) {
-			case "local":
-				rel.CheckOption = 'l'
-			case "cascaded":
-				rel.CheckOption = 'c'
-			}
-		}
-	}
-
-	// Views with CHECK OPTION must be auto-updatable.
-	// pg: src/backend/commands/view.c — DefineView (line 510-520)
-	// A simple view is auto-updatable if it has exactly one table in FROM,
-	// no aggregates, no DISTINCT, no GROUP BY, no HAVING, no LIMIT, no OFFSET,
-	// no set operations, no CTEs, no window functions.
-	// For pgddl, we only do a basic check: reject CHECK OPTION on set-op views.
-	if rel.CheckOption != 0 && analyzedQuery != nil && analyzedQuery.SetOp != SetOpNone {
-		return &Error{Code: CodeFeatureNotSupported,
-			Message: "WITH CHECK OPTION is not supported on recursive views"}
+		CheckOption:   checkOption,
 	}
 
 	schema.Relations[viewName] = rel
@@ -378,6 +374,136 @@ func (c *Catalog) replaceView(schema *Schema, rel *Relation, newCols []*ResultCo
 	c.recordViewDepsQ(rel.OID, analyzedQuery)
 
 	return nil
+}
+
+// checkViewAutoUpdatable verifies that a view query satisfies PostgreSQL's
+// view_query_is_auto_updatable rules required for WITH CHECK OPTION.
+//
+// pg: src/backend/rewrite/rewriteHandler.c — view_query_is_auto_updatable
+func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
+	notUpdatable := func(detail string) error {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "WITH CHECK OPTION is supported only on automatically updatable views\nDetail: " + detail,
+		}
+	}
+	if q == nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	if q.SetOp != SetOpNone {
+		return notUpdatable("Views containing UNION, INTERSECT, or EXCEPT are not automatically updatable.")
+	}
+	if len(q.CTEList) > 0 {
+		return notUpdatable("Views containing WITH are not automatically updatable.")
+	}
+	if q.Distinct {
+		return notUpdatable("Views containing DISTINCT are not automatically updatable.")
+	}
+	if len(q.GroupClause) > 0 || len(q.GroupingSets) > 0 || q.HavingQual != nil || q.HasAggs {
+		return notUpdatable("Views containing GROUP BY, HAVING, or aggregates are not automatically updatable.")
+	}
+	if len(q.WindowClause) > 0 || targetListHasWindowFunc(q.TargetList) {
+		return notUpdatable("Views containing window functions are not automatically updatable.")
+	}
+	if q.LimitCount != nil || q.LimitOffset != nil {
+		return notUpdatable("Views containing LIMIT or OFFSET are not automatically updatable.")
+	}
+	if q.JoinTree == nil || len(q.JoinTree.FromList) != 1 {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	rtr, ok := q.JoinTree.FromList[0].(*RangeTableRef)
+	if !ok || rtr.RTIndex < 0 || rtr.RTIndex >= len(q.RangeTable) {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	rte := q.RangeTable[rtr.RTIndex]
+	if rte.Kind != RTERelation || rte.Tablesample != nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	baseRel := c.relationByOID[rte.RelOID]
+	if baseRel == nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	switch baseRel.RelKind {
+	case 'r', 'p', 'f':
+	case 'v':
+		if baseRel.AnalyzedQuery != nil {
+			if err := c.checkViewAutoUpdatable(baseRel.AnalyzedQuery); err != nil {
+				return err
+			}
+		}
+	default:
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+
+	seenCols := map[int16]bool{}
+	hasUpdatableCol := false
+	for _, te := range q.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		if exprContainsSRF(c, te.Expr) {
+			return notUpdatable("Views that return set-returning functions are not automatically updatable.")
+		}
+		v, ok := te.Expr.(*VarExpr)
+		if !ok || v.LevelsUp != 0 || v.RangeIdx != rtr.RTIndex || v.AttNum <= 0 {
+			continue
+		}
+		if seenCols[v.AttNum] {
+			continue
+		}
+		seenCols[v.AttNum] = true
+		if ci := indexOfAttNum(baseRel, v.AttNum); ci >= 0 && baseRel.Columns[ci].Generated != 0 {
+			continue
+		}
+		hasUpdatableCol = true
+	}
+	if !hasUpdatableCol {
+		return notUpdatable("Views that do not select at least one updatable column are not automatically updatable.")
+	}
+	return nil
+}
+
+func exprContainsSRF(c *Catalog, expr AnalyzedExpr) bool {
+	if expr == nil {
+		return false
+	}
+	found := false
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		if found {
+			return false
+		}
+		if fc, ok := e.(*FuncCallExpr); ok {
+			if bp := c.procByOID[fc.FuncOID]; bp != nil && bp.RetSet {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
+func targetListHasWindowFunc(tlist []*TargetEntry) bool {
+	found := false
+	for _, te := range tlist {
+		if te == nil || te.Expr == nil {
+			continue
+		}
+		WalkAnalyzedExpr(te.Expr, func(e AnalyzedExpr) bool {
+			if found {
+				return false
+			}
+			if _, ok := e.(*WindowFuncExpr); ok {
+				found = true
+				return false
+			}
+			return true
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
 // dropViewDependents drops all views that depend on the given relation.

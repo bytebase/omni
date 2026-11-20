@@ -82,13 +82,29 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			return c.DefineOperator(s)
 		case nodes.OBJECT_AGGREGATE:
 			return c.DefineAggregate(s)
+		case nodes.OBJECT_COLLATION:
+			schemaName, name := qualifiedName(s.Defnames)
+			if schema, err := c.resolveTargetSchema(schemaName); err == nil && name != "" {
+				if schema.Collations == nil {
+					schema.Collations = make(map[string]bool)
+				}
+				schema.Collations[name] = true
+			}
+			return nil
 		default:
-			// CREATE COLLATION/TEXT SEARCH/etc: no-op for pgddl
+			// CREATE TEXT SEARCH/etc: no-op for pgddl
 			return nil
 		}
 	case *nodes.RuleStmt:
-		// CREATE RULE: no-op for pgddl
-		// pg: src/backend/rewrite/rewriteDefine.c — DefineRule
+		if s.Relation != nil && s.Rulename != "" {
+			if _, rel, err := c.findRelation(s.Relation.Schemaname, s.Relation.Relname); err == nil && rel != nil {
+				if rel.Rules == nil {
+					rel.Rules = make(map[string]byte)
+				}
+				rel.Rules[s.Rulename] = 'O'
+				rel.HasRules = true
+			}
+		}
 		return nil
 	case *nodes.CreateCastStmt:
 		return c.CreateCast(s)
@@ -274,7 +290,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CHECKPOINT: no-op for pgddl
 		return nil
 	case *nodes.DiscardStmt:
-		// DISCARD: no-op for pgddl
+		if s.Target == nodes.DISCARD_ALL || s.Target == nodes.DISCARD_PLANS {
+			clear(c.preparedStmts)
+		}
 		return nil
 	case *nodes.LockStmt:
 		// LOCK TABLE: no-op for pgddl
@@ -301,13 +319,22 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CALL: no-op for pgddl
 		return nil
 	case *nodes.PrepareStmt:
-		// PREPARE: no-op for pgddl
+		if s.Name != "" {
+			if c.preparedStmts == nil {
+				c.preparedStmts = make(map[string]bool)
+			}
+			c.preparedStmts[s.Name] = true
+		}
 		return nil
 	case *nodes.ExecuteStmt:
 		// EXECUTE: no-op for pgddl
 		return nil
 	case *nodes.DeallocateStmt:
-		// DEALLOCATE: no-op for pgddl
+		if s.IsAll || s.Name == "" {
+			clear(c.preparedStmts)
+		} else {
+			delete(c.preparedStmts, s.Name)
+		}
 		return nil
 
 	default:

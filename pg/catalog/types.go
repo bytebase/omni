@@ -20,19 +20,22 @@ type ColumnDef struct {
 	Name             string
 	Type             TypeName
 	NotNull          bool
-	Default          string          // opaque expression; empty = no default
-	RawDefault       nodes.Node      // raw AST node for default expression (for analysis)
-	IsSerial         byte            // 0=none, 2=smallserial, 4=serial, 8=bigserial
-	Generated        byte            // 's' = stored generated, 0 = none
-	GenerationExpr   string          // expression text for generated column
-	RawGenExpr       nodes.Node      // raw AST node for generated expression (for analysis)
-	Identity         byte            // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IdentityOptions  *nodes.List     // raw sequence options from GENERATED ... AS IDENTITY
-	IdentitySequence *nodes.RangeVar // selected sequence name after transform/expansion
-	IsLocal          bool            // true if defined locally (not only inherited)
-	InhCount         int             // number of inheritance ancestors that define this column
-	CollationName    string          // explicit COLLATE clause; empty = type default
-	IsFromType       bool            // true if column came from OF TYPE (typed table)
+	Default          string               // opaque expression; empty = no default
+	RawDefault       nodes.Node           // raw AST node for default expression (for analysis)
+	IsSerial         byte                 // 0=none, 2=smallserial, 4=serial, 8=bigserial
+	Generated        byte                 // 's' = stored generated, 0 = none
+	GenerationExpr   string               // expression text for generated column
+	RawGenExpr       nodes.Node           // raw AST node for generated expression (for analysis)
+	Identity         byte                 // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IdentityOptions  *nodes.List          // raw sequence options from GENERATED ... AS IDENTITY
+	IdentitySequence *nodes.RangeVar      // selected sequence name after transform/expansion
+	IsLocal          bool                 // true if defined locally (not only inherited)
+	InhCount         int                  // number of inheritance ancestors that define this column
+	CollationName    string               // explicit COLLATE clause; empty = type default
+	CollClause       *nodes.CollateClause // raw COLLATE clause for resolution check
+	StorageName      string               // explicit STORAGE directive; empty = default
+	Compression      string               // explicit COMPRESSION directive; empty = default
+	IsFromType       bool                 // true if column came from OF TYPE (typed table)
 }
 
 // ConstraintType identifies the kind of table constraint.
@@ -52,6 +55,7 @@ type ConstraintDef struct {
 	Name           string // empty = auto-generate
 	Type           ConstraintType
 	Columns        []string   // PK/UNIQUE/FK local columns
+	IncludeColumns []string   // PK/UNIQUE/EXCLUDE INCLUDE columns
 	IndexName      string     // PK/UNIQUE: user-specified USING INDEX name
 	RefSchema      string     // FK only
 	RefTable       string     // FK only
@@ -65,6 +69,7 @@ type ConstraintDef struct {
 	CheckExpr      string     // CHECK only
 	RawCheckExpr   nodes.Node // raw AST node for CHECK expression (for analysis)
 	ExclOps        []string   // EXCLUDE only: operator names per column
+	ExclOpSchemas  []string   // EXCLUDE only: operator schema per column ("" when unqualified)
 	// ExclOpClasses holds, per EXCLUDE column, the operator class the statement
 	// named, dotted when qualified, or "" for the default.
 	ExclOpClasses []string

@@ -135,6 +135,110 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE partitioned table under SET default_tablespace = pg_default", "missing", "SET default_tablespace = pg_default;\nCREATE TABLE p (b int) PARTITION BY RANGE (b)", CodeFeatureNotSupported},
 		{"ALTER SEQUENCE OWNER TO another role on a serial sequence", "missing", "DROP ROLE IF EXISTS alice;\nCREATE ROLE alice;\nCREATE TABLE s_tbl (id serial);\nALTER SEQUENCE s_tbl_id_seq OWNER TO alice", CodeFeatureNotSupported},
 		{"ALTER partitioned table and index SET TABLESPACE pg_default", "missing", "CREATE TABLE p (b int) PARTITION BY RANGE (b);\nCREATE INDEX p_idx ON p (b);\nALTER TABLE p SET TABLESPACE pg_default;\nALTER INDEX p_idx SET TABLESPACE pg_default", "0"},
+
+		// Reloptions, storage, compression, collations, and composite self-references.
+		{"CREATE TABLE with unknown reloption", "missing", "CREATE TABLE s (b int) WITH (a)", CodeInvalidParameterValue},
+		{"CREATE TABLE AS SELECT with unknown reloption", "missing", "CREATE TABLE s WITH (a) AS SELECT 1", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption", "table", "ALTER TABLE a SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET duplicate reloption", "table", "ALTER TABLE a SET (fillfactor = 80, fillfactor = 90)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET toast reloption ignored without toast table", "table", "ALTER TABLE a SET (toast.a = 1)", "0"},
+		{"CREATE TABLE with toastable column and unknown toast reloption", "missing", "CREATE TABLE s (t text) WITH (toast.a = 1)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption namespace", "table", "ALTER TABLE a SET (a.a = 1)", CodeInvalidParameterValue},
+		{"ALTER TABLE SET unknown reloption on index", "index", "ALTER TABLE a SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE RESET unknown reloption on index", "index", "ALTER TABLE a RESET (a)", "0"},
+		{"ALTER TABLE ALTER missing column SET reloption", "table", "ALTER TABLE a ALTER a SET (a)", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET unknown reloption", "table", "ALTER TABLE a ALTER b SET (a)", CodeInvalidParameterValue},
+		{"ALTER TABLE ALTER missing column RESET reloption", "table", "ALTER TABLE a ALTER a RESET (a)", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET valid n_distinct", "table", "ALTER TABLE a ALTER b SET (n_distinct = -0.5)", "0"},
+		{"ALTER TABLE ADD column with invalid compression method", "table", "ALTER TABLE a ADD a a COMPRESSION a", CodeInvalidParameterValue},
+		{"ALTER TABLE ADD self-typed column with DEFAULT compression", "table", "ALTER TABLE a ADD a a COMPRESSION DEFAULT", CodeInvalidTableDefinition},
+		{"ALTER TABLE ADD column with invalid storage", "table", "ALTER TABLE a ADD a a STORAGE a", CodeInvalidParameterValue},
+		{"ALTER TABLE ADD self-typed column with DEFAULT storage", "table", "ALTER TABLE a ADD a a STORAGE DEFAULT", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER missing column SET STORAGE", "table", "ALTER TABLE a ALTER a SET STORAGE a", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER column SET invalid storage", "table", "ALTER TABLE a ALTER b SET STORAGE a", CodeInvalidParameterValue},
+		{"ALTER TABLE ALTER plain-storage column SET STORAGE extended", "table", "ALTER TABLE a ALTER b SET STORAGE extended", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER integer column SET COMPRESSION", "table", "ALTER TABLE a ALTER b SET COMPRESSION a", CodeFeatureNotSupported},
+		{"ALTER TABLE ADD self-typed array column", "table", "ALTER TABLE a ADD x a[]", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER column TYPE to own row type", "table", "ALTER TABLE a ALTER c TYPE a", CodeInvalidTableDefinition},
+		{"ALTER TABLE ALTER column TYPE with missing collation", "table", "ALTER TABLE a ALTER c TYPE a COLLATE a", CodeUndefinedObject},
+		{"ALTER TABLE ALTER column TYPE integer with C collation", "table", "ALTER TABLE a ALTER c TYPE int COLLATE \"C\"", CodeDatatypeMismatch},
+
+		// CTAS ON COMMIT / EXECUTE, CREATE SEQUENCE on index, duplicate column, COMMENT ON COLUMN.
+		{"CREATE TABLE ON COMMIT DROP AS SELECT on non-temp table", "missing", "CREATE TABLE s ON COMMIT DROP AS SELECT 1", CodeInvalidTableDefinition},
+		{"CREATE TABLE AS EXECUTE missing prepared statement", "missing", "CREATE TABLE s AS EXECUTE a", CodeInvalidSQLStatementName},
+		{"CREATE TABLE IF NOT EXISTS AS EXECUTE missing prepared statement", "missing", "CREATE TABLE IF NOT EXISTS s AS EXECUTE a", CodeInvalidSQLStatementName},
+		{"CREATE SEQUENCE colliding with an index", "index", "CREATE SEQUENCE a", CodeDuplicateTable},
+		{"CREATE TABLE with duplicate column names on existing table name", "table", "CREATE TABLE a (a a, a a)", CodeDuplicateColumn},
+		{"COMMENT ON unqualified COLUMN", "table", "COMMENT ON COLUMN a IS 's'", CodeSyntaxError},
+
+		// Views and materialized views.
+		{"CREATE VIEW AS SELECT WITH CHECK OPTION without base table", "missing", "CREATE VIEW a AS SELECT 1 WITH CHECK OPTION", CodeFeatureNotSupported},
+		{"CREATE VIEW AS SELECT WITH CASCADED CHECK OPTION colliding with table", "table", "CREATE VIEW a AS SELECT 1 WITH CASCADED CHECK OPTION", CodeFeatureNotSupported},
+		{"CREATE VIEW over single table WITH LOCAL CHECK OPTION", "table", "CREATE VIEW v AS SELECT b FROM a WITH LOCAL CHECK OPTION", "0"},
+		{"CREATE VIEW with DISTINCT and WITH CHECK OPTION", "table", "CREATE VIEW v AS SELECT DISTINCT b FROM a WITH CHECK OPTION", CodeFeatureNotSupported},
+		{"ALTER VIEW SET check_option on non-updatable view", "missing", "CREATE VIEW v AS SELECT 1;\nALTER VIEW v SET (check_option = local)", CodeFeatureNotSupported},
+		{"REFRESH MATERIALIZED VIEW on a regular table", "table", "REFRESH MATERIALIZED VIEW a", CodeFeatureNotSupported},
+		{"CREATE RECURSIVE VIEW with more column aliases than target list", "missing", "CREATE RECURSIVE VIEW a (a) AS SELECT", CodeInvalidColumnReference},
+		{"CREATE VIEW with more column names than query columns", "missing", "CREATE VIEW v (x, y) AS SELECT 1", CodeSyntaxError},
+
+		// ALTER / RENAME / IF EXISTS / subcommand kinds and prerequisites.
+		{"ALTER TABLE IF EXISTS on missing relation", "missing", "ALTER TABLE IF EXISTS a DROP a", "0"},
+		{"ALTER VIEW IF EXISTS on missing relation", "missing", "ALTER VIEW IF EXISTS a DROP a", "0"},
+		{"ALTER MATERIALIZED VIEW IF EXISTS on missing relation", "missing", "ALTER MATERIALIZED VIEW IF EXISTS a DROP a", "0"},
+		{"ALTER INDEX DROP on missing relation", "missing", "ALTER INDEX a DROP a", CodeUndefinedTable},
+		{"ALTER INDEX ATTACH PARTITION on missing relation", "missing", "ALTER INDEX a ATTACH PARTITION a", CodeUndefinedTable},
+		{"ALTER INDEX RENAME on missing relation", "missing", "ALTER INDEX a RENAME TO a", CodeUndefinedTable},
+		{"ALTER INDEX DROP column on an index", "index", "ALTER INDEX a DROP a", CodeWrongObjectType},
+		{"ALTER INDEX IF EXISTS DROP column on an index", "index", "ALTER INDEX IF EXISTS a DROP a", CodeWrongObjectType},
+		{"ALTER INDEX ATTACH PARTITION on a non-partitioned index", "index", "ALTER INDEX a ATTACH PARTITION a", CodeWrongObjectType},
+		{"ALTER TABLE RENAME TO same name on an index", "index", "ALTER TABLE a RENAME TO a", CodeDuplicateTable},
+		{"ALTER TABLE RENAME missing column on an index", "index", "ALTER TABLE a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER VIEW RENAME missing column on an index", "index", "ALTER VIEW a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER MATERIALIZED VIEW RENAME missing column on an index", "index", "ALTER MATERIALIZED VIEW a RENAME a TO b", CodeUndefinedColumn},
+		{"ALTER TABLE RENAME existing column on an index", "index", "ALTER TABLE a RENAME d TO d2", "0"},
+		{"ALTER TABLE RENAME CONSTRAINT on an index", "index", "ALTER TABLE a RENAME CONSTRAINT a TO b", CodeUndefinedObject},
+		{"ALTER TABLE IF EXISTS RENAME CONSTRAINT on missing relation", "missing", "ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO b", "0"},
+		{"ALTER TABLE ALTER column number SET STATISTICS on a table", "table", "ALTER TABLE a ALTER 1 SET STATISTICS 1", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER non-expression column number SET STATISTICS on an index", "index", "ALTER TABLE a ALTER 1 SET STATISTICS 1", CodeFeatureNotSupported},
+		{"ALTER TABLE ALTER missing column SET STATISTICS on a table", "table", "ALTER TABLE a ALTER a SET STATISTICS 1", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER missing column SET STATISTICS on an index", "index", "ALTER TABLE a ALTER a SET STATISTICS 1", CodeUndefinedColumn},
+		{"ALTER TABLE ALTER missing CONSTRAINT", "table", "ALTER TABLE a ALTER CONSTRAINT a", CodeUndefinedObject},
+		{"ALTER TABLE ENABLE missing RULE", "table", "ALTER TABLE a ENABLE RULE a", CodeUndefinedObject},
+		{"ALTER TABLE DISABLE missing RULE", "table", "ALTER TABLE a DISABLE RULE a", CodeUndefinedObject},
+		{"ALTER TABLE SET WITHOUT OIDS", "table", "ALTER TABLE a SET WITHOUT OIDS", "0"},
+		{"ALTER TABLE SET ACCESS METHOD DEFAULT", "table", "ALTER TABLE a SET ACCESS METHOD DEFAULT", "0"},
+		{"ALTER TABLE SET ACCESS METHOD missing", "table", "ALTER TABLE a SET ACCESS METHOD a", CodeUndefinedObject},
+		{"ALTER TABLE SET ACCESS METHOD index AM", "table", "ALTER TABLE a SET ACCESS METHOD btree", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE ALTER non-generated column SET EXPRESSION", "table", "ALTER TABLE a ALTER c SET EXPRESSION AS (b + 1)", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE ALTER non-generated column DROP EXPRESSION", "table", "ALTER TABLE a ALTER c DROP EXPRESSION", CodeObjectNotInPrerequisiteState},
+		{"ALTER TABLE NO INHERIT non-parent", "table", "ALTER TABLE a NO INHERIT a", CodeUndefinedTable},
+		{"ALTER TABLE DETACH PARTITION FINALIZE non-partition", "table", "ALTER TABLE a DETACH PARTITION a FINALIZE", CodeUndefinedTable},
+		{"ALTER TABLE OF a table row type", "table", "ALTER TABLE a OF a", CodeWrongObjectType},
+		{"ALTER TABLE NOT OF untyped table", "table", "ALTER TABLE a NOT OF", CodeWrongObjectType},
+		{"ALTER TABLE OPTIONS on non-foreign table", "table", "ALTER TABLE a OPTIONS (a 's')", CodeWrongObjectType},
+		{"ALTER TABLE ALTER column OPTIONS on non-foreign table", "table", "ALTER TABLE a ALTER c OPTIONS (a 's')", CodeWrongObjectType},
+
+		// Whole-row CHECK, EXCLUDE operators, and CREATE INDEX checks/naming.
+		{"CREATE TABLE with whole-row CHECK", "missing", "CREATE TABLE a (CHECK (a))", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD whole-row CHECK", "table", "ALTER TABLE a ADD CHECK (a)", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD integer column CHECK", "table", "ALTER TABLE a ADD CHECK (b)", CodeDatatypeMismatch},
+		{"ALTER TABLE ADD EXCLUDE with undefined operator for integer", "table", "ALTER TABLE a ADD EXCLUDE (b WITH ~)", CodeUndefinedFunction},
+		{"ALTER TABLE ADD EXCLUDE with qualified undefined operator for integer", "table", "ALTER TABLE a ADD EXCLUDE (b WITH OPERATOR(pg_catalog.~))", CodeUndefinedFunction},
+		{"CREATE INDEX on parenthesized whole-row var", "table", "CREATE INDEX ON a ((a))", "0"},
+		{"CREATE INDEX on parenthesized whole-row var with missing opclass", "table", "CREATE INDEX ON a ((a) zzz)", CodeUndefinedObject},
+		{"CREATE INDEX on function call over whole-row var", "table", "CREATE INDEX ON a (a(a))", CodeUndefinedFunction},
+		{"CREATE INDEX on CURRENT_DATE", "table", "CREATE INDEX ON a (CURRENT_DATE)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX on CURRENT_DATE with missing opclass", "table", "CREATE INDEX ON a (CURRENT_DATE zzz)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX on CURRENT_ROLE", "table", "CREATE INDEX ON a (CURRENT_ROLE)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX with missing collation", "table", "CREATE INDEX ON a (b COLLATE a)", CodeUndefinedObject},
+		{"CREATE INDEX with collation on non-collatable column", "table", "CREATE INDEX ON a (b COLLATE \"C\")", CodeDatatypeMismatch},
+		{"CREATE INDEX with missing opclass", "table", "CREATE INDEX ON a (b zzz)", CodeUndefinedObject},
+		{"CREATE INDEX with incompatible opclass", "table", "CREATE INDEX ON a (b text_ops)", CodeDatatypeMismatch},
+		{"CREATE INDEX with valid builtin pattern opclass", "missing", "CREATE TABLE s (t varchar(20));\nCREATE INDEX ON s (t varchar_pattern_ops)", "0"},
+		{"CREATE INDEX INCLUDE with opclass", "table", "CREATE INDEX ON a (b) INCLUDE (c zzz)", CodeInvalidObjectDefinition},
+		{"CREATE INDEX with duplicate key columns", "table", "CREATE INDEX ON a (b, b)", "0"},
+		{"CREATE INDEX with duplicate INCLUDE columns", "table", "CREATE INDEX ON a (b) INCLUDE (b, b)", "0"},
+		{"ALTER TABLE ADD UNIQUE with duplicate INCLUDE column", "table", "ALTER TABLE a ADD UNIQUE (b) INCLUDE (b)", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3223,6 +3327,42 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if code := simulationCatalogCode(t, c99, "DROP EXTENSION test_bad_part_tam_ext RESTRICT"); code != "0" {
 			t.Fatalf("DROP EXTENSION RESTRICT after rolled-back CREATE TABLE answered %s, want 0", code)
+		}
+
+		// Failed ALTER TABLE ADD COLUMN with an invalid inline CHECK rolls back
+		// both the added column and any identity sequence it created.
+		c100 := New()
+		if code := simulationCatalogCode(t, c100, "CREATE TABLE add_rb (id int)"); code != "0" {
+			t.Fatalf("CREATE TABLE add_rb: %s", code)
+		}
+		if code := simulationCatalogCode(t, c100, "ALTER TABLE add_rb ADD COLUMN bad int GENERATED ALWAYS AS IDENTITY CHECK (bad)"); code != CodeDatatypeMismatch {
+			t.Fatalf("ALTER TABLE ADD COLUMN with non-boolean CHECK answered %s, want %s", code, CodeDatatypeMismatch)
+		}
+		if rel := c100.schemaByName["public"].Relations["add_rb"]; rel == nil || len(rel.Columns) != 1 {
+			t.Fatalf("failed ADD COLUMN left extra column on add_rb: %+v", rel)
+		}
+		if len(c100.schemaByName["public"].Sequences) != 0 {
+			t.Fatalf("failed ADD COLUMN leaked identity sequence: %+v", c100.schemaByName["public"].Sequences)
+		}
+
+		// Index and UNIQUE INCLUDE naming deduplicates repeated column names
+		// across key and INCLUDE lists, and REPLICA IDENTITY FULL/NOTHING/DEFAULT
+		// round-trips through Diff.
+		c101 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE inc_t (a int, b int)",
+			"CREATE INDEX ON inc_t (a, a)",
+			"CREATE INDEX ON inc_t (a) INCLUDE (a, a)",
+			"ALTER TABLE inc_t ADD UNIQUE (a) INCLUDE (a)",
+		} {
+			if code := simulationCatalogCode(t, c101, stmt); code != "0" {
+				t.Fatalf("inc_t setup %s: %s", stmt, code)
+			}
+		}
+		for _, wantIdx := range []string{"inc_t_a_a1_idx", "inc_t_a_a1_a2_idx", "inc_t_a_a1_key"} {
+			if c101.schemaByName["public"].Indexes[wantIdx] == nil {
+				t.Fatalf("expected auto-named index %q in schema, got %v", wantIdx, c101.schemaByName["public"].Indexes)
+			}
 		}
 	})
 

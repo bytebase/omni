@@ -273,15 +273,25 @@ func formatCollate(collation string) string {
 // formatPKConstraint formats a PRIMARY KEY constraint clause.
 func formatPKConstraint(rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	return fmt.Sprintf("CONSTRAINT %s PRIMARY KEY (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s PRIMARY KEY (%s)",
 		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	if len(con.IncludeColumns) > 0 {
+		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
+		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
+	}
+	return clause
 }
 
 // formatUniqueConstraint formats a UNIQUE constraint clause.
 func formatUniqueConstraint(rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	return fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
 		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	if len(con.IncludeColumns) > 0 {
+		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
+		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
+	}
+	return clause
 }
 
 // formatCheckConstraint formats a CHECK constraint clause.

@@ -53,17 +53,21 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 
 	case nodes.OBJECT_COLUMN:
 		var schemaName, tableName, colName string
-		if list, ok := stmt.Object.(*nodes.List); ok {
-			items := list.Items
-			switch len(items) {
-			case 2:
-				tableName = stringVal(items[0])
-				colName = stringVal(items[1])
-			case 3:
-				schemaName = stringVal(items[0])
-				tableName = stringVal(items[1])
-				colName = stringVal(items[2])
-			}
+		list, ok := stmt.Object.(*nodes.List)
+		if !ok || list == nil || len(list.Items) < 2 {
+			return &Error{Code: CodeSyntaxError, Message: "column name must be qualified"}
+		}
+		items := list.Items
+		switch len(items) {
+		case 2:
+			tableName = stringVal(items[0])
+			colName = stringVal(items[1])
+		case 3:
+			schemaName = stringVal(items[0])
+			tableName = stringVal(items[1])
+			colName = stringVal(items[2])
+		default:
+			return &Error{Code: CodeSyntaxError, Message: "improper qualified name (too many dotted names)"}
 		}
 		_, rel, err := c.findRelation(schemaName, tableName)
 		if err != nil {

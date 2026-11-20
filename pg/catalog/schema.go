@@ -4,13 +4,14 @@ import "sort"
 
 // Schema represents a PostgreSQL namespace.
 type Schema struct {
-	OID       uint32
-	Name      string
-	Owner     string // explicit AUTHORIZATION / ALTER OWNER (for diff/SDL)
-	OwnerName string // effective role owner (for DROP ROLE / DROP OWNED / REASSIGN / RENAME)
-	Relations map[string]*Relation
-	Indexes   map[string]*Index
-	Sequences map[string]*Sequence
+	OID        uint32
+	Name       string
+	Owner      string // explicit AUTHORIZATION / ALTER OWNER (for diff/SDL)
+	OwnerName  string // effective role owner (for DROP ROLE / DROP OWNED / REASSIGN / RENAME)
+	Relations  map[string]*Relation
+	Indexes    map[string]*Index
+	Sequences  map[string]*Sequence
+	Collations map[string]bool
 }
 
 func (s *Schema) effectiveOwner() string {

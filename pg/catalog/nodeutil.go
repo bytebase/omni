@@ -302,6 +302,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	switch ct {
 	case ConstraintPK, ConstraintUnique:
 		def.Columns = stringListItems(con.Keys)
+		def.IncludeColumns = constraintIncludeItems(con.Including)
 		def.IndexName = con.Indexname // user-specified USING INDEX name
 	case ConstraintFK:
 		def.Columns = stringListItems(con.FkAttrs)
@@ -323,6 +324,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 		if def.AccessMethod == "" {
 			def.AccessMethod = "gist"
 		}
+		def.IncludeColumns = constraintIncludeItems(con.Including)
 		// Extract exclusion columns and operators from con.Exclusions.
 		// pgparser output: list of pair-Lists, each [IndexElem, opList].
 		// Manual construction: flat alternating [IndexElem, opList, IndexElem, opList, ...].
@@ -342,10 +344,8 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 							def.ExclOpClasses = append(def.ExclOpClasses, indexElemOpClass(elem))
 						}
 						if opList, ok := pair.Items[1].(*nodes.List); ok {
-							opName := ""
-							for _, n := range opList.Items {
-								opName = stringVal(n)
-							}
+							opSchema, opName := qualifiedName(opList)
+							def.ExclOpSchemas = append(def.ExclOpSchemas, opSchema)
 							def.ExclOps = append(def.ExclOps, opName)
 						}
 					}
@@ -357,10 +357,8 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 							def.ExclOpClasses = append(def.ExclOpClasses, indexElemOpClass(elem))
 						}
 						if opList, ok := items[i+1].(*nodes.List); ok {
-							opName := ""
-							for _, n := range opList.Items {
-								opName = stringVal(n)
-							}
+							opSchema, opName := qualifiedName(opList)
+							def.ExclOpSchemas = append(def.ExclOpSchemas, opSchema)
 							def.ExclOps = append(def.ExclOps, opName)
 						}
 					}
@@ -370,6 +368,24 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	}
 
 	return def, true
+}
+
+func constraintIncludeItems(list *nodes.List) []string {
+	if list == nil || len(list.Items) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		switch v := item.(type) {
+		case *nodes.String:
+			out = append(out, v.Str)
+		case *nodes.IndexElem:
+			if v.Name != "" {
+				out = append(out, v.Name)
+			}
+		}
+	}
+	return out
 }
 
 // indexElemOpClass reads an IndexElem's operator class as a dotted name, or

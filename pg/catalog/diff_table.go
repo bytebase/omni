@@ -86,7 +86,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.Persistence != to.Persistence {
 		changed = true
 	}
-	if from.ReplicaIdentity != to.ReplicaIdentity {
+	if normalizeReplicaIdentity(from.ReplicaIdentity) != normalizeReplicaIdentity(to.ReplicaIdentity) {
 		changed = true
 	}
 	if from.RowSecurity != to.RowSecurity {
@@ -176,6 +176,15 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		entry.ForceRLSEnabled = to.ForceRowSecurity
 	}
 	return entry, true
+}
+
+// normalizeReplicaIdentity maps zero (unset on newly created tables) to 'd'
+// (DEFAULT), PostgreSQL's initial relreplident for tables.
+func normalizeReplicaIdentity(ri byte) byte {
+	if ri == 0 {
+		return 'd'
+	}
+	return ri
 }
 
 // partitionInfoEqual returns true if two PartitionInfo values are equivalent.

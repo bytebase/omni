@@ -50,6 +50,14 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 			}
 			return errDuplicateTable(mvName)
 		}
+		if execStmt, isExec := stmt.Query.(*nodes.ExecuteStmt); isExec {
+			if !c.preparedStmts[execStmt.Name] {
+				return &Error{
+					Code:    CodeInvalidSQLStatementName,
+					Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
+				}
+			}
+		}
 		return errInvalidParameterValue("CREATE MATERIALIZED VIEW requires a SELECT query")
 	}
 
@@ -85,6 +93,18 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		}
 		return errDuplicateTable(mvName)
 	}
+
+	relkind := byte('m')
+	if nodes.ObjectType(stmt.Objtype) == nodes.OBJECT_TABLE {
+		relkind = 'r'
+	}
+	if into.OnCommit != nodes.ONCOMMIT_NOOP && rv.Relpersistence != 't' {
+		return &Error{
+			Code:    CodeInvalidTableDefinition,
+			Message: "ON COMMIT can only be used on temporary tables",
+		}
+	}
+
 	effectiveTablespace := c.effectiveTablespace(into.TableSpaceName)
 	if into.TableSpaceName == "" && rv.Relpersistence == 't' {
 		effectiveTablespace = ""
@@ -162,6 +182,10 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		columns[i] = col
 	}
 
+	if err := c.validateRelOptionsForCols(into.Options, relkind, "", columnsNeedToastTable(columns)); err != nil {
+		return err
+	}
+
 	// Allocate OIDs.
 	relOID := c.oidGen.Next()
 	rowTypeOID := c.oidGen.Next()
@@ -174,11 +198,6 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 				te.ResName = cols[i].Name
 			}
 		}
-	}
-
-	relkind := byte('m')
-	if nodes.ObjectType(stmt.Objtype) == nodes.OBJECT_TABLE {
-		relkind = 'r'
 	}
 
 	persistence := rv.Relpersistence
@@ -267,8 +286,15 @@ func (c *Catalog) ExecRefreshMatView(stmt *nodes.RefreshMatViewStmt) error {
 	if err != nil {
 		return err
 	}
-	if rel.RelKind != 'm' {
-		return errWrongObjectType(rel.Name, "a materialized view")
+	if rel.RelKind == 'm' {
+		rel.IsPopulated = !stmt.SkipData
+		return nil
 	}
-	return nil
+	if rel.RelKind == 'r' || rel.RelKind == 'p' {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: fmt.Sprintf("%q is not a materialized view", rel.Name),
+		}
+	}
+	return errWrongObjectType(rel.Name, "a materialized view")
 }

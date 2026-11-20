@@ -840,6 +840,11 @@ func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
 	}
 
 	rte := ctx.query.RangeTable[v.RangeIdx]
+	if v.AttNum == 0 {
+		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(".*")
+		return rte.ERef
+	}
 	colIdx := int(v.AttNum - 1)
 	if colIdx < 0 || colIdx >= len(rte.ColNames) {
 		d.buf.WriteString("???")

@@ -96,11 +96,12 @@ type Relation struct {
 	OwnerName string
 
 	// Relation flags (pg_class).
-	Owner       uint32 // relowner
-	HasRules    bool   // relhasrules
-	HasSubclass bool   // relhassubclass — has child tables/partitions
-	IsPopulated bool   // relispopulated — matview populated state
-	IsPartition bool   // relispartition
+	Owner       uint32          // relowner
+	HasRules    bool            // relhasrules
+	Rules       map[string]byte // rule name → firing mode ('O', 'D', 'R', 'A')
+	HasSubclass bool            // relhassubclass — has child tables/partitions
+	IsPopulated bool            // relispopulated — matview populated state
+	IsPartition bool            // relispartition
 }
 
 // relationNamespaceKind returns the relkind a schema's relation namespace
@@ -132,6 +133,40 @@ func (c *Catalog) findNamedIndex(schema *Schema, name string) (*Index, error) {
 		return nil, errWrongObjectType(name, "an index")
 	}
 	return nil, errUndefinedObject("index", name)
+}
+
+// findIndexRelation locates an index by schema (or search path) and name as a
+// relation in pg_class (used by ALTER INDEX and RENAME): a missing name is
+// 42P01 (relation does not exist), while another relation kind is 42809.
+//
+// pg: src/backend/catalog/namespace.c — RangeVarGetRelidExtended + relkind check
+func (c *Catalog) findIndexRelation(schemaName, relName string) (*Schema, *Index, error) {
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, nil, errUndefinedSchema(schemaName)
+		}
+		if idx := s.Indexes[relName]; idx != nil {
+			return s, idx, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "an index")
+		}
+		return nil, nil, errUndefinedTable(relName)
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		if idx := s.Indexes[relName]; idx != nil {
+			return s, idx, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "an index")
+		}
+	}
+	return nil, nil, errUndefinedTable(relName)
 }
 
 // findRelation locates a relation by schema (or search path) and name. A
