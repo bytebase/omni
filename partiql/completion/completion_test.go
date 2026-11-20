@@ -529,6 +529,18 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: nil,
 		},
+		{
+			name:     "unfinished single-quoted literal suppresses column completion",
+			input:    "SELECT * FROM Music WHERE Artist = 'Ar|",
+			cat:      cat,
+			wantCols: nil,
+		},
+		{
+			name:     "quoted column prefix preserves preceding table qualifier",
+			input:    `SELECT m."S| FROM Music m, Album a`,
+			cat:      cat,
+			wantCols: []string{"SongTitle"},
+		},
 	}
 
 	for _, tc := range tests {

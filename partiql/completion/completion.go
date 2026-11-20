@@ -179,7 +179,11 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 			i = end + 1
 		case c == '\'' || c == '"':
 			end, closed := skipQuotedLiteralWithState(slice, i, c)
-			if !closed && c == '"' {
+			if !closed {
+				if c == '\'' {
+					// Unfinished single-quoted literal must suppress keyword/column suggestions.
+					return false, false
+				}
 				// Unfinished double-quoted identifier being typed at the cursor
 				// must preserve the preceding clause context (e.g. FROM "Mu|).
 				i = end + 1
@@ -311,8 +315,13 @@ func matchesPrefix(text, prefix string, quoted bool) bool {
 }
 
 func insideUnclosedDoubleQuote(s string, end int) bool {
+	_, ok := unclosedDoubleQuoteStart(s, end)
+	return ok
+}
+
+func unclosedDoubleQuoteStart(s string, end int) (int, bool) {
 	if end <= 0 {
-		return false
+		return 0, false
 	}
 	if end > len(s) {
 		end = len(s)
@@ -325,7 +334,7 @@ func insideUnclosedDoubleQuote(s string, end int) bool {
 		case s[i] == '"':
 			next, closed := skipQuotedLiteralWithState(s[:end], i, '"')
 			if !closed {
-				return true
+				return i, true
 			}
 			i = next + 1
 		case s[i] == '-' && i+1 < end && s[i+1] == '-':
@@ -337,7 +346,7 @@ func insideUnclosedDoubleQuote(s string, end int) bool {
 			i++
 		}
 	}
-	return false
+	return 0, false
 }
 
 type tableRef struct {
@@ -355,8 +364,14 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 	if meta == nil {
 		return nil
 	}
-	scopes := extractQueryScopes(statement, pos)
 	qualifier, qualQuoted := columnQualifierBeforeCursor(statement, pos)
+	scopeStatement := statement
+	scopePos := pos
+	if qStart, ok := unclosedDoubleQuoteStart(statement, pos); ok {
+		scopeStatement = statement[:qStart] + statement[pos:]
+		scopePos = qStart
+	}
+	scopes := extractQueryScopes(scopeStatement, scopePos)
 
 	allTables := collectMetadataTables(meta)
 	if qualifier != "" {
@@ -673,7 +688,11 @@ func isOperandToken(s string) bool {
 
 func columnQualifierBeforeCursor(statement string, pos int) (string, bool) {
 	prefix := extractPrefix(statement, pos)
-	before := strings.TrimRight(statement[:pos-len(prefix)], " \t\n\r")
+	beforeEnd := pos - len(prefix)
+	before := strings.TrimRight(statement[:beforeEnd], " \t\n\r")
+	if strings.HasSuffix(before, `"`) && insideUnclosedDoubleQuote(statement, beforeEnd) {
+		before = strings.TrimRight(strings.TrimSuffix(before, `"`), " \t\n\r")
+	}
 	if !strings.HasSuffix(before, ".") {
 		return "", false
 	}

@@ -1141,6 +1141,9 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 			return
 		}
 		if syn := findSynonymMeta(sm.GetSynonyms(), name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
+			if syn.GetTargetDbLink() != "" {
+				return
+			}
 			targetSchema := syn.GetTargetSchema()
 			targetExplicit := targetSchema != ""
 			if targetSchema == "" {
@@ -1152,6 +1155,9 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 	}
 	if allowPublicSyn && (schema == "" || nameMatches(schema, r.store.defaultSchema, schemaQuoted)) {
 		if syn := findSynonymMeta(r.store.publicSynonyms, name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
+			if syn.GetTargetDbLink() != "" {
+				return
+			}
 			targetSchema := syn.GetTargetSchema()
 			targetExplicit := targetSchema != ""
 			if targetSchema == "" {
@@ -1603,6 +1609,30 @@ func (r *resolver) insertLocalVariableCandidates(dst *[]Candidate) {
 		tok := toks[i]
 		kw := strings.ToUpper(parser.TokenName(tok.Type))
 		switch kw {
+		case "PACKAGE":
+			// CREATE [OR REPLACE] [EDITIONABLE] PACKAGE [BODY] [schema.]name (IS|AS) opens a package scope.
+			j := i + 1
+			if j < len(toks) && strings.EqualFold(parser.TokenName(toks[j].Type), "BODY") {
+				j++
+			}
+			foundHeaderEnd := false
+			for j < len(toks) {
+				jkw := strings.ToUpper(parser.TokenName(toks[j].Type))
+				if toks[j].Type == ';' {
+					break
+				}
+				if jkw == "IS" || jkw == "AS" {
+					pushScope(nil)
+					i = j
+					foundHeaderEnd = true
+					break
+				}
+				j++
+			}
+			if foundHeaderEnd {
+				i++
+				continue
+			}
 		case "PROCEDURE", "FUNCTION":
 			// Only start a subprogram scope when declaring/defining a subprogram header with IS/AS.
 			if i+1 < len(toks) && r.isIdentifierToken(toks[i+1]) {
@@ -1891,8 +1921,9 @@ func (r *resolver) withClausePrefix() string {
 }
 
 func (r *resolver) appendVirtualReferenceIfMissing(ref *virtualTableRef) {
+	refNorm := virtualNormalizedName(ref)
 	for _, existing := range r.cteTables {
-		if strings.EqualFold(existing.Table, ref.Table) {
+		if virtualNormalizedName(existing) == refNorm {
 			if len(existing.Columns) == 0 && len(ref.Columns) > 0 {
 				existing.Columns = ref.Columns
 			}
@@ -1900,6 +1931,13 @@ func (r *resolver) appendVirtualReferenceIfMissing(ref *virtualTableRef) {
 		}
 	}
 	r.cteTables = append(r.cteTables, ref)
+}
+
+func virtualNormalizedName(ref *virtualTableRef) string {
+	if ref.Quoted {
+		return ref.Table
+	}
+	return strings.ToUpper(ref.Table)
 }
 
 func (r *resolver) appendReferenceIfMissing(ref tableRef) {

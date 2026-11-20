@@ -168,6 +168,9 @@ func Complete(sql string, cursorOffset int, meta *metadatapb.DatabaseSchemaMetad
 	store := newSchemaStore(meta, cfg)
 
 	stmtSQL, localOffset := isolateStatementAtCursor(sql, cursorOffset)
+	if insideComment(stmtSQL, localOffset) {
+		return nil
+	}
 	prefix := extractPrefix(stmtSQL, localOffset)
 	collectOffset := localOffset - len(prefix)
 	if linkPrefix, linkStart, ok := extractDBLinkPrefix(stmtSQL, localOffset); ok {
@@ -278,6 +281,59 @@ func insideDoubleQuotes(sql string, offset int) bool {
 		}
 	}
 	return lex.Err != nil && strings.Contains(lex.Err.Error(), "unterminated")
+}
+
+func insideComment(sql string, offset int) bool {
+	if offset <= 0 {
+		return false
+	}
+	if offset > len(sql) {
+		offset = len(sql)
+	}
+	i := 0
+	for i < offset {
+		switch {
+		case sql[i] == '\'' || sql[i] == '"':
+			q := sql[i]
+			i++
+			for i < offset {
+				if sql[i] == q {
+					if i+1 < offset && sql[i+1] == q {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+		case sql[i] == '-' && i+1 < offset && sql[i+1] == '-':
+			i += 2
+			for i < offset && sql[i] != '\n' && sql[i] != '\r' {
+				i++
+			}
+			if i >= offset {
+				return true
+			}
+		case sql[i] == '/' && i+1 < offset && sql[i+1] == '*':
+			i += 2
+			closed := false
+			for i+1 < offset {
+				if sql[i] == '*' && sql[i+1] == '/' {
+					i += 2
+					closed = true
+					break
+				}
+				i++
+			}
+			if !closed {
+				return true
+			}
+		default:
+			i++
+		}
+	}
+	return false
 }
 
 func standardComplete(sql string, collectOffset int, store *schemaStore) []Candidate {

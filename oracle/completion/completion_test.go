@@ -1248,6 +1248,63 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("expected V variable candidate after CASE ... END, got %v", resCase)
 		}
 	})
+
+	t.Run("case-distinct unquoted and quoted CTEs remain separate", func(t *testing.T) {
+		sqlLower, posLower := splitCaret(t, `WITH q(c1) AS (SELECT 1 FROM dual), "q"(c2) AS (SELECT 2 FROM dual) SELECT | FROM "q"`)
+		resLower := Complete(sqlLower, posLower, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resLower, candidateSpec{text: "C2", typ: CandidateColumn}) || hasSpec(resLower, candidateSpec{text: "C1", typ: CandidateColumn}) {
+			t.Fatalf(`expected only C2 for "q", got %v`, resLower)
+		}
+
+		sqlUpper, posUpper := splitCaret(t, `WITH q(c1) AS (SELECT 1 FROM dual), "q"(c2) AS (SELECT 2 FROM dual) SELECT * FROM |`)
+		resUpper := Complete(sqlUpper, posUpper, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resUpper, candidateSpec{text: "Q", typ: CandidateTable}) || !hasSpec(resUpper, candidateSpec{text: "q", typ: CandidateTable}) {
+			t.Fatalf(`expected both Q and q CTE candidates, got %v`, resUpper)
+		}
+	})
+
+	t.Run("comment cursor suppresses Oracle completion", func(t *testing.T) {
+		sqlLine, posLine := splitCaret(t, "SELECT * FROM -- mu|")
+		if resLine := Complete(sqlLine, posLine, meta, WithDefaultSchema("HR")); len(resLine) != 0 {
+			t.Fatalf("expected no completion inside line comment, got %v", resLine)
+		}
+		sqlBlock, posBlock := splitCaret(t, "SELECT * FROM /* mu|")
+		if resBlock := Complete(sqlBlock, posBlock, meta, WithDefaultSchema("HR")); len(resBlock) != 0 {
+			t.Fatalf("expected no completion inside block comment, got %v", resBlock)
+		}
+	})
+
+	t.Run("remote synonym with TargetDbLink does not resolve local table", func(t *testing.T) {
+		synMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name:    "ALBUM",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "ALBUM_ID", Type: "NUMBER"}},
+						},
+					},
+					Synonyms: []*metadatapb.SynonymMetadata{
+						{Name: "REM_ALBUM", TargetName: "ALBUM", TargetDbLink: "REMOTE"},
+					},
+				},
+			},
+		}
+		sqlRem, posRem := splitCaret(t, "SELECT | FROM rem_album")
+		resRem := Complete(sqlRem, posRem, synMeta, WithDefaultSchema("HR"))
+		if hasSpec(resRem, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) {
+			t.Fatalf("did not expect local ALBUM_ID through remote synonym TargetDbLink, got %v", resRem)
+		}
+	})
+
+	t.Run("package body variables offered inside package block", func(t *testing.T) {
+		sqlPkg, posPkg := splitCaret(t, "CREATE PACKAGE BODY p_pkg AS g_cnt NUMBER; BEGIN SELECT album_id INTO | FROM album; END;")
+		resPkg := Complete(sqlPkg, posPkg, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resPkg, candidateSpec{text: "G_CNT", typ: CandidateVariable}) {
+			t.Fatalf("expected G_CNT package variable in INTO, got %v", resPkg)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {
