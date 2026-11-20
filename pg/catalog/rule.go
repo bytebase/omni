@@ -2041,6 +2041,11 @@ func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *r
 	if w == nil || w.Ctes == nil {
 		return cteNames, cteCols, cteColTypes, cteAny, nil
 	}
+	if w.Recursive && !c.snapshot {
+		if err := checkRuleRecursiveWith(w); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	}
 	if w.Recursive {
 		for _, item := range w.Ctes.Items {
 			if cte, ok := item.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
@@ -2176,6 +2181,101 @@ func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *r
 		}
 	}
 	return cteNames, cteCols, cteColTypes, cteAny, nil
+}
+
+// checkRuleRecursiveWith applies parse_cte.c's checks to a WITH RECURSIVE list:
+// no cycle of references between two or more items, and an item that refers
+// to itself has the form non-recursive-term UNION [ALL] recursive-term with no
+// self reference in the non-recursive term.
+func checkRuleRecursiveWith(w *nodes.WithClause) error {
+	var ctes []*nodes.CommonTableExpr
+	index := make(map[string]int)
+	for _, item := range w.Ctes.Items {
+		if cte, ok := item.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
+			if _, dup := index[cte.Ctename]; !dup {
+				index[cte.Ctename] = len(ctes)
+				ctes = append(ctes, cte)
+			}
+		}
+	}
+	refs := make([]map[int]bool, len(ctes))
+	for i, cte := range ctes {
+		refs[i] = ruleCTERefs(cte.Ctequery, index)
+	}
+	// Iterative depth-first search for a cycle that does not run through a
+	// self reference alone.
+	state := make([]int, len(ctes))
+	for start := range ctes {
+		if state[start] != 0 {
+			continue
+		}
+		type frame struct {
+			node int
+			next []int
+		}
+		succ := func(i int) []int {
+			var out []int
+			for j := range refs[i] {
+				if j != i {
+					out = append(out, j)
+				}
+			}
+			return out
+		}
+		state[start] = 1
+		stack := []frame{{start, succ(start)}}
+		for len(stack) > 0 {
+			top := &stack[len(stack)-1]
+			if len(top.next) == 0 {
+				state[top.node] = 2
+				stack = stack[:len(stack)-1]
+				continue
+			}
+			j := top.next[0]
+			top.next = top.next[1:]
+			switch state[j] {
+			case 1:
+				return &Error{Code: CodeFeatureNotSupported, Message: "mutual recursion between WITH items is not implemented"}
+			case 0:
+				state[j] = 1
+				stack = append(stack, frame{j, succ(j)})
+			}
+		}
+	}
+	for i, cte := range ctes {
+		if !refs[i][i] {
+			continue
+		}
+		sel, ok := cte.Ctequery.(*nodes.SelectStmt)
+		if !ok || sel.Op != nodes.SETOP_UNION {
+			return &Error{
+				Code:    CodeInvalidRecursion,
+				Message: fmt.Sprintf("recursive query %q does not have the form non-recursive-term UNION [ALL] recursive-term", cte.Ctename),
+			}
+		}
+		if ruleCTERefs(sel.Larg, index)[i] {
+			return &Error{
+				Code:    CodeInvalidRecursion,
+				Message: fmt.Sprintf("recursive reference to query %q must not appear within its non-recursive term", cte.Ctename),
+			}
+		}
+	}
+	return nil
+}
+
+// ruleCTERefs returns the items of index that n names as an unqualified
+// relation.
+func ruleCTERefs(n nodes.Node, index map[string]int) map[int]bool {
+	out := make(map[int]bool)
+	nodes.Inspect(n, func(x nodes.Node) bool {
+		if rv, ok := x.(*nodes.RangeVar); ok && rv.Schemaname == "" && rv.Catalogname == "" {
+			if i, found := index[rv.Relname]; found {
+				out[i] = true
+			}
+		}
+		return true
+	})
+	return out
 }
 
 func (c *Catalog) bindTargetColumns(b *ruleBindings, relOID uint32, list *nodes.List) error {
@@ -2578,6 +2678,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		}
 		if s.GroupClause != nil {
 			qCols, qAny := c.extractRuleQueryCols(b, s)
+			aliasCtx.disallowAgg, aliasCtx.disallowWin = "GROUP BY", "GROUP BY"
 			for _, item := range s.GroupClause.Items {
 				if err := c.bindRuleExpr(b, item, aliasCtx); err != nil {
 					return err
@@ -2586,15 +2687,28 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					return err
 				}
 			}
+			aliasCtx.disallowAgg, aliasCtx.disallowWin = "", ""
 		}
 		if err := c.bindRuleBoolExpr(b, s.HavingClause, ctx, "HAVING"); err != nil {
 			return err
 		}
 		if s.WindowClause != nil {
+			// A WINDOW entry may copy only an entry declared before it
+			// (parse_clause.c transformWindowDefinitions).
+			declared := make(map[string]bool)
 			for _, item := range s.WindowClause.Items {
 				if wd, ok := item.(*nodes.WindowDef); ok {
+					if wd.Refname != "" && !declared[wd.Refname] && !c.snapshot {
+						return &Error{
+							Code:    CodeUndefinedObject,
+							Message: fmt.Sprintf("window %q does not exist", wd.Refname),
+						}
+					}
 					if err := c.bindWindowClauseDef(b, wd, ctx); err != nil {
 						return err
+					}
+					if wd.Name != "" {
+						declared[wd.Name] = true
 					}
 				}
 			}
@@ -3709,8 +3823,14 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 			return err
 		}
 	}
+	if s.LimitOption == nodes.LIMIT_OPTION_WITH_TIES && (s.SortClause == nil || len(s.SortClause.Items) == 0) && !c.snapshot {
+		return &Error{Code: CodeSyntaxError, Message: "WITH TIES cannot be specified without ORDER BY clause"}
+	}
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
+	}
+	if s.LimitCount != nil && !c.snapshot && c.ruleExprRefersToLevel(b, s.LimitCount, ctx) {
+		return &Error{Code: CodeInvalidColumnReference, Message: "argument of LIMIT must not contain variables"}
 	}
 	if s.LimitCount != nil && !c.snapshot {
 		if t := c.inferRuleExprType(b, s.LimitCount, ctx); t != 0 && t != UNKNOWNOID && !c.CanCoerce(t, INT8OID, 'a') {
@@ -3722,6 +3842,9 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 	}
 	if err := c.bindRuleExpr(b, s.LimitOffset, ctx); err != nil {
 		return err
+	}
+	if s.LimitOffset != nil && !c.snapshot && c.ruleExprRefersToLevel(b, s.LimitOffset, ctx) {
+		return &Error{Code: CodeInvalidColumnReference, Message: "argument of OFFSET must not contain variables"}
 	}
 	if s.LimitOffset != nil && !c.snapshot {
 		if t := c.inferRuleExprType(b, s.LimitOffset, ctx); t != 0 && t != UNKNOWNOID && !c.CanCoerce(t, INT8OID, 'a') {
@@ -3762,6 +3885,75 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 	return nil
 }
 
+// ruleExprRefersToLevel reports whether n refers to a column of level's own
+// FROM items, which checkExprIsVarFree (parse_clause.c) refuses in LIMIT and
+// OFFSET even from inside a subquery. A subquery's own FROM items shadow
+// level. NEW and OLD are not counted, so a reference to them is let through.
+func (c *Catalog) ruleExprRefersToLevel(b *ruleBindings, n nodes.Node, level *ruleEvalContext) bool {
+	if b == nil || level == nil || len(level.scope) == 0 {
+		return false
+	}
+	found := false
+	nodes.Walk(ruleLevelVarFinder{c: c, b: b, level: level, found: &found}, n)
+	return found
+}
+
+type ruleLevelVarFinder struct {
+	c     *Catalog
+	b     *ruleBindings
+	level *ruleEvalContext
+	inner []*ruleEvalContext
+	found *bool
+}
+
+func (f ruleLevelVarFinder) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil || *f.found {
+		return nil
+	}
+	switch v := n.(type) {
+	case *nodes.SelectStmt:
+		if sctx := f.b.stmtCtx[v]; sctx != nil {
+			f.inner = append(f.inner[:len(f.inner):len(f.inner)], sctx)
+		}
+	case *nodes.ColumnRef:
+		if f.refersToLevel(v) {
+			*f.found = true
+			return nil
+		}
+	}
+	return f
+}
+
+func (f ruleLevelVarFinder) refersToLevel(cr *nodes.ColumnRef) bool {
+	if cr.Fields == nil || len(cr.Fields.Items) == 0 {
+		return false
+	}
+	items := cr.Fields.Items
+	if len(items) == 1 {
+		name := stringVal(items[0])
+		if name == "" {
+			return false
+		}
+		for i := len(f.inner) - 1; i >= 0; i-- {
+			if localScopeHasCol(f.c, f.inner[i], name) {
+				return false
+			}
+		}
+		return localScopeHasCol(f.c, f.level, name)
+	}
+	qual := stringVal(items[len(items)-2])
+	if qual == "" || strings.EqualFold(qual, "old") || strings.EqualFold(qual, "new") {
+		return false
+	}
+	for i := len(f.inner) - 1; i >= 0; i-- {
+		if _, ok := f.inner[i].scope[qual]; ok {
+			return false
+		}
+	}
+	_, ok := f.level.scope[qual]
+	return ok
+}
+
 func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.SelectStmt) error {
 	if s == nil || s.DistinctClause == nil || s.SortClause == nil || len(s.SortClause.Items) == 0 {
 		return nil
@@ -3772,9 +3964,6 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 			hasDistinctOn = true
 			break
 		}
-	}
-	if !hasDistinctOn {
-		return nil
 	}
 
 	type targetKeyEntry struct {
@@ -3831,6 +4020,8 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 		}
 	}
 
+	// A bare name in ORDER BY or DISTINCT ON names an output column before an
+	// input column (parse_clause.c findTargetlistEntrySQL92).
 	resolveSortGroupKey := func(expr nodes.Node) string {
 		var iv *nodes.Integer
 		switch v := expr.(type) {
@@ -3845,17 +4036,50 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 			return targets[iv.Ival-1].key
 		}
 		if cr, ok := expr.(*nodes.ColumnRef); ok && cr != nil && cr.Fields != nil && len(cr.Fields.Items) == 1 {
-			if b == nil || b.colByRef[cr].relOID == 0 {
-				if str, isStr := cr.Fields.Items[0].(*nodes.String); isStr && str.Str != "" {
-					for _, t := range targets {
-						if t.alias == str.Str {
-							return t.key
-						}
+			if str, isStr := cr.Fields.Items[0].(*nodes.String); isStr && str.Str != "" {
+				for _, t := range targets {
+					if t.alias == str.Str {
+						return t.key
 					}
 				}
 			}
 		}
 		return exprCanonicalKey(expr)
+	}
+
+	if !hasDistinctOn {
+		// Plain DISTINCT: every ORDER BY expression must be an output column
+		// (parse_clause.c transformDistinctClause). Expressions are compared
+		// by text, which can differ in qualification, so an unmatched one is
+		// refused only when it uses a column that no output expression uses.
+		targetKeys := make(map[string]bool, len(targets))
+		targetCols := make(map[string]bool)
+		for _, t := range targets {
+			targetKeys[t.key] = true
+			if strings.HasPrefix(t.key, "col:") {
+				targetCols[t.key] = true
+			}
+		}
+		for _, item := range s.TargetList.Items {
+			for k := range ruleBoundColumnKeys(b, item) {
+				targetCols[k] = true
+			}
+		}
+		for _, item := range s.SortClause.Items {
+			sb, ok := item.(*nodes.SortBy)
+			if !ok || sb == nil || sb.Node == nil || targetKeys[resolveSortGroupKey(sb.Node)] {
+				continue
+			}
+			for k := range ruleBoundColumnKeys(b, sb.Node) {
+				if !targetCols[k] {
+					return &Error{
+						Code:    CodeInvalidColumnReference,
+						Message: "for SELECT DISTINCT, ORDER BY expressions must appear in select list",
+					}
+				}
+			}
+		}
+		return nil
 	}
 
 	distinctKeys := make(map[string]bool)
@@ -3891,6 +4115,24 @@ func (c *Catalog) checkRuleDistinctOnMatchesOrderBy(b *ruleBindings, s *nodes.Se
 		matched[k] = true
 	}
 	return nil
+}
+
+// ruleBoundColumnKeys returns the bound table columns n refers to at any
+// level, keyed as checkRuleDistinctOnMatchesOrderBy keys them.
+func ruleBoundColumnKeys(b *ruleBindings, n nodes.Node) map[string]bool {
+	out := make(map[string]bool)
+	if b == nil {
+		return out
+	}
+	nodes.Inspect(n, func(x nodes.Node) bool {
+		if cr, ok := x.(*nodes.ColumnRef); ok {
+			if cb, found := b.colByRef[cr]; found && cb.relOID != 0 && cb.attNum != 0 {
+				out[fmt.Sprintf("col:%d:%d", cb.relOID, cb.attNum)] = true
+			}
+		}
+		return true
+	})
+	return out
 }
 
 func (c *Catalog) checkRuleLockingClauseAllowed(b *ruleBindings, s *nodes.SelectStmt) error {
@@ -3947,6 +4189,50 @@ func (c *Catalog) selectHasTopLevelAggOrWindow(b *ruleBindings, s *nodes.SelectS
 	if s == nil {
 		return false, false
 	}
+	if s.TargetList != nil {
+		hasAgg, hasWin = c.ruleExprHasAggOrWindow(b, s.TargetList)
+	}
+	if s.SortClause != nil {
+		agg, win := c.ruleExprHasAggOrWindow(b, s.SortClause)
+		hasAgg, hasWin = hasAgg || agg, hasWin || win
+	}
+	return hasAgg, hasWin
+}
+
+// checkRuleNestedAggOrWindow rejects what parse_agg.c rejects inside a call's
+// own query level: an aggregate or window call in an aggregate's arguments or
+// ordering, and a window call in a window function's arguments. A subquery
+// starts a new level, so its calls are not nested.
+func (c *Catalog) checkRuleNestedAggOrWindow(b *ruleBindings, v *nodes.FuncCall) error {
+	if v.Over != nil {
+		if v.Args != nil {
+			if _, win := c.ruleExprHasAggOrWindow(b, v.Args); win {
+				return &Error{Code: CodeWindowingError, Message: "window function calls cannot be nested"}
+			}
+		}
+		return nil
+	}
+	if !c.isRuleAggFuncCall(b, v) {
+		return nil
+	}
+	for _, list := range []*nodes.List{v.Args, v.AggOrder} {
+		if list == nil {
+			continue
+		}
+		agg, win := c.ruleExprHasAggOrWindow(b, list)
+		if agg {
+			return &Error{Code: CodeGroupingError, Message: "aggregate function calls cannot be nested"}
+		}
+		if win {
+			return &Error{Code: CodeGroupingError, Message: "aggregate function calls cannot contain window function calls"}
+		}
+	}
+	return nil
+}
+
+// ruleExprHasAggOrWindow reports whether n holds an aggregate or a window
+// call of its own query level; it does not descend into subqueries.
+func (c *Catalog) ruleExprHasAggOrWindow(b *ruleBindings, root nodes.Node) (hasAgg bool, hasWin bool) {
 	var walk func(n nodes.Node)
 	walk = func(n nodes.Node) {
 		if n == nil || (hasAgg && hasWin) {
@@ -3956,6 +4242,9 @@ func (c *Catalog) selectHasTopLevelAggOrWindow(b *ruleBindings, s *nodes.SelectS
 		case *nodes.SubLink, *nodes.RangeSubselect, *nodes.SelectStmt, *nodes.JsonArrayQueryConstructor:
 			return
 		case *nodes.List:
+			if v == nil {
+				return
+			}
 			for _, item := range v.Items {
 				walk(item)
 			}
@@ -4047,16 +4336,13 @@ func (c *Catalog) selectHasTopLevelAggOrWindow(b *ruleBindings, s *nodes.SelectS
 		case *nodes.A_Indices:
 			walk(v.Lidx)
 			walk(v.Uidx)
+		case *nodes.NamedArgExpr:
+			walk(v.Arg)
 		case *nodes.GroupingFunc:
 			hasAgg = true
 		}
 	}
-	if s.TargetList != nil {
-		walk(s.TargetList)
-	}
-	if s.SortClause != nil {
-		walk(s.SortClause)
-	}
+	walk(root)
 	return hasAgg, hasWin
 }
 
@@ -5296,6 +5582,9 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 			if err := c.bindRuleFuncCall(b, v, argCount, ctx); err != nil {
 				return err
 			}
+		}
+		if !c.snapshot {
+			return c.checkRuleNestedAggOrWindow(b, v)
 		}
 		return nil
 

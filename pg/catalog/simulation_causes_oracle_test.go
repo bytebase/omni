@@ -5168,6 +5168,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_grouping_no_gb_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(id) FROM t_r20", CodeGroupingError},
 			{"CREATE RULE r_grouping_non_key_r25 AS ON INSERT TO t_r20 DO ALSO SELECT GROUPING(val) FROM t_r20 GROUP BY id", CodeGroupingError},
 			{"CREATE TEMP TABLE tmp_ident_r25 (a int); ALTER TABLE tmp_ident_r25 ADD COLUMN id int GENERATED ALWAYS AS IDENTITY; ALTER SEQUENCE tmp_ident_r25_id_seq SET LOGGED", CodeWrongObjectType},
+			// Round 31: rule queries refused as PostgreSQL 17 refuses them, beside forms it accepts.
+			{"CREATE RULE r_rec_shape_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x AS (SELECT * FROM x) INSERT INTO dst_r20 SELECT * FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_rec_left_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT id FROM x UNION ALL SELECT 1) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeInvalidRecursion},
+			{"CREATE RULE r_rec_mutual_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL SELECT id FROM y), y(id) AS (SELECT 1 UNION ALL SELECT id FROM x) INSERT INTO dst_r20 (id) SELECT id FROM x", CodeFeatureNotSupported},
+			{"CREATE RULE r_rec_ok_r31 AS ON INSERT TO t_r20 DO ALSO WITH RECURSIVE x(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM x WHERE id < 3), y(id) AS (SELECT id FROM x UNION ALL SELECT id FROM y WHERE false) INSERT INTO dst_r20 (id) SELECT id FROM y", "0"},
+			{"CREATE RULE r_win_fwd_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w1 FROM t_r20 WINDOW w1 AS (w2), w2 AS ()", CodeUndefinedObject},
+			{"CREATE RULE r_win_back_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(id) OVER w2 FROM t_r20 WINDOW w1 AS (), w2 AS (w1 ORDER BY id)", "0"},
+			{"CREATE RULE r_gb_agg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY count(*)", CodeGroupingError},
+			{"CREATE RULE r_gb_win_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY row_number() OVER ()", CodeWindowingError},
+			{"CREATE RULE r_gb_sub_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT 1 FROM t_r20 GROUP BY (SELECT count(*) FROM dst_r20)", "0"},
+			{"CREATE RULE r_agg_nest_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(count(*)) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_agg_win_arg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(row_number() OVER ()) FROM t_r20", CodeGroupingError},
+			{"CREATE RULE r_win_nest_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(row_number() OVER ()) OVER () FROM t_r20", CodeWindowingError},
+			{"CREATE RULE r_agg_over_agg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum(count(*)) OVER () FROM t_r20", "0"},
+			{"CREATE RULE r_agg_sub_arg_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT sum((SELECT count(*) FROM dst_r20)) FROM t_r20", "0"},
+			{"CREATE RULE r_dist_ord_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT id FROM t_r20 ORDER BY val", CodeInvalidColumnReference},
+			{"CREATE RULE r_dist_ord_ok_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT DISTINCT t_r20.id + 1 FROM t_r20 ORDER BY id + 1", "0"},
+			{"CREATE RULE r_dist_alias_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (val) SELECT DISTINCT val AS id FROM t_r20 ORDER BY id", "0"},
+			{"CREATE RULE r_limit_var_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT id", CodeInvalidColumnReference},
+			{"CREATE RULE r_offset_var_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 s OFFSET (SELECT s.id)", CodeInvalidColumnReference},
+			{"CREATE RULE r_limit_outer_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT (SELECT 1 FROM dst_r20 LIMIT t_r20.id) FROM t_r20", "0"},
+			{"CREATE RULE r_limit_sub_r31 AS ON INSERT TO t_r20 DO ALSO INSERT INTO dst_r20 (id) SELECT id FROM t_r20 LIMIT (SELECT max(id) FROM dst_r20)", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)

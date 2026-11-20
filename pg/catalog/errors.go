@@ -43,6 +43,7 @@ const (
 	CodeAmbiguousFunction            = "42725"
 	CodeGroupingError                = "42803"
 	CodeWindowingError               = "42P20"
+	CodeInvalidRecursion             = "42P19"
 	CodeInvalidColumnDefinition      = "42611"
 	CodeTooManyColumns               = "54011"
 	CodeFeatureNotSupported          = "0A000"
