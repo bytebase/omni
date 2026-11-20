@@ -154,6 +154,289 @@ func transcodeClientToConnString(raw, clientCS, connCS string) string {
 	return out.String()
 }
 
+var (
+	charsetEncodeTablesOnce sync.Once
+	charsetEncodeRunes      map[string]map[rune][]byte
+)
+
+func getCharsetEncodeRunes(cs string) map[rune][]byte {
+	charsetEncodeTablesOnce.Do(func() {
+		ensureCharsetTablesLoaded()
+		m := make(map[string]map[rune][]byte, len(singleByteCharsetIndex)+9)
+		add := func(enc map[rune][]byte, r rune, bs []byte) {
+			if r == 0 || r == utf8.RuneError {
+				return
+			}
+			if _, exists := enc[r]; !exists {
+				cp := make([]byte, len(bs))
+				copy(cp, bs)
+				enc[r] = cp
+			}
+		}
+		for name, sbIdx := range singleByteCharsetIndex {
+			enc := make(map[rune][]byte, 128)
+			tbl := charsetTables.sb[sbIdx*128 : (sbIdx+1)*128]
+			for i, r := range tbl {
+				if r != '?' {
+					add(enc, r, []byte{byte(0x80 + i)})
+				}
+			}
+			m[name] = enc
+		}
+		for _, spec := range []struct {
+			name string
+			tbl  []rune
+		}{
+			{"sjis", charsetTables.sjis},
+			{"cp932", charsetTables.cp932},
+		} {
+			enc := make(map[rune][]byte, len(spec.tbl))
+			for i := 0; i < 63 && i < len(spec.tbl); i++ {
+				if spec.tbl[i] != '?' {
+					add(enc, spec.tbl[i], []byte{byte(0xA1 + i)})
+				}
+			}
+			for row := 0; row < 60; row++ {
+				b0 := byte(0x81 + row)
+				if row >= 31 {
+					b0 = byte(0xE0 + row - 31)
+				}
+				for col := 0; col < 188; col++ {
+					idx := 63 + row*188 + col
+					if idx >= len(spec.tbl) {
+						break
+					}
+					if spec.tbl[idx] != '?' {
+						b1 := byte(0x40 + col)
+						if col >= 63 {
+							b1 = byte(0x80 + col - 63)
+						}
+						add(enc, spec.tbl[idx], []byte{b0, b1})
+					}
+				}
+			}
+			m[spec.name] = enc
+		}
+		for _, spec := range []struct {
+			name string
+			tbl  []rune
+		}{
+			{"ujis", charsetTables.ujis},
+			{"eucjpms", charsetTables.eucjpms},
+		} {
+			enc := make(map[rune][]byte, len(spec.tbl))
+			for i := 0; i < 63 && i < len(spec.tbl); i++ {
+				if spec.tbl[i] != '?' {
+					add(enc, spec.tbl[i], []byte{0x8E, byte(0xA1 + i)})
+				}
+			}
+			for row := 0; row < 94; row++ {
+				for col := 0; col < 94; col++ {
+					idx := 63 + row*94 + col
+					if idx < len(spec.tbl) && spec.tbl[idx] != '?' {
+						add(enc, spec.tbl[idx], []byte{byte(0xA1 + row), byte(0xA1 + col)})
+					}
+					idx3 := 63 + 8836 + row*94 + col
+					if idx3 < len(spec.tbl) && spec.tbl[idx3] != '?' {
+						add(enc, spec.tbl[idx3], []byte{0x8F, byte(0xA1 + row), byte(0xA1 + col)})
+					}
+				}
+			}
+			m[spec.name] = enc
+		}
+		{
+			enc := make(map[rune][]byte, len(charsetTables.gb2312))
+			for row := 0; row < 87; row++ {
+				for col := 0; col < 94; col++ {
+					idx := row*94 + col
+					if idx < len(charsetTables.gb2312) && charsetTables.gb2312[idx] != '?' {
+						add(enc, charsetTables.gb2312[idx], []byte{byte(0xA1 + row), byte(0xA1 + col)})
+					}
+				}
+			}
+			m["gb2312"] = enc
+		}
+		for _, spec := range []struct {
+			name string
+			tbl  []rune
+		}{
+			{"gbk", charsetTables.gbk},
+			{"gb18030", charsetTables.gb18030_2b},
+		} {
+			enc := make(map[rune][]byte, len(spec.tbl))
+			for row := 0; row < 126; row++ {
+				for col := 0; col < 190; col++ {
+					idx := row*190 + col
+					if idx >= len(spec.tbl) {
+						break
+					}
+					if spec.tbl[idx] != '?' {
+						b1 := byte(0x40 + col)
+						if col >= 63 {
+							b1 = byte(0x80 + col - 63)
+						}
+						add(enc, spec.tbl[idx], []byte{byte(0x81 + row), b1})
+					}
+				}
+			}
+			m[spec.name] = enc
+		}
+		{
+			enc := make(map[rune][]byte, len(charsetTables.big5))
+			for row := 0; row < 89; row++ {
+				for col := 0; col < 157; col++ {
+					idx := row*157 + col
+					if idx >= len(charsetTables.big5) {
+						break
+					}
+					if charsetTables.big5[idx] != '?' {
+						b1 := byte(0x40 + col)
+						if col >= 63 {
+							b1 = byte(0xA1 + col - 63)
+						}
+						add(enc, charsetTables.big5[idx], []byte{byte(0xA1 + row), b1})
+					}
+				}
+			}
+			m["big5"] = enc
+		}
+		{
+			enc := make(map[rune][]byte, len(charsetTables.euckr))
+			for row := 0; row < 126; row++ {
+				for col := 0; col < 178; col++ {
+					idx := row*178 + col
+					if idx >= len(charsetTables.euckr) {
+						break
+					}
+					if charsetTables.euckr[idx] != '?' {
+						var b1 byte
+						switch {
+						case col < 26:
+							b1 = byte(0x41 + col)
+						case col < 52:
+							b1 = byte(0x61 + col - 26)
+						default:
+							b1 = byte(0x81 + col - 52)
+						}
+						add(enc, charsetTables.euckr[idx], []byte{byte(0x81 + row), b1})
+					}
+				}
+			}
+			m["euckr"] = enc
+		}
+		charsetEncodeRunes = m
+	})
+	return charsetEncodeRunes[cs]
+}
+
+// encodeStringToCharsetBytes encodes a UTF-8 string into the target MySQL
+// charset's byte representation (replacing unmapped runes with '?').
+func encodeStringToCharsetBytes(val, charset string) []byte {
+	cs := strings.ToLower(strings.TrimSpace(normalizeCharsetName(charset)))
+	switch cs {
+	case "", "utf8mb4", "utf8", "utf8mb3", "binary":
+		return []byte(val)
+	case "ascii":
+		out := make([]byte, 0, len(val))
+		for _, r := range val {
+			if r >= 0 && r < 0x80 {
+				out = append(out, byte(r))
+			} else {
+				out = append(out, '?')
+			}
+		}
+		return out
+	case "ucs2", "utf16", "utf16le":
+		out := make([]byte, 0, len(val)*2)
+		for _, r := range val {
+			if r <= 0xFFFF {
+				w := uint16(r)
+				if cs == "utf16le" {
+					out = append(out, byte(w), byte(w>>8))
+				} else {
+					out = append(out, byte(w>>8), byte(w))
+				}
+				continue
+			}
+			if cs == "ucs2" {
+				out = append(out, 0, '?')
+				continue
+			}
+			u := uint32(r - 0x10000)
+			hi := uint16(0xD800 + (u >> 10))
+			lo := uint16(0xDC00 + (u & 0x3FF))
+			if cs == "utf16le" {
+				out = append(out, byte(hi), byte(hi>>8), byte(lo), byte(lo>>8))
+			} else {
+				out = append(out, byte(hi>>8), byte(hi), byte(lo>>8), byte(lo))
+			}
+		}
+		return out
+	case "utf32":
+		out := make([]byte, 0, len(val)*4)
+		for _, r := range val {
+			u := uint32(r)
+			out = append(out, byte(u>>24), byte(u>>16), byte(u>>8), byte(u))
+		}
+		return out
+	case "swe7":
+		out := make([]byte, 0, len(val))
+		for _, r := range val {
+			if r >= 0 && r < 0x80 && isValidSWE7Rune(r) {
+				out = append(out, byte(r))
+				continue
+			}
+			switch r {
+			case 'É':
+				out = append(out, 0x40)
+			case 'Ä':
+				out = append(out, 0x5B)
+			case 'Ö':
+				out = append(out, 0x5C)
+			case 'Å':
+				out = append(out, 0x5D)
+			case 'Ü':
+				out = append(out, 0x5E)
+			case 'é':
+				out = append(out, 0x60)
+			case 'ä':
+				out = append(out, 0x7B)
+			case 'ö':
+				out = append(out, 0x7C)
+			case 'å':
+				out = append(out, 0x7D)
+			case 'ü':
+				out = append(out, 0x7E)
+			default:
+				out = append(out, '?')
+			}
+		}
+		return out
+	}
+	enc := getCharsetEncodeRunes(cs)
+	out := make([]byte, 0, len(val))
+	for _, r := range val {
+		if r >= 0 && r < 0x80 {
+			out = append(out, byte(r))
+		} else if bs, ok := enc[r]; ok {
+			out = append(out, bs...)
+		} else if cs == "gb18030" && r > 0xFFFF {
+			lin := 189000 + int(r-0x10000)
+			b3 := byte(0x30 + lin%10)
+			lin /= 10
+			b2 := byte(0x81 + lin%126)
+			lin /= 126
+			b1 := byte(0x30 + lin%10)
+			lin /= 10
+			b0 := byte(0x81 + lin)
+			out = append(out, b0, b1, b2, b3)
+		} else {
+			out = append(out, '?')
+		}
+	}
+	return out
+}
+
 // decodeBytesInColumnCharset validates and decodes raw binary literal bytes
 // (0x... / b'...') according to the column's declared MySQL 8.0 character set
 // (measured on mysql:8.0.46) into a UTF-8 Go string.

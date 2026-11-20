@@ -75,7 +75,7 @@ func validateAutoIncrementKeyed(tbl *Table) error {
 // (3772), disallowed functions (3770), unknown columns (1054), auto-increment
 // column references (3768), and self/forward references to columns that are
 // generated or have an expression default (3767).
-func validateTableDefaultExpressions(tbl *Table) error {
+func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 	for colIdx, col := range tbl.Columns {
 		if col == nil || !col.DefaultIsExpr || col.DefaultExprNode == nil {
 			continue
@@ -101,7 +101,7 @@ func validateTableDefaultExpressions(tbl *Table) error {
 				err = errDefaultValExprDisallowedFunc(col.Name)
 				return false
 			case *nodes.FuncCallExpr:
-				if exprHasDisallowedDefaultFunc(x) {
+				if exprHasDisallowedDefaultFunc(x, c.isIgnoreSpaceSQLMode()) {
 					err = errDefaultValExprDisallowedFunc(col.Name)
 					return false
 				}
@@ -137,7 +137,7 @@ func validateTableDefaultExpressions(tbl *Table) error {
 	return nil
 }
 
-func exprHasDisallowedDefaultFunc(expr nodes.ExprNode) bool {
+func exprHasDisallowedDefaultFunc(expr nodes.ExprNode, ignoreSpace bool) bool {
 	if expr == nil {
 		return false
 	}
@@ -147,7 +147,7 @@ func exprHasDisallowedDefaultFunc(expr nodes.ExprNode) bool {
 			return false
 		}
 		if fn, ok := n.(*nodes.FuncCallExpr); ok {
-			if fn.Schema != "" || fn.SpacedParen || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
+			if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(fn.Name) {
 				found = true
 				return false
 			}
@@ -505,11 +505,12 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			switch kind {
 			case litString:
 				byteLen := len(val)
-				if sl, isSL := expr.(*nodes.StringLit); isSL &&
-					(sl.Charset != "" || sl.National || c.effectiveClientCharset() == c.effectiveConnCharset()) {
-					// Raw SQL literal bytes determine BINARY/VARBINARY width unless
-					// client->connection transcoding altered them (e.g. '?' substitution).
-					byteLen = len(sl.Value)
+				if sl, isSL := expr.(*nodes.StringLit); isSL {
+					if sl.Charset == "" && !sl.National && c.effectiveClientCharset() != c.effectiveConnCharset() {
+						byteLen = len(encodeStringToCharsetBytes(val, c.effectiveConnCharset()))
+					} else {
+						byteLen = len(sl.Value)
+					}
 				}
 				if byteLen > maxLen {
 					return errInvalidDefault(col.Name)
@@ -920,7 +921,12 @@ func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode,
 		return
 	}
 	if sl, ok := expr.(*nodes.StringLit); ok {
-		if normVal, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+		if normVal, isHex, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+			if isHex {
+				v := normVal
+				col.Default = &v
+				return
+			}
 			cp := *sl
 			cp.Charset = ""
 			cp.National = false

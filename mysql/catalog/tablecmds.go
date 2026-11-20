@@ -315,7 +315,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef); err != nil {
+		if err := validateColumnDefSemantics(colDef, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -967,7 +967,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 		}
-		if err := validateTableDefaultExpressions(tbl); err != nil {
+		if err := c.validateTableDefaultExpressions(tbl); err != nil {
 			return err
 		}
 	}
@@ -1374,7 +1374,7 @@ func timestampZeroDefault(fsp int) string {
 	return "0000-00-00 00:00:00"
 }
 
-func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.StringLit) (string, bool) {
+func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.StringLit) (string, bool, bool) {
 	litVal := sl.Value
 	decoded := false
 	clientCS := "utf8mb4"
@@ -1393,15 +1393,38 @@ func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.S
 	colIsBinary := strings.EqualFold(col.DataType, "binary") ||
 		strings.EqualFold(col.DataType, "varbinary") ||
 		strings.EqualFold(col.Charset, "binary")
+	if colIsBinary && sl.Charset == "" && !sl.National && clientCS != connCS {
+		connBytes := encodeStringToCharsetBytes(litVal, connCS)
+		hasHighOrCtrl := false
+		for _, b := range connBytes {
+			if b >= 0x80 || b < 0x20 {
+				hasHighOrCtrl = true
+				break
+			}
+		}
+		if hasHighOrCtrl {
+			return fmt.Sprintf("0x%X", connBytes), true, true
+		}
+		return string(connBytes), false, true
+	}
 	litIsBinary := strings.EqualFold(strings.TrimSpace(sl.Charset), "binary") ||
 		(colIsBinary && (sl.Charset != "" || sl.National || clientCS == connCS))
 	normVal, changed := normalizeCharDefaultStringLiteral(col, litVal)
-	return normVal, changed || (decoded && !litIsBinary)
+	return normVal, false, changed || (decoded && !litIsBinary)
 }
 
 func (c *Catalog) setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	if sl, ok := expr.(*nodes.StringLit); ok {
-		if normVal, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+		if normVal, isHex, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+			if isHex {
+				v := normVal
+				col.Default = &v
+				col.DefaultKind = ColumnDefaultConstant
+				col.DefaultDropped = false
+				col.DefaultIsExpr = false
+				col.DefaultExprNode = nil
+				return
+			}
 			cp := *sl
 			cp.Charset = ""
 			cp.National = false
@@ -2308,7 +2331,7 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 		}
 		if ic.Length > 0 {
 			strict := c == nil || c.isStrictSQLMode()
-			if err := validateKeyPrefixLength(tbl, col, ic, strict); err != nil {
+			if err := c.validateKeyPrefixLength(tbl, col, ic, strict); err != nil {
 				return err
 			}
 		}
@@ -2329,10 +2352,27 @@ func charsetMaxBytes(charset string) int {
 	}
 }
 
+func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
+	if dt == "tinytext" || dt == "tinyblob" {
+		return 255
+	}
+	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000
+	}
+	switch c.InnoDBPageSize() {
+	case 4096:
+		return 768
+	case 8192:
+		return 1536
+	default:
+		return 3072
+	}
+}
+
 // validateKeyPrefixLength validates a non-zero key part prefix length against
 // the column's data type and declared width (1089 for fixed-width types, 1071
 // or non-strict clamping for BLOB/TEXT types, measured on mysql:8.0.46).
-func validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bool) error {
+func (c *Catalog) validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bool) error {
 	prefixLen := ic.Length
 	dt := strings.ToLower(col.DataType)
 	switch dt {
@@ -2343,13 +2383,7 @@ func validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bo
 		return nil
 	case "tinytext", "text", "mediumtext", "longtext",
 		"tinyblob", "blob", "mediumblob", "longblob":
-		maxBytes := 3072
-		if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
-			maxBytes = 1000
-		}
-		if dt == "tinytext" || dt == "tinyblob" {
-			maxBytes = 255
-		}
+		maxBytes := c.maxBlobTextIndexPrefixBytes(tbl, dt)
 		mb := 1
 		if strings.HasSuffix(dt, "text") {
 			mb = charsetMaxBytes(col.Charset)

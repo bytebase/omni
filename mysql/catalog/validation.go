@@ -48,7 +48,7 @@ func validateExpressionSemantics(node nodes.Node) error {
 	return err
 }
 
-func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, ignoreSpace bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
@@ -118,7 +118,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	// `DEFAULT (position (1))`. (Other disallowed functions in a general default
 	// expression are not validated here yet.)
 	for _, expr := range columnDefDefaultExprs(colDef) {
-		if exprHasDisallowedDefaultFunc(expr) {
+		if exprHasDisallowedDefaultFunc(expr, ignoreSpace) {
 			return errDefaultValExprDisallowedFunc(colDef.Name)
 		}
 	}
@@ -486,6 +486,10 @@ func (c *Catalog) noEngineSubstitution() bool {
 
 func (c *Catalog) isStrictSQLMode() bool {
 	return sqlModeHas(c.session.SQLMode, "STRICT_TRANS_TABLES") || sqlModeHas(c.session.SQLMode, "STRICT_ALL_TABLES")
+}
+
+func (c *Catalog) isIgnoreSpaceSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "IGNORE_SPACE")
 }
 
 func (c *Catalog) isNoZeroDateSQLMode() bool {

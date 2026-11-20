@@ -4087,6 +4087,81 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "CREATE UNDO TABLESPACE u_rel_ok ADD DATAFILE 'u_rel_ok.ibu'",
 			code:    0,
 		},
+		{
+			name: "SET collation_connection rejects shaped nonexistent collation with 1273",
+			stmt: "SET collation_connection = utf8mb4_not_a_real_collation_ci",
+			code: 1273,
+		},
+		{
+			name: "SET NAMES COLLATE rejects shaped nonexistent collation with 1273",
+			stmt: "SET NAMES utf8mb4 COLLATE utf8mb4_not_a_real_collation_ci",
+			code: 1273,
+		},
+		{
+			name:     "BINARY(1) preserves 1-byte latin1 connection default from utf8mb4 client",
+			session:  []string{"SET character_set_client = utf8mb4", "SET collation_connection = latin1_swedish_ci"},
+			cleanup:  []string{"SET NAMES utf8mb4"},
+			stmt:     "CREATE TABLE a (b BINARY(1) DEFAULT 'é')",
+			code:     0,
+			contains: []string{"DEFAULT 0xE9"},
+		},
+		{
+			name:    "BINARY(2) preserves 2-byte sjis connection default from utf8mb4 client",
+			session: []string{"SET character_set_client = utf8mb4", "SET collation_connection = sjis_japanese_ci"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (b BINARY(2) DEFAULT 'あ')",
+			code:    0,
+		},
+		{
+			name:    "BINARY(1) rejects 2-byte sjis connection default with 1067",
+			session: []string{"SET character_set_client = utf8mb4", "SET collation_connection = sjis_japanese_ci"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (b BINARY(1) DEFAULT 'あ')",
+			code:    1067,
+		},
+		{
+			name: "SET @p = @@SESSION.innodb_page_size rejected with 1238",
+			stmt: "SET @p = @@SESSION.innodb_page_size",
+			code: 1238,
+		},
+		{
+			name: "SET @p = @@LOCAL.innodb_page_size rejected with 1238",
+			stmt: "SET @p = @@LOCAL.innodb_page_size",
+			code: 1238,
+		},
+		{
+			name: "SET @p = @@PERSIST.innodb_page_size rejected with 1193",
+			stmt: "SET @p = @@PERSIST.innodb_page_size",
+			code: 1193,
+		},
+		{
+			name: "SET @p = @@GLOBAL.innodb_page_size accepted",
+			stmt: "SET @p = @@GLOBAL.innodb_page_size",
+			code: 0,
+		},
+		{
+			name: "default sql_mode rejects spaced builtin in DEFAULT expr with 3770",
+			stmt: "CREATE TABLE a (a VARCHAR(1) DEFAULT (SUBSTRING ('x',1,1)))",
+			code: 3770,
+		},
+		{
+			name:    "IGNORE_SPACE sql_mode accepts spaced builtin in DEFAULT expr",
+			session: []string{"SET sql_mode = 'IGNORE_SPACE'"},
+			stmt:    "CREATE TABLE a (a VARCHAR(1) DEFAULT (SUBSTRING ('x',1,1)))",
+			code:    0,
+		},
+		{
+			name:    "ANSI sql_mode accepts spaced builtin in DEFAULT expr",
+			session: []string{"SET sql_mode = 'ANSI'"},
+			stmt:    "CREATE TABLE a (a VARCHAR(1) DEFAULT (SUBSTRING ('x',1,1)))",
+			code:    0,
+		},
+		{
+			name:    "IGNORE_SPACE sql_mode still rejects spaced UDF in DEFAULT expr with 3770",
+			session: []string{"SET sql_mode = 'IGNORE_SPACE'"},
+			stmt:    "CREATE TABLE a (a VARCHAR(1) DEFAULT (my_udf ('x')))",
+			code:    3770,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4606,4 +4681,13 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}); err == nil {
 		t.Fatal("direct createTablespace with invalid ENGINE_ATTRIBUTE succeeded, want 3980")
 	}
+
+	// Configured 4 KiB innodb_page_size enforces the 768-byte InnoDB key prefix cap.
+	pg4k := New()
+	pg4k.SetInnoDBPageSize(4096)
+	execAlterClauses(t, pg4k, "CREATE DATABASE d; USE d;")
+	if got, _ := simulationCatalogRefusal(t, pg4k, "CREATE TABLE t4k_bad (c TEXT CHARACTER SET ascii, KEY(c(769)))"); got != 1071 {
+		t.Fatalf("4K page size KEY(c(769)) got %d, want 1071", got)
+	}
+	execAlterClauses(t, pg4k, "CREATE TABLE t4k_ok (c TEXT CHARACTER SET ascii, KEY(c(768)));")
 }

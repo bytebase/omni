@@ -484,7 +484,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
-	if err := validateTableDefaultExpressions(tbl); err != nil {
+	if err := c.validateTableDefaultExpressions(tbl); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -953,7 +953,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, leaves ma
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	if err := validateColumnDefSemantics(colDef, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
 	}
 	// A column-level CHECK's expression is judged while the statement is
@@ -1225,7 +1225,7 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
-	if err := validateColumnDefSemantics(colDef); err != nil {
+	if err := validateColumnDefSemantics(colDef, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)
@@ -1877,7 +1877,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		if exprHasDisallowedDefaultFunc(cmd.DefaultExpr) {
+		if exprHasDisallowedDefaultFunc(cmd.DefaultExpr, c.isIgnoreSpaceSQLMode()) {
 			return errDefaultValExprDisallowedFunc(col.Name)
 		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
