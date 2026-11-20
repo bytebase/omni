@@ -981,6 +981,15 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isFloat: v.isFloat}, true, nil
 		}
+		if e.Op == nodes.UnaryNot {
+			// NOT reads its operand as a truth value, a string by its numeric
+			// prefix, and keeps NULL: NOT 0 is 1, NOT 'abc' is 1, NOT '1x' is 0.
+			v, ok, err := c.evalSetExprNode(e.Operand)
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			return boolSetVar(!evalSetValueTruthy(v)), true, nil
+		}
 		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
 		return c.evalSetBinaryExprNode(e)
@@ -1230,7 +1239,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if sv.kind == userVarNull || nv.kind == userVarNull {
 				return userVarValue{kind: userVarNull}, true, nil
 			}
-			n, nok := parseSetNumericInt64(nv)
+			n, nok := setStringLengthArg(nv)
 			if !nok {
 				return userVarValue{}, false, nil
 			}
@@ -1277,14 +1286,14 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if sv.kind == userVarNull || pv.kind == userVarNull || (hasLen && lv.kind == userVarNull) {
 				return userVarValue{kind: userVarNull}, true, nil
 			}
-			pos, pok := parseSetNumericInt64(pv)
+			pos, pok := setStringLengthArg(pv)
 			if !pok {
 				return userVarValue{}, false, nil
 			}
 			var length int64
 			if hasLen {
 				var lok bool
-				length, lok = parseSetNumericInt64(lv)
+				length, lok = setStringLengthArg(lv)
 				if !lok {
 					return userVarValue{}, false, nil
 				}
@@ -2229,14 +2238,69 @@ func parseSetNumericInt64(v userVarValue) (int64, bool) {
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		// An integer past the int64 range saturates, as val_int does:
-		// SUBSTRING('ANSI', 2, 18446744073709551615) is 'NSI'.
-		if ne, ok := err.(*strconv.NumError); ok && ne.Err == strconv.ErrRange {
-			return n, true
-		}
 		return 0, false
 	}
 	return n, true
+}
+
+// setStringLengthArg reads a LEFT, RIGHT or SUBSTRING position or length as
+// val_int does, clamped to int64: an exact number rounds half away from zero,
+// a float half to even, a string by its integer prefix, and a value past the
+// range saturates. mysql:8.0.46 answers LEFT('ANSI', 1.6) = 'AN',
+// LEFT('ANSI', '1.6') = 'A', SUBSTRING('ANSI', 2.5, 2.5e0) = 'SI' and
+// SUBSTRING('ANSI', 2, 18446744073709551615) = 'NSI'.
+func setStringLengthArg(v userVarValue) (int64, bool) {
+	var n *big.Int
+	switch v.kind {
+	case userVarString:
+		t := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(t) && (t[i] == '+' || t[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(t) && t[j] >= '0' && t[j] <= '9' {
+			j++
+		}
+		n = new(big.Int)
+		if j > i {
+			n.SetString(t[i:j], 10)
+			if t[0] == '-' {
+				n.Neg(n)
+			}
+		}
+	case userVarNumeric:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return 0, false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			switch {
+			case f >= math.MaxInt64:
+				return math.MaxInt64, true
+			case f <= math.MinInt64:
+				return math.MinInt64, true
+			}
+			return int64(f), true
+		}
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		n = num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			n.Neg(n)
+		}
+	default:
+		return 0, false
+	}
+	switch {
+	case n.Cmp(setInt64Max) > 0:
+		return math.MaxInt64, true
+	case n.Cmp(setInt64Min) < 0:
+		return math.MinInt64, true
+	}
+	return n.Int64(), true
 }
 
 // parseSetNumberPrefixRat parses a leading or full MySQL decimal/scientific

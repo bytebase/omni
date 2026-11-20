@@ -5002,6 +5002,19 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "CREATE TABLE z (s VARCHAR(300), KEY ((LOWER(s)))) ROW_FORMAT=COMPACT",
 			code:    0,
 		},
+		// On a COMPACT table, a binary LPAD/RPAD keeps its byte width and a
+		// comparison or predicate is an integer, within the 767-byte part limit.
+		{name: "COMPACT functional key part: KEY ((RPAD(b, 512, X'00')))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((RPAD(b, 512, X'00')))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((LPAD(b, 512, X'00')))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((LPAD(b, 512, X'00')))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((RPAD(b, 513, X'00')))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((RPAD(b, 513, X'00')))) ROW_FORMAT=COMPACT", code: 3757},
+		{name: "COMPACT functional key part: KEY ((a = 1))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a = 1))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((a < 1 AND a > 0))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a < 1 AND a > 0))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((NOT a))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((NOT a))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((a IS NULL))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a IS NULL))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((a IN (1, 2)))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a IN (1, 2)))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((a BETWEEN 1 AND 2))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a BETWEEN 1 AND 2))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((s LIKE 'x%'))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((s LIKE 'x%'))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional key part: KEY ((a <=> 1))", stmt: "CREATE TABLE z (a INT, s VARCHAR(10), b VARBINARY(1), KEY ((a <=> 1))) ROW_FORMAT=COMPACT", code: 0},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6075,6 +6088,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LEFT('ANSI', 9223372036854775807)", "LEFT('ANSI', 18446744073709551615)", "RIGHT('ANSI', 9223372036854775807)",
 		"ABS(-4)", "ABS('-4')", "ABS(-4.5)", "ABS('abc')", "ABS('-1.5e0')", "ABS(-1.5e0)", "ABS(' -3x')",
 		"ABS(4)", "ABS(-9223372036854775807)", "ABS(18446744073709551615)",
+		"NOT 0", "NOT 1", "NOT 'abc'", "NOT '1x'", "!0", "NOT 0.0", "NOT 0.5",
+		"LEFT('ANSI', 1.6)", "LEFT('ANSI', 1.5)", "LEFT('ANSI', '1.6')", "RIGHT('ANSI', 2.5e0)", "LEFT('ANSI', 1.4)",
+		"SUBSTRING('ANSI', 1.6, 1.6)", "SUBSTRING('ANSI', '2.6')", "SUBSTRING('ANSI', 2.5, 2.5e0)",
+		"LEFT('ANSI', 'x')", "LEFT('ANSI', -0.4)",
+		"-99999999999999999999", "99999999999999999999 + 1", "-(99999999999999999999)",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6177,6 +6195,21 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if got := castCat.userVars["b_cast"].kind == userVarNull; got != srvNull {
 			t.Fatalf("%s: catalog NULL=%v, mysql NULL=%v", stmt, got, srvNull)
 		}
+	}
+
+	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.
+	for _, stmt := range []string{"SET SESSION sql_mode = ''", "SET SESSION sql_mode = NOT 0"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	var notMode string
+	if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&notMode); err != nil {
+		t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET SESSION sql_mode = ''; SET SESSION sql_mode = NOT 0; SET @m = @@sql_mode;")
+	if got := castCat.userVars["m"].str; got != notMode || notMode != "REAL_AS_FLOAT" {
+		t.Fatalf("SET sql_mode = NOT 0: catalog %q, mysql %q, want REAL_AS_FLOAT", got, notMode)
 	}
 
 	// ABS(-4) chains into sql_mode as mode 4, ANSI_QUOTES.

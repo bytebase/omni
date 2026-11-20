@@ -373,8 +373,22 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		if b, ok := decodeLiteralRawBytes(val, isHex); ok {
 			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(b), 1)}
 		}
+	case *nodes.UnaryExpr:
+		if e.Op == nodes.UnaryNot {
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+	case *nodes.IsExpr, *nodes.InExpr, *nodes.BetweenExpr, *nodes.LikeExpr:
+		// A predicate is an integer truth value: mysql:8.0.46 takes
+		// KEY ((a IS NULL)), ((a IN (1,2))) and ((s LIKE 'x%')) on COMPACT.
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case *nodes.BinaryExpr:
 		switch e.Op {
+		case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe,
+			nodes.BinOpNullSafeEq, nodes.BinOpAnd, nodes.BinOpOr, nodes.BinOpXor,
+			nodes.BinOpRegexp, nodes.BinOpLikeEscape, nodes.BinOpSoundsLike:
+			// A comparison or logical result is an integer truth value:
+			// mysql:8.0.46 takes KEY ((a = 1)) on a COMPACT table.
+			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpAdd, nodes.BinOpSub, nodes.BinOpMul, nodes.BinOpDivInt, nodes.BinOpMod:
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpDiv:
@@ -562,10 +576,16 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		}
 		if k, ok := extractNonNegIntLit(e.Args[1]); ok && k > 0 {
 			var charset string
+			base := BaseTypeVarchar
 			if arg0 := inferFunctionalIndexExprType(tbl, e.Args[0]); arg0 != nil {
 				charset = arg0.Charset
+				// A binary string pads to a binary string: mysql:8.0.46 takes
+				// RPAD(varbinary_1, 512, X'00') on a COMPACT table.
+				if isResolvedBinaryType(arg0) {
+					base = BaseTypeVarBinary
+				}
 			}
-			return &ResolvedType{BaseType: BaseTypeVarchar, Length: k, Charset: charset}
+			return &ResolvedType{BaseType: base, Length: k, Charset: charset}
 		}
 	case "repeat":
 		if len(e.Args) < 2 {
