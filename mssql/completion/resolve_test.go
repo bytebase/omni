@@ -1,8 +1,11 @@
 package completion
 
 import (
+	"context"
 	"testing"
 
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/catalog"
 	"github.com/bytebase/omni/mssql/parser"
 )
 
@@ -144,5 +147,142 @@ func TestResolveTypeNameWithCandidateSet(t *testing.T) {
 	}
 	if !hasType {
 		t.Error("expected type candidates when type_name rule is in CandidateSet")
+	}
+}
+
+func TestCompleteWithCatalog(t *testing.T) {
+	cat := catalog.New()
+	err := cat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "Company",
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Employees",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Id", Type: "int"},
+							{Name: "Name", Type: "varchar(100)"},
+						},
+					},
+				},
+				Views: []*metadata.ViewMetadata{
+					{Name: "ActiveEmployees"},
+				},
+				Sequences: []*metadata.SequenceMetadata{
+					{Name: "EmpSeq"},
+				},
+				Procedures: []*metadata.ProcedureMetadata{
+					{Name: "SyncEmployees"},
+				},
+			},
+			{
+				Name: "hr",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Salaries",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "EmpId", Type: "int"},
+							{Name: "Amount", Type: "money"},
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cat.LoadMetadataInto(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "School",
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Student",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Id", Type: "int"},
+							{Name: "ParentName", Type: "varchar(100)"},
+						},
+					},
+				},
+			},
+		},
+	}, "School")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasCandidate := func(cs []Candidate, text string, typ CandidateType) bool {
+		for _, c := range cs {
+			if c.Text == text && c.Type == typ {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Unqualified FROM
+	fromCands := Complete("SELECT * FROM ", len("SELECT * FROM "), cat)
+	if !hasCandidate(fromCands, "Employees", CandidateTable) {
+		t.Fatalf("missing Employees table in %#v", fromCands)
+	}
+	if !hasCandidate(fromCands, "ActiveEmployees", CandidateView) {
+		t.Fatalf("missing ActiveEmployees view in %#v", fromCands)
+	}
+	if !hasCandidate(fromCands, "hr", CandidateSchema) {
+		t.Fatalf("missing hr schema in %#v", fromCands)
+	}
+
+	// Schema-qualified FROM
+	hrCands := Complete("SELECT * FROM hr.", len("SELECT * FROM hr."), cat)
+	if !hasCandidate(hrCands, "Salaries", CandidateTable) {
+		t.Fatalf("missing hr.Salaries in %#v", hrCands)
+	}
+	if hasCandidate(hrCands, "Employees", CandidateTable) {
+		t.Fatalf("unexpected dbo.Employees in hr. completion: %#v", hrCands)
+	}
+
+	// Cross-database table completion
+	schoolCands := Complete("SELECT * FROM School.dbo.", len("SELECT * FROM School.dbo."), cat)
+	if !hasCandidate(schoolCands, "Student", CandidateTable) {
+		t.Fatalf("missing School.dbo.Student in %#v", schoolCands)
+	}
+
+	// Cross-database column completion
+	schoolCols := Complete("SELECT School.dbo.Student.", len("SELECT School.dbo.Student."), cat)
+	if !hasCandidate(schoolCols, "ParentName", CandidateColumn) {
+		t.Fatalf("missing ParentName in %#v", schoolCols)
+	}
+
+	// Alias-qualified column completion
+	aliasCols := Complete("SELECT e. FROM Employees AS e", len("SELECT e."), cat)
+	if !hasCandidate(aliasCols, "Id", CandidateColumn) || !hasCandidate(aliasCols, "Name", CandidateColumn) {
+		t.Fatalf("missing alias columns in %#v", aliasCols)
+	}
+
+	// CTE column completion
+	cteCols := Complete("WITH cte AS (SELECT Id, Name FROM Employees) SELECT cte. FROM cte", len("WITH cte AS (SELECT Id, Name FROM Employees) SELECT cte."), cat)
+	if !hasCandidate(cteCols, "Id", CandidateColumn) || !hasCandidate(cteCols, "Name", CandidateColumn) {
+		t.Fatalf("missing CTE columns in %#v", cteCols)
+	}
+
+	// Procedure completion
+	procCands := Complete("EXEC ", len("EXEC "), cat)
+	if !hasCandidate(procCands, "SyncEmployees", CandidateProcedure) {
+		t.Fatalf("missing SyncEmployees procedure in %#v", procCands)
+	}
+
+	// Built-in function completion
+	selectCands := Complete("SELECT  FROM Employees", len("SELECT "), cat)
+	if !hasCandidate(selectCands, "GETDATE", CandidateFunction) {
+		t.Fatalf("missing GETDATE built-in function in %#v", selectCands)
+	}
+
+	// Pseudocolumn $action in MERGE OUTPUT
+	mergeOut := Complete("MERGE INTO Employees AS d USING Employees AS s ON d.Id = s.Id WHEN MATCHED THEN UPDATE SET d.Name = s.Name OUTPUT ", len("MERGE INTO Employees AS d USING Employees AS s ON d.Id = s.Id WHEN MATCHED THEN UPDATE SET d.Name = s.Name OUTPUT "), cat)
+	if !hasCandidate(mergeOut, "$action", CandidateColumn) {
+		t.Fatalf("missing $action pseudo-column in %#v", mergeOut)
 	}
 }
