@@ -3178,7 +3178,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					}
 					if mwc.Values != nil {
 						for _, valExpr := range mwc.Values.Items {
-							if err := c.bindRuleExpr(b, valExpr, ctx); err != nil {
+							if err := c.bindRuleMergeValue(b, valExpr, ctx); err != nil {
 								return err
 							}
 						}
@@ -3220,7 +3220,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					if mwc.TargetList != nil {
 						for _, tlItem := range mwc.TargetList.Items {
 							if rt, ok := tlItem.(*nodes.ResTarget); ok {
-								if err := c.bindRuleExpr(b, rt.Val, ctx); err != nil {
+								if err := c.bindRuleUpdateSource(b, rt.Val, ctx); err != nil {
 									return err
 								}
 							}
@@ -3928,6 +3928,17 @@ func (c *Catalog) bindRuleOperator(b *ruleBindings, opNameList *nodes.List, lTyp
 
 // bindRuleUpdateSource binds an UPDATE assignment value, where aggregate,
 // window and set-returning calls are refused (EXPR_KIND_UPDATE_SOURCE).
+// bindRuleMergeValue binds a MERGE ... INSERT VALUES item, where aggregate
+// and window calls are refused as in VALUES.
+func (c *Catalog) bindRuleMergeValue(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext) error {
+	if ctx != nil {
+		prevAgg, prevWin := ctx.disallowAgg, ctx.disallowWin
+		ctx.disallowAgg, ctx.disallowWin = "VALUES", "VALUES"
+		defer func() { ctx.disallowAgg, ctx.disallowWin = prevAgg, prevWin }()
+	}
+	return c.bindRuleExpr(b, n, ctx)
+}
+
 func (c *Catalog) bindRuleUpdateSource(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext) error {
 	if ctx != nil {
 		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
@@ -3943,9 +3954,11 @@ func (c *Catalog) bindRuleLimitExpr(b *ruleBindings, n nodes.Node, ctx *ruleEval
 	if n == nil {
 		return nil
 	}
-	if ctx != nil && ctx.disallowSRF == "" {
-		ctx.disallowSRF = construct
-		defer func() { ctx.disallowSRF = "" }()
+	if ctx != nil {
+		// LIMIT and OFFSET refuse aggregate, window and set-returning calls.
+		prevAgg, prevWin, prevSRF := ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF
+		ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = construct, construct, construct
+		defer func() { ctx.disallowAgg, ctx.disallowWin, ctx.disallowSRF = prevAgg, prevWin, prevSRF }()
 	}
 	return c.bindRuleExpr(b, n, ctx)
 }

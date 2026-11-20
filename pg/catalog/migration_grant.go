@@ -92,6 +92,17 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 // same has no grant diff, so it must restore them itself.
 func restoreGrantOps(c *Catalog, objType byte, oid uint32) []MigrationOp {
 	objName := resolveGrantObjName(c, objType, oid)
+	// A temporary relation or sequence is created unqualified in pg_temp.
+	switch objType {
+	case 'r':
+		if rel := c.GetRelationByOID(oid); rel != nil && (rel.Persistence == 't' || (rel.Schema != nil && isTempSchemaName(rel.Schema.Name))) {
+			objName = rel.Name
+		}
+	case 's':
+		if seq := c.GetSequenceByOID(oid); seq != nil && (seq.Persistence == 't' || (seq.Schema != nil && isTempSchemaName(seq.Schema.Name))) {
+			objName = seq.Name
+		}
+	}
 	var ops []MigrationOp
 	for _, g := range c.grants {
 		if g.ObjType != objType || g.ObjOID != oid || g.FromExtension {

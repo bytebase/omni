@@ -106,6 +106,8 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				if toOwner != "" {
 					ops = append(ops, sequenceOwnedByOp(entry.SchemaName, entry.To, toOwner, PhasePost))
 				}
+				// Unchanged grants make no diff, so give them back.
+				ops = append(ops, restoreGrantOps(to, 's', entry.To.OID)...)
 				continue
 			}
 			sql := formatAlterSequence(from, to, entry.SchemaName, entry.From, entry.To)

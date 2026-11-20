@@ -460,11 +460,17 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		if err != nil {
 			return nil, err
 		}
+		if err := checkLimitExprCalls(lc, "LIMIT"); err != nil {
+			return nil, err
+		}
 		q.LimitCount = lc
 	}
 	if stmt.LimitOffset != nil {
 		lo, err := ac.transformExpr(stmt.LimitOffset)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkLimitExprCalls(lo, "OFFSET"); err != nil {
 			return nil, err
 		}
 		q.LimitOffset = lo
@@ -3668,11 +3674,17 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		if err != nil {
 			return nil, err
 		}
+		if err := checkLimitExprCalls(lc, "LIMIT"); err != nil {
+			return nil, err
+		}
 		q.LimitCount = lc
 	}
 	if stmt.LimitOffset != nil {
 		lo, err := subAc.transformExpr(stmt.LimitOffset)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkLimitExprCalls(lo, "OFFSET"); err != nil {
 			return nil, err
 		}
 		q.LimitOffset = lo
@@ -6653,4 +6665,23 @@ func (ac *analyzeCtx) transformJsonSerializeExpr(n *nodes.JsonSerializeExpr) (An
 		Args:            []AnalyzedExpr{inner},
 		ResultType:      TEXTOID,
 	}, nil
+}
+
+// checkLimitExprCalls refuses aggregate and window calls of the query's own
+// level in a LIMIT or OFFSET argument (parse_agg.c check_agglevels_and_constraints).
+func checkLimitExprCalls(expr AnalyzedExpr, construct string) error {
+	var err error
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		if err != nil {
+			return false
+		}
+		switch e.(type) {
+		case *AggExpr:
+			err = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in " + construct}
+		case *WindowFuncExpr:
+			err = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in " + construct}
+		}
+		return err == nil
+	})
+	return err
 }

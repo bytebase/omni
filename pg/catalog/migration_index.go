@@ -151,6 +151,24 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Priority:      PriorityIndex,
 					})
 					renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idxTo, defaultIndexColumnNames(to, idxTo), effectiveIndexColumnNames(to, idxTo))...)
+					// Dropping the index took its comment; an unchanged one makes
+					// no comment diff, so restore it here.
+					if txt, ok := to.GetComment('i', idxTo.OID, 0); ok && txt != "" {
+						if fromTxt, _ := from.GetComment('i', idxFrom.OID, 0); fromTxt == txt {
+							desc := relEntry.SchemaName + "." + idxTo.Name
+							if csql := formatCommentSQL(to, 'i', desc, 0, txt); csql != "" {
+								renameOps = append(renameOps, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    desc,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'i',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
+					}
 				}
 			}
 		}

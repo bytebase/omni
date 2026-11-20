@@ -5284,6 +5284,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"DROP OPERATOR ##> (int, bigint)", "0"},
 			// Round 40.
 			{"PREPARE q_ctas_dml_r40 AS INSERT INTO dst_r20 (id) VALUES (1) RETURNING id; CREATE TABLE t_ctas_dml_r40 AS EXECUTE q_ctas_dml_r40", CodeWrongObjectType},
+			// Round 43.
+			{"PREPARE q_limit_agg_r43 AS SELECT id FROM t_r20 LIMIT count(*)", CodeGroupingError},
+			{"PREPARE q_offset_win_r43 AS SELECT id FROM t_r20 OFFSET row_number() OVER ()", CodeWindowingError},
+			{"PREPARE q_merge_upd_agg_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN MATCHED THEN UPDATE SET id = count(*)", CodeGroupingError},
+			{"PREPARE q_merge_upd_srf_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN MATCHED THEN UPDATE SET id = generate_series(1, 2)", CodeFeatureNotSupported},
+			{"PREPARE q_merge_ins_agg_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN NOT MATCHED THEN INSERT (id) VALUES (count(*))", CodeGroupingError},
+			{"PREPARE q_merge_ins_srf_r43 AS MERGE INTO dst_r20 USING t_r20 ON dst_r20.id = t_r20.id WHEN NOT MATCHED THEN INSERT (id) VALUES (generate_series(1, 2))", "0"},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
@@ -5502,6 +5509,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 				t.Fatalf("%s answered %s, want %s", tc.sql, got, tc.want)
 			}
 		}
+		roundTrip137("rebuilt index keeps its comment",
+			[]string{"CREATE TABLE t_ixc_r43 (a int, b int)", "CREATE INDEX ixc_r43 ON t_ixc_r43 (a)", "COMMENT ON INDEX ixc_r43 IS 'keep this index comment'"},
+			[]string{"CREATE TABLE t_ixc_r43 (a int, b int)", "CREATE INDEX ixc_r43 ON t_ixc_r43 (a, b)", "COMMENT ON INDEX ixc_r43 IS 'keep this index comment'"},
+			[]string{"DROP INDEX", "keep this index comment"})
+		roundTrip137("sequence persistence change keeps grants",
+			[]string{"CREATE ROLE seq_reader_r43", "CREATE SEQUENCE seq_pg_r43", "GRANT USAGE ON SEQUENCE seq_pg_r43 TO seq_reader_r43"},
+			[]string{"CREATE ROLE seq_reader_r43", "CREATE TEMP SEQUENCE seq_pg_r43", "GRANT USAGE ON SEQUENCE seq_pg_r43 TO seq_reader_r43"},
+			[]string{"CREATE TEMP SEQUENCE", `GRANT USAGE ON SEQUENCE "seq_pg_r43"`})
+		roundTrip137("range rebuild recreates a function that uses it",
+			[]string{"CREATE COLLATION c_rg_r43 (LOCALE = 'C')", "CREATE TYPE rg_r43 AS RANGE (SUBTYPE = text, COLLATION = c_rg_r43)", "CREATE FUNCTION f_rg_r43(rg_r43) RETURNS int LANGUAGE sql AS 'SELECT 1'"},
+			[]string{"CREATE COLLATION c_rg_r43 (LOCALE = 'C')", "CREATE TYPE rg_r43 AS RANGE (SUBTYPE = text)", "CREATE FUNCTION f_rg_r43(rg_r43) RETURNS int LANGUAGE sql AS 'SELECT 1'"},
+			[]string{"DROP FUNCTION", "DROP TYPE", "CREATE FUNCTION"})
 		roundTrip137("operator class parameters",
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},
