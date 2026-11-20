@@ -42,10 +42,20 @@ var tsqlQueryHints = []string{
 }
 
 // builtinFunctions combines the parser's canonical SQL Server built-in
-// function list with the special keyword-dispatched scalar functions.
+// function list with the special keyword-dispatched scalar and niladic functions.
 var builtinFunctions = sync.OnceValue(func() []string {
 	base := parser.BuiltinFunctionNames()
-	extras := []string{"COALESCE", "CONVERT", "NULLIF", "TRY_CONVERT"}
+	extras := []string{
+		"COALESCE",
+		"CONVERT",
+		"CURRENT_TIMESTAMP",
+		"CURRENT_USER",
+		"NULLIF",
+		"SESSION_USER",
+		"SYSTEM_USER",
+		"TRY_CONVERT",
+		"USER",
+	}
 	merged := make([]string, 0, len(base)+len(extras))
 	seen := make(map[string]bool, len(base)+len(extras))
 	for _, fn := range base {
@@ -719,10 +729,7 @@ func (r *catalogResolver) applyContextualColumnCandidates(columnEntries *[]Candi
 		}
 	}
 	if database, schema, table, ok := r.referencesColumnListContext(); ok {
-		cols := r.metadataColumns("", database, schema, table)
-		if len(cols) > 0 {
-			*columnEntries = cols
-		}
+		*columnEntries = r.metadataColumns("", database, schema, table)
 	}
 	if alias, ok := r.qualifiedObjectBeforeCaret(); ok {
 		*columnEntries = append(*columnEntries, r.derivedTableColumns(alias)...)

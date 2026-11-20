@@ -249,3 +249,81 @@ func hasObjectKind(kinds []ObjectKind, want ObjectKind) bool {
 func sameReferenceName(a, b RangeReference) bool {
 	return a.Server == b.Server && a.Database == b.Database && a.Schema == b.Schema && a.Object == b.Object && a.Alias == b.Alias
 }
+
+func TestStatementBoundsAndContextualGoPreservesCTEs(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		mark string
+		want string
+	}{
+		{
+			name: "contextual GO in expression",
+			sql:  "SELECT GO +  FROM Employees",
+			mark: "SELECT GO + ",
+			want: "SELECT GO +  FROM Employees",
+		},
+		{
+			name: "contextual GO inside parenthesized expression before semicolon",
+			sql:  "SELECT (x.) FROM Employees; SELECT * FROM Secret AS x",
+			mark: "SELECT (x.",
+			want: "SELECT (x.) FROM Employees",
+		},
+		{
+			name: "standalone GO with repeat count",
+			sql:  "SELECT * FROM Secret\nGO 5\nSELECT Id FROM Employees",
+			mark: "SELECT Id",
+			want: "\nSELECT Id FROM Employees",
+		},
+		{
+			name: "bounded before following standalone GO",
+			sql:  "SELECT x.\nGO\nSELECT * FROM Secret AS x",
+			mark: "SELECT x.",
+			want: "SELECT x.\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cursor := strings.Index(tt.sql, tt.mark)
+			if cursor < 0 {
+				t.Fatalf("missing marker %q in %q", tt.mark, tt.sql)
+			}
+			cursor += len(tt.mark)
+			start, end := StatementBounds(tt.sql, cursor)
+			if got := tt.sql[start:end]; got != tt.want {
+				t.Fatalf("StatementBounds slice = %q, want %q", got, tt.want)
+			}
+		})
+	}
+
+	cteSQL := "WITH cte AS (SELECT Id, Name FROM dbo.Employees) SELECT GO +  FROM cte"
+	cursor := strings.Index(cteSQL, " FROM cte")
+	ctx := CollectCompletion(cteSQL, cursor)
+	if ctx == nil || ctx.Scope == nil {
+		t.Fatal("expected completion context")
+	}
+	if len(ctx.CTEs) != 1 || ctx.CTEs[0].Object != "cte" {
+		t.Fatalf("CTEs = %+v, want cte preserved across contextual GO", ctx.CTEs)
+	}
+	if got, want := refObjects(ctx.Scope.LocalReferences), []string{"cte"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("local references = %v, want %v", got, want)
+	}
+}
+
+func TestCollectCompletionAlterTableTargetScope(t *testing.T) {
+	sql := "ALTER TABLE School.dbo.Student ADD CONSTRAINT pk PRIMARY KEY ("
+	ctx := CollectCompletion(sql, len(sql))
+	if ctx == nil || ctx.Scope == nil || ctx.Scope.DMLTarget == nil {
+		t.Fatal("expected DMLTarget for ALTER TABLE")
+	}
+	want := RangeReference{
+		Kind:     RangeReferenceDMLTarget,
+		Database: "School",
+		Schema:   "dbo",
+		Object:   "Student",
+	}
+	if !sameReferenceName(*ctx.Scope.DMLTarget, want) || ctx.Scope.DMLTarget.Kind != want.Kind {
+		t.Fatalf("DMLTarget = %+v, want %+v", *ctx.Scope.DMLTarget, want)
+	}
+}
