@@ -1796,7 +1796,7 @@ func (r *resolver) insertReferenceAliasCandidates(tablesOut *[]Candidate) {
 	for _, ref := range r.references {
 		switch ref := ref.(type) {
 		case *physicalTableRef:
-			if ref.Alias == "" || strings.EqualFold(ref.Alias, ref.Table) {
+			if ref.Alias == "" || sameIdentifierName(ref.Alias, ref.AliasQuoted, ref.Table, ref.TableQuoted) {
 				continue
 			}
 			*tablesOut = append(*tablesOut, Candidate{Type: CandidateTable, Text: ref.Alias})
@@ -1804,6 +1804,16 @@ func (r *resolver) insertReferenceAliasCandidates(tablesOut *[]Candidate) {
 			*tablesOut = append(*tablesOut, Candidate{Type: CandidateTable, Text: ref.Table})
 		}
 	}
+}
+
+func sameIdentifierName(a string, aQuoted bool, b string, bQuoted bool) bool {
+	norm := func(s string, quoted bool) string {
+		if quoted {
+			return s
+		}
+		return strings.ToUpper(s)
+	}
+	return norm(a, aQuoted) == norm(b, bQuoted)
 }
 
 func convertCompletionVirtualReference(ref parser.RangeReference, quoted bool) *virtualTableRef {

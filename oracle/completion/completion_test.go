@@ -1502,6 +1502,24 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("did not expect underlying X, Y instead of explicit MV aliases, got %v", resMV)
 		}
 	})
+
+	t.Run("case-distinct quoted alias preserved in alias candidates", func(t *testing.T) {
+		aliasMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{Name: "EMP"},
+					},
+				},
+			},
+		}
+		sqlAlias, posAlias := splitCaret(t, `SELECT * FROM emp "emp" WHERE "e|`)
+		resAlias := Complete(sqlAlias, posAlias, aliasMeta, WithDefaultSchema("HR"))
+		if !hasSpec(resAlias, candidateSpec{text: "emp", typ: CandidateTable}) {
+			t.Fatalf(`expected quoted alias "emp" candidate, got %v`, resAlias)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

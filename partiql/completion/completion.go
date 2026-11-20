@@ -8,6 +8,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/partiql"
 	"github.com/bytebase/omni/partiql/catalog"
+	"github.com/bytebase/omni/partiql/parser"
 )
 
 // Candidate represents one auto-complete suggestion.
@@ -191,6 +192,16 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 				return false, false, true
 			}
 			i = end + 1
+		case c == '`':
+			end, closed := parser.ScanIonLiteral(slice, i+1)
+			if !closed {
+				return false, false, true
+			}
+			if exprDepth == 0 {
+				clauseToks = append(clauseToks, clauseTok{upper: "_", afterDot: prevDot})
+			}
+			prevDot = false
+			i = end
 		case c == '\'' || c == '"':
 			end, closed := skipQuotedLiteralWithState(slice, i, c)
 			if !closed {
@@ -401,6 +412,9 @@ func unclosedDoubleQuoteStart(s string, end int) (int, bool) {
 	i := 0
 	for i < end {
 		switch {
+		case s[i] == '`':
+			next, _ := parser.ScanIonLiteral(s[:end], i+1)
+			i = next
 		case s[i] == '\'':
 			i = skipQuotedLiteral(s[:end], i, '\'') + 1
 		case s[i] == '"':
@@ -664,19 +678,9 @@ func resolveSubqueryColumnsWithDepth(tokens []tableToken, allTables []*metadata.
 			}
 			continue
 		}
-		if len(item) == 1 && !item[0].quoted && strings.HasSuffix(item[0].text, ".*") {
-			qual := strings.TrimSuffix(item[0].text, ".*")
+		if qual, qualQuoted, ok := parseQualifiedWildcard(item); ok {
 			for _, ref := range getInnerRefs() {
-				if matchesTableQualifier(ref, qual, false) {
-					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumnsWithDepth(ref, allTables, depth), excludeRules)
-				}
-			}
-			continue
-		}
-		if len(item) == 2 && item[0].quoted && !item[1].quoted && item[1].text == ".*" {
-			qual := item[0].text
-			for _, ref := range getInnerRefs() {
-				if matchesTableQualifier(ref, qual, true) {
+				if matchesTableQualifier(ref, qual, qualQuoted) {
 					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumnsWithDepth(ref, allTables, depth), excludeRules)
 				}
 			}
@@ -687,6 +691,58 @@ func resolveSubqueryColumnsWithDepth(tokens []tableToken, allTables []*metadata.
 		}
 	}
 	return cols
+}
+
+type pathSeg struct {
+	name   string
+	quoted bool
+}
+
+func splitPathSegments(tokens []tableToken) ([]pathSeg, bool) {
+	var segs []pathSeg
+	needSeg := true
+	for _, tok := range tokens {
+		if tok.paren != 0 || tok.delim != 0 || tok.comma {
+			return nil, false
+		}
+		if tok.quoted {
+			if !needSeg {
+				return nil, false
+			}
+			segs = append(segs, pathSeg{name: tok.text, quoted: true})
+			needSeg = false
+			continue
+		}
+		parts := strings.Split(tok.text, ".")
+		for idx, p := range parts {
+			if idx > 0 {
+				if len(segs) == 0 || needSeg {
+					return nil, false
+				}
+				needSeg = true
+			}
+			if p == "" {
+				continue
+			}
+			if !needSeg {
+				return nil, false
+			}
+			segs = append(segs, pathSeg{name: p, quoted: false})
+			needSeg = false
+		}
+	}
+	if len(segs) == 0 || needSeg {
+		return nil, false
+	}
+	return segs, true
+}
+
+func parseQualifiedWildcard(item []tableToken) (string, bool, bool) {
+	segs, ok := splitPathSegments(item)
+	if !ok || len(segs) != 2 || segs[1].quoted || segs[1].name != "*" {
+		return "", false, false
+	}
+	return segs[0].name, segs[0].quoted, true
 }
 
 type excludeRule struct {
@@ -724,40 +780,8 @@ func parseExcludeClause(tokens []tableToken) []excludeRule {
 }
 
 func parseExcludeRule(tokens []tableToken) (excludeRule, bool) {
-	type pathSeg struct {
-		name   string
-		quoted bool
-	}
-	var segs []pathSeg
-	needSeg := true
-	for _, tok := range tokens {
-		if tok.paren != 0 || tok.delim != 0 || tok.comma {
-			return excludeRule{}, false
-		}
-		if tok.quoted {
-			if !needSeg {
-				return excludeRule{}, false
-			}
-			segs = append(segs, pathSeg{name: tok.text, quoted: true})
-			needSeg = false
-			continue
-		}
-		parts := strings.Split(tok.text, ".")
-		for idx, p := range parts {
-			if idx > 0 {
-				needSeg = true
-			}
-			if p == "" {
-				continue
-			}
-			if !needSeg {
-				return excludeRule{}, false
-			}
-			segs = append(segs, pathSeg{name: p, quoted: false})
-			needSeg = false
-		}
-	}
-	if len(segs) != 2 {
+	segs, ok := splitPathSegments(tokens)
+	if !ok || len(segs) != 2 {
 		return excludeRule{}, false
 	}
 	rule := excludeRule{
@@ -1056,6 +1080,8 @@ func isolateSetOperationArm(scope string, offset int) string {
 	for i < len(scope) {
 		c := scope[i]
 		switch {
+		case c == '`':
+			i, _ = parser.ScanIonLiteral(scope, i+1)
 		case c == '\'':
 			i = skipQuotedLiteral(scope, i, '\'') + 1
 		case c == '"':
@@ -1124,6 +1150,9 @@ func findActiveSubquerySpans(statement string, pos int) []scopeSpan {
 	for i < len(statement) {
 		c := statement[i]
 		switch {
+		case c == '`':
+			pendingOpen = pendingOpen[:0]
+			i, _ = parser.ScanIonLiteral(statement, i+1)
 		case c == '\'':
 			pendingOpen = pendingOpen[:0]
 			i = skipQuotedLiteral(statement, i, '\'') + 1
@@ -1209,22 +1238,13 @@ func skipLineComment(s string, start int) int {
 
 func skipBlockComment(s string, start int) (int, bool) {
 	i := start + 2
-	depth := 1
-	for i+1 < len(s) && depth > 0 {
-		if s[i] == '/' && s[i+1] == '*' {
-			depth++
-			i += 2
-		} else if s[i] == '*' && s[i+1] == '/' {
-			depth--
-			i += 2
-		} else {
-			i++
+	for i+1 < len(s) {
+		if s[i] == '*' && s[i+1] == '/' {
+			return i + 1, true
 		}
+		i++
 	}
-	if depth > 0 {
-		return len(s) - 1, false
-	}
-	return i - 1, true
+	return len(s) - 1, false
 }
 
 func skipQuotedLiteral(s string, start int, quote byte) int {
@@ -1512,6 +1532,9 @@ func maskStringsAndComments(s string) string {
 	i := 0
 	for i < len(s) {
 		switch {
+		case s[i] == '`':
+			b.WriteByte('_')
+			i, _ = parser.ScanIonLiteral(s, i+1)
 		case s[i] == '\'':
 			b.WriteByte('_')
 			i++
@@ -1535,21 +1558,11 @@ func maskStringsAndComments(s string) string {
 			}
 		case s[i] == '/' && i+1 < len(s) && s[i+1] == '*':
 			b.WriteByte(' ')
-			i += 2
-			depth := 1
-			for i+1 < len(s) && depth > 0 {
-				if s[i] == '/' && s[i+1] == '*' {
-					depth++
-					i += 2
-				} else if s[i] == '*' && s[i+1] == '/' {
-					depth--
-					i += 2
-				} else {
-					i++
-				}
-			}
-			if depth > 0 {
+			end, closed := skipBlockComment(s, i)
+			if !closed {
 				i = len(s)
+			} else {
+				i = end + 1
 			}
 		default:
 			b.WriteByte(s[i])

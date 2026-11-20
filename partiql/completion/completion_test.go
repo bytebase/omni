@@ -676,6 +676,25 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: []string{"Artist", "SongTitle"},
 			wantTabs: []string{},
 		},
+		{
+			name:     "block comment containing /* closes at first */",
+			input:    "SELECT * FROM Music /* text /* marker */ WHERE |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "qualified wildcard with whitespace expands derived columns",
+			input:    "SELECT s.| FROM (SELECT m . * FROM Music m) s",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "quoted qualified wildcard with whitespace expands derived columns",
+			input:    `SELECT s.| FROM (SELECT "m" . * FROM Music AS "m") s`,
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -729,6 +748,7 @@ func TestCompleteKeywordSuppressionAndQuotedPunctuationPrefix(t *testing.T) {
 		"SELECT * FROM \"Order-Items\" -- SEL|",
 		"SELECT * FROM \"Order-Items\" /* SEL|",
 		"SELECT * FROM \"Order-Items\" WHERE \"Item-Code\" = 'SEL|",
+		"SELECT * FROM \"Order-Items\" WHERE \"Item-Code\" = `SEL|",
 	} {
 		sql, pos := splitMarker(t, suppressed)
 		if got := CompleteWithMetadata(sql, pos, cat, meta); len(got) != 0 {
