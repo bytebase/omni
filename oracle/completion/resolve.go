@@ -894,7 +894,7 @@ func (r *resolver) insertColumnContextCandidates(
 				break
 			}
 		}
-		if !matchedRef {
+		if !matchedRef && (len(r.references) == 0 || r.isCommentOnColumnContext()) {
 			// Fallback for DDL/standalone qualified names (e.g. COMMENT ON COLUMN schema1.t2.|).
 			addTarget(schema, table, schemaQuoted, tableQuoted)
 		}
@@ -936,8 +936,8 @@ func (r *resolver) insertColumnContextCandidates(
 }
 
 func matchPhysicalQualifier(ref *physicalTableRef, qualifier string, qualifierQuoted bool) bool {
-	if ref.Alias != "" && nameMatches(ref.Alias, qualifier, ref.AliasQuoted || qualifierQuoted) {
-		return true
+	if ref.Alias != "" {
+		return nameMatches(ref.Alias, qualifier, ref.AliasQuoted || qualifierQuoted)
 	}
 	return nameMatches(ref.Table, qualifier, ref.TableQuoted || qualifierQuoted)
 }
@@ -956,6 +956,16 @@ func (r *resolver) isMaterializedViewContext() bool {
 	return idx-1 >= stmtStart &&
 		r.tokens[idx].Type == parser.VIEW &&
 		strings.EqualFold(r.tokens[idx-1].Str, "MATERIALIZED")
+}
+
+func (r *resolver) isCommentOnColumnContext() bool {
+	stmtStart, _ := r.statementTokenBounds()
+	if stmtStart+2 >= r.caretTokenIndex {
+		return false
+	}
+	return strings.EqualFold(parser.TokenName(r.tokens[stmtStart].Type), "COMMENT") &&
+		strings.EqualFold(parser.TokenName(r.tokens[stmtStart+1].Type), "ON") &&
+		strings.EqualFold(parser.TokenName(r.tokens[stmtStart+2].Type), "COLUMN")
 }
 
 func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
@@ -1400,8 +1410,11 @@ func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string, ali
 				continue
 			}
 			_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
-			if (ref.Alias == "" || !nameMatches(ref.Alias, alias, refAliasQuoted || aliasQuoted)) &&
-				!nameMatches(ref.Name, alias, refNameQuoted || aliasQuoted) {
+			if ref.Alias != "" {
+				if !nameMatches(ref.Alias, alias, refAliasQuoted || aliasQuoted) {
+					continue
+				}
+			} else if !nameMatches(ref.Name, alias, refNameQuoted || aliasQuoted) {
 				continue
 			}
 			matched = true

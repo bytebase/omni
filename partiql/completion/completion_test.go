@@ -460,6 +460,43 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: nil,
 			wantTabs: []string{"Music"},
 		},
+		{
+			name:     "UPDATE target offers table candidates",
+			input:    "UPDATE | SET Artist = 'a'",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "RETURNING expressions offer target table columns",
+			input:    "INSERT INTO Music VALUE {'Artist': 'x'} RETURNING MODIFIED NEW |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "DELETE RETURNING offers target table columns",
+			input:    "DELETE FROM Music RETURNING ALL OLD |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "quoted qualifier alias requires exact case match",
+			input:    `SELECT "M".| FROM Music AS "m"`,
+			cat:      cat,
+			wantCols: nil,
+		},
+		{
+			name:     "correlated subquery includes outer columns for unqualified completion",
+			input:    "SELECT * FROM Album a WHERE EXISTS (SELECT | FROM Music m)",
+			cat:      cat,
+			wantCols: []string{"AlbumId", "Artist", "SongTitle", "Title"},
+		},
+		{
+			name:     "deeply nested derived sources resolve inner columns beyond depth 4",
+			input:    "SELECT s.| FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM Music))))) s",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
 	}
 
 	for _, tc := range tests {

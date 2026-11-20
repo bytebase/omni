@@ -239,7 +239,7 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 
 	if !prevDot && exprDepth == 0 && len(clauseToks) > 0 {
 		last := clauseToks[len(clauseToks)-1]
-		if !last.afterDot && (last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO") {
+		if !last.afterDot && (last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" || last.upper == "UPDATE") {
 			return true, false
 		}
 	}
@@ -270,7 +270,7 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 			continue
 		}
 		switch tok.upper {
-		case "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE":
+		case "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
 			return false, true
 		}
 	}
@@ -318,21 +318,22 @@ func insideUnclosedDoubleQuote(s string, end int) bool {
 }
 
 type tableRef struct {
-	name     string
-	alias    string
-	quoted   bool
-	subquery []tableToken
+	name        string
+	alias       string
+	quoted      bool
+	aliasQuoted bool
+	subquery    []tableToken
 }
 
 // resolveColumnNames extracts column names from tables visible in the active
 // query scope around pos, searching enclosing outer scopes when a qualified
-// reference targets an outer alias in a correlated subquery.
+// reference targets an outer alias or unqualified correlated subquery columns.
 func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchemaMetadata) []string {
 	if meta == nil {
 		return nil
 	}
 	scopes := extractQueryScopes(statement, pos)
-	qualifier := columnQualifierBeforeCursor(statement, pos)
+	qualifier, qualQuoted := columnQualifierBeforeCursor(statement, pos)
 
 	allTables := collectMetadataTables(meta)
 	if qualifier != "" {
@@ -341,9 +342,9 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 			var cols []string
 			matched := false
 			for _, ref := range refs {
-				if matchesTableQualifier(ref, qualifier) {
+				if matchesTableQualifier(ref, qualifier, qualQuoted) {
 					matched = true
-					cols = append(cols, resolveTableRefColumns(ref, allTables, 0)...)
+					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
 				}
 			}
 			if matched {
@@ -353,42 +354,57 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 		return nil
 	}
 
-	var refs []tableRef
-	if len(scopes) > 0 {
-		refs = extractTableRefsFromScope(scopes[0])
+	hasAnyRef := false
+	var cols []string
+	seenCols := make(map[string]struct{})
+	for _, scopeText := range scopes {
+		refs := extractTableRefsFromScope(scopeText)
+		if len(refs) == 0 {
+			continue
+		}
+		hasAnyRef = true
+		for _, ref := range refs {
+			for _, col := range resolveTableRefColumns(ref, allTables) {
+				if _, ok := seenCols[col]; ok {
+					continue
+				}
+				seenCols[col] = struct{}{}
+				cols = append(cols, col)
+			}
+		}
 	}
-	if len(refs) == 0 {
-		var cols []string
+	if !hasAnyRef {
 		for _, table := range allTables {
 			for _, col := range table.GetColumns() {
-				if col.GetName() != "" {
-					cols = append(cols, col.GetName())
+				if name := col.GetName(); name != "" {
+					if _, ok := seenCols[name]; !ok {
+						seenCols[name] = struct{}{}
+						cols = append(cols, name)
+					}
 				}
 			}
 		}
-		return cols
-	}
-
-	var cols []string
-	for _, ref := range refs {
-		cols = append(cols, resolveTableRefColumns(ref, allTables, 0)...)
 	}
 	return cols
 }
 
-func matchesTableQualifier(ref tableRef, qualifier string) bool {
-	if ref.alias != "" && strings.EqualFold(ref.alias, qualifier) {
-		return true
+func matchesTableQualifier(ref tableRef, qualifier string, qualQuoted bool) bool {
+	if ref.alias != "" {
+		return partiqlNameMatches(ref.alias, qualifier, ref.aliasQuoted || qualQuoted)
 	}
-	return ref.name != "" && strings.EqualFold(ref.name, qualifier)
+	return ref.name != "" && partiqlNameMatches(ref.name, qualifier, ref.quoted || qualQuoted)
 }
 
-func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata, depth int) []string {
+func partiqlNameMatches(candidate, query string, quoted bool) bool {
+	if quoted {
+		return candidate == query
+	}
+	return candidate == query || strings.EqualFold(candidate, query)
+}
+
+func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata) []string {
 	if len(ref.subquery) > 0 {
-		if depth >= 4 {
-			return nil
-		}
-		return resolveSubqueryColumns(ref.subquery, allTables, depth+1)
+		return resolveSubqueryColumns(ref.subquery, allTables)
 	}
 	table := findMetadataTable(allTables, ref.name, ref.quoted)
 	if table == nil {
@@ -403,7 +419,7 @@ func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata, d
 	return cols
 }
 
-func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMetadata, depth int) []string {
+func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMetadata) []string {
 	for len(tokens) >= 2 && tokens[0].paren == '(' && findMatchingTokenParen(tokens, 0) == len(tokens)-1 {
 		tokens = tokens[1 : len(tokens)-1]
 	}
@@ -467,15 +483,15 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 		}
 		if len(item) == 1 && !item[0].quoted && item[0].text == "*" {
 			for _, ref := range getInnerRefs() {
-				cols = append(cols, resolveTableRefColumns(ref, allTables, depth)...)
+				cols = append(cols, resolveTableRefColumns(ref, allTables)...)
 			}
 			continue
 		}
 		if len(item) == 1 && !item[0].quoted && strings.HasSuffix(item[0].text, ".*") {
 			qual := strings.TrimSuffix(item[0].text, ".*")
 			for _, ref := range getInnerRefs() {
-				if matchesTableQualifier(ref, qual) {
-					cols = append(cols, resolveTableRefColumns(ref, allTables, depth)...)
+				if matchesTableQualifier(ref, qual, false) {
+					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
 				}
 			}
 			continue
@@ -617,15 +633,15 @@ func isOperandToken(s string) bool {
 	return true
 }
 
-func columnQualifierBeforeCursor(statement string, pos int) string {
+func columnQualifierBeforeCursor(statement string, pos int) (string, bool) {
 	prefix := extractPrefix(statement, pos)
 	before := strings.TrimRight(statement[:pos-len(prefix)], " \t\n\r")
 	if !strings.HasSuffix(before, ".") {
-		return ""
+		return "", false
 	}
 	before = strings.TrimRight(strings.TrimSuffix(before, "."), " \t\n\r")
 	if before == "" {
-		return ""
+		return "", false
 	}
 	if before[len(before)-1] == '"' {
 		for i := len(before) - 2; i >= 0; i-- {
@@ -634,16 +650,16 @@ func columnQualifierBeforeCursor(statement string, pos int) string {
 					i--
 					continue
 				}
-				return strings.ReplaceAll(before[i+1:len(before)-1], `""`, `"`)
+				return strings.ReplaceAll(before[i+1:len(before)-1], `""`, `"`), true
 			}
 		}
-		return ""
+		return "", false
 	}
 	start := len(before)
 	for start > 0 && isIdentChar(before[start-1]) {
 		start--
 	}
-	return before[start:]
+	return before[start:], false
 }
 
 func collectMetadataTables(meta *metadata.DatabaseSchemaMetadata) []*metadata.TableMetadata {
@@ -695,19 +711,31 @@ func extractCurrentStatement(statement string, pos int) (string, int) {
 	return statement, pos
 }
 
+type scopeSpan struct {
+	start int
+	end   int
+}
+
 // extractQueryScopes returns query block slices enclosing pos, ordered from
 // innermost to outermost, isolating the active UNION/INTERSECT/EXCEPT arm at pos.
-// Only parentheses that introduce a subquery (SELECT or WITH) start a new query
-// scope; expression parentheses stay in the enclosing query scope.
+// Enclosing scopes collapse their active inner subquery span so each byte of
+// statement is scanned at most once across all levels.
 func extractQueryScopes(statement string, pos int) []string {
-	subqueryStarts := findActiveSubqueryStarts(statement, pos)
-	var scopes []string
-	for k := len(subqueryStarts) - 1; k >= 0; k-- {
-		start := subqueryStarts[k]
-		end := findSubqueryEnd(statement, start)
-		scopes = append(scopes, isolateSetOperationArm(statement[start:end], pos-start))
+	spans := findActiveSubquerySpans(statement, pos)
+	spans = append(spans, scopeSpan{start: 0, end: len(statement)})
+
+	scopes := make([]string, 0, len(spans))
+	var prevChild *scopeSpan
+	for idx := range spans {
+		sp := spans[idx]
+		if prevChild == nil {
+			scopes = append(scopes, isolateSetOperationArm(statement[sp.start:sp.end], pos-sp.start))
+		} else {
+			raw := statement[sp.start:prevChild.start] + statement[prevChild.end:sp.end]
+			scopes = append(scopes, isolateSetOperationArm(raw, prevChild.start-sp.start))
+		}
+		prevChild = &spans[idx]
 	}
-	scopes = append(scopes, isolateSetOperationArm(statement, pos))
 	return scopes
 }
 
@@ -763,67 +791,105 @@ func isolateSetOperationArm(scope string, offset int) string {
 }
 
 func findActiveQueryScopeStart(statement string, pos int) int {
-	starts := findActiveSubqueryStarts(statement, pos)
-	if len(starts) == 0 {
+	spans := findActiveSubquerySpans(statement, pos)
+	if len(spans) == 0 {
 		return 0
 	}
-	return starts[len(starts)-1]
+	return spans[0].start
 }
 
-func findActiveSubqueryStarts(statement string, pos int) []int {
-	var subqueryStarts []int
-	var isSubqueryParen []bool
-	for i := 0; i < len(statement) && i < pos; i++ {
+// findActiveSubquerySpans computes all SELECT/WITH subquery spans enclosing pos
+// in a single linear pass, ordered innermost to outermost.
+func findActiveSubquerySpans(statement string, pos int) []scopeSpan {
+	if pos > len(statement) {
+		pos = len(statement)
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	type parenFrame struct {
+		start int
+		sub   bool
+	}
+	var stack []parenFrame
+	var pendingOpen []int
+	var closedSpans []scopeSpan
+	openSubCount := 0
+
+	i := 0
+	for i < len(statement) {
+		c := statement[i]
 		switch {
-		case statement[i] == '\'':
-			i = skipQuotedLiteral(statement, i, '\'')
-		case statement[i] == '"':
-			i = skipQuotedLiteral(statement, i, '"')
-		case statement[i] == '-' && i+1 < len(statement) && statement[i+1] == '-':
-			i = skipLineComment(statement, i)
-		case statement[i] == '/' && i+1 < len(statement) && statement[i+1] == '*':
-			i, _ = skipBlockComment(statement, i)
-		case statement[i] == '(':
-			sub := parenOpensSubquery(statement, i+1)
-			isSubqueryParen = append(isSubqueryParen, sub)
-			if sub {
-				subqueryStarts = append(subqueryStarts, i+1)
+		case c == '\'':
+			pendingOpen = pendingOpen[:0]
+			i = skipQuotedLiteral(statement, i, '\'') + 1
+		case c == '"':
+			pendingOpen = pendingOpen[:0]
+			i = skipQuotedLiteral(statement, i, '"') + 1
+		case c == '-' && i+1 < len(statement) && statement[i+1] == '-':
+			i = skipLineComment(statement, i) + 1
+		case c == '/' && i+1 < len(statement) && statement[i+1] == '*':
+			end, closed := skipBlockComment(statement, i)
+			if !closed {
+				i = len(statement)
+				break
 			}
-		case statement[i] == ')':
-			if len(isSubqueryParen) > 0 {
-				wasSub := isSubqueryParen[len(isSubqueryParen)-1]
-				isSubqueryParen = isSubqueryParen[:len(isSubqueryParen)-1]
-				if wasSub && len(subqueryStarts) > 0 {
-					subqueryStarts = subqueryStarts[:len(subqueryStarts)-1]
+			i = end + 1
+		case c == '(':
+			stack = append(stack, parenFrame{start: i + 1})
+			if i < pos {
+				pendingOpen = append(pendingOpen, len(stack)-1)
+			} else {
+				pendingOpen = pendingOpen[:0]
+			}
+			i++
+		case c == ')':
+			pendingOpen = pendingOpen[:0]
+			if len(stack) > 0 {
+				top := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if top.sub {
+					openSubCount--
+					if top.start <= pos && i >= pos {
+						closedSpans = append(closedSpans, scopeSpan{start: top.start, end: i})
+					}
 				}
 			}
-		}
-	}
-	return subqueryStarts
-}
-
-func findSubqueryEnd(statement string, start int) int {
-	depth := 0
-	for i := start; i < len(statement); i++ {
-		switch {
-		case statement[i] == '\'':
-			i = skipQuotedLiteral(statement, i, '\'')
-		case statement[i] == '"':
-			i = skipQuotedLiteral(statement, i, '"')
-		case statement[i] == '-' && i+1 < len(statement) && statement[i+1] == '-':
-			i = skipLineComment(statement, i)
-		case statement[i] == '/' && i+1 < len(statement) && statement[i+1] == '*':
-			i, _ = skipBlockComment(statement, i)
-		case statement[i] == '(':
-			depth++
-		case statement[i] == ')':
-			if depth == 0 {
-				return i
+			if i >= pos && openSubCount == 0 {
+				return closedSpans
 			}
-			depth--
+			i++
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		case isIdentChar(c):
+			start := i
+			for i < len(statement) && isIdentChar(statement[i]) {
+				i++
+			}
+			if len(pendingOpen) > 0 {
+				word := strings.ToUpper(statement[start:i])
+				if word == "SELECT" || word == "WITH" {
+					for _, idx := range pendingOpen {
+						stack[idx].sub = true
+						openSubCount++
+					}
+				}
+				pendingOpen = pendingOpen[:0]
+			}
+		default:
+			pendingOpen = pendingOpen[:0]
+			i++
 		}
 	}
-	return len(statement)
+
+	spans := make([]scopeSpan, 0, len(closedSpans)+openSubCount)
+	spans = append(spans, closedSpans...)
+	for k := len(stack) - 1; k >= 0; k-- {
+		if stack[k].sub && stack[k].start <= pos {
+			spans = append(spans, scopeSpan{start: stack[k].start, end: len(statement)})
+		}
+	}
+	return spans
 }
 
 func skipLineComment(s string, start int) int {
@@ -875,35 +941,6 @@ func skipQuotedLiteralWithState(s string, start int, quote byte) (int, bool) {
 		i++
 	}
 	return len(s) - 1, false
-}
-
-func parenOpensSubquery(s string, pos int) bool {
-	for pos < len(s) {
-		c := s[pos]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '(' {
-			pos++
-			continue
-		}
-		if c == '-' && pos+1 < len(s) && s[pos+1] == '-' {
-			pos = skipLineComment(s, pos) + 1
-			continue
-		}
-		if c == '/' && pos+1 < len(s) && s[pos+1] == '*' {
-			end, closed := skipBlockComment(s, pos)
-			if !closed {
-				return false
-			}
-			pos = end + 1
-			continue
-		}
-		break
-	}
-	end := pos
-	for end < len(s) && isIdentChar(s[end]) {
-		end++
-	}
-	word := strings.ToUpper(s[pos:end])
-	return word == "SELECT" || word == "WITH"
 }
 
 // extractTableRefsFromScope scans the active query scope for table names and
@@ -964,13 +1001,14 @@ func parseTableRefAt(tokens []tableToken, i int) ([]tableRef, int, bool) {
 		if nextIdx < len(tokens) && tokens[nextIdx].paren == ')' {
 			nextIdx++
 		}
-		alias, nextIdx := parseOptionalAlias(tokens, nextIdx)
+		alias, aliasQuoted, nextIdx := parseOptionalAlias(tokens, nextIdx)
 		if nextIsSubqueryStart(inner, 0) {
-			return []tableRef{{alias: alias, subquery: inner}}, nextIdx, true
+			return []tableRef{{alias: alias, aliasQuoted: aliasQuoted, subquery: inner}}, nextIdx, true
 		}
 		innerRefs := extractRefsFromParenthesizedExpr(inner)
 		if len(innerRefs) == 1 && alias != "" && innerRefs[0].alias == "" {
 			innerRefs[0].alias = alias
+			innerRefs[0].aliasQuoted = aliasQuoted
 		}
 		return innerRefs, nextIdx, true
 	}
@@ -981,24 +1019,24 @@ func parseTableRefAt(tokens []tableToken, i int) ([]tableRef, int, bool) {
 	if !tok.quoted && isKeyword(strings.ToUpper(tok.text)) {
 		return nil, i, false
 	}
-	alias, nextIdx := parseOptionalAlias(tokens, i+1)
-	return []tableRef{{name: tok.text, alias: alias, quoted: tok.quoted}}, nextIdx, true
+	alias, aliasQuoted, nextIdx := parseOptionalAlias(tokens, i+1)
+	return []tableRef{{name: tok.text, alias: alias, quoted: tok.quoted, aliasQuoted: aliasQuoted}}, nextIdx, true
 }
 
-func parseOptionalAlias(tokens []tableToken, i int) (string, int) {
+func parseOptionalAlias(tokens []tableToken, i int) (string, bool, int) {
 	if i >= len(tokens) || tokens[i].comma || tokens[i].paren != 0 {
-		return "", i
+		return "", false, i
 	}
 	if !tokens[i].quoted && strings.ToUpper(tokens[i].text) == "AS" {
 		if i+1 < len(tokens) && !tokens[i+1].comma && tokens[i+1].paren == 0 {
-			return tokens[i+1].text, i + 2
+			return tokens[i+1].text, tokens[i+1].quoted, i + 2
 		}
-		return "", i + 1
+		return "", false, i + 1
 	}
 	if tokens[i].quoted || !isKeyword(strings.ToUpper(tokens[i].text)) {
-		return tokens[i].text, i + 1
+		return tokens[i].text, tokens[i].quoted, i + 1
 	}
-	return "", i
+	return "", false, i
 }
 
 func extractRefsFromParenthesizedExpr(tokens []tableToken) []tableRef {
@@ -1215,7 +1253,7 @@ func isKeyword(w string) bool {
 		"JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "CROSS",
 		"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 		"NULL", "MISSING", "TRUE", "FALSE", "CAST", "CASE", "WHEN",
-		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN":
+		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN", "RETURNING":
 		return true
 	}
 	return false

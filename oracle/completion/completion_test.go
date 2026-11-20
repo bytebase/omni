@@ -1124,6 +1124,20 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("did not expect second-arm alias RIGHT_NAME in compound ORDER BY, got %v", resOrder)
 		}
 	})
+
+	t.Run("aliased relation stops matching base table name", func(t *testing.T) {
+		sqlBase, posBase := splitCaret(t, "SELECT album.| FROM album a")
+		resBase := Complete(sqlBase, posBase, meta, WithDefaultSchema("HR"))
+		if hasSpec(resBase, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) || hasSpec(resBase, candidateSpec{text: "TITLE", typ: CandidateColumn}) {
+			t.Fatalf("did not expect base table columns when relation has alias a, got %v", resBase)
+		}
+
+		sqlAlias, posAlias := splitCaret(t, "SELECT a.| FROM album a")
+		resAlias := Complete(sqlAlias, posAlias, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resAlias, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) || !hasSpec(resAlias, candidateSpec{text: "TITLE", typ: CandidateColumn}) {
+			t.Fatalf("expected alias a columns, got %v", resAlias)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {
