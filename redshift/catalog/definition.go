@@ -36,6 +36,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeProcedures(&sb, to); err != nil {
 		return "", err
 	}
+	if err := writeOwners(&sb, to); err != nil {
+		return "", err
+	}
 
 	s := sb.String()
 	// Trim the leading newline so the output starts directly with the first statement or banner.
@@ -55,7 +58,7 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 			return "", err
 		}
 	}
-	if err := writeTable(&sb, convertToTableState(0, schemaName, table)); err != nil {
+	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, true, true); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
@@ -766,9 +769,7 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) e
 			if def == "" {
 				return fmt.Errorf("procedure %s has no definition to restore", qualifyName(schema.Name, proc.Name))
 			}
-			if !strings.HasSuffix(def, ";") {
-				def += ";"
-			}
+			def = appendTerminator(def)
 			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name) + def + "\n"); err != nil {
 				return err
 			}
@@ -786,11 +787,6 @@ func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) erro
 			if _, err := w.WriteString(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;\n", quoteDefinitionIdentifier(schema.Name))); err != nil {
 				return err
 			}
-			if schema.Owner != "" {
-				if _, err := w.WriteString(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;\n", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(schema.Owner))); err != nil {
-					return err
-				}
-			}
 		}
 		if schema.Comment != "" {
 			if _, err := w.WriteString(fmt.Sprintf("COMMENT ON SCHEMA %s IS '%s';\n", quoteDefinitionIdentifier(schema.Name), escapeStringLiteral(schema.Comment))); err != nil {
@@ -799,6 +795,159 @@ func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) erro
 		}
 	}
 	return nil
+}
+
+// writeOwners transfers table and schema ownership at the end of the dump so
+// all creates, comments, views, and cyclic foreign keys run while the restore
+// role still owns the targets.
+func writeOwners(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		for _, table := range schema.Tables {
+			if table == nil || table.SkipDump || table.Owner == "" {
+				continue
+			}
+			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s OWNER TO %s;\n", qualifyName(schema.Name, table.Name), quoteDefinitionIdentifier(table.Owner))); err != nil {
+				return err
+			}
+		}
+		if schema.Name != "" && schema.Name != "public" && schema.Owner != "" {
+			if _, err := w.WriteString(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;\n", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(schema.Owner))); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// appendTerminator appends ";" when stmt does not already end in a
+// statement terminator, placing it on a new line if stmt ends inside a "--"
+// line comment.
+func appendTerminator(stmt string) string {
+	var (
+		inSingleQuote bool
+		inDoubleQuote bool
+		inLineComment bool
+		blockDepth    int
+		dollarTag     string
+		lastCodeByte  byte
+	)
+	for i := 0; i < len(stmt); {
+		ch := stmt[i]
+		if inLineComment {
+			if ch == '\n' {
+				inLineComment = false
+			}
+			i++
+			continue
+		}
+		if blockDepth > 0 {
+			if ch == '/' && i+1 < len(stmt) && stmt[i+1] == '*' {
+				blockDepth++
+				i += 2
+				continue
+			}
+			if ch == '*' && i+1 < len(stmt) && stmt[i+1] == '/' {
+				blockDepth--
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
+		if dollarTag != "" {
+			if strings.HasPrefix(stmt[i:], dollarTag) {
+				i += len(dollarTag)
+				dollarTag = ""
+				lastCodeByte = '$'
+				continue
+			}
+			i++
+			continue
+		}
+		if inSingleQuote {
+			if ch == '\'' {
+				if i+1 < len(stmt) && stmt[i+1] == '\'' {
+					i += 2
+					continue
+				}
+				inSingleQuote = false
+				lastCodeByte = '\''
+			}
+			i++
+			continue
+		}
+		if inDoubleQuote {
+			if ch == '"' {
+				if i+1 < len(stmt) && stmt[i+1] == '"' {
+					i += 2
+					continue
+				}
+				inDoubleQuote = false
+				lastCodeByte = '"'
+			}
+			i++
+			continue
+		}
+		switch {
+		case ch == '-' && i+1 < len(stmt) && stmt[i+1] == '-':
+			inLineComment = true
+			i += 2
+		case ch == '/' && i+1 < len(stmt) && stmt[i+1] == '*':
+			blockDepth++
+			i += 2
+		case ch == '\'':
+			inSingleQuote = true
+			lastCodeByte = ch
+			i++
+		case ch == '"':
+			inDoubleQuote = true
+			lastCodeByte = ch
+			i++
+		case ch == '$':
+			if tag, ok := matchDollarTag(stmt[i:]); ok {
+				dollarTag = tag
+				lastCodeByte = '$'
+				i += len(tag)
+			} else {
+				lastCodeByte = ch
+				i++
+			}
+		case ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n':
+			i++
+		default:
+			lastCodeByte = ch
+			i++
+		}
+	}
+	if lastCodeByte == ';' {
+		return stmt
+	}
+	if inLineComment {
+		return stmt + "\n;"
+	}
+	return stmt + ";"
+}
+
+func matchDollarTag(s string) (string, bool) {
+	if len(s) < 2 || s[0] != '$' {
+		return "", false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if c == '$' {
+			return s[:i+1], true
+		}
+		if i == 1 && c >= '0' && c <= '9' {
+			return "", false
+		}
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' {
+			return "", false
+		}
+	}
+	return "", false
 }
 
 type objectKind int
@@ -848,9 +997,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if def == "" {
 				return fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
 			}
-			if !strings.HasSuffix(def, ";") {
-				def += ";"
-			}
+			def = appendTerminator(def)
 			params, retType := parseFunctionSignature(def)
 			entry := functionEntry{
 				schema:     schema.Name,
@@ -1077,6 +1224,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if _, err := w.WriteString(fmt.Sprintf("ALTER TABLE %s ADD %s;\n", item.table.qualifiedName(), buf.String())); err != nil {
 				return err
 			}
+			if item.fk.name != "" && item.fk.comment != "" {
+				if _, err := w.WriteString(fmt.Sprintf("COMMENT ON CONSTRAINT %s ON %s IS '%s';\n", quoteDefinitionIdentifier(item.fk.name), item.table.qualifiedName(), escapeStringLiteral(item.fk.comment))); err != nil {
+					return err
+				}
+			}
 		}
 		deferred = nil
 		return nil
@@ -1109,7 +1261,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 				inlineFKs = append(inlineFKs, fk)
 			}
-			if err := writeTableWithFKs(w, item.table, inlineFKs); err != nil {
+			if err := writeTableWithOptions(w, item.table, inlineFKs, false, false); err != nil {
 				return err
 			}
 			emittedTables[tableKey] = true
@@ -1317,14 +1469,14 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 	return ordered
 }
 
-// writeTableWithFKs writes one table and the comments that belong to it. Column
+// writeTableWithOptions writes one table, its comments (table, column, and
+// named key/FK constraints), and optionally its ownership transfer. Column
 // comments follow the column order the CREATE TABLE body uses so output is
 // deterministic across runs.
-func writeTable(w io.StringWriter, table *tableState) error {
-	return writeTableWithFKs(w, table, sortedForeignKeys(table.foreignKeys))
-}
-
-func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState) error {
+func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState, allFKs, emitOwner bool) error {
+	if allFKs {
+		foreignKeys = sortedForeignKeys(table.foreignKeys)
+	}
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
@@ -1342,11 +1494,6 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
 		return err
 	}
-	if table.owner != "" {
-		if _, err := fmt.Fprintf(buf, "ALTER TABLE %s OWNER TO %s;\n", table.qualifiedName(), quoteDefinitionIdentifier(table.owner)); err != nil {
-			return err
-		}
-	}
 	if table.comment != "" {
 		if _, err := fmt.Fprintf(buf, "COMMENT ON TABLE %s IS '%s';\n", table.qualifiedName(), escapeStringLiteral(table.comment)); err != nil {
 			return err
@@ -1357,6 +1504,27 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 			continue
 		}
 		if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", table.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeStringLiteral(column.comment)); err != nil {
+			return err
+		}
+	}
+	for _, idx := range sortedKeyIndexes(table.indexes) {
+		if idx.name == "" || idx.comment == "" {
+			continue
+		}
+		if _, err := fmt.Fprintf(buf, "COMMENT ON CONSTRAINT %s ON %s IS '%s';\n", quoteDefinitionIdentifier(idx.name), table.qualifiedName(), escapeStringLiteral(idx.comment)); err != nil {
+			return err
+		}
+	}
+	for _, fk := range foreignKeys {
+		if fk.name == "" || fk.comment == "" {
+			continue
+		}
+		if _, err := fmt.Fprintf(buf, "COMMENT ON CONSTRAINT %s ON %s IS '%s';\n", quoteDefinitionIdentifier(fk.name), table.qualifiedName(), escapeStringLiteral(fk.comment)); err != nil {
+			return err
+		}
+	}
+	if emitOwner && table.owner != "" {
+		if _, err := fmt.Fprintf(buf, "ALTER TABLE %s OWNER TO %s;\n", table.qualifiedName(), quoteDefinitionIdentifier(table.owner)); err != nil {
 			return err
 		}
 	}
@@ -1562,30 +1730,7 @@ func (t *tableState) toStringWithFKs(buf *strings.Builder, foreignKeys []*foreig
 		}
 	}
 
-	indexes := make([]*indexState, 0, len(t.indexes))
-	for _, index := range t.indexes {
-		if index.primary || index.unique {
-			indexes = append(indexes, index)
-		}
-	}
-	slices.SortFunc(indexes, func(a, b *indexState) int {
-		if a.primary && !b.primary {
-			return -1
-		}
-		if !a.primary && b.primary {
-			return 1
-		}
-		if cmp := strings.Compare(a.name, b.name); cmp != 0 {
-			return cmp
-		}
-		if a.id < b.id {
-			return -1
-		}
-		if a.id > b.id {
-			return 1
-		}
-		return 0
-	})
+	indexes := sortedKeyIndexes(t.indexes)
 
 	for i, index := range indexes {
 		if i+len(columns) > 0 {
@@ -1680,6 +1825,7 @@ type foreignKeyState struct {
 	referencedSchema  string
 	referencedTable   string
 	referencedColumns []string
+	comment           string
 }
 
 func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb.ForeignKeyMetadata) *foreignKeyState {
@@ -1694,6 +1840,7 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 		referencedSchema:  refSchema,
 		referencedTable:   foreignKey.ReferencedTable,
 		referencedColumns: foreignKey.ReferencedColumns,
+		comment:           foreignKey.Comment,
 	}
 }
 
@@ -1749,6 +1896,7 @@ type indexState struct {
 	primary bool
 	unique  bool
 	tp      string
+	comment string
 }
 
 func convertToIndexState(id int, index *metadatapb.IndexMetadata) *indexState {
@@ -1760,7 +1908,36 @@ func convertToIndexState(id int, index *metadatapb.IndexMetadata) *indexState {
 		primary: index.Primary,
 		unique:  index.Unique,
 		tp:      index.Type,
+		comment: index.Comment,
 	}
+}
+
+func sortedKeyIndexes(all []*indexState) []*indexState {
+	indexes := make([]*indexState, 0, len(all))
+	for _, index := range all {
+		if index.primary || index.unique {
+			indexes = append(indexes, index)
+		}
+	}
+	slices.SortFunc(indexes, func(a, b *indexState) int {
+		if a.primary && !b.primary {
+			return -1
+		}
+		if !a.primary && b.primary {
+			return 1
+		}
+		if cmp := strings.Compare(a.name, b.name); cmp != 0 {
+			return cmp
+		}
+		if a.id < b.id {
+			return -1
+		}
+		if a.id > b.id {
+			return 1
+		}
+		return 0
+	})
+	return indexes
 }
 
 func (i *indexState) toString(buf *strings.Builder) error {
@@ -2065,10 +2242,7 @@ func (v *viewState) toString(buf io.StringWriter) error {
 	} else {
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
-	if !strings.HasSuffix(stmt, ";") {
-		stmt += ";"
-	}
-	stmt += "\n"
+	stmt = appendTerminator(stmt) + "\n"
 	_, err := buf.WriteString(stmt)
 	return err
 }
@@ -2084,10 +2258,7 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 	} else {
 		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
-	if !strings.HasSuffix(stmt, ";") {
-		stmt += ";"
-	}
-	stmt += "\n"
+	stmt = appendTerminator(stmt) + "\n"
 	_, err := buf.WriteString(stmt)
 	return err
 }

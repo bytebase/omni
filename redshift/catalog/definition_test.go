@@ -931,18 +931,94 @@ func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testi
 	})
 	require.Error(t, err)
 
-	// 7. Table owner is restored via ALTER TABLE ... OWNER TO ...
+	// 7. Table owner and key/FK constraint comments:
+	// - In GetTableDefinition: OWNER TO follows table, column, and constraint comments.
+	// - In DatabaseDefinition: schema/table OWNER TO statements run at the end after objects & comments.
 	ownedTbl, err := GetTableDefinition("public", &metadatapb.TableMetadata{
 		Name:    "owned_tbl",
 		Owner:   "AppOwner",
-		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Comment: "table comment",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "id comment"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "owned_tbl_pkey", Primary: true, Expressions: []string{"id"}, Comment: "pk comment"}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
 
 CREATE TABLE "public"."owned_tbl" (
-  "id" integer NOT NULL
+  "id" integer NOT NULL,
+  CONSTRAINT "owned_tbl_pkey" PRIMARY KEY (id)
 );
+COMMENT ON TABLE "public"."owned_tbl" IS 'table comment';
+COMMENT ON COLUMN "public"."owned_tbl"."id" IS 'id comment';
+COMMENT ON CONSTRAINT "owned_tbl_pkey" ON "public"."owned_tbl" IS 'pk comment';
 ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 `, ownedTbl)
+
+	deferredOwnersAndComments, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:    "reporting",
+				Owner:   "reporting_owner",
+				Comment: "reporting schema",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "t_child",
+						Owner:   "table_owner",
+						Comment: "child table",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+						Indexes: []*metadatapb.IndexMetadata{{Name: "t_child_pkey", Primary: true, Expressions: []string{"id"}, Comment: "pk note"}},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+							Name:              "fk_self",
+							Columns:           []string{"id"},
+							ReferencedSchema:  "reporting",
+							ReferencedTable:   "t_child",
+							ReferencedColumns: []string{"id"},
+							Comment:           "self fk note",
+						}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v_line_comment",
+						Definition: "SELECT id FROM reporting.t_child -- end of view",
+					},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{
+						Name:       "mv_line_comment",
+						Definition: "SELECT id FROM reporting.t_child -- end of mv",
+					},
+				},
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f_line_comment",
+						Definition: "CREATE FUNCTION reporting.f_line_comment() RETURNS int IMMUTABLE AS $$ SELECT 1 -- inside body\n$$ LANGUAGE SQL -- trailing comment",
+					},
+				},
+				Procedures: []*metadatapb.ProcedureMetadata{
+					{
+						Name:       "p_line_comment",
+						Definition: "CREATE PROCEDURE reporting.p_line_comment() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql -- trailing proc comment",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"t_child_pkey\" ON \"reporting\".\"t_child\" IS 'pk note';\n")
+	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"fk_self\" ON \"reporting\".\"t_child\" IS 'self fk note';\n")
+	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE plpgsql -- trailing proc comment\n;\n")
+
+	createTablePos := strings.Index(deferredOwnersAndComments, `CREATE TABLE "reporting"."t_child"`)
+	createViewPos := strings.Index(deferredOwnersAndComments, `CREATE OR REPLACE VIEW "reporting"."v_line_comment"`)
+	createProcPos := strings.Index(deferredOwnersAndComments, `CREATE PROCEDURE reporting.p_line_comment()`)
+	tblOwnerPos := strings.Index(deferredOwnersAndComments, `ALTER TABLE "reporting"."t_child" OWNER TO "table_owner";`)
+	schemaOwnerPos := strings.Index(deferredOwnersAndComments, `ALTER SCHEMA "reporting" OWNER TO "reporting_owner";`)
+	require.Greater(t, tblOwnerPos, createTablePos)
+	require.Greater(t, tblOwnerPos, createViewPos)
+	require.Greater(t, tblOwnerPos, createProcPos)
+	require.Greater(t, schemaOwnerPos, tblOwnerPos)
 }
