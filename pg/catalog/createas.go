@@ -51,14 +51,21 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 			return errDuplicateTable(mvName)
 		}
 		if execStmt, isExec := stmt.Query.(*nodes.ExecuteStmt); isExec {
-			if !c.preparedStmts[execStmt.Name] {
+			prepQuery, exists := c.preparedStmts[execStmt.Name]
+			if !exists {
 				return &Error{
 					Code:    CodeInvalidSQLStatementName,
 					Message: fmt.Sprintf("prepared statement %q does not exist", execStmt.Name),
 				}
 			}
+			if prepSel, isSel := prepQuery.(*nodes.SelectStmt); isSel {
+				selStmt = prepSel
+				ok = true
+			}
 		}
-		return errInvalidParameterValue("CREATE MATERIALIZED VIEW requires a SELECT query")
+		if !ok {
+			return errInvalidParameterValue("CREATE MATERIALIZED VIEW requires a SELECT query")
+		}
 	}
 
 	// Analyze the query — single pipeline.

@@ -321,9 +321,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.PrepareStmt:
 		if s.Name != "" {
 			if c.preparedStmts == nil {
-				c.preparedStmts = make(map[string]bool)
+				c.preparedStmts = make(map[string]nodes.Node)
 			}
-			c.preparedStmts[s.Name] = true
+			c.preparedStmts[s.Name] = s.Query
 		}
 		return nil
 	case *nodes.ExecuteStmt:

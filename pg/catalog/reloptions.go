@@ -28,7 +28,6 @@ type relOptSpec struct {
 }
 
 var heapRelOpts = map[string]relOptSpec{
-	"autosummarize":                         {typ: relOptBool}, // not heap, filtered below; kept out
 	"autovacuum_enabled":                    {typ: relOptBool},
 	"user_catalog_table":                    {typ: relOptBool},
 	"vacuum_truncate":                       {typ: relOptBool},
@@ -51,10 +50,6 @@ var heapRelOpts = map[string]relOptSpec{
 	"autovacuum_vacuum_insert_scale_factor": {typ: relOptReal, minReal: 0, maxReal: 100},
 	"autovacuum_analyze_scale_factor":       {typ: relOptReal, minReal: 0, maxReal: 100},
 	"vacuum_index_cleanup":                  {typ: relOptEnum, enumVals: []string{"auto", "on", "off", "true", "false", "yes", "no", "1", "0"}},
-}
-
-func init() {
-	delete(heapRelOpts, "autosummarize")
 }
 
 var toastRelOpts = map[string]relOptSpec{

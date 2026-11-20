@@ -332,14 +332,18 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	for _, p := range pending {
 		switch nodes.AlterTableType(p.cmd.Subtype) {
 		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner, nodes.AT_SetAccessMethod,
-			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions:
+			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
+			nodes.AT_ReplicaIdentity, nodes.AT_AlterConstraint:
 			needsRollback = true
 		}
 	}
 	var relTablespaces map[*Relation]string
 	var relAccessMethods map[*Relation]string
 	var relCheckOptions map[*Relation]byte
+	var relReplicaIdents map[*Relation]byte
 	var idxTablespaces map[*Index]string
+	var idxReplicaIdents map[*Index]bool
+	var conDeferStates map[*Constraint][2]bool
 	var relOwners map[*Relation]string
 	var idxOwners map[*Index]string
 	var seqOwners map[*Sequence]string
@@ -357,8 +361,11 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		relTablespaces = map[*Relation]string{}
 		relAccessMethods = map[*Relation]string{}
 		relCheckOptions = map[*Relation]byte{}
+		relReplicaIdents = map[*Relation]byte{}
 		relOwners = map[*Relation]string{}
 		idxTablespaces = map[*Index]string{}
+		idxReplicaIdents = map[*Index]bool{}
+		conDeferStates = map[*Constraint][2]bool{}
 		idxOwners = map[*Index]string{}
 		seqOwners = map[*Sequence]string{}
 		savedTypeOwners = make(map[uint32]string, len(c.typeOwners))
@@ -377,10 +384,15 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			relTablespaces[r] = r.Tablespace
 			relAccessMethods[r] = r.AccessMethod
 			relCheckOptions[r] = r.CheckOption
+			relReplicaIdents[r] = r.ReplicaIdentity
 			relOwners[r] = r.OwnerName
 			for _, idx := range c.indexesByRel[r.OID] {
 				idxTablespaces[idx] = idx.Tablespace
+				idxReplicaIdents[idx] = idx.IsReplicaIdent
 				idxOwners[idx] = idx.OwnerName
+			}
+			for _, con := range c.consByRel[r.OID] {
+				conDeferStates[con] = [2]bool{con.Deferrable, con.Deferred}
 			}
 			for _, seq := range c.sequenceByOID {
 				if seq.OwnerRelOID == r.OID {
@@ -398,14 +410,24 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			for r, co := range relCheckOptions {
 				r.CheckOption = co
 			}
+			for r, ri := range relReplicaIdents {
+				r.ReplicaIdentity = ri
+			}
 			for r, owner := range relOwners {
 				r.OwnerName = owner
 			}
 			for idx, ts := range idxTablespaces {
 				idx.Tablespace = ts
 			}
+			for idx, ri := range idxReplicaIdents {
+				idx.IsReplicaIdent = ri
+			}
 			for idx, owner := range idxOwners {
 				idx.OwnerName = owner
+			}
+			for con, st := range conDeferStates {
+				con.Deferrable = st[0]
+				con.Deferred = st[1]
 			}
 			for seq, owner := range seqOwners {
 				seq.OwnerName = owner

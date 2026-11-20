@@ -3,6 +3,8 @@ package catalog
 import (
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // typeKey identifies a type by namespace and name.
@@ -163,7 +165,7 @@ type Catalog struct {
 	warnings []Warning
 
 	// Session-local prepared statements registered via PREPARE.
-	preparedStmts map[string]bool
+	preparedStmts map[string]nodes.Node
 
 	// currentStmtSQL holds the raw SQL slice of the statement currently executing in Exec.
 	currentStmtSQL string

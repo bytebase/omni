@@ -3364,6 +3364,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 				t.Fatalf("expected auto-named index %q in schema, got %v", wantIdx, c101.schemaByName["public"].Indexes)
 			}
 		}
+
+		// CREATE TABLE ... AS EXECUTE creates a relation from the prepared SELECT
+		// query, and failed multi-subcommand ALTER TABLE restores REPLICA IDENTITY.
+		c102 := New()
+		for _, stmt := range []string{
+			"PREPARE p_ctas AS SELECT 1 AS id, 'ok'::text AS label",
+			"CREATE TABLE t_exec AS EXECUTE p_ctas",
+		} {
+			if code := simulationCatalogCode(t, c102, stmt); code != "0" {
+				t.Fatalf("CTAS EXECUTE %s: %s", stmt, code)
+			}
+		}
+		tExec := c102.schemaByName["public"].Relations["t_exec"]
+		if tExec == nil || len(tExec.Columns) != 2 || tExec.Columns[0].Name != "id" || tExec.Columns[1].Name != "label" {
+			t.Fatalf("unexpected columns on t_exec: %+v", tExec)
+		}
+		if code := simulationCatalogCode(t, c102, "ALTER TABLE t_exec REPLICA IDENTITY FULL, DROP COLUMN missing_col"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE REPLICA IDENTITY + bad DROP answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if tExec.ReplicaIdentity == 'f' {
+			t.Fatal("failed ALTER TABLE left ReplicaIdentity='f' mutated")
+		}
 	})
 
 	for _, tc := range cases {
