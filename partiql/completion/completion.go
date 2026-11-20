@@ -330,7 +330,7 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 			break
 		}
 		switch tok.upper {
-		case "LET", "REMOVE", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
+		case "LET", "REMOVE", "UNPIVOT", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
 			return false, true, false
 		}
 	}
@@ -484,9 +484,15 @@ func partiqlNameMatches(candidate, query string, quoted bool) bool {
 	return candidate == query || strings.EqualFold(candidate, query)
 }
 
+const maxSubqueryDepth = 32
+
 func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata) []string {
+	return resolveTableRefColumnsWithDepth(ref, allTables, 0)
+}
+
+func resolveTableRefColumnsWithDepth(ref tableRef, allTables []*metadata.TableMetadata, depth int) []string {
 	if len(ref.subquery) > 0 {
-		return resolveSubqueryColumns(ref.subquery, allTables)
+		return resolveSubqueryColumnsWithDepth(ref.subquery, allTables, depth+1)
 	}
 	table := findMetadataTable(allTables, ref.name, ref.quoted)
 	if table == nil {
@@ -501,10 +507,46 @@ func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata) [
 	return cols
 }
 
-func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMetadata) []string {
-	for len(tokens) >= 2 && tokens[0].paren == '(' && findMatchingTokenParen(tokens, 0) == len(tokens)-1 {
-		tokens = tokens[1 : len(tokens)-1]
+func stripOuterParenTokens(tokens []tableToken) []tableToken {
+	lead := 0
+	for lead < len(tokens) && tokens[lead].paren == '(' {
+		lead++
 	}
+	trail := 0
+	for trail < len(tokens) && tokens[len(tokens)-1-trail].paren == ')' {
+		trail++
+	}
+	maxOuter := min(lead, trail)
+	if maxOuter == 0 || maxOuter*2 > len(tokens) {
+		return tokens
+	}
+	depth := maxOuter
+	minDepth := maxOuter
+	for i := maxOuter; i < len(tokens)-maxOuter; i++ {
+		switch tokens[i].paren {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth < minDepth {
+				minDepth = depth
+			}
+		}
+	}
+	if depth != maxOuter {
+		return tokens
+	}
+	if minDepth < 0 {
+		minDepth = 0
+	}
+	return tokens[minDepth : len(tokens)-minDepth]
+}
+
+func resolveSubqueryColumnsWithDepth(tokens []tableToken, allTables []*metadata.TableMetadata, depth int) []string {
+	if depth > maxSubqueryDepth {
+		return nil
+	}
+	tokens = stripOuterParenTokens(tokens)
 	selIdx := findMainSelectIndex(tokens)
 	if selIdx < 0 {
 		return nil
@@ -590,7 +632,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 		}
 		if len(item) == 1 && !item[0].quoted && item[0].text == "*" {
 			for _, ref := range getInnerRefs() {
-				cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
+				cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumnsWithDepth(ref, allTables, depth), excludeRules)
 			}
 			continue
 		}
@@ -598,7 +640,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			qual := strings.TrimSuffix(item[0].text, ".*")
 			for _, ref := range getInnerRefs() {
 				if matchesTableQualifier(ref, qual, false) {
-					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
+					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumnsWithDepth(ref, allTables, depth), excludeRules)
 				}
 			}
 			continue
@@ -607,7 +649,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			qual := item[0].text
 			for _, ref := range getInnerRefs() {
 				if matchesTableQualifier(ref, qual, true) {
-					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
+					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumnsWithDepth(ref, allTables, depth), excludeRules)
 				}
 			}
 			continue
@@ -1487,7 +1529,7 @@ func isKeyword(w string) bool {
 		"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 		"NULL", "MISSING", "TRUE", "FALSE", "CAST", "CASE", "WHEN",
 		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN", "RETURNING",
-		"PIVOT", "LET", "REMOVE", "CONFLICT", "DO", "NOTHING", "REPLACE",
+		"PIVOT", "UNPIVOT", "LET", "REMOVE", "CONFLICT", "DO", "NOTHING", "REPLACE",
 		"EXCLUDE", "EXCLUDED":
 		return true
 	}
@@ -1506,5 +1548,5 @@ var keywords = []string{
 	"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 	"NULL", "MISSING", "TRUE", "FALSE",
 	"CAST", "CASE", "WHEN", "THEN", "ELSE", "END",
-	"EXISTS", "ASC", "DESC", "REMOVE", "EXCLUDED",
+	"EXISTS", "ASC", "DESC", "REMOVE", "EXCLUDED", "UNPIVOT",
 }

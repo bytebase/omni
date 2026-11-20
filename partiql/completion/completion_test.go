@@ -635,6 +635,13 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: nil,
 			wantTabs: []string{},
 		},
+		{
+			name:     "UNPIVOT operand in FROM list suggests preceding table columns",
+			input:    "SELECT * FROM Music m, UNPIVOT | AS v",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {
@@ -726,6 +733,17 @@ func TestCompleteKeywordSuppressionAndQuotedPunctuationPrefix(t *testing.T) {
 	}
 	if countKind(gotExcl, "table") != 0 {
 		t.Errorf("did not expect tables after ON CONFLICT DO UPDATE, got %v", gotExcl)
+	}
+
+	var deepPrefix, deepSuffix string
+	for range 200 {
+		deepPrefix += "SELECT * FROM ("
+		deepSuffix += ") s"
+	}
+	deepSQL := deepPrefix + "SELECT * FROM ItemMaster" + deepSuffix
+	deepQuery := "SELECT r.| FROM (" + deepSQL + ") r"
+	if got := CompleteWithMetadata(deepQuery, len("SELECT r."), cat, meta); got == nil {
+		t.Fatalf("expected non-nil bounded completion result for deeply nested derived query")
 	}
 }
 
