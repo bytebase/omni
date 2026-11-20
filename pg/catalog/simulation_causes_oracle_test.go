@@ -264,6 +264,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"UNIQUE constraint index reuses standalone enum type name", "missing", "CREATE TYPE t_u_enum_a_key AS ENUM ('x');\nCREATE TABLE t_u_enum (a int UNIQUE)", "0"},
 		{"ALTER TABLE on an index RENAME COLUMN renames expression attribute", "missing", "CREATE TABLE t_ir (a int);\nCREATE INDEX idx_ir ON t_ir ((a + 1));\nALTER TABLE idx_ir RENAME COLUMN expr TO plus_one", "0"},
 		{"ALTER COLUMN SET STORAGE DEFAULT and SET COMPRESSION DEFAULT", "missing", "CREATE TABLE t_scd (a text STORAGE EXTERNAL COMPRESSION lz4);\nALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;\nALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT", "0"},
+		{"DROP DEFAULT sharing column explicit collation keeps single dependency", "missing", "CREATE COLLATION c_same (LOCALE = 'C');\nCREATE TABLE t_same (a text COLLATE c_same DEFAULT ('x' COLLATE c_same));\nALTER TABLE t_same ALTER COLUMN a DROP DEFAULT;\nALTER TABLE t_same ALTER COLUMN a TYPE varchar;\nDROP COLLATION c_same", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3736,6 +3737,64 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rem := GenerateMigration(c106From, c106To, Diff(c106From, c106To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining migration ops after c106 round-trip, got:\n%s", rem.SQL())
+		}
+
+		// Review round 5 regressions:
+		// 1. Dropping a DEFAULT that references the same user collation as the
+		//    column's explicit COLLATE leaves exactly one collation dependency so
+		//    subsequent ALTER COLUMN TYPE (without COLLATE) allows DROP COLLATION.
+		// 2. Replacing a collation whose definition changed while retained columns,
+		//    defaults, indexes, constraints, domains, and views reference it
+		//    detaches/rebuilds dependents before DROP COLLATION and restores them
+		//    after CREATE COLLATION.
+		c107 := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION c_same_r5 (LOCALE = 'C')",
+			"CREATE DOMAIN d_keep_r5 AS text",
+			"CREATE TABLE t_same_r5 (a text COLLATE c_same_r5 DEFAULT ('x' COLLATE c_same_r5), b d_keep_r5 DEFAULT ('y'::d_keep_r5))",
+			"ALTER TABLE t_same_r5 ALTER COLUMN a DROP DEFAULT",
+			"ALTER TABLE t_same_r5 ALTER COLUMN b DROP DEFAULT",
+			"ALTER TABLE t_same_r5 ALTER COLUMN a TYPE varchar",
+			"DROP COLLATION c_same_r5",
+		} {
+			if code := simulationCatalogCode(t, c107, stmt); code != "0" {
+				t.Fatalf("c107 %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c107, "DROP DOMAIN d_keep_r5"); code != CodeDependentObjects {
+			t.Fatalf("DROP DOMAIN d_keep_r5 after DROP DEFAULT answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		c107From := New()
+		c107To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_repl (LOCALE = 'C')",
+			"CREATE DOMAIN dom_repl AS text COLLATE coll_repl",
+			"CREATE TABLE t_repl (a text COLLATE coll_repl STORAGE EXTERNAL DEFAULT ('d' COLLATE coll_repl), b text, d dom_repl, CONSTRAINT t_repl_chk CHECK (b COLLATE coll_repl <> ''))",
+			"CREATE INDEX idx_repl ON t_repl (b COLLATE coll_repl)",
+			"CREATE VIEW v_repl AS SELECT a, b FROM t_repl",
+		} {
+			if code := simulationCatalogCode(t, c107From, stmt); code != "0" {
+				t.Fatalf("c107From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_repl (LOCALE = 'POSIX')",
+			"CREATE DOMAIN dom_repl AS text COLLATE coll_repl",
+			"CREATE TABLE t_repl (a text COLLATE coll_repl STORAGE EXTERNAL DEFAULT ('d' COLLATE coll_repl), b text, d dom_repl, CONSTRAINT t_repl_chk CHECK (b COLLATE coll_repl <> ''))",
+			"CREATE INDEX idx_repl ON t_repl (b COLLATE coll_repl)",
+			"CREATE VIEW v_repl AS SELECT a, b FROM t_repl",
+		} {
+			if code := simulationCatalogCode(t, c107To, stmt); code != "0" {
+				t.Fatalf("c107To setup %s: %s", stmt, code)
+			}
+		}
+		mig107 := GenerateMigration(c107From, c107To, Diff(c107From, c107To))
+		if code := simulationCatalogCode(t, c107From, mig107.SQL()); code != "0" {
+			t.Fatalf("applying c107 collation replacement migration failed with %s:\n%s", code, mig107.SQL())
+		}
+		if rem := GenerateMigration(c107From, c107To, Diff(c107From, c107To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c107 collation replacement, got:\n%s", rem.SQL())
 		}
 	})
 

@@ -31,6 +31,9 @@ type Index struct {
 	// OpClasses holds, per key column, the operator class the statement
 	// named, dotted when qualified, or "" for the default.
 	OpClasses []string
+	// Collations holds, per key column, the explicit COLLATE name the statement
+	// named, dotted when qualified, or "" when omitted.
+	Collations []string
 	// ParentIndexOID is the partitioned table's index this partition's index
 	// is attached to, or 0. Such an index comes and goes with its parent.
 	ParentIndexOID uint32
@@ -130,9 +133,11 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
+	var collations []string
 	var opClassRefs []opClassRef
 	var userCollOIDs []uint32
 	namedOpClass := false
+	namedCollation := false
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
 			elem, ok := item.(*nodes.IndexElem)
@@ -213,6 +218,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				opClassTypeOID = rel.Columns[idx].TypeOID
 			}
 
+			var collParts []string
 			if elem.Collation != nil && len(elem.Collation.Items) > 0 {
 				_, collOID, err := c.resolveColumnCollation(elem.Collation, opClassTypeOID)
 				if err != nil {
@@ -220,6 +226,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 				if collOID != 0 {
 					userCollOIDs = append(userCollOIDs, collOID)
+				}
+				for _, part := range elem.Collation.Items {
+					collParts = append(collParts, stringVal(part))
 				}
 			}
 
@@ -263,10 +272,15 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
+			collations = append(collations, strings.Join(collParts, "."))
+			namedCollation = namedCollation || len(collParts) > 0
 		}
 	}
 	if !namedOpClass {
 		opClasses = nil
+	}
+	if !namedCollation {
+		collations = nil
 	}
 
 	nKeyColumns := len(attnums)
@@ -424,6 +438,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		NullsNotDistinct: stmt.Nulls_not_distinct,
 		Exprs:            exprTexts,
 		OpClasses:        opClasses,
+		Collations:       collations,
 	}
 
 	c.registerIndex(schema, idx)

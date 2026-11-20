@@ -326,12 +326,14 @@ type DomainConstraint struct {
 
 // DomainType holds metadata for a user-created domain type.
 type DomainType struct {
-	TypeOID     uint32
-	BaseTypeOID uint32
-	BaseTypMod  int32
-	NotNull     bool
-	Default     string
-	Constraints []*DomainConstraint
+	TypeOID          uint32
+	BaseTypeOID      uint32
+	BaseTypMod       int32
+	NotNull          bool
+	Default          string
+	CollationName    string
+	UserCollationOID uint32
+	Constraints      []*DomainConstraint
 }
 
 // DefineDomain creates a new domain type from a parsed CREATE DOMAIN statement.
@@ -456,10 +458,11 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 
 	// Validate COLLATE clause — collation must exist and base type must be collatable.
 	// pg: src/backend/commands/typecmds.c — DefineDomain (collation check)
+	var domCollName string
 	var domUserCollOID uint32
 	if domCollList != nil {
 		var cerr error
-		_, domUserCollOID, cerr = c.resolveColumnCollation(domCollList, baseOID)
+		domCollName, domUserCollOID, cerr = c.resolveColumnCollation(domCollList, baseOID)
 		if cerr != nil {
 			return cerr
 		}
@@ -546,11 +549,13 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 
 	// Create domain metadata.
 	dt := &DomainType{
-		TypeOID:     typeOID,
-		BaseTypeOID: baseOID,
-		BaseTypMod:  baseMod,
-		NotNull:     notNull,
-		Default:     defaultExpr,
+		TypeOID:          typeOID,
+		BaseTypeOID:      baseOID,
+		BaseTypMod:       baseMod,
+		NotNull:          notNull,
+		Default:          defaultExpr,
+		CollationName:    domCollName,
+		UserCollationOID: domUserCollOID,
 	}
 
 	// Add CHECK constraints if provided (supports multiple).

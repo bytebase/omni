@@ -274,6 +274,15 @@ func buildCreateIndexSQL(idx *Index, rel *Relation, schemaName string) string {
 			colName := resolveAttNum(rel, idx.Columns[i])
 			b.WriteString(quoteIdentifier(colName))
 		}
+		if i < len(idx.Collations) && idx.Collations[i] != "" {
+			b.WriteString(" COLLATE ")
+			for j, part := range strings.Split(idx.Collations[i], ".") {
+				if j > 0 {
+					b.WriteString(".")
+				}
+				b.WriteString(quoteIdentifier(part))
+			}
+		}
 		if i < len(idx.OpClasses) && idx.OpClasses[i] != "" {
 			b.WriteString(" ")
 			for j, part := range strings.Split(idx.OpClasses[i], ".") {

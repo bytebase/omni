@@ -90,7 +90,7 @@ func formatCreateDomain(cat *Catalog, schemaName, name string, d *DomainType) st
 	var buf strings.Builder
 	qn := migrationQualifiedName(schemaName, name)
 	baseType := cat.FormatType(d.BaseTypeOID, d.BaseTypMod)
-	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s", qn, baseType))
+	buf.WriteString(fmt.Sprintf("CREATE DOMAIN %s AS %s%s", qn, baseType, formatCollate(d.CollationName)))
 
 	if d.Default != "" {
 		buf.WriteString(fmt.Sprintf(" DEFAULT %s", d.Default))

@@ -45,6 +45,10 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				}
 				ops = append(ops, colOps...)
 			case DiffDrop:
+				dropRelOID := relOID
+				if rel.From != nil {
+					dropRelOID = rel.From.OID
+				}
 				ops = append(ops, MigrationOp{
 					Type:          OpDropColumn,
 					SchemaName:    rel.SchemaName,
@@ -53,7 +57,7 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					Transactional: true,
 					Phase:         PhasePre,
 					ObjType:       'r',
-					ObjOID:        relOID,
+					ObjOID:        dropRelOID,
 					Priority:      PriorityColumn,
 				})
 			case DiffModify:

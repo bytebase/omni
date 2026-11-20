@@ -2352,10 +2352,16 @@ func (c *Catalog) clearColumnDefaultDeps(rel *Relation, col *Column) {
 		return
 	}
 	n := 0
+	keptColColl := false
+	keptColType := false
 	for _, d := range c.deps {
 		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) {
-			if d.RefType == 'L' && col.UserCollationOID != 0 && d.RefOID == col.UserCollationOID {
-				// Keep the column's own explicit COLLATE dependency.
+			if !keptColColl && d.RefType == 'L' && col.UserCollationOID != 0 && d.RefOID == col.UserCollationOID {
+				// Keep the single entry for the column's own explicit COLLATE dependency.
+				keptColColl = true
+			} else if !keptColType && d.RefType == 't' && col.TypeOID >= FirstNormalObjectId && d.RefOID == col.TypeOID {
+				// Keep the single entry for the column's own user-defined type dependency.
+				keptColType = true
 			} else {
 				continue
 			}

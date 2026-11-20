@@ -2081,3 +2081,16 @@
 | ALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;
 | ALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_same (LOCALE = 'C');
+| CREATE TABLE t_same (a text COLLATE c_same DEFAULT ('x' COLLATE c_same));
+| ALTER TABLE t_same ALTER COLUMN a DROP DEFAULT;
+| ALTER TABLE t_same ALTER COLUMN a TYPE varchar;
+| DROP COLLATION c_same
+< ok 0 -

@@ -231,9 +231,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateCommentDDL(from, to, diff)...)
 	ops = append(ops, generateGrantDDL(from, to, diff)...)
 
-	// Post-processing: wrap ALTER COLUMN TYPE ops with DROP VIEW / CREATE VIEW
-	// for dependent views. PG cannot ALTER a column type when a view depends on it.
-	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops)
+	// Post-processing: detach/rebuild dependents of modified collations before
+	// DROP COLLATION in PhasePre, and wrap ALTER COLUMN TYPE ops with DROP VIEW /
+	// CREATE VIEW for dependent views.
+	var extraViewTables, directViews map[uint32]bool
+	ops, extraViewTables, directViews = wrapModifiedCollationDependents(from, to, diff, ops)
+	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops, extraViewTables, directViews)
 	ops = deferDropsOfTypesInUse(from, to, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.
@@ -249,9 +252,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 //
 // The ops are appended (not manually positioned); sortMigrationOps handles
 // ordering via the dependency graph.
-func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) []MigrationOp {
+func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp, extraTableOIDs, directViewOIDs map[uint32]bool) []MigrationOp {
 	// Find OIDs of tables that have column type changes or column drops.
 	tableOIDs := make(map[uint32]bool)
+	for oid := range extraTableOIDs {
+		tableOIDs[oid] = true
+	}
 	for _, rel := range diff.Relations {
 		if rel.Action != DiffModify {
 			continue
@@ -297,25 +303,31 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			}
 		}
 	}
-	if len(tableOIDs) == 0 {
+	if len(tableOIDs) == 0 && len(directViewOIDs) == 0 {
 		return ops
 	}
 
-	// Use from.deps to find views that depend on these tables (transitively).
-	// A view depends on a table if there is a dep entry where RefType='r',
-	// RefOID=tableOID, ObjType='r', and the dependent is a view (RelKind='v').
+	// Use from.deps to find views/matviews that depend on these tables (transitively).
 	type viewInfo struct {
-		schema string
-		name   string
-		oid    uint32
+		schema  string
+		name    string
+		oid     uint32
+		relKind byte
 	}
 	seen := make(map[uint32]bool)
 	var viewsToDrop []viewInfo
 
-	// Collect views transitively: a view may depend on another view that
-	// depends on the table. We do a BFS over the dep graph.
-	queue := make([]uint32, 0, len(tableOIDs))
+	queue := make([]uint32, 0, len(tableOIDs)+len(directViewOIDs))
 	for oid := range tableOIDs {
+		queue = append(queue, oid)
+	}
+	for oid := range directViewOIDs {
+		rel := from.GetRelationByOID(oid)
+		if rel == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') || rel.Schema == nil || seen[oid] {
+			continue
+		}
+		seen[oid] = true
+		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind})
 		queue = append(queue, oid)
 	}
 	for len(queue) > 0 {
@@ -329,15 +341,14 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 				continue
 			}
 			rel := from.GetRelationByOID(d.ObjOID)
-			if rel == nil || rel.RelKind != 'v' {
+			if rel == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') {
 				continue
 			}
 			seen[d.ObjOID] = true
 			if rel.Schema == nil {
 				continue
 			}
-			viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID})
-			// Enqueue this view's OID for transitive dependency discovery.
+			viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind})
 			queue = append(queue, d.ObjOID)
 		}
 	}
@@ -360,13 +371,17 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	for _, v := range viewsToDrop {
 		dropViews[v.schema+"."+v.name] = true
 		qn := migrationQualifiedName(v.schema, v.name)
+		dropKind := "VIEW"
+		if v.relKind == 'm' {
+			dropKind = "MATERIALIZED VIEW"
+		}
 
 		// Use from-catalog OID for DROP (PhasePre uses from deps).
 		extraOps = append(extraOps, MigrationOp{
 			Type:          OpDropView,
 			SchemaName:    v.schema,
 			ObjectName:    v.name,
-			SQL:           fmt.Sprintf("DROP VIEW IF EXISTS %s", qn),
+			SQL:           fmt.Sprintf("DROP %s IF EXISTS %s", dropKind, qn),
 			Transactional: true,
 			Phase:         PhasePre,
 			ObjType:       'r',
@@ -374,24 +389,15 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			Priority:      PriorityView,
 		})
 
-		// Use to-catalog OID for CREATE (PhaseMain uses to deps).
-		var toOID uint32
 		toRel := to.GetRelation(v.schema, v.name)
-		if toRel != nil {
-			toOID = toRel.OID
+		if toRel != nil && (toRel.RelKind == 'v' || toRel.RelKind == 'm') {
+			vEntry := RelationDiffEntry{SchemaName: v.schema, Name: v.name, To: toRel}
+			if toRel.RelKind == 'm' {
+				extraOps = append(extraOps, buildCreateMatViewOp(to, vEntry))
+			} else {
+				extraOps = append(extraOps, buildCreateViewOp(to, vEntry))
+			}
 		}
-		def, _ := to.GetViewDefinition(v.schema, v.name)
-		extraOps = append(extraOps, MigrationOp{
-			Type:          OpCreateView,
-			SchemaName:    v.schema,
-			ObjectName:    v.name,
-			SQL:           fmt.Sprintf("CREATE VIEW %s AS %s", qn, strings.TrimRight(def, " \t\n\r;")),
-			Transactional: true,
-			Phase:         PhaseMain,
-			ObjType:       'r',
-			ObjOID:        toOID,
-			Priority:      PriorityView,
-		})
 	}
 
 	// Filter out any existing view ops for these views (avoid duplicates).
@@ -517,6 +523,15 @@ func liftDepToOp(c *Catalog, objType byte, objOID uint32, oidToIdx map[depKey][]
 			if rel.RowTypeOID == objOID {
 				return oidToIdx[depKey{'r', rel.OID}]
 			}
+		}
+	}
+	// Lift trigger ('g' in deps) → trigger op ('T' in MigrationOp) or owning table.
+	if objType == 'g' {
+		if idxs, ok := oidToIdx[depKey{'T', objOID}]; ok {
+			return idxs
+		}
+		if trig, ok := c.triggers[objOID]; ok {
+			return oidToIdx[depKey{'r', trig.RelOID}]
 		}
 	}
 	return nil
@@ -937,4 +952,643 @@ func collUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, collOID ui
 		}
 	}
 	return false
+}
+
+// wrapModifiedCollationDependents detaches or rebuilds retained dependents of
+// collations whose definition changed (DiffModify) so PhasePre DROP COLLATION
+// succeeds cleanly and PhaseMain restores the dependents against the new
+// collation definition.
+func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) ([]MigrationOp, map[uint32]bool, map[uint32]bool) {
+	modifiedCollOIDs := make(map[uint32]bool)
+	for _, entry := range diff.Collations {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil {
+			modifiedCollOIDs[entry.From.OID] = true
+		}
+	}
+	if len(modifiedCollOIDs) == 0 {
+		return ops, nil, nil
+	}
+
+	preDroppedRel := make(map[uint32]bool)
+	preDroppedIdx := make(map[uint32]bool)
+	preDroppedCon := make(map[uint32]bool)
+	preDroppedType := make(map[uint32]bool)
+	preDroppedTrig := make(map[uint32]bool)
+	preDroppedPol := make(map[uint32]bool)
+	preDroppedFunc := make(map[uint32]bool)
+	mainCreatedIdx := make(map[string]bool)
+	mainAddedCon := make(map[string]bool)
+	mainCreatedTrig := make(map[string]bool)
+	mainCreatedPol := make(map[string]bool)
+	mainCreatedFunc := make(map[string]bool)
+
+	for _, op := range ops {
+		if op.Phase == PhasePre {
+			switch op.Type {
+			case OpDropTable, OpDropView:
+				preDroppedRel[op.ObjOID] = true
+			case OpDropType:
+				if op.ObjType == 'r' {
+					preDroppedRel[op.ObjOID] = true
+				} else if op.ObjType == 't' {
+					preDroppedType[op.ObjOID] = true
+				}
+			case OpDropIndex:
+				preDroppedIdx[op.ObjOID] = true
+			case OpDropConstraint:
+				preDroppedCon[op.ObjOID] = true
+			case OpDropTrigger:
+				preDroppedTrig[op.ObjOID] = true
+			case OpDropPolicy:
+				preDroppedPol[op.ObjOID] = true
+			case OpDropFunction:
+				preDroppedFunc[op.ObjOID] = true
+			}
+		} else {
+			switch op.Type {
+			case OpCreateIndex:
+				mainCreatedIdx[op.SchemaName+"."+op.ObjectName] = true
+			case OpAddConstraint:
+				mainAddedCon[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+			case OpCreateTrigger:
+				mainCreatedTrig[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+			case OpCreatePolicy:
+				mainCreatedPol[op.SchemaName+"."+op.ObjectName] = true
+			case OpCreateFunction, OpAlterFunction:
+				mainCreatedFunc[op.SchemaName+"."+op.ObjectName] = true
+			}
+		}
+	}
+
+	extraViewTables := make(map[uint32]bool)
+	directViews := make(map[uint32]bool)
+	var preExtra, mainExtra []MigrationOp
+
+	// 1. Rebuild kept domains whose own COLLATE references a modified collation.
+	rebuiltDomains := make(map[uint32]*DomainType) // from domain TypeOID -> from DomainType
+	rebuiltDomainNames := make(map[string]bool)
+	var domOIDs []uint32
+	for oid, dt := range from.domainTypes {
+		if dt != nil && modifiedCollOIDs[dt.UserCollationOID] && !preDroppedType[oid] {
+			domOIDs = append(domOIDs, oid)
+		}
+	}
+	sort.Slice(domOIDs, func(i, j int) bool { return domOIDs[i] < domOIDs[j] })
+	for _, oid := range domOIDs {
+		dt := from.domainTypes[oid]
+		bt := from.typeByOID[oid]
+		if bt == nil {
+			continue
+		}
+		sc := from.schemas[bt.Namespace]
+		if sc == nil {
+			continue
+		}
+		qn := migrationQualifiedName(sc.Name, bt.TypeName)
+		key := sc.Name + "." + bt.TypeName
+		rebuiltDomains[oid] = dt
+		rebuiltDomainNames[key] = true
+		preDroppedType[oid] = true
+		preExtra = append(preExtra, MigrationOp{
+			Type:          OpDropType,
+			SchemaName:    sc.Name,
+			ObjectName:    bt.TypeName,
+			SQL:           fmt.Sprintf("DROP DOMAIN %s", qn),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       't',
+			ObjOID:        oid,
+			Priority:      PriorityType,
+		})
+		if toOID := resolveTypeOIDByName(to, sc.Name, bt.TypeName); toOID != 0 {
+			if toDT := to.domainTypes[toOID]; toDT != nil {
+				mainExtra = append(mainExtra, MigrationOp{
+					Type:          OpCreateType,
+					SchemaName:    sc.Name,
+					ObjectName:    bt.TypeName,
+					SQL:           formatCreateDomain(to, sc.Name, bt.TypeName, toDT),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       't',
+					ObjOID:        toOID,
+					Priority:      PriorityType,
+				})
+			}
+		}
+	}
+	if len(rebuiltDomainNames) > 0 {
+		filtered := ops[:0]
+		for _, op := range ops {
+			if (op.Type == OpAlterType || op.Type == OpCreateType || op.Type == OpDropType) && op.ObjType == 't' && rebuiltDomainNames[op.SchemaName+"."+op.ObjectName] {
+				continue
+			}
+			filtered = append(filtered, op)
+		}
+		ops = filtered
+	}
+
+	// 2. Detach or rebuild kept table columns and composite attributes.
+	var relList []*Relation
+	for _, r := range from.relationByOID {
+		if r != nil && r.Schema != nil && (r.RelKind == 'r' || r.RelKind == 'p' || r.RelKind == 'c') && !preDroppedRel[r.OID] {
+			relList = append(relList, r)
+		}
+	}
+	sort.Slice(relList, func(i, j int) bool {
+		if relList[i].Schema.Name != relList[j].Schema.Name {
+			return relList[i].Schema.Name < relList[j].Schema.Name
+		}
+		return relList[i].Name < relList[j].Name
+	})
+
+	skipMainDropDefaultSQL := make(map[string]bool)
+	rebuiltGenColPrefix := make(map[string]bool)
+	flipCompDropAttrSQL := make(map[string]uint32)
+
+	for _, fromRel := range relList {
+		scName := fromRel.Schema.Name
+		toRel := to.GetRelation(scName, fromRel.Name)
+		if toRel == nil || toRel.RelKind != fromRel.RelKind {
+			continue
+		}
+		tableName := fmt.Sprintf("%s.%s", quoteIdentifier(scName), quoteIdentifier(fromRel.Name))
+		qn := migrationQualifiedName(scName, fromRel.Name)
+
+		for _, fromCol := range fromRel.Columns {
+			colUsesModColl := modifiedCollOIDs[fromCol.UserCollationOID]
+			modCollDepCount := 0
+			for _, d := range from.deps {
+				if d.ObjType == 'r' && d.ObjOID == fromRel.OID && d.ObjSubID == int32(fromCol.AttNum) && d.RefType == 'L' && modifiedCollOIDs[d.RefOID] {
+					modCollDepCount++
+				}
+			}
+			ownCount := 0
+			if colUsesModColl {
+				ownCount = 1
+			}
+			exprUsesModColl := modCollDepCount > ownCount
+			rebuiltDom := rebuiltDomains[fromCol.TypeOID]
+			colUsesRebuiltDom := rebuiltDom != nil
+
+			toIdx, kept := toRel.colByName[fromCol.Name]
+			if !kept {
+				if fromRel.RelKind == 'c' && (colUsesModColl || colUsesRebuiltDom) {
+					sql := fmt.Sprintf("ALTER TYPE %s DROP ATTRIBUTE %s", qn, quoteIdentAlways(fromCol.Name))
+					flipCompDropAttrSQL[sql] = fromRel.OID
+				}
+				continue
+			}
+			if !colUsesModColl && !exprUsesModColl && !colUsesRebuiltDom {
+				continue
+			}
+			toCol := toRel.Columns[toIdx]
+
+			if fromRel.RelKind == 'c' {
+				detachType := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
+				if colUsesRebuiltDom {
+					detachType = from.FormatType(rebuiltDom.BaseTypeOID, rebuiltDom.BaseTypMod)
+				}
+				preExtra = append(preExtra, MigrationOp{
+					Type:          OpAlterType,
+					SchemaName:    scName,
+					ObjectName:    fromRel.Name,
+					SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s", qn, quoteIdentAlways(fromCol.Name), detachType),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        fromRel.OID,
+					Priority:      PriorityColumn,
+				})
+				fromTypeStr := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
+				toTypeStr := to.FormatType(toCol.TypeOID, toCol.TypeMod)
+				if fromTypeStr == toTypeStr && fromCol.CollationName == toCol.CollationName {
+					mainExtra = append(mainExtra, MigrationOp{
+						Type:          OpAlterType,
+						SchemaName:    scName,
+						ObjectName:    fromRel.Name,
+						SQL:           fmt.Sprintf("ALTER TYPE %s ALTER ATTRIBUTE %s TYPE %s%s", qn, quoteIdentAlways(toCol.Name), toTypeStr, formatCollate(toCol.CollationName)),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						ObjOID:        toRel.OID,
+						Priority:      PriorityColumn,
+					})
+				}
+				continue
+			}
+
+			// Stored generated column: drop in PhasePre and re-add in PhaseMain.
+			if fromCol.Generated == 's' {
+				extraViewTables[fromRel.OID] = true
+				colRef := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s", tableName, quoteIdentifier(fromCol.Name))
+				rebuiltGenColPrefix[colRef] = true
+				preExtra = append(preExtra, MigrationOp{
+					Type:          OpDropColumn,
+					SchemaName:    scName,
+					ObjectName:    fromRel.Name,
+					SQL:           fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName, quoteIdentifier(fromCol.Name)),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        fromRel.OID,
+					Priority:      PriorityColumn,
+				})
+				addOps := columnAddOps(to, tableName, scName, fromRel.Name, ColumnDiffEntry{Action: DiffAdd, Name: toCol.Name, To: toCol})
+				for i := range addOps {
+					addOps[i].Phase = PhaseMain
+					addOps[i].ObjType = 'r'
+					addOps[i].ObjOID = toRel.OID
+					addOps[i].Priority = PriorityColumn
+				}
+				mainExtra = append(mainExtra, addOps...)
+				continue
+			}
+
+			colRef := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s", tableName, quoteIdentifier(toCol.Name))
+			fromTypeStr := from.FormatType(fromCol.TypeOID, fromCol.TypeMod)
+			toTypeStr := to.FormatType(toCol.TypeOID, toCol.TypeMod)
+			typeChanged := fromTypeStr != toTypeStr
+			alterTypeAlreadyInMain := typeChanged || fromCol.CollationName != toCol.CollationName
+			needDetachType := colUsesModColl || colUsesRebuiltDom
+			needDropDefault := exprUsesModColl || (needDetachType && fromCol.HasDefault && fromCol.Default != "")
+
+			if needDropDefault {
+				dropDefSQL := fmt.Sprintf("%s DROP DEFAULT", colRef)
+				skipMainDropDefaultSQL[dropDefSQL] = true
+				preExtra = append(preExtra, MigrationOp{
+					Type:          OpAlterColumn,
+					SchemaName:    scName,
+					ObjectName:    fromRel.Name,
+					SQL:           dropDefSQL,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        fromRel.OID,
+					Priority:      PriorityColumn,
+				})
+			}
+
+			if needDetachType {
+				extraViewTables[fromRel.OID] = true
+				if colUsesRebuiltDom {
+					for _, con := range from.ConstraintsOf(fromRel.OID) {
+						if con.Type == ConstraintCheck && !preDroppedCon[con.OID] && containsColumnRef(con.CheckExpr, fromCol.Name) {
+							preDroppedCon[con.OID] = true
+							preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
+							conKey := scName + "." + fromRel.Name + "." + con.Name
+							if !mainAddedCon[conKey] {
+								for _, toCon := range to.ConstraintsOf(toRel.OID) {
+									if toCon.Type == ConstraintCheck && toCon.Name == con.Name {
+										mainAddedCon[conKey] = true
+										mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+				detachType := fromTypeStr
+				if colUsesRebuiltDom {
+					detachType = from.FormatType(rebuiltDom.BaseTypeOID, rebuiltDom.BaseTypMod)
+				}
+				preExtra = append(preExtra, MigrationOp{
+					Type:          OpAlterColumn,
+					SchemaName:    scName,
+					ObjectName:    fromRel.Name,
+					SQL:           fmt.Sprintf("%s TYPE %s", colRef, detachType),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        fromRel.OID,
+					Priority:      PriorityColumn,
+				})
+				if !alterTypeAlreadyInMain {
+					mainExtra = append(mainExtra, MigrationOp{
+						Type:          OpAlterColumn,
+						SchemaName:    scName,
+						ObjectName:    fromRel.Name,
+						SQL:           fmt.Sprintf("%s TYPE %s%s", colRef, toTypeStr, formatCollate(toCol.CollationName)),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						ObjOID:        toRel.OID,
+						Priority:      PriorityColumn,
+					})
+					if stor := columnExplicitStorage(to, toCol); stor != "" && columnExplicitStorage(from, fromCol) == stor {
+						mainExtra = append(mainExtra, MigrationOp{
+							Type:          OpAlterColumn,
+							SchemaName:    scName,
+							ObjectName:    fromRel.Name,
+							SQL:           fmt.Sprintf("%s SET STORAGE %s", colRef, stor),
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        toRel.OID,
+							Priority:      PriorityColumn,
+						})
+					}
+				}
+			}
+
+			if needDropDefault && toCol.HasDefault && toCol.Default != "" {
+				setDefSQL := fmt.Sprintf("%s SET DEFAULT %s", colRef, toCol.Default)
+				alreadySets := false
+				for _, op := range ops {
+					if op.Phase == PhaseMain && op.SQL == setDefSQL {
+						alreadySets = true
+						break
+					}
+				}
+				if !alreadySets {
+					mainExtra = append(mainExtra, MigrationOp{
+						Type:          OpAlterColumn,
+						SchemaName:    scName,
+						ObjectName:    fromRel.Name,
+						SQL:           setDefSQL,
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						ObjOID:        toRel.OID,
+						Priority:      PriorityColumn,
+					})
+				}
+			}
+		}
+	}
+
+	if len(skipMainDropDefaultSQL) > 0 || len(rebuiltGenColPrefix) > 0 || len(flipCompDropAttrSQL) > 0 {
+		filtered := ops[:0]
+		for _, op := range ops {
+			if op.Phase == PhaseMain && skipMainDropDefaultSQL[op.SQL] {
+				continue
+			}
+			if op.Phase == PhaseMain && op.Type == OpAlterColumn {
+				skipGen := false
+				for pfx := range rebuiltGenColPrefix {
+					if strings.HasPrefix(op.SQL, pfx+" ") {
+						skipGen = true
+						break
+					}
+				}
+				if skipGen {
+					continue
+				}
+			}
+			if fromOID, ok := flipCompDropAttrSQL[op.SQL]; ok && op.Phase == PhaseMain {
+				op.Phase = PhasePre
+				op.ObjOID = fromOID
+				op.Priority = PriorityColumn
+			}
+			filtered = append(filtered, op)
+		}
+		ops = filtered
+	}
+
+	// 3. Rebuild kept constraints, indexes, triggers, policies, functions, and views
+	// that directly reference a modified collation in from.deps.
+	for _, d := range from.deps {
+		if d.DepType == DepInternal || d.RefType != 'L' || !modifiedCollOIDs[d.RefOID] {
+			continue
+		}
+		switch d.ObjType {
+		case 'r':
+			if d.ObjSubID == 0 {
+				if rel := from.GetRelationByOID(d.ObjOID); rel != nil && (rel.RelKind == 'v' || rel.RelKind == 'm') && !preDroppedRel[rel.OID] {
+					directViews[rel.OID] = true
+				}
+			}
+		case 'c':
+			if preDroppedCon[d.ObjOID] {
+				continue
+			}
+			if con := from.constraints[d.ObjOID]; con != nil {
+				if con.RelOID != 0 && !preDroppedRel[con.RelOID] && con.ConParentID == 0 {
+					fromRel := from.GetRelationByOID(con.RelOID)
+					if fromRel == nil || fromRel.Schema == nil {
+						continue
+					}
+					scName := fromRel.Schema.Name
+					preDroppedCon[con.OID] = true
+					preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
+					conKey := scName + "." + fromRel.Name + "." + con.Name
+					if !mainAddedCon[conKey] {
+						if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
+							for _, toCon := range to.ConstraintsOf(toRel.OID) {
+								if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
+									mainAddedCon[conKey] = true
+									mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
+									break
+								}
+							}
+						}
+					}
+				}
+			} else {
+				for domOID, dt := range from.domainTypes {
+					if preDroppedType[domOID] || dt == nil {
+						continue
+					}
+					for _, fromDC := range dt.Constraints {
+						if fromDC.OID != d.ObjOID {
+							continue
+						}
+						bt := from.typeByOID[domOID]
+						if bt == nil {
+							break
+						}
+						sc := from.schemas[bt.Namespace]
+						if sc == nil {
+							break
+						}
+						qn := migrationQualifiedName(sc.Name, bt.TypeName)
+						preDroppedCon[fromDC.OID] = true
+						preExtra = append(preExtra, MigrationOp{
+							Type:          OpDropConstraint,
+							SchemaName:    sc.Name,
+							ObjectName:    fromDC.Name,
+							ParentObject:  bt.TypeName,
+							SQL:           fmt.Sprintf("ALTER DOMAIN %s DROP CONSTRAINT %s", qn, quoteIdentAlways(fromDC.Name)),
+							Transactional: true,
+							Phase:         PhasePre,
+							ObjType:       'c',
+							ObjOID:        fromDC.OID,
+							Priority:      PriorityConstraint,
+						})
+						if toOID := resolveTypeOIDByName(to, sc.Name, bt.TypeName); toOID != 0 {
+							if toDT := to.domainTypes[toOID]; toDT != nil {
+								for _, dc := range toDT.Constraints {
+									if dc.Name == fromDC.Name {
+										mainExtra = append(mainExtra, MigrationOp{
+											Type:          OpAddConstraint,
+											SchemaName:    sc.Name,
+											ObjectName:    dc.Name,
+											ParentObject:  bt.TypeName,
+											SQL:           fmt.Sprintf("ALTER DOMAIN %s ADD CONSTRAINT %s CHECK (%s)", qn, quoteIdentAlways(dc.Name), dc.CheckExpr),
+											Transactional: true,
+											Phase:         PhaseMain,
+											ObjType:       't',
+											ObjOID:        toOID,
+											Priority:      PriorityConstraint,
+										})
+										break
+									}
+								}
+							}
+						}
+						break
+					}
+				}
+			}
+		case 'i':
+			idx := from.indexes[d.ObjOID]
+			if idx == nil || idx.Schema == nil || preDroppedRel[idx.RelOID] || idx.ParentIndexOID != 0 {
+				continue
+			}
+			if idx.ConstraintOID != 0 {
+				if con := from.constraints[idx.ConstraintOID]; con != nil && !preDroppedCon[con.OID] && con.ConParentID == 0 {
+					fromRel := from.GetRelationByOID(con.RelOID)
+					if fromRel != nil && fromRel.Schema != nil {
+						scName := fromRel.Schema.Name
+						preDroppedCon[con.OID] = true
+						preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
+						conKey := scName + "." + fromRel.Name + "." + con.Name
+						if !mainAddedCon[conKey] {
+							if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
+								for _, toCon := range to.ConstraintsOf(toRel.OID) {
+									if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
+										mainAddedCon[conKey] = true
+										mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+				continue
+			}
+			if preDroppedIdx[idx.OID] {
+				continue
+			}
+			scName := idx.Schema.Name
+			preDroppedIdx[idx.OID] = true
+			preExtra = append(preExtra, MigrationOp{
+				Type:          OpDropIndex,
+				SchemaName:    scName,
+				ObjectName:    idx.Name,
+				SQL:           fmt.Sprintf("DROP INDEX %s.%s", quoteIdentifier(scName), quoteIdentifier(idx.Name)),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'i',
+				ObjOID:        idx.OID,
+				Priority:      PriorityIndex,
+			})
+			idxKey := scName + "." + idx.Name
+			if !mainCreatedIdx[idxKey] {
+				if toSc := to.GetSchema(scName); toSc != nil {
+					if toIdx := toSc.Indexes[idx.Name]; toIdx != nil && toIdx.ConstraintOID == 0 {
+						if toRel := to.GetRelationByOID(toIdx.RelOID); toRel != nil {
+							mainCreatedIdx[idxKey] = true
+							mainExtra = append(mainExtra, MigrationOp{
+								Type:          OpCreateIndex,
+								SchemaName:    scName,
+								ObjectName:    toIdx.Name,
+								SQL:           buildCreateIndexSQL(toIdx, toRel, scName),
+								Transactional: true,
+								Phase:         PhaseMain,
+								ObjType:       'i',
+								ObjOID:        toIdx.OID,
+								Priority:      PriorityIndex,
+							})
+							mainExtra = append(mainExtra, buildIndexColumnRenameOps(scName, toIdx, defaultIndexColumnNames(to, toIdx), effectiveIndexColumnNames(to, toIdx))...)
+						}
+					}
+				}
+			}
+		case 'g':
+			trig := from.triggers[d.ObjOID]
+			if trig == nil || preDroppedTrig[trig.OID] || preDroppedRel[trig.RelOID] || trig.ParentTriggerOID != 0 {
+				continue
+			}
+			fromRel := from.GetRelationByOID(trig.RelOID)
+			if fromRel == nil || fromRel.Schema == nil {
+				continue
+			}
+			scName := fromRel.Schema.Name
+			preDroppedTrig[trig.OID] = true
+			preExtra = append(preExtra, buildDropTriggerOp(scName, fromRel.Name, trig.Name, trig.OID))
+			trigKey := scName + "." + fromRel.Name + "." + trig.Name
+			if !mainCreatedTrig[trigKey] {
+				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
+					for _, toTrig := range to.triggersByRel[toRel.OID] {
+						if toTrig.Name == trig.Name && toTrig.ParentTriggerOID == 0 {
+							mainCreatedTrig[trigKey] = true
+							mainExtra = append(mainExtra, buildCreateTriggerOp(to, scName, fromRel.Name, toTrig))
+							break
+						}
+					}
+				}
+			}
+		case 'p':
+			pol := from.policies[d.ObjOID]
+			if pol == nil || preDroppedPol[pol.OID] || preDroppedRel[pol.RelOID] {
+				continue
+			}
+			fromRel := from.GetRelationByOID(pol.RelOID)
+			if fromRel == nil || fromRel.Schema == nil {
+				continue
+			}
+			scName := fromRel.Schema.Name
+			preDroppedPol[pol.OID] = true
+			preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
+			polKey := scName + "." + pol.Name
+			if !mainCreatedPol[polKey] {
+				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
+					for _, toPol := range to.policiesByRel[toRel.OID] {
+						if toPol.Name == pol.Name {
+							mainCreatedPol[polKey] = true
+							mainExtra = append(mainExtra, buildCreatePolicyOp(scName, fromRel.Name, toPol))
+							break
+						}
+					}
+				}
+			}
+		case 'f':
+			up := from.userProcs[d.ObjOID]
+			if up == nil || up.Schema == nil || preDroppedFunc[up.OID] {
+				continue
+			}
+			scName := up.Schema.Name
+			id := funcIdentity(from, up)
+			preDroppedFunc[up.OID] = true
+			preExtra = append(preExtra, buildDropFunctionOp(from, FunctionDiffEntry{Action: DiffDrop, SchemaName: scName, Identity: id, From: up}))
+			fnKey := scName + "." + id
+			if !mainCreatedFunc[fnKey] {
+				for _, toUP := range to.userProcs {
+					if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
+						mainCreatedFunc[fnKey] = true
+						mainExtra = append(mainExtra, buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP}))
+						break
+					}
+				}
+			} else {
+				// Replace CREATE OR REPLACE in main with plain CREATE since we dropped in PhasePre.
+				for i := range ops {
+					if ops[i].Phase == PhaseMain && ops[i].Type == OpAlterFunction && ops[i].SchemaName == scName && ops[i].ObjectName == id {
+						for _, toUP := range to.userProcs {
+							if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
+								ops[i] = buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP})
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	ops = append(ops, preExtra...)
+	ops = append(ops, mainExtra...)
+	return ops, extraViewTables, directViews
 }
