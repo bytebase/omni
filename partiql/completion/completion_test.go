@@ -642,6 +642,40 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: []string{"Artist", "SongTitle"},
 			wantTabs: []string{},
 		},
+		{
+			name:     "conflict target list suggests INSERT INTO table columns",
+			input:    "INSERT INTO Music VALUE {'Artist': 'x'} ON CONFLICT (|) DO NOTHING",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "FROM-scoped DML payload expression suggests FROM source columns only",
+			input:    "FROM Music INSERT INTO Album |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "quoted concatenation expression does not fabricate output alias after dot token",
+			input:    `SELECT s.| FROM (SELECT "m"."Artist" || "m"."SongTitle" FROM Music AS "m") s`,
+			cat:      cat,
+			wantCols: nil,
+		},
+		{
+			name:     "LIMIT and OFFSET clauses suggest source columns",
+			input:    "SELECT * FROM Music LIMIT |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "OFFSET clause suggests source columns",
+			input:    "SELECT * FROM Music OFFSET |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {

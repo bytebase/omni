@@ -262,7 +262,7 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 		}
 	}
 
-	if exprDepth > 0 && isDDLIndexPathContext(clauseToks) {
+	if exprDepth > 0 && (isDDLIndexPathContext(clauseToks) || isConflictTargetContext(clauseToks)) {
 		return false, true, false
 	}
 
@@ -329,8 +329,15 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 		if tok.upper == "CONFLICT" || tok.upper == "DO" {
 			break
 		}
+		if tok.upper == "INTO" {
+			waitingForAlias := idx+3 == len(clauseToks) && !clauseToks[idx+2].afterDot && clauseToks[idx+2].upper == "AS"
+			if hasScopedDMLSource(clauseToks[:idx]) && !waitingForAlias {
+				return false, true, false
+			}
+			break
+		}
 		switch tok.upper {
-		case "LET", "REMOVE", "UNPIVOT", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
+		case "LET", "REMOVE", "UNPIVOT", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING", "LIMIT", "OFFSET":
 			return false, true, false
 		}
 	}
@@ -339,6 +346,27 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 
 func isDDLIndexPathContext(toks []clauseTok) bool {
 	return len(toks) == 4 && isDDLIndexOn(toks[:3])
+}
+
+func isConflictTargetContext(toks []clauseTok) bool {
+	return len(toks) >= 2 &&
+		!toks[len(toks)-2].afterDot && toks[len(toks)-2].upper == "ON" &&
+		!toks[len(toks)-1].afterDot && toks[len(toks)-1].upper == "CONFLICT"
+}
+
+func hasScopedDMLSource(toks []clauseTok) bool {
+	if len(toks) == 0 {
+		return false
+	}
+	if !toks[0].afterDot && toks[0].upper == "UPDATE" {
+		return true
+	}
+	for _, tok := range toks {
+		if !tok.afterDot && tok.upper == "FROM" {
+			return true
+		}
+	}
+	return false
 }
 
 func isDDLIndexOn(toks []clauseTok) bool {
@@ -896,12 +924,17 @@ func isOperandToken(s string) bool {
 	if s == "" {
 		return false
 	}
+	hasIdent := false
 	for i := 0; i < len(s); i++ {
-		if !isIdentChar(s[i]) && s[i] != '.' {
+		if isIdentChar(s[i]) {
+			hasIdent = true
+			continue
+		}
+		if s[i] != '.' {
 			return false
 		}
 	}
-	return true
+	return hasIdent
 }
 
 func columnQualifierBeforeCursor(statement string, pos int) (string, bool) {
@@ -1224,6 +1257,7 @@ func extractTableRefsFromScope(statement string) []tableRef {
 
 func extractTableRefsFromTokens(tokens []tableToken) []tableRef {
 	var refs []tableRef
+	hasScopedSource := false
 	i := 0
 	for i < len(tokens) {
 		if tokens[i].paren == '(' {
@@ -1239,7 +1273,13 @@ func extractTableRefsFromTokens(tokens []tableToken) []tableRef {
 			!tokens[0].quoted && !tokens[1].quoted &&
 			strings.ToUpper(tokens[0].text) == "CREATE" &&
 			strings.ToUpper(tokens[1].text) == "INDEX"
-		if ((upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && !tokens[i].quoted || isDDLIndexTarget) && i+1 < len(tokens) {
+		isFrom := upper == "FROM" && !tokens[i].quoted
+		isLeadingUpdate := upper == "UPDATE" && !tokens[i].quoted && i == 0
+		isDMLDest := upper == "INTO" && !tokens[i].quoted && hasScopedSource
+		if (((upper == "FROM" || upper == "JOIN" || (upper == "INTO" && !isDMLDest) || upper == "UPDATE") && !tokens[i].quoted) || isDDLIndexTarget) && i+1 < len(tokens) {
+			if isFrom || isLeadingUpdate {
+				hasScopedSource = true
+			}
 			i++
 			for i < len(tokens) {
 				parsed, next, ok := parseTableRefAt(tokens, i)
