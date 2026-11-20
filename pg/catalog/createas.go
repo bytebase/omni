@@ -61,8 +61,10 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 				}
 			}
 			paramTypes := slices.Clone(prep.argTypes)
-			// pg: src/backend/commands/prepare.c — ExecuteQuery only calls
-			// EvaluateParams when plansource->num_params > 0.
+			// pg: src/backend/commands/prepare.c — ExecuteQuery wraps EvaluateParams
+			// inside `if (entry->plansource->num_params > 0)`, so PostgreSQL 17 ignores
+			// trailing EXECUTE arguments when a prepared statement has 0 parameters
+			// (verified against PostgreSQL 17 in TestSimulationCausesOracle.tape:1959-1961).
 			if prep.numParams > 0 {
 				gotParams := 0
 				if execStmt.Params != nil {

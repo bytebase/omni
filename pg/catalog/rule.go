@@ -744,6 +744,8 @@ type ruleEvalContext struct {
 	usingCols     map[string]int
 	targetAliases map[string]bool
 	hasOpenSource bool
+	disallowAgg   string
+	disallowWin   string
 }
 
 func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry) {
@@ -782,6 +784,26 @@ func (c *Catalog) buildRuleBindings(ownerRel *Relation, event nodes.CmdType, whe
 func (c *Catalog) bindRuleBoolExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalContext, construct string) error {
 	if n == nil {
 		return nil
+	}
+	if ctx != nil {
+		prevAgg, prevWin := ctx.disallowAgg, ctx.disallowWin
+		switch construct {
+		case "WHERE", "JOIN/ON", "WHEN", "FILTER":
+			if ctx.disallowAgg == "" {
+				ctx.disallowAgg = construct
+			}
+			if ctx.disallowWin == "" {
+				ctx.disallowWin = construct
+			}
+		case "HAVING":
+			if ctx.disallowWin == "" {
+				ctx.disallowWin = construct
+			}
+		}
+		defer func() {
+			ctx.disallowAgg = prevAgg
+			ctx.disallowWin = prevWin
+		}()
 	}
 	if err := c.bindRuleExpr(b, n, ctx); err != nil {
 		return err
@@ -4999,6 +5021,51 @@ func (c *Catalog) bindRuleFuncCall(b *ruleBindings, v *nodes.FuncCall, argCount 
 		}
 	}
 	if matchedProc != nil {
+		if !c.snapshot {
+			disallowAgg := ""
+			disallowWin := ""
+			if b != nil && b.inRuleWhere {
+				disallowAgg = "WHERE"
+				disallowWin = "WHERE"
+			} else if ctx != nil {
+				disallowAgg = ctx.disallowAgg
+				disallowWin = ctx.disallowWin
+			}
+			if v.Over != nil {
+				if disallowWin != "" {
+					return &Error{
+						Code:    CodeWindowingError,
+						Message: fmt.Sprintf("window functions are not allowed in %s", disallowWin),
+					}
+				}
+				if matchedProc.Kind != 'a' && matchedProc.Kind != 'w' {
+					return &Error{
+						Code:    CodeWrongObjectType,
+						Message: fmt.Sprintf("OVER specified, but %s is not a window function nor an aggregate function", fName),
+					}
+				}
+			} else {
+				if matchedProc.Kind == 'w' {
+					return &Error{
+						Code:    CodeWrongObjectType,
+						Message: fmt.Sprintf("window function %s requires an OVER clause", fName),
+					}
+				}
+				hasAggSyntax := v.AggStar || v.AggDistinct || v.AggFilter != nil || (v.AggOrder != nil && len(v.AggOrder.Items) > 0)
+				if hasAggSyntax && matchedProc.Kind != 'a' {
+					return &Error{
+						Code:    CodeWrongObjectType,
+						Message: fmt.Sprintf("%s is not an aggregate function", fName),
+					}
+				}
+				if matchedProc.Kind == 'a' && disallowAgg != "" {
+					return &Error{
+						Code:    CodeGroupingError,
+						Message: fmt.Sprintf("aggregate functions are not allowed in %s", disallowAgg),
+					}
+				}
+			}
+		}
 		retType := c.resolveReturnType(matchedProc, c.withDefaultArgTypes(matchedProc, matchedArgTypes))
 		if b != nil && b.exprTypeByNode != nil && retType != 0 {
 			b.exprTypeByNode[v] = retType

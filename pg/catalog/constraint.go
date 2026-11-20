@@ -114,6 +114,17 @@ func (c *Catalog) addUniqueConstraint(schema *Schema, rel *Relation, def Constra
 func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def ConstraintDef, typ ConstraintType, attnums []int16, existingIdx *Index) error {
 	var includeAttnums []int16
 	if existingIdx == nil && len(def.IncludeColumns) > 0 {
+		// pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraint
+		// Checks duplicates within cstmt->including (indexIncludingParams) separately
+		// from cstmt->keys (indexParams); key+INCLUDE overlap such as UNIQUE (a) INCLUDE (a)
+		// is accepted by PostgreSQL 17 (see testdata/simulate.tsv:701, TestSimulation.tape:17979).
+		seenInc := make(map[string]bool, len(def.IncludeColumns))
+		for _, incName := range def.IncludeColumns {
+			if seenInc[incName] {
+				return errDuplicateColumn(incName)
+			}
+			seenInc[incName] = true
+		}
 		var err error
 		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
 		if err != nil {
@@ -650,6 +661,13 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 	var includeAttnums []int16
 	if len(def.IncludeColumns) > 0 {
+		seenInc := make(map[string]bool, len(def.IncludeColumns))
+		for _, incName := range def.IncludeColumns {
+			if seenInc[incName] {
+				return errDuplicateColumn(incName)
+			}
+			seenInc[incName] = true
+		}
 		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
 		if err != nil {
 			return err

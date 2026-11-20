@@ -5115,6 +5115,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
 			{"CREATE RULE r_select_into_r21 AS ON INSERT TO t_r20 DO ALSO SELECT 1 INTO created_table_r21", CodeSyntaxError},
 			{"CREATE RULE r_bad_tsm_r21 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 TABLESAMPLE no_such_method(10)", CodeUndefinedFunction},
+			{"CREATE RULE r_where_agg_r22 AS ON INSERT TO t_r20 WHERE count(*) > 0 DO ALSO NOTHING", CodeGroupingError},
+			{"CREATE RULE r_where_win_r22 AS ON INSERT TO t_r20 WHERE row_number() OVER () > 0 DO ALSO NOTHING", CodeWindowingError},
+			{"CREATE INDEX idx_io_cast_r22 ON t_r20 ((val::date))", CodeInvalidObjectDefinition},
+			{"ALTER TABLE t_r20 ADD CONSTRAINT u_dup_inc_r22 UNIQUE (id) INCLUDE (val, val)", CodeDuplicateColumn},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)

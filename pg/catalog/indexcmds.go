@@ -815,23 +815,38 @@ func (c *Catalog) checkIndexExprImmutable(expr AnalyzedExpr) error {
 			mutable = true
 			return false
 		case *FuncCallExpr:
-			if bp := c.procByOID[v.FuncOID]; bp != nil && bp.Volatile != 0 && bp.Volatile != 'i' {
+			if c.isProcMutable(v.FuncOID) {
 				mutable = true
 				return false
 			}
 		case *OpExpr:
-			if op := c.operByOID[v.OpOID]; op != nil && op.Code != 0 {
-				if bp := c.procByOID[op.Code]; bp != nil && bp.Volatile != 0 && bp.Volatile != 'i' {
-					mutable = true
-					return false
-				}
+			if op := c.operByOID[v.OpOID]; op != nil && c.isProcMutable(op.Code) {
+				mutable = true
+				return false
+			}
+		case *DistinctExprQ:
+			if op := c.operByOID[v.OpOID]; op != nil && c.isProcMutable(op.Code) {
+				mutable = true
+				return false
+			}
+		case *NullIfExprQ:
+			if op := c.operByOID[v.OpOID]; op != nil && c.isProcMutable(op.Code) {
+				mutable = true
+				return false
 			}
 		case *ScalarArrayOpExpr:
-			if op := c.operByOID[v.OpOID]; op != nil && op.Code != 0 {
-				if bp := c.procByOID[op.Code]; bp != nil && bp.Volatile != 0 && bp.Volatile != 'i' {
-					mutable = true
-					return false
-				}
+			if op := c.operByOID[v.OpOID]; op != nil && c.isProcMutable(op.Code) {
+				mutable = true
+				return false
+			}
+		case *CoerceViaIOExpr:
+			var inType uint32
+			if v.Arg != nil {
+				inType = v.Arg.exprType()
+			}
+			if c.isTypeIOFuncMutable(inType, false) || c.isTypeIOFuncMutable(v.ResultType, true) {
+				mutable = true
+				return false
 			}
 		}
 		return true
@@ -840,6 +855,49 @@ func (c *Catalog) checkIndexExprImmutable(expr AnalyzedExpr) error {
 		return errInvalidObjectDefinition("functions in index expression must be marked IMMUTABLE")
 	}
 	return nil
+}
+
+func (c *Catalog) isProcMutable(procOID uint32) bool {
+	if procOID == 0 {
+		return false
+	}
+	bp := c.procByOID[procOID]
+	return bp != nil && bp.Volatile != 0 && bp.Volatile != 'i'
+}
+
+func (c *Catalog) isTypeIOFuncMutable(typeOID uint32, isInput bool) bool {
+	if typeOID == 0 {
+		return false
+	}
+	for dt := c.domainTypes[typeOID]; dt != nil; dt = c.domainTypes[typeOID] {
+		typeOID = dt.BaseTypeOID
+	}
+	bt := c.typeByOID[typeOID]
+	if bt == nil {
+		return false
+	}
+	fnOID := bt.Output
+	if isInput {
+		fnOID = bt.Input
+	}
+	if c.isProcMutable(fnOID) {
+		return true
+	}
+	if bt.Elem != 0 {
+		if c.isTypeIOFuncMutable(bt.Elem, isInput) {
+			return true
+		}
+	}
+	if bt.RelID != 0 {
+		if rel := c.relationByOID[bt.RelID]; rel != nil {
+			for _, col := range rel.Columns {
+				if c.isTypeIOFuncMutable(col.TypeOID, isInput) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // builtinOpClasses maps (amName, opcName) to the input type OIDs registered in
