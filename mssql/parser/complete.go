@@ -60,6 +60,16 @@ func IsIdentTokenType(typ int) bool {
 	return typ == tokIDENT || isContextKeyword(typ)
 }
 
+// IsReservedKeyword reports whether name (case-insensitive) is a T-SQL core
+// (reserved) keyword that cannot be used as an unquoted identifier.
+func IsReservedKeyword(name string) bool {
+	tok := lookupKeyword(name)
+	if tok == tokIDENT {
+		return false
+	}
+	return lookupKeywordCategory(tok) == CoreKeyword
+}
+
 // Exported token type constants for completion callers.
 const (
 	ICONST      = tokICONST

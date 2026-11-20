@@ -43,6 +43,9 @@ func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 	// When the cursor is mid-token, back up to the start of the token
 	// so the parser sees the position before the partial text.
 	collectOffset := cursorOffset - len(prefix)
+	if collectOffset > 0 && collectOffset <= len(sql) && sql[collectOffset-1] == '"' && insideDoubleQuotes(sql, cursorOffset) {
+		collectOffset--
+	}
 
 	result := standardComplete(sql, collectOffset, cat)
 	if len(result) == 0 {
@@ -68,6 +71,27 @@ func extractPrefix(sql string, cursorOffset int) string {
 		}
 	}
 	return sql[i:cursorOffset]
+}
+
+func insideDoubleQuotes(sql string, offset int) bool {
+	if offset > len(sql) {
+		offset = len(sql)
+	}
+	inSingle := false
+	inDouble := false
+	for i := 0; i < offset; i++ {
+		switch sql[i] {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		}
+	}
+	return inDouble
 }
 
 // filterByPrefix filters candidates whose text starts with prefix (case-insensitive).

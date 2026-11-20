@@ -565,3 +565,67 @@ func TestCompleteOperatorsAfterOffsetValue(t *testing.T) {
 		}
 	}
 }
+
+func TestCompleteSchemaQualifiedAndVirtualColumns(t *testing.T) {
+	cat := catalog.New()
+	if _, err := cat.Exec(`
+		CREATE TABLE users (id int, name text);
+		CREATE SCHEMA analytics;
+		CREATE TABLE analytics.events (event_id int, payload text);
+		CREATE TYPE user_pair AS (left_id int, right_id int);
+	`, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// Schema-qualified FROM offers only that schema's relations and excludes composite types.
+	relCandidates := Complete("SELECT * FROM analytics.", len("SELECT * FROM analytics."), cat)
+	hasCandidate := func(cs []Candidate, text string, typ CandidateType) bool {
+		for _, c := range cs {
+			if c.Text == text && c.Type == typ {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasCandidate(relCandidates, "events", CandidateTable) {
+		t.Fatalf("missing analytics.events in %#v", relCandidates)
+	}
+	if hasCandidate(relCandidates, "users", CandidateTable) {
+		t.Fatalf("unexpected public.users after analytics. in %#v", relCandidates)
+	}
+
+	unqualifiedRels := Complete("SELECT * FROM ", len("SELECT * FROM "), cat)
+	if hasCandidate(unqualifiedRels, "user_pair", CandidateTable) {
+		t.Fatalf("composite type user_pair should not be offered as a table in %#v", unqualifiedRels)
+	}
+
+	// Alias-qualified column completion scopes to the matching alias.
+	aliasCols := Complete("SELECT e. FROM users u JOIN analytics.events e ON u.id = e.event_id", len("SELECT e."), cat)
+	if !hasCandidate(aliasCols, "event_id", CandidateColumn) {
+		t.Fatalf("missing event_id for alias e in %#v", aliasCols)
+	}
+	if hasCandidate(aliasCols, "name", CandidateColumn) {
+		t.Fatalf("unexpected users.name for alias e in %#v", aliasCols)
+	}
+
+	// Unknown qualifier does not return columns from unrelated FROM tables.
+	unknownQualCols := Complete("SELECT missing. FROM users", len("SELECT missing."), cat)
+	if hasCandidate(unknownQualCols, "id", CandidateColumn) || hasCandidate(unknownQualCols, "name", CandidateColumn) {
+		t.Fatalf("unexpected columns for unknown qualifier in %#v", unknownQualCols)
+	}
+
+	// Virtual columns from CTE and subquery.
+	cteCols := Complete("WITH active(x, y) AS (SELECT id, name FROM users) SELECT  FROM active", len("WITH active(x, y) AS (SELECT id, name FROM users) SELECT "), cat)
+	for _, col := range []string{"x", "y"} {
+		if !hasCandidate(cteCols, col, CandidateColumn) {
+			t.Fatalf("missing CTE alias column %q in %#v", col, cteCols)
+		}
+	}
+
+	subqueryCols := Complete("SELECT  FROM (SELECT id AS user_id, name FROM users) u", len("SELECT "), cat)
+	for _, col := range []string{"user_id", "name"} {
+		if !hasCandidate(subqueryCols, col, CandidateColumn) {
+			t.Fatalf("missing subquery output column %q in %#v", col, subqueryCols)
+		}
+	}
+}

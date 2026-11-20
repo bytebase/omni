@@ -25,12 +25,24 @@ func extractTableRefs(sql string, cursorOffset int) (refs []TableRef) {
 }
 
 func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
-	// Try parsing the full SQL.
-	list, err := parser.Parse(sql)
+	const placeholderIdent = "__omni_placeholder__"
+	var list *ast.List
+	var err error
+	// When the cursor sits immediately after a dot (e.g. "SELECT t. FROM t"),
+	// unpatched parsing can consume FROM as the attribute name after '.' and
+	// the relation name as a bare target alias, losing the FROM clause.
+	// Patch a placeholder attribute name first in that position.
+	if cursorOffset > 0 && cursorOffset <= len(sql) && sql[cursorOffset-1] == '.' {
+		patched := sql[:cursorOffset] + placeholderIdent + sql[cursorOffset:]
+		list, err = parser.Parse(patched)
+	}
+	if list == nil || err != nil || len(list.Items) == 0 {
+		list, err = parser.Parse(sql)
+	}
 	if err != nil || list == nil || len(list.Items) == 0 {
 		// Fallback: try with placeholder
 		if cursorOffset <= len(sql) {
-			patched := sql[:cursorOffset] + " _x"
+			patched := sql[:cursorOffset] + " " + placeholderIdent
 			if cursorOffset < len(sql) {
 				patched += sql[cursorOffset:]
 			}
@@ -52,7 +64,7 @@ func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
 		ast.Inspect(raw.Stmt, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.RangeVar:
-				if v != nil && v.Relname != "" {
+				if v != nil && v.Relname != "" && v.Relname != placeholderIdent {
 					ref := TableRef{Schema: v.Schemaname, Table: v.Relname}
 					if v.Alias != nil {
 						ref.Alias = v.Alias.Aliasname

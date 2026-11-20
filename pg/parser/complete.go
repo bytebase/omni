@@ -77,8 +77,12 @@ type RuleCandidate struct {
 type CandidateSet struct {
 	Tokens []int           // token type candidates
 	Rules  []RuleCandidate // grammar rule candidates
-	seen   map[int]bool    // dedup tokens
-	seenR  map[string]bool // dedup rules
+	// Words holds clause text a grammar rule writes with no keyword of its
+	// own, such as PARTITIONED BY, which no token type can name.
+	Words []string
+	seen  map[int]bool    // dedup tokens
+	seenR map[string]bool // dedup rules
+	seenW map[string]bool // dedup words
 
 	// CTEPositions holds the byte offsets of WITH clause starts encountered
 	// before the cursor. Bytebase uses these to re-parse CTE definitions
@@ -96,6 +100,7 @@ func newCandidateSet() *CandidateSet {
 	return &CandidateSet{
 		seen:  make(map[int]bool),
 		seenR: make(map[string]bool),
+		seenW: make(map[string]bool),
 	}
 }
 
@@ -115,6 +120,20 @@ func (cs *CandidateSet) addRule(r string) {
 	}
 	cs.seenR[r] = true
 	cs.Rules = append(cs.Rules, RuleCandidate{Rule: r})
+}
+
+// addWord adds a clause's text to the candidate set (deduped).
+func (cs *CandidateSet) addWord(w string) {
+	if cs.seenW[w] {
+		return
+	}
+	cs.seenW[w] = true
+	cs.Words = append(cs.Words, w)
+}
+
+// HasWord reports whether the candidate set contains the given clause text.
+func (cs *CandidateSet) HasWord(w string) bool {
+	return cs.seenW[w]
 }
 
 // HasToken reports whether the candidate set contains the given token type.
@@ -178,6 +197,13 @@ func (p *Parser) checkCursor() {
 func (p *Parser) addTokenCandidate(t int) {
 	if p.candidates != nil {
 		p.candidates.addToken(t)
+	}
+}
+
+// addWordCandidate adds a clause's text to the candidate set.
+func (p *Parser) addWordCandidate(w string) {
+	if p.candidates != nil {
+		p.candidates.addWord(w)
 	}
 }
 
