@@ -111,7 +111,18 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 
 	// EXCLUDE: compare operators.
 	if a.Type == ConstraintExclude {
-		if !stringSliceEqual(a.ExclOps, b.ExclOps) {
+		if !stringSliceEqual(a.ExclOps, b.ExclOps) || !stringSliceEqual(exclOpSchemasOrNil(a.ExclOpSchemas), exclOpSchemasOrNil(b.ExclOpSchemas)) {
+			return false
+		}
+		// The backing index carries the operator classes the clause named.
+		var aOpc, bOpc []string
+		if ai := from.GetIndexByOID(a.IndexOID); ai != nil {
+			aOpc = ai.OpClasses
+		}
+		if bi := to.GetIndexByOID(b.IndexOID); bi != nil {
+			bOpc = bi.OpClasses
+		}
+		if !stringSliceEqual(aOpc, bOpc) {
 			return false
 		}
 	}

@@ -468,7 +468,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			} else {
 				extraOps = append(extraOps, buildCreateViewOp(to, vEntry))
 			}
-			extraOps = append(extraOps, restoreGrantOps(to, 'r', toRel.OID)...)
+			extraOps = append(extraOps, restoreRebuiltViewOps(to, v.schema, toRel)...)
 			vDesc := v.schema + "." + v.name
 			if txt, ok := to.GetComment('r', toRel.OID, 0); ok && txt != "" {
 				if csql := formatCommentSQL(to, 'r', vDesc, 0, txt); csql != "" {
@@ -2162,7 +2162,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				for _, toTrig := range to.TriggersOf(toRel.OID) {
 					if toTrig.Name == trig.Name && toTrig.ParentTriggerOID == 0 {
 						mainCreatedTrig[trigKey] = true
-						mainExtra = append(mainExtra, buildCreateTriggerOp(to, scName, fromRel.Name, toTrig))
+						mainExtra = append(mainExtra, buildCreateAndModeTriggerOps(to, scName, fromRel.Name, toTrig)...)
 						if txt, ok := to.GetComment('g', toTrig.OID, 0); ok && txt != "" {
 							desc := scName + "." + fromRel.Name + "." + toTrig.Name
 							if csql := formatCommentSQL(to, 'g', desc, 0, txt); csql != "" && !mainComments[csql] {
@@ -2685,7 +2685,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					for _, toTrig := range to.triggersByRel[toRel.OID] {
 						if toTrig.Name == trig.Name && toTrig.ParentTriggerOID == 0 {
 							mainCreatedTrig[trigKey] = true
-							mainExtra = append(mainExtra, buildCreateTriggerOp(to, scName, fromRel.Name, toTrig))
+							mainExtra = append(mainExtra, buildCreateAndModeTriggerOps(to, scName, fromRel.Name, toTrig)...)
 							appendCommentRestoreOp('g', toTrig.OID, 0, trigKey)
 							break
 						}

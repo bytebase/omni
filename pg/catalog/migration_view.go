@@ -91,7 +91,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				case 'm':
 					ops = append(ops, buildCreateMatViewOpWithContext(from, to, entry))
 				}
-				ops = append(ops, restoreGrantOps(to, 'r', entry.To.OID)...)
+				ops = append(ops, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
 				continue
 			}
 
@@ -112,7 +112,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Priority:      PriorityView,
 					})
 					ops = append(ops, buildCreateViewOp(to, entry))
-					ops = append(ops, restoreGrantOps(to, 'r', entry.To.OID)...)
+					ops = append(ops, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
 				} else if viewSelfChanged(from, to, entry) {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
@@ -331,7 +331,7 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 	}
 
 	createOp := buildCreateMatViewOpWithContext(from, to, entry)
-	return append([]MigrationOp{dropOp, createOp}, restoreGrantOps(to, 'r', entry.To.OID)...)
+	return append([]MigrationOp{dropOp, createOp}, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
 }
 
 // viewRef identifies a view by schema and name.
@@ -440,4 +440,15 @@ func viewWithOptions(rel *Relation) string {
 		return ""
 	}
 	return " WITH (" + strings.Join(opts, ", ") + ")"
+}
+
+// restoreRebuiltViewOps gives a view or materialized view that the migration
+// drops and recreates back the grants it keeps in the target, since
+// unchanged grants make no diff. Ownership is left to the migrating role, as
+// for every relation a migration creates.
+func restoreRebuiltViewOps(to *Catalog, schemaName string, rel *Relation) []MigrationOp {
+	if rel == nil {
+		return nil
+	}
+	return restoreGrantOps(to, 'r', rel.OID)
 }

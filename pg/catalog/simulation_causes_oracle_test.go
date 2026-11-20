@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -5440,6 +5441,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
 			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int) INHERITS (p_rc_r40)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 WHERE NEW.a > 0 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
 			[]string{"COMMENT ON RULE", "keep rule comment"})
+		roundTrip137("matview rebuild keeps index comments",
+			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
+			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41 WHERE a > 0", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
+			[]string{"DROP MATERIALIZED VIEW", "COMMENT ON INDEX", "keep index comment"})
+		excSetup141 := []string{
+			"CREATE SCHEMA ext_r41",
+			"CREATE FUNCTION ext_r41.eq_r41(int, int) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT $1 = $2'",
+			"CREATE OPERATOR ext_r41.<<< (LEFTARG = int, RIGHTARG = int, FUNCTION = ext_r41.eq_r41, COMMUTATOR = OPERATOR(ext_r41.<<<))",
+			"CREATE OPERATOR CLASS opc_r41 FOR TYPE int USING btree AS OPERATOR 3 ext_r41.<<<, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE t_exq_r41 (a int)",
+		}
+		roundTrip137("schema-qualified exclusion operator",
+			excSetup141,
+			append(slices.Clone(excSetup141), "ALTER TABLE t_exq_r41 ADD CONSTRAINT exq_r41 EXCLUDE USING btree (a opc_r41 WITH OPERATOR(ext_r41.<<<))"),
+			[]string{"WITH OPERATOR(ext_r41.<<<)"})
+		trigSetup141 := []string{
+			"CREATE TABLE t_tm_r41 (a int)",
+			"CREATE FUNCTION f_tm_r41() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
+			"CREATE TRIGGER tg_tm_r41 BEFORE INSERT ON t_tm_r41 FOR EACH ROW EXECUTE FUNCTION f_tm_r41()",
+		}
+		roundTrip137("trigger firing mode",
+			trigSetup141,
+			append(slices.Clone(trigSetup141), "ALTER TABLE t_tm_r41 DISABLE TRIGGER tg_tm_r41"),
+			[]string{`DISABLE TRIGGER "tg_tm_r41"`})
 		roundTrip137("operator class parameters",
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},

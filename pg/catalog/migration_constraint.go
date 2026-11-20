@@ -199,13 +199,28 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 
 	case ConstraintExclude:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
+		var backing *Index
+		if con.IndexOID != 0 {
+			backing = to.GetIndexByOID(con.IndexOID)
+		}
 		var parts []string
 		for i, colName := range colNames {
+			elem := quoteIdentifier(colName)
+			if backing != nil && i < len(backing.OpClasses) && backing.OpClasses[i] != "" {
+				var opc []string
+				for _, part := range strings.Split(backing.OpClasses[i], ".") {
+					opc = append(opc, quoteIdentifier(part))
+				}
+				elem += " " + strings.Join(opc, ".")
+			}
 			op := "="
 			if i < len(con.ExclOps) {
 				op = con.ExclOps[i]
 			}
-			parts = append(parts, fmt.Sprintf("%s WITH %s", quoteIdentifier(colName), op))
+			if i < len(con.ExclOpSchemas) && con.ExclOpSchemas[i] != "" {
+				op = "OPERATOR(" + quoteIdentifier(con.ExclOpSchemas[i]) + "." + op + ")"
+			}
+			parts = append(parts, fmt.Sprintf("%s WITH %s", elem, op))
 		}
 		// Determine the index access method from the backing index.
 		method := "gist" // default for EXCLUDE constraints

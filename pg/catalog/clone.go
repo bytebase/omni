@@ -194,6 +194,7 @@ func (c *Catalog) Clone() *Catalog {
 			cc.ExclOps = make([]string, len(con.ExclOps))
 			copy(cc.ExclOps, con.ExclOps)
 		}
+		cc.ExclOpSchemas = slices.Clone(con.ExclOpSchemas)
 		if con.PFEqOp != nil {
 			cc.PFEqOp = make([]uint32, len(con.PFEqOp))
 			copy(cc.PFEqOp, con.PFEqOp)

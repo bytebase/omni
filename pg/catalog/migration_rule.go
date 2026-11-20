@@ -373,6 +373,21 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 					Priority:      PriorityIndex,
 				})
 				filtered = append(filtered, buildIndexColumnRenameOps(schemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
+				// An unchanged comment makes no diff, so restore it here.
+				if txt, ok := to.GetComment('i', idx.OID, 0); ok && txt != "" {
+					desc := schemaName + "." + idx.Name
+					if csql := formatCommentSQL(to, 'i', desc, 0, txt); csql != "" {
+						filtered = append(filtered, MigrationOp{
+							Type:          OpComment,
+							ObjectName:    desc,
+							SQL:           csql,
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'i',
+							Priority:      PriorityMetadata,
+						})
+					}
+				}
 			}
 			for _, trig := range to.TriggersOf(toRel.OID) {
 				if trig.ParentTriggerOID != 0 {
@@ -381,7 +396,7 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 				if createdTriggers[schemaName+"\x00"+relName+"\x00"+trig.Name] {
 					continue
 				}
-				filtered = append(filtered, buildCreateTriggerOp(to, schemaName, relName, trig))
+				filtered = append(filtered, buildCreateAndModeTriggerOps(to, schemaName, relName, trig)...)
 			}
 		}
 	}

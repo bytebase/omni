@@ -1792,6 +1792,7 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 					ConIsLocal:     true,
 					ConParentID:    parentCon.OID,
 					ExclOps:        slices.Clone(parentCon.ExclOps),
+					ExclOpSchemas:  slices.Clone(parentCon.ExclOpSchemas),
 				}
 
 				partIdx.ConstraintOID = conOID
@@ -2113,6 +2114,7 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 					Validated:      true,
 					ConIsLocal:     true,
 					ExclOps:        slices.Clone(srcCon.ExclOps),
+					ExclOpSchemas:  slices.Clone(srcCon.ExclOpSchemas),
 				}
 
 				newIdx.ConstraintOID = conOID

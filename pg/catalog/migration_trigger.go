@@ -27,7 +27,7 @@ func generateTriggerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				for _, trig := range trigs {
 					// A new partition clones its parent's triggers itself.
 					if trig.ParentTriggerOID == 0 {
-						ops = append(ops, buildCreateTriggerOp(to, rel.SchemaName, rel.Name, trig))
+						ops = append(ops, buildCreateAndModeTriggerOps(to, rel.SchemaName, rel.Name, trig)...)
 					}
 				}
 			}
@@ -58,7 +58,7 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, fromRel *R
 			if te.To == nil {
 				continue
 			}
-			ops = append(ops, buildCreateTriggerOp(to, schemaName, tableName, te.To))
+			ops = append(ops, buildCreateAndModeTriggerOps(to, schemaName, tableName, te.To)...)
 		case DiffDrop:
 			if te.From == nil {
 				continue
@@ -70,7 +70,7 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, fromRel *R
 				ops = append(ops, buildDropTriggerOpForRel(schemaName, tableName, fromRel, te.From.Name, te.From.OID))
 			}
 			if te.To != nil {
-				ops = append(ops, buildCreateTriggerOp(to, schemaName, tableName, te.To))
+				ops = append(ops, buildCreateAndModeTriggerOps(to, schemaName, tableName, te.To)...)
 			}
 		}
 	}
@@ -224,4 +224,39 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 		ObjOID:        trig.OID,
 		Priority:      PriorityTrigger,
 	}
+}
+
+// buildCreateAndModeTriggerOps creates a trigger and sets the firing mode it
+// has in the target: CREATE TRIGGER always starts it in the origin mode.
+// PostgreSQL refuses mode changes on views, so only tables need one.
+func buildCreateAndModeTriggerOps(c *Catalog, schemaName, tableName string, trig *Trigger) []MigrationOp {
+	ops := []MigrationOp{buildCreateTriggerOp(c, schemaName, tableName, trig)}
+	var mode string
+	switch trig.Enabled {
+	case 'D':
+		mode = "DISABLE TRIGGER"
+	case 'A':
+		mode = "ENABLE ALWAYS TRIGGER"
+	case 'R':
+		mode = "ENABLE REPLICA TRIGGER"
+	default:
+		return ops
+	}
+	var rel *Relation
+	if c != nil {
+		rel = c.GetRelationByOID(trig.RelOID)
+	}
+	ops = append(ops, MigrationOp{
+		Type:          OpAlterTable,
+		SchemaName:    schemaName,
+		ObjectName:    trig.Name,
+		ParentObject:  tableName,
+		SQL:           fmt.Sprintf("ALTER TABLE %s %s %s", formatRelationName(schemaName, tableName, rel), mode, quoteIdentAlways(trig.Name)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'g',
+		ObjOID:        trig.OID,
+		Priority:      PriorityTrigger,
+	})
+	return ops
 }

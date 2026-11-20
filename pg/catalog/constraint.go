@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -29,6 +30,7 @@ type Constraint struct {
 	CheckAnalyzed  AnalyzedExpr // CHECK: analyzed form (for Tier 2 deparse)
 	IndexOID       uint32       // PK/UNIQUE/EXCLUDE: backing index OID
 	ExclOps        []string     // EXCLUDE only: operator names per column
+	ExclOpSchemas  []string     // EXCLUDE only: operator schema per column ("" when unqualified)
 
 	// Inheritance/partition fields.
 	// pg: src/include/catalog/pg_constraint.h lines 89-108
@@ -838,6 +840,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		IncludeColumns: includeAttnums,
 		IndexOID:       idx.OID,
 		ExclOps:        def.ExclOps,
+		ExclOpSchemas:  exclOpSchemasOrNil(def.ExclOpSchemas),
 		Deferrable:     def.Deferrable,
 		Deferred:       def.Deferred,
 		Validated:      true,
@@ -1506,4 +1509,15 @@ func indexOfAttNum(rel *Relation, attnum int16) int {
 		}
 	}
 	return -1
+}
+
+// exclOpSchemasOrNil keeps an EXCLUDE clause's operator schemas only when one
+// of them is named.
+func exclOpSchemasOrNil(schemas []string) []string {
+	for _, sc := range schemas {
+		if sc != "" {
+			return slices.Clone(schemas)
+		}
+	}
+	return nil
 }
