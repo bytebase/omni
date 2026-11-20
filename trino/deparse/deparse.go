@@ -32,6 +32,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		}
 		schemaMeta := &SchemaMetadata{
 			Name:              s.Name,
+			Owner:             s.Owner,
 			Functions:         make([]*FunctionMetadata, 0, len(s.Functions)),
 			Tables:            make([]*TableMetadata, 0, len(s.Tables)),
 			Views:             make([]*ViewMetadata, 0, len(s.Views)),
@@ -41,51 +42,40 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if fn == nil || fn.SkipDump {
 				continue
 			}
-			if fn.Comment != "" {
-				return nil, fmt.Errorf("function %s.%s comment cannot be emitted separately from Definition", s.Name, fn.Name)
-			}
 			schemaMeta.Functions = append(schemaMeta.Functions, &FunctionMetadata{
 				Name:       fn.Name,
 				Definition: fn.Definition,
+				Comment:    fn.Comment,
 			})
 		}
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
 				continue
 			}
-			tableMeta := &TableMetadata{
-				Name:    t.Name,
-				Columns: make([]*ColumnMetadata, 0, len(t.Columns)),
-				Comment: t.Comment,
-			}
-			for _, c := range t.Columns {
-				if c == nil {
-					continue
-				}
-				tableMeta.Columns = append(tableMeta.Columns, &ColumnMetadata{
-					Name:     c.Name,
-					Type:     c.Type,
-					Nullable: c.Nullable,
-					Default:  c.Default,
-					Comment:  c.Comment,
-				})
-			}
+			cols := fromProtoColumns(t.Columns)
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
 			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
 			// rejects columnless tables because Trino cannot restore them.
-			if len(tableMeta.Columns) == 0 {
+			if len(cols) == 0 {
 				return nil, fmt.Errorf("table %s.%s has no columns", s.Name, t.Name)
 			}
-			schemaMeta.Tables = append(schemaMeta.Tables, tableMeta)
+			schemaMeta.Tables = append(schemaMeta.Tables, &TableMetadata{
+				Name:    t.Name,
+				Owner:   t.Owner,
+				Columns: cols,
+				Comment: t.Comment,
+			})
 		}
 		for _, v := range s.Views {
 			if v == nil || v.SkipDump {
 				continue
 			}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
-				Name:       v.Name,
-				Definition: v.Definition,
-				Comment:    v.Comment,
+				Name:         v.Name,
+				Definition:   v.Definition,
+				Comment:      v.Comment,
+				Columns:      fromProtoColumns(v.Columns),
+				Dependencies: fromProtoDependencies(v.DependencyColumns),
 			})
 		}
 		for _, mv := range s.MaterializedViews {
@@ -93,14 +83,52 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				continue
 			}
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
-				Name:       mv.Name,
-				Definition: mv.Definition,
-				Comment:    mv.Comment,
+				Name:         mv.Name,
+				Definition:   mv.Definition,
+				Comment:      mv.Comment,
+				Dependencies: fromProtoDependencies(mv.DependencyColumns),
 			})
 		}
 		out.Schemas = append(out.Schemas, schemaMeta)
 	}
 	return out, nil
+}
+
+func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {
+	if len(cols) == 0 {
+		return nil
+	}
+	out := make([]*ColumnMetadata, 0, len(cols))
+	for _, c := range cols {
+		if c == nil {
+			continue
+		}
+		out = append(out, &ColumnMetadata{
+			Name:     c.Name,
+			Type:     c.Type,
+			Nullable: c.Nullable,
+			Default:  c.Default,
+			Comment:  c.Comment,
+		})
+	}
+	return out
+}
+
+func fromProtoDependencies(deps []*metadatapb.DependencyColumn) []ViewDependency {
+	if len(deps) == 0 {
+		return nil
+	}
+	out := make([]ViewDependency, 0, len(deps))
+	for _, dep := range deps {
+		if dep == nil || dep.Table == "" {
+			continue
+		}
+		out = append(out, ViewDependency{
+			Schema: dep.Schema,
+			Table:  dep.Table,
+		})
+	}
+	return out
 }
 
 // GetDatabaseDefinition renders the schema metadata as the DDL that recreates
@@ -133,19 +161,11 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		writeCreateSchema(&buf, schema.Name)
 		buf.WriteString("\n\n")
 	}
-	for _, schema := range metadata.Schemas {
-		if schema == nil {
-			continue
+	for _, fn := range orderedFunctions(metadata) {
+		if err := writeCreateFunction(&buf, fn.schema, fn.fn); err != nil {
+			return "", err
 		}
-		for _, fn := range schema.Functions {
-			if fn == nil {
-				continue
-			}
-			if err := writeCreateFunction(&buf, schema.Name, fn); err != nil {
-				return "", err
-			}
-			buf.WriteString("\n\n")
-		}
+		buf.WriteString("\n\n")
 	}
 	for _, schema := range metadata.Schemas {
 		if schema == nil {
@@ -164,6 +184,20 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			return "", err
 		}
 		buf.WriteString("\n\n")
+	}
+	for _, schema := range metadata.Schemas {
+		if schema == nil {
+			continue
+		}
+		for _, table := range schema.Tables {
+			if table == nil || table.Owner == "" {
+				continue
+			}
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s SET AUTHORIZATION %s;\n\n", quoteIdentifier(schema.Name), quoteIdentifier(table.Name), quoteIdentifier(table.Owner))
+		}
+		if schema.Owner != "" {
+			fmt.Fprintf(&buf, "ALTER SCHEMA %s SET AUTHORIZATION %s;\n\n", quoteIdentifier(schema.Name), quoteIdentifier(schema.Owner))
+		}
 	}
 
 	return buf.String(), nil
@@ -222,8 +256,244 @@ func writeCreateFunction(buf *strings.Builder, schemaName string, fn *FunctionMe
 	if definition == "" {
 		return fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
 	}
+	if fn.Comment != "" {
+		var err error
+		definition, err = injectFunctionComment(schemaName, fn.Name, definition, fn.Comment)
+		if err != nil {
+			return err
+		}
+	}
 	buf.WriteString(appendTerminator(definition))
 	return nil
+}
+
+func injectFunctionComment(schemaName, fnName, definition, comment string) (string, error) {
+	file, err := trinoparser.Parse(definition)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return "", fmt.Errorf("function %s.%s comment cannot be placed in unparseable definition", schemaName, fnName)
+	}
+	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	if !ok || cfs.Spec.Body == nil {
+		return "", fmt.Errorf("function %s.%s comment cannot be placed in definition", schemaName, fnName)
+	}
+	clause := fmt.Sprintf("COMMENT '%s'", escapeStringLiteral(comment))
+	for _, ch := range cfs.Spec.Characteristics {
+		if ch.Kind == trinoparser.CharacteristicComment && ch.Loc.Start >= 0 && ch.Loc.End <= len(definition) && ch.Loc.Start < ch.Loc.End {
+			return definition[:ch.Loc.Start] + clause + definition[ch.Loc.End:], nil
+		}
+	}
+	insertAt := cfs.Spec.Body.Span().Start
+	if insertAt < 0 || insertAt > len(definition) {
+		return "", fmt.Errorf("function %s.%s has invalid body span", schemaName, fnName)
+	}
+	prefix := strings.TrimRight(definition[:insertAt], " \t\r\n")
+	return prefix + " " + clause + " " + definition[insertAt:], nil
+}
+
+type orderedFunction struct {
+	schema string
+	fn     *FunctionMetadata
+}
+
+func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
+	var fns []orderedFunction
+	for _, schema := range metadata.Schemas {
+		if schema == nil {
+			continue
+		}
+		for _, fn := range schema.Functions {
+			if fn == nil {
+				continue
+			}
+			fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
+		}
+	}
+	if len(fns) < 2 {
+		return fns
+	}
+
+	type parsedFn struct {
+		paramCount int
+		bodyText   string
+		parsed     bool
+	}
+	parsed := make([]parsedFn, len(fns))
+	byKey := make(map[string][]int, len(fns))
+	for i, f := range fns {
+		key := objectKey(strings.ToLower(f.schema), strings.ToLower(f.fn.Name))
+		byKey[key] = append(byKey[key], i)
+
+		file, err := trinoparser.Parse(f.fn.Definition)
+		if err == nil && file != nil && len(file.Stmts) == 1 {
+			if cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt); ok && cfs.Spec.Body != nil {
+				span := cfs.Spec.Body.Span()
+				if span.Start >= 0 && span.End <= len(f.fn.Definition) && span.Start <= span.End {
+					parsed[i] = parsedFn{
+						paramCount: len(cfs.Spec.Declaration.Parameters),
+						bodyText:   f.fn.Definition[span.Start:span.End],
+						parsed:     true,
+					}
+					continue
+				}
+			}
+		}
+		parsed[i] = parsedFn{bodyText: f.fn.Definition}
+	}
+
+	dependencies := make([]map[int]struct{}, len(fns))
+	for i, f := range fns {
+		for _, call := range scanFunctionCallRefs(parsed[i].bodyText) {
+			var candidates []int
+			switch call.schema {
+			case "":
+				candidates = byKey[objectKey(strings.ToLower(f.schema), strings.ToLower(call.name))]
+			default:
+				candidates = byKey[objectKey(strings.ToLower(call.schema), strings.ToLower(call.name))]
+			}
+			for _, depIdx := range candidates {
+				if depIdx == i {
+					continue
+				}
+				if parsed[depIdx].parsed && parsed[depIdx].paramCount != call.argCount {
+					continue
+				}
+				if dependencies[i] == nil {
+					dependencies[i] = map[int]struct{}{}
+				}
+				dependencies[i][depIdx] = struct{}{}
+			}
+		}
+	}
+
+	indices := topoOrder(len(fns), dependencies)
+	ordered := make([]orderedFunction, len(indices))
+	for i, idx := range indices {
+		ordered[i] = fns[idx]
+	}
+	return ordered
+}
+
+type functionCallRef struct {
+	schema   string
+	name     string
+	argCount int
+}
+
+// scanFunctionCallRefs extracts unqualified and schema-qualified call sites
+// inside sql, ignoring comments and string literals.
+func scanFunctionCallRefs(sql string) []functionCallRef {
+	type token struct {
+		isIdent bool
+		text    string
+		punct   byte
+	}
+	var toks []token
+	for i := 0; i < len(sql); {
+		ch := sql[i]
+		switch {
+		case ch == '-' && i+1 < len(sql) && sql[i+1] == '-':
+			i += 2
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+		case ch == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i += 2
+			for i+1 < len(sql) && (sql[i] != '*' || sql[i+1] != '/') {
+				i++
+			}
+			if i+1 < len(sql) {
+				i += 2
+			} else {
+				i = len(sql)
+			}
+		case ch == '\'':
+			i++
+			for i < len(sql) {
+				if sql[i] == '\'' {
+					if i+1 < len(sql) && sql[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+		case ch == '"':
+			i++
+			var sb strings.Builder
+			for i < len(sql) {
+				if sql[i] == '"' {
+					if i+1 < len(sql) && sql[i+1] == '"' {
+						sb.WriteByte('"')
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				sb.WriteByte(sql[i])
+				i++
+			}
+			toks = append(toks, token{isIdent: true, text: sb.String()})
+		case isIdentStartChar(ch):
+			start := i
+			i++
+			for i < len(sql) && isIdentContChar(sql[i]) {
+				i++
+			}
+			toks = append(toks, token{isIdent: true, text: sql[start:i]})
+		case ch == '.' || ch == '(' || ch == ')' || ch == ',':
+			toks = append(toks, token{punct: ch})
+			i++
+		default:
+			i++
+		}
+	}
+
+	countArgs := func(openIdx int) int {
+		if openIdx+1 < len(toks) && toks[openIdx+1].punct == ')' {
+			return 0
+		}
+		depth := 0
+		args := 1
+		for j := openIdx; j < len(toks); j++ {
+			switch toks[j].punct {
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 {
+					return args
+				}
+			case ',':
+				if depth == 1 {
+					args++
+				}
+			}
+		}
+		return args
+	}
+
+	var calls []functionCallRef
+	for i := 0; i+1 < len(toks); i++ {
+		if i+3 < len(toks) && toks[i].isIdent && toks[i+1].punct == '.' && toks[i+2].isIdent && toks[i+3].punct == '(' {
+			calls = append(calls, functionCallRef{schema: toks[i].text, name: toks[i+2].text, argCount: countArgs(i + 3)})
+			continue
+		}
+		if toks[i].isIdent && toks[i+1].punct == '(' && (i == 0 || toks[i-1].punct != '.') {
+			calls = append(calls, functionCallRef{name: toks[i].text, argCount: countArgs(i + 1)})
+		}
+	}
+	return calls
+}
+
+func isIdentStartChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}
+
+func isIdentContChar(c byte) bool {
+	return isIdentStartChar(c) || (c >= '0' && c <= '9')
 }
 
 // writeCreateTable appends a single CREATE TABLE statement for table (qualified
@@ -368,6 +638,14 @@ func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s.%s%s AS\n%s", quoteIdentifier(schemaName), quoteIdentifier(view.Name), commentClause, definition)
 	}
 	buf.WriteString(appendTerminator(stmt))
+	if !materialized {
+		for _, col := range view.Columns {
+			if col == nil || col.Comment == "" {
+				continue
+			}
+			fmt.Fprintf(buf, "\nCOMMENT ON COLUMN %s.%s.%s IS '%s';", quoteIdentifier(schemaName), quoteIdentifier(view.Name), quoteIdentifier(col.Name), escapeStringLiteral(col.Comment))
+		}
+	}
 	return nil
 }
 
@@ -380,10 +658,11 @@ type orderedView struct {
 }
 
 // orderedViews returns metadata's views and materialized views in dependency
-// order: every entry follows the views/materialized views its definition reads.
-// Independent entries keep snapshot order. A definition the local parser cannot
-// read contributes no edges rather than failing the dump; Trino accepted it, and
-// a dependency the local parser cannot see is no reason to lose the statement.
+// order: every entry follows the views/materialized views its explicit
+// Dependencies or parsed query span reference. Independent entries keep
+// snapshot order. A definition the local parser cannot read contributes no
+// edges rather than failing the dump; Trino accepted it, and a dependency the
+// local parser cannot see is no reason to lose the statement.
 func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 	var views []orderedView
 	for _, schema := range metadata.Schemas {
@@ -409,10 +688,26 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 
 	index := make(map[string]int, len(views))
 	for i, view := range views {
-		index[viewKey(view.schema, view.view.Name)] = i
+		index[objectKey(view.schema, view.view.Name)] = i
 	}
 	dependencies := make([]map[int]struct{}, len(views))
+	addDep := func(i int, depSchema, depTable string) {
+		if depSchema == "" {
+			depSchema = views[i].schema
+		}
+		dependency, ok := index[objectKey(depSchema, depTable)]
+		if !ok || dependency == i {
+			return
+		}
+		if dependencies[i] == nil {
+			dependencies[i] = map[int]struct{}{}
+		}
+		dependencies[i][dependency] = struct{}{}
+	}
 	for i, view := range views {
+		for _, dep := range view.view.Dependencies {
+			addDep(i, dep.Schema, dep.Table)
+		}
 		span, err := analysis.GetQuerySpan(view.view.Definition)
 		if err != nil {
 			continue
@@ -421,46 +716,39 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 			if access.Catalog != "" && metadata.Name != "" && access.Catalog != metadata.Name {
 				continue
 			}
-			schema := access.Schema
-			if schema == "" {
-				schema = view.schema
-			}
-			dependency, ok := index[viewKey(schema, access.Table)]
-			if !ok || dependency == i {
-				continue
-			}
-			if dependencies[i] == nil {
-				dependencies[i] = map[int]struct{}{}
-			}
-			dependencies[i][dependency] = struct{}{}
+			addDep(i, access.Schema, access.Table)
 		}
 	}
-	return sortViews(views, dependencies)
+	indices := topoOrder(len(views), dependencies)
+	ordered := make([]orderedView, len(indices))
+	for i, idx := range indices {
+		ordered[i] = views[idx]
+	}
+	return ordered
 }
 
-// viewKey identifies a view by its owning schema and its name.
-func viewKey(schema, name string) string {
+// objectKey identifies a schema-scoped object by its owning schema and its name.
+func objectKey(schema, name string) string {
 	return schema + "\x00" + name
 }
 
-// sortViews orders views so each follows its dependencies, keeping the input
-// order among views that do not depend on each other. A cycle, which Trino does
-// not let a CREATE VIEW make, leaves the remaining views in input order.
-func sortViews(views []orderedView, dependencies []map[int]struct{}) []orderedView {
-	remaining := make([]int, len(views))
+// topoOrder returns item indices ordered so each item follows its dependencies,
+// keeping input order among independent items and breaking cycles in input order.
+func topoOrder(n int, dependencies []map[int]struct{}) []int {
+	remaining := make([]int, n)
 	for i, deps := range dependencies {
 		remaining[i] = len(deps)
 	}
-	ordered := make([]orderedView, 0, len(views))
-	done := make([]bool, len(views))
-	for len(ordered) < len(views) {
+	ordered := make([]int, 0, n)
+	done := make([]bool, n)
+	for len(ordered) < n {
 		progressed := false
-		for i, view := range views {
+		for i := 0; i < n; i++ {
 			if done[i] || remaining[i] != 0 {
 				continue
 			}
 			done[i] = true
-			ordered = append(ordered, view)
+			ordered = append(ordered, i)
 			progressed = true
 			for j, deps := range dependencies {
 				if _, ok := deps[i]; ok && !done[j] {
@@ -469,10 +757,10 @@ func sortViews(views []orderedView, dependencies []map[int]struct{}) []orderedVi
 			}
 		}
 		if !progressed {
-			for i, view := range views {
+			for i := 0; i < n; i++ {
 				if !done[i] {
 					done[i] = true
-					ordered = append(ordered, view)
+					ordered = append(ordered, i)
 				}
 			}
 		}

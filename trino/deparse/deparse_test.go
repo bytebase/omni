@@ -329,17 +329,20 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 			nil,
 			{Name: "skipped_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t_hidden"}}},
 			{
-				Name: "s",
+				Name:  "s",
+				Owner: "schema_admin",
 				Functions: []*metadatapb.FunctionMetadata{
 					nil,
 					{Name: "fn_skip", Definition: "CREATE FUNCTION s.fn_skip() RETURNS int RETURN 1", SkipDump: true},
-					{Name: "inc", Definition: "CREATE FUNCTION s.inc(x bigint) RETURNS bigint RETURN x + 1 -- udf note"},
+					{Name: "caller", Definition: "CREATE FUNCTION s.caller(x bigint) RETURNS bigint RETURN s.inc(x) * 2"},
+					{Name: "inc", Definition: "CREATE FUNCTION s.inc(x bigint) RETURNS bigint RETURN x + 1 -- udf note", Comment: "inc's doc"},
 				},
 				Tables: []*metadatapb.TableMetadata{
 					nil,
 					{Name: "t_skip", SkipDump: true},
 					{
 						Name:    "t",
+						Owner:   "tbl_owner",
 						Comment: "events table",
 						Columns: []*metadatapb.ColumnMetadata{
 							nil,
@@ -351,12 +354,21 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 				Views: []*metadatapb.ViewMetadata{
 					nil,
 					{Name: "v_skip", Definition: "SELECT 1", SkipDump: true},
-					{Name: "v_top", Definition: `SELECT s.inc(id) FROM "s"."v_base" -- trailing view comment`},
+					{
+						Name:       "v_top",
+						Definition: `SELECT s.caller(id) FROM "s"."v_base" -- trailing view comment`,
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Comment: "computed id"}},
+					},
 					{Name: "v_base", Definition: `SELECT id FROM "s"."mv_base"`, Comment: "ordinary note"},
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
 					nil,
 					{Name: "mv_skip", Definition: "SELECT 1", SkipDump: true},
+					{
+						Name:              "mv_top_unparsed",
+						Definition:        "SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)))",
+						DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "s", Table: "mv_base"}},
+					},
 					{Name: "mv_base", Definition: `SELECT id FROM "s"."t" -- trailing mv comment`, Comment: "mv's note"},
 				},
 			},
@@ -366,8 +378,10 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE SCHEMA IF NOT EXISTS "s";
 
-CREATE FUNCTION s.inc(x bigint) RETURNS bigint RETURN x + 1 -- udf note
+CREATE FUNCTION s.inc(x bigint) RETURNS bigint COMMENT 'inc''s doc' RETURN x + 1 -- udf note
 ;
+
+CREATE FUNCTION s.caller(x bigint) RETURNS bigint RETURN s.inc(x) * 2;
 
 CREATE TABLE IF NOT EXISTS "s"."t" (
     "id" bigint DEFAULT 0 NOT NULL COMMENT 'pk col',
@@ -378,12 +392,20 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" COMMENT 'mv''s note' AS
 SELECT id FROM "s"."t" -- trailing mv comment
 ;
 
+CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_top_unparsed" AS
+SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)));
+
 CREATE OR REPLACE VIEW "s"."v_base" COMMENT 'ordinary note' AS
 SELECT id FROM "s"."mv_base";
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
-SELECT s.inc(id) FROM "s"."v_base" -- trailing view comment
+SELECT s.caller(id) FROM "s"."v_base" -- trailing view comment
 ;
+COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
+
+ALTER TABLE "s"."t" SET AUTHORIZATION "tbl_owner";
+
+ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 
 `, got)
 

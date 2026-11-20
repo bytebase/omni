@@ -45,8 +45,10 @@ type SchemaMetadata struct {
 	// Name is the schema name, emitted double-quoted in CREATE SCHEMA and as
 	// the first qualifier of every CREATE TABLE and CREATE VIEW.
 	Name string
+	// Owner is the optional schema owner, emitted as ALTER SCHEMA ... SET AUTHORIZATION.
+	Owner string
 	// Functions are the schema's user-defined functions, in snapshot order;
-	// each becomes one CREATE FUNCTION statement before tables and views.
+	// each becomes one CREATE FUNCTION statement in callee-before-caller order.
 	Functions []*FunctionMetadata
 	// Tables are the schema's tables, in snapshot order; each becomes one
 	// CREATE TABLE statement.
@@ -63,6 +65,13 @@ type SchemaMetadata struct {
 type FunctionMetadata struct {
 	Name       string
 	Definition string
+	Comment    string
+}
+
+// ViewDependency identifies a relation that a view or materialized view reads.
+type ViewDependency struct {
+	Schema string
+	Table  string
 }
 
 // ViewMetadata is one view; it renders to a single CREATE OR REPLACE VIEW
@@ -74,12 +83,19 @@ type ViewMetadata struct {
 	Definition string
 	// Comment is the optional view/materialized-view comment, emitted as COMMENT '...'.
 	Comment string
+	// Columns holds optional view columns (used to restore COMMENT ON COLUMN).
+	Columns []*ColumnMetadata
+	// Dependencies records explicit view/table references used before falling
+	// back to query-span analysis.
+	Dependencies []ViewDependency
 }
 
 // TableMetadata is one table; it renders to a single CREATE TABLE statement.
 type TableMetadata struct {
 	// Name is the table name, emitted double-quoted.
 	Name string
+	// Owner is the optional table owner, emitted as ALTER TABLE ... SET AUTHORIZATION.
+	Owner string
 	// Columns are the table's columns, in ordinal order; the order is preserved
 	// in the emitted column list.
 	Columns []*ColumnMetadata
