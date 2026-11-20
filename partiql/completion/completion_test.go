@@ -441,6 +441,25 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"AlbumId", "Title"},
 		},
+		{
+			name:     "quoted table name preserves case",
+			input:    `SELECT | FROM "music"`,
+			cat:      cat,
+			wantCols: nil,
+		},
+		{
+			name:     "collection literal commas stay inside select item",
+			input:    "SELECT s.| FROM (SELECT [1, 2] AS vals, {'a': 1, 'b': 2} AS doc FROM Music) s",
+			cat:      cat,
+			wantCols: []string{"doc", "vals"},
+		},
+		{
+			name:     "unfinished quoted table name keeps FROM context",
+			input:    `SELECT * FROM "Mu|`,
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Music"},
+		},
 	}
 
 	for _, tc := range tests {

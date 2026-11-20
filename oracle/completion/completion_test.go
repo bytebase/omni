@@ -1015,6 +1015,104 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("constraint completion prefers constraint names over shared backing index", func(t *testing.T) {
+		conMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "S1",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "T1",
+							Indexes: []*metadatapb.IndexMetadata{
+								{
+									Name:         "IDX_SHARED_UQ",
+									IsConstraint: true,
+									Constraints: []*metadatapb.IndexConstraintMetadata{
+										{Name: "UQ_T1_CODE"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		sqlCon, posCon := splitCaret(t, "ALTER TABLE t1 DROP CONSTRAINT |")
+		resCon := Complete(sqlCon, posCon, conMeta, WithDefaultSchema("S1"))
+		if !hasSpec(resCon, candidateSpec{text: "UQ_T1_CODE", typ: CandidateConstraint}) {
+			t.Fatalf("expected constraint name UQ_T1_CODE, got %v", resCon)
+		}
+		if hasSpec(resCon, candidateSpec{text: "IDX_SHARED_UQ", typ: CandidateConstraint}) {
+			t.Fatalf("did not expect backing index name IDX_SHARED_UQ, got %v", resCon)
+		}
+	})
+
+	t.Run("quoted virtual relation name is case sensitive", func(t *testing.T) {
+		sqlMiss, posMiss := splitCaret(t, `WITH "x"(col_a) AS (SELECT 1 FROM dual) SELECT "X".| FROM "x"`)
+		resMiss := Complete(sqlMiss, posMiss, meta, WithDefaultSchema("HR"))
+		if hasSpec(resMiss, candidateSpec{text: "COL_A", typ: CandidateColumn}) || hasSpec(resMiss, candidateSpec{text: "col_a", typ: CandidateColumn}) {
+			t.Fatalf(`did not expect "x" columns for "X". qualifier, got %v`, resMiss)
+		}
+
+		sqlHit, posHit := splitCaret(t, `WITH "x"(col_a) AS (SELECT 1 FROM dual) SELECT "x".| FROM "x"`)
+		resHit := Complete(sqlHit, posHit, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resHit, candidateSpec{text: "COL_A", typ: CandidateColumn}) {
+			t.Fatalf(`expected COL_A for matching "x". qualifier, got %v`, resHit)
+		}
+	})
+
+	t.Run("dotted database link prefix matches component-wise", func(t *testing.T) {
+		linkMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "S1"}},
+			LinkedDatabases: []*metadatapb.LinkedDatabaseMetadata{
+				{Name: "REMOTE.EXAMPLE.COM"},
+			},
+		}
+		sqlLink, posLink := splitCaret(t, "SELECT * FROM employees@REMOTE.E|")
+		resLink := Complete(sqlLink, posLink, linkMeta, WithDefaultSchema("S1"))
+		if !hasSpec(resLink, candidateSpec{text: "REMOTE.EXAMPLE.COM", typ: CandidateDatabaseLink}) {
+			t.Fatalf("expected REMOTE.EXAMPLE.COM after dotted @REMOTE.E prefix, got %v", resLink)
+		}
+	})
+
+	t.Run("PIVOT unsupported range does not leak base table columns", func(t *testing.T) {
+		sqlPivot, posPivot := splitCaret(t, "SELECT | FROM album PIVOT (COUNT(*) FOR album_id IN (1 AS one))")
+		resPivot := Complete(sqlPivot, posPivot, meta, WithDefaultSchema("HR"))
+		if hasSpec(resPivot, candidateSpec{text: "TITLE", typ: CandidateColumn}) || hasSpec(resPivot, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) {
+			t.Fatalf("did not expect base ALBUM columns after PIVOT, got %v", resPivot)
+		}
+	})
+
+	t.Run("quoted prefix filters case sensitively", func(t *testing.T) {
+		sqlPrefix, posPrefix := splitCaret(t, `SELECT * FROM "emp|`)
+		resPrefix := Complete(sqlPrefix, posPrefix, meta, WithDefaultSchema("HR"))
+		if hasSpec(resPrefix, candidateSpec{text: "EMPLOYEES", typ: CandidateTable}) {
+			t.Fatalf(`did not expect uppercase EMPLOYEES for lowercase quoted prefix "emp, got %v`, resPrefix)
+		}
+	})
+
+	t.Run("lone SQL statement after SQL*Plus command isolates statement", func(t *testing.T) {
+		sqlPlus, posPlus := splitCaret(t, "SET DEFINE OFF\n  SELECT * FROM |")
+		resPlus := Complete(sqlPlus, posPlus, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resPlus, candidateSpec{text: "ALBUM", typ: CandidateTable}) {
+			t.Fatalf("expected ALBUM table candidate after SQL*Plus SET command, got %v", resPlus)
+		}
+	})
+
+	t.Run("PL/SQL local variables and parameters offered in INTO", func(t *testing.T) {
+		sqlVar, posVar := splitCaret(t, "DECLARE v_id NUMBER; BEGIN SELECT album_id INTO | FROM album; END;")
+		resVar := Complete(sqlVar, posVar, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resVar, candidateSpec{text: "V_ID", typ: CandidateVariable}) {
+			t.Fatalf("expected V_ID variable candidate in INTO, got %v", resVar)
+		}
+
+		sqlProc, posProc := splitCaret(t, "CREATE OR REPLACE PROCEDURE p_emp(p_in NUMBER) IS v_out NUMBER; BEGIN SELECT album_id INTO | FROM album; END;")
+		resProc := Complete(sqlProc, posProc, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resProc, candidateSpec{text: "P_IN", typ: CandidateVariable}) || !hasSpec(resProc, candidateSpec{text: "V_OUT", typ: CandidateVariable}) {
+			t.Fatalf("expected P_IN and V_OUT variable candidates, got %v", resProc)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

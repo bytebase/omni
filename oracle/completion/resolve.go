@@ -237,6 +237,7 @@ func (*physicalTableRef) isTableRef() {}
 
 type virtualTableRef struct {
 	Table   string
+	Quoted  bool
 	Columns []string
 }
 
@@ -327,6 +328,7 @@ func (r *resolver) resolve() []Candidate {
 		indexes     []Candidate
 		triggers    []Candidate
 		constraints []Candidate
+		variables   []Candidate
 		types       []Candidate
 	)
 
@@ -463,6 +465,8 @@ func (r *resolver) resolve() []Candidate {
 				r.insertSchemaTriggers(&triggers, schema, quoted)
 			case "constraint_ref":
 				r.insertConstraintCandidates(&constraints)
+			case "variable_ref":
+				r.insertLocalVariableCandidates(&variables)
 			case "type_name":
 				for _, typ := range oracleDataTypes {
 					types = append(types, Candidate{Type: CandidateType_, Text: typ})
@@ -532,6 +536,8 @@ func (r *resolver) resolve() []Candidate {
 				r.insertSchemaTriggers(&triggers, schema, quoted)
 			case parser.ObjectKindConstraint:
 				r.insertConstraintCandidates(&constraints)
+			case parser.ObjectKindVariable:
+				r.insertLocalVariableCandidates(&variables)
 			case parser.ObjectKindType:
 				for _, typ := range oracleDataTypes {
 					types = append(types, Candidate{Type: CandidateType_, Text: typ})
@@ -565,6 +571,7 @@ func (r *resolver) resolve() []Candidate {
 	result = append(result, indexes...)
 	result = append(result, triggers...)
 	result = append(result, constraints...)
+	result = append(result, variables...)
 	return result
 }
 
@@ -739,7 +746,13 @@ func (r *resolver) insertConstraintCandidates(dst *[]Candidate) {
 			}
 		}
 		for _, idx := range t.GetIndexes() {
-			if idx.GetIsConstraint() && idx.GetName() != "" {
+			if len(idx.GetConstraints()) > 0 {
+				for _, c := range idx.GetConstraints() {
+					if c.GetName() != "" {
+						*dst = append(*dst, Candidate{Type: CandidateConstraint, Text: c.GetName()})
+					}
+				}
+			} else if idx.GetIsConstraint() && idx.GetName() != "" {
 				*dst = append(*dst, Candidate{Type: CandidateConstraint, Text: idx.GetName()})
 			}
 		}
@@ -970,17 +983,9 @@ func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
 
 func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []tableTarget) {
 	for _, target := range targets {
-		if target.schema == "" && !target.tableQuoted {
+		if target.schema == "" {
 			for _, cte := range r.cteTables {
-				if strings.EqualFold(cte.Table, target.table) {
-					for _, col := range cte.Columns {
-						*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
-					}
-				}
-			}
-		} else if target.schema == "" {
-			for _, cte := range r.cteTables {
-				if cte.Table == target.table {
+				if nameMatches(cte.Table, target.table, cte.Quoted || target.tableQuoted) {
 					for _, col := range cte.Columns {
 						*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
 					}
@@ -1214,7 +1219,8 @@ func (r *resolver) collectCompletionCTEs(ctx *parser.CompletionContext) {
 			}
 			inRecursiveMember = true
 		}
-		virtual := convertCompletionVirtualReference(ref)
+		_, cteQuoted, _ := r.refQuotedFlags(ref)
+		virtual := convertCompletionVirtualReference(ref, cteQuoted)
 		if virtual == nil {
 			continue
 		}
@@ -1282,6 +1288,21 @@ func (r *resolver) collectCompletionScopeReferences(ctx *parser.CompletionContex
 }
 
 func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) tableRef {
+	if ref.Unsupported {
+		table := ref.Alias
+		if table == "" {
+			table = ref.Name
+		}
+		if table == "" {
+			return nil
+		}
+		_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
+		quoted := refNameQuoted
+		if ref.Alias != "" {
+			quoted = refAliasQuoted
+		}
+		return &virtualTableRef{Table: table, Quoted: quoted}
+	}
 	switch ref.Kind {
 	case parser.RangeReferenceRelation, parser.RangeReferenceDMLTarget, parser.RangeReferenceMergeSource:
 		schemaQuoted, tableQuoted, aliasQuoted := r.refQuotedFlags(ref)
@@ -1294,7 +1315,12 @@ func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) ta
 			AliasQuoted:  aliasQuoted,
 		}
 	case parser.RangeReferenceCTE, parser.RangeReferenceSubquery, parser.RangeReferenceJoinAlias:
-		virtual := convertCompletionVirtualReference(ref)
+		_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
+		quoted := refNameQuoted
+		if ref.Alias != "" {
+			quoted = refAliasQuoted
+		}
+		virtual := convertCompletionVirtualReference(ref, quoted)
 		if virtual != nil && (ref.Kind == parser.RangeReferenceSubquery || len(virtual.Columns) == 0) {
 			if columns := r.inferCompletionVirtualColumns(ref); len(columns) > 0 {
 				virtual.Columns = columns
@@ -1319,6 +1345,15 @@ func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tabl
 			break
 		}
 		toks = append(toks, tok)
+	}
+	if ref.Kind == parser.RangeReferenceSubquery && ref.BodyLoc.End >= 0 {
+		for k := len(toks) - 1; k >= 0; k-- {
+			if toks[k].Loc > ref.BodyLoc.End && toks[k].Str != "" && strings.EqualFold(toks[k].Str, ref.Alias) {
+				aliasQuoted = r.isQuotedToken(toks[k])
+				break
+			}
+		}
+		return false, aliasQuoted, aliasQuoted
 	}
 	tableIdx := -1
 	if ref.Schema != "" {
@@ -1361,6 +1396,9 @@ func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string, ali
 	for _, level := range r.scopeLevels {
 		matched := false
 		for _, ref := range level.scopeRefs {
+			if ref.Unsupported && len(ref.Columns) == 0 {
+				continue
+			}
 			_, refNameQuoted, refAliasQuoted := r.refQuotedFlags(ref)
 			if (ref.Alias == "" || !nameMatches(ref.Alias, alias, refAliasQuoted || aliasQuoted)) &&
 				!nameMatches(ref.Name, alias, refNameQuoted || aliasQuoted) {
@@ -1381,6 +1419,169 @@ func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string, ali
 	}
 }
 
+func (r *resolver) insertLocalVariableCandidates(dst *[]Candidate) {
+	if r.caretTokenIndex <= 0 || r.caretTokenIndex > len(r.tokens) {
+		return
+	}
+	toks := r.tokens[:r.caretTokenIndex]
+
+	type varScope struct {
+		inDecl bool
+		vars   []string
+	}
+	type blockMarker struct {
+		isBegin  bool
+		hasScope bool
+	}
+	var scopes []varScope
+	var blocks []blockMarker
+
+	pushScope := func(params []string) {
+		scopes = append(scopes, varScope{inDecl: true, vars: params})
+	}
+	addVar := func(name string) {
+		if name == "" || len(scopes) == 0 {
+			return
+		}
+		scopes[len(scopes)-1].vars = append(scopes[len(scopes)-1].vars, name)
+	}
+
+	i := 0
+	for i < len(toks) {
+		tok := toks[i]
+		kw := strings.ToUpper(parser.TokenName(tok.Type))
+		switch kw {
+		case "PROCEDURE", "FUNCTION":
+			// Only start a subprogram scope when declaring/defining a subprogram header with IS/AS.
+			if i+1 < len(toks) && r.isIdentifierToken(toks[i+1]) {
+				j := i + 2
+				var params []string
+				if j < len(toks) && toks[j].Type == '(' {
+					closeIdx := findMatchingTokenIdx(toks, j)
+					params = r.extractParamNames(toks[j+1 : closeIdx])
+					j = closeIdx
+					if j < len(toks) {
+						j++
+					}
+				}
+				foundHeaderEnd := false
+				for j < len(toks) {
+					jkw := strings.ToUpper(parser.TokenName(toks[j].Type))
+					if toks[j].Type == ';' {
+						break
+					}
+					if jkw == "IS" || jkw == "AS" {
+						pushScope(params)
+						i = j
+						foundHeaderEnd = true
+						break
+					}
+					j++
+				}
+				if foundHeaderEnd {
+					i++
+					continue
+				}
+			}
+		case "DECLARE":
+			pushScope(nil)
+		case "BEGIN":
+			hasDeclScope := false
+			if len(scopes) > 0 && scopes[len(scopes)-1].inDecl {
+				scopes[len(scopes)-1].inDecl = false
+				hasDeclScope = true
+			}
+			blocks = append(blocks, blockMarker{isBegin: true, hasScope: hasDeclScope})
+		case "END":
+			nextKw := ""
+			if i+1 < len(toks) {
+				nextKw = strings.ToUpper(parser.TokenName(toks[i+1].Type))
+			}
+			if nextKw != "IF" && nextKw != "LOOP" && nextKw != "CASE" && len(blocks) > 0 {
+				top := blocks[len(blocks)-1]
+				blocks = blocks[:len(blocks)-1]
+				if top.isBegin && top.hasScope && len(scopes) > 0 {
+					scopes = scopes[:len(scopes)-1]
+				}
+			}
+		default:
+			if len(scopes) > 0 && scopes[len(scopes)-1].inDecl && r.isIdentifierToken(tok) &&
+				(i == 0 || toks[i-1].Type == ';' || strings.ToUpper(parser.TokenName(toks[i-1].Type)) == "DECLARE" ||
+					strings.ToUpper(parser.TokenName(toks[i-1].Type)) == "IS" || strings.ToUpper(parser.TokenName(toks[i-1].Type)) == "AS") {
+				if i+1 < len(toks) && toks[i+1].Type != ';' &&
+					strings.ToUpper(parser.TokenName(toks[i+1].Type)) != "EXCEPTION" &&
+					toks[i+1].Type != '(' {
+					addVar(tok.Str)
+				}
+				depth := 0
+				for i < len(toks) {
+					if toks[i].Type == '(' {
+						depth++
+					} else if toks[i].Type == ')' && depth > 0 {
+						depth--
+					} else if toks[i].Type == ';' && depth == 0 {
+						break
+					}
+					i++
+				}
+			}
+		}
+		i++
+	}
+
+	for _, sc := range scopes {
+		for _, v := range sc.vars {
+			*dst = append(*dst, Candidate{Type: CandidateVariable, Text: v})
+		}
+	}
+}
+
+func (r *resolver) extractParamNames(paramToks []parser.Token) []string {
+	var names []string
+	depth := 0
+	atItemStart := true
+	for _, tok := range paramToks {
+		switch tok.Type {
+		case '(':
+			depth++
+			atItemStart = false
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			atItemStart = false
+		case ',':
+			if depth == 0 {
+				atItemStart = true
+			}
+		default:
+			if depth == 0 && atItemStart {
+				if r.isIdentifierToken(tok) {
+					names = append(names, tok.Str)
+				}
+				atItemStart = false
+			}
+		}
+	}
+	return names
+}
+
+func findMatchingTokenIdx(toks []parser.Token, openIdx int) int {
+	depth := 1
+	for k := openIdx + 1; k < len(toks); k++ {
+		switch toks[k].Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return k
+			}
+		}
+	}
+	return len(toks)
+}
+
 func (r *resolver) insertReferenceAliasCandidates(tablesOut *[]Candidate) {
 	for _, ref := range r.references {
 		switch ref := ref.(type) {
@@ -1395,7 +1596,7 @@ func (r *resolver) insertReferenceAliasCandidates(tablesOut *[]Candidate) {
 	}
 }
 
-func convertCompletionVirtualReference(ref parser.RangeReference) *virtualTableRef {
+func convertCompletionVirtualReference(ref parser.RangeReference, quoted bool) *virtualTableRef {
 	table := ref.Alias
 	if table == "" {
 		table = ref.Name
@@ -1405,6 +1606,7 @@ func convertCompletionVirtualReference(ref parser.RangeReference) *virtualTableR
 	}
 	return &virtualTableRef{
 		Table:   table,
+		Quoted:  quoted,
 		Columns: append([]string{}, ref.Columns...),
 	}
 }

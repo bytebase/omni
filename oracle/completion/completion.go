@@ -35,6 +35,7 @@ const (
 	CandidateSynonym
 	CandidateDatabaseLink
 	CandidateConstraint
+	CandidateVariable
 )
 
 // String returns the lower-case kind name of CandidateType.
@@ -72,6 +73,8 @@ func (t CandidateType) String() string {
 		return "database_link"
 	case CandidateConstraint:
 		return "constraint"
+	case CandidateVariable:
+		return "variable"
 	default:
 		return "unknown"
 	}
@@ -167,7 +170,13 @@ func Complete(sql string, cursorOffset int, meta *metadatapb.DatabaseSchemaMetad
 	stmtSQL, localOffset := isolateStatementAtCursor(sql, cursorOffset)
 	prefix := extractPrefix(stmtSQL, localOffset)
 	collectOffset := localOffset - len(prefix)
+	if linkPrefix, linkStart, ok := extractDBLinkPrefix(stmtSQL, localOffset); ok {
+		prefix = linkPrefix
+		collectOffset = linkStart
+	}
+	prefixQuoted := false
 	if collectOffset > 0 && collectOffset <= len(stmtSQL) && stmtSQL[collectOffset-1] == '"' && insideDoubleQuotes(stmtSQL, localOffset) {
+		prefixQuoted = true
 		collectOffset--
 	}
 
@@ -176,7 +185,7 @@ func Complete(sql string, cursorOffset int, meta *metadatapb.DatabaseSchemaMetad
 		candidates = trickyComplete(stmtSQL, collectOffset, store)
 	}
 
-	return filterByPrefix(dedupAndSort(candidates), prefix)
+	return filterByPrefix(dedupAndSort(candidates), prefix, prefixQuoted)
 }
 
 // isolateStatementAtCursor slices sql to the statement containing cursorOffset
@@ -189,7 +198,7 @@ func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 		cursorOffset = len(sql)
 	}
 	stmts := analysis.SplitStatementsForCompletion(sql)
-	if countNonEmptyStatements(stmts) <= 1 {
+	if len(stmts) == 0 {
 		return sql, cursorOffset
 	}
 	for i, stmt := range stmts {
@@ -208,14 +217,29 @@ func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 	return sql, cursorOffset
 }
 
-func countNonEmptyStatements(stmts []analysis.Statement) int {
-	n := 0
-	for _, s := range stmts {
-		if !s.Empty {
-			n++
-		}
+func extractDBLinkPrefix(sql string, cursorOffset int) (prefix string, linkStart int, ok bool) {
+	if cursorOffset <= 0 || cursorOffset > len(sql) {
+		return "", 0, false
 	}
-	return n
+	i := cursorOffset
+	hasDot := false
+	for i > 0 && (isOracleIdentByte(sql[i-1]) || sql[i-1] == '.') {
+		if sql[i-1] == '.' {
+			hasDot = true
+		}
+		i--
+	}
+	if !hasDot || i == 0 || sql[i-1] != '@' {
+		return "", 0, false
+	}
+	if i >= 2 && sql[i-2] == '@' {
+		return "", 0, false
+	}
+	toks := parser.Tokenize(sql[:i])
+	if len(toks) == 0 || toks[len(toks)-1].Type != '@' {
+		return "", 0, false
+	}
+	return sql[i:cursorOffset], i, true
 }
 
 func extractPrefix(sql string, cursorOffset int) string {
@@ -317,7 +341,7 @@ func latestLineStartSelectOffset(sql string, limit int) int {
 	return latest
 }
 
-func filterByPrefix(candidates []Candidate, prefix string) []Candidate {
+func filterByPrefix(candidates []Candidate, prefix string, prefixQuoted bool) []Candidate {
 	if prefix == "" {
 		return candidates
 	}
@@ -325,7 +349,11 @@ func filterByPrefix(candidates []Candidate, prefix string) []Candidate {
 	filtered := make([]Candidate, 0, len(candidates))
 	for _, c := range candidates {
 		text := strings.TrimSuffix(c.Text, "()")
-		if strings.HasPrefix(strings.ToUpper(text), upperPrefix) {
+		if prefixQuoted {
+			if strings.HasPrefix(text, prefix) {
+				filtered = append(filtered, c)
+			}
+		} else if strings.HasPrefix(strings.ToUpper(text), upperPrefix) {
 			filtered = append(filtered, c)
 		}
 	}

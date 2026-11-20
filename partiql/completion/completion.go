@@ -36,9 +36,10 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 		pos = 0
 	}
 
-	stmtSQL, localPos := extractCurrentStatement(input, pos)
-	prefix := extractPrefix(stmtSQL, localPos)
-	inFromContext, inColumnContext := analyzeCursorContext(stmtSQL, localPos, len(prefix))
+	stmtSQL, localOffset := extractCurrentStatement(input, pos)
+	prefix := extractPrefix(stmtSQL, localOffset)
+	prefixQuoted := insideUnclosedDoubleQuote(stmtSQL, localOffset-len(prefix))
+	inFromContext, inColumnContext := analyzeCursorContext(stmtSQL, localOffset, len(prefix))
 
 	var candidates []Candidate
 	seen := make(map[string]struct{})
@@ -53,22 +54,22 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 
 	if inFromContext {
 		for _, table := range collectTableNames(cat, meta) {
-			if matchesPrefix(table, prefix) {
+			if matchesPrefix(table, prefix, prefixQuoted) {
 				addCandidate(table, "table")
 			}
 		}
 	}
 
 	if meta != nil && inColumnContext {
-		for _, col := range resolveColumnNames(stmtSQL, localPos, meta) {
-			if matchesPrefix(col, prefix) {
+		for _, col := range resolveColumnNames(stmtSQL, localOffset, meta) {
+			if matchesPrefix(col, prefix, prefixQuoted) {
 				addCandidate(col, "column")
 			}
 		}
 	}
 
 	for _, kw := range keywords {
-		if matchesPrefix(kw, prefix) {
+		if matchesPrefix(kw, prefix, prefixQuoted) {
 			addCandidate(kw, "keyword")
 		}
 	}
@@ -170,7 +171,13 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 			end, _ := skipBlockComment(slice, i)
 			i = end + 1
 		case c == '\'' || c == '"':
-			end := skipQuotedLiteral(slice, i, c)
+			end, closed := skipQuotedLiteralWithState(slice, i, c)
+			if !closed && c == '"' {
+				// Unfinished double-quoted identifier being typed at the cursor
+				// must preserve the preceding clause context (e.g. FROM "Mu|).
+				i = end + 1
+				continue
+			}
 			if exprDepth == 0 {
 				clauseToks = append(clauseToks, clauseTok{upper: "_", afterDot: prevDot})
 			}
@@ -270,16 +277,50 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 	return false, false
 }
 
-func matchesPrefix(text, prefix string) bool {
+func matchesPrefix(text, prefix string, quoted bool) bool {
 	if prefix == "" {
 		return true
 	}
+	if quoted {
+		return strings.HasPrefix(text, prefix)
+	}
 	return strings.HasPrefix(strings.ToUpper(text), strings.ToUpper(prefix))
+}
+
+func insideUnclosedDoubleQuote(s string, end int) bool {
+	if end <= 0 {
+		return false
+	}
+	if end > len(s) {
+		end = len(s)
+	}
+	i := 0
+	for i < end {
+		switch {
+		case s[i] == '\'':
+			i = skipQuotedLiteral(s[:end], i, '\'') + 1
+		case s[i] == '"':
+			next, closed := skipQuotedLiteralWithState(s[:end], i, '"')
+			if !closed {
+				return true
+			}
+			i = next + 1
+		case s[i] == '-' && i+1 < end && s[i+1] == '-':
+			i = skipLineComment(s[:end], i) + 1
+		case s[i] == '/' && i+1 < end && s[i+1] == '*':
+			next, _ := skipBlockComment(s[:end], i)
+			i = next + 1
+		default:
+			i++
+		}
+	}
+	return false
 }
 
 type tableRef struct {
 	name     string
 	alias    string
+	quoted   bool
 	subquery []tableToken
 }
 
@@ -349,7 +390,7 @@ func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata, d
 		}
 		return resolveSubqueryColumns(ref.subquery, allTables, depth+1)
 	}
-	table := findMetadataTable(allTables, ref.name)
+	table := findMetadataTable(allTables, ref.name, ref.quoted)
 	if table == nil {
 		return nil
 	}
@@ -372,19 +413,17 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 	}
 	listStart := selIdx + 1
 	listEnd := len(tokens)
-	parenDepth := 0
+	nestDepth := 0
 	for i := listStart; i < len(tokens); i++ {
-		switch tokens[i].paren {
-		case '(':
-			parenDepth++
-			continue
-		case ')':
-			if parenDepth > 0 {
-				parenDepth--
+		if delta := tokenNestDelta(tokens[i]); delta != 0 {
+			if nestDepth+delta >= 0 {
+				nestDepth += delta
+			} else {
+				nestDepth = 0
 			}
 			continue
 		}
-		if parenDepth == 0 && !tokens[i].quoted && isSelectListEndKeyword(strings.ToUpper(tokens[i].text)) {
+		if nestDepth == 0 && !tokens[i].quoted && isSelectListEndKeyword(strings.ToUpper(tokens[i].text)) {
 			listEnd = i
 			break
 		}
@@ -406,21 +445,19 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			itemStart++
 		}
 	}
-	parenDepth = 0
+	nestDepth = 0
 	for i := itemStart; i <= listEnd; i++ {
 		if i < listEnd {
-			switch tokens[i].paren {
-			case '(':
-				parenDepth++
-				continue
-			case ')':
-				if parenDepth > 0 {
-					parenDepth--
+			if delta := tokenNestDelta(tokens[i]); delta != 0 {
+				if nestDepth+delta >= 0 {
+					nestDepth += delta
+				} else {
+					nestDepth = 0
 				}
 				continue
 			}
 		}
-		if i < listEnd && (parenDepth != 0 || !tokens[i].comma) {
+		if i < listEnd && (nestDepth != 0 || !tokens[i].comma) {
 			continue
 		}
 		item := tokens[itemStart:i]
@@ -617,15 +654,17 @@ func collectMetadataTables(meta *metadata.DatabaseSchemaMetadata) []*metadata.Ta
 	return tables
 }
 
-func findMetadataTable(tables []*metadata.TableMetadata, name string) *metadata.TableMetadata {
+func findMetadataTable(tables []*metadata.TableMetadata, name string, quoted bool) *metadata.TableMetadata {
 	for _, t := range tables {
 		if t.GetName() == name {
 			return t
 		}
 	}
-	for _, t := range tables {
-		if strings.EqualFold(t.GetName(), name) {
-			return t
+	if !quoted {
+		for _, t := range tables {
+			if strings.EqualFold(t.GetName(), name) {
+				return t
+			}
 		}
 	}
 	return nil
@@ -819,6 +858,11 @@ func skipBlockComment(s string, start int) (int, bool) {
 }
 
 func skipQuotedLiteral(s string, start int, quote byte) int {
+	end, _ := skipQuotedLiteralWithState(s, start, quote)
+	return end
+}
+
+func skipQuotedLiteralWithState(s string, start int, quote byte) (int, bool) {
 	i := start + 1
 	for i < len(s) {
 		if s[i] == quote {
@@ -826,11 +870,11 @@ func skipQuotedLiteral(s string, start int, quote byte) int {
 				i += 2
 				continue
 			}
-			return i
+			return i, true
 		}
 		i++
 	}
-	return len(s) - 1
+	return len(s) - 1, false
 }
 
 func parenOpensSubquery(s string, pos int) bool {
@@ -938,7 +982,7 @@ func parseTableRefAt(tokens []tableToken, i int) ([]tableRef, int, bool) {
 		return nil, i, false
 	}
 	alias, nextIdx := parseOptionalAlias(tokens, i+1)
-	return []tableRef{{name: tok.text, alias: alias}}, nextIdx, true
+	return []tableRef{{name: tok.text, alias: alias, quoted: tok.quoted}}, nextIdx, true
 }
 
 func parseOptionalAlias(tokens []tableToken, i int) (string, int) {
@@ -1025,6 +1069,23 @@ type tableToken struct {
 	quoted bool
 	comma  bool
 	paren  byte
+	delim  byte
+}
+
+func tokenNestDelta(tok tableToken) int {
+	switch tok.paren {
+	case '(':
+		return 1
+	case ')':
+		return -1
+	}
+	switch tok.delim {
+	case '[', '{', '<':
+		return 1
+	case ']', '}', '>':
+		return -1
+	}
+	return 0
 }
 
 func tokenizeForTableExtraction(s string) []tableToken {
@@ -1043,6 +1104,16 @@ func tokenizeForTableExtraction(s string) []tableToken {
 		if s[i] == '(' || s[i] == ')' {
 			tokens = append(tokens, tableToken{paren: s[i]})
 			i++
+			continue
+		}
+		if s[i] == '[' || s[i] == ']' || s[i] == '{' || s[i] == '}' {
+			tokens = append(tokens, tableToken{delim: s[i]})
+			i++
+			continue
+		}
+		if (s[i] == '<' || s[i] == '>') && i+1 < len(s) && s[i+1] == s[i] {
+			tokens = append(tokens, tableToken{delim: s[i]})
+			i += 2
 			continue
 		}
 		if s[i] == '"' {
@@ -1068,7 +1139,9 @@ func tokenizeForTableExtraction(s string) []tableToken {
 		start := i
 		for i < len(s) && s[i] != ' ' && s[i] != '\t' && s[i] != '\n' &&
 			s[i] != '\r' && s[i] != ',' && s[i] != '"' && s[i] != ';' &&
-			s[i] != '(' && s[i] != ')' {
+			s[i] != '(' && s[i] != ')' && s[i] != '[' && s[i] != ']' &&
+			s[i] != '{' && s[i] != '}' &&
+			((s[i] != '<' && s[i] != '>') || i+1 >= len(s) || s[i+1] != s[i]) {
 			i++
 		}
 		if i > start {
