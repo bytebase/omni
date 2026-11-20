@@ -392,11 +392,11 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" COMMENT 'mv''s note' AS
 SELECT id FROM "s"."t" -- trailing mv comment
 ;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_top_unparsed" AS
-SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)));
-
 CREATE OR REPLACE VIEW "s"."v_base" COMMENT 'ordinary note' AS
 SELECT id FROM "s"."mv_base";
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_top_unparsed" AS
+SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)));
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
 SELECT s.caller(id) FROM "s"."v_base" -- trailing view comment
