@@ -168,7 +168,7 @@ func Complete(sql string, cursorOffset int, meta *metadatapb.DatabaseSchemaMetad
 	store := newSchemaStore(meta, cfg)
 
 	stmtSQL, localOffset := isolateStatementAtCursor(sql, cursorOffset)
-	if insideComment(stmtSQL, localOffset) {
+	if inNonCodeSpan(stmtSQL, localOffset) {
 		return nil
 	}
 	prefix := extractPrefix(stmtSQL, localOffset)
@@ -283,7 +283,7 @@ func insideDoubleQuotes(sql string, offset int) bool {
 	return lex.Err != nil && strings.Contains(lex.Err.Error(), "unterminated")
 }
 
-func insideComment(sql string, offset int) bool {
+func inNonCodeSpan(sql string, offset int) bool {
 	if offset <= 0 {
 		return false
 	}
@@ -293,12 +293,57 @@ func insideComment(sql string, offset int) bool {
 	i := 0
 	for i < offset {
 		switch {
-		case sql[i] == '\'' || sql[i] == '"':
-			q := sql[i]
+		case isQQuoteStart(sql, i, offset):
+			prefixLen := 2
+			if sql[i] == 'n' || sql[i] == 'N' {
+				prefixLen = 3
+			}
+			delimPos := i + prefixLen
+			if delimPos >= offset {
+				return true
+			}
+			openDelim := sql[delimPos]
+			if openDelim == ' ' || openDelim == '\t' || openDelim == '\n' || openDelim == '\r' || openDelim == '\f' {
+				i = offset
+				continue
+			}
+			closeDelim := qQuoteCloseDelim(openDelim)
+			j := delimPos + 1
+			closed := false
+			for j+1 < offset {
+				if sql[j] == closeDelim && sql[j+1] == '\'' {
+					i = j + 2
+					closed = true
+					break
+				}
+				j++
+			}
+			if !closed {
+				return true
+			}
+		case sql[i] == '\'':
+			i++
+			closed := false
+			for i < offset {
+				if sql[i] == '\'' {
+					if i+1 < offset && sql[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					closed = true
+					break
+				}
+				i++
+			}
+			if !closed {
+				return true
+			}
+		case sql[i] == '"':
 			i++
 			for i < offset {
-				if sql[i] == q {
-					if i+1 < offset && sql[i+1] == q {
+				if sql[i] == '"' {
+					if i+1 < offset && sql[i+1] == '"' {
 						i += 2
 						continue
 					}
@@ -334,6 +379,39 @@ func insideComment(sql string, offset int) bool {
 		}
 	}
 	return false
+}
+
+func isQQuoteStart(sql string, i, limit int) bool {
+	if i > 0 && isOracleIdentChar(sql[i-1]) {
+		return false
+	}
+	if (sql[i] == 'q' || sql[i] == 'Q') && i+1 < limit && sql[i+1] == '\'' {
+		return true
+	}
+	if (sql[i] == 'n' || sql[i] == 'N') && i+2 < limit && (sql[i+1] == 'q' || sql[i+1] == 'Q') && sql[i+2] == '\'' {
+		return true
+	}
+	return false
+}
+
+func qQuoteCloseDelim(openDelim byte) byte {
+	switch openDelim {
+	case '[':
+		return ']'
+	case '{':
+		return '}'
+	case '(':
+		return ')'
+	case '<':
+		return '>'
+	default:
+		return openDelim
+	}
+}
+
+func isOracleIdentChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') || c == '_' || c == '$' || c == '#'
 }
 
 func standardComplete(sql string, collectOffset int, store *schemaStore) []Candidate {

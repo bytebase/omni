@@ -37,9 +37,11 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 	}
 
 	stmtSQL, localOffset := extractCurrentStatement(input, pos)
-	prefix := extractPrefix(stmtSQL, localOffset)
-	prefixQuoted := insideUnclosedDoubleQuote(stmtSQL, localOffset-len(prefix))
-	inFromContext, inColumnContext := analyzeCursorContext(stmtSQL, localOffset, len(prefix))
+	prefix, prefixStart, prefixQuoted := extractPrefixAndQuote(stmtSQL, localOffset)
+	inFromContext, inColumnContext, suppressed := analyzeCursorContext(stmtSQL, prefixStart)
+	if suppressed {
+		return nil
+	}
 
 	var candidates []Candidate
 	seen := make(map[string]struct{})
@@ -109,6 +111,20 @@ func collectTableNames(cat *catalog.Catalog, meta *metadata.DatabaseSchemaMetada
 	return tables
 }
 
+func extractPrefixAndQuote(input string, pos int) (prefix string, start int, quoted bool) {
+	if pos > len(input) {
+		pos = len(input)
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	if qStart, ok := unclosedDoubleQuoteStart(input, pos); ok {
+		return strings.ReplaceAll(input[qStart+1:pos], `""`, `"`), qStart, true
+	}
+	prefix = extractPrefix(input, pos)
+	return prefix, pos - len(prefix), false
+}
+
 func extractPrefix(input string, pos int) string {
 	if pos > len(input) {
 		pos = len(input)
@@ -129,23 +145,20 @@ func isIdentChar(ch byte) bool {
 }
 
 // analyzeCursorContext determines whether the cursor is in a table-introducing
-// clause (FROM / JOIN / INTO) or an expression/projection position where columns
-// are valid. Expression-nested FROM keywords (such as TRIM(' ' FROM ...) or
-// SUBSTRING(x FROM ...)) stay inside expression parentheses and do not suppress
-// column completion or trigger table suggestions.
-func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColumn bool) {
-	if pos > len(statement) {
-		pos = len(statement)
+// clause (FROM / JOIN / INTO / UPDATE) or an expression/projection position
+// where columns are valid, or suppressed inside an unfinished comment or
+// single-quoted literal. Expression-nested FROM keywords (such as TRIM(' ' FROM ...)
+// or SUBSTRING(x FROM ...)) stay inside expression parentheses and do not
+// suppress column completion or trigger table suggestions.
+func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, suppressed bool) {
+	if prefixStart > len(statement) {
+		prefixStart = len(statement)
 	}
-	if pos < 0 {
-		pos = 0
+	if prefixStart < 0 {
+		prefixStart = 0
 	}
-	beforeEnd := pos - prefixLen
-	if beforeEnd < 0 {
-		beforeEnd = 0
-	}
-	activeStart := findActiveQueryScopeStart(statement, beforeEnd)
-	slice := isolateSetOperationArm(statement[activeStart:beforeEnd], beforeEnd-activeStart)
+	activeStart := findActiveQueryScopeStart(statement, prefixStart)
+	slice := isolateSetOperationArm(statement[activeStart:prefixStart], prefixStart-activeStart)
 
 	type clauseTok struct {
 		upper    string
@@ -168,13 +181,13 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 		case c == '-' && i+1 < len(slice) && slice[i+1] == '-':
 			end := skipLineComment(slice, i)
 			if slice[end] != '\n' && slice[end] != '\r' {
-				return false, false
+				return false, false, true
 			}
 			i = end + 1
 		case c == '/' && i+1 < len(slice) && slice[i+1] == '*':
 			end, closed := skipBlockComment(slice, i)
 			if !closed {
-				return false, false
+				return false, false, true
 			}
 			i = end + 1
 		case c == '\'' || c == '"':
@@ -182,7 +195,7 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 			if !closed {
 				if c == '\'' {
 					// Unfinished single-quoted literal must suppress keyword/column suggestions.
-					return false, false
+					return false, false, true
 				}
 				// Unfinished double-quoted identifier being typed at the cursor
 				// must preserve the preceding clause context (e.g. FROM "Mu|).
@@ -252,7 +265,7 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 		last := clauseToks[len(clauseToks)-1]
 		if !last.afterDot {
 			if last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" || last.upper == "UPDATE" {
-				return true, false
+				return true, false, false
 			}
 			if last.upper == "," {
 				for idx := len(clauseToks) - 2; idx >= 0; idx-- {
@@ -262,8 +275,8 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 					}
 					switch tok.upper {
 					case "FROM", "JOIN":
-						return true, false
-					case "SELECT", "WHERE", "SET", "GROUP", "HAVING", "ORDER", "VALUES", "RETURNING", "INTO", "UPDATE":
+						return true, false, false
+					case "SELECT", "PIVOT", "AT", "LET", "WHERE", "SET", "GROUP", "HAVING", "ORDER", "VALUES", "RETURNING", "INTO", "UPDATE":
 						idx = -1
 					}
 				}
@@ -271,21 +284,21 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 		}
 	}
 
-	selectIdx := -1
+	queryHeadIdx := -1
 	fromIdx := -1
 	for idx, tok := range clauseToks {
 		if tok.afterDot {
 			continue
 		}
 		switch tok.upper {
-		case "SELECT":
-			selectIdx = idx
+		case "SELECT", "PIVOT":
+			queryHeadIdx = idx
 		case "FROM":
 			fromIdx = idx
 		}
 	}
-	if selectIdx >= 0 && (fromIdx < 0 || fromIdx < selectIdx) {
-		return false, true
+	if queryHeadIdx >= 0 && (fromIdx < 0 || fromIdx < queryHeadIdx) {
+		return false, true, false
 	}
 
 	for idx := len(clauseToks) - 1; idx >= 0; idx-- {
@@ -297,11 +310,11 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 			continue
 		}
 		switch tok.upper {
-		case "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
-			return false, true
+		case "LET", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
+			return false, true, false
 		}
 	}
-	return false, false
+	return false, false, false
 }
 
 func matchesPrefix(text, prefix string, quoted bool) bool {
@@ -312,11 +325,6 @@ func matchesPrefix(text, prefix string, quoted bool) bool {
 		return strings.HasPrefix(text, prefix)
 	}
 	return strings.HasPrefix(strings.ToUpper(text), strings.ToUpper(prefix))
-}
-
-func insideUnclosedDoubleQuote(s string, end int) bool {
-	_, ok := unclosedDoubleQuoteStart(s, end)
-	return ok
 }
 
 func unclosedDoubleQuoteStart(s string, end int) (int, bool) {
@@ -687,12 +695,8 @@ func isOperandToken(s string) bool {
 }
 
 func columnQualifierBeforeCursor(statement string, pos int) (string, bool) {
-	prefix := extractPrefix(statement, pos)
-	beforeEnd := pos - len(prefix)
+	_, beforeEnd, _ := extractPrefixAndQuote(statement, pos)
 	before := strings.TrimRight(statement[:beforeEnd], " \t\n\r")
-	if strings.HasSuffix(before, `"`) && insideUnclosedDoubleQuote(statement, beforeEnd) {
-		before = strings.TrimRight(strings.TrimSuffix(before, `"`), " \t\n\r")
-	}
 	if !strings.HasSuffix(before, ".") {
 		return "", false
 	}
@@ -925,7 +929,7 @@ func findActiveSubquerySpans(statement string, pos int) []scopeSpan {
 			}
 			if len(pendingOpen) > 0 {
 				word := strings.ToUpper(statement[start:i])
-				if word == "SELECT" || word == "WITH" {
+				if word == "SELECT" || word == "WITH" || word == "PIVOT" {
 					for _, idx := range pendingOpen {
 						stack[idx].sub = true
 						openSubCount++
@@ -1310,7 +1314,8 @@ func isKeyword(w string) bool {
 		"JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "CROSS",
 		"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 		"NULL", "MISSING", "TRUE", "FALSE", "CAST", "CASE", "WHEN",
-		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN", "RETURNING":
+		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN", "RETURNING",
+		"PIVOT", "LET":
 		return true
 	}
 	return false

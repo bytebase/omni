@@ -1305,6 +1305,84 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("expected G_CNT package variable in INTO, got %v", resPkg)
 		}
 	})
+
+	t.Run("string literals suppress Oracle completion including q-quoting", func(t *testing.T) {
+		for _, sample := range []string{
+			"SELECT 'AL| FROM album",
+			"SELECT q'[AL| FROM album",
+			"SELECT nq'{AL| FROM album",
+		} {
+			sqlStr, posStr := splitCaret(t, sample)
+			if res := Complete(sqlStr, posStr, meta, WithDefaultSchema("HR")); len(res) != 0 {
+				t.Fatalf("%q: expected no completion inside string literal, got %v", sample, res)
+			}
+		}
+	})
+
+	t.Run("unquoted identifier normalizes to uppercase and rejects lowercase metadata", func(t *testing.T) {
+		lowerOnlyMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name:    "employees",
+							Columns: []*metadatapb.ColumnMetadata{{Name: "lower_id", Type: "NUMBER"}},
+						},
+					},
+				},
+			},
+		}
+		sqlUnq, posUnq := splitCaret(t, "SELECT | FROM employees")
+		resUnq := Complete(sqlUnq, posUnq, lowerOnlyMeta, WithDefaultSchema("HR"))
+		if hasSpec(resUnq, candidateSpec{text: "lower_id", typ: CandidateColumn}) {
+			t.Fatalf("did not expect lowercase table columns for unquoted employees reference, got %v", resUnq)
+		}
+
+		sqlSchemaUnq, posSchemaUnq := splitCaret(t, `SELECT * FROM hr.|`)
+		resSchemaUnq := Complete(sqlSchemaUnq, posSchemaUnq, meta, WithDefaultSchema("HR"))
+		if hasSpec(resSchemaUnq, candidateSpec{text: "employees", typ: CandidateTable}) {
+			t.Fatalf("did not expect lowercase hr.employees under unquoted hr. qualifier, got %v", resSchemaUnq)
+		}
+	})
+
+	t.Run("catalog and metadata derive sole or DefaultSchema instead of DB name", func(t *testing.T) {
+		dbNamedMeta := &metadatapb.DatabaseSchemaMetadata{
+			Name: "ORCL",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{Name: "JOBS", Columns: []*metadatapb.ColumnMetadata{{Name: "JOB_ID", Type: "VARCHAR2"}}},
+					},
+				},
+			},
+		}
+		sqlFrom, posFrom := splitCaret(t, "SELECT * FROM |")
+		if res := Complete(sqlFrom, posFrom, dbNamedMeta); !hasSpec(res, candidateSpec{text: "JOBS", typ: CandidateTable}) {
+			t.Fatalf("expected JOBS from sole schema HR when DatabaseSchemaMetadata.Name is ORCL, got %v", res)
+		}
+
+		cat, err := catalog.LoadSQL("CREATE TABLE hr.jobs (job_id VARCHAR2(10));")
+		if err != nil {
+			t.Fatalf("LoadSQL failed: %v", err)
+		}
+		if resCat := Complete(sqlFrom, posFrom, nil, WithCatalog(cat)); !hasSpec(resCat, candidateSpec{text: "JOBS", typ: CandidateTable}) {
+			t.Fatalf("expected JOBS from WithCatalog sole schema HR without WithDefaultSchema, got %v", resCat)
+		}
+
+		multiMeta := &metadatapb.DatabaseSchemaMetadata{
+			Name:          "ORCL",
+			DefaultSchema: "SCOTT",
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "HR", Tables: []*metadatapb.TableMetadata{{Name: "JOBS"}}},
+				{Name: "SCOTT", Tables: []*metadatapb.TableMetadata{{Name: "EMP"}}},
+			},
+		}
+		if resMulti := Complete(sqlFrom, posFrom, multiMeta); !hasSpec(resMulti, candidateSpec{text: "EMP", typ: CandidateTable}) || hasSpec(resMulti, candidateSpec{text: "JOBS", typ: CandidateTable}) {
+			t.Fatalf("expected DefaultSchema SCOTT table EMP only, got %v", resMulti)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

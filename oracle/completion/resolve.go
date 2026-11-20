@@ -71,11 +71,18 @@ func newSchemaStore(meta *metadatapb.DatabaseSchemaMetadata, cfg options) *schem
 		loadedMisses:  make(map[string]bool),
 		schemaLoader:  cfg.schemaLoader,
 	}
-	if s.defaultSchema == "" && meta != nil && meta.GetName() != "" {
-		s.defaultSchema = meta.GetName()
-	}
+	var catMeta *metadatapb.DatabaseSchemaMetadata
 	if cfg.catalog != nil {
-		s.ingestDatabaseMeta("", cfg.catalog.Metadata())
+		catMeta = cfg.catalog.Metadata()
+	}
+	if s.defaultSchema == "" && meta != nil && meta.GetDefaultSchema() != "" {
+		s.defaultSchema = meta.GetDefaultSchema()
+	}
+	if s.defaultSchema == "" && catMeta != nil && catMeta.GetDefaultSchema() != "" {
+		s.defaultSchema = catMeta.GetDefaultSchema()
+	}
+	if catMeta != nil {
+		s.ingestDatabaseMeta("", catMeta)
 	}
 	if meta != nil {
 		s.ingestDatabaseMeta("", meta)
@@ -85,6 +92,9 @@ func newSchemaStore(meta *metadatapb.DatabaseSchemaMetadata, cfg options) *schem
 	}
 	for _, name := range cfg.schemaNames {
 		s.registerSchemaName(name)
+	}
+	if s.defaultSchema == "" && len(s.schemaOrder) == 1 {
+		s.defaultSchema = s.schemaOrder[0]
 	}
 	return s
 }
@@ -120,12 +130,8 @@ func (s *schemaStore) ingestDatabaseMeta(explicitName string, dbMeta *metadatapb
 	}
 	schemas := dbMeta.GetSchemas()
 	if len(schemas) == 0 {
-		name := explicitName
-		if name == "" {
-			name = dbMeta.GetName()
-		}
-		if name != "" {
-			s.registerSchemaName(name)
+		if explicitName != "" {
+			s.registerSchemaName(explicitName)
 		}
 		return
 	}
@@ -138,7 +144,7 @@ func (s *schemaStore) ingestDatabaseMeta(explicitName string, dbMeta *metadatapb
 			name = explicitName
 		}
 		if name == "" {
-			name = dbMeta.GetName()
+			name = dbMeta.GetDefaultSchema()
 		}
 		if name == "" {
 			name = s.defaultSchema
@@ -170,28 +176,39 @@ func (s *schemaStore) getSchema(name string) (string, *metadatapb.SchemaMetadata
 	return s.getSchemaWithCase(name, false)
 }
 
+func (s *schemaStore) getSchemaExact(name string) (string, *metadatapb.SchemaMetadata) {
+	return s.getSchemaWithCase(name, true)
+}
+
 func (s *schemaStore) getSchemaWithCase(name string, quoted bool) (string, *metadatapb.SchemaMetadata) {
-	if sm, ok := s.schemas[name]; ok {
-		return name, sm
-	}
-	if !quoted {
-		for k, sm := range s.schemas {
-			if strings.EqualFold(k, name) {
-				return k, sm
+	if quoted {
+		if sm, ok := s.schemas[name]; ok {
+			return name, sm
+		}
+	} else {
+		if name == "" {
+			if s.defaultSchema != "" {
+				return s.getSchemaExact(s.defaultSchema)
 			}
+			if sm, ok := s.schemas[""]; ok {
+				return "", sm
+			}
+			return "", nil
+		}
+		upper := strings.ToUpper(name)
+		if sm, ok := s.schemas[upper]; ok {
+			return upper, sm
 		}
 	}
 	if name == "" {
-		if s.defaultSchema != "" {
-			return s.getSchema(s.defaultSchema)
-		}
 		return "", nil
 	}
 
 	targetName := name
 	if !quoted {
+		targetName = strings.ToUpper(name)
 		for _, known := range s.schemaOrder {
-			if strings.EqualFold(known, name) {
+			if nameMatches(known, name, false) {
 				targetName = known
 				break
 			}
@@ -210,10 +227,9 @@ func (s *schemaStore) getSchemaWithCase(name string, quoted bool) (string, *meta
 		return targetName, sm
 	}
 	if !quoted {
-		for k, sm := range s.schemas {
-			if strings.EqualFold(k, targetName) {
-				return k, sm
-			}
+		upper := strings.ToUpper(targetName)
+		if sm, ok := s.schemas[upper]; ok {
+			return upper, sm
 		}
 	}
 	s.loadedMisses[targetName] = true
@@ -625,7 +641,7 @@ func (r *resolver) completionSchemas(schema string, quoted bool) map[schemaQuery
 		return schemas
 	}
 	if r.store.defaultSchema != "" {
-		schemas[schemaQuery{name: r.store.defaultSchema}] = true
+		schemas[schemaQuery{name: r.store.defaultSchema, quoted: true}] = true
 	}
 	schemas[schemaQuery{}] = true
 	return schemas
@@ -816,7 +832,7 @@ func (r *resolver) insertConstraintCandidates(dst *[]Candidate) {
 		schemaQuoted := phys.SchemaQuoted
 		if schema == "" {
 			schema = r.store.defaultSchema
-			schemaQuoted = false
+			schemaQuoted = true
 		}
 		_, sm := r.store.getSchemaWithCase(schema, schemaQuoted)
 		if sm == nil {
@@ -939,7 +955,7 @@ func (r *resolver) insertColumnContextCandidates(
 		explicit := s != ""
 		if s == "" {
 			s = r.store.defaultSchema
-			sQuoted = false
+			sQuoted = true
 		}
 		for _, existing := range targets {
 			if existing.schema == s && existing.table == t && existing.schemaQuoted == sQuoted && existing.tableQuoted == tQuoted && existing.schemaExplicit == explicit {
@@ -1007,7 +1023,7 @@ func (r *resolver) insertColumnContextCandidates(
 	}
 
 	if len(schemas) == 0 {
-		schemas[schemaQuery{name: r.store.defaultSchema}] = true
+		schemas[schemaQuery{name: r.store.defaultSchema, quoted: true}] = true
 	}
 	schemas[schemaQuery{}] = true
 
@@ -1149,11 +1165,11 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 			if targetSchema == "" {
 				targetSchema = resolvedSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, !targetExplicit, visited)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), true, true, !targetExplicit, visited)
 			return
 		}
 	}
-	if allowPublicSyn && (schema == "" || nameMatches(schema, r.store.defaultSchema, schemaQuoted)) {
+	if allowPublicSyn && (schema == "" || nameMatches(r.store.defaultSchema, schema, schemaQuoted)) {
 		if syn := findSynonymMeta(r.store.publicSynonyms, name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
 			if syn.GetTargetDbLink() != "" {
 				return
@@ -1163,7 +1179,7 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 			if targetSchema == "" {
 				targetSchema = r.store.defaultSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, !targetExplicit, visited)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), true, true, !targetExplicit, visited)
 		}
 	}
 }
@@ -1172,20 +1188,13 @@ func nameMatches(candidate, query string, quoted bool) bool {
 	if quoted {
 		return candidate == query
 	}
-	return candidate == query || strings.EqualFold(candidate, query)
+	return candidate == strings.ToUpper(query)
 }
 
 func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.ExternalTableMetadata {
 	for _, ext := range sm.GetExternalTables() {
-		if ext.GetName() == name {
+		if nameMatches(ext.GetName(), name, quoted) {
 			return ext
-		}
-	}
-	if !quoted {
-		for _, ext := range sm.GetExternalTables() {
-			if strings.EqualFold(ext.GetName(), name) {
-				return ext
-			}
 		}
 	}
 	return nil
@@ -1193,15 +1202,8 @@ func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bo
 
 func findMaterializedViewMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.MaterializedViewMetadata {
 	for _, mv := range sm.GetMaterializedViews() {
-		if mv.GetName() == name {
+		if nameMatches(mv.GetName(), name, quoted) {
 			return mv
-		}
-	}
-	if !quoted {
-		for _, mv := range sm.GetMaterializedViews() {
-			if strings.EqualFold(mv.GetName(), name) {
-				return mv
-			}
 		}
 	}
 	return nil
@@ -1256,15 +1258,8 @@ func extractSelectFromViewDefinition(definition string) string {
 
 func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string, quoted bool) *metadatapb.SynonymMetadata {
 	for _, syn := range syns {
-		if syn.GetName() == name {
+		if nameMatches(syn.GetName(), name, quoted) {
 			return syn
-		}
-	}
-	if !quoted {
-		for _, syn := range syns {
-			if strings.EqualFold(syn.GetName(), name) {
-				return syn
-			}
 		}
 	}
 	return nil
@@ -1272,15 +1267,8 @@ func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string, quoted boo
 
 func findTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.TableMetadata {
 	for _, t := range sm.GetTables() {
-		if t.GetName() == name {
+		if nameMatches(t.GetName(), name, quoted) {
 			return t
-		}
-	}
-	if !quoted {
-		for _, t := range sm.GetTables() {
-			if strings.EqualFold(t.GetName(), name) {
-				return t
-			}
 		}
 	}
 	return nil
@@ -1288,15 +1276,8 @@ func findTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *met
 
 func findViewMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.ViewMetadata {
 	for _, v := range sm.GetViews() {
-		if v.GetName() == name {
+		if nameMatches(v.GetName(), name, quoted) {
 			return v
-		}
-	}
-	if !quoted {
-		for _, v := range sm.GetViews() {
-			if strings.EqualFold(v.GetName(), name) {
-				return v
-			}
 		}
 	}
 	return nil

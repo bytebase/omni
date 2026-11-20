@@ -541,6 +541,31 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"SongTitle"},
 		},
+		{
+			name:     "PIVOT value and AT key expressions suggest FROM columns",
+			input:    "PIVOT | AT key FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "PIVOT AT key expression suggests FROM columns",
+			input:    "PIVOT Artist AT | FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "LET binding expression suggests FROM columns",
+			input:    "SELECT * FROM Music LET | AS title",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "second LET binding does not suggest tables after comma",
+			input:    "SELECT * FROM Music LET Artist AS a, |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {
@@ -564,6 +589,65 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 				t.Errorf("tables = %v, want %v", gotTabs, tc.wantTabs)
 			}
 		})
+	}
+}
+
+func TestCompleteKeywordSuppressionAndQuotedPunctuationPrefix(t *testing.T) {
+	cat := catalog.New()
+	meta := &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "Order-Items",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Item-Code", Type: "STRING"},
+						},
+					},
+					{
+						Name: "ItemMaster",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "Id", Type: "STRING"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, suppressed := range []string{
+		"SELECT * FROM \"Order-Items\" -- SEL|",
+		"SELECT * FROM \"Order-Items\" /* SEL|",
+		"SELECT * FROM \"Order-Items\" WHERE \"Item-Code\" = 'SEL|",
+	} {
+		sql, pos := splitMarker(t, suppressed)
+		if got := CompleteWithMetadata(sql, pos, cat, meta); len(got) != 0 {
+			t.Errorf("%q: expected zero candidates (including keywords), got %v", suppressed, got)
+		}
+	}
+
+	hasCandidate := func(cs []Candidate, text, kind string) bool {
+		for _, c := range cs {
+			if c.Text == text && c.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	sqlTab, posTab := splitMarker(t, `SELECT * FROM "Order-I|`)
+	gotTab := CompleteWithMetadata(sqlTab, posTab, cat, meta)
+	if !hasCandidate(gotTab, "Order-Items", "table") {
+		t.Errorf(`expected "Order-Items" for quoted prefix "Order-I, got %v`, gotTab)
+	}
+	if hasCandidate(gotTab, "ItemMaster", "table") {
+		t.Errorf(`did not expect ItemMaster for quoted prefix "Order-I, got %v`, gotTab)
+	}
+
+	sqlCol, posCol := splitMarker(t, `SELECT "Item-C| FROM "Order-Items"`)
+	gotCol := CompleteWithMetadata(sqlCol, posCol, cat, meta)
+	if !hasCandidate(gotCol, "Item-Code", "column") {
+		t.Errorf(`expected "Item-Code" for quoted column prefix "Item-C, got %v`, gotCol)
 	}
 }
 
