@@ -57,12 +57,14 @@ type SchemaMetadata struct {
 }
 
 // ViewMetadata is one view; it renders to a single CREATE OR REPLACE VIEW
-// statement.
+// (or CREATE MATERIALIZED VIEW IF NOT EXISTS) statement.
 type ViewMetadata struct {
 	// Name is the view name, emitted double-quoted.
 	Name string
 	// Definition is the SELECT text the view is created AS, emitted as-is.
 	Definition string
+	// Comment is the optional view/materialized-view comment, emitted as COMMENT '...'.
+	Comment string
 }
 
 // TableMetadata is one table; it renders to a single CREATE TABLE statement.

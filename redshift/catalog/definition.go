@@ -586,9 +586,26 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 	case *nodes.BoolExpr, *nodes.NullTest, *nodes.BooleanTest:
 		return "bool"
 	case *nodes.CoalesceExpr:
-		return inferFirstNonEmptyArgType(n.Args, callerSchema, callerParams, fnCat)
+		if n.Args != nil {
+			return inferCommonExprTypes(n.Args.Items, callerSchema, callerParams, fnCat)
+		}
 	case *nodes.MinMaxExpr:
-		return inferFirstNonEmptyArgType(n.Args, callerSchema, callerParams, fnCat)
+		if n.Args != nil {
+			return inferCommonExprTypes(n.Args.Items, callerSchema, callerParams, fnCat)
+		}
+	case *nodes.CaseExpr:
+		var branches []nodes.Node
+		if n.Args != nil {
+			for _, item := range n.Args.Items {
+				if cw, ok := item.(*nodes.CaseWhen); ok && cw.Result != nil {
+					branches = append(branches, cw.Result)
+				}
+			}
+		}
+		if n.Defresult != nil {
+			branches = append(branches, n.Defresult)
+		}
+		return inferCommonExprTypes(branches, callerSchema, callerParams, fnCat)
 	case *nodes.A_Expr:
 		if n.Kind == nodes.AEXPR_NULLIF {
 			return inferExprType(n.Lexpr, callerSchema, callerParams, fnCat)
@@ -645,16 +662,22 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 	return ""
 }
 
-func inferFirstNonEmptyArgType(args *nodes.List, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) string {
-	if args == nil {
-		return ""
-	}
-	for _, item := range args.Items {
-		if t := inferExprType(item, callerSchema, callerParams, fnCat); t != "" {
-			return t
+func inferCommonExprTypes(exprs []nodes.Node, callerSchema string, callerParams []functionParam, fnCat *funcCatalog) string {
+	var result string
+	for _, item := range exprs {
+		t := inferExprType(item, callerSchema, callerParams, fnCat)
+		if t == "" {
+			continue
+		}
+		if result == "" || result == t {
+			result = t
+			continue
+		}
+		if common := commonNumericType(result, t); common != "" {
+			result = common
 		}
 	}
-	return ""
+	return result
 }
 
 func walkASTFunctionCalls(node nodes.Node, callerSchema string, callerParams []functionParam, fnCat *funcCatalog, calls *[]functionCall) {
@@ -1581,6 +1604,12 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
 			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
 		}
+		if !isSupportedRedshiftFKAction(fk.onDelete) {
+			return fmt.Errorf("foreign key %s on %s has unsupported ON DELETE action %q", fk.name, table.qualifiedName(), fk.onDelete)
+		}
+		if !isSupportedRedshiftFKAction(fk.onUpdate) {
+			return fmt.Errorf("foreign key %s on %s has unsupported ON UPDATE action %q", fk.name, table.qualifiedName(), fk.onUpdate)
+		}
 	}
 	buf := &strings.Builder{}
 	if err := table.toStringWithFKs(buf, foreignKeys); err != nil {
@@ -1920,7 +1949,14 @@ type foreignKeyState struct {
 	referencedSchema  string
 	referencedTable   string
 	referencedColumns []string
+	onDelete          string
+	onUpdate          string
 	comment           string
+}
+
+func isSupportedRedshiftFKAction(action string) bool {
+	trimmed := strings.TrimSpace(strings.ToUpper(action))
+	return trimmed == "" || trimmed == "NO ACTION"
 }
 
 func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb.ForeignKeyMetadata) *foreignKeyState {
@@ -1935,6 +1971,8 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 		referencedSchema:  refSchema,
 		referencedTable:   foreignKey.ReferencedTable,
 		referencedColumns: foreignKey.ReferencedColumns,
+		onDelete:          foreignKey.OnDelete,
+		onUpdate:          foreignKey.OnUpdate,
 		comment:           foreignKey.Comment,
 	}
 }
@@ -1942,6 +1980,12 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 func (f *foreignKeyState) toString(buf *strings.Builder) error {
 	if len(f.columns) == 0 || len(f.columns) != len(f.referencedColumns) {
 		return fmt.Errorf("foreign key %s has %d columns and %d referenced columns", f.name, len(f.columns), len(f.referencedColumns))
+	}
+	if !isSupportedRedshiftFKAction(f.onDelete) {
+		return fmt.Errorf("foreign key %s has unsupported ON DELETE action %q", f.name, f.onDelete)
+	}
+	if !isSupportedRedshiftFKAction(f.onUpdate) {
+		return fmt.Errorf("foreign key %s has unsupported ON UPDATE action %q", f.name, f.onUpdate)
 	}
 	n := len(f.columns)
 	if f.name != "" {

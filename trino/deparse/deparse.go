@@ -10,12 +10,16 @@ import (
 
 // DatabaseDefinitionFromProto renders a Trino database schema proto as SDL.
 func DatabaseDefinitionFromProto(metadata *metadatapb.DatabaseSchemaMetadata) (string, error) {
-	return GetDatabaseDefinition(fromProtoMetadata(metadata))
+	converted, err := fromProtoMetadata(metadata)
+	if err != nil {
+		return "", err
+	}
+	return GetDatabaseDefinition(converted)
 }
 
-func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSchemaMetadata {
+func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSchemaMetadata, error) {
 	if metadata == nil {
-		return nil
+		return nil, nil
 	}
 	out := &DatabaseSchemaMetadata{
 		Name:    metadata.Name,
@@ -49,6 +53,12 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 					Nullable: c.Nullable,
 				})
 			}
+			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
+			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
+			// rejects columnless tables because Trino cannot restore them.
+			if len(tableMeta.Columns) == 0 {
+				return nil, fmt.Errorf("table %s.%s has no columns", s.Name, t.Name)
+			}
 			schemaMeta.Tables = append(schemaMeta.Tables, tableMeta)
 		}
 		for _, v := range s.Views {
@@ -58,6 +68,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:       v.Name,
 				Definition: v.Definition,
+				Comment:    v.Comment,
 			})
 		}
 		for _, mv := range s.MaterializedViews {
@@ -67,11 +78,12 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSch
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
 				Name:       mv.Name,
 				Definition: mv.Definition,
+				Comment:    mv.Comment,
 			})
 		}
 		out.Schemas = append(out.Schemas, schemaMeta)
 	}
-	return out
+	return out, nil
 }
 
 // GetDatabaseDefinition renders the schema metadata as the DDL that recreates
@@ -169,6 +181,94 @@ func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetad
 	buf.WriteString("\n);")
 }
 
+func escapeStringLiteral(s string) string {
+	return strings.ReplaceAll(s, `'`, `''`)
+}
+
+// appendTerminator appends ";" when stmt does not already end in a
+// statement terminator, placing it on a new line if stmt ends inside a "--"
+// line comment.
+func appendTerminator(stmt string) string {
+	var (
+		inSingleQuote  bool
+		inDoubleQuote  bool
+		inLineComment  bool
+		inBlockComment bool
+		lastCodeByte   byte
+	)
+	for i := 0; i < len(stmt); {
+		ch := stmt[i]
+		if inLineComment {
+			if ch == '\n' {
+				inLineComment = false
+			}
+			i++
+			continue
+		}
+		if inBlockComment {
+			if ch == '*' && i+1 < len(stmt) && stmt[i+1] == '/' {
+				inBlockComment = false
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
+		if inSingleQuote {
+			if ch == '\'' {
+				if i+1 < len(stmt) && stmt[i+1] == '\'' {
+					i += 2
+					continue
+				}
+				inSingleQuote = false
+				lastCodeByte = '\''
+			}
+			i++
+			continue
+		}
+		if inDoubleQuote {
+			if ch == '"' {
+				if i+1 < len(stmt) && stmt[i+1] == '"' {
+					i += 2
+					continue
+				}
+				inDoubleQuote = false
+				lastCodeByte = '"'
+			}
+			i++
+			continue
+		}
+		switch {
+		case ch == '-' && i+1 < len(stmt) && stmt[i+1] == '-':
+			inLineComment = true
+			i += 2
+		case ch == '/' && i+1 < len(stmt) && stmt[i+1] == '*':
+			inBlockComment = true
+			i += 2
+		case ch == '\'':
+			inSingleQuote = true
+			lastCodeByte = ch
+			i++
+		case ch == '"':
+			inDoubleQuote = true
+			lastCodeByte = ch
+			i++
+		case ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n':
+			i++
+		default:
+			lastCodeByte = ch
+			i++
+		}
+	}
+	if lastCodeByte == ';' {
+		return stmt
+	}
+	if inLineComment {
+		return stmt + "\n;"
+	}
+	return stmt + ";"
+}
+
 // writeCreateView appends a single CREATE OR REPLACE VIEW (or CREATE
 // MATERIALIZED VIEW IF NOT EXISTS) statement for view (qualified by schemaName)
 // to buf. It does not append the inter-statement blank line; the caller does.
@@ -180,11 +280,17 @@ func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata
 		}
 		return fmt.Errorf("view %s.%s has no definition to restore", schemaName, view.Name)
 	}
-	if materialized {
-		fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW IF NOT EXISTS %s.%s AS\n%s;", quoteIdentifier(schemaName), quoteIdentifier(view.Name), definition)
-		return nil
+	commentClause := ""
+	if view.Comment != "" {
+		commentClause = fmt.Sprintf(" COMMENT '%s'", escapeStringLiteral(view.Comment))
 	}
-	fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s.%s AS\n%s;", quoteIdentifier(schemaName), quoteIdentifier(view.Name), definition)
+	var stmt string
+	if materialized {
+		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW IF NOT EXISTS %s.%s%s AS\n%s", quoteIdentifier(schemaName), quoteIdentifier(view.Name), commentClause, definition)
+	} else {
+		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s.%s%s AS\n%s", quoteIdentifier(schemaName), quoteIdentifier(view.Name), commentClause, definition)
+	}
+	buf.WriteString(appendTerminator(stmt))
 	return nil
 }
 

@@ -345,13 +345,13 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 				Views: []*metadatapb.ViewMetadata{
 					nil,
 					{Name: "v_skip", Definition: "SELECT 1", SkipDump: true},
-					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base"`},
-					{Name: "v_base", Definition: `SELECT id FROM "s"."mv_base"`},
+					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base" -- trailing view comment`},
+					{Name: "v_base", Definition: `SELECT id FROM "s"."mv_base"`, Comment: "ordinary note"},
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
 					nil,
 					{Name: "mv_skip", Definition: "SELECT 1", SkipDump: true},
-					{Name: "mv_base", Definition: `SELECT id FROM "s"."t"`},
+					{Name: "mv_base", Definition: `SELECT id FROM "s"."t" -- trailing mv comment`, Comment: "mv's note"},
 				},
 			},
 		},
@@ -365,14 +365,25 @@ CREATE TABLE IF NOT EXISTS "s"."t" (
     "label" varchar
 );
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" AS
-SELECT id FROM "s"."t";
+CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" COMMENT 'mv''s note' AS
+SELECT id FROM "s"."t" -- trailing mv comment
+;
 
-CREATE OR REPLACE VIEW "s"."v_base" AS
+CREATE OR REPLACE VIEW "s"."v_base" COMMENT 'ordinary note' AS
 SELECT id FROM "s"."mv_base";
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
-SELECT id FROM "s"."v_base";
+SELECT id FROM "s"."v_base" -- trailing view comment
+;
 
 `, got)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "s",
+			Tables: []*metadatapb.TableMetadata{{Name: "empty_t"}},
+		}},
+	})
+	require.ErrorContains(t, err, "no columns")
 }

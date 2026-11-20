@@ -1094,4 +1094,62 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	})
 	require.NoError(t, err)
 	require.Contains(t, commentQuoteIdent, "SET enable_case_sensitive_identifier TO true;\n")
+
+	// 9. CASE expression result types resolve overloaded UDFs without false cycles.
+	caseOverload, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f_case",
+					Definition: "CREATE FUNCTION public.f_case(s text) RETURNS text IMMUTABLE AS $$ SELECT public.case_wrap(s) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "case_wrap",
+					Definition: "CREATE FUNCTION public.case_wrap(s text) RETURNS text IMMUTABLE AS $$ SELECT public.f_case(CASE WHEN s IS NOT NULL THEN length(s) ELSE 0 END) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "f_case",
+					Definition: "CREATE FUNCTION public.f_case(n int) RETURNS text IMMUTABLE AS $$ SELECT n::text $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	caseIntPos := strings.Index(caseOverload, "CREATE FUNCTION public.f_case(n int)")
+	caseWrapPos := strings.Index(caseOverload, "CREATE FUNCTION public.case_wrap(s text)")
+	caseTextPos := strings.Index(caseOverload, "CREATE FUNCTION public.f_case(s text)")
+	require.Greater(t, caseWrapPos, caseIntPos)
+	require.Greater(t, caseTextPos, caseWrapPos)
+
+	// 10. Unsupported FK actions (anything other than empty or NO ACTION) are rejected.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_cascade",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "parent_id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_parent",
+			Columns:           []string{"parent_id"},
+			ReferencedSchema:  "public",
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			OnDelete:          "CASCADE",
+		}},
+	})
+	require.ErrorContains(t, err, "ON DELETE")
+
+	noActionFK, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_no_action",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "parent_id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_parent",
+			Columns:           []string{"parent_id"},
+			ReferencedSchema:  "public",
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			OnDelete:          "NO ACTION",
+			OnUpdate:          "NO ACTION",
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, noActionFK, `CONSTRAINT "fk_parent" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
 }
