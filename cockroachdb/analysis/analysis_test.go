@@ -56,7 +56,7 @@ func TestParseDoBlock(t *testing.T) {
 	}
 }
 
-func TestParseAndSplitScript(t *testing.T) {
+func TestParseScript(t *testing.T) {
 	const script = "SELECT 1;\n\n;\n\nCREATE TABLE t (id INT)"
 	parsed, err := ParseScript(script)
 	if err != nil {
@@ -67,17 +67,5 @@ func TestParseAndSplitScript(t *testing.T) {
 	}
 	if parsed[0].Text() != "SELECT 1" {
 		t.Errorf("parsed[0].Text() = %q, want %q", parsed[0].Text(), "SELECT 1")
-	}
-
-	split := SplitScript(script)
-	want := []string{"SELECT 1;", "CREATE TABLE t (id INT);"}
-	if diff := cmp.Diff(want, split); diff != "" {
-		t.Errorf("SplitScript() mismatch (-want +got):\n%s", diff)
-	}
-
-	invalidSplit := SplitScript(`SELECT 1; ; SELECT FROM; SELECT 2`)
-	wantInvalid := []string{`SELECT 1;`, `SELECT FROM;`, `SELECT 2;`}
-	if diff := cmp.Diff(wantInvalid, invalidSplit); diff != "" {
-		t.Errorf("SplitScript(invalid) mismatch (-want +got):\n%s", diff)
 	}
 }

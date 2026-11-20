@@ -42,25 +42,6 @@ func ParseScript(script string) ([]ParsedStatement, error) {
 	return out, nil
 }
 
-// SplitScript splits script lexically and returns each non-empty statement
-// terminated with a semicolon. Unlike Split, which keeps empty segments as "",
-// SplitScript omits empty segments; unlike ParseScript, it succeeds on
-// syntactically invalid scripts as long as statement boundaries can be scanned.
-func SplitScript(script string) []string {
-	segments := Split(script)
-	result := make([]string, 0, len(segments))
-	for _, seg := range segments {
-		if seg == "" {
-			continue
-		}
-		if !strings.HasSuffix(seg, ";") {
-			seg += ";"
-		}
-		result = append(result, seg)
-	}
-	return result
-}
-
 func unwrapStatements(stmts []ParsedStatement) statements.Statements {
 	out := make(statements.Statements, len(stmts))
 	for i, stmt := range stmts {

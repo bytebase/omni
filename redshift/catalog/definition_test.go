@@ -86,7 +86,8 @@ COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
 					Name: "items",
 					Columns: []*metadatapb.ColumnMetadata{
 						{Name: "status", Type: "character varying(20)", Default: "'active'"},
-						{Name: "title", Type: "character varying(50)", Collation: "en_US.utf8", Default: "'it''s ok'", Nullable: true},
+						{Name: "title", Type: "character varying(50)", Collation: "case_insensitive", Default: "'it''s ok'", Nullable: true},
+						{Name: "code", Type: "character varying(20)", Collation: "CS", Default: "SYSDATE", Nullable: true},
 						{Name: "tag", Type: "character varying(20)", CollationSchema: "pg_catalog", Collation: "default", Default: "owner's", Nullable: true},
 						{Name: "qty", Type: "integer", Default: "0"},
 						{Name: "active", Type: "boolean", Default: "true"},
@@ -95,7 +96,8 @@ COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
 			},
 			want: `CREATE TABLE "public"."items" (
   "status" character varying(20) NOT NULL DEFAULT 'active',
-  "title" character varying(50) COLLATE "en_US.utf8" DEFAULT 'it''s ok',
+  "title" character varying(50) COLLATE CASE_INSENSITIVE DEFAULT 'it''s ok',
+  "code" character varying(20) COLLATE CS DEFAULT SYSDATE,
   "tag" character varying(20) COLLATE "pg_catalog"."default" DEFAULT 'owner''s',
   "qty" integer NOT NULL DEFAULT 0,
   "active" boolean NOT NULL DEFAULT true

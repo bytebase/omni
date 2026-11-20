@@ -880,7 +880,7 @@ func (c *columnState) toString(buf *strings.Builder) error {
 		return err
 	}
 	if c.collation != "" {
-		if _, err := fmt.Fprintf(buf, " COLLATE %s", qualifyName(c.collationSchema, c.collation)); err != nil {
+		if _, err := fmt.Fprintf(buf, " COLLATE %s", formatRedshiftCollation(c.collationSchema, c.collation)); err != nil {
 			return err
 		}
 	}
@@ -919,12 +919,27 @@ func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnStat
 	return result
 }
 
+// formatRedshiftCollation emits Redshift's unquoted collation keywords
+// (CASE_SENSITIVE, CS, CASE_INSENSITIVE, CI) verbatim and quotes other
+// collation names as identifiers.
+func formatRedshiftCollation(schema, name string) string {
+	if schema == "" {
+		switch strings.ToUpper(name) {
+		case "CASE_SENSITIVE", "CS", "CASE_INSENSITIVE", "CI":
+			return strings.ToUpper(name)
+		}
+	}
+	return qualifyName(schema, name)
+}
+
 func isExpression(value string) bool {
-	return strings.Contains(value, "(") || strings.Contains(value, ")") ||
-		strings.Contains(value, "::") || strings.Contains(value, "||") ||
-		strings.Contains(value, "NOW") || strings.Contains(value, "CURRENT_") ||
-		strings.Contains(value, "GETDATE") || strings.Contains(value, "TIMESTAMP") ||
-		strings.Contains(value, "SEQUENCE")
+	upper := strings.ToUpper(strings.TrimSpace(value))
+	return strings.Contains(upper, "(") || strings.Contains(upper, ")") ||
+		strings.Contains(upper, "::") || strings.Contains(upper, "||") ||
+		strings.Contains(upper, "NOW") || strings.Contains(upper, "CURRENT_") ||
+		strings.Contains(upper, "GETDATE") || strings.Contains(upper, "TIMESTAMP") ||
+		strings.Contains(upper, "SEQUENCE") || upper == "SYSDATE" ||
+		upper == "LOCALTIME" || upper == "LOCALTIMESTAMP"
 }
 
 // isQuotedSQLLiteral reports whether s is already a single-quoted SQL string
