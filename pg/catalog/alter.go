@@ -325,155 +325,22 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
-	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
-	// mutation this catalog cannot rebuild from another field is a stored
-	// tablespace, so it is restored if a later subcommand fails.
-	needsRollback := len(pending) > 1
+	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. Snapshot
+	// catalog state (preserving pre-existing object pointer identities on
+	// restore) whenever multiple subcommands run or a single subcommand mutates
+	// state across relations/dependents before a later failure.
+	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0)
 	for _, p := range pending {
 		switch nodes.AlterTableType(p.cmd.Subtype) {
 		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner, nodes.AT_SetAccessMethod,
 			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
-			nodes.AT_ReplicaIdentity, nodes.AT_AlterConstraint:
+			nodes.AT_ReplicaIdentity, nodes.AT_AlterConstraint, nodes.AT_AddColumn:
 			needsRollback = true
 		}
 	}
-	var relTablespaces map[*Relation]string
-	var relAccessMethods map[*Relation]string
-	var relCheckOptions map[*Relation]byte
-	var relReplicaIdents map[*Relation]byte
-	var relOfTypes map[*Relation]uint32
-	var relRowSec map[*Relation][2]bool
-	var relHasRules map[*Relation]bool
-	var relRules map[*Relation]map[string]byte
-	var savedCols map[*Column]Column
-	var idxTablespaces map[*Index]string
-	var idxReplicaIdents map[*Index]bool
-	var conDeferStates map[*Constraint][3]bool
-	var relOwners map[*Relation]string
-	var idxOwners map[*Index]string
-	var seqOwners map[*Sequence]string
-	var savedTypeOwners map[uint32]string
-	var savedGrants []Grant
-	var savedDeps []DepEntry
 	restore := func() {}
 	if needsRollback {
-		rels := []*Relation{rel}
-		for _, childOID := range c.findChildRelations(rel.OID) {
-			if child := c.relationByOID[childOID]; child != nil {
-				rels = append(rels, child)
-			}
-		}
-		relTablespaces = map[*Relation]string{}
-		relAccessMethods = map[*Relation]string{}
-		relCheckOptions = map[*Relation]byte{}
-		relReplicaIdents = map[*Relation]byte{}
-		relOfTypes = map[*Relation]uint32{}
-		relRowSec = map[*Relation][2]bool{}
-		relHasRules = map[*Relation]bool{}
-		relRules = map[*Relation]map[string]byte{}
-		savedCols = map[*Column]Column{}
-		relOwners = map[*Relation]string{}
-		idxTablespaces = map[*Index]string{}
-		idxReplicaIdents = map[*Index]bool{}
-		conDeferStates = map[*Constraint][3]bool{}
-		idxOwners = map[*Index]string{}
-		seqOwners = map[*Sequence]string{}
-		savedTypeOwners = make(map[uint32]string, len(c.typeOwners))
-		for oid, owner := range c.typeOwners {
-			savedTypeOwners[oid] = owner
-		}
-		if c.grants != nil {
-			savedGrants = make([]Grant, len(c.grants))
-			for i, g := range c.grants {
-				savedGrants[i] = g
-				savedGrants[i].Columns = slices.Clone(g.Columns)
-			}
-		}
-		savedDeps = slices.Clone(c.deps)
-		for _, r := range rels {
-			relTablespaces[r] = r.Tablespace
-			relAccessMethods[r] = r.AccessMethod
-			relCheckOptions[r] = r.CheckOption
-			relReplicaIdents[r] = r.ReplicaIdentity
-			relOfTypes[r] = r.OfTypeOID
-			relRowSec[r] = [2]bool{r.RowSecurity, r.ForceRowSecurity}
-			relHasRules[r] = r.HasRules
-			if r.Rules != nil {
-				rcp := make(map[string]byte, len(r.Rules))
-				for k, v := range r.Rules {
-					rcp[k] = v
-				}
-				relRules[r] = rcp
-			}
-			for _, col := range r.Columns {
-				savedCols[col] = *col
-			}
-			relOwners[r] = r.OwnerName
-			for _, idx := range c.indexesByRel[r.OID] {
-				idxTablespaces[idx] = idx.Tablespace
-				idxReplicaIdents[idx] = idx.IsReplicaIdent
-				idxOwners[idx] = idx.OwnerName
-			}
-			for _, con := range c.consByRel[r.OID] {
-				conDeferStates[con] = [3]bool{con.Deferrable, con.Deferred, con.Validated}
-			}
-			for _, seq := range c.sequenceByOID {
-				if seq.OwnerRelOID == r.OID {
-					seqOwners[seq] = seq.OwnerName
-				}
-			}
-		}
-		restore = func() {
-			for r, ts := range relTablespaces {
-				r.Tablespace = ts
-			}
-			for r, am := range relAccessMethods {
-				r.AccessMethod = am
-			}
-			for r, co := range relCheckOptions {
-				r.CheckOption = co
-			}
-			for r, ri := range relReplicaIdents {
-				r.ReplicaIdentity = ri
-			}
-			for r, ot := range relOfTypes {
-				r.OfTypeOID = ot
-			}
-			for r, rs := range relRowSec {
-				r.RowSecurity = rs[0]
-				r.ForceRowSecurity = rs[1]
-			}
-			for r, hr := range relHasRules {
-				r.HasRules = hr
-				r.Rules = relRules[r]
-			}
-			for col, orig := range savedCols {
-				*col = orig
-			}
-			for r, owner := range relOwners {
-				r.OwnerName = owner
-			}
-			for idx, ts := range idxTablespaces {
-				idx.Tablespace = ts
-			}
-			for idx, ri := range idxReplicaIdents {
-				idx.IsReplicaIdent = ri
-			}
-			for idx, owner := range idxOwners {
-				idx.OwnerName = owner
-			}
-			for con, st := range conDeferStates {
-				con.Deferrable = st[0]
-				con.Deferred = st[1]
-				con.Validated = st[2]
-			}
-			for seq, owner := range seqOwners {
-				seq.OwnerName = owner
-			}
-			c.typeOwners = savedTypeOwners
-			c.grants = savedGrants
-			c.deps = savedDeps
-		}
+		restore = c.snapshotForAlterRollback()
 	}
 
 	// Execute in pass order.
@@ -497,6 +364,127 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	}
 
 	return nil
+}
+
+func (c *Catalog) snapshotForAlterRollback() func() {
+	origSchemas := make(map[uint32]*Schema, len(c.schemas))
+	for oid, s := range c.schemas {
+		origSchemas[oid] = s
+	}
+	origRels := make(map[uint32]*Relation, len(c.relationByOID))
+	origCols := make(map[uint32]map[string]*Column, len(c.relationByOID))
+	for oid, r := range c.relationByOID {
+		origRels[oid] = r
+		cm := make(map[string]*Column, len(r.Columns))
+		for _, col := range r.Columns {
+			cm[col.Name] = col
+		}
+		origCols[oid] = cm
+	}
+	origIndexes := make(map[uint32]*Index, len(c.indexes))
+	for oid, idx := range c.indexes {
+		origIndexes[oid] = idx
+	}
+	origCons := make(map[uint32]*Constraint, len(c.constraints))
+	for oid, con := range c.constraints {
+		origCons[oid] = con
+	}
+	origSeqs := make(map[uint32]*Sequence, len(c.sequenceByOID))
+	for oid, seq := range c.sequenceByOID {
+		origSeqs[oid] = seq
+	}
+	snap := c.Clone()
+
+	return func() {
+		savedWarnings := c.warnings
+		savedStmtSQL := c.currentStmtSQL
+		*c = *snap
+		c.warnings = savedWarnings
+		c.currentStmtSQL = savedStmtSQL
+
+		c.schemas = make(map[uint32]*Schema, len(snap.schemas))
+		c.schemaByName = make(map[string]*Schema, len(snap.schemaByName))
+		for oid, cs := range snap.schemas {
+			s := origSchemas[oid]
+			if s == nil {
+				s = cs
+			} else {
+				*s = *cs
+				s.Relations = make(map[string]*Relation, len(cs.Relations))
+				s.Indexes = make(map[string]*Index, len(cs.Indexes))
+				s.Sequences = make(map[string]*Sequence, len(cs.Sequences))
+			}
+			c.schemas[oid] = s
+			c.schemaByName[s.Name] = s
+		}
+
+		c.relationByOID = make(map[uint32]*Relation, len(snap.relationByOID))
+		for oid, cr := range snap.relationByOID {
+			r := origRels[oid]
+			if r == nil {
+				r = cr
+			} else {
+				*r = *cr
+				if cr.Columns != nil {
+					cols := make([]*Column, len(cr.Columns))
+					cm := origCols[oid]
+					for i, ccol := range cr.Columns {
+						if ocol := cm[ccol.Name]; ocol != nil {
+							*ocol = *ccol
+							cols[i] = ocol
+						} else {
+							cols[i] = ccol
+						}
+					}
+					r.Columns = cols
+				}
+			}
+			r.Schema = c.schemas[cr.Schema.OID]
+			c.relationByOID[oid] = r
+			r.Schema.Relations[r.Name] = r
+		}
+
+		c.indexes = make(map[uint32]*Index, len(snap.indexes))
+		c.indexesByRel = make(map[uint32][]*Index, len(snap.indexesByRel))
+		for oid, ci := range snap.indexes {
+			idx := origIndexes[oid]
+			if idx == nil {
+				idx = ci
+			} else {
+				*idx = *ci
+			}
+			idx.Schema = c.schemas[ci.Schema.OID]
+			c.indexes[oid] = idx
+			c.indexesByRel[idx.RelOID] = append(c.indexesByRel[idx.RelOID], idx)
+			idx.Schema.Indexes[idx.Name] = idx
+		}
+
+		c.constraints = make(map[uint32]*Constraint, len(snap.constraints))
+		c.consByRel = make(map[uint32][]*Constraint, len(snap.consByRel))
+		for oid, cc := range snap.constraints {
+			con := origCons[oid]
+			if con == nil {
+				con = cc
+			} else {
+				*con = *cc
+			}
+			c.constraints[oid] = con
+			c.consByRel[con.RelOID] = append(c.consByRel[con.RelOID], con)
+		}
+
+		c.sequenceByOID = make(map[uint32]*Sequence, len(snap.sequenceByOID))
+		for oid, cseq := range snap.sequenceByOID {
+			seq := origSeqs[oid]
+			if seq == nil {
+				seq = cseq
+			} else {
+				*seq = *cseq
+			}
+			seq.Schema = c.schemas[cseq.Schema.OID]
+			c.sequenceByOID[oid] = seq
+			seq.Schema.Sequences[seq.Name] = seq
+		}
+	}
 }
 
 // AlterIndexStmt applies ALTER INDEX commands.
@@ -609,18 +597,7 @@ func (c *Catalog) indexColumnNames(idx *Index) []string {
 	if len(idx.ColumnNames) == len(idx.Columns) {
 		return idx.ColumnNames
 	}
-	rel := c.findRelByOID(idx.RelOID)
-	raw := make([]string, 0, len(idx.Columns))
-	for _, attnum := range idx.Columns {
-		if rel != nil && attnum > 0 {
-			if ci := indexOfAttNum(rel, attnum); ci >= 0 {
-				raw = append(raw, rel.Columns[ci].Name)
-				continue
-			}
-		}
-		raw = append(raw, "expr")
-	}
-	idx.ColumnNames = chooseIndexColumnNames(raw)
+	idx.ColumnNames = defaultIndexColumnNames(c, idx)
 	return idx.ColumnNames
 }
 

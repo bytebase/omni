@@ -80,11 +80,14 @@ func (c *Catalog) Clone() *Catalog {
 	clone.schemas = make(map[uint32]*Schema, len(c.schemas))
 	clone.schemaByName = make(map[string]*Schema, len(c.schemaByName))
 	for oid, s := range c.schemas {
-		var collations map[string]uint32
+		var collations map[string]*UserCollation
 		if len(s.Collations) > 0 {
-			collations = make(map[string]uint32, len(s.Collations))
+			collations = make(map[string]*UserCollation, len(s.Collations))
 			for k, v := range s.Collations {
-				collations[k] = v
+				if v != nil {
+					cp := *v
+					collations[k] = &cp
+				}
 			}
 		}
 		cs := &Schema{

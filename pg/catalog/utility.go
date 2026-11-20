@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
@@ -89,7 +90,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				return err
 			}
 			if name != "" {
-				if schema.Collations != nil && schema.Collations[name] != 0 {
+				if schema.Collations != nil && schema.Collations[name] != nil {
 					if s.IfNotExists {
 						c.addWarning(CodeWarningSkip, fmt.Sprintf("collation %q already exists, skipping", name))
 						return nil
@@ -97,9 +98,13 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 					return errDuplicateObject("collation", name)
 				}
 				if schema.Collations == nil {
-					schema.Collations = make(map[string]uint32)
+					schema.Collations = make(map[string]*UserCollation)
 				}
-				schema.Collations[name] = c.oidGen.Next()
+				schema.Collations[name] = &UserCollation{
+					OID:       c.oidGen.Next(),
+					Name:      name,
+					DefClause: formatCollationDefClause(s.Definition),
+				}
 			}
 			return nil
 		default:
@@ -355,13 +360,27 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		if maxParam := maxParamRefInNode(s.Query); maxParam > numParams {
 			numParams = maxParam
 		}
+		paramTypes := make([]uint32, numParams)
+		copy(paramTypes, argTypes)
+		if sel, isSel := s.Query.(*nodes.SelectStmt); isSel {
+			q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes})
+			if err != nil {
+				return err
+			}
+			collectQueryParamTypes(q, paramTypes)
+			for i := range paramTypes {
+				if paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID {
+					paramTypes[i] = TEXTOID
+				}
+			}
+		}
 		if s.Name != "" {
 			if c.preparedStmts == nil {
 				c.preparedStmts = make(map[string]*preparedStmt)
 			}
 			c.preparedStmts[s.Name] = &preparedStmt{
 				query:     s.Query,
-				argTypes:  argTypes,
+				argTypes:  paramTypes,
 				numParams: numParams,
 			}
 		}
@@ -372,9 +391,15 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.DeallocateStmt:
 		if s.IsAll || s.Name == "" {
 			clear(c.preparedStmts)
-		} else {
-			delete(c.preparedStmts, s.Name)
+			return nil
 		}
+		if c.preparedStmts[s.Name] == nil {
+			return &Error{
+				Code:    CodeInvalidSQLStatementName,
+				Message: fmt.Sprintf("prepared statement %q does not exist", s.Name),
+			}
+		}
+		delete(c.preparedStmts, s.Name)
 		return nil
 
 	default:
@@ -403,6 +428,112 @@ func maxParamRefInNode(node nodes.Node) int {
 	var v maxParamVisitor
 	nodes.Walk(&v, node)
 	return v.max
+}
+
+func collectQueryParamTypes(q *Query, paramTypes []uint32) {
+	if q == nil || len(paramTypes) == 0 {
+		return
+	}
+	var scanExpr func(e AnalyzedExpr)
+	scanExpr = func(e AnalyzedExpr) {
+		if e == nil {
+			return
+		}
+		WalkAnalyzedExpr(e, func(n AnalyzedExpr) bool {
+			switch v := n.(type) {
+			case *ParamExpr:
+				if v.ParamNum > 0 && v.ParamNum <= len(paramTypes) && v.ParamType != 0 && v.ParamType != UNKNOWNOID && paramTypes[v.ParamNum-1] == 0 {
+					paramTypes[v.ParamNum-1] = v.ParamType
+				}
+			case *SubLinkExpr:
+				scanExpr(v.TestExpr)
+				collectQueryParamTypes(v.SubQuery, paramTypes)
+				return false
+			}
+			return true
+		})
+	}
+	var scanJoin func(jn JoinNode)
+	scanJoin = func(jn JoinNode) {
+		switch j := jn.(type) {
+		case *JoinExprNode:
+			scanJoin(j.Left)
+			scanJoin(j.Right)
+			scanExpr(j.Quals)
+		}
+	}
+	for _, cte := range q.CTEList {
+		collectQueryParamTypes(cte.Query, paramTypes)
+	}
+	for _, rte := range q.RangeTable {
+		if rte.Subquery != nil {
+			collectQueryParamTypes(rte.Subquery, paramTypes)
+		}
+		for _, fe := range rte.FuncExprs {
+			scanExpr(fe)
+		}
+	}
+	for _, te := range q.TargetList {
+		scanExpr(te.Expr)
+	}
+	if q.JoinTree != nil {
+		for _, fn := range q.JoinTree.FromList {
+			scanJoin(fn)
+		}
+		scanExpr(q.JoinTree.Quals)
+	}
+	scanExpr(q.HavingQual)
+	scanExpr(q.LimitCount)
+	scanExpr(q.LimitOffset)
+	collectQueryParamTypes(q.LArg, paramTypes)
+	collectQueryParamTypes(q.RArg, paramTypes)
+}
+
+func formatCollationDefClause(def *nodes.List) string {
+	if def == nil || len(def.Items) == 0 {
+		return "(LOCALE = 'C')"
+	}
+	if len(def.Items) == 1 {
+		if d, ok := def.Items[0].(*nodes.DefElem); ok && strings.EqualFold(d.Defname, "from") {
+			if l, ok := d.Arg.(*nodes.List); ok && len(l.Items) > 0 {
+				parts := make([]string, 0, len(l.Items))
+				for _, item := range l.Items {
+					parts = append(parts, quoteIdentifier(stringVal(item)))
+				}
+				return "FROM " + strings.Join(parts, ".")
+			}
+		}
+	}
+	var parts []string
+	for _, item := range def.Items {
+		d, ok := item.(*nodes.DefElem)
+		if !ok {
+			continue
+		}
+		key := strings.ToUpper(d.Defname)
+		if d.Arg == nil {
+			parts = append(parts, key)
+			continue
+		}
+		switch v := d.Arg.(type) {
+		case *nodes.Boolean:
+			if v.Boolval {
+				parts = append(parts, key+" = true")
+			} else {
+				parts = append(parts, key+" = false")
+			}
+		case *nodes.Integer:
+			parts = append(parts, fmt.Sprintf("%s = %d", key, v.Ival))
+		default:
+			if s, ok := parseDefElemStringStrict(d); ok {
+				parts = append(parts, key+" = "+singleQuote(s))
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return "(LOCALE = 'C')"
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
 }
 
 // processVariableSet handles SET/RESET variable statements.

@@ -89,6 +89,12 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	typeName := to.FormatType(c.TypeOID, c.TypeMod)
 
 	ddl := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s%s", tableName, quoteIdentifier(c.Name), typeName, formatCollate(c.CollationName))
+	if stor := columnExplicitStorage(to, c); stor != "" {
+		ddl += " STORAGE " + stor
+	}
+	if comp := columnExplicitCompression(c); comp != "" {
+		ddl += " COMPRESSION " + comp
+	}
 
 	if c.NotNull {
 		ddl += " NOT NULL"
@@ -315,6 +321,36 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 				Transactional: true,
 			})
 		}
+	}
+
+	oldStor := columnExplicitStorage(from, oldCol)
+	newStor := columnExplicitStorage(to, newCol)
+	if oldStor != newStor || (typeChanged && newStor != "") {
+		mode := newStor
+		if mode == "" {
+			mode = "DEFAULT"
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterColumn,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("%s SET STORAGE %s", colRef, mode),
+			Transactional: true,
+		})
+	}
+
+	if oldCol.Compression != newCol.Compression || (typeChanged && newCol.Compression != 0) {
+		comp := columnExplicitCompression(newCol)
+		if comp == "" {
+			comp = "DEFAULT"
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterColumn,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("%s SET COMPRESSION %s", colRef, comp),
+			Transactional: true,
+		})
 	}
 
 	return ops

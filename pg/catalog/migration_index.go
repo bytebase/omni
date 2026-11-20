@@ -8,9 +8,9 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
-// generateIndexDDL produces CREATE INDEX / DROP INDEX operations from the diff.
+// generateIndexDDL produces CREATE INDEX / DROP INDEX / ALTER INDEX operations from the diff.
 func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
-	var ops, attachOps []MigrationOp
+	var ops, renameOps, attachOps []MigrationOp
 	attaching := make(map[uint32]bool) // to-catalog OIDs of indexes created to be attached
 
 	for _, relEntry := range diff.Relations {
@@ -35,6 +35,7 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjOID:        idx.OID,
 						Priority:      PriorityIndex,
 					})
+					renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
 				}
 			}
 		case DiffModify:
@@ -62,6 +63,7 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjOID:        idx.OID,
 						Priority:      PriorityIndex,
 					})
+					renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idx, defaultIndexColumnNames(to, idx), effectiveIndexColumnNames(to, idx))...)
 				case DiffDrop:
 					idx := idxEntry.From
 					if idx.ConstraintOID != 0 {
@@ -93,7 +95,11 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 							continue
 						}
 					}
-					// Indexes cannot be ALTERed — DROP + CREATE.
+					if !indexesStructurallyChanged(from, to, idxFrom, idxTo) {
+						renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idxTo, effectiveIndexColumnNames(from, idxFrom), effectiveIndexColumnNames(to, idxTo))...)
+						continue
+					}
+					// Indexes cannot be structurally ALTERed — DROP + CREATE.
 					dropSQL := fmt.Sprintf("DROP INDEX %s.%s",
 						quoteIdentifier(relEntry.SchemaName),
 						quoteIdentifier(idxFrom.Name))
@@ -120,6 +126,7 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjOID:        idxTo.OID,
 						Priority:      PriorityIndex,
 					})
+					renameOps = append(renameOps, buildIndexColumnRenameOps(relEntry.SchemaName, idxTo, defaultIndexColumnNames(to, idxTo), effectiveIndexColumnNames(to, idxTo))...)
 				}
 			}
 		}
@@ -145,8 +152,69 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		return ops[i].ObjectName < ops[j].ObjectName
 	})
 
-	// An index attaches once its parent's index and its own exist.
+	// Attribute renames run after CREATE INDEX, and index attaches run last.
+	ops = append(ops, renameOps...)
 	return append(ops, attachOps...)
+}
+
+func buildIndexColumnRenameOps(schemaName string, idx *Index, fromNames, toNames []string) []MigrationOp {
+	if len(fromNames) != len(toNames) || stringSliceEqual(fromNames, toNames) {
+		return nil
+	}
+	cur := make([]string, len(fromNames))
+	copy(cur, fromNames)
+	used := make(map[string]bool, len(cur))
+	for _, n := range cur {
+		used[n] = true
+	}
+	var ops []MigrationOp
+	qIdx := quoteIdentifier(schemaName) + "." + quoteIdentifier(idx.Name)
+	// First move any colliding entries to temporary names so swaps like (a,b)->(b,a) work.
+	for i := range cur {
+		if cur[i] == toNames[i] {
+			continue
+		}
+		if used[toNames[i]] {
+			tmp := fmt.Sprintf("__omni_idx_col_%d", i)
+			for k := 1; used[tmp]; k++ {
+				tmp = fmt.Sprintf("__omni_idx_col_%d_%d", i, k)
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    schemaName,
+				ObjectName:    idx.Name,
+				SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[i]), quoteIdentifier(tmp)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'i',
+				ObjOID:        idx.OID,
+				Priority:      PriorityIndex,
+			})
+			delete(used, cur[i])
+			cur[i] = tmp
+			used[tmp] = true
+		}
+	}
+	for i := range cur {
+		if cur[i] == toNames[i] {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterTable,
+			SchemaName:    schemaName,
+			ObjectName:    idx.Name,
+			SQL:           fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", qIdx, quoteIdentifier(cur[i]), quoteIdentifier(toNames[i])),
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'i',
+			ObjOID:        idx.OID,
+			Priority:      PriorityIndex,
+		})
+		delete(used, cur[i])
+		cur[i] = toNames[i]
+		used[toNames[i]] = true
+	}
+	return ops
 }
 
 // attachIndexOp attaches a partition's index to its parent's.

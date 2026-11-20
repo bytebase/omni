@@ -900,7 +900,6 @@ func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, co
 	cand := base
 	for k := 1; ; k++ {
 		_, relHeld := relationNamespaceKind(schema, cand)
-		typeHeld := c.typeByName[typeKey{ns: schema.OID, name: cand}] != nil
 		conHeld := false
 		for _, con := range c.consByRel[rel.OID] {
 			if con.Name == cand {
@@ -908,7 +907,7 @@ func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, co
 				break
 			}
 		}
-		if !relHeld && !typeHeld && !conHeld {
+		if !relHeld && !conHeld {
 			return cand
 		}
 		cand = fmt.Sprintf("%s%d", base, k)

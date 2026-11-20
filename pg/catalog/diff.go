@@ -1,5 +1,7 @@
 package catalog
 
+import "sort"
+
 // DiffAction describes what happened to an object between two catalog states.
 type DiffAction int
 
@@ -169,6 +171,15 @@ type GrantDiffEntry struct {
 	To     Grant
 }
 
+// CollationDiffEntry describes a user collation change.
+type CollationDiffEntry struct {
+	Action     DiffAction
+	SchemaName string
+	Name       string
+	From       *UserCollation
+	To         *UserCollation
+}
+
 // ---------------------------------------------------------------------------
 // SchemaDiff — aggregate result of comparing two catalogs
 // ---------------------------------------------------------------------------
@@ -176,6 +187,7 @@ type GrantDiffEntry struct {
 // SchemaDiff holds all differences between two catalog states.
 type SchemaDiff struct {
 	Schemas        []SchemaDiffEntry
+	Collations     []CollationDiffEntry
 	Relations      []RelationDiffEntry
 	Sequences      []SequenceDiffEntry
 	Functions      []FunctionDiffEntry
@@ -192,6 +204,7 @@ type SchemaDiff struct {
 // IsEmpty returns true if there are no differences.
 func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.Schemas) == 0 &&
+		len(d.Collations) == 0 &&
 		len(d.Relations) == 0 &&
 		len(d.Sequences) == 0 &&
 		len(d.Functions) == 0 &&
@@ -212,6 +225,7 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
 		Schemas:        diffSchemas(from, to),
+		Collations:     diffCollations(from, to),
 		Relations:      relations,
 		Sequences:      diffSequences(from, to),
 		Functions:      diffFunctions(from, to),
@@ -224,4 +238,75 @@ func Diff(from, to *Catalog) *SchemaDiff {
 		Comments:       diffComments(from, to),
 		Grants:         diffGrants(from, to),
 	}
+}
+
+func diffCollations(from, to *Catalog) []CollationDiffEntry {
+	type key struct {
+		schema string
+		name   string
+	}
+	fromMap := map[key]*UserCollation{}
+	for _, s := range from.schemas {
+		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
+			continue
+		}
+		for name, uc := range s.Collations {
+			if uc != nil {
+				fromMap[key{s.Name, name}] = uc
+			}
+		}
+	}
+	toMap := map[key]*UserCollation{}
+	for _, s := range to.schemas {
+		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
+			continue
+		}
+		for name, uc := range s.Collations {
+			if uc != nil {
+				toMap[key{s.Name, name}] = uc
+			}
+		}
+	}
+	var out []CollationDiffEntry
+	for k, fc := range fromMap {
+		if _, ok := toMap[k]; !ok {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffDrop,
+				SchemaName: k.schema,
+				Name:       k.name,
+				From:       fc,
+			})
+		}
+	}
+	for k, tc := range toMap {
+		fc, ok := fromMap[k]
+		if !ok {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffAdd,
+				SchemaName: k.schema,
+				Name:       k.name,
+				To:         tc,
+			})
+			continue
+		}
+		if fc.DefClause != tc.DefClause {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffModify,
+				SchemaName: k.schema,
+				Name:       k.name,
+				From:       fc,
+				To:         tc,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].SchemaName != out[j].SchemaName {
+			return out[i].SchemaName < out[j].SchemaName
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Action < out[j].Action
+	})
+	return out
 }

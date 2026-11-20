@@ -170,6 +170,13 @@ func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 
 	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatCollate(col.CollationName))
 
+	if stor := columnExplicitStorage(c, col); stor != "" {
+		parts = append(parts, "STORAGE "+stor)
+	}
+	if comp := columnExplicitCompression(col); comp != "" {
+		parts = append(parts, "COMPRESSION "+comp)
+	}
+
 	if col.NotNull {
 		parts = append(parts, "NOT NULL")
 	}
@@ -268,6 +275,45 @@ func formatCollate(collation string) string {
 		return ""
 	}
 	return " COLLATE " + quoteIdentAlways(collation)
+}
+
+func columnExplicitStorage(c *Catalog, col *Column) string {
+	if col == nil || col.Storage == 0 {
+		return ""
+	}
+	if c != nil {
+		if typ := c.typeByOID[col.TypeOID]; typ != nil && col.Storage == typ.Storage {
+			return ""
+		}
+	}
+	return storageModeKeyword(col.Storage)
+}
+
+func storageModeKeyword(stor byte) string {
+	switch stor {
+	case 'p':
+		return "PLAIN"
+	case 'e':
+		return "EXTERNAL"
+	case 'x':
+		return "EXTENDED"
+	case 'm':
+		return "MAIN"
+	}
+	return ""
+}
+
+func columnExplicitCompression(col *Column) string {
+	if col == nil {
+		return ""
+	}
+	switch col.Compression {
+	case 'p':
+		return "pglz"
+	case 'l':
+		return "lz4"
+	}
+	return ""
 }
 
 // formatPKConstraint formats a PRIMARY KEY constraint clause.

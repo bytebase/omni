@@ -2019,3 +2019,65 @@
 | CREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));
 | DROP COLLATION c_def CASCADE
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| DEALLOCATE missing_dealloc_stmt
+< error
+| 26000 prepared statement "missing_dealloc_stmt" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| DEALLOCATE ALL;
+| DEALLOCATE ALL
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| PREPARE q_r4_inf_add AS SELECT $1 + 1 AS x;
+| CREATE TABLE t_r4_inf_add AS EXECUTE q_r4_inf_add(1::bigint)
+< ok 1 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE t_u_enum_a_key AS ENUM ('x');
+| CREATE TABLE t_u_enum (a int UNIQUE)
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE t_ir (a int);
+| CREATE INDEX idx_ir ON t_ir ((a + 1));
+| ALTER TABLE idx_ir RENAME COLUMN expr TO plus_one
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE t_scd (a text STORAGE EXTERNAL COMPRESSION lz4);
+| ALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;
+| ALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT
+< ok 0 -

@@ -82,16 +82,9 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 						}
 						if i < len(paramTypes) && paramTypes[i] != 0 {
 							if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
-								if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'i'); cerr != nil {
+								if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'a'); cerr != nil {
 									return cerr
 								}
-							}
-						} else {
-							for len(paramTypes) <= i {
-								paramTypes = append(paramTypes, 0)
-							}
-							if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
-								paramTypes[i] = pExpr.exprType()
 							}
 						}
 					}

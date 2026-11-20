@@ -788,7 +788,9 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 				return errDependentObjects("system", name)
 			}
 			targetSchema = s
-			collOID = s.Collations[name]
+			if uc := s.Collations[name]; uc != nil {
+				collOID = uc.OID
+			}
 		} else {
 			for _, nsOID := range c.searchPathWithCatalog() {
 				s := c.schemas[nsOID]
@@ -798,9 +800,9 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 				if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
 					return errDependentObjects("system", name)
 				}
-				if oid := s.Collations[name]; oid != 0 {
+				if uc := s.Collations[name]; uc != nil {
 					targetSchema = s
-					collOID = oid
+					collOID = uc.OID
 					break
 				}
 			}
@@ -829,7 +831,8 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 	}
 
 	for _, t := range targets {
-		if t.schema.Collations[t.name] != t.oid {
+		uc := t.schema.Collations[t.name]
+		if uc == nil || uc.OID != t.oid {
 			continue
 		}
 		if cascade {

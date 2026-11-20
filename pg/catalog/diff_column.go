@@ -89,5 +89,11 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 	if a.CollationName != b.CollationName {
 		return true
 	}
+	if columnExplicitStorage(from, a) != columnExplicitStorage(to, b) {
+		return true
+	}
+	if a.Compression != b.Compression {
+		return true
+	}
 	return false
 }

@@ -498,13 +498,17 @@ func (c *Catalog) resolveCollationList(collname *nodes.List) (string, uint32, er
 			return "", 0, errUndefinedSchema(schemaName)
 		}
 		if c.snapshot {
-			return name, s.Collations[name], nil
+			var uid uint32
+			if uc := s.Collations[name]; uc != nil {
+				uid = uc.OID
+			}
+			return name, uid, nil
 		}
 		if s.OID == PGCatalogNamespace && isBuiltinCollationName(name) {
 			return name, 0, nil
 		}
-		if oid := s.Collations[name]; oid != 0 {
-			return name, oid, nil
+		if uc := s.Collations[name]; uc != nil {
+			return name, uc.OID, nil
 		}
 		return "", 0, errUndefinedObject("collation", name)
 	}
@@ -517,8 +521,8 @@ func (c *Catalog) resolveCollationList(collname *nodes.List) (string, uint32, er
 			if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
 				return name, 0, nil
 			}
-			if oid := s.Collations[name]; oid != 0 {
-				return name, oid, nil
+			if uc := s.Collations[name]; uc != nil {
+				return name, uc.OID, nil
 			}
 		}
 		if isBuiltinCollationName(name) {
@@ -528,8 +532,8 @@ func (c *Catalog) resolveCollationList(collname *nodes.List) (string, uint32, er
 	}
 	for _, nsOID := range c.searchPathWithCatalog() {
 		if s := c.schemas[nsOID]; s != nil {
-			if oid := s.Collations[name]; oid != 0 {
-				return name, oid, nil
+			if uc := s.Collations[name]; uc != nil {
+				return name, uc.OID, nil
 			}
 		}
 	}

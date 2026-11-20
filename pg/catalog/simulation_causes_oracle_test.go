@@ -258,6 +258,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER COLUMN TYPE without COLLATE resets collation to type default", "missing", "CREATE COLLATION c_ret (LOCALE = 'C');\nCREATE TABLE t_ret (a text COLLATE c_ret);\nALTER TABLE t_ret ALTER a TYPE varchar;\nDROP COLLATION c_ret", "0"},
 		{"DROP COLLATION restricted by column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def", CodeDependentObjects},
 		{"DROP COLLATION CASCADE drops column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def CASCADE", "0"},
+		{"DEALLOCATE missing prepared statement rejected with 26000", "missing", "DEALLOCATE missing_dealloc_stmt", CodeInvalidSQLStatementName},
+		{"DEALLOCATE ALL succeeds when no prepared statements exist", "missing", "DEALLOCATE ALL;\nDEALLOCATE ALL", "0"},
+		{"CTAS EXECUTE assignment-coerces bigint into inferred integer parameter", "missing", "PREPARE q_r4_inf_add AS SELECT $1 + 1 AS x;\nCREATE TABLE t_r4_inf_add AS EXECUTE q_r4_inf_add(1::bigint)", "0"},
+		{"UNIQUE constraint index reuses standalone enum type name", "missing", "CREATE TYPE t_u_enum_a_key AS ENUM ('x');\nCREATE TABLE t_u_enum (a int UNIQUE)", "0"},
+		{"ALTER TABLE on an index RENAME COLUMN renames expression attribute", "missing", "CREATE TABLE t_ir (a int);\nCREATE INDEX idx_ir ON t_ir ((a + 1));\nALTER TABLE idx_ir RENAME COLUMN expr TO plus_one", "0"},
+		{"ALTER COLUMN SET STORAGE DEFAULT and SET COMPRESSION DEFAULT", "missing", "CREATE TABLE t_scd (a text STORAGE EXTERNAL COMPRESSION lz4);\nALTER TABLE t_scd ALTER COLUMN a SET STORAGE DEFAULT;\nALTER TABLE t_scd ALTER COLUMN a SET COMPRESSION DEFAULT", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3539,7 +3545,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use"); code != CodeDependentObjects {
 			t.Fatalf("DROP COLLATION RESTRICT answered %s, want %s", code, CodeDependentObjects)
 		}
-		if c104.schemaByName["public"].Collations["c_use"] == 0 {
+		if c104.schemaByName["public"].Collations["c_use"] == nil {
 			t.Fatal("failed DROP COLLATION removed c_use")
 		}
 		if code := simulationCatalogCode(t, c104, "DROP COLLATION c_use CASCADE"); code != "0" {
@@ -3623,6 +3629,113 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c105.schemaByName["public"].Indexes["t_enum_idx_a_idx"] == nil {
 			t.Fatalf("expected auto-named index t_enum_idx_a_idx, got %v", c105.schemaByName["public"].Indexes)
+		}
+
+		// Review round 4 regressions:
+		// 1. Structural multi-action ALTER TABLE rollback (ADD COLUMN, DROP COLUMN,
+		//    ADD CONSTRAINT) restores columns, colByName, and constraints on failure.
+		// 2. PREPARE infers parameter types at PREPARE time and defaults unconstrained
+		//    parameters to text; EXECUTE assignment-coerces arguments to inferred types.
+		// 3. Constraint-backed index naming ignores standalone enum/domain types.
+		// 4. Explicit column STORAGE and COMPRESSION diff and emit in migrations.
+		// 5. User collations diff and emit in GenerateMigration in dependency order.
+		// 6. Renamed index columns (ALTER INDEX ... RENAME COLUMN) diff and migrate.
+		// 7. DEALLOCATE on a missing prepared statement fails with 26000.
+		c106 := New()
+		if code := simulationCatalogCode(t, c106, "CREATE TABLE t_rb_struct (a int, b int)"); code != "0" {
+			t.Fatalf("CREATE TABLE t_rb_struct: %s", code)
+		}
+		if code := simulationCatalogCode(t, c106, "ALTER TABLE t_rb_struct ADD COLUMN c int, ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE ADD COLUMN + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		rbRel := c106.schemaByName["public"].Relations["t_rb_struct"]
+		if _, hasC := rbRel.colByName["c"]; len(rbRel.Columns) != 2 || hasC {
+			t.Fatalf("failed ALTER TABLE ADD COLUMN leaked column c: cols=%d hasC=%v", len(rbRel.Columns), hasC)
+		}
+		if code := simulationCatalogCode(t, c106, "ALTER TABLE t_rb_struct DROP COLUMN b, ADD UNIQUE (a), ALTER COLUMN missing SET STATISTICS 10"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE DROP COLUMN + ADD UNIQUE + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if bIdx, hasB := rbRel.colByName["b"]; len(rbRel.Columns) != 2 || !hasB || bIdx != 1 || len(c106.consByRel[rbRel.OID]) != 0 || len(c106.indexesByRel[rbRel.OID]) != 0 {
+			t.Fatalf("failed ALTER TABLE DROP COLUMN/ADD UNIQUE did not restore structural state: cols=%d hasB=%v bIdx=%d cons=%d idxs=%d",
+				len(rbRel.Columns), hasB, bIdx, len(c106.consByRel[rbRel.OID]), len(c106.indexesByRel[rbRel.OID]))
+		}
+
+		for _, stmt := range []string{
+			"PREPARE q_r4_add AS SELECT $1 + 1 AS x",
+			"CREATE TABLE t_r4_add AS EXECUTE q_r4_add(1::bigint)",
+			"PREPARE q_r4_bare AS SELECT $1 AS x",
+			"CREATE TABLE t_r4_bare AS EXECUTE q_r4_bare(1)",
+		} {
+			if code := simulationCatalogCode(t, c106, stmt); code != "0" {
+				t.Fatalf("c106 PREPARE/EXECUTE %s: %s", stmt, code)
+			}
+		}
+		if r := c106.schemaByName["public"].Relations["t_r4_add"]; r == nil || r.Columns[0].TypeOID != INT4OID {
+			t.Fatalf("expected t_r4_add.x to have INT4OID (inferred $1 + 1), got %+v", r)
+		}
+		if r := c106.schemaByName["public"].Relations["t_r4_bare"]; r == nil || r.Columns[0].TypeOID != TEXTOID {
+			t.Fatalf("expected t_r4_bare.x to have TEXTOID (unconstrained $1 defaults to text), got %+v", r)
+		}
+		if code := simulationCatalogCode(t, c106, "DEALLOCATE missing_r4_stmt"); code != CodeInvalidSQLStatementName {
+			t.Fatalf("DEALLOCATE missing_r4_stmt answered %s, want %s", code, CodeInvalidSQLStatementName)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE t_u_r4_a_key AS ENUM ('x')",
+			"CREATE TABLE t_u_r4 (a int UNIQUE)",
+		} {
+			if code := simulationCatalogCode(t, c106, stmt); code != "0" {
+				t.Fatalf("c106 constraint vs enum %s: %s", stmt, code)
+			}
+		}
+		if c106.schemaByName["public"].Indexes["t_u_r4_a_key"] == nil {
+			t.Fatalf("expected UNIQUE constraint index t_u_r4_a_key, got %v", c106.schemaByName["public"].Indexes)
+		}
+
+		c106From := New()
+		c106To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_sc_mod (a text, b text STORAGE EXTERNAL COMPRESSION lz4)",
+			"CREATE TABLE t_idx_ren (a int)",
+			"CREATE INDEX idx_ren ON t_idx_ren ((a + 1))",
+		} {
+			if code := simulationCatalogCode(t, c106From, stmt); code != "0" {
+				t.Fatalf("c106From setup %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r4 (LOCALE = 'C')",
+			"CREATE TABLE t_sc_new (a text COLLATE coll_r4 STORAGE EXTERNAL COMPRESSION lz4 NOT NULL)",
+			"CREATE TABLE t_sc_mod (a text STORAGE MAIN COMPRESSION pglz, b text)",
+			"CREATE TABLE t_idx_ren (a int)",
+			"CREATE INDEX idx_ren ON t_idx_ren ((a + 1))",
+			"ALTER TABLE idx_ren RENAME COLUMN expr TO plus_one",
+		} {
+			if code := simulationCatalogCode(t, c106To, stmt); code != "0" {
+				t.Fatalf("c106To setup %s: %s", stmt, code)
+			}
+		}
+		mig106 := GenerateMigration(c106From, c106To, Diff(c106From, c106To))
+		migSQL := mig106.SQL()
+		for _, wantFrag := range []string{
+			"CREATE COLLATION",
+			"STORAGE EXTERNAL",
+			"COMPRESSION lz4",
+			"SET STORAGE MAIN",
+			"SET COMPRESSION pglz",
+			"SET STORAGE DEFAULT",
+			"SET COMPRESSION DEFAULT",
+			"RENAME COLUMN",
+		} {
+			if !strings.Contains(migSQL, wantFrag) {
+				t.Fatalf("expected migration SQL to contain %q, got:\n%s", wantFrag, migSQL)
+			}
+		}
+		if code := simulationCatalogCode(t, c106From, migSQL); code != "0" {
+			t.Fatalf("applying c106 migration failed with %s:\n%s", code, migSQL)
+		}
+		if rem := GenerateMigration(c106From, c106To, Diff(c106From, c106To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining migration ops after c106 round-trip, got:\n%s", rem.SQL())
 		}
 	})
 

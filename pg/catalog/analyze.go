@@ -4786,6 +4786,10 @@ func (c *Catalog) coerceToTargetTypeWithFormat(expr AnalyzedExpr, srcType, targe
 				Value:   c.Value,
 			}, nil
 		}
+		if p, ok := expr.(*ParamExpr); ok {
+			p.ParamType = targetType
+			return p, nil
+		}
 		return &RelabelExpr{
 			Arg:        expr,
 			ResultType: targetType,

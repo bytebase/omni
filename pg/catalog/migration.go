@@ -65,6 +65,8 @@ const (
 	OpCreateType         MigrationOpType = "CreateType"
 	OpDropType           MigrationOpType = "DropType"
 	OpAlterType          MigrationOpType = "AlterType"
+	OpCreateCollation    MigrationOpType = "CreateCollation"
+	OpDropCollation      MigrationOpType = "DropCollation"
 	OpCreateTrigger      MigrationOpType = "CreateTrigger"
 	OpDropTrigger        MigrationOpType = "DropTrigger"
 	OpCreateEventTrigger MigrationOpType = "CreateEventTrigger"
@@ -206,6 +208,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	ops = append(ops, generateSchemaDDL(from, to, diff)...)
 	ops = append(ops, generateExtensionDDL(from, to, diff)...)
+	ops = append(ops, generateCollationDDL(from, to, diff)...)
 	ops = append(ops, generateEnumDDL(from, to, diff)...)
 	ops = append(ops, generateDomainDDL(from, to, diff)...)
 	ops = append(ops, generateRangeDDL(from, to, diff)...)
@@ -701,11 +704,14 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 // needs the name free; so does one whose users the plan drops and rebuilds.
 func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	created := make(map[string]bool)
+	createdColl := make(map[string]bool)
 	rebuilt := make(map[uint32]bool)
 	for _, op := range ops {
 		switch op.Type {
 		case OpCreateType:
 			created[op.SchemaName+"."+op.ObjectName] = true
+		case OpCreateCollation:
+			createdColl[op.SchemaName+"."+op.ObjectName] = true
 		case OpDropTable, OpDropType, OpDropView:
 			if op.Phase == PhasePre && op.ObjType == 'r' {
 				rebuilt[op.ObjOID] = true
@@ -726,6 +732,9 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 	late := make(map[int]bool)
 	for i, op := range ops {
 		if op.Phase == PhasePre && op.Type == OpDropType && !created[op.SchemaName+"."+op.ObjectName] && typeUsedByKeptColumn(from, to, rebuilt, typeOID(op)) {
+			late[i] = true
+		}
+		if op.Phase == PhasePre && op.Type == OpDropCollation && !createdColl[op.SchemaName+"."+op.ObjectName] && collUsedByKeptColumn(from, to, rebuilt, op.ObjOID) {
 			late[i] = true
 		}
 	}
@@ -848,4 +857,84 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	result = append(result, postOps...)
 	result = append(result, lateDropOps...)
 	return result
+}
+
+func generateCollationDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.Collations {
+		qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+		switch entry.Action {
+		case DiffAdd:
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateCollation,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("CREATE COLLATION %s %s", qn, entry.To.DefClause),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'L',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityType,
+			})
+		case DiffDrop:
+			ops = append(ops, MigrationOp{
+				Type:          OpDropCollation,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP COLLATION %s", qn),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'L',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityType,
+			})
+		case DiffModify:
+			ops = append(ops,
+				MigrationOp{
+					Type:          OpDropCollation,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("DROP COLLATION %s", qn),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'L',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityType,
+				},
+				MigrationOp{
+					Type:          OpCreateCollation,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("CREATE COLLATION %s %s", qn, entry.To.DefClause),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'L',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityType,
+				},
+			)
+		}
+	}
+	return ops
+}
+
+func collUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, collOID uint32) bool {
+	if collOID == 0 {
+		return false
+	}
+	for _, rel := range from.relationByOID {
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'c' || rel.Schema == nil || dropped[rel.OID] {
+			continue
+		}
+		toRel := to.GetRelation(rel.Schema.Name, rel.Name)
+		if toRel == nil || toRel.RelKind != rel.RelKind {
+			continue
+		}
+		for _, col := range rel.Columns {
+			if _, kept := toRel.colByName[col.Name]; kept && col.UserCollationOID == collOID {
+				return true
+			}
+		}
+	}
+	return false
 }

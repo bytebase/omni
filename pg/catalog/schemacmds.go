@@ -251,12 +251,14 @@ func (c *Catalog) cascadeDropSchemaContents(s *Schema) {
 			oid  uint32
 		}
 		colls := make([]collEntry, 0, len(s.Collations))
-		for name, oid := range s.Collations {
-			colls = append(colls, collEntry{name: name, oid: oid})
+		for name, uc := range s.Collations {
+			if uc != nil {
+				colls = append(colls, collEntry{name: name, oid: uc.OID})
+			}
 		}
 		sort.Slice(colls, func(i, j int) bool { return colls[i].oid < colls[j].oid })
 		for _, ce := range colls {
-			if s.Collations[ce.name] == ce.oid {
+			if uc := s.Collations[ce.name]; uc != nil && uc.OID == ce.oid {
 				c.cascadeDropCollation(s, ce.name, ce.oid)
 			}
 		}

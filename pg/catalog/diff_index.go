@@ -82,6 +82,16 @@ func diffIndexes(from, to *Catalog, fromRelOID, toRelOID uint32) []IndexDiffEntr
 
 // indexesChanged returns true if any compared property differs between two indexes.
 func indexesChanged(fromCat, toCat *Catalog, a, b *Index) bool {
+	if indexesStructurallyChanged(fromCat, toCat, a, b) {
+		return true
+	}
+	if !stringSliceEqual(effectiveIndexColumnNames(fromCat, a), effectiveIndexColumnNames(toCat, b)) {
+		return true
+	}
+	return false
+}
+
+func indexesStructurallyChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	if a.IsUnique != b.IsUnique {
 		return true
 	}
@@ -116,6 +126,42 @@ func indexesChanged(fromCat, toCat *Catalog, a, b *Index) bool {
 	}
 
 	return false
+}
+
+func defaultIndexColumnNames(cat *Catalog, idx *Index) []string {
+	if idx == nil || len(idx.Columns) == 0 {
+		return nil
+	}
+	rel := cat.GetRelationByOID(idx.RelOID)
+	raw := make([]string, 0, len(idx.Columns))
+	exprIdx := 0
+	for _, attnum := range idx.Columns {
+		if attnum == 0 {
+			name := "expr"
+			if exprIdx < len(idx.Exprs) {
+				if parsed, err := parseScalar("SELECT " + idx.Exprs[exprIdx]); err == nil {
+					name = figureIndexColname(parsed)
+				}
+				exprIdx++
+			}
+			raw = append(raw, name)
+		} else if rel != nil {
+			raw = append(raw, resolveAttNum(rel, attnum))
+		} else {
+			raw = append(raw, "expr")
+		}
+	}
+	return chooseIndexColumnNames(raw)
+}
+
+func effectiveIndexColumnNames(cat *Catalog, idx *Index) []string {
+	if idx == nil {
+		return nil
+	}
+	if len(idx.ColumnNames) == len(idx.Columns) && len(idx.ColumnNames) > 0 {
+		return idx.ColumnNames
+	}
+	return defaultIndexColumnNames(cat, idx)
 }
 
 // int16SliceEqual and stringSliceEqual are defined in diff_constraint.go.

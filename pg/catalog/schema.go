@@ -2,6 +2,13 @@ package catalog
 
 import "sort"
 
+// UserCollation represents a user-defined collation created via CREATE COLLATION.
+type UserCollation struct {
+	OID       uint32
+	Name      string
+	DefClause string
+}
+
 // Schema represents a PostgreSQL namespace.
 type Schema struct {
 	OID        uint32
@@ -11,7 +18,7 @@ type Schema struct {
 	Relations  map[string]*Relation
 	Indexes    map[string]*Index
 	Sequences  map[string]*Sequence
-	Collations map[string]uint32
+	Collations map[string]*UserCollation
 }
 
 func (s *Schema) effectiveOwner() string {
