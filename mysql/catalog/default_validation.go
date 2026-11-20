@@ -156,7 +156,7 @@ var defaultBuiltinFuncArity = map[string]funcArity{
 	"char_length": {1, 1}, "charset": {1, 1}, "coalesce": {1, -1}, "coercibility": {1, 1},
 	"collation": {1, 1}, "compress": {1, 1}, "concat": {1, -1}, "concat_ws": {2, -1},
 	"connection_id": {0, 0}, "conv": {3, 3}, "convert": {2, 2}, "convert_tz": {3, 3}, "cos": {1, 1},
-	"cot": {1, 1}, "crc32": {1, 1}, "create_digest": {2, 2}, "curdate": {0, 0}, "current_date": {0, 0},
+	"cot": {1, 1}, "crc32": {1, 1}, "curdate": {0, 0}, "current_date": {0, 0},
 	"current_role": {0, 0}, "current_time": {0, 1}, "current_timestamp": {0, 1},
 	"current_user": {0, 0}, "curtime": {0, 1},
 	"database": {0, 0}, "date": {1, 1}, "datediff": {2, 2}, "date_add": {2, 2},
@@ -207,7 +207,7 @@ var defaultBuiltinFuncArity = map[string]funcArity{
 	"quarter": {1, 1}, "quote": {1, 1},
 	"radians": {1, 1}, "rand": {0, 1}, "random_bytes": {1, 1},
 	"regexp_instr": {2, 6}, "regexp_like": {2, 3}, "regexp_replace": {3, 6}, "regexp_substr": {2, 5},
-	"replace": {3, 3}, "reverse": {1, 1}, "right": {2, 2}, "roles_graphml": {0, 0},
+	"repeat": {2, 2}, "replace": {3, 3}, "reverse": {1, 1}, "right": {2, 2}, "roles_graphml": {0, 0},
 	"round": {1, 2}, "rpad": {3, 3}, "rtrim": {1, 1},
 	"schema": {0, 0}, "second": {1, 1}, "sec_to_time": {1, 1}, "session_user": {0, 0},
 	"sha": {1, 1}, "sha1": {1, 1}, "sha2": {2, 2}, "sign": {1, 1}, "sin": {1, 1},
@@ -324,6 +324,49 @@ func validateDefaultExprFuncs(expr nodes.ExprNode, colName string, ignoreSpace b
 	return err
 }
 
+// isBuiltinFunc reports a MySQL 8.0.46 native function: one DEFAULT (expr)
+// takes, or one it refuses (3770 or 3566), an aggregate, or a window function.
+// Any other unqualified call names a stored function or a loadable one, which
+// MySQL resolves in the current database. The lists were measured: every
+// function the server's help tables name was called as DEFAULT (fn(...)) and
+// as SELECT fn(...), where an unknown name answers 1305. CREATE_DIGEST and the
+// ASYMMETRIC_* functions belong to a component the pinned server has not
+// loaded, so they are unknown names there.
+func isBuiltinFunc(name string) bool {
+	name = canonicalDefaultBuiltinName(strings.ToLower(strings.TrimSpace(name)))
+	return allowedDefaultExprBuiltinFuncs[name] || nonDefaultBuiltinFuncs[name] ||
+		functionalIndexAggregates[name] || windowFuncs[name]
+}
+
+// nonDefaultBuiltinFuncs are the native functions DEFAULT (expr) refuses.
+var nonDefaultBuiltinFuncs = map[string]bool{
+	"benchmark": true, "found_rows": true, "get_lock": true, "icu_version": true,
+	"is_free_lock": true, "is_used_lock": true, "json_merge": true, "last_insert_id": true,
+	"load_file": true, "master_pos_wait": true, "release_all_locks": true, "release_lock": true,
+	"row_count": true, "sleep": true, "source_pos_wait": true, "updatexml": true, "version": true,
+	"grouping": true, "name_const": true, "values": true, "st_collect": true,
+	"wait_for_executed_gtid_set": true, "wait_until_sql_thread_after_gtids": true,
+	"can_access_column": true, "can_access_database": true, "can_access_table": true,
+	"get_dd_column_privileges": true, "get_dd_create_options": true,
+	"get_dd_index_sub_part_length": true, "internal_auto_increment": true,
+	"internal_avg_row_length": true, "internal_check_time": true, "internal_checksum": true,
+	"internal_data_free": true, "internal_data_length": true, "internal_dd_char_length": true,
+	"internal_get_comment_or_error": true, "internal_get_enabled_role_json": true,
+	"internal_get_hostname": true, "internal_get_username": true,
+	"internal_get_view_warning_or_error": true, "internal_index_column_cardinality": true,
+	"internal_index_length": true, "internal_is_enabled_role": true,
+	"internal_is_mandatory_role": true, "internal_keys_disabled": true,
+	"internal_max_data_length": true, "internal_table_rows": true, "internal_update_time": true,
+	"is_visible_dd_object": true,
+}
+
+// windowFuncs are the window functions, which take an OVER clause only.
+var windowFuncs = map[string]bool{
+	"row_number": true, "rank": true, "dense_rank": true, "percent_rank": true,
+	"cume_dist": true, "ntile": true, "lead": true, "lag": true,
+	"first_value": true, "last_value": true, "nth_value": true,
+}
+
 func isAllowedDefaultExprBuiltinFunc(name string) bool {
 	return allowedDefaultExprBuiltinFuncs[strings.ToLower(strings.TrimSpace(name))]
 }
@@ -343,7 +386,7 @@ var allowedDefaultExprBuiltinFuncs = map[string]bool{
 	"char_length": true, "coalesce": true, "coercibility": true, "collation": true,
 	"compress": true, "concat": true, "concat_ws": true, "connection_id": true,
 	"conv": true, "convert": true, "convert_tz": true, "cos": true, "cot": true,
-	"crc32": true, "create_digest": true, "curdate": true, "current_date": true,
+	"crc32": true, "curdate": true, "current_date": true,
 	"current_role": true, "current_time": true, "current_timestamp": true,
 	"current_user": true, "curtime": true,
 	"database": true, "date": true, "datediff": true, "date_add": true,
@@ -392,7 +435,7 @@ var allowedDefaultExprBuiltinFuncs = map[string]bool{
 	"power": true, "ps_current_thread_id": true, "ps_thread_id": true,
 	"quarter": true, "quote": true,
 	"radians": true, "rand": true, "random_bytes": true, "regexp_instr": true,
-	"regexp_like": true, "regexp_replace": true, "regexp_substr": true, "replace": true,
+	"regexp_like": true, "regexp_replace": true, "regexp_substr": true, "repeat": true, "replace": true,
 	"reverse": true, "right": true, "roles_graphml": true, "round": true,
 	"rpad": true, "rtrim": true,
 	"schema": true, "second": true, "sec_to_time": true, "session_user": true,

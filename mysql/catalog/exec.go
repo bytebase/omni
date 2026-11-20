@@ -1523,6 +1523,31 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				return false
 			}
 			fn := toLower(x.Name)
+			// A window function or an aggregate is refused in any branch:
+			// mysql:8.0.46 answers 3593 and 1111 for IF(1, 'ANSI', COUNT(1)).
+			if x.Over != nil || windowFuncs[fn] {
+				err = &Error{Code: 3593, SQLState: "HY000",
+					Message: fmt.Sprintf("You cannot use the window function '%s' in this context.'", fn)}
+				return false
+			}
+			if functionalIndexAggregates[fn] {
+				err = &Error{Code: 1111, SQLState: "HY000", Message: "Invalid use of group function"}
+				return false
+			}
+			// Any other name is a stored function of the current database,
+			// resolved before a branch is chosen: IF(1, 'ANSI', no_such()) is
+			// 1305, and 1046 with no database selected.
+			if !isBuiltinFunc(fn) {
+				if c.currentDB == "" {
+					err = errNoDatabaseSelected()
+					return false
+				}
+				if db := c.GetDatabase(c.currentDB); db != nil && db.Functions[fn] != nil {
+					return true
+				}
+				err = errNoSuchFunction(c.currentDB + "." + x.Name)
+				return false
+			}
 			argc := len(x.Args)
 			switch fn {
 			case "if":

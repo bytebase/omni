@@ -4938,6 +4938,37 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE z (x DOUBLE DEFAULT (ATAN2(1)))",
 			code: 0,
 		},
+		// Functions in a SET expression are resolved before a branch is chosen:
+		// an unknown unqualified name is a stored function of the current
+		// database (1305), and aggregates (1111) and window functions (3593)
+		// are refused even in the branch not taken.
+		{name: "SET IF over an unknown function", stmt: "SET sql_mode = IF(1, 'ANSI', no_such())", code: 1305},
+		{name: "SET user variable IF over an unknown function", stmt: "SET @x = IF(1, 1, no_such())", code: 1305},
+		{name: "SET IF over an aggregate", stmt: "SET sql_mode = IF(1, 'ANSI', COUNT(1))", code: 1111},
+		{name: "SET IF over a window function", stmt: "SET sql_mode = IF(1, 'ANSI', ROW_NUMBER() OVER ())", code: 3593},
+		{name: "SET IF over a built-in DEFAULT refuses", stmt: "SET sql_mode = IF(1, 'ANSI', VERSION())", code: 0},
+		{name: "SET IF over REPEAT", stmt: "SET sql_mode = IF(1, 'ANSI', REPEAT('a', 2))", code: 0},
+		{
+			name:    "SET IF over a stored function",
+			setup:   []string{"CREATE FUNCTION f_set_branch() RETURNS INT DETERMINISTIC RETURN 1"},
+			stmt:    "SET @x = IF(1, 1, f_set_branch())",
+			code:    0,
+			cleanup: []string{"DROP FUNCTION IF EXISTS f_set_branch"},
+		},
+		// REPEAT is a deterministic built-in DEFAULT (expr) takes; CREATE_DIGEST
+		// belongs to a component the pinned server has not loaded.
+		{name: "DEFAULT (REPEAT)", stmt: "CREATE TABLE z (s VARCHAR(10) DEFAULT (REPEAT('a', 3)))", code: 0},
+		{name: "DEFAULT (REPEAT) with one argument", stmt: "CREATE TABLE z (s VARCHAR(10) DEFAULT (REPEAT('a')))", code: 1064},
+		{name: "DEFAULT (CREATE_DIGEST)", stmt: "CREATE TABLE z (s VARCHAR(64) DEFAULT (CREATE_DIGEST('SHA256', 'a')))", code: 3770},
+		{
+			// A general tablespace with no ADD DATAFILE gets a file named by a
+			// UUID, not <name>.ibd, so another may take that name.
+			name:    "ADD DATAFILE named like an implicit tablespace file",
+			setup:   []string{"CREATE TABLESPACE ts_impl1 ENGINE=InnoDB"},
+			stmt:    "CREATE TABLESPACE ts_impl2 ADD DATAFILE 'ts_impl1.ibd' ENGINE=InnoDB",
+			code:    0,
+			cleanup: []string{"DROP TABLESPACE ts_impl2", "DROP TABLESPACE ts_impl1"},
+		},
 		// The type a functional key part's result takes: a BLOB, TEXT or binary
 		// column keeps its type through string functions, and a string or binary
 		// result longer than 512 characters is a LOB (3757).

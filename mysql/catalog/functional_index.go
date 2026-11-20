@@ -916,7 +916,7 @@ var functionalIndexAggregates = map[string]bool{
 	"group_concat": true, "json_arrayagg": true, "json_objectagg": true,
 	"bit_and": true, "bit_or": true, "bit_xor": true,
 	"std": true, "stddev": true, "stddev_pop": true, "stddev_samp": true,
-	"var_pop": true, "var_samp": true, "variance": true,
+	"var_pop": true, "var_samp": true, "variance": true, "st_collect": true,
 }
 
 // functionalIndexDisallowedBuiltins are the built-ins allowedDefaultExprBuiltinFuncs
