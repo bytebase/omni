@@ -154,7 +154,7 @@ func TestParseCreateSynonymLoc(t *testing.T) {
 
 func TestParseCreateDatabaseLink(t *testing.T) {
 	p := newTestParser("DATABASE LINK remote_db CONNECT TO admin IDENTIFIED BY secret USING 'prod_server'")
-	stmt, parseErr9 := p.parseCreateDatabaseLinkStmt(0, false)
+	stmt, parseErr9 := p.parseCreateDatabaseLinkStmt(0, false, false)
 	if parseErr9 != nil {
 		t.Fatalf("parse: %v", parseErr9)
 	}
@@ -177,7 +177,7 @@ func TestParseCreateDatabaseLink(t *testing.T) {
 
 func TestParseCreatePublicDatabaseLink(t *testing.T) {
 	p := newTestParser("DATABASE LINK remote_db CONNECT TO admin IDENTIFIED BY pass USING 'srv'")
-	stmt, parseErr10 := p.parseCreateDatabaseLinkStmt(0, true)
+	stmt, parseErr10 := p.parseCreateDatabaseLinkStmt(0, true, false)
 	if parseErr10 != nil {
 		t.Fatalf("parse: %v", parseErr10)
 	}
@@ -188,7 +188,7 @@ func TestParseCreatePublicDatabaseLink(t *testing.T) {
 
 func TestParseCreateDatabaseLinkLoc(t *testing.T) {
 	p := newTestParser("DATABASE LINK db CONNECT TO u IDENTIFIED BY p USING 's'")
-	stmt, parseErr11 := p.parseCreateDatabaseLinkStmt(0, false)
+	stmt, parseErr11 := p.parseCreateDatabaseLinkStmt(0, false, false)
 	if parseErr11 != nil {
 		t.Fatalf("parse: %v", parseErr11)
 	}

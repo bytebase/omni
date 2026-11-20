@@ -59,8 +59,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	defer p.leaveNesting()
 	defer p.restorePLSQLCode(p.setPLSQLCode(false))
 	// A query's own FROM is no DML statement's.
-	defer func(saved bool) { p.dmlFromClause = saved }(p.dmlFromClause)
+	defer func(dml, sel bool) { p.dmlFromClause, p.inSelectQuery = dml, sel }(p.dmlFromClause, p.inSelectQuery)
 	p.dmlFromClause = false
+	p.inSelectQuery = true
 
 	sel, more, err := p.parseQueryOperand()
 	if err != nil || !more {
@@ -1311,12 +1312,15 @@ func (p *Parser) isTableAliasCandidate() bool {
 	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
-		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
+		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE",
 			"SIBLINGS", "APPLY", "SEARCH", "CYCLE", "VERSIONS", "PERIOD",
 			"XML":
 			return false
 		}
 		return true
+	}
+	if p.cur.Type == kwRETURNING && !p.inSelectQuery {
+		return false
 	}
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
@@ -1324,7 +1328,7 @@ func (p *Parser) isTableAliasCandidate() bool {
 		kwLEFT, kwRIGHT, kwINNER, kwOUTER, kwCROSS, kwFULL, kwNATURAL,
 		kwJOIN, kwWHEN, kwTHEN, kwELSE, kwEND, kwAND, kwOR, kwNOT,
 		kwIS, kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4,
-		kwINTO, kwVALUES, kwSET, kwRETURNING, kwPIVOT, kwUNPIVOT,
+		kwINTO, kwVALUES, kwSET, kwPIVOT, kwUNPIVOT,
 		kwMODEL, kwWITH, kwKEEP, kwOVER, kwUSING,
 		kwPARTITION, kwSUBPARTITION, kwSAMPLE, kwVERSIONS:
 		return false

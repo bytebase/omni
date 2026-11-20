@@ -102,6 +102,17 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		duplicated = true
 	}
 
+	// SHARED [ PUBLIC ] DATABASE LINK
+	if !orReplace && !editionable && !nonEditionable && !global && !private && !sharded && !duplicated && p.isKeywordStr("SHARED") {
+		p.advance() // consume SHARED
+		sharedPublic := false
+		if p.cur.Type == kwPUBLIC {
+			sharedPublic = true
+			p.advance()
+		}
+		return p.parseCreateDatabaseLinkStmt(start, sharedPublic, true)
+	}
+
 	// PUBLIC (for CREATE PUBLIC SYNONYM / DATABASE LINK)
 	public := false
 	var publicTok *Token
@@ -171,7 +182,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// Distinguish CREATE DATABASE LINK from CREATE DATABASE
 		next := p.peekNext()
 		if next.Type == kwLINK {
-			return p.parseCreateDatabaseLinkStmt(start, public)
+			return p.parseCreateDatabaseLinkStmt(start, public, false)
 		}
 		return p.parseCreateDatabaseStmt(start)
 	case kwTYPE:
@@ -213,11 +224,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return nil, nil
 	default:
-		if p.isKeywordStr("NOFORCE") && p.peekNext().Type == kwVIEW {
+		if p.isKeywordStr("NOFORCE") {
+			if isAnalyticObjectWord(p.peekNext()) {
+				return p.parseCreateForcedAnalyticObject(start, orReplace)
+			}
 			return p.parseCreateViewStmt(start, orReplace)
-		}
-		if p.isKeywordStr("NOFORCE") && isAnalyticObjectWord(p.peekNext()) {
-			return p.parseCreateForcedAnalyticObject(start, orReplace)
 		}
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
@@ -454,20 +465,15 @@ func (p *Parser) parseCreateTableOfKind(stmt *nodes.CreateTableStmt) (*nodes.Cre
 	}
 
 	if p.cur.Type == kwDEFAULT {
-		next := p.peekNext()
-		if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "COLLATION" {
-			p.advance() // consume DEFAULT
-			p.advance()
-			p.createTableEngineCheck = true
-			var // consume COLLATION
-			parseErr492 error
-			stmt.Collation, parseErr492 = p.parseIdentifier()
-			if parseErr492 !=
-
-				// Table options (physical_properties + table_properties)
-				nil {
-				return nil, parseErr492
-			}
+		p.advance() // consume DEFAULT
+		if err := p.expectCreateTableWord("COLLATION"); err != nil {
+			return nil, err
+		}
+		p.createTableEngineCheck = true
+		var parseErr492 error
+		stmt.Collation, parseErr492 = p.parseIdentifier()
+		if parseErr492 != nil {
+			return nil, parseErr492
 		}
 	}
 	parseErr493 := p.parseTableOptions(stmt, hasColumns)
@@ -598,10 +604,13 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 	// CREATE TABLE a()), and a table at least one column, which a
 	// period_definition adds: a list of constraints alone is ORA-03079 at
 	// its closing parenthesis.
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
 	if stmt.Columns.Len()+stmt.Constraints.Len()+periods == 0 {
 		return p.syntaxErrorAtCur()
 	}
-	if stmt.Columns.Len()+periods == 0 && p.cur.Type == ')' {
+	if stmt.Columns.Len()+periods == 0 {
 		return p.syntaxErrorAtCur()
 	}
 	return p.checkOutOfLineRefConstraints(stmt, true)
@@ -882,8 +891,8 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 						if parseErr502 != nil {
 							return parseErr502
 						}
-						if p.cur.Type == ')' {
-							p.advance()
+						if err := p.expectCreateTableToken(')'); err != nil {
+							return err
 						}
 					}
 					identity.Loc.End = p.prev.End
@@ -936,9 +945,6 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			col.Invisible = true
 
 		case kwWITH:
-			if p.peekNext().Type != kwROWID {
-				return nil
-			}
 			if err := p.parseInlineRefConstraint(col); err != nil {
 				return err
 			}
@@ -1078,7 +1084,9 @@ func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
 	cc := &nodes.ColumnConstraint{Loc: nodes.Loc{Start: p.pos()}}
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		p.advance() // consume ROWID
+		if err := p.expectCreateTableToken(kwROWID); err != nil {
+			return err
+		}
 		cc.Type = nodes.CONSTRAINT_WITH_ROWID
 	} else {
 		for _, item := range col.Constraints.Items {
@@ -1304,11 +1312,12 @@ func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
 		}
 		tc.Type = nodes.CONSTRAINT_SCOPE
 	} else {
-		if p.cur.Type != kwWITH || p.peekNext().Type != kwROWID {
-			return nil, p.syntaxErrorAtCur()
+		if err := p.expectCreateTableToken(kwWITH); err != nil {
+			return nil, err
 		}
-		p.advance() // consume WITH
-		p.advance() // consume ROWID
+		if err := p.expectCreateTableToken(kwROWID); err != nil {
+			return nil, err
+		}
 		tc.Type = nodes.CONSTRAINT_WITH_ROWID
 	}
 	tc.Loc.End = p.prev.End
@@ -1530,18 +1539,14 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		}
 		// ON DELETE
 		if p.cur.Type == kwON {
-			next := p.peekNext()
-			if next.Type == kwDELETE {
-				p.advance() // consume ON
-				p.advance()
-				var // consume DELETE
-				parseErr528 error
-				cc.OnDelete, parseErr528 = p.parseDeleteAction()
-				if parseErr528 != nil {
-					return nil, parseErr528
-
-					// DEFERRABLE / NOT DEFERRABLE
-				}
+			p.advance() // consume ON
+			if err := p.expectCreateTableToken(kwDELETE); err != nil {
+				return nil, err
+			}
+			var parseErr528 error
+			cc.OnDelete, parseErr528 = p.parseDeleteAction()
+			if parseErr528 != nil {
+				return nil, parseErr528
 			}
 		}
 
@@ -1568,7 +1573,7 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 //
 //	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... } constraint_state
 func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
-	tc, err := p.parseTableConstraintBody()
+	tc, err := p.parseTableConstraintBody(true)
 	if err != nil {
 		return nil, err
 	}
@@ -1590,7 +1595,7 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 // parseTableConstraintBody parses a table-level constraint without its
 // constraint_state clause. Used directly by view constraint parsing, where
 // the allowed state differs — see parseViewConstraintState.
-func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
+func (p *Parser) parseTableConstraintBody(allowOnDelete bool) (*nodes.TableConstraint, error) {
 	start := p.pos()
 	tc := &nodes.TableConstraint{
 		Loc: nodes.Loc{Start: start},
@@ -1708,19 +1713,15 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 			p.advance()
 		}
 		// ON DELETE
-		if p.cur.Type == kwON {
-			next := p.peekNext()
-			if next.Type == kwDELETE {
-				p.advance() // consume ON
-				p.advance()
-				var // consume DELETE
-				parseErr536 error
-				tc.OnDelete, parseErr536 = p.parseDeleteAction()
-				if parseErr536 != nil {
-					return nil, parseErr536
-
-					// DEFERRABLE / NOT DEFERRABLE
-				}
+		if allowOnDelete && p.cur.Type == kwON {
+			p.advance() // consume ON
+			if err := p.expectCreateTableToken(kwDELETE); err != nil {
+				return nil, err
+			}
+			var parseErr536 error
+			tc.OnDelete, parseErr536 = p.parseDeleteAction()
+			if parseErr536 != nil {
+				return nil, parseErr536
 			}
 		}
 
@@ -2160,28 +2161,33 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 					}
 					p.advance()
 				case "COLUMN":
-					// COLUMN STORE COMPRESS FOR { QUERY | ARCHIVE } [ LOW | HIGH ]
-					next := p.peekNext()
-					if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "STORE" {
+					// COLUMN STORE COMPRESS [ FOR { QUERY | ARCHIVE } [ LOW | HIGH ] ]
+					// or object_type_col_properties: COLUMN column substitutable_column_clause
+					if isCreateTableWordTok(p.peekNext(), "STORE") {
 						p.advance() // consume COLUMN
 						p.advance() // consume STORE
-						if p.cur.Type == kwCOMPRESS {
-							p.advance() // consume COMPRESS
-							stmt.Compress = "COLUMN STORE COMPRESS"
-							if p.cur.Type == kwFOR {
-								p.advance() // consume FOR
-								if p.isIdentLikeStr("QUERY") || p.isIdentLikeStr("ARCHIVE") {
-									stmt.Compress += " FOR " + p.cur.Str
-									p.advance()
-									if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
-										stmt.Compress += " " + p.cur.Str
-										p.advance()
-									}
-								}
+						if err := p.expectCreateTableToken(kwCOMPRESS); err != nil {
+							return err
+						}
+						stmt.Compress = "COLUMN STORE COMPRESS"
+						if p.cur.Type == kwFOR {
+							p.advance() // consume FOR
+							if !p.isKeywordStr("QUERY") && !p.isKeywordStr("ARCHIVE") {
+								return p.syntaxErrorAtCur()
+							}
+							stmt.Compress += " FOR " + p.cur.Str
+							p.advance()
+							if p.isKeywordStr("LOW") || p.isKeywordStr("HIGH") {
+								stmt.Compress += " " + p.cur.Str
+								p.advance()
 							}
 						}
 					} else {
-						return nil
+						optStart := p.pos()
+						if err := p.parseCreateTableObjectTypeColProperties(); err != nil {
+							return err
+						}
+						appendCreateTableOption(stmt, "COLUMN", p.createTableOptionValue(optStart+len("COLUMN")), nodes.Loc{Start: optStart, End: p.prev.End})
 					}
 				case "INMEMORY":
 					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable, false); err != nil {
