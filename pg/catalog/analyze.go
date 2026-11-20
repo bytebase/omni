@@ -5592,12 +5592,36 @@ func figureColName(n nodes.Node) string {
 		return figureColName(v.Arg)
 	case *nodes.A_Const:
 		return "?column?"
-	case *nodes.ArrayExpr:
+	case *nodes.ArrayExpr, *nodes.A_ArrayExpr:
 		return "array"
 	case *nodes.RowExpr:
 		return "row"
 	case *nodes.CollateClause:
 		return figureColName(v.Arg)
+	case *nodes.JsonObjectConstructor:
+		return "json_object"
+	case *nodes.JsonArrayConstructor, *nodes.JsonArrayQueryConstructor:
+		return "json_array"
+	case *nodes.JsonObjectAgg:
+		return "json_objectagg"
+	case *nodes.JsonArrayAgg:
+		return "json_arrayagg"
+	case *nodes.JsonParseExpr:
+		return "json"
+	case *nodes.JsonScalarExpr:
+		return "json_scalar"
+	case *nodes.JsonSerializeExpr:
+		return "json_serialize"
+	case *nodes.JsonFuncExpr:
+		switch v.Op {
+		case nodes.JSON_EXISTS_OP:
+			return "json_exists"
+		case nodes.JSON_QUERY_OP:
+			return "json_query"
+		case nodes.JSON_VALUE_OP:
+			return "json_value"
+		}
+		return "?column?"
 	case *nodes.XmlExpr:
 		switch v.Op {
 		case nodes.IS_XMLCONCAT:

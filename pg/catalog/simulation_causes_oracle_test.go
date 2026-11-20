@@ -4729,6 +4729,103 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c117From, c117To, Diff(c117From, c117To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c117From->c117To, got:\n%s", rem.SQL())
 		}
+
+		// Round 16 regressions:
+		// 1. Aliased joins in rule FROM clauses are bound in scope and deparsed with
+		//    parentheses and alias.
+		// 2. GroupingSet (ROLLUP, CUBE, GROUPING SETS) is bound and deparsed in rule queries.
+		// 3. FETCH FIRST ... ROWS WITH TIES is preserved when deparsing rules.
+		// 4. LockingClause (FOR UPDATE, FOR SHARE, OF ..., NOWAIT, SKIP LOCKED) is
+		//    bound and deparsed in rule queries.
+		// 5. Columns exposed by virtual range sources (subqueries, CTEs, table
+		//    functions, XMLTABLE, JSON_TABLE, sequences, aliased joins) are validated.
+		// 6. SQLValueFunction precision (CURRENT_TIMESTAMP(3), LOCALTIME(2), etc.)
+		//    is preserved when deparsing rules.
+		// 7. RangeTableFunc (XMLTABLE) and JsonTable (JSON_TABLE) sources are bound
+		//    and deparsed in rule queries.
+		// 8. Domains depending on rebuilt range types are dropped in PhasePre before
+		//    the range and recreated in PhaseMain after the range.
+		c118 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+		} {
+			if code := simulationCatalogCode(t, c118, stmt); code != "0" {
+				t.Fatalf("c118 setup %s: %s", stmt, code)
+			}
+		}
+		for _, bad := range []struct {
+			sql  string
+			want string
+		}{
+			{"CREATE RULE r_bad_subq AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT s.missing FROM (SELECT 1 AS present) AS s", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_subq_unqual AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT missing FROM (SELECT 1 AS present) AS s", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_cte AS ON INSERT TO t1_r16 DO ALSO WITH w AS (SELECT 1 AS present) INSERT INTO dst_r16 (a) SELECT w.missing FROM w", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_join_alias AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT j.missing FROM (t1_r16 JOIN t2_r16 USING (a)) AS j", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_xmltable AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT xt.missing FROM XMLTABLE('/rows/row' PASSING '<rows/>'::xml COLUMNS id int PATH 'id') AS xt", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_jsontable AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT jt.missing FROM JSON_TABLE('[]'::jsonb, '$[*]' COLUMNS (id int PATH '$.id')) AS jt", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_grouping AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT a FROM t1_r16 GROUP BY ROLLUP (no_such_col)", CodeUndefinedColumn},
+			{"CREATE RULE r_bad_lock_rel AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a) SELECT a FROM t1_r16 FOR UPDATE OF no_such_rel", CodeUndefinedTable},
+		} {
+			if got := simulationCatalogCode(t, c118, bad.sql); got != bad.want {
+				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
+			}
+		}
+
+		c118From := New()
+		c118To := New()
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r16 (LOCALE = 'C')",
+			"CREATE TYPE rng_r16 AS RANGE (SUBTYPE = text, COLLATION = coll_r16)",
+			"CREATE DOMAIN dom_rng_r16 AS rng_r16",
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+		} {
+			if code := simulationCatalogCode(t, c118From, stmt); code != "0" {
+				t.Fatalf("c118From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION coll_r16 (LOCALE = 'POSIX')",
+			"CREATE TYPE rng_r16 AS RANGE (SUBTYPE = text, COLLATION = coll_r16)",
+			"CREATE DOMAIN dom_rng_r16 AS rng_r16",
+			"CREATE TABLE t1_r16 (a int, b text)",
+			"CREATE TABLE t2_r16 (a int, c text)",
+			"CREATE TABLE dst_r16 (a int, b text)",
+			"CREATE RULE r_join_r16 AS ON INSERT TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT j.a, CURRENT_TIMESTAMP(3)::text FROM (t1_r16 JOIN t2_r16 USING (a)) AS j ORDER BY j.a FETCH FIRST 1 ROWS WITH TIES FOR UPDATE OF t1_r16 NOWAIT",
+			"CREATE RULE r_grp_r16 AS ON UPDATE TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT a, LOCALTIME(2)::text FROM t1_r16 GROUP BY ROLLUP (a, b)",
+			"CREATE RULE r_xml_json_r16 AS ON DELETE TO t1_r16 DO ALSO INSERT INTO dst_r16 (a, b) SELECT xt.id, jt.name FROM XMLTABLE('/rows/row' PASSING '<rows/>'::xml COLUMNS id int PATH 'id') AS xt, JSON_TABLE('[]'::jsonb, '$[*]' COLUMNS (name text PATH '$.name')) AS jt",
+		} {
+			if code := simulationCatalogCode(t, c118To, stmt); code != "0" {
+				t.Fatalf("c118To %s: %s", stmt, code)
+			}
+		}
+		mig118 := GenerateMigration(c118From, c118To, Diff(c118From, c118To))
+		sql118 := mig118.SQL()
+		for _, wantSubstr := range []string{
+			"DROP DOMAIN \"public\".\"dom_rng_r16\"",
+			"CREATE DOMAIN \"public\".\"dom_rng_r16\" AS rng_r16",
+			"(t1_r16 JOIN t2_r16 USING (a)) AS j",
+			"CURRENT_TIMESTAMP(3)",
+			"FETCH FIRST 1 ROWS WITH TIES",
+			"FOR UPDATE OF t1_r16 NOWAIT",
+			"LOCALTIME(2)",
+			"GROUP BY ROLLUP(a, b)",
+			"XMLTABLE('/rows/row' PASSING ('<rows/>')::xml COLUMNS id integer PATH 'id') AS xt",
+			"JSON_TABLE(('[]')::jsonb, '$[*]' COLUMNS (name text PATH '$.name')) AS jt",
+		} {
+			if !strings.Contains(sql118, wantSubstr) {
+				t.Fatalf("expected %q in migration DDL, got:\n%s", wantSubstr, sql118)
+			}
+		}
+		if code := simulationCatalogCode(t, c118From, sql118); code != "0" {
+			t.Fatalf("applying c118From->c118To failed with %s:\n%s", code, sql118)
+		}
+		if rem := GenerateMigration(c118From, c118To, Diff(c118From, c118To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c118From->c118To, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

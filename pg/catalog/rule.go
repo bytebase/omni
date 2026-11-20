@@ -48,6 +48,7 @@ type ruleBindings struct {
 	typeByTN    map[*nodes.TypeName]ruleTypeBinding
 	collByCC    map[*nodes.CollateClause]uint32
 	funcByFC    map[*nodes.FuncCall]uint32
+	stmtCtx     map[*nodes.SelectStmt]*ruleEvalContext
 
 	relDeps  []uint32
 	colDeps  []ruleColDep
@@ -462,6 +463,7 @@ func (c *Catalog) validatePreparedDMLStmt(n nodes.Node) error {
 		typeByTN: make(map[*nodes.TypeName]ruleTypeBinding),
 		collByCC: make(map[*nodes.CollateClause]uint32),
 		funcByFC: make(map[*nodes.FuncCall]uint32),
+		stmtCtx:  make(map[*nodes.SelectStmt]*ruleEvalContext),
 		seenRel:  make(map[uint32]bool),
 		seenCol:  make(map[ruleColDep]bool),
 		seenSeq:  make(map[uint32]bool),
@@ -518,17 +520,27 @@ func (c *Catalog) renameRule(stmt *nodes.RenameStmt) error {
 }
 
 type ruleScopeEntry struct {
-	relOID     uint32
-	hasAlias   bool
-	alias      string
-	colAliases []string
-	isVirtual  bool // CTE, subquery, sequence, or table function
+	relOID               uint32
+	hasAlias             bool
+	alias                string
+	colAliases           []string
+	isVirtual            bool // CTE, subquery, sequence, table function, XMLTABLE, JSON_TABLE, or aliased JOIN
+	virtualCols          map[string]int
+	virtualColOrder      []string
+	anyCol               bool
+	isJoinAlias          bool
+	hasJoinColAliases    bool
+	hiddenByJoinColAlias bool
+	joinRels             []uint32
 }
 
 type ruleEvalContext struct {
 	scope         map[string]ruleScopeEntry
 	outer         *ruleEvalContext
 	cteNames      map[string]bool
+	cteCols       map[string][]string
+	cteAny        map[string]bool
+	usingCols     map[string]int
 	targetAliases map[string]bool
 	hasOpenSource bool
 }
@@ -545,6 +557,7 @@ func (c *Catalog) buildRuleBindings(ownerRel *Relation, event nodes.CmdType, whe
 		typeByTN:    make(map[*nodes.TypeName]ruleTypeBinding),
 		collByCC:    make(map[*nodes.CollateClause]uint32),
 		funcByFC:    make(map[*nodes.FuncCall]uint32),
+		stmtCtx:     make(map[*nodes.SelectStmt]*ruleEvalContext),
 		seenRel:     make(map[uint32]bool),
 		seenCol:     make(map[ruleColDep]bool),
 		seenSeq:     make(map[uint32]bool),
@@ -579,48 +592,84 @@ func extractAliasColnames(alias *nodes.Alias) []string {
 	return out
 }
 
-func (c *Catalog) bindRangeVar(b *ruleBindings, rv *nodes.RangeVar, cteNames map[string]bool, forDMLTarget bool) (uint32, bool, error) {
+func extractNodeListStrings(list *nodes.List) []string {
+	if list == nil || len(list.Items) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(list.Items))
+	for _, it := range list.Items {
+		out = append(out, stringVal(it))
+	}
+	return out
+}
+
+func applyVirtualAliasCols(baseCols []string, baseAny bool, aliasCols []string) (map[string]int, []string, bool) {
+	if len(baseCols) == 0 && len(aliasCols) == 0 {
+		return nil, nil, baseAny
+	}
+	n := len(baseCols)
+	if len(aliasCols) > n {
+		n = len(aliasCols)
+	}
+	outMap := make(map[string]int, n)
+	outOrder := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		var name string
+		if i < len(aliasCols) && aliasCols[i] != "" {
+			name = aliasCols[i]
+		} else if i < len(baseCols) {
+			name = baseCols[i]
+		}
+		if name != "" {
+			outMap[name]++
+		}
+		outOrder = append(outOrder, name)
+	}
+	return outMap, outOrder, baseAny
+}
+
+func (c *Catalog) bindRangeVar(b *ruleBindings, rv *nodes.RangeVar, cteNames map[string]bool, forDMLTarget bool) (uint32, string, error) {
 	if rv == nil {
-		return 0, false, nil
+		return 0, "", nil
 	}
 	if !forDMLTarget && rv.Schemaname == "" && cteNames[rv.Relname] {
-		return 0, true, nil
+		return 0, "cte", nil
 	}
 	_, rel, err := c.findRelation(rv.Schemaname, rv.Relname)
 	if err != nil {
 		if !forDMLTarget {
 			if seq, seqErr := c.findSequence(rv.Schemaname, rv.Relname); seqErr == nil && seq != nil {
 				b.addSeqDep(seq.OID)
-				return 0, true, nil
+				return 0, "seq", nil
 			}
 		}
 		if c.snapshot {
-			return 0, true, nil
+			return 0, "open", nil
 		}
-		return 0, false, err
+		return 0, "", err
 	}
 	if rel.RelKind == 'c' {
-		return 0, false, errWrongObjectType(rel.Name, "a table")
+		return 0, "", errWrongObjectType(rel.Name, "a table")
 	}
 	if forDMLTarget {
 		switch rel.RelKind {
 		case 'r', 'p', 'v', 'f':
 		case 'm':
-			return 0, false, &Error{
+			return 0, "", &Error{
 				Code:    CodeWrongObjectType,
 				Message: fmt.Sprintf("cannot change materialized view %q", rel.Name),
 			}
 		default:
-			return 0, false, errWrongObjectType(rel.Name, "a table")
+			return 0, "", errWrongObjectType(rel.Name, "a table")
 		}
 	}
 	b.relByRV[rv] = rel.OID
 	b.addRelDep(rel.OID)
-	return rel.OID, false, nil
+	return rel.OID, "", nil
 }
 
 func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nodes.RangeVar, forDMLTarget bool) (uint32, error) {
-	relOID, isVirtual, err := c.bindRangeVar(b, rv, ctx.cteNames, forDMLTarget)
+	relOID, virtualKind, err := c.bindRangeVar(b, rv, ctx.cteNames, forDMLTarget)
 	if err != nil {
 		return 0, err
 	}
@@ -635,9 +684,30 @@ func addScopeRangeVar(c *Catalog, b *ruleBindings, ctx *ruleEvalContext, rv *nod
 		hasAlias = true
 		alias = rv.Alias.Aliasname
 	}
-	if isVirtual {
-		ctx.scope[name] = ruleScopeEntry{hasAlias: hasAlias, alias: alias, isVirtual: true}
-		ctx.hasOpenSource = true
+	if virtualKind != "" {
+		var baseCols []string
+		baseAny := false
+		switch virtualKind {
+		case "cte":
+			baseCols = ctx.cteCols[rv.Relname]
+			baseAny = ctx.cteAny[rv.Relname]
+		case "seq":
+			baseCols = []string{"last_value", "log_cnt", "is_called"}
+		default:
+			baseAny = true
+		}
+		vCols, vOrder, vAny := applyVirtualAliasCols(baseCols, baseAny, extractAliasColnames(rv.Alias))
+		ctx.scope[name] = ruleScopeEntry{
+			hasAlias:        hasAlias,
+			alias:           alias,
+			isVirtual:       true,
+			virtualCols:     vCols,
+			virtualColOrder: vOrder,
+			anyCol:          vAny,
+		}
+		if vAny {
+			ctx.hasOpenSource = true
+		}
 		return 0, nil
 	}
 	if relOID != 0 {
@@ -669,22 +739,33 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		_, err := addScopeRangeVar(c, b, ctx, v, false)
 		return err
 	case *nodes.RangeSubselect:
-		subCtx := &ruleEvalContext{cteNames: ctx.cteNames}
+		subCtx := &ruleEvalContext{cteNames: ctx.cteNames, cteCols: ctx.cteCols, cteAny: ctx.cteAny}
 		if v.Lateral {
 			subCtx.outer = ctx
 		}
 		if err := c.bindRuleStmt(b, v.Subquery, subCtx); err != nil {
 			return err
 		}
+		baseCols, baseAny := c.extractRuleQueryCols(b, v.Subquery)
+		vCols, vOrder, vAny := applyVirtualAliasCols(baseCols, baseAny, extractAliasColnames(v.Alias))
 		if v.Alias != nil && v.Alias.Aliasname != "" {
-			ctx.scope[v.Alias.Aliasname] = ruleScopeEntry{hasAlias: true, alias: v.Alias.Aliasname, isVirtual: true}
+			ctx.scope[v.Alias.Aliasname] = ruleScopeEntry{
+				hasAlias:        true,
+				alias:           v.Alias.Aliasname,
+				isVirtual:       true,
+				virtualCols:     vCols,
+				virtualColOrder: vOrder,
+				anyCol:          vAny,
+			}
 		}
-		ctx.hasOpenSource = true
+		if vAny {
+			ctx.hasOpenSource = true
+		}
 	case *nodes.RangeFunction:
 		if v.Functions != nil {
 			fnCtx := ctx
 			if !v.Lateral {
-				fnCtx = &ruleEvalContext{outer: ctx.outer, cteNames: ctx.cteNames}
+				fnCtx = &ruleEvalContext{outer: ctx.outer, cteNames: ctx.cteNames, cteCols: ctx.cteCols, cteAny: ctx.cteAny}
 			}
 			for _, fnItem := range v.Functions.Items {
 				if pair, ok := fnItem.(*nodes.List); ok && len(pair.Items) > 0 {
@@ -706,10 +787,136 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		if err := c.bindRuleTableFuncColDefs(b, v.Coldeflist); err != nil {
 			return err
 		}
+		baseCols, baseAny := c.extractRangeFunctionCols(v)
+		vCols, vOrder, vAny := applyVirtualAliasCols(baseCols, baseAny, extractAliasColnames(v.Alias))
+		scopeName := ""
+		hasAlias := false
+		aliasName := ""
 		if v.Alias != nil && v.Alias.Aliasname != "" {
-			ctx.scope[v.Alias.Aliasname] = ruleScopeEntry{hasAlias: true, alias: v.Alias.Aliasname, isVirtual: true}
+			scopeName = v.Alias.Aliasname
+			hasAlias = true
+			aliasName = v.Alias.Aliasname
+		} else if v.Functions != nil && len(v.Functions.Items) == 1 {
+			scopeName = singleRangeFuncName(v.Functions.Items[0])
 		}
-		ctx.hasOpenSource = true
+		if scopeName == "" {
+			scopeName = fmt.Sprintf("\x00rowsfrom_%d", len(ctx.scope))
+		}
+		ctx.scope[scopeName] = ruleScopeEntry{
+			hasAlias:        hasAlias,
+			alias:           aliasName,
+			isVirtual:       true,
+			virtualCols:     vCols,
+			virtualColOrder: vOrder,
+			anyCol:          vAny,
+		}
+		if vAny {
+			ctx.hasOpenSource = true
+		}
+	case *nodes.RangeTableFunc:
+		fnCtx := ctx
+		if !v.Lateral {
+			fnCtx = &ruleEvalContext{outer: ctx.outer, cteNames: ctx.cteNames, cteCols: ctx.cteCols, cteAny: ctx.cteAny}
+		}
+		if v.Namespaces != nil {
+			for _, item := range v.Namespaces.Items {
+				if rt, ok := item.(*nodes.ResTarget); ok && rt != nil {
+					if err := c.bindRuleExpr(b, rt.Val, fnCtx); err != nil {
+						return err
+					}
+				} else if err := c.bindRuleExpr(b, item, fnCtx); err != nil {
+					return err
+				}
+			}
+		}
+		if err := c.bindRuleExpr(b, v.Docexpr, fnCtx); err != nil {
+			return err
+		}
+		if err := c.bindRuleExpr(b, v.Rowexpr, fnCtx); err != nil {
+			return err
+		}
+		var baseCols []string
+		if v.Columns != nil {
+			for _, item := range v.Columns.Items {
+				fc, ok := item.(*nodes.RangeTableFuncCol)
+				if !ok || fc == nil {
+					continue
+				}
+				if fc.Colname != "" {
+					baseCols = append(baseCols, fc.Colname)
+				}
+				if fc.TypeName != nil {
+					if err := c.bindRuleTypeName(b, fc.TypeName); err != nil {
+						return err
+					}
+				}
+				if err := c.bindRuleExpr(b, fc.Colexpr, fnCtx); err != nil {
+					return err
+				}
+				if err := c.bindRuleExpr(b, fc.Coldefexpr, fnCtx); err != nil {
+					return err
+				}
+			}
+		}
+		vCols, vOrder, vAny := applyVirtualAliasCols(baseCols, false, extractAliasColnames(v.Alias))
+		scopeName, hasAlias, aliasName := "xmltable", false, ""
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			scopeName, hasAlias, aliasName = v.Alias.Aliasname, true, v.Alias.Aliasname
+		}
+		ctx.scope[scopeName] = ruleScopeEntry{
+			hasAlias:        hasAlias,
+			alias:           aliasName,
+			isVirtual:       true,
+			virtualCols:     vCols,
+			virtualColOrder: vOrder,
+			anyCol:          vAny,
+		}
+	case *nodes.JsonTable:
+		fnCtx := ctx
+		if !v.Lateral {
+			fnCtx = &ruleEvalContext{outer: ctx.outer, cteNames: ctx.cteNames, cteCols: ctx.cteCols, cteAny: ctx.cteAny}
+		}
+		if v.ContextItem != nil {
+			if err := c.bindRuleExpr(b, v.ContextItem, fnCtx); err != nil {
+				return err
+			}
+		}
+		if v.Pathspec != nil {
+			if err := c.bindRuleExpr(b, v.Pathspec.String, fnCtx); err != nil {
+				return err
+			}
+		}
+		if v.Passing != nil {
+			for _, item := range v.Passing.Items {
+				if ja, ok := item.(*nodes.JsonArgument); ok && ja != nil {
+					if err := c.bindRuleExpr(b, ja.Val, fnCtx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		var baseCols []string
+		if err := c.bindRuleJsonTableColumns(b, v.Columns, fnCtx, &baseCols); err != nil {
+			return err
+		}
+		if v.OnError != nil {
+			if err := c.bindRuleExpr(b, v.OnError.Expr, fnCtx); err != nil {
+				return err
+			}
+		}
+		vCols, vOrder, vAny := applyVirtualAliasCols(baseCols, false, extractAliasColnames(v.Alias))
+		scopeName, hasAlias, aliasName := "json_table", false, ""
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			scopeName, hasAlias, aliasName = v.Alias.Aliasname, true, v.Alias.Aliasname
+		}
+		ctx.scope[scopeName] = ruleScopeEntry{
+			hasAlias:        hasAlias,
+			alias:           aliasName,
+			isVirtual:       true,
+			virtualCols:     vCols,
+			virtualColOrder: vOrder,
+			anyCol:          vAny,
+		}
 	case *nodes.RangeTableSample:
 		if err := c.collectTableRefScope(b, v.Relation, ctx); err != nil {
 			return err
@@ -725,14 +932,150 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 			return err
 		}
 	case *nodes.JoinExpr:
+		beforeKeys := make(map[string]bool, len(ctx.scope))
+		for k := range ctx.scope {
+			beforeKeys[k] = true
+		}
 		if err := c.collectTableRefScope(b, v.Larg, ctx); err != nil {
 			return err
 		}
 		if err := c.collectTableRefScope(b, v.Rarg, ctx); err != nil {
 			return err
 		}
+		lCols, lAny, lRels := c.tableRefColumns(v.Larg, ctx)
+		rCols, rAny, rRels := c.tableRefColumns(v.Rarg, ctx)
+		aliasCols := extractAliasColnames(v.Alias)
+		if v.UsingClause != nil {
+			if ctx.usingCols == nil {
+				ctx.usingCols = make(map[string]int)
+			}
+			seenUsing := make(map[string]bool)
+			for _, u := range v.UsingClause.Items {
+				uCol := stringVal(u)
+				if uCol == "" {
+					continue
+				}
+				if (!lAny && !stringSliceContains(lCols, uCol)) || (!rAny && !stringSliceContains(rCols, uCol)) {
+					if !c.snapshot {
+						return errUndefinedColumn(uCol)
+					}
+				}
+				if len(aliasCols) == 0 && !seenUsing[uCol] {
+					seenUsing[uCol] = true
+					ctx.usingCols[uCol]++
+				}
+			}
+		} else if v.IsNatural {
+			if ctx.usingCols == nil {
+				ctx.usingCols = make(map[string]int)
+			}
+			seenNat := make(map[string]bool)
+			for _, lc := range lCols {
+				if lc != "" && stringSliceContains(rCols, lc) && len(aliasCols) == 0 && !seenNat[lc] {
+					seenNat[lc] = true
+					ctx.usingCols[lc]++
+				}
+			}
+		}
 		if v.Quals != nil {
 			if err := c.bindRuleExpr(b, v.Quals, ctx); err != nil {
+				return err
+			}
+		}
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			if len(aliasCols) > 0 {
+				for k, se := range ctx.scope {
+					if !beforeKeys[k] {
+						se.hiddenByJoinColAlias = true
+						ctx.scope[k] = se
+					}
+				}
+			}
+			combinedCols := combineJoinCols(lCols, rCols, v.UsingClause, v.IsNatural)
+			vCols, vOrder, vAny := applyVirtualAliasCols(combinedCols, lAny || rAny, aliasCols)
+			joinRels := append(append([]uint32(nil), lRels...), rRels...)
+			ctx.scope[v.Alias.Aliasname] = ruleScopeEntry{
+				hasAlias:          true,
+				alias:             v.Alias.Aliasname,
+				isVirtual:         true,
+				virtualCols:       vCols,
+				virtualColOrder:   vOrder,
+				anyCol:            vAny,
+				isJoinAlias:       true,
+				hasJoinColAliases: len(aliasCols) > 0,
+				joinRels:          joinRels,
+			}
+			if vAny {
+				ctx.hasOpenSource = true
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) bindRuleTypeName(b *ruleBindings, tn *nodes.TypeName) error {
+	if tn == nil {
+		return nil
+	}
+	oid, _, err := c.resolveTypeName(tn)
+	if err != nil {
+		if !c.snapshot {
+			return err
+		}
+		return nil
+	}
+	if oid != 0 {
+		isArr := tn.ArrayBounds != nil && len(tn.ArrayBounds.Items) > 0
+		elemOID := oid
+		if bt := c.typeByOID[oid]; bt != nil && bt.Elem != 0 {
+			elemOID = bt.Elem
+		}
+		b.typeByTN[tn] = ruleTypeBinding{typeOID: elemOID, isArray: isArr}
+		b.addTypeDep(elemOID)
+	}
+	return nil
+}
+
+func (c *Catalog) bindRuleJsonTableColumns(b *ruleBindings, list *nodes.List, ctx *ruleEvalContext, baseCols *[]string) error {
+	if list == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		jtc, ok := item.(*nodes.JsonTableColumn)
+		if !ok || jtc == nil {
+			continue
+		}
+		if jtc.Coltype == nodes.JTC_NESTED {
+			if jtc.Pathspec != nil {
+				if err := c.bindRuleExpr(b, jtc.Pathspec.String, ctx); err != nil {
+					return err
+				}
+			}
+			if err := c.bindRuleJsonTableColumns(b, jtc.Columns, ctx, baseCols); err != nil {
+				return err
+			}
+			continue
+		}
+		if jtc.Name != "" {
+			*baseCols = append(*baseCols, jtc.Name)
+		}
+		if jtc.TypeName != nil {
+			if err := c.bindRuleTypeName(b, jtc.TypeName); err != nil {
+				return err
+			}
+		}
+		if jtc.Pathspec != nil {
+			if err := c.bindRuleExpr(b, jtc.Pathspec.String, ctx); err != nil {
+				return err
+			}
+		}
+		if jtc.OnEmpty != nil {
+			if err := c.bindRuleExpr(b, jtc.OnEmpty.Expr, ctx); err != nil {
+				return err
+			}
+		}
+		if jtc.OnError != nil {
+			if err := c.bindRuleExpr(b, jtc.OnError.Expr, ctx); err != nil {
 				return err
 			}
 		}
@@ -740,20 +1083,461 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 	return nil
 }
 
-func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *ruleEvalContext) (map[string]bool, error) {
+func stringSliceContains(xs []string, target string) bool {
+	for _, x := range xs {
+		if x == target {
+			return true
+		}
+	}
+	return false
+}
+
+func combineJoinCols(lCols, rCols []string, usingClause *nodes.List, isNatural bool) []string {
+	var out []string
+	common := make(map[string]bool)
+	if usingClause != nil && len(usingClause.Items) > 0 {
+		for _, u := range usingClause.Items {
+			uCol := stringVal(u)
+			if uCol != "" && !common[uCol] {
+				common[uCol] = true
+				out = append(out, uCol)
+			}
+		}
+	} else if isNatural {
+		for _, lc := range lCols {
+			if lc != "" && stringSliceContains(rCols, lc) && !common[lc] {
+				common[lc] = true
+				out = append(out, lc)
+			}
+		}
+	}
+	for _, lc := range lCols {
+		if !common[lc] {
+			out = append(out, lc)
+		}
+	}
+	for _, rc := range rCols {
+		if !common[rc] {
+			out = append(out, rc)
+		}
+	}
+	return out
+}
+
+func (c *Catalog) tableRefColumns(n nodes.Node, ctx *ruleEvalContext) ([]string, bool, []uint32) {
+	if n == nil || ctx == nil {
+		return nil, false, nil
+	}
+	switch v := n.(type) {
+	case *nodes.RangeVar:
+		if v == nil {
+			return nil, false, nil
+		}
+		name := v.Relname
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			name = v.Alias.Aliasname
+		}
+		se, ok := ctx.scope[name]
+		if !ok {
+			return nil, true, nil
+		}
+		if se.isVirtual {
+			return se.virtualColOrder, se.anyCol, se.joinRels
+		}
+		rel := c.relationByOID[se.relOID]
+		if rel == nil {
+			return nil, true, nil
+		}
+		cols := make([]string, len(rel.Columns))
+		for i, col := range rel.Columns {
+			if i < len(se.colAliases) && se.colAliases[i] != "" {
+				cols[i] = se.colAliases[i]
+			} else {
+				cols[i] = col.Name
+			}
+		}
+		return cols, false, []uint32{se.relOID}
+	case *nodes.RangeSubselect:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			if se, ok := ctx.scope[v.Alias.Aliasname]; ok {
+				return se.virtualColOrder, se.anyCol, nil
+			}
+		}
+	case *nodes.RangeFunction:
+		scopeName := ""
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			scopeName = v.Alias.Aliasname
+		} else if v.Functions != nil && len(v.Functions.Items) == 1 {
+			scopeName = singleRangeFuncName(v.Functions.Items[0])
+		}
+		if scopeName != "" {
+			if se, ok := ctx.scope[scopeName]; ok {
+				return se.virtualColOrder, se.anyCol, nil
+			}
+		}
+	case *nodes.RangeTableFunc:
+		scopeName := "xmltable"
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			scopeName = v.Alias.Aliasname
+		}
+		if se, ok := ctx.scope[scopeName]; ok {
+			return se.virtualColOrder, se.anyCol, nil
+		}
+	case *nodes.JsonTable:
+		scopeName := "json_table"
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			scopeName = v.Alias.Aliasname
+		}
+		if se, ok := ctx.scope[scopeName]; ok {
+			return se.virtualColOrder, se.anyCol, nil
+		}
+	case *nodes.RangeTableSample:
+		return c.tableRefColumns(v.Relation, ctx)
+	case *nodes.JoinExpr:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			if se, ok := ctx.scope[v.Alias.Aliasname]; ok {
+				return se.virtualColOrder, se.anyCol, se.joinRels
+			}
+		}
+		lCols, lAny, lRels := c.tableRefColumns(v.Larg, ctx)
+		rCols, rAny, rRels := c.tableRefColumns(v.Rarg, ctx)
+		return combineJoinCols(lCols, rCols, v.UsingClause, v.IsNatural), lAny || rAny, append(append([]uint32(nil), lRels...), rRels...)
+	}
+	return nil, true, nil
+}
+
+func singleRangeFuncName(fnItem nodes.Node) string {
+	expr := fnItem
+	if pair, ok := fnItem.(*nodes.List); ok && len(pair.Items) > 0 {
+		expr = pair.Items[0]
+	}
+	if fc, ok := expr.(*nodes.FuncCall); ok && fc != nil && fc.Funcname != nil && len(fc.Funcname.Items) > 0 {
+		return stringVal(fc.Funcname.Items[len(fc.Funcname.Items)-1])
+	}
+	if name := figureColName(expr); name != "" && name != "?column?" {
+		return name
+	}
+	return ""
+}
+
+func (c *Catalog) extractRangeFunctionCols(v *nodes.RangeFunction) ([]string, bool) {
+	if v == nil {
+		return nil, false
+	}
+	var cols []string
+	anyCol := false
+	if v.Coldeflist != nil && len(v.Coldeflist.Items) > 0 {
+		for _, item := range v.Coldeflist.Items {
+			if cd, ok := item.(*nodes.ColumnDef); ok && cd != nil {
+				cols = append(cols, cd.Colname)
+			}
+		}
+	} else if v.Functions != nil {
+		isSingle := !v.IsRowsfrom && len(v.Functions.Items) == 1
+		for _, fnItem := range v.Functions.Items {
+			var fnExpr nodes.Node
+			var cdList *nodes.List
+			if pair, ok := fnItem.(*nodes.List); ok && len(pair.Items) > 0 {
+				fnExpr = pair.Items[0]
+				if len(pair.Items) > 1 {
+					cdList, _ = pair.Items[1].(*nodes.List)
+				}
+			} else {
+				fnExpr = fnItem
+			}
+			if cdList != nil && len(cdList.Items) > 0 {
+				for _, item := range cdList.Items {
+					if cd, ok := item.(*nodes.ColumnDef); ok && cd != nil {
+						cols = append(cols, cd.Colname)
+					}
+				}
+			} else if fc, ok := fnExpr.(*nodes.FuncCall); ok && fc != nil {
+				fCols, fAny := c.resolveTableFuncCols(fc, v.Alias, isSingle)
+				cols = append(cols, fCols...)
+				if fAny {
+					anyCol = true
+				}
+			} else if isSingle && v.Alias != nil && v.Alias.Aliasname != "" {
+				cols = append(cols, v.Alias.Aliasname)
+			} else if name := figureColName(fnExpr); name != "" && name != "?column?" {
+				cols = append(cols, name)
+			} else {
+				anyCol = true
+			}
+		}
+	}
+	if v.Ordinality {
+		cols = append(cols, "ordinality")
+	}
+	return cols, anyCol
+}
+
+func (c *Catalog) resolveTableFuncCols(fc *nodes.FuncCall, alias *nodes.Alias, isSingleFunc bool) ([]string, bool) {
+	fSchema, fName := qualifiedName(fc.Funcname)
+	if fName == "" {
+		return nil, true
+	}
+	var searchNS []uint32
+	if fSchema != "" {
+		if ns := c.schemaByName[fSchema]; ns != nil {
+			searchNS = []uint32{ns.OID}
+		}
+	} else {
+		searchNS = c.searchPathWithCatalog()
+	}
+	argCount := 0
+	if fc.Args != nil {
+		argCount = len(fc.Args.Items)
+	}
+	procs := c.procByName[fName]
+	var matched []*BuiltinProc
+	for _, nsOID := range searchNS {
+		var exact, any []*BuiltinProc
+		for _, p := range procs {
+			if p.Kind == 'p' {
+				continue
+			}
+			pNS := uint32(PGCatalogNamespace)
+			if p.OID >= FirstNormalObjectId {
+				up := c.userProcs[p.OID]
+				if up == nil || up.Schema == nil {
+					continue
+				}
+				pNS = up.Schema.OID
+			}
+			if pNS != nsOID {
+				continue
+			}
+			any = append(any, p)
+			if int(p.NArgs) == argCount {
+				exact = append(exact, p)
+			}
+		}
+		if len(exact) > 0 {
+			matched = exact
+			break
+		}
+		if len(any) > 0 {
+			matched = any
+			break
+		}
+	}
+	if len(matched) == 0 {
+		return nil, true
+	}
+	var cols []string
+	seen := make(map[string]bool)
+	addCol := func(name string) {
+		if name != "" && !seen[name] {
+			seen[name] = true
+			cols = append(cols, name)
+		}
+	}
+	for _, p := range matched {
+		var argModes []byte
+		var argNames []string
+		if up := c.userProcs[p.OID]; up != nil {
+			argModes = up.ArgModes
+			argNames = up.ArgNames
+		} else {
+			argModes = p.ArgModes
+			argNames = p.ArgNames
+		}
+		outCount := 0
+		for i, m := range argModes {
+			if m == 'o' || m == 'b' || m == 't' {
+				outCount++
+				if i < len(argNames) && argNames[i] != "" {
+					addCol(argNames[i])
+				} else {
+					return nil, true
+				}
+			}
+		}
+		if outCount > 0 {
+			continue
+		}
+		if bt := c.typeByOID[p.RetType]; bt != nil && bt.RelID != 0 {
+			if rel := c.relationByOID[bt.RelID]; rel != nil {
+				for _, col := range rel.Columns {
+					addCol(col.Name)
+				}
+				continue
+			}
+		}
+		if p.RetType == RECORDOID {
+			return nil, true
+		}
+		if isSingleFunc && alias != nil && alias.Aliasname != "" {
+			addCol(alias.Aliasname)
+		} else {
+			addCol(fName)
+		}
+	}
+	return cols, false
+}
+
+func (c *Catalog) extractRuleQueryCols(b *ruleBindings, n nodes.Node) ([]string, bool) {
+	if n == nil {
+		return nil, false
+	}
+	switch s := n.(type) {
+	case *nodes.SelectStmt:
+		if s.Op != nodes.SETOP_NONE {
+			return c.extractRuleQueryCols(b, s.Larg)
+		}
+		if s.ValuesLists != nil {
+			if len(s.ValuesLists.Items) > 0 {
+				if row, ok := s.ValuesLists.Items[0].(*nodes.List); ok {
+					cols := make([]string, len(row.Items))
+					for i := range row.Items {
+						cols[i] = fmt.Sprintf("column%d", i+1)
+					}
+					return cols, false
+				}
+			}
+			return nil, true
+		}
+		if s.TargetList == nil {
+			return nil, false
+		}
+		var ctx *ruleEvalContext
+		if b != nil {
+			ctx = b.stmtCtx[s]
+		}
+		var cols []string
+		anyCol := false
+		for _, item := range s.TargetList.Items {
+			rt, ok := item.(*nodes.ResTarget)
+			if !ok || rt == nil {
+				continue
+			}
+			if rt.Name != "" {
+				cols = append(cols, rt.Name)
+				continue
+			}
+			if cr, ok := rt.Val.(*nodes.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) > 0 {
+				fields := cr.Fields.Items
+				if _, isStar := fields[len(fields)-1].(*nodes.A_Star); isStar {
+					if len(fields) == 1 {
+						if ctx == nil || s.FromClause == nil {
+							anyCol = true
+						} else {
+							for _, fromItem := range s.FromClause.Items {
+								fCols, fAny, _ := c.tableRefColumns(fromItem, ctx)
+								cols = append(cols, fCols...)
+								if fAny {
+									anyCol = true
+								}
+							}
+						}
+					} else {
+						qual := stringVal(fields[len(fields)-2])
+						if se, ok := lookupScopeEntry(ctx, qual); ok {
+							if se.isVirtual {
+								cols = append(cols, se.virtualColOrder...)
+								if se.anyCol {
+									anyCol = true
+								}
+							} else if rel := c.relationByOID[se.relOID]; rel != nil {
+								for i, col := range rel.Columns {
+									if i < len(se.colAliases) && se.colAliases[i] != "" {
+										cols = append(cols, se.colAliases[i])
+									} else {
+										cols = append(cols, col.Name)
+									}
+								}
+							} else {
+								anyCol = true
+							}
+						} else {
+							anyCol = true
+						}
+					}
+					continue
+				}
+				cols = append(cols, stringVal(fields[len(fields)-1]))
+				continue
+			}
+			cols = append(cols, figureColName(rt.Val))
+		}
+		return cols, anyCol
+	case *nodes.InsertStmt:
+		return c.extractReturningTargetCols(s.ReturningList, s.Relation)
+	case *nodes.UpdateStmt:
+		return c.extractReturningTargetCols(s.ReturningList, s.Relation)
+	case *nodes.DeleteStmt:
+		return c.extractReturningTargetCols(s.ReturningList, s.Relation)
+	case *nodes.MergeStmt:
+		return c.extractReturningTargetCols(s.ReturningList, s.Relation)
+	}
+	return nil, true
+}
+
+func (c *Catalog) extractReturningTargetCols(list *nodes.List, targetRV *nodes.RangeVar) ([]string, bool) {
+	if list == nil {
+		return nil, false
+	}
+	var cols []string
+	anyCol := false
+	for _, item := range list.Items {
+		rt, ok := item.(*nodes.ResTarget)
+		if !ok || rt == nil {
+			continue
+		}
+		if rt.Name != "" {
+			cols = append(cols, rt.Name)
+			continue
+		}
+		if cr, ok := rt.Val.(*nodes.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) > 0 {
+			fields := cr.Fields.Items
+			if _, isStar := fields[len(fields)-1].(*nodes.A_Star); isStar {
+				if targetRV != nil {
+					if _, rel, err := c.findRelation(targetRV.Schemaname, targetRV.Relname); err == nil && rel != nil {
+						for _, col := range rel.Columns {
+							cols = append(cols, col.Name)
+						}
+						continue
+					}
+				}
+				anyCol = true
+				continue
+			}
+			cols = append(cols, stringVal(fields[len(fields)-1]))
+			continue
+		}
+		cols = append(cols, figureColName(rt.Val))
+	}
+	return cols, anyCol
+}
+
+func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *ruleEvalContext) (map[string]bool, map[string][]string, map[string]bool, error) {
 	cteNames := make(map[string]bool)
+	cteCols := make(map[string][]string)
+	cteAny := make(map[string]bool)
 	if parent != nil {
 		for k, v := range parent.cteNames {
 			cteNames[k] = v
 		}
+		for k, v := range parent.cteCols {
+			cteCols[k] = v
+		}
+		for k, v := range parent.cteAny {
+			cteAny[k] = v
+		}
 	}
 	if w == nil || w.Ctes == nil {
-		return cteNames, nil
+		return cteNames, cteCols, cteAny, nil
 	}
 	if w.Recursive {
 		for _, item := range w.Ctes.Items {
 			if cte, ok := item.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
 				cteNames[cte.Ctename] = true
+				if cte.Aliascolnames != nil && len(cte.Aliascolnames.Items) > 0 {
+					cteCols[cte.Ctename] = extractNodeListStrings(cte.Aliascolnames)
+				} else {
+					cteAny[cte.Ctename] = true
+				}
 			}
 		}
 	}
@@ -763,23 +1547,39 @@ func (c *Catalog) bindWithClause(b *ruleBindings, w *nodes.WithClause, parent *r
 			if parent != nil {
 				outer = parent
 			}
-			if err := c.bindRuleStmt(b, cte.Ctequery, &ruleEvalContext{outer: outer, cteNames: cteNames}); err != nil {
-				return nil, err
+			cteCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteAny: cteAny}
+			if err := c.bindRuleStmt(b, cte.Ctequery, cteCtx); err != nil {
+				return nil, nil, nil, err
 			}
 			if cc, ok := cte.CycleClause.(*nodes.CTECycleClause); ok && cc != nil {
-				if err := c.bindRuleExpr(b, cc.CycleMarkValue, &ruleEvalContext{outer: outer, cteNames: cteNames}); err != nil {
-					return nil, err
+				if err := c.bindRuleExpr(b, cc.CycleMarkValue, cteCtx); err != nil {
+					return nil, nil, nil, err
 				}
-				if err := c.bindRuleExpr(b, cc.CycleMarkDefault, &ruleEvalContext{outer: outer, cteNames: cteNames}); err != nil {
-					return nil, err
+				if err := c.bindRuleExpr(b, cc.CycleMarkDefault, cteCtx); err != nil {
+					return nil, nil, nil, err
 				}
 			}
 			if cte.Ctename != "" {
 				cteNames[cte.Ctename] = true
+				baseCols, baseAny := c.extractRuleQueryCols(b, cte.Ctequery)
+				_, vOrder, vAny := applyVirtualAliasCols(baseCols, baseAny, extractNodeListStrings(cte.Aliascolnames))
+				if sc, ok := cte.SearchClause.(*nodes.CTESearchClause); ok && sc != nil && sc.SearchSeqColumn != "" {
+					vOrder = append(vOrder, sc.SearchSeqColumn)
+				}
+				if cc, ok := cte.CycleClause.(*nodes.CTECycleClause); ok && cc != nil {
+					if cc.CycleMarkColumn != "" {
+						vOrder = append(vOrder, cc.CycleMarkColumn)
+					}
+					if cc.CyclePathColumn != "" {
+						vOrder = append(vOrder, cc.CyclePathColumn)
+					}
+				}
+				cteCols[cte.Ctename] = vOrder
+				cteAny[cte.Ctename] = vAny
 			}
 		}
 	}
-	return cteNames, nil
+	return cteNames, cteCols, cteAny, nil
 }
 
 func (c *Catalog) bindTargetColumns(b *ruleBindings, relOID uint32, list *nodes.List) error {
@@ -874,7 +1674,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 	}
 	switch s := n.(type) {
 	case *nodes.SelectStmt:
-		cteNames, err := c.bindWithClause(b, s.WithClause, parent)
+		cteNames, cteCols, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
 		}
@@ -886,7 +1686,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			}
 		}
 		if s.Op != nodes.SETOP_NONE {
-			branchCtx := &ruleEvalContext{outer: outer, cteNames: cteNames}
+			branchCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteAny: cteAny}
 			if s.Larg != nil {
 				if err := c.bindRuleStmt(b, s.Larg, branchCtx); err != nil {
 					return err
@@ -897,11 +1697,11 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					return err
 				}
 			}
-			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, hasOpenSource: true}
+			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteAny: cteAny, hasOpenSource: true}
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		if s.ValuesLists != nil {
-			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames}
+			valCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteAny: cteAny}
 			for _, rowNode := range s.ValuesLists.Items {
 				if row, ok := rowNode.(*nodes.List); ok {
 					for _, expr := range row.Items {
@@ -911,16 +1711,21 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 					}
 				}
 			}
-			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, hasOpenSource: true}
+			sortCtx := &ruleEvalContext{outer: outer, cteNames: cteNames, cteCols: cteCols, cteAny: cteAny, hasOpenSource: true}
 			return c.bindSortAndLimit(b, s, sortCtx)
 		}
 		ctx := &ruleEvalContext{
 			scope:    make(map[string]ruleScopeEntry),
 			outer:    outer,
 			cteNames: cteNames,
+			cteCols:  cteCols,
+			cteAny:   cteAny,
 		}
 		if err := c.collectFromScope(b, s.FromClause, ctx); err != nil {
 			return err
+		}
+		if b != nil && b.stmtCtx != nil {
+			b.stmtCtx[s] = ctx
 		}
 		targetAliases := make(map[string]bool)
 		if s.TargetList != nil {
@@ -944,6 +1749,9 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			scope:         ctx.scope,
 			outer:         ctx.outer,
 			cteNames:      ctx.cteNames,
+			cteCols:       ctx.cteCols,
+			cteAny:        ctx.cteAny,
+			usingCols:     ctx.usingCols,
 			targetAliases: targetAliases,
 			hasOpenSource: ctx.hasOpenSource,
 		}
@@ -976,7 +1784,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		return c.bindSortAndLimit(b, s, aliasCtx)
 
 	case *nodes.InsertStmt:
-		cteNames, err := c.bindWithClause(b, s.WithClause, parent)
+		cteNames, cteCols, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
 		}
@@ -988,7 +1796,7 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 			return err
 		}
 		if s.SelectStmt != nil {
-			if err := c.bindRuleStmt(b, s.SelectStmt, &ruleEvalContext{cteNames: cteNames}); err != nil {
+			if err := c.bindRuleStmt(b, s.SelectStmt, &ruleEvalContext{cteNames: cteNames, cteCols: cteCols, cteAny: cteAny}); err != nil {
 				return err
 			}
 			if s.Cols == nil {
@@ -1011,6 +1819,8 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		ctx := &ruleEvalContext{
 			scope:    make(map[string]ruleScopeEntry),
 			cteNames: cteNames,
+			cteCols:  cteCols,
+			cteAny:   cteAny,
 		}
 		if targetOID != 0 && s.Relation != nil {
 			if s.Relation.Alias != nil && s.Relation.Alias.Aliasname != "" {
@@ -1076,13 +1886,15 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		return nil
 
 	case *nodes.UpdateStmt:
-		cteNames, err := c.bindWithClause(b, s.WithClause, parent)
+		cteNames, cteCols, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
 		}
 		ctx := &ruleEvalContext{
 			scope:    make(map[string]ruleScopeEntry),
 			cteNames: cteNames,
+			cteCols:  cteCols,
+			cteAny:   cteAny,
 		}
 		targetOID, err := addScopeRangeVar(c, b, ctx, s.Relation, true)
 		if err != nil {
@@ -1114,13 +1926,15 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		return nil
 
 	case *nodes.DeleteStmt:
-		cteNames, err := c.bindWithClause(b, s.WithClause, parent)
+		cteNames, cteCols, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
 		}
 		ctx := &ruleEvalContext{
 			scope:    make(map[string]ruleScopeEntry),
 			cteNames: cteNames,
+			cteCols:  cteCols,
+			cteAny:   cteAny,
 		}
 		if _, err := addScopeRangeVar(c, b, ctx, s.Relation, true); err != nil {
 			return err
@@ -1139,13 +1953,15 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 		return nil
 
 	case *nodes.MergeStmt:
-		cteNames, err := c.bindWithClause(b, s.WithClause, parent)
+		cteNames, cteCols, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
 		}
 		ctx := &ruleEvalContext{
 			scope:    make(map[string]ruleScopeEntry),
 			cteNames: cteNames,
+			cteCols:  cteCols,
+			cteAny:   cteAny,
 		}
 		targetOID, err := addScopeRangeVar(c, b, ctx, s.Relation, true)
 		if err != nil {
@@ -1299,7 +2115,28 @@ func (c *Catalog) bindSortAndLimit(b *ruleBindings, s *nodes.SelectStmt, ctx *ru
 	if err := c.bindRuleExpr(b, s.LimitCount, ctx); err != nil {
 		return err
 	}
-	return c.bindRuleExpr(b, s.LimitOffset, ctx)
+	if err := c.bindRuleExpr(b, s.LimitOffset, ctx); err != nil {
+		return err
+	}
+	if s.LockingClause != nil {
+		for _, item := range s.LockingClause.Items {
+			lc, ok := item.(*nodes.LockingClause)
+			if !ok || lc == nil || lc.LockedRels == nil {
+				continue
+			}
+			for _, rItem := range lc.LockedRels.Items {
+				if rv, ok := rItem.(*nodes.RangeVar); ok && rv != nil && rv.Relname != "" {
+					if _, found := lookupScopeEntry(ctx, rv.Relname); !found && !ctx.hasOpenSource && !c.snapshot {
+						return &Error{
+							Code:    CodeUndefinedTable,
+							Message: fmt.Sprintf("relation %q in FOR UPDATE/SHARE clause not found in FROM clause", rv.Relname),
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Catalog) bindWindowDef(b *ruleBindings, wd *nodes.WindowDef, ctx *ruleEvalContext) error {
@@ -1406,9 +2243,33 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				var matchedOID uint32
 				var matchedAtt int16
 				count := 0
+				hasAnyOpen := cur.hasOpenSource
 				seenRel := map[uint32]bool{}
 				for k, se := range cur.scope {
-					if k == "excluded" || se.isVirtual || seenRel[se.relOID] {
+					if k == "excluded" || se.hiddenByJoinColAlias {
+						continue
+					}
+					if se.isVirtual {
+						if se.isJoinAlias && !se.hasJoinColAliases {
+							continue
+						}
+						if nMatches := se.virtualCols[colName]; nMatches > 0 {
+							count += nMatches
+							for _, rOID := range se.joinRels {
+								if rel := c.relationByOID[rOID]; rel != nil {
+									if idx, ok := rel.colByName[colName]; ok {
+										b.addColDep(rOID, rel.Columns[idx].AttNum)
+									} else {
+										recordAllRelColumnDeps(c, b, rOID)
+									}
+								}
+							}
+						} else if se.anyCol {
+							hasAnyOpen = true
+						}
+						continue
+					}
+					if seenRel[se.relOID] {
 						continue
 					}
 					seenRel[se.relOID] = true
@@ -1417,7 +2278,14 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 							matchedOID = se.relOID
 							matchedAtt = attNum
 							count++
+							b.addColDep(se.relOID, attNum)
 						}
+					}
+				}
+				if count > 1 && cur.usingCols[colName] > 0 {
+					count -= cur.usingCols[colName]
+					if count < 1 {
+						count = 1
 					}
 				}
 				if count > 1 {
@@ -1427,13 +2295,12 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 					}
 				}
 				if count == 1 {
-					if len(cur.colAliasesFor(matchedOID)) == 0 {
+					if matchedOID != 0 && len(cur.colAliasesFor(matchedOID)) == 0 && cur.usingCols[colName] == 0 {
 						b.colByRef[v] = ruleColBinding{relOID: matchedOID, attNum: matchedAtt}
 					}
-					b.addColDep(matchedOID, matchedAtt)
 					return nil
 				}
-				if cur.targetAliases[colName] || cur.hasOpenSource {
+				if cur.targetAliases[colName] || hasAnyOpen {
 					return nil
 				}
 			}
@@ -1476,6 +2343,28 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 			}
 			if se, ok := lookupScopeEntry(ctx, qual); ok {
 				if se.isVirtual {
+					for _, rOID := range se.joinRels {
+						if isStar {
+							recordAllRelColumnDeps(c, b, rOID)
+						} else if rel := c.relationByOID[rOID]; rel != nil {
+							if idx, exists := rel.colByName[colName]; exists {
+								b.addColDep(rOID, rel.Columns[idx].AttNum)
+							} else {
+								recordAllRelColumnDeps(c, b, rOID)
+							}
+						}
+					}
+					if !isStar && !c.snapshot {
+						if se.virtualCols[colName] > 1 {
+							return &Error{
+								Code:    CodeAmbiguousColumn,
+								Message: fmt.Sprintf("column reference %q is ambiguous", qual+"."+colName),
+							}
+						}
+						if !se.anyCol && se.virtualCols[colName] == 0 {
+							return errUndefinedColumn(colName)
+						}
+					}
 					return nil
 				}
 				rel := c.relationByOID[se.relOID]
@@ -1787,6 +2676,8 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		if ctx != nil {
 			subCtx.outer = ctx
 			subCtx.cteNames = ctx.cteNames
+			subCtx.cteCols = ctx.cteCols
+			subCtx.cteAny = ctx.cteAny
 		}
 		return c.bindRuleStmt(b, v.Subselect, subCtx)
 	case *nodes.MultiAssignRef:
@@ -1803,6 +2694,15 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 	case *nodes.GroupingFunc:
 		if v.Args != nil {
 			for _, item := range v.Args.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	case *nodes.GroupingSet:
+		if v.Content != nil {
+			for _, item := range v.Content.Items {
 				if err := c.bindRuleExpr(b, item, ctx); err != nil {
 					return err
 				}
@@ -1902,6 +2802,8 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		if ctx != nil {
 			subCtx.outer = ctx
 			subCtx.cteNames = ctx.cteNames
+			subCtx.cteCols = ctx.cteCols
+			subCtx.cteAny = ctx.cteAny
 		}
 		if err := c.bindRuleStmt(b, v.Query, subCtx); err != nil {
 			return err
@@ -2407,13 +3309,66 @@ func (d *ruleDeparser) deparseSelectStmt(s *nodes.SelectStmt) string {
 		b.WriteString(" ORDER BY ")
 		b.WriteString(d.deparseSortClause(s.SortClause))
 	}
-	if s.LimitCount != nil {
-		b.WriteString(" LIMIT ")
-		b.WriteString(d.deparseExpr(s.LimitCount))
+	if s.LimitOption == nodes.LIMIT_OPTION_WITH_TIES {
+		if s.LimitOffset != nil {
+			b.WriteString(" OFFSET ")
+			b.WriteString(d.deparseExpr(s.LimitOffset))
+		}
+		if s.LimitCount != nil {
+			b.WriteString(" FETCH FIRST ")
+			b.WriteString(d.deparseExpr(s.LimitCount))
+			b.WriteString(" ROWS WITH TIES")
+		}
+	} else {
+		if s.LimitCount != nil {
+			if ac, ok := s.LimitCount.(*nodes.A_Const); ok && ac.Isnull {
+				b.WriteString(" LIMIT ALL")
+			} else {
+				b.WriteString(" LIMIT ")
+				b.WriteString(d.deparseExpr(s.LimitCount))
+			}
+		}
+		if s.LimitOffset != nil {
+			b.WriteString(" OFFSET ")
+			b.WriteString(d.deparseExpr(s.LimitOffset))
+		}
 	}
-	if s.LimitOffset != nil {
-		b.WriteString(" OFFSET ")
-		b.WriteString(d.deparseExpr(s.LimitOffset))
+	if s.LockingClause != nil && len(s.LockingClause.Items) > 0 {
+		for _, item := range s.LockingClause.Items {
+			lc, ok := item.(*nodes.LockingClause)
+			if !ok || lc == nil {
+				continue
+			}
+			switch nodes.LockClauseStrength(lc.Strength) {
+			case nodes.LCS_FORKEYSHARE:
+				b.WriteString(" FOR KEY SHARE")
+			case nodes.LCS_FORSHARE:
+				b.WriteString(" FOR SHARE")
+			case nodes.LCS_FORNOKEYUPDATE:
+				b.WriteString(" FOR NO KEY UPDATE")
+			case nodes.LCS_FORUPDATE:
+				b.WriteString(" FOR UPDATE")
+			default:
+				continue
+			}
+			if lc.LockedRels != nil && len(lc.LockedRels.Items) > 0 {
+				b.WriteString(" OF ")
+				for i, rItem := range lc.LockedRels.Items {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					if rv, ok := rItem.(*nodes.RangeVar); ok && rv != nil {
+						b.WriteString(d.deparseRangeVar(rv, false))
+					}
+				}
+			}
+			switch nodes.LockWaitPolicy(lc.WaitPolicy) {
+			case nodes.LockWaitSkip:
+				b.WriteString(" SKIP LOCKED")
+			case nodes.LockWaitError:
+				b.WriteString(" NOWAIT")
+			}
+		}
 	}
 	return b.String()
 }
@@ -2629,6 +3584,10 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		return b.String()
 	case *nodes.RangeFunction:
 		return d.deparseRangeFunction(v)
+	case *nodes.RangeTableFunc:
+		return d.deparseRangeTableFunc(v)
+	case *nodes.JsonTable:
+		return d.deparseJsonTable(v)
 	case *nodes.RangeTableSample:
 		var b strings.Builder
 		b.WriteString(d.deparseTableRef(v.Relation))
@@ -2645,6 +3604,10 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		return b.String()
 	case *nodes.JoinExpr:
 		var b strings.Builder
+		hasAlias := v.Alias != nil && v.Alias.Aliasname != ""
+		if hasAlias {
+			b.WriteString("(")
+		}
 		b.WriteString(d.deparseTableRef(v.Larg))
 		if v.IsNatural {
 			b.WriteString(" NATURAL")
@@ -2676,6 +3639,10 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		} else if v.Quals != nil {
 			b.WriteString(" ON ")
 			b.WriteString(d.deparseExpr(v.Quals))
+		}
+		if hasAlias {
+			b.WriteString(")")
+			b.WriteString(deparseRawAlias(v.Alias))
 		}
 		return b.String()
 	default:
@@ -2834,6 +3801,211 @@ func (d *ruleDeparser) deparseTableFuncColDefs(list *nodes.List) string {
 			}
 			cb.WriteString(" COLLATE ")
 			cb.WriteString(collSQL)
+		}
+		parts = append(parts, cb.String())
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (d *ruleDeparser) deparseRangeTableFunc(v *nodes.RangeTableFunc) string {
+	if v == nil {
+		return ""
+	}
+	var b strings.Builder
+	if v.Lateral {
+		b.WriteString("LATERAL ")
+	}
+	b.WriteString("XMLTABLE(")
+	if v.Namespaces != nil && len(v.Namespaces.Items) > 0 {
+		b.WriteString("XMLNAMESPACES(")
+		for i, item := range v.Namespaces.Items {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil {
+				if rt.Name == "" {
+					b.WriteString("DEFAULT ")
+					b.WriteString(d.deparseExpr(rt.Val))
+				} else {
+					b.WriteString(d.deparseExpr(rt.Val))
+					b.WriteString(" AS ")
+					b.WriteString(quoteIdentifier(rt.Name))
+				}
+			} else {
+				b.WriteString(d.deparseExpr(item))
+			}
+		}
+		b.WriteString("), ")
+	}
+	b.WriteString(d.deparseExpr(v.Rowexpr))
+	b.WriteString(" PASSING ")
+	b.WriteString(d.deparseExpr(v.Docexpr))
+	if v.Columns != nil && len(v.Columns.Items) > 0 {
+		b.WriteString(" COLUMNS ")
+		for i, item := range v.Columns.Items {
+			fc, ok := item.(*nodes.RangeTableFuncCol)
+			if !ok || fc == nil {
+				continue
+			}
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(quoteIdentifier(fc.Colname))
+			if fc.ForOrdinality {
+				b.WriteString(" FOR ORDINALITY")
+				continue
+			}
+			if fc.TypeName != nil {
+				b.WriteString(" ")
+				b.WriteString(d.deparseTypeName(fc.TypeName))
+			}
+			if fc.Colexpr != nil {
+				b.WriteString(" PATH ")
+				b.WriteString(d.deparseExpr(fc.Colexpr))
+			}
+			if fc.Coldefexpr != nil {
+				b.WriteString(" DEFAULT ")
+				b.WriteString(d.deparseExpr(fc.Coldefexpr))
+			}
+			if fc.IsNotNull {
+				b.WriteString(" NOT NULL")
+			}
+		}
+	}
+	b.WriteString(")")
+	b.WriteString(deparseRawAlias(v.Alias))
+	return b.String()
+}
+
+func (d *ruleDeparser) deparseJsonTable(v *nodes.JsonTable) string {
+	if v == nil {
+		return ""
+	}
+	var b strings.Builder
+	if v.Lateral {
+		b.WriteString("LATERAL ")
+	}
+	b.WriteString("JSON_TABLE(")
+	if v.ContextItem != nil {
+		b.WriteString(d.deparseExpr(v.ContextItem))
+	}
+	if v.Pathspec != nil {
+		b.WriteString(", ")
+		b.WriteString(d.deparseExpr(v.Pathspec.String))
+		if v.Pathspec.Name != "" {
+			b.WriteString(" AS ")
+			b.WriteString(quoteIdentifier(v.Pathspec.Name))
+		}
+	}
+	if v.Passing != nil && len(v.Passing.Items) > 0 {
+		b.WriteString(" PASSING ")
+		for i, item := range v.Passing.Items {
+			if ja, ok := item.(*nodes.JsonArgument); ok && ja != nil {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(d.deparseExpr(ja.Val))
+				b.WriteString(" AS ")
+				b.WriteString(quoteIdentifier(ja.Name))
+			}
+		}
+	}
+	if v.Columns != nil && len(v.Columns.Items) > 0 {
+		b.WriteString(" COLUMNS (")
+		b.WriteString(d.deparseJsonTableColumns(v.Columns))
+		b.WriteString(")")
+	}
+	if v.OnError != nil {
+		b.WriteString(" ")
+		b.WriteString(d.deparseJsonBehavior(v.OnError))
+		b.WriteString(" ON ERROR")
+	}
+	b.WriteString(")")
+	b.WriteString(deparseRawAlias(v.Alias))
+	return b.String()
+}
+
+func (d *ruleDeparser) deparseJsonTableColumns(list *nodes.List) string {
+	if list == nil || len(list.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		jtc, ok := item.(*nodes.JsonTableColumn)
+		if !ok || jtc == nil {
+			continue
+		}
+		var cb strings.Builder
+		switch jtc.Coltype {
+		case nodes.JTC_FOR_ORDINALITY:
+			cb.WriteString(quoteIdentifier(jtc.Name))
+			cb.WriteString(" FOR ORDINALITY")
+		case nodes.JTC_NESTED:
+			cb.WriteString("NESTED PATH ")
+			if jtc.Pathspec != nil {
+				cb.WriteString(d.deparseExpr(jtc.Pathspec.String))
+				if jtc.Pathspec.Name != "" {
+					cb.WriteString(" AS ")
+					cb.WriteString(quoteIdentifier(jtc.Pathspec.Name))
+				}
+			}
+			cb.WriteString(" COLUMNS (")
+			cb.WriteString(d.deparseJsonTableColumns(jtc.Columns))
+			cb.WriteString(")")
+		case nodes.JTC_EXISTS:
+			cb.WriteString(quoteIdentifier(jtc.Name))
+			if jtc.TypeName != nil {
+				cb.WriteString(" ")
+				cb.WriteString(d.deparseTypeName(jtc.TypeName))
+			}
+			cb.WriteString(" EXISTS")
+			if jtc.Pathspec != nil && jtc.Pathspec.String != nil {
+				cb.WriteString(" PATH ")
+				cb.WriteString(d.deparseExpr(jtc.Pathspec.String))
+			}
+			if jtc.OnError != nil {
+				cb.WriteString(" ")
+				cb.WriteString(d.deparseJsonBehavior(jtc.OnError))
+				cb.WriteString(" ON ERROR")
+			}
+		default:
+			cb.WriteString(quoteIdentifier(jtc.Name))
+			if jtc.TypeName != nil {
+				cb.WriteString(" ")
+				cb.WriteString(d.deparseTypeName(jtc.TypeName))
+			}
+			if f := deparseJsonFormat(jtc.Format); f != "" {
+				cb.WriteString(" ")
+				cb.WriteString(f)
+			}
+			if jtc.Pathspec != nil && jtc.Pathspec.String != nil {
+				cb.WriteString(" PATH ")
+				cb.WriteString(d.deparseExpr(jtc.Pathspec.String))
+			}
+			switch jtc.Wrapper {
+			case nodes.JSW_NONE:
+				cb.WriteString(" WITHOUT ARRAY WRAPPER")
+			case nodes.JSW_CONDITIONAL:
+				cb.WriteString(" WITH CONDITIONAL ARRAY WRAPPER")
+			case nodes.JSW_UNCONDITIONAL:
+				cb.WriteString(" WITH UNCONDITIONAL ARRAY WRAPPER")
+			}
+			switch jtc.Quotes {
+			case nodes.JS_QUOTES_KEEP:
+				cb.WriteString(" KEEP QUOTES")
+			case nodes.JS_QUOTES_OMIT:
+				cb.WriteString(" OMIT QUOTES")
+			}
+			if jtc.OnEmpty != nil {
+				cb.WriteString(" ")
+				cb.WriteString(d.deparseJsonBehavior(jtc.OnEmpty))
+				cb.WriteString(" ON EMPTY")
+			}
+			if jtc.OnError != nil {
+				cb.WriteString(" ")
+				cb.WriteString(d.deparseJsonBehavior(jtc.OnError))
+				cb.WriteString(" ON ERROR")
+			}
 		}
 		parts = append(parts, cb.String())
 	}
@@ -3318,13 +4490,33 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		switch v.Op {
 		case nodes.SVFOP_CURRENT_DATE:
 			return "CURRENT_DATE"
-		case nodes.SVFOP_CURRENT_TIME, nodes.SVFOP_CURRENT_TIME_N:
+		case nodes.SVFOP_CURRENT_TIME:
 			return "CURRENT_TIME"
-		case nodes.SVFOP_CURRENT_TIMESTAMP, nodes.SVFOP_CURRENT_TIMESTAMP_N:
+		case nodes.SVFOP_CURRENT_TIME_N:
+			if v.Typmod >= 0 {
+				return fmt.Sprintf("CURRENT_TIME(%d)", v.Typmod)
+			}
+			return "CURRENT_TIME"
+		case nodes.SVFOP_CURRENT_TIMESTAMP:
 			return "CURRENT_TIMESTAMP"
-		case nodes.SVFOP_LOCALTIME, nodes.SVFOP_LOCALTIME_N:
+		case nodes.SVFOP_CURRENT_TIMESTAMP_N:
+			if v.Typmod >= 0 {
+				return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", v.Typmod)
+			}
+			return "CURRENT_TIMESTAMP"
+		case nodes.SVFOP_LOCALTIME:
 			return "LOCALTIME"
-		case nodes.SVFOP_LOCALTIMESTAMP, nodes.SVFOP_LOCALTIMESTAMP_N:
+		case nodes.SVFOP_LOCALTIME_N:
+			if v.Typmod >= 0 {
+				return fmt.Sprintf("LOCALTIME(%d)", v.Typmod)
+			}
+			return "LOCALTIME"
+		case nodes.SVFOP_LOCALTIMESTAMP:
+			return "LOCALTIMESTAMP"
+		case nodes.SVFOP_LOCALTIMESTAMP_N:
+			if v.Typmod >= 0 {
+				return fmt.Sprintf("LOCALTIMESTAMP(%d)", v.Typmod)
+			}
 			return "LOCALTIMESTAMP"
 		case nodes.SVFOP_CURRENT_ROLE:
 			return "CURRENT_ROLE"
@@ -3345,6 +4537,22 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 
 	case *nodes.GroupingFunc:
 		return fmt.Sprintf("GROUPING(%s)", d.deparseExprList(v.Args))
+
+	case *nodes.GroupingSet:
+		switch v.Kind {
+		case nodes.GROUPING_SET_EMPTY:
+			return "()"
+		case nodes.GROUPING_SET_SIMPLE:
+			return "(" + d.deparseExprList(v.Content) + ")"
+		case nodes.GROUPING_SET_ROLLUP:
+			return "ROLLUP(" + d.deparseExprList(v.Content) + ")"
+		case nodes.GROUPING_SET_CUBE:
+			return "CUBE(" + d.deparseExprList(v.Content) + ")"
+		case nodes.GROUPING_SET_SETS:
+			return "GROUPING SETS (" + d.deparseExprList(v.Content) + ")"
+		default:
+			return "(" + d.deparseExprList(v.Content) + ")"
+		}
 
 	case *nodes.XmlExpr:
 		return d.deparseXmlExpr(v)

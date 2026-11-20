@@ -523,10 +523,24 @@ func liftDepToOp(c *Catalog, objType byte, objOID uint32, oidToIdx map[depKey][]
 			}
 		}
 	}
-	// Lift type → owning relation (row type of a table/view/composite).
+	// Lift type → owning base/range/relation (array, multirange, or row type).
 	if objType == 't' {
+		targetOID := objOID
+		if bt := c.typeByOID[targetOID]; bt != nil && bt.Category == 'A' && bt.Elem != 0 {
+			if idxs, ok := oidToIdx[depKey{'t', bt.Elem}]; ok {
+				return idxs
+			}
+			targetOID = bt.Elem
+		}
+		for _, rt := range c.rangeTypes {
+			if rt != nil && (rt.ArrayOID == objOID || rt.MultirangeOID == targetOID) {
+				if idxs, ok := oidToIdx[depKey{'t', rt.OID}]; ok {
+					return idxs
+				}
+			}
+		}
 		for _, rel := range c.relationByOID {
-			if rel.RowTypeOID == objOID {
+			if rel.RowTypeOID == targetOID {
 				return oidToIdx[depKey{'r', rel.OID}]
 			}
 		}
@@ -811,8 +825,8 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 }
 
 // typeUsedByKeptColumn reports whether a column of a table or an attribute of
-// a composite type in from has the type, or an array of it, and to still has
-// that column. The relations in dropped keep none.
+// a composite type in from has the type, an array of it, or a domain over it,
+// and to still has that column. The relations in dropped keep none.
 func typeUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, typ uint32) bool {
 	if typ == 0 {
 		return false
@@ -826,14 +840,34 @@ func typeUsedByKeptColumn(from, to *Catalog, dropped map[uint32]bool, typ uint32
 			continue
 		}
 		for _, col := range rel.Columns {
-			used := col.TypeOID == typ
-			if t := from.typeByOID[col.TypeOID]; t != nil && t.Elem == typ && t.Category == 'A' {
-				used = true
-			}
-			if _, kept := toRel.colByName[col.Name]; used && kept {
+			if _, kept := toRel.colByName[col.Name]; kept && typeMatchesOrWraps(from, col.TypeOID, typ) {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+func typeMatchesOrWraps(from *Catalog, colTypeOID, targetOID uint32) bool {
+	if colTypeOID == 0 || targetOID == 0 {
+		return false
+	}
+	for cur := colTypeOID; cur != 0; {
+		if cur == targetOID {
+			return true
+		}
+		if t := from.typeByOID[cur]; t != nil && t.Category == 'A' && t.Elem != 0 {
+			if t.Elem == targetOID {
+				return true
+			}
+			cur = t.Elem
+			continue
+		}
+		if dt := from.domainTypes[cur]; dt != nil && dt.BaseTypeOID != cur {
+			cur = dt.BaseTypeOID
+			continue
+		}
+		break
 	}
 	return false
 }
@@ -1304,6 +1338,21 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	rebuiltDomains := make(map[uint32]*DomainType) // from domain TypeOID -> from DomainType
 	rebuiltDomainNames := make(map[string]bool)
 	rebuiltTypeRefOIDs := make(map[uint32]bool)
+	rebuiltRangeTypeOIDs := make(map[uint32]bool)
+	for oid := range rebuiltRangeOIDs {
+		rebuiltRangeTypeOIDs[oid] = true
+		if rt := from.rangeTypes[oid]; rt != nil {
+			if rt.ArrayOID != 0 {
+				rebuiltRangeTypeOIDs[rt.ArrayOID] = true
+			}
+			if rt.MultirangeOID != 0 {
+				rebuiltRangeTypeOIDs[rt.MultirangeOID] = true
+				if mrBT := from.typeByOID[rt.MultirangeOID]; mrBT != nil && mrBT.Array != 0 {
+					rebuiltRangeTypeOIDs[mrBT.Array] = true
+				}
+			}
+		}
+	}
 	for oid, dt := range from.domainTypes {
 		if dt == nil || preDroppedType[oid] {
 			continue
@@ -1324,9 +1373,9 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			if dt == nil || preDroppedType[oid] || rebuiltDomains[oid] != nil {
 				continue
 			}
-			baseRebuilt := rebuiltDomains[dt.BaseTypeOID] != nil
+			baseRebuilt := rebuiltDomains[dt.BaseTypeOID] != nil || rebuiltRangeTypeOIDs[dt.BaseTypeOID]
 			if !baseRebuilt {
-				if baseBT := from.typeByOID[dt.BaseTypeOID]; baseBT != nil && baseBT.Category == 'A' && rebuiltDomains[baseBT.Elem] != nil {
+				if baseBT := from.typeByOID[dt.BaseTypeOID]; baseBT != nil && baseBT.Category == 'A' && (rebuiltDomains[baseBT.Elem] != nil || rebuiltRangeTypeOIDs[baseBT.Elem]) {
 					baseRebuilt = true
 				}
 			}
