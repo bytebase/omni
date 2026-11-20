@@ -1324,6 +1324,20 @@ type OdbcEscapeExpr struct {
 func (e *OdbcEscapeExpr) nodeTag()  {}
 func (e *OdbcEscapeExpr) exprNode() {}
 
+// LambdaExpr is lambda_expr's `params -> expr`, the first argument of
+// ARRAY_MAP, ARRAY_FIRST, ARRAY_SORTBY and ARRAY_FILTER.
+//
+// Ref: lambda_expr and lambda_expr_params in sql_parser_mysql_mode.y
+// (oceanbase v4.3.5_CE_BP6, lines 3600-3625).
+type LambdaExpr struct {
+	Loc    Loc
+	Params []string
+	Body   ExprNode
+}
+
+func (e *LambdaExpr) nodeTag()  {}
+func (e *LambdaExpr) exprNode() {}
+
 // ExternalTableRef is a table read from a location rather than from a stored
 // table. tbl_name takes it as url_expr: a quoted path with its FORMAT and
 // PATTERN, or OceanBase's SOURCE(...) and FILES(...) table functions, with
@@ -3009,6 +3023,20 @@ type UnnestExpr struct {
 
 func (e *UnnestExpr) nodeTag()   {}
 func (e *UnnestExpr) tableExpr() {}
+
+// TableCollectionExpr is tbl_name's `TABLE '(' simple_expr ')' [[AS] relation_name]`,
+// which reads a collection expression as a table in FROM or DELETE FROM.
+//
+// Ref: tbl_name in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines
+// 14476-14487).
+type TableCollectionExpr struct {
+	Loc   Loc
+	Expr  ExprNode
+	Alias string
+}
+
+func (e *TableCollectionExpr) nodeTag()   {}
+func (e *TableCollectionExpr) tableExpr() {}
 
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {

@@ -72,6 +72,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	// WHERE clause (optional)
 	if _, ok := p.match(kwWHERE); ok {
+		p.match(tokHintValue)
 		where, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -138,15 +139,24 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	stmt := &nodes.DeleteStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional modifiers
-	if _, ok := p.match(kwLOW_PRIORITY); ok {
-		stmt.LowPriority = true
-	}
-	if _, ok := p.match(kwQUICK); ok {
-		stmt.Quick = true
-	}
+	// Optional modifiers: opt_ignore comes once before opt_delete_option_list,
+	// which repeats QUICK and LOW_PRIORITY alone (sql_parser_mysql_mode.y, lines
+	// 4163 and 4213-4235).
 	if _, ok := p.match(kwIGNORE); ok {
 		stmt.Ignore = true
+	}
+	for {
+		switch p.cur.Type {
+		case kwLOW_PRIORITY:
+			stmt.LowPriority = true
+			p.advance()
+			continue
+		case kwQUICK:
+			stmt.Quick = true
+			p.advance()
+			continue
+		}
+		break
 	}
 
 	if _, ok := p.match(kwFROM); ok {
@@ -163,9 +173,18 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		// FILES(...)` delete from an external table. The multi-table list holds
 		// relation_factors alone, so this is the single-table form.
 		externalTable := p.atURLExpr()
+		// `TABLE(simple_expr) [[AS] relation_name]` is also an arm of tbl_name
+		// (lines 14476-14487) and belongs to the single-table form alone.
+		tableCollection := p.cur.Type == kwTABLE && p.peekNext().Type == '('
 		switch {
 		case externalTable:
 			ref, err := p.parseExternalTableRef()
+			if err != nil {
+				return nil, err
+			}
+			tables = []nodes.TableExpr{ref}
+		case tableCollection:
+			ref, err := p.parseTableCollection()
 			if err != nil {
 				return nil, err
 			}
@@ -191,7 +210,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		// USING holds bare table names (or aliases declared in USING), so an
 		// alias or PARTITION there followed by USING is a syntax error in
 		// MySQL.
-		singleTableOnly := leadingDot || externalTable
+		singleTableOnly := leadingDot || externalTable || tableCollection
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// The single-table form's table is a tbl_name, with its partitions,
@@ -250,6 +269,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	// WHERE clause (optional)
 	if _, ok := p.match(kwWHERE); ok {
+		p.match(tokHintValue)
 		where, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -332,7 +352,7 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 		return nil, err
 	}
 
-	val, err := p.parseExpr()
+	val, err := p.parseExprOrDefault()
 	if err != nil {
 		return nil, err
 	}

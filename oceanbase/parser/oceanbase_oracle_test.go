@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -39,7 +40,10 @@ func engineAccepts(ctx context.Context, db *sql.DB, sql string) (bool, error) {
 	}
 	var myErr *gomysql.MySQLError
 	if errors.As(err, &myErr) {
-		return myErr.Number != 1064, nil
+		// A bare "Parse error" (OB_ERR_PARSE_SQL, sent on the wire as 1064 without
+		// oceanBaseSyntaxError) comes from a layer after the parser; see
+		// oceanBaseErrorCode in compat_test.go.
+		return myErr.Number != 1064 || !strings.HasPrefix(myErr.Message, oceanBaseSyntaxError), nil
 	}
 	return false, err
 }

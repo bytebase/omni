@@ -82,6 +82,23 @@ func (p *Parser) parseUnnest() (*nodes.UnnestExpr, error) {
 	return expr, nil
 }
 
+// parseTableCollection parses tbl_name's TABLE '(' simple_expr ')' [[AS] relation_name]
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6, lines 14476-14487).
+func (p *Parser) parseTableCollection() (*nodes.TableCollectionExpr, error) {
+	expr := &nodes.TableCollectionExpr{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // TABLE
+	arg, err := p.parseTableFunctionArg()
+	if err != nil {
+		return nil, err
+	}
+	expr.Expr = arg
+	if expr.Alias, err = p.parseTableFunctionAlias(); err != nil {
+		return nil, err
+	}
+	expr.Loc.End = p.prev.End
+	return expr, nil
+}
+
 // parseTableFunctionArg reads the '(' and one simple_expr of a table function,
 // which is where both RB_ITERATE and UNNEST open their arguments.
 func (p *Parser) parseTableFunctionArg() (nodes.ExprNode, error) {

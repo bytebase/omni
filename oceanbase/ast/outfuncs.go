@@ -496,6 +496,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRbIterateExpr(sb, n)
 	case *UnnestExpr:
 		writeUnnestExpr(sb, n)
+	case *TableCollectionExpr:
+		writeTableCollectionExpr(sb, n)
+	case *LambdaExpr:
+		writeLambdaExpr(sb, n)
 	case *JsonTableColumn:
 		writeJsonTableColumn(sb, n)
 	case *CallStmt:
@@ -4296,6 +4300,23 @@ func writeUnnestExpr(sb *strings.Builder, n *UnnestExpr) {
 	if len(n.Columns) > 0 {
 		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
 	}
+	sb.WriteString("}")
+}
+
+func writeTableCollectionExpr(sb *strings.Builder, n *TableCollectionExpr) {
+	sb.WriteString("{TABLE_COLLECTION")
+	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
+	writeNode(sb, n.Expr)
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	sb.WriteString("}")
+}
+
+func writeLambdaExpr(sb *strings.Builder, n *LambdaExpr) {
+	sb.WriteString("{LAMBDA")
+	fmt.Fprintf(sb, " :loc %d :params (%s) :body ", n.Loc.Start, strings.Join(n.Params, " "))
+	writeNode(sb, n.Body)
 	sb.WriteString("}")
 }
 

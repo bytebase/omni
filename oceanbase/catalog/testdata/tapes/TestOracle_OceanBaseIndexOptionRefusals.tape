@@ -13,6 +13,10 @@
 < error
 | 1235 0A000 specify data table id not for restore purpose in create index not supported
 > exec
+| ALTER TABLE a ADD KEY (zz) VIRTUAL_COLUMN_ID 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
 | ALTER TABLE a ADD KEY idx_c (c) INDEX_TABLE_ID 1
 < error
 | 1235 0A000 specify index table id not for restore purpose in create index not supported
@@ -42,6 +46,10 @@
 < error
 | 1235 0A000 specify data table id not for restore purpose in create index not supported
 > exec
+| CREATE TABLE t3 (b INT PRIMARY KEY, KEY (b) VIRTUAL_COLUMN_ID = 1)
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
 | CREATE INDEX i ON a (c) WITH (a = 1)
 < error
 | 1235 0A000 set index params in not vector index is not supported
@@ -49,6 +57,10 @@
 | CREATE INDEX i ON a (c) DATA_TABLE_ID 1
 < error
 | 4179 HY000 create index with index_table_id/data_table_id not allowed
+> exec
+| CREATE INDEX i ON a (c) VIRTUAL_COLUMN_ID = 1
+< error
+| 1064 42000 Parse error
 > exec
 | CREATE INDEX i ON a (c) STORAGE_CACHE_POLICY (GLOBAL = 'hot')
 < error

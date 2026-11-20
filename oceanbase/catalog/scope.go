@@ -56,6 +56,84 @@ type analyzerScope struct {
 	// analyzer cannot name as OceanBase does (selectDerivesNames). A name that then
 	// fails to resolve is not known to be missing, and its error is no refusal.
 	namesUncertain bool
+
+	// maskedCols holds lowered parameter names bound by enclosing LambdaExprs at
+	// this query level so unqualified references bind to the lambda parameter
+	// while free columns and subqueries inside the lambda body are still analyzed.
+	maskedCols map[string]bool
+
+	// unfaithful records that this query (or a subquery inside one of its
+	// expressions) used a FROM source that DeparseQuery cannot write back.
+	unfaithful bool
+}
+
+func (s *analyzerScope) markUnfaithful() {
+	for cur := s; cur != nil; cur = cur.parent {
+		cur.unfaithful = true
+	}
+}
+
+// withMaskedColumns returns a shallow copy of s at the same query level with
+// params added to maskedCols.
+func (s *analyzerScope) withMaskedColumns(params []string) *analyzerScope {
+	if s == nil {
+		s = newScope()
+	}
+	if len(params) == 0 {
+		return s
+	}
+	cp := *s
+	masked := make(map[string]bool, len(s.maskedCols)+len(params))
+	for k, v := range s.maskedCols {
+		masked[k] = v
+	}
+	for _, p := range params {
+		if p != "" {
+			masked[strings.ToLower(p)] = true
+		}
+	}
+	cp.maskedCols = masked
+	return &cp
+}
+
+// lambdaMaskLevels returns the distance (0 = current query level, >0 = enclosing
+// query level) to the nearest scope where colName is bound as a lambda parameter.
+func (s *analyzerScope) lambdaMaskLevels(colName string) (int, bool) {
+	lower := strings.ToLower(colName)
+	for cur, levels := s, 0; cur != nil; cur, levels = cur.parent, levels+1 {
+		if cur.maskedCols[lower] {
+			return levels, true
+		}
+	}
+	return 0, false
+}
+
+// resolveColumnBeforeLevel resolves an unqualified column across scopes strictly
+// closer than maxLevels (i.e. subqueries nested inside a lambda body). Ambiguous
+// inner matches return their 1052 error rather than falling through to the outer
+// lambda parameter.
+func (s *analyzerScope) resolveColumnBeforeLevel(colName string, maxLevels int) (int, int, int, bool, error) {
+	for cur, levels := s, 0; cur != nil && levels < maxLevels; cur, levels = cur.parent, levels+1 {
+		rteIdx, attNum, err := cur.resolveColumn(colName)
+		if err == nil {
+			return rteIdx, attNum, levels, true, nil
+		}
+		if refErr, ok := err.(*Error); ok && refErr.Code == 1052 {
+			return 0, 0, 0, false, s.unsure(err)
+		}
+	}
+	return 0, 0, 0, false, nil
+}
+
+// uncertainBeforeLevel reports whether any scope strictly closer than maxLevels
+// has uncertain derived column names.
+func (s *analyzerScope) uncertainBeforeLevel(maxLevels int) bool {
+	for cur, levels := s, 0; cur != nil && levels < maxLevels; cur, levels = cur.parent, levels+1 {
+		if cur.namesUncertain {
+			return true
+		}
+	}
+	return false
 }
 
 // uncertain reports whether this scope or one around it has uncertain names.

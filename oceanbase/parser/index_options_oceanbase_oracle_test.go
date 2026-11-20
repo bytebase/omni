@@ -71,7 +71,7 @@ var indexOptionFormCases = []indexOptionFormCase{
 	{"CREATE INDEX i2 ON t (a) DATA_TABLE_ID 1", true},
 	{"CREATE INDEX i3 ON t (a) DATA_TABLE_ID a", false},
 	{"CREATE INDEX i4 ON t (a) INDEX_TABLE_ID = 1", true},
-	{"CREATE INDEX i5 ON t (a) VIRTUAL_COLUMN_ID = 1", false},
+	{"CREATE INDEX i5 ON t (a) VIRTUAL_COLUMN_ID = 1", true},
 	{"CREATE INDEX i6 ON t (a) MAX_USED_PART_ID = 1", true},
 	{"CREATE INDEX i7 ON t (a) INDEX_TABLE_ID", false},
 	{"CREATE INDEX c1 ON t (a) STORAGE_CACHE_POLICY = (GLOBAL = 'hot')", true},

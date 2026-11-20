@@ -335,17 +335,28 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 	case *ast.UnnestExpr:
 		// A table function's outputs are the columns it declares, or, without a
-		// column alias list, the arguments it returns rows from. Without an
-		// alias its columns are unqualified.
+		// column alias list, the arguments it returns rows from when every
+		// argument has a statically known column name.
 		names := t.Columns
-		if len(names) == 0 {
+		if len(names) == 0 && len(t.Args) > 0 {
+			allNamed := true
+			var argNames []string
 			for _, arg := range t.Args {
-				if name := tableFunctionArgumentName(arg); name != "" {
-					names = append(names, name)
+				name := tableFunctionArgumentName(arg)
+				if name == "" {
+					allNamed = false
+					break
 				}
+				argNames = append(argNames, name)
+			}
+			if allNamed {
+				names = argNames
 			}
 		}
 		if len(names) == 0 {
+			if t.Alias != "" {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			return
 		}
 		var cols []ResolverColumn
@@ -359,9 +370,18 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			name = tableFunctionArgumentName(t.Arg)
 		}
 		if name == "" {
+			if t.Alias != "" {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			return
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
+	case *ast.TableCollectionExpr:
+		// A TABLE(...) collection unpacks runtime/UDT element columns rather than
+		// naming its output after the collection expression itself.
+		if t.Alias != "" {
+			sc.unknownColumns[strings.ToLower(t.Alias)] = true
+		}
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so there is
 		// nothing to expand here.
@@ -539,6 +559,22 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	case *ast.OdbcEscapeExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		return n
+	case *ast.LambdaExpr:
+		if sc == nil {
+			return n
+		}
+		savedMasked := sc.maskedCols
+		masked := make(map[string]bool, len(savedMasked)+len(n.Params))
+		for k, v := range savedMasked {
+			masked[k] = v
+		}
+		for _, param := range n.Params {
+			masked[strings.ToLower(param)] = true
+		}
+		sc.maskedCols = masked
+		n.Body = r.resolveExpr(n.Body, sc)
+		sc.maskedCols = savedMasked
+		return n
 	case *ast.GroupingSet:
 		for i, item := range n.Items {
 			n.Items[i] = r.resolveExpr(item, sc)
@@ -674,6 +710,9 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 
 	lowerCol := strings.ToLower(col.Column)
 	for cur := sc; cur != nil; cur = cur.parent {
+		if cur.maskedCols[lowerCol] {
+			return col
+		}
 		// A column a NATURAL or USING join joins on is the one copy the join
 		// keeps, which comes from its right input in a RIGHT join. A FULL join
 		// keeps COALESCE(left, right) instead, since either side may be the
@@ -748,6 +787,15 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 			if on, ok := t.Condition.(*ast.OnCondition); ok {
 				on.Expr = r.resolveExpr(on.Expr, sc)
 			}
+		}
+	case *ast.TableCollectionExpr:
+		t.Expr = r.resolveExpr(t.Expr, sc.prefixBefore(t))
+	case *ast.RbIterateExpr:
+		t.Arg = r.resolveExpr(t.Arg, sc.prefixBefore(t))
+	case *ast.UnnestExpr:
+		pre := sc.prefixBefore(t)
+		for i, arg := range t.Args {
+			t.Args[i] = r.resolveExpr(arg, pre)
 		}
 	}
 }
@@ -899,6 +947,10 @@ func (r *Resolver) resolveCastCharsets(node ast.ExprNode) {
 		r.resolveCastCharsets(n.Expr)
 	case *ast.OdbcEscapeExpr:
 		r.resolveCastCharsets(n.Expr)
+	case *ast.LambdaExpr:
+		r.resolveCastCharsets(n.Body)
+	case *ast.ResTarget:
+		r.resolveCastCharsets(n.Val)
 	case *ast.GroupingSet:
 		for _, item := range n.Items {
 			r.resolveCastCharsets(item)

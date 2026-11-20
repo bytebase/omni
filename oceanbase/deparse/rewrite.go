@@ -73,6 +73,14 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		n.Expr = rewriteExpr(n.Expr)
 		return n
 
+	case *ast.LambdaExpr:
+		n.Body = rewriteExpr(n.Body)
+		return n
+
+	case *ast.ResTarget:
+		n.Val = rewriteExpr(n.Val)
+		return n
+
 	case *ast.GroupingSet:
 		// A grouping set's items are expressions like any other, so IF, NOT,
 		// BETWEEN and date arithmetic inside ROLLUP (...) rewrite as they do
@@ -244,6 +252,10 @@ func FoldBetween(node ast.ExprNode) ast.ExprNode {
 		n.Expr = FoldBetween(n.Expr)
 	case *ast.OdbcEscapeExpr:
 		n.Expr = FoldBetween(n.Expr)
+	case *ast.LambdaExpr:
+		n.Body = FoldBetween(n.Body)
+	case *ast.ResTarget:
+		n.Val = FoldBetween(n.Val)
 	case *ast.QuantifiedExpr:
 		n.Expr = FoldBetween(n.Expr)
 	case *ast.IsExpr:

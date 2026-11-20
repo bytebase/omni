@@ -456,7 +456,7 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
 1146	1146	engine	one_table@missing	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1146	1146	engine	one_table@missing	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
-1064	1146	engine	one_table@missing	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
+1146	1146	engine	one_table@missing	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 1146	1146	engine	one_table@missing	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 1146	1146	engine	one_table@missing	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
 1146	1146	engine	one_table@missing	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
@@ -702,7 +702,7 @@ ok:a19d97661726	ok:a19d97661726	engine	one_table@table	data_type/POLYGON	ALTER T
 ok:f08041e0e140	ok:f08041e0e140	engine	one_table@table	data_type/MULTIPOINT	ALTER TABLE a ADD a MULTIPOINT
 ok:97d8cffc4b73	ok:97d8cffc4b73	engine	one_table@table	data_type/MULTILINESTRING	ALTER TABLE a ADD a MULTILINESTRING
 ok:cd3f176a8f16	ok:cd3f176a8f16	engine	one_table@table	data_type/MULTIPOLYGON	ALTER TABLE a ADD a MULTIPOLYGON
-ok	ok:a1c8fd7a08a3	engine	one_table@table	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
+ok:a1c8fd7a08a3	ok:a1c8fd7a08a3	engine	one_table@table	data_type/geometry_collection	ALTER TABLE a ADD a GEOMETRYCOLLECTION
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_(_data_type_)	ALTER TABLE a ADD a ARRAY(TINYINT)
 ok:dea65e692e9d	ok:dea65e692e9d	engine	one_table@table	data_type/ARRAY_COMP_LT_data_type_COMP_GT	ALTER TABLE a ADD a ARRAY < TINYINT >
 ok:d31c42b0504b	ok:d31c42b0504b	engine	one_table@table	data_type/ARRAY_COMP_LT_ARRAY_COMP_LT_data_type_SHIFT_RIGHT	ALTER TABLE a ADD a ARRAY < ARRAY < TINYINT >>
@@ -1025,7 +1025,7 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_table/TABLE	TRUNCATE 
 1072	1072	engine	one_table@table	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
 1235	1235	engine	one_table@table	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@table	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
-1064	1235	engine	one_table@table	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
+1235	1235	engine	one_table@table	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 1072	1072	engine	one_table@table	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 1072	1072	engine	one_table@table	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
 1235	1235	engine	one_table@table	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
@@ -1594,7 +1594,7 @@ ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/index_using
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
 1235	1235	engine	one_table@column	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@column	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
-1064	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
+1235	1235	engine	one_table@column	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
 1235	1235	engine	one_table@column	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')
@@ -2163,7 +2163,7 @@ ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/index_using_
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/visibility_option	ALTER TABLE a ADD KEY(a) VISIBLE
 1235	1235	engine	one_table@index	index_option/DATA_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) DATA_TABLE_ID 1
 1235	1235	engine	one_table@index	index_option/INDEX_TABLE_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) INDEX_TABLE_ID 1
-1064	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
+1235	1235	engine	one_table@index	index_option/VIRTUAL_COLUMN_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/MAX_USED_PART_ID_opt_equal_mark_INTNUM	ALTER TABLE a ADD KEY(a) MAX_USED_PART_ID 1
 ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	index_option/parallel_option	ALTER TABLE a ADD KEY(a) NOPARALLEL
 1235	1235	engine	one_table@index	index_option/STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ADD KEY(a) STORAGE_CACHE_POLICY(GLOBAL = 's')

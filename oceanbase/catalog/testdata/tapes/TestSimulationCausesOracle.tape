@@ -623,3 +623,97 @@
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation
 < ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) VIRTUAL_COLUMN_ID 1
+< error
+| 1146 42S02 Table 'omni_t_simulation.a' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 0 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(b) VIRTUAL_COLUMN_ID 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(b) VIRTUAL_COLUMN_ID = 1
+< error
+| 1235 0A000 specify virtual column id not for restore purpose in create index not supported
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a GEOMETRYCOLLECTION
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` geomcollection DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 4 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a GEOMCOLLECTION
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `a` geomcollection DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 4 0

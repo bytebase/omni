@@ -185,9 +185,17 @@ func (p *pseudoTable) GetCatalogName() string                { return p.CatalogN
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // unknownColumnsTable is a relation whose columns are known only when the query
-// runs: a table read from an external location. A column reference to it
-// resolves and reads no column this analysis can name.
-type unknownColumnsTable struct{ pseudoTable }
+// runs: a table read from an external location, or an expression-backed table
+// collection/function without explicit output column names. A column reference
+// to it resolves and inherits SourceColumns when its argument reads local columns.
+type unknownColumnsTable struct {
+	pseudoTable
+	SourceColumns ColumnSet
+	// Local marks a table-function / collection source in the local query
+	// (TABLE(...), UNNEST, RB_ITERATE) whose runtime columns shadow outer query
+	// tables, unlike remote/external tables which defer to known local tables.
+	Local bool
+}
 
 // physicalView is a catalog view with its resolved columns.
 type physicalView struct {

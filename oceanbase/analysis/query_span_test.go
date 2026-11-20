@@ -338,3 +338,77 @@ func TestRemoteUnknownDoesNotSwallowLocalLineage(t *testing.T) {
 		require.NotNil(t, span.NotFoundError, sql)
 	}
 }
+
+func TestTableCollectionLambdaAndAliasedCallArgLineage(t *testing.T) {
+	span, err := resolve(t, "SELECT ARRAY_FILTER(x -> x > a, a) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT STATISTICS(a zzz) AS s FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"s<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c.a FROM db.t1, TABLE(db.t1.a) AS c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"a<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c.element FROM db.t1, TABLE(db.t1.a) AS c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
+
+	// Inner unknown-column source shadows both outer known columns and outer lambda parameters.
+	span, err = resolve(t, "SELECT (SELECT a FROM TABLE(b) c) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.b"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT ARRAY_FILTER(x -> (SELECT x FROM TABLE(a) c), b) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.a,db.t1.b"}, renderResults(span))
+
+	// Outer lambda parameter still shadows outer known and unknown sources when inner query has no match.
+	span, err = resolve(t, "SELECT ARRAY_FILTER(a -> (SELECT a + d FROM db.t2 WHERE 1=0), c) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.c,db.t2.a,db.t2.d"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT ARRAY_FILTER(c -> (SELECT c + d FROM db.t2), b) AS res FROM db.t1")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"res<-db.t1.b,db.t2.d"}, renderResults(span))
+
+	// Expression-backed TABLE(...) exposes runtime-determined column names while
+	// retaining any column lineage from its argument expression.
+	span, err = resolve(t, "SELECT c.element FROM TABLE(f()) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c.element FROM db.t1, TABLE(f(db.t1.a)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT element FROM db.t1, TABLE(f(db.t1.a)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"element<-db.t1.a"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT a FROM db.t1, TABLE(f(db.t1.b)) c")
+	require.NoError(t, err)
+	require.Nil(t, span.NotFoundError)
+	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT x.element FROM TABLE(f())")
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+
+	span, err = resolve(t, "SELECT c.element FROM db.t1, TABLE(f(db.t1.missing)) c")
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+}
