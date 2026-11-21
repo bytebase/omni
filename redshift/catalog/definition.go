@@ -45,6 +45,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		if schema == nil || schema.SkipDump {
 			continue
 		}
+		if schema.Name == "" {
+			return "", fmt.Errorf("database %s has schema with empty name", quoteDefinitionIdentifier(to.Name))
+		}
 		key := identKey(schema.Name, caseSensitive)
 		if _, exists := seenSchemas[key]; exists {
 			return "", fmt.Errorf("database %s has duplicate schema %s", quoteDefinitionIdentifier(to.Name), quoteDefinitionIdentifier(schema.Name))

@@ -1891,4 +1891,53 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "unambiguously")
+
+	// Lexical fallback preserves CTE references, nested built-in return types
+	// inform outer overload matching, and base-table column aliases remap types.
+	cteDowngraded, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:   "shared",
+				Tables: []*metadatapb.TableMetadata{{Name: "x", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+			},
+			{
+				Name: "app",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v_cte_downgraded",
+					Definition:        "WITH x AS (SELECT id FROM shared.x) SELECT id FROM x AS OF TIMESTAMP '2024-01-01 00:00:00'",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "x"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, cteDowngraded, "WITH x AS (SELECT id FROM shared.x) SELECT id FROM x AS OF TIMESTAMP")
+
+	nestedAndAlias, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+				},
+				{
+					Name:       "sqrt",
+					Definition: "CREATE FUNCTION s.sqrt(x varchar) RETURNS varchar RETURN x",
+				},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_nested_alias",
+				Definition: "SELECT sqrt(abs(1)), abs(x) FROM t AS q(x)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, nestedAndAlias, `SELECT sqrt(abs(1)), abs(x) FROM "cat"."s".t AS q(x);`)
 }

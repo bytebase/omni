@@ -2224,6 +2224,15 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, seedOnlyOut, "IDENTITY(10, 1)")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "",
+			Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

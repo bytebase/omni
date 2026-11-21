@@ -636,7 +636,18 @@ func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDe
 	var edits []prefixEdit
 	depth := 0
 	fromActive := map[int]bool{}
+	cteScopes := map[int]map[string]struct{}{}
+	withPhase := map[int]string{}
 	expectRel := false
+	isCTEInScope := func(ident string) bool {
+		key := strings.ToLower(ident)
+		for d := 0; d <= depth; d++ {
+			if _, ok := cteScopes[d][key]; ok {
+				return true
+			}
+		}
+		return false
+	}
 	for i, tok := range toks {
 		if !tok.isIdent {
 			switch tok.punct {
@@ -645,14 +656,26 @@ func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDe
 				expectRel = false
 			case ')':
 				delete(fromActive, depth)
+				delete(cteScopes, depth)
+				delete(withPhase, depth)
 				if depth > 0 {
 					depth--
 				}
+				if withPhase[depth] == "in_body" {
+					withPhase[depth] = "after_body"
+				}
 				expectRel = false
 			case ',':
-				expectRel = fromActive[depth]
+				if withPhase[depth] == "after_body" {
+					withPhase[depth] = "expect_name"
+					expectRel = false
+				} else {
+					expectRel = fromActive[depth]
+				}
 			case ';':
 				fromActive[depth] = false
+				delete(cteScopes, depth)
+				delete(withPhase, depth)
 				expectRel = false
 			}
 			continue
@@ -661,9 +684,39 @@ func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDe
 			expectRel = false
 			continue
 		}
+		kw := strings.ToUpper(tok.ident)
+		switch withPhase[depth] {
+		case "expect_name":
+			if kw == "RECURSIVE" {
+				continue
+			}
+			if cteScopes[depth] == nil {
+				cteScopes[depth] = make(map[string]struct{})
+			}
+			cteScopes[depth][strings.ToLower(tok.ident)] = struct{}{}
+			withPhase[depth] = "after_name"
+			continue
+		case "after_name":
+			if kw == "AS" {
+				withPhase[depth] = "in_body"
+			}
+			continue
+		case "after_body":
+			if kw == "SELECT" || kw == "VALUES" {
+				withPhase[depth] = ""
+			}
+		}
+		if kw == "WITH" {
+			withPhase[depth] = "expect_name"
+			expectRel = false
+			continue
+		}
 		if expectRel {
 			expectRel = false
 			if i+1 < len(toks) && !toks[i+1].isIdent && (toks[i+1].punct == '.' || toks[i+1].punct == '(') {
+				continue
+			}
+			if isCTEInScope(tok.ident) {
 				continue
 			}
 			targetSchema := resolveUnqualifiedRelationSchema(tok.ident, schemaName, deps)
@@ -674,7 +727,7 @@ func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDe
 			}
 			continue
 		}
-		switch strings.ToUpper(tok.ident) {
+		switch kw {
 		case "FROM":
 			fromActive[depth] = true
 			expectRel = true
@@ -1368,12 +1421,17 @@ type parsedTrinoFn struct {
 	unknownReturn bool
 }
 
+type trinoRelationCols struct {
+	byName  map[string]string
+	ordered []trinoProjCol
+}
+
 type trinoFuncCatalog struct {
 	dbName    string
 	fns       []orderedFunction
 	parsed    []parsedTrinoFn
 	byKey     map[string][]int
-	tableCols map[string]map[string]string
+	tableCols map[string]trinoRelationCols
 }
 
 func parseTrinoColumnTypeString(raw string) string {
@@ -1391,27 +1449,33 @@ func parseTrinoColumnTypeString(raw string) string {
 	return normalizeTrinoTypeName(trimmed)
 }
 
-func indexTrinoRelationCols(schemaName, relName string, cols []*ColumnMetadata, tableCols map[string]map[string]string) {
+func indexTrinoRelationCols(schemaName, relName string, cols []*ColumnMetadata, tableCols map[string]trinoRelationCols) {
 	if len(cols) == 0 {
 		return
 	}
 	colMap := make(map[string]string, len(cols))
+	ordered := make([]trinoProjCol, 0, len(cols))
 	for _, col := range cols {
 		if col == nil || col.Name == "" {
 			continue
 		}
-		if dt := parseTrinoColumnTypeString(col.Type); dt != "" {
+		dt := parseTrinoColumnTypeString(col.Type)
+		ordered = append(ordered, trinoProjCol{name: strings.ToLower(col.Name), typ: dt})
+		if dt != "" {
 			colMap[strings.ToLower(col.Name)] = dt
 		}
 	}
-	if len(colMap) > 0 {
-		tableCols[objectKey(strings.ToLower(schemaName), strings.ToLower(relName))] = colMap
+	if len(ordered) > 0 {
+		tableCols[objectKey(strings.ToLower(schemaName), strings.ToLower(relName))] = trinoRelationCols{
+			byName:  colMap,
+			ordered: ordered,
+		}
 	}
 }
 
 func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	var fns []orderedFunction
-	tableCols := make(map[string]map[string]string)
+	tableCols := make(map[string]trinoRelationCols)
 	if metadata != nil {
 		for _, schema := range metadata.Schemas {
 			if schema == nil {
@@ -2325,7 +2389,7 @@ type trinoASTWalker struct {
 	unqualTables         []*ast.QualifiedName
 	inlineFuncs          map[string][]trinoInlineFunc
 	aliasCols            map[string]map[string]string
-	cteCols              map[string]map[string]string
+	cteCols              map[string]trinoRelationCols
 	fromSeen             map[string]struct{}
 	hasQuery             bool
 	hasUnboundColOrParam bool
@@ -2350,9 +2414,9 @@ func collectTrinoQueryASTRefs(q *trinoparser.Query, extraInline []trinoparser.Fu
 	return w.calls, w.unqualTables
 }
 
-func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map[string]struct{}) (string, map[string]string) {
+func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map[string]struct{}) (string, trinoRelationCols) {
 	if qn == nil || len(qn.Parts) == 0 {
-		return "", nil
+		return "", trinoRelationCols{}
 	}
 	if len(qn.Parts) == 1 {
 		tblLower := strings.ToLower(qn.Parts[0].Value)
@@ -2360,11 +2424,11 @@ func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map
 			if w.cteCols != nil {
 				return tblLower, w.cteCols[tblLower]
 			}
-			return tblLower, nil
+			return tblLower, trinoRelationCols{}
 		}
 	}
 	if w.cat == nil || len(w.cat.tableCols) == 0 {
-		return "", nil
+		return "", trinoRelationCols{}
 	}
 	var schema, tbl string
 	switch len(qn.Parts) {
@@ -2375,11 +2439,11 @@ func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map
 		schema, tbl = qn.Parts[0].Value, qn.Parts[1].Value
 	case 3:
 		if w.cat.dbName != "" && !strings.EqualFold(qn.Parts[0].Value, w.cat.dbName) {
-			return "", nil
+			return "", trinoRelationCols{}
 		}
 		schema, tbl = qn.Parts[1].Value, qn.Parts[2].Value
 	default:
-		return "", nil
+		return "", trinoRelationCols{}
 	}
 	if schema == "" {
 		schema = w.callerSchema
@@ -2454,10 +2518,14 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 			if tr.Period != nil {
 				w.walkExpr(tr.Period.End, curEnv, ctes)
 			}
-			defAlias, cols := w.lookupTableRelationCols(tr.Name, ctes)
+			defAlias, relCols := w.lookupTableRelationCols(tr.Name, ctes)
 			alias := defAlias
 			if r.Alias != nil && r.Alias.Value != "" {
 				alias = r.Alias.Value
+			}
+			cols := relCols.byName
+			if len(r.ColumnAliases) > 0 && len(relCols.ordered) > 0 {
+				cols = projColsToMap(relCols.ordered, r.ColumnAliases)
 			}
 			w.bindRelationCols(alias, cols, curEnv)
 		} else {
@@ -2489,9 +2557,9 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		if r.Period != nil {
 			w.walkExpr(r.Period.End, curEnv, ctes)
 		}
-		alias, cols := w.lookupTableRelationCols(r.Name, ctes)
+		alias, relCols := w.lookupTableRelationCols(r.Name, ctes)
 		if bind {
-			w.bindRelationCols(alias, cols, curEnv)
+			w.bindRelationCols(alias, relCols.byName, curEnv)
 		}
 	case *trinoparser.NearestRelation:
 		w.walkRelation(r.From, curEnv, ctes)
@@ -2736,7 +2804,7 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 		scope[k] = struct{}{}
 	}
 	prevCTECols := w.cteCols
-	nextCTECols := make(map[string]map[string]string, len(prevCTECols))
+	nextCTECols := make(map[string]trinoRelationCols, len(prevCTECols))
 	for k, v := range prevCTECols {
 		nextCTECols[k] = v
 	}
@@ -2753,7 +2821,17 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 			if cte.Name != nil && cte.Name.Value != "" {
 				cteKey := strings.ToLower(cte.Name.Value)
 				scope[cteKey] = struct{}{}
-				nextCTECols[cteKey] = projColsToMap(proj, cte.ColumnAliases)
+				ordered := make([]trinoProjCol, len(proj))
+				copy(ordered, proj)
+				for idx := range ordered {
+					if idx < len(cte.ColumnAliases) && cte.ColumnAliases[idx] != nil && cte.ColumnAliases[idx].Value != "" {
+						ordered[idx].name = strings.ToLower(cte.ColumnAliases[idx].Value)
+					}
+				}
+				nextCTECols[cteKey] = trinoRelationCols{
+					byName:  projColsToMap(proj, cte.ColumnAliases),
+					ordered: ordered,
+				}
 			}
 		}
 	}
@@ -3196,17 +3274,50 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 					return ret
 				}
 			}
-			switch strings.ToLower(name) {
-			case "length", "cardinality", "strpos", "count":
+			if ret := inferTrinoBuiltinReturnType(name, argTypes); ret != "" {
+				return ret
+			}
+		}
+	}
+	return ""
+}
+
+func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
+	switch strings.ToLower(name) {
+	case "length", "cardinality", "strpos", "count", "array_position", "width_bucket", "date_diff":
+		return "bigint"
+	case "lower", "upper", "trim", "ltrim", "rtrim", "concat_ws", "array_join", "substr", "substring", "replace", "split_part", "regexp_extract", "regexp_replace", "format", "chr", "url_encode", "url_decode", "to_hex", "json_format":
+		return "varchar"
+	case "sqrt", "cbrt", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "ln", "log", "log2", "log10", "pow", "power", "radians", "degrees", "avg", "stddev", "stddev_pop", "stddev_samp", "variance", "var_pop", "var_samp", "corr", "covar_pop", "covar_samp", "infinity", "nan", "pi", "e":
+		return "double"
+	case "is_nan", "is_finite", "is_infinite", "isnan", "isinf", "regexp_like", "arrays_overlap", "contains", "all_match", "any_match", "none_match", "starts_with", "ends_with":
+		return "boolean"
+	case "abs", "sign", "round", "ceil", "ceiling", "floor", "truncate", "mod", "negate", "arbitrary", "any_value", "min", "max", "try", "array_distinct", "array_sort", "array_remove", "shuffle", "slice", "reverse", "concat", "coalesce", "nullif":
+		for _, at := range argTypes {
+			if at != "" {
+				return at
+			}
+		}
+	case "greatest", "least":
+		res := ""
+		for _, at := range argTypes {
+			res = combineTrinoTypes(res, at)
+		}
+		return res
+	case "if":
+		if len(argTypes) == 2 {
+			return argTypes[1]
+		}
+		if len(argTypes) == 3 {
+			return combineTrinoTypes(argTypes[1], argTypes[2])
+		}
+	case "sum":
+		if len(argTypes) > 0 {
+			switch argTypes[0] {
+			case "tinyint", "smallint", "integer", "bigint":
 				return "bigint"
-			case "lower", "upper", "trim", "ltrim", "rtrim", "concat", "substr", "substring", "replace", "reverse":
-				return "varchar"
-			case "coalesce", "nullif":
-				for _, at := range argTypes {
-					if at != "" {
-						return at
-					}
-				}
+			case "real", "double", "decimal", "interval day to second", "interval year to month":
+				return argTypes[0]
 			}
 		}
 	}
