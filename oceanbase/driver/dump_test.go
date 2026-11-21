@@ -299,7 +299,9 @@ CREATE TABLE t_ft (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk (body)
 
 CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));
 
-CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;`
+CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;
+
+CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));`
 	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
 	if err != nil {
 		t.Fatalf("restoring OceanBase dump: %v", err)
@@ -335,6 +337,11 @@ CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global
 			if idx.Parser != tc.parser || fmt.Sprint(idx.ParserProperties) != tc.props || strings.Join(idx.Expressions, ",") != "body" {
 				t.Errorf("%s full-text index = %+v", tc.table, idx)
 			}
+		}
+	}
+	for _, idx := range tables["t_storing"].Indexes {
+		if idx.Name == "k_cover" && strings.Join(idx.StoringColumns, ",") != "b,c" {
+			t.Errorf("t_storing k_cover STORING = %v, want b,c", idx.StoringColumns)
 		}
 	}
 	for _, idx := range tables["t_global"].Indexes {

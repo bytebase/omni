@@ -25,6 +25,9 @@
 > exec
 | CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;
 < ok 0 0
+> exec
+| CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -107,7 +110,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795257251884077
+| __word_segment_19_1795258952995475
 : bytes
 | A
 : int64 -1
@@ -125,7 +128,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795257251883674
+| __doc_id_1795258952995050
 : bytes
 | A
 : int64 -1
@@ -161,7 +164,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795257252118926
+| __word_segment_19_1795258953213026
 : bytes
 | A
 : int64 -1
@@ -179,7 +182,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795257252118560
+| __doc_id_1795258953212693
 : bytes
 | A
 : int64 -1
@@ -247,6 +250,24 @@
 |
 < row
 : bytes
+| t_storing
+: bytes
+| k_cover
+: bytes
+| a
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
 | t_vec
 : bytes
 | PRIMARY
@@ -287,7 +308,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795257251225000
+| __vid_1795258952313358
 : bytes
 | A
 : int64 -1
@@ -305,7 +326,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795257251225474
+| __type_17_1795258952313910
 : bytes
 | A
 : int64 -1
@@ -323,7 +344,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795257251225000
+| __vid_1795258952313358
 : bytes
 | A
 : int64 -1
@@ -341,7 +362,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795257251229216
+| __scn_17_1795258952315678
 : bytes
 | A
 : int64 -1
@@ -359,7 +380,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795257251225000
+| __vid_1795258952313358
 : bytes
 | A
 : int64 -1
@@ -377,7 +398,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795257251225474
+| __type_17_1795258952313910
 : bytes
 | A
 : int64 -1
@@ -395,7 +416,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795257251230542
+| __key_17_1795258952316649
 : bytes
 | A
 : int64 -1
@@ -725,6 +746,72 @@
 < row
 : bytes
 | t_global
+: bytes
+| c
+: uint64 3
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
 : bytes
 | c
 : uint64 3
@@ -1127,6 +1214,29 @@
 < row
 : bytes
 | t_global
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_storing
 : bytes
 | BASE TABLE
 : bytes
@@ -1299,6 +1409,21 @@
 | (partition `p0`,
 | partition `p1`)
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_storing`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_storing
+: bytes
+| CREATE TABLE `t_storing` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   KEY `k_cover` (`a`) STORING (`b`, `c`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_vec`
 < result
 < column "Table" "VARCHAR" "string"
@@ -1403,6 +1528,14 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 < ok 0 0
 > exec
+| CREATE TABLE `t_storing` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL,
+|   KEY `k_cover` (`a`) STORING (`b`, `c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
 | CREATE TABLE `t_vec` (
 |   `id` int NOT NULL,
 |   `v` VECTOR(3) DEFAULT NULL,
@@ -1498,7 +1631,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795257255112943
+| __word_segment_19_1795258956489596
 : bytes
 | A
 : int64 -1
@@ -1516,7 +1649,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795257255112686
+| __doc_id_1795258956489391
 : bytes
 | A
 : int64 -1
@@ -1552,7 +1685,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795257255303298
+| __word_segment_19_1795258956694470
 : bytes
 | A
 : int64 -1
@@ -1570,7 +1703,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795257255303034
+| __doc_id_1795258956694186
 : bytes
 | A
 : int64 -1
@@ -1638,6 +1771,24 @@
 |
 < row
 : bytes
+| t_storing
+: bytes
+| k_cover
+: bytes
+| a
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
 | t_vec
 : bytes
 | PRIMARY
@@ -1678,7 +1829,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795257255686485
+| __vid_1795258957230158
 : bytes
 | A
 : int64 -1
@@ -1696,7 +1847,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795257255686813
+| __type_17_1795258957230441
 : bytes
 | A
 : int64 -1
@@ -1714,7 +1865,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795257255686485
+| __vid_1795258957230158
 : bytes
 | A
 : int64 -1
@@ -1732,7 +1883,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795257255688734
+| __scn_17_1795258957231955
 : bytes
 | A
 : int64 -1
@@ -1750,7 +1901,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795257255686485
+| __vid_1795258957230158
 : bytes
 | A
 : int64 -1
@@ -1768,7 +1919,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795257255686813
+| __type_17_1795258957230441
 : bytes
 | A
 : int64 -1
@@ -1786,7 +1937,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795257255689986
+| __key_17_1795258957232708
 : bytes
 | A
 : int64 -1
@@ -2116,6 +2267,72 @@
 < row
 : bytes
 | t_global
+: bytes
+| c
+: uint64 3
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_storing
 : bytes
 | c
 : uint64 3
@@ -2540,6 +2757,29 @@
 | utf8mb4
 < row
 : bytes
+| t_storing
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_vec
 : bytes
 | BASE TABLE
@@ -2681,6 +2921,21 @@
 |   `c` int(11) DEFAULT NULL,
 |   UNIQUE KEY `k_global` (`b`) BLOCK_SIZE 16384 GLOBAL,
 |   KEY `k_plain` (`c`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_storing`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_storing
+: bytes
+| CREATE TABLE `t_storing` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   KEY `k_cover` (`a`) STORING (`b`, `c`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_vec`

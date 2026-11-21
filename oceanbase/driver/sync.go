@@ -1892,6 +1892,11 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 				idx.Scope = "GLOBAL"
 				idx.IsGlobal = true
 			}
+			// STORING (...) makes the index covering; information_schema
+			// does not carry it, and SHOW CREATE TABLE prints it.
+			if opt != nil && strings.EqualFold(opt.Name, "STORING") {
+				idx.StoringColumns = append(idx.StoringColumns, opt.Columns...)
+			}
 		}
 		if con.Type == oceanbaseast.ConstrVector {
 			idx.IsVector = true
