@@ -2054,7 +2054,7 @@ func addConstraintToTable(tbl *metadatapb.TableMetadata, cat *Catalog, rel Relat
 	case ConstraintExclude:
 		tbl.ExcludeConstraints = append(tbl.ExcludeConstraints, &metadatapb.ExcludeConstraintMetadata{
 			Name:       con.Name,
-			Expression: con.CheckExpr,
+			Expression: formatExcludeConstraintExpr(cat, con),
 		})
 	default:
 	}
@@ -2884,7 +2884,7 @@ func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 		case 'x':
 			table.ExcludeConstraints = append(table.ExcludeConstraints, &metadatapb.ExcludeConstraintMetadata{
 				Name:       con.Name,
-				Expression: con.CheckExpr,
+				Expression: formatExcludeConstraintExpr(c, con),
 			})
 		default:
 		}

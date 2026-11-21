@@ -867,7 +867,10 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 		}
 	case *nodes.ResTarget:
 		c.recordDepsFromNode(objType, objOID, v.Val)
+	case *nodes.NamedArgExpr:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
 	case *nodes.FuncCall:
+		c.recordDepsOnFuncCall(objType, objOID, v)
 		c.recordDepsFromNode(objType, objOID, v.Args)
 		c.recordDepsFromNode(objType, objOID, v.AggOrder)
 		c.recordDepsFromNode(objType, objOID, v.AggFilter)
@@ -956,6 +959,123 @@ func (c *Catalog) recordDepsOnRangeVar(objType byte, objOID uint32, rv *nodes.Ra
 	_, rel, err := c.findRelation(rv.Schemaname, rv.Relname)
 	if err == nil && rel != nil {
 		c.recordDependency(objType, objOID, 0, 'r', rel.OID, 0, DepNormal)
+	}
+}
+
+// recordDepsOnFuncCall resolves a FuncCall AST node to matching user-defined
+// routine(s) and records DepNormal dependencies when found.
+func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.FuncCall) {
+	if c == nil || fc == nil || fc.Funcname == nil {
+		return
+	}
+	schemaName, funcName := qualifiedName(fc.Funcname)
+	if funcName == "" {
+		return
+	}
+	procs := c.filterProcsBySearchPath(schemaName, c.procByName[strings.ToLower(funcName)])
+	if len(procs) == 0 {
+		return
+	}
+
+	var nargs int
+	var argNames []string
+	var hasNamed bool
+	if fc.Args != nil {
+		nargs = len(fc.Args.Items)
+		for _, item := range fc.Args.Items {
+			if na, ok := item.(*nodes.NamedArgExpr); ok {
+				hasNamed = true
+				argNames = append(argNames, na.Name)
+			} else {
+				argNames = append(argNames, "")
+			}
+		}
+	}
+	if !hasNamed {
+		argNames = nil
+	}
+
+	matchesCall := func(p *BuiltinProc) bool {
+		if fc.AggStar {
+			return true
+		}
+		if argNames != nil {
+			_, ok := namedCallPositions(p, argNames, fc.FuncVariadic)
+			return ok
+		}
+		_, ok := candidateArgTypesForCall(p, nargs, fc.FuncVariadic)
+		return ok
+	}
+
+	var targetSchemaOID uint32
+	if schemaName != "" {
+		sc := c.schemaByName[schemaName]
+		if sc == nil {
+			return
+		}
+		targetSchemaOID = sc.OID
+	}
+
+	recordProc := func(p *BuiltinProc) {
+		if objType == 'f' && p.OID == objOID {
+			return
+		}
+		for _, d := range c.deps {
+			if d.ObjType == objType && d.ObjOID == objOID && d.RefType == 'f' && d.RefOID == p.OID && d.DepType == DepNormal {
+				return
+			}
+		}
+		c.recordDependency(objType, objOID, 0, 'f', p.OID, 0, DepNormal)
+	}
+
+	var matched []*BuiltinProc
+	for _, p := range procs {
+		if p.OID < FirstNormalObjectId {
+			continue
+		}
+		up := c.userProcs[p.OID]
+		if up == nil || up.Schema == nil {
+			continue
+		}
+		if targetSchemaOID != 0 && up.Schema.OID != targetSchemaOID {
+			continue
+		}
+		if matchesCall(p) {
+			matched = append(matched, p)
+		}
+	}
+	if len(matched) == 0 {
+		return
+	}
+
+	if schemaName != "" {
+		for _, p := range matched {
+			recordProc(p)
+		}
+		return
+	}
+
+	// For unqualified calls, prefer routines in the first visible schema along search_path.
+	for _, sname := range c.searchPath {
+		sc := c.schemaByName[sname]
+		if sc == nil {
+			continue
+		}
+		var inSchema []*BuiltinProc
+		for _, p := range matched {
+			if up := c.userProcs[p.OID]; up != nil && up.Schema != nil && up.Schema.OID == sc.OID {
+				inSchema = append(inSchema, p)
+			}
+		}
+		if len(inSchema) > 0 {
+			for _, p := range inSchema {
+				recordProc(p)
+			}
+			return
+		}
+	}
+	for _, p := range matched {
+		recordProc(p)
 	}
 }
 

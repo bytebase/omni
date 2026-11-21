@@ -7200,3 +7200,83 @@ func TestRound35Fixes(t *testing.T) {
 		require.NotEqual(t, "k", col.Name)
 	}
 }
+
+func TestRound36Fixes(t *testing.T) {
+	// 1. SQL-standard body calling another newly added function (alphabetically later) orders callee first.
+	callFrom := New()
+	callTo := New()
+	_, err := callTo.Exec(`
+		CREATE FUNCTION public.z_callee() RETURNS integer LANGUAGE sql RETURN 42;
+		CREATE FUNCTION public.a_caller() RETURNS integer LANGUAGE sql RETURN public.z_callee();
+	`, nil)
+	require.NoError(t, err)
+	callSQL := GenerateMigration(callFrom, callTo, Diff(callFrom, callTo)).SQL()
+	require.Contains(t, callSQL, `CREATE FUNCTION "public"."z_callee"`)
+	require.Contains(t, callSQL, `CREATE FUNCTION "public"."a_caller"`)
+	require.Less(t, strings.Index(callSQL, `"public"."z_callee"`), strings.Index(callSQL, `"public"."a_caller"`))
+
+	callApplied := callFrom.Clone()
+	callExec, err := callApplied.Exec(callSQL, nil)
+	require.NoError(t, err)
+	for _, r := range callExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(callApplied, callTo).Functions)
+
+	// Unqualified call in a custom search_path schema also loads cleanly via LoadMetadata.
+	unqMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "custom",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "a_caller",
+					Signature:  "custom.a_caller()",
+					Definition: `CREATE FUNCTION custom.a_caller() RETURNS integer LANGUAGE sql RETURN z_callee()`,
+				},
+				{
+					Name:       "z_callee",
+					Signature:  "custom.z_callee()",
+					Definition: `CREATE FUNCTION custom.z_callee() RETURNS integer LANGUAGE sql RETURN 42`,
+				},
+			},
+		}},
+	}
+	unqCat := New()
+	unqReport, err := unqCat.LoadMetadata(context.Background(), unqMeta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, unqReport.Degraded)
+
+	// 2. ApplyDiffToMetadata serializes EXCLUDE constraint expressions when adding EXCLUDE constraints.
+	exclBefore := New()
+	_, err = exclBefore.Exec(`CREATE TABLE public.booking (id int, r int4range);`, nil)
+	require.NoError(t, err)
+	exclOrigMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "booking",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "integer", Nullable: true},
+					{Name: "r", Position: 2, Type: "int4range", Nullable: true},
+				},
+			}},
+		}},
+	}
+	exclAfter := exclBefore.Clone()
+	_, err = exclAfter.Exec(`ALTER TABLE public.booking ADD CONSTRAINT booking_r_excl EXCLUDE USING gist (r WITH &&);`, nil)
+	require.NoError(t, err)
+	exclUpdated := ApplyDiffToMetadata(exclOrigMeta, exclBefore, exclAfter, Diff(exclBefore, exclAfter))
+	require.Len(t, exclUpdated.Schemas[0].Tables[0].ExcludeConstraints, 1)
+	exclProto := exclUpdated.Schemas[0].Tables[0].ExcludeConstraints[0]
+	require.Equal(t, "booking_r_excl", exclProto.Name)
+	require.Equal(t, `EXCLUDE USING gist (r WITH &&)`, exclProto.Expression)
+
+	// Round-trip loading the updated metadata recreates the EXCLUDE constraint identically.
+	reloaded := New()
+	reloadReport, err := reloaded.LoadMetadata(context.Background(), exclUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, reloadReport.Degraded)
+	require.Empty(t, Diff(reloaded, exclAfter).Relations)
+}

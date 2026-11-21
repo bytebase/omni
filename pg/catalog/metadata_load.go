@@ -737,6 +737,23 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 				}
 			}
 		}
+		if o.createStmt.SqlBody != nil {
+			_, relRefs, typeRefs := collectExprDeps(o.createStmt.SqlBody)
+			for _, ref := range relRefs {
+				add("rel:" + ref)
+			}
+			for _, ref := range typeRefs {
+				add("type:" + ref)
+				add("rel:" + ref)
+			}
+			nodes.Inspect(o.createStmt.SqlBody, func(n nodes.Node) bool {
+				if fc, ok := n.(*nodes.FuncCall); ok && fc.Funcname != nil {
+					s, fn := qualifiedName(fc.Funcname)
+					addRoutineRef(s, fn)
+				}
+				return true
+			})
+		}
 	case metadataIndex:
 		add(metadataRelationKey(o.schema, o.parent))
 		add(o.parentIndexKey)
