@@ -47,12 +47,17 @@ func TestSimulation(t *testing.T) {
 }
 
 // simulationFixtures are the starting schemas, in testdata/fixtures: one
-// table, with a key and an index, under four namings. A compat.tsv statement
-// writes a for every name it holds, so what a statement finds is set by what
-// the fixture names a: nothing, the table, a column of it too, and an index.
+// table, with a key and an index, under four namings, plus views, materialized
+// views, sequences, and a partitioned table. A compat.tsv statement writes a
+// for every name it holds, so what a statement finds is set by what the
+// fixture names a: nothing, the table, a column of it too, an index, a view,
+// a materialized view, a sequence, or a partitioned table.
 // PostgreSQL keeps an index in the namespace of its table, so the index named
 // a is on a table named t.
-var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_table@column", "one_table@index"}
+var simulationFixtures = []string{
+	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
+	"objects@view", "objects@matview", "objects@sequence", "objects@partitioned",
+}
 
 // simulatedStatement matches the statements the file holds: DDL on tables,
 // indexes, views, materialized views and sequences, and their comments,
@@ -117,8 +122,8 @@ const simulationFormsQuery = `WITH rel AS (
 		coalesce(' WITH (' || array_to_string(c.reloptions, ', ') || ')', '') AS options
 	FROM pg_catalog.pg_class c
 	WHERE c.relnamespace = 'public'::pg_catalog.regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
-		AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
-			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i')
+		AND NOT (c.relkind = 'S' AND EXISTS (SELECT 1 FROM pg_catalog.pg_depend d
+			WHERE d.classid = 'pg_catalog.pg_class'::pg_catalog.regclass AND d.objid = c.oid AND d.deptype = 'i'))
 ), comments AS (
 	SELECT r.oid, coalesce((SELECT format(E'COMMENT ON %s %I IS %L;\n',
 				CASE r.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,

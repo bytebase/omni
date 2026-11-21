@@ -61,8 +61,28 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	}
 
 	// Validate relation kind: indexes allowed on tables, partitioned tables, and matviews.
+	// PostgreSQL runs transformIndexStmt (analyzing expression elements and WHERE
+	// predicate) before DefineIndex rejects non-indexable relations with columns
+	// such as views, foreign tables, and composite types.
+	// pg: src/backend/parser/parse_utilcmd.c — transformIndexStmt
 	// pg: src/backend/commands/indexcmds.c — DefineIndex (relkind check)
 	if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
+		if rel.RelKind == 'v' || rel.RelKind == 'f' || rel.RelKind == 'c' {
+			if stmt.IndexParams != nil {
+				for _, item := range stmt.IndexParams.Items {
+					if elem, ok := item.(*nodes.IndexElem); ok && elem.Name == "" && elem.Expr != nil {
+						if _, aErr := c.AnalyzeStandaloneExpr(elem.Expr, rel); aErr != nil {
+							return aErr
+						}
+					}
+				}
+			}
+			if stmt.WhereClause != nil {
+				if _, aErr := c.AnalyzeStandaloneExpr(stmt.WhereClause, rel); aErr != nil {
+					return aErr
+				}
+			}
+		}
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
@@ -494,6 +514,12 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	}
 	if am := c.accessMethodByName[accessMethod]; am != nil {
 		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
+
+	// Propagate index to existing partitions unless ON ONLY was specified.
+	// pg: src/backend/commands/indexcmds.c — DefineIndex (partition recursion)
+	if rel.RelKind == 'p' && alterTableRecurse(rv) {
+		c.cloneIndexToPartitionTree(rel, idx)
 	}
 
 	return nil

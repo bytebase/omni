@@ -199,38 +199,18 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
 			return nil
 		}
-		// OWNER TO and SET TABLESPACE resolve their role or tablespace before
-		// the relation's kind, so on an index they report that object first;
-		// and ALTER TABLE ... OWNER TO also operates on sequences, while
-		// SET/RESET storage parameters and SET STATISTICS also operate on indexes.
+		// In PostgreSQL, ALTER TABLE (OBJECT_TABLE) also operates on sequences
+		// (OWNER TO, SET LOGGED/UNLOGGED) and indexes (OWNER TO, SET TABLESPACE,
+		// SET/RESET reloptions, SET STATISTICS); per-subcommand ATSimplePermissions
+		// rejects all other actions with 42809.
 		var refusal *Error
 		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType && stmt.Cmds != nil {
-			for _, item := range stmt.Cmds.Items {
-				atc, ok := item.(*nodes.AlterTableCmd)
-				if !ok {
-					continue
-				}
-				switch nodes.AlterTableType(atc.Subtype) {
-				case nodes.AT_ChangeOwner:
-					if atc.Newowner != nil {
-						if roleErr := c.checkRole(c.ownerRoleName(atc.Newowner)); roleErr != nil {
-							return roleErr
-						}
-					}
-				case nodes.AT_SetTableSpace:
-					if tsErr := c.checkRelationTablespace(atc.Name); tsErr != nil {
-						return tsErr
-					}
-				}
-			}
 			if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_TABLE {
-				if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil && allAlterCmdsChangeOwner(stmt.Cmds) {
+				if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil {
 					return c.execAlterSequenceTableCmds(seq, relName, stmt.Cmds)
 				}
 				if _, idx, idxErr := c.findIndexRelation(schemaName, relName); idxErr == nil && idx != nil {
-					if allAlterCmdsAllowedOnIndexViaTable(stmt.Cmds) {
-						return c.execAlterIndexCmds(idx, stmt.Cmds)
-					}
+					return c.execAlterIndexCmds(idx, stmt.Cmds, false)
 				}
 			}
 		}
@@ -241,7 +221,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	objType := nodes.ObjectType(stmt.ObjType)
 	switch objType {
 	case nodes.OBJECT_TABLE:
-		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'f' {
+		// PostgreSQL permits ALTER TABLE on views and materialized views for
+		// subcommands allowed by ATSimplePermissions.
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'f' && rel.RelKind != 'v' && rel.RelKind != 'm' {
 			return &Error{Code: CodeWrongObjectType,
 				Message: fmt.Sprintf("%q is not a table", relName)}
 		}
@@ -284,6 +266,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		atc, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
 			continue
+		}
+		if err := checkAlterTableCmdRelKind(rel, relName, nodes.AlterTableType(atc.Subtype)); err != nil {
+			return err
 		}
 		transformed, identityOptions, err := c.transformAlterTableCmd(atc)
 		if err != nil {
@@ -358,24 +343,76 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 
 	// Execute in pass order.
 	for _, p := range pending {
+		subtype := nodes.AlterTableType(p.cmd.Subtype)
+		beforeCons := len(c.consByRel[rel.OID])
 		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
 			restore()
 			return err
 		}
-		if recurse && shouldRecurse(nodes.AlterTableType(p.cmd.Subtype)) {
+		if recurse && shouldRecurse(subtype) {
+			if subtype == nodes.AT_AddConstraint && rel.RelKind == 'p' && len(c.consByRel[rel.OID]) > beforeCons {
+				parentCon := c.consByRel[rel.OID][len(c.consByRel[rel.OID])-1]
+				if parentCon.IndexOID != 0 {
+					if parentIdx := c.indexes[parentCon.IndexOID]; parentIdx != nil {
+						c.cloneIndexToPartitionTree(rel, parentIdx)
+						continue
+					}
+				}
+			}
 			for _, childOID := range c.findChildRelations(rel.OID) {
 				childRel := c.relationByOID[childOID]
 				if childRel == nil {
 					continue
 				}
+				childBeforeCons := len(c.consByRel[childRel.OID])
 				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, recurse, true); err != nil {
 					restore()
 					return err
+				}
+				if subtype == nodes.AT_AddConstraint && rel.RelKind == 'p' && childRel.PartitionOf == rel.OID &&
+					len(c.consByRel[rel.OID]) > beforeCons && len(c.consByRel[childRel.OID]) > childBeforeCons {
+					parentCon := c.consByRel[rel.OID][len(c.consByRel[rel.OID])-1]
+					childCon := c.consByRel[childRel.OID][len(c.consByRel[childRel.OID])-1]
+					childCon.ConParentID = parentCon.OID
 				}
 			}
 		}
 	}
 
+	return nil
+}
+
+// checkAlterTableCmdRelKind enforces PostgreSQL's ATSimplePermissions relkind
+// checks for views and materialized views.
+//
+// pg: src/backend/commands/tablecmds.c — ATSimplePermissions
+func checkAlterTableCmdRelKind(rel *Relation, relName string, subtype nodes.AlterTableType) error {
+	switch rel.RelKind {
+	case 'v':
+		switch subtype {
+		case nodes.AT_ColumnDefault,
+			nodes.AT_AddIdentity, nodes.AT_SetIdentity, nodes.AT_DropIdentity,
+			nodes.AT_ChangeOwner,
+			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions:
+			return nil
+		default:
+			return errWrongObjectType(relName, "a table")
+		}
+	case 'm':
+		switch subtype {
+		case nodes.AT_SetStatistics,
+			nodes.AT_SetOptions, nodes.AT_ResetOptions,
+			nodes.AT_SetStorage, nodes.AT_SetCompression,
+			nodes.AT_ClusterOn, nodes.AT_DropCluster,
+			nodes.AT_ChangeOwner,
+			nodes.AT_SetAccessMethod, nodes.AT_SetTableSpace,
+			nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
+			nodes.AT_ReplicaIdentity:
+			return nil
+		default:
+			return errWrongObjectType(relName, "a table")
+		}
+	}
 	return nil
 }
 
@@ -545,29 +582,10 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 		}
 		return err
 	}
-	return c.execAlterIndexCmds(parentIdx, stmt.Cmds)
+	return c.execAlterIndexCmds(parentIdx, stmt.Cmds, true)
 }
 
-func allAlterCmdsAllowedOnIndexViaTable(cmds *nodes.List) bool {
-	if cmds == nil || len(cmds.Items) == 0 {
-		return false
-	}
-	for _, item := range cmds.Items {
-		atc, ok := item.(*nodes.AlterTableCmd)
-		if !ok {
-			return false
-		}
-		switch nodes.AlterTableType(atc.Subtype) {
-		case nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions,
-			nodes.AT_SetStatistics, nodes.AT_SetTableSpace:
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
+func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List, allowAttachPartition bool) error {
 	if cmds == nil {
 		return nil
 	}
@@ -605,6 +623,9 @@ func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
 				return err
 			}
 		case nodes.AT_AttachPartition:
+			if !allowAttachPartition {
+				return errWrongObjectType(parentIdx.Name, "a table")
+			}
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
 				return fmt.Errorf("AT_AttachPartition: expected PartitionCmd")
@@ -630,6 +651,9 @@ func (c *Catalog) execAlterIndexCmds(parentIdx *Index, cmds *nodes.List) error {
 		case nodes.AT_ChangeOwner:
 			c.addWarning(CodeWarning, fmt.Sprintf("cannot change owner of index %q", parentIdx.Name))
 		case nodes.AT_AttachPartition:
+			if !allowAttachPartition {
+				return errWrongObjectType(parentIdx.Name, "a table")
+			}
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
 				return fmt.Errorf("AT_AttachPartition: expected PartitionCmd")
@@ -1266,6 +1290,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return nil
 
 	case nodes.AT_SetLogged:
+		if rel.RelKind == 'p' {
+			return nil
+		}
 		rel.Persistence = 'p'
 		for _, seq := range c.sequenceByOID {
 			if seq != nil && seq.OwnerRelOID == rel.OID {
@@ -1275,6 +1302,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return nil
 
 	case nodes.AT_SetUnLogged:
+		if rel.RelKind == 'p' {
+			return nil
+		}
 		rel.Persistence = 'u'
 		for _, seq := range c.sequenceByOID {
 			if seq != nil && seq.OwnerRelOID == rel.OID {
@@ -2403,12 +2433,13 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 	}
 
 	// Cannot drop NOT NULL on PK columns.
+	// pg: src/backend/commands/tablecmds.c — ATExecDropNotNull
 	pk := c.findPKConstraint(rel.OID)
 	if pk != nil {
 		for _, attnum := range pk.Columns {
 			if attnum == col.AttNum {
 				return &Error{
-					Code:    CodeDependentObjects,
+					Code:    CodeInvalidTableDefinition,
 					Message: fmt.Sprintf("column %q is in a primary key", colName),
 				}
 			}
@@ -2524,6 +2555,19 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	}
 
 	col := rel.Columns[idx]
+
+	// Cannot alter type of a column that is part of the partition key.
+	// pg: src/backend/commands/tablecmds.c — ATPrepAlterColumnType (has_partition_attrs)
+	if rel.PartitionInfo != nil {
+		for _, keyAttNum := range rel.PartitionInfo.KeyAttNums {
+			if keyAttNum == col.AttNum {
+				return &Error{
+					Code:    CodeInvalidTableDefinition,
+					Message: fmt.Sprintf("cannot alter column %q because it is part of the partition key of relation %q", colName, rel.Name),
+				}
+			}
+		}
+	}
 
 	// Block if column is an identity column.
 	if col.Identity != 0 {
@@ -2954,6 +2998,39 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 		return err
 	}
 
+	// Validate partition bound specification before circularity/attachment.
+	// pg: src/backend/parser/parse_utilcmd.c — transformPartitionBound
+	if pc.Bound != nil {
+		if !pc.Bound.IsDefault && pc.Bound.Strategy != parent.PartitionInfo.Strategy {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("invalid bound specification for a %s partition", partitionStrategyName(parent.PartitionInfo.Strategy)),
+			}
+		}
+		for _, list := range []*nodes.List{pc.Bound.Listdatums, pc.Bound.Lowerdatums, pc.Bound.Upperdatums} {
+			if list == nil {
+				continue
+			}
+			for _, item := range list.Items {
+				if exprContainsColumnRef(item) {
+					return &Error{
+						Code:    CodeFeatureNotSupported,
+						Message: "cannot use column reference in partition bound expression",
+					}
+				}
+			}
+		}
+	}
+
+	// Circular inheritance check (including attaching a table to itself).
+	// pg: src/backend/commands/tablecmds.c — ATExecAttachPartition
+	if part.OID == parent.OID || c.isAncestor(parent.OID, part.OID) {
+		return &Error{
+			Code:    CodeDuplicateTable,
+			Message: "circular inheritance not allowed",
+		}
+	}
+
 	// Preflight trigger-name collisions before mutating partition links.
 	for _, trig := range c.triggersByRel[parent.OID] {
 		if !trig.ForEachRow || trig.IsConstraint {
@@ -3029,7 +3106,10 @@ func (c *Catalog) atExecDetachPartition(parent *Relation, pc *nodes.PartitionCmd
 	}
 
 	if part.PartitionOf != parent.OID {
-		return errInvalidObjectDefinition(fmt.Sprintf("relation %q is not a partition of %q", part.Name, parent.Name))
+		return &Error{
+			Code:    CodeUndefinedTable,
+			Message: fmt.Sprintf("relation %q is not a partition of relation %q", part.Name, parent.Name),
+		}
 	}
 
 	// Clear partition info and parent links on cloned indexes, constraints, and triggers.
@@ -3338,11 +3418,20 @@ func (c *Catalog) checkSchemaMoveObject(stmt *nodes.AlterObjectSchemaStmt) (skip
 			if stmt.MissingOk && missingObject(err) {
 				return true, nil
 			}
+			// ALTER TABLE ... SET SCHEMA also operates on sequences.
+			if stmt.ObjectType == nodes.OBJECT_TABLE {
+				var refusal *Error
+				if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType {
+					if _, seqErr := c.findSequence(schemaName, name); seqErr == nil {
+						return false, nil
+					}
+				}
+			}
 			return false, err
 		}
 		switch stmt.ObjectType {
 		case nodes.OBJECT_TABLE:
-			if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'f' {
+			if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'f' && rel.RelKind != 'v' && rel.RelKind != 'm' {
 				return false, errWrongObjectType(name, "a table")
 			}
 		case nodes.OBJECT_VIEW:
@@ -3551,8 +3640,8 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		relName = stmt.Relation.Relname
 	}
 
-	// Handle sequences.
-	if stmt.ObjectType == nodes.OBJECT_SEQUENCE {
+	// Handle sequences (both ALTER SEQUENCE and ALTER TABLE ... SET SCHEMA).
+	if stmt.ObjectType == nodes.OBJECT_SEQUENCE || (stmt.ObjectType == nodes.OBJECT_TABLE && c.isSequenceTarget(schemaName, relName)) {
 		seq, err := c.findSequence(schemaName, relName)
 		if err != nil {
 			if stmt.MissingOk && missingObject(err) {
@@ -3850,6 +3939,9 @@ func (c *Catalog) transferACLs(objType byte, objOID uint32, oldOwner, newOwner s
 //
 // pg: src/backend/commands/tablecmds.c — ATExecAddInherit
 func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
+	if rel.RelKind == 'p' {
+		return &Error{Code: CodeWrongObjectType, Message: "cannot change inheritance of partitioned table"}
+	}
 	_, parent, err := c.findRelation(rv.Schemaname, rv.Relname)
 	if err != nil {
 		return err
@@ -4029,10 +4121,56 @@ func (c *Catalog) atClusterOn(rel *Relation, indexName string) error {
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropCluster
 func (c *Catalog) atDropCluster(rel *Relation) error {
+	if rel.RelKind == 'p' {
+		return &Error{Code: CodeFeatureNotSupported, Message: "cannot mark index clustered in partitioned table"}
+	}
 	for _, idx := range c.indexesByRel[rel.OID] {
 		idx.IsClustered = false
 	}
 	return nil
+}
+
+func (c *Catalog) isSequenceTarget(schemaName, relName string) bool {
+	_, err := c.findSequence(schemaName, relName)
+	return err == nil
+}
+
+func partitionStrategyName(strategy byte) string {
+	switch strategy {
+	case 'l':
+		return "list"
+	case 'h':
+		return "hash"
+	default:
+		return "range"
+	}
+}
+
+func exprContainsColumnRef(n nodes.Node) bool {
+	if n == nil {
+		return false
+	}
+	found := false
+	nodes.Walk(funcVisitor(func(node nodes.Node) bool {
+		if found {
+			return false
+		}
+		if _, ok := node.(*nodes.ColumnRef); ok {
+			found = true
+			return false
+		}
+		return true
+	}), n)
+	return found
+}
+
+type funcVisitor func(nodes.Node) bool
+
+func (f funcVisitor) Visit(node nodes.Node) nodes.Visitor {
+	if node == nil || !f(node) {
+		return nil
+	}
+	return f
 }
 
 // atReplicaIdentity sets the replica identity for a relation.

@@ -337,7 +337,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 func (c *Catalog) checkViewColumns(newCols []*ResultColumn, existing *Relation) error {
 	if len(newCols) < len(existing.Columns) {
 		return &Error{
-			Code:    CodeInvalidObjectDefinition,
+			Code:    CodeInvalidTableDefinition,
 			Message: "cannot drop columns from view",
 		}
 	}
@@ -345,26 +345,26 @@ func (c *Catalog) checkViewColumns(newCols []*ResultColumn, existing *Relation) 
 		nc := newCols[i]
 		if nc.Name != oldCol.Name {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change name of view column %q to %q", oldCol.Name, nc.Name),
 			}
 		}
 		if nc.TypeOID != oldCol.TypeOID {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change data type of view column %q", oldCol.Name),
 			}
 		}
 		if nc.TypeMod != oldCol.TypeMod {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change data type of view column %q", oldCol.Name),
 			}
 		}
 		// pg: src/backend/commands/view.c — checkViewColumns (collation check)
 		if nc.Collation != oldCol.Collation {
 			return &Error{
-				Code: CodeInvalidObjectDefinition,
+				Code: CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change collation of view column %q from %q to %q",
 					oldCol.Name, c.collationName(oldCol.Collation), c.collationName(nc.Collation)),
 			}

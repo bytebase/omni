@@ -560,21 +560,21 @@ func TestDryRunValidation_CreateView(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int, name text); CREATE VIEW v AS SELECT id, name FROM t",
 			"CREATE OR REPLACE VIEW v AS SELECT id FROM t",
-			CodeInvalidObjectDefinition, "")
+			CodeInvalidTableDefinition, "")
 	})
 
 	t.Run("OrReplaceRenameColumn", func(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int); CREATE VIEW v AS SELECT id FROM t",
 			"CREATE OR REPLACE VIEW v(new_name) AS SELECT id FROM t",
-			CodeInvalidObjectDefinition, "")
+			CodeInvalidTableDefinition, "")
 	})
 
 	t.Run("OrReplaceTypeChange", func(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int, name text); CREATE VIEW v AS SELECT id, name FROM t",
 			"CREATE OR REPLACE VIEW v AS SELECT id, name::int FROM t",
-			CodeInvalidObjectDefinition, "")
+			CodeInvalidTableDefinition, "")
 	})
 
 	t.Run("CheckOptionOnSetOp", func(t *testing.T) {

@@ -1,0 +1,3 @@
+CREATE TABLE t (b int PRIMARY KEY, a int, d int);
+CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t;
+CREATE INDEX a_d_idx ON a (d);
