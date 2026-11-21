@@ -2367,4 +2367,17 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, avgInterval, `SELECT to_milliseconds(avg(x)) AS ms FROM "cat"."s".t;`)
+
+	// substr on varbinary stays varbinary, so to_hex keeps its binary built-in
+	// instead of resolving a same-schema to_hex(varchar) UDF.
+	substrBinary, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "s",
+			Functions: []*metadatapb.FunctionMetadata{{Name: "to_hex", Definition: "CREATE FUNCTION s.to_hex(x varchar) RETURNS varchar RETURN x"}},
+			Views:     []*metadatapb.ViewMetadata{{Name: "v_hex", Definition: "SELECT to_hex(substr(X'ABCD', 1)) AS h"}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, substrBinary, `SELECT to_hex(substr(X'ABCD', 1)) AS h;`)
 }

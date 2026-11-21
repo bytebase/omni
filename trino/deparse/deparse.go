@@ -3589,9 +3589,15 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		w.walkExpr(e.Source, curEnv, ctes)
 		return "bigint"
 	case *trinoparser.SubstringExpr:
-		w.walkExpr(e.Source, curEnv, ctes)
+		srcType := w.walkExpr(e.Source, curEnv, ctes)
 		w.walkExpr(e.From, curEnv, ctes)
 		w.walkExpr(e.For, curEnv, ctes)
+		if srcType == "varbinary" {
+			return "varbinary"
+		}
+		if srcType == "" {
+			return ""
+		}
 		return "varchar"
 	case *trinoparser.ComparisonExpr:
 		w.walkExpr(e.Left, curEnv, ctes)
@@ -3817,7 +3823,15 @@ func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
 	switch strings.ToLower(name) {
 	case "length", "cardinality", "strpos", "count", "array_position", "width_bucket", "date_diff":
 		return "bigint"
-	case "lower", "upper", "trim", "ltrim", "rtrim", "concat_ws", "array_join", "substr", "substring", "replace", "split_part", "regexp_extract", "regexp_replace", "format", "chr", "url_encode", "url_decode", "to_hex", "json_format":
+	case "lower", "upper", "trim", "ltrim", "rtrim", "concat_ws", "array_join", "replace", "split_part", "regexp_extract", "regexp_replace", "format", "chr", "url_encode", "url_decode", "to_hex", "json_format":
+		return "varchar"
+	case "substr", "substring":
+		if len(argTypes) == 0 || argTypes[0] == "" {
+			return ""
+		}
+		if argTypes[0] == "varbinary" {
+			return "varbinary"
+		}
 		return "varchar"
 	case "sqrt", "cbrt", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "ln", "log", "log2", "log10", "pow", "power", "radians", "degrees", "stddev", "stddev_pop", "stddev_samp", "variance", "var_pop", "var_samp", "corr", "covar_pop", "covar_samp", "infinity", "nan", "pi", "e":
 		return "double"
