@@ -3,6 +3,7 @@ package catalog
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -1104,6 +1105,14 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			if ct := resolveScalarFuncColumnType(c, db, q, e); ct != "" {
 				return ct
 			}
+			if e.ResultType == nil {
+				if fn := lookupStoredFunction(c, db, e); fn != nil && fn.Returns != "" {
+					if rt := parseColumnResolvedType(fn.Returns); rt != nil {
+						return resolvedTypeToColumnType(rt)
+					}
+					return strings.ToLower(strings.TrimSpace(fn.Returns))
+				}
+			}
 		}
 	}
 	if cn, ok := expr.(*ConstExprQ); ok {
@@ -1199,7 +1208,7 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 				whole, frac, _ := strings.Cut(strings.TrimLeft(e.Value, "+-"), ".")
 				return &ResolvedType{BaseType: BaseTypeDecimal, Precision: len(whole) + len(frac), Scale: len(frac)}
 			}
-			return &ResolvedType{BaseType: BaseTypeInt}
+			return intLiteralResolvedType(e.Value)
 		}
 		return nil
 	case *VarExprQ:
@@ -1347,10 +1356,56 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 				}
 			}
 		}
-		return e.ResultType
+		if e.ResultType != nil {
+			return e.ResultType
+		}
+		if fn := lookupStoredFunction(c, db, e); fn != nil && fn.Returns != "" {
+			return parseColumnResolvedType(fn.Returns)
+		}
+		return nil
 	default:
 		return expr.exprType()
 	}
+}
+
+func intLiteralResolvedType(val string) *ResolvedType {
+	if n, err := strconv.ParseInt(val, 10, 64); err == nil {
+		if n >= math.MinInt32 && n <= math.MaxInt32 {
+			return &ResolvedType{BaseType: BaseTypeInt}
+		}
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	}
+	if _, err := strconv.ParseUint(val, 10, 64); err == nil {
+		return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
+	}
+	digits := len(strings.TrimLeft(val, "+-"))
+	if digits == 0 {
+		digits = 1
+	}
+	return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, digits), Scale: 0}
+}
+
+func lookupStoredFunction(c *Catalog, db *Database, e *FuncCallExprQ) *Routine {
+	if e == nil {
+		return nil
+	}
+	targetDB := db
+	name := e.Name
+	if e.Routine != "" && c != nil {
+		parts := strings.Split(e.Routine, ".")
+		if len(parts) == 2 {
+			schemaName := strings.Trim(parts[0], "`")
+			funcName := strings.Trim(parts[1], "`")
+			if d := c.GetDatabase(schemaName); d != nil {
+				targetDB = d
+				name = funcName
+			}
+		}
+	}
+	if targetDB == nil {
+		return nil
+	}
+	return targetDB.Functions[toLower(name)]
 }
 
 func nthNonJunkTarget(q *Query, idx int) *TargetEntryQ {

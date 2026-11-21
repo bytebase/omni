@@ -449,8 +449,9 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 		CREATE VIEW v_cte AS
 			WITH x AS (SELECT 'abc' AS s, id FROM a)
 			SELECT s, id FROM x;
+		CREATE FUNCTION fn_double(x INT) RETURNS BIGINT DETERMINISTIC RETURN x * 2;
 		CREATE VIEW v_literals_and_coalesce AS
-			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, COALESCE(opt_val, 0) AS non_null_val
+			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val
 			FROM a;
 	`, nil)
 	require.NoError(t, err)
@@ -483,11 +484,13 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "int(11)", vCTE.Columns[1].Type)
 
 	vLit := views["v_literals_and_coalesce"]
-	require.Len(t, vLit.Columns, 4)
+	require.Len(t, vLit.Columns, 6)
 	require.Equal(t, "varchar(3)", vLit.Columns[0].Type)
 	require.Equal(t, "varchar(4)", vLit.Columns[1].Type)
 	require.Equal(t, "int", vLit.Columns[2].Type)
-	require.False(t, vLit.Columns[3].Nullable, "COALESCE with non-null fallback must not be nullable")
+	require.Equal(t, "bigint", vLit.Columns[3].Type)
+	require.False(t, vLit.Columns[4].Nullable, "COALESCE with non-null fallback must not be nullable")
+	require.Equal(t, "bigint", vLit.Columns[5].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {
