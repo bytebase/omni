@@ -5470,3 +5470,96 @@ func TestRound19Fixes(t *testing.T) {
 	require.Contains(t, listPartSQL, `CREATE TABLE "public"."items_str_null" PARTITION OF "public"."items" FOR VALUES IN ('NULL')`)
 	require.Contains(t, listPartSQL, `CREATE TABLE "public"."items_sql_null" PARTITION OF "public"."items" FOR VALUES IN (NULL)`)
 }
+
+func TestRound20Fixes(t *testing.T) {
+	// 1. Supported function added alongside its alphabetically-later support routine orders support first.
+	supportFrom := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	supportTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "aaa_caller",
+					Signature:  "aaa_caller(integer)",
+					Definition: `CREATE FUNCTION public.aaa_caller(integer) RETURNS integer LANGUAGE sql SUPPORT public.zzz_sup AS 'SELECT $1'`,
+				},
+				{
+					Name:       "zzz_sup",
+					Signature:  "zzz_sup(internal)",
+					Definition: `CREATE FUNCTION public.zzz_sup(internal) RETURNS internal LANGUAGE internal AS 'sup'`,
+				},
+			},
+		}},
+	}
+	supSQL, err := testMetadataMigration(supportFrom, supportTo)
+	require.NoError(t, err)
+	supIdx := strings.Index(supSQL, `CREATE FUNCTION "public"."zzz_sup"`)
+	callerIdx := strings.Index(supSQL, `CREATE FUNCTION public.aaa_caller`)
+	require.NotEqual(t, -1, supIdx, supSQL)
+	require.NotEqual(t, -1, callerIdx, supSQL)
+	require.Less(t, supIdx, callerIdx, "support function must be created before caller")
+
+	// 2. Switching between ordinary function and WINDOW function drops and recreates.
+	winFrom := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "wf",
+				Signature:  "wf(integer)",
+				Definition: `CREATE FUNCTION public.wf(integer) RETURNS integer LANGUAGE internal AS 'wf'`,
+			}},
+		}},
+	}
+	winTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "wf",
+				Signature:  "wf(integer)",
+				Definition: `CREATE FUNCTION public.wf(integer) RETURNS integer LANGUAGE internal WINDOW AS 'wf'`,
+			}},
+		}},
+	}
+	winSQL, err := testMetadataMigration(winFrom, winTo)
+	require.NoError(t, err)
+	require.Contains(t, winSQL, `DROP FUNCTION "public"."wf"(integer)`)
+	require.Contains(t, winSQL, `WINDOW`)
+	require.NotContains(t, winSQL, `CREATE OR REPLACE`)
+
+	// 3. Routine comments quote mixed-case, reserved, and hyphenated identifiers.
+	commentFrom := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	commentTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "Audit",
+					Signature:  "Audit(integer)",
+					Definition: `CREATE FUNCTION public."Audit"(integer) RETURNS integer LANGUAGE sql AS 'SELECT $1'`,
+					Comment:    "mixed",
+				},
+				{
+					Name:       "select",
+					Signature:  "select(integer)",
+					Definition: `CREATE FUNCTION public."select"(integer) RETURNS integer LANGUAGE sql AS 'SELECT $1'`,
+					Comment:    "keyword",
+				},
+			},
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "my-func",
+				Signature:  "my-func(integer)",
+				Definition: `CREATE PROCEDURE public."my-func"(integer) LANGUAGE plpgsql AS $$BEGIN END$$`,
+				Comment:    "hyphen",
+			}},
+		}},
+	}
+	commentSQL, err := testMetadataMigration(commentFrom, commentTo)
+	require.NoError(t, err)
+	require.Contains(t, commentSQL, `COMMENT ON FUNCTION public."Audit"(integer) IS 'mixed'`)
+	require.Contains(t, commentSQL, `COMMENT ON FUNCTION public."select"(integer) IS 'keyword'`)
+	require.Contains(t, commentSQL, `COMMENT ON PROCEDURE public."my-func"(integer) IS 'hyphen'`)
+}

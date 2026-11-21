@@ -1364,11 +1364,11 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			if isProcedureDefinition(fn.GetDefinition()) {
 				kind = "PROCEDURE "
 			}
-			comment(kind+schema+"."+signatureTypesOnly(fn.GetSignature()), fn.GetComment())
+			comment(kind+routineCommentTarget(qualified, fn.GetName(), fn.GetSignature()), fn.GetComment())
 		}
 		for _, p := range s.GetProcedures() {
 			if p.GetSignature() != "" {
-				comment("PROCEDURE "+schema+"."+signatureTypesOnly(p.GetSignature()), p.GetComment())
+				comment("PROCEDURE "+routineCommentTarget(qualified, p.GetName(), p.GetSignature()), p.GetComment())
 			}
 		}
 	}
@@ -1841,4 +1841,22 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], `""`, `"`)
 	}
 	return s
+}
+
+func routineCommentTarget(qualified func(string) string, name, sig string) string {
+	sigName, args, hasParen := strings.Cut(sig, "(")
+	if !hasParen {
+		if name != "" {
+			return qualified(name)
+		}
+		return qualified(unquoteIdent(sig))
+	}
+	if name == "" {
+		name = unquoteIdent(sigName)
+	}
+	_, strippedArgs, ok := strings.Cut(signatureTypesOnly("fn("+args), "(")
+	if !ok {
+		strippedArgs = args
+	}
+	return qualified(name) + "(" + strippedArgs
 }

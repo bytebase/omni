@@ -1940,7 +1940,8 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		bp.Name = newName
 		up.Name = newName
 		c.procByName[newName] = append(c.procByName[newName], bp)
-		c.updateFdwRoutineRefs(up.OID, schema.Name, newName)
+		c.updateFdwRoutineRefs(up.OID, schema.Name, newName, false)
+		c.updateSupportRoutineRefs(up.OID, schema.Name, newName, false)
 		return nil
 	}
 
@@ -1979,7 +1980,8 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		c.procByName[newName] = append(c.procByName[newName], bp)
 	}
 	up.Name = newName
-	c.updateFdwRoutineRefs(up.OID, schema.Name, newName)
+	c.updateFdwRoutineRefs(up.OID, schema.Name, newName, false)
+	c.updateSupportRoutineRefs(up.OID, schema.Name, newName, false)
 	return nil
 }
 
@@ -3652,6 +3654,8 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 			}
 		}
 		up.Schema = newSchema
+		c.updateFdwRoutineRefs(up.OID, newSchema.Name, up.Name, true)
+		c.updateSupportRoutineRefs(up.OID, newSchema.Name, up.Name, true)
 		return nil
 	}
 
@@ -3685,6 +3689,8 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		}
 	}
 	up.Schema = newSchema
+	c.updateFdwRoutineRefs(up.OID, newSchema.Name, up.Name, true)
+	c.updateSupportRoutineRefs(up.OID, newSchema.Name, up.Name, true)
 	return nil
 }
 

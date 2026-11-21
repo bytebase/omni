@@ -85,7 +85,7 @@ func (c *Catalog) resolveFdwFuncOptions(funcOpts *nodes.List) (handler, validato
 			if hasValidator {
 				return "", "", 0, 0, false, false, errInvalidParameterValue("conflicting or redundant options")
 			}
-			validator, validatorOID, err = c.resolveRoutineRef(de, []uint32{TEXTARRAYOID, OIDOID}, 0, "")
+			validator, validatorOID, err = c.resolveRoutineRef(de, []uint32{TEXTARRAYOID, OIDOID}, VOIDOID, "void")
 			if err != nil {
 				return "", "", 0, 0, false, false, err
 			}
@@ -134,6 +134,9 @@ func (c *Catalog) resolveRoutineRefByName(schemaName, funcName, displayName stri
 				if !slices.Equal(p.ArgTypes, expectedArgs) {
 					continue
 				}
+				if p.Kind == 'p' || p.Kind == 'a' || p.Kind == 'w' {
+					continue
+				}
 				if expectedRet == 0 || p.RetType == expectedRet {
 					return p.OID, nil
 				}
@@ -153,6 +156,9 @@ func (c *Catalog) resolveRoutineRefByName(schemaName, funcName, displayName stri
 					continue
 				}
 				matchedInSchema = true
+				if p.Kind == 'p' || p.Kind == 'a' || p.Kind == 'w' {
+					continue
+				}
 				if expectedRet == 0 || p.RetType == expectedRet {
 					return p.OID, nil
 				}
@@ -250,7 +256,7 @@ func (c *Catalog) linkForeignWrapperFuncDeps() {
 		}
 		if fdw.Validator != "" && fdw.ValidatorOID == 0 {
 			s, fn := parseRoutineRefName(fdw.Validator)
-			if oid, err := c.resolveRoutineRefByName(s, fn, fdw.Validator, []uint32{TEXTARRAYOID, OIDOID}, 0, ""); err == nil {
+			if oid, err := c.resolveRoutineRefByName(s, fn, fdw.Validator, []uint32{TEXTARRAYOID, OIDOID}, VOIDOID, "void"); err == nil {
 				fdw.ValidatorOID = oid
 			}
 		}
@@ -258,32 +264,47 @@ func (c *Catalog) linkForeignWrapperFuncDeps() {
 	}
 }
 
-func (c *Catalog) updateFdwRoutineRefs(procOID uint32, schemaName, newName string) {
+func formatUpdatedRoutineRef(existing, schemaName, newName string, schemaChanged bool) string {
+	if existing == "" {
+		return ""
+	}
+	if s, _ := parseRoutineRefName(existing); s != "" || schemaChanged {
+		if s != "" && !schemaChanged {
+			schemaName = s
+		}
+		if schemaName != "" {
+			return quoteIdentifier(schemaName) + "." + quoteIdentifier(newName)
+		}
+	}
+	return quoteIdentifier(newName)
+}
+
+func (c *Catalog) updateFdwRoutineRefs(procOID uint32, schemaName, newName string, schemaChanged bool) {
 	if procOID == 0 || newName == "" {
 		return
-	}
-	renameRef := func(existing string) string {
-		if existing == "" {
-			return ""
-		}
-		if s, _ := parseRoutineRefName(existing); s != "" {
-			if schemaName != "" {
-				s = schemaName
-			}
-			return quoteIdentifier(s) + "." + quoteIdentifier(newName)
-		}
-		return quoteIdentifier(newName)
 	}
 	for _, fdw := range c.fdws {
 		if fdw == nil {
 			continue
 		}
 		if fdw.HandlerOID == procOID {
-			fdw.Handler = renameRef(fdw.Handler)
+			fdw.Handler = formatUpdatedRoutineRef(fdw.Handler, schemaName, newName, schemaChanged)
 		}
 		if fdw.ValidatorOID == procOID {
-			fdw.Validator = renameRef(fdw.Validator)
+			fdw.Validator = formatUpdatedRoutineRef(fdw.Validator, schemaName, newName, schemaChanged)
 		}
+	}
+}
+
+func (c *Catalog) updateSupportRoutineRefs(procOID uint32, schemaName, newName string, schemaChanged bool) {
+	if procOID == 0 || newName == "" {
+		return
+	}
+	for _, up := range c.userProcs {
+		if up == nil || up.SupportOID != procOID {
+			continue
+		}
+		up.Support = formatUpdatedRoutineRef(up.Support, schemaName, newName, schemaChanged)
 	}
 }
 

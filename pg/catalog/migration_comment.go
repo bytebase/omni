@@ -131,8 +131,8 @@ func commentObjectTarget(c *Catalog, entry CommentDiffEntry) string {
 	case 'f': // function/procedure
 		target := entry.ObjDescription
 		if schema, obj, ok := commentParts2(entry); ok {
-			if name, args, hasParen := strings.Cut(obj, "("); hasParen && strings.ContainsAny(schema+name, `. "`) {
-				target = migrationQualifiedName(schema, name) + "(" + args
+			if name, args, hasParen := strings.Cut(obj, "("); hasParen {
+				target = quoteIdentifier(schema) + "." + quoteIdentifier(name) + "(" + args
 			}
 		}
 		if resolveIsProcedure(c, entry.ObjDescription) {

@@ -2675,3 +2675,96 @@ func TestApplyDiffToMetadataRound19Fixes(t *testing.T) {
 	}
 	require.Nil(t, cascadeCat.fdws["f_dep"])
 }
+
+func TestApplyDiffToMetadataRound20Fixes(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "h", Signature: "h()", Definition: "CREATE FUNCTION public.h() RETURNS fdw_handler LANGUAGE internal STRICT AS 'h'"},
+					{Name: "v_int", Signature: "v_int(text[], oid)", Definition: "CREATE FUNCTION public.v_int(text[], oid) RETURNS integer LANGUAGE internal STRICT AS 'v_int'"},
+					{Name: "v_void", Signature: "v_void(text[], oid)", Definition: "CREATE FUNCTION public.v_void(text[], oid) RETURNS void LANGUAGE internal STRICT AS 'v_void'"},
+					{Name: "sup1", Signature: "sup1(internal)", Definition: "CREATE FUNCTION public.sup1(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup1'"},
+					{Name: "sup2", Signature: "sup2(internal)", Definition: "CREATE FUNCTION public.sup2(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup2'"},
+					{Name: "caller", Signature: "caller(integer)", Definition: "CREATE FUNCTION public.caller(integer) RETURNS integer LANGUAGE sql SUPPORT public.sup1 AS 'SELECT $1'"},
+				},
+				Procedures: []*metadatapb.ProcedureMetadata{
+					{Name: "v_proc", Signature: "v_proc(text[], oid)", Definition: "CREATE PROCEDURE public.v_proc(text[], oid) LANGUAGE plpgsql AS $$BEGIN END$$"},
+				},
+			},
+			{Name: "other"},
+		},
+	}
+
+	cat := New()
+	_, err := cat.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	// 1. FDW VALIDATOR rejects non-void functions and procedures.
+	for _, badSQL := range []string{
+		`CREATE FOREIGN DATA WRAPPER bad_ret_fdw VALIDATOR public.v_int;`,
+		`CREATE FOREIGN DATA WRAPPER bad_proc_fdw VALIDATOR public.v_proc;`,
+	} {
+		res, execErr := cat.Exec(badSQL, nil)
+		require.NoError(t, execErr)
+		require.Len(t, res, 1)
+		require.Error(t, res[0].Error, badSQL)
+	}
+
+	// 2. SUPPORT dependency blocks RESTRICT drop and updates on ALTER FUNCTION ... SUPPORT + schema move + rename.
+	res, err := cat.Exec(`DROP FUNCTION public.sup1(internal) RESTRICT;`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Error(t, res[0].Error)
+
+	after := cat.Clone()
+	diffSQL := `
+		CREATE FOREIGN DATA WRAPPER moved_fdw HANDLER public.h VALIDATOR public.v_void;
+		ALTER FUNCTION public.h() SET SCHEMA other;
+		ALTER FUNCTION public.v_void(text[], oid) RENAME TO v_renamed;
+		ALTER FUNCTION public.v_renamed(text[], oid) SET SCHEMA other;
+		ALTER FUNCTION public.sup1(internal) SET SCHEMA other;
+		ALTER FUNCTION other.sup1(internal) RENAME TO sup1_renamed;
+	`
+	execRes, err := after.Exec(diffSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	applied := ApplyDiffToMetadata(meta, cat, after, Diff(cat, after))
+	var movedFdw *metadatapb.ForeignDataWrapperMetadata
+	for _, fdw := range applied.ForeignDataWrappers {
+		if fdw.Name == "moved_fdw" {
+			movedFdw = fdw
+		}
+	}
+	require.NotNil(t, movedFdw)
+	require.Equal(t, "other.h", movedFdw.Handler)
+	require.Equal(t, "other.v_renamed", movedFdw.Validator)
+
+	pub := findSchema(applied, "public")
+	require.NotNil(t, pub)
+	var callerFn *metadatapb.FunctionMetadata
+	for _, fn := range pub.Functions {
+		if fn.Name == "caller" {
+			callerFn = fn
+		}
+	}
+	require.NotNil(t, callerFn)
+	require.Contains(t, callerFn.Definition, "SUPPORT other.sup1_renamed")
+
+	// Switching SUPPORT via ALTER FUNCTION unblocks dropping old support function and drops cleanly on CASCADE.
+	retargetCat := cat.Clone()
+	retRes, err := retargetCat.Exec(`
+		ALTER FUNCTION public.caller(integer) SUPPORT public.sup2;
+		DROP FUNCTION public.sup1(internal) RESTRICT;
+		DROP FUNCTION public.sup2(internal) CASCADE;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range retRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, retargetCat.findUserProcsByName(retargetCat.schemaByName["public"], "caller"))
+}

@@ -398,6 +398,9 @@ func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *User
 	if from.Kind != to.Kind {
 		return true
 	}
+	if from.IsWindow != to.IsWindow {
+		return true
+	}
 	if len(from.ArgTypes) != len(to.ArgTypes) {
 		return true
 	}

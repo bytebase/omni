@@ -30,6 +30,7 @@ type UserProc struct {
 	Rows         string
 	SetConfig    []string
 	Support      string
+	SupportOID   uint32
 	Language     string
 	Body         string
 	LinkSymbol   string
@@ -69,6 +70,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// pg: src/backend/commands/functioncmds.c — compute_function_attributes
 	// ---------------------------------------------------------------
 	var language, body, linkSymbol, support string
+	var supportOID uint32
 	var volatile, parallel byte
 	var isStrict, secDef, isLeakProof bool
 	var isWindowFunc bool
@@ -183,11 +185,12 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				if isProcedure {
 					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
 				}
-				sup, _, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
 				if err != nil {
 					return err
 				}
 				support = sup
+				supportOID = supOID
 			}
 		}
 	}
@@ -576,7 +579,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.Cost = costStr
 			up.Rows = rowsStr
 			up.SetConfig = slices.Clone(setConfig)
+			oldSupportOID := up.SupportOID
 			up.Support = support
+			up.SupportOID = supportOID
+			c.updateSupportDep(up.OID, oldSupportOID, supportOID)
 			up.Language = language
 			up.Body = body
 			up.LinkSymbol = linkSymbol
@@ -659,6 +665,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		Rows:         rowsStr,
 		SetConfig:    slices.Clone(setConfig),
 		Support:      support,
+		SupportOID:   supportOID,
 		Language:     language,
 		Body:         body,
 		LinkSymbol:   linkSymbol,
@@ -678,6 +685,9 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	}
 	if retOID >= FirstNormalObjectId {
 		c.recordDependency('f', procOID, 0, 't', retOID, 0, DepNormal)
+	}
+	if supportOID >= FirstNormalObjectId {
+		c.recordDependency('f', procOID, 0, 'f', supportOID, 0, DepNormal)
 	}
 
 	// Record dependencies from default expressions.
@@ -1207,6 +1217,8 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 
 	// Pre-validate support routine options before mutating the function.
 	var resolvedSupport string
+	var resolvedSupportOID uint32
+	var hasSupport bool
 	if stmt.Actions != nil {
 		for _, item := range stmt.Actions.Items {
 			de, ok := item.(*nodes.DefElem)
@@ -1214,11 +1226,13 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 				continue
 			}
 			if strings.EqualFold(de.Defname, "support") {
-				sup, _, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
 				if err != nil {
 					return err
 				}
 				resolvedSupport = sup
+				resolvedSupportOID = supOID
+				hasSupport = true
 			}
 		}
 	}
@@ -1317,14 +1331,34 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					}
 				}
 			case "support":
-				if up != nil {
+				if up != nil && hasSupport {
+					oldSupportOID := up.SupportOID
 					up.Support = resolvedSupport
+					up.SupportOID = resolvedSupportOID
+					c.updateSupportDep(up.OID, oldSupportOID, resolvedSupportOID)
 				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func (c *Catalog) updateSupportDep(procOID, oldSupportOID, newSupportOID uint32) {
+	if procOID == 0 || oldSupportOID == newSupportOID {
+		return
+	}
+	if oldSupportOID >= FirstNormalObjectId {
+		for i, d := range c.deps {
+			if d.ObjType == 'f' && d.ObjOID == procOID && d.RefType == 'f' && d.RefOID == oldSupportOID && d.DepType == DepNormal {
+				c.deps = append(c.deps[:i], c.deps[i+1:]...)
+				break
+			}
+		}
+	}
+	if newSupportOID >= FirstNormalObjectId {
+		c.recordDependency('f', procOID, 0, 'f', newSupportOID, 0, DepNormal)
+	}
 }
 
 func defElemNumeric(d *nodes.DefElem) (string, float64, bool) {
