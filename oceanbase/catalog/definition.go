@@ -214,6 +214,30 @@ func writeMaterializedView(out *strings.Builder, view *metadata.MaterializedView
 	if _, err := fmt.Fprintf(out, "CREATE MATERIALIZED VIEW %s", quoteIdent(view.Name)); err != nil {
 		return err
 	}
+	for _, index := range view.Indexes {
+		if !index.Primary && !strings.EqualFold(index.Name, "PRIMARY") {
+			continue
+		}
+		if len(index.Expressions) == 0 {
+			break
+		}
+		cols := make([]string, len(index.Expressions))
+		for i, col := range index.Expressions {
+			cols[i] = quoteIdent(col)
+		}
+		if _, err := fmt.Fprintf(out, " (PRIMARY KEY (%s)%s", strings.Join(cols, ", "), indexUsingClause(index.Type, "")); err != nil {
+			return err
+		}
+		if index.Comment != "" {
+			if _, err := fmt.Fprintf(out, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, ")"); err != nil {
+			return err
+		}
+		break
+	}
 	if view.Comment != "" {
 		if _, err := fmt.Fprintf(out, " COMMENT '%s'", view.Comment); err != nil {
 			return err

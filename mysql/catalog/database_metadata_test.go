@@ -568,3 +568,43 @@ func TestDatabaseDefinitionFidelityForViewOptionsTablespaceAndComments(t *testin
 	require.Equal(t, "INVOKER", reView.SqlSecurity)
 	require.Equal(t, "LOCAL", reView.CheckOption)
 }
+
+func TestDatabaseDefinitionPreservesParentCommentWithExplicitSubpartitions(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "sub_t",
+				Engine:  "InnoDB",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}, {Name: "k", Type: "int", Nullable: false}},
+				Partitions: []*metadata.TablePartitionMetadata{{
+					Type:       metadata.TablePartitionMetadata_RANGE,
+					Expression: "id",
+					Name:       "p0",
+					Value:      "10",
+					Comment:    "p0_parent",
+					Subpartitions: []*metadata.TablePartitionMetadata{{
+						Type:       metadata.TablePartitionMetadata_HASH,
+						Expression: "k",
+						Name:       "s0",
+						Comment:    "s0_child",
+					}, {
+						Type:       metadata.TablePartitionMetadata_HASH,
+						Expression: "k",
+						Name:       "s1",
+					}},
+				}},
+			}},
+		}},
+	}
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "PARTITION `p0` VALUES LESS THAN (10) ENGINE=InnoDB COMMENT = 'p0_parent'")
+	require.Contains(t, def, "SUBPARTITION `s0` ENGINE=InnoDB COMMENT = 's0_child'")
+
+	restored := New()
+	_, err = restored.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.Equal(t, "p0_parent", restored.GetDatabase("app").GetTable("sub_t").Partitioning.Partitions[0].Comment)
+}

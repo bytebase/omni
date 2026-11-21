@@ -73,13 +73,9 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
 		}
 		if db := c.GetDatabase(name); db != nil {
-			if meta.GetPlacementPolicy() != "" {
-				db.PlacementPolicy = resolvePolicyRef(meta.GetPlacementPolicy())
-			}
-			if meta.GetTiflashReplica() > 0 || len(meta.GetTiflashLocationLabels()) > 0 {
-				db.TiFlashReplica = int(meta.GetTiflashReplica())
-				db.TiFlashLocationLabels = slices.Clone(meta.GetTiflashLocationLabels())
-			}
+			db.PlacementPolicy = resolvePolicyRef(meta.GetPlacementPolicy())
+			db.TiFlashReplica = int(meta.GetTiflashReplica())
+			db.TiFlashLocationLabels = slices.Clone(meta.GetTiflashLocationLabels())
 		}
 		c.SetCurrentDatabase(name)
 	}

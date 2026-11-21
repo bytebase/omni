@@ -74,6 +74,10 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 
 	schema := meta.Schemas[0]
 
+	if err := writeDatabaseOptions(&buf, meta); err != nil {
+		return "", err
+	}
+
 	// Construct temporal views.
 	// Create a temporary view with the same name as the view and with columns of
 	// the same name in order to satisfy views that depend on this view.
@@ -105,7 +109,7 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 
 	// Construct tables.
 	for _, table := range schema.Tables {
-		if err := writeTable(&buf, table); err != nil {
+		if err := writeTable(&buf, table, meta.Name); err != nil {
 			return "", err
 		}
 	}
@@ -211,7 +215,7 @@ func writeCreateSequence(out *strings.Builder, sequence *metadata.SequenceMetada
 // TableDefinition renders one table as its mysqldump-style section.
 func TableDefinition(table *metadata.TableMetadata) (string, error) {
 	var buf strings.Builder
-	if err := writeTable(&buf, table); err != nil {
+	if err := writeTable(&buf, table, ""); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -566,7 +570,7 @@ func viewBodyColumnNames(body string) ([]string, bool) {
 	return names, true
 }
 
-func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
+func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName string) error {
 	// Header.
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
@@ -621,7 +625,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 	}
 
 	for _, fk := range table.ForeignKeys {
-		if err := printForeignKeyClause(out, fk); err != nil {
+		if err := printForeignKeyClause(out, fk, dbName); err != nil {
 			return err
 		}
 	}
@@ -730,14 +734,8 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` SET TIFLASH REPLICA %d", table.Name, table.TiflashReplica); err != nil {
 			return err
 		}
-		if len(table.TiflashLocationLabels) > 0 {
-			labels := make([]string, len(table.TiflashLocationLabels))
-			for i, l := range table.TiflashLocationLabels {
-				labels[i] = "'" + outputFormat(l) + "'"
-			}
-			if _, err := fmt.Fprintf(out, " LOCATION LABELS %s", strings.Join(labels, ", ")); err != nil {
-				return err
-			}
+		if err := writeTiFlashLocationLabels(out, table.TiflashLocationLabels); err != nil {
+			return err
 		}
 		if _, err := io.WriteString(out, ";\n\n"); err != nil {
 			return err
@@ -751,6 +749,42 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 	}
 
 	return nil
+}
+
+func writeDatabaseOptions(out *strings.Builder, meta *metadata.DatabaseSchemaMetadata) error {
+	target := ""
+	if meta.Name != "" {
+		target = " " + quoteIdent(meta.Name)
+	}
+	if meta.PlacementPolicy != "" {
+		if _, err := fmt.Fprintf(out, "ALTER DATABASE%s PLACEMENT POLICY=%s;\n\n", target, quoteIdent(meta.PlacementPolicy)); err != nil {
+			return err
+		}
+	}
+	if meta.TiflashReplica > 0 || len(meta.TiflashLocationLabels) > 0 {
+		if _, err := fmt.Fprintf(out, "ALTER DATABASE%s SET TIFLASH REPLICA %d", target, meta.TiflashReplica); err != nil {
+			return err
+		}
+		if err := writeTiFlashLocationLabels(out, meta.TiflashLocationLabels); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, ";\n\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeTiFlashLocationLabels(out io.Writer, locationLabels []string) error {
+	if len(locationLabels) == 0 {
+		return nil
+	}
+	labels := make([]string, len(locationLabels))
+	for i, l := range locationLabels {
+		labels[i] = "'" + outputFormat(l) + "'"
+	}
+	_, err := fmt.Fprintf(out, " LOCATION LABELS %s", strings.Join(labels, ", "))
+	return err
 }
 
 func writeSessionContextIfSet(out io.Writer, charClient, collation, sqlMode, timeZone string, includeTimezone bool) error {
@@ -920,6 +954,10 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
+			if err := writePartitionOptions(buf, partition.Comment); err != nil {
+				return err
+			}
+
 			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
@@ -940,10 +978,6 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 							return err
 						}
 					}
-				}
-			} else {
-				if err := writePartitionOptions(buf, partition.Comment); err != nil {
-					return err
 				}
 			}
 
@@ -1048,7 +1082,7 @@ func printCheckClause(buf *strings.Builder, check *metadata.CheckConstraintMetad
 	return nil
 }
 
-func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata) error {
+func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata, dbName string) error {
 	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT `%s` FOREIGN KEY (", fk.Name); err != nil {
 		return err
 	}
@@ -1064,7 +1098,11 @@ func printForeignKeyClause(buf *strings.Builder, fk *metadata.ForeignKeyMetadata
 		}
 	}
 
-	if _, err := fmt.Fprintf(buf, ") REFERENCES `%s` (", fk.ReferencedTable); err != nil {
+	referencedTable := quoteIdent(fk.ReferencedTable)
+	if fk.ReferencedSchema != "" && fk.ReferencedSchema != dbName {
+		referencedTable = quoteIdent(fk.ReferencedSchema) + "." + referencedTable
+	}
+	if _, err := fmt.Fprintf(buf, ") REFERENCES %s (", referencedTable); err != nil {
 		return err
 	}
 

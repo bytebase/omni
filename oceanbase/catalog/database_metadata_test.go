@@ -620,6 +620,7 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 			VECTOR KEY v_cos (v) WITH (TYPE=HNSW, DISTANCE=COSINE, LIB=VSAG)
 		) TABLESPACE ts_ob COMMENT='O''Reilly' PARTITION BY HASH (id) PARTITIONS 2;
 		CREATE MATERIALIZED VIEW LOG ON ob_tbl;
+		CREATE MATERIALIZED VIEW mv_pk (PRIMARY KEY (id)) AS SELECT id, note FROM ob_tbl;
 		CREATE VIEW v_ob AS SELECT id, note FROM ob_tbl WITH LOCAL CHECK OPTION;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
@@ -647,6 +648,7 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.Contains(t, obDef, "KEY `k_global` (`k`) STORING (`s`) KEY_BLOCK_SIZE=4 GLOBAL")
 	require.Contains(t, obDef, "FULLTEXT KEY `ft_txt` (`txt`) WITH PARSER ik PARSER_PROPERTIES=(ik_mode='smart')")
 	require.Contains(t, obDef, "CREATE MATERIALIZED VIEW LOG ON `ob_tbl`;")
+	require.Contains(t, obDef, "CREATE MATERIALIZED VIEW `mv_pk` (PRIMARY KEY (`id`))")
 	require.Contains(t, obDef, "CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_ob`")
 	require.Contains(t, obDef, "WITH LOCAL CHECK OPTION")
 
@@ -654,4 +656,29 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	_, err = restoredOB.Exec("CREATE DATABASE def_ob;\nUSE def_ob;\n"+obDef, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 	require.True(t, restoredOB.GetDatabase("def_ob").MaterializedViewLogs["ob_tbl"])
+	reMVPK := restoredOB.GetDatabase("def_ob").Views["mv_pk"]
+	require.NotNil(t, reMVPK)
+	require.Len(t, reMVPK.Indexes, 1)
+	require.True(t, reMVPK.Indexes[0].Primary)
+
+	// Partition fallback still restores materialized-view log state on success.
+	fallbackCatalog := New()
+	fallbackMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "fb_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:                   "fb_tbl",
+				HasMaterializedViewLog: true,
+				Columns:                []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{Type: metadata.TablePartitionMetadata_RANGE, Expression: "missing_col", Name: "p0", Value: "10"},
+				},
+			}},
+		}},
+	}
+	fbReport, err := fallbackCatalog.LoadMetadata(context.Background(), fallbackMeta)
+	require.NoError(t, err)
+	require.Contains(t, fbReport.Incomplete, "table:fb_tbl")
+	require.True(t, fallbackCatalog.GetDatabase("fb_db").MaterializedViewLogs["fb_tbl"])
+	require.True(t, fallbackCatalog.GetDatabase("fb_db").MaterializedViewLogsKnown["fb_tbl"])
 }

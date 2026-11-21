@@ -511,13 +511,19 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	defCatalog := New()
 	_, err = defCatalog.Exec(`
 		CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION="us-east" REGIONS="us-east";
-		CREATE DATABASE def_db;
+		CREATE DATABASE ref_db;
+		USE ref_db;
+		CREATE TABLE parent_t (id INT PRIMARY KEY);
+		CREATE DATABASE def_db PLACEMENT POLICY = p_tbl;
+		ALTER DATABASE def_db SET TIFLASH REPLICA 1 LOCATION LABELS 'zone';
 		USE def_db;
 		CREATE TABLE placed_tbl (
 			id INT PRIMARY KEY,
 			k INT,
+			pid INT,
 			note VARCHAR(50) COMMENT 'it''s a \\ path',
-			KEY k_blk (k) KEY_BLOCK_SIZE = 4
+			KEY k_blk (k) KEY_BLOCK_SIZE = 4,
+			CONSTRAINT fk_ext FOREIGN KEY (pid) REFERENCES ref_db.parent_t (id)
 		) COMPRESSION='zlib' COMMENT='O''Reilly' PLACEMENT POLICY = p_tbl;
 		ALTER TABLE placed_tbl SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';
 		ALTER TABLE placed_tbl CACHE;
@@ -527,6 +533,9 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.NoError(t, err)
 	defRendered, err := DatabaseDefinition(defCatalog.DatabaseMetadata("def_db"), DefinitionOptions{})
 	require.NoError(t, err)
+	require.Contains(t, defRendered, "ALTER DATABASE `def_db` PLACEMENT POLICY=`p_tbl`;")
+	require.Contains(t, defRendered, "ALTER DATABASE `def_db` SET TIFLASH REPLICA 1 LOCATION LABELS 'zone';")
+	require.Contains(t, defRendered, "CONSTRAINT `fk_ext` FOREIGN KEY (`pid`) REFERENCES `ref_db`.`parent_t` (`id`)")
 	require.Contains(t, defRendered, "/*T![placement] PLACEMENT POLICY=`p_tbl` */")
 	require.Contains(t, defRendered, "COMPRESSION='zlib'")
 	require.Contains(t, defRendered, `COMMENT='O\'Reilly'`)
@@ -534,20 +543,61 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Contains(t, defRendered, "KEY `k_blk` (`k`) KEY_BLOCK_SIZE=4")
 	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';")
 	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` CACHE;")
-	require.Less(t, strings.Index(defRendered, "SET TIFLASH REPLICA"), strings.Index(defRendered, "ALTER TABLE `placed_tbl` CACHE"))
+	require.Less(t, strings.Index(defRendered, "SET TIFLASH REPLICA 2"), strings.Index(defRendered, "ALTER TABLE `placed_tbl` CACHE"))
 	require.Contains(t, defRendered, "CREATE GLOBAL TEMPORARY TABLE `gtt_tbl`")
 	require.Contains(t, defRendered, "ON COMMIT DELETE ROWS")
 	require.Contains(t, defRendered, "CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_attr`")
 	require.Contains(t, defRendered, "WITH CASCADED CHECK OPTION")
 
 	restored := New()
-	_, err = restored.Exec("CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION=\"us-east\" REGIONS=\"us-east\";\nCREATE DATABASE def_db;\nUSE def_db;\n"+defRendered, &ExecOptions{ContinueOnError: false})
+	_, err = restored.Exec("CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION=\"us-east\" REGIONS=\"us-east\";\nCREATE DATABASE ref_db;\nUSE ref_db;\nCREATE TABLE parent_t (id INT PRIMARY KEY);\nCREATE DATABASE def_db;\nUSE def_db;\n"+defRendered, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
-	rePlaced := restored.GetDatabase("def_db").GetTable("placed_tbl")
+	reDefDB := restored.GetDatabase("def_db")
+	require.Equal(t, "p_tbl", reDefDB.PlacementPolicy)
+	require.Equal(t, 1, reDefDB.TiFlashReplica)
+	require.Equal(t, []string{"zone"}, reDefDB.TiFlashLocationLabels)
+	rePlaced := reDefDB.GetTable("placed_tbl")
 	require.Equal(t, "O'Reilly", rePlaced.Comment)
 	require.Equal(t, `it's a \ path`, rePlaced.GetColumn("note").Comment)
 	require.Equal(t, "zlib", rePlaced.Compression)
 	require.Equal(t, 2, rePlaced.TiFlashReplica)
 	require.Equal(t, []string{"zone", "host"}, rePlaced.TiFlashLocationLabels)
 	require.True(t, rePlaced.Cached)
+
+	// LoadMetadataInto clears database-level placement policy & TiFlash settings when unset in target snapshot.
+	_, err = restored.LoadMetadataInto(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name:    "other_db",
+		Schemas: []*metadata.SchemaMetadata{{}},
+	}, "def_db")
+	require.NoError(t, err)
+	require.Empty(t, reDefDB.PlacementPolicy)
+	require.Zero(t, reDefDB.TiFlashReplica)
+	require.Empty(t, reDefDB.TiFlashLocationLabels)
+
+	// Parent partition comments are preserved alongside explicit subpartitions.
+	subDef, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+		Name: "def_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "sub_t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}, {Name: "k", Type: "int", Nullable: false}},
+				Partitions: []*metadata.TablePartitionMetadata{{
+					Type:       metadata.TablePartitionMetadata_RANGE,
+					Expression: "id",
+					Name:       "p0",
+					Value:      "10",
+					Comment:    "p0_parent",
+					Subpartitions: []*metadata.TablePartitionMetadata{{
+						Type:       metadata.TablePartitionMetadata_HASH,
+						Expression: "k",
+						Name:       "s0",
+						Comment:    "s0_child",
+					}},
+				}},
+			}},
+		}},
+	}, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, subDef, "PARTITION p0 VALUES LESS THAN (10) ENGINE=InnoDB COMMENT 'p0_parent'")
+	require.Contains(t, subDef, "SUBPARTITION s0 ENGINE=InnoDB COMMENT 's0_child'")
 }

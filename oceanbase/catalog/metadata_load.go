@@ -367,6 +367,16 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			return err
 		}
 		o.incomplete = omitted
+		finishInstall := func() {
+			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+			if o.table.GetHasMaterializedViewLog() {
+				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+					key := toLower(o.table.GetName())
+					db.MaterializedViewLogs[key] = true
+					db.MaterializedViewLogsKnown[key] = true
+				}
+			}
+		}
 		err = c.DefineTable(stmt)
 		if err != nil && stmt.Partitions != nil {
 			// The partitioning parsed but the catalog refuses it. The rest of the
@@ -376,19 +386,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				if o.incomplete == nil {
 					o.incomplete = fmt.Errorf("partitioning: %w", err)
 				}
-				applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+				finishInstall()
 				return nil
 			}
 		}
 		if err == nil {
-			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
-			if o.table.GetHasMaterializedViewLog() {
-				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
-					key := toLower(o.table.GetName())
-					db.MaterializedViewLogs[key] = true
-					db.MaterializedViewLogsKnown[key] = true
-				}
-			}
+			finishInstall()
 		}
 		return err
 	case metadataView:

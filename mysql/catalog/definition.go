@@ -803,6 +803,10 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
+			if err := writePartitionOptions(buf, engine, partition.Comment); err != nil {
+				return err
+			}
+
 			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
@@ -823,10 +827,6 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 							return err
 						}
 					}
-				}
-			} else {
-				if err := writePartitionOptions(buf, engine, partition.Comment); err != nil {
-					return err
 				}
 			}
 
