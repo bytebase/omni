@@ -343,10 +343,43 @@ func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int 
 	var candidates []int
 	if call.schema != "" {
 		candidates = c.byName[objectKey(call.schema, call.name)]
-	} else if cands, ok := c.byName[objectKey(callerSchema, call.name)]; ok {
-		candidates = cands
 	} else {
-		candidates = c.byName[objectKey("public", call.name)]
+		callerCands := c.byName[objectKey(callerSchema, call.name)]
+		if strings.EqualFold(callerSchema, "public") || callerSchema == "" {
+			candidates = callerCands
+		} else {
+			pubCands := c.byName[objectKey("public", call.name)]
+			switch {
+			case len(pubCands) == 0:
+				candidates = callerCands
+			case len(callerCands) == 0:
+				candidates = pubCands
+			default:
+				paramSigKey := func(fn functionEntry) string {
+					types := make([]string, len(fn.params))
+					for i, p := range fn.params {
+						types[i] = p.typeName
+					}
+					return strings.Join(types, ",")
+				}
+				shadowed := make(map[string]struct{}, len(callerCands))
+				for _, idx := range callerCands {
+					if c.entries[idx].parsed {
+						shadowed[paramSigKey(c.entries[idx])] = struct{}{}
+					}
+				}
+				candidates = make([]int, 0, len(callerCands)+len(pubCands))
+				candidates = append(candidates, callerCands...)
+				for _, idx := range pubCands {
+					if c.entries[idx].parsed {
+						if _, blocked := shadowed[paramSigKey(c.entries[idx])]; blocked {
+							continue
+						}
+					}
+					candidates = append(candidates, idx)
+				}
+			}
+		}
 	}
 	return resolveFunctionOverload(c.entries, candidates, call.argTypes)
 }

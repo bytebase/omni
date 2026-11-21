@@ -729,7 +729,7 @@ func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDe
 				continue
 			}
 			targetSchema := resolveUnqualifiedRelationSchema(tok.ident, schemaName, deps)
-			if targetSchema != "" && !strings.EqualFold(targetSchema, schemaName) {
+			if targetSchema != "" {
 				if prefix := qualifyTrinoObjectPrefix(dbName, targetSchema); prefix != "" {
 					edits = append(edits, prefixEdit{offset: tok.start, prefix: prefix})
 				}

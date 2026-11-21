@@ -2307,6 +2307,42 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "parameter count")
+
+	// Non-public routine calling overload whose matching signature lives in public
+	// still orders public overload before the caller even when s defines another overload.
+	searchPathOverloadOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "s",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f",
+						Signature:  "(character varying)",
+						Definition: "CREATE FUNCTION s.f(x varchar) RETURNS integer IMMUTABLE AS $$ SELECT 0 $$ LANGUAGE sql",
+					},
+					{
+						Name:       "g",
+						Signature:  "()",
+						Definition: "CREATE FUNCTION s.g() RETURNS integer IMMUTABLE AS $$ SELECT f(1) $$ LANGUAGE sql",
+					},
+				},
+			},
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "f",
+					Signature:  "(integer)",
+					Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer IMMUTABLE AS $$ SELECT x $$ LANGUAGE sql",
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	idxPubF := strings.Index(searchPathOverloadOut, "CREATE FUNCTION public.f")
+	idxSG := strings.Index(searchPathOverloadOut, "CREATE FUNCTION s.g")
+	require.Greater(t, idxPubF, -1)
+	require.Greater(t, idxSG, idxPubF)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
