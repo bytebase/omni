@@ -113,6 +113,13 @@ type rowKey struct{ fixture, rule, statement string }
 
 func (r Row) key() rowKey { return rowKey{r.Fixture, r.Rule, r.Statement} }
 
+// Line reports the 1-based line number of the row in the file it was read
+// from, or 0 for a row constructed in memory.
+func (r Row) Line() int { return r.line }
+
+// Accepted reports whether Expected records an engine acceptance (ok:<hash>).
+func (r Row) Accepted() bool { return isStored(r.Expected) }
+
 // A File is a simulate.tsv.
 type File struct {
 	Pin      string   // the pin the expected column was recorded at, as enginetest.Pin.String renders it

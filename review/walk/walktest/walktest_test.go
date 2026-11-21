@@ -3,12 +3,15 @@ package walktest
 import (
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/bytebase/omni/enginetest/simulate"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -358,4 +361,221 @@ func TestShardsDealEveryChangeOnce(t *testing.T) {
 			}
 		}
 	}
+}
+
+func writeSimFiles(t *testing.T, tsv string, fixtures map[string]string) (tsvPath, fxDir string) {
+	t.Helper()
+	dir := t.TempDir()
+	fxDir = filepath.Join(dir, "fixtures")
+	if err := os.MkdirAll(fxDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, sql := range fixtures {
+		if err := os.WriteFile(filepath.Join(fxDir, name+".sql"), []byte(sql), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tsvPath = filepath.Join(dir, "simulate.tsv")
+	header := "# pin: default test:1 sha256:0000 1\n# columns: omni, expected, source, fixture, rule, statement\n"
+	if err := os.WriteFile(tsvPath, []byte(header+tsv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return tsvPath, fxDir
+}
+
+func runCheckSimulation(t *testing.T, s Simulation) (*recorder, SimulationResult) {
+	r := &recorder{TB: t}
+	var res SimulationResult
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res = CheckSimulation(r, s)
+	}()
+	wg.Wait()
+	return r, res
+}
+
+func TestCheckSimulationSoundness(t *testing.T) {
+	fixtures := map[string]string{
+		"fx_a": "CREATE TABLE a (id INT);",
+		"fx_b": "CREATE TABLE t (id INT);",
+	}
+	same := func(claimed, stored walk.Key) bool {
+		return claimed.Space == stored.Space &&
+			claimed.Parent == stored.Parent &&
+			strings.EqualFold(claimed.Name, stored.Name)
+	}
+
+	t.Run("passing mix of ok, matched code, true fact, and silence", func(t *testing.T) {
+		tsv := strings.Join([]string{
+			"ok:0123456789ab\tok:0123456789ab\tengine\tfx_a\tr/ok\tSELECT 1",
+			"1050\t1050\tengine\tfx_a\tr/code\tCREATE TABLE a (id INT)",
+			"1060\t1060\tengine\tfx_a\tr/fact\tALTER TABLE a ADD COLUMN x INT",
+			"1146\t1146\tengine\tfx_b\tr/silent\tDROP TABLE missing",
+			"42P07\t42P07\tengine\tfx_a\tr/pgstate\tCREATE TABLE a (id INT)",
+		}, "\n") + "\n"
+		tsvPath, fxDir := writeSimFiles(t, tsv, fixtures)
+
+		setupCalls := map[string]int{}
+		r, res := runCheckSimulation(t, Simulation{
+			Path:     tsvPath,
+			Fixtures: fxDir,
+			Setup: func(_ testing.TB, fx simulate.Fixture) SimFixture {
+				setupCalls[fx.Name]++
+				var objs []Object
+				if fx.Name == "fx_a" {
+					objs = []Object{{Key: walk.Key{Space: "relation", Name: "A"}, Kind: "table"}}
+				} else {
+					objs = []Object{{Key: walk.Key{Space: "relation", Name: "t"}, Kind: "table"}}
+				}
+				return SimFixture{
+					Objects: objs,
+					Report: func(_ testing.TB, stmt string) *Finding {
+						switch stmt {
+						case "CREATE TABLE a (id INT)":
+							return &Finding{Statement: 0, Message: "exists"}
+						case "ALTER TABLE a ADD COLUMN x INT":
+							return &Finding{Statement: 0, Message: "other-reason"}
+						default:
+							return nil
+						}
+					},
+					Violation: func(_ testing.TB, stmt string) *walk.Violation {
+						if stmt == "ALTER TABLE a ADD COLUMN x INT" {
+							return &walk.Violation{
+								Check: walk.Check{Key: walk.Key{Space: "relation", Name: "a"}},
+								Got:   walk.Present,
+								Kind:  "table",
+							}
+						}
+						return nil
+					},
+				}
+			},
+			Codes: func(msg, _ string) []string {
+				if msg == "exists" {
+					return []string{"1050", "42P07"}
+				}
+				return nil
+			},
+			Same: same,
+		})
+		if r.fatal != "" || len(r.errors) != 0 {
+			t.Fatalf("unexpected failure: fatal=%q errors=%q", r.fatal, r.errors)
+		}
+		want := SimulationResult{Total: 5, OK: 1, Refused: 4, Found: 3}
+		if res != want {
+			t.Errorf("result = %+v, want %+v", res, want)
+		}
+		if setupCalls["fx_a"] != 1 || setupCalls["fx_b"] != 1 {
+			t.Errorf("setup calls = %v, want each fixture loaded once", setupCalls)
+		}
+	})
+
+	t.Run("any finding on an ok row fails", func(t *testing.T) {
+		tsv := "ok:0123456789ab\tok:0123456789ab\tengine\tfx_a\tr/ok\tALTER TABLE a ADD COLUMN y INT\n"
+		tsvPath, fxDir := writeSimFiles(t, tsv, fixtures)
+
+		r, res := runCheckSimulation(t, Simulation{
+			Path:     tsvPath,
+			Fixtures: fxDir,
+			Setup: func(_ testing.TB, _ simulate.Fixture) SimFixture {
+				return SimFixture{
+					Report: func(_ testing.TB, _ string) *Finding {
+						return &Finding{Statement: 0, Message: "bogus finding"}
+					},
+					Violation: func(_ testing.TB, _ string) *walk.Violation { return nil },
+				}
+			},
+			Same: same,
+		})
+		if r.fatal != "" || len(r.errors) != 1 || !strings.Contains(r.errors[0], "engine accepts") {
+			t.Errorf("fatal=%q errors=%q; want one error about engine accepting the row", r.fatal, r.errors)
+		}
+		if res.OK != 1 || res.Refused != 0 {
+			t.Errorf("result = %+v, want OK=1 Refused=0", res)
+		}
+	})
+
+	t.Run("wrong code with false fact on refused row fails", func(t *testing.T) {
+		tsv := "1146\t1146\tengine\tfx_b\tr/bad\tALTER TABLE a ADD COLUMN y INT\n"
+		tsvPath, fxDir := writeSimFiles(t, tsv, fixtures)
+
+		r, _ := runCheckSimulation(t, Simulation{
+			Path:     tsvPath,
+			Fixtures: fxDir,
+			Setup: func(_ testing.TB, _ simulate.Fixture) SimFixture {
+				return SimFixture{
+					Objects: []Object{{Key: walk.Key{Space: "relation", Name: "t"}, Kind: "table"}},
+					Report: func(_ testing.TB, _ string) *Finding {
+						return &Finding{Statement: 0, Message: "wrong code"}
+					},
+					Violation: func(_ testing.TB, _ string) *walk.Violation {
+						// Claims table a is present, but fx_b only has t.
+						return &walk.Violation{
+							Check: walk.Check{Key: walk.Key{Space: "relation", Name: "a"}},
+							Got:   walk.Present,
+							Kind:  "table",
+						}
+					},
+				}
+			},
+			Codes: func(string, string) []string { return []string{"1050"} },
+			Same:  same,
+		})
+		if r.fatal != "" || len(r.errors) != 1 || !strings.Contains(r.errors[0], "is present: false") {
+			t.Errorf("fatal=%q errors=%q; want one error saying claim does not hold", r.fatal, r.errors)
+		}
+	})
+
+	t.Run("wrong code with wrong kind on refused row fails", func(t *testing.T) {
+		tsv := "1347\t1347\tengine\tfx_a\tr/kind\tDROP VIEW a\n"
+		tsvPath, fxDir := writeSimFiles(t, tsv, fixtures)
+
+		r, _ := runCheckSimulation(t, Simulation{
+			Path:     tsvPath,
+			Fixtures: fxDir,
+			Setup: func(_ testing.TB, _ simulate.Fixture) SimFixture {
+				return SimFixture{
+					Objects: []Object{{Key: walk.Key{Space: "relation", Name: "a"}, Kind: "table"}},
+					Report: func(_ testing.TB, _ string) *Finding {
+						return &Finding{Statement: 0, Message: "claims view"}
+					},
+					Violation: func(_ testing.TB, _ string) *walk.Violation {
+						return &walk.Violation{
+							Check: walk.Check{Key: walk.Key{Space: "relation", Name: "a"}},
+							Got:   walk.Present,
+							Kind:  "view",
+						}
+					},
+				}
+			},
+			Codes: func(string, string) []string { return []string{"1051"} },
+			Same:  same,
+		})
+		if r.fatal != "" || len(r.errors) != 1 || !strings.Contains(r.errors[0], "is a table, not a view") {
+			t.Errorf("fatal=%q errors=%q; want one error about wrong kind", r.fatal, r.errors)
+		}
+	})
+
+	t.Run("unjudged row fails", func(t *testing.T) {
+		tsv := "?\t?\t-\tfx_a\tr/unj\tCREATE TABLE x (id INT)\n"
+		tsvPath, fxDir := writeSimFiles(t, tsv, fixtures)
+
+		r, _ := runCheckSimulation(t, Simulation{
+			Path:     tsvPath,
+			Fixtures: fxDir,
+			Setup: func(_ testing.TB, _ simulate.Fixture) SimFixture {
+				return SimFixture{
+					Report:    func(_ testing.TB, _ string) *Finding { return nil },
+					Violation: func(_ testing.TB, _ string) *walk.Violation { return nil },
+				}
+			},
+			Same: same,
+		})
+		if r.fatal != "" || len(r.errors) != 1 || !strings.Contains(r.errors[0], "unjudged") {
+			t.Errorf("fatal=%q errors=%q; want one error about unjudged row", r.fatal, r.errors)
+		}
+	})
 }
