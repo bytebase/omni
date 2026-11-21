@@ -106,39 +106,59 @@ var typeKeywords = []string{
 // resolveRules converts parser rule candidates into typed Candidate values
 // using the catalog for name resolution.
 func resolveRules(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveRulesWithOptions(cs, cat, sql, cursorOffset, resolveOptions{})
+}
+
+func resolveRulesWithOptions(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int, opts resolveOptions) []Candidate {
 	if cs == nil {
 		return nil
 	}
 	var result []Candidate
 	for _, rc := range cs.Rules {
-		result = append(result, resolveRule(rc.Rule, cat, sql, cursorOffset)...)
+		result = append(result, resolveRuleWithOptions(rc.Rule, cat, sql, cursorOffset, opts)...)
 	}
 	return result
 }
 
 // resolveRule resolves a single grammar rule name into completion candidates.
 func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveRuleWithOptions(rule, cat, sql, cursorOffset, resolveOptions{})
+}
+
+func resolveRuleWithOptions(rule string, cat *catalog.Catalog, sql string, cursorOffset int, opts resolveOptions) []Candidate {
 	switch rule {
 	case "table_ref":
-		return resolveTableRef(cat)
+		switch qualifiedObjectRuleAtDot(sql, cursorOffset) {
+		case "procedure_ref":
+			return resolveProcedureRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
+		case "function_ref":
+			return resolveFunctionRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
+		case "view_ref":
+			return resolveViewRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
+		case "trigger_ref":
+			return resolveTriggerRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
+		case "event_ref":
+			return resolveEventRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
+		}
+		return resolveTableRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "columnref":
-		return resolveColumnRefScoped(cat, sql, cursorOffset)
+		return resolveColumnRefScopedWithOptions(cat, sql, cursorOffset, opts)
 	case "database_ref":
 		return resolveDatabaseRef(cat)
 	case "function_ref", "func_name":
-		return resolveFunctionRef(cat)
+		return resolveFunctionRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "procedure_ref":
-		return resolveProcedureRef(cat)
+		return resolveProcedureRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "index_ref":
-		return resolveIndexRef(cat)
+		return resolveIndexRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "trigger_ref":
-		return resolveTriggerRef(cat)
+		return resolveTriggerRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "event_ref":
-		return resolveEventRef(cat)
+		return resolveEventRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "view_ref":
-		return resolveViewRef(cat)
+		return resolveViewRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "constraint_ref":
-		return resolveConstraintRef(cat)
+		return resolveConstraintRefWithOptions(cat, sql, cursorOffset, opts.caseSensitive)
 	case "charset":
 		return resolveCharset()
 	case "engine":
@@ -151,12 +171,129 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int
 	return nil
 }
 
-// resolveTableRef returns tables and views from the current database.
-func resolveTableRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
+func qualifiedObjectRuleAtDot(sql string, cursorOffset int) string {
+	cursorOffset = max(0, min(cursorOffset, len(sql)))
+	toks := scanQualTokens(sql[:cursorOffset])
+	lastSemi := -1
+	for i, tok := range toks {
+		if tok.punct == ';' {
+			lastSemi = i
+		}
+	}
+	stmtToks := toks[lastSemi+1:]
+	if len(stmtToks) < 3 || stmtToks[len(stmtToks)-1].punct != '.' || !stmtToks[len(stmtToks)-2].isWord {
+		return ""
+	}
+	head := stmtToks[:len(stmtToks)-2]
+	if len(head) == 0 {
+		return ""
+	}
+	switch head[0].upper {
+	case "CALL":
+		if len(head) == 1 {
+			return "procedure_ref"
+		}
+	case "DROP", "ALTER":
+		if len(head) < 2 {
+			return ""
+		}
+		isIfExistsOnly := len(head) == 2 || (len(head) == 4 && head[2].upper == "IF" && head[3].upper == "EXISTS")
+		switch head[1].upper {
+		case "PROCEDURE":
+			if isIfExistsOnly {
+				return "procedure_ref"
+			}
+		case "FUNCTION":
+			if isIfExistsOnly {
+				return "function_ref"
+			}
+		case "TRIGGER":
+			if isIfExistsOnly {
+				return "trigger_ref"
+			}
+		case "EVENT":
+			if isIfExistsOnly {
+				return "event_ref"
+			}
+		case "VIEW":
+			start := 2
+			if len(head) >= 4 && head[2].upper == "IF" && head[3].upper == "EXISTS" {
+				start = 4
+			}
+			for _, tok := range head[start:] {
+				if tok.punct != ',' && tok.punct != '.' && (!tok.isWord || tok.upper == "AS" || tok.upper == "SELECT") {
+					return ""
+				}
+			}
+			return "view_ref"
+		case "MATERIALIZED":
+			if len(head) >= 3 && head[2].upper == "VIEW" {
+				return "view_ref"
+			}
+		}
+	case "SHOW":
+		if len(head) == 3 && head[1].upper == "CREATE" {
+			switch head[2].upper {
+			case "PROCEDURE":
+				return "procedure_ref"
+			case "FUNCTION":
+				return "function_ref"
+			case "VIEW":
+				return "view_ref"
+			case "TRIGGER":
+				return "trigger_ref"
+			case "EVENT":
+				return "event_ref"
+			}
+		}
+	}
+	return ""
+}
+
+func dbNameEquals(a, b string, caseSensitive bool) bool {
+	if caseSensitive {
+		return a == b
+	}
+	return strings.EqualFold(a, b)
+}
+
+func getDatabase(cat *catalog.Catalog, name string, caseSensitive bool) *catalog.Database {
+	if cat == nil || name == "" {
 		return nil
 	}
-	db := currentDB(cat)
+	db := cat.GetDatabase(name)
+	if db == nil {
+		return nil
+	}
+	if caseSensitive && db.Name != name {
+		return nil
+	}
+	return db
+}
+
+// resolveTargetDB returns the database named before '.' at cursorOffset when
+// present, falling back to the catalog's current database for unqualified refs.
+func resolveTargetDB(cat *catalog.Catalog, sql string, cursorOffset int) (*catalog.Database, bool) {
+	return resolveTargetDBWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveTargetDBWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) (*catalog.Database, bool) {
+	if cat == nil {
+		return nil, false
+	}
+	if dbName, _, ok := identBeforeDot(sql, cursorOffset); ok {
+		return getDatabase(cat, dbName, caseSensitive), true
+	}
+	return currentDB(cat), false
+}
+
+// resolveTableRef returns tables and views from the referenced or current database.
+func resolveTableRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveTableRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveTableRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -176,26 +313,24 @@ func resolveTableRef(cat *catalog.Catalog) []Candidate {
 // `a.col`) is restricted to the matching table and returns no columns when the
 // qualifier matches no in-scope table.
 func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveColumnRefScopedWithOptions(cat, sql, cursorOffset, resolveOptions{})
+}
+
+func resolveColumnRefScopedWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, opts resolveOptions) []Candidate {
 	if cat == nil {
 		return nil
 	}
-	db := currentDB(cat)
-	if db == nil {
-		return nil
+	qDB, qName := columnQualifier(sql, cursorOffset)
+	if cols, handled := resolveColumnsASTScoped(cat, sql, cursorOffset, opts.caseSensitive, qDB, qName); handled {
+		return cols
 	}
 
-	// A qualified column reference (e.g. `a.col`, `t1.col`, or `db1.t1.col`) is
-	// restricted to the table whose alias or name matches the qualifier before the
-	// dot — and, when the qualifier names a database, whose database matches too
-	// (so `db1.t.` is not satisfied by `db2.t`). An unqualified reference uses
-	// every in-scope table.
-	qDB, qName := columnQualifier(sql, cursorOffset)
-
+	db := currentDB(cat)
 	refs := extractTableRefs(sql, cursorOffset)
 	if len(refs) == 0 {
 		// With no table refs in scope, an unqualified reference falls back to all
 		// columns; a qualified one has nothing to resolve against.
-		if qName != "" {
+		if qName != "" || opts.disableColumnFallback {
 			return nil
 		}
 		return resolveColumnRef(cat)
@@ -203,6 +338,7 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 
 	seen := make(map[string]bool)
 	var result []Candidate
+	localRefs := 0
 	for _, ref := range refs {
 		if qName != "" {
 			if !strings.EqualFold(ref.Alias, qName) && !strings.EqualFold(ref.Table, qName) {
@@ -213,18 +349,20 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 				if refDB == "" {
 					refDB = cat.CurrentDatabase()
 				}
-				if !strings.EqualFold(refDB, qDB) {
+				if !dbNameEquals(refDB, qDB, opts.caseSensitive) {
 					continue
 				}
 			}
 		}
-		// Resolve table in the appropriate database.
 		targetDB := db
 		if ref.Database != "" {
-			targetDB = cat.GetDatabase(ref.Database)
-			if targetDB == nil {
-				continue
-			}
+			targetDB = getDatabase(cat, ref.Database, opts.caseSensitive)
+		}
+		if targetDB == nil {
+			continue
+		}
+		if ref.Database == "" {
+			localRefs++
 		}
 		// Look up the table.
 		for _, t := range targetDB.Tables {
@@ -254,7 +392,7 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 	// An unqualified reference that resolved nothing (e.g. a CTE name with no
 	// catalog match) falls back to all columns; a qualified reference that matched
 	// no table returns no columns rather than broadening to everything.
-	if len(result) == 0 && qName == "" {
+	if len(result) == 0 && localRefs > 0 && qName == "" && !opts.disableColumnFallback {
 		return resolveColumnRef(cat)
 	}
 	return result
@@ -302,30 +440,44 @@ func resolveDatabaseRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveFunctionRef returns catalog functions + built-in function names.
-func resolveFunctionRef(cat *catalog.Catalog) []Candidate {
+// resolveFunctionRef returns catalog functions (+ built-in names when unqualified).
+func resolveFunctionRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveFunctionRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveFunctionRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, qualified := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
+	if qualified {
+		if db == nil {
+			return nil
+		}
+		var result []Candidate
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
+		}
+		return result
+	}
 	var result []Candidate
 	// Built-in functions always available.
 	for _, name := range builtinFunctions {
 		result = append(result, Candidate{Text: name, Type: CandidateFunction})
 	}
 	// Catalog functions from current database.
-	if cat != nil {
-		if db := currentDB(cat); db != nil {
-			for _, fn := range db.Functions {
-				result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
-			}
+	if db != nil {
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
 		}
 	}
 	return result
 }
 
-// resolveProcedureRef returns catalog procedures from the current database.
-func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveProcedureRef returns catalog procedures from the referenced or current database.
+func resolveProcedureRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveProcedureRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveProcedureRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -336,13 +488,14 @@ func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveIndexRef returns indexes from all tables in the current database.
+// resolveIndexRef returns indexes from all tables in the referenced or current database.
 // Table-scoped resolution will be refined in later phases.
-func resolveIndexRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+func resolveIndexRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveIndexRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveIndexRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -359,12 +512,13 @@ func resolveIndexRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveTriggerRef returns triggers from the current database.
-func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveTriggerRef returns triggers from the referenced or current database.
+func resolveTriggerRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveTriggerRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveTriggerRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -375,12 +529,13 @@ func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveEventRef returns events from the current database.
-func resolveEventRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveEventRef returns events from the referenced or current database.
+func resolveEventRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveEventRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveEventRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -391,12 +546,13 @@ func resolveEventRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveViewRef returns views from the current database.
-func resolveViewRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveViewRef returns views from the referenced or current database.
+func resolveViewRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveViewRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveViewRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -407,12 +563,13 @@ func resolveViewRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveConstraintRef returns constraint names from all tables in the current database.
-func resolveConstraintRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveConstraintRef returns constraint names from all tables in the referenced or current database.
+func resolveConstraintRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveConstraintRefWithOptions(cat, sql, cursorOffset, false)
+}
+
+func resolveConstraintRefWithOptions(cat *catalog.Catalog, sql string, cursorOffset int, caseSensitive bool) []Candidate {
+	db, _ := resolveTargetDBWithOptions(cat, sql, cursorOffset, caseSensitive)
 	if db == nil {
 		return nil
 	}
@@ -482,49 +639,6 @@ func currentDB(cat *catalog.Catalog) *catalog.Database {
 	return cat.GetDatabase(name)
 }
 
-// identBeforeDot scans left from pos expecting (optional whitespace) '.'
-// (optional whitespace) <identifier>, returning the identifier text, the index
-// where it starts, and whether the pattern matched. The identifier may be bare
-// or backtick-quoted.
-func identBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
-	if pos > len(sql) {
-		pos = len(sql)
-	}
-	i := pos
-	for i > 0 && isSpaceByte(sql[i-1]) {
-		i--
-	}
-	if i == 0 || sql[i-1] != '.' {
-		return "", pos, false
-	}
-	i-- // consume the dot
-	for i > 0 && isSpaceByte(sql[i-1]) {
-		i--
-	}
-	if i == 0 {
-		return "", pos, false
-	}
-	if sql[i-1] == '`' {
-		end := i - 1
-		j := end - 1
-		for j >= 0 && sql[j] != '`' {
-			j--
-		}
-		if j < 0 {
-			return "", pos, false
-		}
-		return sql[j+1 : end], j, true
-	}
-	end := i
-	for i > 0 && isIdentByte(sql[i-1]) {
-		i--
-	}
-	if i == end {
-		return "", pos, false
-	}
-	return sql[i:end], i, true
-}
-
 // columnQualifier returns the optional database part and the table/alias part of
 // the qualifier preceding the dot at the cursor: `db1.t.` -> ("db1","t"),
 // `t.`/`a.` -> ("","t")/("","a"), and ("","") when the reference is unqualified.
@@ -539,13 +653,4 @@ func columnQualifier(sql string, offset int) (db, name string) {
 		db = d
 	}
 	return db, n
-}
-
-func isSpaceByte(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
-}
-
-func isIdentByte(b byte) bool {
-	return b == '_' || b == '$' ||
-		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
