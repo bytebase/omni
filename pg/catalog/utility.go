@@ -135,6 +135,14 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				return errUndefinedObject("server", s.Servername)
 			}
 		}
+		var foreignOpts []string
+		if !existed && s.Options != nil {
+			var err error
+			foreignOpts, err = applyForeignOptionChanges(nil, s.Options)
+			if err != nil {
+				return err
+			}
+		}
 		if err := c.DefineRelation(&s.Base, 'f'); err != nil {
 			return err
 		}
@@ -147,13 +155,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			}
 			if rel != nil && rel.RelKind == 'f' {
 				rel.ForeignServer = s.Servername
-				if s.Options != nil {
-					for _, item := range s.Options.Items {
-						if de, ok := item.(*nodes.DefElem); ok {
-							rel.ForeignOptions = append(rel.ForeignOptions, de.Defname+"="+defElemString(de))
-						}
-					}
-				}
+				rel.ForeignOptions = foreignOpts
 			}
 		}
 		return nil

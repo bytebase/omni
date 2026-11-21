@@ -96,6 +96,9 @@ func funcIdentity(c *Catalog, up *UserProc) string {
 
 // funcChanged returns true if any tracked attribute differs between two UserProcs.
 func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
+	if fp.Kind != tp.Kind {
+		return true
+	}
 	if fp.Body != tp.Body || fp.HasSqlBody != tp.HasSqlBody {
 		return true
 	}

@@ -2486,3 +2486,61 @@ func TestApplyDiffToMetadataRound17Fixes(t *testing.T) {
 	require.Len(t, orders.Partitions, 1)
 	require.Equal(t, "part chk doc", orders.Partitions[0].CheckConstraints[0].Comment)
 }
+
+func TestApplyDiffToMetadataRound18Fixes(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{
+			{Name: "pg_fdw", Handler: ""},
+		},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{
+			{Name: "srv", Fdw: "pg_fdw"},
+		},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "good_h", Signature: "good_h()", Definition: "CREATE FUNCTION public.good_h() RETURNS fdw_handler LANGUAGE C STRICT AS 'pg_fdw', 'good_h'"},
+				},
+			},
+			{
+				Name: "hidden",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "hidden_h", Signature: "hidden_h()", Definition: "CREATE FUNCTION hidden.hidden_h() RETURNS fdw_handler LANGUAGE C STRICT AS 'pg_fdw', 'hidden_h'"},
+					{Name: "hidden_v", Signature: "hidden_v(text[], oid)", Definition: "CREATE FUNCTION hidden.hidden_v(text[], oid) RETURNS void LANGUAGE internal STRICT AS 'pg_fdw_validator'"},
+				},
+			},
+		},
+	}
+	cat := New()
+	cat.SetSearchPath([]string{"public"})
+	_, err := cat.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	// 1. Duplicate FDW HANDLER / VALIDATOR clauses must fail without mutating existing FDW.
+	// 2. Unqualified FDW handlers/validators outside search_path must fail.
+	// 3. Duplicate foreign-table options in CREATE FOREIGN TABLE must fail without registering the table.
+	for _, badSQL := range []string{
+		`CREATE FOREIGN DATA WRAPPER dup_h_fdw HANDLER public.good_h HANDLER public.good_h;`,
+		`CREATE FOREIGN DATA WRAPPER dup_v_fdw VALIDATOR hidden.hidden_v VALIDATOR hidden.hidden_v;`,
+		`ALTER FOREIGN DATA WRAPPER pg_fdw HANDLER public.good_h HANDLER public.good_h;`,
+		`CREATE FOREIGN DATA WRAPPER unqual_hidden_h HANDLER hidden_h;`,
+		`CREATE FOREIGN DATA WRAPPER unqual_hidden_v VALIDATOR hidden_v;`,
+		`CREATE FOREIGN TABLE public.bad_ft (id integer) SERVER srv OPTIONS (fmt 'csv', fmt 'json');`,
+	} {
+		res, execErr := cat.Exec(badSQL, nil)
+		require.NoError(t, execErr)
+		require.Len(t, res, 1)
+		require.Error(t, res[0].Error, badSQL)
+	}
+	require.Empty(t, cat.fdws["pg_fdw"].Handler)
+	require.Nil(t, cat.fdws["unqual_hidden_h"])
+	require.Nil(t, cat.fdws["unqual_hidden_v"])
+	require.Nil(t, cat.GetRelation("public", "bad_ft"))
+
+	// Qualified reference to a routine outside search_path still succeeds.
+	res, err := cat.Exec(`CREATE FOREIGN DATA WRAPPER qual_fdw HANDLER hidden.hidden_h VALIDATOR hidden.hidden_v;`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NoError(t, res[0].Error)
+}

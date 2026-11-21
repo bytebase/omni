@@ -5303,3 +5303,65 @@ func TestRound17Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, chgOwnerSQL, `ALTER TABLE "public"."owned_tbl" OWNER TO bob`)
 }
+
+func TestRound18Fixes(t *testing.T) {
+	// 1. Replacing a void function with a procedure drops the function and creates the procedure.
+	fnMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "do_work",
+				Signature:  "do_work(integer)",
+				Definition: "CREATE FUNCTION public.do_work(x integer) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END; $$",
+			}},
+		}},
+	}
+	procMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "do_work",
+				Signature:  "do_work(integer)",
+				Definition: "CREATE PROCEDURE public.do_work(x integer) LANGUAGE plpgsql AS $$ BEGIN END; $$",
+			}},
+		}},
+	}
+	kindSQL, err := testMetadataMigration(fnMeta, procMeta)
+	require.NoError(t, err)
+	require.Contains(t, kindSQL, `DROP FUNCTION "public"."do_work"(integer)`)
+	require.Contains(t, kindSQL, `CREATE PROCEDURE "public"."do_work"("x" integer)`)
+
+	// 2. Database ownership migrations when nonempty database names match.
+	dbOwnerOnlySQL, err := testMetadataMigration(
+		&metadatapb.DatabaseSchemaMetadata{Name: "appdb", Owner: "alice"},
+		&metadatapb.DatabaseSchemaMetadata{Name: "appdb", Owner: "bob"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, `ALTER DATABASE appdb OWNER TO bob`, dbOwnerOnlySQL)
+
+	dbOwnerWithTableSQL, err := testMetadataMigration(
+		&metadatapb.DatabaseSchemaMetadata{
+			Name:    "appdb",
+			Owner:   "alice",
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		},
+		&metadatapb.DatabaseSchemaMetadata{
+			Name:  "appdb",
+			Owner: "bob",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:   "public",
+				Tables: []*metadatapb.TableMetadata{pgTable("t", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})},
+			}},
+		},
+	)
+	require.NoError(t, err)
+	require.Contains(t, dbOwnerWithTableSQL, `CREATE TABLE "public"."t"`)
+	require.Contains(t, dbOwnerWithTableSQL, `ALTER DATABASE appdb OWNER TO bob`)
+
+	noDBOwnerSQL, err := testMetadataMigration(
+		&metadatapb.DatabaseSchemaMetadata{Name: "db_a", Owner: "alice"},
+		&metadatapb.DatabaseSchemaMetadata{Name: "db_b", Owner: "bob"},
+	)
+	require.NoError(t, err)
+	require.Empty(t, noDBOwnerSQL)
+}

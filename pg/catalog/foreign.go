@@ -71,12 +71,18 @@ func (c *Catalog) resolveFdwFuncOptions(funcOpts *nodes.List) (handler, validato
 		}
 		switch strings.ToLower(de.Defname) {
 		case "handler":
+			if hasHandler {
+				return "", "", false, false, errInvalidParameterValue("conflicting or redundant options")
+			}
 			handler, err = c.validateFdwFunc(de, nil, FDWHANDLEROID, "fdw_handler")
 			if err != nil {
 				return "", "", false, false, err
 			}
 			hasHandler = true
 		case "validator":
+			if hasValidator {
+				return "", "", false, false, errInvalidParameterValue("conflicting or redundant options")
+			}
 			validator, err = c.validateFdwFunc(de, []uint32{TEXTARRAYOID, OIDOID}, 0, "")
 			if err != nil {
 				return "", "", false, false, err
@@ -103,24 +109,49 @@ func (c *Catalog) validateFdwFunc(de *nodes.DefElem, expectedArgs []uint32, expe
 		return "", errUndefinedFunction(formatted, expectedArgs)
 	}
 	foundWrongRet := false
-	for _, p := range c.procByName[funcName] {
+	checkProc := func(p *BuiltinProc) (string, bool) {
 		if !slices.Equal(p.ArgTypes, expectedArgs) {
-			continue
-		}
-		if schemaName != "" {
-			up := c.userProcs[p.OID]
-			if schemaName == "pg_catalog" {
-				if up != nil {
-					continue
-				}
-			} else if up == nil || c.schemaByName[schemaName] == nil || up.Schema.OID != c.schemaByName[schemaName].OID {
-				continue
-			}
+			return "", false
 		}
 		if expectedRet == 0 || p.RetType == expectedRet {
-			return formatted, nil
+			return formatted, true
 		}
 		foundWrongRet = true
+		return "", false
+	}
+	if schemaName != "" {
+		ns := c.schemaByName[schemaName]
+		if ns != nil || schemaName == "pg_catalog" {
+			for _, p := range c.procByName[funcName] {
+				up := c.userProcs[p.OID]
+				if schemaName == "pg_catalog" {
+					if up != nil {
+						continue
+					}
+				} else if up == nil || up.Schema == nil || up.Schema.OID != ns.OID {
+					continue
+				}
+				if out, ok := checkProc(p); ok {
+					return out, nil
+				}
+			}
+		}
+	} else {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
+			for _, p := range c.procByName[funcName] {
+				up := c.userProcs[p.OID]
+				procNS := uint32(PGCatalogNamespace)
+				if up != nil && up.Schema != nil {
+					procNS = up.Schema.OID
+				}
+				if procNS != nsOID {
+					continue
+				}
+				if out, ok := checkProc(p); ok {
+					return out, nil
+				}
+			}
+		}
 	}
 	if foundWrongRet {
 		return "", errInvalidObjectDefinition("function " + formatted + " must return type " + retTypeName)

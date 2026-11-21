@@ -48,6 +48,7 @@ const (
 	OpCreateSchema       MigrationOpType = "CreateSchema"
 	OpDropSchema         MigrationOpType = "DropSchema"
 	OpAlterSchema        MigrationOpType = "AlterSchema"
+	OpAlterDatabase      MigrationOpType = "AlterDatabase"
 	OpCreateTable        MigrationOpType = "CreateTable"
 	OpDropTable          MigrationOpType = "DropTable"
 	OpAddColumn          MigrationOpType = "AddColumn"

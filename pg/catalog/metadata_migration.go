@@ -84,7 +84,8 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	diff := Diff(from, to)
 	extraRoutineOps := routineDefaultAlterOps(oldMeta, newMeta, nil, from, to, skipSchemas)
 	extraComments := unloadedCommentOps(oldMeta, newMeta, skipSchemas)
-	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 && len(extraComments) == 0 {
+	extraDatabaseOps := databaseOwnerAlterOps(oldMeta, newMeta)
+	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 && len(extraComments) == 0 && len(extraDatabaseOps) == 0 {
 		return "", nil
 	}
 	if err := rejectAmbiguousUserTypes(oldMeta, newMeta, sourceSearchPath, targetSearchPath, skipSchemas); err != nil {
@@ -103,6 +104,7 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	}
 	restoreRecreatedViewComments(plan, newMeta)
 	appendUnloadedCommentOps(plan, extraComments)
+	plan.Ops = append(plan.Ops, extraDatabaseOps...)
 	plan.Ops = insertSourceOnlyDrops(plan.Ops, sourceDrops)
 	if len(skipSchemas) > 0 {
 		plan = plan.Filter(func(op MigrationOp) bool {
@@ -4625,6 +4627,29 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 		}
 	}
 	return ops
+}
+
+func databaseOwnerAlterOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata) []MigrationOp {
+	if oldMeta == nil || newMeta == nil {
+		return nil
+	}
+	dbName := newMeta.GetName()
+	if oldMeta.GetName() == "" || dbName == "" || oldMeta.GetName() != dbName {
+		return nil
+	}
+	oldOwner, newOwner := oldMeta.GetOwner(), newMeta.GetOwner()
+	if newOwner == "" || oldOwner == newOwner {
+		return nil
+	}
+	return []MigrationOp{{
+		Type:          OpAlterDatabase,
+		ObjectName:    dbName,
+		SQL:           fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", quoteIdentifier(dbName), quoteIdentifier(newOwner)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'd',
+		Priority:      PrioritySchema,
+	}}
 }
 
 func appendUnloadedCommentOps(plan *MigrationPlan, extraOps []MigrationOp) {
