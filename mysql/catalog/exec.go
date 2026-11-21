@@ -2091,6 +2091,51 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				u = n.Uint64()
 			}
 			return userVarValue{kind: userVarString, str: strings.ToUpper(strconv.FormatUint(u, 16))}, true, nil
+		case "bin", "oct":
+			// BIN(N) and OCT(N) are CONV(N, 10, 2) and CONV(N, 10, 8): the
+			// argument's string form is read as a base-10 integer, MySQL's
+			// strntoull, so a number counts only its leading digits (BIN(5.5)
+			// and BIN(1e30) read 5 and 1), a negative wraps to 64 bits, a
+			// positive overflow is all ones and a negative one 0; a hex or bit
+			// literal is its bytes' integer instead (BIN(X'31') is 110001), and
+			// an empty string is NULL (mysql:8.0.46).
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			base := 2
+			if fn == "oct" {
+				base = 8
+			}
+			var u uint64
+			switch {
+			case v.hexLit:
+				if len(v.str) > 8 {
+					return userVarValue{}, false, nil
+				}
+				for i := 0; i < len(v.str); i++ {
+					u = u<<8 | uint64(v.str[i])
+				}
+			case v.kind == userVarString || v.kind == userVarNumeric:
+				s := v.str
+				if v.kind == userVarNumeric && v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						s = setFormatDouble(f)
+					}
+				}
+				if s == "" {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				u = mysqlStrntoull10(s)
+			default:
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarString, str: strconv.FormatUint(u, base)}, true, nil
 		case "unhex":
 			// UNHEX reads its argument's string form as hex digit pairs into a
 			// binary string; an odd count takes a leading 0, and any other
@@ -3720,6 +3765,42 @@ func setStringLengthArg(v userVarValue) (int64, bool) {
 		return math.MinInt64, true
 	}
 	return n.Int64(), true
+}
+
+// mysqlStrntoull10 reads a base-10 integer as MySQL's my_strntoull does:
+// leading whitespace and one sign are skipped, digits are read up to the first
+// other character (none reads 0), a negative value wraps to 64 bits, and an
+// overflow is all ones for a positive value and 0 for a negative one
+// (CONV('-18446744073709551616', 10, 2) is 0 on mysql:8.0.46).
+func mysqlStrntoull10(s string) uint64 {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' || s[i] == '\v' || s[i] == '\f') {
+		i++
+	}
+	neg := false
+	if i < len(s) && (s[i] == '-' || s[i] == '+') {
+		neg = s[i] == '-'
+		i++
+	}
+	var u uint64
+	overflow := false
+	for ; i < len(s) && s[i] >= '0' && s[i] <= '9'; i++ {
+		d := uint64(s[i] - '0')
+		if u > (math.MaxUint64-d)/10 {
+			overflow = true
+			continue
+		}
+		u = u*10 + d
+	}
+	switch {
+	case overflow && neg:
+		return 0
+	case overflow:
+		return math.MaxUint64
+	case neg:
+		return -u
+	}
+	return u
 }
 
 // parseSetNumberPrefixRat parses a leading or full MySQL decimal/scientific

@@ -5318,6 +5318,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET HEX with two arguments", stmt: "SET @x = HEX(1, 2)", code: 1582},
 		{name: "SET LPAD with two arguments", stmt: "SET @x = LPAD('x', 2)", code: 1582},
 		{name: "SET UNHEX with no argument", stmt: "SET @x = UNHEX()", code: 1582},
+		{name: "SET BIN with two arguments", stmt: "SET @x = BIN(1, 2)", code: 1582},
 		// IF, IFNULL, COALESCE, NULLIF and CASE take the type their branches
 		// aggregate to.
 		{name: "functional index over IF(1, b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, b, b))))", code: 3757},
@@ -6556,6 +6557,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LPAD('x', 18446744073709551615, '')", "LPAD('x', 70000000, '0')", "LPAD(1.5e0, 5, '0')", "LPAD('x', -0.4, '0')", "RPAD('é', 3, 'ü')",
 		"UNHEX('31')", "UNHEX('3')", "UNHEX('zz')", "UNHEX('')", "UNHEX(NULL)", "UNHEX('616')", "UNHEX(616263)", "UNHEX('0x61')",
 		"UNHEX('aB')", "UNHEX(' 61')", "UNHEX(1.5)", "UNHEX(12)", "UNHEX(X'3631')", "UNHEX(1e0)",
+		"BIN(1)", "BIN(0)", "BIN(-1)", "BIN(5.5)", "BIN(-5.5)", "BIN('12abc')", "BIN('abc')", "BIN(NULL)", "BIN(1.9e0)", "BIN(2.5e0)",
+		"BIN(18446744073709551615)", "BIN(18446744073709551616)", "BIN(-9223372036854775809)", "BIN(1e30)", "BIN(-1e30)", "BIN('-3')",
+		"BIN(' 7')", "BIN('1e3')", "BIN(X'31')", "BIN(b'101')", "BIN('')", "BIN('   ')", "BIN('0x10')", "BIN(true)", "BIN('-18446744073709551616')",
+		"BIN('-18446744073709551615')", "BIN('+5')", "BIN('--5')", "BIN('-0.5')", "BIN(1e16)", "BIN(_binary'7')",
+		"OCT(8)", "OCT(-1)", "OCT('12')", "OCT(5.5)", "OCT(2.5e0)", "OCT(NULL)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6673,7 +6679,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "(BIN(1) = '1')", "(OCT(8) = '10')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
