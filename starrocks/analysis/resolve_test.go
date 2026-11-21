@@ -105,6 +105,29 @@ func TestResolveQuerySpanTables(t *testing.T) {
 			want:      []string{"testdb.items"},
 		},
 		{
+			name:      "simple CTE",
+			statement: "WITH cte AS (SELECT * FROM users)\nSELECT * FROM cte",
+			want:      []string{"testdb.users"},
+		},
+		{
+			name:      "multiple CTEs",
+			statement: "WITH\ncte1 AS (SELECT * FROM table1),\ncte2 AS (SELECT * FROM table2)\nSELECT * FROM cte1 JOIN cte2",
+			want:      []string{"testdb.table1", "testdb.table2"},
+		},
+		{
+			name:      "nested CTEs",
+			statement: "WITH outer_cte AS (\n  WITH inner_cte AS (SELECT * FROM base_table)\n  SELECT * FROM inner_cte\n)\nSELECT * FROM outer_cte",
+			want:      []string{"testdb.base_table"},
+		},
+		{
+			name: "CTE referencing another CTE",
+			statement: `WITH
+				base_data AS (SELECT id, name, department_id FROM employees WHERE active = true),
+				dept_summary AS (SELECT d.name as dept_name, COUNT(b.id) as emp_count FROM base_data b JOIN departments d ON b.department_id = d.id GROUP BY d.name)
+			SELECT * FROM dept_summary WHERE emp_count > 10`,
+			want: []string{"testdb.employees", "testdb.departments"},
+		},
+		{
 			name:      "EXPLAIN exposes the planned statement's tables",
 			statement: "EXPLAIN SELECT * FROM users",
 			want:      []string{"testdb.users"},
@@ -163,6 +186,8 @@ func TestResolveQuerySpanSystemTables(t *testing.T) {
 		{"SELECT * FROM information_schema.tables", QueryTypeSelectInfoSchema, "information_schema.tables"},
 		{"SELECT table_name FROM information_schema.columns WHERE table_schema = 'testdb'", QueryTypeSelectInfoSchema, "information_schema.columns"},
 		{"SELECT * FROM sys.fe_locks", QueryTypeSelectInfoSchema, "sys.fe_locks"},
+		{"SELECT * FROM sys.grants_to_roles", QueryTypeSelectInfoSchema, "sys.grants_to_roles"},
+		{"SELECT * FROM _statistics_.table_statistics", QueryTypeSelectInfoSchema, "_statistics_.table_statistics"},
 		{"SELECT * FROM _statistics_.column_statistics", QueryTypeSelectInfoSchema, "_statistics_.column_statistics"},
 		{"SELECT * FROM _statistics_.column_statistics c JOIN information_schema.tables t ON c.table_id = t.table_name", QueryTypeSelectInfoSchema, "_statistics_.column_statistics"},
 		{"SELECT * FROM users", QueryTypeSelect, "testdb.users"},
@@ -308,6 +333,8 @@ func TestResolveQuerySpanFailsClosed(t *testing.T) {
 		"SELECT (SELECT 1 */ 2 FROM t2) x FROM t1",
 		"SELECT EXISTS (DELETE FROM secret) FROM public",
 		"SELECT EXISTS () FROM public",
+		"EXPLAIN DROP TABLE users",
+		"EXPLAIN ANALYZE TRUNCATE TABLE users",
 	} {
 		if _, err := ResolveQuerySpan(statement, ResolveOptions{DefaultDatabase: "db1"}); err == nil {
 			t.Errorf("ResolveQuerySpan(%q) accepted invalid SQL", statement)

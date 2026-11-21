@@ -57,15 +57,18 @@ func TestQueryTypeClassification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			queryType, isAnalyze := queryTypeOfText(t, tt.sql)
+			file, err := parser.Parse(tt.sql)
+			require.NoError(t, err)
+			require.Len(t, file.Stmts, 1)
+			node := file.Stmts[0]
+
+			queryType, isAnalyze := QueryTypeOf(node)
 			assert.Equal(t, tt.wantQueryType, queryType, "Query type mismatch")
 			assert.Equal(t, tt.wantIsAnalyze, isAnalyze, "isAnalyze mismatch")
 
-			if tt.wantQueryType == Select || tt.wantQueryType == Explain || tt.wantQueryType == SelectInfoSchema {
-				file, err := parser.Parse(tt.sql)
-				require.NoError(t, err)
-				assert.True(t, IsReadOnlyStatement(file.Stmts[0]), "Should be read-only")
-			}
+			assert.Equal(t, tt.wantQueryType == Select || tt.wantQueryType == Explain || tt.wantQueryType == SelectInfoSchema, IsReadOnlyStatement(node), "IsReadOnlyStatement mismatch")
+			assert.Equal(t, tt.wantQueryType == DML, IsDataChangingStatement(node), "IsDataChangingStatement mismatch")
+			assert.Equal(t, tt.wantQueryType == DDL, IsSchemaChangingStatement(node), "IsSchemaChangingStatement mismatch")
 		})
 	}
 }
@@ -89,6 +92,8 @@ func TestQueryTypeFromText(t *testing.T) {
 		{"SELECT * FROM users", Select},
 		{"SELECT * FROM system.runtime.nodes", SelectInfoSchema},
 		{"SELECT * FROM information_schema.tables", SelectInfoSchema},
+		{"SELECT * FROM catalog.schemas", SelectInfoSchema},
+		{"SELECT * FROM metadata.schemas", SelectInfoSchema},
 		{"EXPLAIN SELECT * FROM system.runtime.nodes", SelectInfoSchema},
 		{"INSERT INTO users VALUES (1)", DML},
 		{"", Unknown},
