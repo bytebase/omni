@@ -2353,4 +2353,18 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, coercedAndSetOp, `SELECT to_base(q.n, 16) AS s FROM (TABLE "cat"."s".t) q;`)
+
+	// avg over an interval stays an interval, so to_milliseconds keeps its
+	// interval built-in instead of a same-schema to_milliseconds(double).
+	avgInterval, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "s",
+			Tables:    []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "x", Type: "interval day to second"}}}},
+			Functions: []*metadatapb.FunctionMetadata{{Name: "to_milliseconds", Definition: "CREATE FUNCTION s.to_milliseconds(x double) RETURNS bigint RETURN 0"}},
+			Views:     []*metadatapb.ViewMetadata{{Name: "v_avg", Definition: "SELECT to_milliseconds(avg(x)) AS ms FROM t"}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, avgInterval, `SELECT to_milliseconds(avg(x)) AS ms FROM "cat"."s".t;`)
 }

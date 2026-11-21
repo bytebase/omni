@@ -3819,7 +3819,7 @@ func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
 		return "bigint"
 	case "lower", "upper", "trim", "ltrim", "rtrim", "concat_ws", "array_join", "substr", "substring", "replace", "split_part", "regexp_extract", "regexp_replace", "format", "chr", "url_encode", "url_decode", "to_hex", "json_format":
 		return "varchar"
-	case "sqrt", "cbrt", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "ln", "log", "log2", "log10", "pow", "power", "radians", "degrees", "avg", "stddev", "stddev_pop", "stddev_samp", "variance", "var_pop", "var_samp", "corr", "covar_pop", "covar_samp", "infinity", "nan", "pi", "e":
+	case "sqrt", "cbrt", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "exp", "ln", "log", "log2", "log10", "pow", "power", "radians", "degrees", "stddev", "stddev_pop", "stddev_samp", "variance", "var_pop", "var_samp", "corr", "covar_pop", "covar_samp", "infinity", "nan", "pi", "e":
 		return "double"
 	case "is_nan", "is_finite", "is_infinite", "isnan", "isinf", "regexp_like", "arrays_overlap", "contains", "all_match", "any_match", "none_match", "starts_with", "ends_with":
 		return "boolean"
@@ -3838,6 +3838,20 @@ func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
 			res = trinoConcatResultType(res, at)
 		}
 		return res
+	case "avg":
+		// avg keeps a decimal, interval or real argument's type and averages
+		// every other numeric type as a double
+		// (https://trino.io/docs/current/functions/aggregate.html#avg).
+		if len(argTypes) != 1 || argTypes[0] == "" {
+			return ""
+		}
+		at := argTypes[0]
+		base, _, _ := splitParameterizedType(at)
+		switch {
+		case at == "decimal" || base == "decimal", strings.HasPrefix(at, "interval"), at == "real":
+			return at
+		}
+		return "double"
 	case "greatest", "least", "coalesce", "mod":
 		// The result is the common type its arguments coerce to.
 		res := ""
