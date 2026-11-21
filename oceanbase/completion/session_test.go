@@ -184,3 +184,152 @@ func TestCompleteSession_BrokenTrailingStatementScalesLinearly(t *testing.T) {
 	require.True(t, containsCandidate(got, "c2", CandidateColumn))
 	require.Less(t, elapsed, 2*time.Second)
 }
+
+func TestCompleteSession_All12ReproScenarios(t *testing.T) {
+	remoteMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "remote",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "orders",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "order_id"}, {Name: "amount"}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "order_view",
+				Definition: "SELECT order_id FROM orders",
+			}},
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "sync_orders",
+				Definition: "CREATE PROCEDURE sync_orders() BEGIN SELECT 1; END",
+			}},
+		}},
+	}
+	appMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "appdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "orders", Columns: []*metadatapb.ColumnMetadata{{Name: "local_col"}}},
+				{Name: "café_tbl", Columns: []*metadatapb.ColumnMetadata{{Name: "id"}}},
+				{Name: "sales$archive", Columns: []*metadatapb.ColumnMetadata{{Name: "id"}}},
+			},
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "LEFT", Definition: "CREATE FUNCTION `LEFT`() RETURNS INT RETURN 1"},
+				{Name: "my-func", Definition: "CREATE FUNCTION `my-func`() RETURNS INT RETURN 1"},
+			},
+		}},
+	}
+	upperFoo := &metadatapb.DatabaseSchemaMetadata{
+		Name: "Foo",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "up",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "up_col"}},
+			}},
+		}},
+	}
+	lowerFoo := &metadatapb.DatabaseSchemaMetadata{
+		Name: "foo",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "lo",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "lo_col"}},
+			}},
+		}},
+	}
+
+	cfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "remote"}, nil
+		},
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			switch db {
+			case "appdb":
+				return db, appMeta, true, true
+			case "remote":
+				return db, remoteMeta, true, true
+			default:
+				return "", nil, true, false
+			}
+		},
+	}
+
+	gotCall := CompleteSession(context.Background(), cfg, "CALL remote.", 1, len("CALL remote."))
+	require.True(t, containsCandidate(gotCall, "sync_orders", CandidateProcedure), "got %v", gotCall)
+	require.False(t, containsCandidate(gotCall, "orders", CandidateTable), "got %v", gotCall)
+	require.False(t, containsCandidate(gotCall, "order_view", CandidateView), "got %v", gotCall)
+
+	gotDropView := CompleteSession(context.Background(), cfg, "DROP VIEW remote.", 1, len("DROP VIEW remote."))
+	require.True(t, containsCandidate(gotDropView, "order_view", CandidateView), "got %v", gotDropView)
+	require.False(t, containsCandidate(gotDropView, "orders", CandidateTable), "got %v", gotDropView)
+
+	gotCTE := CompleteSession(context.Background(), cfg, "WITH c AS (SELECT * FROM remote.orders) SELECT c. FROM c", 1, len("WITH c AS (SELECT * FROM remote.orders) SELECT c."))
+	require.True(t, containsCandidate(gotCTE, "order_id", CandidateColumn), "got %v", gotCTE)
+	require.True(t, containsCandidate(gotCTE, "amount", CandidateColumn), "got %v", gotCTE)
+	require.False(t, containsCandidate(gotCTE, "local_col", CandidateColumn), "got %v", gotCTE)
+
+	gotBacktick := CompleteSession(context.Background(), cfg, "SELECT * FROM `or", 1, len("SELECT * FROM `or"))
+	require.True(t, containsCandidate(gotBacktick, "orders", CandidateTable), "got %v", gotBacktick)
+
+	gotUnicode := CompleteSession(context.Background(), cfg, "SELECT * FROM café", 1, len("SELECT * FROM café"))
+	require.True(t, containsCandidate(gotUnicode, "café_tbl", CandidateTable), "got %v", gotUnicode)
+
+	gotDollar := CompleteSession(context.Background(), cfg, "SELECT * FROM sales$a", 1, len("SELECT * FROM sales$a"))
+	require.True(t, containsCandidate(gotDollar, "sales$archive", CandidateTable), "got %v", gotDollar)
+
+	csCfg := SessionConfig{
+		DefaultDatabase: "foo",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			switch db {
+			case "Foo":
+				return db, upperFoo, true, true
+			case "foo":
+				return db, lowerFoo, true, true
+			default:
+				return "", nil, true, false
+			}
+		},
+	}
+	gotBothCS := CompleteSession(context.Background(), csCfg, "SELECT  FROM Foo.up JOIN foo.lo", 1, len("SELECT "))
+	require.True(t, containsCandidate(gotBothCS, "up_col", CandidateColumn), "got %v", gotBothCS)
+	require.True(t, containsCandidate(gotBothCS, "lo_col", CandidateColumn), "got %v", gotBothCS)
+
+	gotWrongCase := CompleteSession(context.Background(), csCfg, "SELECT * FROM FOO.", 1, len("SELECT * FROM FOO."))
+	require.False(t, containsCandidate(gotWrongCase, "lo", CandidateTable), "got %v", gotWrongCase)
+
+	gotCommentDot := CompleteSession(context.Background(), cfg, "SELECT * FROM remote /* note */ .", 1, len("SELECT * FROM remote /* note */ ."))
+	require.True(t, containsCandidate(gotCommentDot, "orders", CandidateTable), "got %v", gotCommentDot)
+	require.False(t, containsCandidate(gotCommentDot, "café_tbl", CandidateTable), "got %v", gotCommentDot)
+
+	gotUsingComma := CompleteSession(context.Background(), cfg, "SELECT * FROM t JOIN u USING (id), remote.", 1, len("SELECT * FROM t JOIN u USING (id), remote."))
+	require.True(t, containsCandidate(gotUsingComma, "orders", CandidateTable), "got %v", gotUsingComma)
+
+	gotOnComma := CompleteSession(context.Background(), cfg, "SELECT * FROM t JOIN u ON t.id=u.id, remote.", 1, len("SELECT * FROM t JOIN u ON t.id=u.id, remote."))
+	require.True(t, containsCandidate(gotOnComma, "orders", CandidateTable), "got %v", gotOnComma)
+
+	noDefCfg := cfg
+	noDefCfg.DefaultDatabase = ""
+	gotNoDef := CompleteSession(context.Background(), noDefCfg, "SELECT * FROM  JOIN remote.orders", 1, len("SELECT * FROM "))
+	require.False(t, containsCandidate(gotNoDef, "orders", CandidateTable), "got %v", gotNoDef)
+
+	gotMissing := CompleteSession(context.Background(), cfg, "SELECT * FROM  JOIN missing.t", 1, len("SELECT * FROM "))
+	require.True(t, containsCandidate(gotMissing, "remote", CandidateDatabase), "got %v", gotMissing)
+	require.False(t, containsCandidate(gotMissing, "missing", CandidateDatabase), "got %v", gotMissing)
+
+	gotDropLeft := CompleteSession(context.Background(), cfg, "DROP FUNCTION LEF", 1, len("DROP FUNCTION LEF"))
+	require.True(t, containsCandidate(gotDropLeft, "`LEFT`", CandidateFunction), "got %v", gotDropLeft)
+	require.False(t, containsCandidate(gotDropLeft, "LEFT", CandidateFunction), "got %v", gotDropLeft)
+
+	roCfg := cfg
+	roCfg.ReadOnly = true
+	gotNestedRO := CompleteSession(context.Background(), roCfg, "WITH c AS (WITH d AS (SELECT 1) SELECT * FROM d) ", 1, len("WITH c AS (WITH d AS (SELECT 1) SELECT * FROM d) "))
+	require.True(t, containsCandidate(gotNestedRO, "SELECT", CandidateKeyword), "got %v", gotNestedRO)
+	require.False(t, containsCandidate(gotNestedRO, "UPDATE", CandidateKeyword), "got %v", gotNestedRO)
+	require.False(t, containsCandidate(gotNestedRO, "DELETE", CandidateKeyword), "got %v", gotNestedRO)
+
+	gotCommentParen := CompleteSession(context.Background(), cfg, "SELECT my /* note */ ()", 1, len("SELECT my"))
+	require.True(t, containsCandidate(gotCommentParen, "`my-func`", CandidateFunction), "got %v", gotCommentParen)
+	require.False(t, containsCandidate(gotCommentParen, "`my-func`()", CandidateFunction), "got %v", gotCommentParen)
+
+	require.False(t, StatementReferencesDatabase("SELECT `old.db.foo` FROM t", "db"))
+	require.True(t, StatementReferencesDatabase("SELECT * FROM `a``b`.t", "a`b"))
+}

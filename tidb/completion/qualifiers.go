@@ -3,7 +3,6 @@ package completion
 import (
 	"slices"
 	"strings"
-	"unicode/utf8"
 )
 
 type qualToken struct {
@@ -499,7 +498,9 @@ func analyzeStatementQualifiers(statement string, pos int, defaultDB string, cas
 		case "ON":
 			sc.inTableClause = sc.afterDDLOnObj
 			sc.inInsertReplaceTarget = false
-			sc.allowCommaTable = false
+			if sc.afterDDLOnObj {
+				sc.allowCommaTable = false
+			}
 			sc.afterDDLOnObj = false
 		case "FROM":
 			if sc.isSubquery || len(scopes) == 1 {
@@ -553,7 +554,6 @@ func analyzeStatementQualifiers(statement string, pos int, defaultDB string, cas
 			sc.inInsertReplaceTarget = false
 			if sc.stmtVerb != "DELETE" && i+1 < len(toks) && toks[i+1].punct == '(' {
 				sc.inTableClause = false
-				sc.allowCommaTable = false
 			} else {
 				sc.inTableClause = true
 				sc.allowCommaTable = true
@@ -680,35 +680,21 @@ func analyzeStatementQualifiers(statement string, pos int, defaultDB string, cas
 }
 
 // StatementReferencesDatabase reports whether dbName appears as a database
-// qualifier (`dbName.`) in statement, at an identifier boundary.
+// qualifier (`dbName.`) in statement, at an identifier token boundary.
 func StatementReferencesDatabase(statement, dbName string) bool {
 	if dbName == "" {
 		return false
 	}
-	s := strings.ToLower(stripStringsAndComments(statement))
-	name := strings.ToLower(dbName)
-	for _, q := range []string{name, "`" + name + "`"} {
-		from := 0
-		for {
-			i := strings.Index(s[from:], q)
-			if i < 0 {
-				break
-			}
-			at := from + i
-			from = at + 1
-			if q[0] != '`' && at > 0 {
-				prev, _ := utf8.DecodeLastRuneInString(s[:at])
-				if isIdentRune(prev) {
-					continue
-				}
-			}
-			j := at + len(q)
-			for j < len(s) && isSpaceByte(s[j]) {
-				j++
-			}
-			if j < len(s) && s[j] == '.' {
-				return true
-			}
+	toks := scanQualTokens(statement)
+	for i := 0; i+1 < len(toks); i++ {
+		if !toks[i].isWord || toks[i+1].punct != '.' {
+			continue
+		}
+		if i > 0 && toks[i-1].punct == '.' {
+			continue
+		}
+		if strings.EqualFold(toks[i].text, dbName) {
+			return true
 		}
 	}
 	return false

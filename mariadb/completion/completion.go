@@ -36,18 +36,27 @@ type Candidate struct {
 	Comment    string        // optional doc comment
 }
 
+type resolveOptions struct {
+	caseSensitive         bool
+	disableColumnFallback bool
+}
+
 // Complete returns completion candidates for the given SQL at the cursor offset.
 // cat may be nil if no catalog context is available.
 func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
-	prefix := extractPrefix(sql, cursorOffset)
+	return completeInContext(sql, cursorOffset, cat, resolveOptions{})
+}
 
-	// When the cursor is mid-token, back up to the start of the token
-	// so the parser sees the position before the partial text.
-	collectOffset := cursorOffset - len(prefix)
+func completeInContext(sql string, cursorOffset int, cat *catalog.Catalog, opts resolveOptions) []Candidate {
+	prefix, collectOffset, inBacktick := extractIdentTokenAt(sql, cursorOffset)
+	collectSQL := sql
+	if inBacktick {
+		collectSQL = cleanSQLForBacktickCollect(sql, collectOffset, cursorOffset)
+	}
 
-	result := standardComplete(sql, collectOffset, cat)
+	result := standardCompleteWithOptions(collectSQL, collectOffset, cat, opts)
 	if len(result) == 0 {
-		result = trickyComplete(sql, collectOffset, cat)
+		result = trickyCompleteWithOptions(collectSQL, collectOffset, cat, opts)
 	}
 
 	return filterByPrefix(result, prefix)
@@ -55,20 +64,8 @@ func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 
 // extractPrefix returns the partial token the user is typing at cursorOffset.
 func extractPrefix(sql string, cursorOffset int) string {
-	if cursorOffset > len(sql) {
-		cursorOffset = len(sql)
-	}
-	i := cursorOffset
-	for i > 0 {
-		c := sql[i-1]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '_' {
-			i--
-		} else {
-			break
-		}
-	}
-	return sql[i:cursorOffset]
+	prefix, _, _ := extractIdentTokenAt(sql, cursorOffset)
+	return prefix
 }
 
 // filterByPrefix filters candidates whose text starts with prefix (case-insensitive).
@@ -89,13 +86,21 @@ func filterByPrefix(candidates []Candidate, prefix string) []Candidate {
 // standardComplete collects parser-level candidates using Collect, then
 // resolves them against the catalog.
 func standardComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
+	return standardCompleteWithOptions(sql, cursorOffset, cat, resolveOptions{})
+}
+
+func standardCompleteWithOptions(sql string, cursorOffset int, cat *catalog.Catalog, opts resolveOptions) []Candidate {
 	cs := parser.Collect(sql, cursorOffset)
-	return resolve(cs, cat, sql, cursorOffset)
+	return resolveWithOptions(cs, cat, sql, cursorOffset, opts)
 }
 
 // trickyComplete handles edge cases that the standard C3 approach cannot
 // resolve (e.g., partially typed identifiers in ambiguous positions).
 func trickyComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
+	return trickyCompleteWithOptions(sql, cursorOffset, cat, resolveOptions{})
+}
+
+func trickyCompleteWithOptions(sql string, cursorOffset int, cat *catalog.Catalog, opts resolveOptions) []Candidate {
 	if cursorOffset > len(sql) {
 		cursorOffset = len(sql)
 	}
@@ -114,7 +119,7 @@ func trickyComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candid
 	for _, patched := range strategies {
 		cs := parser.Collect(patched, cursorOffset)
 		if cs != nil && (len(cs.Tokens) > 0 || len(cs.Rules) > 0) {
-			return resolve(cs, cat, sql, cursorOffset)
+			return resolveWithOptions(cs, cat, sql, cursorOffset, opts)
 		}
 	}
 	return nil
@@ -123,6 +128,10 @@ func trickyComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candid
 // resolve converts parser CandidateSet into typed Candidate values.
 // Token candidates become keywords; rule candidates are resolved against the catalog.
 func resolve(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	return resolveWithOptions(cs, cat, sql, cursorOffset, resolveOptions{})
+}
+
+func resolveWithOptions(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int, opts resolveOptions) []Candidate {
 	if cs == nil {
 		return nil
 	}
@@ -138,7 +147,7 @@ func resolve(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOf
 	}
 
 	// Rule candidates -> catalog objects
-	result = append(result, resolveRules(cs, cat, sql, cursorOffset)...)
+	result = append(result, resolveRulesWithOptions(cs, cat, sql, cursorOffset, opts)...)
 
 	return dedup(result)
 }

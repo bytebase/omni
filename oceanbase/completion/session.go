@@ -66,23 +66,38 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	stmt, pos := currentStatement(statement, bytePos)
 	pos = max(0, min(pos, len(stmt)))
 
-	cat := catalog.New()
-	populateCatalog(
-		ctx,
-		cfg,
-		stmt,
-		pos,
-		hasDatabaseRule,
-		func(name string) {
-			_ = cat.DefineDatabase(&ast.CreateDatabaseStmt{Name: name, IfNotExists: true})
-		},
-		func(name string, meta *metadatapb.DatabaseSchemaMetadata) {
-			_, _ = cat.LoadMetadataInto(ctx, meta, name)
-		},
-		cat.SetCurrentDatabase,
-	)
+	plan := buildSessionCatalogPlan(ctx, cfg, stmt, pos, hasDatabaseRule)
 
-	return postProcessSessionCandidates(stmt, pos, cfg.ReadOnly, Complete(stmt, pos, cat), hasFunctionInvocationRule)
+	loadBucketCatalog := func(entries []sessionCatalogEntry, currentDBName string) *catalog.Catalog {
+		cat := catalog.New()
+		for _, entry := range entries {
+			if entry.meta != nil {
+				_, _ = cat.LoadMetadataInto(ctx, entry.meta, entry.name)
+			} else {
+				_ = cat.DefineDatabase(&ast.CreateDatabaseStmt{Name: entry.name, IfNotExists: true})
+			}
+		}
+		cat.SetCurrentDatabase(currentDBName)
+		return cat
+	}
+
+	cat0 := loadBucketCatalog(plan.primaryEntries, plan.primaryCurrentDB)
+	raw := completeInContext(stmt, pos, cat0, resolveOptions{caseSensitive: plan.caseSensitive})
+	for _, extra := range plan.extraBuckets {
+		catK := loadBucketCatalog(extra.entries, extra.currentDB)
+		extraRaw := completeInContext(stmt, pos, catK, resolveOptions{
+			caseSensitive:         plan.caseSensitive,
+			disableColumnFallback: true,
+		})
+		for _, c := range extraRaw {
+			if c.Type == CandidateKeyword || c.Type == CandidateType_ || c.Type == CandidateCharset || c.Type == CandidateEngine || c.Type == CandidateVariable {
+				continue
+			}
+			raw = append(raw, c)
+		}
+	}
+
+	return postProcessSessionCandidates(stmt, pos, cfg.ReadOnly, raw, hasFunctionInvocationRule)
 }
 
 func postProcessSessionCandidates(
@@ -93,15 +108,15 @@ func postProcessSessionCandidates(
 	isFuncInvocation func(stmt string, pos int) bool,
 ) []Candidate {
 	caretInBacktick := CaretInsideBacktickIdentifier(stmt, pos)
-	_, _, dbQualified := identBeforeDot(stmt, max(0, pos-extractIdentPrefixLen(stmt, pos)))
-	var funcInvocationChecked bool
-	var appendFuncParens bool
-	shouldAppendFuncParens := func() bool {
-		if !funcInvocationChecked {
-			funcInvocationChecked = true
-			appendFuncParens = !caretInBacktick && !hasFollowingOpenParen(stmt, pos) && (isFuncInvocation == nil || isFuncInvocation(stmt, pos))
+	_, collectOffset, _ := extractIdentTokenAt(stmt, pos)
+	_, _, dbQualified := identBeforeDot(stmt, collectOffset)
+	var funcContextChecked, inInvocation, followParen bool
+	ensureFuncContext := func() {
+		if !funcContextChecked {
+			funcContextChecked = true
+			inInvocation = isFuncInvocation == nil || isFuncInvocation(stmt, pos)
+			followParen = hasFollowingOpenParen(stmt, pos)
 		}
-		return appendFuncParens
 	}
 
 	type candKey struct {
@@ -116,13 +131,15 @@ func postProcessSessionCandidates(
 		case isObjectIdentifierCandidate(c.Type):
 			text = QuoteIdentifierIfNeeded(c.Text, caretInBacktick)
 		case c.Type == CandidateFunction:
-			// Preserve built-in function syntax unquoted (several built-ins such
-			// as IF/LEFT/REPLACE are reserved keywords); quote catalog stored
-			// functions using the complete raw identifier before attaching call parens.
-			if caretInBacktick || dbQualified || !isBuiltinFunction(text) {
+			ensureFuncContext()
+			// Preserve built-in function syntax unquoted only in expression
+			// invocation positions (several built-ins such as IF/LEFT/REPLACE
+			// are reserved keywords); quote catalog stored functions and any
+			// routine DDL/SHOW targets using the complete identifier.
+			if caretInBacktick || dbQualified || !inInvocation || !isBuiltinFunction(text) {
 				text = QuoteIdentifierIfNeeded(text, caretInBacktick)
 			}
-			if shouldAppendFuncParens() {
+			if !caretInBacktick && inInvocation && !followParen {
 				text += "()"
 			}
 		default:
@@ -163,6 +180,24 @@ func postProcessSessionCandidates(
 	return result
 }
 
+type sessionCatalogEntry struct {
+	name string
+	meta *metadatapb.DatabaseSchemaMetadata
+}
+
+type sessionCatalogBucket struct {
+	entries   []sessionCatalogEntry
+	currentDB string
+}
+
+type sessionCatalogPlan struct {
+	defaultName      string
+	primaryCurrentDB string
+	caseSensitive    bool
+	primaryEntries   []sessionCatalogEntry
+	extraBuckets     []sessionCatalogBucket
+}
+
 func populateCatalog(
 	ctx context.Context,
 	cfg SessionConfig,
@@ -173,6 +208,24 @@ func populateCatalog(
 	loadDB func(name string, meta *metadatapb.DatabaseSchemaMetadata),
 	setCurrentDB func(name string),
 ) {
+	plan := buildSessionCatalogPlan(ctx, cfg, statement, pos, hasDBRule)
+	for _, entry := range plan.primaryEntries {
+		if entry.meta != nil {
+			loadDB(entry.name, entry.meta)
+		} else {
+			registerDB(entry.name)
+		}
+	}
+	setCurrentDB(plan.primaryCurrentDB)
+}
+
+func buildSessionCatalogPlan(
+	ctx context.Context,
+	cfg SessionConfig,
+	statement string,
+	pos int,
+	hasDBRule func(sql string, offset int) bool,
+) sessionCatalogPlan {
 	suggestsDB := hasDBRule != nil && suggestsDatabaseRef(statement, pos, hasDBRule)
 
 	var allNames []string
@@ -206,28 +259,11 @@ func populateCatalog(
 	caseSensitive := true
 	defaultLoaded := false
 	seen := map[string]bool{}
-	// Omni's catalog stores databases under lowercased keys and merges
-	// subsequent LoadMetadataInto calls targeting the same lowercased key.
-	// Track loaded lowercased catalog slots so case-colliding siblings (e.g.
-	// `Foo` vs `foo`) never merge their objects into the prioritized database.
-	loadedCatalogSlots := map[string]bool{}
 	keyFor := func(name string) string {
 		if caseSensitive {
 			return name
 		}
 		return strings.ToLower(name)
-	}
-	loadOnceIntoCatalog := func(name string, meta *metadatapb.DatabaseSchemaMetadata) {
-		slot := strings.ToLower(name)
-		if loadedCatalogSlots[slot] {
-			return
-		}
-		loadedCatalogSlots[slot] = true
-		if meta != nil {
-			loadDB(name, meta)
-		} else {
-			registerDB(name)
-		}
 	}
 
 	defaultName := cfg.DefaultDatabase
@@ -258,14 +294,10 @@ func populateCatalog(
 		}
 	}
 	deferDefault := caseSensitive && shouldDeferDefaultDB(defaultName, caretDBs)
-	loadDefault := func() {
-		if cfg.LoadDatabase == nil || defaultName == "" {
-			return
-		}
-		loadOnceIntoCatalog(defaultName, defaultProto)
-	}
-	if !deferDefault {
-		loadDefault()
+
+	var orderedEntries []sessionCatalogEntry
+	if !deferDefault && cfg.LoadDatabase != nil && defaultName != "" && defaultLoaded {
+		orderedEntries = append(orderedEntries, sessionCatalogEntry{name: defaultName, meta: defaultProto})
 	}
 
 	if cfg.LoadDatabase != nil {
@@ -279,16 +311,14 @@ func populateCatalog(
 			if seen[keyFor(loadName)] {
 				continue
 			}
-			if caseSensitive && loadedCatalogSlots[strings.ToLower(loadName)] {
-				seen[keyFor(loadName)] = true
-				seen[keyFor(q)] = true
-				continue
-			}
 			var proto *metadatapb.DatabaseSchemaMetadata
 			var found bool
-			if resolvedName, p, _, ok := cfg.LoadDatabase(ctx, loadName); ok {
+			if resolvedName, p, cs, ok := cfg.LoadDatabase(ctx, loadName); ok {
 				if resolvedName != "" {
 					loadName = resolvedName
+				}
+				if !defaultLoaded {
+					caseSensitive = cs
 				}
 				proto = p
 				found = true
@@ -299,6 +329,9 @@ func populateCatalog(
 						if resolvedName != "" {
 							loadName = resolvedName
 						}
+						if !defaultLoaded {
+							caseSensitive = cs
+						}
 						proto = p
 						found = true
 					}
@@ -306,28 +339,96 @@ func populateCatalog(
 			}
 			seen[keyFor(loadName)] = true
 			seen[keyFor(q)] = true
-			if found && proto != nil {
-				loadOnceIntoCatalog(loadName, proto)
-			} else if suggestsDB {
-				loadOnceIntoCatalog(loadName, nil)
+			if found && (proto != nil || suggestsDB) {
+				orderedEntries = append(orderedEntries, sessionCatalogEntry{name: loadName, meta: proto})
 			}
 		}
 	}
-	if deferDefault {
-		loadDefault()
+	if deferDefault && cfg.LoadDatabase != nil && defaultName != "" && defaultLoaded {
+		orderedEntries = append(orderedEntries, sessionCatalogEntry{name: defaultName, meta: defaultProto})
 	}
-
 	if suggestsDB {
 		for _, name := range allNames {
 			if !seen[keyFor(name)] {
 				seen[keyFor(name)] = true
-				registerDB(name)
+				orderedEntries = append(orderedEntries, sessionCatalogEntry{name: name})
 			}
 		}
 	}
 
-	if defaultName != "" {
-		setCurrentDB(defaultName)
+	// Omni's catalog stores databases under lowercased keys, so distinct
+	// case-sensitive siblings (e.g. `Foo` vs `foo`) cannot coexist in one
+	// Catalog instance. Place the prioritized sibling in primaryEntries and
+	// overflow colliding siblings into isolated extra buckets alongside all
+	// non-colliding loaded databases.
+	slotCounts := make(map[string]int, len(orderedEntries))
+	for _, entry := range orderedEntries {
+		slotCounts[strings.ToLower(entry.name)]++
+	}
+
+	primarySlots := make(map[string]bool, len(orderedEntries))
+	var primaryEntries []sessionCatalogEntry
+	var primaryCurrentDB string
+	var nonCollidingLoaded []sessionCatalogEntry
+	var overflowEntries []sessionCatalogEntry
+
+	for _, entry := range orderedEntries {
+		slot := strings.ToLower(entry.name)
+		if !primarySlots[slot] {
+			primarySlots[slot] = true
+			primaryEntries = append(primaryEntries, entry)
+			if entry.name == defaultName {
+				primaryCurrentDB = defaultName
+			}
+			if slotCounts[slot] == 1 && entry.meta != nil {
+				nonCollidingLoaded = append(nonCollidingLoaded, entry)
+			}
+		} else if caseSensitive {
+			overflowEntries = append(overflowEntries, entry)
+		}
+	}
+
+	var extraBuckets []sessionCatalogBucket
+	if len(overflowEntries) > 0 {
+		remaining := overflowEntries
+		for len(remaining) > 0 {
+			bucketSlots := make(map[string]bool)
+			var bucketEntries []sessionCatalogEntry
+			var bucketCurrentDB string
+			for _, entry := range nonCollidingLoaded {
+				bucketSlots[strings.ToLower(entry.name)] = true
+				bucketEntries = append(bucketEntries, entry)
+				if entry.name == defaultName {
+					bucketCurrentDB = defaultName
+				}
+			}
+			var nextRemaining []sessionCatalogEntry
+			for _, entry := range remaining {
+				slot := strings.ToLower(entry.name)
+				if !bucketSlots[slot] {
+					bucketSlots[slot] = true
+					bucketEntries = append(bucketEntries, entry)
+					if entry.name == defaultName {
+						bucketCurrentDB = defaultName
+					}
+				} else {
+					nextRemaining = append(nextRemaining, entry)
+				}
+			}
+			extraBuckets = append(extraBuckets, sessionCatalogBucket{
+				entries:   bucketEntries,
+				currentDB: bucketCurrentDB,
+			})
+			remaining = nextRemaining
+		}
+	}
+
+	return sessionCatalogPlan{
+		defaultName:      defaultName,
+		primaryCurrentDB: primaryCurrentDB,
+		caseSensitive:    caseSensitive,
+		primaryEntries:   primaryEntries,
+		extraBuckets:     extraBuckets,
 	}
 }
 
@@ -375,12 +476,16 @@ func suggestsDatabaseRef(stmt string, pos int, hasDBRule func(sql string, offset
 
 func suggestsRule(stmt string, pos int, hasRule func(sql string, offset int) bool) bool {
 	pos = max(0, min(pos, len(stmt)))
-	collectOffset := pos - extractIdentPrefixLen(stmt, pos)
-	if hasRule(stmt, collectOffset) {
+	_, collectOffset, inBacktick := extractIdentTokenAt(stmt, pos)
+	testStmt := stmt
+	if inBacktick {
+		testStmt = cleanSQLForBacktickCollect(stmt, collectOffset, pos)
+	}
+	if hasRule(testStmt, collectOffset) {
 		return true
 	}
-	prefix := stmt[:collectOffset]
-	suffix := stmt[collectOffset:]
+	prefix := testStmt[:collectOffset]
+	suffix := testStmt[collectOffset:]
 	for _, patched := range []string{
 		prefix + " __placeholder__" + suffix,
 		prefix + " __placeholder__ " + suffix,
@@ -394,38 +499,24 @@ func suggestsRule(stmt string, pos int, hasRule func(sql string, offset int) boo
 }
 
 func extractIdentPrefixLen(sql string, cursorOffset int) int {
-	end := max(0, min(cursorOffset, len(sql)))
-	i := end
-	for i > 0 {
-		if c := sql[i-1]; c < utf8.RuneSelf {
-			if !isIdentByte(c) {
-				break
-			}
-			i--
-			continue
-		}
-		r, size := utf8.DecodeLastRuneInString(sql[:i])
-		if r == utf8.RuneError || !isIdentRune(r) {
-			break
-		}
-		i -= size
-	}
-	return end - i
+	prefix, _, _ := extractIdentTokenAt(sql, cursorOffset)
+	return len(prefix)
 }
 
 func hasFollowingOpenParen(sql string, pos int) bool {
-	i := max(0, min(pos, len(sql)))
-	for i < len(sql) {
-		sz, isIdent := nextIdentRune(sql, i)
+	masked := stripStringsAndComments(sql)
+	i := max(0, min(pos, len(masked)))
+	for i < len(masked) {
+		sz, isIdent := nextIdentRune(masked, i)
 		if !isIdent {
 			break
 		}
 		i += sz
 	}
-	for i < len(sql) && isSpaceByte(sql[i]) {
+	for i < len(masked) && isSpaceByte(masked[i]) {
 		i++
 	}
-	return i < len(sql) && sql[i] == '('
+	return i < len(masked) && masked[i] == '('
 }
 
 func shouldDeferDefaultDB(defaultName string, prioritizedDBs []string) bool {
