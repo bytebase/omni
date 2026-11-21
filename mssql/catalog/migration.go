@@ -2248,10 +2248,34 @@ func dropTablesAndFunctionsInOrder(droppedTables []tableWithSchema, functionDrop
 		return endedWithTableDrop
 	}
 
-	// Cycle between dropped table constraint and schema-bound function reading
-	// that table: drop the table's function-referencing defaults/checks first,
-	// drop functions, then drop tables.
+	// Cycle between dropped table constraint/computed column and schema-bound
+	// function reading that table: drop independent tables first, strip
+	// function-referencing constraints/computed columns from bound tables, drop
+	// functions, then drop the bound tables.
+	var independentTables, boundTables []tableWithSchema
 	for _, tws := range droppedTables {
+		bound := false
+		for _, funcDiff := range functionDrops {
+			if funcDiff.OldFunction != nil && isSchemaBound(funcDiff.OldFunction.Definition) &&
+				definitionReferencesTable(funcDiff.OldFunction.Definition, funcDiff.SchemaName, tws.schema, tws.table.Name) {
+				bound = true
+				break
+			}
+		}
+		if bound {
+			boundTables = append(boundTables, tws)
+		} else {
+			independentTables = append(independentTables, tws)
+		}
+	}
+	for _, tws := range independentTables {
+		if needAlterGo {
+			buf.WriteString("GO\n")
+			needAlterGo = false
+		}
+		fmt.Fprintf(buf, "DROP TABLE %s.%s;\n", quote(tws.schema), quote(tws.table.Name))
+	}
+	for _, tws := range boundTables {
 		for _, col := range tws.table.Columns {
 			if col.Default == "" || col.DefaultConstraintName == "" {
 				continue
@@ -2259,14 +2283,6 @@ func dropTablesAndFunctionsInOrder(droppedTables []tableWithSchema, functionDrop
 			for _, funcDiff := range functionDrops {
 				if expressionReferencesFunction(col.Default, tws.schema, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
 					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(col.DefaultConstraintName))
-					break
-				}
-			}
-		}
-		for _, check := range tws.table.CheckConstraints {
-			for _, funcDiff := range functionDrops {
-				if expressionReferencesFunction(check.Expression, tws.schema, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
-					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(check.Name))
 					break
 				}
 			}
@@ -2287,26 +2303,60 @@ func dropTablesAndFunctionsInOrder(droppedTables []tableWithSchema, functionDrop
 			}
 		}
 		if len(droppedCompCols) > 0 {
-			for _, idx := range tws.table.Indexes {
-				usesComp := false
-				for _, expr := range idx.Expressions {
-					if droppedCompCols[strings.ToLower(expr)] {
-						usesComp = true
-						break
-					}
+			// The table itself is dropped immediately after the functions, so
+			// dropping all its checks and indexes avoids leaving any CHECK,
+			// INCLUDE, or filtered-index dependency on a computed column.
+			for _, check := range tws.table.CheckConstraints {
+				if check.Name != "" {
+					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(check.Name))
 				}
-				if !usesComp {
-					continue
+			}
+			droppedAnyIndex := false
+			emitIndexDrop := func(idx *metadata.IndexMetadata) {
+				if idx.Name == "" {
+					return
 				}
 				if idx.IsConstraint {
 					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(idx.Name))
 				} else {
 					fmt.Fprintf(buf, "DROP INDEX %s ON %s.%s;\n", quote(idx.Name), quote(tws.schema), quote(tws.table.Name))
 				}
+				droppedAnyIndex = true
+			}
+			for _, idx := range tws.table.Indexes {
+				if idx.Type == "XML" && strings.HasPrefix(idx.Definition, "USING XML INDEX ") {
+					emitIndexDrop(idx)
+				}
+			}
+			for _, idx := range tws.table.Indexes {
+				if idx.Primary || (idx.Type == "XML" && strings.HasPrefix(idx.Definition, "USING XML INDEX ")) {
+					continue
+				}
+				emitIndexDrop(idx)
+			}
+			for _, idx := range tws.table.Indexes {
+				if idx.Primary {
+					emitIndexDrop(idx)
+				}
+			}
+			if droppedAnyIndex {
+				buf.WriteString("GO\n")
 			}
 			for _, col := range tws.table.Columns {
 				if droppedCompCols[strings.ToLower(col.Name)] {
 					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tws.schema), quote(tws.table.Name), quote(col.Name))
+				}
+			}
+		} else {
+			for _, check := range tws.table.CheckConstraints {
+				if check.Name == "" {
+					continue
+				}
+				for _, funcDiff := range functionDrops {
+					if expressionReferencesFunction(check.Expression, tws.schema, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(check.Name))
+						break
+					}
 				}
 			}
 		}
@@ -2314,7 +2364,7 @@ func dropTablesAndFunctionsInOrder(droppedTables []tableWithSchema, functionDrop
 	for _, funcDiff := range orderedFunctionDrops(functionDrops) {
 		fmt.Fprintf(buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 	}
-	for _, tws := range droppedTables {
+	for _, tws := range boundTables {
 		fmt.Fprintf(buf, "DROP TABLE %s.%s;\n", quote(tws.schema), quote(tws.table.Name))
 		endedWithTableDrop = true
 	}

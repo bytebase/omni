@@ -1827,4 +1827,80 @@ CREATE TABLE [dbo].[u] ([id] int NOT NULL, [extra] int NULL, [c] AS ([dbo].[f]()
 		require.Contains(t, sql, "UNSUPPORTED")
 		require.NotContains(t, sql, "DROP TABLE [dbo].[t]")
 	})
+
+	t.Run("drops independent consumer table directly in cycle fallback", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "t",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int", Nullable: false},
+						{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[f]())", DefaultConstraintName: "DF_t_v"},
+					},
+					Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+				},
+				{
+					Name: "u",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int", Nullable: false},
+						{Name: "c", Type: "AS ([dbo].[f]())", Nullable: true},
+					},
+					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_u_c", Expression: "([c]>=(0))"}},
+					Indexes:          []*metadata.IndexMetadata{{Name: "PK_u", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+				},
+			},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END",
+			}},
+		}}}))
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "ALTER TABLE [dbo].[u] DROP COLUMN [c]")
+		dropU := strings.Index(sql, "DROP TABLE [dbo].[u]")
+		dropDF := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP CONSTRAINT [DF_t_v]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropU, 0)
+		require.Less(t, dropU, dropF)
+		require.GreaterOrEqual(t, dropDF, 0)
+		require.Less(t, dropDF, dropF)
+		require.Less(t, dropF, dropT)
+	})
+
+	t.Run("drops checks before computed column on bound table in cycle fallback", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "c", Type: "AS ([dbo].[f]())", Nullable: true},
+				},
+				CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_t_c", Expression: "([c]>=(0))"}},
+				Indexes:          []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END",
+			}},
+		}}}))
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		dropCK := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP CONSTRAINT [CK_t_c]")
+		dropCol := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP COLUMN [c]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropCK, 0)
+		require.Less(t, dropCK, dropCol)
+		require.Less(t, dropCol, dropF)
+		require.Less(t, dropF, dropT)
+	})
 }
