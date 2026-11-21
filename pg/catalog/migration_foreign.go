@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 )
@@ -81,7 +80,7 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 					clauses = append(clauses, "VALIDATOR "+formatCatalogIdentRef(entry.To.Validator))
 				}
 			}
-			if !slices.Equal(entry.From.Options, entry.To.Options) {
+			if !foreignOptionsEqual(entry.From.Options, entry.To.Options) {
 				if optClause := formatForeignOptionsAlterClause(entry.From.Options, entry.To.Options); optClause != "" {
 					clauses = append(clauses, optClause)
 				}
@@ -160,7 +159,7 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 					clauses = append(clauses, "VERSION "+quoteLiteral(*entry.To.Version))
 				}
 			}
-			if !slices.Equal(entry.From.Options, entry.To.Options) {
+			if !foreignOptionsEqual(entry.From.Options, entry.To.Options) {
 				if optClause := formatForeignOptionsAlterClause(entry.From.Options, entry.To.Options); optClause != "" {
 					clauses = append(clauses, optClause)
 				}
@@ -309,7 +308,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 				}
 			}
 
-			if !slices.Equal(entry.From.ForeignOptions, entry.To.ForeignOptions) {
+			if !foreignOptionsEqual(entry.From.ForeignOptions, entry.To.ForeignOptions) {
 				if clause := formatForeignOptionsAlterClause(entry.From.ForeignOptions, entry.To.ForeignOptions); clause != "" {
 					ops = append(ops, MigrationOp{
 						Type:          OpAlterTable,
@@ -369,7 +368,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 						modOps[i].Priority = PriorityColumn
 					}
 					ops = append(ops, modOps...)
-					if !slices.Equal(col.From.ForeignOptions, col.To.ForeignOptions) {
+					if !foreignOptionsEqual(col.From.ForeignOptions, col.To.ForeignOptions) {
 						if clause := formatForeignOptionsAlterClause(col.From.ForeignOptions, col.To.ForeignOptions); clause != "" {
 							ops = append(ops, MigrationOp{
 								Type:          OpAlterColumn,

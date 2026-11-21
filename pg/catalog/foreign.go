@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -104,6 +105,10 @@ func (c *Catalog) resolveRoutineRef(de *nodes.DefElem, expectedArgs []uint32, ex
 	switch v := de.Arg.(type) {
 	case *nodes.List:
 		schemaName, funcName = qualifiedName(v)
+	case *nodes.TypeName:
+		if v.Names != nil {
+			schemaName, funcName = qualifiedName(v.Names)
+		}
 	case *nodes.String:
 		funcName = v.Str
 	}
@@ -713,6 +718,23 @@ func (c *Catalog) alterForeignServerOwner(stmt *nodes.AlterOwnerStmt) error {
 	return nil
 }
 
+func foreignOptionsEqual(a, b []string) bool {
+	if slices.Equal(a, b) {
+		return true
+	}
+	aMap := make(map[string]string, len(a))
+	for _, opt := range a {
+		k, v := splitForeignOption(opt)
+		aMap[k] = v
+	}
+	bMap := make(map[string]string, len(b))
+	for _, opt := range b {
+		k, v := splitForeignOption(opt)
+		bMap[k] = v
+	}
+	return maps.Equal(aMap, bMap)
+}
+
 func diffForeignDataWrappers(from, to *Catalog) []ForeignDataWrapperDiffEntry {
 	fromMap := make(map[string]*ForeignDataWrapper)
 	if from != nil {
@@ -745,7 +767,7 @@ func diffForeignDataWrappers(from, to *Catalog) []ForeignDataWrapperDiffEntry {
 		if fromFdw.Handler != toFdw.Handler ||
 			fromFdw.Validator != toFdw.Validator ||
 			effectiveForeignOwner(fromFdw.OwnerName) != effectiveForeignOwner(toFdw.OwnerName) ||
-			!slices.Equal(fromFdw.Options, toFdw.Options) {
+			!foreignOptionsEqual(fromFdw.Options, toFdw.Options) {
 			out = append(out, ForeignDataWrapperDiffEntry{Action: DiffModify, Name: name, From: fromFdw, To: toFdw})
 		}
 	}
@@ -791,7 +813,7 @@ func diffForeignServers(from, to *Catalog) []ForeignServerDiffEntry {
 			!stringPtrEqual(fromSrv.Type, toSrv.Type) ||
 			!stringPtrEqual(fromSrv.Version, toSrv.Version) ||
 			effectiveForeignOwner(fromSrv.OwnerName) != effectiveForeignOwner(toSrv.OwnerName) ||
-			!slices.Equal(fromSrv.Options, toSrv.Options) {
+			!foreignOptionsEqual(fromSrv.Options, toSrv.Options) {
 			out = append(out, ForeignServerDiffEntry{Action: DiffModify, Name: name, From: fromSrv, To: toSrv})
 		}
 	}

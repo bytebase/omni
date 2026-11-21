@@ -125,7 +125,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.RelKind != to.RelKind {
 		changed = true
 	}
-	if from.ForeignServer != to.ForeignServer || !slices.Equal(from.ForeignOptions, to.ForeignOptions) {
+	if from.ForeignServer != to.ForeignServer || !foreignOptionsEqual(from.ForeignOptions, to.ForeignOptions) {
 		changed = true
 	}
 	if normalizeRelationAccessMethod(from) != normalizeRelationAccessMethod(to) {

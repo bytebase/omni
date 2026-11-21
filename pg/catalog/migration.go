@@ -726,12 +726,25 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 	}
 
 	// Build adjacency from catalog deps.
+	typeDependsOnFunc := make(map[[2]uint32]bool)
+	if !reverse {
+		for _, d := range c.deps {
+			if d.ObjType == 't' && d.RefType == 'f' && d.DepType != DepInternal {
+				typeDependsOnFunc[[2]uint32{d.ObjOID, d.RefOID}] = true
+			}
+		}
+	}
 	adj := make([][]int, n)
 	inDegree := make([]int, n)
 	edgeSeen := make(map[[2]int]bool) // avoid duplicate edges
 
 	for _, d := range c.deps {
 		if d.DepType == DepInternal {
+			continue
+		}
+		// Skip the function -> full-type edge of a shell-type/canonical-function pair:
+		// the shell op runs at PriorityType before functions, while the full type waits for the function.
+		if !reverse && d.ObjType == 'f' && d.RefType == 't' && typeDependsOnFunc[[2]uint32{d.RefOID, d.ObjOID}] {
 			continue
 		}
 

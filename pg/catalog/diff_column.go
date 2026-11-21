@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"slices"
 	"sort"
 )
 
@@ -98,7 +97,7 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 	if a.Compression != b.Compression {
 		return true
 	}
-	if !slices.Equal(a.ForeignOptions, b.ForeignOptions) {
+	if !foreignOptionsEqual(a.ForeignOptions, b.ForeignOptions) {
 		return true
 	}
 	return false

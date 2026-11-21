@@ -49,8 +49,6 @@ func buildCreateRangeOps(to *Catalog, schemaName, name string, rt *RangeType) []
 				SQL:           fmt.Sprintf("CREATE TYPE %s", qualName),
 				Transactional: true,
 				Phase:         PhaseMain,
-				ObjType:       't',
-				ObjOID:        rt.OID,
 				Priority:      PriorityType,
 			},
 			{
@@ -60,6 +58,8 @@ func buildCreateRangeOps(to *Catalog, schemaName, name string, rt *RangeType) []
 				SQL:           formatCreateRange(to, schemaName, name, rt),
 				Transactional: true,
 				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        rt.OID,
 				Priority:      PriorityTable,
 			},
 		}

@@ -6235,3 +6235,102 @@ func TestRound26Fixes(t *testing.T) {
 	trgSQL := GenerateMigration(trgFrom, trgTo, trgDiff).SQL()
 	require.Contains(t, trgSQL, `"b.c"()`)
 }
+
+func TestRound27Fixes(t *testing.T) {
+	// 1. DefineRange validates SUBTYPE_DIFF and CANONICAL signatures and records dependencies.
+	c := New()
+	_, err := c.Exec(`CREATE FUNCTION public.bad_diff(float8, float8) RETURNS integer LANGUAGE sql AS 'SELECT 1';`, nil)
+	require.NoError(t, err)
+	res, err := c.Exec(`CREATE TYPE public.missing_diff_r AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.no_such_diff);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	var catErr *Error
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeUndefinedFunction, catErr.Code)
+	require.Nil(t, c.typeByName[typeKey{ns: PublicNamespace, name: "missing_diff_r"}])
+
+	res, err = c.Exec(`CREATE TYPE public.bad_ret_diff_r AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.bad_diff);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeInvalidObjectDefinition, catErr.Code)
+	require.Nil(t, c.typeByName[typeKey{ns: PublicNamespace, name: "bad_ret_diff_r"}])
+
+	res, err = c.Exec(`CREATE TYPE public.missing_canon_r AS RANGE (SUBTYPE = int4, CANONICAL = public.no_canon);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeUndefinedFunction, catErr.Code)
+	require.Nil(t, c.typeByName[typeKey{ns: PublicNamespace, name: "missing_canon_r"}])
+
+	_, err = c.Exec(`
+		CREATE TYPE public.bad_canon_r;
+		CREATE FUNCTION public.bad_canon_fn(public.bad_canon_r) RETURNS integer LANGUAGE C AS 'internal', 'bad_canon_fn';
+	`, nil)
+	require.NoError(t, err)
+	res, err = c.Exec(`CREATE TYPE public.bad_canon_r AS RANGE (SUBTYPE = int4, CANONICAL = public.bad_canon_fn);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeInvalidObjectDefinition, catErr.Code)
+	require.False(t, c.typeByName[typeKey{ns: PublicNamespace, name: "bad_canon_r"}].IsDefined)
+
+	_, err = c.Exec(`
+		CREATE TYPE public.good_r;
+		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C AS 'internal', 'good_canon';
+		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE TYPE public.good_r AS RANGE (SUBTYPE = int4, CANONICAL = public.good_canon, SUBTYPE_DIFF = public.good_diff);
+	`, nil)
+	require.NoError(t, err)
+	res, err = c.Exec(`DROP FUNCTION public.good_canon(public.good_r);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeDependentObjects, catErr.Code)
+	res, err = c.Exec(`DROP FUNCTION public.good_diff(int4, int4);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Error(t, res[0].Error)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeDependentObjects, catErr.Code)
+
+	crFrom := New()
+	crTo := New()
+	_, err = crTo.Exec(`
+		CREATE TYPE public.good_r;
+		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C AS 'internal', 'good_canon';
+		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE TYPE public.good_r AS RANGE (SUBTYPE = int4, CANONICAL = public.good_canon, SUBTYPE_DIFF = public.good_diff);
+		CREATE TABLE public.t_good_r (r public.good_r);
+	`, nil)
+	require.NoError(t, err)
+	crSQL := GenerateMigration(crFrom, crTo, Diff(crFrom, crTo)).SQL()
+	crApplied := crFrom.Clone()
+	crRes, err := crApplied.Exec(crSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range crRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(crApplied, crTo).Ranges)
+	require.Empty(t, Diff(crApplied, crTo).Relations)
+
+	// 2. Reordered foreign options do not trigger false DiffModify entries.
+	optFrom := New()
+	_, err = optFrom.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_ord OPTIONS (a '1', b '2');
+		CREATE SERVER s_ord FOREIGN DATA WRAPPER w_ord OPTIONS (host 'h1', port '5432');
+		CREATE FOREIGN TABLE public.ft_ord (id integer OPTIONS (col_a 'x', col_b 'y')) SERVER s_ord OPTIONS (schema_name 's', table_name 't');
+	`, nil)
+	require.NoError(t, err)
+	optTo := New()
+	_, err = optTo.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_ord OPTIONS (b '2', a '1');
+		CREATE SERVER s_ord FOREIGN DATA WRAPPER w_ord OPTIONS (port '5432', host 'h1');
+		CREATE FOREIGN TABLE public.ft_ord (id integer OPTIONS (col_b 'y', col_a 'x')) SERVER s_ord OPTIONS (table_name 't', schema_name 's');
+	`, nil)
+	require.NoError(t, err)
+	optDiff := Diff(optFrom, optTo)
+	require.Empty(t, optDiff.ForeignDataWrappers)
+	require.Empty(t, optDiff.ForeignServers)
+	require.Empty(t, optDiff.ForeignTables)
+	require.Empty(t, GenerateMigration(optFrom, optTo, optDiff).Ops)
+}

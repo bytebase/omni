@@ -794,6 +794,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	var hasCollation bool
 	var rangeCollList *nodes.List
 	var subtypeOpclass, canonical, subtypeDiff string
+	var canonicalDef, subtypeDiffDef *nodes.DefElem
 	seenParams := make(map[string]bool)
 	if stmt.Params != nil {
 		for _, item := range stmt.Params.Items {
@@ -836,8 +837,10 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 				subtypeOpclass = formatCatalogOptionName(def)
 			case "canonical":
 				canonical = formatCatalogOptionName(def)
+				canonicalDef = def
 			case "subtype_diff":
 				subtypeDiff = formatCatalogOptionName(def)
+				subtypeDiffDef = def
 			}
 		}
 	}
@@ -893,10 +896,34 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		}
 	}
 
-	// Allocate OIDs (reuse shell OID when completing a shell type).
+	// Allocate OIDs (reuse shell OID when completing a shell type) and validate
+	// support functions before mutating catalog state.
 	typeOID := c.oidGen.Next()
 	if existing != nil {
 		typeOID = existing.OID
+	}
+	var canonicalOID, subtypeDiffOID uint32
+	if canonicalDef != nil && canonical != "" {
+		if existing == nil {
+			return &Error{
+				Code:    CodeUndefinedFunction,
+				Message: fmt.Sprintf("function %s(%s) does not exist", canonical, name),
+			}
+		}
+		var resolved string
+		resolved, canonicalOID, err = c.resolveRoutineRef(canonicalDef, []uint32{typeOID}, typeOID, name)
+		if err != nil {
+			return err
+		}
+		canonical = resolved
+	}
+	if subtypeDiffDef != nil && subtypeDiff != "" {
+		var resolved string
+		resolved, subtypeDiffOID, err = c.resolveRoutineRef(subtypeDiffDef, []uint32{subtypeOID, subtypeOID}, FLOAT8OID, "double precision")
+		if err != nil {
+			return err
+		}
+		subtypeDiff = resolved
 	}
 	arrayOID := c.oidGen.Next()
 	if rangeUserCollOID != 0 {
@@ -1029,13 +1056,13 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		SubtypeDiff:      subtypeDiff,
 	}
 
-	// Range depends on subtype.
+	// Range depends on subtype and any configured support functions.
 	c.recordDependency('t', typeOID, 0, 't', subtypeOID, 0, DepNormal)
-	if subtypeDiff != "" {
-		sName, fName := parseRoutineRefName(subtypeDiff)
-		if oid, derr := c.resolveRoutineRefByName(sName, fName, subtypeDiff, []uint32{subtypeOID, subtypeOID}, FLOAT8OID, "double precision"); derr == nil && oid != 0 {
-			c.recordDependency('t', typeOID, 0, 'f', oid, 0, DepNormal)
-		}
+	if canonicalOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'f', canonicalOID, 0, DepNormal)
+	}
+	if subtypeDiffOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'f', subtypeDiffOID, 0, DepNormal)
 	}
 	// Multirange is an internal companion of its range type.
 	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepInternal)
