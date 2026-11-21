@@ -16,7 +16,7 @@ import (
 // clone of the original metadata proto, producing the post-DDL metadata.
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
-	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
+	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasSchemaOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
 		return proto.CloneOf(original)
 	}
 	if diff == nil {
@@ -124,8 +124,49 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyRelationOwnerChanges(result, catBefore, catAfter)
+	applySchemaOwnerChanges(result, catBefore, catAfter)
 
 	return result
+}
+
+func hasSchemaOwnerChange(catBefore, catAfter *Catalog) bool {
+	if catBefore == nil || catAfter == nil {
+		return false
+	}
+	for _, s := range catAfter.UserSchemas() {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
+		prev := catBefore.schemas[s.OID]
+		if prev == nil {
+			prev = catBefore.schemaByName[s.Name]
+		}
+		if prev != nil && prev.effectiveOwner() != s.effectiveOwner() {
+			return true
+		}
+	}
+	return false
+}
+
+func applySchemaOwnerChanges(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog) {
+	if catBefore == nil || catAfter == nil {
+		return
+	}
+	for _, s := range catAfter.UserSchemas() {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
+		prev := catBefore.schemas[s.OID]
+		if prev == nil {
+			prev = catBefore.schemaByName[s.Name]
+		}
+		if prev == nil || prev.effectiveOwner() == s.effectiveOwner() {
+			continue
+		}
+		if sm := findSchema(result, s.Name); sm != nil {
+			sm.Owner = s.effectiveOwner()
+		}
+	}
 }
 
 func hasRelationOwnerChange(catBefore, catAfter *Catalog) bool {
@@ -1617,11 +1658,9 @@ func mergeColumnProto(cat *Catalog, existing *metadatapb.ColumnMetadata, fromCol
 	updated.Comment = existing.Comment
 	updated.CharacterSet = existing.CharacterSet
 	updated.Options = existing.Options
-	if fromCol != nil && fromCol.CollationName != toCol.CollationName {
-		if toCol.CollationName != "" {
-			updated.Collation = quoteIdentAlways(toCol.CollationName)
-		}
-	} else {
+	if fromCol != nil &&
+		fromCol.CollationName == toCol.CollationName &&
+		columnCollationProtoSchema(cat, fromCol) == columnCollationProtoSchema(cat, toCol) {
 		updated.Collation = existing.Collation
 		updated.CollationSchema = existing.CollationSchema
 	}
@@ -1855,6 +1894,10 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 		Nullable: !col.NotNull,
 		Default:  col.Default,
 	}
+	if col.CollationName != "" {
+		cm.Collation = col.CollationName
+		cm.CollationSchema = columnCollationProtoSchema(cat, col)
+	}
 	if col.Generated == 's' {
 		cm.Generation = &metadatapb.GenerationMetadata{
 			Type:       metadatapb.GenerationMetadata_TYPE_STORED,
@@ -1932,11 +1975,51 @@ func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMeta
 	}
 
 	if !idx.IsPrimary && idx.ConstraintOID == 0 && rel != nil && rel.Schema != nil &&
-		(idx.WhereClause != "" || nKey < len(idx.Columns) || len(idx.OpClasses) > 0 || idx.NullsNotDistinct) {
+		(idx.WhereClause != "" || nKey < len(idx.Columns) || len(idx.OpClasses) > 0 || idx.NullsNotDistinct || hasUnmodeledIndexOptions(idx)) {
 		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
 	}
 
 	return im
+}
+
+func hasUnmodeledIndexOptions(idx *Index) bool {
+	if idx == nil {
+		return false
+	}
+	if slices.ContainsFunc(idx.Collations, func(parts []string) bool { return len(parts) > 0 }) {
+		return true
+	}
+	for _, opt := range idx.IndOption {
+		desc := opt&1 != 0
+		nullsFirst := opt&2 != 0
+		if desc != nullsFirst {
+			return true
+		}
+	}
+	return false
+}
+
+func columnCollationProtoSchema(cat *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if cat != nil && col.UserCollationOID != 0 {
+		for _, s := range cat.schemas {
+			if s == nil {
+				continue
+			}
+			if uc := s.Collations[col.CollationName]; uc != nil && uc.OID == col.UserCollationOID {
+				if s.OID == PGCatalogNamespace {
+					return ""
+				}
+				return s.Name
+			}
+		}
+	}
+	if col.CollationSchema != "" && col.CollationSchema != "pg_catalog" {
+		return col.CollationSchema
+	}
+	return ""
 }
 
 func constraintToFKProto(cat *Catalog, rel *Relation, con *Constraint) *metadatapb.ForeignKeyMetadata {
@@ -2571,21 +2654,42 @@ func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTyp
 		name = bt.TypeName
 	}
 	out := &metadatapb.RangeTypeMetadata{
-		Name:    name,
-		Subtype: qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
+		Name:      name,
+		Subtype:   qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
+		Collation: rangeCollationProto(cat, rt),
 	}
 	if rt.MultirangeOID != 0 {
 		out.MultirangeName = qualifyWalkThroughAttributeType(cat, rt.MultirangeOID, cat.FormatType(rt.MultirangeOID, -1))
 	}
 	if previous != nil {
 		out.SubtypeOpclass = previous.SubtypeOpclass
-		out.Collation = previous.Collation
+		if out.Collation == "" {
+			out.Collation = previous.Collation
+		}
 		out.Canonical = previous.Canonical
 		out.SubtypeDiff = previous.SubtypeDiff
 		out.Comment = previous.Comment
 		out.SkipDump = previous.SkipDump
 	}
 	return out
+}
+
+func rangeCollationProto(cat *Catalog, rt *RangeType) string {
+	if rt == nil || rt.CollationName == "" {
+		return ""
+	}
+	collSchema := rt.CollationSchema
+	collName := rt.CollationName
+	if cat != nil && rt.UserCollationOID != 0 {
+		if sc, uc := collationByOID(cat, rt.UserCollationOID); uc != nil {
+			collSchema = sc
+			collName = uc.Name
+		}
+	}
+	if collSchema != "" && collSchema != "pg_catalog" {
+		return migrationQualifiedName(collSchema, collName)
+	}
+	return quoteIdentAlways(collName)
 }
 
 func popRangeTypeByName(ranges []*metadatapb.RangeTypeMetadata, name string) (*metadatapb.RangeTypeMetadata, []*metadatapb.RangeTypeMetadata) {
@@ -3176,7 +3280,7 @@ func applyCollationDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 			dstSchema = renamed
 		}
 		dstSM := findOrCreateSchema(result, dstSchema)
-		upsertCollation(dstSM, collationToProto(add.To, prev))
+		upsertCollation(dstSM, collationToProto(catAfter, add.To, prev))
 		handledDropOIDs[col.From.OID] = true
 		handledAddOIDs[add.To.OID] = true
 	}
@@ -3201,13 +3305,13 @@ func applyCollationDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Ca
 		sm := findOrCreateSchema(result, schemaName)
 		switch col.Action {
 		case DiffAdd, DiffModify:
-			upsertCollation(sm, collationToProto(col.To, findCollationInSchema(sm, col.Name)))
+			upsertCollation(sm, collationToProto(catAfter, col.To, findCollationInSchema(sm, col.Name)))
 		default:
 		}
 	}
 }
 
-func collationToProto(uc *UserCollation, previous *metadatapb.CollationMetadata) *metadatapb.CollationMetadata {
+func collationToProto(cat *Catalog, uc *UserCollation, previous *metadatapb.CollationMetadata) *metadatapb.CollationMetadata {
 	out := &metadatapb.CollationMetadata{Name: uc.Name}
 	if previous != nil {
 		out.Comment = previous.Comment
@@ -3222,13 +3326,15 @@ func collationToProto(uc *UserCollation, previous *metadatapb.CollationMetadata)
 			out.Deterministic = &d
 		}
 	}
-	applyCollationDefClause(out, uc.DefClause)
+	applyCollationDefClause(cat, out, uc.DefClause)
 	return out
 }
 
-func applyCollationDefClause(cm *metadatapb.CollationMetadata, defClause string) {
-	trimmed := strings.TrimSpace(defClause)
+func applyCollationDefClause(cat *Catalog, cm *metadatapb.CollationMetadata, defClause string) {
+	resolved := resolveEffectiveCollationDefClause(cat, defClause, 0)
+	trimmed := strings.TrimSpace(resolved)
 	if !strings.HasPrefix(trimmed, "(") || !strings.HasSuffix(trimmed, ")") {
+		applyBuiltinCollationDef(cm, trimmed)
 		return
 	}
 	inner := trimmed[1 : len(trimmed)-1]
@@ -3274,6 +3380,101 @@ func applyCollationDefClause(cm *metadatapb.CollationMetadata, defClause string)
 	}
 	if cm.Provider == "" && (cm.LcCollate != "" || cm.LcCtype != "") {
 		cm.Provider = "c"
+	}
+}
+
+func resolveEffectiveCollationDefClause(cat *Catalog, defClause string, depth int) string {
+	trimmed := strings.TrimSpace(defClause)
+	if len(trimmed) < 5 || !strings.EqualFold(trimmed[:4], "FROM") || (trimmed[4] != ' ' && trimmed[4] != '\t' && trimmed[4] != '\n') {
+		return trimmed
+	}
+	target := strings.TrimSpace(trimmed[4:])
+	if depth >= 16 || cat == nil {
+		return target
+	}
+	schemaName, collName, ok := splitQualifiedIdent(target)
+	if !ok {
+		collName = unquoteIdent(target)
+	}
+	if collName == "" {
+		return target
+	}
+	if schemaName != "" {
+		if s := cat.schemaByName[schemaName]; s != nil {
+			if uc := s.Collations[collName]; uc != nil && uc.DefClause != "" {
+				return resolveEffectiveCollationDefClause(cat, uc.DefClause, depth+1)
+			}
+		}
+		return target
+	}
+	for _, nsOID := range cat.searchPathWithCatalog() {
+		if s := cat.schemas[nsOID]; s != nil {
+			if uc := s.Collations[collName]; uc != nil && uc.DefClause != "" {
+				return resolveEffectiveCollationDefClause(cat, uc.DefClause, depth+1)
+			}
+		}
+	}
+	return target
+}
+
+func applyBuiltinCollationDef(cm *metadatapb.CollationMetadata, fromTarget string) {
+	if cm == nil || fromTarget == "" {
+		return
+	}
+	schemaName, collName, ok := splitQualifiedIdent(fromTarget)
+	if !ok {
+		collName = unquoteIdent(fromTarget)
+	}
+	if collName == "" || (schemaName != "" && schemaName != "pg_catalog") {
+		return
+	}
+	det := true
+	switch collName {
+	case "C", "POSIX", "C.UTF-8", "C.utf8":
+		cm.Provider = "c"
+		cm.Locale = ""
+		cm.LcCollate = collName
+		cm.LcCtype = collName
+		cm.Rules = ""
+		cm.Deterministic = &det
+	case "ucs_basic":
+		cm.Provider = "c"
+		cm.Locale = ""
+		cm.LcCollate = "C"
+		cm.LcCtype = "C"
+		cm.Rules = ""
+		cm.Deterministic = &det
+	case "pg_c_utf8":
+		cm.Provider = "b"
+		cm.Locale = "C.UTF-8"
+		cm.LcCollate = ""
+		cm.LcCtype = ""
+		cm.Rules = ""
+		cm.Deterministic = &det
+	case "unicode":
+		cm.Provider = "b"
+		cm.Locale = "PG_UNICODE_FAST"
+		cm.LcCollate = ""
+		cm.LcCtype = ""
+		cm.Rules = ""
+		cm.Deterministic = &det
+	default:
+		if strings.HasSuffix(strings.ToLower(collName), "-x-icu") {
+			locale := collName[:len(collName)-len("-x-icu")]
+			cm.Provider = "i"
+			cm.Locale = locale
+			cm.LcCollate = ""
+			cm.LcCtype = ""
+			cm.Rules = ""
+			cm.Deterministic = &det
+		} else if isBuiltinCollationName(collName) {
+			cm.Provider = "c"
+			cm.Locale = ""
+			cm.LcCollate = collName
+			cm.LcCtype = collName
+			cm.Rules = ""
+			cm.Deterministic = &det
+		}
 	}
 }
 

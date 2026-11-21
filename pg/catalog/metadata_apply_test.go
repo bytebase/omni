@@ -1815,3 +1815,107 @@ func TestApplyDiffToMetadataRound11Fixes(t *testing.T) {
 		require.Equal(t, []string{"table_name=app_ft"}, ftNew.Options)
 	})
 }
+
+func TestApplyDiffToMetadataRound12Fixes(t *testing.T) {
+	// 1. Newly created range with explicit collation, copied collation FROM,
+	// column collation & schema on new columns, and unmodeled index key options.
+	t.Run("range_collation_copied_collation_column_collation_and_index_options", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "app"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE COLLATION app.c_copy FROM pg_catalog."C";
+			CREATE COLLATION app.c_user (PROVIDER = icu, LOCALE = 'en-US');
+			CREATE TYPE app.text_range AS RANGE (SUBTYPE = text, COLLATION = "C");
+			CREATE TYPE app.user_range AS RANGE (SUBTYPE = text, COLLATION = app.c_user);
+			CREATE TABLE app.items (
+				a text COLLATE "C",
+				b text COLLATE app.c_user
+			);
+			CREATE INDEX ix_coll ON app.items (a COLLATE "C");
+			CREATE INDEX ix_nulls ON app.items (a NULLS FIRST);
+			CREATE INDEX ix_desc_nulls_last ON app.items (a DESC NULLS LAST);
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		appSM := findSchema(got, "app")
+		require.NotNil(t, appSM)
+
+		copied := findCollationInSchema(appSM, "c_copy")
+		require.NotNil(t, copied)
+		require.Equal(t, "c", copied.Provider)
+		require.Equal(t, "C", copied.LcCollate)
+		require.Equal(t, "C", copied.LcCtype)
+		require.NotNil(t, copied.Deterministic)
+		require.True(t, *copied.Deterministic)
+
+		tr := findRangeType(appSM, "text_range")
+		require.NotNil(t, tr)
+		require.Equal(t, `"C"`, tr.Collation)
+
+		ur := findRangeType(appSM, "user_range")
+		require.NotNil(t, ur)
+		require.Equal(t, `"app"."c_user"`, ur.Collation)
+
+		tbl := findTable(appSM, "items")
+		require.NotNil(t, tbl)
+		require.Len(t, tbl.Columns, 2)
+		require.Equal(t, "C", tbl.Columns[0].Collation)
+		require.Equal(t, "", tbl.Columns[0].CollationSchema)
+		require.Equal(t, "c_user", tbl.Columns[1].Collation)
+		require.Equal(t, "app", tbl.Columns[1].CollationSchema)
+
+		ixColl := findIndex(tbl.Indexes, "ix_coll")
+		require.NotNil(t, ixColl)
+		require.Contains(t, ixColl.Definition, `COLLATE "C"`)
+
+		ixNulls := findIndex(tbl.Indexes, "ix_nulls")
+		require.NotNil(t, ixNulls)
+		require.Contains(t, ixNulls.Definition, `NULLS FIRST`)
+
+		ixDescNullsLast := findIndex(tbl.Indexes, "ix_desc_nulls_last")
+		require.NotNil(t, ixDescNullsLast)
+		require.Contains(t, ixDescNullsLast.Definition, `DESC NULLS LAST`)
+	})
+
+	// 2. Schema ownership changes from RENAME ROLE / REASSIGN OWNED.
+	t.Run("schema_owner_from_role_operations", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "s_rename", Owner: "old_role"},
+				{Name: "s_reassign", Owner: "donor_role"},
+			},
+		}
+		catBefore := New()
+		results, err := catBefore.Exec(`CREATE ROLE old_role; CREATE ROLE donor_role; CREATE ROLE target_role;`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		_, err = catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err = catAfter.Exec(`
+			ALTER ROLE old_role RENAME TO new_role;
+			REASSIGN OWNED BY donor_role TO target_role;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		diff := Diff(catBefore, catAfter)
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, diff)
+		require.Equal(t, "new_role", findSchema(got, "s_rename").Owner)
+		require.Equal(t, "target_role", findSchema(got, "s_reassign").Owner)
+	})
+}

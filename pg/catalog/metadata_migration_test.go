@@ -4866,3 +4866,66 @@ func TestDottedSkipSchemaIgnoresDegradedObjects(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, sql)
 }
+
+func TestRound12CollationExtTriggerAndViewColumnComments(t *testing.T) {
+	// 1 & 2. Comment-only changes on user collations and external-table triggers.
+	commentOnlyMeta := func(collComment, trigComment string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Collations: []*metadatapb.CollationMetadata{{
+					Name:     "c_custom",
+					Provider: "c",
+					Comment:  collComment,
+				}},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:               "ext_events",
+					ExternalServerName: "srv",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					Triggers: []*metadatapb.TriggerMetadata{{
+						Name:    "trg_ext",
+						Timing:  "BEFORE",
+						Event:   "INSERT",
+						Body:    "CREATE TRIGGER trg_ext BEFORE INSERT ON public.ext_events FOR EACH ROW EXECUTE FUNCTION public.fn()",
+						Comment: trigComment,
+					}},
+				}},
+			}},
+		}
+	}
+
+	sql, err := testMetadataMigration(commentOnlyMeta("", ""), commentOnlyMeta("coll doc", "ext trig doc"))
+	require.NoError(t, err)
+	require.Contains(t, sql, `COMMENT ON COLLATION "public"."c_custom" IS 'coll doc'`)
+	require.Contains(t, sql, `COMMENT ON TRIGGER "trg_ext" ON "public"."ext_events" IS 'ext trig doc'`)
+
+	// 8. Recreated view restores column comments as well as view comment.
+	viewMeta := func(colType string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					pgTable("t", 0, &metadatapb.ColumnMetadata{Name: "id", Type: colType}),
+				},
+				Views: []*metadatapb.ViewMetadata{{
+					Name:       "v",
+					Definition: "SELECT id FROM public.t",
+					Comment:    "view doc",
+					DependencyColumns: []*metadatapb.DependencyColumn{{
+						Schema: "public", Table: "t", Column: "id",
+					}},
+					Columns: []*metadatapb.ColumnMetadata{{
+						Name:    "id",
+						Type:    colType,
+						Comment: "view col doc",
+					}},
+				}},
+			}},
+		}
+	}
+
+	viewSQL, err := testMetadataMigration(viewMeta("integer"), viewMeta("bigint"))
+	require.NoError(t, err)
+	require.Contains(t, viewSQL, `COMMENT ON VIEW "public"."v" IS 'view doc'`)
+	require.Contains(t, viewSQL, `COMMENT ON COLUMN "public"."v"."id" IS 'view col doc'`)
+}

@@ -150,7 +150,11 @@ func refuseUnsupportedCollationChanges(oldMeta, newMeta *metadatapb.DatabaseSche
 		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
 			out := make([]namedProtoMessage, 0, len(s.GetCollations()))
 			for _, col := range s.GetCollations() {
-				out = append(out, namedProtoMessage{name: col.GetName(), msg: col})
+				cp := proto.CloneOf(col)
+				if cp != nil {
+					cp.Comment = ""
+				}
+				out = append(out, namedProtoMessage{name: col.GetName(), msg: cp})
 			}
 			return out
 		},
@@ -165,7 +169,15 @@ func refuseUnsupportedExternalTableChanges(oldMeta, newMeta *metadatapb.Database
 		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
 			out := make([]namedProtoMessage, 0, len(s.GetExternalTables()))
 			for _, ext := range s.GetExternalTables() {
-				out = append(out, namedProtoMessage{name: ext.GetName(), msg: ext})
+				cp := proto.CloneOf(ext)
+				if cp != nil {
+					for _, tr := range cp.GetTriggers() {
+						if tr != nil {
+							tr.Comment = ""
+						}
+					}
+				}
+				out = append(out, namedProtoMessage{name: ext.GetName(), msg: cp})
 			}
 			return out
 		},
@@ -4220,26 +4232,65 @@ func restoreRecreatedViewComments(plan *MigrationPlan, meta *metadatapb.Database
 	for _, op := range plan.Ops {
 		switch {
 		case op.Type == OpComment:
-			commented[op.ObjectName] = true
+			if target, ok := parseCommentTarget(op.SQL); ok {
+				if (target.kind == "VIEW" || target.kind == "MATERIALIZED VIEW") && len(target.parts) == 2 {
+					commented[objectKey(target.parts[0], target.parts[1])] = true
+				}
+			} else if op.SchemaName != "" {
+				commented[objectKey(op.SchemaName, op.ObjectName)] = true
+			} else {
+				commented[op.ObjectName] = true
+			}
 			if target, _, ok := strings.Cut(op.SQL, " IS "); ok {
 				commentedTargets[target] = true
 			}
 		case op.Type == OpCreateView && strings.Contains(op.SQL, "COMMENT ON"):
 			commented[objectKey(op.SchemaName, op.ObjectName)] = true
+			for _, stmtSQL := range strings.Split(op.SQL, ";\n") {
+				stmtSQL = strings.TrimSpace(stmtSQL)
+				if strings.HasPrefix(stmtSQL, "COMMENT ON ") {
+					if target, _, ok := strings.Cut(stmtSQL, " IS "); ok {
+						commentedTargets[target] = true
+					}
+				}
+			}
 		default:
 		}
 	}
 	for _, schema := range meta.GetSchemas() {
 		for _, view := range schema.GetViews() {
 			key := objectKey(schema.GetName(), view.GetName())
+			if !planCreatesObject(plan, key) {
+				continue
+			}
 			sql := fmt.Sprintf("COMMENT ON VIEW %s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteLiteral(view.GetComment()))
 			target, _, _ := strings.Cut(sql, " IS ")
-			if view.GetComment() != "" && !commented[key] && !commentedTargets[target] && planCreatesObject(plan, key) {
+			if view.GetComment() != "" && !commented[key] && !commentedTargets[target] {
 				plan.Ops = append(plan.Ops, MigrationOp{
 					Type:          OpComment,
 					SchemaName:    schema.GetName(),
 					ObjectName:    key,
 					SQL:           sql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+				})
+			}
+			for _, col := range view.GetColumns() {
+				if col.GetComment() == "" {
+					continue
+				}
+				colSQL := fmt.Sprintf("COMMENT ON COLUMN %s.%s IS %s", quoteQualified(schema.GetName(), view.GetName()), quoteIdentAlways(col.GetName()), quoteLiteral(col.GetComment()))
+				colTarget, _, _ := strings.Cut(colSQL, " IS ")
+				if commentedTargets[colTarget] {
+					continue
+				}
+				commentedTargets[colTarget] = true
+				plan.Ops = append(plan.Ops, MigrationOp{
+					Type:          OpComment,
+					SchemaName:    schema.GetName(),
+					ObjectName:    key,
+					SQL:           colSQL,
 					Transactional: true,
 					Phase:         PhaseMain,
 					ObjType:       'r',
@@ -4285,6 +4336,9 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 			schemaName := s.GetName()
 			if schemaName == "" || skipSchemas[schemaName] {
 				continue
+			}
+			for _, col := range s.GetCollations() {
+				out[unloadedCommentKey{objType: 'c', schema: schemaName, name: col.GetName()}] = col.GetComment()
 			}
 			for _, rt := range s.GetRangeTypes() {
 				out[unloadedCommentKey{objType: 't', schema: schemaName, name: rt.GetName()}] = rt.GetComment()
@@ -4337,6 +4391,17 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 	for _, k := range keys {
 		newComment := newComments[k]
 		switch k.objType {
+		case 'c':
+			ops = append(ops, MigrationOp{
+				Type:          OpComment,
+				SchemaName:    k.schema,
+				ObjectName:    k.schema + "." + k.name,
+				SQL:           fmt.Sprintf("COMMENT ON COLLATION %s IS %s", quoteQualified(k.schema, k.name), commentValueSQL(newComment)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'c',
+				Priority:      PriorityMetadata,
+			})
 		case 't':
 			ops = append(ops, MigrationOp{
 				Type:          OpComment,

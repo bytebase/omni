@@ -1019,8 +1019,7 @@ func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) 
 		}
 		def := &nodes.ColumnDef{Colname: col.GetName(), TypeName: tn, IsNotNull: !col.GetNullable()}
 		if col.GetCollation() != "" {
-			// Sync reports a column's collation by its bare name.
-			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
+			def.CollClause = &nodes.CollateClause{Collname: metadataNameList(col.GetCollationSchema(), unquoteIdent(col.GetCollation()))}
 		}
 		if full {
 			setColumnValueProperties(schema, def, col, o.ownedSequences[col.GetName()])
