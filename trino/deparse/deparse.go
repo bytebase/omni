@@ -120,14 +120,6 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if len(cols) == 0 {
 				return nil, fmt.Errorf("table %s.%s has no columns", s.Name, t.Name)
 			}
-			seenCols := make(map[string]struct{}, len(cols))
-			for _, c := range cols {
-				colKey := strings.ToLower(c.Name)
-				if _, exists := seenCols[colKey]; exists {
-					return nil, fmt.Errorf("table %s.%s has duplicate column %s", s.Name, t.Name, quoteIdentifier(c.Name))
-				}
-				seenCols[colKey] = struct{}{}
-			}
 			schemaMeta.Tables = append(schemaMeta.Tables, &TableMetadata{
 				Name:    t.Name,
 				Columns: cols,
@@ -195,9 +187,16 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 }
 
 func qualifyTrinoFunctionDeclaration(dbName, schemaName, fnName, definition string) (*trinoparser.CreateFunctionStmt, string, bool, error) {
-	cfs, _, _, ok := parseTrinoCreateFunction(definition)
+	cfs, hasSQLBody, _, ok := parseTrinoCreateFunction(definition)
 	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
 		return nil, definition, false, nil
+	}
+	if hasSQLBody && cfs.Spec.Body != nil {
+		w := &trinoASTWalker{callerSchema: schemaName}
+		w.walkStmt(cfs.Spec.Body, nil)
+		if w.hasQuery {
+			return nil, "", false, fmt.Errorf("function %s.%s contains a query or subquery, which Trino SQL UDFs cannot process", schemaName, fnName)
+		}
 	}
 	declName := cfs.Spec.Declaration.Name
 	parts := declName.Parts
@@ -398,10 +397,19 @@ func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMet
 		return nil, nil
 	}
 	out := make([]*ColumnMetadata, 0, len(cols))
+	seenCols := make(map[string]struct{}, len(cols))
 	for _, c := range cols {
 		if c == nil {
 			continue
 		}
+		colKey := strings.ToLower(c.Name)
+		if _, exists := seenCols[colKey]; exists {
+			if requireType {
+				return nil, fmt.Errorf("table %s.%s has duplicate column %s", schemaName, tableName, quoteIdentifier(c.Name))
+			}
+			return nil, fmt.Errorf("view %s.%s has duplicate column %s", schemaName, tableName, quoteIdentifier(c.Name))
+		}
+		seenCols[colKey] = struct{}{}
 		if requireType && strings.TrimSpace(c.Type) == "" {
 			return nil, fmt.Errorf("column %s.%s.%s has no data type", schemaName, tableName, c.Name)
 		}
@@ -1087,16 +1095,22 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	return best
 }
 
-func isTrinoSpecialFormCall(name string, argCount int) bool {
+func isTrinoSpecialFormCall(name string, call functionCallRef) bool {
+	firstArg := ""
+	if len(call.argTypes) > 0 {
+		firstArg = call.argTypes[0]
+	}
 	switch name {
-	case "coalesce", "format", "grouping":
-		return argCount >= 1
+	case "coalesce", "grouping":
+		return call.argCount >= 1
+	case "format":
+		return call.argCount >= 2 && trinoBuiltinTypeMatch(firstArg, "varchar")
 	case "if":
-		return argCount == 2 || argCount == 3
+		return (call.argCount == 2 || call.argCount == 3) && trinoBuiltinTypeMatch(firstArg, "boolean")
 	case "nullif":
-		return argCount == 2
+		return call.argCount == 2
 	case "try":
-		return argCount == 1
+		return call.argCount == 1
 	default:
 		return false
 	}
@@ -1109,7 +1123,7 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 		}
 	}
 	name := strings.ToLower(call.name)
-	if isTrinoSpecialFormCall(name, call.argCount) {
+	if isTrinoSpecialFormCall(name, call) {
 		return true
 	}
 	sigs, ok := trinoBuiltinFunctions[name]
@@ -1577,6 +1591,7 @@ type trinoASTWalker struct {
 	calls        []functionCallRef
 	unqualTables []*ast.QualifiedName
 	inlineFuncs  map[string][]trinoInlineFunc
+	hasQuery     bool
 }
 
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
@@ -1766,6 +1781,7 @@ func (w *trinoASTWalker) walkQueryWithInline(q *trinoparser.Query, extraInline [
 	if q == nil {
 		return ""
 	}
+	w.hasQuery = true
 	totalInline := len(extraInline) + len(q.Functions)
 	if totalInline > 0 {
 		prevInline := w.inlineFuncs
@@ -2024,6 +2040,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		w.walkExpr(e.Right, curEnv, ctes)
 		return "boolean"
 	case *trinoparser.QuantifiedComparisonExpr:
+		w.hasQuery = true
 		w.walkExpr(e.Left, curEnv, ctes)
 		w.walkExpr(e.Subquery, curEnv, ctes)
 		return "boolean"
@@ -2039,6 +2056,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		}
 		return "boolean"
 	case *trinoparser.InSubqueryExpr:
+		w.hasQuery = true
 		w.walkExpr(e.Value, curEnv, ctes)
 		w.walkExpr(e.Subquery, curEnv, ctes)
 		return "boolean"
@@ -2058,13 +2076,16 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		w.walkExpr(e.Value, curEnv, ctes)
 		return "boolean"
 	case *trinoparser.MatchExpr:
+		w.hasQuery = true
 		w.walkExpr(e.Value, curEnv, ctes)
 		w.walkExpr(e.Subquery, curEnv, ctes)
 		return "boolean"
 	case *trinoparser.UniqueExpr:
+		w.hasQuery = true
 		w.walkExpr(e.Subquery, curEnv, ctes)
 		return "boolean"
 	case *trinoparser.SubqueryExpr:
+		w.hasQuery = true
 		var subType string
 		if e.Query != nil {
 			subType = w.walkQuery(e.Query, curEnv, ctes)

@@ -1055,27 +1055,19 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_qual(x varchar) RETURNS bigint RETURN "cat".s.length(x);`)
 	assert.Less(t, strings.Index(builtinShadow, `CREATE FUNCTION "cat".s.length(`), strings.Index(builtinShadow, `CREATE FUNCTION "cat".s.use_qual(`))
 
-	// Unqualified UDF calls inside scalar subqueries (RETURN (SELECT callee(x))) are
-	// both ordered after their callee and rewritten to catalog.schema.callee.
-	scalarSubq, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+	// SQL UDFs containing queries or subqueries fail explicitly (Trino disallows them),
+	// whereas scalar subqueries inside views qualify nested UDF calls.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
 		Name: "cat",
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name: "s",
-			Functions: []*metadatapb.FunctionMetadata{
-				{
-					Name:       "sub_caller",
-					Definition: "CREATE FUNCTION s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT sub_callee(x))",
-				},
-				{
-					Name:       "sub_callee",
-					Definition: "CREATE FUNCTION s.sub_callee(x bigint) RETURNS bigint RETURN x + 1",
-				},
-			},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "sub_caller",
+				Definition: "CREATE FUNCTION s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT x)",
+			}},
 		}},
 	})
-	require.NoError(t, err)
-	assert.Contains(t, scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT "cat"."s".sub_callee(x));`)
-	assert.Less(t, strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_callee(`), strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(`))
+	require.ErrorContains(t, err, "cannot process")
 
 	// Unqualified relations in Trino view/MV bodies are qualified with catalog and schema
 	// while CTE references stay unqualified.
@@ -1376,4 +1368,39 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, defaultUDF, `"id" bigint DEFAULT "cat"."s".next_id() NOT NULL`)
+
+	// Non-varchar format() calls resolve to colliding schema UDFs, and duplicate
+	// view columns fail explicitly.
+	formatCollision, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "format",
+				Definition: "CREATE FUNCTION s.format(x bigint) RETURNS varchar RETURN CAST(x AS varchar)",
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_fmt",
+				Definition: "SELECT format(1), format('%s', 1)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, formatCollision, `SELECT "cat"."s".format(1), format('%s', 1);`)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_dup_col",
+				Definition: "SELECT 1 AS a, 2 AS b",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "c", Comment: "first"},
+					{Name: "C", Comment: "second"},
+				},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate column")
 }
