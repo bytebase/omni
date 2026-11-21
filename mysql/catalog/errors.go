@@ -174,6 +174,21 @@ const (
 	// ErrDependentByPartitionFunc is 3855, which mysql:8.0.46 answers when
 	// dropping or renaming a column referenced by a partitioning function.
 	ErrDependentByPartitionFunc = 3855
+
+	// View query / expression semantic error codes (mysql:8.0.46).
+	ErrInvalidGroupFuncUse         = 1111
+	ErrNotSupportedYet             = 1235
+	ErrOperandColumns              = 1241
+	ErrSPUndeclaredVar             = 1327
+	ErrViewSelectClause            = 1350
+	ErrViewSelectVariable          = 1351
+	ErrUnresolvedTableLock         = 3568
+	ErrWindowNoSuchWindow          = 3579
+	ErrWindowFrameStartIllegal     = 3584
+	ErrWindowFrameEndIllegal       = 3585
+	ErrWindowRangeFrameNumericType = 3596
+	ErrEmptyRowInTVC               = 3942
+	ErrDefaultAsValInTVC           = 3943
 )
 
 var sqlStateMap = map[int]string{
@@ -1049,4 +1064,69 @@ func errDependentByPartitionFunc(colName string) error {
 func errAlterConstraintNotSupported(name string) error {
 	return &Error{Code: ErrAlterConstraintNotSupported, SQLState: "HY000",
 		Message: fmt.Sprintf("ALTER CONSTRAINT statement is not supported for the constraint '%s'.", name)}
+}
+
+func errInvalidGroupFuncUse() error {
+	return &Error{Code: ErrInvalidGroupFuncUse, SQLState: "HY000",
+		Message: "Invalid use of group function"}
+}
+
+func errNotSupportedYet(feature string) error {
+	return &Error{Code: ErrNotSupportedYet, SQLState: "42000",
+		Message: fmt.Sprintf("This version of MySQL doesn't yet support '%s'", feature)}
+}
+
+func errOperandColumns(n int) error {
+	return &Error{Code: ErrOperandColumns, SQLState: "21000",
+		Message: fmt.Sprintf("Operand should contain %d column(s)", n)}
+}
+
+func errSPUndeclaredVar(name string) error {
+	return &Error{Code: ErrSPUndeclaredVar, SQLState: "42000",
+		Message: fmt.Sprintf("Undeclared variable: %s", name)}
+}
+
+func errViewSelectClause(clause string) error {
+	return &Error{Code: ErrViewSelectClause, SQLState: "HY000",
+		Message: fmt.Sprintf("View's SELECT contains a '%s' clause", clause)}
+}
+
+func errViewSelectVariable() error {
+	return &Error{Code: ErrViewSelectVariable, SQLState: "HY000",
+		Message: "View's SELECT contains a variable or parameter"}
+}
+
+func errUnresolvedTableLock(name string) error {
+	return &Error{Code: ErrUnresolvedTableLock, SQLState: "HY000",
+		Message: fmt.Sprintf("Unresolved table name `%s` in locking clause.", name)}
+}
+
+func errWindowNoSuchWindow(name string) error {
+	return &Error{Code: ErrWindowNoSuchWindow, SQLState: "HY000",
+		Message: fmt.Sprintf("Window name '%s' is not defined.", name)}
+}
+
+func errWindowFrameStartIllegal() error {
+	return &Error{Code: ErrWindowFrameStartIllegal, SQLState: "HY000",
+		Message: "Window '<unnamed window>': frame start cannot be UNBOUNDED FOLLOWING."}
+}
+
+func errWindowFrameEndIllegal() error {
+	return &Error{Code: ErrWindowFrameEndIllegal, SQLState: "HY000",
+		Message: "Window '<unnamed window>': frame end cannot be UNBOUNDED PRECEDING."}
+}
+
+func errWindowRangeFrameNumericType() error {
+	return &Error{Code: ErrWindowRangeFrameNumericType, SQLState: "HY000",
+		Message: "Window '<unnamed window>': INTERVAL can only be used with RANGE frames."}
+}
+
+func errEmptyRowInTVC() error {
+	return &Error{Code: ErrEmptyRowInTVC, SQLState: "HY000",
+		Message: "Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement."}
+}
+
+func errDefaultAsValInTVC() error {
+	return &Error{Code: ErrDefaultAsValInTVC, SQLState: "HY000",
+		Message: "A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement."}
 }

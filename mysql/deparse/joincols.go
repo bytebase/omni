@@ -28,7 +28,9 @@ import (
 // before q's.
 type fromScope struct {
 	*scopepkg.Scope
-	from []ast.TableExpr
+	parent *fromScope
+	ctes   map[string]*ResolverTable
+	from   []ast.TableExpr
 
 	// tables holds the scope entries of the FROM clause's tables and derived
 	// tables in the order they were registered; entries maps each such FROM

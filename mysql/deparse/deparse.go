@@ -1553,7 +1553,7 @@ func bareLevel(node ast.ExprNode) int {
 				continue
 			}
 		case *ast.InExpr:
-			if n.Select != nil {
+			if n.Select != nil && !n.Not {
 				return printsPredicate
 			}
 		case *ast.BinaryExpr:
@@ -1827,7 +1827,7 @@ func writeWindowDefAlias(b *strings.Builder, wd *ast.WindowDef) {
 		if needSpace {
 			b.WriteString(" ")
 		}
-		writeWindowFrame(b, wd.Frame)
+		writeWindowFrame(b, wd.Frame, false, false)
 	}
 	b.WriteString(")")
 }
@@ -1850,6 +1850,11 @@ func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 		b.WriteString("~(")
 		writeExpr(b, n.Operand)
 		b.WriteString(")")
+	case ast.UnaryBinary:
+		// MySQL 8.0 rewrites BINARY expr to cast(expr as char charset binary).
+		b.WriteString("cast(")
+		writeExpr(b, n.Operand)
+		b.WriteString(" as char charset binary)")
 	default:
 		// MySQL drops unary plus entirely
 		writeExpr(b, n.Operand)
@@ -1862,12 +1867,21 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 		keyword = " not in ("
 	}
 
-	// IN subquery: a IN (SELECT ...)
-	// MySQL 8.0 does NOT wrap IN subquery in outer parens (unlike IN value list).
+	// IN subquery: a IN (SELECT ...) / a NOT IN (SELECT ...)
+	// MySQL 8.0 does NOT wrap IN subquery in outer parens, and stores
+	// a NOT IN (SELECT ...) as (not(a in (select ...))).
 	// MySQL 8.0 also omits AS aliases in the subquery's target list.
 	if n.Select != nil {
+		if n.Not {
+			b.WriteString("(not(")
+			writeBitOperand(b, n.Expr)
+			b.WriteString(" in (")
+			writeSelectStmt(b, n.Select, true)
+			b.WriteString(")))")
+			return
+		}
 		writeBitOperand(b, n.Expr)
-		b.WriteString(keyword)
+		b.WriteString(" in (")
 		writeSelectStmt(b, n.Select, true)
 		b.WriteString(")")
 		return
@@ -2154,14 +2168,16 @@ func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 // funcNameRewrites maps uppercase function names to their MySQL 8.0 canonical forms.
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
-	"SUBSTRING":         "substr",
-	"CURRENT_TIMESTAMP": "now",
-	"CURRENT_DATE":      "curdate",
-	"CURRENT_TIME":      "curtime",
-	"CURRENT_USER":      "current_user",
-	"NOW":               "now",
-	"LOCALTIME":         "now",
-	"LOCALTIMESTAMP":    "now",
+	"SUBSTRING":          "substr",
+	"DAY":                "dayofmonth",
+	"GEOMETRYCOLLECTION": "geomcollection",
+	"CURRENT_TIMESTAMP":  "now",
+	"CURRENT_DATE":       "curdate",
+	"CURRENT_TIME":       "curtime",
+	"CURRENT_USER":       "current_user",
+	"NOW":                "now",
+	"LOCALTIME":          "now",
+	"LOCALTIMESTAMP":     "now",
 }
 
 // writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -2332,7 +2348,7 @@ func writeJSONValueDocument(b *strings.Builder, doc ast.ExprNode) {
 	}
 	switch n := inner.(type) {
 	case *ast.InExpr:
-		if n.Select != nil {
+		if n.Select != nil && !n.Not {
 			b.WriteString("(")
 			writeExpr(b, inner)
 			b.WriteString(")")
@@ -2464,6 +2480,29 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(")")
 			return
 		}
+	case "DATE":
+		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 {
+			b.WriteString("cast(")
+			writeExpr(b, n.Args[0])
+			b.WriteString(" as date)")
+			return
+		}
+	case "MOD":
+		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 2 {
+			b.WriteString("(")
+			writeBitOperand(b, n.Args[0])
+			b.WriteString(" % ")
+			writeBitOperand(b, n.Args[1])
+			b.WriteString(")")
+			return
+		}
+	case "VALUES":
+		// Outside INSERT ... ON DUPLICATE KEY UPDATE (e.g., in a view),
+		// MySQL 8.0 evaluates VALUES(col) to NULL and stores it as NULL.
+		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 {
+			b.WriteString("NULL")
+			return
+		}
 	}
 
 	// GROUP_CONCAT has special formatting, but only as the builtin: a spaced
@@ -2478,11 +2517,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	// Determine the canonical function name. A spaced generic call names a
-	// routine of that literal name, not the builtin, so its name keeps its own
-	// spelling: substring (1) stays substring (1), never the builtin's substr.
+	// Determine the canonical function name. A spaced generic call or a
+	// schema-qualified call names a stored routine, not the builtin, so its
+	// name keeps its own spelling: `substring (1)` stays `substring (1)` and
+	// `db.DAY(1)` stays `db.day(1)`, never the builtin's alias.
 	canonical := strings.ToLower(n.Name)
-	if !n.SpacedParen {
+	if !n.SpacedParen && n.Schema == "" {
 		if rewrite, ok := funcNameRewrites[name]; ok {
 			canonical = rewrite
 		}
@@ -2513,7 +2553,8 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// sum(distinct `c1`) for every DISTINCT, DISTINCTROW and DISTINCT ALL
 		// spelling and drops a bare ALL, which is the default (oracle
 		// mysql:8.0, mariadb:11.8.8, TiDB v8.5.5: SHOW CREATE VIEW).
-		if n.Quantifier.RemovesDuplicates() {
+		// MIN/MAX ignore DISTINCT completely in MySQL 8.0 stored views.
+		if n.Quantifier.RemovesDuplicates() && (n.Schema != "" || n.SpacedParen || (name != "MIN" && name != "MAX")) {
 			b.WriteString("distinct ")
 		}
 		for i, arg := range n.Args {
@@ -2595,7 +2636,7 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 		if needSpace {
 			b.WriteString(" ")
 		}
-		writeWindowFrame(b, wd.Frame)
+		writeWindowFrame(b, wd.Frame, true, len(wd.OrderBy) > 0 || wd.RefName != "")
 		// When frame clause is present, MySQL 8.0 has no trailing space before )
 		b.WriteString(")")
 	} else {
@@ -2606,7 +2647,10 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 
 // writeWindowFrame formats a window frame specification.
 // MySQL 8.0 format: ROWS/RANGE/GROUPS BETWEEN start AND end (all uppercase).
-func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
+// When expandSingleBound is true (canonical view body), single-bound frames
+// expand to BETWEEN start AND CURRENT ROW (or UNBOUNDED FOLLOWING for
+// unordered RANGE UNBOUNDED PRECEDING), matching MySQL 8.0 SHOW CREATE VIEW.
+func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame, expandSingleBound, hasOrderBy bool) {
 	// Frame type
 	switch f.Type {
 	case ast.FrameRows:
@@ -2623,6 +2667,15 @@ func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 		writeWindowFrameBound(b, f.Start)
 		b.WriteString(" AND ")
 		writeWindowFrameBound(b, f.End)
+	} else if expandSingleBound {
+		b.WriteString(" BETWEEN ")
+		writeWindowFrameBound(b, f.Start)
+		b.WriteString(" AND ")
+		if f.Type == ast.FrameRange && !hasOrderBy && f.Start != nil && f.Start.Type == ast.BoundUnboundedPreceding {
+			b.WriteString("UNBOUNDED FOLLOWING")
+		} else {
+			b.WriteString("CURRENT ROW")
+		}
 	} else {
 		// Single bound form
 		b.WriteString(" ")

@@ -527,16 +527,16 @@
 > query
 | SELECT 1 > ALL (SELECT 0 UNION ALL SELECT 2) AS r1, 1 > ANY (SELECT 0 UNION ALL SELECT 2) AS r2
 < result
-< column "r1" "BIGINT"
-< column "r2" "BIGINT"
+< column "r1" "BIGINT" "int64"
+< column "r2" "BIGINT" "int64"
 < row
 : int64 0
 : int64 1
 > query
 | select (1 > all (select 0 as `0` union all select 2 as `2`)) as `r1`, (1 > any (select 0 as `0` union all select 2 as `2`)) as `r2`
 < result
-< column "r1" "BIGINT"
-< column "r2" "BIGINT"
+< column "r1" "BIGINT" "int64"
+< column "r2" "BIGINT" "int64"
 < row
 : int64 0
 : int64 1
@@ -595,7 +595,7 @@
 < row
 : int64 1
 > query
-| select ((1 + 1) <= all (select (`qt`.`a` + 2) as `?` from `omni_t_mysql_catalog_quantified`.`qt`)) as `r`
+| select ((1 + 1) <= all (select (`qt`.`a` + 2) as `a + 2` from `omni_t_mysql_catalog_quantified`.`qt`)) as `r`
 < result
 < column "r" "BIGINT"
 < row
