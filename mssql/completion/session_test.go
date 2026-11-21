@@ -238,6 +238,23 @@ func TestCompleteSession_QuotingFunctionsAndPseudoColumn(t *testing.T) {
 	gotCo := CompleteSession(context.Background(), cfg, stmtCoalesce, lineCo, colCo)
 	require.True(t, hasSessionCandidate(gotCo, "COALESCE()", CandidateFunction), "got %v", gotCo)
 
+	// Niladic built-in functions are emitted without parentheses (invalid T-SQL with "()").
+	for _, tc := range []struct {
+		sql  string
+		want string
+	}{
+		{"SELECT CURRENT_TIMESTAM|", "CURRENT_TIMESTAMP"},
+		{"SELECT CURRENT_USE|", "CURRENT_USER"},
+		{"SELECT SESSION_USE|", "SESSION_USER"},
+		{"SELECT SYSTEM_USE|", "SYSTEM_USER"},
+		{"SELECT US|", "USER"},
+	} {
+		stmtN, lineN, colN := catchCaretUTF16(t, tc.sql)
+		gotN := CompleteSession(context.Background(), cfg, stmtN, lineN, colN)
+		require.True(t, hasSessionCandidate(gotN, tc.want, CandidateFunction), "%q: missing %s in %v", tc.sql, tc.want, gotN)
+		require.False(t, hasSessionCandidate(gotN, tc.want+"()", CandidateFunction), "%q: unexpected %s() in %v", tc.sql, tc.want, gotN)
+	}
+
 	require.Equal(t, "[Calc Total]()", formatSessionCandidateText(Candidate{Text: "Calc Total", Type: CandidateFunction}, 0))
 	require.Equal(t, "Calc Total", formatSessionCandidateText(Candidate{Text: "Calc Total", Type: CandidateFunction}, '['))
 

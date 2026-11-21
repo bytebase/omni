@@ -220,6 +220,14 @@ func loadDatabaseIntoCatalog(ctx context.Context, cfg SessionConfig, cat *catalo
 	_ = cat.LoadMetadataInto(ctx, nil, dbName)
 }
 
+var niladicBuiltinFunctions = map[string]bool{
+	"CURRENT_TIMESTAMP": true,
+	"CURRENT_USER":      true,
+	"SESSION_USER":      true,
+	"SYSTEM_USER":       true,
+	"USER":              true,
+}
+
 func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
 	switch {
 	case c.Type == CandidateKeyword || c.Type == CandidateType_:
@@ -228,6 +236,9 @@ func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
 		name := strings.TrimSuffix(c.Text, "()")
 		if quoteDelim != 0 {
 			return formatQuotedIdentifier(name, quoteDelim)
+		}
+		if niladicBuiltinFunctions[strings.ToUpper(name)] {
+			return name
 		}
 		if !isBuiltinFunction(name) {
 			name = formatQuotedIdentifier(name, 0)

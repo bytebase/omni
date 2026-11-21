@@ -164,10 +164,25 @@ func buildSessionOptions(ctx context.Context, cfg SessionConfig) []Option {
 	return opts
 }
 
+var oracleBuiltinDataTypeSet = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(oracleDataTypes))
+	for _, typ := range oracleDataTypes {
+		set[typ] = struct{}{}
+	}
+	return set
+}()
+
 func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 	switch c.Type {
-	case CandidateKeyword, CandidateType_:
+	case CandidateKeyword:
 		return c.Text
+	case CandidateType_:
+		if !caretInQuotes {
+			if _, builtin := oracleBuiltinDataTypeSet[c.Text]; builtin {
+				return c.Text
+			}
+		}
+		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)
 	case CandidateFunction:
 		name := strings.TrimSuffix(c.Text, "()")
 		if caretInQuotes {

@@ -81,6 +81,10 @@ func oracleTestSchemas() map[string]*metadatapb.DatabaseSchemaMetadata {
 					{Name: "GET_TOTAL"},
 					{Name: "CalculateTotal"},
 				},
+				CompositeTypes: []*metadatapb.CompositeTypeMetadata{
+					{Name: "AddressType"},
+					{Name: "ORDER_TYPE"},
+				},
 			}},
 		},
 		"SCHEMA2": {
@@ -247,6 +251,21 @@ func TestCompleteSession_QuotingAndFunctions(t *testing.T) {
 
 	// Built-in keyword functions remain unquoted.
 	require.Equal(t, "CAST()", formatSessionCandidateText(Candidate{Text: "CAST", Type: CandidateFunction}, false))
+
+	// Metadata-backed composite types are quoted when needed, while built-in data types stay unquoted.
+	stmtType, lineT, colT := catchCaretUTF16(t, "DROP TYPE |")
+	gotType := CompleteSession(context.Background(), cfg, stmtType, lineT, colT)
+	require.True(t, hasSessionCandidate(gotType, `"AddressType"`, CandidateType_), "got %v", gotType)
+	require.True(t, hasSessionCandidate(gotType, "ORDER_TYPE", CandidateType_), "got %v", gotType)
+
+	stmtTypeQ, lineTQ, colTQ := catchCaretUTF16(t, `DROP TYPE "Addr|"`)
+	gotTypeQ := CompleteSession(context.Background(), cfg, stmtTypeQ, lineTQ, colTQ)
+	require.True(t, hasSessionCandidate(gotTypeQ, "AddressType", CandidateType_), "got %v", gotTypeQ)
+
+	stmtColType, lineCT, colCT := catchCaretUTF16(t, "CREATE TABLE t (c |)")
+	gotColType := CompleteSession(context.Background(), cfg, stmtColType, lineCT, colCT)
+	require.True(t, hasSessionCandidate(gotColType, "NUMBER", CandidateType_), "got %v", gotColType)
+	require.True(t, hasSessionCandidate(gotColType, `"AddressType"`, CandidateType_), "got %v", gotColType)
 }
 
 func TestCompleteSession_ReadOnlyScene(t *testing.T) {
