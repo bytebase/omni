@@ -11492,7 +11492,7 @@
 < ok 0 -
 > exec
 | SET search_path TO "test_39", public;
-| ALTER TABLE "t1" REPLICA IDENTITY DEFAULT
+| ALTER TABLE "t1" REPLICA IDENTITY FULL
 < ok 0 -
 > exec
 | SET search_path TO "test_40", public;

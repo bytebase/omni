@@ -375,7 +375,7 @@ func (d *deparseCtx) getTargetList(tlist []*TargetEntry) {
 		// pg: get_target_list — Var uses get_variable directly
 		var attname string
 		if v, ok := te.Expr.(*VarExpr); ok {
-			attname = tmpCtx.getVariableReturningName(v)
+			attname = tmpCtx.getVariableTarget(v, true)
 		} else {
 			tmpCtx.getRuleExpr(te.Expr, true)
 			if d.colNamesVisible {
@@ -820,6 +820,10 @@ func (d *deparseCtx) getVariable(v *VarExpr) {
 // getVariableReturningName deparses a column reference and returns the column name.
 // pg: src/backend/utils/adt/ruleutils.c — get_variable
 func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
+	return d.getVariableTarget(v, false)
+}
+
+func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	// For outer references (LevelsUp > 0), walk up the context chain.
 	// pg: src/backend/utils/adt/ruleutils.c — get_variable uses
 	// deparse_namespace which tracks multiple levels.
@@ -840,6 +844,22 @@ func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
 	}
 
 	rte := ctx.query.RangeTable[v.RangeIdx]
+	if v.AttNum == 0 {
+		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(".*")
+		if isTopLevel {
+			if v.TypeOID != 0 && v.TypeOID != RECORDOID {
+				d.buf.WriteString("::")
+				if t := d.catalog.typeByOID[v.TypeOID]; t != nil && v.TypeOID >= FirstNormalObjectId && d.catalog.TypeIsVisible(v.TypeOID) {
+					d.buf.WriteString(quoteIdentifier(t.TypeName))
+				} else {
+					d.buf.WriteString(d.catalog.formatType(v.TypeOID, v.TypeMod))
+				}
+			}
+			return ""
+		}
+		return rte.ERef
+	}
 	colIdx := int(v.AttNum - 1)
 	if colIdx < 0 || colIdx >= len(rte.ColNames) {
 		d.buf.WriteString("???")
@@ -1590,7 +1610,25 @@ func (d *deparseCtx) getCollateExpr(c *CollateExprQ) {
 	}
 	d.getRuleExprParen(c.Arg, true, c)
 	d.buf.WriteString(" COLLATE ")
-	d.buf.WriteString(quoteIdentifier(c.CollName))
+	collSQL := quoteIdentifier(c.CollName)
+	if d.catalog != nil && c.CollOID >= FirstNormalObjectId {
+		for _, s := range d.catalog.schemas {
+			if s == nil {
+				continue
+			}
+			for _, uc := range s.Collations {
+				if uc != nil && uc.OID == c.CollOID {
+					if s.Name != "public" && s.Name != "pg_catalog" {
+						collSQL = quoteIdentifier(s.Name) + "." + quoteIdentifier(uc.Name)
+					} else {
+						collSQL = quoteIdentifier(uc.Name)
+					}
+					break
+				}
+			}
+		}
+	}
+	d.buf.WriteString(collSQL)
 	if !d.prettyParen {
 		d.buf.WriteByte(')')
 	}

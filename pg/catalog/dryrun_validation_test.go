@@ -546,7 +546,7 @@ func TestDryRunValidation_CreateView(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int, name text)",
 			"CREATE VIEW v(a, b, c) AS SELECT id, name FROM t",
-			CodeDatatypeMismatch, "")
+			CodeSyntaxError, "")
 	})
 
 	t.Run("OrReplaceNonView", func(t *testing.T) {

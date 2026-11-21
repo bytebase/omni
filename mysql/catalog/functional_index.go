@@ -2,7 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
@@ -33,12 +35,24 @@ func allocFunctionalIndexName(tbl *Table) string {
 	}
 }
 
-func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
+func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index, ignoreSpace bool) error {
+	return synthesizeFunctionalIndexColumnsForStmt(tbl, idx, nil, true, ignoreSpace)
+}
+
+func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[string]bool, checkRefs, ignoreSpace bool) error {
 	for _, idxCol := range idx.Columns {
 		if idxCol.Expr == "" {
 			continue
 		}
-		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
+		if checkRefs {
+			if err := validateFunctionalIndexColumnRefs(tbl, leaves, idxCol.ExprNode); err != nil {
+				return err
+			}
+		}
+		if idx.Fulltext || idx.Spatial {
+			return validateFulltextSpatialFunctionalExpr(tbl, idx.Name, idxCol.ExprNode, idx.Spatial, ignoreSpace)
+		}
+		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode, ignoreSpace); err != nil {
 			return err
 		}
 	}
@@ -62,6 +76,246 @@ func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
 			Hidden:     hiddenCol.Hidden,
 		})
 		tbl.colByName[toLower(hiddenName)] = len(tbl.Columns) - 1
+	}
+	return nil
+}
+
+func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, cloneAST bool, preExprs map[nodes.ExprNode]bool) {
+	if tbl == nil || oldTable == "" {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if col == nil {
+			continue
+		}
+		if col.DefaultExprNode != nil {
+			oldNode := col.DefaultExprNode
+			rebound, sql, changed := rebindTableExprQualifiers(oldNode, oldDB, oldTable, cloneAST)
+			if changed {
+				col.DefaultExprNode = rebound
+				if sql != "" {
+					col.Default = &sql
+				}
+				if preExprs != nil && preExprs[oldNode] {
+					delete(preExprs, oldNode)
+					preExprs[rebound] = true
+				}
+			}
+		}
+		if col.Generated != nil && col.Generated.Expr != "" {
+			if parsed, err := parseExpr(col.Generated.Expr); err == nil && parsed != nil {
+				_, sql, changed := rebindTableExprQualifiers(parsed, oldDB, oldTable, false)
+				if changed && sql != "" {
+					col.Generated.Expr = sql
+				}
+			}
+		}
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if ic == nil || ic.ExprNode == nil {
+				continue
+			}
+			rebound, sql, changed := rebindTableExprQualifiers(ic.ExprNode, oldDB, oldTable, cloneAST)
+			if changed {
+				ic.ExprNode = rebound
+				if sql != "" {
+					ic.Expr = sql
+				}
+			}
+		}
+	}
+}
+
+// stripColumnQualifiers drops the qualifiers of the column references in a
+// DEFAULT or functional index expression. MySQL resolves each to the table's
+// own column whatever schema or table names it and stores the bare name:
+// mysql:8.0.46 takes `DEFAULT (other.t.a + 1)`, `DEFAULT (y.a + 1)` and
+// `KEY ((x.y.a + 1))` beside a column a and shows `a` for each. The parsed
+// statement owns expr, so a copy is changed.
+func stripColumnQualifiers(expr nodes.ExprNode) nodes.ExprNode {
+	if expr == nil {
+		return nil
+	}
+	qualified := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && (cr.Table != "" || cr.Schema != "") {
+			qualified = true
+		}
+		return !qualified
+	})
+	if !qualified {
+		return expr
+	}
+	cloned, err := parseExpr(nodeToSQL(expr))
+	if err != nil || cloned == nil {
+		return expr
+	}
+	nodes.Inspect(cloned, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+			cr.Schema = ""
+			cr.Table = ""
+		}
+		return true
+	})
+	return cloned
+}
+
+func rebindTableExprQualifiers(expr nodes.ExprNode, oldDB, oldTable string, cloneAST bool) (nodes.ExprNode, string, bool) {
+	if expr == nil {
+		return nil, "", false
+	}
+	target := expr
+	if cloneAST {
+		if cloned, err := parseExpr(nodeToSQL(expr)); err == nil && cloned != nil {
+			target = cloned
+		}
+	}
+	changed := false
+	nodes.Inspect(target, func(n nodes.Node) bool {
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Table == "" {
+			return true
+		}
+		if (cr.Schema == "" || eqFoldStr(cr.Schema, oldDB)) && eqFoldStr(cr.Table, oldTable) {
+			cr.Schema = ""
+			cr.Table = ""
+			changed = true
+		}
+		return true
+	})
+	if !changed {
+		return target, "", false
+	}
+	return target, nodeToSQL(target), true
+}
+
+func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index, ignoreSpace bool) error {
+	for _, idx := range added {
+		if idx == nil {
+			continue
+		}
+		for _, idxCol := range idx.Columns {
+			if idxCol.Expr == "" {
+				continue
+			}
+			if err := validateFunctionalIndexColumnRefs(tbl, nil, idxCol.ExprNode); err != nil {
+				return err
+			}
+			if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode, ignoreSpace); err != nil {
+				return err
+			}
+			if col := tbl.GetColumn(idxCol.Name); col != nil && col.Hidden == ColumnHiddenSystem {
+				resolved := resolvedFunctionalIndexColumnSpec(tbl, inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
+				col.DataType = resolved.DataType
+				col.ColumnType = resolved.ColumnType
+				col.Charset = resolved.Charset
+				col.Collation = resolved.Collation
+			}
+		}
+	}
+	return nil
+}
+
+func constraintHasFunctionalKeyPart(con *nodes.Constraint) bool {
+	if con == nil {
+		return false
+	}
+	for _, ic := range con.IndexColumns {
+		if ic != nil && ic.Functional {
+			return true
+		}
+	}
+	return false
+}
+
+// validateNoColumnFunctionalParts refuses a functional key part that wraps a
+// bare column reference: mysql:8.0.46 answers 3762 before checking index name
+// collisions (1061) and before resolving whether the column exists (1054).
+func validateNoColumnFunctionalParts(parts []*nodes.IndexColumn) error {
+	for _, ic := range parts {
+		if ic != nil && ic.Functional {
+			if _, ok := peelFunctionalIndexParens(ic.Expr).(*nodes.ColumnRef); ok {
+				return errFunctionalIndexOnField()
+			}
+		}
+	}
+	return nil
+}
+
+func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr nodes.ExprNode) error {
+	var err error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" {
+			return true
+		}
+		// A qualifier is ignored (see stripColumnQualifiers).
+		if leaves != nil {
+			// A functional index's hidden column is no name an expression
+			// resolves, on ALTER as on CREATE: mysql:8.0.46 answers 1054.
+			if !leaves[toLower(cr.Column)] {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+			if col := tbl.GetColumn(cr.Column); col != nil && col.Hidden == ColumnHiddenSystem {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+		} else {
+			col := tbl.GetColumn(cr.Column)
+			if col == nil || col.Hidden == ColumnHiddenSystem {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+		}
+		return true
+	})
+	return err
+}
+
+func validateDroppedOrRenamedFunctionalIndexDeps(tbl *Table, origTableName string, droppedOrRenamed []string, beforeIndexes map[*Index]bool) error {
+	if len(droppedOrRenamed) == 0 {
+		return nil
+	}
+	droppedSet := make(map[string]bool, len(droppedOrRenamed))
+	for _, name := range droppedOrRenamed {
+		droppedSet[toLower(name)] = true
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil || !beforeIndexes[idx] {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if ic == nil || ic.ExprNode == nil {
+				continue
+			}
+			var depCol string
+			nodes.Inspect(ic.ExprNode, func(n nodes.Node) bool {
+				if depCol != "" {
+					return false
+				}
+				// Whatever qualifies it, a reference is the table's own column:
+				// mysql:8.0.46 refuses dropping `a` under KEY ((db.t.a + 1)) and
+				// KEY ((other.t.a + 1)) alike with 3837.
+				if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+					if droppedSet[toLower(cr.Column)] {
+						depCol = cr.Column
+						return false
+					}
+				}
+				return true
+			})
+			if depCol != "" {
+				return errFunctionalIndexColumnDep(depCol)
+			}
+		}
 	}
 	return nil
 }
@@ -109,9 +363,17 @@ func renameFunctionalIndexHiddenColumns(tbl *Table, idx *Index, newIndexName str
 	}
 }
 
-func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
-	rt := inferFunctionalIndexExprType(tbl, idxCol.ExprNode)
+func resolvedFunctionalIndexColumnSpec(tbl *Table, rt *ResolvedType) *Column {
 	col := columnFromResolvedType(rt)
+	if rt != nil && isResolvedStringType(rt) && col.Charset == "" && tbl != nil {
+		col.Charset = tbl.Charset
+		col.Collation = tbl.Collation
+	}
+	return col
+}
+
+func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
+	col := resolvedFunctionalIndexColumnSpec(tbl, inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
 	col.Position = len(tbl.Columns) + 1
 	col.Name = hiddenName
 	col.Nullable = true
@@ -131,12 +393,99 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		if col := tbl.GetColumn(e.Column); col != nil {
 			return resolvedTypeFromColumn(col)
 		}
+	case *nodes.IntLit, *nodes.BoolLit:
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	case *nodes.FloatLit:
+		// 1.5 is DECIMAL(2,1) and 1e0 a DOUBLE.
+		if strings.ContainsAny(e.Value, "eE") {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
+		digits := strings.TrimLeft(strings.ReplaceAll(strings.TrimLeft(e.Value, "+-"), ".", ""), "0")
+		scale := 0
+		if dot := strings.IndexByte(e.Value, '.'); dot >= 0 {
+			scale = len(e.Value) - dot - 1
+		}
+		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: max(len(digits), scale, 1), Scale: scale}
+	case *nodes.StringLit:
+		// N'...' is utf8mb3 and _cs'...' is cs, whatever the table's charset:
+		// on a COMPACT table, mysql:8.0.46 takes N'<255 chars>' and
+		// _latin1'<256 chars>' and answers 1071 for N'<256 chars>'.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		if e.National {
+			cs = "utf8mb3"
+		}
+		if cs == "binary" {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(e.Value), 1)}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(utf8.RuneCountInString(e.Value), 1), Charset: cs}
+	case *nodes.TemporalLit:
+		switch strings.ToUpper(e.Type) {
+		case "DATE":
+			return &ResolvedType{BaseType: BaseTypeDate}
+		case "TIME":
+			return &ResolvedType{BaseType: BaseTypeTime}
+		default:
+			return &ResolvedType{BaseType: BaseTypeDateTime}
+		}
+	case *nodes.HexLit, *nodes.BitLit:
+		// A hex or bit literal is a binary string of its bytes.
+		val, isHex := "", false
+		if h, ok := e.(*nodes.HexLit); ok {
+			val, isHex = cleanHexDigits(h.Value), true
+		} else {
+			val = cleanBitDigits(e.(*nodes.BitLit).Value)
+		}
+		if b, ok := decodeLiteralRawBytes(val, isHex); ok {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(len(b), 1)}
+		}
+	case *nodes.UnaryExpr:
+		switch e.Op {
+		case nodes.UnaryNot, nodes.UnaryBitNot:
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		case nodes.UnaryMinus, nodes.UnaryPlus:
+			// Negation keeps a number's type and makes a string a double:
+			// mysql:8.0.46 takes KEY ((-a)) and KEY ((-s)) on a COMPACT table.
+			rt := inferFunctionalIndexExprType(tbl, e.Operand)
+			switch {
+			case rt == nil || !isResolvedNumericType(rt):
+				return &ResolvedType{BaseType: BaseTypeDouble}
+			case rt.BaseType == BaseTypeDecimal || rt.BaseType == BaseTypeFloat || rt.BaseType == BaseTypeDouble:
+				cp := *rt
+				return &cp
+			}
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+	case *nodes.IsExpr, *nodes.InExpr, *nodes.BetweenExpr, *nodes.LikeExpr:
+		// A predicate is an integer truth value: mysql:8.0.46 takes
+		// KEY ((a IS NULL)), ((a IN (1,2))) and ((s LIKE 'x%')) on COMPACT.
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case *nodes.BinaryExpr:
 		switch e.Op {
+		case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe,
+			nodes.BinOpNullSafeEq, nodes.BinOpAnd, nodes.BinOpOr, nodes.BinOpXor,
+			nodes.BinOpRegexp, nodes.BinOpLikeEscape, nodes.BinOpSoundsLike:
+			// A comparison or logical result is an integer truth value:
+			// mysql:8.0.46 takes KEY ((a = 1)) on a COMPACT table.
+			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpAdd, nodes.BinOpSub, nodes.BinOpMul, nodes.BinOpDivInt, nodes.BinOpMod:
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpDiv:
 			return &ResolvedType{BaseType: BaseTypeDecimal}
+		case nodes.BinOpBitAnd, nodes.BinOpBitOr, nodes.BinOpBitXor, nodes.BinOpShiftLeft, nodes.BinOpShiftRight:
+			// A bitwise result is a BIGINT unless & | ^ join two binary
+			// strings, which gives a binary string as long as the longer:
+			// mysql:8.0.46 answers 1071 for KEY (varbinary_3065, ((i & 1)))
+			// and takes KEY (varbinary_3065, ((vb3 & vb3))).
+			if e.Op == nodes.BinOpBitAnd || e.Op == nodes.BinOpBitOr || e.Op == nodes.BinOpBitXor {
+				l, r := inferFunctionalIndexExprType(tbl, e.Left), inferFunctionalIndexExprType(tbl, e.Right)
+				if isResolvedBinaryType(l) && isResolvedBinaryType(r) {
+					if !functionalTypeWidthKnown(l) || !functionalTypeWidthKnown(r) {
+						return &ResolvedType{BaseType: BaseTypeVarBinary, Length: 255, widthUnknown: true}
+					}
+					return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(l.Length, r.Length)}
+				}
+			}
+			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpJsonExtract:
 			return &ResolvedType{BaseType: BaseTypeJSON}
 		case nodes.BinOpJsonUnquote:
@@ -152,30 +501,594 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			}
 			return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
 		}
-		name := strings.ToLower(e.Name)
-		switch name {
-		case "lower", "upper":
+		switch strings.ToLower(e.Name) {
+		case "if":
+			if len(e.Args) == 3 {
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args[1:])
+			}
+		case "ifnull", "coalesce":
 			if len(e.Args) > 0 {
-				rt := inferFunctionalIndexExprType(tbl, e.Args[0])
-				if rt != nil && isResolvedStringType(rt) {
-					cp := *rt
-					return &cp
-				}
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args)
 			}
-			return &ResolvedType{BaseType: BaseTypeVarchar}
-		default:
-			args := make([]AnalyzedExpr, 0, len(e.Args))
-			for _, arg := range e.Args {
-				args = append(args, &ConstExprQ{Type: inferFunctionalIndexExprType(tbl, arg)})
+		case "nullif":
+			if len(e.Args) == 2 {
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args[:1])
 			}
-			return functionReturnType(name, args)
+		case "any_value":
+			// ANY_VALUE is its argument: mysql:8.0.46 answers 3757 for
+			// KEY ((ANY_VALUE(blob_col))) and takes KEY ((ANY_VALUE(i))).
+			if len(e.Args) == 1 {
+				return inferFunctionalIndexExprType(tbl, e.Args[0])
+			}
+		case "json_set", "json_insert", "json_replace", "json_remove", "json_array", "json_object",
+			"json_merge_patch", "json_merge_preserve", "json_array_append", "json_array_insert",
+			"json_keys", "json_extract", "json_search":
+			// These return JSON, which a functional key part refuses with
+			// 3753 on mysql:8.0.46 (KEY ((JSON_SET(j, '$.x', 1)))).
+			return &ResolvedType{BaseType: BaseTypeJSON}
 		}
+		if rt := inferFunctionalIndexFuncType(tbl, e); rt != nil {
+			return rt
+		}
+		args := make([]AnalyzedExpr, 0, len(e.Args))
+		for _, arg := range e.Args {
+			args = append(args, &ConstExprQ{Type: inferFunctionalIndexExprType(tbl, arg)})
+		}
+		return functionReturnType(strings.ToLower(e.Name), args)
+	case *nodes.CaseExpr:
+		branches := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+		for _, w := range e.Whens {
+			if w != nil {
+				branches = append(branches, w.Result)
+			}
+		}
+		if e.Default != nil {
+			branches = append(branches, e.Default)
+		}
+		return aggregateFunctionalIndexBranchTypes(tbl, branches)
 	case *nodes.CastExpr:
 		if e.TypeName != nil {
 			return dataTypeToResolvedType(e.TypeName)
 		}
 	}
-	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255}
+	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255, widthUnknown: true}
+}
+
+// aggregateFunctionalIndexBranchTypes is the type of IF, IFNULL, COALESCE,
+// NULLIF and CASE: the type their value arguments aggregate to, a NULL literal
+// taking no part. On mysql:8.0.46 a BLOB or TEXT branch makes the result a LOB
+// (KEY ((IF(1, b, b))) and ((IF(1, v, b))) are 3757), JSON branches stay JSON
+// (3753) and geometry ones geometry (3760), JSON beside a string is a LONGTEXT
+// (3757), numbers stay numbers, and strings beside anything else are a string
+// as wide as the widest branch, so IF(1, varchar_600, i) is 3757 too. A mix
+// the catalog has not measured keeps the unknown placeholder.
+func aggregateFunctionalIndexBranchTypes(tbl *Table, branches []nodes.ExprNode) *ResolvedType {
+	unknown := &ResolvedType{BaseType: BaseTypeVarchar, Length: 255, widthUnknown: true}
+	var types []*ResolvedType
+	var kept []nodes.ExprNode
+	for _, b := range branches {
+		if _, isNull := peelFunctionalIndexParens(b).(*nodes.NullLit); isNull || b == nil {
+			continue
+		}
+		rt := inferFunctionalIndexExprType(tbl, b)
+		if rt == nil {
+			return unknown
+		}
+		types = append(types, rt)
+		kept = append(kept, b)
+	}
+	if len(types) == 0 {
+		return unknown
+	}
+	allJSON, allGeom, allNumeric, anyJSONOrGeom, anyLOB, anyBinaryLOB, anyBinary := true, true, true, false, false, false, false
+	for _, rt := range types {
+		isJSON := rt.BaseType == BaseTypeJSON
+		isGeom := isFunctionalIndexGeometryType(rt)
+		allJSON = allJSON && isJSON
+		allGeom = allGeom && isGeom
+		allNumeric = allNumeric && isResolvedNumericType(rt)
+		anyJSONOrGeom = anyJSONOrGeom || isJSON || isGeom
+		if isFunctionalIndexLOBType(rt) && !isJSON && !isGeom {
+			anyLOB = true
+			anyBinaryLOB = anyBinaryLOB || isResolvedBinaryType(rt)
+		}
+		anyBinary = anyBinary || isResolvedBinaryType(rt)
+	}
+	switch {
+	case allJSON:
+		return &ResolvedType{BaseType: BaseTypeJSON}
+	case allGeom:
+		return &ResolvedType{BaseType: BaseTypeGeometry}
+	case anyJSONOrGeom:
+		return &ResolvedType{BaseType: BaseTypeLongText}
+	case anyLOB && (anyBinaryLOB || anyBinary):
+		return &ResolvedType{BaseType: BaseTypeLongBlob}
+	case anyLOB:
+		return &ResolvedType{BaseType: BaseTypeLongText}
+	case allNumeric:
+		base := BaseTypeBigInt
+		for _, rt := range types {
+			switch rt.BaseType {
+			case BaseTypeFloat, BaseTypeDouble:
+				base = BaseTypeDouble
+			case BaseTypeDecimal:
+				if base != BaseTypeDouble {
+					base = BaseTypeDecimal
+				}
+			}
+		}
+		return &ResolvedType{BaseType: base}
+	}
+	same := true
+	for _, rt := range types[1:] {
+		same = same && rt.BaseType == types[0].BaseType
+	}
+	if same && !isResolvedStringType(types[0]) && !isResolvedBinaryType(types[0]) {
+		cp := *types[0]
+		return &cp
+	}
+	// Strings beside strings, numbers or temporals: as wide as the widest.
+	width, charset := 0, ""
+	for _, b := range kept {
+		n, ok, cs := inferStringExprLenAndCharset(tbl, b)
+		if !ok {
+			return unknown
+		}
+		if n > width {
+			width = n
+		}
+		if charset == "" && cs != "ascii" {
+			charset = cs
+		}
+	}
+	if anyBinary {
+		return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(width, 1)}
+	}
+	return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(width, 1), Charset: charset}
+}
+
+// functionalTypeWidthKnown reports a functional key part type whose width the
+// catalog inferred, rather than a placeholder.
+func functionalTypeWidthKnown(rt *ResolvedType) bool {
+	if rt == nil || rt.widthUnknown {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeBinary, BaseTypeVarBinary:
+		return rt.Length > 0
+	}
+	return true
+}
+
+// numericColumnStringWidth is the width a numeric or temporal column takes as
+// a string in a functional key part, as mysql:8.0.46 measures it: CONCAT(
+// varbinary_501, int_col) is 512 bytes. Integers take their display width
+// (INT 11, INT UNSIGNED 10, BIGINT 20, TINYINT(1) 1), DECIMAL(M,D) M+1 and one
+// more for a fraction, DOUBLE 22, FLOAT 23, DATE 10, DATETIME 19 and TIME 10,
+// each with its fraction, YEAR 5, BIT(n) n.
+func numericColumnStringWidth(col *Column) (int, bool) {
+	ct := strings.ToLower(col.ColumnType)
+	unsigned := strings.Contains(ct, "unsigned")
+	arg := func() (int, int, bool) {
+		open, close := strings.IndexByte(ct, '('), strings.IndexByte(ct, ')')
+		if open < 0 || close <= open {
+			return 0, 0, false
+		}
+		m, d, _ := strings.Cut(ct[open+1:close], ",")
+		mi, err := strconv.Atoi(strings.TrimSpace(m))
+		if err != nil {
+			return 0, 0, false
+		}
+		di, _ := strconv.Atoi(strings.TrimSpace(d))
+		return mi, di, true
+	}
+	switch strings.ToLower(col.DataType) {
+	case "tinyint":
+		if m, _, ok := arg(); ok && m == 1 {
+			return 1, true
+		}
+		if unsigned {
+			return 3, true
+		}
+		return 4, true
+	case "smallint":
+		if unsigned {
+			return 5, true
+		}
+		return 6, true
+	case "mediumint":
+		if unsigned {
+			return 8, true
+		}
+		return 9, true
+	case "int", "integer":
+		if unsigned {
+			return 10, true
+		}
+		return 11, true
+	case "bigint":
+		return 20, true
+	case "decimal", "numeric":
+		m, d, ok := arg()
+		if !ok {
+			m, d = 10, 0
+		}
+		n := m + 1
+		if d > 0 {
+			n++
+		}
+		return n, true
+	case "double", "real":
+		return 22, true
+	case "float":
+		return 23, true
+	case "date":
+		return 10, true
+	case "datetime", "timestamp":
+		if fsp, _, ok := arg(); ok && fsp > 0 {
+			return 20 + fsp, true
+		}
+		return 19, true
+	case "time":
+		if fsp, _, ok := arg(); ok && fsp > 0 {
+			return 11 + fsp, true // TIME(6) is 17 characters
+		}
+		return 10, true
+	case "year":
+		return 5, true
+	case "bit":
+		if m, _, ok := arg(); ok {
+			return m, true
+		}
+		return 1, true
+	}
+	return 0, false
+}
+
+func extractNonNegIntLit(expr nodes.ExprNode) (int, bool) {
+	lit, ok := peelFunctionalIndexParens(expr).(*nodes.IntLit)
+	if !ok || lit.Value < 0 {
+		return 0, false
+	}
+	return int(lit.Value), true
+}
+
+func exprCharsetRank(cs string) int {
+	c := strings.ToLower(strings.TrimSpace(cs))
+	switch {
+	case c == "":
+		return 0
+	case c == "utf8mb4" || c == "utf16" || c == "utf16le" || c == "utf32":
+		return 50
+	case c == "gb18030":
+		return 45
+	case c == "utf8" || c == "utf8mb3" || c == "ucs2":
+		return 40
+	case charsetMaxBytes(c) == 3:
+		return 30
+	case charsetMaxBytes(c) == 2:
+		return 20
+	case c == "ascii":
+		return 5
+	default:
+		return 10
+	}
+}
+
+func aggregateExprCharset(a, b string) string {
+	if exprCharsetRank(b) > exprCharsetRank(a) {
+		return b
+	}
+	return a
+}
+
+func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, string) {
+	switch e := peelFunctionalIndexParens(expr).(type) {
+	case *nodes.StringLit:
+		// A literal's own charset decides its byte width in a binary
+		// result: CONCAT(varbinary_511, _latin1'x') is 512 bytes.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		if e.National {
+			cs = "utf8mb3"
+		}
+		if cs == "binary" {
+			return len(e.Value), true, cs
+		}
+		return utf8.RuneCountInString(e.Value), true, cs
+	case *nodes.ColumnRef:
+		if col := tbl.GetColumn(e.Column); col != nil {
+			if n, ok := numericColumnStringWidth(col); ok {
+				return n, true, "ascii"
+			}
+		}
+		rt := inferFunctionalIndexExprType(tbl, e)
+		if rt != nil && rt.Length > 0 {
+			return rt.Length, true, rt.Charset
+		}
+		return 0, false, ""
+	case *nodes.IntLit:
+		// A number renders in a one-byte charset, even in a binary result:
+		// CONCAT(varbinary_510, -1) is 512 bytes on mysql:8.0.46.
+		return len(strconv.FormatInt(e.Value, 10)), true, "ascii"
+	case *nodes.FloatLit:
+		if !strings.ContainsAny(e.Value, "eE") {
+			return len(e.Value), true, "ascii"
+		}
+		// A double counts at the 22 characters MySQL reserves for one,
+		// whatever its value: CONCAT(varbinary_490, 1e0) is 512 bytes and
+		// varbinary_491 a LOB on mysql:8.0.46.
+		return 22, true, "ascii"
+	case *nodes.UnaryExpr:
+		// A signed literal renders with its sign: CONCAT(varbinary_511, -1)
+		// is 513 bytes, a LOB, on mysql:8.0.46.
+		if e.Op == nodes.UnaryMinus || e.Op == nodes.UnaryPlus {
+			if n, ok, cs := inferStringExprLenAndCharset(tbl, e.Operand); ok {
+				if e.Op == nodes.UnaryMinus {
+					n++
+				}
+				return n, true, cs
+			}
+		}
+	default:
+		rt := inferFunctionalIndexExprType(tbl, e)
+		if rt != nil && rt.BaseType == BaseTypeDouble {
+			return 22, true, "ascii"
+		}
+		if rt != nil && rt.Length > 0 {
+			return rt.Length, true, rt.Charset
+		}
+		return 0, false, ""
+	}
+	return 0, false, ""
+}
+
+func inferBoundedStringExprType(tbl *Table, args []nodes.ExprNode, limitIdx int) *ResolvedType {
+	if len(args) < 2 {
+		return nil
+	}
+	var maxLen int
+	var charset string
+	base := BaseTypeVarchar
+	if arg0 := inferFunctionalIndexExprType(tbl, args[0]); arg0 != nil {
+		maxLen = arg0.Length
+		charset = arg0.Charset
+		if isResolvedBinaryType(arg0) {
+			base = BaseTypeVarBinary
+		}
+	}
+	if len(args) > limitIdx {
+		if k, ok := extractNonNegIntLit(args[limitIdx]); ok && k > 0 {
+			if maxLen == 0 || k < maxLen {
+				maxLen = k
+			}
+		}
+	}
+	if maxLen > 0 {
+		return &ResolvedType{BaseType: base, Length: maxLen, Charset: charset}
+	}
+	return nil
+}
+
+func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedType {
+	name := strings.ToLower(e.Name)
+	switch name {
+	case "lower", "lcase", "upper", "ucase", "trim", "ltrim", "rtrim", "reverse":
+		if len(e.Args) > 0 {
+			// A number or a temporal value becomes a string at its display
+			// width in the connection's charset, utf8mb4 by default: LOWER(int)
+			// is 11 characters, 44 bytes, in a latin1 table as in a utf8mb4 one.
+			if cr, ok := peelFunctionalIndexParens(e.Args[0]).(*nodes.ColumnRef); ok {
+				if col := tbl.GetColumn(cr.Column); col != nil {
+					if n, ok := numericColumnStringWidth(col); ok {
+						return &ResolvedType{BaseType: BaseTypeVarchar, Length: n, Charset: "utf8mb4"}
+					}
+				}
+			}
+			rt := inferFunctionalIndexExprType(tbl, e.Args[0])
+			if rt != nil && (isResolvedStringType(rt) || isResolvedBinaryType(rt)) {
+				cp := *rt
+				return &cp
+			}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar}
+	case "concat", "concat_ws":
+		if len(e.Args) == 0 || (name == "concat_ws" && len(e.Args) < 2) {
+			return nil
+		}
+		sepLen := 0
+		sepOK := true
+		charset := ""
+		start := 0
+		if name == "concat_ws" {
+			sepLen, sepOK, charset = inferStringExprLenAndCharset(tbl, e.Args[0])
+			start = 1
+		}
+		if !sepOK {
+			return nil
+		}
+		base := BaseTypeVarchar
+		for _, arg := range e.Args {
+			at := inferFunctionalIndexExprType(tbl, arg)
+			if isFunctionalIndexLOBType(at) {
+				// A JSON or geometry argument makes the result a LOB, not JSON
+				// or geometry: mysql:8.0.46 answers 3757 for KEY ((CONCAT(g, 'x'))).
+				if isFunctionalIndexJSONOrGeometryType(at) {
+					return &ResolvedType{BaseType: BaseTypeLongBlob}
+				}
+				return at
+			}
+			if isResolvedBinaryType(at) {
+				base = BaseTypeVarBinary
+			}
+		}
+		// A binary CONCAT_WS counts a character separator at utf8mb4's 4
+		// bytes per character too: mysql:8.0.46 takes
+		// CONCAT_WS('x', varbinary_254, varbinary_254) and answers 3757 at 255.
+		if name == "concat_ws" && base == BaseTypeVarBinary && !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[0])) {
+			w := "utf8mb4"
+			if charset != "" {
+				w = charset
+			}
+			sepLen *= max(charsetMaxBytes(w), 1)
+		}
+		totalLen := 0
+		for i := start; i < len(e.Args); i++ {
+			argLen, ok, cs := inferStringExprLenAndCharset(tbl, e.Args[i])
+			if !ok {
+				return nil
+			}
+			// A binary CONCAT counts a character argument at its charset's
+			// widest character, a literal at utf8mb4's: mysql:8.0.46 refuses
+			// KEY ((CONCAT(tinyblob, tinyblob, 'x'))), 255 + 255 + 4 bytes.
+			if base == BaseTypeVarBinary && !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[i])) {
+				w := "utf8mb4"
+				if cs != "" {
+					w = cs
+				}
+				argLen *= max(charsetMaxBytes(w), 1)
+			}
+			totalLen += argLen
+			charset = aggregateExprCharset(charset, cs)
+			if name == "concat_ws" && i > start {
+				totalLen += sepLen
+			}
+		}
+		if totalLen < 1 {
+			totalLen = 1
+		}
+		return &ResolvedType{BaseType: base, Length: totalLen, Charset: charset}
+	case "substring", "substr", "mid":
+		return inferBoundedStringExprType(tbl, e.Args, 2)
+	case "left", "right":
+		return inferBoundedStringExprType(tbl, e.Args, 1)
+	case "lpad", "rpad":
+		if len(e.Args) < 2 {
+			return nil
+		}
+		if k, ok := extractNonNegIntLit(e.Args[1]); ok && k > 0 {
+			var charset string
+			base := BaseTypeVarchar
+			if arg0 := inferFunctionalIndexExprType(tbl, e.Args[0]); arg0 != nil {
+				charset = arg0.Charset
+				// A binary string pads to a binary string: mysql:8.0.46 takes
+				// RPAD(varbinary_1, 512, X'00') on a COMPACT table.
+				if isResolvedBinaryType(arg0) {
+					base = BaseTypeVarBinary
+				}
+			}
+			return &ResolvedType{BaseType: base, Length: k, Charset: charset}
+		}
+	case "ascii", "ord", "bit_length", "char_length", "character_length", "length", "octet_length",
+		"crc32", "bit_count", "sign", "instr", "locate", "position", "field", "find_in_set",
+		"strcmp", "interval", "inet_aton", "is_ipv4", "is_ipv6", "is_ipv4_compat", "is_ipv4_mapped",
+		"is_uuid", "json_length", "json_depth", "json_valid", "json_contains", "json_contains_path",
+		"json_overlaps", "regexp_instr", "regexp_like", "year", "month", "day", "dayofmonth",
+		"dayofweek", "dayofyear", "weekday", "week", "weekofyear", "yearweek", "quarter",
+		"hour", "minute", "second", "microsecond", "to_days", "to_seconds", "datediff",
+		"period_add", "period_diff", "timestampdiff", "time_to_sec", "isnull":
+		// An integer result: mysql:8.0.46 holds KEY ((ASCII(c1)), ..., (ASCII(c13)))
+		// to 13 small integer parts, not to placeholder strings.
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	case "st_centroid", "st_buffer", "st_envelope", "st_startpoint", "st_endpoint", "st_exteriorring",
+		"st_geometryn", "st_interiorringn", "st_pointn", "st_union", "st_intersection", "st_difference",
+		"st_symdifference", "st_convexhull", "st_simplify", "st_swapxy", "st_transform", "st_makeenvelope",
+		"st_geomfromgeojson", "st_lineinterpolatepoint", "st_lineinterpolatepoints", "st_pointatdistance",
+		"st_pointfromgeohash", "st_validate", "st_geomfromtext", "st_geometryfromtext", "st_geomfromwkb",
+		"st_geometryfromwkb", "st_pointfromtext", "st_pointfromwkb", "st_linefromtext", "st_linestringfromtext",
+		"st_linefromwkb", "st_linestringfromwkb", "st_polyfromtext", "st_polygonfromtext", "st_polyfromwkb",
+		"st_polygonfromwkb", "st_mpointfromtext", "st_multipointfromtext", "st_mpointfromwkb",
+		"st_multipointfromwkb", "st_mlinefromtext", "st_multilinestringfromtext", "st_mlinefromwkb",
+		"st_multilinestringfromwkb", "st_mpolyfromtext", "st_multipolygonfromtext", "st_mpolyfromwkb",
+		"st_multipolygonfromwkb", "st_geomcollfromtext", "st_geometrycollectionfromtext", "st_geomcollfromtxt",
+		"st_geomcollfromwkb", "st_geometrycollectionfromwkb", "point", "linestring", "polygon", "multipoint",
+		"multilinestring", "multipolygon", "geometrycollection", "geomcollection":
+		// A geometry result, which mysql:8.0.46 refuses as a spatial
+		// functional index (3760): KEY ((ST_CENTROID(g))), KEY ((POINT(1, 1))).
+		return &ResolvedType{BaseType: BaseTypeGeometry}
+	case "st_srid", "st_x", "st_y", "st_latitude", "st_longitude":
+		// With a second argument these set a coordinate or the SRID and
+		// return the geometry (3760); with one they read a number.
+		if len(e.Args) >= 2 {
+			return &ResolvedType{BaseType: BaseTypeGeometry}
+		}
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	case "st_astext", "st_aswkt":
+		return &ResolvedType{BaseType: BaseTypeLongText} // 3757
+	case "st_asbinary", "st_aswkb":
+		return &ResolvedType{BaseType: BaseTypeLongBlob} // 3757
+	case "st_asgeojson":
+		return &ResolvedType{BaseType: BaseTypeJSON} // 3753
+	case "space":
+		// SPACE(n) is n characters, and SPACE of anything but a constant
+		// is as long as a LOB: mysql:8.0.46 takes KEY ((SPACE(512))) and
+		// answers 3757 for SPACE(513) and SPACE(a).
+		if len(e.Args) != 1 {
+			return nil
+		}
+		k, ok := extractNonNegIntLit(e.Args[0])
+		if !ok || k > 1<<30 {
+			return &ResolvedType{BaseType: BaseTypeLongText}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(k, 1)}
+	case "replace":
+		// REPLACE's width, as mysql:8.0.46 measures it, is the subject's
+		// times the replacement's length less one, at least the subject's:
+		// REPLACE(varchar_100, 'x', 'yyy') is varchar(200) and with 'yy' or
+		// 'y' varchar(100), whatever the search string. A binary subject counts
+		// a character replacement at utf8mb4's 4 bytes per character.
+		if len(e.Args) != 3 {
+			return nil
+		}
+		arg0 := inferFunctionalIndexExprType(tbl, e.Args[0])
+		if arg0 == nil || !functionalTypeWidthKnown(arg0) || isFunctionalIndexLOBType(arg0) {
+			return arg0
+		}
+		replLen, ok, replCS := inferStringExprLenAndCharset(tbl, e.Args[2])
+		if !ok {
+			if _, isStr := peelFunctionalIndexParens(e.Args[2]).(*nodes.StringLit); !isStr {
+				return nil
+			}
+			replLen = 0
+		}
+		base := BaseTypeVarchar
+		if isResolvedBinaryType(arg0) {
+			base = BaseTypeVarBinary
+			if !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[2])) {
+				w := "utf8mb4"
+				if replCS != "" {
+					w = replCS
+				}
+				replLen *= max(charsetMaxBytes(w), 1)
+			}
+		}
+		n := arg0.Length
+		if replLen > 2 {
+			n = arg0.Length * (replLen - 1)
+		}
+		return &ResolvedType{BaseType: base, Length: n, Charset: arg0.Charset}
+	case "repeat":
+		if len(e.Args) < 2 {
+			return nil
+		}
+		argLen, argOK, charset := inferStringExprLenAndCharset(tbl, e.Args[0])
+		if k, ok := extractNonNegIntLit(e.Args[1]); ok && argOK && k > 0 {
+			// REPEAT keeps a binary argument binary, and its length saturates
+			// past any limit an index checks: mysql:8.0.46 takes
+			// CONCAT(varbinary_1, REPEAT(X'00', 128)) and refuses
+			// REPEAT(varchar_2, 9223372036854775807) with 3757.
+			base := BaseTypeVarchar
+			if isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[0])) {
+				base = BaseTypeVarBinary
+			}
+			const lengthCap = 1 << 30
+			n := lengthCap
+			if argLen <= lengthCap/k {
+				n = max(argLen*k, 1)
+			}
+			return &ResolvedType{BaseType: base, Length: n, Charset: charset}
+		}
+	}
+	return nil
 }
 
 // jsonValueIndexType is the hidden column a functional index over JSON_VALUE ... RETURNING gets:
@@ -246,8 +1159,28 @@ func resolvedTypeFromColumn(col *Column) *ResolvedType {
 		}
 	case "json":
 		rt.BaseType = BaseTypeJSON
-	case "text", "tinytext", "mediumtext", "longtext":
+	case "binary", "varbinary":
+		rt.BaseType = BaseTypeVarBinary
+		if n, ok := fixedLengthStringColumnLimit(col); ok {
+			rt.Length = n
+		}
+	// A TINYTEXT or TINYBLOB holds 255 bytes, which no function result over
+	// it turns into a LOB: mysql:8.0.46 takes KEY ((REVERSE(tinytext_col))).
+	case "tinyblob":
+		rt.BaseType = BaseTypeVarBinary
+		rt.Length = 255
+	case "tinytext":
+		rt.BaseType = BaseTypeVarchar
+		rt.Length = 255 / max(charsetMaxBytes(col.Charset), 1)
+	case "text", "mediumtext", "longtext":
 		rt.BaseType = BaseTypeText
+	case "blob", "mediumblob", "longblob":
+		rt.BaseType = BaseTypeBlob
+	// A geometry column passed through IF or COALESCE stays geometry: mysql:8.0.46
+	// answers 3760 for KEY ((IF(1, g, g))).
+	case "geometry", "point", "linestring", "polygon", "multipoint", "multilinestring",
+		"multipolygon", "geometrycollection", "geomcollection":
+		rt.BaseType = BaseTypeGeometry
 	default:
 		rt.BaseType = BaseTypeVarchar
 	}
@@ -338,23 +1271,20 @@ func isResolvedStringType(rt *ResolvedType) bool {
 	}
 }
 
-func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode) error {
+func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode, ignoreSpace bool) error {
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
-		return &Error{
-			Code:     3762,
-			SQLState: "HY000",
-			Message:  fmt.Sprintf("Functional index on a column is not supported. Consider using a regular index instead. Index '%s'.", indexName),
-		}
+		return errFunctionalIndexOnField()
 	}
-	if containsDisallowedFunctionalIndexExpr(expr) {
-		return &Error{
-			Code:     3758,
-			SQLState: "HY000",
-			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
-		}
+	if err := functionalIndexExprRefusal(indexName, expr, ignoreSpace); err != nil {
+		return err
 	}
 	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
 	// KEY ((JSON_VALUE(a,'$.x' RETURNING JSON))) and KEY ((CAST(a->'$.x' AS JSON))).
+	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexGeometryType(rt) {
+		// A geometry result is a spatial functional index: mysql:8.0.46
+		// answers 3760 for KEY ((ST_CENTROID(g))).
+		return errSpatialFunctionalIndex()
+	}
 	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexJSONOrGeometryType(rt) {
 		return &Error{
 			Code:     3753,
@@ -372,6 +1302,51 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 	return nil
 }
 
+// validateFulltextSpatialFunctionalExpr refuses a functional key part of a
+// FULLTEXT (3759) or SPATIAL (3760) index. mysql:8.0.46 judges the expression
+// first, as for any functional key part, and its type only for a BLOB or TEXT
+// result: FULLTEXT ((NOW())) is 3758, FULLTEXT ((CONCAT(a, REPEAT(a, 10000))))
+// is 3757, and FULLTEXT ((CAST(a AS JSON))) is 3759, not 3753.
+func validateFulltextSpatialFunctionalExpr(tbl *Table, indexName string, expr nodes.ExprNode, spatial, ignoreSpace bool) error {
+	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
+		return errFunctionalIndexOnField()
+	}
+	if err := functionalIndexExprRefusal(indexName, expr, ignoreSpace); err != nil {
+		return err
+	}
+	if rt := inferFunctionalIndexExprType(tbl, expr); isFunctionalIndexLOBType(rt) && !isFunctionalIndexJSONOrGeometryType(rt) {
+		return &Error{
+			Code:     3757,
+			SQLState: "HY000",
+			Message:  "Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.",
+		}
+	}
+	if spatial {
+		return errSpatialFunctionalIndex()
+	}
+	return errFulltextFunctionalIndex()
+}
+
+// validateFulltextSpatialFunctionalParts judges the functional key parts of a
+// FULLTEXT or SPATIAL key a table definition declares, after its plain key parts.
+func validateFulltextSpatialFunctionalParts(tbl *Table, leaves map[string]bool, checkRefs bool, indexName string, idxCols []*IndexColumn, spatial, ignoreSpace bool) error {
+	if indexName == "" {
+		indexName = "functional_index"
+	}
+	for _, ic := range idxCols {
+		if ic == nil || ic.Expr == "" {
+			continue
+		}
+		if checkRefs {
+			if err := validateFunctionalIndexColumnRefs(tbl, leaves, ic.ExprNode); err != nil {
+				return err
+			}
+		}
+		return validateFulltextSpatialFunctionalExpr(tbl, indexName, ic.ExprNode, spatial, ignoreSpace)
+	}
+	return nil
+}
+
 func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 	for {
 		p, ok := expr.(*nodes.ParenExpr)
@@ -382,79 +1357,134 @@ func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 	}
 }
 
-func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
-	switch e := expr.(type) {
-	case nil:
-		return false
-	case *nodes.FuncCallExpr:
-		// A spaced gated keyword is a generic stored-function call, which a
-		// functional index forbids: mysql:8.0 answers 3758 for
-		// INDEX ((position (a))).
-		if e.SpacedParen {
-			return true
+// functionalIndexExprRefusal answers what mysql:8.0.46 answers for the first
+// node of a functional key part it refuses, or nil. It judges in post-order, a
+// function's arguments before the function: KEY ((@x + NOW())) and
+// KEY ((SLEEP(@x))) are 3772, KEY ((NOW() + @x)) is 3758. Aggregates (1111)
+// and window functions (3593) are judged only after the whole expression
+// passes: KEY ((COUNT(a) + NOW())) is 3758, KEY ((COUNT(a))) is 1111.
+func functionalIndexExprRefusal(indexName string, expr nodes.ExprNode, ignoreSpace bool) error {
+	v := &functionalIndexJudge{ignoreSpace: ignoreSpace}
+	nodes.Walk(v, expr)
+	switch v.code {
+	case ErrDefaultValExprRefVariable:
+		return errDefaultValExprVariable(indexName)
+	case 3758:
+		return &Error{
+			Code:     3758,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
 		}
-		switch strings.ToLower(e.Name) {
-		case "rand", "uuid", "sleep", "now", "current_timestamp", "sysdate":
-			return true
+	}
+	var err error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		fc, ok := n.(*nodes.FuncCallExpr)
+		if err != nil || !ok {
+			return err == nil
 		}
-		for _, arg := range e.Args {
-			if containsDisallowedFunctionalIndexExpr(arg) {
-				return true
+		if fc.Over != nil {
+			err = &Error{Code: 3593, SQLState: "HY000",
+				Message: fmt.Sprintf("You cannot use the window function '%s' in this context.'", strings.ToLower(fc.Name))}
+		} else if functionalIndexAggregates[strings.ToLower(fc.Name)] {
+			err = &Error{Code: 1111, SQLState: "HY000", Message: "Invalid use of group function"}
+		}
+		return err == nil
+	})
+	return err
+}
+
+type functionalIndexJudge struct {
+	stack       []nodes.Node
+	code        int
+	ignoreSpace bool
+}
+
+func (v *functionalIndexJudge) Visit(n nodes.Node) nodes.Visitor {
+	if v.code != 0 {
+		return nil
+	}
+	if n == nil {
+		top := v.stack[len(v.stack)-1]
+		v.stack = v.stack[:len(v.stack)-1]
+		switch e := top.(type) {
+		case *nodes.VariableRef:
+			v.code = ErrDefaultValExprRefVariable
+		case *nodes.DefaultExpr, *nodes.MatchExpr:
+			v.code = 3758
+		case *nodes.FuncCallExpr:
+			if isFunctionalIndexDisallowedFunc(e, v.ignoreSpace) {
+				v.code = 3758
 			}
 		}
-	case *nodes.DefaultExpr, *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.VariableRef:
-		return true
-	case *nodes.ParenExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.BinaryExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Left) || containsDisallowedFunctionalIndexExpr(e.Right)
-	case *nodes.UnaryExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Operand)
-	case *nodes.CastExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.CaseExpr:
-		if containsDisallowedFunctionalIndexExpr(e.Operand) || containsDisallowedFunctionalIndexExpr(e.Default) {
-			return true
-		}
-		for _, when := range e.Whens {
-			if containsDisallowedFunctionalIndexExpr(when.Cond) || containsDisallowedFunctionalIndexExpr(when.Result) {
-				return true
-			}
-		}
+		return nil
+	}
+	switch e := n.(type) {
+	case *nodes.SubqueryExpr, *nodes.ExistsExpr:
+		v.code = 3758
+		return nil
 	case *nodes.InExpr:
 		if e.Select != nil {
-			return true
+			v.code = 3758
+			return nil
 		}
-		if containsDisallowedFunctionalIndexExpr(e.Expr) {
-			return true
-		}
-		for _, item := range e.List {
-			if containsDisallowedFunctionalIndexExpr(item) {
-				return true
-			}
-		}
-	case *nodes.BetweenExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr) ||
-			containsDisallowedFunctionalIndexExpr(e.Low) ||
-			containsDisallowedFunctionalIndexExpr(e.High)
-	case *nodes.IsExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.WeightStringExpr:
-		// KEY ((weight_string(now() as char(4)))) is rejected by the engine
-		// exactly like KEY ((now())) — error 3758 (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.PositionExpr:
-		// KEY ((position('x' in rand()))) → 3758, like KEY ((rand())), and
-		// position over a column is allowed (oracle 8.0.32, and 3758 on TiDB v8.5.5).
-		return containsDisallowedFunctionalIndexExpr(e.Substr) ||
-			containsDisallowedFunctionalIndexExpr(e.Str)
-	case *nodes.ExtractExpr:
-		// KEY ((extract(day from now()))) → 3758; extract over a column is
-		// allowed (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.IntervalExpr:
-		// KEY ((a + interval (day(now())) day)) → 3758 (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Value)
+	}
+	v.stack = append(v.stack, n)
+	return v
+}
+
+// isFunctionalIndexDisallowedFunc reports a call a functional index refuses
+// with 3758: a stored function or UDF (a qualified or unknown name, or a spaced
+// gated keyword such as `position (a)`), a built-in DEFAULT (expr) refuses too
+// (LAST_INSERT_ID, VERSION, VALUES, ...), and the built-ins DEFAULT takes but a
+// generated column does not. Aggregates and window functions are judged apart.
+func isFunctionalIndexDisallowedFunc(e *nodes.FuncCallExpr, ignoreSpace bool) bool {
+	// A spaced call names a stored function unless IGNORE_SPACE makes it the
+	// built-in: mysql:8.0.46 takes KEY ((SUBSTRING (a,1,1))) under
+	// IGNORE_SPACE or ANSI and answers 3758 without it.
+	if e.Schema != "" || (e.SpacedParen && !ignoreSpace) {
+		return true
+	}
+	name := strings.ToLower(e.Name)
+	if e.Over != nil || functionalIndexAggregates[name] {
+		return false
+	}
+	name = canonicalDefaultBuiltinName(name)
+	return functionalIndexDisallowedBuiltins[name] || !allowedDefaultExprBuiltinFuncs[name]
+}
+
+// functionalIndexAggregates are the group functions a functional key part
+// answers 1111 for. ANY_VALUE is not one: KEY ((ANY_VALUE(a))) is taken.
+var functionalIndexAggregates = map[string]bool{
+	"count": true, "sum": true, "avg": true, "min": true, "max": true,
+	"group_concat": true, "json_arrayagg": true, "json_objectagg": true,
+	"bit_and": true, "bit_or": true, "bit_xor": true,
+	"std": true, "stddev": true, "stddev_pop": true, "stddev_samp": true,
+	"var_pop": true, "var_samp": true, "variance": true, "st_collect": true,
+}
+
+// functionalIndexDisallowedBuiltins are the built-ins allowedDefaultExprBuiltinFuncs
+// takes that mysql:8.0.46 refuses in a functional key part with 3758: every
+// name of that list was probed as KEY ((fn(...))) and these answered 3758.
+var functionalIndexDisallowedBuiltins = map[string]bool{
+	"connection_id": true, "create_digest": true, "curdate": true, "current_date": true,
+	"current_role": true, "current_time": true, "current_timestamp": true, "current_user": true,
+	"curtime": true, "database": true, "geomcollfromtext": true, "geomcollfromwkb": true,
+	"geometrycollectionfromtext": true, "geometrycollectionfromwkb": true, "geomfromtext": true,
+	"geomfromwkb": true, "linefromtext": true, "linefromwkb": true, "localtime": true,
+	"localtimestamp": true, "mlinefromtext": true, "mlinefromwkb": true, "mpointfromtext": true,
+	"mpointfromwkb": true, "mpolyfromtext": true, "mpolyfromwkb": true, "now": true,
+	"pointfromtext": true, "pointfromwkb": true, "polyfromtext": true, "polyfromwkb": true,
+	"rand": true, "roles_graphml": true, "schema": true, "session_user": true,
+	"statement_digest": true, "statement_digest_text": true, "sysdate": true, "system_user": true,
+	"unix_timestamp": true, "user": true, "utc_date": true, "utc_time": true,
+	"utc_timestamp": true, "uuid": true, "uuid_short": true,
+}
+
+func isFunctionalIndexGeometryType(rt *ResolvedType) bool {
+	switch rt.BaseType {
+	case BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
+		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
+		return true
 	}
 	return false
 }
@@ -468,9 +1498,40 @@ func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {
 	return false
 }
 
+// isResolvedNumericType reports an integer, fixed-point or floating-point type.
+func isResolvedNumericType(rt *ResolvedType) bool {
+	switch rt.BaseType {
+	case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt,
+		BaseTypeDecimal, BaseTypeFloat, BaseTypeDouble:
+		return true
+	}
+	return false
+}
+
+// isResolvedBinaryType reports a binary string type a function result keeps.
+func isResolvedBinaryType(rt *ResolvedType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeBinary, BaseTypeVarBinary, BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob:
+		return true
+	}
+	return false
+}
+
+// isFunctionalIndexLOBType reports a result a functional key part refuses with
+// 3757: a TEXT, BLOB, JSON or geometry type, or a string longer than 512
+// characters (bytes for a binary string), which MySQL makes a TEXT or BLOB:
+// mysql:8.0.46 takes KEY ((LEFT(v, 512))) and refuses KEY ((LEFT(v, 513))),
+// KEY ((CAST(i AS CHAR(513)))) and KEY ((REVERSE(varbinary_4000_col))).
 func isFunctionalIndexLOBType(rt *ResolvedType) bool {
 	if rt == nil {
 		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeBinary, BaseTypeVarBinary:
+		return rt.Length > 512
 	}
 	switch rt.BaseType {
 	case BaseTypeJSON, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,

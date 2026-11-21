@@ -4233,7 +4233,7 @@ func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
 		sb.WriteString(" :undo true")
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.DataFile != "" {
+	if n.HasDataFile || n.DataFile != "" {
 		fmt.Fprintf(sb, " :datafile %q", n.DataFile)
 	}
 	if n.AutoextendSize != "" {
@@ -4242,7 +4242,7 @@ func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
 	if n.FileBlockSize != "" {
 		fmt.Fprintf(sb, " :file_block_size %s", n.FileBlockSize)
 	}
-	if n.Encryption != "" {
+	if n.HasEncryption || n.Encryption != "" {
 		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
 	}
 	if n.UseLogfileGroup != "" {
@@ -4285,10 +4285,10 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 		sb.WriteString(" :undo true")
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.AddDataFile != "" {
+	if n.HasAddDataFile || n.AddDataFile != "" {
 		fmt.Fprintf(sb, " :add_datafile %q", n.AddDataFile)
 	}
-	if n.DropDataFile != "" {
+	if n.HasDropDataFile || n.DropDataFile != "" {
 		fmt.Fprintf(sb, " :drop_datafile %q", n.DropDataFile)
 	}
 	if n.InitialSize != "" {
@@ -4303,7 +4303,7 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 	if n.AutoextendSize != "" {
 		fmt.Fprintf(sb, " :autoextend_size %s", n.AutoextendSize)
 	}
-	if n.Encryption != "" {
+	if n.HasEncryption || n.Encryption != "" {
 		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
 	}
 	if n.Engine != "" {

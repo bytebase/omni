@@ -41,6 +41,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := validateBareNowDefault(colDef); err != nil {
 			return err
 		}
+		if err := validateColumnOnUpdate(colDef); err != nil {
+			return err
+		}
 	}
 	// A loader's statement (DefineTable) is a snapshot of a server that may
 	// ship another engine, so only a CREATE TABLE statement is judged, and its
@@ -85,6 +88,57 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		}
 		if srcDB == db && toLower(stmt.Like.Name) == key {
 			return errNonUniqueTable(stmt.Like.Name)
+		}
+	}
+
+	if declared {
+		effEngine := c.sessionDefaultEngine(stmt.Temporary)
+		effTS := ""
+		effEncryption := ""
+		effRowFormat := ""
+		effKeyBlockSize := 0
+		for _, opt := range stmt.Options {
+			if opt == nil {
+				continue
+			}
+			if engineOptionName(opt.Name) {
+				if engineSubstituted(opt.Value) {
+					effEngine = c.sessionDefaultEngine(stmt.Temporary)
+				} else {
+					effEngine = storedEngineName(opt.Value)
+				}
+			} else if strings.EqualFold(opt.Name, "tablespace") {
+				effTS = opt.Value
+			} else if strings.EqualFold(opt.Name, "encryption") {
+				effEncryption = opt.Value
+			} else if strings.EqualFold(opt.Name, "row_format") {
+				effRowFormat = opt.Value
+			} else if strings.EqualFold(opt.Name, "key_block_size") {
+				if n, err := strconv.Atoi(strings.TrimSpace(opt.Value)); err == nil {
+					effKeyBlockSize = n
+				}
+			}
+		}
+		if isInnoDBEngine(effEngine) {
+			if err := c.validateInnoDBCompressedTableOption(tableName, effTS, effRowFormat, effKeyBlockSize, false); err != nil {
+				return err
+			}
+			if effTS != "" {
+				if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, effTS); err != nil {
+					return err
+				}
+				if err := c.validateInnoDBTableBlockSize(effTS, effRowFormat, effKeyBlockSize); err != nil {
+					return err
+				}
+				if err := c.validateInnoDBTablespaceEncryption(effTS, effEncryption); err != nil {
+					return err
+				}
+			}
+		}
+		if stmt.Partitions != nil {
+			if err := c.validatePartitionTablespaces(tableName, stmt.Temporary, effEngine, stmt.Partitions.Partitions); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -136,6 +190,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		Engine:      "",
 		Temporary:   stmt.Temporary,
 	}
+	// A table without ENGINE takes the session's default engine,
+	// default_tmp_storage_engine for a TEMPORARY one: under
+	// default_storage_engine = MyISAM, mysql:8.0.46 stores ENGINE=MyISAM.
+	if declared {
+		tbl.Engine = c.sessionDefaultEngine(stmt.Temporary)
+	}
 
 	// Apply table options.
 	tblCharsetExplicit := false
@@ -146,7 +206,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			// A loader's snapshot keeps the engine its server reported, which the
 			// pinned one may not ship; an authored statement keeps what the
 			// pinned server would store.
-			if declared {
+			// An engine MySQL substitutes is the session's default.
+			if declared && engineSubstituted(opt.Value) {
+				tbl.Engine = c.sessionDefaultEngine(stmt.Temporary)
+			} else if declared {
 				tbl.Engine = storedEngineName(opt.Value)
 			} else {
 				tbl.Engine = opt.Value
@@ -189,6 +252,31 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			tbl.Checksum = normalizedChecksum(opt.Value)
 		case "delay_key_write":
 			tbl.DelayKeyWrite = opt.Value
+		case "secondary_engine":
+			if strings.EqualFold(opt.Value, "NULL") {
+				tbl.SecondaryEngine = ""
+			} else {
+				tbl.SecondaryEngine = opt.Value
+			}
+		}
+	}
+	hasAutoExtend := false
+	rawAutoExtend := ""
+	for _, opt := range stmt.Options {
+		if opt != nil && strings.EqualFold(opt.Name, "autoextend_size") {
+			hasAutoExtend = true
+			rawAutoExtend = opt.Value
+		}
+	}
+	if hasAutoExtend && isInnoDBEngine(tbl.Engine) {
+		if declared && !c.loadingSDL {
+			aeBytes, err := c.parseTableAutoextendSize(rawAutoExtend, stmt.Temporary, tbl.Tablespace)
+			if err != nil {
+				return err
+			}
+			tbl.AutoExtendSize = aeBytes
+		} else if aeBytes, ok := parseMySQLByteSize(rawAutoExtend); ok {
+			tbl.AutoExtendSize = aeBytes
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -251,7 +339,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef); err != nil {
+		if err := validateColumnDefSemantics(colDef, c.isIgnoreSpaceSQLMode()); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -339,7 +427,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			setColumnDefaultFromExpr(col, colDef.DefaultValue)
+			c.setColumnDefaultFromExpr(col, colDef.DefaultValue)
 		}
 		if colDef.OnUpdate != nil {
 			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -356,6 +444,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				Stored: colDef.Generated.Stored,
 			}
 		}
+
 		if col.AutoIncrement {
 			if autoIncrementColumn != "" {
 				return errIncorrectAutoIncrementDefinition()
@@ -374,7 +463,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				col.NullExplicit = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					setColumnDefaultFromExpr(col, cc.Expr)
+					c.setColumnDefaultFromExpr(col, cc.Expr)
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {
@@ -389,6 +478,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			case nodes.ColConstrAutoIncrement:
 				col.AutoIncrement = true
 				col.Nullable = false
+				if autoIncrementColumn != "" && !strings.EqualFold(autoIncrementColumn, colDef.Name) {
+					return errIncorrectAutoIncrementDefinition()
+				}
+				autoIncrementColumn = colDef.Name
 			case nodes.ColConstrCheck:
 				// Add check constraint.
 				conName := cc.Name
@@ -419,21 +512,56 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				col.NotSecondary = true
 			case nodes.ColConstrCollate:
 				// Collation specified via constraint.
-				if cc.Expr != nil {
+				collName := cc.Name
+				if collName == "" && cc.Expr != nil {
 					if s, ok := cc.Expr.(*nodes.StringLit); ok {
-						col.Collation = s.Value
+						collName = s.Value
+					}
+				}
+				if collName != "" {
+					col.Collation = collName
+					col.CollationExplicit = true
+					if !col.CharsetExplicit {
+						if cs := charsetForCollation(collName); cs != "" {
+							col.Charset = normalizeCharsetName(cs)
+						}
+					}
+					if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) && colDef.TypeName != nil {
+						col = convertToBinaryType(col, colDef.TypeName)
 					}
 				}
 			}
 		}
 
+		if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
+			return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+		}
+		if declared {
+			if colDef.TypeName != nil {
+				if err := validateEnumSetDuplicates(col.Name, col.DataType, col.Collation, col.Charset, colDef.TypeName.EnumValues, c.isStrictSQLMode()); err != nil {
+					return err
+				}
+			}
+			if err := c.validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef)); err != nil {
+				return err
+			}
+		} else if effDef := columnDefEffectiveDefaultExpr(colDef); effDef != nil {
+			c.normalizeColumnStoredDefault(col, effDef, true, false)
+		}
+
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
 		if isSerial {
 			idxName := allocIndexName(tbl, colDef.Name)
+			serialCols := []*IndexColumn{{Name: colDef.Name}}
+			if declared {
+				if err := c.validateIndexColumns(tbl, serialCols, false, false, true); err != nil {
+					return err
+				}
+			}
 			serialIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
-				Columns:   []*IndexColumn{{Name: colDef.Name}},
+				Columns:   serialCols,
 				Unique:    true,
 				IndexType: "",
 				Visible:   true,
@@ -463,10 +591,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				if err := validatePrimaryKeyColumns(tbl, []string{colDef.Name}); err != nil {
 					return err
 				}
+				pkCols := []*IndexColumn{{Name: colDef.Name}}
+				if declared {
+					if err := c.validateIndexColumns(tbl, pkCols, false, false, true); err != nil {
+						return err
+					}
+				}
 				tbl.Indexes = append(tbl.Indexes, &Index{
 					Name:      "PRIMARY",
 					Table:     tbl,
-					Columns:   []*IndexColumn{{Name: colDef.Name}},
+					Columns:   pkCols,
 					Unique:    true,
 					Primary:   true,
 					IndexType: "",
@@ -481,10 +615,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				})
 			case nodes.ColConstrUnique:
 				idxName := allocIndexName(tbl, colDef.Name)
+				uqCols := []*IndexColumn{{Name: colDef.Name}}
+				if declared {
+					if err := c.validateIndexColumns(tbl, uqCols, false, false, true); err != nil {
+						return err
+					}
+				}
 				uqIdx := &Index{
 					Name:      idxName,
 					Table:     tbl,
-					Columns:   []*IndexColumn{{Name: colDef.Name}},
+					Columns:   uqCols,
 					Unique:    true,
 					IndexType: "",
 					Visible:   true,
@@ -518,6 +658,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
+			if declared && constraintHasFunctionalKeyPart(con) {
+				return errFunctionalIndexPrimaryKey()
+			}
 			if hasPK {
 				return errMultiplePriKey()
 			}
@@ -527,6 +670,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 				return err
 			}
+			idxCols := buildIndexColumns(con)
+			if declared {
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
+				if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
+					return err
+				}
+				if name := duplicateKeyColumnName(con); name != "" {
+					return errDupColumn(name)
+				}
+			}
 			hasPK = true
 			// Mark PK columns as NOT NULL.
 			for _, colName := range cols {
@@ -535,7 +690,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 					c.Nullable = false
 				}
 			}
-			idxCols := buildIndexColumns(con)
 			pkIdx := &Index{
 				Name:      "PRIMARY",
 				Table:     tbl,
@@ -559,6 +713,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			})
 
 		case nodes.ConstrUnique:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxCols := buildIndexColumns(con)
 			idxName := con.Name
 			if idxName == "" {
@@ -574,8 +733,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := checkKeyColumns(con); err != nil {
 				return err
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			if declared {
+				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
+					return err
+				}
+			}
+			if err := c.validateIndexColumns(tbl, idxCols, false, false, true); err != nil {
 				return err
+			}
+			if declared {
+				if name := duplicateKeyColumnName(con); name != "" {
+					return errDupColumn(name)
+				}
 			}
 			uqIdx := &Index{
 				Name:      idxName,
@@ -587,8 +756,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, uqIdx)
-			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
+			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, nil, declared, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
+			}
+			if hasFunctionalIndexColumns(uqIdx.Columns) {
+				if err := c.validateIndexTotalKeyWidth(tbl, uqIdx.Columns); err != nil {
+					return err
+				}
 			}
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			uniqueKeys = append(uniqueKeys, declaredUniqueKey{uqIdx, con.Loc.Start})
@@ -601,6 +775,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			})
 
 		case nodes.ConstrForeignKey:
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
+			fkIdxCols := buildIndexColumns(con)
+			if declared {
+				if err := c.validateIndexColumns(tbl, fkIdxCols, false, false, false); err != nil {
+					return err
+				}
+				if name := duplicateKeyColumnName(con); name != "" {
+					return errDupColumn(name)
+				}
+				if len(con.RefColumns) == 0 || len(cols) != len(con.RefColumns) {
+					return errWrongFkDef(fkErrorDisplayName(con), "Key reference and table reference don't match")
+				}
+			}
 			conName := con.Name
 			if conName == "" {
 				unnamedFKCount++
@@ -608,9 +797,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			if foreignKeyConstraintNameExists(db, tbl, conName) {
 				return errFKDupName(conName)
-			}
-			if err := checkKeyColumns(con); err != nil {
-				return err
 			}
 			refDB := ""
 			refTable := ""
@@ -630,7 +816,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: fkIndexName(con), cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{conName: fkIndexName(con), cols: cols, idxCols: fkIdxCols})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -653,6 +839,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			})
 
 		case nodes.ConstrIndex:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxCols := buildIndexColumns(con)
 			idxName := con.Name
 			if idxName == "" {
@@ -669,8 +860,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			spatial := isSpatialIndexType(resolveConstraintIndexType(con))
-			if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, spatial, false); err != nil {
 				return err
+			}
+			if declared {
+				if name := duplicateKeyColumnName(con); name != "" {
+					return errDupColumn(name)
+				}
 			}
 			keyIdx := &Index{
 				Name:      idxName,
@@ -682,12 +878,22 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, keyIdx)
-			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
+			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, nil, declared, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
+			}
+			if !spatial && hasFunctionalIndexColumns(keyIdx.Columns) {
+				if err := c.validateIndexTotalKeyWidth(tbl, keyIdx.Columns); err != nil {
+					return err
+				}
 			}
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -703,7 +909,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
+				return err
+			}
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, false, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			ftIdx := &Index{
@@ -718,6 +927,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrSpatialIndex:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -733,7 +947,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
+				return err
+			}
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, true, c.isIgnoreSpaceSQLMode()); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
@@ -812,6 +1029,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	if stmt.Select == nil && !tableHasVisibleColumn(tbl) {
 		return errTableMustHaveColumns()
 	}
+	if declared {
+		if !c.loadingSDL {
+			if err := validateAutoIncrementKeyed(tbl); err != nil {
+				return err
+			}
+		}
+		if err := c.validateTableDefaultExpressions(tbl); err != nil {
+			return err
+		}
+	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
 	if c.foreignKeyChecks {
@@ -825,12 +1052,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
+		if declared && !c.loadingSDL && isInnoDBEngine(tbl.Engine) {
+			if err := validateInnoDBPartitionedSharedTablespace(tbl.Tablespace); err != nil {
+				return err
+			}
+		}
 		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions, declared)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
+
+	if !declared {
+		c.registerMetadataTableTablespaces(tbl)
+	}
 
 	db.Tables[key] = tbl
 	return nil
@@ -1055,6 +1291,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 			switch toLower(opt.Name) {
 			case "engine":
 				pdi.Engine = partitionEngineName(opt.Value, declared)
+			case "tablespace":
+				pdi.Tablespace = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1068,14 +1306,17 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 		}
 		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{
-				Name:    spd.Name,
-				Engine:  pdi.Engine,
-				Comment: pdi.Comment,
+				Name:       spd.Name,
+				Engine:     pdi.Engine,
+				Tablespace: pdi.Tablespace,
+				Comment:    pdi.Comment,
 			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
 					spdi.Engine = partitionEngineName(opt.Value, declared)
+				case "tablespace":
+					spdi.Tablespace = opt.Value
 				case "comment":
 					spdi.Comment = opt.Value
 				}
@@ -1205,11 +1446,89 @@ func timestampZeroDefault(fsp int) string {
 	return "0000-00-00 00:00:00"
 }
 
-func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.StringLit) (string, bool, bool) {
+	litVal := sl.Value
+	decoded := false
+	clientCS := "utf8mb4"
+	connCS := "utf8mb4"
+	if c != nil {
+		clientCS = c.effectiveClientCharset()
+		connCS = c.effectiveConnCharset()
+	}
+	hasSessionCS := clientCS != "utf8mb4" || connCS != "utf8mb4"
+	if sl.Charset != "" || sl.National || hasSessionCS {
+		if dv, decOK := c.decodeStringLiteralDefault(sl, col.Charset); decOK {
+			litVal = dv
+			decoded = true
+		}
+	}
+	colIsBinary := strings.EqualFold(col.DataType, "binary") ||
+		strings.EqualFold(col.DataType, "varbinary") ||
+		strings.EqualFold(col.Charset, "binary")
+	if colIsBinary && sl.Charset == "" && !sl.National && clientCS != connCS {
+		connBytes := encodeStringToCharsetBytes(litVal, connCS)
+		hasHighOrCtrl := false
+		for _, b := range connBytes {
+			if b >= 0x80 || b < 0x20 {
+				hasHighOrCtrl = true
+				break
+			}
+		}
+		if hasHighOrCtrl {
+			return fmt.Sprintf("0x%X", connBytes), true, true
+		}
+		return string(connBytes), false, true
+	}
+	litIsBinary := strings.EqualFold(strings.TrimSpace(sl.Charset), "binary") ||
+		(colIsBinary && (sl.Charset != "" || sl.National || clientCS == connCS))
+	normVal, changed := normalizeCharDefaultStringLiteral(col, litVal)
+	return normVal, false, changed || (decoded && !litIsBinary)
+}
+
+func (c *Catalog) setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+	if pe, ok := expr.(*nodes.ParenExpr); ok {
+		if stripped := stripColumnQualifiers(pe.Expr); stripped != pe.Expr {
+			cp := *pe
+			cp.Expr = stripped
+			expr = &cp
+		}
+	}
+	if sl, ok := expr.(*nodes.StringLit); ok {
+		if normVal, isHex, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+			if isHex {
+				v := normVal
+				col.Default = &v
+				col.DefaultKind = ColumnDefaultConstant
+				col.DefaultDropped = false
+				col.DefaultIsExpr = false
+				col.DefaultExprNode = nil
+				return
+			}
+			cp := *sl
+			cp.Charset = ""
+			cp.National = false
+			cp.Value = normVal
+			expr = &cp
+		}
+	} else if coerced, ok := coerceNumericDefaultForCharColumn(col, expr); ok {
+		expr = &nodes.StringLit{Value: coerced}
+	}
 	val, kind := columnDefaultValue(expr)
+	if _, isParen := expr.(*nodes.ParenExpr); !isParen {
+		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false, utcResolvedTimeZone()); ok {
+			val = coerced
+		}
+	}
 	col.Default = &val
 	col.DefaultKind = kind
 	col.DefaultDropped = false
+	if pe, ok := expr.(*nodes.ParenExpr); ok {
+		col.DefaultIsExpr = true
+		col.DefaultExprNode = pe.Expr
+	} else {
+		col.DefaultIsExpr = false
+		col.DefaultExprNode = nil
+	}
 }
 
 func setColumnOnUpdateFromExpr(col *Column, expr nodes.ExprNode) {
@@ -1935,8 +2254,9 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
-				idxCol.Expr = nodeToSQL(ic.Expr)
-				idxCol.ExprNode = ic.Expr
+				expr := stripColumnQualifiers(ic.Expr)
+				idxCol.Expr = nodeToSQL(expr)
+				idxCol.ExprNode = expr
 			}
 			result = append(result, idxCol)
 		}
@@ -2007,6 +2327,16 @@ func fkIndexName(con *nodes.Constraint) string {
 	return con.IndexName
 }
 
+func fkErrorDisplayName(con *nodes.Constraint) string {
+	if con.Name != "" {
+		return con.Name
+	}
+	if con.IndexName != "" {
+		return con.IndexName
+	}
+	return "foreign key without name"
+}
+
 // ensureFKBackingIndex creates an implicit backing index for FK columns
 // if no existing index already covers them (MySQL 8.0 behavior).
 // MySQL uses the constraint name as the index name when provided;
@@ -2037,7 +2367,11 @@ func indexNameExists(tbl *Table, name string) bool {
 	return false
 }
 
-func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique bool) error {
+	return c.validateIndexColumnsOpts(tbl, idxCols, fulltext, spatial, unique, true)
+}
+
+func (c *Catalog) validateIndexColumnsOpts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, unique, checkWidths bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2048,8 +2382,15 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 		// A FULLTEXT key takes the character types only: BLOB, VARBINARY, ENUM,
 		// SET and every non-string type are 1283 (measured on mysql:8.0.46).
-		if fulltext && !isFulltextColumnType(col.DataType) {
-			return errCannotPartOfFulltext(ic.Name)
+		if fulltext {
+			if !isFulltextColumnType(col.DataType) {
+				return errCannotPartOfFulltext(ic.Name)
+			}
+			// MySQL ignores any specified prefix length on a FULLTEXT key part
+			// without raising 1089 and omits it from SHOW CREATE TABLE
+			// (measured on mysql:8.0.46).
+			ic.Length = 0
+			continue
 		}
 		if spatial {
 			// The column's type is judged before its nullability: a SPATIAL key over an
@@ -2061,18 +2402,413 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
 			}
+			if ic.Length > 0 {
+				return errIncorrectPrefixKey()
+			}
 			continue
 		}
-		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
+		if strings.EqualFold(col.DataType, "json") {
+			return errJSONUsedAsKey(ic.Name)
+		}
+		if isTextBlobType(col.DataType) && ic.Length == 0 {
 			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
 		}
 		if ic.Length > 0 {
-			if maxLen, ok := fixedLengthStringColumnLimit(col); ok && ic.Length > maxLen {
-				return &Error{Code: 1089, SQLState: "HY000", Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+			strict := c == nil || c.isStrictSQLMode()
+			if err := c.validateKeyPrefixLength(tbl, col, ic, strict || unique || !checkWidths); err != nil {
+				return err
 			}
 		}
 	}
+	if checkWidths && !fulltext && !spatial {
+		if err := c.validateIndexWidths(tbl, idxCols, unique); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func isAutoTruncatableKeyType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "binary", "varbinary",
+		"tinytext", "text", "mediumtext", "longtext",
+		"tinyblob", "blob", "mediumblob", "longblob":
+		return true
+	default:
+		return false
+	}
+}
+
+func indexKeyPartCharsetBytes(col *Column) int {
+	if col == nil {
+		return 1
+	}
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return charsetMaxBytes(col.Charset)
+	default:
+		return 1
+	}
+}
+
+func (c *Catalog) validateIndexWidths(tbl *Table, idxCols []*IndexColumn, unique bool) error {
+	partMax, hasPartMax := c.maxIndexColumnPartBytes(tbl)
+	totalMax, hasTotalMax := c.maxIndexTotalKeyBytes(tbl)
+
+	if !unique && c != nil && !c.isStrictSQLMode() && len(idxCols) == 1 {
+		if ic := idxCols[0]; ic != nil && ic.Expr == "" && ic.Name != "" {
+			if col := tbl.GetColumn(ic.Name); col != nil && isAutoTruncatableKeyType(col.DataType) {
+				limit := 0
+				hasLimit := false
+				if hasPartMax {
+					limit = partMax
+					hasLimit = true
+				}
+				if hasTotalMax && (!hasLimit || totalMax < limit) {
+					limit = totalMax
+					hasLimit = true
+				}
+				if hasLimit && indexKeyPartBytes(col, ic) > limit {
+					mb := indexKeyPartCharsetBytes(col)
+					if mb <= 0 {
+						mb = 1
+					}
+					if truncLen := limit / mb; truncLen > 0 {
+						ic.Length = truncLen
+					}
+				}
+			}
+		}
+	}
+
+	if hasPartMax {
+		for _, ic := range idxCols {
+			if ic == nil || ic.Name == "" {
+				continue
+			}
+			col := tbl.GetColumn(ic.Name)
+			if col == nil {
+				continue
+			}
+			if indexKeyPartBytes(col, ic) > partMax {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", partMax)}
+			}
+		}
+	}
+
+	return c.validateIndexTotalKeyWidth(tbl, idxCols)
+}
+
+func (c *Catalog) validateIndexTotalKeyWidth(tbl *Table, idxCols []*IndexColumn) error {
+	maxBytes, ok := c.maxIndexTotalKeyBytes(tbl)
+	if !ok {
+		return nil
+	}
+	totalBytes := 0
+	for _, ic := range idxCols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil {
+			continue
+		}
+		// A functional part whose width the catalog could not infer counts
+		// toward neither limit: its placeholder VARCHAR(255) is no measure.
+		if ic.Expr != "" && !functionalTypeWidthKnown(inferFunctionalIndexExprType(tbl, ic.ExprNode)) {
+			continue
+		}
+		partBytes := indexKeyPartBytes(col, ic)
+		// A functional key part's hidden column meets the per-part limit a
+		// named column does, in strict mode: mysql:8.0.46 answers 1071 (767
+		// bytes) for KEY ((LOWER(varchar_192_utf8mb4))) on a COMPACT table and
+		// takes it with sql_mode ''.
+		if ic.Expr != "" && isInnoDBEngine(tbl.Engine) && c.isStrictSQLMode() {
+			if limit := c.maxInnoDBColumnPartBytes(tbl); partBytes > limit {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", limit)}
+			}
+		}
+		totalBytes += partBytes
+	}
+	if totalBytes > maxBytes {
+		return &Error{Code: 1071, SQLState: "42000",
+			Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
+	}
+	return nil
+}
+
+func charsetMaxBytes(charset string) int {
+	switch strings.ToLower(strings.TrimSpace(charset)) {
+	case "utf8mb4", "utf16", "utf16le", "utf32", "gb18030":
+		return 4
+	case "utf8", "utf8mb3", "ujis", "eucjpms":
+		return 3
+	case "ucs2", "sjis", "cp932", "gbk", "gb2312", "big5", "euckr":
+		return 2
+	default:
+		return 1
+	}
+}
+
+func (c *Catalog) maxInnoDBColumnPartBytes(tbl *Table) int {
+	if tbl != nil {
+		rf := strings.ToUpper(strings.TrimSpace(tbl.RowFormat))
+		if rf == "COMPACT" || rf == "REDUNDANT" {
+			return 767
+		}
+	}
+	return c.maxInnoDBIndexKeyBytes(tbl)
+}
+
+func (c *Catalog) maxInnoDBIndexKeyBytes(tbl *Table) int {
+	switch c.InnoDBPageSize() {
+	case 4096:
+		return 768
+	case 8192:
+		return 1536
+	default:
+		return 3072
+	}
+}
+
+func (c *Catalog) maxIndexColumnPartBytes(tbl *Table) (int, bool) {
+	if tbl == nil {
+		return 0, false
+	}
+	if strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000, true
+	}
+	if isInnoDBEngine(tbl.Engine) {
+		return c.maxInnoDBColumnPartBytes(tbl), true
+	}
+	return 0, false
+}
+
+func (c *Catalog) maxIndexTotalKeyBytes(tbl *Table) (int, bool) {
+	if tbl == nil {
+		return 0, false
+	}
+	if strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000, true
+	}
+	if isInnoDBEngine(tbl.Engine) {
+		return c.maxInnoDBIndexKeyBytes(tbl), true
+	}
+	return 0, false
+}
+
+func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
+	if dt == "tinytext" || dt == "tinyblob" {
+		return 255
+	}
+	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000
+	}
+	return c.maxInnoDBColumnPartBytes(tbl)
+}
+
+func indexKeyPartBytes(col *Column, ic *IndexColumn) int {
+	if col == nil || ic == nil {
+		return 0
+	}
+	dt := strings.ToLower(col.DataType)
+	mb := 1
+	switch dt {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		mb = charsetMaxBytes(col.Charset)
+	}
+	if ic.Length > 0 {
+		return ic.Length * mb
+	}
+	if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
+		return maxLen * mb
+	}
+	return fixedWidthScalarColumnBytes(col)
+}
+
+func fixedWidthScalarColumnBytes(col *Column) int {
+	dt := strings.ToLower(col.DataType)
+	switch dt {
+	case "tinyint", "bool", "boolean", "year":
+		return 1
+	case "smallint":
+		return 2
+	case "mediumint", "date":
+		return 3
+	case "int", "integer":
+		return 4
+	case "bigint", "double", "real", "double precision":
+		return 8
+	case "float":
+		if p, _, ok := parseNumericTypeArgs(col.ColumnType); ok && p > 24 {
+			return 8
+		}
+		return 4
+	case "time":
+		return 3 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "timestamp":
+		return 4 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "datetime":
+		return 5 + fspStorageBytes(temporalColumnFSP(col.ColumnType))
+	case "decimal", "numeric":
+		prec, scale, ok := parseNumericTypeArgs(col.ColumnType)
+		if !ok {
+			prec, scale = 10, 0
+		}
+		if prec < scale {
+			prec = scale
+		}
+		return decimalPackedBytes(prec-scale) + decimalPackedBytes(scale)
+	case "bit":
+		bits, _, ok := parseNumericTypeArgs(col.ColumnType)
+		if !ok || bits <= 0 {
+			bits = 1
+		}
+		return (bits + 7) / 8
+	case "enum":
+		if countQuotedListArgs(col.ColumnType) > 255 {
+			return 2
+		}
+		return 1
+	case "set":
+		n := countQuotedListArgs(col.ColumnType)
+		if n <= 0 {
+			return 1
+		}
+		b := (n + 7) / 8
+		if b > 4 {
+			return 8
+		}
+		return b
+	default:
+		return 0
+	}
+}
+
+func fspStorageBytes(fsp int) int {
+	switch {
+	case fsp <= 0:
+		return 0
+	case fsp <= 2:
+		return 1
+	case fsp <= 4:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func decimalPackedBytes(digits int) int {
+	if digits <= 0 {
+		return 0
+	}
+	dig2bytes := [10]int{0, 1, 1, 2, 2, 3, 3, 4, 4, 4}
+	return (digits/9)*4 + dig2bytes[digits%9]
+}
+
+func parseNumericTypeArgs(colType string) (int, int, bool) {
+	open := strings.IndexByte(colType, '(')
+	close := strings.LastIndexByte(colType, ')')
+	if open < 0 || close <= open+1 {
+		return 0, 0, false
+	}
+	inner := colType[open+1 : close]
+	parts := strings.Split(inner, ",")
+	a, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0, false
+	}
+	b := 0
+	if len(parts) > 1 {
+		if bv, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			b = bv
+		}
+	}
+	return a, b, true
+}
+
+func countQuotedListArgs(colType string) int {
+	open := strings.IndexByte(colType, '(')
+	close := strings.LastIndexByte(colType, ')')
+	if open < 0 || close <= open+1 {
+		return 0
+	}
+	inner := colType[open+1 : close]
+	count := 1
+	inQuote := false
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case '\'':
+			if inQuote && i+1 < len(inner) && inner[i+1] == '\'' {
+				i++
+			} else {
+				inQuote = !inQuote
+			}
+		case '\\':
+			if inQuote && i+1 < len(inner) {
+				i++
+			}
+		case ',':
+			if !inQuote {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// validateKeyPrefixLength validates a non-zero key part prefix length against
+// the column's data type and declared width (1089 for fixed-width types, 1071
+// or non-strict clamping for BLOB/TEXT types, measured on mysql:8.0.46).
+func (c *Catalog) validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bool) error {
+	prefixLen := ic.Length
+	dt := strings.ToLower(col.DataType)
+	// MySQL holds a key part's byte length in 32 bits, so a prefix whose
+	// bytes pass 2^32-1 wraps: on a utf8mb4 TEXT, mysql:8.0.46 stores
+	// s(1073741825) as s(1) and answers 1170 for s(1073741824), whose bytes
+	// wrap to 0, as for no prefix; VARCHAR(10) takes s(1073741824) whole.
+	// The parser admits no prefix past 2^31-1, so 64 bits never overflow.
+	mb := uint64(1)
+	switch dt {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		mb = uint64(max(charsetMaxBytes(col.Charset), 1))
+	}
+	if bytes := uint64(prefixLen) * mb; bytes > math.MaxUint32 {
+		prefixLen = int(uint64(uint32(bytes)) / mb)
+		ic.Length = prefixLen
+		if prefixLen == 0 {
+			if isTextBlobType(col.DataType) {
+				return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
+			}
+			return nil
+		}
+	}
+	switch dt {
+	case "char", "varchar", "binary", "varbinary":
+		if maxLen, ok := fixedLengthStringColumnLimit(col); ok && prefixLen > maxLen {
+			return errIncorrectPrefixKey()
+		}
+		return nil
+	case "tinytext", "text", "mediumtext", "longtext",
+		"tinyblob", "blob", "mediumblob", "longblob":
+		maxBytes := c.maxBlobTextIndexPrefixBytes(tbl, dt)
+		mb := 1
+		if strings.HasSuffix(dt, "text") {
+			mb = charsetMaxBytes(col.Charset)
+		}
+		if int64(prefixLen)*int64(mb) > int64(maxBytes) {
+			if strict {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
+			}
+			ic.Length = maxBytes / mb
+		}
+		return nil
+	default:
+		return errIncorrectPrefixKey()
+	}
 }
 
 // isFulltextColumnType reports whether a column's type may be part of a
@@ -2104,6 +2840,24 @@ func isSpatialIndexType(indexType string) bool {
 		return true
 	}
 	return false
+}
+
+// validateUniqueOrPrimaryNotSpatial rejects PRIMARY KEY / UNIQUE KEY / CREATE
+// UNIQUE INDEX with USING RTREE: mysql:8.0.46 checks that every key part is
+// geometrical (1687) and then refuses unique/primary spatial indexes with 3728.
+func validateUniqueOrPrimaryNotSpatial(tbl *Table, idxCols []*IndexColumn, indexType string) error {
+	if !isSpatialIndexType(indexType) {
+		return nil
+	}
+	for _, ic := range idxCols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		if col := tbl.GetColumn(ic.Name); col != nil && !isGeometryColumnType(col.DataType) {
+			return errSpatialNotGeometrical()
+		}
+	}
+	return errSpatialUniqueIndex()
 }
 
 // storedIndexType is the type an index whose USING names a spatial access method is
@@ -2367,6 +3121,24 @@ func isStringType(dt string) bool {
 		return true
 	}
 	return false
+}
+
+// columnTypeLength is the length a column type such as varchar(20) declares,
+// 0 when it declares none.
+func columnTypeLength(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0
+	}
+	end := strings.IndexByte(columnType[open:], ')')
+	if end < 0 {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(columnType[open+1 : open+end]))
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // convertToBinaryType converts a string-type column with CHARACTER SET binary
@@ -2890,6 +3662,13 @@ func escapeEnumValue(s string) string {
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
+func likeAutoExtendSize(srcTbl *Table, temporary bool) uint64 {
+	if temporary || srcTbl == nil {
+		return 0
+	}
+	return srcTbl.AutoExtendSize
+}
+
 func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
 	// Resolve source table.
 	srcDBName := stmt.Like.Schema
@@ -2901,6 +3680,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	if srcTbl == nil {
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
 	}
+	if isInnoDBEngine(srcTbl.Engine) && srcTbl.Tablespace != "" {
+		if err := c.validateInnoDBTablespace(tableName, stmt.Temporary, srcTbl.Tablespace); err != nil {
+			return err
+		}
+	}
 
 	tbl := &Table{
 		Name:             tableName,
@@ -2910,6 +3694,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
 		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
 		Engine:           srcTbl.Engine,
+		SecondaryEngine:  srcTbl.SecondaryEngine,
 		Charset:          srcTbl.Charset,
 		Collation:        srcTbl.Collation,
 		Comment:          srcTbl.Comment,
@@ -2924,6 +3709,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		MaxRows:          srcTbl.MaxRows,
 		AvgRowLength:     srcTbl.AvgRowLength,
 		Tablespace:       srcTbl.Tablespace,
+		AutoExtendSize:   likeAutoExtendSize(srcTbl, stmt.Temporary),
 		PackKeys:         srcTbl.PackKeys,
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
@@ -2957,7 +3743,13 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		if srcCol.Default != nil {
 			def := *srcCol.Default
 			col.Default = &def
+			if srcCol.DefaultTimestampUTC != nil {
+				tsUTC := *srcCol.DefaultTimestampUTC
+				col.DefaultTimestampUTC = &tsUTC
+			}
 			col.DefaultKind = srcCol.DefaultKind
+			col.DefaultIsExpr = srcCol.DefaultIsExpr
+			col.DefaultExprNode = srcCol.DefaultExprNode
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
@@ -3018,6 +3810,12 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+
+	likeSrcDB := srcDB.Name
+	if srcTbl.Database != nil {
+		likeSrcDB = srcTbl.Database.Name
+	}
+	stripTableQualifiersFromTableExprs(tbl, likeSrcDB, srcTbl.Name, true, nil)
 
 	db.Tables[key] = tbl
 	return nil

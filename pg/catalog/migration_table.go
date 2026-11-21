@@ -17,6 +17,20 @@ func migrationQualifiedName(schema, name string) string {
 	return quoteIdentAlways(schema) + "." + quoteIdentAlways(name)
 }
 
+func formatRelationTargetName(schemaName string, rel *Relation) string {
+	if rel != nil {
+		return formatRelationName(schemaName, rel.Name, rel)
+	}
+	return formatRelationName(schemaName, "", nil)
+}
+
+func formatRelationName(schemaName, relName string, rel *Relation) string {
+	if (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+		return quoteIdentAlways(relName)
+	}
+	return migrationQualifiedName(schemaName, relName)
+}
+
 // generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
 func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
@@ -35,7 +49,7 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
 				continue
 			}
-			ddl := FormatCreateTable(to, entry.SchemaName, entry.To)
+			ddl := formatCreateTable(from, to, entry.SchemaName, entry.From, entry.To, false)
 			ops = append(ops, MigrationOp{
 				Type:          OpCreateTable,
 				SchemaName:    entry.SchemaName,
@@ -56,7 +70,7 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if rk != 'r' && rk != 'p' {
 				continue
 			}
-			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			qn := formatRelationTargetName(entry.SchemaName, entry.From)
 			ops = append(ops, MigrationOp{
 				Type:          OpDropTable,
 				SchemaName:    entry.SchemaName,
@@ -94,6 +108,10 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 // FormatCreateTable generates a full CREATE TABLE DDL statement for a relation.
 // Exported so that section 1.7 (partitions) can reuse it.
 func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
+	return formatCreateTable(nil, c, schemaName, nil, rel, false)
+}
+
+func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relation, forceExplicitHeap bool) string {
 	var b strings.Builder
 
 	// Persistence prefix.
@@ -104,11 +122,17 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 	switch persistence {
 	case 'u':
 		b.WriteString("CREATE UNLOGGED TABLE ")
+	case 't':
+		b.WriteString("CREATE TEMP TABLE ")
 	default:
 		b.WriteString("CREATE TABLE ")
 	}
 
-	b.WriteString(migrationQualifiedName(schemaName, rel.Name))
+	if persistence == 't' && !isTempSchemaName(schemaName) {
+		b.WriteString(quoteIdentAlways(rel.Name))
+	} else {
+		b.WriteString(migrationQualifiedName(schemaName, rel.Name))
+	}
 	b.WriteString(" (\n")
 
 	// Column definitions.
@@ -150,7 +174,50 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 	// Append INHERITS clause for table inheritance.
 	b.WriteString(formatInheritsClause(c, rel))
 
+	// Append USING clause for explicit or non-default table access method.
+	b.WriteString(formatRelationUsingClause(from, c, fromRel, rel, forceExplicitHeap))
+
 	return b.String()
+}
+
+func formatRelationUsingClause(from, to *Catalog, fromRel, toRel *Relation, forceExplicitHeap bool) string {
+	if toRel == nil {
+		return ""
+	}
+	if toRel.RelKind == 'p' {
+		if toRel.AccessMethod != "" {
+			return " USING " + quoteIdentifier(toRel.AccessMethod)
+		}
+		return ""
+	}
+	am := normalizeRelationAccessMethod(toRel)
+	if am == "" {
+		return ""
+	}
+	if am != "heap" ||
+		toRel.AccessMethod != "" ||
+		(fromRel != nil && fromRel.AccessMethod != "") ||
+		catalogHasNonDefaultTableAM(from) ||
+		catalogHasNonDefaultTableAM(to) ||
+		forceExplicitHeap {
+		return " USING " + quoteIdentifier(am)
+	}
+	return ""
+}
+
+func catalogHasNonDefaultTableAM(c *Catalog) bool {
+	if c == nil {
+		return false
+	}
+	if c.defaultTableAccessMethod != "" {
+		return true
+	}
+	for _, am := range c.accessMethods {
+		if am != nil && am.Type == 't' && am.OID >= FirstNormalObjectId {
+			return true
+		}
+	}
+	return false
 }
 
 // formatColumnDef formats a single column definition for CREATE TABLE.
@@ -168,7 +235,14 @@ func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 		return strings.Join(parts, " ")
 	}
 
-	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatCollate(col.CollationName))
+	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod)+formatColumnCollate(c, col))
+
+	if stor := columnExplicitStorage(c, col); stor != "" {
+		parts = append(parts, "STORAGE "+stor)
+	}
+	if comp := columnExplicitCompression(col); comp != "" {
+		parts = append(parts, "COMPRESSION "+comp)
+	}
 
 	if col.NotNull {
 		parts = append(parts, "NOT NULL")
@@ -270,18 +344,140 @@ func formatCollate(collation string) string {
 	return " COLLATE " + quoteIdentAlways(collation)
 }
 
+func columnCollationResolvedNamespace(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if c != nil && col.UserCollationOID != 0 {
+		for _, s := range c.schemas {
+			if s != nil {
+				if uc := s.Collations[col.CollationName]; uc != nil && uc.OID == col.UserCollationOID {
+					return s.Name
+				}
+			}
+		}
+	}
+	if col.CollationSchema != "" {
+		return col.CollationSchema
+	}
+	if isBuiltinCollationName(col.CollationName) {
+		return "pg_catalog"
+	}
+	return "public"
+}
+
+func columnCollationSchema(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	ns := columnCollationResolvedNamespace(c, col)
+	switch ns {
+	case "", "pg_catalog":
+		if col.CollationSchema == "pg_catalog" {
+			return "pg_catalog"
+		}
+		if c != nil {
+			for _, s := range c.schemas {
+				if s != nil && s.OID != PGCatalogNamespace && s.Collations[col.CollationName] != nil {
+					return "pg_catalog"
+				}
+			}
+		}
+		return ""
+	case "public":
+		if col.UserCollationOID != 0 && (isBuiltinCollationName(col.CollationName) || col.CollationSchema == "public") {
+			return "public"
+		}
+		if col.CollationSchema == "public" {
+			return "public"
+		}
+		return ""
+	default:
+		return ns
+	}
+}
+
+func columnCollationKey(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if ns := columnCollationResolvedNamespace(c, col); ns != "" {
+		return migrationQualifiedName(ns, col.CollationName)
+	}
+	return quoteIdentAlways(col.CollationName)
+}
+
+func formatColumnCollate(c *Catalog, col *Column) string {
+	if col == nil || col.CollationName == "" {
+		return ""
+	}
+	if sc := columnCollationSchema(c, col); sc != "" {
+		return " COLLATE " + migrationQualifiedName(sc, col.CollationName)
+	}
+	return formatCollate(col.CollationName)
+}
+
+func columnExplicitStorage(c *Catalog, col *Column) string {
+	if col == nil || col.Storage == 0 {
+		return ""
+	}
+	if c != nil {
+		if typ := c.typeByOID[col.TypeOID]; typ != nil && col.Storage == typ.Storage {
+			return ""
+		}
+	}
+	return storageModeKeyword(col.Storage)
+}
+
+func storageModeKeyword(stor byte) string {
+	switch stor {
+	case 'p':
+		return "PLAIN"
+	case 'e':
+		return "EXTERNAL"
+	case 'x':
+		return "EXTENDED"
+	case 'm':
+		return "MAIN"
+	}
+	return ""
+}
+
+func columnExplicitCompression(col *Column) string {
+	if col == nil {
+		return ""
+	}
+	switch col.Compression {
+	case 'p':
+		return "pglz"
+	case 'l':
+		return "lz4"
+	}
+	return ""
+}
+
 // formatPKConstraint formats a PRIMARY KEY constraint clause.
 func formatPKConstraint(rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	return fmt.Sprintf("CONSTRAINT %s PRIMARY KEY (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s PRIMARY KEY (%s)",
 		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	if len(con.IncludeColumns) > 0 {
+		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
+		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
+	}
+	return clause
 }
 
 // formatUniqueConstraint formats a UNIQUE constraint clause.
 func formatUniqueConstraint(rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	return fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
 		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	if len(con.IncludeColumns) > 0 {
+		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
+		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
+	}
+	return clause
 }
 
 // formatCheckConstraint formats a CHECK constraint clause.

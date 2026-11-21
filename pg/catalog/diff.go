@@ -1,5 +1,7 @@
 package catalog
 
+import "sort"
+
 // DiffAction describes what happened to an object between two catalog states.
 type DiffAction int
 
@@ -36,6 +38,7 @@ type RelationDiffEntry struct {
 	Indexes         []IndexDiffEntry
 	Triggers        []TriggerDiffEntry
 	Policies        []PolicyDiffEntry
+	Rules           []RuleDiffEntry
 	RLSChanged      bool
 	RLSEnabled      bool
 	ForceRLSEnabled bool
@@ -152,6 +155,14 @@ type PolicyDiffEntry struct {
 	To     *Policy
 }
 
+// RuleDiffEntry describes a rewrite rule change within a relation.
+type RuleDiffEntry struct {
+	Action DiffAction
+	Name   string
+	From   *Rule
+	To     *Rule
+}
+
 // CommentDiffEntry describes a comment change.
 type CommentDiffEntry struct {
 	Action         DiffAction
@@ -169,6 +180,23 @@ type GrantDiffEntry struct {
 	To     Grant
 }
 
+// CollationDiffEntry describes a user collation change.
+type CollationDiffEntry struct {
+	Action     DiffAction
+	SchemaName string
+	Name       string
+	From       *UserCollation
+	To         *UserCollation
+}
+
+// AccessMethodDiffEntry describes a user-defined access method change.
+type AccessMethodDiffEntry struct {
+	Action DiffAction
+	Name   string
+	From   *AccessMethod
+	To     *AccessMethod
+}
+
 // ---------------------------------------------------------------------------
 // SchemaDiff — aggregate result of comparing two catalogs
 // ---------------------------------------------------------------------------
@@ -176,6 +204,8 @@ type GrantDiffEntry struct {
 // SchemaDiff holds all differences between two catalog states.
 type SchemaDiff struct {
 	Schemas        []SchemaDiffEntry
+	Collations     []CollationDiffEntry
+	AccessMethods  []AccessMethodDiffEntry
 	Relations      []RelationDiffEntry
 	Sequences      []SequenceDiffEntry
 	Functions      []FunctionDiffEntry
@@ -192,6 +222,8 @@ type SchemaDiff struct {
 // IsEmpty returns true if there are no differences.
 func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.Schemas) == 0 &&
+		len(d.Collations) == 0 &&
+		len(d.AccessMethods) == 0 &&
 		len(d.Relations) == 0 &&
 		len(d.Sequences) == 0 &&
 		len(d.Functions) == 0 &&
@@ -212,6 +244,8 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
 		Schemas:        diffSchemas(from, to),
+		Collations:     diffCollations(from, to),
+		AccessMethods:  diffAccessMethods(from, to),
 		Relations:      relations,
 		Sequences:      diffSequences(from, to),
 		Functions:      diffFunctions(from, to),
@@ -224,4 +258,130 @@ func Diff(from, to *Catalog) *SchemaDiff {
 		Comments:       diffComments(from, to),
 		Grants:         diffGrants(from, to),
 	}
+}
+
+func diffAccessMethods(from, to *Catalog) []AccessMethodDiffEntry {
+	fromMap := map[string]*AccessMethod{}
+	if from != nil {
+		for _, am := range from.accessMethods {
+			if am != nil && am.OID >= FirstNormalObjectId && !from.isExtensionMember(am.OID) {
+				fromMap[am.Name] = am
+			}
+		}
+	}
+	toMap := map[string]*AccessMethod{}
+	if to != nil {
+		for _, am := range to.accessMethods {
+			if am != nil && am.OID >= FirstNormalObjectId && !to.isExtensionMember(am.OID) {
+				toMap[am.Name] = am
+			}
+		}
+	}
+	var out []AccessMethodDiffEntry
+	for name, fam := range fromMap {
+		if _, ok := toMap[name]; !ok {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffDrop,
+				Name:   name,
+				From:   fam,
+			})
+		}
+	}
+	for name, tam := range toMap {
+		fam, ok := fromMap[name]
+		if !ok {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffAdd,
+				Name:   name,
+				To:     tam,
+			})
+			continue
+		}
+		if fam.Type != tam.Type || formatAccessMethodHandler(from, fam.Handler) != formatAccessMethodHandler(to, tam.Handler) {
+			out = append(out, AccessMethodDiffEntry{
+				Action: DiffModify,
+				Name:   name,
+				From:   fam,
+				To:     tam,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Action < out[j].Action
+	})
+	return out
+}
+
+func diffCollations(from, to *Catalog) []CollationDiffEntry {
+	type key struct {
+		schema string
+		name   string
+	}
+	fromMap := map[key]*UserCollation{}
+	for _, s := range from.schemas {
+		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
+			continue
+		}
+		for name, uc := range s.Collations {
+			if uc != nil && !from.isExtensionMember(uc.OID) {
+				fromMap[key{s.Name, name}] = uc
+			}
+		}
+	}
+	toMap := map[key]*UserCollation{}
+	for _, s := range to.schemas {
+		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
+			continue
+		}
+		for name, uc := range s.Collations {
+			if uc != nil && !to.isExtensionMember(uc.OID) {
+				toMap[key{s.Name, name}] = uc
+			}
+		}
+	}
+	var out []CollationDiffEntry
+	for k, fc := range fromMap {
+		if _, ok := toMap[k]; !ok {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffDrop,
+				SchemaName: k.schema,
+				Name:       k.name,
+				From:       fc,
+			})
+		}
+	}
+	for k, tc := range toMap {
+		fc, ok := fromMap[k]
+		if !ok {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffAdd,
+				SchemaName: k.schema,
+				Name:       k.name,
+				To:         tc,
+			})
+			continue
+		}
+		if fc.DefClause != tc.DefClause || fc.OwnerName != tc.OwnerName {
+			out = append(out, CollationDiffEntry{
+				Action:     DiffModify,
+				SchemaName: k.schema,
+				Name:       k.name,
+				From:       fc,
+				To:         tc,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].SchemaName != out[j].SchemaName {
+			return out[i].SchemaName < out[j].SchemaName
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Action < out[j].Action
+	})
+	return out
 }

@@ -21,7 +21,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			case 'v':
 				ops = append(ops, buildCreateViewOp(to, entry))
 			case 'm':
-				ops = append(ops, buildCreateMatViewOp(to, entry))
+				ops = append(ops, buildCreateMatViewOpWithContext(from, to, entry))
 			}
 
 		case DiffDrop:
@@ -30,7 +30,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			}
 			switch entry.From.RelKind {
 			case 'v':
-				qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+				qn := formatRelationTargetName(entry.SchemaName, entry.From)
 				ops = append(ops, MigrationOp{
 					Type:          OpDropView,
 					SchemaName:    entry.SchemaName,
@@ -67,7 +67,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			fromIsView := entry.From.RelKind == 'v' || entry.From.RelKind == 'm'
 			toIsView := entry.To.RelKind == 'v' || entry.To.RelKind == 'm'
 			if (fromIsView || toIsView) && entry.From.RelKind != entry.To.RelKind {
-				qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+				qn := formatRelationTargetName(entry.SchemaName, entry.From)
 				// Drop the original kind.
 				dropSQL := fmt.Sprintf("DROP VIEW %s", qn)
 				if entry.From.RelKind == 'm' {
@@ -89,16 +89,17 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				case 'v':
 					ops = append(ops, buildCreateViewOp(to, entry))
 				case 'm':
-					ops = append(ops, buildCreateMatViewOp(to, entry))
+					ops = append(ops, buildCreateMatViewOpWithContext(from, to, entry))
 				}
+				ops = append(ops, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
 				continue
 			}
 
 			switch entry.To.RelKind {
 			case 'v':
-				if viewColumnsChanged(entry) {
-					// Column order/names/types changed — can't use CREATE OR REPLACE.
-					qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+				if viewColumnsChanged(entry) || normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
+					// Column order/names/types or persistence changed — can't use CREATE OR REPLACE.
+					qn := formatRelationTargetName(entry.SchemaName, entry.From)
 					ops = append(ops, MigrationOp{
 						Type:          OpDropView,
 						SchemaName:    entry.SchemaName,
@@ -111,11 +112,12 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Priority:      PriorityView,
 					})
 					ops = append(ops, buildCreateViewOp(to, entry))
-				} else {
+					ops = append(ops, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
+				} else if viewSelfChanged(from, to, entry) {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
 			case 'm':
-				ops = append(ops, buildModifyMatViewOps(to, entry)...)
+				ops = append(ops, buildModifyMatViewOps(from, to, entry)...)
 			}
 		}
 	}
@@ -138,12 +140,17 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 // buildCreateViewOp creates a CREATE VIEW op for an added view.
 func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	qn := formatRelationTargetName(entry.SchemaName, entry.To)
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder
-	b.WriteString("CREATE VIEW ")
+	if entry.To != nil && entry.To.Persistence == 't' {
+		b.WriteString("CREATE TEMP VIEW ")
+	} else {
+		b.WriteString("CREATE VIEW ")
+	}
 	b.WriteString(qn)
+	b.WriteString(viewWithOptions(entry.To))
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 
@@ -170,11 +177,19 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 
 // buildCreateMatViewOp creates a CREATE MATERIALIZED VIEW op.
 func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
+	return buildCreateMatViewOpWithContext(nil, to, entry)
+}
+
+func buildCreateMatViewOpWithContext(from, to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+	usingClause := formatRelationUsingClause(from, to, entry.From, entry.To, false)
 
-	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
+	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+		qn, usingClause, strings.TrimRight(def, " \t\n\r;"))
+	if entry.To != nil && !entry.To.IsPopulated {
+		sql += " WITH NO DATA"
+	}
 
 	return MigrationOp{
 		Type:          OpCreateView,
@@ -218,11 +233,20 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	}
 
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	if entry.To != nil && entry.To.Persistence == 't' && !isTempSchemaName(entry.SchemaName) {
+		qn = quoteIdentAlways(entry.Name)
+	}
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder
-	b.WriteString("CREATE OR REPLACE VIEW ")
+	if entry.To != nil && entry.To.Persistence == 't' {
+		b.WriteString("CREATE OR REPLACE TEMP VIEW ")
+	} else {
+		b.WriteString("CREATE OR REPLACE VIEW ")
+	}
 	b.WriteString(qn)
+	// CREATE OR REPLACE VIEW replaces the options, so name every one kept.
+	b.WriteString(viewWithOptions(entry.To))
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 
@@ -248,11 +272,51 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	return ops
 }
 
-// buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
+// buildModifyMatViewOps creates in-place ALTER/REFRESH or DROP + CREATE ops for a modified matview.
 // Materialized views don't support CREATE OR REPLACE.
-func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
+func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+	if entry.From != nil && entry.To != nil {
+		key := relKey{schema: entry.SchemaName, name: entry.Name}
+		sameDef := getViewDef(from, key, entry.From) == getViewDef(to, key, entry.To)
+		samePers := normalizeRelPersistence(entry.From.Persistence) == normalizeRelPersistence(entry.To.Persistence)
+		sameAM := normalizeRelationAccessMethod(entry.From) == normalizeRelationAccessMethod(entry.To)
+		samePop := entry.From.IsPopulated == entry.To.IsPopulated
+		if sameDef && samePers && sameAM && samePop && len(entry.Columns) == 0 {
+			// Only the view's indexes (or other sub-objects) changed; their
+			// own generators migrate them.
+			return nil
+		}
+		if sameDef && samePers && len(entry.Columns) == 0 && len(entry.Indexes) == 0 && (!sameAM || !samePop) {
+			// An access method or population change alters the view in place,
+			// which keeps its indexes, dependents, privileges and comments.
+			var ops []MigrationOp
+			alter := func(sql string) {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterView,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           sql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityView,
+				})
+			}
+			if !sameAM {
+				alter(fmt.Sprintf("ALTER MATERIALIZED VIEW %s SET ACCESS METHOD %s", qn, quoteIdentifier(normalizeRelationAccessMethod(entry.To))))
+			}
+			if !samePop {
+				withClause := "WITH DATA"
+				if !entry.To.IsPopulated {
+					withClause = "WITH NO DATA"
+				}
+				alter(fmt.Sprintf("REFRESH MATERIALIZED VIEW %s %s", qn, withClause))
+			}
+			return ops
+		}
+	}
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,
@@ -266,22 +330,8 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		Priority:      PriorityView,
 	}
 
-	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
-
-	createOp := MigrationOp{
-		Type:          OpCreateView,
-		SchemaName:    entry.SchemaName,
-		ObjectName:    entry.Name,
-		SQL:           createSQL,
-		Transactional: true,
-		Phase:         PhaseMain,
-		ObjType:       'r',
-		ObjOID:        entry.To.OID,
-		Priority:      PriorityView,
-	}
-
-	return []MigrationOp{dropOp, createOp}
+	createOp := buildCreateMatViewOpWithContext(from, to, entry)
+	return append([]MigrationOp{dropOp, createOp}, restoreRebuiltViewOps(to, entry.SchemaName, entry.To)...)
 }
 
 // viewRef identifies a view by schema and name.
@@ -320,6 +370,32 @@ func findDependentViews(c *Catalog, schemaName, viewName string) []viewRef {
 	return deps
 }
 
+// viewSelfChanged reports whether a view's own definition, check option,
+// columns, or triggers changed (as opposed to only rewrite rules).
+func viewSelfChanged(from, to *Catalog, entry RelationDiffEntry) bool {
+	if entry.From == nil || entry.To == nil {
+		return true
+	}
+	key := relKey{schema: entry.SchemaName, name: entry.Name}
+	if getViewDef(from, key, entry.From) != getViewDef(to, key, entry.To) {
+		return true
+	}
+	if entry.From.CheckOption != entry.To.CheckOption || entry.From.SecurityBarrier != entry.To.SecurityBarrier || entry.From.SecurityInvoker != entry.To.SecurityInvoker {
+		return true
+	}
+	if normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
+		return true
+	}
+	return len(entry.Columns) > 0 || len(entry.Triggers) > 0
+}
+
+func normalizeRelPersistence(p byte) byte {
+	if p == 0 {
+		return 'p'
+	}
+	return p
+}
+
 // viewColumnsChanged returns true if existing columns were renamed, removed,
 // reordered, or had their types changed. Adding new columns at the end is safe
 // for CREATE OR REPLACE, but type changes require DROP + CREATE.
@@ -345,4 +421,34 @@ func viewColumnsChanged(entry RelationDiffEntry) bool {
 		}
 	}
 	return false
+}
+
+// viewWithOptions renders a view's security options as a WITH clause, or ""
+// when it has none.
+func viewWithOptions(rel *Relation) string {
+	if rel == nil {
+		return ""
+	}
+	var opts []string
+	if rel.SecurityBarrier {
+		opts = append(opts, "security_barrier=true")
+	}
+	if rel.SecurityInvoker {
+		opts = append(opts, "security_invoker=true")
+	}
+	if len(opts) == 0 {
+		return ""
+	}
+	return " WITH (" + strings.Join(opts, ", ") + ")"
+}
+
+// restoreRebuiltViewOps gives a view or materialized view that the migration
+// drops and recreates back the grants it keeps in the target, since
+// unchanged grants make no diff. Ownership is left to the migrating role, as
+// for every relation a migration creates.
+func restoreRebuiltViewOps(to *Catalog, schemaName string, rel *Relation) []MigrationOp {
+	if rel == nil {
+		return nil
+	}
+	return restoreGrantOps(to, 'r', rel.OID)
 }

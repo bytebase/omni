@@ -33,22 +33,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// Check duplicate relation name.
-	if _, exists := schema.Relations[relName]; exists {
-		if stmt.IfNotExists {
+	// IF NOT EXISTS skips an existing relation or conflicting row/type name
+	// before column definitions and parents are resolved; without IF NOT EXISTS,
+	// PostgreSQL runs MergeAttributes and BuildDescForRelation (checking
+	// duplicate column names and column types) before heap_create_with_catalog
+	// rejects a duplicate relation name.
+	if stmt.IfNotExists {
+		if _, exists := schema.Relations[relName]; exists {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
 			return nil
 		}
-		return errDuplicateTable(relName)
-	}
-
-	// Check conflict with existing type name in same namespace.
-	if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
-		if stmt.IfNotExists {
+		if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
 			return nil
 		}
-		return errDuplicateTable(relName)
 	}
 
 	// If PARTITION BY is specified, this is a partitioned table.
@@ -280,11 +278,23 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					}
 					// Collation must match.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (collation check)
-					if existCD.CollationName != "" && pcol.CollationName != "" &&
-						existCD.CollationName != pcol.CollationName {
-						return errDatatypeMismatch(fmt.Sprintf(
-							"column %q has a collation conflict", pcol.Name,
-						))
+					if existCD.CollationName != "" && pcol.CollationName != "" {
+						childCollSchema := existCD.CollationSchema
+						if existCD.CollClause != nil {
+							if _, cid, cerr := c.resolveCollationList(existCD.CollClause.Collname); cerr == nil {
+								childCollSchema = c.resolvedCollationSchema(existCD.CollClause.Collname, existCD.CollationName, cid)
+							}
+						}
+						parentCollSchema := columnCollationSchema(c, pcol)
+						if existCD.CollationName != pcol.CollationName || childCollSchema != parentCollSchema {
+							return errDatatypeMismatch(fmt.Sprintf(
+								"column %q has a collation conflict", pcol.Name,
+							))
+						}
+					} else if existCD.CollationName == "" && pcol.CollationName != "" {
+						existCD.CollationSchema = columnCollationSchema(c, pcol)
+						existCD.CollationName = pcol.CollationName
+						existCD.UserCollationOID = pcol.UserCollationOID
 					}
 					// Merge NOT NULL from parent.
 					if pcol.NotNull {
@@ -312,12 +322,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				} else {
 					// New inherited column — not locally defined.
 					newCD := ColumnDef{
-						Name:     pcol.Name,
-						Type:     c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
-						NotNull:  pcol.NotNull,
-						Default:  pcol.Default,
-						IsLocal:  false,
-						InhCount: 1,
+						Name:             pcol.Name,
+						Type:             c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
+						NotNull:          pcol.NotNull,
+						Default:          pcol.Default,
+						IsLocal:          false,
+						InhCount:         1,
+						CollationSchema:  columnCollationSchema(c, pcol),
+						CollationName:    pcol.CollationName,
+						UserCollationOID: pcol.UserCollationOID,
 					}
 					// Partitions inherit identity; regular inheritance does not.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (identity handling)
@@ -443,6 +456,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Resolve column types and check for duplicates.
 	colByName := make(map[string]int, len(colDefs))
 	columns := make([]*Column, len(colDefs))
+	colUserCollOIDs := make([]uint32, len(colDefs))
 
 	for i, cd := range colDefs {
 		if _, dup := colByName[cd.Name]; dup {
@@ -456,35 +470,66 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 
 		typ := c.typeByOID[typeOID]
+		collSchema := cd.CollationSchema
+		colUserCollOIDs[i] = cd.UserCollationOID
+		if cd.CollClause != nil {
+			_, collOID, cerr := c.resolveColumnCollation(cd.CollClause.Collname, typeOID)
+			if cerr != nil {
+				return cerr
+			}
+			colUserCollOIDs[i] = collOID
+			collSchema = c.resolvedCollationSchema(cd.CollClause.Collname, cd.CollationName, collOID)
+		}
+		stor, err := c.resolveColumnStorage(typ, cd.StorageName)
+		if err != nil {
+			return err
+		}
+		comp, err := c.resolveColumnCompression(typ, cd.Compression)
+		if err != nil {
+			return err
+		}
 		// pg: src/backend/catalog/heap.c — InsertPgAttributeTuples
-		// attcollation is derived from type; for arrays, inherited from element type.
-		coll := c.typeCollation(typeOID)
+		// attcollation uses the explicit COLLATE OID when specified, else the type's collation.
+		coll := c.effectiveColumnCollation(typeOID, cd.CollationName, colUserCollOIDs[i])
 		columns[i] = &Column{
-			AttNum:        int16(i + 1),
-			Name:          cd.Name,
-			TypeOID:       typeOID,
-			TypeMod:       typmod,
-			NotNull:       cd.NotNull,
-			Len:           typ.Len,
-			ByVal:         typ.ByVal,
-			Align:         typ.Align,
-			Storage:       typ.Storage,
-			Collation:     coll,
-			IsLocal:       cd.IsLocal,
-			InhCount:      cd.InhCount,
-			CollationName: cd.CollationName,
+			AttNum:           int16(i + 1),
+			Name:             cd.Name,
+			TypeOID:          typeOID,
+			TypeMod:          typmod,
+			NotNull:          cd.NotNull,
+			Len:              typ.Len,
+			ByVal:            typ.ByVal,
+			Align:            typ.Align,
+			Storage:          stor,
+			Compression:      comp,
+			Collation:        coll,
+			IsLocal:          cd.IsLocal,
+			InhCount:         cd.InhCount,
+			CollationSchema:  collSchema,
+			CollationName:    cd.CollationName,
+			UserCollationOID: colUserCollOIDs[i],
 		}
 	}
 
 	// PostgreSQL keeps indexes and sequences in the relation namespace, so a
 	// name one holds is not free. The check comes after the columns' types and
 	// the parents are resolved, as PostgreSQL resolves them first: CREATE
-	// TABLE a(a a) on an index a is 42704 for the type, and PARTITION OF an
-	// index is 42809, before either is a duplicate name.
+	// TABLE a(a a) on an index a is 42704 for the type, CREATE TABLE a(a a, a a)
+	// on a table a is 42701 for the duplicate column, and PARTITION OF an
+	// index is 42809, before any is a duplicate relation name.
 	if !stmt.IfNotExists {
 		if _, ok := relationNamespaceKind(schema, relName); ok {
 			return errDuplicateTable(relName)
 		}
+		if c.typeByName[typeKey{ns: schema.OID, name: relName}] != nil {
+			return errDuplicateTable(relName)
+		}
+	}
+
+	// DefineRelation calls toast_reloptions(toastOptions, true) unconditionally
+	// before NewRelationCreateToastTable checks whether a TOAST table is needed.
+	if err := c.validateRelOptions(stmt.Options, relkind, ""); err != nil {
+		return err
 	}
 	// PostgreSQL resolves a new relation's tablespace in DefineRelation order:
 	// explicit TABLESPACE clause, then a partitioned parent's stored tablespace
@@ -738,6 +783,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Register relation.
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
+	for i, collOID := range colUserCollOIDs {
+		if collOID != 0 {
+			c.recordDependency('r', relOID, int32(columns[i].AttNum), 'L', collOID, 0, DepNormal)
+		}
+	}
 	if tableAccessMethod != "" {
 		if am := c.accessMethodByName[tableAccessMethod]; am != nil {
 			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
@@ -884,6 +934,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		// diff/drop logic treats SERIAL and IDENTITY sequences as managed objects.
 		for i, si := range serials {
 			seq := createdSeqs[i]
+			seq.Persistence = rel.Persistence
 			seq.OwnerRelOID = rel.OID
 			seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
 			c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[si.colIdx].AttNum), DepAuto)
@@ -1164,11 +1215,18 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 		}
 	}
 
-	// Handle explicit COLLATE clause.
-	// pg: src/backend/commands/tablecmds.c — DefineRelation (COLLATE handling)
+	// Handle explicit COLLATE, STORAGE, and COMPRESSION clauses.
+	// pg: src/backend/commands/tablecmds.c — DefineRelation (COLLATE / STORAGE / COMPRESSION)
 	if cd.CollClause != nil && cd.CollClause.Collname != nil && len(cd.CollClause.Collname.Items) > 0 {
-		result.CollationName = stringVal(cd.CollClause.Collname.Items[len(cd.CollClause.Collname.Items)-1])
+		result.CollClause = cd.CollClause
+		sc, nm := qualifiedName(cd.CollClause.Collname)
+		if sc != "" {
+			result.CollationSchema = sc
+		}
+		result.CollationName = nm
 	}
+	result.StorageName = cd.StorageName
+	result.Compression = cd.Compression
 
 	// Handle DEFAULT expression — raw text will be overwritten by DeparseExpr
 	// after AnalyzeStandaloneExpr in DefineRelation.
@@ -1661,7 +1719,6 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			continue // column not found in partition (shouldn't happen for valid partition)
 		}
 
-		// Generate partition index name.
 		partIdxName := fmt.Sprintf("%s_%s_idx", partition.Name, idx.Name)
 		if idx.IsPrimary {
 			partIdxName = partition.Name + "_pkey"
@@ -1683,23 +1740,29 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			partIdxSpace = normalizeTablespace(c.effectiveIndexTablespace("", partition))
 		}
 		partIdx := &Index{
-			OID:              c.oidGen.Next(),
-			Name:             partIdxName,
-			Schema:           schema,
-			RelOID:           partition.OID,
-			Tablespace:       partIdxSpace,
-			OwnerName:        partition.OwnerName,
-			Columns:          partAttnums,
-			IsUnique:         idx.IsUnique,
-			IsPrimary:        idx.IsPrimary,
-			AccessMethod:     idx.AccessMethod,
-			NKeyColumns:      idx.NKeyColumns,
-			WhereClause:      idx.WhereClause,
-			IndOption:        partIndOption,
-			NullsNotDistinct: idx.NullsNotDistinct,
-			Exprs:            slices.Clone(idx.Exprs),
-			OpClasses:        slices.Clone(idx.OpClasses),
-			ParentIndexOID:   idx.OID,
+			OID:               c.oidGen.Next(),
+			Name:              partIdxName,
+			Schema:            schema,
+			RelOID:            partition.OID,
+			Tablespace:        partIdxSpace,
+			OwnerName:         partition.OwnerName,
+			Columns:           partAttnums,
+			ColumnNames:       slices.Clone(idx.ColumnNames),
+			IsUnique:          idx.IsUnique,
+			IsPrimary:         idx.IsPrimary,
+			AccessMethod:      idx.AccessMethod,
+			NKeyColumns:       idx.NKeyColumns,
+			WhereClause:       idx.WhereClause,
+			IndOption:         partIndOption,
+			NullsNotDistinct:  idx.NullsNotDistinct,
+			Exprs:             slices.Clone(idx.Exprs),
+			OpClasses:         slices.Clone(idx.OpClasses),
+			OpClassOptions:    slices.Clone(idx.OpClassOptions),
+			Collations:        cloneStringSlices(idx.Collations),
+			UserCollationOIDs: slices.Clone(idx.UserCollationOIDs),
+			AnalyzedExprs:     slices.Clone(idx.AnalyzedExprs),
+			AnalyzedWhere:     idx.AnalyzedWhere,
+			ParentIndexOID:    idx.OID,
 		}
 
 		// If the parent index backs a constraint, clone the constraint too.
@@ -1715,19 +1778,21 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 				partConName := fmt.Sprintf("%s_%s", partition.Name, parentCon.Name)
 
 				partCon := &Constraint{
-					OID:         conOID,
-					Name:        partConName,
-					Type:        parentCon.Type,
-					RelOID:      partition.OID,
-					Namespace:   schema.OID,
-					Columns:     partConAttnums,
-					IndexOID:    partIdx.OID,
-					Deferrable:  parentCon.Deferrable,
-					Deferred:    parentCon.Deferred,
-					Validated:   true,
-					ConIsLocal:  true,
-					ConParentID: parentCon.OID,
-					ExclOps:     slices.Clone(parentCon.ExclOps),
+					OID:            conOID,
+					Name:           partConName,
+					Type:           parentCon.Type,
+					RelOID:         partition.OID,
+					Namespace:      schema.OID,
+					Columns:        partConAttnums,
+					IncludeColumns: c.mapColumnAttnums(parent, partition, parentCon.IncludeColumns),
+					IndexOID:       partIdx.OID,
+					Deferrable:     parentCon.Deferrable,
+					Deferred:       parentCon.Deferred,
+					Validated:      true,
+					ConIsLocal:     true,
+					ConParentID:    parentCon.OID,
+					ExclOps:        slices.Clone(parentCon.ExclOps),
+					ExclOpSchemas:  slices.Clone(parentCon.ExclOpSchemas),
 				}
 
 				partIdx.ConstraintOID = conOID
@@ -1765,9 +1830,9 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			c.recordDependency('i', partIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
 		}
 
-		// Force NOT NULL on PK columns.
+		// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
 		if idx.IsPrimary {
-			for _, attnum := range partAttnums {
+			for _, attnum := range indexKeyAttnums(idx, partAttnums) {
 				if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
 					partition.Columns[attnum-1].NotNull = true
 				}
@@ -1978,22 +2043,28 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			cloneTablespace = normalizeTablespace(c.effectiveIndexTablespace("", dst))
 		}
 		newIdx := &Index{
-			OID:              c.oidGen.Next(),
-			Name:             idxName,
-			Schema:           schema,
-			RelOID:           dst.OID,
-			Tablespace:       cloneTablespace,
-			OwnerName:        dst.OwnerName,
-			Columns:          dstAttnums,
-			IsUnique:         idx.IsUnique,
-			IsPrimary:        idx.IsPrimary,
-			AccessMethod:     idx.AccessMethod,
-			NKeyColumns:      idx.NKeyColumns,
-			WhereClause:      idx.WhereClause,
-			IndOption:        dstIndOption,
-			NullsNotDistinct: idx.NullsNotDistinct,
-			Exprs:            slices.Clone(idx.Exprs),
-			OpClasses:        slices.Clone(idx.OpClasses),
+			OID:               c.oidGen.Next(),
+			Name:              idxName,
+			Schema:            schema,
+			RelOID:            dst.OID,
+			Tablespace:        cloneTablespace,
+			OwnerName:         dst.OwnerName,
+			Columns:           dstAttnums,
+			ColumnNames:       slices.Clone(idx.ColumnNames),
+			IsUnique:          idx.IsUnique,
+			IsPrimary:         idx.IsPrimary,
+			AccessMethod:      idx.AccessMethod,
+			NKeyColumns:       idx.NKeyColumns,
+			WhereClause:       idx.WhereClause,
+			IndOption:         dstIndOption,
+			NullsNotDistinct:  idx.NullsNotDistinct,
+			Exprs:             slices.Clone(idx.Exprs),
+			OpClasses:         slices.Clone(idx.OpClasses),
+			OpClassOptions:    slices.Clone(idx.OpClassOptions),
+			Collations:        cloneStringSlices(idx.Collations),
+			UserCollationOIDs: slices.Clone(idx.UserCollationOIDs),
+			AnalyzedExprs:     slices.Clone(idx.AnalyzedExprs),
+			AnalyzedWhere:     idx.AnalyzedWhere,
 		}
 
 		// If the source index backs a constraint, clone the constraint too.
@@ -2030,18 +2101,20 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 				}
 
 				newCon := &Constraint{
-					OID:        conOID,
-					Name:       conName,
-					Type:       srcCon.Type,
-					RelOID:     dst.OID,
-					Namespace:  schema.OID,
-					Columns:    conAttnums,
-					IndexOID:   newIdx.OID,
-					Deferrable: srcCon.Deferrable,
-					Deferred:   srcCon.Deferred,
-					Validated:  true,
-					ConIsLocal: true,
-					ExclOps:    slices.Clone(srcCon.ExclOps),
+					OID:            conOID,
+					Name:           conName,
+					Type:           srcCon.Type,
+					RelOID:         dst.OID,
+					Namespace:      schema.OID,
+					Columns:        conAttnums,
+					IncludeColumns: c.mapColumnAttnums(src, dst, srcCon.IncludeColumns),
+					IndexOID:       newIdx.OID,
+					Deferrable:     srcCon.Deferrable,
+					Deferred:       srcCon.Deferred,
+					Validated:      true,
+					ConIsLocal:     true,
+					ExclOps:        slices.Clone(srcCon.ExclOps),
+					ExclOpSchemas:  slices.Clone(srcCon.ExclOpSchemas),
 				}
 
 				newIdx.ConstraintOID = conOID
@@ -2065,9 +2138,9 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 		c.recordDependency('i', newIdx.OID, 0, 'r', dst.OID, 0, DepAuto)
 		c.recordColumnDependencies('i', newIdx.OID, dst.OID, dstAttnums, DepAuto)
 
-		// Force NOT NULL on PK columns.
+		// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
 		if idx.IsPrimary {
-			for _, attnum := range dstAttnums {
+			for _, attnum := range indexKeyAttnums(idx, dstAttnums) {
 				if int(attnum) > 0 && int(attnum) <= len(dst.Columns) {
 					dst.Columns[attnum-1].NotNull = true
 				}
@@ -2139,4 +2212,13 @@ func rawExprContainsSubLink(expr nodes.Node) bool {
 		return true
 	})
 	return found
+}
+
+// indexKeyAttnums returns the key part of attnums, a copy of idx's columns
+// mapped to another relation: the included columns follow the keys.
+func indexKeyAttnums(idx *Index, attnums []int16) []int16 {
+	if idx.NKeyColumns > 0 && idx.NKeyColumns < len(attnums) {
+		return attnums[:idx.NKeyColumns]
+	}
+	return attnums
 }

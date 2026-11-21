@@ -21,7 +21,10 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 			// Partition child: generate CREATE TABLE ... PARTITION OF ... FOR VALUES ...
 			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
-				ops = append(ops, generatePartitionChildDDL(to, entry)...)
+				ops = append(ops, generatePartitionChildDDL(from, to, entry)...)
+			}
+			if (entry.To.RelKind == 'r' || entry.To.RelKind == 'p') && normalizeReplicaIdentity(entry.To.ReplicaIdentity) != 'd' {
+				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 			}
 
 		case DiffModify:
@@ -49,9 +52,40 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 
-			// Replica identity changed.
-			if entry.From.ReplicaIdentity != entry.To.ReplicaIdentity {
+			// Replica identity changed, or its index is rebuilt: a new index
+			// does not inherit the replica identity of the one it replaces.
+			if normalizeReplicaIdentity(entry.From.ReplicaIdentity) != normalizeReplicaIdentity(entry.To.ReplicaIdentity) ||
+				replicaIdentityIndexName(from, entry.From) != replicaIdentityIndexName(to, entry.To) ||
+				replicaIdentityIndexRebuilt(to, entry) {
 				ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
+			}
+
+			// Table access method changed (views/matviews are handled by generateViewDDL).
+			if fromIsTable && toIsTable {
+				if fromAM, toAM := normalizeRelationAccessMethod(entry.From), normalizeRelationAccessMethod(entry.To); fromAM != toAM {
+					qn := formatRelationName(entry.SchemaName, entry.Name, entry.To)
+					target := "DEFAULT"
+					if !(entry.To.RelKind == 'p' && toAM == "") {
+						target = quoteIdentifier(toAM)
+					}
+					phase := PhaseMain
+					objOID := entry.To.OID
+					if fromAM != "" && fromAM != "heap" && to.accessMethodByName[fromAM] == nil {
+						phase = PhasePre
+						objOID = entry.From.OID
+					}
+					ops = append(ops, MigrationOp{
+						Type:          OpAlterTable,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("ALTER TABLE %s SET ACCESS METHOD %s", qn, target),
+						Transactional: true,
+						Phase:         phase,
+						ObjType:       'r',
+						ObjOID:        objOID,
+						Priority:      PriorityTable,
+					})
+				}
 			}
 		}
 	}
@@ -80,14 +114,14 @@ func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
 }
 
 // generatePartitionChildDDL generates CREATE TABLE ... PARTITION OF ... FOR VALUES ...
-func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationOp {
+func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []MigrationOp {
 	rel := entry.To
 	parentRel := c.GetRelationByOID(rel.PartitionOf)
 	if parentRel == nil {
 		return nil
 	}
 
-	qn := migrationQualifiedName(entry.SchemaName, rel.Name)
+	qn := formatRelationName(entry.SchemaName, rel.Name, rel)
 
 	var parentSchema string
 	if parentRel.Schema != nil {
@@ -95,10 +129,17 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 	} else {
 		parentSchema = entry.SchemaName
 	}
-	parentQN := migrationQualifiedName(parentSchema, parentRel.Name)
+	parentQN := formatRelationName(parentSchema, parentRel.Name, parentRel)
 
 	var b strings.Builder
-	b.WriteString("CREATE TABLE ")
+	switch rel.Persistence {
+	case 'u':
+		b.WriteString("CREATE UNLOGGED TABLE ")
+	case 't':
+		b.WriteString("CREATE TEMP TABLE ")
+	default:
+		b.WriteString("CREATE TABLE ")
+	}
 	b.WriteString(qn)
 	b.WriteString(" PARTITION OF ")
 	b.WriteString(parentQN)
@@ -139,6 +180,18 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 	}
 	// A partition with subpartitions is itself partitioned.
 	b.WriteString(formatPartitionByClause(rel))
+	if rel.RelKind == 'p' {
+		if rel.AccessMethod != "" {
+			b.WriteString(" USING ")
+			b.WriteString(quoteIdentifier(rel.AccessMethod))
+		}
+	} else if am := normalizeRelationAccessMethod(rel); am != "" {
+		if (parentRel.AccessMethod != "" && am != parentRel.AccessMethod) ||
+			(parentRel.AccessMethod == "" && (am != "heap" || rel.AccessMethod != "" || catalogHasNonDefaultTableAM(from) || catalogHasNonDefaultTableAM(c))) {
+			b.WriteString(" USING ")
+			b.WriteString(quoteIdentifier(am))
+		}
+	}
 
 	return []MigrationOp{{
 		Type:          OpCreateTable,
@@ -165,8 +218,29 @@ func formatPartitionValue(v string) string {
 }
 
 // generateReplicaIdentityDDL generates ALTER TABLE ... REPLICA IDENTITY ...
+// replicaIdentityIndexRebuilt reports whether the migration drops and
+// recreates the index, or the constraint owning it, that the target table
+// uses as its replica identity.
+func replicaIdentityIndexRebuilt(to *Catalog, entry RelationDiffEntry) bool {
+	name := replicaIdentityIndexName(to, entry.To)
+	if name == "" {
+		return false
+	}
+	for _, ie := range entry.Indexes {
+		if ie.Name == name {
+			return true
+		}
+	}
+	for _, ce := range entry.Constraints {
+		if ce.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []MigrationOp {
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	qn := formatRelationName(entry.SchemaName, entry.Name, entry.To)
 
 	var clause string
 	switch entry.To.ReplicaIdentity {
@@ -187,16 +261,22 @@ func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []Migration
 		clause = "DEFAULT"
 	}
 
+	// USING INDEX names an index this migration may create or rebuild, so it
+	// waits for every index to exist.
+	phase := PhaseMain
+	if entry.To.ReplicaIdentity == 'i' {
+		phase = PhasePost
+	}
 	return []MigrationOp{{
 		Type:          OpAlterTable,
 		SchemaName:    entry.SchemaName,
 		ObjectName:    entry.Name,
 		SQL:           fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY %s", qn, clause),
 		Transactional: true,
-		Phase:         PhaseMain,
+		Phase:         phase,
 		ObjType:       'r',
 		ObjOID:        entry.To.OID,
-		Priority:      PriorityTable,
+		Priority:      PriorityIndex + 1,
 	}}
 }
 
@@ -251,7 +331,7 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 			schema = parentRel.Schema.Name
 		}
 		if schema != "" {
-			parents = append(parents, migrationQualifiedName(schema, parentRel.Name))
+			parents = append(parents, formatRelationName(schema, parentRel.Name, parentRel))
 		} else {
 			parents = append(parents, quoteIdentAlways(parentRel.Name))
 		}
@@ -270,7 +350,7 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 // be regenerated. Dependent views are handled by wrapColumnTypeChangesWithViewOps.
 func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason string) []MigrationOp {
 	var ops []MigrationOp
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	qn := formatRelationName(entry.SchemaName, entry.Name, entry.From)
 
 	ops = append(ops, MigrationOp{
 		Type:          OpDropTable,
@@ -285,7 +365,7 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 		Priority:      PriorityTable,
 	})
 
-	ddl := FormatCreateTable(to, entry.SchemaName, entry.To)
+	ddl := formatCreateTable(from, to, entry.SchemaName, entry.From, entry.To, false)
 	ops = append(ops, MigrationOp{
 		Type:          OpCreateTable,
 		SchemaName:    entry.SchemaName,
@@ -317,6 +397,9 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 			ObjOID:        idx.OID,
 			Priority:      PriorityIndex,
 		})
+	}
+	if normalizeReplicaIdentity(entry.To.ReplicaIdentity) != 'd' {
+		ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
 	}
 
 	return ops

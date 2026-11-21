@@ -57,6 +57,10 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	if schemaName == "pg_temp" {
+		// PostgreSQL creates the session's temporary schema on first use.
+		c.ensureTempSchema()
+	}
 	schema, err := c.resolveTargetSchema(schemaName)
 	if err != nil {
 		return err
@@ -94,12 +98,43 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	if len(columnNames) > 0 {
 		if len(columnNames) > len(cols) {
 			return &Error{
-				Code:    CodeDatatypeMismatch,
+				Code:    CodeSyntaxError,
 				Message: fmt.Sprintf("CREATE VIEW specifies %d column names, but query produces %d columns", len(columnNames), len(cols)),
 			}
 		}
 		for i, name := range columnNames {
 			cols[i].Name = name
+		}
+	}
+
+	if err := c.validateRelOptions(stmt.Options, 'v', ""); err != nil {
+		return err
+	}
+
+	var checkOption byte
+	switch stmt.WithCheckOption {
+	case 1: // LOCAL
+		checkOption = 'l'
+	case 2: // CASCADED
+		checkOption = 'c'
+	}
+	if checkOption == 0 && stmt.Options != nil {
+		for _, opt := range stmt.Options.Items {
+			de, ok := opt.(*nodes.DefElem)
+			if !ok || !strings.EqualFold(de.Defname, "check_option") {
+				continue
+			}
+			switch strings.ToLower(defElemString(de)) {
+			case "local":
+				checkOption = 'l'
+			case "cascaded":
+				checkOption = 'c'
+			}
+		}
+	}
+	if checkOption != 0 {
+		if err := c.checkViewAutoUpdatable(analyzedQuery); err != nil {
+			return err
 		}
 	}
 
@@ -117,37 +152,26 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
-	// Check for existing relation with the same name.
-	if existing, exists := schema.Relations[viewName]; exists {
-		if !stmt.Replace {
-			return errDuplicateTable(viewName)
+	// A view is temporary when TEMP is written, when it reads a temporary
+	// relation, or when it is created in the temporary schema itself.
+	isTempView := (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery) ||
+		(schemaName != "" && isTempSchemaName(schemaName))
+	if isTempView {
+		if schemaName != "" && !isTempSchemaName(schemaName) {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: "cannot create temporary relation in non-temporary schema",
+			}
 		}
-		// OR REPLACE: must be a view.
-		if existing.RelKind != 'v' {
-			return errWrongObjectType(viewName, "a view")
+		// An unqualified temporary view lives in pg_temp, apart from the
+		// relations of the default schema (namespace.c
+		// RangeVarGetCreationNamespace).
+		if schemaName == "" {
+			schema = c.ensureTempSchema()
 		}
-		// checkViewColumns: validate column compatibility.
-		if err := c.checkViewColumns(cols, existing); err != nil {
-			return err
-		}
-		// Update existing view in place.
-		return c.replaceView(schema, existing, cols, analyzedQuery)
 	}
 
-	// An index or sequence holds the name in the relation namespace.
-	if _, held := relationNamespaceKind(schema, viewName); held {
-		if stmt.Replace {
-			return errWrongObjectType(viewName, "a view")
-		}
-		return errDuplicateTable(viewName)
-	}
-
-	// Check conflict with existing type name.
-	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
-		return errDuplicateTable(viewName)
-	}
-
-	// Build Column objects.
+	// Build Column objects and check for duplicate column names before any view replacement mutation.
 	columns := make([]*Column, len(cols))
 	colByName := make(map[string]int, len(cols))
 	for i, rc := range cols {
@@ -178,6 +202,44 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		columns[i] = col
 	}
 
+	// Check for existing relation with the same name.
+	if existing, exists := schema.Relations[viewName]; exists {
+		if !stmt.Replace {
+			return errDuplicateTable(viewName)
+		}
+		// OR REPLACE: must be a view.
+		if existing.RelKind != 'v' {
+			return errWrongObjectType(viewName, "a view")
+		}
+		// checkViewColumns: validate column compatibility before mutating view options.
+		if err := c.checkViewColumns(cols, existing); err != nil {
+			return err
+		}
+		if err := c.replaceView(schema, existing, cols, analyzedQuery); err != nil {
+			return err
+		}
+		if isTempView {
+			existing.Persistence = 't'
+		}
+		existing.CheckOption = checkOption
+		// CREATE OR REPLACE VIEW replaces the view's options outright.
+		existing.SecurityBarrier, existing.SecurityInvoker = viewSecurityOptions(stmt.Options, false, false)
+		return nil
+	}
+
+	// An index or sequence holds the name in the relation namespace.
+	if _, held := relationNamespaceKind(schema, viewName); held {
+		if stmt.Replace {
+			return errWrongObjectType(viewName, "a view")
+		}
+		return errDuplicateTable(viewName)
+	}
+
+	// Check conflict with existing type name.
+	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
+		return errDuplicateTable(viewName)
+	}
+
 	// Allocate OIDs.
 	relOID := c.oidGen.Next()
 	rowTypeOID := c.oidGen.Next()
@@ -192,55 +254,29 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	persistence := byte('p')
+	if rv != nil && rv.Relpersistence != 0 {
+		persistence = rv.Relpersistence
+	}
+	if isTempView {
+		persistence = 't'
+	}
+
 	rel := &Relation{
 		OID:           relOID,
 		Name:          viewName,
 		Schema:        schema,
 		RelKind:       'v',
+		Persistence:   persistence,
 		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,
 		RowTypeOID:    rowTypeOID,
 		ArrayOID:      arrayOID,
 		AnalyzedQuery: analyzedQuery,
+		CheckOption:   checkOption,
 	}
-
-	// Store CHECK OPTION.
-	// pg: src/backend/commands/view.c — DefineView (checkOption)
-	// pgparser may set WithCheckOption (1=LOCAL, 2=CASCADED) or store it in Options.
-	switch stmt.WithCheckOption {
-	case 1: // LOCAL
-		rel.CheckOption = 'l'
-	case 2: // CASCADED
-		rel.CheckOption = 'c'
-	}
-	// Also check Options list for check_option (pgparser stores it there for WITH clause).
-	if rel.CheckOption == 0 && stmt.Options != nil {
-		for _, opt := range stmt.Options.Items {
-			de, ok := opt.(*nodes.DefElem)
-			if !ok || de.Defname != "check_option" {
-				continue
-			}
-			val := defElemString(de)
-			switch strings.ToLower(val) {
-			case "local":
-				rel.CheckOption = 'l'
-			case "cascaded":
-				rel.CheckOption = 'c'
-			}
-		}
-	}
-
-	// Views with CHECK OPTION must be auto-updatable.
-	// pg: src/backend/commands/view.c — DefineView (line 510-520)
-	// A simple view is auto-updatable if it has exactly one table in FROM,
-	// no aggregates, no DISTINCT, no GROUP BY, no HAVING, no LIMIT, no OFFSET,
-	// no set operations, no CTEs, no window functions.
-	// For pgddl, we only do a basic check: reject CHECK OPTION on set-op views.
-	if rel.CheckOption != 0 && analyzedQuery != nil && analyzedQuery.SetOp != SetOpNone {
-		return &Error{Code: CodeFeatureNotSupported,
-			Message: "WITH CHECK OPTION is not supported on recursive views"}
-	}
+	rel.SecurityBarrier, rel.SecurityInvoker = viewSecurityOptions(stmt.Options, false, false)
 
 	schema.Relations[viewName] = rel
 	c.relationByOID[relOID] = rel
@@ -372,12 +408,228 @@ func (c *Catalog) replaceView(schema *Schema, rel *Relation, newCols []*ResultCo
 
 	// Update the query.
 	rel.AnalyzedQuery = analyzedQuery
+	if queryReferencesTempRelation(c, analyzedQuery) {
+		rel.Persistence = 't'
+	}
 
 	// Re-record dependencies on source tables/views.
 	// pg: src/backend/catalog/dependency.c — recordDependencyOnExpr
 	c.recordViewDepsQ(rel.OID, analyzedQuery)
 
 	return nil
+}
+
+func queryReferencesTempRelation(c *Catalog, q *Query) bool {
+	if c == nil || q == nil {
+		return false
+	}
+	exprHasTemp := func(expr AnalyzedExpr) bool {
+		if expr == nil {
+			return false
+		}
+		found := false
+		WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+			if found {
+				return false
+			}
+			if sl, ok := e.(*SubLinkExpr); ok && queryReferencesTempRelation(c, sl.SubQuery) {
+				found = true
+				return false
+			}
+			return true
+		})
+		return found
+	}
+	var joinHasTemp func(jn JoinNode) bool
+	joinHasTemp = func(jn JoinNode) bool {
+		if je, ok := jn.(*JoinExprNode); ok && je != nil {
+			return joinHasTemp(je.Left) || joinHasTemp(je.Right) || exprHasTemp(je.Quals)
+		}
+		return false
+	}
+	for _, rte := range q.RangeTable {
+		if rte.Kind == RTERelation && rte.RelOID != 0 {
+			if r := c.relationByOID[rte.RelOID]; r != nil && r.Persistence == 't' {
+				return true
+			}
+		}
+		if rte.Subquery != nil && queryReferencesTempRelation(c, rte.Subquery) {
+			return true
+		}
+		for _, fe := range rte.FuncExprs {
+			if exprHasTemp(fe) {
+				return true
+			}
+		}
+		if rte.Tablesample != nil {
+			for _, a := range rte.Tablesample.Args {
+				if exprHasTemp(a) {
+					return true
+				}
+			}
+			if exprHasTemp(rte.Tablesample.Repeatable) {
+				return true
+			}
+		}
+	}
+	for _, cte := range q.CTEList {
+		if cte != nil && queryReferencesTempRelation(c, cte.Query) {
+			return true
+		}
+	}
+	if q.SetOp != SetOpNone {
+		if queryReferencesTempRelation(c, q.LArg) || queryReferencesTempRelation(c, q.RArg) {
+			return true
+		}
+	}
+	for _, te := range q.TargetList {
+		if te != nil && exprHasTemp(te.Expr) {
+			return true
+		}
+	}
+	if q.JoinTree != nil {
+		for _, jn := range q.JoinTree.FromList {
+			if joinHasTemp(jn) {
+				return true
+			}
+		}
+		if exprHasTemp(q.JoinTree.Quals) {
+			return true
+		}
+	}
+	if exprHasTemp(q.HavingQual) || exprHasTemp(q.LimitCount) || exprHasTemp(q.LimitOffset) {
+		return true
+	}
+	for _, wc := range q.WindowClause {
+		if wc != nil && (exprHasTemp(wc.StartOffset) || exprHasTemp(wc.EndOffset)) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkViewAutoUpdatable verifies that a view query satisfies PostgreSQL's
+// view_query_is_auto_updatable rules required for WITH CHECK OPTION.
+//
+// pg: src/backend/rewrite/rewriteHandler.c — view_query_is_auto_updatable
+func (c *Catalog) checkViewAutoUpdatable(q *Query) error {
+	notUpdatable := func(detail string) error {
+		return &Error{
+			Code:    CodeFeatureNotSupported,
+			Message: "WITH CHECK OPTION is supported only on automatically updatable views\nDetail: " + detail,
+		}
+	}
+	if q == nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	if q.SetOp != SetOpNone {
+		return notUpdatable("Views containing UNION, INTERSECT, or EXCEPT are not automatically updatable.")
+	}
+	if len(q.CTEList) > 0 {
+		return notUpdatable("Views containing WITH are not automatically updatable.")
+	}
+	if q.Distinct {
+		return notUpdatable("Views containing DISTINCT are not automatically updatable.")
+	}
+	if len(q.GroupClause) > 0 || len(q.GroupingSets) > 0 || q.HavingQual != nil || q.HasAggs {
+		return notUpdatable("Views containing GROUP BY, HAVING, or aggregates are not automatically updatable.")
+	}
+	if len(q.WindowClause) > 0 || targetListHasWindowFunc(q.TargetList) {
+		return notUpdatable("Views containing window functions are not automatically updatable.")
+	}
+	if q.LimitCount != nil || q.LimitOffset != nil {
+		return notUpdatable("Views containing LIMIT or OFFSET are not automatically updatable.")
+	}
+	if q.JoinTree == nil || len(q.JoinTree.FromList) != 1 {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	rtr, ok := q.JoinTree.FromList[0].(*RangeTableRef)
+	if !ok || rtr.RTIndex < 0 || rtr.RTIndex >= len(q.RangeTable) {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	rte := q.RangeTable[rtr.RTIndex]
+	if rte.Kind != RTERelation || rte.Tablesample != nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	baseRel := c.relationByOID[rte.RelOID]
+	if baseRel == nil {
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+	switch baseRel.RelKind {
+	case 'r', 'p', 'f', 'v':
+	default:
+		return notUpdatable("Views that do not select from a single table or view are not automatically updatable.")
+	}
+
+	// pg: src/backend/rewrite/rewriteHandler.c — view_col_is_auto_updatable
+	// At CREATE VIEW time, view_col_is_auto_updatable inspects only the immediate
+	// base relation's pg_attribute entry (attnum > 0 and attgenerated == '\0')
+	// without recursing into a base view's query (since a base view may have or
+	// later gain an INSTEAD OF trigger or DO INSTEAD rule).
+	hasUpdatableCol := false
+	for _, te := range q.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		if exprContainsSRF(c, te.Expr) {
+			return notUpdatable("Views that return set-returning functions are not automatically updatable.")
+		}
+		v, ok := te.Expr.(*VarExpr)
+		if !ok || v.LevelsUp != 0 || v.RangeIdx != rtr.RTIndex || v.AttNum <= 0 {
+			continue
+		}
+		if ci := indexOfAttNum(baseRel, v.AttNum); ci >= 0 && baseRel.Columns[ci].Generated != 0 {
+			continue
+		}
+		hasUpdatableCol = true
+	}
+	if !hasUpdatableCol {
+		return notUpdatable("Views that do not select at least one updatable column are not automatically updatable.")
+	}
+	return nil
+}
+
+func exprContainsSRF(c *Catalog, expr AnalyzedExpr) bool {
+	if expr == nil {
+		return false
+	}
+	found := false
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		if found {
+			return false
+		}
+		if fc, ok := e.(*FuncCallExpr); ok {
+			if bp := c.procByOID[fc.FuncOID]; bp != nil && bp.RetSet {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
+func targetListHasWindowFunc(tlist []*TargetEntry) bool {
+	found := false
+	for _, te := range tlist {
+		if te == nil || te.Expr == nil {
+			continue
+		}
+		WalkAnalyzedExpr(te.Expr, func(e AnalyzedExpr) bool {
+			if found {
+				return false
+			}
+			if _, ok := e.(*WindowFuncExpr); ok {
+				found = true
+				return false
+			}
+			return true
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
 // dropViewDependents drops all views that depend on the given relation.
@@ -670,4 +922,42 @@ func (w *viewDepWalker) varDep(v *VarExpr) {
 			return true
 		})
 	}
+}
+
+// viewSecurityOptions applies the security_barrier and security_invoker
+// entries of a view option list to the given values.
+func viewSecurityOptions(opts *nodes.List, barrier, invoker bool) (bool, bool) {
+	if opts == nil {
+		return barrier, invoker
+	}
+	for _, item := range opts.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok || de == nil {
+			continue
+		}
+		switch strings.ToLower(de.Defname) {
+		case "security_barrier":
+			barrier = relOptionBool(de)
+		case "security_invoker":
+			invoker = relOptionBool(de)
+		}
+	}
+	return barrier, invoker
+}
+
+// relOptionBool reads a boolean relation option as parse_bool does: a bare
+// name is true, and true/false, on/off, yes/no, 1/0 and their unambiguous
+// prefixes are accepted (validation has already refused anything else).
+func relOptionBool(de *nodes.DefElem) bool {
+	if de.Arg == nil {
+		return true
+	}
+	if b, ok := de.Arg.(*nodes.Boolean); ok {
+		return b.Boolval
+	}
+	if i, ok := de.Arg.(*nodes.Integer); ok {
+		return i.Ival != 0
+	}
+	b, _ := parsePGBool(defElemString(de))
+	return b
 }

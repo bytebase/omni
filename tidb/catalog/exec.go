@@ -166,6 +166,12 @@ func isDML(stmt nodes.Node) bool {
 // processUtility applies one statement. source is the text it was parsed
 // from, which its Loc offsets index into, or "" when there is none.
 func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
+	switch stmt.(type) {
+	case *nodes.CreateTableStmt, *nodes.CreateIndexStmt, *nodes.AlterTableStmt:
+		if err := zeroLengthKeyPart(stmt); err != nil {
+			return err
+		}
+	}
 	switch s := stmt.(type) {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
@@ -518,4 +524,27 @@ func stmtLocStart(node nodes.Node) int {
 	default:
 		return 0
 	}
+}
+
+// zeroLengthKeyPart refuses an explicit zero key-part length, KEY (c(0)), with
+// 1391 before anything is looked up: pingcap/tidb:v8.5.5 answers it for
+// CREATE TABLE, ALTER TABLE ADD KEY and CREATE INDEX, and for CREATE INDEX on
+// a table that does not exist.
+func zeroLengthKeyPart(stmt nodes.Node) error {
+	var err error
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		if ic, ok := n.(*nodes.IndexColumn); ok && ic.HasPrefix && ic.Length == 0 {
+			name := ""
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+				name = cr.Column
+			}
+			err = errKeyPartZeroLength(name)
+			return false
+		}
+		return true
+	})
+	return err
 }

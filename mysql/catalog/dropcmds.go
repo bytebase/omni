@@ -32,8 +32,7 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 }
 
 // checkFKReferences returns an error if any table in any database has a
-// foreign key constraint that references the given table.
-func (c *Catalog) checkFKReferences(dbName, tableName string) error {
+func (c *Catalog) findReferencingFK(dbName, tableName string) (childTable, conName string, found bool) {
 	dbKey := toLower(dbName)
 	tblKey := toLower(tableName)
 	for _, db := range c.databases {
@@ -51,10 +50,18 @@ func (c *Catalog) checkFKReferences(dbName, tableName string) error {
 					refDB = db.Name
 				}
 				if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
-					return errFKCannotDropParent(tableName, con.Name, tbl.Name)
+					return tbl.Name, con.Name, true
 				}
 			}
 		}
+	}
+	return "", "", false
+}
+
+// foreign key constraint that references the given table.
+func (c *Catalog) checkFKReferences(dbName, tableName string) error {
+	if childTable, conName, ok := c.findReferencingFK(dbName, tableName); ok {
+		return errFKCannotDropParent(tableName, conName, childTable)
 	}
 	return nil
 }
@@ -69,6 +76,9 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		tbl := db.GetTable(ref.Name)
 		if tbl == nil {
 			return errNoSuchTable(db.Name, ref.Name)
+		}
+		if tableHasDiscardedTablespace(tbl) {
+			return errTablespaceDiscarded(db.Name, tbl.Name)
 		}
 		tbl.AutoIncrement = 0
 	}

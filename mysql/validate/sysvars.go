@@ -676,3 +676,9 @@ func isSystemVariable(name string) bool {
 	_, ok := knownSystemVariables[lower(name)]
 	return ok
 }
+
+// IsKnownSystemVariable reports whether name (case-insensitive) matches a
+// known MySQL 8.0 session/global system variable.
+func IsKnownSystemVariable(name string) bool {
+	return isSystemVariable(name)
+}

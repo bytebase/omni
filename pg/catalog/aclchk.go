@@ -411,7 +411,7 @@ func (c *Catalog) resolveGrantRoutine(objType nodes.ObjectType, owa *nodes.Objec
 		}
 		schemasToSearch = []uint32{schema.OID}
 	} else {
-		schemasToSearch = c.searchPathWithCatalog()
+		schemasToSearch = c.routineSearchPathWithCatalog()
 	}
 
 	checkRoutineKind := func(kind byte) error {

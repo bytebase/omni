@@ -5,8 +5,29 @@ import (
 	"sort"
 )
 
+// formatRangeCollation formats the explicit COLLATION option of a range type,
+// or returns "" when the range uses its subtype's default collation.
+func formatRangeCollation(rt *RangeType) string {
+	if rt == nil || rt.CollationName == "" {
+		return ""
+	}
+	if rt.CollationSchema != "" {
+		return migrationQualifiedName(rt.CollationSchema, rt.CollationName)
+	}
+	return quoteIdentAlways(rt.CollationName)
+}
+
+func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) string {
+	subTypeName := cat.FormatType(rt.SubTypeOID, -1)
+	qualName := migrationQualifiedName(schemaName, name)
+	if coll := formatRangeCollation(rt); coll != "" {
+		return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s, COLLATION = %s)", qualName, subTypeName, coll)
+	}
+	return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s)", qualName, subTypeName)
+}
+
 // generateRangeDDL produces DDL operations for range type changes
-// (CREATE TYPE ... AS RANGE, DROP TYPE, and warnings for subtype changes).
+// (CREATE TYPE ... AS RANGE, DROP TYPE, and replacements/warnings for modified ranges).
 func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
 	for _, entry := range diff.Ranges {
@@ -15,9 +36,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To == nil {
 				continue
 			}
-			subTypeName := to.FormatType(entry.To.SubTypeOID, -1)
-			qualName := migrationQualifiedName(entry.SchemaName, entry.Name)
-			sql := fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s)", qualName, subTypeName)
+			sql := formatCreateRange(to, entry.SchemaName, entry.Name, entry.To)
 			ops = append(ops, MigrationOp{
 				Type:          OpCreateType,
 				SchemaName:    entry.SchemaName,
@@ -52,12 +71,62 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			qualName := migrationQualifiedName(entry.SchemaName, entry.Name)
 			fromSubType := from.FormatType(entry.From.SubTypeOID, -1)
 			toSubType := to.FormatType(entry.To.SubTypeOID, -1)
+			if fromSubType != toSubType {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterType,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("-- range type %s subtype changed from %s to %s; requires DROP + CREATE", qualName, fromSubType, toSubType),
+					Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: subtype changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromSubType, toSubType),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       't',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityType,
+				})
+				continue
+			}
+			if !typeUsedByKeptColumn(from, to, nil, entry.From.OID) && !typeUsedByKeptColumn(from, to, nil, entry.From.MultirangeOID) {
+				ops = append(ops,
+					MigrationOp{
+						Type:          OpDropType,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
+						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       't',
+						ObjOID:        entry.From.OID,
+						Priority:      PriorityType,
+					},
+					MigrationOp{
+						Type:          OpCreateType,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           formatCreateRange(to, entry.SchemaName, entry.Name, entry.To),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       't',
+						ObjOID:        entry.To.OID,
+						Priority:      PriorityType,
+					},
+				)
+				continue
+			}
+			fromColl := formatRangeCollation(entry.From)
+			if fromColl == "" {
+				fromColl = "default"
+			}
+			toColl := formatRangeCollation(entry.To)
+			if toColl == "" {
+				toColl = "default"
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("-- range type %s subtype changed from %s to %s; requires DROP + CREATE", qualName, fromSubType, toSubType),
-				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: subtype changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromSubType, toSubType),
+				SQL:           fmt.Sprintf("-- range type %s collation changed from %s to %s; requires DROP + CREATE", qualName, fromColl, toColl),
+				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: collation changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromColl, toColl),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       't',

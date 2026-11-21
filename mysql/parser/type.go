@@ -348,7 +348,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	// Spatial types
 	case kwGEOMETRY, kwPOINT, kwLINESTRING, kwPOLYGON,
 		kwMULTIPOINT, kwMULTILINESTRING, kwMULTIPOLYGON,
-		kwGEOMETRYCOLLECTION:
+		kwGEOMETRYCOLLECTION, kwGEOMCOLLECTION:
 		dt.Name = p.cur.Str
 		p.advance()
 

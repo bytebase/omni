@@ -1187,6 +1187,11 @@ type ResolvedType struct {
 	// Kept separate from EnumValues for clarity at use sites despite the
 	// structural similarity.
 	SetValues []string
+
+	// widthUnknown marks a functional key part type the catalog could not
+	// infer, held as a placeholder VARCHAR(255): a key-width limit judged on it
+	// would refuse an index MySQL takes.
+	widthUnknown bool
 }
 
 // MySQLBaseType is the typed enumeration of MySQL base type identities.

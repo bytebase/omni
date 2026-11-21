@@ -117,6 +117,16 @@ func TestMigrationRange(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "create range type with user collation preserves COLLATION",
+			fromSQL: "",
+			toSQL:   `CREATE COLLATION "my.coll" (LOCALE = 'C'); CREATE TYPE trange AS RANGE (SUBTYPE = text, COLLATION = public."my.coll");`,
+			check: func(t *testing.T, plan *MigrationPlan) {
+				if !strings.Contains(plan.SQL(), `CREATE TYPE "public"."trange" AS RANGE (SUBTYPE = text, COLLATION = "public"."my.coll")`) {
+					t.Fatalf("expected range DDL with COLLATION, got:\n%s", plan.SQL())
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"maps"
 	"slices"
 )
 
@@ -80,14 +81,25 @@ func (c *Catalog) Clone() *Catalog {
 	clone.schemas = make(map[uint32]*Schema, len(c.schemas))
 	clone.schemaByName = make(map[string]*Schema, len(c.schemaByName))
 	for oid, s := range c.schemas {
+		var collations map[string]*UserCollation
+		if len(s.Collations) > 0 {
+			collations = make(map[string]*UserCollation, len(s.Collations))
+			for k, v := range s.Collations {
+				if v != nil {
+					cp := *v
+					collations[k] = &cp
+				}
+			}
+		}
 		cs := &Schema{
-			OID:       s.OID,
-			Name:      s.Name,
-			Owner:     s.Owner,
-			OwnerName: s.OwnerName,
-			Relations: make(map[string]*Relation, len(s.Relations)),
-			Indexes:   make(map[string]*Index, len(s.Indexes)),
-			Sequences: make(map[string]*Sequence, len(s.Sequences)),
+			OID:        s.OID,
+			Name:       s.Name,
+			Owner:      s.Owner,
+			OwnerName:  s.OwnerName,
+			Relations:  make(map[string]*Relation, len(s.Relations)),
+			Indexes:    make(map[string]*Index, len(s.Indexes)),
+			Sequences:  make(map[string]*Sequence, len(s.Sequences)),
+			Collations: collations,
 		}
 		clone.schemas[oid] = cs
 		clone.schemaByName[s.Name] = cs
@@ -95,6 +107,7 @@ func (c *Catalog) Clone() *Catalog {
 
 	// --- Relations: deep copy + fix Schema pointer ---
 	clone.relationByOID = make(map[uint32]*Relation, len(c.relationByOID))
+	clone.rules = make(map[uint32]*Rule, len(c.rules))
 	for oid, r := range c.relationByOID {
 		cr := *r // shallow copy struct
 		// Deep copy slices.
@@ -109,6 +122,20 @@ func (c *Catalog) Clone() *Catalog {
 			cr.colByName = make(map[string]int, len(r.colByName))
 			for k, v := range r.colByName {
 				cr.colByName[k] = v
+			}
+		}
+		if r.Rules != nil {
+			cr.Rules = make(map[string]*Rule, len(r.Rules))
+			for k, v := range r.Rules {
+				if v == nil {
+					continue
+				}
+				rc := *v
+				rc.bindings = cloneRuleBindings(v.bindings)
+				cr.Rules[k] = &rc
+				if rc.OID != 0 {
+					clone.rules[rc.OID] = &rc
+				}
 			}
 		}
 		if r.InhParents != nil {
@@ -158,6 +185,7 @@ func (c *Catalog) Clone() *Catalog {
 			cc.Columns = make([]int16, len(con.Columns))
 			copy(cc.Columns, con.Columns)
 		}
+		cc.IncludeColumns = slices.Clone(con.IncludeColumns)
 		if con.FColumns != nil {
 			cc.FColumns = make([]int16, len(con.FColumns))
 			copy(cc.FColumns, con.FColumns)
@@ -166,6 +194,7 @@ func (c *Catalog) Clone() *Catalog {
 			cc.ExclOps = make([]string, len(con.ExclOps))
 			copy(cc.ExclOps, con.ExclOps)
 		}
+		cc.ExclOpSchemas = slices.Clone(con.ExclOpSchemas)
 		if con.PFEqOp != nil {
 			cc.PFEqOp = make([]uint32, len(con.PFEqOp))
 			copy(cc.PFEqOp, con.PFEqOp)
@@ -204,6 +233,12 @@ func (c *Catalog) Clone() *Catalog {
 			copy(ci.Exprs, idx.Exprs)
 		}
 		ci.OpClasses = slices.Clone(idx.OpClasses)
+		ci.OpClassOptions = slices.Clone(idx.OpClassOptions)
+		ci.Collations = cloneStringSlices(idx.Collations)
+		ci.UserCollationOIDs = slices.Clone(idx.UserCollationOIDs)
+		ci.AnalyzedExprs = slices.Clone(idx.AnalyzedExprs)
+		ci.AnalyzedWhere = idx.AnalyzedWhere
+		ci.ColumnNames = slices.Clone(idx.ColumnNames)
 		ci.Schema = clone.schemas[idx.Schema.OID]
 		clone.indexes[oid] = &ci
 		clone.indexesByRel[ci.RelOID] = append(clone.indexesByRel[ci.RelOID], &ci)
@@ -242,13 +277,7 @@ func (c *Catalog) Clone() *Catalog {
 	// --- Domain types: deep copy ---
 	clone.domainTypes = make(map[uint32]*DomainType, len(c.domainTypes))
 	for oid, dt := range c.domainTypes {
-		cd := DomainType{
-			TypeOID:     dt.TypeOID,
-			BaseTypeOID: dt.BaseTypeOID,
-			BaseTypMod:  dt.BaseTypMod,
-			NotNull:     dt.NotNull,
-			Default:     dt.Default,
-		}
+		cd := *dt
 		if dt.Constraints != nil {
 			cd.Constraints = make([]*DomainConstraint, len(dt.Constraints))
 			for i, dc := range dt.Constraints {
@@ -474,6 +503,7 @@ func (c *Catalog) Clone() *Catalog {
 	clone.opFamilies = make(map[uint32]*OpFamily, len(c.opFamilies))
 	for oid, fam := range c.opFamilies {
 		cf := *fam
+		cf.Operators = maps.Clone(fam.Operators)
 		clone.opFamilies[oid] = &cf
 	}
 
@@ -482,6 +512,7 @@ func (c *Catalog) Clone() *Catalog {
 	clone.opClassByKey = make(map[opClassKey]*OpClass, len(c.opClassByKey))
 	for oid, opc := range c.opClasses {
 		cc := *opc
+		cc.Operators = maps.Clone(opc.Operators)
 		clone.opClasses[oid] = &cc
 		if cc.IsDefault {
 			clone.opClassByKey[opClassKey{amOID: cc.AMOID, typeOID: cc.TypeOID}] = &cc
@@ -497,6 +528,16 @@ func (c *Catalog) Clone() *Catalog {
 	// Session state.
 	clone.sessionUser = c.sessionUser
 	clone.currentUser = c.currentUser
+	if len(c.preparedStmts) > 0 {
+		clone.preparedStmts = make(map[string]*preparedStmt, len(c.preparedStmts))
+		for k, v := range c.preparedStmts {
+			if v != nil {
+				cp := *v
+				cp.argTypes = slices.Clone(v.argTypes)
+				clone.preparedStmts[k] = &cp
+			}
+		}
+	}
 
 	// Warnings: start clean (not copied from source).
 	// clone.warnings is nil by default.

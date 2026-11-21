@@ -3,6 +3,7 @@ package catalog
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -86,7 +87,11 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	// restore the normal session default on the way out. The returned catalog
 	// then reflects a fully-validated schema for any later mutation.
 	c.SetForeignKeyChecks(false)
-	defer c.SetForeignKeyChecks(true)
+	c.loadingSDL = true
+	defer func() {
+		c.loadingSDL = false
+		c.SetForeignKeyChecks(true)
+	}()
 
 	// Order statements so every dependent runs after the objects it references.
 	deps := extractSDLDeps(stmts)
@@ -102,6 +107,30 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		c.SetForeignKeyChecks(false)
 		if err := c.processUtility(stmts[idx], sql); err != nil {
 			return c, err
+		}
+	}
+
+	// Standalone CREATE INDEX statements in SDL run after CREATE TABLE, so verify
+	// MySQL's post-DDL AUTO_INCREMENT key requirement across all loaded tables now.
+	for _, db := range c.Databases() {
+		if db == nil {
+			continue
+		}
+		names := make([]string, 0, len(db.Tables))
+		for name := range db.Tables {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, tblName := range names {
+			tbl := db.Tables[tblName]
+			if tbl == nil {
+				continue
+			}
+			// A temporary table needs its AUTO_INCREMENT key too: mysql:8.0.46
+			// answers 1075 for CREATE TEMPORARY TABLE t (a INT AUTO_INCREMENT).
+			if err := validateAutoIncrementKeyed(tbl); err != nil {
+				return c, err
+			}
 		}
 	}
 

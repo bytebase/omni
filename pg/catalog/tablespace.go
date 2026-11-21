@@ -208,6 +208,8 @@ func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
 		return c.alterEventTriggerOwner(stmt)
 	case nodes.OBJECT_EXTENSION:
 		return c.alterExtensionOwner(stmt)
+	case nodes.OBJECT_COLLATION:
+		return c.alterCollationOwner(stmt)
 	default:
 		return nil
 	}
@@ -249,6 +251,57 @@ func (c *Catalog) alterExtensionOwner(stmt *nodes.AlterOwnerStmt) error {
 		return err
 	}
 	ext.OwnerName = owner
+	return nil
+}
+
+func (c *Catalog) lookupUserCollation(obj nodes.Node) (*Schema, *UserCollation, error) {
+	schemaName, name := extractObjectName(obj)
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, nil, errUndefinedSchema(schemaName)
+		}
+		if uc := s.Collations[name]; uc != nil {
+			return s, uc, nil
+		}
+		if s.OID == PGCatalogNamespace && isBuiltinCollationName(name) {
+			return s, nil, nil
+		}
+		return nil, nil, errUndefinedObject("collation", name)
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		if uc := s.Collations[name]; uc != nil {
+			return s, uc, nil
+		}
+		if nsOID == PGCatalogNamespace && isBuiltinCollationName(name) {
+			return s, nil, nil
+		}
+	}
+	return nil, nil, errUndefinedObject("collation", name)
+}
+
+func (c *Catalog) alterCollationOwner(stmt *nodes.AlterOwnerStmt) error {
+	_, uc, err := c.lookupUserCollation(stmt.Object)
+	if err != nil {
+		if c.snapshot && missingObject(err) {
+			return nil
+		}
+		return err
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	if uc != nil {
+		uc.OwnerName = owner
+	}
 	return nil
 }
 
@@ -427,7 +480,7 @@ func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
 		if argErr != nil {
 			return argErr
 		}
-		for _, nsOID := range c.searchPathWithCatalog() {
+		for _, nsOID := range c.routineSearchPathWithCatalog() {
 			ns := c.schemas[nsOID]
 			if ns == nil {
 				continue
@@ -571,6 +624,22 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 				return err
 			}
 			return errWrongObjectType(relName, "a table, materialized view, or index")
+		case nodes.AT_SetLogged:
+			if seq.Persistence == 't' {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+				}
+			}
+			seq.Persistence = 'p'
+		case nodes.AT_SetUnLogged:
+			if seq.Persistence == 't' {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
+				}
+			}
+			seq.Persistence = 'u'
 		case nodes.AT_ChangeOwner:
 			if atc.Newowner == nil {
 				continue
@@ -754,6 +823,11 @@ func (c *Catalog) roleInUse(name string) bool {
 		}
 		for _, seq := range schema.Sequences {
 			if seq.OwnerName == name {
+				return true
+			}
+		}
+		for _, uc := range schema.Collations {
+			if uc != nil && uc.OwnerName == name {
 				return true
 			}
 		}
@@ -1215,6 +1289,25 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	}
 	sort.Slice(ownedEventTriggers, func(i, j int) bool { return ownedEventTriggers[i].OID < ownedEventTriggers[j].OID })
 
+	type ownedColl struct {
+		schema *Schema
+		uc     *UserCollation
+	}
+	var ownedCollations []ownedColl
+	ownedCollationOIDs := map[uint32]bool{}
+	for _, schema := range c.schemas {
+		for _, uc := range schema.Collations {
+			if uc == nil {
+				continue
+			}
+			if (uc.OwnerName != "" && owners[uc.OwnerName]) || inOwnedExt(uc.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
+				ownedCollations = append(ownedCollations, ownedColl{schema: schema, uc: uc})
+				ownedCollationOIDs[uc.OID] = true
+			}
+		}
+	}
+	sort.Slice(ownedCollations, func(i, j int) bool { return ownedCollations[i].uc.OID < ownedCollations[j].uc.OID })
+
 	// Refuse dropping any object pinned to an un-dropped extension (DEPENDENCY_EXTENSION).
 	checkExtPin := func(oid uint32) error {
 		if c.isExtensionMember(oid) && !inOwnedExt(oid) {
@@ -1264,6 +1357,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	}
 	for _, evt := range ownedEventTriggers {
 		if err := checkExtPin(evt.OID); err != nil {
+			return err
+		}
+	}
+	for _, x := range ownedCollations {
+		if err := checkExtPin(x.uc.OID); err != nil {
 			return err
 		}
 	}
@@ -1322,6 +1420,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		case 'p':
 			pol := c.policies[objOID]
 			return pol != nil && ownedRelOIDs[pol.RelOID]
+		case 'R':
+			rule := c.rules[objOID]
+			return rule != nil && ownedRelOIDs[rule.OwnerRelOID]
 		case 'E':
 			return ownedEventTriggerOIDs[objOID]
 		case 'O':
@@ -1332,6 +1433,8 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			return ownedOpClassOIDs[objOID]
 		case 'Q':
 			return ownedOpFamilyOIDs[objOID]
+		case 'L':
+			return ownedCollationOIDs[objOID]
 		}
 		return false
 	}
@@ -1381,6 +1484,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 			for oid, fam := range c.opFamilies {
 				if fam.Schema == s.OID && !inDropSet('Q', oid) {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, uc := range s.Collations {
+				if uc != nil && !inDropSet('L', uc.OID) {
 					return errDependentObjects("schema", s.Name)
 				}
 			}
@@ -1494,6 +1602,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 		}
+		for _, x := range ownedCollations {
+			for _, dep := range c.findNormalDependents('L', x.uc.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("collation", x.uc.Name)
+				}
+			}
+		}
 		// Revoking a grant option the dropped role holds abandons the grants it
 		// passed on: RESTRICT refuses that, CASCADE revokes the chain.
 		grantPrivCovers := func(held, passed string) bool {
@@ -1528,6 +1643,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 		}
+	}
+
+	restore := func() {}
+	if cascade && len(ownedCollations) > 0 {
+		restore = c.snapshotForAlterRollback()
 	}
 
 	// Execute the drop set now that all checks passed.
@@ -1695,6 +1815,21 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			c.removeEventTrigger(evt)
 		}
 	}
+	for _, x := range ownedCollations {
+		if x.schema.Collations[x.uc.Name] != x.uc {
+			continue
+		}
+		if cascade {
+			if err := c.cascadeDropCollation(x.schema, x.uc.Name, x.uc.OID); err != nil {
+				restore()
+				return err
+			}
+		} else {
+			delete(x.schema.Collations, x.uc.Name)
+			c.removeComments('L', x.uc.OID)
+			c.removeDepsOn('L', x.uc.OID)
+		}
+	}
 	for _, s := range ownedSchemas {
 		if c.schemas[s.OID] == nil {
 			continue
@@ -1844,6 +1979,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 				c.transferACLs('s', seq.OID, oldOwner, newOwner)
 			}
 		}
+		for _, uc := range schema.Collations {
+			if uc != nil && owners[uc.OwnerName] {
+				uc.OwnerName = newOwner
+			}
+		}
 	}
 	for _, proc := range c.userProcs {
 		if owners[proc.OwnerName] {
@@ -1967,6 +2107,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 		for _, seq := range schema.Sequences {
 			if seq.OwnerName == oldName {
 				seq.OwnerName = stmt.Newname
+			}
+		}
+		for _, uc := range schema.Collations {
+			if uc != nil && uc.OwnerName == oldName {
+				uc.OwnerName = stmt.Newname
 			}
 		}
 	}

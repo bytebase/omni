@@ -2113,10 +2113,6 @@
 < ok 0 -
 > exec
 | SET search_path TO "test_9", public;
-| DROP MATERIALIZED VIEW "mv1";
-| CREATE MATERIALIZED VIEW "mv1" AS  SELECT id,
-|     name
-|    FROM t1;
 | CREATE INDEX idx_mv1_id ON mv1 (id)
 < ok 0 -
 > exec

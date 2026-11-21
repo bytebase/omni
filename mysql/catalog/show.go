@@ -29,7 +29,7 @@ func charsetForCollation(collation string) string {
 	return ""
 }
 
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset returns the default collation for MySQL 8.0 charsets.
 var defaultCollationForCharset = map[string]string{
 	"utf8mb4":  "utf8mb4_0900_ai_ci",
 	"utf8mb3":  "utf8mb3_general_ci",
@@ -42,6 +42,7 @@ var defaultCollationForCharset = map[string]string{
 	"euckr":    "euckr_korean_ci",
 	"gb2312":   "gb2312_chinese_ci",
 	"sjis":     "sjis_japanese_ci",
+	"ujis":     "ujis_japanese_ci",
 	"cp1252":   "cp1252_general_ci",
 	"ucs2":     "ucs2_general_ci",
 	"utf16":    "utf16_general_ci",
@@ -55,6 +56,24 @@ var defaultCollationForCharset = map[string]string{
 	"hebrew":   "hebrew_general_ci",
 	"greek":    "greek_general_ci",
 	"armscii8": "armscii8_general_ci",
+	"cp1250":   "cp1250_general_ci",
+	"cp1251":   "cp1251_general_ci",
+	"cp1256":   "cp1256_general_ci",
+	"cp1257":   "cp1257_general_ci",
+	"cp850":    "cp850_general_ci",
+	"cp852":    "cp852_general_ci",
+	"cp866":    "cp866_general_ci",
+	"dec8":     "dec8_swedish_ci",
+	"hp8":      "hp8_english_ci",
+	"keybcs2":  "keybcs2_general_ci",
+	"koi8r":    "koi8r_general_ci",
+	"koi8u":    "koi8u_general_ci",
+	"latin2":   "latin2_general_ci",
+	"latin5":   "latin5_turkish_ci",
+	"latin7":   "latin7_general_ci",
+	"macce":    "macce_general_ci",
+	"macroman": "macroman_general_ci",
+	"swe7":     "swe7_swedish_ci",
 }
 
 // ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
@@ -85,7 +104,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
 			continue
 		}
-		parts = append(parts, showColumnWithTable(col, tbl))
+		parts = append(parts, c.showColumnWithTable(col, tbl))
 	}
 
 	// Indexes — MySQL 8.0 orders them in groups:
@@ -173,7 +192,19 @@ func showColumn(col *Column) string {
 	return showColumnWithTable(col, nil)
 }
 
+func (c *Catalog) showColumnWithTable(col *Column, tbl *Table) string {
+	var tz resolvedTimeZone
+	if c != nil {
+		tz = c.resolveEffectiveTimeZone()
+	}
+	return showColumnWithTableTZ(col, tbl, tz)
+}
+
 func showColumnWithTable(col *Column, tbl *Table) string {
+	return showColumnWithTableTZ(col, tbl, resolvedTimeZone{})
+}
+
+func showColumnWithTableTZ(col *Column, tbl *Table, sessionTZ resolvedTimeZone) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
 
@@ -273,7 +304,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	// DEFAULT.
 	if col.Default != nil {
 		b.WriteString(" DEFAULT ")
-		b.WriteString(formatDefault(*col.Default, col))
+		b.WriteString(formatDefaultForTZ(*col.Default, col, sessionTZ))
 	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
 		b.WriteString(" DEFAULT NULL")
 	}
@@ -304,6 +335,10 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 // formatDefault formats a default value for SHOW CREATE TABLE output.
 // MySQL 8.0 quotes numeric defaults as strings (e.g. DEFAULT '0').
 func formatDefault(val string, col *Column) string {
+	return formatDefaultForTZ(val, col, resolvedTimeZone{})
+}
+
+func formatDefaultForTZ(val string, col *Column, sessionTZ resolvedTimeZone) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
 	}
@@ -312,6 +347,20 @@ func formatDefault(val string, col *Column) string {
 		return formatCurrentTimestamp(val)
 	case ColumnDefaultExpression:
 		return "(" + val + ")"
+	}
+	if col.DefaultTimestampUTC != nil && sessionTZ.valid && strings.EqualFold(col.DataType, "timestamp") {
+		if localT, ok := convertUTCToSessionLocal(*col.DefaultTimestampUTC, sessionTZ); ok {
+			p := parsedMySQLDateTime{
+				year:   localT.Year(),
+				month:  int(localT.Month()),
+				day:    localT.Day(),
+				hour:   localT.Hour(),
+				min:    localT.Minute(),
+				sec:    localT.Second(),
+				micros: localT.Nanosecond() / 1000,
+			}
+			return formatParsedDateOrDatetime("timestamp", temporalColumnFSP(col.ColumnType), p)
+		}
 	}
 	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
 	if ts, ok := currentTimestampSQL(val); ok {
@@ -495,6 +544,9 @@ func showTableOptions(tbl *Table) string {
 	if engine == "" {
 		engine = "InnoDB"
 	}
+	if tbl.AutoExtendSize > 0 && isInnoDBEngine(engine) {
+		parts = append(parts, fmt.Sprintf("/*!80023 AUTOEXTEND_SIZE=%d */", tbl.AutoExtendSize))
+	}
 	if engine != "" {
 		parts = append(parts, fmt.Sprintf("ENGINE=%s", engine))
 	}
@@ -544,8 +596,10 @@ func showTableOptions(tbl *Table) string {
 	if tbl.Compression != "" {
 		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
 	}
-	if tbl.Encryption != "" {
-		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	// mysql:8.0.46 echoes ENCRYPTION='Y' and leaves out an explicit
+	// ENCRYPTION='N', the default.
+	if canonicalTableEncryption(tbl) == "Y" {
+		parts = append(parts, "ENCRYPTION='Y'")
 	}
 	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))
@@ -566,7 +620,7 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
 	}
 	if tbl.Tablespace != "" {
-		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
+		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE %s */", showTablespaceIdent(tbl.Tablespace)))
 	}
 	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
@@ -576,6 +630,9 @@ func showTableOptions(tbl *Table) string {
 	}
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
+	}
+	if tbl.SecondaryEngine != "" {
+		parts = append(parts, fmt.Sprintf("SECONDARY_ENGINE=%s", tbl.SecondaryEngine))
 	}
 
 	return strings.Join(parts, " ")
@@ -709,6 +766,9 @@ func showPartitioning(pi *PartitionInfo) string {
 				}
 			}
 			if pi.SubType == "" || pi.UseDefaultSubpartitions {
+				if pd.Tablespace != "" {
+					b.WriteString(fmt.Sprintf(" TABLESPACE = %s", showTablespaceIdent(pd.Tablespace)))
+				}
 				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
 				if pd.Comment != "" {
 					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
@@ -723,6 +783,9 @@ func showPartitioning(pi *PartitionInfo) string {
 					}
 					b.WriteString("SUBPARTITION ")
 					b.WriteString(spd.Name)
+					if spd.Tablespace != "" {
+						b.WriteString(fmt.Sprintf(" TABLESPACE = %s", showTablespaceIdent(spd.Tablespace)))
+					}
 					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
@@ -758,4 +821,10 @@ func partitionEngine(engine string) string {
 		return "InnoDB"
 	}
 	return engine
+}
+
+// showTablespaceIdent quotes a tablespace name as SHOW CREATE TABLE does, a
+// backtick in it doubled.
+func showTablespaceIdent(ts string) string {
+	return "`" + strings.ReplaceAll(ts, "`", "``") + "`"
 }

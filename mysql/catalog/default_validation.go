@@ -1,0 +1,3240 @@
+package catalog
+
+import (
+	"bytes"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"math"
+	"math/big"
+	"math/bits"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
+)
+
+// columnDefEffectiveDefaultExpr returns the last DEFAULT expression declared on
+// colDef, matching the order createTable and buildColumnFromDef apply them.
+func columnDefEffectiveDefaultExpr(colDef *nodes.ColumnDef) nodes.ExprNode {
+	if colDef == nil {
+		return nil
+	}
+	eff := colDef.DefaultValue
+	for _, cc := range colDef.Constraints {
+		if cc != nil && cc.Type == nodes.ColConstrDefault && cc.Expr != nil {
+			eff = cc.Expr
+		}
+	}
+	return eff
+}
+
+// validateAutoIncrementKeyed checks MySQL's post-DDL AUTO_INCREMENT invariant
+// (1075, measured on mysql:8.0.46): a table may hold at most one AUTO_INCREMENT
+// column, and an index must cover it — as the leading non-functional key part on
+// InnoDB/MEMORY/default, or as any non-functional key part on MyISAM.
+func validateAutoIncrementKeyed(tbl *Table) error {
+	var autoCol *Column
+	for _, col := range tbl.Columns {
+		if col == nil || !col.AutoIncrement {
+			continue
+		}
+		if autoCol != nil {
+			return errIncorrectAutoIncrementDefinition()
+		}
+		autoCol = col
+	}
+	if autoCol == nil {
+		return nil
+	}
+	myisam := strings.EqualFold(tbl.Engine, "MyISAM")
+	for _, idx := range tbl.Indexes {
+		if idx == nil || len(idx.Columns) == 0 {
+			continue
+		}
+		if myisam {
+			for _, ic := range idx.Columns {
+				if ic != nil && ic.Expr == "" && strings.EqualFold(ic.Name, autoCol.Name) {
+					return nil
+				}
+			}
+		} else {
+			ic := idx.Columns[0]
+			if ic != nil && ic.Expr == "" && strings.EqualFold(ic.Name, autoCol.Name) {
+				return nil
+			}
+		}
+	}
+	return errIncorrectAutoIncrementDefinition()
+}
+
+// validateTableDefaultExpressions validates every expression DEFAULT `(expr)` on
+// the final table (measured on mysql:8.0.46): subqueries (3769), variables
+// (3772), disallowed functions (3770), unknown columns (1054), auto-increment
+// column references (3768), and self/forward references to columns that are
+// generated or have an expression default (3767).
+func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
+	for colIdx, col := range tbl.Columns {
+		if col == nil || !col.DefaultIsExpr || col.DefaultExprNode == nil {
+			continue
+		}
+		var err error
+		nodes.Inspect(col.DefaultExprNode, func(n nodes.Node) bool {
+			if err != nil {
+				return false
+			}
+			switch x := n.(type) {
+			case *nodes.SubqueryExpr, *nodes.ExistsExpr:
+				err = errDefaultValExprSubquery(col.Name)
+				return false
+			case *nodes.InExpr:
+				if x.Select != nil {
+					err = errDefaultValExprSubquery(col.Name)
+					return false
+				}
+			case *nodes.VariableRef:
+				err = errDefaultValExprVariable(col.Name)
+				return false
+			case *nodes.DefaultExpr:
+				err = errDefaultValExprDisallowedFunc(col.Name)
+				return false
+			case *nodes.FuncCallExpr:
+				if fErr := validateDefaultFuncCall(x, col.Name, c.isIgnoreSpaceSQLMode()); fErr != nil {
+					err = fErr
+					return false
+				}
+			case *nodes.ColumnRef:
+				if x.Column == "" {
+					return true
+				}
+				// A qualifier is ignored (see stripColumnQualifiers).
+				refIdx, ok := tbl.colByName[toLower(x.Column)]
+				if !ok || tbl.Columns[refIdx].Hidden == ColumnHiddenSystem {
+					err = errNoSuchColumn(x.Column, "default value expression")
+					return false
+				}
+				refCol := tbl.Columns[refIdx]
+				if refCol.AutoIncrement {
+					err = errDefaultValExprRefAutoInc(col.Name)
+					return false
+				}
+				if refIdx >= colIdx && (refCol.Generated != nil || refCol.DefaultIsExpr) {
+					err = errDefaultValExprForwardRef(col.Name)
+					return false
+				}
+			}
+			return true
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type funcArity struct {
+	min int
+	max int // -1 means unbounded
+}
+
+// defaultBuiltinFuncArity records exact parameter-count constraints for
+// allowed MySQL 8.0 default-expression scalar built-ins.
+var defaultBuiltinFuncArity = map[string]funcArity{
+	"abs": {1, 1}, "acos": {1, 1}, "adddate": {2, 2}, "addtime": {2, 2},
+	"aes_decrypt": {2, 6}, "aes_encrypt": {2, 6}, "any_value": {1, 1}, "ascii": {1, 1},
+	"asin": {1, 1}, "atan": {1, 2}, "atan2": {1, 2},
+	"bin": {1, 1}, "bin_to_uuid": {1, 2}, "bit_count": {1, 1}, "bit_length": {1, 1},
+	"can_access_user": {2, 2}, "can_access_view": {4, 4}, "cast": {1, 1},
+	"ceil": {1, 1}, "ceiling": {1, 1}, "char": {1, -1}, "character_length": {1, 1},
+	"char_length": {1, 1}, "charset": {1, 1}, "coalesce": {1, -1}, "coercibility": {1, 1},
+	"collation": {1, 1}, "compress": {1, 1}, "concat": {1, -1}, "concat_ws": {2, -1},
+	"connection_id": {0, 0}, "conv": {3, 3}, "convert": {2, 2}, "convert_tz": {3, 3}, "cos": {1, 1},
+	"cot": {1, 1}, "crc32": {1, 1}, "curdate": {0, 0}, "current_date": {0, 0},
+	"current_role": {0, 0}, "current_time": {0, 1}, "current_timestamp": {0, 1},
+	"current_user": {0, 0}, "curtime": {0, 1},
+	"database": {0, 0}, "date": {1, 1}, "datediff": {2, 2}, "date_add": {2, 2},
+	"date_format": {2, 2}, "date_sub": {2, 2}, "day": {1, 1}, "dayname": {1, 1},
+	"dayofmonth": {1, 1}, "dayofweek": {1, 1}, "dayofyear": {1, 1}, "degrees": {1, 1},
+	"elt": {2, -1}, "exp": {1, 1}, "export_set": {3, 5}, "extract": {2, 2}, "extractvalue": {2, 2},
+	"field": {2, -1}, "find_in_set": {2, 2}, "floor": {1, 1}, "format": {2, 3},
+	"format_bytes": {1, 1}, "format_pico_time": {1, 1}, "from_base64": {1, 1},
+	"from_days": {1, 1}, "from_unixtime": {1, 2},
+	"geomcollfromtext": {1, 3}, "geomcollfromwkb": {1, 3}, "geomcollection": {0, -1},
+	"geometrycollection": {0, -1}, "geometrycollectionfromtext": {1, 3}, "geometrycollectionfromwkb": {1, 3},
+	"geomfromtext": {1, 3}, "geomfromwkb": {1, 3}, "get_format": {2, 2},
+	"greatest": {2, -1}, "gtid_subset": {2, 2}, "gtid_subtract": {2, 2},
+	"hex": {1, 1}, "hour": {1, 1},
+	"if": {3, 3}, "ifnull": {2, 2}, "inet6_aton": {1, 1}, "inet6_ntoa": {1, 1},
+	"inet_aton": {1, 1}, "inet_ntoa": {1, 1}, "insert": {4, 4}, "instr": {2, 2},
+	"interval": {2, -1}, "isnull": {1, 1}, "is_ipv4": {1, 1}, "is_ipv4_compat": {1, 1},
+	"is_ipv4_mapped": {1, 1}, "is_ipv6": {1, 1}, "is_uuid": {1, 1},
+	"json_array": {0, -1}, "json_array_append": {3, -1}, "json_array_insert": {3, -1},
+	"json_contains": {2, 3}, "json_contains_path": {3, -1}, "json_depth": {1, 1},
+	"json_extract": {2, -1}, "json_insert": {3, -1}, "json_keys": {1, 2},
+	"json_length": {1, 2}, "json_merge_patch": {2, -1}, "json_merge_preserve": {2, -1},
+	"json_object": {0, -1}, "json_overlaps": {2, 2}, "json_pretty": {1, 1},
+	"json_quote": {1, 1}, "json_remove": {2, -1}, "json_replace": {3, -1},
+	"json_schema_valid": {2, 2}, "json_schema_validation_report": {2, 2},
+	"json_search": {3, -1}, "json_set": {3, -1}, "json_storage_free": {1, 1},
+	"json_storage_size": {1, 1}, "json_type": {1, 1}, "json_unquote": {1, 1},
+	"json_valid": {1, 1}, "json_value": {2, -1},
+	"last_day": {1, 1}, "lcase": {1, 1}, "least": {2, -1}, "left": {2, 2},
+	"length": {1, 1}, "linefromtext": {1, 3}, "linefromwkb": {1, 3}, "linestring": {2, -1},
+	"ln": {1, 1}, "localtime": {0, 1}, "localtimestamp": {0, 1},
+	"locate": {2, 3}, "log": {1, 2}, "log10": {1, 1}, "log2": {1, 1},
+	"lower": {1, 1}, "lpad": {3, 3}, "ltrim": {1, 1},
+	"makedate": {2, 2}, "maketime": {3, 3}, "make_set": {2, -1},
+	"mbrcontains": {2, 2}, "mbrcoveredby": {2, 2}, "mbrcovers": {2, 2},
+	"mbrdisjoint": {2, 2}, "mbrequals": {2, 2}, "mbrintersects": {2, 2},
+	"mbroverlaps": {2, 2}, "mbrtouches": {2, 2}, "mbrwithin": {2, 2},
+	"md5": {1, 1}, "microsecond": {1, 1}, "mid": {2, 3}, "minute": {1, 1},
+	"mlinefromtext": {1, 3}, "mlinefromwkb": {1, 3}, "mod": {2, 2}, "month": {1, 1}, "monthname": {1, 1},
+	"mpointfromtext": {1, 3}, "mpointfromwkb": {1, 3}, "mpolyfromtext": {1, 3}, "mpolyfromwkb": {1, 3},
+	"multilinestring": {1, -1}, "multipoint": {1, -1}, "multipolygon": {1, -1},
+	"now": {0, 1}, "nullif": {2, 2},
+	"oct": {1, 1}, "octet_length": {1, 1}, "ord": {1, 1},
+	"period_add": {2, 2}, "period_diff": {2, 2}, "pi": {0, 0}, "point": {2, 2},
+	"pointfromtext": {1, 3}, "pointfromwkb": {1, 3}, "polyfromtext": {1, 3}, "polyfromwkb": {1, 3},
+	"polygon": {1, -1}, "position": {2, 2}, "pow": {2, 2}, "power": {2, 2},
+	"ps_current_thread_id": {0, 0}, "ps_thread_id": {1, 1},
+	"quarter": {1, 1}, "quote": {1, 1},
+	"radians": {1, 1}, "rand": {0, 1}, "random_bytes": {1, 1},
+	"regexp_instr": {2, 6}, "regexp_like": {2, 3}, "regexp_replace": {3, 6}, "regexp_substr": {2, 5},
+	"repeat": {2, 2}, "replace": {3, 3}, "reverse": {1, 1}, "right": {2, 2}, "roles_graphml": {0, 0},
+	"round": {1, 2}, "rpad": {3, 3}, "rtrim": {1, 1},
+	"schema": {0, 0}, "second": {1, 1}, "sec_to_time": {1, 1}, "session_user": {0, 0},
+	"sha": {1, 1}, "sha1": {1, 1}, "sha2": {2, 2}, "sign": {1, 1}, "sin": {1, 1},
+	"soundex": {1, 1}, "space": {1, 1}, "sqrt": {1, 1},
+	"st_area": {1, 1}, "st_asbinary": {1, 2}, "st_asgeojson": {1, 3}, "st_astext": {1, 2},
+	"st_buffer": {2, 5}, "st_buffer_strategy": {1, 2}, "st_centroid": {1, 1},
+	"st_contains": {2, 2}, "st_convexhull": {1, 1}, "st_crosses": {2, 2},
+	"st_difference": {2, 2}, "st_dimension": {1, 1}, "st_disjoint": {2, 2},
+	"st_distance": {2, 3}, "st_distance_sphere": {2, 3}, "st_endpoint": {1, 1},
+	"st_envelope": {1, 1}, "st_equals": {2, 2}, "st_exteriorring": {1, 1},
+	"st_frechetdistance": {2, 3}, "st_geohash": {2, 3},
+	"st_geomcollfromtext": {1, 3}, "st_geomcollfromwkb": {1, 3},
+	"st_geometryn": {2, 2}, "st_geometrytype": {1, 1},
+	"st_geomfromgeojson": {1, 3}, "st_geomfromtext": {1, 3}, "st_geomfromwkb": {1, 3},
+	"st_hausdorffdistance": {2, 3}, "st_interiorringn": {2, 2},
+	"st_intersection": {2, 2}, "st_intersects": {2, 2},
+	"st_isclosed": {1, 1}, "st_isempty": {1, 1}, "st_issimple": {1, 1}, "st_isvalid": {1, 1},
+	"st_latfromgeohash": {1, 1}, "st_latitude": {1, 2}, "st_length": {1, 2},
+	"st_linefromtext": {1, 3}, "st_linefromwkb": {1, 3},
+	"st_lineinterpolatepoint": {2, 2}, "st_lineinterpolatepoints": {2, 2},
+	"st_longfromgeohash": {1, 1}, "st_longitude": {1, 2}, "st_makeenvelope": {2, 2},
+	"st_mlinefromtext": {1, 3}, "st_mlinefromwkb": {1, 3},
+	"st_mpointfromtext": {1, 3}, "st_mpointfromwkb": {1, 3},
+	"st_mpolyfromtext": {1, 3}, "st_mpolyfromwkb": {1, 3},
+	"st_numgeometries": {1, 1}, "st_numinteriorrings": {1, 1}, "st_numpoints": {1, 1},
+	"st_overlaps": {2, 2}, "st_pointatdistance": {2, 2}, "st_pointfromgeohash": {2, 2},
+	"st_pointfromtext": {1, 3}, "st_pointfromwkb": {1, 3}, "st_pointn": {2, 2},
+	"st_polyfromtext": {1, 3}, "st_polyfromwkb": {1, 3}, "st_simplify": {2, 2},
+	"st_srid": {1, 2}, "st_startpoint": {1, 1}, "st_swapxy": {1, 1},
+	"st_symdifference": {2, 2}, "st_touches": {2, 2}, "st_transform": {2, 2},
+	"st_union": {2, 2}, "st_validate": {1, 1}, "st_within": {2, 2},
+	"st_x": {1, 2}, "st_y": {1, 2},
+	"statement_digest": {1, 1}, "statement_digest_text": {1, 1}, "strcmp": {2, 2},
+	"str_to_date": {2, 2}, "subdate": {2, 2}, "substr": {2, 3}, "substring": {2, 3},
+	"substring_index": {3, 3}, "subtime": {2, 2}, "sysdate": {0, 1}, "system_user": {0, 0},
+	"tan": {1, 1}, "time": {1, 1}, "timediff": {2, 2}, "timestamp": {1, 2},
+	"timestampadd": {3, 3}, "timestampdiff": {3, 3}, "time_format": {2, 2},
+	"time_to_sec": {1, 1}, "to_base64": {1, 1}, "to_days": {1, 1}, "to_seconds": {1, 1},
+	"trim": {1, 1}, "truncate": {2, 2},
+	"ucase": {1, 1}, "uncompress": {1, 1}, "uncompressed_length": {1, 1}, "unhex": {1, 1},
+	"unix_timestamp": {0, 1}, "upper": {1, 1}, "user": {0, 0},
+	"utc_date": {0, 0}, "utc_time": {0, 1}, "utc_timestamp": {0, 1},
+	"uuid": {0, 0}, "uuid_short": {0, 0}, "uuid_to_bin": {1, 2},
+	"validate_password_strength": {1, 1},
+	"week":                       {1, 2}, "weekday": {1, 1}, "weekofyear": {1, 1}, "weight_string": {1, 4},
+	"year": {1, 1}, "yearweek": {1, 2},
+}
+
+var defaultBuiltinFuncStep = map[string]int{
+	"json_object":       2,
+	"json_set":          2,
+	"json_insert":       2,
+	"json_replace":      2,
+	"json_array_append": 2,
+	"json_array_insert": 2,
+}
+
+var defaultNormalizedFuncArity = map[string]funcArity{
+	"trim_leading":  {1, 2},
+	"trim_trailing": {1, 2},
+	"trim_both":     {1, 2},
+	"trim_from":     {2, 2},
+}
+
+func canonicalDefaultBuiltinName(raw string) string {
+	switch raw {
+	case "trim_leading", "trim_trailing", "trim_both", "trim_from":
+		return "trim"
+	default:
+		return raw
+	}
+}
+
+func validateDefaultFuncCall(fn *nodes.FuncCallExpr, colName string, ignoreSpace bool) error {
+	if fn == nil {
+		return nil
+	}
+	rawName := strings.ToLower(strings.TrimSpace(fn.Name))
+	canonicalName := canonicalDefaultBuiltinName(rawName)
+	if fn.Schema != "" || (fn.SpacedParen && !ignoreSpace) || !isAllowedDefaultExprBuiltinFunc(canonicalName) {
+		return errDefaultValExprDisallowedFunc(colName)
+	}
+	arity, ok := defaultNormalizedFuncArity[rawName]
+	if !ok {
+		arity, ok = defaultBuiltinFuncArity[canonicalName]
+	}
+	if ok {
+		n := len(fn.Args)
+		step := defaultBuiltinFuncStep[canonicalName]
+		if n < arity.min || (arity.max >= 0 && n > arity.max) || (step > 0 && (n-arity.min)%step != 0) {
+			return errWrongParamCount(strings.ToUpper(canonicalName))
+		}
+	}
+	return nil
+}
+
+func validateDefaultExprFuncs(expr nodes.ExprNode, colName string, ignoreSpace bool) error {
+	if expr == nil {
+		return nil
+	}
+	var err error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok {
+			if fErr := validateDefaultFuncCall(fn, colName, ignoreSpace); fErr != nil {
+				err = fErr
+				return false
+			}
+		}
+		return true
+	})
+	return err
+}
+
+// isBuiltinFunc reports a MySQL 8.0.46 native function: one DEFAULT (expr)
+// takes, or one it refuses (3770 or 3566), an aggregate, or a window function.
+// Any other unqualified call names a stored function or a loadable one, which
+// MySQL resolves in the current database. The lists were measured: every
+// function the server's help tables name was called as DEFAULT (fn(...)) and
+// as SELECT fn(...), where an unknown name answers 1305. CREATE_DIGEST and the
+// ASYMMETRIC_* functions belong to a component the pinned server has not
+// loaded, so they are unknown names there.
+func isBuiltinFunc(name string) bool {
+	name = canonicalDefaultBuiltinName(strings.ToLower(strings.TrimSpace(name)))
+	return allowedDefaultExprBuiltinFuncs[name] || nonDefaultBuiltinFuncs[name] ||
+		functionalIndexAggregates[name] || windowFuncs[name]
+}
+
+// nonDefaultBuiltinFuncs are the native functions DEFAULT (expr) refuses.
+var nonDefaultBuiltinFuncs = map[string]bool{
+	"benchmark": true, "found_rows": true, "get_lock": true, "icu_version": true,
+	"is_free_lock": true, "is_used_lock": true, "json_merge": true, "last_insert_id": true,
+	"load_file": true, "master_pos_wait": true, "release_all_locks": true, "release_lock": true,
+	"row_count": true, "sleep": true, "source_pos_wait": true, "updatexml": true, "version": true,
+	"grouping": true, "name_const": true, "values": true, "st_collect": true,
+	"wait_for_executed_gtid_set": true, "wait_until_sql_thread_after_gtids": true,
+	"can_access_column": true, "can_access_database": true, "can_access_table": true,
+	"get_dd_column_privileges": true, "get_dd_create_options": true,
+	"get_dd_index_sub_part_length": true, "internal_auto_increment": true,
+	"internal_avg_row_length": true, "internal_check_time": true, "internal_checksum": true,
+	"internal_data_free": true, "internal_data_length": true, "internal_dd_char_length": true,
+	"internal_get_comment_or_error": true, "internal_get_enabled_role_json": true,
+	"internal_get_hostname": true, "internal_get_username": true,
+	"internal_get_view_warning_or_error": true, "internal_index_column_cardinality": true,
+	"internal_index_length": true, "internal_is_enabled_role": true,
+	"internal_is_mandatory_role": true, "internal_keys_disabled": true,
+	"internal_max_data_length": true, "internal_table_rows": true, "internal_update_time": true,
+	"is_visible_dd_object": true,
+}
+
+// windowFuncs are the window functions, which take an OVER clause only.
+var windowFuncs = map[string]bool{
+	"row_number": true, "rank": true, "dense_rank": true, "percent_rank": true,
+	"cume_dist": true, "ntile": true, "lead": true, "lag": true,
+	"first_value": true, "last_value": true, "nth_value": true,
+}
+
+func isAllowedDefaultExprBuiltinFunc(name string) bool {
+	return allowedDefaultExprBuiltinFuncs[strings.ToLower(strings.TrimSpace(name))]
+}
+
+// allowedDefaultExprBuiltinFuncs lists MySQL 8.0.46 built-in scalar functions
+// permitted inside column DEFAULT (expr) definitions (verified against mysql:8.0.46).
+// Stored functions, UDFs, aggregate/window functions, and disallowed built-ins
+// (e.g., VERSION, LAST_INSERT_ID, ROW_COUNT, FOUND_ROWS, SLEEP, GET_LOCK,
+// LOAD_FILE, BENCHMARK, UPDATEXML, VALUES) are excluded and fail with 3770.
+var allowedDefaultExprBuiltinFuncs = map[string]bool{
+	"abs": true, "acos": true, "adddate": true, "addtime": true,
+	"aes_decrypt": true, "aes_encrypt": true, "any_value": true, "ascii": true,
+	"asin": true, "atan": true, "atan2": true,
+	"bin": true, "bin_to_uuid": true, "bit_count": true, "bit_length": true,
+	"can_access_user": true, "can_access_view": true, "cast": true, "ceil": true,
+	"ceiling": true, "char": true, "character_length": true, "charset": true,
+	"char_length": true, "coalesce": true, "coercibility": true, "collation": true,
+	"compress": true, "concat": true, "concat_ws": true, "connection_id": true,
+	"conv": true, "convert": true, "convert_tz": true, "cos": true, "cot": true,
+	"crc32": true, "curdate": true, "current_date": true,
+	"current_role": true, "current_time": true, "current_timestamp": true,
+	"current_user": true, "curtime": true,
+	"database": true, "date": true, "datediff": true, "date_add": true,
+	"date_format": true, "date_sub": true, "day": true, "dayname": true,
+	"dayofmonth": true, "dayofweek": true, "dayofyear": true, "degrees": true,
+	"elt": true, "exp": true, "export_set": true, "extract": true,
+	"extractvalue": true,
+	"field":        true, "find_in_set": true, "floor": true, "format": true,
+	"format_bytes": true, "format_pico_time": true, "from_base64": true,
+	"from_days": true, "from_unixtime": true,
+	"geomcollfromtext": true, "geomcollfromwkb": true, "geomcollection": true,
+	"geometrycollection": true, "geometrycollectionfromtext": true,
+	"geometrycollectionfromwkb": true, "geomfromtext": true, "geomfromwkb": true,
+	"get_format": true, "greatest": true, "gtid_subset": true, "gtid_subtract": true,
+	"hex": true, "hour": true,
+	"if": true, "ifnull": true, "inet6_aton": true, "inet6_ntoa": true,
+	"inet_aton": true, "inet_ntoa": true, "insert": true, "instr": true,
+	"interval": true, "isnull": true, "is_ipv4": true, "is_ipv4_compat": true,
+	"is_ipv4_mapped": true, "is_ipv6": true, "is_uuid": true,
+	"json_array": true, "json_array_append": true, "json_array_insert": true,
+	"json_contains": true, "json_contains_path": true, "json_depth": true,
+	"json_extract": true, "json_insert": true, "json_keys": true, "json_length": true,
+	"json_merge_patch": true, "json_merge_preserve": true, "json_object": true,
+	"json_overlaps": true, "json_pretty": true, "json_quote": true,
+	"json_remove": true, "json_replace": true, "json_schema_valid": true,
+	"json_schema_validation_report": true, "json_search": true, "json_set": true,
+	"json_storage_free": true, "json_storage_size": true, "json_type": true,
+	"json_unquote": true, "json_valid": true, "json_value": true,
+	"last_day": true, "lcase": true, "least": true, "left": true, "length": true,
+	"linefromtext": true, "linefromwkb": true, "linestring": true, "ln": true,
+	"localtime": true, "localtimestamp": true, "locate": true, "log": true,
+	"log10": true, "log2": true, "lower": true, "lpad": true, "ltrim": true,
+	"makedate": true, "maketime": true, "make_set": true,
+	"mbrcontains": true, "mbrcoveredby": true, "mbrcovers": true, "mbrdisjoint": true,
+	"mbrequals": true, "mbrintersects": true, "mbroverlaps": true, "mbrtouches": true,
+	"mbrwithin": true, "md5": true, "microsecond": true, "mid": true, "minute": true,
+	"mlinefromtext": true, "mlinefromwkb": true, "mod": true, "month": true,
+	"monthname": true, "mpointfromtext": true, "mpointfromwkb": true,
+	"mpolyfromtext": true, "mpolyfromwkb": true, "multilinestring": true,
+	"multipoint": true, "multipolygon": true,
+	"now": true, "nullif": true,
+	"oct": true, "octet_length": true, "ord": true,
+	"period_add": true, "period_diff": true, "pi": true, "point": true,
+	"pointfromtext": true, "pointfromwkb": true, "polyfromtext": true,
+	"polyfromwkb": true, "polygon": true, "position": true, "pow": true,
+	"power": true, "ps_current_thread_id": true, "ps_thread_id": true,
+	"quarter": true, "quote": true,
+	"radians": true, "rand": true, "random_bytes": true, "regexp_instr": true,
+	"regexp_like": true, "regexp_replace": true, "regexp_substr": true, "repeat": true, "replace": true,
+	"reverse": true, "right": true, "roles_graphml": true, "round": true,
+	"rpad": true, "rtrim": true,
+	"schema": true, "second": true, "sec_to_time": true, "session_user": true,
+	"sha": true, "sha1": true, "sha2": true, "sign": true, "sin": true,
+	"soundex": true, "space": true, "sqrt": true, "statement_digest": true,
+	"statement_digest_text": true, "strcmp": true, "str_to_date": true,
+	"st_area": true, "st_asbinary": true, "st_asgeojson": true, "st_astext": true,
+	"st_buffer": true, "st_buffer_strategy": true, "st_centroid": true,
+	"st_contains": true, "st_convexhull": true, "st_crosses": true,
+	"st_difference": true, "st_dimension": true, "st_disjoint": true,
+	"st_distance": true, "st_distance_sphere": true, "st_endpoint": true,
+	"st_envelope": true, "st_equals": true, "st_exteriorring": true,
+	"st_frechetdistance": true, "st_geohash": true, "st_geomcollfromtext": true,
+	"st_geomcollfromwkb": true, "st_geometryn": true, "st_geometrytype": true,
+	"st_geomfromgeojson": true, "st_geomfromtext": true, "st_geomfromwkb": true,
+	"st_hausdorffdistance": true, "st_interiorringn": true, "st_intersection": true,
+	"st_intersects": true, "st_isclosed": true, "st_isempty": true,
+	"st_issimple": true, "st_isvalid": true, "st_latfromgeohash": true,
+	"st_latitude": true, "st_length": true, "st_linefromtext": true,
+	"st_linefromwkb": true, "st_lineinterpolatepoint": true,
+	"st_lineinterpolatepoints": true, "st_longfromgeohash": true,
+	"st_longitude": true, "st_makeenvelope": true, "st_mlinefromtext": true,
+	"st_mlinefromwkb": true, "st_mpointfromtext": true, "st_mpointfromwkb": true,
+	"st_mpolyfromtext": true, "st_mpolyfromwkb": true, "st_numgeometries": true,
+	"st_numinteriorrings": true, "st_numpoints": true, "st_overlaps": true,
+	"st_pointatdistance": true, "st_pointfromgeohash": true,
+	"st_pointfromtext": true, "st_pointfromwkb": true, "st_pointn": true,
+	"st_polyfromtext": true, "st_polyfromwkb": true, "st_simplify": true,
+	"st_srid": true, "st_startpoint": true, "st_swapxy": true,
+	"st_symdifference": true, "st_touches": true, "st_transform": true,
+	"st_union": true, "st_validate": true, "st_within": true, "st_x": true,
+	"st_y": true, "subdate": true, "substr": true, "substring": true,
+	"substring_index": true, "subtime": true, "sysdate": true, "system_user": true,
+	"tan": true, "time": true, "timediff": true, "timestamp": true,
+	"timestampadd": true, "timestampdiff": true, "time_format": true,
+	"time_to_sec": true, "to_base64": true, "to_days": true, "to_seconds": true,
+	"trim": true, "truncate": true,
+	"ucase": true, "uncompress": true, "uncompressed_length": true, "unhex": true,
+	"unix_timestamp": true, "upper": true, "user": true, "utc_date": true,
+	"utc_time": true, "utc_timestamp": true, "uuid": true, "uuid_short": true,
+	"uuid_to_bin":                true,
+	"validate_password_strength": true,
+	"week":                       true, "weekday": true, "weekofyear": true, "weight_string": true,
+	"year": true, "yearweek": true,
+}
+
+// validateDroppedOrRenamedDefaultExprDeps enforces MySQL 3766 when an ALTER
+// TABLE drops or renames a column that a surviving pre-existing expression
+// DEFAULT still references (measured on mysql:8.0.46).
+func validateDroppedOrRenamedDefaultExprDeps(tbl *Table, origTableName string, droppedOrRenamed []string, preExprs map[nodes.ExprNode]bool) error {
+	for _, target := range droppedOrRenamed {
+		for _, col := range tbl.Columns {
+			if col == nil || !col.DefaultIsExpr || col.DefaultExprNode == nil || !preExprs[col.DefaultExprNode] {
+				continue
+			}
+			if exprReferencesColumn(col.DefaultExprNode, target) {
+				return errDependentByDefaultValExpr(target, origTableName)
+			}
+		}
+	}
+	return nil
+}
+
+// exprReferencesColumn reports whether a stored DEFAULT expression names the
+// column. Every reference in it is the table's own: mysql:8.0.46 takes
+// `DEFAULT (db.t.a + 1)`, `(other.t.a + 1)` and `(y.a + 1)` alike, stores `a`,
+// and refuses dropping or renaming `a` with 3766 for each.
+func exprReferencesColumn(expr nodes.ExprNode, colName string) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+			if strings.EqualFold(cr.Column, colName) {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// validateEnumSetDuplicates checks an ENUM or SET member list for duplicates
+// under the column's effective collation when strict sql_mode is active (1291,
+// measured on mysql:8.0.46). Trailing spaces are stripped before comparison, and
+// MySQL reports the first trimmed spelling.
+func validateEnumSetDuplicates(colName, dataType, collation, charset string, values []string, strict bool) error {
+	if !strict || !isEnumSetType(dataType) || len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]string, len(values))
+	for _, raw := range values {
+		trimmed := strings.TrimRight(raw, " ")
+		key := collationComparisonKey(trimmed, collation, charset)
+		if first, dup := seen[key]; dup {
+			return errDuplicatedValueInType(colName, first, strings.ToUpper(dataType))
+		}
+		seen[key] = trimmed
+	}
+	return nil
+}
+
+func enumMembersFromColumnType(colType string) []string {
+	open := strings.IndexByte(colType, '(')
+	closeIdx := strings.LastIndexByte(colType, ')')
+	if open < 0 || closeIdx <= open {
+		return nil
+	}
+	return splitEnumMembers(colType[open+1 : closeIdx])
+}
+
+type literalDefaultKind int
+
+const (
+	litNone literalDefaultKind = iota
+	litString
+	litNumber
+	litBit
+	litHex
+)
+
+func extractDefaultLiteral(expr nodes.ExprNode) (literalDefaultKind, string, bool) {
+	switch e := expr.(type) {
+	case *nodes.StringLit:
+		return litString, e.Value, false
+	case *nodes.IntLit:
+		if s, ok := exactIntLiteral(e, ""); ok {
+			return litNumber, s, true
+		}
+		return litNumber, strconv.FormatInt(e.Value, 10), true
+	case *nodes.FloatLit:
+		return litNumber, e.Value, true
+	case *nodes.UnaryExpr:
+		if e.Op == nodes.UnaryMinus || e.Op == nodes.UnaryPlus {
+			sign := ""
+			if e.Op == nodes.UnaryMinus {
+				sign = "-"
+			}
+			switch op := e.Operand.(type) {
+			case *nodes.IntLit:
+				if s, ok := exactIntLiteral(op, sign); ok {
+					return litNumber, s, true
+				}
+				return litNumber, sign + strconv.FormatInt(op.Value, 10), true
+			case *nodes.FloatLit:
+				return litNumber, sign + op.Value, true
+			}
+		}
+	case *nodes.BoolLit:
+		if e.Value {
+			return litNumber, "1", true
+		}
+		return litNumber, "0", true
+	case *nodes.BitLit:
+		return litBit, cleanBitDigits(e.Value), false
+	case *nodes.HexLit:
+		return litHex, cleanHexDigits(e.Value), false
+	}
+	return litNone, "", false
+}
+
+func cleanBitDigits(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "0b") || strings.HasPrefix(s, "0B") {
+		return s[2:]
+	}
+	if len(s) >= 3 && (s[0] == 'b' || s[0] == 'B') && s[1] == '\'' && s[len(s)-1] == '\'' {
+		return s[2 : len(s)-1]
+	}
+	return s
+}
+
+func cleanHexDigits(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		return s[2:]
+	}
+	if len(s) >= 3 && (s[0] == 'x' || s[0] == 'X') && s[1] == '\'' && s[len(s)-1] == '\'' {
+		return s[2 : len(s)-1]
+	}
+	return s
+}
+
+// validateColumnLiteralDefault checks an unparenthesized literal DEFAULT against
+// the column's type and length/range (1067, measured on mysql:8.0.46), and
+// stores the coerced value MySQL records in the data dictionary.
+func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode) error {
+	strict := c.isStrictSQLMode()
+	noZeroDate := c.isNoZeroDateSQLMode()
+	noZeroInDate := c.isNoZeroInDateSQLMode()
+	allowInvalidDates := c.isAllowInvalidDatesSQLMode()
+	truncateFrac := c.isTimeTruncateFractionalSQLMode()
+	sessionTZ := c.resolveEffectiveTimeZone()
+	if col == nil || expr == nil {
+		return nil
+	}
+	if _, isParen := expr.(*nodes.ParenExpr); isParen {
+		return nil
+	}
+	if isNullDefault(expr) {
+		return nil
+	}
+	if _, isTemporalFn := unwrapTemporalFunc(expr); isTemporalFn {
+		return nil
+	}
+	dt := strings.ToLower(col.DataType)
+	if isLiteralDefaultForbiddenType(dt) {
+		return nil
+	}
+
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind == litNone {
+		return nil
+	}
+	if kind == litString {
+		if sl, ok := expr.(*nodes.StringLit); ok {
+			decoded, decOK := c.decodeStringLiteralDefault(sl, col.Charset)
+			if !decOK {
+				return errInvalidDefault(col.Name)
+			}
+			val = decoded
+		}
+	}
+	if kind == litNumber && strings.ContainsAny(val, "eE") {
+		s := strings.TrimSpace(val)
+		if isStrictNumberSyntax(s) {
+			if _, err := strconv.ParseFloat(s, 64); errors.Is(err, strconv.ErrRange) {
+				return errIllegalValueForType("double", s)
+			}
+		}
+	}
+
+	unsigned := strings.Contains(strings.ToLower(col.ColumnType), "unsigned")
+
+	switch dt {
+	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
+		if !validIntegerLiteralDefault(dt, unsigned, kind, val, strict) {
+			return errInvalidDefault(col.Name)
+		}
+	case "decimal", "numeric", "dec", "fixed":
+		if !validDecimalLiteralDefault(col.ColumnType, unsigned, kind, val, strict) {
+			return errInvalidDefault(col.Name)
+		}
+	case "float", "double", "real":
+		if !validFloatLiteralDefault(dt, col.ColumnType, unsigned, kind, val, strict) {
+			return errInvalidDefault(col.Name)
+		}
+	case "char", "varchar":
+		if kind == litString && !validStringForColumnCharset(val, col.Charset) {
+			return errInvalidDefault(col.Name)
+		}
+		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
+			switch kind {
+			case litString:
+				// MySQL truncates excess trailing U+0020 spaces on CHAR and VARCHAR
+				// defaults rather than rejecting the column definition with 1067.
+				if utf8.RuneCountInString(strings.TrimRight(val, " ")) > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			case litNumber:
+				if !validNumericDefaultForStringLen(val, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			case litHex:
+				if !validBinaryBytesForCharColumn(val, true, col.Charset, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			case litBit:
+				if !validBinaryBytesForCharColumn(val, false, col.Charset, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			}
+		}
+		if strings.EqualFold(col.Charset, "ucs2") && (kind == litHex || kind == litBit) && ucs2BinaryContainsSurrogate(val, kind == litHex) {
+			return &Error{Code: 3507, SQLState: "HY000", Message: "Failed to update columns dictionary object."}
+		}
+	case "binary", "varbinary":
+		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
+			switch kind {
+			case litString:
+				byteLen := len(val)
+				if sl, isSL := expr.(*nodes.StringLit); isSL {
+					if sl.Charset == "" && !sl.National && c.effectiveClientCharset() != c.effectiveConnCharset() {
+						byteLen = len(encodeStringToCharsetBytes(val, c.effectiveConnCharset()))
+					} else {
+						byteLen = len(sl.Value)
+					}
+				}
+				if byteLen > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			case litNumber:
+				if !validNumericDefaultForStringLen(val, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			case litHex:
+				if (len(val)+1)/2 > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			case litBit:
+				if (len(val)+7)/8 > maxLen {
+					return errInvalidDefault(col.Name)
+				}
+			}
+		}
+	case "bit":
+		if !validBitLiteralDefault(col.ColumnType, kind, val, unquotedNum, strict) {
+			return errInvalidDefault(col.Name)
+		}
+	case "year":
+		if !validYearLiteralDefault(kind, val, unquotedNum) {
+			return errInvalidDefault(col.Name)
+		}
+	case "enum":
+		if !validEnumLiteralDefault(col, kind, val, unquotedNum, strict) {
+			return errInvalidDefault(col.Name)
+		}
+	case "set":
+		if !validSetLiteralDefault(col, kind, val, unquotedNum) {
+			return errInvalidDefault(col.Name)
+		}
+	case "date", "datetime", "timestamp":
+		ok, unknownTZ := validDateOrDatetimeLiteralDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac, sessionTZ)
+		if unknownTZ {
+			return errUnknownTimeZone(sessionTZ.raw)
+		}
+		if !ok {
+			return errInvalidDefault(col.Name)
+		}
+	case "time":
+		if !validTimeLiteralDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac) {
+			return errInvalidDefault(col.Name)
+		}
+	}
+	c.normalizeColumnStoredDefault(col, expr, strict, truncateFrac)
+	return nil
+}
+
+func isStrictNumberSyntax(s string) bool {
+	if s == "" {
+		return false
+	}
+	i := 0
+	if s[i] == '+' || s[i] == '-' {
+		i++
+	}
+	if i >= len(s) {
+		return false
+	}
+	digits := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		digits++
+		i++
+	}
+	if i < len(s) && s[i] == '.' {
+		i++
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			digits++
+			i++
+		}
+	}
+	if digits == 0 {
+		return false
+	}
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		i++
+		if i < len(s) && (s[i] == '+' || s[i] == '-') {
+			i++
+		}
+		expDigits := 0
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			expDigits++
+			i++
+		}
+		if expDigits == 0 {
+			return false
+		}
+	}
+	return i == len(s)
+}
+
+func roundRatHalfAwayFromZero(r *big.Rat) *big.Int {
+	sign := r.Sign()
+	if sign == 0 {
+		return big.NewInt(0)
+	}
+	abs := new(big.Rat).Abs(r)
+	num := new(big.Int).Set(abs.Num())
+	den := abs.Denom()
+	q, rem := new(big.Int).QuoRem(num, den, new(big.Int))
+	twiceRem := new(big.Int).Lsh(rem, 1)
+	if twiceRem.Cmp(den) >= 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	if sign < 0 {
+		q.Neg(q)
+	}
+	return q
+}
+
+func intBoundsForType(dt string, unsigned bool) (*big.Int, *big.Int) {
+	switch dt {
+	case "tinyint", "boolean", "bool":
+		if unsigned {
+			return big.NewInt(0), big.NewInt(255)
+		}
+		return big.NewInt(-128), big.NewInt(127)
+	case "smallint":
+		if unsigned {
+			return big.NewInt(0), big.NewInt(65535)
+		}
+		return big.NewInt(-32768), big.NewInt(32767)
+	case "mediumint":
+		if unsigned {
+			return big.NewInt(0), big.NewInt(16777215)
+		}
+		return big.NewInt(-8388608), big.NewInt(8388607)
+	case "int", "integer":
+		if unsigned {
+			return big.NewInt(0), big.NewInt(4294967295)
+		}
+		return big.NewInt(-2147483648), big.NewInt(2147483647)
+	default: // bigint
+		if unsigned {
+			maxU := new(big.Int).SetUint64(math.MaxUint64)
+			return big.NewInt(0), maxU
+		}
+		return big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)
+	}
+}
+
+func evalBinaryNumericUint64(isHex bool, val string, unsigned, strict bool) (uint64, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return 0, false
+	}
+	if len(raw) > 8 {
+		if strict {
+			return 0, false
+		}
+		if unsigned {
+			return math.MaxUint64, true
+		}
+		return math.MaxInt64, true
+	}
+	var u uint64
+	for _, b := range raw {
+		u = (u << 8) | uint64(b)
+	}
+	if !unsigned && u > math.MaxInt64 {
+		if strict {
+			return 0, false
+		}
+		return math.MaxInt64, true
+	}
+	return u, true
+}
+
+func evalIntegerLiteralBigInt(kind literalDefaultKind, val string, unsigned, strict bool) (*big.Int, bool) {
+	switch kind {
+	case litBit, litHex:
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+		if !ok {
+			return nil, false
+		}
+		return new(big.Int).SetUint64(u), true
+	default:
+		s := strings.TrimSpace(val)
+		if !isStrictNumberSyntax(s) {
+			return nil, false
+		}
+		if strings.ContainsAny(s, "eE") {
+			f, err := strconv.ParseFloat(s, 64)
+			if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+				return nil, false
+			}
+			n, _ := new(big.Float).SetFloat64(math.RoundToEven(f)).Int(nil)
+			return n, true
+		}
+		r, ok := new(big.Rat).SetString(s)
+		if !ok {
+			return nil, false
+		}
+		return roundRatHalfAwayFromZero(r), true
+	}
+}
+
+func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
+	minB, maxB := intBoundsForType(dt, unsigned)
+	n, ok := evalIntegerLiteralBigInt(kind, val, unsigned, strict)
+	if !ok {
+		return false
+	}
+	return n.Cmp(minB) >= 0 && n.Cmp(maxB) <= 0
+}
+
+func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) (string, bool) {
+	pt := parseColumnType(colType)
+	m, d := 10, 0
+	if pt.hasLen {
+		m = pt.length
+	}
+	if pt.hasScale && pt.scale >= 0 {
+		d = pt.scale
+	}
+	if kind == litBit || kind == litHex {
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+		if !ok {
+			return "", false
+		}
+		n := new(big.Int).SetUint64(u)
+		intDigits := m - d
+		if intDigits < 0 {
+			intDigits = 0
+		}
+		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
+		if n.Cmp(maxInt) >= 0 {
+			return "", false
+		}
+		if d == 0 {
+			return n.String(), true
+		}
+		return n.String() + "." + strings.Repeat("0", d), true
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		if strict {
+			return "", false
+		}
+		s = leadingNumericPrefix(s)
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return "", false
+	}
+	if unsigned && r.Sign() < 0 {
+		return "", false
+	}
+	scalePow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(d)), nil)
+	scaled := new(big.Rat).Mul(new(big.Rat).Abs(r), new(big.Rat).SetInt(scalePow))
+	roundedScaled := roundRatHalfAwayFromZero(scaled)
+	maxDigits := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(m)), nil)
+	if roundedScaled.Cmp(maxDigits) >= 0 {
+		return "", false
+	}
+	neg := r.Sign() < 0 && roundedScaled.Sign() > 0
+	digits := roundedScaled.String()
+	if d == 0 {
+		if neg {
+			return "-" + digits, true
+		}
+		return digits, true
+	}
+	if len(digits) <= d {
+		digits = strings.Repeat("0", d+1-len(digits)) + digits
+	}
+	formatted := digits[:len(digits)-d] + "." + digits[len(digits)-d:]
+	if neg {
+		return "-" + formatted, true
+	}
+	return formatted, true
+}
+
+func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ resolvedTimeZone) (string, bool) {
+	if col == nil || expr == nil {
+		return "", false
+	}
+	if _, isParen := expr.(*nodes.ParenExpr); isParen {
+		return "", false
+	}
+	if isNullDefault(expr) {
+		return "", false
+	}
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind == litNone {
+		return "", false
+	}
+	unsigned := strings.Contains(strings.ToLower(col.ColumnType), "unsigned")
+	dt := strings.ToLower(col.DataType)
+	switch dt {
+	case "date", "datetime", "timestamp":
+		return coerceDateOrDatetimeDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac, sessionTZ)
+	case "time":
+		return coerceTimeDefault(temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, truncateFrac)
+	case "year":
+		return evalYearLiteralDefault(kind, val, unquotedNum)
+	case "enum":
+		return coerceEnumDefault(col, kind, val, unquotedNum, strict)
+	case "set":
+		return coerceSetDefault(col, kind, val, unquotedNum)
+	case "bit":
+		if !strict && (kind == litBit || kind == litHex) {
+			if raw, ok := decodeLiteralRawBytes(val, kind == litHex); ok && len(raw) > 8 {
+				return "b'" + strings.Repeat("1", 64) + "'", true
+			}
+		}
+		return "", false
+	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
+		n, ok := evalIntegerLiteralBigInt(kind, val, unsigned, strict)
+		if !ok {
+			return "", false
+		}
+		minB, maxB := intBoundsForType(dt, unsigned)
+		if n.Cmp(minB) < 0 || n.Cmp(maxB) > 0 {
+			return "", false
+		}
+		return n.String(), true
+	case "decimal", "numeric", "dec", "fixed":
+		return formatDecimalLiteralDefault(col.ColumnType, unsigned, kind, val, strict)
+	case "float", "double", "real":
+		if !validFloatLiteralDefault(dt, col.ColumnType, unsigned, kind, val, strict) {
+			return "", false
+		}
+		pt := parseColumnType(col.ColumnType)
+		hasMD := pt.hasLen && pt.hasScale && pt.scale >= 0
+		isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
+		var f float64
+		if kind == litBit || kind == litHex {
+			u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+			if !ok {
+				return "", false
+			}
+			f = float64(u)
+		} else {
+			var err error
+			f, err = strconv.ParseFloat(strings.TrimSpace(val), 64)
+			if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+				return "", false
+			}
+		}
+		if hasMD {
+			bitSize := 64
+			if isFloat32 {
+				bitSize = 32
+				f = float64(float32(f))
+			}
+			formatted := strconv.FormatFloat(math.Abs(f), 'f', pt.scale, bitSize)
+			if f < 0 && strings.Trim(formatted, "0.") != "" {
+				return "-" + formatted, true
+			}
+			return formatted, true
+		}
+		if isFloat32 {
+			return myGcvtFloat32(float32(f)), true
+		}
+		res, ok := myGcvtFormat(f, 325)
+		return res, ok
+	}
+	return "", false
+}
+
+func myGcvtFloat32(f float32) string {
+	if math.IsInf(float64(f), 0) || math.IsNaN(float64(f)) {
+		return ""
+	}
+	if f == 0 {
+		return "0"
+	}
+	neg := f < 0
+	avail := 12
+	av := float64(f)
+	if neg {
+		avail = 11
+		av = -av
+	}
+	sci := strconv.FormatFloat(av, 'e', 5, 32)
+	ePos := strings.IndexByte(sci, 'e')
+	if ePos < 0 {
+		return ""
+	}
+	mant := strings.ReplaceAll(sci[:ePos], ".", "")
+	mant = strings.TrimRight(mant, "0")
+	if mant == "" {
+		mant = "0"
+	}
+	exp, _ := strconv.Atoi(sci[ePos+1:])
+	decpt := exp + 1
+	var res string
+	if decpt >= 1 && decpt <= avail {
+		if len(mant) <= decpt {
+			res = mant + strings.Repeat("0", decpt-len(mant))
+		} else {
+			res = mant[:decpt] + "." + mant[decpt:]
+		}
+	} else if decpt <= 0 && 2+(-decpt)+len(mant) <= avail {
+		res = "0." + strings.Repeat("0", -decpt) + mant
+	} else if len(mant) == 1 {
+		res = mant + "e" + strconv.Itoa(exp)
+	} else {
+		res = mant[:1] + "." + mant[1:] + "e" + strconv.Itoa(exp)
+	}
+	if neg {
+		return "-" + res
+	}
+	return res
+}
+
+func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) {
+	if col == nil || expr == nil || col.Default == nil {
+		return
+	}
+	if _, isParen := expr.(*nodes.ParenExpr); isParen {
+		return
+	}
+	if sl, ok := expr.(*nodes.StringLit); ok {
+		if normVal, isHex, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
+			if isHex {
+				v := normVal
+				col.Default = &v
+				c.setDefaultTimestampUTC(col, expr, truncateFrac)
+				return
+			}
+			cp := *sl
+			cp.Charset = ""
+			cp.National = false
+			cp.Value = normVal
+			v := nodeToSQL(&cp)
+			col.Default = &v
+			// A TIMESTAMP default written with an introducer still follows
+			// the session time zone: _utf8mb4'2026-01-01 12:00:00' stored
+			// under +00:00 shows as 15:00:00 under +03:00 on mysql:8.0.46.
+			c.setDefaultTimestampUTC(col, &cp, truncateFrac)
+			return
+		}
+	}
+	if coerced, ok := coerceNumericDefaultForCharColumn(col, expr); ok {
+		v := nodeToSQL(&nodes.StringLit{Value: coerced})
+		col.Default = &v
+		return
+	}
+	c.setDefaultTimestampUTC(col, expr, truncateFrac)
+	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, c.resolveEffectiveTimeZone()); ok {
+		col.Default = &coerced
+	}
+}
+
+// setDefaultTimestampUTC records the UTC instant a TIMESTAMP column's literal
+// default names in the session time zone, or clears it for any other column.
+func (c *Catalog) setDefaultTimestampUTC(col *Column, expr nodes.ExprNode, truncateFrac bool) {
+	col.DefaultTimestampUTC = nil
+	if !strings.EqualFold(col.DataType, "timestamp") ||
+		col.DefaultKind == ColumnDefaultCurrentTimestamp || col.DefaultKind == ColumnDefaultExpression {
+		return
+	}
+	if utc, ok := parseTimestampLiteralUTC(temporalColumnFSP(col.ColumnType), expr, truncateFrac, c.resolveEffectiveTimeZone()); ok {
+		col.DefaultTimestampUTC = &utc
+	}
+}
+
+func parseTimestampLiteralUTC(fsp int, expr nodes.ExprNode, truncateFrac bool, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind == litNone || !sessionTZ.valid {
+		return time.Time{}, false
+	}
+	var (
+		p  parsedMySQLDateTime
+		ok bool
+	)
+	switch {
+	case kind == litNumber && unquotedNum:
+		p, ok = parseMySQLNumberDateTime("timestamp", fsp, val, truncateFrac)
+	case kind == litString:
+		p, ok = parseMySQLStringDateTime("timestamp", fsp, strings.TrimSpace(val), truncateFrac)
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return time.Time{}, false
+		}
+		p, ok = parseMySQLStringDateTime("timestamp", fsp, string(raw), truncateFrac)
+	}
+	if !ok || p.allZero {
+		return time.Time{}, false
+	}
+	nsec := p.micros * 1000
+	if p.hasTZ {
+		utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
+		return utc, true
+	}
+	return convertSessionLocalToUTC(p.year, p.month, p.day, p.hour, p.min, p.sec, nsec, sessionTZ)
+}
+
+func decodeLiteralRawBytes(val string, isHex bool) ([]byte, bool) {
+	if val == "" {
+		return nil, true
+	}
+	if isHex {
+		raw := val
+		if len(raw)%2 == 1 {
+			raw = "0" + raw
+		}
+		b, err := hex.DecodeString(raw)
+		if err != nil {
+			return nil, false
+		}
+		return b, true
+	}
+	pad := (8 - len(val)%8) % 8
+	bitsStr := strings.Repeat("0", pad) + val
+	out := make([]byte, len(bitsStr)/8)
+	for i := 0; i < len(out); i++ {
+		var v byte
+		for j := 0; j < 8; j++ {
+			ch := bitsStr[i*8+j]
+			if ch != '0' && ch != '1' {
+				return nil, false
+			}
+			v = (v << 1) | (ch - '0')
+		}
+		out[i] = v
+	}
+	return out, true
+}
+
+func ucs2BinaryContainsSurrogate(val string, isHex bool) bool {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return false
+	}
+	if len(raw)%2 != 0 {
+		raw = append([]byte{0}, raw...)
+	}
+	u16 := make([]uint16, len(raw)/2)
+	for i := 0; i < len(u16); i++ {
+		u16[i] = uint16(raw[2*i])<<8 | uint16(raw[2*i+1])
+	}
+	for len(u16) > 0 && u16[len(u16)-1] == 0x0020 {
+		u16 = u16[:len(u16)-1]
+	}
+	for _, w := range u16 {
+		if w >= 0xD800 && w <= 0xDFFF {
+			return true
+		}
+	}
+	return false
+}
+
+func validBinaryBytesForCharColumn(val string, isHex bool, charset string, maxLen int) bool {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return false
+	}
+	cs := strings.ToLower(strings.TrimSpace(charset))
+	switch cs {
+	case "", "utf8mb4", "utf8", "utf8mb3":
+		if !utf8.Valid(raw) {
+			return false
+		}
+		s := string(raw)
+		if cs == "utf8" || cs == "utf8mb3" {
+			for _, r := range s {
+				if r > 0xFFFF {
+					return false
+				}
+			}
+		}
+		return utf8.RuneCountInString(strings.TrimRight(s, " ")) <= maxLen
+	case "ascii", "swe7":
+		for _, b := range raw {
+			if b >= 0x80 {
+				return false
+			}
+		}
+		return len(bytes.TrimRight(raw, " ")) <= maxLen
+	case "ucs2", "utf16", "utf16le":
+		// MySQL left-pads binary string literals with 0x00 bytes to a multiple of
+		// mbminlen (2 bytes for ucs2/utf16/utf16le).
+		if len(raw)%2 != 0 {
+			raw = append([]byte{0}, raw...)
+		}
+		u16 := make([]uint16, len(raw)/2)
+		for i := 0; i < len(u16); i++ {
+			if cs == "utf16le" {
+				u16[i] = uint16(raw[2*i]) | uint16(raw[2*i+1])<<8
+			} else {
+				u16[i] = uint16(raw[2*i])<<8 | uint16(raw[2*i+1])
+			}
+		}
+		for len(u16) > 0 && u16[len(u16)-1] == 0x0020 {
+			u16 = u16[:len(u16)-1]
+		}
+		if cs == "ucs2" {
+			return len(u16) <= maxLen
+		}
+		// Validate UTF-16 surrogate pairing directly rather than via utf16.Decode,
+		// which maps both unpaired surrogates and a valid U+FFFD to utf8.RuneError.
+		charCount := 0
+		for i := 0; i < len(u16); i++ {
+			w := u16[i]
+			if w >= 0xD800 && w <= 0xDBFF {
+				if i+1 >= len(u16) || u16[i+1] < 0xDC00 || u16[i+1] > 0xDFFF {
+					return false
+				}
+				i++
+			} else if w >= 0xDC00 && w <= 0xDFFF {
+				return false
+			}
+			charCount++
+		}
+		return charCount <= maxLen
+	case "utf32":
+		// MySQL left-pads binary string literals with 0x00 bytes to a multiple of
+		// mbminlen (4 bytes for utf32).
+		if rem := len(raw) % 4; rem != 0 {
+			raw = append(make([]byte, 4-rem), raw...)
+		}
+		n := len(raw) / 4
+		runes := make([]rune, n)
+		for i := 0; i < n; i++ {
+			cp := uint32(raw[4*i])<<24 | uint32(raw[4*i+1])<<16 | uint32(raw[4*i+2])<<8 | uint32(raw[4*i+3])
+			if cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF) {
+				return false
+			}
+			runes[i] = rune(cp)
+		}
+		return utf8.RuneCountInString(strings.TrimRight(string(runes), " ")) <= maxLen
+	case "sjis", "cp932", "ujis", "eucjpms", "gbk", "gb2312", "gb18030", "big5", "euckr":
+		n, valid := countLegacyMultibyteTrimmedChars(raw, cs)
+		return valid && n <= maxLen
+	default:
+		return len(bytes.TrimRight(raw, " ")) <= maxLen
+	}
+}
+
+// countLegacyMultibyteTrimmedChars validates raw against MySQL 8.0's legacy
+// multibyte character set byte-sequence rules (strings/ctype-*.cc, measured on
+// mysql:8.0.46) and returns the character count after trimming trailing ASCII
+// U+0020 spaces.
+func countLegacyMultibyteTrimmedChars(raw []byte, cs string) (int, bool) {
+	totalChars := 0
+	trimmedChars := 0
+	for i := 0; i < len(raw); {
+		b0 := raw[i]
+		if b0 <= 0x7F {
+			totalChars++
+			if b0 != 0x20 {
+				trimmedChars = totalChars
+			}
+			i++
+			continue
+		}
+		step := 0
+		switch cs {
+		case "sjis", "cp932":
+			if b0 >= 0xA1 && b0 <= 0xDF {
+				step = 1
+			} else if ((b0 >= 0x81 && b0 <= 0x9F) || (b0 >= 0xE0 && b0 <= 0xFC)) && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFC) {
+					step = 2
+				}
+			}
+		case "ujis", "eucjpms":
+			if b0 == 0x8E && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xDF {
+				step = 2
+			} else if b0 == 0x8F && i+2 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE && raw[i+2] >= 0xA1 && raw[i+2] <= 0xFE {
+				step = 3
+			} else if b0 >= 0xA1 && b0 <= 0xFE && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
+				step = 2
+			}
+		case "gb2312":
+			if b0 >= 0xA1 && b0 <= 0xF7 && i+1 < len(raw) && raw[i+1] >= 0xA1 && raw[i+1] <= 0xFE {
+				step = 2
+			}
+		case "gbk":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		case "gb18030":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0x80 && b1 <= 0xFE) {
+					step = 2
+				} else if b1 >= 0x30 && b1 <= 0x39 && i+3 < len(raw) &&
+					raw[i+2] >= 0x81 && raw[i+2] <= 0xFE && raw[i+3] >= 0x30 && raw[i+3] <= 0x39 {
+					step = 4
+				}
+			}
+		case "big5":
+			if b0 >= 0xA1 && b0 <= 0xF9 && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x40 && b1 <= 0x7E) || (b1 >= 0xA1 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		case "euckr":
+			if b0 >= 0x81 && b0 <= 0xFE && i+1 < len(raw) {
+				b1 := raw[i+1]
+				if (b1 >= 0x41 && b1 <= 0x5A) || (b1 >= 0x61 && b1 <= 0x7A) || (b1 >= 0x81 && b1 <= 0xFE) {
+					step = 2
+				}
+			}
+		}
+		if step == 0 {
+			return 0, false
+		}
+		totalChars++
+		trimmedChars = totalChars
+		i += step
+	}
+	return trimmedChars, true
+}
+
+// normalizeCharDefaultStringLiteral applies MySQL's trailing-space coercion when
+// storing a quoted string default on CHAR or VARCHAR: CHAR strips all trailing
+// U+0020 spaces, and VARCHAR strips only trailing U+0020 spaces past maxLen.
+func normalizeCharDefaultStringLiteral(col *Column, val string) (string, bool) {
+	if col == nil {
+		return val, false
+	}
+	switch strings.ToLower(col.DataType) {
+	case "char":
+		trimmed := strings.TrimRight(val, " ")
+		return trimmed, trimmed != val
+	case "varchar":
+		maxLen, ok := fixedLengthStringColumnLimit(col)
+		if !ok {
+			return val, false
+		}
+		runes := []rune(val)
+		if len(runes) <= maxLen {
+			return val, false
+		}
+		for len(runes) > maxLen && runes[len(runes)-1] == ' ' {
+			runes = runes[:len(runes)-1]
+		}
+		trimmed := string(runes)
+		return trimmed, trimmed != val
+	default:
+		return val, false
+	}
+}
+
+func leadingNumericPrefix(s string) string {
+	i := 0
+	if i < len(s) && (s[i] == '+' || s[i] == '-') {
+		i++
+	}
+	digits := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		digits++
+		i++
+	}
+	if i < len(s) && s[i] == '.' {
+		i++
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			digits++
+			i++
+		}
+	}
+	if digits == 0 {
+		return "0"
+	}
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		j := i + 1
+		if j < len(s) && (s[j] == '+' || s[j] == '-') {
+			j++
+		}
+		expDigits := 0
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+			expDigits++
+			j++
+		}
+		if expDigits > 0 {
+			i = j
+		}
+	}
+	return s[:i]
+}
+
+func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
+	pt := parseColumnType(colType)
+	m, d := 10, 0
+	if pt.hasLen {
+		m = pt.length
+	}
+	if pt.hasScale && pt.scale >= 0 {
+		d = pt.scale
+	}
+	if kind == litBit || kind == litHex {
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+		if !ok {
+			return false
+		}
+		n := new(big.Int).SetUint64(u)
+		intDigits := m - d
+		if intDigits < 0 {
+			intDigits = 0
+		}
+		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
+		return n.Cmp(maxInt) < 0
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		if strict {
+			return false
+		}
+		s = leadingNumericPrefix(s)
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return false
+	}
+	if unsigned && r.Sign() < 0 {
+		return false
+	}
+	scalePow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(d)), nil)
+	scaled := new(big.Rat).Mul(new(big.Rat).Abs(r), new(big.Rat).SetInt(scalePow))
+	roundedScaled := roundRatHalfAwayFromZero(scaled)
+	maxDigits := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(m)), nil)
+	return roundedScaled.Cmp(maxDigits) < 0
+}
+
+func validFloatLiteralDefault(dt, colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
+	pt := parseColumnType(colType)
+	hasMD := pt.hasLen && pt.hasScale && pt.scale >= 0
+	isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
+	if kind == litBit || kind == litHex {
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+		if !ok {
+			return false
+		}
+		f := float64(u)
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			return false
+		}
+		if isFloat32 && math.IsInf(float64(float32(f)), 0) {
+			return false
+		}
+		if hasMD {
+			return validDecimalLiteralDefault(colType, unsigned, litNumber, strconv.FormatUint(u, 10), strict)
+		}
+		return true
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		return false
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+		return false
+	}
+	if unsigned && f < 0 {
+		return false
+	}
+	if isFloat32 && math.Abs(f) > math.MaxFloat32 {
+		return false
+	}
+	if hasMD {
+		return validDecimalLiteralDefault(colType, unsigned, kind, val, strict)
+	}
+	return true
+}
+
+func bitColumnWidth(colType string) int {
+	pt := parseColumnType(colType)
+	if pt.hasLen && pt.length > 0 {
+		return pt.length
+	}
+	return 1
+}
+
+func validBitLiteralDefault(colType string, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
+	width := bitColumnWidth(colType)
+	switch kind {
+	case litBit, litHex:
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, true, strict)
+		if !ok {
+			return false
+		}
+		return bits.Len64(u) <= width
+	case litNumber:
+		if unquotedNum {
+			s := strings.TrimSpace(val)
+			if strings.HasPrefix(s, "-") {
+				return false
+			}
+			s = strings.TrimPrefix(s, "+")
+			u, err := strconv.ParseUint(s, 10, 64)
+			if err != nil {
+				return false
+			}
+			return bits.Len64(u) <= width
+		}
+	}
+	// Quoted string on BIT(N): MySQL interprets raw bytes as big-endian unsigned value.
+	return new(big.Int).SetBytes([]byte(val)).BitLen() <= width
+}
+
+func evalBinaryYearUint(isHex bool, val string) (uint64, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok || len(raw) > 8 {
+		return 0, false
+	}
+	var u uint64
+	for _, b := range raw {
+		u = (u << 8) | uint64(b)
+	}
+	return u, true
+}
+
+func formatStoredYearUint(u uint64) (string, bool) {
+	switch {
+	case u == 0:
+		return "'0000'", true
+	case u >= 1 && u <= 69:
+		return fmt.Sprintf("'%04d'", 2000+u), true
+	case u >= 70 && u <= 99:
+		return fmt.Sprintf("'%04d'", 1900+u), true
+	case u >= 1901 && u <= 2155:
+		return fmt.Sprintf("'%04d'", u), true
+	default:
+		return "", false
+	}
+}
+
+func evalYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) (string, bool) {
+	if kind == litBit || kind == litHex {
+		u, ok := evalBinaryYearUint(kind == litHex, val)
+		if !ok {
+			return "", false
+		}
+		return formatStoredYearUint(u)
+	}
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if !isStrictNumberSyntax(s) {
+			return "", false
+		}
+		r, ok := new(big.Rat).SetString(s)
+		if !ok {
+			return "", false
+		}
+		nr := roundRatHalfAwayFromZero(r)
+		if nr.Sign() < 0 || !nr.IsUint64() {
+			return "", false
+		}
+		return formatStoredYearUint(nr.Uint64())
+	}
+	rawLen := len(val)
+	s := strings.TrimSpace(val)
+	if s == "" {
+		return "", false
+	}
+	start := 0
+	if s[0] == '+' || s[0] == '-' {
+		start = 1
+	}
+	if start >= len(s) {
+		return "", false
+	}
+	for i := start; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return "", false
+		}
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n < 0 {
+		return "", false
+	}
+	if n == 0 {
+		// MySQL Field_year::store(const char*, size_t, ...): raw string length 4
+		// ('0000', '-000') stores zero year '0000'; any other zero string ('0',
+		// '00', '000', '00000', ' 0000 ') expands to '2000'.
+		if rawLen == 4 {
+			return "'0000'", true
+		}
+		return "'2000'", true
+	}
+	return formatStoredYearUint(uint64(n))
+}
+
+func validYearLiteralDefault(kind literalDefaultKind, val string, unquotedNum bool) bool {
+	_, ok := evalYearLiteralDefault(kind, val, unquotedNum)
+	return ok
+}
+
+func coercedNumericStringForCharLen(val string, maxLen int) (string, bool) {
+	if maxLen <= 0 {
+		return "", false
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		if len(s) <= maxLen {
+			return s, true
+		}
+		return "", false
+	}
+	if strings.ContainsAny(s, "eE") {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+			return "", false
+		}
+		return myGcvtFormat(f, maxLen)
+	}
+	exact := coercedExactNumericString(s)
+	if len(exact) > maxLen {
+		return "", false
+	}
+	return exact, true
+}
+
+func validNumericDefaultForStringLen(val string, maxLen int) bool {
+	_, ok := coercedNumericStringForCharLen(val, maxLen)
+	return ok
+}
+
+// coerceNumericDefaultForCharColumn returns the string MySQL stores in the data
+// dictionary when an unparenthesized numeric literal default is declared on a
+// CHAR, VARCHAR, BINARY, or VARBINARY column (e.g. `CHAR(1) DEFAULT 01` or
+// `BINARY(1) DEFAULT 01` -> `'1'`, `VARBINARY(2) DEFAULT 007` -> `'7'`).
+func coerceNumericDefaultForCharColumn(col *Column, expr nodes.ExprNode) (string, bool) {
+	if col == nil {
+		return "", false
+	}
+	dt := strings.ToLower(col.DataType)
+	if dt != "char" && dt != "varchar" && dt != "binary" && dt != "varbinary" {
+		return "", false
+	}
+	kind, val, unquotedNum := extractDefaultLiteral(expr)
+	if kind != litNumber || !unquotedNum {
+		return "", false
+	}
+	maxLen, ok := fixedLengthStringColumnLimit(col)
+	if !ok {
+		maxLen = 325
+	}
+	coerced, ok := coercedNumericStringForCharLen(val, maxLen)
+	if !ok {
+		return "", false
+	}
+	if norm, changed := normalizeCharDefaultStringLiteral(col, coerced); changed {
+		return norm, true
+	}
+	return coerced, true
+}
+
+// coercedExactNumericString normalizes an exact integer or fixed-point decimal
+// literal to the string Item_int / Item_decimal::val_str produces in MySQL
+// (e.g. `01` -> `"1"`, `-0` -> `"0"`, `+1` -> `"1"`, `.5` -> `"0.5"`, `1.50` -> `"1.50"`).
+func coercedExactNumericString(s string) string {
+	neg := false
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = s[1:]
+	} else if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	}
+	dot := strings.IndexByte(s, '.')
+	if dot < 0 {
+		intPart := strings.TrimLeft(s, "0")
+		if intPart == "" {
+			return "0"
+		}
+		if neg {
+			return "-" + intPart
+		}
+		return intPart
+	}
+	intPart := strings.TrimLeft(s[:dot], "0")
+	fracPart := s[dot+1:]
+	allZero := intPart == "" && strings.TrimLeft(fracPart, "0") == ""
+	if intPart == "" {
+		intPart = "0"
+	}
+	if fracPart == "" {
+		if allZero || !neg {
+			return intPart
+		}
+		return "-" + intPart
+	}
+	if neg && !allZero {
+		return "-" + intPart + "." + fracPart
+	}
+	return intPart + "." + fracPart
+}
+
+func allNinePrefix(digits string, n int) bool {
+	for i := 0; i < n && i < len(digits); i++ {
+		if digits[i] != '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func formatGcvtFixed(av float64, neg bool, fracDigits int) string {
+	raw := strconv.FormatFloat(av, 'f', fracDigits, 64)
+	if strings.IndexByte(raw, '.') >= 0 {
+		raw = strings.TrimRight(raw, "0")
+		raw = strings.TrimSuffix(raw, ".")
+	}
+	if raw == "0" || !neg {
+		return raw
+	}
+	return "-" + raw
+}
+
+func formatGcvtSci(av float64, neg bool, ndigits int) string {
+	raw := strconv.FormatFloat(av, 'e', ndigits-1, 64)
+	ePos := strings.IndexByte(raw, 'e')
+	if ePos < 0 {
+		return raw
+	}
+	mPart := raw[:ePos]
+	if strings.IndexByte(mPart, '.') >= 0 {
+		mPart = strings.TrimRight(mPart, "0")
+		mPart = strings.TrimSuffix(mPart, ".")
+	}
+	expVal, _ := strconv.Atoi(raw[ePos+1:])
+	res := mPart + "e" + strconv.Itoa(expVal)
+	if neg {
+		return "-" + res
+	}
+	return res
+}
+
+// myGcvtFormat reproduces MySQL's my_gcvt(f, MY_GCVT_ARG_DOUBLE, width, ...)
+// string output and reports whether f fits within width bytes without overflow.
+func myGcvtFormat(f float64, width int) (string, bool) {
+	if width <= 0 || math.IsInf(f, 0) || math.IsNaN(f) {
+		return "", false
+	}
+	if f == 0 {
+		return "0", true
+	}
+	neg := f < 0
+	sign := 0
+	av := f
+	if neg {
+		sign = 1
+		av = -f
+	}
+	avail := width - sign
+	if avail <= 0 {
+		return "", false
+	}
+	sci := strconv.FormatFloat(av, 'e', -1, 64)
+	ePos := strings.IndexByte(sci, 'e')
+	if ePos < 0 {
+		return "", false
+	}
+	mant := strings.ReplaceAll(sci[:ePos], ".", "")
+	mant = strings.TrimRight(mant, "0")
+	if mant == "" {
+		mant = "0"
+	}
+	exp, _ := strconv.Atoi(sci[ePos+1:])
+	decpt := exp + 1
+
+	if decpt >= 1 && decpt <= 15 {
+		if decpt < avail {
+			if len(mant) <= decpt {
+				res := mant + strings.Repeat("0", decpt-len(mant))
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
+			}
+			availFrac := avail - decpt - 1
+			if availFrac >= len(mant)-decpt {
+				res := mant[:decpt] + "." + mant[decpt:]
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
+			}
+			if availFrac < 0 {
+				availFrac = 0
+			}
+			return formatGcvtFixed(av, neg, availFrac), true
+		}
+		if decpt == avail {
+			if len(mant) <= decpt {
+				res := mant + strings.Repeat("0", decpt-len(mant))
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
+			}
+			if !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
+				return formatGcvtFixed(av, neg, 0), true
+			}
+		}
+	} else if decpt <= 0 && decpt >= -5 && avail >= 3-decpt {
+		if avail-2 >= len(mant)-decpt {
+			res := "0." + strings.Repeat("0", -decpt) + mant
+			if neg {
+				return "-" + res, true
+			}
+			return res, true
+		}
+		return formatGcvtFixed(av, neg, avail-2), true
+	}
+
+	// Scientific notation path (`d[.ddd]e[+-]exp`). When len(mant) > 1, my_gcvt
+	// reserves 1 byte for '.' when computing available significant digits.
+	expLen := 1 + len(strconv.Itoa(exp))
+	dot := 0
+	if len(mant) > 1 {
+		dot = 1
+	}
+	ndigits := avail - expLen - dot
+	if ndigits >= 1 {
+		if ndigits >= len(mant) {
+			var res string
+			if len(mant) == 1 {
+				res = mant + "e" + strconv.Itoa(exp)
+			} else {
+				res = mant[:1] + "." + mant[1:] + "e" + strconv.Itoa(exp)
+			}
+			if neg {
+				return "-" + res, true
+			}
+			return res, true
+		}
+		if !(allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' && avail-(1+len(strconv.Itoa(exp+1)))-dot < 1) {
+			return formatGcvtSci(av, neg, ndigits), true
+		}
+	}
+
+	// Sub-unit fixed fallback ('0') when decpt in {-2, -1, 0} and avail >= 2.
+	if decpt <= 0 && decpt >= -2 && avail >= 2 {
+		return formatGcvtFixed(av, neg, avail-2), true
+	}
+	return "", false
+}
+
+func coercedDefaultLiteralString(s string) (string, bool) {
+	if !isStrictNumberSyntax(s) {
+		return "", false
+	}
+	if strings.ContainsAny(s, "eE") {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+			return "", false
+		}
+		return strconv.FormatFloat(f, 'g', -1, 64), true
+	}
+	return coercedExactNumericString(s), true
+}
+
+// parseMySQLIntOrUintLiteral reports whether MySQL's lexer produces Item_int or
+// Item_uint for s (an integer token with no '.' or exponent fitting in int64 or
+// uint64), returning its sign and uint64 magnitude when non-negative.
+func parseMySQLIntOrUintLiteral(s string) (isIntToken bool, nonNeg bool, mag uint64) {
+	if strings.ContainsAny(s, ".eE") {
+		return false, false, 0
+	}
+	if strings.HasPrefix(s, "-") {
+		digits := strings.TrimLeft(s[1:], "0")
+		if digits == "" {
+			return true, true, 0
+		}
+		if _, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return true, false, 0
+		}
+		// Negative integer below MinInt64 is lexed as DECIMAL_NUM by MySQL.
+		return false, false, 0
+	}
+	u, err := strconv.ParseUint(strings.TrimPrefix(s, "+"), 10, 64)
+	if err != nil {
+		// Positive integer above MaxUint64 is lexed as DECIMAL_NUM by MySQL.
+		return false, false, 0
+	}
+	return true, true, u
+}
+
+func enumContainsStringMember(members []string, val string, col *Column, strict bool) bool {
+	target := collationComparisonKey(strings.TrimRight(val, " "), col.Collation, col.Charset)
+	for _, m := range members {
+		if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == target {
+			return true
+		}
+	}
+	if target == "" && !strict {
+		return true
+	}
+	return false
+}
+
+func setContainsStringMembers(members []string, val string, col *Column) bool {
+	if val == "" {
+		return true
+	}
+	allowed := make(map[string]bool, len(members))
+	for _, m := range members {
+		allowed[collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset)] = true
+	}
+	for _, part := range strings.Split(val, ",") {
+		if !allowed[collationComparisonKey(strings.TrimRight(part, " "), col.Collation, col.Charset)] {
+			return false
+		}
+	}
+	return true
+}
+
+// validEnumLiteralDefault validates an unparenthesized literal DEFAULT on an
+// ENUM column per MySQL 8.0.46's two-phase DDL check (`sql_table.cc` +
+// `Field_enum::store`, measured on mysql:8.0.46):
+//   - Unlike DML (`INSERT`), DDL first converts unquoted numeric defaults to
+//     their string spelling (`coercedDefaultLiteralString`) and requires that
+//     string to match a declared ENUM member (`ENUM('a','b') DEFAULT 1` answers
+//     1067, whereas `ENUM('2','y') DEFAULT 2` passes string membership on `'2'`
+//     and then stores ordinal 2 -> `'y'`).
+//   - Binary (`0x...`/`b'...'`) defaults are decoded in `col.Charset` before
+//     collation comparison.
+func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return false
+		}
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || u > uint64(len(members)) {
+				return false
+			}
+			if u == 0 && strict {
+				return false
+			}
+		}
+		return enumContainsStringMember(members, coerced, col, strict)
+	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return false
+		}
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return false
+		}
+		return enumContainsStringMember(members, decoded, col, strict)
+	}
+	if kind != litString {
+		return false
+	}
+	return enumContainsStringMember(members, val, col, strict)
+}
+
+// validSetLiteralDefault validates an unparenthesized literal DEFAULT on a SET
+// column per MySQL 8.0.46 (`SET('a','b') DEFAULT 3` answers 1067 unless `'3'`
+// is also a member name; `SET('1','3','y') DEFAULT 3` passes string membership
+// on `'3'` and then stores bitmask 3 -> `'1,3'`).
+func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) bool {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return false
+		}
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg {
+				return false
+			}
+			if len(members) < 64 && u >= (uint64(1)<<len(members)) {
+				return false
+			}
+		}
+		return setContainsStringMembers(members, coerced, col)
+	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return false
+		}
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return false
+		}
+		return setContainsStringMembers(members, decoded, col)
+	}
+	if kind != litString {
+		return false
+	}
+	return setContainsStringMembers(members, val, col)
+}
+
+func coerceEnumDefaultByString(col *Column, s string, strict bool) (string, bool) {
+	members := enumMembersFromColumnType(col.ColumnType)
+	target := collationComparisonKey(strings.TrimRight(s, " "), col.Collation, col.Charset)
+	for _, m := range members {
+		trimmedM := strings.TrimRight(m, " ")
+		if collationComparisonKey(trimmedM, col.Collation, col.Charset) == target {
+			return nodeToSQL(&nodes.StringLit{Value: trimmedM}), true
+		}
+	}
+	if target == "" && !strict {
+		return "''", true
+	}
+	return "", false
+}
+
+func coerceEnumDefault(col *Column, kind literalDefaultKind, val string, unquotedNum, strict bool) (string, bool) {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || u > uint64(len(members)) {
+				return "", false
+			}
+			if u == 0 {
+				if strict {
+					return "", false
+				}
+				return "''", true
+			}
+			return nodeToSQL(&nodes.StringLit{Value: strings.TrimRight(members[u-1], " ")}), true
+		}
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return "", false
+		}
+		return coerceEnumDefaultByString(col, coerced, strict)
+	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return "", false
+		}
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return "", false
+		}
+		return coerceEnumDefaultByString(col, decoded, strict)
+	}
+	if kind == litString {
+		return coerceEnumDefaultByString(col, val, strict)
+	}
+	return "", false
+}
+
+func coerceSetDefaultByString(col *Column, s string) (string, bool) {
+	if s == "" {
+		return "''", true
+	}
+	members := enumMembersFromColumnType(col.ColumnType)
+	chosen := make([]bool, len(members))
+	for _, part := range strings.Split(s, ",") {
+		pk := collationComparisonKey(strings.TrimRight(part, " "), col.Collation, col.Charset)
+		matched := false
+		for i, m := range members {
+			if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == pk {
+				chosen[i] = true
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return "", false
+		}
+	}
+	var out []string
+	for i, m := range members {
+		if chosen[i] {
+			out = append(out, strings.TrimRight(m, " "))
+		}
+	}
+	return nodeToSQL(&nodes.StringLit{Value: strings.Join(out, ",")}), true
+}
+
+func coerceSetDefault(col *Column, kind literalDefaultKind, val string, unquotedNum bool) (string, bool) {
+	members := enumMembersFromColumnType(col.ColumnType)
+	if unquotedNum {
+		s := strings.TrimSpace(val)
+		if isIntTok, nonNeg, u := parseMySQLIntOrUintLiteral(s); isIntTok {
+			if !nonNeg || (len(members) < 64 && u >= (uint64(1)<<len(members))) {
+				return "", false
+			}
+			var out []string
+			for i, m := range members {
+				if i < 64 && (u&(uint64(1)<<i)) != 0 {
+					out = append(out, strings.TrimRight(m, " "))
+				}
+			}
+			return nodeToSQL(&nodes.StringLit{Value: strings.Join(out, ",")}), true
+		}
+		coerced, ok := coercedDefaultLiteralString(s)
+		if !ok {
+			return "", false
+		}
+		return coerceSetDefaultByString(col, coerced)
+	}
+	if kind == litHex || kind == litBit {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return "", false
+		}
+		decoded, ok := decodeBytesInColumnCharset(raw, col.Charset)
+		if !ok {
+			return "", false
+		}
+		return coerceSetDefaultByString(col, decoded)
+	}
+	if kind == litString {
+		return coerceSetDefaultByString(col, val)
+	}
+	return "", false
+}
+
+// parseTimeZoneOffset reads a `[+-]H:M` time zone as MySQL's str_to_offset
+// does (sql/tztime.cc): either digit run may be empty or as long as it likes,
+// and both accumulate in unsigned 64-bit arithmetic that wraps, so
+// '+307445734561825861:00' wraps to 44 minutes and mysql:8.0.46 takes it as
+// +00:44, and '+18446744073709551616:00' as +00:00. The result must lie in
+// [-13:59, +14:00] with at most 59 minutes, and it is named from the offset:
+// '+0014:00' reads back +14:00 and '-0:00' +00:00.
+func parseTimeZoneOffset(tz string) (norm string, offsetMin int, ok bool) {
+	if len(tz) < 4 || (tz[0] != '+' && tz[0] != '-') {
+		return "", 0, false
+	}
+	i := 1
+	var hours uint64
+	for i < len(tz) && isASCIIDigit(tz[i]) {
+		hours = hours*10 + uint64(tz[i]-'0')
+		i++
+	}
+	if i+1 >= len(tz) || tz[i] != ':' {
+		return "", 0, false
+	}
+	i++
+	var minutes uint64
+	for i < len(tz) && isASCIIDigit(tz[i]) {
+		minutes = minutes*10 + uint64(tz[i]-'0')
+		i++
+	}
+	if i != len(tz) {
+		return "", 0, false
+	}
+	offsetSec := (int64(hours*60) + int64(minutes)) * 60
+	if tz[0] == '-' {
+		offsetSec = -offsetSec
+	}
+	if minutes > 59 || offsetSec < -(13*3600+59*60) || offsetSec > 14*3600 {
+		return "", 0, false
+	}
+	sign := "+"
+	if offsetSec < 0 {
+		sign = "-"
+	}
+	abs := offsetSec
+	if abs < 0 {
+		abs = -abs
+	}
+	return fmt.Sprintf("%s%02d:%02d", sign, abs/3600, abs%3600/60), int(offsetSec / 60), true
+}
+
+// validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL
+// 8.0.46 (`SYSTEM`, `[+-][H]H:MM` in `[-13:59, +14:00]`, or a configured
+// named zone from c.namedTimeZones).
+func (c *Catalog) validateAndNormalizeSessionTimeZone(raw string) (string, error) {
+	tz := strings.TrimSpace(raw)
+	if tz == "" || strings.EqualFold(tz, "Local") {
+		return "", errUnknownTimeZone(raw)
+	}
+	if strings.EqualFold(tz, "SYSTEM") {
+		return "SYSTEM", nil
+	}
+	if tz[0] == '+' || tz[0] == '-' {
+		norm, _, ok := parseTimeZoneOffset(tz)
+		if !ok {
+			return "", errUnknownTimeZone(raw)
+		}
+		return norm, nil
+	}
+	if _, ok := c.lookupNamedTimeZone(tz); !ok {
+		return "", errUnknownTimeZone(raw)
+	}
+	return tz, nil
+}
+
+func temporalColumnFSP(colType string) int {
+	pt := parseColumnType(colType)
+	if pt.hasLen && pt.length >= 0 && pt.length <= 6 {
+		return pt.length
+	}
+	return 0
+}
+
+func pow10Int(n int) int {
+	p := 1
+	for i := 0; i < n; i++ {
+		p *= 10
+	}
+	return p
+}
+
+type resolvedTimeZone struct {
+	raw      string
+	valid    bool
+	hasFixed bool
+	fixedMin int
+	loc      *time.Location
+}
+
+func utcResolvedTimeZone() resolvedTimeZone {
+	return resolvedTimeZone{raw: "UTC", valid: true, hasFixed: true, fixedMin: 0}
+}
+
+func (c *Catalog) resolveTimeZoneString(raw string) resolvedTimeZone {
+	tz := strings.TrimSpace(raw)
+	if tz == "" || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
+		return resolvedTimeZone{raw: tz, valid: true, hasFixed: true, fixedMin: 0}
+	}
+	if tz[0] == '+' || tz[0] == '-' {
+		if _, off, ok := parseTimeZoneOffset(tz); ok {
+			return resolvedTimeZone{raw: tz, valid: true, hasFixed: true, fixedMin: off}
+		}
+		return resolvedTimeZone{raw: raw}
+	}
+	loc, ok := c.lookupNamedTimeZone(tz)
+	if !ok {
+		return resolvedTimeZone{raw: raw}
+	}
+	return resolvedTimeZone{raw: tz, valid: true, loc: loc}
+}
+
+func convertSessionLocalToUTC(year, month, day, hour, min, sec, nsec int, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	if !sessionTZ.valid {
+		return time.Time{}, false
+	}
+	if sessionTZ.hasFixed {
+		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC).Add(-time.Duration(sessionTZ.fixedMin) * time.Minute), true
+	}
+	if sessionTZ.loc == nil {
+		return time.Time{}, false
+	}
+	localT := time.Date(year, time.Month(month), day, hour, min, sec, nsec, sessionTZ.loc)
+	// Reject spring-forward DST gap times that do not exist in loc.
+	if localT.Year() != year || localT.Month() != time.Month(month) || localT.Day() != day ||
+		localT.Hour() != hour || localT.Minute() != min || localT.Second() != sec {
+		return time.Time{}, false
+	}
+	return localT.UTC(), true
+}
+
+type parsedMySQLDateTime struct {
+	year, month, day int
+	hour, min, sec   int
+	micros           int
+	allZero          bool
+	hasTZ            bool
+	tzOffsetMin      int
+}
+
+func roundOrTruncateFractionRatToFSP(frac *big.Rat, fsp int, truncate bool) (micros int, carrySec bool) {
+	if frac == nil || frac.Sign() <= 0 {
+		return 0, false
+	}
+	scale := pow10Int(fsp)
+	scaled := new(big.Rat).Mul(frac, big.NewRat(int64(scale), 1))
+	if truncate {
+		ticks := int(new(big.Int).Quo(scaled.Num(), scaled.Denom()).Int64())
+		return ticks * pow10Int(6-fsp), false
+	}
+	ticks := int(roundRatHalfAwayFromZero(scaled).Int64())
+	if ticks >= scale {
+		return 0, true
+	}
+	return ticks * pow10Int(6-fsp), false
+}
+
+func roundOrTruncateFractionDigitsToFSP(fracDigits string, fsp int, truncate bool) (micros int, carrySec bool) {
+	trimmed := strings.TrimRight(fracDigits, "0")
+	if trimmed == "" {
+		return 0, false
+	}
+	r, ok := new(big.Rat).SetString("0." + trimmed)
+	if !ok {
+		return 0, false
+	}
+	return roundOrTruncateFractionRatToFSP(r, fsp, truncate)
+}
+
+func addOneSecondToDateTime(year, month, day, hour, min, sec int) (int, int, int, int, int, int, bool) {
+	if month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(year, month) {
+		t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC).Add(time.Second)
+		if t.Year() > 9999 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		return t.Year(), int(t.Month()), t.Day(), t.Hour(), t.Minute(), t.Second(), true
+	}
+	sec++
+	if sec < 60 {
+		return year, month, day, hour, min, sec, true
+	}
+	sec = 0
+	min++
+	if min < 60 {
+		return year, month, day, hour, min, sec, true
+	}
+	min = 0
+	hour++
+	if hour < 24 {
+		return year, month, day, hour, min, sec, true
+	}
+	hour = 0
+	day++
+	if day <= 31 {
+		return year, month, day, hour, min, sec, true
+	}
+	return 0, 0, 0, 0, 0, 0, false
+}
+
+// parseMySQLNumberDateTime implements MySQL 8.0's number_to_datetime /
+// my_decimal_to_datetime rules for unquoted numeric temporal literals:
+//   - 0 -> 0000-00-00 00:00:00
+//   - 101..999999 -> left-padded to 6 digits YYMMDD (2-digit year)
+//   - 1000000..99999999 -> left-padded to 8 digits YYYYMMDD (4-digit year)
+//   - 100000000..999999999999 -> left-padded to 12 digits YYMMDDHHMMSS (2-digit year)
+//   - 1000000000000..99999999999999 -> left-padded to 14 digits YYYYMMDDHHMMSS (4-digit year)
+//
+// Date-only values (< 100000000) reject non-zero fractional seconds.
+func parseMySQLNumberDateTime(dt string, fsp int, val string, truncateFrac bool) (parsedMySQLDateTime, bool) {
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		return parsedMySQLDateTime{}, false
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok || r.Sign() < 0 {
+		return parsedMySQLDateTime{}, false
+	}
+	intPart := new(big.Int).Quo(r.Num(), r.Denom())
+	rem := new(big.Int).Rem(r.Num(), r.Denom())
+	if rem.Sign() != 0 && intPart.Cmp(big.NewInt(100000000)) < 0 {
+		return parsedMySQLDateTime{}, false
+	}
+	if !intPart.IsUint64() {
+		return parsedMySQLDateTime{}, false
+	}
+	nr := intPart.Uint64()
+	if nr == 0 {
+		return parsedMySQLDateTime{allZero: true}, true
+	}
+	if nr < 101 || nr >= 100000000000000 {
+		return parsedMySQLDateTime{}, false
+	}
+	var out parsedMySQLDateTime
+	switch {
+	case nr <= 999999:
+		d := fmt.Sprintf("%06d", nr)
+		y, _ := strconv.Atoi(d[0:2])
+		out.month, _ = strconv.Atoi(d[2:4])
+		out.day, _ = strconv.Atoi(d[4:6])
+		out.year = expandTwoDigitYear(y, out.month, out.day)
+	case nr <= 99999999:
+		d := fmt.Sprintf("%08d", nr)
+		out.year, _ = strconv.Atoi(d[0:4])
+		out.month, _ = strconv.Atoi(d[4:6])
+		out.day, _ = strconv.Atoi(d[6:8])
+	case nr <= 999999999999:
+		d := fmt.Sprintf("%012d", nr)
+		y, _ := strconv.Atoi(d[0:2])
+		out.month, _ = strconv.Atoi(d[2:4])
+		out.day, _ = strconv.Atoi(d[4:6])
+		out.year = expandTwoDigitYear(y, out.month, out.day)
+		out.hour, _ = strconv.Atoi(d[6:8])
+		out.min, _ = strconv.Atoi(d[8:10])
+		out.sec, _ = strconv.Atoi(d[10:12])
+	default:
+		d := fmt.Sprintf("%014d", nr)
+		out.year, _ = strconv.Atoi(d[0:4])
+		out.month, _ = strconv.Atoi(d[4:6])
+		out.day, _ = strconv.Atoi(d[6:8])
+		out.hour, _ = strconv.Atoi(d[8:10])
+		out.min, _ = strconv.Atoi(d[10:12])
+		out.sec, _ = strconv.Atoi(d[12:14])
+	}
+	if out.month > 12 || out.day > 31 || out.hour > 23 || out.min > 59 || out.sec > 59 {
+		return parsedMySQLDateTime{}, false
+	}
+	if dt != "date" && rem.Sign() > 0 {
+		frac := new(big.Rat).SetFrac(rem, r.Denom())
+		micros, carry := roundOrTruncateFractionRatToFSP(frac, fsp, truncateFrac)
+		out.micros = micros
+		if carry {
+			var carryOK bool
+			out.year, out.month, out.day, out.hour, out.min, out.sec, carryOK =
+				addOneSecondToDateTime(out.year, out.month, out.day, out.hour, out.min, out.sec)
+			if !carryOK {
+				return parsedMySQLDateTime{}, false
+			}
+		}
+	}
+	return out, true
+}
+
+func parseMySQLStringDateTime(dt string, fsp int, s string, truncateFrac bool) (parsedMySQLDateTime, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" || !isASCIIDigit(s[0]) {
+		return parsedMySQLDateTime{}, false
+	}
+	var out parsedMySQLDateTime
+	base := s
+	// Check for an attached timezone suffix `[+-]HH:MM` immediately following a
+	// delimited 6-field date-and-time value (no whitespace before the sign).
+	// MySQL 8.0.46 accepts `-14:00` through `+14:00` and rejects `-00:00` and
+	// compact digit-only prefixes (`20200101123456+00:00`).
+	if len(base) >= 7 {
+		tz := base[len(base)-6:]
+		if (tz[0] == '+' || tz[0] == '-') && isASCIIDigit(tz[1]) && isASCIIDigit(tz[2]) &&
+			tz[3] == ':' && isASCIIDigit(tz[4]) && isASCIIDigit(tz[5]) && isASCIIDigit(base[len(base)-7]) {
+			prefix := base[:len(base)-6]
+			prefixNoFrac, _ := splitDateTimeTrailingFraction(prefix)
+			allPrefixDigits := len(prefixNoFrac) > 0
+			for i := 0; i < len(prefixNoFrac); i++ {
+				if !isASCIIDigit(prefixNoFrac[i]) {
+					allPrefixDigits = false
+					break
+				}
+			}
+			if !allPrefixDigits && countDigitRuns(prefixNoFrac) == 6 {
+				tzH := int(tz[1]-'0')*10 + int(tz[2]-'0')
+				tzM := int(tz[4]-'0')*10 + int(tz[5]-'0')
+				if tz[0] == '-' && tzH == 0 && tzM == 0 {
+					return parsedMySQLDateTime{}, false
+				}
+				if tzM > 59 || tzH*60+tzM > 14*60 {
+					return parsedMySQLDateTime{}, false
+				}
+				out.hasTZ = true
+				out.tzOffsetMin = tzH*60 + tzM
+				if tz[0] == '-' {
+					out.tzOffsetMin = -out.tzOffsetMin
+				}
+				base = prefix
+			}
+		}
+	}
+
+	var parts []string
+	var seps []string // seps[k] precedes parts[k]
+	i := 0
+	for i < len(base) {
+		sepStart := i
+		for i < len(base) && !isASCIIDigit(base[i]) {
+			i++
+		}
+		sep := base[sepStart:i]
+		if i >= len(base) {
+			// Reject trailing non-space characters such as 'Z' or trailing '.'.
+			if strings.TrimSpace(sep) != "" {
+				return parsedMySQLDateTime{}, false
+			}
+			break
+		}
+		digStart := i
+		for i < len(base) && isASCIIDigit(base[i]) {
+			i++
+		}
+		seps = append(seps, sep)
+		parts = append(parts, base[digStart:i])
+	}
+	if len(parts) == 0 {
+		return parsedMySQLDateTime{}, false
+	}
+
+	// Validate separators: reject ASCII letters except a single 'T'/'t' between
+	// the date part and time part.
+	p0 := parts[0]
+	n0 := len(p0)
+	tSepIdx := 3
+	if n0 == 5 || n0 == 6 || n0 == 8 {
+		tSepIdx = 1
+	}
+	for idx, sep := range seps {
+		for k := 0; k < len(sep); k++ {
+			ch := sep[k]
+			if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+				if idx == tSepIdx && (sep == "T" || sep == "t") {
+					continue
+				}
+				return parsedMySQLDateTime{}, false
+			}
+		}
+	}
+
+	var fracDigits string
+	if n0 >= 5 {
+		if n0 == 13 || n0 > 14 {
+			return parsedMySQLDateTime{}, false
+		}
+		filled := 0
+		switch n0 {
+		case 8:
+			out.year, _ = strconv.Atoi(p0[0:4])
+			out.month, _ = strconv.Atoi(p0[4:6])
+			out.day, _ = strconv.Atoi(p0[6:8])
+			filled = 3
+		case 14:
+			out.year, _ = strconv.Atoi(p0[0:4])
+			out.month, _ = strconv.Atoi(p0[4:6])
+			out.day, _ = strconv.Atoi(p0[6:8])
+			out.hour, _ = strconv.Atoi(p0[8:10])
+			out.min, _ = strconv.Atoi(p0[10:12])
+			out.sec, _ = strconv.Atoi(p0[12:14])
+			filled = 6
+		default:
+			yy, _ := strconv.Atoi(p0[0:2])
+			out.month, _ = strconv.Atoi(p0[2:4])
+			dEnd := 6
+			if n0 < 6 {
+				dEnd = n0
+			}
+			out.day, _ = strconv.Atoi(p0[4:dEnd])
+			out.year = expandTwoDigitYear(yy, out.month, out.day)
+			filled = 3
+			if n0 >= 7 {
+				hEnd := 8
+				if n0 < 8 {
+					hEnd = n0
+				}
+				out.hour, _ = strconv.Atoi(p0[6:hEnd])
+				filled = 4
+			}
+			if n0 >= 9 {
+				mEnd := 10
+				if n0 < 10 {
+					mEnd = n0
+				}
+				out.min, _ = strconv.Atoi(p0[8:mEnd])
+				filled = 5
+			}
+			if n0 >= 11 {
+				sEnd := 12
+				if n0 < 12 {
+					sEnd = n0
+				}
+				out.sec, _ = strconv.Atoi(p0[10:sEnd])
+				filled = 6
+			}
+		}
+		for idx := 1; idx < len(parts); idx++ {
+			if filled < 6 {
+				v, err := strconv.Atoi(parts[idx])
+				if err != nil {
+					return parsedMySQLDateTime{}, false
+				}
+				switch filled {
+				case 3:
+					out.hour = v
+				case 4:
+					out.min = v
+				case 5:
+					out.sec = v
+				}
+				filled++
+			} else if filled == 6 && seps[idx] == "." {
+				fracDigits = parts[idx]
+				filled = 7
+			} else {
+				return parsedMySQLDateTime{}, false
+			}
+		}
+	} else {
+		if len(parts) < 3 || len(parts) > 7 {
+			return parsedMySQLDateTime{}, false
+		}
+		y, err1 := strconv.Atoi(parts[0])
+		m, err2 := strconv.Atoi(parts[1])
+		d, err3 := strconv.Atoi(parts[2])
+		if err1 != nil || err2 != nil || err3 != nil {
+			return parsedMySQLDateTime{}, false
+		}
+		if len(parts[0]) <= 2 {
+			y = expandTwoDigitYear(y, m, d)
+		}
+		out.year, out.month, out.day = y, m, d
+		if len(parts) >= 4 {
+			v, err := strconv.Atoi(parts[3])
+			if err != nil {
+				return parsedMySQLDateTime{}, false
+			}
+			out.hour = v
+		}
+		if len(parts) >= 5 {
+			v, err := strconv.Atoi(parts[4])
+			if err != nil {
+				return parsedMySQLDateTime{}, false
+			}
+			out.min = v
+		}
+		if len(parts) >= 6 {
+			v, err := strconv.Atoi(parts[5])
+			if err != nil {
+				return parsedMySQLDateTime{}, false
+			}
+			out.sec = v
+		}
+		if len(parts) == 7 {
+			if seps[6] != "." {
+				return parsedMySQLDateTime{}, false
+			}
+			fracDigits = parts[6]
+		}
+	}
+
+	out.allZero = out.year == 0 && out.month == 0 && out.day == 0 &&
+		out.hour == 0 && out.min == 0 && out.sec == 0 && strings.TrimLeft(fracDigits, "0") == ""
+	if out.allZero {
+		return out, true
+	}
+	if out.year > 9999 || out.month > 12 || out.day > 31 || out.hour > 23 || out.min > 59 || out.sec > 59 {
+		return parsedMySQLDateTime{}, false
+	}
+	if dt != "date" && fracDigits != "" {
+		// MySQL truncates string microseconds beyond 6 digits before rounding or
+		// truncating to fsp.
+		if len(fracDigits) > 6 {
+			fracDigits = fracDigits[:6]
+		}
+		micros, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
+		out.micros = micros
+		if carry {
+			var carryOK bool
+			out.year, out.month, out.day, out.hour, out.min, out.sec, carryOK =
+				addOneSecondToDateTime(out.year, out.month, out.day, out.hour, out.min, out.sec)
+			if !carryOK {
+				return parsedMySQLDateTime{}, false
+			}
+		}
+	}
+	return out, true
+}
+
+func splitDateTimeTrailingFraction(s string) (string, string) {
+	dot := strings.LastIndexByte(s, '.')
+	if dot < 0 {
+		return s, ""
+	}
+	frac := s[dot+1:]
+	if len(frac) == 0 {
+		return s, ""
+	}
+	for i := 0; i < len(frac); i++ {
+		if !isASCIIDigit(frac[i]) {
+			return s, ""
+		}
+	}
+	if strings.ContainsAny(s[:dot], " Tt:") || len(s[:dot]) >= 11 {
+		return s[:dot], frac
+	}
+	return s, ""
+}
+
+func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac bool, sessionTZ resolvedTimeZone) (valid bool, unknownTZ bool) {
+	var p parsedMySQLDateTime
+	var ok bool
+	switch {
+	case kind == litNumber && unquotedNum:
+		p, ok = parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
+	case kind == litString:
+		p, ok = parseMySQLStringDateTime(dt, fsp, val, truncateFrac)
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return false, false
+		}
+		p, ok = parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
+	default:
+		return false, false
+	}
+	if !ok {
+		return false, false
+	}
+	if p.allZero {
+		if p.hasTZ {
+			return false, false
+		}
+		return !noZeroDate, false
+	}
+	if p.month == 0 || p.day == 0 {
+		if dt == "timestamp" || p.hasTZ || noZeroInDate {
+			return false, false
+		}
+		return true, false
+	}
+	if (dt == "timestamp" || p.hasTZ || !allowInvalidDates) && p.day > daysInMonth(p.year, p.month) {
+		return false, false
+	}
+	minUTC := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
+	maxUTC := time.Date(2038, time.January, 19, 3, 14, 7, 999999000, time.UTC)
+	nsec := p.micros * 1000
+	if p.hasTZ {
+		if !sessionTZ.valid {
+			return false, true
+		}
+		utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
+		if utc.Year() < 0 || utc.Year() > 9999 {
+			return false, false
+		}
+		if dt == "timestamp" && (utc.Before(minUTC) || utc.After(maxUTC)) {
+			return false, false
+		}
+		localT, tzOK := convertUTCToSessionLocal(utc, sessionTZ)
+		if !tzOK {
+			return false, true
+		}
+		if localT.Year() < 0 || localT.Year() > 9999 {
+			return false, false
+		}
+		return true, false
+	}
+	if dt == "timestamp" {
+		if !sessionTZ.valid {
+			return false, true
+		}
+		utc, validLocal := convertSessionLocalToUTC(p.year, p.month, p.day, p.hour, p.min, p.sec, nsec, sessionTZ)
+		if !validLocal || utc.Before(minUTC) || utc.After(maxUTC) {
+			return false, false
+		}
+	}
+	return true, false
+}
+
+func convertUTCToSessionLocal(utc time.Time, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	if !sessionTZ.valid {
+		return time.Time{}, false
+	}
+	if sessionTZ.hasFixed {
+		return utc.UTC().Add(time.Duration(sessionTZ.fixedMin) * time.Minute), true
+	}
+	if sessionTZ.loc == nil {
+		return time.Time{}, false
+	}
+	return utc.In(sessionTZ.loc), true
+}
+
+func resolveTimezoneDateTimeToSession(p parsedMySQLDateTime, sessionTZ resolvedTimeZone) (parsedMySQLDateTime, bool) {
+	if !p.hasTZ {
+		return p, true
+	}
+	nsec := p.micros * 1000
+	utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
+	if utc.Year() < 0 || utc.Year() > 9999 {
+		return parsedMySQLDateTime{}, false
+	}
+	localT, tzOK := convertUTCToSessionLocal(utc, sessionTZ)
+	if !tzOK || localT.Year() < 0 || localT.Year() > 9999 {
+		return parsedMySQLDateTime{}, false
+	}
+	return parsedMySQLDateTime{
+		year:   localT.Year(),
+		month:  int(localT.Month()),
+		day:    localT.Day(),
+		hour:   localT.Hour(),
+		min:    localT.Minute(),
+		sec:    localT.Second(),
+		micros: localT.Nanosecond() / 1000,
+	}, true
+}
+
+func formatParsedDateOrDatetime(dt string, fsp int, p parsedMySQLDateTime) string {
+	if dt == "date" {
+		if p.allZero {
+			return "'0000-00-00'"
+		}
+		return fmt.Sprintf("'%04d-%02d-%02d'", p.year, p.month, p.day)
+	}
+	fracSuffix := ""
+	if fsp > 0 {
+		fracSuffix = fmt.Sprintf(".%0*d", fsp, p.micros/pow10Int(6-fsp))
+	}
+	if p.allZero {
+		return fmt.Sprintf("'0000-00-00 00:00:00%s'", fracSuffix)
+	}
+	return fmt.Sprintf("'%04d-%02d-%02d %02d:%02d:%02d%s'",
+		p.year, p.month, p.day, p.hour, p.min, p.sec, fracSuffix)
+}
+
+func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool, sessionTZ resolvedTimeZone) (string, bool) {
+	switch {
+	case kind == litNumber && unquotedNum:
+		p, ok := parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return "", false
+		}
+		p, ok := parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
+		if !ok {
+			return "", false
+		}
+		p, ok = resolveTimezoneDateTimeToSession(p, sessionTZ)
+		if !ok {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	case kind == litString:
+		s := strings.TrimSpace(val)
+		p, ok := parseMySQLStringDateTime(dt, fsp, s, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		if p.hasTZ {
+			p, ok = resolveTimezoneDateTimeToSession(p, sessionTZ)
+			if !ok {
+				return "", false
+			}
+			return formatParsedDateOrDatetime(dt, fsp, p), true
+		}
+		if dt == "date" {
+			return "", false
+		}
+		_, frac := splitDateTimeTrailingFraction(s)
+		if len(frac) <= fsp {
+			return "", false
+		}
+		return formatParsedDateOrDatetime(dt, fsp, p), true
+	default:
+		return "", false
+	}
+}
+
+func isASCIIDigit(b byte) bool {
+	return b >= '0' && b <= '9'
+}
+
+func countDigitRuns(s string) int {
+	n := 0
+	for i := 0; i < len(s); {
+		if isASCIIDigit(s[i]) {
+			n++
+			for i < len(s) && isASCIIDigit(s[i]) {
+				i++
+			}
+		} else {
+			i++
+		}
+	}
+	return n
+}
+
+func expandTwoDigitYear(y, m, d int) int {
+	if y == 0 && m == 0 && d == 0 {
+		return 0
+	}
+	if y >= 70 {
+		return 1900 + y
+	}
+	return 2000 + y
+}
+
+func parseTimeValue(fsp int, s string, unquotedNum, truncateFrac bool) (neg bool, totalHours, mm, ss, micros int, ok bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false, 0, 0, 0, 0, false
+	}
+	if unquotedNum {
+		if !isStrictNumberSyntax(s) {
+			return false, 0, 0, 0, 0, false
+		}
+		r, ratOK := new(big.Rat).SetString(s)
+		if !ratOK {
+			return false, 0, 0, 0, 0, false
+		}
+		neg = r.Sign() < 0
+		absR := new(big.Rat).Abs(r)
+		intPart := new(big.Int).Quo(absR.Num(), absR.Denom())
+		rem := new(big.Int).Rem(absR.Num(), absR.Denom())
+		if !intPart.IsUint64() {
+			return false, 0, 0, 0, 0, false
+		}
+		nr := intPart.Uint64()
+		if !neg && nr >= 100000000 {
+			p, dtOK := parseMySQLNumberDateTime("datetime", fsp, s, truncateFrac)
+			if !dtOK || (!p.allZero && p.day > daysInMonth(p.year, p.month)) {
+				return false, 0, 0, 0, 0, false
+			}
+			return false, p.hour, p.min, p.sec, p.micros, true
+		}
+		ss = int(nr % 100)
+		mm = int((nr / 100) % 100)
+		totalHours = int(nr / 10000)
+		if mm >= 60 || ss >= 60 || totalHours > 838 {
+			return false, 0, 0, 0, 0, false
+		}
+		if rem.Sign() > 0 {
+			// MySQL's number_to_time enforces TIME_MAX_VALUE (838:59:59.000000)
+			// on the input microseconds before TIME_TRUNCATE_FRACTIONAL applies.
+			frac := new(big.Rat).SetFrac(rem, absR.Denom())
+			rawMicros, rawCarry := roundOrTruncateFractionRatToFSP(frac, 6, true)
+			if totalHours == 838 && mm == 59 && ss == 59 && (rawMicros > 0 || rawCarry) {
+				return false, 0, 0, 0, 0, false
+			}
+			var carry bool
+			micros, carry = roundOrTruncateFractionRatToFSP(frac, fsp, truncateFrac)
+			if carry {
+				ss++
+				if ss >= 60 {
+					ss = 0
+					mm++
+					if mm >= 60 {
+						mm = 0
+						totalHours++
+					}
+				}
+			}
+		}
+		if totalHours > 838 || (totalHours == 838 && mm == 59 && ss == 59 && micros > 0) {
+			return false, 0, 0, 0, 0, false
+		}
+		if totalHours == 0 && mm == 0 && ss == 0 && micros == 0 {
+			neg = false
+		}
+		return neg, totalHours, mm, ss, micros, true
+	}
+
+	orig := s
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = strings.TrimSpace(s[1:])
+	} else if strings.HasPrefix(s, "+") {
+		s = strings.TrimSpace(s[1:])
+	}
+	if s == "" {
+		return false, 0, 0, 0, 0, false
+	}
+	var fracDigits string
+	if dot := strings.IndexByte(s, '.'); dot >= 0 {
+		fracDigits = s[dot+1:]
+		if fracDigits == "" || len(fracDigits) > 6 {
+			return false, 0, 0, 0, 0, false
+		}
+		for i := 0; i < len(fracDigits); i++ {
+			if !isASCIIDigit(fracDigits[i]) {
+				return false, 0, 0, 0, 0, false
+			}
+		}
+		s = s[:dot]
+	}
+	hasRawNonZeroFrac := strings.TrimRight(fracDigits, "0") != ""
+	plainTime := len(s) > 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && c != ':' && c != ' ' {
+			plainTime = false
+			break
+		}
+	}
+	if plainTime {
+		days := 0
+		hasSpace := false
+		if sp := strings.IndexByte(s, ' '); sp >= 0 {
+			hasSpace = true
+			d, err := strconv.Atoi(strings.TrimSpace(s[:sp]))
+			if err == nil && d <= 34 {
+				days = d
+				s = strings.TrimSpace(s[sp+1:])
+			} else {
+				plainTime = false
+			}
+		}
+		if plainTime && strings.Contains(s, ":") {
+			fields := strings.Split(s, ":")
+			if len(fields) >= 2 && len(fields) <= 3 {
+				hh, err1 := strconv.Atoi(fields[0])
+				m, err2 := strconv.Atoi(fields[1])
+				sec := 0
+				var err3 error
+				if len(fields) == 3 {
+					sec, err3 = strconv.Atoi(fields[2])
+				}
+				if err1 == nil && err2 == nil && err3 == nil {
+					th := days*24 + hh
+					if m < 60 && sec < 60 && th <= 838 {
+						if th == 838 && m == 59 && sec == 59 && hasRawNonZeroFrac {
+							return false, 0, 0, 0, 0, false
+						}
+						mc, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
+						if carry {
+							sec++
+							if sec >= 60 {
+								sec = 0
+								m++
+								if m >= 60 {
+									m = 0
+									th++
+								}
+							}
+						}
+						if th > 838 || (th == 838 && m == 59 && sec == 59 && mc > 0) {
+							return false, 0, 0, 0, 0, false
+						}
+						if th == 0 && m == 0 && sec == 0 && mc == 0 {
+							neg = false
+						}
+						return neg, th, m, sec, mc, true
+					}
+				}
+			}
+		} else if plainTime && !hasSpace {
+			if n, err := strconv.Atoi(s); err == nil {
+				sec := n % 100
+				m := (n / 100) % 100
+				th := n / 10000
+				if m < 60 && sec < 60 && th <= 838 {
+					if th == 838 && m == 59 && sec == 59 && hasRawNonZeroFrac {
+						return false, 0, 0, 0, 0, false
+					}
+					mc, carry := roundOrTruncateFractionDigitsToFSP(fracDigits, fsp, truncateFrac)
+					if carry {
+						sec++
+						if sec >= 60 {
+							sec = 0
+							m++
+							if m >= 60 {
+								m = 0
+								th++
+							}
+						}
+					}
+					if th > 838 || (th == 838 && m == 59 && sec == 59 && mc > 0) {
+						return false, 0, 0, 0, 0, false
+					}
+					if th == 0 && m == 0 && sec == 0 && mc == 0 {
+						neg = false
+					}
+					return neg, th, m, sec, mc, true
+				}
+			}
+		}
+	}
+	if !neg {
+		if p, dtOK := parseMySQLStringDateTime("datetime", fsp, orig, truncateFrac); dtOK && (!p.allZero && p.month >= 1 && p.day >= 1 && p.day <= daysInMonth(p.year, p.month)) {
+			return false, p.hour, p.min, p.sec, p.micros, true
+		}
+	}
+	return false, 0, 0, 0, 0, false
+}
+
+func validTimeLiteralDefault(fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) bool {
+	switch kind {
+	case litNumber:
+		_, _, _, _, _, ok := parseTimeValue(fsp, val, unquotedNum, truncateFrac)
+		return ok
+	case litString:
+		_, _, _, _, _, ok := parseTimeValue(fsp, val, false, truncateFrac)
+		return ok
+	case litHex, litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return false
+		}
+		_, _, _, _, _, ok := parseTimeValue(fsp, string(raw), false, truncateFrac)
+		return ok
+	default:
+		return false
+	}
+}
+
+func formatParsedTime(fsp int, neg bool, th, mm, ss, micros int) string {
+	sign := ""
+	if neg {
+		sign = "-"
+	}
+	fracSuffix := ""
+	if fsp > 0 {
+		fracSuffix = fmt.Sprintf(".%0*d", fsp, micros/pow10Int(6-fsp))
+	}
+	return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, th, mm, ss, fracSuffix)
+}
+
+func coerceTimeDefault(fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool) (string, bool) {
+	switch {
+	case kind == litNumber && unquotedNum:
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, val, true, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	case kind == litHex || kind == litBit:
+		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
+		if !decOK {
+			return "", false
+		}
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, string(raw), false, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	case kind == litString:
+		s := strings.TrimSpace(val)
+		dot := strings.LastIndexByte(s, '.')
+		if dot < 0 || len(s[dot+1:]) <= fsp {
+			return "", false
+		}
+		neg, th, mm, ss, micros, ok := parseTimeValue(fsp, s, false, truncateFrac)
+		if !ok {
+			return "", false
+		}
+		return formatParsedTime(fsp, neg, th, mm, ss, micros), true
+	default:
+		return "", false
+	}
+}

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -10,24 +11,26 @@ import (
 //
 // pg: src/include/catalog/pg_constraint.h
 type Constraint struct {
-	OID           uint32
-	Name          string
-	Type          ConstraintType
-	RelOID        uint32
-	Namespace     uint32       // connamespace (schema OID)
-	Columns       []int16      // attnums
-	FRelOID       uint32       // FK: referenced relation OID
-	FColumns      []int16      // FK: referenced attnums
-	FKUpdAction   byte         // FK: 'a'=NO ACTION, 'r'=RESTRICT, 'c'=CASCADE, 'n'=SET NULL, 'd'=SET DEFAULT
-	FKDelAction   byte         // FK: same codes
-	FKMatchType   byte         // FK: 's'=SIMPLE, 'f'=FULL, 'p'=PARTIAL
-	Deferrable    bool         // condeferrable
-	Deferred      bool         // condeferred
-	Validated     bool         // convalidated
-	CheckExpr     string       // CHECK: opaque expression
-	CheckAnalyzed AnalyzedExpr // CHECK: analyzed form (for Tier 2 deparse)
-	IndexOID      uint32       // PK/UNIQUE/EXCLUDE: backing index OID
-	ExclOps       []string     // EXCLUDE only: operator names per column
+	OID            uint32
+	Name           string
+	Type           ConstraintType
+	RelOID         uint32
+	Namespace      uint32       // connamespace (schema OID)
+	Columns        []int16      // key attnums
+	IncludeColumns []int16      // PK/UNIQUE/EXCLUDE INCLUDE attnums
+	FRelOID        uint32       // FK: referenced relation OID
+	FColumns       []int16      // FK: referenced attnums
+	FKUpdAction    byte         // FK: 'a'=NO ACTION, 'r'=RESTRICT, 'c'=CASCADE, 'n'=SET NULL, 'd'=SET DEFAULT
+	FKDelAction    byte         // FK: same codes
+	FKMatchType    byte         // FK: 's'=SIMPLE, 'f'=FULL, 'p'=PARTIAL
+	Deferrable     bool         // condeferrable
+	Deferred       bool         // condeferred
+	Validated      bool         // convalidated
+	CheckExpr      string       // CHECK: opaque expression
+	CheckAnalyzed  AnalyzedExpr // CHECK: analyzed form (for Tier 2 deparse)
+	IndexOID       uint32       // PK/UNIQUE/EXCLUDE: backing index OID
+	ExclOps        []string     // EXCLUDE only: operator names per column
+	ExclOpSchemas  []string     // EXCLUDE only: operator schema per column ("" when unqualified)
 
 	// Inheritance/partition fields.
 	// pg: src/include/catalog/pg_constraint.h lines 89-108
@@ -111,12 +114,38 @@ func (c *Catalog) addUniqueConstraint(schema *Schema, rel *Relation, def Constra
 }
 
 func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def ConstraintDef, typ ConstraintType, attnums []int16, existingIdx *Index) error {
+	var includeAttnums []int16
+	if existingIdx == nil && len(def.IncludeColumns) > 0 {
+		// pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraint
+		// Checks duplicates within cstmt->including (indexIncludingParams) separately
+		// from cstmt->keys (indexParams); key+INCLUDE overlap such as UNIQUE (a) INCLUDE (a)
+		// is accepted by PostgreSQL 17 (see testdata/simulate.tsv:701, TestSimulation.tape:17979).
+		seenInc := make(map[string]bool, len(def.IncludeColumns))
+		for _, incName := range def.IncludeColumns {
+			if seenInc[incName] {
+				return errDuplicateColumn(incName)
+			}
+			seenInc[incName] = true
+		}
+		var err error
+		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
+		if err != nil {
+			return err
+		}
+	} else if existingIdx != nil && existingIdx.NKeyColumns > 0 && existingIdx.NKeyColumns < len(existingIdx.Columns) {
+		includeAttnums = append([]int16(nil), existingIdx.Columns[existingIdx.NKeyColumns:]...)
+	}
+
 	name := def.Name
 	if name == "" {
 		if existingIdx != nil {
 			name = existingIdx.Name
 		} else {
-			name = generateConstraintName(rel.Name, def.Columns, typ)
+			allRawCols := make([]string, 0, len(def.Columns)+len(def.IncludeColumns))
+			allRawCols = append(allRawCols, def.Columns...)
+			allRawCols = append(allRawCols, def.IncludeColumns...)
+			chosenCols := chooseIndexColumnNames(allRawCols)
+			name = c.chooseConstraintAndIndexName(schema, rel, chosenCols, typ)
 		}
 	}
 
@@ -142,7 +171,10 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		if idxName == "" {
 			idxName = generateIndexName(rel.Name, def.Columns, isPrimary)
 		}
-		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
+		allAttnums := make([]int16, 0, len(attnums)+len(includeAttnums))
+		allAttnums = append(allAttnums, attnums...)
+		allAttnums = append(allAttnums, includeAttnums...)
+		idx = c.createIndexInternal(schema, rel, idxName, allAttnums, len(attnums), true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(effectiveTablespace)
 	} else {
 		idx.IsUnique = true
@@ -154,23 +186,27 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	}
 
 	con := &Constraint{
-		OID:        conOID,
-		Name:       name,
-		Type:       typ,
-		RelOID:     rel.OID,
-		Namespace:  schema.OID,
-		Columns:    attnums,
-		IndexOID:   idx.OID,
-		Deferrable: def.Deferrable,
-		Deferred:   def.Deferred,
-		Validated:  true,
-		ConIsLocal: true,
+		OID:            conOID,
+		Name:           name,
+		Type:           typ,
+		RelOID:         rel.OID,
+		Namespace:      schema.OID,
+		Columns:        attnums,
+		IncludeColumns: includeAttnums,
+		IndexOID:       idx.OID,
+		Deferrable:     def.Deferrable,
+		Deferred:       def.Deferred,
+		Validated:      true,
+		ConIsLocal:     true,
 	}
 
 	c.registerConstraint(rel.OID, con)
 	// Constraint depends on owning relation columns (auto-dropped).
 	// pg: pg_constraint.c — CreateConstraintEntry lines 254-268
 	for _, attnum := range attnums {
+		c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(attnum), DepAuto)
+	}
+	for _, attnum := range includeAttnums {
 		c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(attnum), DepAuto)
 	}
 	// Index depends on its constraint (internal).
@@ -181,6 +217,13 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 
 func (c *Catalog) resolveIndexConstraintAttnums(schema *Schema, rel *Relation, def ConstraintDef) ([]int16, *Index, error) {
 	if def.IndexName == "" {
+		seen := make(map[string]bool, len(def.Columns))
+		for _, name := range def.Columns {
+			if seen[name] {
+				return nil, nil, errDuplicateColumn(name)
+			}
+			seen[name] = true
+		}
 		attnums, err := c.resolveColumnNames(rel, def.Columns)
 		return attnums, nil, err
 	}
@@ -471,8 +514,20 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 			return &Error{Code: CodeFeatureNotSupported,
 				Message: "cannot use subquery in check constraint"}
 		}
-		if a, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel); err == nil {
-			analyzed = a
+		a, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel)
+		if err != nil {
+			if !c.installingSnapshot {
+				return err
+			}
+		} else if a != nil {
+			coerced, cerr := c.coerceToBoolean(a, "CHECK")
+			if cerr != nil {
+				if !c.installingSnapshot {
+					return cerr
+				}
+			} else {
+				analyzed = coerced
+			}
 		}
 	}
 
@@ -606,13 +661,20 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	if err != nil {
 		return err
 	}
-
-	name := def.Name
-	if name == "" {
-		name = generateConstraintName(rel.Name, def.Columns, ConstraintExclude)
+	var includeAttnums []int16
+	if len(def.IncludeColumns) > 0 {
+		seenInc := make(map[string]bool, len(def.IncludeColumns))
+		for _, incName := range def.IncludeColumns {
+			if seenInc[incName] {
+				return errDuplicateColumn(incName)
+			}
+			seenInc[incName] = true
+		}
+		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
+		if err != nil {
+			return err
+		}
 	}
-
-	conOID := c.oidGen.Next()
 
 	// Determine access method (default GiST for exclusion constraints).
 	accessMethod := def.AccessMethod
@@ -643,11 +705,89 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		}
 	}
 
-	// Create backing index.
 	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
 	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
 		return err
 	}
+
+	// Validate exclusion operator classes and operators before registering the
+	// backing index or constraint.
+	// pg: src/backend/commands/indexcmds.c — DefineIndex (ResolveIndexExclusionOperator)
+	exclOpClassRefs := c.indexOpClassRefs(rel, attnums, len(attnums), def.ExclOpClasses)
+	resolvedExclOpOIDs := make([]uint32, len(def.ExclOps))
+	for i, opName := range def.ExclOps {
+		if i < len(exclOpClassRefs) && exclOpClassRefs[i].name != "" {
+			if err := c.validateIndexOpClass(exclOpClassRefs[i], am, nil); err != nil {
+				return err
+			}
+		}
+		if opName == "" || i >= len(attnums) {
+			continue
+		}
+		ci := indexOfAttNum(rel, attnums[i])
+		if ci < 0 {
+			continue
+		}
+		colType := rel.Columns[ci].TypeOID
+		opSchema := ""
+		if i < len(def.ExclOpSchemas) {
+			opSchema = def.ExclOpSchemas[i]
+		}
+		var opcRef opClassRef
+		if i < len(exclOpClassRefs) {
+			opcRef = exclOpClassRefs[i]
+		}
+		opcOID := c.resolveOpClassOID(opcRef, am.OID)
+		if opcOID >= FirstNormalObjectId {
+			opc := c.opClasses[opcOID]
+			inFamily := opc != nil && opc.Operators[opName]
+			if !inFamily && opc != nil && opc.FamilyOID != 0 {
+				if fam := c.opFamilies[opc.FamilyOID]; fam != nil && fam.Operators[opName] {
+					inFamily = true
+				}
+			}
+			if inFamily && opSchema == "" {
+				if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID != 0 {
+					if err := c.checkExclusionOperatorCommutes(opOID); err != nil {
+						return err
+					}
+					resolvedExclOpOIDs[i] = opOID
+					continue
+				}
+				// The class names an operator the search path does not show.
+				if !c.snapshot && !c.installingSnapshot && !c.operatorVisibleFor(opName, colType) {
+					return &Error{
+						Code:    CodeUndefinedFunction,
+						Message: fmt.Sprintf("operator does not exist: %s %s %s", c.typeName(colType), opName, c.typeName(colType)),
+					}
+				}
+			}
+		}
+		opOID, err := c.resolveExclusionOperatorOID(opSchema, opName, colType)
+		if err != nil {
+			return err
+		}
+		if err := c.validateExclusionOpFamilyMember(am, opcOID, opOID, opName); err != nil {
+			return err
+		}
+		if err := c.checkExclusionOperatorCommutes(opOID); err != nil {
+			return err
+		}
+		resolvedExclOpOIDs[i] = opOID
+	}
+
+	name := def.Name
+	allRawCols := make([]string, 0, len(def.Columns)+len(def.IncludeColumns))
+	allRawCols = append(allRawCols, def.Columns...)
+	allRawCols = append(allRawCols, def.IncludeColumns...)
+	chosenCols := chooseIndexColumnNames(allRawCols)
+	if name == "" {
+		name = c.chooseConstraintAndIndexName(schema, rel, chosenCols, ConstraintExclude)
+	}
+
+	conOID := c.oidGen.Next()
+
+	// Create backing index.
 	idxName := name
 	indOption := make([]int16, len(attnums))
 	var storedOpClasses []string
@@ -657,12 +797,16 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 			break
 		}
 	}
+	allAttnums := make([]int16, 0, len(attnums)+len(includeAttnums))
+	allAttnums = append(allAttnums, attnums...)
+	allAttnums = append(allAttnums, includeAttnums...)
 	idx := &Index{
 		OID:           c.oidGen.Next(),
 		Name:          idxName,
 		Schema:        schema,
 		RelOID:        rel.OID,
-		Columns:       attnums,
+		Columns:       allAttnums,
+		ColumnNames:   chosenCols,
 		IsUnique:      false, // EXCLUDE indexes are not unique
 		IsPrimary:     false,
 		ConstraintOID: conOID,
@@ -675,46 +819,232 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 	c.registerIndex(schema, idx)
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
-	c.recordColumnDependencies('i', idx.OID, rel.OID, attnums, DepAuto)
+	c.recordColumnDependencies('i', idx.OID, rel.OID, allAttnums, DepAuto)
 	if c.accessMethods[am.OID] != nil {
 		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
 	}
-	c.recordOpClassDependencies('i', idx.OID, c.indexOpClassRefs(rel, attnums, len(attnums), def.ExclOpClasses), idx.AccessMethod)
-	for i, opName := range def.ExclOps {
-		if opName == "" || i >= len(attnums) {
-			continue
-		}
-		if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
-			colType := rel.Columns[ci].TypeOID
-			if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID >= FirstNormalObjectId {
-				c.recordDependency('c', conOID, 0, 'O', opOID, 0, DepNormal)
-			}
+	c.recordOpClassDependencies('i', idx.OID, c.indexOpClassRefs(rel, allAttnums, len(attnums), def.ExclOpClasses), idx.AccessMethod)
+	for _, opOID := range resolvedExclOpOIDs {
+		if opOID >= FirstNormalObjectId {
+			c.recordDependency('c', conOID, 0, 'O', opOID, 0, DepNormal)
 		}
 	}
 
 	con := &Constraint{
-		OID:        conOID,
-		Name:       name,
-		Type:       ConstraintExclude,
-		RelOID:     rel.OID,
-		Namespace:  schema.OID,
-		Columns:    attnums,
-		IndexOID:   idx.OID,
-		ExclOps:    def.ExclOps,
-		Deferrable: def.Deferrable,
-		Deferred:   def.Deferred,
-		Validated:  true,
-		ConIsLocal: true,
+		OID:            conOID,
+		Name:           name,
+		Type:           ConstraintExclude,
+		RelOID:         rel.OID,
+		Namespace:      schema.OID,
+		Columns:        attnums,
+		IncludeColumns: includeAttnums,
+		IndexOID:       idx.OID,
+		ExclOps:        def.ExclOps,
+		ExclOpSchemas:  exclOpSchemasOrNil(def.ExclOpSchemas),
+		Deferrable:     def.Deferrable,
+		Deferred:       def.Deferred,
+		Validated:      true,
+		ConIsLocal:     true,
 	}
 
 	c.registerConstraint(rel.OID, con)
 	// pg: pg_constraint.c — CreateConstraintEntry lines 254-268
-	for _, attnum := range attnums {
+	for _, attnum := range allAttnums {
 		c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(attnum), DepAuto)
 	}
 	c.recordDependency('i', idx.OID, 0, 'c', con.OID, 0, DepInternal)
 
 	return nil
+}
+
+// resolveExclusionOperatorOID resolves a binary exclusion operator for (colType, colType).
+//
+// pg: src/backend/parser/parse_oper.c — compatible_oper
+func (c *Catalog) resolveExclusionOperatorOID(opSchema, opName string, colType uint32) (uint32, error) {
+	if opSchema != "" {
+		s := c.schemaByName[opSchema]
+		if s == nil {
+			return 0, errUndefinedSchema(opSchema)
+		}
+		if c.snapshot || c.installingSnapshot {
+			return 0, nil
+		}
+		for _, op := range c.operByKey[operKey{name: opName, left: colType, right: colType}] {
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if opNS == s.OID {
+				return op.OID, nil
+			}
+		}
+		var coercible []funcCandidate
+		inputTypes := []uint32{colType, colType}
+		for key, ops := range c.operByKey {
+			if key.name != opName {
+				continue
+			}
+			for _, op := range ops {
+				if op.Kind == 'l' {
+					continue
+				}
+				opNS := uint32(PGCatalogNamespace)
+				if op.OID >= FirstNormalObjectId {
+					opNS = c.operatorSchemas[op.OID]
+				}
+				if opNS == s.OID && c.canCoerceArgs(inputTypes, []uint32{op.Left, op.Right}) {
+					coercible = append(coercible, funcCandidate{argTypes: []uint32{op.Left, op.Right}, op: op})
+				}
+			}
+		}
+		if len(coercible) == 1 {
+			return coercible[0].op.OID, nil
+		}
+		if len(coercible) > 1 {
+			if best := c.funcSelectCandidate(inputTypes, coercible); best != nil {
+				return best.op.OID, nil
+			}
+		}
+		return 0, errUndefinedFunction(opName, []uint32{colType, colType})
+	}
+
+	if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID != 0 {
+		return opOID, nil
+	}
+	if c.snapshot || c.installingSnapshot {
+		return 0, nil
+	}
+	op, _, _, err := c.resolveOpWithCoercionFull(opName, colType, colType)
+	if err != nil {
+		return 0, err
+	}
+	return op.OID, nil
+}
+
+// checkExclusionOperatorCommutes refuses an exclusion operator that is not
+// its own commutator (indexcmds.c ComputeIndexAttrs).
+func (c *Catalog) checkExclusionOperatorCommutes(opOID uint32) error {
+	if opOID == 0 || c.snapshot || c.installingSnapshot {
+		return nil
+	}
+	op := c.operByOID[opOID]
+	if op == nil || op.Com == op.OID {
+		return nil
+	}
+	return &Error{
+		Code:    CodeWrongObjectType,
+		Message: fmt.Sprintf("operator %s(%s,%s) is not commutative", op.Name, c.typeName(op.Left), c.typeName(op.Right)),
+	}
+}
+
+func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOID uint32, opName string) error {
+	if am == nil || c.snapshot || c.installingSnapshot {
+		return nil
+	}
+	if opcOID >= FirstNormalObjectId {
+		opc := c.opClasses[opcOID]
+		if opc == nil {
+			return nil
+		}
+		inFamily := opc.Operators[opName]
+		hasDeclared := len(opc.Operators) > 0
+		if opc.FamilyOID != 0 {
+			if fam := c.opFamilies[opc.FamilyOID]; fam != nil {
+				if fam.Operators[opName] {
+					inFamily = true
+				}
+				if len(fam.Operators) > 0 {
+					hasDeclared = true
+				}
+			}
+		}
+		if hasDeclared && !inFamily {
+			return errUndefinedObject("operator", fmt.Sprintf("%s in operator family %q", opName, opc.Name))
+		}
+		return nil
+	}
+	if am.OID >= FirstNormalObjectId {
+		return nil
+	}
+	if op := c.operByOID[opOID]; op != nil && op.Result != BOOLOID {
+		return &Error{
+			Code:    CodeUndefinedObject,
+			Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+		}
+	}
+	switch am.Name {
+	case "btree":
+		switch opName {
+		case "=", "<", "<=", ">", ">=", "*=", "*<", "*<=", "*>", "*>=":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	case "hash":
+		switch opName {
+		case "=", "*=":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	case "gist", "spgist":
+		switch opName {
+		case "=", "<>", "<", "<=", ">", ">=", "&&", "<@", "@>", "<<", ">>", "&<", "&>", "-|-", "<<|", "|>>", "&<|", "|&>", "~=", "~", "@", "^@":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	}
+	return nil
+}
+
+// chooseConstraintAndIndexName picks a free name in both the relation/index
+// namespace and the relation's constraint list, matching ChooseRelationName.
+func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, columns []string, ctype ConstraintType) string {
+	var name2, label string
+	switch ctype {
+	case ConstraintPK:
+		label = "pkey"
+	case ConstraintUnique:
+		name2 = strings.Join(columns, "_")
+		label = "key"
+	case ConstraintExclude:
+		name2 = strings.Join(columns, "_")
+		label = "excl"
+	default:
+		return generateConstraintName(rel.Name, columns, ctype)
+	}
+	base := rel.Name
+	if name2 != "" {
+		base += "_" + name2
+	}
+	if label != "" {
+		base += "_" + label
+	}
+	cand := base
+	for k := 1; ; k++ {
+		_, relHeld := relationNamespaceKind(schema, cand)
+		conHeld := false
+		for _, con := range c.consByRel[rel.OID] {
+			if con.Name == cand {
+				conHeld = true
+				break
+			}
+		}
+		if !relHeld && !conHeld {
+			return cand
+		}
+		cand = fmt.Sprintf("%s%d", base, k)
+	}
 }
 
 func (c *Catalog) findExactEqualityOp(leftType, rightType uint32) uint32 {
@@ -801,7 +1131,34 @@ func (c *Catalog) resolveVisibleOperatorOID(name string, left, right uint32) uin
 			}
 		}
 	}
-	return ops[0].OID
+	return 0
+}
+
+// operatorVisibleFor reports whether an operator of the name that takes the
+// type on both sides, directly or by coercion, lies on the search path.
+func (c *Catalog) operatorVisibleFor(name string, colType uint32) bool {
+	visible := make(map[uint32]bool)
+	for _, nsOID := range c.searchPathWithCatalog() {
+		visible[nsOID] = true
+	}
+	for key, ops := range c.operByKey {
+		if key.name != name {
+			continue
+		}
+		for _, op := range ops {
+			if op.Kind == 'l' {
+				continue
+			}
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if visible[opNS] && c.canCoerceArgs([]uint32{colType, colType}, []uint32{op.Left, op.Right}) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // removeConstraint removes a single constraint and its backing index (if any).
@@ -1041,6 +1398,12 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			return
 		}
 		c.removePolicy(pol)
+	case 'R':
+		rule := c.rules[objOID]
+		if rule == nil {
+			return
+		}
+		c.removeRule(c.relationByOID[rule.OwnerRelOID], rule)
 	case 'E':
 		evt := c.eventTriggers[objOID]
 		if evt == nil {
@@ -1146,4 +1509,15 @@ func indexOfAttNum(rel *Relation, attnum int16) int {
 		}
 	}
 	return -1
+}
+
+// exclOpSchemasOrNil keeps an EXCLUDE clause's operator schemas only when one
+// of them is named.
+func exclOpSchemasOrNil(schemas []string) []string {
+	for _, sc := range schemas {
+		if sc != "" {
+			return slices.Clone(schemas)
+		}
+	}
+	return nil
 }

@@ -1303,9 +1303,23 @@ func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersi
 
 // parseWithStmt parses a WITH clause followed by SELECT, INSERT, UPDATE, DELETE, or MERGE.
 func (p *Parser) parseWithStmt() (nodes.Node, error) {
+	return p.parseWithStmtFor(true)
+}
+
+// parseRuleActionWithStmt parses a WITH-prefixed rule action. RuleActionStmt
+// reaches WITH only through SelectStmt, InsertStmt, UpdateStmt and DeleteStmt
+// (gram.y RuleActionStmt), so MERGE after the WITH clause is a syntax error.
+func (p *Parser) parseRuleActionWithStmt() (nodes.Node, error) {
+	return p.parseWithStmtFor(false)
+}
+
+func (p *Parser) parseWithStmtFor(allowMerge bool) (nodes.Node, error) {
 	withClause, err := p.parseWithClause()
 	if err != nil {
 		return nil, err
+	}
+	if p.cur.Type == MERGE && !allowMerge {
+		return nil, p.syntaxErrorAtCur()
 	}
 	switch p.cur.Type {
 	case INSERT:

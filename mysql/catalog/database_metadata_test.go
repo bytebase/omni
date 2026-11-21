@@ -399,6 +399,7 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	c := New()
 	_, err := c.Exec(`
 		SET SESSION sql_generate_invisible_primary_key = ON;
+		CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 		CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 		USE app;
 
@@ -460,6 +461,7 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	// Reloaded GIPK table must match a user target without my_row_id (no phantom DROP).
 	target := New()
 	_, err = target.Exec(`
+		CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 		CREATE DATABASE app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 		USE app;
 		CREATE TABLE gipk_tbl (
@@ -537,6 +539,7 @@ func TestDatabaseMetadataIndexKeyBlockSizeRoundTrip(t *testing.T) {
 func TestDatabaseDefinitionFidelityForViewOptionsTablespaceAndComments(t *testing.T) {
 	c := New()
 	_, err := c.Exec(`
+		CREATE TABLESPACE ts_my ADD DATAFILE 'ts_my.ibd';
 		CREATE DATABASE app;
 		USE app;
 		CREATE TABLE doc_tbl (
@@ -557,8 +560,10 @@ func TestDatabaseDefinitionFidelityForViewOptionsTablespaceAndComments(t *testin
 	require.Contains(t, def, "WITH LOCAL CHECK OPTION")
 
 	// Rendered script must execute cleanly into a fresh catalog with matching comments & tablespace.
+	// A tablespace is the instance's, so the restoring catalog has it already,
+	// as a server restoring the script would.
 	restored := New()
-	_, err = restored.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	_, err = restored.Exec("CREATE TABLESPACE ts_my ADD DATAFILE 'ts_my.ibd';\nCREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 	reTbl := restored.GetDatabase("app").GetTable("doc_tbl")
 	require.Equal(t, "O'Reilly & Co", reTbl.Comment)

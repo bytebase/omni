@@ -1,34 +1,43 @@
 package catalog
 
+import (
+	"time"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
+)
+
 type Table struct {
-	Name             string
-	Database         *Database
-	Columns          []*Column
-	colByName        map[string]int // lowered name -> index
-	Indexes          []*Index
-	Constraints      []*Constraint
-	Engine           string
-	Charset          string
-	Collation        string
-	Comment          string
-	AutoIncrement    int64
-	Temporary        bool
-	RowFormat        string
-	KeyBlockSize     int
-	Compression      string
-	Encryption       string
-	StatsPersistent  string
-	StatsAutoRecalc  string
-	StatsSamplePages string
-	MinRows          string
-	MaxRows          string
-	AvgRowLength     string
-	Tablespace       string
-	PackKeys         string
-	Checksum         string
-	DelayKeyWrite    string
-	Partitioning     *PartitionInfo
-	SkipDump         bool
+	Name                string
+	Database            *Database
+	Columns             []*Column
+	colByName           map[string]int // lowered name -> index
+	Indexes             []*Index
+	Constraints         []*Constraint
+	Engine              string
+	SecondaryEngine     string
+	Charset             string
+	Collation           string
+	Comment             string
+	AutoIncrement       int64
+	Temporary           bool
+	RowFormat           string
+	KeyBlockSize        int
+	Compression         string
+	Encryption          string
+	StatsPersistent     string
+	StatsAutoRecalc     string
+	StatsSamplePages    string
+	MinRows             string
+	MaxRows             string
+	AvgRowLength        string
+	Tablespace          string
+	TablespaceDiscarded bool
+	AutoExtendSize      uint64
+	PackKeys            string
+	Checksum            string
+	DelayKeyWrite       string
+	Partitioning        *PartitionInfo
+	SkipDump            bool
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -67,15 +76,18 @@ type PartitionDefInfo struct {
 	Name          string
 	ValueExpr     string // "LESS THAN (...)" or "IN (...)" or ""
 	Engine        string // ENGINE option for this partition
+	Tablespace    string // TABLESPACE option for this partition
 	Comment       string // COMMENT option for this partition
+	Discarded     bool
 	SubPartitions []*SubPartitionDefInfo
 }
 
 // SubPartitionDefInfo holds a single subpartition definition.
 type SubPartitionDefInfo struct {
-	Name    string
-	Engine  string
-	Comment string
+	Name       string
+	Engine     string
+	Tablespace string
+	Comment    string
 }
 
 type Column struct {
@@ -89,13 +101,16 @@ type Column struct {
 	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL
 	// only when the column has NO explicit nullability clause — a bare `TIMESTAMP` and an
 	// explicit `TIMESTAMP NULL` are otherwise indistinguishable once loaded.
-	NullExplicit   bool
-	Default        *string
-	DefaultKind    ColumnDefaultKind
-	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement  bool
-	Charset        string
-	Collation      string
+	NullExplicit        bool
+	Default             *string
+	DefaultTimestampUTC *time.Time
+	DefaultKind         ColumnDefaultKind
+	DefaultIsExpr       bool
+	DefaultExprNode     nodes.ExprNode
+	DefaultDropped      bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement       bool
+	Charset             string
+	Collation           string
 	// CharsetExplicit / CollationExplicit record whether the user wrote a column-level
 	// CHARACTER SET / COLLATE clause, as opposed to the value being inherited from the
 	// table at load time. The diff-time canonicalizer (normalize.go) needs this to

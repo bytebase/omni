@@ -65,6 +65,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	c.tablespacesPartial = true
 	c.selectMetadataDatabase(meta, database)
 	restore := c.loadSessionSettings()
 	defer restore()
@@ -521,6 +522,13 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		stmt.Partitions = partitions
 	}
 	opts := t.GetCreateOptions()
+	// The snapshot's tablespace field holds the decoded name; a snapshot
+	// without it may still carry the identifier in CREATE_OPTIONS, where a
+	// doubled backtick is one.
+	tablespace := t.GetTablespace()
+	if tablespace == "" {
+		tablespace = unquoteIdent(createOption(opts, "tablespace"))
+	}
 	for _, opt := range []struct{ name, value string }{
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
@@ -529,6 +537,8 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"KEY_BLOCK_SIZE", createOption(opts, "key_block_size")},
 		{"ROW_FORMAT", createOption(opts, "row_format")},
 		{"COMPRESSION", unquoteTableOption(createOption(opts, "compression"))},
+		// ENCRYPTION='Y' is in the server's CREATE_OPTIONS, and it is what a
+		// general tablespace the table names is inferred to be.
 		{"ENCRYPTION", unquoteTableOption(createOption(opts, "encryption"))},
 		{"STATS_PERSISTENT", createOption(opts, "stats_persistent")},
 		{"STATS_AUTO_RECALC", createOption(opts, "stats_auto_recalc")},
@@ -539,7 +549,9 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"PACK_KEYS", createOption(opts, "pack_keys")},
 		{"CHECKSUM", createOption(opts, "checksum")},
 		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
-		{"TABLESPACE", unquoteTableOption(t.GetTablespace())},
+		{"TABLESPACE", tablespace},
+		{"SECONDARY_ENGINE", unquoteTableOption(createOption(opts, "secondary_engine"))},
+		{"AUTOEXTEND_SIZE", createOption(opts, "autoextend_size")},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -568,12 +580,50 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 // createOption returns the value of one CREATE_OPTIONS entry; sync keeps them
 // as space-separated name=value pairs.
 func createOption(options, name string) string {
-	for _, opt := range strings.Fields(options) {
+	for _, opt := range splitCreateOptions(options) {
 		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
 			return v
 		}
 	}
 	return ""
+}
+
+// splitCreateOptions splits CREATE_OPTIONS at whitespace outside quotes, so a
+// quoted value keeps its spaces: tablespace=`hot data` is one option, a name
+// MySQL takes for a general tablespace.
+func splitCreateOptions(options string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	for i := 0; i < len(options); i++ {
+		ch := options[i]
+		switch {
+		case quote != 0:
+			cur.WriteByte(ch)
+			if ch == quote {
+				if i+1 < len(options) && options[i+1] == quote {
+					cur.WriteByte(options[i+1])
+					i++
+				} else {
+					quote = 0
+				}
+			}
+		case ch == '`' || ch == '\'' || ch == '"':
+			quote = ch
+			cur.WriteByte(ch)
+		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteByte(ch)
+		}
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,

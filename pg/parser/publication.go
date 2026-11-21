@@ -880,7 +880,7 @@ func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
 		var stmt nodes.Node
 		var err error
 		if p.cur.Type == WITH {
-			stmt, err = p.parseWithStmt()
+			stmt, err = p.parseRuleActionWithStmt()
 		} else {
 			stmt, err = p.parseSelectNoParens()
 		}

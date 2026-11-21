@@ -31,15 +31,18 @@ const (
 // syncs, so the catalog holds metadata.DatabaseSchemaMetadata and applies DDL to
 // it.
 type Catalog struct {
-	database              string
-	defaultSchema         string
-	metadataDefaultSchema string
-	schemas               []*metadata.SchemaMetadata
-	schemaByName          map[string]*metadata.SchemaMetadata
-	tableByName           map[tableKey]*metadata.TableMetadata
-	indexCounter          int
-	databaseOrder         []string
-	databaseByName        map[string]*Catalog
+	database                          string
+	defaultSchema                     string
+	metadataDefaultSchema             string
+	schemas                           []*metadata.SchemaMetadata
+	schemaByName                      map[string]*metadata.SchemaMetadata
+	schemasByFold                     map[string][]*metadata.SchemaMetadata
+	tableByName                       map[tableKey]*metadata.TableMetadata
+	indexCounter                      int
+	databaseOrder                     []string
+	databaseByName                    map[string]*Catalog
+	skipViewIndexes                   bool
+	omitUnnamedDefaultConstraintNames bool
 }
 
 type tableKey struct {
@@ -52,6 +55,7 @@ func New() *Catalog {
 	return &Catalog{
 		defaultSchema:  defaultSchema,
 		schemaByName:   make(map[string]*metadata.SchemaMetadata),
+		schemasByFold:  make(map[string][]*metadata.SchemaMetadata),
 		tableByName:    make(map[tableKey]*metadata.TableMetadata),
 		databaseByName: make(map[string]*Catalog),
 	}
@@ -171,7 +175,17 @@ func (c *Catalog) GetDatabaseView(database, schemaName, viewName string) *metada
 
 // GetSchema returns the named schema, or nil.
 func (c *Catalog) GetSchema(name string) *metadata.SchemaMetadata {
-	return c.schemaByName[normalize(name)]
+	if name == "" {
+		name = c.defaultSchema
+	}
+	if schema := c.schemaByName[name]; schema != nil {
+		return schema
+	}
+	matches := c.schemasByFold[normalize(name)]
+	if len(matches) == 1 {
+		return matches[0]
+	}
+	return nil
 }
 
 // ListSchemaNames returns the schema names in load order.
@@ -185,17 +199,23 @@ func (c *Catalog) ListSchemaNames() []string {
 
 // GetTable returns the named table in the named schema, or nil.
 func (c *Catalog) GetTable(schemaName, tableName string) *metadata.TableMetadata {
-	if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil && table.Name == tableName {
+	schema := c.GetSchema(schemaName)
+	if schema == nil {
+		return nil
+	}
+	if table := c.tableByName[tableKey{schema: schema.Name, table: tableName}]; table != nil {
 		return table
 	}
-	table := c.tableByName[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
-	if table != nil && table.Name == tableName {
-		return table
+	var match *metadata.TableMetadata
+	for _, table := range schema.Tables {
+		if strings.EqualFold(table.Name, tableName) {
+			if match != nil {
+				return nil
+			}
+			match = table
+		}
 	}
-	if caseTable := c.tableByName[tableKey{schema: "case:" + normalize(schemaName), table: "case:" + tableName}]; caseTable != nil {
-		return caseTable
-	}
-	return table
+	return match
 }
 
 // Metadata returns a copy of the catalog as the metadata snapshot Bytebase
@@ -233,6 +253,7 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	}
 	c.schemas = nil
 	c.schemaByName = make(map[string]*metadata.SchemaMetadata)
+	c.schemasByFold = make(map[string][]*metadata.SchemaMetadata)
 	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))
@@ -357,9 +378,10 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	return results, nil
 }
 
-// LoadSQL parses sql into a new catalog.
-func LoadSQL(sql string) (*Catalog, error) {
+func loadSQLWithOptions(sql string, skipViewIndexes, omitUnnamedDefaultConstraintNames bool) (*Catalog, error) {
 	c := New()
+	c.skipViewIndexes = skipViewIndexes
+	c.omitUnnamedDefaultConstraintNames = omitUnnamedDefaultConstraintNames
 	results, err := c.Exec(sql, nil)
 	if err != nil {
 		return nil, err
@@ -376,9 +398,18 @@ func LoadSQL(sql string) (*Catalog, error) {
 	return c, nil
 }
 
+// LoadSQL parses sql into a new catalog.
+func LoadSQL(sql string) (*Catalog, error) {
+	return loadSQLWithOptions(sql, false, false)
+}
+
 // GetDatabaseMetadata parses SQL Server DDL and returns the schema it defines.
 func GetDatabaseMetadata(schemaText string) (*metadata.DatabaseSchemaMetadata, error) {
-	c, err := LoadSQL(schemaText)
+	// Skip indexed views and omit synthetic DF_<table>_<col> default names
+	// (only needed by forward LoadSQL/migration synthesis) so round-tripping
+	// extracted schemas neither fails on view indexes nor collides across
+	// underscore-split table/column names.
+	c, err := loadSQLWithOptions(schemaText, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -572,7 +603,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		}
 	}
 
-	if column.Default != "" && column.DefaultConstraintName == "" {
+	if column.Default != "" && column.DefaultConstraintName == "" && !c.omitUnnamedDefaultConstraintNames {
 		column.DefaultConstraintName = "DF_" + table.Name + "_" + column.Name
 	}
 	table.Columns = append(table.Columns, column)
@@ -607,16 +638,20 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 
 func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	if table := c.GetTable(schemaName, tableName); table == nil {
-		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+	table := c.GetTable(schemaName, tableName)
+	if table == nil {
+		if schema := c.GetSchema(schemaName); schema != nil {
 			for _, view := range schema.Views {
 				if strings.EqualFold(view.Name, tableName) {
+					if c.skipViewIndexes {
+						return nil
+					}
 					return fmt.Errorf("indexes on views are not supported: %s.%s", schemaName, tableName)
 				}
 			}
 		}
+		table = c.getOrCreateTable(schemaName, tableName)
 	}
-	table := c.getOrCreateTable(schemaName, tableName)
 
 	index := &metadata.IndexMetadata{
 		Name:         n.Name,
@@ -634,7 +669,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 
 func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) {
 	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	table := c.getOrCreateTable(schemaName, tableName)
+	table := c.resolveOrCreateTable(schemaName, tableName)
 	index := &metadata.IndexMetadata{
 		Name:         n.Name,
 		Type:         "XML",
@@ -654,7 +689,7 @@ func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) {
 
 func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) {
 	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	table := c.getOrCreateTable(schemaName, tableName)
+	table := c.resolveOrCreateTable(schemaName, tableName)
 
 	index := &metadata.IndexMetadata{
 		Name:         n.Name,
@@ -792,7 +827,7 @@ func (c *Catalog) execCreateTrigger(n *ast.CreateTriggerStmt, source string) {
 		table.Triggers = append(table.Triggers, trigger)
 		return
 	}
-	if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+	if schema := c.GetSchema(schemaName); schema != nil {
 		for _, view := range schema.Views {
 			if strings.EqualFold(view.Name, parentName) {
 				view.Triggers = append(view.Triggers, trigger)
@@ -881,7 +916,7 @@ func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, column
 	case "TABLE":
 		c.applyComment(schemaName, objectName, columnName, comment)
 	case "VIEW":
-		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+		if schema := c.GetSchema(schemaName); schema != nil {
 			for _, view := range schema.Views {
 				if strings.EqualFold(view.Name, objectName) {
 					view.Comment = comment
@@ -890,7 +925,7 @@ func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, column
 			}
 		}
 	case "FUNCTION":
-		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+		if schema := c.GetSchema(schemaName); schema != nil {
 			for _, function := range schema.Functions {
 				if strings.EqualFold(function.Name, objectName) {
 					function.Comment = comment
@@ -899,7 +934,7 @@ func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, column
 			}
 		}
 	case "PROCEDURE":
-		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+		if schema := c.GetSchema(schemaName); schema != nil {
 			for _, procedure := range schema.Procedures {
 				if strings.EqualFold(procedure.Name, objectName) {
 					procedure.Comment = comment
@@ -908,7 +943,7 @@ func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, column
 			}
 		}
 	case "SEQUENCE":
-		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+		if schema := c.GetSchema(schemaName); schema != nil {
 			for _, sequence := range schema.Sequences {
 				if strings.EqualFold(sequence.Name, objectName) {
 					sequence.Comment = comment
@@ -920,7 +955,7 @@ func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, column
 }
 
 func (c *Catalog) applyComment(schemaName, tableName, columnName, comment string) {
-	table := c.getOrCreateTable(schemaName, tableName)
+	table := c.resolveOrCreateTable(schemaName, tableName)
 	if columnName != "" {
 		for _, column := range table.Columns {
 			if strings.EqualFold(column.Name, columnName) {
@@ -1025,7 +1060,7 @@ func (c *Catalog) getOrCreateSchema(name string) *metadata.SchemaMetadata {
 	if name == "" {
 		name = c.defaultSchema
 	}
-	if schema := c.schemaByName[normalize(name)]; schema != nil {
+	if schema := c.schemaByName[name]; schema != nil {
 		return schema
 	}
 	schema := &metadata.SchemaMetadata{
@@ -1042,26 +1077,29 @@ func (c *Catalog) getOrCreateSchema(name string) *metadata.SchemaMetadata {
 
 func (c *Catalog) addSchema(schema *metadata.SchemaMetadata) {
 	c.schemas = append(c.schemas, schema)
-	c.schemaByName[normalize(schema.Name)] = schema
+	c.schemaByName[schema.Name] = schema
+	fold := normalize(schema.Name)
+	c.schemasByFold[fold] = append(c.schemasByFold[fold], schema)
 	for _, table := range schema.Tables {
-		c.tableByName[tableKey{schema: normalize(schema.Name), table: normalize(table.Name)}] = table
+		c.indexTable(schema.Name, table)
 	}
+}
+
+func (c *Catalog) indexTable(schemaName string, table *metadata.TableMetadata) {
+	c.tableByName[tableKey{schema: schemaName, table: table.Name}] = table
+}
+
+func (c *Catalog) resolveOrCreateTable(schemaName, tableName string) *metadata.TableMetadata {
+	if table := c.GetTable(schemaName, tableName); table != nil {
+		return table
+	}
+	return c.getOrCreateTable(schemaName, tableName)
 }
 
 func (c *Catalog) getOrCreateTable(schemaName, tableName string) *metadata.TableMetadata {
 	schemaName = normalizeOrDefault(schemaName, c.defaultSchema)
-	key := tableKey{schema: normalize(schemaName), table: normalize(tableName)}
+	key := tableKey{schema: schemaName, table: tableName}
 	if table := c.tableByName[key]; table != nil {
-		if table.Name == tableName {
-			return table
-		}
-		// Case-distinct names coexist in a case-sensitive database: keep the
-		// second one under a sentinel key instead of merging it.
-		key = tableKey{schema: "case:" + schemaName, table: "case:" + tableName}
-		if table := c.tableByName[key]; table != nil {
-			return table
-		}
-	} else if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil {
 		return table
 	}
 	table := &metadata.TableMetadata{
@@ -1073,7 +1111,7 @@ func (c *Catalog) getOrCreateTable(schemaName, tableName string) *metadata.Table
 	}
 	schema := c.getOrCreateSchema(schemaName)
 	schema.Tables = append(schema.Tables, table)
-	c.tableByName[key] = table
+	c.indexTable(schema.Name, table)
 	return table
 }
 

@@ -1301,6 +1301,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 	}
 
 	if _, ok := p.match(kwADD); ok {
+		stmt.HasDataFile = true
 		if stmt.DataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}
@@ -1349,6 +1350,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			stmt.FileBlockSize = o.val
 		case kwENCRYPTION:
 			stmt.Encryption = o.val
+			stmt.HasEncryption = true
 		case kwENGINE_ATTRIBUTE:
 			stmt.EngineAttribute = o.val
 		}
@@ -1399,12 +1401,14 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		opts, err = p.parseTablespaceOptions(tsUndoOptions, false)
 	case p.cur.Type == kwADD:
 		p.advance()
+		stmt.HasAddDataFile = true
 		if stmt.AddDataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}
 		opts, err = p.parseTablespaceOptions(tsAlterOptions, false)
 	case p.cur.Type == kwDROP:
 		p.advance()
+		stmt.HasDropDataFile = true
 		if stmt.DropDataFile, err = p.parseTsDatafile(); err != nil {
 			return nil, err
 		}
@@ -1437,6 +1441,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			stmt.NoWait = true
 		case kwENCRYPTION:
 			stmt.Encryption = o.val
+			stmt.HasEncryption = true
 		case kwENGINE_ATTRIBUTE:
 			stmt.EngineAttribute = o.val
 		}

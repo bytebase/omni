@@ -150,7 +150,42 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 	if rowFormatChanged(from, to, n) {
 		return true
 	}
+	if from.AutoExtendSize != to.AutoExtendSize {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(from.SecondaryEngine), strings.TrimSpace(to.SecondaryEngine)) {
+		return true
+	}
+	if canonicalTableTablespace(from) != canonicalTableTablespace(to) {
+		return true
+	}
+	if canonicalTableEncryption(from) != canonicalTableEncryption(to) {
+		return true
+	}
 	return false
+}
+
+// canonicalTableEncryption is "Y" for an encrypted table and "" otherwise:
+// mysql:8.0.46 echoes ENCRYPTION='Y' in SHOW CREATE TABLE and leaves out an
+// explicit ENCRYPTION='N'.
+func canonicalTableEncryption(t *Table) string {
+	if strings.EqualFold(unquoteTableOption(strings.TrimSpace(t.Encryption)), "Y") {
+		return "Y"
+	}
+	return ""
+}
+
+// canonicalTableTablespace is the general tablespace a table lives in, by its
+// case-sensitive name, or "" for its own file: innodb_file_per_table names
+// the default a table without TABLESPACE has.
+func canonicalTableTablespace(t *Table) string {
+	// Only the exact lowercase name is the built-in: INNODB_FILE_PER_TABLE is
+	// an ordinary general tablespace name on mysql:8.0.46.
+	ts := strings.TrimSpace(t.Tablespace)
+	if ts == "innodb_file_per_table" {
+		return ""
+	}
+	return ts
 }
 
 // rowFormatChanged reports whether the table ROW_FORMAT differs in a way that matters.

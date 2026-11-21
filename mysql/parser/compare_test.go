@@ -3783,6 +3783,28 @@ func TestParseAlterTableRename(t *testing.T) {
 		if cmd.Name != "status" {
 			t.Errorf("Name = %s, want status", cmd.Name)
 		}
+		if _, ok := cmd.DefaultExpr.(*ast.ParenExpr); ok {
+			t.Errorf("DefaultExpr = %T, want non-ParenExpr for literal default", cmd.DefaultExpr)
+		}
+	})
+
+	t.Run("alter column set default expr", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN status SET DEFAULT ('x')")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAlterColumnDefault {
+			t.Errorf("Type = %d, want ATAlterColumnDefault", cmd.Type)
+		}
+		if _, ok := cmd.DefaultExpr.(*ast.ParenExpr); !ok {
+			t.Errorf("DefaultExpr = %T, want *ast.ParenExpr for expression default", cmd.DefaultExpr)
+		}
+	})
+
+	t.Run("alter table add geomcollection", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN g GEOMCOLLECTION")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddColumn || cmd.Column == nil || cmd.Column.TypeName == nil || cmd.Column.TypeName.Name != "GEOMCOLLECTION" {
+			t.Errorf("got %+v, want GEOMCOLLECTION column", cmd)
+		}
 	})
 
 	t.Run("alter column drop default", func(t *testing.T) {

@@ -966,6 +966,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			// sql/sql_yacc.yy; signed_literal reads
 			// `literal | '+' NUM_literal | '-' NUM_literal`.
 			if p.cur.Type == '(' {
+				parenStart := p.pos()
 				p.advance()
 				expr, err := p.parseExpr()
 				if err != nil {
@@ -977,7 +978,10 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
-				cmd.DefaultExpr = expr
+				cmd.DefaultExpr = &nodes.ParenExpr{
+					Loc:  nodes.Loc{Start: parenStart, End: p.prev.End},
+					Expr: expr,
+				}
 			} else {
 				expr, err := p.parseSignedLiteral()
 				if err != nil {

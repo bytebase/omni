@@ -2,15 +2,24 @@ package catalog
 
 import "sort"
 
-// Schema represents a PostgreSQL namespace.
-type Schema struct {
+// UserCollation represents a user-defined collation created via CREATE COLLATION.
+type UserCollation struct {
 	OID       uint32
 	Name      string
-	Owner     string // explicit AUTHORIZATION / ALTER OWNER (for diff/SDL)
-	OwnerName string // effective role owner (for DROP ROLE / DROP OWNED / REASSIGN / RENAME)
-	Relations map[string]*Relation
-	Indexes   map[string]*Index
-	Sequences map[string]*Sequence
+	DefClause string
+	OwnerName string
+}
+
+// Schema represents a PostgreSQL namespace.
+type Schema struct {
+	OID        uint32
+	Name       string
+	Owner      string // explicit AUTHORIZATION / ALTER OWNER (for diff/SDL)
+	OwnerName  string // effective role owner (for DROP ROLE / DROP OWNED / REASSIGN / RENAME)
+	Relations  map[string]*Relation
+	Indexes    map[string]*Index
+	Sequences  map[string]*Sequence
+	Collations map[string]*UserCollation
 }
 
 func (s *Schema) effectiveOwner() string {
@@ -22,7 +31,7 @@ func (s *Schema) effectiveOwner() string {
 
 // schemaHasObjects returns true if the schema contains any objects.
 func (c *Catalog) schemaHasObjects(s *Schema) bool {
-	if len(s.Relations) > 0 || len(s.Indexes) > 0 || len(s.Sequences) > 0 {
+	if len(s.Relations) > 0 || len(s.Indexes) > 0 || len(s.Sequences) > 0 || len(s.Collations) > 0 {
 		return true
 	}
 	// Check for user-defined types in this namespace.

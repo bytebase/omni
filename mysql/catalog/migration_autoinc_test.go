@@ -200,9 +200,14 @@ func TestAutoIncGrouping_MyISAMNonLeftmostBacking(t *testing.T) {
 	// InnoDB requires the FIRST position (oracle-probed): a non-leftmost key is NOT a backing
 	// candidate, so no grouping happens and the plan is left to fail naturally on an invalid
 	// target (matching the CREATE path's stance on unkeyable AUTO_INCREMENT columns).
-	p = aigPlan(t,
-		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL);",
-		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, seq INT NOT NULL AUTO_INCREMENT, KEY k_as (a, seq));")
+	from := loadCat(t, dbDDL+"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL);")
+	to := New()
+	execAlterClauses(t, to, dbDDL)
+	if err := to.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, seq INT NOT NULL AUTO_INCREMENT, KEY k_as (a, seq));")); err != nil {
+		t.Fatalf("DefineTable: %v", err)
+	}
+	n := NormalizerFor(MySQL80)
+	p = GenerateMigrationWithNormalizer(from, to, DiffWithNormalizer(from, to, n), n)
 	if got := opsContaining(p, "ADD COLUMN `seq`", "ADD KEY"); len(got) != 0 {
 		t.Errorf("InnoDB non-leftmost key must not be grouped as backing:\n%s", p.SQL())
 	}
