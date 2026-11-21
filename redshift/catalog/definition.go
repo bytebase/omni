@@ -541,6 +541,7 @@ func parseFunctionSignature(definition string) (declName []string, params []func
 func detectCreateRoutineKind(definition string) string {
 	lex := pgparser.NewLexer(definition)
 	sawCreate := false
+	sawExternal := false
 	for i := 0; i < 6; i++ {
 		tok := lex.NextToken()
 		if tok.Type == 0 {
@@ -557,7 +558,13 @@ func detectCreateRoutineKind(definition string) string {
 		switch word {
 		case "OR", "REPLACE":
 			continue
+		case "EXTERNAL":
+			sawExternal = true
+			continue
 		case "PROCEDURE":
+			if sawExternal {
+				return ""
+			}
 			return "procedure"
 		case "FUNCTION":
 			return "function"

@@ -2267,6 +2267,20 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "standard view")
+
+	extFnOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_distance",
+				Signature:  "(double precision, double precision, double precision, double precision)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, extFnOut, "CREATE EXTERNAL FUNCTION public.f_distance")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

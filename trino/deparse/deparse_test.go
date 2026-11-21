@@ -2033,4 +2033,19 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		Schemas: []*metadatapb.SchemaMetadata{{Name: ""}},
 	})
 	require.ErrorContains(t, err, "empty name")
+
+	// Lexical fallback function scanning excludes return type modifiers such as decimal(10,2).
+	fallbackRetType, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "decimal",
+				Signature:  "(integer, integer)",
+				Definition: "CREATE FUNCTION s.decimal(a integer, b integer) RETURNS decimal(10,2) COMMENT 'unparseable LANGUAGE clause' LANGUAGE PYTHON RETURN 0",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, fallbackRetType, "RETURNS decimal(10,2)")
 }

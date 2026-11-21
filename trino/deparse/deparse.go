@@ -3603,8 +3603,9 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 		}
 	}
 	if skipHeader {
-		// Skip `CREATE [OR REPLACE] FUNCTION name(params)` so the declared
-		// signature is not treated as a self-recursive call in unparsed DDL.
+		// Skip `CREATE [OR REPLACE] FUNCTION name(params)` and `RETURNS <type>`
+		// / header characteristics so parameter defaults and type modifiers
+		// (like decimal(10,2)) are not scanned as body calls.
 		depth := 0
 		for k := 0; k < len(toks); k++ {
 			if toks[k].punct == '(' {
@@ -3617,6 +3618,29 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 				}
 			}
 		}
+		bodyStart := -1
+		depth = 0
+		for k := 0; k < len(toks); k++ {
+			if toks[k].punct == '(' {
+				depth++
+				continue
+			}
+			if toks[k].punct == ')' && depth > 0 {
+				depth--
+				continue
+			}
+			if depth == 0 && toks[k].isIdent {
+				kw := strings.ToUpper(toks[k].text)
+				if kw == "RETURN" || kw == "BEGIN" {
+					bodyStart = k + 1
+					break
+				}
+			}
+		}
+		if bodyStart < 0 {
+			return nil
+		}
+		toks = toks[bodyStart:]
 	}
 
 	countArgs := func(openIdx int) int {
