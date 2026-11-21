@@ -220,6 +220,12 @@ func functionDetachedInPhaseMain(diff *SchemaDiff, proc *UserProc) bool {
 
 // formatFuncParams formats the parameter list for CREATE FUNCTION/PROCEDURE.
 func formatFuncParams(c *Catalog, proc *UserProc) string {
+	return formatFuncParamsWith(c, proc, func(oid uint32) string { return c.FormatType(oid, -1) })
+}
+
+// formatFuncParamsWith is formatFuncParams with the parameter types written by
+// formatType.
+func formatFuncParamsWith(c *Catalog, proc *UserProc, formatType func(uint32) string) string {
 	if len(proc.ArgTypes) == 0 && len(proc.AllArgTypes) == 0 {
 		return ""
 	}
@@ -262,7 +268,7 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 		}
 
 		// Type.
-		param.WriteString(c.FormatType(toid, -1))
+		param.WriteString(formatType(toid))
 
 		// Default expression for input parameters.
 		if mode != 'o' {
@@ -474,6 +480,12 @@ func hasTableReturn(proc *UserProc) bool {
 
 // formatReturnsTable formats a RETURNS TABLE(...) clause.
 func formatReturnsTable(c *Catalog, proc *UserProc) string {
+	return formatReturnsTableWith(proc, func(oid uint32) string { return c.FormatType(oid, -1) })
+}
+
+// formatReturnsTableWith is formatReturnsTable with the column types written
+// by formatType.
+func formatReturnsTableWith(proc *UserProc, formatType func(uint32) string) string {
 	var cols []string
 	for i, mode := range proc.ArgModes {
 		if mode == 't' {
@@ -481,7 +493,7 @@ func formatReturnsTable(c *Catalog, proc *UserProc) string {
 			if i < len(proc.ArgNames) {
 				name = proc.ArgNames[i]
 			}
-			typeName := c.FormatType(proc.AllArgTypes[i], -1)
+			typeName := formatType(proc.AllArgTypes[i])
 			cols = append(cols, fmt.Sprintf("%s %s", quoteIdentAlways(name), typeName))
 		}
 	}

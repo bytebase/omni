@@ -2585,17 +2585,22 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 	}
 	b.WriteString(quoteWalkThroughIdent(up.Name))
 	b.WriteByte('(')
-	b.WriteString(formatFuncParams(cat, up))
+	// Qualify user types whatever the search path, as pg_get_functiondef does
+	// under the empty search_path a restored definition runs with.
+	formatType := func(oid uint32) string {
+		return qualifyWalkThroughAttributeType(cat, oid, cat.FormatType(oid, -1))
+	}
+	b.WriteString(formatFuncParamsWith(cat, up, formatType))
 	b.WriteString(")\n")
 	if up.Kind != 'p' {
 		b.WriteString(" RETURNS ")
 		if hasTableReturn(up) {
-			b.WriteString(formatReturnsTable(cat, up))
+			b.WriteString(formatReturnsTableWith(up, formatType))
 		} else {
 			if up.RetSet {
 				b.WriteString("SETOF ")
 			}
-			b.WriteString(cat.FormatType(up.RetType, -1))
+			b.WriteString(formatType(up.RetType))
 		}
 		b.WriteByte('\n')
 	}

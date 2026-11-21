@@ -239,6 +239,7 @@ func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName,
 	for _, oldCon := range checkConstraints {
 		checkExpr := oldCon.CheckExpr
 		validated := oldCon.Validated
+		noInherit := oldCon.ConNoInherit
 		// Look up the constraint in the target catalog for the updated expression.
 		toRel := to.GetRelation(schemaName, relName)
 		if toRel != nil {
@@ -246,11 +247,15 @@ func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName,
 				if newCon.Type == ConstraintCheck && newCon.Name == oldCon.Name {
 					checkExpr = newCon.CheckExpr
 					validated = newCon.Validated
+					noInherit = newCon.ConNoInherit
 					break
 				}
 			}
 		}
 		sql := fmt.Sprintf("%s %s ADD CONSTRAINT %s CHECK (%s)", alterStmt, tableName, quoteIdentifier(oldCon.Name), checkExpr)
+		if noInherit {
+			sql += " NO INHERIT"
+		}
 		if !validated {
 			sql += " NOT VALID"
 		}

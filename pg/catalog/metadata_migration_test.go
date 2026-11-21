@@ -7886,6 +7886,61 @@ func TestRound37Fixes(t *testing.T) {
 	require.Len(t, prUpdated.Schemas[0].Procedures, 1)
 	require.Equal(t, "q", prUpdated.Schemas[0].Procedures[0].Name)
 	require.Equal(t, "kept", prUpdated.Schemas[0].Procedures[0].Comment)
+
+	// 24. A string-bodied SQL function records no dependency on the routines and types it calls, as PostgreSQL.
+	strCat := New()
+	_, err = strCat.Exec(`
+		CREATE TYPE public.st AS (a int);
+		CREATE FUNCTION public.zz() RETURNS integer LANGUAGE sql RETURN 1;
+		CREATE FUNCTION public.str_body() RETURNS integer LANGUAGE sql AS $$ SELECT public.zz() + (NULL::public.st).a $$;
+	`, nil)
+	require.NoError(t, err)
+	require.NoError(t, round37ExecErr(strCat, `DROP FUNCTION public.zz(); DROP TYPE public.st;`))
+	require.NotNil(t, strCat.procByName["str_body"])
+
+	// 25. A NO INHERIT check rebuilt around a column type change stays NO INHERIT.
+	niFrom := New()
+	_, err = niFrom.Exec(`CREATE TABLE public.ni (a int, CONSTRAINT ni_a CHECK (a > 0) NO INHERIT);`, nil)
+	require.NoError(t, err)
+	niTo := niFrom.Clone()
+	_, err = niTo.Exec(`ALTER TABLE public.ni ALTER COLUMN a TYPE bigint;`, nil)
+	require.NoError(t, err)
+	niSQL := GenerateMigration(niFrom, niTo, Diff(niFrom, niTo)).SQL()
+	require.Contains(t, niSQL, "NO INHERIT")
+	niApplied := niFrom.Clone()
+	require.NoError(t, round37ExecErr(niApplied, niSQL))
+	require.True(t, Diff(niApplied, niTo).IsEmpty())
+
+	// 26. Applied routine definitions schema-qualify user types in parameters, returns, and RETURNS TABLE.
+	rtBefore := New()
+	_, err = rtBefore.Exec(`CREATE TYPE public.status AS ENUM ('on', 'off');`, nil)
+	require.NoError(t, err)
+	rtMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			EnumTypes: []*metadatapb.EnumTypeMetadata{{Name: "status", Values: []string{"on", "off"}}},
+		}},
+	}
+	rtAfter := rtBefore.Clone()
+	_, err = rtAfter.Exec(`
+		CREATE FUNCTION public.flip(s status) RETURNS status LANGUAGE sql AS 'SELECT s';
+		CREATE FUNCTION public.rows_of(s status) RETURNS TABLE(v status) LANGUAGE sql AS 'SELECT s';
+	`, nil)
+	require.NoError(t, err)
+	rtUpdated := ApplyDiffToMetadata(rtMeta, rtBefore, rtAfter, Diff(rtBefore, rtAfter))
+	rtDefs := map[string]string{}
+	for _, fn := range rtUpdated.Schemas[0].Functions {
+		rtDefs[fn.Name] = fn.Definition
+	}
+	require.Contains(t, rtDefs["flip"], `"s" public.status`)
+	require.Contains(t, rtDefs["flip"], `RETURNS public.status`)
+	require.Contains(t, rtDefs["rows_of"], `TABLE("v" public.status)`)
+	rtReloaded := New()
+	rtReport, err := rtReloaded.LoadMetadata(context.Background(), rtUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, rtReport.Degraded)
+	require.True(t, Diff(rtReloaded, rtAfter).IsEmpty())
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

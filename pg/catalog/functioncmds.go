@@ -745,7 +745,7 @@ func (c *Catalog) recordFunctionDependencies(
 	// that reference them.
 	if strings.EqualFold(language, "sql") {
 		if sqlStandardBody && sqlBody != nil {
-			c.recordDepsFromNode('f', procOID, sqlBody)
+			c.recordDepsFromNode('f', procOID, sqlBody, true)
 		} else if body != "" {
 			c.recordFuncBodyDeps(procOID, body)
 		}
@@ -843,7 +843,7 @@ func (c *Catalog) recordFuncBodyDeps(funcOID uint32, body string) {
 		if !ok {
 			continue
 		}
-		c.recordDepsFromNode('f', funcOID, raw.Stmt)
+		c.recordDepsFromNode('f', funcOID, raw.Stmt, false)
 	}
 }
 
@@ -851,7 +851,12 @@ func (c *Catalog) recordFuncBodyDeps(funcOID uint32, body string) {
 // any RangeVar (table reference) found. This is a lightweight alternative
 // to full semantic analysis that works even when the query contains
 // unresolvable references (e.g., function parameters).
-func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) {
+//
+// sqlStandard is true for a SQL-standard body (RETURN or BEGIN ATOMIC), which
+// PostgreSQL parses at definition time and whose referenced routines and types
+// it records as dependencies. A string body records none of those, so for it
+// only table references are kept, as ordering hints for migrations.
+func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node, sqlStandard bool) {
 	if n == nil {
 		return
 	}
@@ -862,9 +867,13 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 		case *nodes.RangeVar:
 			c.recordDepsOnRangeVar(objType, objOID, v)
 		case *nodes.FuncCall:
-			c.recordDepsOnFuncCall(objType, objOID, v)
+			if sqlStandard {
+				c.recordDepsOnFuncCall(objType, objOID, v)
+			}
 		case *nodes.TypeCast:
-			c.recordDepsOnTypeName(objType, objOID, v.TypeName)
+			if sqlStandard {
+				c.recordDepsOnTypeName(objType, objOID, v.TypeName)
+			}
 		}
 		return true
 	})
