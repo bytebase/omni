@@ -617,33 +617,21 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 	}
 	var newOwner string
 	hasOwner := false
+	// Validate every subcommand before mutating seq.
+	// pg: src/backend/commands/tablecmds.c — ATSimplePermissions (ATT_SEQUENCE)
 	for _, item := range cmds.Items {
 		atc, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
 			continue
 		}
 		switch nodes.AlterTableType(atc.Subtype) {
-		case nodes.AT_SetTableSpace:
-			if err := c.checkRelationTablespace(atc.Name); err != nil {
-				return err
-			}
-			return errWrongObjectType(relName, "a table, materialized view, or index")
-		case nodes.AT_SetLogged:
+		case nodes.AT_SetLogged, nodes.AT_SetUnLogged:
 			if seq.Persistence == 't' {
 				return &Error{
 					Code:    CodeWrongObjectType,
 					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
 				}
 			}
-			seq.Persistence = 'p'
-		case nodes.AT_SetUnLogged:
-			if seq.Persistence == 't' {
-				return &Error{
-					Code:    CodeWrongObjectType,
-					Message: fmt.Sprintf("cannot change logged status of table %q because it is temporary", seq.Name),
-				}
-			}
-			seq.Persistence = 'u'
 		case nodes.AT_ChangeOwner:
 			if atc.Newowner == nil {
 				continue
@@ -660,6 +648,20 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 			}
 			newOwner = owner
 			hasOwner = true
+		default:
+			return errWrongObjectType(relName, "a table")
+		}
+	}
+	for _, item := range cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_SetLogged:
+			seq.Persistence = 'p'
+		case nodes.AT_SetUnLogged:
+			seq.Persistence = 'u'
 		}
 	}
 	if hasOwner {
@@ -668,19 +670,6 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 		c.transferACLs('s', seq.OID, oldOwner, newOwner)
 	}
 	return nil
-}
-
-func allAlterCmdsChangeOwner(cmds *nodes.List) bool {
-	if cmds == nil || len(cmds.Items) == 0 {
-		return false
-	}
-	for _, item := range cmds.Items {
-		atc, ok := item.(*nodes.AlterTableCmd)
-		if !ok || nodes.AlterTableType(atc.Subtype) != nodes.AT_ChangeOwner {
-			return false
-		}
-	}
-	return true
 }
 
 // RenameTablespace renames a tablespace and every object stored in it.

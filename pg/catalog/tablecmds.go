@@ -1104,13 +1104,34 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 
 	dropRelOIDs := map[uint32]bool{}
 	dropTypeOIDs := map[uint32]bool{}
-	for _, t := range targets {
-		dropRelOIDs[t.rel.OID] = true
-		if t.rel.RowTypeOID != 0 {
-			dropTypeOIDs[t.rel.RowTypeOID] = true
+	var autoDropParts []target
+	addDropRel := func(r *Relation) {
+		dropRelOIDs[r.OID] = true
+		if r.RowTypeOID != 0 {
+			dropTypeOIDs[r.RowTypeOID] = true
 		}
-		if t.rel.ArrayOID != 0 {
-			dropTypeOIDs[t.rel.ArrayOID] = true
+		if r.ArrayOID != 0 {
+			dropTypeOIDs[r.ArrayOID] = true
+		}
+	}
+	var collectPartitions func(parent *Relation)
+	collectPartitions = func(parent *Relation) {
+		for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+			child := c.relationByOID[childOID]
+			if child == nil || dropRelOIDs[child.OID] {
+				continue
+			}
+			addDropRel(child)
+			autoDropParts = append(autoDropParts, target{schema: child.Schema, rel: child, name: child.Name})
+			collectPartitions(child)
+		}
+	}
+	for _, t := range targets {
+		addDropRel(t.rel)
+	}
+	for _, t := range targets {
+		if t.rel.RelKind == 'p' {
+			collectPartitions(t.rel)
 		}
 	}
 	if !cascade {
@@ -1120,7 +1141,10 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		} else if removeType == nodes.OBJECT_MATVIEW {
 			kind = "materialized view"
 		}
-		for _, t := range targets {
+		allToCheck := make([]target, 0, len(targets)+len(autoDropParts))
+		allToCheck = append(allToCheck, targets...)
+		allToCheck = append(allToCheck, autoDropParts...)
+		for _, t := range allToCheck {
 			for _, dep := range c.relationDependents(t.rel.OID, 0) {
 				if !dep.Normal {
 					continue
@@ -1157,6 +1181,15 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		}
 	}
 
+	if !cascade {
+		// Drop descendant partitions bottom-up (DepAuto on their partitioned parent).
+		for i := len(autoDropParts) - 1; i >= 0; i-- {
+			p := autoDropParts[i]
+			if c.relationByOID[p.rel.OID] != nil {
+				c.removeRelation(p.schema, p.name, p.rel)
+			}
+		}
+	}
 	for _, t := range targets {
 		if c.relationByOID[t.rel.OID] == nil {
 			continue
@@ -1737,132 +1770,230 @@ func (c *Catalog) ExecuteTruncate(stmt *nodes.TruncateStmt) error {
 // (pgddl helper — combines CloneIndexesToPartition + DefineIndexForPartition)
 func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Relation) {
 	for _, idx := range c.indexesByRel[parent.OID] {
-		// Map parent attnums to partition attnums by column name.
-		partAttnums := c.mapColumnAttnums(parent, partition, idx.Columns)
-		if partAttnums == nil {
-			continue // column not found in partition (shouldn't happen for valid partition)
-		}
+		c.cloneIndexToPartition(schema, parent, partition, idx)
+	}
+}
 
-		partIdxName := fmt.Sprintf("%s_%s_idx", partition.Name, idx.Name)
-		if idx.IsPrimary {
-			partIdxName = partition.Name + "_pkey"
+// cloneIndexToPartitionTree recursively clones a single parent index (and any
+// backing PK/UNIQUE/EXCLUDE constraint) down to all existing partitions.
+func (c *Catalog) cloneIndexToPartitionTree(parent *Relation, idx *Index) {
+	if parent == nil || idx == nil {
+		return
+	}
+	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+		child := c.relationByOID[childOID]
+		if child == nil {
+			continue
 		}
-		// Ensure uniqueness.
-		for _, exists := schema.Indexes[partIdxName]; exists; _, exists = schema.Indexes[partIdxName] {
-			partIdxName = partIdxName + "1"
+		partIdx := c.cloneIndexToPartition(child.Schema, parent, child, idx)
+		if partIdx != nil && child.RelKind == 'p' {
+			c.cloneIndexToPartitionTree(child, partIdx)
 		}
+	}
+}
 
-		// Clone IndOption.
-		var partIndOption []int16
-		if idx.IndOption != nil {
-			partIndOption = make([]int16, len(idx.IndOption))
-			copy(partIndOption, idx.IndOption)
-		}
-
-		partIdxSpace := idx.Tablespace
-		if partIdxSpace == "" {
-			partIdxSpace = normalizeTablespace(c.effectiveIndexTablespace("", partition))
-		}
-		partIdx := &Index{
-			OID:               c.oidGen.Next(),
-			Name:              partIdxName,
-			Schema:            schema,
-			RelOID:            partition.OID,
-			Tablespace:        partIdxSpace,
-			OwnerName:         partition.OwnerName,
-			Columns:           partAttnums,
-			ColumnNames:       slices.Clone(idx.ColumnNames),
-			IsUnique:          idx.IsUnique,
-			IsPrimary:         idx.IsPrimary,
-			AccessMethod:      idx.AccessMethod,
-			NKeyColumns:       idx.NKeyColumns,
-			WhereClause:       idx.WhereClause,
-			IndOption:         partIndOption,
-			NullsNotDistinct:  idx.NullsNotDistinct,
-			Exprs:             slices.Clone(idx.Exprs),
-			OpClasses:         slices.Clone(idx.OpClasses),
-			OpClassOptions:    slices.Clone(idx.OpClassOptions),
-			Collations:        cloneStringSlices(idx.Collations),
-			UserCollationOIDs: slices.Clone(idx.UserCollationOIDs),
-			AnalyzedExprs:     slices.Clone(idx.AnalyzedExprs),
-			AnalyzedWhere:     idx.AnalyzedWhere,
-			ParentIndexOID:    idx.OID,
-		}
-
-		// If the parent index backs a constraint, clone the constraint too.
-		if idx.ConstraintOID != 0 {
-			parentCon := c.constraints[idx.ConstraintOID]
-			if parentCon != nil {
-				conOID := c.oidGen.Next()
-				partConAttnums := c.mapColumnAttnums(parent, partition, parentCon.Columns)
-				if partConAttnums == nil {
-					partConAttnums = partAttnums
+// cloneIndexConstraintToPartitionTree propagates an index-backed constraint
+// (PK/UNIQUE/EXCLUDE) added to a partitioned table down to existing partitions.
+// For PRIMARY KEY, it first validates that no partition has an incompatible
+// existing primary key, reusing and attaching any compatible existing PK.
+func (c *Catalog) cloneIndexConstraintToPartitionTree(parent *Relation, parentIdx *Index) error {
+	if parent == nil || parentIdx == nil {
+		return nil
+	}
+	parentCon := c.constraints[parentIdx.ConstraintOID]
+	if parentCon != nil && parentCon.Type == ConstraintPK {
+		var validate func(curParent *Relation, curCols, curIncl []int16) error
+		validate = func(curParent *Relation, curCols, curIncl []int16) error {
+			for _, childOID := range c.findPartitionChildRelations(curParent.OID) {
+				child := c.relationByOID[childOID]
+				if child == nil {
+					continue
 				}
-
-				partConName := fmt.Sprintf("%s_%s", partition.Name, parentCon.Name)
-
-				partCon := &Constraint{
-					OID:            conOID,
-					Name:           partConName,
-					Type:           parentCon.Type,
-					RelOID:         partition.OID,
-					Namespace:      schema.OID,
-					Columns:        partConAttnums,
-					IncludeColumns: c.mapColumnAttnums(parent, partition, parentCon.IncludeColumns),
-					IndexOID:       partIdx.OID,
-					Deferrable:     parentCon.Deferrable,
-					Deferred:       parentCon.Deferred,
-					Validated:      true,
-					ConIsLocal:     true,
-					ConParentID:    parentCon.OID,
-					ExclOps:        slices.Clone(parentCon.ExclOps),
-					ExclOpSchemas:  slices.Clone(parentCon.ExclOpSchemas),
-				}
-
-				partIdx.ConstraintOID = conOID
-				c.registerConstraint(partition.OID, partCon)
-				c.recordDependency('c', conOID, 0, 'r', partition.OID, 0, DepAuto)
-				c.recordColumnDependencies('c', conOID, partition.OID, partConAttnums, DepAuto)
-				var parentConExtDeps []DepEntry
-				for _, d := range c.deps {
-					if d.ObjType == 'c' && d.ObjOID == parentCon.OID && d.DepType == DepNormal &&
-						!(d.RefType == 'r' && d.RefOID == parent.OID) {
-						parentConExtDeps = append(parentConExtDeps, d)
+				mappedCols := c.mapColumnAttnums(curParent, child, curCols)
+				mappedIncl := c.mapColumnAttnums(curParent, child, curIncl)
+				if existingPK := c.findPKConstraint(child.OID); existingPK != nil {
+					if !slices.Equal(existingPK.Columns, mappedCols) ||
+						!slices.Equal(existingPK.IncludeColumns, mappedIncl) ||
+						existingPK.Deferrable != parentCon.Deferrable ||
+						existingPK.Deferred != parentCon.Deferred {
+						return errDuplicatePKey(child.Name)
 					}
 				}
-				for _, d := range parentConExtDeps {
-					c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+				if child.RelKind == 'p' {
+					if err := validate(child, mappedCols, mappedIncl); err != nil {
+						return err
+					}
 				}
 			}
+			return nil
 		}
+		if err := validate(parent, parentCon.Columns, parentCon.IncludeColumns); err != nil {
+			return err
+		}
+	}
 
-		c.registerIndex(schema, partIdx)
-		c.recordDependency('i', partIdx.OID, 0, 'r', partition.OID, 0, DepAuto)
-		c.recordColumnDependencies('i', partIdx.OID, partition.OID, partAttnums, DepAuto)
-		if am := c.accessMethodByName[partIdx.AccessMethod]; am != nil {
-			c.recordDependency('i', partIdx.OID, 0, 'm', am.OID, 0, DepNormal)
-		}
-		c.recordOpClassDependencies('i', partIdx.OID, c.indexOpClassRefs(partition, partAttnums, partIdx.NKeyColumns, partIdx.OpClasses), partIdx.AccessMethod)
-		var parentIdxExtDeps []DepEntry
-		for _, d := range c.deps {
-			if d.ObjType == 'i' && d.ObjOID == idx.OID && d.DepType == DepNormal &&
-				!(d.RefType == 'r' && d.RefOID == parent.OID) {
-				parentIdxExtDeps = append(parentIdxExtDeps, d)
+	var propagate func(curParent *Relation, curIdx *Index)
+	propagate = func(curParent *Relation, curIdx *Index) {
+		curCon := c.constraints[curIdx.ConstraintOID]
+		for _, childOID := range c.findPartitionChildRelations(curParent.OID) {
+			child := c.relationByOID[childOID]
+			if child == nil {
+				continue
 			}
-		}
-		for _, d := range parentIdxExtDeps {
-			c.recordDependency('i', partIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
-		}
-
-		// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
-		if idx.IsPrimary {
-			for _, attnum := range indexKeyAttnums(idx, partAttnums) {
-				if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
-					partition.Columns[attnum-1].NotNull = true
+			if curCon != nil && curCon.Type == ConstraintPK {
+				if existingPK := c.findPKConstraint(child.OID); existingPK != nil {
+					existingPK.ConParentID = curCon.OID
+					var existingIdx *Index
+					if existingPK.IndexOID != 0 {
+						existingIdx = c.indexes[existingPK.IndexOID]
+					}
+					if existingIdx != nil {
+						existingIdx.ParentIndexOID = curIdx.OID
+						c.recordDependency('i', existingIdx.OID, 0, 'i', curIdx.OID, 0, DepInternal)
+						if child.RelKind == 'p' {
+							propagate(child, existingIdx)
+						}
+					}
+					continue
 				}
+			}
+			partIdx := c.cloneIndexToPartition(child.Schema, curParent, child, curIdx)
+			if partIdx != nil && child.RelKind == 'p' {
+				propagate(child, partIdx)
 			}
 		}
 	}
+	propagate(parent, parentIdx)
+	return nil
+}
+
+func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relation, idx *Index) *Index {
+	// Map parent attnums to partition attnums by column name.
+	partAttnums := c.mapColumnAttnums(parent, partition, idx.Columns)
+	if partAttnums == nil {
+		return nil // column not found in partition (shouldn't happen for valid partition)
+	}
+
+	partIdxName := fmt.Sprintf("%s_%s_idx", partition.Name, idx.Name)
+	if idx.IsPrimary {
+		partIdxName = partition.Name + "_pkey"
+	}
+	// Ensure uniqueness.
+	for _, exists := schema.Indexes[partIdxName]; exists; _, exists = schema.Indexes[partIdxName] {
+		partIdxName = partIdxName + "1"
+	}
+
+	// Clone IndOption.
+	var partIndOption []int16
+	if idx.IndOption != nil {
+		partIndOption = make([]int16, len(idx.IndOption))
+		copy(partIndOption, idx.IndOption)
+	}
+
+	partIdxSpace := idx.Tablespace
+	if partIdxSpace == "" {
+		partIdxSpace = normalizeTablespace(c.effectiveIndexTablespace("", partition))
+	}
+	partIdx := &Index{
+		OID:               c.oidGen.Next(),
+		Name:              partIdxName,
+		Schema:            schema,
+		RelOID:            partition.OID,
+		Tablespace:        partIdxSpace,
+		OwnerName:         partition.OwnerName,
+		Columns:           partAttnums,
+		ColumnNames:       slices.Clone(idx.ColumnNames),
+		IsUnique:          idx.IsUnique,
+		IsPrimary:         idx.IsPrimary,
+		AccessMethod:      idx.AccessMethod,
+		NKeyColumns:       idx.NKeyColumns,
+		WhereClause:       idx.WhereClause,
+		IndOption:         partIndOption,
+		NullsNotDistinct:  idx.NullsNotDistinct,
+		Exprs:             slices.Clone(idx.Exprs),
+		OpClasses:         slices.Clone(idx.OpClasses),
+		OpClassOptions:    slices.Clone(idx.OpClassOptions),
+		Collations:        cloneStringSlices(idx.Collations),
+		UserCollationOIDs: slices.Clone(idx.UserCollationOIDs),
+		AnalyzedExprs:     slices.Clone(idx.AnalyzedExprs),
+		AnalyzedWhere:     idx.AnalyzedWhere,
+		ParentIndexOID:    idx.OID,
+	}
+
+	// If the parent index backs a constraint, clone the constraint too.
+	if idx.ConstraintOID != 0 {
+		parentCon := c.constraints[idx.ConstraintOID]
+		if parentCon != nil {
+			conOID := c.oidGen.Next()
+			partConAttnums := c.mapColumnAttnums(parent, partition, parentCon.Columns)
+			if partConAttnums == nil {
+				partConAttnums = partAttnums
+			}
+
+			partConName := fmt.Sprintf("%s_%s", partition.Name, parentCon.Name)
+
+			partCon := &Constraint{
+				OID:            conOID,
+				Name:           partConName,
+				Type:           parentCon.Type,
+				RelOID:         partition.OID,
+				Namespace:      schema.OID,
+				Columns:        partConAttnums,
+				IncludeColumns: c.mapColumnAttnums(parent, partition, parentCon.IncludeColumns),
+				IndexOID:       partIdx.OID,
+				Deferrable:     parentCon.Deferrable,
+				Deferred:       parentCon.Deferred,
+				Validated:      true,
+				ConIsLocal:     true,
+				ConParentID:    parentCon.OID,
+				ExclOps:        slices.Clone(parentCon.ExclOps),
+				ExclOpSchemas:  slices.Clone(parentCon.ExclOpSchemas),
+			}
+
+			partIdx.ConstraintOID = conOID
+			c.registerConstraint(partition.OID, partCon)
+			c.recordDependency('c', conOID, 0, 'r', partition.OID, 0, DepAuto)
+			c.recordColumnDependencies('c', conOID, partition.OID, partConAttnums, DepAuto)
+			var parentConExtDeps []DepEntry
+			for _, d := range c.deps {
+				if d.ObjType == 'c' && d.ObjOID == parentCon.OID && d.DepType == DepNormal &&
+					!(d.RefType == 'r' && d.RefOID == parent.OID) {
+					parentConExtDeps = append(parentConExtDeps, d)
+				}
+			}
+			for _, d := range parentConExtDeps {
+				c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+			}
+		}
+	}
+
+	c.registerIndex(schema, partIdx)
+	c.recordDependency('i', partIdx.OID, 0, 'r', partition.OID, 0, DepAuto)
+	c.recordColumnDependencies('i', partIdx.OID, partition.OID, partAttnums, DepAuto)
+	if am := c.accessMethodByName[partIdx.AccessMethod]; am != nil {
+		c.recordDependency('i', partIdx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
+	c.recordOpClassDependencies('i', partIdx.OID, c.indexOpClassRefs(partition, partAttnums, partIdx.NKeyColumns, partIdx.OpClasses), partIdx.AccessMethod)
+	var parentIdxExtDeps []DepEntry
+	for _, d := range c.deps {
+		if d.ObjType == 'i' && d.ObjOID == idx.OID && d.DepType == DepNormal &&
+			!(d.RefType == 'r' && d.RefOID == parent.OID) {
+			parentIdxExtDeps = append(parentIdxExtDeps, d)
+		}
+	}
+	for _, d := range parentIdxExtDeps {
+		c.recordDependency('i', partIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+	}
+
+	// Force NOT NULL on PK key columns; INCLUDE columns keep their nullability.
+	if idx.IsPrimary {
+		for _, attnum := range indexKeyAttnums(idx, partAttnums) {
+			if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
+				partition.Columns[attnum-1].NotNull = true
+			}
+		}
+	}
+	return partIdx
 }
 
 // cloneRowTriggersToPartition clones FOR EACH ROW triggers from parent to partition.

@@ -532,9 +532,9 @@ func TestAlterViewOnViewOK(t *testing.T) {
 			TargetList: []*ResTarget{{Val: &Expr{Kind: ExprStar}}},
 		}, nil))
 
-	// ALTER VIEW on a view should work.
+	// ALTER VIEW on a view should work for view-supported actions (e.g. SET DEFAULT).
 	stmt := makeAlterTableStmt("", "v",
-		makeATSetNotNull("id"),
+		makeATSetDefault("id", "0"),
 	)
 	stmt.ObjType = int(nodes.OBJECT_VIEW)
 	err := c.AlterTableStmt(stmt)

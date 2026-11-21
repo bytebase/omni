@@ -264,10 +264,10 @@ func (p *Parser) parseSeqOptElem() (*nodes.DefElem, error) {
 		return makeDefElem("restart", nil), nil
 	case LOGGED:
 		p.advance()
-		return makeDefElem("logged", &nodes.Boolean{Boolval: true}), nil
+		return makeDefElem("logged", nil), nil
 	case UNLOGGED:
 		p.advance()
-		return makeDefElem("logged", &nodes.Boolean{Boolval: false}), nil
+		return makeDefElem("unlogged", nil), nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }

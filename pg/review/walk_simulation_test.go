@@ -88,6 +88,68 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 		SearchPath: `"$user", public`,
 		Owner:      "postgres",
 	}
+	// Collect child partitions by parent OID so they appear under their parent
+	// table's Partitions (matching Bytebase's PostgreSQL sync) instead of as
+	// top-level tables.
+	partChildren := make(map[uint32][]*pgcatalog.Relation)
+	for _, s := range c.UserSchemas() {
+		relNames := make([]string, 0, len(s.Relations))
+		for name := range s.Relations {
+			relNames = append(relNames, name)
+		}
+		slices.Sort(relNames)
+		for _, name := range relNames {
+			rel := s.Relations[name]
+			if rel.PartitionOf != 0 {
+				partChildren[rel.PartitionOf] = append(partChildren[rel.PartitionOf], rel)
+			}
+		}
+	}
+	indexMeta := func(rel *pgcatalog.Relation) []*metadata.IndexMetadata {
+		var out []*metadata.IndexMetadata
+		for _, idx := range c.IndexesOf(rel.OID) {
+			only := ""
+			if rel.RelKind == 'p' {
+				only = "ONLY "
+			}
+			unique := ""
+			if idx.IsUnique {
+				unique = "UNIQUE "
+			}
+			schemaName := "public"
+			if rel.Schema != nil && rel.Schema.Name != "" {
+				schemaName = rel.Schema.Name
+			}
+			am := idx.AccessMethod
+			if am == "" {
+				am = "btree"
+			}
+			out = append(out, &metadata.IndexMetadata{
+				Name:         idx.Name,
+				Unique:       idx.IsUnique,
+				Primary:      idx.IsPrimary,
+				IsConstraint: idx.ConstraintOID != 0,
+				Definition:   "CREATE " + unique + "INDEX " + ident(idx.Name) + " ON " + only + ident(schemaName) + "." + ident(rel.Name) + " USING " + ident(am) + " (a)",
+			})
+		}
+		return out
+	}
+	var buildPartitions func(parentOID uint32) []*metadata.TablePartitionMetadata
+	buildPartitions = func(parentOID uint32) []*metadata.TablePartitionMetadata {
+		children := partChildren[parentOID]
+		if len(children) == 0 {
+			return nil
+		}
+		out := make([]*metadata.TablePartitionMetadata, 0, len(children))
+		for _, child := range children {
+			out = append(out, &metadata.TablePartitionMetadata{
+				Name:          child.Name,
+				Indexes:       indexMeta(child),
+				Subpartitions: buildPartitions(child.OID),
+			})
+		}
+		return out
+	}
 	for _, s := range c.UserSchemas() {
 		sm := &metadata.SchemaMetadata{Name: s.Name}
 		relNames := make([]string, 0, len(s.Relations))
@@ -97,19 +159,18 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 		slices.Sort(relNames)
 		for _, name := range relNames {
 			rel := s.Relations[name]
+			if rel.PartitionOf != 0 {
+				continue
+			}
 			switch rel.RelKind {
 			case 'r', 'p':
-				tbl := &metadata.TableMetadata{Name: rel.Name}
+				tbl := &metadata.TableMetadata{
+					Name:       rel.Name,
+					Indexes:    indexMeta(rel),
+					Partitions: buildPartitions(rel.OID),
+				}
 				for _, col := range rel.Columns {
 					tbl.Columns = append(tbl.Columns, &metadata.ColumnMetadata{Name: col.Name})
-				}
-				for _, idx := range c.IndexesOf(rel.OID) {
-					tbl.Indexes = append(tbl.Indexes, &metadata.IndexMetadata{
-						Name:         idx.Name,
-						Unique:       idx.IsUnique,
-						Primary:      idx.IsPrimary,
-						IsConstraint: idx.ConstraintOID != 0,
-					})
 				}
 				for _, con := range c.ConstraintsOf(rel.OID) {
 					switch con.Type {
@@ -123,7 +184,11 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 				}
 				sm.Tables = append(sm.Tables, tbl)
 			case 'v':
-				sm.Views = append(sm.Views, &metadata.ViewMetadata{Name: rel.Name})
+				v := &metadata.ViewMetadata{Name: rel.Name}
+				for _, col := range rel.Columns {
+					v.Columns = append(v.Columns, &metadata.ColumnMetadata{Name: col.Name})
+				}
+				sm.Views = append(sm.Views, v)
 			case 'm':
 				mv := &metadata.MaterializedViewMetadata{Name: rel.Name}
 				for _, idx := range c.IndexesOf(rel.OID) {

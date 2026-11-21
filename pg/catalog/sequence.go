@@ -1,12 +1,48 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
+
+// defElemInt64Strict parses a sequence integer option value like PostgreSQL's
+// defGetInt64 (including rejecting non-integer FCONST values such as 1.5 with
+// 22P02 and out-of-range integers with 22003). Returns (_, false, nil) when
+// d.Arg is nil (e.g. NO MINVALUE, NO MAXVALUE, bare RESTART).
+func defElemInt64Strict(d *nodes.DefElem) (int64, bool, error) {
+	if d == nil || d.Arg == nil {
+		return 0, false, nil
+	}
+	switch v := d.Arg.(type) {
+	case *nodes.Integer:
+		return v.Ival, true, nil
+	case *nodes.Float:
+		n, err := strconv.ParseInt(v.Fval, 10, 64)
+		if err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return 0, false, &Error{
+					Code:    CodeNumericValueOutOfRange,
+					Message: fmt.Sprintf("value %q is out of range for type bigint", v.Fval),
+				}
+			}
+			return 0, false, &Error{
+				Code:    CodeInvalidTextRepresentation,
+				Message: fmt.Sprintf("invalid input syntax for type bigint: %q", v.Fval),
+			}
+		}
+		return n, true, nil
+	default:
+		return 0, false, &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("%s requires a numeric value", d.Defname),
+		}
+	}
+}
 
 // Sequence represents a PostgreSQL sequence.
 type Sequence struct {
@@ -70,7 +106,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawIncrement = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					return err
+				}
+				if ok {
 					pIncrement = &v
 				}
 			case "minvalue":
@@ -78,7 +118,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMinValue = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					return err
+				}
+				if ok {
 					pMinValue = &v
 				}
 			case "maxvalue":
@@ -86,7 +130,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMaxValue = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					return err
+				}
+				if ok {
 					pMaxValue = &v
 				}
 			case "start":
@@ -94,7 +142,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawStart = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					return err
+				}
+				if ok {
 					pStart = &v
 				}
 			case "cache":
@@ -102,7 +154,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCache = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					return err
+				}
+				if ok {
 					pCacheValue = &v
 				}
 			case "cycle":
@@ -123,9 +179,11 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 						// OWNED BY NONE — not applicable for CREATE, ignore.
 					} else if len(parts) == 2 {
 						ownedBy = parts[0] + "." + parts[1]
-					} else if len(parts) >= 3 {
-						ownedBySchema = parts[len(parts)-3]
-						ownedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
+					} else if len(parts) == 3 {
+						ownedBySchema = parts[0]
+						ownedBy = parts[1] + "." + parts[2]
+					} else {
+						return &Error{Code: CodeSyntaxError, Message: "invalid OWNED BY option"}
 					}
 				}
 			case "as":
@@ -138,6 +196,8 @@ func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName s
 				// sequence_name is only valid for identity columns, not CREATE SEQUENCE.
 				// pg: src/backend/commands/sequence.c — init_params (sequence_name rejection)
 				return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+			case "logged", "unlogged":
+				return &Error{Code: CodeInternalError, Message: fmt.Sprintf("option %q not recognized", d.Defname)}
 			}
 		}
 	}
@@ -316,7 +376,8 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 
 	// Duplicate DefElem detection.
 	// pg: src/backend/commands/sequence.c — init_params (duplicate option checks)
-	var sawIncrement, sawMinValue, sawMaxValue, sawStart, sawRestart, sawCache, sawCycle, sawOwnedBy bool
+	var sawAs, sawIncrement, sawMinValue, sawMaxValue, sawStart, sawRestart, sawCache, sawCycle, sawOwnedBy bool
+	var resetMinValue, resetMaxValue bool
 	var clearOwnedBy bool
 	var newOwnedBy, newOwnedBySchema string
 
@@ -328,13 +389,48 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				continue
 			}
 			switch d.Defname {
+			case "as":
+				if sawAs {
+					*seq = orig
+					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+				}
+				sawAs = true
+				var typeOID uint32
+				if tn, ok := d.Arg.(*nodes.TypeName); ok {
+					resolvedOID, _, err := c.resolveTypeName(tn)
+					if err != nil {
+						*seq = orig
+						return err
+					}
+					if resolvedOID != INT2OID && resolvedOID != INT4OID && resolvedOID != INT8OID {
+						*seq = orig
+						return &Error{
+							Code:    CodeFeatureNotSupported,
+							Message: "sequence type must be smallint, integer, or bigint",
+						}
+					}
+					typeOID = resolvedOID
+				} else {
+					resolvedOID, err := c.resolveSeqType(defElemString(d))
+					if err != nil {
+						*seq = orig
+						return err
+					}
+					typeOID = resolvedOID
+				}
+				seq.TypeOID = typeOID
 			case "increment":
 				if sawIncrement {
 					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawIncrement = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					if v == 0 {
 						*seq = orig
 						return errInvalidParameterValue("INCREMENT must not be zero")
@@ -347,8 +443,15 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMinValue = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					seq.MinValue = v
+				} else {
+					resetMinValue = true
 				}
 			case "maxvalue":
 				if sawMaxValue {
@@ -356,8 +459,15 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMaxValue = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					seq.MaxValue = v
+				} else {
+					resetMaxValue = true
 				}
 			case "start":
 				if sawStart {
@@ -365,7 +475,12 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawStart = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					seq.Start = v
 				}
 			case "restart":
@@ -376,7 +491,12 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				sawRestart = true
 				// RESTART [WITH value]: resets the start position.
 				// pg: src/backend/commands/sequence.c — AlterSequence (restart)
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					seq.Start = v
 				}
 			case "cache":
@@ -385,7 +505,12 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCache = true
-				if v, ok := defElemInt(d); ok {
+				v, ok, err := defElemInt64Strict(d)
+				if err != nil {
+					*seq = orig
+					return err
+				}
+				if ok {
 					if v <= 0 {
 						*seq = orig
 						return errInvalidParameterValue("CACHE must be positive")
@@ -400,6 +525,13 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				sawCycle = true
 				seq.Cycle = defElemBool(d)
 			case "logged":
+				// Bare `ALTER SEQUENCE s LOGGED` (Arg == nil) is rejected by PG's
+				// init_params with XX000; `ALTER SEQUENCE s SET LOGGED/UNLOGGED`
+				// carries a Boolean Arg from pg/parser/alter_table.go.
+				if d.Arg == nil {
+					*seq = orig
+					return &Error{Code: CodeInternalError, Message: `option "logged" not recognized`}
+				}
 				if seq.Persistence == 't' {
 					*seq = orig
 					return &Error{
@@ -412,6 +544,12 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				} else {
 					seq.Persistence = 'u'
 				}
+			case "unlogged":
+				*seq = orig
+				return &Error{Code: CodeInternalError, Message: `option "unlogged" not recognized`}
+			case "sequence_name":
+				*seq = orig
+				return &Error{Code: CodeSyntaxError, Message: "invalid sequence option SEQUENCE NAME"}
 			case "owned_by":
 				if sawOwnedBy {
 					*seq = orig
@@ -424,18 +562,59 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 						clearOwnedBy = true
 					} else if len(parts) == 2 {
 						newOwnedBy = parts[0] + "." + parts[1]
-					} else if len(parts) >= 3 {
-						newOwnedBySchema = parts[len(parts)-3]
-						newOwnedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
+					} else if len(parts) == 3 {
+						newOwnedBySchema = parts[0]
+						newOwnedBy = parts[1] + "." + parts[2]
+					} else {
+						*seq = orig
+						return &Error{Code: CodeSyntaxError, Message: "invalid OWNED BY option"}
 					}
 				}
 			}
 		}
 	}
 
+	origBounds := seqBounds[orig.TypeOID]
+	bounds := seqBounds[seq.TypeOID]
+	if resetMinValue {
+		if seq.Increment > 0 {
+			seq.MinValue = 1
+		} else {
+			seq.MinValue = bounds[0]
+		}
+	} else if sawAs && !sawMinValue {
+		// Changing AS type resets MINVALUE only if it was the previous type's default.
+		if orig.Increment > 0 && orig.MinValue == 1 && seq.Increment < 0 {
+			seq.MinValue = bounds[0]
+		} else if orig.Increment < 0 && orig.MinValue == origBounds[0] {
+			if seq.Increment > 0 {
+				seq.MinValue = 1
+			} else {
+				seq.MinValue = bounds[0]
+			}
+		}
+	}
+	if resetMaxValue {
+		if seq.Increment > 0 {
+			seq.MaxValue = bounds[1]
+		} else {
+			seq.MaxValue = -1
+		}
+	} else if sawAs && !sawMaxValue {
+		// Changing AS type resets MAXVALUE only if it was the previous type's default.
+		if orig.Increment > 0 && orig.MaxValue == origBounds[1] {
+			if seq.Increment > 0 {
+				seq.MaxValue = bounds[1]
+			} else {
+				seq.MaxValue = -1
+			}
+		} else if orig.Increment < 0 && orig.MaxValue == -1 && seq.Increment > 0 {
+			seq.MaxValue = bounds[1]
+		}
+	}
+
 	// After processing all options, validate bounds against type.
 	// pg: src/backend/commands/sequence.c — init_params (post-processing validation)
-	bounds := seqBounds[seq.TypeOID]
 	if seq.TypeOID != INT8OID {
 		if seq.MaxValue < bounds[0] || seq.MaxValue > bounds[1] {
 			*seq = orig
@@ -705,7 +884,7 @@ func (c *Catalog) identitySequenceSpec(tableSchema *Schema, relName, colName str
 				}
 				spec.schema = seqSchema
 			}
-		case "logged":
+		case "logged", "unlogged":
 			// LOGGED/UNLOGGED affects persistence in PG. The catalog model does not
 			// track sequence persistence, so remove it like PG does before CREATE SEQUENCE.
 			continue

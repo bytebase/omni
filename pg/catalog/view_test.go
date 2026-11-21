@@ -758,7 +758,7 @@ func TestCreateOrReplaceViewDropColumnFails(t *testing.T) {
 			},
 			From: []*FromItem{{Kind: FromTable, Table: "t"}},
 		}, nil))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestCreateOrReplaceViewChangeTypeFails(t *testing.T) {
@@ -781,7 +781,7 @@ func TestCreateOrReplaceViewChangeTypeFails(t *testing.T) {
 			},
 			From: []*FromItem{{Kind: FromTable, Table: "t"}},
 		}, []string{"id"}))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestCreateOrReplaceViewChangeNameFails(t *testing.T) {
@@ -803,7 +803,7 @@ func TestCreateOrReplaceViewChangeNameFails(t *testing.T) {
 			},
 			From: []*FromItem{{Kind: FromTable, Table: "t"}},
 		}, []string{"other_id"}))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestCreateOrReplaceOnTableFails(t *testing.T) {
@@ -906,5 +906,5 @@ func TestCreateOrReplaceViewChangeCollationFails(t *testing.T) {
 
 	// OR REPLACE should fail because new column has collation 100 but old has 950.
 	err := c.DefineView(makeViewStmtReplace("", "v", query, nil))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }

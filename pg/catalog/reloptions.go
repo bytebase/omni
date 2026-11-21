@@ -223,6 +223,18 @@ func (c *Catalog) validateRelOptionsForCols(opts *nodes.List, relkind byte, acce
 	}
 	switch relkind {
 	case 'p':
+		// PostgreSQL validates parameter namespaces in transformRelOptions
+		// before refusing storage parameters on a partitioned table.
+		for _, item := range opts.Items {
+			d, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			ns := strings.ToLower(d.Defnamespace)
+			if ns != "" && ns != "toast" {
+				return errInvalidParameterValue(fmt.Sprintf("unrecognized parameter namespace %q", d.Defnamespace))
+			}
+		}
 		return &Error{Code: CodeWrongObjectType, Message: "cannot specify storage parameters for a partitioned table"}
 	case 'c', 'f', 'S':
 		return &Error{Code: CodeWrongObjectType, Message: "cannot specify storage parameters for this relation"}
