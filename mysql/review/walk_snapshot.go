@@ -99,11 +99,12 @@ type mysqlSnapshot struct {
 	ignoresFKs map[string]bool
 	// fkGeneratedIndexes lists synced indexes that could be implicitly
 	// generated foreign-key backing indexes (MySQL's HA_GENERATED_KEY), keyed
-	// by table key then index key. Because SHOW CREATE TABLE and
+	// by table key then index key, mapping to the keys of the synced foreign
+	// keys whose column list matches the index. Because SHOW CREATE TABLE and
 	// INFORMATION_SCHEMA.STATISTICS do not distinguish a generated FK backing
 	// index from an explicit one, MySQL may accept CREATE INDEX or ALTER TABLE
 	// ADD INDEX reusing its name (dropping the generated index first).
-	fkGeneratedIndexes map[string]map[string]bool
+	fkGeneratedIndexes map[string]map[string][]string
 	// partial lists the spaces with no name known to be absent, as the
 	// space and its table's key ("" for a space of the database): where the
 	// sync lists a name outside ASCII.
@@ -123,7 +124,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		events:             make(map[string]bool),
 		triggered:          make(map[string]bool),
 		ignoresFKs:         make(map[string]bool),
-		fkGeneratedIndexes: make(map[string]map[string]bool),
+		fkGeneratedIndexes: make(map[string]map[string][]string),
 		partial:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -172,16 +173,17 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			}
 			s.tableForeignKeys[tk] = fks
 			if keepsFKs(t.GetEngine()) && len(t.GetForeignKeys()) > 0 {
-				var fkGen map[string]bool
+				var fkGen map[string][]string
 				for _, i := range t.GetIndexes() {
-					if !mayBeFKGeneratedIndex(i, t.GetForeignKeys()) {
+					owners := fkGeneratedIndexOwners(i, t.GetForeignKeys(), foldTables)
+					if len(owners) == 0 {
 						continue
 					}
 					if ik, ok := nameKey(spaceIndex, i.GetName(), foldTables); ok {
 						if fkGen == nil {
-							fkGen = make(map[string]bool)
+							fkGen = make(map[string][]string)
 						}
-						fkGen[ik] = true
+						fkGen[ik] = owners
 					}
 				}
 				if len(fkGen) > 0 {
@@ -299,31 +301,32 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	return walk.Unknown, ""
 }
 
-// mayBeFKGeneratedIndex reports whether a synced index has the shape of a
-// MySQL-generated foreign-key backing index (HA_GENERATED_KEY): a plain,
+// fkGeneratedIndexOwners returns the keys of synced foreign keys that could
+// have implicitly generated idx as a backing index (HA_GENERATED_KEY): a plain,
 // non-unique, non-primary, comment-less BTREE index with no prefix lengths or
-// descending parts whose columns match one of the table's foreign keys in order.
-func mayBeFKGeneratedIndex(idx *metadata.IndexMetadata, fks []*metadata.ForeignKeyMetadata) bool {
+// descending parts whose columns match the foreign key's columns in order.
+func fkGeneratedIndexOwners(idx *metadata.IndexMetadata, fks []*metadata.ForeignKeyMetadata, foldTables bool) []string {
 	if idx == nil || idx.GetPrimary() || idx.GetUnique() || idx.GetComment() != "" {
-		return false
+		return nil
 	}
 	if typ := idx.GetType(); typ != "" && !strings.EqualFold(typ, "BTREE") {
-		return false
+		return nil
 	}
 	for _, kl := range idx.GetKeyLength() {
 		if kl > 0 {
-			return false
+			return nil
 		}
 	}
 	for _, desc := range idx.GetDescending() {
 		if desc {
-			return false
+			return nil
 		}
 	}
 	exprs := idx.GetExpressions()
 	if len(exprs) == 0 {
-		return false
+		return nil
 	}
+	var owners []string
 	for _, fk := range fks {
 		cols := fk.GetColumns()
 		if len(cols) != len(exprs) {
@@ -336,9 +339,14 @@ func mayBeFKGeneratedIndex(idx *metadata.IndexMetadata, fks []*metadata.ForeignK
 				break
 			}
 		}
-		if match {
-			return true
+		if !match {
+			continue
 		}
+		fkKey, ok := nameKey(spaceForeignKey, fk.GetName(), foldTables)
+		if !ok {
+			fkKey = ""
+		}
+		owners = append(owners, fkKey)
 	}
-	return false
+	return owners
 }

@@ -2198,8 +2198,9 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
-	// that starts with the referenced columns in order.
-	if !hasIndexOnColumns(refTbl, con.RefColumns) {
+	// that starts with the referenced columns in order (including InnoDB's
+	// implicitly appended clustered/primary key columns on secondary indexes).
+	if !hasIndexOnColumns(refTbl, con.RefColumns) && !hasParentIndexCoveringColumns(refTbl, con.RefColumns) {
 		return errFKMissingIndex(con.Name, con.RefTable)
 	}
 
@@ -2511,6 +2512,100 @@ func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
 	tbl.Indexes = append(final, relocated...)
 }
 
+// innodbClusteredIndex returns the clustered index InnoDB appends to secondary
+// BTREE indexes on tbl: the PRIMARY KEY if present, else the first UNIQUE
+// non-fulltext, non-spatial index with all NOT NULL, non-prefix, non-expression
+// columns.
+func innodbClusteredIndex(tbl *Table) *Index {
+	if tbl == nil || !isInnoDBEngine(tbl.Engine) {
+		return nil
+	}
+	for _, idx := range tbl.Indexes {
+		if idx != nil && idx.Primary {
+			return idx
+		}
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil || !idx.Unique || idx.Fulltext || idx.Spatial || isSpatialIndexType(idx.IndexType) || len(idx.Columns) == 0 {
+			continue
+		}
+		allNotNull := true
+		for _, ic := range idx.Columns {
+			if ic == nil || ic.Name == "" || ic.Expr != "" || ic.Length != 0 {
+				allNotNull = false
+				break
+			}
+			col := tbl.GetColumn(ic.Name)
+			if col == nil || col.Nullable {
+				allNotNull = false
+				break
+			}
+		}
+		if allNotNull {
+			return idx
+		}
+	}
+	return nil
+}
+
+// fkIndexCoversWithPK reports whether idx (or idx together with InnoDB's
+// implicitly appended clustered-key columns from pk for a secondary BTREE
+// index) has leading non-prefix, non-expression columns matching fkCols in
+// order.
+func fkIndexCoversWithPK(idx, pk *Index, fkCols []string) bool {
+	if idx == nil || len(fkCols) == 0 || idx.Fulltext || idx.Spatial || isSpatialIndexType(idx.IndexType) {
+		return false
+	}
+	if fkIndexCoversColumns(idx, fkCols) {
+		return true
+	}
+	if idx.Primary || pk == nil || len(pk.Columns) == 0 {
+		return false
+	}
+	eff := make([]string, 0, len(idx.Columns)+len(pk.Columns))
+	seen := make(map[string]bool, len(idx.Columns))
+	for _, ic := range idx.Columns {
+		if ic == nil || ic.Name == "" || ic.Expr != "" || ic.Length != 0 {
+			return false
+		}
+		eff = append(eff, ic.Name)
+		seen[toLower(ic.Name)] = true
+	}
+	for _, pc := range pk.Columns {
+		if pc == nil || pc.Name == "" || pc.Expr != "" || pc.Length != 0 {
+			break
+		}
+		k := toLower(pc.Name)
+		if seen[k] {
+			continue
+		}
+		eff = append(eff, pc.Name)
+		seen[k] = true
+	}
+	if len(eff) < len(fkCols) {
+		return false
+	}
+	for i, col := range fkCols {
+		if toLower(eff[i]) != toLower(col) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasParentIndexCoveringColumns reports whether tbl has an index that can back
+// a parent-side foreign key reference to refCols, including InnoDB secondary
+// BTREE indexes extended with the table's clustered/primary key columns.
+func hasParentIndexCoveringColumns(tbl *Table, refCols []string) bool {
+	pk := innodbClusteredIndex(tbl)
+	for _, idx := range tbl.Indexes {
+		if fkIndexCoversWithPK(idx, pk, refCols) {
+			return true
+		}
+	}
+	return false
+}
+
 // validateDroppedIndexesForFK checks that none of the dropped indexes is still
 // required to back a foreign key on tbl or a foreign key on another table
 // referencing tbl (MySQL 8.0 error 1553). InnoDB enforces 1553 for both child
@@ -2518,6 +2613,24 @@ func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
 func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) error {
 	if len(dropped) == 0 || !isInnoDBEngine(tbl.Engine) {
 		return nil
+	}
+	pk := innodbClusteredIndex(tbl)
+	var droppedClustered *Index
+	if pk == nil || !pk.Primary {
+		for _, d := range dropped {
+			if d != nil && d.Primary {
+				droppedClustered = d
+				break
+			}
+		}
+		if droppedClustered == nil && pk == nil {
+			for _, d := range dropped {
+				if d != nil && d.Unique {
+					droppedClustered = d
+					break
+				}
+			}
+		}
 	}
 	for _, d := range dropped {
 		if d == nil {
@@ -2547,8 +2660,18 @@ func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) erro
 						refDB = db.Name
 					}
 					if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
-						if fkIndexCoversColumns(d, con.RefColumns) && !hasIndexCoveringColumns(tbl, con.RefColumns) {
+						if hasParentIndexCoveringColumns(tbl, con.RefColumns) {
+							continue
+						}
+						if fkIndexCoversWithPK(d, pk, con.RefColumns) || (droppedClustered != nil && fkIndexCoversWithPK(d, droppedClustered, con.RefColumns)) {
 							return errDropIndexNeededInFK(d.Name)
+						}
+						if d == droppedClustered {
+							for _, rem := range tbl.Indexes {
+								if fkIndexCoversWithPK(rem, d, con.RefColumns) {
+									return errDropIndexNeededInFK(rem.Name)
+								}
+							}
 						}
 					}
 				}

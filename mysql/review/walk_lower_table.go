@@ -224,6 +224,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.need(own, walk.Present, nil, rng, msg, "") // 1091
 			b.Set(fk, walk.Absent, "")
 			b.Set(own, walk.Absent, "")
+			b.onForeignKeyDropped(r, k)
 		case dropCheck:
 		case dropConstraint:
 			// The foreign key, unique key, or check of the name.
@@ -543,15 +544,19 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		} else {
 			delete(b.w.ignoresFKs, tk)
 		}
-		var movedGen []string
-		for gk := range b.w.fkGeneratedIndexes {
+		type movedGenEntry struct {
+			name   string
+			owners map[string]bool
+		}
+		var movedGen []movedGenEntry
+		for gk, owners := range b.w.fkGeneratedIndexes {
 			if gk.Parent == fromPath {
-				movedGen = append(movedGen, gk.Name)
+				movedGen = append(movedGen, movedGenEntry{name: gk.Name, owners: owners})
 				delete(b.w.fkGeneratedIndexes, gk)
 			}
 		}
-		for _, name := range movedGen {
-			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, name)] = true
+		for _, entry := range movedGen {
+			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, entry.name)] = entry.owners
 		}
 	})
 }

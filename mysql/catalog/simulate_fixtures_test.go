@@ -329,4 +329,31 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 			t.Errorf("expected fk_pid (user) and fk_pid_2 (relocated generated) indexes on child")
 		}
 	})
+
+	t.Run("parent_innodb_pk_suffix_covers_fk", func(t *testing.T) {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d;")
+		mustExec(t, c, "CREATE TABLE p1 (id INT PRIMARY KEY, a INT, KEY idx_a (a), KEY idx_a_id (a, id))")
+		mustExec(t, c, "CREATE TABLE c1 (id INT PRIMARY KEY, a INT, pid INT, CONSTRAINT fk1 FOREIGN KEY (a, pid) REFERENCES p1 (a, id))")
+		// Dropping explicit (a, id) on parent succeeds because InnoDB secondary index idx_a(a) implicitly appends PK(id).
+		mustExec(t, c, "ALTER TABLE p1 DROP INDEX idx_a_id")
+		// Dropping idx_a now leaves no parent index covering (a, id) -> 1553.
+		if got := execErrorCode(t, c, "ALTER TABLE p1 DROP INDEX idx_a"); got != ErrDropIndexNeededInFK {
+			t.Errorf("drop idx_a: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+		// Dropping PRIMARY KEY removes the implicit PK suffix from idx_a -> 1553.
+		if got := execErrorCode(t, c, "ALTER TABLE p1 DROP PRIMARY KEY"); got != ErrDropIndexNeededInFK {
+			t.Errorf("drop PRIMARY KEY: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+
+		// Creating a child referencing parent(a, id) backed only by idx_a(a) + PK(id) succeeds.
+		mustExec(t, c, "CREATE TABLE p2 (id INT PRIMARY KEY, a INT, KEY idx_a (a))")
+		mustExec(t, c, "CREATE TABLE c2 (id INT PRIMARY KEY, a INT, pid INT, CONSTRAINT fk2 FOREIGN KEY (a, pid) REFERENCES p2 (a, id))")
+
+		// On the child side, InnoDB does NOT use the implicit PK suffix to cover the referencing FK -> 1553.
+		mustExec(t, c, "CREATE TABLE c3 (id INT PRIMARY KEY, a INT, KEY idx_a (a), KEY idx_a_id (a, id), CONSTRAINT fk3 FOREIGN KEY (a, id) REFERENCES p2 (a, id))")
+		if got := execErrorCode(t, c, "ALTER TABLE c3 DROP INDEX idx_a_id"); got != ErrDropIndexNeededInFK {
+			t.Errorf("drop child idx_a_id: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+	})
 }

@@ -436,6 +436,12 @@ func TestWalkThroughMySQLFKGeneratedIndex(t *testing.T) {
 	// preserves its Absent fact for subsequent statements.
 	oneFinding(t, "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
 	oneFinding(t, "ALTER TABLE child RENAME INDEX fk_pid TO fk_pid_explicit, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
+
+	// Dropping the backing FK retires fk_pid as a generated candidate for later
+	// statements (where creating fk_pid again fails with 1061), while an ADD KEY
+	// in the same ALTER still succeeds without a false positive.
+	oneFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid;\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+	noFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid, ADD KEY fk_pid (pid);", target)
 }
 
 // formLowering walks a form on the schema, as walktest.Coverage asks.
