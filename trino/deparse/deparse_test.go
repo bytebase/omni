@@ -1646,4 +1646,42 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "duplicate column")
+
+	// Derived-table output types propagate to outer SELECT built-in matching, skipped
+	// event triggers are ignored while non-skipped ones fail, and skipped UDFs remain
+	// in the resolution catalog so callers still qualify calls to them.
+	derivedAndSkipped, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name:          "cat",
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "skip_evt", SkipDump: true}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+				},
+				{
+					Name:       "ext_fn",
+					Definition: "CREATE FUNCTION cat.s.ext_fn(x bigint) RETURNS bigint RETURN x + 1",
+					SkipDump:   true,
+				},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_derived_and_ext",
+				Definition: "SELECT abs(n), abs(x.n), ext_fn(n) FROM (SELECT 1 AS n) x",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, derivedAndSkipped, `SELECT abs(n), abs(x.n), "cat"."s".ext_fn(n) FROM (SELECT 1 AS n) x;`)
+	assert.Contains(t, derivedAndSkipped, `CREATE FUNCTION "cat".s.abs`)
+	assert.NotContains(t, derivedAndSkipped, "ext_fn(x bigint)")
+	assert.NotContains(t, derivedAndSkipped, "CREATE FUNCTION \"cat\".s.ext_fn")
+	assert.NotContains(t, derivedAndSkipped, "CREATE FUNCTION \"cat\".\"s\".ext_fn")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name:          "cat",
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
+	})
+	require.ErrorContains(t, err, "unsupported")
 }

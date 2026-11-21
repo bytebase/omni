@@ -2117,6 +2117,7 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	require.ErrorContains(t, err, "IsIdentity")
 
 	crossFnOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "skip_evt", SkipDump: true}},
 		Schemas: []*metadatapb.SchemaMetadata{
 			{
 				Name:   "shared",
@@ -2134,6 +2135,11 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, crossFnOut, `CREATE FUNCTION app.fn_cross() RETURNS integer IMMUTABLE AS $$ SELECT id FROM "shared".t $$ LANGUAGE sql;`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
+	})
+	require.ErrorContains(t, err, "unsupported")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

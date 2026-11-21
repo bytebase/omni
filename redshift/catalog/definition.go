@@ -34,7 +34,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		return "", fmt.Errorf("database %q character set %q cannot be restored by Redshift DDL renderer", to.Name, to.CharacterSet)
 	}
 	if to.SearchPath != "" || to.ServiceName != "" || to.DefaultSchema != "" ||
-		len(to.Extensions) > 0 || len(to.EventTriggers) > 0 || len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
+		len(to.Extensions) > 0 ||
+		slices.ContainsFunc(to.EventTriggers, func(et *metadatapb.EventTriggerMetadata) bool { return et != nil && !et.SkipDump }) ||
+		len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
 		return "", fmt.Errorf("database %q contains objects unsupported by Redshift DDL renderer", to.Name)
 	}
 	caseSensitive := needsCaseSensitiveIdentifiers(to)

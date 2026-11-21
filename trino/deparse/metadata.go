@@ -59,6 +59,9 @@ type SchemaMetadata struct {
 	// MaterializedViews are the schema's materialized views, in snapshot order;
 	// each becomes one CREATE MATERIALIZED VIEW statement in dependency order.
 	MaterializedViews []*ViewMetadata
+	// SkipDump keeps the schema's functions available for call qualification
+	// without emitting the schema or its objects.
+	SkipDump bool
 }
 
 // FunctionMetadata is one user-defined function; Definition holds its CREATE FUNCTION DDL.
@@ -66,6 +69,9 @@ type FunctionMetadata struct {
 	Name       string
 	Definition string
 	Comment    string
+	// SkipDump keeps the function available for call qualification without
+	// emitting or dependency-ordering its CREATE FUNCTION statement.
+	SkipDump bool
 }
 
 // ViewDependency identifies a relation that a view or materialized view reads.

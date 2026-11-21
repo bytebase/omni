@@ -26,7 +26,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	if metadata == nil {
 		return nil, nil
 	}
-	if metadata.CharacterSet != "" || metadata.Collation != "" || metadata.Owner != "" || metadata.SearchPath != "" || metadata.ServiceName != "" || metadata.DefaultSchema != "" || metadata.Datashare || len(metadata.Extensions) > 0 || len(metadata.EventTriggers) > 0 || len(metadata.PublicSynonyms) > 0 || len(metadata.LinkedDatabases) > 0 || len(metadata.ForeignServers) > 0 || len(metadata.ForeignDataWrappers) > 0 {
+	if metadata.CharacterSet != "" || metadata.Collation != "" || metadata.Owner != "" || metadata.SearchPath != "" || metadata.ServiceName != "" || metadata.DefaultSchema != "" || metadata.Datashare || len(metadata.Extensions) > 0 || slices.ContainsFunc(metadata.EventTriggers, func(et *metadatapb.EventTriggerMetadata) bool { return et != nil && !et.SkipDump }) || len(metadata.PublicSynonyms) > 0 || len(metadata.LinkedDatabases) > 0 || len(metadata.ForeignServers) > 0 || len(metadata.ForeignDataWrappers) > 0 {
 		return nil, fmt.Errorf("database %s contains database attributes or objects unsupported by Trino SDL renderer", quoteIdentifier(metadata.Name))
 	}
 	out := &DatabaseSchemaMetadata{
@@ -35,7 +35,25 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	}
 	seenSchemas := make(map[string]struct{}, len(metadata.Schemas))
 	for _, s := range metadata.Schemas {
-		if s == nil || s.SkipDump {
+		if s == nil {
+			continue
+		}
+		if s.SkipDump {
+			if len(s.Functions) > 0 {
+				skippedFns := make([]*FunctionMetadata, 0, len(s.Functions))
+				for _, fn := range s.Functions {
+					if fn != nil {
+						skippedFns = append(skippedFns, convertSkippedTrinoFunction(fn))
+					}
+				}
+				if len(skippedFns) > 0 {
+					out.Schemas = append(out.Schemas, &SchemaMetadata{
+						Name:      s.Name,
+						Functions: skippedFns,
+						SkipDump:  true,
+					})
+				}
+			}
 			continue
 		}
 		schemaKey := strings.ToLower(s.Name)
@@ -58,7 +76,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		}
 		seenFuncSigs := make(map[string]struct{}, len(s.Functions))
 		for _, fn := range s.Functions {
-			if fn == nil || fn.SkipDump {
+			if fn == nil {
+				continue
+			}
+			if fn.SkipDump {
+				schemaMeta.Functions = append(schemaMeta.Functions, convertSkippedTrinoFunction(fn))
 				continue
 			}
 			def, sigKey, err := prepareTrinoFunctionDefinition(metadata.Name, s.Name, fn)
@@ -365,6 +387,23 @@ func qualifyTrinoFunctionHeaderLexically(dbName, schemaName, fnName, definition 
 	}
 }
 
+func convertSkippedTrinoFunction(fn *metadatapb.FunctionMetadata) *FunctionMetadata {
+	def := fn.Definition
+	if strings.TrimSpace(def) == "" && strings.TrimSpace(fn.Signature) != "" {
+		sig := strings.TrimSpace(fn.Signature)
+		if !strings.HasPrefix(sig, "(") {
+			sig = "(" + sig + ")"
+		}
+		def = "CREATE FUNCTION " + quoteIdentifier(fn.Name) + sig + " RETURNS varchar RETURN ''"
+	}
+	return &FunctionMetadata{
+		Name:       fn.Name,
+		Definition: def,
+		Comment:    fn.Comment,
+		SkipDump:   true,
+	}
+}
+
 func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, string, error) {
 	if strings.TrimSpace(fn.Definition) == "" {
 		return "", "", fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
@@ -634,7 +673,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	}
 	seenSchemas := make(map[string]struct{}, len(metadata.Schemas))
 	for _, schema := range metadata.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		schemaKey := strings.ToLower(schema.Name)
@@ -682,7 +721,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 
 	var buf strings.Builder
 	for _, schema := range metadata.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		writeCreateSchema(&buf, schema.Name)
@@ -704,7 +743,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	}
 	funcCat := buildTrinoFuncCatalog(metadata)
 	for _, schema := range metadata.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		for _, table := range schema.Tables {
@@ -1050,8 +1089,9 @@ func endsInLineComment(s string) bool {
 }
 
 type orderedFunction struct {
-	schema string
-	fn     *FunctionMetadata
+	schema  string
+	fn      *FunctionMetadata
+	skipped bool
 }
 
 type trinoFuncParam struct {
@@ -1101,7 +1141,14 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 				if fn == nil {
 					continue
 				}
-				fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
+				fns = append(fns, orderedFunction{
+					schema:  schema.Name,
+					fn:      fn,
+					skipped: schema.SkipDump || fn.SkipDump,
+				})
+			}
+			if schema.SkipDump {
+				continue
 			}
 			for _, tbl := range schema.Tables {
 				if tbl == nil || len(tbl.Columns) == 0 {
@@ -1235,14 +1282,27 @@ func trinoFunctionSignatureKey(fnName, definition string, parsedFn parsedTrinoFn
 
 func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, error) {
 	cat := buildTrinoFuncCatalog(metadata)
-	fns := cat.fns
-	if len(fns) == 0 {
-		return fns, nil
+	allFns := cat.fns
+	if len(allFns) == 0 {
+		return nil, nil
+	}
+	emittedIndices := make([]int, 0, len(allFns))
+	emittedPos := make(map[int]int, len(allFns))
+	for i, f := range allFns {
+		if f.skipped {
+			continue
+		}
+		emittedPos[i] = len(emittedIndices)
+		emittedIndices = append(emittedIndices, i)
+	}
+	if len(emittedIndices) == 0 {
+		return nil, nil
 	}
 	parsed := cat.parsed
-	seenSigs := make(map[string]struct{}, len(fns))
-	for i, f := range fns {
-		sigKey := trinoFunctionSignatureKey(f.fn.Name, f.fn.Definition, parsed[i])
+	seenSigs := make(map[string]struct{}, len(emittedIndices))
+	for _, origIdx := range emittedIndices {
+		f := allFns[origIdx]
+		sigKey := trinoFunctionSignatureKey(f.fn.Name, f.fn.Definition, parsed[origIdx])
 		fullKey := strings.ToLower(f.schema) + "\x00" + sigKey
 		if _, exists := seenSigs[fullKey]; exists {
 			return nil, fmt.Errorf("schema %s has duplicate function signature %s", f.schema, sigKey)
@@ -1254,13 +1314,14 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 		offset int
 		prefix string
 	}
-	dependencies := make([]map[int]struct{}, len(fns))
-	for i, f := range fns {
+	dependencies := make([]map[int]struct{}, len(emittedIndices))
+	for ei, origIdx := range emittedIndices {
+		f := allFns[origIdx]
 		var calls []functionCallRef
 		switch {
-		case parsed[i].bodyStmt != nil:
-			calls = collectTrinoASTFunctionCalls(parsed[i].bodyStmt, f.schema, parsed[i].params, cat)
-		case !parsed[i].parsed:
+		case parsed[origIdx].bodyStmt != nil:
+			calls = collectTrinoASTFunctionCalls(parsed[origIdx].bodyStmt, f.schema, parsed[origIdx].params, cat)
+		case !parsed[origIdx].parsed:
 			calls = scanFunctionBodyCallRefs(f.fn.Definition)
 		}
 		var edits []prefixEdit
@@ -1270,16 +1331,20 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 			if len(matches) == 0 {
 				continue
 			}
-			for _, depIdx := range matches {
-				if depIdx == i {
+			for _, depOrigIdx := range matches {
+				if allFns[depOrigIdx].skipped {
+					continue
+				}
+				depIdx := emittedPos[depOrigIdx]
+				if depIdx == ei {
 					return nil, fmt.Errorf("function %s.%s is self-recursive and cannot be restored because Trino disallows recursive SQL UDFs", f.schema, f.fn.Name)
 				}
-				if dependencies[i] == nil {
-					dependencies[i] = map[int]struct{}{}
+				if dependencies[ei] == nil {
+					dependencies[ei] = map[int]struct{}{}
 				}
-				dependencies[i][depIdx] = struct{}{}
+				dependencies[ei][depIdx] = struct{}{}
 			}
-			if parsed[i].parsed && call.catalog == "" && call.nameEnd > call.nameStart && call.nameEnd <= len(f.fn.Definition) {
+			if parsed[origIdx].parsed && call.catalog == "" && call.nameEnd > call.nameStart && call.nameEnd <= len(f.fn.Definition) {
 				var prefix string
 				if call.schema == "" {
 					prefix = qualifyTrinoObjectPrefix(metadata.Name, f.schema)
@@ -1302,7 +1367,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 			for _, ed := range edits {
 				def = def[:ed.offset] + ed.prefix + def[ed.offset:]
 			}
-			fns[i].fn = &FunctionMetadata{
+			allFns[origIdx].fn = &FunctionMetadata{
 				Name:       f.fn.Name,
 				Definition: def,
 				Comment:    f.fn.Comment,
@@ -1310,16 +1375,17 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 		}
 	}
 
-	if len(fns) < 2 {
-		return fns, nil
+	if len(emittedIndices) < 2 {
+		return []orderedFunction{allFns[emittedIndices[0]]}, nil
 	}
-	indices, cyclic := topoOrder(len(fns), dependencies)
+	indices, cyclic := topoOrder(len(emittedIndices), dependencies)
 	if len(cyclic) > 0 {
-		return nil, fmt.Errorf("cyclic function dependency involving %s.%s cannot be restored because Trino requires UDFs to be declared before use", fns[cyclic[0]].schema, fns[cyclic[0]].fn.Name)
+		bad := allFns[emittedIndices[cyclic[0]]]
+		return nil, fmt.Errorf("cyclic function dependency involving %s.%s cannot be restored because Trino requires UDFs to be declared before use", bad.schema, bad.fn.Name)
 	}
 	ordered := make([]orderedFunction, len(indices))
 	for i, idx := range indices {
-		ordered[i] = fns[idx]
+		ordered[i] = allFns[emittedIndices[idx]]
 	}
 	return ordered, nil
 }
@@ -2031,9 +2097,30 @@ func (w *trinoASTWalker) recordUnqualTable(qn *ast.QualifiedName, ctes map[strin
 	w.unqualTables = append(w.unqualTables, qn)
 }
 
+func projColsToMap(proj []trinoProjCol, colAliases []*ast.Identifier) map[string]string {
+	if len(proj) == 0 {
+		return nil
+	}
+	cols := make(map[string]string, len(proj))
+	for idx, pc := range proj {
+		colName := pc.name
+		if idx < len(colAliases) && colAliases[idx] != nil && colAliases[idx].Value != "" {
+			colName = strings.ToLower(colAliases[idx].Value)
+		}
+		if colName != "" && pc.typ != "" {
+			cols[colName] = pc.typ
+		}
+	}
+	return cols
+}
+
 func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[string]string, ctes map[string]struct{}) {
+	w.walkRelationBound(rel, curEnv, ctes, true)
+}
+
+func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[string]string, ctes map[string]struct{}, bind bool) []trinoProjCol {
 	if rel == nil {
-		return
+		return nil
 	}
 	switch r := rel.(type) {
 	case *trinoparser.Join:
@@ -2041,6 +2128,7 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 		w.walkRelation(r.Right, curEnv, ctes)
 		w.walkExpr(r.On, curEnv, ctes)
 	case *trinoparser.AliasedRelation:
+		var proj []trinoProjCol
 		if tr, ok := r.Inner.(*trinoparser.TableRelation); ok {
 			w.recordUnqualTable(tr.Name, ctes)
 			if tr.Period != nil {
@@ -2053,32 +2141,60 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 			}
 			w.bindRelationCols(alias, cols, curEnv)
 		} else {
-			w.walkRelation(r.Inner, curEnv, ctes)
+			proj = w.walkRelationBound(r.Inner, curEnv, ctes, false)
+			alias := ""
+			if r.Alias != nil {
+				alias = r.Alias.Value
+			}
+			if len(r.ColumnAliases) > 0 && len(proj) > 0 {
+				realiased := make([]trinoProjCol, len(proj))
+				copy(realiased, proj)
+				for idx := range realiased {
+					if idx < len(r.ColumnAliases) && r.ColumnAliases[idx] != nil && r.ColumnAliases[idx].Value != "" {
+						realiased[idx].name = strings.ToLower(r.ColumnAliases[idx].Value)
+					}
+				}
+				proj = realiased
+			}
+			if bind {
+				w.bindRelationCols(alias, projColsToMap(proj, nil), curEnv)
+			}
 		}
 		if r.Sample != nil {
 			w.walkExpr(r.Sample.Percentage, curEnv, ctes)
 		}
+		return proj
 	case *trinoparser.TableRelation:
 		w.recordUnqualTable(r.Name, ctes)
 		if r.Period != nil {
 			w.walkExpr(r.Period.End, curEnv, ctes)
 		}
 		alias, cols := w.lookupTableRelationCols(r.Name, ctes)
-		w.bindRelationCols(alias, cols, curEnv)
+		if bind {
+			w.bindRelationCols(alias, cols, curEnv)
+		}
 	case *trinoparser.NearestRelation:
 		w.walkRelation(r.From, curEnv, ctes)
 		w.walkExpr(r.Where, curEnv, ctes)
 		w.walkExpr(r.Match, curEnv, ctes)
 	case *trinoparser.SubqueryRelation:
-		w.walkQuery(r.Query, curEnv, ctes)
+		_, proj := w.walkQueryWithCols(r.Query, nil, curEnv, ctes)
+		if bind {
+			w.bindRelationCols("", projColsToMap(proj, nil), curEnv)
+		}
+		return proj
 	case *trinoparser.LateralRelation:
-		w.walkQuery(r.Query, curEnv, ctes)
+		_, proj := w.walkQueryWithCols(r.Query, nil, curEnv, ctes)
+		if bind {
+			w.bindRelationCols("", projColsToMap(proj, nil), curEnv)
+		}
+		return proj
 	case *trinoparser.UnnestRelation:
 		for _, ex := range r.Exprs {
 			w.walkExpr(ex, curEnv, ctes)
 		}
 	case *trinoparser.ParenRelation:
-		w.walkRelation(r.Inner, curEnv, ctes)
+		return w.walkRelationBound(r.Inner, curEnv, ctes, bind)
 	case *trinoparser.TableFunctionRelation:
 		if r.Call != nil {
 			for _, arg := range r.Call.Args {
@@ -2112,6 +2228,7 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 			w.walkExpr(d.Condition, curEnv, ctes)
 		}
 	}
+	return nil
 }
 
 func (w *trinoASTWalker) walkJSONTable(r *trinoparser.JSONTableRelation, curEnv map[string]string, ctes map[string]struct{}) {
@@ -2316,17 +2433,7 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 			if cte.Name != nil && cte.Name.Value != "" {
 				cteKey := strings.ToLower(cte.Name.Value)
 				scope[cteKey] = struct{}{}
-				colsMap := make(map[string]string, len(proj))
-				for idx, pc := range proj {
-					colName := pc.name
-					if idx < len(cte.ColumnAliases) && cte.ColumnAliases[idx] != nil && cte.ColumnAliases[idx].Value != "" {
-						colName = strings.ToLower(cte.ColumnAliases[idx].Value)
-					}
-					if colName != "" && pc.typ != "" {
-						colsMap[colName] = pc.typ
-					}
-				}
-				nextCTECols[cteKey] = colsMap
+				nextCTECols[cteKey] = projColsToMap(proj, cte.ColumnAliases)
 			}
 		}
 	}
@@ -3215,7 +3322,7 @@ type orderedView struct {
 func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 	var views []orderedView
 	for _, schema := range metadata.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		for _, view := range schema.Views {
