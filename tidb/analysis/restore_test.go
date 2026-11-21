@@ -205,3 +205,73 @@ func TestRestoreSQLReadsQualifiersByAlias(t *testing.T) {
 	_, err = restore(t, "UPDATE swapped AS x JOIN swapped2 AS swapped ON x.id = swapped.id SET x.u = 30, swapped.u = swapped.u + 1", "swapped")
 	require.NoError(t, err)
 }
+
+func TestRestoreSQLTiDBRegressions(t *testing.T) {
+	catalog := corpusBackupCatalog()
+	runRestore := func(input, sourceTable string) (string, error) {
+		targetCols, err := analysis.NormalColumnSet(catalog, "db", sourceTable)
+		require.NoError(t, err)
+		nodes, err := analysis.MatchingDMLs(input, "db", sourceTable, targetCols)
+		if err != nil {
+			return "", err
+		}
+		if len(nodes) == 0 {
+			return "", errors.New("no DML statement found")
+		}
+		columns, err := analysis.ClassifyColumns(catalog, false, "db", sourceTable)
+		require.NoError(t, err)
+		return analysis.RestoreSQL(nodes, analysis.RestoreOptions{
+			Statement:      input,
+			Database:       "db",
+			Table:          sourceTable,
+			BackupDatabase: "bbarchive",
+			BackupTable:    "prefix_1_" + sourceTable,
+			Columns:        columns.Normal,
+			Catalog:        catalog,
+		})
+	}
+
+	// Case-insensitive database qualifier.
+	got, err := runRestore("DELETE FROM DB.test WHERE c = 1;", "test")
+	require.NoError(t, err)
+	require.Contains(t, got, "INSERT INTO `db`.`test`")
+
+	// Mixed-case self-join alias.
+	got, err = runRestore("UPDATE test T1 JOIN test T2 ON T1.c = T2.c SET t1.a = 1 WHERE T1.c = 1;", "test")
+	require.NoError(t, err)
+	require.Contains(t, got, "`a` = VALUES(`a`)")
+
+	// Joined-only UPDATE, USING-only DELETE, unqualified non-target SET, cross-DB alias.
+	for _, tc := range []struct {
+		name, input, table string
+	}{
+		{"joined not mutated", "UPDATE test2 JOIN test ON test2.c = test.c SET test2.a = 1 WHERE test2.c = 1;", "test"},
+		{"delete using only", "DELETE test FROM test, test2 as t2 where test.id = t2.id;", "test2"},
+		{"unqualified non-target SET", "UPDATE test JOIN t1 ON test.c = t1.c SET name = 1 WHERE test.c = 1;", "test"},
+		{"cross-DB alias", "UPDATE db.test t1 JOIN otherdb.test t2 ON t1.c = t2.c SET t2.a = 1 WHERE t1.c = 1;", "test"},
+		{"join-only delete target", "DELETE t1 FROM test t1 JOIN test2 t2 ON t1.a = t2.a;", "test2"},
+	} {
+		_, err := runRestore(tc.input, tc.table)
+		require.ErrorContains(t, err, "no DML statement found", tc.name)
+	}
+
+	// Generated-column UK & empty-Expressions UK skipped; touching all regular UKs errors.
+	_, err = runRestore("UPDATE t_generated SET a = 1, b = 2 WHERE c_generated = 3;", "t_generated")
+	require.ErrorContains(t, err, "no disjoint unique key found")
+	_, err = runRestore("UPDATE test SET a = 1, c = 2 WHERE b = 3;", "test")
+	require.ErrorContains(t, err, "no disjoint unique key found")
+
+	// Alias-target multi-table DELETEs resolve through FROM/USING alias map.
+	for _, tc := range []struct {
+		input, table string
+	}{
+		{"DELETE t1, t2 FROM test AS t1, test2 AS t2 WHERE t1.a = t2.a;", "test"},
+		{"DELETE t1, t2 FROM test AS t1, test2 AS t2 WHERE t1.a = t2.a;", "test2"},
+		{"DELETE t1 FROM test t1 JOIN test2 t2 ON t1.a = t2.a;", "test"},
+		{"DELETE FROM t1 USING test t1, test2 t2 WHERE t1.a = t2.a;", "test"},
+	} {
+		got, err := runRestore(tc.input, tc.table)
+		require.NoError(t, err, tc.input)
+		require.Contains(t, got, "INSERT INTO `db`.`"+tc.table+"`", tc.input)
+	}
+}

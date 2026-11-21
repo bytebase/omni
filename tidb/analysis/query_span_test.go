@@ -200,3 +200,126 @@ func TestResolveQuerySpanNonQueries(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveQuerySpanStaleMetadataAndMissingTable(t *testing.T) {
+	staleMetadata := &metadata.DatabaseSchemaMetadata{
+		Name: "cif",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "",
+			Tables: []*metadata.TableMetadata{{
+				Name: "known_tbl",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id"},
+					{Name: "existing_col"},
+					{Name: "create_time"},
+				},
+			}},
+		}},
+	}
+	catalog := buildTiDBCatalog([]*metadata.DatabaseSchemaMetadata{staleMetadata})
+
+	// Missing column surfaces NotFoundError on the span and keeps FROM table in SourceColumns.
+	span, err := analysis.ResolveQuerySpan(
+		"SELECT distribute_level FROM known_tbl ORDER BY create_time DESC",
+		analysis.ResolveOptions{DefaultDatabase: "cif", Catalog: catalog},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+	require.NotNil(t, span.NotFoundError.Column)
+	require.Equal(t, "distribute_level", *span.NotFoundError.Column)
+	require.Equal(t, "cif.known_tbl.", renderSet(span.SourceColumns))
+
+	// Missing table alone populates SourceColumns with the missing table's database.
+	span, err = analysis.ResolveQuerySpan(
+		"SELECT name FROM missing_tbl",
+		analysis.ResolveOptions{DefaultDatabase: "cif", Catalog: catalog},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+	require.NotNil(t, span.NotFoundError.Table)
+	require.Equal(t, "missing_tbl", *span.NotFoundError.Table)
+	require.NotEmpty(t, span.SourceColumns)
+	require.Contains(t, renderSet(span.SourceColumns), "cif.")
+
+	// Missing table in UNION is unioned with known access tables.
+	span, err = analysis.ResolveQuerySpan(
+		"SELECT id FROM known_tbl UNION SELECT id FROM missing_tbl",
+		analysis.ResolveOptions{DefaultDatabase: "cif", Catalog: catalog},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, span.NotFoundError)
+	require.Equal(t, analysis.ColumnSet{
+		{Database: "cif", Table: "known_tbl"}:   true,
+		{Database: "cif", Table: "missing_tbl"}: true,
+	}, span.SourceColumns)
+}
+
+func TestResolveQuerySpanNamesAreCaseInsensitive(t *testing.T) {
+	catalog := buildTiDBCatalog([]*metadata.DatabaseSchemaMetadata{{
+		Name: "db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "",
+			Tables: []*metadata.TableMetadata{
+				{Name: "c", Columns: []*metadata.ColumnMetadata{{Name: "s"}}},
+				{Name: "sec", Columns: []*metadata.ColumnMetadata{{Name: "secret"}}},
+			},
+		}},
+	}})
+	for _, statement := range []string{
+		"WITH C AS (SELECT secret AS s FROM sec) SELECT s FROM c",
+		"WITH C AS (SELECT secret AS s FROM sec) SELECT * FROM c",
+		"WITH C AS (SELECT secret AS s FROM sec) SELECT c.* FROM c",
+		"WITH C AS (SELECT secret AS s FROM sec) SELECT C.s FROM c",
+		"WITH RECURSIVE C AS (SELECT secret AS s, 1 AS n FROM sec UNION ALL SELECT s, n + 1 FROM c WHERE n < 2) SELECT s FROM c",
+		"SELECT SEC.* FROM sec",
+		"SELECT DB.sec.* FROM sec",
+		"SELECT DB.SEC.secret FROM sec",
+	} {
+		t.Run(statement, func(t *testing.T) {
+			span, err := analysis.ResolveQuerySpan(statement, analysis.ResolveOptions{DefaultDatabase: "db", Catalog: catalog})
+			require.NoError(t, err)
+			require.Nil(t, span.NotFoundError)
+			require.Len(t, span.Results, 1)
+			require.Equal(t, analysis.ColumnSet{
+				{Database: "db", Table: "sec", Column: "secret"}: true,
+			}, span.Results[0].SourceColumns)
+		})
+	}
+}
+
+func TestResolveQuerySpanResolvesNearestScopeFirst(t *testing.T) {
+	catalog := buildTiDBCatalog([]*metadata.DatabaseSchemaMetadata{{
+		Name: "db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "",
+			Tables: []*metadata.TableMetadata{
+				{Name: "pub", Columns: []*metadata.ColumnMetadata{{Name: "v"}}},
+				{Name: "sec", Columns: []*metadata.ColumnMetadata{{Name: "v"}}},
+				{Name: "d", Columns: []*metadata.ColumnMetadata{{Name: "k"}}},
+			},
+		}},
+	}})
+	tests := []struct {
+		statement string
+		wantTable string
+	}{
+		{"SELECT (SELECT v FROM sec LIMIT 1) AS r FROM pub", "sec"},
+		{"SELECT (SELECT v FROM sec LIMIT 1) AS r FROM (SELECT 1 AS v) x", "sec"},
+		{"SELECT (SELECT x.v FROM sec x LIMIT 1) AS r FROM pub x", "sec"},
+		{"SELECT (SELECT t.* FROM sec AS t JOIN d AS x ON TRUE LIMIT 1) AS r FROM pub AS t", "sec"},
+		{"SELECT (SELECT t.* FROM sec AS t JOIN d AS x ON TRUE LIMIT 1) AS r FROM pub AS T", "sec"},
+		{"SELECT (SELECT pub.v FROM sec LIMIT 1) AS r FROM pub", "pub"},
+		{"SELECT (SELECT v FROM d LIMIT 1) AS r FROM pub", "pub"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := analysis.ResolveQuerySpan(tc.statement, analysis.ResolveOptions{DefaultDatabase: "db", Catalog: catalog})
+			require.NoError(t, err)
+			require.Nil(t, span.NotFoundError)
+			require.Len(t, span.Results, 1)
+			require.Equal(t, analysis.ColumnSet{
+				{Database: "db", Table: tc.wantTable, Column: "v"}: true,
+			}, span.Results[0].SourceColumns)
+		})
+	}
+}

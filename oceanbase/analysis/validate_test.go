@@ -32,12 +32,73 @@ func TestValidateQuery(t *testing.T) {
 		{"EXPLAIN DELETE FROM t", true, true},
 		{"INSERT INTO t VALUES (1)", false, false},
 		{"SELECT 1; DELETE FROM t", false, false},
+		{"SHOW CREATE TABLE bytebase;", true, true},
+		{"DESC bytebase;", true, true},
+		{"SELECT * FROM t1 WHERE c1 = 1; SELECT * FROM t2;", true, true},
+		{"CREATE TABLE t1 (c1 INT);", false, false},
+		{"UPDATE t1 SET c1 = 1;", false, false},
+		{"EXPLAIN FORMAT=JSON DELETE FROM t1;", true, true},
+		{"select* from t", true, true},
+		{"WITH t AS (SELECT * FROM t1), tx AS (SELECT * FROM t1) UPDATE t SET a = 1;", false, false},
+		{"WITH t AS (SELECT * FROM t1), tx AS (SELECT * FROM t1) INSERT INTO t VALUES (1, 2, 3);", false, false},
+		{"select * from t where a = 'klasjdfkljsa$tag$; -- lkjdlkfajslkdfj'", true, true},
+		{"With t as (select * from t1 where a = 'insert'), tx as (select * from `delete`) /* UPDATE */ select `update` from t;", true, true},
+		{"SET max_execution_time = 1000; select * from t", true, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.statement, func(t *testing.T) {
 			readOnly, returnsData := analysis.ValidateQuery(parse(t, tc.statement))
 			require.Equal(t, tc.readOnly, readOnly)
 			require.Equal(t, tc.returnsData, returnsData)
+		})
+	}
+}
+
+func TestValidateQueryExplainIntoAndExportGate(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		wantValid bool
+	}{
+		{"EXPLAIN INTO plan_tab SELECT * FROM t", false},
+		{"EXPLAIN INTO plan_tab SET STATEMENT_ID = 'x' SELECT * FROM t", false},
+		{"EXPLAIN SET STATEMENT_ID = 'x' SELECT * FROM t", true},
+		{"EXPLAIN SELECT * FROM t", true},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			readOnly, _ := analysis.ValidateQuery(parse(t, tc.statement))
+			require.Equal(t, tc.wantValid, readOnly)
+
+			span, err := analysis.ResolveQuerySpan(tc.statement, analysis.ResolveOptions{DefaultDatabase: "db"})
+			require.NoError(t, err)
+			wantType := analysis.Explain
+			if !tc.wantValid {
+				wantType = analysis.DML
+			}
+			require.Equal(t, wantType, span.Type)
+		})
+	}
+
+	for _, tc := range []struct {
+		name      string
+		statement string
+		wantValid bool
+	}{
+		{"bare export", "SELECT a FROM t INTO OUTFILE '/tmp/x'", false},
+		{"bare dump", "SELECT a FROM t INTO DUMPFILE '/tmp/x'", false},
+		{"export second arm", "SELECT 1 UNION SELECT a FROM t INTO OUTFILE '/tmp/x'", false},
+		{"export braced arm", "(SELECT a FROM t INTO OUTFILE '/tmp/x') UNION (SELECT 1)", false},
+		{"export subquery", "SELECT * FROM (SELECT a FROM t INTO OUTFILE '/tmp/x') y", false},
+		{"export plain EXPLAIN", "EXPLAIN SELECT a FROM t INTO OUTFILE '/tmp/x'", false},
+		{"dump plain EXPLAIN", "EXPLAIN SELECT a FROM t INTO DUMPFILE '/tmp/x'", false},
+		{"export arm plain EXPLAIN", "EXPLAIN SELECT 1 UNION SELECT a FROM t INTO OUTFILE '/tmp/x'", false},
+		{"plain set op", "SELECT 1 UNION SELECT 2", true},
+		{"variable assignment", "SELECT a FROM t INTO @v", true},
+		{"variable assignment plain EXPLAIN", "EXPLAIN SELECT a FROM t INTO @v", true},
+		{"string literal", "SELECT 'INTO OUTFILE' FROM t", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			readOnly, _ := analysis.ValidateQuery(parse(t, tc.statement))
+			require.Equal(t, tc.wantValid, readOnly, tc.statement)
 		})
 	}
 }
