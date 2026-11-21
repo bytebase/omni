@@ -15,6 +15,7 @@ package analysis
 import (
 	"fmt"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/cassandra"
 	"github.com/bytebase/omni/cassandra/ast"
 	"github.com/bytebase/omni/metadata"
@@ -22,57 +23,37 @@ import (
 
 // QueryType classifies a CQL statement. The values mirror Bytebase's
 // base.QueryType so the adapter maps them 1:1.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// QueryTypeUnknown is a statement node this package does not classify.
-	QueryTypeUnknown QueryType = iota
+	QueryTypeUnknown = analysis.QueryTypeUnknown
 	// Select is a read-only SELECT.
-	Select
+	Select = analysis.Select
 	// Explain is reserved: CQL has no EXPLAIN statement.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema is reserved: CQL has no information schema in the
 	// statement grammar.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data (INSERT, UPDATE, DELETE, BATCH, TRUNCATE).
-	DML
+	DML = analysis.DML
 )
 
 // ColumnResource identifies a keyspace/table/column resource.
-type ColumnResource struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of column resources.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
 // ResolvedQuerySpanResult describes one output column of a resolved span.
-type ResolvedQuerySpanResult struct {
-	Name string
-	// SourceColumns is the lineage of this output column. Empty for an
-	// expression whose source this package cannot name.
-	SourceColumns ColumnSet
-	// IsPlainField marks a direct column passthrough.
-	IsPlainField bool
-	// SelectAsterisk marks a `SELECT *` that could not be expanded because the
-	// caller supplied no metadata for the table (or supplied none for it).
-	SelectAsterisk bool
-}
+type ResolvedQuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedQuerySpan is a query span resolved against the caller's metadata.
 // SourceColumns holds table-level resources (Column empty) for every table the
 // statement touches; PredicateColumns holds the columns its WHERE clause reads.
-type ResolvedQuerySpan struct {
-	Type             QueryType
-	SourceColumns    ColumnSet
-	PredicateColumns ColumnSet
-	Results          []ResolvedQuerySpanResult
-}
+type ResolvedQuerySpan = analysis.ResolvedSpan
 
 // ResolveOptions carries the facts the caller resolves from its metadata store.
 // DefaultKeyspace is the session keyspace used for a table reference without a

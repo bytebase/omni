@@ -3,46 +3,29 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
 // QueryType is the permission class of a statement. The values mirror
 // Bytebase's base.QueryType.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// QueryTypeUnknown is a statement not deliberately mapped. Bytebase's SQL
 	// service denies it before execution.
-	QueryTypeUnknown QueryType = iota
+	QueryTypeUnknown = analysis.QueryTypeUnknown
 	// Select is a read-only query.
-	Select
+	Select = analysis.Select
 	// Explain is an EXPLAIN statement.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema reads system metadata: SHOW and DESCRIBE.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data.
-	DML
+	DML = analysis.DML
 )
-
-// String returns the name of the query type.
-func (q QueryType) String() string {
-	switch q {
-	case Select:
-		return "SELECT"
-	case Explain:
-		return "EXPLAIN"
-	case SelectInfoSchema:
-		return "SELECT_INFO_SCHEMA"
-	case DDL:
-		return "DDL"
-	case DML:
-		return "DML"
-	default:
-		return "UNKNOWN"
-	}
-}
 
 // QueryTypeOf classifies one parsed statement:
 //

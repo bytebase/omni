@@ -1,23 +1,20 @@
 package analysis
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
 // ColumnResource identifies a table a statement reads. StarRocks has no schema
 // level, so the resource key stops at the table.
-type ColumnResource struct {
-	Database string
-	Table    string
-}
+type ColumnResource = analysis.ColumnResource
 
 // SourceColumnSet is the table-level set of resources a statement reads.
-type SourceColumnSet map[ColumnResource]bool
+type SourceColumnSet = analysis.ColumnSet
 
 // ResolvedQuerySpan is a query span resolved for the session it runs in: the
 // tables carry the default database the caller's session supplies, and Type is
@@ -43,7 +40,7 @@ type ResolveOptions struct {
 
 // ErrMixUserSystemTables reports a statement that reads user and system tables
 // at once, which the permission check cannot authorize as either.
-var ErrMixUserSystemTables = errors.New("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // ResolveQuerySpan analyzes a single statement for the session described by
 // opts and returns the tables it reads and its classification.

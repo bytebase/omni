@@ -3,20 +3,12 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oracle/parser"
 )
 
 // Statement is one statement of a script, as SplitStatements returns it.
-type Statement struct {
-	// Text is the statement's text: script[Start:End].
-	Text string
-	// Empty reports a statement with no SQL, only whitespace, semicolons and
-	// comments.
-	Empty bool
-	// Start and End are the byte offsets of Text in the script.
-	Start int
-	End   int
-}
+type Statement = analysis.Statement
 
 // SplitStatements splits a script into statements with parser.Split. SQL*Plus
 // commands are dropped, a MATCH_RECOGNIZE whose DEFINE line parser.Split took

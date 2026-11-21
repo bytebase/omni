@@ -4,18 +4,19 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/parser"
 )
 
 // ErrExplainAnalyzeExecutes is ExplainStatement's error for EXPLAIN ANALYZE,
 // which runs the statement it plans.
-var ErrExplainAnalyzeExecutes = errors.New("EXPLAIN ANALYZE executes the statement it plans, which an explain request never does: run it as a query, or drop ANALYZE to plan the statement")
+var ErrExplainAnalyzeExecutes = analysis.ErrExplainAnalyzeExecutes
 
 // ErrNotExplainable is ExplainStatement's error for a statement EXPLAIN cannot
 // plan. Prefixing one could form another statement, as ANALYZE TABLE t becomes
 // EXPLAIN ANALYZE TABLE t, which runs TABLE t.
-var ErrNotExplainable = errors.New("EXPLAIN plans only a query or a data change")
+var ErrNotExplainable = analysis.ErrNotExplainable
 
 // tidbJSONFormat is TiDB's name for the plan as a tree of JSON objects. Its
 // other JSON-ish format, plain `json`, TiDB rejects outright.

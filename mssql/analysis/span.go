@@ -1,68 +1,42 @@
 package analysis
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 )
 
 // QueryType is the permission class of a statement. The values mirror
 // Bytebase's base.QueryType.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// QueryTypeUnknown is a statement not deliberately mapped. Bytebase's SQL
 	// service denies it before execution.
-	QueryTypeUnknown QueryType = iota
+	QueryTypeUnknown = analysis.QueryTypeUnknown
 	// Select is a read-only query.
-	Select
+	Select = analysis.Select
 	// Explain is a statement whose result is a plan.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema reads system metadata.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data.
-	DML
+	DML = analysis.DML
 )
 
 // ColumnResource identifies a column, or a whole table when Column is empty.
-type ColumnResource struct {
-	// Server is the linked server the statement names; empty for the
-	// connected server.
-	Server   string
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
-
-// String renders the resource as the T-SQL multi-part name it was written as,
-// with the linked server first when the statement named one.
-func (c ColumnResource) String() string {
-	parts := make([]string, 0, 5)
-	for _, part := range []string{c.Server, c.Database, c.Schema, c.Table, c.Column} {
-		if part != "" {
-			parts = append(parts, part)
-		}
-	}
-	return strings.Join(parts, ".")
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of columns.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
 // QuerySpanResult is one result column of a query and the columns it reads.
-type QuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	// IsPlainField is true when the result is a bare column reference rather
-	// than an expression.
-	IsPlainField bool
-}
+type QuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedSpan is the lineage ResolveQuerySpan returns.
 type ResolvedSpan struct {
@@ -157,71 +131,15 @@ func (e *LinkedServerError) Error() string {
 
 // NotFoundError reports a database, schema, table or column the catalog does
 // not have. A nil field is not part of the report.
-type NotFoundError struct {
-	Err      error
-	Database *string
-	Schema   *string
-	Table    *string
-	Column   *string
-}
-
-// Error formats the error as Bytebase's base.ResourceNotFoundError does.
-func (e *NotFoundError) Error() string {
-	var resourceParts []string
-	if e.Database != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("database: %s", *e.Database))
-	}
-	if e.Schema != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("schema: %s", *e.Schema))
-	}
-	if e.Table != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("table: %s", *e.Table))
-	}
-	if e.Column != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("column: %s", *e.Column))
-	}
-	parts := []string{
-		fmt.Sprintf("resource not found: %s", strings.Join(resourceParts, ", ")),
-	}
-	if e.Err != nil {
-		parts = append(parts, fmt.Sprintf("err: %s", e.Err.Error()))
-	}
-	return strings.Join(parts, ", ")
-}
+type NotFoundError = analysis.ResourceNotFoundError
 
 // TypeNotSupportedError reports a construct whose lineage is not modeled,
 // such as a PIVOT table source.
-type TypeNotSupportedError struct {
-	Err   error
-	Type  string
-	Name  string
-	Extra string
-}
-
-// Error formats the error as Bytebase's base.TypeNotSupportedError does.
-func (e *TypeNotSupportedError) Error() string {
-	parts := []string{
-		fmt.Sprintf("type not supported: %s", e.Type),
-	}
-	if e.Err != nil {
-		parts = append(parts, fmt.Sprintf("err: %s", e.Err.Error()))
-	}
-	if e.Name != "" {
-		parts = append(parts, fmt.Sprintf("name: %s", e.Name))
-	}
-	if e.Extra != "" {
-		parts = append(parts, fmt.Sprintf("extra: %s", e.Extra))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func (e *TypeNotSupportedError) Unwrap() error {
-	return e.Err
-}
+type TypeNotSupportedError = analysis.TypeNotSupportedError
 
 // ErrMixUserSystemTables reports a statement that reads user and system
 // tables together.
-var ErrMixUserSystemTables = errors.New("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // Catalog is the synced metadata of the instance a statement runs on.
 type Catalog struct {

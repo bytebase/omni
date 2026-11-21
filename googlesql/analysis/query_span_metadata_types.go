@@ -1,9 +1,7 @@
 package analysis
 
 import (
-	"fmt"
-	"strings"
-
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 )
 
@@ -66,22 +64,13 @@ type ResolveOptions struct {
 
 // ColumnResource identifies a physical column resource. Database is a BigQuery
 // dataset or a Spanner database; Schema is empty under the BigQuery model.
-type ColumnResource struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of physical column resources.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
 // ResolvedQuerySpanResult describes one output column of a resolved span.
-type ResolvedQuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	IsPlainField  bool
-}
+type ResolvedQuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedQuerySpan is a query span resolved against metadata.
 type ResolvedQuerySpan struct {
@@ -93,40 +82,11 @@ type ResolvedQuerySpan struct {
 }
 
 // ResourceNotFoundError reports a resource missing from the synced metadata.
-type ResourceNotFoundError struct {
-	Err      error
-	Database *string
-	Schema   *string
-	Table    *string
-	Column   *string
-}
-
-func (e *ResourceNotFoundError) Error() string {
-	var parts []string
-	if e.Database != nil {
-		parts = append(parts, fmt.Sprintf("database: %s", *e.Database))
-	}
-	if e.Schema != nil {
-		parts = append(parts, fmt.Sprintf("schema: %s", *e.Schema))
-	}
-	if e.Table != nil {
-		parts = append(parts, fmt.Sprintf("table: %s", *e.Table))
-	}
-	if e.Column != nil {
-		parts = append(parts, fmt.Sprintf("column: %s", *e.Column))
-	}
-	result := fmt.Sprintf("resource not found: %s", strings.Join(parts, ", "))
-	if e.Err != nil {
-		result += fmt.Sprintf(", err: %s", e.Err.Error())
-	}
-	return result
-}
-
-func (e *ResourceNotFoundError) Unwrap() error { return e.Err }
+type ResourceNotFoundError = analysis.ResourceNotFoundError
 
 // ErrMixUserSystemTables reports a statement that reads user and system
 // (INFORMATION_SCHEMA / SPANNER_SYS) tables at the same time.
-var ErrMixUserSystemTables = fmt.Errorf("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // ResolveQuerySpan analyzes a single GoogleSQL statement in the dialect the
 // options name and returns the physical columns it reads, the per-output-column

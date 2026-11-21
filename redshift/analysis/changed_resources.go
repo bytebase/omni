@@ -4,38 +4,16 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/redshift"
 	"github.com/bytebase/omni/redshift/ast"
 )
 
 // ChangedResource is a resource a script writes.
-type ChangedResource struct {
-	// Database is the resource's database. An unqualified table is in the
-	// current database.
-	Database string
-	// Schema is the resource's schema. An unqualified table is in the current
-	// schema, which a SET search_path moves.
-	Schema string
-	// Table is the changed table.
-	Table string
-	// AffectsData marks a table change that touches the table's existing rows,
-	// such as ALTER, DROP or TRUNCATE. An INSERT that only adds rows does not.
-	AffectsData bool
-}
+type ChangedResource = analysis.ChangedResource
 
 // StatementChanges is what a script changes.
-type StatementChanges struct {
-	// Resources holds a resource each time the script names one, duplicates
-	// included, so a caller that deduplicates keeps a flag any occurrence set.
-	Resources []ChangedResource
-	// DMLStatements holds the text of each DML statement whose rows can be
-	// estimated, ending with ';' and prefixed with the search path in force.
-	DMLStatements []string
-	// DMLCount counts the DML statements, including those DMLStatements omits.
-	DMLCount int
-	// InsertCount counts the rows INSERT ... VALUES writes.
-	InsertCount int
-}
+type StatementChanges = analysis.StatementChanges
 
 // ExtractChangedResources returns the resources a script writes and its DML
 // counts. database and schema are the session's current database and schema;

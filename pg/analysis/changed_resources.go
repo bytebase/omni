@@ -4,20 +4,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/pg/ast"
 )
 
 // ChangedResource is a table a statement writes.
-type ChangedResource struct {
-	Database string
-	// Schema is empty for a new table whose schema the search path leaves
-	// undecided.
-	Schema string
-	Table  string
-	// AffectsData marks a change to the table's existing rows or definition,
-	// such as DROP, TRUNCATE or ALTER.
-	AffectsData bool
-}
+type ChangedResource = analysis.ChangedResource
 
 // DMLStatement is a DML statement whose affected rows Bytebase estimates.
 type DMLStatement struct {

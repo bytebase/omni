@@ -4,14 +4,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/snowflake/parser"
 )
 
 // ByteRange is a half-open byte range [Start, End) in a script.
-type ByteRange struct {
-	Start int
-	End   int
-}
+type ByteRange = analysis.ByteRange
 
 // StatementRanges returns the range of each statement in a script, for
 // editors that count statement positions. Trailing whitespace of the script

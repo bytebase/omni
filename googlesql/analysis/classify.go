@@ -30,6 +30,7 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/googlesql/ast"
 	"github.com/bytebase/omni/googlesql/parser"
 )
@@ -67,50 +68,30 @@ func (d Dialect) String() string {
 // base.QueryType so the bytebase-switch node can map them 1:1 (the legacy
 // queryTypeListener emits exactly this set: Select, DDL, DML, Explain,
 // SelectInfoSchema, plus QueryTypeUnknown).
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// Unknown is returned for empty input, a parse failure, or an unrecognized
 	// statement node (the legacy base.QueryTypeUnknown).
-	Unknown QueryType = iota
+	Unknown = analysis.QueryTypeUnknown
 	// Select is a read-only user query (query_statement) that does not read
 	// exclusively from a system/information schema.
-	Select
+	Select = analysis.Select
 	// Explain is an EXPLAIN statement (explain_statement). Reserved for
 	// forward-compatibility: the merged parser foundation does not yet build an
 	// EXPLAIN node (its dispatch case is stubbed), so ClassifySQL does not emit
 	// Explain today — but Classify maps the node type when parser-utility lands.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema is a read-only query that reads EXCLUSIVELY from a
 	// system/information schema (the legacy allSystems case of a Select).
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema: CREATE/ALTER/DROP over TABLE/VIEW/INDEX/SCHEMA/DATABASE,
 	// plus GRANT/REVOKE (the legacy DDL rule list).
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data: INSERT/UPDATE/DELETE/MERGE/TRUNCATE (the legacy DML
 	// rule list; CALL is DML in the legacy listener but is not yet a merged node).
-	DML
+	DML = analysis.DML
 )
-
-// String returns a human-readable name for the QueryType. The spellings match
-// bytebase's base.QueryType.String() so logs/tests read identically across the
-// legacy and omni stacks.
-func (q QueryType) String() string {
-	switch q {
-	case Select:
-		return "SELECT"
-	case Explain:
-		return "EXPLAIN"
-	case SelectInfoSchema:
-		return "SELECT_INFO_SCHEMA"
-	case DDL:
-		return "DDL"
-	case DML:
-		return "DML"
-	default:
-		return "UNKNOWN"
-	}
-}
 
 // Classify returns the QueryType for a single parsed statement node, in the
 // given dialect.

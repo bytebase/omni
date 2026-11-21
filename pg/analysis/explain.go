@@ -4,13 +4,14 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
 )
 
 // ErrExplainAnalyzeExecutes is the explain builders' error for EXPLAIN
 // ANALYZE, which runs the statement it plans.
-var ErrExplainAnalyzeExecutes = errors.New("EXPLAIN ANALYZE executes the statement it plans, which an explain request never does: run it as a query, or drop ANALYZE to plan the statement")
+var ErrExplainAnalyzeExecutes = analysis.ErrExplainAnalyzeExecutes
 
 // plannedStatement returns the statement an EXPLAIN should be built around, and
 // whether one can be: a statement that already asks for a plan is rebuilt around

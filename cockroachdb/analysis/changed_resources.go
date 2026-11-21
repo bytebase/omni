@@ -4,19 +4,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser/statements"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 )
 
 // ChangedResource is a table a statement writes.
-type ChangedResource struct {
-	Database string
-	Schema   string
-	Table    string
-	// AffectsData marks a change to the table's existing rows or definition,
-	// such as DROP, TRUNCATE or ALTER.
-	AffectsData bool
-}
+type ChangedResource = analysis.ChangedResource
 
 // DMLStatement is a DML statement whose affected rows Bytebase estimates.
 type DMLStatement struct {
