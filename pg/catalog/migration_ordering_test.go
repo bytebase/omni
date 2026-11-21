@@ -2871,22 +2871,22 @@ DROP TYPE "s"."addr";
 DROP SCHEMA s CASCADE`,
 		},
 		{
-			// t is rebuilt for its new parent.
+			// t is rebuilt for its relkind change.
 			name: "a rebuilt table needs no wait",
-			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
-			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p);`,
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE t (c text, id int) PARTITION BY RANGE (id);`,
 			want: `DROP TABLE "public"."t" CASCADE;
 DROP TYPE "public"."addr";
 CREATE TABLE "public"."t" (
     "c" text,
     "id" integer
-) INHERITS ("public"."p");
+) PARTITION BY RANGE ("id");
 ALTER TABLE public.t ALTER COLUMN c TYPE text`,
 		},
 		{
 			name: "a table taking the name of a type a rebuilt table used",
-			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE p (id int); CREATE TABLE t (id int, c addr);`,
-			to:   `CREATE TABLE p (id int); CREATE TABLE t (c text) INHERITS (p); CREATE TABLE addr (x int);`,
+			from: `CREATE TYPE addr AS ENUM ('a'); CREATE TABLE t (id int, c addr);`,
+			to:   `CREATE TABLE t (c text, id int) PARTITION BY RANGE (id); CREATE TABLE addr (x int);`,
 			want: `DROP TABLE "public"."t" CASCADE;
 DROP TYPE "public"."addr";
 CREATE TABLE "public"."addr" (
@@ -2895,7 +2895,7 @@ CREATE TABLE "public"."addr" (
 CREATE TABLE "public"."t" (
     "c" text,
     "id" integer
-) INHERITS ("public"."p");
+) PARTITION BY RANGE ("id");
 ALTER TABLE public.t ALTER COLUMN c TYPE text`,
 		},
 		{

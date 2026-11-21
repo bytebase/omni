@@ -276,7 +276,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		}
 		needsViewWrap := false
 
-		// tableRebuilt (RelKind change or non-partition inheritance change)
+		// tableRebuilt (RelKind change)
 		// triggers DROP TABLE CASCADE which destroys dependent views.
 		if rel.From != nil && rel.To != nil {
 			if tableRebuilt(from, to, rel.From, rel.To) {

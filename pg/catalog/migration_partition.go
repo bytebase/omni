@@ -52,10 +52,9 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ops = append(ops, generatePartitionAttachmentOps(from, to, entry)...)
 				}
 			} else if fromIsTable && toIsTable && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
-				// Non-partition inheritance changed: PG does not support ALTER TABLE ... INHERITS.
-				// We must DROP + CREATE the table. Only for actual tables.
-				ops = append(ops, buildTableRecreateOps(from, to, diff, entry, "changing table inheritance")...)
-				continue
+				// Non-partition inheritance changed: use ALTER TABLE ... NO INHERIT / INHERIT
+				// instead of dropping and recreating the table.
+				ops = append(ops, generateTableInheritOps(from, to, entry)...)
 			}
 
 			// Replica identity changed, or its index is rebuilt: a new index
@@ -176,13 +175,76 @@ func generatePartitionAttachmentOps(from, to *Catalog, entry RelationDiffEntry) 
 }
 
 // tableRebuilt reports whether the plan drops and recreates a table: its kind
-// changes between plain and partitioned, or its non-partition inheritance changes,
-// neither of which ALTER TABLE can do.
+// changes between plain and partitioned, which ALTER TABLE cannot do.
 func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
 	fromIsTable := fromRel.RelKind == 'r' || fromRel.RelKind == 'p'
 	toIsTable := toRel.RelKind == 'r' || toRel.RelKind == 'p'
-	inheritsChanged := !isPartitionRelation(fromRel) && !isPartitionRelation(toRel) && !inhParentsEqual(from, to, fromRel.InhParents, toRel.InhParents)
-	return fromIsTable && toIsTable && (fromRel.RelKind != toRel.RelKind || inheritsChanged)
+	return fromIsTable && toIsTable && fromRel.RelKind != toRel.RelKind
+}
+
+func generateTableInheritOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
+	type inheritParent struct {
+		schema string
+		name   string
+		qn     string
+	}
+	resolveParents := func(c *Catalog, oids []uint32) []inheritParent {
+		parents := make([]inheritParent, 0, len(oids))
+		for _, oid := range oids {
+			rel := c.GetRelationByOID(oid)
+			if rel == nil || rel.Schema == nil {
+				continue
+			}
+			parents = append(parents, inheritParent{
+				schema: rel.Schema.Name,
+				name:   rel.Name,
+				qn:     formatRelationTargetName(rel.Schema.Name, rel),
+			})
+		}
+		return parents
+	}
+
+	fromParents := resolveParents(from, entry.From.InhParents)
+	toParents := resolveParents(to, entry.To.InhParents)
+	fromChildQN := formatRelationName(entry.SchemaName, entry.Name, entry.From)
+	toChildQN := formatRelationName(entry.SchemaName, entry.Name, entry.To)
+
+	var ops []MigrationOp
+	j := 0
+	for _, fp := range fromParents {
+		if j < len(toParents) && fp.schema == toParents[j].schema && fp.name == toParents[j].name {
+			j++
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:            OpAlterTable,
+			SchemaName:      entry.SchemaName,
+			ObjectName:      entry.Name,
+			SQL:             fmt.Sprintf("ALTER TABLE %s NO INHERIT %s", fromChildQN, fp.qn),
+			Transactional:   true,
+			Phase:           PhasePre,
+			ObjType:         'r',
+			ObjOID:          entry.From.OID,
+			Priority:        PriorityTrigger,
+			secondarySchema: fp.schema,
+		})
+	}
+	for k := j; k < len(toParents); k++ {
+		tp := toParents[k]
+		ops = append(ops, MigrationOp{
+			Type:            OpAlterTable,
+			SchemaName:      entry.SchemaName,
+			ObjectName:      entry.Name,
+			SQL:             fmt.Sprintf("ALTER TABLE %s INHERIT %s", toChildQN, tp.qn),
+			Transactional:   true,
+			Phase:           PhaseMain,
+			ObjType:         'r',
+			ObjOID:          entry.To.OID,
+			Priority:        PriorityIndex,
+			secondarySchema: tp.schema,
+		})
+	}
+	return ops
 }
 
 // generatePartitionChildDDL generates CREATE TABLE ... PARTITION OF ... FOR VALUES ...
@@ -402,8 +464,8 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 
 // buildTableRecreateOps generates DROP TABLE CASCADE + CREATE TABLE + CREATE INDEX ops
 // and restores unchanged non-inline dependents (FKs, EXCLUDE constraints, triggers, RLS,
-// policies, grants, comments) for a table that must be recreated (e.g., RelKind change,
-// inheritance change). Dependent views are handled by wrapColumnTypeChangesWithViewOps
+// policies, grants, comments, managed sequence metadata) for a table that must be recreated
+// (RelKind change). Dependent views are handled by wrapColumnTypeChangesWithViewOps
 // and rules by generateRuleDDL.
 func buildTableRecreateOps(from, to *Catalog, diff *SchemaDiff, entry RelationDiffEntry, reason string) []MigrationOp {
 	var ops []MigrationOp
@@ -594,8 +656,9 @@ func restoreRebuiltTableDependents(from, to *Catalog, diff *SchemaDiff, entry Re
 	handledGrantSQL := make(map[string]bool)
 	if diff != nil {
 		for _, ge := range diff.Grants {
-			if (ge.Action == DiffAdd || ge.Action == DiffModify) && ge.To.ObjType == 'r' && ge.To.ObjOID == rel.OID {
-				handledGrantSQL[formatGrantSQL(ge.To, resolveGrantObjName(to, 'r', rel.OID))] = true
+			if (ge.Action == DiffAdd || ge.Action == DiffModify) &&
+				((ge.To.ObjType == 'r' && ge.To.ObjOID == rel.OID) || ge.To.ObjType == 's') {
+				handledGrantSQL[formatGrantSQL(ge.To, resolveGrantObjName(to, ge.To.ObjType, ge.To.ObjOID))] = true
 			}
 		}
 	}
@@ -615,9 +678,14 @@ func restoreRebuiltTableDependents(from, to *Catalog, diff *SchemaDiff, entry Re
 			}
 		}
 	}
-	appendComment := func(objType byte, oid uint32, subID int16, desc string) {
+	appendComment := func(objType byte, oid uint32, subID int16, desc string, parts []string) {
 		if txt, ok := to.GetComment(objType, oid, subID); ok && txt != "" {
-			if sql := formatCommentSQL(to, objType, desc, subID, txt); sql != "" && !handledComments[sql] {
+			if sql := formatCommentEntrySQL(to, CommentDiffEntry{
+				ObjType:        objType,
+				ObjDescription: desc,
+				SubID:          subID,
+				objParts:       parts,
+			}, txt); sql != "" && !handledComments[sql] {
 				handledComments[sql] = true
 				ops = append(ops, MigrationOp{
 					Type:          OpComment,
@@ -631,30 +699,125 @@ func restoreRebuiltTableDependents(from, to *Catalog, diff *SchemaDiff, entry Re
 			}
 		}
 	}
-	relDesc := entry.SchemaName + "." + entry.Name
-	appendComment('r', rel.OID, 0, relDesc)
-	for _, col := range rel.Columns {
-		appendComment('r', rel.OID, col.AttNum, relDesc)
-	}
-	for _, idx := range to.IndexesOf(rel.OID) {
-		if idx.ConstraintOID == 0 {
-			appendComment('i', idx.OID, 0, entry.SchemaName+"."+idx.Name)
+
+	if relSc := to.schemaByName[entry.SchemaName]; relSc != nil {
+		colByAttNum := make(map[int16]*Column, len(rel.Columns))
+		for _, col := range rel.Columns {
+			colByAttNum[col.AttNum] = col
+		}
+		var seqNames []string
+		for sName, seq := range relSc.Sequences {
+			if seq != nil && seq.OwnerRelOID == rel.OID && sequenceManagedByColumn(to, seq) {
+				seqNames = append(seqNames, sName)
+			}
+		}
+		sort.Strings(seqNames)
+		for _, sName := range seqNames {
+			seq := relSc.Sequences[sName]
+			ownerCol := colByAttNum[seq.OwnerAttNum]
+			if ownerCol == nil {
+				continue
+			}
+			defTypeOID := ownerCol.TypeOID
+			bounds, hasBounds := seqBounds[defTypeOID]
+			if !hasBounds {
+				defTypeOID = seq.TypeOID
+				bounds = seqBounds[defTypeOID]
+			}
+			defaultSeqName := rel.Name + "_" + ownerCol.Name + "_seq"
+			if ownerCol.Identity != 0 && seq.Name != defaultSeqName {
+				defaultTarget := migrationQualifiedName(entry.SchemaName, defaultSeqName)
+				if rel.Persistence == 't' || isTempSchemaName(entry.SchemaName) {
+					defaultTarget = quoteIdentAlways(defaultSeqName)
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    seq.Name,
+					SQL:           fmt.Sprintf("ALTER SEQUENCE %s RENAME TO %s", defaultTarget, quoteIdentAlways(seq.Name)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        seq.OID,
+					Priority:      PriorityColumn,
+				})
+			}
+			defaultSeq := Sequence{
+				Name:        seq.Name,
+				Schema:      seq.Schema,
+				Persistence: normalizeRelPersistence(rel.Persistence),
+				TypeOID:     defTypeOID,
+				Increment:   1,
+				MinValue:    1,
+				MaxValue:    bounds[1],
+				Start:       1,
+				CacheValue:  1,
+				OwnerRelOID: rel.OID,
+				OwnerAttNum: ownerCol.AttNum,
+			}
+			if alterSQL := formatAlterSequence(to, to, entry.SchemaName, &defaultSeq, seq); alterSQL != "" {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    seq.Name,
+					SQL:           alterSQL,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        seq.OID,
+					Priority:      PriorityConstraint,
+				})
+			}
+			seqPers := normalizeRelPersistence(seq.Persistence)
+			relPers := normalizeRelPersistence(rel.Persistence)
+			if seqPers != relPers && relPers != 't' && (seqPers == 'u' || seqPers == 'p') {
+				mode := "LOGGED"
+				if seqPers == 'u' {
+					mode = "UNLOGGED"
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterSequence,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    seq.Name,
+					SQL:           fmt.Sprintf("ALTER SEQUENCE %s SET %s", formatSequenceTargetName(entry.SchemaName, seq), mode),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        seq.OID,
+					Priority:      PriorityConstraint,
+				})
+			}
+			for _, gop := range restoreGrantOps(to, 's', seq.OID) {
+				if !handledGrantSQL[gop.SQL] {
+					ops = append(ops, gop)
+				}
+			}
+			appendComment('s', seq.OID, 0, entry.SchemaName+"."+seq.Name, []string{entry.SchemaName, seq.Name})
 		}
 	}
+
+	relDesc := entry.SchemaName + "." + entry.Name
+	appendComment('r', rel.OID, 0, relDesc, []string{entry.SchemaName, entry.Name})
+	for _, col := range rel.Columns {
+		appendComment('r', rel.OID, col.AttNum, relDesc, []string{entry.SchemaName, entry.Name})
+	}
+	for _, idx := range to.IndexesOf(rel.OID) {
+		appendComment('i', idx.OID, 0, entry.SchemaName+"."+idx.Name, []string{entry.SchemaName, idx.Name})
+	}
 	for _, con := range to.ConstraintsOf(rel.OID) {
-		appendComment('c', con.OID, 0, relDesc+"."+con.Name)
+		appendComment('c', con.OID, 0, relDesc+"."+con.Name, []string{entry.SchemaName, entry.Name, con.Name})
 	}
 	for _, trig := range to.TriggersOf(rel.OID) {
 		if trig.ParentTriggerOID == 0 {
-			appendComment('g', trig.OID, 0, relDesc+"."+trig.Name)
+			appendComment('g', trig.OID, 0, relDesc+"."+trig.Name, []string{entry.SchemaName, entry.Name, trig.Name})
 		}
 	}
 	for _, pol := range to.policiesByRel[rel.OID] {
-		appendComment('p', pol.OID, 0, relDesc+"."+pol.Name)
+		appendComment('p', pol.OID, 0, relDesc+"."+pol.Name, []string{entry.SchemaName, entry.Name, pol.Name})
 	}
 	for _, r := range to.rules {
 		if r != nil && r.OwnerRelOID == rel.OID {
-			appendComment('R', r.OID, 0, relDesc+"."+r.Name)
+			appendComment('R', r.OID, 0, relDesc+"."+r.Name, []string{entry.SchemaName, entry.Name, r.Name})
 		}
 	}
 

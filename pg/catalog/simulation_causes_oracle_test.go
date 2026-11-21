@@ -5446,10 +5446,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			nil,
 			[]string{"CREATE VIEW pg_temp.v_pgtemp_r40 AS SELECT 1 AS x"},
 			[]string{`CREATE TEMP VIEW "v_pgtemp_r40"`})
-		roundTrip137("rebuilt table keeps a recreated rule's comment",
+		roundTrip137("inheritance change preserves rule and its comment",
 			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
 			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int) INHERITS (p_rc_r40)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 WHERE NEW.a > 0 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
-			[]string{"COMMENT ON RULE", "keep rule comment"})
+			[]string{`ALTER TABLE "public"."c_rc_r40" INHERIT`, `CREATE OR REPLACE RULE "r_rc_r40"`})
 		roundTrip137("matview rebuild keeps index comments",
 			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
 			[]string{"CREATE TABLE mvc_src_r41 (a int)", "CREATE MATERIALIZED VIEW mvc_r41 AS SELECT a FROM mvc_src_r41 WHERE a > 0", "CREATE INDEX mvc_a_r41 ON mvc_r41 (a)", "COMMENT ON INDEX mvc_a_r41 IS 'keep index comment'"},
