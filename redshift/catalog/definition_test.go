@@ -1690,6 +1690,55 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Columns: []*metadatapb.ColumnMetadata{{Name: "c", Type: "varchar(10)", CollationSchema: "pg_catalog", Collation: "default"}},
 	})
 	require.ErrorContains(t, err, "collation")
+
+	// Built-in aggregates (sum) take precedence over local UDFs; empty column types,
+	// expression keys in PK/UNIQUE, default subqueries, and DB collation fail explicitly.
+	aggPrec, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "sum",
+					Definition: "CREATE FUNCTION s.sum(x int4) RETURNS int8 IMMUTABLE AS $$ SELECT s.agg_caller(x)::int8 $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "agg_caller",
+					Definition: "CREATE FUNCTION s.agg_caller(n int4) RETURNS int8 IMMUTABLE AS $$ SELECT sum(n) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(aggPrec, "CREATE FUNCTION s.agg_caller("), strings.Index(aggPrec, "CREATE FUNCTION s.sum("))
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:      "dev",
+		Collation: "case_insensitive",
+	})
+	require.ErrorContains(t, err, "collation")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_expr_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "email", Type: "varchar(100)"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_expr", Primary: true, Expressions: []string{"lower(email)"}}},
+	})
+	require.ErrorContains(t, err, "not a table column")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_subq_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:    "id",
+			Type:    "integer",
+			Default: "(SELECT 1)",
+		}},
+	})
+	require.ErrorContains(t, err, "subquery")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_empty_type",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id"}},
+	})
+	require.ErrorContains(t, err, "no data type")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

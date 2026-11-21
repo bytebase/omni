@@ -27,6 +27,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to.Datashare {
 		return "", fmt.Errorf("datashare database %q cannot be restored because DatabaseSchemaMetadata does not capture FROM DATASHARE configuration", to.Name)
 	}
+	if to.Collation != "" {
+		return "", fmt.Errorf("database %q collation %q cannot be restored by Redshift DDL renderer", to.Name, to.Collation)
+	}
 	if len(to.Extensions) > 0 || len(to.EventTriggers) > 0 || len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
 		return "", fmt.Errorf("database %q contains objects unsupported by Redshift DDL renderer", to.Name)
 	}
@@ -638,7 +641,7 @@ func initBuiltinCatalog() {
 		}
 		builtinProcsByName = make(map[string][]BuiltinProc, len(BuiltinProcs))
 		for _, p := range BuiltinProcs {
-			if p.Kind != 'f' {
+			if p.Kind != 'f' && p.Kind != 'a' && p.Kind != 'w' {
 				continue
 			}
 			key := strings.ToLower(p.Name)
@@ -1950,6 +1953,12 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
 		}
+		for _, key := range idx.keys {
+			colName, ok := parseConstraintColumnName(key)
+			if !ok || !hasTableColumn(table.columns, colName) {
+				return fmt.Errorf("index %s on %s key %q is not a table column", idx.name, table.qualifiedName(), key)
+			}
+		}
 	}
 	for _, fk := range sortedForeignKeys(table.foreignKeys) {
 		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
@@ -2323,6 +2332,12 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		if msg := unsupportedRedshiftColumnReason(column, false); msg != "" && state.unsupportedReason == "" {
 			state.unsupportedReason = msg
 		}
+		if strings.TrimSpace(column.Type) == "" && state.unsupportedReason == "" {
+			state.unsupportedReason = fmt.Sprintf("column %s has no data type", quoteDefinitionIdentifier(column.Name))
+		}
+		if hasDefaultSubquery(column.Default) && state.unsupportedReason == "" {
+			state.unsupportedReason = fmt.Sprintf("column %s default %q contains a subquery, which Redshift does not support", quoteDefinitionIdentifier(column.Name), column.Default)
+		}
 		if _, exists := state.columns[column.Name]; exists && state.duplicateColumn == "" {
 			state.duplicateColumn = column.Name
 		}
@@ -2695,17 +2710,84 @@ func isExpression(value string) bool {
 	case *nodes.A_Const:
 		return true
 	}
-	// Column defaults cannot reference columns; rejecting ColumnRef keeps
-	// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
-	hasColRef := false
+	hasDisallowed := false
 	nodes.Inspect(rt.Val, func(n nodes.Node) bool {
-		if _, ok := n.(*nodes.ColumnRef); ok {
-			hasColRef = true
+		switch n.(type) {
+		case *nodes.ColumnRef, *nodes.SubLink:
+			hasDisallowed = true
 			return false
 		}
 		return true
 	})
-	return !hasColRef
+	return !hasDisallowed
+}
+
+func hasDefaultSubquery(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || isQuotedSQLLiteral(trimmed) {
+		return false
+	}
+	stmts, err := pgparser.Parse("SELECT " + trimmed)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	sel, ok := stmt.(*nodes.SelectStmt)
+	if !ok || sel.TargetList == nil || len(sel.TargetList.Items) != 1 {
+		return false
+	}
+	rt, ok := sel.TargetList.Items[0].(*nodes.ResTarget)
+	if !ok || rt.Val == nil {
+		return false
+	}
+	found := false
+	nodes.Inspect(rt.Val, func(n nodes.Node) bool {
+		if _, ok := n.(*nodes.SubLink); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func parseConstraintColumnName(key string) (string, bool) {
+	stmts, err := pgparser.Parse("CREATE TABLE _t (PRIMARY KEY (" + key + "))")
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return "", false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	cs, ok := stmt.(*nodes.CreateStmt)
+	if !ok || cs.TableElts == nil || len(cs.TableElts.Items) != 1 {
+		return "", false
+	}
+	con, ok := cs.TableElts.Items[0].(*nodes.Constraint)
+	if !ok || con.Keys == nil || len(con.Keys.Items) != 1 {
+		return "", false
+	}
+	s, ok := con.Keys.Items[0].(*nodes.String)
+	if !ok || s.Str == "" {
+		return "", false
+	}
+	return s.Str, true
+}
+
+func hasTableColumn(cols map[string]*columnState, name string) bool {
+	if _, ok := cols[name]; ok {
+		return true
+	}
+	for k := range cols {
+		if strings.EqualFold(k, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isQuotedSQLLiteral reports whether s is already a single-quoted SQL string
