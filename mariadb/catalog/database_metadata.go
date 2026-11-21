@@ -214,25 +214,46 @@ type viewMetaResolvedKey struct {
 // DAGs of dependent views resolve in linear rather than exponential time.
 type viewMetaResolver struct {
 	*Catalog
-	targetCache   map[viewMetaTargetKey]viewMetaTargetEntry
-	targetActive  map[viewMetaTargetKey]bool
-	resolvedCache map[viewMetaResolvedKey]*ResolvedType
-	resolvedDone  map[viewMetaResolvedKey]bool
-	resolvedAct   map[viewMetaResolvedKey]bool
+	targetCache    map[viewMetaTargetKey]viewMetaTargetEntry
+	targetActive   map[viewMetaTargetKey]bool
+	resolvedCache  map[viewMetaResolvedKey]*ResolvedType
+	resolvedDone   map[viewMetaResolvedKey]bool
+	resolvedAct    map[viewMetaResolvedKey]bool
+	viewColsCache  map[*View][]*metadata.ColumnMetadata
+	viewColsActive map[*View]bool
 }
 
 func newViewMetaResolver(c *Catalog) *viewMetaResolver {
 	return &viewMetaResolver{
-		Catalog:       c,
-		targetCache:   make(map[viewMetaTargetKey]viewMetaTargetEntry),
-		targetActive:  make(map[viewMetaTargetKey]bool),
-		resolvedCache: make(map[viewMetaResolvedKey]*ResolvedType),
-		resolvedDone:  make(map[viewMetaResolvedKey]bool),
-		resolvedAct:   make(map[viewMetaResolvedKey]bool),
+		Catalog:        c,
+		targetCache:    make(map[viewMetaTargetKey]viewMetaTargetEntry),
+		targetActive:   make(map[viewMetaTargetKey]bool),
+		resolvedCache:  make(map[viewMetaResolvedKey]*ResolvedType),
+		resolvedDone:   make(map[viewMetaResolvedKey]bool),
+		resolvedAct:    make(map[viewMetaResolvedKey]bool),
+		viewColsCache:  make(map[*View][]*metadata.ColumnMetadata),
+		viewColsActive: make(map[*View]bool),
 	}
 }
 
 func (c *viewMetaResolver) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
+	if v == nil {
+		return nil
+	}
+	if cached, ok := c.viewColsCache[v]; ok {
+		return cached
+	}
+	if c.viewColsActive[v] {
+		return nil
+	}
+	c.viewColsActive[v] = true
+	cols := c.viewColumnsToProtoUncached(db, v)
+	delete(c.viewColsActive, v)
+	c.viewColsCache[v] = cols
+	return cols
+}
+
+func (c *viewMetaResolver) viewColumnsToProtoUncached(db *Database, v *View) []*metadata.ColumnMetadata {
 	leftQ := leftmostAnalyzedQuery(v.AnalyzedQuery)
 	var nonJunkTargets []*TargetEntryQ
 	if leftQ != nil {
@@ -549,9 +570,13 @@ func analyzedExprNullable(c *viewMetaResolver, db *Database, q *Query, opt map[i
 							return col.Nullable, true
 						}
 					}
-					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
-						if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, widenOptionalJoin); ok {
-							return meta.nullable, true
+					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
+						if sv.AnalyzedQuery != nil {
+							if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, widenOptionalJoin); ok {
+								return meta.nullable, true
+							}
+						} else if cols := c.viewColumnsToProto(origDB, sv); e.AttNum-1 < len(cols) {
+							return cols[e.AttNum-1].Nullable, true
 						}
 					}
 				}
@@ -1029,8 +1054,7 @@ func combineSetOpColumnTypes(lt string, le AnalyzedExpr, rt string, re AnalyzedE
 			if sRank > uRank {
 				rank = sRank
 			} else if uRank >= 5 {
-				rank = 5
-				unsigned = true
+				return "decimal(20,0)"
 			} else {
 				rank = uRank + 1
 			}
@@ -1173,6 +1197,12 @@ func resolveTargetColumnMetadata(c *viewMetaResolver, db *Database, q *Query, op
 					return meta.colType, meta.nullable || opt, meta.charset, meta.collation, true
 				}
 			}
+			if c != nil {
+				if cols := c.viewColumnsToProto(origDB, sv); ve.AttNum-1 < len(cols) {
+					col := cols[ve.AttNum-1]
+					return col.Type, col.Nullable || opt, col.CharacterSet, col.Collation, true
+				}
+			}
 			if ve.AttNum-1 < len(sv.ColumnMetadata) {
 				cm := sv.ColumnMetadata[ve.AttNum-1]
 				return resolvedTypeToColumnType(cm.Type), cm.Nullable || opt, cm.Charset, cm.Collation, true
@@ -1208,9 +1238,13 @@ func resolveVarExprColumnType(c *viewMetaResolver, db *Database, q *Query, e *Va
 					return col.ColumnType
 				}
 			}
-			if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
-				if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, true); ok && meta.colType != "" {
-					return meta.colType
+			if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
+				if sv.AnalyzedQuery != nil {
+					if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, true); ok && meta.colType != "" {
+						return meta.colType
+					}
+				} else if cols := c.viewColumnsToProto(origDB, sv); e.AttNum-1 < len(cols) && cols[e.AttNum-1].Type != "" {
+					return cols[e.AttNum-1].Type
 				}
 			}
 		}
@@ -1401,8 +1435,13 @@ func resolveExprResolvedType(c *viewMetaResolver, db *Database, q *Query, expr A
 							return parseColumnResolvedType(col.ColumnType)
 						}
 					}
-					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
-						return resolveQueryExprResolvedType(c, origDB, sv.AnalyzedQuery, e.AttNum-1)
+					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
+						if sv.AnalyzedQuery != nil {
+							return resolveQueryExprResolvedType(c, origDB, sv.AnalyzedQuery, e.AttNum-1)
+						}
+						if cols := c.viewColumnsToProto(origDB, sv); e.AttNum-1 < len(cols) {
+							return parseColumnResolvedType(cols[e.AttNum-1].Type)
+						}
 					}
 				}
 			}
@@ -1619,13 +1658,13 @@ func combineDecimalArithmetic(op string, lt *ResolvedType, le AnalyzedExpr, rt *
 		scale = max(ls, rs)
 		prec = min(65, max(lp-ls, rp-rs)+1+scale)
 	case "*":
-		scale = min(30, ls+rs)
+		scale = min(38, ls+rs)
 		prec = min(65, lp+rp)
 	case "%", "MOD":
 		scale = max(ls, rs)
 		prec = min(65, max(lp-ls, rp-rs)+scale)
 	case "/":
-		scale = min(30, ls+4)
+		scale = min(38, ls+4)
 		prec = min(65, max(lp-ls, 0)+rs+scale)
 	default:
 		return nil
@@ -2874,7 +2913,7 @@ func sumAvgResolvedType(c *viewMetaResolver, db *Database, q *Query, arg Analyze
 			return nil
 		}
 		if isAvg {
-			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+4), Scale: min(30, s+4)}
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+4), Scale: min(38, s+4)}
 		}
 		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+22), Scale: s}
 	default:

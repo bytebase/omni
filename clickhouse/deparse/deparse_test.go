@@ -271,3 +271,28 @@ CREATE OR REPLACE VIEW ` + "`a_derived`" + ` AS SELECT id FROM analytics.z_base;
 `
 	require.Equal(t, want, got)
 }
+
+func TestGetTableDefinitionEngineArguments(t *testing.T) {
+	_, err := GetTableDefinition("", &metadatapb.TableMetadata{
+		Name:   "collapsing",
+		Engine: "CollapsingMergeTree",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "UInt64"},
+			{Name: "sign", Type: "Int8"},
+		},
+		SortingKeys: []string{"id"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "CollapsingMergeTree")
+
+	got, err := GetTableDefinition("", &metadatapb.TableMetadata{
+		Name:   "collapsing",
+		Engine: "CollapsingMergeTree(sign)",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "UInt64"},
+			{Name: "sign", Type: "Int8"},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "ENGINE = CollapsingMergeTree(sign)\nORDER BY tuple();")
+}

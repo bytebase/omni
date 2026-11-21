@@ -533,6 +533,9 @@ func (t *tableState) toString(buf *strings.Builder) error {
 		return err
 	}
 	if t.engine != "" {
+		if engineRequiresArgs(t.engine) {
+			return fmt.Errorf("table %q: ClickHouse engine %q requires engine arguments not present in table metadata", t.name, t.engine)
+		}
 		if _, err := fmt.Fprintf(buf, "\nENGINE = %s", t.engine); err != nil {
 			return err
 		}
@@ -579,6 +582,54 @@ func isMergeTreeEngine(engine string) bool {
 		base = strings.TrimSpace(base[:idx])
 	}
 	return strings.HasSuffix(strings.ToLower(base), "mergetree")
+}
+
+// engineRequiresArgs reports whether engine names a ClickHouse table engine
+// whose CREATE TABLE syntax mandates parenthesized arguments that are missing.
+func engineRequiresArgs(engine string) bool {
+	trimmed := strings.TrimSpace(engine)
+	if trimmed == "" || strings.Contains(trimmed, "(") {
+		return false
+	}
+	switch strings.ToLower(trimmed) {
+	case "collapsingmergetree",
+		"versionedcollapsingmergetree",
+		"graphitemergetree",
+		"replicatedcollapsingmergetree",
+		"replicatedversionedcollapsingmergetree",
+		"replicatedgraphitemergetree",
+		"distributed",
+		"buffer",
+		"merge",
+		"dictionary",
+		"join",
+		"file",
+		"url",
+		"s3",
+		"s3queue",
+		"hdfs",
+		"azureblobstorage",
+		"mysql",
+		"postgresql",
+		"sqlite",
+		"kafka",
+		"rabbitmq",
+		"nats",
+		"mongodb",
+		"redis",
+		"odbc",
+		"jdbc",
+		"executable",
+		"executablepool",
+		"iceberg",
+		"icebergs3",
+		"deltalake",
+		"hudi",
+		"hive":
+		return true
+	default:
+		return false
+	}
 }
 
 func newTableState(id int, name string) *tableState {

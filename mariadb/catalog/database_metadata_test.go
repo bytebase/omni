@@ -612,3 +612,40 @@ func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {
 	require.Empty(t, rep2.Missing)
 	require.Empty(t, rep2.Incomplete)
 }
+
+func TestDatabaseMetadataDependentFallbackMixedSignAndHighScaleDecimal(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (id INT NOT NULL, s VARCHAR(20));
+		CREATE VIEW v AS SELECT id, s COLLATE utf8mb4_bin AS s FROM t;
+		CREATE VIEW w AS SELECT id, s FROM v;
+		CREATE TABLE nums (a BIGINT, b BIGINT UNSIGNED);
+		CREATE VIEW v_mixed AS SELECT COALESCE(a, b) AS n FROM nums;
+		CREATE TABLE prec (a DECIMAL(40,20), b DECIMAL(40,20), c DECIMAL(40,36));
+		CREATE VIEW v_hi AS SELECT a * b AS product, c / 1 AS quotient, AVG(c) AS avg_c FROM prec;
+	`, nil)
+	require.NoError(t, err)
+
+	exported := c.DatabaseMetadata("app")
+	views := make(map[string]*metadata.ViewMetadata)
+	for _, v := range exported.Schemas[0].Views {
+		views[v.Name] = v
+	}
+
+	vw := views["w"]
+	require.Len(t, vw.Columns, 2)
+	require.Equal(t, "int(11)", vw.Columns[0].Type)
+	require.Equal(t, "varchar(20)", vw.Columns[1].Type)
+
+	vMixed := views["v_mixed"]
+	require.Len(t, vMixed.Columns, 1)
+	require.Equal(t, "decimal(20,0)", vMixed.Columns[0].Type)
+
+	vHi := views["v_hi"]
+	require.Len(t, vHi.Columns, 3)
+	require.Equal(t, "decimal(65,38)", vHi.Columns[0].Type)
+	require.Equal(t, "decimal(42,38)", vHi.Columns[1].Type)
+	require.Equal(t, "decimal(44,38)", vHi.Columns[2].Type)
+}
