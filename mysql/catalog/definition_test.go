@@ -41,11 +41,13 @@ func TestTableDefinitionWithCheckConstraint(t *testing.T) {
 	want := "--\n" +
 		"-- Table structure for `t1`\n" +
 		"--\n" +
+		disableGenerateInvisiblePrimaryKeyStmt +
 		"CREATE TABLE `t1` (\n" +
 		"  `type` varchar(10) DEFAULT NULL,\n" +
 		"  `amount` decimal(10,2) DEFAULT NULL,\n" +
 		"  CONSTRAINT `c1` CHECK (((`type` = _utf8mb4'A') and (`amount` is not null)))\n" +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;\n\n"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;\n\n" +
+		restoreGenerateInvisiblePrimaryKeyStmt
 	require.Equal(t, want, got)
 	require.NotContains(t, got, `\'`)
 }
@@ -71,12 +73,14 @@ func TestTableDefinitionWithSystemVersioning(t *testing.T) {
 	want := "--\n" +
 		"-- Table structure for `explicit_period`\n" +
 		"--\n" +
+		disableGenerateInvisiblePrimaryKeyStmt +
 		"CREATE TABLE `explicit_period` (\n" +
 		"  `id` int DEFAULT NULL,\n" +
 		"  `valid_from` timestamp(6) GENERATED ALWAYS AS ROW START NOT NULL,\n" +
 		"  `valid_to` timestamp(6) GENERATED ALWAYS AS ROW END NOT NULL,\n" +
 		"  PERIOD FOR SYSTEM_TIME (`valid_from`, `valid_to`)\n" +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='versioned' WITH SYSTEM VERSIONING;\n\n"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='versioned' WITH SYSTEM VERSIONING;\n\n" +
+		restoreGenerateInvisiblePrimaryKeyStmt
 	require.Equal(t, want, got)
 
 	// The schema-text diff path loads a dump with this catalog. Loading the table

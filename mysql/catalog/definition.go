@@ -492,8 +492,8 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
 	}
-	hasGIPK := tableHasGeneratedInvisiblePrimaryKey(table)
-	if hasGIPK {
+	disableGIPK := tableNeedsDisableGIPK(table)
+	if disableGIPK {
 		if _, err := io.WriteString(out, disableGenerateInvisiblePrimaryKeyStmt); err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if err := writeCreateTable(out, table, dbName, false); err != nil {
 		return err
 	}
-	if hasGIPK {
+	if disableGIPK {
 		if _, err := io.WriteString(out, restoreGenerateInvisiblePrimaryKeyStmt); err != nil {
 			return err
 		}
@@ -509,9 +509,19 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	return nil
 }
 
-func tableHasGeneratedInvisiblePrimaryKey(table *metadata.TableMetadata) bool {
+func tableNeedsDisableGIPK(table *metadata.TableMetadata) bool {
+	hasPK := false
+	for _, idx := range table.GetIndexes() {
+		if idx.GetPrimary() {
+			hasPK = true
+			break
+		}
+	}
+	if !hasPK {
+		return true
+	}
 	for _, col := range table.GetColumns() {
-		if col.GetIsGeneratedInvisiblePrimaryKey() {
+		if col.GetIsGeneratedInvisiblePrimaryKey() || strings.EqualFold(col.GetName(), "my_row_id") {
 			return true
 		}
 	}

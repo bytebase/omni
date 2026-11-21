@@ -663,9 +663,10 @@ func TestDatabaseDefinitionDefaultDroppedNotSecondaryExplicitCharsetAndImplicitS
 func TestDatabaseDefinitionGIPKRestoreAndQuotedHexDefault(t *testing.T) {
 	c := New()
 	_, err := c.Exec(`
-		SET SESSION sql_generate_invisible_primary_key = ON;
 		CREATE DATABASE app;
 		USE app;
+		CREATE TABLE no_pk (v INT);
+		SET SESSION sql_generate_invisible_primary_key = ON;
 		CREATE TABLE gipk_t (name VARCHAR(10));
 		CREATE TABLE hex_t (
 			id INT PRIMARY KEY,
@@ -702,10 +703,12 @@ func TestDatabaseDefinitionGIPKRestoreAndQuotedHexDefault(t *testing.T) {
 	require.Contains(t, def, "DEFAULT X'05'")
 	require.Contains(t, def, "DEFAULT x'0a'")
 
-	// Restoring in a session with GIPK=ON must not trigger error 4108 and must keep GIPK=ON afterwards.
+	// Restoring in a session with GIPK=ON must not trigger error 4108, must not add my_row_id
+	// to no-PK snapshot tables, and must keep GIPK=ON afterwards.
 	restored := New()
 	_, err = restored.Exec("SET SESSION sql_generate_invisible_primary_key = ON;\nCREATE DATABASE app;\nUSE app;\n"+def+"\nCREATE TABLE after_t (v INT);", &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
+	require.Nil(t, restored.GetDatabase("app").GetTable("no_pk").GetColumn("my_row_id"))
 	require.NotNil(t, restored.GetDatabase("app").GetTable("gipk_t").GetColumn("my_row_id"))
 	require.NotNil(t, restored.GetDatabase("app").GetTable("after_t").GetColumn("my_row_id"))
 }
