@@ -293,4 +293,29 @@ func TestForeignKeyImplicitIndexAndConstraints(t *testing.T) {
 			t.Errorf("expected KEY `a` (`a`) IGNORED replacing implicit key, got:\n%s", ddl)
 		}
 	})
+
+	t.Run("long UNIQUE key converted to HASH preserves implicit FK index", func(t *testing.T) {
+		const longSetup = `
+			CREATE TABLE parent (b INT PRIMARY KEY);
+			CREATE TABLE child (
+				id INT,
+				payload TEXT,
+				FOREIGN KEY (id) REFERENCES parent (b)
+			);
+		`
+		c, err := LoadSQL("CREATE DATABASE d; USE d;\n" + longSetup)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results, err := c.Exec("ALTER TABLE child ADD UNIQUE KEY u (id, payload);", nil)
+		if err != nil || results[0].Error != nil {
+			t.Fatalf("ADD UNIQUE KEY u (id, payload) failed: parse=%v exec=%v", err, results)
+		}
+		ddl := c.ShowCreateTable("d", "child")
+		if !strings.Contains(ddl, "KEY `id` (`id`)") || !strings.Contains(ddl, "UNIQUE KEY `u` (`id`,`payload`) USING HASH") {
+			t.Errorf("expected implicit KEY `id` preserved beside HASH UNIQUE KEY `u`, got:\n%s", ddl)
+		}
+		// Same name as implicit FK index should collide (1061) because the long UNIQUE becomes HASH.
+		execExpectCode(t, longSetup, "ALTER TABLE child ADD UNIQUE KEY id (id, payload);", 1061)
+	})
 }

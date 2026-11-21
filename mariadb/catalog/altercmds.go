@@ -1867,15 +1867,19 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 				return err
 			}
 		}
-		dropImplicitFKIndexesCoveredBy(tbl, idxCols, resolveConstraintIndexType(con), false, false, false)
+		long, err := validateUniqueIndexColumns(tbl, idxCols)
+		if err != nil {
+			return err
+		}
+		resolvedType := resolveConstraintIndexType(con)
+		if long {
+			resolvedType = "HASH"
+		}
+		dropImplicitFKIndexesCoveredBy(tbl, idxCols, resolvedType, false, false, false)
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
 		} else if idxName != "" && indexNameExists(tbl, idxName) {
 			return errDupKeyName(idxName)
-		}
-		long, err := validateUniqueIndexColumns(tbl, idxCols)
-		if err != nil {
-			return err
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -1885,11 +1889,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
-			IndexType: resolveConstraintIndexType(con),
+			IndexType: resolvedType,
 			Visible:   true,
-		}
-		if long {
-			uqIdx.IndexType = "HASH"
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
