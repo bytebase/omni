@@ -1172,6 +1172,7 @@ type JsonConstructorExprQ struct {
 	ConstructorType JsonConstructorType
 	Args            []AnalyzedExpr
 	Subquery        *Query       // for JsonConstructorArrayQuery
+	Format          int          // 0=default, 1=FORMAT JSON, 2=FORMAT JSONB (for JsonConstructorArrayQuery)
 	AggOrder        []*AggSortBy // ORDER BY for JSON_ARRAYAGG
 	AggFilter       AnalyzedExpr // FILTER (WHERE ...) for JSON_ARRAYAGG / JSON_OBJECTAGG
 	HasOver         bool         // true when OVER clause is present

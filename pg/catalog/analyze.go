@@ -7294,9 +7294,14 @@ func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQuery
 	if len(outputTargetList) > 1 {
 		return nil, &Error{Code: CodeSyntaxError, Message: "subquery must return only one column"}
 	}
+	format := 0
+	if n.Format != nil {
+		format = int(n.Format.FormatType)
+	}
 	return &JsonConstructorExprQ{
 		ConstructorType: JsonConstructorArrayQuery,
 		Subquery:        subQuery,
+		Format:          format,
 		AbsentOnNull:    n.AbsentOnNull,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,

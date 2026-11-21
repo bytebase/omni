@@ -1102,10 +1102,10 @@ func (d *deparseCtx) getConstExpr(c *ConstExpr, showType int) {
 		simpleQuoteLiteral(d.buf, c.Value)
 		needLabel = true
 	case NUMERICOID:
-		if len(c.Value) > 0 && c.Value[0] != '-' {
+		if isPlainNonNegNumeric(c.Value) {
 			d.buf.WriteString(c.Value)
 		} else {
-			fmt.Fprintf(d.buf, "'%s'", c.Value)
+			simpleQuoteLiteral(d.buf, c.Value)
 			needLabel = true
 		}
 	case BOOLOID:
@@ -3071,6 +3071,14 @@ func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
 			subCtx.colNamesVisible = false
 			subCtx.getQueryDef(j.Subquery)
 			d.indentLevel = subCtx.indentLevel
+			hasContent = true
+		}
+		switch j.Format {
+		case 1: // JS_FORMAT_JSON
+			d.buf.WriteString(" FORMAT JSON")
+			hasContent = true
+		case 2: // JS_FORMAT_JSONB
+			d.buf.WriteString(" FORMAT JSONB")
 			hasContent = true
 		}
 		writeReturning(hasContent)

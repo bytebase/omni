@@ -731,7 +731,8 @@ func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := p.parseJsonFormatClauseOpt(); err != nil {
+		format, err := p.parseJsonFormatClauseOpt()
+		if err != nil {
 			return nil, err
 		}
 		output, err := p.parseJsonReturningClauseOpt()
@@ -744,6 +745,7 @@ func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 		return &nodes.JsonArrayQueryConstructor{
 			Query:  query,
 			Output: output,
+			Format: format,
 			Loc:    nodes.NoLoc(),
 		}, nil
 	}

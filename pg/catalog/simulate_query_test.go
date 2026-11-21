@@ -165,6 +165,7 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"named_window_refs", "CREATE VIEW _v AS SELECT count(*) OVER w AS c, sum(a) OVER w AS s FROM a WINDOW w AS (ORDER BY b)", "OVER w"},
 			{"dedup_col_alias_var_refs", "CREATE VIEW _v(first, second, third) AS SELECT x.* FROM a AS x(a)", "a_1 AS second"},
 			{"json_array_query_constructor", "CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT b FROM a) AS j", "JSON_ARRAY( SELECT"},
+			{"json_array_query_format_json", `CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT '{"x":1}'::text AS j FORMAT JSON) AS a`, "FORMAT JSON"},
 			{"json_arrayagg_preserve", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE b > 0) AS j FROM a", "JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE (b > 0))"},
 			{"json_arrayagg_null_on_null", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b NULL ON NULL) AS j FROM a", "JSON_ARRAYAGG(b NULL ON NULL RETURNING json)"},
 			{"json_array_null_on_null", "CREATE VIEW _v AS SELECT JSON_ARRAY(b NULL ON NULL) AS j FROM a", "JSON_ARRAY(b NULL ON NULL RETURNING json)"},
@@ -182,6 +183,8 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"json_returning_typmod", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b RETURNING varchar(5)) AS ja, JSON_ARRAY(1 RETURNING varchar(10)) AS j FROM a", "RETURNING character varying(5)"},
 			{"unnamed_subquery_no_shadow_outer", "CREATE VIEW _v AS SELECT (SELECT unnamed_subquery.b FROM (SELECT 2 AS b)) AS z FROM a AS unnamed_subquery", "unnamed_subquery_1"},
 			{"pg17_integer_literals", "CREATE VIEW _v AS SELECT '0xFF'::integer AS h, '1_000'::bigint AS u, '0o77'::smallint AS o, '0b1010'::int AS b", "'0xFF'::integer"},
+			{"pg17_numeric_literals", "CREATE VIEW _v AS SELECT '1_000.2_5e1_0'::numeric AS u, '0xFF'::numeric AS h, '0o77'::numeric AS o, '0b1010'::numeric AS b", "'0xFF'::numeric"},
+			{"signed_oid_literal", "CREATE VIEW _v AS SELECT '-1'::oid AS x, '-2147483648'::oid AS y", "'-1'::oid"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -205,15 +208,16 @@ func TestQuerySimulationFixes(t *testing.T) {
 				// Verify the deparsed view definition can be recreated cleanly.
 				switch tc.name {
 				case "typed_empty_array", "dedup_col_alias_var_refs",
-					"json_array_query_constructor", "json_arrayagg_preserve",
-					"json_arrayagg_null_on_null", "json_array_null_on_null",
-					"json_arrayagg_format_json", "json_objectagg_format_json",
-					"json_objectagg_over_preserve", "xmltable_preserve",
-					"cross_schema_unaliased_same_name", "multiple_unnamed_subqueries",
-					"aliased_join_deparse", "aliased_cross_join_deparse",
-					"aliased_join_dedup_col_refs", "json_returning_bytea",
-					"json_returning_typmod", "unnamed_subquery_no_shadow_outer",
-					"pg17_integer_literals":
+					"json_array_query_constructor", "json_array_query_format_json",
+					"json_arrayagg_preserve", "json_arrayagg_null_on_null",
+					"json_array_null_on_null", "json_arrayagg_format_json",
+					"json_objectagg_format_json", "json_objectagg_over_preserve",
+					"xmltable_preserve", "cross_schema_unaliased_same_name",
+					"multiple_unnamed_subqueries", "aliased_join_deparse",
+					"aliased_cross_join_deparse", "aliased_join_dedup_col_refs",
+					"json_returning_bytea", "json_returning_typmod",
+					"unnamed_subquery_no_shadow_outer", "pg17_integer_literals",
+					"pg17_numeric_literals", "signed_oid_literal":
 					c2 := setup(t)
 					res2, err := c2.Exec("CREATE VIEW _v2 AS "+def, nil)
 					if err != nil {
