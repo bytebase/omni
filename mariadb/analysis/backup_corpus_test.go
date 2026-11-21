@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -13,6 +12,7 @@ import (
 	"github.com/bytebase/omni/mariadb/analysis"
 	"github.com/bytebase/omni/mariadb/parser"
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/review"
 )
 
 // The corpora in testdata/backup.yaml and testdata/restore.yaml are Bytebase's
@@ -102,32 +102,9 @@ func corpusBackupCatalog() analysis.Catalog {
 	}
 }
 
-func byteOffsetToCorpusPos(sql string, byteOffset int) *backupCorpusPos {
-	if byteOffset < 0 {
-		byteOffset = 0
-	}
-	if byteOffset > len(sql) {
-		byteOffset = len(sql)
-	}
-	line := int32(1)
-	col := int32(0)
-	for i := 0; i < byteOffset; {
-		r, size := utf8.DecodeRuneInString(sql[i:])
-		switch r {
-		case '\r':
-			line++
-			col = 0
-		case '\n':
-			if i == 0 || sql[i-1] != '\r' {
-				line++
-				col = 0
-			}
-		default:
-			col++
-		}
-		i += size
-	}
-	return &backupCorpusPos{Line: line, Column: col + 1}
+func corpusPos(index *review.Text, byteOffset int) *backupCorpusPos {
+	line, col := index.Position(byteOffset)
+	return &backupCorpusPos{Line: int32(line), Column: int32(col)}
 }
 
 func TestBackupCorpus(t *testing.T) {
@@ -155,14 +132,15 @@ func TestBackupCorpus(t *testing.T) {
 			continue
 		}
 
+		index := review.Index(tc.Input)
 		got := make([]backupCorpusStatement, 0, len(backups))
 		for _, b := range backups {
 			got = append(got, backupCorpusStatement{
 				Statement:       b.Statement,
 				SourceTableName: b.SourceTable,
 				TargetTableName: b.BackupTable,
-				StartPosition:   byteOffsetToCorpusPos(tc.Input, b.ByteStart),
-				EndPosition:     byteOffsetToCorpusPos(tc.Input, endWithSemicolon(tc.Input, b.ByteEnd)),
+				StartPosition:   corpusPos(index, b.ByteStart),
+				EndPosition:     corpusPos(index, endWithSemicolon(tc.Input, b.ByteEnd)),
 			})
 		}
 		slices.SortFunc(got, func(x, y backupCorpusStatement) int {
