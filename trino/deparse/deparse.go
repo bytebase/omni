@@ -500,6 +500,13 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		return "", "", err
 	}
 	if !ok {
+		// The parser cannot read this engine-accepted definition, so check the
+		// metadata signature against the lexically parsed parameter list.
+		if params, lexOK := lexicalTrinoDeclParams(fn.Definition); lexOK {
+			if err := validateTrinoFunctionSignature(schemaName, fn.Name, fn.Signature, params); err != nil {
+				return "", "", err
+			}
+		}
 		return fn.Definition, fallbackSigKey, nil
 	}
 	if err := validateTrinoFunctionSignature(schemaName, fn.Name, fn.Signature, cfs.Spec.Declaration.Parameters); err != nil {
@@ -1594,7 +1601,25 @@ func trinoFunctionSignatureKey(fnName, definition string, parsedFn parsedTrinoFn
 		}
 		return strings.ToLower(fnName) + "(" + strings.Join(paramTypes, ",") + ")"
 	}
-	if _, openParen, ok := scanTrinoDeclIdentParts(definition); ok {
+	if params, ok := lexicalTrinoDeclParams(definition); ok {
+		paramTypes := make([]string, len(params))
+		for i, p := range params {
+			paramTypes[i] = normalizeTrinoDataType(p.Type)
+		}
+		return strings.ToLower(fnName) + "(" + strings.Join(paramTypes, ",") + ")"
+	}
+	return strings.ToLower(fnName)
+}
+
+// lexicalTrinoDeclParams reads the parameter list of a CREATE FUNCTION
+// header that the full parser cannot read, by scanning to the parameter list's
+// closing parenthesis and parsing only that list.
+func lexicalTrinoDeclParams(definition string) ([]trinoparser.ParameterDeclaration, bool) {
+	_, openParen, ok := scanTrinoDeclIdentParts(definition)
+	if !ok {
+		return nil, false
+	}
+	{
 		depth := 0
 		inSingle := false
 		inDouble := false
@@ -1642,16 +1667,12 @@ func trinoFunctionSignatureKey(fnName, definition string, parsedFn parsedTrinoFn
 			inner := strings.TrimSpace(definition[openParen+1 : closeParen])
 			if sigFile, err := trinoparser.Parse("CREATE FUNCTION _sig(" + inner + ") RETURNS int RETURN 1"); err == nil && sigFile != nil && len(sigFile.Stmts) == 1 {
 				if cfs, ok := sigFile.Stmts[0].(*trinoparser.CreateFunctionStmt); ok {
-					paramTypes := make([]string, len(cfs.Spec.Declaration.Parameters))
-					for i, p := range cfs.Spec.Declaration.Parameters {
-						paramTypes[i] = normalizeTrinoDataType(p.Type)
-					}
-					return strings.ToLower(fnName) + "(" + strings.Join(paramTypes, ",") + ")"
+					return cfs.Spec.Declaration.Parameters, true
 				}
 			}
 		}
 	}
-	return strings.ToLower(fnName)
+	return nil, false
 }
 
 func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, error) {
@@ -2586,6 +2607,9 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		leftProj := w.walkRelationBound(r.Left, joinEnv, ctes, true)
 		rightProj := w.walkRelationBound(r.Right, joinEnv, ctes, true)
 		w.walkExpr(r.On, joinEnv, ctes)
+		if len(r.Using) > 0 {
+			return w.coalesceUsingColumns(r.Using, leftProj, rightProj, joinEnv)
+		}
 		proj := make([]trinoProjCol, 0, len(leftProj)+len(rightProj))
 		proj = append(proj, leftProj...)
 		proj = append(proj, rightProj...)
@@ -2667,9 +2691,30 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		}
 		return proj
 	case *trinoparser.UnnestRelation:
+		// UNNEST returns one column per array argument (its element type) and
+		// two per map argument (key and value), then a bigint ordinality column
+		// WITH ORDINALITY (https://trino.io/docs/current/sql/select.html#unnest).
+		var proj []trinoProjCol
 		for _, ex := range r.Exprs {
-			w.walkExpr(ex, curEnv, ctes)
+			typ := w.walkExpr(ex, curEnv, ctes)
+			base, inner, ok := splitParameterizedType(typ)
+			switch {
+			case ok && base == "array":
+				proj = append(proj, trinoProjCol{typ: inner})
+			case ok && base == "map":
+				if parts := splitTopLevelComma(inner); len(parts) == 2 {
+					proj = append(proj, trinoProjCol{typ: strings.TrimSpace(parts[0])}, trinoProjCol{typ: strings.TrimSpace(parts[1])})
+				} else {
+					proj = append(proj, trinoProjCol{}, trinoProjCol{})
+				}
+			default:
+				proj = append(proj, trinoProjCol{})
+			}
 		}
+		if r.WithOrdinality {
+			proj = append(proj, trinoProjCol{typ: "bigint"})
+		}
+		return proj
 	case *trinoparser.ParenRelation:
 		return w.walkRelationBound(r.Inner, curEnv, ctes, bind)
 	case *trinoparser.TableFunctionRelation:
@@ -2833,6 +2878,47 @@ func trinoPatternVariables(r *trinoparser.PatternRecognition) []string {
 		add(sub.Name)
 	}
 	return vars
+}
+
+// coalesceUsingColumns returns the output columns of a JOIN ... USING: each
+// USING column once, typed as the common type of its two sides, then the
+// remaining left and right columns. It also restores the USING columns in env,
+// where binding both sides dropped them as ambiguous; Trino exposes a single
+// coalesced column (https://trino.io/docs/current/sql/select.html#using).
+func (w *trinoASTWalker) coalesceUsingColumns(using []*ast.Identifier, leftProj, rightProj []trinoProjCol, env map[string]string) []trinoProjCol {
+	typeOf := func(proj []trinoProjCol, name string) string {
+		for _, pc := range proj {
+			if pc.name == name {
+				return pc.typ
+			}
+		}
+		return ""
+	}
+	usingNames := make(map[string]struct{}, len(using))
+	proj := make([]trinoProjCol, 0, len(leftProj)+len(rightProj))
+	for _, id := range using {
+		if id == nil || id.Value == "" {
+			continue
+		}
+		name := strings.ToLower(id.Value)
+		if _, dup := usingNames[name]; dup {
+			continue
+		}
+		usingNames[name] = struct{}{}
+		typ := combineTrinoTypes(typeOf(leftProj, name), typeOf(rightProj, name))
+		proj = append(proj, trinoProjCol{name: name, typ: typ})
+		if env != nil && typ != "" {
+			env[name] = typ
+		}
+	}
+	for _, side := range [][]trinoProjCol{leftProj, rightProj} {
+		for _, pc := range side {
+			if _, isUsing := usingNames[pc.name]; !isUsing {
+				proj = append(proj, pc)
+			}
+		}
+	}
+	return proj
 }
 
 // walkJSONTable walks a JSON_TABLE relation and returns its output columns:

@@ -2200,4 +2200,40 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	assert.Contains(t, typedBuiltins, `SELECT abs(jt.n), abs(jt.o) FROM "cat"."s".t, JSON_TABLE(`)
 	assert.Contains(t, typedBuiltins, `ORDER BY abs(x);`)
 	assert.Contains(t, typedBuiltins, `SELECT cardinality(ARRAY[1] || ARRAY[2]) AS c;`)
+
+	// JOIN ... USING exposes one coalesced column and UNNEST returns its
+	// element types, so both keep Trino's numeric abs.
+	usingUnnest, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "a", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}},
+				{Name: "b", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}},
+			},
+			Functions: []*metadatapb.FunctionMetadata{{Name: "abs", Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x"}},
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_using", Definition: "SELECT abs(id) FROM a JOIN b USING (id)"},
+				{Name: "v_unnest", Definition: "SELECT abs(q.n), abs(q.o) FROM UNNEST(ARRAY[BIGINT '1']) WITH ORDINALITY AS q(n, o)"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, usingUnnest, `SELECT abs(id) FROM "cat"."s".a JOIN "cat"."s".b USING (id);`)
+	assert.Contains(t, usingUnnest, `SELECT abs(q.n), abs(q.o) FROM UNNEST(`)
+
+	// A definition the parser cannot read still has its parameter list
+	// checked against the metadata signature.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "fb",
+				Signature:  "(bigint)",
+				Definition: "CREATE FUNCTION s.fb(x varchar) RETURNS bigint NOT_A_CLAUSE RETURN 0",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "does not match signature")
 }
