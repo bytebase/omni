@@ -74,6 +74,14 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("sequence %s.%s cannot be restored because Trino does not support sequences", s.Name, seq.Name)
 			}
 		}
+		for _, et := range s.ExternalTables {
+			if et != nil && !et.SkipDump {
+				return nil, fmt.Errorf("external table %s.%s cannot be restored by Trino SDL renderer", s.Name, et.Name)
+			}
+		}
+		if len(s.Streams) > 0 || len(s.Tasks) > 0 || len(s.Packages) > 0 || len(s.Events) > 0 || len(s.EnumTypes) > 0 || len(s.CompositeTypes) > 0 || len(s.Synonyms) > 0 {
+			return nil, fmt.Errorf("schema %s contains schema objects unsupported by Trino SDL renderer", s.Name)
+		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
@@ -625,6 +633,9 @@ func trinoTypeCompatScore(argType, paramType string) (int, bool) {
 	if isTrinoNumericType(argType) && isTrinoNumericType(paramType) && trinoNumericRank(paramType) >= trinoNumericRank(argType) {
 		return 1, true
 	}
+	if argType == "char" && paramType == "varchar" {
+		return 1, true
+	}
 	argBase, argInner, argHasInner := splitParameterizedType(argType)
 	paramBase, paramInner, paramHasInner := splitParameterizedType(paramType)
 	if argBase != paramBase {
@@ -787,7 +798,9 @@ func normalizeTrinoTypeName(name string) string {
 		return "double"
 	case "bool", "boolean":
 		return "boolean"
-	case "varchar", "char", "character", "character varying", "text":
+	case "char", "character":
+		return "char"
+	case "varchar", "character varying", "text":
 		return "varchar"
 	default:
 		return strings.ToLower(strings.TrimSpace(name))
@@ -819,6 +832,13 @@ func isTrinoNumericType(t string) bool {
 	return trinoNumericRank(t) > 0
 }
 
+func zonedTrinoDateTimeType(base string) string {
+	if base == "time" || base == "time with time zone" {
+		return "time with time zone"
+	}
+	return "timestamp with time zone"
+}
+
 func commonTrinoNumericType(a, b string) string {
 	ra, rb := trinoNumericRank(a), trinoNumericRank(b)
 	if ra == 0 || rb == 0 {
@@ -839,6 +859,9 @@ func combineTrinoTypes(a, b string) string {
 	}
 	if common := commonTrinoNumericType(a, b); common != "" {
 		return common
+	}
+	if (a == "char" && b == "varchar") || (a == "varchar" && b == "char") {
+		return "varchar"
 	}
 	aBase, aInner, aHas := splitParameterizedType(a)
 	bBase, bInner, bHas := splitParameterizedType(b)
@@ -999,9 +1022,9 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 		case *trinoparser.AtTimeZoneExpr:
 			t := walkExpr(e.Value, curEnv)
 			walkExpr(e.Zone, curEnv)
-			return t
+			return zonedTrinoDateTimeType(t)
 		case *trinoparser.AtLocalExpr:
-			return walkExpr(e.Value, curEnv)
+			return zonedTrinoDateTimeType(walkExpr(e.Value, curEnv))
 		case *trinoparser.ArrayConstructor:
 			elemType := ""
 			for _, el := range e.Elements {

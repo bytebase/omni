@@ -1877,7 +1877,10 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
 	for _, idx := range table.indexes {
-		if (idx.primary || idx.unique) && len(idx.keys) == 0 {
+		if !idx.primary && !idx.unique {
+			return fmt.Errorf("index %s on %s cannot be restored because Redshift does not support secondary indexes", idx.name, table.qualifiedName())
+		}
+		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
 		}
 	}

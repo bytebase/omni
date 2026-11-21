@@ -843,4 +843,53 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "sequence")
+
+	// Non-skipped external tables fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:           "analytics",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "ext_t"}},
+		}},
+	})
+	require.ErrorContains(t, err, "external table")
+
+	// AT TIME ZONE produces a zoned datetime type and CHAR->VARCHAR coercion is one-way.
+	tzAndChar, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "tz_fn",
+					Definition: "CREATE FUNCTION s.tz_fn(t timestamp) RETURNS varchar RETURN s.tz_caller()",
+				},
+				{
+					Name:       "tz_caller",
+					Definition: "CREATE FUNCTION s.tz_caller() RETURNS varchar RETURN s.tz_fn(CAST('2026-01-01 00:00:00' AS timestamp) AT TIME ZONE 'UTC')",
+				},
+				{
+					Name:       "tz_fn",
+					Definition: "CREATE FUNCTION s.tz_fn(t timestamp with time zone) RETURNS varchar RETURN 'ok'",
+				},
+				{
+					Name:       "chr_fn",
+					Definition: "CREATE FUNCTION s.chr_fn(c char) RETURNS varchar RETURN s.chr_caller('hi')",
+				},
+				{
+					Name:       "chr_caller",
+					Definition: "CREATE FUNCTION s.chr_caller(v varchar) RETURNS varchar RETURN s.chr_fn(v)",
+				},
+				{
+					Name:       "chr_fn",
+					Definition: "CREATE FUNCTION s.chr_fn(v varchar) RETURNS varchar RETURN v",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.tz_fn(t timestamp with time zone)"), strings.Index(tzAndChar, "CREATE FUNCTION s.tz_caller()"))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.tz_caller()"), strings.Index(tzAndChar, "CREATE FUNCTION s.tz_fn(t timestamp)"))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(v varchar)"), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(c char)"))
 }

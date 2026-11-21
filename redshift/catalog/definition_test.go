@@ -1444,6 +1444,14 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "identity")
+
+	// Unsupported secondary indexes (neither primary nor unique) fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_sec_idx",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "idx_t_id", Expressions: []string{"id"}}},
+	})
+	require.ErrorContains(t, err, "secondary index")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
