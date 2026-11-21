@@ -2038,10 +2038,25 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
+	seenConstraints := make(map[string]struct{}, len(table.indexes)+len(table.foreignKeys))
+	checkConstraintName := func(name string) error {
+		if name == "" {
+			return nil
+		}
+		key := identKey(name, caseSensitive)
+		if _, exists := seenConstraints[key]; exists {
+			return fmt.Errorf("table %s has duplicate constraint name %s", table.qualifiedName(), quoteDefinitionIdentifier(name))
+		}
+		seenConstraints[key] = struct{}{}
+		return nil
+	}
 	primaryCount := 0
 	for _, idx := range table.indexes {
 		if !idx.primary && !idx.unique {
 			return fmt.Errorf("index %s on %s cannot be restored because Redshift does not support secondary indexes", idx.name, table.qualifiedName())
+		}
+		if err := checkConstraintName(idx.name); err != nil {
+			return err
 		}
 		if idx.primary {
 			primaryCount++
@@ -2072,6 +2087,9 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		}
 	}
 	for _, fk := range sortedForeignKeys(table.foreignKeys) {
+		if err := checkConstraintName(fk.name); err != nil {
+			return err
+		}
 		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
 			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
 		}

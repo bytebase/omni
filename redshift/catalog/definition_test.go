@@ -1966,6 +1966,27 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, varAndFallback, "CREATE FUNCTION s.unparsed_fn(a text)")
+
+	// Duplicate constraint names across indexes and foreign keys fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_dup_con",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer"},
+			{Name: "p_id", Type: "integer"},
+		},
+		Indexes: []*metadatapb.IndexMetadata{{
+			Name:        "shared_name",
+			Primary:     true,
+			Expressions: []string{"id"},
+		}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "shared_name",
+			Columns:           []string{"p_id"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate constraint name")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

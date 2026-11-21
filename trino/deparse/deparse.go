@@ -1077,6 +1077,21 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	return best
 }
 
+func isTrinoSpecialFormCall(name string, argCount int) bool {
+	switch name {
+	case "coalesce", "format", "grouping":
+		return argCount >= 1
+	case "if":
+		return argCount == 2 || argCount == 3
+	case "nullif":
+		return argCount == 2
+	case "try":
+		return argCount == 1
+	default:
+		return false
+	}
+}
+
 func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 	for _, n := range call.argNames {
 		if n != "" {
@@ -1084,6 +1099,9 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 		}
 	}
 	name := strings.ToLower(call.name)
+	if isTrinoSpecialFormCall(name, call.argCount) {
+		return true
+	}
 	sigs, ok := trinoBuiltinFunctions[name]
 	if !ok {
 		return false

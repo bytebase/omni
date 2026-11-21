@@ -1337,4 +1337,25 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, directQualified, `CREATE FUNCTION "cat"."s".f()`)
+
+	// Unqualified Trino special forms (coalesce, if, nullif, try) are not
+	// catalog-qualified even when a schema defines identically named UDFs.
+	specialForms, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "coalesce", Definition: "CREATE FUNCTION s.coalesce(a bigint, b bigint) RETURNS bigint RETURN a"},
+				{Name: "if", Definition: "CREATE FUNCTION s.if(c boolean, a bigint, b bigint) RETURNS bigint RETURN a"},
+				{Name: "nullif", Definition: "CREATE FUNCTION s.nullif(a bigint, b bigint) RETURNS bigint RETURN a"},
+				{Name: "try", Definition: "CREATE FUNCTION s.try(a bigint) RETURNS bigint RETURN a"},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_special",
+				Definition: "SELECT coalesce(1, 0), if(true, 1, 2), nullif(1, 2), try(1), s.coalesce(1, 0)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, specialForms, `SELECT coalesce(1, 0), if(true, 1, 2), nullif(1, 2), try(1), "cat".s.coalesce(1, 0);`)
 }
