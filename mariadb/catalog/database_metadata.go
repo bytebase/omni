@@ -522,6 +522,10 @@ func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, 
 		}
 		return false, false
 	case *FuncCallExprQ:
+		if e.Routine != "" || lookupStoredFunction(c, db, e) != nil {
+			// Stored functions can return NULL independently of their arguments.
+			return true, true
+		}
 		if strings.EqualFold(e.Name, "count") {
 			return false, true
 		}
@@ -1280,9 +1284,8 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			"XOR":
 			return BoolType
 		case "&", "|", "^", "<<", ">>", "~":
-			if bt := bitwiseBinaryStringType(c, db, q, e); bt != nil {
-				return bt
-			}
+			// MariaDB bitwise operators always evaluate as unsigned 64-bit integers
+			// (unlike MySQL 8's binary-string bitwise results).
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
@@ -1928,6 +1931,23 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 						return p.raw
 					}
 					return "mediumtext"
+				}
+				fromLen := 1
+				if cn, okC := e.Args[1].(*ConstExprQ); okC && !cn.IsNull {
+					if n := utf8.RuneCountInString(cn.Value); n > 0 {
+						fromLen = n
+					}
+				}
+				if _, repW, okR := argWidth(e.Args[2]); okR && repW > fromLen {
+					// Match MariaDB Item_func_replace::fix_length_and_dec expansion.
+					expanded := int64(w) + int64(repW-fromLen)*int64(w/fromLen)
+					if expanded > 16777215 {
+						return "longtext"
+					}
+					if expanded > 65535 {
+						return "mediumtext"
+					}
+					w = int(expanded)
 				}
 				return fmt.Sprintf("varchar(%d)", w)
 			}
@@ -2754,38 +2774,4 @@ func isArithmeticStringOperand(rt *ResolvedType) bool {
 		return true
 	}
 	return false
-}
-
-func bitwiseBinaryStringType(c *Catalog, db *Database, q *Query, e *OpExprQ) *ResolvedType {
-	binLen := func(x AnalyzedExpr) (int, bool) {
-		if x == nil {
-			return 0, false
-		}
-		ct := strings.ToLower(strings.TrimSpace(resolveAnalyzedExprColumnType(c, db, q, x)))
-		for _, prefix := range []string{"varbinary(", "binary("} {
-			if strings.HasPrefix(ct, prefix) && strings.HasSuffix(ct, ")") {
-				if n, err := strconv.Atoi(ct[len(prefix) : len(ct)-1]); err == nil && n > 0 {
-					return n, true
-				}
-			}
-		}
-		return 0, false
-	}
-	switch e.Op {
-	case "~":
-		if n, ok := binLen(e.Right); ok {
-			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: n}
-		}
-	case "<<", ">>":
-		if n, ok := binLen(e.Left); ok {
-			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: n}
-		}
-	default:
-		ln, lok := binLen(e.Left)
-		rn, rok := binLen(e.Right)
-		if lok && rok {
-			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(ln, rn)}
-		}
-	}
-	return nil
 }

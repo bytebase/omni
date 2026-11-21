@@ -449,10 +449,13 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 		CREATE VIEW v_cte AS
 			WITH x AS (SELECT 'abc' AS s, id FROM a)
 			SELECT s, id FROM x;
+		CREATE TABLE bin_t (x VARBINARY(4) NOT NULL, y VARBINARY(4) NOT NULL);
 		CREATE FUNCTION fn_double(x INT) RETURNS BIGINT DETERMINISTIC RETURN x * 2;
 		CREATE VIEW v_literals_and_coalesce AS
-			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val
+			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val, REPLACE('a', 'a', 'long') AS rep_str
 			FROM a;
+		CREATE VIEW v_bitwise AS
+			SELECT x & y AS bits FROM bin_t;
 	`, nil)
 	require.NoError(t, err)
 	for _, r := range results {
@@ -484,13 +487,19 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "int(11)", vCTE.Columns[1].Type)
 
 	vLit := views["v_literals_and_coalesce"]
-	require.Len(t, vLit.Columns, 6)
+	require.Len(t, vLit.Columns, 7)
 	require.Equal(t, "varchar(3)", vLit.Columns[0].Type)
 	require.Equal(t, "varchar(4)", vLit.Columns[1].Type)
 	require.Equal(t, "int", vLit.Columns[2].Type)
 	require.Equal(t, "bigint", vLit.Columns[3].Type)
 	require.False(t, vLit.Columns[4].Nullable, "COALESCE with non-null fallback must not be nullable")
 	require.Equal(t, "bigint", vLit.Columns[5].Type)
+	require.True(t, vLit.Columns[5].Nullable, "stored functions may return NULL independently of arguments")
+	require.Equal(t, "varchar(4)", vLit.Columns[6].Type)
+
+	vBit := views["v_bitwise"]
+	require.Len(t, vBit.Columns, 1)
+	require.Equal(t, "bigint unsigned", vBit.Columns[0].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {
