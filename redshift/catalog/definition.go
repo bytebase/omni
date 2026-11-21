@@ -1345,8 +1345,21 @@ func writeOwners(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error
 // statement terminator, placing it on a new line if stmt ends inside a "--"
 // line comment.
 func appendTerminator(stmt string) string {
-	// Redshift's lexer finds the real token boundaries, so an E'...' escape, a
-	// dollar quote or a quoted identifier cannot hide a trailing comment.
+	lastIsSemicolon, inLineComment := redshiftStatementEnd(stmt)
+	if lastIsSemicolon {
+		return stmt
+	}
+	if inLineComment {
+		return stmt + "\n;"
+	}
+	return stmt + ";"
+}
+
+// redshiftStatementEnd reports whether stmt's last token is ";" and whether
+// stmt ends inside a "--" line comment. Redshift's lexer finds the real token
+// boundaries, so an E'...' escape, a dollar quote or a quoted identifier cannot
+// hide a trailing comment; text the lexer rejects falls back to a byte scan.
+func redshiftStatementEnd(stmt string) (bool, bool) {
 	lex := pgparser.NewLexer(stmt)
 	lastType, lastEnd := 0, 0
 	for {
@@ -1357,15 +1370,9 @@ func appendTerminator(stmt string) string {
 		lastType, lastEnd = tok.Type, tok.End
 	}
 	if lex.Err != nil {
-		return appendTerminatorLexically(stmt)
+		return redshiftStatementEndLexically(stmt)
 	}
-	if lastType == ';' {
-		return stmt
-	}
-	if endsInLineComment(stmt[lastEnd:]) {
-		return stmt + "\n;"
-	}
-	return stmt + ";"
+	return lastType == ';', endsInLineComment(stmt[lastEnd:])
 }
 
 // endsInLineComment reports whether tail, which holds only whitespace and
@@ -1401,9 +1408,9 @@ func endsInLineComment(tail string) bool {
 	return false
 }
 
-// appendTerminatorLexically is appendTerminator's fallback for text the
-// lexer rejects.
-func appendTerminatorLexically(stmt string) string {
+// redshiftStatementEndLexically is redshiftStatementEnd's fallback for text
+// the lexer rejects.
+func redshiftStatementEndLexically(stmt string) (bool, bool) {
 	var (
 		inSingleQuote bool
 		inDoubleQuote bool
@@ -1500,13 +1507,7 @@ func appendTerminatorLexically(stmt string) string {
 			i++
 		}
 	}
-	if lastCodeByte == ';' {
-		return stmt
-	}
-	if inLineComment {
-		return stmt + "\n;"
-	}
-	return stmt + ";"
+	return lastCodeByte == ';', inLineComment
 }
 
 func matchDollarTag(s string) (string, bool) {
@@ -3063,6 +3064,10 @@ type defaultValueExpression struct {
 }
 
 func (d *defaultValueExpression) toString() string {
+	// End a trailing line comment so the next column's separator stays outside it.
+	if _, inLineComment := redshiftStatementEnd(d.value); inLineComment {
+		return d.value + "\n"
+	}
 	return d.value
 }
 

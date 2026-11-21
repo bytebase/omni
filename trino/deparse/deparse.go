@@ -2727,6 +2727,14 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 			base, inner, ok := splitParameterizedType(typ)
 			switch {
 			case ok && base == "array":
+				// An array of rows expands into one column per row field.
+				if rowBase, fields, isRow := splitParameterizedType(inner); isRow && rowBase == "row" {
+					for _, field := range splitTopLevelComma(fields) {
+						_, fieldType := splitRowField(field)
+						proj = append(proj, trinoProjCol{typ: fieldType})
+					}
+					continue
+				}
 				proj = append(proj, trinoProjCol{typ: inner})
 			case ok && base == "map":
 				if parts := splitTopLevelComma(inner); len(parts) == 2 {
@@ -3814,13 +3822,14 @@ func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
 		return "double"
 	case "is_nan", "is_finite", "is_infinite", "isnan", "isinf", "regexp_like", "arrays_overlap", "contains", "all_match", "any_match", "none_match", "starts_with", "ends_with":
 		return "boolean"
-	case "abs", "sign", "round", "ceil", "ceiling", "floor", "truncate", "mod", "negate", "arbitrary", "any_value", "min", "max", "try", "array_distinct", "array_sort", "array_remove", "shuffle", "slice", "reverse", "concat", "coalesce", "nullif":
+	case "abs", "sign", "round", "ceil", "ceiling", "floor", "truncate", "mod", "negate", "arbitrary", "any_value", "min", "max", "try", "array_distinct", "array_sort", "array_remove", "shuffle", "slice", "reverse", "concat", "nullif":
 		for _, at := range argTypes {
 			if at != "" {
 				return at
 			}
 		}
-	case "greatest", "least":
+	case "greatest", "least", "coalesce":
+		// The result is the common type its arguments coerce to.
 		res := ""
 		for _, at := range argTypes {
 			res = combineTrinoTypes(res, at)

@@ -2472,6 +2472,23 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, crossDep, `FROM "shared".v`)
+
+	// A default ending in a line comment is closed before the next column.
+	commentedDefault, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_commented_default",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a", Type: "integer", Nullable: true, Default: "1 -- default"},
+					{Name: "b", Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, commentedDefault, "DEFAULT 1 -- default\n,")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

@@ -2298,4 +2298,31 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "cannot resolve call abs")
+
+	// coalesce takes the common type of its arguments, so caller depends on
+	// f(bigint), not f(integer); and UNNEST over an array of rows yields one
+	// column per field, so neg(x) sees an integer, not the row.
+	coalesceUnnest, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "caller", Definition: "CREATE FUNCTION s.caller() RETURNS bigint RETURN s.f(coalesce(CAST(1 AS integer), CAST(2 AS bigint)))"},
+				{Name: "f", Definition: "CREATE FUNCTION s.f(x integer) RETURNS bigint RETURN s.caller()"},
+				{Name: "f", Definition: "CREATE FUNCTION s.f(x bigint) RETURNS bigint RETURN x"},
+				{Name: "neg", Definition: "CREATE FUNCTION s.neg(x row(a integer, b varchar)) RETURNS integer RETURN 0"},
+			},
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_unnest_rows", Definition: "SELECT neg(x) AS n FROM UNNEST(ARRAY[ROW(1, 'x')]) AS u(x, y)"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	idxFBigint := strings.Index(coalesceUnnest, "f(x bigint)")
+	idxCaller := strings.Index(coalesceUnnest, "caller() RETURNS")
+	idxFInteger := strings.Index(coalesceUnnest, "f(x integer)")
+	require.Greater(t, idxFBigint, -1)
+	require.Greater(t, idxCaller, idxFBigint)
+	require.Greater(t, idxFInteger, idxCaller)
+	assert.Contains(t, coalesceUnnest, `SELECT neg(x) AS n FROM UNNEST(`)
 }
