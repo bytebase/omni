@@ -190,6 +190,18 @@ const (
 	ErrTooManyValues               = 1657
 	ErrPartitionExchangePartTable  = 1732
 	ErrAnalyzeIndexNotFound        = 8109
+	// View query / expression validation errors (measured on TiDB v8.5.5).
+	ErrNonuniqTable            = 1066
+	ErrSyntax                  = 1149
+	ErrOperandColumns          = 1241
+	ErrViewSelectClause        = 1350
+	ErrViewSelectVariable      = 1351
+	ErrWrongParamCount         = 1582
+	ErrWindowNoSuchWindow      = 3579
+	ErrWindowFrameStartIllegal = 3584
+	ErrWindowFrameEndIllegal   = 3585
+	ErrWindowDuplicateName     = 3591
+	ErrWindowRowsIntervalUse   = 3596
 )
 
 var sqlStateMap = map[int]string{
@@ -271,6 +283,17 @@ var sqlStateMap = map[int]string{
 	ErrTooManyValues:                       "HY000",
 	ErrPartitionExchangePartTable:          "HY000",
 	ErrAnalyzeIndexNotFound:                "HY000",
+	ErrNonuniqTable:                        "42000",
+	ErrSyntax:                              "42000",
+	ErrOperandColumns:                      "21000",
+	ErrViewSelectClause:                    "HY000",
+	ErrViewSelectVariable:                  "HY000",
+	ErrWrongParamCount:                     "42000",
+	ErrWindowNoSuchWindow:                  "HY000",
+	ErrWindowFrameStartIllegal:             "HY000",
+	ErrWindowFrameEndIllegal:               "HY000",
+	ErrWindowDuplicateName:                 "HY000",
+	ErrWindowRowsIntervalUse:               "HY000",
 }
 
 func sqlState(code int) string {
