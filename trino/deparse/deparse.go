@@ -25,6 +25,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	if metadata == nil {
 		return nil, nil
 	}
+	if metadata.CharacterSet != "" || metadata.Collation != "" || metadata.Owner != "" || metadata.SearchPath != "" || metadata.ServiceName != "" || metadata.DefaultSchema != "" || metadata.Datashare || len(metadata.Extensions) > 0 || len(metadata.EventTriggers) > 0 || len(metadata.PublicSynonyms) > 0 || len(metadata.LinkedDatabases) > 0 || len(metadata.ForeignServers) > 0 || len(metadata.ForeignDataWrappers) > 0 {
+		return nil, fmt.Errorf("database %s contains database attributes or objects unsupported by Trino SDL renderer", quoteIdentifier(metadata.Name))
+	}
 	out := &DatabaseSchemaMetadata{
 		Name:    metadata.Name,
 		Schemas: make([]*SchemaMetadata, 0, len(metadata.Schemas)),
@@ -93,10 +96,13 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("schema %s has duplicate table %s", s.Name, quoteIdentifier(t.Name))
 			}
 			seenRelations[relKey] = struct{}{}
-			if len(t.Indexes) > 0 || len(t.ForeignKeys) > 0 || len(t.CheckConstraints) > 0 || len(t.ExcludeConstraints) > 0 || len(t.Partitions) > 0 || len(t.Triggers) > 0 || len(t.Rules) > 0 || t.CreateOptions != "" {
+			if len(t.Indexes) > 0 || len(t.ForeignKeys) > 0 || len(t.CheckConstraints) > 0 || len(t.ExcludeConstraints) > 0 || len(t.Partitions) > 0 || len(t.Triggers) > 0 || len(t.Rules) > 0 || t.CreateOptions != "" || t.Engine != "" || t.Collation != "" || t.Charset != "" || len(t.SortingKeys) > 0 || t.ShardingInfo != "" || t.PrimaryKeyType != "" {
 				return nil, fmt.Errorf("table %s.%s constraints or table options cannot be restored by Trino SDL renderer", s.Name, t.Name)
 			}
-			cols := fromProtoColumns(t.Columns)
+			cols, err := fromProtoColumns(s.Name, t.Name, t.Columns)
+			if err != nil {
+				return nil, err
+			}
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
 			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
 			// rejects columnless tables because Trino cannot restore them.
@@ -130,11 +136,15 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("schema %s has duplicate view %s", s.Name, quoteIdentifier(v.Name))
 			}
 			seenRelations[relKey] = struct{}{}
+			viewCols, err := fromProtoColumns(s.Name, v.Name, v.Columns)
+			if err != nil {
+				return nil, err
+			}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:         v.Name,
 				Definition:   v.Definition,
 				Comment:      v.Comment,
-				Columns:      fromProtoColumns(v.Columns),
+				Columns:      viewCols,
 				Dependencies: fromProtoDependencies(v.DependencyColumns),
 			})
 		}
@@ -253,14 +263,20 @@ func validateTrinoFunctionSignature(schemaName, fnName, signature string, declPa
 	return nil
 }
 
-func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {
+func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMetadata) ([]*ColumnMetadata, error) {
 	if len(cols) == 0 {
-		return nil
+		return nil, nil
 	}
 	out := make([]*ColumnMetadata, 0, len(cols))
 	for _, c := range cols {
 		if c == nil {
 			continue
+		}
+		if c.Generation != nil {
+			return nil, fmt.Errorf("column %s.%s.%s generated expression cannot be restored by Trino SDL renderer", schemaName, tableName, c.Name)
+		}
+		if c.IsIdentity || c.IdentityGeneration != 0 || c.IdentitySeed != 0 || c.IdentityIncrement != 0 || c.DefaultOnNull || c.OnUpdate != "" || c.CharacterSet != "" || c.Collation != "" || c.CollationSchema != "" || len(c.Options) > 0 || c.Srid != nil || c.IsInvisible || c.DefaultConstraintName != "" {
+			return nil, fmt.Errorf("column %s.%s.%s attributes cannot be restored by Trino SDL renderer", schemaName, tableName, c.Name)
 		}
 		out = append(out, &ColumnMetadata{
 			Name:     c.Name,
@@ -270,7 +286,7 @@ func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {
 			Comment:  c.Comment,
 		})
 	}
-	return out
+	return out, nil
 }
 
 func fromProtoDependencies(deps []*metadatapb.DependencyColumn) []ViewDependency {
@@ -841,6 +857,9 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	if call.catalog != "" && (c.dbName == "" || !strings.EqualFold(call.catalog, c.dbName)) {
 		return nil
 	}
+	if call.catalog == "" && call.schema == "" && hasMatchingTrinoBuiltin(call) {
+		return nil
+	}
 	targetSchema := call.schema
 	if targetSchema == "" {
 		targetSchema = callerSchema
@@ -899,6 +918,108 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 		}
 	}
 	return best
+}
+
+func hasMatchingTrinoBuiltin(call functionCallRef) bool {
+	for _, n := range call.argNames {
+		if n != "" {
+			return false
+		}
+	}
+	name := strings.ToLower(call.name)
+	sigs, ok := trinoBuiltinFunctions[name]
+	if !ok {
+		return false
+	}
+	// SHOW FUNCTIONS lists variadic concat/greatest/least with a single element parameter.
+	switch name {
+	case "greatest", "least":
+		if call.argCount >= 1 {
+			return true
+		}
+	case "concat":
+		if call.argCount >= 2 {
+			for _, elemType := range []string{"varchar", "varbinary", "array(*)"} {
+				allMatch := true
+				for i := 0; i < call.argCount; i++ {
+					argType := ""
+					if i < len(call.argTypes) {
+						argType = call.argTypes[i]
+					}
+					if !trinoBuiltinTypeMatch(argType, elemType) {
+						allMatch = false
+						break
+					}
+				}
+				if allMatch {
+					return true
+				}
+			}
+		}
+	}
+	for _, sig := range sigs {
+		if len(sig) != call.argCount {
+			continue
+		}
+		matched := true
+		for i, paramType := range sig {
+			argType := ""
+			if i < len(call.argTypes) {
+				argType = call.argTypes[i]
+			}
+			if !trinoBuiltinTypeMatch(argType, paramType) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
+func trinoBuiltinTypeMatch(argType, paramType string) bool {
+	if paramType == "*" {
+		return true
+	}
+	if argType == "" {
+		return true
+	}
+	if paramType == "function" {
+		return false
+	}
+	if innerParam, ok := strings.CutPrefix(paramType, "array("); ok && strings.HasSuffix(innerParam, ")") {
+		innerParam = innerParam[:len(innerParam)-1]
+		if argType == "array" {
+			return true
+		}
+		innerArg, ok := strings.CutPrefix(argType, "array(")
+		if !ok || !strings.HasSuffix(innerArg, ")") {
+			return false
+		}
+		return trinoBuiltinTypeMatch(innerArg[:len(innerArg)-1], innerParam)
+	}
+	if innerParam, ok := strings.CutPrefix(paramType, "map("); ok && strings.HasSuffix(innerParam, ")") {
+		if argType == "map" {
+			return true
+		}
+		innerArg, ok := strings.CutPrefix(argType, "map(")
+		if !ok || !strings.HasSuffix(innerArg, ")") {
+			return false
+		}
+		pParts := splitTopLevelComma(innerParam[:len(innerParam)-1])
+		aParts := splitTopLevelComma(innerArg[:len(innerArg)-1])
+		if len(pParts) != 2 || len(aParts) != 2 {
+			return false
+		}
+		return trinoBuiltinTypeMatch(aParts[0], pParts[0]) && trinoBuiltinTypeMatch(aParts[1], pParts[1])
+	}
+	if paramType == "row" && strings.HasPrefix(argType, "row") {
+		return argType == "row" || strings.HasPrefix(argType, "row(")
+	}
+	_, compat := trinoTypeCompatScore(argType, paramType)
+	return compat
 }
 
 func reorderTrinoCallArgs(params []trinoFuncParam, call functionCallRef) ([]string, bool) {

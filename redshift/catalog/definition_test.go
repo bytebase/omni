@@ -1578,7 +1578,21 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Name:       "dev",
 		Extensions: []*metadatapb.ExtensionMetadata{{Name: "plpgsql"}},
 	})
-	require.ErrorContains(t, err, "extensions")
+	require.ErrorContains(t, err, "unsupported")
+
+	// Multiword routine parameter types (timestamp with time zone) match Signature metadata.
+	multiwordSig, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "ts_fn",
+				Signature:  "(timestamp with time zone)",
+				Definition: "CREATE FUNCTION s.ts_fn(ts timestamptz) RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, multiwordSig, "CREATE FUNCTION s.ts_fn(ts timestamptz)")
 
 	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{{

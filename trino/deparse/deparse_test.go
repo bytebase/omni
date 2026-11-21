@@ -1010,4 +1010,53 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "unsupported")
+
+	// Unrendered database-level objects and generated columns fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name:          "cat",
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
+	})
+	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_gen",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:       "c",
+					Type:       "bigint",
+					Generation: &metadatapb.GenerationMetadata{Expression: "a + 1"},
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "generated expression")
+
+	// Unqualified built-in calls (length(x)) stay unqualified even when a same-signature
+	// catalog UDF exists in the caller's schema, whereas explicitly qualified calls resolve locally.
+	builtinShadow, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "length",
+					Definition: "CREATE FUNCTION s.length(x varchar) RETURNS bigint RETURN s.use_qual(x)",
+				},
+				{
+					Name:       "use_builtin",
+					Definition: "CREATE FUNCTION s.use_builtin(x varchar) RETURNS bigint RETURN length(x)",
+				},
+				{
+					Name:       "use_qual",
+					Definition: "CREATE FUNCTION s.use_qual(x varchar) RETURNS bigint RETURN s.length(x)",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_builtin(x varchar) RETURNS bigint RETURN length(x);`)
+	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_qual(x varchar) RETURNS bigint RETURN "cat".s.length(x);`)
 }

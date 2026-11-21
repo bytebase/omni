@@ -26,8 +26,8 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to.Datashare {
 		return "", fmt.Errorf("datashare database %q cannot be restored because DatabaseSchemaMetadata does not capture FROM DATASHARE configuration", to.Name)
 	}
-	if len(to.Extensions) > 0 {
-		return "", fmt.Errorf("database %q extensions cannot be restored because Redshift does not support PostgreSQL extensions", to.Name)
+	if len(to.Extensions) > 0 || len(to.EventTriggers) > 0 || len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
+		return "", fmt.Errorf("database %q contains objects unsupported by Redshift DDL renderer", to.Name)
 	}
 	caseSensitive := needsCaseSensitiveIdentifiers(to)
 	seenSchemas := make(map[string]struct{}, len(to.Schemas))
@@ -423,6 +423,14 @@ func normalizeTypeAlias(name string) string {
 		return "float4"
 	case "double precision", "float8", "float":
 		return "float8"
+	case "timestamp with time zone", "timestamptz":
+		return "timestamptz"
+	case "timestamp without time zone", "timestamp":
+		return "timestamp"
+	case "time with time zone", "timetz":
+		return "timetz"
+	case "time without time zone", "time":
+		return "time"
 	case "boolean", "bool":
 		return "bool"
 	case "char", "character", "bpchar", "nchar":
@@ -447,7 +455,18 @@ func normalizeSQLTypeName(tn *nodes.TypeName) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	return normalizeTypeAlias(parts[len(parts)-1])
+	var base string
+	if len(parts) == 2 && parts[0] == "pg_catalog" {
+		base = normalizeTypeAlias(parts[1])
+	} else if len(parts) > 1 {
+		base = strings.Join(parts, ".")
+	} else {
+		base = normalizeTypeAlias(parts[0])
+	}
+	if tn.ArrayBounds != nil && len(tn.ArrayBounds.Items) > 0 {
+		return base + "[]"
+	}
+	return base
 }
 
 func parseFunctionSignature(definition string) (declName []string, params []functionParam, returnType string, parsed bool) {
@@ -511,31 +530,6 @@ func detectCreateRoutineKind(definition string) string {
 	return ""
 }
 
-func splitTopLevelParams(s string) []string {
-	var parts []string
-	depth := 0
-	start := 0
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		case ',':
-			if depth == 0 {
-				parts = append(parts, strings.TrimSpace(s[start:i]))
-				start = i + 1
-			}
-		}
-	}
-	if tail := strings.TrimSpace(s[start:]); tail != "" {
-		parts = append(parts, tail)
-	}
-	return parts
-}
-
 func parseSignatureParamTypes(signature string) ([]string, bool) {
 	sig := strings.TrimSpace(signature)
 	if sig == "" {
@@ -551,25 +545,25 @@ func parseSignatureParamTypes(signature string) ([]string, bool) {
 	if sig == "" {
 		return []string{}, true
 	}
-	parts := splitTopLevelParams(sig)
-	out := make([]string, len(parts))
-	for i, part := range parts {
-		if paren := strings.IndexByte(part, '('); paren >= 0 {
-			part = strings.TrimSpace(part[:paren])
-		}
-		fields := strings.Fields(strings.ToLower(part))
-		if len(fields) == 0 {
-			return nil, false
-		}
-		if len(fields) >= 2 && fields[len(fields)-2] == "double" && fields[len(fields)-1] == "precision" {
-			out[i] = normalizeTypeAlias("double precision")
+	stmts, err := pgparser.Parse("CREATE FUNCTION _sig(" + sig + ") RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL")
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return nil, false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	cf, ok := stmt.(*nodes.CreateFunctionStmt)
+	if !ok || cf.Parameters == nil {
+		return nil, false
+	}
+	out := make([]string, 0, len(cf.Parameters.Items))
+	for _, item := range cf.Parameters.Items {
+		fp, ok := item.(*nodes.FunctionParameter)
+		if !ok || fp.Mode == nodes.FUNC_PARAM_TABLE {
 			continue
 		}
-		if len(fields) >= 2 && fields[len(fields)-2] == "character" && fields[len(fields)-1] == "varying" {
-			out[i] = normalizeTypeAlias("character varying")
-			continue
-		}
-		out[i] = normalizeTypeAlias(fields[len(fields)-1])
+		out = append(out, normalizeSQLTypeName(fp.ArgType))
 	}
 	return out, true
 }
@@ -1394,6 +1388,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if seq != nil && !seq.SkipDump {
 				return fmt.Errorf("sequence %s cannot be restored because Redshift does not support PostgreSQL sequences", qualifyName(schema.Name, seq.Name))
 			}
+		}
+		if len(schema.Streams) > 0 || len(schema.Tasks) > 0 || len(schema.Packages) > 0 || len(schema.Events) > 0 || len(schema.EnumTypes) > 0 || len(schema.CompositeTypes) > 0 || len(schema.Synonyms) > 0 || len(schema.Collations) > 0 || len(schema.RangeTypes) > 0 {
+			return fmt.Errorf("schema %s contains schema objects unsupported by Redshift DDL renderer", quoteDefinitionIdentifier(schema.Name))
 		}
 		for _, fn := range schema.Functions {
 			if fn == nil || fn.SkipDump {
@@ -2295,6 +2292,9 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		}
 		if len(column.Options) > 0 && state.unsupportedReason == "" {
 			state.unsupportedReason = fmt.Sprintf("column %s options cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
+		}
+		if column.Generation != nil && state.unsupportedReason == "" {
+			state.unsupportedReason = fmt.Sprintf("column %s generated expression cannot be restored because Redshift does not support generated columns", quoteDefinitionIdentifier(column.Name))
 		}
 		if _, exists := state.columns[column.Name]; exists && state.duplicateColumn == "" {
 			state.duplicateColumn = column.Name
