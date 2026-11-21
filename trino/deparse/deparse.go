@@ -1309,7 +1309,7 @@ func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 		}
 		return base
 	case trinoparser.TypeInterval:
-		return "interval"
+		return normalizeTrinoIntervalType(dt.IntervalFrom, dt.IntervalTo)
 	case trinoparser.TypeRow:
 		if len(dt.Fields) == 0 {
 			return "row"
@@ -1358,6 +1358,14 @@ func normalizeTrinoDataType(dt *trinoparser.DataType) string {
 		}
 		return base
 	}
+}
+
+func normalizeTrinoIntervalType(from trinoparser.IntervalField, to *trinoparser.IntervalField) string {
+	// Trino distinguishes interval families and unit qualifiers in overload resolution.
+	if to != nil {
+		return "interval " + strings.ToLower(from.String()) + " to " + strings.ToLower(to.String())
+	}
+	return "interval " + strings.ToLower(from.String())
 }
 
 func normalizeTrinoTypeName(name string) string {
@@ -1547,6 +1555,30 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 				}
 			}
 		}
+	case *trinoparser.JSONTableRelation:
+		w.walkJSONTable(r, curEnv, ctes)
+	}
+}
+
+func (w *trinoASTWalker) walkJSONTable(r *trinoparser.JSONTableRelation, curEnv map[string]string, ctes map[string]struct{}) {
+	if r == nil {
+		return
+	}
+	w.walkJSONPath(r.Path, curEnv, ctes)
+	w.walkJSONTableColumns(r.Columns, curEnv, ctes)
+}
+
+func (w *trinoASTWalker) walkJSONTableColumns(cols []trinoparser.JSONTableColumn, curEnv map[string]string, ctes map[string]struct{}) {
+	for _, col := range cols {
+		if col.OnEmpty != nil {
+			w.walkExpr(col.OnEmpty.Default, curEnv, ctes)
+		}
+		if col.OnError != nil {
+			w.walkExpr(col.OnError.Default, curEnv, ctes)
+		}
+		if len(col.Columns) > 0 {
+			w.walkJSONTableColumns(col.Columns, curEnv, ctes)
+		}
 	}
 }
 
@@ -1717,7 +1749,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 	case *trinoparser.TypeConstructor:
 		return normalizeTrinoTypeName(e.Name)
 	case *trinoparser.IntervalLiteral:
-		return "interval"
+		return normalizeTrinoIntervalType(e.From, e.To)
 	case *trinoparser.SpecialFuncExpr:
 		switch strings.ToUpper(e.Name) {
 		case "CURRENT_DATE":

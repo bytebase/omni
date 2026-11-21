@@ -1842,6 +1842,27 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "non-integer")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_keylen",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "code", Type: "varchar(20)"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_code", Unique: true, Expressions: []string{"code"}, KeyLength: []int64{10}}},
+	})
+	require.ErrorContains(t, err, "key lengths")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_desc",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_id", Unique: true, Expressions: []string{"id"}, Descending: []bool{true}}},
+	})
+	require.ErrorContains(t, err, "descending")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_type",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_id", Unique: true, Expressions: []string{"id"}, Type: "hash"}},
+	})
+	require.ErrorContains(t, err, "unsupported type")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

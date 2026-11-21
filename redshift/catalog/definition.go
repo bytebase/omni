@@ -1998,6 +1998,15 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
 		}
+		if slices.ContainsFunc(idx.lengths, func(n int64) bool { return n != 0 }) {
+			return fmt.Errorf("index %s on %s has key lengths, which Redshift constraints cannot restore", idx.name, table.qualifiedName())
+		}
+		if slices.Contains(idx.descending, true) {
+			return fmt.Errorf("index %s on %s is descending, which Redshift constraints cannot restore", idx.name, table.qualifiedName())
+		}
+		if !isSupportedRedshiftIndexType(idx.tp) {
+			return fmt.Errorf("index %s on %s has unsupported type %q", idx.name, table.qualifiedName(), idx.tp)
+		}
 		if idx.comment != "" && idx.name == "" {
 			return fmt.Errorf("index comment on %s cannot be restored because the constraint is unnamed", table.qualifiedName())
 		}
@@ -2521,26 +2530,33 @@ func (f *foreignKeyState) toString(buf *strings.Builder) error {
 }
 
 type indexState struct {
-	id      int
-	name    string
-	keys    []string
-	lengths []int64
-	primary bool
-	unique  bool
-	tp      string
-	comment string
+	id         int
+	name       string
+	keys       []string
+	lengths    []int64
+	descending []bool
+	primary    bool
+	unique     bool
+	tp         string
+	comment    string
+}
+
+func isSupportedRedshiftIndexType(tp string) bool {
+	trimmed := strings.TrimSpace(strings.ToUpper(tp))
+	return trimmed == "" || trimmed == "BTREE"
 }
 
 func convertToIndexState(id int, index *metadatapb.IndexMetadata) *indexState {
 	return &indexState{
-		id:      id,
-		name:    index.Name,
-		keys:    index.Expressions,
-		lengths: index.KeyLength,
-		primary: index.Primary,
-		unique:  index.Unique,
-		tp:      index.Type,
-		comment: index.Comment,
+		id:         id,
+		name:       index.Name,
+		keys:       index.Expressions,
+		lengths:    index.KeyLength,
+		descending: index.Descending,
+		primary:    index.Primary,
+		unique:     index.Unique,
+		tp:         index.Type,
+		comment:    index.Comment,
 	}
 }
 

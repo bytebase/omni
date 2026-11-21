@@ -1201,4 +1201,30 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "default cannot be restored")
+
+	// JSON_TABLE relation inputs/defaults and interval-qualified UDF overloads.
+	jsonTableAndIntervals, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "make_json", Definition: "CREATE FUNCTION s.make_json() RETURNS varchar RETURN '{\"a\":1,\"b\":[{\"n\":2}]}'"},
+				{Name: "fallback_fn", Definition: "CREATE FUNCTION s.fallback_fn() RETURNS integer RETURN 0"},
+				{Name: "nested_fn", Definition: "CREATE FUNCTION s.nested_fn() RETURNS integer RETURN -1"},
+				{Name: "fmt_iv", Definition: "CREATE FUNCTION s.fmt_iv(x INTERVAL YEAR TO MONTH) RETURNS varchar RETURN 'ym'"},
+				{Name: "fmt_iv", Definition: "CREATE FUNCTION s.fmt_iv(x INTERVAL DAY TO SECOND) RETURNS varchar RETURN s.tag_ds()"},
+				{Name: "tag_ds", Definition: "CREATE FUNCTION s.tag_ds() RETURNS varchar RETURN 'ds'"},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_jt_iv",
+				Definition: "SELECT jt.v, jt.n, s.fmt_iv(INTERVAL '1-2' YEAR TO MONTH) AS ym, s.fmt_iv(INTERVAL '1 02:03:04' DAY TO SECOND) AS ds FROM JSON_TABLE(s.make_json(), 'lax $' COLUMNS (v INTEGER PATH '$.a' DEFAULT s.fallback_fn() ON EMPTY, NESTED PATH '$.b[*]' COLUMNS (n INTEGER PATH '$.n' DEFAULT s.nested_fn() ON ERROR))) AS jt",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, jsonTableAndIntervals, `JSON_TABLE("cat".s.make_json(), 'lax $'`)
+	assert.Contains(t, jsonTableAndIntervals, `DEFAULT "cat".s.fallback_fn() ON EMPTY`)
+	assert.Contains(t, jsonTableAndIntervals, `DEFAULT "cat".s.nested_fn() ON ERROR`)
+	assert.Contains(t, jsonTableAndIntervals, `"cat".s.fmt_iv(INTERVAL '1-2' YEAR TO MONTH)`)
+	assert.Less(t, strings.Index(jsonTableAndIntervals, `CREATE FUNCTION "cat".s.tag_ds(`), strings.Index(jsonTableAndIntervals, `CREATE FUNCTION "cat".s.fmt_iv(x INTERVAL DAY TO SECOND)`))
 }
