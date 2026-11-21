@@ -5316,6 +5316,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET GREATEST with one argument", stmt: "SET @x = GREATEST(1)", code: 1582},
 		{name: "SET FIELD with one argument", stmt: "SET @x = FIELD('a')", code: 1582},
 		{name: "SET HEX with two arguments", stmt: "SET @x = HEX(1, 2)", code: 1582},
+		{name: "SET LPAD with two arguments", stmt: "SET @x = LPAD('x', 2)", code: 1582},
 		// The default undo tablespaces are reserved, active or not.
 		{name: "DROP UNDO TABLESPACE innodb_undo_002", stmt: "DROP UNDO TABLESPACE innodb_undo_002", code: 3119},
 		{name: "DROP TABLESPACE innodb_undo_002", stmt: "DROP TABLESPACE innodb_undo_002", code: 3119},
@@ -6504,6 +6505,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"HEX('1')", "HEX(255)", "HEX(-1)", "HEX(1.5)", "HEX(2.5)", "HEX(-2.5)", "HEX(1e0)", "HEX(1.5e0)", "HEX(0.5e0)", "HEX(-2.5e0)",
 		"HEX(X'00FF')", "HEX(NULL)", "HEX('')", "HEX('abc')", "HEX(18446744073709551615)", "HEX(18446744073709551616)",
 		"HEX(-9223372036854775809)", "HEX(99999999999999999999)", "HEX(0.4)", "HEX(3.99)", "HEX(-0.5)", "HEX(1 + 1)", "HEX(-9223372036854775808)",
+		"LPAD('x', 2, '0')", "LPAD('abc', 2, '0')", "LPAD('x', 5, 'ab')", "LPAD('x', 3, '')", "LPAD('x', -1, '0')", "LPAD('x', 0, '0')",
+		"LPAD(NULL, 2, '0')", "LPAD('x', NULL, '0')", "LPAD('x', 2, NULL)", "RPAD('x', 5, 'ab')", "RPAD('abc', 2, 'z')", "LPAD(5, 3, 0)",
+		"LPAD('x', 2.5, '0')", "LPAD('x', '3', '0')", "LPAD(X'61', 3, 'b')", "LPAD('a', 3, X'00')", "LPAD('x', 1.5e0, '0')", "LPAD('', 2, '0')",
+		"LPAD('x', 18446744073709551615, '')", "LPAD('x', 70000000, '0')", "LPAD(1.5e0, 5, '0')", "LPAD('x', -0.4, '0')", "RPAD('é', 3, 'ü')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6621,7 +6626,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6865,6 +6870,48 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if !strings.Contains(create, "TABLESPACE `ts_mig2`") {
 			t.Fatalf("migrated %s is not in ts_mig2:\n%s\nplan:\n%s", tbl, create, plan.SQL())
 		}
+	}
+
+	// A TIMESTAMP literal default keeps its instant through a migration applied
+	// under another session time zone: the target is created under +00:00, the
+	// plan is generated after switching it to +03:00, and the server applies it
+	// under +03:00 and still stores the +00:00 instants.
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT")
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS m_tz")
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS n_tz")
+	})
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE m_tz (id INT)"); err != nil {
+		t.Fatalf("mysql CREATE TABLE m_tz: %v", err)
+	}
+	tzBase := "CREATE DATABASE `" + curDB + "`; USE `" + curDB + "`; SET time_zone = '+00:00';"
+	tzFrom, tzTo := New(), New()
+	execAlterClauses(t, tzFrom, tzBase+" CREATE TABLE m_tz (id INT);")
+	execAlterClauses(t, tzTo, tzBase+" CREATE TABLE m_tz (id INT, a TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00'); CREATE TABLE n_tz (b TIMESTAMP(3) NULL DEFAULT '2020-06-01 12:00:00.250'); SET time_zone = '+03:00';")
+	tzPlan := GenerateMigration(tzFrom, tzTo, Diff(tzFrom, tzTo))
+	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = '+03:00'"); err != nil {
+		t.Fatalf("mysql SET time_zone: %v", err)
+	}
+	for _, op := range tzPlan.Ops {
+		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+			t.Fatalf("mysql migration %s: %v", op.SQL, err)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = '+00:00'"); err != nil {
+		t.Fatalf("mysql SET time_zone: %v", err)
+	}
+	for _, tc := range []struct{ tbl, want string }{{"m_tz", "DEFAULT '2020-01-01 00:00:00'"}, {"n_tz", "DEFAULT '2020-06-01 12:00:00.250'"}} {
+		tbl, want := tc.tbl, tc.want
+		var name, create string
+		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE "+tbl).Scan(&name, &create); err != nil {
+			t.Fatalf("mysql SHOW CREATE TABLE %s: %v", tbl, err)
+		}
+		if !strings.Contains(create, want) {
+			t.Fatalf("migrated %s lost its default instant, want %s:\n%s\nplan:\n%s", tbl, want, create, tzPlan.SQL())
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT"); err != nil {
+		t.Fatalf("mysql SET time_zone: %v", err)
 	}
 
 	// MySQL takes an offset's hour and minute with any number of digits and

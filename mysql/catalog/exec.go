@@ -1426,6 +1426,92 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{kind: userVarString, str: string(runes[:n])}, true, nil
 			}
 			return userVarValue{kind: userVarString, str: string(runes[len(runes)-int(n):])}, true, nil
+		case "lpad", "rpad":
+			// LPAD/RPAD: NULL if an argument is NULL or the length is negative;
+			// a string at least that long is cut to it from the left; an empty
+			// pad gives ''; a result longer than max_allowed_packet (64 MiB by
+			// default, counted at the collation's widest character) is NULL.
+			// Lengths and the string count characters, bytes when either string
+			// is binary. On mysql:8.0.46 LPAD('x', 5, 'ab') is 'ababx',
+			// LPAD('abc', 2, '0') 'ab', LPAD('x', 3, '') '' and LPAD(1.5e0, 5,
+			// '0') '001.5'.
+			fn := toLower(e.Name)
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			var vals [3]userVarValue
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				vals[i] = v
+			}
+			for _, v := range vals {
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			}
+			n, nok := setStringLengthArg(vals[1])
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n < 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			strForm := func(v userVarValue) string {
+				if v.kind == userVarNumeric && v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						return setFormatDouble(f)
+					}
+				}
+				return v.str
+			}
+			binary := vals[0].binary || vals[2].binary
+			var src, pad []string
+			split := func(s string) []string {
+				if binary {
+					out := make([]string, len(s))
+					for i := range s {
+						out[i] = s[i : i+1]
+					}
+					return out
+				}
+				out := make([]string, 0, len(s))
+				for _, r := range s {
+					out = append(out, string(r))
+				}
+				return out
+			}
+			src = split(strForm(vals[0]))
+			if n <= int64(len(src)) {
+				return userVarValue{kind: userVarString, str: strings.Join(src[:n], ""), binary: binary}, true, nil
+			}
+			mbMax := int64(4)
+			if binary {
+				mbMax = 1
+			}
+			if n > 67108864/mbMax {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			pad = split(strForm(vals[2]))
+			if len(pad) == 0 {
+				return userVarValue{kind: userVarString, str: "", binary: binary}, true, nil
+			}
+			if n > 1<<20 {
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			var fill strings.Builder
+			for i := int64(0); i < n-int64(len(src)); i++ {
+				fill.WriteString(pad[i%int64(len(pad))])
+			}
+			out := fill.String() + strings.Join(src, "")
+			if fn == "rpad" {
+				out = strings.Join(src, "") + fill.String()
+			}
+			return userVarValue{kind: userVarString, str: out, binary: binary}, true, nil
 		case "substr", "substring", "mid":
 			if len(e.Args) < 2 || len(e.Args) > 3 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))

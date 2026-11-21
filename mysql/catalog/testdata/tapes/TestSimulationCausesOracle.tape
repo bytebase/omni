@@ -46411,6 +46411,49 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET @x = LPAD('x', 2)
+< error
+| 1582 42000 Incorrect parameter count in the call to native function 'LPAD'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | DROP UNDO TABLESPACE innodb_undo_002
 < error
 | 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
@@ -55078,6 +55121,230 @@
 : bytes
 | 8000000000000000
 > exec
+| SET @x = LPAD('x', 2, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0x
+> exec
+| SET @x = LPAD('abc', 2, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| ab
+> exec
+| SET @x = LPAD('x', 5, 'ab')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| ababx
+> exec
+| SET @x = LPAD('x', 3, '')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = LPAD('x', -1, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = LPAD('x', 0, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = LPAD(NULL, 2, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = LPAD('x', NULL, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = LPAD('x', 2, NULL)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = RPAD('x', 5, 'ab')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| xabab
+> exec
+| SET @x = RPAD('abc', 2, 'z')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| ab
+> exec
+| SET @x = LPAD(5, 3, 0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 005
+> exec
+| SET @x = LPAD('x', 2.5, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 00x
+> exec
+| SET @x = LPAD('x', '3', '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 00x
+> exec
+| SET @x = LPAD(X'61', 3, 'b')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+| bba
+> exec
+| SET @x = LPAD('a', 3, X'00')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|q "\x00\x00a"
+> exec
+| SET @x = LPAD('x', 1.5e0, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0x
+> exec
+| SET @x = LPAD('', 2, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 00
+> exec
+| SET @x = LPAD('x', 18446744073709551615, '')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = LPAD('x', 70000000, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = LPAD(1.5e0, 5, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 001.5
+> exec
+| SET @x = LPAD('x', -0.4, '0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = RPAD('é', 3, 'ü')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| éüü
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -55957,6 +56224,32 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = (LPAD('x', 2, '0') = '0x')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (RPAD('x', 2, '0') = 'x0')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -56422,6 +56715,51 @@
 |   `id` int DEFAULT NULL
 | ) /*!50100 TABLESPACE `ts_mig2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 > exec
+| CREATE TABLE m_tz (id INT)
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+03:00'
+< ok 0 0
+> exec
+| CREATE TABLE `d_qual_own`.`n_tz` (
+|   `b` timestamp(3) NULL DEFAULT '2020-06-01 12:00:00.250+00:00'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| ALTER TABLE `d_qual_own`.`m_tz` ADD COLUMN `a` timestamp NULL DEFAULT '2020-01-01 00:00:00+00:00'
+< ok 0 0
+> exec
+| SET SESSION time_zone = '+00:00'
+< ok 0 0
+> query
+| SHOW CREATE TABLE m_tz
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| m_tz
+: bytes
+| CREATE TABLE `m_tz` (
+|   `id` int DEFAULT NULL,
+|   `a` timestamp NULL DEFAULT '2020-01-01 00:00:00'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+> query
+| SHOW CREATE TABLE n_tz
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n_tz
+: bytes
+| CREATE TABLE `n_tz` (
+|   `b` timestamp(3) NULL DEFAULT '2020-06-01 12:00:00.250'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
 | SET SESSION time_zone = '+1:0'
 < ok 0 0
 > query
@@ -56628,6 +56966,14 @@
 < ok 0 0
 > exec
 | SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec ^
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS m_tz
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS n_tz
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS m_ts
