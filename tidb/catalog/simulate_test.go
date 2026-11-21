@@ -56,12 +56,17 @@ func handLabel(rule string) bool {
 	return i >= 0 && rule[i] == ':'
 }
 
-// simulationFixtures are the starting schemas, in testdata/fixtures. They
-// are one table under four namings. A compat.tsv statement writes ident for
-// every name it holds, the table's, a column's and an index's alike, so what
-// a statement finds is set by what the fixture names ident: nothing, the
-// table, a column of it too, and an index of it too.
-var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_table@column", "one_table@index"}
+// simulationFixtures are the starting schemas, in testdata/fixtures. The first
+// four are one plain table under four namings. A compat.tsv statement writes
+// ident for every name it holds, the table's, a column's and an index's alike,
+// so what a statement finds is set by what the fixture names ident: nothing,
+// the table, a column of it too, and an index of it too. The three objects@*
+// fixtures cover a view, a RANGE-partitioned table, and a child table with a
+// foreign key, each naming the target object ident.
+var simulationFixtures = []string{
+	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
+	"objects@view", "objects@partitioned", "objects@fk",
+}
 
 // simulationFamilies are the leading words of the statements the file holds:
 // DDL on tables, indexes and views, whose whole effect is in the database a

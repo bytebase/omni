@@ -37,6 +37,12 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		return true
 	}
+	// TiDB runs ALTER TABLE <view> COMPACT [TIFLASH REPLICA] without 1347
+	// (measured on v8.5.5); only a missing relation fails (1146).
+	if len(v.Commands) == 1 && v.Commands[0].Type == ast.ATCompact {
+		b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("table", r.written, ""), "")
+		return true
+	}
 	// A view or a sequence fails with 1347, whatever the subcommands
 	// (verified).
 	b.tableNeeds(r)

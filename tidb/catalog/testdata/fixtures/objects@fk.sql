@@ -1,0 +1,2 @@
+CREATE TABLE parent (b INT PRIMARY KEY);
+CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))

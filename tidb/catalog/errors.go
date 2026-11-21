@@ -179,6 +179,17 @@ const (
 	// touch: every DDL statement but NOCACHE, and CACHE itself on a
 	// partitioned table (measured on v8.5.5, 2026-11-19).
 	ErrCacheTableUnsupported = 8242
+	// Partition & FK management errors (measured on v8.5.5).
+	ErrRenameViewAcrossDB          = 1450
+	ErrPartitionRequiresValues     = 1479
+	ErrWrongPartitionTypeValues    = 1480
+	ErrPartitionsMustBeDefined     = 1492
+	ErrCoalesceOnlyOnHashPartition = 1509
+	ErrSameNamePartition           = 1517
+	ErrDropIndexNeededInForeignKey = 1553
+	ErrTooManyValues               = 1657
+	ErrPartitionExchangePartTable  = 1732
+	ErrAnalyzeIndexNotFound        = 8109
 )
 
 var sqlStateMap = map[int]string{
@@ -250,6 +261,16 @@ var sqlStateMap = map[int]string{
 	ErrPartitionFieldNotFound:              "HY000",
 	ErrCacheTableUnsupported:               "HY000",
 	ErrSequenceDefaultInAddColumn:          "HY000",
+	ErrRenameViewAcrossDB:                  "HY000",
+	ErrPartitionRequiresValues:             "HY000",
+	ErrWrongPartitionTypeValues:            "HY000",
+	ErrPartitionsMustBeDefined:             "HY000",
+	ErrCoalesceOnlyOnHashPartition:         "HY000",
+	ErrSameNamePartition:                   "HY000",
+	ErrDropIndexNeededInForeignKey:         "HY000",
+	ErrTooManyValues:                       "HY000",
+	ErrPartitionExchangePartTable:          "HY000",
+	ErrAnalyzeIndexNotFound:                "HY000",
 }
 
 func sqlState(code int) string {
@@ -600,4 +621,64 @@ func errBlobKeyWithoutLength(column string) error {
 func errKeyPartZeroLength(name string) error {
 	return &Error{Code: ErrKeyPartZeroLength, SQLState: sqlState(ErrKeyPartZeroLength),
 		Message: fmt.Sprintf("Key part '%s' length cannot be 0", name)}
+}
+
+func errRenameViewAcrossDB(fromDB, toDB string) error {
+	return &Error{Code: ErrRenameViewAcrossDB, SQLState: sqlState(ErrRenameViewAcrossDB),
+		Message: fmt.Sprintf("Changing schema from '%s' to '%s' is not allowed.", fromDB, toDB)}
+}
+
+func errRangePartitionRequiresValues() error {
+	return &Error{Code: ErrPartitionRequiresValues, SQLState: sqlState(ErrPartitionRequiresValues),
+		Message: "Syntax : RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition"}
+}
+
+func errListPartitionRequiresValues() error {
+	return &Error{Code: ErrPartitionRequiresValues, SQLState: sqlState(ErrPartitionRequiresValues),
+		Message: "Syntax : LIST PARTITIONING requires definition of VALUES IN for each partition"}
+}
+
+func errOnlyListPartitioningValuesIn() error {
+	return &Error{Code: ErrWrongPartitionTypeValues, SQLState: sqlState(ErrWrongPartitionTypeValues),
+		Message: "Only LIST PARTITIONING can use VALUES IN in partition definition"}
+}
+
+func errOnlyRangePartitioningValuesLessThan() error {
+	return &Error{Code: ErrWrongPartitionTypeValues, SQLState: sqlState(ErrWrongPartitionTypeValues),
+		Message: "Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition"}
+}
+
+func errPartitionsMustBeDefined(kind string) error {
+	return &Error{Code: ErrPartitionsMustBeDefined, SQLState: sqlState(ErrPartitionsMustBeDefined),
+		Message: fmt.Sprintf("For %s partitions each partition must be defined", kind)}
+}
+
+func errCoalesceOnlyOnHashPartition() error {
+	return &Error{Code: ErrCoalesceOnlyOnHashPartition, SQLState: sqlState(ErrCoalesceOnlyOnHashPartition),
+		Message: "COALESCE PARTITION can only be used on HASH/KEY partitions"}
+}
+
+func errDuplicatePartitionName(name string) error {
+	return &Error{Code: ErrSameNamePartition, SQLState: sqlState(ErrSameNamePartition),
+		Message: fmt.Sprintf("Duplicate partition name %s", name)}
+}
+
+func errDropIndexNeededInFK(name string) error {
+	return &Error{Code: ErrDropIndexNeededInForeignKey, SQLState: sqlState(ErrDropIndexNeededInForeignKey),
+		Message: fmt.Sprintf("Cannot drop index '%s': needed in a foreign key constraint", name)}
+}
+
+func errRangeTooManyValues() error {
+	return &Error{Code: ErrTooManyValues, SQLState: sqlState(ErrTooManyValues),
+		Message: "Cannot have more than one value for this type of RANGE partitioning"}
+}
+
+func errExchangeTableIsPartitioned(table string) error {
+	return &Error{Code: ErrPartitionExchangePartTable, SQLState: sqlState(ErrPartitionExchangePartTable),
+		Message: fmt.Sprintf("Table to exchange with partition is partitioned: '%s'", table)}
+}
+
+func errAnalyzeIndexNotFound(index, table string) error {
+	return &Error{Code: ErrAnalyzeIndexNotFound, SQLState: sqlState(ErrAnalyzeIndexNotFound),
+		Message: fmt.Sprintf("Index '%s' in field list does not exist in table '%s'", index, table)}
 }
