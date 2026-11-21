@@ -1081,4 +1081,28 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Contains(t, scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT "cat"."s".sub_callee(x));`)
 	assert.Less(t, strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_callee(`), strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(`))
+
+	// Unqualified relations in Trino view/MV bodies are qualified with catalog and schema
+	// while CTE references stay unqualified.
+	unqualViewOut, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_unqual",
+				Definition: "WITH cte AS (SELECT id FROM t) SELECT id FROM cte",
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_unqual",
+				Definition: "SELECT id FROM t",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, unqualViewOut, `WITH cte AS (SELECT id FROM "cat"."s".t) SELECT id FROM cte;`)
+	assert.Contains(t, unqualViewOut, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv_unqual\" AS\nSELECT id FROM \"cat\".\"s\".t;")
 }

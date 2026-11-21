@@ -9,6 +9,7 @@ import (
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/analysis"
+	"github.com/bytebase/omni/trino/ast"
 	trinoparser "github.com/bytebase/omni/trino/parser"
 )
 
@@ -142,7 +143,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:         v.Name,
-				Definition:   v.Definition,
+				Definition:   qualifyTrinoViewBody(metadata.Name, s.Name, v.Definition),
 				Comment:      v.Comment,
 				Columns:      viewCols,
 				Dependencies: fromProtoDependencies(v.DependencyColumns),
@@ -165,7 +166,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			seenRelations[relKey] = struct{}{}
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
 				Name:         mv.Name,
-				Definition:   mv.Definition,
+				Definition:   qualifyTrinoViewBody(metadata.Name, s.Name, mv.Definition),
 				Comment:      mv.Comment,
 				Dependencies: fromProtoDependencies(mv.DependencyColumns),
 			})
@@ -227,6 +228,265 @@ func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
 	default:
 		return ""
 	}
+}
+
+func qualifyTrinoViewBody(dbName, schemaName, definition string) string {
+	prefix := qualifyTrinoObjectPrefix(dbName, schemaName)
+	if prefix == "" || strings.TrimSpace(definition) == "" {
+		return definition
+	}
+	file, err := trinoparser.Parse(definition)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return definition
+	}
+	qs, ok := file.Stmts[0].(*trinoparser.QueryStmt)
+	if !ok || qs.Query == nil {
+		return definition
+	}
+	var offsets []int
+	seen := make(map[int]struct{})
+	addName := func(qn *ast.QualifiedName, ctes map[string]struct{}) {
+		if qn == nil || len(qn.Parts) != 1 {
+			return
+		}
+		if _, isCTE := ctes[strings.ToLower(qn.Parts[0].Value)]; isCTE {
+			return
+		}
+		if qn.Loc.Start < 0 || qn.Loc.End <= qn.Loc.Start || qn.Loc.End > len(definition) {
+			return
+		}
+		if _, dup := seen[qn.Loc.Start]; !dup {
+			seen[qn.Loc.Start] = struct{}{}
+			offsets = append(offsets, qn.Loc.Start)
+		}
+	}
+	var visitQuery func(q *trinoparser.Query, ctes map[string]struct{})
+	var visitExpr func(expr trinoparser.Expr, ctes map[string]struct{})
+	visitExpr = func(expr trinoparser.Expr, ctes map[string]struct{}) {
+		if expr == nil {
+			return
+		}
+		switch e := expr.(type) {
+		case *trinoparser.UnaryExpr:
+			visitExpr(e.Operand, ctes)
+		case *trinoparser.ParenExpr:
+			visitExpr(e.Expr, ctes)
+		case *trinoparser.NotExpr:
+			visitExpr(e.Operand, ctes)
+		case *trinoparser.CastExpr:
+			visitExpr(e.Expr, ctes)
+		case *trinoparser.LogicalExpr:
+			visitExpr(e.Left, ctes)
+			visitExpr(e.Right, ctes)
+		case *trinoparser.BinaryExpr:
+			visitExpr(e.Left, ctes)
+			visitExpr(e.Right, ctes)
+		case *trinoparser.ComparisonExpr:
+			visitExpr(e.Left, ctes)
+			visitExpr(e.Right, ctes)
+		case *trinoparser.QuantifiedComparisonExpr:
+			visitExpr(e.Left, ctes)
+			visitExpr(e.Subquery, ctes)
+		case *trinoparser.BetweenExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Lower, ctes)
+			visitExpr(e.Upper, ctes)
+		case *trinoparser.InListExpr:
+			visitExpr(e.Value, ctes)
+			for _, item := range e.List {
+				visitExpr(item, ctes)
+			}
+		case *trinoparser.InSubqueryExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Subquery, ctes)
+		case *trinoparser.LikeExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Pattern, ctes)
+			visitExpr(e.Escape, ctes)
+		case *trinoparser.IsNullExpr:
+			visitExpr(e.Value, ctes)
+		case *trinoparser.IsDistinctFromExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Right, ctes)
+		case *trinoparser.IsBooleanExpr:
+			visitExpr(e.Value, ctes)
+		case *trinoparser.MatchExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Subquery, ctes)
+		case *trinoparser.UniqueExpr:
+			visitExpr(e.Subquery, ctes)
+		case *trinoparser.SubqueryExpr:
+			if e.Query != nil {
+				visitQuery(e.Query, ctes)
+			}
+		case *trinoparser.CaseExpr:
+			visitExpr(e.Operand, ctes)
+			for _, w := range e.Whens {
+				visitExpr(w.Cond, ctes)
+				visitExpr(w.Result, ctes)
+			}
+			visitExpr(e.Else, ctes)
+		case *trinoparser.AtTimeZoneExpr:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Zone, ctes)
+		case *trinoparser.AtLocalExpr:
+			visitExpr(e.Value, ctes)
+		case *trinoparser.ArrayConstructor:
+			for _, el := range e.Elements {
+				visitExpr(el, ctes)
+			}
+		case *trinoparser.RowConstructor:
+			for _, el := range e.Elements {
+				visitExpr(el, ctes)
+			}
+		case *trinoparser.Subscript:
+			visitExpr(e.Value, ctes)
+			visitExpr(e.Index, ctes)
+		case *trinoparser.Dereference:
+			visitExpr(e.Base, ctes)
+		case *trinoparser.OverlayExpr:
+			visitExpr(e.Source, ctes)
+			visitExpr(e.Replacing, ctes)
+			visitExpr(e.From, ctes)
+			visitExpr(e.For, ctes)
+		case *trinoparser.ExtractExpr:
+			visitExpr(e.Source, ctes)
+		case *trinoparser.SubstringExpr:
+			visitExpr(e.Source, ctes)
+			visitExpr(e.From, ctes)
+			visitExpr(e.For, ctes)
+		case *trinoparser.TrimExpr:
+			visitExpr(e.Char, ctes)
+			visitExpr(e.Source, ctes)
+		case *trinoparser.NormalizeExpr:
+			visitExpr(e.Source, ctes)
+		case *trinoparser.PositionExpr:
+			visitExpr(e.Needle, ctes)
+			visitExpr(e.Haystack, ctes)
+		case *trinoparser.LambdaExpr:
+			visitExpr(e.Body, ctes)
+		case *trinoparser.NamedArgument:
+			visitExpr(e.Value, ctes)
+		case *trinoparser.FuncCall:
+			for _, a := range e.Args {
+				visitExpr(a, ctes)
+			}
+			for _, ob := range e.OrderBy {
+				visitExpr(ob.Expr, ctes)
+			}
+			visitExpr(e.Filter, ctes)
+			if e.Over != nil {
+				for _, pb := range e.Over.PartitionBy {
+					visitExpr(pb, ctes)
+				}
+				for _, ob := range e.Over.OrderBy {
+					visitExpr(ob.Expr, ctes)
+				}
+			}
+		}
+	}
+	var visitRel func(rel trinoparser.Relation, ctes map[string]struct{})
+	visitRel = func(rel trinoparser.Relation, ctes map[string]struct{}) {
+		if rel == nil {
+			return
+		}
+		switch r := rel.(type) {
+		case *trinoparser.TableRelation:
+			addName(r.Name, ctes)
+		case *trinoparser.Join:
+			visitRel(r.Left, ctes)
+			visitRel(r.Right, ctes)
+			visitExpr(r.On, ctes)
+		case *trinoparser.AliasedRelation:
+			visitRel(r.Inner, ctes)
+		case *trinoparser.NearestRelation:
+			visitRel(r.From, ctes)
+			visitExpr(r.Where, ctes)
+			visitExpr(r.Match, ctes)
+		case *trinoparser.SubqueryRelation:
+			visitQuery(r.Query, ctes)
+		case *trinoparser.LateralRelation:
+			visitQuery(r.Query, ctes)
+		case *trinoparser.UnnestRelation:
+			for _, ex := range r.Exprs {
+				visitExpr(ex, ctes)
+			}
+		case *trinoparser.ParenRelation:
+			visitRel(r.Inner, ctes)
+		case *trinoparser.TableFunctionRelation:
+			if r.Call != nil {
+				for _, arg := range r.Call.Args {
+					visitExpr(arg.Expr, ctes)
+					if arg.Table != nil {
+						addName(arg.Table.Name, ctes)
+						visitQuery(arg.Table.Query, ctes)
+					}
+				}
+			}
+		}
+	}
+	var visitNode func(qn trinoparser.QueryNode, ctes map[string]struct{})
+	visitNode = func(qn trinoparser.QueryNode, ctes map[string]struct{}) {
+		if qn == nil {
+			return
+		}
+		switch n := qn.(type) {
+		case *trinoparser.QuerySpec:
+			for _, rel := range n.From {
+				visitRel(rel, ctes)
+			}
+			visitExpr(n.Where, ctes)
+			visitExpr(n.Having, ctes)
+			for _, it := range n.Items {
+				visitExpr(it.Expr, ctes)
+			}
+		case *trinoparser.TableQuery:
+			addName(n.Name, ctes)
+		case *trinoparser.SetOperation:
+			visitNode(n.Left, ctes)
+			visitNode(n.Right, ctes)
+		case *trinoparser.ParenQuery:
+			visitQuery(n.Inner, ctes)
+		case *trinoparser.ValuesQuery:
+			for _, row := range n.Rows {
+				visitExpr(row, ctes)
+			}
+		}
+	}
+	visitQuery = func(q *trinoparser.Query, ctes map[string]struct{}) {
+		if q == nil {
+			return
+		}
+		scope := make(map[string]struct{}, len(ctes))
+		for k := range ctes {
+			scope[k] = struct{}{}
+		}
+		if q.With != nil {
+			for _, cte := range q.With.CTEs {
+				if q.With.Recursive && cte.Name != nil && cte.Name.Value != "" {
+					scope[strings.ToLower(cte.Name.Value)] = struct{}{}
+				}
+				visitQuery(cte.Query, scope)
+				if cte.Name != nil && cte.Name.Value != "" {
+					scope[strings.ToLower(cte.Name.Value)] = struct{}{}
+				}
+			}
+		}
+		visitNode(q.Body, scope)
+		for _, ob := range q.OrderBy {
+			visitExpr(ob.Expr, scope)
+		}
+	}
+	visitQuery(qs.Query, nil)
+	if len(offsets) == 0 {
+		return definition
+	}
+	slices.SortFunc(offsets, func(a, b int) int { return b - a })
+	out := definition
+	for _, off := range offsets {
+		out = out[:off] + prefix + out[off:]
+	}
+	return out
 }
 
 func validateTrinoFunctionSignature(schemaName, fnName, signature string, declParams []trinoparser.ParameterDeclaration) error {

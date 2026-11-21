@@ -490,7 +490,7 @@ func parseFunctionSignature(definition string) (declName []string, params []func
 	}
 	for _, item := range cf.Parameters.Items {
 		fp, ok := item.(*nodes.FunctionParameter)
-		if !ok {
+		if !ok || fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
 			continue
 		}
 		params = append(params, functionParam{
@@ -561,7 +561,7 @@ func parseSignatureParamTypes(signature string) ([]string, bool) {
 	out := make([]string, 0, len(cf.Parameters.Items))
 	for _, item := range cf.Parameters.Items {
 		fp, ok := item.(*nodes.FunctionParameter)
-		if !ok || fp.Mode == nodes.FUNC_PARAM_TABLE {
+		if !ok || fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
 			continue
 		}
 		out = append(out, normalizeSQLTypeName(fp.ArgType))
@@ -2290,6 +2290,14 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		}
 	}
 	switch {
+	case table.Engine != "":
+		state.unsupportedReason = fmt.Sprintf("engine %q cannot be restored by Redshift DDL renderer", table.Engine)
+	case table.Collation != "":
+		state.unsupportedReason = fmt.Sprintf("table collation %q cannot be restored by Redshift DDL renderer", table.Collation)
+	case table.Charset != "":
+		state.unsupportedReason = fmt.Sprintf("table charset %q cannot be restored by Redshift DDL renderer", table.Charset)
+	case table.PrimaryKeyType != "":
+		state.unsupportedReason = fmt.Sprintf("primary key type %q cannot be restored by Redshift DDL renderer", table.PrimaryKeyType)
 	case table.CreateOptions != "":
 		state.unsupportedReason = fmt.Sprintf("create options %q cannot be restored by Redshift DDL renderer", table.CreateOptions)
 	case len(table.SortingKeys) > 0:
@@ -2579,8 +2587,12 @@ func (c *columnState) toString(buf *strings.Builder) error {
 	if _, err := buf.WriteString(c.tp); err != nil {
 		return err
 	}
-	if c.collation != "" {
-		if _, err := fmt.Fprintf(buf, " COLLATE %s", formatRedshiftCollation(c.collationSchema, c.collation)); err != nil {
+	if c.collationSchema != "" || c.collation != "" {
+		colKeyword, ok := supportedRedshiftCollation(c.collationSchema, c.collation)
+		if !ok {
+			return fmt.Errorf("column %s collation %s is not supported by Redshift CREATE TABLE", quoteDefinitionIdentifier(c.name), qualifyName(c.collationSchema, c.collation))
+		}
+		if _, err := fmt.Fprintf(buf, " COLLATE %s", colKeyword); err != nil {
 			return err
 		}
 	}
@@ -2638,17 +2650,16 @@ func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnStat
 	return result
 }
 
-// formatRedshiftCollation emits Redshift's unquoted collation keywords
-// (CASE_SENSITIVE, CS, CASE_INSENSITIVE, CI) verbatim and quotes other
-// collation names as identifiers.
-func formatRedshiftCollation(schema, name string) string {
-	if schema == "" {
-		switch strings.ToUpper(name) {
-		case "CASE_SENSITIVE", "CS", "CASE_INSENSITIVE", "CI":
-			return strings.ToUpper(name)
-		}
+func supportedRedshiftCollation(schema, name string) (string, bool) {
+	if schema != "" {
+		return "", false
 	}
-	return qualifyName(schema, name)
+	switch strings.ToUpper(name) {
+	case "CASE_SENSITIVE", "CS", "CASE_INSENSITIVE", "CI":
+		return strings.ToUpper(name), true
+	default:
+		return "", false
+	}
 }
 
 func isExpression(value string) bool {
@@ -2766,6 +2777,11 @@ func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView b
 		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
 	case isView && (len(column.Options) > 0 || column.Collation != "" || column.CollationSchema != "" || column.Default != "" || column.IsIdentity):
 		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
+	case !isView && (column.CollationSchema != "" || column.Collation != ""):
+		if _, ok := supportedRedshiftCollation(column.CollationSchema, column.Collation); !ok {
+			return fmt.Sprintf("column %s collation %s is not supported by Redshift CREATE TABLE", quoteDefinitionIdentifier(column.Name), qualifyName(column.CollationSchema, column.Collation))
+		}
+		return ""
 	default:
 		return ""
 	}

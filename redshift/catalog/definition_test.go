@@ -93,7 +93,7 @@ COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
 						{Name: "status", Type: "character varying(20)", Default: "'active'"},
 						{Name: "title", Type: "character varying(50)", Collation: "case_insensitive", Default: "'it''s ok'", Nullable: true},
 						{Name: "code", Type: "character varying(20)", Collation: "CS", Default: "SYSDATE", Nullable: true},
-						{Name: "tag", Type: "character varying(20)", CollationSchema: "pg_catalog", Collation: "default", Default: "owner's", Nullable: true},
+						{Name: "tag", Type: "character varying(20)", Default: "owner's", Nullable: true},
 						{Name: "qty", Type: "integer", Default: "0"},
 						{Name: "active", Type: "boolean", Default: "true"},
 					},
@@ -103,7 +103,7 @@ COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
   "status" character varying(20) NOT NULL DEFAULT 'active',
   "title" character varying(50) COLLATE CASE_INSENSITIVE DEFAULT 'it''s ok',
   "code" character varying(20) COLLATE CS DEFAULT SYSDATE,
-  "tag" character varying(20) COLLATE "pg_catalog"."default" DEFAULT 'owner''s',
+  "tag" character varying(20) DEFAULT 'owner''s',
   "qty" integer NOT NULL DEFAULT 0,
   "active" boolean NOT NULL DEFAULT true
 );
@@ -1663,6 +1663,33 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "MATCH")
+
+	// OUT parameters are excluded from routine signature checks, and unsupported table attrs/collations fail.
+	outProc, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_out",
+				Signature:  "(integer)",
+				Definition: "CREATE PROCEDURE s.p_out(IN x integer, OUT y integer) AS $$ BEGIN y := x; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, outProc, "CREATE PROCEDURE s.p_out(IN x integer, OUT y integer)")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:      "t_bad_coll",
+		Collation: "en_US.utf8",
+		Columns:   []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+	})
+	require.ErrorContains(t, err, "collation")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_col_coll",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "c", Type: "varchar(10)", CollationSchema: "pg_catalog", Collation: "default"}},
+	})
+	require.ErrorContains(t, err, "collation")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
