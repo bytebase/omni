@@ -122,6 +122,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if v == nil || v.SkipDump {
 				continue
 			}
+			if len(v.Triggers) > 0 || len(v.Rules) > 0 {
+				return nil, fmt.Errorf("view %s.%s triggers or rules cannot be restored by Trino SDL renderer", s.Name, v.Name)
+			}
 			relKey := strings.ToLower(v.Name)
 			if _, exists := seenRelations[relKey]; exists {
 				return nil, fmt.Errorf("schema %s has duplicate view %s", s.Name, quoteIdentifier(v.Name))
@@ -163,11 +166,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 }
 
 func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, error) {
-	file, err := trinoparser.Parse(fn.Definition)
-	if err != nil || file == nil || len(file.Stmts) != 1 {
-		return fn.Definition, nil
-	}
-	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	cfs, _, _, ok := parseTrinoCreateFunction(fn.Definition)
 	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
 		return fn.Definition, nil
 	}
@@ -428,13 +427,9 @@ func writeCreateFunction(buf *strings.Builder, schemaName string, fn *FunctionMe
 }
 
 func injectFunctionComment(schemaName, fnName, definition, comment string) (string, error) {
-	file, err := trinoparser.Parse(definition)
-	if err != nil || file == nil || len(file.Stmts) != 1 {
+	cfs, _, bodyStart, ok := parseTrinoCreateFunction(definition)
+	if !ok {
 		return "", fmt.Errorf("function %s.%s comment cannot be placed in unparseable definition", schemaName, fnName)
-	}
-	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
-	if !ok || cfs.Spec.Body == nil {
-		return "", fmt.Errorf("function %s.%s comment cannot be placed in definition", schemaName, fnName)
 	}
 	clause := fmt.Sprintf("COMMENT '%s'", escapeStringLiteral(comment))
 	for _, ch := range cfs.Spec.Characteristics {
@@ -442,12 +437,240 @@ func injectFunctionComment(schemaName, fnName, definition, comment string) (stri
 			return definition[:ch.Loc.Start] + clause + definition[ch.Loc.End:], nil
 		}
 	}
-	insertAt := cfs.Spec.Body.Span().Start
-	if insertAt < 0 || insertAt > len(definition) {
+	if bodyStart < 0 || bodyStart > len(definition) {
 		return "", fmt.Errorf("function %s.%s has invalid body span", schemaName, fnName)
 	}
-	prefix := strings.TrimRight(definition[:insertAt], " \t\r\n")
-	return prefix + " " + clause + " " + definition[insertAt:], nil
+	prefix := strings.TrimRight(definition[:bodyStart], " \t\r\n")
+	sep := " "
+	if endsInLineComment(prefix) {
+		sep = "\n"
+	}
+	return prefix + sep + clause + " " + definition[bodyStart:], nil
+}
+
+// parseTrinoCreateFunction parses a CREATE FUNCTION statement, including non-SQL
+// routines (such as LANGUAGE PYTHON ... AS $$...$$) whose header and routine
+// characteristics share Trino's CREATE FUNCTION grammar up to the AS body.
+func parseTrinoCreateFunction(definition string) (*trinoparser.CreateFunctionStmt, bool, int, bool) {
+	if file, err := trinoparser.Parse(definition); err == nil && file != nil && len(file.Stmts) == 1 {
+		if cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt); ok && cfs.Spec.Body != nil {
+			return cfs, true, cfs.Spec.Body.Span().Start, true
+		}
+	}
+	asOffset, ok := splitTrinoDollarFunctionBody(definition)
+	if !ok {
+		return nil, false, -1, false
+	}
+	file, err := trinoparser.Parse(definition[:asOffset] + "RETURN 1")
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return nil, false, -1, false
+	}
+	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	if !ok || cfs.Spec.Body == nil {
+		return nil, false, -1, false
+	}
+	return cfs, false, asOffset, true
+}
+
+func splitTrinoDollarFunctionBody(definition string) (int, bool) {
+	var (
+		inSingleQuote  bool
+		inDoubleQuote  bool
+		inLineComment  bool
+		inBlockComment bool
+		parenDepth     int
+	)
+	for i := 0; i < len(definition); {
+		ch := definition[i]
+		if inLineComment {
+			if ch == '\n' {
+				inLineComment = false
+			}
+			i++
+			continue
+		}
+		if inBlockComment {
+			if ch == '*' && i+1 < len(definition) && definition[i+1] == '/' {
+				inBlockComment = false
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
+		if inSingleQuote {
+			if ch == '\'' {
+				if i+1 < len(definition) && definition[i+1] == '\'' {
+					i += 2
+					continue
+				}
+				inSingleQuote = false
+			}
+			i++
+			continue
+		}
+		if inDoubleQuote {
+			if ch == '"' {
+				if i+1 < len(definition) && definition[i+1] == '"' {
+					i += 2
+					continue
+				}
+				inDoubleQuote = false
+			}
+			i++
+			continue
+		}
+		switch {
+		case ch == '-' && i+1 < len(definition) && definition[i+1] == '-':
+			inLineComment = true
+			i += 2
+		case ch == '/' && i+1 < len(definition) && definition[i+1] == '*':
+			inBlockComment = true
+			i += 2
+		case ch == '\'':
+			inSingleQuote = true
+			i++
+		case ch == '"':
+			inDoubleQuote = true
+			i++
+		case ch == '(':
+			parenDepth++
+			i++
+		case ch == ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			i++
+		case parenDepth == 0 && isIdentStartChar(ch) && (i == 0 || (!isIdentContChar(definition[i-1]) && definition[i-1] != '$')):
+			j := i + 1
+			for j < len(definition) && isIdentContChar(definition[j]) {
+				j++
+			}
+			if strings.EqualFold(definition[i:j], "AS") {
+				k := skipSQLWhitespaceAndComments(definition, j)
+				if bodyEnd, ok := matchTrinoDollarLiteral(definition, k); ok && onlyTrailingStatementEnd(definition[bodyEnd:]) {
+					return i, true
+				}
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return 0, false
+}
+
+func skipSQLWhitespaceAndComments(s string, i int) int {
+	for i < len(s) {
+		switch {
+		case s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n':
+			i++
+		case s[i] == '-' && i+1 < len(s) && s[i+1] == '-':
+			i += 2
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+		case s[i] == '/' && i+1 < len(s) && s[i+1] == '*':
+			i += 2
+			for i < len(s) {
+				if s[i] == '*' && i+1 < len(s) && s[i+1] == '/' {
+					i += 2
+					break
+				}
+				i++
+			}
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+func matchTrinoDollarLiteral(s string, start int) (int, bool) {
+	if start+1 >= len(s) || s[start] != '$' {
+		return 0, false
+	}
+	j := start + 1
+	if j < len(s) && s[j] != '$' {
+		if !isIdentStartChar(s[j]) {
+			return 0, false
+		}
+		j++
+		for j < len(s) && isIdentContChar(s[j]) {
+			j++
+		}
+	}
+	if j >= len(s) || s[j] != '$' {
+		return 0, false
+	}
+	tag := s[start : j+1]
+	closeRel := strings.Index(s[j+1:], tag)
+	if closeRel < 0 {
+		return 0, false
+	}
+	return j + 1 + closeRel + len(tag), true
+}
+
+func onlyTrailingStatementEnd(rest string) bool {
+	i := skipSQLWhitespaceAndComments(rest, 0)
+	if i < len(rest) && rest[i] == ';' {
+		i = skipSQLWhitespaceAndComments(rest, i+1)
+	}
+	return i == len(rest)
+}
+
+func endsInLineComment(s string) bool {
+	var inSingle, inDouble, inLine, inBlock bool
+	for i := 0; i < len(s); {
+		ch := s[i]
+		switch {
+		case inLine:
+			if ch == '\n' {
+				inLine = false
+			}
+			i++
+		case inBlock:
+			if ch == '*' && i+1 < len(s) && s[i+1] == '/' {
+				inBlock = false
+				i += 2
+				continue
+			}
+			i++
+		case inSingle:
+			if ch == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					i += 2
+					continue
+				}
+				inSingle = false
+			}
+			i++
+		case inDouble:
+			if ch == '"' {
+				if i+1 < len(s) && s[i+1] == '"' {
+					i += 2
+					continue
+				}
+				inDouble = false
+			}
+			i++
+		case ch == '-' && i+1 < len(s) && s[i+1] == '-':
+			inLine = true
+			i += 2
+		case ch == '/' && i+1 < len(s) && s[i+1] == '*':
+			inBlock = true
+			i += 2
+		case ch == '\'':
+			inSingle = true
+			i++
+		case ch == '"':
+			inDouble = true
+			i++
+		default:
+			i++
+		}
+	}
+	return inLine
 }
 
 type orderedFunction struct {
@@ -497,26 +720,27 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 		key := objectKey(strings.ToLower(f.schema), strings.ToLower(f.fn.Name))
 		byKey[key] = append(byKey[key], i)
 
-		file, err := trinoparser.Parse(f.fn.Definition)
-		if err == nil && file != nil && len(file.Stmts) == 1 {
-			if cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt); ok && cfs.Spec.Body != nil {
-				params := make([]trinoFuncParam, len(cfs.Spec.Declaration.Parameters))
-				for j, p := range cfs.Spec.Declaration.Parameters {
-					name := ""
-					if p.Name != nil {
-						name = p.Name.Value
-					}
-					params[j] = trinoFuncParam{
-						name:     name,
-						typeName: normalizeTrinoDataType(p.Type),
-					}
+		if cfs, hasSQLBody, _, ok := parseTrinoCreateFunction(f.fn.Definition); ok {
+			params := make([]trinoFuncParam, len(cfs.Spec.Declaration.Parameters))
+			for j, p := range cfs.Spec.Declaration.Parameters {
+				name := ""
+				if p.Name != nil {
+					name = p.Name.Value
 				}
-				parsed[i] = parsedTrinoFn{
-					params:     params,
-					returnType: normalizeTrinoDataType(cfs.Spec.ReturnType),
-					bodyStmt:   cfs.Spec.Body,
-					parsed:     true,
+				params[j] = trinoFuncParam{
+					name:     name,
+					typeName: normalizeTrinoDataType(p.Type),
 				}
+			}
+			var bodyStmt trinoparser.RoutineStatement
+			if hasSQLBody {
+				bodyStmt = cfs.Spec.Body
+			}
+			parsed[i] = parsedTrinoFn{
+				params:     params,
+				returnType: normalizeTrinoDataType(cfs.Spec.ReturnType),
+				bodyStmt:   bodyStmt,
+				parsed:     true,
 			}
 		}
 	}
@@ -535,9 +759,10 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 	dependencies := make([]map[int]struct{}, len(fns))
 	for i, f := range fns {
 		var calls []functionCallRef
-		if parsed[i].parsed {
+		switch {
+		case parsed[i].bodyStmt != nil:
 			calls = collectTrinoASTFunctionCalls(parsed[i].bodyStmt, f.schema, parsed[i].params, cat)
-		} else {
+		case !parsed[i].parsed:
 			calls = scanFunctionCallRefs(f.fn.Definition)
 		}
 		var edits []prefixEdit

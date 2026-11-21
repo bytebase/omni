@@ -1987,6 +1987,9 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 
 // writeView writes one view and the comments that belong to it and its columns.
 func writeView(w io.StringWriter, view *viewState) error {
+	if view.unsupportedReason != "" {
+		return fmt.Errorf("view %s %s", view.qualifiedName(), view.unsupportedReason)
+	}
 	buf := &strings.Builder{}
 	if err := view.toString(buf); err != nil {
 		return err
@@ -2011,6 +2014,9 @@ func writeView(w io.StringWriter, view *viewState) error {
 }
 
 func writeMaterializedView(w io.StringWriter, mv *viewState) error {
+	if mv.unsupportedReason != "" {
+		return fmt.Errorf("materialized view %s %s", mv.qualifiedName(), mv.unsupportedReason)
+	}
 	if mv.comment != "" {
 		return fmt.Errorf("materialized view %s comment cannot be restored because Redshift does not support COMMENT ON MATERIALIZED VIEW", mv.qualifiedName())
 	}
@@ -2697,16 +2703,24 @@ func isNumericOrBoolLiteral(s string) bool {
 }
 
 type viewState struct {
-	id            int
-	schema        string
-	name          string
-	definition    string
-	comment       string
-	columns       map[string]*columnState
-	caseSensitive bool
+	id                int
+	schema            string
+	name              string
+	definition        string
+	comment           string
+	unsupportedReason string
+	columns           map[string]*columnState
+	caseSensitive     bool
 }
 
 func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata, caseSensitive bool) *viewState {
+	var unsupportedReason string
+	switch {
+	case len(view.Triggers) > 0:
+		unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
+	case len(view.Rules) > 0:
+		unsupportedReason = "rules cannot be restored because Redshift does not support rules"
+	}
 	cols := make(map[string]*columnState, len(view.Columns))
 	for i, col := range view.Columns {
 		if col == nil {
@@ -2715,24 +2729,33 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 		cols[col.Name] = convertToColumnState(i, col)
 	}
 	return &viewState{
-		id:            id,
-		schema:        schemaName,
-		name:          view.Name,
-		definition:    view.Definition,
-		comment:       view.Comment,
-		columns:       cols,
-		caseSensitive: caseSensitive,
+		id:                id,
+		schema:            schemaName,
+		name:              view.Name,
+		definition:        view.Definition,
+		comment:           view.Comment,
+		unsupportedReason: unsupportedReason,
+		columns:           cols,
+		caseSensitive:     caseSensitive,
 	}
 }
 
 func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.MaterializedViewMetadata, caseSensitive bool) *viewState {
+	var unsupportedReason string
+	switch {
+	case len(mv.Indexes) > 0:
+		unsupportedReason = "indexes cannot be restored by Redshift DDL renderer"
+	case len(mv.Triggers) > 0:
+		unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
+	}
 	return &viewState{
-		id:            id,
-		schema:        schemaName,
-		name:          mv.Name,
-		definition:    mv.Definition,
-		comment:       mv.Comment,
-		caseSensitive: caseSensitive,
+		id:                id,
+		schema:            schemaName,
+		name:              mv.Name,
+		definition:        mv.Definition,
+		comment:           mv.Comment,
+		unsupportedReason: unsupportedReason,
+		caseSensitive:     caseSensitive,
 	}
 }
 

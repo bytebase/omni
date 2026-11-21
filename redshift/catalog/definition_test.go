@@ -1517,6 +1517,31 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 
 	// Non-public views wrap creation in schema search_path so unqualified relations resolve.
 	require.Contains(t, deferredOwnersAndComments, "SET search_path TO \"reporting\", public;\nCREATE OR REPLACE VIEW \"reporting\".\"v_line_comment\"")
+
+	// Unrendered view triggers and rules fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_trig",
+				Definition: "SELECT 1",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", Body: "CREATE TRIGGER tr_v ..."}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "triggers")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_rule",
+				Definition: "SELECT 1",
+				Rules:      []*metadatapb.RuleMetadata{{Name: "rl_v"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "rules")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

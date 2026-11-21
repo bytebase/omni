@@ -936,4 +936,59 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "signature")
+
+	// View triggers and rules cannot be restored in Trino and fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_trig",
+				Definition: "SELECT 1",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", Body: "CREATE TRIGGER tr_v ..."}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "triggers or rules")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_rule",
+				Definition: "SELECT 1",
+				Rules:      []*metadatapb.RuleMetadata{{Name: "rl_v"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "triggers or rules")
+
+	// Python UDFs with AS $$...$$ bodies preserve and replace metadata comments.
+	pyOut, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "py_wrap",
+					Definition: "CREATE FUNCTION py_wrap(x bigint) RETURNS bigint RETURN py_add(x, 1)",
+				},
+				{
+					Name:       "py_add",
+					Comment:    "adds one's arg",
+					Definition: "CREATE FUNCTION py_add(x bigint, y bigint) RETURNS bigint LANGUAGE PYTHON WITH (handler = 'add') AS $$def add(x, y): return x + y$$",
+				},
+				{
+					Name:       "py_replace",
+					Comment:    "updated comment",
+					Definition: "CREATE FUNCTION s.py_replace(x bigint) RETURNS bigint LANGUAGE PYTHON COMMENT 'stale' WITH (handler = 'id') AS $$def id(x): return x$$",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, pyOut, `CREATE FUNCTION "cat"."s".py_add(x bigint, y bigint) RETURNS bigint LANGUAGE PYTHON WITH (handler = 'add') COMMENT 'adds one''s arg' AS $$def add(x, y): return x + y$$;`)
+	assert.Contains(t, pyOut, `CREATE FUNCTION "cat".s.py_replace(x bigint) RETURNS bigint LANGUAGE PYTHON COMMENT 'updated comment' WITH (handler = 'id') AS $$def id(x): return x$$;`)
+	assert.Less(t, strings.Index(pyOut, `CREATE FUNCTION "cat"."s".py_add(`), strings.Index(pyOut, `CREATE FUNCTION "cat"."s".py_wrap(`))
 }
