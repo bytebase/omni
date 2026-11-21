@@ -1,0 +1,17 @@
+# Redis command-line token forms for generated compat rows: the text written
+# for each terminal class in RedisCommands.g4. Command and subcommand names are
+# literals in the grammar and need no row.
+#
+# Sources:
+#   redis:7.4.12-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe (7.4.12)
+#   Redis shell-like command-line tokenization (redis/parser, redis/analysis, redis/driver):
+#   unquoted words, single-quoted verbatim strings, double-quoted strings with
+#   backslash escapes, # as argument text (Redis has no comment syntax), and
+#   numeric literals.
+# columns: token, form, note
+WORD	a	unquoted Redis command-line argument token
+SINGLE_QUOTED	's'	single-quoted verbatim string argument (preserves backslashes and spaces)
+DOUBLE_QUOTED	"s\n"	double-quoted string argument with backslash escape (\n, \r, \t, \xNN, \\, \")
+HASH_ARG	#channel	argument starting with # (Redis has no comment syntax)
+INT_LITERAL	1	integer literal argument
+FLOAT_LITERAL	1.5	floating-point literal argument
