@@ -1,23 +1,13 @@
 package analysis
 
 import (
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/doris/parser"
 )
 
 // Statement is one segment of a script. Text keeps the trailing ';' the engine
 // splits on, because that is the text a caller logs and executes.
-type Statement struct {
-	// Text is the segment's source text, including its trailing ';' when one
-	// follows it.
-	Text string
-	// Empty reports whether the segment holds no statement (whitespace,
-	// comments, or a lone delimiter).
-	Empty bool
-	// Start is the segment's first byte in the script.
-	Start int
-	// End is the byte just past the segment, including a trailing ';'.
-	End int
-}
+type Statement = analysis.Statement
 
 // SplitStatements splits a script into the statements a caller executes. The
 // split is lexical and never fails; a segment with no statement — a lone ';',

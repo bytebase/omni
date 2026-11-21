@@ -5,59 +5,41 @@ package analysis
 
 import (
 	"cmp"
-	"errors"
-	"fmt"
 	"slices"
-	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 )
 
 // QueryType is the permission class of a statement. The values mirror
 // Bytebase's base.QueryType.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// QueryTypeUnknown is a statement not deliberately mapped. Bytebase's SQL
 	// service denies it before execution.
-	QueryTypeUnknown QueryType = iota
+	QueryTypeUnknown = analysis.QueryTypeUnknown
 	// Select is a read-only query.
-	Select
+	Select = analysis.Select
 	// Explain is an EXPLAIN statement.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema reads system metadata.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data.
-	DML
+	DML = analysis.DML
 )
 
 // ColumnResource identifies a column, or a whole table when Column is empty.
-type ColumnResource struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
-
-// String formats the resource as Bytebase's base.ColumnResource does.
-func (c ColumnResource) String() string {
-	var parts []string
-	for _, part := range []string{c.Database, c.Schema, c.Table, c.Column} {
-		if part != "" {
-			parts = append(parts, part)
-		}
-	}
-	return strings.Join(parts, ".")
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of columns.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
-// sorted returns the set's resources in order, for walks whose answer must
-// not depend on map iteration order.
-func (s ColumnSet) sorted() []ColumnResource {
+// sortedColumnSet returns the set's resources in order, for walks whose answer
+// must not depend on map iteration order.
+func sortedColumnSet(s ColumnSet) []ColumnResource {
 	resources := make([]ColumnResource, 0, len(s))
 	for resource := range s {
 		resources = append(resources, resource)
@@ -74,48 +56,14 @@ func (s ColumnSet) sorted() []ColumnResource {
 }
 
 // QuerySpanResult is one result column of a query and the columns it reads.
-type QuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	// IsPlainField is true when the result is a bare column reference rather
-	// than an expression.
-	IsPlainField bool
-}
+type QuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedSpan is the lineage ResolveQuerySpan returns.
-type ResolvedSpan struct {
-	Type QueryType
-	// ExplainAnalyze marks an EXPLAIN ANALYZE, which runs the statement it
-	// wraps; Type is that statement's.
-	ExplainAnalyze bool
-	// SourceColumns holds the tables the statement accesses, as table-level
-	// resources (Column empty), including those read inside the bodies of the
-	// functions it calls.
-	SourceColumns ColumnSet
-	Results       []QuerySpanResult
-	// PredicateColumns holds the columns that decide which rows return.
-	PredicateColumns ColumnSet
-	// UnresolvedColumnsError is set when a table the statement reads has no
-	// columns in the synced metadata, so its lineage cannot be trusted.
-	UnresolvedColumnsError *UnresolvedColumnsError
-}
+type ResolvedSpan = analysis.ResolvedSpan
 
 // UnresolvedColumnsError identifies relations whose synced metadata has no
 // columns.
-type UnresolvedColumnsError struct {
-	// Relations each carry an empty Column field.
-	Relations []ColumnResource
-}
-
-// Error formats the error as Bytebase's base.UnresolvedColumnsError does.
-func (e *UnresolvedColumnsError) Error() string {
-	names := make([]string, 0, len(e.Relations))
-	for _, r := range e.Relations {
-		names = append(names, r.String())
-	}
-	slices.Sort(names)
-	return fmt.Sprintf("the synced schema describes no columns for %s", strings.Join(names, ", "))
-}
+type UnresolvedColumnsError = analysis.UnresolvedColumnsError
 
 // SyntaxError reports a statement that does not parse. Err is the parser's
 // error, a *parser.ParseError when the parser located the failure.
@@ -129,7 +77,7 @@ func (e *SyntaxError) Unwrap() error { return e.Err }
 
 // ErrMixUserSystemTables reports a statement that reads user and system
 // tables together.
-var ErrMixUserSystemTables = errors.New("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // Catalog is the synced metadata of the instance a statement runs on.
 type Catalog struct {

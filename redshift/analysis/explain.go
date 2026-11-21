@@ -3,13 +3,14 @@ package analysis
 import (
 	"errors"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/redshift"
 	"github.com/bytebase/omni/redshift/ast"
 )
 
 // ErrExplainAnalyzeExecutes is ExplainStatement's error for EXPLAIN ANALYZE,
 // which plans by running what it plans.
-var ErrExplainAnalyzeExecutes = errors.New("EXPLAIN ANALYZE executes the statement it plans, which an explain request never does: run it as a query, or drop ANALYZE to plan the statement")
+var ErrExplainAnalyzeExecutes = analysis.ErrExplainAnalyzeExecutes
 
 // ExplainStatement returns the statement that plans statement. Redshift returns
 // one plan format here whatever the caller asked for: its EXPLAIN has no

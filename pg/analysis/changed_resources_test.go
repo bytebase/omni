@@ -52,19 +52,19 @@ func TestExtractChangedResourcesTargets(t *testing.T) {
 		script string
 		want   []ChangedResource
 	}{
-		{"CREATE TABLE n (a int)", []ChangedResource{{"db", "public", "n", false}}},
-		{"DROP TABLE t, app.only_app", []ChangedResource{{"db", "public", "t", true}, {"db", "app", "only_app", true}}},
-		{"DROP INDEX t_idx", []ChangedResource{{"db", "public", "t", false}}},
+		{"CREATE TABLE n (a int)", []ChangedResource{{Database: "db", Schema: "public", Table: "n"}}},
+		{"DROP TABLE t, app.only_app", []ChangedResource{{Database: "db", Schema: "public", Table: "t", AffectsData: true}, {Database: "db", Schema: "app", Table: "only_app", AffectsData: true}}},
+		{"DROP INDEX t_idx", []ChangedResource{{Database: "db", Schema: "public", Table: "t"}}},
 		{"DROP INDEX app.t_idx", nil},
-		{"ALTER TABLE only_app ADD COLUMN b int", []ChangedResource{{"db", "public", "only_app", true}}},
+		{"ALTER TABLE only_app ADD COLUMN b int", []ChangedResource{{Database: "db", Schema: "public", Table: "only_app", AffectsData: true}}},
 		{"ALTER VIEW v RENAME TO w", nil},
-		{"ALTER TABLE t RENAME TO u", []ChangedResource{{"db", "public", "t", true}, {"db", "public", "u", false}}},
-		{"ALTER TABLE t RENAME COLUMN a TO b", []ChangedResource{{"db", "public", "t", true}}},
-		{"CREATE INDEX ON t (a)", []ChangedResource{{"db", "public", "t", false}}},
-		{"TRUNCATE t", []ChangedResource{{"db", "public", "t", true}}},
-		{"SELECT * INTO n FROM t", []ChangedResource{{"db", "public", "n", false}}},
-		{"WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d", []ChangedResource{{"db", "public", "t", false}}},
-		{"EXPLAIN ANALYZE DELETE FROM other.t", []ChangedResource{{"db", "other", "t", false}}},
+		{"ALTER TABLE t RENAME TO u", []ChangedResource{{Database: "db", Schema: "public", Table: "t", AffectsData: true}, {Database: "db", Schema: "public", Table: "u"}}},
+		{"ALTER TABLE t RENAME COLUMN a TO b", []ChangedResource{{Database: "db", Schema: "public", Table: "t", AffectsData: true}}},
+		{"CREATE INDEX ON t (a)", []ChangedResource{{Database: "db", Schema: "public", Table: "t"}}},
+		{"TRUNCATE t", []ChangedResource{{Database: "db", Schema: "public", Table: "t", AffectsData: true}}},
+		{"SELECT * INTO n FROM t", []ChangedResource{{Database: "db", Schema: "public", Table: "n"}}},
+		{"WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d", []ChangedResource{{Database: "db", Schema: "public", Table: "t"}}},
+		{"EXPLAIN ANALYZE DELETE FROM other.t", []ChangedResource{{Database: "db", Schema: "other", Table: "t"}}},
 		{"EXPLAIN DELETE FROM t", nil},
 	}
 	for _, tc := range tests {
@@ -75,8 +75,8 @@ func TestExtractChangedResourcesTargets(t *testing.T) {
 func TestExtractChangedResourcesNewTableSchema(t *testing.T) {
 	// With a search path of more than one schema, a new table whose first
 	// schema does not exist has no schema.
-	require.Equal(t, []ChangedResource{{"db", "", "n", false}}, changesOf(t, "CREATE TABLE n (a int)", []string{"missing", "public"}).Resources)
-	require.Equal(t, []ChangedResource{{"db", "app", "n", false}}, changesOf(t, "CREATE TABLE n (a int)", []string{"app", "public"}).Resources)
+	require.Equal(t, []ChangedResource{{Database: "db", Schema: "", Table: "n"}}, changesOf(t, "CREATE TABLE n (a int)", []string{"missing", "public"}).Resources)
+	require.Equal(t, []ChangedResource{{Database: "db", Schema: "app", Table: "n"}}, changesOf(t, "CREATE TABLE n (a int)", []string{"app", "public"}).Resources)
 }
 
 func TestExtractChangedResourcesDML(t *testing.T) {
@@ -105,12 +105,12 @@ SET search_path = app; DISCARD ALL; UPDATE t SET a = 4`, nil)
 		{Text: "UPDATE t SET a = 4;"},
 	}, changes.DMLStatements)
 	require.Equal(t, []ChangedResource{
-		{"db", "app", "t", false},
-		{"db", "public", "t", false},
-		{"db", "app", "t", false},
-		{"db", "public", "t", false},
-		{"db", "public", "t", false},
-		{"db", "public", "t", false},
+		{Database: "db", Schema: "app", Table: "t"},
+		{Database: "db", Schema: "public", Table: "t"},
+		{Database: "db", Schema: "app", Table: "t"},
+		{Database: "db", Schema: "public", Table: "t"},
+		{Database: "db", Schema: "public", Table: "t"},
+		{Database: "db", Schema: "public", Table: "t"},
 	}, changes.Resources)
 }
 

@@ -1,9 +1,7 @@
 package analysis
 
 import (
-	"fmt"
-	"strings"
-
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 )
 
@@ -18,22 +16,13 @@ type ResolveOptions struct {
 }
 
 // Column identifies a physical column resource. Database is a Trino catalog.
-type Column struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type Column = analysis.ColumnResource
 
 // ColumnSet is a set of physical column resources.
-type ColumnSet map[Column]bool
+type ColumnSet = analysis.ColumnSet
 
 // ResolvedQuerySpanResult describes one output column of a resolved span.
-type ResolvedQuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	IsPlainField  bool
-}
+type ResolvedQuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedQuerySpan is a query span resolved against metadata.
 type ResolvedQuerySpan struct {
@@ -45,36 +34,7 @@ type ResolvedQuerySpan struct {
 }
 
 // ResourceNotFoundError reports a resource missing from the synced metadata.
-type ResourceNotFoundError struct {
-	Err      error
-	Database *string
-	Schema   *string
-	Table    *string
-	Column   *string
-}
-
-func (e *ResourceNotFoundError) Error() string {
-	var parts []string
-	if e.Database != nil {
-		parts = append(parts, fmt.Sprintf("database: %s", *e.Database))
-	}
-	if e.Schema != nil {
-		parts = append(parts, fmt.Sprintf("schema: %s", *e.Schema))
-	}
-	if e.Table != nil {
-		parts = append(parts, fmt.Sprintf("table: %s", *e.Table))
-	}
-	if e.Column != nil {
-		parts = append(parts, fmt.Sprintf("column: %s", *e.Column))
-	}
-	result := fmt.Sprintf("resource not found: %s", strings.Join(parts, ", "))
-	if e.Err != nil {
-		result += fmt.Sprintf(", err: %s", e.Err.Error())
-	}
-	return result
-}
-
-func (e *ResourceNotFoundError) Unwrap() error { return e.Err }
+type ResourceNotFoundError = analysis.ResourceNotFoundError
 
 // ResolveQuerySpan resolves a single Trino statement against the metadata the
 // caller supplies and returns the physical columns it reads, the predicate

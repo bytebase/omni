@@ -1,12 +1,12 @@
 package analysis
 
-import "github.com/bytebase/omni/redshift"
+import (
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/redshift"
+)
 
 // Range is a byte range in the script, start inclusive and end exclusive.
-type Range struct {
-	Start int
-	End   int
-}
+type Range = analysis.ByteRange
 
 // StatementRanges returns the byte range of each statement in a script,
 // including its trailing ';'. Empty segments are skipped. Positions leave as

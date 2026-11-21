@@ -8,39 +8,23 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/snowflake/ast"
 	"github.com/bytebase/omni/snowflake/parser"
 )
 
 // ColumnResource identifies a column, or a whole table when Column is empty,
 // by its folded names.
-type ColumnResource struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of columns.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
 // QuerySpanResult is one result column of a query and the columns it reads.
-type QuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	// IsPlainField is true when the result is a bare column reference rather
-	// than an expression.
-	IsPlainField bool
-}
+type QuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedSpan is the lineage ResolveQuerySpan returns.
-type ResolvedSpan struct {
-	Type QueryType
-	// SourceColumns holds every table the statement names, as table-level
-	// resources (Column empty), including CTE references.
-	SourceColumns ColumnSet
-	Results       []QuerySpanResult
-}
+type ResolvedSpan = analysis.ResolvedSpan
 
 // Table is a table as the catalog describes it.
 type Table struct {
@@ -68,7 +52,7 @@ type ResolveOptions struct {
 
 // ErrMixUserSystemTables reports a statement that reads user and system
 // tables together.
-var ErrMixUserSystemTables = errors.New("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // ResolveError is an error raised while resolving a query's lineage. The
 // tables the statement accesses are known by then and carried with it.

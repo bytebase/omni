@@ -4,14 +4,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/tidb/parser"
 )
 
 // ByteRange is a half-open byte range [Start, End) in a script.
-type ByteRange struct {
-	Start int
-	End   int
-}
+type ByteRange = analysis.ByteRange
 
 // StatementRanges returns the range of each top-level statement in a script,
 // for editors that run the statement under the cursor. It splits lexically,

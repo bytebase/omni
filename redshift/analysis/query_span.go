@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/redshift"
 	"github.com/bytebase/omni/redshift/ast"
 	"github.com/bytebase/omni/redshift/catalog"
@@ -11,12 +12,7 @@ import (
 
 // ColumnResource identifies a source or predicate column. Database is empty
 // when the analysis has no database context.
-type ColumnResource struct {
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type ColumnResource = analysis.ColumnResource
 
 // QuerySpanResult describes one output column.
 type QuerySpanResult struct {

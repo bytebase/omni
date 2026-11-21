@@ -4,40 +4,15 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mssql/ast"
 )
 
 // ChangedResource is a resource a statement writes.
-type ChangedResource struct {
-	// Database and Schema qualify the resource. An unqualified name is in the
-	// current database and schema.
-	Database string
-	Schema   string
-	// Table is the changed table, empty for a database-only change.
-	Table string
-	// DatabaseOnly marks a non-table object (view, routine, trigger, sequence,
-	// synonym, type) whose own name carries a database qualifier. It has no
-	// table to scope, only its target database.
-	DatabaseOnly bool
-	// AffectsData marks a table change that touches the table's existing rows,
-	// such as DROP, TRUNCATE or ALTER.
-	AffectsData bool
-}
+type ChangedResource = analysis.ChangedResource
 
 // StatementChanges is what one statement changes.
-type StatementChanges struct {
-	// Resources holds the resources the statement writes, in the order it
-	// names them, duplicates included.
-	Resources []ChangedResource
-	// DMLStatements holds the text of a DML statement whose rows can be
-	// estimated, ending with ';'.
-	DMLStatements []string
-	// DMLCount counts the DML statements, including those DMLStatements omits.
-	DMLCount int
-	// InsertCount counts the rows of INSERT ... VALUES, and one for INSERT ...
-	// DEFAULT VALUES.
-	InsertCount int
-}
+type StatementChanges = analysis.StatementChanges
 
 // ExtractChangedResources returns the resources one statement writes and its
 // DML counts. database and schema are the current ones, and text is the

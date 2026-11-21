@@ -4,124 +4,50 @@
 package analysis
 
 import (
-	"errors"
-	"fmt"
-	"strings"
-
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 )
 
 // QueryType is the permission class of a statement. The values mirror
 // Bytebase's base.QueryType.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// QueryTypeUnknown is a statement not deliberately mapped. Bytebase's SQL
 	// service denies it before execution.
-	QueryTypeUnknown QueryType = iota
+	QueryTypeUnknown = analysis.QueryTypeUnknown
 	// Select is a read-only query.
-	Select
+	Select = analysis.Select
 	// Explain is an EXPLAIN PLAN statement.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema reads only system schemas.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data.
-	DML
+	DML = analysis.DML
 )
 
 // ColumnResource identifies a column, or a whole table when Column is empty.
 // In Oracle, Database is the schema.
-type ColumnResource struct {
-	// Instance is the instance a database link resolved to, as the catalog
-	// named it; empty means the connected instance.
-	Instance string
-	// Server is the database link the statement wrote. With Instance empty,
-	// the link resolved to nothing.
-	Server   string
-	Database string
-	Schema   string
-	Table    string
-	Column   string
-}
+type ColumnResource = analysis.ColumnResource
 
 // ColumnSet is a set of columns.
-type ColumnSet map[ColumnResource]bool
+type ColumnSet = analysis.ColumnSet
 
 // QuerySpanResult is one result column of a query and the columns it reads.
-type QuerySpanResult struct {
-	Name          string
-	SourceColumns ColumnSet
-	// IsPlainField is true when the result is a bare column reference rather
-	// than an expression.
-	IsPlainField bool
-	// Invisible marks an INVISIBLE table column, which SELECT * leaves out.
-	Invisible bool
-}
+type QuerySpanResult = analysis.QuerySpanResult
 
 // ResolvedSpan is the lineage ResolveQuerySpan returns.
-type ResolvedSpan struct {
-	Type QueryType
-	// SourceColumns holds the tables the statement accesses, as table-level
-	// resources (Column empty).
-	SourceColumns ColumnSet
-	Results       []QuerySpanResult
-	// NotFoundError is set when a table or database the query reads is not in
-	// the catalog; Results is then empty.
-	NotFoundError *NotFoundError
-}
+type ResolvedSpan = analysis.ResolvedSpan
 
 // NotFoundError reports a resource missing from the catalog. Its fields and
 // text are those of Bytebase's base.ResourceNotFoundError.
-type NotFoundError struct {
-	Err          error
-	Server       *string
-	DatabaseLink *string
-	Database     *string
-	Schema       *string
-	Table        *string
-	Column       *string
-	Function     *string
-}
-
-func (e *NotFoundError) Error() string {
-	var resourceParts []string
-	if e.Server != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("server: %s", *e.Server))
-	}
-	if e.DatabaseLink != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("database link: %s", *e.DatabaseLink))
-	}
-	if e.Database != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("database: %s", *e.Database))
-	}
-	if e.Schema != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("schema: %s", *e.Schema))
-	}
-	if e.Table != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("table: %s", *e.Table))
-	}
-	if e.Column != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("column: %s", *e.Column))
-	}
-	if e.Function != nil {
-		resourceParts = append(resourceParts, fmt.Sprintf("function: %s", *e.Function))
-	}
-	parts := []string{
-		fmt.Sprintf("resource not found: %s", strings.Join(resourceParts, ", ")),
-	}
-	if e.Err != nil {
-		parts = append(parts, fmt.Sprintf("err: %s", e.Err.Error()))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func (e *NotFoundError) Unwrap() error { return e.Err }
+type NotFoundError = analysis.ResourceNotFoundError
 
 // ErrMixUserSystemTables reports a statement that reads user and system
 // tables together.
-var ErrMixUserSystemTables = errors.New("cannot access user and system tables at the same time")
+var ErrMixUserSystemTables = analysis.ErrMixUserSystemTables
 
 // Catalog is the synced metadata a statement resolves against. An instance is
 // the name the catalog gives it: ResolveOptions.Instance for the connected

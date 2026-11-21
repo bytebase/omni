@@ -342,7 +342,7 @@ func (e *querySpanExtractor) returningLineage(stmt ast.Node, accesses ColumnSet)
 		}
 		if isStarTarget(rt) && target != nil {
 			// RETURNING * outputs every column of the target table in order.
-			for _, resource := range accesses.sorted() {
+			for _, resource := range sortedColumnSet(accesses) {
 				if !strings.EqualFold(resource.Table, target.Relname) {
 					continue
 				}

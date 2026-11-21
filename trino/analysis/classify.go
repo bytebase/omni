@@ -11,50 +11,31 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/trino/parser"
 )
 
 // QueryType classifies a Trino SQL statement. The values mirror bytebase's
 // base.QueryType so the import switch (bytebase-switch node) can map them 1:1.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
 	// Unknown is returned for empty input or an unrecognised leading token.
-	Unknown QueryType = iota
+	Unknown = analysis.QueryTypeUnknown
 	// Select is a read-only user SELECT query (SELECT/WITH/TABLE/VALUES) that
 	// does not touch a system/information schema.
-	Select
+	Select = analysis.Select
 	// Explain is an EXPLAIN / EXPLAIN ANALYZE statement.
-	Explain
+	Explain = analysis.Explain
 	// SelectInfoSchema is a read-only query against system/information_schema
 	// objects, or a SHOW / DESCRIBE statement.
-	SelectInfoSchema
+	SelectInfoSchema = analysis.SelectInfoSchema
 	// DDL changes schema: CREATE/ALTER/DROP/RENAME, GRANT/REVOKE/DENY, roles,
 	// COMMENT, ANALYZE, REFRESH MATERIALIZED VIEW.
-	DDL
+	DDL = analysis.DDL
 	// DML changes table data: INSERT/UPDATE/DELETE/MERGE/TRUNCATE/CALL.
-	DML
+	DML = analysis.DML
 )
-
-// String returns a human-readable name for the QueryType. The spellings match
-// bytebase's base.QueryType.String() so logs/tests read identically across the
-// legacy and omni stacks.
-func (q QueryType) String() string {
-	switch q {
-	case Select:
-		return "SELECT"
-	case Explain:
-		return "EXPLAIN"
-	case SelectInfoSchema:
-		return "SELECT_INFO_SCHEMA"
-	case DDL:
-		return "DDL"
-	case DML:
-		return "DML"
-	default:
-		return "UNKNOWN"
-	}
-}
 
 // firstKeywordType maps a leading-keyword TokenKind to its QueryType. It is
 // populated in init() via parser.KeywordToken so we never depend on the numeric

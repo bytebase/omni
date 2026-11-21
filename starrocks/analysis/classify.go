@@ -1,36 +1,21 @@
 package analysis
 
 import (
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
 // QueryType classifies a SQL statement.
-type QueryType int
+type QueryType = analysis.QueryType
 
 const (
-	QueryTypeUnknown          QueryType = iota
-	QueryTypeSelect                     // User SELECT query
-	QueryTypeSelectInfoSchema           // SELECT from system tables, or SHOW/DESCRIBE
-	QueryTypeDML                        // INSERT, UPDATE, DELETE, MERGE, LOAD, EXPORT, TRUNCATE, COPY
-	QueryTypeDDL                        // CREATE, ALTER, DROP, plus GRANT, REVOKE, ADMIN, transaction control, KILL, SET, etc.
+	QueryTypeUnknown          = analysis.QueryTypeUnknown
+	QueryTypeSelect           = analysis.Select           // User SELECT query
+	QueryTypeSelectInfoSchema = analysis.SelectInfoSchema // SELECT from system tables, or SHOW/DESCRIBE
+	QueryTypeDML              = analysis.DML              // INSERT, UPDATE, DELETE, MERGE, LOAD, EXPORT, TRUNCATE, COPY
+	QueryTypeDDL              = analysis.DDL              // CREATE, ALTER, DROP, plus GRANT, REVOKE, ADMIN, transaction control, KILL, SET, etc.
 )
-
-// String returns a human-readable name for the QueryType.
-func (q QueryType) String() string {
-	switch q {
-	case QueryTypeSelect:
-		return "SELECT"
-	case QueryTypeSelectInfoSchema:
-		return "SELECT_INFO_SCHEMA"
-	case QueryTypeDML:
-		return "DML"
-	case QueryTypeDDL:
-		return "DDL"
-	default:
-		return "UNKNOWN"
-	}
-}
 
 // firstKeywordType maps a leading keyword TokenKind to its QueryType.
 // Populated in init() using parser.KeywordToken so we don't depend on the

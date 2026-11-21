@@ -1,17 +1,12 @@
 package analysis
 
-import "github.com/bytebase/omni/snowflake/parser"
+import (
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/snowflake/parser"
+)
 
 // Statement is one statement of a script, as SplitStatements returns it.
-type Statement struct {
-	// Text is the statement's text, including its trailing ';' when present.
-	Text string
-	// Empty reports a statement with no SQL, only whitespace and comments.
-	Empty bool
-	// Start and End are the byte offsets of Text in the script.
-	Start int
-	End   int
-}
+type Statement = analysis.Statement
 
 // SplitStatements splits a script into statements with parser.Split, keeping
 // each statement's trailing ';' in its text and range. It returns nil when the
