@@ -287,6 +287,38 @@ func TestDatabaseMetadataRoundTripVectorGlobalChecksDefaultsAndSubpartitions(t *
 	require.True(t, reIdxByName["uq_u"].IsGlobal)
 	require.True(t, reIdxByName["idx_vec"].IsVector)
 	require.True(t, reExportedFull.CheckConstraints[1].NotEnforced)
+
+	// Vector index with embedded backtick exports valid quoted DDL and restores cleanly.
+	vecBT := &metadata.DatabaseSchemaMetadata{
+		Name: "vec_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "vec_t",
+				Engine:  "InnoDB",
+				Charset: "utf8mb4",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int", Nullable: false},
+					{Name: "v", Position: 2, Type: "vector(3)", Nullable: true},
+				},
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}, Type: "BTREE", Visible: true},
+					{Name: "idx`vec", IsVector: true, Type: "HNSW", Expressions: []string{"(VEC_COSINE_DISTANCE(`v`))"}, Visible: true},
+				},
+			}},
+		}},
+	}
+	vecDef, err := DatabaseDefinition(vecBT, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, vecDef, "VECTOR INDEX `idx``vec`")
+	vecCat := New()
+	res, err := vecCat.Exec("CREATE DATABASE vec_db;\nUSE vec_db;\n"+vecDef, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	for _, r := range res {
+		require.NoError(t, r.Error)
+	}
+	restoredIdx := vecCat.DatabaseMetadata("vec_db").Schemas[0].Tables[0].Indexes[1]
+	require.Equal(t, "idx`vec", restoredIdx.Name)
+	require.True(t, restoredIdx.IsVector)
 }
 
 func TestDatabaseMetadataTTLPlacementIntervalAndViewCheckOption(t *testing.T) {

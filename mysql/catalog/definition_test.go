@@ -1007,3 +1007,37 @@ func TestSDLViewStatesColumnList(t *testing.T) {
 		t.Fatalf("SDL round trip differs: %+v", diff.Views)
 	}
 }
+
+func TestWriteEventAndTriggerPreservesEmptySQLMode(t *testing.T) {
+	var evBuf strings.Builder
+	require.NoError(t, writeEvent(&evBuf, &metadata.EventMetadata{
+		Name:                "ev_empty_mode",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_0900_ai_ci",
+		SqlMode:             "",
+		TimeZone:            "SYSTEM",
+		Definition:          "CREATE EVENT `ev_empty_mode` ON SCHEDULE EVERY 1 DAY DO SELECT 1",
+	}))
+	require.Contains(t, evBuf.String(), "SET sql_mode = '';\n")
+
+	var trgBuf strings.Builder
+	require.NoError(t, writeTrigger(&trgBuf, "t", &metadata.TriggerMetadata{
+		Name:                "tr_empty_mode",
+		Timing:              "BEFORE",
+		Event:               "INSERT",
+		Body:                "SET NEW.id = 1",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_0900_ai_ci",
+		SqlMode:             "",
+	}))
+	require.Contains(t, trgBuf.String(), "SET sql_mode = '';\n")
+
+	var bareBuf strings.Builder
+	require.NoError(t, writeTrigger(&bareBuf, "t", &metadata.TriggerMetadata{
+		Name:   "tr_bare",
+		Timing: "BEFORE",
+		Event:  "INSERT",
+		Body:   "SET NEW.id = 1",
+	}))
+	require.NotContains(t, bareBuf.String(), "SET sql_mode")
+}

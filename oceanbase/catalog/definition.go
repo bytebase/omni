@@ -313,10 +313,7 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 	// Set charset, collation, sql mode and timezone. OceanBase states no character set or
 	// collation for an event, so those lines are written only when the metadata carries
 	// them; an empty sql_mode is a value the server states and is written as one.
-	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, ""); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode+"'"+event.SqlMode+"';\n"); err != nil {
+	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, event.SqlMode, true); err != nil {
 		return err
 	}
 	// OceanBase refuses the literal SYSTEM as a session zone, and SYSTEM is the zone the
@@ -367,7 +364,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	}
 
 	// Set charset, collation, and sql mode when present.
-	if err := writeAdditionalEventsIfSet(out, trigger.CharacterSetClient, trigger.CharacterSetClient, trigger.CollationConnection, trigger.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, trigger.CharacterSetClient, trigger.CharacterSetClient, trigger.CollationConnection, trigger.SqlMode, false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -421,7 +418,7 @@ func writeProcedure(out io.Writer, procedure *metadata.ProcedureMetadata) error 
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -461,7 +458,7 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -1888,7 +1885,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 	return err
 }
 
-func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string) error {
+func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string, emitEmptySQLMode bool) error {
 	events := []struct {
 		condition bool
 		prefix    string
@@ -1912,7 +1909,8 @@ func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetR
 			}
 		}
 	}
-	if sqlMode != "" {
+	hasSessionContext := characterSetClient != "" || characterSetResult != "" || collationConnection != "" || sqlMode != "" || emitEmptySQLMode
+	if hasSessionContext {
 		if _, err := io.WriteString(out, setSQLMode); err != nil {
 			return err
 		}

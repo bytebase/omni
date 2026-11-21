@@ -772,6 +772,7 @@ func writeTiFlashLocationLabels(out io.Writer, locationLabels []string) error {
 }
 
 func writeSessionContextIfSet(out io.Writer, charClient, collation, sqlMode, timeZone string, includeTimezone bool) error {
+	hasSessionContext := charClient != "" || collation != "" || sqlMode != "" || (includeTimezone && timeZone != "")
 	for _, stmt := range []struct {
 		prefix string
 		value  string
@@ -786,7 +787,7 @@ func writeSessionContextIfSet(out io.Writer, charClient, collation, sqlMode, tim
 		if stmt.prefix == setTimezone && !includeTimezone {
 			continue
 		}
-		if stmt.value == "" {
+		if stmt.value == "" && !(stmt.prefix == setSQLMode && hasSessionContext) {
 			continue
 		}
 		if stmt.quote {
@@ -1131,23 +1132,23 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 
 	switch {
 	case index.Unique:
-		if _, err := fmt.Fprintf(buf, "UNIQUE KEY `%s` (", index.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "UNIQUE KEY %s (", quoteIdent(index.Name)); err != nil {
 			return err
 		}
 	case index.IsVector || strings.EqualFold(index.Type, "HNSW"):
-		if _, err := fmt.Fprintf(buf, "VECTOR INDEX `%s` (", index.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "VECTOR INDEX %s (", quoteIdent(index.Name)); err != nil {
 			return err
 		}
 	case strings.EqualFold(index.Type, mysqlIndexFullText):
-		if _, err := fmt.Fprintf(buf, "FULLTEXT KEY `%s` (", index.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "FULLTEXT KEY %s (", quoteIdent(index.Name)); err != nil {
 			return err
 		}
 	case strings.EqualFold(index.Type, mysqlIndexSpatial):
-		if _, err := fmt.Fprintf(buf, "SPATIAL KEY `%s` (", index.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "SPATIAL KEY %s (", quoteIdent(index.Name)); err != nil {
 			return err
 		}
 	default:
-		if _, err := fmt.Fprintf(buf, "KEY `%s` (", index.Name); err != nil {
+		if _, err := fmt.Fprintf(buf, "KEY %s (", quoteIdent(index.Name)); err != nil {
 			return err
 		}
 	}
