@@ -1290,4 +1290,17 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, inlineUDFView, `WITH FUNCTION helper(x bigint) RETURNS bigint RETURN "cat"."s".cat_fn(x) + 1 SELECT helper(5), "cat".s.helper(5)`)
 	assert.Contains(t, inlineUDFView, `WITH FUNCTION helper(x bigint) RETURNS bigint RETURN "cat"."s".cat_fn(x) + 2 SELECT helper(6), "cat".s.helper(6)`)
+
+	// Self-recursive Trino SQL UDFs fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "rec_f",
+				Definition: "CREATE FUNCTION s.rec_f(x bigint) RETURNS bigint RETURN CASE WHEN x <= 0 THEN 0 ELSE s.rec_f(x - 1) END",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "self-recursive")
 }

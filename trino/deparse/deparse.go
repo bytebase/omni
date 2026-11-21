@@ -929,7 +929,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 			}
 			for _, depIdx := range matches {
 				if depIdx == i {
-					continue
+					return nil, fmt.Errorf("function %s.%s is self-recursive and cannot be restored because Trino disallows recursive SQL UDFs", f.schema, f.fn.Name)
 				}
 				if dependencies[i] == nil {
 					dependencies[i] = map[int]struct{}{}
