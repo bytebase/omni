@@ -1157,4 +1157,53 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.False(t, unTbl.GetColumn("inh").CollationExplicit)
 	require.True(t, unTbl.GetColumn("exp").CharsetExplicit)
 	require.True(t, unTbl.GetColumn("exp").CollationExplicit)
+
+	// Implicit subpartitions preserve UseDefault="default" without materializing p0sp0,
+	// and unresolved view columns retain supplied snapshot metadata across LoadMetadata.
+	subCat := New()
+	_, err = subCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE sub_default (
+			id INT NOT NULL,
+			k INT NOT NULL
+		) PARTITION BY RANGE (id) SUBPARTITION BY HASH (k) (PARTITION p0 VALUES LESS THAN (10));
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	subMeta := subCat.DatabaseMetadata("app")
+	require.Equal(t, "default", subMeta.Schemas[0].Tables[0].Partitions[0].Subpartitions[0].UseDefault)
+	subDef, err := DatabaseDefinition(subMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, subDef, "SUBPARTITION BY HASH (`k`)")
+	require.NotContains(t, subDef, "SUBPARTITION `p0sp0`")
+
+	reSubCat := New()
+	_, err = reSubCat.LoadMetadata(context.Background(), subMeta)
+	require.NoError(t, err)
+	reSubTbl := reSubCat.GetDatabase("app").GetTable("sub_default")
+	require.True(t, reSubTbl.Partitioning.UseDefaultSubpartitions)
+	require.True(t, reSubTbl.Partitioning.UseDefaultNumSubpartitions)
+
+	extCat := New()
+	_, err = extCat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_ext",
+				Definition: "select `unloaded_db`.`ext_tbl`.`id` AS `id`,`unloaded_db`.`ext_tbl`.`name` AS `name` from `unloaded_db`.`ext_tbl`",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int(11)", Nullable: false},
+					{Name: "name", Position: 2, Type: "varchar(32)", Nullable: true, CharacterSet: "utf8mb4", Collation: "utf8mb4_unicode_ci"},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	reExt := extCat.DatabaseMetadata("app").Schemas[0].Views[0]
+	require.Len(t, reExt.Columns, 2)
+	require.Equal(t, "int(11)", reExt.Columns[0].Type)
+	require.False(t, reExt.Columns[0].Nullable)
+	require.Equal(t, "varchar(32)", reExt.Columns[1].Type)
+	require.True(t, reExt.Columns[1].Nullable)
+	require.Equal(t, "utf8mb4_unicode_ci", reExt.Columns[1].Collation)
 }

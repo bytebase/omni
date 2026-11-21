@@ -251,6 +251,8 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 				col.Collation = cm.Collation
 				if cm.Type != nil {
 					col.Type = resolvedTypeToColumnType(cm.Type)
+				} else if cm.ColumnType != "" {
+					col.Type = cm.ColumnType
 				}
 			}
 			fillTargetCol(col, i, te)
@@ -270,6 +272,8 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			}
 			if cm.Type != nil {
 				col.Type = resolvedTypeToColumnType(cm.Type)
+			} else if cm.ColumnType != "" {
+				col.Type = cm.ColumnType
 			}
 			var te *TargetEntryQ
 			if i < len(nonJunkTargets) {
@@ -1489,7 +1493,16 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			Algorithm:  int32(p.Algorithm),
 		}
 		if p.SubType != "" {
-			if len(pd.SubPartitions) > 0 {
+			switch {
+			case p.UseDefaultSubpartitions && p.UseDefaultNumSubpartitions:
+				// Preserve implicit subpartition generation rather than exporting auto-populated entries.
+				part.Subpartitions = []*metadata.TablePartitionMetadata{{
+					Type:       subType,
+					Expression: subExpr,
+					UseDefault: "default",
+					Algorithm:  int32(p.SubAlgo),
+				}}
+			case len(pd.SubPartitions) > 0:
 				for _, spd := range pd.SubPartitions {
 					part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
 						Name:       spd.Name,
@@ -1501,7 +1514,7 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 						Algorithm:  int32(p.SubAlgo),
 					})
 				}
-			} else if subUseDefault != "" {
+			case subUseDefault != "":
 				part.Subpartitions = []*metadata.TablePartitionMetadata{{
 					Type:       subType,
 					Expression: subExpr,

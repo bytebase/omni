@@ -895,11 +895,16 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 	}
 
 	subUseDefault := 0
+	subImplicitDefault := false
 	if len(partitions[0].Subpartitions) > 0 && partitions[0].Subpartitions[0].UseDefault != "" {
-		var err error
-		subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
-		if err != nil {
-			return err
+		if partitions[0].Subpartitions[0].UseDefault == "default" {
+			subImplicitDefault = true
+		} else {
+			var err error
+			subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -953,7 +958,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			if includeComments {
 				partComment = partition.Comment
 			}
-			if subUseDefault == 0 && len(partition.Subpartitions) > 0 && !hasTemplate {
+			if !subImplicitDefault && subUseDefault == 0 && len(partition.Subpartitions) > 0 && !hasTemplate {
 				if err := writePartitionOptions(buf, engine, partComment); err != nil {
 					return err
 				}

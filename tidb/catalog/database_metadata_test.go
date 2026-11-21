@@ -1007,4 +1007,27 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Empty(t, mmCols["nn_nod"].Default)
 	require.Empty(t, mmCols["d_drop"].Default)
 	require.True(t, mmCols["d_drop"].DefaultDropped)
+
+	// Unresolved view columns retain supplied snapshot metadata across LoadMetadata -> DatabaseMetadata.
+	extCat := New()
+	_, err = extCat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_ext",
+				Definition: "select `unloaded_db`.`ext_tbl`.`id` AS `id`,`unloaded_db`.`ext_tbl`.`name` AS `name` from `unloaded_db`.`ext_tbl`",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int", Nullable: true},
+					{Name: "name", Position: 2, Type: "varchar(32)", Nullable: true},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	reExt := extCat.DatabaseMetadata("app").Schemas[0].Views[0]
+	require.Len(t, reExt.Columns, 2)
+	require.Equal(t, "id", reExt.Columns[0].Name)
+	require.Equal(t, "int", reExt.Columns[0].Type)
+	require.Equal(t, "name", reExt.Columns[1].Name)
+	require.Equal(t, "varchar(32)", reExt.Columns[1].Type)
 }

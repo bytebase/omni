@@ -153,9 +153,10 @@ type View struct {
 
 // ViewColumn is what the catalog derives for one column of a view.
 type ViewColumn struct {
-	Name      string
-	Charset   string
-	Collation string
+	Name       string
+	ColumnType string
+	Charset    string
+	Collation  string
 }
 
 // Routine represents a stored function or procedure in the catalog.

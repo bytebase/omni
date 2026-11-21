@@ -411,6 +411,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			return err
 		}
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
@@ -874,6 +875,35 @@ func nameViewColumnMetadata(v *View, names []string) {
 	}
 	for i, name := range names {
 		v.ColumnMetadata[i].Name = name
+	}
+}
+
+func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
+	if v == nil || len(cols) == 0 {
+		return
+	}
+	if len(v.ColumnMetadata) < len(cols) {
+		grown := make([]ViewColumn, len(cols))
+		copy(grown, v.ColumnMetadata)
+		v.ColumnMetadata = grown
+	}
+	for i, col := range cols {
+		vc := &v.ColumnMetadata[i]
+		if vc.Name == "" {
+			vc.Name = col.GetName()
+		}
+		if (v.AnalyzedQuery == nil || vc.Type == nil) && vc.ColumnType == "" {
+			vc.ColumnType = col.GetType()
+		}
+		if v.AnalyzedQuery == nil {
+			vc.Nullable = col.GetNullable()
+		}
+		if vc.Charset == "" {
+			vc.Charset = col.GetCharacterSet()
+		}
+		if vc.Collation == "" {
+			vc.Collation = col.GetCollation()
+		}
 	}
 }
 

@@ -405,6 +405,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		// than the snapshot records, so the snapshot names the rest. They are
 		// not a column list the view was created with, so they stay inferred.
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
 	case metadataFunction:
 		stmt, err := parseTiDBRoutine(o.function.GetDefinition(), false)
@@ -1124,6 +1125,32 @@ func nameViewColumns(v *View, names []string) {
 	}
 	for i, name := range v.Columns {
 		v.ColumnMetadata[i].Name = name
+	}
+}
+
+func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
+	if v == nil || len(cols) == 0 {
+		return
+	}
+	if len(v.ColumnMetadata) < len(cols) {
+		grown := make([]ViewColumn, len(cols))
+		copy(grown, v.ColumnMetadata)
+		v.ColumnMetadata = grown
+	}
+	for i, col := range cols {
+		vc := &v.ColumnMetadata[i]
+		if vc.Name == "" {
+			vc.Name = col.GetName()
+		}
+		if v.AnalyzedQuery == nil && vc.ColumnType == "" {
+			vc.ColumnType = col.GetType()
+		}
+		if vc.Charset == "" {
+			vc.Charset = col.GetCharacterSet()
+		}
+		if vc.Collation == "" {
+			vc.Collation = col.GetCollation()
+		}
 	}
 }
 

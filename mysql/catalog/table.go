@@ -163,11 +163,12 @@ type View struct {
 }
 
 type ViewColumn struct {
-	Name      string
-	Nullable  bool
-	Type      *ResolvedType
-	Charset   string
-	Collation string
+	Name       string
+	Nullable   bool
+	Type       *ResolvedType
+	ColumnType string
+	Charset    string
+	Collation  string
 }
 
 // Routine represents a stored function or procedure in the catalog.

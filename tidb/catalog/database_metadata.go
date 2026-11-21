@@ -224,6 +224,9 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 				col.Type = resolveAnalyzedExprColumnType(c, db, v.AnalyzedQuery, te.Expr)
 			}
 		}
+		if col.Type == "" && i < len(v.ColumnMetadata) && v.ColumnMetadata[i].ColumnType != "" {
+			col.Type = v.ColumnMetadata[i].ColumnType
+		}
 		cols = append(cols, col)
 	}
 	return cols

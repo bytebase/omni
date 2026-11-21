@@ -232,6 +232,8 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 				col.Collation = cm.Collation
 				if cm.Type != nil {
 					col.Type = resolvedTypeToColumnType(cm.Type)
+				} else if cm.ColumnType != "" {
+					col.Type = cm.ColumnType
 				}
 			}
 			fillTargetCol(col, i, te)
@@ -251,6 +253,8 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			}
 			if cm.Type != nil {
 				col.Type = resolvedTypeToColumnType(cm.Type)
+			} else if cm.ColumnType != "" {
+				col.Type = cm.ColumnType
 			}
 			var te *TargetEntryQ
 			if i < len(nonJunkTargets) {
