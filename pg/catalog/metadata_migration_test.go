@@ -6759,3 +6759,114 @@ func TestRound31Fixes(t *testing.T) {
 	require.Empty(t, Diff(ftRenApplied, ftRenTo).Relations)
 	require.Empty(t, Diff(ftRenApplied, ftRenTo).Grants)
 }
+
+func TestRound32Fixes(t *testing.T) {
+	// 1. FDW rename emits ALTER FOREIGN DATA WRAPPER RENAME TO and preserves dependent servers and foreign tables.
+	fdwFrom := New()
+	_, err := fdwFrom.Exec(`
+		CREATE FOREIGN DATA WRAPPER fdw_old OPTIONS (debug 'false');
+		CREATE SERVER srv_keep FOREIGN DATA WRAPPER fdw_old;
+		CREATE FOREIGN TABLE public.ft_keep (id int) SERVER srv_keep;
+	`, nil)
+	require.NoError(t, err)
+	fdwTo := fdwFrom.Clone()
+	_, err = fdwTo.Exec(`
+		ALTER FOREIGN DATA WRAPPER fdw_old RENAME TO fdw_new;
+		ALTER FOREIGN DATA WRAPPER fdw_new OPTIONS (SET debug 'true');
+	`, nil)
+	require.NoError(t, err)
+	fdwSQL := GenerateMigration(fdwFrom, fdwTo, Diff(fdwFrom, fdwTo)).SQL()
+	require.Contains(t, fdwSQL, `ALTER FOREIGN DATA WRAPPER fdw_old RENAME TO fdw_new`)
+	require.NotContains(t, fdwSQL, `DROP FOREIGN DATA WRAPPER`)
+	fdwApplied := fdwFrom.Clone()
+	fdwExec, err := fdwApplied.Exec(fdwSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range fdwExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(fdwApplied, fdwTo).ForeignDataWrappers)
+	require.Empty(t, Diff(fdwApplied, fdwTo).ForeignServers)
+	require.Empty(t, Diff(fdwApplied, fdwTo).ForeignTables)
+
+	// 2. Dropping an old SUPPORT routine after switching SUPPORT on a retained function defers DROP FUNCTION until after CREATE OR REPLACE.
+	supFrom := New()
+	_, err = supFrom.Exec(`
+		CREATE FUNCTION public.sup_old(internal) RETURNS internal LANGUAGE C STRICT AS 'internal', 's1';
+		CREATE FUNCTION public.sup_new(internal) RETURNS internal LANGUAGE C STRICT AS 'internal', 's2';
+		CREATE FUNCTION public.fn_with_sup(x int) RETURNS int LANGUAGE sql IMMUTABLE SUPPORT public.sup_old AS 'SELECT x';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	supTo := supFrom.Clone()
+	_, err = supTo.Exec(`
+		CREATE OR REPLACE FUNCTION public.fn_with_sup(x int) RETURNS int LANGUAGE sql IMMUTABLE SUPPORT public.sup_new AS 'SELECT x + 1';
+		DROP FUNCTION public.sup_old(internal);
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	supSQL := GenerateMigration(supFrom, supTo, Diff(supFrom, supTo)).SQL()
+	supReplaceIdx := strings.Index(supSQL, `CREATE OR REPLACE FUNCTION "public"."fn_with_sup"`)
+	supDropIdx := strings.Index(supSQL, `DROP FUNCTION "public"."sup_old"`)
+	require.NotEqual(t, -1, supReplaceIdx)
+	require.NotEqual(t, -1, supDropIdx)
+	require.Less(t, supReplaceIdx, supDropIdx)
+	supApplied := supFrom.Clone()
+	supExec, err := supApplied.Exec(supSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range supExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(supApplied, supTo).Functions)
+
+	// 3. Extension-membership (SkipDump) transitions on triggers do not emit spurious CREATE/DROP TRIGGER.
+	makeTrgMeta := func(skipDump bool) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "trg_fn",
+					Signature:  "trg_fn()",
+					Definition: `CREATE FUNCTION public.trg_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$`,
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t_ext_trg",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Triggers: []*metadatapb.TriggerMetadata{{
+						Name:     "tr_ext",
+						Body:     `CREATE TRIGGER tr_ext BEFORE INSERT ON public.t_ext_trg FOR EACH ROW EXECUTE FUNCTION public.trg_fn()`,
+						SkipDump: skipDump,
+					}},
+				}},
+			}},
+		}
+	}
+	sqlDetach, err := MetadataMigration(context.Background(), makeTrgMeta(true), makeTrgMeta(false), MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, sqlDetach, `CREATE TRIGGER`)
+	require.NotContains(t, sqlDetach, `DROP TRIGGER`)
+	sqlAttach, err := MetadataMigration(context.Background(), makeTrgMeta(false), makeTrgMeta(true), MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, sqlAttach, `CREATE TRIGGER`)
+	require.NotContains(t, sqlAttach, `DROP TRIGGER`)
+
+	// 4. Removing a parameter default from a retained function rebuilds dependent unchanged views.
+	defFrom := New()
+	_, err = defFrom.Exec(`
+		CREATE FUNCTION public.fn_def(a int DEFAULT 0) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT a + 1';
+		CREATE VIEW public.v_fn_def AS SELECT public.fn_def(1) AS val;
+	`, nil)
+	require.NoError(t, err)
+	defTo := New()
+	_, err = defTo.Exec(`
+		CREATE FUNCTION public.fn_def(a int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT a + 1';
+		CREATE VIEW public.v_fn_def AS SELECT public.fn_def(1) AS val;
+	`, nil)
+	require.NoError(t, err)
+	defSQL := GenerateMigration(defFrom, defTo, Diff(defFrom, defTo)).SQL()
+	defApplied := defFrom.Clone()
+	defExec, err := defApplied.Exec(defSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range defExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(defApplied, defTo).Functions)
+	require.Empty(t, Diff(defApplied, defTo).Relations)
+}

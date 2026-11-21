@@ -65,6 +65,18 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 			if entry.From == nil || entry.To == nil {
 				continue
 			}
+			if entry.From.Name != entry.To.Name {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s RENAME TO %s", quoteIdentifier(entry.From.Name), quoteIdentifier(entry.To.Name)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'F',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityFunction,
+				})
+			}
 			var clauses []string
 			if entry.From.Handler != entry.To.Handler {
 				if entry.To.Handler == "" {
@@ -115,6 +127,12 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 }
 
 func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	renamedFDWs := make(map[string]string)
+	for _, fdw := range diff.ForeignDataWrappers {
+		if fdw.Action == DiffModify && fdw.From != nil && fdw.To != nil && fdw.From.Name != fdw.To.Name {
+			renamedFDWs[fdw.From.Name] = fdw.To.Name
+		}
+	}
 	var ops []MigrationOp
 	for _, entry := range diff.ForeignServers {
 		switch entry.Action {
@@ -139,7 +157,8 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 			if entry.From == nil || entry.To == nil {
 				continue
 			}
-			if entry.From.FdwName != entry.To.FdwName || !stringPtrEqual(entry.From.Type, entry.To.Type) {
+			fdwChanged := entry.From.FdwName != entry.To.FdwName && renamedFDWs[entry.From.FdwName] != entry.To.FdwName
+			if fdwChanged || !stringPtrEqual(entry.From.Type, entry.To.Type) {
 				// DROP SERVER ... CASCADE would destroy unmodeled user mappings outside the catalog/snapshot.
 				ops = append(ops, MigrationOp{
 					Type:          OpAlterTable,

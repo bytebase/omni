@@ -350,7 +350,13 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			}
 		}
 	}
-	if len(tableOIDs) == 0 && len(directViewOIDs) == 0 {
+	rebuiltFuncOIDs := make(map[uint32]bool)
+	for _, fn := range diff.Functions {
+		if fn.Action == DiffModify && fn.From != nil && fn.To != nil && signatureChanged(from, fn.From, to, fn.To) {
+			rebuiltFuncOIDs[fn.From.OID] = true
+		}
+	}
+	if len(tableOIDs) == 0 && len(directViewOIDs) == 0 && len(rebuiltFuncOIDs) == 0 {
 		return ops
 	}
 
@@ -377,6 +383,21 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		seen[oid] = true
 		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
 		queue = append(queue, oid)
+	}
+	for _, d := range from.deps {
+		if d.RefType != 'f' || !rebuiltFuncOIDs[d.RefOID] || d.ObjType != 'r' || seen[d.ObjOID] {
+			continue
+		}
+		rel := from.GetRelationByOID(d.ObjOID)
+		if rel == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') || rel.Schema == nil {
+			continue
+		}
+		if toRel := to.GetRelation(rel.Schema.Name, rel.Name); toRel == nil || (toRel.RelKind != 'v' && toRel.RelKind != 'm') {
+			continue
+		}
+		seen[rel.OID] = true
+		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
+		queue = append(queue, rel.OID)
 	}
 	for len(queue) > 0 {
 		refOID := queue[0]

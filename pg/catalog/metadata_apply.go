@@ -218,6 +218,9 @@ func applyForeignDataWrapperDiffs(result *metadatapb.DatabaseSchemaMetadata, ent
 			if e.To == nil {
 				continue
 			}
+			if e.From != nil && e.From.Name != e.To.Name {
+				pop(e.From.Name)
+			}
 			upsert(toProto(e.To))
 		}
 	}
@@ -286,6 +289,9 @@ func applyForeignServerDiffs(result *metadatapb.DatabaseSchemaMetadata, entries 
 		case DiffModify:
 			if e.To == nil {
 				continue
+			}
+			if e.From != nil && e.From.Name != e.To.Name {
+				pop(e.From.Name)
 			}
 			upsert(toProto(e.To))
 		}

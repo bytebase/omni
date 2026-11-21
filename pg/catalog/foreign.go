@@ -768,12 +768,36 @@ func diffForeignDataWrappers(from, to *Catalog) []ForeignDataWrapperDiffEntry {
 		}
 	}
 	var out []ForeignDataWrapperDiffEntry
+	matchedFrom := make(map[string]bool)
+	matchedTo := make(map[string]bool)
+	unmatchedToByOID := make(map[uint32]*ForeignDataWrapper)
+	for name, toFdw := range toMap {
+		if _, ok := fromMap[name]; !ok && toFdw.OID != 0 {
+			unmatchedToByOID[toFdw.OID] = toFdw
+		}
+	}
 	for name, fromFdw := range fromMap {
+		if _, ok := toMap[name]; !ok && fromFdw.OID != 0 {
+			if toFdw, ok := unmatchedToByOID[fromFdw.OID]; ok {
+				matchedFrom[name] = true
+				matchedTo[toFdw.Name] = true
+				out = append(out, ForeignDataWrapperDiffEntry{Action: DiffModify, Name: toFdw.Name, From: fromFdw, To: toFdw})
+				delete(unmatchedToByOID, fromFdw.OID)
+			}
+		}
+	}
+	for name, fromFdw := range fromMap {
+		if matchedFrom[name] {
+			continue
+		}
 		if _, ok := toMap[name]; !ok {
 			out = append(out, ForeignDataWrapperDiffEntry{Action: DiffDrop, Name: name, From: fromFdw})
 		}
 	}
 	for name, toFdw := range toMap {
+		if matchedTo[name] {
+			continue
+		}
 		fromFdw, ok := fromMap[name]
 		if !ok {
 			out = append(out, ForeignDataWrapperDiffEntry{Action: DiffAdd, Name: name, To: toFdw})

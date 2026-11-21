@@ -210,6 +210,11 @@ func functionDetachedInPhaseMain(diff *SchemaDiff, proc *UserProc) bool {
 			return true
 		}
 	}
+	for _, fn := range diff.Functions {
+		if fn.Action == DiffModify && fn.From != nil && fn.From.SupportOID == proc.OID {
+			return true
+		}
+	}
 	return false
 }
 
