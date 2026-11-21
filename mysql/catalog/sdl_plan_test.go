@@ -329,3 +329,58 @@ func TestBuildSDLMigrationPlan_OfflineFixtures(t *testing.T) {
 		require.True(t, hasDropCol, "expected OpDropColumn in drop_heavy plan")
 	})
 }
+
+func TestLoadSDLInDatabasePreservesDeclaredDatabaseDefaults(t *testing.T) {
+	t.Run("create_database_if_not_exists_latin1", func(t *testing.T) {
+		sdl := "CREATE DATABASE IF NOT EXISTS app CHARACTER SET latin1;\nUSE app;\nCREATE TABLE t (name VARCHAR(20));\n"
+		c, err := LoadSDLInDatabase(sdl, "app")
+		require.NoError(t, err)
+		db := c.GetDatabase("app")
+		require.NotNil(t, db)
+		require.Equal(t, "latin1", db.Charset)
+		tbl := db.GetTable("t")
+		require.NotNil(t, tbl)
+		require.Equal(t, "latin1", tbl.Charset)
+
+		plan, err := BuildSDLMigrationPlan("", sdl, SDLMigrationOptions{Database: "app"})
+		require.NoError(t, err)
+		require.NotNil(t, plan)
+		require.Contains(t, plan.SQL(), "CHARSET=latin1")
+	})
+
+	t.Run("create_database_without_if_not_exists_latin1", func(t *testing.T) {
+		sdl := "CREATE DATABASE app CHARACTER SET latin1;\nUSE app;\nCREATE TABLE t (name VARCHAR(20));\n"
+		c, err := LoadSDLInDatabase(sdl, "app")
+		require.NoError(t, err)
+		require.Equal(t, "latin1", c.GetDatabase("app").GetTable("t").Charset)
+	})
+
+	t.Run("out_of_order_create_database_latin1", func(t *testing.T) {
+		sdl := "CREATE TABLE t (name VARCHAR(20));\nCREATE DATABASE IF NOT EXISTS app CHARACTER SET latin1;\n"
+		c, err := LoadSDLInDatabase(sdl, "app")
+		require.NoError(t, err)
+		require.Equal(t, "latin1", c.GetDatabase("app").GetTable("t").Charset)
+	})
+
+	t.Run("raw_sql_fallback_preserves_latin1", func(t *testing.T) {
+		sql := "CREATE DATABASE IF NOT EXISTS app CHARACTER SET latin1;\nUSE app;\nLOCK TABLES t WRITE;\nCREATE TABLE t (name VARCHAR(20));\nUNLOCK TABLES;\n"
+		c, err := LoadSDLInDatabase(sql, "app")
+		require.NoError(t, err)
+		require.Equal(t, "latin1", c.GetDatabase("app").Charset)
+		require.Equal(t, "latin1", c.GetDatabase("app").GetTable("t").Charset)
+	})
+
+	t.Run("raw_sql_fallback_without_if_not_exists_latin1", func(t *testing.T) {
+		sql := "CREATE DATABASE app CHARACTER SET latin1;\nUSE app;\nLOCK TABLES t WRITE;\nCREATE TABLE t (name VARCHAR(20));\nUNLOCK TABLES;\n"
+		c, err := LoadSDLInDatabase(sql, "app")
+		require.NoError(t, err)
+		require.Equal(t, "latin1", c.GetDatabase("app").GetTable("t").Charset)
+	})
+
+	t.Run("raw_sql_fallback_drop_then_create_latin1", func(t *testing.T) {
+		sql := "DROP DATABASE IF EXISTS app;\nCREATE DATABASE app CHARACTER SET latin1;\nUSE app;\nCREATE TABLE t (name VARCHAR(20));\n"
+		c, err := LoadSDLInDatabase(sql, "app")
+		require.NoError(t, err)
+		require.Equal(t, "latin1", c.GetDatabase("app").GetTable("t").Charset)
+	})
+}

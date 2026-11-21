@@ -40,63 +40,13 @@ type tapedDriver struct {
 
 func (tapedDriver) Close() error { return nil }
 
-// simCatalogDriver executes DDL against an in-memory omni catalog and exports
-// metadata via Catalog.DatabaseMetadata, allowing the large real-world,
-// enterprise, scale, and fuzz suites to run on every CI run without multi-MB
-// tapes or a live container.
-type simCatalogDriver struct {
-	srv    *liveServer
-	dbName string
-}
-
-func (d *simCatalogDriver) Execute(_ context.Context, script string, _ omnidriver.ExecuteOptions) (int64, error) {
-	c := d.srv.simDBs[d.dbName]
-	if c == nil {
-		return 0, fmt.Errorf("unknown simulated database %q", d.dbName)
-	}
-	// Run statement-by-statement via splitSQLSegments so multi-statement
-	// scripts with routine/trigger BEGIN...END blocks execute cleanly.
-	for _, seg := range splitSQLSegments(script) {
-		stmt := strings.TrimSpace(seg.Text)
-		if stmt == "" || stmt == ";" {
-			continue
-		}
-		results, err := c.Exec(stmt, nil)
-		if err != nil {
-			return 0, fmt.Errorf("exec %q: %w", stmt, err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				return 0, fmt.Errorf("exec %q: %w", stmt, r.Error)
-			}
-		}
-	}
-	return 0, nil
-}
-
-func (d *simCatalogDriver) SyncDatabase(_ context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	c := d.srv.simDBs[d.dbName]
-	if c == nil {
-		return nil, fmt.Errorf("unknown simulated database %q", d.dbName)
-	}
-	meta := c.DatabaseMetadata(d.dbName)
-	if meta == nil {
-		return &metadatapb.DatabaseSchemaMetadata{Name: d.dbName}, nil
-	}
-	return meta, nil
-}
-
-func (*simCatalogDriver) Close() error { return nil }
-
-// liveServer describes either a tape-replayed pinned MySQL 8.0 testcontainer
-// server (simulated=false) or an in-memory omni catalog server (simulated=true).
+// liveServer describes the pinned MySQL 8.0.46 server backed by omni's
+// deterministic tape harness (testcontainer.OpenRoot).
 type liveServer struct {
-	name      string
-	version   string
-	simulated bool
-	t         *testing.T
-	dbSeq     int
-	simDBs    map[string]*catalog.Catalog
+	name    string
+	version string
+	t       *testing.T
+	dbSeq   int
 }
 
 func (s *liveServer) nextDBName(prefix string) string {
@@ -125,30 +75,7 @@ func tapeOracleServers(t *testing.T) []*liveServer {
 	}}
 }
 
-// simOracleServers returns an in-memory catalog-backed server for the large
-// enterprise, scale, and seeded fuzz suites so they execute on every CI run.
-func simOracleServers(t *testing.T) []*liveServer {
-	t.Helper()
-	return []*liveServer{{
-		name:      "mysql80",
-		version:   "8.0.46",
-		simulated: true,
-		t:         t,
-		simDBs:    map[string]*catalog.Catalog{},
-	}}
-}
-
 func createLiveMySQLDriver(_ context.Context, srv *liveServer, database string) (sdlDriver, error) {
-	if srv.simulated {
-		if database != "" && srv.simDBs[database] == nil {
-			c, err := catalog.LoadSDLInDatabase("", database)
-			if err != nil {
-				return nil, err
-			}
-			srv.simDBs[database] = c
-		}
-		return &simCatalogDriver{srv: srv, dbName: database}, nil
-	}
 	db := testcontainer.OpenRoot(srv.t, testcontainer.Options{
 		Role:            testcontainer.Default,
 		Database:        database,
@@ -533,15 +460,8 @@ type breadthCase struct {
 
 // newLiveDatabase creates a fresh database on srv and registers cleanup. It returns the
 // database name so the caller can apply DDL and sync it repeatedly within one test.
-func createFreshDatabase(t *testing.T, srv *liveServer, dbName string) {
+func createFreshDatabase(t *testing.T, _ *liveServer, dbName string) {
 	t.Helper()
-	if srv.simulated {
-		c, err := catalog.LoadSDLInDatabase("", dbName)
-		require.NoError(t, err)
-		srv.simDBs[dbName] = c
-		t.Cleanup(func() { delete(srv.simDBs, dbName) })
-		return
-	}
 	testcontainer.Reset(t, testcontainer.Default, func(ctx context.Context, db *sql.DB) error {
 		for _, stmt := range []string{
 			fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName),
@@ -1328,7 +1248,7 @@ func objectCounts(meta *metadatapb.DatabaseSchemaMetadata) (tables, views, funcs
 func TestSDLRealWorldIdempotence(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, rw := range realWorldSchemas() {
@@ -1344,11 +1264,11 @@ func TestSDLRealWorldIdempotence(t *testing.T) {
 
 					// (1a) determinism.
 					selfDiff, err := mysqlDiffSDLMigration(source, source, srv.version)
-					if srv.simulated && rw.name == "mediawiki" {
-						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
-						// COLLATE binary_bin instead of binary. Assert explicitly so the test
-						// fails if the gap closes.
-						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, rw.name)
+					if rw.name == "mediawiki" {
+						// Known gap: mediawiki.categorylinks.cl_type (ENUM under binary table
+						// charset) dumps a default rejected by LoadSDL. Assert explicitly so
+						// the test fails if the gap closes.
+						require.ErrorContains(t, err, "Invalid default value for 'cl_type'", "[%s/%s] expected known mediawiki cl_type default gap", srv.name, rw.name)
 						return
 					}
 					require.NoError(t, err)
@@ -1647,7 +1567,7 @@ func TestSDLRealWorldMigrations(t *testing.T) {
 		byName[rw.name] = rw
 	}
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, sc := range rwScenarios() {
@@ -1663,11 +1583,11 @@ func TestSDLRealWorldMigrations(t *testing.T) {
 					require.NotEqual(t, source, target, "[%s/%s] scenario produced an identical target (no change)", srv.name, sc.name)
 
 					plan, err := mysqlDiffSDLMigration(source, target, srv.version)
-					if srv.simulated && rw.name == "mediawiki" {
-						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
-						// COLLATE binary_bin instead of binary. Assert explicitly so the test
-						// fails if the gap closes.
-						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, sc.name)
+					if rw.name == "mediawiki" {
+						// Known gap: mediawiki.categorylinks.cl_type (ENUM under binary table
+						// charset) dumps a default rejected by LoadSDL. Assert explicitly so
+						// the test fails if the gap closes.
+						require.ErrorContains(t, err, "Invalid default value for 'cl_type'", "[%s/%s] expected known mediawiki cl_type default gap", srv.name, sc.name)
 						return
 					}
 					require.NoError(t, err)
@@ -3499,7 +3419,7 @@ func TestSDLDeepScale(t *testing.T) {
 	const tableCount = 90
 	schemaDDL := genScaleSchema(tableCount)
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, dbName := syncMetadata(ctx, t, srv, "sdl_deep_scale", schemaDDL)
@@ -3655,13 +3575,18 @@ func entCorpora() []entCorpus {
 	}
 }
 
-// entLoadCorpus loads one corpus into a fresh scratch database.
-// Canonical dumps go through the engine's own dependency-ordered create plan
-// (dogfooding: every corpus load exercises the empty→schema ordering guarantees).
-func entLoadCorpus(ctx context.Context, t *testing.T, srv *liveServer, prefix string, corpus entCorpus) string {
+// entTryLoadCorpus loads one corpus into a fresh scratch database and returns
+// any apply error so callers can assert known pinned-server gaps explicitly.
+// Canonical dumps go through the engine's own dependency-ordered create plan.
+func entTryLoadCorpus(ctx context.Context, t *testing.T, srv *liveServer, prefix string, corpus entCorpus) (string, error) {
 	t.Helper()
 	if !corpus.canonical {
-		return entLoadDDL(ctx, t, srv, prefix+corpus.name, corpus.ddl)
+		dbName := newLiveDatabase(ctx, t, srv, prefix+corpus.name)
+		driver, err := createLiveMySQLDriver(ctx, srv, dbName)
+		require.NoError(t, err)
+		defer driver.Close()
+		_, err = driver.Execute(ctx, entNormalizeDelimiters(corpus.ddl), omnidriver.ExecuteOptions{})
+		return dbName, err
 	}
 	dbName := newLiveDatabase(ctx, t, srv, prefix+corpus.name)
 	plan, err := mysqlDiffSDLMigration("", corpus.ddl, srv.version)
@@ -3670,8 +3595,7 @@ func entLoadCorpus(ctx context.Context, t *testing.T, srv *liveServer, prefix st
 	require.NoError(t, err)
 	defer driver.Close()
 	_, err = driver.Execute(ctx, plan, omnidriver.ExecuteOptions{})
-	require.NoError(t, err, "[%s/%s] apply engine create plan", srv.name, corpus.name)
-	return dbName
+	return dbName, err
 }
 
 // entNormalizeDelimiters rewrites a multi-DELIMITER script into the no-DELIMITER form
@@ -4071,13 +3995,21 @@ func entAppendTableClause(t *testing.T, source, table, clause string) string {
 func TestSDLEnterpriseBaseline(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, corpus := range entCorpora() {
 				corpus := corpus
 				t.Run(corpus.name, func(t *testing.T) {
-					dbName := entLoadCorpus(ctx, t, srv, "entsdl_bl_", corpus)
+					dbName, loadErr := entTryLoadCorpus(ctx, t, srv, "entsdl_bl_", corpus)
+					if corpus.name == "sys" {
+						// Known gap against pinned mysql:8.0.46: sys.sql views reference
+						// information_schema.processlist.ID. Assert explicitly so the test
+						// fails if the gap closes.
+						require.ErrorContains(t, loadErr, "Unknown column 'information_schema.processlist.ID'", "[%s/%s] expected known sys processlist.ID gap", srv.name, corpus.name)
+						return
+					}
+					require.NoError(t, loadErr, "[%s/%s] apply corpus DDL", srv.name, corpus.name)
 					meta := syncMetaForDB(ctx, t, srv, dbName)
 					tbl, vw, fn, pr, tg := objectCounts(meta)
 					t.Logf("[BASELINE %s/%s] loaded: tables=%d views=%d functions=%d procedures=%d triggers=%d (db=%s)",
@@ -4087,11 +4019,11 @@ func TestSDLEnterpriseBaseline(t *testing.T) {
 					require.NotEmpty(t, source, "[%s/%s] MetadataToSDL produced empty SDL", srv.name, corpus.name)
 
 					selfDiff, err := mysqlDiffSDLMigration(source, source, srv.version)
-					if srv.simulated && corpus.name == "prestashop" {
+					if corpus.name == "prestashop" {
 						// Known gap: prestashop loads under SET SESSION sql_mode='', so its
-						// dumped SDL carries '0000-00-00 00:00:00' defaults that strict-mode
-						// LoadSDL rejects. Assert explicitly so the test fails if the gap closes.
-						require.ErrorContains(t, err, "Invalid default value", "[%s/%s] expected known zero-date strict-mode gap", srv.name, corpus.name)
+						// dumped SDL carries '0000-00-00 00:00:00' defaults rejected by
+						// strict-mode LoadSDL. Assert explicitly so the test fails if closed.
+						require.ErrorContains(t, err, "Invalid default value for 'last_flush'", "[%s/%s] expected known prestashop zero-date gap", srv.name, corpus.name)
 						return
 					}
 					require.NoError(t, err)
@@ -4547,7 +4479,7 @@ func entCRUDKinds() []entCRUDKind {
 func TestSDLEnterpriseSingleObjectCRUD(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, kind := range entCRUDKinds() {
@@ -4586,7 +4518,7 @@ func TestSDLEnterpriseSingleObjectCRUD(t *testing.T) {
 func TestSDLEnterpriseDependentObjects(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			t.Run("fk_chain_extend", func(t *testing.T) {
@@ -5062,7 +4994,7 @@ func TestSDLEnterpriseSpecialTypes(t *testing.T) {
 func TestSDLEnterpriseSequentialChain(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			base := entZabbixSlice(t, entSliceCoreTables...)
@@ -5127,7 +5059,7 @@ CREATE PROCEDURE ent_ch_p(IN aid BIGINT UNSIGNED) BEGIN DELETE FROM ent_ch_audit
 func TestSDLEnterpriseApplyBack(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := entLoadDDL(ctx, t, srv, "entsdl_a5back", entZabbixSlice(t, entSliceCoreTables...))
@@ -5171,7 +5103,7 @@ var entA5cAux string
 func TestSDLEnterpriseCombinedRelease(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			base := entZabbixSlice(t, entSliceCoreTables...) + entA5cAux
@@ -5215,7 +5147,7 @@ func TestSDLEnterpriseScaleGuard(t *testing.T) {
 	ctx := context.Background()
 	const budget = 30 * time.Second
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := entLoadDDL(ctx, t, srv, "entsdl_scale", entOpenemrSQL)
@@ -5261,13 +5193,21 @@ func TestSDLEnterpriseScaleGuard(t *testing.T) {
 func TestSDLEnterpriseMultiFileRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, corpus := range entCorpora() {
 				corpus := corpus
 				t.Run(corpus.name, func(t *testing.T) {
-					dbName := entLoadCorpus(ctx, t, srv, "entsdl_mf_", corpus)
+					dbName, loadErr := entTryLoadCorpus(ctx, t, srv, "entsdl_mf_", corpus)
+					if corpus.name == "sys" {
+						// Known gap against pinned mysql:8.0.46: sys.sql views reference
+						// information_schema.processlist.ID. Assert explicitly so the test
+						// fails if the gap closes.
+						require.ErrorContains(t, loadErr, "Unknown column 'information_schema.processlist.ID'", "[%s/%s] expected known sys processlist.ID gap", srv.name, corpus.name)
+						return
+					}
+					require.NoError(t, loadErr, "[%s/%s] apply corpus DDL", srv.name, corpus.name)
 					meta := syncMetaForDB(ctx, t, srv, dbName)
 
 					result, err := catalog.MultiFileDefinition(meta)
@@ -5280,11 +5220,11 @@ func TestSDLEnterpriseMultiFileRoundTrip(t *testing.T) {
 						srv.name, corpus.name, len(result), len(concat), len(single))
 
 					forward, err := mysqlDiffSDLMigration(concat, single, srv.version)
-					if srv.simulated && corpus.name == "prestashop" {
+					if corpus.name == "prestashop" {
 						// Known gap: prestashop loads under SET SESSION sql_mode='', so its
-						// dumped SDL carries '0000-00-00 00:00:00' defaults that strict-mode
-						// LoadSDL rejects. Assert explicitly so the test fails if the gap closes.
-						require.ErrorContains(t, err, "Invalid default value", "[%s/%s] expected known zero-date strict-mode gap", srv.name, corpus.name)
+						// dumped SDL carries '0000-00-00 00:00:00' defaults rejected by
+						// strict-mode LoadSDL. Assert explicitly so the test fails if closed.
+						require.ErrorContains(t, err, "Invalid default value for 'last_flush'", "[%s/%s] expected known prestashop zero-date gap", srv.name, corpus.name)
 						return
 					}
 					require.NoError(t, err)
@@ -5391,7 +5331,7 @@ func concatMultiFile(result []catalog.DefinitionFile) string {
 func TestMultiFileSDLExportRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, rw := range realWorldSchemas() {
@@ -5463,11 +5403,11 @@ func TestMultiFileSDLExportRoundTrip(t *testing.T) {
 					// (a) concat ≡ single-file: diffing the concatenated multi-file export against
 					// the single-file dump must be a no-op (both describe the identical schema).
 					diffVsSingle, err := mysqlDiffSDLMigration(concat, single, srv.version)
-					if srv.simulated && rw.name == "mediawiki" {
-						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
-						// COLLATE binary_bin instead of binary. Assert explicitly so the test
-						// fails if the gap closes.
-						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, rw.name)
+					if rw.name == "mediawiki" {
+						// Known gap: mediawiki.categorylinks.cl_type (ENUM under binary table
+						// charset) dumps a default rejected by LoadSDL. Assert explicitly so
+						// the test fails if the gap closes.
+						require.ErrorContains(t, err, "Invalid default value for 'cl_type'", "[%s/%s] expected known mediawiki cl_type default gap", srv.name, rw.name)
 						return
 					}
 					require.NoError(t, err)

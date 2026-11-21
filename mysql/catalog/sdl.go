@@ -66,27 +66,39 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	return loadSDL(sql, version, "")
 }
 
+// findCreateDatabase returns the index and node of the first CREATE DATABASE
+// statement matching dbName (case-insensitively), or (-1, nil) if none exists.
+func findCreateDatabase(stmts []nodes.Node, dbName string) (int, *nodes.CreateDatabaseStmt) {
+	for i, stmt := range stmts {
+		if cd, ok := stmt.(*nodes.CreateDatabaseStmt); ok && toLower(cd.Name) == toLower(dbName) {
+			return i, cd
+		}
+	}
+	return -1, nil
+}
+
 // loadSDL implements LoadSDLWithVersion with an optional pre-created default
 // database. When defaultDB is non-empty, the database is created and selected
-// directly on the catalog before parsing sql so unqualified DDL resolves
-// without prepending a synthetic SQL prologue (preserving exact caller-relative
-// parse error line and column numbers).
+// directly on the catalog without prepending a synthetic SQL prologue (preserving
+// exact caller-relative parse error line and column numbers). If sql contains an
+// explicit CREATE DATABASE matching defaultDB, that declaration initializes the
+// database so its declared charset/collation defaults are preserved.
 func loadSDL(sql string, version Version, defaultDB string) (*Catalog, error) {
 	c := New()
 	c.SetVersion(version)
 	c.session.ExplicitDefaultsForTimestamp = NormalizerFor(version).ExplicitDefaultsForTimestamp
-	if defaultDB != "" {
-		if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
-			return nil, err
-		}
-		c.SetCurrentDatabase(defaultDB)
-	}
 
 	list, err := mysqlparser.Parse(sql)
 	if err != nil {
 		return nil, err
 	}
 	if list == nil || len(list.Items) == 0 {
+		if defaultDB != "" {
+			if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
+				return nil, err
+			}
+			c.SetCurrentDatabase(defaultDB)
+		}
 		return c, nil
 	}
 	stmts := list.Items
@@ -94,6 +106,21 @@ func loadSDL(sql string, version Version, defaultDB string) (*Catalog, error) {
 	// Validate every statement before mutating any catalog state.
 	if err := validateSDL(stmts); err != nil {
 		return nil, err
+	}
+
+	skipDeclIdx := -1
+	if defaultDB != "" {
+		if declIdx, decl := findCreateDatabase(stmts, defaultDB); decl != nil {
+			if err := c.createDatabase(decl); err != nil {
+				return nil, err
+			}
+			skipDeclIdx = declIdx
+		} else {
+			if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
+				return nil, err
+			}
+		}
+		c.SetCurrentDatabase(defaultDB)
 	}
 
 	// Resolve the current database at each statement's ORIGINAL position so that,
@@ -119,6 +146,9 @@ func loadSDL(sql string, version Version, defaultDB string) (*Catalog, error) {
 	}
 
 	for _, idx := range order {
+		if idx == skipDeclIdx {
+			continue
+		}
 		// Restore the database current at this statement's original position, and
 		// keep FK checks off (a SET inside the SDL must not re-arm validation).
 		c.SetCurrentDatabase(dbAtIndex[idx])

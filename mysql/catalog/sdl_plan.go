@@ -65,35 +65,67 @@ func LoadSDLInDatabase(sql, dbName string) (*Catalog, error) {
 	return nil, sdlErr
 }
 
-// loadSQLInDatabase pre-creates and selects dbName, then executes sql via
-// Catalog.Exec. It rejects CREATE TABLE ... AS SELECT so the raw-SQL fallback
-// cannot silently omit tables that loadSDL refused.
+// loadSQLInDatabase pre-creates and selects dbName, then executes sql in
+// textual order. It rejects CREATE TABLE ... AS SELECT so the raw-SQL fallback
+// cannot silently omit tables that loadSDL refused, and initializes dbName from
+// an explicit matching CREATE DATABASE statement when present (unless preceded
+// by a DROP DATABASE for dbName) so declared database defaults are preserved.
 func loadSQLInDatabase(sql, dbName string) (*Catalog, error) {
 	list, err := mysqlparser.Parse(sql)
 	if err != nil {
 		return nil, err
 	}
+	var stmts []nodes.Node
 	if list != nil {
-		for _, stmt := range list.Items {
+		stmts = list.Items
+		for _, stmt := range stmts {
 			if ct, ok := stmt.(*nodes.CreateTableStmt); ok && ct.Select != nil {
 				return nil, errSDLDisallowedCTAS
 			}
 		}
 	}
 	c := New()
+	skipDeclIdx := -1
 	if dbName != "" {
-		if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: dbName, IfNotExists: true}); err != nil {
-			return nil, err
+		declIdx, decl := findCreateDatabase(stmts, dbName)
+		droppedBeforeDecl := false
+		for i := 0; i < declIdx; i++ {
+			if dd, ok := stmts[i].(*nodes.DropDatabaseStmt); ok && toLower(dd.Name) == toLower(dbName) {
+				droppedBeforeDecl = true
+				break
+			}
+		}
+		if decl != nil && !droppedBeforeDecl {
+			if err := c.createDatabase(decl); err != nil {
+				return nil, err
+			}
+			skipDeclIdx = declIdx
+		} else {
+			if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: dbName, IfNotExists: true}); err != nil {
+				return nil, err
+			}
 		}
 		c.SetCurrentDatabase(dbName)
 	}
-	results, err := c.Exec(sql, nil)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range results {
-		if r.Error != nil {
-			return c, r.Error
+	for i, item := range stmts {
+		if i == skipDeclIdx {
+			continue
+		}
+		if isDML(item) {
+			if err := validateExpressionSemantics(item); err != nil {
+				return c, err
+			}
+			continue
+		}
+		if containsParamMarker(item) {
+			return c, &Error{
+				Code:     0,
+				SQLState: "HY000",
+				Message:  "parameter marker (?) is not allowed in a DDL statement",
+			}
+		}
+		if err := c.processUtility(item, sql); err != nil {
+			return c, err
 		}
 	}
 	return c, nil

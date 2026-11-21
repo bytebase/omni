@@ -2,6 +2,7 @@ package catalog_test
 
 import (
 	"context"
+	"database/sql"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	omnidriver "github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/catalog"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // A4 of the ENTERPRISE smoke axes: a SEEDED, deterministic
@@ -774,16 +776,10 @@ func entFuzzScratchDB(ctx context.Context, t *testing.T, srv *liveServer) (strin
 	t.Helper()
 	dbName := newLiveDatabase(ctx, t, srv, "entsdl_fz")
 	drop := func() {
-		if srv.simulated {
-			delete(srv.simDBs, dbName)
-			return
-		}
-		c, err := createLiveMySQLDriver(ctx, srv, "")
-		if err != nil {
-			return
-		}
-		defer c.Close()
-		_, _ = c.Execute(ctx, "DROP DATABASE IF EXISTS `"+dbName+"`", omnidriver.ExecuteOptions{})
+		testcontainer.Reset(t, testcontainer.Default, func(ctx context.Context, db *sql.DB) error {
+			_, err := db.ExecContext(ctx, "DROP DATABASE IF EXISTS `"+dbName+"`")
+			return err
+		})
 	}
 	return dbName, drop
 }
@@ -873,7 +869,7 @@ func entFzDescs(muts []entFzMutation) []string {
 func TestSDLEnterpriseFuzz(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		const seedCount = 20
 		t.Run(srv.name, func(t *testing.T) {
@@ -2365,7 +2361,7 @@ func entSfRunSeed(ctx context.Context, t *testing.T, srv *liveServer, baseDDL st
 func TestSDLEnterpriseStatefulFuzz(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range simOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		const seedCount = 12
 		t.Run(srv.name, func(t *testing.T) {
