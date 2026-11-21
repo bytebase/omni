@@ -82,7 +82,7 @@ func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt
 // resolveParenSource resolves a parenthesized query expression: the inner query
 // (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
 // the inner's leftmost SELECT target list.
-func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) {
+func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parentScope *fromScope) {
 	mergedCTETables := cteTables
 	if len(stmt.CTEs) > 0 {
 		mergedCTETables = make(map[string]*ResolverTable)
@@ -102,7 +102,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		}
 	}
 
-	r.resolveWithCTEs(stmt.ParenSource, mergedCTETables)
+	r.resolveWithScope(stmt.ParenSource, mergedCTETables, parentScope)
 
 	if len(stmt.OrderBy) == 0 {
 		return
@@ -112,6 +112,10 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
+	return r.resolveWithScope(stmt, cteTables, nil)
+}
+
+func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parentScope *fromScope) *ast.SelectStmt {
 	if stmt == nil {
 		return nil
 	}
@@ -142,10 +146,10 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			}
 		}
 		if stmt.Left != nil {
-			r.resolveWithCTEs(stmt.Left, mergedCTETables)
+			r.resolveWithScope(stmt.Left, mergedCTETables, parentScope)
 		}
 		if stmt.Right != nil {
-			r.resolveWithCTEs(stmt.Right, mergedCTETables)
+			r.resolveWithScope(stmt.Right, mergedCTETables, parentScope)
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
@@ -158,7 +162,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// Parenthesized query expression: resolve the inner query (with the
 	// wrapper's CTEs visible) and the outer ORDER BY ordinals.
 	if stmt.ParenSource != nil {
-		r.resolveParenSource(stmt, cteTables)
+		r.resolveParenSource(stmt, cteTables, parentScope)
 		return stmt
 	}
 
@@ -220,6 +224,8 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		r.Lookup = r.withCTELookup(localCTETables)
 	}
 	sc := r.buildScope(stmt.From)
+	sc.parent = parentScope
+	sc.ctes = localCTETables
 	r.Lookup = origLookup
 
 	// Resolve JOIN ON conditions (walk FROM clause) BEFORE target list resolution
@@ -467,7 +473,7 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 			n.List[i] = r.resolveExpr(item, sc)
 		}
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveWithScope(n.Select, sc.ctes, sc)
 		}
 		return n
 	case *ast.BetweenExpr:
@@ -541,12 +547,12 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.ExistsExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveWithScope(n.Select, sc.ctes, sc)
 		}
 		return n
 	case *ast.SubqueryExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveWithScope(n.Select, sc.ctes, sc)
 		}
 		return n
 	case *ast.ResTarget:
@@ -559,36 +565,39 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 }
 
 // resolveColumnRef qualifies an unqualified column reference by finding which
-// table in scope contains the column.
+// table in scope (or an enclosing correlated scope) contains the column.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
-		// Check if this table name is in scope (might be an alias)
-		if sc.GetTable(col.Table) != nil {
-			// Find the effective name from scope (preserves case)
-			if entry, ok := sc.FirstEqualFold(col.Table); ok {
-				col.Table = entry.Name
+		for cur := sc; cur != nil; cur = cur.parent {
+			if cur.GetTable(col.Table) != nil {
+				// Find the effective name from scope (preserves case)
+				if entry, ok := cur.FirstEqualFold(col.Table); ok {
+					col.Table = entry.Name
+				}
+				return col
 			}
 		}
 		return col
 	}
 
-	// A column a NATURAL or USING join joins on is the one copy the join
-	// keeps, which comes from its right input in a RIGHT join.
-	if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
-		col.Table = c.qualifier
-		return col
-	}
+	for cur := sc; cur != nil; cur = cur.parent {
+		// A column a NATURAL or USING join joins on is the one copy the join
+		// keeps, which comes from its right input in a RIGHT join.
+		if c, ok := cur.coalesced[strings.ToLower(col.Column)]; ok {
+			col.Table = c.qualifier
+			return col
+		}
 
-	// Unqualified — qualify with the first table in scope holding the column.
-	// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
-	// field list is ambiguous. TODO: return error
-	entry, ok := sc.FirstWithColumn(col.Column)
-	if !ok {
-		// Column not found — return as-is (could be a literal alias or error)
-		return col
+		// Unqualified — qualify with the first table in scope holding the column.
+		// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
+		// field list is ambiguous. TODO: return error
+		if entry, ok := cur.FirstWithColumn(col.Column); ok {
+			col.Table = entry.Name
+			return col
+		}
 	}
-	col.Table = entry.Name
+	// Column not found — return as-is (could be a literal alias or error)
 	return col
 }
 

@@ -185,7 +185,7 @@ func TestGenerateView_AliasMatchingViewNameNoFalseEdge(t *testing.T) {
 	plan := viewPlanFor(t, MySQL80,
 		`CREATE TABLE t (id INT, x INT);`,
 		`CREATE TABLE t (id INT, x INT);
-CREATE VIEW a AS SELECT id AS b FROM t;
+CREATE VIEW a AS SELECT id AS b, x FROM t;
 CREATE VIEW b AS SELECT x FROM a;`)
 	ops := viewOps(plan)
 	posA, posB := -1, -1

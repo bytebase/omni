@@ -10,10 +10,11 @@ import (
 // analyzerScope wraps scope.Scope and adds analyzer-specific features:
 // parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	base   *scope.Scope
-	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
-	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	parent *analyzerScope
+	base    *scope.Scope
+	rteMap  []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	cols    [][]*Column // parallel to base entries: entry index -> catalog Column pointers
+	dbNames []string    // parallel to base entries: database name for base tables/views (empty for CTEs/derived)
+	parent  *analyzerScope
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.
@@ -51,6 +52,11 @@ func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
 
 // add registers a table reference in the scope.
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
+	s.addWithDB(name, "", rteIdx, columns)
+}
+
+// addWithDB registers a table reference in the scope along with its owning database name.
+func (s *analyzerScope) addWithDB(name, dbName string, rteIdx int, columns []*Column) {
 	visible := make([]*Column, 0, len(columns))
 	for _, c := range columns {
 		if c.Hidden == ColumnHiddenNone {
@@ -64,6 +70,7 @@ func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
 	s.cols = append(s.cols, visible)
+	s.dbNames = append(s.dbNames, dbName)
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.
@@ -132,6 +139,36 @@ func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error)
 // resolveQualifiedColumnFull resolves a qualified column, trying parent scopes
 // if not found locally. Returns (rteIdx, attNum, levelsUp, error).
 func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (int, int, int, error) {
+	return s.resolveSchemaQualifiedColumnFull("", tableName, colName)
+}
+
+// resolveSchemaQualifiedColumnFull resolves a schema.table.column (or table.column
+// when schemaName is empty), trying parent scopes if not found locally.
+func (s *analyzerScope) resolveSchemaQualifiedColumnFull(schemaName, tableName, colName string) (int, int, int, error) {
+	if schemaName != "" {
+		entries := s.base.AllEntries()
+		for i, e := range entries {
+			if i >= len(s.dbNames) || !strings.EqualFold(s.dbNames[i], schemaName) {
+				continue
+			}
+			if !strings.EqualFold(e.Name, tableName) {
+				continue
+			}
+			for j, col := range s.cols[i] {
+				if strings.EqualFold(col.Name, colName) {
+					return s.rteMap[i], j + 1, 0, nil
+				}
+			}
+			return 0, 0, 0, errNoSuchColumn(schemaName+"."+tableName+"."+colName, "field list")
+		}
+		if s.parent != nil {
+			rteIdx, attNum, parentLevels, parentErr := s.parent.resolveSchemaQualifiedColumnFull(schemaName, tableName, colName)
+			if parentErr == nil {
+				return rteIdx, attNum, parentLevels + 1, nil
+			}
+		}
+		return 0, 0, 0, errNoSuchColumn(schemaName+"."+tableName+"."+colName, "field list")
+	}
 	rteIdx, attNum, err := s.resolveQualifiedColumn(tableName, colName)
 	if err == nil {
 		return rteIdx, attNum, 0, nil

@@ -138,7 +138,7 @@ func floatLitResolvedType(raw string) *ResolvedType {
 // (setting LevelsUp > 0 when the column comes from a parent scope).
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
 	if ref.Table != "" {
-		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
+		rteIdx, attNum, levelsUp, err := scope.resolveSchemaQualifiedColumnFull(ref.Schema, ref.Table, ref.Column)
 		if err != nil {
 			return nil, err
 		}

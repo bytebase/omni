@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1879,9 +1880,8 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 
 // TestDeparseContainer_5_3_ColumnAliasPatterns verifies column and alias patterns
 // against MySQL 8.0 SHOW CREATE VIEW output.
-// columnAliasRefusals are the cases MySQL refuses, with the code it answers.
-// Each is a recorded gap: the catalog takes the view, and the case fails once
-// MySQL takes it or the catalog refuses it.
+// columnAliasRefusals are the cases both MySQL and the catalog refuse, with
+// the MySQL error code each must answer.
 var columnAliasRefusals = map[string]int{
 	// Two columns named a in one view: ER_DUP_FIELDNAME.
 	"same_name_columns_join": 1060,
@@ -1952,10 +1952,13 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
 				if code, ok := columnAliasRefusals[tc.name]; ok && strings.HasPrefix(err.Error(), fmt.Sprintf("Error %d ", code)) {
-					// omni gap: the catalog takes the view MySQL refuses.
-					results, err := New().Exec("CREATE DATABASE test; USE test; CREATE TABLE t1 (a INT, b INT); CREATE TABLE t2 (a INT, b INT); "+tc.viewSQL, nil)
-					if err != nil || len(results) == 0 || results[len(results)-1].Error != nil {
-						t.Errorf("the catalog refuses %s now (%v): take it off columnAliasRefusals and assert the code", tc.name, err)
+					results, execErr := New().Exec("CREATE DATABASE test; USE test; CREATE TABLE t1 (a INT, b INT); CREATE TABLE t2 (a INT, b INT); "+tc.viewSQL, nil)
+					if execErr != nil || len(results) == 0 || results[len(results)-1].Error == nil {
+						t.Fatalf("expected catalog to refuse %s with %d, got err=%v results=%+v", tc.name, code, execErr, results)
+					}
+					var ce *Error
+					if !errors.As(results[len(results)-1].Error, &ce) || ce.Code != code {
+						t.Errorf("catalog refused %s with %v, want error code %d", tc.name, results[len(results)-1].Error, code)
 					}
 					return
 				}

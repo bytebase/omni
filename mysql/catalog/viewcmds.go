@@ -66,6 +66,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	if checkBody {
+		if err := checkDuplicateViewColumns(viewCols); err != nil {
+			return err
+		}
+	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
@@ -98,28 +103,357 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 }
 
 // analyzeViewBody analyzes a view body for the semantic IR lineage and SDL
-// diff use, and reports the failures MySQL's CREATE VIEW reports too: a star
-// with no table to expand (1096), and a target-list column in a SELECT with no
-// FROM, which names no column at all (1054). The analyzer models less than the
-// engine here — it cannot resolve a select alias a HAVING or ORDER BY reads, for
-// one — so every other failure leaves a view without AnalyzedQuery rather than
-// refusing a view the engine accepts.
+// diff use, and reports the semantic failures MySQL's CREATE VIEW reports too.
+// Failures in alias-bearing clauses (GROUP BY, HAVING, ORDER BY) and
+// unsupported analyzer expressions leave the view without AnalyzedQuery rather
+// than refusing a view the engine accepts.
 func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
+	}
+	if err := c.validateViewBodyPreAnalysis(sel, source); err != nil {
+		return nil, err
 	}
 	if err := checkViewBodyStar(sel, source); err != nil {
 		return nil, err
 	}
 	q, err := c.AnalyzeSelectStmt(sel)
-	if err == nil {
-		return q, nil
+	if err != nil {
+		var refusal *Error
+		if errors.As(err, &refusal) {
+			if refusal.Code == ErrNoSuchTable && !isSystemDatabaseTableErr(refusal) {
+				return nil, refusal
+			}
+			if refusal.Code == ErrNoSuchColumn && !isAliasBearingColumnErr(refusal) && !hasSchemaQualifiedFuncCall(sel) {
+				return nil, refusal
+			}
+		}
 	}
-	var refusal *Error
-	if errors.As(err, &refusal) && refusal.Code == ErrNoSuchColumn && viewBodyMayNameNoColumn(sel) {
-		return nil, refusal
+	if postErr := validateViewBodyPostAnalysis(sel, source); postErr != nil {
+		return nil, postErr
 	}
-	return nil, nil
+	if err != nil {
+		return nil, nil
+	}
+	return q, nil
+}
+
+// retagNoSuchColumn updates the clause context of an ErrNoSuchColumn error so
+// analyzeViewBody can tell alias-bearing clauses (GROUP BY, HAVING, ORDER BY)
+// apart from field-list / WHERE column lookups.
+func retagNoSuchColumn(err error, context string) error {
+	var ce *Error
+	if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn && strings.HasSuffix(ce.Message, "in 'field list'") {
+		return &Error{
+			Code:     ce.Code,
+			SQLState: ce.SQLState,
+			Message:  strings.TrimSuffix(ce.Message, "in 'field list'") + "in '" + context + "'",
+		}
+	}
+	return err
+}
+
+func isAliasBearingColumnErr(ce *Error) bool {
+	return strings.HasSuffix(ce.Message, "in 'group statement'") ||
+		strings.HasSuffix(ce.Message, "in 'having clause'") ||
+		strings.HasSuffix(ce.Message, "in 'order clause'")
+}
+
+func isSystemDatabaseTableErr(ce *Error) bool {
+	for _, sysDB := range []string{"'information_schema.", "'performance_schema.", "'mysql.", "'sys."} {
+		if strings.Contains(strings.ToLower(ce.Message), sysDB) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkDuplicateViewColumns(cols []string) error {
+	seen := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		key := toLower(col)
+		if seen[key] {
+			return errDupColumn(col)
+		}
+		seen[key] = true
+	}
+	return nil
+}
+
+// collectReachableViewBlocks returns the query blocks MySQL resolves for sel:
+// the view body's own blocks plus any CTEs reached from it.
+func collectReachableViewBlocks(sel *nodes.SelectStmt, source string) []*nodes.SelectStmt {
+	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
+	body.walk(sel, nil, nil, source)
+	body.reach()
+	out := make([]*nodes.SelectStmt, 0, len(body.blocks))
+	for _, b := range body.blocks {
+		if b.owner != nil && !body.reads[b.owner] {
+			continue
+		}
+		out = append(out, b.block)
+	}
+	return out
+}
+
+// inspectBlockOwnNodes visits nodes belonging directly to block without
+// descending into nested SelectStmt query blocks or CTE definitions.
+// Also walks ValuesSource.Rows, which nodes.Inspect skips.
+func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
+	walk := func(root nodes.Node) {
+		nodes.Inspect(root, func(n nodes.Node) bool {
+			switch e := n.(type) {
+			case *nodes.SelectStmt:
+				if e != block {
+					return false
+				}
+			case *nodes.CommonTableExpr:
+				return false
+			}
+			return fn(n)
+		})
+	}
+	walk(block)
+	if block.ValuesSource != nil {
+		for _, row := range block.ValuesSource.Rows {
+			for _, item := range row {
+				if item != nil {
+					walk(item)
+				}
+			}
+		}
+	}
+}
+
+// validateViewBodyPreAnalysis checks view body restrictions that mysql:8.0.46
+// enforces ahead of column/table resolution (INTO clause, VALUES row errors,
+// LIMIT/NTILE variables, user variables, locking-clause table names).
+func (c *Catalog) validateViewBodyPreAnalysis(sel *nodes.SelectStmt, source string) error {
+	blocks := collectReachableViewBlocks(sel, source)
+	currentDB := c.CurrentDatabase()
+	for _, block := range blocks {
+		if block.Into != nil {
+			return errViewSelectClause("INTO")
+		}
+		if block.ValuesSource != nil {
+			for _, row := range block.ValuesSource.Rows {
+				if len(row) == 0 {
+					return errEmptyRowInTVC()
+				}
+				for _, item := range row {
+					if d, ok := item.(*nodes.DefaultExpr); ok && d.Column == "" {
+						return errDefaultAsValInTVC()
+					}
+				}
+			}
+		}
+		if block.Limit != nil {
+			for _, op := range []nodes.ExprNode{block.Limit.Count, block.Limit.Offset} {
+				switch e := op.(type) {
+				case *nodes.ColumnRef:
+					return errSPUndeclaredVar(e.Column)
+				case *nodes.VariableRef:
+					if !e.System {
+						return errViewSelectVariable()
+					}
+				}
+			}
+		}
+		var blockErr error
+		inspectBlockOwnNodes(block, func(n nodes.Node) bool {
+			if blockErr != nil {
+				return false
+			}
+			switch e := n.(type) {
+			case *nodes.VariableRef:
+				if !e.System {
+					blockErr = errViewSelectVariable()
+					return false
+				}
+			case *nodes.FuncCallExpr:
+				if strings.EqualFold(e.Name, "ntile") && !e.SpacedParen && e.Schema == "" && len(e.Args) >= 1 {
+					switch arg := e.Args[0].(type) {
+					case *nodes.ColumnRef:
+						blockErr = errSPUndeclaredVar(arg.Column)
+						return false
+					case *nodes.VariableRef:
+						if !arg.System {
+							blockErr = errViewSelectVariable()
+							return false
+						}
+					}
+				}
+			}
+			return true
+		})
+		if blockErr != nil {
+			return blockErr
+		}
+		if err := validateBlockLocking(block, currentDB); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateBlockLocking(block *nodes.SelectStmt, currentDB string) error {
+	clauses := make([]*nodes.ForUpdate, 0, 1+len(block.MoreLocking))
+	if block.ForUpdate != nil {
+		clauses = append(clauses, block.ForUpdate)
+	}
+	clauses = append(clauses, block.MoreLocking...)
+	if len(clauses) == 0 {
+		return nil
+	}
+	var relations map[string]bool
+	for _, fu := range clauses {
+		if fu == nil || len(fu.Tables) == 0 {
+			continue
+		}
+		if relations == nil {
+			relations = blockRelationNames(block)
+		}
+		for _, tbl := range fu.Tables {
+			name := tbl.Name
+			if tbl.Schema != "" {
+				name = tbl.Schema + "." + tbl.Name
+			}
+			matched := relations[name]
+			if !matched && tbl.Schema != "" && currentDB != "" && strings.EqualFold(tbl.Schema, currentDB) {
+				matched = relations[tbl.Name]
+			}
+			if !matched {
+				return errUnresolvedTableLock(tbl.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// validateViewBodyPostAnalysis checks view body restrictions enforced after
+// column/table resolution: window names & frames, top-level ROW() in target
+// list, GROUPING() without WITH ROLLUP, and non-constant ESCAPE / AGAINST args.
+func validateViewBodyPostAnalysis(sel *nodes.SelectStmt, source string) error {
+	blocks := collectReachableViewBlocks(sel, source)
+	for _, block := range blocks {
+		if err := validateBlockWindows(block); err != nil {
+			return err
+		}
+		for _, item := range block.TargetList {
+			expr := item
+			if rt, ok := item.(*nodes.ResTarget); ok {
+				expr = rt.Val
+			}
+			for {
+				p, ok := expr.(*nodes.ParenExpr)
+				if !ok {
+					break
+				}
+				expr = p.Expr
+			}
+			if row, ok := expr.(*nodes.RowExpr); ok && len(row.Items) != 1 {
+				return errOperandColumns(1)
+			}
+		}
+		var blockErr error
+		inspectBlockOwnNodes(block, func(n nodes.Node) bool {
+			if blockErr != nil {
+				return false
+			}
+			switch e := n.(type) {
+			case *nodes.FuncCallExpr:
+				if !block.WithRollup && strings.EqualFold(e.Name, "grouping") && !e.SpacedParen && e.Schema == "" {
+					blockErr = errInvalidGroupFuncUse()
+					return false
+				}
+			case *nodes.LikeExpr:
+				if e.Escape != nil && exprNamesColumn(e.Escape) {
+					blockErr = errWrongArguments("ESCAPE")
+					return false
+				}
+			case *nodes.MatchExpr:
+				if e.Against != nil && exprNamesColumn(e.Against) {
+					blockErr = errWrongArguments("AGAINST")
+					return false
+				}
+			}
+			return true
+		})
+		if blockErr != nil {
+			return blockErr
+		}
+	}
+	return nil
+}
+
+func validateBlockWindows(block *nodes.SelectStmt) error {
+	defined := make(map[string]bool, len(block.WindowClause))
+	for _, wd := range block.WindowClause {
+		if wd != nil && wd.Name != "" {
+			defined[toLower(wd.Name)] = true
+		}
+	}
+	var checkWin func(wd *nodes.WindowDef) error
+	checkWin = func(wd *nodes.WindowDef) error {
+		if wd == nil {
+			return nil
+		}
+		if wd.RefName != "" && !defined[toLower(wd.RefName)] {
+			return errWindowNoSuchWindow(wd.RefName)
+		}
+		if wd.Frame != nil {
+			if wd.Frame.Type == nodes.FrameGroups {
+				return errNotSupportedYet("GROUPS")
+			}
+			if wd.Frame.Exclude != "" {
+				return errNotSupportedYet("EXCLUDE")
+			}
+			if wd.Frame.Type == nodes.FrameRows {
+				if (wd.Frame.Start != nil && isIntervalExpr(wd.Frame.Start.Offset)) ||
+					(wd.Frame.End != nil && isIntervalExpr(wd.Frame.End.Offset)) {
+					return errWindowRangeFrameNumericType()
+				}
+			}
+			if wd.Frame.Start != nil && wd.Frame.Start.Type == nodes.BoundUnboundedFollowing {
+				return errWindowFrameStartIllegal()
+			}
+			if wd.Frame.End != nil && wd.Frame.End.Type == nodes.BoundUnboundedPreceding {
+				return errWindowFrameEndIllegal()
+			}
+		}
+		return nil
+	}
+	for _, wd := range block.WindowClause {
+		if err := checkWin(wd); err != nil {
+			return err
+		}
+	}
+	var winErr error
+	inspectBlockOwnNodes(block, func(n nodes.Node) bool {
+		if winErr != nil {
+			return false
+		}
+		if fc, ok := n.(*nodes.FuncCallExpr); ok && fc.Over != nil {
+			if err := checkWin(fc.Over); err != nil {
+				winErr = err
+				return false
+			}
+		}
+		return true
+	})
+	return winErr
+}
+
+func isIntervalExpr(expr nodes.ExprNode) bool {
+	for {
+		p, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = p.Expr
+	}
+	_, ok := expr.(*nodes.IntervalExpr)
+	return ok
 }
 
 // checkViewBodyStar refuses a view body whose star has no table to expand. Every
@@ -386,42 +720,22 @@ func isDualRef(expr nodes.TableExpr, source string) bool {
 	return source[start] != '`'
 }
 
-// viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that
-// therefore names nothing: a target expression, or a WHERE, outside a nested
-// query's own scope. The alias-bearing clauses (HAVING, GROUP BY, ORDER BY) are
-// left alone because the analyzer cannot resolve a select alias there, and a
-// schema-qualified call is left alone because its argument may name a stored
-// function's column. Measured on mysql:8.0.46.
-func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
-	if sel == nil {
-		return false
-	}
-	// A set operation's root carries no FROM or target list of its own; each
-	// arm is a scope of its own.
-	if sel.Left != nil || sel.Right != nil {
-		return viewBodyMayNameNoColumn(sel.Left) || viewBodyMayNameNoColumn(sel.Right)
-	}
-	if len(sel.From) != 0 {
-		return false
-	}
-	if exprNamesColumn(sel.Where) {
+// hasSchemaQualifiedFuncCall reports whether sel contains a schema-qualified
+// function call, whose arguments may reference a stored function's context
+// rather than a column in the outer SELECT.
+func hasSchemaQualifiedFuncCall(sel *nodes.SelectStmt) bool {
+	found := false
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if fc, ok := n.(*nodes.FuncCallExpr); ok && fc.Schema != "" {
+			found = true
+			return false
+		}
 		return true
-	}
-	for _, item := range sel.TargetList {
-		var val nodes.ExprNode
-		switch target := item.(type) {
-		case *nodes.ResTarget:
-			val = target.Val
-		case nodes.ExprNode:
-			val = target
-		default:
-			continue
-		}
-		if exprNamesColumn(val) {
-			return true
-		}
-	}
-	return false
+	})
+	return found
 }
 
 // exprNamesColumn reports whether expr reads a column of this scope. A nested
@@ -537,6 +851,9 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	viewCols := stmt.Columns
 	if !hasExplicit {
 		viewCols = derivedCols
+	}
+	if err := checkDuplicateViewColumns(viewCols); err != nil {
+		return err
 	}
 	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
