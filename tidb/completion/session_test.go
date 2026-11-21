@@ -132,16 +132,21 @@ func TestCompleteSession_QualifiedTableAcrossDatabases(t *testing.T) {
 	gotFuncQuote := postProcessSessionCandidates("SELECT ", len("SELECT "), false, []Candidate{
 		{Type: CandidateFunction, Text: "LEFT"},
 		{Type: CandidateFunction, Text: "my-func"},
+		{Type: CandidateFunction, Text: "f()"},
 	}, func(string, int) bool { return true })
 	require.True(t, containsCandidate(gotFuncQuote, "LEFT()", CandidateFunction), "got %v", gotFuncQuote)
 	require.False(t, containsCandidate(gotFuncQuote, "`LEFT`()", CandidateFunction), "got %v", gotFuncQuote)
 	require.True(t, containsCandidate(gotFuncQuote, "`my-func`()", CandidateFunction), "got %v", gotFuncQuote)
+	require.True(t, containsCandidate(gotFuncQuote, "`f()`()", CandidateFunction), "got %v", gotFuncQuote)
 
 	gotRoutineQuote := postProcessSessionCandidates("DROP FUNCTION ", len("DROP FUNCTION "), false, []Candidate{
 		{Type: CandidateFunction, Text: "my-func"},
+		{Type: CandidateFunction, Text: "f()"},
 	}, func(string, int) bool { return false })
 	require.True(t, containsCandidate(gotRoutineQuote, "`my-func`", CandidateFunction), "got %v", gotRoutineQuote)
+	require.True(t, containsCandidate(gotRoutineQuote, "`f()`", CandidateFunction), "got %v", gotRoutineQuote)
 	require.False(t, containsCandidate(gotRoutineQuote, "`my-func`()", CandidateFunction), "got %v", gotRoutineQuote)
+	require.False(t, containsCandidate(gotRoutineQuote, "f()", CandidateFunction), "got %v", gotRoutineQuote)
 }
 
 func TestCaretInsideBacktickIdentifier(t *testing.T) {

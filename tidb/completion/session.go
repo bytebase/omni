@@ -116,15 +116,13 @@ func postProcessSessionCandidates(
 		case isObjectIdentifierCandidate(c.Type):
 			text = QuoteIdentifierIfNeeded(c.Text, caretInBacktick)
 		case c.Type == CandidateFunction:
-			base, hadParens := strings.CutSuffix(text, "()")
 			// Preserve built-in function syntax unquoted (several built-ins such
 			// as IF/LEFT/REPLACE are reserved keywords); quote catalog stored
-			// functions before attaching invocation parens.
-			if caretInBacktick || dbQualified || !isBuiltinFunction(base) {
-				base = QuoteIdentifierIfNeeded(base, caretInBacktick)
+			// functions using the complete raw identifier before attaching call parens.
+			if caretInBacktick || dbQualified || !isBuiltinFunction(text) {
+				text = QuoteIdentifierIfNeeded(text, caretInBacktick)
 			}
-			text = base
-			if hadParens || shouldAppendFuncParens() {
+			if shouldAppendFuncParens() {
 				text += "()"
 			}
 		default:

@@ -263,6 +263,7 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "my_udf", Definition: "CREATE FUNCTION my_udf() RETURNS INT RETURN 1"},
 					{Name: "my-func", Definition: "CREATE FUNCTION `my-func`() RETURNS INT RETURN 1"},
+					{Name: "f()", Definition: "CREATE FUNCTION `f()`() RETURNS INT RETURN 1"},
 				},
 			}},
 		}, true),
@@ -278,7 +279,9 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 	require.False(t, containsCandidate(gotFunc, "`LEFT`()", CandidateFunction))
 	require.True(t, containsCandidate(gotFunc, "my_udf()", CandidateFunction))
 	require.True(t, containsCandidate(gotFunc, "`my-func`()", CandidateFunction), "got %v", gotFunc)
+	require.True(t, containsCandidate(gotFunc, "`f()`()", CandidateFunction), "got %v", gotFunc)
 	require.False(t, containsCandidate(gotFunc, "my-func()", CandidateFunction))
+	require.False(t, containsCandidate(gotFunc, "f()", CandidateFunction))
 	require.False(t, containsCandidate(gotFunc, "COUNT", CandidateFunction))
 
 	gotFuncParen := CompleteSession(context.Background(), cfg, "SELECT CO(a1) FROM t1", 1, len("SELECT CO"))
@@ -296,6 +299,8 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 		gotRoutine := CompleteSession(context.Background(), cfg, routineStmt, 1, len(routineStmt))
 		require.True(t, containsCandidate(gotRoutine, "my_udf", CandidateFunction), "%q should offer bare my_udf; got %v", routineStmt, gotRoutine)
 		require.True(t, containsCandidate(gotRoutine, "`my-func`", CandidateFunction), "%q should quote `my-func`; got %v", routineStmt, gotRoutine)
+		require.True(t, containsCandidate(gotRoutine, "`f()`", CandidateFunction), "%q should quote `f()`; got %v", routineStmt, gotRoutine)
+		require.False(t, containsCandidate(gotRoutine, "f()", CandidateFunction), "%q must preserve parens as quoted identifier; got %v", routineStmt, gotRoutine)
 		require.False(t, containsCandidate(gotRoutine, "my_udf()", CandidateFunction), "%q must not append (); got %v", routineStmt, gotRoutine)
 		require.False(t, containsCandidate(gotRoutine, "`my-func`()", CandidateFunction), "%q must not append (); got %v", routineStmt, gotRoutine)
 	}
@@ -673,7 +678,8 @@ func TestPostProcessSessionCandidates_PreservesDistinctDefinitionsAndParens(t *t
 		[]Candidate{
 			{Type: CandidateColumn, Text: "id", Definition: "appdb.t2.id | int"},
 			{Type: CandidateColumn, Text: "id", Definition: "appdb.t1.id | int"},
-			{Type: CandidateFunction, Text: "COUNT()"},
+			{Type: CandidateFunction, Text: "COUNT"},
+			{Type: CandidateFunction, Text: "f()"},
 			{Type: CandidateFunction, Text: "SUM"},
 		},
 		func(string, int) bool { return true },
@@ -684,6 +690,7 @@ func TestPostProcessSessionCandidates_PreservesDistinctDefinitionsAndParens(t *t
 		{Type: CandidateColumn, Text: "id", Definition: "appdb.t2.id | int"},
 		{Type: CandidateFunction, Text: "COUNT()"},
 		{Type: CandidateFunction, Text: "SUM()"},
+		{Type: CandidateFunction, Text: "`f()`()"},
 	}, got)
 
 	for _, tc := range []struct {

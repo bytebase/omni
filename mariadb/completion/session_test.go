@@ -48,13 +48,16 @@ func TestCompleteSession_ReservedWordIdentifiersSurface(t *testing.T) {
 			Schemas: []*metadatapb.SchemaMetadata{{Functions: []*metadatapb.FunctionMetadata{
 				{Name: "my_udf", Definition: "CREATE FUNCTION my_udf() RETURNS INT RETURN 1"},
 				{Name: "my-func", Definition: "CREATE FUNCTION `my-func`() RETURNS INT RETURN 1"},
+				{Name: "f()", Definition: "CREATE FUNCTION `f()`() RETURNS INT RETURN 1"},
 			}}},
 		}, true),
 	}, "DROP FUNCTION ", 1, len("DROP FUNCTION "))
 	require.True(t, containsCandidate(gotRoutine, "my_udf", CandidateFunction), "got %v", gotRoutine)
 	require.True(t, containsCandidate(gotRoutine, "`my-func`", CandidateFunction), "got %v", gotRoutine)
+	require.True(t, containsCandidate(gotRoutine, "`f()`", CandidateFunction), "got %v", gotRoutine)
 	require.False(t, containsCandidate(gotRoutine, "my_udf()", CandidateFunction), "got %v", gotRoutine)
 	require.False(t, containsCandidate(gotRoutine, "`my-func`()", CandidateFunction), "got %v", gotRoutine)
+	require.False(t, containsCandidate(gotRoutine, "f()", CandidateFunction), "got %v", gotRoutine)
 
 	gotFuncExpr := CompleteSession(context.Background(), SessionConfig{
 		DefaultDatabase: "testdb",
@@ -64,13 +67,16 @@ func TestCompleteSession_ReservedWordIdentifiersSurface(t *testing.T) {
 				Tables: []*metadatapb.TableMetadata{{Name: "t1", Columns: []*metadatapb.ColumnMetadata{{Name: "c1"}}}},
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "my-func", Definition: "CREATE FUNCTION `my-func`() RETURNS INT RETURN 1"},
+					{Name: "f()", Definition: "CREATE FUNCTION `f()`() RETURNS INT RETURN 1"},
 				},
 			}},
 		}, true),
 	}, "SELECT  FROM t1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotFuncExpr, "`my-func`()", CandidateFunction), "got %v", gotFuncExpr)
+	require.True(t, containsCandidate(gotFuncExpr, "`f()`()", CandidateFunction), "got %v", gotFuncExpr)
 	require.True(t, containsCandidate(gotFuncExpr, "LEFT()", CandidateFunction), "got %v", gotFuncExpr)
 	require.False(t, containsCandidate(gotFuncExpr, "`LEFT`()", CandidateFunction), "got %v", gotFuncExpr)
+	require.False(t, containsCandidate(gotFuncExpr, "f()", CandidateFunction), "got %v", gotFuncExpr)
 }
 
 func TestCompleteSession_ReadOnlyFiltersWriteKeywords(t *testing.T) {
