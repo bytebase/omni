@@ -2091,6 +2091,39 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				u = n.Uint64()
 			}
 			return userVarValue{kind: userVarString, str: strings.ToUpper(strconv.FormatUint(u, 16))}, true, nil
+		case "unhex":
+			// UNHEX reads its argument's string form as hex digit pairs into a
+			// binary string; an odd count takes a leading 0, and any other
+			// character makes it NULL. On mysql:8.0.46 UNHEX('3') is 0x03,
+			// UNHEX('0x61') and UNHEX(1.5) are NULL, and UNHEX(616263) is 'abc'.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("UNHEX")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			digits := v.str
+			switch v.kind {
+			case userVarString:
+			case userVarNumeric:
+				if v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						digits = setFormatDouble(f)
+					}
+				}
+			default:
+				return userVarValue{}, false, nil
+			}
+			if len(digits)%2 == 1 {
+				digits = "0" + digits
+			}
+			raw, herr := hex.DecodeString(digits)
+			if herr != nil {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: string(raw), binary: true}, true, nil
 		case "crc32":
 			// CRC32 is the IEEE checksum of the value's string form: a double
 			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.

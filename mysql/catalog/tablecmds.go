@@ -3123,6 +3123,24 @@ func isStringType(dt string) bool {
 	return false
 }
 
+// columnTypeLength is the length a column type such as varchar(20) declares,
+// 0 when it declares none.
+func columnTypeLength(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	if open < 0 {
+		return 0
+	}
+	end := strings.IndexByte(columnType[open:], ')')
+	if end < 0 {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(columnType[open+1 : open+end]))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 // convertToBinaryType converts a string-type column with CHARACTER SET binary
 // to the equivalent binary type (char->binary, varchar->varbinary, text->blob, etc.).
 func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {

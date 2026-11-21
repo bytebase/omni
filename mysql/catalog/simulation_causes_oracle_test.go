@@ -5317,6 +5317,51 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET FIELD with one argument", stmt: "SET @x = FIELD('a')", code: 1582},
 		{name: "SET HEX with two arguments", stmt: "SET @x = HEX(1, 2)", code: 1582},
 		{name: "SET LPAD with two arguments", stmt: "SET @x = LPAD('x', 2)", code: 1582},
+		{name: "SET UNHEX with no argument", stmt: "SET @x = UNHEX()", code: 1582},
+		// IF, IFNULL, COALESCE, NULLIF and CASE take the type their branches
+		// aggregate to.
+		{name: "functional index over IF(1, b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, b, b))))", code: 3757},
+		{name: "functional index over IFNULL(b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IFNULL(b, b))))", code: 3757},
+		{name: "functional index over COALESCE(b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((COALESCE(b, b))))", code: 3757},
+		{name: "functional index over NULLIF(b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((NULLIF(b, b))))", code: 3757},
+		{name: "functional index over CASE WHEN 1 THEN b ELSE b END", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((CASE WHEN 1 THEN b ELSE b END)))", code: 3757},
+		{name: "functional index over IF(1, v, t)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, v, t))))", code: 3757},
+		{name: "functional index over IF(1, NULL, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, NULL, b))))", code: 3757},
+		{name: "functional index over IF(1, j, j)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, j, j))))", code: 3753},
+		{name: "functional index over IFNULL(j, j)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IFNULL(j, j))))", code: 3753},
+		{name: "functional index over IF(1, g, g)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, g, g))))", code: 3760},
+		{name: "functional index over COALESCE(g, g)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((COALESCE(g, g))))", code: 3760},
+		{name: "functional index over IFNULL(p, g)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IFNULL(p, g))))", code: 3760},
+		{name: "functional index over COALESCE(v, j)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((COALESCE(v, j))))", code: 3757},
+		{name: "functional index over IF(1, g, 'x')", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, g, 'x'))))", code: 3757},
+		{name: "functional index over IFNULL(v2, v2)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IFNULL(v2, v2))))", code: 3757},
+		{name: "functional index over IF(1, v2, i)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, v2, i))))", code: 3757},
+		{name: "functional index over IF(1, v, v)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, v, v))))", code: 0},
+		{name: "functional index over IF(1, v, 1)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, v, 1))))", code: 0},
+		{name: "functional index over IF(1, i, 1.5)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, i, 1.5))))", code: 0},
+		{name: "functional index over NULLIF(v, 'a')", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((NULLIF(v, 'a'))))", code: 0},
+		{name: "functional index over IF(1, 'x', NULL)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, 'x', NULL))))", code: 0},
+		{name: "functional index over IF(1, d, d)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, d, d))))", code: 0},
+		{name: "functional index over CONCAT(g, 'x')", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((CONCAT(g, 'x'))))", code: 3757},
+		{name: "functional index over CONCAT(j, 'x')", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((CONCAT(j, 'x'))))", code: 3757},
+		{name: "functional index over CONCAT(p)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((CONCAT(p))))", code: 3757},
+		// ALTER TABLE ... CONVERT TO CHARACTER SET binary makes each character
+		// column its binary type and leaves ENUM and SET alone.
+		{
+			name:     "CONVERT TO CHARACTER SET binary",
+			setup:    []string{"CREATE TABLE a (c CHAR(10), v VARCHAR(20), tt TINYTEXT, t TEXT, mt MEDIUMTEXT, lt LONGTEXT, e ENUM('a','b'), s SET('x'), i INT, vb VARBINARY(5), KEY kv (v(5)), KEY kc (c)) DEFAULT CHARSET=utf8mb4"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET binary",
+			code:     0,
+			contains: []string{"`c` binary(10)", "`v` varbinary(20)", "`tt` tinyblob", "`t` blob", "`mt` mediumblob", "`lt` longblob", "`e` enum('a','b')", "`s` set('x')", "KEY `kv` (`v`(5))", "DEFAULT CHARSET=binary"},
+			omits:    []string{"char(10)", "varchar(20)", "text"},
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET binary and back",
+			setup:    []string{"CREATE TABLE a (v VARCHAR(20)) DEFAULT CHARSET=utf8mb4", "ALTER TABLE a CONVERT TO CHARACTER SET binary COLLATE binary"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:     0,
+			contains: []string{"`v` varbinary(20)"},
+		},
 		// The default undo tablespaces are reserved, active or not.
 		{name: "DROP UNDO TABLESPACE innodb_undo_002", stmt: "DROP UNDO TABLESPACE innodb_undo_002", code: 3119},
 		{name: "DROP TABLESPACE innodb_undo_002", stmt: "DROP TABLESPACE innodb_undo_002", code: 3119},
@@ -6509,6 +6554,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LPAD(NULL, 2, '0')", "LPAD('x', NULL, '0')", "LPAD('x', 2, NULL)", "RPAD('x', 5, 'ab')", "RPAD('abc', 2, 'z')", "LPAD(5, 3, 0)",
 		"LPAD('x', 2.5, '0')", "LPAD('x', '3', '0')", "LPAD(X'61', 3, 'b')", "LPAD('a', 3, X'00')", "LPAD('x', 1.5e0, '0')", "LPAD('', 2, '0')",
 		"LPAD('x', 18446744073709551615, '')", "LPAD('x', 70000000, '0')", "LPAD(1.5e0, 5, '0')", "LPAD('x', -0.4, '0')", "RPAD('é', 3, 'ü')",
+		"UNHEX('31')", "UNHEX('3')", "UNHEX('zz')", "UNHEX('')", "UNHEX(NULL)", "UNHEX('616')", "UNHEX(616263)", "UNHEX('0x61')",
+		"UNHEX('aB')", "UNHEX(' 61')", "UNHEX(1.5)", "UNHEX(12)", "UNHEX(X'3631')", "UNHEX(1e0)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6626,7 +6673,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

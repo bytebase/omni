@@ -486,6 +486,20 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			}
 			return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
 		}
+		switch strings.ToLower(e.Name) {
+		case "if":
+			if len(e.Args) == 3 {
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args[1:])
+			}
+		case "ifnull", "coalesce":
+			if len(e.Args) > 0 {
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args)
+			}
+		case "nullif":
+			if len(e.Args) == 2 {
+				return aggregateFunctionalIndexBranchTypes(tbl, e.Args[:1])
+			}
+		}
 		if rt := inferFunctionalIndexFuncType(tbl, e); rt != nil {
 			return rt
 		}
@@ -494,12 +508,116 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			args = append(args, &ConstExprQ{Type: inferFunctionalIndexExprType(tbl, arg)})
 		}
 		return functionReturnType(strings.ToLower(e.Name), args)
+	case *nodes.CaseExpr:
+		branches := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+		for _, w := range e.Whens {
+			if w != nil {
+				branches = append(branches, w.Result)
+			}
+		}
+		if e.Default != nil {
+			branches = append(branches, e.Default)
+		}
+		return aggregateFunctionalIndexBranchTypes(tbl, branches)
 	case *nodes.CastExpr:
 		if e.TypeName != nil {
 			return dataTypeToResolvedType(e.TypeName)
 		}
 	}
 	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255, widthUnknown: true}
+}
+
+// aggregateFunctionalIndexBranchTypes is the type of IF, IFNULL, COALESCE,
+// NULLIF and CASE: the type their value arguments aggregate to, a NULL literal
+// taking no part. On mysql:8.0.46 a BLOB or TEXT branch makes the result a LOB
+// (KEY ((IF(1, b, b))) and ((IF(1, v, b))) are 3757), JSON branches stay JSON
+// (3753) and geometry ones geometry (3760), JSON beside a string is a LONGTEXT
+// (3757), numbers stay numbers, and strings beside anything else are a string
+// as wide as the widest branch, so IF(1, varchar_600, i) is 3757 too. A mix
+// the catalog has not measured keeps the unknown placeholder.
+func aggregateFunctionalIndexBranchTypes(tbl *Table, branches []nodes.ExprNode) *ResolvedType {
+	unknown := &ResolvedType{BaseType: BaseTypeVarchar, Length: 255, widthUnknown: true}
+	var types []*ResolvedType
+	var kept []nodes.ExprNode
+	for _, b := range branches {
+		if _, isNull := peelFunctionalIndexParens(b).(*nodes.NullLit); isNull || b == nil {
+			continue
+		}
+		rt := inferFunctionalIndexExprType(tbl, b)
+		if rt == nil {
+			return unknown
+		}
+		types = append(types, rt)
+		kept = append(kept, b)
+	}
+	if len(types) == 0 {
+		return unknown
+	}
+	allJSON, allGeom, allNumeric, anyJSONOrGeom, anyLOB, anyBinaryLOB, anyBinary := true, true, true, false, false, false, false
+	for _, rt := range types {
+		isJSON := rt.BaseType == BaseTypeJSON
+		isGeom := isFunctionalIndexGeometryType(rt)
+		allJSON = allJSON && isJSON
+		allGeom = allGeom && isGeom
+		allNumeric = allNumeric && isResolvedNumericType(rt)
+		anyJSONOrGeom = anyJSONOrGeom || isJSON || isGeom
+		if isFunctionalIndexLOBType(rt) && !isJSON && !isGeom {
+			anyLOB = true
+			anyBinaryLOB = anyBinaryLOB || isResolvedBinaryType(rt)
+		}
+		anyBinary = anyBinary || isResolvedBinaryType(rt)
+	}
+	switch {
+	case allJSON:
+		return &ResolvedType{BaseType: BaseTypeJSON}
+	case allGeom:
+		return &ResolvedType{BaseType: BaseTypeGeometry}
+	case anyJSONOrGeom:
+		return &ResolvedType{BaseType: BaseTypeLongText}
+	case anyLOB && (anyBinaryLOB || anyBinary):
+		return &ResolvedType{BaseType: BaseTypeLongBlob}
+	case anyLOB:
+		return &ResolvedType{BaseType: BaseTypeLongText}
+	case allNumeric:
+		base := BaseTypeBigInt
+		for _, rt := range types {
+			switch rt.BaseType {
+			case BaseTypeFloat, BaseTypeDouble:
+				base = BaseTypeDouble
+			case BaseTypeDecimal:
+				if base != BaseTypeDouble {
+					base = BaseTypeDecimal
+				}
+			}
+		}
+		return &ResolvedType{BaseType: base}
+	}
+	same := true
+	for _, rt := range types[1:] {
+		same = same && rt.BaseType == types[0].BaseType
+	}
+	if same && !isResolvedStringType(types[0]) && !isResolvedBinaryType(types[0]) {
+		cp := *types[0]
+		return &cp
+	}
+	// Strings beside strings, numbers or temporals: as wide as the widest.
+	width, charset := 0, ""
+	for _, b := range kept {
+		n, ok, cs := inferStringExprLenAndCharset(tbl, b)
+		if !ok {
+			return unknown
+		}
+		if n > width {
+			width = n
+		}
+		if charset == "" && cs != "ascii" {
+			charset = cs
+		}
+	}
+	if anyBinary {
+		return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(width, 1)}
+	}
+	return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(width, 1), Charset: charset}
 }
 
 // functionalTypeWidthKnown reports a functional key part type whose width the
@@ -765,6 +883,11 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		for _, arg := range e.Args {
 			at := inferFunctionalIndexExprType(tbl, arg)
 			if isFunctionalIndexLOBType(at) {
+				// A JSON or geometry argument makes the result a LOB, not JSON
+				// or geometry: mysql:8.0.46 answers 3757 for KEY ((CONCAT(g, 'x'))).
+				if isFunctionalIndexJSONOrGeometryType(at) {
+					return &ResolvedType{BaseType: BaseTypeLongBlob}
+				}
 				return at
 			}
 			if isResolvedBinaryType(at) {
@@ -1026,6 +1149,11 @@ func resolvedTypeFromColumn(col *Column) *ResolvedType {
 		rt.BaseType = BaseTypeText
 	case "blob", "mediumblob", "longblob":
 		rt.BaseType = BaseTypeBlob
+	// A geometry column passed through IF or COALESCE stays geometry: mysql:8.0.46
+	// answers 3760 for KEY ((IF(1, g, g))).
+	case "geometry", "point", "linestring", "polygon", "multipoint", "multilinestring",
+		"multipolygon", "geometrycollection", "geomcollection":
+		rt.BaseType = BaseTypeGeometry
 	default:
 		rt.BaseType = BaseTypeVarchar
 	}

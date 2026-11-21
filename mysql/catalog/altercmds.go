@@ -2367,6 +2367,15 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	// Convert all string-type columns to the new charset/collation.
 	targetMB := charsetMaxBytes(charset)
 	for _, col := range tbl.Columns {
+		// CHARACTER SET binary makes a character column its binary type:
+		// mysql:8.0.46 converts CHAR(10), VARCHAR(20) and TEXT to BINARY(10),
+		// VARBINARY(20) and BLOB, and leaves ENUM and SET as they are.
+		if strings.EqualFold(charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			convertToBinaryType(col, &nodes.DataType{Length: columnTypeLength(col.ColumnType)})
+			col.CharsetExplicit = false
+			col.CollationExplicit = false
+			continue
+		}
 		if isStringType(col.DataType) {
 			if !strings.EqualFold(col.Charset, "binary") && charsetMaxBytes(col.Charset) < targetMB {
 				switch strings.ToLower(col.DataType) {
