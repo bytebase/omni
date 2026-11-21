@@ -1,41 +1,50 @@
 # Cassandra parser test data
 
-## `compat.tsv`: the grammar's rows
+## `compat.tsv`: Cassandra's verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
 `../../testdata/Cql.g4`, then its near-misses: the statement with one token
 dropped, the end cut off, a stray word inserted, or a keyword swapped. Each
-row has omni's verdict and the grammar's. `TestCompatibility`
-(`../compat_test.go`) reads it through `enginetest/compat`, which describes the
-columns and what passes. It starts no server, regenerates the rows from the
-grammar, and asks the judge again on every run.
+row has omni's verdict and the pinned Apache Cassandra 5.0.9 server's
+(`../../testdata/pins.tsv`). `TestCompatibility` (`../compat_test.go`) reads
+the file through `enginetest/compat` and starts no server. Recorded against
+`cassandra:5.0.9` (`OMNI_RECORD=1`) and verified byte-identical on a second
+fresh container (`OMNI_RECORD=verify`).
 
-| Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
+### Before vs. after upgrading from `grammar` to `engine`
+
+| Rows | Total | Agree | Only judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
+| **Before (`grammar` + 13 overrides)** | | | | |
 | One per alternative | 904 | 904 | 0 | 0 |
 | Near-misses | 2,037 | 2,036 | 1 | 0 |
+| All | 2,941 | 2,940 | 1 | 0 |
+| **After (`engine`, `cassandra:5.0.9`)** | | | | |
+| One per alternative | 904 | 899 | 0 | 5 |
+| Near-misses | 2,037 | 2,036 | 0 | 1 |
+| All | 2,941 | 2,935 | 0 | 6 |
 
 - **The grammar** is Apache Cassandra's own, `src/antlr/Cql.g`, `Parser.g` and
-  `Lexer.g` at `cassandra-5.0.9` (`../../testdata/pins.tsv`), beside it byte
-  for byte under the Apache License (`Cassandra.LICENSE`, `Cassandra.NOTICE`);
-  their SHA-256 is the pin's digest.
+  `Lexer.g` at `cassandra-5.0.9` (`grammar` role in `../../testdata/pins.tsv`),
+  beside it byte for byte under the Apache License (`Cassandra.LICENSE`,
+  `Cassandra.NOTICE`); `TestGrammarVendorDigest` holds them to their SHA-256.
 - **`Cql.g4` is converted from them** by `../cmd/antlr3to4`, since they are
   ANTLR 3. Each rule is under the file and line it came from, and what the
   conversion lost is noted beside it: actions, predicates, and alternatives an
   action always refuses (`COMPACT STORAGE` on a view, a bind marker as a
   keyspace, table, index or role name, a quoted user name).
   `TestCqlG4IsTheConversion` fails while `Cql.g4` is anything else. After a pin
-  bump replaces the three `.g` files:
+  bump replaces the server image and the three `.g` files:
 
   ```bash
   go run ./cassandra/parser/cmd/antlr3to4
-  OMNI_RECORD=1 go test ./cassandra/parser/ -run '^TestCompatibility$'
+  OMNI_RECORD=1 go test -timeout 20m ./cassandra/parser/ -run '^TestCompatibility$'
+  OMNI_RECORD=verify go test -timeout 20m ./cassandra/parser/ -run '^TestCompatibility$'
   ```
 - **Token forms** are in `../../testdata/tokens.tsv`, cited to `Lexer.g`.
   Three rows pick what rows write: `cident` is a name, since the rule lists
   `""` first and every column would carry it, and `COLUMNFAMILY | TABLE` and
-  `COLUMNFAMILIES | TABLES` are written by their current spelling. The judge
-  takes either.
+  `COLUMNFAMILIES | TABLES` are written by their current spelling.
 
 After a parser fix, commit the rows that now agree:
 
@@ -43,40 +52,72 @@ After a parser fix, commit the rows that now agree:
 go test ./cassandra/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## Who judges what
+## How the engine judge works
 
-No row is a server's answer: a recognizer over `Cql.g4` accepts a statement the
-grammar derives and rejects any other. `../../testdata/grammar-overrides.tsv`
-corrects it where an action of `Parser.g` refuses, while it parses, a
-statement the grammar derives: a column, property, role option or clustering
-order given twice, a column set twice, `FROZEN<>` on a native type, a custom
-type string naming no class, a JMX name with no domain. 13 rows, each cited to
-the `Parser.g` line and the Java it calls.
+`compatJudge` (`../compat_test.go`) starts the pinned `cassandra:5.0.9` image,
+verifies both the running container's image digest and
+`SELECT release_version FROM system.local`, and asks Cassandra about every
+statement via a CQL native-protocol `PREPARE` frame
+(`gocql.Session.StatementMetadata`). `PREPARE` runs Cassandra's ANTLR 3 lexer,
+parser (`Cql.g`, `Parser.g`, `Lexer.g`), and `Parser.g`'s inline Java actions
+without executing the statement, so no row mutates server state.
 
-## The work list
+`cassandraVerdict` classifies the response without guessing:
 
-One row disagrees: `DESCRIBE SCHEMA zzz`, which the grammar derives by reading
-`SCHEMA` as `K_KEYSPACE`'s second spelling (`Lexer.g:91-92`) while omni reads
-it as `K_SCHEMA`, defined first (`Lexer.g:90`). Which token ANTLR 3's lexer
-hands the parser decides the row, and a recognizer cannot tell; an engine
-judge would.
+1. **`err == nil`:** `PREPARE` parsed and prepared the statement -> **`accept`**.
+2. **Not a `gocql.RequestError`** (transport error, timeout, closed connection):
+   no verdict -> **fail the recording**.
+3. **`ErrCodeSyntax` (`0x2000`):** ANTLR lexer/parser error, `SyntaxException`,
+   or `addRecognitionError` in `Parser.g` -> **`reject`**.
+4. **`ErrCodeInvalid` (`0x2200`):** Cassandra uses `InvalidRequestException`
+   both inside `Parser.g` inline Java actions during parsing (e.g.
+   `CreateTableStatement.Raw.addColumn`, `extendClusteringOrder`,
+   `FunctionResource.functionFromCql`) and in post-parse `prepare()` /
+   `validate()` / schema-lookup checks (e.g. `"No keyspace has been
+   specified"`, `"ALTER [ROLE|USER] can't be empty"`, `"Global TTL on the BATCH
+   statement is not supported."`). To separate the two without matching message
+   strings, the judge sends a tail probe `stmt + "\n; )"` (the leading newline
+   closes any `--` or `//` comment; `;` ends `cqlStatement` in `query :
+   cqlStatement (';')* EOF`; `)` cannot appear before `EOF`):
+   - Probe returns **`ErrCodeSyntax` (`0x2000`)**: parsing reached `)` after
+     `cqlStatement`, proving `stmt` parsed cleanly to `EOF` and the `0x2200`
+     came after parsing -> **`accept`**.
+   - Probe returns **`ErrCodeInvalid` (`0x2200`)**: parsing aborted inside a
+     `Parser.g` action before reaching `)` -> **`reject`**.
+   - Any other probe outcome (success, non-`RequestError`, or another code): no
+     verdict -> **fail the recording**.
+5. **`ErrCodeUnauthorized` (`0x2100`), `ErrCodeConfig` (`0x2300`),
+   `ErrCodeAlreadyExists` (`0x2400`):** probed with `stmt + "\n; )"`; only a
+   probe `ErrCodeSyntax` (`0x2000`) proves the statement parsed cleanly before
+   the post-parse error -> **`accept`**. Any other probe result fails the
+   recording.
+6. **Any other Cassandra error code** (`ErrCodeServer`, `ErrCodeProtocol`,
+   `ErrCodeOverloaded`, timeouts, `ErrCodeUnprepared`, etc.): no verdict ->
+   **fail the recording**.
 
-## What the judge cannot decide
+## What the upgrade settled and surfaced
 
-- **Actions the overrides do not cover.** The 13 were read off `Parser.g` and
-  its Java for the rows this file holds; a new row that reaches an action
-  `Cql.g4` notes ("action may refuse the input") needs reading again. Running
-  Cassandra on the rows would settle them: the image exists, and an `engine`
-  judge is the upgrade.
-- **What fails only when the statement runs,** as a view with no `WHERE` or a
-  table with no primary key: Cassandra's parser takes these, so the grammar
-  judge accepts them.
-- **Lexing.** The recognizer reads a statement with a generic SQL lexer, not
-  `Lexer.g`. The generated rows write every token apart, so these show only in
-  a hand-added row:
-  - `//` starts a comment (`Lexer.g:394`); the recognizer reads `//`.
-  - A duration (`1d`), a UUID and a blob are one token each to Cassandra and
-    several to the recognizer, which matches them only as `tokens.tsv` spells
-    them.
-  - Any number stands for any number token: `0x1` where an `INTEGER` is due.
-  - `-1` is one `INTEGER` (`Lexer.g:337`); the recognizer reads `-` and `1`.
+- **`DESCRIBE SCHEMA zzz` settled (`reject` / `reject`).** Cassandra 5.0.9
+  lexes `SCHEMA` as `K_SCHEMA` (`Lexer.g:90`), not `K_KEYSPACE`, and rejects
+  `DESCRIBE SCHEMA zzz` with `0x2000` (`line 1:16 mismatched input 'zzz'
+  expecting EOF`), confirming omni's parser.
+- **All 13 former `grammar-overrides.tsv` rows confirmed `reject`.** Ten return
+  `0x2000` directly and three (`CREATE TABLE` duplicate column, `CREATE TABLE`
+  duplicate `CLUSTERING ORDER BY`, `CREATE MATERIALIZED VIEW` duplicate
+  `CLUSTERING ORDER BY`) throw `0x2200` inside `Parser.g` actions and are
+  classified `reject` by the tail probe. `grammar-overrides.tsv` is no longer
+  needed and was removed.
+- **6 real `cassandra/parser` disagreements surfaced (work list).** All 6 are
+  unqualified function names in `functionResource` (`LIST ALL ON FUNCTION
+  a(...)`, 5 alternatives and 1 near-miss):
+  - `LIST ALL ON FUNCTION a()` (2 rows)
+  - `LIST ALL ON FUNCTION a(zzz)` (1 near-miss row; `zzz` parses as a UDT name)
+  - `LIST ALL ON FUNCTION a(ASCII)` (2 rows)
+  - `LIST ALL ON FUNCTION a(ASCII, ASCII)` (1 row)
+
+  In `Parser.g:1191`, `FunctionResource.functionFromCql($fn.s.keyspace, ...)`
+  unconditionally rejects an unqualified function name during parsing with
+  `0x2200` (`"In this context function name must be explictly qualified by a
+  keyspace"`), regardless of session keyspace. `cassandra/parser` currently
+  accepts these and will be updated to require a keyspace qualifier on
+  `FUNCTION` resources in a follow-up PR.
