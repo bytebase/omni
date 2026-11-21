@@ -273,6 +273,11 @@ type builder struct {
 	// and index names they bring in (leave, arrive).
 	early   bool
 	arrived map[walk.Key]bool
+	// consumedFKGen tracks synced FK-generated index candidates already
+	// consumed earlier in the current statement so later subcommands in the
+	// same ALTER TABLE do not still treat them as generated candidates or
+	// overwrite their explicit Present/Absent facts with Unknown.
+	consumedFKGen map[walk.Key]bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index
@@ -577,6 +582,28 @@ func (b *builder) forgetTemporary() {
 	b.Forget(walk.Scope{Space: spaceTemporary, Deep: true})
 }
 
+// isFKGenerated reports whether k is still a tracked synced FK-generated index
+// candidate (not already consumed by an earlier subcommand in this statement).
+func (b *builder) isFKGenerated(k walk.Key) bool {
+	return b.w.fkGeneratedIndexes[k] && !b.consumedFKGen[k]
+}
+
+// consumeFKGenerated marks k as no longer a generated-FK candidate for the
+// remainder of this statement and removes it from w.fkGeneratedIndexes once
+// the statement applies.
+func (b *builder) consumeFKGenerated(k walk.Key) {
+	if !b.isFKGenerated(k) {
+		return
+	}
+	if b.consumedFKGen == nil {
+		b.consumedFKGen = make(map[walk.Key]bool)
+	}
+	b.consumedFKGen[k] = true
+	b.Session(func() {
+		delete(b.w.fkGeneratedIndexes, k)
+	})
+}
+
 // onIndexAdded updates tracked FK-generated indexes on r after a statement adds
 // an index (with key ik when knownName is true): MySQL drops any generated FK
 // backing index that the new index makes redundant, so other synced candidates
@@ -585,7 +612,7 @@ func (b *builder) onIndexAdded(r tableRef, ik walk.Key, knownName bool) {
 	parent := tablePath(r.db, r.name)
 	var others []walk.Key
 	for gk := range b.w.fkGeneratedIndexes {
-		if gk.Parent != parent {
+		if gk.Parent != parent || b.consumedFKGen[gk] {
 			continue
 		}
 		if knownName && gk == ik {
@@ -596,16 +623,10 @@ func (b *builder) onIndexAdded(r tableRef, ik walk.Key, knownName bool) {
 	slices.SortFunc(others, func(a, b walk.Key) int { return strings.Compare(a.Name, b.Name) })
 	for _, gk := range others {
 		b.Set(gk, walk.Unknown, "")
+		b.consumeFKGenerated(gk)
 	}
-	if len(others) > 0 || (knownName && b.w.fkGeneratedIndexes[ik]) {
-		b.Session(func() {
-			for _, gk := range others {
-				delete(b.w.fkGeneratedIndexes, gk)
-			}
-			if knownName {
-				delete(b.w.fkGeneratedIndexes, ik)
-			}
-		})
+	if knownName {
+		b.consumeFKGenerated(ik)
 	}
 }
 

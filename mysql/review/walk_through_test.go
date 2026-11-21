@@ -426,6 +426,16 @@ func TestWalkThroughMySQLFKGeneratedIndex(t *testing.T) {
 
 	// RENAME TABLE carries the FK-generated index candidate to the new table name.
 	noFinding(t, "RENAME TABLE child TO child2;\nCREATE INDEX fk_pid ON child2 (pid);", target)
+
+	// Explicitly adding fk_pid in a multi-command ALTER preserves its Present fact
+	// regardless of whether an unrelated ADD INDEX comes before or after it.
+	oneFinding(t, "ALTER TABLE child ADD INDEX fk_pid (pid), ADD INDEX idx_new (other);\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+	oneFinding(t, "ALTER TABLE child ADD INDEX idx_new (other), ADD INDEX fk_pid (pid);\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+
+	// Dropping or renaming fk_pid alongside another ADD INDEX in the same ALTER
+	// preserves its Absent fact for subsequent statements.
+	oneFinding(t, "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
+	oneFinding(t, "ALTER TABLE child RENAME INDEX fk_pid TO fk_pid_explicit, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
 }
 
 // formLowering walks a form on the schema, as walktest.Coverage asks.

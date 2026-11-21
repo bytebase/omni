@@ -48,7 +48,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if v.IfNotExists {
 		b.Next()
 		b.Optional()
-	} else if !b.w.fkGeneratedIndexes[ik] {
+	} else if !b.isFKGenerated(ik) {
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")

@@ -249,9 +249,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.leave(fk)
 			b.arrive(tk)
 		}
-		if b.w.fkGeneratedIndexes[fk] {
-			b.Session(func() { delete(b.w.fkGeneratedIndexes, fk) })
-		}
+		b.consumeFKGenerated(fk)
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
@@ -259,9 +257,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		ik := idxKey(r.db, r.name, k)
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
-		if b.w.fkGeneratedIndexes[ik] {
-			b.Session(func() { delete(b.w.fkGeneratedIndexes, ik) })
-		}
+		b.consumeFKGenerated(ik)
 	default:
 		return alterNoFacts(c)
 	}
@@ -460,7 +456,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
 			ik := idxKey(r.db, r.name, k)
-			if !b.w.fkGeneratedIndexes[ik] {
+			if !b.isFKGenerated(ik) {
 				b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 			}
 		}
@@ -482,9 +478,7 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range) bool 
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)
-	if b.w.fkGeneratedIndexes[ik] {
-		b.Session(func() { delete(b.w.fkGeneratedIndexes, ik) })
-	}
+	b.consumeFKGenerated(ik)
 	return true
 }
 
