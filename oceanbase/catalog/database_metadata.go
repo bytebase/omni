@@ -203,6 +203,7 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			if col.Type == "" {
 				col.Type = colType
 			}
+			// OceanBase keeps base-column nullability across outer joins (viewcmds.go).
 			col.Nullable = nullable
 			if charset != "" {
 				col.CharacterSet = charset

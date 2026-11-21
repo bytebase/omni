@@ -697,6 +697,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 				}
 			}
 		case ConForeignKey:
+			// Omitted actions default to NO ACTION in TiDB REFERENTIAL_CONSTRAINTS (scenarios_c21_test.go).
 			onUpdate := con.OnUpdate
 			if onUpdate == "" {
 				onUpdate = "NO ACTION"

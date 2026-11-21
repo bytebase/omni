@@ -837,6 +837,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	for _, con := range t.Constraints {
 		switch con.Type {
 		case ConForeignKey:
+			// Omitted actions default to NO ACTION in MySQL 8.0 REFERENTIAL_CONSTRAINTS.
 			onUpdate := con.OnUpdate
 			if onUpdate == "" {
 				onUpdate = "NO ACTION"
