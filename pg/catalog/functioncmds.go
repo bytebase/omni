@@ -887,6 +887,7 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 		c.recordDepsFromNode(objType, objOID, v.Arg)
 	case *nodes.TypeCast:
 		c.recordDepsFromNode(objType, objOID, v.Arg)
+		c.recordDepsOnTypeName(objType, objOID, v.TypeName)
 	case *nodes.CoalesceExpr:
 		c.recordDepsFromNode(objType, objOID, v.Args)
 	case *nodes.CaseExpr:
@@ -962,6 +963,22 @@ func (c *Catalog) recordDepsOnRangeVar(objType byte, objOID uint32, rv *nodes.Ra
 	}
 }
 
+// recordDepsOnTypeName records a dependency on the user-defined type a cast
+// names, and on its element type when it names an array of one.
+func (c *Catalog) recordDepsOnTypeName(objType byte, objOID uint32, tn *nodes.TypeName) {
+	if tn == nil {
+		return
+	}
+	oid, _, err := c.resolveTypeName(tn)
+	if err != nil || oid < FirstNormalObjectId {
+		return
+	}
+	c.recordDependency(objType, objOID, 0, 't', oid, 0, DepNormal)
+	if bt := c.typeByOID[oid]; bt != nil && bt.Elem >= FirstNormalObjectId {
+		c.recordDependency(objType, objOID, 0, 't', bt.Elem, 0, DepNormal)
+	}
+}
+
 // recordDepsOnFuncCall resolves a FuncCall AST node to matching user-defined
 // routine(s) and records DepNormal dependencies when found.
 func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.FuncCall) {
@@ -972,7 +989,7 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 	if funcName == "" {
 		return
 	}
-	procs := c.filterProcsBySearchPath(schemaName, c.procByName[strings.ToLower(funcName)])
+	procs := c.filterProcsBySearchPath(schemaName, c.procByName[funcName])
 	if len(procs) == 0 {
 		return
 	}

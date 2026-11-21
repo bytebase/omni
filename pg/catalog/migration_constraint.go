@@ -178,6 +178,13 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 			qualifiedTable, quoteIdentifier(con.Name),
 			joinQuoted(colNames), refTable, joinQuoted(refColNames))
 
+		// MATCH SIMPLE is the default; FULL and PARTIAL must be spelled out.
+		switch con.FKMatchType {
+		case 'f':
+			fkClause += " MATCH FULL"
+		case 'p':
+			fkClause += " MATCH PARTIAL"
+		}
 		// ON DELETE action.
 		if action := fkActionString(con.FKDelAction); action != "" {
 			fkClause += " ON DELETE " + action

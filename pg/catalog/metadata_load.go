@@ -1278,6 +1278,14 @@ func metadataKeyConstraint(idx *metadata.IndexMetadata) ConstraintDef {
 	for _, expr := range idx.GetExpressions() {
 		def.Columns = append(def.Columns, unquoteIdent(expr))
 	}
+	// Expressions holds only the key columns; INCLUDE columns are in the definition.
+	if stmt, err := parseStatement[*nodes.IndexStmt](idx.GetDefinition()); err == nil && stmt.IndexIncludingParams != nil {
+		for _, item := range stmt.IndexIncludingParams.Items {
+			if elem, ok := item.(*nodes.IndexElem); ok && elem.Name != "" {
+				def.IncludeColumns = append(def.IncludeColumns, elem.Name)
+			}
+		}
+	}
 	return def
 }
 

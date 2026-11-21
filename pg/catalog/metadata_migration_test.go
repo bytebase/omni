@@ -7280,3 +7280,141 @@ func TestRound36Fixes(t *testing.T) {
 	require.Empty(t, reloadReport.Degraded)
 	require.Empty(t, Diff(reloaded, exclAfter).Relations)
 }
+
+func TestRound37Fixes(t *testing.T) {
+	// 1. A SQL-standard body calling a quoted mixed-case routine orders the callee first.
+	quotedFrom := New()
+	quotedTo := New()
+	_, err := quotedTo.Exec(`
+		CREATE FUNCTION public."Z"() RETURNS integer LANGUAGE sql RETURN 42;
+		CREATE FUNCTION public."A"() RETURNS integer LANGUAGE sql RETURN public."Z"();
+	`, nil)
+	require.NoError(t, err)
+	quotedSQL := GenerateMigration(quotedFrom, quotedTo, Diff(quotedFrom, quotedTo)).SQL()
+	require.Less(t, strings.Index(quotedSQL, `"public"."Z"`), strings.Index(quotedSQL, `"public"."A"`), quotedSQL)
+	require.Error(t, round37ExecErr(quotedTo, `DROP FUNCTION public."Z"();`))
+
+	// 2. A cast in a SQL-standard body depends on the type it names, as PostgreSQL records.
+	castCat := New()
+	_, err = castCat.Exec(`
+		CREATE SCHEMA app;
+		CREATE TYPE app.my_type AS (a int);
+		CREATE FUNCTION public.uses_cast() RETURNS boolean LANGUAGE sql RETURN NULL::app.my_type IS NULL;
+		CREATE FUNCTION public.uses_array_cast() RETURNS boolean LANGUAGE sql RETURN NULL::app.my_type[] IS NULL;
+	`, nil)
+	require.NoError(t, err)
+	require.Error(t, round37ExecErr(castCat, `DROP TYPE app.my_type;`))
+	require.NoError(t, round37ExecErr(castCat, `DROP FUNCTION public.uses_cast();`))
+	require.Error(t, round37ExecErr(castCat, `DROP TYPE app.my_type;`))
+
+	// 3. ApplyDiffToMetadata keeps INCLUDE columns of added PRIMARY KEY and UNIQUE constraints.
+	inclBefore := New()
+	_, err = inclBefore.Exec(`CREATE TABLE public.cov (id int, n int, m int);`, nil)
+	require.NoError(t, err)
+	inclOrigMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "cov",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "integer", Nullable: true},
+					{Name: "n", Position: 2, Type: "integer", Nullable: true},
+					{Name: "m", Position: 3, Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	}
+	inclAfter := inclBefore.Clone()
+	_, err = inclAfter.Exec(`
+		ALTER TABLE public.cov ADD CONSTRAINT cov_pk PRIMARY KEY (id) INCLUDE (n);
+		ALTER TABLE public.cov ADD CONSTRAINT cov_uq UNIQUE (m) INCLUDE (n, id);
+	`, nil)
+	require.NoError(t, err)
+	inclUpdated := ApplyDiffToMetadata(inclOrigMeta, inclBefore, inclAfter, Diff(inclBefore, inclAfter))
+	defs := map[string]string{}
+	for _, idx := range inclUpdated.Schemas[0].Tables[0].Indexes {
+		defs[idx.Name] = idx.Definition
+	}
+	require.Contains(t, defs["cov_pk"], "INCLUDE (n)")
+	require.Contains(t, defs["cov_uq"], "INCLUDE (n, id)")
+	inclReloaded := New()
+	inclReport, err := inclReloaded.LoadMetadata(context.Background(), inclUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, inclReport.Degraded)
+	require.True(t, Diff(inclReloaded, inclAfter).IsEmpty())
+	covered := 0
+	for _, idx := range inclReloaded.IndexesOf(inclReloaded.GetRelation("public", "cov").OID) {
+		require.Less(t, idx.NKeyColumns, len(idx.Columns), idx.Name)
+		covered++
+	}
+	require.Equal(t, 2, covered)
+
+	// 4. A foreign key added with MATCH FULL keeps its match mode in the migration.
+	fkFrom := New()
+	_, err = fkFrom.Exec(`
+		CREATE TABLE public.p (a int, b int, PRIMARY KEY (a, b));
+		CREATE TABLE public.c (a int, b int);
+	`, nil)
+	require.NoError(t, err)
+	fkTo := fkFrom.Clone()
+	_, err = fkTo.Exec(`ALTER TABLE public.c ADD CONSTRAINT c_fk FOREIGN KEY (a, b) REFERENCES public.p (a, b) MATCH FULL ON DELETE CASCADE;`, nil)
+	require.NoError(t, err)
+	fkSQL := GenerateMigration(fkFrom, fkTo, Diff(fkFrom, fkTo)).SQL()
+	require.Contains(t, fkSQL, `REFERENCES public.p (a, b) MATCH FULL ON DELETE CASCADE`)
+	fkApplied := fkFrom.Clone()
+	require.NoError(t, round37ExecErr(fkApplied, fkSQL))
+	require.True(t, Diff(fkApplied, fkTo).IsEmpty())
+
+	// 5. ApplyDiffToMetadata leaves a new aggregate out of the functions, as sync does,
+	// rather than writing a CREATE FUNCTION that would recreate something else.
+	aggBefore := New()
+	aggOrigMeta := &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	aggAfter := aggBefore.Clone()
+	_, err = aggAfter.Exec(`
+		CREATE FUNCTION public.add_int(int, int) RETURNS int LANGUAGE sql IMMUTABLE RETURN $1 + $2;
+		CREATE AGGREGATE public.my_sum(int) (SFUNC = public.add_int, STYPE = int);
+	`, nil)
+	require.NoError(t, err)
+	aggUpdated := ApplyDiffToMetadata(aggOrigMeta, aggBefore, aggAfter, Diff(aggBefore, aggAfter))
+	var aggNames []string
+	for _, fn := range aggUpdated.Schemas[0].Functions {
+		aggNames = append(aggNames, fn.Name)
+		require.NotContains(t, fn.Definition, "aggregate_dummy")
+	}
+	require.Equal(t, []string{"add_int"}, aggNames)
+
+	// 6. A constraint trigger keeps its FROM table in migrations and in applied metadata.
+	trigFrom := New()
+	_, err = trigFrom.Exec(`
+		CREATE TABLE public.ref (id int);
+		CREATE TABLE public.src (id int);
+		CREATE FUNCTION public.trg_fn() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NULL; END$$;
+	`, nil)
+	require.NoError(t, err)
+	trigTo := trigFrom.Clone()
+	_, err = trigTo.Exec(`CREATE CONSTRAINT TRIGGER src_ct AFTER INSERT ON public.src FROM public.ref DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.trg_fn();`, nil)
+	require.NoError(t, err)
+	trigSQL := GenerateMigration(trigFrom, trigTo, Diff(trigFrom, trigTo)).SQL()
+	require.Contains(t, trigSQL, `ON "public"."src" FROM "public"."ref" DEFERRABLE INITIALLY DEFERRED`)
+	trigApplied := trigFrom.Clone()
+	require.NoError(t, round37ExecErr(trigApplied, trigSQL))
+	require.True(t, Diff(trigApplied, trigTo).IsEmpty())
+	// Dropping the referenced table removes the trigger, as PostgreSQL does.
+	require.NoError(t, round37ExecErr(trigApplied, `DROP TABLE public.ref CASCADE;`))
+	require.Empty(t, trigApplied.triggersByRel[trigApplied.GetRelation("public", "src").OID])
+}
+
+// round37ExecErr runs sql and returns its first error, statement errors included.
+func round37ExecErr(c *Catalog, sql string) error {
+	res, err := c.Exec(sql, nil)
+	if err != nil {
+		return err
+	}
+	for _, r := range res {
+		if r.Error != nil {
+			return r.Error
+		}
+	}
+	return nil
+}

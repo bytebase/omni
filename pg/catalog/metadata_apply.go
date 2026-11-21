@@ -478,6 +478,11 @@ func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Ca
 			prev, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
 		}
 	}
+	if to.Kind == PROKIND_AGGREGATE {
+		// The catalog keeps no aggregate's transition state, so it cannot write a
+		// CREATE AGGREGATE; sync leaves aggregates out of the metadata too.
+		return
+	}
 	fn := functionToProto(catAfter, to, newIdentity)
 	bodyChanged := from == nil || from.Body != to.Body || from.Language != to.Language || from.HasSqlBody != to.HasSqlBody
 	if bodyChanged {
@@ -2190,6 +2195,10 @@ func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMeta
 
 	if !idx.IsPrimary && idx.ConstraintOID == 0 && rel != nil && rel.Schema != nil &&
 		(idx.WhereClause != "" || nKey < len(idx.Columns) || len(idx.OpClasses) > 0 || idx.NullsNotDistinct || hasUnmodeledIndexOptions(idx)) {
+		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
+	} else if (idx.IsPrimary || idx.ConstraintOID != 0) && nKey < len(idx.Columns) && rel != nil && rel.Schema != nil {
+		// Expressions holds only the key columns; the definition keeps the
+		// INCLUDE columns, which metadataKeyConstraint reads back.
 		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
 	}
 

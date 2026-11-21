@@ -138,6 +138,9 @@ func triggersChanged(fromCat, toCat *Catalog, a, b *Trigger) bool {
 	if a.Initdeferred != b.Initdeferred {
 		return true
 	}
+	if constraintTriggerFromName(fromCat, a) != constraintTriggerFromName(toCat, b) {
+		return true
+	}
 
 	return false
 }
