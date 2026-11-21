@@ -694,4 +694,45 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.Contains(t, fbReport.Incomplete, "table:fb_tbl")
 	require.True(t, fallbackCatalog.GetDatabase("fb_db").MaterializedViewLogs["fb_tbl"])
 	require.True(t, fallbackCatalog.GetDatabase("fb_db").MaterializedViewLogsKnown["fb_tbl"])
+
+	// Subpartition template and partition comments render cleanly in DatabaseDefinition.
+	tplCatalog := New()
+	_, err = tplCatalog.Exec(`
+		CREATE DATABASE tpl_db;
+		USE tpl_db;
+		CREATE TABLE tpl_tbl (
+			id INT NOT NULL,
+			k INT NOT NULL
+		) PARTITION BY RANGE (id)
+		SUBPARTITION BY HASH (k)
+		SUBPARTITION TEMPLATE (
+			SUBPARTITION sp0,
+			SUBPARTITION sp1
+		) (
+			PARTITION p0 VALUES LESS THAN (10),
+			PARTITION p1 VALUES LESS THAN MAXVALUE
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	tplMeta := tplCatalog.DatabaseMetadata("tpl_db")
+	tplMeta.Schemas[0].Tables[0].Partitions[0].Comment = "p0's cmt"
+	tplMeta.Schemas[0].Tables[0].Partitions[0].SubpartitionTemplate[0].Comment = "sp0 cmt"
+
+	tplDef, err := DatabaseDefinition(tplMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, tplDef, "SUBPARTITION TEMPLATE (SUBPARTITION `sp0` ENGINE=InnoDB COMMENT = 'sp0 cmt'")
+	require.Contains(t, tplDef, "SUBPARTITION `sp1` ENGINE=InnoDB)")
+	require.Contains(t, tplDef, "PARTITION `p0` VALUES LESS THAN (10) ENGINE=InnoDB COMMENT = 'p0''s cmt'")
+
+	// LoadMetadata strips comments during probe parse and keeps SubPartTemplate and comments.
+	reloadedTpl := New()
+	tplReport, err := reloadedTpl.LoadMetadata(context.Background(), tplMeta)
+	require.NoError(t, err)
+	require.Empty(t, tplReport.Degraded)
+	require.Empty(t, tplReport.Missing)
+	require.Empty(t, tplReport.Incomplete)
+	reTplPart := reloadedTpl.GetDatabase("tpl_db").GetTable("tpl_tbl").Partitioning
+	require.Len(t, reTplPart.SubPartTemplate, 2)
+	require.Equal(t, "p0's cmt", reTplPart.Partitions[0].Comment)
+	require.Equal(t, "sp0 cmt", reTplPart.SubPartTemplate[0].Comment)
 }

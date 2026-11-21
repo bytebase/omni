@@ -542,10 +542,22 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 		ALTER TABLE placed_tbl SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';
 		ALTER TABLE placed_tbl CACHE;
 		CREATE GLOBAL TEMPORARY TABLE gtt_tbl (id INT PRIMARY KEY) ON COMMIT DELETE ROWS;
-		CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_attr AS SELECT id FROM placed_tbl WITH CASCADED CHECK OPTION;
+		CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_attr AS SELECT id, note FROM placed_tbl WITH CASCADED CHECK OPTION;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
-	defRendered, err := DatabaseDefinition(defCatalog.DatabaseMetadata("def_db"), DefinitionOptions{})
+	defMeta := defCatalog.DatabaseMetadata("def_db")
+	vAttrCols := defMeta.Schemas[0].Views[0].Columns
+	require.Len(t, vAttrCols, 2)
+	require.True(t, vAttrCols[0].Nullable)
+	require.Equal(t, "int", vAttrCols[0].Type)
+	require.Empty(t, vAttrCols[0].CharacterSet)
+	require.Empty(t, vAttrCols[0].Collation)
+	require.True(t, vAttrCols[1].Nullable)
+	require.Equal(t, "varchar(50)", vAttrCols[1].Type)
+	require.Empty(t, vAttrCols[1].CharacterSet)
+	require.Empty(t, vAttrCols[1].Collation)
+
+	defRendered, err := DatabaseDefinition(defMeta, DefinitionOptions{})
 	require.NoError(t, err)
 	require.Contains(t, defRendered, "ALTER DATABASE `def_db` PLACEMENT POLICY=`p_tbl`;")
 	require.Contains(t, defRendered, "ALTER DATABASE `def_db` SET TIFLASH REPLICA 1 LOCATION LABELS 'zone';")

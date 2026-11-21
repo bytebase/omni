@@ -818,7 +818,7 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	// The partition clause is a /*!50100 PARTITION BY … */ executable comment, which
 	// omni's loader splices back as live SQL.
 	if len(table.Partitions) > 0 {
-		if err := printPartitionClause(buf, table.Partitions, table.Engine); err != nil {
+		if err := printPartitionClause(buf, table.Partitions, table.Engine, true, true); err != nil {
 			return err
 		}
 	}
@@ -846,7 +846,7 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	return nil
 }
 
-func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string) error {
+func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string, includeComments, includeTemplate bool) error {
 	if len(partitions) == 0 {
 		return nil
 	}
@@ -918,6 +918,18 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
+	hasTemplate := includeTemplate && len(partitions[0].SubpartitionTemplate) > 0
+	if hasTemplate {
+		tpl := partitions[0].SubpartitionTemplate
+		tplHead := tpl[0]
+		if tplHead.Type == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED && sub0 != nil {
+			tplHead = sub0
+		}
+		if err := writeSubpartitionTemplate(buf, tpl, tplHead, engine, includeComments); err != nil {
+			return err
+		}
+	}
+
 	subUseDefault := 0
 	if len(partitions[0].Subpartitions) > 0 && partitions[0].Subpartitions[0].UseDefault != "" {
 		var err error
@@ -973,7 +985,14 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
-			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
+			partComment := ""
+			if includeComments {
+				partComment = partition.Comment
+			}
+			if subUseDefault == 0 && len(partition.Subpartitions) > 0 && !hasTemplate {
+				if err := writePartitionOptions(buf, engine, partComment); err != nil {
+					return err
+				}
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
 				}
@@ -986,7 +1005,11 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 							return err
 						}
 					}
-					if err := writePartitionOptions(buf, engine); err != nil {
+					subComment := ""
+					if includeComments {
+						subComment = subPartition.Comment
+					}
+					if err := writePartitionOptions(buf, engine, subComment); err != nil {
 						return err
 					}
 					if j == len(partition.Subpartitions)-1 {
@@ -1000,7 +1023,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					}
 				}
 			} else {
-				if err := writePartitionOptions(buf, engine); err != nil {
+				if err := writePartitionOptions(buf, engine, partComment); err != nil {
 					return err
 				}
 			}
@@ -1037,44 +1060,52 @@ func getPrepositionByType(tp metadata.TablePartitionMetadata_Type) (string, erro
 	}
 }
 
-func writePartitionOptions(buf io.StringWriter, engine string) error {
-	/*
-		int err = 0;
-		err += add_space(fptr);
-		if (p_elem->tablespace_name) {
-			err += add_string(fptr, "TABLESPACE = ");
-			err += add_ident_string(fptr, p_elem->tablespace_name);
-			err += add_space(fptr);
-		}
-		if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
-			err += add_keyword_int(fptr, "NODEGROUP", (longlong)p_elem->nodegroup_id);
-		if (p_elem->part_max_rows)
-			err += add_keyword_int(fptr, "MAX_ROWS", (longlong)p_elem->part_max_rows);
-		if (p_elem->part_min_rows)
-			err += add_keyword_int(fptr, "MIN_ROWS", (longlong)p_elem->part_min_rows);
-		if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)) {
-			if (p_elem->data_file_name)
-			err += add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
-			if (p_elem->index_file_name)
-			err += add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
-		}
-		if (p_elem->part_comment)
-			err += add_keyword_string(fptr, "COMMENT", true, p_elem->part_comment);
-		return err + add_engine(fptr, p_elem->engine_type);
-	*/
-	// TODO(zp): Get all the partition options from the metadata is too complex, just write
-	// the engine for now. It must be the table's own engine: MySQL rejects a partitioned
-	// table whose partitions name a different one with "ERROR 1497: The mix of handlers in
-	// the partitions is not allowed in this version of MySQL", and partitioning a
-	// non-InnoDB table is still legal on 5.7.
+func writePartitionOptions(buf io.StringWriter, engine, comment string) error {
 	if engine == "" {
 		engine = "InnoDB"
 	}
 	if _, err := buf.WriteString(" ENGINE=" + engine); err != nil {
 		return err
 	}
+	if comment != "" {
+		if _, err := buf.WriteString(" COMMENT = '" + escapeComment(comment) + "'"); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func writeSubpartitionTemplate(buf *strings.Builder, tpl []*metadata.TablePartitionMetadata, head *metadata.TablePartitionMetadata, engine string, includeComments bool) error {
+	subType := subPartitionTypeName(head.Type)
+	colCount := subPartitionColumnCount(head.Expression)
+	if _, err := fmt.Fprint(buf, "\nSUBPARTITION TEMPLATE ("); err != nil {
+		return err
+	}
+	for i, st := range tpl {
+		if i > 0 {
+			if _, err := fmt.Fprint(buf, ",\n "); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", quoteIdent(st.Name)); err != nil {
+			return err
+		}
+		if subVals := subpartitionValuesSQL(subType, colCount, st.Value); subVals != "" {
+			if _, err := buf.WriteString(subVals); err != nil {
+				return err
+			}
+		}
+		cmt := ""
+		if includeComments {
+			cmt = st.Comment
+		}
+		if err := writePartitionOptions(buf, engine, cmt); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprint(buf, ")")
+	return err
 }
 
 func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) string {

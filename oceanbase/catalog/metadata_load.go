@@ -567,7 +567,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 // partition lists (SUBPARTITION TEMPLATE).
 func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause, error) {
 	var buf strings.Builder
-	if err := printPartitionClause(&buf, t.GetPartitions(), t.GetEngine()); err != nil {
+	if err := printPartitionClause(&buf, t.GetPartitions(), t.GetEngine(), false, false); err != nil {
 		return nil, err
 	}
 	stmt, err := parseFirstStatement[*nodes.CreateTableStmt]("CREATE TABLE `probe` (`c` int)" + buf.String())
@@ -595,11 +595,19 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 		}
 	}
 	if len(t.GetPartitions()) > 0 && len(t.GetPartitions()[0].GetSubpartitionTemplate()) > 0 {
-		tpl, err := metadataSubpartitionTemplate(t.GetPartitions()[0])
-		if err != nil {
-			return nil, err
+		tpl := t.GetPartitions()[0].GetSubpartitionTemplate()
+		if len(stmt.Partitions.SubPartTemplate) == 0 {
+			parsedTpl, err := metadataSubpartitionTemplate(t.GetPartitions()[0])
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partitions.SubPartTemplate = parsedTpl
 		}
-		stmt.Partitions.SubPartTemplate = tpl
+		for i, spd := range stmt.Partitions.SubPartTemplate {
+			if i < len(tpl) && tpl[i].GetComment() != "" {
+				spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: tpl[i].GetComment()})
+			}
+		}
 	}
 	return stmt.Partitions, nil
 }

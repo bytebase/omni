@@ -76,7 +76,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
 			Name:        v.Name,
 			Definition:  v.Definition,
-			Columns:     viewColumnsToProto(v),
+			Columns:     c.viewColumnsToProto(db, v),
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
 			CheckOption: v.CheckOption,
@@ -131,28 +131,54 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	return dbMeta
 }
 
-func viewColumnsToProto(v *View) []*metadata.ColumnMetadata {
-	if len(v.ColumnMetadata) > 0 {
-		cols := make([]*metadata.ColumnMetadata, 0, len(v.ColumnMetadata))
-		for i, cm := range v.ColumnMetadata {
-			cols = append(cols, &metadata.ColumnMetadata{
-				Name:         cm.Name,
-				Position:     int32(i + 1),
-				CharacterSet: cm.Charset,
-				Collation:    cm.Collation,
-			})
-		}
-		return cols
-	}
-	if len(v.Columns) == 0 {
+func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
+	if len(v.Columns) == 0 && len(v.ColumnMetadata) == 0 {
 		return nil
 	}
-	cols := make([]*metadata.ColumnMetadata, 0, len(v.Columns))
-	for i, name := range v.Columns {
-		cols = append(cols, &metadata.ColumnMetadata{
+	var nonJunkTargets []*TargetEntryQ
+	if v.AnalyzedQuery != nil {
+		for _, te := range v.AnalyzedQuery.TargetList {
+			if te != nil && !te.ResJunk {
+				nonJunkTargets = append(nonJunkTargets, te)
+			}
+		}
+	}
+	n := len(v.Columns)
+	if n == 0 {
+		n = len(v.ColumnMetadata)
+	}
+	cols := make([]*metadata.ColumnMetadata, 0, n)
+	for i := 0; i < n; i++ {
+		name := ""
+		if i < len(v.Columns) {
+			name = v.Columns[i]
+		} else {
+			name = v.ColumnMetadata[i].Name
+		}
+		col := &metadata.ColumnMetadata{
 			Name:     name,
 			Position: int32(i + 1),
-		})
+			// TiDB information_schema.COLUMNS reports IS_NULLABLE=YES and NULL
+			// charset/collation for every view column.
+			Nullable: true,
+		}
+		if i < len(nonJunkTargets) {
+			te := nonJunkTargets[i]
+			if te.ResOrigTable != "" && te.ResOrigCol != "" {
+				origDB := db
+				if te.ResOrigDB != "" {
+					origDB = c.GetDatabase(te.ResOrigDB)
+				}
+				if origDB != nil {
+					if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+						if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
+							col.Type = srcCol.ColumnType
+						}
+					}
+				}
+			}
+		}
+		cols = append(cols, col)
 	}
 	return cols
 }
