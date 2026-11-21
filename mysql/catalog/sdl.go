@@ -2,12 +2,15 @@ package catalog
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"sort"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
+
+var errSDLDisallowedCTAS = errors.New("SDL does not allow CREATE TABLE ... AS SELECT statements")
 
 // LoadSDL parses a declarative MySQL schema (SDL) and loads it into a new
 // Catalog order-tolerantly. Unlike LoadSQL — which applies statements in textual
@@ -60,6 +63,27 @@ func LoadSDL(sql string) (*Catalog, error) {
 // trait: an explicit `SET` inside the SDL is processed after this and still wins
 // (exec.go), so a captured non-default value is honored.
 func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
+	return loadSDL(sql, version, "")
+}
+
+// findCreateDatabase returns the index and node of the first CREATE DATABASE
+// statement matching dbName (case-insensitively), or (-1, nil) if none exists.
+func findCreateDatabase(stmts []nodes.Node, dbName string) (int, *nodes.CreateDatabaseStmt) {
+	for i, stmt := range stmts {
+		if cd, ok := stmt.(*nodes.CreateDatabaseStmt); ok && toLower(cd.Name) == toLower(dbName) {
+			return i, cd
+		}
+	}
+	return -1, nil
+}
+
+// loadSDL implements LoadSDLWithVersion with an optional pre-created default
+// database. When defaultDB is non-empty, the database is created and selected
+// directly on the catalog without prepending a synthetic SQL prologue (preserving
+// exact caller-relative parse error line and column numbers). If sql contains an
+// explicit CREATE DATABASE matching defaultDB, that declaration initializes the
+// database so its declared charset/collation defaults are preserved.
+func loadSDL(sql string, version Version, defaultDB string) (*Catalog, error) {
 	c := New()
 	c.SetVersion(version)
 	c.session.ExplicitDefaultsForTimestamp = NormalizerFor(version).ExplicitDefaultsForTimestamp
@@ -69,6 +93,12 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		return nil, err
 	}
 	if list == nil || len(list.Items) == 0 {
+		if defaultDB != "" {
+			if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
+				return nil, err
+			}
+			c.SetCurrentDatabase(defaultDB)
+		}
 		return c, nil
 	}
 	stmts := list.Items
@@ -78,10 +108,25 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		return nil, err
 	}
 
+	skipDeclIdx := -1
+	if defaultDB != "" {
+		if declIdx, decl := findCreateDatabase(stmts, defaultDB); decl != nil {
+			if err := c.createDatabase(decl); err != nil {
+				return nil, err
+			}
+			skipDeclIdx = declIdx
+		} else {
+			if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
+				return nil, err
+			}
+		}
+		c.SetCurrentDatabase(defaultDB)
+	}
+
 	// Resolve the current database at each statement's ORIGINAL position so that,
 	// after the sort reorders statements, every object is created under the
 	// database that lexically governed it.
-	dbAtIndex := currentDBPerStatement(stmts)
+	dbAtIndex := currentDBPerStatement(stmts, defaultDB)
 
 	// Disable FK validation for the whole load so forward references resolve, and
 	// restore the normal session default on the way out. The returned catalog
@@ -94,13 +139,16 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	}()
 
 	// Order statements so every dependent runs after the objects it references.
-	deps := extractSDLDeps(stmts)
+	deps := extractSDLDeps(stmts, defaultDB)
 	order, err := topoSortSDL(stmts, deps)
 	if err != nil {
 		return c, err
 	}
 
 	for _, idx := range order {
+		if idx == skipDeclIdx {
+			continue
+		}
 		// Restore the database current at this statement's original position, and
 		// keep FK checks off (a SET inside the SDL must not re-arm validation).
 		c.SetCurrentDatabase(dbAtIndex[idx])
@@ -162,7 +210,7 @@ func validateSDLStmt(stmt nodes.Node) error {
 		// table. Reject it so the loader never reports success while omitting an
 		// object.
 		if s.Select != nil {
-			return fmt.Errorf("SDL does not allow CREATE TABLE ... AS SELECT statements")
+			return errSDLDisallowedCTAS
 		}
 		return nil
 	case *nodes.CreateDatabaseStmt,
@@ -243,11 +291,12 @@ func resolveTableRef(ref *nodes.TableRef, currentDB string) objectKey {
 }
 
 // currentDBPerStatement returns, for each statement index, the database that is
-// current at that point — i.e. the database selected by the most recent USE.
-// CREATE DATABASE does not change the current database in MySQL.
-func currentDBPerStatement(stmts []nodes.Node) []string {
+// current at that point — i.e. the database selected by the most recent USE,
+// starting from defaultDB. CREATE DATABASE does not change the current database
+// in MySQL.
+func currentDBPerStatement(stmts []nodes.Node, defaultDB string) []string {
 	out := make([]string, len(stmts))
-	current := ""
+	current := defaultDB
 	for i, stmt := range stmts {
 		if use, ok := stmt.(*nodes.UseStmt); ok {
 			current = use.Database
@@ -273,8 +322,8 @@ type sdlDep struct {
 // references that resolve to a table/view declared in the same SDL produce an
 // edge; references to objects outside the SDL are ignored. Foreign keys are not
 // included: with foreign_key_checks off, a FK never requires its parent to exist.
-func extractSDLDeps(stmts []nodes.Node) []sdlDep {
-	dbAt := currentDBPerStatement(stmts)
+func extractSDLDeps(stmts []nodes.Node, defaultDB string) []sdlDep {
+	dbAt := currentDBPerStatement(stmts, defaultDB)
 
 	// Map each declared table/view object key to its defining statement index.
 	keyToIdx := make(map[objectKey]int, len(stmts))
