@@ -2176,7 +2176,9 @@ func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMeta
 					}
 				}
 			}
-			im.Expressions = append(im.Expressions, colName)
+			// Quote a column key as pg_get_indexdef does, so the loader tells a
+			// column named "a + b" from the expression a + b.
+			im.Expressions = append(im.Expressions, quoteIdentifier(colName))
 		}
 
 		if i < len(idx.IndOption) {

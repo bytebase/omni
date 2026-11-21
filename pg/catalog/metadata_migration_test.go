@@ -7403,6 +7403,48 @@ func TestRound37Fixes(t *testing.T) {
 	// Dropping the referenced table removes the trigger, as PostgreSQL does.
 	require.NoError(t, round37ExecErr(trigApplied, `DROP TABLE public.ref CASCADE;`))
 	require.Empty(t, trigApplied.triggersByRel[trigApplied.GetRelation("public", "src").OID])
+
+	// 7. A SQL-standard body call depends only on the overload it resolves to.
+	ovCat := New()
+	_, err = ovCat.Exec(`
+		CREATE FUNCTION public.z(integer) RETURNS integer LANGUAGE sql RETURN 1;
+		CREATE FUNCTION public.z(text) RETURNS integer LANGUAGE sql RETURN 2;
+		CREATE FUNCTION public.calls_int() RETURNS integer LANGUAGE sql RETURN public.z(1);
+	`, nil)
+	require.NoError(t, err)
+	require.Error(t, round37ExecErr(ovCat.Clone(), `DROP FUNCTION public.z(integer);`))
+	require.NoError(t, round37ExecErr(ovCat, `DROP FUNCTION public.z(text);`))
+
+	// 8. ApplyDiffToMetadata quotes column keys, so a column named like an expression reloads as that column.
+	qBefore := New()
+	_, err = qBefore.Exec(`CREATE TABLE public.qt (a int, b int, "a + b" int, "Mixed" int);`, nil)
+	require.NoError(t, err)
+	qOrigMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "qt",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a", Position: 1, Type: "integer", Nullable: true},
+					{Name: "b", Position: 2, Type: "integer", Nullable: true},
+					{Name: "a + b", Position: 3, Type: "integer", Nullable: true},
+					{Name: "Mixed", Position: 4, Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	}
+	qAfter := qBefore.Clone()
+	_, err = qAfter.Exec(`CREATE INDEX qt_sum_col ON public.qt ("a + b", "Mixed", a);`, nil)
+	require.NoError(t, err)
+	qUpdated := ApplyDiffToMetadata(qOrigMeta, qBefore, qAfter, Diff(qBefore, qAfter))
+	require.Len(t, qUpdated.Schemas[0].Tables[0].Indexes, 1)
+	require.Equal(t, []string{`"a + b"`, `"Mixed"`, `a`}, qUpdated.Schemas[0].Tables[0].Indexes[0].Expressions)
+	qReloaded := New()
+	qReport, err := qReloaded.LoadMetadata(context.Background(), qUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, qReport.Degraded)
+	require.True(t, Diff(qReloaded, qAfter).IsEmpty())
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

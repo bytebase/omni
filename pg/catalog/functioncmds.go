@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -1065,8 +1066,21 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 		return
 	}
 
+	// When every argument's type is evident from the AST, pick the overload
+	// PostgreSQL would call; otherwise keep every candidate.
+	argTypes := c.literalCallArgTypes(fc)
+	narrow := func(cands []*BuiltinProc) []*BuiltinProc {
+		if len(cands) <= 1 || argTypes == nil {
+			return cands
+		}
+		if p, _, err := c.resolveFuncOverload(cands, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
+			return []*BuiltinProc{p}
+		}
+		return cands
+	}
+
 	if schemaName != "" {
-		for _, p := range matched {
+		for _, p := range narrow(matched) {
 			recordProc(p)
 		}
 		return
@@ -1085,15 +1099,58 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 			}
 		}
 		if len(inSchema) > 0 {
-			for _, p := range inSchema {
+			for _, p := range narrow(inSchema) {
 				recordProc(p)
 			}
 			return
 		}
 	}
-	for _, p := range matched {
+	for _, p := range narrow(matched) {
 		recordProc(p)
 	}
+}
+
+// literalCallArgTypes returns the type of each argument of fc when every one
+// is a constant or a cast, the forms whose type needs no analysis, and nil
+// otherwise.
+func (c *Catalog) literalCallArgTypes(fc *nodes.FuncCall) []uint32 {
+	if fc == nil || fc.Args == nil || fc.AggStar {
+		return nil
+	}
+	types := make([]uint32, 0, len(fc.Args.Items))
+	for _, item := range fc.Args.Items {
+		if na, ok := item.(*nodes.NamedArgExpr); ok {
+			item = na.Arg
+		}
+		var t uint32
+		switch v := item.(type) {
+		case *nodes.A_Const:
+			switch val := v.Val.(type) {
+			case *nodes.Integer:
+				t = INT4OID
+				if val.Ival > math.MaxInt32 || val.Ival < math.MinInt32 {
+					t = INT8OID
+				}
+			case *nodes.Float:
+				t = NUMERICOID
+			case *nodes.Boolean:
+				t = BOOLOID
+			default:
+				// A string literal or NULL is unknown until resolution.
+				t = UNKNOWNOID
+			}
+		case *nodes.TypeCast:
+			oid, _, err := c.resolveTypeName(v.TypeName)
+			if err != nil {
+				return nil
+			}
+			t = oid
+		default:
+			return nil
+		}
+		types = append(types, t)
+	}
+	return types
 }
 
 // CreateCast registers a user-defined cast.
