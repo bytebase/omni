@@ -60,9 +60,24 @@ func LoadSDL(sql string) (*Catalog, error) {
 // trait: an explicit `SET` inside the SDL is processed after this and still wins
 // (exec.go), so a captured non-default value is honored.
 func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
+	return loadSDL(sql, version, "")
+}
+
+// loadSDL implements LoadSDLWithVersion with an optional pre-created default
+// database. When defaultDB is non-empty, the database is created and selected
+// directly on the catalog before parsing sql so unqualified DDL resolves
+// without prepending a synthetic SQL prologue (preserving exact caller-relative
+// parse error line and column numbers).
+func loadSDL(sql string, version Version, defaultDB string) (*Catalog, error) {
 	c := New()
 	c.SetVersion(version)
 	c.session.ExplicitDefaultsForTimestamp = NormalizerFor(version).ExplicitDefaultsForTimestamp
+	if defaultDB != "" {
+		if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: defaultDB, IfNotExists: true}); err != nil {
+			return nil, err
+		}
+		c.SetCurrentDatabase(defaultDB)
+	}
 
 	list, err := mysqlparser.Parse(sql)
 	if err != nil {
@@ -81,7 +96,7 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	// Resolve the current database at each statement's ORIGINAL position so that,
 	// after the sort reorders statements, every object is created under the
 	// database that lexically governed it.
-	dbAtIndex := currentDBPerStatement(stmts)
+	dbAtIndex := currentDBPerStatement(stmts, defaultDB)
 
 	// Disable FK validation for the whole load so forward references resolve, and
 	// restore the normal session default on the way out. The returned catalog
@@ -94,7 +109,7 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	}()
 
 	// Order statements so every dependent runs after the objects it references.
-	deps := extractSDLDeps(stmts)
+	deps := extractSDLDeps(stmts, defaultDB)
 	order, err := topoSortSDL(stmts, deps)
 	if err != nil {
 		return c, err
@@ -243,11 +258,12 @@ func resolveTableRef(ref *nodes.TableRef, currentDB string) objectKey {
 }
 
 // currentDBPerStatement returns, for each statement index, the database that is
-// current at that point — i.e. the database selected by the most recent USE.
-// CREATE DATABASE does not change the current database in MySQL.
-func currentDBPerStatement(stmts []nodes.Node) []string {
+// current at that point — i.e. the database selected by the most recent USE,
+// starting from defaultDB. CREATE DATABASE does not change the current database
+// in MySQL.
+func currentDBPerStatement(stmts []nodes.Node, defaultDB string) []string {
 	out := make([]string, len(stmts))
-	current := ""
+	current := defaultDB
 	for i, stmt := range stmts {
 		if use, ok := stmt.(*nodes.UseStmt); ok {
 			current = use.Database
@@ -273,8 +289,8 @@ type sdlDep struct {
 // references that resolve to a table/view declared in the same SDL produce an
 // edge; references to objects outside the SDL are ignored. Foreign keys are not
 // included: with foreign_key_checks off, a FK never requires its parent to exist.
-func extractSDLDeps(stmts []nodes.Node) []sdlDep {
-	dbAt := currentDBPerStatement(stmts)
+func extractSDLDeps(stmts []nodes.Node, defaultDB string) []sdlDep {
+	dbAt := currentDBPerStatement(stmts, defaultDB)
 
 	// Map each declared table/view object key to its defining statement index.
 	keyToIdx := make(map[objectKey]int, len(stmts))
