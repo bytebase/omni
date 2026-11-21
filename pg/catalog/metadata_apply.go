@@ -1873,6 +1873,17 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catBefore, catA
 			preserveCheckConstraintComments(tbl.CheckConstraints, p.CheckConstraints)
 			p.Name = add.Name
 			p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
+			// A script may also have reattached it to the same parent under
+			// another bound.
+			if add.To.PartitionBound != nil && add.To.PartitionOf != 0 {
+				parentRel := catAfter.GetRelationByOID(add.To.PartitionOf)
+				parentSchema := add.SchemaName
+				if parentRel != nil && parentRel.Schema != nil && parentRel.Schema.Name != "" {
+					parentSchema = parentRel.Schema.Name
+				}
+				bound := relationToPartitionProto(catAfter, add.To, parentRel, parentSchema)
+				p.Value, p.Type, p.Expression = bound.Value, bound.Type, bound.Expression
+			}
 			if add.SchemaName != srcSchema {
 				rewritePartitionSchemasOnParentMove(p.Subpartitions, srcSchema, add.SchemaName)
 				rewriteParentIndexSchema(result, srcSchema, add.SchemaName, tbl.Indexes)

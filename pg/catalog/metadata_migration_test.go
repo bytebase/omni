@@ -381,7 +381,7 @@ func TestSourceOnlyMissingObjectsAreDropped(t *testing.T) {
 
 	sql, err := testMetadataMigration(withIndex, withoutIndex)
 	require.NoError(t, err)
-	require.Equal(t, `DROP INDEX "public"."t_missing_idx"`, sql)
+	require.Equal(t, `DROP INDEX IF EXISTS "public"."t_missing_idx"`, sql)
 
 	_, err = testMetadataMigration(withoutIndex, withIndex)
 	require.ErrorContains(t, err, "could not be loaded", "creating an object without a stand-in is still refused")
@@ -8007,6 +8007,93 @@ func TestRound37Fixes(t *testing.T) {
 	fpaDroppedMeta := ApplyDiffToMetadata(fpaUpdated, fpaAfter, fpaDropped, Diff(fpaAfter, fpaDropped))
 	require.Empty(t, fpaDroppedMeta.Schemas[0].ExternalTables)
 	require.Empty(t, fpaDroppedMeta.Schemas[0].Tables[0].Partitions)
+
+	// 30. Reattaching a partition under another bound and renaming it refreshes its bound.
+	rbBase := New()
+	_, err = rbBase.Exec(`
+		CREATE TABLE public.rb_parent (id int, k int) PARTITION BY RANGE (k);
+		CREATE TABLE public.rb_child PARTITION OF public.rb_parent FOR VALUES FROM (0) TO (10);
+	`, nil)
+	require.NoError(t, err)
+	rbMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "rb_parent",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "integer", Nullable: true},
+					{Name: "k", Position: 2, Type: "integer", Nullable: true},
+				},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:  "rb_child",
+					Type:  metadatapb.TablePartitionMetadata_RANGE,
+					Value: "FOR VALUES FROM (0) TO (10)",
+				}},
+			}},
+		}},
+	}
+	rbAfter := rbBase.Clone()
+	_, err = rbAfter.Exec(`
+		ALTER TABLE public.rb_parent DETACH PARTITION public.rb_child;
+		ALTER TABLE public.rb_parent ATTACH PARTITION public.rb_child FOR VALUES FROM (10) TO (20);
+		ALTER TABLE public.rb_child RENAME TO rb_moved;
+	`, nil)
+	require.NoError(t, err)
+	rbUpdated := ApplyDiffToMetadata(rbMeta, rbBase, rbAfter, Diff(rbBase, rbAfter))
+	require.Len(t, rbUpdated.Schemas[0].Tables[0].Partitions, 1)
+	require.Equal(t, "rb_moved", rbUpdated.Schemas[0].Tables[0].Partitions[0].Name)
+	require.Contains(t, rbUpdated.Schemas[0].Tables[0].Partitions[0].Value, "20")
+
+	// 31. A body call that resolves to a built-in records no dependency on a same-named user overload.
+	biCat := New()
+	_, err = biCat.Exec(`
+		CREATE FUNCTION public.abs(text) RETURNS integer LANGUAGE sql RETURN 1;
+		CREATE FUNCTION public.uses_abs() RETURNS integer LANGUAGE sql RETURN abs(1);
+	`, nil)
+	require.NoError(t, err)
+	require.NoError(t, round37ExecErr(biCat, `DROP FUNCTION public.abs(text);`))
+
+	// 32. A change only to an index's storage options migrates with ALTER INDEX SET / RESET.
+	ixMeta := func(def string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Name: "db",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "ix_t",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "a", Position: 1, Type: "integer", Nullable: true}},
+					Indexes: []*metadatapb.IndexMetadata{{Name: "ix_a", Type: "btree", Expressions: []string{"a"}, Definition: def}},
+				}},
+			}},
+		}
+	}
+	ixSQL, err := testMetadataMigration(
+		ixMeta(`CREATE INDEX ix_a ON public.ix_t USING btree (a) WITH (fillfactor='70', deduplicate_items='off')`),
+		ixMeta(`CREATE INDEX ix_a ON public.ix_t USING btree (a) WITH (fillfactor='90')`),
+	)
+	require.NoError(t, err)
+	require.Contains(t, ixSQL, `ALTER INDEX "public"."ix_a" RESET (deduplicate_items)`)
+	require.Contains(t, ixSQL, `ALTER INDEX "public"."ix_a" SET (fillfactor='90')`)
+
+	// 33. A source-only index dropped with its column is dropped IF EXISTS, after the column drop removed it.
+	dcMeta := func(withCol bool) *metadatapb.DatabaseSchemaMetadata {
+		cols := []*metadatapb.ColumnMetadata{{Name: "a", Position: 1, Type: "integer", Nullable: true}}
+		var idx []*metadatapb.IndexMetadata
+		if withCol {
+			cols = append(cols, &metadatapb.ColumnMetadata{Name: "c", Position: 2, Type: "integer", Nullable: true})
+			idx = []*metadatapb.IndexMetadata{{Name: "dc_idx", Type: "btree", Expressions: []string{"(c::no_such_domain)"},
+				Definition: `CREATE INDEX dc_idx ON public.dc USING btree (((c)::no_such_domain))`}}
+		}
+		return &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "dc", Columns: cols, Indexes: idx}},
+		}}}
+	}
+	dcSQL, err := testMetadataMigration(dcMeta(true), dcMeta(false))
+	require.NoError(t, err)
+	require.Contains(t, dcSQL, `DROP COLUMN`)
+	require.Contains(t, dcSQL, `DROP INDEX IF EXISTS "public"."dc_idx"`)
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

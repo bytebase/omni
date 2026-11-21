@@ -1020,6 +1020,16 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 	if argTypes != nil {
 		var visible []*BuiltinProc
 		seenSig := make(map[string]bool)
+		// pg_catalog is searched first unless search_path names it.
+		for _, p := range procs {
+			if p.OID < FirstNormalObjectId && matchesCall(p) {
+				sig := fmt.Sprint(p.ArgTypes)
+				if !seenSig[sig] {
+					seenSig[sig] = true
+					visible = append(visible, p)
+				}
+			}
+		}
 		for _, sname := range c.searchPath {
 			sc := c.schemaByName[sname]
 			if sc == nil {
@@ -1040,7 +1050,10 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 		}
 		if len(visible) > 0 {
 			if p, _, err := c.resolveFuncOverload(visible, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
-				recordProc(p)
+				// A built-in routine needs no dependency.
+				if p.OID >= FirstNormalObjectId {
+					recordProc(p)
+				}
 				return
 			}
 		}

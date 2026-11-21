@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -85,7 +86,8 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	extraRoutineOps := routineDefaultAlterOps(oldMeta, newMeta, nil, from, to, skipSchemas)
 	extraComments := unloadedCommentOps(oldMeta, newMeta, skipSchemas)
 	extraDatabaseOps := databaseOwnerAlterOps(oldMeta, newMeta)
-	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 && len(extraComments) == 0 && len(extraDatabaseOps) == 0 {
+	extraIndexOptionOps := indexOptionAlterOps(oldMeta, newMeta)
+	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 && len(extraComments) == 0 && len(extraDatabaseOps) == 0 && len(extraIndexOptionOps) == 0 {
 		return "", nil
 	}
 	if err := rejectAmbiguousUserTypes(oldMeta, newMeta, sourceSearchPath, targetSearchPath, skipSchemas); err != nil {
@@ -106,6 +108,7 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	restoreRecreatedViewComments(plan, newMeta)
 	appendUnloadedCommentOps(plan, extraComments)
 	plan.Ops = append(plan.Ops, extraDatabaseOps...)
+	plan.Ops = append(plan.Ops, extraIndexOptionOps...)
 	plan.Ops = insertSourceOnlyDrops(plan.Ops, sourceDrops)
 	if len(skipSchemas) > 0 {
 		plan = plan.Filter(func(op MigrationOp) bool {
@@ -4726,6 +4729,106 @@ func databaseOwnerAlterOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata) 
 	}}
 }
 
+// indexOptionAlterOps sets the storage options (WITH (...)) that an index kept
+// in both snapshots changes. The catalog validates those options but does not
+// keep them, so the diff cannot see the change. An index the plan recreates
+// gets them from its definition too; setting them again is harmless.
+func indexOptionAlterOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata) []MigrationOp {
+	type indexRef struct {
+		schema string
+		def    string
+	}
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]indexRef {
+		out := make(map[string]indexRef)
+		add := func(schemaName string, indexes []*metadatapb.IndexMetadata) {
+			for _, idx := range indexes {
+				if idx.GetDefinition() != "" {
+					out[schemaName+"\x00"+idx.GetName()] = indexRef{schema: schemaName, def: idx.GetDefinition()}
+				}
+			}
+		}
+		for _, schema := range meta.GetSchemas() {
+			for _, table := range schema.GetTables() {
+				add(schema.GetName(), table.GetIndexes())
+				forEachPartitionWithSchema(table.GetPartitions(), schema.GetName(), func(part *metadatapb.TablePartitionMetadata, partSchema string) {
+					add(partSchema, part.GetIndexes())
+				})
+			}
+			for _, mv := range schema.GetMaterializedViews() {
+				add(schema.GetName(), mv.GetIndexes())
+			}
+		}
+		return out
+	}
+	options := func(def string) (map[string]string, bool) {
+		stmt, err := parseStatement[*nodes.IndexStmt](def)
+		if err != nil {
+			return nil, false
+		}
+		out := make(map[string]string)
+		if stmt.Options != nil {
+			for _, item := range stmt.Options.Items {
+				if de, ok := item.(*nodes.DefElem); ok && de != nil {
+					out[de.Defname] = relOptionValueText(de.Arg)
+				}
+			}
+		}
+		return out, true
+	}
+	oldIndexes, newIndexes := collect(oldMeta), collect(newMeta)
+	keys := make([]string, 0, len(newIndexes))
+	for key := range newIndexes {
+		if _, ok := oldIndexes[key]; ok {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+	var ops []MigrationOp
+	for _, key := range keys {
+		oldRef, newRef := oldIndexes[key], newIndexes[key]
+		if oldRef.def == newRef.def {
+			continue
+		}
+		oldOpts, ok1 := options(oldRef.def)
+		newOpts, ok2 := options(newRef.def)
+		if !ok1 || !ok2 {
+			continue
+		}
+		var set, reset []string
+		for _, name := range slices.Sorted(maps.Keys(newOpts)) {
+			if value, ok := oldOpts[name]; !ok || value != newOpts[name] {
+				set = append(set, quoteIdentifier(name)+"="+quoteLiteral(newOpts[name]))
+			}
+		}
+		for _, name := range slices.Sorted(maps.Keys(oldOpts)) {
+			if _, ok := newOpts[name]; !ok {
+				reset = append(reset, quoteIdentifier(name))
+			}
+		}
+		indexName := key[strings.Index(key, "\x00")+1:]
+		target := quoteQualified(newRef.schema, indexName)
+		for _, clause := range []struct {
+			verb  string
+			items []string
+		}{{"RESET", reset}, {"SET", set}} {
+			if len(clause.items) == 0 {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    newRef.schema,
+				ObjectName:    indexName,
+				SQL:           fmt.Sprintf("ALTER INDEX %s %s (%s)", target, clause.verb, strings.Join(clause.items, ", ")),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'i',
+				Priority:      PriorityIndex,
+			})
+		}
+	}
+	return ops
+}
+
 func appendUnloadedCommentOps(plan *MigrationPlan, extraOps []MigrationOp) {
 	if len(extraOps) == 0 {
 		return
@@ -5052,8 +5155,10 @@ func sourceOnlyMissingDrops(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
 				Type:       OpDropIndex,
 				SchemaName: schemaName,
 				ObjectName: index.GetName(),
-				SQL:        "DROP INDEX " + quoteQualified(schemaName, index.GetName()),
-				ObjType:    'i',
+				// IF EXISTS: the plan's own DROP COLUMN, which runs earlier,
+				// already removes an index on that column.
+				SQL:     "DROP INDEX IF EXISTS " + quoteQualified(schemaName, index.GetName()),
+				ObjType: 'i',
 			})
 		}
 	}
