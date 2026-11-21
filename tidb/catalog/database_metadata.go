@@ -55,6 +55,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			cmp.Compare(strings.ToUpper(a.Table), strings.ToUpper(b.Table)),
 			cmp.Compare(strings.ToUpper(a.Event), strings.ToUpper(b.Event)),
 			cmp.Compare(strings.ToUpper(a.Timing), strings.ToUpper(b.Timing)),
+			cmp.Compare(a.ActionOrder, b.ActionOrder),
 			cmp.Compare(a.Name, b.Name),
 		)
 	})

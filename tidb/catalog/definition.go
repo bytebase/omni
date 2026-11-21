@@ -301,13 +301,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	if _, err := io.WriteString(out, triggerHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(trigger.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -323,13 +317,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE TRIGGER `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, "CREATE TRIGGER "+quoteIdent(trigger.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, trigger.Timing); err != nil {
@@ -341,13 +329,7 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 	if _, err := io.WriteString(out, trigger.Event); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, " ON `"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, tableName); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "` FOR EACH ROW\n"); err != nil {
+	if _, err := io.WriteString(out, " ON "+quoteIdent(tableName)+" FOR EACH ROW\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, trigger.Body); err != nil {

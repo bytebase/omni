@@ -177,14 +177,15 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name     string
-	Database *Database
-	Table    string // table name the trigger is on
-	Timing   string // BEFORE, AFTER
-	Event    string // INSERT, UPDATE, DELETE
-	Definer  string
-	Body     string
-	Order    *TriggerOrderInfo
+	Name        string
+	Database    *Database
+	Table       string // table name the trigger is on
+	Timing      string // BEFORE, AFTER
+	Event       string // INSERT, UPDATE, DELETE
+	Definer     string
+	Body        string
+	Order       *TriggerOrderInfo
+	ActionOrder int
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.

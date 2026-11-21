@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	disableUniqueAndForeignKeyCheckStmt = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
-	restoreUniqueAndForeignKeyCheckStmt = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
+	disableUniqueAndForeignKeyCheckStmt    = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
+	restoreUniqueAndForeignKeyCheckStmt    = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
+	disableGenerateInvisiblePrimaryKeyStmt = "/*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */;\n"
+	restoreGenerateInvisiblePrimaryKeyStmt = "/*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */;\n\n"
 
 	emptyCommentLine      = "--\n"
 	tempViewHeader        = "-- Temporary view structure for "
@@ -569,7 +571,30 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
 	}
-	return writeCreateTable(out, table, dbName, false)
+	hasGIPK := tableHasGeneratedInvisiblePrimaryKey(table)
+	if hasGIPK {
+		if _, err := io.WriteString(out, disableGenerateInvisiblePrimaryKeyStmt); err != nil {
+			return err
+		}
+	}
+	if err := writeCreateTable(out, table, dbName, false); err != nil {
+		return err
+	}
+	if hasGIPK {
+		if _, err := io.WriteString(out, restoreGenerateInvisiblePrimaryKeyStmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func tableHasGeneratedInvisiblePrimaryKey(table *metadata.TableMetadata) bool {
+	for _, col := range table.GetColumns() {
+		if col.GetIsGeneratedInvisiblePrimaryKey() {
+			return true
+		}
+	}
+	return false
 }
 
 // writeCreateTable writes the CREATE TABLE statement both output forms share. sorted

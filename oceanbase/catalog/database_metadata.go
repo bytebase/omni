@@ -353,7 +353,8 @@ func normalizeDefault(value string, kind ColumnDefaultKind) string {
 			return "NULL"
 		}
 		if strings.HasPrefix(value, "b'") || strings.HasPrefix(value, "B'") ||
-			strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+			strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") ||
+			isBitOrHexLiteral(value) {
 			return value
 		}
 		if len(value) >= 2 && strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") {

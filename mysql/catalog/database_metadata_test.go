@@ -658,3 +658,53 @@ func TestDatabaseDefinitionDefaultDroppedNotSecondaryExplicitCharsetAndImplicitS
 	require.True(t, reExecSub.Partitioning.UseDefaultSubpartitions)
 	require.True(t, reExecSub.Partitioning.UseDefaultNumSubpartitions)
 }
+
+func TestDatabaseDefinitionGIPKRestoreAndQuotedHexDefault(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		SET SESSION sql_generate_invisible_primary_key = ON;
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE gipk_t (name VARCHAR(10));
+		CREATE TABLE hex_t (
+			id INT PRIMARY KEY,
+			payload VARBINARY(4) DEFAULT 0x05,
+			lower_hex BINARY(1)
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	rawHex := "X'05'"
+	rawLowerHex := "x'0a'"
+	c.GetDatabase("app").GetTable("hex_t").GetColumn("payload").Default = &rawHex
+	c.GetDatabase("app").GetTable("hex_t").GetColumn("lower_hex").Default = &rawLowerHex
+
+	meta := c.DatabaseMetadata("app")
+	var hexTbl *metadata.TableMetadata
+	for _, tbl := range meta.Schemas[0].Tables {
+		if tbl.Name == "hex_t" {
+			hexTbl = tbl
+		}
+	}
+	require.NotNil(t, hexTbl)
+	require.Equal(t, "X'05'", hexTbl.Columns[1].Default)
+	require.Equal(t, "x'0a'", hexTbl.Columns[2].Default)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Incomplete)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF")
+	require.Contains(t, def, "SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY")
+	require.Contains(t, def, "DEFAULT X'05'")
+	require.Contains(t, def, "DEFAULT x'0a'")
+
+	// Restoring in a session with GIPK=ON must not trigger error 4108 and must keep GIPK=ON afterwards.
+	restored := New()
+	_, err = restored.Exec("SET SESSION sql_generate_invisible_primary_key = ON;\nCREATE DATABASE app;\nUSE app;\n"+def+"\nCREATE TABLE after_t (v INT);", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.NotNil(t, restored.GetDatabase("app").GetTable("gipk_t").GetColumn("my_row_id"))
+	require.NotNil(t, restored.GetDatabase("app").GetTable("after_t").GetColumn("my_row_id"))
+}

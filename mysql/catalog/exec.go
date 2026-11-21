@@ -107,6 +107,23 @@ func LoadSQL(sql string) (*Catalog, error) {
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
+		if asgn.Column != nil && asgn.Column.Table == "" && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
+			uvarName := strings.TrimPrefix(toLower(asgn.Column.Column), "@")
+			if vr, ok := asgn.Value.(*nodes.VariableRef); ok && vr.System {
+				if normalizeSetVariableName(&nodes.ColumnRef{Table: vr.Scope, Column: vr.Name}) == "sql_generate_invisible_primary_key" {
+					if c.userVars == nil {
+						c.userVars = make(map[string]bool)
+					}
+					c.userVars[uvarName] = c.generateGIPK
+				}
+			} else if v, ok := parseSetBool(asgn.Value); ok {
+				if c.userVars == nil {
+					c.userVars = make(map[string]bool)
+				}
+				c.userVars[uvarName] = v
+			}
+			continue
+		}
 		varName := normalizeSetVariableName(asgn.Column)
 		switch varName {
 		case "foreign_key_checks":
@@ -118,6 +135,11 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if v, ok := parseSetBool(asgn.Value); ok {
 				c.generateGIPK = v
 				c.session.GenerateInvisiblePrimaryKey = v
+			} else if vr, ok := asgn.Value.(*nodes.VariableRef); ok && !vr.System {
+				if v, saved := c.userVars[toLower(vr.Name)]; saved {
+					c.generateGIPK = v
+					c.session.GenerateInvisiblePrimaryKey = v
+				}
 			}
 		case "show_gipk_in_create_table_and_information_schema":
 			if v, ok := parseSetBool(asgn.Value); ok {

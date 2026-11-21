@@ -736,3 +736,43 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.Equal(t, "p0's cmt", reTplPart.Partitions[0].Comment)
 	require.Equal(t, "sp0 cmt", reTplPart.SubPartTemplate[0].Comment)
 }
+
+func TestDatabaseMetadataQuotedHexDefaultRoundTrip(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE hex_t (
+			id INT PRIMARY KEY,
+			payload VARBINARY(4) DEFAULT 0x05,
+			lower_hex BINARY(1)
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	rawHex := "X'05'"
+	rawLowerHex := "x'0a'"
+	c.GetDatabase("app").GetTable("hex_t").GetColumn("payload").Default = &rawHex
+	c.GetDatabase("app").GetTable("hex_t").GetColumn("lower_hex").Default = &rawLowerHex
+
+	meta := c.DatabaseMetadata("app")
+	tbl := meta.Schemas[0].Tables[0]
+	require.Equal(t, "X'05'", tbl.Columns[1].Default)
+	require.Equal(t, "x'0a'", tbl.Columns[2].Default)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "DEFAULT X'05'")
+	require.Contains(t, def, "DEFAULT x'0a'")
+
+	execd := New()
+	_, err = execd.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.NotNil(t, execd.GetDatabase("app").GetTable("hex_t"))
+}

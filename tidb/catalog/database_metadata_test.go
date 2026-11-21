@@ -629,3 +629,43 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Contains(t, subDef, "PARTITION p0 VALUES LESS THAN (10) ENGINE=InnoDB COMMENT 'p0_parent'")
 	require.Contains(t, subDef, "SUBPARTITION s0 ENGINE=InnoDB COMMENT 's0_child'")
 }
+
+func TestDatabaseMetadataTriggerActionOrderAndBacktickQuoting(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE trg_db; USE trg_db;\nCREATE TABLE `t``1` (a INT);", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.NoError(t, c.DefineTrigger(&nodes.CreateTriggerStmt{
+		Name:     "a_base",
+		Table:    &nodes.TableRef{Name: "t`1"},
+		Timing:   "BEFORE",
+		Event:    "INSERT",
+		BodyText: "SET NEW.a = 1",
+	}))
+	require.NoError(t, c.DefineTrigger(&nodes.CreateTriggerStmt{
+		Name:     "z`_precedes",
+		Table:    &nodes.TableRef{Name: "t`1"},
+		Timing:   "BEFORE",
+		Event:    "INSERT",
+		BodyText: "SET NEW.a = 2",
+		Order:    &nodes.TriggerOrder{Follows: false, TriggerName: "a_base"},
+	}))
+
+	meta := c.DatabaseMetadata("trg_db")
+	triggers := meta.Schemas[0].Tables[0].Triggers
+	require.Len(t, triggers, 2)
+	require.Equal(t, "z`_precedes", triggers[0].Name)
+	require.Equal(t, "a_base", triggers[1].Name)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TRIGGER `z``_precedes`")
+	require.Contains(t, def, "ON `t``1` FOR EACH ROW")
+	require.Less(t, strings.Index(def, "CREATE TRIGGER `z``_precedes`"), strings.Index(def, "CREATE TRIGGER `a_base`"))
+
+	loaded := New()
+	_, err = loaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	loadMeta := loaded.DatabaseMetadata("trg_db")
+	require.Equal(t, "z`_precedes", loadMeta.Schemas[0].Tables[0].Triggers[0].Name)
+	require.Equal(t, "a_base", loadMeta.Schemas[0].Tables[0].Triggers[1].Name)
+}
