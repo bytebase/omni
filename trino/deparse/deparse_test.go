@@ -1059,4 +1059,26 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_builtin(x varchar) RETURNS bigint RETURN length(x);`)
 	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_qual(x varchar) RETURNS bigint RETURN "cat".s.length(x);`)
+
+	// Unqualified UDF calls inside scalar subqueries (RETURN (SELECT callee(x))) are
+	// both ordered after their callee and rewritten to catalog.schema.callee.
+	scalarSubq, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "sub_caller",
+					Definition: "CREATE FUNCTION s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT sub_callee(x))",
+				},
+				{
+					Name:       "sub_callee",
+					Definition: "CREATE FUNCTION s.sub_callee(x bigint) RETURNS bigint RETURN x + 1",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(x bigint) RETURNS bigint RETURN (SELECT "cat"."s".sub_callee(x));`)
+	assert.Less(t, strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_callee(`), strings.Index(scalarSubq, `CREATE FUNCTION "cat".s.sub_caller(`))
 }

@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -806,9 +807,12 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 		if n.Isnull {
 			return ""
 		}
-		switch n.Val.(type) {
+		switch v := n.Val.(type) {
 		case *nodes.Integer:
-			return "int4"
+			if v.Ival >= math.MinInt32 && v.Ival <= math.MaxInt32 {
+				return "int4"
+			}
+			return "int8"
 		case *nodes.Float:
 			return "numeric"
 		case *nodes.String:
@@ -858,6 +862,21 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 			return "varchar"
 		case "+", "-", "*", "/", "%", "^":
 			if n.Lexpr == nil {
+				if op == "-" {
+					if ac, ok := n.Rexpr.(*nodes.A_Const); ok && !ac.Isnull {
+						switch v := ac.Val.(type) {
+						case *nodes.Integer:
+							if -v.Ival >= math.MinInt32 && -v.Ival <= math.MaxInt32 {
+								return "int4"
+							}
+							return "int8"
+						case *nodes.Float:
+							if v.Fval == "9223372036854775808" {
+								return "int8"
+							}
+						}
+					}
+				}
 				return inferExprType(n.Rexpr, callerSchema, callerParams, fnCat)
 			}
 			return commonNumericType(
@@ -2293,8 +2312,8 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		if len(column.Options) > 0 && state.unsupportedReason == "" {
 			state.unsupportedReason = fmt.Sprintf("column %s options cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
 		}
-		if column.Generation != nil && state.unsupportedReason == "" {
-			state.unsupportedReason = fmt.Sprintf("column %s generated expression cannot be restored because Redshift does not support generated columns", quoteDefinitionIdentifier(column.Name))
+		if msg := unsupportedRedshiftColumnReason(column, false); msg != "" && state.unsupportedReason == "" {
+			state.unsupportedReason = msg
 		}
 		if _, exists := state.columns[column.Name]; exists && state.duplicateColumn == "" {
 			state.duplicateColumn = column.Name
@@ -2329,12 +2348,22 @@ type foreignKeyState struct {
 	referencedColumns []string
 	onDelete          string
 	onUpdate          string
+	matchType         string
 	comment           string
 }
 
 func isSupportedRedshiftFKAction(action string) bool {
 	trimmed := strings.TrimSpace(strings.ToUpper(action))
 	return trimmed == "" || trimmed == "NO ACTION"
+}
+
+func isSupportedRedshiftFKMatchType(matchType string) bool {
+	switch strings.TrimSpace(strings.ToUpper(matchType)) {
+	case "", "SIMPLE", "S", "U":
+		return true
+	default:
+		return false
+	}
 }
 
 func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb.ForeignKeyMetadata) *foreignKeyState {
@@ -2351,6 +2380,7 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 		referencedColumns: foreignKey.ReferencedColumns,
 		onDelete:          foreignKey.OnDelete,
 		onUpdate:          foreignKey.OnUpdate,
+		matchType:         foreignKey.MatchType,
 		comment:           foreignKey.Comment,
 	}
 }
@@ -2367,6 +2397,9 @@ func (f *foreignKeyState) toString(buf *strings.Builder) error {
 	}
 	if !isSupportedRedshiftFKAction(f.onUpdate) {
 		return fmt.Errorf("foreign key %s has unsupported ON UPDATE action %q", f.name, f.onUpdate)
+	}
+	if !isSupportedRedshiftFKMatchType(f.matchType) {
+		return fmt.Errorf("foreign key %s has unsupported MATCH type %q", f.name, f.matchType)
 	}
 	n := len(f.columns)
 	if f.name != "" {
@@ -2725,6 +2758,19 @@ type viewState struct {
 	caseSensitive     bool
 }
 
+func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView bool) string {
+	switch {
+	case column.Generation != nil:
+		return fmt.Sprintf("column %s generated expression cannot be restored because Redshift does not support generated columns", quoteDefinitionIdentifier(column.Name))
+	case column.DefaultOnNull || column.OnUpdate != "" || column.CharacterSet != "" || column.Srid != nil || column.IsInvisible || column.DefaultConstraintName != "":
+		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
+	case isView && (len(column.Options) > 0 || column.Collation != "" || column.CollationSchema != "" || column.Default != "" || column.IsIdentity):
+		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
+	default:
+		return ""
+	}
+}
+
 func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata, caseSensitive bool) *viewState {
 	var unsupportedReason string
 	switch {
@@ -2737,6 +2783,9 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 	for i, col := range view.Columns {
 		if col == nil {
 			continue
+		}
+		if msg := unsupportedRedshiftColumnReason(col, true); msg != "" && unsupportedReason == "" {
+			unsupportedReason = msg
 		}
 		cols[col.Name] = convertToColumnState(i, col)
 	}

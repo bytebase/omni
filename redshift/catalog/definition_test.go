@@ -1616,6 +1616,53 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "referenced table")
+
+	// Large integer literals classify as int8 (> int32 max) and unrendered column attrs & FK match modes fail.
+	bigIntOverloads, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "big_f",
+					Definition: "CREATE FUNCTION s.big_f(a int4) RETURNS int8 IMMUTABLE AS $$ SELECT s.big_caller() $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "big_caller",
+					Definition: "CREATE FUNCTION s.big_caller() RETURNS int8 IMMUTABLE AS $$ SELECT s.big_f(5000000000) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "big_f",
+					Definition: "CREATE FUNCTION s.big_f(a int8) RETURNS int8 IMMUTABLE AS $$ SELECT a $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_f(a int8)"), strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_caller("))
+	require.Less(t, strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_caller("), strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_f(a int4)"))
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_bad_col",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:     "c",
+			Type:     "varchar(10)",
+			OnUpdate: "CURRENT_TIMESTAMP",
+		}},
+	})
+	require.ErrorContains(t, err, "attributes cannot be restored")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_fk_match",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_match",
+			Columns:           []string{"id"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			MatchType:         "FULL",
+		}},
+	})
+	require.ErrorContains(t, err, "MATCH")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

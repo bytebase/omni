@@ -1343,6 +1343,143 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 	}
 
 	var walkExpr func(expr trinoparser.Expr, curEnv map[string]string) string
+	var walkQuery func(q *trinoparser.Query, curEnv map[string]string) string
+	var walkQueryNode func(qn trinoparser.QueryNode, curEnv map[string]string) string
+	var walkRelation func(rel trinoparser.Relation, curEnv map[string]string)
+
+	walkRelation = func(rel trinoparser.Relation, curEnv map[string]string) {
+		if rel == nil {
+			return
+		}
+		switch r := rel.(type) {
+		case *trinoparser.Join:
+			walkRelation(r.Left, curEnv)
+			walkRelation(r.Right, curEnv)
+			walkExpr(r.On, curEnv)
+		case *trinoparser.AliasedRelation:
+			walkRelation(r.Inner, curEnv)
+			if r.Sample != nil {
+				walkExpr(r.Sample.Percentage, curEnv)
+			}
+		case *trinoparser.TableRelation:
+			if r.Period != nil {
+				walkExpr(r.Period.End, curEnv)
+			}
+		case *trinoparser.NearestRelation:
+			walkRelation(r.From, curEnv)
+			walkExpr(r.Where, curEnv)
+			walkExpr(r.Match, curEnv)
+		case *trinoparser.SubqueryRelation:
+			walkQuery(r.Query, curEnv)
+		case *trinoparser.LateralRelation:
+			walkQuery(r.Query, curEnv)
+		case *trinoparser.UnnestRelation:
+			for _, ex := range r.Exprs {
+				walkExpr(ex, curEnv)
+			}
+		case *trinoparser.ParenRelation:
+			walkRelation(r.Inner, curEnv)
+		case *trinoparser.TableFunctionRelation:
+			if r.Call != nil {
+				for _, arg := range r.Call.Args {
+					walkExpr(arg.Expr, curEnv)
+					if arg.Table != nil {
+						walkQuery(arg.Table.Query, curEnv)
+						for _, pb := range arg.Table.PartitionBy {
+							walkExpr(pb, curEnv)
+						}
+						for _, ob := range arg.Table.OrderBy {
+							walkExpr(ob.Expr, curEnv)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	walkQueryNode = func(qn trinoparser.QueryNode, curEnv map[string]string) string {
+		if qn == nil {
+			return ""
+		}
+		switch n := qn.(type) {
+		case *trinoparser.QuerySpec:
+			for _, rel := range n.From {
+				walkRelation(rel, curEnv)
+			}
+			walkExpr(n.Where, curEnv)
+			if n.GroupBy != nil {
+				for _, el := range n.GroupBy.Elements {
+					for _, ex := range el.Exprs {
+						walkExpr(ex, curEnv)
+					}
+					for _, set := range el.Sets {
+						for _, ex := range set {
+							walkExpr(ex, curEnv)
+						}
+					}
+				}
+			}
+			walkExpr(n.Having, curEnv)
+			for _, w := range n.Windows {
+				for _, pb := range w.Spec.PartitionBy {
+					walkExpr(pb, curEnv)
+				}
+				for _, ob := range w.Spec.OrderBy {
+					walkExpr(ob.Expr, curEnv)
+				}
+				if w.Spec.Frame != nil {
+					walkExpr(w.Spec.Frame.Start.Value, curEnv)
+					if w.Spec.Frame.End != nil {
+						walkExpr(w.Spec.Frame.End.Value, curEnv)
+					}
+				}
+			}
+			var singleType string
+			for idx, item := range n.Items {
+				it := walkExpr(item.Expr, curEnv)
+				if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
+					singleType = it
+				}
+			}
+			return singleType
+		case *trinoparser.SetOperation:
+			lt := walkQueryNode(n.Left, curEnv)
+			rt := walkQueryNode(n.Right, curEnv)
+			return combineTrinoTypes(lt, rt)
+		case *trinoparser.ParenQuery:
+			return walkQuery(n.Inner, curEnv)
+		case *trinoparser.ValuesQuery:
+			for _, row := range n.Rows {
+				walkExpr(row, curEnv)
+			}
+		}
+		return ""
+	}
+
+	walkQuery = func(q *trinoparser.Query, curEnv map[string]string) string {
+		if q == nil {
+			return ""
+		}
+		if q.With != nil {
+			for _, cte := range q.With.CTEs {
+				walkQuery(cte.Query, curEnv)
+			}
+		}
+		ret := walkQueryNode(q.Body, curEnv)
+		for _, ob := range q.OrderBy {
+			walkExpr(ob.Expr, curEnv)
+		}
+		if q.Offset != nil {
+			walkExpr(q.Offset.Count, curEnv)
+		}
+		if q.Limit != nil {
+			walkExpr(q.Limit.Count, curEnv)
+		}
+		if q.Fetch != nil {
+			walkExpr(q.Fetch.Count, curEnv)
+		}
+		return ret
+	}
 	walkJSONPath := func(path *trinoparser.JSONPathInvocation, curEnv map[string]string) {
 		if path == nil {
 			return
@@ -1558,11 +1695,17 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			walkExpr(e.Subquery, curEnv)
 			return "boolean"
 		case *trinoparser.SubqueryExpr:
-			if e.RawText != "" {
+			var subType string
+			if e.Query != nil {
+				subType = walkQuery(e.Query, curEnv)
+			} else if e.RawText != "" {
 				calls = append(calls, scanFunctionCallRefs(e.RawText)...)
 			}
 			if e.Kind == trinoparser.SubqueryExists || e.Kind == trinoparser.SubqueryUnique {
 				return "boolean"
+			}
+			if e.Kind == trinoparser.SubqueryScalar {
+				return subType
 			}
 		case *trinoparser.TrimExpr:
 			walkExpr(e.Char, curEnv)
