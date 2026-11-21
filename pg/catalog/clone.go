@@ -321,6 +321,7 @@ func (c *Catalog) Clone() *Catalog {
 			copy(cup.ArgDefaultTypes, up.ArgDefaultTypes)
 		}
 		cup.ArgDefaults = slices.Clone(up.ArgDefaults)
+		cup.SetConfig = slices.Clone(up.SetConfig)
 		cup.Schema = clone.schemas[up.Schema.OID]
 		clone.userProcs[oid] = &cup
 

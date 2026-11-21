@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -23,6 +25,10 @@ type UserProc struct {
 	IsStrict     bool
 	SecDef       bool
 	LeakProof    bool
+	IsWindow     bool
+	Cost         string
+	Rows         string
+	SetConfig    []string
 	Language     string
 	Body         string
 	ArgNames     []string // all parameter names (IN+OUT+INOUT+TABLE)
@@ -63,6 +69,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	var volatile, parallel byte
 	var isStrict, secDef, isLeakProof bool
 	var isWindowFunc bool
+	var costStr, rowsStr string
+	var setConfig []string
 	hasAsClause := false
 	rowsSet := false
 
@@ -143,25 +151,32 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				isWindowFunc = defElemBool(de)
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "COST must be positive"}
 				}
+				if ok {
+					costStr = raw
+				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS must be positive"}
 				}
+				if ok {
+					rowsStr = raw
+				}
 				rowsSet = true
 			case "set":
-				// Ignored.
+				if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
+					setConfig = applyFuncSetConfig(setConfig, vs)
+				}
 			}
 		}
 	}
-
-	// Suppress unused variable warning — isWindowFunc is validated above but not stored.
-	_ = isWindowFunc
 
 	// ---------------------------------------------------------------
 	// SQL body default language.
@@ -539,6 +554,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.IsStrict = isStrict
 			up.SecDef = secDef
 			up.LeakProof = isLeakProof
+			up.IsWindow = isWindowFunc
+			up.Cost = costStr
+			up.Rows = rowsStr
+			up.SetConfig = slices.Clone(setConfig)
 			up.Language = language
 			up.Body = body
 		}
@@ -614,6 +633,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		IsStrict:     isStrict,
 		SecDef:       secDef,
 		LeakProof:    isLeakProof,
+		IsWindow:     isWindowFunc,
+		Cost:         costStr,
+		Rows:         rowsStr,
+		SetConfig:    slices.Clone(setConfig),
 		Language:     language,
 		Body:         body,
 		ArgNames:     allArgNames,
@@ -1216,19 +1239,27 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 				}
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "COST must be positive"}
 				}
+				if ok && up != nil {
+					up.Cost = raw
+				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1429-1439)
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS must be positive"}
 				}
 				if !bp.RetSet {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS is not applicable when function does not return a set"}
+				}
+				if ok && up != nil {
+					up.Rows = raw
 				}
 			case "leakproof":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1413-1420)
@@ -1237,11 +1268,140 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 				if up != nil {
 					up.LeakProof = lp
 				}
-			case "support", "set":
+			case "set":
+				if up != nil {
+					if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
+						up.SetConfig = applyFuncSetConfig(up.SetConfig, vs)
+					}
+				}
+			case "support":
 				// No-op: not tracked in pgddl.
 			}
 		}
 	}
 
 	return nil
+}
+
+func defElemNumeric(d *nodes.DefElem) (string, float64, bool) {
+	if d == nil || d.Arg == nil {
+		return "", 0, false
+	}
+	extract := func(n nodes.Node) (string, float64, bool) {
+		switch v := n.(type) {
+		case *nodes.Integer:
+			return strconv.FormatInt(v.Ival, 10), float64(v.Ival), true
+		case *nodes.Float:
+			f, err := strconv.ParseFloat(v.Fval, 64)
+			if err != nil {
+				return "", 0, false
+			}
+			return v.Fval, f, true
+		}
+		return "", 0, false
+	}
+	if ac, ok := d.Arg.(*nodes.A_Const); ok {
+		return extract(ac.Val)
+	}
+	return extract(d.Arg)
+}
+
+func applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
+	if vs == nil {
+		return existing
+	}
+	if vs.Kind == nodes.VAR_RESET_ALL {
+		return nil
+	}
+	key := strings.ToLower(vs.Name)
+	if key == "" {
+		return existing
+	}
+	removeVar := func(items []string) []string {
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			if name, ok := funcSetConfigVarName(item); ok && name == key {
+				continue
+			}
+			out = append(out, item)
+		}
+		return out
+	}
+	out := removeVar(existing)
+	switch vs.Kind {
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		return out
+	case nodes.VAR_SET_CURRENT:
+		return append(out, fmt.Sprintf("SET %s FROM CURRENT", quoteIdentAlways(vs.Name)))
+	case nodes.VAR_SET_VALUE:
+		val := formatFuncSetArgs(vs.Args)
+		if val == "" {
+			return out
+		}
+		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), val))
+	default:
+		return out
+	}
+}
+
+func funcSetConfigVarName(clause string) (string, bool) {
+	rest, ok := strings.CutPrefix(clause, "SET ")
+	if !ok {
+		return "", false
+	}
+	var raw string
+	if strings.HasPrefix(rest, `"`) {
+		var b strings.Builder
+		for i := 1; i < len(rest); i++ {
+			if rest[i] == '"' {
+				if i+1 < len(rest) && rest[i+1] == '"' {
+					b.WriteByte('"')
+					i++
+					continue
+				}
+				return strings.ToLower(b.String()), true
+			}
+			b.WriteByte(rest[i])
+		}
+		return "", false
+	}
+	if idx := strings.IndexAny(rest, " ="); idx >= 0 {
+		raw = rest[:idx]
+	} else {
+		raw = rest
+	}
+	return strings.ToLower(raw), raw != ""
+}
+
+func formatFuncSetArgs(args *nodes.List) string {
+	if args == nil || len(args.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(args.Items))
+	for _, item := range args.Items {
+		switch v := item.(type) {
+		case *nodes.A_Const:
+			switch val := v.Val.(type) {
+			case *nodes.String:
+				parts = append(parts, quoteLiteral(val.Str))
+			case *nodes.Integer:
+				parts = append(parts, strconv.FormatInt(val.Ival, 10))
+			case *nodes.Float:
+				parts = append(parts, val.Fval)
+			case *nodes.Boolean:
+				if val.Boolval {
+					parts = append(parts, "true")
+				} else {
+					parts = append(parts, "false")
+				}
+			}
+		case *nodes.String:
+			parts = append(parts, quoteLiteral(v.Str))
+		case *nodes.Integer:
+			parts = append(parts, strconv.FormatInt(v.Ival, 10))
+		case *nodes.Float:
+			parts = append(parts, v.Fval)
+		}
+	}
+	return strings.Join(parts, ", ")
 }

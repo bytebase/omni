@@ -1240,9 +1240,19 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			comment("TABLE "+qualified(t.GetName()), t.GetComment())
 			columns(t.GetName(), t.GetColumns())
 			indexes(s.GetName(), t.GetName(), t.GetIndexes())
+			for _, fk := range t.GetForeignKeys() {
+				comment("CONSTRAINT "+quoteIdent(fk.GetName())+" ON "+qualified(t.GetName()), fk.GetComment())
+			}
+			for _, chk := range t.GetCheckConstraints() {
+				comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+qualified(t.GetName()), chk.GetComment())
+			}
 			forEachPartition(s.GetName(), t, func(partitionSchema string, p *metadata.TablePartitionMetadata) {
-				comment("TABLE "+quoteIdent(partitionSchema)+"."+quoteIdent(p.GetName()), p.GetComment())
+				partQualified := quoteIdent(partitionSchema) + "." + quoteIdent(p.GetName())
+				comment("TABLE "+partQualified, p.GetComment())
 				indexes(partitionSchema, p.GetName(), p.GetIndexes())
+				for _, chk := range p.GetCheckConstraints() {
+					comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+partQualified, chk.GetComment())
+				}
 			})
 		}
 		for _, v := range s.GetViews() {

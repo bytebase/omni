@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -15,7 +16,7 @@ import (
 // clone of the original metadata proto, producing the post-DDL metadata.
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
-	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) {
+	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
 		return proto.CloneOf(original)
 	}
 	if diff == nil {
@@ -35,7 +36,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		return name
 	}
 
-	renamed := renamePartitions(result, catAfter, diff.Relations, canonicalSchema)
+	renamed := renamePartitions(result, catBefore, catAfter, diff.Relations, canonicalSchema)
 	for _, rel := range diff.Relations {
 		if (rel.From != nil && renamed[rel.From.OID]) || (rel.To != nil && renamed[rel.To.OID]) {
 			continue
@@ -113,10 +114,13 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 
 	applyRangeDiffs(result, catAfter, diff.Ranges, canonicalSchema)
 
+	applyCollationDiffs(result, catAfter, diff.Collations, renamedSchemas, canonicalSchema)
+
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
 	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
 	applyExtensionDiffs(result, catBefore, catAfter, diff.Extensions, canonicalSchema)
+	applyExtensionMemberChanges(result, original, catBefore, catAfter, canonicalSchema)
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyRelationOwnerChanges(result, catBefore, catAfter)
@@ -1216,13 +1220,14 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 		applyIndexDiffs(tbl, cat, rel)
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
 		applyTriggerDiffs(&tbl.Triggers, cat, rel)
+		applyRuleDiffs(&tbl.Rules, cat, rel)
 		if (rel.From != nil && rel.From.OwnerName != rel.To.OwnerName) || (rel.To.OwnerName != "" && tbl.Owner != rel.To.OwnerName) {
 			tbl.Owner = rel.To.OwnerName
 		}
 	case 'v':
 		for i, existing := range sm.Views {
 			if existing.Name == rel.Name {
-				sm.Views[i] = mergeViewProto(cat, existing, rel.To, rel.Name)
+				sm.Views[i] = mergeViewProto(cat, existing, rel, rel.Name)
 				return
 			}
 		}
@@ -1239,15 +1244,20 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 	}
 }
 
-func mergeViewProto(cat *Catalog, existing *metadatapb.ViewMetadata, rel *Relation, name string) *metadatapb.ViewMetadata {
-	updated := relationToViewProto(cat, rel)
+func mergeViewProto(cat *Catalog, existing *metadatapb.ViewMetadata, relDiff RelationDiffEntry, name string) *metadatapb.ViewMetadata {
+	updated := relationToViewProto(cat, relDiff.To)
 	updated.Name = name
 	updated.Comment = existing.Comment
-	updated.DependencyColumns = existing.DependencyColumns
+	preserveColumnMetadata(updated.Columns, existing.Columns, relDiff.From, relDiff.To)
 	if len(updated.Columns) == 0 {
 		updated.Columns = existing.Columns
 	}
-	updated.Rules = existing.Rules
+	if len(relDiff.Rules) > 0 {
+		updated.Rules = slices.Clone(existing.Rules)
+		applyRuleDiffs(&updated.Rules, cat, relDiff)
+	} else if len(updated.Rules) == 0 {
+		updated.Rules = existing.Rules
+	}
 	updated.SkipDump = existing.SkipDump
 	preserveTriggerComments(updated.Triggers, existing.Triggers)
 	return updated
@@ -1257,7 +1267,6 @@ func mergeMatViewProto(cat *Catalog, existing *metadatapb.MaterializedViewMetada
 	updated := relationToMatViewProto(cat, rel)
 	updated.Name = name
 	updated.Comment = existing.Comment
-	updated.DependencyColumns = existing.DependencyColumns
 	updated.SkipDump = existing.SkipDump
 	preserveTriggerComments(updated.Triggers, existing.Triggers)
 	preserveIndexMetadata(updated.Indexes, existing.Indexes)
@@ -1461,7 +1470,7 @@ func preserveIndexMetadata(dst, src []*metadatapb.IndexMetadata) {
 // The diff shows a rename as a drop and an add of the same relation, which would
 // otherwise turn a partition into a table of its own or drop a table's
 // partitions. It returns the OIDs it handled.
-func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, relations []RelationDiffEntry, canonicalSchema func(string) string) map[uint32]bool {
+func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, relations []RelationDiffEntry, canonicalSchema func(string) string) map[uint32]bool {
 	added := make(map[uint32]RelationDiffEntry)
 	for _, rel := range relations {
 		if rel.Action == DiffAdd && rel.To != nil {
@@ -1505,7 +1514,12 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 		if rel.From.RelKind == 'v' {
 			for i, existing := range sm.Views {
 				if existing.Name == rel.Name {
-					updated := mergeViewProto(catAfter, existing, add.To, add.Name)
+					renamedDiff := rel
+					renamedDiff.SchemaName = add.SchemaName
+					renamedDiff.Name = add.Name
+					renamedDiff.To = add.To
+					renamedDiff.Rules = diffRules(catBefore, catAfter, rel.From, add.To)
+					updated := mergeViewProto(catAfter, existing, renamedDiff, add.Name)
 					if add.SchemaName != srcSchema {
 						sm.Views = removeViewByName(sm.Views, rel.Name)
 						findOrCreateSchema(result, add.SchemaName).Views = append(findOrCreateSchema(result, add.SchemaName).Views, updated)
@@ -1549,6 +1563,9 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 			tbl.CheckConstraints = rebuilt.CheckConstraints
 			tbl.ExcludeConstraints = rebuilt.ExcludeConstraints
 			tbl.Triggers = rebuilt.Triggers
+			if len(rebuilt.Rules) > 0 || (rel.From != nil && len(rel.From.Rules) > 0) {
+				tbl.Rules = rebuilt.Rules
+			}
 			if rel.From.OwnerName != add.To.OwnerName {
 				tbl.Owner = add.To.OwnerName
 			}
@@ -2161,6 +2178,24 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteString(" PARALLEL RESTRICTED\n")
 	default:
 	}
+	if up.IsWindow {
+		b.WriteString(" WINDOW\n")
+	}
+	if up.Cost != "" {
+		b.WriteString(" COST ")
+		b.WriteString(up.Cost)
+		b.WriteByte('\n')
+	}
+	if up.Rows != "" {
+		b.WriteString(" ROWS ")
+		b.WriteString(up.Rows)
+		b.WriteByte('\n')
+	}
+	for _, sc := range up.SetConfig {
+		b.WriteByte(' ')
+		b.WriteString(sc)
+		b.WriteByte('\n')
+	}
 	b.WriteString("AS $function$")
 	b.WriteString(up.Body)
 	b.WriteString("$function$\n")
@@ -2404,6 +2439,7 @@ func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 				table.Triggers = append(table.Triggers, triggerToProto(c, rel.Schema.Name, rel.Name, trig))
 			}
 		}
+		table.Rules = rulesToProto(c, rel.Schema.Name, rel)
 	}
 
 	return table
@@ -2412,7 +2448,11 @@ func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 // relationToViewProto converts an omni Relation (view) to a metadatapb.ViewMetadata.
 func relationToViewProto(c *Catalog, rel *Relation) *metadatapb.ViewMetadata {
 	view := &metadatapb.ViewMetadata{
-		Name: rel.Name,
+		Name:              rel.Name,
+		DependencyColumns: relationDependencyColumns(c, rel),
+	}
+	for _, col := range rel.Columns {
+		view.Columns = append(view.Columns, columnToProto(c, col))
 	}
 	if rel.Schema != nil {
 		if def, err := c.GetViewDefinition(rel.Schema.Name, rel.Name); err == nil {
@@ -2423,6 +2463,7 @@ func relationToViewProto(c *Catalog, rel *Relation) *metadatapb.ViewMetadata {
 				view.Triggers = append(view.Triggers, triggerToProto(c, rel.Schema.Name, rel.Name, trig))
 			}
 		}
+		view.Rules = rulesToProto(c, rel.Schema.Name, rel)
 	}
 	return view
 }
@@ -2430,7 +2471,8 @@ func relationToViewProto(c *Catalog, rel *Relation) *metadatapb.ViewMetadata {
 // relationToMatViewProto converts an omni Relation (materialized view) to a metadatapb.MaterializedViewMetadata.
 func relationToMatViewProto(c *Catalog, rel *Relation) *metadatapb.MaterializedViewMetadata {
 	mv := &metadatapb.MaterializedViewMetadata{
-		Name: rel.Name,
+		Name:              rel.Name,
+		DependencyColumns: relationDependencyColumns(c, rel),
 	}
 	if rel.Schema != nil {
 		if def, err := c.GetMatViewDefinition(rel.Schema.Name, rel.Name); err == nil {
@@ -2603,16 +2645,20 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 					continue
 				}
 				if tbl := findTable(sm, relName); tbl != nil {
-					for _, col := range tbl.Columns {
-						if col.Name == colName {
-							col.Comment = c.To
-							break
-						}
-					}
+					setColumnComment(tbl.Columns, colName, c.To)
 				} else if ext := findExternalTable(sm, relName); ext != nil {
-					for _, col := range ext.Columns {
-						if col.Name == colName {
-							col.Comment = c.To
+					setColumnComment(ext.Columns, colName, c.To)
+				} else if v := findView(sm, relName); v != nil {
+					setColumnComment(v.Columns, colName, c.To)
+				} else {
+					for _, ct := range sm.CompositeTypes {
+						if ct.Name == relName {
+							for _, attr := range ct.Attributes {
+								if attr.Name == colName {
+									attr.Comment = c.To
+									break
+								}
+							}
 							break
 						}
 					}
@@ -2708,6 +2754,9 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 		case 'c':
 			schemaName, tableName, conName, ok := commentParts3(c)
 			if !ok {
+				continue
+			}
+			if c.Action == DiffDrop && isRecreatedConstraint(catBefore, catAfter, schemaName, tableName, conName) {
 				continue
 			}
 			sm := findSchema(result, schemaName)
@@ -2921,4 +2970,1045 @@ func setTriggerCommentInSchema(sm *metadatapb.SchemaMetadata, relName, trigName,
 			return
 		}
 	}
+}
+
+func findView(sm *metadatapb.SchemaMetadata, name string) *metadatapb.ViewMetadata {
+	if sm == nil {
+		return nil
+	}
+	for _, v := range sm.Views {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
+}
+
+func setColumnComment(cols []*metadatapb.ColumnMetadata, colName, comment string) {
+	for _, col := range cols {
+		if col.Name == colName {
+			col.Comment = comment
+			return
+		}
+	}
+}
+
+func relationDependencyColumns(c *Catalog, rel *Relation) []*metadatapb.DependencyColumn {
+	if c == nil || rel == nil {
+		return nil
+	}
+	type relKeyPair struct {
+		schema string
+		table  string
+	}
+	type depKey struct {
+		schema string
+		table  string
+		column string
+	}
+	seen := make(map[depKey]bool)
+	hasColDeps := make(map[relKeyPair]bool)
+	wholeRels := make(map[relKeyPair]bool)
+	var out []*metadatapb.DependencyColumn
+
+	for _, d := range c.deps {
+		if d.ObjType != 'r' || d.ObjOID != rel.OID || d.RefType != 'r' {
+			continue
+		}
+		refRel := c.GetRelationByOID(d.RefOID)
+		if refRel == nil || refRel.Schema == nil || wtIsSystemSchema(refRel.Schema.Name) {
+			continue
+		}
+		if d.RefSubID == 0 {
+			wholeRels[relKeyPair{schema: refRel.Schema.Name, table: refRel.Name}] = true
+			continue
+		}
+		colName := ""
+		for _, col := range refRel.Columns {
+			if col != nil && col.AttNum == int16(d.RefSubID) {
+				colName = col.Name
+				break
+			}
+		}
+		if colName == "" {
+			continue
+		}
+		hasColDeps[relKeyPair{schema: refRel.Schema.Name, table: refRel.Name}] = true
+		k := depKey{schema: refRel.Schema.Name, table: refRel.Name, column: colName}
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, &metadatapb.DependencyColumn{
+				Schema: refRel.Schema.Name,
+				Table:  refRel.Name,
+				Column: colName,
+			})
+		}
+	}
+	for pair := range wholeRels {
+		if hasColDeps[pair] {
+			continue
+		}
+		k := depKey{schema: pair.schema, table: pair.table}
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, &metadatapb.DependencyColumn{
+				Schema: pair.schema,
+				Table:  pair.table,
+			})
+		}
+	}
+	slices.SortFunc(out, func(a, b *metadatapb.DependencyColumn) int {
+		return cmp.Or(
+			cmp.Compare(a.Schema, b.Schema),
+			cmp.Compare(a.Table, b.Table),
+			cmp.Compare(a.Column, b.Column),
+		)
+	})
+	return out
+}
+
+func rulesToProto(c *Catalog, schemaName string, rel *Relation) []*metadatapb.RuleMetadata {
+	if c == nil || rel == nil || len(rel.Rules) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(rel.Rules))
+	for name, r := range rel.Rules {
+		if r != nil {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	out := make([]*metadatapb.RuleMetadata, 0, len(names))
+	for _, name := range names {
+		out = append(out, ruleToProto(c, schemaName, rel.Name, rel.Rules[name]))
+	}
+	return out
+}
+
+func ruleToProto(cat *Catalog, schemaName, relName string, r *Rule) *metadatapb.RuleMetadata {
+	actionsSQL := cat.deparseRuleActions(r)
+	var action string
+	switch len(actionsSQL) {
+	case 0:
+		action = "NOTHING"
+	case 1:
+		action = actionsSQL[0]
+	default:
+		action = "(" + strings.Join(actionsSQL, "; ") + ")"
+	}
+	return &metadatapb.RuleMetadata{
+		Name:       r.Name,
+		Event:      ruleEventKeyword(r.Event),
+		Condition:  cat.deparseRuleWhere(r),
+		Action:     action,
+		IsInstead:  r.Instead,
+		IsEnabled:  normalizeRuleMode(r.Mode) != 'D',
+		Definition: buildCreateRuleOpWithReplace(cat, schemaName, relName, r, false).SQL,
+	}
+}
+
+func applyRuleDiffs(rules *[]*metadatapb.RuleMetadata, cat *Catalog, rel RelationDiffEntry) {
+	if len(rel.Rules) == 0 {
+		return
+	}
+	upsert := func(r *Rule) {
+		updated := ruleToProto(cat, rel.SchemaName, rel.Name, r)
+		for i, existing := range *rules {
+			if existing.Name == r.Name {
+				(*rules)[i] = updated
+				return
+			}
+		}
+		*rules = append(*rules, updated)
+	}
+	for _, rd := range rel.Rules {
+		switch rd.Action {
+		case DiffAdd, DiffModify:
+			if rd.To != nil {
+				upsert(rd.To)
+			} else if rd.Action == DiffModify {
+				*rules = removeRuleByName(*rules, rd.Name)
+			}
+		case DiffDrop:
+			*rules = removeRuleByName(*rules, rd.Name)
+		default:
+		}
+	}
+}
+
+func removeRuleByName(rules []*metadatapb.RuleMetadata, name string) []*metadatapb.RuleMetadata {
+	out := make([]*metadatapb.RuleMetadata, 0, len(rules))
+	for _, r := range rules {
+		if r.Name != name {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func applyCollationDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, collations []CollationDiffEntry, renamedSchemas map[string]string, canonicalSchema func(string) string) {
+	if len(collations) == 0 {
+		return
+	}
+	addedByOID := make(map[uint32]CollationDiffEntry)
+	for _, col := range collations {
+		if col.Action == DiffAdd && col.To != nil && col.To.OID != 0 {
+			addedByOID[col.To.OID] = col
+		}
+	}
+
+	handledDropOIDs := make(map[uint32]bool)
+	handledAddOIDs := make(map[uint32]bool)
+	for _, col := range collations {
+		if col.Action != DiffDrop || col.From == nil || col.From.OID == 0 {
+			continue
+		}
+		add, ok := addedByOID[col.From.OID]
+		if !ok || add.To == nil {
+			continue
+		}
+		var prev *metadatapb.CollationMetadata
+		if srcSM := findSchema(result, canonicalSchema(col.SchemaName)); srcSM != nil {
+			prev, srcSM.Collations = popCollationByName(srcSM.Collations, col.Name)
+		}
+		dstSchema := add.SchemaName
+		if renamed, ok := renamedSchemas[col.SchemaName]; ok && col.SchemaName == add.SchemaName {
+			dstSchema = renamed
+		}
+		dstSM := findOrCreateSchema(result, dstSchema)
+		upsertCollation(dstSM, collationToProto(add.To, prev))
+		handledDropOIDs[col.From.OID] = true
+		handledAddOIDs[add.To.OID] = true
+	}
+
+	for _, col := range collations {
+		if col.Action == DiffDrop && col.From != nil && handledDropOIDs[col.From.OID] {
+			continue
+		}
+		if col.Action == DiffAdd && col.To != nil && handledAddOIDs[col.To.OID] {
+			continue
+		}
+		schemaName := canonicalSchema(col.SchemaName)
+		if col.Action == DiffDrop {
+			if sm := findSchema(result, schemaName); sm != nil {
+				_, sm.Collations = popCollationByName(sm.Collations, col.Name)
+			}
+			continue
+		}
+		if col.To == nil {
+			continue
+		}
+		sm := findOrCreateSchema(result, schemaName)
+		switch col.Action {
+		case DiffAdd, DiffModify:
+			upsertCollation(sm, collationToProto(col.To, findCollationInSchema(sm, col.Name)))
+		default:
+		}
+	}
+}
+
+func collationToProto(uc *UserCollation, previous *metadatapb.CollationMetadata) *metadatapb.CollationMetadata {
+	out := &metadatapb.CollationMetadata{Name: uc.Name}
+	if previous != nil {
+		out.Comment = previous.Comment
+		out.SkipDump = previous.SkipDump
+		out.Provider = previous.Provider
+		out.Locale = previous.Locale
+		out.LcCollate = previous.LcCollate
+		out.LcCtype = previous.LcCtype
+		out.Rules = previous.Rules
+		if previous.Deterministic != nil {
+			d := *previous.Deterministic
+			out.Deterministic = &d
+		}
+	}
+	applyCollationDefClause(out, uc.DefClause)
+	return out
+}
+
+func applyCollationDefClause(cm *metadatapb.CollationMetadata, defClause string) {
+	trimmed := strings.TrimSpace(defClause)
+	if !strings.HasPrefix(trimmed, "(") || !strings.HasSuffix(trimmed, ")") {
+		return
+	}
+	inner := trimmed[1 : len(trimmed)-1]
+	// Clear fields derived from DefClause before parsing key=value pairs.
+	cm.Provider = ""
+	cm.Locale = ""
+	cm.LcCollate = ""
+	cm.LcCtype = ""
+	cm.Rules = ""
+	cm.Deterministic = nil
+
+	for _, entry := range splitCollationDefItems(inner) {
+		k, v, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		key := strings.ToUpper(strings.TrimSpace(k))
+		val := unquoteCollationValue(strings.TrimSpace(v))
+		switch key {
+		case "PROVIDER":
+			switch strings.ToLower(val) {
+			case "icu", "i":
+				cm.Provider = "i"
+			case "libc", "c":
+				cm.Provider = "c"
+			case "builtin", "b":
+				cm.Provider = "b"
+			case "default", "d":
+				cm.Provider = "d"
+			}
+		case "LOCALE":
+			cm.Locale = val
+		case "LC_COLLATE":
+			cm.LcCollate = val
+		case "LC_CTYPE":
+			cm.LcCtype = val
+		case "RULES":
+			cm.Rules = val
+		case "DETERMINISTIC":
+			b := strings.EqualFold(val, "true")
+			cm.Deterministic = &b
+		}
+	}
+	if cm.Provider == "" && (cm.LcCollate != "" || cm.LcCtype != "") {
+		cm.Provider = "c"
+	}
+}
+
+func splitCollationDefItems(s string) []string {
+	var out []string
+	var cur strings.Builder
+	inQuote := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if inQuote {
+			cur.WriteByte(ch)
+			if ch == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					cur.WriteByte(s[i+1])
+					i++
+					continue
+				}
+				inQuote = false
+			}
+			continue
+		}
+		if ch == '\'' {
+			inQuote = true
+			cur.WriteByte(ch)
+			continue
+		}
+		if ch == ',' {
+			out = append(out, cur.String())
+			cur.Reset()
+			continue
+		}
+		cur.WriteByte(ch)
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+func unquoteCollationValue(v string) string {
+	if len(v) >= 2 && v[0] == '\'' && v[len(v)-1] == '\'' {
+		return strings.ReplaceAll(v[1:len(v)-1], "''", "'")
+	}
+	return v
+}
+
+func findCollationInSchema(sm *metadatapb.SchemaMetadata, name string) *metadatapb.CollationMetadata {
+	if sm == nil {
+		return nil
+	}
+	for _, c := range sm.Collations {
+		if c.Name == name {
+			return c
+		}
+	}
+	return nil
+}
+
+func popCollationByName(collations []*metadatapb.CollationMetadata, name string) (*metadatapb.CollationMetadata, []*metadatapb.CollationMetadata) {
+	var popped *metadatapb.CollationMetadata
+	out := make([]*metadatapb.CollationMetadata, 0, len(collations))
+	for _, c := range collations {
+		if c.Name == name && popped == nil {
+			popped = c
+			continue
+		}
+		out = append(out, c)
+	}
+	return popped, out
+}
+
+func upsertCollation(sm *metadatapb.SchemaMetadata, updated *metadatapb.CollationMetadata) {
+	for i, existing := range sm.Collations {
+		if existing.Name == updated.Name {
+			sm.Collations[i] = updated
+			return
+		}
+	}
+	sm.Collations = append(sm.Collations, updated)
+}
+
+func collectExtensionMemberOIDs(catBefore, catAfter *Catalog) []uint32 {
+	if catBefore == nil && catAfter == nil {
+		return nil
+	}
+	seen := make(map[uint32]bool)
+	var oids []uint32
+	if catBefore != nil {
+		for oid := range catBefore.extensionMembers {
+			if !seen[oid] {
+				seen[oid] = true
+				oids = append(oids, oid)
+			}
+		}
+	}
+	if catAfter != nil {
+		for oid := range catAfter.extensionMembers {
+			if !seen[oid] {
+				seen[oid] = true
+				oids = append(oids, oid)
+			}
+		}
+	}
+	slices.Sort(oids)
+	return oids
+}
+
+func collationByOID(c *Catalog, oid uint32) (string, *UserCollation) {
+	if c == nil {
+		return "", nil
+	}
+	for _, s := range c.schemas {
+		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
+			continue
+		}
+		for _, uc := range s.Collations {
+			if uc != nil && uc.OID == oid {
+				return s.Name, uc
+			}
+		}
+	}
+	return "", nil
+}
+
+func hasExtensionMemberChange(catBefore, catAfter *Catalog) bool {
+	if catBefore == nil || catAfter == nil {
+		return false
+	}
+	for _, oid := range collectExtensionMemberOIDs(catBefore, catAfter) {
+		if catBefore.extensionMembers[oid] != catAfter.extensionMembers[oid] {
+			return true
+		}
+		if !catAfter.isExtensionMember(oid) {
+			continue
+		}
+		if fromRel, toRel := catBefore.relationByOID[oid], catAfter.relationByOID[oid]; fromRel != nil || toRel != nil {
+			if fromRel == nil || toRel == nil {
+				return true
+			}
+			if toRel.RelKind != 'i' && toRel.RelKind != 'c' {
+				if extensionRelationChanged(catBefore, fromRel, catAfter, toRel) {
+					return true
+				}
+			}
+		}
+		if fromSeq, toSeq := catBefore.sequenceByOID[oid], catAfter.sequenceByOID[oid]; fromSeq != nil || toSeq != nil {
+			if fromSeq == nil || toSeq == nil {
+				return true
+			}
+			if fromSeq.Schema == nil || toSeq.Schema == nil || fromSeq.Schema.Name != toSeq.Schema.Name ||
+				fromSeq.Name != toSeq.Name || fromSeq.OwnerName != toSeq.OwnerName || sequencesChanged(catBefore, catAfter, fromSeq, toSeq) {
+				return true
+			}
+		}
+		if fromUP, toUP := catBefore.userProcs[oid], catAfter.userProcs[oid]; fromUP != nil || toUP != nil {
+			if fromUP == nil || toUP == nil {
+				return true
+			}
+			if funcIdentity(catBefore, fromUP) != funcIdentity(catAfter, toUP) || funcChanged(catBefore, catAfter, fromUP, toUP) {
+				return true
+			}
+		}
+		if fromBT, toBT := catBefore.typeByOID[oid], catAfter.typeByOID[oid]; fromBT != nil || toBT != nil {
+			if extensionTypeChanged(catBefore, fromBT, catAfter, toBT) {
+				return true
+			}
+		}
+		fromCollSchema, fromColl := collationByOID(catBefore, oid)
+		toCollSchema, toColl := collationByOID(catAfter, oid)
+		if fromColl != nil || toColl != nil {
+			if fromColl == nil || toColl == nil || fromCollSchema != toCollSchema || fromColl.Name != toColl.Name ||
+				fromColl.DefClause != toColl.DefClause || fromColl.OwnerName != toColl.OwnerName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func extensionRelationChanged(catBefore *Catalog, fromRel *Relation, catAfter *Catalog, toRel *Relation) bool {
+	if fromRel.Schema == nil || toRel.Schema == nil {
+		return true
+	}
+	if fromRel.Schema.Name != toRel.Schema.Name || fromRel.Name != toRel.Name || fromRel.OwnerName != toRel.OwnerName {
+		return true
+	}
+	key := relKey{schema: toRel.Schema.Name, name: toRel.Name}
+	switch toRel.RelKind {
+	case 'v', 'm':
+		_, changed := compareView(catBefore, catAfter, key, fromRel, toRel)
+		return changed
+	default:
+		_, changed := compareRelation(catBefore, catAfter, key, fromRel, toRel)
+		return changed
+	}
+}
+
+func extensionTypeChanged(catBefore *Catalog, fromBT *BuiltinType, catAfter *Catalog, toBT *BuiltinType) bool {
+	if fromBT == nil || toBT == nil {
+		return true
+	}
+	fromNS, toNS := catBefore.schemas[fromBT.Namespace], catAfter.schemas[toBT.Namespace]
+	if fromNS == nil || toNS == nil || fromNS.Name != toNS.Name || fromBT.TypeName != toBT.TypeName || fromBT.Type != toBT.Type {
+		return true
+	}
+	switch toBT.Type {
+	case 'e':
+		return !slices.Equal(enumLabels(catBefore, fromBT.OID), enumLabels(catAfter, toBT.OID))
+	case 'c':
+		fromRel, toRel := catBefore.relationByOID[fromBT.RelID], catAfter.relationByOID[toBT.RelID]
+		if fromRel == nil || toRel == nil {
+			return fromRel != toRel
+		}
+		return len(diffColumns(catBefore, catAfter, fromRel, toRel)) > 0
+	case 'r':
+		fromRT, toRT := catBefore.rangeTypes[fromBT.OID], catAfter.rangeTypes[toBT.OID]
+		if fromRT == nil || toRT == nil {
+			return fromRT != toRT
+		}
+		return rangeChanged(catBefore, fromRT, catAfter, toRT)
+	}
+	return false
+}
+
+func applyExtensionMemberChanges(result, original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, canonicalSchema func(string) string) {
+	if catBefore == nil || catAfter == nil {
+		return
+	}
+	var relEntries []RelationDiffEntry
+	var ftEntries []RelationDiffEntry
+	var seqEntries []SequenceDiffEntry
+	var fnEntries []FunctionDiffEntry
+	var rtEntries []RangeDiffEntry
+	var collEntries []CollationDiffEntry
+
+	for _, oid := range collectExtensionMemberOIDs(catBefore, catAfter) {
+		inBefore := catBefore.isExtensionMember(oid)
+		inAfter := catAfter.isExtensionMember(oid)
+		if !inBefore && !inAfter {
+			continue
+		}
+		// Skip whole schemas handled by schema diffs.
+		if s := catAfter.schemas[oid]; s != nil && oid != PGCatalogNamespace && oid != PGToastNamespace {
+			if sm := findSchema(result, s.Name); sm != nil {
+				sm.SkipDump = inAfter
+			}
+			continue
+		}
+		// Relations (tables, partitions, views, matviews, foreign tables).
+		if fromRel, toRel := catBefore.relationByOID[oid], catAfter.relationByOID[oid]; fromRel != nil || toRel != nil {
+			switch {
+			case toRel == nil && inBefore:
+				if fromRel.Schema != nil {
+					dropRelation(result, canonicalSchema(fromRel.Schema.Name), RelationDiffEntry{
+						Action:     DiffDrop,
+						SchemaName: fromRel.Schema.Name,
+						Name:       fromRel.Name,
+						From:       fromRel,
+					})
+				}
+			case toRel != nil && toRel.RelKind != 'i' && toRel.RelKind != 'c':
+				toSchema := ""
+				if toRel.Schema != nil {
+					toSchema = toRel.Schema.Name
+				}
+				fromSchema := ""
+				if fromRel != nil && fromRel.Schema != nil {
+					fromSchema = fromRel.Schema.Name
+				}
+				if inAfter {
+					if !inBefore && fromRel != nil && original != nil {
+						restoreOriginalRelation(result, original, canonicalSchema(fromSchema), fromRel.Name, fromRel.RelKind)
+					}
+					if fromRel == nil {
+						entry := RelationDiffEntry{Action: DiffAdd, SchemaName: toSchema, Name: toRel.Name, To: toRel}
+						if toRel.RelKind == 'f' {
+							ftEntries = append(ftEntries, entry)
+						} else {
+							relEntries = append(relEntries, entry)
+						}
+					} else if extensionRelationChanged(catBefore, fromRel, catAfter, toRel) {
+						if fromSchema != toSchema || fromRel.Name != toRel.Name {
+							dropE := RelationDiffEntry{Action: DiffDrop, SchemaName: fromSchema, Name: fromRel.Name, From: fromRel}
+							addE := RelationDiffEntry{Action: DiffAdd, SchemaName: toSchema, Name: toRel.Name, To: toRel}
+							if toRel.RelKind == 'f' {
+								ftEntries = append(ftEntries, dropE, addE)
+							} else {
+								relEntries = append(relEntries, dropE, addE)
+							}
+						} else {
+							var entry RelationDiffEntry
+							key := relKey{schema: toSchema, name: toRel.Name}
+							if toRel.RelKind == 'v' || toRel.RelKind == 'm' {
+								entry, _ = compareView(catBefore, catAfter, key, fromRel, toRel)
+							} else {
+								entry, _ = compareRelation(catBefore, catAfter, key, fromRel, toRel)
+								if entry.Action == 0 {
+									entry = RelationDiffEntry{Action: DiffModify, SchemaName: toSchema, Name: toRel.Name, From: fromRel, To: toRel}
+								}
+							}
+							if toRel.RelKind == 'f' {
+								ftEntries = append(ftEntries, entry)
+							} else {
+								relEntries = append(relEntries, entry)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if fromSeq, toSeq := catBefore.sequenceByOID[oid], catAfter.sequenceByOID[oid]; fromSeq != nil || toSeq != nil {
+			if toSeq != nil && inAfter {
+				fromSchema, toSchema := "", ""
+				if fromSeq != nil && fromSeq.Schema != nil {
+					fromSchema = fromSeq.Schema.Name
+				}
+				if toSeq.Schema != nil {
+					toSchema = toSeq.Schema.Name
+				}
+				if !inBefore && fromSeq != nil && original != nil {
+					if srcSM := findSchema(original, canonicalSchema(fromSchema)); srcSM != nil {
+						if prev := findSequenceInSchema(srcSM, fromSeq.Name); prev != nil {
+							upsertSequence(findOrCreateSchema(result, canonicalSchema(fromSchema)), proto.CloneOf(prev))
+						}
+					}
+				}
+				if fromSeq == nil {
+					seqEntries = append(seqEntries, SequenceDiffEntry{Action: DiffAdd, SchemaName: toSchema, Name: toSeq.Name, To: toSeq})
+				} else if fromSchema != toSchema || fromSeq.Name != toSeq.Name {
+					seqEntries = append(seqEntries,
+						SequenceDiffEntry{Action: DiffDrop, SchemaName: fromSchema, Name: fromSeq.Name, From: fromSeq},
+						SequenceDiffEntry{Action: DiffAdd, SchemaName: toSchema, Name: toSeq.Name, To: toSeq},
+					)
+				} else if fromSeq.OwnerName != toSeq.OwnerName || sequencesChanged(catBefore, catAfter, fromSeq, toSeq) {
+					seqEntries = append(seqEntries, SequenceDiffEntry{Action: DiffModify, SchemaName: toSchema, Name: toSeq.Name, From: fromSeq, To: toSeq})
+				}
+			}
+		}
+
+		if fromUP, toUP := catBefore.userProcs[oid], catAfter.userProcs[oid]; fromUP != nil || toUP != nil {
+			if toUP != nil && inAfter {
+				toSchema := ""
+				if toUP.Schema != nil {
+					toSchema = toUP.Schema.Name
+				}
+				toID := funcIdentity(catAfter, toUP)
+				fromID := ""
+				fromSchema := ""
+				if fromUP != nil {
+					if fromUP.Schema != nil {
+						fromSchema = fromUP.Schema.Name
+					}
+					fromID = funcIdentity(catBefore, fromUP)
+				}
+				if !inBefore && fromUP != nil && original != nil {
+					if srcSM := findSchema(original, canonicalSchema(fromSchema)); srcSM != nil {
+						if fromUP.Kind == 'p' {
+							if p, _ := popProcedureByIdentity(srcSM.Procedures, fromID); p != nil {
+								dstSM := findOrCreateSchema(result, canonicalSchema(fromSchema))
+								if _, rem := popProcedureByIdentity(dstSM.Procedures, fromID); len(rem) == len(dstSM.Procedures) {
+									dstSM.Procedures = append(dstSM.Procedures, proto.CloneOf(p))
+								}
+							}
+						} else {
+							if fn, _ := popFunctionByIdentity(srcSM.Functions, fromID); fn != nil {
+								dstSM := findOrCreateSchema(result, canonicalSchema(fromSchema))
+								if _, rem := popFunctionByIdentity(dstSM.Functions, fromID); len(rem) == len(dstSM.Functions) {
+									dstSM.Functions = append(dstSM.Functions, proto.CloneOf(fn))
+								}
+							}
+						}
+					}
+				}
+				if fromUP == nil {
+					fnEntries = append(fnEntries, FunctionDiffEntry{Action: DiffAdd, SchemaName: toSchema, Identity: toID, To: toUP})
+				} else if fromID != toID {
+					fnEntries = append(fnEntries,
+						FunctionDiffEntry{Action: DiffDrop, SchemaName: fromSchema, Identity: fromID, From: fromUP},
+						FunctionDiffEntry{Action: DiffAdd, SchemaName: toSchema, Identity: toID, To: toUP},
+					)
+				} else if funcChanged(catBefore, catAfter, fromUP, toUP) {
+					fnEntries = append(fnEntries, FunctionDiffEntry{Action: DiffModify, SchemaName: toSchema, Identity: toID, From: fromUP, To: toUP})
+				}
+			}
+		}
+
+		if fromBT, toBT := catBefore.typeByOID[oid], catAfter.typeByOID[oid]; fromBT != nil || toBT != nil {
+			if toBT != nil && inAfter {
+				toNS := catAfter.schemas[toBT.Namespace]
+				if toNS != nil {
+					var fromNS *Schema
+					if fromBT != nil {
+						fromNS = catBefore.schemas[fromBT.Namespace]
+					}
+					if !inBefore && fromBT != nil && fromNS != nil && original != nil {
+						restoreOriginalType(result, original, canonicalSchema(fromNS.Name), fromBT.TypeName, fromBT.Type)
+					}
+					switch toBT.Type {
+					case 'e':
+						if fromBT == nil || extensionTypeChanged(catBefore, fromBT, catAfter, toBT) {
+							var prev *metadatapb.EnumTypeMetadata
+							if fromBT != nil && fromNS != nil {
+								if srcSM := findSchema(result, canonicalSchema(fromNS.Name)); srcSM != nil {
+									for _, e := range srcSM.EnumTypes {
+										if e.Name == fromBT.TypeName {
+											prev = proto.CloneOf(e)
+											break
+										}
+									}
+									if fromNS.Name != toNS.Name || fromBT.TypeName != toBT.TypeName {
+										srcSM.EnumTypes = removeEnumByName(srcSM.EnumTypes, fromBT.TypeName)
+									}
+								}
+							}
+							dstSM := findOrCreateSchema(result, toNS.Name)
+							upsertEnum(dstSM, toBT.TypeName, enumLabels(catAfter, toBT.OID))
+							if prev != nil {
+								for _, e := range dstSM.EnumTypes {
+									if e.Name == toBT.TypeName {
+										e.Comment = prev.Comment
+										e.SkipDump = prev.SkipDump
+									}
+								}
+							}
+						}
+					case 'c':
+						if fromBT == nil || extensionTypeChanged(catBefore, fromBT, catAfter, toBT) {
+							var prev *metadatapb.CompositeTypeMetadata
+							if fromBT != nil && fromNS != nil {
+								if srcSM := findSchema(result, canonicalSchema(fromNS.Name)); srcSM != nil {
+									for _, ct := range srcSM.CompositeTypes {
+										if ct.Name == fromBT.TypeName {
+											prev = proto.CloneOf(ct)
+											break
+										}
+									}
+									if fromNS.Name != toNS.Name || fromBT.TypeName != toBT.TypeName {
+										srcSM.CompositeTypes = removeCompositeTypeByName(srcSM.CompositeTypes, fromBT.TypeName)
+									}
+								}
+							}
+							var fromCompRel *Relation
+							if fromBT != nil {
+								fromCompRel = catBefore.relationByOID[fromBT.RelID]
+							}
+							toCompRel := catAfter.relationByOID[toBT.RelID]
+							if toCompRel != nil {
+								dstSM := findOrCreateSchema(result, toNS.Name)
+								updated := compositeTypeToProto(catAfter, toBT.TypeName, fromCompRel, toCompRel, prev)
+								replaced := false
+								for i, ct := range dstSM.CompositeTypes {
+									if ct.Name == toBT.TypeName {
+										dstSM.CompositeTypes[i] = updated
+										replaced = true
+										break
+									}
+								}
+								if !replaced {
+									dstSM.CompositeTypes = append(dstSM.CompositeTypes, updated)
+								}
+							}
+						}
+					case 'r':
+						fromRT := catBefore.rangeTypes[oid]
+						toRT := catAfter.rangeTypes[oid]
+						if toRT != nil && (fromRT == nil || fromNS == nil || fromNS.Name != toNS.Name || fromBT.TypeName != toBT.TypeName || rangeChanged(catBefore, fromRT, catAfter, toRT)) {
+							if fromRT == nil || fromNS == nil {
+								rtEntries = append(rtEntries, RangeDiffEntry{Action: DiffAdd, SchemaName: toNS.Name, Name: toBT.TypeName, To: toRT})
+							} else if fromNS.Name != toNS.Name || fromBT.TypeName != toBT.TypeName {
+								rtEntries = append(rtEntries,
+									RangeDiffEntry{Action: DiffDrop, SchemaName: fromNS.Name, Name: fromBT.TypeName, From: fromRT},
+									RangeDiffEntry{Action: DiffAdd, SchemaName: toNS.Name, Name: toBT.TypeName, To: toRT},
+								)
+							} else {
+								rtEntries = append(rtEntries, RangeDiffEntry{Action: DiffModify, SchemaName: toNS.Name, Name: toBT.TypeName, From: fromRT, To: toRT})
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if fromCollSchema, fromColl := collationByOID(catBefore, oid); fromColl != nil {
+			toCollSchema, toColl := collationByOID(catAfter, oid)
+			if toColl != nil && inAfter {
+				if !inBefore && original != nil {
+					if srcSM := findSchema(original, canonicalSchema(fromCollSchema)); srcSM != nil {
+						if prev := findCollationInSchema(srcSM, fromColl.Name); prev != nil {
+							upsertCollation(findOrCreateSchema(result, canonicalSchema(fromCollSchema)), proto.CloneOf(prev))
+						}
+					}
+				}
+				if fromCollSchema != toCollSchema || fromColl.Name != toColl.Name {
+					collEntries = append(collEntries,
+						CollationDiffEntry{Action: DiffDrop, SchemaName: fromCollSchema, Name: fromColl.Name, From: fromColl},
+						CollationDiffEntry{Action: DiffAdd, SchemaName: toCollSchema, Name: toColl.Name, To: toColl},
+					)
+				} else if fromColl.DefClause != toColl.DefClause || fromColl.OwnerName != toColl.OwnerName {
+					collEntries = append(collEntries, CollationDiffEntry{Action: DiffModify, SchemaName: toCollSchema, Name: toColl.Name, From: fromColl, To: toColl})
+				}
+			}
+		} else if toCollSchema, toColl := collationByOID(catAfter, oid); toColl != nil && inAfter {
+			collEntries = append(collEntries, CollationDiffEntry{Action: DiffAdd, SchemaName: toCollSchema, Name: toColl.Name, To: toColl})
+		}
+	}
+
+	if len(relEntries) > 0 {
+		renamed := renamePartitions(result, catBefore, catAfter, relEntries, canonicalSchema)
+		for _, rel := range relEntries {
+			if (rel.From != nil && renamed[rel.From.OID]) || (rel.To != nil && renamed[rel.To.OID]) {
+				continue
+			}
+			sm := findOrCreateSchema(result, canonicalSchema(rel.SchemaName))
+			switch rel.Action {
+			case DiffAdd:
+				addRelation(result, sm, catAfter, rel)
+			case DiffModify:
+				modifyRelation(result, sm, catBefore, catAfter, rel)
+			}
+		}
+	}
+	applySequenceDiffs(result, catAfter, seqEntries, nil, canonicalSchema)
+	applyFunctionDiffs(result, catAfter, fnEntries, canonicalSchema)
+	applyRangeDiffs(result, catAfter, rtEntries, canonicalSchema)
+	applyCollationDiffs(result, catAfter, collEntries, nil, canonicalSchema)
+	applyForeignTableDiffs(result, catBefore, catAfter, ftEntries, canonicalSchema)
+
+	// Synchronize SkipDump flags with final extension membership in catAfter.
+	for _, oid := range collectExtensionMemberOIDs(catBefore, catAfter) {
+		inAfter := catAfter.isExtensionMember(oid)
+		setExtensionObjectSkipDump(result, catAfter, oid, inAfter)
+	}
+}
+
+func restoreOriginalRelation(result, original *metadatapb.DatabaseSchemaMetadata, schemaName, name string, relKind byte) {
+	origSM := findSchema(original, schemaName)
+	if origSM == nil {
+		return
+	}
+	dstSM := findOrCreateSchema(result, schemaName)
+	switch relKind {
+	case 'v':
+		if v := findView(origSM, name); v != nil && findView(dstSM, name) == nil {
+			dstSM.Views = append(dstSM.Views, proto.CloneOf(v))
+		}
+	case 'm':
+		for _, mv := range origSM.MaterializedViews {
+			if mv.Name == name {
+				dstSM.MaterializedViews = append(dstSM.MaterializedViews, proto.CloneOf(mv))
+				return
+			}
+		}
+	case 'f':
+		if ext := findExternalTable(origSM, name); ext != nil && findExternalTable(dstSM, name) == nil {
+			dstSM.ExternalTables = append(dstSM.ExternalTables, proto.CloneOf(ext))
+		}
+	default:
+		if tbl := findTable(origSM, name); tbl != nil && findTable(dstSM, name) == nil {
+			dstSM.Tables = append(dstSM.Tables, proto.CloneOf(tbl))
+		}
+	}
+}
+
+func restoreOriginalType(result, original *metadatapb.DatabaseSchemaMetadata, schemaName, name string, typ byte) {
+	origSM := findSchema(original, schemaName)
+	if origSM == nil {
+		return
+	}
+	dstSM := findOrCreateSchema(result, schemaName)
+	switch typ {
+	case 'e':
+		for _, e := range origSM.EnumTypes {
+			if e.Name == name {
+				dstSM.EnumTypes = append(dstSM.EnumTypes, proto.CloneOf(e))
+				return
+			}
+		}
+	case 'c':
+		for _, ct := range origSM.CompositeTypes {
+			if ct.Name == name {
+				dstSM.CompositeTypes = append(dstSM.CompositeTypes, proto.CloneOf(ct))
+				return
+			}
+		}
+	case 'r':
+		if rt := findRangeType(origSM, name); rt != nil && findRangeType(dstSM, name) == nil {
+			dstSM.RangeTypes = append(dstSM.RangeTypes, proto.CloneOf(rt))
+		}
+	}
+}
+
+func setExtensionObjectSkipDump(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, oid uint32, skipDump bool) {
+	if result == nil || catAfter == nil {
+		return
+	}
+	if rel := catAfter.relationByOID[oid]; rel != nil && rel.Schema != nil {
+		if sm := findSchema(result, rel.Schema.Name); sm != nil {
+			switch rel.RelKind {
+			case 'v':
+				if v := findView(sm, rel.Name); v != nil {
+					v.SkipDump = skipDump
+				}
+			case 'm':
+				for _, mv := range sm.MaterializedViews {
+					if mv.Name == rel.Name {
+						mv.SkipDump = skipDump
+						break
+					}
+				}
+			case 'f':
+				if ext := findExternalTable(sm, rel.Name); ext != nil {
+					ext.SkipDump = skipDump
+				}
+			default:
+				if tbl := findTable(sm, rel.Name); tbl != nil {
+					tbl.SkipDump = skipDump
+				}
+			}
+		}
+	}
+	if seq := catAfter.sequenceByOID[oid]; seq != nil && seq.Schema != nil {
+		if sm := findSchema(result, seq.Schema.Name); sm != nil {
+			if s := findSequenceInSchema(sm, seq.Name); s != nil {
+				s.SkipDump = skipDump
+			}
+		}
+	}
+	if up := catAfter.userProcs[oid]; up != nil && up.Schema != nil {
+		if sm := findSchema(result, up.Schema.Name); sm != nil {
+			id := funcIdentity(catAfter, up)
+			shortID := strings.TrimPrefix(id, up.Schema.Name+".")
+			if up.Kind == 'p' {
+				for _, p := range sm.Procedures {
+					if p.Signature == id || p.Signature == shortID {
+						p.SkipDump = skipDump
+					}
+				}
+			} else {
+				for _, fn := range sm.Functions {
+					if fn.Signature == id || fn.Signature == shortID {
+						fn.SkipDump = skipDump
+					}
+				}
+			}
+		}
+	}
+	if bt := catAfter.typeByOID[oid]; bt != nil {
+		if ns := catAfter.schemas[bt.Namespace]; ns != nil {
+			if sm := findSchema(result, ns.Name); sm != nil {
+				switch bt.Type {
+				case 'e':
+					for _, e := range sm.EnumTypes {
+						if e.Name == bt.TypeName {
+							e.SkipDump = skipDump
+						}
+					}
+				case 'c':
+					for _, ct := range sm.CompositeTypes {
+						if ct.Name == bt.TypeName {
+							ct.SkipDump = skipDump
+						}
+					}
+				case 'r':
+					if rt := findRangeType(sm, bt.TypeName); rt != nil {
+						rt.SkipDump = skipDump
+					}
+				}
+			}
+		}
+	}
+	if collSchema, uc := collationByOID(catAfter, oid); uc != nil {
+		if sm := findSchema(result, collSchema); sm != nil {
+			if c := findCollationInSchema(sm, uc.Name); c != nil {
+				c.SkipDump = skipDump
+			}
+		}
+	}
+}
+
+func enumLabels(c *Catalog, typeOID uint32) []string {
+	if c == nil {
+		return nil
+	}
+	et := c.enumTypes[typeOID]
+	if et == nil {
+		return nil
+	}
+	labels := make([]string, len(et.Values))
+	for i, ev := range et.Values {
+		labels[i] = ev.Label
+	}
+	return labels
+}
+
+func rangeChanged(catBefore *Catalog, fromRT *RangeType, catAfter *Catalog, toRT *RangeType) bool {
+	if fromRT == nil || toRT == nil {
+		return fromRT != toRT
+	}
+	return catBefore.FormatType(fromRT.SubTypeOID, -1) != catAfter.FormatType(toRT.SubTypeOID, -1)
+}
+
+func findSequenceInSchema(sm *metadatapb.SchemaMetadata, name string) *metadatapb.SequenceMetadata {
+	if sm == nil {
+		return nil
+	}
+	for _, s := range sm.Sequences {
+		if s.Name == name {
+			return s
+		}
+	}
+	return nil
+}
+
+func isRecreatedConstraint(catBefore, catAfter *Catalog, schemaName, tableName, conName string) bool {
+	if catBefore == nil || catAfter == nil {
+		return false
+	}
+	fromRel := catBefore.GetRelation(schemaName, tableName)
+	toRel := catAfter.GetRelation(schemaName, tableName)
+	if fromRel == nil || toRel == nil {
+		return false
+	}
+	var fromOID, toOID uint32
+	for _, con := range catBefore.ConstraintsOf(fromRel.OID) {
+		if con != nil && con.Name == conName {
+			fromOID = con.OID
+			break
+		}
+	}
+	for _, con := range catAfter.ConstraintsOf(toRel.OID) {
+		if con != nil && con.Name == conName {
+			toOID = con.OID
+			break
+		}
+	}
+	return fromOID != 0 && toOID != 0 && fromOID != toOID
 }

@@ -81,7 +81,8 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	}
 	diff := Diff(from, to)
 	extraRoutineOps := routineDefaultAlterOps(oldMeta, newMeta, nil, from, to, skipSchemas)
-	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 {
+	extraComments := unloadedCommentOps(oldMeta, newMeta, skipSchemas)
+	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 && len(extraComments) == 0 {
 		return "", nil
 	}
 	if err := rejectAmbiguousUserTypes(oldMeta, newMeta, sourceSearchPath, targetSearchPath, skipSchemas); err != nil {
@@ -99,6 +100,7 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 		return "", err
 	}
 	restoreRecreatedViewComments(plan, newMeta)
+	appendUnloadedCommentOps(plan, extraComments)
 	plan.Ops = insertSourceOnlyDrops(plan.Ops, sourceDrops)
 	if len(skipSchemas) > 0 {
 		plan = plan.Filter(func(op MigrationOp) bool {
@@ -178,7 +180,11 @@ func refuseUnsupportedSnapshotObjectChanges(oldMeta, newMeta *metadatapb.Databas
 		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
 			out := make([]namedProtoMessage, 0, len(s.GetRangeTypes()))
 			for _, rt := range s.GetRangeTypes() {
-				out = append(out, namedProtoMessage{name: rt.GetName(), msg: rt})
+				cp := proto.CloneOf(rt)
+				if cp != nil {
+					cp.Comment = ""
+				}
+				out = append(out, namedProtoMessage{name: rt.GetName(), msg: cp})
 			}
 			return out
 		},
@@ -4241,6 +4247,147 @@ func restoreRecreatedViewComments(plan *MigrationPlan, meta *metadatapb.Database
 			}
 		}
 	}
+}
+
+func commentValueSQL(text string) string {
+	if text == "" {
+		return "NULL"
+	}
+	return quoteLiteral(text)
+}
+
+func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) []MigrationOp {
+	type unloadedCommentKey struct {
+		objType  byte
+		schema   string
+		relation string
+		name     string
+	}
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[unloadedCommentKey]string {
+		out := make(map[unloadedCommentKey]string)
+		for _, s := range meta.GetSchemas() {
+			schemaName := s.GetName()
+			if schemaName == "" || skipSchemas[schemaName] {
+				continue
+			}
+			for _, rt := range s.GetRangeTypes() {
+				out[unloadedCommentKey{objType: 't', schema: schemaName, name: rt.GetName()}] = rt.GetComment()
+			}
+			collectTriggers := func(relName string, triggers []*metadatapb.TriggerMetadata) {
+				for _, tr := range triggers {
+					out[unloadedCommentKey{objType: 'g', schema: schemaName, relation: relName, name: tr.GetName()}] = tr.GetComment()
+				}
+			}
+			for _, t := range s.GetTables() {
+				collectTriggers(t.GetName(), t.GetTriggers())
+			}
+			for _, ext := range s.GetExternalTables() {
+				collectTriggers(ext.GetName(), ext.GetTriggers())
+			}
+			for _, v := range s.GetViews() {
+				collectTriggers(v.GetName(), v.GetTriggers())
+			}
+			for _, mv := range s.GetMaterializedViews() {
+				collectTriggers(mv.GetName(), mv.GetTriggers())
+			}
+		}
+		return out
+	}
+
+	oldComments := collect(oldMeta)
+	newComments := collect(newMeta)
+	var keys []unloadedCommentKey
+	for k, newComment := range newComments {
+		oldComment, existed := oldComments[k]
+		if !existed || oldComment == newComment {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b unloadedCommentKey) int {
+		if a.objType != b.objType {
+			return int(a.objType) - int(b.objType)
+		}
+		if a.schema != b.schema {
+			return strings.Compare(a.schema, b.schema)
+		}
+		if a.relation != b.relation {
+			return strings.Compare(a.relation, b.relation)
+		}
+		return strings.Compare(a.name, b.name)
+	})
+
+	ops := make([]MigrationOp, 0, len(keys))
+	for _, k := range keys {
+		newComment := newComments[k]
+		switch k.objType {
+		case 't':
+			ops = append(ops, MigrationOp{
+				Type:          OpComment,
+				SchemaName:    k.schema,
+				ObjectName:    k.schema + "." + k.name,
+				SQL:           fmt.Sprintf("COMMENT ON TYPE %s IS %s", quoteQualified(k.schema, k.name), commentValueSQL(newComment)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				Priority:      PriorityMetadata,
+			})
+		case 'g':
+			ops = append(ops, MigrationOp{
+				Type:          OpComment,
+				SchemaName:    k.schema,
+				ObjectName:    k.schema + "." + k.relation + "." + k.name,
+				ParentObject:  k.relation,
+				SQL:           fmt.Sprintf("COMMENT ON TRIGGER %s ON %s IS %s", quoteIdentAlways(k.name), quoteQualified(k.schema, k.relation), commentValueSQL(newComment)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'g',
+				Priority:      PriorityMetadata,
+			})
+		}
+	}
+	return ops
+}
+
+func appendUnloadedCommentOps(plan *MigrationPlan, extraOps []MigrationOp) {
+	if len(extraOps) == 0 {
+		return
+	}
+	commentedTargets := make(map[string]bool)
+	for _, op := range plan.Ops {
+		for _, stmtSQL := range strings.Split(op.SQL, ";\n") {
+			stmtSQL = strings.TrimSpace(stmtSQL)
+			if strings.HasPrefix(stmtSQL, "COMMENT ON ") {
+				if target, _, ok := strings.Cut(stmtSQL, " IS "); ok {
+					commentedTargets[target] = true
+				}
+			}
+		}
+	}
+	for _, op := range extraOps {
+		target, _, _ := strings.Cut(op.SQL, " IS ")
+		if commentedTargets[target] {
+			continue
+		}
+		if op.ObjType == 'g' && !planCreatesObject(plan, objectKey(op.SchemaName, op.ParentObject)) && planDropsObject(plan, objectKey(op.SchemaName, op.ParentObject)) {
+			continue
+		}
+		commentedTargets[target] = true
+		plan.Ops = append(plan.Ops, op)
+	}
+}
+
+func planDropsObject(plan *MigrationPlan, key string) bool {
+	for _, op := range plan.Ops {
+		switch op.Type {
+		case OpDropTable, OpDropView, OpDropType:
+			if objectKey(op.SchemaName, op.ObjectName) == key {
+				return true
+			}
+		default:
+		}
+	}
+	return false
 }
 
 func planCreatesObject(plan *MigrationPlan, key string) bool {

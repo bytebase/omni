@@ -602,7 +602,7 @@ func TestApplyDiffToMetadataPreservesMetadataOnRenamePartitionViewSequenceAndOwn
 
 	require.Len(t, modSM.Views, 1)
 	require.Equal(t, "view doc", modSM.Views[0].Comment)
-	require.Len(t, modSM.Views[0].DependencyColumns, 1)
+	require.Len(t, modSM.Views[0].DependencyColumns, 2)
 
 	require.Len(t, modSM.Sequences, 1)
 	require.Equal(t, "2", modSM.Sequences[0].Increment)
@@ -1483,4 +1483,228 @@ func TestApplyDiffToMetadataRound9Fixes(t *testing.T) {
 	require.NotNil(t, ft)
 	require.Len(t, ft.Triggers, 1)
 	require.Equal(t, "ft trigger doc", ft.Triggers[0].Comment)
+}
+
+func TestApplyDiffToMetadataRound10Fixes(t *testing.T) {
+	// 1. Direct alterations to SkipDump extension members.
+	t.Run("extension_member_direct_alteration", func(t *testing.T) {
+		catBefore := New()
+		results, err := catBefore.Exec(`
+			CREATE EXTENSION ext_direct;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		catBefore.extensionMembers = map[uint32]string{}
+		results, err = catBefore.Exec(`
+			CREATE TABLE public.ext_tbl (id integer);
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		extRel := catBefore.GetRelation("public", "ext_tbl")
+		require.NotNil(t, extRel)
+		catBefore.extensionMembers[extRel.OID] = "ext_direct"
+
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Extensions: []*metadatapb.ExtensionMetadata{{Name: "ext_direct", Schema: "public", Version: "1.0"}},
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:     "ext_tbl",
+					SkipDump: true,
+					Columns:  []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				}},
+			}},
+		}
+
+		catAfter := catBefore.Clone()
+		results, err = catAfter.Exec(`ALTER TABLE public.ext_tbl ADD COLUMN extra text;`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		diff := Diff(catBefore, catAfter)
+		require.True(t, diff.IsEmpty(), "extension member changes are hidden from Diff")
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, diff)
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		tbl := findTable(pub, "ext_tbl")
+		require.NotNil(t, tbl)
+		require.True(t, tbl.SkipDump)
+		require.Len(t, tbl.Columns, 2)
+		require.Equal(t, "extra", tbl.Columns[1].Name)
+	})
+
+	// 2, 3, 4, 7: View columns, column comments (view + composite), DependencyColumns, Rules on table & view.
+	t.Run("views_composites_rules_and_comments", func(t *testing.T) {
+		catBefore := New()
+		results, err := catBefore.Exec(`
+			CREATE TYPE public.addr AS (city text);
+			CREATE TABLE public.src (a integer, b text);
+			CREATE TABLE public.src_log (a integer);
+			CREATE VIEW public.v AS SELECT a FROM public.src;
+			CREATE MATERIALIZED VIEW public.mv AS SELECT a FROM public.src;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				CompositeTypes: []*metadatapb.CompositeTypeMetadata{{
+					Name:       "addr",
+					Attributes: []*metadatapb.CompositeTypeAttribute{{Name: "city", Type: "text"}},
+				}},
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "src", Columns: []*metadatapb.ColumnMetadata{
+						{Name: "a", Type: "integer", Position: 1},
+						{Name: "b", Type: "text", Position: 2},
+					}},
+					{Name: "src_log", Columns: []*metadatapb.ColumnMetadata{{Name: "a", Type: "integer", Position: 1}}},
+				},
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v",
+					Definition:        "SELECT a FROM public.src",
+					Columns:           []*metadatapb.ColumnMetadata{{Name: "a", Type: "integer", Position: 1}},
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "src", Column: "a"}},
+				}},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:              "mv",
+					Definition:        "SELECT a FROM public.src",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "src", Column: "a"}},
+				}},
+			}},
+		}
+
+		catAfter := catBefore.Clone()
+		results, err = catAfter.Exec(`
+			COMMENT ON COLUMN public.v.a IS 'view col doc';
+			COMMENT ON COLUMN public.addr.city IS 'comp attr doc';
+			CREATE OR REPLACE VIEW public.v AS SELECT a, b FROM public.src;
+			CREATE RULE v_ins AS ON INSERT TO public.v DO INSTEAD INSERT INTO public.src (a) VALUES (NEW.a);
+			CREATE RULE src_ins AS ON INSERT TO public.src DO ALSO INSERT INTO public.src_log (a) VALUES (NEW.a);
+			ALTER TABLE public.src DISABLE RULE src_ins;
+			DROP MATERIALIZED VIEW public.mv;
+			CREATE MATERIALIZED VIEW public.mv AS SELECT a, b FROM public.src;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Equal(t, "comp attr doc", pub.CompositeTypes[0].Attributes[0].Comment)
+
+		v := findView(pub, "v")
+		require.NotNil(t, v)
+		require.Len(t, v.Columns, 2)
+		require.Equal(t, "view col doc", v.Columns[0].Comment)
+		require.Equal(t, "b", v.Columns[1].Name)
+		require.Len(t, v.DependencyColumns, 2)
+		require.Equal(t, "a", v.DependencyColumns[0].Column)
+		require.Equal(t, "b", v.DependencyColumns[1].Column)
+		require.Len(t, v.Rules, 1)
+		require.Equal(t, "v_ins", v.Rules[0].Name)
+		require.Equal(t, "INSERT", v.Rules[0].Event)
+		require.True(t, v.Rules[0].IsInstead)
+		require.True(t, v.Rules[0].IsEnabled)
+
+		srcTbl := findTable(pub, "src")
+		require.NotNil(t, srcTbl)
+		require.Len(t, srcTbl.Rules, 1)
+		require.Equal(t, "src_ins", srcTbl.Rules[0].Name)
+		require.False(t, srcTbl.Rules[0].IsEnabled)
+
+		require.Len(t, pub.MaterializedViews, 1)
+		require.Len(t, pub.MaterializedViews[0].DependencyColumns, 2)
+	})
+
+	// 5 & 9: Routine COST/ROWS/WINDOW/SET and Collations.
+	t.Run("routine_options_and_collations", func(t *testing.T) {
+		catBefore := New()
+		results, err := catBefore.Exec(`
+			CREATE SCHEMA other;
+			CREATE FUNCTION public.fn_cfg(x integer) RETURNS SETOF integer LANGUAGE plpgsql COST 100 ROWS 10 SET search_path = public AS $$ BEGIN RETURN NEXT x; END; $$;
+			CREATE COLLATION public.my_coll (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "public",
+					Functions: []*metadatapb.FunctionMetadata{{
+						Name:       "fn_cfg",
+						Signature:  "public.fn_cfg(integer)",
+						Definition: "CREATE FUNCTION public.fn_cfg(x integer) RETURNS SETOF integer LANGUAGE plpgsql COST 100 ROWS 10 SET search_path = public AS $$ BEGIN RETURN NEXT x; END; $$",
+					}},
+					Collations: []*metadatapb.CollationMetadata{{
+						Name:     "my_coll",
+						Provider: "i",
+						Locale:   "und-u-ks-level2",
+						Comment:  "coll doc",
+						SkipDump: true,
+					}},
+				},
+				{Name: "other"},
+			},
+		}
+
+		catAfter := catBefore.Clone()
+		results, err = catAfter.Exec(`
+			ALTER FUNCTION public.fn_cfg(integer) COST 500 ROWS 25 SET search_path = other;
+			CREATE FUNCTION public.fn_win(x integer) RETURNS integer LANGUAGE sql WINDOW COST 50 AS $$ SELECT x $$;
+			ALTER COLLATION public.my_coll RENAME TO my_coll2;
+			ALTER COLLATION public.my_coll2 SET SCHEMA other;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Empty(t, pub.Collations)
+
+		var fnCfg, fnWin *metadatapb.FunctionMetadata
+		for _, fn := range pub.Functions {
+			switch fn.Name {
+			case "fn_cfg":
+				fnCfg = fn
+			case "fn_win":
+				fnWin = fn
+			}
+		}
+		require.NotNil(t, fnCfg)
+		require.Contains(t, fnCfg.Definition, "COST 500")
+		require.Contains(t, fnCfg.Definition, "ROWS 25")
+		require.Contains(t, fnCfg.Definition, `SET "search_path" = 'other'`)
+		require.NotContains(t, fnCfg.Definition, `'public'`)
+
+		require.NotNil(t, fnWin)
+		require.Contains(t, fnWin.Definition, "WINDOW")
+		require.Contains(t, fnWin.Definition, "COST 50")
+
+		other := findSchema(got, "other")
+		require.NotNil(t, other)
+		require.Len(t, other.Collations, 1)
+		coll := other.Collations[0]
+		require.Equal(t, "my_coll2", coll.Name)
+		require.Equal(t, "i", coll.Provider)
+		require.Equal(t, "und-u-ks-level2", coll.Locale)
+		require.NotNil(t, coll.Deterministic)
+		require.False(t, *coll.Deterministic)
+		require.Equal(t, "coll doc", coll.Comment)
+		require.True(t, coll.SkipDump)
+	})
 }

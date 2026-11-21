@@ -114,6 +114,18 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if fp.LeakProof != tp.LeakProof {
 		return true
 	}
+	if fp.IsWindow != tp.IsWindow {
+		return true
+	}
+	if fp.Cost != tp.Cost {
+		return true
+	}
+	if fp.Rows != tp.Rows {
+		return true
+	}
+	if !slices.Equal(fp.SetConfig, tp.SetConfig) {
+		return true
+	}
 	if fp.Language != tp.Language {
 		return true
 	}

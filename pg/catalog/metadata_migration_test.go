@@ -4739,3 +4739,100 @@ func TestListPartitionNullBoundMigration(t *testing.T) {
 	_, err = c.Exec(sql, nil)
 	require.NoError(t, err)
 }
+
+func TestRound10CommentAndRangeMigrations(t *testing.T) {
+	// RangeType comment-only change should not be refused and should emit COMMENT ON TYPE.
+	rangeSnapshot := func(comment string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				RangeTypes: []*metadatapb.RangeTypeMetadata{{
+					Name:    "num_range",
+					Subtype: "numeric",
+					Comment: comment,
+				}},
+			}},
+		}
+	}
+	sql, err := testMetadataMigration(rangeSnapshot(""), rangeSnapshot("range doc"))
+	require.NoError(t, err)
+	require.Contains(t, sql, `COMMENT ON TYPE "public"."num_range" IS 'range doc'`)
+
+	sql, err = testMetadataMigration(rangeSnapshot("range doc"), rangeSnapshot(""))
+	require.NoError(t, err)
+	require.Contains(t, sql, `COMMENT ON TYPE "public"."num_range" IS NULL`)
+
+	// FK, CHECK, and TRIGGER comment-only changes should emit COMMENT statements.
+	commentedSnapshot := func(fkComment, chkComment, partChkComment, trigComment string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "parent",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer", Position: 1},
+						},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:         "parent_pkey",
+							Type:         "btree",
+							Expressions:  []string{"id"},
+							Primary:      true,
+							Unique:       true,
+							IsConstraint: true,
+						}},
+					},
+					{
+						Name: "child",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer", Position: 1},
+							{Name: "parent_id", Type: "integer", Position: 2},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+							Name:              "fk_child_parent",
+							Columns:           []string{"parent_id"},
+							ReferencedSchema:  "public",
+							ReferencedTable:   "parent",
+							ReferencedColumns: []string{"id"},
+							Comment:           fkComment,
+						}},
+						CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+							Name:       "chk_pos",
+							Expression: "(id > 0)",
+							Comment:    chkComment,
+						}},
+						Triggers: []*metadatapb.TriggerMetadata{{
+							Name:    "trg_child",
+							Body:    `CREATE TRIGGER trg_child BEFORE INSERT ON public.child FOR EACH ROW EXECUTE FUNCTION public.touch()`,
+							Comment: trigComment,
+						}},
+					},
+					{
+						Name: "logs",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer", Position: 1},
+						},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:       "logs_p0",
+							Type:       metadatapb.TablePartitionMetadata_RANGE,
+							Expression: "RANGE (id)",
+							Value:      "FOR VALUES FROM (0) TO (10)",
+							CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+								Name:       "chk_part_pos",
+								Expression: "(id >= 0)",
+								Comment:    partChkComment,
+							}},
+						}},
+					},
+				},
+			}},
+		}
+	}
+
+	sql, err = testMetadataMigration(commentedSnapshot("", "", "", ""), commentedSnapshot("fk doc", "chk doc", "pchk doc", "trig doc"))
+	require.NoError(t, err)
+	require.Contains(t, sql, `COMMENT ON CONSTRAINT "fk_child_parent" ON "public"."child" IS 'fk doc'`)
+	require.Contains(t, sql, `COMMENT ON CONSTRAINT "chk_pos" ON "public"."child" IS 'chk doc'`)
+	require.Contains(t, sql, `COMMENT ON CONSTRAINT "chk_part_pos" ON "public"."logs_p0" IS 'pchk doc'`)
+	require.Contains(t, sql, `COMMENT ON TRIGGER "trg_child" ON "public"."child" IS 'trig doc'`)
+}
