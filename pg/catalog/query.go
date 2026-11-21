@@ -344,14 +344,18 @@ type SubLinkExpr struct {
 
 func (s *SubLinkExpr) exprType() uint32 { return s.ResultType }
 func (s *SubLinkExpr) exprTypMod() int32 {
-	if s.SubLinkType == SubLinkExprType && s.SubQuery != nil && len(s.SubQuery.TargetList) > 0 {
-		return s.SubQuery.TargetList[0].Expr.exprTypMod()
+	if (s.SubLinkType == SubLinkExprType || s.SubLinkType == SubLinkArrayType) && s.SubQuery != nil {
+		if te := nonJunkTargetEntry(s.SubQuery.TargetList, 1); te != nil {
+			return te.Expr.exprTypMod()
+		}
 	}
 	return -1
 }
 func (s *SubLinkExpr) exprCollation() uint32 {
-	if s.SubLinkType == SubLinkExprType && s.SubQuery != nil && len(s.SubQuery.TargetList) > 0 {
-		return s.SubQuery.TargetList[0].Expr.exprCollation()
+	if (s.SubLinkType == SubLinkExprType || s.SubLinkType == SubLinkArrayType) && s.SubQuery != nil {
+		if te := nonJunkTargetEntry(s.SubQuery.TargetList, 1); te != nil {
+			return te.Expr.exprCollation()
+		}
 	}
 	return 0
 }
@@ -364,6 +368,7 @@ const (
 	SubLinkExistsType                    // EXISTS subquery
 	SubLinkAnyType                       // ANY/IN subquery
 	SubLinkAllType                       // ALL subquery
+	SubLinkArrayType                     // ARRAY(subquery)
 )
 
 // NullIfExprQ represents an analyzed NULLIF expression.
@@ -647,11 +652,12 @@ const (
 type RTEKind int
 
 const (
-	RTERelation RTEKind = iota // plain table
-	RTESubquery                // subquery in FROM
-	RTEJoin                    // join result
-	RTECTE                     // CTE reference
-	RTEFunction                // function in FROM clause
+	RTERelation  RTEKind = iota // plain table
+	RTESubquery                 // subquery in FROM
+	RTEJoin                     // join result
+	RTECTE                      // CTE reference
+	RTEFunction                 // function in FROM clause
+	RTETableFunc                // table function in FROM clause (e.g. XMLTABLE)
 )
 
 // RangeTableEntry represents an entry in the query's range table.
@@ -681,6 +687,7 @@ type RangeTableEntry struct {
 	CTEIndex      int                 // for RTECTE: index into Query.CTEList
 	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
 	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
+	TableFunc     *TableFuncQ         // for RTETableFunc: XMLTABLE definition
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
 	// FuncColCounts holds, for RTEFunction, how many of ColNames each of
 	// FuncExprs produces, in order; an ORDINALITY column follows them all.
@@ -716,6 +723,33 @@ type funcColDef struct {
 	typmods    []int32
 	collations []uint32
 	collNames  [][]string // the COLLATE clause's name, schema first when qualified; nil without one
+}
+
+// TableFuncNamespaceQ represents a namespace entry in XMLTABLE XMLNAMESPACES.
+type TableFuncNamespaceQ struct {
+	Name string       // alias name (empty for DEFAULT)
+	Expr AnalyzedExpr // namespace URI expression
+}
+
+// TableFuncColQ represents a column definition in XMLTABLE COLUMNS.
+type TableFuncColQ struct {
+	Name          string
+	TypeOID       uint32
+	TypeMod       int32
+	ForOrdinality bool
+	IsNotNull     bool
+	ColExpr       AnalyzedExpr // PATH expression (nil if omitted)
+	DefaultExpr   AnalyzedExpr // DEFAULT expression (nil if omitted)
+}
+
+// TableFuncQ represents an analyzed XMLTABLE(...) FROM clause item.
+//
+// pg: src/include/nodes/primnodes.h — TableFunc
+type TableFuncQ struct {
+	DocExpr    AnalyzedExpr
+	RowExpr    AnalyzedExpr
+	Namespaces []TableFuncNamespaceQ
+	Columns    []TableFuncColQ
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
@@ -1126,23 +1160,37 @@ type JsonConstructorType int
 const (
 	JsonConstructorObject JsonConstructorType = iota
 	JsonConstructorArray
+	JsonConstructorArrayQuery
+	JsonConstructorArrayAgg
+	JsonConstructorObjectAgg
 	JsonConstructorScalar
 	JsonConstructorParse
 	JsonConstructorSerialize
 )
 
-// JsonConstructorExprQ represents JSON_OBJECT(...) or JSON_ARRAY(...) constructors.
+// JsonConstructorExprQ represents JSON_OBJECT(...), JSON_ARRAY(...),
+// JSON_ARRAY(subquery), JSON_ARRAYAGG(...), JSON_OBJECTAGG(...), etc.
 //
 // pg: src/include/nodes/primnodes.h — JsonConstructorExpr (PG16+)
 type JsonConstructorExprQ struct {
 	ConstructorType JsonConstructorType
 	Args            []AnalyzedExpr
+	Subquery        *Query       // for JsonConstructorArrayQuery
+	Format          int          // 0=default, 1=FORMAT JSON, 2=FORMAT JSONB (for JsonConstructorArrayQuery)
+	AggOrder        []*AggSortBy // ORDER BY for JSON_ARRAYAGG
+	AggFilter       AnalyzedExpr // FILTER (WHERE ...) for JSON_ARRAYAGG / JSON_OBJECTAGG
+	HasOver         bool         // true when OVER clause is present
+	WinRef          uint32       // index into Query.WindowClause when HasOver
+	AbsentOnNull    bool         // ABSENT ON NULL
+	UniqueKeys      bool         // WITH UNIQUE [KEYS]
+	HasReturning    bool         // explicit RETURNING type clause
 	ResultType      uint32
+	ResultTypeMod   int32
 	Collation       uint32
 }
 
 func (j *JsonConstructorExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonConstructorExprQ) exprTypMod() int32     { return -1 }
+func (j *JsonConstructorExprQ) exprTypMod() int32     { return j.ResultTypeMod }
 func (j *JsonConstructorExprQ) exprCollation() uint32 { return j.Collation }
 
 // JsonExprOp identifies the kind of JSON function expression.
@@ -1188,6 +1236,7 @@ func (j *JsonIsPredicateExpr) exprCollation() uint32 { return 0 }
 // pg: src/include/nodes/primnodes.h — JsonValueExpr (PG16+)
 type JsonValueExprQ struct {
 	Expr       AnalyzedExpr
+	Format     int // 0=default, 1=FORMAT JSON, 2=FORMAT JSONB (matches nodes.JsonFormatType)
 	ResultType uint32
 }
 

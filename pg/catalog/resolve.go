@@ -35,7 +35,8 @@ func (c *Catalog) lookupType(schema, name, shown string, isArray bool, typmod in
 		return 0, -1, errUndefinedType(tn.Name)
 	}
 
-	// Handle array types.
+	// Handle array types. Type modifiers apply to the element type.
+	modTyp := typ
 	if tn.IsArray {
 		if typ.Array == 0 {
 			return 0, -1, errUndefinedType(tn.Name + "[]")
@@ -49,9 +50,9 @@ func (c *Catalog) lookupType(schema, name, shown string, isArray bool, typmod in
 
 	// Validate typmod.
 	typmod = tn.TypeMod
-	if typmod != -1 && typ.ModIn == 0 {
+	if typmod != -1 && modTyp.ModIn == 0 {
 		// pg: src/backend/parser/parse_type.c — typenameTypeMod
-		return 0, -1, &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", typ.TypeName)}
+		return 0, -1, &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("type modifier is not allowed for type %q", modTyp.TypeName)}
 	}
 
 	return typ.OID, typmod, nil

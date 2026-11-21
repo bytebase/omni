@@ -71,10 +71,24 @@ func TestPhase4_ArrayExpr(t *testing.T) {
 
 func TestPhase4_RowExpr(t *testing.T) {
 	c := setupPhase4(t)
-	def := viewDef(t, c, "CREATE VIEW v_row AS SELECT ROW(1, 'hello') AS r")
+	def := viewDef(t, c, "CREATE VIEW v_row AS SELECT ROW(1, 'hello')::text AS r")
 	if !strings.Contains(def, "ROW(") {
 		t.Errorf("expected ROW constructor in view def, got: %s", def)
 	}
+	// PostgreSQL rejects view columns with pseudo-type record (42P16).
+	results, err := c.Exec("CREATE VIEW v_row_pseudo AS SELECT ROW(1, 'hello') AS r", nil)
+	if err == nil {
+		for _, r := range results {
+			if r.Error != nil {
+				err = r.Error
+				break
+			}
+		}
+	}
+	if err == nil {
+		t.Fatalf("expected error creating view with record pseudo-type column")
+	}
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestPhase4_CollateExpr(t *testing.T) {

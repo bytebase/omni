@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -387,7 +388,7 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 	trimmed := strings.TrimSpace(val)
 	switch targetType {
 	case INT2OID:
-		v, err := strconv.ParseInt(trimmed, 10, 64)
+		v, err := parsePGInteger(trimmed)
 		if err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
@@ -398,7 +399,10 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
 		}
 	case INT4OID, OIDOID, XIDOID, CIDOID:
-		v, err := strconv.ParseInt(trimmed, 10, 64)
+		if targetType != INT4OID && strings.ContainsRune(trimmed, '_') {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
+		}
+		v, err := parsePGInteger(trimmed)
 		if err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
@@ -409,11 +413,13 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			if v < -2147483648 || v > 2147483647 {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type integer", val)}
 			}
-		} else if v < 0 || v > 4294967295 {
+		} else if v < -2147483648 || v > 4294967295 {
+			// pg: src/backend/utils/adt/numutils.c — uint32in_subr accepts signed
+			// inputs down to PG_INT32_MIN for backwards compatibility (e.g. '-1'::oid).
 			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
 		}
 	case INT8OID:
-		if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
+		if _, err := parsePGInteger(trimmed); err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type bigint", val)}
 			}
@@ -444,16 +450,137 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 		default:
 			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type boolean: %q", val)}
 		}
+	case BITOID, VARBITOID:
+		if len(val) > 0 && (val[0] == 'b' || val[0] == 'B' || val[0] == 'x' || val[0] == 'X') {
+			if _, err := parseBitStringLiteral(val); err != nil {
+				return err
+			}
+			return nil
+		}
+		for i := 0; i < len(val); i++ {
+			if val[i] != '0' && val[i] != '1' {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("%q is not a valid binary digit", string(val[i]))}
+			}
+		}
+	case JSONOID, JSONBOID:
+		if !json.Valid([]byte(val)) {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s", c.typeName(targetType))}
+		}
+	case TIMESTAMPOID, TIMESTAMPTZOID:
+		switch strings.ToLower(trimmed) {
+		case "now", "epoch", "infinity", "+infinity", "-infinity", "today", "tomorrow", "yesterday", "allballs":
+			return nil
+		}
+		if !strings.ContainsAny(trimmed, "0123456789") {
+			return &Error{Code: CodeInvalidDatetimeFormat, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
+		}
+	case INTERVALOID:
+		switch strings.ToLower(trimmed) {
+		case "infinity", "+infinity", "-infinity":
+			return nil
+		}
+		if !strings.ContainsAny(trimmed, "0123456789") {
+			return &Error{Code: CodeInvalidDatetimeFormat, Message: fmt.Sprintf("invalid input syntax for type interval: %q", val)}
+		}
 	default:
 		if et := c.enumTypes[targetType]; et != nil {
 			if et.labelMap[val] == nil {
 				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input value for enum %s: %q", c.typeName(targetType), val)}
+			}
+		} else if bt := c.typeByOID[targetType]; bt != nil && bt.Type == 'c' {
+			if len(trimmed) < 2 || trimmed[0] != '(' || trimmed[len(trimmed)-1] != ')' {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("malformed record literal: %q", val)}
 			}
 		}
 	}
 	return nil
 }
 
+// parsePGInteger parses an integer literal using PostgreSQL 17 input syntax:
+// optional +/- sign, optional 0x/0o/0b base prefix, and underscore digit
+// separators (matching src/backend/utils/adt/numutils.c pg_strtoint64_safe).
+func parsePGInteger(s string) (int64, error) {
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+	neg := false
+	if s[0] == '+' || s[0] == '-' {
+		neg = s[0] == '-'
+		s = s[1:]
+	}
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+
+	base := 10
+	allowLeadingUnderscore := false
+	if len(s) >= 2 && s[0] == '0' {
+		switch s[1] {
+		case 'x', 'X':
+			base = 16
+			s = s[2:]
+			allowLeadingUnderscore = true
+		case 'o', 'O':
+			base = 8
+			s = s[2:]
+			allowLeadingUnderscore = true
+		case 'b', 'B':
+			base = 2
+			s = s[2:]
+			allowLeadingUnderscore = true
+		}
+	}
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+
+	isDigit := func(ch byte) bool {
+		switch base {
+		case 2:
+			return ch == '0' || ch == '1'
+		case 8:
+			return ch >= '0' && ch <= '7'
+		case 10:
+			return ch >= '0' && ch <= '9'
+		case 16:
+			return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+		}
+		return false
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(s) + 1)
+	if neg {
+		buf.WriteByte('-')
+	}
+	digits := 0
+	prevUnderscore := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '_' {
+			if prevUnderscore || (digits == 0 && !allowLeadingUnderscore) {
+				return 0, strconv.ErrSyntax
+			}
+			prevUnderscore = true
+			continue
+		}
+		if !isDigit(ch) {
+			return 0, strconv.ErrSyntax
+		}
+		buf.WriteByte(ch)
+		digits++
+		prevUnderscore = false
+	}
+	if digits == 0 || prevUnderscore {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.ParseInt(buf.String(), base, 64)
+}
+
+// validateNumericLiteral validates a numeric input literal using PostgreSQL 17
+// rules (src/backend/utils/adt/numeric.c set_var_from_str /
+// set_var_from_non_decimal_integer_str): special values (NaN/Inf), optional
+// +/- sign, 0x/0o/0b non-decimal integers, and underscore digit separators.
 func validateNumericLiteral(raw, trimmed string) error {
 	switch strings.ToLower(trimmed) {
 	case "nan", "infinity", "+infinity", "-infinity", "inf", "+inf", "-inf":
@@ -466,6 +593,51 @@ func validateNumericLiteral(raw, trimmed string) error {
 	if s == "" {
 		return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
 	}
+	// Non-decimal integer forms: 0x/0o/0b with optional underscore separators.
+	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X' || s[1] == 'o' || s[1] == 'O' || s[1] == 'b' || s[1] == 'B') {
+		base := 16
+		switch s[1] {
+		case 'o', 'O':
+			base = 8
+		case 'b', 'B':
+			base = 2
+		}
+		rest := s[2:]
+		if rest == "" {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		digits := 0
+		prevUnderscore := false
+		for i := 0; i < len(rest); i++ {
+			ch := rest[i]
+			if ch == '_' {
+				if prevUnderscore {
+					return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+				}
+				prevUnderscore = true
+				continue
+			}
+			valid := false
+			switch base {
+			case 2:
+				valid = ch == '0' || ch == '1'
+			case 8:
+				valid = ch >= '0' && ch <= '7'
+			case 16:
+				valid = (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+			}
+			if !valid {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+			}
+			digits++
+			prevUnderscore = false
+		}
+		if digits == 0 || prevUnderscore {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		return nil
+	}
+
 	mantissa := s
 	expStr := ""
 	if idx := strings.IndexAny(s, "eE"); idx >= 0 {
@@ -478,13 +650,24 @@ func validateNumericLiteral(raw, trimmed string) error {
 	digitsBefore := 0
 	digitsAfter := 0
 	seenDot := false
+	prevDigit := false
+	prevUnderscore := false
 	for i := 0; i < len(mantissa); i++ {
 		ch := mantissa[i]
 		if ch == '.' {
-			if seenDot {
+			if seenDot || prevUnderscore {
 				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
 			}
 			seenDot = true
+			prevDigit = false
+			continue
+		}
+		if ch == '_' {
+			if !prevDigit || prevUnderscore {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+			}
+			prevUnderscore = true
+			prevDigit = false
 			continue
 		}
 		if ch < '0' || ch > '9' {
@@ -495,12 +678,48 @@ func validateNumericLiteral(raw, trimmed string) error {
 		} else {
 			digitsBefore++
 		}
+		prevDigit = true
+		prevUnderscore = false
 	}
-	if digitsBefore+digitsAfter == 0 {
+	if digitsBefore+digitsAfter == 0 || prevUnderscore {
 		return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
 	}
 	if expStr != "" {
-		exp, err := strconv.ParseInt(expStr, 10, 64)
+		es := expStr
+		expNeg := false
+		if es[0] == '+' || es[0] == '-' {
+			expNeg = es[0] == '-'
+			es = es[1:]
+		}
+		if es == "" {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		var cleaned strings.Builder
+		if expNeg {
+			cleaned.WriteByte('-')
+		}
+		expDigits := 0
+		expPrevUnderscore := false
+		for i := 0; i < len(es); i++ {
+			ch := es[i]
+			if ch == '_' {
+				if expDigits == 0 || expPrevUnderscore {
+					return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+				}
+				expPrevUnderscore = true
+				continue
+			}
+			if ch < '0' || ch > '9' {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+			}
+			cleaned.WriteByte(ch)
+			expDigits++
+			expPrevUnderscore = false
+		}
+		if expDigits == 0 || expPrevUnderscore {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type numeric: %q", raw)}
+		}
+		exp, err := strconv.ParseInt(cleaned.String(), 10, 64)
 		if err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: "value overflows numeric format"}
@@ -512,6 +731,44 @@ func validateNumericLiteral(raw, trimmed string) error {
 		}
 	}
 	return nil
+}
+
+// isPlainNonNegNumeric reports whether s can be printed bare as a numeric
+// constant without quoting (plain non-negative decimal/scientific notation
+// without underscores, base prefixes, or special tokens like NaN/Infinity).
+func isPlainNonNegNumeric(s string) bool {
+	if s == "" || (s[0] != '.' && (s[0] < '0' || s[0] > '9')) {
+		return false
+	}
+	hasDigit := false
+	seenDot := false
+	seenExp := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		switch {
+		case ch >= '0' && ch <= '9':
+			hasDigit = true
+		case ch == '.':
+			if seenDot || seenExp {
+				return false
+			}
+			seenDot = true
+		case ch == 'e' || ch == 'E':
+			if seenExp || !hasDigit || i+1 >= len(s) {
+				return false
+			}
+			seenExp = true
+			if s[i+1] == '+' || s[i+1] == '-' {
+				i++
+				if i+1 >= len(s) {
+					return false
+				}
+			}
+		default:
+			return false
+		}
+	}
+	return hasDigit
 }
 
 // checkExecuteStmt validates an EXECUTE against the session's prepared

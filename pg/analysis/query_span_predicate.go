@@ -97,6 +97,17 @@ func (e *querySpanExtractor) collectPredicateColumnsInStack(queryStack []*catalo
 		if rte.Kind == catalog.RTESubquery {
 			e.collectPredicateColumnsInStack(appendQuery(queryStack, rte.Subquery), visited)
 		}
+		if rte.Kind == catalog.RTETableFunc && rte.TableFunc != nil {
+			e.collectConditionColumns(queryStack, rte.TableFunc.DocExpr, visited)
+			e.collectConditionColumns(queryStack, rte.TableFunc.RowExpr, visited)
+			for _, ns := range rte.TableFunc.Namespaces {
+				e.collectConditionColumns(queryStack, ns.Expr, visited)
+			}
+			for _, col := range rte.TableFunc.Columns {
+				e.collectConditionColumns(queryStack, col.ColExpr, visited)
+				e.collectConditionColumns(queryStack, col.DefaultExpr, visited)
+			}
+		}
 		for _, expr := range rte.FuncExprs {
 			// A function in FROM returns the rows its arguments and the
 			// conditions in its body ask for.
@@ -161,6 +172,13 @@ func (e *querySpanExtractor) collectNestedPredicateColumns(queryStack []*catalog
 		case *catalog.SubLinkExpr:
 			if v.SubQuery != nil {
 				e.collectPredicateColumnsInStack(appendQuery(queryStack, v.SubQuery), visited)
+			}
+		case *catalog.JsonConstructorExprQ:
+			if v.Subquery != nil {
+				e.collectPredicateColumnsInStack(appendQuery(queryStack, v.Subquery), visited)
+			}
+			if v.AggFilter != nil {
+				inputs = []catalog.AnalyzedExpr{v.AggFilter}
 			}
 		case *catalog.AggExpr:
 			inputs = []catalog.AnalyzedExpr{v.AggFilter}

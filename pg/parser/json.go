@@ -24,13 +24,13 @@ func (p *Parser) parseJsonValueExpr() (*nodes.JsonValueExpr, error) {
 		return nil, err
 	}
 	// json_format_clause_opt: FORMAT JSON [ENCODING name] | empty
-	// We parse but the yacc grammar discards the format in JsonValueExpr.RawExpr
-	_, err = p.parseJsonFormatClauseOpt()
+	format, err := p.parseJsonFormatClauseOpt()
 	if err != nil {
 		return nil, err
 	}
 	return &nodes.JsonValueExpr{
 		RawExpr: expr,
+		Format:  format,
 		Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
@@ -731,7 +731,8 @@ func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := p.parseJsonFormatClauseOpt(); err != nil {
+		format, err := p.parseJsonFormatClauseOpt()
+		if err != nil {
 			return nil, err
 		}
 		output, err := p.parseJsonReturningClauseOpt()
@@ -744,6 +745,7 @@ func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 		return &nodes.JsonArrayQueryConstructor{
 			Query:  query,
 			Output: output,
+			Format: format,
 			Loc:    nodes.NoLoc(),
 		}, nil
 	}

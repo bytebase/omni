@@ -209,6 +209,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeWhenClause:
 		return v.Loc
+	case *MergeSupportFunc:
+		return v.Loc
 	case *MultiAssignRef:
 		return v.Loc
 	case *TableLikeClause:
