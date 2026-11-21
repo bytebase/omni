@@ -2140,6 +2140,26 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
 	})
 	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "ext_fn",
+				Definition: "CREATE FUNCTION app.ext_fn() RETURNS integer IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE sql",
+				SkipDump:   true,
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_skip_fn_def",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:    "v",
+					Type:    "integer",
+					Default: "ext_fn()",
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "default_expr")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

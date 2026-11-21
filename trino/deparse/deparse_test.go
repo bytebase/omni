@@ -1684,4 +1684,38 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
 	})
 	require.ErrorContains(t, err, "unsupported")
+
+	// Direct-model views with duplicate columns and table defaults containing
+	// subqueries fail explicitly rather than emitting invalid DDL.
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Views: []*ViewMetadata{{
+				Name:       "v_dup_col",
+				Definition: "SELECT 1 AS a, 2 AS b",
+				Columns: []*ColumnMetadata{
+					{Name: "id", Comment: "first"},
+					{Name: "ID", Comment: "second"},
+				},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate column")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_subquery_def",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:    "id",
+					Type:    "bigint",
+					Default: "(SELECT 1)",
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "subquery")
 }

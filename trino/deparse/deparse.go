@@ -780,21 +780,26 @@ func writeCreateSchema(buf *strings.Builder, schemaName string) {
 	fmt.Fprintf(buf, "CREATE SCHEMA IF NOT EXISTS %s;", quoteIdentifier(schemaName))
 }
 
-func qualifyTrinoDefault(dbName, schemaName, raw string, cat *trinoFuncCatalog) string {
+func qualifyTrinoDefault(dbName, schemaName, tableName, colName, raw string, cat *trinoFuncCatalog) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return ""
+		return "", nil
 	}
 	expr, errs := trinoparser.ParseExpression(trimmed)
-	if len(errs) == 0 && expr != nil && isTrinoDefaultAST(expr) {
-		if cat == nil {
-			return trimmed
-		}
+	if len(errs) == 0 && expr != nil {
 		w := &trinoASTWalker{callerSchema: schemaName, cat: cat}
 		w.walkExpr(expr, nil, nil)
-		return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat)
+		if w.hasQuery {
+			return "", fmt.Errorf("table %s.%s column %s default %q cannot contain a subquery", schemaName, tableName, colName, raw)
+		}
+		if isTrinoDefaultAST(expr) {
+			if cat == nil {
+				return trimmed, nil
+			}
+			return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat), nil
+		}
 	}
-	return fmt.Sprintf("'%s'", escapeStringLiteral(raw))
+	return fmt.Sprintf("'%s'", escapeStringLiteral(raw)), nil
 }
 
 func isTrinoDefaultAST(expr trinoparser.Expr) bool {
@@ -3161,7 +3166,11 @@ func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string
 		}
 		colDef := fmt.Sprintf("    %s %s", quoteIdentifier(column.Name), column.Type)
 		if column.Default != "" {
-			colDef += " DEFAULT " + qualifyTrinoDefault(dbName, schemaName, column.Default, funcCat)
+			defExpr, err := qualifyTrinoDefault(dbName, schemaName, table.Name, column.Name, column.Default, funcCat)
+			if err != nil {
+				return err
+			}
+			colDef += " DEFAULT " + defExpr
 		}
 		if !column.Nullable {
 			colDef += " NOT NULL"
@@ -3275,6 +3284,17 @@ func appendTerminator(stmt string) string {
 func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata, materialized bool) error {
 	if materialized && view.Comment != "" {
 		return fmt.Errorf("materialized view %s.%s comment cannot be restored on pinned Trino 482", schemaName, view.Name)
+	}
+	seenCols := make(map[string]struct{}, len(view.Columns))
+	for _, col := range view.Columns {
+		if col == nil {
+			continue
+		}
+		colKey := strings.ToLower(col.Name)
+		if _, exists := seenCols[colKey]; exists {
+			return fmt.Errorf("view %s.%s has duplicate column %s", schemaName, view.Name, quoteIdentifier(col.Name))
+		}
+		seenCols[colKey] = struct{}{}
 	}
 	definition := strings.TrimSpace(view.Definition)
 	if definition == "" {

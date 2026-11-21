@@ -1425,6 +1425,31 @@ func isPythonUDF(definition string) (string, bool) {
 	}
 }
 
+func validationOnlyFunctionEntry(schemaName string, fn *metadatapb.FunctionMetadata) functionEntry {
+	var params []functionParam
+	var retType string
+	var parsed bool
+	if def := strings.TrimSpace(fn.Definition); def != "" {
+		_, params, retType, parsed = parseFunctionSignature(def)
+	}
+	if !parsed && fn.Signature != "" {
+		if sigTypes, ok := parseSignatureParamTypes(fn.Signature); ok {
+			params = make([]functionParam, len(sigTypes))
+			for i, t := range sigTypes {
+				params[i] = functionParam{typeName: t}
+			}
+			parsed = true
+		}
+	}
+	return functionEntry{
+		schema:     schemaName,
+		name:       fn.Name,
+		params:     params,
+		returnType: retType,
+		parsed:     parsed,
+	}
+}
+
 // writeOrderedObjects emits functions, tables, views, and materialized views
 // in one topological order so cross-kind dependencies (such as view-dependent
 // UDFs) always follow their prerequisites.
@@ -1435,7 +1460,16 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 	seenFnSigs := make(map[string]struct{})
 
 	for _, schema := range to.Schemas {
-		if schema == nil || schema.SkipDump {
+		if schema == nil {
+			continue
+		}
+		if schema.SkipDump {
+			for _, fn := range schema.Functions {
+				if fn != nil {
+					fnEntries = append(fnEntries, validationOnlyFunctionEntry(schema.Name, fn))
+					fnNodeIndices = append(fnNodeIndices, -1)
+				}
+			}
 			continue
 		}
 		seenRels := make(map[string]string, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
@@ -1489,7 +1523,12 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			return fmt.Errorf("schema %s contains schema objects unsupported by Redshift DDL renderer", quoteDefinitionIdentifier(schema.Name))
 		}
 		for _, fn := range schema.Functions {
-			if fn == nil || fn.SkipDump {
+			if fn == nil {
+				continue
+			}
+			if fn.SkipDump {
+				fnEntries = append(fnEntries, validationOnlyFunctionEntry(schema.Name, fn))
+				fnNodeIndices = append(fnNodeIndices, -1)
 				continue
 			}
 			if fn.Comment != "" {
@@ -1673,6 +1712,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		for _, call := range calls {
 			for _, fnEntryIdx := range fnCat.resolveCall(callerSchema, call) {
 				depNode := fnCat.nodeIdx[fnEntryIdx]
+				if depNode < 0 {
+					continue
+				}
 				if items[i].kind == objectKindFunc && depNode == i {
 					return fmt.Errorf("function %s is self-recursive and cannot be restored because Redshift requires callees to exist first", qualifyName(items[i].schema, items[i].name))
 				}
@@ -1741,8 +1783,8 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		for _, expr := range item.table.defaultExprs {
 			for _, call := range collectSQLFunctionCalls("SELECT "+expr, item.schema, fnCat) {
 				if matches := fnCat.resolveCall(item.schema, call); len(matches) > 0 {
-					fnNode := fnCat.nodeIdx[matches[0]]
-					return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", item.table.qualifiedName(), qualifyName(items[fnNode].schema, items[fnNode].name))
+					fnEntry := fnCat.entries[matches[0]]
+					return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", item.table.qualifiedName(), qualifyName(fnEntry.schema, fnEntry.name))
 				}
 			}
 		}
