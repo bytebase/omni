@@ -72,7 +72,7 @@ func BuildSDLMigrationPlan(sourceSDL, targetSDL string, opts SDLMigrationOptions
 			}
 			plan = &MigrationPlan{Ops: kept}
 			if skippedAny && len(plan.Ops) > 0 {
-				if err := validateFilteredPlan(from, diff, plan, skipSchemas); err != nil {
+				if err := validateFilteredPlan(sourceSDL, from, diff, plan, skipSchemas); err != nil {
 					return nil, err
 				}
 			}
@@ -85,12 +85,16 @@ func BuildSDLMigrationPlan(sourceSDL, targetSDL string, opts SDLMigrationOptions
 }
 
 // validateFilteredPlan replays the filtered migration plan against the source
-// catalog (where skipped schemas remain untouched) and checks for references to
-// skipped enum value additions, so cross-schema dependencies broken by
-// filtering out skipped-schema operations fail instead of producing an
-// unexecutable migration plan.
-func validateFilteredPlan(from *Catalog, diff *SchemaDiff, plan *MigrationPlan, skipSchemas map[string]bool) error {
+// catalog (where skipped schemas remain untouched), verifies that replay does
+// not cascade into or modify any skipped schema, and checks for references to
+// skipped enum value additions.
+func validateFilteredPlan(sourceSDL string, from *Catalog, diff *SchemaDiff, plan *MigrationPlan, skipSchemas map[string]bool) error {
 	planSQL := plan.SQL()
+
+	before, err := LoadSDLOrSQL(sourceSDL)
+	if err != nil {
+		return fmt.Errorf("failed to reload source schema for validation: %w", err)
+	}
 
 	from.allowImplicitForeignServer = true
 	defer func() { from.allowImplicitForeignServer = false }()
@@ -104,7 +108,120 @@ func validateFilteredPlan(from *Catalog, diff *SchemaDiff, plan *MigrationPlan, 
 			return fmt.Errorf("filtered migration plan is invalid after skipping schemas: %w", r.Error)
 		}
 	}
+
+	// Ensure retained operations (for example DROP ... CASCADE) did not alter
+	// or destroy any object inside a skipped schema. Inspect Diff directly
+	// rather than GenerateMigration so synthetic view-wrap ops around safe
+	// column alterations are not mistaken for actual skipped-schema mutations.
+	postDiff := Diff(before, from)
+	if !postDiff.IsEmpty() {
+		if affected := firstSkippedSchemaDiff(before, from, postDiff, skipSchemas); affected != "" {
+			return fmt.Errorf("filtered migration plan is invalid after skipping schemas: cascade would modify or drop skipped object %s", affected)
+		}
+	}
+
 	return checkSkippedEnumValueAdditions(from, diff, planSQL, skipSchemas)
+}
+
+func firstSkippedSchemaDiff(before, after *Catalog, d *SchemaDiff, skipSchemas map[string]bool) string {
+	for _, e := range d.Schemas {
+		if skipSchemas[e.Name] {
+			return quoteIdentifier(e.Name)
+		}
+	}
+	for _, e := range d.Collations {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Relations {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.ForeignTables {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Sequences {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Functions {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Enums {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Domains {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Ranges {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.CompositeTypes {
+		if skipSchemas[e.SchemaName] {
+			return migrationQualifiedName(e.SchemaName, e.Name)
+		}
+	}
+	for _, e := range d.Comments {
+		if e.ObjType != 'E' && len(e.objParts) >= 1 && skipSchemas[e.objParts[0]] {
+			return e.ObjDescription
+		}
+	}
+	for _, e := range d.Grants {
+		c := before
+		g := e.From
+		if e.Action == DiffAdd {
+			c = after
+			g = e.To
+		}
+		if schemaName, objName := grantTargetInSkippedSchema(c, g, skipSchemas); schemaName != "" {
+			if objName == "" {
+				return quoteIdentifier(schemaName)
+			}
+			return migrationQualifiedName(schemaName, objName)
+		}
+	}
+	return ""
+}
+
+func grantTargetInSkippedSchema(c *Catalog, g Grant, skipSchemas map[string]bool) (string, string) {
+	switch g.ObjType {
+	case 'n':
+		if s := c.schemas[g.ObjOID]; s != nil && skipSchemas[s.Name] {
+			return s.Name, ""
+		}
+	case 'r':
+		if rel := c.GetRelationByOID(g.ObjOID); rel != nil && rel.Schema != nil && skipSchemas[rel.Schema.Name] {
+			return rel.Schema.Name, rel.Name
+		}
+	case 's':
+		if seq := c.sequenceByOID[g.ObjOID]; seq != nil && seq.Schema != nil && skipSchemas[seq.Schema.Name] {
+			return seq.Schema.Name, seq.Name
+		}
+	case 'f':
+		if up := c.userProcs[g.ObjOID]; up != nil && up.Schema != nil && skipSchemas[up.Schema.Name] {
+			return up.Schema.Name, up.Name
+		}
+	case 't':
+		if bt := c.typeByOID[g.ObjOID]; bt != nil {
+			if s := c.schemas[bt.Namespace]; s != nil && skipSchemas[s.Name] {
+				return s.Name, bt.TypeName
+			}
+		}
+	}
+	return "", ""
 }
 
 type skippedEnumAddition struct {

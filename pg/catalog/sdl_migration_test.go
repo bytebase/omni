@@ -459,3 +459,36 @@ CREATE VIEW archive.v AS SELECT id FROM public.child;
 		t.Fatalf("unexpected plan: %v", plan)
 	}
 }
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsCascadeIntoSkippedSchema(t *testing.T) {
+	t.Run("drop_table_cascade_view_in_skipped_schema", func(t *testing.T) {
+		source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id integer PRIMARY KEY);
+CREATE VIEW archive.v AS SELECT id FROM public.t;
+`
+		plan, err := BuildSDLMigrationPlan(source, "", SDLMigrationOptions{
+			SkipSchemas: []string{"archive"},
+		})
+		if err == nil {
+			t.Fatalf("expected error when DROP TABLE CASCADE would destroy skipped view archive.v, got plan:\n%s", plan.SQL())
+		}
+		if !strings.Contains(err.Error(), "cascade") || !strings.Contains(err.Error(), "archive") {
+			t.Fatalf("expected cascade error mentioning archive, got: %v", err)
+		}
+	})
+
+	t.Run("drop_table_cascade_fk_in_skipped_schema", func(t *testing.T) {
+		source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.parent (id integer PRIMARY KEY);
+CREATE TABLE archive.child (id integer PRIMARY KEY, parent_id integer REFERENCES public.parent(id));
+`
+		plan, err := BuildSDLMigrationPlan(source, "", SDLMigrationOptions{
+			SkipSchemas: []string{"archive"},
+		})
+		if err == nil {
+			t.Fatalf("expected error when DROP TABLE CASCADE would drop FK constraint in archive.child, got plan:\n%s", plan.SQL())
+		}
+	})
+}
