@@ -2508,9 +2508,25 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 	}
 	switch r := rel.(type) {
 	case *trinoparser.Join:
-		w.walkRelation(r.Left, curEnv, ctes)
-		w.walkRelation(r.Right, curEnv, ctes)
-		w.walkExpr(r.On, curEnv, ctes)
+		joinEnv := curEnv
+		if !bind {
+			joinEnv = make(map[string]string)
+			prevAliasCols := w.aliasCols
+			prevFromSeen := w.fromSeen
+			w.aliasCols = make(map[string]map[string]string)
+			w.fromSeen = make(map[string]struct{})
+			defer func() {
+				w.aliasCols = prevAliasCols
+				w.fromSeen = prevFromSeen
+			}()
+		}
+		leftProj := w.walkRelationBound(r.Left, joinEnv, ctes, true)
+		rightProj := w.walkRelationBound(r.Right, joinEnv, ctes, true)
+		w.walkExpr(r.On, joinEnv, ctes)
+		proj := make([]trinoProjCol, 0, len(leftProj)+len(rightProj))
+		proj = append(proj, leftProj...)
+		proj = append(proj, rightProj...)
+		return proj
 	case *trinoparser.AliasedRelation:
 		var proj []trinoProjCol
 		if tr, ok := r.Inner.(*trinoparser.TableRelation); ok {
@@ -2523,11 +2539,19 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 			if r.Alias != nil && r.Alias.Value != "" {
 				alias = r.Alias.Value
 			}
+			proj = slices.Clone(relCols.ordered)
 			cols := relCols.byName
-			if len(r.ColumnAliases) > 0 && len(relCols.ordered) > 0 {
-				cols = projColsToMap(relCols.ordered, r.ColumnAliases)
+			if len(r.ColumnAliases) > 0 && len(proj) > 0 {
+				for idx := range proj {
+					if idx < len(r.ColumnAliases) && r.ColumnAliases[idx] != nil && r.ColumnAliases[idx].Value != "" {
+						proj[idx].name = strings.ToLower(r.ColumnAliases[idx].Value)
+					}
+				}
+				cols = projColsToMap(proj, nil)
 			}
-			w.bindRelationCols(alias, cols, curEnv)
+			if bind {
+				w.bindRelationCols(alias, cols, curEnv)
+			}
 		} else {
 			proj = w.walkRelationBound(r.Inner, curEnv, ctes, false)
 			alias := ""
@@ -2561,10 +2585,12 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		if bind {
 			w.bindRelationCols(alias, relCols.byName, curEnv)
 		}
+		return relCols.ordered
 	case *trinoparser.NearestRelation:
-		w.walkRelation(r.From, curEnv, ctes)
+		proj := w.walkRelationBound(r.From, curEnv, ctes, bind)
 		w.walkExpr(r.Where, curEnv, ctes)
 		w.walkExpr(r.Match, curEnv, ctes)
+		return proj
 	case *trinoparser.SubqueryRelation:
 		_, proj := w.walkQueryWithCols(r.Query, nil, curEnv, ctes)
 		if bind {

@@ -1918,10 +1918,16 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		Name: "cat",
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name: "s",
-			Tables: []*metadatapb.TableMetadata{{
-				Name:    "t",
-				Columns: []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
-			}},
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:    "t",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}, {Name: "n", Type: "bigint"}},
+				},
+				{
+					Name:    "u",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}, {Name: "m", Type: "bigint"}},
+				},
+			},
 			Functions: []*metadatapb.FunctionMetadata{
 				{
 					Name:       "abs",
@@ -1932,12 +1938,19 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 					Definition: "CREATE FUNCTION s.sqrt(x varchar) RETURNS varchar RETURN x",
 				},
 			},
-			Views: []*metadatapb.ViewMetadata{{
-				Name:       "v_nested_alias",
-				Definition: "SELECT sqrt(abs(1)), abs(x) FROM t AS q(x)",
-			}},
+			Views: []*metadatapb.ViewMetadata{
+				{
+					Name:       "v_nested_alias",
+					Definition: "SELECT sqrt(abs(1)), abs(x) FROM t AS q(k, x)",
+				},
+				{
+					Name:       "v_join_alias",
+					Definition: "SELECT abs(j.n), abs(j.m) FROM (t JOIN u ON t.id = u.id) j",
+				},
+			},
 		}},
 	})
 	require.NoError(t, err)
-	assert.Contains(t, nestedAndAlias, `SELECT sqrt(abs(1)), abs(x) FROM "cat"."s".t AS q(x);`)
+	assert.Contains(t, nestedAndAlias, `SELECT sqrt(abs(1)), abs(x) FROM "cat"."s".t AS q(k, x);`)
+	assert.Contains(t, nestedAndAlias, `SELECT abs(j.n), abs(j.m) FROM ("cat"."s".t JOIN "cat"."s".u ON t.id = u.id) j;`)
 }
