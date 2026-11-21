@@ -5315,6 +5315,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "DISCARD TABLESPACE in innodb_file_per_table", setup: []string{"CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table"}, stmt: "ALTER TABLE z DISCARD TABLESPACE", code: 0},
 		{name: "SET GREATEST with one argument", stmt: "SET @x = GREATEST(1)", code: 1582},
 		{name: "SET FIELD with one argument", stmt: "SET @x = FIELD('a')", code: 1582},
+		{name: "SET HEX with two arguments", stmt: "SET @x = HEX(1, 2)", code: 1582},
 		// The default undo tablespaces are reserved, active or not.
 		{name: "DROP UNDO TABLESPACE innodb_undo_002", stmt: "DROP UNDO TABLESPACE innodb_undo_002", code: 3119},
 		{name: "DROP TABLESPACE innodb_undo_002", stmt: "DROP TABLESPACE innodb_undo_002", code: 3119},
@@ -6500,6 +6501,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LEAST(1, 'abc')", "GREATEST(2, 'abc')", "GREATEST(2.5, 3)", "GREATEST(X'01', X'02')",
 		"FIELD('a', 'b', 'a')", "FIELD(NULL, 'a')", "FIELD('A', 'a')", "FIELD(2, '2', 2)", "FIELD(1, '1.0')", "FIELD(1e0, '1')",
 		"FIELD(1, NULL, 1)", "FIELD('b', 'a', NULL, 'b')", "FIELD(X'61', 'a')", "FIELD(X'61', 'A')", "FIELD(1, 'abc', 1)", "FIELD('abc', 0)", "FIELD(2.50, 2.5)",
+		"HEX('1')", "HEX(255)", "HEX(-1)", "HEX(1.5)", "HEX(2.5)", "HEX(-2.5)", "HEX(1e0)", "HEX(1.5e0)", "HEX(0.5e0)", "HEX(-2.5e0)",
+		"HEX(X'00FF')", "HEX(NULL)", "HEX('')", "HEX('abc')", "HEX(18446744073709551615)", "HEX(18446744073709551616)",
+		"HEX(-9223372036854775809)", "HEX(99999999999999999999)", "HEX(0.4)", "HEX(3.99)", "HEX(-0.5)", "HEX(1 + 1)", "HEX(-9223372036854775808)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6617,7 +6621,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

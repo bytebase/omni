@@ -1941,6 +1941,70 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				sum = h[:]
 			}
 			return userVarValue{kind: userVarString, str: hex.EncodeToString(sum)}, true, nil
+		case "hex":
+			// HEX of a string is its bytes in uppercase hex digits. A number is
+			// taken as a BIGINT first and shown as its unsigned 64-bit pattern:
+			// a DECIMAL rounds half away from zero and saturates (HEX(2.5) is 3,
+			// HEX(-0.5) FFFFFFFFFFFFFFFF, HEX(99999999999999999999)
+			// 7FFFFFFFFFFFFFFF), a double rounds half to even (HEX(0.5e0) is 0)
+			// on mysql:8.0.46. A double past the BIGINT range saturates as a
+			// literal and is 1690 from an expression, which the catalog cannot
+			// tell apart, so it is left unevaluated.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("HEX")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			switch v.kind {
+			case userVarString:
+				return userVarValue{kind: userVarString, str: strings.ToUpper(hex.EncodeToString([]byte(v.str)))}, true, nil
+			case userVarNumeric:
+			default:
+				return userVarValue{}, false, nil
+			}
+			r, _, _, rok := parseSetNumberPrefixRat(v.str, true)
+			if !rok {
+				return userVarValue{}, false, nil
+			}
+			minInt, maxInt := big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)
+			var n *big.Int
+			switch {
+			case v.isFloat:
+				f, _ := r.Float64()
+				if f < -9.223372036854775808e18 || f >= 9.223372036854775808e18 {
+					return userVarValue{}, false, nil
+				}
+				n = big.NewInt(int64(math.RoundToEven(f)))
+			case v.isDecimal || !r.IsInt():
+				// Half away from zero: truncate |r| + 1/2.
+				abs := new(big.Rat).Abs(r)
+				abs.Add(abs, big.NewRat(1, 2))
+				n = new(big.Int).Quo(abs.Num(), abs.Denom())
+				if r.Sign() < 0 {
+					n.Neg(n)
+				}
+				if n.Cmp(maxInt) > 0 {
+					n = maxInt
+				} else if n.Cmp(minInt) < 0 {
+					n = minInt
+				}
+			default:
+				n = new(big.Int).Set(r.Num())
+				if n.Cmp(new(big.Int).SetUint64(math.MaxUint64)) > 0 {
+					n = maxInt
+				} else if n.Cmp(minInt) < 0 {
+					n = minInt
+				}
+			}
+			var u uint64
+			if n.Sign() < 0 {
+				u = uint64(n.Int64())
+			} else {
+				u = n.Uint64()
+			}
+			return userVarValue{kind: userVarString, str: strings.ToUpper(strconv.FormatUint(u, 16))}, true, nil
 		case "crc32":
 			// CRC32 is the IEEE checksum of the value's string form: a double
 			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.

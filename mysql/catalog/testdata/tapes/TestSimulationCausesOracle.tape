@@ -46368,6 +46368,49 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET @x = HEX(1, 2)
+< error
+| 1582 42000 Incorrect parameter count in the call to native function 'HEX'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | DROP UNDO TABLESPACE innodb_undo_002
 < error
 | 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
@@ -54806,6 +54849,235 @@
 : bytes
 | 1
 > exec
+| SET @x = HEX('1')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 31
+> exec
+| SET @x = HEX(255)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FF
+> exec
+| SET @x = HEX(-1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FFFFFFFFFFFFFFFF
+> exec
+| SET @x = HEX(1.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = HEX(2.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = HEX(-2.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FFFFFFFFFFFFFFFD
+> exec
+| SET @x = HEX(1e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = HEX(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = HEX(0.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = HEX(-2.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FFFFFFFFFFFFFFFE
+> exec
+| SET @x = HEX(X'00FF')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 00FF
+> exec
+| SET @x = HEX(NULL)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = HEX('')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = HEX('abc')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 616263
+> exec
+| SET @x = HEX(18446744073709551615)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FFFFFFFFFFFFFFFF
+> exec
+| SET @x = HEX(18446744073709551616)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 7FFFFFFFFFFFFFFF
+> exec
+| SET @x = HEX(-9223372036854775809)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 8000000000000000
+> exec
+| SET @x = HEX(99999999999999999999)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 7FFFFFFFFFFFFFFF
+> exec
+| SET @x = HEX(0.4)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = HEX(3.99)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 4
+> exec
+| SET @x = HEX(-0.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| FFFFFFFFFFFFFFFF
+> exec
+| SET @x = HEX(1 + 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = HEX(-9223372036854775808)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 8000000000000000
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -55655,6 +55927,32 @@
 < row
 : bytes
 |
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (HEX('1') = '31')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (HEX(255) = 'FF')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
 > exec
 | SET SESSION sql_mode = ''
 < ok 0 0
