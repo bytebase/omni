@@ -71,9 +71,14 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as char charset binary) AS `BINARY a` from `t`",
 		},
 		{
-			"date_time_timestamp_day_mod_week_geom_values",
-			"SELECT DATE(a), TIME(a), TIMESTAMP(a), DAY(a), MOD(a, b), WEEK(a), GEOMETRYCOLLECTION(), VALUES(a) FROM t",
-			"select cast(`t`.`a` as date) AS `DATE(a)`,cast(`t`.`a` as time) AS `TIME(a)`,cast(`t`.`a` as datetime) AS `TIMESTAMP(a)`,dayofmonth(`t`.`a`) AS `DAY(a)`,(`t`.`a` % `t`.`b`) AS `MOD(a, b)`,week(`t`.`a`,0) AS `WEEK(a)`,geomcollection() AS `GEOMETRYCOLLECTION()`,NULL AS `VALUES(a)` from `t`",
+			"date_day_mod_geom_values",
+			"SELECT DATE(a), DAY(a), MOD(a, b), GEOMETRYCOLLECTION(), VALUES(a) FROM t",
+			"select cast(`t`.`a` as date) AS `DATE(a)`,dayofmonth(`t`.`a`) AS `DAY(a)`,(`t`.`a` % `t`.`b`) AS `MOD(a, b)`,geomcollection() AS `GEOMETRYCOLLECTION()`,NULL AS `VALUES(a)` from `t`",
+		},
+		{
+			"time_timestamp_week_preserved",
+			"SELECT TIME('12:34:56.123456'), TIMESTAMP('2021-01-01 12:34:56.123456'), WEEK('2021-01-01') FROM t",
+			"select time('12:34:56.123456') AS `TIME('12:34:56.123456')`,timestamp('2021-01-01 12:34:56.123456') AS `TIMESTAMP('2021-01-01 12:34:56.123456')`,week('2021-01-01') AS `WEEK('2021-01-01')` from `t`",
 		},
 		{
 			"schema_qualified_functions_not_rewritten",
@@ -86,9 +91,9 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select min(`t`.`a`) AS `MIN(DISTINCT a)`,max(`t`.`b`) AS `MAX(DISTINCT b)` from `t`",
 		},
 		{
-			"cast_as_year",
+			"cast_as_year_stays_executable",
 			"SELECT CAST(a AS YEAR) FROM t",
-			"select cast_as_year(`t`.`a`) AS `CAST(a AS YEAR)` from `t`",
+			"select cast(`t`.`a` as year) AS `CAST(a AS YEAR)` from `t`",
 		},
 		{
 			"window_single_bound_expansion",

@@ -75,6 +75,7 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"dual_unknown_col", "CREATE VIEW v AS SELECT a FROM DUAL", ErrNoSuchColumn},
 		{"unknown_col_from_table", "CREATE VIEW v AS SELECT no_col FROM t", ErrNoSuchColumn},
 		{"wrong_schema_col", "CREATE VIEW v AS SELECT db2.t.a FROM t", ErrNoSuchColumn},
+		{"derived_table_unknown_col", "CREATE VIEW v AS SELECT d.no_col FROM (SELECT 1 + 1) AS d", ErrNoSuchColumn},
 		{"reachable_cte_unknown_col", "CREATE VIEW v AS WITH bad AS (SELECT missing_col), used AS (SELECT * FROM bad) SELECT * FROM used", ErrNoSuchColumn},
 	}
 
@@ -111,6 +112,9 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"cte_in_values_subquery", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) VALUES ROW((SELECT x FROM c))"},
 		{"unused_cte_missing_column", "CREATE VIEW v AS WITH unused AS (SELECT missing_column) SELECT 1 AS x"},
 		{"unused_cte_missing_table", "CREATE VIEW v AS WITH unused AS (SELECT * FROM missing_tbl) SELECT 1 AS x"},
+		{"derived_expr_col_name", "CREATE VIEW v AS SELECT d.`1 + 1` FROM (SELECT 1 + 1) AS d"},
+		{"derived_func_col_name", "CREATE VIEW v AS SELECT d.`COUNT(*)` FROM (SELECT COUNT(*) FROM t) AS d"},
+		{"cte_expr_col_name", "CREATE VIEW v AS WITH c AS (SELECT 1 + 1) SELECT c.`1 + 1` FROM c"},
 		{"dual_literal", "CREATE VIEW v AS SELECT 1 FROM DUAL"},
 	}
 	for _, tc := range accepted {

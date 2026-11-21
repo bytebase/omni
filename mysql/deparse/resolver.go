@@ -379,12 +379,7 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 // autoName names an unaliased select item: from its source text when the
 // resolver has it, otherwise rebuilt from the AST.
 func (r *Resolver) autoName(expr ast.ExprNode, position int) string {
-	if r.Source != "" {
-		if name, ok := sourceAutoName(r.Source, expr, position); ok {
-			return name
-		}
-	}
-	return autoAlias(expr, "", position)
+	return AutoName(r.Source, expr, position)
 }
 
 // expandStar expands * to the columns of the FROM clause in MySQL's order: a

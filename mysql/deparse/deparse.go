@@ -2000,13 +2000,6 @@ func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 }
 
 func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
-	// MySQL 8.0 stores CAST(expr AS YEAR) as `cast_as_year`(expr).
-	if !n.Array && n.AtTimeZone == "" && n.TypeName != nil && strings.EqualFold(n.TypeName.Name, "year") {
-		b.WriteString("cast_as_year(")
-		writeExpr(b, n.Expr)
-		b.WriteString(")")
-		return
-	}
 	b.WriteString("cast(")
 	if n.AtTimeZone != "" {
 		// MySQL 8.0.46 stores CAST(a AT TIME ZONE 'UTC' AS DATETIME), with or without
@@ -2494,20 +2487,6 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(" as date)")
 			return
 		}
-	case "TIME":
-		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 {
-			b.WriteString("cast(")
-			writeExpr(b, n.Args[0])
-			b.WriteString(" as time)")
-			return
-		}
-	case "TIMESTAMP":
-		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 {
-			b.WriteString("cast(")
-			writeExpr(b, n.Args[0])
-			b.WriteString(" as datetime)")
-			return
-		}
 	case "MOD":
 		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 2 {
 			b.WriteString("(")
@@ -2515,13 +2494,6 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(" % ")
 			writeBitOperand(b, n.Args[1])
 			b.WriteString(")")
-			return
-		}
-	case "WEEK":
-		if n.Schema == "" && !n.SpacedParen && len(n.Args) == 1 {
-			b.WriteString("week(")
-			writeExpr(b, n.Args[0])
-			b.WriteString(",0)")
 			return
 		}
 	case "VALUES":

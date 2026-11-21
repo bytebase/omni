@@ -121,7 +121,7 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 			return nil, err
 		}
 	}
-	q, err := c.analyzeSelectStmtIn(sel, nil, nil, body.reads)
+	q, err := c.analyzeSelectStmtIn(sel, nil, nil, body.reads, source)
 	if err != nil {
 		var refusal *Error
 		if errors.As(err, &refusal) {

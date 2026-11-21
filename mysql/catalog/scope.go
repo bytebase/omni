@@ -18,6 +18,7 @@ type analyzerScope struct {
 	parent        *analyzerScope
 	ctes          map[string]*CommonTableExprQ // CTEs visible in this scope (propagated to nested subqueries)
 	reachableCTEs map[*nodes.CommonTableExpr]bool
+	source        string // original SQL text for expression-derived column names
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.
