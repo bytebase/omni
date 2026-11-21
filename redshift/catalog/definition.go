@@ -651,28 +651,47 @@ func initBuiltinCatalog() {
 	})
 }
 
-func hasMatchingBuiltinProc(name string, argTypes []string) bool {
-	initBuiltinCatalog()
-	procs := builtinProcsByName[strings.ToLower(name)]
-	for _, p := range procs {
-		if int(p.NArgs) != len(argTypes) || len(p.ArgTypes) != len(argTypes) {
+func matchBuiltinProcArgs(p BuiltinProc, argTypes []string) (int, bool) {
+	isVariadic := p.Variadic != 0
+	minArgs := int(p.NArgs) - int(p.NArgDefaults)
+	if minArgs < 0 {
+		minArgs = 0
+	}
+	if !isVariadic {
+		if len(argTypes) < minArgs || len(argTypes) > int(p.NArgs) || len(p.ArgTypes) != int(p.NArgs) {
+			return 0, false
+		}
+	} else if len(argTypes) < minArgs || len(p.ArgTypes) == 0 {
+		return 0, false
+	}
+	score := 0
+	for i, argType := range argTypes {
+		if argType == "" {
 			continue
 		}
-		compatible := true
-		for i, argType := range argTypes {
-			if argType == "" {
-				continue
-			}
-			paramType := builtinTypeByOID[p.ArgTypes[i]]
-			if paramType == "" || strings.HasPrefix(paramType, "any") {
-				continue
-			}
-			if _, ok := redshiftTypeCompatScore(argType, paramType); !ok {
-				compatible = false
-				break
-			}
+		var paramOID uint32
+		if isVariadic && i >= len(p.ArgTypes)-1 {
+			paramOID = p.Variadic
+		} else {
+			paramOID = p.ArgTypes[i]
 		}
-		if compatible {
+		paramType := builtinTypeByOID[paramOID]
+		if paramType == "" || strings.HasPrefix(paramType, "any") {
+			continue
+		}
+		s, ok := redshiftTypeCompatScore(argType, paramType)
+		if !ok {
+			return 0, false
+		}
+		score += s
+	}
+	return score, true
+}
+
+func hasMatchingBuiltinProc(name string, argTypes []string) bool {
+	initBuiltinCatalog()
+	for _, p := range builtinProcsByName[strings.ToLower(name)] {
+		if _, ok := matchBuiltinProcArgs(p, argTypes); ok {
 			return true
 		}
 	}
@@ -692,27 +711,8 @@ func resolveBuiltinProcReturnType(schema, name string, argTypes []string) string
 	var matchedRet string
 	ambiguous := false
 	for _, p := range procs {
-		if int(p.NArgs) != len(argTypes) || len(p.ArgTypes) != len(argTypes) {
-			continue
-		}
-		score := 0
-		compatible := true
-		for i, argType := range argTypes {
-			if argType == "" {
-				continue
-			}
-			paramType := builtinTypeByOID[p.ArgTypes[i]]
-			if paramType == "" || strings.HasPrefix(paramType, "any") {
-				continue
-			}
-			s, ok := redshiftTypeCompatScore(argType, paramType)
-			if !ok {
-				compatible = false
-				break
-			}
-			score += s
-		}
-		if !compatible {
+		score, ok := matchBuiltinProcArgs(p, argTypes)
+		if !ok {
 			continue
 		}
 		retType := builtinTypeByOID[p.RetType]
@@ -988,7 +988,7 @@ func collectFunctionCalls(definition, callerSchema string, callerParams []functi
 		}
 		return calls
 	}
-	return scanCallRefs(definition)
+	return scanCallTokens(definition, true)
 }
 
 func collectSQLFunctionCalls(sql, callerSchema string, fnCat *funcCatalog) []functionCall {
@@ -1021,6 +1021,10 @@ func extractDefElemStrings(arg nodes.Node) []string {
 }
 
 func scanCallRefs(body string) []functionCall {
+	return scanCallTokens(body, false)
+}
+
+func scanCallTokens(body string, skipHeader bool) []functionCall {
 	lex := pgparser.NewLexer(body)
 	var toks []pgparser.Token
 	for {
@@ -1029,6 +1033,34 @@ func scanCallRefs(body string) []functionCall {
 			break
 		}
 		toks = append(toks, tok)
+	}
+	startIdx := 0
+	if skipHeader {
+		// Skip `CREATE [OR REPLACE] FUNCTION name(params)` so the declaration site
+		// itself is not mistaken for a self-recursive call in unparsed DDL.
+		depth := 0
+		for k := 0; k < len(toks); k++ {
+			if toks[k].Type == '(' {
+				depth++
+			} else if toks[k].Type == ')' && depth > 0 {
+				depth--
+				if depth == 0 {
+					startIdx = k + 1
+					break
+				}
+			}
+		}
+		toks = toks[startIdx:]
+		// Unparsed DDL often wraps its SQL body in `AS $$...$$`, which pgparser
+		// lexes as a single SCONST token; extract and scan that body directly.
+		for k := 0; k+1 < len(toks); k++ {
+			if strings.EqualFold(toks[k].Str, "as") && toks[k+1].Type == pgparser.SCONST {
+				if parsedCalls := collectSQLFunctionCalls(toks[k+1].Str, "", nil); len(parsedCalls) > 0 {
+					return parsedCalls
+				}
+				return scanCallTokens(toks[k+1].Str, false)
+			}
+		}
 	}
 	countArgs := func(openIdx int) int {
 		if openIdx+1 < len(toks) && toks[openIdx+1].Type == ')' {

@@ -1945,6 +1945,27 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "primary key or unique")
+
+	// Variadic built-ins (such as concat with 2+ args) take precedence over
+	// schema UDFs of the same name so they are not treated as self-recursive,
+	// and unparsed DDL fallback skips the CREATE FUNCTION declaration header.
+	varAndFallback, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "concat",
+					Definition: "CREATE FUNCTION s.concat(a text, b text) RETURNS text IMMUTABLE AS $$ SELECT concat($1, $2) $$ LANGUAGE sql",
+				},
+				{
+					Name:       "unparsed_fn",
+					Definition: "CREATE FUNCTION s.unparsed_fn(a text) RETURNS text SET search_path FROM CURRENT IMMUTABLE AS $$ SELECT concat($1, 'x') $$ LANGUAGE sql",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, varAndFallback, "CREATE FUNCTION s.unparsed_fn(a text)")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

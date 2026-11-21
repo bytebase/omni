@@ -1303,4 +1303,38 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "self-recursive")
+
+	// Lambda-taking built-ins (transform) take precedence over colliding UDFs,
+	// unparsed CREATE FUNCTION declarations are not flagged as self-recursive,
+	// and GetDatabaseDefinition qualifies direct-model function declarations.
+	lambdaAndUnparsed, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "transform", Definition: "CREATE FUNCTION s.transform(a array(bigint), b bigint) RETURNS array(bigint) RETURN a"},
+				{Name: "ext_fn", Definition: "CREATE FUNCTION s.ext_fn(x bigint) RETURNS bigint LANGUAGE PYTHON WITH (handler = 'mod.fn') AS 'body'"},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_transform",
+				Definition: "SELECT transform(ARRAY[1, 2], x -> x + 1)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, lambdaAndUnparsed, "SELECT transform(ARRAY[1, 2], x -> x + 1);")
+	assert.Contains(t, lambdaAndUnparsed, `CREATE FUNCTION s.ext_fn(x bigint)`)
+
+	directQualified, err := GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Functions: []*FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION f() RETURNS bigint RETURN 1",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, directQualified, `CREATE FUNCTION "cat"."s".f()`)
 }

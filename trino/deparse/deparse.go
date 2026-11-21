@@ -194,6 +194,46 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	return out, nil
 }
 
+func qualifyTrinoFunctionDeclaration(dbName, schemaName, fnName, definition string) (*trinoparser.CreateFunctionStmt, string, bool, error) {
+	cfs, _, _, ok := parseTrinoCreateFunction(definition)
+	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
+		return nil, definition, false, nil
+	}
+	declName := cfs.Spec.Declaration.Name
+	parts := declName.Parts
+	mismatch := func() error {
+		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fnName, declName.String())
+	}
+	def := definition
+	switch len(parts) {
+	case 1:
+		if !strings.EqualFold(parts[0].Value, fnName) {
+			return nil, "", false, mismatch()
+		}
+		if declName.Loc.Start >= 0 && declName.Loc.End <= len(definition) && declName.Loc.Start < declName.Loc.End {
+			if prefix := qualifyTrinoObjectPrefix(dbName, schemaName); prefix != "" {
+				def = definition[:declName.Loc.Start] + prefix + definition[declName.Loc.Start:]
+			}
+		}
+	case 2:
+		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fnName) {
+			return nil, "", false, mismatch()
+		}
+		if dbName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(definition) && declName.Loc.Start < declName.Loc.End {
+			def = definition[:declName.Loc.Start] + quoteIdentifier(dbName) + "." + definition[declName.Loc.Start:]
+		}
+	case 3:
+		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
+			!strings.EqualFold(parts[1].Value, schemaName) ||
+			!strings.EqualFold(parts[2].Value, fnName) {
+			return nil, "", false, mismatch()
+		}
+	default:
+		return nil, "", false, mismatch()
+	}
+	return cfs, def, true, nil
+}
+
 func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, string, error) {
 	if strings.TrimSpace(fn.Definition) == "" {
 		return "", "", fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
@@ -202,41 +242,12 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		return "", "", fmt.Errorf("function %s.%s definition must be a CREATE FUNCTION statement", schemaName, fn.Name)
 	}
 	fallbackSigKey := strings.ToLower(fn.Name) + "(" + strings.ToLower(strings.TrimSpace(fn.Signature)) + ")"
-	cfs, _, _, ok := parseTrinoCreateFunction(fn.Definition)
-	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
+	cfs, def, ok, err := qualifyTrinoFunctionDeclaration(dbName, schemaName, fn.Name, fn.Definition)
+	if err != nil {
+		return "", "", err
+	}
+	if !ok {
 		return fn.Definition, fallbackSigKey, nil
-	}
-	declName := cfs.Spec.Declaration.Name
-	parts := declName.Parts
-	mismatch := func() error {
-		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fn.Name, declName.String())
-	}
-	def := fn.Definition
-	switch len(parts) {
-	case 1:
-		if !strings.EqualFold(parts[0].Value, fn.Name) {
-			return "", "", mismatch()
-		}
-		if declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
-			if prefix := qualifyTrinoObjectPrefix(dbName, schemaName); prefix != "" {
-				def = fn.Definition[:declName.Loc.Start] + prefix + fn.Definition[declName.Loc.Start:]
-			}
-		}
-	case 2:
-		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
-			return "", "", mismatch()
-		}
-		if dbName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
-			def = fn.Definition[:declName.Loc.Start] + quoteIdentifier(dbName) + "." + fn.Definition[declName.Loc.Start:]
-		}
-	case 3:
-		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
-			!strings.EqualFold(parts[1].Value, schemaName) ||
-			!strings.EqualFold(parts[2].Value, fn.Name) {
-			return "", "", mismatch()
-		}
-	default:
-		return "", "", mismatch()
 	}
 	if err := validateTrinoFunctionSignature(schemaName, fn.Name, fn.Signature, cfs.Spec.Declaration.Parameters); err != nil {
 		return "", "", err
@@ -466,7 +477,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		return "", err
 	}
 	for _, fn := range fns {
-		if err := writeCreateFunction(&buf, fn.schema, fn.fn); err != nil {
+		if err := writeCreateFunction(&buf, metadata.Name, fn.schema, fn.fn); err != nil {
 			return "", err
 		}
 		buf.WriteString("\n\n")
@@ -555,7 +566,7 @@ func isTrinoDefaultAST(expr trinoparser.Expr) bool {
 	}
 }
 
-func writeCreateFunction(buf *strings.Builder, schemaName string, fn *FunctionMetadata) error {
+func writeCreateFunction(buf *strings.Builder, dbName, schemaName string, fn *FunctionMetadata) error {
 	definition := strings.TrimSpace(fn.Definition)
 	if definition == "" {
 		return fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
@@ -566,6 +577,10 @@ func writeCreateFunction(buf *strings.Builder, schemaName string, fn *FunctionMe
 		if err != nil {
 			return err
 		}
+	}
+	_, definition, _, err := qualifyTrinoFunctionDeclaration(dbName, schemaName, fn.Name, definition)
+	if err != nil {
+		return err
 	}
 	buf.WriteString(appendTerminator(definition))
 	return nil
@@ -918,7 +933,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 		case parsed[i].bodyStmt != nil:
 			calls = collectTrinoASTFunctionCalls(parsed[i].bodyStmt, f.schema, parsed[i].params, cat)
 		case !parsed[i].parsed:
-			calls = scanFunctionCallRefs(f.fn.Definition)
+			calls = scanFunctionBodyCallRefs(f.fn.Definition)
 		}
 		var edits []prefixEdit
 		seenEdit := make(map[int]struct{})
@@ -1169,7 +1184,7 @@ func trinoBuiltinTypeMatch(argType, paramType string) bool {
 		return true
 	}
 	if paramType == "function" {
-		return false
+		return argType == "function"
 	}
 	if innerParam, ok := strings.CutPrefix(paramType, "array("); ok && strings.HasSuffix(innerParam, ")") {
 		innerParam = innerParam[:len(innerParam)-1]
@@ -2067,6 +2082,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 			}
 		}
 		w.walkExpr(e.Body, lambdaEnv, ctes)
+		return "function"
 	case *trinoparser.JSONExistsExpr:
 		w.walkJSONPath(e.Path, curEnv, ctes)
 		return "boolean"
@@ -2312,6 +2328,14 @@ func (w *trinoASTWalker) walkStmt(stmt trinoparser.RoutineStatement, curEnv map[
 // scanFunctionCallRefs extracts unqualified and schema-qualified call sites
 // inside sql, ignoring comments and string literals.
 func scanFunctionCallRefs(sql string) []functionCallRef {
+	return scanFunctionCallTokens(sql, false)
+}
+
+func scanFunctionBodyCallRefs(definition string) []functionCallRef {
+	return scanFunctionCallTokens(definition, true)
+}
+
+func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 	type token struct {
 		isIdent bool
 		text    string
@@ -2378,6 +2402,22 @@ func scanFunctionCallRefs(sql string) []functionCallRef {
 			i++
 		default:
 			i++
+		}
+	}
+	if skipHeader {
+		// Skip `CREATE [OR REPLACE] FUNCTION name(params)` so the declared
+		// signature is not treated as a self-recursive call in unparsed DDL.
+		depth := 0
+		for k := 0; k < len(toks); k++ {
+			if toks[k].punct == '(' {
+				depth++
+			} else if toks[k].punct == ')' && depth > 0 {
+				depth--
+				if depth == 0 {
+					toks = toks[k+1:]
+					break
+				}
+			}
 		}
 	}
 
