@@ -2351,11 +2351,23 @@ func TestApplyDiffToMetadataRound16Fixes(t *testing.T) {
 		ForeignServers:      []*metadatapb.ForeignServerMetadata{{Name: "srv_null", Fdw: "pg_fdw", Version: &v1}},
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name: "public",
-			Functions: []*metadatapb.FunctionMetadata{{
-				Name:       "my_c_fn",
-				Signature:  "my_c_fn()",
-				Definition: "CREATE FUNCTION public.my_c_fn() RETURNS integer LANGUAGE c SUPPORT sup_old AS '$libdir/foo', 'foo_entry'",
-			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "sup_old",
+					Signature:  "sup_old(internal)",
+					Definition: "CREATE FUNCTION public.sup_old(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup_old'",
+				},
+				{
+					Name:       "sup_new",
+					Signature:  "sup_new(internal)",
+					Definition: "CREATE FUNCTION public.sup_new(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup_new'",
+				},
+				{
+					Name:       "my_c_fn",
+					Signature:  "my_c_fn()",
+					Definition: "CREATE FUNCTION public.my_c_fn() RETURNS integer LANGUAGE c SUPPORT sup_old AS '$libdir/foo', 'foo_entry'",
+				},
+			},
 		}},
 	}
 	catBefore := New()
@@ -2543,4 +2555,123 @@ func TestApplyDiffToMetadataRound18Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 	require.NoError(t, res[0].Error)
+}
+
+func TestApplyDiffToMetadataRound19Fixes(t *testing.T) {
+	// 1. Unqualified FDW handler stops at first matching search_path schema, FDW dependencies block RESTRICT / cascade or rename,
+	// SUPPORT validates routine existence & (internal)->internal signature, and function<->procedure conversion + quoted LANGUAGE survive.
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name:       "postgres",
+		SearchPath: "first_sp, second_sp, public",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "first_sp",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "h_ambig", Signature: "h_ambig()", Definition: "CREATE FUNCTION first_sp.h_ambig() RETURNS integer LANGUAGE sql AS 'SELECT 1'"},
+				},
+			},
+			{
+				Name: "second_sp",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "h_ambig", Signature: "h_ambig()", Definition: "CREATE FUNCTION second_sp.h_ambig() RETURNS fdw_handler LANGUAGE internal STRICT AS 'h'"},
+				},
+			},
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "my_h", Signature: "my_h()", Definition: "CREATE FUNCTION public.my_h() RETURNS fdw_handler LANGUAGE internal STRICT AS 'my_h'"},
+					{Name: "bad_sup", Signature: "bad_sup(integer)", Definition: "CREATE FUNCTION public.bad_sup(integer) RETURNS integer LANGUAGE sql AS 'SELECT 1'"},
+					{Name: "sup_ok", Signature: "sup_ok(internal)", Definition: "CREATE FUNCTION public.sup_ok(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup_ok'"},
+					{Name: "swap_me", Signature: "swap_me(integer)", Definition: "CREATE FUNCTION public.swap_me(x integer) RETURNS void LANGUAGE plpgsql AS 'SELECT 1'"},
+				},
+			},
+		},
+	}
+	cat := New()
+	cat.SetSearchPath([]string{"first_sp", "second_sp", "public"})
+	_, err := cat.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	// Unqualified HANDLER h_ambig must fail on first_sp.h_ambig wrong return type instead of falling through to second_sp.h_ambig.
+	// Missing/wrong-signature SUPPORT must fail without mutating existing functions.
+	for _, badSQL := range []string{
+		`CREATE FOREIGN DATA WRAPPER shadowed_fdw HANDLER h_ambig;`,
+		`CREATE FUNCTION public.f_missing_sup(integer) RETURNS integer LANGUAGE c SUPPORT public.no_such_sup AS 'foo';`,
+		`CREATE FUNCTION public.f_bad_sup(integer) RETURNS integer LANGUAGE c SUPPORT public.bad_sup AS 'foo';`,
+		`ALTER FUNCTION public.swap_me(integer) COST 42 SUPPORT public.bad_sup;`,
+	} {
+		res, execErr := cat.Exec(badSQL, nil)
+		require.NoError(t, execErr)
+		require.Len(t, res, 1)
+		require.Error(t, res[0].Error, badSQL)
+	}
+	require.Equal(t, "swap_me_", cat.findExactProc(cat.schemaByName["public"], "swap_me", []uint32{INT4OID}).Name+"_"+cat.userProcs[cat.findExactProc(cat.schemaByName["public"], "swap_me", []uint32{INT4OID}).OID].Cost)
+
+	catAfter := cat.Clone()
+	// Verify valid SUPPORT, FDW handler dependency (RESTRICT error, RENAME propagation, CASCADE drop), and function -> procedure kind conversion.
+	for _, badDrop := range []string{
+		`CREATE FOREIGN DATA WRAPPER f_dep HANDLER public.my_h; DROP FUNCTION public.my_h() RESTRICT;`,
+	} {
+		res, execErr := catAfter.Exec(badDrop, &ExecOptions{ContinueOnError: false})
+		require.NoError(t, execErr)
+		require.Error(t, res[len(res)-1].Error)
+	}
+
+	catAfter = cat.Clone()
+	results, err := catAfter.Exec(`
+		CREATE FOREIGN DATA WRAPPER f_dep HANDLER public.my_h;
+		ALTER FUNCTION public.my_h() RENAME TO my_h2;
+		DROP FUNCTION public.swap_me(integer);
+		CREATE PROCEDURE public.swap_me(x integer) LANGUAGE plpgsql AS 'SELECT 1';
+		CREATE FUNCTION public.c_sup(integer) RETURNS integer LANGUAGE c SUPPORT public.sup_ok AS '$libdir/x', 'x';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, cat, catAfter, Diff(cat, catAfter))
+	var depFdw *metadatapb.ForeignDataWrapperMetadata
+	for _, f := range got.ForeignDataWrappers {
+		if f.Name == "f_dep" {
+			depFdw = f
+		}
+	}
+	require.NotNil(t, depFdw)
+	require.Equal(t, "public.my_h2", depFdw.Handler)
+
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+	for _, fn := range pub.Functions {
+		require.NotEqual(t, "swap_me", fn.Name, "old function must be removed when converted to procedure")
+	}
+	var swappedProc *metadatapb.ProcedureMetadata
+	for _, p := range pub.Procedures {
+		if p.Name == "swap_me" {
+			swappedProc = p
+		}
+	}
+	require.NotNil(t, swappedProc)
+	require.Contains(t, swappedProc.Definition, `LANGUAGE plpgsql`)
+
+	customLangDDL := buildUserProcDDL(cat, &UserProc{
+		Schema:   cat.schemaByName["public"],
+		Name:     "custom_fn",
+		Kind:     'f',
+		RetType:  INT4OID,
+		Language: "my-lang",
+		Body:     "body",
+	})
+	require.Contains(t, customLangDDL, `LANGUAGE "my-lang"`)
+
+	cascadeCat := cat.Clone()
+	cascadeRes, err := cascadeCat.Exec(`
+		CREATE FOREIGN DATA WRAPPER f_dep HANDLER public.my_h;
+		DROP FUNCTION public.my_h() CASCADE;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range cascadeRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Nil(t, cascadeCat.fdws["f_dep"])
 }

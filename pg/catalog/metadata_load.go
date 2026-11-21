@@ -80,6 +80,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		}
 	}
 	if opts.Full {
+		c.linkForeignWrapperFuncDeps()
 		c.installMetadataComments(meta)
 	}
 	return report, nil
@@ -667,6 +668,28 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 			}
 		}
 		addTypeName(o.createStmt.ReturnType)
+		if opts := o.createStmt.Options; opts != nil {
+			for _, item := range opts.Items {
+				de, ok := item.(*nodes.DefElem)
+				if !ok || !strings.EqualFold(de.Defname, "support") {
+					continue
+				}
+				if formatted := formatCatalogOptionName(de); formatted != "" {
+					s, fn := parseRoutineRefName(formatted)
+					if s != "" {
+						for _, key := range functionKeys[s+"."+fn] {
+							add(key)
+						}
+					} else {
+						for _, cand := range []string{o.schema, "public"} {
+							for _, key := range functionKeys[cand+"."+fn] {
+								add(key)
+							}
+						}
+					}
+				}
+			}
+		}
 	case metadataIndex:
 		add(metadataRelationKey(o.schema, o.parent))
 		add(o.parentIndexKey)

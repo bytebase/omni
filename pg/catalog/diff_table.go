@@ -281,13 +281,13 @@ func partitionBoundEqual(a, b *PartitionBound) bool {
 	if a.Strategy != b.Strategy || a.IsDefault != b.IsDefault {
 		return false
 	}
-	if !stringSliceEqual(a.ListValues, b.ListValues) {
+	if !stringSliceEqual(a.ListValues, b.ListValues) || !slices.Equal(a.ListKeywords, b.ListKeywords) {
 		return false
 	}
-	if !stringSliceEqual(a.LowerBound, b.LowerBound) {
+	if !stringSliceEqual(a.LowerBound, b.LowerBound) || !slices.Equal(a.LowerKeywords, b.LowerKeywords) {
 		return false
 	}
-	if !stringSliceEqual(a.UpperBound, b.UpperBound) {
+	if !stringSliceEqual(a.UpperBound, b.UpperBound) || !slices.Equal(a.UpperKeywords, b.UpperKeywords) {
 		return false
 	}
 	if a.Modulus != b.Modulus || a.Remainder != b.Remainder {

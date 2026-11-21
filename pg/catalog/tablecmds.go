@@ -848,14 +848,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				}
 			}
 
+			listVals, listKeywords := deparseDatumListWithKinds(bs.Listdatums)
+			lowerVals, lowerKeywords := deparseDatumListWithKinds(bs.Lowerdatums)
+			upperVals, upperKeywords := deparseDatumListWithKinds(bs.Upperdatums)
 			rel.PartitionBound = &PartitionBound{
-				Strategy:   bs.Strategy,
-				IsDefault:  bs.IsDefault,
-				ListValues: deparseDatumList(bs.Listdatums),
-				LowerBound: deparseDatumList(bs.Lowerdatums),
-				UpperBound: deparseDatumList(bs.Upperdatums),
-				Modulus:    bs.Modulus,
-				Remainder:  bs.Remainder,
+				Strategy:      bs.Strategy,
+				IsDefault:     bs.IsDefault,
+				ListValues:    listVals,
+				ListKeywords:  listKeywords,
+				LowerBound:    lowerVals,
+				LowerKeywords: lowerKeywords,
+				UpperBound:    upperVals,
+				UpperKeywords: upperKeywords,
+				Modulus:       bs.Modulus,
+				Remainder:     bs.Remainder,
 			}
 		}
 		// Set PartitionOf to the parent table OID.
@@ -1529,9 +1535,11 @@ func (c *Catalog) checkPartitionBoundOverlap(parentOID, selfOID uint32, newBound
 
 		switch newBound.Strategy {
 		case 'l': // LIST
-			for _, nv := range newBound.ListValues {
-				for _, ev := range eb.ListValues {
-					if nv == ev {
+			for i, nv := range newBound.ListValues {
+				newKw := i < len(newBound.ListKeywords) && newBound.ListKeywords[i]
+				for j, ev := range eb.ListValues {
+					evKw := j < len(eb.ListKeywords) && eb.ListKeywords[j]
+					if nv == ev && newKw == evKw {
 						return errInvalidObjectDefinition(
 							fmt.Sprintf("partition bound value %q already exists in partition %q", nv, existing.Name))
 					}

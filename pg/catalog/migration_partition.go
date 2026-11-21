@@ -253,6 +253,16 @@ func formatPartitionValue(v string) string {
 	return "'" + strings.ReplaceAll(v, "'", "''") + "'"
 }
 
+func formatPartitionDatum(v string, idx int, keywords []bool) string {
+	if idx < len(keywords) {
+		if keywords[idx] {
+			return strings.ToUpper(v)
+		}
+		return "'" + strings.ReplaceAll(v, "'", "''") + "'"
+	}
+	return formatPartitionValue(v)
+}
+
 // generateReplicaIdentityDDL generates ALTER TABLE ... REPLICA IDENTITY ...
 // replicaIdentityIndexRebuilt reports whether the migration drops and
 // recreates the index, or the constraint owning it, that the target table
@@ -457,7 +467,7 @@ func formatPartitionBound(bound *PartitionBound) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(formatPartitionValue(v))
+			b.WriteString(formatPartitionDatum(v, i, bound.ListKeywords))
 		}
 		b.WriteString(")")
 	case 'r':
@@ -466,14 +476,14 @@ func formatPartitionBound(bound *PartitionBound) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(formatPartitionValue(v))
+			b.WriteString(formatPartitionDatum(v, i, bound.LowerKeywords))
 		}
 		b.WriteString(") TO (")
 		for i, v := range bound.UpperBound {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(formatPartitionValue(v))
+			b.WriteString(formatPartitionDatum(v, i, bound.UpperKeywords))
 		}
 		b.WriteString(")")
 	case 'h':

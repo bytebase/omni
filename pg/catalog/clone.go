@@ -155,18 +155,12 @@ func (c *Catalog) Clone() *Catalog {
 		// PartitionBound: deep copy if non-nil.
 		if r.PartitionBound != nil {
 			pb := *r.PartitionBound
-			if r.PartitionBound.ListValues != nil {
-				pb.ListValues = make([]string, len(r.PartitionBound.ListValues))
-				copy(pb.ListValues, r.PartitionBound.ListValues)
-			}
-			if r.PartitionBound.LowerBound != nil {
-				pb.LowerBound = make([]string, len(r.PartitionBound.LowerBound))
-				copy(pb.LowerBound, r.PartitionBound.LowerBound)
-			}
-			if r.PartitionBound.UpperBound != nil {
-				pb.UpperBound = make([]string, len(r.PartitionBound.UpperBound))
-				copy(pb.UpperBound, r.PartitionBound.UpperBound)
-			}
+			pb.ListValues = slices.Clone(r.PartitionBound.ListValues)
+			pb.ListKeywords = slices.Clone(r.PartitionBound.ListKeywords)
+			pb.LowerBound = slices.Clone(r.PartitionBound.LowerBound)
+			pb.LowerKeywords = slices.Clone(r.PartitionBound.LowerKeywords)
+			pb.UpperBound = slices.Clone(r.PartitionBound.UpperBound)
+			pb.UpperKeywords = slices.Clone(r.PartitionBound.UpperKeywords)
 			cr.PartitionBound = &pb
 		}
 		cr.ForeignOptions = slices.Clone(r.ForeignOptions)

@@ -180,7 +180,14 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 					setConfig = c.applyFuncSetConfig(setConfig, vs)
 				}
 			case "support":
-				support = formatCatalogOptionName(de)
+				if isProcedure {
+					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
+				}
+				sup, _, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				if err != nil {
+					return err
+				}
+				support = sup
 			}
 		}
 	}
@@ -1198,6 +1205,24 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 		return err
 	}
 
+	// Pre-validate support routine options before mutating the function.
+	var resolvedSupport string
+	if stmt.Actions != nil {
+		for _, item := range stmt.Actions.Items {
+			de, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			if strings.EqualFold(de.Defname, "support") {
+				sup, _, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				if err != nil {
+					return err
+				}
+				resolvedSupport = sup
+			}
+		}
+	}
+
 	// Process actions.
 	if stmt.Actions != nil {
 		for _, item := range stmt.Actions.Items {
@@ -1293,7 +1318,7 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 				}
 			case "support":
 				if up != nil {
-					up.Support = formatCatalogOptionName(de)
+					up.Support = resolvedSupport
 				}
 			}
 		}

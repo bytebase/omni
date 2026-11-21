@@ -16,13 +16,16 @@ type PartitionInfo struct {
 
 // PartitionBound stores partition bound for a partition child.
 type PartitionBound struct {
-	Strategy   byte // must match parent's strategy
-	IsDefault  bool
-	ListValues []string // deparsed datum strings (LIST)
-	LowerBound []string // deparsed lower bound values (RANGE)
-	UpperBound []string // deparsed upper bound values (RANGE)
-	Modulus    int      // HASH modulus
-	Remainder  int      // HASH remainder
+	Strategy      byte // must match parent's strategy
+	IsDefault     bool
+	ListValues    []string // deparsed datum strings (LIST)
+	ListKeywords  []bool   // true when the LIST datum is SQL NULL rather than a quoted literal
+	LowerBound    []string // deparsed lower bound values (RANGE)
+	LowerKeywords []bool   // true when the RANGE lower datum is an unquoted keyword (MINVALUE, MAXVALUE, NULL)
+	UpperBound    []string // deparsed upper bound values (RANGE)
+	UpperKeywords []bool   // true when the RANGE upper datum is an unquoted keyword (MINVALUE, MAXVALUE, NULL)
+	Modulus       int      // HASH modulus
+	Remainder     int      // HASH remainder
 }
 
 // Column represents a table column.

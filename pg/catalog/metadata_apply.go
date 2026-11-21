@@ -450,7 +450,11 @@ func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Ca
 	if to.Kind == 'p' {
 		var prev *metadatapb.ProcedureMetadata
 		if srcSM != nil && oldIdentity != "" {
-			prev, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
+			if from != nil && from.Kind != 'p' {
+				_, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
+			} else {
+				prev, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
+			}
 		}
 		p := procedureToProto(catAfter, to, newIdentity)
 		if prev != nil {
@@ -462,7 +466,11 @@ func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Ca
 	}
 	var prev *metadatapb.FunctionMetadata
 	if srcSM != nil && oldIdentity != "" {
-		prev, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
+		if from != nil && from.Kind == 'p' {
+			_, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
+		} else {
+			prev, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
+		}
 	}
 	fn := functionToProto(catAfter, to, newIdentity)
 	bodyChanged := from == nil || from.Body != to.Body || from.Language != to.Language || from.HasSqlBody != to.HasSqlBody
@@ -2427,7 +2435,7 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteByte('\n')
 	}
 	b.WriteString(" LANGUAGE ")
-	b.WriteString(up.Language)
+	b.WriteString(quoteWalkThroughIdent(up.Language))
 	b.WriteByte('\n')
 	switch up.Volatile {
 	case 'i':

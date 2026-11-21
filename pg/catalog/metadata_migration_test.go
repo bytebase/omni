@@ -5191,12 +5191,24 @@ func TestRound16Fixes(t *testing.T) {
 
 	// 2. Routine SUPPORT and two-part C AS 'object_file', 'link_symbol' round-trip cleanly.
 	oldFnMeta := &metadatapb.DatabaseSchemaMetadata{
-		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "sup_fn",
+				Signature:  "sup_fn(internal)",
+				Definition: `CREATE FUNCTION public.sup_fn(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup_fn'`,
+			}},
+		}},
 	}
 	newFnMeta := &metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name: "public",
 			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "sup_fn",
+					Signature:  "sup_fn(internal)",
+					Definition: `CREATE FUNCTION public.sup_fn(internal) RETURNS internal LANGUAGE internal STRICT AS 'sup_fn'`,
+				},
 				{
 					Name:       "c_add",
 					Signature:  "c_add(integer)",
@@ -5364,4 +5376,97 @@ func TestRound18Fixes(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Empty(t, noDBOwnerSQL)
+}
+
+func TestRound19Fixes(t *testing.T) {
+	// 1. Standalone table with matching index attached as partition suppresses duplicate ALTER INDEX ATTACH PARTITION.
+	p0 := &metadatapb.TablePartitionMetadata{
+		Name:       "events_p0",
+		Expression: "RANGE (id)",
+		Value:      "FOR VALUES FROM (-100) TO (0)",
+	}
+	standaloneMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:       "events",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Indexes:    []*metadatapb.IndexMetadata{{Name: "events_id_idx", Expressions: []string{"id"}}},
+					Partitions: []*metadatapb.TablePartitionMetadata{p0},
+				},
+				{
+					Name:    "events_p1",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Indexes: []*metadatapb.IndexMetadata{{Name: "events_p1_id_idx", Expressions: []string{"id"}}},
+				},
+			},
+		}},
+	}
+	attachedMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Indexes: []*metadatapb.IndexMetadata{{Name: "events_id_idx", Expressions: []string{"id"}}},
+				Partitions: []*metadatapb.TablePartitionMetadata{
+					p0,
+					{
+						Name:       "events_p1",
+						Expression: "RANGE (id)",
+						Value:      "FOR VALUES FROM (0) TO (100)",
+						Indexes:    []*metadatapb.IndexMetadata{{Name: "events_p1_id_idx", Expressions: []string{"id"}}},
+					},
+				},
+			}},
+		}},
+	}
+	attachSQL, err := testMetadataMigration(standaloneMeta, attachedMeta)
+	require.NoError(t, err)
+	require.Contains(t, attachSQL, `ALTER TABLE "public"."events" ATTACH PARTITION "public"."events_p1" FOR VALUES FROM ('0') TO ('100')`)
+	require.NotContains(t, attachSQL, `ATTACH PARTITION "public"."events_p1_id_idx"`)
+
+	// 2. Quoted 'NULL' partition bound value is preserved as string literal rather than SQL NULL.
+	pSeed := &metadatapb.TablePartitionMetadata{
+		Name:       "items_seed",
+		Expression: "LIST (tag)",
+		Value:      "FOR VALUES IN ('seed')",
+	}
+	listParentMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:       "items",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "tag", Type: "text"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{pSeed},
+			}},
+		}},
+	}
+	listChildMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "items",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "tag", Type: "text"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{
+					pSeed,
+					{
+						Name:       "items_str_null",
+						Expression: "LIST (tag)",
+						Value:      "FOR VALUES IN ('NULL')",
+					},
+					{
+						Name:       "items_sql_null",
+						Expression: "LIST (tag)",
+						Value:      "FOR VALUES IN (NULL)",
+					},
+				},
+			}},
+		}},
+	}
+	listPartSQL, err := testMetadataMigration(listParentMeta, listChildMeta)
+	require.NoError(t, err)
+	require.Contains(t, listPartSQL, `CREATE TABLE "public"."items_str_null" PARTITION OF "public"."items" FOR VALUES IN ('NULL')`)
+	require.Contains(t, listPartSQL, `CREATE TABLE "public"."items_sql_null" PARTITION OF "public"."items" FOR VALUES IN (NULL)`)
 }

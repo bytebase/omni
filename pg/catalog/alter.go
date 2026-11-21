@@ -1940,6 +1940,7 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		bp.Name = newName
 		up.Name = newName
 		c.procByName[newName] = append(c.procByName[newName], bp)
+		c.updateFdwRoutineRefs(up.OID, schema.Name, newName)
 		return nil
 	}
 
@@ -1978,6 +1979,7 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		c.procByName[newName] = append(c.procByName[newName], bp)
 	}
 	up.Name = newName
+	c.updateFdwRoutineRefs(up.OID, schema.Name, newName)
 	return nil
 }
 
@@ -2947,14 +2949,20 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 
 	// Store partition bound.
 	if pc.Bound != nil {
+		listVals, listKeywords := deparseDatumListWithKinds(pc.Bound.Listdatums)
+		lowerVals, lowerKeywords := deparseDatumListWithKinds(pc.Bound.Lowerdatums)
+		upperVals, upperKeywords := deparseDatumListWithKinds(pc.Bound.Upperdatums)
 		part.PartitionBound = &PartitionBound{
-			Strategy:   pc.Bound.Strategy,
-			IsDefault:  pc.Bound.IsDefault,
-			ListValues: deparseDatumList(pc.Bound.Listdatums),
-			LowerBound: deparseDatumList(pc.Bound.Lowerdatums),
-			UpperBound: deparseDatumList(pc.Bound.Upperdatums),
-			Modulus:    pc.Bound.Modulus,
-			Remainder:  pc.Bound.Remainder,
+			Strategy:      pc.Bound.Strategy,
+			IsDefault:     pc.Bound.IsDefault,
+			ListValues:    listVals,
+			ListKeywords:  listKeywords,
+			LowerBound:    lowerVals,
+			LowerKeywords: lowerKeywords,
+			UpperBound:    upperVals,
+			UpperKeywords: upperKeywords,
+			Modulus:       pc.Bound.Modulus,
+			Remainder:     pc.Bound.Remainder,
 		}
 	}
 	part.PartitionOf = parent.OID

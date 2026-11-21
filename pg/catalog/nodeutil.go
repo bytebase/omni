@@ -46,50 +46,61 @@ func intVal(n nodes.Node) int64 {
 
 // deparseAConst converts an A_Const node to its string representation.
 func deparseAConst(n nodes.Node) string {
+	val, _ := deparseDatumWithKind(n)
+	return val
+}
+
+// deparseDatumWithKind converts a datum node to its string representation and
+// reports whether it was an unquoted SQL keyword (NULL, MINVALUE, MAXVALUE).
+func deparseDatumWithKind(n nodes.Node) (string, bool) {
 	switch v := n.(type) {
 	case *nodes.A_Const:
 		if v.Isnull {
-			return "NULL"
+			return "NULL", true
 		}
-		return deparseAConst(v.Val)
+		return deparseDatumWithKind(v.Val)
 	case *nodes.Integer:
-		return fmt.Sprintf("%d", v.Ival)
+		return fmt.Sprintf("%d", v.Ival), false
 	case *nodes.Float:
-		return v.Fval
+		return v.Fval, false
 	case *nodes.String:
-		return v.Str
+		return v.Str, false
 	case *nodes.Boolean:
 		if v.Boolval {
-			return "true"
+			return "true", false
 		}
-		return "false"
+		return "false", false
 	case *nodes.ColumnRef:
 		if v.Fields != nil && len(v.Fields.Items) == 1 {
 			name := stringVal(v.Fields.Items[0])
 			upper := strings.ToUpper(name)
 			if upper == "MINVALUE" || upper == "MAXVALUE" {
-				return upper
+				return upper, true
 			}
 			if name != "" {
-				return name
+				return name, false
 			}
 		}
-		return fmt.Sprintf("%v", n)
+		return fmt.Sprintf("%v", n), false
 	default:
-		return fmt.Sprintf("%v", n)
+		return fmt.Sprintf("%v", n), false
 	}
 }
 
-// deparseDatumList converts a list of datum nodes to strings.
-func deparseDatumList(list *nodes.List) []string {
+// deparseDatumListWithKinds converts a list of datum nodes to strings alongside
+// flags indicating whether each entry is an unquoted keyword (NULL, MINVALUE, MAXVALUE).
+func deparseDatumListWithKinds(list *nodes.List) ([]string, []bool) {
 	if list == nil {
-		return nil
+		return nil, nil
 	}
-	result := make([]string, 0, len(list.Items))
+	values := make([]string, 0, len(list.Items))
+	keywords := make([]bool, 0, len(list.Items))
 	for _, item := range list.Items {
-		result = append(result, deparseAConst(item))
+		val, isKeyword := deparseDatumWithKind(item)
+		values = append(values, val)
+		keywords = append(keywords, isKeyword)
 	}
-	return result
+	return values, keywords
 }
 
 // stringListItems extracts all string values from a List of String nodes.

@@ -1410,6 +1410,13 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			return
 		}
 		c.removeEventTrigger(evt)
+	case 'F':
+		for _, fdw := range c.fdws {
+			if fdw != nil && fdw.OID == objOID {
+				_ = c.dropFdw(fdw, true)
+				return
+			}
+		}
 	case 'O':
 		if c.operByOID[objOID] != nil {
 			c.dropDependents('O', objOID)
