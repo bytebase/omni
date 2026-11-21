@@ -425,6 +425,11 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		return false
 	case *CastExprQ:
 		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin)
+	case *CollateExprQ:
+		// The engine reports a COLLATE result nullable whatever its operand:
+		// not_null_col COLLATE utf8mb4_bin is IS_NULLABLE YES on mysql:8.0.46
+		// and oceanbase-ce 4.3.5.6.
+		return true
 	case *OpExprQ:
 		if _, lok := e.Left.(*IntervalExprQ); lok {
 			return true
@@ -1156,6 +1161,10 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			}
 		}
 		return nil
+	case *CollateExprQ:
+		// COLLATE keeps its operand's type: name COLLATE utf8mb4_bin over a
+		// varchar(32) is a varchar(32).
+		return resolveExprResolvedType(c, db, q, e.Arg)
 	case *CastExprQ:
 		if e.TargetType != nil && e.TargetType.BaseType == BaseTypeDecimal && e.TargetType.Precision == 0 {
 			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: 10, Scale: 0}

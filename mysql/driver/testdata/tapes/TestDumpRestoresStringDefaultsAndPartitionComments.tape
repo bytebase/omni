@@ -703,6 +703,16 @@
 | utf8mb4
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_defect_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -1446,6 +1456,16 @@
 | utf8mb4
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_defect_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -2162,6 +2182,16 @@
 | 'PARTITIONS 9 SUBPARTITIONS 7'
 : bytes
 | utf8mb4
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_defect_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -2905,6 +2935,16 @@
 | 'PARTITIONS 9 SUBPARTITIONS 7'
 : bytes
 | utf8mb4
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_defect_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT

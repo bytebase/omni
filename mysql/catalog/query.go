@@ -999,6 +999,17 @@ func (*LikeExprQ) analyzedExprTag()        {}
 func (*LikeExprQ) exprType() *ResolvedType { return BoolType }
 func (*LikeExprQ) exprCollation() string   { return "" }
 
+// CollateExprQ is `x COLLATE collation`: x's value and type under the
+// collation named, which is lower-cased.
+type CollateExprQ struct {
+	Arg       AnalyzedExpr
+	Collation string
+}
+
+func (*CollateExprQ) analyzedExprTag()          {}
+func (e *CollateExprQ) exprType() *ResolvedType { return e.Arg.exprType() }
+func (e *CollateExprQ) exprCollation() string   { return e.Collation }
+
 // ----------------------------------------------------------------------------
 // RowExprQ — ROW(...) constructor.
 // ----------------------------------------------------------------------------

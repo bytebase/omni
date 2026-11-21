@@ -737,6 +737,10 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.IntervalExpr:
 		return inferViewExprNullable(e.Value, relations)
+	case *nodes.CollateExpr:
+		// Nullable whatever its operand, as the engine reports it (see
+		// isAnalyzedExprNullable).
+		return true
 	case *nodes.CastExpr:
 		// Covers plain casts and the WEIGHT_STRING(... AS BINARY(n)) desugar,
 		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:

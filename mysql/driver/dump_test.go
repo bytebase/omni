@@ -281,3 +281,74 @@ CREATE TABLE part_ts (
 		})
 	}
 }
+
+// TestDumpRestoresTablespacesKeyBlockSizesAndKeyAlgorithms pins what only
+// SHOW CREATE TABLE states: a table's general or system tablespace, an index's
+// KEY_BLOCK_SIZE, and KEY partitioning's ALGORITHM, through sync, dump and
+// restore.
+func TestDumpRestoresTablespacesKeyBlockSizesAndKeyAlgorithms(t *testing.T) {
+	const setup = `CREATE TABLESPACE ts_sync ADD DATAFILE 'ts_sync.ibd';
+
+CREATE TABLE t_ts (id INT PRIMARY KEY) TABLESPACE ts_sync;
+
+CREATE TABLE ` + "`t-ts`" + ` (id INT PRIMARY KEY) TABLESPACE ts_sync;
+
+CREATE TABLE t_sys (id INT PRIMARY KEY) TABLESPACE innodb_system;
+
+CREATE TABLE t_plain (id INT PRIMARY KEY);
+
+CREATE TABLE t_kbs (a INT, b INT, KEY ka (a) KEY_BLOCK_SIZE=4, KEY kb (b)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+
+CREATE TABLE t_myisam (a INT, KEY ka (a) KEY_BLOCK_SIZE=1024) ENGINE=MyISAM;
+
+CREATE TABLE p_key (a INT) PARTITION BY KEY ALGORITHM=1 (a) PARTITIONS 2;
+
+CREATE TABLE p_sub (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY KEY ALGORITHM=1 (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10));`
+	for _, role := range []string{testcontainer.Default, testcontainer.MySQL84} {
+		t.Run(role, func(t *testing.T) {
+			const dbName = "omni_sync_show_create_roundtrip"
+			source, restored, err := dumpAndRestore(t, role, dbName, setup)
+			if err != nil {
+				t.Fatalf("restoring dump on %s: %v", role, err)
+			}
+			tables := map[string]*metadatapb.TableMetadata{}
+			for _, tbl := range source.Schemas[0].Tables {
+				tables[tbl.Name] = tbl
+			}
+			for name, want := range map[string]string{"t_ts": "ts_sync", "t-ts": "ts_sync", "t_sys": "innodb_system", "t_plain": ""} {
+				if got := tables[name].GetTablespace(); got != want {
+					t.Errorf("%s tablespace on %s = %q, want %q", name, role, got, want)
+				}
+			}
+			kbs := map[string]int64{}
+			for _, tbl := range []string{"t_kbs", "t_myisam"} {
+				for _, idx := range tables[tbl].Indexes {
+					kbs[tbl+"."+idx.Name] = idx.KeyBlockSize
+				}
+			}
+			if kbs["t_kbs.ka"] != 4 || kbs["t_kbs.kb"] != 0 || kbs["t_myisam.ka"] != 1024 {
+				t.Errorf("index KEY_BLOCK_SIZEs on %s = %v", role, kbs)
+			}
+			for _, p := range tables["p_key"].Partitions {
+				if p.Algorithm != 1 {
+					t.Errorf("p_key partition %s ALGORITHM on %s = %d, want 1", p.Name, role, p.Algorithm)
+				}
+			}
+			for _, p := range tables["p_sub"].Partitions {
+				for _, sp := range p.Subpartitions {
+					if sp.Algorithm != 1 {
+						t.Errorf("p_sub subpartition %s ALGORITHM on %s = %d, want 1", sp.Name, role, sp.Algorithm)
+					}
+				}
+			}
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("restored database on %s differs from source (-source +restored):\n%s", role, diff)
+			}
+			// The tablespace is the server's; drop it with the tables in it.
+			cleanup := openTestDriver(t, role, dbName)
+			if _, err := cleanup.db.ExecContext(context.Background(), "DROP TABLESPACE ts_sync"); err != nil {
+				t.Fatalf("DROP TABLESPACE ts_sync on %s: %v", role, err)
+			}
+		})
+	}
+}

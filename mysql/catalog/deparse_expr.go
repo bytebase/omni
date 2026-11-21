@@ -48,6 +48,12 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeBetweenExprQ(b, e, q)
 	case *LikeExprQ:
 		writeLikeExprQ(b, e, q)
+	case *CollateExprQ:
+		b.WriteString("(")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString(" collate ")
+		b.WriteString(e.Collation)
+		b.WriteString(")")
 	case *SubLinkExprQ:
 		writeSubLinkExprQ(b, e, q)
 	case *CastExprQ:

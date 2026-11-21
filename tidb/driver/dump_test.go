@@ -381,3 +381,26 @@ CREATE TABLE t_cmp_bt (
 		t.Errorf("restored extended TiDB database differs from source (-source +restored):\n%s", diff)
 	}
 }
+
+// TestDumpRestoresAllocationOptions pins AUTO_ID_CACHE and PRE_SPLIT_REGIONS,
+// which TiDB v8.5.5 states only in SHOW CREATE TABLE, through sync, dump and
+// restore.
+func TestDumpRestoresAllocationOptions(t *testing.T) {
+	const setup = `CREATE TABLE t_cache (id BIGINT AUTO_INCREMENT PRIMARY KEY) AUTO_ID_CACHE = 1;
+
+CREATE TABLE t_split (id INT) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 2;`
+	source, restored := dumpAndRestore(t, "omni_alloc_roundtrip", setup)
+	tables := map[string]*metadatapb.TableMetadata{}
+	for _, tbl := range source.Schemas[0].Tables {
+		tables[tbl.Name] = tbl
+	}
+	if got := tables["t_cache"].AutoIdCache; got != 1 {
+		t.Errorf("t_cache AUTO_ID_CACHE = %d, want 1", got)
+	}
+	if got := tables["t_split"].PreSplitRegions; got != 2 {
+		t.Errorf("t_split PRE_SPLIT_REGIONS = %d, want 2", got)
+	}
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("restored TiDB database differs from source (-source +restored):\n%s", diff)
+	}
+}

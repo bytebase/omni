@@ -2033,6 +2033,16 @@
 |
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -4080,6 +4090,16 @@
 |
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -6125,6 +6145,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT

@@ -19,6 +19,8 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	oceanbaseast "github.com/bytebase/omni/oceanbase/ast"
+	oceanbaseparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 const (
@@ -608,6 +610,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		for _, table := range schemaMetadata.Tables {
 			table.HasMaterializedViewLog = proto.Bool(hasMVLog[table.Name])
 		}
+	}
+	if err := d.reconcileTablesFromShowCreate(ctx, d.databaseName, schemaMetadata.Tables); err != nil {
+		return nil, err
 	}
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
@@ -1798,4 +1803,102 @@ func normalizeExternalFormat(format string) string {
 		b.WriteByte(c)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// reconcileTablesFromShowCreate reads what only a table's SHOW CREATE TABLE
+// states on oceanbase-ce 4.3.5.6: its WITH COLUMN GROUP list, which
+// information_schema does not carry anywhere, and its vector indexes.
+// information_schema.STATISTICS lists a vector index over the hidden columns
+// that hold it (__vid_<n>, __type_<n>), as a BTREE, beside the hidden tables
+// that support it (rowkey_vid_table, vid_rowkey_table, <index>_index_id_table,
+// <index>_index_snapshot_data_table), none of which a restore can create. So an
+// index SHOW CREATE TABLE does not name is dropped, and a VECTOR KEY takes its
+// column and WITH (...) parameters from there.
+func (d *Driver) reconcileTablesFromShowCreate(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) error {
+	for _, t := range tables {
+		query := "SHOW CREATE TABLE " + quoteBacktick(databaseName) + "." + quoteBacktick(t.Name)
+		var name, createTable string
+		if err := d.db.QueryRowContext(ctx, query).Scan(&name, &createTable); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return fmt.Errorf("failed to execute query %q: %w", query, err)
+		}
+		list, err := oceanbaseparser.Parse(createTable)
+		if err != nil || list == nil || len(list.Items) != 1 {
+			continue
+		}
+		stmt, ok := list.Items[0].(*oceanbaseast.CreateTableStmt)
+		if !ok {
+			continue
+		}
+		t.ColumnGroups = strings.Join(strings.Fields(stmt.ColumnGroup), " ")
+		reconcileIndexesFromShowCreate(t, stmt.Constraints)
+	}
+	return nil
+}
+
+func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*oceanbaseast.Constraint) {
+	named := make(map[string]*oceanbaseast.Constraint, len(constraints))
+	for _, con := range constraints {
+		if con == nil || con.Type == oceanbaseast.ConstrCheck || con.Type == oceanbaseast.ConstrForeignKey {
+			continue
+		}
+		key := strings.ToLower(con.Name)
+		if con.Type == oceanbaseast.ConstrPrimaryKey {
+			key = "primary"
+		}
+		if key != "" {
+			named[key] = con
+		}
+	}
+	kept := t.Indexes[:0]
+	for _, idx := range t.Indexes {
+		con, ok := named[strings.ToLower(idx.Name)]
+		if !ok {
+			continue
+		}
+		if con.Type == oceanbaseast.ConstrVector {
+			idx.IsVector = true
+			idx.Type = ""
+			idx.Expressions = idx.Expressions[:0]
+			idx.KeyLength = idx.KeyLength[:0]
+			idx.Descending = idx.Descending[:0]
+			for _, col := range con.IndexColumns {
+				if ref, ok := col.Expr.(*oceanbaseast.ColumnRef); ok {
+					idx.Expressions = append(idx.Expressions, ref.Column)
+					idx.KeyLength = append(idx.KeyLength, -1)
+					idx.Descending = append(idx.Descending, false)
+				}
+			}
+			for _, opt := range con.IndexOptions {
+				if opt != nil && strings.EqualFold(opt.Name, "WITH") {
+					idx.VectorParams = vectorParams(opt)
+				}
+			}
+		}
+		kept = append(kept, idx)
+	}
+	t.Indexes = kept
+}
+
+// vectorParams is a VECTOR KEY's WITH (...) list as NAME=VALUE entries, in the
+// order SHOW CREATE TABLE prints them with every default filled in:
+// DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64.
+func vectorParams(opt *oceanbaseast.IndexOption) []string {
+	params := make([]string, 0, len(opt.Properties))
+	for _, prop := range opt.Properties {
+		if prop == nil {
+			continue
+		}
+		value := ""
+		switch v := prop.Value.(type) {
+		case *oceanbaseast.IntLit:
+			value = strconv.FormatInt(v.Value, 10)
+		case *oceanbaseast.StringLit:
+			value = strings.ToUpper(v.Value)
+		}
+		params = append(params, strings.ToUpper(prop.Name)+"="+value)
+	}
+	return params
 }

@@ -619,6 +619,22 @@
 : bytes
 | mlog$_t_chk
 > query
+| SHOW CREATE TABLE `omni_ob_options_roundtrip`.`t_chk`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_chk
+: bytes
+| CREATE TABLE `t_chk` (
+|   `id` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_enf` CHECK ((`x` > 0)),
+|   CONSTRAINT `chk_ne` CHECK ((`x` < 10))  NOT ENFORCED
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
@@ -1286,6 +1302,22 @@
 | t_chk
 : bytes
 | mlog$_t_chk
+> query
+| SHOW CREATE TABLE `omni_ob_options_roundtrip_restored`.`t_chk`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_chk
+: bytes
+| CREATE TABLE `t_chk` (
+|   `id` int(11) NOT NULL,
+|   `x` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_enf` CHECK ((`x` > 0)),
+|   CONSTRAINT `chk_ne` CHECK ((`x` < 10))  NOT ENFORCED
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 |
 | 		SELECT

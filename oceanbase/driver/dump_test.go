@@ -278,3 +278,45 @@ CREATE VIEW v_opts AS
 		t.Errorf("restored OceanBase database differs from source (-source +restored):\n%s", diff)
 	}
 }
+
+// TestDumpRestoresColumnGroupsAndVectorIndexes pins what only SHOW CREATE TABLE
+// states on oceanbase-ce 4.3.5.6: a table's column groups and a vector index,
+// which information_schema.STATISTICS lists over hidden columns beside the
+// hidden tables that support it.
+func TestDumpRestoresColumnGroupsAndVectorIndexes(t *testing.T) {
+	const setup = `CREATE TABLE t_cg (a INT, b INT) WITH COLUMN GROUP(all columns, each column);
+
+CREATE TABLE t_each (a INT) WITH COLUMN GROUP(each column);
+
+CREATE TABLE t_vec (id INT PRIMARY KEY, v VECTOR(3), VECTOR INDEX vi(v) WITH (distance=l2, type=hnsw));`
+	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
+	if err != nil {
+		t.Fatalf("restoring OceanBase dump: %v", err)
+	}
+	tables := map[string]*metadatapb.TableMetadata{}
+	for _, tbl := range source.Schemas[0].Tables {
+		tables[tbl.Name] = tbl
+	}
+	if got := tables["t_cg"].ColumnGroups; got != "all columns, each column" {
+		t.Errorf("t_cg column groups = %q", got)
+	}
+	if got := tables["t_each"].ColumnGroups; got != "each column" {
+		t.Errorf("t_each column groups = %q", got)
+	}
+	var names []string
+	for _, idx := range tables["t_vec"].Indexes {
+		names = append(names, idx.Name)
+		if idx.Name == "vi" {
+			if !idx.IsVector || len(idx.Expressions) != 1 || idx.Expressions[0] != "v" ||
+				strings.Join(idx.VectorParams, ",") != "DISTANCE=L2,TYPE=HNSW,LIB=VSAG,M=16,EF_CONSTRUCTION=200,EF_SEARCH=64" {
+				t.Errorf("vector index vi = %+v", idx)
+			}
+		}
+	}
+	if strings.Join(names, ",") != "PRIMARY,vi" {
+		t.Errorf("t_vec indexes = %v, want PRIMARY and vi alone", names)
+	}
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("restored OceanBase database differs from source (-source +restored):\n%s", diff)
+	}
+}

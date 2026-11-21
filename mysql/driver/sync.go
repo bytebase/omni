@@ -580,6 +580,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	if err := tableRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", tableQuery, err)
 	}
+	_ = tableRows.Close()
+	if err := d.reconcileTablesFromShowCreate(ctx, d.databaseName, schemaMetadata.Tables); err != nil {
+		return nil, err
+	}
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
@@ -1005,11 +1009,15 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 				_ = showRows.Close()
 				return nil, fmt.Errorf("failed to scan row for %q: %w", showQuery, err)
 			}
-			partitionNum, subPartitionNum, partTablespaces, subPartTablespaces := parsePartitionDetails(createTable)
+			details := parsePartitionDetails(createTable)
+			partitionNum, subPartitionNum, partTablespaces, subPartTablespaces := details.partitions, details.subpartitions, details.partTablespaces, details.subPartTablespaces
 			for _, p := range partitions {
 				if partitionNum != 0 {
 					p.UseDefault = strconv.Itoa(partitionNum)
 				}
+				// KEY partitioning's ALGORITHM is only in SHOW CREATE TABLE:
+				// PARTITION BY KEY ALGORITHM=1 maps rows as MySQL 5.1 did.
+				p.Algorithm = int32(details.algorithm)
 				if ts := partTablespaces[strings.ToLower(p.Name)]; ts != "" {
 					p.Tablespace = proto.String(ts)
 				}
@@ -1017,6 +1025,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 					if subPartitionNum != 0 {
 						sp.UseDefault = strconv.Itoa(subPartitionNum)
 					}
+					sp.Algorithm = int32(details.subAlgorithm)
 					if ts := subPartTablespaces[strings.ToLower(sp.Name)]; ts != "" {
 						sp.Tablespace = proto.String(ts)
 					}
@@ -1033,23 +1042,32 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 }
 
 func parsePartitionCounts(createTable string) (partitions, subpartitions int) {
-	p, sp, _, _ := parsePartitionDetails(createTable)
-	return p, sp
+	d := parsePartitionDetails(createTable)
+	return d.partitions, d.subpartitions
 }
 
-// parsePartitionDetails extracts explicit PARTITIONS/SUBPARTITIONS counts and
-// partition/subpartition TABLESPACE assignments from SHOW CREATE TABLE.
-func parsePartitionDetails(createTable string) (partitions, subpartitions int, partTablespaces, subPartTablespaces map[string]string) {
+// partitionDetails is what SHOW CREATE TABLE states about partitioning that
+// information_schema.PARTITIONS does not: the PARTITIONS and SUBPARTITIONS
+// counts, KEY partitioning's ALGORITHM, and each partition's TABLESPACE.
+type partitionDetails struct {
+	partitions, subpartitions int
+	algorithm, subAlgorithm   int
+	partTablespaces           map[string]string
+	subPartTablespaces        map[string]string
+}
+
+// parsePartitionDetails extracts partitionDetails from SHOW CREATE TABLE.
+func parsePartitionDetails(createTable string) partitionDetails {
 	list, err := mysqlparser.Parse(createTable)
 	if err != nil || list == nil || len(list.Items) != 1 {
-		return 0, 0, nil, nil
+		return partitionDetails{}
 	}
 	stmt, ok := list.Items[0].(*mysqlast.CreateTableStmt)
 	if !ok || stmt.Partitions == nil {
-		return 0, 0, nil, nil
+		return partitionDetails{}
 	}
-	partTablespaces = make(map[string]string)
-	subPartTablespaces = make(map[string]string)
+	partTablespaces := make(map[string]string)
+	subPartTablespaces := make(map[string]string)
 	for _, pd := range stmt.Partitions.Partitions {
 		if pd == nil {
 			continue
@@ -1070,7 +1088,172 @@ func parsePartitionDetails(createTable string) (partitions, subpartitions int, p
 			}
 		}
 	}
-	return stmt.Partitions.NumParts, stmt.Partitions.NumSubParts, partTablespaces, subPartTablespaces
+	return partitionDetails{
+		partitions:         stmt.Partitions.NumParts,
+		subpartitions:      stmt.Partitions.NumSubParts,
+		algorithm:          stmt.Partitions.Algorithm,
+		subAlgorithm:       stmt.Partitions.SubPartAlgo,
+		partTablespaces:    partTablespaces,
+		subPartTablespaces: subPartTablespaces,
+	}
+}
+
+// reconcileTablesFromShowCreate reads what only SHOW CREATE TABLE states about
+// a table: the general tablespace it was put in and each index's
+// KEY_BLOCK_SIZE. A query per table is a lot on a large database, so it asks
+// only for the tables that can carry them. On mysql:8.0.46 an index shows
+// KEY_BLOCK_SIZE only on a non-InnoDB table or one whose own KEY_BLOCK_SIZE is
+// in CREATE_OPTIONS, and a table shows TABLESPACE when InnoDB keeps it in a
+// general tablespace or innodb_system. TABLESPACE innodb_file_per_table, which
+// SHOW CREATE TABLE also shows, puts the table where InnoDB puts it anyway, and
+// is not looked for.
+func (d *Driver) reconcileTablesFromShowCreate(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) error {
+	shared, err := d.tablesInSharedTablespaces(ctx, databaseName)
+	if err != nil {
+		return err
+	}
+	for _, t := range tables {
+		if !showCreateCandidate(t, shared) {
+			continue
+		}
+		query := fmt.Sprintf("SHOW CREATE TABLE %s.%s", quoteBacktick(databaseName), quoteBacktick(t.Name))
+		var name, createTable string
+		if err := d.db.QueryRowContext(ctx, query).Scan(&name, &createTable); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return fmt.Errorf("failed to execute query %q: %w", query, err)
+		}
+		list, err := mysqlparser.Parse(createTable)
+		if err != nil || list == nil || len(list.Items) != 1 {
+			continue
+		}
+		stmt, ok := list.Items[0].(*mysqlast.CreateTableStmt)
+		if !ok {
+			continue
+		}
+		for _, opt := range stmt.Options {
+			if opt != nil && strings.EqualFold(opt.Name, "TABLESPACE") {
+				t.Tablespace = opt.Value
+			}
+		}
+		byName := make(map[string]*metadatapb.IndexMetadata, len(t.Indexes))
+		for _, idx := range t.Indexes {
+			byName[strings.ToLower(idx.Name)] = idx
+		}
+		for _, con := range stmt.Constraints {
+			if con == nil {
+				continue
+			}
+			name := con.Name
+			if con.Type == mysqlast.ConstrPrimaryKey {
+				name = "PRIMARY"
+			}
+			idx := byName[strings.ToLower(name)]
+			if idx == nil {
+				continue
+			}
+			for _, opt := range con.IndexOptions {
+				if opt == nil || !strings.EqualFold(opt.Name, "KEY_BLOCK_SIZE") {
+					continue
+				}
+				switch n := opt.Value.(type) {
+				case *mysqlast.Integer:
+					idx.KeyBlockSize = n.Ival
+				case *mysqlast.IntLit:
+					idx.KeyBlockSize = n.Value
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// sharedTablespaceTables is the set of tables InnoDB keeps outside a
+// file-per-table tablespace, by their filename-encoded names; all is set when a
+// name could not be encoded to look up, or the set could not be read.
+type sharedTablespaceTables struct {
+	names map[string]bool
+	all   bool
+}
+
+// tablesInSharedTablespaces lists the database's tables InnoDB keeps in a
+// general tablespace or in innodb_system. INNODB_TABLES names a table by its
+// filename-encoded form, db/a@002d5 for db.a-5. Reading INNODB_TABLES needs
+// the PROCESS privilege; without it no table is looked up for its tablespace.
+func (d *Driver) tablesInSharedTablespaces(ctx context.Context, databaseName string) (sharedTablespaceTables, error) {
+	encDB, ok := mysqlFilenameEncode(databaseName)
+	if !ok {
+		return sharedTablespaceTables{all: true}, nil
+	}
+	const query = `
+		SELECT t.NAME
+		FROM information_schema.INNODB_TABLES t
+		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')`
+	rows, err := d.db.QueryContext(ctx, query, encDB)
+	if err != nil {
+		var mysqlErr *gomysql.MySQLError
+		if errors.As(err, &mysqlErr) && (mysqlErr.Number == 1227 || mysqlErr.Number == 1142) {
+			return sharedTablespaceTables{}, nil
+		}
+		return sharedTablespaceTables{}, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer rows.Close()
+	out := sharedTablespaceTables{names: make(map[string]bool)}
+	prefix := strings.ToLower(encDB) + "/"
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return sharedTablespaceTables{}, err
+		}
+		if lower := strings.ToLower(name); strings.HasPrefix(lower, prefix) {
+			out.names[strings.TrimPrefix(lower, prefix)] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return sharedTablespaceTables{}, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return out, nil
+}
+
+// showCreateCandidate reports whether SHOW CREATE TABLE may state a
+// tablespace or an index KEY_BLOCK_SIZE the sync otherwise misses.
+func showCreateCandidate(t *metadatapb.TableMetadata, shared sharedTablespaceTables) bool {
+	if strings.Contains(strings.ToLower(t.CreateOptions), "key_block_size") {
+		return true
+	}
+	if t.Engine != "" && !strings.EqualFold(t.Engine, "InnoDB") && len(t.Indexes) > 0 {
+		return true
+	}
+	if shared.all {
+		return true
+	}
+	if len(shared.names) == 0 {
+		return false
+	}
+	enc, ok := mysqlFilenameEncode(t.Name)
+	return !ok || shared.names[strings.ToLower(enc)]
+}
+
+// mysqlFilenameEncode is a name as MySQL writes it in a file name and in
+// INNODB_TABLES: letters, digits and _ as they are, other ASCII as @ and four
+// hex digits. A non-ASCII character has a table of its own, and is not encoded
+// here.
+func mysqlFilenameEncode(name string) (string, bool) {
+	var b strings.Builder
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 0x80:
+			return "", false
+		case c >= '0' && c <= '9', c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c == '_':
+			b.WriteByte(c)
+		default:
+			fmt.Fprintf(&b, "@%04x", c)
+		}
+	}
+	return b.String(), true
 }
 
 func convertPartitionType(tp string) metadatapb.TablePartitionMetadata_Type {

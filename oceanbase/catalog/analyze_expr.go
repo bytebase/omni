@@ -74,6 +74,12 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeInExpr(c, n, scope)
 	case *nodes.BetweenExpr:
 		return analyzeBetweenExpr(c, n, scope)
+	case *nodes.CollateExpr:
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &CollateExprQ{Arg: arg, Collation: toLower(n.Collation)}, nil
 	case *nodes.LikeExpr:
 		return analyzeLikeExpr(c, n, scope)
 	case *nodes.IsExpr:

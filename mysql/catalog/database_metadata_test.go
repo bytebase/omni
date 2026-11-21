@@ -1837,3 +1837,25 @@ func TestViewNonArithmeticOperatorMetadata(t *testing.T) {
 	require.Equal(t, "varbinary(20)", cols["c_bin_c"].Type)
 	require.Equal(t, "mediumblob", cols["c_bin_txt"].Type)
 }
+
+// TestDatabaseMetadataCollateViewColumns pins a COLLATE view column as
+// mysql:8.0.46 reports it: its operand's type, the collation named, and nullable
+// whatever the operand (IS_NULLABLE YES over a NOT NULL column).
+func TestDatabaseMetadataCollateViewColumns(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE vt (name VARCHAR(32), nn VARCHAR(8) NOT NULL);
+		CREATE VIEW vc AS SELECT name COLLATE utf8mb4_bin AS c, nn COLLATE utf8mb4_bin AS d FROM vt;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	cols := c.DatabaseMetadata("app").Schemas[0].Views[0].Columns
+	require.Len(t, cols, 2)
+	require.Equal(t, "varchar(32)", cols[0].Type)
+	require.True(t, cols[0].Nullable)
+	require.Equal(t, "utf8mb4_bin", cols[0].Collation)
+	require.Equal(t, "varchar(8)", cols[1].Type)
+	require.True(t, cols[1].Nullable)
+	require.Equal(t, "utf8mb4_bin", cols[1].Collation)
+}

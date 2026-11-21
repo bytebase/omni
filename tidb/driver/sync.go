@@ -954,6 +954,16 @@ func (d *Driver) populateTableDetailsFromShowCreate(ctx context.Context, databas
 			ttlEnableSeen = true
 		case "ttl_job_interval":
 			table.TtlJobInterval = opt.Value
+		// TiDB shows these as /*T![auto_id_cache] AUTO_ID_CACHE=1 */ and
+		// /*T! PRE_SPLIT_REGIONS=2 */, which the parser reads as options.
+		case "auto_id_cache":
+			if n, err := strconv.ParseInt(strings.TrimSpace(opt.Value), 10, 64); err == nil {
+				table.AutoIdCache = n
+			}
+		case "pre_split_regions":
+			if n, err := strconv.ParseInt(strings.TrimSpace(opt.Value), 10, 32); err == nil {
+				table.PreSplitRegions = int32(n)
+			}
 		case "placement policy":
 			if table.PlacementPolicy == "" && opt.Value != "" {
 				table.PlacementPolicy = opt.Value

@@ -1671,6 +1671,49 @@
 < column "MASTER" "VARCHAR" "string"
 < column "LOG_TABLE" "VARCHAR" "string"
 > query
+| SHOW CREATE TABLE `omni_sync_corpus`.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` bigint(20) NOT NULL AUTO_INCREMENT,
+|   `email` varchar(190) NOT NULL,
+|   `bio` text DEFAULT NULL,
+|   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
+|   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (LOWER(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (CONCAT(`email`,':','v1')) STORED,
+|   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `reviewed_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+|   `note` varchar(100) DEFAULT NULL COMMENT 'owner\'s note',
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_bio_prefix` (`bio`(32)) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'customer accounts'
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` bigint(20) NOT NULL AUTO_INCREMENT,
+|   `account_id` bigint(20) NOT NULL,
+|   `total` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `omni_sync_corpus`.`accounts`(`id`) ON UPDATE RESTRICT ON DELETE CASCADE ,
+|   KEY `idx_account` (`account_id`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
