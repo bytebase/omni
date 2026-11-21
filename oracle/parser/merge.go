@@ -272,6 +272,14 @@ func (p *Parser) parseMergeClause() (*nodes.MergeClause, error) {
 		}
 		p.advance()
 		if p.cur.Type != '(' {
+			// Oracle's SQL parser reads the expression after VALUES before
+			// refusing non-parenthesized VALUES on MERGE INSERT, so VALUES 1)
+			// reports the ')' rather than 1.
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			_ = expr
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()

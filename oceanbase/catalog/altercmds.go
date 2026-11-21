@@ -34,6 +34,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	key := toLower(tableName)
 	tbl := db.Tables[key]
 	if tbl == nil {
+		if v := db.Views[key]; v != nil {
+			return c.alterViewAsTable(db, v, stmt)
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	if err := checkAlterTableOptions(tbl, stmt.Commands); err != nil {
@@ -86,7 +89,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return err
 	}
 	if repartition != nil {
-		tbl.Partitioning = buildPartitionInfo(tbl, repartition)
+		subpartOffset := 0
+		if tbl.Partitioning != nil && len(tbl.Partitioning.Partitions) > 1 {
+			subpartOffset = len(tbl.Partitioning.Partitions) - 1
+		}
+		tbl.Partitioning = buildPartitionInfoWithSubpartOffset(tbl, repartition, subpartOffset)
 		// A RANGE partitioning with no partition list is automatic: 4.3.5.6 takes
 		// ALTER TABLE a PARTITION BY RANGE() and RANGE(b), and reads both back with
 		// `size ('2048MB')`, the server's default split size
@@ -253,12 +260,19 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterTruncatePartition(tbl, cmd)
 	case nodes.ATDropSubpartition:
 		return c.alterDropSubpartition(tbl, cmd)
-	case nodes.ATTruncateSubpartition, nodes.ATAlterPartitionStorageCachePolicy:
-		// A data operation and a cache policy, neither of which the catalog keeps.
+	case nodes.ATTruncateSubpartition:
 		if tbl.Partitioning == nil {
 			return errNotPartitioned()
 		}
+		if tbl.Partitioning.SubType == "" {
+			return errNotCompositePartitioned()
+		}
 		return nil
+	case nodes.ATAlterPartitionStorageCachePolicy:
+		if tbl.Partitioning == nil {
+			return errNotPartitioned()
+		}
+		return errNotSupported("storage cache policy is not supported in shared storage mode")
 	case nodes.ATAddSubpartition:
 		return c.alterAddSubpartition(tbl, cmd)
 	case nodes.ATCoalescePartition:
@@ -462,6 +476,11 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
 		return errCannotDropColumnFunctionalIndex(cmd.Name)
 	}
+	// OceanBase checks partitioning function dependency (3855) before checking
+	// rowkey/primary key membership (1235).
+	if tableColumnUsedInPartition(tbl, cmd.Name) {
+		return errColumnUsedInPartition(cmd.Name)
+	}
 	// OceanBase keeps a table's rows in primary-key order and drops no column of the key
 	// (TestOracle_OceanBaseRefusals), where MySQL rebuilds the key without it.
 	for _, index := range tbl.Indexes {
@@ -486,18 +505,8 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 
 	// Check if column is referenced by a foreign key constraint.
-	for _, con := range tbl.Constraints {
-		if con.Type == ConForeignKey {
-			for _, col := range con.Columns {
-				if toLower(col) == colKey {
-					return &Error{
-						Code:     1828,
-						SQLState: "HY000",
-						Message:  fmt.Sprintf("Cannot drop column '%s': needed in a foreign key constraint '%s'", cmd.Name, con.Name),
-					}
-				}
-			}
-		}
+	if tableColumnUsedInFK(tbl, cmd.Name) {
+		return errColumnUsedInFK(cmd.Name)
 	}
 
 	// Remove column from indexes; if index becomes empty, remove it entirely.
@@ -635,6 +644,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if tableColumnUsedInFK(tbl, oldName) && !strings.EqualFold(col.ColumnType, oldCol.ColumnType) {
+		return errColumnUsedInFK(oldName)
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -1024,6 +1036,9 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if !exists {
 		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
+	if tableColumnUsedInPartition(tbl, cmd.Name) {
+		return errColumnUsedInPartition(cmd.Name)
+	}
 
 	newKey := toLower(cmd.NewName)
 	if newKey != oldKey {
@@ -1277,6 +1292,16 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			idx.Visible = visible
 			return nil
 		}
+	}
+	if tableHasForeignKey(tbl) {
+		// OceanBase 4.3.5.6 answers 1146 (Table '<db>.<table>' doesn't exist)
+		// for ALTER INDEX ... VISIBLE/INVISIBLE of a missing index on a table
+		// that holds a foreign key constraint.
+		dbName := ""
+		if tbl.Database != nil {
+			dbName = tbl.Database.Name
+		}
+		return errNoSuchTable(dbName, tbl.Name)
 	}
 	return errKeyNotExist(cmd.Name, tbl.Name)
 }
@@ -1551,16 +1576,26 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
 func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	key := toLower(cmd.Name)
+	var nonCheck bool
 	for _, con := range tbl.Constraints {
-		if toLower(con.Name) == key && con.Type == ConCheck {
+		if toLower(con.Name) != key {
+			continue
+		}
+		if con.Type == ConCheck {
 			con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
 			return nil
 		}
+		nonCheck = true
 	}
 	// The server tells the two spellings apart: ALTER CHECK answers 3821, the
-	// check constraint not found, and ALTER CONSTRAINT 3940.
+	// check constraint not found, and ALTER CONSTRAINT answers 3941 when a
+	// non-CHECK constraint (PRIMARY, UNIQUE, FOREIGN KEY) holds that name and
+	// 3940 when no constraint does.
 	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
 		return errCheckConstraintNotFound(cmd.Name)
+	}
+	if nonCheck {
+		return errAlterConstraintEnforcementNotSupported(cmd.Name)
 	}
 	return errConstraintDoesNotExist(cmd.Name)
 }
@@ -1625,6 +1660,11 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
+	}
+	if len(cmd.PartitionDefs) > 0 {
+		if err := validateAddedPartitions(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+			return err
+		}
 	}
 	if tbl.Partitioning.SubType != "" {
 		for _, pd := range cmd.PartitionDefs {
@@ -1704,9 +1744,27 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if tbl.Partitioning == nil {
 		return errNotPartitioned()
 	}
-	dropSet := make(map[string]bool)
+	dropSet := make(map[string]bool, len(cmd.PartitionNames))
 	for _, name := range cmd.PartitionNames {
-		dropSet[toLower(name)] = true
+		key := toLower(name)
+		if dropSet[key] {
+			return errDupPartitionName(name)
+		}
+		dropSet[key] = true
+	}
+	if len(tbl.Partitioning.Partitions) > 0 {
+		if len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
+			return errDropAllPartitions()
+		}
+		existing := make(map[string]bool, len(tbl.Partitioning.Partitions))
+		for _, pd := range tbl.Partitioning.Partitions {
+			existing[toLower(pd.Name)] = true
+		}
+		for _, name := range cmd.PartitionNames {
+			if !existing[toLower(name)] {
+				return errDropPartitionNotFound()
+			}
+		}
 	}
 	var remaining []*PartitionDefInfo
 	for _, pd := range tbl.Partitioning.Partitions {
@@ -1715,6 +1773,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 	}
 	tbl.Partitioning.Partitions = remaining
+	tbl.Partitioning.NumParts = len(remaining)
 	return nil
 }
 
@@ -1723,17 +1782,33 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if tbl.Partitioning == nil {
 		return errNotPartitioned()
 	}
+	if len(tbl.Partitioning.Partitions) > 0 && len(cmd.PartitionNames) > 0 {
+		existing := make(map[string]bool, len(tbl.Partitioning.Partitions))
+		for _, pd := range tbl.Partitioning.Partitions {
+			existing[toLower(pd.Name)] = true
+		}
+		for _, name := range cmd.PartitionNames {
+			if strings.EqualFold(name, "ALL") {
+				continue
+			}
+			if !existing[toLower(name)] {
+				return errDropPartitionNotFound()
+			}
+		}
+	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
 }
 
 // alterDropSubpartition drops named subpartitions from every partition that
 // lists them. OceanBase refuses it on a table without partitions with 1505
-// (simulate.tsv); no fixture holds a subpartitioned table yet, so the rest
-// follows alterDropPartition and is not measured.
+// and on a non-composite partitioned table with 5875.
 func (c *Catalog) alterDropSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errNotPartitioned()
+	}
+	if tbl.Partitioning.SubType == "" {
+		return errNotCompositePartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1753,11 +1828,13 @@ func (c *Catalog) alterDropSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) er
 
 // alterAddSubpartition adds subpartitions to one partition: MODIFY PARTITION p
 // ADD SUBPARTITION (...). OceanBase refuses it on a table without partitions
-// with 1505 (simulate.tsv); the rest follows addedPartitionSubpartitions and is
-// not measured, since no fixture holds a subpartitioned table yet.
+// with 1505 and on a non-composite partitioned table with 5875.
 func (c *Catalog) alterAddSubpartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errNotPartitioned()
+	}
+	if tbl.Partitioning.SubType == "" {
+		return errNotCompositePartitioned()
 	}
 	if len(cmd.PartitionDefs) == 0 {
 		return nil
@@ -1902,6 +1979,9 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
 		}
+		if exchTbl == tbl {
+			return errNotUniqueTable(cmd.ExchangeTable.Name)
+		}
 	}
 	return nil
 }
@@ -1978,6 +2058,11 @@ func checkRepartitionPrimaryKeyPrefix(tbl *Table, pc *nodes.PartitionClause) err
 		key = []string{column}
 	}
 	if len(key) == 0 {
+		if pc.Type == nodes.PartitionRange && pc.SplitSize == "" && tbl.Partitioning != nil {
+			if err := reorganizeNeedsPrimaryKeyPrefix(tbl); err != nil {
+				return errNotSupported("mismatching between presetting partition key and rowkey prefix is")
+			}
+		}
 		return nil
 	}
 	var pk *Index
@@ -2081,4 +2166,114 @@ func pinInheritedColumnCharsets(tbl *Table) {
 			col.CollationExplicit = true
 		}
 	}
+}
+
+// tableHasForeignKey reports whether tbl declares any foreign key constraint.
+func tableHasForeignKey(tbl *Table) bool {
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			return true
+		}
+	}
+	return false
+}
+
+// tableColumnUsedInFK reports whether colName is part of a foreign key
+// constraint on tbl.
+func tableColumnUsedInFK(tbl *Table, colName string) bool {
+	colKey := toLower(colName)
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		for _, col := range con.Columns {
+			if toLower(col) == colKey {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// tableColumnUsedInPartition reports whether colName is referenced by tbl's
+// partitioning or subpartitioning key.
+func tableColumnUsedInPartition(tbl *Table, colName string) bool {
+	if tbl.Partitioning == nil {
+		return false
+	}
+	pi := tbl.Partitioning
+	colKey := toLower(colName)
+	for _, col := range pi.keyColumns {
+		if toLower(col) == colKey {
+			return true
+		}
+	}
+	for _, col := range pi.Columns {
+		if toLower(col) == colKey {
+			return true
+		}
+	}
+	for _, col := range pi.SubColumns {
+		if toLower(col) == colKey {
+			return true
+		}
+	}
+	if c, ok := partitionKeyColumn(pi.Expr); ok && toLower(c) == colKey {
+		return true
+	}
+	if c, ok := partitionKeyColumn(pi.SubExpr); ok && toLower(c) == colKey {
+		return true
+	}
+	return false
+}
+
+// validateAddedPartitions checks ADD PARTITION definitions against the table's
+// existing partitioning in OceanBase 4.3.5.6's precedence order:
+//   - bound kind (VALUES LESS THAN vs VALUES IN) -> 1149;
+//   - RANGE / RANGE COLUMNS bound arity -> 1653;
+//   - column references inside partition bounds -> 1054;
+//   - duplicate partition names (existing or within the statement) -> 1517.
+func validateAddedPartitions(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	isRange := pi.Type == "RANGE" || pi.Type == "RANGE COLUMNS"
+	isList := pi.Type == "LIST" || pi.Type == "LIST COLUMNS"
+	expectedArity := 1
+	if pi.Type == "RANGE COLUMNS" && len(pi.Columns) > 0 {
+		expectedArity = len(pi.Columns)
+	}
+	for _, pd := range defs {
+		if isRange && (pd.Values == nil || pd.ValuesIn) {
+			return errOptionSyntax()
+		}
+		if isList && (pd.Values == nil || !pd.ValuesIn) {
+			return errOptionSyntax()
+		}
+		if isRange {
+			if list, ok := pd.Values.(*nodes.List); ok {
+				if len(list.Items) != expectedArity {
+					return errPartitionColumnListInconsistency()
+				}
+			} else if expectedArity > 1 && !boundHasMaxValue(pd.Values) {
+				return errPartitionColumnListInconsistency()
+			}
+		}
+		if name := boundColumn(pd.Values); name != "" {
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+				Message: fmt.Sprintf("Unknown column '%s' in 'partition function'", name)}
+		}
+	}
+	seen := make(map[string]bool, len(pi.Partitions)+len(defs))
+	for _, existing := range pi.Partitions {
+		seen[toLower(existing.Name)] = true
+	}
+	for _, pd := range defs {
+		if pd.Name == "" {
+			continue
+		}
+		key := toLower(pd.Name)
+		if seen[key] {
+			return errDupPartitionName(pd.Name)
+		}
+		seen[key] = true
+	}
+	return nil
 }

@@ -494,6 +494,10 @@ func TestTransformDMLToSelectReturning(t *testing.T) {
 		want      string
 	}{
 		{"DELETE FROM t WHERE a = 1 RETURNING a", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1;"},
+		{"DELETE FROM t WHERE a = 1 RETURNING a, b", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1;"},
+		{"DELETE FROM t WHERE a = 1 RETURNING *", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1;"},
+		{"DELETE FROM t WHERE a = 1 RETURNING\n-- RETURNING\n a", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1;"},
+		{"DELETE FROM t WHERE a = 1 RETURNING # RETURNING\n a", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 1;"},
 		{"DELETE FROM t WHERE a = 'RETURNING' ORDER BY a LIMIT 1 RETURNING /* RETURNING */ *", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t WHERE a = 'RETURNING' ORDER BY a LIMIT 1;"},
 		{"DELETE FROM t RETURNING `returning`, b + 1 AS x", "SELECT `t`.`a`,`t`.`b`,`t`.`c` FROM t;"},
 	}

@@ -14,6 +14,18 @@ import (
 // Name_exp_N.
 const maxAutoNameChars = 64
 
+// AutoName names an unaliased select item as MySQL does: from its source text
+// when source is non-empty and the node carries a valid Loc, otherwise rebuilt
+// from the AST.
+func AutoName(source string, expr ast.ExprNode, position int) string {
+	if source != "" {
+		if name, ok := sourceAutoName(source, expr, position); ok {
+			return name
+		}
+	}
+	return autoAlias(expr, "", position)
+}
+
 // sourceAutoName names an unaliased select item from the text it was parsed
 // from, as MySQL does (PTI_expr_with_alias::do_itemize, sql/parse_tree_items.cc):
 // an item that named itself when the parser built it keeps that name, and any

@@ -2384,11 +2384,12 @@ func (p *Parser) parsePartitionDef(requireValues bool) (*nodes.PartitionDef, err
 	}
 
 	// VALUES LESS THAN or VALUES IN
-	values, _, err := p.parsePartitionValues()
+	values, valKind, err := p.parsePartitionValues()
 	if err != nil {
 		return nil, err
 	}
 	pd.Values = values
+	pd.ValuesIn = valKind == valuesIn
 
 	// MySQL takes the table options a partition may carry (ENGINE, COMMENT, DATA
 	// DIRECTORY, MAX_ROWS, TABLESPACE, ...) in any number. OceanBase's

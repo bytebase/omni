@@ -4146,8 +4146,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_ua_r9 AS SELECT a FROM t_coll_r9 UNION ALL SELECT b FROM t_coll_r9"); code != CodeIndeterminateCollation {
 			t.Fatalf("UNION ALL view over conflicting explicit column collations answered %s, want %s", code, CodeIndeterminateCollation)
 		}
-		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_rep_r9 AS SELECT a AS x FROM t_coll_r9; CREATE OR REPLACE VIEW v_coll_rep_r9 AS SELECT b AS x FROM t_coll_r9"); code != CodeInvalidObjectDefinition {
-			t.Fatalf("CREATE OR REPLACE VIEW changing column collation answered %s, want %s", code, CodeInvalidObjectDefinition)
+		if code := simulationCatalogCode(t, c111, "CREATE VIEW v_coll_rep_r9 AS SELECT a AS x FROM t_coll_r9; CREATE OR REPLACE VIEW v_coll_rep_r9 AS SELECT b AS x FROM t_coll_r9"); code != CodeInvalidTableDefinition {
+			t.Fatalf("CREATE OR REPLACE VIEW changing column collation answered %s, want %s", code, CodeInvalidTableDefinition)
 		}
 		for _, stmt := range []string{
 			"CREATE ROLE app_role_r9",
@@ -5202,7 +5202,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_ungrouped_gb_r26 AS ON INSERT TO t_r20 DO ALSO SELECT id, val FROM t_r20 GROUP BY id", CodeGroupingError},
 			{"CREATE RULE r_grouped_new_ok_r26 AS ON INSERT TO t_r20 DO ALSO SELECT NEW.id, count(*) FROM t_r20", "0"},
 			{"DROP ACCESS METHOD heap", CodeDependentObjects},
-			{"PREPARE p_oid_neg_r27(oid) AS SELECT $1; CREATE TABLE t_oid_neg_r27 AS EXECUTE p_oid_neg_r27('-1')", CodeNumericValueOutOfRange},
+			{"PREPARE p_oid_neg_r27(oid) AS SELECT $1; CREATE TABLE t_oid_neg_r27 AS EXECUTE p_oid_neg_r27('-1')", "0"},
+			{"PREPARE p_oid_neg_over_r27(oid) AS SELECT $1; CREATE TABLE t_oid_neg_over_r27 AS EXECUTE p_oid_neg_over_r27('-2147483649')", CodeNumericValueOutOfRange},
 			{"PREPARE p_oid_over_r27(oid) AS SELECT $1; CREATE TABLE t_oid_over_r27 AS EXECUTE p_oid_over_r27('4294967296')", CodeNumericValueOutOfRange},
 			{"PREPARE p_num_big_r27(numeric) AS SELECT $1 AS n; CREATE TABLE t_num_big_r27 AS EXECUTE p_num_big_r27('1e1000')", "0"},
 			{"CREATE VIEW v_shadow_r27 AS SELECT 1 AS a; CREATE OR REPLACE TEMP VIEW v_shadow_r27 AS SELECT 2 AS a; CREATE FUNCTION pg_temp.fn_temp_only_r27() RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE VIEW v_call_temp_fn_r27 AS SELECT fn_temp_only_r27()", CodeUndefinedFunction},
@@ -5223,7 +5224,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE COLLATION c_bad_builtin_r28 (PROVIDER = builtin, LOCALE = 'en_US')", CodeInvalidParameterValue},
 			{"CREATE COLLATION c_ok_builtin_r28 (PROVIDER = builtin, LOCALE = 'C.UTF-8')", "0"},
 			{"CREATE VIEW v_rep_col_chk_r25(x, y) AS SELECT id, id FROM t_r20 WITH LOCAL CHECK OPTION", "0"},
-			{"CREATE OR REPLACE VIEW v_rep_col_chk_r25 AS SELECT id AS renamed_x, id AS y FROM t_r20", CodeInvalidObjectDefinition},
+			{"CREATE OR REPLACE VIEW v_rep_col_chk_r25 AS SELECT id AS renamed_x, id AS y FROM t_r20", CodeInvalidTableDefinition},
 			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
 			{"CREATE RULE r_select_into_r21 AS ON INSERT TO t_r20 DO ALSO SELECT 1 INTO created_table_r21", CodeSyntaxError},
 			{"CREATE RULE r_bad_tsm_r21 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 TABLESAMPLE no_such_method(10)", CodeUndefinedFunction},

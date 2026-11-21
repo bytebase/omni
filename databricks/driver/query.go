@@ -9,6 +9,7 @@ import (
 
 	dbsql "github.com/databricks/databricks-sdk-go/service/sql"
 
+	dbxanalysis "github.com/bytebase/omni/databricks/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -48,9 +49,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 
 	results := make([]*driver.Result, 0, len(commands))
 	for _, command := range commands {
-		statement := trimStatement(command.Text)
+		statement := dbxanalysis.TrimStatement(command.Text)
 		if opts.Explain {
-			statement = explainStatement(statement, opts.ExplainFormat)
+			statement = dbxanalysis.ExplainStatement(statement, opts.ExplainFormat)
 		}
 
 		start := time.Now()
@@ -59,14 +60,26 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(start)})
 			break
 		}
-		if isExplainStatement(statement) {
-			result.Plan = &driver.Plan{Format: "TEXT", Executed: planExecuted(statement)}
+		if dbxanalysis.StartsWithExplain(statement) {
+			result.Plan = &driver.Plan{Format: "TEXT", Executed: dbxanalysis.PlanExecuted(statement)}
 		}
 		result.Statement = statement
 		result.Latency = time.Since(start)
 		results = append(results, result)
 	}
 	return results, nil
+}
+
+func splitCommands(script string) ([]driver.Command, error) {
+	statements, err := dbxanalysis.Split(script)
+	if err != nil {
+		return nil, err
+	}
+	commands := make([]driver.Command, 0, len(statements))
+	for _, stmt := range statements {
+		commands = append(commands, driver.Command{Text: stmt.Text, ByteStart: stmt.Start, ByteEnd: stmt.End})
+	}
+	return commands, nil
 }
 
 // queryStatement runs one statement through the warehouse and decodes its
@@ -89,7 +102,7 @@ func (d *Driver) queryStatement(ctx context.Context, statement string, opts driv
 		return nil, fmt.Errorf("failed to execute statement: %w", err)
 	}
 	statementID := response.StatementId
-	result, err := resultMetadata(response, statement, classifyStatement(statement))
+	result, err := resultMetadata(response, statement, dbxanalysis.ClassifyStatement(statement))
 	if err != nil {
 		return nil, err
 	}

@@ -1013,6 +1013,9 @@ func referenceAction(action string) nodes.ReferenceAction {
 func metadataViewStmt(v *metadata.ViewMetadata, snapshotDatabase, database string) (*nodes.CreateViewStmt, error) {
 	body := stripBodyQualifier(v.GetDefinition(), snapshotDatabase, database)
 	body, checkOption := cutViewCheckOption(body)
+	if checkOption == "" {
+		checkOption = v.GetCheckOption()
+	}
 	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
 	if err != nil {
 		return nil, err

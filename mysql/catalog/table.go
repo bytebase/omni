@@ -43,6 +43,13 @@ type Table struct {
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
 	droppedByCleanup map[string]bool
+
+	// ignoredGeneratedIndexes marks pre-existing implicitly generated FK
+	// backing indexes (HA_GENERATED_KEY) during an ALTER TABLE or CREATE INDEX
+	// that adds an index so name collision checks and automatic index naming
+	// ignore them while keeping them in tbl.Indexes for column rewrites, drops,
+	// and foreign-key validation.
+	ignoredGeneratedIndexes map[*Index]bool
 }
 
 // PartitionInfo holds partition metadata for a table.

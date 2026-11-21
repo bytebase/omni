@@ -44,12 +44,16 @@ func TestSimulation(t *testing.T) {
 	})
 }
 
-// simulationFixtures are the starting schemas, in testdata/fixtures. They
-// are one table under four namings. A compat.tsv statement writes a for
-// every name it holds, the table's, a column's and an index's alike, so what
-// a statement finds is set by what the fixture names a: nothing, the table,
-// a column of it too, and an index of it too.
-var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_table@column", "one_table@index"}
+// simulationFixtures are the starting schemas, in testdata/fixtures: one
+// table under four namings, plus a view, a partitioned table, and a
+// foreign-key/check-constrained table. A compat.tsv statement writes a for
+// every name it holds, the table's, a column's, an index's, a view's, a
+// partition's and a constraint's alike, so what a statement finds is set by
+// what the fixture names a.
+var simulationFixtures = []string{
+	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
+	"objects@view", "objects@partitioned", "objects@fk",
+}
 
 // simulationFamilies are the leading words of the statements the file holds:
 // DDL on tables, indexes and views, whose whole effect is in the database a
@@ -191,6 +195,8 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 
 	var stored strings.Builder
 	stored.WriteString(database)
+	// Forms arrive in name order, so a child table may precede its parent.
+	stored.WriteString("SET foreign_key_checks = 0;\n")
 	for _, kind := range []string{"TABLE", "VIEW"} { // a view reads the tables
 		for _, f := range engine.Forms {
 			if f.Kind == kind {
@@ -198,6 +204,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 			}
 		}
 	}
+	stored.WriteString("SET foreign_key_checks = 1;\n")
 	want, err := LoadSQL(stored.String())
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what OceanBase stores: %v", err)}

@@ -1,0 +1,2 @@
+CREATE TABLE parent (b INT PRIMARY KEY);
+CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d), CONSTRAINT utf8mb4 FOREIGN KEY (utf8mb4) REFERENCES parent (b), CONSTRAINT chk_d CHECK (d > 0))

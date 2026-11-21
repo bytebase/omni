@@ -41,20 +41,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
-	// Check for duplicate table or view with the same name.
-	if db.Tables[key] != nil {
+	// CREATE TABLE ... LIKE: TiDB resolves the source table (and verifies it is
+	// a BASE TABLE, 1347 for a view or sequence) before checking whether the
+	// destination table already exists (1050).
+	if stmt.Like != nil {
+		return c.createTableLike(db, tableName, key, stmt)
+	}
+
+	// Check for duplicate table, view, or sequence with the same name.
+	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
 		if stmt.IfNotExists {
 			return nil
 		}
 		return errDupTableQualified(db.Name, tableName)
-	}
-	if db.Views[key] != nil || db.Sequences[key] != nil {
-		return errDupTableQualified(db.Name, tableName)
-	}
-
-	// CREATE TABLE ... LIKE
-	if stmt.Like != nil {
-		return c.createTableLike(db, tableName, key, stmt)
 	}
 
 	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
@@ -1829,9 +1828,20 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	if err != nil {
 		return err
 	}
-	srcTbl := srcDB.GetTable(stmt.Like.Name)
+	srcKey := toLower(stmt.Like.Name)
+	srcTbl := srcDB.Tables[srcKey]
 	if srcTbl == nil {
+		if srcDB.Views[srcKey] != nil || srcDB.Sequences[srcKey] != nil {
+			return errWrongObjectKind(srcDB.Name, stmt.Like.Name, "BASE TABLE")
+		}
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+
+	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
+		if stmt.IfNotExists {
+			return nil
+		}
+		return errDupTableQualified(db.Name, tableName)
 	}
 
 	tbl := &Table{

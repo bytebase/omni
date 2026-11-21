@@ -20,12 +20,15 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldDB, newDB *Database
 		oldKey       string
 		tbl          *Table
+		view         *View
 		newName      string
 	}
-	// tables is the namespace the pairs see, one shallow copy per database
-	// they touch, so a refused statement leaves the catalog's own maps alone.
+	// tables and views are the namespaces the pairs see, one shallow copy per
+	// database they touch, so a refused statement leaves the catalog's own maps
+	// alone.
 	tables := map[*Database]map[string]*Table{}
-	namespace := func(db *Database) map[string]*Table {
+	views := map[*Database]map[string]*View{}
+	tableNS := func(db *Database) map[string]*Table {
 		if m, ok := tables[db]; ok {
 			return m
 		}
@@ -36,6 +39,17 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		tables[db] = m
 		return m
 	}
+	viewNS := func(db *Database) map[string]*View {
+		if m, ok := views[db]; ok {
+			return m
+		}
+		m := make(map[string]*View, len(db.Views))
+		for k, v := range db.Views {
+			m[k] = v
+		}
+		views[db] = m
+		return m
+	}
 	var renames []rename
 	for _, pair := range stmt.Pairs {
 		oldDB, err := c.resolveDatabase(pair.Old.Schema)
@@ -43,11 +57,15 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			return err
 		}
 		oldKey := toLower(pair.Old.Name)
-		tbl := namespace(oldDB)[oldKey]
+		tbl := tableNS(oldDB)[oldKey]
+		var view *View
 		if tbl == nil {
+			view = viewNS(oldDB)[oldKey]
+		}
+		if tbl == nil && view == nil {
 			return errNoSuchTable(oldDB.Name, pair.Old.Name)
 		}
-		if tbl.Cached {
+		if tbl != nil && tbl.Cached {
 			return errCachedTable(op)
 		}
 
@@ -55,20 +73,36 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		if err != nil {
 			return err
 		}
-		newKey := toLower(pair.New.Name)
-		if namespace(newDB)[newKey] != nil || newDB.Sequences[newKey] != nil {
-			return errDupTable(pair.New.Name)
+		if view != nil && newDB != oldDB {
+			return errRenameViewAcrossDB(oldDB.Name, newDB.Name)
 		}
-		delete(namespace(oldDB), oldKey)
-		namespace(newDB)[newKey] = tbl
-		renames = append(renames, rename{oldDB: oldDB, newDB: newDB, oldKey: oldKey, tbl: tbl, newName: pair.New.Name})
+		newKey := toLower(pair.New.Name)
+		if tableNS(newDB)[newKey] != nil || viewNS(newDB)[newKey] != nil || newDB.Sequences[newKey] != nil {
+			return errDupTableQualified(newDB.Name, pair.New.Name)
+		}
+		if tbl != nil {
+			delete(tableNS(oldDB), oldKey)
+			tableNS(newDB)[newKey] = tbl
+		} else {
+			delete(viewNS(oldDB), oldKey)
+			viewNS(newDB)[newKey] = view
+		}
+		renames = append(renames, rename{oldDB: oldDB, newDB: newDB, oldKey: oldKey, tbl: tbl, view: view, newName: pair.New.Name})
 	}
 	for db, m := range tables {
 		db.Tables = m
 	}
+	for db, m := range views {
+		db.Views = m
+	}
 	for _, r := range renames {
-		r.tbl.Name = r.newName
-		r.tbl.Database = r.newDB
+		if r.tbl != nil {
+			r.tbl.Name = r.newName
+			r.tbl.Database = r.newDB
+		} else if r.view != nil {
+			r.view.Name = r.newName
+			r.view.Database = r.newDB
+		}
 	}
 	return nil
 }

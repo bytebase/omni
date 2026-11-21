@@ -18,6 +18,10 @@ import (
 // default (1235), an SRID on a type that is not spatial (1221), and a column CHECK
 // that is a bare column, not a condition (3812).
 func checkColumnDefinition(colDef *nodes.ColumnDef) error {
+	return checkColumnDefinitionMode(colDef, false)
+}
+
+func checkColumnDefinitionMode(colDef *nodes.ColumnDef, isView bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
@@ -38,12 +42,44 @@ func checkColumnDefinition(colDef *nodes.ColumnDef) error {
 		}
 	}
 	for _, d := range defaults {
+		if isView {
+			if err := checkDefaultForView(colDef.Name, colDef.TypeName, d); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := checkDefault(colDef.Name, colDef.TypeName, d); err != nil {
 			return err
 		}
 	}
 	if colDef.TypeName.HasSRID && !isSpatialTypeName(normalizedColumnDataType(colDef.TypeName)) {
 		return &Error{Code: 1221, SQLState: "HY000", Message: "Incorrect usage of srid."}
+	}
+	return nil
+}
+
+// checkDefaultForView runs the resolver-stage default checks that OceanBase
+// performs ahead of RootService's 1347 check on a view: expression defaults
+// referencing columns (1235) and temporal function defaults on non-temporal
+// types (1067), while deferring literal-to-type conversion (e.g. 's' for
+// TINYINT) to RootService.
+func checkDefaultForView(colName string, dt *nodes.DataType, expr nodes.ExprNode) error {
+	if expr == nil {
+		return nil
+	}
+	if paren, ok := expr.(*nodes.ParenExpr); ok {
+		if hasColumnRef(paren) {
+			return errNotSupportedDefault()
+		}
+		return nil
+	}
+	if dt != nil {
+		if fn, ok := expr.(*nodes.FuncCallExpr); ok && temporalFunc[strings.ToLower(fn.Name)] {
+			typeName := strings.ToLower(normalizedColumnDataType(dt))
+			if typeName != "datetime" && typeName != "timestamp" {
+				return errInvalidDefault(colName)
+			}
+		}
 	}
 	return nil
 }

@@ -33,7 +33,7 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 		{"tsdiff-quarter", "select timestampdiff(QUARTER,'2020-01-01','2021-01-01') AS `x`"},
 		{"tsdiff-year", "select timestampdiff(YEAR,'2020-01-01','2021-01-01') AS `x`"},
 		// The sys.innodb_lock_waits shape: column refs + now() as arguments.
-		{"tsdiff-column-args", "select timestampdiff(SECOND,`t`.`created`,now()) AS `x`"},
+		{"tsdiff-column-args", "select timestampdiff(SECOND,`t`.`created`,now()) AS `x` from `t`"},
 		// Nested interval arithmetic inside a timestampdiff argument.
 		{"tsdiff-nested-interval", "select timestampdiff(SECOND,(now() - interval 1 day),now()) AS `x`"},
 		// INTERVAL arithmetic: lowercase unit, value parenthesized when non-literal.

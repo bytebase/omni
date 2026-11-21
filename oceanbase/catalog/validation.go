@@ -35,6 +35,10 @@ func validateExpressionSemantics(node nodes.Node) error {
 }
 
 func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
+	return validateColumnDefSemanticsMode(colDef, false)
+}
+
+func validateColumnDefSemanticsMode(colDef *nodes.ColumnDef, isView bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
@@ -104,13 +108,15 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if !columnDefNullable(colDef) && hasNullDefault(colDef) {
 		return errInvalidDefault(colDef.Name)
 	}
-	if err := validateDefaultOfType(colDef.Name, typeName, colDef.DefaultValue); err != nil {
-		return err
-	}
-	for _, cc := range colDef.Constraints {
-		if cc.Type == nodes.ColConstrDefault {
-			if err := validateDefaultOfType(colDef.Name, typeName, cc.Expr); err != nil {
-				return err
+	if !isView {
+		if err := validateDefaultOfType(colDef.Name, typeName, colDef.DefaultValue); err != nil {
+			return err
+		}
+		for _, cc := range colDef.Constraints {
+			if cc.Type == nodes.ColConstrDefault {
+				if err := validateDefaultOfType(colDef.Name, typeName, cc.Expr); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -128,7 +134,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			}
 		}
 	}
-	return checkColumnDefinition(colDef)
+	return checkColumnDefinitionMode(colDef, isView)
 }
 
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {

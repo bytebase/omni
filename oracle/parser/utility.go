@@ -1762,6 +1762,12 @@ func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 		} else if stmt.Using, err = p.ixObjectName(); err != nil {
 			return nil, err
 		}
+		if p.cur.Type == kwWITH {
+			// Oracle consumes WITH before refusing the storage_table_clause
+			// after USING (ORA-00922 at the token after WITH).
+			p.advance()
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}

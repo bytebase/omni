@@ -17,9 +17,12 @@ func TestValidateQuery(t *testing.T) {
 	}{
 		{statement: "SELECT * FROM t1;", readOnly: true, returnsData: true},
 		{statement: "SELECT * FROM t1; SELECT * FROM t2;", readOnly: true, returnsData: true},
+		{statement: "EXPLAIN PLAN FOR SELECT * FROM t1;", readOnly: true, returnsData: true},
 		{statement: "EXPLAIN PLAN FOR UPDATE t1 SET c1 = 1;", readOnly: true, returnsData: true},
+		{statement: "WITH x AS (SELECT * FROM t1) SELECT * FROM x;", readOnly: true, returnsData: true},
 		{statement: "WITH x AS (SELECT 'update' AS c1 FROM t1 /* UPDATE */) SELECT c1 FROM x;", readOnly: true, returnsData: true},
 		{statement: "SELECT * FROM t1; UPDATE t1 SET c1 = 1;"},
+		{statement: "UPDATE t1 SET c1 = 1;"},
 		{statement: "SET DEFINE OFF\nSELECT * FROM t1;"},
 		{statement: "CREATE TABLE t1 (c1 INT);"},
 		{statement: "BEGIN NULL; END;"},

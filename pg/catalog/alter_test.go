@@ -479,7 +479,7 @@ func TestAlterTableDropNotNullOnPK(t *testing.T) {
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
 		makeATDropNotNull("id"),
 	))
-	assertErrorCode(t, err, CodeDependentObjects)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestAlterTableSetDefault(t *testing.T) {

@@ -43,6 +43,9 @@ func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 	// When the cursor is mid-token, back up to the start of the token
 	// so the parser sees the position before the partial text.
 	collectOffset := cursorOffset - len(prefix)
+	if collectOffset > 0 && collectOffset <= len(sql) && sql[collectOffset-1] == '"' && insideDoubleQuotes(sql, cursorOffset) {
+		collectOffset--
+	}
 
 	result := standardComplete(sql, collectOffset, cat)
 	if len(result) == 0 {

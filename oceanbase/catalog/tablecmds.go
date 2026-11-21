@@ -825,6 +825,15 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
 func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
+	return buildPartitionInfoWithSubpartOffset(tbl, pc, 0)
+}
+
+// buildPartitionInfoWithSubpartOffset converts an AST PartitionClause to a catalog
+// PartitionInfo. When OceanBase repartitions a table that already had N partitions
+// into a RANGE/LIST subpartitioned table with no explicit subpartitions, its
+// generated subpartition names start at P(8192 + max(0, N-1)) rather than P8192
+// (measured on 4.3.5.6: 0 prior -> P8192, 2 prior -> P8193, 3 prior -> P8194).
+func buildPartitionInfoWithSubpartOffset(tbl *Table, pc *nodes.PartitionClause, subpartGenOffset int) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
@@ -958,7 +967,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		if fill == 0 {
 			fill = 1
 		}
-		generated := 0
+		generated := subpartGenOffset
 		for _, pdi := range pi.Partitions {
 			if len(pdi.SubPartitions) > 0 {
 				continue
@@ -1027,7 +1036,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	// names them, prints them per partition, and keeps no template: a partition added
 	// later gets <partition>sp0 (rangeListSubpartitionCases).
 	if defaultSubpartitionValue(pi.SubType) != "" && pi.UseDefaultSubpartitions {
-		generated := 0
+		generated := subpartGenOffset
 		for _, part := range pi.Partitions {
 			if len(part.SubPartitions) == 0 {
 				part.SubPartitions = append(part.SubPartitions, &SubPartitionDefInfo{

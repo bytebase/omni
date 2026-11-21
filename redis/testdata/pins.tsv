@@ -1,9 +1,10 @@
-# The server this engine's committed answers come from. driver records the
-# tapes through redis/internal/testcontainer: Redis 7.4.12, the last release of
-# the 7.4 line and the newest 7.x, pinned by digest. The server is started
+# The server this engine's committed answers come from. default judges
+# redis/parser/testdata/compat.tsv through redis/internal/testcontainer, and
+# driver records redis/driver's tapes: both pin Redis 7.4.12, the last release
+# of the 7.4 line and the newest 7.x, by digest. The driver server is started
 # cluster-enabled with every hash slot on its one node, because the driver's
 # all-nodes query path needs a cluster; a standalone client reaches the same
-# server for every other test. Redis has no grammar a server judges, so there
-# is no compat.tsv pin and no second row.
+# server for every other test.
 # columns: role, image, digest, source tag
+default	redis:7.4.12-alpine	sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe	7.4.12
 driver	redis:7.4.12-alpine	sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe	7.4.12

@@ -71,7 +71,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	// PG loops over Query.targetList calling exprType/exprTypmod/exprCollation.
 	var analyzedQuery *Query
 	if selStmt != nil {
-		analyzedQuery, err = c.analyzeSelectStmt(selStmt)
+		analyzedQuery, err = c.analyzeSelectStmtWithOptions(selStmt, AnalyzeOptions{DisallowParams: true})
 		if err != nil {
 			return err
 		}
@@ -181,6 +181,14 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		colByName[rc.Name] = i
 
 		typ := c.typeByOID[rc.TypeOID]
+		// pg: src/backend/catalog/heap.c — CheckAttributeType
+		// View columns cannot have pseudo-types such as record (e.g. SELECT ROW()).
+		if typ != nil && typ.Type == 'p' {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("column %q has pseudo-type %s", rc.Name, typ.TypeName),
+			}
+		}
 		coll := rc.Collation
 		if coll == 0 {
 			coll = c.typeCollation(rc.TypeOID)
@@ -337,7 +345,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 func (c *Catalog) checkViewColumns(newCols []*ResultColumn, existing *Relation) error {
 	if len(newCols) < len(existing.Columns) {
 		return &Error{
-			Code:    CodeInvalidObjectDefinition,
+			Code:    CodeInvalidTableDefinition,
 			Message: "cannot drop columns from view",
 		}
 	}
@@ -345,26 +353,26 @@ func (c *Catalog) checkViewColumns(newCols []*ResultColumn, existing *Relation) 
 		nc := newCols[i]
 		if nc.Name != oldCol.Name {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change name of view column %q to %q", oldCol.Name, nc.Name),
 			}
 		}
 		if nc.TypeOID != oldCol.TypeOID {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change data type of view column %q", oldCol.Name),
 			}
 		}
 		if nc.TypeMod != oldCol.TypeMod {
 			return &Error{
-				Code:    CodeInvalidObjectDefinition,
+				Code:    CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change data type of view column %q", oldCol.Name),
 			}
 		}
 		// pg: src/backend/commands/view.c — checkViewColumns (collation check)
 		if nc.Collation != oldCol.Collation {
 			return &Error{
-				Code: CodeInvalidObjectDefinition,
+				Code: CodeInvalidTableDefinition,
 				Message: fmt.Sprintf("cannot change collation of view column %q from %q to %q",
 					oldCol.Name, c.collationName(oldCol.Collation), c.collationName(nc.Collation)),
 			}
@@ -436,6 +444,10 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 				found = true
 				return false
 			}
+			if jc, ok := e.(*JsonConstructorExprQ); ok && jc.Subquery != nil && queryReferencesTempRelation(c, jc.Subquery) {
+				found = true
+				return false
+			}
 			return true
 		})
 		return found
@@ -459,6 +471,21 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 		for _, fe := range rte.FuncExprs {
 			if exprHasTemp(fe) {
 				return true
+			}
+		}
+		if rte.TableFunc != nil {
+			if exprHasTemp(rte.TableFunc.DocExpr) || exprHasTemp(rte.TableFunc.RowExpr) {
+				return true
+			}
+			for _, ns := range rte.TableFunc.Namespaces {
+				if exprHasTemp(ns.Expr) {
+					return true
+				}
+			}
+			for _, col := range rte.TableFunc.Columns {
+				if exprHasTemp(col.ColExpr) || exprHasTemp(col.DefaultExpr) {
+					return true
+				}
 			}
 		}
 		if rte.Tablesample != nil {
@@ -623,6 +650,10 @@ func targetListHasWindowFunc(tlist []*TargetEntry) bool {
 				found = true
 				return false
 			}
+			if jc, ok := e.(*JsonConstructorExprQ); ok && jc.HasOver {
+				found = true
+				return false
+			}
 			return true
 		})
 		if found {
@@ -705,6 +736,21 @@ func (w *viewDepWalker) query(q *Query) {
 		case RTEFunction:
 			for _, fe := range rte.FuncExprs {
 				w.expr(fe)
+			}
+		case RTETableFunc:
+			if rte.TableFunc != nil {
+				w.expr(rte.TableFunc.DocExpr)
+				w.expr(rte.TableFunc.RowExpr)
+				for _, ns := range rte.TableFunc.Namespaces {
+					w.expr(ns.Expr)
+				}
+				for _, col := range rte.TableFunc.Columns {
+					if col.TypeOID >= FirstNormalObjectId {
+						w.c.recordDependency('r', w.viewOID, 0, 't', col.TypeOID, 0, DepNormal)
+					}
+					w.expr(col.ColExpr)
+					w.expr(col.DefaultExpr)
+				}
 			}
 		}
 	}
@@ -817,7 +863,7 @@ func (c *Catalog) lacksCollationIn(levels *queryLevels, expr AnalyzedExpr, memo 
 		}
 		return c.lacksCollationIn(&queryLevels{query: sub, outer: owner}, te.Expr, memo)
 	case *SubLinkExpr:
-		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
+		if (v.SubLinkType != SubLinkExprType && v.SubLinkType != SubLinkArrayType) || v.SubQuery == nil {
 			return false
 		}
 		te := nonJunkTargetEntry(v.SubQuery.TargetList, 1)
@@ -885,6 +931,10 @@ func (w *viewDepWalker) varDeps(expr AnalyzedExpr) {
 			w.varDeps(v.TestExpr)
 			w.query(v.SubQuery)
 			return false
+		case *JsonConstructorExprQ:
+			if v.Subquery != nil {
+				w.query(v.Subquery)
+			}
 		}
 		return true
 	})

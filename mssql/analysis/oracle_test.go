@@ -303,3 +303,40 @@ func TestOracleVariableRows(t *testing.T) {
 		t.Errorf("SELECT @v in the next batch: got %v, want error 137", errs[1])
 	}
 }
+
+// TestOracleBackupTop verifies that the SELECT ... INTO generated for UPDATE
+// statements with TOP and OPTION clauses executes on SQL Server and copies the
+// expected row count.
+func TestOracleBackupTop(t *testing.T) {
+	conn := oracleConn(t)
+	database := testcontainer.Database(t)
+	oracleExec(t, conn, "CREATE TABLE dbo.test (c1 INT, c2 INT)")
+	oracleExec(t, conn, "INSERT dbo.test VALUES (1, 2), (2, 2), (3, 2), (4, 2)")
+
+	cases := []struct {
+		prefix   string
+		dml      string
+		wantRows string
+	}{
+		{"top_only", "UPDATE TOP (3) test SET c1 = 9 WHERE c2 = 2;", "3"},
+		{"top_opt", "UPDATE TOP (3) test SET c1 = 9 WHERE c2 = 2 OPTION (RECOMPILE);", "3"},
+		{"opt_comment", "UPDATE test SET c1 = 9 /* OPTION */ OPTION (RECOMPILE);", "4"},
+		{"opt_nested", "UPDATE test SET c1 = 9 /* outer /* inner */ OPTION in outer */ OPTION (RECOMPILE);", "4"},
+	}
+	for _, tc := range cases {
+		backups, err := TransformDMLToSelect(
+			parseScript(t, tc.dml),
+			database, database, tc.prefix, false,
+		)
+		if err != nil {
+			t.Fatalf("%s: TransformDMLToSelect: %v", tc.prefix, err)
+		}
+		if len(backups) != 1 {
+			t.Fatalf("%s: got %d backups, want 1", tc.prefix, len(backups))
+		}
+		oracleExec(t, conn, backups[0].Statement)
+		if got := oracleQuery(t, conn, "SELECT COUNT(*) FROM dbo.["+backups[0].TargetTableName+"]"); len(got) != 1 || got[0][0] != tc.wantRows {
+			t.Errorf("%s: backup row count = %v, want %s", tc.prefix, got, tc.wantRows)
+		}
+	}
+}

@@ -8,6 +8,8 @@ import (
 func TestDiagnose(t *testing.T) {
 	for _, statement := range []string{
 		"SELECT * FROM person",
+		"SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age;",
+		"SELECT * FROM schema1.t1 JOIN schema2.t2 ON t1.c1 = t2.c1",
 		"SELECT a FROM t WHERE b = 1",
 		"CREATE TABLE t (id INT)",
 		"INSERT INTO t VALUES (1)",

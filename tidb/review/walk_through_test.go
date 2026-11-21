@@ -496,3 +496,24 @@ func TestWalkThroughTiDBResourceControl(t *testing.T) {
 		oneFinding(t, sql, 2, "Table `t` already exists.", shop)
 	}
 }
+
+// TestWalkThroughTiDBCompactView verifies that ALTER TABLE <view> COMPACT
+// [TIFLASH REPLICA] does not report a wrong-object-kind finding (TiDB v8.5.5
+// accepts both on a view), while a missing relation still reports not found
+// and statements after COMPACT are still walked.
+func TestWalkThroughTiDBCompactView(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	for _, stmt := range []string{
+		"ALTER TABLE v COMPACT;",
+		"ALTER TABLE v COMPACT TIFLASH REPLICA;",
+		"ALTER TABLE t COMPACT;",
+	} {
+		if got := walkFindings(t, stmt, shop); len(got) != 0 {
+			t.Errorf("%q: got findings %+v, want none", stmt, got)
+		}
+		sql := stmt + "\nCREATE TABLE t (a int);"
+		oneFinding(t, sql, 1, "Table `t` already exists.", shop)
+	}
+	oneFinding(t, "ALTER TABLE nosuch COMPACT;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE v ADD COLUMN c int;", 0, "`v` is a view, not a table.", shop)
+}

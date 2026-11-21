@@ -1084,3 +1084,1087 @@ ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	object_type_any_name/INDE
 0A000	0A000	engine	one_table@index	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
 42P07	42P07	engine	one_table@index	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
 ok:0904ba26408b	ok:0904ba26408b	engine	one_table@index	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42809	42809	engine	objects@view	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42809	42809	engine	objects@view	stmt/AlterTableStmt	ALTER TABLE a DROP a
+42809	42809	engine	objects@view	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	objects@view	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	objects@view	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	objects@view	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	objects@view	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	objects@view	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	objects@view	stmt/CreateStmt	CREATE TABLE a()
+42809	42809	engine	objects@view	stmt/DropStmt	DROP TABLE a
+42809	42809	engine	objects@view	stmt/IndexStmt	CREATE INDEX ON a(a)
+42809	42809	engine	objects@view	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+42809	42809	engine	objects@view	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	objects@view	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	objects@view	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+42809	42809	engine	objects@view	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+42809	42809	engine	objects@view	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	objects@view	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@view	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@view	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42809	42809	engine	objects@view	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42809	42809	engine	objects@view	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42809	42809	engine	objects@view	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42809	42809	engine	objects@view	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+42809	42809	engine	objects@view	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42809	42809	engine	objects@view	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+42809	42809	engine	objects@view	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+55000	55000	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+55000	55000	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+55000	55000	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42809	42809	engine	objects@view	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42809	42809	engine	objects@view	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42809	42809	engine	objects@view	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42809	42809	engine	objects@view	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+42809	42809	engine	objects@view	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42809	42809	engine	objects@view	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+42809	42809	engine	objects@view	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42809	42809	engine	objects@view	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+42809	42809	engine	objects@view	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+42809	42809	engine	objects@view	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+42809	42809	engine	objects@view	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42809	42809	engine	objects@view	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+42809	42809	engine	objects@view	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+42809	42809	engine	objects@view	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42809	42809	engine	objects@view	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42809	42809	engine	objects@view	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42809	42809	engine	objects@view	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42809	42809	engine	objects@view	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42809	42809	engine	objects@view	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42704	42704	engine	objects@view	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42809	42809	engine	objects@view	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42809	42809	engine	objects@view	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+22023	22023	engine	objects@view	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+42809	42809	engine	objects@view	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+42809	42809	engine	objects@view	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@view	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@view	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@view	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@view	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42809	42809	engine	objects@view	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42809	42809	engine	objects@view	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+42809	42809	engine	objects@view	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+42809	42809	engine	objects@view	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42809	42809	engine	objects@view	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+22023	22023	engine	objects@view	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+22023	22023	engine	objects@view	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+22023	22023	engine	objects@view	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+22023	22023	engine	objects@view	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+55000	55000	engine	objects@view	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+55000	55000	engine	objects@view	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+55000	55000	engine	objects@view	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+55000	55000	engine	objects@view	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+42809	42809	engine	objects@view	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42809	42809	engine	objects@view	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42809	42809	engine	objects@view	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42809	42809	engine	objects@view	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42809	42809	engine	objects@view	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42809	42809	engine	objects@view	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42P07	42P07	engine	objects@view	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	objects@view	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42809	42809	engine	objects@view	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42701	42701	engine	objects@view	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42809	42809	engine	objects@view	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P07	42P07	engine	objects@view	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	objects@view	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42809	42809	engine	objects@view	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42809	42809	engine	objects@view	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42809	42809	engine	objects@view	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42809	42809	engine	objects@view	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42809	42809	engine	objects@view	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42809	42809	engine	objects@view	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+55000	55000	engine	objects@view	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P07	42P07	engine	objects@view	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P07	42P07	engine	objects@view	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P07	42P07	engine	objects@view	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P07	42P07	engine	objects@view	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P07	42P07	engine	objects@view	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P07	42P07	engine	objects@view	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P07	42P07	engine	objects@view	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P07	42P07	engine	objects@view	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P07	42P07	engine	objects@view	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P07	42P07	engine	objects@view	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P07	42P07	engine	objects@view	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42809	42809	engine	objects@view	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42809	42809	engine	objects@view	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42809	42809	engine	objects@view	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42809	42809	engine	objects@view	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42809	42809	engine	objects@view	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42809	42809	engine	objects@view	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42809	42809	engine	objects@view	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42809	42809	engine	objects@view	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42809	42809	engine	objects@view	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42809	42809	engine	objects@view	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42809	42809	engine	objects@view	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42809	42809	engine	objects@view	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42809	42809	engine	objects@view	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42809	42809	engine	objects@view	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	objects@view	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42P07	42P07	engine	objects@view	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	objects@view	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42P07	42P07	engine	objects@view	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	objects@view	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	objects@view	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	objects@view	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	objects@view	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@view	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42809	42809	engine	objects@view	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42809	42809	engine	objects@view	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@view	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+42809	42809	engine	objects@view	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	objects@view	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42809	42809	engine	objects@view	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42809	42809	engine	objects@view	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42809	42809	engine	objects@view	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42809	42809	engine	objects@view	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42809	42809	engine	objects@view	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42809	42809	engine	objects@view	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42809	42809	engine	objects@view	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42809	42809	engine	objects@view	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42809	42809	engine	objects@view	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42809	42809	engine	objects@view	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42809	42809	engine	objects@view	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42809	42809	engine	objects@view	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42809	42809	engine	objects@view	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42809	42809	engine	objects@view	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42809	42809	engine	objects@view	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42809	42809	engine	objects@view	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42809	42809	engine	objects@view	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42809	42809	engine	objects@view	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@view	object_type_any_name/VIEW	DROP VIEW a
+42809	42809	engine	objects@view	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42809	42809	engine	objects@view	object_type_any_name/INDEX	DROP INDEX a
+42809	42809	engine	objects@view	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+42809	42809	engine	objects@view	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+42809	42809	engine	objects@view	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42601	42601	engine	objects@view	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+42809	42809	engine	objects@view	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+42809	42809	engine	objects@view	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+42809	42809	engine	objects@view	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42809	42809	engine	objects@view	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42809	42809	engine	objects@view	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+42809	42809	engine	objects@view	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42809	42809	engine	objects@view	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42809	42809	engine	objects@view	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42809	42809	engine	objects@view	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42883	42883	engine	objects@view	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42809	42809	engine	objects@view	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42809	42809	engine	objects@view	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42809	42809	engine	objects@view	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+42809	42809	engine	objects@view	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42809	42809	engine	objects@view	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+42809	42809	engine	objects@view	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42809	42809	engine	objects@view	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+42809	42809	engine	objects@view	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42809	42809	engine	objects@view	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42809	42809	engine	objects@view	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42809	42809	engine	objects@view	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42809	42809	engine	objects@view	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@view	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42809	42809	engine	objects@view	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42809	42809	engine	objects@view	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42809	42809	engine	objects@view	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42P07	42P07	engine	objects@view	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42701	42701	engine	objects@view	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42704	42704	engine	objects@view	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42704	42704	engine	objects@view	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42809	42809	engine	objects@view	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42809	42809	engine	objects@view	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+42809	42809	engine	objects@view	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	objects@view	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	objects@view	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	objects@view	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@view	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+42809	42809	engine	objects@view	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+3F000	3F000	engine	objects@view	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+3F000	3F000	engine	objects@view	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@view	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+42809	42809	engine	objects@view	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42P16	42P16	engine	objects@view	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	objects@view	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+42P10	42P10	engine	objects@view	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@view	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	objects@view	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+42P10	42P10	engine	objects@view	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@view	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	objects@view	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+0A000	0A000	engine	objects@view	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+0A000	0A000	engine	objects@view	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+0A000	0A000	engine	objects@view	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	objects@view	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42809	42809	engine	objects@matview	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42809	42809	engine	objects@matview	stmt/AlterTableStmt	ALTER TABLE a DROP a
+42809	42809	engine	objects@matview	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	objects@matview	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	objects@matview	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	objects@matview	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	objects@matview	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	objects@matview	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	objects@matview	stmt/CreateStmt	CREATE TABLE a()
+42809	42809	engine	objects@matview	stmt/DropStmt	DROP TABLE a
+ok:ac043cf6f762	ok:ac043cf6f762	engine	objects@matview	stmt/IndexStmt	CREATE INDEX ON a(a)
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+42809	42809	engine	objects@matview	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	objects@matview	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	objects@matview	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+42809	42809	engine	objects@matview	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+42809	42809	engine	objects@matview	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	objects@matview	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@matview	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@matview	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42809	42809	engine	objects@matview	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42809	42809	engine	objects@matview	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42809	42809	engine	objects@matview	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42809	42809	engine	objects@matview	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+42809	42809	engine	objects@matview	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42809	42809	engine	objects@matview	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+42809	42809	engine	objects@matview	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+0A000	0A000	engine	objects@matview	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+22023	22023	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+22023	22023	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+0A000	0A000	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42809	42809	engine	objects@matview	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42809	42809	engine	objects@matview	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42809	42809	engine	objects@matview	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42809	42809	engine	objects@matview	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+42809	42809	engine	objects@matview	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42809	42809	engine	objects@matview	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+42809	42809	engine	objects@matview	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42809	42809	engine	objects@matview	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+42809	42809	engine	objects@matview	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+42809	42809	engine	objects@matview	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42809	42809	engine	objects@matview	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+42809	42809	engine	objects@matview	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+42809	42809	engine	objects@matview	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42809	42809	engine	objects@matview	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42809	42809	engine	objects@matview	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42809	42809	engine	objects@matview	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42809	42809	engine	objects@matview	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42809	42809	engine	objects@matview	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42704	42704	engine	objects@matview	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42704	42704	engine	objects@matview	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42704	42704	engine	objects@matview	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+22023	22023	engine	objects@matview	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+42809	42809	engine	objects@matview	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@matview	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@matview	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@matview	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@matview	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42809	42809	engine	objects@matview	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42809	42809	engine	objects@matview	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42809	42809	engine	objects@matview	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+22023	22023	engine	objects@matview	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+22023	22023	engine	objects@matview	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+22023	22023	engine	objects@matview	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+22023	22023	engine	objects@matview	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+42809	42809	engine	objects@matview	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+42809	42809	engine	objects@matview	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+42809	42809	engine	objects@matview	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+42809	42809	engine	objects@matview	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42704	42704	engine	objects@matview	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42809	42809	engine	objects@matview	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42809	42809	engine	objects@matview	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42809	42809	engine	objects@matview	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42809	42809	engine	objects@matview	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42P07	42P07	engine	objects@matview	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	objects@matview	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42809	42809	engine	objects@matview	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42701	42701	engine	objects@matview	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42809	42809	engine	objects@matview	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P07	42P07	engine	objects@matview	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	objects@matview	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42809	42809	engine	objects@matview	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42809	42809	engine	objects@matview	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42809	42809	engine	objects@matview	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42809	42809	engine	objects@matview	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42809	42809	engine	objects@matview	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42809	42809	engine	objects@matview	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+42809	42809	engine	objects@matview	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P07	42P07	engine	objects@matview	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P07	42P07	engine	objects@matview	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P07	42P07	engine	objects@matview	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P07	42P07	engine	objects@matview	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P07	42P07	engine	objects@matview	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P07	42P07	engine	objects@matview	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P07	42P07	engine	objects@matview	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P07	42P07	engine	objects@matview	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P07	42P07	engine	objects@matview	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P07	42P07	engine	objects@matview	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P07	42P07	engine	objects@matview	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42809	42809	engine	objects@matview	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42809	42809	engine	objects@matview	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42809	42809	engine	objects@matview	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42809	42809	engine	objects@matview	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42809	42809	engine	objects@matview	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42809	42809	engine	objects@matview	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42809	42809	engine	objects@matview	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42809	42809	engine	objects@matview	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42809	42809	engine	objects@matview	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42809	42809	engine	objects@matview	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42809	42809	engine	objects@matview	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42809	42809	engine	objects@matview	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42809	42809	engine	objects@matview	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42809	42809	engine	objects@matview	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	objects@matview	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42P07	42P07	engine	objects@matview	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	objects@matview	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42P07	42P07	engine	objects@matview	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	objects@matview	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	objects@matview	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	objects@matview	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	objects@matview	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@matview	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+ok:35f81f5b97bc	ok:35f81f5b97bc	engine	objects@matview	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@matview	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+42809	42809	engine	objects@matview	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	objects@matview	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42809	42809	engine	objects@matview	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42809	42809	engine	objects@matview	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42809	42809	engine	objects@matview	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42809	42809	engine	objects@matview	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42809	42809	engine	objects@matview	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42809	42809	engine	objects@matview	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42809	42809	engine	objects@matview	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42809	42809	engine	objects@matview	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42809	42809	engine	objects@matview	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42809	42809	engine	objects@matview	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42809	42809	engine	objects@matview	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42809	42809	engine	objects@matview	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42809	42809	engine	objects@matview	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42809	42809	engine	objects@matview	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42809	42809	engine	objects@matview	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42809	42809	engine	objects@matview	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42809	42809	engine	objects@matview	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42809	42809	engine	objects@matview	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42809	42809	engine	objects@matview	object_type_any_name/VIEW	DROP VIEW a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@matview	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42809	42809	engine	objects@matview	object_type_any_name/INDEX	DROP INDEX a
+42809	42809	engine	objects@matview	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+42809	42809	engine	objects@matview	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+42809	42809	engine	objects@matview	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42601	42601	engine	objects@matview	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+42809	42809	engine	objects@matview	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+ok:7b5597450123	ok:7b5597450123	engine	objects@matview	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42704	42704	engine	objects@matview	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42704	42704	engine	objects@matview	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+ok:3878083852e7	ok:3878083852e7	engine	objects@matview	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42704	42704	engine	objects@matview	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42704	42704	engine	objects@matview	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42704	42704	engine	objects@matview	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42883	42883	engine	objects@matview	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42P17	42P17	engine	objects@matview	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42P17	42P17	engine	objects@matview	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42P17	42P17	engine	objects@matview	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+ok:ac043cf6f762	ok:ac043cf6f762	engine	objects@matview	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42704	42704	engine	objects@matview	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+ok:5422fab704cf	ok:5422fab704cf	engine	objects@matview	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42P17	42P17	engine	objects@matview	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+ok:772abb9e3761	ok:772abb9e3761	engine	objects@matview	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42P17	42P17	engine	objects@matview	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42P17	42P17	engine	objects@matview	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42704	42704	engine	objects@matview	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42704	42704	engine	objects@matview	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@matview	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42809	42809	engine	objects@matview	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@matview	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42809	42809	engine	objects@matview	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42P07	42P07	engine	objects@matview	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42701	42701	engine	objects@matview	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42704	42704	engine	objects@matview	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42704	42704	engine	objects@matview	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42809	42809	engine	objects@matview	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42809	42809	engine	objects@matview	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+42704	42704	engine	objects@matview	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	objects@matview	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	objects@matview	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	objects@matview	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@matview	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+42809	42809	engine	objects@matview	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@matview	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+42809	42809	engine	objects@matview	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+3F000	3F000	engine	objects@matview	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+3F000	3F000	engine	objects@matview	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@matview	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	objects@matview	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+42P10	42P10	engine	objects@matview	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@matview	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	objects@matview	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+42P10	42P10	engine	objects@matview	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@matview	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	objects@matview	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+0A000	0A000	engine	objects@matview	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+0A000	0A000	engine	objects@matview	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+0A000	0A000	engine	objects@matview	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	objects@matview	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+ok:5cb6073354a4	ok:5cb6073354a4	engine	objects@sequence	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42809	42809	engine	objects@sequence	stmt/AlterTableStmt	ALTER TABLE a DROP a
+42809	42809	engine	objects@sequence	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	objects@sequence	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	objects@sequence	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	objects@sequence	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	objects@sequence	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	objects@sequence	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	objects@sequence	stmt/CreateStmt	CREATE TABLE a()
+42809	42809	engine	objects@sequence	stmt/DropStmt	DROP TABLE a
+42809	42809	engine	objects@sequence	stmt/IndexStmt	CREATE INDEX ON a(a)
+42809	42809	engine	objects@sequence	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+42809	42809	engine	objects@sequence	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	objects@sequence	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	objects@sequence	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+42809	42809	engine	objects@sequence	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+42809	42809	engine	objects@sequence	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	objects@sequence	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@sequence	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@sequence	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42809	42809	engine	objects@sequence	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42809	42809	engine	objects@sequence	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42809	42809	engine	objects@sequence	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42809	42809	engine	objects@sequence	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+42809	42809	engine	objects@sequence	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42809	42809	engine	objects@sequence	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+42809	42809	engine	objects@sequence	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42809	42809	engine	objects@sequence	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42809	42809	engine	objects@sequence	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42809	42809	engine	objects@sequence	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+42809	42809	engine	objects@sequence	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42809	42809	engine	objects@sequence	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+42809	42809	engine	objects@sequence	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42809	42809	engine	objects@sequence	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+42809	42809	engine	objects@sequence	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+ok:df3e6103dfdc	ok:df3e6103dfdc	engine	objects@sequence	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42809	42809	engine	objects@sequence	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+42809	42809	engine	objects@sequence	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+42809	42809	engine	objects@sequence	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42809	42809	engine	objects@sequence	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42809	42809	engine	objects@sequence	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42809	42809	engine	objects@sequence	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42809	42809	engine	objects@sequence	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42809	42809	engine	objects@sequence	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42704	42704	engine	objects@sequence	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42809	42809	engine	objects@sequence	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42809	42809	engine	objects@sequence	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+42809	42809	engine	objects@sequence	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+42809	42809	engine	objects@sequence	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+42809	42809	engine	objects@sequence	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@sequence	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+42809	42809	engine	objects@sequence	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@sequence	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@sequence	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42809	42809	engine	objects@sequence	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42809	42809	engine	objects@sequence	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+42809	42809	engine	objects@sequence	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+42809	42809	engine	objects@sequence	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42809	42809	engine	objects@sequence	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+42809	42809	engine	objects@sequence	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+42809	42809	engine	objects@sequence	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+42809	42809	engine	objects@sequence	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+42809	42809	engine	objects@sequence	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+42809	42809	engine	objects@sequence	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+42809	42809	engine	objects@sequence	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+42809	42809	engine	objects@sequence	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+42809	42809	engine	objects@sequence	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+42809	42809	engine	objects@sequence	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42809	42809	engine	objects@sequence	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42809	42809	engine	objects@sequence	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+42809	42809	engine	objects@sequence	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42704	42704	engine	objects@sequence	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42809	42809	engine	objects@sequence	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42P07	42P07	engine	objects@sequence	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42704	42704	engine	objects@sequence	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42704	42704	engine	objects@sequence	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42704	42704	engine	objects@sequence	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42704	42704	engine	objects@sequence	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42809	42809	engine	objects@sequence	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	objects@sequence	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42704	42704	engine	objects@sequence	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42704	42704	engine	objects@sequence	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42809	42809	engine	objects@sequence	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42809	42809	engine	objects@sequence	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42809	42809	engine	objects@sequence	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42809	42809	engine	objects@sequence	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+42809	42809	engine	objects@sequence	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42809	42809	engine	objects@sequence	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42809	42809	engine	objects@sequence	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42809	42809	engine	objects@sequence	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42809	42809	engine	objects@sequence	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42809	42809	engine	objects@sequence	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42809	42809	engine	objects@sequence	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42809	42809	engine	objects@sequence	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42809	42809	engine	objects@sequence	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42809	42809	engine	objects@sequence	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42809	42809	engine	objects@sequence	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42809	42809	engine	objects@sequence	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42809	42809	engine	objects@sequence	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42809	42809	engine	objects@sequence	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+42809	42809	engine	objects@sequence	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42809	42809	engine	objects@sequence	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42809	42809	engine	objects@sequence	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42809	42809	engine	objects@sequence	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42809	42809	engine	objects@sequence	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42809	42809	engine	objects@sequence	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42809	42809	engine	objects@sequence	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42809	42809	engine	objects@sequence	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+42809	42809	engine	objects@sequence	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42809	42809	engine	objects@sequence	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42809	42809	engine	objects@sequence	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42809	42809	engine	objects@sequence	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	objects@sequence	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42P07	42P07	engine	objects@sequence	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	objects@sequence	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42P07	42P07	engine	objects@sequence	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	objects@sequence	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	objects@sequence	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	objects@sequence	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	objects@sequence	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@sequence	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+42809	42809	engine	objects@sequence	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+42809	42809	engine	objects@sequence	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@sequence	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+ok:5cb6073354a4	ok:5cb6073354a4	engine	objects@sequence	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	objects@sequence	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42601	42601	engine	objects@sequence	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42704	42704	engine	objects@sequence	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+22P02	22P02	engine	objects@sequence	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+22P02	22P02	engine	objects@sequence	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+XX000	XX000	engine	objects@sequence	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+22P02	22P02	engine	objects@sequence	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+22P02	22P02	engine	objects@sequence	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42601	42601	engine	objects@sequence	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42601	42601	engine	objects@sequence	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+22P02	22P02	engine	objects@sequence	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+22P02	22P02	engine	objects@sequence	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+XX000	XX000	engine	objects@sequence	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+22P02	22P02	engine	objects@sequence	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@sequence	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42809	42809	engine	objects@sequence	object_type_any_name/VIEW	DROP VIEW a
+42809	42809	engine	objects@sequence	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42809	42809	engine	objects@sequence	object_type_any_name/INDEX	DROP INDEX a
+42809	42809	engine	objects@sequence	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+42809	42809	engine	objects@sequence	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+42809	42809	engine	objects@sequence	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42601	42601	engine	objects@sequence	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+42809	42809	engine	objects@sequence	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+42809	42809	engine	objects@sequence	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+42809	42809	engine	objects@sequence	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42809	42809	engine	objects@sequence	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42809	42809	engine	objects@sequence	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+42809	42809	engine	objects@sequence	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42809	42809	engine	objects@sequence	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42809	42809	engine	objects@sequence	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42809	42809	engine	objects@sequence	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42809	42809	engine	objects@sequence	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42809	42809	engine	objects@sequence	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42809	42809	engine	objects@sequence	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42809	42809	engine	objects@sequence	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+42809	42809	engine	objects@sequence	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42809	42809	engine	objects@sequence	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+42809	42809	engine	objects@sequence	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42809	42809	engine	objects@sequence	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+42809	42809	engine	objects@sequence	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42809	42809	engine	objects@sequence	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42809	42809	engine	objects@sequence	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42809	42809	engine	objects@sequence	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42809	42809	engine	objects@sequence	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42P07	42P07	engine	objects@sequence	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42809	42809	engine	objects@sequence	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42809	42809	engine	objects@sequence	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42809	42809	engine	objects@sequence	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+42809	42809	engine	objects@sequence	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	objects@sequence	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+3F000	3F000	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+3F000	3F000	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+42809	42809	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+42809	42809	engine	objects@sequence	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@sequence	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	objects@sequence	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+42P10	42P10	engine	objects@sequence	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@sequence	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	objects@sequence	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+42P10	42P10	engine	objects@sequence	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@sequence	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	objects@sequence	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+0A000	0A000	engine	objects@sequence	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+0A000	0A000	engine	objects@sequence	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+0A000	0A000	engine	objects@sequence	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	objects@sequence	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
+42809	42809	engine	objects@partitioned	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
+42P16	42P16	engine	objects@partitioned	stmt/AlterTableStmt	ALTER TABLE a DROP a
+ok:0ac0e8329f0e	ok:0ac0e8329f0e	engine	objects@partitioned	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
+42P07	42P07	engine	objects@partitioned	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+42703	42703	engine	objects@partitioned	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
+42P07	42P07	engine	objects@partitioned	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
+42703	42703	engine	objects@partitioned	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
+42P07	42P07	engine	objects@partitioned	stmt/CreateSeqStmt	CREATE SEQUENCE a
+42P07	42P07	engine	objects@partitioned	stmt/CreateStmt	CREATE TABLE a()
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	stmt/DropStmt	DROP TABLE a
+ok:2e7fac954859	ok:2e7fac954859	engine	objects@partitioned	stmt/IndexStmt	CREATE INDEX ON a(a)
+0A000	0A000	engine	objects@partitioned	stmt/RefreshMatViewStmt	REFRESH MATERIALIZED VIEW a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	stmt/TruncateStmt	TRUNCATE a
+42P07	42P07	engine	objects@partitioned	stmt/ViewStmt	CREATE VIEW a AS SELECT
+42703	42703	engine	objects@partitioned	stmt/ViewStmt!insert	CREATE VIEW a AS SELECT zzz
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_drop_behavior/CASCADE	TRUNCATE a CASCADE
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_drop_behavior/RESTRICT	TRUNCATE a RESTRICT
+42P16	42P16	engine	objects@partitioned	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_alter_table_cmds	ALTER TABLE IF EXISTS a DROP a
+42P01	42P01	engine	objects@partitioned	AlterTableStmt/ALTER_TABLE_relation_expr_partition_cmd	ALTER TABLE a DETACH PARTITION a
+42P01	42P01	engine	objects@partitioned	AlterTableStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_partition_cmd	ALTER TABLE IF EXISTS a DETACH PARTITION a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER INDEX IF EXISTS a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_INDEX_qualified_name_index_partition_cmd	ALTER INDEX a ATTACH PARTITION a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER SEQUENCE IF EXISTS a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_VIEW_qualified_name_alter_table_cmds	ALTER VIEW a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER VIEW IF EXISTS a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_MATERIALIZED_VIEW_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW a DROP a
+42809	42809	engine	objects@partitioned	AlterTableStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_alter_table_cmds	ALTER MATERIALIZED VIEW IF EXISTS a DROP a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+42704	42704	engine	objects@partitioned	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+42P16	42P16	engine	objects@partitioned	alter_table_cmds/alter_table_cmds_,_alter_table_cmd	ALTER TABLE a DROP a, DROP a
+42P07	42P07	engine	objects@partitioned	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec	ALTER TABLE a ATTACH PARTITION a DEFAULT
+42P01	42P01	engine	objects@partitioned	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
+42P01	42P01	engine	objects@partitioned	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-3	ALTER TABLE a DETACH PARTITION FINALIZE
+42701	42701	engine	objects@partitioned	alter_table_cmd/ADD_P_columnDef	ALTER TABLE a ADD a a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ADD_P_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD IF NOT EXISTS a a
+42701	42701	engine	objects@partitioned	alter_table_cmd/ADD_P_COLUMN_columnDef	ALTER TABLE a ADD COLUMN a a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ADD_P_COLUMN_IF_P_NOT_EXISTS_columnDef	ALTER TABLE a ADD COLUMN IF NOT EXISTS a a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default	ALTER TABLE a ALTER a DROP DEFAULT
+42P16	42P16	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
+55000	55000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
+55000	55000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
+0A000	0A000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
+22023	22023	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
+22023	22023	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
+0A000	0A000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
+ok:063d4e3eb965	ok:063d4e3eb965	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
+55000	55000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
+55000	55000	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
+42P16	42P16	engine	objects@partitioned	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
+42P16	42P16	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
+42809	42809	engine	objects@partitioned	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
+42804	42804	engine	objects@partitioned	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
+42704	42704	engine	objects@partitioned	alter_table_cmd/ALTER_CONSTRAINT_name_ConstraintAttributeSpec	ALTER TABLE a ALTER CONSTRAINT a
+42704	42704	engine	objects@partitioned	alter_table_cmd/VALIDATE_CONSTRAINT_name	ALTER TABLE a VALIDATE CONSTRAINT a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
+42704	42704	engine	objects@partitioned	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
+42809	42809	engine	objects@partitioned	alter_table_cmd/CLUSTER_ON_name	ALTER TABLE a CLUSTER ON a
+0A000	0A000	engine	objects@partitioned	alter_table_cmd/SET_WITHOUT_CLUSTER	ALTER TABLE a SET WITHOUT CLUSTER
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/SET_LOGGED	ALTER TABLE a SET LOGGED
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/SET_UNLOGGED	ALTER TABLE a SET UNLOGGED
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_TRIGGER_name	ALTER TABLE a ENABLE TRIGGER a
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_ALWAYS_TRIGGER_name	ALTER TABLE a ENABLE ALWAYS TRIGGER a
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_REPLICA_TRIGGER_name	ALTER TABLE a ENABLE REPLICA TRIGGER a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ENABLE_P_TRIGGER_ALL	ALTER TABLE a ENABLE TRIGGER ALL
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/ENABLE_P_TRIGGER_USER	ALTER TABLE a ENABLE TRIGGER USER
+42704	42704	engine	objects@partitioned	alter_table_cmd/DISABLE_P_TRIGGER_name	ALTER TABLE a DISABLE TRIGGER a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/DISABLE_P_TRIGGER_ALL	ALTER TABLE a DISABLE TRIGGER ALL
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/DISABLE_P_TRIGGER_USER	ALTER TABLE a DISABLE TRIGGER USER
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_RULE_name	ALTER TABLE a ENABLE RULE a
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_ALWAYS_RULE_name	ALTER TABLE a ENABLE ALWAYS RULE a
+42704	42704	engine	objects@partitioned	alter_table_cmd/ENABLE_P_REPLICA_RULE_name	ALTER TABLE a ENABLE REPLICA RULE a
+42704	42704	engine	objects@partitioned	alter_table_cmd/DISABLE_P_RULE_name	ALTER TABLE a DISABLE RULE a
+42809	42809	engine	objects@partitioned	alter_table_cmd/INHERIT_qualified_name	ALTER TABLE a INHERIT a
+42P01	42P01	engine	objects@partitioned	alter_table_cmd/NO_INHERIT_qualified_name	ALTER TABLE a NO INHERIT a
+42809	42809	engine	objects@partitioned	alter_table_cmd/OF_any_name	ALTER TABLE a OF a
+42809	42809	engine	objects@partitioned	alter_table_cmd/NOT_OF	ALTER TABLE a NOT OF
+42704	42704	engine	objects@partitioned	alter_table_cmd/OWNER_TO_RoleSpec	ALTER TABLE a OWNER TO a
+42704	42704	engine	objects@partitioned	alter_table_cmd/SET_ACCESS_METHOD_set_access_method_name	ALTER TABLE a SET ACCESS METHOD a
+42704	42704	engine	objects@partitioned	alter_table_cmd/SET_TABLESPACE_name	ALTER TABLE a SET TABLESPACE a
+42809	42809	engine	objects@partitioned	alter_table_cmd/SET_reloptions	ALTER TABLE a SET(a)
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/RESET_reloptions	ALTER TABLE a RESET(a)
+ok:f5bdf24f9619	ok:f5bdf24f9619	engine	objects@partitioned	alter_table_cmd/REPLICA_IDENTITY_P_replica_identity	ALTER TABLE a REPLICA IDENTITY NOTHING
+ok:7dc9f4b80d59	ok:7dc9f4b80d59	engine	objects@partitioned	alter_table_cmd/ENABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a ENABLE ROW LEVEL SECURITY
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/DISABLE_P_ROW_LEVEL_SECURITY	ALTER TABLE a DISABLE ROW LEVEL SECURITY
+ok:5f5d671671af	ok:5f5d671671af	engine	objects@partitioned	alter_table_cmd/FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a FORCE ROW LEVEL SECURITY
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	alter_table_cmd/NO_FORCE_ROW_LEVEL_SECURITY	ALTER TABLE a NO FORCE ROW LEVEL SECURITY
+42809	42809	engine	objects@partitioned	alter_table_cmd/alter_generic_options	ALTER TABLE a OPTIONS(a 's')
+42P16	42P16	engine	objects@partitioned	opt_collate_clause/COLLATE_any_name	ALTER TABLE a ALTER a TYPE a COLLATE a
+42P16	42P16	engine	objects@partitioned	alter_using/USING_a_expr	ALTER TABLE a ALTER a TYPE a USING a
+ok:e5801f9dbb2f	ok:e5801f9dbb2f	engine	objects@partitioned	replica_identity/FULL	ALTER TABLE a REPLICA IDENTITY FULL
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	replica_identity/DEFAULT	ALTER TABLE a REPLICA IDENTITY DEFAULT
+42809	42809	engine	objects@partitioned	replica_identity/USING_INDEX_name	ALTER TABLE a REPLICA IDENTITY USING INDEX a
+42809	42809	engine	objects@partitioned	reloption_list/reloption_list_,_reloption_elem	ALTER TABLE a SET(a, a)
+42809	42809	engine	objects@partitioned	reloption_elem/ColLabel_=_def_arg	ALTER TABLE a SET(a = a)
+22023	22023	engine	objects@partitioned	reloption_elem/ColLabel_._ColLabel_=_def_arg	ALTER TABLE a SET(a.a = a)
+22023	22023	engine	objects@partitioned	reloption_elem/ColLabel_._ColLabel	ALTER TABLE a SET(a.a)
+55000	55000	engine	objects@partitioned	alter_identity_column_option_list/alter_identity_column_option_list_alter_identity_column_option	ALTER TABLE a ALTER a RESTART RESTART
+55000	55000	engine	objects@partitioned	alter_identity_column_option/RESTART_opt_with_NumericOnly	ALTER TABLE a ALTER a RESTART 1.5
+55000	55000	engine	objects@partitioned	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
+55000	55000	engine	objects@partitioned	alter_identity_column_option/SET_GENERATED_generated_when	ALTER TABLE a ALTER a SET GENERATED ALWAYS
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	set_access_method_name/DEFAULT	ALTER TABLE a SET ACCESS METHOD DEFAULT
+42704	42704	engine	objects@partitioned	set_access_method_name/DEFAULT!swap	ALTER TABLE a SET ACCESS METHOD DEFAULTS
+42P16	42P16	engine	objects@partitioned	PartitionBoundSpec/FOR_VALUES_IN_P_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES IN(a)
+0A000	0A000	engine	objects@partitioned	PartitionBoundSpec/FOR_VALUES_FROM_(_expr_list_)_TO_(_expr_list_)	ALTER TABLE a ATTACH PARTITION a FOR VALUES FROM(a) TO(a)
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
+42809	42809	engine	objects@partitioned	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
+42P07	42P07	engine	objects@partitioned	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+42P07	42P07	engine	objects@partitioned	OptTemp/UNLOGGED	CREATE UNLOGGED SEQUENCE a
+42P07	42P07	engine	objects@partitioned	OptTableElementList/TableElementList	CREATE TABLE a(a a)
+42809	42809	engine	objects@partitioned	OptTypedTableElementList/(_TypedTableElementList_)	CREATE TABLE a OF a(a)
+42701	42701	engine	objects@partitioned	TableElementList/TableElementList_,_TableElement	CREATE TABLE a(a a, a a)
+42809	42809	engine	objects@partitioned	TypedTableElementList/TypedTableElementList_,_TypedTableElement	CREATE TABLE a OF a(a, a)
+42P07	42P07	engine	objects@partitioned	TableElement/TableLikeClause	CREATE TABLE a(LIKE a)
+42P07	42P07	engine	objects@partitioned	TableElement/TableConstraint	CREATE TABLE a(CHECK(a))
+42809	42809	engine	objects@partitioned	TypedTableElement/TableConstraint	CREATE TABLE a OF a(CHECK(a))
+42809	42809	engine	objects@partitioned	columnOptions/ColId_WITH_OPTIONS_ColQualList	CREATE TABLE a OF a(a WITH OPTIONS)
+42701	42701	engine	objects@partitioned	column_compression/COMPRESSION_ColId	ALTER TABLE a ADD a a COMPRESSION a
+42701	42701	engine	objects@partitioned	column_compression/COMPRESSION_DEFAULT	ALTER TABLE a ADD a a COMPRESSION DEFAULT
+42701	42701	engine	objects@partitioned	column_storage/STORAGE_ColId	ALTER TABLE a ADD a a STORAGE a
+42701	42701	engine	objects@partitioned	column_storage/STORAGE_DEFAULT	ALTER TABLE a ADD a a STORAGE DEFAULT
+55000	55000	engine	objects@partitioned	generated_when/BY_DEFAULT	ALTER TABLE a ALTER a SET GENERATED BY DEFAULT
+42P07	42P07	engine	objects@partitioned	TableLikeOptionList/TableLikeOptionList_INCLUDING_TableLikeOption	CREATE TABLE a(LIKE a INCLUDING COMMENTS)
+42P07	42P07	engine	objects@partitioned	TableLikeOptionList/TableLikeOptionList_EXCLUDING_TableLikeOption	CREATE TABLE a(LIKE a EXCLUDING COMMENTS)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/COMPRESSION	CREATE TABLE a(LIKE a INCLUDING COMPRESSION)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/CONSTRAINTS	CREATE TABLE a(LIKE a INCLUDING CONSTRAINTS)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/DEFAULTS	CREATE TABLE a(LIKE a INCLUDING DEFAULTS)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/IDENTITY_P	CREATE TABLE a(LIKE a INCLUDING IDENTITY)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/GENERATED	CREATE TABLE a(LIKE a INCLUDING GENERATED)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/INDEXES	CREATE TABLE a(LIKE a INCLUDING INDEXES)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/STATISTICS	CREATE TABLE a(LIKE a INCLUDING STATISTICS)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/STORAGE	CREATE TABLE a(LIKE a INCLUDING STORAGE)
+42P07	42P07	engine	objects@partitioned	TableLikeOption/ALL	CREATE TABLE a(LIKE a INCLUDING ALL)
+42804	42804	engine	objects@partitioned	TableConstraint/CONSTRAINT_name_ConstraintElem	ALTER TABLE a ADD CONSTRAINT a CHECK(a)
+42P16	42P16	engine	objects@partitioned	TableConstraint/CONSTRAINT_name_ConstraintElem!swap	ALTER TABLE a ADD CONSTRAINTS a CHECK(a)
+ok:4455fd7dc364	ok:4455fd7dc364	engine	objects@partitioned	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE(a)
+42809	42809	engine	objects@partitioned	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
+42P16	42P16	engine	objects@partitioned	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY(a)
+42704	42704	engine	objects@partitioned	ConstraintElem/PRIMARY_KEY_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD PRIOR KEY(a)
+42809	42809	engine	objects@partitioned	ConstraintElem/PRIMARY_KEY_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD PRIMARY KEY USING INDEX a
+42883	42883	engine	objects@partitioned	ConstraintElem/EXCLUDE_access_method_clause_(_ExclusionConstraintList_)_opt_c_include_opt_definition_OptConsTableSpace_OptWhereClause_ConstraintAttributeSpec	ALTER TABLE a ADD EXCLUDE(a WITH ~)
+42830	42830	engine	objects@partitioned	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+42704	42704	engine	objects@partitioned	ConstraintElem/FOREIGN_KEY_(_columnList_)_REFERENCES_qualified_name_opt_column_list_key_match_key_actions_ConstraintAttributeSpec!swap	ALTER TABLE a ADD FORMAT KEY(a) REFERENCES a
+ok:35e86f15d915	ok:35e86f15d915	engine	objects@partitioned	opt_c_include/INCLUDE_(_columnList_)	ALTER TABLE a ADD UNIQUE(a) INCLUDE(a)
+42883	42883	engine	objects@partitioned	ExclusionConstraintList/ExclusionConstraintList_,_ExclusionConstraintElem	ALTER TABLE a ADD EXCLUDE(a WITH ~, a WITH ~)
+42883	42883	engine	objects@partitioned	ExclusionConstraintElem/index_elem_WITH_OPERATOR_(_any_operator_)	ALTER TABLE a ADD EXCLUDE(a WITH OPERATOR(~))
+42809	42809	engine	objects@partitioned	OptInherit/INHERITS_(_qualified_name_list_)	CREATE TABLE a() INHERITS(a)
+42P07	42P07	engine	objects@partitioned	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
+42P07	42P07	engine	objects@partitioned	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
+42P07	42P07	engine	objects@partitioned	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
+42P07	42P07	engine	objects@partitioned	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+42P07	42P07	engine	objects@partitioned	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
+42P07	42P07	engine	objects@partitioned	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
+42P07	42P07	engine	objects@partitioned	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
+42P07	42P07	engine	objects@partitioned	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@partitioned	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
+0A000	0A000	engine	objects@partitioned	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
+0A000	0A000	engine	objects@partitioned	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+42703	42703	engine	objects@partitioned	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
+42809	42809	engine	objects@partitioned	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
+42P07	42P07	engine	objects@partitioned	OptSeqOptList/SeqOptList	CREATE SEQUENCE a CYCLE
+42809	42809	engine	objects@partitioned	SeqOptList/SeqOptList_SeqOptElem	ALTER SEQUENCE a CYCLE CYCLE
+42809	42809	engine	objects@partitioned	SeqOptElem/AS_SimpleTypename	ALTER SEQUENCE a AS a
+42809	42809	engine	objects@partitioned	SeqOptElem/CACHE_NumericOnly	ALTER SEQUENCE a CACHE 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/NO_CYCLE	ALTER SEQUENCE a NO CYCLE
+42809	42809	engine	objects@partitioned	SeqOptElem/INCREMENT_opt_by_NumericOnly	ALTER SEQUENCE a INCREMENT 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/LOGGED	ALTER SEQUENCE a LOGGED
+42809	42809	engine	objects@partitioned	SeqOptElem/MAXVALUE_NumericOnly	ALTER SEQUENCE a MAXVALUE 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/MINVALUE_NumericOnly	ALTER SEQUENCE a MINVALUE 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/NO_MAXVALUE	ALTER SEQUENCE a NO MAXVALUE
+42809	42809	engine	objects@partitioned	SeqOptElem/NO_MINVALUE	ALTER SEQUENCE a NO MINVALUE
+42809	42809	engine	objects@partitioned	SeqOptElem/OWNED_BY_any_name	ALTER SEQUENCE a OWNED BY a
+42809	42809	engine	objects@partitioned	SeqOptElem/SEQUENCE_NAME_P_any_name	ALTER SEQUENCE a SEQUENCE NAME a
+42809	42809	engine	objects@partitioned	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a START 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
+42809	42809	engine	objects@partitioned	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
+42809	42809	engine	objects@partitioned	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
+42809	42809	engine	objects@partitioned	opt_by/BY	ALTER SEQUENCE a INCREMENT BY 1.5
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
+42809	42809	engine	objects@partitioned	object_type_any_name/SEQUENCE	DROP SEQUENCE a
+42809	42809	engine	objects@partitioned	object_type_any_name/VIEW	DROP VIEW a
+42809	42809	engine	objects@partitioned	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
+42809	42809	engine	objects@partitioned	object_type_any_name/INDEX	DROP INDEX a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42601	42601	engine	objects@partitioned	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
+ok:44f3f3a5597c	ok:44f3f3a5597c	engine	objects@partitioned	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
+42704	42704	engine	objects@partitioned	access_method_clause/USING_name	CREATE INDEX ON a USING a(a)
+42704	42704	engine	objects@partitioned	index_params/index_elem!insert	CREATE INDEX ON a(a zzz)
+ok:05e56cf4aa42	ok:05e56cf4aa42	engine	objects@partitioned	index_params/index_params_,_index_elem	CREATE INDEX ON a(a, a)
+42704	42704	engine	objects@partitioned	index_params/index_params_,_index_elem!drop-2	CREATE INDEX ON a(a a)
+42704	42704	engine	objects@partitioned	index_params/index_params_,_index_elem!insert	CREATE INDEX ON a(a, a zzz)
+42704	42704	engine	objects@partitioned	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order	CREATE INDEX ON a(a a(a))
+42883	42883	engine	objects@partitioned	index_elem_options/opt_collate_any_name_reloptions_opt_asc_desc_opt_nulls_order!drop-1	CREATE INDEX ON a(a(a))
+42P17	42P17	engine	objects@partitioned	index_elem/func_expr_windowless_index_elem_options	CREATE INDEX ON a(CURRENT_DATE)
+42P17	42P17	engine	objects@partitioned	index_elem/func_expr_windowless_index_elem_options!insert	CREATE INDEX ON a(CURRENT_DATE zzz)
+42P17	42P17	engine	objects@partitioned	index_elem/func_expr_windowless_index_elem_options!swap	CREATE INDEX ON a(CURRENT_ROLE)
+ok:2e7fac954859	ok:2e7fac954859	engine	objects@partitioned	index_elem/(_a_expr_)_index_elem_options	CREATE INDEX ON a((a))
+42704	42704	engine	objects@partitioned	index_elem/(_a_expr_)_index_elem_options!insert	CREATE INDEX ON a((a) zzz)
+ok:fdb575865267	ok:fdb575865267	engine	objects@partitioned	opt_include/INCLUDE_(_index_including_params_)	CREATE INDEX ON a(a) INCLUDE(a)
+42P17	42P17	engine	objects@partitioned	index_including_params/index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a zzz)
+ok:3feec0dc3e2d	ok:3feec0dc3e2d	engine	objects@partitioned	index_including_params/index_including_params_,_index_elem	CREATE INDEX ON a(a) INCLUDE(a, a)
+42P17	42P17	engine	objects@partitioned	index_including_params/index_including_params_,_index_elem!drop-2	CREATE INDEX ON a(a) INCLUDE(a a)
+42P17	42P17	engine	objects@partitioned	index_including_params/index_including_params_,_index_elem!insert	CREATE INDEX ON a(a) INCLUDE(a, a zzz)
+42704	42704	engine	objects@partitioned	opt_collate/COLLATE_any_name	CREATE INDEX ON a(a COLLATE a)
+42704	42704	engine	objects@partitioned	opt_collate/COLLATE_any_name!insert	CREATE INDEX ON a(a COLLATE a zzz)
+42P07	42P07	engine	objects@partitioned	RenameStmt/ALTER_TABLE_relation_expr_RENAME_TO_name	ALTER TABLE a RENAME TO a
+42P07	42P07	engine	objects@partitioned	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_TO_name	ALTER TABLE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_SEQUENCE_qualified_name_RENAME_TO_name	ALTER SEQUENCE a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER SEQUENCE IF EXISTS a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_VIEW_qualified_name_RENAME_TO_name	ALTER VIEW a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER VIEW IF EXISTS a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW a RENAME TO a
+42809	42809	engine	objects@partitioned	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+42P07	42P07	engine	objects@partitioned	RenameStmt/ALTER_INDEX_qualified_name_RENAME_TO_name	ALTER INDEX a RENAME TO a
+42P07	42P07	engine	objects@partitioned	RenameStmt/ALTER_INDEX_IF_P_EXISTS_qualified_name_RENAME_TO_name	ALTER INDEX IF EXISTS a RENAME TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE a RENAME a TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
+42701	42701	engine	objects@partitioned	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+42704	42704	engine	objects@partitioned	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
+42704	42704	engine	objects@partitioned	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
+42P16	42P16	engine	objects@partitioned	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
+42P16	42P16	engine	objects@partitioned	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
+42809	42809	engine	objects@partitioned	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	objects@partitioned	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+3F000	3F000	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
+3F000	3F000	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_VIEW_qualified_name_SET_SCHEMA_name	ALTER VIEW a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW a SET SCHEMA a
+42809	42809	engine	objects@partitioned	AlterObjectSchemaStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_SET_SCHEMA_name	ALTER MATERIALIZED VIEW IF EXISTS a SET SCHEMA a
+42809	42809	engine	objects@partitioned	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
+42703	42703	engine	objects@partitioned	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
+42P10	42P10	engine	objects@partitioned	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@partitioned	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
+42703	42703	engine	objects@partitioned	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
+42P10	42P10	engine	objects@partitioned	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+42601	42601	engine	objects@partitioned	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-4	CREATE OR REPLACE VIEW a(a) AS SELECT
+42703	42703	engine	objects@partitioned	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
+0A000	0A000	engine	objects@partitioned	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
+0A000	0A000	engine	objects@partitioned	opt_check_option/WITH_CASCADED_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CASCADED CHECK OPTION
+0A000	0A000	engine	objects@partitioned	opt_check_option/WITH_LOCAL_CHECK_OPTION	CREATE VIEW a AS SELECT WITH LOCAL CHECK OPTION
+42P07	42P07	engine	objects@partitioned	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE a AS EXECUTE a
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a

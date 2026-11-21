@@ -224,6 +224,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.need(own, walk.Present, nil, rng, msg, "") // 1091
 			b.Set(fk, walk.Absent, "")
 			b.Set(own, walk.Absent, "")
+			b.onForeignKeyDropped(r, k)
 		case dropCheck:
 		case dropConstraint:
 			// The foreign key, unique key, or check of the name.
@@ -249,12 +250,15 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.leave(fk)
 			b.arrive(tk)
 		}
+		b.consumeFKGenerated(fk)
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
 			return false
 		}
-		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
+		ik := idxKey(r.db, r.name, k)
+		b.need(ik, walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
+		b.consumeFKGenerated(ik)
 	default:
 		return alterNoFacts(c)
 	}
@@ -452,7 +456,10 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			ik := idxKey(r.db, r.name, k)
+			if !b.isFKGenerated(ik) {
+				b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			}
 		}
 	}
 	b.constraint(r, c)
@@ -472,6 +479,7 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range) bool 
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)
+	b.consumeFKGenerated(ik)
 	return true
 }
 
@@ -524,6 +532,7 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 	b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
 	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
+	fromPath := tablePath(from.db, from.name)
 	b.Session(func() {
 		if b.w.triggered[fk] {
 			b.w.triggered[tk] = true
@@ -534,6 +543,27 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 			b.w.ignoresFKs[tk] = true
 		} else {
 			delete(b.w.ignoresFKs, tk)
+		}
+		type movedGenEntry struct {
+			name   string
+			owners map[string]bool
+		}
+		var movedGen []movedGenEntry
+		for gk, owners := range b.w.fkGeneratedIndexes {
+			if gk.Parent == fromPath {
+				movedGen = append(movedGen, movedGenEntry{name: gk.Name, owners: owners})
+				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+		for _, entry := range movedGen {
+			rewritten := make(map[string]bool, len(entry.owners))
+			for fkName := range entry.owners {
+				if old != "" && renamed != "" && strings.HasPrefix(fkName, old) {
+					fkName = renamed + strings.TrimPrefix(fkName, old)
+				}
+				rewritten[fkName] = true
+			}
+			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, entry.name)] = rewritten
 		}
 	})
 }
@@ -638,6 +668,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(k, walk.Absent, "")
 			b.Clear(path)
 			b.droppedOwned(r)
+			b.clearTableFKGenerated(r.db, r.name)
 		}
 	}
 	return true

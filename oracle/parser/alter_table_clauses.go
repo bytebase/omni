@@ -360,9 +360,9 @@ func (p *Parser) parseATSegmentAttrs(opts *nodes.List) error {
 // COMPRESS, NOCOMPRESS, ROW STORE COMPRESS, COLUMN STORE COMPRESS.
 func (p *Parser) isATTableCompressionStart() bool {
 	switch {
-	case p.cur.Type == kwCOMPRESS, p.cur.Type == kwNOCOMPRESS:
+	case p.cur.Type == kwCOMPRESS, p.cur.Type == kwNOCOMPRESS, p.cur.Type == kwROW:
 		return true
-	case p.cur.Type == kwROW, p.cur.Type == kwCOLUMN:
+	case p.cur.Type == kwCOLUMN:
 		return p.atNextWord("STORE")
 	}
 	return false
@@ -391,7 +391,9 @@ func (p *Parser) parseATTableCompression(prefix bool) error {
 		return nil
 	case p.cur.Type == kwROW:
 		p.advance() // ROW
-		p.advance() // STORE
+		if err := p.atExpectWord("STORE"); err != nil {
+			return err
+		}
 		// Oracle takes ROW STORE and COLUMN STORE without COMPRESS, as it
 		// does in an ILM policy.
 		if p.cur.Type != kwCOMPRESS {
@@ -538,6 +540,11 @@ func (p *Parser) parseATInmemoryRest() error {
 		p.advance()
 		if p.cur.Type == kwALL {
 			p.advance()
+		} else if p.cur.Type == kwFOR && p.alterMview {
+			// On ALTER MATERIALIZED VIEW, Oracle consumes FOR after DUPLICATE
+			// before refusing the unsupported FOR SERVICE clause at the next token.
+			p.advance()
+			return p.syntaxErrorAtCur()
 		}
 	case p.atWord("NO") && !p.atNextWord("INMEMORY") && p.peekNext().Type != kwFLASHBACK:
 		p.advance()
@@ -687,9 +694,11 @@ func (p *Parser) parseATIlmPolicy() error {
 			return err
 		}
 		return p.parseATIlmCondition(false, true)
-	case p.cur.Type == kwMODIFY && p.atNextWord("INMEMORY"):
+	case p.cur.Type == kwMODIFY:
 		p.advance()
-		p.advance()
+		if err := p.atExpectWord("INMEMORY"); err != nil {
+			return err
+		}
 		if p.atWord("NO") {
 			p.advance()
 			if err := p.atExpectWord("MEMCOMPRESS"); err != nil {
@@ -710,11 +719,13 @@ func (p *Parser) parseATIlmPolicy() error {
 			return err
 		}
 		return p.parseATIlmCondition(false, true)
-	case p.cur.Type == kwROW && p.atNextWord("STORE"), p.cur.Type == kwCOLUMN && p.atNextWord("STORE"):
+	case p.cur.Type == kwROW, p.cur.Type == kwCOLUMN:
 		column := p.cur.Type == kwCOLUMN
 		rowLevel := false
 		p.advance()
-		p.advance()
+		if err := p.atExpectWord("STORE"); err != nil {
+			return err
+		}
 		if p.cur.Type == kwCOMPRESS {
 			p.advance()
 			if column && p.cur.Type == kwFOR {
@@ -749,6 +760,11 @@ func (p *Parser) parseATIlmCondition(rowLevel, inmemory bool) error {
 		p.advance()
 	case !inmemory && (p.cur.Type == kwGROUP || rowLevel && p.cur.Type == kwROW):
 		p.advance()
+	case !inmemory && p.cur.Type == kwROW:
+		// Oracle consumes ROW on a non-row-level compression policy before
+		// refusing what follows it (matching TIER TO a ROW above).
+		p.advance()
+		return p.syntaxErrorAtCur()
 	case !inmemory:
 		return p.syntaxErrorAtCur()
 	}
@@ -1062,7 +1078,7 @@ func (p *Parser) parseATLobStoreAs() error {
 		return err
 	}
 	any := p.atOptOneOf("SECUREFILE", "BASICFILE")
-	if p.cur.Type != '(' && p.isATNameStart() && !p.isATAfterLobStorage() {
+	if p.cur.Type != '(' && p.isATNameStart() && (!any || !p.isATAfterLobStorage()) {
 		p.advance()
 		any = true
 	}
@@ -1296,6 +1312,9 @@ const (
 	atcOnline
 	// atcFilter is filter_condition.
 	atcFilter
+	// atcSplitFilter is filter_condition on SPLIT, where Oracle enters the
+	// clause on INCLUDING even when ROWS is missing.
+	atcSplitFilter
 	// atcDependentTables is dependent_tables_clause.
 	atcDependentTables
 	// atcMappingTable is MAPPING TABLE.
@@ -1381,7 +1400,7 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 		return atcOverflowTablespace
 	case has(atcOverflow) && p.atWord("OVERFLOW"):
 		return atcOverflow
-	case has(atcLobModify) && p.isATLobModifyStart():
+	case has(atcLobModify) && p.atWord("LOB"):
 		return atcLobModify
 	case has(atcLobStorage) && p.isATLobStorageStart():
 		return atcLobStorage
@@ -1403,7 +1422,9 @@ func (p *Parser) atClauseAt(allowed atClauses) atClauses {
 		return atcOnline
 	case has(atcFilter) && p.atWord("INCLUDING") && p.peekNext().Type == kwROWS:
 		return atcFilter
-	case has(atcDependentTables) && p.atWord("DEPENDENT") && p.atNextWord("TABLES"):
+	case has(atcSplitFilter) && p.atWord("INCLUDING"):
+		return atcFilter
+	case has(atcDependentTables) && p.atWord("DEPENDENT"):
 		return atcDependentTables
 	case has(atcMappingTable) && p.atWord("MAPPING"):
 		return atcMappingTable
@@ -2017,7 +2038,9 @@ func (p *Parser) parseATExternalDataProp() error {
 // parseATFilterCondition reads filter_condition: INCLUDING ROWS WHERE condition.
 func (p *Parser) parseATFilterCondition() error {
 	p.advance() // INCLUDING
-	p.advance() // ROWS
+	if err := p.atExpect(kwROWS); err != nil {
+		return err
+	}
 	if err := p.atExpect(kwWHERE); err != nil {
 		return err
 	}
@@ -2638,7 +2661,7 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 	if *method == atMethodHash && p.atWord("SUBPARTITIONS") {
 		return p.parseATHashSubpartsByQuantity()
 	}
-	if p.cur.Type == kwSUBPARTITION && p.atNextWord("TEMPLATE") {
+	if p.cur.Type == kwSUBPARTITION {
 		return p.parseATSubpartitionTemplate(*method)
 	}
 	return nil
@@ -2656,7 +2679,9 @@ func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
 	defer func(saved bool) { p.atSubpartitionTemplate = saved }(p.atSubpartitionTemplate)
 	p.atSubpartitionTemplate = true
 	p.advance() // SUBPARTITION
-	p.advance() // TEMPLATE
+	if err := p.atExpectWord("TEMPLATE"); err != nil {
+		return err
+	}
 	if p.alterMview {
 		// Oracle reads a bare SUBPARTITION here, and a word where
 		// SUBPARTITIONS stands, as acceptances on ALTER MATERIALIZED VIEW.
@@ -2671,8 +2696,11 @@ func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
 			return nil
 		}
 	}
-	if p.cur.Type == tokICONST && (method == atMethodAny || method == atMethodHash) {
+	if p.cur.Type == tokICONST {
 		p.advance()
+		if method != atMethodAny && method != atMethodHash {
+			return p.syntaxErrorAtCur()
+		}
 		return nil
 	}
 	if p.cur.Type == '(' && p.peekNext().Type == ')' {

@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	chanalysis "github.com/bytebase/omni/clickhouse/analysis"
 	"github.com/bytebase/omni/clickhouse/internal/testcontainer"
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -41,7 +42,7 @@ func execCorpus(t *testing.T, db *sql.DB, script string) {
 		t.Fatal(err)
 	}
 	defer func() { _ = conn.Close() }()
-	statements, err := splitSQL(script)
+	statements, err := chanalysis.Split(script)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -191,8 +191,43 @@ func checkDynamicPartitionPolicy(tbl *Table, text string) error {
 		return errNotSupported("specify dynamic partition on non partitioned table is")
 	case !strings.HasPrefix(strings.ToUpper(tbl.Partitioning.Type), "RANGE"):
 		return errNotSupported("specify dynamic partition on table not partitioned by range is")
+	case !dynamicPartitionKeySupported(tbl):
+		return errNotSupported("for dynamic partition, this part key type is")
 	}
 	return nil
+}
+
+// dynamicPartitionKeySupported reports whether tbl's RANGE partition key column
+// has a type OceanBase 4.3.5.6 allows for dynamic partitioning (date/time,
+// bigint, or string; plain int is refused with 1235).
+func dynamicPartitionKeySupported(tbl *Table) bool {
+	if tbl.Partitioning == nil {
+		return true
+	}
+	pi := tbl.Partitioning
+	var keyCol string
+	switch {
+	case len(pi.keyColumns) == 1:
+		keyCol = pi.keyColumns[0]
+	case len(pi.keyColumns) == 0 && len(pi.Columns) == 1:
+		keyCol = pi.Columns[0]
+	case len(pi.keyColumns) == 0 && len(pi.Columns) == 0:
+		if col, ok := partitionKeyColumn(pi.Expr); ok {
+			keyCol = col
+		}
+	}
+	if keyCol == "" {
+		return true
+	}
+	col := tbl.GetColumn(keyCol)
+	if col == nil {
+		return true
+	}
+	switch strings.ToLower(col.DataType) {
+	case "date", "datetime", "timestamp", "bigint", "varchar", "char":
+		return true
+	}
+	return false
 }
 
 // validOffsetZone reports whether text is an offset OceanBase takes as a time

@@ -169,24 +169,22 @@ func generateSQLForTable(statementInfoList []statementInfo, targetDatabase strin
 	if _, err := fmt.Fprintf(&buf, "SELECT * INTO [%s].[%s].[%s] FROM (\n", targetDatabase, defaultSchema, targetTable); err != nil {
 		return nil, fmt.Errorf("failed to write buffer: %w", err)
 	}
+	var optionClauses []string
 	for i, item := range statementInfoList {
 		if i > 0 {
 			if _, err := buf.WriteString("\n  UNION\n"); err != nil {
 				return nil, fmt.Errorf("failed to write buffer: %w", err)
 			}
 		}
-		topClause, fromClause, err := extractSuffixSelectStatement(item.node, item.statement)
+		topClause, fromClause, optionClause, err := extractSuffixSelectStatement(item.node, item.statement)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract suffix select statement: %w", err)
 		}
-		if len(item.table.Alias) == 0 {
-			if _, err := fmt.Fprintf(&buf, "  SELECT [%s].[%s].[%s].* ", item.table.Database, item.table.Schema, item.table.Table); err != nil {
-				return nil, fmt.Errorf("failed to write buffer: %w", err)
-			}
-		} else {
-			if _, err := fmt.Fprintf(&buf, "  SELECT [%s].* ", item.table.Alias); err != nil {
-				return nil, fmt.Errorf("failed to write buffer: %w", err)
-			}
+		if optionClause != "" && !slices.Contains(optionClauses, optionClause) {
+			optionClauses = append(optionClauses, optionClause)
+		}
+		if _, err := buf.WriteString("  SELECT "); err != nil {
+			return nil, fmt.Errorf("failed to write buffer: %w", err)
 		}
 		if len(topClause) > 0 {
 			if _, err := buf.WriteString(topClause); err != nil {
@@ -196,13 +194,33 @@ func generateSQLForTable(statementInfoList []statementInfo, targetDatabase strin
 				return nil, fmt.Errorf("failed to write buffer: %w", err)
 			}
 		}
+		if len(item.table.Alias) == 0 {
+			if _, err := fmt.Fprintf(&buf, "[%s].[%s].[%s].* ", item.table.Database, item.table.Schema, item.table.Table); err != nil {
+				return nil, fmt.Errorf("failed to write buffer: %w", err)
+			}
+		} else {
+			if _, err := fmt.Fprintf(&buf, "[%s].* ", item.table.Alias); err != nil {
+				return nil, fmt.Errorf("failed to write buffer: %w", err)
+			}
+		}
 		if len(fromClause) > 0 {
 			if _, err := buf.WriteString(fromClause); err != nil {
 				return nil, fmt.Errorf("failed to write buffer: %w", err)
 			}
 		}
 	}
-	if _, err := buf.WriteString(") AS backup_table;"); err != nil {
+	if _, err := buf.WriteString(") AS backup_table"); err != nil {
+		return nil, fmt.Errorf("failed to write buffer: %w", err)
+	}
+	if outerOption := mergeOptionClauses(optionClauses); outerOption != "" {
+		if _, err := buf.WriteString(" "); err != nil {
+			return nil, fmt.Errorf("failed to write buffer: %w", err)
+		}
+		if _, err := buf.WriteString(outerOption); err != nil {
+			return nil, fmt.Errorf("failed to write buffer: %w", err)
+		}
+	}
+	if _, err := buf.WriteString(";"); err != nil {
 		return nil, fmt.Errorf("failed to write buffer: %w", err)
 	}
 	return &BackupStatement{
@@ -255,22 +273,52 @@ func dmlWithClause(node ast.Node) *ast.WithClause {
 	}
 }
 
-func extractSuffixSelectStatement(node ast.Node, source string) (string, string, error) {
+func extractSuffixSelectStatement(node ast.Node, source string) (string, string, string, error) {
 	switch n := node.(type) {
 	case *ast.UpdateStmt:
 		if _, ok := n.WhereClause.(*ast.CurrentOfExpr); ok {
-			return "", "", errors.New("UPDATE statement with CURSOR clause is not supported")
+			return "", "", "", errors.New("UPDATE statement with CURSOR clause is not supported")
 		}
-		fromSource, searchStart := dmlFromSource(source, n.Relation, n.FromClause, dmlNodeLoc(n), n.WhereClause, n.OptionClause)
-		return sourceFromLoc(source, dmlNodeLoc(n.Top)), buildDMLFromClause(source, fromSource, searchStart, dmlNodeLoc(n), n.WhereClause, n.OptionClause), nil
+		stmtLoc := dmlNodeLoc(n)
+		fromSource, searchStart := dmlFromSource(source, n.Relation, n.FromClause, stmtLoc, n.WhereClause, n.OptionClause)
+		fromClause, optionClause := buildDMLFromAndOption(source, fromSource, searchStart, stmtLoc, n.WhereClause, n.OptionClause)
+		return sourceFromLoc(source, dmlNodeLoc(n.Top)), fromClause, optionClause, nil
 	case *ast.DeleteStmt:
 		if _, ok := n.WhereClause.(*ast.CurrentOfExpr); ok {
-			return "", "", errors.New("DELETE statement with CURSOR clause is not supported")
+			return "", "", "", errors.New("DELETE statement with CURSOR clause is not supported")
 		}
-		fromSource, searchStart := dmlFromSource(source, n.Relation, n.FromClause, dmlNodeLoc(n), n.WhereClause, n.OptionClause)
-		return sourceFromLoc(source, dmlNodeLoc(n.Top)), buildDMLFromClause(source, fromSource, searchStart, dmlNodeLoc(n), n.WhereClause, n.OptionClause), nil
+		stmtLoc := dmlNodeLoc(n)
+		fromSource, searchStart := dmlFromSource(source, n.Relation, n.FromClause, stmtLoc, n.WhereClause, n.OptionClause)
+		fromClause, optionClause := buildDMLFromAndOption(source, fromSource, searchStart, stmtLoc, n.WhereClause, n.OptionClause)
+		return sourceFromLoc(source, dmlNodeLoc(n.Top)), fromClause, optionClause, nil
 	default:
-		return "", "", nil
+		return "", "", "", nil
+	}
+}
+
+func mergeOptionClauses(clauses []string) string {
+	switch len(clauses) {
+	case 0:
+		return ""
+	case 1:
+		return clauses[0]
+	default:
+		var hints []string
+		for _, clause := range clauses {
+			open := strings.IndexByte(clause, '(')
+			close := strings.LastIndexByte(clause, ')')
+			if open < 0 || close <= open {
+				continue
+			}
+			inner := strings.TrimSpace(clause[open+1 : close])
+			if inner != "" && !slices.Contains(hints, inner) {
+				hints = append(hints, inner)
+			}
+		}
+		if len(hints) == 0 {
+			return clauses[0]
+		}
+		return "OPTION (" + strings.Join(hints, ", ") + ")"
 	}
 }
 
@@ -420,36 +468,48 @@ func dmlFromSource(source string, relation ast.TableExpr, fromClause *ast.List, 
 	return sourceFromLoc(source, loc), loc.End
 }
 
-func buildDMLFromClause(source, fromSource string, searchStart int, stmtLoc ast.Loc, where ast.ExprNode, option *ast.List) string {
+func buildDMLFromAndOption(source, fromSource string, searchStart int, stmtLoc ast.Loc, where ast.ExprNode, option *ast.List) (string, string) {
 	if fromSource == "" {
-		return ""
+		return "", ""
 	}
-	tail := dmlTrailingClause(source, searchStart, stmtLoc, where, option)
-	if tail == "" {
-		return "FROM " + fromSource
-	}
-	return "FROM " + fromSource + " " + tail
-}
-
-func dmlTrailingClause(source string, searchStart int, stmtLoc ast.Loc, where ast.ExprNode, option *ast.List) string {
 	end := trimDMLStatementEnd(source, stmtLoc.End)
-	start := dmlTailStart(source, searchStart, stmtLoc, where, option)
-	if start < 0 || start >= end {
-		return ""
+	optionStart := dmlOptionStart(source, searchStart, end, option)
+	var optionClause string
+	if optionStart >= 0 && optionStart < end {
+		optionClause = strings.TrimSpace(source[optionStart:end])
+		end = optionStart
 	}
-	return strings.TrimSpace(source[start:end])
+	var whereClause string
+	if where != nil {
+		if whereStart := findKeywordBefore(source, "WHERE", dmlNodeLoc(where).Start, searchStart); whereStart >= 0 && whereStart < end {
+			whereClause = strings.TrimSpace(source[whereStart:end])
+		}
+	}
+	if whereClause == "" {
+		return "FROM " + fromSource, optionClause
+	}
+	return "FROM " + fromSource + " " + whereClause, optionClause
 }
 
-func dmlTailStart(source string, searchStart int, _ ast.Loc, where ast.ExprNode, option *ast.List) int {
+func dmlOptionStart(source string, searchStart, end int, option *ast.List) int {
+	if option == nil {
+		return -1
+	}
+	if loc := listLoc(option); loc.Start >= 0 {
+		if start := findKeywordBefore(source, "OPTION", loc.Start, searchStart); start >= 0 {
+			return start
+		}
+	}
+	return findKeywordAfter(source, "OPTION", searchStart, end)
+}
+
+func dmlTailStart(source string, searchStart int, stmtLoc ast.Loc, where ast.ExprNode, option *ast.List) int {
 	if where != nil {
 		if start := findKeywordBefore(source, "WHERE", dmlNodeLoc(where).Start, searchStart); start >= 0 {
 			return start
 		}
 	}
-	if option != nil {
-		return findKeywordAfter(source, "OPTION", searchStart, len(source))
-	}
-	return -1
+	return dmlOptionStart(source, searchStart, trimDMLStatementEnd(source, stmtLoc.End), option)
 }
 
 func trimDMLStatementEnd(source string, end int) int {

@@ -142,7 +142,7 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	}
 
 	sub := createTableHashBound
-	if p.isKeywordStr("SUBPARTITION") && p.peekNext().Type == kwBY {
+	if p.isKeywordStr("SUBPARTITION") {
 		var err error
 		clause.Subpartition, sub, err = p.parseCreateTableSubpartitionBy()
 		if err != nil {
@@ -300,7 +300,9 @@ func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, creat
 		Loc:        nodes.Loc{Start: p.pos()},
 	}
 	p.advance() // consume SUBPARTITION
-	p.advance() // consume BY
+	if err := p.expectCreateTableToken(kwBY); err != nil {
+		return nil, 0, err
+	}
 	var bound createTablePartitionKind
 	switch {
 	case p.isKeywordStr("RANGE"):
@@ -321,14 +323,16 @@ func (p *Parser) parseCreateTableSubpartitionBy() (*nodes.PartitionClause, creat
 		if err := p.parseCreateTableSubpartitionsByQuantity(); err != nil {
 			return nil, 0, err
 		}
-	case p.isKeywordStr("SUBPARTITION") && isCreateTableWordTok(p.peekNext(), "TEMPLATE"):
+	case p.isKeywordStr("SUBPARTITION"):
 		p.advance() // consume SUBPARTITION
-		p.advance() // consume TEMPLATE
+		if err := p.expectCreateTableWord("TEMPLATE"); err != nil {
+			return nil, 0, err
+		}
 		if p.cur.Type == tokICONST {
+			p.advance()
 			if bound != createTableHashBound {
 				return nil, 0, p.syntaxErrorAtCur()
 			}
-			p.advance()
 			break
 		}
 		if err := p.parseCreateTableSubpartitionDescs(bound, sub.Partitions); err != nil {

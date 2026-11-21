@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -118,21 +119,44 @@ func stringListItems(list *nodes.List) []string {
 // extractRawTypmods extracts all integer typmod values from a pgparser Typmods list.
 // (pgddl helper — PG extracts these in each type's typmodin function)
 func extractRawTypmods(typmods *nodes.List) []int32 {
+	mods, _ := parseRawTypmods(typmods)
+	return mods
+}
+
+// parseRawTypmods extracts all integer typmod values from a pgparser Typmods list
+// and returns the first non-integer item (if any) for typmodin validation.
+func parseRawTypmods(typmods *nodes.List) ([]int32, nodes.Node) {
 	if typmods == nil || len(typmods.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 	var mods []int32
+	var badItem nodes.Node
 	for _, item := range typmods.Items {
 		switch v := item.(type) {
 		case *nodes.A_Const:
-			if v.Val != nil {
-				mods = append(mods, int32(intVal(v.Val)))
+			switch val := v.Val.(type) {
+			case *nodes.Integer:
+				mods = append(mods, int32(val.Ival))
+			case *nodes.String:
+				if parsed, err := strconv.ParseInt(strings.TrimSpace(val.Str), 10, 32); err == nil {
+					mods = append(mods, int32(parsed))
+				} else if badItem == nil {
+					badItem = item
+				}
+			default:
+				if badItem == nil {
+					badItem = item
+				}
 			}
 		case *nodes.Integer:
 			mods = append(mods, int32(v.Ival))
+		default:
+			if badItem == nil {
+				badItem = item
+			}
 		}
 	}
-	return mods
+	return mods, badItem
 }
 
 // encodeTypModByName applies PG's type-specific typmod encoding.
@@ -175,7 +199,8 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 	name = resolveAlias(name)
 
 	// Compute typmod from Typmods list.
-	rawMods := extractRawTypmods(tn.Typmods)
+	hasTypmods := tn.Typmods != nil && len(tn.Typmods.Items) > 0
+	rawMods, badModItem := parseRawTypmods(tn.Typmods)
 	typmod := int32(-1)
 	if len(rawMods) > 0 {
 		typmod = rawMods[0] // pass raw first mod for ResolveType validation
@@ -197,6 +222,34 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 	})
 	if err != nil {
 		return 0, -1, err
+	}
+
+	// pg: src/backend/parser/parse_type.c — typenameTypeMod
+	// Reject modifiers on types without a typmodin function even when the
+	// modifier expression is non-integer (e.g. a(a) 's'), and reject non-integer
+	// modifiers for built-in types whose typmodin expects integer arguments
+	// (e.g. BIT(a) 's').
+	if hasTypmods {
+		if bt := c.typeByOID[oid]; bt != nil {
+			modType := bt
+			if isArray && bt.Elem != 0 {
+				if elem := c.typeByOID[bt.Elem]; elem != nil {
+					modType = elem
+				}
+			}
+			if modType.ModIn == 0 {
+				return 0, -1, &Error{
+					Code:    CodeSyntaxError,
+					Message: fmt.Sprintf("type modifier is not allowed for type %q", modType.TypeName),
+				}
+			}
+			if badModItem != nil && modType.OID < FirstNormalObjectId {
+				return 0, -1, &Error{
+					Code:    CodeInvalidTextRepresentation,
+					Message: fmt.Sprintf("invalid input syntax for type integer: %q", deparseAConst(badModItem)),
+				}
+			}
+		}
 	}
 
 	// Encode typmod in PG format using type-specific encoding.

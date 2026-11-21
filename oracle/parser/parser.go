@@ -342,16 +342,24 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		return nil, err
 	}
 	// The scan's error answers for every statement whose parsers stopped
-	// inside the group it finds open, and for one that stops at a ')' it
-	// refuses: there the parsers reached the end of the text, where Oracle
-	// wants more input and reports the end, or the ')' itself. A statement
-	// whose parsers stopped before that group stopped at a token the grammar
-	// cannot take, which is its first error and the token Oracle reports, so
-	// that error is the answer. p.engineCrash names a refusal whose byte is
-	// the engine's and not the grammar's (see Parser.engineCrash).
-	var pe *ParseError
-	if !errors.As(err, &pe) || open >= 0 && pe.Position <= open && pe.Position != p.engineCrash {
+	// inside an unterminated group (open >= 0 and pe.Position > open) or past
+	// a stray ')' (open < 0 and pe.Position > scanPE.Position). A statement
+	// whose parsers stopped at or before that delimiter stopped at an earlier
+	// token the grammar cannot take, which is its first error and the token
+	// Oracle reports, so that error is the answer. p.engineCrash names a
+	// refusal whose byte is the engine's and not the grammar's (see
+	// Parser.engineCrash).
+	var pe, scanPE *ParseError
+	if !errors.As(err, &pe) {
 		return nil, err
+	}
+	if pe.Position != p.engineCrash {
+		if open >= 0 && pe.Position <= open {
+			return nil, err
+		}
+		if open < 0 && errors.As(scanErr, &scanPE) && pe.Position <= scanPE.Position {
+			return nil, err
+		}
 	}
 	return nil, scanErr
 }
@@ -1085,6 +1093,7 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		if next.Type == kwCONSTRAINT || next.Type == kwCONSTRAINTS {
 			return p.parseSetConstraintsStmt()
 		}
+		p.advance() // consume SET
 		return nil, p.syntaxErrorAtCur()
 	case kwAUDIT:
 		return p.parseAuditStmt()

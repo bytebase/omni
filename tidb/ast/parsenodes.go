@@ -369,6 +369,9 @@ type AlterTableCmd struct {
 	// their handling: with tidb_enable_check_constraint off, TiDB lets the
 	// last two name nothing and answers 1091 for a missing foreign key.
 	ForeignKey bool
+	// PrimaryKey marks an ATDropConstraint written DROP PRIMARY KEY, so the
+	// catalog tells it apart from DROP CHECK / DROP CONSTRAINT named PRIMARY.
+	PrimaryKey bool
 	// IfNotExists records the IF NOT EXISTS the ADD actions TiDB and MariaDB
 	// allow it on carry: ADD [COLUMN], ADD PARTITION, ADD {INDEX | KEY} and
 	// ADD FOREIGN KEY. MySQL 8.0.46 has none of them.
@@ -793,10 +796,21 @@ const (
 	PartitionSystemTime // SYSTEM_TIME, which TiDB reads and does not apply
 )
 
+// PartitionBoundKind identifies the VALUES clause written on a PartitionDef.
+type PartitionBoundKind int
+
+const (
+	PartBoundNone PartitionBoundKind = iota
+	PartBoundLessThan
+	PartBoundIn
+	PartBoundHistory
+)
+
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
 	Loc           Loc
 	Name          string
+	BoundKind     PartitionBoundKind
 	Values        Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef

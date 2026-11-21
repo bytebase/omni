@@ -296,7 +296,8 @@ func TestParseGrammarAuth(t *testing.T) {
 
 // TestParseGrammarRejects holds Parse to what Cassandra refuses while it
 // parses: forms Cql.g4 does not derive, and those an action of Parser.g
-// refuses (testdata/grammar-overrides.tsv cites each kind).
+// refuses (verified against the pinned Cassandra server in
+// parser/testdata/compat.tsv).
 func TestParseGrammarRejects(t *testing.T) {
 	for _, sql := range []string{
 		// Not derived.

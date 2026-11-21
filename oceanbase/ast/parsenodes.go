@@ -835,6 +835,7 @@ type PartitionDef struct {
 	Loc           Loc
 	Name          string
 	Values        Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	ValuesIn      bool // true when Values came from VALUES IN rather than VALUES LESS THAN
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef
 }

@@ -79,6 +79,72 @@ func TestGetStatementWithResultLimitInline(t *testing.T) {
 			want:      "SELECT 1 LIMIT 1000 OFFSET 0;",
 		},
 		{
+			name:      "existing LIMIT lower than requested is kept",
+			statement: "SELECT * FROM users LIMIT 5",
+			limit:     10,
+			want:      "SELECT * FROM users LIMIT 5",
+		},
+		{
+			name:      "existing LIMIT higher than requested is lowered",
+			statement: "SELECT * FROM users LIMIT 100",
+			limit:     10,
+			want:      "SELECT * FROM users LIMIT 10",
+		},
+		{
+			name:      "parenthesized SELECT",
+			statement: "(SELECT * FROM users)",
+			limit:     10,
+			want:      "(SELECT * FROM users) LIMIT 10",
+		},
+		{
+			name:      "nested parenthesized SELECT",
+			statement: "((SELECT * FROM users))",
+			limit:     10,
+			want:      "((SELECT * FROM users)) LIMIT 10",
+		},
+		{
+			name:      "parenthesized SELECT with higher existing LIMIT",
+			statement: "(SELECT * FROM users LIMIT 100)",
+			limit:     10,
+			want:      "(SELECT * FROM users LIMIT 10)",
+		},
+		{
+			name:      "parenthesized SELECT with lower existing LIMIT",
+			statement: "(SELECT * FROM users LIMIT 5)",
+			limit:     10,
+			want:      "(SELECT * FROM users LIMIT 5)",
+		},
+		{
+			name:      "LIMIT ALL returns error for CTE fallback",
+			statement: "SELECT * FROM t LIMIT ALL OFFSET 2;",
+			limit:     10,
+			wantErr:   true,
+		},
+		{
+			name:      "LIMIT NULL returns error for CTE fallback",
+			statement: "SELECT * FROM t LIMIT NULL OFFSET 2;",
+			limit:     10,
+			wantErr:   true,
+		},
+		{
+			name:      "non-SELECT INSERT unchanged",
+			statement: "INSERT INTO users (name) VALUES ('John')",
+			limit:     10,
+			want:      "INSERT INTO users (name) VALUES ('John')",
+		},
+		{
+			name:      "non-SELECT UPDATE unchanged",
+			statement: "UPDATE users SET active = false WHERE id = 1",
+			limit:     10,
+			want:      "UPDATE users SET active = false WHERE id = 1",
+		},
+		{
+			name:      "non-SELECT DELETE unchanged",
+			statement: "DELETE FROM users WHERE active = false",
+			limit:     10,
+			want:      "DELETE FROM users WHERE active = false",
+		},
+		{
 			name: "CTE with lateral and ORDER BY",
 			statement: `WITH params AS (
   SELECT 'resource.environment_id in []'::text AS env_condition

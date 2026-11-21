@@ -2,9 +2,9 @@ package catalog
 
 import (
 	"fmt"
-	"strconv"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
 )
 
 // analyzeTargetList processes the SELECT list, populating q.TargetList.
@@ -16,6 +16,9 @@ func analyzeTargetList(c *Catalog, targetList []nodes.ExprNode, q *Query, scope 
 			return err
 		}
 		q.TargetList = append(q.TargetList, entries...)
+		for _, te := range entries {
+			scope.addSelectAlias(te.ResName, te.Expr)
+		}
 	}
 	return nil
 }
@@ -25,15 +28,19 @@ func analyzeTargetList(c *Catalog, targetList []nodes.ExprNode, q *Query, scope 
 func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	switch n := item.(type) {
 	case *nodes.ResTarget:
-		// Aliased expression: SELECT expr AS alias
+		// Aliased (or wrapped) expression: SELECT expr AS alias
 		analyzed, err := analyzeExpr(c, n.Val, scope)
 		if err != nil {
 			return nil, err
 		}
+		name := n.Name
+		if name == "" {
+			name = deriveColumnName(n.Val, analyzed, *resNo, scope.source)
+		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: n.Name,
+			ResName: name,
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -41,12 +48,12 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	case *nodes.StarExpr:
 		// SELECT *
-		return expandStar("", q, scope, resNo)
+		return expandStar("", "", q, scope, resNo)
 
 	case *nodes.ColumnRef:
 		if n.Star {
-			// SELECT t.*
-			return expandStar(n.Table, q, scope, resNo)
+			// SELECT t.* or SELECT db.t.*
+			return expandStar(n.Schema, n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
 		analyzed, err := analyzeExpr(c, item, scope)
@@ -56,7 +63,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed, *resNo),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -71,7 +78,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed, *resNo),
+			ResName: deriveColumnName(item, analyzed, *resNo, scope.source),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -79,34 +86,52 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	}
 }
 
-// expandStar expands a star expression (SELECT * or SELECT t.*) into
-// individual TargetEntryQ values.
-func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+// expandStar expands a star expression (SELECT *, SELECT t.*, or SELECT db.t.*)
+// into individual TargetEntryQ values.
+func expandStar(schemaName, tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 
 	if tableName == "" {
-		// SELECT * — expand all tables in scope order.
+		// SELECT * — expand all tables in scope order, omitting coalesced
+		// USING/NATURAL join columns from the right side.
 		for _, e := range scope.allEntries() {
-			entries, err := expandScopeEntry(e, q, scope, resNo)
+			entries, err := expandScopeEntry(e, q, scope, resNo, true)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		}
 	} else {
-		// SELECT t.* — expand only the named table.
-		lower := toLower(tableName)
-		if i := scope.entryIndex(lower); i >= 0 {
-			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
+		// SELECT t.* / SELECT db.t.* — expand all columns of the named table,
+		// including columns coalesced by USING/NATURAL (MySQL keeps every
+		// column of the named table for qualified stars).
+		idx := -1
+		if schemaName != "" {
+			entries := scope.base.AllEntries()
+			for i, e := range entries {
+				if i < len(scope.dbNames) && toLower(scope.dbNames[i]) == toLower(schemaName) && toLower(e.Name) == toLower(tableName) {
+					idx = i
+					break
+				}
+			}
+		} else {
+			idx = scope.entryIndex(toLower(tableName))
+		}
+		if idx >= 0 {
+			entries, err := expandScopeEntry(scope.entry(idx), q, scope, resNo, false)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		} else {
+			name := tableName
+			if schemaName != "" {
+				name = schemaName + "." + tableName
+			}
 			return nil, &Error{
 				Code:     ErrUnknownTable,
 				SQLState: sqlState(ErrUnknownTable),
-				Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+				Message:  fmt.Sprintf("Unknown table '%s'", name),
 			}
 		}
 	}
@@ -117,14 +142,15 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	return result, nil
 }
 
-// expandScopeEntry expands all columns from a single scope entry,
-// skipping columns marked as coalesced by USING/NATURAL.
-func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+// expandScopeEntry expands all columns from a single scope entry, optionally
+// skipping columns marked as coalesced by USING/NATURAL (true for unqualified
+// SELECT *, false for qualified SELECT t.*).
+func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int, skipCoalesced bool) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 	rte := q.RangeTable[e.rteIdx]
 	for i, col := range e.columns {
-		// Skip columns that were coalesced away by USING/NATURAL.
-		if scope.isCoalesced(e.name, col.Name) {
+		// Skip columns that were coalesced away by USING/NATURAL on unqualified *.
+		if skipCoalesced && scope.isCoalesced(e.name, col.Name) {
 			continue
 		}
 		te := &TargetEntryQ{
@@ -145,43 +171,11 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) 
 }
 
 // deriveColumnName generates the output column name for an unaliased
-// expression. position is the 1-based select-item position, used for MySQL's
-// positional Name_exp_N fallback when a string literal derives an empty name.
-func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr, position int) string {
-	switch n := astNode.(type) {
-	case *nodes.ColumnRef:
-		return n.Column
-	case *nodes.IntLit:
-		return strconv.FormatInt(n.Value, 10)
-	case *nodes.StringLit:
-		// An adjacent-literal run ('a' 'b') is named after its FIRST segment,
-		// not the folded value; an empty name falls back to the positional
-		// Name_exp_N form (MySQL: SELECT 'a' 'b' → column "a", SELECT '' 'b' →
-		// Name_exp_1, SELECT '' → Name_exp_1).
-		name := n.Value
-		if n.Concatenated {
-			name = n.FirstSegment
-		}
-		if name == "" {
-			return fmt.Sprintf("Name_exp_%d", position)
-		}
-		return name
-	case *nodes.FloatLit:
-		return n.Value
-	case *nodes.BoolLit:
-		if n.Value {
-			return "TRUE"
-		}
-		return "FALSE"
-	case *nodes.NullLit:
-		return "NULL"
-	case *nodes.FuncCallExpr:
-		return n.Name
-	case *nodes.ParenExpr:
-		return deriveColumnName(n.Expr, nil, position)
-	default:
-		return "?"
-	}
+// expression using MySQL's expression-derived naming rules (source text when
+// available, otherwise rebuilt from the AST). position is the 1-based
+// select-item position, used for MySQL's positional Name_exp_N fallback.
+func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr, position int, source string) string {
+	return deparse.AutoName(source, astNode, position)
 }
 
 // fillProvenance sets ResOrigDB/Table/Col when the expression is a VarExprQ.

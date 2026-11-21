@@ -21,11 +21,25 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 	var key commentKey
 
 	switch stmt.Objtype {
-	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW:
+	case nodes.OBJECT_TABLE:
 		schemaName, name := extractCommentObjectName(stmt.Object)
 		_, rel, err := c.findRelation(schemaName, name)
 		if err != nil {
 			return err
+		}
+		if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			return errWrongObjectType(name, "a table")
+		}
+		key = commentKey{ObjType: 'r', ObjOID: rel.OID}
+
+	case nodes.OBJECT_VIEW:
+		schemaName, name := extractCommentObjectName(stmt.Object)
+		_, rel, err := c.findRelation(schemaName, name)
+		if err != nil {
+			return err
+		}
+		if rel.RelKind != 'v' {
+			return errWrongObjectType(name, "a view")
 		}
 		key = commentKey{ObjType: 'r', ObjOID: rel.OID}
 

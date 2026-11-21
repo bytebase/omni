@@ -369,6 +369,11 @@ func (p *Parser) parseDiskgroupOtherClause() (*nodes.DDLOption, error) {
 		}
 	case "REPLACE":
 		key, err = p.parseDiskgroupReplace()
+	case "REPAIR":
+		// Oracle consumes REPAIR before refusing the unsupported top-level
+		// REPAIR clause at the next token.
+		p.advance()
+		return nil, p.syntaxErrorAtCur()
 	case "RENAME":
 		key, err = p.parseDiskgroupRename()
 	case "ONLINE", "OFFLINE":

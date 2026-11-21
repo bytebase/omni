@@ -3083,7 +3083,7 @@ func (p *Parser) parseColNameKeywordCall() (nodes.Node, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	return &nodes.FuncCall{Funcname: makeFuncName(tok.Str), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	return &nodes.MergeSupportFunc{Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseFuncApplication parses a function call after the name has been read.

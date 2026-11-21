@@ -25,6 +25,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/option"
 
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/tape"
@@ -99,9 +101,22 @@ func Live(t testing.TB) LiveConfig {
 	return cfg
 }
 
-// ResolveLiveConfig resolves BIGQUERY_CREDENTIALS, BIGQUERY_PROJECT and
-// BIGQUERY_DATASET using lookup.
-func ResolveLiveConfig(lookup func(string) string) (LiveConfig, error) {
+// DryRun resolves BIGQUERY_CREDENTIALS and BIGQUERY_PROJECT for dataset-less
+// dry-run syntax judging (bigquery/parser) and fails t if either is missing or
+// unreadable. It never skips.
+func DryRun(t testing.TB) LiveConfig {
+	t.Helper()
+	cfg, err := ResolveDryRunConfig(os.Getenv)
+	if err != nil {
+		t.Fatalf("testcontainer: %v", err)
+	}
+	return cfg
+}
+
+// ResolveDryRunConfig resolves BIGQUERY_CREDENTIALS and BIGQUERY_PROJECT using
+// lookup. Unlike ResolveLiveConfig, it does not require BIGQUERY_DATASET because
+// syntax judging submits dry-run jobs only and touches no dataset.
+func ResolveDryRunConfig(lookup func(string) string) (LiveConfig, error) {
 	credentials := strings.TrimSpace(lookup(CredentialVariable))
 	if credentials == "" {
 		return LiveConfig{}, fmt.Errorf("recording needs %s (a key path, key JSON, or %q)", CredentialVariable, CredentialDefault)
@@ -134,15 +149,107 @@ func ResolveLiveConfig(lookup func(string) string) (LiveConfig, error) {
 			}
 		}
 	}
+	return LiveConfig{
+		Project:  project,
+		Password: document,
+	}, nil
+}
+
+// ResolveLiveConfig resolves BIGQUERY_CREDENTIALS, BIGQUERY_PROJECT and
+// BIGQUERY_DATASET using lookup.
+func ResolveLiveConfig(lookup func(string) string) (LiveConfig, error) {
+	cfg, err := ResolveDryRunConfig(lookup)
+	if err != nil {
+		return LiveConfig{}, err
+	}
 	dataset := strings.TrimSpace(lookup(DatasetVariable))
 	if dataset == "" {
 		return LiveConfig{}, fmt.Errorf("%s must be set: a recording runs against a scratch dataset of its own", DatasetVariable)
 	}
-	return LiveConfig{
-		Project:  project,
-		Dataset:  dataset,
-		Password: document,
-	}, nil
+	cfg.Dataset = dataset
+	return cfg, nil
+}
+
+// DryRunClient opens a BigQuery client for cfg. When cfg.Password is empty
+// (BIGQUERY_CREDENTIALS=default), it uses the Google authentication library's
+// default credential chain.
+func DryRunClient(ctx context.Context, cfg LiveConfig) (*bigquery.Client, error) {
+	var opts []option.ClientOption
+	if cfg.Password != "" {
+		credOpt, err := credentialOption([]byte(cfg.Password))
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, credOpt)
+	}
+	return bigquery.NewClient(ctx, cfg.Project, opts...)
+}
+
+func credentialOption(credentials []byte) (option.ClientOption, error) {
+	var credential struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(credentials, &credential); err != nil {
+		return nil, fmt.Errorf("failed to parse the GCP credential JSON: %w", err)
+	}
+	switch credential.Type {
+	case "service_account":
+		return option.WithAuthCredentialsJSON(option.ServiceAccount, credentials), nil
+	case "external_account":
+		return option.WithAuthCredentialsJSON(option.ExternalAccount, credentials), nil
+	case "impersonated_service_account":
+		return option.WithAuthCredentialsJSON(option.ImpersonatedServiceAccount, credentials), nil
+	case "authorized_user":
+		return option.WithAuthCredentialsJSON(option.AuthorizedUser, credentials), nil
+	case "":
+		return nil, errors.New(`the GCP credential JSON holds no "type" member`)
+	default:
+		return nil, fmt.Errorf("unsupported GCP credential type: %q", credential.Type)
+	}
+}
+
+// DryRunDigest returns the pin digest bigquery/testdata/pins.tsv holds for
+// dataset-less dry-run syntax judging: the SHA-256 of
+// "gcp:bigquery:<project>:<location>".
+func DryRunDigest(project, location string) string {
+	sum := sha256.Sum256([]byte(DatasetImage(project, location)))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// VerifyDryRunPin runs a single `SELECT 1` dry-run job and confirms that its
+// project and location match pin in bigquery/testdata/pins.tsv. No dataset is
+// created, read, or mutated.
+func VerifyDryRunPin(ctx context.Context, client *bigquery.Client, pin enginetest.Pin, project string) error {
+	q := client.Query("SELECT 1")
+	q.DryRun = true
+	q.UseLegacySQL = false
+	job, err := q.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("dry-run probe against project %q failed: %w", project, err)
+	}
+	if job == nil {
+		return fmt.Errorf("dry-run probe against project %q returned no job", project)
+	}
+	if st := job.LastStatus(); st != nil && st.Err() != nil {
+		return fmt.Errorf("dry-run probe against project %q failed: %w", project, st.Err())
+	}
+	gotProject := strings.TrimSpace(job.ProjectID())
+	if gotProject == "" {
+		gotProject = project
+	}
+	gotLocation := strings.TrimSpace(job.Location())
+	if gotLocation == "" {
+		return fmt.Errorf("dry-run probe against project %q reported no location", gotProject)
+	}
+	gotImage := DatasetImage(gotProject, gotLocation)
+	if gotImage != pin.Image {
+		return fmt.Errorf("live dry-run target is %q, but %s pins %q", gotImage, Pins, pin.Image)
+	}
+	gotDigest := DryRunDigest(gotProject, gotLocation)
+	if gotDigest != pin.Digest {
+		return fmt.Errorf("live dry-run target %s has digest %s, but %s pins %s", gotImage, gotDigest, Pins, pin.Digest)
+	}
+	return nil
 }
 
 // DatasetDigest returns the pin digest bigquery/testdata/pins.tsv holds for a

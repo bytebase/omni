@@ -336,6 +336,10 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 				if err := p.parseMviewInmemoryColumnKeyword(); err != nil {
 					return err
 				}
+				if p.cur.Type == ',' {
+					p.advance()
+					return p.syntaxErrorAtCur()
+				}
 				*tableClause = true
 			}
 		} else if !*tableClause {
@@ -538,7 +542,7 @@ func (p *Parser) parseCreateTableLobStorageTarget(segname bool) error {
 	if p.cur.Type == '(' {
 		return p.parseCreateTableLobStorageParameters()
 	}
-	if p.isCreateTableNameStart() && !p.isCreateTableLobSegmentEnd() {
+	if p.isCreateTableNameStart() && (!file || !p.isCreateTableLobSegmentEnd()) {
 		if !segname || file && p.isCreateTableRefusedFileSegname() {
 			return p.syntaxErrorAtCur()
 		}
@@ -1018,9 +1022,11 @@ func (p *Parser) parseCreateTableIlmPolicy() error {
 			return err
 		}
 		return p.parseCreateTableIlmInmemoryCondition()
-	case p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "INMEMORY"):
+	case p.isKeywordStr("NO"):
 		p.advance() // consume NO
-		p.advance() // consume INMEMORY
+		if err := p.expectCreateTableWord("INMEMORY"); err != nil {
+			return err
+		}
 		return p.parseCreateTableIlmInmemoryCondition()
 	case p.cur.Type == kwROW, p.isKeywordStr("COLUMN"), p.cur.Type == kwCOMPRESS:
 		if err := p.parseCreateTableIlmCompression(); err != nil {

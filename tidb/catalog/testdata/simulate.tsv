@@ -1724,3 +1724,1296 @@ ok	8200	engine	one_table@index	OptCollate/COLLATE_CollationName	ALTER TABLE iden
 1060	1060	engine	one_table@index	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	one_table@index	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	one_table@index	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+1347	1347	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
+1105	1105	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+1505	1505	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+1505	1505	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
+1146	1146	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
+ok:26317606e7ec	ok:26317606e7ec	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
+ok	1105	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList	ALTER TABLE ident COMPACT PARTITION ident
+1146	1146	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList!drop-3	ALTER TABLE COMPACT PARTITION ident
+ok	1105	engine	objects@view	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList_TIFLASH_REPLICA	ALTER TABLE ident COMPACT PARTITION ident TIFLASH REPLICA
+1347	1347	engine	objects@view	AttributesOpt/ATTRIBUTES_EqOpt_DEFAULT	ALTER TABLE ident ATTRIBUTES DEFAULT
+1347	1347	engine	objects@view	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
+1347	1347	engine	objects@view	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
+1347	1347	engine	objects@view	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
+1347	1347	engine	objects@view	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
+1347	1347	engine	objects@view	AlterTableSpec/TableOptionList	ALTER TABLE ident COMMENT 'binary'
+1347	1347	engine	objects@view	AlterTableSpec/SET_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET TIFLASH REPLICA 1
+1347	1347	engine	objects@view	AlterTableSpec/SET_HYPO_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET HYPO TIFLASH REPLICA 1
+1347	1347	engine	objects@view	AlterTableSpec/CONVERT_TO_CharsetKw_CharsetName_OptCollate	ALTER TABLE ident CONVERT TO CHARSET 'binary'
+1347	1347	engine	objects@view	AlterTableSpec/CONVERT_TO_CharsetKw_DEFAULT_OptCollate	ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+1347	1347	engine	objects@view	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition	ALTER TABLE ident ADD ident TINYINT
+1347	1347	engine	objects@view	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
+1347	1347	engine	objects@view	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
+1347	1347	engine	objects@view	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
+1347	1347	engine	objects@view	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1347	1347	engine	objects@view	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1347	1347	engine	objects@view	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+1347	1347	engine	objects@view	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+1347	1347	engine	objects@view	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+1347	1347	engine	objects@view	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
+1347	1347	engine	objects@view	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
+1347	1347	engine	objects@view	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1347	1347	engine	objects@view	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+1347	1347	engine	objects@view	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
+1347	1347	engine	objects@view	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+1347	1347	engine	objects@view	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
+1347	1347	engine	objects@view	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
+1347	1347	engine	objects@view	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
+1347	1347	engine	objects@view	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
+1347	1347	engine	objects@view	AlterTableSpec/ORDER_BY_AlterOrderList	ALTER TABLE ident ORDER BY ident
+1347	1347	engine	objects@view	AlterTableSpec/DISABLE_KEYS	ALTER TABLE ident DISABLE KEYS
+1347	1347	engine	objects@view	AlterTableSpec/ENABLE_KEYS	ALTER TABLE ident ENABLE KEYS
+1347	1347	engine	objects@view	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition	ALTER TABLE ident MODIFY ident TINYINT
+1347	1347	engine	objects@view	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition	ALTER TABLE ident CHANGE ident ident TINYINT
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral	ALTER TABLE ident ALTER ident SET DEFAULT FALSE
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_(_Expression_)	ALTER TABLE ident ALTER ident SET DEFAULT(ident)
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_DROP_DEFAULT	ALTER TABLE ident ALTER ident DROP DEFAULT
+1347	1347	engine	objects@view	AlterTableSpec/RENAME_COLUMN_Identifier_TO_Identifier	ALTER TABLE ident RENAME COLUMN ident TO ident
+1347	1347	engine	objects@view	AlterTableSpec/RENAME_TO_TableName	ALTER TABLE ident RENAME TO ident
+1347	1347	engine	objects@view	AlterTableSpec/RENAME_EqOpt_TableName	ALTER TABLE ident RENAME ident
+1347	1347	engine	objects@view	AlterTableSpec/RENAME_AS_TableName	ALTER TABLE ident RENAME AS ident
+1347	1347	engine	objects@view	AlterTableSpec/RENAME_KeyOrIndex_Identifier_TO_Identifier	ALTER TABLE ident RENAME KEY ident TO ident
+1347	1347	engine	objects@view	AlterTableSpec/LockClause	ALTER TABLE ident LOCK DEFAULT
+1347	1347	engine	objects@view	AlterTableSpec/Writeable	ALTER TABLE ident READ WRITE
+1347	1347	engine	objects@view	AlterTableSpec/AlgorithmClause	ALTER TABLE ident ALGORITHM DEFAULT
+1347	1347	engine	objects@view	AlterTableSpec/FORCE	ALTER TABLE ident FORCE
+1347	1347	engine	objects@view	AlterTableSpec/WITH_VALIDATION	ALTER TABLE ident WITH VALIDATION
+1347	1347	engine	objects@view	AlterTableSpec/WITHOUT_VALIDATION	ALTER TABLE ident WITHOUT VALIDATION
+1347	1347	engine	objects@view	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
+1347	1347	engine	objects@view	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+1347	1347	engine	objects@view	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
+1347	1347	engine	objects@view	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
+1347	1347	engine	objects@view	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
+1347	1347	engine	objects@view	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
+1347	1347	engine	objects@view	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+1347	1347	engine	objects@view	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
+1347	1347	engine	objects@view	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1347	1347	engine	objects@view	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1347	1347	engine	objects@view	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
+1347	1347	engine	objects@view	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
+1347	1347	engine	objects@view	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
+1347	1347	engine	objects@view	GlobalOrLocalOpt/LOCAL	ALTER TABLE ident ADD ident TINYINT KEY LOCAL
+1347	1347	engine	objects@view	GlobalOrLocalOpt/GLOBAL	ALTER TABLE ident ADD ident TINYINT KEY GLOBAL
+1347	1347	engine	objects@view	AlgorithmClause/ALGORITHM_EqOpt_COPY	ALTER TABLE ident ALGORITHM COPY
+1347	1347	engine	objects@view	AlgorithmClause/ALGORITHM_EqOpt_INPLACE	ALTER TABLE ident ALGORITHM INPLACE
+1347	1347	engine	objects@view	AlgorithmClause/ALGORITHM_EqOpt_INSTANT	ALTER TABLE ident ALGORITHM INSTANT
+1347	1347	engine	objects@view	Writeable/READ_ONLY	ALTER TABLE ident READ ONLY
+1347	1347	engine	objects@view	KeyOrIndex/INDEX	ALTER TABLE ident DROP INDEX ident
+1347	1347	engine	objects@view	KeyOrIndexOpt/%empty!insert	ALTER TABLE ident ADD FULLTEXT zzz(ident)
+1347	1347	engine	objects@view	KeyOrIndexOpt/KeyOrIndex	ALTER TABLE ident ADD FULLTEXT KEY(ident)
+1347	1347	engine	objects@view	KeyOrIndexOpt/KeyOrIndex!insert	ALTER TABLE ident ADD FULLTEXT KEY zzz(ident)
+1347	1347	engine	objects@view	ColumnKeywordOpt/COLUMN	ALTER TABLE ident DROP COLUMN ident
+1347	1347	engine	objects@view	ColumnPosition/FIRST	ALTER TABLE ident ADD ident TINYINT FIRST
+1347	1347	engine	objects@view	ColumnPosition/AFTER_ColumnName	ALTER TABLE ident ADD ident TINYINT AFTER ident
+1347	1347	engine	objects@view	AlterTableSpecList/AlterTableSpecList_,_AlterTableSpec	ALTER TABLE ident FORCE, FORCE
+1347	1347	engine	objects@view	ConstraintKeywordOpt/CONSTRAINT	ALTER TABLE ident ADD CONSTRAINT FULLTEXT(ident)
+1347	1347	engine	objects@view	ConstraintKeywordOpt/CONSTRAINT!insert	ALTER TABLE ident ADD CONSTRAINT zzz FULLTEXT(ident)
+1347	1347	engine	objects@view	ConstraintKeywordOpt/CONSTRAINT_Symbol	ALTER TABLE ident ADD CONSTRAINT ident FULLTEXT(ident)
+1050	1050	engine	objects@view	RenameTableStmt/RENAME_TABLE_TableToTableList	RENAME TABLE ident TO ident
+1050	1050	engine	objects@view	TableToTableList/TableToTableList_,_TableToTable	RENAME TABLE ident TO ident, ident TO ident
+1347	1347	engine	objects@view	ColumnDef/ColumnName_SERIAL_ColumnOptionListOpt	ALTER TABLE ident ADD ident SERIAL
+1347	1347	engine	objects@view	PrimaryOpt/PRIMARY	ALTER TABLE ident ADD ident TINYINT PRIMARY KEY
+1347	1347	engine	objects@view	EnforcedOrNot/NotSym_ENFORCED	ALTER TABLE ident ALTER CHECK ident NOT ENFORCED
+1347	1347	engine	objects@view	EnforcedOrNotOpt/%empty	ALTER TABLE ident ADD CHECK(ident)
+1347	1347	engine	objects@view	EnforcedOrNotOpt/EnforcedOrNot	ALTER TABLE ident ADD CHECK(ident) ENFORCED
+1347	1347	engine	objects@view	EnforcedOrNotOrNotNullOpt/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
+1347	1347	engine	objects@view	EnforcedOrNotOrNotNullOpt/NotSym_NULL!drop-1	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NULL
+1347	1347	engine	objects@view	EnforcedOrNotOrNotNullOpt/EnforcedOrNotOpt	ALTER TABLE ident ADD ident TINYINT CHECK(ident)
+1347	1347	engine	objects@view	ColumnOption/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT NOT NULL
+1347	1347	engine	objects@view	ColumnOption/NULL	ALTER TABLE ident ADD ident TINYINT NULL
+1347	1347	engine	objects@view	ColumnOption/AUTO_INCREMENT	ALTER TABLE ident ADD ident TINYINT AUTO_INCREMENT
+1347	1347	engine	objects@view	ColumnOption/UNIQUE_GLOBAL	ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
+1347	1347	engine	objects@view	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
+1347	1347	engine	objects@view	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
+1347	1347	engine	objects@view	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+1067	1067	engine	objects@view	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1347	1347	engine	objects@view	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
+1347	1347	engine	objects@view	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
+1347	1347	engine	objects@view	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
+1347	1347	engine	objects@view	ColumnOption/GeneratedAlways_AS_(_Expression_)_VirtualOrStored	ALTER TABLE ident ADD ident TINYINT AS(ident)
+1347	1347	engine	objects@view	ColumnOption/ReferDef	ALTER TABLE ident ADD ident TINYINT REFERENCES ident
+1347	1347	engine	objects@view	ColumnOption/COLLATE_CollationName	ALTER TABLE ident ADD ident TINYINT COLLATE 'binary'
+1347	1347	engine	objects@view	ColumnOption/COLUMN_FORMAT_ColumnFormat	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DEFAULT
+1347	1347	engine	objects@view	ColumnOption/STORAGE_StorageMedia	ALTER TABLE ident ADD ident TINYINT STORAGE DEFAULT
+1347	1347	engine	objects@view	ColumnOption/AUTO_RANDOM_AutoRandomOpt	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM
+1347	1347	engine	objects@view	AutoRandomOpt/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1)
+1347	1347	engine	objects@view	AutoRandomOpt/(_LengthNum_,_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1, 1)
+1347	1347	engine	objects@view	StorageMedia/DISK	ALTER TABLE ident ADD ident TINYINT STORAGE DISK
+1347	1347	engine	objects@view	StorageMedia/MEMORY	ALTER TABLE ident ADD ident TINYINT STORAGE MEMORY
+1347	1347	engine	objects@view	ColumnFormat/FIXED	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT FIXED
+1347	1347	engine	objects@view	ColumnFormat/DYNAMIC	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DYNAMIC
+1347	1347	engine	objects@view	GeneratedAlways/GENERATED_ALWAYS	ALTER TABLE ident ADD ident TINYINT GENERATED ALWAYS AS(ident)
+1347	1347	engine	objects@view	VirtualOrStored/VIRTUAL	ALTER TABLE ident ADD ident TINYINT AS(ident) VIRTUAL
+1347	1347	engine	objects@view	VirtualOrStored/STORED	ALTER TABLE ident ADD ident TINYINT AS(ident) STORED
+1347	1347	engine	objects@view	ColumnOptionList/ColumnOptionList_ColumnOption	ALTER TABLE ident ADD ident TINYINT NULL NULL
+1347	1347	engine	objects@view	ConstraintElem/PRIMARY_KEY_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD PRIMARY KEY(ident)
+1347	1347	engine	objects@view	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD KEY(ident)
+1347	1347	engine	objects@view	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD UNIQUE(ident)
+1347	1347	engine	objects@view	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef	ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+1347	1347	engine	objects@view	Match/MATCH_FULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH FULL
+1347	1347	engine	objects@view	Match/MATCH_PARTIAL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH PARTIAL
+1347	1347	engine	objects@view	Match/MATCH_SIMPLE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH SIMPLE
+1347	1347	engine	objects@view	OnDelete/ON_DELETE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT
+1347	1347	engine	objects@view	OnUpdate/ON_UPDATE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+1347	1347	engine	objects@view	OnDeleteUpdateOpt/OnDelete_OnUpdate	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT ON UPDATE RESTRICT
+1347	1347	engine	objects@view	OnDeleteUpdateOpt/OnUpdate_OnDelete	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT ON DELETE RESTRICT
+1347	1347	engine	objects@view	ReferOpt/CASCADE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE CASCADE
+1347	1347	engine	objects@view	ReferOpt/SET_NULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET NULL
+1347	1347	engine	objects@view	ReferOpt/NO_ACTION	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE NO ACTION
+1347	1347	engine	objects@view	ReferOpt/SET_DEFAULT	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET DEFAULT
+1347	1347	engine	objects@view	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
+1347	1347	engine	objects@view	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
+1347	1347	engine	objects@view	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
+1067	1067	engine	objects@view	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	objects@view	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1347	1347	engine	objects@view	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
+1347	1347	engine	objects@view	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
+1347	1347	engine	objects@view	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
+1067	1067	engine	objects@view	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	objects@view	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	objects@view	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	objects@view	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	objects@view	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1347	1347	engine	objects@view	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
+1347	1347	engine	objects@view	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
+1347	1347	engine	objects@view	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
+1347	1347	engine	objects@view	NumLiteral/decLit	ALTER TABLE ident STATS_SAMPLE_RATE 1.5
+1347	1347	engine	objects@view	StatsType/DEPENDENCY	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
+1347	1347	engine	objects@view	StatsType/CORRELATION	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
+1105	1105	engine	objects@view	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt	CREATE INDEX ident ON ident(ident)
+1347	1347	engine	objects@view	IndexPartSpecificationListOpt/(_IndexPartSpecificationList_)	ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
+1347	1347	engine	objects@view	IndexPartSpecificationList/IndexPartSpecificationList_,_IndexPartSpecification	ALTER TABLE ident ADD FULLTEXT(ident, ident)
+1347	1347	engine	objects@view	IndexPartSpecification/(_Expression_)_OptOrder	ALTER TABLE ident ADD FULLTEXT((ident))
+1091	1091	engine	objects@view	IndexLockAndAlgorithmOpt/%empty	DROP INDEX ident ON ident
+1091	1091	engine	objects@view	IndexLockAndAlgorithmOpt/LockClause	DROP INDEX ident ON ident LOCK DEFAULT
+1091	1091	engine	objects@view	IndexLockAndAlgorithmOpt/AlgorithmClause	DROP INDEX ident ON ident ALGORITHM DEFAULT
+1091	1091	engine	objects@view	IndexLockAndAlgorithmOpt/LockClause_AlgorithmClause	DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
+1091	1091	engine	objects@view	IndexLockAndAlgorithmOpt/AlgorithmClause_LockClause	DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+1105	1105	engine	objects@view	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
+8200	8200	engine	objects@view	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
+8200	8200	engine	objects@view	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
+1113	1113	engine	objects@view	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1347	1347	engine	objects@view	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
+1347	1347	engine	objects@view	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
+1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1347	1347	engine	objects@view	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
+1347	1347	engine	objects@view	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
+1347	1347	engine	objects@view	PartitionIntervalOpt/INTERVAL_(_IntervalExpr_)_FirstAndLastPartOpt_NullPartOpt_MaxValPartOpt	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident)
+1347	1347	engine	objects@view	IntervalExpr/BitExpr_TimeUnit	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident MICROSECOND)
+1347	1347	engine	objects@view	IntervalExpr/BitExpr_TimeUnit!drop-1	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(MICROSECOND)
+1347	1347	engine	objects@view	NullPartOpt/NULL_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) NULL PARTITION
+1347	1347	engine	objects@view	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
+1347	1347	engine	objects@view	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
+1347	1347	engine	objects@view	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
+1347	1347	engine	objects@view	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1347	1347	engine	objects@view	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1347	1347	engine	objects@view	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1347	1347	engine	objects@view	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+1347	1347	engine	objects@view	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
+1347	1286	engine	objects@view	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
+1347	1286	engine	objects@view	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
+1347	8233	engine	objects@view	PartDefOption/INSERT_METHOD_EqOpt_StringName	ALTER TABLE ident INSERT_METHOD 'binary'
+1347	1347	engine	objects@view	PartDefOption/DATA_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident DATA DIRECTORY 'binary'
+1347	1347	engine	objects@view	PartDefOption/INDEX_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident INDEX DIRECTORY 'binary'
+1347	1347	engine	objects@view	PartDefOption/MAX_ROWS_EqOpt_LengthNum	ALTER TABLE ident MAX_ROWS 1
+1347	1347	engine	objects@view	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TABLE ident MIN_ROWS 1
+1347	1347	engine	objects@view	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
+1347	1347	engine	objects@view	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
+1347	1347	engine	objects@view	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
+1347	1347	engine	objects@view	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1347	1347	engine	objects@view	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1347	1347	engine	objects@view	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1347	1347	engine	objects@view	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+1347	1347	engine	objects@view	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+1347	1347	engine	objects@view	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1113	1113	engine	objects@view	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	objects@view	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	objects@view	AsOpt/AS	CREATE TABLE ident AS
+1050	1105	engine	objects@view	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
+1050	1105	engine	objects@view	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
+1050	1105	engine	objects@view	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@view	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	objects@view	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	objects@view	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@view	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1347	1347	engine	objects@view	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
+1051	1051	engine	objects@view	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	objects@view	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	objects@view	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	objects@view	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	objects@view	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+1051	1051	engine	objects@view	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
+1113	1113	engine	objects@view	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
+ok:c9381f79a233	ok:c9381f79a233	engine	objects@view	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
+1051	1051	engine	objects@view	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
+1051	1051	engine	objects@view	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
+1347	1347	engine	objects@view	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1347	1347	engine	objects@view	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1347	1347	engine	objects@view	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1347	1347	engine	objects@view	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1347	1347	engine	objects@view	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1347	1347	engine	objects@view	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1347	1347	engine	objects@view	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1347	1347	engine	objects@view	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+1347	1347	engine	objects@view	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
+1347	1347	engine	objects@view	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
+1347	1347	engine	objects@view	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE
+1347	1347	engine	objects@view	IndexOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident ADD FULLTEXT(ident) KEY_BLOCK_SIZE 1
+1347	1347	engine	objects@view	IndexOption/IndexType	ALTER TABLE ident ADD FULLTEXT(ident) USING BTREE
+1347	1347	engine	objects@view	IndexOption/WITH_PARSER_Identifier	ALTER TABLE ident ADD FULLTEXT(ident) WITH PARSER ident
+1347	1347	engine	objects@view	IndexOption/COMMENT_stringLit	ALTER TABLE ident ADD FULLTEXT(ident) COMMENT 'binary'
+1347	1347	engine	objects@view	IndexOption/WithClustered	ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+1347	1347	engine	objects@view	IndexOption/GLOBAL	ALTER TABLE ident ADD FULLTEXT(ident) GLOBAL
+1347	1347	engine	objects@view	IndexOption/LOCAL	ALTER TABLE ident ADD FULLTEXT(ident) LOCAL
+1347	1347	engine	objects@view	IndexNameAndTypeOpt/IndexName!insert	ALTER TABLE ident ADD KEY zzz(ident)
+1347	1347	engine	objects@view	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName	ALTER TABLE ident ADD KEY USING BTREE(ident)
+1347	1347	engine	objects@view	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName!drop-1	ALTER TABLE ident ADD KEY BTREE(ident)
+1347	1347	engine	objects@view	IndexNameAndTypeOpt/Identifier_TYPE_IndexTypeName	ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+1105	1105	engine	objects@view	IndexTypeOpt/IndexType	CREATE INDEX ident USING BTREE ON ident(ident)
+1347	1347	engine	objects@view	IndexType/TYPE_IndexTypeName	ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+1347	1347	engine	objects@view	IndexTypeName/HASH	ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
+1347	1347	engine	objects@view	IndexTypeName/RTREE	ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
+1347	1347	engine	objects@view	IndexTypeName/HYPO	ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
+1347	1347	engine	objects@view	IndexTypeName/HNSW	ALTER TABLE ident ADD FULLTEXT(ident) USING HNSW
+1347	1347	engine	objects@view	IndexInvisible/INVISIBLE	ALTER TABLE ident ALTER INDEX ident INVISIBLE
+1347	1347	engine	objects@view	AlterOrderList/AlterOrderList_,_AlterOrderItem	ALTER TABLE ident ORDER BY ident, ident
+1347	1347	engine	objects@view	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
+1347	1347	engine	objects@view	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
+1146	1146	engine	objects@view	Statement/TruncateTableStmt	TRUNCATE ident
+1113	1113	engine	objects@view	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	objects@view	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+1347	1347	engine	objects@view	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
+1050	1050	engine	objects@view	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
+1050	1050	engine	objects@view	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
+1050	1050	engine	objects@view	TableElementList/TableElementList_,_TableElement	CREATE TABLE ident(ident TINYINT, ident TINYINT)
+1050	1050	engine	objects@view	TableElementList/TableElementList_,_TableElement!swap	CREATE TABLE ident(ident TINYTEXT, ident TINYINT)
+1347	1347	engine	objects@view	TableOption/DefaultKwdOpt_CharsetKw_EqOpt_CharsetName	ALTER TABLE ident CHARSET 'binary'
+1347	1347	engine	objects@view	TableOption/DefaultKwdOpt_COLLATE_EqOpt_CollationName	ALTER TABLE ident COLLATE 'binary'
+1347	1347	engine	objects@view	TableOption/ForceOpt_AUTO_INCREMENT_EqOpt_LengthNum	ALTER TABLE ident AUTO_INCREMENT 1
+1347	1347	engine	objects@view	TableOption/AUTO_ID_CACHE_EqOpt_LengthNum	ALTER TABLE ident AUTO_ID_CACHE 1
+1347	1347	engine	objects@view	TableOption/ForceOpt_AUTO_RANDOM_BASE_EqOpt_LengthNum	ALTER TABLE ident AUTO_RANDOM_BASE 1
+1347	1347	engine	objects@view	TableOption/AVG_ROW_LENGTH_EqOpt_LengthNum	ALTER TABLE ident AVG_ROW_LENGTH 1
+1347	1347	engine	objects@view	TableOption/CONNECTION_EqOpt_stringLit	ALTER TABLE ident CONNECTION 'binary'
+1347	1347	engine	objects@view	TableOption/CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident CHECKSUM 1
+1347	1347	engine	objects@view	TableOption/TABLE_CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident TABLE_CHECKSUM 1
+1347	1347	engine	objects@view	TableOption/PASSWORD_EqOpt_stringLit	ALTER TABLE ident PASSWORD 'binary'
+1347	1347	engine	objects@view	TableOption/COMPRESSION_EqOpt_stringLit	ALTER TABLE ident COMPRESSION 'binary'
+1347	1347	engine	objects@view	TableOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident KEY_BLOCK_SIZE 1
+1347	1347	engine	objects@view	TableOption/DELAY_KEY_WRITE_EqOpt_LengthNum	ALTER TABLE ident DELAY_KEY_WRITE 1
+1347	1347	engine	objects@view	TableOption/RowFormat	ALTER TABLE ident ROW_FORMAT DEFAULT
+1347	1347	engine	objects@view	TableOption/STATS_PERSISTENT_EqOpt_StatsPersistentVal	ALTER TABLE ident STATS_PERSISTENT DEFAULT
+1347	1347	engine	objects@view	TableOption/STATS_AUTO_RECALC_EqOpt_LengthNum	ALTER TABLE ident STATS_AUTO_RECALC 1
+1347	1347	engine	objects@view	TableOption/STATS_AUTO_RECALC_EqOpt_DEFAULT	ALTER TABLE ident STATS_AUTO_RECALC DEFAULT
+1347	1347	engine	objects@view	TableOption/STATS_SAMPLE_PAGES_EqOpt_LengthNum	ALTER TABLE ident STATS_SAMPLE_PAGES 1
+1347	1347	engine	objects@view	TableOption/STATS_SAMPLE_PAGES_EqOpt_DEFAULT	ALTER TABLE ident STATS_SAMPLE_PAGES DEFAULT
+1347	1347	engine	objects@view	TableOption/STATS_BUCKETS_EqOpt_LengthNum	ALTER TABLE ident STATS_BUCKETS 1
+1347	1347	engine	objects@view	TableOption/STATS_TOPN_EqOpt_LengthNum	ALTER TABLE ident STATS_TOPN 1
+1347	1347	engine	objects@view	TableOption/STATS_COL_CHOICE_EqOpt_stringLit	ALTER TABLE ident STATS_COL_CHOICE 'binary'
+1347	1347	engine	objects@view	TableOption/STATS_COL_LIST_EqOpt_stringLit	ALTER TABLE ident STATS_COL_LIST 'binary'
+1347	1347	engine	objects@view	TableOption/SHARD_ROW_ID_BITS_EqOpt_LengthNum	ALTER TABLE ident SHARD_ROW_ID_BITS 1
+1347	1347	engine	objects@view	TableOption/PRE_SPLIT_REGIONS_EqOpt_LengthNum	ALTER TABLE ident PRE_SPLIT_REGIONS 1
+1347	1347	engine	objects@view	TableOption/PACK_KEYS_EqOpt_StatsPersistentVal	ALTER TABLE ident PACK_KEYS DEFAULT
+1347	1347	engine	objects@view	TableOption/STORAGE_MEMORY	ALTER TABLE ident STORAGE MEMORY
+1347	1347	engine	objects@view	TableOption/STORAGE_DISK	ALTER TABLE ident STORAGE DISK
+1347	1347	engine	objects@view	TableOption/SECONDARY_ENGINE_EqOpt_NULL	ALTER TABLE ident SECONDARY_ENGINE NULL
+1347	1347	engine	objects@view	TableOption/SECONDARY_ENGINE_EqOpt_StringName	ALTER TABLE ident SECONDARY_ENGINE 'binary'
+1347	8232	engine	objects@view	TableOption/UNION_EqOpt_(_TableNameListOpt_)	ALTER TABLE ident UNION()
+1347	1347	engine	objects@view	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Literal_TimeUnit	ALTER TABLE ident TTL ident + INTERVAL FALSE MICROSECOND
+1347	1347	engine	objects@view	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
+1347	1347	engine	objects@view	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
+1347	1347	engine	objects@view	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
+1113	1113	engine	objects@view	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+1347	1347	engine	objects@view	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
+1347	1347	engine	objects@view	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
+1146	1146	engine	objects@view	OptTable/TABLE	TRUNCATE TABLE ident
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_DYNAMIC	ALTER TABLE ident ROW_FORMAT DYNAMIC
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_FIXED	ALTER TABLE ident ROW_FORMAT FIXED
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_COMPRESSED	ALTER TABLE ident ROW_FORMAT COMPRESSED
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_REDUNDANT	ALTER TABLE ident ROW_FORMAT REDUNDANT
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_COMPACT	ALTER TABLE ident ROW_FORMAT COMPACT
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_DEFAULT	ALTER TABLE ident ROW_FORMAT TOKUDB_DEFAULT
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_FAST	ALTER TABLE ident ROW_FORMAT TOKUDB_FAST
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SMALL	ALTER TABLE ident ROW_FORMAT TOKUDB_SMALL
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZLIB	ALTER TABLE ident ROW_FORMAT TOKUDB_ZLIB
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZSTD	ALTER TABLE ident ROW_FORMAT TOKUDB_ZSTD
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_QUICKLZ	ALTER TABLE ident ROW_FORMAT TOKUDB_QUICKLZ
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_LZMA	ALTER TABLE ident ROW_FORMAT TOKUDB_LZMA
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SNAPPY	ALTER TABLE ident ROW_FORMAT TOKUDB_SNAPPY
+1347	1347	engine	objects@view	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_UNCOMPRESSED	ALTER TABLE ident ROW_FORMAT TOKUDB_UNCOMPRESSED
+1347	1347	engine	objects@view	Type/StringType	ALTER TABLE ident ADD ident CHARACTER
+1347	1347	engine	objects@view	Type/DateAndTimeType	ALTER TABLE ident ADD ident DATE
+1347	1347	engine	objects@view	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
+1347	1347	engine	objects@view	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
+1347	1347	engine	objects@view	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1347	1347	engine	objects@view	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
+1347	1347	engine	objects@view	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
+1347	1347	engine	objects@view	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
+1347	1347	engine	objects@view	IntegerType/MIDDLEINT	ALTER TABLE ident ADD ident MIDDLEINT
+1347	1347	engine	objects@view	IntegerType/INT	ALTER TABLE ident ADD ident INT
+1347	1347	engine	objects@view	IntegerType/INT1	ALTER TABLE ident ADD ident INT1
+1347	1347	engine	objects@view	IntegerType/INT2	ALTER TABLE ident ADD ident INT2
+1347	1347	engine	objects@view	IntegerType/INT3	ALTER TABLE ident ADD ident INT3
+1347	1347	engine	objects@view	IntegerType/INT4	ALTER TABLE ident ADD ident INT4
+1347	1347	engine	objects@view	IntegerType/INT8	ALTER TABLE ident ADD ident INT8
+1347	1347	engine	objects@view	IntegerType/INTEGER	ALTER TABLE ident ADD ident INTEGER
+1347	1347	engine	objects@view	IntegerType/BIGINT	ALTER TABLE ident ADD ident BIGINT
+1347	1347	engine	objects@view	BooleanType/BOOLEAN	ALTER TABLE ident ADD ident BOOLEAN
+1347	1347	engine	objects@view	FixedPointType/NUMERIC	ALTER TABLE ident ADD ident NUMERIC
+1347	1347	engine	objects@view	FixedPointType/FIXED	ALTER TABLE ident ADD ident FIXED
+1347	1347	engine	objects@view	FloatingPointType/REAL	ALTER TABLE ident ADD ident REAL
+1347	1347	engine	objects@view	FloatingPointType/DOUBLE	ALTER TABLE ident ADD ident DOUBLE
+1347	1347	engine	objects@view	FloatingPointType/DOUBLE_PRECISION	ALTER TABLE ident ADD ident DOUBLE PRECISION
+1347	1347	engine	objects@view	FloatingPointType/FLOAT4	ALTER TABLE ident ADD ident FLOAT4
+1347	1347	engine	objects@view	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
+1347	1347	engine	objects@view	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
+1347	1347	engine	objects@view	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
+1347	1347	engine	objects@view	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
+1347	1347	engine	objects@view	StringType/Varchar_FieldLen_OptBinary!swap	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1347	1347	engine	objects@view	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1347	1347	engine	objects@view	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
+1347	1347	engine	objects@view	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
+1347	1347	engine	objects@view	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
+1347	1347	engine	objects@view	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1347	1347	engine	objects@view	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1347	1347	engine	objects@view	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1347	1347	engine	objects@view	StringType/JSON	ALTER TABLE ident ADD ident JSON
+1347	1347	engine	objects@view	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1347	1347	engine	objects@view	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1347	1347	engine	objects@view	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
+1347	1347	engine	objects@view	Char/CHAR	ALTER TABLE ident ADD ident CHAR
+1347	1347	engine	objects@view	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
+1347	1347	engine	objects@view	NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR
+1347	1347	engine	objects@view	Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident LONG CHARACTER VARYING
+1347	1347	engine	objects@view	Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident LONG CHAR VARYING
+1347	1347	engine	objects@view	Varchar/VARCHARACTER	ALTER TABLE ident ADD ident LONG VARCHARACTER
+1347	1347	engine	objects@view	NVarchar/NATIONAL_VARCHAR	ALTER TABLE ident ADD ident NATIONAL VARCHAR(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_VARCHARACTER	ALTER TABLE ident ADD ident NATIONAL VARCHARACTER(1)
+1347	1347	engine	objects@view	NVarchar/NCHAR_VARCHAR	ALTER TABLE ident ADD ident NCHAR VARCHAR(1)
+1347	1347	engine	objects@view	NVarchar/NCHAR_VARCHARACTER	ALTER TABLE ident ADD ident NCHAR VARCHARACTER(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHARACTER_VARYING	ALTER TABLE ident ADD ident NATIONAL CHARACTER VARYING(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHARACTER_VARYING!drop-1	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHARACTER_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHAR_VARYING	ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHAR_VARYING!drop-1	ALTER TABLE ident ADD ident CHAR VARYING(1)
+1347	1347	engine	objects@view	NVarchar/NATIONAL_CHAR_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1347	1347	engine	objects@view	NVarchar/NCHAR_VARYING	ALTER TABLE ident ADD ident NCHAR VARYING(1)
+1347	1347	engine	objects@view	Year/YEAR	ALTER TABLE ident ADD ident YEAR
+1347	1347	engine	objects@view	Year/SQL_TSI_YEAR	ALTER TABLE ident ADD ident SQL_TSI_YEAR
+1347	1347	engine	objects@view	BlobType/BLOB_OptFieldLen	ALTER TABLE ident ADD ident BLOB
+1347	1347	engine	objects@view	BlobType/MEDIUMBLOB	ALTER TABLE ident ADD ident MEDIUMBLOB
+1347	1347	engine	objects@view	BlobType/LONGBLOB	ALTER TABLE ident ADD ident LONGBLOB
+1347	1347	engine	objects@view	BlobType/LONG_VARBINARY	ALTER TABLE ident ADD ident LONG VARBINARY
+1347	1347	engine	objects@view	TextType/TEXT_OptFieldLen	ALTER TABLE ident ADD ident TEXT
+1347	1347	engine	objects@view	TextType/MEDIUMTEXT	ALTER TABLE ident ADD ident MEDIUMTEXT
+1347	1347	engine	objects@view	TextType/LONGTEXT	ALTER TABLE ident ADD ident LONGTEXT
+1347	1347	engine	objects@view	OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident TINYTEXT ASCII
+1115	1115	engine	objects@view	OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident TINYTEXT UNICODE
+1347	1347	engine	objects@view	OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident TINYTEXT BYTE
+1347	1347	engine	objects@view	DateAndTimeType/DATETIME_OptFieldLen	ALTER TABLE ident ADD ident DATETIME
+1347	1347	engine	objects@view	DateAndTimeType/TIMESTAMP_OptFieldLen	ALTER TABLE ident ADD ident TIMESTAMP
+1347	1347	engine	objects@view	DateAndTimeType/TIME_OptFieldLen	ALTER TABLE ident ADD ident TIME
+1347	1347	engine	objects@view	FieldLen/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT(1)
+1347	1347	engine	objects@view	FieldOpt/UNSIGNED	ALTER TABLE ident ADD ident TINYINT UNSIGNED
+1347	1347	engine	objects@view	FieldOpt/SIGNED	ALTER TABLE ident ADD ident TINYINT SIGNED
+1347	1347	engine	objects@view	FieldOpt/ZEROFILL	ALTER TABLE ident ADD ident TINYINT ZEROFILL
+1347	1347	engine	objects@view	FloatOpt/FieldLen	ALTER TABLE ident ADD ident DECIMAL(1)
+1347	1347	engine	objects@view	FloatOpt/Precision	ALTER TABLE ident ADD ident DECIMAL(1, 1)
+1347	1347	engine	objects@view	OptBinMod/%empty	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
+1347	1347	engine	objects@view	OptBinMod/BINARY	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY
+1347	1347	engine	objects@view	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
+1347	1347	engine	objects@view	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
+1347	1347	engine	objects@view	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+1347	1347	engine	objects@view	OptCollate/COLLATE_CollationName	ALTER TABLE ident CONVERT TO CHARSET 'binary' COLLATE 'binary'
+1347	1347	engine	objects@view	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
+1347	1347	engine	objects@view	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
+1347	1347	engine	objects@view	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+8109	8109	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
+1146	1146	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList	ALTER TABLE ident COMPACT PARTITION ident
+1146	1146	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList!drop-3	ALTER TABLE COMPACT PARTITION ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList_TIFLASH_REPLICA	ALTER TABLE ident COMPACT PARTITION ident TIFLASH REPLICA
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AttributesOpt/ATTRIBUTES_EqOpt_DEFAULT	ALTER TABLE ident ATTRIBUTES DEFAULT
+ok	8237	engine	objects@partitioned	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
+ok	8200	engine	objects@partitioned	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
+ok	8200	engine	objects@partitioned	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
+ok:135adcfdbcdd	ok:135adcfdbcdd	engine	objects@partitioned	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+ok:b42a328e4750	ok:b42a328e4750	engine	objects@partitioned	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
+ok	8200	engine	objects@partitioned	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+ok	8200	engine	objects@partitioned	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
+ok	8200	engine	objects@partitioned	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
+ok:009ff101edd9	ok:009ff101edd9	engine	objects@partitioned	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
+ok:60722c24303e	ok:60722c24303e	engine	objects@partitioned	AlterTableSpec/TableOptionList	ALTER TABLE ident COMMENT 'binary'
+ok	1105	engine	objects@partitioned	AlterTableSpec/SET_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET TIFLASH REPLICA 1
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/SET_HYPO_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET HYPO TIFLASH REPLICA 1
+ok	8200	engine	objects@partitioned	AlterTableSpec/CONVERT_TO_CharsetKw_CharsetName_OptCollate	ALTER TABLE ident CONVERT TO CHARSET 'binary'
+1105	1105	engine	objects@partitioned	AlterTableSpec/CONVERT_TO_CharsetKw_DEFAULT_OptCollate	ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+1060	1060	engine	objects@partitioned	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition	ALTER TABLE ident ADD ident TINYINT
+1060	1060	engine	objects@partitioned	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
+1492	1492	engine	objects@partitioned	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1492	1492	engine	objects@partitioned	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1054	1054	engine	objects@partitioned	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+ok	1105	engine	objects@partitioned	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+ok	8200	engine	objects@partitioned	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
+1509	1509	engine	objects@partitioned	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+8200	8200	engine	objects@partitioned	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
+8200	8200	engine	objects@partitioned	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
+ok:694502ec84b3	ok:694502ec84b3	engine	objects@partitioned	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1054	1054	engine	objects@partitioned	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+ok	1105	engine	objects@partitioned	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
+1732	1732	engine	objects@partitioned	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+ok	8200	engine	objects@partitioned	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
+ok	8200	engine	objects@partitioned	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
+ok	8200	engine	objects@partitioned	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+ok	8200	engine	objects@partitioned	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+ok	8200	engine	objects@partitioned	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
+ok	8200	engine	objects@partitioned	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
+ok	8200	engine	objects@partitioned	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
+1091	1091	engine	objects@partitioned	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
+1091	1091	engine	objects@partitioned	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ORDER_BY_AlterOrderList	ALTER TABLE ident ORDER BY ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/DISABLE_KEYS	ALTER TABLE ident DISABLE KEYS
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ENABLE_KEYS	ALTER TABLE ident ENABLE KEYS
+ok	8200	engine	objects@partitioned	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition	ALTER TABLE ident MODIFY ident TINYINT
+ok	8200	engine	objects@partitioned	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition	ALTER TABLE ident CHANGE ident ident TINYINT
+ok:edf534047e45	ok:edf534047e45	engine	objects@partitioned	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral	ALTER TABLE ident ALTER ident SET DEFAULT FALSE
+1054	1054	engine	objects@partitioned	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_(_Expression_)	ALTER TABLE ident ALTER ident SET DEFAULT(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_DROP_DEFAULT	ALTER TABLE ident ALTER ident DROP DEFAULT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/RENAME_COLUMN_Identifier_TO_Identifier	ALTER TABLE ident RENAME COLUMN ident TO ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/RENAME_TO_TableName	ALTER TABLE ident RENAME TO ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/RENAME_EqOpt_TableName	ALTER TABLE ident RENAME ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/RENAME_AS_TableName	ALTER TABLE ident RENAME AS ident
+1176	1176	engine	objects@partitioned	AlterTableSpec/RENAME_KeyOrIndex_Identifier_TO_Identifier	ALTER TABLE ident RENAME KEY ident TO ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/LockClause	ALTER TABLE ident LOCK DEFAULT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/Writeable	ALTER TABLE ident READ WRITE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/AlgorithmClause	ALTER TABLE ident ALGORITHM DEFAULT
+ok	8200	engine	objects@partitioned	AlterTableSpec/FORCE	ALTER TABLE ident FORCE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/WITH_VALIDATION	ALTER TABLE ident WITH VALIDATION
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/WITHOUT_VALIDATION	ALTER TABLE ident WITHOUT VALIDATION
+ok	8200	engine	objects@partitioned	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
+ok	8200	engine	objects@partitioned	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
+1176	1176	engine	objects@partitioned	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
+8242	8242	engine	objects@partitioned	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
+1479	1479	engine	objects@partitioned	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+ok	8200	engine	objects@partitioned	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
+1732	1732	engine	objects@partitioned	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1732	1732	engine	objects@partitioned	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1060	8200	engine	objects@partitioned	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
+1060	8200	engine	objects@partitioned	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
+1060	8200	engine	objects@partitioned	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
+1060	8200	engine	objects@partitioned	GlobalOrLocalOpt/LOCAL	ALTER TABLE ident ADD ident TINYINT KEY LOCAL
+1060	8200	engine	objects@partitioned	GlobalOrLocalOpt/GLOBAL	ALTER TABLE ident ADD ident TINYINT KEY GLOBAL
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlgorithmClause/ALGORITHM_EqOpt_COPY	ALTER TABLE ident ALGORITHM COPY
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlgorithmClause/ALGORITHM_EqOpt_INPLACE	ALTER TABLE ident ALGORITHM INPLACE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlgorithmClause/ALGORITHM_EqOpt_INSTANT	ALTER TABLE ident ALGORITHM INSTANT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	Writeable/READ_ONLY	ALTER TABLE ident READ ONLY
+1091	1091	engine	objects@partitioned	KeyOrIndex/INDEX	ALTER TABLE ident DROP INDEX ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	KeyOrIndexOpt/%empty!insert	ALTER TABLE ident ADD FULLTEXT zzz(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	KeyOrIndexOpt/KeyOrIndex	ALTER TABLE ident ADD FULLTEXT KEY(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	KeyOrIndexOpt/KeyOrIndex!insert	ALTER TABLE ident ADD FULLTEXT KEY zzz(ident)
+8200	8200	engine	objects@partitioned	ColumnKeywordOpt/COLUMN	ALTER TABLE ident DROP COLUMN ident
+1060	1060	engine	objects@partitioned	ColumnPosition/FIRST	ALTER TABLE ident ADD ident TINYINT FIRST
+1060	1060	engine	objects@partitioned	ColumnPosition/AFTER_ColumnName	ALTER TABLE ident ADD ident TINYINT AFTER ident
+ok	8200	engine	objects@partitioned	AlterTableSpecList/AlterTableSpecList_,_AlterTableSpec	ALTER TABLE ident FORCE, FORCE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	ConstraintKeywordOpt/CONSTRAINT	ALTER TABLE ident ADD CONSTRAINT FULLTEXT(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	ConstraintKeywordOpt/CONSTRAINT!insert	ALTER TABLE ident ADD CONSTRAINT zzz FULLTEXT(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	ConstraintKeywordOpt/CONSTRAINT_Symbol	ALTER TABLE ident ADD CONSTRAINT ident FULLTEXT(ident)
+1050	1050	engine	objects@partitioned	RenameTableStmt/RENAME_TABLE_TableToTableList	RENAME TABLE ident TO ident
+1050	1050	engine	objects@partitioned	TableToTableList/TableToTableList_,_TableToTable	RENAME TABLE ident TO ident, ident TO ident
+1060	8200	engine	objects@partitioned	ColumnDef/ColumnName_SERIAL_ColumnOptionListOpt	ALTER TABLE ident ADD ident SERIAL
+1060	8200	engine	objects@partitioned	PrimaryOpt/PRIMARY	ALTER TABLE ident ADD ident TINYINT PRIMARY KEY
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	EnforcedOrNot/NotSym_ENFORCED	ALTER TABLE ident ALTER CHECK ident NOT ENFORCED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	EnforcedOrNotOpt/%empty	ALTER TABLE ident ADD CHECK(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	EnforcedOrNotOpt/EnforcedOrNot	ALTER TABLE ident ADD CHECK(ident) ENFORCED
+1060	1060	engine	objects@partitioned	EnforcedOrNotOrNotNullOpt/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
+1060	1060	engine	objects@partitioned	EnforcedOrNotOrNotNullOpt/NotSym_NULL!drop-1	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NULL
+1060	1060	engine	objects@partitioned	EnforcedOrNotOrNotNullOpt/EnforcedOrNotOpt	ALTER TABLE ident ADD ident TINYINT CHECK(ident)
+1060	1060	engine	objects@partitioned	ColumnOption/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT NOT NULL
+1060	1060	engine	objects@partitioned	ColumnOption/NULL	ALTER TABLE ident ADD ident TINYINT NULL
+1060	8200	engine	objects@partitioned	ColumnOption/AUTO_INCREMENT	ALTER TABLE ident ADD ident TINYINT AUTO_INCREMENT
+1060	8200	engine	objects@partitioned	ColumnOption/UNIQUE_GLOBAL	ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
+1060	8200	engine	objects@partitioned	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
+1060	8200	engine	objects@partitioned	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
+1060	8200	engine	objects@partitioned	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+1067	1067	engine	objects@partitioned	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1060	8200	engine	objects@partitioned	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
+1060	1060	engine	objects@partitioned	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
+1060	1060	engine	objects@partitioned	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
+1060	1060	engine	objects@partitioned	ColumnOption/GeneratedAlways_AS_(_Expression_)_VirtualOrStored	ALTER TABLE ident ADD ident TINYINT AS(ident)
+1060	1060	engine	objects@partitioned	ColumnOption/ReferDef	ALTER TABLE ident ADD ident TINYINT REFERENCES ident
+1060	1060	engine	objects@partitioned	ColumnOption/COLLATE_CollationName	ALTER TABLE ident ADD ident TINYINT COLLATE 'binary'
+1060	1060	engine	objects@partitioned	ColumnOption/COLUMN_FORMAT_ColumnFormat	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DEFAULT
+1060	1060	engine	objects@partitioned	ColumnOption/STORAGE_StorageMedia	ALTER TABLE ident ADD ident TINYINT STORAGE DEFAULT
+8216	8216	engine	objects@partitioned	ColumnOption/AUTO_RANDOM_AutoRandomOpt	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM
+8216	8216	engine	objects@partitioned	AutoRandomOpt/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1)
+8216	8216	engine	objects@partitioned	AutoRandomOpt/(_LengthNum_,_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1, 1)
+1060	1060	engine	objects@partitioned	StorageMedia/DISK	ALTER TABLE ident ADD ident TINYINT STORAGE DISK
+1060	1060	engine	objects@partitioned	StorageMedia/MEMORY	ALTER TABLE ident ADD ident TINYINT STORAGE MEMORY
+1060	1060	engine	objects@partitioned	ColumnFormat/FIXED	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT FIXED
+1060	1060	engine	objects@partitioned	ColumnFormat/DYNAMIC	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DYNAMIC
+1060	1060	engine	objects@partitioned	GeneratedAlways/GENERATED_ALWAYS	ALTER TABLE ident ADD ident TINYINT GENERATED ALWAYS AS(ident)
+1060	1060	engine	objects@partitioned	VirtualOrStored/VIRTUAL	ALTER TABLE ident ADD ident TINYINT AS(ident) VIRTUAL
+1060	1060	engine	objects@partitioned	VirtualOrStored/STORED	ALTER TABLE ident ADD ident TINYINT AS(ident) STORED
+1060	1060	engine	objects@partitioned	ColumnOptionList/ColumnOptionList_ColumnOption	ALTER TABLE ident ADD ident TINYINT NULL NULL
+1068	1068	engine	objects@partitioned	ConstraintElem/PRIMARY_KEY_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD PRIMARY KEY(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD KEY(ident)
+ok:8e70cfa3b4f1	ok:8e70cfa3b4f1	engine	objects@partitioned	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD UNIQUE(ident)
+1239	1239	engine	objects@partitioned	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef	ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+1060	1060	engine	objects@partitioned	Match/MATCH_FULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH FULL
+1060	1060	engine	objects@partitioned	Match/MATCH_PARTIAL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH PARTIAL
+1060	1060	engine	objects@partitioned	Match/MATCH_SIMPLE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH SIMPLE
+1060	1060	engine	objects@partitioned	OnDelete/ON_DELETE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT
+1060	1060	engine	objects@partitioned	OnUpdate/ON_UPDATE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+1060	1060	engine	objects@partitioned	OnDeleteUpdateOpt/OnDelete_OnUpdate	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT ON UPDATE RESTRICT
+1060	1060	engine	objects@partitioned	OnDeleteUpdateOpt/OnUpdate_OnDelete	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT ON DELETE RESTRICT
+1060	1060	engine	objects@partitioned	ReferOpt/CASCADE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE CASCADE
+1060	1060	engine	objects@partitioned	ReferOpt/SET_NULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET NULL
+1060	1060	engine	objects@partitioned	ReferOpt/NO_ACTION	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE NO ACTION
+1060	1060	engine	objects@partitioned	ReferOpt/SET_DEFAULT	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET DEFAULT
+1060	1060	engine	objects@partitioned	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
+1347	1347	engine	objects@partitioned	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
+1060	1060	engine	objects@partitioned	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
+1067	1067	engine	objects@partitioned	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	objects@partitioned	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1060	1060	engine	objects@partitioned	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
+1060	1060	engine	objects@partitioned	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
+1347	1347	engine	objects@partitioned	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
+1067	1067	engine	objects@partitioned	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	objects@partitioned	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	objects@partitioned	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	objects@partitioned	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	objects@partitioned	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1060	1060	engine	objects@partitioned	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
+ok	8200	engine	objects@partitioned	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
+ok	8200	engine	objects@partitioned	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
+ok	8200	engine	objects@partitioned	NumLiteral/decLit	ALTER TABLE ident STATS_SAMPLE_RATE 1.5
+ok	1105	engine	objects@partitioned	StatsType/DEPENDENCY	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
+ok	1105	engine	objects@partitioned	StatsType/CORRELATION	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt	CREATE INDEX ident ON ident(ident)
+1060	1060	engine	objects@partitioned	IndexPartSpecificationListOpt/(_IndexPartSpecificationList_)	ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexPartSpecificationList/IndexPartSpecificationList_,_IndexPartSpecification	ALTER TABLE ident ADD FULLTEXT(ident, ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexPartSpecification/(_Expression_)_OptOrder	ALTER TABLE ident ADD FULLTEXT((ident))
+1091	1091	engine	objects@partitioned	IndexLockAndAlgorithmOpt/%empty	DROP INDEX ident ON ident
+1091	1091	engine	objects@partitioned	IndexLockAndAlgorithmOpt/LockClause	DROP INDEX ident ON ident LOCK DEFAULT
+1091	1091	engine	objects@partitioned	IndexLockAndAlgorithmOpt/AlgorithmClause	DROP INDEX ident ON ident ALGORITHM DEFAULT
+1091	1091	engine	objects@partitioned	IndexLockAndAlgorithmOpt/LockClause_AlgorithmClause	DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
+1091	1091	engine	objects@partitioned	IndexLockAndAlgorithmOpt/AlgorithmClause_LockClause	DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+ok:8e70cfa3b4f1	ok:8e70cfa3b4f1	engine	objects@partitioned	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
+8200	8200	engine	objects@partitioned	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
+8200	8200	engine	objects@partitioned	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
+1113	1113	engine	objects@partitioned	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1050	1050	engine	objects@partitioned	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
+ok:95ac641e6e9b	ok:95ac641e6e9b	engine	objects@partitioned	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+ok:b920231a857c	ok:b920231a857c	engine	objects@partitioned	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
+ok:95ac641e6e9b	ok:95ac641e6e9b	engine	objects@partitioned	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
+8200	8200	engine	objects@partitioned	PartitionIntervalOpt/INTERVAL_(_IntervalExpr_)_FirstAndLastPartOpt_NullPartOpt_MaxValPartOpt	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident)
+8200	8200	engine	objects@partitioned	IntervalExpr/BitExpr_TimeUnit	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident MICROSECOND)
+8200	8200	engine	objects@partitioned	IntervalExpr/BitExpr_TimeUnit!drop-1	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(MICROSECOND)
+8200	8200	engine	objects@partitioned	NullPartOpt/NULL_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) NULL PARTITION
+8200	8200	engine	objects@partitioned	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
+1054	1054	engine	objects@partitioned	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
+ok:95ac641e6e9b	ok:95ac641e6e9b	engine	objects@partitioned	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
+1479	1479	engine	objects@partitioned	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1479	1479	engine	objects@partitioned	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1479	1479	engine	objects@partitioned	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1479	1479	engine	objects@partitioned	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+ok	1105	engine	objects@partitioned	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
+ok	1286	engine	objects@partitioned	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
+ok	1286	engine	objects@partitioned	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
+ok	8233	engine	objects@partitioned	PartDefOption/INSERT_METHOD_EqOpt_StringName	ALTER TABLE ident INSERT_METHOD 'binary'
+ok	8200	engine	objects@partitioned	PartDefOption/DATA_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident DATA DIRECTORY 'binary'
+ok	8200	engine	objects@partitioned	PartDefOption/INDEX_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident INDEX DIRECTORY 'binary'
+ok	8200	engine	objects@partitioned	PartDefOption/MAX_ROWS_EqOpt_LengthNum	ALTER TABLE ident MAX_ROWS 1
+ok	8200	engine	objects@partitioned	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TABLE ident MIN_ROWS 1
+ok	8200	engine	objects@partitioned	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
+ok	8200	engine	objects@partitioned	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
+8239	8239	engine	objects@partitioned	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
+1517	1517	engine	objects@partitioned	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1517	1517	engine	objects@partitioned	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1480	1480	engine	objects@partitioned	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1480	1480	engine	objects@partitioned	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+4113	4113	engine	objects@partitioned	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+4113	4113	engine	objects@partitioned	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1113	1113	engine	objects@partitioned	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	objects@partitioned	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	objects@partitioned	AsOpt/AS	CREATE TABLE ident AS
+1050	1105	engine	objects@partitioned	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
+1050	1105	engine	objects@partitioned	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
+1050	1105	engine	objects@partitioned	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@partitioned	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	objects@partitioned	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@partitioned	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1050	1050	engine	objects@partitioned	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
+1051	1051	engine	objects@partitioned	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	objects@partitioned	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	objects@partitioned	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	objects@partitioned	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	objects@partitioned	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
+1113	1113	engine	objects@partitioned	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1347	1347	engine	objects@partitioned	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
+1347	1347	engine	objects@partitioned	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
+1480	1480	engine	objects@partitioned	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1480	1480	engine	objects@partitioned	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1054	1054	engine	objects@partitioned	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1054	1054	engine	objects@partitioned	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1657	1657	engine	objects@partitioned	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1657	1657	engine	objects@partitioned	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1480	1480	engine	objects@partitioned	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1480	1480	engine	objects@partitioned	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident ADD FULLTEXT(ident) KEY_BLOCK_SIZE 1
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/IndexType	ALTER TABLE ident ADD FULLTEXT(ident) USING BTREE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/WITH_PARSER_Identifier	ALTER TABLE ident ADD FULLTEXT(ident) WITH PARSER ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/COMMENT_stringLit	ALTER TABLE ident ADD FULLTEXT(ident) COMMENT 'binary'
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/WithClustered	ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/GLOBAL	ALTER TABLE ident ADD FULLTEXT(ident) GLOBAL
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexOption/LOCAL	ALTER TABLE ident ADD FULLTEXT(ident) LOCAL
+ok:a02945c5c1aa	ok:a02945c5c1aa	engine	objects@partitioned	IndexNameAndTypeOpt/IndexName!insert	ALTER TABLE ident ADD KEY zzz(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName	ALTER TABLE ident ADD KEY USING BTREE(ident)
+ok:a5f8d806f269	ok:a5f8d806f269	engine	objects@partitioned	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName!drop-1	ALTER TABLE ident ADD KEY BTREE(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	IndexNameAndTypeOpt/Identifier_TYPE_IndexTypeName	ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+ok:eb46c77ad7ea	ok:eb46c77ad7ea	engine	objects@partitioned	IndexTypeOpt/IndexType	CREATE INDEX ident USING BTREE ON ident(ident)
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexType/TYPE_IndexTypeName	ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexTypeName/HASH	ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexTypeName/RTREE	ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexTypeName/HYPO	ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	IndexTypeName/HNSW	ALTER TABLE ident ADD FULLTEXT(ident) USING HNSW
+1176	1176	engine	objects@partitioned	IndexInvisible/INVISIBLE	ALTER TABLE ident ALTER INDEX ident INVISIBLE
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	AlterOrderList/AlterOrderList_,_AlterOrderItem	ALTER TABLE ident ORDER BY ident, ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	Statement/TruncateTableStmt	TRUNCATE ident
+1113	1113	engine	objects@partitioned	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	objects@partitioned	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
+1050	1050	engine	objects@partitioned	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
+1050	1050	engine	objects@partitioned	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
+1050	1050	engine	objects@partitioned	TableElementList/TableElementList_,_TableElement	CREATE TABLE ident(ident TINYINT, ident TINYINT)
+1050	1050	engine	objects@partitioned	TableElementList/TableElementList_,_TableElement!swap	CREATE TABLE ident(ident TINYTEXT, ident TINYINT)
+ok	8200	engine	objects@partitioned	TableOption/DefaultKwdOpt_CharsetKw_EqOpt_CharsetName	ALTER TABLE ident CHARSET 'binary'
+ok	8200	engine	objects@partitioned	TableOption/DefaultKwdOpt_COLLATE_EqOpt_CollationName	ALTER TABLE ident COLLATE 'binary'
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	TableOption/ForceOpt_AUTO_INCREMENT_EqOpt_LengthNum	ALTER TABLE ident AUTO_INCREMENT 1
+ok	1105	engine	objects@partitioned	TableOption/AUTO_ID_CACHE_EqOpt_LengthNum	ALTER TABLE ident AUTO_ID_CACHE 1
+8216	8216	engine	objects@partitioned	TableOption/ForceOpt_AUTO_RANDOM_BASE_EqOpt_LengthNum	ALTER TABLE ident AUTO_RANDOM_BASE 1
+ok	8200	engine	objects@partitioned	TableOption/AVG_ROW_LENGTH_EqOpt_LengthNum	ALTER TABLE ident AVG_ROW_LENGTH 1
+ok	8200	engine	objects@partitioned	TableOption/CONNECTION_EqOpt_stringLit	ALTER TABLE ident CONNECTION 'binary'
+ok	8200	engine	objects@partitioned	TableOption/CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident CHECKSUM 1
+ok	8200	engine	objects@partitioned	TableOption/TABLE_CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident TABLE_CHECKSUM 1
+ok	8200	engine	objects@partitioned	TableOption/PASSWORD_EqOpt_stringLit	ALTER TABLE ident PASSWORD 'binary'
+ok	8200	engine	objects@partitioned	TableOption/COMPRESSION_EqOpt_stringLit	ALTER TABLE ident COMPRESSION 'binary'
+ok	8200	engine	objects@partitioned	TableOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident KEY_BLOCK_SIZE 1
+ok	8200	engine	objects@partitioned	TableOption/DELAY_KEY_WRITE_EqOpt_LengthNum	ALTER TABLE ident DELAY_KEY_WRITE 1
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	TableOption/RowFormat	ALTER TABLE ident ROW_FORMAT DEFAULT
+ok	8200	engine	objects@partitioned	TableOption/STATS_PERSISTENT_EqOpt_StatsPersistentVal	ALTER TABLE ident STATS_PERSISTENT DEFAULT
+ok	8200	engine	objects@partitioned	TableOption/STATS_AUTO_RECALC_EqOpt_LengthNum	ALTER TABLE ident STATS_AUTO_RECALC 1
+ok	8200	engine	objects@partitioned	TableOption/STATS_AUTO_RECALC_EqOpt_DEFAULT	ALTER TABLE ident STATS_AUTO_RECALC DEFAULT
+ok	8200	engine	objects@partitioned	TableOption/STATS_SAMPLE_PAGES_EqOpt_LengthNum	ALTER TABLE ident STATS_SAMPLE_PAGES 1
+ok	8200	engine	objects@partitioned	TableOption/STATS_SAMPLE_PAGES_EqOpt_DEFAULT	ALTER TABLE ident STATS_SAMPLE_PAGES DEFAULT
+ok	8200	engine	objects@partitioned	TableOption/STATS_BUCKETS_EqOpt_LengthNum	ALTER TABLE ident STATS_BUCKETS 1
+ok	8200	engine	objects@partitioned	TableOption/STATS_TOPN_EqOpt_LengthNum	ALTER TABLE ident STATS_TOPN 1
+ok	8200	engine	objects@partitioned	TableOption/STATS_COL_CHOICE_EqOpt_stringLit	ALTER TABLE ident STATS_COL_CHOICE 'binary'
+ok	8200	engine	objects@partitioned	TableOption/STATS_COL_LIST_EqOpt_stringLit	ALTER TABLE ident STATS_COL_LIST 'binary'
+ok	8200	engine	objects@partitioned	TableOption/SHARD_ROW_ID_BITS_EqOpt_LengthNum	ALTER TABLE ident SHARD_ROW_ID_BITS 1
+ok	8200	engine	objects@partitioned	TableOption/PRE_SPLIT_REGIONS_EqOpt_LengthNum	ALTER TABLE ident PRE_SPLIT_REGIONS 1
+ok	8200	engine	objects@partitioned	TableOption/PACK_KEYS_EqOpt_StatsPersistentVal	ALTER TABLE ident PACK_KEYS DEFAULT
+ok	8200	engine	objects@partitioned	TableOption/STORAGE_MEMORY	ALTER TABLE ident STORAGE MEMORY
+ok	8200	engine	objects@partitioned	TableOption/STORAGE_DISK	ALTER TABLE ident STORAGE DISK
+ok	8200	engine	objects@partitioned	TableOption/SECONDARY_ENGINE_EqOpt_NULL	ALTER TABLE ident SECONDARY_ENGINE NULL
+ok	8200	engine	objects@partitioned	TableOption/SECONDARY_ENGINE_EqOpt_StringName	ALTER TABLE ident SECONDARY_ENGINE 'binary'
+ok	8232	engine	objects@partitioned	TableOption/UNION_EqOpt_(_TableNameListOpt_)	ALTER TABLE ident UNION()
+8148	8148	engine	objects@partitioned	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Literal_TimeUnit	ALTER TABLE ident TTL ident + INTERVAL FALSE MICROSECOND
+ok	8266	engine	objects@partitioned	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
+ok	8200	engine	objects@partitioned	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
+1113	1113	engine	objects@partitioned	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+ok:60722c24303e	ok:60722c24303e	engine	objects@partitioned	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
+ok:60722c24303e	ok:60722c24303e	engine	objects@partitioned	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	OptTable/TABLE	TRUNCATE TABLE ident
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_DYNAMIC	ALTER TABLE ident ROW_FORMAT DYNAMIC
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_FIXED	ALTER TABLE ident ROW_FORMAT FIXED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_COMPRESSED	ALTER TABLE ident ROW_FORMAT COMPRESSED
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_REDUNDANT	ALTER TABLE ident ROW_FORMAT REDUNDANT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_COMPACT	ALTER TABLE ident ROW_FORMAT COMPACT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_DEFAULT	ALTER TABLE ident ROW_FORMAT TOKUDB_DEFAULT
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_FAST	ALTER TABLE ident ROW_FORMAT TOKUDB_FAST
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SMALL	ALTER TABLE ident ROW_FORMAT TOKUDB_SMALL
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZLIB	ALTER TABLE ident ROW_FORMAT TOKUDB_ZLIB
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZSTD	ALTER TABLE ident ROW_FORMAT TOKUDB_ZSTD
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_QUICKLZ	ALTER TABLE ident ROW_FORMAT TOKUDB_QUICKLZ
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_LZMA	ALTER TABLE ident ROW_FORMAT TOKUDB_LZMA
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SNAPPY	ALTER TABLE ident ROW_FORMAT TOKUDB_SNAPPY
+ok:11bd66587bb7	ok:11bd66587bb7	engine	objects@partitioned	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_UNCOMPRESSED	ALTER TABLE ident ROW_FORMAT TOKUDB_UNCOMPRESSED
+1060	1060	engine	objects@partitioned	Type/StringType	ALTER TABLE ident ADD ident CHARACTER
+1060	1060	engine	objects@partitioned	Type/DateAndTimeType	ALTER TABLE ident ADD ident DATE
+1060	1060	engine	objects@partitioned	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
+1060	1060	engine	objects@partitioned	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
+1060	1060	engine	objects@partitioned	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	objects@partitioned	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
+1060	1060	engine	objects@partitioned	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
+1060	1060	engine	objects@partitioned	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
+1060	1060	engine	objects@partitioned	IntegerType/MIDDLEINT	ALTER TABLE ident ADD ident MIDDLEINT
+1060	1060	engine	objects@partitioned	IntegerType/INT	ALTER TABLE ident ADD ident INT
+1060	1060	engine	objects@partitioned	IntegerType/INT1	ALTER TABLE ident ADD ident INT1
+1060	1060	engine	objects@partitioned	IntegerType/INT2	ALTER TABLE ident ADD ident INT2
+1060	1060	engine	objects@partitioned	IntegerType/INT3	ALTER TABLE ident ADD ident INT3
+1060	1060	engine	objects@partitioned	IntegerType/INT4	ALTER TABLE ident ADD ident INT4
+1060	1060	engine	objects@partitioned	IntegerType/INT8	ALTER TABLE ident ADD ident INT8
+1060	1060	engine	objects@partitioned	IntegerType/INTEGER	ALTER TABLE ident ADD ident INTEGER
+1060	1060	engine	objects@partitioned	IntegerType/BIGINT	ALTER TABLE ident ADD ident BIGINT
+1060	1060	engine	objects@partitioned	BooleanType/BOOLEAN	ALTER TABLE ident ADD ident BOOLEAN
+1060	1060	engine	objects@partitioned	FixedPointType/NUMERIC	ALTER TABLE ident ADD ident NUMERIC
+1060	1060	engine	objects@partitioned	FixedPointType/FIXED	ALTER TABLE ident ADD ident FIXED
+1060	1060	engine	objects@partitioned	FloatingPointType/REAL	ALTER TABLE ident ADD ident REAL
+1060	1060	engine	objects@partitioned	FloatingPointType/DOUBLE	ALTER TABLE ident ADD ident DOUBLE
+1060	1060	engine	objects@partitioned	FloatingPointType/DOUBLE_PRECISION	ALTER TABLE ident ADD ident DOUBLE PRECISION
+1060	1060	engine	objects@partitioned	FloatingPointType/FLOAT4	ALTER TABLE ident ADD ident FLOAT4
+1060	1060	engine	objects@partitioned	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
+1060	1060	engine	objects@partitioned	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
+1060	1060	engine	objects@partitioned	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
+1060	1060	engine	objects@partitioned	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
+1060	1060	engine	objects@partitioned	StringType/Varchar_FieldLen_OptBinary!swap	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	objects@partitioned	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	objects@partitioned	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
+1060	1060	engine	objects@partitioned	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
+1060	1060	engine	objects@partitioned	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
+1060	1060	engine	objects@partitioned	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	objects@partitioned	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	objects@partitioned	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	objects@partitioned	StringType/JSON	ALTER TABLE ident ADD ident JSON
+1060	1060	engine	objects@partitioned	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	objects@partitioned	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	objects@partitioned	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
+1060	1060	engine	objects@partitioned	Char/CHAR	ALTER TABLE ident ADD ident CHAR
+1060	1060	engine	objects@partitioned	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
+1060	1060	engine	objects@partitioned	NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR
+1060	1060	engine	objects@partitioned	Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident LONG CHARACTER VARYING
+1060	1060	engine	objects@partitioned	Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident LONG CHAR VARYING
+1060	1060	engine	objects@partitioned	Varchar/VARCHARACTER	ALTER TABLE ident ADD ident LONG VARCHARACTER
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_VARCHAR	ALTER TABLE ident ADD ident NATIONAL VARCHAR(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_VARCHARACTER	ALTER TABLE ident ADD ident NATIONAL VARCHARACTER(1)
+1060	1060	engine	objects@partitioned	NVarchar/NCHAR_VARCHAR	ALTER TABLE ident ADD ident NCHAR VARCHAR(1)
+1060	1060	engine	objects@partitioned	NVarchar/NCHAR_VARCHARACTER	ALTER TABLE ident ADD ident NCHAR VARCHARACTER(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHARACTER_VARYING	ALTER TABLE ident ADD ident NATIONAL CHARACTER VARYING(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHARACTER_VARYING!drop-1	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHARACTER_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHAR_VARYING	ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHAR_VARYING!drop-1	ALTER TABLE ident ADD ident CHAR VARYING(1)
+1060	1060	engine	objects@partitioned	NVarchar/NATIONAL_CHAR_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	objects@partitioned	NVarchar/NCHAR_VARYING	ALTER TABLE ident ADD ident NCHAR VARYING(1)
+1060	1060	engine	objects@partitioned	Year/YEAR	ALTER TABLE ident ADD ident YEAR
+1060	1060	engine	objects@partitioned	Year/SQL_TSI_YEAR	ALTER TABLE ident ADD ident SQL_TSI_YEAR
+1060	1060	engine	objects@partitioned	BlobType/BLOB_OptFieldLen	ALTER TABLE ident ADD ident BLOB
+1060	1060	engine	objects@partitioned	BlobType/MEDIUMBLOB	ALTER TABLE ident ADD ident MEDIUMBLOB
+1060	1060	engine	objects@partitioned	BlobType/LONGBLOB	ALTER TABLE ident ADD ident LONGBLOB
+1060	1060	engine	objects@partitioned	BlobType/LONG_VARBINARY	ALTER TABLE ident ADD ident LONG VARBINARY
+1060	1060	engine	objects@partitioned	TextType/TEXT_OptFieldLen	ALTER TABLE ident ADD ident TEXT
+1060	1060	engine	objects@partitioned	TextType/MEDIUMTEXT	ALTER TABLE ident ADD ident MEDIUMTEXT
+1060	1060	engine	objects@partitioned	TextType/LONGTEXT	ALTER TABLE ident ADD ident LONGTEXT
+1060	1060	engine	objects@partitioned	OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident TINYTEXT ASCII
+1115	1115	engine	objects@partitioned	OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident TINYTEXT UNICODE
+1060	1060	engine	objects@partitioned	OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident TINYTEXT BYTE
+1060	1060	engine	objects@partitioned	DateAndTimeType/DATETIME_OptFieldLen	ALTER TABLE ident ADD ident DATETIME
+1060	1060	engine	objects@partitioned	DateAndTimeType/TIMESTAMP_OptFieldLen	ALTER TABLE ident ADD ident TIMESTAMP
+1060	1060	engine	objects@partitioned	DateAndTimeType/TIME_OptFieldLen	ALTER TABLE ident ADD ident TIME
+1060	1060	engine	objects@partitioned	FieldLen/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT(1)
+1060	1060	engine	objects@partitioned	FieldOpt/UNSIGNED	ALTER TABLE ident ADD ident TINYINT UNSIGNED
+1060	1060	engine	objects@partitioned	FieldOpt/SIGNED	ALTER TABLE ident ADD ident TINYINT SIGNED
+1060	1060	engine	objects@partitioned	FieldOpt/ZEROFILL	ALTER TABLE ident ADD ident TINYINT ZEROFILL
+1060	1060	engine	objects@partitioned	FloatOpt/FieldLen	ALTER TABLE ident ADD ident DECIMAL(1)
+1060	1060	engine	objects@partitioned	FloatOpt/Precision	ALTER TABLE ident ADD ident DECIMAL(1, 1)
+1060	1060	engine	objects@partitioned	OptBinMod/%empty	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
+1060	1060	engine	objects@partitioned	OptBinMod/BINARY	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY
+1060	1060	engine	objects@partitioned	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
+1060	1060	engine	objects@partitioned	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
+1060	1060	engine	objects@partitioned	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+ok	8200	engine	objects@partitioned	OptCollate/COLLATE_CollationName	ALTER TABLE ident CONVERT TO CHARSET 'binary' COLLATE 'binary'
+1060	1060	engine	objects@partitioned	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
+1060	1060	engine	objects@partitioned	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
+1060	1060	engine	objects@partitioned	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
+1505	1505	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+1505	1505	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+1505	1505	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
+1146	1146	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
+ok	1105	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList	ALTER TABLE ident COMPACT PARTITION ident
+1146	1146	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList!drop-3	ALTER TABLE COMPACT PARTITION ident
+ok	1105	engine	objects@fk	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_PARTITION_PartitionNameList_TIFLASH_REPLICA	ALTER TABLE ident COMPACT PARTITION ident TIFLASH REPLICA
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AttributesOpt/ATTRIBUTES_EqOpt_DEFAULT	ALTER TABLE ident ATTRIBUTES DEFAULT
+ok	8237	engine	objects@fk	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
+ok	8200	engine	objects@fk	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
+ok	8200	engine	objects@fk	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
+1505	1505	engine	objects@fk	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+ok:0d7463610b35	ok:0d7463610b35	engine	objects@fk	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
+1505	1505	engine	objects@fk	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+ok	8200	engine	objects@fk	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
+ok	8200	engine	objects@fk	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
+1505	1505	engine	objects@fk	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
+ok:b88d69c448a2	ok:b88d69c448a2	engine	objects@fk	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
+ok:b39c594db34f	ok:b39c594db34f	engine	objects@fk	AlterTableSpec/TableOptionList	ALTER TABLE ident COMMENT 'binary'
+ok	1105	engine	objects@fk	AlterTableSpec/SET_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET TIFLASH REPLICA 1
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/SET_HYPO_TIFLASH_REPLICA_LengthNum_LocationLabelList	ALTER TABLE ident SET HYPO TIFLASH REPLICA 1
+ok	8200	engine	objects@fk	AlterTableSpec/CONVERT_TO_CharsetKw_CharsetName_OptCollate	ALTER TABLE ident CONVERT TO CHARSET 'binary'
+1105	1105	engine	objects@fk	AlterTableSpec/CONVERT_TO_CharsetKw_DEFAULT_OptCollate	ALTER TABLE ident CONVERT TO CHARSET DEFAULT
+1060	1060	engine	objects@fk	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition	ALTER TABLE ident ADD ident TINYINT
+1060	1060	engine	objects@fk	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
+ok:0a687565d13a	ok:0a687565d13a	engine	objects@fk	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
+1505	1505	engine	objects@fk	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1505	1505	engine	objects@fk	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1505	1505	engine	objects@fk	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+ok	1105	engine	objects@fk	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+ok	8200	engine	objects@fk	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
+1505	1505	engine	objects@fk	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+1828	1828	engine	objects@fk	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
+8200	8200	engine	objects@fk	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
+1505	1505	engine	objects@fk	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1505	1505	engine	objects@fk	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+ok	1105	engine	objects@fk	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
+1505	1505	engine	objects@fk	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+1505	1505	engine	objects@fk	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+ok	8200	engine	objects@fk	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
+ok	8200	engine	objects@fk	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
+ok	8200	engine	objects@fk	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
+ok	8200	engine	objects@fk	AlterTableSpec/DISCARD_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident DISCARD PARTITION ALL TABLESPACE
+ok	8200	engine	objects@fk	AlterTableSpec/IMPORT_TABLESPACE	ALTER TABLE ident IMPORT TABLESPACE
+ok	8200	engine	objects@fk	AlterTableSpec/DISCARD_TABLESPACE	ALTER TABLE ident DISCARD TABLESPACE
+ok	8200	engine	objects@fk	AlterTableSpec/REBUILD_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REBUILD PARTITION ALL
+1553	1553	engine	objects@fk	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TABLE ident DROP KEY ident
+ok:eca862c8e46d	ok:eca862c8e46d	engine	objects@fk	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ORDER_BY_AlterOrderList	ALTER TABLE ident ORDER BY ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/DISABLE_KEYS	ALTER TABLE ident DISABLE KEYS
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ENABLE_KEYS	ALTER TABLE ident ENABLE KEYS
+3780	3780	engine	objects@fk	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition	ALTER TABLE ident MODIFY ident TINYINT
+3780	3780	engine	objects@fk	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition	ALTER TABLE ident CHANGE ident ident TINYINT
+ok:4a1661e758b0	ok:4a1661e758b0	engine	objects@fk	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral	ALTER TABLE ident ALTER ident SET DEFAULT FALSE
+1054	1054	engine	objects@fk	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_(_Expression_)	ALTER TABLE ident ALTER ident SET DEFAULT(ident)
+ok:4e664b6087e6	ok:4e664b6087e6	engine	objects@fk	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_DROP_DEFAULT	ALTER TABLE ident ALTER ident DROP DEFAULT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/RENAME_COLUMN_Identifier_TO_Identifier	ALTER TABLE ident RENAME COLUMN ident TO ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/RENAME_TO_TableName	ALTER TABLE ident RENAME TO ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/RENAME_EqOpt_TableName	ALTER TABLE ident RENAME ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/RENAME_AS_TableName	ALTER TABLE ident RENAME AS ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/RENAME_KeyOrIndex_Identifier_TO_Identifier	ALTER TABLE ident RENAME KEY ident TO ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/LockClause	ALTER TABLE ident LOCK DEFAULT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/Writeable	ALTER TABLE ident READ WRITE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/AlgorithmClause	ALTER TABLE ident ALGORITHM DEFAULT
+ok	8200	engine	objects@fk	AlterTableSpec/FORCE	ALTER TABLE ident FORCE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/WITH_VALIDATION	ALTER TABLE ident WITH VALIDATION
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/WITHOUT_VALIDATION	ALTER TABLE ident WITHOUT VALIDATION
+ok	8200	engine	objects@fk	AlterTableSpec/SECONDARY_LOAD	ALTER TABLE ident SECONDARY_LOAD
+ok	8200	engine	objects@fk	AlterTableSpec/SECONDARY_UNLOAD	ALTER TABLE ident SECONDARY_UNLOAD
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ALTER_CheckConstraintKeyword_Identifier_EnforcedOrNot	ALTER TABLE ident ALTER CHECK ident ENFORCED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/DROP_CheckConstraintKeyword_Identifier	ALTER TABLE ident DROP CHECK ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
+ok:e6a4460fd7b0	ok:e6a4460fd7b0	engine	objects@fk	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
+1505	1505	engine	objects@fk	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+ok	8200	engine	objects@fk	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
+1505	1505	engine	objects@fk	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1505	1505	engine	objects@fk	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1060	8200	engine	objects@fk	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
+1060	8200	engine	objects@fk	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
+1060	8200	engine	objects@fk	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
+1060	8200	engine	objects@fk	GlobalOrLocalOpt/LOCAL	ALTER TABLE ident ADD ident TINYINT KEY LOCAL
+1060	8200	engine	objects@fk	GlobalOrLocalOpt/GLOBAL	ALTER TABLE ident ADD ident TINYINT KEY GLOBAL
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlgorithmClause/ALGORITHM_EqOpt_COPY	ALTER TABLE ident ALGORITHM COPY
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlgorithmClause/ALGORITHM_EqOpt_INPLACE	ALTER TABLE ident ALGORITHM INPLACE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlgorithmClause/ALGORITHM_EqOpt_INSTANT	ALTER TABLE ident ALGORITHM INSTANT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	Writeable/READ_ONLY	ALTER TABLE ident READ ONLY
+1553	1553	engine	objects@fk	KeyOrIndex/INDEX	ALTER TABLE ident DROP INDEX ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	KeyOrIndexOpt/%empty!insert	ALTER TABLE ident ADD FULLTEXT zzz(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	KeyOrIndexOpt/KeyOrIndex	ALTER TABLE ident ADD FULLTEXT KEY(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	KeyOrIndexOpt/KeyOrIndex!insert	ALTER TABLE ident ADD FULLTEXT KEY zzz(ident)
+1828	1828	engine	objects@fk	ColumnKeywordOpt/COLUMN	ALTER TABLE ident DROP COLUMN ident
+1060	1060	engine	objects@fk	ColumnPosition/FIRST	ALTER TABLE ident ADD ident TINYINT FIRST
+1060	1060	engine	objects@fk	ColumnPosition/AFTER_ColumnName	ALTER TABLE ident ADD ident TINYINT AFTER ident
+ok	8200	engine	objects@fk	AlterTableSpecList/AlterTableSpecList_,_AlterTableSpec	ALTER TABLE ident FORCE, FORCE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	ConstraintKeywordOpt/CONSTRAINT	ALTER TABLE ident ADD CONSTRAINT FULLTEXT(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	ConstraintKeywordOpt/CONSTRAINT!insert	ALTER TABLE ident ADD CONSTRAINT zzz FULLTEXT(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	ConstraintKeywordOpt/CONSTRAINT_Symbol	ALTER TABLE ident ADD CONSTRAINT ident FULLTEXT(ident)
+1050	1050	engine	objects@fk	RenameTableStmt/RENAME_TABLE_TableToTableList	RENAME TABLE ident TO ident
+1050	1050	engine	objects@fk	TableToTableList/TableToTableList_,_TableToTable	RENAME TABLE ident TO ident, ident TO ident
+1060	8200	engine	objects@fk	ColumnDef/ColumnName_SERIAL_ColumnOptionListOpt	ALTER TABLE ident ADD ident SERIAL
+1060	8200	engine	objects@fk	PrimaryOpt/PRIMARY	ALTER TABLE ident ADD ident TINYINT PRIMARY KEY
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	EnforcedOrNot/NotSym_ENFORCED	ALTER TABLE ident ALTER CHECK ident NOT ENFORCED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	EnforcedOrNotOpt/%empty	ALTER TABLE ident ADD CHECK(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	EnforcedOrNotOpt/EnforcedOrNot	ALTER TABLE ident ADD CHECK(ident) ENFORCED
+1060	1060	engine	objects@fk	EnforcedOrNotOrNotNullOpt/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NOT NULL
+1060	1060	engine	objects@fk	EnforcedOrNotOrNotNullOpt/NotSym_NULL!drop-1	ALTER TABLE ident ADD ident TINYINT CHECK(ident) NULL
+1060	1060	engine	objects@fk	EnforcedOrNotOrNotNullOpt/EnforcedOrNotOpt	ALTER TABLE ident ADD ident TINYINT CHECK(ident)
+1060	1060	engine	objects@fk	ColumnOption/NotSym_NULL	ALTER TABLE ident ADD ident TINYINT NOT NULL
+1060	1060	engine	objects@fk	ColumnOption/NULL	ALTER TABLE ident ADD ident TINYINT NULL
+1060	8200	engine	objects@fk	ColumnOption/AUTO_INCREMENT	ALTER TABLE ident ADD ident TINYINT AUTO_INCREMENT
+1060	8200	engine	objects@fk	ColumnOption/UNIQUE_GLOBAL	ALTER TABLE ident ADD ident TINYINT UNIQUE GLOBAL
+1060	8200	engine	objects@fk	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
+1060	8200	engine	objects@fk	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
+1060	8200	engine	objects@fk	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
+1067	1067	engine	objects@fk	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1060	8200	engine	objects@fk	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
+1060	1060	engine	objects@fk	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
+1060	1060	engine	objects@fk	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
+1060	1060	engine	objects@fk	ColumnOption/GeneratedAlways_AS_(_Expression_)_VirtualOrStored	ALTER TABLE ident ADD ident TINYINT AS(ident)
+1060	1060	engine	objects@fk	ColumnOption/ReferDef	ALTER TABLE ident ADD ident TINYINT REFERENCES ident
+1060	1060	engine	objects@fk	ColumnOption/COLLATE_CollationName	ALTER TABLE ident ADD ident TINYINT COLLATE 'binary'
+1060	1060	engine	objects@fk	ColumnOption/COLUMN_FORMAT_ColumnFormat	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DEFAULT
+1060	1060	engine	objects@fk	ColumnOption/STORAGE_StorageMedia	ALTER TABLE ident ADD ident TINYINT STORAGE DEFAULT
+8216	8216	engine	objects@fk	ColumnOption/AUTO_RANDOM_AutoRandomOpt	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM
+8216	8216	engine	objects@fk	AutoRandomOpt/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1)
+8216	8216	engine	objects@fk	AutoRandomOpt/(_LengthNum_,_LengthNum_)	ALTER TABLE ident ADD ident TINYINT AUTO_RANDOM(1, 1)
+1060	1060	engine	objects@fk	StorageMedia/DISK	ALTER TABLE ident ADD ident TINYINT STORAGE DISK
+1060	1060	engine	objects@fk	StorageMedia/MEMORY	ALTER TABLE ident ADD ident TINYINT STORAGE MEMORY
+1060	1060	engine	objects@fk	ColumnFormat/FIXED	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT FIXED
+1060	1060	engine	objects@fk	ColumnFormat/DYNAMIC	ALTER TABLE ident ADD ident TINYINT COLUMN_FORMAT DYNAMIC
+1060	1060	engine	objects@fk	GeneratedAlways/GENERATED_ALWAYS	ALTER TABLE ident ADD ident TINYINT GENERATED ALWAYS AS(ident)
+1060	1060	engine	objects@fk	VirtualOrStored/VIRTUAL	ALTER TABLE ident ADD ident TINYINT AS(ident) VIRTUAL
+1060	1060	engine	objects@fk	VirtualOrStored/STORED	ALTER TABLE ident ADD ident TINYINT AS(ident) STORED
+1060	1060	engine	objects@fk	ColumnOptionList/ColumnOptionList_ColumnOption	ALTER TABLE ident ADD ident TINYINT NULL NULL
+1068	1068	engine	objects@fk	ConstraintElem/PRIMARY_KEY_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD PRIMARY KEY(ident)
+ok:0a687565d13a	ok:0a687565d13a	engine	objects@fk	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD KEY(ident)
+ok:b2ab40e72814	ok:b2ab40e72814	engine	objects@fk	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD UNIQUE(ident)
+1239	1239	engine	objects@fk	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef	ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+1060	1060	engine	objects@fk	Match/MATCH_FULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH FULL
+1060	1060	engine	objects@fk	Match/MATCH_PARTIAL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH PARTIAL
+1060	1060	engine	objects@fk	Match/MATCH_SIMPLE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident MATCH SIMPLE
+1060	1060	engine	objects@fk	OnDelete/ON_DELETE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT
+1060	1060	engine	objects@fk	OnUpdate/ON_UPDATE_ReferOpt	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT
+1060	1060	engine	objects@fk	OnDeleteUpdateOpt/OnDelete_OnUpdate	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE RESTRICT ON UPDATE RESTRICT
+1060	1060	engine	objects@fk	OnDeleteUpdateOpt/OnUpdate_OnDelete	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON UPDATE RESTRICT ON DELETE RESTRICT
+1060	1060	engine	objects@fk	ReferOpt/CASCADE	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE CASCADE
+1060	1060	engine	objects@fk	ReferOpt/SET_NULL	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET NULL
+1060	1060	engine	objects@fk	ReferOpt/NO_ACTION	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE NO ACTION
+1060	1060	engine	objects@fk	ReferOpt/SET_DEFAULT	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ON DELETE SET DEFAULT
+1060	1060	engine	objects@fk	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
+1347	1347	engine	objects@fk	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
+1060	1060	engine	objects@fk	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
+1067	1067	engine	objects@fk	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	objects@fk	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1060	1060	engine	objects@fk	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
+1060	1060	engine	objects@fk	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
+1347	1347	engine	objects@fk	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
+1067	1067	engine	objects@fk	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	objects@fk	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	objects@fk	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	objects@fk	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	objects@fk	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1060	1060	engine	objects@fk	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
+ok	8200	engine	objects@fk	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
+ok	8200	engine	objects@fk	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
+ok	8200	engine	objects@fk	NumLiteral/decLit	ALTER TABLE ident STATS_SAMPLE_RATE 1.5
+ok	1105	engine	objects@fk	StatsType/DEPENDENCY	ALTER TABLE ident ADD STATS_EXTENDED ident DEPENDENCY(ident)
+ok	1105	engine	objects@fk	StatsType/CORRELATION	ALTER TABLE ident ADD STATS_EXTENDED ident CORRELATION(ident)
+1061	1061	engine	objects@fk	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt	CREATE INDEX ident ON ident(ident)
+1060	1060	engine	objects@fk	IndexPartSpecificationListOpt/(_IndexPartSpecificationList_)	ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexPartSpecificationList/IndexPartSpecificationList_,_IndexPartSpecification	ALTER TABLE ident ADD FULLTEXT(ident, ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexPartSpecification/(_Expression_)_OptOrder	ALTER TABLE ident ADD FULLTEXT((ident))
+1553	1553	engine	objects@fk	IndexLockAndAlgorithmOpt/%empty	DROP INDEX ident ON ident
+1553	1553	engine	objects@fk	IndexLockAndAlgorithmOpt/LockClause	DROP INDEX ident ON ident LOCK DEFAULT
+1553	1553	engine	objects@fk	IndexLockAndAlgorithmOpt/AlgorithmClause	DROP INDEX ident ON ident ALGORITHM DEFAULT
+1553	1553	engine	objects@fk	IndexLockAndAlgorithmOpt/LockClause_AlgorithmClause	DROP INDEX ident ON ident LOCK DEFAULT ALGORITHM DEFAULT
+1553	1553	engine	objects@fk	IndexLockAndAlgorithmOpt/AlgorithmClause_LockClause	DROP INDEX ident ON ident ALGORITHM DEFAULT LOCK DEFAULT
+1061	1061	engine	objects@fk	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
+8200	8200	engine	objects@fk	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
+8200	8200	engine	objects@fk	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
+1113	1113	engine	objects@fk	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1050	1050	engine	objects@fk	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
+ok:9dd4c371f861	ok:9dd4c371f861	engine	objects@fk	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
+1503	1503	engine	objects@fk	SubPartitionMethod/LinearOpt_HASH_(_BitExpr_)	ALTER TABLE ident PARTITION BY HASH(ident)
+ok:9dd4c371f861	ok:9dd4c371f861	engine	objects@fk	PartitionKeyAlgorithmOpt/ALGORITHM_eq_NUM	ALTER TABLE ident PARTITION BY KEY ALGORITHM = 1()
+8200	8200	engine	objects@fk	PartitionIntervalOpt/INTERVAL_(_IntervalExpr_)_FirstAndLastPartOpt_NullPartOpt_MaxValPartOpt	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident)
+8200	8200	engine	objects@fk	IntervalExpr/BitExpr_TimeUnit	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident MICROSECOND)
+8200	8200	engine	objects@fk	IntervalExpr/BitExpr_TimeUnit!drop-1	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(MICROSECOND)
+8200	8200	engine	objects@fk	NullPartOpt/NULL_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) NULL PARTITION
+8200	8200	engine	objects@fk	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
+1054	1054	engine	objects@fk	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
+ok:9dd4c371f861	ok:9dd4c371f861	engine	objects@fk	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
+1505	1505	engine	objects@fk	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1505	1505	engine	objects@fk	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1505	1505	engine	objects@fk	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1505	1505	engine	objects@fk	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+ok	1105	engine	objects@fk	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
+ok	1286	engine	objects@fk	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
+ok	1286	engine	objects@fk	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
+ok	8233	engine	objects@fk	PartDefOption/INSERT_METHOD_EqOpt_StringName	ALTER TABLE ident INSERT_METHOD 'binary'
+ok	8200	engine	objects@fk	PartDefOption/DATA_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident DATA DIRECTORY 'binary'
+ok	8200	engine	objects@fk	PartDefOption/INDEX_DIRECTORY_EqOpt_stringLit	ALTER TABLE ident INDEX DIRECTORY 'binary'
+ok	8200	engine	objects@fk	PartDefOption/MAX_ROWS_EqOpt_LengthNum	ALTER TABLE ident MAX_ROWS 1
+ok	8200	engine	objects@fk	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TABLE ident MIN_ROWS 1
+ok	8200	engine	objects@fk	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
+ok	8200	engine	objects@fk	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
+8239	8239	engine	objects@fk	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
+1505	1505	engine	objects@fk	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1505	1505	engine	objects@fk	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1505	1505	engine	objects@fk	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1505	1505	engine	objects@fk	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+1505	1505	engine	objects@fk	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+1505	1505	engine	objects@fk	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1113	1113	engine	objects@fk	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	objects@fk	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	objects@fk	AsOpt/AS	CREATE TABLE ident AS
+1050	1105	engine	objects@fk	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
+1050	1105	engine	objects@fk	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
+1050	1105	engine	objects@fk	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@fk	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	objects@fk	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	objects@fk	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1050	1050	engine	objects@fk	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
+1051	1051	engine	objects@fk	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	objects@fk	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	objects@fk	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	objects@fk	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	objects@fk	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+ok:502310c4d771	ok:502310c4d771	engine	objects@fk	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
+1113	1113	engine	objects@fk	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1347	1347	engine	objects@fk	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
+1347	1347	engine	objects@fk	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
+ok:502310c4d771	ok:502310c4d771	engine	objects@fk	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
+ok:502310c4d771	ok:502310c4d771	engine	objects@fk	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
+1505	1505	engine	objects@fk	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1505	1505	engine	objects@fk	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1505	1505	engine	objects@fk	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1505	1505	engine	objects@fk	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1505	1505	engine	objects@fk	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1505	1505	engine	objects@fk	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1505	1505	engine	objects@fk	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1505	1505	engine	objects@fk	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident ADD FULLTEXT(ident) KEY_BLOCK_SIZE 1
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/IndexType	ALTER TABLE ident ADD FULLTEXT(ident) USING BTREE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/WITH_PARSER_Identifier	ALTER TABLE ident ADD FULLTEXT(ident) WITH PARSER ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/COMMENT_stringLit	ALTER TABLE ident ADD FULLTEXT(ident) COMMENT 'binary'
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/WithClustered	ALTER TABLE ident ADD FULLTEXT(ident) CLUSTERED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/GLOBAL	ALTER TABLE ident ADD FULLTEXT(ident) GLOBAL
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexOption/LOCAL	ALTER TABLE ident ADD FULLTEXT(ident) LOCAL
+ok:5343fcced198	ok:5343fcced198	engine	objects@fk	IndexNameAndTypeOpt/IndexName!insert	ALTER TABLE ident ADD KEY zzz(ident)
+ok:0a687565d13a	ok:0a687565d13a	engine	objects@fk	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName	ALTER TABLE ident ADD KEY USING BTREE(ident)
+ok:60fbc1da37d8	ok:60fbc1da37d8	engine	objects@fk	IndexNameAndTypeOpt/IndexName_USING_IndexTypeName!drop-1	ALTER TABLE ident ADD KEY BTREE(ident)
+1061	1061	engine	objects@fk	IndexNameAndTypeOpt/Identifier_TYPE_IndexTypeName	ALTER TABLE ident ADD KEY ident TYPE BTREE(ident)
+1061	1061	engine	objects@fk	IndexTypeOpt/IndexType	CREATE INDEX ident USING BTREE ON ident(ident)
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexType/TYPE_IndexTypeName	ALTER TABLE ident ADD FULLTEXT(ident) TYPE BTREE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexTypeName/HASH	ALTER TABLE ident ADD FULLTEXT(ident) USING HASH
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexTypeName/RTREE	ALTER TABLE ident ADD FULLTEXT(ident) USING RTREE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexTypeName/HYPO	ALTER TABLE ident ADD FULLTEXT(ident) USING HYPO
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	IndexTypeName/HNSW	ALTER TABLE ident ADD FULLTEXT(ident) USING HNSW
+ok:8101f5a1bfce	ok:8101f5a1bfce	engine	objects@fk	IndexInvisible/INVISIBLE	ALTER TABLE ident ALTER INDEX ident INVISIBLE
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	AlterOrderList/AlterOrderList_,_AlterOrderItem	ALTER TABLE ident ORDER BY ident, ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	Statement/TruncateTableStmt	TRUNCATE ident
+1113	1113	engine	objects@fk	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	objects@fk	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
+1050	1050	engine	objects@fk	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
+1050	1050	engine	objects@fk	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
+1050	1050	engine	objects@fk	TableElementList/TableElementList_,_TableElement	CREATE TABLE ident(ident TINYINT, ident TINYINT)
+1050	1050	engine	objects@fk	TableElementList/TableElementList_,_TableElement!swap	CREATE TABLE ident(ident TINYTEXT, ident TINYINT)
+ok	8200	engine	objects@fk	TableOption/DefaultKwdOpt_CharsetKw_EqOpt_CharsetName	ALTER TABLE ident CHARSET 'binary'
+ok	8200	engine	objects@fk	TableOption/DefaultKwdOpt_COLLATE_EqOpt_CollationName	ALTER TABLE ident COLLATE 'binary'
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	TableOption/ForceOpt_AUTO_INCREMENT_EqOpt_LengthNum	ALTER TABLE ident AUTO_INCREMENT 1
+ok	1105	engine	objects@fk	TableOption/AUTO_ID_CACHE_EqOpt_LengthNum	ALTER TABLE ident AUTO_ID_CACHE 1
+8216	8216	engine	objects@fk	TableOption/ForceOpt_AUTO_RANDOM_BASE_EqOpt_LengthNum	ALTER TABLE ident AUTO_RANDOM_BASE 1
+ok	8200	engine	objects@fk	TableOption/AVG_ROW_LENGTH_EqOpt_LengthNum	ALTER TABLE ident AVG_ROW_LENGTH 1
+ok	8200	engine	objects@fk	TableOption/CONNECTION_EqOpt_stringLit	ALTER TABLE ident CONNECTION 'binary'
+ok	8200	engine	objects@fk	TableOption/CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident CHECKSUM 1
+ok	8200	engine	objects@fk	TableOption/TABLE_CHECKSUM_EqOpt_LengthNum	ALTER TABLE ident TABLE_CHECKSUM 1
+ok	8200	engine	objects@fk	TableOption/PASSWORD_EqOpt_stringLit	ALTER TABLE ident PASSWORD 'binary'
+ok	8200	engine	objects@fk	TableOption/COMPRESSION_EqOpt_stringLit	ALTER TABLE ident COMPRESSION 'binary'
+ok	8200	engine	objects@fk	TableOption/KEY_BLOCK_SIZE_EqOpt_LengthNum	ALTER TABLE ident KEY_BLOCK_SIZE 1
+ok	8200	engine	objects@fk	TableOption/DELAY_KEY_WRITE_EqOpt_LengthNum	ALTER TABLE ident DELAY_KEY_WRITE 1
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	TableOption/RowFormat	ALTER TABLE ident ROW_FORMAT DEFAULT
+ok	8200	engine	objects@fk	TableOption/STATS_PERSISTENT_EqOpt_StatsPersistentVal	ALTER TABLE ident STATS_PERSISTENT DEFAULT
+ok	8200	engine	objects@fk	TableOption/STATS_AUTO_RECALC_EqOpt_LengthNum	ALTER TABLE ident STATS_AUTO_RECALC 1
+ok	8200	engine	objects@fk	TableOption/STATS_AUTO_RECALC_EqOpt_DEFAULT	ALTER TABLE ident STATS_AUTO_RECALC DEFAULT
+ok	8200	engine	objects@fk	TableOption/STATS_SAMPLE_PAGES_EqOpt_LengthNum	ALTER TABLE ident STATS_SAMPLE_PAGES 1
+ok	8200	engine	objects@fk	TableOption/STATS_SAMPLE_PAGES_EqOpt_DEFAULT	ALTER TABLE ident STATS_SAMPLE_PAGES DEFAULT
+ok	8200	engine	objects@fk	TableOption/STATS_BUCKETS_EqOpt_LengthNum	ALTER TABLE ident STATS_BUCKETS 1
+ok	8200	engine	objects@fk	TableOption/STATS_TOPN_EqOpt_LengthNum	ALTER TABLE ident STATS_TOPN 1
+ok	8200	engine	objects@fk	TableOption/STATS_COL_CHOICE_EqOpt_stringLit	ALTER TABLE ident STATS_COL_CHOICE 'binary'
+ok	8200	engine	objects@fk	TableOption/STATS_COL_LIST_EqOpt_stringLit	ALTER TABLE ident STATS_COL_LIST 'binary'
+ok	8200	engine	objects@fk	TableOption/SHARD_ROW_ID_BITS_EqOpt_LengthNum	ALTER TABLE ident SHARD_ROW_ID_BITS 1
+ok	8200	engine	objects@fk	TableOption/PRE_SPLIT_REGIONS_EqOpt_LengthNum	ALTER TABLE ident PRE_SPLIT_REGIONS 1
+ok	8200	engine	objects@fk	TableOption/PACK_KEYS_EqOpt_StatsPersistentVal	ALTER TABLE ident PACK_KEYS DEFAULT
+ok	8200	engine	objects@fk	TableOption/STORAGE_MEMORY	ALTER TABLE ident STORAGE MEMORY
+ok	8200	engine	objects@fk	TableOption/STORAGE_DISK	ALTER TABLE ident STORAGE DISK
+ok	8200	engine	objects@fk	TableOption/SECONDARY_ENGINE_EqOpt_NULL	ALTER TABLE ident SECONDARY_ENGINE NULL
+ok	8200	engine	objects@fk	TableOption/SECONDARY_ENGINE_EqOpt_StringName	ALTER TABLE ident SECONDARY_ENGINE 'binary'
+ok	8232	engine	objects@fk	TableOption/UNION_EqOpt_(_TableNameListOpt_)	ALTER TABLE ident UNION()
+8148	8148	engine	objects@fk	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Literal_TimeUnit	ALTER TABLE ident TTL ident + INTERVAL FALSE MICROSECOND
+ok	8266	engine	objects@fk	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
+ok	8200	engine	objects@fk	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
+1113	1113	engine	objects@fk	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+ok:b39c594db34f	ok:b39c594db34f	engine	objects@fk	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
+ok:b39c594db34f	ok:b39c594db34f	engine	objects@fk	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	OptTable/TABLE	TRUNCATE TABLE ident
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_DYNAMIC	ALTER TABLE ident ROW_FORMAT DYNAMIC
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_FIXED	ALTER TABLE ident ROW_FORMAT FIXED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_COMPRESSED	ALTER TABLE ident ROW_FORMAT COMPRESSED
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_REDUNDANT	ALTER TABLE ident ROW_FORMAT REDUNDANT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_COMPACT	ALTER TABLE ident ROW_FORMAT COMPACT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_DEFAULT	ALTER TABLE ident ROW_FORMAT TOKUDB_DEFAULT
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_FAST	ALTER TABLE ident ROW_FORMAT TOKUDB_FAST
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SMALL	ALTER TABLE ident ROW_FORMAT TOKUDB_SMALL
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZLIB	ALTER TABLE ident ROW_FORMAT TOKUDB_ZLIB
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_ZSTD	ALTER TABLE ident ROW_FORMAT TOKUDB_ZSTD
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_QUICKLZ	ALTER TABLE ident ROW_FORMAT TOKUDB_QUICKLZ
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_LZMA	ALTER TABLE ident ROW_FORMAT TOKUDB_LZMA
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_SNAPPY	ALTER TABLE ident ROW_FORMAT TOKUDB_SNAPPY
+ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOKUDB_UNCOMPRESSED	ALTER TABLE ident ROW_FORMAT TOKUDB_UNCOMPRESSED
+1060	1060	engine	objects@fk	Type/StringType	ALTER TABLE ident ADD ident CHARACTER
+1060	1060	engine	objects@fk	Type/DateAndTimeType	ALTER TABLE ident ADD ident DATE
+1060	1060	engine	objects@fk	NumericType/BooleanType_FieldOpts	ALTER TABLE ident ADD ident BOOL
+1060	1060	engine	objects@fk	NumericType/FixedPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident DECIMAL
+1060	1060	engine	objects@fk	NumericType/FloatingPointType_FloatOpt_FieldOpts	ALTER TABLE ident ADD ident FLOAT
+1060	1060	engine	objects@fk	NumericType/BitValueType_OptFieldLen	ALTER TABLE ident ADD ident BIT
+1060	1060	engine	objects@fk	IntegerType/SMALLINT	ALTER TABLE ident ADD ident SMALLINT
+1060	1060	engine	objects@fk	IntegerType/MEDIUMINT	ALTER TABLE ident ADD ident MEDIUMINT
+1060	1060	engine	objects@fk	IntegerType/MIDDLEINT	ALTER TABLE ident ADD ident MIDDLEINT
+1060	1060	engine	objects@fk	IntegerType/INT	ALTER TABLE ident ADD ident INT
+1060	1060	engine	objects@fk	IntegerType/INT1	ALTER TABLE ident ADD ident INT1
+1060	1060	engine	objects@fk	IntegerType/INT2	ALTER TABLE ident ADD ident INT2
+1060	1060	engine	objects@fk	IntegerType/INT3	ALTER TABLE ident ADD ident INT3
+1060	1060	engine	objects@fk	IntegerType/INT4	ALTER TABLE ident ADD ident INT4
+1060	1060	engine	objects@fk	IntegerType/INT8	ALTER TABLE ident ADD ident INT8
+1060	1060	engine	objects@fk	IntegerType/INTEGER	ALTER TABLE ident ADD ident INTEGER
+1060	1060	engine	objects@fk	IntegerType/BIGINT	ALTER TABLE ident ADD ident BIGINT
+1060	1060	engine	objects@fk	BooleanType/BOOLEAN	ALTER TABLE ident ADD ident BOOLEAN
+1060	1060	engine	objects@fk	FixedPointType/NUMERIC	ALTER TABLE ident ADD ident NUMERIC
+1060	1060	engine	objects@fk	FixedPointType/FIXED	ALTER TABLE ident ADD ident FIXED
+1060	1060	engine	objects@fk	FloatingPointType/REAL	ALTER TABLE ident ADD ident REAL
+1060	1060	engine	objects@fk	FloatingPointType/DOUBLE	ALTER TABLE ident ADD ident DOUBLE
+1060	1060	engine	objects@fk	FloatingPointType/DOUBLE_PRECISION	ALTER TABLE ident ADD ident DOUBLE PRECISION
+1060	1060	engine	objects@fk	FloatingPointType/FLOAT4	ALTER TABLE ident ADD ident FLOAT4
+1060	1060	engine	objects@fk	FloatingPointType/FLOAT8	ALTER TABLE ident ADD ident FLOAT8
+1060	1060	engine	objects@fk	StringType/Char_FieldLen_OptBinary	ALTER TABLE ident ADD ident CHARACTER(1)
+1060	1060	engine	objects@fk	StringType/NChar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NCHAR(1)
+1060	1060	engine	objects@fk	StringType/NChar_OptBinary	ALTER TABLE ident ADD ident NCHAR
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident VARCHAR(1)
+1060	1060	engine	objects@fk	StringType/Varchar_FieldLen_OptBinary!swap	ALTER TABLE ident ADD ident VARCHARACTER(1)
+1060	1060	engine	objects@fk	StringType/NVarchar_FieldLen_OptBinary	ALTER TABLE ident ADD ident NVARCHAR(1)
+1060	1060	engine	objects@fk	StringType/BINARY_OptFieldLen	ALTER TABLE ident ADD ident BINARY
+1060	1060	engine	objects@fk	StringType/VARBINARY_FieldLen	ALTER TABLE ident ADD ident VARBINARY(1)
+1060	1060	engine	objects@fk	StringType/BlobType	ALTER TABLE ident ADD ident TINYBLOB
+1060	1060	engine	objects@fk	StringType/TextType_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident TINYTEXT
+1060	1060	engine	objects@fk	StringType/ENUM_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident ENUM('binary')
+1060	1060	engine	objects@fk	StringType/SET_(_TextStringList_)_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident SET('binary')
+1060	1060	engine	objects@fk	StringType/JSON	ALTER TABLE ident ADD ident JSON
+1060	1060	engine	objects@fk	StringType/LONG_Varchar_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG VARCHAR
+1060	1060	engine	objects@fk	StringType/LONG_OptCharsetWithOptBinary	ALTER TABLE ident ADD ident LONG
+1060	1060	engine	objects@fk	StringType/VECTOR_OptVectorElementType_OptFieldLen	ALTER TABLE ident ADD ident VECTOR
+1060	1060	engine	objects@fk	Char/CHAR	ALTER TABLE ident ADD ident CHAR
+1060	1060	engine	objects@fk	NChar/NATIONAL_CHARACTER	ALTER TABLE ident ADD ident NATIONAL CHARACTER
+1060	1060	engine	objects@fk	NChar/NATIONAL_CHAR	ALTER TABLE ident ADD ident NATIONAL CHAR
+1060	1060	engine	objects@fk	Varchar/CHARACTER_VARYING	ALTER TABLE ident ADD ident LONG CHARACTER VARYING
+1060	1060	engine	objects@fk	Varchar/CHAR_VARYING	ALTER TABLE ident ADD ident LONG CHAR VARYING
+1060	1060	engine	objects@fk	Varchar/VARCHARACTER	ALTER TABLE ident ADD ident LONG VARCHARACTER
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_VARCHAR	ALTER TABLE ident ADD ident NATIONAL VARCHAR(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_VARCHARACTER	ALTER TABLE ident ADD ident NATIONAL VARCHARACTER(1)
+1060	1060	engine	objects@fk	NVarchar/NCHAR_VARCHAR	ALTER TABLE ident ADD ident NCHAR VARCHAR(1)
+1060	1060	engine	objects@fk	NVarchar/NCHAR_VARCHARACTER	ALTER TABLE ident ADD ident NCHAR VARCHARACTER(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHARACTER_VARYING	ALTER TABLE ident ADD ident NATIONAL CHARACTER VARYING(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHARACTER_VARYING!drop-1	ALTER TABLE ident ADD ident CHARACTER VARYING(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHARACTER_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHARACTER(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHAR_VARYING	ALTER TABLE ident ADD ident NATIONAL CHAR VARYING(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHAR_VARYING!drop-1	ALTER TABLE ident ADD ident CHAR VARYING(1)
+1060	1060	engine	objects@fk	NVarchar/NATIONAL_CHAR_VARYING!drop-3	ALTER TABLE ident ADD ident NATIONAL CHAR(1)
+1060	1060	engine	objects@fk	NVarchar/NCHAR_VARYING	ALTER TABLE ident ADD ident NCHAR VARYING(1)
+1060	1060	engine	objects@fk	Year/YEAR	ALTER TABLE ident ADD ident YEAR
+1060	1060	engine	objects@fk	Year/SQL_TSI_YEAR	ALTER TABLE ident ADD ident SQL_TSI_YEAR
+1060	1060	engine	objects@fk	BlobType/BLOB_OptFieldLen	ALTER TABLE ident ADD ident BLOB
+1060	1060	engine	objects@fk	BlobType/MEDIUMBLOB	ALTER TABLE ident ADD ident MEDIUMBLOB
+1060	1060	engine	objects@fk	BlobType/LONGBLOB	ALTER TABLE ident ADD ident LONGBLOB
+1060	1060	engine	objects@fk	BlobType/LONG_VARBINARY	ALTER TABLE ident ADD ident LONG VARBINARY
+1060	1060	engine	objects@fk	TextType/TEXT_OptFieldLen	ALTER TABLE ident ADD ident TEXT
+1060	1060	engine	objects@fk	TextType/MEDIUMTEXT	ALTER TABLE ident ADD ident MEDIUMTEXT
+1060	1060	engine	objects@fk	TextType/LONGTEXT	ALTER TABLE ident ADD ident LONGTEXT
+1060	1060	engine	objects@fk	OptCharsetWithOptBinary/ASCII	ALTER TABLE ident ADD ident TINYTEXT ASCII
+1115	1115	engine	objects@fk	OptCharsetWithOptBinary/UNICODE	ALTER TABLE ident ADD ident TINYTEXT UNICODE
+1060	1060	engine	objects@fk	OptCharsetWithOptBinary/BYTE	ALTER TABLE ident ADD ident TINYTEXT BYTE
+1060	1060	engine	objects@fk	DateAndTimeType/DATETIME_OptFieldLen	ALTER TABLE ident ADD ident DATETIME
+1060	1060	engine	objects@fk	DateAndTimeType/TIMESTAMP_OptFieldLen	ALTER TABLE ident ADD ident TIMESTAMP
+1060	1060	engine	objects@fk	DateAndTimeType/TIME_OptFieldLen	ALTER TABLE ident ADD ident TIME
+1060	1060	engine	objects@fk	FieldLen/(_LengthNum_)	ALTER TABLE ident ADD ident TINYINT(1)
+1060	1060	engine	objects@fk	FieldOpt/UNSIGNED	ALTER TABLE ident ADD ident TINYINT UNSIGNED
+1060	1060	engine	objects@fk	FieldOpt/SIGNED	ALTER TABLE ident ADD ident TINYINT SIGNED
+1060	1060	engine	objects@fk	FieldOpt/ZEROFILL	ALTER TABLE ident ADD ident TINYINT ZEROFILL
+1060	1060	engine	objects@fk	FloatOpt/FieldLen	ALTER TABLE ident ADD ident DECIMAL(1)
+1060	1060	engine	objects@fk	FloatOpt/Precision	ALTER TABLE ident ADD ident DECIMAL(1, 1)
+1060	1060	engine	objects@fk	OptBinMod/%empty	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary'
+1060	1060	engine	objects@fk	OptBinMod/BINARY	ALTER TABLE ident ADD ident CHARACTER CHARSET 'binary' BINARY
+1060	1060	engine	objects@fk	OptVectorElementType/<_FLOAT_>	ALTER TABLE ident ADD ident VECTOR < FLOAT >
+1060	1060	engine	objects@fk	OptBinary/BINARY_OptCharset	ALTER TABLE ident ADD ident CHARACTER BINARY
+1060	1060	engine	objects@fk	OptCharset/CharsetKw_CharsetName	ALTER TABLE ident ADD ident CHARACTER BINARY CHARSET 'binary'
+ok	8200	engine	objects@fk	OptCollate/COLLATE_CollationName	ALTER TABLE ident CONVERT TO CHARSET 'binary' COLLATE 'binary'
+1060	1060	engine	objects@fk	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
+1060	1060	engine	objects@fk	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
+1060	1060	engine	objects@fk	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')

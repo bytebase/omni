@@ -3,6 +3,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -121,6 +122,12 @@ type deparseCtx struct {
 	// up one level at a time made a long UNION of such arms quadratic.
 	setOpLevels int
 	aboveSetOps *deparseCtx
+
+	// Cached RTE deparse reference names for rteRefNamesQuery and the union of
+	// all reserved reference names across this scope and enclosing scopes.
+	rteRefNamesQuery *Query
+	rteRefNames      map[*RangeTableEntry]string
+	usedRefNames     map[string]bool
 }
 
 const (
@@ -220,6 +227,26 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 	if query.HavingQual != nil {
 		d.appendContextKeyword(" HAVING ", -prettyIndentStd, prettyIndentStd, 0)
 		d.getRuleExpr(query.HavingQual, false)
+	}
+
+	// WINDOW clause.
+	//
+	// pg: src/backend/utils/adt/ruleutils.c — get_basic_select_query
+	hasWindow := false
+	for _, wc := range query.WindowClause {
+		if wc.Name == "" {
+			continue
+		}
+		if hasWindow {
+			d.buf.WriteString(", ")
+		} else {
+			d.appendContextKeyword(" WINDOW ", -prettyIndentStd, prettyIndentStd, 1)
+			hasWindow = true
+		}
+		d.buf.WriteString(quoteIdentifier(wc.Name))
+		d.buf.WriteString(" AS (")
+		d.getWindowSpec(wc)
+		d.buf.WriteByte(')')
 	}
 
 	// ORDER BY.
@@ -474,18 +501,204 @@ func (d *deparseCtx) relationColumnsRenamed(rte *RangeTableEntry) bool {
 }
 
 // writeColumnAliasList prints a FROM item's column alias list, which names
-// every column of the item.
+// every column of the item, disambiguating duplicate names as PostgreSQL does.
 //
-// pg: src/backend/utils/adt/ruleutils.c — get_column_alias_list
+// pg: src/backend/utils/adt/ruleutils.c — get_column_alias_list / make_colname_unique
 func (d *deparseCtx) writeColumnAliasList(colNames []string) {
 	d.buf.WriteByte('(')
-	for i, cn := range colNames {
+	for i, cn := range uniqueColumnAliases(colNames) {
 		if i > 0 {
 			d.buf.WriteString(", ")
 		}
 		d.buf.WriteString(quoteIdentifier(cn))
 	}
 	d.buf.WriteByte(')')
+}
+
+// rtePrintedColNames returns the column names exposed by rte when deparsed,
+// applying duplicate-name disambiguation whenever getFromClauseItem emits a
+// column alias list for rte so declarations and Var references stay aligned.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_rtable_names / set_relation_column_names
+func (d *deparseCtx) rtePrintedColNames(rte *RangeTableEntry) []string {
+	switch rte.Kind {
+	case RTERelation:
+		if rte.Alias != "" && d.relationColumnsRenamed(rte) {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	case RTESubquery:
+		if (rte.Alias != "" || rte.ERef != "") && rte.aliasColumns > 0 {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	case RTECTE:
+		if rte.Alias != "" && (rte.Alias != rte.CTEName || rte.aliasColumns > 0) && rte.aliasColumns > 0 {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	case RTEFunction:
+		if !rte.UnknownColumns {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	case RTETableFunc:
+		if rte.Alias != "" && rte.aliasColumns > 0 {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	case RTEJoin:
+		if rte.Alias != "" && (rte.aliasColumns > 0 || hasDuplicateStrings(rte.ColNames)) {
+			return uniqueColumnAliases(rte.ColNames)
+		}
+	}
+	return rte.ColNames
+}
+
+func hasDuplicateStrings(ss []string) bool {
+	if len(ss) < 2 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(ss))
+	for _, s := range ss {
+		s = clipUTF8Bytes(s, maxPGIdentifierBytes)
+		if _, dup := seen[s]; dup {
+			return true
+		}
+		seen[s] = struct{}{}
+	}
+	return false
+}
+
+// appendUniqueSuffix appends "_<n>" to base, clipping base at a UTF-8 boundary
+// so the resulting identifier stays within PostgreSQL's NAMEDATALEN-1 (63)
+// byte limit.
+func appendUniqueSuffix(base string, n int) string {
+	suffix := fmt.Sprintf("_%d", n)
+	return clipUTF8Bytes(base, maxPGIdentifierBytes-len(suffix)) + suffix
+}
+
+func uniqueColumnAliases(colNames []string) []string {
+	bounded := make([]string, len(colNames))
+	for i, cn := range colNames {
+		bounded[i] = clipUTF8Bytes(cn, maxPGIdentifierBytes)
+	}
+	out := make([]string, len(colNames))
+	used := make(map[string]bool, len(colNames))
+	for i, cn := range bounded {
+		name := cn
+		if used[name] {
+			for n := 1; ; n++ {
+				cand := appendUniqueSuffix(cn, n)
+				if !used[cand] && !slices.Contains(bounded[i+1:], cand) {
+					name = cand
+					break
+				}
+			}
+		}
+		used[name] = true
+		out[i] = name
+	}
+	return out
+}
+
+// ensureRTERefNames computes and caches the unique deparse reference name for
+// every RTE in query together with the union of reserved names across this
+// scope and all enclosing scopes, avoiding repeated ancestor recomputation.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_rtable_names
+func (d *deparseCtx) ensureRTERefNames(query *Query) (map[*RangeTableEntry]string, map[string]bool) {
+	if query == nil {
+		return nil, nil
+	}
+	if d.rteRefNamesQuery == query {
+		return d.rteRefNames, d.usedRefNames
+	}
+	var parentUsed map[string]bool
+	for p := d.parentCtx; p != nil; p = p.parentCtx {
+		if p.query != nil {
+			_, parentUsed = p.ensureRTERefNames(p.query)
+			break
+		}
+	}
+	if len(query.RangeTable) == 0 {
+		d.rteRefNamesQuery = query
+		d.rteRefNames = nil
+		d.usedRefNames = parentUsed
+		return nil, parentUsed
+	}
+	used := make(map[string]bool, len(parentUsed)+len(query.RangeTable))
+	for name := range parentUsed {
+		used[name] = true
+	}
+	names := make(map[*RangeTableEntry]string, len(query.RangeTable))
+	// Reserve all explicit aliases and non-unnamed-subquery ERefs first.
+	for _, other := range query.RangeTable {
+		if other.Kind == RTESubquery && other.Alias == "" {
+			continue
+		}
+		if other.Kind == RTEJoin && other.Alias == "" {
+			continue
+		}
+		name := other.Alias
+		if name == "" {
+			name = other.ERef
+		}
+		if name != "" {
+			name = clipUTF8Bytes(name, maxPGIdentifierBytes)
+			names[other] = name
+			used[name] = true
+		}
+	}
+	// Assign unique generated names for unnamed subqueries in RangeTable order.
+	for _, other := range query.RangeTable {
+		if other.Kind != RTESubquery || other.Alias != "" {
+			continue
+		}
+		base := other.ERef
+		if base == "" {
+			base = "unnamed_subquery"
+		}
+		name := clipUTF8Bytes(base, maxPGIdentifierBytes)
+		if used[name] {
+			for n := 1; ; n++ {
+				cand := appendUniqueSuffix(base, n)
+				if !used[cand] {
+					name = cand
+					break
+				}
+			}
+		}
+		names[other] = name
+		used[name] = true
+	}
+	d.rteRefNamesQuery = query
+	d.rteRefNames = names
+	d.usedRefNames = used
+	return names, used
+}
+
+// rteRefName returns the unique deparse reference name for rte within query,
+// disambiguating generated aliases (such as multiple unnamed subqueries)
+// against explicit aliases and other generated names.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_rtable_names
+func (d *deparseCtx) rteRefName(query *Query, rte *RangeTableEntry) string {
+	if query == nil || rte == nil {
+		if rte != nil {
+			if rte.Alias != "" {
+				return rte.Alias
+			}
+			return rte.ERef
+		}
+		return ""
+	}
+	if rte.Alias != "" {
+		return rte.Alias
+	}
+	if rte.Kind != RTESubquery {
+		return rte.ERef
+	}
+	names, _ := d.ensureRTERefNames(query)
+	if name, ok := names[rte]; ok {
+		return name
+	}
+	return rte.ERef
 }
 
 // getFromClauseItem deparses a single FROM clause item.
@@ -521,9 +734,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			subCtx.getQueryDef(rte.Subquery)
 			d.indentLevel = subCtx.indentLevel
 			d.buf.WriteByte(')')
-			if rte.Alias != "" {
+			refname := d.rteRefName(query, rte)
+			if refname != "" {
 				d.buf.WriteByte(' ')
-				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				d.buf.WriteString(quoteIdentifier(refname))
 				if rte.aliasColumns > 0 {
 					d.writeColumnAliasList(rte.ColNames)
 				}
@@ -589,21 +803,30 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 					// The column definition list is also the alias list.
 					d.getColDefList(colNames[:min(len(def.types), len(colNames))], def)
 				} else if len(colNames) > 0 {
-					d.buf.WriteByte('(')
-					for i, cn := range colNames {
-						if i > 0 {
-							d.buf.WriteString(", ")
-						}
-						d.buf.WriteString(quoteIdentifier(cn))
-					}
-					d.buf.WriteByte(')')
+					d.writeColumnAliasList(colNames)
+				}
+			}
+		case RTETableFunc:
+			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_TABLEFUNC case
+			d.getTableFunc(rte.TableFunc)
+			if rte.Alias != "" {
+				d.buf.WriteByte(' ')
+				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				if rte.aliasColumns > 0 {
+					d.writeColumnAliasList(rte.ColNames)
 				}
 			}
 		}
 
 	case *JoinExprNode:
-		// pg: get_from_clause_item wraps joins in parens when !PRETTY_PAREN
-		if !d.prettyParen {
+		var joinRTE *RangeTableEntry
+		if v.RTIndex >= 0 && v.RTIndex < len(query.RangeTable) {
+			joinRTE = query.RangeTable[v.RTIndex]
+		}
+		hasJoinAlias := joinRTE != nil && joinRTE.Alias != ""
+		// pg: get_from_clause_item wraps joins in parens when !PRETTY_PAREN or aliased
+		needParens := !d.prettyParen || hasJoinAlias
+		if needParens {
 			d.buf.WriteByte('(')
 		}
 
@@ -652,8 +875,15 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			d.buf.WriteString(" ON TRUE")
 		}
 
-		if !d.prettyParen {
+		if needParens {
 			d.buf.WriteByte(')')
+		}
+		if hasJoinAlias {
+			d.buf.WriteByte(' ')
+			d.buf.WriteString(quoteIdentifier(joinRTE.Alias))
+			if joinRTE.aliasColumns > 0 || hasDuplicateStrings(joinRTE.ColNames) {
+				d.writeColumnAliasList(joinRTE.ColNames)
+			}
 		}
 	}
 }
@@ -794,6 +1024,12 @@ func (d *deparseCtx) getRuleExpr(expr AnalyzedExpr, showImplicit bool) {
 		d.getJsonIsPredicate(v)
 	case *JsonValueExprQ:
 		d.getRuleExpr(v.Expr, showImplicit)
+		switch v.Format {
+		case 1: // JS_FORMAT_JSON
+			d.buf.WriteString(" FORMAT JSON")
+		case 2: // JS_FORMAT_JSONB
+			d.buf.WriteString(" FORMAT JSONB")
+		}
 	// --- Plan-Internal Stubs ---
 	case *SubPlanExpr:
 		d.buf.WriteString("/* SubPlan */")
@@ -844,8 +1080,9 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	}
 
 	rte := ctx.query.RangeTable[v.RangeIdx]
+	refName := ctx.rteRefName(ctx.query, rte)
 	if v.AttNum == 0 {
-		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(quoteIdentifier(refName))
 		d.buf.WriteString(".*")
 		if isTopLevel {
 			if v.TypeOID != 0 && v.TypeOID != RECORDOID {
@@ -858,15 +1095,16 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 			}
 			return ""
 		}
-		return rte.ERef
+		return refName
 	}
+	colNames := ctx.rtePrintedColNames(rte)
 	colIdx := int(v.AttNum - 1)
-	if colIdx < 0 || colIdx >= len(rte.ColNames) {
+	if colIdx < 0 || colIdx >= len(colNames) {
 		d.buf.WriteString("???")
 		return "???"
 	}
 
-	colName := rte.ColNames[colIdx]
+	colName := colNames[colIdx]
 
 	// pg: get_variable — a column of an unnamed join prints as the input
 	// column it stands for, or bare when it stands for none, as a FULL JOIN
@@ -892,7 +1130,7 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	needPrefix := v.LevelsUp > 0 || d.hasParentNamespace || len(d.query.RangeTable) != 1
 
 	if needPrefix {
-		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(quoteIdentifier(refName))
 		d.buf.WriteByte('.')
 	}
 	d.buf.WriteString(quoteIdentifier(colName))
@@ -923,10 +1161,17 @@ func (d *deparseCtx) getConstExpr(c *ConstExpr, showType int) {
 
 	switch c.TypeOID {
 	case INT4OID:
-		if len(c.Value) > 0 && c.Value[0] != '-' {
+		allDigits := len(c.Value) > 0
+		for i := 0; i < len(c.Value); i++ {
+			if c.Value[i] < '0' || c.Value[i] > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
 			d.buf.WriteString(c.Value)
 		} else {
-			fmt.Fprintf(d.buf, "'%s'", c.Value)
+			simpleQuoteLiteral(d.buf, c.Value)
 			needLabel = true
 		}
 	case INT8OID:
@@ -935,10 +1180,10 @@ func (d *deparseCtx) getConstExpr(c *ConstExpr, showType int) {
 		simpleQuoteLiteral(d.buf, c.Value)
 		needLabel = true
 	case NUMERICOID:
-		if len(c.Value) > 0 && c.Value[0] != '-' {
+		if isPlainNonNegNumeric(c.Value) {
 			d.buf.WriteString(c.Value)
 		} else {
-			fmt.Fprintf(d.buf, "'%s'", c.Value)
+			simpleQuoteLiteral(d.buf, c.Value)
 			needLabel = true
 		}
 	case BOOLOID:
@@ -968,7 +1213,14 @@ func (d *deparseCtx) getConstExpr(c *ConstExpr, showType int) {
 
 	if needLabel || showType > 0 {
 		d.buf.WriteString("::")
-		d.buf.WriteString(d.catalog.formatType(c.TypeOID, c.TypeMod))
+		if c.TypeOID == BITOID && c.TypeMod < 0 {
+			// pg: src/backend/utils/adt/format_type.c — format_type_extended
+			// Unquoted bit means bit(1) in SQL; quote "bit" to preserve
+			// unspecified length (typmod -1) for multi-bit constants.
+			d.buf.WriteString(`"bit"`)
+		} else {
+			d.buf.WriteString(d.catalog.formatType(c.TypeOID, c.TypeMod))
+		}
 	}
 }
 
@@ -1335,6 +1587,15 @@ func (d *deparseCtx) getSubLink(s *SubLinkExpr) {
 		} else {
 			d.buf.WriteByte(')')
 		}
+	case SubLinkArrayType:
+		// pg: get_sublink_expr — ARRAY( subquery )
+		d.buf.WriteString("ARRAY(")
+		subCtx := d.subContext()
+		subCtx.hasParentNamespace = true
+		subCtx.colNamesVisible = false
+		subCtx.getQueryDef(s.SubQuery)
+		d.indentLevel = subCtx.indentLevel
+		d.buf.WriteByte(')')
 	default:
 		// EXPR_SUBLINK (scalar subquery)
 		d.buf.WriteByte('(')
@@ -1435,7 +1696,7 @@ func (d *deparseCtx) getSQLValueFunc(s *SQLValueFuncExpr) {
 	case SVFCurrentUser:
 		d.buf.WriteString("CURRENT_USER")
 	case SVFUser:
-		d.buf.WriteString("CURRENT_USER")
+		d.buf.WriteString("USER")
 	case SVFSessionUser:
 		d.buf.WriteString("SESSION_USER")
 	case SVFCurrentCatalog:
@@ -1581,6 +1842,11 @@ func (d *deparseCtx) getArrayExpr(a *ArrayExprQ) {
 		d.getRuleExpr(elem, true)
 	}
 	d.buf.WriteByte(']')
+	// pg: src/backend/utils/adt/ruleutils.c — get_rule_expr (T_ArrayExpr)
+	if len(a.Elements) == 0 && a.ArrayType != 0 {
+		d.buf.WriteString("::")
+		d.buf.WriteString(d.catalog.formatType(a.ArrayType, -1))
+	}
 }
 
 // getRowExpr deparses a ROW(...) expression.
@@ -1727,8 +1993,9 @@ func (d *deparseCtx) getWindowSpec(wc *WindowClauseQ) {
 		needSpace = true
 	}
 
-	// Frame clause.
-	if wc.FrameOptions != 0 {
+	// Frame clause (only when non-default frame options were specified).
+	// pg: src/backend/utils/adt/ruleutils.c — get_rule_windowspec (FRAMEOPTION_NONDEFAULT)
+	if wc.FrameOptions&0x0001 != 0 {
 		if needSpace {
 			d.buf.WriteByte(' ')
 		}
@@ -1782,22 +2049,22 @@ func (d *deparseCtx) deparseFrameOptions(wc *WindowClauseQ) {
 	// Start bound.
 	switch {
 	case fo&frameOptStartUnbPre != 0:
-		d.buf.WriteString("UNBOUNDED PRECEDING ")
+		d.buf.WriteString("UNBOUNDED PRECEDING")
 	case fo&frameOptStartCurRow != 0:
-		d.buf.WriteString("CURRENT ROW ")
+		d.buf.WriteString("CURRENT ROW")
 	case fo&frameOptStartOffset != 0:
 		if wc.StartOffset != nil {
 			d.getRuleExpr(wc.StartOffset, false)
 		}
 		if fo&frameOptStartOffPre != 0 {
-			d.buf.WriteString(" PRECEDING ")
+			d.buf.WriteString(" PRECEDING")
 		} else {
-			d.buf.WriteString(" FOLLOWING ")
+			d.buf.WriteString(" FOLLOWING")
 		}
 	}
 
 	if fo&frameOptBetween != 0 {
-		d.buf.WriteString("AND ")
+		d.buf.WriteString(" AND ")
 
 		// End bound.
 		switch {
@@ -2402,6 +2669,9 @@ func (d *deparseCtx) subContext() *deparseCtx {
 
 // subContextBuf creates a child deparse context writing to a different buffer.
 func (d *deparseCtx) subContextBuf(buf *bytes.Buffer) *deparseCtx {
+	if d.query != nil {
+		d.ensureRTERefNames(d.query)
+	}
 	return &deparseCtx{
 		catalog:            d.catalog,
 		buf:                buf,
@@ -2415,6 +2685,9 @@ func (d *deparseCtx) subContextBuf(buf *bytes.Buffer) *deparseCtx {
 		parentCtx:          d.parentCtx,
 		setOpLevels:        d.setOpLevels,
 		aboveSetOps:        d.aboveSetOps,
+		rteRefNamesQuery:   d.rteRefNamesQuery,
+		rteRefNames:        d.rteRefNames,
+		usedRefNames:       d.usedRefNames,
 	}
 }
 
@@ -2701,7 +2974,7 @@ func isReservedWord(name string) bool {
 		"json_array", "json_arrayagg", "json_exists",
 		"json_object", "json_objectagg", "json_query",
 		"json_scalar", "json_serialize", "json_table", "json_value",
-		"least", "national", "nchar", "none", "normalize", "nullif",
+		"least", "merge_action", "national", "nchar", "none", "normalize", "nullif",
 		"numeric", "out", "overlay", "position", "precision",
 		"real", "row", "setof", "smallint", "substring", "time",
 		"timestamp", "treat", "trim", "values", "varchar",
@@ -2720,31 +2993,230 @@ func isReservedWord(name string) bool {
 	return false
 }
 
+// getTableFunc deparses an XMLTABLE(...) FROM clause item.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_tablefunc
+func (d *deparseCtx) getTableFunc(tf *TableFuncQ) {
+	d.buf.WriteString("XMLTABLE(")
+	if tf == nil {
+		d.buf.WriteByte(')')
+		return
+	}
+	if len(tf.Namespaces) > 0 {
+		d.buf.WriteString("XMLNAMESPACES(")
+		for i, ns := range tf.Namespaces {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			if ns.Name == "" {
+				d.buf.WriteString("DEFAULT ")
+				d.getRuleExpr(ns.Expr, true)
+			} else {
+				d.getRuleExpr(ns.Expr, true)
+				d.buf.WriteString(" AS ")
+				d.buf.WriteString(quoteIdentifier(ns.Name))
+			}
+		}
+		d.buf.WriteString("), ")
+	}
+	if tf.RowExpr != nil {
+		d.getRuleExpr(tf.RowExpr, true)
+	}
+	if tf.DocExpr != nil {
+		d.buf.WriteString(" PASSING ")
+		d.getRuleExpr(tf.DocExpr, true)
+	}
+	if len(tf.Columns) > 0 {
+		d.buf.WriteString(" COLUMNS ")
+		for i, col := range tf.Columns {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.buf.WriteString(quoteIdentifier(col.Name))
+			if col.ForOrdinality {
+				d.buf.WriteString(" FOR ORDINALITY")
+				continue
+			}
+			d.buf.WriteByte(' ')
+			d.buf.WriteString(d.catalog.formatType(col.TypeOID, col.TypeMod))
+			if col.ColExpr != nil {
+				d.buf.WriteString(" PATH ")
+				d.getRuleExpr(col.ColExpr, true)
+			}
+			if col.DefaultExpr != nil {
+				d.buf.WriteString(" DEFAULT ")
+				d.getRuleExpr(col.DefaultExpr, true)
+			}
+			if col.IsNotNull {
+				d.buf.WriteString(" NOT NULL")
+			}
+		}
+	}
+	d.buf.WriteByte(')')
+}
+
 // --- JSON Expression deparse methods ---
 
-// getJsonConstructorExpr deparses JSON_OBJECT(...) or JSON_ARRAY(...).
+// getJsonConstructorExpr deparses JSON_OBJECT(...), JSON_ARRAY(...),
+// JSON_ARRAY(subquery), JSON_ARRAYAGG(...), JSON_OBJECTAGG(...), etc.
 //
 // pg: src/backend/utils/adt/ruleutils.c — JsonConstructorExpr case
 func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
+	writeReturning := func(needSpace bool) {
+		if j.ResultType != 0 {
+			if needSpace {
+				d.buf.WriteByte(' ')
+			}
+			d.buf.WriteString("RETURNING ")
+			typMod := j.ResultTypeMod
+			if typMod == 0 && !j.HasReturning {
+				typMod = -1
+			}
+			d.buf.WriteString(d.catalog.formatType(j.ResultType, typMod))
+		}
+	}
+	writeAggSuffix := func() {
+		if j.AggFilter != nil {
+			d.buf.WriteString(" FILTER (WHERE ")
+			d.getRuleExpr(j.AggFilter, false)
+			d.buf.WriteByte(')')
+		}
+		if j.HasOver {
+			d.buf.WriteString(" OVER ")
+			if d.query != nil && int(j.WinRef) < len(d.query.WindowClause) {
+				wc := d.query.WindowClause[j.WinRef]
+				if wc.Name != "" {
+					d.buf.WriteString(quoteIdentifier(wc.Name))
+					return
+				}
+			}
+			d.buf.WriteByte('(')
+			if d.query != nil && int(j.WinRef) < len(d.query.WindowClause) {
+				d.getWindowSpec(d.query.WindowClause[j.WinRef])
+			}
+			d.buf.WriteByte(')')
+		}
+	}
 	switch j.ConstructorType {
 	case JsonConstructorObject:
 		d.buf.WriteString("JSON_OBJECT(")
-		for i, arg := range j.Args {
+		hasContent := len(j.Args) > 0
+		for i := 0; i < len(j.Args); i += 2 {
 			if i > 0 {
 				d.buf.WriteString(", ")
 			}
-			d.getRuleExpr(arg, true)
+			d.getRuleExpr(j.Args[i], true)
+			if i+1 < len(j.Args) {
+				d.buf.WriteString(" : ")
+				d.getRuleExpr(j.Args[i+1], true)
+			}
 		}
+		if j.AbsentOnNull {
+			if hasContent {
+				d.buf.WriteByte(' ')
+			}
+			d.buf.WriteString("ABSENT ON NULL")
+			hasContent = true
+		}
+		if j.UniqueKeys {
+			if hasContent {
+				d.buf.WriteByte(' ')
+			}
+			d.buf.WriteString("WITH UNIQUE")
+			hasContent = true
+		}
+		writeReturning(hasContent)
 		d.buf.WriteByte(')')
 	case JsonConstructorArray:
 		d.buf.WriteString("JSON_ARRAY(")
+		hasContent := len(j.Args) > 0
 		for i, arg := range j.Args {
 			if i > 0 {
 				d.buf.WriteString(", ")
 			}
 			d.getRuleExpr(arg, true)
 		}
+		if len(j.Args) > 0 {
+			if j.AbsentOnNull {
+				d.buf.WriteString(" ABSENT ON NULL")
+			} else {
+				d.buf.WriteString(" NULL ON NULL")
+			}
+			hasContent = true
+		}
+		writeReturning(hasContent)
 		d.buf.WriteByte(')')
+	case JsonConstructorArrayQuery:
+		d.buf.WriteString("JSON_ARRAY(")
+		hasContent := false
+		if j.Subquery != nil {
+			subCtx := d.subContext()
+			subCtx.hasParentNamespace = true
+			subCtx.colNamesVisible = false
+			subCtx.getQueryDef(j.Subquery)
+			d.indentLevel = subCtx.indentLevel
+			hasContent = true
+		}
+		switch j.Format {
+		case 1: // JS_FORMAT_JSON
+			d.buf.WriteString(" FORMAT JSON")
+			hasContent = true
+		case 2: // JS_FORMAT_JSONB
+			d.buf.WriteString(" FORMAT JSONB")
+			hasContent = true
+		}
+		writeReturning(hasContent)
+		d.buf.WriteByte(')')
+	case JsonConstructorArrayAgg:
+		d.buf.WriteString("JSON_ARRAYAGG(")
+		hasContent := len(j.Args) > 0
+		if len(j.Args) > 0 {
+			d.getRuleExpr(j.Args[0], true)
+		}
+		if len(j.AggOrder) > 0 {
+			d.buf.WriteString(" ORDER BY ")
+			d.getAggOrderBy(j.AggOrder)
+			hasContent = true
+		}
+		if hasContent {
+			d.buf.WriteByte(' ')
+		}
+		if j.AbsentOnNull {
+			d.buf.WriteString("ABSENT ON NULL")
+		} else {
+			d.buf.WriteString("NULL ON NULL")
+		}
+		hasContent = true
+		writeReturning(hasContent)
+		d.buf.WriteByte(')')
+		writeAggSuffix()
+	case JsonConstructorObjectAgg:
+		d.buf.WriteString("JSON_OBJECTAGG(")
+		hasContent := len(j.Args) > 0
+		if len(j.Args) > 0 {
+			d.getRuleExpr(j.Args[0], true)
+		}
+		if len(j.Args) > 1 {
+			d.buf.WriteString(" : ")
+			d.getRuleExpr(j.Args[1], true)
+		}
+		if j.AbsentOnNull {
+			if hasContent {
+				d.buf.WriteByte(' ')
+			}
+			d.buf.WriteString("ABSENT ON NULL")
+			hasContent = true
+		}
+		if j.UniqueKeys {
+			if hasContent {
+				d.buf.WriteByte(' ')
+			}
+			d.buf.WriteString("WITH UNIQUE")
+			hasContent = true
+		}
+		writeReturning(hasContent)
+		d.buf.WriteByte(')')
+		writeAggSuffix()
 	case JsonConstructorScalar:
 		d.buf.WriteString("JSON_SCALAR(")
 		if len(j.Args) > 0 {

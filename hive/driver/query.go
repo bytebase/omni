@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/bytebase/omni/driver"
+	hiveanalysis "github.com/bytebase/omni/hive/analysis"
 )
 
 // Session opens one server connection held until Close, so a database USE
@@ -71,9 +71,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 
 	results := make([]*driver.Result, 0, len(commands))
 	for _, command := range commands {
-		statement := trimStatement(command.Text)
+		statement := hiveanalysis.TrimStatement(command.Text)
 		if opts.Explain {
-			statement = explainStatement(statement, opts.ExplainFormat)
+			statement = hiveanalysis.ExplainStatement(statement, opts.ExplainFormat)
 		}
 		start := time.Now()
 		result, err := queryRows(ctx, s.conn, statement, opts.MaxResultBytes)
@@ -82,7 +82,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(start)})
 			break
 		}
-		if format, ok := planFormat(statement); ok {
+		if format, ok := hiveanalysis.PlanFormat(statement); ok {
 			result.Plan = &driver.Plan{Format: format}
 		}
 		results = append(results, result)
@@ -206,16 +206,6 @@ func parseValueType(value any, typeName string) driver.Value {
 	default:
 		return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", v)}
 	}
-}
-
-// trimStatement drops the whitespace and semicolons around a statement, so a
-// split segment's terminator does not reach the server.
-func trimStatement(statement string) string {
-	return strings.TrimLeftFunc(strings.TrimRightFunc(statement, isSpaceOrSemicolon), unicode.IsSpace)
-}
-
-func isSpaceOrSemicolon(r rune) bool {
-	return unicode.IsSpace(r) || r == ';'
 }
 
 func quoteBacktick(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }

@@ -251,6 +251,14 @@ func TestResolveQuerySpanThroughViews(t *testing.T) {
 	require.Equal(t, []string{"db.public.mv.ssn"}, columnNames(span.Results[0].SourceColumns))
 }
 
+func TestResolveQuerySpanAliasedJoinPlainField(t *testing.T) {
+	span := spanFor(t, "SELECT * FROM (t CROSS JOIN o) j", healthySchema())
+	require.Len(t, span.Results, 5)
+	for _, r := range span.Results {
+		require.True(t, r.IsPlainField, "expected IsPlainField=true for %s", r.Name)
+	}
+}
+
 // A FROM item's alias column list renames its first columns, so a renamed
 // column still reads the column beneath it.
 func TestResolveQuerySpanColumnAliases(t *testing.T) {
@@ -288,11 +296,14 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: "SELECT *, v.d FROM (SELECT * FROM o NATURAL JOIN t) v(a, b, c, d) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"d", []string{"db.public.t.ssn"}}}, predicates: []string{"db.public.o.amt", "db.public.o.id", "db.public.t.email", "db.public.t.id", "db.public.t.ssn"}},
 		{statement: "SELECT * FROM o JOIN t USING (id) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.o.id", "db.public.t.id"}}, {"amt", []string{"db.public.o.amt"}}, {"email", []string{"db.public.t.email"}}, {"ssn", []string{"db.public.t.ssn"}}, {"unknown_rows", []string{}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
 		{statement: "SELECT *, v.ssn FROM (SELECT j.ssn FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
-		{statement: "SELECT j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b)", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b)", results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
+		{statement: "SELECT *, j.ssn, j.b FROM (t JOIN o USING (id)) AS j(a, b) CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}, {"b", []string{"db.public.t.email"}}}, predicates: []string{"db.public.o.id", "db.public.t.id"}},
 		{statement: "SELECT *, v.ssn FROM (SELECT j.* FROM (t CROSS JOIN (SELECT 1 AS k) x) j) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.ssn FROM (SELECT ssn IN (SELECT ''::text) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: `SELECT *, v.ssn FROM (SELECT email AS "SSN", ssn FROM t) v CROSS JOIN unknown_rows() u`, fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.j FROM (SELECT json_object(ssn : 1) AS j FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.t.ssn"}}}},
+		{statement: "SELECT JSON_OBJECT('x': t.email, 'j': JSON_ARRAY(SELECT t.ssn)) AS j FROM t", results: []result{{"j", []string{"db.public.t.email", "db.public.t.ssn"}}}},
+		{statement: "SELECT 1 AS n FROM XMLTABLE('/r' PASSING (SELECT '<r/>'::xml FROM t WHERE ssn <> '') COLUMNS x text) AS xt", results: []result{{"n", []string{}}}, predicates: []string{"db.public.t.ssn"}},
 		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT ssn FROM t UNION ALL SELECT ssn FROM t LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.id FROM (SELECT id FROM t) v CROSS JOIN o CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}}},
 		{statement: "SELECT *, v.x FROM o CROSS JOIN LATERAL (SELECT amt AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}},

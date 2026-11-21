@@ -1,0 +1,2 @@
+CREATE TABLE t (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d));
+CREATE VIEW a AS SELECT b, a, d FROM t

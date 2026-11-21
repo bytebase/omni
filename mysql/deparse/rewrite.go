@@ -70,6 +70,19 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, item := range n.List {
 			n.List[i] = rewriteExpr(item)
 		}
+		// MySQL 8.0 rewrites single-element IN/NOT IN lists to equality/inequality.
+		if n.Select == nil && len(n.List) == 1 {
+			op := ast.BinOpEq
+			if n.Not {
+				op = ast.BinOpNe
+			}
+			return &ast.BinaryExpr{
+				Loc:   n.Loc,
+				Op:    op,
+				Left:  n.Expr,
+				Right: n.List[0],
+			}
+		}
 		return n
 
 	case *ast.BetweenExpr:
@@ -88,8 +101,12 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 
 	case *ast.IsExpr:
 		n.Expr = rewriteExpr(n.Expr)
-		// IS TRUE / IS FALSE on non-boolean: wrap operand in (0 <> expr)
-		if (n.Test == ast.IsTrue || n.Test == ast.IsFalse) && !n.Not && !isBooleanExpr(n.Expr) {
+		// MySQL 8.0 stores IS [NOT] UNKNOWN as IS [NOT] NULL.
+		if n.Test == ast.IsUnknown {
+			n.Test = ast.IsNull
+		}
+		// IS [NOT] TRUE / IS [NOT] FALSE on non-boolean: wrap operand in (0 <> expr).
+		if (n.Test == ast.IsTrue || n.Test == ast.IsFalse) && !isBooleanExpr(n.Expr) {
 			n.Expr = wrapBooleanContext(n.Expr)
 		}
 		return n
@@ -276,9 +293,16 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 		}
 	}
 
-	// Case 2b: NOT(REGEXP) — keep as not() wrapping.
-	// MySQL 8.0 rewrites NOT REGEXP to (not(regexp_like(...))).
+	// Case 2b: NOT(REGEXP) / NOT(regexp_like(...)) — keep as not() wrapping.
+	// MySQL 8.0 rewrites NOT REGEXP to (not(regexp_like(...))), and re-parsing
+	// that stored form sees FuncCallExpr("regexp_like") under UnaryNot.
 	if binExpr, ok := inner.(*ast.BinaryExpr); ok && binExpr.Op == ast.BinOpRegexp {
+		return &ast.UnaryExpr{
+			Op:      ast.UnaryNot,
+			Operand: operand,
+		}
+	}
+	if fn, ok := inner.(*ast.FuncCallExpr); ok && fn.Schema == "" && !fn.SpacedParen && strings.EqualFold(fn.Name, "regexp_like") {
 		return &ast.UnaryExpr{
 			Op:      ast.UnaryNot,
 			Operand: operand,

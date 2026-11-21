@@ -43,6 +43,8 @@ func TestDiagnoseFiltersUnsupportedStub(t *testing.T) {
 
 func TestDiagnoseForkForms(t *testing.T) {
 	for _, statement := range []string{
+		"CREATE TABLE t (a INT, b INT AS (a + 1)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a)",
+		"SELECT * FROM schema1.t1 JOIN schema2.t2 ON t1.c1 = t2.c1",
 		"INSERT OVERWRITE t SELECT a FROM src",
 		"WITH c AS (SELECT id FROM s) DELETE FROM t WHERE id IN (SELECT id FROM c)",
 		"CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY (INTERVAL 1 DAY) AS SELECT a FROM t",
@@ -51,8 +53,13 @@ func TestDiagnoseForkForms(t *testing.T) {
 			t.Errorf("Diagnose(%q) = %+v, want no diagnostics", statement, got)
 		}
 	}
-	if got := Diagnose("INSERT OVERWRITE t BY NAME (a) SELECT a FROM s"); len(got) == 0 {
-		t.Error("Diagnose accepted INSERT OVERWRITE ... BY NAME (a)")
+	for _, statement := range []string{
+		"INSERT OVERWRITE t BY NAME (a) SELECT a FROM s",
+		"SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age;",
+	} {
+		if got := Diagnose(statement); len(got) == 0 {
+			t.Errorf("Diagnose accepted invalid StarRocks form %q", statement)
+		}
 	}
 }
 

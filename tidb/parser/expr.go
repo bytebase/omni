@@ -875,6 +875,17 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		}, nil
 	}
 
+	// FunctionNameOptionalBraces (TiDB parser.y:8148): CURRENT_ROLE and
+	// TIDB_CURRENT_TSO without parentheses are niladic function calls, like
+	// CURRENT_DATE and UTC_DATE, not column references. A backtick-quoted
+	// name (`CURRENT_ROLE`, `TIDB_CURRENT_TSO`) stays a column reference.
+	if !p.backtickQuotedAt(start) && (strings.EqualFold(name, "current_role") || strings.EqualFold(name, "tidb_current_tso")) {
+		return &nodes.FuncCallExpr{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: strings.ToUpper(name),
+		}, nil
+	}
+
 	// Plain column ref
 	return &nodes.ColumnRef{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
