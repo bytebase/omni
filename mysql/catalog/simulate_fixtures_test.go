@@ -200,6 +200,12 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 			if got := execErrorCode(t, c, stmt); got != ErrDropIndexNeededInFK {
 				t.Errorf("%s: got error %d, want %d", stmt, got, ErrDropIndexNeededInFK)
 			}
+			// InnoDB enforces 1553 even when foreign_key_checks = 0 (verified on mysql:8.0.46).
+			cOff := setup(t)
+			mustExec(t, cOff, "SET FOREIGN_KEY_CHECKS = 0")
+			if got := execErrorCode(t, cOff, stmt); got != ErrDropIndexNeededInFK {
+				t.Errorf("FKC=0 %s: got error %d, want %d", stmt, got, ErrDropIndexNeededInFK)
+			}
 		}
 		// Dropping FK and index in the same ALTER succeeds.
 		c := setup(t)
@@ -252,6 +258,34 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 		tbl4 := c4.GetDatabase("d").GetTable("child")
 		if !indexNameExists(tbl4, "fk_pid") {
 			t.Errorf("expected generated backing index fk_pid to be preserved after non-covering ADD KEY")
+		}
+
+		// DROP FOREIGN KEY + unrelated ADD KEY retains fk_pid as a normal index (verified on mysql:8.0.46).
+		c5 := setup(t)
+		mustExec(t, c5, "ALTER TABLE child DROP FOREIGN KEY fk_pid, ADD KEY idx_other (d)")
+		tbl5 := c5.GetDatabase("d").GetTable("child")
+		var kept *Index
+		for _, idx := range tbl5.Indexes {
+			if idx.Name == "fk_pid" {
+				kept = idx
+			}
+		}
+		if kept == nil {
+			t.Fatalf("expected fk_pid index preserved after DROP FOREIGN KEY + unrelated ADD KEY")
+		}
+		if kept.Generated {
+			t.Errorf("preserved fk_pid index should have Generated=false after its FK was dropped")
+		}
+
+		// DROP FOREIGN KEY + covering ADD KEY drops the generated fk_pid index (verified on mysql:8.0.46).
+		c6 := setup(t)
+		mustExec(t, c6, "ALTER TABLE child DROP FOREIGN KEY fk_pid, ADD KEY idx_new (pid)")
+		tbl6 := c6.GetDatabase("d").GetTable("child")
+		if indexNameExists(tbl6, "fk_pid") {
+			t.Errorf("expected generated fk_pid index dropped when DROP FOREIGN KEY is paired with covering ADD KEY idx_new (pid)")
+		}
+		if !indexNameExists(tbl6, "idx_new") {
+			t.Errorf("expected idx_new index present")
 		}
 	})
 }

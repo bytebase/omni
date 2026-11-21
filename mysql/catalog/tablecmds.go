@@ -2432,47 +2432,49 @@ func stripGeneratedFKIndexes(tbl *Table, keep map[string]bool) []*Index {
 	return stripped
 }
 
-// restoreGeneratedFKIndexes ensures every remaining foreign key on tbl is
-// covered by an index after an ALTER TABLE or CREATE INDEX that stripped
-// generated FK backing indexes, reusing an original stripped index when its
-// name is still free.
+// restoreGeneratedFKIndexes reconciles implicitly generated FK backing indexes
+// that were stripped before adding indexes in CREATE INDEX or ALTER TABLE.
+// Each stripped generated index is dropped if a remaining index now covers its
+// columns (including when the same ALTER also drops its FK, e.g.
+// `DROP FOREIGN KEY fk, ADD KEY idx_new (pid)`), and otherwise restored
+// (clearing Generated when no remaining FK needs it, e.g.
+// `DROP FOREIGN KEY fk, ADD KEY idx_other (d)`). Verified on mysql:8.0.46.
 func restoreGeneratedFKIndexes(tbl *Table, stripped []*Index) {
 	if len(stripped) == 0 {
 		return
 	}
-	used := make(map[*Index]bool, len(stripped))
-	for _, con := range tbl.Constraints {
-		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+	for _, g := range stripped {
+		if g == nil || len(g.Columns) == 0 {
 			continue
 		}
-		if hasIndexCoveringColumns(tbl, con.Columns) {
-			continue
-		}
-		restored := false
-		for _, g := range stripped {
-			if used[g] || !fkIndexCoversColumns(g, con.Columns) {
-				continue
+		gCols := make([]string, 0, len(g.Columns))
+		for _, ic := range g.Columns {
+			if ic != nil && ic.Name != "" {
+				gCols = append(gCols, ic.Name)
 			}
-			if !indexNameExists(tbl, g.Name) {
-				tbl.Indexes = append(tbl.Indexes, g)
-				used[g] = true
-				restored = true
+		}
+		if len(gCols) == 0 || hasIndexCoveringColumns(tbl, gCols) {
+			continue
+		}
+		stillNeededByFK := false
+		for _, con := range tbl.Constraints {
+			if con != nil && con.Type == ConForeignKey && fkIndexCoversColumns(g, con.Columns) {
+				stillNeededByFK = true
 				break
 			}
 		}
-		if !restored {
-			idxCols := make([]*IndexColumn, len(con.Columns))
-			for i, col := range con.Columns {
-				idxCols[i] = &IndexColumn{Name: col}
-			}
-			ensureFKBackingIndex(tbl, con.Name, con.Columns, idxCols)
+		g.Generated = stillNeededByFK
+		if indexNameExists(tbl, g.Name) {
+			g.Name = allocIndexName(tbl, g.Name)
 		}
+		tbl.Indexes = append(tbl.Indexes, g)
 	}
 }
 
 // validateDroppedIndexesForFK checks that none of the dropped indexes is still
 // required to back a foreign key on tbl or a foreign key on another table
-// referencing tbl (MySQL 8.0 error 1553).
+// referencing tbl (MySQL 8.0 error 1553). InnoDB enforces 1553 for both child
+// and parent indexes even when foreign_key_checks = 0 (verified on mysql:8.0.46).
 func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) error {
 	if len(dropped) == 0 || !isInnoDBEngine(tbl.Engine) {
 		return nil
