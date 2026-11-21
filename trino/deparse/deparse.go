@@ -174,15 +174,6 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		}
 		out.Schemas = append(out.Schemas, schemaMeta)
 	}
-	funcCat := buildTrinoFuncCatalog(out)
-	for _, schemaMeta := range out.Schemas {
-		for _, v := range schemaMeta.Views {
-			v.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, v.Definition, v.Dependencies, funcCat)
-		}
-		for _, mv := range schemaMeta.MaterializedViews {
-			mv.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, mv.Definition, mv.Dependencies, funcCat)
-		}
-	}
 	return out, nil
 }
 
@@ -448,7 +439,7 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDepe
 	if query == nil {
 		return definition
 	}
-	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, cat)
+	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, deps, cat)
 	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, deps, cat)
 }
 
@@ -637,6 +628,41 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	if metadata == nil {
 		return "", nil
 	}
+	for _, schema := range metadata.Schemas {
+		if schema == nil {
+			continue
+		}
+		seenRelations := make(map[string]struct{}, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
+		checkRelation := func(kind, name string) error {
+			relKey := strings.ToLower(name)
+			if _, exists := seenRelations[relKey]; exists {
+				return fmt.Errorf("schema %s has duplicate %s %s", schema.Name, kind, quoteIdentifier(name))
+			}
+			seenRelations[relKey] = struct{}{}
+			return nil
+		}
+		for _, table := range schema.Tables {
+			if table != nil {
+				if err := checkRelation("table", table.Name); err != nil {
+					return "", err
+				}
+			}
+		}
+		for _, view := range schema.Views {
+			if view != nil {
+				if err := checkRelation("view", view.Name); err != nil {
+					return "", err
+				}
+			}
+		}
+		for _, mv := range schema.MaterializedViews {
+			if mv != nil {
+				if err := checkRelation("materialized view", mv.Name); err != nil {
+					return "", err
+				}
+			}
+		}
+	}
 
 	var buf strings.Builder
 	for _, schema := range metadata.Schemas {
@@ -674,7 +700,9 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		}
 	}
 	for _, view := range views {
-		if err := writeCreateView(&buf, view.schema, view.view, view.materialized); err != nil {
+		viewCopy := *view.view
+		viewCopy.Definition = qualifyTrinoViewBody(metadata.Name, view.schema, view.view.Definition, view.view.Dependencies, funcCat)
+		if err := writeCreateView(&buf, view.schema, &viewCopy, view.materialized); err != nil {
 			return "", err
 		}
 		buf.WriteString("\n\n")
@@ -1035,14 +1063,31 @@ type parsedTrinoFn struct {
 }
 
 type trinoFuncCatalog struct {
-	dbName string
-	fns    []orderedFunction
-	parsed []parsedTrinoFn
-	byKey  map[string][]int
+	dbName    string
+	fns       []orderedFunction
+	parsed    []parsedTrinoFn
+	byKey     map[string][]int
+	tableCols map[string]map[string]string
+}
+
+func parseTrinoColumnTypeString(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	if file, err := trinoparser.Parse("CREATE FUNCTION _c(x " + trimmed + ") RETURNS int RETURN 1"); err == nil && file != nil && len(file.Stmts) == 1 {
+		if cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt); ok && len(cfs.Spec.Declaration.Parameters) == 1 {
+			if dt := normalizeTrinoDataType(cfs.Spec.Declaration.Parameters[0].Type); dt != "" {
+				return dt
+			}
+		}
+	}
+	return normalizeTrinoTypeName(trimmed)
 }
 
 func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	var fns []orderedFunction
+	tableCols := make(map[string]map[string]string)
 	if metadata != nil {
 		for _, schema := range metadata.Schemas {
 			if schema == nil {
@@ -1053,6 +1098,23 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 					continue
 				}
 				fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
+			}
+			for _, tbl := range schema.Tables {
+				if tbl == nil || len(tbl.Columns) == 0 {
+					continue
+				}
+				cols := make(map[string]string, len(tbl.Columns))
+				for _, col := range tbl.Columns {
+					if col == nil || col.Name == "" {
+						continue
+					}
+					if dt := parseTrinoColumnTypeString(col.Type); dt != "" {
+						cols[strings.ToLower(col.Name)] = dt
+					}
+				}
+				if len(cols) > 0 {
+					tableCols[objectKey(strings.ToLower(schema.Name), strings.ToLower(tbl.Name))] = cols
+				}
 			}
 		}
 	}
@@ -1091,10 +1153,11 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 		dbName = metadata.Name
 	}
 	return &trinoFuncCatalog{
-		dbName: dbName,
-		fns:    fns,
-		parsed: parsed,
-		byKey:  byKey,
+		dbName:    dbName,
+		fns:       fns,
+		parsed:    parsed,
+		byKey:     byKey,
+		tableCols: tableCols,
 	}
 }
 
@@ -1466,7 +1529,7 @@ func trinoBuiltinTypeMatch(argType, paramType string) bool {
 		return true
 	}
 	if argType == "" {
-		return true
+		return false
 	}
 	if paramType == "function" {
 		return argType == "function"
@@ -1830,10 +1893,13 @@ type trinoInlineFunc struct {
 
 type trinoASTWalker struct {
 	callerSchema string
+	deps         []ViewDependency
 	cat          *trinoFuncCatalog
 	calls        []functionCallRef
 	unqualTables []*ast.QualifiedName
 	inlineFuncs  map[string][]trinoInlineFunc
+	aliasCols    map[string]map[string]string
+	fromSeen     map[string]struct{}
 	hasQuery     bool
 }
 
@@ -1849,10 +1915,58 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 	return w.calls
 }
 
-func collectTrinoQueryASTRefs(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, callerSchema string, cat *trinoFuncCatalog) ([]functionCallRef, []*ast.QualifiedName) {
-	w := &trinoASTWalker{callerSchema: callerSchema, cat: cat}
+func collectTrinoQueryASTRefs(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, callerSchema string, deps []ViewDependency, cat *trinoFuncCatalog) ([]functionCallRef, []*ast.QualifiedName) {
+	w := &trinoASTWalker{callerSchema: callerSchema, deps: deps, cat: cat}
 	w.walkQueryWithInline(q, extraInline, nil, nil)
 	return w.calls, w.unqualTables
+}
+
+func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map[string]struct{}) (string, map[string]string) {
+	if qn == nil || len(qn.Parts) == 0 || w.cat == nil || len(w.cat.tableCols) == 0 {
+		return "", nil
+	}
+	var schema, tbl string
+	switch len(qn.Parts) {
+	case 1:
+		tbl = qn.Parts[0].Value
+		if _, isCTE := ctes[strings.ToLower(tbl)]; isCTE {
+			return "", nil
+		}
+		schema = resolveUnqualifiedRelationSchema(tbl, w.callerSchema, w.deps)
+	case 2:
+		schema, tbl = qn.Parts[0].Value, qn.Parts[1].Value
+	case 3:
+		if w.cat.dbName != "" && !strings.EqualFold(qn.Parts[0].Value, w.cat.dbName) {
+			return "", nil
+		}
+		schema, tbl = qn.Parts[1].Value, qn.Parts[2].Value
+	default:
+		return "", nil
+	}
+	if schema == "" {
+		schema = w.callerSchema
+	}
+	cols := w.cat.tableCols[objectKey(strings.ToLower(schema), strings.ToLower(tbl))]
+	return strings.ToLower(tbl), cols
+}
+
+func (w *trinoASTWalker) bindRelationCols(alias string, cols map[string]string, curEnv map[string]string) {
+	if len(cols) == 0 {
+		return
+	}
+	if alias != "" && w.aliasCols != nil {
+		w.aliasCols[strings.ToLower(alias)] = cols
+	}
+	if curEnv != nil && w.fromSeen != nil {
+		for col, typ := range cols {
+			if _, seen := w.fromSeen[col]; seen {
+				delete(curEnv, col)
+			} else {
+				w.fromSeen[col] = struct{}{}
+				curEnv[col] = typ
+			}
+		}
+	}
 }
 
 func (w *trinoASTWalker) recordUnqualTable(qn *ast.QualifiedName, ctes map[string]struct{}) {
@@ -1875,7 +1989,20 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 		w.walkRelation(r.Right, curEnv, ctes)
 		w.walkExpr(r.On, curEnv, ctes)
 	case *trinoparser.AliasedRelation:
-		w.walkRelation(r.Inner, curEnv, ctes)
+		if tr, ok := r.Inner.(*trinoparser.TableRelation); ok {
+			w.recordUnqualTable(tr.Name, ctes)
+			if tr.Period != nil {
+				w.walkExpr(tr.Period.End, curEnv, ctes)
+			}
+			defAlias, cols := w.lookupTableRelationCols(tr.Name, ctes)
+			alias := defAlias
+			if r.Alias != nil && r.Alias.Value != "" {
+				alias = r.Alias.Value
+			}
+			w.bindRelationCols(alias, cols, curEnv)
+		} else {
+			w.walkRelation(r.Inner, curEnv, ctes)
+		}
 		if r.Sample != nil {
 			w.walkExpr(r.Sample.Percentage, curEnv, ctes)
 		}
@@ -1884,6 +2011,8 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 		if r.Period != nil {
 			w.walkExpr(r.Period.End, curEnv, ctes)
 		}
+		alias, cols := w.lookupTableRelationCols(r.Name, ctes)
+		w.bindRelationCols(alias, cols, curEnv)
 	case *trinoparser.NearestRelation:
 		w.walkRelation(r.From, curEnv, ctes)
 		w.walkExpr(r.Where, curEnv, ctes)
@@ -1961,29 +2090,46 @@ func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[stri
 	}
 	switch n := qn.(type) {
 	case *trinoparser.QuerySpec:
-		for _, rel := range n.From {
-			w.walkRelation(rel, curEnv, ctes)
+		specEnv := make(map[string]string, len(curEnv))
+		for k, v := range curEnv {
+			specEnv[k] = v
 		}
-		w.walkExpr(n.Where, curEnv, ctes)
+		prevAliasCols := w.aliasCols
+		specAliasCols := make(map[string]map[string]string, len(prevAliasCols))
+		for k, v := range prevAliasCols {
+			specAliasCols[k] = v
+		}
+		prevFromSeen := w.fromSeen
+		w.aliasCols = specAliasCols
+		w.fromSeen = make(map[string]struct{})
+		defer func() {
+			w.aliasCols = prevAliasCols
+			w.fromSeen = prevFromSeen
+		}()
+
+		for _, rel := range n.From {
+			w.walkRelation(rel, specEnv, ctes)
+		}
+		w.walkExpr(n.Where, specEnv, ctes)
 		if n.GroupBy != nil {
 			for _, el := range n.GroupBy.Elements {
 				for _, ex := range el.Exprs {
-					w.walkExpr(ex, curEnv, ctes)
+					w.walkExpr(ex, specEnv, ctes)
 				}
 				for _, set := range el.Sets {
 					for _, ex := range set {
-						w.walkExpr(ex, curEnv, ctes)
+						w.walkExpr(ex, specEnv, ctes)
 					}
 				}
 			}
 		}
-		w.walkExpr(n.Having, curEnv, ctes)
+		w.walkExpr(n.Having, specEnv, ctes)
 		for _, win := range n.Windows {
-			w.walkWindowParts(win.Spec.PartitionBy, win.Spec.OrderBy, win.Spec.Frame, curEnv, ctes)
+			w.walkWindowParts(win.Spec.PartitionBy, win.Spec.OrderBy, win.Spec.Frame, specEnv, ctes)
 		}
 		var singleType string
 		for idx, item := range n.Items {
-			it := w.walkExpr(item.Expr, curEnv, ctes)
+			it := w.walkExpr(item.Expr, specEnv, ctes)
 			if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
 				singleType = it
 			}
@@ -2149,10 +2295,17 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 	case *trinoparser.Dereference:
 		baseType := w.walkExpr(e.Base, curEnv, ctes)
 		if e.FieldName != nil && e.FieldName.Value != "" {
+			target := strings.ToLower(e.FieldName.Value)
 			if base, inner, ok := splitParameterizedType(baseType); ok && base == "row" {
-				target := strings.ToLower(e.FieldName.Value)
 				for _, part := range splitTopLevelComma(inner) {
 					if name, typ := splitRowField(part); name == target {
+						return typ
+					}
+				}
+			}
+			if cr, ok := e.Base.(*trinoparser.ColumnRef); ok && cr.Name != nil && w.aliasCols != nil {
+				if cols := w.aliasCols[strings.ToLower(cr.Name.Value)]; cols != nil {
+					if typ, ok := cols[target]; ok {
 						return typ
 					}
 				}
@@ -2895,6 +3048,9 @@ func appendTerminator(stmt string) string {
 // MATERIALIZED VIEW IF NOT EXISTS) statement for view (qualified by schemaName)
 // to buf. It does not append the inter-statement blank line; the caller does.
 func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata, materialized bool) error {
+	if materialized && view.Comment != "" {
+		return fmt.Errorf("materialized view %s.%s comment cannot be restored on pinned Trino 482", schemaName, view.Name)
+	}
 	definition := strings.TrimSpace(view.Definition)
 	if definition == "" {
 		if materialized {

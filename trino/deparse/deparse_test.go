@@ -1484,4 +1484,67 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	assert.Contains(t, windowPattern, `DEFINE A AS "cat"."s".score_fn(id) > 0`)
 	assert.Contains(t, windowPattern, `WINDOW w AS (ORDER BY id MEASURES "cat"."s".score_fn(id) AS n`)
 	assert.Contains(t, windowPattern, `DEFINE B AS "cat"."s".score_fn(id) > 1`)
+
+	// Built-in collisions with column arguments resolve column types rather than
+	// suppressing UDFs, and GetDatabaseDefinition enforces duplicate relations,
+	// MV comment rejection, and view qualification on the direct model.
+	absCollision, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "txt", Type: "varchar"},
+					{Name: "num", Type: "bigint"},
+				},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_known_col", Definition: "SELECT abs(txt), abs(num) FROM t"},
+				{Name: "v_ext_col", Definition: "SELECT abs(unknown_col) FROM ext_tbl"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, absCollision, `SELECT "cat"."s".abs(txt), abs(num) FROM "cat"."s".t;`)
+	assert.Contains(t, absCollision, `SELECT "cat"."s".abs(unknown_col) FROM "cat"."s".ext_tbl;`)
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Tables: []*TableMetadata{
+				{Name: "dup_t", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}},
+				{Name: "DUP_T", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate table")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:              "s",
+			MaterializedViews: []*ViewMetadata{{Name: "mv", Definition: "SELECT 1", Comment: "unsupported"}},
+		}},
+	})
+	require.ErrorContains(t, err, "comment cannot be restored")
+
+	directViewQual, err := GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:              "s",
+			Tables:            []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+			Functions:         []*FunctionMetadata{{Name: "f", Definition: "CREATE FUNCTION f() RETURNS bigint RETURN 1"}},
+			Views:             []*ViewMetadata{{Name: "v", Definition: "SELECT id, f() FROM t"}},
+			MaterializedViews: []*ViewMetadata{{Name: "mv", Definition: "SELECT id, f() FROM t"}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, directViewQual, `SELECT id, "cat"."s".f() FROM "cat"."s".t;`)
+	assert.Contains(t, directViewQual, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv\" AS\nSELECT id, \"cat\".\"s\".f() FROM \"cat\".\"s\".t;")
 }
