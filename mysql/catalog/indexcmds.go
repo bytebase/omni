@@ -37,11 +37,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return err
 	}
 
-	// MySQL drops implicitly generated FK backing indexes (HA_GENERATED_KEY)
-	// before checking duplicate index names when adding a new index, and
-	// re-creates one at the end only if no remaining index covers the FK.
+	// MySQL allows a new index to reuse the name of an implicitly generated FK
+	// backing index (HA_GENERATED_KEY), dropping the generated index at the end
+	// if the new index covers its columns and otherwise keeping (or renaming) it.
 	snapshot := cloneTable(tbl)
-	strippedGen := stripGeneratedFKIndexes(tbl, nil)
+	preGen := collectGeneratedFKIndexes(tbl, nil)
+	tbl.ignoredGeneratedIndexes = preGen
+	defer func() { tbl.ignoredGeneratedIndexes = nil }()
 	rollback := func(err error) error {
 		undoAlter(db, tableKey, tbl, snapshot)
 		return err
@@ -155,7 +157,8 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
-	restoreGeneratedFKIndexes(tbl, strippedGen)
+	tbl.ignoredGeneratedIndexes = nil
+	reconcileGeneratedFKIndexes(tbl, preGen)
 
 	// If unique, also add a UniqueKey constraint.
 	if stmt.Unique {

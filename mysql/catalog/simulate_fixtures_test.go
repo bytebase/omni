@@ -312,5 +312,21 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 		if indexNameExists(tbl8, "fk_pid") {
 			t.Errorf("expected fk_pid index dropped when its column pid is dropped")
 		}
+
+		// ADD KEY + self-referencing FK targeting existing generated FK backing index succeeds.
+		c9 := setup(t)
+		mustExec(t, c9, "ALTER TABLE child ADD KEY idx_other (d), ADD CONSTRAINT fk_self FOREIGN KEY (d) REFERENCES child (pid)")
+		tbl9 := c9.GetDatabase("d").GetTable("child")
+		if !indexNameExists(tbl9, "fk_pid") || !indexNameExists(tbl9, "idx_other") {
+			t.Errorf("expected both fk_pid and idx_other indexes on child")
+		}
+
+		// Reusing the generated FK index name on another column + self-referencing FK targeting pid succeeds.
+		c10 := setup(t)
+		mustExec(t, c10, "ALTER TABLE child ADD KEY fk_pid (d), ADD CONSTRAINT fk_self FOREIGN KEY (d) REFERENCES child (pid)")
+		tbl10 := c10.GetDatabase("d").GetTable("child")
+		if !indexNameExists(tbl10, "fk_pid") || !indexNameExists(tbl10, "fk_pid_2") {
+			t.Errorf("expected fk_pid (user) and fk_pid_2 (relocated generated) indexes on child")
+		}
 	})
 }

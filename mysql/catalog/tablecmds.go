@@ -2415,45 +2415,74 @@ func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*
 	})
 }
 
-// stripGeneratedFKIndexes removes implicitly generated FK backing indexes
-// (HA_GENERATED_KEY) from tbl.Indexes, except any whose lower-cased name is in
-// keep, and returns the stripped indexes in their original order.
-func stripGeneratedFKIndexes(tbl *Table, keep map[string]bool) []*Index {
-	var stripped []*Index
-	remaining := tbl.Indexes[:0]
+// collectGeneratedFKIndexes returns the set of implicitly generated FK backing
+// indexes (HA_GENERATED_KEY) currently on tbl, excluding any whose lower-cased
+// name is in keep.
+func collectGeneratedFKIndexes(tbl *Table, keep map[string]bool) map[*Index]bool {
+	var gen map[*Index]bool
 	for _, idx := range tbl.Indexes {
 		if idx != nil && idx.Generated && !keep[toLower(idx.Name)] {
-			stripped = append(stripped, idx)
-			continue
+			if gen == nil {
+				gen = make(map[*Index]bool)
+			}
+			gen[idx] = true
 		}
-		remaining = append(remaining, idx)
 	}
-	tbl.Indexes = remaining
-	return stripped
+	return gen
 }
 
-// restoreGeneratedFKIndexes reconciles implicitly generated FK backing indexes
-// that were stripped before adding indexes in CREATE INDEX or ALTER TABLE.
-// Each stripped generated index is dropped if a remaining index now covers its
-// columns (including when the same ALTER also drops its FK, e.g.
-// `DROP FOREIGN KEY fk, ADD KEY idx_new (pid)`), and otherwise restored
-// (clearing Generated when no remaining FK needs it, e.g.
-// `DROP FOREIGN KEY fk, ADD KEY idx_other (d)`). Verified on mysql:8.0.46.
-func restoreGeneratedFKIndexes(tbl *Table, stripped []*Index) {
-	if len(stripped) == 0 {
+// reconcileGeneratedFKIndexes reconciles pre-existing implicitly generated FK
+// backing indexes after CREATE INDEX or an ALTER TABLE that adds an index.
+// Each such index is dropped if another surviving index now covers its columns
+// (including when the same ALTER also drops its FK, e.g.
+// `DROP FOREIGN KEY fk, ADD KEY idx_new (pid)`), and otherwise kept (clearing
+// Generated when no remaining FK needs it, e.g.
+// `DROP FOREIGN KEY fk, ADD KEY idx_other (d)`). If a newly added index took
+// a surviving generated index's name, the surviving index is renamed to a free
+// unique name and moved after the newly added indexes. Verified on mysql:8.0.46.
+func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
+	if len(preGen) == 0 {
 		return
 	}
-	for _, g := range stripped {
-		if g == nil || len(g.Columns) == 0 {
-			continue
-		}
-		gCols := make([]string, 0, len(g.Columns))
-		for _, ic := range g.Columns {
-			if ic != nil && ic.Name != "" {
-				gCols = append(gCols, ic.Name)
+	// First pass: drop preGen indexes now covered by another surviving index.
+	dropped := make(map[*Index]bool)
+	kept := make([]*Index, 0, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		if idx != nil && preGen[idx] {
+			gCols := make([]string, 0, len(idx.Columns))
+			for _, ic := range idx.Columns {
+				if ic != nil && ic.Name != "" {
+					gCols = append(gCols, ic.Name)
+				}
+			}
+			covered := false
+			if len(gCols) > 0 {
+				for _, other := range tbl.Indexes {
+					if other == idx || dropped[other] {
+						continue
+					}
+					if fkIndexCoversColumns(other, gCols) {
+						covered = true
+						break
+					}
+				}
+			}
+			if covered {
+				dropped[idx] = true
+				continue
 			}
 		}
-		if len(gCols) == 0 || hasIndexCoveringColumns(tbl, gCols) {
+		kept = append(kept, idx)
+	}
+	tbl.Indexes = kept
+
+	// Second pass: update Generated flag and resolve any name collision with
+	// a newly added index for surviving preGen indexes.
+	var relocated []*Index
+	final := make([]*Index, 0, len(tbl.Indexes))
+	for _, g := range tbl.Indexes {
+		if g == nil || !preGen[g] {
+			final = append(final, g)
 			continue
 		}
 		stillNeededByFK := false
@@ -2464,11 +2493,22 @@ func restoreGeneratedFKIndexes(tbl *Table, stripped []*Index) {
 			}
 		}
 		g.Generated = stillNeededByFK
-		if indexNameExists(tbl, g.Name) {
-			g.Name = allocIndexName(tbl, g.Name)
+		collision := false
+		gKey := toLower(g.Name)
+		for _, other := range tbl.Indexes {
+			if other != g && other != nil && toLower(other.Name) == gKey {
+				collision = true
+				break
+			}
 		}
-		tbl.Indexes = append(tbl.Indexes, g)
+		if collision {
+			g.Name = allocIndexName(tbl, g.Name)
+			relocated = append(relocated, g)
+			continue
+		}
+		final = append(final, g)
 	}
+	tbl.Indexes = append(final, relocated...)
 }
 
 // validateDroppedIndexesForFK checks that none of the dropped indexes is still
@@ -2521,6 +2561,9 @@ func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) erro
 func indexNameExists(tbl *Table, name string) bool {
 	key := toLower(name)
 	for _, idx := range tbl.Indexes {
+		if tbl.ignoredGeneratedIndexes[idx] {
+			continue
+		}
 		if toLower(idx.Name) == key {
 			return true
 		}

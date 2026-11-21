@@ -500,13 +500,17 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return errTablespaceDiscarded(db.Name, tbl.Name)
 	}
-	// When ALTER TABLE adds an index, MySQL drops existing implicitly generated
-	// FK backing indexes (HA_GENERATED_KEY) before checking duplicate key names
-	// and allocates new names, then re-creates any still-needed FK backing index
-	// after the commands run.
-	var strippedGen []*Index
+	// When ALTER TABLE adds an index, MySQL allows the new index to reuse the
+	// name of an implicitly generated FK backing index (HA_GENERATED_KEY), then
+	// drops any generated index covered by another index at the end of the
+	// ALTER. Keeping preGen indexes in tbl.Indexes while marking them ignored
+	// for name collision checks lets column drops/renames and self-referencing
+	// FK validation see them normally during command execution.
+	var preGen map[*Index]bool
 	if alterAddsIndex(stmt.Commands) {
-		strippedGen = stripGeneratedFKIndexes(tbl, alterExplicitIndexTargets(stmt.Commands))
+		preGen = collectGeneratedFKIndexes(tbl, alterExplicitIndexTargets(stmt.Commands))
+		tbl.ignoredGeneratedIndexes = preGen
+		defer func() { tbl.ignoredGeneratedIndexes = nil }()
 	}
 	removesPartitioning := alterRemovesPartitioning(stmt.Commands)
 	hasRepartition := alterRepartition(stmt.Commands) != nil
@@ -521,8 +525,8 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
-	applyAlterColumnChangesToIndexes(strippedGen, stmt.Commands)
-	restoreGeneratedFKIndexes(tbl, strippedGen)
+	tbl.ignoredGeneratedIndexes = nil
+	reconcileGeneratedFKIndexes(tbl, preGen)
 	if err := c.validateDroppedIndexesForFK(tbl, droppedIndexes); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -785,72 +789,24 @@ func alterAddsIndex(commands []*nodes.AlterTableCmd) bool {
 func alterExplicitIndexTargets(commands []*nodes.AlterTableCmd) map[string]bool {
 	targets := make(map[string]bool)
 	for _, cmd := range commands {
-		if cmd == nil || cmd.Name == "" {
-			continue
-		}
-		switch cmd.Type {
-		case nodes.ATDropIndex, nodes.ATRenameIndex, nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible:
-			targets[toLower(cmd.Name)] = true
-		}
-	}
-	return targets
-}
-
-// applyAlterColumnChangesToIndexes applies column renames and drops from
-// commands to indexes that were temporarily stripped during ALTER TABLE so
-// restored FK backing indexes stay consistent with the table's final columns.
-func applyAlterColumnChangesToIndexes(indexes []*Index, commands []*nodes.AlterTableCmd) {
-	if len(indexes) == 0 {
-		return
-	}
-	for _, cmd := range commands {
 		if cmd == nil {
 			continue
 		}
 		switch cmd.Type {
-		case nodes.ATDropColumn:
-			dropKey := toLower(cmd.Name)
-			for _, idx := range indexes {
-				if idx == nil {
-					continue
-				}
-				kept := idx.Columns[:0]
-				for _, ic := range idx.Columns {
-					if ic != nil && toLower(ic.Name) != dropKey {
-						kept = append(kept, ic)
-					}
-				}
-				idx.Columns = kept
+		case nodes.ATDropIndex, nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible:
+			if cmd.Name != "" {
+				targets[toLower(cmd.Name)] = true
 			}
-		case nodes.ATRenameColumn:
-			oldKey := toLower(cmd.Name)
-			for _, idx := range indexes {
-				if idx == nil {
-					continue
-				}
-				for _, ic := range idx.Columns {
-					if ic != nil && toLower(ic.Name) == oldKey {
-						ic.Name = cmd.NewName
-					}
-				}
+		case nodes.ATRenameIndex:
+			if cmd.Name != "" {
+				targets[toLower(cmd.Name)] = true
 			}
-		case nodes.ATChangeColumn:
-			if cmd.Column == nil || cmd.Column.Name == "" {
-				continue
-			}
-			oldKey := toLower(cmd.Name)
-			for _, idx := range indexes {
-				if idx == nil {
-					continue
-				}
-				for _, ic := range idx.Columns {
-					if ic != nil && toLower(ic.Name) == oldKey {
-						ic.Name = cmd.Column.Name
-					}
-				}
+			if cmd.NewName != "" {
+				targets[toLower(cmd.NewName)] = true
 			}
 		}
 	}
+	return targets
 }
 
 // tableHasFKAfterAlter reports whether tbl participates in any foreign key
