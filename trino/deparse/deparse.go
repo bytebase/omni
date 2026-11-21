@@ -628,9 +628,18 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	if metadata == nil {
 		return "", nil
 	}
+	seenSchemas := make(map[string]struct{}, len(metadata.Schemas))
 	for _, schema := range metadata.Schemas {
 		if schema == nil {
 			continue
+		}
+		schemaKey := strings.ToLower(schema.Name)
+		if _, exists := seenSchemas[schemaKey]; exists {
+			return "", fmt.Errorf("database %s has duplicate schema %s", metadata.Name, quoteIdentifier(schema.Name))
+		}
+		seenSchemas[schemaKey] = struct{}{}
+		if schema.Owner != "" {
+			return "", fmt.Errorf("schema %s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", schema.Name, schema.Owner)
 		}
 		seenRelations := make(map[string]struct{}, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
 		checkRelation := func(kind, name string) error {
@@ -643,6 +652,9 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		}
 		for _, table := range schema.Tables {
 			if table != nil {
+				if table.Owner != "" {
+					return "", fmt.Errorf("table %s.%s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", schema.Name, table.Name, table.Owner)
+				}
 				if err := checkRelation("table", table.Name); err != nil {
 					return "", err
 				}
@@ -706,20 +718,6 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			return "", err
 		}
 		buf.WriteString("\n\n")
-	}
-	for _, schema := range metadata.Schemas {
-		if schema == nil {
-			continue
-		}
-		for _, table := range schema.Tables {
-			if table == nil || table.Owner == "" {
-				continue
-			}
-			fmt.Fprintf(&buf, "ALTER TABLE %s.%s SET AUTHORIZATION %s;\n\n", quoteIdentifier(schema.Name), quoteIdentifier(table.Name), quoteIdentifier(table.Owner))
-		}
-		if schema.Owner != "" {
-			fmt.Fprintf(&buf, "ALTER SCHEMA %s SET AUTHORIZATION %s;\n\n", quoteIdentifier(schema.Name), quoteIdentifier(schema.Owner))
-		}
 	}
 
 	return buf.String(), nil

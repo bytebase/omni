@@ -2029,6 +2029,36 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_id", Primary: true, Expressions: []string{"id"}}},
 	})
 	require.ErrorContains(t, err, "cannot be nullable")
+
+	// Unqualified view and MV references qualify from recorded DependencyColumns
+	// when the target belongs to another schema (such as "shared").
+	crossDepViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "shared",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			},
+			{
+				Name: "app",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v",
+					Definition:        "SELECT id FROM t",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "t"}},
+				}},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:              "mv",
+					Definition:        "SELECT id FROM t",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "t"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossDepViews, `CREATE OR REPLACE VIEW "app"."v" AS SELECT id FROM "shared".t;`)
+	require.Contains(t, crossDepViews, `CREATE MATERIALIZED VIEW "app"."mv" AS SELECT id FROM "shared".t;`)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

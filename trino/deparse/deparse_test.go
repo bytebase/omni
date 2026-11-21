@@ -1547,4 +1547,28 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, directViewQual, `SELECT id, "cat"."s".f() FROM "cat"."s".t;`)
 	assert.Contains(t, directViewQual, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv\" AS\nSELECT id, \"cat\".\"s\".f() FROM \"cat\".\"s\".t;")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{
+			{Name: "s", Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}}}},
+			{Name: "S", Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "name", Type: "varchar"}}}}},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate schema")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name:    "cat",
+		Schemas: []*SchemaMetadata{{Name: "s", Owner: "role_a"}},
+	})
+	require.ErrorContains(t, err, "owner")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:   "s",
+			Tables: []*TableMetadata{{Name: "t", Owner: "role_a", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "owner")
 }

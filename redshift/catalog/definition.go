@@ -1848,6 +1848,7 @@ type relationRef struct {
 	catalog string
 	schema  string
 	name    string
+	loc     int
 }
 
 func collectViewRelationRefs(definition string) []relationRef {
@@ -1875,7 +1876,7 @@ func (v *scopedRelVisitor) Visit(node nodes.Node) nodes.Visitor {
 	switch n := node.(type) {
 	case *nodes.RangeVar:
 		if n.Relname != "" && (n.Catalogname != "" || n.Schemaname != "" || !v.cteScope[n.Relname]) {
-			*v.refs = append(*v.refs, relationRef{catalog: n.Catalogname, schema: n.Schemaname, name: n.Relname})
+			*v.refs = append(*v.refs, relationRef{catalog: n.Catalogname, schema: n.Schemaname, name: n.Relname, loc: n.Loc.Start})
 		}
 		return v
 	case *nodes.SelectStmt:
@@ -3084,6 +3085,7 @@ type viewState struct {
 	duplicateColumn   string
 	unsupportedReason string
 	columns           map[string]*columnState
+	deps              []*metadatapb.DependencyColumn
 	caseSensitive     bool
 }
 
@@ -3152,6 +3154,7 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 		duplicateColumn:   duplicateColumn,
 		unsupportedReason: unsupportedReason,
 		columns:           cols,
+		deps:              view.DependencyColumns,
 		caseSensitive:     caseSensitive,
 	}
 }
@@ -3171,6 +3174,7 @@ func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.Ma
 		definition:        mv.Definition,
 		comment:           mv.Comment,
 		unsupportedReason: unsupportedReason,
+		deps:              mv.DependencyColumns,
 		caseSensitive:     caseSensitive,
 	}
 }
@@ -3191,6 +3195,80 @@ func (v *viewState) validateTarget(kind string, rel *nodes.RangeVar) error {
 	return nil
 }
 
+func resolveRedshiftDepSchema(relName, defaultSchema string, deps []*metadatapb.DependencyColumn, caseSensitive bool) string {
+	var matched string
+	for _, dep := range deps {
+		if dep == nil || dep.Schema == "" || !identEqual(dep.Table, relName, caseSensitive) {
+			continue
+		}
+		if matched == "" {
+			matched = dep.Schema
+		} else if !identEqual(matched, dep.Schema, caseSensitive) {
+			if identEqual(dep.Schema, defaultSchema, caseSensitive) || identEqual(matched, defaultSchema, caseSensitive) {
+				return defaultSchema
+			}
+			return ""
+		}
+	}
+	return matched
+}
+
+func qualifyRedshiftViewDependencies(stmt, schemaName string, deps []*metadatapb.DependencyColumn, caseSensitive bool) string {
+	if len(deps) == 0 {
+		return stmt
+	}
+	stmts, err := pgparser.Parse(stmt)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return stmt
+	}
+	root := stmts.Items[0]
+	if raw, ok := root.(*nodes.RawStmt); ok {
+		root = raw.Stmt
+	}
+	var walkRoot nodes.Node
+	switch s := root.(type) {
+	case *nodes.ViewStmt:
+		walkRoot = s.Query
+	case *nodes.CreateTableAsStmt:
+		walkRoot = s.Query
+	default:
+		walkRoot = root
+	}
+	if walkRoot == nil {
+		return stmt
+	}
+	var refs []relationRef
+	nodes.Walk(&scopedRelVisitor{refs: &refs}, walkRoot)
+	type prefixEdit struct {
+		offset int
+		prefix string
+	}
+	var edits []prefixEdit
+	seen := make(map[int]struct{})
+	for _, ref := range refs {
+		if ref.catalog != "" || ref.schema != "" || ref.loc < 0 || ref.loc >= len(stmt) {
+			continue
+		}
+		depSchema := resolveRedshiftDepSchema(ref.name, schemaName, deps, caseSensitive)
+		if depSchema == "" || identEqual(depSchema, schemaName, caseSensitive) {
+			continue
+		}
+		if _, dup := seen[ref.loc]; !dup {
+			seen[ref.loc] = struct{}{}
+			edits = append(edits, prefixEdit{offset: ref.loc, prefix: quoteDefinitionIdentifier(depSchema) + "."})
+		}
+	}
+	if len(edits) == 0 {
+		return stmt
+	}
+	slices.SortFunc(edits, func(a, b prefixEdit) int { return b.offset - a.offset })
+	out := stmt
+	for _, ed := range edits {
+		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
+	}
+	return out
+}
+
 func (v *viewState) toString(buf io.StringWriter) error {
 	trimmed := strings.TrimSpace(v.definition)
 	if trimmed == "" {
@@ -3205,6 +3283,7 @@ func (v *viewState) toString(buf io.StringWriter) error {
 	} else {
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
+	stmt = qualifyRedshiftViewDependencies(stmt, v.schema, v.deps, v.caseSensitive)
 	stmt = appendTerminator(stmt) + "\n"
 	if v.schema != "" {
 		return writeWithSchemaSearchPath(buf, v.schema, stmt)
@@ -3229,6 +3308,7 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 	} else {
 		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
+	stmt = qualifyRedshiftViewDependencies(stmt, v.schema, v.deps, v.caseSensitive)
 	stmt = appendTerminator(stmt) + "\n"
 	if v.schema != "" {
 		return writeWithSchemaSearchPath(buf, v.schema, stmt)
