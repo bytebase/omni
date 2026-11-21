@@ -374,12 +374,14 @@ func checkSelectBlockWindows(block *nodes.SelectStmt, source string) error {
 
 // isValidWindowPositiveIntArg reports whether expr is acceptable as the
 // positive integer argument of NTILE(n) or NTH_VALUE(x, n). It rejects column
-// references and known non-positive literals while allowing constant
-// expressions so valid folds are not falsely refused.
+// references, NULL, and signed integer literals folding to <= 0, while
+// tracking unary-minus sign flips (e.g. -(-2) is +2) and allowing non-literal
+// constant expressions so valid constant folds are not falsely refused.
 func isValidWindowPositiveIntArg(expr nodes.ExprNode) bool {
 	if expr == nil {
 		return false
 	}
+	negated := false
 	for {
 		switch e := expr.(type) {
 		case *nodes.ParenExpr:
@@ -391,13 +393,18 @@ func isValidWindowPositiveIntArg(expr nodes.ExprNode) bool {
 				continue
 			}
 			if e.Op == nodes.UnaryMinus {
-				return false
+				negated = !negated
+				expr = e.Operand
+				continue
 			}
 		}
 		break
 	}
 	switch e := expr.(type) {
 	case *nodes.IntLit:
+		if negated {
+			return e.Value < 0
+		}
 		return e.Value > 0
 	case *nodes.ColumnRef, *nodes.NullLit:
 		return false
@@ -500,9 +507,12 @@ func (c *Catalog) buildViewColScope(sel *nodes.SelectStmt, db *Database, source 
 			}
 			var cols map[string]bool
 			if tbl := targetDB.GetTable(t.Name); tbl != nil {
-				cols = make(map[string]bool, len(tbl.Columns))
+				cols = make(map[string]bool, len(tbl.Columns)+1)
 				for _, col := range tbl.Columns {
 					cols[toLower(col.Name)] = true
+				}
+				if tableHasTiDBRowID(tbl) {
+					cols["_tidb_rowid"] = true
 				}
 			} else if v := targetDB.Views[toLower(t.Name)]; v != nil && len(v.Columns) > 0 {
 				cols = make(map[string]bool, len(v.Columns))
@@ -695,6 +705,18 @@ func (c *Catalog) checkExprColumns(root nodes.Node, db *Database, source string,
 		return true
 	})
 	return refusal
+}
+
+// tableHasTiDBRowID reports whether a base table exposes TiDB's hidden
+// `_tidb_rowid` handle column: true when the table has no primary key or a
+// NONCLUSTERED primary key, and false when it has a CLUSTERED primary key.
+func tableHasTiDBRowID(tbl *Table) bool {
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			return !primaryKeyClustered(tbl, idx)
+		}
+	}
+	return true
 }
 
 func formatColumnRefName(cr *nodes.ColumnRef) string {

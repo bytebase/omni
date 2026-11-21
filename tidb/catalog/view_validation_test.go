@@ -135,6 +135,8 @@ func TestViewValidation(t *testing.T) {
 		assertCode(t, c, "CREATE VIEW v AS SELECT NTH_VALUE(a, b) OVER missing_w FROM t", ErrWrongArguments)
 		assertCode(t, c, "CREATE VIEW v AS SELECT NTILE(0) OVER () FROM t", ErrWrongArguments)
 		assertCode(t, c, "CREATE VIEW v AS SELECT NTILE(-1) OVER () FROM t", ErrWrongArguments)
+		assertCode(t, c, "CREATE VIEW v AS SELECT NTILE(-(-(-2))) OVER () FROM t", ErrWrongArguments)
+		assertCode(t, c, "CREATE VIEW v AS SELECT NTH_VALUE(a, -1) OVER () FROM t", ErrWrongArguments)
 		// 3579 undefined window.
 		assertCode(t, c, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER missing_w FROM t", ErrWindowNoSuchWindow)
 		assertCode(t, c, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER (missing_w) FROM t", ErrWindowNoSuchWindow)
@@ -147,9 +149,11 @@ func TestViewValidation(t *testing.T) {
 		assertCode(t, c, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ROWS BETWEEN INTERVAL a MICROSECOND FOLLOWING AND UNBOUNDED PRECEDING) FROM t", ErrWindowFrameEndIllegal)
 		// 3596 ROWS with INTERVAL frame bound.
 		assertCode(t, c, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ROWS INTERVAL a MICROSECOND PRECEDING) FROM t", ErrWindowRowsIntervalUse)
-		// Valid window forms succeed.
+		// Valid window forms succeed, including double-negated positive constant args.
 		assertOK(t, c, "CREATE VIEW v1 AS SELECT ROW_NUMBER() OVER w, NTILE(4) OVER w, NTH_VALUE(a, 2) OVER w FROM t WINDOW w AS (ORDER BY a ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)")
 		assertOK(t, c, "CREATE VIEW v2 AS SELECT ROW_NUMBER() OVER (ORDER BY a RANGE INTERVAL 1 DAY PRECEDING) FROM t")
+		assertOK(t, c, "CREATE VIEW v3 AS SELECT NTILE(-(-2)) OVER () AS bucket, NTH_VALUE(a, -(-2)) OVER () AS second_val FROM t")
+		assertOK(t, c, "CREATE VIEW v4 AS SELECT NTILE(-(1 - 3)) OVER () AS bucket FROM t")
 	})
 
 	t.Run("unknown_columns_1054", func(t *testing.T) {
@@ -167,6 +171,17 @@ func TestViewValidation(t *testing.T) {
 		assertOK(t, c, "CREATE VIEW v3 AS SELECT a + 1 AS total FROM t ORDER BY total")
 		assertOK(t, c, "CREATE VIEW v4 AS WITH cte AS (SELECT a AS x FROM t) SELECT x FROM cte")
 		assertOK(t, c, "CREATE VIEW v5 AS SELECT d.x FROM (SELECT a AS x FROM t) d")
+
+		// TiDB hidden _tidb_rowid handle: available on tables without a
+		// clustered PK (no PK or NONCLUSTERED PK), unavailable on clustered PK
+		// tables and views that do not project it.
+		assertOK(t, c, "CREATE TABLE t_no_pk (x INT)")
+		assertOK(t, c, "CREATE TABLE t_nonclustered (x INT PRIMARY KEY NONCLUSTERED)")
+		assertOK(t, c, "CREATE VIEW v_rowid_no_pk AS SELECT _tidb_rowid AS rid FROM t_no_pk")
+		assertOK(t, c, "CREATE VIEW v_rowid_nonclustered AS SELECT t_nonclustered._tidb_rowid AS rid FROM t_nonclustered")
+		assertCode(t, c, "CREATE VIEW v_rowid_clustered AS SELECT _tidb_rowid AS rid FROM t", ErrNoSuchColumn)
+		assertOK(t, c, "CREATE VIEW v_plain AS SELECT x FROM t_no_pk")
+		assertCode(t, c, "CREATE VIEW v_rowid_from_view AS SELECT _tidb_rowid AS rid FROM v_plain", ErrNoSuchColumn)
 	})
 
 	t.Run("optional_braces_functions_restore", func(t *testing.T) {
