@@ -1,11 +1,11 @@
-package driver
+package analysis
 
 import (
 	"strings"
 	"testing"
 )
 
-func TestSplitCommands(t *testing.T) {
+func TestSplit(t *testing.T) {
 	cases := []struct {
 		name    string
 		script  string
@@ -90,46 +90,56 @@ func TestSplitCommands(t *testing.T) {
 			script: "/* a comment */ SELECT 1;",
 			err:    "`*/` must be the end of the line",
 		},
+		{
+			name:    "CRLF multiple statements",
+			script:  "SELECT 1;\r\nSELECT 2;",
+			want:    []string{"SELECT 1;", "\r\nSELECT 2;"},
+			offsets: [][2]int{{0, 9}, {9, 20}},
+		},
+		{
+			name:    "multi-byte UTF-8",
+			script:  "SELECT '中';\nSELECT '文';",
+			want:    []string{"SELECT '中';", "\nSELECT '文';"},
+			offsets: [][2]int{{0, 13}, {13, 27}},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			commands, err := splitCommands(tc.script)
+			statements, err := Split(tc.script)
 			if tc.err != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("splitCommands error = %v, want %q", err, tc.err)
+					t.Fatalf("Split error = %v, want %q", err, tc.err)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("splitCommands: %v", err)
+				t.Fatalf("Split: %v", err)
 			}
-			texts := make([]string, 0, len(commands))
-			for _, command := range commands {
-				texts = append(texts, command.Text)
-				if command.Text != tc.script[command.ByteStart:command.ByteEnd] {
-					t.Errorf("command text %q does not match its offsets", command.Text)
+			texts := make([]string, 0, len(statements))
+			for _, stmt := range statements {
+				texts = append(texts, stmt.Text)
+				if stmt.Text != tc.script[stmt.Start:stmt.End] {
+					t.Errorf("statement text %q does not match its offsets", stmt.Text)
 				}
 			}
 			if len(texts) != len(tc.want) {
-				t.Fatalf("got %d commands %q, want %d", len(texts), texts, len(tc.want))
+				t.Fatalf("got %d statements %q, want %d", len(texts), texts, len(tc.want))
 			}
 			for i := range texts {
 				if texts[i] != tc.want[i] {
-					t.Errorf("command %d = %q, want %q", i, texts[i], tc.want[i])
+					t.Errorf("statement %d = %q, want %q", i, texts[i], tc.want[i])
 				}
 			}
 			for i, offsets := range tc.offsets {
-				if commands[i].ByteStart != offsets[0] || commands[i].ByteEnd != offsets[1] {
-					t.Errorf("command %d offsets = [%d,%d), want [%d,%d)",
-						i, commands[i].ByteStart, commands[i].ByteEnd, offsets[0], offsets[1])
+				if statements[i].Start != offsets[0] || statements[i].End != offsets[1] {
+					t.Errorf("statement %d offsets = [%d,%d), want [%d,%d)",
+						i, statements[i].Start, statements[i].End, offsets[0], offsets[1])
 				}
 			}
 		})
 	}
 }
 
-// TestClassifyStatement pins which statements are expected to return rows. It
-// is the wiring the API answer is checked against, not a parser.
 func TestClassifyStatement(t *testing.T) {
 	for _, tc := range []struct {
 		statement string
@@ -159,8 +169,8 @@ func TestClassifyStatement(t *testing.T) {
 		{statement: "", want: false},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
-			if got := classifyStatement(tc.statement); got != tc.want {
-				t.Errorf("classifyStatement(%q) = %v, want %v", tc.statement, got, tc.want)
+			if got := ClassifyStatement(tc.statement); got != tc.want {
+				t.Errorf("ClassifyStatement(%q) = %v, want %v", tc.statement, got, tc.want)
 			}
 		})
 	}
@@ -224,13 +234,23 @@ func TestExplainStatement(t *testing.T) {
 		want      string
 	}{
 		{name: "a query is planned", statement: "SELECT 1", want: "EXPLAIN FORMATTED SELECT 1"},
+		{name: "a query with terminator is planned", statement: "SELECT 1;", want: "EXPLAIN FORMATTED SELECT 1;"},
+		{name: "a write is planned", statement: "DELETE FROM t WHERE id = 1", want: "EXPLAIN FORMATTED DELETE FROM t WHERE id = 1"},
 		{name: "a plan is not planned twice", statement: "EXPLAIN SELECT 1", want: "EXPLAIN SELECT 1"},
+		{name: "a typed plan keeps its mode", statement: "EXPLAIN EXTENDED SELECT 1", want: "EXPLAIN EXTENDED SELECT 1"},
 		{name: "a comment before a plan does not hide it", statement: "-- plan\nEXPLAIN SELECT 1", want: "-- plan\nEXPLAIN SELECT 1"},
 		{name: "a plan that executes keeps its mode", statement: "EXPLAIN ANALYZE SELECT 1", want: "EXPLAIN ANALYZE SELECT 1"},
+		{name: "nested comment hiding EXPLAIN before DELETE", statement: "/* outer /* inner */\nEXPLAIN\n*/\nDELETE FROM t", want: "EXPLAIN FORMATTED /* outer /* inner */\nEXPLAIN\n*/\nDELETE FROM t"},
+		{name: "nested comment hiding EXPLAIN before SELECT", statement: "/* a /* b */ EXPLAIN */ SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ EXPLAIN */ SELECT 1"},
+		{name: "nested comment closed before EXPLAIN refuses to guess", statement: "/* a /* b */ */ EXPLAIN SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ */ EXPLAIN SELECT 1"},
+		{name: "unclosed nested comment", statement: "/* a /* b */ EXPLAIN SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ EXPLAIN SELECT 1"},
+		{name: "line comment before non-nested block comment", statement: "-- /* a\n/* b */ EXPLAIN SELECT 1", want: "-- /* a\n/* b */ EXPLAIN SELECT 1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := explainStatement(tc.statement, ""); got != tc.want {
-				t.Errorf("explainStatement(%q) = %q, want %q", tc.statement, got, tc.want)
+			for _, format := range []string{"", "TEXT", "JSON", "XML"} {
+				if got := ExplainStatement(tc.statement, format); got != tc.want {
+					t.Errorf("ExplainStatement(%q, %q) = %q, want %q", tc.statement, format, got, tc.want)
+				}
 			}
 		})
 	}
@@ -243,10 +263,13 @@ func TestPlanExecuted(t *testing.T) {
 	}{
 		{statement: "EXPLAIN SELECT 1", want: false},
 		{statement: "EXPLAIN ANALYZE SELECT 1", want: true},
+		{statement: "-- plan\nEXPLAIN ANALYZE SELECT 1", want: true},
+		{statement: "EXPLAIN /* c */ ANALYZE SELECT 1", want: true},
 		{statement: "SELECT 1", want: false},
+		{statement: "/* a /* b */ EXPLAIN ANALYZE */ DELETE FROM t", want: false},
 	} {
-		if got := planExecuted(tc.statement); got != tc.want {
-			t.Errorf("planExecuted(%q) = %v, want %v", tc.statement, got, tc.want)
+		if got := PlanExecuted(tc.statement); got != tc.want {
+			t.Errorf("PlanExecuted(%q) = %v, want %v", tc.statement, got, tc.want)
 		}
 	}
 }
