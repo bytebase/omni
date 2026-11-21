@@ -84,9 +84,9 @@ type SessionState struct {
 	// CREATE TABLE without ENGINE gets, "" for InnoDB.
 	DefaultStorageEngine    string
 	DefaultTmpStorageEngine string
-	SQLMode                      string
-	TimeZone                     string
-	SystemTimeZone               string
+	SQLMode                 string
+	TimeZone                string
+	SystemTimeZone          string
 	// Version is the MySQL major version whose stored form the diff/generate
 	// canonicalizer reproduces. MySQL80 is the only one.
 	Version Version
