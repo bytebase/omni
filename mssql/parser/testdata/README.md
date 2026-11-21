@@ -104,13 +104,14 @@ parentheses, a name's dot and a label's colon carry, and then the CTAS
 alternatives and a line comment's opening).
 
 128 rows disagree: 108 omni accepts and the pinned server refuses, and 20 the
-other way. Each of the 128 was measured on the pinned image and on the same
-release with the features below installed, and each was put to ScriptDOM — the
-pin's own reader of the grammar the rows come from — which tells a check of a
-parsed statement from a refusal of its text. Three are the grammar's and are
-closed; the other 125 are a feature the image lacks, a statement of another
-product, or a check made after the statement is read, and stay rows. The two
-sections below hold the measurement so that no one measures them again.
+other way. Each of the 131 before #1468 was measured on the pinned image and on
+the same release with the features below installed, and each was put to
+ScriptDOM — the pin's own reader of the grammar the rows come from — which tells
+a check of a parsed statement from a refusal of its text. Three were the
+grammar's and are closed; the 128 here are a feature the image lacks, a
+statement of another product, or a check made after the statement is read, and
+stay rows. The two sections below hold the measurement so that no one measures
+them again.
 
 A byte in them is the offset of the token the server's message names: SQL
 Server reports a line, not a byte, and each row is one line. A row that says
@@ -120,9 +121,9 @@ Server reports a line, not a byte, and each row is one line. A row that says
 
 `TSql160.g4` is the grammar omni reads, so a statement the rule under the row
 derives stays accepted where this server refuses it: the row is recorded here
-instead of closed. Three rows are the grammar's, and are closed; the rest are
-the image's features, another product's statements, or checks of the parsed
-statement.
+instead of closed. Three rows of the 111 before #1468 were the grammar's, and
+are closed; the 108 here are the image's features, another product's
+statements, or checks of the parsed statement.
 
 ### Closed (3)
 
@@ -137,7 +138,7 @@ form SQL Server takes.
 | 1 | `CREATE TABLE a WITH() AS SELECT *` | Msg 102 near `)` (20) | `withTableOptions` is one option at least (TSql160.g:26710-26723): SQL Server, ScriptDOM and omni all refuse at 20 |
 | 1 | `SELECT 1 --(* a *)` | Msg 102 near `--(*` (9) | a line comment opening with `(*` is no comment: ScriptDOM's lexer refuses the same four characters, and a comment that opens otherwise may hold them later (`SELECT 1 --x --(* a *)` parses). omni now refuses at 9 |
 
-### Measured (105)
+### Measured (108)
 
 Each group's code was measured on both servers, and the control beside it — the
 form the server takes, or the same text with the feature it lacks — is what

@@ -76,11 +76,11 @@ What this cannot tell:
 
 | Rows | Total | Same verdict | Same byte | Only PostgreSQL accepts | Only omni accepts |
 |---|---|---|---|---|---|
-| Alternatives | 3,394 | 3,138 | 3,124 | 187 | 69 |
-| Near-misses | 10,306 | 9,160 | 8,390 | 49 | 1,097 |
-| `suite:lexer` | 250 | 233 | 230 | 1 | 16 |
+| Alternatives | 3,394 | 3,394 | 3,394 | 0 | 0 |
+| Near-misses | 10,306 | 10,306 | 10,306 | 0 | 0 |
+| `suite:lexer` | 250 | 250 | 250 | 0 | 0 |
 | `suite:psql` | 15 | 7 | 7 | 0 | 8 |
-| `suite:paren-fuzz` | 2,827 | 2,827 | 2,825 | 0 | 0 |
+| `suite:paren-fuzz` | 2,827 | 2,827 | 2,827 | 0 | 0 |
 
 PostgreSQL accepts 3,306 of the 3,394 alternatives. A grammar action refuses
 the other 88 as the generator writes them: `CREATE ASSERTION`, an operator
@@ -122,4 +122,4 @@ changing what a test sends, record it:
 OMNI_RECORD=1 go test ./pg/parser/ -run '^TestName$'
 ```
 
-The whole package records in about 15 seconds: 26 tapes, 16,686 requests.
+The whole package records in about 15 seconds: 29 tapes, 26,923 requests.

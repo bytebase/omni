@@ -9,8 +9,8 @@ the pinned Oracle's (`../../testdata/pins.tsv`). `TestCompatibility`
 server. Recorded 2026-11-14 in 35 minutes, most of them on the statements
 Oracle never answers (below); a second recording on a fresh server wrote the
 same file. A rejection carries the byte Oracle reports it at. The counts here
-are the file as it stands at judge revision 3, after #1473, #1475, #1480 and
-#1483: 45,852 generated rows and 1,010 hand rows.
+are the file as it stands at judge revision 3, after #1473, #1475, #1480, #1483
+and #1486: 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
@@ -372,7 +372,7 @@ for ALTER SYSTEM RESET), while a name it holds is read on, so a value where the
 accepting to both refusing; the 10 rows below are what the list cannot answer,
 all at Oracle's byte 0.
 
-This change moved 241 more to Oracle's byte (221 where omni stopped first and
+#1486 moved 241 more to Oracle's byte (221 where omni stopped first and
 20 where Oracle did), with no verdict change and no `suite:` row moved.
 
 | Cause | Rows | Where Oracle stops |

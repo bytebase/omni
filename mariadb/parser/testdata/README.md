@@ -5,10 +5,13 @@
 `compat.tsv` holds a statement for each alternative of each rule in MariaDB's
 `sql_yacc.yy` at the pinned release, then its near-misses: the statement with
 one token dropped, the end cut off, a stray word inserted, or a keyword
-swapped. Each row has omni's verdict and MariaDB's. `TestCompatibility`
+swapped, followed by 7 `suite:json-operators` rows pinning the `->` and `->>`
+operators MariaDB has no grammar for (12,960 generated rows and 7 `suite:`
+rows, 12,967 in all: 12,897 agreeing, 67 only MariaDB accepts and 3 only omni).
+Each row has omni's verdict and MariaDB's. `TestCompatibility`
 (`compat_test.go`) reads it through `enginetest/compat`, which describes the
-columns and what passes. It starts no server, and it regenerates the rows from
-the grammar and fails if the file holds others.
+columns and what passes. It starts no server, and it regenerates the generated
+rows from the grammar and fails if the file holds others.
 
 - **The grammar is fetched, not committed.** MariaDB Server is under the GPL
   v2, so the repo holds only the rows. The test downloads the grammar once per
@@ -33,7 +36,7 @@ To judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`:
 OMNI_RECORD=1 go test ./mariadb/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 12,960 rows in about 20 seconds.
+It starts the pinned image and judges all 12,967 rows in about 20 seconds.
 After a parser fix, commit the rows that now agree:
 
 ```bash
