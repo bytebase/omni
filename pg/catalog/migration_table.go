@@ -187,7 +187,7 @@ func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relati
 		case ConstraintPK:
 			inlineConstraints = append(inlineConstraints, formatPKConstraint(rel, con))
 		case ConstraintUnique:
-			inlineConstraints = append(inlineConstraints, formatUniqueConstraint(rel, con))
+			inlineConstraints = append(inlineConstraints, formatUniqueConstraint(c, rel, con))
 		case ConstraintCheck:
 			inlineConstraints = append(inlineConstraints, formatCheckConstraint(con))
 		}
@@ -504,10 +504,14 @@ func formatPKConstraint(rel *Relation, con *Constraint) string {
 }
 
 // formatUniqueConstraint formats a UNIQUE constraint clause.
-func formatUniqueConstraint(rel *Relation, con *Constraint) string {
+func formatUniqueConstraint(c *Catalog, rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
-		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	nulls := ""
+	if constraintNullsNotDistinct(c, con) {
+		nulls = " NULLS NOT DISTINCT"
+	}
+	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE%s (%s)",
+		quoteIdentAlways(con.Name), nulls, strings.Join(cols, ", "))
 	if len(con.IncludeColumns) > 0 {
 		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
 		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
@@ -517,8 +521,12 @@ func formatUniqueConstraint(rel *Relation, con *Constraint) string {
 
 // formatCheckConstraint formats a CHECK constraint clause.
 func formatCheckConstraint(con *Constraint) string {
-	return fmt.Sprintf("CONSTRAINT %s CHECK (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s CHECK (%s)",
 		quoteIdentAlways(con.Name), con.CheckExpr)
+	if con.ConNoInherit {
+		clause += " NO INHERIT"
+	}
+	return clause
 }
 
 // resolveAttnumsToNames converts attnums to quoted column names.

@@ -85,6 +85,9 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	if a.CheckExpr != b.CheckExpr {
 		return false
 	}
+	if a.Type == ConstraintCheck && a.ConNoInherit != b.ConNoInherit {
+		return false
+	}
 	if a.FKUpdAction != b.FKUpdAction {
 		return false
 	}

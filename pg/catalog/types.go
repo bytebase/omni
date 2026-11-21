@@ -70,6 +70,7 @@ type ConstraintDef struct {
 	Deferrable       bool       // DEFERRABLE
 	Deferred         bool       // INITIALLY DEFERRED
 	SkipValidation   bool       // NOT VALID (CHECK/FK only)
+	NoInherit        bool       // CHECK ... NO INHERIT
 	CheckExpr        string     // CHECK only
 	RawCheckExpr     nodes.Node // raw AST node for CHECK expression (for analysis)
 	ExclOps          []string   // EXCLUDE only: operator names per column

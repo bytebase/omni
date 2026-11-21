@@ -320,6 +320,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	def.Deferrable = con.Deferrable
 	def.Deferred = con.Initdeferred
 	def.SkipValidation = con.SkipValidation
+	def.NoInherit = con.IsNoInherit
 	def.IndexSpace = con.Indexspace
 
 	switch ct {

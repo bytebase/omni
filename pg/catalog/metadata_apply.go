@@ -2086,7 +2086,7 @@ func addConstraintToTable(tbl *metadatapb.TableMetadata, cat *Catalog, rel Relat
 	case ConstraintCheck:
 		tbl.CheckConstraints = append(tbl.CheckConstraints, &metadatapb.CheckConstraintMetadata{
 			Name:       con.Name,
-			Expression: con.CheckExpr,
+			Expression: checkConstraintProtoExpr(con),
 		})
 	case ConstraintExclude:
 		tbl.ExcludeConstraints = append(tbl.ExcludeConstraints, &metadatapb.ExcludeConstraintMetadata{
@@ -2140,7 +2140,9 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 	cm := &metadatapb.ColumnMetadata{
 		Name:     col.Name,
 		Position: int32(col.AttNum),
-		Type:     cat.FormatType(col.TypeOID, col.TypeMod),
+		// Qualify a user type whatever the search path, as sync does, so a
+		// definition written with an empty search_path still resolves it.
+		Type:     qualifyWalkThroughAttributeType(cat, col.TypeOID, cat.FormatType(col.TypeOID, col.TypeMod)),
 		Nullable: !col.NotNull,
 		Default:  col.Default,
 		Options:  slices.Clone(col.ForeignOptions),
@@ -2195,7 +2197,9 @@ func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMeta
 		attnum := idx.Columns[i]
 		if attnum == 0 {
 			if exprIdx < len(idx.Exprs) {
-				im.Expressions = append(im.Expressions, idx.Exprs[exprIdx])
+				// An expression key is written as pg_get_indexdef writes it: bare
+				// when it reads as a function call, parenthesized otherwise.
+				im.Expressions = append(im.Expressions, indexElemExpr(idx.Exprs[exprIdx]))
 				exprIdx++
 			}
 		} else {
@@ -2923,7 +2927,7 @@ func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
 		case 'c':
 			table.CheckConstraints = append(table.CheckConstraints, &metadatapb.CheckConstraintMetadata{
 				Name:       con.Name,
-				Expression: con.CheckExpr,
+				Expression: checkConstraintProtoExpr(con),
 			})
 		case 'x':
 			table.ExcludeConstraints = append(table.ExcludeConstraints, &metadatapb.ExcludeConstraintMetadata{
@@ -4633,4 +4637,17 @@ func isRecreatedConstraint(catBefore, catAfter *Catalog, schemaName, tableName, 
 		}
 	}
 	return fromOID != 0 && toOID != 0 && fromOID != toOID
+}
+
+// checkConstraintProtoExpr writes a check as sync stores it, pg_get_constraintdef
+// without its CHECK keyword: the expression, then NO INHERIT and NOT VALID.
+func checkConstraintProtoExpr(con *Constraint) string {
+	expr := con.CheckExpr
+	if con.ConNoInherit {
+		expr += " NO INHERIT"
+	}
+	if !con.Validated {
+		expr += " NOT VALID"
+	}
+	return expr
 }

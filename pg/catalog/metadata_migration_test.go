@@ -7598,6 +7598,141 @@ func TestRound37Fixes(t *testing.T) {
 	require.Equal(t, "mid", nestMeta.Schemas[0].Tables[0].Partitions[0].Name)
 	require.Len(t, nestMeta.Schemas[0].Tables[0].Partitions[0].Subpartitions, 1)
 	require.Equal(t, "aleaf", nestMeta.Schemas[0].Tables[0].Partitions[0].Subpartitions[0].Name)
+
+	// 14. Renaming a server keeps its attached foreign-table partition attached, and still detaches one the target detaches.
+	fpFrom := New()
+	_, err = fpFrom.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_fp;
+		CREATE SERVER fp_old FOREIGN DATA WRAPPER w_fp;
+		CREATE TABLE public.fp_parent (id int, k int) PARTITION BY LIST (k);
+		CREATE FOREIGN TABLE public.fp_kept PARTITION OF public.fp_parent FOR VALUES IN (1) SERVER fp_old;
+		CREATE FOREIGN TABLE public.fp_gone PARTITION OF public.fp_parent FOR VALUES IN (2) SERVER fp_old;
+	`, nil)
+	require.NoError(t, err)
+	fpTo := fpFrom.Clone()
+	_, err = fpTo.Exec(`
+		ALTER SERVER fp_old RENAME TO fp_new;
+		ALTER TABLE public.fp_parent DETACH PARTITION public.fp_gone;
+	`, nil)
+	require.NoError(t, err)
+	fpSQL := GenerateMigration(fpFrom, fpTo, Diff(fpFrom, fpTo)).SQL()
+	require.Contains(t, fpSQL, `ALTER SERVER fp_old RENAME TO fp_new`)
+	require.NotContains(t, fpSQL, `ATTACH PARTITION`)
+	require.Contains(t, fpSQL, `DETACH PARTITION`)
+	fpApplied := fpFrom.Clone()
+	require.NoError(t, round37ExecErr(fpApplied, fpSQL))
+	require.True(t, Diff(fpApplied, fpTo).IsEmpty())
+
+	// 15. Expression keys in applied index metadata carry the parentheses an index element needs.
+	exBefore := New()
+	_, err = exBefore.Exec(`CREATE TABLE public.ex (a int, b int, s text);`, nil)
+	require.NoError(t, err)
+	exMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "ex",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a", Position: 1, Type: "integer", Nullable: true},
+					{Name: "b", Position: 2, Type: "integer", Nullable: true},
+					{Name: "s", Position: 3, Type: "text", Nullable: true},
+				},
+			}},
+		}},
+	}
+	exAfter := exBefore.Clone()
+	_, err = exAfter.Exec(`CREATE INDEX ex_sum ON public.ex ((a + b), lower(s));`, nil)
+	require.NoError(t, err)
+	exUpdated := ApplyDiffToMetadata(exMeta, exBefore, exAfter, Diff(exBefore, exAfter))
+	require.Len(t, exUpdated.Schemas[0].Tables[0].Indexes, 1)
+	require.Equal(t, []string{`(a + b)`, `lower(s)`}, exUpdated.Schemas[0].Tables[0].Indexes[0].Expressions)
+	exReloaded := New()
+	exReport, err := exReloaded.LoadMetadata(context.Background(), exUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, exReport.Degraded)
+	require.True(t, Diff(exReloaded, exAfter).IsEmpty())
+
+	// 16. Applied column metadata schema-qualifies user types visible on the search path.
+	utBefore := New()
+	_, err = utBefore.Exec(`CREATE TYPE public.status AS ENUM ('on', 'off'); CREATE TABLE public.ut (id int);`, nil)
+	require.NoError(t, err)
+	utMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			EnumTypes: []*metadatapb.EnumTypeMetadata{{Name: "status", Values: []string{"on", "off"}}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "ut",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Position: 1, Type: "integer", Nullable: true}},
+			}},
+		}},
+	}
+	utAfter := utBefore.Clone()
+	_, err = utAfter.Exec(`ALTER TABLE public.ut ADD COLUMN s status, ADD COLUMN ss status[];`, nil)
+	require.NoError(t, err)
+	utUpdated := ApplyDiffToMetadata(utMeta, utBefore, utAfter, Diff(utBefore, utAfter))
+	utTypes := map[string]string{}
+	for _, col := range utUpdated.Schemas[0].Tables[0].Columns {
+		utTypes[col.Name] = col.Type
+	}
+	require.Equal(t, "integer", utTypes["id"])
+	require.Equal(t, "public.status", utTypes["s"])
+	require.Equal(t, "public.status[]", utTypes["ss"])
+	utReloaded := New()
+	utReport, err := utReloaded.LoadMetadata(context.Background(), utUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, utReport.Degraded)
+	require.True(t, Diff(utReloaded, utAfter).IsEmpty())
+
+	// 17. Applied check metadata keeps NOT VALID and NO INHERIT, as pg_get_constraintdef writes them.
+	nvBefore := New()
+	_, err = nvBefore.Exec(`CREATE TABLE public.nv (a int);`, nil)
+	require.NoError(t, err)
+	nvMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "nv",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "a", Position: 1, Type: "integer", Nullable: true}},
+			}},
+		}},
+	}
+	nvAfter := nvBefore.Clone()
+	_, err = nvAfter.Exec(`
+		ALTER TABLE public.nv ADD CONSTRAINT nv_pos CHECK (a > 0) NOT VALID;
+		ALTER TABLE public.nv ADD CONSTRAINT nv_small CHECK (a < 100) NO INHERIT;
+		CREATE TABLE public.nv2 (b int, CONSTRAINT nv2_b CHECK (b > 0) NO INHERIT);
+	`, nil)
+	require.NoError(t, err)
+	nvUpdated := ApplyDiffToMetadata(nvMeta, nvBefore, nvAfter, Diff(nvBefore, nvAfter))
+	nvExprs := map[string]string{}
+	for _, tbl := range nvUpdated.Schemas[0].Tables {
+		for _, ck := range tbl.CheckConstraints {
+			nvExprs[ck.Name] = ck.Expression
+		}
+	}
+	require.True(t, strings.HasSuffix(nvExprs["nv_pos"], " NOT VALID"), nvExprs["nv_pos"])
+	require.True(t, strings.HasSuffix(nvExprs["nv_small"], " NO INHERIT"), nvExprs["nv_small"])
+	require.True(t, strings.HasSuffix(nvExprs["nv2_b"], " NO INHERIT"), nvExprs["nv2_b"])
+	nvReloaded := New()
+	nvReport, err := nvReloaded.LoadMetadata(context.Background(), nvUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, nvReport.Degraded)
+	require.True(t, Diff(nvReloaded, nvAfter).IsEmpty())
+
+	// 18. A new table keeps CHECK NO INHERIT and UNIQUE NULLS NOT DISTINCT in its CREATE TABLE.
+	ctFrom := New()
+	ctTo := New()
+	_, err = ctTo.Exec(`CREATE TABLE public.ct (a int, b int, CONSTRAINT ct_a CHECK (a > 0) NO INHERIT, CONSTRAINT ct_b UNIQUE NULLS NOT DISTINCT (b));`, nil)
+	require.NoError(t, err)
+	ctSQL := GenerateMigration(ctFrom, ctTo, Diff(ctFrom, ctTo)).SQL()
+	require.Contains(t, ctSQL, `CHECK ((a > 0)) NO INHERIT`)
+	require.Contains(t, ctSQL, `UNIQUE NULLS NOT DISTINCT ("b")`)
+	ctApplied := ctFrom.Clone()
+	require.NoError(t, round37ExecErr(ctApplied, ctSQL))
+	require.True(t, Diff(ctApplied, ctTo).IsEmpty())
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

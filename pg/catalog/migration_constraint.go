@@ -172,6 +172,9 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 	case ConstraintCheck:
 		sql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s CHECK (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), con.CheckExpr)
+		if con.ConNoInherit {
+			sql += " NO INHERIT"
+		}
 
 	case ConstraintFK:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)

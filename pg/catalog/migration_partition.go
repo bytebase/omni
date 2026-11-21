@@ -96,6 +96,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	}
 
 	rebuiltServers := rebuiltForeignServerNames(diff)
+	renamedServers := renamedForeignServerNames(diff)
 	diffFTKeys := make(map[string]bool, len(diff.ForeignTables))
 	for _, entry := range diff.ForeignTables {
 		diffFTKeys[entry.SchemaName+"\x00"+entry.Name] = true
@@ -110,7 +111,9 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil || entry.To == nil || entry.From.RelKind != 'f' || entry.To.RelKind != 'f' {
 				continue
 			}
-			ftRebuilt := entry.From.ForeignServer != entry.To.ForeignServer || rebuiltServers[entry.From.ForeignServer]
+			// A renamed server keeps its foreign tables, as generateForeignTableDDL does.
+			serverChanged := entry.From.ForeignServer != entry.To.ForeignServer && renamedServers[entry.From.ForeignServer] != entry.To.ForeignServer
+			ftRebuilt := serverChanged || rebuiltServers[entry.From.ForeignServer]
 			if ftRebuilt {
 				if entry.To.PartitionOf != 0 {
 					if op, ok := buildForeignTableAttachOp(to, entry.SchemaName, entry.Name, entry.To); ok {

@@ -607,6 +607,8 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 		Columns:    cols,
 		Validated:  !def.SkipValidation,
 		ConIsLocal: true,
+		// pg: src/backend/catalog/heap.c — StoreRelCheck (is_no_inherit)
+		ConNoInherit: def.NoInherit,
 	}
 
 	if analyzed != nil {
