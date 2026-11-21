@@ -30,7 +30,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to.Collation != "" {
 		return "", fmt.Errorf("database %q collation %q cannot be restored by Redshift DDL renderer", to.Name, to.Collation)
 	}
-	if len(to.Extensions) > 0 || len(to.EventTriggers) > 0 || len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
+	if to.CharacterSet != "" && !strings.EqualFold(to.CharacterSet, "UNICODE") && !strings.EqualFold(to.CharacterSet, "UTF8") && !strings.EqualFold(to.CharacterSet, "UTF-8") {
+		return "", fmt.Errorf("database %q character set %q cannot be restored by Redshift DDL renderer", to.Name, to.CharacterSet)
+	}
+	if to.SearchPath != "" || to.ServiceName != "" || to.DefaultSchema != "" ||
+		len(to.Extensions) > 0 || len(to.EventTriggers) > 0 || len(to.ForeignServers) > 0 || len(to.ForeignDataWrappers) > 0 || len(to.PublicSynonyms) > 0 || len(to.LinkedDatabases) > 0 {
 		return "", fmt.Errorf("database %q contains objects unsupported by Redshift DDL renderer", to.Name)
 	}
 	caseSensitive := needsCaseSensitiveIdentifiers(to)
@@ -1461,7 +1465,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				return fmt.Errorf("sequence %s cannot be restored because Redshift does not support PostgreSQL sequences", qualifyName(schema.Name, seq.Name))
 			}
 		}
-		if len(schema.Streams) > 0 || len(schema.Tasks) > 0 || len(schema.Packages) > 0 || len(schema.Events) > 0 || len(schema.EnumTypes) > 0 || len(schema.CompositeTypes) > 0 || len(schema.Synonyms) > 0 || len(schema.Collations) > 0 || len(schema.RangeTypes) > 0 {
+		if len(schema.Streams) > 0 || len(schema.Tasks) > 0 || len(schema.Packages) > 0 || len(schema.Events) > 0 || len(schema.Synonyms) > 0 ||
+			slices.ContainsFunc(schema.EnumTypes, func(e *metadatapb.EnumTypeMetadata) bool { return e != nil && !e.SkipDump }) ||
+			slices.ContainsFunc(schema.CompositeTypes, func(c *metadatapb.CompositeTypeMetadata) bool { return c != nil && !c.SkipDump }) ||
+			slices.ContainsFunc(schema.Collations, func(c *metadatapb.CollationMetadata) bool { return c != nil && !c.SkipDump }) ||
+			slices.ContainsFunc(schema.RangeTypes, func(r *metadatapb.RangeTypeMetadata) bool { return r != nil && !r.SkipDump }) {
 			return fmt.Errorf("schema %s contains schema objects unsupported by Redshift DDL renderer", quoteDefinitionIdentifier(schema.Name))
 		}
 		for _, fn := range schema.Functions {

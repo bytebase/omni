@@ -91,7 +91,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("external table %s.%s cannot be restored by Trino SDL renderer", s.Name, et.Name)
 			}
 		}
-		if len(s.Streams) > 0 || len(s.Tasks) > 0 || len(s.Packages) > 0 || len(s.Events) > 0 || len(s.EnumTypes) > 0 || len(s.CompositeTypes) > 0 || len(s.Synonyms) > 0 || len(s.Collations) > 0 || len(s.RangeTypes) > 0 {
+		if len(s.Streams) > 0 || len(s.Tasks) > 0 || len(s.Packages) > 0 || len(s.Events) > 0 || len(s.Synonyms) > 0 ||
+			slices.ContainsFunc(s.EnumTypes, func(e *metadatapb.EnumTypeMetadata) bool { return e != nil && !e.SkipDump }) ||
+			slices.ContainsFunc(s.CompositeTypes, func(c *metadatapb.CompositeTypeMetadata) bool { return c != nil && !c.SkipDump }) ||
+			slices.ContainsFunc(s.Collations, func(c *metadatapb.CollationMetadata) bool { return c != nil && !c.SkipDump }) ||
+			slices.ContainsFunc(s.RangeTypes, func(r *metadatapb.RangeTypeMetadata) bool { return r != nil && !r.SkipDump }) {
 			return nil, fmt.Errorf("schema %s contains schema objects unsupported by Trino SDL renderer", s.Name)
 		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
@@ -1437,7 +1441,7 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 	// SHOW FUNCTIONS lists variadic concat/greatest/least with a single element parameter.
 	switch name {
 	case "greatest", "least":
-		if call.argCount >= 1 {
+		if isCompatibleTrinoOrderableCall(call.argTypes, call.argCount) {
 			return true
 		}
 	case "map_concat":
@@ -1520,6 +1524,39 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 		}
 	}
 	return false
+}
+
+func isOrderableTrinoType(t string) bool {
+	if t == "" || t == "function" || t == "json" {
+		return false
+	}
+	base, _, _ := splitParameterizedType(t)
+	return base != "map" && base != "row"
+}
+
+func isCompatibleTrinoOrderableCall(argTypes []string, argCount int) bool {
+	if argCount < 1 || len(argTypes) != argCount {
+		return false
+	}
+	common := ""
+	for _, t := range argTypes {
+		if !isOrderableTrinoType(t) {
+			return false
+		}
+		if common == "" {
+			common = t
+			continue
+		}
+		if _, ok := trinoTypeCompatScore(t, common); ok {
+			continue
+		}
+		if _, ok := trinoTypeCompatScore(common, t); ok {
+			common = t
+			continue
+		}
+		return false
+	}
+	return common != ""
 }
 
 func trinoBuiltinTypeMatch(argType, paramType string) bool {
@@ -3111,7 +3148,7 @@ func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 			views = append(views, orderedView{schema: schema.Name, view: mv, materialized: true})
 		}
 	}
-	if len(views) < 2 {
+	if len(views) == 0 {
 		return views, nil
 	}
 
@@ -3125,7 +3162,7 @@ func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 			depSchema = views[i].schema
 		}
 		dependency, ok := index[objectKey(strings.ToLower(depSchema), strings.ToLower(depTable))]
-		if !ok || dependency == i {
+		if !ok {
 			return
 		}
 		if dependencies[i] == nil {

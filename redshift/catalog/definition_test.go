@@ -2059,6 +2059,31 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	require.NoError(t, err)
 	require.Contains(t, crossDepViews, `CREATE OR REPLACE VIEW "app"."v" AS SELECT id FROM "shared".t;`)
 	require.Contains(t, crossDepViews, `CREATE MATERIALIZED VIEW "app"."mv" AS SELECT id FROM "shared".t;`)
+
+	// Skipped unsupported schema objects are omitted cleanly, while unrendered
+	// non-UNICODE CharacterSet or database-level attributes fail explicitly.
+	skippedTypesOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:         "dev",
+		CharacterSet: "UNICODE",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:           "s",
+			EnumTypes:      []*metadatapb.EnumTypeMetadata{{Name: "e", Values: []string{"a"}, SkipDump: true}},
+			CompositeTypes: []*metadatapb.CompositeTypeMetadata{{Name: "c", SkipDump: true}},
+			Collations:     []*metadatapb.CollationMetadata{{Name: "col", SkipDump: true}},
+			RangeTypes:     []*metadatapb.RangeTypeMetadata{{Name: "r", SkipDump: true}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, skippedTypesOut, `CREATE SCHEMA IF NOT EXISTS "s";`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", CharacterSet: "LATIN1"})
+	require.ErrorContains(t, err, "character set")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", SearchPath: "app"})
+	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", DefaultSchema: "app"})
+	require.ErrorContains(t, err, "unsupported")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

@@ -1571,4 +1571,36 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "owner")
+
+	// Incompatible greatest/least args resolve to schema UDFs, skipped unsupported
+	// schema objects are omitted cleanly, and self-referential views fail explicitly.
+	greatestAndSkip, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:           "s",
+			EnumTypes:      []*metadatapb.EnumTypeMetadata{{Name: "e", Values: []string{"a"}, SkipDump: true}},
+			CompositeTypes: []*metadatapb.CompositeTypeMetadata{{Name: "c", SkipDump: true}},
+			Collations:     []*metadatapb.CollationMetadata{{Name: "col", SkipDump: true}},
+			RangeTypes:     []*metadatapb.RangeTypeMetadata{{Name: "r", SkipDump: true}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "greatest",
+				Definition: "CREATE FUNCTION s.greatest(a boolean, b bigint) RETURNS bigint RETURN b",
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_gr",
+				Definition: "SELECT greatest(true, 1), greatest(1, 2)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, greatestAndSkip, `SELECT "cat"."s".greatest(true, 1), greatest(1, 2);`)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "s",
+			Views: []*metadatapb.ViewMetadata{{Name: "self_v", Definition: "SELECT * FROM s.self_v"}},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
 }
