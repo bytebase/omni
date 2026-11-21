@@ -724,6 +724,8 @@ type ConstExprQ struct {
 	// lineage, like any constant, but deparse must not quote it: the engine
 	// lexes the position as a keyword and rejects timestampdiff('SECOND',...).
 	Keyword bool
+	// IsString marks a string literal so export distinguishes '1' from 1.
+	IsString bool
 }
 
 func (*ConstExprQ) analyzedExprTag()          {}
@@ -993,6 +995,19 @@ func (*BetweenExprQ) analyzedExprTag()        {}
 func (*BetweenExprQ) exprType() *ResolvedType { return BoolType }
 func (*BetweenExprQ) exprCollation() string   { return "" }
 
+// LikeExprQ is `x [NOT] LIKE|ILIKE pattern [ESCAPE escape]`.
+type LikeExprQ struct {
+	Arg     AnalyzedExpr
+	Pattern AnalyzedExpr
+	Escape  AnalyzedExpr
+	Negated bool
+	ILike   bool
+}
+
+func (*LikeExprQ) analyzedExprTag()        {}
+func (*LikeExprQ) exprType() *ResolvedType { return BoolType }
+func (*LikeExprQ) exprCollation() string   { return "" }
+
 // ----------------------------------------------------------------------------
 // RowExprQ — ROW(...) constructor.
 // ----------------------------------------------------------------------------
@@ -1038,6 +1053,16 @@ func (*CastExprQ) analyzedExprTag()          {}
 func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
 
+// IntervalExprQ represents an analyzed INTERVAL value unit expression.
+type IntervalExprQ struct {
+	Value AnalyzedExpr
+	Unit  string
+}
+
+func (*IntervalExprQ) analyzedExprTag()        {}
+func (*IntervalExprQ) exprType() *ResolvedType { return nil }
+func (*IntervalExprQ) exprCollation() string   { return "" }
+
 // ----------------------------------------------------------------------------
 // Deferred expression nodes
 // ----------------------------------------------------------------------------
@@ -1047,8 +1072,6 @@ func (c *CastExprQ) exprCollation() string   { return c.Collation }
 // scope manageable. Listed here so reviewers can challenge the omissions
 // explicitly:
 //
-//   - LikeExprQ:        `x LIKE pattern ESCAPE c`. The 3-operand ESCAPE form
-//                       does not fit OpExprQ; deferred to Phase 3.
 //   - MatchAgainstExprQ: `MATCH (col) AGAINST ('text' IN NATURAL LANGUAGE MODE)`.
 //                       MySQL fulltext predicate. Deferred to Phase 4 (deparse
 //                       fidelity for fulltext indexes).

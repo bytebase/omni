@@ -101,8 +101,40 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	}
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
 		applyDatabaseSessionContext(db, sessionContexts(installed))
+		for _, o := range installed {
+			applyObjectSkipDump(db, o)
+		}
 	}
 	return report, nil
+}
+
+func applyObjectSkipDump(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataTable:
+		if tbl := db.Tables[key]; tbl != nil && o.table != nil {
+			tbl.SkipDump = o.table.GetSkipDump()
+		}
+	case metadataView:
+		if v := db.Views[key]; v != nil && o.view != nil {
+			v.SkipDump = o.view.GetSkipDump()
+		}
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			fn.SkipDump = o.function.GetSkipDump()
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			p.SkipDump = o.procedure.GetSkipDump()
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			tr.SkipDump = o.trigger.GetSkipDump()
+		}
+	}
 }
 
 // selectMetadataDatabase creates the database named name where the catalog
@@ -201,6 +233,43 @@ func (c *Catalog) installedView(name string) *View {
 	return db.Views[toLower(name)]
 }
 
+func (c *Catalog) installedTable(name string) *Table {
+	db := c.GetDatabase(c.CurrentDatabase())
+	if db == nil {
+		return nil
+	}
+	return db.GetTable(name)
+}
+
+func applyColumnMetadataFlags(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	gipk := make(map[string]bool)
+	for _, col := range meta.GetColumns() {
+		key := toLower(col.GetName())
+		if col.GetDefaultDropped() {
+			dropped[key] = true
+		}
+		if col.GetIsGeneratedInvisiblePrimaryKey() {
+			gipk[key] = true
+		}
+	}
+	if len(dropped) == 0 && len(gipk) == 0 {
+		return
+	}
+	for _, col := range tbl.Columns {
+		key := toLower(col.Name)
+		if dropped[key] && col.Default == nil {
+			col.DefaultDropped = true
+		}
+		if gipk[key] {
+			col.GeneratedInvisiblePrimaryKey = true
+		}
+	}
+}
+
 // --- Objects ---
 
 // metadataObjectKind lists the kinds in the order they install. Only a
@@ -223,8 +292,9 @@ const (
 type metadataObject struct {
 	kind metadataObjectKind
 	name string
-	// parent is a trigger's table.
+	// parent is a trigger's table; order preserves the snapshot's action order.
 	parent string
+	order  int
 	// snapshotDatabase is the database the snapshot's references qualify
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
@@ -270,9 +340,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				continue
 			}
 			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
-			for _, trg := range t.GetTriggers() {
+			for i, trg := range t.GetTriggers() {
 				if trg.GetName() != "" {
-					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), trigger: trg})
+					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), order: i, trigger: trg})
 				}
 			}
 		}
@@ -298,6 +368,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
+		if a.kind == metadataTrigger && b.kind == metadataTrigger {
+			return cmp.Or(cmp.Compare(a.parent, b.parent), cmp.Compare(a.order, b.order), cmp.Compare(a.name, b.name))
+		}
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name), cmp.Compare(a.parent, b.parent))
 	})
 	return out
@@ -322,8 +395,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				if o.incomplete == nil {
 					o.incomplete = fmt.Errorf("partitioning: %w", err)
 				}
+				applyColumnMetadataFlags(c.installedTable(o.name), o.table)
 				return nil
 			}
+		}
+		if err == nil {
+			applyColumnMetadataFlags(c.installedTable(o.name), o.table)
 		}
 		return err
 	case metadataView:
@@ -335,6 +412,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			return err
 		}
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
@@ -401,7 +479,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		if col.GetName() == "" {
 			continue
 		}
-		def, colOmitted, err := metadataColumnDef(col)
+		def, colOmitted, err := metadataColumnDef(t, col)
 		if err != nil {
 			return nil, nil, fmt.Errorf("column %q: %w", col.GetName(), err)
 		}
@@ -410,11 +488,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
+	tableCols := tableColumnSet(t.GetColumns())
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx, t.GetEngine())
+		con, err := metadataIndexConstraint(idx, t.GetEngine(), tableCols)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 		}
@@ -429,7 +508,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
 			continue
 		}
-		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{
+			Type:        nodes.ConstrCheck,
+			Name:        check.GetName(),
+			Expr:        expr,
+			NotEnforced: check.GetNotEnforced(),
+		})
 	}
 	if len(t.GetPartitions()) > 0 {
 		partitions, err := metadataPartitionClause(t)
@@ -438,19 +522,37 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Partitions = partitions
 	}
+	opts := t.GetCreateOptions()
+	// The snapshot's tablespace field holds the decoded name; a snapshot
+	// without it may still carry the identifier in CREATE_OPTIONS, where a
+	// doubled backtick is one.
+	tablespace := t.GetTablespace()
+	if tablespace == "" {
+		tablespace = unquoteIdent(createOption(opts, "tablespace"))
+	}
 	for _, opt := range []struct{ name, value string }{
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
-		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
-		// The tablespace is an identifier: a doubled backtick in it is one.
-		{"TABLESPACE", unquoteIdent(createOption(t.GetCreateOptions(), "tablespace"))},
+		{"KEY_BLOCK_SIZE", createOption(opts, "key_block_size")},
+		{"ROW_FORMAT", createOption(opts, "row_format")},
+		{"COMPRESSION", unquoteTableOption(createOption(opts, "compression"))},
 		// ENCRYPTION='Y' is in the server's CREATE_OPTIONS, and it is what a
 		// general tablespace the table names is inferred to be.
-		{"ENCRYPTION", unquoteTableOption(createOption(t.GetCreateOptions(), "encryption"))},
-		{"SECONDARY_ENGINE", unquoteTableOption(createOption(t.GetCreateOptions(), "secondary_engine"))},
-		{"AUTOEXTEND_SIZE", createOption(t.GetCreateOptions(), "autoextend_size")},
+		{"ENCRYPTION", unquoteTableOption(createOption(opts, "encryption"))},
+		{"STATS_PERSISTENT", createOption(opts, "stats_persistent")},
+		{"STATS_AUTO_RECALC", createOption(opts, "stats_auto_recalc")},
+		{"STATS_SAMPLE_PAGES", createOption(opts, "stats_sample_pages")},
+		{"MIN_ROWS", createOption(opts, "min_rows")},
+		{"MAX_ROWS", createOption(opts, "max_rows")},
+		{"AVG_ROW_LENGTH", createOption(opts, "avg_row_length")},
+		{"PACK_KEYS", createOption(opts, "pack_keys")},
+		{"CHECKSUM", createOption(opts, "checksum")},
+		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
+		{"TABLESPACE", tablespace},
+		{"SECONDARY_ENGINE", unquoteTableOption(createOption(opts, "secondary_engine"))},
+		{"AUTOEXTEND_SIZE", createOption(opts, "autoextend_size")},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -528,16 +630,33 @@ func splitCreateOptions(options string) []string {
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
 // or generation expression that does not parse is left out, and omitted is the
 // first such error.
-func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
+func metadataColumnDef(t *metadata.TableMetadata, col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
 	typeName, err := parseTypeName(col.GetType())
 	if err != nil {
 		return nil, nil, err
 	}
-	// The type text may carry its own character set and collation.
-	if typeName.Charset == "" {
+	// The type text may carry its own character set and collation. A value
+	// that differs from the table's current default is the column's own,
+	// whatever the inherited flag says: after ALTER TABLE ... DEFAULT CHARACTER
+	// SET latin1 a column that inherited utf8mb4 keeps it, as SHOW CREATE TABLE
+	// shows on mysql:8.0.46 and oceanbase-ce 4.3.5.6. An inherited flag of false
+	// marks an explicit clause even when the value matches the default; an
+	// absent flag (legacy live sync) leaves a matching value inherited.
+	charsetExplicit := col.CharsetInherited != nil && !*col.CharsetInherited ||
+		t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	// With the flags present, a collation that differs only because the
+	// charset does, its charset's default, comes with the charset rather than
+	// from a clause of its own; a legacy snapshot keeps any differing
+	// collation as its own.
+	charsetDiffers := t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	impliedCollation := col.CollationInherited != nil && charsetDiffers &&
+		strings.EqualFold(col.GetCollation(), defaultCollationForCharset[toLower(col.GetCharacterSet())])
+	collationExplicit := col.CollationInherited != nil && !*col.CollationInherited ||
+		t != nil && col.GetCollation() != "" && !strings.EqualFold(col.GetCollation(), t.GetCollation()) && !impliedCollation
+	if typeName.Charset == "" && col.GetCharacterSet() != "" && charsetExplicit {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" {
+	if typeName.Collate == "" && col.GetCollation() != "" && collationExplicit {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.
@@ -556,6 +675,9 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omit
 	}
 	if col.GetIsInvisible() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})
+	}
+	if col.GetNotSecondary() {
+		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotSecondary})
 	}
 	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
 	def.DefaultValue, omitted = columnDefault(col)
@@ -612,7 +734,7 @@ func typeTakesDefault(typ string) bool {
 // the access method a key without USING gets too, so the engine's default one
 // stays unwritten. The error is a key expression that did not parse; the index
 // still comes back, with that key part as a column.
-func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string, tableCols map[string]bool) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == defaultIndexType(engine) {
 		indexType = ""
@@ -631,7 +753,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex)
+	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex, tableCols)
 	// A primary key is always visible.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
@@ -639,13 +761,16 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
+	if idx.GetKeyBlockSize() > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "KEY_BLOCK_SIZE", Value: &nodes.IntLit{Value: idx.GetKeyBlockSize()}})
+	}
 	return c, err
 }
 
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // A SPATIAL key takes no length, though sync reports one (32) for it.
-func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, spatial bool, tableCols map[string]bool) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if !spatial && i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -655,7 +780,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpressionKey(expr, tableCols) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -673,7 +798,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpressionKey(expr, tableCols) {
 			// Sync reports the expression as information_schema stores it,
 			// with its quotes escaped. Charset introducers stay: they can
 			// change what the expression computes. On a parse failure the key
@@ -697,9 +822,22 @@ func defaultIndexType(engine string) string {
 	return "BTREE"
 }
 
+func tableColumnSet(cols []*metadata.ColumnMetadata) map[string]bool {
+	set := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		if name := col.GetName(); name != "" {
+			set[strings.ToLower(name)] = true
+		}
+	}
+	return set
+}
+
 // isExpressionKey reports whether a key part is a functional expression, as
-// in "(lower(name))" or "lower(`name`)", rather than a column.
-func isExpressionKey(s string) bool {
+// in "(lower(name))" or "lower(`name`)", rather than an existing column.
+func isExpressionKey(s string, tableCols map[string]bool) bool {
+	if tableCols[strings.ToLower(unquoteIdent(s))] {
+		return false
+	}
 	return strings.Contains(s, "(")
 }
 
@@ -751,7 +889,15 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
+	}, nil
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a
@@ -803,6 +949,35 @@ func nameViewColumnMetadata(v *View, names []string) {
 	}
 	for i, name := range names {
 		v.ColumnMetadata[i].Name = name
+	}
+}
+
+func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
+	if v == nil || len(cols) == 0 {
+		return
+	}
+	if len(v.ColumnMetadata) < len(cols) {
+		grown := make([]ViewColumn, len(cols))
+		copy(grown, v.ColumnMetadata)
+		v.ColumnMetadata = grown
+	}
+	for i, col := range cols {
+		vc := &v.ColumnMetadata[i]
+		if vc.Name == "" {
+			vc.Name = col.GetName()
+		}
+		if (v.AnalyzedQuery == nil || vc.Type == nil) && vc.ColumnType == "" {
+			vc.ColumnType = col.GetType()
+		}
+		if v.AnalyzedQuery == nil {
+			vc.Nullable = col.GetNullable()
+		}
+		if vc.Charset == "" {
+			vc.Charset = col.GetCharacterSet()
+		}
+		if vc.Collation == "" {
+			vc.Collation = col.GetCollation()
+		}
 	}
 }
 

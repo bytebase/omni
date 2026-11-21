@@ -363,9 +363,9 @@ func TestLoadMetadataInstallsSyncedIndexKeyParts(t *testing.T) {
 			{Name: "location", Type: "geometry", Srid: proto.Uint32(0)},
 		},
 		Indexes: []*metadata.IndexMetadata{
-			// information_schema.STATISTICS.EXPRESSION escapes quotes and keeps
-			// the charset introducer.
-			{Name: "idx_brand", Type: "BTREE", Expressions: []string{`(cast(json_unquote(json_extract(` + "`details`" + `,_utf8mb4\'$.brand\')) as char(50) charset utf8mb4))`}, Visible: true},
+			// information_schema.STATISTICS.EXPRESSION is plain SQL on
+			// oceanbase-ce 4.3.5.6.
+			{Name: "idx_brand", Type: "BTREE", Expressions: []string{`(cast(json_unquote(json_extract(` + "`details`" + `,'$.brand')) as char(50) charset utf8mb4))`}, Visible: true},
 			// Sync reports a SPATIAL key part with length 32, which MySQL rejects.
 			{Name: "sp_location", Type: "SPATIAL", Expressions: []string{"location"}, KeyLength: []int64{32}, Visible: true},
 		},
@@ -391,7 +391,7 @@ func TestLoadMetadataKeepsFunctionalKeyCharsetIntroducers(t *testing.T) {
 		Name:    "t",
 		Columns: []*metadata.ColumnMetadata{{Name: "name", Type: "varchar(64)"}},
 		Indexes: []*metadata.IndexMetadata{
-			{Name: "idx_len", Type: "BTREE", Expressions: []string{"(char_length(concat(`name`,_binary\\'a\\')))"}, Visible: true},
+			{Name: "idx_len", Type: "BTREE", Expressions: []string{"(char_length(concat(`name`,_binary'a')))"}, Visible: true},
 		},
 	}))
 	requireReport(t, report, nil, nil)

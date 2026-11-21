@@ -46,12 +46,25 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeInListExprQ(b, e, q)
 	case *BetweenExprQ:
 		writeBetweenExprQ(b, e, q)
+	case *LikeExprQ:
+		writeLikeExprQ(b, e, q)
+	case *CollateExprQ:
+		b.WriteString("(")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString(" collate ")
+		b.WriteString(e.Collation)
+		b.WriteString(")")
 	case *SubLinkExprQ:
 		writeSubLinkExprQ(b, e, q)
 	case *CastExprQ:
 		writeCastExprQ(b, e, q)
 	case *RowExprQ:
 		writeRowExprQ(b, e, q)
+	case *IntervalExprQ:
+		b.WriteString("interval ")
+		writeAnalyzedExpr(b, e.Value, q)
+		b.WriteByte(' ')
+		b.WriteString(strings.ToLower(e.Unit))
 	default:
 		fmt.Fprintf(b, "/* unknown expr %T */", expr)
 	}
@@ -310,6 +323,22 @@ func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *deparseScope) {
 	writeAnalyzedExpr(b, be.Lower, q)
 	b.WriteString(" and ")
 	writeAnalyzedExpr(b, be.Upper, q)
+	b.WriteString(")")
+}
+
+func writeLikeExprQ(b *strings.Builder, le *LikeExprQ, q *deparseScope) {
+	b.WriteString("(")
+	writeAnalyzedExpr(b, le.Arg, q)
+	if le.Negated {
+		b.WriteString(" not like ")
+	} else {
+		b.WriteString(" like ")
+	}
+	writeAnalyzedExpr(b, le.Pattern, q)
+	if le.Escape != nil {
+		b.WriteString(" escape ")
+		writeAnalyzedExpr(b, le.Escape, q)
+	}
 	b.WriteString(")")
 }
 

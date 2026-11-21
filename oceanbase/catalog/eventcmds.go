@@ -162,7 +162,7 @@ func showCreateEvent(e *Event) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", e.Definer))
 	}
 
-	b.WriteString(fmt.Sprintf(" EVENT `%s`", e.Name))
+	b.WriteString(fmt.Sprintf(" EVENT %s", quoteIdent(e.Name)))
 
 	// ON SCHEDULE
 	if e.Schedule != "" {

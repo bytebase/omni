@@ -871,6 +871,7 @@ func (c *CaseExprQ) exprCollation() string   { return c.Collation }
 // pg: src/include/nodes/primnodes.h — CoalesceExpr
 type CoalesceExprQ struct {
 	Args       []AnalyzedExpr
+	IsIfNull   bool
 	ResultType *ResolvedType
 	Collation  string
 }
@@ -986,6 +987,29 @@ func (*BetweenExprQ) analyzedExprTag()        {}
 func (*BetweenExprQ) exprType() *ResolvedType { return BoolType }
 func (*BetweenExprQ) exprCollation() string   { return "" }
 
+// LikeExprQ is `x [NOT] LIKE pattern [ESCAPE escape]`.
+type LikeExprQ struct {
+	Arg     AnalyzedExpr
+	Pattern AnalyzedExpr
+	Escape  AnalyzedExpr
+	Negated bool
+}
+
+func (*LikeExprQ) analyzedExprTag()        {}
+func (*LikeExprQ) exprType() *ResolvedType { return BoolType }
+func (*LikeExprQ) exprCollation() string   { return "" }
+
+// CollateExprQ is `x COLLATE collation`: x's value and type under the
+// collation named, which is lower-cased.
+type CollateExprQ struct {
+	Arg       AnalyzedExpr
+	Collation string
+}
+
+func (*CollateExprQ) analyzedExprTag()          {}
+func (e *CollateExprQ) exprType() *ResolvedType { return e.Arg.exprType() }
+func (e *CollateExprQ) exprCollation() string   { return e.Collation }
+
 // ----------------------------------------------------------------------------
 // RowExprQ — ROW(...) constructor.
 // ----------------------------------------------------------------------------
@@ -1036,6 +1060,16 @@ func (*CastExprQ) analyzedExprTag()          {}
 func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
 
+// IntervalExprQ represents an analyzed INTERVAL value unit expression.
+type IntervalExprQ struct {
+	Value AnalyzedExpr
+	Unit  string
+}
+
+func (*IntervalExprQ) analyzedExprTag()        {}
+func (*IntervalExprQ) exprType() *ResolvedType { return nil }
+func (*IntervalExprQ) exprCollation() string   { return "" }
+
 // ----------------------------------------------------------------------------
 // Deferred expression nodes
 // ----------------------------------------------------------------------------
@@ -1045,8 +1079,6 @@ func (c *CastExprQ) exprCollation() string   { return c.Collation }
 // scope manageable. Listed here so reviewers can challenge the omissions
 // explicitly:
 //
-//   - LikeExprQ:        `x LIKE pattern ESCAPE c`. The 3-operand ESCAPE form
-//                       does not fit OpExprQ; deferred to Phase 3.
 //   - MatchAgainstExprQ: `MATCH (col) AGAINST ('text' IN NATURAL LANGUAGE MODE)`.
 //                       MySQL fulltext predicate. Deferred to Phase 4 (deparse
 //                       fidelity for fulltext indexes).

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
+	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
@@ -118,14 +119,24 @@ func formatDataType(dt *nodes.DataType) string {
 		name = "json"
 	case "bool", "boolean":
 		name = "tinyint"
+	case "enum", "set":
+		// keep as-is; the member list is rendered below.
 	}
 
 	var b strings.Builder
 	b.WriteString(name)
 
-	// Length/precision.
-	if dt.Length > 0 {
-		if dt.Scale > 0 {
+	if len(dt.EnumValues) > 0 {
+		b.WriteString("(")
+		for i, v := range dt.EnumValues {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString("'" + escapeEnumValue(v) + "'")
+		}
+		b.WriteString(")")
+	} else if dt.Length > 0 {
+		if dt.Scale > 0 || dt.HasScale {
 			b.WriteString(fmt.Sprintf("(%d,%d)", dt.Length, dt.Scale))
 		} else {
 			b.WriteString(fmt.Sprintf("(%d)", dt.Length))
@@ -135,22 +146,42 @@ func formatDataType(dt *nodes.DataType) string {
 	if dt.Unsigned {
 		b.WriteString(" unsigned")
 	}
+	if dt.Zerofill {
+		b.WriteString(" zerofill")
+	}
+	if dt.Binary {
+		b.WriteString(" binary")
+	}
 
 	return b.String()
 }
 
 // formatParamType formats a DataType for display in a routine parameter list.
-// MySQL 8.0 shows parameter types in UPPERCASE (INT, VARCHAR(100), etc.)
 func formatParamType(dt *nodes.DataType) string {
 	raw := formatDataType(dt)
-	return strings.ToUpper(raw)
+	if open := strings.IndexByte(raw, '('); open >= 0 {
+		raw = strings.ToUpper(raw[:open]) + raw[open:]
+	} else {
+		raw = strings.ToUpper(raw)
+	}
+	if dt == nil {
+		return raw
+	}
+	if dt.Charset != "" {
+		raw += " CHARSET " + dt.Charset
+	}
+	if dt.Collate != "" {
+		raw += " COLLATE " + dt.Collate
+	}
+	return raw
 }
 
 // formatReturnType formats a DataType for display in the RETURNS clause.
-// MySQL 8.0 shows return types in lowercase but adds CHARSET for string types.
 func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 	raw := formatDataType(dt)
-	// MySQL 8.0 appends CHARSET for string return types.
+	if dt == nil {
+		return raw
+	}
 	name := strings.ToLower(dt.Name)
 	if isStringRoutineType(name) {
 		charset := dt.Charset
@@ -161,6 +192,11 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+	} else if dt.Charset != "" {
+		raw += " CHARSET " + dt.Charset
+	}
+	if dt.Collate != "" {
+		raw += " COLLATE " + dt.Collate
 	}
 	return raw
 }
@@ -218,9 +254,9 @@ func showCreateRoutine(r *Routine) string {
 	}
 
 	if r.IsProcedure {
-		b.WriteString(fmt.Sprintf(" PROCEDURE `%s`(", r.Name))
+		b.WriteString(fmt.Sprintf(" PROCEDURE %s(", quoteIdent(r.Name)))
 	} else {
-		b.WriteString(fmt.Sprintf(" FUNCTION `%s`(", r.Name))
+		b.WriteString(fmt.Sprintf(" FUNCTION %s(", quoteIdent(r.Name)))
 	}
 
 	// Parameters -- MySQL 8.0 separates with ", " (comma space).
@@ -228,10 +264,11 @@ func showCreateRoutine(r *Routine) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		paramName := formatRoutineParamName(p.Name)
 		if r.IsProcedure && p.Direction != "" {
-			b.WriteString(fmt.Sprintf("%s %s %s", p.Direction, p.Name, p.TypeName))
+			b.WriteString(fmt.Sprintf("%s %s %s", p.Direction, paramName, p.TypeName))
 		} else {
-			b.WriteString(fmt.Sprintf("%s %s", p.Name, p.TypeName))
+			b.WriteString(fmt.Sprintf("%s %s", paramName, p.TypeName))
 		}
 	}
 	b.WriteString(")")
@@ -269,4 +306,30 @@ func showCreateRoutine(r *Routine) string {
 	}
 
 	return b.String()
+}
+
+func formatRoutineParamName(name string) string {
+	if isPlainRoutineIdent(name) && !tidbparser.IsReservedKeyword(name) {
+		return name
+	}
+	return quoteIdent(name)
+}
+
+func isPlainRoutineIdent(name string) bool {
+	if name == "" {
+		return false
+	}
+	allDigits := true
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isDigit := c >= '0' && c <= '9'
+		isAlpha := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'
+		if !isDigit && !isAlpha {
+			return false
+		}
+		if !isDigit {
+			allDigits = false
+		}
+	}
+	return !allDigits
 }

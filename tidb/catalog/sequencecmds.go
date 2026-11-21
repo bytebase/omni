@@ -20,9 +20,10 @@ type Sequence struct {
 	MaxValue  int64
 	Increment int64
 	// Cache is the cache size; 0 is NOCACHE.
-	Cache   int64
-	Cycle   bool
-	Comment string
+	Cache    int64
+	Cycle    bool
+	Comment  string
+	SkipDump bool
 }
 
 // The defaults TiDB's handleSequenceOptions (pkg/ddl/sequence.go) fills in.

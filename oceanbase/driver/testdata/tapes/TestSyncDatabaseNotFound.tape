@@ -10,21 +10,21 @@
 | 5.7.25-OceanBase_CE-v4.3.5.6
 > query
 |
-| 		SELECT
-| 			TABLE_NAME,
-| 			INDEX_NAME,
-| 			COLUMN_NAME,
-| 			COLLATION,
-| 			IFNULL(SUB_PART, -1),
-| 			'',
-| 			SEQ_IN_INDEX,
-| 			INDEX_TYPE,
-| 			NON_UNIQUE,
-| 			1,
-| 			INDEX_COMMENT
-| 		FROM information_schema.STATISTICS
-| 		WHERE TABLE_SCHEMA = ?
-| 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+| 			SELECT
+| 				TABLE_NAME,
+| 				INDEX_NAME,
+| 				COLUMN_NAME,
+| 				COLLATION,
+| 				IFNULL(SUB_PART, -1),
+| 				EXPRESSION,
+| 				SEQ_IN_INDEX,
+| 				INDEX_TYPE,
+| 				NON_UNIQUE,
+| 				CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END,
+| 				INDEX_COMMENT
+| 			FROM information_schema.STATISTICS
+| 			WHERE TABLE_SCHEMA = ?
+| 			ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 : string
 | omni_no_such_database
 < result
@@ -33,11 +33,11 @@
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR" "string"
+< column "EXPRESSION" "VARBINARY" "[]uint8"
 < column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT" "int64"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "BIGINT" "int64"
 < column "INDEX_COMMENT" "TEXT" "string"
 > query
 |
@@ -74,9 +74,31 @@
 < column "NULL" "NULL" "*interface {}"
 > query
 |
+| 			SELECT
+| 				tc.TABLE_NAME,
+| 				cc.CONSTRAINT_NAME,
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
+| 			FROM information_schema.CHECK_CONSTRAINTS cc
+| 				JOIN information_schema.TABLE_CONSTRAINTS tc
+| 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 					AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 			WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ?
+| 			ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		
+: string
+| omni_no_such_database
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR"
+> query
+|
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -85,6 +107,7 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR"
 > query
 |
 | 	SELECT
@@ -259,6 +282,17 @@
 < column "MVIEW_NAME" "VARCHAR" "string"
 < column "CONTAINER_NAME" "VARCHAR" "string"
 < column "QUERY" "TEXT" "string"
+> query
+|
+| 		SELECT MASTER, LOG_TABLE
+| 		FROM oceanbase.DBA_MVIEW_LOGS
+| 		WHERE LOG_OWNER = ?
+| 		ORDER BY MASTER
+: string
+| omni_no_such_database
+< result
+< column "MASTER" "VARCHAR" "string"
+< column "LOG_TABLE" "VARCHAR" "string"
 > query
 |
 | 		SELECT

@@ -656,8 +656,35 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
+	case *nodes.CaseExpr:
+		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
+			return true
+		}
+		for _, w := range e.Whens {
+			if w != nil && inferViewExprNullable(w.Result, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.FuncCallExpr:
-		if isViewStringMetadataNullableFunc(e.Name) {
+		switch strings.ToLower(e.Name) {
+		case "nullif", "mod",
+			"date_add", "date_sub", "adddate", "subdate",
+			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
+			return true
+		}
+		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {
+			for _, arg := range e.Args {
+				if !inferViewExprNullable(arg, relations) {
+					return false
+				}
+			}
+			return true
+		}
+		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
+			return inferViewExprNullable(e.Args[1], relations) || inferViewExprNullable(e.Args[2], relations)
+		}
+		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -669,7 +696,43 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	case *nodes.ParenExpr:
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.BinaryExpr:
+		if _, ok := e.Left.(*nodes.IntervalExpr); ok {
+			return true
+		}
+		if _, ok := e.Right.(*nodes.IntervalExpr); ok {
+			return true
+		}
+		if e.Op == nodes.BinOpNullSafeEq {
+			return false
+		}
+		// Division and modulo are NULL for a zero divisor (see
+		// isAnalyzedExprNullable).
+		if e.Op == nodes.BinOpDiv || e.Op == nodes.BinOpDivInt || e.Op == nodes.BinOpMod {
+			return true
+		}
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.BetweenExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Low, relations) ||
+			inferViewExprNullable(e.High, relations)
+	case *nodes.LikeExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Pattern, relations) ||
+			(e.Escape != nil && inferViewExprNullable(e.Escape, relations))
+	case *nodes.IsExpr:
+		return false
+	case *nodes.SubqueryExpr:
+		return true
+	case *nodes.InExpr:
+		if e.Select != nil || inferViewExprNullable(e.Expr, relations) {
+			return true
+		}
+		for _, item := range e.List {
+			if inferViewExprNullable(item, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
 	case *nodes.WeightStringExpr:
@@ -679,6 +742,10 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.IntervalExpr:
 		return inferViewExprNullable(e.Value, relations)
+	case *nodes.CollateExpr:
+		// Nullable whatever its operand, as the engine reports it (see
+		// isAnalyzedExprNullable).
+		return true
 	case *nodes.CastExpr:
 		// Covers plain casts and the WEIGHT_STRING(... AS BINARY(n)) desugar,
 		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:
@@ -1004,6 +1071,15 @@ func viewDerivationName(derivation viewCollationDerivation) string {
 func isViewStringMetadataNullableFunc(name string) bool {
 	switch strings.ToLower(name) {
 	case "concat", "concat_ws", "ifnull", "coalesce":
+		return true
+	default:
+		return false
+	}
+}
+
+func isViewNullableAggregateFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "sum", "avg", "min", "max", "group_concat":
 		return true
 	default:
 		return false

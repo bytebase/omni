@@ -3,6 +3,7 @@ package catalog
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
@@ -13,18 +14,23 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ColumnRef:
 		return analyzeColumnRef(n, scope)
 	case *nodes.IntLit:
-		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
+		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10), Type: &ResolvedType{BaseType: BaseTypeBigInt}}, nil
 	case *nodes.StringLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{
+			Value:    n.Value,
+			IsString: true,
+			Type:     &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)},
+		}, nil
 	case *nodes.FloatLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{Value: n.Value, Type: floatLitResolvedType(n.Value)}, nil
 	case *nodes.NullLit:
-		return &ConstExprQ{IsNull: true, Value: "NULL"}, nil
+		return &ConstExprQ{IsNull: true, Value: "NULL", Type: &ResolvedType{BaseType: BaseTypeBinary}}, nil
 	case *nodes.BoolLit:
+		val := "FALSE"
 		if n.Value {
-			return &ConstExprQ{Value: "TRUE"}, nil
+			val = "TRUE"
 		}
-		return &ConstExprQ{Value: "FALSE"}, nil
+		return &ConstExprQ{Value: val, Type: &ResolvedType{BaseType: BaseTypeBigInt}}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
@@ -50,6 +56,8 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeInExpr(c, n, scope)
 	case *nodes.BetweenExpr:
 		return analyzeBetweenExpr(c, n, scope)
+	case *nodes.LikeExpr:
+		return analyzeLikeExpr(c, n, scope)
 	case *nodes.IsExpr:
 		return analyzeIsExpr(c, n, scope)
 	case *nodes.CaseExpr:
@@ -58,6 +66,12 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
+	case *nodes.IntervalExpr:
+		val, err := analyzeExpr(c, n.Value, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &IntervalExprQ{Value: val, Unit: n.Unit}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
@@ -68,6 +82,22 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			SQLState: "HY000",
 			Message:  "unsupported expression type in analyzer",
 		}
+	}
+}
+
+func floatLitResolvedType(raw string) *ResolvedType {
+	if strings.ContainsAny(raw, "eE") {
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	}
+	digits := strings.TrimLeft(raw, "+-")
+	intPart, fracPart, hasDot := strings.Cut(digits, ".")
+	if !hasDot {
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	}
+	return &ResolvedType{
+		BaseType:  BaseTypeDecimal,
+		Precision: len(intPart) + len(fracPart),
+		Scale:     len(fracPart),
 	}
 }
 
@@ -123,8 +153,7 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 // neither expand the view nor carry its column lineage.
 //
 // TiDB v8.5.5 keeps POSITION in the form it stores, so that is the call this
-// records. Its result type is the one LOCATE already gets from the function
-// table, which is to say none: that table has no entry for either spelling.
+// records; functionReturnType resolves its BIGINT type.
 func analyzePositionExpr(c *Catalog, pe *nodes.PositionExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	substr, err := analyzeExpr(c, pe.Substr, scope)
 	if err != nil {
@@ -277,6 +306,25 @@ func analyzeBetweenExpr(c *Catalog, expr *nodes.BetweenExpr, scope *analyzerScop
 	}
 
 	return &BetweenExprQ{Arg: arg, Lower: lower, Upper: upper, Negated: expr.Not}, nil
+}
+
+func analyzeLikeExpr(c *Catalog, expr *nodes.LikeExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := analyzeExpr(c, expr.Pattern, scope)
+	if err != nil {
+		return nil, err
+	}
+	var escape AnalyzedExpr
+	if expr.Escape != nil {
+		escape, err = analyzeExpr(c, expr.Escape, scope)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &LikeExprQ{Arg: arg, Pattern: pattern, Escape: escape, Negated: expr.Not, ILike: expr.ILike}, nil
 }
 
 // analyzeIsExpr resolves an IS expression.

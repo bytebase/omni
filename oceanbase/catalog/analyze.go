@@ -1024,7 +1024,13 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		}
 	case *BetweenExprQ:
 		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Lower) || exprContainsAggregate(e.Upper)
+	case *LikeExprQ:
+		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Pattern) || exprContainsAggregate(e.Escape)
 	case *NullTestExprQ:
+		return exprContainsAggregate(e.Arg)
+	case *IntervalExprQ:
+		return exprContainsAggregate(e.Value)
+	case *CollateExprQ:
 		return exprContainsAggregate(e.Arg)
 	case *SubLinkExprQ:
 		// The left operand of IN, ANY and ALL belongs to this query; the

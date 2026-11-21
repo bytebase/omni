@@ -41,11 +41,13 @@ func TestTableDefinitionWithCheckConstraint(t *testing.T) {
 	want := "--\n" +
 		"-- Table structure for `t1`\n" +
 		"--\n" +
+		disableGenerateInvisiblePrimaryKeyStmt +
 		"CREATE TABLE `t1` (\n" +
 		"  `type` varchar(10) DEFAULT NULL,\n" +
 		"  `amount` decimal(10,2) DEFAULT NULL,\n" +
 		"  CONSTRAINT `c1` CHECK (((`type` = _utf8mb4'A') and (`amount` is not null)))\n" +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;\n\n"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;\n\n" +
+		restoreGenerateInvisiblePrimaryKeyStmt
 	require.Equal(t, want, got)
 	require.NotContains(t, got, `\'`)
 }
@@ -71,12 +73,14 @@ func TestTableDefinitionWithSystemVersioning(t *testing.T) {
 	want := "--\n" +
 		"-- Table structure for `explicit_period`\n" +
 		"--\n" +
+		disableGenerateInvisiblePrimaryKeyStmt +
 		"CREATE TABLE `explicit_period` (\n" +
 		"  `id` int DEFAULT NULL,\n" +
 		"  `valid_from` timestamp(6) GENERATED ALWAYS AS ROW START NOT NULL,\n" +
 		"  `valid_to` timestamp(6) GENERATED ALWAYS AS ROW END NOT NULL,\n" +
 		"  PERIOD FOR SYSTEM_TIME (`valid_from`, `valid_to`)\n" +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='versioned' WITH SYSTEM VERSIONING;\n\n"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='versioned' WITH SYSTEM VERSIONING;\n\n" +
+		restoreGenerateInvisiblePrimaryKeyStmt
 	require.Equal(t, want, got)
 
 	// The schema-text diff path loads a dump with this catalog. Loading the table
@@ -1002,4 +1006,70 @@ func TestSDLViewStatesColumnList(t *testing.T) {
 	if diff := Diff(source, loaded); !diff.IsEmpty() {
 		t.Fatalf("SDL round trip differs: %+v", diff.Views)
 	}
+}
+
+func TestSDLViewPreservesOptions(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "d",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "d",
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: true}},
+				Engine:  "InnoDB", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:        "v_opts",
+				Algorithm:   "TEMPTABLE",
+				SqlSecurity: "INVOKER",
+				CheckOption: "LOCAL",
+				Definition:  "select `d`.`t`.`id` AS `id` from `d`.`t` where (`d`.`t`.`id` > 0)",
+			}},
+		}},
+	}
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, sdl, "CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `v_opts` AS")
+	require.Contains(t, sdl, "WITH LOCAL CHECK OPTION;")
+
+	loaded, err := LoadSDL("CREATE DATABASE `d`;\nUSE `d`;\n" + sdl)
+	require.NoError(t, err)
+	source := New()
+	_, err = source.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.True(t, Diff(source, loaded).IsEmpty(), "SDL round trip diff: %+v", Diff(source, loaded).Views)
+}
+
+func TestWriteEventAndTriggerPreservesEmptySQLMode(t *testing.T) {
+	var evBuf strings.Builder
+	require.NoError(t, writeEvent(&evBuf, &metadata.EventMetadata{
+		Name:                "ev_empty_mode",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_0900_ai_ci",
+		SqlMode:             "",
+		TimeZone:            "SYSTEM",
+		Definition:          "CREATE EVENT `ev_empty_mode` ON SCHEDULE EVERY 1 DAY DO SELECT 1",
+	}))
+	require.Contains(t, evBuf.String(), "SET sql_mode = '';\n")
+
+	var trgBuf strings.Builder
+	require.NoError(t, writeTrigger(&trgBuf, "t", &metadata.TriggerMetadata{
+		Name:                "tr_empty_mode",
+		Timing:              "BEFORE",
+		Event:               "INSERT",
+		Body:                "SET NEW.id = 1",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_0900_ai_ci",
+		SqlMode:             "",
+	}))
+	require.Contains(t, trgBuf.String(), "SET sql_mode = '';\n")
+
+	var bareBuf strings.Builder
+	require.NoError(t, writeTrigger(&bareBuf, "t", &metadata.TriggerMetadata{
+		Name:   "tr_bare",
+		Timing: "BEFORE",
+		Event:  "INSERT",
+		Body:   "SET NEW.id = 1",
+	}))
+	require.NotContains(t, bareBuf.String(), "SET sql_mode")
 }

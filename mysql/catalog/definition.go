@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	disableUniqueAndForeignKeyCheckStmt = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
-	restoreUniqueAndForeignKeyCheckStmt = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
+	disableUniqueAndForeignKeyCheckStmt    = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
+	restoreUniqueAndForeignKeyCheckStmt    = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
+	disableGenerateInvisiblePrimaryKeyStmt = "/*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */;\n"
+	restoreGenerateInvisiblePrimaryKeyStmt = "/*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */;\n\n"
 
 	emptyCommentLine      = "--\n"
 	tempViewHeader        = "-- Temporary view structure for "
@@ -215,57 +217,14 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 		return err
 	}
 
-	// Set charset, collation, sql mode and timezone.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
+	// Set charset, collation, sql mode and timezone when present.
+	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, event.SqlMode, event.TimeZone != ""); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setTimezone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.TimeZone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
+	if event.TimeZone != "" {
+		if _, err := io.WriteString(out, setTimezone+"'"+event.TimeZone+"';\n"); err != nil {
+			return err
+		}
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
 		return err
@@ -302,44 +261,8 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 		return err
 	}
 
-	// Set charset, collation, and sql mode.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
+	// Set charset, collation, and sql mode when present.
+	if err := writeAdditionalEventsIfSet(out, trigger.CharacterSetClient, trigger.CharacterSetClient, trigger.CollationConnection, trigger.SqlMode, false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -393,7 +316,7 @@ func writeProcedure(out io.Writer, procedure *metadata.ProcedureMetadata) error 
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -433,7 +356,7 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -457,6 +380,34 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	return err
 }
 
+func writeCreateViewPrefix(out io.Writer, view *metadata.ViewMetadata) error {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
+		return err
+	}
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS")
+	return err
+}
+
+func viewCheckOptionClause(view *metadata.ViewMetadata) string {
+	if view.CheckOption == "" || strings.EqualFold(view.CheckOption, "NONE") {
+		return ""
+	}
+	if strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		return ""
+	}
+	return " WITH " + strings.ToUpper(view.CheckOption) + " CHECK OPTION"
+}
+
 func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	// Header.
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -473,13 +424,10 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "); err != nil {
+	if err := writeCreateViewPrefix(out, view); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, view.Definition); err != nil {
-		return err
-	}
-	_, err := io.WriteString(out, ";\n\n")
+	_, err := io.WriteString(out, " "+view.Definition+viewCheckOptionClause(view)+";\n\n")
 	return err
 }
 
@@ -554,7 +502,40 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
 	}
-	return writeCreateTable(out, table, dbName, false)
+	disableGIPK := tableNeedsDisableGIPK(table)
+	if disableGIPK {
+		if _, err := io.WriteString(out, disableGenerateInvisiblePrimaryKeyStmt); err != nil {
+			return err
+		}
+	}
+	if err := writeCreateTable(out, table, dbName, false); err != nil {
+		return err
+	}
+	if disableGIPK {
+		if _, err := io.WriteString(out, restoreGenerateInvisiblePrimaryKeyStmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func tableNeedsDisableGIPK(table *metadata.TableMetadata) bool {
+	hasPK := false
+	for _, idx := range table.GetIndexes() {
+		if idx.GetPrimary() {
+			hasPK = true
+			break
+		}
+	}
+	if !hasPK {
+		return true
+	}
+	for _, col := range table.GetColumns() {
+		if col.GetIsGeneratedInvisiblePrimaryKey() || strings.EqualFold(col.GetName(), "my_row_id") {
+			return true
+		}
+	}
+	return false
 }
 
 // writeCreateTable writes the CREATE TABLE statement both output forms share. sorted
@@ -639,6 +620,11 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 			return err
 		}
 	}
+	if table.Tablespace != "" {
+		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(table.Tablespace)); err != nil {
+			return err
+		}
+	}
 	writeSystemVersioningOption(buf, table)
 
 	// The partition clause is a /*!50100 PARTITION BY … */ executable comment, which
@@ -649,8 +635,20 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 		}
 	}
 
-	_, err := io.WriteString(buf, ";\n\n")
-	return err
+	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
+		return err
+	}
+	// A dropped default is restored by ALTER TABLE ... DROP DEFAULT, which the
+	// declarative SDL form (sorted) cannot hold: LoadSDL refuses every ALTER
+	// TABLE. The SDL column keeps no DEFAULT clause instead.
+	for _, col := range table.Columns {
+		if col.GetDefaultDropped() && !sorted {
+			if _, err := fmt.Fprintf(buf, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string) error {
@@ -684,7 +682,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_KEY:
-		if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_HASH:
@@ -692,7 +690,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_KEY:
-		if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	default:
@@ -727,11 +725,11 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				return err
 			}
 		case metadata.TablePartitionMetadata_KEY:
-			if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
+			if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(partitions[0].Subpartitions[0].Algorithm), partitions[0].Subpartitions[0].Expression); err != nil {
 				return err
 			}
 		case metadata.TablePartitionMetadata_LINEAR_KEY:
-			if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
+			if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(partitions[0].Subpartitions[0].Algorithm), partitions[0].Subpartitions[0].Expression); err != nil {
 				return err
 			}
 		default:
@@ -740,11 +738,16 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 	}
 
 	subUseDefault := 0
+	subImplicitDefault := false
 	if len(partitions[0].Subpartitions) > 0 && partitions[0].Subpartitions[0].UseDefault != "" {
-		var err error
-		subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
-		if err != nil {
-			return err
+		if partitions[0].Subpartitions[0].UseDefault == "default" {
+			subImplicitDefault = true
+		} else {
+			var err error
+			subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -783,7 +786,11 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
-			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
+			if err := writePartitionOptions(buf, engine, partition.GetTablespace(), partition.Comment); err != nil {
+				return err
+			}
+
+			if !subImplicitDefault && subUseDefault == 0 && len(partition.Subpartitions) > 0 {
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
 				}
@@ -791,7 +798,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", quoteIdent(subPartition.Name)); err != nil {
 						return err
 					}
-					if err := writePartitionOptions(buf, engine, subPartition.Comment); err != nil {
+					if err := writePartitionOptions(buf, engine, subPartition.GetTablespace(), subPartition.Comment); err != nil {
 						return err
 					}
 					if j == len(partition.Subpartitions)-1 {
@@ -803,10 +810,6 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 							return err
 						}
 					}
-				}
-			} else {
-				if err := writePartitionOptions(buf, engine, partition.Comment); err != nil {
-					return err
 				}
 			}
 
@@ -842,36 +845,12 @@ func getPrepositionByType(tp metadata.TablePartitionMetadata_Type) (string, erro
 	}
 }
 
-func writePartitionOptions(buf io.StringWriter, engine string, comment string) error {
-	/*
-		int err = 0;
-		err += add_space(fptr);
-		if (p_elem->tablespace_name) {
-			err += add_string(fptr, "TABLESPACE = ");
-			err += add_ident_string(fptr, p_elem->tablespace_name);
-			err += add_space(fptr);
+func writePartitionOptions(buf io.StringWriter, engine string, tablespace string, comment string) error {
+	if tablespace != "" {
+		if _, err := buf.WriteString(" TABLESPACE = " + quoteIdent(tablespace)); err != nil {
+			return err
 		}
-		if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
-			err += add_keyword_int(fptr, "NODEGROUP", (longlong)p_elem->nodegroup_id);
-		if (p_elem->part_max_rows)
-			err += add_keyword_int(fptr, "MAX_ROWS", (longlong)p_elem->part_max_rows);
-		if (p_elem->part_min_rows)
-			err += add_keyword_int(fptr, "MIN_ROWS", (longlong)p_elem->part_min_rows);
-		if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)) {
-			if (p_elem->data_file_name)
-			err += add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
-			if (p_elem->index_file_name)
-			err += add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
-		}
-		if (p_elem->part_comment)
-			err += add_keyword_string(fptr, "COMMENT", true, p_elem->part_comment);
-		return err + add_engine(fptr, p_elem->engine_type);
-	*/
-	// TODO(zp): Get all the partition options from the metadata is too complex, just write
-	// the engine for now. It must be the table's own engine: MySQL rejects a partitioned
-	// table whose partitions name a different one with "ERROR 1497: The mix of handlers in
-	// the partitions is not allowed in this version of MySQL", and partitioning a
-	// non-InnoDB table is still legal on 5.7.
+	}
 	if engine == "" {
 		engine = "InnoDB"
 	}
@@ -899,9 +878,21 @@ func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) st
 	return "\n/*!50100"
 }
 
+func keyAlgorithmClause(algorithm int32) string {
+	if algorithm > 0 {
+		return fmt.Sprintf(" ALGORITHM = %d", algorithm)
+	}
+	return ""
+}
+
 func printCheckClause(buf *strings.Builder, check *metadata.CheckConstraintMetadata) error {
 	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression); err != nil {
 		return err
+	}
+	if check.NotEnforced {
+		if _, err := buf.WriteString(" NOT ENFORCED"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1016,6 +1007,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 
 	if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 		return err
+	}
+
+	if index.KeyBlockSize > 0 {
+		if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+			return err
+		}
 	}
 
 	if index.Comment != "" {
@@ -1230,6 +1227,11 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
 			}
+			if index.KeyBlockSize > 0 {
+				if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+					return err
+				}
+			}
 			if index.Comment != "" {
 				if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
 					return err
@@ -1261,13 +1263,13 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 		return err
 	}
 
-	if column.CharacterSet != "" && column.CharacterSet != table.Charset {
+	if column.CharacterSet != "" && (column.CharsetInherited != nil && !*column.CharsetInherited || column.CharacterSet != table.Charset) {
 		if _, err := fmt.Fprintf(buf, " CHARACTER SET %s", column.CharacterSet); err != nil {
 			return err
 		}
 	}
 
-	if column.Collation != "" && column.Collation != table.Collation {
+	if column.Collation != "" && (column.CollationInherited != nil && !*column.CollationInherited || column.Collation != table.Collation) {
 		if _, err := fmt.Fprintf(buf, " COLLATE %s", column.Collation); err != nil {
 			return err
 		}
@@ -1295,6 +1297,11 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 
 	if !column.Nullable {
 		if _, err := fmt.Fprint(buf, " NOT NULL"); err != nil {
+			return err
+		}
+	}
+	if column.NotSecondary {
+		if _, err := fmt.Fprint(buf, " NOT SECONDARY"); err != nil {
 			return err
 		}
 	}
@@ -1560,7 +1567,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 	return err
 }
 
-func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string) error {
+func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string, emitEmptySQLMode bool) error {
 	events := []struct {
 		condition bool
 		prefix    string
@@ -1584,7 +1591,8 @@ func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetR
 			}
 		}
 	}
-	if sqlMode != "" {
+	hasSessionContext := characterSetClient != "" || characterSetResult != "" || collationConnection != "" || sqlMode != "" || emitEmptySQLMode
+	if hasSessionContext {
 		if _, err := io.WriteString(out, setSQLMode); err != nil {
 			return err
 		}
@@ -1758,18 +1766,27 @@ func filterCreateOptions(createOptions string) string {
 // pretty-printed by formatViewBodySDL — a whitespace-only, deterministic rewrite, so
 // the omni no-op invariant and the dump-cycle byte stability both hold.
 func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetadata) error {
+	if err := writeCreateViewPrefix(buf, view); err != nil {
+		return err
+	}
 	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
 	if body == "" {
 		// Defensive: an empty definition keeps the historical inline framing.
-		if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS ;\n\n", quoteIdent(view.Name)); err != nil {
+		if _, err := io.WriteString(buf, " ;\n\n"); err != nil {
 			return err
 		}
 		return nil
 	}
-	if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s%s AS\n%s;\n\n", quoteIdent(view.Name), viewColumnListClause(view), body); err != nil {
+	if _, err := io.WriteString(buf, "\n"+body); err != nil {
 		return err
 	}
-	return nil
+	if checkClause := viewCheckOptionClause(view); checkClause != "" {
+		if _, err := io.WriteString(buf, "\n"+strings.TrimSpace(checkClause)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(buf, ";\n\n")
+	return err
 }
 
 // stripViewBodyDatabaseQualifier removes the dumped database's own qualifier from the

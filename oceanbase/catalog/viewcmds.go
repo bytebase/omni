@@ -134,26 +134,47 @@ func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt,
 	if err := c.createView(materializedViewAsView(stmt), source, true, true); err != nil {
 		return err
 	}
-	if stmt.PrimaryKey == nil {
-		return nil
-	}
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
 	installed := db.Views[key]
-	for _, name := range stmt.PrimaryKey.Columns {
-		found := false
-		for _, out := range installed.Columns {
-			if strings.EqualFold(out, name) {
-				found = true
-				break
+	if stmt.PrimaryKey != nil {
+		for _, name := range stmt.PrimaryKey.Columns {
+			found := false
+			for _, out := range installed.Columns {
+				if strings.EqualFold(out, name) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				delete(db.Views, key)
+				return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
 			}
 		}
-		if !found {
-			delete(db.Views, key)
-			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		cols := make([]*IndexColumn, 0, len(stmt.PrimaryKey.Columns))
+		for _, name := range stmt.PrimaryKey.Columns {
+			cols = append(cols, &IndexColumn{Name: name})
+		}
+		idxType := strings.ToUpper(stmt.PrimaryKey.IndexType)
+		if idxType == "" {
+			idxType = "BTREE"
+		}
+		installed.Indexes = append(installed.Indexes, &Index{
+			Name:      "PRIMARY",
+			Columns:   cols,
+			Unique:    true,
+			Primary:   true,
+			Visible:   true,
+			IndexType: idxType,
+			Comment:   stmt.PrimaryKey.Comment,
+		})
+	}
+	for _, opt := range stmt.Options {
+		if strings.EqualFold(opt.Name, "COMMENT") {
+			installed.Comment = opt.Value
 		}
 	}
 	return nil
@@ -591,8 +612,27 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		}
 		return false
 	case *nodes.FuncCallExpr:
+		switch strings.ToLower(e.Name) {
+		// MOD follows its operands on oceanbase-ce 4.3.5.6 (see
+		// isAnalyzedExprNullable).
+		case "nullif",
+			"date_add", "date_sub", "adddate", "subdate",
+			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
+			return true
+		}
+		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {
+			for _, arg := range e.Args {
+				if !inferViewExprNullable(arg, relations) {
+					return false
+				}
+			}
+			return true
+		}
+		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
+			return inferViewExprNullable(e.Args[1], relations) || inferViewExprNullable(e.Args[2], relations)
+		}
 		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
-		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
+		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -612,7 +652,38 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 	case *nodes.ResTarget:
 		return inferViewExprNullable(e.Val, relations)
 	case *nodes.BinaryExpr:
+		if _, ok := e.Left.(*nodes.IntervalExpr); ok {
+			return true
+		}
+		if _, ok := e.Right.(*nodes.IntervalExpr); ok {
+			return true
+		}
+		if e.Op == nodes.BinOpNullSafeEq {
+			return false
+		}
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.BetweenExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Low, relations) ||
+			inferViewExprNullable(e.High, relations)
+	case *nodes.LikeExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Pattern, relations) ||
+			(e.Escape != nil && inferViewExprNullable(e.Escape, relations))
+	case *nodes.IsExpr:
+		return false
+	case *nodes.SubqueryExpr:
+		return true
+	case *nodes.InExpr:
+		if e.Select != nil || inferViewExprNullable(e.Expr, relations) {
+			return true
+		}
+		for _, item := range e.List {
+			if inferViewExprNullable(item, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
 	case *nodes.WeightStringExpr:
@@ -622,6 +693,10 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.IntervalExpr:
 		return inferViewExprNullable(e.Value, relations)
+	case *nodes.CollateExpr:
+		// Nullable whatever its operand, as the engine reports it (see
+		// isAnalyzedExprNullable).
+		return true
 	case *nodes.CastExpr:
 		// Covers plain casts and the WEIGHT_STRING(... AS BINARY(n)) desugar,
 		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:
@@ -1088,6 +1163,15 @@ func viewDerivationName(derivation viewCollationDerivation) string {
 func isViewStringMetadataNullableFunc(name string) bool {
 	switch strings.ToLower(name) {
 	case "concat", "concat_ws", "ifnull", "coalesce":
+		return true
+	default:
+		return false
+	}
+}
+
+func isViewNullableAggregateFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "sum", "avg", "min", "max", "group_concat":
 		return true
 	default:
 		return false

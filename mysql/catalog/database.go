@@ -6,7 +6,7 @@ type Database struct {
 	Name       string
 	Charset    string
 	Collation  string
-	Tables     map[string]*Table   // lowered name -> Table
+	Tables     map[string]*Table // lowered name -> Table
 	Views      map[string]*View
 	Functions  map[string]*Routine // lowered name -> stored function
 	Procedures map[string]*Routine // lowered name -> stored procedure

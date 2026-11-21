@@ -155,7 +155,8 @@
           "engine":  "InnoDB",
           "collation":  "utf8mb4_general_ci",
           "charset":  "utf8mb4",
-          "comment":  "customer accounts"
+          "comment":  "customer accounts",
+          "hasMaterializedViewLog":  false
         },
         {
           "name":  "orders",
@@ -237,7 +238,8 @@
               "characterSetClient":  "utf8mb4",
               "collationConnection":  "utf8mb4_general_ci"
             }
-          ]
+          ],
+          "hasMaterializedViewLog":  false
         }
       ],
       "externalTables":  [

@@ -92,21 +92,21 @@
 | 5.7.25-OceanBase_CE-v4.3.5.6
 > query
 |
-| 		SELECT
-| 			TABLE_NAME,
-| 			INDEX_NAME,
-| 			COLUMN_NAME,
-| 			COLLATION,
-| 			IFNULL(SUB_PART, -1),
-| 			'',
-| 			SEQ_IN_INDEX,
-| 			INDEX_TYPE,
-| 			NON_UNIQUE,
-| 			1,
-| 			INDEX_COMMENT
-| 		FROM information_schema.STATISTICS
-| 		WHERE TABLE_SCHEMA = ?
-| 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+| 			SELECT
+| 				TABLE_NAME,
+| 				INDEX_NAME,
+| 				COLUMN_NAME,
+| 				COLLATION,
+| 				IFNULL(SUB_PART, -1),
+| 				EXPRESSION,
+| 				SEQ_IN_INDEX,
+| 				INDEX_TYPE,
+| 				NON_UNIQUE,
+| 				CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END,
+| 				INDEX_COMMENT
+| 			FROM information_schema.STATISTICS
+| 			WHERE TABLE_SCHEMA = ?
+| 			ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 : string
 | omni_sync_corpus
 < result
@@ -115,11 +115,11 @@
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR" "string"
+< column "EXPRESSION" "VARBINARY" "[]uint8"
 < column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT" "int64"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "BIGINT" "int64"
 < column "INDEX_COMMENT" "TEXT" "string"
 < row
 : bytes
@@ -131,8 +131,7 @@
 : bytes
 | A
 : int64 32
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -150,8 +149,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -169,8 +167,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -188,8 +185,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -207,8 +203,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -226,8 +221,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -896,9 +890,31 @@
 : null
 > query
 |
+| 			SELECT
+| 				tc.TABLE_NAME,
+| 				cc.CONSTRAINT_NAME,
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
+| 			FROM information_schema.CHECK_CONSTRAINTS cc
+| 				JOIN information_schema.TABLE_CONSTRAINTS tc
+| 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 					AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 			WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ?
+| 			ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		
+: string
+| omni_sync_corpus
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR"
+> query
+|
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -907,26 +923,35 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR"
 < row
 : bytes
 | v_mv_emails
 : bytes
 | select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
+: bytes
+| NONE
 < row
 : bytes
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
+: bytes
+| NONE
 > query
 | SHOW CREATE VIEW `omni_sync_corpus`.`v_mv_emails`
 < result
@@ -1628,6 +1653,60 @@
 | __mv_container_0000000000000002
 : bytes
 | select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`
+> query
+|
+| 		SELECT MASTER, LOG_TABLE
+| 		FROM oceanbase.DBA_MVIEW_LOGS
+| 		WHERE LOG_OWNER = ?
+| 		ORDER BY MASTER
+: string
+| omni_sync_corpus
+< result
+< column "MASTER" "VARCHAR" "string"
+< column "LOG_TABLE" "VARCHAR" "string"
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` bigint(20) NOT NULL AUTO_INCREMENT,
+|   `email` varchar(190) NOT NULL,
+|   `bio` text DEFAULT NULL,
+|   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
+|   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (LOWER(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (CONCAT(`email`,':','v1')) STORED,
+|   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `reviewed_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+|   `note` varchar(100) DEFAULT NULL COMMENT 'owner\'s note',
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_bio_prefix` (`bio`(32)) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 COMMENT = 'customer accounts'
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` bigint(20) NOT NULL AUTO_INCREMENT,
+|   `account_id` bigint(20) NOT NULL,
+|   `total` int(11) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `omni_sync_corpus`.`accounts`(`id`) ON UPDATE RESTRICT ON DELETE CASCADE ,
+|   KEY `idx_account` (`account_id`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 |
 | 		SELECT

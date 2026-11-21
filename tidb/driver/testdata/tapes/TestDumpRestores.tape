@@ -708,7 +708,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -717,21 +719,83 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 < row
 : bytes
 | v_named_cols
 : bytes
 | SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_open_accounts
 : bytes
 | SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| DEFINER
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` (`renamed_id`) AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_open_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_open_accounts` (`acct_id`, `acct_email`) AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
 | 		SELECT
@@ -790,24 +854,35 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			TABLE_NAME,
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
-: string
-| omni_dump_roundtrip
 : string
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -966,7 +1041,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -985,6 +1061,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1006,6 +1083,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -1027,6 +1106,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_shard
@@ -1048,6 +1129,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | seq_orders
@@ -1069,6 +1152,8 @@
 | NOT_SHARDED
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | sharded_events
@@ -1090,6 +1175,8 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols
@@ -1111,6 +1198,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols_ref
@@ -1132,6 +1221,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -1153,11 +1244,92 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`accounts`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` bigint NOT NULL AUTO_INCREMENT,
+|   `email` varchar(190) NOT NULL,
+|   `bio` text DEFAULT NULL,
+|   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (lower(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (concat(`email`, _utf8mb4':', _utf8mb4'v1')) STORED,
+|   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `note` varchar(100) DEFAULT NULL COMMENT 'owner''s note',
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   UNIQUE KEY `uk_email` (`email`),
+|   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_expr` ((lower(`status`)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='customer accounts'
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT 'first',
+|  PARTITION `p_high` VALUES LESS THAN (MAXVALUE) COMMENT 'last')
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_shard`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_shard
+: bytes
+| CREATE TABLE `metrics_shard` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p10` VALUES LESS THAN (10) COMMENT 'first tenth',
+|  PARTITION `p2` VALUES LESS THAN (20),
+|  PARTITION `p1` VALUES LESS THAN (30))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`sharded_events`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| sharded_events
+: bytes
+| CREATE TABLE `sharded_events` (
+|   `id` bigint NOT NULL /*T![auto_rand] AUTO_RANDOM(5) */,
+|   `account_id` bigint NOT NULL,
+|   `payload` varchar(128) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_account` (`account_id`),
+|   CONSTRAINT `fk_events_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -1165,11 +1337,14 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|
 > exec
 | DROP DATABASE `omni_dump_roundtrip`
 < ok 0 0
@@ -1255,19 +1430,19 @@
 | DROP VIEW IF EXISTS `v_named_cols`
 < ok 0 0
 > exec
-| CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_named_cols_ref`
 < ok 0 0
 > exec
-| CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_open_accounts`
 < ok 0 0
 > exec
-| CREATE VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
@@ -1914,7 +2089,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -1923,21 +2100,83 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 < row
 : bytes
 | v_named_cols
 : bytes
 | SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_open_accounts
 : bytes
 | SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| DEFINER
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` (`renamed_id`) AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_open_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_open_accounts` (`acct_id`, `acct_email`) AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
 | 		SELECT
@@ -1996,24 +2235,35 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			TABLE_NAME,
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
-: string
-| omni_dump_roundtrip
 : string
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -2172,7 +2422,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -2191,6 +2442,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -2212,6 +2464,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -2233,6 +2487,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_shard
@@ -2254,6 +2510,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | seq_orders
@@ -2275,6 +2533,8 @@
 | NOT_SHARDED
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | sharded_events
@@ -2296,6 +2556,8 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols
@@ -2317,6 +2579,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols_ref
@@ -2338,6 +2602,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -2359,11 +2625,92 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`accounts`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` bigint NOT NULL AUTO_INCREMENT,
+|   `email` varchar(190) NOT NULL,
+|   `bio` text DEFAULT NULL,
+|   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (lower(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (concat(`email`, _utf8mb4':', _utf8mb4'v1')) STORED,
+|   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `note` varchar(100) DEFAULT NULL COMMENT 'owner''s note',
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_expr` ((lower(`status`))),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='customer accounts'
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT 'first',
+|  PARTITION `p_high` VALUES LESS THAN (MAXVALUE) COMMENT 'last')
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_shard`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_shard
+: bytes
+| CREATE TABLE `metrics_shard` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p10` VALUES LESS THAN (10) COMMENT 'first tenth',
+|  PARTITION `p2` VALUES LESS THAN (20),
+|  PARTITION `p1` VALUES LESS THAN (30))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`sharded_events`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| sharded_events
+: bytes
+| CREATE TABLE `sharded_events` (
+|   `id` bigint NOT NULL /*T![auto_rand] AUTO_RANDOM(5) */,
+|   `account_id` bigint NOT NULL,
+|   `payload` varchar(128) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_account` (`account_id`),
+|   CONSTRAINT `fk_events_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -2371,8 +2718,11 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|

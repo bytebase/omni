@@ -12,13 +12,16 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	mysqlast "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 	nodes "github.com/bytebase/omni/tidb/ast"
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 // LoadMetadataReport lists the snapshot objects LoadMetadata could not install
-// as the snapshot defines them. Keys are "table:<name>", "view:<name>" and
-// "sequence:<name>".
+// as the snapshot defines them. Keys are "table:<name>", "view:<name>",
+// "sequence:<name>", "function:<name>", "procedure:<name>",
+// "trigger:<table>.<name>", and "event:<name>".
 type LoadMetadataReport struct {
 	// Degraded maps each object replaced by a stand-in to the error its
 	// definition failed with.
@@ -72,6 +75,11 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 		} else if len(stmt.Options) > 0 {
 			_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
 		}
+		if db := c.GetDatabase(name); db != nil {
+			db.PlacementPolicy = resolvePolicyRef(meta.GetPlacementPolicy())
+			db.TiFlashReplica = int(meta.GetTiflashReplica())
+			db.TiFlashLocationLabels = slices.Clone(meta.GetTiflashLocationLabels())
+		}
 		c.SetCurrentDatabase(name)
 	}
 	fkChecks := c.ForeignKeyChecks()
@@ -83,7 +91,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	c.SetCheckConstraints(true)
 	defer c.SetCheckConstraints(checks)
 
-	var views []*metadataObject
+	var views, installed []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
 		if err := ctx.Err(); err != nil {
 			return report, err
@@ -93,6 +101,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			if o.incomplete != nil {
 				report.Incomplete[o.key()] = o.incomplete
 			}
+			installed = append(installed, o)
 			if o.kind == metadataView {
 				views = append(views, o)
 			}
@@ -104,12 +113,109 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			continue
 		}
 		if standInErr := c.installStandIn(o); standInErr != nil {
-			report.Missing[o.key()] = standInErr
+			if errors.Is(standInErr, errNoStandIn) {
+				report.Missing[o.key()] = err
+			} else {
+				report.Missing[o.key()] = standInErr
+			}
 			continue
 		}
+		installed = append(installed, o)
 		report.Degraded[o.key()] = err
 	}
-	return report, c.reanalyzeViews(ctx, views)
+	if err := c.reanalyzeViews(ctx, views); err != nil {
+		return report, err
+	}
+	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+		for _, o := range installed {
+			applyObjectSessionContext(db, o)
+			applyObjectSkipDump(db, o)
+		}
+	}
+	return report, nil
+}
+
+func applyObjectSessionContext(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			sqlMode, cs, col := o.function.GetSqlMode(), o.function.GetCharacterSetClient(), o.function.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				fn.SQLMode = sqlMode
+				fn.CharacterSetClient = cs
+				fn.CollationConnection = col
+				fn.HasSessionContext = true
+			}
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			sqlMode, cs, col := o.procedure.GetSqlMode(), o.procedure.GetCharacterSetClient(), o.procedure.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				p.SQLMode = sqlMode
+				p.CharacterSetClient = cs
+				p.CollationConnection = col
+				p.HasSessionContext = true
+			}
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			sqlMode, cs, col := o.trigger.GetSqlMode(), o.trigger.GetCharacterSetClient(), o.trigger.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				tr.SQLMode = sqlMode
+				tr.CharacterSetClient = cs
+				tr.CollationConnection = col
+				tr.HasSessionContext = true
+			}
+		}
+	case metadataEvent:
+		if ev := db.Events[key]; ev != nil && o.event != nil {
+			sqlMode, cs, col, tz := o.event.GetSqlMode(), o.event.GetCharacterSetClient(), o.event.GetCollationConnection(), o.event.GetTimeZone()
+			if sqlMode != "" || cs != "" || col != "" || tz != "" {
+				ev.SQLMode = sqlMode
+				ev.CharacterSetClient = cs
+				ev.CollationConnection = col
+				ev.TimeZone = tz
+				ev.HasSessionContext = true
+			}
+		}
+	}
+}
+
+func applyObjectSkipDump(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataSequence:
+		if s := db.Sequences[key]; s != nil && o.sequence != nil {
+			s.SkipDump = o.sequence.GetSkipDump()
+		}
+	case metadataTable:
+		if tbl := db.Tables[key]; tbl != nil && o.table != nil {
+			tbl.SkipDump = o.table.GetSkipDump()
+		}
+	case metadataView:
+		if v := db.Views[key]; v != nil && o.view != nil {
+			v.SkipDump = o.view.GetSkipDump()
+		}
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			fn.SkipDump = o.function.GetSkipDump()
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			p.SkipDump = o.procedure.GetSkipDump()
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			tr.SkipDump = o.trigger.GetSkipDump()
+		}
+	}
 }
 
 // reanalyzeViews reinstalls each view whose body did not analyze while a pass
@@ -179,20 +285,30 @@ const (
 	metadataSequence metadataObjectKind = iota
 	metadataTable
 	metadataView
+	metadataFunction
+	metadataProcedure
+	metadataTrigger
+	metadataEvent
 )
 
 // metadataObject is one install step. The metadata pointer matching kind is
 // set.
 type metadataObject struct {
-	kind metadataObjectKind
-	name string
+	kind   metadataObjectKind
+	name   string
+	parent string
+	order  int
 	// snapshotDatabase is the database the snapshot's references qualify
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
 
-	table    *metadata.TableMetadata
-	view     *metadata.ViewMetadata
-	sequence *metadata.SequenceMetadata
+	table     *metadata.TableMetadata
+	view      *metadata.ViewMetadata
+	sequence  *metadata.SequenceMetadata
+	function  *metadata.FunctionMetadata
+	procedure *metadata.ProcedureMetadata
+	trigger   *metadata.TriggerMetadata
+	event     *metadata.EventMetadata
 
 	// incomplete is the first part of a table's definition its install left out.
 	incomplete error
@@ -205,8 +321,16 @@ func (o *metadataObject) key() string {
 		return "sequence:" + o.name
 	case metadataTable:
 		return "table:" + o.name
-	default:
+	case metadataView:
 		return "view:" + o.name
+	case metadataFunction:
+		return "function:" + o.name
+	case metadataProcedure:
+		return "procedure:" + o.name
+	case metadataTrigger:
+		return "trigger:" + o.parent + "." + o.name
+	default:
+		return "event:" + o.name
 	}
 }
 
@@ -218,8 +342,14 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 	var out []*metadataObject
 	for _, s := range meta.GetSchemas() {
 		for _, t := range s.GetTables() {
-			if t.GetName() != "" {
-				out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
+			if t.GetName() == "" {
+				continue
+			}
+			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
+			for i, trg := range t.GetTriggers() {
+				if trg.GetName() != "" {
+					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), order: i, trigger: trg})
+				}
 			}
 		}
 		for _, v := range s.GetViews() {
@@ -232,8 +362,26 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				out = append(out, &metadataObject{kind: metadataSequence, name: q.GetName(), sequence: q})
 			}
 		}
+		for _, fn := range s.GetFunctions() {
+			if fn.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataFunction, name: fn.GetName(), function: fn})
+			}
+		}
+		for _, proc := range s.GetProcedures() {
+			if proc.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataProcedure, name: proc.GetName(), procedure: proc})
+			}
+		}
+		for _, ev := range s.GetEvents() {
+			if ev.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataEvent, name: ev.GetName(), event: ev})
+			}
+		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
+		if a.kind == metadataTrigger && b.kind == metadataTrigger {
+			return cmp.Or(cmp.Compare(a.parent, b.parent), cmp.Compare(a.order, b.order), cmp.Compare(a.name, b.name))
+		}
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name))
 	})
 	return out
@@ -242,10 +390,10 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 // --- Installing ---
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
-	if o.kind == metadataSequence {
+	switch o.kind {
+	case metadataSequence:
 		return c.installMetadataSequence(o.sequence)
-	}
-	if o.kind == metadataView {
+	case metadataView:
 		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
 			return err
@@ -257,7 +405,37 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		// than the snapshot records, so the snapshot names the rest. They are
 		// not a column list the view was created with, so they stay inferred.
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
+	case metadataFunction:
+		stmt, err := parseTiDBRoutine(o.function.GetDefinition(), false)
+		if err != nil {
+			return err
+		}
+		return c.DefineFunction(stmt)
+	case metadataProcedure:
+		stmt, err := parseTiDBRoutine(o.procedure.GetDefinition(), true)
+		if err != nil {
+			return err
+		}
+		return c.DefineProcedure(stmt)
+	case metadataTrigger:
+		if o.trigger.GetTiming() == "" || o.trigger.GetEvent() == "" {
+			return errors.New("trigger has no timing or event")
+		}
+		return c.DefineTrigger(&nodes.CreateTriggerStmt{
+			Name:     o.trigger.GetName(),
+			Timing:   o.trigger.GetTiming(),
+			Event:    o.trigger.GetEvent(),
+			Table:    &nodes.TableRef{Name: o.parent},
+			BodyText: o.trigger.GetBody(),
+		})
+	case metadataEvent:
+		stmt, err := parseTiDBEvent(o.event.GetDefinition())
+		if err != nil {
+			return err
+		}
+		return c.DefineEvent(stmt)
 	}
 	stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase)
 	if err != nil {
@@ -266,15 +444,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	o.incomplete = omitted
 	err = c.DefineTable(stmt)
 	if err == nil {
-		// CACHE is not a CREATE TABLE option the grammar takes, so the synced
-		// table's `cached=on` in CREATE_OPTIONS is read here rather than
-		// parsed: SHOW CREATE TABLE writes the attribute back, and a plan that
-		// follows it has to NOCACHE the table before any other DDL (8242).
-		if isCachedCreateOptions(o.table.GetCreateOptions()) {
-			if tbl := c.installedTable(o.name); tbl != nil {
-				tbl.Cached = true
-			}
-		}
+		applyTableMetadataExtras(c.installedTable(o.name), o.table)
 	}
 	if err != nil && stmt.Partitions != nil {
 		// The partitioning parsed but the catalog refuses it, as it does a RANGE
@@ -285,10 +455,52 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if o.incomplete == nil {
 				o.incomplete = fmt.Errorf("partitioning: %w", err)
 			}
+			applyTableMetadataExtras(c.installedTable(o.name), o.table)
 			return nil
 		}
 	}
 	return err
+}
+
+func applyTableMetadataExtras(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	// CACHE is not a CREATE TABLE option the grammar takes, so the synced
+	// table's `cached=on` in CREATE_OPTIONS is read here rather than
+	// parsed: SHOW CREATE TABLE writes the attribute back, and a plan that
+	// follows it has to NOCACHE the table before any other DDL (8242).
+	if isCachedCreateOptions(meta.GetCreateOptions()) {
+		tbl.Cached = true
+	}
+	if meta.GetPlacementPolicy() != "" {
+		tbl.PlacementPolicy = resolvePolicyRef(meta.GetPlacementPolicy())
+	}
+	if meta.GetTiflashReplica() > 0 || len(meta.GetTiflashLocationLabels()) > 0 {
+		tbl.TiFlashReplica = int(meta.GetTiflashReplica())
+		tbl.TiFlashLocationLabels = slices.Clone(meta.GetTiflashLocationLabels())
+	}
+	applyDroppedColumnDefaults(tbl, meta)
+}
+
+func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	for _, col := range meta.GetColumns() {
+		if col.GetDefaultDropped() {
+			dropped[toLower(col.GetName())] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if dropped[toLower(col.Name)] && col.Default == nil {
+			col.DefaultDropped = true
+		}
+	}
 }
 
 // installMetadataSequence installs a synced sequence as information_schema
@@ -360,7 +572,11 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omitted = e
 		}
 	}
-	stmt = &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
+	stmt = &nodes.CreateTableStmt{
+		Table:    &nodes.TableRef{Name: t.GetName()},
+		Global:   t.GetIsGlobalTemporary(),
+		OnCommit: t.GetOnCommit(),
+	}
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
 			continue
@@ -374,11 +590,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
+	tableCols := tableColumnSet(t.GetColumns())
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx)
+		con, err := metadataIndexConstraint(idx, tableCols)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 			continue
@@ -399,7 +616,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
 			continue
 		}
-		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{
+			Type:        nodes.ConstrCheck,
+			Name:        check.GetName(),
+			Expr:        expr,
+			NotEnforced: check.GetNotEnforced(),
+		})
 	}
 	if len(t.GetPartitions()) > 0 {
 		partitions, err := metadataPartitionClause(t)
@@ -414,12 +636,116 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"SHARD_ROW_ID_BITS", shardRowIDBits(t.GetShardingInfo())},
+		{"COMPRESSION", unquoteTableOption(createOption(t.GetCreateOptions(), "compression"))},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
 		}
 	}
+	if t.GetAutoIdCache() != 0 {
+		stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "AUTO_ID_CACHE", Value: strconv.FormatInt(t.GetAutoIdCache(), 10)})
+	}
+	if t.GetPreSplitRegions() != 0 {
+		stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "PRE_SPLIT_REGIONS", Value: strconv.FormatInt(int64(t.GetPreSplitRegions()), 10)})
+	}
+	if t.GetTtlColumn() != "" && t.GetTtlInterval() != "" {
+		ttlEnable := "OFF"
+		if t.GetTtlEnable() {
+			ttlEnable = "ON"
+		}
+		stmt.Options = append(stmt.Options,
+			&nodes.TableOption{Name: "TTL", Value: fmt.Sprintf("%s + %s", quoteIdent(t.GetTtlColumn()), t.GetTtlInterval())},
+			&nodes.TableOption{Name: "TTL_ENABLE", Value: ttlEnable},
+		)
+		if t.GetTtlJobInterval() != "" {
+			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: "TTL_JOB_INTERVAL", Value: t.GetTtlJobInterval()})
+		}
+	}
 	return stmt, omitted, nil
+}
+
+func createOption(options, name string) string {
+	for _, opt := range splitCreateOptions(options) {
+		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
+			return v
+		}
+	}
+	return ""
+}
+
+func splitCreateOptions(options string) []string {
+	var out []string
+	start := -1
+	var quote byte
+	for i := 0; i < len(options); i++ {
+		ch := options[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(options) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if i+1 < len(options) && options[i+1] == quote {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+			if start >= 0 {
+				out = append(out, options[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+		if ch == '\'' || ch == '"' || ch == '`' {
+			quote = ch
+		}
+	}
+	if start >= 0 {
+		out = append(out, options[start:])
+	}
+	return out
+}
+
+func unquoteTableOption(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+	q := s[0]
+	if (q != '\'' && q != '"' && q != '`') || s[len(s)-1] != q {
+		return s
+	}
+	inner := s[1 : len(s)-1]
+	var b strings.Builder
+	b.Grow(len(inner))
+	for i := 0; i < len(inner); i++ {
+		ch := inner[i]
+		if ch == q && i+1 < len(inner) && inner[i+1] == q {
+			b.WriteByte(q)
+			i++
+			continue
+		}
+		if ch == '\\' && q != '`' && i+1 < len(inner) {
+			i++
+			switch inner[i] {
+			case '0':
+				b.WriteByte(0)
+			case 'Z':
+				b.WriteByte(26)
+			default:
+				b.WriteByte(inner[i])
+			}
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
 
 // shardRowIDBits returns n from the TIDB_ROW_ID_SHARDING_INFO sync records for
@@ -568,7 +894,7 @@ func typeTakesDefault(typ string) bool {
 // holds either the kind, FULLTEXT, or the access method. Sync reports the
 // access method a key without USING gets too, and TiDB's is BTREE, so that one
 // stays unwritten. It fails on a key expression that does not parse.
-func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, tableCols map[string]bool) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == "BTREE" {
 		indexType = ""
@@ -581,16 +907,19 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
-	case indexType == "HNSW":
+	case idx.GetIsVector() || indexType == "HNSW":
 		// A vector index syncs as an index of type HNSW. Left an ordinary index,
 		// SHOW CREATE TABLE would write KEY for it and a change could not tell it
 		// from one.
+		if indexType == "" {
+			indexType = "HNSW"
+		}
 		c.Type, c.IndexType = nodes.ConstrVector, indexType
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	if c.Columns, c.IndexColumns, err = indexKeyParts(idx); err != nil {
+	if c.Columns, c.IndexColumns, err = indexKeyParts(idx, tableCols); err != nil {
 		return nil, err
 	}
 	// A primary key is always visible.
@@ -600,13 +929,19 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
+	if idx.GetKeyBlockSize() > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "KEY_BLOCK_SIZE", Value: &nodes.IntLit{Value: idx.GetKeyBlockSize()}})
+	}
+	if idx.GetIsGlobal() {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "GLOBAL"})
+	}
 	return c, nil
 }
 
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // It fails on a key expression that does not parse.
-func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, tableCols map[string]bool) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -616,7 +951,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpressionKey(expr, tableCols) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -633,7 +968,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpressionKey(expr, tableCols) {
 			// Unlike MySQL's, TiDB's EXPRESSION is SQL as written: quotes are
 			// doubled, not backslash-escaped, so it parses as it is.
 			parsed, err := parseExpr(expr)
@@ -647,9 +982,22 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 	return nil, keys, nil
 }
 
+func tableColumnSet(cols []*metadata.ColumnMetadata) map[string]bool {
+	set := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		if name := col.GetName(); name != "" {
+			set[strings.ToLower(name)] = true
+		}
+	}
+	return set
+}
+
 // isExpressionKey reports whether a key part is a functional expression, as
-// in "(lower(name))" or "lower(`name`)", rather than a column.
-func isExpressionKey(s string) bool {
+// in "(lower(name))" or "lower(`name`)", rather than an existing column.
+func isExpressionKey(s string, tableCols map[string]bool) bool {
+	if tableCols[strings.ToLower(unquoteIdent(s))] {
+		return false
+	}
 	return strings.Contains(s, "(")
 }
 
@@ -703,7 +1051,15 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
+	}, nil
 }
 
 // stripViewBodyDatabaseQualifier removes the qualifier of database dbName from
@@ -857,14 +1213,67 @@ func nameViewColumns(v *View, names []string) {
 	}
 }
 
+func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
+	if v == nil || len(cols) == 0 {
+		return
+	}
+	if len(v.ColumnMetadata) < len(cols) {
+		grown := make([]ViewColumn, len(cols))
+		copy(grown, v.ColumnMetadata)
+		v.ColumnMetadata = grown
+	}
+	for i, col := range cols {
+		vc := &v.ColumnMetadata[i]
+		if vc.Name == "" {
+			vc.Name = col.GetName()
+		}
+		// The snapshot's type is the engine's: DatabaseMetadata reports it
+		// for any column whose type analysis leaves unresolved, as it does
+		// MD5(name), not only when the whole view fails to analyze.
+		if vc.ColumnType == "" {
+			vc.ColumnType = col.GetType()
+		}
+		if vc.Charset == "" {
+			vc.Charset = col.GetCharacterSet()
+		}
+		if vc.Collation == "" {
+			vc.Collation = col.GetCollation()
+		}
+	}
+}
+
 // --- Stand-ins ---
 
-// installStandIn installs o's stand-in.
+var errNoStandIn = errors.New("no stand-in for this kind of object")
+
+// installStandIn installs o's stand-in, or returns errNoStandIn for a kind
+// without one.
 func (c *Catalog) installStandIn(o *metadataObject) error {
-	if o.kind == metadataView {
+	switch o.kind {
+	case metadataTable:
+		return c.DefineTable(standInTableStmt(o.table))
+	case metadataView:
 		return c.DefineView(standInViewStmt(o.view))
+	case metadataTrigger:
+		timing, event := o.trigger.GetTiming(), o.trigger.GetEvent()
+		if timing == "" {
+			timing = "BEFORE"
+		}
+		if event == "" {
+			event = "INSERT"
+		}
+		return c.DefineTrigger(&nodes.CreateTriggerStmt{
+			Name:     o.name,
+			Timing:   timing,
+			Event:    event,
+			Table:    &nodes.TableRef{Name: o.parent},
+			BodyText: "BEGIN END",
+		})
+	case metadataEvent:
+		return c.DefineEvent(&nodes.CreateEventStmt{Name: o.name})
+	default:
+		return errNoStandIn
 	}
-	return c.DefineTable(standInTableStmt(o.table))
 }
 
 // standInPlaceholder names the one column of a stand-in with no column names;
@@ -1012,4 +1421,105 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
 	}
 	return s
+}
+
+func parseMySQLFirst[T mysqlast.Node](sql string) (T, error) {
+	var zero T
+	if strings.TrimSpace(sql) == "" {
+		return zero, errors.New("empty definition")
+	}
+	list, err := mysqlparser.Parse(sql)
+	if err != nil {
+		return zero, err
+	}
+	if list != nil {
+		for _, item := range list.Items {
+			if stmt, ok := item.(T); ok {
+				return stmt, nil
+			}
+		}
+	}
+	return zero, fmt.Errorf("no %T statement", zero)
+}
+
+func formatTiDBDefiner(definer string) string {
+	if definer == "" || strings.HasPrefix(definer, "`") || strings.HasPrefix(definer, "'") || strings.EqualFold(definer, "CURRENT_USER") {
+		return definer
+	}
+	if user, host, ok := strings.Cut(definer, "@"); ok {
+		return fmt.Sprintf("`%s`@`%s`", strings.ReplaceAll(user, "`", "``"), strings.ReplaceAll(host, "`", "``"))
+	}
+	return definer
+}
+
+func toTiDBDataType(dt *mysqlast.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	return &nodes.DataType{
+		Name:       dt.Name,
+		Length:     dt.Length,
+		Scale:      dt.Scale,
+		HasScale:   dt.Scale > 0,
+		Unsigned:   dt.Unsigned,
+		Zerofill:   dt.Zerofill,
+		Charset:    dt.Charset,
+		Collate:    dt.Collate,
+		Binary:     dt.Binary,
+		EnumValues: append([]string(nil), dt.EnumValues...),
+		ArrayDim:   dt.ArrayDim,
+		SRID:       dt.SRID,
+	}
+}
+
+func parseTiDBRoutine(definition string, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
+	src, err := parseMySQLFirst[*mysqlast.CreateFunctionStmt](definition)
+	if err != nil {
+		return nil, err
+	}
+	var name *nodes.TableRef
+	if src.Name != nil {
+		name = &nodes.TableRef{Name: src.Name.Name}
+	}
+	params := make([]*nodes.FuncParam, 0, len(src.Params))
+	for _, p := range src.Params {
+		params = append(params, &nodes.FuncParam{
+			Direction: p.Direction,
+			Name:      p.Name,
+			TypeName:  toTiDBDataType(p.TypeName),
+		})
+	}
+	chars := make([]*nodes.RoutineCharacteristic, 0, len(src.Characteristics))
+	for _, ch := range src.Characteristics {
+		chars = append(chars, &nodes.RoutineCharacteristic{Name: ch.Name, Value: ch.Value})
+	}
+	return &nodes.CreateFunctionStmt{
+		IsProcedure:     isProcedure,
+		Definer:         formatTiDBDefiner(src.Definer),
+		Name:            name,
+		Params:          params,
+		Returns:         toTiDBDataType(src.Returns),
+		BodyText:        src.BodyText,
+		Characteristics: chars,
+	}, nil
+}
+
+func parseTiDBEvent(definition string) (*nodes.CreateEventStmt, error) {
+	src, err := parseMySQLFirst[*mysqlast.CreateEventStmt](definition)
+	if err != nil {
+		return nil, err
+	}
+	var schedule *nodes.EventSchedule
+	if src.Schedule != nil {
+		schedule = &nodes.EventSchedule{RawText: src.Schedule.RawText}
+	}
+	return &nodes.CreateEventStmt{
+		Definer:      formatTiDBDefiner(src.Definer),
+		Name:         src.Name,
+		Schedule:     schedule,
+		OnCompletion: src.OnCompletion,
+		Enable:       src.Enable,
+		Comment:      src.Comment,
+		BodyText:     src.BodyText,
+	}, nil
 }

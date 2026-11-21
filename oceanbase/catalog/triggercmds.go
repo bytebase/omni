@@ -1,7 +1,9 @@
 package catalog
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -88,6 +90,7 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 		}
 	}
 
+	assignTriggerActionOrder(db, trigger)
 	db.Triggers[key] = trigger
 	return nil
 }
@@ -131,7 +134,8 @@ func (c *Catalog) dropTrigger(stmt *nodes.DropTriggerStmt) error {
 	}
 	key := toLower(name)
 
-	if _, exists := db.Triggers[key]; !exists {
+	tr, exists := db.Triggers[key]
+	if !exists {
 		if stmt.IfExists {
 			return nil
 		}
@@ -139,7 +143,53 @@ func (c *Catalog) dropTrigger(stmt *nodes.DropTriggerStmt) error {
 	}
 
 	delete(db.Triggers, key)
+	if tr != nil {
+		renumberTriggerGroup(db, tr.Table, tr.Timing, tr.Event)
+	}
 	return nil
+}
+
+func triggerGroupPeers(db *Database, tableName, timing, event string) []*Trigger {
+	var peers []*Trigger
+	for _, tr := range db.Triggers {
+		if tr == nil {
+			continue
+		}
+		if strings.EqualFold(tr.Table, tableName) && strings.EqualFold(tr.Timing, timing) && strings.EqualFold(tr.Event, event) {
+			peers = append(peers, tr)
+		}
+	}
+	slices.SortFunc(peers, func(a, b *Trigger) int {
+		return cmp.Or(cmp.Compare(a.ActionOrder, b.ActionOrder), cmp.Compare(a.Name, b.Name))
+	})
+	return peers
+}
+
+func assignTriggerActionOrder(db *Database, trigger *Trigger) {
+	peers := triggerGroupPeers(db, trigger.Table, trigger.Timing, trigger.Event)
+	insertIdx := len(peers)
+	if trigger.Order != nil {
+		for i, peer := range peers {
+			if strings.EqualFold(peer.Name, trigger.Order.TriggerName) {
+				if trigger.Order.Follows {
+					insertIdx = i + 1
+				} else {
+					insertIdx = i
+				}
+				break
+			}
+		}
+	}
+	peers = slices.Insert(peers, insertIdx, trigger)
+	for i, peer := range peers {
+		peer.ActionOrder = i + 1
+	}
+}
+
+func renumberTriggerGroup(db *Database, tableName, timing, event string) {
+	for i, peer := range triggerGroupPeers(db, tableName, timing, event) {
+		peer.ActionOrder = i + 1
+	}
 }
 
 // ShowCreateTrigger produces MySQL 8.0-compatible SHOW CREATE TRIGGER output.
@@ -169,8 +219,8 @@ func showCreateTrigger(tr *Trigger) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", tr.Definer))
 	}
 
-	b.WriteString(fmt.Sprintf(" TRIGGER `%s` %s %s ON `%s` FOR EACH ROW",
-		tr.Name, tr.Timing, tr.Event, tr.Table))
+	b.WriteString(fmt.Sprintf(" TRIGGER %s %s %s ON %s FOR EACH ROW",
+		quoteIdent(tr.Name), tr.Timing, tr.Event, quoteIdent(tr.Table)))
 
 	// Note: MySQL 8.0 SHOW CREATE TRIGGER does NOT include FOLLOWS/PRECEDES.
 

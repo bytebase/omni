@@ -35,6 +35,7 @@ type Table struct {
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
 	ColumnGroups     ColumnGroups // WITH COLUMN GROUP (...), and what ALTER TABLE adds and drops
+	SkipDump         bool
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -195,14 +196,18 @@ type View struct {
 	// is, and this keeps a materialized view distinct from an ordinary view when
 	// one statement names the other.
 	Materialized bool
+	Comment      string
+	Indexes      []*Index
+	SkipDump     bool
 }
 
 type ViewColumn struct {
-	Name      string
-	Nullable  bool
-	Type      *ResolvedType
-	Charset   string
-	Collation string
+	Name       string
+	Nullable   bool
+	Type       *ResolvedType
+	ColumnType string
+	Charset    string
+	Collation  string
 }
 
 // Routine represents a stored function or procedure in the catalog.
@@ -235,6 +240,7 @@ type Routine struct {
 	// generator distinguishes "context applied, modes empty" (emit SET sql_mode='') from
 	// "no context" (bare CREATE).
 	HasSessionContext bool
+	SkipDump          bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -270,7 +276,9 @@ type Trigger struct {
 	// CharacterSetClient/CollationConnection at load, so the gate is on HasSessionContext, not
 	// on those fields being non-empty, to keep a trigger loaded without synced context bare.
 	HasSessionContext bool
+	ActionOrder       int // 1-based position among triggers on the same (table, timing, event)
 	Order             *TriggerOrderInfo
+	SkipDump          bool
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.

@@ -319,3 +319,62 @@ func TestContainerViewCollationScopes(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerViewOperatorColumnTypes(t *testing.T) {
+	tc := startTiDBForCatalog(t)
+	db := "vops_oracle"
+	_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS "+db)
+	mustExecTiDB(t, tc, "CREATE DATABASE "+db+"; USE "+db)
+	t.Cleanup(func() {
+		_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS "+db)
+	})
+
+	setup := "CREATE TABLE t_ops (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, ch CHAR(5), doc JSON);" +
+		`CREATE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id | 1 AS c_bor,
+			id ^ 1 AS c_bxor,
+			id << 1 AS c_shl,
+			id >> 1 AS c_shr,
+			~id AS c_bnot,
+			id XOR 1 AS c_lxor,
+			BINARY name AS c_bin_vc,
+			BINARY ch AS c_bin_c,
+			BINARY id AS c_bin_int,
+			BINARY 'abc' AS c_bin_lit,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote
+		FROM t_ops;`
+	mustExecTiDB(t, tc, setup)
+
+	rows, err := tc.db.QueryContext(tc.ctx, `SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'v_ops' ORDER BY ORDINAL_POSITION`, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	engineTypes := map[string]string{}
+	for rows.Next() {
+		var name, colType string
+		if err := rows.Scan(&name, &colType); err != nil {
+			t.Fatal(err)
+		}
+		engineTypes[name] = colType
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New()
+	mustExec(t, c, "CREATE DATABASE "+db+"; USE "+db+"; "+setup)
+	meta := c.DatabaseMetadata(db)
+	catTypes := map[string]string{}
+	for _, col := range meta.GetSchemas()[0].GetViews()[0].GetColumns() {
+		catTypes[col.GetName()] = col.GetType()
+	}
+	for name, want := range engineTypes {
+		if catTypes[name] != want {
+			t.Errorf("TiDB v_ops.%s: catalog=%q, engine=%q", name, catTypes[name], want)
+		}
+	}
+}

@@ -19,6 +19,8 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	oceanbaseast "github.com/bytebase/omni/oceanbase/ast"
+	oceanbaseparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 const (
@@ -204,6 +206,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	atLeast8016 := sv.atLeast(8, 0, 16)
 	atLeast570 := sv.atLeast(5, 7, 0)
 	isMariaDB := strings.Contains(rest, "MariaDB")
+	isOceanBase := strings.Contains(rest, "OceanBase")
 	stockMySQL := isStockMySQL(rest)
 
 	binaryDefaultFmt := binaryDefaultVerbatim
@@ -232,7 +235,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		FROM information_schema.STATISTICS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`
-	if atLeast8013 && !isMariaDB {
+	// OceanBase reports a 5.7 version but has EXPRESSION and IS_VISIBLE, which
+	// a functional key part needs: without EXPRESSION the sync would name the
+	// hidden column holding it.
+	if (atLeast8013 && !isMariaDB) || isOceanBase {
 		indexQuery = `
 			SELECT
 				TABLE_NAME,
@@ -276,10 +282,13 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		); err != nil {
 			return nil, err
 		}
-		if columnName.Valid {
-			expression = columnName.String
-		} else if expressionName.Valid {
+		// A functional key part has its expression in EXPRESSION; oceanbase-ce
+		// 4.3.5.6 also names the hidden column that holds it in COLUMN_NAME
+		// (SYS_NC17$), which a restore cannot index.
+		if expressionName.Valid && expressionName.String != "" {
 			expression = fmt.Sprintf("(%s)", expressionName.String)
+		} else if columnName.Valid {
+			expression = columnName.String
 		}
 		desc := collation.Valid && collation.String == "D"
 		if _, ok := indexMap[tableName]; !ok {
@@ -397,7 +406,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 
 	checkMap := make(map[string][]*metadatapb.CheckConstraintMetadata)
-	if atLeast8016 {
+	if atLeast8016 || isOceanBase {
 		checkQuery := getCheckConstraintQuery(isMariaDB)
 		checkRows, err := d.db.QueryContext(ctx, checkQuery, d.databaseName)
 		if err != nil {
@@ -406,11 +415,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		defer checkRows.Close()
 		for checkRows.Next() {
 			check := &metadatapb.CheckConstraintMetadata{}
-			var tableName string
-			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression); err != nil {
+			var tableName, enforced string
+			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression, &enforced); err != nil {
 				return nil, err
 			}
 			check.Expression = unescapeCheckClause(check.Expression)
+			check.NotEnforced = strings.EqualFold(enforced, "NO")
 			checkMap[tableName] = append(checkMap[tableName], check)
 		}
 		if err := checkRows.Err(); err != nil {
@@ -423,7 +433,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	const viewQuery = `
 		SELECT
 			TABLE_NAME,
-			VIEW_DEFINITION
+			VIEW_DEFINITION,
+			IFNULL(CHECK_OPTION, '')
 		FROM information_schema.VIEWS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME`
@@ -434,9 +445,14 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	defer viewRows.Close()
 	for viewRows.Next() {
 		view := &metadatapb.ViewMetadata{}
-		if err := viewRows.Scan(&view.Name, &view.Definition); err != nil {
+		var checkOption string
+		if err := viewRows.Scan(&view.Name, &view.Definition, &checkOption); err != nil {
 			return nil, err
 		}
+		if checkOption != "" && !strings.EqualFold(checkOption, "NONE") {
+			view.CheckOption = strings.ToUpper(checkOption)
+		}
+		view.Definition = stripViewCheckOptionSuffix(view.Definition)
 		view.Columns = columnMap[view.Name]
 		viewMap[view.Name] = view
 		viewNames = append(viewNames, view.Name)
@@ -589,6 +605,22 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	// database, and the view's own CREATE makes a container again.
 	schemaMetadata.Tables = withoutTables(schemaMetadata.Tables, containerTables)
 
+	hasMVLog, mvLogTables, err := d.listMaterializedViewLogs(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
+	}
+	if hasMVLog != nil {
+		// Each materialized view log creates an mlog$_<table> backing table that is
+		// recreated automatically by CREATE MATERIALIZED VIEW LOG ON <table>.
+		schemaMetadata.Tables = withoutTables(schemaMetadata.Tables, mvLogTables)
+		for _, table := range schemaMetadata.Tables {
+			table.HasMaterializedViewLog = proto.Bool(hasMVLog[table.Name])
+		}
+	}
+	if err := d.reconcileTablesFromShowCreate(ctx, d.databaseName, schemaMetadata.Tables); err != nil {
+		return nil, err
+	}
+
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
@@ -659,6 +691,64 @@ func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string,
 		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	return views, containerNames, nil
+}
+
+// listMaterializedViewLogs reads materialized view logs from oceanbase.DBA_MVIEW_LOGS,
+// returning nil maps when the account lacks SELECT on the oceanbase catalog so
+// callers leave HasMaterializedViewLog unset (unknown).
+func (d *Driver) listMaterializedViewLogs(ctx context.Context, databaseName string) (map[string]bool, []string, error) {
+	const query = `
+		SELECT MASTER, LOG_TABLE
+		FROM oceanbase.DBA_MVIEW_LOGS
+		WHERE LOG_OWNER = ?
+		ORDER BY MASTER`
+	rows, err := d.db.QueryContext(ctx, query, databaseName)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, nil, ctx.Err()
+		}
+		if isCatalogPrivilegeOrMissingErr(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer rows.Close()
+
+	hasLog := make(map[string]bool)
+	var logTables []string
+	for rows.Next() {
+		var master, logTable string
+		if err := rows.Scan(&master, &logTable); err != nil {
+			return nil, nil, err
+		}
+		hasLog[master] = true
+		if logTable != "" {
+			logTables = append(logTables, logTable)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return hasLog, logTables, nil
+}
+
+func isCatalogPrivilegeOrMissingErr(err error) bool {
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) {
+		return false
+	}
+	switch mysqlErr.Number {
+	case 1044, // ER_DBACCESS_DENIED_ERROR
+		1045, // ER_ACCESS_DENIED_ERROR
+		1049, // ER_BAD_DB_ERROR
+		1109, // ER_UNKNOWN_TABLE
+		1142, // ER_TABLEACCESS_DENIED_ERROR
+		1143, // ER_COLUMNACCESS_DENIED_ERROR
+		1146: // ER_NO_SUCH_TABLE
+		return true
+	default:
+		return false
+	}
 }
 
 // withoutTables drops the named tables, keeping the order of the rest.
@@ -1181,13 +1271,29 @@ func unescapeCheckClause(clause string) string {
 	return strings.ReplaceAll(clause, `\'`, `'`)
 }
 
+func stripViewCheckOptionSuffix(def string) string {
+	trimmed := strings.TrimSpace(def)
+	upper := strings.ToUpper(trimmed)
+	for _, suffix := range []string{
+		" WITH CASCADED CHECK OPTION",
+		" WITH LOCAL CHECK OPTION",
+		" WITH CHECK OPTION",
+	} {
+		if strings.HasSuffix(upper, suffix) {
+			return strings.TrimSpace(trimmed[:len(trimmed)-len(suffix)])
+		}
+	}
+	return def
+}
+
 func getCheckConstraintQuery(isMariaDB bool) string {
 	if isMariaDB {
 		return `
 			SELECT
 				TABLE_NAME,
 				CONSTRAINT_NAME,
-				CHECK_CLAUSE
+				CHECK_CLAUSE,
+				'YES'
 			FROM information_schema.CHECK_CONSTRAINTS
 			WHERE CONSTRAINT_SCHEMA = ?
 			ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1197,7 +1303,8 @@ func getCheckConstraintQuery(isMariaDB bool) string {
 			SELECT
 				tc.TABLE_NAME,
 				cc.CONSTRAINT_NAME,
-				cc.CHECK_CLAUSE
+				cc.CHECK_CLAUSE,
+				tc.ENFORCED
 			FROM information_schema.CHECK_CONSTRAINTS cc
 				JOIN information_schema.TABLE_CONSTRAINTS tc
 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -1702,4 +1809,168 @@ func normalizeExternalFormat(format string) string {
 		b.WriteByte(c)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// reconcileTablesFromShowCreate reads what only a table's SHOW CREATE TABLE
+// states on oceanbase-ce 4.3.5.6: its WITH COLUMN GROUP list, which
+// information_schema does not carry anywhere, and its vector indexes.
+// information_schema.STATISTICS lists a vector index over the hidden columns
+// that hold it (__vid_<n>, __type_<n>), as a BTREE, beside the hidden tables
+// that support it (rowkey_vid_table, vid_rowkey_table, <index>_index_id_table,
+// <index>_index_snapshot_data_table), none of which a restore can create. So an
+// index SHOW CREATE TABLE does not name is dropped, and a VECTOR KEY takes its
+// column and WITH (...) parameters from there.
+func (d *Driver) reconcileTablesFromShowCreate(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) error {
+	for _, t := range tables {
+		query := "SHOW CREATE TABLE " + quoteBacktick(databaseName) + "." + quoteBacktick(t.Name)
+		var name, createTable string
+		if err := d.db.QueryRowContext(ctx, query).Scan(&name, &createTable); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return fmt.Errorf("failed to execute query %q: %w", query, err)
+		}
+		list, err := oceanbaseparser.Parse(createTable)
+		if err != nil || list == nil || len(list.Items) != 1 {
+			continue
+		}
+		stmt, ok := list.Items[0].(*oceanbaseast.CreateTableStmt)
+		if !ok {
+			continue
+		}
+		t.ColumnGroups = strings.Join(strings.Fields(stmt.ColumnGroup), " ")
+		reconcileIndexesFromShowCreate(t, stmt.Constraints)
+	}
+	return nil
+}
+
+func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*oceanbaseast.Constraint) {
+	named := make(map[string]*oceanbaseast.Constraint, len(constraints))
+	for _, con := range constraints {
+		if con == nil || con.Type == oceanbaseast.ConstrCheck || con.Type == oceanbaseast.ConstrForeignKey {
+			continue
+		}
+		key := strings.ToLower(con.Name)
+		if con.Type == oceanbaseast.ConstrPrimaryKey {
+			key = "primary"
+		}
+		if key != "" {
+			named[key] = con
+		}
+	}
+	kept := t.Indexes[:0]
+	for _, idx := range t.Indexes {
+		con, ok := named[strings.ToLower(idx.Name)]
+		if !ok {
+			continue
+		}
+		// STATISTICS lists a FULLTEXT or VECTOR key over the hidden columns
+		// that hold it (__word_segment_<n>, __doc_id_<n>; __vid_<n>,
+		// __type_<n>); its own columns are in SHOW CREATE TABLE.
+		if con.Type == oceanbaseast.ConstrFulltextIndex || con.Type == oceanbaseast.ConstrVector {
+			idx.Expressions = idx.Expressions[:0]
+			idx.KeyLength = idx.KeyLength[:0]
+			idx.Descending = idx.Descending[:0]
+			for _, col := range con.IndexColumns {
+				if ref, ok := col.Expr.(*oceanbaseast.ColumnRef); ok {
+					idx.Expressions = append(idx.Expressions, ref.Column)
+					idx.KeyLength = append(idx.KeyLength, -1)
+					idx.Descending = append(idx.Descending, false)
+				}
+			}
+		}
+		if con.Type == oceanbaseast.ConstrFulltextIndex {
+			idx.Parser, idx.ParserProperties = fulltextParser(con.IndexOptions)
+		}
+		// A GLOBAL index spans the partitions; a restore that drops the word
+		// makes it local, and a unique key without the partition key then
+		// fails with 1503. oceanbase-ce 4.3.5.6 prints LOCAL for every other
+		// index, written or not, so only GLOBAL is kept, as the catalog
+		// exports an index written without a scope.
+		for _, opt := range con.IndexOptions {
+			if opt != nil && strings.EqualFold(opt.Name, "GLOBAL") {
+				idx.Scope = "GLOBAL"
+				idx.IsGlobal = true
+			}
+			// STORING (...) makes the index covering; information_schema
+			// does not carry it, and SHOW CREATE TABLE prints it.
+			if opt != nil && strings.EqualFold(opt.Name, "STORING") {
+				idx.StoringColumns = append(idx.StoringColumns, opt.Columns...)
+			}
+		}
+		if con.Type == oceanbaseast.ConstrVector {
+			idx.IsVector = true
+			idx.Type = ""
+			for _, opt := range con.IndexOptions {
+				if opt != nil && strings.EqualFold(opt.Name, "WITH") {
+					idx.VectorParams = vectorParams(opt)
+				}
+			}
+		}
+		kept = append(kept, idx)
+	}
+	t.Indexes = kept
+}
+
+// vectorParams is a VECTOR KEY's WITH (...) list as NAME=VALUE entries, in the
+// order SHOW CREATE TABLE prints them with every default filled in:
+// DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64.
+func vectorParams(opt *oceanbaseast.IndexOption) []string {
+	params := make([]string, 0, len(opt.Properties))
+	for _, prop := range opt.Properties {
+		if prop == nil {
+			continue
+		}
+		value := ""
+		switch v := prop.Value.(type) {
+		case *oceanbaseast.IntLit:
+			value = strconv.FormatInt(v.Value, 10)
+		case *oceanbaseast.StringLit:
+			value = strings.ToUpper(v.Value)
+		}
+		params = append(params, strings.ToUpper(prop.Name)+"="+value)
+	}
+	return params
+}
+
+// fulltextParser is a FULLTEXT KEY's WITH PARSER and PARSER_PROPERTIES as SHOW
+// CREATE TABLE prints them, with every default filled in. oceanbase-ce 4.3.5.6
+// prints an index written with neither as WITH PARSER space
+// PARSER_PROPERTIES=(min_token_size=3,max_token_size=84), which the catalog
+// exports as no parser at all, so that default is left empty.
+func fulltextParser(opts []*oceanbaseast.IndexOption) (string, map[string]string) {
+	parser := ""
+	var props map[string]string
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		switch strings.ToUpper(opt.Name) {
+		case "PARSER":
+			if v, ok := opt.Value.(*oceanbaseast.StringLit); ok {
+				parser = strings.ToLower(v.Value)
+			}
+		case "PARSER_PROPERTIES":
+			props = make(map[string]string, len(opt.Properties))
+			for _, prop := range opt.Properties {
+				if prop == nil {
+					continue
+				}
+				key := strings.ToLower(prop.Name)
+				switch v := prop.Value.(type) {
+				case *oceanbaseast.IntLit:
+					props[key] = strconv.FormatInt(v.Value, 10)
+				case *oceanbaseast.StringLit:
+					props[key] = v.Value
+					if key == "ik_mode" {
+						props[key] = strings.ToLower(v.Value)
+					}
+				}
+			}
+		}
+	}
+	if parser == "space" && len(props) == 2 && props["min_token_size"] == "3" && props["max_token_size"] == "84" {
+		return "", nil
+	}
+	return parser, props
 }

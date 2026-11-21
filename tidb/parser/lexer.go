@@ -15,6 +15,7 @@ var tidbSupportedFeatures = map[string]bool{
 	"auto_id_cache":   true,
 	"auto_rand_base":  true,
 	"clustered_index": true,
+	"global_index":    true,
 	"placement":       true,
 	"ttl":             true,
 }

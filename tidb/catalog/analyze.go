@@ -707,8 +707,12 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		}
 	case *BetweenExprQ:
 		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Lower) || exprContainsAggregate(e.Upper)
+	case *LikeExprQ:
+		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Pattern) || exprContainsAggregate(e.Escape)
 	case *NullTestExprQ:
 		return exprContainsAggregate(e.Arg)
+	case *IntervalExprQ:
+		return exprContainsAggregate(e.Value)
 	case *SubLinkExprQ:
 		// The left operand of IN, ANY and ALL belongs to this query; the
 		// subquery is scoped on its own and keeps its own HasAggs.

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 // TestOracle_OceanBaseViewAttributes holds to the engine what the catalog keeps of a view,
@@ -163,5 +165,138 @@ func TestOracle_OceanBaseViewColumnNames(t *testing.T) {
 				t.Errorf("the catalog names the column %q; OceanBase %q", own, tc.column)
 			}
 		})
+	}
+}
+
+func TestOracle_OceanBaseViewOperatorTypesAndMVParenIndex(t *testing.T) {
+	ctx := context.Background()
+	engine, c, db := engineDatabase(t, "oceanbase_catalog_view_ops_and_mv")
+	setup := []string{
+		"CREATE TABLE t_ops (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, ch CHAR(5), txt TEXT, doc JSON, `a(b` INT)",
+		`CREATE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id | 1 AS c_bor,
+			id ^ 1 AS c_bxor,
+			id << 1 AS c_shl,
+			id >> 1 AS c_shr,
+			~id AS c_bnot,
+			id XOR 1 AS c_lxor,
+			BINARY name AS c_bin_vc,
+			BINARY ch AS c_bin_c,
+			BINARY id AS c_bin_int,
+			BINARY txt AS c_bin_txt,
+			BINARY 'abc' AS c_bin_lit,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote
+		FROM t_ops`,
+	}
+	for _, s := range setup {
+		if _, err := engine.ExecContext(ctx, s); err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+		if code := omniCode(c, s); code != 0 {
+			t.Fatalf("omni: %s: error %d", s, code)
+		}
+	}
+	for _, s := range []string{
+		"CREATE MATERIALIZED VIEW mv_paren (PRIMARY KEY (id)) AS SELECT id, `a(b` FROM t_ops",
+		"CREATE INDEX idx_paren ON mv_paren (`a(b`)",
+	} {
+		if _, err := engine.ExecContext(ctx, s); err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+	}
+	var mvQuery, idxCol string
+	if err := engine.QueryRowContext(ctx, `SELECT QUERY FROM oceanbase.DBA_MVIEWS WHERE OWNER = DATABASE() AND MVIEW_NAME = 'mv_paren'`).Scan(&mvQuery); err != nil {
+		t.Fatalf("DBA_MVIEWS: %v", err)
+	}
+	if err := engine.QueryRowContext(ctx, `SELECT s.COLUMN_NAME FROM oceanbase.DBA_MVIEWS m
+		JOIN information_schema.STATISTICS s ON s.TABLE_SCHEMA = m.OWNER AND s.TABLE_NAME = m.CONTAINER_NAME
+		WHERE m.OWNER = DATABASE() AND m.MVIEW_NAME = 'mv_paren' AND s.INDEX_NAME = 'idx_paren'`).Scan(&idxCol); err != nil {
+		t.Fatalf("STATISTICS: %v", err)
+	}
+	if idxCol != "a(b" {
+		t.Fatalf("expected OceanBase MV index column a(b, got %q", idxCol)
+	}
+
+	rows, err := engine.QueryContext(ctx, `SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v_ops' ORDER BY ORDINAL_POSITION`)
+	if err != nil {
+		t.Fatalf("COLUMNS: %v", err)
+	}
+	defer rows.Close()
+	engineTypes := map[string]string{}
+	for rows.Next() {
+		var name, colType string
+		if err := rows.Scan(&name, &colType); err != nil {
+			t.Fatal(err)
+		}
+		engineTypes[name] = colType
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	meta := c.DatabaseMetadata(db)
+	catTypes := map[string]string{}
+	for _, v := range meta.GetSchemas()[0].GetViews() {
+		if v.GetName() == "v_ops" {
+			for _, col := range v.GetColumns() {
+				catTypes[col.GetName()] = col.GetType()
+			}
+		}
+	}
+	for colName, wantCat := range map[string]string{
+		"c_band":     "bigint unsigned",
+		"c_bor":      "bigint unsigned",
+		"c_bxor":     "bigint unsigned",
+		"c_shl":      "bigint unsigned",
+		"c_shr":      "bigint unsigned",
+		"c_bnot":     "bigint unsigned",
+		"c_lxor":     "int",
+		"c_bin_vc":   "varbinary(20)",
+		"c_bin_c":    "varbinary(5)",
+		"c_bin_int":  "varbinary(11)",
+		"c_bin_txt":  "varbinary(65535)",
+		"c_bin_lit":  "varbinary(3)",
+		"c_jextract": "json",
+		"c_junquote": "longtext",
+	} {
+		if catTypes[colName] != wantCat {
+			t.Errorf("catalog v_ops.%s type = %q, want %q (engine reported %q)", colName, catTypes[colName], wantCat, engineTypes[colName])
+		}
+	}
+	if engineTypes["c_jextract"] != "json" || engineTypes["c_junquote"] != "longtext" || engineTypes["c_bin_vc"] != "varbinary(20)" {
+		t.Errorf("unexpected engine types: %v", engineTypes)
+	}
+
+	// Verify live MV index on quoted column with `(` survives LoadMetadata + DatabaseDefinition.
+	meta.Schemas[0].MaterializedViews = append(meta.Schemas[0].MaterializedViews, &metadata.MaterializedViewMetadata{
+		Name:       "mv_paren",
+		Definition: mvQuery,
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Unique: true, Visible: true, Type: "BTREE", Expressions: []string{"id"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+			{Name: "idx_paren", Visible: true, Type: "BTREE", Expressions: []string{idxCol}, KeyLength: []int64{-1}, Descending: []bool{false}},
+		},
+	})
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(ctx, meta)
+	if err != nil {
+		t.Fatalf("LoadMetadata: %v", err)
+	}
+	if len(report.Incomplete) != 0 {
+		t.Fatalf("unexpected incomplete items: %v", report.Incomplete)
+	}
+	reMV := reloaded.GetDatabase(db).Views["mv_paren"]
+	if reMV == nil || len(reMV.Indexes) != 2 || len(reMV.Indexes[1].Columns) != 1 || reMV.Indexes[1].Columns[0].Name != "a(b" {
+		t.Fatalf("unexpected reloaded MV indexes: %+v", reMV)
+	}
+	reMeta := reloaded.DatabaseMetadata(db)
+	def, err := DatabaseDefinition(reMeta, DefinitionOptions{})
+	if err != nil {
+		t.Fatalf("DatabaseDefinition: %v", err)
+	}
+	if !strings.Contains(def, "CREATE INDEX `idx_paren` ON `mv_paren` (`a(b`)") {
+		t.Fatalf("expected CREATE INDEX `idx_paren` ON `mv_paren` (`a(b`) in definition:\n%s", def)
 	}
 }

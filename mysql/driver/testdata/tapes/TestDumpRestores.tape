@@ -1183,7 +1183,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -1197,6 +1198,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1204,6 +1206,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -2029,6 +2033,16 @@
 |
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -2165,16 +2179,16 @@
 | END
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -3309,7 +3323,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -3323,6 +3338,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -3330,6 +3346,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -4153,6 +4171,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -5352,7 +5380,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -5366,6 +5395,7 @@
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -5373,6 +5403,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -6198,6 +6230,16 @@
 |
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -6334,16 +6376,16 @@
 | END
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -7478,7 +7520,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -7492,6 +7535,7 @@
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -7499,6 +7543,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -8322,6 +8368,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -9521,7 +9577,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -9535,6 +9592,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -9542,6 +9600,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -10367,6 +10427,16 @@
 |
 > query
 |
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
+> query
+|
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
@@ -10503,16 +10573,16 @@
 | END
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
 < ok 0 0
 > exec
-| CREATE OR REPLACE VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
+| CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -11647,7 +11717,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -11661,6 +11732,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -11668,6 +11740,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -12491,6 +12565,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_dump_roundtrip
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT

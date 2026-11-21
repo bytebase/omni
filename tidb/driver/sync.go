@@ -15,10 +15,14 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	tidbast "github.com/bytebase/omni/tidb/ast"
+	tidbdeparse "github.com/bytebase/omni/tidb/deparse"
+	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 const (
 	baseTableType          = "BASE TABLE"
+	globalTempTableType    = "GLOBAL TEMPORARY TABLE"
 	viewTableType          = "VIEW"
 	autoIncrement          = "AUTO_INCREMENT"
 	autoRandSymbol         = "AUTO_RANDOM"
@@ -114,11 +118,17 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 
 	roles := d.getInstanceRoles(ctx)
 
+	hasPlacementPolicy := supportsPlacementPolicy(version)
 	query := `
 		SELECT
 			SCHEMA_NAME,
 			DEFAULT_CHARACTER_SET_NAME,
-			DEFAULT_COLLATION_NAME
+			DEFAULT_COLLATION_NAME`
+	if hasPlacementPolicy {
+		query += `,
+			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')`
+	}
+	query += `
 		FROM information_schema.SCHEMATA
 		WHERE LOWER(SCHEMA_NAME) NOT IN (` + systemDatabaseClause + `)
 		ORDER BY SCHEMA_NAME`
@@ -131,7 +141,11 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	var databases []*metadatapb.DatabaseSchemaMetadata
 	for rows.Next() {
 		database := &metadatapb.DatabaseSchemaMetadata{}
-		if err := rows.Scan(&database.Name, &database.CharacterSet, &database.Collation); err != nil {
+		dest := []any{&database.Name, &database.CharacterSet, &database.Collation}
+		if hasPlacementPolicy {
+			dest = append(dest, &database.PlacementPolicy)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 		databases = append(databases, database)
@@ -308,10 +322,13 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 
 	viewMap := make(map[string]*metadatapb.ViewMetadata)
+	var viewNames []string
 	const viewQuery = `
 		SELECT
 			TABLE_NAME,
-			VIEW_DEFINITION
+			VIEW_DEFINITION,
+			IFNULL(SECURITY_TYPE, ''),
+			IFNULL(CHECK_OPTION, '')
 		FROM information_schema.VIEWS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME`
@@ -322,14 +339,45 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	defer viewRows.Close()
 	for viewRows.Next() {
 		view := &metadatapb.ViewMetadata{}
-		if err := viewRows.Scan(&view.Name, &view.Definition); err != nil {
+		var securityType, checkOption string
+		if err := viewRows.Scan(&view.Name, &view.Definition, &securityType, &checkOption); err != nil {
 			return nil, err
 		}
+		if securityType != "" && !strings.EqualFold(securityType, "NONE") {
+			view.SqlSecurity = strings.ToUpper(securityType)
+		}
+		// TiDB's view model has no NONE for CHECK_OPTION and reports CASCADED
+		// even when no WITH CHECK OPTION clause was written (while SHOW CREATE
+		// VIEW omits the clause either way); preserve LOCAL, which is only set
+		// when written explicitly.
+		if strings.EqualFold(checkOption, "LOCAL") {
+			view.CheckOption = "LOCAL"
+		}
+		view.Definition = stripViewCheckOptionSuffix(view.Definition)
 		view.Columns = columnMap[view.Name]
 		viewMap[view.Name] = view
+		viewNames = append(viewNames, view.Name)
 	}
 	if err := viewRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", viewQuery, err)
+	}
+	_ = viewRows.Close()
+
+	for _, viewName := range viewNames {
+		alg, sec, chk, err := d.readViewOptionsFromShowCreate(ctx, d.databaseName, viewName)
+		if err != nil {
+			return nil, err
+		}
+		v := viewMap[viewName]
+		if alg != "" {
+			v.Algorithm = alg
+		}
+		if v.SqlSecurity == "" && sec != "" {
+			v.SqlSecurity = sec
+		}
+		if v.CheckOption == "" && chk != "" {
+			v.CheckOption = chk
+		}
 	}
 
 	foreignKeysMap, err := d.getForeignKeyList(ctx, d.databaseName)
@@ -337,12 +385,17 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 
-	var checkMap map[string][]*metadatapb.CheckConstraintMetadata
+	var checkClauses map[checkClauseKey]string
 	if supportsCheckConstraintTable(version) {
-		checkMap, err = d.getCheckConstraintList(ctx, d.databaseName)
+		checkClauses, err = d.getCheckConstraintClauses(ctx, d.databaseName)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	tiflashReplicas, err := d.getTiFlashReplicas(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
 	}
 
 	sequences, err := d.getSequenceList(ctx, d.databaseName)
@@ -355,7 +408,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 
-	const tableQuery = `
+	hasPlacementPolicy := supportsPlacementPolicy(version)
+	tableQuery := `
 		SELECT
 			TABLE_NAME,
 			TABLE_TYPE,
@@ -368,7 +422,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 			IFNULL(CREATE_OPTIONS, ''),
 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-			IFNULL(TIDB_PK_TYPE, '')
+			IFNULL(TIDB_PK_TYPE, '')`
+	if hasPlacementPolicy {
+		tableQuery += `,
+			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')`
+	}
+	tableQuery += `
 		FROM information_schema.TABLES
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME`
@@ -378,10 +437,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	defer tableRows.Close()
 
+	var baseTableNames []string
+	var baseTables []*metadatapb.TableMetadata
 	for tableRows.Next() {
-		var tableName, tableType, engine, collation, createOptions, comment, shardingInfo, pkType string
+		var tableName, tableType, engine, collation, createOptions, comment, shardingInfo, pkType, placementPolicy string
 		var rowCount, dataSize, indexSize, dataFree int64
-		if err := tableRows.Scan(
+		dest := []any{
 			&tableName,
 			&tableType,
 			&engine,
@@ -394,13 +455,17 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 			&comment,
 			&shardingInfo,
 			&pkType,
-		); err != nil {
+		}
+		if hasPlacementPolicy {
+			dest = append(dest, &placementPolicy)
+		}
+		if err := tableRows.Scan(dest...); err != nil {
 			return nil, err
 		}
 		comment = stripSingleQuote(comment)
 
 		switch tableType {
-		case baseTableType:
+		case baseTableType, globalTempTableType:
 			columns := columnMap[tableName]
 			if strings.Contains(shardingInfo, pkAutoRandomBitsSymbol) {
 				autoRandText := autoRandSymbol
@@ -426,23 +491,27 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 				}
 			}
 
+			tf := tiflashReplicas[tableName]
 			tableMetadata := &metadatapb.TableMetadata{
-				Name:             tableName,
-				Columns:          columns,
-				ForeignKeys:      foreignKeysMap[tableName],
-				Engine:           engine,
-				Collation:        collation,
-				RowCount:         rowCount,
-				DataSize:         dataSize,
-				IndexSize:        indexSize,
-				DataFree:         dataFree,
-				CreateOptions:    createOptions,
-				Comment:          comment,
-				Charset:          convertCollationToCharset(collation),
-				Partitions:       partitionTables[tableName],
-				CheckConstraints: checkMap[tableName],
-				ShardingInfo:     shardingInfo,
-				PrimaryKeyType:   pkType,
+				Name:                  tableName,
+				Columns:               columns,
+				ForeignKeys:           foreignKeysMap[tableName],
+				Engine:                engine,
+				Collation:             collation,
+				RowCount:              rowCount,
+				DataSize:              dataSize,
+				IndexSize:             indexSize,
+				DataFree:              dataFree,
+				CreateOptions:         createOptions,
+				Comment:               comment,
+				Charset:               convertCollationToCharset(collation),
+				Partitions:            partitionTables[tableName],
+				ShardingInfo:          shardingInfo,
+				PrimaryKeyType:        pkType,
+				IsGlobalTemporary:     tableType == globalTempTableType,
+				PlacementPolicy:       placementPolicy,
+				TiflashReplica:        tf.replica,
+				TiflashLocationLabels: tf.locationLabels,
 			}
 			if indexes, ok := indexMap[tableName]; ok {
 				indexNames := make([]string, 0, len(indexes))
@@ -454,6 +523,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 					tableMetadata.Indexes = append(tableMetadata.Indexes, indexes[indexName])
 				}
 			}
+			baseTableNames = append(baseTableNames, tableName)
+			baseTables = append(baseTables, tableMetadata)
 			schemaMetadata.Tables = append(schemaMetadata.Tables, tableMetadata)
 		case viewTableType:
 			if view, ok := viewMap[tableName]; ok {
@@ -464,22 +535,35 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	if err := tableRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", tableQuery, err)
 	}
+	_ = tableRows.Close()
+
+	for i, tbl := range baseTableNames {
+		if err := d.populateTableDetailsFromShowCreate(ctx, d.databaseName, tbl, baseTables[i], checkClauses); err != nil {
+			return nil, err
+		}
+	}
 	schemaMetadata.Sequences = sequences
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
 	}
-	const databaseQuery = `
+	databaseQuery := `
 		SELECT
 			DEFAULT_CHARACTER_SET_NAME,
-			DEFAULT_COLLATION_NAME
+			DEFAULT_COLLATION_NAME`
+	if hasPlacementPolicy {
+		databaseQuery += `,
+			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')`
+	}
+	databaseQuery += `
 		FROM information_schema.SCHEMATA
 		WHERE SCHEMA_NAME = ?`
-	if err := d.db.QueryRowContext(ctx, databaseQuery, d.databaseName).Scan(
-		&databaseMetadata.CharacterSet,
-		&databaseMetadata.Collation,
-	); err != nil {
+	dbDest := []any{&databaseMetadata.CharacterSet, &databaseMetadata.Collation}
+	if hasPlacementPolicy {
+		dbDest = append(dbDest, &databaseMetadata.PlacementPolicy)
+	}
+	if err := d.db.QueryRowContext(ctx, databaseQuery, d.databaseName).Scan(dbDest...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("database %q: %w", d.databaseName, driver.ErrNotFound)
 		}
@@ -712,38 +796,335 @@ func (d *Driver) getForeignKeyList(ctx context.Context, databaseName string) (ma
 	return foreignKeysMap, nil
 }
 
-func (d *Driver) getCheckConstraintList(ctx context.Context, databaseName string) (map[string][]*metadatapb.CheckConstraintMetadata, error) {
+type checkClauseKey struct {
+	table string
+	name  string
+}
+
+type tiflashReplicaInfo struct {
+	replica        int32
+	locationLabels []string
+}
+
+func (d *Driver) getCheckConstraintClauses(ctx context.Context, databaseName string) (map[checkClauseKey]string, error) {
 	const checkQuery = `
 		SELECT
-			tc.TABLE_NAME,
-			cc.CONSTRAINT_NAME,
-			cc.CHECK_CLAUSE
-		FROM information_schema.CHECK_CONSTRAINTS cc
-			JOIN information_schema.TABLE_CONSTRAINTS tc
-				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+			TABLE_NAME,
+			CONSTRAINT_NAME,
+			CHECK_CLAUSE
+		FROM information_schema.TIDB_CHECK_CONSTRAINTS
+		WHERE CONSTRAINT_SCHEMA = ?
+		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 	`
-	checkRows, err := d.db.QueryContext(ctx, checkQuery, databaseName, databaseName)
+	checkRows, err := d.db.QueryContext(ctx, checkQuery, databaseName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", checkQuery, err)
 	}
 	defer checkRows.Close()
 
-	checkMap := make(map[string][]*metadatapb.CheckConstraintMetadata)
+	clauses := make(map[checkClauseKey]string)
 	for checkRows.Next() {
-		check := &metadatapb.CheckConstraintMetadata{}
-		var tableName string
-		if err := checkRows.Scan(&tableName, &check.Name, &check.Expression); err != nil {
+		var tableName, name, clause string
+		if err := checkRows.Scan(&tableName, &name, &clause); err != nil {
 			return nil, err
 		}
-		checkMap[tableName] = append(checkMap[tableName], check)
+		clauses[checkClauseKey{table: strings.ToLower(tableName), name: strings.ToLower(name)}] = clause
 	}
 	if err := checkRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", checkQuery, err)
 	}
-	return checkMap, nil
+	return clauses, nil
+}
+
+func (d *Driver) getTiFlashReplicas(ctx context.Context, databaseName string) (map[string]tiflashReplicaInfo, error) {
+	const query = `
+		SELECT
+			TABLE_NAME,
+			REPLICA_COUNT,
+			IFNULL(LOCATION_LABELS, '')
+		FROM information_schema.TIFLASH_REPLICA
+		WHERE TABLE_SCHEMA = ?
+		ORDER BY TABLE_NAME
+	`
+	rows, err := d.db.QueryContext(ctx, query, databaseName)
+	if err != nil {
+		if isTiDBTableMissingErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer rows.Close()
+
+	out := make(map[string]tiflashReplicaInfo)
+	for rows.Next() {
+		var tableName, rawLabels string
+		var replicaCount int32
+		if err := rows.Scan(&tableName, &replicaCount, &rawLabels); err != nil {
+			return nil, err
+		}
+		var labels []string
+		for _, part := range strings.Split(rawLabels, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				labels = append(labels, trimmed)
+			}
+		}
+		out[tableName] = tiflashReplicaInfo{
+			replica:        replicaCount,
+			locationLabels: labels,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return out, nil
+}
+
+func isTiDBTableMissingErr(err error) bool {
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) {
+		return false
+	}
+	return mysqlErr.Number == 1146 || mysqlErr.Number == 1109
+}
+
+func (d *Driver) populateTableDetailsFromShowCreate(ctx context.Context, databaseName, tableName string, table *metadatapb.TableMetadata, checkClauses map[checkClauseKey]string) error {
+	query := fmt.Sprintf("SHOW CREATE TABLE %s.%s", quoteBacktick(databaseName), quoteBacktick(tableName))
+	var tblCol, createStmt sql.NullString
+	if err := d.db.QueryRowContext(ctx, query).Scan(&tblCol, &createStmt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+	}
+	list, err := tidbparser.Parse(createStmt.String)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil
+	}
+	stmt, ok := list.Items[0].(*tidbast.CreateTableStmt)
+	if !ok {
+		return nil
+	}
+	if stmt.Global {
+		table.IsGlobalTemporary = true
+	}
+	if stmt.OnCommit != "" {
+		table.OnCommit = strings.ToUpper(stmt.OnCommit)
+	}
+
+	reconcileIndexesFromShowCreate(table, stmt.Constraints)
+
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, con := range stmt.Constraints {
+		if con == nil || con.Type != tidbast.ConstrCheck {
+			continue
+		}
+		expr := checkClauses[checkClauseKey{table: strings.ToLower(tableName), name: strings.ToLower(con.Name)}]
+		if expr == "" && con.Expr != nil {
+			expr = tidbdeparse.Deparse(con.Expr)
+		}
+		checks = append(checks, &metadatapb.CheckConstraintMetadata{
+			Name:        con.Name,
+			Expression:  expr,
+			NotEnforced: con.NotEnforced,
+		})
+	}
+	if len(checks) > 0 {
+		slices.SortFunc(checks, func(a, b *metadatapb.CheckConstraintMetadata) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+		table.CheckConstraints = checks
+	}
+
+	ttlEnableSeen := false
+	for _, opt := range stmt.Options {
+		if opt == nil {
+			continue
+		}
+		switch strings.ToLower(opt.Name) {
+		case "ttl":
+			if col, interval, ok := extractTTLParts(opt.Value); ok {
+				table.TtlColumn = col
+				table.TtlInterval = interval
+				if !ttlEnableSeen {
+					table.TtlEnable = true
+				}
+			}
+		case "ttl_enable":
+			table.TtlEnable = strings.EqualFold(opt.Value, "ON")
+			ttlEnableSeen = true
+		case "ttl_job_interval":
+			table.TtlJobInterval = opt.Value
+		// TiDB shows these as /*T![auto_id_cache] AUTO_ID_CACHE=1 */ and
+		// /*T! PRE_SPLIT_REGIONS=2 */, which the parser reads as options.
+		case "auto_id_cache":
+			if n, err := strconv.ParseInt(strings.TrimSpace(opt.Value), 10, 64); err == nil {
+				table.AutoIdCache = n
+			}
+		case "pre_split_regions":
+			if n, err := strconv.ParseInt(strings.TrimSpace(opt.Value), 10, 32); err == nil {
+				table.PreSplitRegions = int32(n)
+			}
+		case "placement policy":
+			if table.PlacementPolicy == "" && opt.Value != "" {
+				table.PlacementPolicy = opt.Value
+			}
+		case "compression":
+			if opt.Value != "" && !hasCreateOption(table.CreateOptions, "compression") {
+				entry := fmt.Sprintf("compression='%s'", escapeSingleQuoted(opt.Value))
+				if table.CreateOptions == "" {
+					table.CreateOptions = entry
+				} else {
+					table.CreateOptions += " " + entry
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func reconcileIndexesFromShowCreate(table *metadatapb.TableMetadata, constraints []*tidbast.Constraint) {
+	if table == nil || len(table.Indexes) == 0 || len(constraints) == 0 {
+		return
+	}
+	byName := make(map[string]*metadatapb.IndexMetadata, len(table.Indexes))
+	var primaryIdx *metadatapb.IndexMetadata
+	for _, idx := range table.Indexes {
+		if idx.Primary {
+			primaryIdx = idx
+		}
+		byName[strings.ToLower(idx.Name)] = idx
+	}
+	for _, con := range constraints {
+		if con == nil || con.Type == tidbast.ConstrCheck || con.Type == tidbast.ConstrForeignKey {
+			continue
+		}
+		var idx *metadatapb.IndexMetadata
+		if con.Type == tidbast.ConstrPrimaryKey {
+			idx = primaryIdx
+		} else if con.Name != "" {
+			idx = byName[strings.ToLower(con.Name)]
+		}
+		if idx == nil {
+			continue
+		}
+		switch con.Type {
+		case tidbast.ConstrVector:
+			idx.IsVector = true
+			if con.IndexType != "" {
+				idx.Type = strings.ToUpper(con.IndexType)
+			} else {
+				idx.Type = "HNSW"
+			}
+		case tidbast.ConstrFulltextIndex:
+			idx.Type = "FULLTEXT"
+		case tidbast.ConstrSpatialIndex:
+			idx.Type = "SPATIAL"
+		default:
+			if con.IndexType != "" {
+				idx.Type = strings.ToUpper(con.IndexType)
+			}
+		}
+		for _, opt := range con.IndexOptions {
+			if opt == nil {
+				continue
+			}
+			switch strings.ToUpper(opt.Name) {
+			case "VISIBLE":
+				idx.Visible = true
+			case "INVISIBLE":
+				idx.Visible = false
+			case "GLOBAL":
+				idx.IsGlobal = true
+			case "LOCAL":
+				idx.IsGlobal = false
+			case "KEY_BLOCK_SIZE":
+				switch n := opt.Value.(type) {
+				case *tidbast.Integer:
+					idx.KeyBlockSize = n.Ival
+				case *tidbast.IntLit:
+					idx.KeyBlockSize = n.Value
+				}
+			}
+		}
+	}
+}
+
+func hasCreateOption(options, name string) bool {
+	prefix := strings.ToLower(name) + "="
+	for _, field := range strings.Fields(options) {
+		if strings.HasPrefix(strings.ToLower(field), prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func escapeSingleQuoted(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `''`)
+	return s
+}
+
+func extractTTLParts(val string) (string, string, bool) {
+	expr, err := tidbparser.ParseExpr(val)
+	if err != nil {
+		return "", "", false
+	}
+	switch e := expr.(type) {
+	case *tidbast.BinaryExpr:
+		if e.Op == tidbast.BinOpAdd {
+			if col, ok := e.Left.(*tidbast.ColumnRef); ok {
+				return col.Column, tidbdeparse.Deparse(e.Right), true
+			}
+		}
+	case *tidbast.FuncCallExpr:
+		name := strings.ToUpper(e.Name)
+		if (name == "DATE_ADD" || name == "ADDDATE") && len(e.Args) == 2 {
+			if col, ok := e.Args[0].(*tidbast.ColumnRef); ok {
+				return col.Column, tidbdeparse.Deparse(e.Args[1]), true
+			}
+		}
+	}
+	return "", "", false
+}
+
+func (d *Driver) readViewOptionsFromShowCreate(ctx context.Context, databaseName, viewName string) (algorithm, sqlSecurity, checkOption string, err error) {
+	query := fmt.Sprintf("SHOW CREATE VIEW %s.%s", quoteBacktick(databaseName), quoteBacktick(viewName))
+	var viewCol, createStmt, csClient, collConn sql.NullString
+	if err := d.db.QueryRowContext(ctx, query).Scan(&viewCol, &createStmt, &csClient, &collConn); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", nil
+		}
+		return "", "", "", fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+	}
+	list, parseErr := tidbparser.Parse(createStmt.String)
+	if parseErr != nil || list == nil || len(list.Items) != 1 {
+		return "", "", "", nil
+	}
+	stmt, ok := list.Items[0].(*tidbast.CreateViewStmt)
+	if !ok {
+		return "", "", "", nil
+	}
+	algorithm = strings.ToUpper(stmt.Algorithm)
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	return algorithm, strings.ToUpper(stmt.SqlSecurity), strings.ToUpper(stmt.CheckOption), nil
+}
+
+func stripViewCheckOptionSuffix(def string) string {
+	trimmed := strings.TrimSpace(def)
+	upper := strings.ToUpper(trimmed)
+	for _, suffix := range []string{
+		" WITH CASCADED CHECK OPTION",
+		" WITH LOCAL CHECK OPTION",
+		" WITH CHECK OPTION",
+	} {
+		if strings.HasSuffix(upper, suffix) {
+			return strings.TrimSpace(trimmed[:len(trimmed)-len(suffix)])
+		}
+	}
+	return def
 }
 
 func supportsCheckConstraintTable(rawVersion string) bool {
@@ -761,6 +1142,15 @@ func supportsCheckConstraintTable(rawVersion string) bool {
 		return false
 	}
 	return sv.atLeast(8, 0, 0)
+}
+
+func supportsPlacementPolicy(rawVersion string) bool {
+	if loc := tidbSemverRegex.FindStringIndex(rawVersion); loc != nil {
+		if sv, err := parseSemver(rawVersion[loc[0]+1 : loc[1]]); err == nil {
+			return sv.atLeast(6, 0, 0)
+		}
+	}
+	return false
 }
 
 func (d *Driver) getSequenceList(ctx context.Context, databaseName string) ([]*metadatapb.SequenceMetadata, error) {

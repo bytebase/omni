@@ -1183,7 +1183,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -1197,6 +1198,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1204,6 +1206,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -2027,6 +2031,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -3226,7 +3240,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -3240,6 +3255,7 @@
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -3247,6 +3263,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -4070,6 +4088,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -5269,7 +5297,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -5283,6 +5312,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -5290,6 +5320,8 @@
 | chk_balance
 : bytes
 | ((`balance` >= 0) and (`status` in (_utf8mb4\'open\',_utf8mb4\'closed\')))
+: bytes
+| YES
 > query
 |
 | 		SELECT
@@ -6113,6 +6145,16 @@
 | 'VIEW'
 : bytes
 |
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_sync_corpus
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT

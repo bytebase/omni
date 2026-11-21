@@ -86,19 +86,19 @@ CREATE TABLE `sharded_events` (
 -- View structure for `v_named_cols`
 --
 DROP VIEW IF EXISTS `v_named_cols`;
-CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_sync_corpus`.`accounts`;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_sync_corpus`.`accounts`;
 
 --
 -- View structure for `v_named_cols_ref`
 --
 DROP VIEW IF EXISTS `v_named_cols_ref`;
-CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_sync_corpus`.`v_named_cols`;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_sync_corpus`.`v_named_cols`;
 
 --
 -- View structure for `v_open_accounts`
 --
 DROP VIEW IF EXISTS `v_open_accounts`;
-CREATE VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_sync_corpus`.`accounts` WHERE `status`=_UTF8MB4'open';
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_sync_corpus`.`accounts` WHERE `status`=_UTF8MB4'open';
 
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

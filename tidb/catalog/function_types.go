@@ -29,12 +29,14 @@ func functionReturnType(name string, args []AnalyzedExpr) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeText}
 
 	// Date/time functions
-	case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp":
+	case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp", "utc_timestamp":
 		return &ResolvedType{BaseType: BaseTypeDateTime}
-	case "curdate", "current_date":
+	case "curdate", "current_date", "utc_date":
 		return &ResolvedType{BaseType: BaseTypeDate}
-	case "curtime", "current_time":
+	case "curtime", "current_time", "utc_time":
 		return &ResolvedType{BaseType: BaseTypeTime}
+	case "timestampdiff", "datediff":
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "year", "month", "day", "hour", "minute", "second",
 		"dayofweek", "dayofmonth", "dayofyear", "weekday",
 		"quarter", "week", "yearweek":
@@ -57,32 +59,30 @@ func functionReturnType(name string, args []AnalyzedExpr) *ResolvedType {
 		return nil // type depends on first argument
 
 	// JSON functions
-	case "json_extract", "json_unquote":
+	case "json_extract", "json_array", "json_object", "json_merge_preserve", "json_merge_patch":
 		return &ResolvedType{BaseType: BaseTypeJSON}
+	case "json_unquote":
+		return &ResolvedType{BaseType: BaseTypeLongText}
 	case "json_length", "json_depth", "json_valid":
-		return &ResolvedType{BaseType: BaseTypeInt}
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "json_type":
-		return &ResolvedType{BaseType: BaseTypeVarchar}
-	case "json_array", "json_object", "json_merge_preserve", "json_merge_patch":
-		return &ResolvedType{BaseType: BaseTypeJSON}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: 51}
 
 	// Misc
 	case "coalesce", "ifnull":
 		return nil // type depends on arguments
 	case "uuid":
-		return &ResolvedType{BaseType: BaseTypeVarchar}
-	case "version":
-		return &ResolvedType{BaseType: BaseTypeVarchar}
-	case "database", "schema", "user", "current_user", "session_user", "system_user":
-		return &ResolvedType{BaseType: BaseTypeVarchar}
-	case "last_insert_id", "row_count", "found_rows":
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: 36}
+	case "version", "database", "schema", "user", "current_user", "session_user", "system_user", "charset", "collation":
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: 64}
+	case "last_insert_id", "connection_id":
+		return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
+	case "row_count", "found_rows":
 		return &ResolvedType{BaseType: BaseTypeBigInt}
-	case "connection_id":
-		return &ResolvedType{BaseType: BaseTypeBigInt}
-	case "charset", "collation":
-		return &ResolvedType{BaseType: BaseTypeVarchar}
 	case "length", "char_length", "character_length", "bit_length", "octet_length":
-		return &ResolvedType{BaseType: BaseTypeInt}
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	case "locate", "instr", "position":
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	}
 	return nil
 }

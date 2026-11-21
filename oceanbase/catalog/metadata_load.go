@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -101,8 +103,44 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
 		applyDatabaseSessionContext(db, sessionContexts(installed))
+		for _, o := range installed {
+			applyObjectSkipDump(db, o)
+		}
 	}
 	return report, nil
+}
+
+func applyObjectSkipDump(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataTable:
+		if tbl := db.Tables[key]; tbl != nil && o.table != nil {
+			tbl.SkipDump = o.table.GetSkipDump()
+		}
+	case metadataView:
+		if v := db.Views[key]; v != nil {
+			if o.materialized && o.mview != nil {
+				v.SkipDump = o.mview.GetSkipDump()
+			} else if o.view != nil {
+				v.SkipDump = o.view.GetSkipDump()
+			}
+		}
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			fn.SkipDump = o.function.GetSkipDump()
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			p.SkipDump = o.procedure.GetSkipDump()
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			tr.SkipDump = o.trigger.GetSkipDump()
+		}
+	}
 }
 
 // selectMetadataDatabase creates the database named name where the catalog
@@ -200,6 +238,34 @@ func (c *Catalog) installedView(name string) *View {
 	return db.Views[toLower(name)]
 }
 
+func (c *Catalog) installedTable(name string) *Table {
+	db := c.GetDatabase(c.CurrentDatabase())
+	if db == nil {
+		return nil
+	}
+	return db.GetTable(name)
+}
+
+func applyDroppedColumnDefaults(tbl *Table, meta *metadata.TableMetadata) {
+	if tbl == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	for _, col := range meta.GetColumns() {
+		if col.GetDefaultDropped() {
+			dropped[toLower(col.GetName())] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, col := range tbl.Columns {
+		if dropped[toLower(col.Name)] && col.Default == nil {
+			col.DefaultDropped = true
+		}
+	}
+}
+
 // --- Objects ---
 
 // metadataObjectKind lists the kinds in the order they install. Only a
@@ -222,8 +288,9 @@ const (
 type metadataObject struct {
 	kind metadataObjectKind
 	name string
-	// parent is a trigger's table.
+	// parent is a trigger's table; order preserves the snapshot's action order.
 	parent string
+	order  int
 	// snapshotDatabase is the database the snapshot's references qualify
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
@@ -233,6 +300,7 @@ type metadataObject struct {
 
 	table     *metadata.TableMetadata
 	view      *metadata.ViewMetadata
+	mview     *metadata.MaterializedViewMetadata
 	function  *metadata.FunctionMetadata
 	procedure *metadata.ProcedureMetadata
 	trigger   *metadata.TriggerMetadata
@@ -272,9 +340,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				continue
 			}
 			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
-			for _, trg := range t.GetTriggers() {
+			for i, trg := range t.GetTriggers() {
 				if trg.GetName() != "" {
-					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), trigger: trg})
+					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), order: i, trigger: trg})
 				}
 			}
 		}
@@ -288,7 +356,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 		// that reads the materialized view would name a relation the catalog does not hold;
 		// the container table holds its rows, and the sync no longer lists that as a table.
 		for _, v := range s.GetMaterializedViews() {
-			if v.GetName() == "" || v.GetSkipDump() {
+			if v.GetName() == "" {
 				continue
 			}
 			out = append(out, &metadataObject{
@@ -296,6 +364,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				name:             v.GetName(),
 				materialized:     true,
 				view:             &metadata.ViewMetadata{Name: v.GetName(), Definition: v.GetDefinition()},
+				mview:            v,
 				snapshotDatabase: meta.GetName(),
 			})
 		}
@@ -316,6 +385,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
+		if a.kind == metadataTrigger && b.kind == metadataTrigger {
+			return cmp.Or(cmp.Compare(a.parent, b.parent), cmp.Compare(a.order, b.order), cmp.Compare(a.name, b.name))
+		}
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name), cmp.Compare(a.parent, b.parent))
 	})
 	return out
@@ -331,6 +403,20 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			return err
 		}
 		o.incomplete = omitted
+		finishInstall := func() {
+			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
+			if o.table.HasMaterializedViewLog != nil {
+				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+					key := toLower(o.table.GetName())
+					db.MaterializedViewLogsKnown[key] = true
+					if o.table.GetHasMaterializedViewLog() {
+						db.MaterializedViewLogs[key] = true
+					} else {
+						delete(db.MaterializedViewLogs, key)
+					}
+				}
+			}
+		}
 		err = c.DefineTable(stmt)
 		if err != nil && stmt.Partitions != nil {
 			// The partitioning parsed but the catalog refuses it. The rest of the
@@ -340,8 +426,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				if o.incomplete == nil {
 					o.incomplete = fmt.Errorf("partitioning: %w", err)
 				}
+				finishInstall()
 				return nil
 			}
+		}
+		if err == nil {
+			finishInstall()
 		}
 		return err
 	case metadataView:
@@ -353,10 +443,34 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if err := c.DefineMaterializedView(stmt); err != nil {
 				return err
 			}
-		} else if err := c.DefineView(stmt); err != nil {
-			return err
+		} else {
+			if err := c.DefineView(stmt); err != nil {
+				return err
+			}
 		}
-		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		inst := c.installedView(o.name)
+		nameViewColumns(inst, metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(inst, o.view.GetColumns())
+		if inst != nil && o.materialized && o.mview != nil {
+			mvCols := make(map[string]bool, len(inst.Columns))
+			for _, colName := range inst.Columns {
+				mvCols[toLower(colName)] = true
+			}
+			for _, colMeta := range o.view.GetColumns() {
+				if name := colMeta.GetName(); name != "" {
+					mvCols[toLower(name)] = true
+				}
+			}
+			inst.Comment = syncedComment(o.mview.GetComment())
+			inst.Indexes = metadataMVIndexes(o.mview.GetIndexes(), mvCols, &o.incomplete)
+		} else if inst != nil && !o.materialized {
+			if o.view.GetAlgorithm() != "" {
+				inst.Algorithm = o.view.GetAlgorithm()
+			}
+			if o.view.GetSqlSecurity() != "" {
+				inst.SqlSecurity = o.view.GetSqlSecurity()
+			}
+		}
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
@@ -418,12 +532,15 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omitted = e
 		}
 	}
-	stmt = &nodes.CreateTableStmt{Table: &nodes.TableRef{Name: t.GetName()}}
+	stmt = &nodes.CreateTableStmt{
+		Table:       &nodes.TableRef{Name: t.GetName()},
+		ColumnGroup: t.GetColumnGroups(),
+	}
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
 			continue
 		}
-		def, colOmitted, err := metadataColumnDef(col)
+		def, colOmitted, err := metadataColumnDef(t, col)
 		if err != nil {
 			return nil, nil, fmt.Errorf("column %q: %w", col.GetName(), err)
 		}
@@ -432,11 +549,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
+	tableCols := tableColumnSet(t.GetColumns())
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx, t.GetEngine())
+		con, err := metadataIndexConstraint(idx, t.GetEngine(), tableCols)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 			continue
@@ -452,7 +570,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 			omit(fmt.Errorf("check %q: %w", check.GetName(), err))
 			continue
 		}
-		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{Type: nodes.ConstrCheck, Name: check.GetName(), Expr: expr})
+		stmt.Constraints = append(stmt.Constraints, &nodes.Constraint{
+			Type:        nodes.ConstrCheck,
+			Name:        check.GetName(),
+			Expr:        expr,
+			NotEnforced: check.GetNotEnforced(),
+		})
 	}
 	if len(t.GetPartitions()) > 0 {
 		partitions, err := metadataPartitionClause(t)
@@ -461,12 +584,26 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Partitions = partitions
 	}
+	opts := t.GetCreateOptions()
 	for _, opt := range []struct{ name, value string }{
 		{"ENGINE", t.GetEngine()},
 		{"CHARSET", t.GetCharset()},
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
-		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
+		{"KEY_BLOCK_SIZE", createOption(opts, "key_block_size")},
+		{"ROW_FORMAT", createOption(opts, "row_format")},
+		{"COMPRESSION", unquoteTableOption(createOption(opts, "compression"))},
+		{"ENCRYPTION", unquoteTableOption(createOption(opts, "encryption"))},
+		{"STATS_PERSISTENT", createOption(opts, "stats_persistent")},
+		{"STATS_AUTO_RECALC", createOption(opts, "stats_auto_recalc")},
+		{"STATS_SAMPLE_PAGES", createOption(opts, "stats_sample_pages")},
+		{"MIN_ROWS", createOption(opts, "min_rows")},
+		{"MAX_ROWS", createOption(opts, "max_rows")},
+		{"AVG_ROW_LENGTH", createOption(opts, "avg_row_length")},
+		{"PACK_KEYS", createOption(opts, "pack_keys")},
+		{"CHECKSUM", createOption(opts, "checksum")},
+		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
+		{"TABLESPACE", t.GetTablespace()},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -476,10 +613,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 }
 
 // metadataPartitionClause parses the partitioning the snapshot records, as the
-// definition renderer prints it.
+// definition renderer prints it, and attaches attributes that OceanBase DDL
+// rejects inline (partition/subpartition comments) or forbids alongside explicit
+// partition lists (SUBPARTITION TEMPLATE).
 func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause, error) {
 	var buf strings.Builder
-	if err := printPartitionClause(&buf, t.GetPartitions(), t.GetEngine()); err != nil {
+	if err := printPartitionClause(&buf, t.GetPartitions(), t.GetEngine(), false, false); err != nil {
 		return nil, err
 	}
 	stmt, err := parseFirstStatement[*nodes.CreateTableStmt]("CREATE TABLE `probe` (`c` int)" + buf.String())
@@ -489,7 +628,144 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 	if stmt.Partitions == nil {
 		return nil, fmt.Errorf("no partitioning parsed from %q", buf.String())
 	}
+	for i, pd := range stmt.Partitions.Partitions {
+		if i >= len(t.GetPartitions()) {
+			break
+		}
+		partMeta := t.GetPartitions()[i]
+		if partMeta.GetComment() != "" {
+			pd.Options = append(pd.Options, &nodes.TableOption{Name: "COMMENT", Value: partMeta.GetComment()})
+		}
+		for j, spd := range pd.SubPartitions {
+			if j >= len(partMeta.GetSubpartitions()) {
+				break
+			}
+			if cmt := partMeta.GetSubpartitions()[j].GetComment(); cmt != "" {
+				spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: cmt})
+			}
+		}
+	}
+	if len(t.GetPartitions()) > 0 && len(t.GetPartitions()[0].GetSubpartitionTemplate()) > 0 {
+		tpl := t.GetPartitions()[0].GetSubpartitionTemplate()
+		if len(stmt.Partitions.SubPartTemplate) == 0 {
+			parsedTpl, err := metadataSubpartitionTemplate(t.GetPartitions()[0])
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partitions.SubPartTemplate = parsedTpl
+		}
+		for i, spd := range stmt.Partitions.SubPartTemplate {
+			if i < len(tpl) && tpl[i].GetComment() != "" {
+				spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: tpl[i].GetComment()})
+			}
+		}
+	}
 	return stmt.Partitions, nil
+}
+
+func metadataSubpartitionTemplate(partMeta *metadata.TablePartitionMetadata) ([]*nodes.SubPartitionDef, error) {
+	tpl := partMeta.GetSubpartitionTemplate()
+	sub0 := tpl[0]
+	if sub0.GetType() == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED && len(partMeta.GetSubpartitions()) > 0 {
+		sub0 = partMeta.GetSubpartitions()[0]
+	}
+	var buf strings.Builder
+	buf.WriteString("CREATE TABLE `probe` (`c` int) PARTITION BY HASH (`c`)")
+	if err := writeSubpartitionBy(&buf, sub0); err != nil {
+		return nil, err
+	}
+	subType := subPartitionTypeName(sub0.GetType())
+	colCount := subPartitionColumnCount(sub0.GetExpression())
+	buf.WriteString(" SUBPARTITION TEMPLATE (")
+	for i, st := range tpl {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		fmt.Fprintf(&buf, "SUBPARTITION %s", quoteIdent(st.GetName()))
+		if vals := subpartitionValuesSQL(subType, colCount, st.GetValue()); vals != "" {
+			buf.WriteString(vals)
+		}
+	}
+	buf.WriteString(")")
+	stmt, err := parseFirstStatement[*nodes.CreateTableStmt](buf.String())
+	if err != nil {
+		return nil, err
+	}
+	if stmt.Partitions == nil {
+		return nil, fmt.Errorf("no subpartition template parsed from %q", buf.String())
+	}
+	for i, spd := range stmt.Partitions.SubPartTemplate {
+		if i < len(tpl) && tpl[i].GetComment() != "" {
+			spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: tpl[i].GetComment()})
+		}
+	}
+	return stmt.Partitions.SubPartTemplate, nil
+}
+
+func metadataMVIndexes(idxs []*metadata.IndexMetadata, mvCols map[string]bool, omitted *error) []*Index {
+	if len(idxs) == 0 {
+		return nil
+	}
+	out := make([]*Index, 0, len(idxs))
+	for _, meta := range idxs {
+		if len(meta.GetExpressions()) == 0 {
+			continue
+		}
+		idxType := strings.ToUpper(strings.TrimSpace(meta.GetType()))
+		if idxType == "BTREE" {
+			idxType = ""
+		}
+		spatial := idxType == "SPATIAL"
+		idx := &Index{
+			Name:             meta.GetName(),
+			Unique:           meta.GetUnique() || meta.GetPrimary(),
+			Primary:          meta.GetPrimary(),
+			Visible:          meta.GetVisible() || meta.GetPrimary(),
+			Comment:          meta.GetComment(),
+			KeyBlockSize:     int(meta.GetKeyBlockSize()),
+			IndexType:        idxType,
+			Fulltext:         idxType == "FULLTEXT",
+			Spatial:          spatial,
+			Vector:           meta.GetIsVector(),
+			Scope:            meta.GetScope(),
+			Storing:          slices.Clone(meta.GetStoringColumns()),
+			VectorParams:     slices.Clone(meta.GetVectorParams()),
+			Parser:           meta.GetParser(),
+			ParserProperties: maps.Clone(meta.GetParserProperties()),
+		}
+		if idx.Scope == "" && meta.GetIsGlobal() {
+			idx.Scope = "GLOBAL"
+		}
+		var parseErr error
+		for i, expr := range meta.GetExpressions() {
+			desc := i < len(meta.GetDescending()) && meta.GetDescending()[i]
+			length := 0
+			if !spatial && i < len(meta.GetKeyLength()) && meta.GetKeyLength()[i] > 0 {
+				length = int(meta.GetKeyLength()[i])
+			}
+			col := &IndexColumn{
+				Length:     length,
+				Descending: desc,
+			}
+			if isExpressionKey(expr, mvCols) {
+				if _, err := parseExpr(expr); err != nil && parseErr == nil {
+					parseErr = err
+				}
+				col.Expr = expr
+			} else {
+				col.Name = unquoteIdent(expr)
+			}
+			idx.Columns = append(idx.Columns, col)
+		}
+		if parseErr != nil {
+			if *omitted == nil {
+				*omitted = fmt.Errorf("index %q: %w", meta.GetName(), parseErr)
+			}
+			continue
+		}
+		out = append(out, idx)
+	}
+	return out
 }
 
 // createOption returns the value of one CREATE_OPTIONS entry; sync keeps them
@@ -506,16 +782,33 @@ func createOption(options, name string) string {
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
 // or generation expression that does not parse is left out, and omitted is the
 // first such error.
-func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
+func metadataColumnDef(t *metadata.TableMetadata, col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
 	typeName, err := parseTypeName(col.GetType())
 	if err != nil {
 		return nil, nil, err
 	}
-	// The type text may carry its own character set and collation.
-	if typeName.Charset == "" {
+	// The type text may carry its own character set and collation. A value
+	// that differs from the table's current default is the column's own,
+	// whatever the inherited flag says: after ALTER TABLE ... DEFAULT CHARACTER
+	// SET latin1 a column that inherited utf8mb4 keeps it, as SHOW CREATE TABLE
+	// shows on mysql:8.0.46 and oceanbase-ce 4.3.5.6. An inherited flag of false
+	// marks an explicit clause even when the value matches the default; an
+	// absent flag (legacy live sync) leaves a matching value inherited.
+	charsetExplicit := col.CharsetInherited != nil && !*col.CharsetInherited ||
+		t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	// With the flags present, a collation that differs only because the
+	// charset does, its charset's default, comes with the charset rather than
+	// from a clause of its own; a legacy snapshot keeps any differing
+	// collation as its own.
+	charsetDiffers := t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	impliedCollation := col.CollationInherited != nil && charsetDiffers &&
+		strings.EqualFold(col.GetCollation(), defaultCollationForCharset[toLower(col.GetCharacterSet())])
+	collationExplicit := col.CollationInherited != nil && !*col.CollationInherited ||
+		t != nil && col.GetCollation() != "" && !strings.EqualFold(col.GetCollation(), t.GetCollation()) && !impliedCollation
+	if typeName.Charset == "" && col.GetCharacterSet() != "" && charsetExplicit {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" {
+	if typeName.Collate == "" && col.GetCollation() != "" && collationExplicit {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.
@@ -590,7 +883,7 @@ func typeTakesDefault(typ string) bool {
 // the access method a key without USING gets too, so the engine's default one
 // stays unwritten. The error is a key expression that did not parse; the index
 // still comes back, with that key part as a column.
-func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string, tableCols map[string]bool) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == defaultIndexType(engine) {
 		indexType = ""
@@ -606,6 +899,8 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrPrimaryKey, indexType
 	case idx.GetUnique():
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
+	case idx.GetIsVector():
+		c.Type, c.IndexType = nodes.ConstrVector, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
 	case indexType == "SPATIAL":
@@ -614,7 +909,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex)
+	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex, tableCols)
 	// A primary key is always visible.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
@@ -622,13 +917,59 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 	if idx.GetComment() != "" {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
+	if idx.GetKeyBlockSize() > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "KEY_BLOCK_SIZE", Value: &nodes.IntLit{Value: idx.GetKeyBlockSize()}})
+	}
+	if len(idx.GetStoringColumns()) > 0 {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "STORING", Columns: slices.Clone(idx.GetStoringColumns())})
+	}
+	if len(idx.GetVectorParams()) > 0 {
+		props := make([]*nodes.ParserProperty, 0, len(idx.GetVectorParams()))
+		for _, entry := range idx.GetVectorParams() {
+			if k, v, ok := strings.Cut(entry, "="); ok {
+				props = append(props, &nodes.ParserProperty{Name: k, Value: parsePropertyNode(v)})
+			}
+		}
+		if len(props) > 0 {
+			c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "WITH", Properties: props})
+		}
+	}
+	if idx.GetParser() != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "PARSER", Value: &nodes.StringLit{Value: idx.GetParser()}})
+	}
+	if len(idx.GetParserProperties()) > 0 {
+		keys := make([]string, 0, len(idx.GetParserProperties()))
+		for k := range idx.GetParserProperties() {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		props := make([]*nodes.ParserProperty, 0, len(keys))
+		for _, k := range keys {
+			props = append(props, &nodes.ParserProperty{Name: k, Value: parsePropertyNode(idx.GetParserProperties()[k])})
+		}
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "PARSER_PROPERTIES", Properties: props})
+	}
+	scope := idx.GetScope()
+	if scope == "" && idx.GetIsGlobal() {
+		scope = "GLOBAL"
+	}
+	if scope != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: strings.ToUpper(scope)})
+	}
 	return c, err
+}
+
+func parsePropertyNode(val string) nodes.Node {
+	if n, err := strconv.ParseInt(val, 10, 64); err == nil {
+		return &nodes.IntLit{Value: n}
+	}
+	return &nodes.StringLit{Value: val}
 }
 
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // A SPATIAL key takes no length, though sync reports one (32) for it.
-func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, spatial bool, tableCols map[string]bool) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if !spatial && i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -638,7 +979,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpressionKey(expr, tableCols) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -656,12 +997,13 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpressionKey(expr, tableCols) {
 			// Sync reports the expression as information_schema stores it,
-			// with its quotes escaped. Charset introducers stay: they can
-			// change what the expression computes. On a parse failure the key
-			// stays a column, and the caller leaves the index out.
-			if parsed, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err == nil {
+			// which on oceanbase-ce 4.3.5.6 is plain SQL, quotes unescaped.
+			// Charset introducers stay: they can change what the expression
+			// computes. On a parse failure the key stays a column, and the
+			// caller leaves the index out.
+			if parsed, err := parseExpr(expr); err == nil {
 				key.Expr = parsed
 			} else if firstErr == nil {
 				firstErr = err
@@ -680,9 +1022,22 @@ func defaultIndexType(engine string) string {
 	return "BTREE"
 }
 
+func tableColumnSet(cols []*metadata.ColumnMetadata) map[string]bool {
+	set := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		if name := col.GetName(); name != "" {
+			set[strings.ToLower(name)] = true
+		}
+	}
+	return set
+}
+
 // isExpressionKey reports whether a key part is a functional expression, as
-// in "(lower(name))" or "lower(`name`)", rather than a column.
-func isExpressionKey(s string) bool {
+// in "(lower(name))" or "lower(`name`)", rather than an existing column.
+func isExpressionKey(s string, tableCols map[string]bool) bool {
+	if tableCols[strings.ToLower(unquoteIdent(s))] {
+		return false
+	}
 	return strings.Contains(s, "(")
 }
 
@@ -734,7 +1089,15 @@ func metadataViewStmt(v *metadata.ViewMetadata, database, target string) (*nodes
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: body}, nil
+	return &nodes.CreateViewStmt{
+		OrReplace:   true,
+		Name:        &nodes.TableRef{Name: v.GetName()},
+		Select:      sel,
+		SelectText:  body,
+		Algorithm:   v.GetAlgorithm(),
+		SqlSecurity: v.GetSqlSecurity(),
+		CheckOption: v.GetCheckOption(),
+	}, nil
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a
@@ -786,6 +1149,35 @@ func nameViewColumnMetadata(v *View, names []string) {
 	}
 	for i, name := range names {
 		v.ColumnMetadata[i].Name = name
+	}
+}
+
+func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
+	if v == nil || len(cols) == 0 {
+		return
+	}
+	if len(v.ColumnMetadata) < len(cols) {
+		grown := make([]ViewColumn, len(cols))
+		copy(grown, v.ColumnMetadata)
+		v.ColumnMetadata = grown
+	}
+	for i, col := range cols {
+		vc := &v.ColumnMetadata[i]
+		if vc.Name == "" {
+			vc.Name = col.GetName()
+		}
+		if (v.AnalyzedQuery == nil || vc.Type == nil) && vc.ColumnType == "" {
+			vc.ColumnType = col.GetType()
+		}
+		if v.AnalyzedQuery == nil {
+			vc.Nullable = col.GetNullable()
+		}
+		if vc.Charset == "" {
+			vc.Charset = col.GetCharacterSet()
+		}
+		if vc.Collation == "" {
+			vc.Collation = col.GetCollation()
+		}
 	}
 }
 

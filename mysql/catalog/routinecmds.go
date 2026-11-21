@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
@@ -296,9 +297,9 @@ func showCreateRoutine(r *Routine) string {
 	}
 
 	if r.IsProcedure {
-		b.WriteString(fmt.Sprintf(" PROCEDURE `%s`(", r.Name))
+		b.WriteString(fmt.Sprintf(" PROCEDURE %s(", quoteIdent(r.Name)))
 	} else {
-		b.WriteString(fmt.Sprintf(" FUNCTION `%s`(", r.Name))
+		b.WriteString(fmt.Sprintf(" FUNCTION %s(", quoteIdent(r.Name)))
 	}
 
 	// Parameters -- MySQL 8.0 separates with ", " (comma space).
@@ -306,10 +307,11 @@ func showCreateRoutine(r *Routine) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		paramName := formatRoutineParamName(p.Name)
 		if r.IsProcedure && p.Direction != "" {
-			b.WriteString(fmt.Sprintf("%s %s %s", p.Direction, p.Name, p.TypeName))
+			b.WriteString(fmt.Sprintf("%s %s %s", p.Direction, paramName, p.TypeName))
 		} else {
-			b.WriteString(fmt.Sprintf("%s %s", p.Name, p.TypeName))
+			b.WriteString(fmt.Sprintf("%s %s", paramName, p.TypeName))
 		}
 	}
 	b.WriteString(")")
@@ -347,4 +349,30 @@ func showCreateRoutine(r *Routine) string {
 	}
 
 	return b.String()
+}
+
+func formatRoutineParamName(name string) string {
+	if isPlainRoutineIdent(name) && !mysqlparser.IsReservedKeyword(name) {
+		return name
+	}
+	return quoteIdent(name)
+}
+
+func isPlainRoutineIdent(name string) bool {
+	if name == "" {
+		return false
+	}
+	allDigits := true
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isDigit := c >= '0' && c <= '9'
+		isAlpha := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'
+		if !isDigit && !isAlpha {
+			return false
+		}
+		if !isDigit {
+			allDigits = false
+		}
+	}
+	return !allDigits
 }

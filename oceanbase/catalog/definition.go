@@ -214,6 +214,30 @@ func writeMaterializedView(out *strings.Builder, view *metadata.MaterializedView
 	if _, err := fmt.Fprintf(out, "CREATE MATERIALIZED VIEW %s", quoteIdent(view.Name)); err != nil {
 		return err
 	}
+	for _, index := range view.Indexes {
+		if !index.Primary && !strings.EqualFold(index.Name, "PRIMARY") {
+			continue
+		}
+		if len(index.Expressions) == 0 {
+			break
+		}
+		cols := make([]string, len(index.Expressions))
+		for i, col := range index.Expressions {
+			cols[i] = quoteIdent(col)
+		}
+		if _, err := fmt.Fprintf(out, " (PRIMARY KEY (%s)%s", strings.Join(cols, ", "), indexUsingClause(index.Type, "")); err != nil {
+			return err
+		}
+		if index.Comment != "" {
+			if _, err := fmt.Fprintf(out, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(out, ")"); err != nil {
+			return err
+		}
+		break
+	}
 	if view.Comment != "" {
 		if _, err := fmt.Fprintf(out, " COMMENT '%s'", view.Comment); err != nil {
 			return err
@@ -289,10 +313,7 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 	// Set charset, collation, sql mode and timezone. OceanBase states no character set or
 	// collation for an event, so those lines are written only when the metadata carries
 	// them; an empty sql_mode is a value the server states and is written as one.
-	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, ""); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode+"'"+event.SqlMode+"';\n"); err != nil {
+	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, event.SqlMode, true); err != nil {
 		return err
 	}
 	// OceanBase refuses the literal SYSTEM as a session zone, and SYSTEM is the zone the
@@ -342,44 +363,8 @@ func writeTrigger(out io.Writer, tableName string, trigger *metadata.TriggerMeta
 		return err
 	}
 
-	// Set charset, collation, and sql mode.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, trigger.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
+	// Set charset, collation, and sql mode when present.
+	if err := writeAdditionalEventsIfSet(out, trigger.CharacterSetClient, trigger.CharacterSetClient, trigger.CollationConnection, trigger.SqlMode, false); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
@@ -433,7 +418,7 @@ func writeProcedure(out io.Writer, procedure *metadata.ProcedureMetadata) error 
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, procedure.CharacterSetClient, procedure.CharacterSetClient, procedure.CollationConnection, procedure.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -473,7 +458,7 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	}
 
 	// Set charset, collation, and sql mode.
-	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode); err != nil {
+	if err := writeAdditionalEventsIfSet(out, function.CharacterSetClient, function.CharacterSetClient, function.CollationConnection, function.SqlMode, false); err != nil {
 		return err
 	}
 
@@ -497,6 +482,34 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	return err
 }
 
+func writeCreateViewPrefix(out io.Writer, view *metadata.ViewMetadata) error {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
+		return err
+	}
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS")
+	return err
+}
+
+func viewCheckOptionClause(view *metadata.ViewMetadata) string {
+	if view.CheckOption == "" || strings.EqualFold(view.CheckOption, "NONE") {
+		return ""
+	}
+	if strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		return ""
+	}
+	return " WITH " + strings.ToUpper(view.CheckOption) + " CHECK OPTION"
+}
+
 func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	// Header.
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -513,13 +526,10 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "); err != nil {
+	if err := writeCreateViewPrefix(out, view); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, view.Definition); err != nil {
-		return err
-	}
-	_, err := io.WriteString(out, ";\n\n")
+	_, err := io.WriteString(out, " "+view.Definition+viewCheckOptionClause(view)+";\n\n")
 	return err
 }
 
@@ -769,21 +779,48 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 			return err
 		}
 	}
+	if table.Tablespace != "" {
+		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(table.Tablespace)); err != nil {
+			return err
+		}
+	}
 	writeSystemVersioningOption(buf, table)
 
 	// The partition clause is a /*!50100 PARTITION BY … */ executable comment, which
 	// omni's loader splices back as live SQL.
 	if len(table.Partitions) > 0 {
-		if err := printPartitionClause(buf, table.Partitions, table.Engine); err != nil {
+		if err := printPartitionClause(buf, table.Partitions, table.Engine, true, true); err != nil {
+			return err
+		}
+	}
+	if table.ColumnGroups != "" {
+		if _, err := fmt.Fprintf(buf, " WITH COLUMN GROUP(%s)", table.ColumnGroups); err != nil {
 			return err
 		}
 	}
 
-	_, err := io.WriteString(buf, ";\n\n")
-	return err
+	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
+		return err
+	}
+	// A dropped default is restored by ALTER TABLE ... DROP DEFAULT, which the
+	// declarative SDL form (sorted) cannot hold: LoadSDL refuses every ALTER
+	// TABLE. The SDL column keeps no DEFAULT clause instead.
+	for _, col := range table.Columns {
+		if col.GetDefaultDropped() && !sorted {
+			if _, err := fmt.Fprintf(buf, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
+				return err
+			}
+		}
+	}
+	if table.GetHasMaterializedViewLog() {
+		if _, err := fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW LOG ON %s;\n\n", quoteIdent(table.Name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string) error {
+func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string, includeComments, includeTemplate bool) error {
 	if len(partitions) == 0 {
 		return nil
 	}
@@ -814,7 +851,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_KEY:
-		if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_HASH:
@@ -822,7 +859,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			return err
 		}
 	case metadata.TablePartitionMetadata_LINEAR_KEY:
-		if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Expression); err != nil {
+		if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(partitions[0].Algorithm), partitions[0].Expression); err != nil {
 			return err
 		}
 	default:
@@ -843,38 +880,41 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
+	var sub0 *metadata.TablePartitionMetadata
 	if len(partitions[0].Subpartitions) > 0 {
-		if _, err := fmt.Fprint(buf, "\nSUBPARTITION BY "); err != nil {
+		sub0 = partitions[0].Subpartitions[0]
+	} else if len(partitions[0].SubpartitionTemplate) > 0 {
+		sub0 = partitions[0].SubpartitionTemplate[0]
+	}
+	if sub0 != nil {
+		if err := writeSubpartitionBy(buf, sub0); err != nil {
 			return err
 		}
-		switch partitions[0].Subpartitions[0].Type {
-		case metadata.TablePartitionMetadata_HASH:
-			if _, err := fmt.Fprintf(buf, "HASH (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LINEAR_HASH:
-			if _, err := fmt.Fprintf(buf, "LINEAR HASH (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_KEY:
-			if _, err := fmt.Fprintf(buf, "KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LINEAR_KEY:
-			if _, err := fmt.Fprintf(buf, "LINEAR KEY (%s)", partitions[0].Subpartitions[0].Expression); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("invalid subpartition type: %v", partitions[0].Subpartitions[0].Type)
+	}
+
+	hasTemplate := includeTemplate && len(partitions[0].SubpartitionTemplate) > 0
+	if hasTemplate {
+		tpl := partitions[0].SubpartitionTemplate
+		tplHead := tpl[0]
+		if tplHead.Type == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED && sub0 != nil {
+			tplHead = sub0
+		}
+		if err := writeSubpartitionTemplate(buf, tpl, tplHead, engine, includeComments); err != nil {
+			return err
 		}
 	}
 
 	subUseDefault := 0
+	subImplicitDefault := false
 	if len(partitions[0].Subpartitions) > 0 && partitions[0].Subpartitions[0].UseDefault != "" {
-		var err error
-		subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
-		if err != nil {
-			return err
+		if partitions[0].Subpartitions[0].UseDefault == "default" {
+			subImplicitDefault = true
+		} else {
+			var err error
+			subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -884,7 +924,18 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
-	if useDefault == 0 {
+	if partitions[0].SplitSize != "" {
+		if _, err := fmt.Fprintf(buf, " SIZE (%s)", quoteSplitSize(partitions[0].SplitSize)); err != nil {
+			return err
+		}
+	}
+	if partitions[0].AutoSize != "" {
+		if _, err := fmt.Fprintf(buf, " PARTITION SIZE %s PARTITIONS AUTO", partitions[0].AutoSize); err != nil {
+			return err
+		}
+	}
+
+	if useDefault == 0 && partitions[0].AutoSize == "" && (len(partitions) > 1 || partitions[0].Name != "") {
 		if _, err := fmt.Fprint(buf, "\n("); err != nil {
 			return err
 		}
@@ -913,7 +964,14 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
-			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
+			partComment := ""
+			if includeComments {
+				partComment = partition.Comment
+			}
+			if !subImplicitDefault && subUseDefault == 0 && len(partition.Subpartitions) > 0 && !hasTemplate {
+				if err := writePartitionOptions(buf, engine, partComment); err != nil {
+					return err
+				}
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
 				}
@@ -921,7 +979,16 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", quoteIdent(subPartition.Name)); err != nil {
 						return err
 					}
-					if err := writePartitionOptions(buf, engine); err != nil {
+					if subVals := subpartitionValuesSQL(subPartitionTypeName(subPartition.Type), subPartitionColumnCount(subPartition.Expression), subPartition.Value); subVals != "" {
+						if _, err := buf.WriteString(subVals); err != nil {
+							return err
+						}
+					}
+					subComment := ""
+					if includeComments {
+						subComment = subPartition.Comment
+					}
+					if err := writePartitionOptions(buf, engine, subComment); err != nil {
 						return err
 					}
 					if j == len(partition.Subpartitions)-1 {
@@ -935,7 +1002,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					}
 				}
 			} else {
-				if err := writePartitionOptions(buf, engine); err != nil {
+				if err := writePartitionOptions(buf, engine, partComment); err != nil {
 					return err
 				}
 			}
@@ -972,44 +1039,52 @@ func getPrepositionByType(tp metadata.TablePartitionMetadata_Type) (string, erro
 	}
 }
 
-func writePartitionOptions(buf io.StringWriter, engine string) error {
-	/*
-		int err = 0;
-		err += add_space(fptr);
-		if (p_elem->tablespace_name) {
-			err += add_string(fptr, "TABLESPACE = ");
-			err += add_ident_string(fptr, p_elem->tablespace_name);
-			err += add_space(fptr);
-		}
-		if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
-			err += add_keyword_int(fptr, "NODEGROUP", (longlong)p_elem->nodegroup_id);
-		if (p_elem->part_max_rows)
-			err += add_keyword_int(fptr, "MAX_ROWS", (longlong)p_elem->part_max_rows);
-		if (p_elem->part_min_rows)
-			err += add_keyword_int(fptr, "MIN_ROWS", (longlong)p_elem->part_min_rows);
-		if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)) {
-			if (p_elem->data_file_name)
-			err += add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
-			if (p_elem->index_file_name)
-			err += add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
-		}
-		if (p_elem->part_comment)
-			err += add_keyword_string(fptr, "COMMENT", true, p_elem->part_comment);
-		return err + add_engine(fptr, p_elem->engine_type);
-	*/
-	// TODO(zp): Get all the partition options from the metadata is too complex, just write
-	// the engine for now. It must be the table's own engine: MySQL rejects a partitioned
-	// table whose partitions name a different one with "ERROR 1497: The mix of handlers in
-	// the partitions is not allowed in this version of MySQL", and partitioning a
-	// non-InnoDB table is still legal on 5.7.
+func writePartitionOptions(buf io.StringWriter, engine, comment string) error {
 	if engine == "" {
 		engine = "InnoDB"
 	}
 	if _, err := buf.WriteString(" ENGINE=" + engine); err != nil {
 		return err
 	}
+	if comment != "" {
+		if _, err := buf.WriteString(" COMMENT = '" + escapeComment(comment) + "'"); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func writeSubpartitionTemplate(buf *strings.Builder, tpl []*metadata.TablePartitionMetadata, head *metadata.TablePartitionMetadata, engine string, includeComments bool) error {
+	subType := subPartitionTypeName(head.Type)
+	colCount := subPartitionColumnCount(head.Expression)
+	if _, err := fmt.Fprint(buf, "\nSUBPARTITION TEMPLATE ("); err != nil {
+		return err
+	}
+	for i, st := range tpl {
+		if i > 0 {
+			if _, err := fmt.Fprint(buf, ",\n "); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", quoteIdent(st.Name)); err != nil {
+			return err
+		}
+		if subVals := subpartitionValuesSQL(subType, colCount, st.Value); subVals != "" {
+			if _, err := buf.WriteString(subVals); err != nil {
+				return err
+			}
+		}
+		cmt := ""
+		if includeComments {
+			cmt = st.Comment
+		}
+		if err := writePartitionOptions(buf, engine, cmt); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprint(buf, ")")
+	return err
 }
 
 func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) string {
@@ -1024,9 +1099,77 @@ func getVersionSpecificComment(partitions []*metadata.TablePartitionMetadata) st
 	return "\n/*!50100"
 }
 
+func keyAlgorithmClause(algorithm int32) string {
+	if algorithm > 0 {
+		return fmt.Sprintf(" ALGORITHM = %d", algorithm)
+	}
+	return ""
+}
+
+func writeSubpartitionBy(buf *strings.Builder, sub0 *metadata.TablePartitionMetadata) error {
+	if _, err := fmt.Fprint(buf, "\nSUBPARTITION BY "); err != nil {
+		return err
+	}
+	switch sub0.Type {
+	case metadata.TablePartitionMetadata_RANGE:
+		_, err := fmt.Fprintf(buf, "RANGE (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_RANGE_COLUMNS:
+		_, err := fmt.Fprintf(buf, "RANGE COLUMNS (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LIST:
+		_, err := fmt.Fprintf(buf, "LIST (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LIST_COLUMNS:
+		_, err := fmt.Fprintf(buf, "LIST COLUMNS (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_HASH:
+		_, err := fmt.Fprintf(buf, "HASH (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LINEAR_HASH:
+		_, err := fmt.Fprintf(buf, "LINEAR HASH (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_KEY:
+		_, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LINEAR_KEY:
+		_, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression)
+		return err
+	default:
+		return fmt.Errorf("invalid subpartition type: %v", sub0.Type)
+	}
+}
+
+func subPartitionTypeName(tp metadata.TablePartitionMetadata_Type) string {
+	switch tp {
+	case metadata.TablePartitionMetadata_RANGE:
+		return "RANGE"
+	case metadata.TablePartitionMetadata_RANGE_COLUMNS:
+		return "RANGE COLUMNS"
+	case metadata.TablePartitionMetadata_LIST:
+		return "LIST"
+	case metadata.TablePartitionMetadata_LIST_COLUMNS:
+		return "LIST COLUMNS"
+	default:
+		return ""
+	}
+}
+
+func subPartitionColumnCount(expr string) int {
+	if strings.TrimSpace(expr) == "" {
+		return 1
+	}
+	return strings.Count(expr, ",") + 1
+}
+
 func printCheckClause(buf *strings.Builder, check *metadata.CheckConstraintMetadata) error {
 	if _, err := fmt.Fprintf(buf, ",\n  CONSTRAINT %s CHECK %s", quoteIdent(check.Name), check.Expression); err != nil {
 		return err
+	}
+	if check.NotEnforced {
+		if _, err := buf.WriteString(" NOT ENFORCED"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1112,6 +1255,8 @@ func indexQualifier(index *metadata.IndexMetadata) string {
 		return "FULLTEXT "
 	case strings.EqualFold(index.Type, mysqlIndexSpatial):
 		return "SPATIAL "
+	case index.IsVector:
+		return "VECTOR "
 	}
 	return ""
 }
@@ -1145,8 +1290,60 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 		}
 	}
 
-	if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
+	if _, err := fmt.Fprint(buf, ")"); err != nil {
 		return err
+	}
+
+	if isFullText {
+		if index.Parser != "" {
+			if _, err := fmt.Fprintf(buf, " WITH PARSER %s", index.Parser); err != nil {
+				return err
+			}
+		}
+		if len(index.ParserProperties) > 0 {
+			parts := make([]string, 0, len(index.ParserProperties))
+			for _, key := range parserPropertyOrder {
+				v, ok := index.ParserProperties[key]
+				if !ok {
+					continue
+				}
+				if stringParserProperties[key] {
+					v = quoteStringLiteral(v)
+				}
+				parts = append(parts, key+"="+v)
+			}
+			if _, err := fmt.Fprintf(buf, " PARSER_PROPERTIES=(%s)", strings.Join(parts, ",")); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(index.StoringColumns) > 0 {
+		names := make([]string, 0, len(index.StoringColumns))
+		for _, col := range index.StoringColumns {
+			names = append(names, quoteIdent(col))
+		}
+		if _, err := fmt.Fprintf(buf, " STORING (%s)", strings.Join(names, ", ")); err != nil {
+			return err
+		}
+	}
+
+	if index.IsVector && len(index.VectorParams) > 0 {
+		if _, err := fmt.Fprintf(buf, " WITH (%s)", strings.Join(index.VectorParams, ", ")); err != nil {
+			return err
+		}
+	}
+
+	if using := indexUsingClause(index.Type, engine); using != "" {
+		if _, err := buf.WriteString(using); err != nil {
+			return err
+		}
+	}
+
+	if index.KeyBlockSize > 0 {
+		if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+			return err
+		}
 	}
 
 	if index.Comment != "" {
@@ -1160,6 +1357,16 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 	// an INVISIBLE user `to` is a no-op instead of a DROP+ADD.
 	if !index.Visible {
 		if _, err := fmt.Fprint(buf, " /*!80000 INVISIBLE */"); err != nil {
+			return err
+		}
+	}
+
+	scope := index.Scope
+	if scope == "" && index.IsGlobal {
+		scope = "GLOBAL"
+	}
+	if scope != "" {
+		if _, err := fmt.Fprintf(buf, " %s", strings.ToUpper(scope)); err != nil {
 			return err
 		}
 	}
@@ -1214,28 +1421,12 @@ func printIndexKeyPart(buf *strings.Builder, expr string, length int64, descendi
 // omni's functional-index normalizer then canonicalizes the dumped and user forms identically,
 // yielding an empty no-op. The transform is string-literal aware: the introducer is removed
 // only when it immediately precedes a string literal, and literal contents are left untouched.
+//
+// Unlike MySQL, oceanbase-ce 4.3.5.6 reports EXPRESSION as plain SQL:
+// KEY ((CONCAT(code, 'a\'b'))) reads back as CONCAT(`code`,'a\'b'), so its
+// quotes are not unescaped.
 func normalizeFunctionalIndexExpr(expr string) string {
-	return stripIndexExprCharsetIntroducers(unescapeFunctionalIndexQuotes(expr))
-}
-
-// unescapeFunctionalIndexQuotes undoes the backslash escaping that
-// information_schema.STATISTICS.EXPRESSION applies to single quotes (\' -> ') and backslashes
-// (\\ -> \). MySQL stores the expression text escaped; the omni lexer wants the raw SQL.
-func unescapeFunctionalIndexQuotes(expr string) string {
-	if !strings.Contains(expr, `\`) {
-		return expr
-	}
-	var b strings.Builder
-	b.Grow(len(expr))
-	for i := 0; i < len(expr); i++ {
-		if expr[i] == '\\' && i+1 < len(expr) && (expr[i+1] == '\'' || expr[i+1] == '\\') {
-			b.WriteByte(expr[i+1])
-			i++
-			continue
-		}
-		b.WriteByte(expr[i])
-	}
-	return b.String()
+	return stripIndexExprCharsetIntroducers(expr)
 }
 
 // stripIndexExprCharsetIntroducers removes a MySQL charset introducer token (an underscore-prefixed
@@ -1361,6 +1552,11 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
 			}
+			if index.KeyBlockSize > 0 {
+				if _, err := fmt.Fprintf(buf, " KEY_BLOCK_SIZE=%d", index.KeyBlockSize); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 	}
@@ -1387,13 +1583,13 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 		return err
 	}
 
-	if column.CharacterSet != "" && column.CharacterSet != table.Charset {
+	if column.CharacterSet != "" && (column.CharsetInherited != nil && !*column.CharsetInherited || column.CharacterSet != table.Charset) {
 		if _, err := fmt.Fprintf(buf, " CHARACTER SET %s", column.CharacterSet); err != nil {
 			return err
 		}
 	}
 
-	if column.Collation != "" && column.Collation != table.Collation {
+	if column.Collation != "" && (column.CollationInherited != nil && !*column.CollationInherited || column.Collation != table.Collation) {
 		if _, err := fmt.Fprintf(buf, " COLLATE %s", column.Collation); err != nil {
 			return err
 		}
@@ -1686,7 +1882,7 @@ func writeTemporaryView(out io.Writer, view *metadata.ViewMetadata) error {
 	return err
 }
 
-func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string) error {
+func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetResult, collationConnection, sqlMode string, emitEmptySQLMode bool) error {
 	events := []struct {
 		condition bool
 		prefix    string
@@ -1710,7 +1906,8 @@ func writeAdditionalEventsIfSet(out io.Writer, characterSetClient, characterSetR
 			}
 		}
 	}
-	if sqlMode != "" {
+	hasSessionContext := characterSetClient != "" || characterSetResult != "" || collationConnection != "" || sqlMode != "" || emitEmptySQLMode
+	if hasSessionContext {
 		if _, err := io.WriteString(out, setSQLMode); err != nil {
 			return err
 		}
@@ -2038,18 +2235,27 @@ func writeMaterializedViewSDL(buf *strings.Builder, dbName string, view *metadat
 // pretty-printed by formatViewBodySDL — a whitespace-only, deterministic rewrite, so
 // the omni no-op invariant and the dump-cycle byte stability both hold.
 func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetadata) error {
+	if err := writeCreateViewPrefix(buf, view); err != nil {
+		return err
+	}
 	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
 	if body == "" {
 		// Defensive: an empty definition keeps the historical inline framing.
-		if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS ;\n\n", quoteIdent(view.Name)); err != nil {
+		if _, err := io.WriteString(buf, " ;\n\n"); err != nil {
 			return err
 		}
 		return nil
 	}
-	if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s%s AS\n%s;\n\n", quoteIdent(view.Name), viewColumnListClause(view), body); err != nil {
+	if _, err := io.WriteString(buf, "\n"+body); err != nil {
 		return err
 	}
-	return nil
+	if checkClause := viewCheckOptionClause(view); checkClause != "" {
+		if _, err := io.WriteString(buf, "\n"+strings.TrimSpace(checkClause)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(buf, ";\n\n")
+	return err
 }
 
 // stripViewBodyDatabaseQualifier removes the dumped database's own qualifier from the

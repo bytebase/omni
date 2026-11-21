@@ -77,7 +77,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -91,6 +92,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -279,6 +281,16 @@
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+> query
+|
+| 		SELECT t.NAME
+| 		FROM information_schema.INNODB_TABLES t
+| 		LEFT JOIN information_schema.INNODB_TABLESPACES ts ON t.SPACE = ts.SPACE
+| 		WHERE t.NAME LIKE CONCAT(?, '/%') AND (ts.SPACE_TYPE IS NULL OR ts.SPACE_TYPE <> 'Single')
+: string
+| omni_no_such_database
+< result
+< column "NAME" "VARCHAR" "string"
 > query
 |
 | 		SELECT

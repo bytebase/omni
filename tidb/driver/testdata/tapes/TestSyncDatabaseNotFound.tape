@@ -68,7 +68,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -77,6 +79,8 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -114,24 +118,35 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			TABLE_NAME,
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
-: string
-| omni_no_such_database
 : string
 | omni_no_such_database
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_no_such_database
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -199,7 +214,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -218,11 +234,13 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -230,3 +248,4 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
