@@ -451,11 +451,12 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 			SELECT s, id FROM x;
 		CREATE TABLE bin_t (x VARBINARY(4) NOT NULL, y VARBINARY(4) NOT NULL);
 		CREATE FUNCTION fn_double(x INT) RETURNS BIGINT DETERMINISTIC RETURN x * 2;
+		CREATE FUNCTION upper(x INT) RETURNS INT DETERMINISTIC RETURN x + 1;
 		CREATE VIEW v_literals_and_coalesce AS
-			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val, REPLACE('a', 'a', 'long') AS rep_str
+			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val, REPLACE('a', 'a', 'long') AS rep_str, app.upper(id) AS qual_fn
 			FROM a;
 		CREATE VIEW v_bitwise AS
-			SELECT x & y AS bits, CONCAT(x, 'a') AS bin_concat FROM bin_t;
+			SELECT x & y AS bits, CONCAT(x, 'a') AS bin_concat, REPEAT(x, 2) AS bin_repeat FROM bin_t;
 	`, nil)
 	require.NoError(t, err)
 	for _, r := range results {
@@ -487,7 +488,7 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "int(11)", vCTE.Columns[1].Type)
 
 	vLit := views["v_literals_and_coalesce"]
-	require.Len(t, vLit.Columns, 7)
+	require.Len(t, vLit.Columns, 8)
 	require.Equal(t, "varchar(3)", vLit.Columns[0].Type)
 	require.Equal(t, "varchar(4)", vLit.Columns[1].Type)
 	require.Equal(t, "int", vLit.Columns[2].Type)
@@ -496,11 +497,13 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "bigint", vLit.Columns[5].Type)
 	require.True(t, vLit.Columns[5].Nullable, "stored functions may return NULL independently of arguments")
 	require.Equal(t, "varchar(4)", vLit.Columns[6].Type)
+	require.Equal(t, "int", vLit.Columns[7].Type)
 
 	vBit := views["v_bitwise"]
-	require.Len(t, vBit.Columns, 2)
+	require.Len(t, vBit.Columns, 3)
 	require.Equal(t, "bigint unsigned", vBit.Columns[0].Type)
 	require.Equal(t, "varbinary(5)", vBit.Columns[1].Type)
+	require.Equal(t, "varbinary(8)", vBit.Columns[2].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {

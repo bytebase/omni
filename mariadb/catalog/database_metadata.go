@@ -263,6 +263,13 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 				col.Nullable = nullable
 			}
 		}
+		if te != nil && te.Expr != nil {
+			if fc, ok := te.Expr.(*FuncCallExprQ); ok && fc.Routine != "" {
+				if ct := resolveStoredFunctionColumnType(c, db, fc); ct != "" {
+					col.Type = ct
+				}
+			}
+		}
 		if col.Type == "" {
 			col.Type = resolveTargetType(i)
 		}
@@ -1092,6 +1099,9 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			}
 		}
 	case *FuncCallExprQ:
+		if e.Routine != "" {
+			return resolveStoredFunctionColumnType(c, db, e)
+		}
 		switch strings.ToLower(e.Name) {
 		case "min", "max":
 			if len(e.Args) == 1 {
@@ -1110,11 +1120,8 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 				return ct
 			}
 			if e.ResultType == nil {
-				if fn := lookupStoredFunction(c, db, e); fn != nil && fn.Returns != "" {
-					if rt := parseColumnResolvedType(fn.Returns); rt != nil {
-						return resolvedTypeToColumnType(rt)
-					}
-					return strings.ToLower(strings.TrimSpace(fn.Returns))
+				if ct := resolveStoredFunctionColumnType(c, db, e); ct != "" {
+					return ct
 				}
 			}
 		}
@@ -1324,6 +1331,12 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		return e.ResultType
 	case *FuncCallExprQ:
+		if e.Routine != "" {
+			if fn := lookupStoredFunction(c, db, e); fn != nil && fn.Returns != "" {
+				return parseColumnResolvedType(fn.Returns)
+			}
+			return nil
+		}
 		switch strings.ToLower(e.Name) {
 		case "if", "nullif":
 			if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
@@ -1386,6 +1399,17 @@ func intLiteralResolvedType(val string) *ResolvedType {
 		digits = 1
 	}
 	return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, digits), Scale: 0}
+}
+
+func resolveStoredFunctionColumnType(c *Catalog, db *Database, e *FuncCallExprQ) string {
+	fn := lookupStoredFunction(c, db, e)
+	if fn == nil || fn.Returns == "" {
+		return ""
+	}
+	if rt := parseColumnResolvedType(fn.Returns); rt != nil {
+		return resolvedTypeToColumnType(rt)
+	}
+	return strings.ToLower(strings.TrimSpace(fn.Returns))
 }
 
 func lookupStoredFunction(c *Catalog, db *Database, e *FuncCallExprQ) *Routine {
@@ -1914,23 +1938,15 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 	case "lower", "lcase", "upper", "ucase", "trim", "btrim", "ltrim", "rtrim", "reverse":
 		if len(e.Args) >= 1 {
 			if p, w, ok := argWidth(e.Args[0]); ok {
-				if p.cat == "text" {
-					if p.rank >= 3 {
-						return p.raw
-					}
-					return "mediumtext"
-				}
-				return fmt.Sprintf("varchar(%d)", w)
+				return formatStringOrBinaryType(p.cat == "binary" || p.cat == "blob", int64(w), p.cat == "text" || p.cat == "blob", p.rank, p.raw)
 			}
 		}
 	case "replace":
 		if len(e.Args) == 3 {
 			if p, w, ok := argWidth(e.Args[0]); ok {
-				if p.cat == "text" {
-					if p.rank >= 3 {
-						return p.raw
-					}
-					return "mediumtext"
+				isBinary := p.cat == "binary" || p.cat == "blob"
+				if p.cat == "text" || p.cat == "blob" {
+					return formatStringOrBinaryType(isBinary, int64(w), true, p.rank, p.raw)
 				}
 				fromLen := 1
 				if cn, okC := e.Args[1].(*ConstExprQ); okC && !cn.IsNull {
@@ -1938,38 +1954,31 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 						fromLen = n
 					}
 				}
+				expanded := int64(w)
 				if _, repW, okR := argWidth(e.Args[2]); okR && repW > fromLen {
 					// Match MariaDB Item_func_replace::fix_length_and_dec expansion.
-					expanded := int64(w) + int64(repW-fromLen)*int64(w/fromLen)
-					if expanded > 16777215 {
-						return "longtext"
-					}
-					if expanded > 65535 {
-						return "mediumtext"
-					}
-					w = int(expanded)
+					expanded = int64(w) + int64(repW-fromLen)*int64(w/fromLen)
 				}
-				return fmt.Sprintf("varchar(%d)", w)
+				return formatStringOrBinaryType(isBinary, expanded, false, 0, "")
 			}
 		}
 	case "left", "right":
 		if len(e.Args) >= 2 {
 			if p, w, ok := argWidth(e.Args[0]); ok {
+				isBinary := p.cat == "binary" || p.cat == "blob"
 				if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
 					w = min(w, n)
 				}
-				if p.cat == "text" {
-					if w <= 65535 {
-						return fmt.Sprintf("varchar(%d)", w)
-					}
+				if (p.cat == "text" || p.cat == "blob") && w > 65535 {
 					return p.raw
 				}
-				return fmt.Sprintf("varchar(%d)", w)
+				return formatStringOrBinaryType(isBinary, int64(w), false, p.rank, p.raw)
 			}
 		}
 	case "substring", "substr":
 		if len(e.Args) >= 2 {
 			if p, w, ok := argWidth(e.Args[0]); ok {
+				isBinary := p.cat == "binary" || p.cat == "blob"
 				if len(e.Args) >= 3 {
 					if n, okN := constIntScalarArg(e.Args[2]); okN && n >= 0 {
 						w = min(w, n)
@@ -1977,26 +1986,33 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 				} else if pos, okP := constIntScalarArg(e.Args[1]); okP && pos > 0 {
 					w = max(0, w-(pos-1))
 				}
-				if p.cat == "text" {
-					if w <= 65535 {
-						return fmt.Sprintf("varchar(%d)", w)
-					}
+				if (p.cat == "text" || p.cat == "blob") && w > 65535 {
 					return p.raw
 				}
-				return fmt.Sprintf("varchar(%d)", w)
+				return formatStringOrBinaryType(isBinary, int64(w), false, p.rank, p.raw)
 			}
 		}
 	case "lpad", "rpad":
 		if len(e.Args) >= 2 {
 			if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
-				return fmt.Sprintf("varchar(%d)", n)
+				isBinary := false
+				if p0, _, ok0 := argWidth(e.Args[0]); ok0 && (p0.cat == "binary" || p0.cat == "blob") {
+					isBinary = true
+				}
+				if len(e.Args) >= 3 {
+					if p2, _, ok2 := argWidth(e.Args[2]); ok2 && (p2.cat == "binary" || p2.cat == "blob") {
+						isBinary = true
+					}
+				}
+				return formatStringOrBinaryType(isBinary, int64(n), false, 0, "")
 			}
 		}
 	case "repeat":
 		if len(e.Args) == 2 {
-			if _, w, ok := argWidth(e.Args[0]); ok {
+			if p, w, ok := argWidth(e.Args[0]); ok {
+				isBinary := p.cat == "binary" || p.cat == "blob"
 				if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
-					return fmt.Sprintf("varchar(%d)", w*n)
+					return formatStringOrBinaryType(isBinary, int64(w)*int64(n), p.cat == "text" || p.cat == "blob", p.rank, p.raw)
 				}
 			}
 		}
@@ -2085,6 +2101,34 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 		return fmt.Sprintf("varchar(%d)", total)
 	}
 	return ""
+}
+
+func formatStringOrBinaryType(isBinary bool, width int64, isLarge bool, rank int, raw string) string {
+	if isLarge {
+		if rank >= 3 && raw != "" {
+			return raw
+		}
+		if isBinary {
+			return "mediumblob"
+		}
+		return "mediumtext"
+	}
+	if width > 16777215 {
+		if isBinary {
+			return "longblob"
+		}
+		return "longtext"
+	}
+	if width > 65535 {
+		if isBinary {
+			return "mediumblob"
+		}
+		return "mediumtext"
+	}
+	if isBinary {
+		return fmt.Sprintf("varbinary(%d)", width)
+	}
+	return fmt.Sprintf("varchar(%d)", width)
 }
 
 func resolvedTypeToColumnType(rt *ResolvedType) string {
