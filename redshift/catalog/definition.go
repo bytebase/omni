@@ -2758,18 +2758,22 @@ func (v *viewState) toString(buf io.StringWriter) error {
 		return fmt.Errorf("view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
+	needsSearchPath := v.schema != "" && v.schema != "public"
 	if vs := parseViewStmt(trimmed); vs != nil {
 		if err := v.validateTarget("view", vs.View); err != nil {
 			return err
 		}
 		stmt = trimmed
 		if vs.View != nil && vs.View.Schemaname == "" {
-			return writeWithSchemaSearchPath(buf, v.schema, appendTerminator(stmt)+"\n")
+			needsSearchPath = v.schema != ""
 		}
 	} else {
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
 	stmt = appendTerminator(stmt) + "\n"
+	if needsSearchPath {
+		return writeWithSchemaSearchPath(buf, v.schema, stmt)
+	}
 	_, err := buf.WriteString(stmt)
 	return err
 }
@@ -2780,6 +2784,7 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 		return fmt.Errorf("materialized view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
+	needsSearchPath := v.schema != "" && v.schema != "public"
 	if ctas := parseMaterializedViewStmt(trimmed); ctas != nil {
 		if ctas.Into != nil {
 			if err := v.validateTarget("materialized view", ctas.Into.Rel); err != nil {
@@ -2787,7 +2792,7 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 			}
 			stmt = trimmed
 			if ctas.Into.Rel != nil && ctas.Into.Rel.Schemaname == "" {
-				return writeWithSchemaSearchPath(buf, v.schema, appendTerminator(stmt)+"\n")
+				needsSearchPath = v.schema != ""
 			}
 		} else {
 			stmt = trimmed
@@ -2796,6 +2801,9 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
 	stmt = appendTerminator(stmt) + "\n"
+	if needsSearchPath {
+		return writeWithSchemaSearchPath(buf, v.schema, stmt)
+	}
 	_, err := buf.WriteString(stmt)
 	return err
 }

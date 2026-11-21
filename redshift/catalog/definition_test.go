@@ -264,12 +264,16 @@ CREATE TABLE "analytics"."a_child" (
 --
 -- View structure for `+"`z_base`"+`
 --
+SET search_path TO "analytics", public;
 CREATE OR REPLACE VIEW "analytics"."z_base" AS SELECT id FROM "analytics"."a_child";
+RESET search_path;
 
 --
 -- View structure for `+"`a_summary`"+`
 --
+SET search_path TO "analytics", public;
 CREATE OR REPLACE VIEW "analytics"."a_summary" AS SELECT id FROM "analytics"."z_base";
+RESET search_path;
 `, got)
 }
 
@@ -1510,6 +1514,9 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	require.NoError(t, err)
 	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(v varchar)"), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("))
 	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(c char(4))"))
+
+	// Non-public views wrap creation in schema search_path so unqualified relations resolve.
+	require.Contains(t, deferredOwnersAndComments, "SET search_path TO \"reporting\", public;\nCREATE OR REPLACE VIEW \"reporting\".\"v_line_comment\"")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

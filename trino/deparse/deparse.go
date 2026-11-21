@@ -3,6 +3,7 @@ package deparse
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -138,6 +139,12 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if mv == nil || mv.SkipDump {
 				continue
 			}
+			if mv.Comment != "" {
+				return nil, fmt.Errorf("materialized view %s.%s comment cannot be restored on pinned Trino 482", s.Name, mv.Name)
+			}
+			if len(mv.Indexes) > 0 || len(mv.Triggers) > 0 {
+				return nil, fmt.Errorf("materialized view %s.%s indexes or triggers cannot be restored by Trino SDL renderer", s.Name, mv.Name)
+			}
 			relKey := strings.ToLower(mv.Name)
 			if _, exists := seenRelations[relKey]; exists {
 				return nil, fmt.Errorf("schema %s has duplicate materialized view %s", s.Name, quoteIdentifier(mv.Name))
@@ -175,12 +182,17 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		if !strings.EqualFold(parts[0].Value, fn.Name) {
 			return "", mismatch()
 		}
-		if schemaName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
-			def = fn.Definition[:declName.Loc.Start] + quoteIdentifier(schemaName) + "." + fn.Definition[declName.Loc.Start:]
+		if declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
+			if prefix := qualifyTrinoObjectPrefix(dbName, schemaName); prefix != "" {
+				def = fn.Definition[:declName.Loc.Start] + prefix + fn.Definition[declName.Loc.Start:]
+			}
 		}
 	case 2:
 		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
 			return "", mismatch()
+		}
+		if dbName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
+			def = fn.Definition[:declName.Loc.Start] + quoteIdentifier(dbName) + "." + fn.Definition[declName.Loc.Start:]
 		}
 	case 3:
 		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
@@ -195,6 +207,17 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		return "", err
 	}
 	return def, nil
+}
+
+func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
+	switch {
+	case dbName != "" && schemaName != "":
+		return quoteIdentifier(dbName) + "." + quoteIdentifier(schemaName) + "."
+	case schemaName != "":
+		return quoteIdentifier(schemaName) + "."
+	default:
+		return ""
+	}
 }
 
 func validateTrinoFunctionSignature(schemaName, fnName, signature string, declParams []trinoparser.ParameterDeclaration) error {
@@ -464,7 +487,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 			fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
 		}
 	}
-	if len(fns) < 2 {
+	if len(fns) == 0 {
 		return fns
 	}
 
@@ -505,6 +528,10 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 		byKey:  byKey,
 	}
 
+	type prefixEdit struct {
+		offset int
+		prefix string
+	}
 	dependencies := make([]map[int]struct{}, len(fns))
 	for i, f := range fns {
 		var calls []functionCallRef
@@ -513,8 +540,14 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 		} else {
 			calls = scanFunctionCallRefs(f.fn.Definition)
 		}
+		var edits []prefixEdit
+		seenEdit := make(map[int]struct{})
 		for _, call := range calls {
-			for _, depIdx := range cat.resolveCall(f.schema, call) {
+			matches := cat.resolveCall(f.schema, call)
+			if len(matches) == 0 {
+				continue
+			}
+			for _, depIdx := range matches {
 				if depIdx == i {
 					continue
 				}
@@ -523,9 +556,40 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 				}
 				dependencies[i][depIdx] = struct{}{}
 			}
+			if parsed[i].parsed && call.catalog == "" && call.nameEnd > call.nameStart && call.nameEnd <= len(f.fn.Definition) {
+				var prefix string
+				if call.schema == "" {
+					prefix = qualifyTrinoObjectPrefix(metadata.Name, f.schema)
+				} else if metadata.Name != "" {
+					prefix = quoteIdentifier(metadata.Name) + "."
+				}
+				if prefix != "" {
+					if _, dup := seenEdit[call.nameStart]; !dup {
+						seenEdit[call.nameStart] = struct{}{}
+						edits = append(edits, prefixEdit{offset: call.nameStart, prefix: prefix})
+					}
+				}
+			}
+		}
+		if len(edits) > 0 {
+			slices.SortFunc(edits, func(a, b prefixEdit) int {
+				return b.offset - a.offset
+			})
+			def := f.fn.Definition
+			for _, ed := range edits {
+				def = def[:ed.offset] + ed.prefix + def[ed.offset:]
+			}
+			fns[i].fn = &FunctionMetadata{
+				Name:       f.fn.Name,
+				Definition: def,
+				Comment:    f.fn.Comment,
+			}
 		}
 	}
 
+	if len(fns) < 2 {
+		return fns
+	}
 	indices := topoOrder(len(fns), dependencies)
 	ordered := make([]orderedFunction, len(indices))
 	for i, idx := range indices {
@@ -535,12 +599,14 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 }
 
 type functionCallRef struct {
-	catalog  string
-	schema   string
-	name     string
-	argNames []string
-	argTypes []string
-	argCount int
+	catalog   string
+	schema    string
+	name      string
+	nameStart int
+	nameEnd   int
+	argNames  []string
+	argTypes  []string
+	argCount  int
 }
 
 func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef) []int {
@@ -1258,8 +1324,10 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 					}
 				}
 			}
+			var nameStart, nameEnd int
 			var catalog, schema, name string
 			if e.Name != nil && len(e.Name.Parts) > 0 {
+				nameStart, nameEnd = e.Name.Loc.Start, e.Name.Loc.End
 				parts := e.Name.Parts
 				switch len(parts) {
 				case 1:
@@ -1275,12 +1343,14 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 			}
 			if name != "" {
 				ref := functionCallRef{
-					catalog:  catalog,
-					schema:   schema,
-					name:     name,
-					argNames: argNames,
-					argTypes: argTypes,
-					argCount: len(argTypes),
+					catalog:   catalog,
+					schema:    schema,
+					name:      name,
+					nameStart: nameStart,
+					nameEnd:   nameEnd,
+					argNames:  argNames,
+					argTypes:  argTypes,
+					argCount:  len(argTypes),
 				}
 				calls = append(calls, ref)
 				if matches := cat.resolveCall(callerSchema, ref); len(matches) > 0 {

@@ -369,7 +369,7 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 						Definition:        "SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)))",
 						DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "s", Table: "mv_base"}},
 					},
-					{Name: "mv_base", Definition: `SELECT id FROM "s"."t" -- trailing mv comment`, Comment: "mv's note"},
+					{Name: "mv_base", Definition: `SELECT id FROM "s"."t" -- trailing mv comment`},
 				},
 			},
 		},
@@ -378,17 +378,17 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE SCHEMA IF NOT EXISTS "s";
 
-CREATE FUNCTION s.inc(x bigint) RETURNS bigint COMMENT 'inc''s doc' RETURN x + 1 -- udf note
+CREATE FUNCTION "cat".s.inc(x bigint) RETURNS bigint COMMENT 'inc''s doc' RETURN x + 1 -- udf note
 ;
 
-CREATE FUNCTION s.caller(x bigint) RETURNS bigint RETURN s.inc(x) * 2;
+CREATE FUNCTION "cat".s.caller(x bigint) RETURNS bigint RETURN "cat".s.inc(x) * 2;
 
 CREATE TABLE IF NOT EXISTS "s"."t" (
     "id" bigint DEFAULT 0 NOT NULL COMMENT 'pk col',
     "label" varchar DEFAULT 'pending'
 ) COMMENT 'events table';
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" COMMENT 'mv''s note' AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_base" AS
 SELECT id FROM "s"."t" -- trailing mv comment
 ;
 
@@ -459,9 +459,9 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	fBigintPos := strings.Index(overloaded, "CREATE FUNCTION s.f(n bigint)")
-	wrapPos := strings.Index(overloaded, "CREATE FUNCTION s.wrap(n bigint)")
-	fVarcharPos := strings.Index(overloaded, "CREATE FUNCTION s.f(v varchar)")
+	fBigintPos := strings.Index(overloaded, "CREATE FUNCTION \"cat\".s.f(n bigint)")
+	wrapPos := strings.Index(overloaded, "CREATE FUNCTION \"cat\".s.wrap(n bigint)")
+	fVarcharPos := strings.Index(overloaded, "CREATE FUNCTION \"cat\".s.f(v varchar)")
 	require.Greater(t, wrapPos, fBigintPos, "expected f(bigint) before wrap(bigint):\n%s", overloaded)
 	require.Greater(t, fVarcharPos, wrapPos, "expected wrap(bigint) before f(varchar):\n%s", overloaded)
 
@@ -501,10 +501,10 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.num_fn(n integer)"), strings.Index(litAndCase, "CREATE FUNCTION s.lit_caller()"))
-	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.lit_caller()"), strings.Index(litAndCase, "CREATE FUNCTION s.num_fn(n bigint)"))
-	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.wide_fn(d decimal)"), strings.Index(litAndCase, "CREATE FUNCTION s.case_caller(n bigint)"))
-	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION s.case_caller(n bigint)"), strings.Index(litAndCase, "CREATE FUNCTION s.wide_fn(n bigint)"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.num_fn(n integer)"), strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.lit_caller()"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.lit_caller()"), strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.num_fn(n bigint)"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.wide_fn(d decimal)"), strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.case_caller(n bigint)"))
+	assert.Less(t, strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.case_caller(n bigint)"), strings.Index(litAndCase, "CREATE FUNCTION \"cat\".s.wide_fn(n bigint)"))
 
 	// Case-insensitive duplicate columns fail explicitly.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -545,7 +545,7 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 			Functions: []*metadatapb.FunctionMetadata{
 				{
 					Name:       "pred_caller",
-					Definition: "CREATE FUNCTION s.pred_caller(x bigint, p varchar) RETURNS boolean RETURN s.cmp_callee(x) = 1 AND s.null_callee(x) IS NOT NULL AND s.between_callee(x) BETWEEN 1 AND 10 AND s.in_callee(x) IN (1, 2) AND s.like_callee(p) LIKE 'a%'",
+					Definition: "CREATE FUNCTION s.pred_caller(x bigint, p varchar) RETURNS boolean BEGIN IF s.cmp_callee(x) = 1 AND s.null_callee(x) IS NOT NULL AND s.between_callee(x) BETWEEN 1 AND 10 AND s.in_callee(x) IN (1, 2) AND s.like_callee(p) LIKE 'a%' THEN RETURN true; END IF; RETURN false; END",
 				},
 				{
 					Name:       "cmp_callee",
@@ -571,9 +571,9 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	callerPos := strings.Index(predFuncs, "CREATE FUNCTION s.pred_caller(")
+	callerPos := strings.Index(predFuncs, "CREATE FUNCTION \"cat\".s.pred_caller(")
 	for _, callee := range []string{"cmp_callee", "null_callee", "between_callee", "in_callee", "like_callee"} {
-		assert.Less(t, strings.Index(predFuncs, "CREATE FUNCTION s."+callee+"("), callerPos, "expected %s before pred_caller:\n%s", callee, predFuncs)
+		assert.Less(t, strings.Index(predFuncs, "CREATE FUNCTION \"cat\".s."+callee+"("), callerPos, "expected %s before pred_caller:\n%s", callee, predFuncs)
 	}
 
 	// Parameterized overloads (array(integer) vs array(varchar)) disambiguate
@@ -599,8 +599,8 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_fn(a array(integer))"), strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_caller()"))
-	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_caller()"), strings.Index(arrayOverloads, "CREATE FUNCTION s.arr_fn(a array(varchar))"))
+	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION \"cat\".s.arr_fn(a array(integer))"), strings.Index(arrayOverloads, "CREATE FUNCTION \"cat\".s.arr_caller()"))
+	assert.Less(t, strings.Index(arrayOverloads, "CREATE FUNCTION \"cat\".s.arr_caller()"), strings.Index(arrayOverloads, "CREATE FUNCTION \"cat\".s.arr_fn(a array(varchar))"))
 
 	// Non-skipped Trino procedures fail explicitly; SkipDump procedures are ignored.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -645,7 +645,7 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(crossCatFuncs, "CREATE FUNCTION s.a()"), strings.Index(crossCatFuncs, "CREATE FUNCTION s.b()"))
+	assert.Less(t, strings.Index(crossCatFuncs, "CREATE FUNCTION \"cat\".s.a()"), strings.Index(crossCatFuncs, "CREATE FUNCTION \"cat\".s.b()"))
 
 	// Duplicate tables (case-insensitive) fail explicitly.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -682,8 +682,8 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(n integer)"), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("))
-	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(v varchar)"))
+	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION \"cat\".s.elem_fn(n integer)"), strings.Index(subscriptOverloads, "CREATE FUNCTION \"cat\".s.elem_caller("))
+	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION \"cat\".s.elem_caller("), strings.Index(subscriptOverloads, "CREATE FUNCTION \"cat\".s.elem_fn(v varchar)"))
 
 	// Named ROW field dereference propagates field type into overload disambiguation.
 	rowOverloads, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -707,8 +707,8 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION s.row_fn(n integer)"), strings.Index(rowOverloads, "CREATE FUNCTION s.row_caller("))
-	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION s.row_caller("), strings.Index(rowOverloads, "CREATE FUNCTION s.row_fn(v varchar)"))
+	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION \"cat\".s.row_fn(n integer)"), strings.Index(rowOverloads, "CREATE FUNCTION \"cat\".s.row_caller("))
+	assert.Less(t, strings.Index(rowOverloads, "CREATE FUNCTION \"cat\".s.row_caller("), strings.Index(rowOverloads, "CREATE FUNCTION \"cat\".s.row_fn(v varchar)"))
 
 	// Duplicate view identifiers (case-insensitive) fail explicitly.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -745,8 +745,8 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(d date)"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"))
-	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION s.dt_caller()"), strings.Index(specialFuncs, "CREATE FUNCTION s.dt_fn(v varchar)"))
+	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION \"cat\".s.dt_fn(d date)"), strings.Index(specialFuncs, "CREATE FUNCTION \"cat\".s.dt_caller()"))
+	assert.Less(t, strings.Index(specialFuncs, "CREATE FUNCTION \"cat\".s.dt_caller()"), strings.Index(specialFuncs, "CREATE FUNCTION \"cat\".s.dt_fn(v varchar)"))
 
 	// Unrendered table constraints/indexes and function identity mismatches fail explicitly.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -793,7 +793,7 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(aritySingle, "CREATE FUNCTION s.str_caller("), strings.Index(aritySingle, "CREATE FUNCTION s.length("))
+	assert.Less(t, strings.Index(aritySingle, "CREATE FUNCTION \"cat\".s.str_caller("), strings.Index(aritySingle, "CREATE FUNCTION \"cat\".s.length("))
 
 	// Named arguments map by parameter name rather than call-site position.
 	namedArgs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
@@ -817,23 +817,53 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a varchar, b integer)"), strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"))
-	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"), strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a integer, b varchar)"))
+	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION \"cat\".s.named_fn(a varchar, b integer)"), strings.Index(namedArgs, "CREATE FUNCTION \"cat\".s.named_caller()"))
+	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION \"cat\".s.named_caller()"), strings.Index(namedArgs, "CREATE FUNCTION \"cat\".s.named_fn(a integer, b varchar)"))
 
-	// Unqualified Trino function definitions are qualified with their schema, and
-	// non-skipped sequences fail explicitly.
+	// Unqualified Trino function definitions and sibling calls are qualified with
+	// catalog and schema, and MV comments/indexes on Trino 482 fail explicitly.
 	unqualFn, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
 		Name: "cat",
 		Schemas: []*metadatapb.SchemaMetadata{{
 			Name: "analytics",
-			Functions: []*metadatapb.FunctionMetadata{{
-				Name:       "f_unqual",
-				Definition: "CREATE FUNCTION f_unqual() RETURNS bigint RETURN 1",
-			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f_caller",
+					Definition: "CREATE FUNCTION f_caller() RETURNS bigint RETURN f_callee() + 1",
+				},
+				{
+					Name:       "f_callee",
+					Definition: "CREATE FUNCTION f_callee() RETURNS bigint RETURN 1",
+				},
+			},
 		}},
 	})
 	require.NoError(t, err)
-	assert.Contains(t, unqualFn, `CREATE FUNCTION "analytics".f_unqual()`)
+	assert.Contains(t, unqualFn, `CREATE FUNCTION "cat"."analytics".f_callee()`)
+	assert.Contains(t, unqualFn, `CREATE FUNCTION "cat"."analytics".f_caller() RETURNS bigint RETURN "cat"."analytics".f_callee() + 1;`)
+	assert.Less(t, strings.Index(unqualFn, `CREATE FUNCTION "cat"."analytics".f_callee()`), strings.Index(unqualFn, `CREATE FUNCTION "cat"."analytics".f_caller()`))
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:              "analytics",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_cmt", Definition: "SELECT 1", Comment: "unsupported on 482"}},
+		}},
+	})
+	require.ErrorContains(t, err, "482")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "analytics",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_idx",
+				Definition: "SELECT 1",
+				Indexes:    []*metadatapb.IndexMetadata{{Name: "idx_1", Expressions: []string{"id"}}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "indexes")
 
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
 		Name: "cat",
@@ -888,10 +918,10 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.NoError(t, err)
-	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.tz_fn(t timestamp with time zone)"), strings.Index(tzAndChar, "CREATE FUNCTION s.tz_caller()"))
-	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.tz_caller()"), strings.Index(tzAndChar, "CREATE FUNCTION s.tz_fn(t timestamp)"))
-	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(v varchar)"), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("))
-	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(c char)"))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.tz_fn(t timestamp with time zone)"), strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.tz_caller()"))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.tz_caller()"), strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.tz_fn(t timestamp)"))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.chr_fn(v varchar)"), strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.chr_caller("))
+	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.chr_caller("), strings.Index(tzAndChar, "CREATE FUNCTION \"cat\".s.chr_fn(c char)"))
 
 	// FunctionMetadata.Signature parameter type mismatches fail explicitly.
 	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
