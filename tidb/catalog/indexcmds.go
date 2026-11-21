@@ -123,8 +123,21 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tableName := stmt.Table.Name
-	tbl := db.Tables[toLower(tableName)]
+	tableKey := toLower(tableName)
+	tbl := db.Tables[tableKey]
 	if tbl == nil {
+		if db.Views[tableKey] != nil {
+			// TiDB v8.5.5 resolves a view in CREATE INDEX: FULLTEXT/SPATIAL
+			// still hits the 8200 unsupported check, and a column index over a
+			// view fails with 1105 "Unknown charset " because view columns carry
+			// no charset in TiDB's metadata.
+			if stmt.Fulltext || stmt.Spatial {
+				return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+					Message: "FULLTEXT and SPATIAL index is not supported"}
+			}
+			return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
+				Message: "Unknown charset "}
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	if tbl.Cached {
@@ -268,8 +281,17 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	}
 
 	tableName := stmt.Table.Name
-	tbl := db.Tables[toLower(tableName)]
+	tableKey := toLower(tableName)
+	tbl := db.Tables[tableKey]
 	if tbl == nil {
+		if db.Views[tableKey] != nil {
+			// TiDB v8.5.5 resolves a view in DROP INDEX and finds no index on it
+			// (1091, or a note under IF EXISTS).
+			if stmt.IfExists {
+				return nil
+			}
+			return errIndexDoesntExist(stmt.Name)
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	if tbl.Cached {
@@ -281,6 +303,9 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	found := false
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			if err := c.checkDropIndexNeededByFK(tbl, idx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -297,13 +322,81 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		return errIndexDoesntExist(stmt.Name)
 	}
 
-	// Also remove any constraint that references this index.
+	// Also remove any unique/PK constraint that references this index.
 	for i, con := range tbl.Constraints {
+		if con.Type == ConForeignKey || con.Type == ConCheck {
+			continue
+		}
 		if toLower(con.IndexName) == key || toLower(con.Name) == key {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
 		}
 	}
 
+	return nil
+}
+
+// indexCoversColumns reports whether idx's leading columns match cols in order.
+func indexCoversColumns(idx *Index, cols []string) bool {
+	if len(cols) == 0 || len(idx.Columns) < len(cols) {
+		return false
+	}
+	for i, col := range cols {
+		if idx.Columns[i].Name == "" || !strings.EqualFold(idx.Columns[i].Name, col) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasOtherIndexCoveringColumns reports whether tbl has any index other than
+// exclude whose leading columns match cols in order.
+func hasOtherIndexCoveringColumns(tbl *Table, exclude *Index, cols []string) bool {
+	for _, idx := range tbl.Indexes {
+		if idx == exclude {
+			continue
+		}
+		if indexCoversColumns(idx, cols) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkDropIndexNeededByFK rejects dropping dropIdx with 1553 when it is the
+// only index supporting a foreign key on tbl or a foreign key on another table
+// referencing tbl (measured on v8.5.5).
+func (c *Catalog) checkDropIndexNeededByFK(tbl *Table, dropIdx *Index) error {
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		if indexCoversColumns(dropIdx, con.Columns) && !hasOtherIndexCoveringColumns(tbl, dropIdx, con.Columns) {
+			return errDropIndexNeededInFK(dropIdx.Name)
+		}
+	}
+	if tbl.Database == nil {
+		return nil
+	}
+	dbKey := toLower(tbl.Database.Name)
+	tblKey := toLower(tbl.Name)
+	for _, db := range c.databases {
+		for _, other := range db.Tables {
+			for _, con := range other.Constraints {
+				if con.Type != ConForeignKey {
+					continue
+				}
+				refDB := con.RefDatabase
+				if refDB == "" {
+					refDB = db.Name
+				}
+				if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
+					if indexCoversColumns(dropIdx, con.RefColumns) && !hasOtherIndexCoveringColumns(tbl, dropIdx, con.RefColumns) {
+						return errDropIndexNeededInFK(dropIdx.Name)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }

@@ -2544,15 +2544,18 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 	// 1064.
 	if _, ok := p.match(kwDEFAULT); ok {
 		pd.Values = &nodes.String{Str: "DEFAULT"}
+		pd.BoundKind = nodes.PartBoundIn
 		bound = boundIn
 	}
 
 	// PartDefValuesOpt's HISTORY and CURRENT, which only SYSTEM_TIME takes.
 	if _, ok := p.match(kwHISTORY); ok {
 		pd.Values = &nodes.String{Str: "HISTORY"}
+		pd.BoundKind = nodes.PartBoundHistory
 		bound = boundHistory
 	} else if _, ok := p.match(kwCURRENT); ok {
 		pd.Values = &nodes.String{Str: "CURRENT"}
+		pd.BoundKind = nodes.PartBoundHistory
 		bound = boundHistory
 	}
 
@@ -2560,6 +2563,7 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 	if pd.Values == nil {
 		if _, ok := p.match(kwVALUES); ok {
 			if p.cur.Type == kwLESS {
+				pd.BoundKind = nodes.PartBoundLessThan
 				bound = boundLessThan
 				p.advance() // LESS
 				if _, err := p.expect(kwTHAN); err != nil {
@@ -2611,6 +2615,7 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 					return nil, 0, p.syntaxErrorAtCur()
 				}
 			} else if _, ok := p.match(kwIN); ok {
+				pd.BoundKind = nodes.PartBoundIn
 				bound = boundIn
 				if p.cur.Type == '(' {
 					p.advance()

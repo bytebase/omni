@@ -34,6 +34,28 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	key := toLower(tableName)
 	tbl := db.Tables[key]
 	if tbl == nil {
+		if db.Views[key] != nil {
+			// TiDB v8.5.5 runs ALTER TABLE <view> COMPACT [TIFLASH REPLICA]
+			// without error, answers 1505 for ANALYZE PARTITION ... INDEX and
+			// 1105 for ANALYZE PARTITION without INDEX, and answers 1347
+			// ("is not BASE TABLE") for every other ALTER TABLE on a view.
+			if len(stmt.Commands) == 1 && stmt.Commands[0] != nil {
+				switch stmt.Commands[0].Type {
+				case nodes.ATCompact:
+					return nil
+				case nodes.ATAnalyzePartition:
+					if stmt.Commands[0].AnalyzeIndexFlag {
+						return errPartitionMgmtOnNonPartitioned()
+					}
+					return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
+						Message: fmt.Sprintf("analyze view %s is not supported now", tableName)}
+				}
+			}
+			return errWrongObjectKind(db.Name, tableName, "BASE TABLE")
+		}
+		if db.Sequences[key] != nil {
+			return errWrongObjectKind(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -187,14 +209,31 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
 		}
+		for _, idxName := range cmd.AnalyzeIndexes {
+			if findIndexByName(tbl, idxName) == nil {
+				return errAnalyzeIndexNotFound(idxName, tbl.Name)
+			}
+		}
 		return nil
-	case nodes.ATPartitionAttributes, nodes.ATAddLastPartition, nodes.ATDropFirstPartition:
-		// A partition's ATTRIBUTES and the interval partitions FIRST and LAST
-		// name are server-side settings no field of Table or PartitionDefInfo
-		// holds; a table without partitions is still refused (1505, TiDB
-		// v8.5.5).
+	case nodes.ATPartitionAttributes:
+		// A partition's ATTRIBUTES is a server-side setting no field of Table
+		// or PartitionDefInfo holds; a table without partitions is still
+		// refused (1505, TiDB v8.5.5).
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
+		}
+		return nil
+	case nodes.ATAddLastPartition, nodes.ATDropFirstPartition:
+		// The interval partitions FIRST and LAST name are server-side settings
+		// no field of Table or PartitionDefInfo holds; a table without
+		// partitions is still refused (1505, TiDB v8.5.5), and a non-constant
+		// bound referencing a column is refused with 1054.
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
+		if name := firstColumnRef(cmd.PartitionBound); name != "" {
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+				Message: fmt.Sprintf("Unknown column '%s' in 'expression'", name)}
 		}
 		return nil
 	case nodes.ATPartitionBy:
@@ -624,6 +663,11 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if err != nil {
 		return err
 	}
+	if c.foreignKeyChecks {
+		if err := c.checkModifyColumnFKCompatibility(tbl, oldName, col); err != nil {
+			return err
+		}
+	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
 
@@ -931,6 +975,9 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if idx.Primary && primaryKeyClustered(tbl, idx) {
 				return errDropClusteredPrimaryKey()
 			}
+			if err := c.checkDropIndexNeededByFK(tbl, idx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -948,8 +995,11 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return errIndexDoesntExist(name)
 	}
 
-	// Also remove any constraint that references this index.
+	// Also remove any unique/PK constraint that references this index.
 	for i, con := range tbl.Constraints {
+		if con.Type == ConForeignKey || con.Type == ConCheck {
+			continue
+		}
 		if toLower(con.IndexName) == key || toLower(con.Name) == key {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
@@ -964,50 +1014,76 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	name := cmd.Name
 	key := toLower(name)
 
-	// DROP PRIMARY KEY: TiDB v8.5.5 (8200) rejects dropping the primary key
-	// when the table clusters by it. A NONCLUSTERED primary key, or one added
-	// by ALTER TABLE ADD PRIMARY KEY, drops cleanly. Measured against v8.5.5.
-	if key == "primary" {
+	switch {
+	case cmd.PrimaryKey:
+		// DROP PRIMARY KEY: TiDB v8.5.5 (8200) rejects dropping the primary key
+		// when the table clusters by it. A NONCLUSTERED primary key, or one
+		// added by ALTER TABLE ADD PRIMARY KEY, drops cleanly.
 		for _, idx := range tbl.Indexes {
-			if idx.Primary && primaryKeyClustered(tbl, idx) {
-				return errDropClusteredPrimaryKey()
+			if idx.Primary {
+				if primaryKeyClustered(tbl, idx) {
+					return errDropClusteredPrimaryKey()
+				}
+				if err := c.checkDropIndexNeededByFK(tbl, idx); err != nil {
+					return err
+				}
 			}
 		}
-	}
-
-	found := false
-	isForeignKey := false
-	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		found := false
+		for i, con := range tbl.Constraints {
+			if con.Type == ConPrimaryKey {
+				tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+				found = true
+				break
+			}
 		}
-	}
+		for i, idx := range tbl.Indexes {
+			if idx.Primary {
+				tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
+				found = true
+				break
+			}
+		}
+		if !found {
+			if cmd.IfExists {
+				return nil
+			}
+			return errCantDropKey(name)
+		}
+		return nil
 
-	if !found {
-		// With tidb_enable_check_constraint off, DROP CHECK and DROP
-		// CONSTRAINT succeed whatever they name; DROP FOREIGN KEY of a key
-		// the table lacks is still 1091 (v8.5.5, read on 2026-11-06).
-		if cmd.IfExists || (!c.checkConstraints && !cmd.ForeignKey) {
+	case cmd.ForeignKey:
+		// For FK constraints, TiDB keeps the backing index when dropping the FK.
+		for i, con := range tbl.Constraints {
+			if con.Type == ConForeignKey && toLower(con.Name) == key {
+				tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+				return nil
+			}
+		}
+		if cmd.IfExists {
+			return nil
+		}
+		return errCantDropKey(name)
+
+	default:
+		// DROP CHECK and DROP CONSTRAINT only target CHECK constraints in TiDB
+		// (never foreign keys, primary keys, or unique keys). With
+		// tidb_enable_check_constraint off, TiDB treats both as a no-op with a
+		// warning (v8.5.5).
+		if !c.checkConstraints {
+			return nil
+		}
+		for i, con := range tbl.Constraints {
+			if con.Type == ConCheck && toLower(con.Name) == key {
+				tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+				return nil
+			}
+		}
+		if cmd.IfExists {
 			return nil
 		}
 		return errCantDropKey(name)
 	}
-
-	// For FK constraints, MySQL keeps the backing index when dropping the FK.
-	// For other constraints (e.g., PRIMARY KEY), also remove the corresponding index.
-	if !isForeignKey {
-		for i, idx := range tbl.Indexes {
-			if toLower(idx.Name) == key {
-				tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
-				break
-			}
-		}
-	}
-
-	return nil
 }
 
 // alterRenameColumn changes a column name in-place.
@@ -1091,7 +1167,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Sequences[newKey] != nil) {
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil || newDB.Sequences[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
@@ -1486,31 +1562,56 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, true); err != nil {
 		return err
 	}
-	// ADD PARTITION PARTITIONS n names the partitions it appends the way
-	// CREATE TABLE does, continuing the pN run: TiDB v8.5.5 answers p0..p4 to
-	// `PARTITION BY HASH(id) PARTITIONS 3` followed by `ADD PARTITION
-	// PARTITIONS 2`, as MySQL 8.0 does. `ADD PARTITION` with neither a count
-	// nor definitions falls through to the loop below and changes nothing,
-	// which is also what v8.5.5 does with it on a HASH table.
-	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
-		start := len(tbl.Partitioning.Partitions)
-		if start == 0 {
-			start = tbl.Partitioning.NumParts
+	// RANGE and LIST tables require explicit partition definitions; bare
+	// ADD PARTITION or ADD PARTITION PARTITIONS n is only for HASH/KEY (1492).
+	if len(cmd.PartitionDefs) == 0 {
+		switch tbl.Partitioning.Type {
+		case "RANGE", "RANGE COLUMNS":
+			return errPartitionsMustBeDefined("RANGE")
+		case "LIST", "LIST COLUMNS":
+			return errPartitionsMustBeDefined("LIST")
 		}
-		for i := 0; i < cmd.Number; i++ {
-			tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, &PartitionDefInfo{
-				Name: fmt.Sprintf("p%d", start+i),
-			})
+		// ADD PARTITION PARTITIONS n names the partitions it appends the way
+		// CREATE TABLE does, continuing the pN run: TiDB v8.5.5 answers p0..p4 to
+		// `PARTITION BY HASH(id) PARTITIONS 3` followed by `ADD PARTITION
+		// PARTITIONS 2`, as MySQL 8.0 does. `ADD PARTITION` with neither a count
+		// nor definitions changes nothing, which is also what v8.5.5 does with
+		// it on a HASH table.
+		if cmd.Number > 0 {
+			start := len(tbl.Partitioning.Partitions)
+			if start == 0 {
+				start = tbl.Partitioning.NumParts
+			}
+			for i := 0; i < cmd.Number; i++ {
+				tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, &PartitionDefInfo{
+					Name: fmt.Sprintf("p%d", start+i),
+				})
+			}
+			tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		}
-		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+
+	// Validate all new partition definitions before mutating the table.
+	seenNew := make(map[string]bool, len(cmd.PartitionDefs))
+	var toAdd []*PartitionDefInfo
 	for _, pd := range cmd.PartitionDefs {
-		// IF NOT EXISTS covers a partition the table already has: TiDB v8.5.5
-		// raises warning 1517 and adds nothing.
-		if cmd.IfNotExists && partitionExists(tbl, pd.Name) {
-			continue
+		if err := validateAlterPartitionDef(tbl.Partitioning, pd); err != nil {
+			return err
 		}
+		nameKey := toLower(pd.Name)
+		if seenNew[nameKey] {
+			return errDuplicatePartitionName(pd.Name)
+		}
+		if partitionExists(tbl, pd.Name) {
+			// IF NOT EXISTS covers a partition the table already has: TiDB
+			// v8.5.5 raises warning 1517 and adds nothing.
+			if cmd.IfNotExists {
+				continue
+			}
+			return errDuplicatePartitionName(pd.Name)
+		}
+		seenNew[nameKey] = true
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
 		}
@@ -1527,9 +1628,74 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 				pdi.Comment = opt.Value
 			}
 		}
-		tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, pdi)
+		toAdd = append(toAdd, pdi)
+	}
+	tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, toAdd...)
+	return nil
+}
+
+// validateAlterPartitionDef validates one PartitionDef in ADD PARTITION or
+// REORGANIZE PARTITION against the table's partitioning type (measured on
+// TiDB v8.5.5): mismatched VALUES IN / VALUES LESS THAN (1480), missing
+// VALUES clause (1479), multiple values on non-COLUMNS RANGE (1657), and
+// column references inside constant bound expressions (1054).
+func validateAlterPartitionDef(pi *PartitionInfo, pd *nodes.PartitionDef) error {
+	switch pi.Type {
+	case "RANGE", "RANGE COLUMNS":
+		switch pd.BoundKind {
+		case nodes.PartBoundIn:
+			return errOnlyListPartitioningValuesIn()
+		case nodes.PartBoundNone:
+			return errRangePartitionRequiresValues()
+		case nodes.PartBoundLessThan:
+			if pi.Type == "RANGE" {
+				if list, ok := pd.Values.(*nodes.List); ok && len(list.Items) > 1 {
+					return errRangeTooManyValues()
+				}
+			}
+			if name := firstPartitionValueColumnRef(pd.Values); name != "" {
+				return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+					Message: fmt.Sprintf("Unknown column '%s' in 'expression'", name)}
+			}
+		}
+	case "LIST", "LIST COLUMNS":
+		switch pd.BoundKind {
+		case nodes.PartBoundLessThan:
+			return errOnlyRangePartitioningValuesLessThan()
+		case nodes.PartBoundNone:
+			return errListPartitionRequiresValues()
+		case nodes.PartBoundIn:
+			if name := firstPartitionValueColumnRef(pd.Values); name != "" {
+				return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+					Message: fmt.Sprintf("Unknown column '%s' in 'expression'", name)}
+			}
+		}
+	case "HASH", "KEY":
+		switch pd.BoundKind {
+		case nodes.PartBoundLessThan:
+			return errOnlyRangePartitioningValuesLessThan()
+		case nodes.PartBoundIn:
+			return errOnlyListPartitioningValuesIn()
+		}
 	}
 	return nil
+}
+
+// firstPartitionValueColumnRef returns the first column reference inside a
+// partition bound node (single expression or tuple/list of expressions), or ""
+// when none is present.
+func firstPartitionValueColumnRef(v nodes.Node) string {
+	switch n := v.(type) {
+	case *nodes.List:
+		for _, item := range n.Items {
+			if name := firstPartitionValueColumnRef(item); name != "" {
+				return name
+			}
+		}
+	case nodes.ExprNode:
+		return firstColumnRef(n)
+	}
+	return ""
 }
 
 // partitionExists reports whether the table already has a partition of this
@@ -1582,6 +1748,9 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	if tbl.Partitioning.Type != "HASH" && tbl.Partitioning.Type != "KEY" {
+		return errCoalesceOnlyOnHashPartition()
+	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
 	if currentCount == 0 {
@@ -1605,6 +1774,11 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	}
 	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, false); err != nil {
 		return err
+	}
+	for _, pd := range cmd.PartitionDefs {
+		if err := validateAlterPartitionDef(tbl.Partitioning, pd); err != nil {
+			return err
+		}
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
@@ -1679,6 +1853,93 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		exchTbl := exchDB.GetTable(cmd.ExchangeTable.Name)
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
+		}
+		if exchTbl.Partitioning != nil {
+			return errExchangeTableIsPartitioned(exchTbl.Name)
+		}
+	}
+	return nil
+}
+
+// checkModifyColumnFKCompatibility verifies that replacing oldName with newCol
+// keeps every foreign key referencing or referenced by the column type-
+// compatible (3780) and nullable under SET NULL (1830).
+func (c *Catalog) checkModifyColumnFKCompatibility(tbl *Table, oldName string, newCol *Column) error {
+	oldKey := toLower(oldName)
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		setNull := con.OnDelete == "SET NULL" || con.OnUpdate == "SET NULL"
+		for i, colName := range con.Columns {
+			if toLower(colName) != oldKey {
+				continue
+			}
+			if setNull && !newCol.Nullable {
+				return errFKColumnCannotBeNull(newCol.Name, con.Name)
+			}
+			if i >= len(con.RefColumns) {
+				continue
+			}
+			refDB := tbl.Database
+			if con.RefDatabase != "" {
+				refDB = c.GetDatabase(con.RefDatabase)
+			}
+			var refTbl *Table
+			if refDB != nil {
+				if tbl.Database != nil && refDB == tbl.Database && toLower(con.RefTable) == toLower(tbl.Name) {
+					refTbl = tbl
+				} else {
+					refTbl = refDB.GetTable(con.RefTable)
+				}
+			}
+			if refTbl == nil {
+				continue
+			}
+			var refCol *Column
+			if refTbl == tbl && toLower(con.RefColumns[i]) == oldKey {
+				refCol = newCol
+			} else {
+				refCol = refTbl.GetColumn(con.RefColumns[i])
+			}
+			if refCol != nil && !fkTypesCompatible(newCol, refCol) {
+				return errFKIncompatibleColumns(newCol.Name, refCol.Name, con.Name)
+			}
+		}
+	}
+	if tbl.Database == nil {
+		return nil
+	}
+	dbKey := toLower(tbl.Database.Name)
+	tblKey := toLower(tbl.Name)
+	for _, otherDB := range c.databases {
+		for _, child := range otherDB.Tables {
+			for _, con := range child.Constraints {
+				if con.Type != ConForeignKey {
+					continue
+				}
+				refDB := con.RefDatabase
+				if refDB == "" {
+					refDB = otherDB.Name
+				}
+				if toLower(refDB) != dbKey || toLower(con.RefTable) != tblKey {
+					continue
+				}
+				for i, refColName := range con.RefColumns {
+					if toLower(refColName) != oldKey || i >= len(con.Columns) {
+						continue
+					}
+					var childCol *Column
+					if child == tbl && toLower(con.Columns[i]) == oldKey {
+						childCol = newCol
+					} else {
+						childCol = child.GetColumn(con.Columns[i])
+					}
+					if childCol != nil && !fkTypesCompatible(childCol, newCol) {
+						return errFKIncompatibleColumns(childCol.Name, newCol.Name, con.Name)
+					}
+				}
+			}
 		}
 	}
 	return nil

@@ -1196,6 +1196,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.PrimaryKey = true
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
