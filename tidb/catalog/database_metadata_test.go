@@ -944,4 +944,33 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	}
 	require.Empty(t, fkByName["fk_same_qual"].ReferencedSchema)
 	require.Equal(t, "other_db", fkByName["fk_cross_qual"].ReferencedSchema)
+
+	// Set-operation views derive UNION metadata across arms while INTERSECT/EXCEPT keep the left arm (TiDB v8.5.5).
+	unionCat := New()
+	_, err = unionCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t1 (id INT NOT NULL, s CHAR(4) NOT NULL);
+		CREATE TABLE t2 (id BIGINT NULL, s VARCHAR(10) NULL);
+		CREATE VIEW v_mix AS SELECT 1 AS c UNION SELECT 'x';
+		CREATE VIEW v_tbl AS SELECT id, s FROM t1 UNION SELECT id, s FROM t2;
+		CREATE VIEW v_null AS SELECT id FROM t1 UNION SELECT NULL;
+		CREATE VIEW v_num AS SELECT 1 AS a UNION SELECT 1.5 AS a;
+		CREATE VIEW v_except AS SELECT id, s FROM t1 EXCEPT SELECT id, s FROM t2;
+		CREATE VIEW v_intersect AS SELECT id, s FROM t1 INTERSECT SELECT id, s FROM t2;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	uViews := map[string]*metadata.ViewMetadata{}
+	for _, v := range unionCat.DatabaseMetadata("app").Schemas[0].Views {
+		uViews[v.Name] = v
+	}
+	require.Equal(t, "varchar(20)", uViews["v_mix"].Columns[0].Type)
+	require.Equal(t, "bigint", uViews["v_tbl"].Columns[0].Type)
+	require.Equal(t, "varchar(10)", uViews["v_tbl"].Columns[1].Type)
+	require.Equal(t, "int", uViews["v_null"].Columns[0].Type)
+	require.Equal(t, "decimal(20,1)", uViews["v_num"].Columns[0].Type)
+	require.Equal(t, "int", uViews["v_except"].Columns[0].Type)
+	require.Equal(t, "char(4)", uViews["v_except"].Columns[1].Type)
+	require.Equal(t, "int", uViews["v_intersect"].Columns[0].Type)
+	require.Equal(t, "char(4)", uViews["v_intersect"].Columns[1].Type)
 }

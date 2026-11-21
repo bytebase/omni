@@ -199,6 +199,20 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 		return resolveTargetColumnMetadata(c, db, leftQ, nonJunkTargets[i])
 	}
 	fillTargetCol := func(col *metadata.ColumnMetadata, i int, te *TargetEntryQ) {
+		if v.AnalyzedQuery != nil && v.AnalyzedQuery.SetOp != SetOpNone {
+			if meta, ok := resolveQueryTargetMeta(c, db, v.AnalyzedQuery, i); ok {
+				if meta.colType != "" {
+					col.Type = meta.colType
+				}
+				col.Nullable = meta.nullable
+				col.CharacterSet = meta.charset
+				col.Collation = meta.collation
+				if te != nil && (col.Name == "" || col.Name == "*" || strings.HasSuffix(col.Name, ".*")) && te.ResName != "" {
+					col.Name = te.ResName
+				}
+				return
+			}
+		}
 		if colType, nullable, charset, collation, ok := resolveSourceAttrs(i); ok {
 			if col.Type == "" {
 				col.Type = colType
@@ -292,6 +306,485 @@ func leftmostAnalyzedQuery(q *Query) *Query {
 	return q
 }
 
+type viewTargetMeta struct {
+	colType   string
+	nullable  bool
+	charset   string
+	collation string
+	expr      AnalyzedExpr
+}
+
+func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int) (viewTargetMeta, bool) {
+	if q == nil {
+		return viewTargetMeta{}, false
+	}
+	if q.SetOp == SetOpNone {
+		te := nthNonJunkTarget(q, idx)
+		if te == nil {
+			return viewTargetMeta{}, false
+		}
+		meta := viewTargetMeta{expr: te.Expr}
+		if ct, nl, cs, cl, ok := resolveTargetColumnMetadata(c, db, q, te); ok {
+			meta.colType = ct
+			meta.nullable = nl
+			meta.charset = cs
+			meta.collation = cl
+		} else {
+			meta.nullable = isAnalyzedExprNullable(c, db, q, te.Expr)
+		}
+		if meta.colType == "" {
+			if te.ResOrigTable != "" && te.ResOrigCol != "" {
+				origDB := db
+				if te.ResOrigDB != "" && c != nil {
+					origDB = c.GetDatabase(te.ResOrigDB)
+				}
+				if origDB != nil {
+					if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+						if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
+							meta.colType = srcCol.ColumnType
+						}
+					}
+				}
+			}
+			if meta.colType == "" && te.Expr != nil {
+				meta.colType = resolveAnalyzedExprColumnType(c, db, q, te.Expr)
+			}
+		}
+		if meta.charset == "" && isStringColumnType(meta.colType) && db != nil && db.Charset != "" {
+			meta.charset = db.Charset
+			meta.collation = db.Collation
+		}
+		return meta, true
+	}
+
+	leftMeta, lok := resolveQueryTargetMeta(c, db, q.LArg, idx)
+	rightMeta, rok := resolveQueryTargetMeta(c, db, q.RArg, idx)
+	if !lok && !rok {
+		return viewTargetMeta{}, false
+	}
+	if !lok {
+		return rightMeta, true
+	}
+	if !rok {
+		return leftMeta, true
+	}
+
+	combinedType := combineSetOpColumnTypes(leftMeta.colType, leftMeta.expr, rightMeta.colType, rightMeta.expr, false)
+	var nullable bool
+	switch q.SetOp {
+	case SetOpUnion:
+		nullable = leftMeta.nullable || rightMeta.nullable
+	case SetOpExcept:
+		nullable = leftMeta.nullable
+	case SetOpIntersect:
+		nullable = leftMeta.nullable && rightMeta.nullable
+	}
+	var cs, cl string
+	if isStringColumnType(combinedType) {
+		cs, cl = combineSetOpCollation(db, leftMeta.charset, leftMeta.collation, rightMeta.charset, rightMeta.collation)
+	}
+	return viewTargetMeta{
+		colType:   combinedType,
+		nullable:  nullable,
+		charset:   cs,
+		collation: cl,
+	}, true
+}
+
+func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) bool {
+	if expr == nil {
+		return false
+	}
+	switch e := expr.(type) {
+	case *ConstExprQ:
+		return e.IsNull
+	case *VarExprQ:
+		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
+			rte := q.RangeTable[e.RangeIdx]
+			if rte.Kind == RTERelation && c != nil && e.AttNum >= 1 && e.AttNum <= len(rte.ColNames) {
+				origDB := db
+				if rte.DBName != "" {
+					origDB = c.GetDatabase(rte.DBName)
+				}
+				if origDB != nil {
+					if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+						if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
+							return col.Nullable
+						}
+					}
+					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
+						if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1); ok {
+							return meta.nullable
+						}
+					}
+				}
+			}
+		}
+		return false
+	case *CastExprQ:
+		return isAnalyzedExprNullable(c, db, q, e.Arg)
+	case *OpExprQ:
+		if e.Op == "/" || strings.EqualFold(e.Op, "DIV") {
+			return true
+		}
+		return isAnalyzedExprNullable(c, db, q, e.Left) || isAnalyzedExprNullable(c, db, q, e.Right)
+	case *FuncCallExprQ:
+		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
+			return true
+		}
+		for _, arg := range e.Args {
+			if isAnalyzedExprNullable(c, db, q, arg) {
+				return true
+			}
+		}
+		return false
+	case *CaseExprQ:
+		if e.Default == nil || isAnalyzedExprNullable(c, db, q, e.Default) {
+			return true
+		}
+		for _, w := range e.Args {
+			if w != nil && isAnalyzedExprNullable(c, db, q, w.Then) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+func combineSetOpCollation(db *Database, lcs, lcl, rcs, rcl string) (string, string) {
+	if lcs == "" && rcs == "" {
+		if db != nil && db.Charset != "" {
+			return db.Charset, db.Collation
+		}
+		return "", ""
+	}
+	if lcs == "" {
+		return rcs, rcl
+	}
+	if rcs == "" {
+		return lcs, lcl
+	}
+	if strings.EqualFold(lcl, rcl) {
+		return lcs, lcl
+	}
+	if strings.HasSuffix(strings.ToLower(lcl), "_bin") {
+		return lcs, lcl
+	}
+	if strings.HasSuffix(strings.ToLower(rcl), "_bin") {
+		return rcs, rcl
+	}
+	return lcs, lcl
+}
+
+type parsedSetOpType struct {
+	cat      string
+	raw      string
+	rank     int
+	width    int
+	prec     int
+	scale    int
+	unsigned bool
+	isChar   bool
+}
+
+func isStringColumnType(colType string) bool {
+	p := parseSetOpColType(colType)
+	return p.cat == "string" || p.cat == "text"
+}
+
+func parseSetOpColType(colType string) parsedSetOpType {
+	raw := strings.TrimSpace(colType)
+	s := strings.ToLower(raw)
+	if s == "" || s == "binary(0)" {
+		return parsedSetOpType{cat: "null", raw: raw}
+	}
+	unsigned := strings.Contains(s, "unsigned")
+	s = strings.ReplaceAll(s, " unsigned", "")
+	s = strings.ReplaceAll(s, " zerofill", "")
+	s = strings.TrimSpace(s)
+
+	base := s
+	var p, sc int
+	if open := strings.IndexByte(s, '('); open >= 0 {
+		base = strings.TrimSpace(s[:open])
+		if closeIdx := strings.IndexByte(s[open+1:], ')'); closeIdx >= 0 {
+			args := strings.Split(s[open+1:open+1+closeIdx], ",")
+			if len(args) >= 1 {
+				p, _ = strconv.Atoi(strings.TrimSpace(args[0]))
+			}
+			if len(args) >= 2 {
+				sc, _ = strconv.Atoi(strings.TrimSpace(args[1]))
+			}
+		}
+	}
+
+	switch base {
+	case "tinyint", "bool", "boolean":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 1, width: 4, unsigned: unsigned}
+	case "smallint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 2, width: 6, unsigned: unsigned}
+	case "mediumint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 3, width: 9, unsigned: unsigned}
+	case "int", "integer":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 4, width: 11, unsigned: unsigned}
+	case "bigint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 5, width: 20, unsigned: unsigned}
+	case "float":
+		return parsedSetOpType{cat: "float", raw: raw, width: 12, unsigned: unsigned}
+	case "double", "real":
+		return parsedSetOpType{cat: "double", raw: raw, width: 22, unsigned: unsigned}
+	case "decimal", "numeric", "dec", "fixed":
+		if p == 0 {
+			p = 10
+		}
+		w := p + 1
+		if sc > 0 {
+			w = p + 2
+		}
+		return parsedSetOpType{cat: "decimal", raw: raw, prec: p, scale: sc, width: w, unsigned: unsigned}
+	case "char":
+		return parsedSetOpType{cat: "string", raw: raw, width: p, isChar: true}
+	case "varchar", "var_string":
+		return parsedSetOpType{cat: "string", raw: raw, width: p}
+	case "tinytext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 1, width: 255}
+	case "text":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 2, width: 65535}
+	case "mediumtext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 3, width: 16777215}
+	case "longtext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 4, width: 4294967295}
+	case "binary":
+		return parsedSetOpType{cat: "binary", raw: raw, width: p, isChar: true}
+	case "varbinary":
+		return parsedSetOpType{cat: "binary", raw: raw, width: p}
+	case "tinyblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 1, width: 255}
+	case "blob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 2, width: 65535}
+	case "mediumblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 3, width: 16777215}
+	case "longblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 4, width: 4294967295}
+	case "json":
+		return parsedSetOpType{cat: "json", raw: raw, width: 4294967295}
+	case "date":
+		return parsedSetOpType{cat: "date", raw: raw, width: 10}
+	case "time":
+		w := 8
+		if p > 0 {
+			w += p + 1
+		}
+		return parsedSetOpType{cat: "time", raw: raw, prec: p, width: w}
+	case "datetime", "timestamp":
+		w := 19
+		if p > 0 {
+			w += p + 1
+		}
+		return parsedSetOpType{cat: base, raw: raw, prec: p, width: w}
+	case "year":
+		return parsedSetOpType{cat: "year", raw: raw, width: 4}
+	case "bit":
+		w := p
+		if w == 0 {
+			w = 1
+		}
+		return parsedSetOpType{cat: "bit", raw: raw, prec: w, width: w}
+	default:
+		return parsedSetOpType{cat: "other", raw: raw}
+	}
+}
+
+func setOpStringWidth(pt parsedSetOpType, expr AnalyzedExpr, isTiDB bool) int {
+	if !isTiDB && pt.cat == "int" {
+		if cn, ok := expr.(*ConstExprQ); ok && !cn.IsNull && !cn.IsString {
+			digits := len(strings.TrimLeft(cn.Value, "+-"))
+			if digits == 0 {
+				digits = 1
+			}
+			return digits + 1
+		}
+	}
+	return pt.width
+}
+
+func combineSetOpColumnTypes(lt string, le AnalyzedExpr, rt string, re AnalyzedExpr, isTiDB bool) string {
+	lp := parseSetOpColType(lt)
+	rp := parseSetOpColType(rt)
+	if lp.cat == "null" {
+		return rt
+	}
+	if rp.cat == "null" {
+		return lt
+	}
+	if lp.cat == "json" || rp.cat == "json" {
+		if lp.cat == "json" && rp.cat == "json" {
+			return "json"
+		}
+		return "longtext"
+	}
+	isStrLike := func(p parsedSetOpType) bool {
+		return p.cat == "string" || p.cat == "text"
+	}
+	isBinLike := func(p parsedSetOpType) bool {
+		return p.cat == "binary" || p.cat == "blob"
+	}
+	if isBinLike(lp) || isBinLike(rp) {
+		if lp.cat == "blob" || rp.cat == "blob" {
+			switch max(lp.rank, rp.rank) {
+			case 1:
+				return "tinyblob"
+			case 2:
+				return "blob"
+			case 3:
+				return "mediumblob"
+			default:
+				return "longblob"
+			}
+		}
+		w := max(setOpStringWidth(lp, le, isTiDB), setOpStringWidth(rp, re, isTiDB))
+		if lp.cat == "binary" && rp.cat == "binary" && lp.isChar && rp.isChar {
+			return fmt.Sprintf("binary(%d)", w)
+		}
+		return fmt.Sprintf("varbinary(%d)", w)
+	}
+	if isStrLike(lp) || isStrLike(rp) {
+		if lp.cat == "text" || rp.cat == "text" {
+			switch max(lp.rank, rp.rank) {
+			case 1:
+				return "tinytext"
+			case 2:
+				return "text"
+			case 3:
+				return "mediumtext"
+			default:
+				return "longtext"
+			}
+		}
+		w := max(setOpStringWidth(lp, le, isTiDB), setOpStringWidth(rp, re, isTiDB))
+		if lp.cat == "string" && rp.cat == "string" && lp.isChar && rp.isChar {
+			return fmt.Sprintf("char(%d)", w)
+		}
+		return fmt.Sprintf("varchar(%d)", w)
+	}
+	isNumeric := func(p parsedSetOpType) bool {
+		return p.cat == "int" || p.cat == "float" || p.cat == "double" || p.cat == "decimal" || p.cat == "year" || p.cat == "bit"
+	}
+	if isNumeric(lp) && isNumeric(rp) {
+		if lp.cat == "double" || rp.cat == "double" {
+			return "double"
+		}
+		if lp.cat == "float" || rp.cat == "float" {
+			return "float"
+		}
+		if lp.cat == "decimal" || rp.cat == "decimal" {
+			lrt := parseColumnResolvedType(lt)
+			rrt := parseColumnResolvedType(rt)
+			if lrt == nil {
+				lrt = &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			if rrt == nil {
+				rrt = &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			lPrec, lScale, lok := decimalOperandPrecisionScale(lrt, le)
+			rPrec, rScale, rok := decimalOperandPrecisionScale(rrt, re)
+			if !lok {
+				lPrec, lScale = lp.prec, lp.scale
+			}
+			if !rok {
+				rPrec, rScale = rp.prec, rp.scale
+			}
+			if isTiDB {
+				if lp.cat == "int" && lPrec < 20 {
+					lPrec = 20
+				}
+				if rp.cat == "int" && rPrec < 20 {
+					rPrec = 20
+				}
+			}
+			scale := max(lScale, rScale)
+			prec := min(65, max(lPrec-lScale, rPrec-rScale)+scale)
+			return fmt.Sprintf("decimal(%d,%d)", prec, scale)
+		}
+		if lp.cat == "bit" && rp.cat == "bit" {
+			return fmt.Sprintf("bit(%d)", max(lp.prec, rp.prec))
+		}
+		if lp.cat == "year" && rp.cat == "year" {
+			return "year"
+		}
+		rank := max(lp.rank, rp.rank)
+		if rank == 0 {
+			rank = 4
+		}
+		unsigned := false
+		if lp.unsigned == rp.unsigned {
+			unsigned = lp.unsigned
+		} else {
+			var sRank, uRank int
+			if lp.unsigned {
+				uRank, sRank = lp.rank, rp.rank
+			} else {
+				sRank, uRank = lp.rank, rp.rank
+			}
+			if sRank > uRank {
+				rank = sRank
+			} else if uRank >= 5 {
+				rank = 5
+				unsigned = true
+			} else {
+				rank = uRank + 1
+			}
+		}
+		suffix := ""
+		if unsigned {
+			suffix = " unsigned"
+		}
+		switch rank {
+		case 1:
+			return "tinyint" + suffix
+		case 2:
+			return "smallint" + suffix
+		case 3:
+			return "mediumint" + suffix
+		case 4:
+			return "int" + suffix
+		default:
+			return "bigint" + suffix
+		}
+	}
+	if lp.cat == "date" && rp.cat == "date" {
+		return "date"
+	}
+	if (lp.cat == "datetime" || lp.cat == "timestamp" || lp.cat == "date") &&
+		(rp.cat == "datetime" || rp.cat == "timestamp" || rp.cat == "date") {
+		if lp.cat == "timestamp" && rp.cat == "timestamp" {
+			fsp := max(lp.prec, rp.prec)
+			if fsp > 0 {
+				return fmt.Sprintf("timestamp(%d)", fsp)
+			}
+			return "timestamp"
+		}
+		fsp := max(lp.prec, rp.prec)
+		if fsp > 0 {
+			return fmt.Sprintf("datetime(%d)", fsp)
+		}
+		return "datetime"
+	}
+	if lp.cat == "time" && rp.cat == "time" {
+		fsp := max(lp.prec, rp.prec)
+		if fsp > 0 {
+			return fmt.Sprintf("time(%d)", fsp)
+		}
+		return "time"
+	}
+	if lp.raw == rp.raw {
+		return lp.raw
+	}
+	return fmt.Sprintf("varchar(%d)", max(setOpStringWidth(lp, le, isTiDB), setOpStringWidth(rp, re, isTiDB)))
+}
+
 func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, te *TargetEntryQ) (colType string, nullable bool, charset, collation string, ok bool) {
 	if te == nil {
 		return "", false, "", "", false
@@ -334,11 +827,9 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, te *TargetE
 			}
 		}
 		if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
-			if innerQ := leftmostAnalyzedQuery(sv.AnalyzedQuery); innerQ != nil {
-				if subTE := nthNonJunkTarget(innerQ, ve.AttNum-1); subTE != nil {
-					if ct, nl, cs, cl, found := resolveTargetColumnMetadata(c, origDB, innerQ, subTE); found {
-						return ct, nl, cs, cl, true
-					}
+			if sv.AnalyzedQuery != nil {
+				if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, ve.AttNum-1); ok {
+					return meta.colType, meta.nullable, meta.charset, meta.collation, true
 				}
 			}
 			if ve.AttNum-1 < len(sv.ColumnMetadata) {
@@ -347,11 +838,9 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, te *TargetE
 			}
 		}
 	case RTESubquery:
-		if innerQ := leftmostAnalyzedQuery(rte.Subquery); innerQ != nil {
-			if subTE := nthNonJunkTarget(innerQ, ve.AttNum-1); subTE != nil {
-				if ct, nl, cs, cl, found := resolveTargetColumnMetadata(c, db, innerQ, subTE); found {
-					return ct, nl, cs, cl, true
-				}
+		if rte.Subquery != nil {
+			if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, ve.AttNum-1); ok {
+				return meta.colType, meta.nullable, meta.charset, meta.collation, true
 			}
 		}
 	}

@@ -164,12 +164,9 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 }
 
 func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
-	if len(v.Columns) == 0 && len(v.ColumnMetadata) == 0 {
-		return nil
-	}
 	var nonJunkTargets []*TargetEntryQ
-	if v.AnalyzedQuery != nil {
-		for _, te := range v.AnalyzedQuery.TargetList {
+	if leftQ := leftmostAnalyzedQuery(v.AnalyzedQuery); leftQ != nil {
+		for _, te := range leftQ.TargetList {
 			if te != nil && !te.ResJunk {
 				nonJunkTargets = append(nonJunkTargets, te)
 			}
@@ -179,13 +176,26 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 	if n == 0 {
 		n = len(v.ColumnMetadata)
 	}
+	if len(nonJunkTargets) > n {
+		n = len(nonJunkTargets)
+	}
+	if n == 0 {
+		return nil
+	}
 	cols := make([]*metadata.ColumnMetadata, 0, n)
 	for i := 0; i < n; i++ {
 		name := ""
 		if i < len(v.Columns) {
 			name = v.Columns[i]
-		} else {
+		} else if i < len(v.ColumnMetadata) {
 			name = v.ColumnMetadata[i].Name
+		}
+		var te *TargetEntryQ
+		if i < len(nonJunkTargets) {
+			te = nonJunkTargets[i]
+		}
+		if (name == "" || name == "*" || strings.HasSuffix(name, ".*")) && te != nil && te.ResName != "" {
+			name = te.ResName
 		}
 		col := &metadata.ColumnMetadata{
 			Name:     name,
@@ -194,8 +204,9 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			// charset/collation for every view column.
 			Nullable: true,
 		}
-		if i < len(nonJunkTargets) {
-			te := nonJunkTargets[i]
+		if v.AnalyzedQuery != nil && v.AnalyzedQuery.SetOp != SetOpNone {
+			col.Type = resolveSetOpColumnType(c, db, v.AnalyzedQuery, i)
+		} else if te != nil {
 			if te.ResOrigTable != "" && te.ResOrigCol != "" {
 				origDB := db
 				if te.ResOrigDB != "" {
@@ -216,6 +227,348 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 		cols = append(cols, col)
 	}
 	return cols
+}
+
+func leftmostAnalyzedQuery(q *Query) *Query {
+	for q != nil && q.SetOp != SetOpNone && q.LArg != nil {
+		q = q.LArg
+	}
+	return q
+}
+
+func resolveSetOpColumnType(c *Catalog, db *Database, q *Query, idx int) string {
+	t, _ := resolveSetOpColumnTypeExpr(c, db, q, idx)
+	return t
+}
+
+func resolveSetOpColumnTypeExpr(c *Catalog, db *Database, q *Query, idx int) (string, AnalyzedExpr) {
+	if q == nil {
+		return "", nil
+	}
+	if q.SetOp == SetOpNone {
+		te := nthNonJunkTarget(q, idx)
+		if te == nil {
+			return "", nil
+		}
+		if te.ResOrigTable != "" && te.ResOrigCol != "" {
+			origDB := db
+			if te.ResOrigDB != "" {
+				origDB = c.GetDatabase(te.ResOrigDB)
+			}
+			if origDB != nil {
+				if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+					if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
+						return srcCol.ColumnType, te.Expr
+					}
+				}
+			}
+		}
+		if te.Expr != nil {
+			return resolveAnalyzedExprColumnType(c, db, q, te.Expr), te.Expr
+		}
+		return "", nil
+	}
+	lType, lExpr := resolveSetOpColumnTypeExpr(c, db, q.LArg, idx)
+	// TiDB v8.5.5 keeps the left branch's column type for INTERSECT/EXCEPT views
+	// and coerces across arms for UNION.
+	if q.SetOp != SetOpUnion {
+		return lType, lExpr
+	}
+	rType, rExpr := resolveSetOpColumnTypeExpr(c, db, q.RArg, idx)
+	if lType == "" {
+		return rType, rExpr
+	}
+	if rType == "" {
+		return lType, lExpr
+	}
+	return combineSetOpColumnTypes(lType, lExpr, rType, rExpr), lExpr
+}
+
+type parsedSetOpType struct {
+	cat      string
+	raw      string
+	rank     int
+	width    int
+	prec     int
+	scale    int
+	unsigned bool
+	isChar   bool
+}
+
+func parseSetOpColType(colType string) parsedSetOpType {
+	raw := strings.TrimSpace(colType)
+	s := strings.ToLower(raw)
+	if s == "" || s == "binary(0)" {
+		return parsedSetOpType{cat: "null", raw: raw}
+	}
+	unsigned := strings.Contains(s, "unsigned")
+	s = strings.ReplaceAll(s, " unsigned", "")
+	s = strings.ReplaceAll(s, " zerofill", "")
+	s = strings.TrimSpace(s)
+
+	base := s
+	var p, sc int
+	if open := strings.IndexByte(s, '('); open >= 0 {
+		base = strings.TrimSpace(s[:open])
+		if closeIdx := strings.IndexByte(s[open+1:], ')'); closeIdx >= 0 {
+			args := strings.Split(s[open+1:open+1+closeIdx], ",")
+			if len(args) >= 1 {
+				p, _ = strconv.Atoi(strings.TrimSpace(args[0]))
+			}
+			if len(args) >= 2 {
+				sc, _ = strconv.Atoi(strings.TrimSpace(args[1]))
+			}
+		}
+	}
+
+	switch base {
+	case "tinyint", "bool", "boolean":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 1, width: 4, unsigned: unsigned}
+	case "smallint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 2, width: 6, unsigned: unsigned}
+	case "mediumint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 3, width: 9, unsigned: unsigned}
+	case "int", "integer":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 4, width: 11, unsigned: unsigned}
+	case "bigint":
+		return parsedSetOpType{cat: "int", raw: raw, rank: 5, width: 20, unsigned: unsigned}
+	case "float":
+		return parsedSetOpType{cat: "float", raw: raw, width: 12, unsigned: unsigned}
+	case "double", "real":
+		return parsedSetOpType{cat: "double", raw: raw, width: 22, unsigned: unsigned}
+	case "decimal", "numeric", "dec", "fixed":
+		if p == 0 {
+			p = 10
+		}
+		w := p + 1
+		if sc > 0 {
+			w = p + 2
+		}
+		return parsedSetOpType{cat: "decimal", raw: raw, prec: p, scale: sc, width: w, unsigned: unsigned}
+	case "char":
+		return parsedSetOpType{cat: "string", raw: raw, width: p, isChar: true}
+	case "varchar", "var_string":
+		return parsedSetOpType{cat: "string", raw: raw, width: p}
+	case "tinytext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 1, width: 255}
+	case "text":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 2, width: 65535}
+	case "mediumtext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 3, width: 16777215}
+	case "longtext":
+		return parsedSetOpType{cat: "text", raw: raw, rank: 4, width: 4294967295}
+	case "binary":
+		return parsedSetOpType{cat: "binary", raw: raw, width: p, isChar: true}
+	case "varbinary":
+		return parsedSetOpType{cat: "binary", raw: raw, width: p}
+	case "tinyblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 1, width: 255}
+	case "blob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 2, width: 65535}
+	case "mediumblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 3, width: 16777215}
+	case "longblob":
+		return parsedSetOpType{cat: "blob", raw: raw, rank: 4, width: 4294967295}
+	case "json":
+		return parsedSetOpType{cat: "json", raw: raw, width: 4294967295}
+	case "date":
+		return parsedSetOpType{cat: "date", raw: raw, width: 10}
+	case "time":
+		w := 8
+		if p > 0 {
+			w += p + 1
+		}
+		return parsedSetOpType{cat: "time", raw: raw, prec: p, width: w}
+	case "datetime", "timestamp":
+		w := 19
+		if p > 0 {
+			w += p + 1
+		}
+		return parsedSetOpType{cat: base, raw: raw, prec: p, width: w}
+	case "year":
+		return parsedSetOpType{cat: "year", raw: raw, width: 4}
+	case "bit":
+		w := p
+		if w == 0 {
+			w = 1
+		}
+		return parsedSetOpType{cat: "bit", raw: raw, prec: w, width: w}
+	default:
+		return parsedSetOpType{cat: "other", raw: raw}
+	}
+}
+
+func combineSetOpColumnTypes(lt string, le AnalyzedExpr, rt string, re AnalyzedExpr) string {
+	lp := parseSetOpColType(lt)
+	rp := parseSetOpColType(rt)
+	if lp.cat == "null" {
+		return rt
+	}
+	if rp.cat == "null" {
+		return lt
+	}
+	if lp.cat == "json" || rp.cat == "json" {
+		if lp.cat == "json" && rp.cat == "json" {
+			return "json"
+		}
+		return "longtext"
+	}
+	isStrLike := func(p parsedSetOpType) bool {
+		return p.cat == "string" || p.cat == "text"
+	}
+	isBinLike := func(p parsedSetOpType) bool {
+		return p.cat == "binary" || p.cat == "blob"
+	}
+	if isBinLike(lp) || isBinLike(rp) {
+		if lp.cat == "blob" || rp.cat == "blob" {
+			switch max(lp.rank, rp.rank) {
+			case 1:
+				return "tinyblob"
+			case 2:
+				return "blob"
+			case 3:
+				return "mediumblob"
+			default:
+				return "longblob"
+			}
+		}
+		w := max(lp.width, rp.width)
+		if lp.cat == "binary" && rp.cat == "binary" && lp.isChar && rp.isChar {
+			return fmt.Sprintf("binary(%d)", w)
+		}
+		return fmt.Sprintf("varbinary(%d)", w)
+	}
+	if isStrLike(lp) || isStrLike(rp) {
+		if lp.cat == "text" || rp.cat == "text" {
+			switch max(lp.rank, rp.rank) {
+			case 1:
+				return "tinytext"
+			case 2:
+				return "text"
+			case 3:
+				return "mediumtext"
+			default:
+				return "longtext"
+			}
+		}
+		w := max(lp.width, rp.width)
+		if lp.cat == "string" && rp.cat == "string" && lp.isChar && rp.isChar {
+			return fmt.Sprintf("char(%d)", w)
+		}
+		return fmt.Sprintf("varchar(%d)", w)
+	}
+	isNumeric := func(p parsedSetOpType) bool {
+		return p.cat == "int" || p.cat == "float" || p.cat == "double" || p.cat == "decimal" || p.cat == "year" || p.cat == "bit"
+	}
+	if isNumeric(lp) && isNumeric(rp) {
+		if lp.cat == "double" || rp.cat == "double" {
+			return "double"
+		}
+		if lp.cat == "float" || rp.cat == "float" {
+			return "float"
+		}
+		if lp.cat == "decimal" || rp.cat == "decimal" {
+			lrt := parseColumnResolvedType(lt)
+			rrt := parseColumnResolvedType(rt)
+			if lrt == nil {
+				lrt = &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			if rrt == nil {
+				rrt = &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			lPrec, lScale, lok := decimalOperandPrecisionScale(lrt, le)
+			rPrec, rScale, rok := decimalOperandPrecisionScale(rrt, re)
+			if !lok {
+				lPrec, lScale = lp.prec, lp.scale
+			}
+			if !rok {
+				rPrec, rScale = rp.prec, rp.scale
+			}
+			if lp.cat == "int" && lPrec < 19 {
+				lPrec = 19
+			}
+			if rp.cat == "int" && rPrec < 19 {
+				rPrec = 19
+			}
+			scale := max(lScale, rScale)
+			prec := min(65, max(lPrec-lScale, rPrec-rScale)+scale)
+			return fmt.Sprintf("decimal(%d,%d)", prec, scale)
+		}
+		if lp.cat == "bit" && rp.cat == "bit" {
+			return fmt.Sprintf("bit(%d)", max(lp.prec, rp.prec))
+		}
+		if lp.cat == "year" && rp.cat == "year" {
+			return "year"
+		}
+		rank := max(lp.rank, rp.rank)
+		if rank == 0 {
+			rank = 4
+		}
+		unsigned := false
+		if lp.unsigned == rp.unsigned {
+			unsigned = lp.unsigned
+		} else {
+			var sRank, uRank int
+			if lp.unsigned {
+				uRank, sRank = lp.rank, rp.rank
+			} else {
+				sRank, uRank = lp.rank, rp.rank
+			}
+			if sRank > uRank {
+				rank = sRank
+			} else if uRank >= 5 {
+				rank = 5
+				unsigned = true
+			} else {
+				rank = uRank + 1
+			}
+		}
+		suffix := ""
+		if unsigned {
+			suffix = " unsigned"
+		}
+		switch rank {
+		case 1:
+			return "tinyint" + suffix
+		case 2:
+			return "smallint" + suffix
+		case 3:
+			return "mediumint" + suffix
+		case 4:
+			return "int" + suffix
+		default:
+			return "bigint" + suffix
+		}
+	}
+	if lp.cat == "date" && rp.cat == "date" {
+		return "date"
+	}
+	if (lp.cat == "datetime" || lp.cat == "timestamp" || lp.cat == "date") &&
+		(rp.cat == "datetime" || rp.cat == "timestamp" || rp.cat == "date") {
+		if lp.cat == "timestamp" && rp.cat == "timestamp" {
+			fsp := max(lp.prec, rp.prec)
+			if fsp > 0 {
+				return fmt.Sprintf("timestamp(%d)", fsp)
+			}
+			return "timestamp"
+		}
+		fsp := max(lp.prec, rp.prec)
+		if fsp > 0 {
+			return fmt.Sprintf("datetime(%d)", fsp)
+		}
+		return "datetime"
+	}
+	if lp.cat == "time" && rp.cat == "time" {
+		fsp := max(lp.prec, rp.prec)
+		if fsp > 0 {
+			return fmt.Sprintf("time(%d)", fsp)
+		}
+		return "time"
+	}
+	if lp.raw == rp.raw {
+		return lp.raw
+	}
+	return fmt.Sprintf("varchar(%d)", max(lp.width, rp.width))
 }
 
 func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) string {
@@ -267,6 +620,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 						}
 					}
 					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
+						if sv.AnalyzedQuery.SetOp == SetOpUnion {
+							if rt := parseColumnResolvedType(resolveSetOpColumnType(c, origDB, sv.AnalyzedQuery, e.AttNum-1)); rt != nil {
+								return rt
+							}
+						}
 						if subTE := nthNonJunkTarget(sv.AnalyzedQuery, e.AttNum-1); subTE != nil {
 							return resolveExprResolvedType(c, origDB, sv.AnalyzedQuery, subTE.Expr)
 						}
@@ -274,6 +632,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 				}
 			}
 			if rte.Kind == RTESubquery && rte.Subquery != nil {
+				if rte.Subquery.SetOp == SetOpUnion {
+					if rt := parseColumnResolvedType(resolveSetOpColumnType(c, db, rte.Subquery, e.AttNum-1)); rt != nil {
+						return rt
+					}
+				}
 				if subTE := nthNonJunkTarget(rte.Subquery, e.AttNum-1); subTE != nil {
 					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr)
 				}

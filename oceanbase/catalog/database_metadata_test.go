@@ -1058,4 +1058,56 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	}
 	require.Empty(t, fkByName["fk_same_qual"].ReferencedSchema)
 	require.Equal(t, "other_db", fkByName["fk_cross_qual"].ReferencedSchema)
+
+	// Set-operation views derive metadata across all UNION/INTERSECT/EXCEPT arms.
+	unionCat := New()
+	_, err = unionCat.Exec(`
+		CREATE DATABASE app DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+		USE app;
+		CREATE TABLE t1 (
+			id INT NOT NULL,
+			s CHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+			c_bin CHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
+		);
+		CREATE TABLE t2 (
+			id BIGINT NULL,
+			s VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL
+		);
+		CREATE VIEW v_mix AS SELECT 1 AS c UNION SELECT 'x';
+		CREATE VIEW v_tbl AS SELECT id, s FROM t1 UNION SELECT id, s FROM t2;
+		CREATE VIEW v_null AS SELECT id FROM t1 UNION SELECT NULL;
+		CREATE VIEW v_num AS SELECT 1 AS a UNION SELECT 1.5 AS a;
+		CREATE VIEW v_col AS SELECT s FROM t1 UNION SELECT c_bin FROM t1;
+		CREATE VIEW v_except AS SELECT id, s FROM t1 EXCEPT SELECT id, s FROM t2;
+		CREATE VIEW v_intersect AS SELECT id, s FROM t1 INTERSECT SELECT id, s FROM t2;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	uViews := map[string]*metadata.ViewMetadata{}
+	for _, v := range unionCat.DatabaseMetadata("app").Schemas[0].Views {
+		uViews[v.Name] = v
+	}
+	require.Equal(t, "varchar(2)", uViews["v_mix"].Columns[0].Type)
+	require.False(t, uViews["v_mix"].Columns[0].Nullable)
+	require.Equal(t, "utf8mb4", uViews["v_mix"].Columns[0].CharacterSet)
+
+	require.Equal(t, "bigint", uViews["v_tbl"].Columns[0].Type)
+	require.True(t, uViews["v_tbl"].Columns[0].Nullable)
+	require.Equal(t, "varchar(10)", uViews["v_tbl"].Columns[1].Type)
+	require.True(t, uViews["v_tbl"].Columns[1].Nullable)
+	require.Equal(t, "utf8mb4_unicode_ci", uViews["v_tbl"].Columns[1].Collation)
+
+	require.Equal(t, "int(11)", uViews["v_null"].Columns[0].Type)
+	require.True(t, uViews["v_null"].Columns[0].Nullable)
+	require.Empty(t, uViews["v_null"].Columns[0].CharacterSet)
+
+	require.Equal(t, "decimal(2,1)", uViews["v_num"].Columns[0].Type)
+	require.Equal(t, "utf8mb4_bin", uViews["v_col"].Columns[0].Collation)
+
+	require.Equal(t, "bigint", uViews["v_except"].Columns[0].Type)
+	require.False(t, uViews["v_except"].Columns[0].Nullable)
+	require.Equal(t, "varchar(10)", uViews["v_except"].Columns[1].Type)
+	require.False(t, uViews["v_except"].Columns[1].Nullable)
+
+	require.Equal(t, "bigint", uViews["v_intersect"].Columns[0].Type)
+	require.False(t, uViews["v_intersect"].Columns[0].Nullable)
 }
