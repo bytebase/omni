@@ -1631,3 +1631,81 @@ CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([dbo].[g]([a])) PERSISTED);
 	require.NotContains(t, sql, "DROP FUNCTION [dbo].[g]")
 	require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
 }
+
+func TestMigrationRebuildsSchemaBoundFunctionReadingAlteredView(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() + 1 AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP VIEW [dbo].[v1]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "CREATE VIEW [dbo].[v1]"), sql)
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	require.GreaterOrEqual(t, dropG, 0)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+}
+
+func TestMigrationDefersChangedDefaultCallingViewDependentFunction(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]() + 1), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_t_v]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [DF_t_v]"), sql)
+	dropDF := strings.Index(sql, "DROP CONSTRAINT [DF_t_v]")
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	addDF := strings.Index(sql, "ADD CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]() + 1) FOR [v]")
+	require.GreaterOrEqual(t, dropDF, 0)
+	require.Less(t, dropDF, dropG)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+	require.Less(t, createG, addDF)
+}
