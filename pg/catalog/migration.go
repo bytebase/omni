@@ -330,6 +330,13 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	}
 	for _, rel := range diff.ForeignTables {
 		collectViewWrapOID(rel)
+		if rel.Action == DiffDrop && rel.From != nil {
+			// Foreign table renames/schema moves report DiffDrop+DiffAdd with the same OID;
+			// rebuild dependent views around the CASCADE drop even when the view has no diff.
+			if toRel := to.GetRelationByOID(rel.From.OID); toRel != nil && toRel.RelKind == 'f' {
+				tableOIDs[rel.From.OID] = true
+			}
+		}
 	}
 	if from != nil && to != nil && len(rebuiltServers) > 0 {
 		for _, s := range from.schemas {
@@ -1769,6 +1776,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	mainCreatedRule := make(map[string]bool)
 	mainCreatedFunc := make(map[string]bool)
 	mainComments := make(map[string]bool)
+	mainGrants := make(map[string]bool)
 
 	for _, op := range ops {
 		if op.Phase == PhasePre {
@@ -1820,6 +1828,8 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				mainCreatedFunc[op.SchemaName+"."+op.ObjectName] = true
 			case OpComment:
 				mainComments[op.SQL] = true
+			case OpGrant:
+				mainGrants[op.SQL] = true
 			}
 		}
 	}
@@ -1840,6 +1850,14 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					ObjType:       objType,
 					Priority:      PriorityMetadata,
 				})
+			}
+		}
+	}
+	appendGrantRestoreOps := func(objType byte, toOID uint32) {
+		for _, gop := range restoreGrantOps(to, objType, toOID) {
+			if !mainGrants[gop.SQL] {
+				mainGrants[gop.SQL] = true
+				mainExtra = append(mainExtra, gop)
 			}
 		}
 	}
@@ -1948,6 +1966,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					Priority:      PriorityType,
 				})
 				appendCommentRestoreOp('t', toOID, 0, key)
+				appendGrantRestoreOps('T', toOID)
 				for _, dc := range toDT.Constraints {
 					appendCommentRestoreOp('d', dc.OID, 0, key+"."+dc.Name)
 				}
@@ -1999,6 +2018,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			if toRT := to.rangeTypes[toOID]; toRT != nil {
 				mainExtra = append(mainExtra, buildCreateRangeOps(to, sc.Name, rt.Name, toRT)...)
 				appendCommentRestoreOp('t', toOID, 0, key)
+				appendGrantRestoreOps('T', toOID)
 			}
 		}
 	}
@@ -2812,6 +2832,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						mainCreatedFunc[fnKey] = true
 						mainExtra = append(mainExtra, buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP}))
 						appendCommentRestoreOp('f', toUP.OID, 0, id)
+						appendGrantRestoreOps('f', toUP.OID)
 						break
 					}
 				}
@@ -2823,6 +2844,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 							if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
 								ops[i] = buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP})
 								appendCommentRestoreOp('f', toUP.OID, 0, id)
+								appendGrantRestoreOps('f', toUP.OID)
 								break
 							}
 						}

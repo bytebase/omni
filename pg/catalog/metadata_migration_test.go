@@ -6637,3 +6637,125 @@ func TestRound30Fixes(t *testing.T) {
 	require.NotContains(t, srvPlan.SQL(), "DROP SERVER")
 	require.NotContains(t, srvPlan.SQL(), "CREATE FOREIGN TABLE")
 }
+
+func TestRound31Fixes(t *testing.T) {
+	// 1. Grants on retained functions rebuilt with ranges are restored cleanly.
+	grFrom := New()
+	_, err := grFrom.Exec(`
+		CREATE ROLE app_user;
+		CREATE TYPE public.r_grant AS RANGE (SUBTYPE = int4);
+		CREATE FUNCTION public.use_r(x public.r_grant) RETURNS int4 LANGUAGE sql IMMUTABLE AS 'SELECT 1';
+		GRANT EXECUTE ON FUNCTION public.use_r(public.r_grant) TO app_user;
+		GRANT USAGE ON TYPE public.r_grant TO app_user;
+	`, nil)
+	require.NoError(t, err)
+	grTo := New()
+	_, err = grTo.Exec(`
+		CREATE ROLE app_user;
+		CREATE TYPE public.r_grant AS RANGE (SUBTYPE = int4, SUBTYPE_OPCLASS = int4_ops);
+		CREATE FUNCTION public.use_r(x public.r_grant) RETURNS int4 LANGUAGE sql IMMUTABLE AS 'SELECT 1';
+		GRANT EXECUTE ON FUNCTION public.use_r(public.r_grant) TO app_user;
+		GRANT USAGE ON TYPE public.r_grant TO app_user;
+	`, nil)
+	require.NoError(t, err)
+	grDiff := Diff(grFrom, grTo)
+	require.NotEmpty(t, grDiff.Ranges)
+	require.Empty(t, grDiff.Grants)
+	grSQL := GenerateMigration(grFrom, grTo, grDiff).SQL()
+	require.Contains(t, grSQL, `GRANT USAGE ON TYPE "public"."r_grant" TO "app_user"`)
+	require.Contains(t, grSQL, `GRANT EXECUTE ON FUNCTION public.use_r(r_grant) TO "app_user"`)
+	grApplied := grFrom.Clone()
+	grExec, err := grApplied.Exec(grSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range grExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(grApplied, grTo).Grants)
+	require.Empty(t, Diff(grApplied, grTo).Functions)
+	require.Empty(t, Diff(grApplied, grTo).Ranges)
+
+	// 2. Quoted identifiers named "none" are preserved instead of being treated as NONE keyword.
+	noneBefore := New()
+	_, err = noneBefore.Exec(`
+		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'none_handler';
+		CREATE FUNCTION public.none_canon(public.r_qnone) RETURNS public.r_qnone LANGUAGE C IMMUTABLE AS 'internal', 'nc';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	noneAfter := New()
+	_, err = noneAfter.Exec(`
+		CREATE FUNCTION public."none"() RETURNS fdw_handler LANGUAGE internal AS 'none_handler';
+		CREATE FOREIGN DATA WRAPPER fdw_qnone HANDLER public."none";
+		CREATE TYPE public.r_qnone AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = "none");
+		CREATE TYPE public.r_unqnone AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = none);
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.NotNil(t, noneAfter.fdws["fdw_qnone"])
+	require.Contains(t, noneAfter.fdws["fdw_qnone"].Handler, "none")
+	require.NotZero(t, resolveTypeOIDByName(noneAfter, "public", "none"))
+	require.Zero(t, resolveTypeOIDByName(noneAfter, "public", "r_unqnone_none"))
+	noneSQL := GenerateMigration(noneBefore, noneAfter, Diff(noneBefore, noneAfter)).SQL()
+	require.Contains(t, noneSQL, `MULTIRANGE_TYPE_NAME = "public"."none"`)
+	noneApplied := noneBefore.Clone()
+	noneExec, err := noneApplied.Exec(noneSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range noneExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(noneApplied, noneAfter).ForeignDataWrappers)
+	require.Empty(t, Diff(noneApplied, noneAfter).Ranges)
+
+	// 3. Dropping a table column with column-level grants suppresses REVOKE on the dropped column.
+	colFrom := New()
+	_, err = colFrom.Exec(`
+		CREATE ROLE reader;
+		CREATE TABLE public.t_cgrant (id int, a int, b text);
+		GRANT SELECT (a) ON public.t_cgrant TO reader;
+		GRANT SELECT (a, b) ON public.t_cgrant TO reader;
+		GRANT UPDATE (b) ON public.t_cgrant TO reader;
+	`, nil)
+	require.NoError(t, err)
+	colTo := colFrom.Clone()
+	_, err = colTo.Exec(`ALTER TABLE public.t_cgrant DROP COLUMN a;`, nil)
+	require.NoError(t, err)
+	colSQL := GenerateMigration(colFrom, colTo, Diff(colFrom, colTo)).SQL()
+	require.NotContains(t, colSQL, `REVOKE SELECT ("a")`)
+	require.NotContains(t, colSQL, `REVOKE SELECT ("a", "b")`)
+	colApplied := colFrom.Clone()
+	colExec, err := colApplied.Exec(colSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range colExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(colApplied, colTo).Relations)
+	require.Empty(t, Diff(colApplied, colTo).Grants)
+
+	// 4. Renaming a foreign table preserves dependent views and triggers.
+	ftRenFrom := New()
+	_, err = ftRenFrom.Exec(`
+		CREATE ROLE ft_reader;
+		CREATE FOREIGN DATA WRAPPER w_ft;
+		CREATE SERVER srv_ft FOREIGN DATA WRAPPER w_ft;
+		CREATE FUNCTION public.ft_ren_trig() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE FOREIGN TABLE public.ft_old (id int, note text) SERVER srv_ft;
+		CREATE TRIGGER tr_ft_ren BEFORE INSERT ON public.ft_old FOR EACH ROW EXECUTE FUNCTION public.ft_ren_trig();
+		CREATE VIEW public.v_ft_const AS SELECT 1 AS ok FROM public.ft_old;
+		CREATE VIEW public.v_ft_col AS SELECT id, note FROM public.ft_old;
+		GRANT SELECT ON public.ft_old TO ft_reader;
+	`, nil)
+	require.NoError(t, err)
+	ftRenTo := ftRenFrom.Clone()
+	_, err = ftRenTo.Exec(`ALTER FOREIGN TABLE public.ft_old RENAME TO ft_new;`, nil)
+	require.NoError(t, err)
+	ftRenSQL := GenerateMigration(ftRenFrom, ftRenTo, Diff(ftRenFrom, ftRenTo)).SQL()
+	ftRenApplied := ftRenFrom.Clone()
+	ftRenExec, err := ftRenApplied.Exec(ftRenSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range ftRenExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.NotNil(t, ftRenApplied.GetRelation("public", "v_ft_const"))
+	require.NotNil(t, ftRenApplied.GetRelation("public", "v_ft_col"))
+	require.Empty(t, Diff(ftRenApplied, ftRenTo).ForeignTables)
+	require.Empty(t, Diff(ftRenApplied, ftRenTo).Relations)
+	require.Empty(t, Diff(ftRenApplied, ftRenTo).Grants)
+}

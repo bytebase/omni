@@ -368,9 +368,6 @@ func formatCatalogOptionName(de *nodes.DefElem) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	if len(parts) == 1 && strings.EqualFold(parts[0], "none") {
-		return ""
-	}
 	formatted := make([]string, len(parts))
 	for i, part := range parts {
 		formatted[i] = quoteIdentifier(part)

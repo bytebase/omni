@@ -130,6 +130,14 @@ func resolveGrantObjName(c *Catalog, objType byte, objOID uint32) string {
 		if s != nil {
 			return s.Name
 		}
+	case 'T':
+		bt := c.typeByOID[objOID]
+		if bt != nil {
+			if s := c.schemas[bt.Namespace]; s != nil {
+				return s.Name + "." + bt.TypeName
+			}
+			return bt.TypeName
+		}
 	}
 	return fmt.Sprintf("oid:%d", objOID)
 }

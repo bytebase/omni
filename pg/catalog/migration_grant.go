@@ -29,7 +29,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 		case DiffDrop:
 			g := entry.From
-			if grantDroppedWithForeignTable(from, diff, g) {
+			if grantDroppedWithRelationChange(from, to, diff, g) {
 				continue
 			}
 			objName := resolveGrantObjName(from, g.ObjType, g.ObjOID)
@@ -90,9 +90,40 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	return ops
 }
 
-func grantDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, g Grant) bool {
-	if g.ObjType != 'r' || diff == nil || (len(diff.ForeignTables) == 0 && len(diff.ForeignServers) == 0) {
+func grantDroppedWithRelationChange(from, to *Catalog, diff *SchemaDiff, g Grant) bool {
+	if g.ObjType != 'r' || diff == nil {
 		return false
+	}
+	droppedGrantColumn := func(cols []ColumnDiffEntry) bool {
+		if len(g.Columns) == 0 {
+			return false
+		}
+		droppedCols := make(map[string]bool)
+		for _, col := range cols {
+			if col.Action == DiffDrop {
+				droppedCols[col.Name] = true
+			}
+		}
+		for _, colName := range g.Columns {
+			if droppedCols[colName] {
+				return true
+			}
+		}
+		return false
+	}
+	for _, entry := range diff.Relations {
+		if entry.From == nil || entry.From.OID != g.ObjOID {
+			continue
+		}
+		switch entry.Action {
+		case DiffDrop:
+			return true
+		case DiffModify:
+			if entry.To != nil && tableRebuilt(from, to, entry.From, entry.To) {
+				return true
+			}
+			return droppedGrantColumn(entry.Columns)
+		}
 	}
 	rebuiltServers := rebuiltForeignServerNames(diff)
 	for _, ft := range diff.ForeignTables {
@@ -106,20 +137,7 @@ func grantDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, g Grant) bool
 			if ft.To == nil || ft.From.ForeignServer != ft.To.ForeignServer || rebuiltServers[ft.From.ForeignServer] {
 				return true
 			}
-			if len(g.Columns) > 0 {
-				droppedCols := make(map[string]bool)
-				for _, col := range ft.Columns {
-					if col.Action == DiffDrop {
-						droppedCols[col.Name] = true
-					}
-				}
-				for _, colName := range g.Columns {
-					if droppedCols[colName] {
-						return true
-					}
-				}
-			}
-			return false
+			return droppedGrantColumn(ft.Columns)
 		}
 	}
 	if from != nil && len(rebuiltServers) > 0 {
