@@ -1,7 +1,12 @@
-# The server this engine's committed answers come from. driver records the
-# tapes through elasticsearch/internal/testcontainer: Elasticsearch 8.19.25,
-# the last release of the 8.19 line, which every test reads (GET / answers
-# version.number), pinned by digest. No server judges the REST console grammar
-# elasticsearch/parser reads, so there is no compat.tsv pin and no second row.
+# The specification and server this engine's committed answers come from.
+# default judges compat.tsv and is no server: it is Elastic's official
+# elasticsearch-specification (Apache-2.0), output/schema/schema.json on the
+# 8.19 branch at the pinned commit. The digest is the SHA-256 of schema.json.
+# ElasticsearchConsole.g4, which the rows are generated from and judged by, is
+# converted from it by elasticsearch/parser/cmd/specgrammar.
+# driver records the tapes through elasticsearch/internal/testcontainer:
+# Elasticsearch 8.19.25, the last release of the 8.19 line, which every test
+# reads (GET / answers version.number), pinned by digest.
 # columns: role, image, digest, source tag
+default	github.com/elastic/elasticsearch-specification@fd5d063c4824de5d33618b7fca4df0e6c1b8489f	sha256:8213dcbdcb16041ee885a1a2430d9dde47967344defb9af8f4b4599ba7dcc425	8.19
 driver	docker.elastic.co/elasticsearch/elasticsearch:8.19.25	sha256:5bfdf4313b9bc05c0d46fe219d6e67710eb0c7654ed6c275167bdf9beefc56f0	8.19.25

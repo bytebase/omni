@@ -105,7 +105,7 @@ func (l *Lines) newlinesBetween(start, end int) int {
 }
 
 // startsWithMethodRegex matches a line that starts a request.
-var startsWithMethodRegex = regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE)`)
+var startsWithMethodRegex = regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE|HEAD)\b`)
 
 // GetAdjustedParsedRequest is Lines.AdjustedParsedRequest for one request of
 // text. Callers mapping every request of a text index it once with NewLines.
@@ -346,6 +346,12 @@ func (s *state) request() error {
 	if err := s.updateRequestEnd(); err != nil {
 		return err
 	}
+	if s.eof() || s.ch == '\n' || (s.ch == '\r' && s.peek(0) == '\n') {
+		return fmt.Errorf("Missing url")
+	}
+	if s.ch != ' ' && s.ch != '\t' {
+		return fmt.Errorf("expected whitespace after method instead of '%c'", s.ch)
+	}
 	if err := s.strictWhite(); err != nil {
 		return err
 	}
@@ -355,10 +361,23 @@ func (s *state) request() error {
 	if err := s.updateRequestEnd(); err != nil {
 		return err
 	}
-	// advance to one new line
-	if err := s.strictWhite(); err != nil {
-		return err
+	// Optional trailing horizontal whitespace and inline comments on the request line.
+	for {
+		if err := s.strictWhite(); err != nil {
+			return err
+		}
+		consumed, err := s.lineComment()
+		if err != nil {
+			return err
+		}
+		if !consumed {
+			break
+		}
 	}
+	if !s.eof() && s.ch != '\n' && !(s.ch == '\r' && s.peek(0) == '\n') {
+		return fmt.Errorf("unexpected '%c'", s.ch)
+	}
+	// advance to one new line
 	if err := s.newLine(); err != nil {
 		return err
 	}
@@ -406,17 +425,64 @@ func (s *state) request() error {
 }
 
 func (s *state) url() (string, error) {
+	if s.eof() || s.ch == '\n' || s.ch == '\r' || s.ch == '#' || (s.ch == '/' && s.peek(0) == '/') {
+		return "", fmt.Errorf("Missing url")
+	}
 	var url strings.Builder
-	for !s.eof() && s.ch != '\n' {
+	inQuotes := false
+	for !s.eof() && s.ch != '\n' && s.ch != '\r' {
+		if !inQuotes && (s.ch == ' ' || s.ch == '\t') {
+			break
+		}
+		if s.ch == '"' {
+			inQuotes = !inQuotes
+		}
 		url.WriteRune(s.ch)
 		if _, err := s.nextEmptyInput(); err != nil {
 			return "", err
 		}
 	}
+	if inQuotes {
+		return "", fmt.Errorf("unterminated quote in url")
+	}
 	if url.Len() == 0 {
 		return "", fmt.Errorf("Missing url")
 	}
 	return url.String(), nil
+}
+
+// lineComment consumes a single inline comment on the request line (# ..., // ...,
+// or a single-line /* ... */) and reports whether one was consumed.
+func (s *state) lineComment() (bool, error) {
+	if s.eof() {
+		return false, nil
+	}
+	if s.ch == '#' || (s.ch == '/' && s.peek(0) == '/') {
+		for !s.eof() && s.ch != '\n' && s.ch != '\r' {
+			if _, err := s.nextEmptyInput(); err != nil {
+				return true, err
+			}
+		}
+		return true, nil
+	}
+	if s.ch == '/' && s.peek(0) == '*' {
+		if err := s.nNextEmptyInput(2); err != nil {
+			return true, err
+		}
+		for !s.eof() && s.ch != '\n' && s.ch != '\r' && (s.ch != '*' || s.peek(0) != '/') {
+			if _, err := s.nextEmptyInput(); err != nil {
+				return true, err
+			}
+		}
+		if s.eof() || s.ch != '*' || s.peek(0) != '/' {
+			return true, fmt.Errorf("unterminated comment")
+		}
+		if err := s.nNextEmptyInput(2); err != nil {
+			return true, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func (s *state) object() (map[string]any, error) {
@@ -741,6 +807,9 @@ func (s *state) reset(newAt int) error {
 }
 
 func (s *state) newLine() error {
+	if s.ch == '\r' && s.peek(0) == '\n' {
+		return s.nNextEmptyInput(2)
+	}
 	if s.ch == '\n' {
 		if _, err := s.nextEmptyInput(); err != nil {
 			return err
@@ -1165,7 +1234,7 @@ func SplitDataIntoJSONObjects(s string) []string {
 // ParseLine extracts the method and URL from a request line.
 func ParseLine(line string) (method string, url string) {
 	line = strings.TrimSpace(line)
-	firstWhitespaceIndex := strings.Index(line, " ")
+	firstWhitespaceIndex := strings.IndexAny(line, " \t")
 	if firstWhitespaceIndex < 0 {
 		// There is no url, only method
 		return line, ""
@@ -1192,7 +1261,7 @@ func RemoveTrailingWhitespace(s string) string {
 		}
 		if r == '"' {
 			isQueryParam = !isQueryParam
-		} else if r == ' ' && !isQueryParam {
+		} else if (r == ' ' || r == '\t') && !isQueryParam {
 			whitespaceIndex = index
 			break
 		}
