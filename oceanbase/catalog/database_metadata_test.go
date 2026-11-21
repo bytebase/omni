@@ -888,8 +888,12 @@ func TestDatabaseMetadataDecimalArithmeticMVLogAbsenceAndSkipDump(t *testing.T) 
 					Name: "tr_skip", Event: "INSERT", Timing: "BEFORE", Body: "BEGIN END", SkipDump: true,
 				}},
 			}},
-			Views: []*metadata.ViewMetadata{{
-				Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true,
+			Views: []*metadata.ViewMetadata{
+				{Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true},
+				{Name: "v_uses_mv", Definition: "SELECT `id` FROM `mv_skip`"},
+			},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name: "mv_skip", Definition: "SELECT `id` FROM `no_mvlog_t`", SkipDump: true,
 			}},
 			Functions: []*metadata.FunctionMetadata{{
 				Name: "fn_skip", Definition: "CREATE FUNCTION fn_skip() RETURNS INT DETERMINISTIC RETURN 1", SkipDump: true,
@@ -916,6 +920,8 @@ func TestDatabaseMetadataDecimalArithmeticMVLogAbsenceAndSkipDump(t *testing.T) 
 	require.True(t, out.Schemas[0].Tables[0].SkipDump)
 	require.True(t, out.Schemas[0].Tables[0].Triggers[0].SkipDump)
 	require.True(t, out.Schemas[0].Views[0].SkipDump)
+	require.Len(t, out.Schemas[0].MaterializedViews, 1)
+	require.True(t, out.Schemas[0].MaterializedViews[0].SkipDump)
 	require.True(t, out.Schemas[0].Functions[0].SkipDump)
 	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
 }

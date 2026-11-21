@@ -356,7 +356,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 		// that reads the materialized view would name a relation the catalog does not hold;
 		// the container table holds its rows, and the sync no longer lists that as a table.
 		for _, v := range s.GetMaterializedViews() {
-			if v.GetName() == "" || v.GetSkipDump() {
+			if v.GetName() == "" {
 				continue
 			}
 			out = append(out, &metadataObject{
