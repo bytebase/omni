@@ -138,19 +138,87 @@ func TestCompleteSessionBracketAccess(t *testing.T) {
 }
 
 func TestCompleteSessionMultiline(t *testing.T) {
-	cfg := testSessionConfig("users", "my-collection")
-	stmt := "db.users.find().limit(20)\ndb."
-	results := CompleteSession(context.Background(), cfg, stmt, 2, 3)
+	cfg := testSessionConfig("users", "orders", "my-collection")
 
-	if !hasCandidateWithType(results, "users", CandidateCollection) {
-		t.Error("expected collection 'users' on second line")
-	}
-	if !hasCandidateWithType(results, `getCollection("my-collection")`, CandidateCollection) {
-		t.Error("expected getCollection(...) for 'my-collection' on second line")
-	}
-	if !hasCandidateWithType(results, "runCommand", CandidateDbMethod) {
-		t.Error("expected db method 'runCommand' on second line")
-	}
+	t.Run("db dot on second line", func(t *testing.T) {
+		stmt := "db.users.find().limit(20)\ndb."
+		results := CompleteSession(context.Background(), cfg, stmt, 2, 3)
+
+		if !hasCandidateWithType(results, "users", CandidateCollection) {
+			t.Error("expected collection 'users' on second line")
+		}
+		if !hasCandidateWithType(results, `getCollection("my-collection")`, CandidateCollection) {
+			t.Error("expected getCollection(...) for 'my-collection' on second line")
+		}
+		if !hasCandidateWithType(results, "runCommand", CandidateDbMethod) {
+			t.Error("expected db method 'runCommand' on second line")
+		}
+	})
+
+	t.Run("collection dot on second line", func(t *testing.T) {
+		stmt := "db.users.find().limit(20)\ndb.users."
+		results := CompleteSession(context.Background(), cfg, stmt, 2, len("db.users."))
+		for _, want := range []string{"aggregate", "bulkWrite", "find", "findOne"} {
+			if !hasCandidateWithType(results, want, CandidateMethod) {
+				t.Errorf("expected collection method %q on second line", want)
+			}
+		}
+	})
+
+	t.Run("cursor chain on second line", func(t *testing.T) {
+		stmt := "db.users.find().limit(20)\ndb.users.find()."
+		results := CompleteSession(context.Background(), cfg, stmt, 2, len("db.users.find()."))
+		for _, want := range []string{"allowDiskUse", "batchSize", "limit", "sort"} {
+			if !hasCandidateWithType(results, want, CandidateCursorMethod) {
+				t.Errorf("expected cursor method %q on second line", want)
+			}
+		}
+	})
+}
+
+func TestCompleteSessionContexts(t *testing.T) {
+	cfg := testSessionConfig("users", "orders", "my-collection")
+
+	t.Run("db dot with prefix filters collections and db methods", func(t *testing.T) {
+		results := CompleteSession(context.Background(), cfg, "db.u", 1, 4)
+		if !hasCandidateWithType(results, "users", CandidateCollection) {
+			t.Errorf("expected collection 'users', got %v", candidateTexts(results))
+		}
+		if hasCandidate(results, "orders") {
+			t.Error("did not expect 'orders' for prefix 'u'")
+		}
+		for _, want := range []string{"updateRole", "updateUser"} {
+			if !hasCandidateWithType(results, want, CandidateDbMethod) {
+				t.Errorf("expected db method %q", want)
+			}
+		}
+	})
+
+	t.Run("collection methods via dot and bracket access", func(t *testing.T) {
+		for _, stmt := range []string{"db.users.", `db["users"].`} {
+			results := CompleteSession(context.Background(), cfg, stmt, 1, len(stmt))
+			for _, want := range []string{"aggregate", "bulkWrite", "count", "find", "findOne"} {
+				if !hasCandidateWithType(results, want, CandidateMethod) {
+					t.Errorf("%q: expected collection method %q", stmt, want)
+				}
+			}
+		}
+	})
+
+	t.Run("cursor methods after find, chained sort, and bracket find", func(t *testing.T) {
+		for _, stmt := range []string{
+			"db.users.find().",
+			"db.users.find().sort().",
+			`db["users"].find().`,
+		} {
+			results := CompleteSession(context.Background(), cfg, stmt, 1, len(stmt))
+			for _, want := range []string{"allowDiskUse", "batchSize", "limit", "sort"} {
+				if !hasCandidateWithType(results, want, CandidateCursorMethod) {
+					t.Errorf("%q: expected cursor method %q", stmt, want)
+				}
+			}
+		}
+	})
 }
 
 func TestCompleteSessionNoMetadata(t *testing.T) {

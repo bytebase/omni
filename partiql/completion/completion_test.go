@@ -695,6 +695,20 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"Artist", "SongTitle"},
 		},
+		{
+			name:     "multi-statement FROM completion with trailing statement on next line",
+			input:    "select count(1) from t1 where id; SELECT * FROM |\nselect * from QRTZ_J0B_DETAILS qjd where J0B_NAME like '%gray';",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "leading operator before SELECT does not suggest tables or columns",
+			input:    "-| SELECT * FROM Music SELECT * FROM ",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {
