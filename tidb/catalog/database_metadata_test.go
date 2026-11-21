@@ -875,4 +875,28 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "NONE", childProto.ForeignKeys[0].MatchType)
 	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnDelete)
 	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnUpdate)
+
+	// Functional index expressions export parenthesized so DatabaseDefinition restores them.
+	fnCat := New()
+	_, err = fnCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE fn_idx_t (
+			id INT NOT NULL PRIMARY KEY,
+			code VARCHAR(20),
+			INDEX fn_upper ((UPPER(code)))
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	fnMeta := fnCat.DatabaseMetadata("app")
+	fnDef, err := DatabaseDefinition(fnMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, fnDef, "KEY `fn_upper` ((upper(`code`)))")
+	restoredFn := New()
+	resFn, err := restoredFn.Exec("CREATE DATABASE app;\nUSE app;\n"+fnDef, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	for _, r := range resFn {
+		require.NoError(t, r.Error)
+	}
+	require.NotNil(t, restoredFn.GetDatabase("app").GetTable("fn_idx_t"))
 }

@@ -816,7 +816,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		}
 		for _, col := range idx.Columns {
 			if col.Expr != "" {
-				idxMeta.Expressions = append(idxMeta.Expressions, col.Expr)
+				idxMeta.Expressions = append(idxMeta.Expressions, formatIndexExpr(col.Expr))
 			} else {
 				idxMeta.Expressions = append(idxMeta.Expressions, col.Name)
 			}
@@ -1092,6 +1092,74 @@ func formatSyncedComment(s string) string {
 		}
 	}
 	return b.String()
+}
+
+func formatIndexExpr(expr string) string {
+	expr = strings.TrimSpace(expr)
+	if expr == "" {
+		return expr
+	}
+	if expr[0] == '(' && expr[len(expr)-1] == ')' {
+		depth := 0
+		wrapped := true
+		inSingle, inDouble, inBacktick := false, false, false
+		for i := 0; i < len(expr); i++ {
+			ch := expr[i]
+			if inSingle {
+				if ch == '\\' {
+					i++
+					continue
+				}
+				if ch == '\'' {
+					if i+1 < len(expr) && expr[i+1] == '\'' {
+						i++
+						continue
+					}
+					inSingle = false
+				}
+				continue
+			}
+			if inDouble {
+				if ch == '\\' {
+					i++
+					continue
+				}
+				if ch == '"' {
+					inDouble = false
+				}
+				continue
+			}
+			if inBacktick {
+				if ch == '`' {
+					if i+1 < len(expr) && expr[i+1] == '`' {
+						i++
+						continue
+					}
+					inBacktick = false
+				}
+				continue
+			}
+			switch ch {
+			case '\'':
+				inSingle = true
+			case '"':
+				inDouble = true
+			case '`':
+				inBacktick = true
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 && i < len(expr)-1 {
+					wrapped = false
+				}
+			}
+		}
+		if wrapped && depth == 0 {
+			return expr
+		}
+	}
+	return "(" + expr + ")"
 }
 
 func sortedMapKeys[V any](m map[string]V) []string {

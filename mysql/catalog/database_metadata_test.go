@@ -917,4 +917,39 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.True(t, leftV.Columns[2].Nullable)
 	require.Equal(t, "utf8mb4", leftV.Columns[2].CharacterSet)
 	require.Equal(t, "utf8mb4_unicode_ci", leftV.Columns[2].Collation)
+
+	// Functional index expressions export parenthesized so DatabaseDefinition restores them.
+	_, err = c.Exec(`
+		CREATE TABLE fn_idx_t (
+			id INT NOT NULL PRIMARY KEY,
+			a INT NOT NULL,
+			b INT NOT NULL,
+			code VARCHAR(20),
+			INDEX fn_upper ((UPPER(code))),
+			INDEX fn_sum (((a) + (b)))
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	fnMeta := c.DatabaseMetadata("app")
+	var fnTblMeta *metadata.TableMetadata
+	for _, tbl := range fnMeta.Schemas[0].Tables {
+		if tbl.Name == "fn_idx_t" {
+			fnTblMeta = tbl
+		}
+	}
+	require.NotNil(t, fnTblMeta)
+	fnDef, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+		Name:    "app",
+		Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{fnTblMeta}}},
+	}, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, fnDef, "KEY `fn_upper` ((upper(`code`)))")
+	require.Contains(t, fnDef, "KEY `fn_sum` ((`a` + `b`))")
+	restoredFn := New()
+	resFn, err := restoredFn.Exec("CREATE DATABASE app;\nUSE app;\n"+fnDef, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	for _, r := range resFn {
+		require.NoError(t, r.Error)
+	}
+	require.NotNil(t, restoredFn.GetDatabase("app").GetTable("fn_idx_t"))
 }
