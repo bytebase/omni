@@ -686,3 +686,22 @@ func TestFallbackStopsOnARecursiveCTEAliasList(t *testing.T) {
 		spanFor(t, "WITH RECURSIVE c(ssn) AS (SELECT ssn FROM t UNION ALL SELECT v.ssn FROM c AS v(ssn) WHERE false) SELECT * FROM c CROSS JOIN unknown_rows() u", healthySchema())
 	})
 }
+
+func TestResolveQuerySpanWholeRowVar(t *testing.T) {
+	for _, stmt := range []string{
+		"SELECT to_jsonb(t1) FROM t t1",
+		"SELECT row_to_json(t) FROM t",
+		"SELECT to_jsonb(v) FROM (SELECT email, ssn FROM t) v",
+	} {
+		t.Run(stmt, func(t *testing.T) {
+			span := spanFor(t, stmt, healthySchema())
+			require.Len(t, span.Results, 1)
+			cols := columnNames(span.Results[0].SourceColumns)
+			require.Contains(t, cols, "db.public.t.email")
+			require.Contains(t, cols, "db.public.t.ssn")
+		})
+	}
+
+	predSpan := spanFor(t, "SELECT 1 FROM t t1 WHERE to_jsonb(t1) IS NOT NULL", healthySchema())
+	require.Equal(t, []string{"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}, columnNames(predSpan.PredicateColumns))
+}
