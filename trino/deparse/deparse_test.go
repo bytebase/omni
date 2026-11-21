@@ -2114,4 +2114,63 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "empty name")
+
+	// Empty column names fail explicitly on both public entry points.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "s",
+			Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "", Type: "bigint"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:   "s",
+			Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "", Type: "bigint"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:  "s",
+			Views: []*ViewMetadata{{Name: "v", Definition: "SELECT 1 AS x", Columns: []*ColumnMetadata{{Name: ""}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+
+	// MATCH_RECOGNIZE returns its partition columns and typed measures to the
+	// enclosing query under its alias, so a numeric measure keeps Trino's
+	// built-in abs instead of the same-schema abs(varchar) UDF.
+	matchRecognize, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}, {Name: "k", Type: "bigint"}, {Name: "n", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Views: []*metadatapb.ViewMetadata{
+				{
+					Name:       "v_mr_measure",
+					Definition: "SELECT abs(m.n), abs(m.k) FROM t MATCH_RECOGNIZE (PARTITION BY k ORDER BY id MEASURES A.n AS n PATTERN (A) DEFINE A AS true) AS m",
+				},
+				{
+					Name:       "v_mr_all_rows",
+					Definition: "SELECT abs(r.id), abs(r.q) FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES B.n AS m ALL ROWS PER MATCH PATTERN (A B) DEFINE B AS B.n > 0) AS r(id, m2, k2, q)",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, matchRecognize, `SELECT abs(m.n), abs(m.k) FROM "cat"."s".t MATCH_RECOGNIZE`)
+	assert.Contains(t, matchRecognize, `SELECT abs(r.id), abs(r.q) FROM "cat"."s".t MATCH_RECOGNIZE`)
 }

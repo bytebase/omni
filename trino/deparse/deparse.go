@@ -2,6 +2,7 @@ package deparse
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -908,6 +909,12 @@ func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMet
 	for _, c := range cols {
 		if c == nil {
 			continue
+		}
+		if c.Name == "" {
+			if requireType {
+				return nil, fmt.Errorf("table %s.%s has column with empty name", schemaName, tableName)
+			}
+			return nil, fmt.Errorf("view %s.%s has column with empty name", schemaName, tableName)
 		}
 		colKey := strings.ToLower(c.Name)
 		if _, exists := seenCols[colKey]; exists {
@@ -2659,21 +2666,144 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 	case *trinoparser.JSONTableRelation:
 		w.walkJSONTable(r, curEnv, ctes)
 	case *trinoparser.PatternRecognition:
-		w.walkRelation(r.Input, curEnv, ctes)
-		for _, pb := range r.PartitionBy {
-			w.walkExpr(pb, curEnv, ctes)
-		}
-		for _, ob := range r.OrderBy {
-			w.walkExpr(ob.Expr, curEnv, ctes)
-		}
-		for _, m := range r.Measures {
-			w.walkExpr(m.Expr, curEnv, ctes)
-		}
-		for _, d := range r.Definitions {
-			w.walkExpr(d.Condition, curEnv, ctes)
-		}
+		return w.walkPatternRecognition(r, curEnv, ctes, bind)
 	}
 	return nil
+}
+
+// walkPatternRecognition walks a MATCH_RECOGNIZE relation and returns its
+// output columns. Per https://trino.io/docs/current/sql/match-recognize.html,
+// ONE ROW PER MATCH outputs the PARTITION BY columns and then the measures;
+// ALL ROWS PER MATCH outputs the PARTITION BY columns, the ORDER BY columns,
+// the measures, and then the remaining input columns. The input's columns are
+// visible to the clause's expressions, bare or qualified by a pattern
+// variable, but only the output columns reach the enclosing query, under the
+// clause's trailing alias.
+func (w *trinoASTWalker) walkPatternRecognition(r *trinoparser.PatternRecognition, curEnv map[string]string, ctes map[string]struct{}, bind bool) []trinoProjCol {
+	inEnv := maps.Clone(curEnv)
+	if inEnv == nil {
+		inEnv = make(map[string]string)
+	}
+	prevAliasCols, prevAliasOrder, prevFromSeen := w.aliasCols, w.aliasOrder, w.fromSeen
+	w.aliasCols = maps.Clone(prevAliasCols)
+	if w.aliasCols == nil {
+		w.aliasCols = make(map[string]map[string]string)
+	}
+	w.aliasOrder = maps.Clone(prevAliasOrder)
+	if w.aliasOrder == nil {
+		w.aliasOrder = make(map[string][]trinoProjCol)
+	}
+	w.fromSeen = make(map[string]struct{})
+	inProj := w.walkRelationBound(r.Input, inEnv, ctes, true)
+	if inCols := projColsToMap(inProj, nil); len(inCols) > 0 {
+		for _, v := range trinoPatternVariables(r) {
+			w.aliasCols[v] = inCols
+		}
+	}
+
+	allRows := r.RowsPerMatch != nil && r.RowsPerMatch.Kind == trinoparser.AllRowsPerMatch
+	var out []trinoProjCol
+	used := make(map[string]struct{})
+	addKeyCol := func(expr trinoparser.Expr, typ string) {
+		name := ""
+		switch e := expr.(type) {
+		case *trinoparser.ColumnRef:
+			if e.Name != nil {
+				name = strings.ToLower(e.Name.Value)
+			}
+		case *trinoparser.Dereference:
+			if e.FieldName != nil {
+				name = strings.ToLower(e.FieldName.Value)
+			}
+		}
+		out = append(out, trinoProjCol{name: name, typ: typ})
+		if name != "" {
+			used[name] = struct{}{}
+		}
+	}
+	for _, pb := range r.PartitionBy {
+		addKeyCol(pb, w.walkExpr(pb, inEnv, ctes))
+	}
+	for _, ob := range r.OrderBy {
+		typ := w.walkExpr(ob.Expr, inEnv, ctes)
+		if allRows {
+			addKeyCol(ob.Expr, typ)
+		}
+	}
+	for _, m := range r.Measures {
+		typ := w.walkExpr(m.Expr, inEnv, ctes)
+		name := ""
+		if m.Name != nil {
+			name = strings.ToLower(m.Name.Value)
+		}
+		out = append(out, trinoProjCol{name: name, typ: typ})
+	}
+	for _, d := range r.Definitions {
+		w.walkExpr(d.Condition, inEnv, ctes)
+	}
+	if allRows {
+		for _, c := range inProj {
+			if _, ok := used[c.name]; !ok {
+				out = append(out, c)
+			}
+		}
+	}
+	w.aliasCols, w.aliasOrder, w.fromSeen = prevAliasCols, prevAliasOrder, prevFromSeen
+
+	for idx := range out {
+		if idx < len(r.ColumnAliases) && r.ColumnAliases[idx] != nil && r.ColumnAliases[idx].Value != "" {
+			out[idx].name = strings.ToLower(r.ColumnAliases[idx].Value)
+		}
+	}
+	if bind {
+		alias := ""
+		if r.Alias != nil {
+			alias = r.Alias.Value
+		}
+		w.bindRelationOrderedCols(alias, projColsToMap(out, nil), out, curEnv)
+	}
+	return out
+}
+
+// trinoPatternVariables returns the lower-cased row-pattern variables of r:
+// those its PATTERN names, its DEFINE clause defines, and its SUBSET clause
+// declares. Any of them may qualify an input column in the clause's
+// expressions.
+func trinoPatternVariables(r *trinoparser.PatternRecognition) []string {
+	var vars []string
+	add := func(id *ast.Identifier) {
+		if id != nil && id.Value != "" {
+			vars = append(vars, strings.ToLower(id.Value))
+		}
+	}
+	stack := []trinoparser.RowPattern{r.Pattern}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch n := p.(type) {
+		case *trinoparser.PatternVariable:
+			add(n.Name)
+		case *trinoparser.PatternConcat:
+			stack = append(stack, n.Left, n.Right)
+		case *trinoparser.PatternAlternation:
+			stack = append(stack, n.Left, n.Right)
+		case *trinoparser.QuantifiedPattern:
+			stack = append(stack, n.Primary)
+		case *trinoparser.PatternPermutation:
+			stack = append(stack, n.Patterns...)
+		case *trinoparser.GroupedPattern:
+			stack = append(stack, n.Inner)
+		case *trinoparser.ExcludedPattern:
+			stack = append(stack, n.Inner)
+		}
+	}
+	for _, d := range r.Definitions {
+		add(d.Name)
+	}
+	for _, sub := range r.Subsets {
+		add(sub.Name)
+	}
+	return vars
 }
 
 func (w *trinoASTWalker) walkJSONTable(r *trinoparser.JSONTableRelation, curEnv map[string]string, ctes map[string]struct{}) {
@@ -3737,6 +3867,9 @@ func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string
 		if column == nil {
 			continue
 		}
+		if column.Name == "" {
+			return fmt.Errorf("table %s.%s has column with empty name", schemaName, table.Name)
+		}
 		colKey := strings.ToLower(column.Name)
 		if _, exists := seenCols[colKey]; exists {
 			return fmt.Errorf("table %s.%s has duplicate column %s", schemaName, table.Name, quoteIdentifier(column.Name))
@@ -3878,6 +4011,9 @@ func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata
 	for _, col := range view.Columns {
 		if col == nil {
 			continue
+		}
+		if col.Name == "" {
+			return fmt.Errorf("view %s.%s has column with empty name", schemaName, view.Name)
 		}
 		colKey := strings.ToLower(col.Name)
 		if _, exists := seenCols[colKey]; exists {
