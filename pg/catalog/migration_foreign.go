@@ -7,10 +7,210 @@ import (
 	"strings"
 )
 
+func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.ForeignDataWrappers {
+		switch entry.Action {
+		case DiffAdd:
+			if entry.To == nil {
+				continue
+			}
+			var b strings.Builder
+			b.WriteString("CREATE FOREIGN DATA WRAPPER ")
+			b.WriteString(quoteIdentifier(entry.To.Name))
+			if entry.To.Handler != "" {
+				b.WriteString(" HANDLER ")
+				b.WriteString(formatFdwRoutineRef(entry.To.Handler))
+			}
+			if entry.To.Validator != "" {
+				b.WriteString(" VALIDATOR ")
+				b.WriteString(formatFdwRoutineRef(entry.To.Validator))
+			}
+			b.WriteString(formatForeignOptionsCreateClause(entry.To.Options))
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateTable,
+				ObjectName:    entry.Name,
+				SQL:           b.String(),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'F',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityTable,
+			})
+		case DiffDrop:
+			if entry.From == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropTable,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP FOREIGN DATA WRAPPER %s CASCADE", quoteIdentifier(entry.From.Name)),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'F',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityFunction,
+			})
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			var clauses []string
+			if entry.From.Handler != entry.To.Handler {
+				if entry.To.Handler == "" {
+					clauses = append(clauses, "NO HANDLER")
+				} else {
+					clauses = append(clauses, "HANDLER "+formatFdwRoutineRef(entry.To.Handler))
+				}
+			}
+			if entry.From.Validator != entry.To.Validator {
+				if entry.To.Validator == "" {
+					clauses = append(clauses, "NO VALIDATOR")
+				} else {
+					clauses = append(clauses, "VALIDATOR "+formatFdwRoutineRef(entry.To.Validator))
+				}
+			}
+			if !slices.Equal(entry.From.Options, entry.To.Options) {
+				if optClause := formatForeignOptionsAlterClause(entry.From.Options, entry.To.Options); optClause != "" {
+					clauses = append(clauses, optClause)
+				}
+			}
+			if len(clauses) > 0 {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s %s", quoteIdentifier(entry.To.Name), strings.Join(clauses, " ")),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'F',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityTable,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.ForeignServers {
+		switch entry.Action {
+		case DiffAdd:
+			if entry.To == nil {
+				continue
+			}
+			ops = append(ops, buildCreateForeignServerOp(entry.To))
+		case DiffDrop:
+			if entry.From == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropTable,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP SERVER %s CASCADE", quoteIdentifier(entry.From.Name)),
+				Transactional: true,
+				Phase:         PhasePre,
+				Priority:      PriorityTable,
+			})
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			if entry.From.FdwName != entry.To.FdwName || !stringPtrEqual(entry.From.Type, entry.To.Type) {
+				ops = append(ops, MigrationOp{
+					Type:          OpDropTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("DROP SERVER %s CASCADE", quoteIdentifier(entry.From.Name)),
+					Transactional: true,
+					Phase:         PhasePre,
+					Priority:      PriorityTable,
+				})
+				ops = append(ops, buildCreateForeignServerOp(entry.To))
+				continue
+			}
+			var clauses []string
+			if !stringPtrEqual(entry.From.Version, entry.To.Version) {
+				if entry.To.Version == nil {
+					clauses = append(clauses, "VERSION NULL")
+				} else {
+					clauses = append(clauses, "VERSION "+quoteLiteral(*entry.To.Version))
+				}
+			}
+			if !slices.Equal(entry.From.Options, entry.To.Options) {
+				if optClause := formatForeignOptionsAlterClause(entry.From.Options, entry.To.Options); optClause != "" {
+					clauses = append(clauses, optClause)
+				}
+			}
+			if len(clauses) > 0 {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER SERVER %s %s", quoteIdentifier(entry.To.Name), strings.Join(clauses, " ")),
+					Transactional: true,
+					Phase:         PhaseMain,
+					Priority:      PriorityTable,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+func buildCreateForeignServerOp(srv *ForeignServer) MigrationOp {
+	var b strings.Builder
+	b.WriteString("CREATE SERVER ")
+	b.WriteString(quoteIdentifier(srv.Name))
+	if srv.Type != nil {
+		b.WriteString(" TYPE ")
+		b.WriteString(quoteLiteral(*srv.Type))
+	}
+	if srv.Version != nil {
+		b.WriteString(" VERSION ")
+		b.WriteString(quoteLiteral(*srv.Version))
+	}
+	b.WriteString(" FOREIGN DATA WRAPPER ")
+	b.WriteString(quoteIdentifier(srv.FdwName))
+	b.WriteString(formatForeignOptionsCreateClause(srv.Options))
+	return MigrationOp{
+		Type:          OpCreateTable,
+		ObjectName:    srv.Name,
+		SQL:           b.String(),
+		Transactional: true,
+		Phase:         PhaseMain,
+		Priority:      PriorityTable,
+	}
+}
+
+func rebuiltForeignServerNames(diff *SchemaDiff) map[string]bool {
+	rebuilt := make(map[string]bool)
+	if diff == nil {
+		return rebuilt
+	}
+	for _, entry := range diff.ForeignServers {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil &&
+			(entry.From.FdwName != entry.To.FdwName || !stringPtrEqual(entry.From.Type, entry.To.Type)) {
+			rebuilt[entry.Name] = true
+		}
+	}
+	return rebuilt
+}
+
+func formatFdwRoutineRef(ref string) string {
+	schemaName, funcName := parseRoutineRefName(ref)
+	if schemaName != "" {
+		return quoteIdentifier(schemaName) + "." + quoteIdentifier(funcName)
+	}
+	return quoteIdentifier(funcName)
+}
+
 func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	diffFTKeys := make(map[string]bool, len(diff.ForeignTables))
 
 	for _, entry := range diff.ForeignTables {
+		diffFTKeys[entry.SchemaName+"\x00"+entry.Name] = true
 		switch entry.Action {
 		case DiffAdd:
 			if entry.To == nil || entry.To.RelKind != 'f' {
@@ -32,7 +232,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 				Phase:         PhasePre,
 				ObjType:       'r',
 				ObjOID:        entry.From.OID,
-				Priority:      PriorityTable,
+				Priority:      PriorityColumn,
 			})
 
 		case DiffModify:
@@ -40,22 +240,31 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 				continue
 			}
 			qn := formatRelationTargetName(entry.SchemaName, entry.To)
-			if entry.From.ForeignServer != entry.To.ForeignServer {
-				fromQN := formatRelationTargetName(entry.SchemaName, entry.From)
-				ops = append(ops, MigrationOp{
-					Type:          OpDropTable,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("DROP FOREIGN TABLE %s CASCADE", fromQN),
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'r',
-					ObjOID:        entry.From.OID,
-					Priority:      PriorityTable,
-				})
+			if entry.From.ForeignServer != entry.To.ForeignServer || rebuiltServers[entry.From.ForeignServer] {
+				if !rebuiltServers[entry.From.ForeignServer] {
+					fromQN := formatRelationTargetName(entry.SchemaName, entry.From)
+					ops = append(ops, MigrationOp{
+						Type:          OpDropTable,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						SQL:           fmt.Sprintf("DROP FOREIGN TABLE %s CASCADE", fromQN),
+						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'r',
+						ObjOID:        entry.From.OID,
+						Priority:      PriorityColumn,
+					})
+				}
 				ops = append(ops, buildCreateForeignTableOps(to, entry.SchemaName, entry.Name, entry.To)...)
 				ops = append(ops, restoreForeignTableDependents(to, diff, entry)...)
 				continue
+			}
+
+			skipCheckDrops := make(map[string]bool)
+			for _, ce := range entry.Constraints {
+				if (ce.Action == DiffDrop || ce.Action == DiffModify) && ce.From != nil && ce.From.Type == ConstraintCheck {
+					skipCheckDrops[ce.From.Name] = true
+				}
 			}
 
 			if !slices.Equal(entry.From.ForeignOptions, entry.To.ForeignOptions) {
@@ -110,7 +319,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 					if col.From == nil || col.To == nil {
 						continue
 					}
-					modOps := columnModifyOpsForStmt(from, to, "ALTER FOREIGN TABLE", qn, entry.SchemaName, entry.Name, col)
+					modOps := columnModifyOpsForStmt(from, to, "ALTER FOREIGN TABLE", qn, entry.SchemaName, entry.Name, col, skipCheckDrops)
 					for i := range modOps {
 						modOps[i].Phase = PhaseMain
 						modOps[i].ObjType = 'r'
@@ -158,7 +367,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 							Type:          OpAddConstraint,
 							SchemaName:    entry.SchemaName,
 							ObjectName:    entry.Name,
-							SQL:           fmt.Sprintf("ALTER FOREIGN TABLE %s ADD %s", qn, formatCheckConstraint(ce.To)),
+							SQL:           fmt.Sprintf("ALTER FOREIGN TABLE %s ADD %s", qn, formatForeignCheckConstraint(ce.To)),
 							Transactional: true,
 							Phase:         PhaseMain,
 							ObjType:       'r',
@@ -185,7 +394,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 							Type:          OpAddConstraint,
 							SchemaName:    entry.SchemaName,
 							ObjectName:    entry.Name,
-							SQL:           fmt.Sprintf("ALTER FOREIGN TABLE %s ADD %s", qn, formatCheckConstraint(ce.To)),
+							SQL:           fmt.Sprintf("ALTER FOREIGN TABLE %s ADD %s", qn, formatForeignCheckConstraint(ce.To)),
 							Transactional: true,
 							Phase:         PhaseMain,
 							ObjType:       'r',
@@ -206,7 +415,49 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 		}
 	}
 
+	if from != nil && to != nil && len(rebuiltServers) > 0 {
+		var untouched []RelationDiffEntry
+		for _, s := range to.schemas {
+			if s == nil {
+				continue
+			}
+			for _, toRel := range s.Relations {
+				if toRel == nil || toRel.RelKind != 'f' || diffFTKeys[s.Name+"\x00"+toRel.Name] {
+					continue
+				}
+				fromRel := from.GetRelation(s.Name, toRel.Name)
+				if fromRel != nil && fromRel.RelKind == 'f' && rebuiltServers[fromRel.ForeignServer] {
+					untouched = append(untouched, RelationDiffEntry{
+						Action:     DiffModify,
+						SchemaName: s.Name,
+						Name:       toRel.Name,
+						From:       fromRel,
+						To:         toRel,
+					})
+				}
+			}
+		}
+		sort.Slice(untouched, func(i, j int) bool {
+			if untouched[i].SchemaName != untouched[j].SchemaName {
+				return untouched[i].SchemaName < untouched[j].SchemaName
+			}
+			return untouched[i].Name < untouched[j].Name
+		})
+		for _, entry := range untouched {
+			ops = append(ops, buildCreateForeignTableOps(to, entry.SchemaName, entry.Name, entry.To)...)
+			ops = append(ops, restoreForeignTableDependents(to, diff, entry)...)
+		}
+	}
+
 	return ops
+}
+
+func formatForeignCheckConstraint(con *Constraint) string {
+	sql := formatCheckConstraint(con)
+	if con != nil && !con.Validated {
+		sql += " NOT VALID"
+	}
+	return sql
 }
 
 func buildCreateForeignTableOps(to *Catalog, schemaName, tableName string, rel *Relation) []MigrationOp {
@@ -220,7 +471,7 @@ func buildCreateForeignTableOps(to *Catalog, schemaName, tableName string, rel *
 	if to != nil {
 		for _, con := range to.ConstraintsOf(rel.OID) {
 			if con.Type == ConstraintCheck {
-				checks = append(checks, formatCheckConstraint(con))
+				checks = append(checks, formatForeignCheckConstraint(con))
 			}
 		}
 	}
@@ -301,11 +552,6 @@ func restoreForeignTableDependents(to *Catalog, diff *SchemaDiff, entry Relation
 	rel := entry.To
 	if rel == nil {
 		return nil
-	}
-	for _, trig := range to.TriggersOf(rel.OID) {
-		if trig.ParentTriggerOID == 0 {
-			ops = append(ops, buildCreateAndModeTriggerOps(to, entry.SchemaName, entry.Name, trig)...)
-		}
 	}
 
 	handledGrantSQL := make(map[string]bool)

@@ -5851,3 +5851,111 @@ func TestRound23Fixes(t *testing.T) {
 	require.Empty(t, remFT.ForeignTables)
 	require.Empty(t, remFT.Comments)
 }
+
+func TestRound24Fixes(t *testing.T) {
+	// 1. FDW -> Server -> ForeignTable create/alter/drop ordering and convergence.
+	fdwFrom := New()
+	_, err := fdwFrom.Exec(`
+		CREATE FUNCTION public.fdw_h1() RETURNS fdw_handler AS '' LANGUAGE C;
+		CREATE FUNCTION public.fdw_v1(text[], oid) RETURNS void AS '' LANGUAGE C;
+		CREATE FUNCTION public.fdw_h_drop() RETURNS fdw_handler AS '' LANGUAGE C;
+		CREATE FOREIGN DATA WRAPPER w_keep HANDLER public.fdw_h1 VALIDATOR public.fdw_v1 OPTIONS (foo 'bar');
+		CREATE FOREIGN DATA WRAPPER w_drop HANDLER public.fdw_h_drop;
+		CREATE SERVER srv_keep TYPE 'pg' VERSION '16' FOREIGN DATA WRAPPER w_keep OPTIONS (host 'h1');
+		CREATE SERVER srv_rebuild TYPE 'old' FOREIGN DATA WRAPPER w_keep;
+		CREATE SERVER srv_drop FOREIGN DATA WRAPPER w_drop;
+		CREATE FOREIGN TABLE public.ft_on_rebuild (id integer) SERVER srv_rebuild;
+		CREATE FOREIGN TABLE public.ft_drop (id integer) SERVER srv_drop;
+		COMMENT ON FOREIGN TABLE public.ft_drop IS 'drop me cleanly';
+	`, nil)
+	require.NoError(t, err)
+
+	fdwTo := New()
+	_, err = fdwTo.Exec(`
+		CREATE FUNCTION public.fdw_h1() RETURNS fdw_handler AS '' LANGUAGE C;
+		CREATE FUNCTION public.fdw_h2() RETURNS fdw_handler AS '' LANGUAGE C;
+		CREATE FOREIGN DATA WRAPPER w_keep HANDLER public.fdw_h1 NO VALIDATOR OPTIONS (foo 'baz', extra '1');
+		CREATE FOREIGN DATA WRAPPER w_new HANDLER public.fdw_h2;
+		CREATE SERVER srv_keep TYPE 'pg' VERSION NULL FOREIGN DATA WRAPPER w_keep OPTIONS (host 'h2');
+		CREATE SERVER srv_rebuild TYPE 'new' VERSION '17' FOREIGN DATA WRAPPER w_keep;
+		CREATE SERVER srv_new FOREIGN DATA WRAPPER w_new OPTIONS (dbname 'd1');
+		CREATE FOREIGN TABLE public.ft_on_rebuild (id integer) SERVER srv_rebuild;
+		CREATE FOREIGN TABLE public.ft_new (id integer) SERVER srv_new;
+	`, nil)
+	require.NoError(t, err)
+
+	fdwDiff := Diff(fdwFrom, fdwTo)
+	require.NotEmpty(t, fdwDiff.ForeignDataWrappers)
+	require.NotEmpty(t, fdwDiff.ForeignServers)
+	fdwSQL := GenerateMigration(fdwFrom, fdwTo, fdwDiff).SQL()
+	require.NotContains(t, fdwSQL, `COMMENT ON FOREIGN TABLE "public"."ft_drop" IS NULL`)
+
+	fdwApplied := fdwFrom.Clone()
+	execRes, err := fdwApplied.Exec(fdwSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	remFdw := Diff(fdwApplied, fdwTo)
+	require.Empty(t, remFdw.ForeignDataWrappers)
+	require.Empty(t, remFdw.ForeignServers)
+	require.Empty(t, remFdw.ForeignTables)
+	require.Empty(t, remFdw.Functions)
+
+	// 2. Foreign table server switch preserves dependent views and single retained trigger;
+	// column type change + modified CHECK constraint avoids duplicate drop; NOT VALID is preserved.
+	setupFTComplex := func(ddl string) *Catalog {
+		c := New()
+		_, err := c.Exec(`
+			CREATE FOREIGN DATA WRAPPER fdw_a;
+			CREATE SERVER srv_a FOREIGN DATA WRAPPER fdw_a;
+			CREATE SERVER srv_b FOREIGN DATA WRAPPER fdw_a;
+			CREATE FUNCTION public.ft_trig_fn() RETURNS trigger AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql;
+		`+ddl, nil)
+		require.NoError(t, err)
+		return c
+	}
+
+	ftFrom := setupFTComplex(`
+		CREATE FOREIGN TABLE public.ft_switch (id integer, val integer) SERVER srv_a;
+		CREATE TRIGGER tr_keep BEFORE INSERT ON public.ft_switch FOR EACH ROW EXECUTE FUNCTION public.ft_trig_fn();
+		CREATE VIEW public.v_ft AS SELECT id, val FROM public.ft_switch;
+		CREATE FOREIGN TABLE public.ft_chk (
+			id integer,
+			val integer,
+			CONSTRAINT chk_mod CHECK (val > 0),
+			CONSTRAINT chk_drop CHECK (val < 100),
+			CONSTRAINT chk_same CHECK (val <> 0)
+		) SERVER srv_a;
+	`)
+	ftTo := setupFTComplex(`
+		CREATE FOREIGN TABLE public.ft_switch (id integer, val integer) SERVER srv_b;
+		CREATE TRIGGER tr_keep BEFORE INSERT ON public.ft_switch FOR EACH ROW EXECUTE FUNCTION public.ft_trig_fn();
+		CREATE VIEW public.v_ft AS SELECT id, val FROM public.ft_switch;
+		CREATE FOREIGN TABLE public.ft_chk (
+			id integer,
+			val bigint,
+			CONSTRAINT chk_mod CHECK (val > 10),
+			CONSTRAINT chk_same CHECK (val <> 0),
+			CONSTRAINT chk_nv CHECK (id > 0) NOT VALID
+		) SERVER srv_a;
+	`)
+
+	ftDiff := Diff(ftFrom, ftTo)
+	ftSQL := GenerateMigration(ftFrom, ftTo, ftDiff).SQL()
+	require.Equal(t, 1, strings.Count(ftSQL, `CREATE TRIGGER "tr_keep"`))
+	require.Equal(t, 1, strings.Count(ftSQL, `DROP CONSTRAINT chk_mod`))
+	require.Contains(t, ftSQL, `CREATE VIEW "public"."v_ft"`)
+	require.Contains(t, ftSQL, "NOT VALID")
+
+	ftApplied := ftFrom.Clone()
+	ftExecRes, err := ftApplied.Exec(ftSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range ftExecRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	remFT2 := Diff(ftApplied, ftTo)
+	require.Empty(t, remFT2.ForeignTables)
+	require.Empty(t, remFT2.Relations)
+	require.Empty(t, remFT2.Comments)
+}

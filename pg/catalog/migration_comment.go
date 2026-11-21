@@ -26,6 +26,9 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				})
 			}
 		case DiffDrop:
+			if commentDroppedWithForeignTable(from, diff, entry) {
+				continue
+			}
 			sql := formatCommentEntrySQL(from, entry, "")
 			if sql != "" {
 				ops = append(ops, MigrationOp{
@@ -47,6 +50,92 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+func commentDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, entry CommentDiffEntry) bool {
+	if diff == nil || (len(diff.ForeignTables) == 0 && len(diff.ForeignServers) == 0) {
+		return false
+	}
+	schemaName, relName, ok := commentParts2(entry)
+	if !ok {
+		return false
+	}
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	relKey := schemaName + "\x00" + relName
+	rebuiltOrDroppedFT := make(map[string]bool)
+	droppedFTCols := make(map[string]map[int16]bool)
+	droppedFTCons := make(map[string]map[string]bool)
+	droppedFTTrigs := make(map[string]map[string]bool)
+
+	for _, ft := range diff.ForeignTables {
+		k := ft.SchemaName + "\x00" + ft.Name
+		switch ft.Action {
+		case DiffDrop:
+			rebuiltOrDroppedFT[k] = true
+		case DiffModify:
+			if ft.From != nil && ft.To != nil &&
+				(ft.From.ForeignServer != ft.To.ForeignServer || rebuiltServers[ft.From.ForeignServer]) {
+				rebuiltOrDroppedFT[k] = true
+				continue
+			}
+			for _, col := range ft.Columns {
+				if col.Action == DiffDrop && col.From != nil {
+					if droppedFTCols[k] == nil {
+						droppedFTCols[k] = make(map[int16]bool)
+					}
+					droppedFTCols[k][col.From.AttNum] = true
+				}
+			}
+			for _, ce := range ft.Constraints {
+				if (ce.Action == DiffDrop || ce.Action == DiffModify) && ce.From != nil {
+					if droppedFTCons[k] == nil {
+						droppedFTCons[k] = make(map[string]bool)
+					}
+					droppedFTCons[k][ce.From.Name] = true
+				}
+			}
+			for _, te := range ft.Triggers {
+				if te.Action == DiffDrop && te.From != nil {
+					if droppedFTTrigs[k] == nil {
+						droppedFTTrigs[k] = make(map[string]bool)
+					}
+					droppedFTTrigs[k][te.From.Name] = true
+				}
+			}
+		}
+	}
+	if from != nil && len(rebuiltServers) > 0 {
+		if rel := from.GetRelation(schemaName, relName); rel != nil && rel.RelKind == 'f' && rebuiltServers[rel.ForeignServer] {
+			rebuiltOrDroppedFT[relKey] = true
+		}
+	}
+
+	switch entry.ObjType {
+	case 'r':
+		if rebuiltOrDroppedFT[relKey] {
+			return true
+		}
+		if entry.SubID != 0 {
+			return droppedFTCols[relKey][entry.SubID]
+		}
+	case 'c':
+		if rebuiltOrDroppedFT[relKey] {
+			return true
+		}
+		if len(entry.objParts) >= 3 {
+			return droppedFTCons[relKey][entry.objParts[2]]
+		}
+	case 'g':
+		if rebuiltOrDroppedFT[relKey] {
+			return true
+		}
+		if len(entry.objParts) >= 3 {
+			return droppedFTTrigs[relKey][entry.objParts[2]]
+		}
+	case 'R', 'p':
+		return rebuiltOrDroppedFT[relKey]
+	}
+	return false
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.

@@ -140,10 +140,10 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 // multiple ALTER statements; when a type change is combined with an existing
 // default, the sequence is DROP DEFAULT → ALTER TYPE → SET DEFAULT.
 func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, col ColumnDiffEntry) []MigrationOp {
-	return columnModifyOpsForStmt(from, to, "ALTER TABLE", tableName, schemaName, relName, col)
+	return columnModifyOpsForStmt(from, to, "ALTER TABLE", tableName, schemaName, relName, col, nil)
 }
 
-func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName, relName string, col ColumnDiffEntry) []MigrationOp {
+func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName, relName string, col ColumnDiffEntry, skipCheckNames map[string]bool) []MigrationOp {
 	oldCol := col.From
 	newCol := col.To
 	var ops []MigrationOp
@@ -166,7 +166,7 @@ func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName,
 		fromRel := from.GetRelation(schemaName, relName)
 		if fromRel != nil {
 			for _, con := range from.ConstraintsOf(fromRel.OID) {
-				if con.Type != ConstraintCheck {
+				if con.Type != ConstraintCheck || skipCheckNames[con.Name] {
 					continue
 				}
 				// Check if the constraint expression references this column name.
@@ -238,21 +238,27 @@ func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName,
 	// Use the target catalog's constraint expressions (which may reference the new type).
 	for _, oldCon := range checkConstraints {
 		checkExpr := oldCon.CheckExpr
+		validated := oldCon.Validated
 		// Look up the constraint in the target catalog for the updated expression.
 		toRel := to.GetRelation(schemaName, relName)
 		if toRel != nil {
 			for _, newCon := range to.ConstraintsOf(toRel.OID) {
 				if newCon.Type == ConstraintCheck && newCon.Name == oldCon.Name {
 					checkExpr = newCon.CheckExpr
+					validated = newCon.Validated
 					break
 				}
 			}
+		}
+		sql := fmt.Sprintf("%s %s ADD CONSTRAINT %s CHECK (%s)", alterStmt, tableName, quoteIdentifier(oldCon.Name), checkExpr)
+		if !validated {
+			sql += " NOT VALID"
 		}
 		ops = append(ops, MigrationOp{
 			Type:          OpAddConstraint,
 			SchemaName:    schemaName,
 			ObjectName:    relName,
-			SQL:           fmt.Sprintf("%s %s ADD CONSTRAINT %s CHECK (%s)", alterStmt, tableName, quoteIdentifier(oldCon.Name), checkExpr),
+			SQL:           sql,
 			Transactional: true,
 		})
 	}

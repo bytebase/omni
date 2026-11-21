@@ -23,7 +23,11 @@ func generateFunctionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropFunctionOp(from, entry))
+			op := buildDropFunctionOp(from, entry)
+			if functionDetachedInPhaseMain(diff, entry.From) {
+				op.Phase = PhaseLateDrop
+			}
+			ops = append(ops, op)
 
 		case DiffModify:
 			if entry.From == nil || entry.To == nil {
@@ -194,6 +198,19 @@ func buildDropFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		ObjOID:        entry.From.OID,
 		Priority:      PriorityFunction,
 	}
+}
+
+func functionDetachedInPhaseMain(diff *SchemaDiff, proc *UserProc) bool {
+	if diff == nil || proc == nil {
+		return false
+	}
+	for _, fdw := range diff.ForeignDataWrappers {
+		if fdw.Action == DiffModify && fdw.From != nil &&
+			(fdw.From.HandlerOID == proc.OID || fdw.From.ValidatorOID == proc.OID) {
+			return true
+		}
+	}
+	return false
 }
 
 // formatFuncParams formats the parameter list for CREATE FUNCTION/PROCEDURE.

@@ -228,6 +228,8 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// functions with RETURNS SETOF deps are placed after tables.
 	ops = append(ops, generateFunctionDDL(from, to, diff)...)
 	ops = append(ops, generateAccessMethodDDL(from, to, diff)...)
+	ops = append(ops, generateForeignDataWrapperDDL(from, to, diff)...)
+	ops = append(ops, generateForeignServerDDL(from, to, diff)...)
 	ops = append(ops, generateTableDDL(from, to, diff)...)
 	ops = append(ops, generateForeignTableDDL(from, to, diff)...)
 	ops = append(ops, generateColumnDDL(from, to, diff)...)
@@ -271,16 +273,21 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	for oid := range extraTableOIDs {
 		tableOIDs[oid] = true
 	}
-	for _, rel := range diff.Relations {
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	collectViewWrapOID := func(rel RelationDiffEntry) {
 		if rel.Action != DiffModify {
-			continue
+			return
 		}
 		needsViewWrap := false
 
-		// tableRebuilt (RelKind change)
-		// triggers DROP TABLE CASCADE which destroys dependent views.
+		// tableRebuilt (RelKind change) or foreign server replacement/change
+		// triggers DROP CASCADE which destroys dependent views.
 		if rel.From != nil && rel.To != nil {
-			if tableRebuilt(from, to, rel.From, rel.To) {
+			if rel.From.RelKind == 'f' && rel.To.RelKind == 'f' {
+				if rel.From.ForeignServer != rel.To.ForeignServer || rebuiltServers[rel.From.ForeignServer] {
+					needsViewWrap = true
+				}
+			} else if tableRebuilt(from, to, rel.From, rel.To) {
 				needsViewWrap = true
 			}
 			if rel.From.RelKind == 'v' && rel.To.RelKind == 'v' &&
@@ -291,7 +298,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 
 		if !needsViewWrap {
 			for _, col := range rel.Columns {
-				// Column drop: PG cannot drop a column when a view depends on the table.
+				// Column drop: PG cannot drop a column when a view depends on the relation.
 				if col.Action == DiffDrop {
 					needsViewWrap = true
 					break
@@ -310,10 +317,28 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			}
 		}
 		if needsViewWrap {
-			// Look up the table OID from the `from` catalog (where deps are recorded).
+			// Look up the relation OID from the `from` catalog (where deps are recorded).
 			r := from.GetRelation(rel.SchemaName, rel.Name)
 			if r != nil {
 				tableOIDs[r.OID] = true
+			}
+		}
+	}
+	for _, rel := range diff.Relations {
+		collectViewWrapOID(rel)
+	}
+	for _, rel := range diff.ForeignTables {
+		collectViewWrapOID(rel)
+	}
+	if from != nil && to != nil && len(rebuiltServers) > 0 {
+		for _, s := range from.schemas {
+			if s == nil {
+				continue
+			}
+			for _, rel := range s.Relations {
+				if rel != nil && rel.RelKind == 'f' && rebuiltServers[rel.ForeignServer] && to.GetRelation(s.Name, rel.Name) != nil {
+					tableOIDs[rel.OID] = true
+				}
 			}
 		}
 	}
