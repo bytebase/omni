@@ -480,7 +480,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseCreateTableVarrayColProperties(true); err != nil {
 				return err
 			}
-		case p.isCreateTableLobStorageStart():
+		case p.isKeywordStr("LOB"):
 			if err := p.parseCreateTableLobStorageClause(); err != nil {
 				return err
 			}
@@ -488,7 +488,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseMviewXmltypeColumnProperties(); err != nil {
 				return err
 			}
-		case p.cur.Type == kwJSON && p.peekNext().Type == '(':
+		case p.cur.Type == kwJSON:
 			if err := p.parseMviewJSONStorage(); err != nil {
 				return err
 			}

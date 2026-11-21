@@ -150,7 +150,7 @@ func (p *Parser) parseSubAVClause() (*nodes.SubAVClause, error) {
 			return nil, err
 		}
 	}
-	if p.isKeywordStr("ADD") && p.anNextIsWord("MEASURES") {
+	if p.isKeywordStr("ADD") {
 		if err := p.parseSubAVAddMeasures(clause); err != nil {
 			return nil, err
 		}
@@ -269,7 +269,9 @@ func (p *Parser) parseCalculatedMeasureExpr() (nodes.ExprNode, bool, error) {
 func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 	optStart := p.pos()
 	p.advance() // consume ADD
-	p.advance() // consume MEASURES
+	if err := p.anExpectWord("MEASURES"); err != nil {
+		return err
+	}
 	if err := p.anExpect('('); err != nil {
 		return err
 	}

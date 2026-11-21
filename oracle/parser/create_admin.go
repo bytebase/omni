@@ -918,6 +918,11 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 	if stmt.TableName, err = p.parseRequiredObjectName(); err != nil {
 		return nil, err
 	}
+	if p.cur.Type != '(' && p.isIdentLike() {
+		if stmt.TableAlias, err = p.parseIdentifier(); err != nil {
+			return nil, err
+		}
+	}
 	if p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
 	}
