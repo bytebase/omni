@@ -1,0 +1,7 @@
+# Vendor files cockroachdb's tests read and the repo does not hold:
+# CockroachDB's pkg/sql/parser/sql.y is subject to the CockroachDB Software
+# License (BSL), which is not this repo's license. A test downloads each file
+# once (enginetest.Fetched) and checks its SHA-256 on every use. Each URL names
+# the commit of the source tag in pins.tsv, v25.2.3.
+# columns: name, sha256, url
+sql.y	8cbd5577280a071a1910807bb369088353e3419e5c3dab4cf332d2237a744058	https://raw.githubusercontent.com/cockroachdb/cockroach/adfe5601ff6cb72c0f65090995978ca9ebbdc647/pkg/sql/parser/sql.y

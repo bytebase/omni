@@ -56,6 +56,20 @@ func Open(t testing.TB) *sql.DB {
 	return tape.Open(t, server, Default)
 }
 
+// Judge returns a connection to the pinned server itself, outside any tape,
+// for the judge of compat.tsv, which runs only in a recording or verification.
+// A statement sent with no arguments reaches the server as written, in one
+// simple query.
+func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	db := started(t, pin).admin()
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
 // Database is the name of the database Open connects t to: one per
 // top-level test, named for it, so that a test reads the same
 // current_database() in every recording.
