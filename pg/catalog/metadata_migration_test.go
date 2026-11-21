@@ -7445,6 +7445,159 @@ func TestRound37Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, qReport.Degraded)
 	require.True(t, Diff(qReloaded, qAfter).IsEmpty())
+
+	// 9. A SQL-standard body records calls nested in array constructors and row expressions.
+	arrCat := New()
+	_, err = arrCat.Exec(`
+		CREATE FUNCTION public.z() RETURNS integer LANGUAGE sql RETURN 1;
+		CREATE FUNCTION public.y() RETURNS integer LANGUAGE sql RETURN 2;
+		CREATE FUNCTION public.arr() RETURNS integer[] LANGUAGE sql RETURN ARRAY[public.z()];
+		CREATE FUNCTION public.rowf() RETURNS boolean LANGUAGE sql RETURN ROW(public.y()) IS NOT NULL;
+	`, nil)
+	require.NoError(t, err)
+	require.Error(t, round37ExecErr(arrCat.Clone(), `DROP FUNCTION public.z();`))
+	require.Error(t, round37ExecErr(arrCat.Clone(), `DROP FUNCTION public.y();`))
+
+	// 10. UNIQUE NULLS NOT DISTINCT survives migrations and ApplyDiffToMetadata, for constraints and plain indexes.
+	nndBefore := New()
+	_, err = nndBefore.Exec(`CREATE TABLE public.nnd (a int, b int);`, nil)
+	require.NoError(t, err)
+	nndAfter := nndBefore.Clone()
+	_, err = nndAfter.Exec(`
+		ALTER TABLE public.nnd ADD CONSTRAINT nnd_a_key UNIQUE NULLS NOT DISTINCT (a);
+		CREATE UNIQUE INDEX nnd_b_idx ON public.nnd (b) NULLS NOT DISTINCT;
+	`, nil)
+	require.NoError(t, err)
+	nndSQL := GenerateMigration(nndBefore, nndAfter, Diff(nndBefore, nndAfter)).SQL()
+	require.Contains(t, nndSQL, `UNIQUE NULLS NOT DISTINCT (a)`)
+	require.Contains(t, nndSQL, `(b) NULLS NOT DISTINCT`)
+	nndApplied := nndBefore.Clone()
+	require.NoError(t, round37ExecErr(nndApplied, nndSQL))
+	require.True(t, Diff(nndApplied, nndAfter).IsEmpty())
+	nndMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "nnd",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a", Position: 1, Type: "integer", Nullable: true},
+					{Name: "b", Position: 2, Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	}
+	nndUpdated := ApplyDiffToMetadata(nndMeta, nndBefore, nndAfter, Diff(nndBefore, nndAfter))
+	nndReloaded := New()
+	nndReport, err := nndReloaded.LoadMetadata(context.Background(), nndUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, nndReport.Degraded)
+	require.True(t, Diff(nndReloaded, nndAfter).IsEmpty())
+	// Diff sees a constraint that loses NULLS NOT DISTINCT.
+	nndPlain := nndBefore.Clone()
+	_, err = nndPlain.Exec(`ALTER TABLE public.nnd ADD CONSTRAINT nnd_a_key UNIQUE (a); CREATE UNIQUE INDEX nnd_b_idx ON public.nnd (b) NULLS NOT DISTINCT;`, nil)
+	require.NoError(t, err)
+	require.False(t, Diff(nndPlain, nndAfter).IsEmpty())
+
+	// 11. Detaching and renaming a partition in one script makes it a top-level table.
+	partBase := New()
+	_, err = partBase.Exec(`
+		CREATE TABLE public.parent (id int, k int) PARTITION BY LIST (k);
+		CREATE TABLE public.child PARTITION OF public.parent FOR VALUES IN (1);
+		COMMENT ON TABLE public.child IS 'kept';
+	`, nil)
+	require.NoError(t, err)
+	partCols := []*metadatapb.ColumnMetadata{
+		{Name: "id", Position: 1, Type: "integer", Nullable: true},
+		{Name: "k", Position: 2, Type: "integer", Nullable: true},
+	}
+	partMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "parent",
+				Columns: partCols,
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:    "child",
+					Type:    metadatapb.TablePartitionMetadata_LIST,
+					Value:   "FOR VALUES IN (1)",
+					Comment: "kept",
+				}},
+			}},
+		}},
+	}
+	partAfter := partBase.Clone()
+	_, err = partAfter.Exec(`
+		ALTER TABLE public.parent DETACH PARTITION public.child;
+		ALTER TABLE public.child RENAME TO archived;
+	`, nil)
+	require.NoError(t, err)
+	partUpdated := ApplyDiffToMetadata(partMeta, partBase, partAfter, Diff(partBase, partAfter))
+	var partSchema *metadatapb.SchemaMetadata
+	for _, sm := range partUpdated.Schemas {
+		if sm.Name == "public" {
+			partSchema = sm
+		}
+	}
+	require.NotNil(t, partSchema)
+	tables := map[string]*metadatapb.TableMetadata{}
+	for _, tbl := range partSchema.Tables {
+		tables[tbl.Name] = tbl
+	}
+	require.Contains(t, tables, "archived")
+	require.Equal(t, "kept", tables["archived"].Comment)
+	require.Empty(t, tables["parent"].Partitions)
+	partReloaded := New()
+	partReport, err := partReloaded.LoadMetadata(context.Background(), partUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, partReport.Degraded)
+	require.Zero(t, partReloaded.GetRelation("public", "archived").PartitionOf)
+
+	// 12. Dropping one column of a mixed column grant still revokes the surviving column.
+	grFrom := New()
+	_, err = grFrom.Exec(`
+		CREATE ROLE reader;
+		CREATE TABLE public.gt (a int, b int, c int);
+		GRANT SELECT (a, b) ON public.gt TO reader;
+	`, nil)
+	require.NoError(t, err)
+	grTo := grFrom.Clone()
+	_, err = grTo.Exec(`ALTER TABLE public.gt DROP COLUMN a; REVOKE SELECT (b) ON public.gt FROM reader;`, nil)
+	require.NoError(t, err)
+	grSQL := GenerateMigration(grFrom, grTo, Diff(grFrom, grTo)).SQL()
+	require.Contains(t, grSQL, `REVOKE SELECT ("b")`)
+	require.NotContains(t, grSQL, `"a", "b"`)
+	grApplied := grFrom.Clone()
+	require.NoError(t, round37ExecErr(grApplied, grSQL))
+	require.True(t, Diff(grApplied, grTo).IsEmpty())
+	// Dropping every granted column needs no revoke.
+	grAll := grFrom.Clone()
+	_, err = grAll.Exec(`ALTER TABLE public.gt DROP COLUMN a, DROP COLUMN b;`, nil)
+	require.NoError(t, err)
+	grAllSQL := GenerateMigration(grFrom, grAll, Diff(grFrom, grAll)).SQL()
+	require.NotContains(t, grAllSQL, "REVOKE")
+	grAllApplied := grFrom.Clone()
+	require.NoError(t, round37ExecErr(grAllApplied, grAllSQL))
+	require.True(t, Diff(grAllApplied, grAll).IsEmpty())
+
+	// 13. A partition created in the same script as its parent nests under it, at any depth.
+	nestFrom := New()
+	nestTo := New()
+	_, err = nestTo.Exec(`
+		CREATE TABLE public.zparent (id int, k int) PARTITION BY LIST (k);
+		CREATE TABLE public.mid PARTITION OF public.zparent FOR VALUES IN (1) PARTITION BY LIST (id);
+		CREATE TABLE public.aleaf PARTITION OF public.mid FOR VALUES IN (7);
+	`, nil)
+	require.NoError(t, err)
+	nestMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "db"}, nestFrom, nestTo, Diff(nestFrom, nestTo))
+	require.Len(t, nestMeta.Schemas, 1)
+	require.Len(t, nestMeta.Schemas[0].Tables, 1)
+	require.Equal(t, "zparent", nestMeta.Schemas[0].Tables[0].Name)
+	require.Len(t, nestMeta.Schemas[0].Tables[0].Partitions, 1)
+	require.Equal(t, "mid", nestMeta.Schemas[0].Tables[0].Partitions[0].Name)
+	require.Len(t, nestMeta.Schemas[0].Tables[0].Partitions[0].Subpartitions, 1)
+	require.Equal(t, "aleaf", nestMeta.Schemas[0].Tables[0].Partitions[0].Subpartitions[0].Name)
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

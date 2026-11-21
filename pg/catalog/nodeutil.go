@@ -326,6 +326,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	case ConstraintPK, ConstraintUnique:
 		def.Columns = stringListItems(con.Keys)
 		def.IncludeColumns = constraintIncludeItems(con.Including)
+		def.NullsNotDistinct = con.NullsNotDistinct
 		def.IndexName = con.Indexname // user-specified USING INDEX name
 	case ConstraintFK:
 		def.Columns = stringListItems(con.FkAttrs)

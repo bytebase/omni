@@ -198,6 +198,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		allAttnums = append(allAttnums, includeAttnums...)
 		idx = c.createIndexInternal(schema, rel, idxName, allAttnums, len(attnums), true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(effectiveTablespace)
+		idx.NullsNotDistinct = def.NullsNotDistinct
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary

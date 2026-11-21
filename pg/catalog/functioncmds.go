@@ -855,101 +855,19 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 	if n == nil {
 		return
 	}
-	switch v := n.(type) {
-	case *nodes.RangeVar:
-		c.recordDepsOnRangeVar(objType, objOID, v)
-	case *nodes.ReturnStmt:
-		c.recordDepsFromNode(objType, objOID, v.Returnval)
-	case *nodes.List:
-		if v != nil {
-			for _, item := range v.Items {
-				c.recordDepsFromNode(objType, objOID, item)
-			}
+	// The generated walker reaches every expression container (array
+	// constructors, row expressions, indirection, CASE arms, subqueries).
+	nodes.Inspect(n, func(node nodes.Node) bool {
+		switch v := node.(type) {
+		case *nodes.RangeVar:
+			c.recordDepsOnRangeVar(objType, objOID, v)
+		case *nodes.FuncCall:
+			c.recordDepsOnFuncCall(objType, objOID, v)
+		case *nodes.TypeCast:
+			c.recordDepsOnTypeName(objType, objOID, v.TypeName)
 		}
-	case *nodes.ResTarget:
-		c.recordDepsFromNode(objType, objOID, v.Val)
-	case *nodes.NamedArgExpr:
-		c.recordDepsFromNode(objType, objOID, v.Arg)
-	case *nodes.FuncCall:
-		c.recordDepsOnFuncCall(objType, objOID, v)
-		c.recordDepsFromNode(objType, objOID, v.Args)
-		c.recordDepsFromNode(objType, objOID, v.AggOrder)
-		c.recordDepsFromNode(objType, objOID, v.AggFilter)
-		if wd, ok := v.Over.(*nodes.WindowDef); ok && wd != nil {
-			c.recordDepsFromNode(objType, objOID, wd.PartitionClause)
-			c.recordDepsFromNode(objType, objOID, wd.OrderClause)
-		}
-	case *nodes.A_Expr:
-		c.recordDepsFromNode(objType, objOID, v.Lexpr)
-		c.recordDepsFromNode(objType, objOID, v.Rexpr)
-	case *nodes.BoolExpr:
-		c.recordDepsFromNode(objType, objOID, v.Args)
-	case *nodes.NullTest:
-		c.recordDepsFromNode(objType, objOID, v.Arg)
-	case *nodes.TypeCast:
-		c.recordDepsFromNode(objType, objOID, v.Arg)
-		c.recordDepsOnTypeName(objType, objOID, v.TypeName)
-	case *nodes.CoalesceExpr:
-		c.recordDepsFromNode(objType, objOID, v.Args)
-	case *nodes.CaseExpr:
-		c.recordDepsFromNode(objType, objOID, v.Arg)
-		c.recordDepsFromNode(objType, objOID, v.Args)
-		c.recordDepsFromNode(objType, objOID, v.Defresult)
-	case *nodes.CaseWhen:
-		c.recordDepsFromNode(objType, objOID, v.Expr)
-		c.recordDepsFromNode(objType, objOID, v.Result)
-	case *nodes.SelectStmt:
-		c.recordDepsFromNode(objType, objOID, v.TargetList)
-		c.recordDepsFromNode(objType, objOID, v.FromClause)
-		c.recordDepsFromNode(objType, objOID, v.WhereClause)
-		c.recordDepsFromNode(objType, objOID, v.GroupClause)
-		c.recordDepsFromNode(objType, objOID, v.HavingClause)
-		c.recordDepsFromNode(objType, objOID, v.SortClause)
-		if v.Larg != nil {
-			c.recordDepsFromNode(objType, objOID, v.Larg)
-		}
-		if v.Rarg != nil {
-			c.recordDepsFromNode(objType, objOID, v.Rarg)
-		}
-		if v.WithClause != nil {
-			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
-		}
-	case *nodes.CommonTableExpr:
-		c.recordDepsFromNode(objType, objOID, v.Ctequery)
-	case *nodes.JoinExpr:
-		c.recordDepsFromNode(objType, objOID, v.Larg)
-		c.recordDepsFromNode(objType, objOID, v.Rarg)
-		c.recordDepsFromNode(objType, objOID, v.Quals)
-	case *nodes.RangeSubselect:
-		c.recordDepsFromNode(objType, objOID, v.Subquery)
-	case *nodes.SubLink:
-		c.recordDepsFromNode(objType, objOID, v.Subselect)
-		c.recordDepsFromNode(objType, objOID, v.Testexpr)
-	case *nodes.InsertStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-		c.recordDepsFromNode(objType, objOID, v.SelectStmt)
-		c.recordDepsFromNode(objType, objOID, v.ReturningList)
-		if v.WithClause != nil {
-			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
-		}
-	case *nodes.UpdateStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-		c.recordDepsFromNode(objType, objOID, v.TargetList)
-		c.recordDepsFromNode(objType, objOID, v.FromClause)
-		c.recordDepsFromNode(objType, objOID, v.WhereClause)
-		c.recordDepsFromNode(objType, objOID, v.ReturningList)
-		if v.WithClause != nil {
-			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
-		}
-	case *nodes.DeleteStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-		c.recordDepsFromNode(objType, objOID, v.UsingClause)
-		c.recordDepsFromNode(objType, objOID, v.WhereClause)
-		c.recordDepsFromNode(objType, objOID, v.ReturningList)
-		if v.WithClause != nil {
-			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
-		}
-	}
+		return true
+	})
 }
 
 // recordDepsOnRangeVar resolves a RangeVar to a catalog relation and records

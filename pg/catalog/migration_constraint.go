@@ -149,8 +149,12 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 
 	case ConstraintUnique:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
-		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)",
-			qualifiedTable, quoteIdentifier(con.Name), joinQuoted(colNames))
+		nulls := ""
+		if constraintNullsNotDistinct(to, con) {
+			nulls = " NULLS NOT DISTINCT"
+		}
+		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE%s (%s)",
+			qualifiedTable, quoteIdentifier(con.Name), nulls, joinQuoted(colNames))
 		if len(con.IncludeColumns) > 0 {
 			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
 			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))

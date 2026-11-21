@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -38,6 +39,9 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	}
 
 	renamed := renamePartitions(result, catBefore, catAfter, diff.Relations, canonicalSchema)
+	// A new partition nests under its parent, which may be new too and sort
+	// after it; add partitions last, parents before their children.
+	var addedPartitions []RelationDiffEntry
 	for _, rel := range diff.Relations {
 		if (rel.From != nil && renamed[rel.From.OID]) || (rel.To != nil && renamed[rel.To.OID]) {
 			continue
@@ -50,6 +54,10 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 			dropRelation(result, schemaName, rel)
 			continue
 		}
+		if rel.Action == DiffAdd && rel.To != nil && rel.To.PartitionOf != 0 {
+			addedPartitions = append(addedPartitions, rel)
+			continue
+		}
 		sm := findOrCreateSchema(result, schemaName)
 		switch rel.Action {
 		case DiffAdd:
@@ -58,6 +66,19 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 			modifyRelation(result, sm, catBefore, catAfter, rel)
 		default:
 		}
+	}
+	partitionDepth := func(rel *Relation) int {
+		depth := 0
+		for r := rel; r != nil && r.PartitionOf != 0 && depth < 1000; depth++ {
+			r = catAfter.GetRelationByOID(r.PartitionOf)
+		}
+		return depth
+	}
+	sort.SliceStable(addedPartitions, func(i, j int) bool {
+		return partitionDepth(addedPartitions[i].To) < partitionDepth(addedPartitions[j].To)
+	})
+	for _, rel := range addedPartitions {
+		addRelation(result, findOrCreateSchema(result, canonicalSchema(rel.SchemaName)), catAfter, rel)
 	}
 
 	applySequenceDiffs(result, catAfter, diff.Sequences, renamedSchemas, canonicalSchema)
@@ -1763,6 +1784,17 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catBefore, catA
 			}
 			rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 			renamed[rel.From.OID] = true
+			// A script that also detached the partition, or moved it to another
+			// parent, changes where it stands; move the renamed proto there too.
+			if !samePartitionParent(catBefore, catAfter, rel.From, add.To) {
+				modifyRelation(result, findOrCreateSchema(result, add.SchemaName), catBefore, catAfter, RelationDiffEntry{
+					Action:     DiffModify,
+					SchemaName: add.SchemaName,
+					Name:       add.Name,
+					From:       rel.From,
+					To:         add.To,
+				})
+			}
 			continue
 		}
 		if sm == nil {
@@ -2198,9 +2230,10 @@ func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMeta
 	if !idx.IsPrimary && idx.ConstraintOID == 0 && rel != nil && rel.Schema != nil &&
 		(idx.WhereClause != "" || nKey < len(idx.Columns) || len(idx.OpClasses) > 0 || idx.NullsNotDistinct || hasUnmodeledIndexOptions(idx)) {
 		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
-	} else if (idx.IsPrimary || idx.ConstraintOID != 0) && nKey < len(idx.Columns) && rel != nil && rel.Schema != nil {
+	} else if (idx.IsPrimary || idx.ConstraintOID != 0) && (nKey < len(idx.Columns) || idx.NullsNotDistinct) && rel != nil && rel.Schema != nil {
 		// Expressions holds only the key columns; the definition keeps the
-		// INCLUDE columns, which metadataKeyConstraint reads back.
+		// INCLUDE columns and NULLS NOT DISTINCT, which metadataKeyConstraint
+		// reads back.
 		im.Definition = buildCreateIndexSQL(idx, rel, rel.Schema.Name)
 	}
 

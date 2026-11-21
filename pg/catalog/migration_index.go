@@ -424,6 +424,11 @@ func buildCreateIndexSQL(idx *Index, rel *Relation, schemaName string) string {
 		b.WriteString(")")
 	}
 
+	// NULLS NOT DISTINCT, after INCLUDE as pg_get_indexdef places it.
+	if idx.NullsNotDistinct {
+		b.WriteString(" NULLS NOT DISTINCT")
+	}
+
 	// WHERE clause.
 	if idx.WhereClause != "" {
 		b.WriteString(" WHERE ")
