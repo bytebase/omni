@@ -2325,4 +2325,32 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.Greater(t, idxCaller, idxFBigint)
 	require.Greater(t, idxFInteger, idxCaller)
 	assert.Contains(t, coalesceUnnest, `SELECT neg(x) AS n FROM UNNEST(`)
+
+	// mod and array concat infer the coerced argument type, and set-operation
+	// coercion does not mutate the table's catalog projection for later views.
+	coercedAndSetOp, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "caller_mod", Definition: "CREATE FUNCTION s.caller_mod() RETURNS bigint RETURN s.g(mod(CAST(1 AS integer), CAST(2 AS bigint)))"},
+				{Name: "g", Definition: "CREATE FUNCTION s.g(x integer) RETURNS bigint RETURN s.caller_mod()"},
+				{Name: "g", Definition: "CREATE FUNCTION s.g(x bigint) RETURNS bigint RETURN x"},
+				{Name: "caller_concat", Definition: "CREATE FUNCTION s.caller_concat() RETURNS array(bigint) RETURN s.h(concat(ARRAY[CAST(1 AS integer)], ARRAY[CAST(2 AS bigint)]))"},
+				{Name: "h", Definition: "CREATE FUNCTION s.h(x array(integer)) RETURNS array(bigint) RETURN s.caller_concat()"},
+				{Name: "h", Definition: "CREATE FUNCTION s.h(x array(bigint)) RETURNS array(bigint) RETURN x"},
+				{Name: "to_base", Definition: "CREATE FUNCTION s.to_base(x double, b bigint) RETURNS varchar RETURN ''"},
+			},
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_union", Definition: "TABLE t UNION ALL SELECT CAST(1 AS double)"},
+				{Name: "v_after", Definition: "SELECT to_base(q.n, 16) AS s FROM (TABLE t) q"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, coercedAndSetOp, `SELECT to_base(q.n, 16) AS s FROM (TABLE "cat"."s".t) q;`)
 }

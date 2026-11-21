@@ -3214,6 +3214,7 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 		lt, lcols := w.walkQueryNodeCols(n.Left, curEnv, ctes)
 		rt, rcols := w.walkQueryNodeCols(n.Right, curEnv, ctes)
 		if len(lcols) > 0 && len(lcols) == len(rcols) {
+			lcols = slices.Clone(lcols)
 			for i := range lcols {
 				lcols[i].typ = combineTrinoTypes(lcols[i].typ, rcols[i].typ)
 			}
@@ -3822,13 +3823,22 @@ func inferTrinoBuiltinReturnType(name string, argTypes []string) string {
 		return "double"
 	case "is_nan", "is_finite", "is_infinite", "isnan", "isinf", "regexp_like", "arrays_overlap", "contains", "all_match", "any_match", "none_match", "starts_with", "ends_with":
 		return "boolean"
-	case "abs", "sign", "round", "ceil", "ceiling", "floor", "truncate", "mod", "negate", "arbitrary", "any_value", "min", "max", "try", "array_distinct", "array_sort", "array_remove", "shuffle", "slice", "reverse", "concat", "nullif":
+	case "abs", "sign", "round", "ceil", "ceiling", "floor", "truncate", "negate", "arbitrary", "any_value", "min", "max", "try", "array_distinct", "array_sort", "array_remove", "shuffle", "slice", "reverse", "nullif":
 		for _, at := range argTypes {
 			if at != "" {
 				return at
 			}
 		}
-	case "greatest", "least", "coalesce":
+	case "concat":
+		if len(argTypes) == 0 {
+			return ""
+		}
+		res := argTypes[0]
+		for _, at := range argTypes[1:] {
+			res = trinoConcatResultType(res, at)
+		}
+		return res
+	case "greatest", "least", "coalesce", "mod":
 		// The result is the common type its arguments coerce to.
 		res := ""
 		for _, at := range argTypes {
