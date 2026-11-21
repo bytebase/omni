@@ -1037,6 +1037,16 @@ func (*CastExprQ) analyzedExprTag()          {}
 func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
 
+// IntervalExprQ represents an analyzed INTERVAL value unit expression.
+type IntervalExprQ struct {
+	Value AnalyzedExpr
+	Unit  string
+}
+
+func (*IntervalExprQ) analyzedExprTag()        {}
+func (*IntervalExprQ) exprType() *ResolvedType { return nil }
+func (*IntervalExprQ) exprCollation() string   { return "" }
+
 // ----------------------------------------------------------------------------
 // Deferred expression nodes
 // ----------------------------------------------------------------------------

@@ -95,6 +95,8 @@ func collectVarExprs(q *Query, expr AnalyzedExpr, out *[]columnLineage) {
 		for _, arg := range e.Args {
 			collectVarExprs(q, arg, out)
 		}
+	case *IntervalExprQ:
+		collectVarExprs(q, e.Value, out)
 	}
 }
 

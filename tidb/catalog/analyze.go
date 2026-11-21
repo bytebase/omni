@@ -709,6 +709,8 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Lower) || exprContainsAggregate(e.Upper)
 	case *NullTestExprQ:
 		return exprContainsAggregate(e.Arg)
+	case *IntervalExprQ:
+		return exprContainsAggregate(e.Value)
 	case *SubLinkExprQ:
 		// The left operand of IN, ANY and ALL belongs to this query; the
 		// subquery is scoped on its own and keeps its own HasAggs.

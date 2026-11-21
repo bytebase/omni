@@ -233,3 +233,57 @@ func TestViewDefinitionStatesColumnList(t *testing.T) {
 		})
 	}
 }
+
+func TestDatabaseDefinitionAppliesOptionsWithoutSnapshotName(t *testing.T) {
+	got, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+		Name:                  "source_db",
+		PlacementPolicy:       "p_fast",
+		TiflashReplica:        2,
+		TiflashLocationLabels: []string{"zone", "host"},
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+			}},
+		}},
+	}, DefinitionOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "source_db") {
+		t.Fatalf("DatabaseDefinition targeted snapshot name instead of selected restore db:\n%s", got)
+	}
+	if !strings.Contains(got, "ALTER DATABASE PLACEMENT POLICY=`p_fast`;") {
+		t.Fatalf("missing nameless placement ALTER DATABASE:\n%s", got)
+	}
+	if !strings.Contains(got, "ALTER DATABASE SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';") {
+		t.Fatalf("missing nameless tiflash ALTER DATABASE:\n%s", got)
+	}
+
+	c := New()
+	for _, stmt := range []string{
+		"CREATE PLACEMENT POLICY `p_fast` FOLLOWERS=2",
+		"CREATE DATABASE `target_db`",
+		"USE `target_db`",
+	} {
+		if _, err := c.Exec(stmt, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	results, err := c.Exec(got, &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		t.Fatalf("definition does not parse: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("definition statement %d fails: %v\n%s", r.Index, r.Error, r.SQL)
+		}
+	}
+	db := c.GetDatabase("target_db")
+	if db == nil {
+		t.Fatal("target_db missing")
+	}
+	if db.PlacementPolicy != "p_fast" || db.TiFlashReplica != 2 || len(db.TiFlashLocationLabels) != 2 {
+		t.Fatalf("options not applied to selected target_db: policy=%q replica=%d labels=%v", db.PlacementPolicy, db.TiFlashReplica, db.TiFlashLocationLabels)
+	}
+}

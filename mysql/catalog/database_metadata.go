@@ -206,6 +206,8 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			if collation != "" {
 				col.Collation = collation
 			}
+		} else if !col.Nullable && te != nil && te.Expr != nil && isAnalyzedExprNullable(c, db, leftQ, optionalRT, te.Expr, true) {
+			col.Nullable = true
 		}
 		if col.Type == "" {
 			col.Type = resolveTargetType(i)
@@ -416,15 +418,34 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 	case *CastExprQ:
 		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin)
 	case *OpExprQ:
+		if _, lok := e.Left.(*IntervalExprQ); lok {
+			return true
+		}
+		if _, rok := e.Right.(*IntervalExprQ); rok {
+			return true
+		}
 		if e.Op == "/" || strings.EqualFold(e.Op, "DIV") {
 			return true
 		}
 		return isAnalyzedExprNullable(c, db, q, opt, e.Left, widenOptionalJoin) || isAnalyzedExprNullable(c, db, q, opt, e.Right, widenOptionalJoin)
+	case *IntervalExprQ:
+		return isAnalyzedExprNullable(c, db, q, opt, e.Value, widenOptionalJoin)
+	case *SubLinkExprQ:
+		switch e.Kind {
+		case SubLinkExists:
+			return false
+		case SubLinkScalar, SubLinkIn, SubLinkAny, SubLinkAll:
+			return true
+		}
+		return false
 	case *FuncCallExprQ:
 		if strings.EqualFold(e.Name, "count") {
 			return false
 		}
-		if strings.EqualFold(e.Name, "nullif") || strings.EqualFold(e.Name, "mod") {
+		switch strings.ToLower(e.Name) {
+		case "nullif", "mod",
+			"date_add", "date_sub", "adddate", "subdate",
+			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
 			return true
 		}
 		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
@@ -953,6 +974,14 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 		return combineControlFlowColumnTypes(c, db, q, branches, false)
 	case *CoalesceExprQ:
 		return combineControlFlowColumnTypes(c, db, q, e.Args, e.IsIfNull)
+	case *SubLinkExprQ:
+		if ct := resolveSubLinkColumnType(c, db, e); ct != "" {
+			return ct
+		}
+	case *OpExprQ:
+		if ct := resolveIntervalOpColumnType(c, db, q, e, false); ct != "" {
+			return ct
+		}
 	case *FuncCallExprQ:
 		switch strings.ToLower(e.Name) {
 		case "min", "max":
@@ -1091,6 +1120,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		if e.Left == nil && (opUpper == "+" || opUpper == "-") {
 			return resolveExprResolvedType(c, db, q, e.Right)
 		}
+		if ct := resolveIntervalOpColumnType(c, db, q, e, false); ct != "" {
+			return parseColumnResolvedType(ct)
+		}
 		switch opUpper {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
@@ -1121,10 +1153,20 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			return parseColumnResolvedType(ct)
 		}
 		return expr.exprType()
+	case *SubLinkExprQ:
+		if ct := resolveSubLinkColumnType(c, db, e); ct != "" {
+			return parseColumnResolvedType(ct)
+		}
+		return e.ResultType
 	case *FuncCallExprQ:
 		switch strings.ToLower(e.Name) {
 		case "if", "nullif":
 			if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+				return parseColumnResolvedType(ct)
+			}
+		case "date_add", "date_sub", "adddate", "subdate",
+			"timestampadd", "timediff", "addtime", "subtime":
+			if ct := resolveScalarFuncColumnType(c, db, q, e, false); ct != "" {
 				return parseColumnResolvedType(ct)
 			}
 		case "abs", "ceil", "ceiling", "floor", "round", "truncate", "mod":
@@ -1294,6 +1336,20 @@ func parseColumnResolvedType(colType string) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeFloat, Unsigned: unsigned}
 	case "double", "real":
 		return &ResolvedType{BaseType: BaseTypeDouble, Unsigned: unsigned}
+	case "date":
+		return &ResolvedType{BaseType: BaseTypeDate}
+	case "datetime":
+		return &ResolvedType{BaseType: BaseTypeDateTime, Precision: p}
+	case "timestamp":
+		return &ResolvedType{BaseType: BaseTypeTimestamp, Precision: p}
+	case "time":
+		return &ResolvedType{BaseType: BaseTypeTime, Precision: p}
+	case "year":
+		return &ResolvedType{BaseType: BaseTypeYear}
+	case "varchar", "var_string":
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: p}
+	case "char":
+		return &ResolvedType{BaseType: BaseTypeChar, Length: p}
 	default:
 		return nil
 	}
@@ -1409,6 +1465,146 @@ func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCal
 	return nil
 }
 
+func resolveSubLinkColumnType(c *Catalog, db *Database, s *SubLinkExprQ) string {
+	if s == nil {
+		return ""
+	}
+	switch s.Kind {
+	case SubLinkScalar:
+		if s.Subquery == nil {
+			return ""
+		}
+		if meta, ok := resolveQueryTargetMeta(c, db, s.Subquery, 0, true); ok && meta.colType != "" {
+			return normalizeScalarSubqueryColumnType(meta.colType)
+		}
+	case SubLinkExists, SubLinkIn, SubLinkAny, SubLinkAll:
+		return "int"
+	}
+	return ""
+}
+
+func normalizeScalarSubqueryColumnType(colType string) string {
+	p := parseSetOpColType(colType)
+	if p.cat == "null" || p.raw == "" {
+		return colType
+	}
+	if p.cat == "string" && p.isChar {
+		return fmt.Sprintf("varchar(%d)", p.width)
+	}
+	if p.cat == "int" {
+		suffix := ""
+		if p.unsigned {
+			suffix = " unsigned"
+		}
+		if p.rank >= 4 {
+			return "bigint" + suffix
+		}
+		return "int" + suffix
+	}
+	return colType
+}
+
+func intervalUnitHasTimePart(unit string) bool {
+	switch strings.ToUpper(unit) {
+	case "MICROSECOND", "SECOND", "MINUTE", "HOUR",
+		"SECOND_MICROSECOND", "MINUTE_MICROSECOND", "MINUTE_SECOND",
+		"HOUR_MICROSECOND", "HOUR_SECOND", "HOUR_MINUTE",
+		"DAY_MICROSECOND", "DAY_SECOND", "DAY_MINUTE", "DAY_HOUR":
+		return true
+	}
+	return false
+}
+
+func intervalUnitHasMicrosecond(unit string) bool {
+	return strings.Contains(strings.ToUpper(unit), "MICROSECOND")
+}
+
+func formatTemporalTypeWithFSP(base string, fsp int) string {
+	if fsp > 0 {
+		return fmt.Sprintf("%s(%d)", base, min(fsp, 6))
+	}
+	return base
+}
+
+func exprTemporalFSP(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) int {
+	if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+		p := parseSetOpColType(ct)
+		if p.cat == "time" || p.cat == "datetime" || p.cat == "timestamp" {
+			return p.prec
+		}
+	}
+	if cn, ok := expr.(*ConstExprQ); ok && cn.IsString {
+		if _, frac, found := strings.Cut(cn.Value, "."); found {
+			digits := 0
+			for i := 0; i < len(frac) && frac[i] >= '0' && frac[i] <= '9'; i++ {
+				digits++
+			}
+			return min(digits, 6)
+		}
+	}
+	return 0
+}
+
+func resolveIntervalArithmeticColumnType(c *Catalog, db *Database, q *Query, base AnalyzedExpr, unit string, isTiDB bool) string {
+	if base == nil {
+		return ""
+	}
+	ct := resolveAnalyzedExprColumnType(c, db, q, base)
+	if ct == "" {
+		return ""
+	}
+	p := parseSetOpColType(ct)
+	hasMicro := intervalUnitHasMicrosecond(unit)
+	switch p.cat {
+	case "date":
+		if intervalUnitHasTimePart(unit) {
+			if hasMicro {
+				return "datetime(6)"
+			}
+			return "datetime"
+		}
+		return "date"
+	case "datetime", "timestamp":
+		fsp := p.prec
+		if hasMicro {
+			fsp = 6
+		}
+		return formatTemporalTypeWithFSP("datetime", fsp)
+	case "time":
+		fsp := p.prec
+		if hasMicro {
+			fsp = 6
+		}
+		return formatTemporalTypeWithFSP("time", fsp)
+	case "string", "text", "null":
+		if isTiDB {
+			return "var_string(29)"
+		}
+		return "varchar(29)"
+	}
+	return ""
+}
+
+func resolveIntervalOpColumnType(c *Catalog, db *Database, q *Query, e *OpExprQ, isTiDB bool) string {
+	if e == nil {
+		return ""
+	}
+	switch e.Op {
+	case "+":
+		if iv, ok := e.Right.(*IntervalExprQ); ok {
+			return resolveIntervalArithmeticColumnType(c, db, q, e.Left, iv.Unit, isTiDB)
+		}
+		if iv, ok := e.Left.(*IntervalExprQ); ok {
+			return resolveIntervalArithmeticColumnType(c, db, q, e.Right, iv.Unit, isTiDB)
+		}
+	case "-":
+		if iv, ok := e.Right.(*IntervalExprQ); ok {
+			return resolveIntervalArithmeticColumnType(c, db, q, e.Left, iv.Unit, isTiDB)
+		}
+	}
+	return ""
+}
+
 func resolveTemporalScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
 	if e == nil {
 		return nil
@@ -1474,6 +1670,46 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 	}
 	name := strings.ToLower(e.Name)
 	switch name {
+	case "date_add", "date_sub", "adddate", "subdate":
+		if len(e.Args) == 2 {
+			unit := "DAY"
+			if iv, ok := e.Args[1].(*IntervalExprQ); ok {
+				unit = iv.Unit
+			}
+			return resolveIntervalArithmeticColumnType(c, db, q, e.Args[0], unit, isTiDB)
+		}
+	case "timestampadd":
+		if len(e.Args) == 3 {
+			unit := ""
+			if kw, ok := e.Args[0].(*ConstExprQ); ok {
+				unit = kw.Value
+			}
+			if isTiDB {
+				if intervalUnitHasMicrosecond(unit) {
+					return "var_string(26)"
+				}
+				return "var_string(19)"
+			}
+			return resolveIntervalArithmeticColumnType(c, db, q, e.Args[2], unit, false)
+		}
+	case "timediff":
+		if len(e.Args) == 2 {
+			fsp := max(exprTemporalFSP(c, db, q, e.Args[0]), exprTemporalFSP(c, db, q, e.Args[1]))
+			return formatTemporalTypeWithFSP("time", fsp)
+		}
+	case "addtime", "subtime":
+		if len(e.Args) == 2 {
+			if ct := resolveAnalyzedExprColumnType(c, db, q, e.Args[0]); ct != "" {
+				p := parseSetOpColType(ct)
+				fsp := max(p.prec, exprTemporalFSP(c, db, q, e.Args[1]))
+				switch p.cat {
+				case "time":
+					return formatTemporalTypeWithFSP("time", fsp)
+				case "datetime", "timestamp":
+					return formatTemporalTypeWithFSP("datetime", fsp)
+				}
+			}
+		}
 	case "json_type":
 		if isTiDB {
 			return "var_string(51)"

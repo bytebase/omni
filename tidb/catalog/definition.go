@@ -736,17 +736,13 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 }
 
 func writeDatabaseOptions(out *strings.Builder, meta *metadata.DatabaseSchemaMetadata) error {
-	target := ""
-	if meta.Name != "" {
-		target = " " + quoteIdent(meta.Name)
-	}
 	if meta.PlacementPolicy != "" {
-		if _, err := fmt.Fprintf(out, "ALTER DATABASE%s PLACEMENT POLICY=%s;\n\n", target, quoteIdent(meta.PlacementPolicy)); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER DATABASE PLACEMENT POLICY=%s;\n\n", quoteIdent(meta.PlacementPolicy)); err != nil {
 			return err
 		}
 	}
 	if meta.TiflashReplica > 0 || len(meta.TiflashLocationLabels) > 0 {
-		if _, err := fmt.Fprintf(out, "ALTER DATABASE%s SET TIFLASH REPLICA %d", target, meta.TiflashReplica); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER DATABASE SET TIFLASH REPLICA %d", meta.TiflashReplica); err != nil {
 			return err
 		}
 		if err := writeTiFlashLocationLabels(out, meta.TiflashLocationLabels); err != nil {

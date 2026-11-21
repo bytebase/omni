@@ -141,6 +141,12 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			items = append(items, analyzed)
 		}
 		return &RowExprQ{Args: items}, nil
+	case *nodes.IntervalExpr:
+		val, err := analyzeExpr(c, n.Value, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &IntervalExprQ{Value: val, Unit: n.Unit}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:

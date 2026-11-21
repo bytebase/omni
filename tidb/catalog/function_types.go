@@ -35,6 +35,8 @@ func functionReturnType(name string, args []AnalyzedExpr) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeDate}
 	case "curtime", "current_time", "utc_time":
 		return &ResolvedType{BaseType: BaseTypeTime}
+	case "timestampdiff", "datediff":
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	case "year", "month", "day", "hour", "minute", "second",
 		"dayofweek", "dayofmonth", "dayofyear", "weekday",
 		"quarter", "week", "yearweek":

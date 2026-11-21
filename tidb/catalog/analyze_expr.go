@@ -64,6 +64,12 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
+	case *nodes.IntervalExpr:
+		val, err := analyzeExpr(c, n.Value, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &IntervalExprQ{Value: val, Unit: n.Unit}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:

@@ -1381,3 +1381,119 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "time(6)", fnCols["fn_time_dtm6"].Type)
 	require.Equal(t, "datetime(4)", fnCols["fn_ts_dt_tm4"].Type)
 }
+
+func TestViewMetadataScalarSubqueryAndTemporalArithmetic(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (
+			id INT NOT NULL PRIMARY KEY,
+			ti TINYINT NOT NULL,
+			ui INT UNSIGNED NOT NULL,
+			ch CHAR(5) NOT NULL,
+			d DATE NOT NULL,
+			dt DATETIME NOT NULL,
+			dt3 DATETIME(3) NOT NULL,
+			ts TIMESTAMP(6) NOT NULL,
+			tm TIME NOT NULL,
+			tm2 TIME(2) NOT NULL,
+			s VARCHAR(20) NOT NULL
+		);
+		CREATE VIEW v AS SELECT
+			(SELECT id FROM t LIMIT 1) AS sq_id,
+			(SELECT ti FROM t LIMIT 1) AS sq_ti,
+			(SELECT ui FROM t LIMIT 1) AS sq_ui,
+			(SELECT ch FROM t LIMIT 1) AS sq_ch,
+			(SELECT COUNT(*) FROM t) AS sq_cnt,
+			EXISTS(SELECT 1 FROM t) AS ex,
+			id IN (SELECT id FROM t) AS in_col,
+			TIMESTAMPDIFF(DAY, d, dt) AS td_day,
+			TIMESTAMPDIFF(MICROSECOND, dt, dt3) AS td_us,
+			DATEDIFF(dt, d) AS dd,
+			DATE_ADD(d, INTERVAL 1 DAY) AS da_d_day,
+			DATE_ADD(d, INTERVAL 1 HOUR) AS da_d_hr,
+			DATE_ADD(d, INTERVAL 1 MICROSECOND) AS da_d_us,
+			DATE_ADD(d, INTERVAL '1.5' SECOND_MICROSECOND) AS da_d_sms,
+			DATE_ADD(dt3, INTERVAL 1 DAY) AS da_dt3_day,
+			DATE_ADD(dt, INTERVAL 1 MICROSECOND) AS da_dt_us,
+			DATE_ADD(ts, INTERVAL 1 DAY) AS da_ts_day,
+			DATE_ADD(tm2, INTERVAL 1 MICROSECOND) AS da_tm2_us,
+			DATE_ADD(s, INTERVAL 1 DAY) AS da_s_day,
+			DATE_SUB(d, INTERVAL 1 DAY) AS ds_d_day,
+			ADDDATE(d, 5) AS ad_d_int,
+			SUBDATE(d, 5) AS sd_d_int,
+			TIMESTAMPADD(HOUR, 1, d) AS ta_d_hr,
+			TIMESTAMPADD(MICROSECOND, 1, dt) AS ta_dt_us,
+			TIMESTAMPADD(DAY, 1, dt3) AS ta_dt3_day,
+			d + INTERVAL 1 DAY AS op_d_day,
+			d + INTERVAL 1 HOUR AS op_d_hr,
+			INTERVAL 1 DAY + d AS op_iv_d,
+			d - INTERVAL 1 DAY AS op_d_sub,
+			TIMEDIFF(dt3, dt) AS tdiff_dt,
+			TIMEDIFF(tm2, tm) AS tdiff_tm,
+			COALESCE((SELECT id FROM t LIMIT 1), 0) AS sq_coalesce,
+			(SELECT d FROM t LIMIT 1) + INTERVAL 1 DAY AS sq_interval
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	var v *metadata.ViewMetadata
+	for _, vm := range meta.GetSchemas()[0].GetViews() {
+		if vm.Name == "v" {
+			v = vm
+			break
+		}
+	}
+	require.NotNil(t, v)
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range v.GetColumns() {
+		cols[col.Name] = col
+	}
+
+	require.Equal(t, "bigint", cols["sq_id"].Type)
+	require.True(t, cols["sq_id"].Nullable)
+	require.Equal(t, "int", cols["sq_ti"].Type)
+	require.True(t, cols["sq_ti"].Nullable)
+	require.Equal(t, "bigint unsigned", cols["sq_ui"].Type)
+	require.True(t, cols["sq_ui"].Nullable)
+	require.Equal(t, "varchar(5)", cols["sq_ch"].Type)
+	require.True(t, cols["sq_ch"].Nullable)
+	require.Equal(t, "bigint", cols["sq_cnt"].Type)
+	require.True(t, cols["sq_cnt"].Nullable)
+	require.Equal(t, "int", cols["ex"].Type)
+	require.False(t, cols["ex"].Nullable)
+	require.Equal(t, "int", cols["in_col"].Type)
+	require.True(t, cols["in_col"].Nullable)
+
+	require.Equal(t, "bigint", cols["td_day"].Type)
+	require.True(t, cols["td_day"].Nullable)
+	require.Equal(t, "bigint", cols["td_us"].Type)
+	require.Equal(t, "int", cols["dd"].Type)
+	require.True(t, cols["dd"].Nullable)
+	require.Equal(t, "date", cols["da_d_day"].Type)
+	require.True(t, cols["da_d_day"].Nullable)
+	require.Equal(t, "datetime", cols["da_d_hr"].Type)
+	require.Equal(t, "datetime(6)", cols["da_d_us"].Type)
+	require.Equal(t, "datetime(6)", cols["da_d_sms"].Type)
+	require.Equal(t, "datetime(3)", cols["da_dt3_day"].Type)
+	require.Equal(t, "datetime(6)", cols["da_dt_us"].Type)
+	require.Equal(t, "datetime(6)", cols["da_ts_day"].Type)
+	require.Equal(t, "time(6)", cols["da_tm2_us"].Type)
+	require.Equal(t, "varchar(29)", cols["da_s_day"].Type)
+	require.Equal(t, "date", cols["ds_d_day"].Type)
+	require.Equal(t, "date", cols["ad_d_int"].Type)
+	require.Equal(t, "date", cols["sd_d_int"].Type)
+	require.Equal(t, "datetime", cols["ta_d_hr"].Type)
+	require.Equal(t, "datetime(6)", cols["ta_dt_us"].Type)
+	require.Equal(t, "datetime(3)", cols["ta_dt3_day"].Type)
+	require.Equal(t, "date", cols["op_d_day"].Type)
+	require.Equal(t, "datetime", cols["op_d_hr"].Type)
+	require.Equal(t, "date", cols["op_iv_d"].Type)
+	require.Equal(t, "date", cols["op_d_sub"].Type)
+	require.Equal(t, "time(3)", cols["tdiff_dt"].Type)
+	require.Equal(t, "time(2)", cols["tdiff_tm"].Type)
+	require.Equal(t, "bigint", cols["sq_coalesce"].Type)
+	require.Equal(t, "date", cols["sq_interval"].Type)
+}

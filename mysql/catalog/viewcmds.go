@@ -667,7 +667,10 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		}
 		return false
 	case *nodes.FuncCallExpr:
-		if strings.EqualFold(e.Name, "nullif") || strings.EqualFold(e.Name, "mod") {
+		switch strings.ToLower(e.Name) {
+		case "nullif", "mod",
+			"date_add", "date_sub", "adddate", "subdate",
+			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
 			return true
 		}
 		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {
@@ -693,7 +696,20 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	case *nodes.ParenExpr:
 		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.BinaryExpr:
+		if _, ok := e.Left.(*nodes.IntervalExpr); ok {
+			return true
+		}
+		if _, ok := e.Right.(*nodes.IntervalExpr); ok {
+			return true
+		}
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.SubqueryExpr:
+		return true
+	case *nodes.InExpr:
+		if e.Select != nil {
+			return true
+		}
+		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
 	case *nodes.WeightStringExpr:

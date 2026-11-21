@@ -52,6 +52,11 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeCastExprQ(b, e, q)
 	case *RowExprQ:
 		writeRowExprQ(b, e, q)
+	case *IntervalExprQ:
+		b.WriteString("interval ")
+		writeAnalyzedExpr(b, e.Value, q)
+		b.WriteByte(' ')
+		b.WriteString(strings.ToLower(e.Unit))
 	default:
 		fmt.Fprintf(b, "/* unknown expr %T */", expr)
 	}
