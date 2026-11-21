@@ -147,13 +147,13 @@ func TestParseScript(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, empty)
 
-	// Error reports accurate 1-based line number and byte offset.
+	// Error reports accurate 1-based line number and byte position.
 	_, err = Parse("GET a\n\nGET a b")
 	require.Error(t, err)
 	var pe *ParseError
 	require.ErrorAs(t, err, &pe)
 	require.Equal(t, 3, pe.Line)
-	require.Equal(t, len("GET a\n\n"), pe.Offset)
+	require.Equal(t, len("GET a\n\n"), pe.Position)
 }
 
 func TestLookupReturnsCopy(t *testing.T) {

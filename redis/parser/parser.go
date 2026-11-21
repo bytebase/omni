@@ -35,9 +35,9 @@ type Command struct {
 // ParseError reports a lexical, unknown-command, unknown-subcommand, or arity
 // error while parsing a Redis command script.
 type ParseError struct {
-	Line    int // 1-based line number
-	Offset  int // byte offset of the offending line in the input
-	Message string
+	Message  string
+	Position int // byte offset of the offending line in the input
+	Line     int // 1-based line number
 }
 
 func (e *ParseError) Error() string {
@@ -56,18 +56,18 @@ func Parse(script string) ([]Command, error) {
 		fields, err := Tokenize(line)
 		if err != nil {
 			return nil, &ParseError{
-				Line:    lineNo,
-				Offset:  start,
-				Message: err.Error(),
+				Message:  err.Error(),
+				Position: start,
+				Line:     lineNo,
 			}
 		}
 		if len(fields) > 0 {
 			cmd, err := validateCommand(fields, line, start, end)
 			if err != nil {
 				return nil, &ParseError{
-					Line:    lineNo,
-					Offset:  start,
-					Message: err.Error(),
+					Message:  err.Error(),
+					Position: start,
+					Line:     lineNo,
 				}
 			}
 			commands = append(commands, cmd)
@@ -83,32 +83,32 @@ func Parse(script string) ([]Command, error) {
 func ParseCommand(line string) (*Command, error) {
 	if strings.ContainsRune(line, '\n') {
 		return nil, &ParseError{
-			Line:    1,
-			Offset:  strings.IndexByte(line, '\n'),
-			Message: "unexpected newline in single command",
+			Message:  "unexpected newline in single command",
+			Position: strings.IndexByte(line, '\n'),
+			Line:     1,
 		}
 	}
 	fields, err := Tokenize(line)
 	if err != nil {
 		return nil, &ParseError{
-			Line:    1,
-			Offset:  0,
-			Message: err.Error(),
+			Message:  err.Error(),
+			Position: 0,
+			Line:     1,
 		}
 	}
 	if len(fields) == 0 {
 		return nil, &ParseError{
-			Line:    1,
-			Offset:  0,
-			Message: "empty command",
+			Message:  "empty command",
+			Position: 0,
+			Line:     1,
 		}
 	}
 	cmd, err := validateCommand(fields, line, 0, len(line))
 	if err != nil {
 		return nil, &ParseError{
-			Line:    1,
-			Offset:  0,
-			Message: err.Error(),
+			Message:  err.Error(),
+			Position: 0,
+			Line:     1,
 		}
 	}
 	return &cmd, nil
