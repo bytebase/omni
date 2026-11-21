@@ -29,11 +29,11 @@ func functionReturnType(name string, args []AnalyzedExpr) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeText}
 
 	// Date/time functions
-	case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp":
+	case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp", "utc_timestamp":
 		return &ResolvedType{BaseType: BaseTypeDateTime}
-	case "curdate", "current_date":
+	case "curdate", "current_date", "utc_date":
 		return &ResolvedType{BaseType: BaseTypeDate}
-	case "curtime", "current_time":
+	case "curtime", "current_time", "utc_time":
 		return &ResolvedType{BaseType: BaseTypeTime}
 	case "year", "month", "day", "hour", "minute", "second",
 		"dayofweek", "dayofmonth", "dayofyear", "weekday",

@@ -1131,6 +1131,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			if rt := resolveNumericScalarFuncType(c, db, q, e); rt != nil {
 				return rt
 			}
+		case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp", "utc_timestamp",
+			"curtime", "current_time", "utc_time", "time", "timestamp":
+			if rt := resolveTemporalScalarFuncType(c, db, q, e); rt != nil {
+				return rt
+			}
 		case "min", "max":
 			if len(e.Args) == 1 {
 				return resolveExprResolvedType(c, db, q, e.Args[0])
@@ -1400,6 +1405,51 @@ func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCal
 			}
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
+	}
+	return nil
+}
+
+func resolveTemporalScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
+	if e == nil {
+		return nil
+	}
+	name := strings.ToLower(e.Name)
+	argFSP := func() int {
+		if len(e.Args) >= 1 {
+			if fsp, ok := constIntScalarArg(e.Args[0]); ok && fsp > 0 {
+				return min(fsp, 6)
+			}
+		}
+		return 0
+	}
+	exprFSP := func(arg AnalyzedExpr) int {
+		ct := resolveAnalyzedExprColumnType(c, db, q, arg)
+		if ct == "" {
+			return 0
+		}
+		p := parseSetOpColType(ct)
+		if p.cat == "time" || p.cat == "datetime" || p.cat == "timestamp" {
+			return p.prec
+		}
+		return 0
+	}
+	switch name {
+	case "now", "current_timestamp", "sysdate", "localtime", "localtimestamp", "utc_timestamp":
+		return &ResolvedType{BaseType: BaseTypeDateTime, Precision: argFSP()}
+	case "curtime", "current_time", "utc_time":
+		return &ResolvedType{BaseType: BaseTypeTime, Precision: argFSP()}
+	case "time":
+		fsp := 0
+		if len(e.Args) >= 1 {
+			fsp = exprFSP(e.Args[0])
+		}
+		return &ResolvedType{BaseType: BaseTypeTime, Precision: fsp}
+	case "timestamp":
+		fsp := 0
+		for _, arg := range e.Args {
+			fsp = max(fsp, exprFSP(arg))
+		}
+		return &ResolvedType{BaseType: BaseTypeDateTime, Precision: fsp}
 	}
 	return nil
 }

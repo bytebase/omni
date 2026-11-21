@@ -1138,7 +1138,10 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 			c CHAR(4) NOT NULL,
 			v VARCHAR(32) NOT NULL,
 			txt TEXT NOT NULL,
-			j JSON NOT NULL
+			j JSON NOT NULL,
+			dt DATE NOT NULL,
+			dtm6 DATETIME(6) NOT NULL,
+			tm4 TIME(4) NOT NULL
 		);
 		CREATE VIEW v_fn AS SELECT
 			JSON_UNQUOTE(JSON_EXTRACT(j, '$.a')) AS ju,
@@ -1169,7 +1172,17 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 			MOD(i, 3) AS mod_i,
 			MOD(d, 3) AS mod_d,
 			LENGTH(v) AS len_v,
-			JSON_VALID(v) AS jv
+			JSON_VALID(v) AS jv,
+			NOW(6) AS fn_now6,
+			NOW(0) AS fn_now0,
+			CURRENT_TIMESTAMP(3) AS fn_ct3,
+			SYSDATE(6) AS fn_sys6,
+			LOCALTIMESTAMP(3) AS fn_lts3,
+			UTC_TIMESTAMP(6) AS fn_utcts6,
+			CURTIME(6) AS fn_curt6,
+			CURRENT_TIME(3) AS fn_curt3,
+			TIME(dtm6) AS fn_time_dtm6,
+			TIMESTAMP(dt, tm4) AS fn_ts_dt_tm4
 		FROM t_fn;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
@@ -1206,6 +1219,16 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "decimal(10,2)", scalarFnCols["mod_d"].Type)
 	require.Equal(t, "bigint", scalarFnCols["len_v"].Type)
 	require.Equal(t, "bigint", scalarFnCols["jv"].Type)
+	require.Equal(t, "datetime(6)", scalarFnCols["fn_now6"].Type)
+	require.Equal(t, "datetime", scalarFnCols["fn_now0"].Type)
+	require.Equal(t, "datetime(3)", scalarFnCols["fn_ct3"].Type)
+	require.Equal(t, "datetime(6)", scalarFnCols["fn_sys6"].Type)
+	require.Equal(t, "datetime(3)", scalarFnCols["fn_lts3"].Type)
+	require.Equal(t, "datetime(6)", scalarFnCols["fn_utcts6"].Type)
+	require.Equal(t, "time(6)", scalarFnCols["fn_curt6"].Type)
+	require.Equal(t, "time(3)", scalarFnCols["fn_curt3"].Type)
+	require.Equal(t, "time(6)", scalarFnCols["fn_time_dtm6"].Type)
+	require.Equal(t, "datetime(4)", scalarFnCols["fn_ts_dt_tm4"].Type)
 
 	// LoadMetadata -> DatabaseMetadata round-trip preserves TiDB routine ENUM, SET,
 	// COLLATE, and BINARY type modifiers without dropping them.
