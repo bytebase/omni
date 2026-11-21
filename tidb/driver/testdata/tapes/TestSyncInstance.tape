@@ -63,7 +63,8 @@
 | 		SELECT
 | 			SCHEMA_NAME,
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('information_schema', 'metrics_schema', 'mysql', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
@@ -71,6 +72,7 @@
 < column "SCHEMA_NAME" "VARCHAR"
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db
@@ -78,6 +80,8 @@
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|
 < row
 : bytes
 | test
@@ -85,3 +89,5 @@
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|

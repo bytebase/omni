@@ -665,7 +665,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 }
 
 func createOption(options, name string) string {
-	for _, opt := range strings.Fields(options) {
+	for _, opt := range splitCreateOptions(options) {
 		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
 			return v
 		}
@@ -673,8 +673,79 @@ func createOption(options, name string) string {
 	return ""
 }
 
+func splitCreateOptions(options string) []string {
+	var out []string
+	start := -1
+	var quote byte
+	for i := 0; i < len(options); i++ {
+		ch := options[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(options) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if i+1 < len(options) && options[i+1] == quote {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+			if start >= 0 {
+				out = append(out, options[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+		if ch == '\'' || ch == '"' || ch == '`' {
+			quote = ch
+		}
+	}
+	if start >= 0 {
+		out = append(out, options[start:])
+	}
+	return out
+}
+
 func unquoteTableOption(s string) string {
-	return strings.Trim(s, "'\"`")
+	if len(s) < 2 {
+		return s
+	}
+	q := s[0]
+	if (q != '\'' && q != '"' && q != '`') || s[len(s)-1] != q {
+		return s
+	}
+	inner := s[1 : len(s)-1]
+	var b strings.Builder
+	b.Grow(len(inner))
+	for i := 0; i < len(inner); i++ {
+		ch := inner[i]
+		if ch == q && i+1 < len(inner) && inner[i+1] == q {
+			b.WriteByte(q)
+			i++
+			continue
+		}
+		if ch == '\\' && q != '`' && i+1 < len(inner) {
+			i++
+			switch inner[i] {
+			case '0':
+				b.WriteByte(0)
+			case 'Z':
+				b.WriteByte(26)
+			default:
+				b.WriteByte(inner[i])
+			}
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
 
 // shardRowIDBits returns n from the TIDB_ROW_ID_SHARDING_INFO sync records for

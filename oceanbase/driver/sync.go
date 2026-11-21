@@ -696,7 +696,10 @@ func (d *Driver) listMaterializedViewLogs(ctx context.Context, databaseName stri
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
-		return nil, nil, nil
+		if isCatalogPrivilegeOrMissingErr(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	defer rows.Close()
 
@@ -716,6 +719,25 @@ func (d *Driver) listMaterializedViewLogs(ctx context.Context, databaseName stri
 		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	return hasLog, logTables, nil
+}
+
+func isCatalogPrivilegeOrMissingErr(err error) bool {
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) {
+		return false
+	}
+	switch mysqlErr.Number {
+	case 1044, // ER_DBACCESS_DENIED_ERROR
+		1045, // ER_ACCESS_DENIED_ERROR
+		1049, // ER_BAD_DB_ERROR
+		1109, // ER_UNKNOWN_TABLE
+		1142, // ER_TABLEACCESS_DENIED_ERROR
+		1143, // ER_COLUMNACCESS_DENIED_ERROR
+		1146: // ER_NO_SUCH_TABLE
+		return true
+	default:
+		return false
+	}
 }
 
 // withoutTables drops the named tables, keeping the order of the rest.

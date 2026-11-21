@@ -1488,3 +1488,53 @@ func TestViewNonArithmeticOperatorMetadata(t *testing.T) {
 	require.Equal(t, "longtext", cols["c_junquote"].Type)
 	require.Equal(t, "binary(1)", cols["c_bin"].Type)
 }
+
+func TestCompressionStringRoundTrip(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_ws (id INT PRIMARY KEY) COMPRESSION='custom value';
+		CREATE TABLE t_bt (id INT PRIMARY KEY) COMPRESSION='`+"`custom`"+`';
+		CREATE TABLE t_sq (id INT PRIMARY KEY) COMPRESSION='custom ''value''';
+		CREATE TABLE t_lead (id INT PRIMARY KEY) COMPRESSION='''leading';
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	byName := map[string]*metadata.TableMetadata{}
+	for _, tbl := range meta.GetSchemas()[0].GetTables() {
+		byName[tbl.Name] = tbl
+	}
+	require.Equal(t, "compression='custom value'", byName["t_ws"].CreateOptions)
+	require.Equal(t, "compression='`custom`'", byName["t_bt"].CreateOptions)
+	require.Equal(t, "compression='custom ''value'''", byName["t_sq"].CreateOptions)
+	require.Equal(t, "compression='''leading'", byName["t_lead"].CreateOptions)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Incomplete)
+
+	reMeta := reloaded.DatabaseMetadata("app")
+	for name, orig := range byName {
+		var got *metadata.TableMetadata
+		for _, tbl := range reMeta.GetSchemas()[0].GetTables() {
+			if tbl.Name == name {
+				got = tbl
+				break
+			}
+		}
+		require.NotNil(t, got, name)
+		require.Equal(t, orig.CreateOptions, got.CreateOptions, name)
+	}
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "COMPRESSION='custom value'")
+	require.Contains(t, def, "COMPRESSION='`custom`'")
+	require.Contains(t, def, "COMPRESSION='custom ''value'''")
+	require.Contains(t, def, "COMPRESSION='''leading'")
+}

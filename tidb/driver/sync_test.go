@@ -3,10 +3,12 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -255,5 +257,187 @@ func TestSyncForeignKeyReferencedDatabase(t *testing.T) {
 	}
 	if diff := cmp.Diff(want, fks["child"], protocmp.Transform()); diff != "" {
 		t.Errorf("foreign keys diff (-want +got):\n%s", diff)
+	}
+}
+
+type fakeSyncDriver struct{}
+
+func (fakeSyncDriver) Open(string) (sqldriver.Conn, error) { return fakeSyncConn{}, nil }
+
+type fakeSyncConn struct{}
+
+func (fakeSyncConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (fakeSyncConn) Close() error                           { return nil }
+func (fakeSyncConn) Begin() (sqldriver.Tx, error)           { return nil, sqldriver.ErrSkip }
+
+func (fakeSyncConn) QueryContext(_ context.Context, query string, _ []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	switch {
+	case strings.Contains(query, "SELECT VERSION()"):
+		return &fakeRows{cols: []string{"VERSION()"}, rows: [][]sqldriver.Value{{"8.0.11-TiDB-v8.5.5"}}}, nil
+	case strings.Contains(query, "FROM information_schema.TIDB_INDEXES"):
+		return &fakeRows{
+			cols: []string{"TABLE_NAME", "KEY_NAME", "COLUMN_NAME", "SEQ_IN_INDEX", "NON_UNIQUE", "INDEX_COMMENT", "SUB_PART", "EXPRESSION"},
+			rows: [][]sqldriver.Value{
+				{"t_vec", "PRIMARY", "id", int64(1), false, "", nil, nil},
+				{"t_vec", "idx_v", nil, int64(1), true, "", nil, "VEC_COSINE_DISTANCE(v)"},
+				{"t_vec", "uk_k", "k", int64(1), false, "", nil, nil},
+			},
+		}, nil
+	case strings.Contains(query, "FROM information_schema.COLUMNS"):
+		return &fakeRows{
+			cols: []string{"TABLE_NAME", "COLUMN_NAME", "ORDINAL_POSITION", "COLUMN_DEFAULT", "IS_NULLABLE", "COLUMN_TYPE", "CHARACTER_SET_NAME", "COLLATION_NAME", "COLUMN_COMMENT", "GENERATION_EXPRESSION", "EXTRA"},
+			rows: [][]sqldriver.Value{
+				{"t_other", "id", int64(1), nil, "NO", "int", "", "", "''", nil, ""},
+				{"t_other", "m", int64(2), nil, "NO", "int", "", "", "''", nil, ""},
+				{"t_vec", "id", int64(1), nil, "NO", "int", "", "", "''", nil, ""},
+				{"t_vec", "k", int64(2), nil, "NO", "int", "", "", "''", nil, ""},
+				{"t_vec", "v", int64(3), nil, "YES", "vector(3)", "", "", "''", nil, ""},
+			},
+		}, nil
+	case strings.Contains(query, "FROM information_schema.VIEWS"):
+		return &fakeRows{cols: []string{"TABLE_NAME", "VIEW_DEFINITION", "SECURITY_TYPE", "CHECK_OPTION"}}, nil
+	case strings.Contains(query, "FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS"):
+		return &fakeRows{cols: []string{"TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME", "COLUMN_NAME", "REFERENCED_TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "REFERENCED_COLUMN_NAME", "DELETE_RULE", "UPDATE_RULE", "MATCH_OPTION"}}, nil
+	case strings.Contains(query, "FROM information_schema.TIDB_CHECK_CONSTRAINTS"):
+		return &fakeRows{
+			cols: []string{"TABLE_NAME", "CONSTRAINT_NAME", "CHECK_CLAUSE"},
+			rows: [][]sqldriver.Value{
+				{"t_other", "chk_shared", "(`m` < 100)"},
+				{"t_vec", "chk_shared", "(`k` > 0)"},
+			},
+		}, nil
+	case strings.Contains(query, "FROM information_schema.TIFLASH_REPLICA"):
+		return &fakeRows{
+			cols: []string{"TABLE_NAME", "REPLICA_COUNT", "LOCATION_LABELS"},
+			rows: [][]sqldriver.Value{
+				{"t_vec", int64(2), "zone, rack"},
+			},
+		}, nil
+	case strings.Contains(query, "FROM information_schema.SEQUENCES"):
+		return &fakeRows{cols: []string{"SEQUENCE_NAME", "START", "MIN_VALUE", "MAX_VALUE", "INCREMENT", "CYCLE", "CACHE_VALUE", "COMMENT"}}, nil
+	case strings.Contains(query, "FROM INFORMATION_SCHEMA.PARTITIONS"):
+		return &fakeRows{cols: []string{"TABLE_NAME", "PARTITION_NAME", "SUBPARTITION_NAME", "PARTITION_METHOD", "SUBPARTITION_METHOD", "PARTITION_EXPRESSION", "SUBPARTITION_EXPRESSION", "PARTITION_DESCRIPTION", "PARTITION_COMMENT"}}, nil
+	case strings.Contains(query, "FROM information_schema.TABLES"):
+		return &fakeRows{
+			cols: []string{"TABLE_NAME", "TABLE_TYPE", "ENGINE", "TABLE_COLLATION", "TABLE_ROWS", "DATA_LENGTH", "INDEX_LENGTH", "DATA_FREE", "CREATE_OPTIONS", "TABLE_COMMENT", "SHARDING", "PK_TYPE", "POLICY"},
+			rows: [][]sqldriver.Value{
+				{"t_other", "BASE TABLE", "InnoDB", "utf8mb4_bin", int64(0), int64(0), int64(0), int64(0), "", "''", "", "CLUSTERED", ""},
+				{"t_vec", "BASE TABLE", "InnoDB", "utf8mb4_bin", int64(0), int64(0), int64(0), int64(0), "", "''", "", "CLUSTERED", "p_hot"},
+			},
+		}, nil
+	case strings.Contains(query, "SHOW CREATE TABLE"):
+		if strings.Contains(query, "`t_other`") {
+			ddl := "CREATE TABLE `t_other` (\n" +
+				"  `id` int NOT NULL,\n" +
+				"  `m` int NOT NULL,\n" +
+				"  CONSTRAINT `chk_shared` CHECK ((`m` < 100))\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+			return &fakeRows{cols: []string{"Table", "Create Table"}, rows: [][]sqldriver.Value{{"t_other", ddl}}}, nil
+		}
+		ddl := "CREATE TABLE `t_vec` (\n" +
+			"  `id` int NOT NULL,\n" +
+			"  `k` int NOT NULL,\n" +
+			"  `v` vector(3) DEFAULT NULL,\n" +
+			"  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n" +
+			"  UNIQUE KEY `uk_k` (`k`) /*T![global_index] GLOBAL */,\n" +
+			"  VECTOR INDEX `idx_v`((VEC_COSINE_DISTANCE(`v`))) USING HNSW,\n" +
+			"  CONSTRAINT `chk_shared` CHECK ((`k` > 0))\n" +
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMPRESSION='`custom`' /*T![placement] PLACEMENT POLICY=`p_hot` */"
+		return &fakeRows{cols: []string{"Table", "Create Table"}, rows: [][]sqldriver.Value{{"t_vec", ddl}}}, nil
+	case strings.Contains(query, "FROM information_schema.SCHEMATA"):
+		return &fakeRows{
+			cols: []string{"DEFAULT_CHARACTER_SET_NAME", "DEFAULT_COLLATION_NAME", "TIDB_PLACEMENT_POLICY_NAME"},
+			rows: [][]sqldriver.Value{{"utf8mb4", "utf8mb4_bin", "p_db"}},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected query: %s", query)
+	}
+}
+
+type fakeRows struct {
+	cols []string
+	rows [][]sqldriver.Value
+	idx  int
+}
+
+func (r *fakeRows) Columns() []string { return r.cols }
+func (r *fakeRows) Close() error      { return nil }
+func (r *fakeRows) Next(dest []sqldriver.Value) error {
+	if r.idx >= len(r.rows) {
+		return io.EOF
+	}
+	copy(dest, r.rows[r.idx])
+	r.idx++
+	return nil
+}
+
+func init() {
+	sql.Register("test_tidb_fake_sync", fakeSyncDriver{})
+}
+
+func TestSyncTiFlashVectorGlobalAndPlacementPolicy(t *testing.T) {
+	db, err := sql.Open("test_tidb_fake_sync", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	d := &Driver{db: db, databaseName: "app"}
+	meta, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.PlacementPolicy != "p_db" {
+		t.Fatalf("db PlacementPolicy = %q, want p_db", meta.PlacementPolicy)
+	}
+	if len(meta.Schemas) != 1 || len(meta.Schemas[0].Tables) != 2 {
+		t.Fatalf("unexpected schemas/tables: %+v", meta.Schemas)
+	}
+	byTbl := map[string]*metadatapb.TableMetadata{}
+	for _, tbl := range meta.Schemas[0].Tables {
+		byTbl[tbl.Name] = tbl
+	}
+	if chk := byTbl["t_other"].CheckConstraints; len(chk) != 1 || chk[0].Expression != "(`m` < 100)" {
+		t.Fatalf("t_other checks = %+v", chk)
+	}
+	tbl := byTbl["t_vec"]
+	if chk := tbl.CheckConstraints; len(chk) != 1 || chk[0].Expression != "(`k` > 0)" {
+		t.Fatalf("t_vec checks = %+v", chk)
+	}
+	if tbl.TiflashReplica != 2 || len(tbl.TiflashLocationLabels) != 2 || tbl.TiflashLocationLabels[0] != "zone" || tbl.TiflashLocationLabels[1] != "rack" {
+		t.Fatalf("TiFlash = (%d, %v), want (2, [zone rack])", tbl.TiflashReplica, tbl.TiflashLocationLabels)
+	}
+	if tbl.PlacementPolicy != "p_hot" {
+		t.Fatalf("table PlacementPolicy = %q, want p_hot", tbl.PlacementPolicy)
+	}
+	if tbl.CreateOptions != "compression='`custom`'" {
+		t.Fatalf("CreateOptions = %q", tbl.CreateOptions)
+	}
+	idxByName := map[string]*metadatapb.IndexMetadata{}
+	for _, idx := range tbl.Indexes {
+		idxByName[idx.Name] = idx
+	}
+	if idx := idxByName["idx_v"]; idx == nil || !idx.IsVector || idx.Type != "HNSW" {
+		t.Fatalf("vector index = %+v, want IsVector+HNSW", idx)
+	}
+	if idx := idxByName["uk_k"]; idx == nil || !idx.IsGlobal {
+		t.Fatalf("global index = %+v, want IsGlobal=true", idx)
+	}
+
+	var dumpBuf strings.Builder
+	if err := d.Dump(context.Background(), &dumpBuf, meta); err != nil {
+		t.Fatal(err)
+	}
+	dumped := dumpBuf.String()
+	for _, want := range []string{
+		"ALTER DATABASE PLACEMENT POLICY=`p_db`;",
+		"VECTOR INDEX `idx_v`",
+		"/*T![global_index] GLOBAL */",
+		"COMPRESSION='`custom`'",
+		"ALTER TABLE `t_vec` SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'rack';",
+	} {
+		if !strings.Contains(dumped, want) {
+			t.Errorf("Dump missing %q:\n%s", want, dumped)
+		}
 	}
 }

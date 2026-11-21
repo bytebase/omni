@@ -319,27 +319,49 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
 | 			CONSTRAINT_NAME,
 | 			CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ?
-| 		ORDER BY CONSTRAINT_NAME
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
 : string
 | omni_options_roundtrip
 < result
+< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
 < row
+: bytes
+| t_chk
 : bytes
 | chk_enf
 : bytes
 | (`x` > 0)
 < row
 : bytes
+| t_chk
+: bytes
 | chk_ne
 : bytes
 | (`x` < 10)
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_options_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -407,7 +429,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -426,6 +449,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | t_chk
@@ -447,6 +471,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | t_ttl
@@ -468,6 +494,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_opts
@@ -489,6 +517,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 > query
 | SHOW CREATE TABLE `omni_options_roundtrip`.`t_chk`
 < result
@@ -523,7 +553,8 @@
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -531,11 +562,14 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|
 > exec
 | DROP DATABASE `omni_options_roundtrip`
 < ok 0 0
@@ -878,27 +912,49 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
 | 			CONSTRAINT_NAME,
 | 			CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ?
-| 		ORDER BY CONSTRAINT_NAME
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
 : string
 | omni_options_roundtrip
 < result
+< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
 < row
+: bytes
+| t_chk
 : bytes
 | chk_enf
 : bytes
 | (`x` > 0)
 < row
 : bytes
+| t_chk
+: bytes
 | chk_ne
 : bytes
 | (`x` < 10)
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_options_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -966,7 +1022,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -985,6 +1042,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | t_chk
@@ -1006,6 +1064,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | t_ttl
@@ -1027,6 +1087,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_opts
@@ -1048,6 +1110,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 > query
 | SHOW CREATE TABLE `omni_options_roundtrip`.`t_chk`
 < result
@@ -1082,7 +1146,8 @@
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -1090,11 +1155,14 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|
 > exec
 | SET GLOBAL tidb_enable_check_constraint = 0
 < ok 0 0

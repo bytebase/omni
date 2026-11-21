@@ -1713,7 +1713,7 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 	}
 	var opts []string
 	if t.Compression != "" {
-		opts = append(opts, fmt.Sprintf("compression='%s'", escapeComment(strings.Trim(t.Compression, "'\"`"))))
+		opts = append(opts, fmt.Sprintf("compression='%s'", escapeComment(t.Compression)))
 	}
 	if t.Cached {
 		opts = append(opts, "cached=on")

@@ -854,17 +854,35 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
 | 			CONSTRAINT_NAME,
 | 			CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ?
-| 		ORDER BY CONSTRAINT_NAME
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
 : string
 | omni_dump_roundtrip
 < result
+< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1023,7 +1041,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -1042,6 +1061,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1063,6 +1083,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -1084,6 +1106,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_shard
@@ -1105,6 +1129,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | seq_orders
@@ -1126,6 +1152,8 @@
 | NOT_SHARDED
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | sharded_events
@@ -1147,6 +1175,8 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols
@@ -1168,6 +1198,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols_ref
@@ -1189,6 +1221,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -1210,6 +1244,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`accounts`
 < result
@@ -1292,7 +1328,8 @@
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -1300,11 +1337,14 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|
 > exec
 | DROP DATABASE `omni_dump_roundtrip`
 < ok 0 0
@@ -2195,17 +2235,35 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
 | 			CONSTRAINT_NAME,
 | 			CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ?
-| 		ORDER BY CONSTRAINT_NAME
+| 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 | 	
 : string
 | omni_dump_roundtrip
 < result
+< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			REPLICA_COUNT,
+| 			IFNULL(LOCATION_LABELS, '')
+| 		FROM information_schema.TIFLASH_REPLICA
+| 		WHERE TABLE_SCHEMA = ?
+| 		ORDER BY TABLE_NAME
+| 	
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "REPLICA_COUNT" "BIGINT"
+< column "IFNULL(LOCATION_LABELS, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -2364,7 +2422,8 @@
 | 			IFNULL(CREATE_OPTIONS, ''),
 | 			QUOTE(IFNULL(TABLE_COMMENT, '')),
 | 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''),
-| 			IFNULL(TIDB_PK_TYPE, '')
+| 			IFNULL(TIDB_PK_TYPE, ''),
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.TABLES
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -2383,6 +2442,7 @@
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -2404,6 +2464,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -2425,6 +2487,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | metrics_shard
@@ -2446,6 +2510,8 @@
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | seq_orders
@@ -2467,6 +2533,8 @@
 | NOT_SHARDED
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | sharded_events
@@ -2488,6 +2556,8 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols
@@ -2509,6 +2579,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_named_cols_ref
@@ -2530,6 +2602,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -2551,6 +2625,8 @@
 |
 : bytes
 | NONCLUSTERED
+: bytes
+|
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`accounts`
 < result
@@ -2633,7 +2709,8 @@
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
-| 			DEFAULT_COLLATION_NAME
+| 			DEFAULT_COLLATION_NAME,
+| 			IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')
 | 		FROM information_schema.SCHEMATA
 | 		WHERE SCHEMA_NAME = ?
 : string
@@ -2641,8 +2718,11 @@
 < result
 < column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
 < column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
 : bytes
 | utf8mb4_bin
+: bytes
+|

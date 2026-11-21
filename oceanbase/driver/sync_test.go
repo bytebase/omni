@@ -12,8 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
+	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -479,5 +481,100 @@ func TestExternalTableFacts(t *testing.T) {
 	}
 	if format != "TYPE = 'CSV'" {
 		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")
+	}
+}
+
+type stubQueryDriver struct {
+	err error
+}
+
+func (s stubQueryDriver) Open(string) (sqldriver.Conn, error) { return stubQueryConn(s), nil }
+
+type stubQueryConn struct {
+	err error
+}
+
+func (stubQueryConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (stubQueryConn) Close() error                           { return nil }
+func (stubQueryConn) Begin() (sqldriver.Tx, error)           { return nil, sqldriver.ErrSkip }
+func (c stubQueryConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	return nil, c.err
+}
+
+var (
+	stubMViewErrMu sync.Mutex
+	stubMViewErr   error
+)
+
+type stubMViewSwitchDriver struct{}
+
+func (stubMViewSwitchDriver) Open(string) (sqldriver.Conn, error) { return stubMViewSwitchConn{}, nil }
+
+type stubMViewSwitchConn struct{}
+
+func (stubMViewSwitchConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (stubMViewSwitchConn) Close() error                           { return nil }
+func (stubMViewSwitchConn) Begin() (sqldriver.Tx, error)           { return nil, sqldriver.ErrSkip }
+func (stubMViewSwitchConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	stubMViewErrMu.Lock()
+	err := stubMViewErr
+	stubMViewErrMu.Unlock()
+	return nil, err
+}
+
+func init() {
+	sql.Register("test_oceanbase_mview_err", stubMViewSwitchDriver{})
+}
+
+func TestListMaterializedViewLogsErrorHandling(t *testing.T) {
+	db, err := sql.Open("test_oceanbase_mview_err", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	d := &Driver{db: db, databaseName: "db"}
+
+	for _, tc := range []struct {
+		name    string
+		err     error
+		wantErr bool
+	}{
+		{
+			name:    "privilege denied suppressed",
+			err:     &gomysql.MySQLError{Number: 1142, Message: "SELECT command denied"},
+			wantErr: false,
+		},
+		{
+			name:    "catalog table missing suppressed",
+			err:     &gomysql.MySQLError{Number: 1146, Message: "Table doesn't exist"},
+			wantErr: false,
+		},
+		{
+			name:    "transient connection error propagated",
+			err:     &gomysql.MySQLError{Number: 1105, Message: "unknown internal failure"},
+			wantErr: true,
+		},
+		{
+			name:    "generic driver error propagated",
+			err:     errors.New("connection reset by peer"),
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stubMViewErrMu.Lock()
+			stubMViewErr = tc.err
+			stubMViewErrMu.Unlock()
+
+			hasLog, logTables, gotErr := d.listMaterializedViewLogs(context.Background(), "db")
+			if tc.wantErr {
+				if gotErr == nil {
+					t.Fatalf("listMaterializedViewLogs() err = nil, want %v", tc.err)
+				}
+				return
+			}
+			if gotErr != nil || hasLog != nil || logTables != nil {
+				t.Fatalf("listMaterializedViewLogs() = (%v, %v, %v), want (nil, nil, nil)", hasLog, logTables, gotErr)
+			}
+		})
 	}
 }
