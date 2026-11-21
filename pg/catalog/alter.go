@@ -1396,6 +1396,10 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameRule(stmt)
 	case nodes.OBJECT_COLLATION:
 		return c.renameCollation(stmt)
+	case nodes.OBJECT_FDW:
+		return c.renameFdw(stmt)
+	case nodes.OBJECT_FOREIGN_SERVER:
+		return c.renameForeignServer(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
 		return nil // Domain constraints: no-op for pgddl
 	case nodes.OBJECT_ATTRIBUTE:

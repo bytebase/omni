@@ -54,12 +54,14 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeOperatorObjects(stmt)
 	case nodes.OBJECT_ACCESS_METHOD:
 		return c.removeAccessMethodObjects(stmt)
+	case nodes.OBJECT_FDW:
+		return c.removeFdwObjects(stmt)
+	case nodes.OBJECT_FOREIGN_SERVER:
+		return c.removeForeignServerObjects(stmt)
 	case nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
 		nodes.OBJECT_LANGUAGE,
-		nodes.OBJECT_FDW,
-		nodes.OBJECT_FOREIGN_SERVER,
 		nodes.OBJECT_PUBLICATION,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,

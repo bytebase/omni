@@ -9,13 +9,13 @@ func diffTriggers(from, to *Catalog, fromRelOID, toRelOID uint32) []TriggerDiffE
 	// Build name→*Trigger maps.
 	fromMap := make(map[string]*Trigger)
 	for _, trig := range from.TriggersOf(fromRelOID) {
-		if trig.ParentTriggerOID == 0 {
+		if trig.ParentTriggerOID == 0 && !from.isExtensionMember(trig.OID) {
 			fromMap[trig.Name] = trig
 		}
 	}
 	toMap := make(map[string]*Trigger)
 	for _, trig := range to.TriggersOf(toRelOID) {
-		if trig.ParentTriggerOID == 0 {
+		if trig.ParentTriggerOID == 0 && !to.isExtensionMember(trig.OID) {
 			toMap[trig.Name] = trig
 		}
 	}

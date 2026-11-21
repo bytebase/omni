@@ -454,6 +454,26 @@ func (c *Catalog) Clone() *Catalog {
 	for name, owner := range c.databaseOwners {
 		clone.databaseOwners[name] = owner
 	}
+	clone.fdws = make(map[string]*ForeignDataWrapper, len(c.fdws))
+	for name, fdw := range c.fdws {
+		if fdw == nil {
+			continue
+		}
+		cf := *fdw
+		cf.Options = slices.Clone(fdw.Options)
+		clone.fdws[name] = &cf
+	}
+	clone.foreignServers = make(map[string]*ForeignServer, len(c.foreignServers))
+	for name, srv := range c.foreignServers {
+		if srv == nil {
+			continue
+		}
+		cs := *srv
+		cs.Type = cloneStringPtr(srv.Type)
+		cs.Version = cloneStringPtr(srv.Version)
+		cs.Options = slices.Clone(srv.Options)
+		clone.foreignServers[name] = &cs
+	}
 	clone.defaultTablespace = c.defaultTablespace
 	clone.defaultTableAccessMethod = c.defaultTableAccessMethod
 	clone.sessionSettings = make(map[string]string, len(c.sessionSettings))

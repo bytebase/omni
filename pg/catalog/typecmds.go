@@ -758,6 +758,9 @@ type RangeType struct {
 	CollationSchema  string // explicit or user-collation schema (empty for unqualified built-in)
 	CollationName    string // explicit COLLATION name; empty = subtype default
 	UserCollationOID uint32 // OID of user-defined collation, or 0
+	SubtypeOpclass   string
+	Canonical        string
+	SubtypeDiff      string
 }
 
 // DefineRange creates a new range type from a parsed CREATE TYPE ... AS RANGE statement.
@@ -781,6 +784,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	var subtypeOID uint32
 	var hasCollation bool
 	var rangeCollList *nodes.List
+	var subtypeOpclass, canonical, subtypeDiff string
 	seenParams := make(map[string]bool)
 	if stmt.Params != nil {
 		for _, item := range stmt.Params.Items {
@@ -819,8 +823,12 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 				} else if s := defElemString(def); s != "" {
 					rangeCollList = &nodes.List{Items: []nodes.Node{&nodes.String{Str: s}}}
 				}
-			case "subtype_opclass", "canonical", "subtype_diff":
-				// These are accepted but not needed for catalog-only tracking.
+			case "subtype_opclass":
+				subtypeOpclass = formatCatalogOptionName(def)
+			case "canonical":
+				canonical = formatCatalogOptionName(def)
+			case "subtype_diff":
+				subtypeDiff = formatCatalogOptionName(def)
 			}
 		}
 	}
@@ -991,6 +999,9 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		CollationSchema:  rangeCollSchema,
 		CollationName:    rangeCollName,
 		UserCollationOID: rangeUserCollOID,
+		SubtypeOpclass:   subtypeOpclass,
+		Canonical:        canonical,
+		SubtypeDiff:      subtypeDiff,
 	}
 
 	// Range depends on subtype.

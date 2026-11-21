@@ -17,10 +17,11 @@ func diffRules(fromCat, toCat *Catalog, fromRel, toRel *Relation) []RuleDiffEntr
 
 	var result []RuleDiffEntry
 	for name, fr := range fromRules {
-		if fr == nil {
+		if fr == nil || (fromCat != nil && fromCat.isExtensionMember(fr.OID)) {
 			continue
 		}
-		if tr := toRules[name]; tr == nil {
+		tr := toRules[name]
+		if tr == nil || (toCat != nil && toCat.isExtensionMember(tr.OID)) {
 			result = append(result, RuleDiffEntry{
 				Action: DiffDrop,
 				Name:   name,
@@ -29,11 +30,11 @@ func diffRules(fromCat, toCat *Catalog, fromRel, toRel *Relation) []RuleDiffEntr
 		}
 	}
 	for name, tr := range toRules {
-		if tr == nil {
+		if tr == nil || (toCat != nil && toCat.isExtensionMember(tr.OID)) {
 			continue
 		}
 		fr := fromRules[name]
-		if fr == nil {
+		if fr == nil || (fromCat != nil && fromCat.isExtensionMember(fr.OID)) {
 			result = append(result, RuleDiffEntry{
 				Action: DiffAdd,
 				Name:   name,

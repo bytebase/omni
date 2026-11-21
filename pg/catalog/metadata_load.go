@@ -71,6 +71,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		c.databaseOwners[dbKey] = dbOwner
 		c.roles[dbOwner] = true
 	}
+	if opts.Full {
+		c.installForeignWrappersAndServers(meta)
+	}
 	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
 		if err := c.installGroup(ctx, group, opts.Full, report); err != nil {
 			return report, err
@@ -80,6 +83,41 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		c.installMetadataComments(meta)
 	}
 	return report, nil
+}
+
+func (c *Catalog) installForeignWrappersAndServers(meta *metadata.DatabaseSchemaMetadata) {
+	for _, fdw := range meta.GetForeignDataWrappers() {
+		if fdw.GetName() == "" || c.fdws[fdw.GetName()] != nil {
+			continue
+		}
+		c.fdws[fdw.GetName()] = &ForeignDataWrapper{
+			OID:       c.oidGen.Next(),
+			Name:      fdw.GetName(),
+			Handler:   fdw.GetHandler(),
+			Validator: fdw.GetValidator(),
+			Options:   slices.Clone(fdw.GetOptions()),
+		}
+	}
+	for _, srv := range meta.GetForeignServers() {
+		if srv.GetName() == "" || c.foreignServers[srv.GetName()] != nil {
+			continue
+		}
+		fs := &ForeignServer{
+			OID:     c.oidGen.Next(),
+			Name:    srv.GetName(),
+			FdwName: srv.GetFdw(),
+			Options: slices.Clone(srv.GetOptions()),
+		}
+		if srv.Type != nil {
+			t := *srv.Type
+			fs.Type = &t
+		}
+		if srv.Version != nil {
+			v := *srv.Version
+			fs.Version = &v
+		}
+		c.foreignServers[srv.GetName()] = fs
+	}
 }
 
 // --- Objects ---
@@ -1280,6 +1318,9 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 		for _, mv := range s.GetMaterializedViews() {
 			comment("MATERIALIZED VIEW "+qualified(mv.GetName()), mv.GetComment())
 			indexes(s.GetName(), mv.GetName(), mv.GetIndexes())
+		}
+		for _, et := range s.GetExternalTables() {
+			columns(et.GetName(), et.GetColumns())
 		}
 		for _, fn := range s.GetFunctions() {
 			if fn.GetSignature() == "" {

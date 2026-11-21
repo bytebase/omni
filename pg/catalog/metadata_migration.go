@@ -1,7 +1,9 @@
 package catalog
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -121,6 +123,8 @@ func opTargetsSkippedSchema(op MigrationOp, skipSchemas map[string]bool) bool {
 		return false
 	}
 	switch op.Type {
+	case OpCreateSchema, OpDropSchema, OpAlterSchema:
+		return skipSchemas[op.ObjectName]
 	case OpComment:
 		if target, ok := parseCommentTarget(op.SQL); ok && target.kind != "EVENT TRIGGER" && len(target.parts) >= 1 {
 			return skipSchemas[target.parts[0]]
@@ -171,6 +175,11 @@ func refuseUnsupportedExternalTableChanges(oldMeta, newMeta *metadatapb.Database
 			for _, ext := range s.GetExternalTables() {
 				cp := proto.CloneOf(ext)
 				if cp != nil {
+					for _, col := range cp.GetColumns() {
+						if col != nil {
+							col.Comment = ""
+						}
+					}
 					for _, tr := range cp.GetTriggers() {
 						if tr != nil {
 							tr.Comment = ""
@@ -512,7 +521,162 @@ func loadMetadataForMigration(ctx context.Context, meta *metadatapb.DatabaseSche
 	if err != nil {
 		return nil, nil, err
 	}
+	c.installMigrationBehaviorObjects(loaded, report)
 	return c, report, nil
+}
+
+func (c *Catalog) installMigrationBehaviorObjects(meta *metadatapb.DatabaseSchemaMetadata, report *LoadMetadataReport) {
+	if meta == nil {
+		return
+	}
+	if report.Missing == nil {
+		report.Missing = make(map[string]error)
+	}
+	installTrigger := func(schemaName, relName string, tr *metadatapb.TriggerMetadata) {
+		key := "trg:" + schemaName + "." + relName + "." + tr.GetName()
+		if strings.TrimSpace(tr.GetBody()) == "" {
+			report.Missing[key] = errors.New("trigger has no body")
+			return
+		}
+		stmt, err := parseStatement[*nodes.CreateTrigStmt](tr.GetBody())
+		if err != nil {
+			report.Missing[key] = err
+			return
+		}
+		if stmt.Relation == nil {
+			stmt.Relation = &nodes.RangeVar{Schemaname: schemaName, Relname: relName}
+		} else if stmt.Relation.Schemaname == "" {
+			stmt.Relation.Schemaname = schemaName
+		}
+		if tr.GetName() != "" && stmt.Trigname == "" {
+			stmt.Trigname = tr.GetName()
+		}
+		if err := c.CreateTriggerStmt(stmt); err != nil {
+			report.Missing[key] = err
+			return
+		}
+		if rel := c.GetRelation(schemaName, relName); rel != nil {
+			trigName := cmp.Or(stmt.Trigname, tr.GetName())
+			for _, installed := range c.TriggersOf(rel.OID) {
+				if installed.Name == trigName && installed.ParentTriggerOID == 0 {
+					if tr.GetSkipDump() {
+						c.markExtensionMembers(installed.OID, installed.OID+1, "")
+					}
+					if tr.GetComment() != "" {
+						c.comments[commentKey{ObjType: 'g', ObjOID: installed.OID}] = tr.GetComment()
+					}
+					break
+				}
+			}
+		}
+	}
+	installRule := func(schemaName, relName string, rule *metadatapb.RuleMetadata) {
+		key := "rule:" + schemaName + "." + relName + "." + rule.GetName()
+		if strings.TrimSpace(rule.GetDefinition()) == "" {
+			report.Missing[key] = errors.New("rule has no definition")
+			return
+		}
+		stmt, err := parseStatement[*nodes.RuleStmt](rule.GetDefinition())
+		if err != nil {
+			report.Missing[key] = err
+			return
+		}
+		if stmt.Relation == nil {
+			stmt.Relation = &nodes.RangeVar{Schemaname: schemaName, Relname: relName}
+		} else if stmt.Relation.Schemaname == "" {
+			stmt.Relation.Schemaname = schemaName
+		}
+		if err := c.CreateRuleStmt(stmt); err != nil {
+			report.Missing[key] = err
+			return
+		}
+		if !rule.GetIsEnabled() {
+			if rel := c.GetRelation(schemaName, relName); rel != nil && rel.Rules != nil {
+				if installed := rel.Rules[cmp.Or(stmt.Rulename, rule.GetName())]; installed != nil {
+					installed.Mode = 'D'
+				}
+			}
+		}
+	}
+
+	for _, s := range meta.GetSchemas() {
+		schemaName := s.GetName()
+		for _, t := range s.GetTables() {
+			for _, tr := range t.GetTriggers() {
+				installTrigger(schemaName, t.GetName(), tr)
+			}
+			for _, r := range t.GetRules() {
+				installRule(schemaName, t.GetName(), r)
+			}
+		}
+		for _, v := range s.GetViews() {
+			for _, tr := range v.GetTriggers() {
+				installTrigger(schemaName, v.GetName(), tr)
+			}
+			for _, r := range v.GetRules() {
+				if isViewReturnRule(r) {
+					continue
+				}
+				installRule(schemaName, v.GetName(), r)
+			}
+		}
+		for _, mv := range s.GetMaterializedViews() {
+			for _, tr := range mv.GetTriggers() {
+				installTrigger(schemaName, mv.GetName(), tr)
+			}
+		}
+	}
+	for _, et := range meta.GetEventTriggers() {
+		key := "evtrig:" + et.GetName()
+		stmt, err := migrationEventTriggerStmt(et)
+		if err != nil {
+			report.Missing[key] = err
+			continue
+		}
+		if err := c.CreateEventTriggerStmt(stmt); err != nil {
+			report.Missing[key] = err
+			continue
+		}
+		if installed := c.eventTriggerByName[stmt.Trigname]; installed != nil {
+			if !et.GetEnabled() {
+				installed.Enabled = 'D'
+			}
+			if et.GetSkipDump() {
+				c.markExtensionMembers(installed.OID, installed.OID+1, "")
+			}
+			if et.GetComment() != "" {
+				c.comments[commentKey{ObjType: 'E', ObjOID: installed.OID}] = et.GetComment()
+			}
+		}
+	}
+}
+
+func isViewReturnRule(r *metadatapb.RuleMetadata) bool {
+	return r == nil || r.GetName() == "_RETURN" || strings.EqualFold(r.GetEvent(), "SELECT")
+}
+
+func migrationEventTriggerStmt(et *metadatapb.EventTriggerMetadata) (*nodes.CreateEventTrigStmt, error) {
+	if def := strings.TrimSpace(et.GetDefinition()); def != "" {
+		return parseStatement[*nodes.CreateEventTrigStmt](def)
+	}
+	if et.GetName() == "" || et.GetEvent() == "" || et.GetFunctionName() == "" {
+		return nil, errors.New("event trigger has no definition")
+	}
+	stmt := &nodes.CreateEventTrigStmt{
+		Trigname:  et.GetName(),
+		Eventname: strings.ToLower(et.GetEvent()),
+		Funcname:  metadataNameList(et.GetFunctionSchema(), et.GetFunctionName()),
+	}
+	if tags := et.GetTags(); len(tags) > 0 {
+		items := make([]nodes.Node, 0, len(tags))
+		for _, tag := range tags {
+			items = append(items, &nodes.String{Str: tag})
+		}
+		stmt.Whenclause = &nodes.List{Items: []nodes.Node{
+			&nodes.DefElem{Defname: "tag", Arg: &nodes.List{Items: items}},
+		}}
+	}
+	return stmt, nil
 }
 
 // orderTypeAndTableCreates puts a created type, or a created table whose row type
@@ -3305,7 +3469,7 @@ func restoreUnloadableDependentViews(plan *MigrationPlan, from *Catalog, oldMeta
 				affected[key] = make(map[string]bool)
 			}
 		case OpDropSchema:
-			markDroppedSchemaAffected(affected, oldMeta, op.SchemaName)
+			markDroppedSchemaAffected(affected, oldMeta, cmp.Or(op.ObjectName, op.SchemaName))
 		default:
 		}
 	}
@@ -3952,7 +4116,7 @@ func reportKeySchemaName(key string, knownSchemas map[string]bool) string {
 }
 
 func isSkippedReportKey(key string, skipSchemas, knownSchemas map[string]bool) bool {
-	if len(skipSchemas) == 0 {
+	if len(skipSchemas) == 0 || strings.HasPrefix(key, "ext:") || strings.HasPrefix(key, "evtrig:") {
 		return false
 	}
 	return skipSchemas[reportKeySchemaName(key, knownSchemas)]
@@ -4361,6 +4525,9 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 				collectTriggers(mv.GetName(), mv.GetTriggers())
 			}
 		}
+		for _, et := range meta.GetEventTriggers() {
+			out[unloadedCommentKey{objType: 'E', name: et.GetName()}] = et.GetComment()
+		}
 		return out
 	}
 
@@ -4423,6 +4590,16 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'g',
+				Priority:      PriorityMetadata,
+			})
+		case 'E':
+			ops = append(ops, MigrationOp{
+				Type:          OpComment,
+				ObjectName:    k.name,
+				SQL:           fmt.Sprintf("COMMENT ON EVENT TRIGGER %s IS %s", quoteIdentAlways(k.name), commentValueSQL(newComment)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'E',
 				Priority:      PriorityMetadata,
 			})
 		}
@@ -4512,7 +4689,8 @@ func unloadableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, sour
 	if len(reasons) == 0 {
 		return nil
 	}
-	oldObjects, newObjects := snapshotObjects(oldMeta), snapshotObjects(newMeta)
+	oldObjects, oldParents := snapshotObjectsWithParents(oldMeta)
+	newObjects, _ := snapshotObjectsWithParents(newMeta)
 	knownSchemas := make(map[string]bool, len(skipSchemas))
 	for s := range skipSchemas {
 		knownSchemas[s] = true
@@ -4529,7 +4707,7 @@ func unloadableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, sour
 		if isSkippedReportKey(key, skipSchemas, knownSchemas) {
 			continue
 		}
-		if newObjects[key] == nil && (standIns[key] || sourceDrops[key].Type != "") {
+		if newObjects[key] == nil && (standIns[key] || sourceDrops[key].Type != "" || (oldParents[key] != "" && newObjects[oldParents[key]] == nil)) {
 			continue
 		}
 		if !proto.Equal(oldObjects[key], newObjects[key]) {
@@ -4543,17 +4721,55 @@ func unloadableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, sour
 	return fmt.Errorf("cannot generate a migration for objects whose definitions could not be loaded: %s", strings.Join(changed, "; "))
 }
 
-// snapshotObjects indexes a snapshot's objects by the keys LoadMetadataReport
-// uses. A constraint key maps to its table, which holds the constraint.
 func snapshotObjects(meta *metadatapb.DatabaseSchemaMetadata) map[string]proto.Message {
+	objects, _ := snapshotObjectsWithParents(meta)
+	return objects
+}
+
+func triggerStructuralProto(tr *metadatapb.TriggerMetadata) *metadatapb.TriggerMetadata {
+	if tr == nil {
+		return nil
+	}
+	cp := proto.CloneOf(tr)
+	cp.Comment = ""
+	return cp
+}
+
+func eventTriggerStructuralProto(et *metadatapb.EventTriggerMetadata) *metadatapb.EventTriggerMetadata {
+	if et == nil {
+		return nil
+	}
+	cp := proto.CloneOf(et)
+	cp.Comment = ""
+	return cp
+}
+
+func snapshotObjectsWithParents(meta *metadatapb.DatabaseSchemaMetadata) (map[string]proto.Message, map[string]string) {
 	objects := make(map[string]proto.Message)
+	parents := make(map[string]string)
 	for _, ext := range meta.GetExtensions() {
 		objects["ext:"+ext.GetName()] = ext
+	}
+	for _, et := range meta.GetEventTriggers() {
+		objects["evtrig:"+et.GetName()] = eventTriggerStructuralProto(et)
 	}
 	for _, s := range meta.GetSchemas() {
 		schema := s.GetName()
 		objects["schema:"+schema] = &metadatapb.SchemaMetadata{Name: schema, Owner: s.GetOwner(), Comment: s.GetComment()}
 		qualified := func(name string) string { return schema + "." + name }
+		addRelBehavior := func(relName string, triggers []*metadatapb.TriggerMetadata, rules []*metadatapb.RuleMetadata) {
+			relKey := "rel:" + qualified(relName)
+			for _, tr := range triggers {
+				key := "trg:" + qualified(relName) + "." + tr.GetName()
+				objects[key] = triggerStructuralProto(tr)
+				parents[key] = relKey
+			}
+			for _, r := range rules {
+				key := "rule:" + qualified(relName) + "." + r.GetName()
+				objects[key] = r
+				parents[key] = relKey
+			}
+		}
 		for _, e := range s.GetEnumTypes() {
 			objects["type:"+qualified(e.GetName())] = e
 		}
@@ -4571,33 +4787,51 @@ func snapshotObjects(meta *metadatapb.DatabaseSchemaMetadata) map[string]proto.M
 		}
 		for _, v := range s.GetViews() {
 			objects["rel:"+qualified(v.GetName())] = v
+			var viewRules []*metadatapb.RuleMetadata
+			for _, r := range v.GetRules() {
+				if !isViewReturnRule(r) {
+					viewRules = append(viewRules, r)
+				}
+			}
+			addRelBehavior(v.GetName(), v.GetTriggers(), viewRules)
 		}
 		for _, mv := range s.GetMaterializedViews() {
-			objects["rel:"+qualified(mv.GetName())] = mv
+			relKey := "rel:" + qualified(mv.GetName())
+			objects[relKey] = mv
 			for _, idx := range mv.GetIndexes() {
-				objects["idx:"+qualified(mv.GetName())+"."+idx.GetName()] = idx
+				idxKey := "idx:" + qualified(mv.GetName()) + "." + idx.GetName()
+				objects[idxKey] = idx
+				parents[idxKey] = relKey
 			}
+			addRelBehavior(mv.GetName(), mv.GetTriggers(), nil)
 		}
 		for _, t := range s.GetTables() {
 			def := tableDefinition(t)
-			objects["rel:"+qualified(t.GetName())] = def
-			addTableParts(objects, qualified(t.GetName()), def)
+			relKey := "rel:" + qualified(t.GetName())
+			objects[relKey] = def
+			addTableParts(objects, parents, qualified(t.GetName()), relKey, def)
+			addRelBehavior(t.GetName(), t.GetTriggers(), t.GetRules())
 			forEachPartitionWithSchema(t.GetPartitions(), schema, func(p *metadatapb.TablePartitionMetadata, partitionSchema string) {
 				partition := partitionSchema + "." + p.GetName()
-				objects["rel:"+partition] = p
+				partKey := "rel:" + partition
+				objects[partKey] = p
 				for _, idx := range p.GetIndexes() {
-					addIndexObjects(objects, partition, idx)
+					addIndexObjects(objects, parents, partition, partKey, idx)
 				}
 				for _, check := range p.GetCheckConstraints() {
-					objects["con:"+partition+"."+check.GetName()] = check
+					key := "con:" + partition + "." + check.GetName()
+					objects[key] = check
+					parents[key] = partKey
 				}
 				for _, exclude := range p.GetExcludeConstraints() {
-					objects["con:"+partition+"."+exclude.GetName()] = exclude
+					key := "con:" + partition + "." + exclude.GetName()
+					objects[key] = exclude
+					parents[key] = partKey
 				}
 			})
 		}
 	}
-	return objects
+	return objects, parents
 }
 
 func routineArgs(signature, definition string) string {
@@ -4728,7 +4962,45 @@ func sourceOnlyMissingDrops(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
 			addConstraint(foreignKey.GetName())
 		}
 	}
+	addMissingTriggerDrops := func(schemaName, owner string, triggers []*metadatapb.TriggerMetadata) {
+		if newObjects["rel:"+schemaName+"."+owner] == nil {
+			return
+		}
+		for _, tr := range triggers {
+			add("trg:"+schemaName+"."+owner+"."+tr.GetName(), MigrationOp{
+				Type:         OpDropTrigger,
+				SchemaName:   schemaName,
+				ObjectName:   tr.GetName(),
+				ParentObject: owner,
+				SQL:          "DROP TRIGGER " + quoteIdentAlways(tr.GetName()) + " ON " + quoteQualified(schemaName, owner),
+				ObjType:      'T',
+			})
+		}
+	}
+	addMissingRuleDrops := func(schemaName, owner string, rules []*metadatapb.RuleMetadata) {
+		if newObjects["rel:"+schemaName+"."+owner] == nil {
+			return
+		}
+		for _, r := range rules {
+			add("rule:"+schemaName+"."+owner+"."+r.GetName(), MigrationOp{
+				Type:         OpDropRule,
+				SchemaName:   schemaName,
+				ObjectName:   r.GetName(),
+				ParentObject: owner,
+				SQL:          "DROP RULE " + quoteIdentAlways(r.GetName()) + " ON " + quoteQualified(schemaName, owner),
+				ObjType:      'R',
+			})
+		}
+	}
 
+	for _, et := range oldMeta.GetEventTriggers() {
+		add("evtrig:"+et.GetName(), MigrationOp{
+			Type:       OpDropEventTrigger,
+			ObjectName: et.GetName(),
+			SQL:        "DROP EVENT TRIGGER " + quoteIdentAlways(et.GetName()),
+			ObjType:    'E',
+		})
+	}
 	for _, extension := range oldMeta.GetExtensions() {
 		add("ext:"+extension.GetName(), MigrationOp{
 			Type:       OpDropExtension,
@@ -4786,13 +5058,26 @@ func sourceOnlyMissingDrops(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
 		for _, table := range schema.GetTables() {
 			addMissingIndexDrops(schemaName, table.GetName(), table.GetIndexes())
 			addMissingConstraintDrops(schemaName, table.GetName(), table.GetCheckConstraints(), table.GetExcludeConstraints(), table.GetForeignKeys())
+			addMissingTriggerDrops(schemaName, table.GetName(), table.GetTriggers())
+			addMissingRuleDrops(schemaName, table.GetName(), table.GetRules())
 			forEachPartitionWithSchema(table.GetPartitions(), schemaName, func(partition *metadatapb.TablePartitionMetadata, partitionSchema string) {
 				addMissingIndexDrops(partitionSchema, partition.GetName(), partition.GetIndexes())
 				addMissingConstraintDrops(partitionSchema, partition.GetName(), partition.GetCheckConstraints(), partition.GetExcludeConstraints(), nil)
 			})
 		}
+		for _, view := range schema.GetViews() {
+			addMissingTriggerDrops(schemaName, view.GetName(), view.GetTriggers())
+			var viewRules []*metadatapb.RuleMetadata
+			for _, r := range view.GetRules() {
+				if !isViewReturnRule(r) {
+					viewRules = append(viewRules, r)
+				}
+			}
+			addMissingRuleDrops(schemaName, view.GetName(), viewRules)
+		}
 		for _, view := range schema.GetMaterializedViews() {
 			addMissingIndexDrops(schemaName, view.GetName(), view.GetIndexes())
+			addMissingTriggerDrops(schemaName, view.GetName(), view.GetTriggers())
 		}
 	}
 	return drops
@@ -4821,7 +5106,7 @@ func insertSourceOnlyDrops(ops []MigrationOp, drops map[string]MigrationOp) []Mi
 	droppedSchemas := make(map[string]bool)
 	for _, op := range ops {
 		if op.Type == OpDropSchema {
-			droppedSchemas[op.SchemaName] = true
+			droppedSchemas[cmp.Or(op.ObjectName, op.SchemaName)] = true
 		}
 	}
 	for key, drop := range drops {
@@ -4841,7 +5126,7 @@ func insertSourceOnlyDrops(ops []MigrationOp, drops map[string]MigrationOp) []Mi
 	late := make([]MigrationOp, 0, len(drops))
 	for _, key := range keys {
 		switch drops[key].Type {
-		case OpDropFunction, OpDropConstraint:
+		case OpDropFunction, OpDropConstraint, OpDropTrigger, OpDropRule, OpDropEventTrigger:
 			early = append(early, drops[key])
 		default:
 			late = append(late, drops[key])
@@ -4859,32 +5144,54 @@ func insertSourceOnlyDrops(ops []MigrationOp, drops map[string]MigrationOp) []Mi
 	return result
 }
 
-func addIndexObjects(objects map[string]proto.Message, table string, idx *metadatapb.IndexMetadata) {
-	objects["idx:"+table+"."+idx.GetName()] = idx
-	objects["con:"+table+"."+idx.GetName()] = idx
+func addIndexObjects(objects map[string]proto.Message, parents map[string]string, table, relKey string, idx *metadatapb.IndexMetadata) {
+	idxKey := "idx:" + table + "." + idx.GetName()
+	objects[idxKey] = idx
+	conKey := "con:" + table + "." + idx.GetName()
+	objects[conKey] = idx
+	if parents != nil {
+		parents[idxKey] = relKey
+		parents[conKey] = relKey
+	}
 	if idx.GetIsConstraint() {
 		constraintName := idx.GetName()
 		if constraints := idx.GetConstraints(); len(constraints) > 0 {
 			constraintName = constraints[0].GetName()
 		}
-		objects["con:"+table+"."+constraintName] = idx
+		namedConKey := "con:" + table + "." + constraintName
+		objects[namedConKey] = idx
+		if parents != nil {
+			parents[namedConKey] = relKey
+		}
 	}
 }
 
 // addTableParts indexes a table's indexes and constraints by their own metadata,
 // so an unchanged unloadable object does not refuse an unrelated table change.
-func addTableParts(objects map[string]proto.Message, table string, t *metadatapb.TableMetadata) {
+func addTableParts(objects map[string]proto.Message, parents map[string]string, table, relKey string, t *metadatapb.TableMetadata) {
 	for _, idx := range t.GetIndexes() {
-		addIndexObjects(objects, table, idx)
+		addIndexObjects(objects, parents, table, relKey, idx)
 	}
 	for _, c := range t.GetCheckConstraints() {
-		objects["con:"+table+"."+c.GetName()] = c
+		key := "con:" + table + "." + c.GetName()
+		objects[key] = c
+		if parents != nil {
+			parents[key] = relKey
+		}
 	}
 	for _, c := range t.GetExcludeConstraints() {
-		objects["con:"+table+"."+c.GetName()] = c
+		key := "con:" + table + "." + c.GetName()
+		objects[key] = c
+		if parents != nil {
+			parents[key] = relKey
+		}
 	}
 	for _, fk := range t.GetForeignKeys() {
-		objects["con:"+table+"."+fk.GetName()] = fk
+		key := "con:" + table + "." + fk.GetName()
+		objects[key] = fk
+		if parents != nil {
+			parents[key] = relKey
+		}
 	}
 }
 

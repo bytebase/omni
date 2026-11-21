@@ -17,7 +17,7 @@ import (
 // clone of the original metadata proto, producing the post-DDL metadata.
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
-	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasSchemaOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
+	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasSchemaOwnerChange(catBefore, catAfter) && !hasDatabaseOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
 		return proto.CloneOf(original)
 	}
 	if diff == nil {
@@ -123,14 +123,173 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
 	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
+	applyForeignDataWrapperDiffs(result, diff.ForeignDataWrappers)
+	applyForeignServerDiffs(result, diff.ForeignServers)
 	applyExtensionDiffs(result, catBefore, catAfter, diff.Extensions, canonicalSchema)
 	applyExtensionMemberChanges(result, original, catBefore, catAfter, canonicalSchema)
 	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
 	applyRelationOwnerChanges(result, catBefore, catAfter)
 	applySchemaOwnerChanges(result, catBefore, catAfter)
+	if hasDatabaseOwnerChange(catBefore, catAfter) {
+		result.Owner = effectiveDatabaseOwner(catAfter)
+	}
 
 	return result
+}
+
+func effectiveDatabaseOwner(cat *Catalog) string {
+	if cat == nil {
+		return ""
+	}
+	if cat.databaseName != "" {
+		return cat.databaseOwners[cat.databaseName]
+	}
+	return cat.databaseOwners["\x00current"]
+}
+
+func hasDatabaseOwnerChange(catBefore, catAfter *Catalog) bool {
+	if catBefore == nil || catAfter == nil {
+		return false
+	}
+	return effectiveDatabaseOwner(catBefore) != effectiveDatabaseOwner(catAfter)
+}
+
+func applyForeignDataWrapperDiffs(result *metadatapb.DatabaseSchemaMetadata, entries []ForeignDataWrapperDiffEntry) {
+	if result == nil || len(entries) == 0 {
+		return
+	}
+	dropped := make(map[uint32]ForeignDataWrapperDiffEntry)
+	added := make(map[uint32]ForeignDataWrapperDiffEntry)
+	for _, e := range entries {
+		if e.Action == DiffDrop && e.From != nil {
+			dropped[e.From.OID] = e
+		} else if e.Action == DiffAdd && e.To != nil {
+			added[e.To.OID] = e
+		}
+	}
+	toProto := func(fdw *ForeignDataWrapper) *metadatapb.ForeignDataWrapperMetadata {
+		return &metadatapb.ForeignDataWrapperMetadata{
+			Name:      fdw.Name,
+			Handler:   fdw.Handler,
+			Validator: fdw.Validator,
+			Options:   slices.Clone(fdw.Options),
+		}
+	}
+	pop := func(name string) {
+		result.ForeignDataWrappers = slices.DeleteFunc(result.ForeignDataWrappers, func(f *metadatapb.ForeignDataWrapperMetadata) bool {
+			return f.Name == name
+		})
+	}
+	upsert := func(updated *metadatapb.ForeignDataWrapperMetadata) {
+		for i, existing := range result.ForeignDataWrappers {
+			if existing.Name == updated.Name {
+				result.ForeignDataWrappers[i] = updated
+				return
+			}
+		}
+		result.ForeignDataWrappers = append(result.ForeignDataWrappers, updated)
+	}
+	handledDrop := make(map[string]bool)
+	handledAdd := make(map[string]bool)
+	for oid, dropEntry := range dropped {
+		addEntry, ok := added[oid]
+		if !ok {
+			continue
+		}
+		handledDrop[dropEntry.Name] = true
+		handledAdd[addEntry.Name] = true
+		pop(dropEntry.Name)
+		upsert(toProto(addEntry.To))
+	}
+	for _, e := range entries {
+		switch e.Action {
+		case DiffDrop:
+			if handledDrop[e.Name] {
+				continue
+			}
+			pop(e.Name)
+		case DiffAdd:
+			if handledAdd[e.Name] || e.To == nil {
+				continue
+			}
+			upsert(toProto(e.To))
+		case DiffModify:
+			if e.To == nil {
+				continue
+			}
+			upsert(toProto(e.To))
+		}
+	}
+}
+
+func applyForeignServerDiffs(result *metadatapb.DatabaseSchemaMetadata, entries []ForeignServerDiffEntry) {
+	if result == nil || len(entries) == 0 {
+		return
+	}
+	dropped := make(map[uint32]ForeignServerDiffEntry)
+	added := make(map[uint32]ForeignServerDiffEntry)
+	for _, e := range entries {
+		if e.Action == DiffDrop && e.From != nil {
+			dropped[e.From.OID] = e
+		} else if e.Action == DiffAdd && e.To != nil {
+			added[e.To.OID] = e
+		}
+	}
+	toProto := func(srv *ForeignServer) *metadatapb.ForeignServerMetadata {
+		return &metadatapb.ForeignServerMetadata{
+			Name:    srv.Name,
+			Fdw:     srv.FdwName,
+			Options: slices.Clone(srv.Options),
+			Type:    cloneStringPtr(srv.Type),
+			Version: cloneStringPtr(srv.Version),
+		}
+	}
+	pop := func(name string) {
+		result.ForeignServers = slices.DeleteFunc(result.ForeignServers, func(s *metadatapb.ForeignServerMetadata) bool {
+			return s.Name == name
+		})
+	}
+	upsert := func(updated *metadatapb.ForeignServerMetadata) {
+		for i, existing := range result.ForeignServers {
+			if existing.Name == updated.Name {
+				result.ForeignServers[i] = updated
+				return
+			}
+		}
+		result.ForeignServers = append(result.ForeignServers, updated)
+	}
+	handledDrop := make(map[string]bool)
+	handledAdd := make(map[string]bool)
+	for oid, dropEntry := range dropped {
+		addEntry, ok := added[oid]
+		if !ok {
+			continue
+		}
+		handledDrop[dropEntry.Name] = true
+		handledAdd[addEntry.Name] = true
+		pop(dropEntry.Name)
+		upsert(toProto(addEntry.To))
+	}
+	for _, e := range entries {
+		switch e.Action {
+		case DiffDrop:
+			if handledDrop[e.Name] {
+				continue
+			}
+			pop(e.Name)
+		case DiffAdd:
+			if handledAdd[e.Name] || e.To == nil {
+				continue
+			}
+			upsert(toProto(e.To))
+		case DiffModify:
+			if e.To == nil {
+				continue
+			}
+			upsert(toProto(e.To))
+		}
+	}
 }
 
 func hasSchemaOwnerChange(catBefore, catAfter *Catalog) bool {
@@ -2510,7 +2669,8 @@ func compositeTypeToProto(cat *Catalog, name string, from, to *Relation, previou
 		// while a renamed survivor still carries its previous metadata.
 		fc := fromByAttNum[c.AttNum]
 		if fc != nil &&
-			fc.TypeOID == c.TypeOID && fc.TypeMod == c.TypeMod && fc.CollationName == c.CollationName {
+			fc.TypeOID == c.TypeOID && fc.TypeMod == c.TypeMod && fc.CollationName == c.CollationName &&
+			columnCollationProtoSchema(cat, fc) == columnCollationProtoSchema(cat, c) {
 			if prev := previousAttributes[fc.Name]; prev != nil {
 				composite.Attributes = append(composite.Attributes, &metadatapb.CompositeTypeAttribute{
 					Name:      c.Name,
@@ -2533,16 +2693,17 @@ func compositeTypeToProto(cat *Catalog, name string, from, to *Relation, previou
 			surviving = previousAttributes[fc.Name]
 		}
 		if c.CollationName != "" {
-			// The catalog keeps only the bare collation name, so a collation
-			// introduced by walk-through DDL loses its schema qualifier here
-			// (same limitation as below). Walk-through metadata is advisory —
-			// the authoritative metadata is re-synced from the database after
-			// execution, which stores the properly qualified reference.
-			attribute.Collation = "\"" + c.CollationName + "\""
+			collSchema := columnCollationProtoSchema(cat, c)
+			if collSchema != "" {
+				attribute.Collation = migrationQualifiedName(collSchema, c.CollationName)
+			} else {
+				attribute.Collation = quoteIdentAlways(c.CollationName)
+			}
 			// Substitute the previous emit-ready (possibly schema-qualified)
-			// reference only when it names the same collation — a changed
-			// collation must reflect the catalog's current value.
-			if surviving != nil && collationReferenceBareName(surviving.Collation) == c.CollationName {
+			// reference only when it names the same collation in the same schema —
+			// a changed collation must reflect the catalog's current value.
+			if surviving != nil && collationReferenceBareName(surviving.Collation) == c.CollationName &&
+				collationReferenceSchema(surviving.Collation) == collSchema {
 				attribute.Collation = surviving.Collation
 			}
 		}
@@ -2576,6 +2737,13 @@ func collationReferenceBareName(reference string) string {
 	}
 	name := strings.Trim(reference, `"`)
 	return strings.ReplaceAll(name, `""`, `"`)
+}
+
+func collationReferenceSchema(reference string) string {
+	if schema, _, ok := parseQualifiedTypeIdent(reference); ok && schema != "pg_catalog" {
+		return schema
+	}
+	return ""
 }
 
 // qualifyWalkThroughAttributeType enforces the CompositeTypeAttribute.Type
@@ -2811,20 +2979,29 @@ func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTyp
 		name = bt.TypeName
 	}
 	out := &metadatapb.RangeTypeMetadata{
-		Name:      name,
-		Subtype:   qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
-		Collation: rangeCollationProto(cat, rt),
+		Name:           name,
+		Subtype:        qualifyWalkThroughAttributeType(cat, rt.SubTypeOID, cat.FormatType(rt.SubTypeOID, -1)),
+		SubtypeOpclass: rt.SubtypeOpclass,
+		Collation:      rangeCollationProto(cat, rt),
+		Canonical:      rt.Canonical,
+		SubtypeDiff:    rt.SubtypeDiff,
 	}
 	if rt.MultirangeOID != 0 {
 		out.MultirangeName = qualifyWalkThroughAttributeType(cat, rt.MultirangeOID, cat.FormatType(rt.MultirangeOID, -1))
 	}
 	if previous != nil {
-		out.SubtypeOpclass = previous.SubtypeOpclass
+		if out.SubtypeOpclass == "" {
+			out.SubtypeOpclass = previous.SubtypeOpclass
+		}
 		if out.Collation == "" {
 			out.Collation = previous.Collation
 		}
-		out.Canonical = previous.Canonical
-		out.SubtypeDiff = previous.SubtypeDiff
+		if out.Canonical == "" {
+			out.Canonical = previous.Canonical
+		}
+		if out.SubtypeDiff == "" {
+			out.SubtypeDiff = previous.SubtypeDiff
+		}
 		out.Comment = previous.Comment
 		out.SkipDump = previous.SkipDump
 	}

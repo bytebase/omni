@@ -220,17 +220,13 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER EXTENSION ... ADD/DROP: no-op for pgddl
 		return nil
 	case *nodes.CreateFdwStmt:
-		// CREATE FOREIGN DATA WRAPPER: no-op for pgddl
-		return nil
+		return c.CreateFdwStmt(s)
 	case *nodes.AlterFdwStmt:
-		// ALTER FOREIGN DATA WRAPPER: no-op for pgddl
-		return nil
+		return c.AlterFdwStmt(s)
 	case *nodes.CreateForeignServerStmt:
-		// CREATE SERVER: no-op for pgddl
-		return nil
+		return c.CreateForeignServerStmt(s)
 	case *nodes.AlterForeignServerStmt:
-		// ALTER SERVER: no-op for pgddl
-		return nil
+		return c.AlterForeignServerStmt(s)
 	case *nodes.CreateUserMappingStmt:
 		// CREATE USER MAPPING: no-op for pgddl
 		return nil

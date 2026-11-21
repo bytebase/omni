@@ -2090,3 +2090,132 @@ func TestApplyDiffToMetadataRound13Fixes(t *testing.T) {
 		require.Empty(t, pub.Procedures)
 	})
 }
+
+func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
+	// 1. Composite attributes preserve schema-qualified collations outside search path.
+	t.Run("composite_attribute_qualified_collation", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "public"},
+				{
+					Name:       "app",
+					Collations: []*metadatapb.CollationMetadata{{Name: "c_user", Provider: "c"}},
+				},
+			},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE COLLATION IF NOT EXISTS app.c_user (LOCALE = 'C');
+			CREATE TYPE public.addr AS (street text COLLATE app.c_user);
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Len(t, pub.CompositeTypes, 1)
+		require.Equal(t, `"app"."c_user"`, pub.CompositeTypes[0].Attributes[0].Collation)
+	})
+
+	// 2. Newly created range types retain subtype_opclass, canonical, and subtype_diff.
+	t.Run("range_creation_support_options", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		_, err = catAfter.Exec(`CREATE TYPE public.f8_range AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, CANONICAL = public.canon_fn, SUBTYPE_DIFF = public.diff_fn);`, nil)
+		require.NoError(t, err)
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Len(t, pub.RangeTypes, 1)
+		rt := pub.RangeTypes[0]
+		require.Equal(t, "float8_ops", rt.SubtypeOpclass)
+		require.Equal(t, "public.canon_fn", rt.Canonical)
+		require.Equal(t, "public.diff_fn", rt.SubtypeDiff)
+	})
+
+	// 3. Database ownership changes update DatabaseSchemaMetadata.Owner even as the sole change.
+	t.Run("database_owner_change", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Name:    "appdb",
+			Owner:   "alice",
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE ROLE bob;
+			ALTER DATABASE appdb OWNER TO bob;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		require.Equal(t, "bob", got.Owner)
+	})
+
+	// 4. Foreign data wrapper and foreign server DDL updates metadata and foreign tables.
+	t.Run("fdw_and_foreign_server_ddl", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE FOREIGN DATA WRAPPER custom_fdw HANDLER app.h OPTIONS (debug 'true');
+			ALTER FOREIGN DATA WRAPPER custom_fdw VALIDATOR app.v OPTIONS (SET debug 'false');
+			CREATE SERVER srv_one TYPE 'pg' VERSION '16' FOREIGN DATA WRAPPER custom_fdw OPTIONS (host 'db1');
+			ALTER SERVER srv_one VERSION '17' OPTIONS (SET host 'db2');
+			ALTER SERVER srv_one RENAME TO srv_two;
+			CREATE FOREIGN TABLE public.remote_tbl (id integer) SERVER srv_two;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		require.Len(t, got.ForeignDataWrappers, 1)
+		fdw := got.ForeignDataWrappers[0]
+		require.Equal(t, "custom_fdw", fdw.Name)
+		require.Equal(t, "app.h", fdw.Handler)
+		require.Equal(t, "app.v", fdw.Validator)
+		require.Equal(t, []string{"debug=false"}, fdw.Options)
+
+		require.Len(t, got.ForeignServers, 1)
+		srv := got.ForeignServers[0]
+		require.Equal(t, "srv_two", srv.Name)
+		require.Equal(t, "custom_fdw", srv.Fdw)
+		require.NotNil(t, srv.Type)
+		require.Equal(t, "pg", *srv.Type)
+		require.NotNil(t, srv.Version)
+		require.Equal(t, "17", *srv.Version)
+		require.Equal(t, []string{"host=db2"}, srv.Options)
+
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Len(t, pub.ExternalTables, 1)
+		require.Equal(t, "srv_two", pub.ExternalTables[0].ExternalServerName)
+	})
+}

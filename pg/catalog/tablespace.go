@@ -210,6 +210,10 @@ func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
 		return c.alterExtensionOwner(stmt)
 	case nodes.OBJECT_COLLATION:
 		return c.alterCollationOwner(stmt)
+	case nodes.OBJECT_FDW:
+		return c.alterFdwOwner(stmt)
+	case nodes.OBJECT_FOREIGN_SERVER:
+		return c.alterForeignServerOwner(stmt)
 	default:
 		return nil
 	}

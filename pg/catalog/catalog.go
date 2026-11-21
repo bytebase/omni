@@ -96,6 +96,10 @@ type Catalog struct {
 	eventTriggers      map[uint32]*EventTrigger
 	eventTriggerByName map[string]*EventTrigger
 
+	// Foreign data wrappers and servers.
+	fdws           map[string]*ForeignDataWrapper
+	foreignServers map[string]*ForeignServer
+
 	// Comments.
 	comments map[commentKey]string
 
@@ -219,6 +223,8 @@ func New() *Catalog {
 		rules:              make(map[uint32]*Rule),
 		eventTriggers:      make(map[uint32]*EventTrigger),
 		eventTriggerByName: make(map[string]*EventTrigger),
+		fdws:               make(map[string]*ForeignDataWrapper),
+		foreignServers:     make(map[string]*ForeignServer),
 		comments:           make(map[commentKey]string),
 		policies:           make(map[uint32]*Policy),
 		policiesByRel:      make(map[uint32][]*Policy),

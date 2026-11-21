@@ -204,21 +204,23 @@ type AccessMethodDiffEntry struct {
 
 // SchemaDiff holds all differences between two catalog states.
 type SchemaDiff struct {
-	Schemas        []SchemaDiffEntry
-	Collations     []CollationDiffEntry
-	AccessMethods  []AccessMethodDiffEntry
-	Relations      []RelationDiffEntry
-	ForeignTables  []RelationDiffEntry
-	Sequences      []SequenceDiffEntry
-	Functions      []FunctionDiffEntry
-	Enums          []EnumDiffEntry
-	Domains        []DomainDiffEntry
-	Ranges         []RangeDiffEntry
-	CompositeTypes []CompositeTypeDiffEntry
-	Extensions     []ExtensionDiffEntry
-	EventTriggers  []EventTriggerDiffEntry
-	Comments       []CommentDiffEntry
-	Grants         []GrantDiffEntry
+	Schemas             []SchemaDiffEntry
+	Collations          []CollationDiffEntry
+	AccessMethods       []AccessMethodDiffEntry
+	Relations           []RelationDiffEntry
+	ForeignTables       []RelationDiffEntry
+	Sequences           []SequenceDiffEntry
+	Functions           []FunctionDiffEntry
+	Enums               []EnumDiffEntry
+	Domains             []DomainDiffEntry
+	Ranges              []RangeDiffEntry
+	CompositeTypes      []CompositeTypeDiffEntry
+	Extensions          []ExtensionDiffEntry
+	EventTriggers       []EventTriggerDiffEntry
+	ForeignDataWrappers []ForeignDataWrapperDiffEntry
+	ForeignServers      []ForeignServerDiffEntry
+	Comments            []CommentDiffEntry
+	Grants              []GrantDiffEntry
 }
 
 // IsEmpty returns true if there are no differences.
@@ -236,6 +238,8 @@ func (d *SchemaDiff) IsEmpty() bool {
 		len(d.CompositeTypes) == 0 &&
 		len(d.Extensions) == 0 &&
 		len(d.EventTriggers) == 0 &&
+		len(d.ForeignDataWrappers) == 0 &&
+		len(d.ForeignServers) == 0 &&
 		len(d.Comments) == 0 &&
 		len(d.Grants) == 0
 }
@@ -246,21 +250,23 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	relations := diffRelations(from, to)
 	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
-		Schemas:        diffSchemas(from, to),
-		Collations:     diffCollations(from, to),
-		AccessMethods:  diffAccessMethods(from, to),
-		Relations:      relations,
-		ForeignTables:  diffForeignTables(from, to),
-		Sequences:      diffSequences(from, to),
-		Functions:      diffFunctions(from, to),
-		Enums:          diffEnums(from, to),
-		Domains:        diffDomains(from, to),
-		Ranges:         diffRanges(from, to),
-		CompositeTypes: diffComposites(from, to),
-		Extensions:     diffExtensions(from, to),
-		EventTriggers:  diffEventTriggers(from, to),
-		Comments:       diffComments(from, to),
-		Grants:         diffGrants(from, to),
+		Schemas:             diffSchemas(from, to),
+		Collations:          diffCollations(from, to),
+		AccessMethods:       diffAccessMethods(from, to),
+		Relations:           relations,
+		ForeignTables:       diffForeignTables(from, to),
+		Sequences:           diffSequences(from, to),
+		Functions:           diffFunctions(from, to),
+		Enums:               diffEnums(from, to),
+		Domains:             diffDomains(from, to),
+		Ranges:              diffRanges(from, to),
+		CompositeTypes:      diffComposites(from, to),
+		Extensions:          diffExtensions(from, to),
+		EventTriggers:       diffEventTriggers(from, to),
+		ForeignDataWrappers: diffForeignDataWrappers(from, to),
+		ForeignServers:      diffForeignServers(from, to),
+		Comments:            diffComments(from, to),
+		Grants:              diffGrants(from, to),
 	}
 }
 

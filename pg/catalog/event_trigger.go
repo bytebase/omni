@@ -436,11 +436,15 @@ func (c *Catalog) findEventTriggerFunc(schemaName, funcName string) (*BuiltinPro
 func diffEventTriggers(from, to *Catalog) []EventTriggerDiffEntry {
 	fromMap := make(map[string]*EventTrigger)
 	for _, evt := range from.eventTriggers {
-		fromMap[evt.Name] = evt
+		if evt != nil && !from.isExtensionMember(evt.OID) {
+			fromMap[evt.Name] = evt
+		}
 	}
 	toMap := make(map[string]*EventTrigger)
 	for _, evt := range to.eventTriggers {
-		toMap[evt.Name] = evt
+		if evt != nil && !to.isExtensionMember(evt.OID) {
+			toMap[evt.Name] = evt
+		}
 	}
 
 	var result []EventTriggerDiffEntry

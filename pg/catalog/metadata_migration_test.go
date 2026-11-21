@@ -4929,3 +4929,236 @@ func TestRound12CollationExtTriggerAndViewColumnComments(t *testing.T) {
 	require.Contains(t, viewSQL, `COMMENT ON VIEW "public"."v" IS 'view doc'`)
 	require.Contains(t, viewSQL, `COMMENT ON COLUMN "public"."v"."id" IS 'view col doc'`)
 }
+
+func TestRound14Fixes(t *testing.T) {
+	// 1. Relation triggers on tables, views, and materialized views migrate structurally.
+	trigBaseFn := &metadatapb.FunctionMetadata{
+		Name:       "audit_fn",
+		Signature:  "audit_fn()",
+		Definition: "CREATE FUNCTION public.audit_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$",
+	}
+	trigMeta := func(hasTableTrig, hasViewTrig bool, matTrigBody string) *metadatapb.DatabaseSchemaMetadata {
+		tbl := pgTable("events", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})
+		if hasTableTrig {
+			tbl.Triggers = []*metadatapb.TriggerMetadata{{
+				Name:   "trg_events",
+				Timing: "BEFORE",
+				Event:  "INSERT",
+				Body:   `CREATE TRIGGER trg_events BEFORE INSERT ON public.events FOR EACH ROW EXECUTE FUNCTION public.audit_fn()`,
+			}}
+		}
+		v := &metadatapb.ViewMetadata{
+			Name:              "v_events",
+			Definition:        "SELECT id FROM public.events",
+			DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "events", Column: "id"}},
+		}
+		if hasViewTrig {
+			v.Triggers = []*metadatapb.TriggerMetadata{{
+				Name:   "trg_view",
+				Timing: "INSTEAD OF",
+				Event:  "INSERT",
+				Body:   `CREATE TRIGGER trg_view INSTEAD OF INSERT ON public.v_events FOR EACH ROW EXECUTE FUNCTION public.audit_fn()`,
+			}}
+		}
+		mv := &metadatapb.MaterializedViewMetadata{
+			Name:              "mv_events",
+			Definition:        "SELECT id FROM public.events",
+			DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "events", Column: "id"}},
+		}
+		if matTrigBody != "" {
+			mv.Triggers = []*metadatapb.TriggerMetadata{{
+				Name:   "trg_mv",
+				Timing: "BEFORE",
+				Event:  "TRUNCATE",
+				Body:   matTrigBody,
+			}}
+		}
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:              "public",
+				Functions:         []*metadatapb.FunctionMetadata{trigBaseFn},
+				Tables:            []*metadatapb.TableMetadata{tbl},
+				Views:             []*metadatapb.ViewMetadata{v},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{mv},
+			}},
+		}
+	}
+	trigSQL, err := testMetadataMigration(
+		trigMeta(true, false, `CREATE TRIGGER trg_mv BEFORE TRUNCATE ON public.mv_events FOR EACH STATEMENT EXECUTE FUNCTION public.audit_fn()`),
+		trigMeta(false, true, `CREATE TRIGGER trg_mv AFTER TRUNCATE ON public.mv_events FOR EACH STATEMENT EXECUTE FUNCTION public.audit_fn()`),
+	)
+	require.NoError(t, err)
+	require.Contains(t, trigSQL, `DROP TRIGGER "trg_events" ON "public"."events"`)
+	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_view" INSTEAD OF INSERT ON "public"."v_events"`)
+	require.Contains(t, trigSQL, `DROP TRIGGER "trg_mv" ON "public"."mv_events"`)
+	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_mv" AFTER TRUNCATE ON "public"."mv_events"`)
+
+	// Unloadable trigger body changes are refused rather than silently skipped.
+	unloadTrigMeta := func(body string) *metadatapb.DatabaseSchemaMetadata {
+		t1 := pgTable("events", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})
+		t1.Triggers = []*metadatapb.TriggerMetadata{{
+			Name:   "trg_missing_fn",
+			Timing: "BEFORE",
+			Event:  "INSERT",
+			Body:   body,
+		}}
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:   "public",
+				Tables: []*metadatapb.TableMetadata{t1},
+			}},
+		}
+	}
+	_, err = testMetadataMigration(
+		unloadTrigMeta(`CREATE TRIGGER trg_missing_fn BEFORE INSERT ON public.events FOR EACH ROW EXECUTE FUNCTION public.missing_fn()`),
+		unloadTrigMeta(`CREATE TRIGGER trg_missing_fn AFTER INSERT ON public.events FOR EACH ROW EXECUTE FUNCTION public.missing_fn()`),
+	)
+	require.ErrorContains(t, err, "trg:public.events.trg_missing_fn")
+
+	// 2. Rewrite rules on tables and views migrate cleanly (ignoring view _RETURN rules).
+	ruleMeta := func(rules []*metadatapb.RuleMetadata, viewRules []*metadatapb.RuleMetadata) *metadatapb.DatabaseSchemaMetadata {
+		tbl := pgTable("items", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})
+		tbl.Rules = rules
+		v := &metadatapb.ViewMetadata{
+			Name:       "v_items",
+			Definition: "SELECT id FROM public.items",
+			Rules: append([]*metadatapb.RuleMetadata{{
+				Name: "_RETURN", Event: "SELECT", IsInstead: true, IsEnabled: true,
+				Definition: "CREATE RULE \"_RETURN\" AS ON SELECT TO public.v_items DO INSTEAD SELECT id FROM public.items;",
+			}}, viewRules...),
+		}
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:   "public",
+				Tables: []*metadatapb.TableMetadata{tbl},
+				Views:  []*metadatapb.ViewMetadata{v},
+			}},
+		}
+	}
+	ruleSQL, err := testMetadataMigration(
+		ruleMeta(
+			[]*metadatapb.RuleMetadata{{Name: "r_drop", Event: "INSERT", IsInstead: true, IsEnabled: true, Definition: "CREATE RULE r_drop AS ON INSERT TO public.items DO INSTEAD NOTHING;"}},
+			nil,
+		),
+		ruleMeta(
+			[]*metadatapb.RuleMetadata{{Name: "r_add", Event: "DELETE", IsInstead: true, IsEnabled: false, Definition: "CREATE RULE r_add AS ON DELETE TO public.items DO INSTEAD NOTHING;"}},
+			[]*metadatapb.RuleMetadata{{Name: "vr_ins", Event: "INSERT", IsInstead: true, IsEnabled: true, Definition: "CREATE RULE vr_ins AS ON INSERT TO public.v_items DO INSTEAD NOTHING;"}},
+		),
+	)
+	require.NoError(t, err)
+	require.Contains(t, ruleSQL, `DROP RULE "r_drop" ON "public"."items"`)
+	require.Contains(t, ruleSQL, `CREATE RULE "r_add" AS ON DELETE TO "public"."items" DO INSTEAD NOTHING`)
+	require.Contains(t, ruleSQL, `ALTER TABLE "public"."items" DISABLE RULE "r_add"`)
+	require.Contains(t, ruleSQL, `CREATE RULE "vr_ins" AS ON INSERT TO "public"."v_items" DO INSTEAD NOTHING`)
+
+	// 3. Event triggers migrate cleanly.
+	etFn := &metadatapb.FunctionMetadata{
+		Name:       "et_fn",
+		Signature:  "et_fn()",
+		Definition: "CREATE FUNCTION public.et_fn() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END; $$",
+	}
+	etOld := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			Functions: []*metadatapb.FunctionMetadata{etFn},
+		}},
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{
+			Name:           "et_drop",
+			Event:          "ddl_command_start",
+			FunctionSchema: "public",
+			FunctionName:   "et_fn",
+			Enabled:        true,
+		}},
+	}
+	etNew := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			Functions: []*metadatapb.FunctionMetadata{etFn},
+		}},
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{
+			Name:           "et_add",
+			Event:          "sql_drop",
+			Tags:           []string{"DROP TABLE"},
+			FunctionSchema: "public",
+			FunctionName:   "et_fn",
+			Enabled:        false,
+		}},
+	}
+	etSQL, err := testMetadataMigration(etOld, etNew)
+	require.NoError(t, err)
+	require.Contains(t, etSQL, `DROP EVENT TRIGGER "et_drop"`)
+	require.Contains(t, etSQL, `CREATE EVENT TRIGGER "et_add" ON "sql_drop"`)
+	require.Contains(t, etSQL, `ALTER EVENT TRIGGER "et_add" DISABLE`)
+
+	// 4. External-table column comment migrations succeed while structural changes stay refused.
+	extMeta := func(colType, colComment string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:               "ext_events",
+					ExternalServerName: "srv",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: colType, Comment: colComment}},
+				}},
+			}},
+		}
+	}
+	extCommentSQL, err := testMetadataMigration(extMeta("integer", ""), extMeta("integer", "ext col doc"))
+	require.NoError(t, err)
+	require.Contains(t, extCommentSQL, `COMMENT ON COLUMN "public"."ext_events"."id" IS 'ext col doc'`)
+	_, err = testMetadataMigration(extMeta("integer", ""), extMeta("bigint", ""))
+	require.ErrorContains(t, err, "external tables")
+
+	// 5. SkipSchemas filters out schema create, drop, and alter owner operations.
+	skipSQL, err := MetadataMigration(
+		context.Background(),
+		&metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "public"},
+				{Name: "backup_drop", Owner: "alice"},
+				{Name: "backup_alter", Owner: "alice"},
+			},
+		},
+		&metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "public"},
+				{Name: "backup_add", Owner: "alice"},
+				{Name: "backup_alter", Owner: "bob"},
+			},
+		},
+		MetadataMigrationOptions{SkipSchemas: []string{"backup_drop", "backup_alter", "backup_add"}},
+	)
+	require.NoError(t, err)
+	require.Empty(t, skipSQL)
+
+	// 6. Source-only missing drops inside a dropped schema are suppressed behind DROP SCHEMA CASCADE.
+	oldDropSchemaMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public"},
+			{
+				Name: "legacy",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "broken_fn",
+					Signature:  "broken_fn(nonexistent_type)",
+					Definition: "broken sql here",
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "broken_tbl",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Indexes: []*metadatapb.IndexMetadata{{
+						Name:       "broken_idx",
+						Definition: "CREATE INDEX broken_idx ON legacy.broken_tbl USING btree ((id + 1)) WHERE unknown_fn(id)",
+					}},
+				}},
+			},
+		},
+	}
+	newDropSchemaMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	dropSchemaSQL, err := testMetadataMigration(oldDropSchemaMeta, newDropSchemaMeta)
+	require.NoError(t, err)
+	require.Contains(t, dropSchemaSQL, `DROP SCHEMA legacy CASCADE`)
+	require.NotContains(t, dropSchemaSQL, `DROP FUNCTION "legacy"."broken_fn"`)
+	require.NotContains(t, dropSchemaSQL, `DROP INDEX "legacy"."broken_idx"`)
+}
