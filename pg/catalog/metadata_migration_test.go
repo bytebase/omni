@@ -7941,6 +7941,72 @@ func TestRound37Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, rtReport.Degraded)
 	require.True(t, Diff(rtReloaded, rtAfter).IsEmpty())
+
+	// 27. A serial default in applied metadata names its sequence schema-qualified, as sync's pg_get_expr does.
+	ndBefore := New()
+	ndAfter := ndBefore.Clone()
+	_, err = ndAfter.Exec(`CREATE TABLE public.nd (id serial); CREATE TABLE public."Nd2" (id serial);`, nil)
+	require.NoError(t, err)
+	ndMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}, ndBefore, ndAfter, Diff(ndBefore, ndAfter))
+	ndDefaults := map[string]string{}
+	for _, tbl := range ndMeta.Schemas[0].Tables {
+		ndDefaults[tbl.Name] = tbl.Columns[0].Default
+	}
+	require.Equal(t, `nextval('public.nd_id_seq'::regclass)`, ndDefaults["nd"])
+	require.Equal(t, `nextval('public."Nd2_id_seq"'::regclass)`, ndDefaults["Nd2"])
+	ndReloaded := New()
+	ndReport, err := ndReloaded.LoadMetadata(context.Background(), ndMeta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, ndReport.Degraded)
+
+	// 28. An unqualified body call resolves its overload across search_path schemas.
+	spCat := New()
+	_, err = spCat.Exec(`
+		CREATE SCHEMA app;
+		SET search_path = public, app;
+		CREATE FUNCTION public.zq(text) RETURNS integer LANGUAGE sql RETURN 1;
+		CREATE FUNCTION app.zq(integer) RETURNS integer LANGUAGE sql RETURN 2;
+		CREATE FUNCTION public.calls_zq() RETURNS integer LANGUAGE sql RETURN zq(1);
+	`, nil)
+	require.NoError(t, err)
+	require.Error(t, round37ExecErr(spCat.Clone(), `DROP FUNCTION app.zq(integer);`))
+	require.NoError(t, round37ExecErr(spCat, `DROP FUNCTION public.zq(text);`))
+
+	// 29. A foreign partition is listed under its parent as well as among external tables, and leaves both when dropped.
+	fpaBase := New()
+	_, err = fpaBase.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_fpa;
+		CREATE SERVER fpa_srv FOREIGN DATA WRAPPER w_fpa;
+		CREATE TABLE public.fpa_parent (id int, k int) PARTITION BY RANGE (k);
+	`, nil)
+	require.NoError(t, err)
+	fpaMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "fpa_parent",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "integer", Nullable: true},
+					{Name: "k", Position: 2, Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	}
+	fpaAfter := fpaBase.Clone()
+	_, err = fpaAfter.Exec(`CREATE FOREIGN TABLE public.fpa_remote PARTITION OF public.fpa_parent FOR VALUES FROM (10) TO (20) SERVER fpa_srv;`, nil)
+	require.NoError(t, err)
+	fpaUpdated := ApplyDiffToMetadata(fpaMeta, fpaBase, fpaAfter, Diff(fpaBase, fpaAfter))
+	require.Len(t, fpaUpdated.Schemas[0].ExternalTables, 1)
+	require.Len(t, fpaUpdated.Schemas[0].Tables[0].Partitions, 1)
+	require.Equal(t, "fpa_remote", fpaUpdated.Schemas[0].Tables[0].Partitions[0].Name)
+	require.Contains(t, fpaUpdated.Schemas[0].Tables[0].Partitions[0].Value, "FOR VALUES FROM")
+	fpaDropped := fpaAfter.Clone()
+	_, err = fpaDropped.Exec(`DROP FOREIGN TABLE public.fpa_remote;`, nil)
+	require.NoError(t, err)
+	fpaDroppedMeta := ApplyDiffToMetadata(fpaUpdated, fpaAfter, fpaDropped, Diff(fpaAfter, fpaDropped))
+	require.Empty(t, fpaDroppedMeta.Schemas[0].ExternalTables)
+	require.Empty(t, fpaDroppedMeta.Schemas[0].Tables[0].Partitions)
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

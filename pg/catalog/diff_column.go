@@ -80,7 +80,10 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 		if a.HasDefault != b.HasDefault {
 			return true
 		}
-		if a.Default != b.Default {
+		// A nextval default names its sequence qualified or not depending on
+		// how it entered the catalog (sync writes it qualified); compare the
+		// sequence it resolves to.
+		if a.Default != b.Default && qualifyNextvalDefault(from, a.Default) != qualifyNextvalDefault(to, b.Default) {
 			return true
 		}
 	}

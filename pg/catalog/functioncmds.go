@@ -1013,6 +1013,39 @@ func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.Fu
 		return
 	}
 
+	// With argument types known, resolve the overload across every schema on
+	// search_path, as PostgreSQL does: the match may sit in a later schema than
+	// another arity-compatible candidate. An earlier schema hides a routine
+	// with the same argument types in a later one.
+	if argTypes != nil {
+		var visible []*BuiltinProc
+		seenSig := make(map[string]bool)
+		for _, sname := range c.searchPath {
+			sc := c.schemaByName[sname]
+			if sc == nil {
+				continue
+			}
+			for _, p := range matched {
+				up := c.userProcs[p.OID]
+				if up == nil || up.Schema == nil || up.Schema.OID != sc.OID {
+					continue
+				}
+				sig := fmt.Sprint(p.ArgTypes)
+				if seenSig[sig] {
+					continue
+				}
+				seenSig[sig] = true
+				visible = append(visible, p)
+			}
+		}
+		if len(visible) > 0 {
+			if p, _, err := c.resolveFuncOverload(visible, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
+				recordProc(p)
+				return
+			}
+		}
+	}
+
 	// For unqualified calls, prefer routines in the first visible schema along search_path.
 	for _, sname := range c.searchPath {
 		sc := c.schemaByName[sname]

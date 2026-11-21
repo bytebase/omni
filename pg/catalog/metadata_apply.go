@@ -1669,6 +1669,9 @@ func applyForeignTableDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore
 					return ext.Name == rel.Name
 				})
 			}
+			if rel.From != nil && rel.From.PartitionOf != 0 {
+				popPartitionInSchema(result, schemaName, rel.Name)
+			}
 			continue
 		}
 		sm := findOrCreateSchema(result, schemaName)
@@ -1676,10 +1679,27 @@ func applyForeignTableDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore
 		case DiffAdd:
 			if rel.To != nil {
 				sm.ExternalTables = append(sm.ExternalTables, relationToExternalTableProto(catAfter, rel.To))
+				// Sync lists a foreign partition both as an external table and
+				// under its parent, whose descriptor carries the bound.
+				if rel.To.PartitionOf != 0 {
+					appendPartitionToParent(result, sm, catAfter, rel)
+				}
 			}
 		case DiffModify:
 			if rel.To == nil {
 				continue
+			}
+			if !samePartitionParent(catBefore, catAfter, rel.From, rel.To) {
+				if rel.From != nil && rel.From.PartitionOf != 0 {
+					popPartitionInSchema(result, schemaName, rel.Name)
+				}
+				if rel.To.PartitionOf != 0 {
+					appendPartitionToParent(result, sm, catAfter, rel)
+				}
+			} else if rel.To.PartitionOf != 0 {
+				if p := findPartitionInSchema(result, schemaName, rel.Name); p != nil {
+					applyPartitionDiffs(p, catBefore, catAfter, rel)
+				}
 			}
 			ext := findExternalTable(sm, rel.Name)
 			if ext == nil {
@@ -2243,7 +2263,7 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 		// definition written with an empty search_path still resolves it.
 		Type:     qualifyWalkThroughAttributeType(cat, col.TypeOID, cat.FormatType(col.TypeOID, col.TypeMod)),
 		Nullable: !col.NotNull,
-		Default:  col.Default,
+		Default:  qualifyNextvalDefault(cat, col.Default),
 		Options:  slices.Clone(col.ForeignOptions),
 	}
 	if col.CollationName != "" {
@@ -4805,4 +4825,40 @@ func checkConstraintProtoExpr(con *Constraint) string {
 		expr += " NOT VALID"
 	}
 	return expr
+}
+
+// qualifyNextvalDefault schema-qualifies the sequence a nextval('seq'::regclass)
+// default names, as pg_get_expr writes it under sync's empty search_path, so
+// a definition restored with that search_path still finds the sequence.
+func qualifyNextvalDefault(cat *Catalog, def string) string {
+	const prefix, suffix = "nextval('", "'::regclass)"
+	if cat == nil || !strings.HasPrefix(def, prefix) || !strings.HasSuffix(def, suffix) {
+		return def
+	}
+	lit := def[len(prefix) : len(def)-len(suffix)]
+	if strings.Contains(lit, "'") {
+		return def
+	}
+	if _, _, qualified := splitQualifiedIdent(lit); qualified {
+		return def
+	}
+	var name string
+	switch {
+	case len(lit) >= 2 && strings.HasPrefix(lit, `"`) && strings.HasSuffix(lit, `"`):
+		name = unquoteIdent(lit)
+	case lit != "" && !strings.ContainsAny(lit, `."`):
+		name = strings.ToLower(lit)
+	default:
+		return def
+	}
+	seq, err := cat.findSequence("", name)
+	if (err != nil || seq == nil) && name != lit {
+		// The catalog writes a serial default with the sequence name as is,
+		// unquoted even when it has capitals.
+		seq, err = cat.findSequence("", lit)
+	}
+	if err != nil || seq == nil || seq.Schema == nil {
+		return def
+	}
+	return prefix + quoteWalkThroughIdent(seq.Schema.Name) + "." + quoteWalkThroughIdent(seq.Name) + suffix
 }
