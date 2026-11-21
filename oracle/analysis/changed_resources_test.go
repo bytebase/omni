@@ -83,9 +83,23 @@ func TestExtractChangedResources(t *testing.T) {
 		},
 		{
 			name:   "object DDL records only a qualified schema",
-			script: "CREATE OR REPLACE VIEW app.v AS SELECT 1 FROM DUAL;\nCREATE SEQUENCE seq;\nDROP PROCEDURE app2.p;\nDROP SYNONYM syn;",
+			script: "CREATE OR REPLACE VIEW app.v AS SELECT 1 FROM DUAL;\nCREATE SEQUENCE seq;\nDROP PROCEDURE app2.p;\nDROP SYNONYM syn;\nCREATE SYNONYM app3.syn FOR t;\nDROP PACKAGE app4.pkg;\nDROP TYPE app5.ty;\nALTER PACKAGE app6.pkg COMPILE;",
 			want: StatementChanges{
-				Resources: []ChangedResource{{Database: "APP", DatabaseOnly: true}, {Database: "APP2", DatabaseOnly: true}},
+				Resources: []ChangedResource{
+					{Database: "APP", DatabaseOnly: true},
+					{Database: "APP2", DatabaseOnly: true},
+					{Database: "APP3", DatabaseOnly: true},
+					{Database: "APP4", DatabaseOnly: true},
+					{Database: "APP5", DatabaseOnly: true},
+					{Database: "APP6", DatabaseOnly: true},
+				},
+			},
+		},
+		{
+			name:   "create table if not exists",
+			script: "CREATE TABLE IF NOT EXISTS t1 (c1 INT);",
+			want: StatementChanges{
+				Resources: []ChangedResource{{Database: "DB", Table: "T1"}},
 			},
 		},
 	}

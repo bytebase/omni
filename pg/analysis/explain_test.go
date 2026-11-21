@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,20 @@ func TestExplainStatement(t *testing.T) {
 		require.Equal(t, tc.want, got, tc.statement)
 	}
 
+	for _, statement := range []string{
+		"ANALYZE DELETE FROM t",
+		"EXPLAIN ANALYZE SELECT 1",
+		"EXPLAIN ANALYZE DELETE FROM t",
+		"EXPLAIN (ANALYZE) DELETE FROM t",
+		"EXPLAIN (ANALYZE, VERBOSE) DELETE FROM t",
+		"(ANALYZE) DELETE FROM t",
+		"VERBOSE SELECT 1",
+		"",
+		"-- nothing here",
+	} {
+		_, err := ExplainStatement(statement, "")
+		require.Errorf(t, err, "%q", statement)
+	}
 	for _, statement := range []string{"EXPLAIN ANALYZE SELECT 1", "EXPLAIN (ANALYZE) DELETE FROM t"} {
 		_, err := ExplainStatement(statement, "")
 		require.ErrorIs(t, err, ErrExplainAnalyzeExecutes)
@@ -40,13 +55,42 @@ func TestExplainStatement(t *testing.T) {
 	require.EqualError(t, err, "EXPLAIN needs a statement to plan")
 }
 
+func TestExplainStatementNeverPlansAPlan(t *testing.T) {
+	for _, statement := range []string{
+		"EXPLAIN SELECT 1",
+		"EXPLAIN INSERT INTO t VALUES (1)",
+		"EXPLAIN EXECUTE p",
+		"EXPLAIN DECLARE c CURSOR FOR SELECT 1",
+		"EXPLAIN CREATE TABLE t AS SELECT 1",
+		"EXPLAIN (COSTS OFF) VALUES (1)",
+		"EXPLAIN TABLE t",
+	} {
+		for _, format := range []string{"", "json"} {
+			got, err := ExplainStatement(statement, format)
+			require.NoErrorf(t, err, "%q", statement)
+			require.Equalf(t, 1, strings.Count(strings.ToUpper(got), "EXPLAIN"), "%q became %q", statement, got)
+		}
+	}
+}
+
 func TestCockroachExplainStatement(t *testing.T) {
-	got, err := CockroachExplainStatement("SELECT 1", true)
-	require.NoError(t, err)
-	require.Equal(t, "EXPLAIN (DISTSQL) SELECT 1", got)
-	got, err = CockroachExplainStatement("EXPLAIN SELECT 1", false)
-	require.NoError(t, err)
-	require.Equal(t, "EXPLAIN SELECT 1", got)
+	tests := []struct {
+		statement string
+		distsql   bool
+		want      string
+	}{
+		{"SELECT 1", true, "EXPLAIN (DISTSQL) SELECT 1"},
+		{"SELECT 1", false, "EXPLAIN SELECT 1"},
+		{"EXPLAIN SELECT 1", true, "EXPLAIN (DISTSQL) SELECT 1"},
+		{"EXPLAIN SELECT 1", false, "EXPLAIN SELECT 1"},
+		{"EXPLAIN (VERBOSE) SELECT 1", true, "EXPLAIN (DISTSQL) SELECT 1"},
+		{"EXPLAIN (DISTSQL) SELECT 1", true, "EXPLAIN (DISTSQL) SELECT 1"},
+	}
+	for _, tc := range tests {
+		got, err := CockroachExplainStatement(tc.statement, tc.distsql)
+		require.NoError(t, err, tc.statement)
+		require.Equal(t, tc.want, got, tc.statement)
+	}
 }
 
 func TestDescribeExplain(t *testing.T) {

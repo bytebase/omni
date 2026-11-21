@@ -89,3 +89,150 @@ func locsOf(v reflect.Value, seen map[uintptr]bool) []ast.Loc {
 		return nil
 	}
 }
+
+func TestParseAdditionalScriptsAndProbes(t *testing.T) {
+	t.Run("slash terminated PL/SQL script", func(t *testing.T) {
+		list, err := Parse(`
+CREATE TABLE AUDIT_LOG (
+  LOG_ID NUMBER PRIMARY KEY
+);
+
+CREATE OR REPLACE TRIGGER audit_log_trigger
+BEFORE INSERT ON AUDIT_LOG
+FOR EACH ROW
+BEGIN
+  NULL;
+END;
+/
+`)
+		require.NoError(t, err)
+		require.Len(t, list.Items, 2)
+		require.IsType(t, &ast.CreateTableStmt{}, list.Items[0].(*ast.RawStmt).Stmt)
+		require.IsType(t, &ast.CreateTriggerStmt{}, list.Items[1].(*ast.RawStmt).Stmt)
+	})
+
+	t.Run("skips SQL*Plus commands", func(t *testing.T) {
+		list, err := Parse(`
+SET DEFINE OFF
+PROMPT setup
+
+CREATE TABLE AUDIT_LOG (
+  LOG_ID NUMBER PRIMARY KEY
+);
+
+SPOOL out.log
+CREATE OR REPLACE TRIGGER audit_log_trigger
+BEFORE INSERT ON AUDIT_LOG
+FOR EACH ROW
+BEGIN
+  NULL;
+END;
+/
+SPOOL OFF
+`)
+		require.NoError(t, err)
+		require.Len(t, list.Items, 2)
+	})
+
+	t.Run("keeps remark column in CREATE TABLE", func(t *testing.T) {
+		list, err := Parse(`
+CREATE TABLE parser_regression_remark_column (
+  id                  NUMBER NOT NULL
+      CONSTRAINT parser_regression_remark_column_pk
+          PRIMARY KEY,
+  display_name        VARCHAR2(100),
+  source              VARCHAR2(100),
+  remark              VARCHAR2(100)
+)`)
+		require.NoError(t, err)
+		require.Len(t, list.Items, 1)
+		require.IsType(t, &ast.CreateTableStmt{}, list.Items[0].(*ast.RawStmt).Stmt)
+	})
+
+	t.Run("trigger referencing aliases", func(t *testing.T) {
+		list, err := Parse(`CREATE OR REPLACE TRIGGER trg
+BEFORE INSERT OR UPDATE OF col1, col2 ON tbl
+REFERENCING OLD AS o NEW AS n
+FOR EACH ROW
+WHEN (n.col1 > 0)
+BEGIN
+  :n.col2 := :o.col2 + 1;
+END;`)
+		require.NoError(t, err)
+		require.Len(t, list.Items, 1)
+		trigger, ok := list.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateTriggerStmt)
+		require.True(t, ok)
+		require.NotNil(t, trigger.Referencing)
+		require.Equal(t, "O", trigger.Referencing.OldAlias)
+		require.Equal(t, "N", trigger.Referencing.NewAlias)
+	})
+
+	t.Run("interval partition with DATE literal and q-quote", func(t *testing.T) {
+		for _, stmt := range []string{
+			`UPDATE t1 SET (c1) = 1 WHERE c2 = 2;`,
+			`SELECT q'\This is String\' FROM DUAL;`,
+			`CREATE TABLE APP.EVENTS (TXN_DATE DATE, STATUS NUMBER)
+PARTITION BY RANGE (TXN_DATE)
+INTERVAL (NUMTODSINTERVAL(1,'DAY'))
+(PARTITION P0 VALUES LESS THAN (DATE '2026-01-01'));`,
+		} {
+			list, err := Parse(stmt)
+			require.NoError(t, err, stmt)
+			require.NotEmpty(t, list.Items, stmt)
+		}
+	})
+}
+
+func TestParseQuerySpanNodeProbes(t *testing.T) {
+	tests := []struct {
+		name          string
+		statement     string
+		expectedNodes []string
+	}{
+		{"select columns and table ref", "SELECT A, T.B, PUBLIC.T.C FROM T", []string{"SelectStmt", "ResTarget", "ColumnRef", "TableRef"}},
+		{"join using", "SELECT * FROM T T1 JOIN T T2 USING(A)", []string{"SelectStmt", "JoinClause", "TableRef"}},
+		{"derived table", "SELECT * FROM (SELECT A FROM T) DT", []string{"SelectStmt", "SubqueryRef", "TableRef"}},
+		{"scalar and in subqueries", "SELECT (SELECT MAX(A) FROM T) AS M FROM T WHERE B IN (SELECT C FROM T)", []string{"SelectStmt", "SubqueryExpr", "FuncCallExpr", "InExpr"}},
+		{"cte and set operation", "WITH T1(D, C) AS (SELECT A, B FROM T UNION ALL SELECT C, D FROM T) SELECT * FROM T1", []string{"WithClause", "CTE", "SelectStmt", "TableRef"}},
+		{"database link", "SELECT * FROM SCHEMA1.LT1@REMOTE", []string{"SelectStmt", "TableRef", "ObjectName"}},
+		{"json table", "SELECT JT.ID FROM T, JSON_TABLE(T.J, '$' COLUMNS (ID NUMBER PATH '$.id')) JT", []string{"SelectStmt", "JsonTableRef", "JsonTableColumn", "TableRef"}},
+		{"xml table", "SELECT XT.ID FROM T, XMLTABLE('/root' PASSING T.X COLUMNS ID NUMBER PATH 'id') XT", []string{"SelectStmt", "XmlTableRef", "XmlTableColumn", "TableRef"}},
+		{"containers", "SELECT A FROM CONTAINERS(T)", []string{"SelectStmt", "ContainersExpr", "ObjectName"}},
+		{"inline external table", "SELECT EXT.A FROM EXTERNAL ((A NUMBER, B VARCHAR2(20)) TYPE ORACLE_LOADER DEFAULT DIRECTORY D ACCESS PARAMETERS (FIELDS TERMINATED BY ',') LOCATION ('x.csv')) EXT", []string{"SelectStmt", "InlineExternalTable", "ColumnDef"}},
+		{"pivot", "SELECT * FROM (SELECT A, B FROM T) PIVOT (COUNT(*) FOR B IN (1 AS ONE))", []string{"SelectStmt", "PivotClause", "SubqueryRef"}},
+		{"unpivot", "SELECT * FROM (SELECT A, B FROM T) UNPIVOT (VAL FOR COL IN (A AS 'A', B AS 'B'))", []string{"SelectStmt", "UnpivotClause", "SubqueryRef"}},
+		{"model", "SELECT * FROM T MODEL DIMENSION BY (A) MEASURES (B) RULES (B[1] = 1)", []string{"SelectStmt", "ModelClause", "ModelRule"}},
+		{"lateral inline view", "SELECT * FROM T, LATERAL (SELECT A FROM DUAL) L", []string{"SelectStmt", "LateralRef", "TableRef"}},
+		{"hierarchical query", "SELECT A FROM T START WITH A = 1 CONNECT BY PRIOR A = B", []string{"SelectStmt", "HierarchicalClause", "UnaryExpr", "BinaryExpr"}},
+		{"analytic function", "SELECT SUM(A) OVER (PARTITION BY B ORDER BY C) FROM T", []string{"SelectStmt", "FuncCallExpr", "WindowSpec", "SortBy"}},
+		{"explain root", "EXPLAIN PLAN FOR SELECT * FROM T", []string{"ExplainPlanStmt", "SelectStmt"}},
+		{"dml roots", "INSERT INTO T(A) SELECT A FROM T2", []string{"InsertStmt", "SelectStmt", "TableRef"}},
+		{"ddl root", "CREATE TABLE T(A NUMBER)", []string{"CreateTableStmt", "ColumnDef"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := Parse(tc.statement)
+			require.NoError(t, err)
+			require.Len(t, list.Items, 1)
+			raw, ok := list.Items[0].(*ast.RawStmt)
+			require.True(t, ok)
+
+			seen := make(map[string]bool)
+			ast.Inspect(raw, func(node ast.Node) bool {
+				if node == nil {
+					return false
+				}
+				typ := reflect.TypeOf(node)
+				if typ.Kind() == reflect.Pointer {
+					typ = typ.Elem()
+				}
+				seen[typ.Name()] = true
+				return true
+			})
+			for _, want := range tc.expectedNodes {
+				require.Contains(t, seen, want)
+			}
+		})
+	}
+}
