@@ -656,7 +656,31 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
+	case *nodes.CaseExpr:
+		if e.Default == nil || inferViewExprNullable(e.Default, relations) {
+			return true
+		}
+		for _, w := range e.Whens {
+			if w != nil && inferViewExprNullable(w.Result, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.FuncCallExpr:
+		if strings.EqualFold(e.Name, "nullif") {
+			return true
+		}
+		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {
+			for _, arg := range e.Args {
+				if !inferViewExprNullable(arg, relations) {
+					return false
+				}
+			}
+			return true
+		}
+		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
+			return inferViewExprNullable(e.Args[1], relations) || inferViewExprNullable(e.Args[2], relations)
+		}
 		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) {
 			return true
 		}

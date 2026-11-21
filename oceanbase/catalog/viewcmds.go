@@ -612,6 +612,20 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		}
 		return false
 	case *nodes.FuncCallExpr:
+		if strings.EqualFold(e.Name, "nullif") {
+			return true
+		}
+		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {
+			for _, arg := range e.Args {
+				if !inferViewExprNullable(arg, relations) {
+					return false
+				}
+			}
+			return true
+		}
+		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
+			return inferViewExprNullable(e.Args[1], relations) || inferViewExprNullable(e.Args[2], relations)
+		}
 		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
 		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true

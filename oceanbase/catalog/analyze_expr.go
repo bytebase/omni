@@ -275,7 +275,7 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	}
 	lower := strings.ToLower(fc.Name)
 	if lower == "coalesce" || lower == "ifnull" {
-		return &CoalesceExprQ{Args: args}, nil
+		return &CoalesceExprQ{Args: args, IsIfNull: lower == "ifnull"}, nil
 	}
 	result := &FuncCallExprQ{
 		Name:                lower,

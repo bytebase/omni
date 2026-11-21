@@ -1057,4 +1057,71 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "double", aggCols["a_f"].Type)
 	require.Equal(t, "double", aggCols["a_d"].Type)
 	require.Equal(t, "decimal(10,2)", aggCols["a_dec"].Type)
+
+	// CASE and control-flow functions (COALESCE, IFNULL, NULLIF, IF) derive
+	// result column types matching TiDB v8.5.5.
+	ctrlCat := New()
+	_, err = ctrlCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_ctrl (
+			ni INT NULL,
+			ti TINYINT NOT NULL,
+			id INT NOT NULL,
+			d DECIMAL(10,2) NOT NULL,
+			f FLOAT NOT NULL,
+			c CHAR(4) NOT NULL,
+			c6 CHAR(6) NOT NULL,
+			v VARCHAR(20) NOT NULL,
+			dt DATE NOT NULL,
+			ts TIMESTAMP NOT NULL
+		);
+		CREATE VIEW v_ctrl AS SELECT
+			COALESCE(id, 0) AS coal_int,
+			COALESCE(NULL, id, 0) AS coal_null_int,
+			COALESCE(id, d) AS coal_int_dec,
+			COALESCE(c, c6) AS coal_char,
+			IFNULL(ti, ti) AS ifnull_ti,
+			IFNULL(id, 0) AS ifnull_int,
+			IFNULL(v, 'abc') AS ifnull_str,
+			NULLIF(ti, 1) AS nullif_ti,
+			NULLIF(id, 0) AS nullif_int,
+			NULLIF(c, 'xy') AS nullif_char,
+			NULLIF(d, 0) AS nullif_dec,
+			IF(id > 0, id, 0) AS if_int,
+			IF(id > 0, id, 1.5) AS if_int_dec,
+			IF(id > 0, NULL, id) AS if_null_int,
+			IF(id > 0, c, v) AS if_char_varchar,
+			IF(id > 0, dt, ts) AS if_dt_ts,
+			CASE WHEN id > 0 THEN id ELSE 0 END AS case_int,
+			CASE WHEN id > 0 THEN ti END AS case_ti_noelse,
+			CASE id WHEN 1 THEN 'a' ELSE 'bbb' END AS case_str,
+			CASE WHEN id > 0 THEN f ELSE d END AS case_f_d
+		FROM t_ctrl;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	ctrlCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range ctrlCat.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		ctrlCols[col.Name] = col
+	}
+	require.Equal(t, "bigint", ctrlCols["coal_int"].Type)
+	require.Equal(t, "bigint", ctrlCols["coal_null_int"].Type)
+	require.Equal(t, "decimal(13,2)", ctrlCols["coal_int_dec"].Type)
+	require.Equal(t, "char(6)", ctrlCols["coal_char"].Type)
+	require.Equal(t, "tinyint", ctrlCols["ifnull_ti"].Type)
+	require.Equal(t, "bigint", ctrlCols["ifnull_int"].Type)
+	require.Equal(t, "varchar(20)", ctrlCols["ifnull_str"].Type)
+	require.Equal(t, "tinyint", ctrlCols["nullif_ti"].Type)
+	require.Equal(t, "int", ctrlCols["nullif_int"].Type)
+	require.Equal(t, "char(4)", ctrlCols["nullif_char"].Type)
+	require.Equal(t, "decimal(10,2)", ctrlCols["nullif_dec"].Type)
+	require.Equal(t, "bigint", ctrlCols["if_int"].Type)
+	require.Equal(t, "decimal(12,1)", ctrlCols["if_int_dec"].Type)
+	require.Equal(t, "int", ctrlCols["if_null_int"].Type)
+	require.Equal(t, "varchar(20)", ctrlCols["if_char_varchar"].Type)
+	require.Equal(t, "datetime", ctrlCols["if_dt_ts"].Type)
+	require.Equal(t, "bigint", ctrlCols["case_int"].Type)
+	require.Equal(t, "tinyint", ctrlCols["case_ti_noelse"].Type)
+	require.Equal(t, "varchar(3)", ctrlCols["case_str"].Type)
+	require.Equal(t, "double", ctrlCols["case_f_d"].Type)
 }

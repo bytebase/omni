@@ -424,6 +424,13 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		if strings.EqualFold(e.Name, "count") {
 			return false
 		}
+		if strings.EqualFold(e.Name, "nullif") {
+			return true
+		}
+		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
+			return isAnalyzedExprNullable(c, db, q, opt, e.Args[1], widenOptionalJoin) ||
+				isAnalyzedExprNullable(c, db, q, opt, e.Args[2], widenOptionalJoin)
+		}
 		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) {
 			return true
 		}
@@ -433,6 +440,16 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 			}
 		}
 		return false
+	case *CoalesceExprQ:
+		if len(e.Args) == 0 {
+			return true
+		}
+		for _, arg := range e.Args {
+			if !isAnalyzedExprNullable(c, db, q, opt, arg, widenOptionalJoin) {
+				return false
+			}
+		}
+		return true
 	case *CaseExprQ:
 		if e.Default == nil || isAnalyzedExprNullable(c, db, q, opt, e.Default, widenOptionalJoin) {
 			return true
@@ -917,13 +934,40 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 	if expr == nil {
 		return ""
 	}
-	if fc, ok := expr.(*FuncCallExprQ); ok && (strings.EqualFold(fc.Name, "min") || strings.EqualFold(fc.Name, "max")) && len(fc.Args) == 1 {
-		if vr, isVar := fc.Args[0].(*VarExprQ); isVar {
-			if colType := resolveVarExprColumnType(c, db, q, vr); colType != "" {
-				return colType
+	if vr, isVar := expr.(*VarExprQ); isVar {
+		if colType := resolveVarExprColumnType(c, db, q, vr); colType != "" {
+			return colType
+		}
+	}
+	switch e := expr.(type) {
+	case *CaseExprQ:
+		var branches []AnalyzedExpr
+		for _, w := range e.Args {
+			if w != nil && w.Then != nil {
+				branches = append(branches, w.Then)
 			}
 		}
-		return resolveAnalyzedExprColumnType(c, db, q, fc.Args[0])
+		if e.Default != nil {
+			branches = append(branches, e.Default)
+		}
+		return combineControlFlowColumnTypes(c, db, q, branches, false)
+	case *CoalesceExprQ:
+		return combineControlFlowColumnTypes(c, db, q, e.Args, e.IsIfNull)
+	case *FuncCallExprQ:
+		switch strings.ToLower(e.Name) {
+		case "min", "max":
+			if len(e.Args) == 1 {
+				return resolveAnalyzedExprColumnType(c, db, q, e.Args[0])
+			}
+		case "if":
+			if len(e.Args) == 3 {
+				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[1], e.Args[2]}, false)
+			}
+		case "nullif":
+			if len(e.Args) >= 1 {
+				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[0]}, false)
+			}
+		}
 	}
 	if cn, ok := expr.(*ConstExprQ); ok {
 		if cn.IsNull {
@@ -944,6 +988,54 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 		return resolvedTypeToColumnType(rt)
 	}
 	return ""
+}
+
+func combineControlFlowColumnTypes(c *Catalog, db *Database, q *Query, branches []AnalyzedExpr, preserveSmallInt bool) string {
+	var combinedType string
+	var combinedExpr AnalyzedExpr
+	for _, b := range branches {
+		bt := resolveAnalyzedExprColumnType(c, db, q, b)
+		if bt == "" {
+			continue
+		}
+		if combinedType == "" {
+			combinedType = bt
+			combinedExpr = b
+			continue
+		}
+		lp := parseSetOpColType(combinedType)
+		rp := parseSetOpColType(bt)
+		if (lp.cat == "float" && rp.cat == "decimal") || (lp.cat == "decimal" && rp.cat == "float") {
+			combinedType = "double"
+			combinedExpr = b
+			continue
+		}
+		combinedType = combineSetOpColumnTypes(combinedType, combinedExpr, bt, b, false)
+	}
+	return normalizeControlFlowColumnType(combinedType, preserveSmallInt)
+}
+
+func normalizeControlFlowColumnType(colType string, preserveSmallInt bool) string {
+	p := parseSetOpColType(colType)
+	if p.cat == "null" || p.raw == "" {
+		return colType
+	}
+	if p.cat == "string" && p.isChar {
+		return fmt.Sprintf("varchar(%d)", p.width)
+	}
+	if p.cat == "int" {
+		suffix := ""
+		if p.unsigned {
+			suffix = " unsigned"
+		}
+		if p.rank >= 4 {
+			return "bigint" + suffix
+		}
+		if !preserveSmallInt {
+			return "int" + suffix
+		}
+	}
+	return colType
 }
 
 func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) *ResolvedType {
@@ -1020,8 +1112,17 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
 		return e.ResultType
+	case *CaseExprQ, *CoalesceExprQ:
+		if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+			return parseColumnResolvedType(ct)
+		}
+		return expr.exprType()
 	case *FuncCallExprQ:
 		switch strings.ToLower(e.Name) {
+		case "if", "nullif":
+			if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+				return parseColumnResolvedType(ct)
+			}
 		case "min", "max":
 			if len(e.Args) == 1 {
 				return resolveExprResolvedType(c, db, q, e.Args[0])

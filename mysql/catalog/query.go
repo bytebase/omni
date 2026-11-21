@@ -871,6 +871,7 @@ func (c *CaseExprQ) exprCollation() string   { return c.Collation }
 // pg: src/include/nodes/primnodes.h — CoalesceExpr
 type CoalesceExprQ struct {
 	Args       []AnalyzedExpr
+	IsIfNull   bool
 	ResultType *ResolvedType
 	Collation  string
 }
