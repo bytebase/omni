@@ -3224,6 +3224,23 @@ func TestSourceOnlyConstraintIndexUsesConstraintKey(t *testing.T) {
 	require.Equal(t, "t_pkey", drop.ObjectName)
 }
 
+// TestSourceOnlyProcedureListedAsFunction covers a procedure sync stored among
+// functions: its synthesized drop must be DROP PROCEDURE.
+func TestSourceOnlyProcedureListedAsFunction(t *testing.T) {
+	def := "CREATE OR REPLACE PROCEDURE public.p(a missing_type)\n LANGUAGE sql\nAS $procedure$ SELECT 1 $procedure$"
+	sig := "p(a missing_type)"
+	oldMeta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Name:      "public",
+		Functions: []*metadatapb.FunctionMetadata{{Name: "p", Signature: sig, Definition: def}},
+	}}}
+	newMeta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	key := "func:public.p|" + routineIdentity(sig, def)
+	drops := sourceOnlyMissingDrops(oldMeta, newMeta, &LoadMetadataReport{Missing: map[string]error{key: nil}})
+	drop, ok := drops[key]
+	require.True(t, ok, drops)
+	require.True(t, strings.HasPrefix(drop.SQL, "DROP PROCEDURE "), drop.SQL)
+}
+
 // TestInsertSourceOnlyDropsSkipsSchemaCoveredChildren covers a source-only child
 // whose schema is dropped: the schema CASCADE already removes it.
 func TestInsertSourceOnlyDropsSkipsSchemaCoveredChildren(t *testing.T) {
@@ -7733,6 +7750,99 @@ func TestRound37Fixes(t *testing.T) {
 	ctApplied := ctFrom.Clone()
 	require.NoError(t, round37ExecErr(ctApplied, ctSQL))
 	require.True(t, Diff(ctApplied, ctTo).IsEmpty())
+
+	// 19. Columns added out of name order are appended in physical order.
+	coBefore := New()
+	_, err = coBefore.Exec(`CREATE TABLE public.co (id int);`, nil)
+	require.NoError(t, err)
+	coMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "co",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Position: 1, Type: "integer", Nullable: true}},
+			}},
+		}},
+	}
+	coAfter := coBefore.Clone()
+	_, err = coAfter.Exec(`ALTER TABLE public.co ADD COLUMN z integer, ADD COLUMN a text, ADD COLUMN m date;`, nil)
+	require.NoError(t, err)
+	coUpdated := ApplyDiffToMetadata(coMeta, coBefore, coAfter, Diff(coBefore, coAfter))
+	var coNames []string
+	for _, col := range coUpdated.Schemas[0].Tables[0].Columns {
+		coNames = append(coNames, col.Name)
+	}
+	require.Equal(t, []string{"id", "z", "a", "m"}, coNames)
+
+	// 20. Attaching a table as a partition and renaming it in one script nests it under the parent.
+	atBase := New()
+	_, err = atBase.Exec(`
+		CREATE TABLE public.at_parent (id int, k int) PARTITION BY LIST (k);
+		CREATE TABLE public.at_t (id int, k int);
+	`, nil)
+	require.NoError(t, err)
+	atCols := []*metadatapb.ColumnMetadata{
+		{Name: "id", Position: 1, Type: "integer", Nullable: true},
+		{Name: "k", Position: 2, Type: "integer", Nullable: true},
+	}
+	atMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "at_parent", Columns: atCols},
+				{Name: "at_t", Columns: atCols, Comment: "kept"},
+			},
+		}},
+	}
+	atAfter := atBase.Clone()
+	_, err = atAfter.Exec(`
+		ALTER TABLE public.at_parent ATTACH PARTITION public.at_t FOR VALUES IN (1);
+		ALTER TABLE public.at_t RENAME TO at_renamed;
+	`, nil)
+	require.NoError(t, err)
+	atUpdated := ApplyDiffToMetadata(atMeta, atBase, atAfter, Diff(atBase, atAfter))
+	require.Len(t, atUpdated.Schemas[0].Tables, 1)
+	require.Equal(t, "at_parent", atUpdated.Schemas[0].Tables[0].Name)
+	require.Len(t, atUpdated.Schemas[0].Tables[0].Partitions, 1)
+	require.Equal(t, "at_renamed", atUpdated.Schemas[0].Tables[0].Partitions[0].Name)
+	require.Equal(t, "kept", atUpdated.Schemas[0].Tables[0].Partitions[0].Comment)
+
+	// 21. ApplyDiffToMetadata keeps serial and identity sequences, as sync stores them, and drops them with their column.
+	sqBefore := New()
+	sqMeta := &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	sqAfter := sqBefore.Clone()
+	_, err = sqAfter.Exec(`
+		CREATE TABLE public.sq (id serial, n int GENERATED ALWAYS AS IDENTITY (START WITH 5 INCREMENT BY 2), keep int);
+	`, nil)
+	require.NoError(t, err)
+	sqUpdated := ApplyDiffToMetadata(sqMeta, sqBefore, sqAfter, Diff(sqBefore, sqAfter))
+	sqByName := map[string]*metadatapb.SequenceMetadata{}
+	for _, seq := range sqUpdated.Schemas[0].Sequences {
+		sqByName[seq.Name] = seq
+	}
+	require.Contains(t, sqByName, "sq_id_seq")
+	require.Equal(t, "sq", sqByName["sq_id_seq"].OwnerTable)
+	require.Equal(t, "id", sqByName["sq_id_seq"].OwnerColumn)
+	require.Contains(t, sqByName, "sq_n_seq")
+	require.Equal(t, "5", sqByName["sq_n_seq"].Start)
+	require.Equal(t, "2", sqByName["sq_n_seq"].Increment)
+	sqReloaded := New()
+	sqReport, err := sqReloaded.LoadMetadata(context.Background(), sqUpdated, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, sqReport.Degraded)
+	require.True(t, Diff(sqReloaded, sqAfter).IsEmpty())
+	// Dropping the serial column drops its sequence from the metadata.
+	sqDropped := sqAfter.Clone()
+	_, err = sqDropped.Exec(`ALTER TABLE public.sq DROP COLUMN id;`, nil)
+	require.NoError(t, err)
+	sqDroppedMeta := ApplyDiffToMetadata(sqUpdated, sqAfter, sqDropped, Diff(sqAfter, sqDropped))
+	var sqLeft []string
+	for _, seq := range sqDroppedMeta.Schemas[0].Sequences {
+		sqLeft = append(sqLeft, seq.Name)
+	}
+	require.Equal(t, []string{"sq_n_seq"}, sqLeft)
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.

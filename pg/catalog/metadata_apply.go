@@ -82,6 +82,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	}
 
 	applySequenceDiffs(result, catAfter, diff.Sequences, renamedSchemas, canonicalSchema)
+	syncColumnManagedSequences(result, catBefore, catAfter, canonicalSchema)
 
 	for _, e := range diff.Enums {
 		schemaName := canonicalSchema(e.SchemaName)
@@ -1187,6 +1188,70 @@ func applySequenceDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 	}
 }
 
+// syncColumnManagedSequences brings serial and identity sequences up to date.
+// The diff leaves them out because a migration makes them through their column,
+// but sync stores them, so metadata must hold them too: added with a new
+// column, changed with ALTER SEQUENCE or SET GENERATED options, removed with
+// their column.
+func syncColumnManagedSequences(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, canonicalSchema func(string) string) {
+	if catBefore == nil || catAfter == nil {
+		return
+	}
+	managed := func(c *Catalog) map[uint32]*Sequence {
+		out := make(map[uint32]*Sequence)
+		for _, s := range c.UserSchemas() {
+			if s == nil || isTempSchemaName(s.Name) {
+				continue
+			}
+			for _, seq := range s.Sequences {
+				if seq != nil && seq.Schema != nil && sequenceManagedByColumn(c, seq) && !c.isExtensionMember(seq.OID) {
+					out[seq.OID] = seq
+				}
+			}
+		}
+		return out
+	}
+	before, after := managed(catBefore), managed(catAfter)
+	// A sequence its column released (DROP IDENTITY keeps none, but OWNED BY
+	// NONE on a serial's does) is no longer column-managed; the diff skips it
+	// too, so refresh it here.
+	for oid := range before {
+		if seq := catAfter.GetSequenceByOID(oid); seq != nil && seq.Schema != nil && after[oid] == nil {
+			after[oid] = seq
+		}
+	}
+	for oid, prev := range before {
+		if _, kept := after[oid]; kept || catAfter.GetSequenceByOID(oid) != nil {
+			continue
+		}
+		if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
+			sm.Sequences = removeSequenceByName(sm.Sequences, prev.Name)
+		}
+	}
+	oids := make([]uint32, 0, len(after))
+	for oid := range after {
+		oids = append(oids, oid)
+	}
+	slices.Sort(oids)
+	for _, oid := range oids {
+		cur := after[oid]
+		prev := catBefore.GetSequenceByOID(oid)
+		if prev != nil && prev.Schema != nil && prev.Schema.Name == cur.Schema.Name && prev.Name == cur.Name &&
+			!sequencesChanged(catBefore, catAfter, prev, cur) && sequenceOwner(catBefore, prev) == sequenceOwner(catAfter, cur) {
+			continue
+		}
+		var existing *metadatapb.SequenceMetadata
+		if prev != nil && prev.Schema != nil {
+			if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
+				existing, sm.Sequences = popSequenceByName(sm.Sequences, prev.Name)
+			}
+		}
+		updated := sequenceToProto(catAfter, cur)
+		mergeSequenceMetadata(updated, existing)
+		upsertSequence(findOrCreateSchema(result, canonicalSchema(cur.Schema.Name)), updated)
+	}
+}
+
 func upsertEnum(sm *metadatapb.SchemaMetadata, name string, values []string) {
 	for _, existing := range sm.EnumTypes {
 		if existing.Name == name {
@@ -1874,6 +1939,17 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catBefore, catA
 			rewriteColumnRenamesForRelation(result, srcSchema, rel.Name, rel.From, add.To)
 			rewriteTableDependencyReferences(result, srcSchema, rel.Name, add.SchemaName, add.Name)
 			renamed[rel.From.OID] = true
+			// A script that also attached the table as a partition moves it
+			// under its parent.
+			if !samePartitionParent(catBefore, catAfter, rel.From, add.To) {
+				modifyRelation(result, findOrCreateSchema(result, add.SchemaName), catBefore, catAfter, RelationDiffEntry{
+					Action:     DiffModify,
+					SchemaName: add.SchemaName,
+					Name:       add.Name,
+					From:       rel.From,
+					To:         add.To,
+				})
+			}
 		}
 	}
 	return renamed
@@ -1990,13 +2066,16 @@ func applyColumnDiffs(result *metadatapb.DatabaseSchemaMetadata, schemaName, tab
 			}
 		}
 	}
+	// The diff sorts columns by name; add new ones in physical (attnum) order,
+	// since the loader installs columns in slice order.
+	var added []*Column
 	for _, cd := range rel.Columns {
 		switch cd.Action {
 		case DiffAdd:
 			if cd.To == nil || (cd.To.AttNum > 0 && handledAttNum[cd.To.AttNum]) {
 				continue
 			}
-			*cols = append(*cols, columnToProto(cat, cd.To))
+			added = append(added, cd.To)
 		case DiffDrop:
 			if cd.From != nil && cd.From.AttNum > 0 && handledAttNum[cd.From.AttNum] {
 				continue
@@ -2013,6 +2092,10 @@ func applyColumnDiffs(result *metadatapb.DatabaseSchemaMetadata, schemaName, tab
 			}
 		default:
 		}
+	}
+	slices.SortStableFunc(added, func(a, b *Column) int { return cmp.Compare(a.AttNum, b.AttNum) })
+	for _, col := range added {
+		*cols = append(*cols, columnToProto(cat, col))
 	}
 }
 
@@ -2159,6 +2242,9 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 	}
 	if col.Identity != 0 {
 		cm.IsIdentity = true
+		// An identity column has no default of its own (column_default is
+		// NULL); the catalog's nextval stand-in would reload as a conflict.
+		cm.Default = ""
 		switch col.Identity {
 		case 'a':
 			cm.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS

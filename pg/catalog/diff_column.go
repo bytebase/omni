@@ -73,11 +73,16 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 	if a.NotNull != b.NotNull {
 		return true
 	}
-	if a.HasDefault != b.HasDefault {
-		return true
-	}
-	if a.Default != b.Default {
-		return true
+	// An identity column's default is the catalog's nextval stand-in for its
+	// sequence, written differently by Exec and by a metadata load; the
+	// identity itself, compared below, is what PostgreSQL stores.
+	if a.Identity == 0 || b.Identity == 0 {
+		if a.HasDefault != b.HasDefault {
+			return true
+		}
+		if a.Default != b.Default {
+			return true
+		}
 	}
 	if a.Identity != b.Identity {
 		return true

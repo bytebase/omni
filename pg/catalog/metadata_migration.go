@@ -5156,11 +5156,17 @@ func sourceOnlyMissingDrops(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
 		}
 		for _, function := range schema.GetFunctions() {
 			key := "func:" + qualified(function.GetName()) + "|" + routineIdentity(function.GetSignature(), function.GetDefinition())
+			// Sync can list a procedure among functions; the loader tells them
+			// apart by the definition, and so does the drop.
+			dropKind := "DROP FUNCTION "
+			if isProcedureDefinition(function.GetDefinition()) {
+				dropKind = "DROP PROCEDURE "
+			}
 			add(key, MigrationOp{
 				Type:       OpDropFunction,
 				SchemaName: schemaName,
 				ObjectName: function.GetName(),
-				SQL:        "DROP FUNCTION " + quoteQualified(schemaName, function.GetName()) + routineDropArguments(function.GetSignature(), function.GetDefinition()),
+				SQL:        dropKind + quoteQualified(schemaName, function.GetName()) + routineDropArguments(function.GetSignature(), function.GetDefinition()),
 				ObjType:    'f',
 			})
 		}
