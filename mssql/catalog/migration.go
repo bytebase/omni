@@ -69,9 +69,15 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	allFunctionDrops := collectFunctionDrops(diff, rebuiltFunctions)
 	allFunctionCreates := collectFunctionCreates(diff, rebuiltFunctions)
 	viewsToDrop := collectViewsToDrop(diff, rebuiltViews)
+	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
 	earlyFuncDrops, remainingFuncDrops := splitFunctionsBeforeViewDrops(allFunctionDrops, viewsToDrop)
 	if msg := blockingFunctionComputedColumn(from, diff, earlyFuncDrops, remainingFuncDrops); msg != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: function %s; drop and recreate the computed column manually.\n", msg)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
+	viewDepFuncCreates := functionsDependingOnViews(allFunctionCreates, viewsToCreate)
+	if msg := blockingViewDependentComputedColumn(diff, allFunctionCreates, viewDepFuncCreates); msg != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: computed column %s; apply this change manually.\n", msg)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
 	hasViewsToCreate := hasCreateViews(diff) || len(rebuiltViews) > 0
@@ -351,12 +357,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
-	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
 	tableFunctions := migrationTableFunctions(diff, allFunctionCreates)
 	// A schema-bound function that reads a view being created/rebuilt (or calls
 	// one) cannot be created ahead of tables; keep it in the view/function phase
 	// and defer any table DEFAULT or CHECK additions calling it until afterward.
-	viewDepFuncCreates := functionsDependingOnViews(allFunctionCreates, viewsToCreate)
 	for id := range viewDepFuncCreates {
 		delete(tableFunctions, id)
 	}
@@ -1535,6 +1539,53 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 		}
 	}
 	return rebuiltFunctions, rebuiltViews
+}
+
+// blockingViewDependentComputedColumn checks whether any created or altered
+// table adds or rebuilds a computed column calling a function whose creation
+// waits for a view being created/rebuilt.
+func blockingViewDependentComputedColumn(diff *SchemaDiff, creates []*FunctionDiffEntry, viewDepFuncCreates map[string]bool) string {
+	if len(viewDepFuncCreates) == 0 {
+		return ""
+	}
+	checkColumn := func(schemaName, tableName string, col *metadata.ColumnMetadata) string {
+		if col == nil || !isComputedColumnType(col.Type) {
+			return ""
+		}
+		for _, fd := range creates {
+			if !viewDepFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
+				continue
+			}
+			if expressionReferencesFunction(col.Type, schemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+				return fmt.Sprintf("%s.%s.%s calls view-dependent function %s.%s",
+					quote(schemaName), quote(tableName), quote(col.Name), quote(fd.SchemaName), quote(fd.FunctionName))
+			}
+		}
+		return ""
+	}
+	for _, tableDiff := range diff.Tables {
+		switch tableDiff.Action {
+		case DiffCreate:
+			if tableDiff.NewTable == nil {
+				continue
+			}
+			for _, col := range tableDiff.NewTable.Columns {
+				if msg := checkColumn(tableDiff.SchemaName, tableDiff.TableName, col); msg != "" {
+					return msg
+				}
+			}
+		case DiffAlter:
+			for _, colDiff := range tableDiff.Columns {
+				if colDiff.Action != DiffCreate && colDiff.Action != DiffAlter {
+					continue
+				}
+				if msg := checkColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn); msg != "" {
+					return msg
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // blockingFunctionComputedColumn checks whether any function scheduled for

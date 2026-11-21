@@ -153,47 +153,117 @@ func parseDefinitionTableRefs(definition, defaultSchemaName string) ([]tableRefI
 	if root == nil {
 		return nil, false
 	}
-	var refs []tableRefID
-	seen := make(map[string]bool)
-	var collect func(node ast.Node)
-	collect = func(node ast.Node) {
-		ast.Inspect(node, func(n ast.Node) bool {
-			if n == nil {
-				return false
-			}
-			switch x := n.(type) {
-			case *ast.FuncCallExpr:
-				// Skip x.Name (it's a function, not a table) but inspect arguments and window clauses.
-				if x.Args != nil {
-					collect(x.Args)
-				}
-				if x.Over != nil {
-					collect(x.Over)
-				}
-				if x.Within != nil {
-					collect(x.Within)
-				}
-				return false
-			case *ast.TableRef:
-				if x.Object == "" {
-					return false
-				}
-				schemaName := x.Schema
-				if schemaName == "" {
-					schemaName = defaultSchemaName
-				}
-				key := strings.ToLower(objectID(schemaName, x.Object))
-				if !seen[key] {
-					seen[key] = true
-					refs = append(refs, tableRefID{schema: schemaName, name: x.Object})
-				}
-				return false
-			}
-			return true
-		})
+	collector := &tableRefCollector{
+		defaultSchema: defaultSchemaName,
+		seen:          make(map[string]bool),
 	}
-	collect(root)
-	return refs, true
+	ast.Walk(collector, root)
+	return collector.refs, true
+}
+
+type tableRefCollector struct {
+	defaultSchema string
+	seen          map[string]bool
+	refs          []tableRefID
+	cteStack      []map[string]bool
+}
+
+func (c *tableRefCollector) inCTEScope(name string) bool {
+	lower := strings.ToLower(name)
+	for i := len(c.cteStack) - 1; i >= 0; i-- {
+		if c.cteStack[i][lower] {
+			return true
+		}
+	}
+	return false
+}
+
+func withClauseCTENames(wc *ast.WithClause) map[string]bool {
+	if wc == nil || wc.CTEs == nil || len(wc.CTEs.Items) == 0 {
+		return nil
+	}
+	names := make(map[string]bool, len(wc.CTEs.Items))
+	for _, item := range wc.CTEs.Items {
+		if cte, ok := item.(*ast.CommonTableExpr); ok && cte.Name != "" {
+			names[strings.ToLower(cte.Name)] = true
+		}
+	}
+	return names
+}
+
+type popCTEVisitor struct {
+	collector *tableRefCollector
+}
+
+func (p popCTEVisitor) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		p.collector.cteStack = p.collector.cteStack[:len(p.collector.cteStack)-1]
+		return nil
+	}
+	return p.collector.Visit(n)
+}
+
+func (c *tableRefCollector) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		return nil
+	}
+	switch x := n.(type) {
+	case *ast.SelectStmt:
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			c.cteStack = append(c.cteStack, names)
+			return popCTEVisitor{collector: c}
+		}
+	case *ast.InsertStmt:
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			c.cteStack = append(c.cteStack, names)
+			return popCTEVisitor{collector: c}
+		}
+	case *ast.UpdateStmt:
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			c.cteStack = append(c.cteStack, names)
+			return popCTEVisitor{collector: c}
+		}
+	case *ast.DeleteStmt:
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			c.cteStack = append(c.cteStack, names)
+			return popCTEVisitor{collector: c}
+		}
+	case *ast.MergeStmt:
+		if names := withClauseCTENames(x.WithClause); len(names) > 0 {
+			c.cteStack = append(c.cteStack, names)
+			return popCTEVisitor{collector: c}
+		}
+	case *ast.FuncCallExpr:
+		// Skip x.Name (it's a function, not a table) but inspect arguments and window clauses.
+		if x.Args != nil {
+			ast.Walk(c, x.Args)
+		}
+		if x.Over != nil {
+			ast.Walk(c, x.Over)
+		}
+		if x.Within != nil {
+			ast.Walk(c, x.Within)
+		}
+		return nil
+	case *ast.TableRef:
+		if x.Object == "" || strings.HasPrefix(x.Object, "#") {
+			return nil
+		}
+		if x.Schema == "" && c.inCTEScope(x.Object) {
+			return nil
+		}
+		schemaName := x.Schema
+		if schemaName == "" {
+			schemaName = c.defaultSchema
+		}
+		key := strings.ToLower(objectID(schemaName, x.Object))
+		if !c.seen[key] {
+			c.seen[key] = true
+			c.refs = append(c.refs, tableRefID{schema: schemaName, name: x.Object})
+		}
+		return nil
+	}
+	return c
 }
 
 // viewTableDependencies returns every table or view objectID referenced by a

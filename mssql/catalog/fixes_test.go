@@ -1737,3 +1737,53 @@ CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] 
 	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [DF_t_v]"), sql)
 	require.Less(t, strings.Index(sql, "CREATE FUNCTION [dbo].[g]"), strings.Index(sql, "ADD CONSTRAINT [DF_t_v]"))
 }
+
+func TestDefinitionExcludesCTEReferenceFromTableDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "c", Type: "AS ([dbo].[cte_fn]([id])) PERSISTED", Nullable: true},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "cte_fn",
+			Definition: "CREATE FUNCTION [dbo].[cte_fn](@x int) RETURNS int WITH SCHEMABINDING AS BEGIN DECLARE @r int; WITH t AS (SELECT @x + 1 AS n) SELECT @r = n FROM t; RETURN @r END",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	fnAt := strings.Index(def, "CREATE FUNCTION [dbo].[cte_fn]")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, fnAt, 0)
+	require.Less(t, fnAt, tableAt)
+}
+
+func TestMigrationGuardsNewComputedColumnCallingViewDependentFunction(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [c] AS ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "UNSUPPORTED")
+	require.Contains(t, sql, "computed column")
+	require.NotContains(t, sql, "ADD [c] AS")
+}
