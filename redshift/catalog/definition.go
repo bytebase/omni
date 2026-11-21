@@ -2097,8 +2097,15 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		}
 		for _, key := range idx.keys {
 			colName, ok := parseConstraintColumnName(key)
-			if !ok || !hasTableColumn(table.columns, colName, caseSensitive) {
+			if !ok {
 				return fmt.Errorf("index %s on %s key %q is not a table column", idx.name, table.qualifiedName(), key)
+			}
+			col, exists := lookupTableColumn(table.columns, colName, caseSensitive)
+			if !exists {
+				return fmt.Errorf("index %s on %s key %q is not a table column", idx.name, table.qualifiedName(), key)
+			}
+			if idx.primary && col.nullable {
+				return fmt.Errorf("primary key %s on %s column %q cannot be nullable", idx.name, table.qualifiedName(), col.name)
 			}
 		}
 	}
@@ -2998,19 +3005,24 @@ func sameConstraintColumns(idxKeys, fkCols []string, caseSensitive bool) bool {
 	return true
 }
 
-func hasTableColumn(cols map[string]*columnState, name string, caseSensitive bool) bool {
-	if _, ok := cols[name]; ok {
-		return true
+func lookupTableColumn(cols map[string]*columnState, name string, caseSensitive bool) (*columnState, bool) {
+	if col, ok := cols[name]; ok {
+		return col, true
 	}
 	if caseSensitive {
-		return false
+		return nil, false
 	}
-	for k := range cols {
+	for k, col := range cols {
 		if strings.EqualFold(k, name) {
-			return true
+			return col, true
 		}
 	}
-	return false
+	return nil, false
+}
+
+func hasTableColumn(cols map[string]*columnState, name string, caseSensitive bool) bool {
+	_, ok := lookupTableColumn(cols, name, caseSensitive)
+	return ok
 }
 
 // isQuotedSQLLiteral reports whether s is already a single-quoted SQL string

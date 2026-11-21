@@ -2021,6 +2021,14 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		},
 	})
 	require.ErrorContains(t, err, "duplicate column")
+
+	// Nullable primary-key columns fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_nullable_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_id", Primary: true, Expressions: []string{"id"}}},
+	})
+	require.ErrorContains(t, err, "cannot be nullable")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

@@ -1765,18 +1765,7 @@ func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[stri
 		}
 		w.walkExpr(n.Having, curEnv, ctes)
 		for _, win := range n.Windows {
-			for _, pb := range win.Spec.PartitionBy {
-				w.walkExpr(pb, curEnv, ctes)
-			}
-			for _, ob := range win.Spec.OrderBy {
-				w.walkExpr(ob.Expr, curEnv, ctes)
-			}
-			if win.Spec.Frame != nil {
-				w.walkExpr(win.Spec.Frame.Start.Value, curEnv, ctes)
-				if win.Spec.Frame.End != nil {
-					w.walkExpr(win.Spec.Frame.End.Value, curEnv, ctes)
-				}
-			}
+			w.walkWindowParts(win.Spec.PartitionBy, win.Spec.OrderBy, win.Spec.Frame, curEnv, ctes)
 		}
 		var singleType string
 		for idx, item := range n.Items {
@@ -1904,6 +1893,30 @@ func (w *trinoASTWalker) walkJSONPath(path *trinoparser.JSONPathInvocation, curE
 	for _, p := range path.Passing {
 		if p.Value != nil {
 			w.walkExpr(p.Value.Expr, curEnv, ctes)
+		}
+	}
+}
+
+func (w *trinoASTWalker) walkWindowParts(partitionBy []trinoparser.Expr, orderBy []trinoparser.SortItem, frame *trinoparser.WindowFrame, curEnv map[string]string, ctes map[string]struct{}) {
+	for _, pb := range partitionBy {
+		w.walkExpr(pb, curEnv, ctes)
+	}
+	for _, ob := range orderBy {
+		w.walkExpr(ob.Expr, curEnv, ctes)
+	}
+	if frame == nil {
+		return
+	}
+	w.walkExpr(frame.Start.Value, curEnv, ctes)
+	if frame.End != nil {
+		w.walkExpr(frame.End.Value, curEnv, ctes)
+	}
+	if frame.Pattern != nil {
+		for _, m := range frame.Pattern.Measures {
+			w.walkExpr(m.Expr, curEnv, ctes)
+		}
+		for _, d := range frame.Pattern.Definitions {
+			w.walkExpr(d.Condition, curEnv, ctes)
 		}
 	}
 }
@@ -2221,18 +2234,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		}
 		w.walkExpr(e.Filter, curEnv, ctes)
 		if e.Over != nil {
-			for _, pb := range e.Over.PartitionBy {
-				w.walkExpr(pb, curEnv, ctes)
-			}
-			for _, ob := range e.Over.OrderBy {
-				w.walkExpr(ob.Expr, curEnv, ctes)
-			}
-			if e.Over.Frame != nil {
-				w.walkExpr(e.Over.Frame.Start.Value, curEnv, ctes)
-				if e.Over.Frame.End != nil {
-					w.walkExpr(e.Over.Frame.End.Value, curEnv, ctes)
-				}
-			}
+			w.walkWindowParts(e.Over.PartitionBy, e.Over.OrderBy, e.Over.Frame, curEnv, ctes)
 		}
 		var nameStart, nameEnd int
 		var catalog, schema, name string

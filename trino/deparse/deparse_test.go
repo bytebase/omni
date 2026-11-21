@@ -1431,4 +1431,29 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, crossSchemaDep, `SELECT id FROM "cat"."public".t;`)
+
+	// Row-pattern MEASURES/DEFINE inside both inline OVER (...) and named WINDOW w AS (...) qualify UDF calls.
+	windowPattern, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "score_fn",
+				Definition: "CREATE FUNCTION s.score_fn(x bigint) RETURNS bigint RETURN x + 1",
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_win_pat",
+				Definition: "SELECT FIRST_VALUE(m) OVER (ORDER BY id MEASURES score_fn(id) AS m ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING PATTERN (A) DEFINE A AS score_fn(id) > 0), LAST_VALUE(n) OVER w FROM t WINDOW w AS (ORDER BY id MEASURES score_fn(id) AS n ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING PATTERN (B) DEFINE B AS score_fn(id) > 1)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, windowPattern, `OVER (ORDER BY id MEASURES "cat"."s".score_fn(id) AS m`)
+	assert.Contains(t, windowPattern, `DEFINE A AS "cat"."s".score_fn(id) > 0`)
+	assert.Contains(t, windowPattern, `WINDOW w AS (ORDER BY id MEASURES "cat"."s".score_fn(id) AS n`)
+	assert.Contains(t, windowPattern, `DEFINE B AS "cat"."s".score_fn(id) > 1`)
 }
