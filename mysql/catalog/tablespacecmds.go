@@ -815,8 +815,10 @@ func (c *Catalog) markTablespaceDropped(name string) {
 	c.droppedTablespaces[name] = true
 }
 
+// isBuiltinTablespaceName reports the built-in names by their exact spelling:
+// INNODB_SYSTEM is an ordinary general tablespace on mysql:8.0.46.
 func isBuiltinTablespaceName(ts string) bool {
-	switch strings.ToLower(strings.TrimSpace(ts)) {
+	switch strings.TrimSpace(ts) {
 	case "", "innodb_file_per_table", "innodb_system", "innodb_temporary":
 		return true
 	}

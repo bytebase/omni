@@ -1092,3 +1092,24 @@ func TestLoadMetadataEscapedBacktickTablespace(t *testing.T) {
 		t.Fatalf("SHOW CREATE TABLE does not quote the tablespace back:\n%s", got)
 	}
 }
+
+// TestLoadMetadataUppercaseBuiltinNamedTablespace loads a table in a general
+// tablespace named INNODB_SYSTEM in capitals, which mysql:8.0.46 creates as an
+// ordinary one: it is registered, so DROP TABLESPACE refuses it as not empty.
+func TestLoadMetadataUppercaseBuiltinNamedTablespace(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:          "up",
+		Engine:        "InnoDB",
+		CreateOptions: "tablespace=`INNODB_SYSTEM`",
+		Columns:       []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+	}))
+	requireReport(t, report, nil, nil)
+	results, err := c.Exec("DROP TABLESPACE INNODB_SYSTEM;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ce *Error
+	if !errors.As(results[0].Error, &ce) || ce.Code != 3120 {
+		t.Fatalf("DROP TABLESPACE INNODB_SYSTEM over a loaded table: %v, want 3120", results[0].Error)
+	}
+}

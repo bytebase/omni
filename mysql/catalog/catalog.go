@@ -30,6 +30,11 @@ type userVarValue struct {
 	// number (X'01' | X'0102' is 259); any other binary string combines
 	// byte by byte.
 	hexLit bool
+	// cs and raw keep a string introduced in a charset other than utf8mb4
+	// (_ucs2 X'00E9'): str holds its text, raw its bytes in cs, which LENGTH
+	// counts and ORD reads.
+	cs  string
+	raw string
 }
 
 // Catalog is the in-memory MySQL catalog.

@@ -44604,6 +44604,146 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (b VARBINARY(501), d DECIMAL(10,0) UNSIGNED, KEY ((CONCAT(b, d))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(502), d DECIMAL(10,0) UNSIGNED, KEY ((CONCAT(b, d))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE INNODB_SYSTEM ADD DATAFILE 'innodb_system_u.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) TABLESPACE INNODB_SYSTEM
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_SYSTEM
+< error
+| 3120 HY000 Tablespace `INNODB_SYSTEM` is not empty.
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_SYSTEM
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -52067,6 +52207,106 @@
 : bytes
 | n
 > exec
+| SET @x = ORD(_ucs2 X'00E9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 233
+> exec
+| SET @x = CHAR_LENGTH(_ucs2 X'00E9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = LENGTH(_ucs2 X'00E9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = ORD(_latin1 X'E9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 233
+> exec
+| SET @x = CHAR_LENGTH(_latin1 'abc')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = ORD(_ucs2 'a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 97
+> exec
+| SET @x = ORD(_utf16 X'D83DDE00')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3627933184
+> exec
+| SET @x = CHAR_LENGTH(_utf32 X'0001F600')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = LENGTH(_latin1 X'E9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = ORD(_ucs2 'é')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 50089
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -52828,6 +53068,19 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = (ORD(_ucs2 X'00E9') = 233)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -53109,6 +53362,89 @@
 | CREATE TABLE `n_ts` (
 |   `id` int DEFAULT NULL
 | ) /*!50100 TABLESPACE `ts_mig2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+> exec
+| SET SESSION time_zone = '+1:0'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +01:00
+> exec
+| SET SESSION time_zone = '+1:000'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +01:00
+> exec
+| SET SESSION time_zone = '+0001:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +01:00
+> exec
+| SET SESSION time_zone = '+001:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +01:00
+> exec
+| SET SESSION time_zone = '-1:30'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| -01:30
+> exec
+| SET SESSION time_zone = '+5:5'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +05:05
+> exec
+| SET SESSION time_zone = '-00:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:00
+> exec
+| SET SESSION time_zone = '+14:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +14:00
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
 > exec
 | SET SESSION default_storage_engine = MERGE
 < ok 0 0

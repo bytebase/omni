@@ -1000,7 +1000,28 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 	case *nodes.StringLit:
 		// A _binary introducer makes a binary string, compared bytewise:
 		// IF(_binary'a' = 'A', ...) is false on mysql:8.0.46.
-		return userVarValue{kind: userVarString, str: e.Value, binary: isBinaryIntroducer(e.Charset)}, true, nil
+		if isBinaryIntroducer(e.Charset) {
+			return userVarValue{kind: userVarString, str: e.Value, binary: true}, true, nil
+		}
+		// Another introducer makes the literal's bytes a string of that
+		// charset: _ucs2 X'00E9' is one character, é, two bytes long, and
+		// _ucs2 'é' is the UCS-2 character C3A9. A UCS-2, UTF-16 or UTF-32
+		// literal short of a whole character is left-padded with zeros.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		switch cs {
+		case "", "utf8mb4", "utf8", "utf8mb3":
+			return userVarValue{kind: userVarString, str: e.Value}, true, nil
+		}
+		raw := e.Value
+		width := map[string]int{"ucs2": 2, "utf16": 2, "utf16le": 2, "utf32": 4}[cs]
+		if width > 0 && len(raw)%width != 0 {
+			raw = strings.Repeat("\x00", width-len(raw)%width) + raw
+		}
+		text, ok := decodeBytesInColumnCharset([]byte(raw), cs)
+		if !ok {
+			return userVarValue{}, false, nil
+		}
+		return userVarValue{kind: userVarString, str: text, cs: cs, raw: raw}, true, nil
 	case *nodes.HexLit:
 		raw, ok := decodeLiteralRawBytes(cleanHexDigits(e.Value), true)
 		if !ok {
@@ -1781,7 +1802,14 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return v, ok, err
 			}
 			var n uint64
-			if len(v.str) > 0 {
+			if v.cs != "" && v.str != "" {
+				// The first character's bytes in the literal's charset:
+				// ORD(_ucs2 X'00E9') is 233, ORD(_utf16 X'D83DDE00') 3627933184.
+				r, _ := utf8.DecodeRuneInString(v.str)
+				for _, b := range encodeStringToCharsetBytes(string(r), v.cs) {
+					n = n<<8 | uint64(b)
+				}
+			} else if len(v.str) > 0 {
 				w := 1
 				if !v.binary {
 					if _, size := utf8.DecodeRuneInString(v.str); size > 1 {
@@ -1924,6 +1952,9 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return v, ok, err
 			}
 			str := v.str
+			if v.cs != "" && toLower(e.Name) != "char_length" && toLower(e.Name) != "character_length" {
+				str = v.raw // LENGTH counts the bytes in the literal's charset
+			}
 			// A double is measured in the form MySQL prints it: 1.5e0 is 1.5.
 			if v.kind == userVarNumeric && v.isFloat {
 				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
