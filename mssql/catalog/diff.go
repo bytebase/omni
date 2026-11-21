@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -476,9 +477,100 @@ func typesEqual(a, b string) bool {
 	return normalizeType(a) == normalizeType(b)
 }
 
+// normalizeType canonicalizes SQL Server built-in type names, synonyms, and
+// implicit default parameters (for example datetime2 -> datetime2(7),
+// decimal -> decimal(18,0), decimal(10) -> decimal(10,0), float -> float(53),
+// real -> real(24), varchar -> varchar(1)).
 func normalizeType(value string) string {
-	value = strings.ToLower(value)
-	return strings.ReplaceAll(value, " ", "")
+	value = strings.Join(strings.Fields(strings.ToLower(value)), "")
+	if value == "" {
+		return ""
+	}
+	base, params := value, ""
+	if open := strings.IndexByte(value, '('); open >= 0 && strings.HasSuffix(value, ")") {
+		base = value[:open]
+		params = value[open:]
+	}
+	if len(base) >= 2 && base[0] == '[' && base[len(base)-1] == ']' && !strings.Contains(base, ".") {
+		unbracketed := base[1 : len(base)-1]
+		if isBuiltinSQLServerType(unbracketed) {
+			base = unbracketed
+		}
+	}
+	switch base {
+	case "integer":
+		base = "int"
+	case "dec":
+		base = "decimal"
+	case "character":
+		base = "char"
+	case "charactervarying", "charvarying":
+		base = "varchar"
+	case "nationalchar", "nationalcharacter":
+		base = "nchar"
+	case "nationalcharvarying", "nationalcharactervarying":
+		base = "nvarchar"
+	case "binaryvarying":
+		base = "varbinary"
+	case "doubleprecision":
+		if params == "" {
+			return "float(53)"
+		}
+	}
+
+	switch base {
+	case "datetime2", "datetimeoffset", "time":
+		if params == "" {
+			return base + "(7)"
+		}
+	case "decimal", "numeric":
+		if params == "" {
+			return base + "(18,0)"
+		}
+		inner := params[1 : len(params)-1]
+		if !strings.Contains(inner, ",") && inner != "" {
+			return base + "(" + inner + ",0)"
+		}
+	case "float":
+		if params == "" {
+			return "float(53)"
+		}
+		inner := params[1 : len(params)-1]
+		if n, err := strconv.Atoi(inner); err == nil {
+			if n >= 1 && n <= 24 {
+				return "real(24)"
+			}
+			if n >= 25 && n <= 53 {
+				return "float(53)"
+			}
+		}
+	case "real":
+		if params == "" {
+			return "real(24)"
+		}
+	case "char", "nchar", "varchar", "nvarchar", "binary", "varbinary":
+		if params == "" {
+			return base + "(1)"
+		}
+	}
+	return base + params
+}
+
+func isBuiltinSQLServerType(name string) bool {
+	switch name {
+	case "bigint", "int", "integer", "smallint", "tinyint", "bit",
+		"decimal", "dec", "numeric", "money", "smallmoney",
+		"float", "real", "doubleprecision",
+		"date", "time", "datetime", "datetime2", "smalldatetime", "datetimeoffset",
+		"char", "character", "varchar", "charactervarying", "charvarying", "text",
+		"nchar", "nationalchar", "nationalcharacter", "nvarchar", "nationalcharvarying", "nationalcharactervarying", "ntext",
+		"binary", "varbinary", "binaryvarying", "image",
+		"uniqueidentifier", "xml", "sql_variant", "timestamp", "rowversion",
+		"hierarchyid", "geometry", "geography", "sysname":
+		return true
+	default:
+		return false
+	}
 }
 
 func generationEqual(a, b *metadata.GenerationMetadata) bool {
@@ -1024,7 +1116,7 @@ func compareSequences(diff *SchemaDiff, schemaName string, oldSchema, newSchema 
 }
 
 func sequencesEqual(a, b *metadata.SequenceMetadata) bool {
-	return a.DataType == b.DataType &&
+	return typesEqual(a.DataType, b.DataType) &&
 		a.Start == b.Start &&
 		a.MinValue == b.MinValue &&
 		a.MaxValue == b.MaxValue &&
@@ -1036,13 +1128,10 @@ func sequencesEqual(a, b *metadata.SequenceMetadata) bool {
 		a.Comment == b.Comment
 }
 
-// expressionsEqual is Bytebase's generic expression comparison: whitespace
-// collapsed and keywords compared case-insensitively.
+// checkExpressionsEqual compares two CHECK expressions ignoring outer
+// parenthesization, whitespace, and non-literal case.
 func checkExpressionsEqual(a, b string) bool {
-	if expressionsEqual(a, b) {
-		return true
-	}
-	return normalizeCheckExpression(a) == normalizeCheckExpression(b)
+	return expressionsEqual(a, b)
 }
 
 // normalizeFunctionDefinition is Bytebase's function comparison normalization,
@@ -1058,14 +1147,15 @@ func procedureDefinitionsEqual(a, b string) bool {
 	return normalizeFunctionDefinition(a) == normalizeFunctionDefinition(b)
 }
 
-// normalizeCheckExpression is Bytebase's check-constraint normalization, ported
-// because Bytebase applies it to every engine.
-func normalizeCheckExpression(expression string) string {
+// stripOuterParens removes redundant balanced outer parentheses around an
+// expression without touching grouping parentheses inside binary expressions
+// such as "(1 + 2) * 3".
+func stripOuterParens(expression string) string {
 	expression = strings.TrimSpace(expression)
 	for strings.HasPrefix(expression, "(") && strings.HasSuffix(expression, ")") && balancedOuterParens(expression) {
 		expression = strings.TrimSpace(expression[1 : len(expression)-1])
 	}
-	return normalizeExpression(expression)
+	return expression
 }
 
 func expressionsEqual(a, b string) bool {
@@ -1078,7 +1168,7 @@ func expressionsEqual(a, b string) bool {
 	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
 		return false
 	}
-	return normalizeExpression(a) == normalizeExpression(b)
+	return normalizeExpression(stripOuterParens(a)) == normalizeExpression(stripOuterParens(b))
 }
 
 // normalizeExpression collapses whitespace and folds case outside string
