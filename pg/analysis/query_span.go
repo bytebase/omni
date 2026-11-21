@@ -558,6 +558,11 @@ func isUltimatelyPlainColumnWithVisited(q *catalog.Query, expr catalog.AnalyzedE
 				return isUltimatelyPlainColumnWithVisited(cte.Query, te.Expr, visited)
 			}
 		}
+	case catalog.RTEJoin:
+		colIdx := int(v.AttNum - 1)
+		if colIdx >= 0 && colIdx < len(rte.JoinAliasVars) {
+			return isUltimatelyPlainColumnWithVisited(q, rte.JoinAliasVars[colIdx], visited)
+		}
 	default:
 		return false
 	}
@@ -697,7 +702,7 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 			break
 		}
 		rte := q.RangeTable[v.RangeIdx]
-		if rte.Kind == catalog.RTEJoin {
+		if rte.Kind == catalog.RTEJoin && rte.Alias == "" {
 			break
 		}
 		// Check if this column's AttNum is sequential within its RTE.
@@ -958,6 +963,25 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		// Only a column that FULL JOIN USING merges is read through the join.
 		if colIdx >= 0 && colIdx < len(rte.JoinAliasVars) {
 			e.walkExprWithVisited(effectiveStack, rte.JoinAliasVars[colIdx], result, visited)
+		}
+
+	case catalog.RTETableFunc:
+		if rte.TableFunc != nil {
+			e.walkExprWithVisited(effectiveStack, rte.TableFunc.DocExpr, result, visited)
+			e.walkExprWithVisited(effectiveStack, rte.TableFunc.RowExpr, result, visited)
+			for _, ns := range rte.TableFunc.Namespaces {
+				e.walkExprWithVisited(effectiveStack, ns.Expr, result, visited)
+			}
+			if v.AttNum == 0 {
+				for _, col := range rte.TableFunc.Columns {
+					e.walkExprWithVisited(effectiveStack, col.ColExpr, result, visited)
+					e.walkExprWithVisited(effectiveStack, col.DefaultExpr, result, visited)
+				}
+			} else if colIdx >= 0 && colIdx < len(rte.TableFunc.Columns) {
+				col := rte.TableFunc.Columns[colIdx]
+				e.walkExprWithVisited(effectiveStack, col.ColExpr, result, visited)
+				e.walkExprWithVisited(effectiveStack, col.DefaultExpr, result, visited)
+			}
 		}
 
 	case catalog.RTEFunction:

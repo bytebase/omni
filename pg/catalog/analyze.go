@@ -7275,6 +7275,9 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonArrayQueryConstructor
 func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQueryConstructor) (AnalyzedExpr, error) {
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		return nil, &Error{Code: CodeFeatureNotSupported, Message: "cannot use subquery in DEFAULT expression"}
+	}
 	resultType, resultTypMod, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
@@ -7357,6 +7360,12 @@ func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr
 		}
 		args = append(args, expr)
 	}
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		if n.Constructor != nil && n.Constructor.Over != nil {
+			return nil, errWindowFunctionInDefault()
+		}
+		return nil, errAggregateInDefault()
+	}
 	resultType, resultTypMod, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {
 		return nil, err
@@ -7398,6 +7407,12 @@ func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedEx
 			}
 			args = append(args, valExpr)
 		}
+	}
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		if n.Constructor != nil && n.Constructor.Over != nil {
+			return nil, errWindowFunctionInDefault()
+		}
+		return nil, errAggregateInDefault()
 	}
 	resultType, resultTypMod, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {

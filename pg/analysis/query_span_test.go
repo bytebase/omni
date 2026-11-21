@@ -251,6 +251,14 @@ func TestResolveQuerySpanThroughViews(t *testing.T) {
 	require.Equal(t, []string{"db.public.mv.ssn"}, columnNames(span.Results[0].SourceColumns))
 }
 
+func TestResolveQuerySpanAliasedJoinPlainField(t *testing.T) {
+	span := spanFor(t, "SELECT * FROM (t CROSS JOIN o) j", healthySchema())
+	require.Len(t, span.Results, 5)
+	for _, r := range span.Results {
+		require.True(t, r.IsPlainField, "expected IsPlainField=true for %s", r.Name)
+	}
+}
+
 // A FROM item's alias column list renames its first columns, so a renamed
 // column still reads the column beneath it.
 func TestResolveQuerySpanColumnAliases(t *testing.T) {
@@ -295,6 +303,7 @@ func TestResolveQuerySpanColumnAliases(t *testing.T) {
 		{statement: `SELECT *, v.ssn FROM (SELECT email AS "SSN", ssn FROM t) v CROSS JOIN unknown_rows() u`, fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.j FROM (SELECT json_object(ssn : 1) AS j FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"j", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT JSON_OBJECT('x': t.email, 'j': JSON_ARRAY(SELECT t.ssn)) AS j FROM t", results: []result{{"j", []string{"db.public.t.email", "db.public.t.ssn"}}}},
+		{statement: "SELECT 1 AS n FROM XMLTABLE('/r' PASSING (SELECT '<r/>'::xml FROM t WHERE ssn <> '') COLUMNS x text) AS xt", results: []result{{"n", []string{}}}, predicates: []string{"db.public.t.ssn"}},
 		{statement: "SELECT *, v.ssn FROM (SELECT (SELECT ssn FROM t UNION ALL SELECT ssn FROM t LIMIT 1) AS ssn FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"ssn", []string{"db.public.t.ssn"}}}},
 		{statement: "SELECT *, v.id FROM (SELECT id FROM t) v CROSS JOIN o CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"id", []string{"db.public.t.id"}}}},
 		{statement: "SELECT *, v.x FROM o CROSS JOIN LATERAL (SELECT amt AS x FROM t) v CROSS JOIN unknown_rows() u", fallback: true, results: []result{{"x", []string{"db.public.o.amt"}}}},
