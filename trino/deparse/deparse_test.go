@@ -2238,4 +2238,33 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "does not match signature")
+
+	// Lambda parameters take the element type of the array a higher-order
+	// built-in passes them, so abs stays Trino's numeric built-in.
+	lambdaTyped, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "s",
+			Functions: []*metadatapb.FunctionMetadata{{Name: "abs", Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x"}},
+			Views:     []*metadatapb.ViewMetadata{{Name: "v_lambda", Definition: "SELECT transform(ARRAY[1, 2], x -> abs(x)) AS t"}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, lambdaTyped, `SELECT transform(ARRAY[1, 2], x -> abs(x)) AS t;`)
+
+	// An unqualified relation whose recorded dependency is in another schema
+	// is ordered against that schema, not as a self-reference.
+	unqualifiedCrossDep, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "shared", Tables: []*metadatapb.TableMetadata{{Name: "v", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}}}},
+			{Name: "app", Views: []*metadatapb.ViewMetadata{{
+				Name:              "v",
+				Definition:        "SELECT id FROM v",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "v"}},
+			}}},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, unqualifiedCrossDep, `SELECT id FROM "cat"."shared".v;`)
 }

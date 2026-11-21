@@ -2883,6 +2883,92 @@ func trinoPatternVariables(r *trinoparser.PatternRecognition) []string {
 	return vars
 }
 
+// walkLambda walks a lambda body with its parameters bound to paramTypes,
+// position by position; a parameter with no known type is bound as unknown.
+func (w *trinoASTWalker) walkLambda(e *trinoparser.LambdaExpr, curEnv map[string]string, ctes map[string]struct{}, paramTypes []string) string {
+	lambdaEnv := make(map[string]string, len(curEnv)+len(e.Params))
+	for k, v := range curEnv {
+		lambdaEnv[k] = v
+	}
+	for i, p := range e.Params {
+		if p == nil {
+			continue
+		}
+		typ := ""
+		if i < len(paramTypes) {
+			typ = paramTypes[i]
+		}
+		lambdaEnv[strings.ToLower(p.Value)] = typ
+	}
+	w.walkExpr(e.Body, lambdaEnv, ctes)
+	return "function"
+}
+
+// trinoLambdaParamTypes returns the parameter types Trino gives the lambda at
+// argument argIdx of the higher-order built-in fn, derived from the argument
+// types before it (https://trino.io/docs/current/functions/lambda.html,
+// https://trino.io/docs/current/functions/array.html,
+// https://trino.io/docs/current/functions/map.html). It returns nil for any
+// other function or position.
+func trinoLambdaParamTypes(fn string, argIdx int, prior []string) []string {
+	elem := func(i int) string {
+		if i < len(prior) {
+			if base, inner, ok := splitParameterizedType(prior[i]); ok && base == "array" {
+				return inner
+			}
+		}
+		return ""
+	}
+	mapKV := func(i int) (string, string) {
+		if i < len(prior) {
+			if base, inner, ok := splitParameterizedType(prior[i]); ok && base == "map" {
+				if parts := splitTopLevelComma(inner); len(parts) == 2 {
+					return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+				}
+			}
+		}
+		return "", ""
+	}
+	switch fn {
+	case "transform", "filter", "any_match", "all_match", "none_match":
+		if argIdx == 1 {
+			return []string{elem(0)}
+		}
+	case "array_sort":
+		if argIdx == 1 {
+			e := elem(0)
+			return []string{e, e}
+		}
+	case "zip_with":
+		if argIdx == 2 {
+			return []string{elem(0), elem(1)}
+		}
+	case "reduce":
+		state := ""
+		if len(prior) > 1 {
+			state = prior[1]
+		}
+		switch argIdx {
+		case 2:
+			return []string{state, elem(0)}
+		case 3:
+			return []string{state}
+		}
+	case "map_filter", "transform_keys", "transform_values":
+		if argIdx == 1 {
+			k, v := mapKV(0)
+			return []string{k, v}
+		}
+	case "map_zip_with":
+		if argIdx == 2 {
+			k, v1 := mapKV(0)
+			_, v2 := mapKV(1)
+			return []string{k, v1, v2}
+		}
+	}
+	return nil
+}
+
 // coalesceUsingColumns returns the output columns of a JOIN ... USING: each
 // USING column once, typed as the common type of its two sides, then the
 // remaining left and right columns. It also restores the USING columns in env,
@@ -3557,17 +3643,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		w.walkExpr(e.Filter, curEnv, ctes)
 		return "varchar"
 	case *trinoparser.LambdaExpr:
-		lambdaEnv := make(map[string]string, len(curEnv)+len(e.Params))
-		for k, v := range curEnv {
-			lambdaEnv[k] = v
-		}
-		for _, p := range e.Params {
-			if p != nil {
-				lambdaEnv[strings.ToLower(p.Value)] = ""
-			}
-		}
-		w.walkExpr(e.Body, lambdaEnv, ctes)
-		return "function"
+		return w.walkLambda(e, curEnv, ctes, nil)
 	case *trinoparser.JSONExistsExpr:
 		w.walkJSONPath(e.Path, curEnv, ctes)
 		return "boolean"
@@ -3611,6 +3687,10 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		argTypes := make([]string, len(e.Args))
 		var argUnknownRet []bool
 		var argNames []string
+		hofName := ""
+		if e.Name != nil && len(e.Name.Parts) == 1 {
+			hofName = strings.ToLower(e.Name.Parts[0].Value)
+		}
 		for j, a := range e.Args {
 			prevUnknown := w.usedUnknownSkippedFn
 			w.usedUnknownSkippedFn = false
@@ -3622,6 +3702,8 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 					}
 					argNames[j] = na.Name.Value
 				}
+			} else if lam, ok := a.(*trinoparser.LambdaExpr); ok && lam != nil {
+				argTypes[j] = w.walkLambda(lam, curEnv, ctes, trinoLambdaParamTypes(hofName, j, argTypes[:j]))
 			} else {
 				argTypes[j] = w.walkExpr(a, curEnv, ctes)
 			}
@@ -4292,7 +4374,16 @@ func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 			if access.Catalog != "" && metadata.Name != "" && !strings.EqualFold(access.Catalog, metadata.Name) {
 				continue
 			}
-			addDep(i, access.Schema, access.Table)
+			depSchema := access.Schema
+			if depSchema == "" {
+				// An unqualified reference resolves the way the emitted SQL is
+				// qualified: through the view's recorded dependencies.
+				depSchema = resolveUnqualifiedRelationSchema(access.Table, view.schema, view.view.Dependencies)
+				if depSchema == "" {
+					continue
+				}
+			}
+			addDep(i, depSchema, access.Table)
 		}
 	}
 	indices, cyclic := topoOrder(len(views), dependencies)

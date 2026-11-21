@@ -2444,6 +2444,18 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "column with empty name")
+
+	// The terminator follows a trailing line comment even after an E'...'
+	// string with an escaped quote.
+	escaped, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Views: []*metadatapb.ViewMetadata{{Name: "v_escaped", Definition: `SELECT E'it\'s' AS txt -- note`}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, escaped, "SELECT E'it\\'s' AS txt -- note\n;")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

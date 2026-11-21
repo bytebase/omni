@@ -1345,6 +1345,65 @@ func writeOwners(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error
 // statement terminator, placing it on a new line if stmt ends inside a "--"
 // line comment.
 func appendTerminator(stmt string) string {
+	// Redshift's lexer finds the real token boundaries, so an E'...' escape, a
+	// dollar quote or a quoted identifier cannot hide a trailing comment.
+	lex := pgparser.NewLexer(stmt)
+	lastType, lastEnd := 0, 0
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		lastType, lastEnd = tok.Type, tok.End
+	}
+	if lex.Err != nil {
+		return appendTerminatorLexically(stmt)
+	}
+	if lastType == ';' {
+		return stmt
+	}
+	if endsInLineComment(stmt[lastEnd:]) {
+		return stmt + "\n;"
+	}
+	return stmt + ";"
+}
+
+// endsInLineComment reports whether tail, which holds only whitespace and
+// comments, ends inside a "--" line comment.
+func endsInLineComment(tail string) bool {
+	for i := 0; i < len(tail); {
+		switch {
+		case strings.HasPrefix(tail[i:], "--"):
+			nl := strings.IndexByte(tail[i:], '\n')
+			if nl < 0 {
+				return true
+			}
+			i += nl + 1
+		case strings.HasPrefix(tail[i:], "/*"):
+			depth := 1
+			i += 2
+			for i < len(tail) && depth > 0 {
+				switch {
+				case strings.HasPrefix(tail[i:], "/*"):
+					depth++
+					i += 2
+				case strings.HasPrefix(tail[i:], "*/"):
+					depth--
+					i += 2
+				default:
+					i++
+				}
+			}
+		default:
+			i++
+		}
+	}
+	return false
+}
+
+// appendTerminatorLexically is appendTerminator's fallback for text the
+// lexer rejects.
+func appendTerminatorLexically(stmt string) string {
 	var (
 		inSingleQuote bool
 		inDoubleQuote bool
