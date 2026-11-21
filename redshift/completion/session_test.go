@@ -206,6 +206,15 @@ func TestCompleteSession_StatementIsolationAndUTF16(t *testing.T) {
 	require.True(t, hasSessionCandidate(got, "event_id", CandidateColumn), "got %v", got)
 	require.False(t, hasSessionCandidate(got, "amount", CandidateColumn), "got %v", got)
 
+	// Caret immediately after the final semicolon (no trailing space) starts an empty scope.
+	stmtFinalSemi, lineFS, colFS := catchCaretUTF16(t, "SELECT 1;|")
+	gotFinalSemi := CompleteSession(context.Background(), cfg, stmtFinalSemi, lineFS, colFS)
+	require.True(t, hasSessionCandidate(gotFinalSemi, "SELECT", CandidateKeyword), "got %v", gotFinalSemi)
+
+	// Quoted user-defined functions are quoted when needed.
+	require.Equal(t, `"CalculateTotal"`, formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, false))
+	require.Equal(t, "CalculateTotal", formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, true))
+
 	stmtEmoji, lineE, colE := catchCaretUTF16(t, "SELECT '😀', | FROM orders")
 	gotE := CompleteSession(context.Background(), cfg, stmtEmoji, lineE, colE)
 	require.True(t, hasSessionCandidate(gotE, "id", CandidateColumn), "got %v", gotE)

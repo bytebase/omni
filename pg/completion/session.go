@@ -122,8 +122,13 @@ func statementAtCaret(statement string, bytePos int) (string, int) {
 		if bytePos < seg.ByteStart {
 			continue
 		}
-		if bytePos == seg.ByteEnd && i+1 < len(segs) {
-			continue
+		if bytePos == seg.ByteEnd {
+			if i+1 < len(segs) {
+				continue
+			}
+			if strings.HasSuffix(seg.Text, ";") {
+				return "", 0
+			}
 		}
 		if bytePos <= seg.ByteEnd {
 			return seg.Text, bytePos - seg.ByteStart
@@ -172,10 +177,12 @@ func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 	case CandidateKeyword, CandidateType_:
 		return c.Text
 	case CandidateFunction:
-		if strings.HasSuffix(c.Text, "()") {
-			return c.Text
+		name := strings.TrimSuffix(c.Text, "()")
+		quoted := QuoteIdentifierIfNeeded(name, caretInQuotes)
+		if caretInQuotes {
+			return quoted
 		}
-		return c.Text + "()"
+		return quoted + "()"
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)
 	}

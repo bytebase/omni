@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -32,7 +33,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	stmt, pos := isolateStatementAtCursor(statement, bytePos)
 
 	cat := buildSessionCatalog(ctx, cfg, stmt)
-	caretQuoted := CaretTokenIsQuoted(stmt, pos)
+	quoteDelim := caretQuoteDelimiter(stmt, pos)
 	raw := Complete(stmt, pos, cat)
 
 	type candKey struct {
@@ -44,7 +45,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	for _, c := range raw {
 		candidate := Candidate{
 			Type:       c.Type,
-			Text:       formatSessionCandidateText(c, caretQuoted),
+			Text:       formatSessionCandidateText(c, quoteDelim),
 			Definition: c.Definition,
 			Comment:    c.Comment,
 		}
@@ -65,8 +66,12 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 // CaretTokenIsQuoted reports whether cursorByteOffset in sql sits inside an
 // open bracketed ([...]) or double-quoted ("...") T-SQL identifier.
 func CaretTokenIsQuoted(sql string, cursorByteOffset int) bool {
+	return caretQuoteDelimiter(sql, cursorByteOffset) != 0
+}
+
+func caretQuoteDelimiter(sql string, cursorByteOffset int) byte {
 	if cursorByteOffset <= 0 {
-		return false
+		return 0
 	}
 	if cursorByteOffset > len(sql) {
 		cursorByteOffset = len(sql)
@@ -86,20 +91,55 @@ func CaretTokenIsQuoted(sql string, cursorByteOffset int) bool {
 		}
 	}
 	if lastErr == nil {
-		return false
+		return 0
 	}
-	msg := lastErr.Error()
-	return msg == "unterminated bracketed identifier" || msg == "unterminated quoted identifier"
+	switch lastErr.Error() {
+	case "unterminated bracketed identifier":
+		return '['
+	case "unterminated quoted identifier":
+		return '"'
+	default:
+		return 0
+	}
 }
 
 // QuoteIdentifierIfNeeded bracket-quotes a T-SQL identifier when it is not a
 // valid regular identifier or collides with a reserved keyword. When
-// caretQuoted is true, outer delimiters are omitted.
+// caretQuoted is true, outer delimiters are omitted while embedded closing
+// brackets are doubled.
 func QuoteIdentifierIfNeeded(name string, caretQuoted bool) string {
-	if caretQuoted || isRegularIdentifier(name) {
+	if caretQuoted {
+		return strings.ReplaceAll(name, "]", "]]")
+	}
+	if isRegularIdentifier(name) {
 		return name
 	}
 	return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+}
+
+func formatQuotedIdentifier(name string, quoteDelim byte) string {
+	switch quoteDelim {
+	case '[':
+		return strings.ReplaceAll(name, "]", "]]")
+	case '"':
+		return strings.ReplaceAll(name, `"`, `""`)
+	default:
+		return QuoteIdentifierIfNeeded(name, false)
+	}
+}
+
+var builtinFunctionSet = sync.OnceValue(func() map[string]struct{} {
+	fns := builtinFunctions()
+	set := make(map[string]struct{}, len(fns))
+	for _, name := range fns {
+		set[strings.ToUpper(name)] = struct{}{}
+	}
+	return set
+})
+
+func isBuiltinFunction(name string) bool {
+	_, ok := builtinFunctionSet()[strings.ToUpper(name)]
+	return ok
 }
 
 // LineOffsetToBytePos converts a 1-based line and 0-based UTF-16 code-unit
@@ -180,19 +220,23 @@ func loadDatabaseIntoCatalog(ctx context.Context, cfg SessionConfig, cat *catalo
 	_ = cat.LoadMetadataInto(ctx, nil, dbName)
 }
 
-func formatSessionCandidateText(c Candidate, caretQuoted bool) string {
+func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
 	switch {
 	case c.Type == CandidateKeyword || c.Type == CandidateType_:
 		return c.Text
 	case c.Type == CandidateFunction:
-		if strings.HasSuffix(c.Text, "()") {
-			return c.Text
+		name := strings.TrimSuffix(c.Text, "()")
+		if quoteDelim != 0 {
+			return formatQuotedIdentifier(name, quoteDelim)
 		}
-		return c.Text + "()"
+		if !isBuiltinFunction(name) {
+			name = formatQuotedIdentifier(name, 0)
+		}
+		return name + "()"
 	case c.Text == "$action":
 		return c.Text
 	default:
-		return QuoteIdentifierIfNeeded(c.Text, caretQuoted)
+		return formatQuotedIdentifier(c.Text, quoteDelim)
 	}
 }
 

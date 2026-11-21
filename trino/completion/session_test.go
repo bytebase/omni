@@ -220,4 +220,24 @@ func TestCompleteSession_NilAndDefaultOnlyConfig(t *testing.T) {
 	}
 	got := CompleteSession(context.Background(), cfg, stmt, line, col)
 	require.True(t, hasSessionCandidate(got, "employees", CandidateTable), "got %v", got)
+
+	// DefaultCatalog is loaded even when ListCatalogNames returns a non-empty list omitting it.
+	loads := map[string]int{}
+	omittedCfg := SessionConfig{
+		DefaultCatalog: "Company",
+		DefaultSchema:  "dbo",
+		ListCatalogNames: func(context.Context) ([]string, error) {
+			return []string{"School"}, nil
+		},
+		LoadCatalog: func(_ context.Context, name string) (*metadatapb.DatabaseSchemaMetadata, error) {
+			loads[name]++
+			return catalogs[name], nil
+		},
+	}
+	gotOmitted := CompleteSession(context.Background(), omittedCfg, stmt, line, col)
+	require.True(t, hasSessionCandidate(gotOmitted, "company", CandidateCatalog), "got %v", gotOmitted)
+	require.True(t, hasSessionCandidate(gotOmitted, "school", CandidateCatalog), "got %v", gotOmitted)
+	require.True(t, hasSessionCandidate(gotOmitted, "employees", CandidateTable), "got %v", gotOmitted)
+	require.Equal(t, 1, loads["Company"])
+	require.Zero(t, loads["School"])
 }

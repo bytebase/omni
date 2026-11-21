@@ -115,12 +115,15 @@ func buildSessionCatalog(ctx context.Context, cfg SessionConfig, statement strin
 	defaultCat := catalog.Normalize(cfg.DefaultCatalog)
 
 	cat := catalog.New()
-	loadedDefault := false
+	attemptedDefault := false
 	for _, name := range names {
 		norm := catalog.Normalize(name)
 		cat.EnsureCatalog(norm)
 		if !CatalogNeeded(norm, defaultCat, lowerStmt) {
 			continue
+		}
+		if norm == defaultCat {
+			attemptedDefault = true
 		}
 		if cfg.LoadCatalog == nil {
 			continue
@@ -130,15 +133,14 @@ func buildSessionCatalog(ctx context.Context, cfg SessionConfig, statement strin
 			continue
 		}
 		cat.LoadMetadata(meta)
-		if norm == defaultCat {
-			loadedDefault = true
-		}
 	}
 
-	if !loadedDefault && len(names) == 0 && cfg.DefaultCatalog != "" && cfg.LoadCatalog != nil {
+	if !attemptedDefault && cfg.DefaultCatalog != "" {
 		cat.EnsureCatalog(defaultCat)
-		if meta, err := cfg.LoadCatalog(ctx, cfg.DefaultCatalog); err == nil && meta != nil {
-			cat.LoadMetadata(meta)
+		if cfg.LoadCatalog != nil {
+			if meta, err := cfg.LoadCatalog(ctx, cfg.DefaultCatalog); err == nil && meta != nil {
+				cat.LoadMetadata(meta)
+			}
 		}
 	}
 

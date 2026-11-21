@@ -138,8 +138,13 @@ func statementAtCaret(statement string, bytePos int) (string, int) {
 		if bytePos < seg.ByteStart {
 			continue
 		}
-		if bytePos == seg.ByteEnd && i+1 < len(segs) {
-			continue
+		if bytePos == seg.ByteEnd {
+			if i+1 < len(segs) {
+				continue
+			}
+			if strings.HasSuffix(seg.Text, ";") {
+				return "", 0
+			}
 		}
 		if bytePos <= seg.ByteEnd {
 			return seg.Text, bytePos - seg.ByteStart
@@ -171,7 +176,7 @@ func buildSessionCatalog(ctx context.Context, cfg SessionConfig) *catalog.Catalo
 
 func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 	switch c.Type {
-	case CandidateKeyword, CandidateType_, CandidateFunction:
+	case CandidateKeyword, CandidateType_:
 		return c.Text
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)

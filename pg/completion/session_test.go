@@ -94,6 +94,9 @@ func pgTestMetadata() *metadatapb.DatabaseSchemaMetadata {
 				Sequences: []*metadatapb.SequenceMetadata{
 					{Name: "order_seq"},
 				},
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "CalculateTotal", Definition: "CREATE FUNCTION public.\"CalculateTotal\"() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$"},
+				},
 			},
 			{
 				Name: "analytics",
@@ -218,6 +221,16 @@ func TestCompleteSession_StatementIsolationAndTrailingBrokenSQL(t *testing.T) {
 	stmtSemi, lineS, colS := catchCaretUTF16(t, "SELECT * FROM orders;| SELECT 1")
 	gotSemi := CompleteSession(context.Background(), cfg, stmtSemi, lineS, colS)
 	require.True(t, hasSessionCandidate(gotSemi, "SELECT", CandidateKeyword), "got %v", gotSemi)
+
+	// Caret immediately after the final semicolon (no trailing space) starts an empty scope.
+	stmtFinalSemi, lineFS, colFS := catchCaretUTF16(t, "SELECT 1;|")
+	gotFinalSemi := CompleteSession(context.Background(), cfg, stmtFinalSemi, lineFS, colFS)
+	require.True(t, hasSessionCandidate(gotFinalSemi, "SELECT", CandidateKeyword), "got %v", gotFinalSemi)
+
+	// Quoted user-defined functions are quoted before appending "()".
+	require.Equal(t, `"CalculateTotal"()`, formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, false))
+	require.Equal(t, "CalculateTotal", formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, true))
+	require.Equal(t, "my_func()", formatSessionCandidateText(Candidate{Text: "my_func", Type: CandidateFunction}, false))
 
 	// UTF-16 caret after emoji resolves columns accurately.
 	stmtEmoji, lineE, colE := catchCaretUTF16(t, "SELECT '😀', | FROM orders")

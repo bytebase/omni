@@ -71,6 +71,21 @@ func mssqlTestDatabases() map[string]*metadatapb.DatabaseSchemaMetadata {
 								{Name: "Select", Type: "varchar"},
 							},
 						},
+						{
+							Name: "a]b",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "Id", Type: "int"},
+							},
+						},
+						{
+							Name: `a"b`,
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "Id", Type: "int"},
+							},
+						},
+					},
+					Functions: []*metadatapb.FunctionMetadata{
+						{Name: "Calc Total"},
 					},
 					Procedures: []*metadatapb.ProcedureMetadata{
 						{Name: "SyncEmployees"},
@@ -174,6 +189,7 @@ func TestQuoteIdentifierIfNeeded(t *testing.T) {
 	require.Equal(t, "[]", QuoteIdentifierIfNeeded("", false))
 
 	require.Equal(t, "Order Items", QuoteIdentifierIfNeeded("Order Items", true))
+	require.Equal(t, "a]]b", QuoteIdentifierIfNeeded("a]b", true))
 }
 
 func TestCompleteSession_QuotingFunctionsAndPseudoColumn(t *testing.T) {
@@ -188,12 +204,24 @@ func TestCompleteSession_QuotingFunctionsAndPseudoColumn(t *testing.T) {
 		},
 	}
 
-	// Regular identifiers stay unquoted; identifiers with spaces or keywords get bracket-quoted.
+	// Regular identifiers stay unquoted; identifiers with spaces, brackets, or keywords get bracket-quoted.
 	stmt, line, col := catchCaretUTF16(t, "SELECT * FROM |")
 	got := CompleteSession(context.Background(), cfg, stmt, line, col)
 	require.True(t, hasSessionCandidate(got, "Employees", CandidateTable), "got %v", got)
 	require.True(t, hasSessionCandidate(got, "[Order Items]", CandidateTable), "got %v", got)
+	require.True(t, hasSessionCandidate(got, "[a]]b]", CandidateTable), "got %v", got)
 	require.True(t, slices.IsSortedFunc(got, compareSessionCandidates))
+
+	// Inside bracketed or double-quoted identifiers, omit outer delimiters while escaping the active delimiter.
+	stmtBrk, lineB, colB := catchCaretUTF16(t, "SELECT * FROM [a|]")
+	gotBrk := CompleteSession(context.Background(), cfg, stmtBrk, lineB, colB)
+	require.True(t, hasSessionCandidate(gotBrk, "a]]b", CandidateTable), "got %v", gotBrk)
+	require.False(t, hasSessionCandidate(gotBrk, "a]b", CandidateTable), "got %v", gotBrk)
+
+	stmtDQ, lineDQ, colDQ := catchCaretUTF16(t, `SELECT * FROM "a|"`)
+	gotDQ := CompleteSession(context.Background(), cfg, stmtDQ, lineDQ, colDQ)
+	require.True(t, hasSessionCandidate(gotDQ, `a""b`, CandidateTable), "got %v", gotDQ)
+	require.False(t, hasSessionCandidate(gotDQ, `a"b`, CandidateTable), "got %v", gotDQ)
 
 	// Columns with spaces / reserved keywords are bracket-quoted.
 	stmtC, lineC, colC := catchCaretUTF16(t, "SELECT | FROM [Order Items]")
@@ -201,10 +229,17 @@ func TestCompleteSession_QuotingFunctionsAndPseudoColumn(t *testing.T) {
 	require.True(t, hasSessionCandidate(gotC, "[Item ID]", CandidateColumn), "got %v", gotC)
 	require.True(t, hasSessionCandidate(gotC, "[Select]", CandidateColumn), "got %v", gotC)
 
-	// Built-in functions get "()" suffix.
+	// Built-in functions stay unquoted with "()"; non-regular user functions are bracket-quoted before "()".
 	stmtF, lineF, colF := catchCaretUTF16(t, "SELECT COU| FROM Employees")
 	gotF := CompleteSession(context.Background(), cfg, stmtF, lineF, colF)
 	require.True(t, hasSessionCandidate(gotF, "COUNT()", CandidateFunction), "got %v", gotF)
+
+	stmtCoalesce, lineCo, colCo := catchCaretUTF16(t, "SELECT COAL| FROM Employees")
+	gotCo := CompleteSession(context.Background(), cfg, stmtCoalesce, lineCo, colCo)
+	require.True(t, hasSessionCandidate(gotCo, "COALESCE()", CandidateFunction), "got %v", gotCo)
+
+	require.Equal(t, "[Calc Total]()", formatSessionCandidateText(Candidate{Text: "Calc Total", Type: CandidateFunction}, 0))
+	require.Equal(t, "Calc Total", formatSessionCandidateText(Candidate{Text: "Calc Total", Type: CandidateFunction}, '['))
 
 	// $action pseudo-column is NOT bracket-quoted.
 	stmtA, lineA, colA := catchCaretUTF16(t, "MERGE INTO Employees AS d USING Address AS s ON d.Id = s.EmployeeId WHEN MATCHED THEN UPDATE SET d.Name = s.Street OUTPUT |")

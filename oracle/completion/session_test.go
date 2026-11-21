@@ -79,6 +79,7 @@ func oracleTestSchemas() map[string]*metadatapb.DatabaseSchemaMetadata {
 				},
 				Functions: []*metadatapb.FunctionMetadata{
 					{Name: "GET_TOTAL"},
+					{Name: "CalculateTotal"},
 				},
 			}},
 		},
@@ -231,10 +232,21 @@ func TestCompleteSession_QuotingAndFunctions(t *testing.T) {
 	require.True(t, hasSessionCandidate(gotC, `"SELECT"`, CandidateColumn), "got %v", gotC)
 	require.True(t, hasSessionCandidate(gotC, `"has""quote"`, CandidateColumn), "got %v", gotC)
 
-	// Functions receive trailing "()".
+	// Functions receive trailing "()"; mixed-case/special metadata functions are quoted first.
 	stmtF, lineF, colF := catchCaretUTF16(t, "SELECT GET_T| FROM T1")
 	gotF := CompleteSession(context.Background(), cfg, stmtF, lineF, colF)
 	require.True(t, hasSessionCandidate(gotF, "GET_TOTAL()", CandidateFunction), "got %v", gotF)
+
+	stmtFQ, lineFQ, colFQ := catchCaretUTF16(t, "SELECT Calc| FROM T1")
+	gotFQ := CompleteSession(context.Background(), cfg, stmtFQ, lineFQ, colFQ)
+	require.True(t, hasSessionCandidate(gotFQ, `"CalculateTotal"()`, CandidateFunction), "got %v", gotFQ)
+
+	stmtFInQ, lineFIQ, colFIQ := catchCaretUTF16(t, `SELECT "Calc|" FROM T1`)
+	gotFInQ := CompleteSession(context.Background(), cfg, stmtFInQ, lineFIQ, colFIQ)
+	require.True(t, hasSessionCandidate(gotFInQ, "CalculateTotal", CandidateFunction), "got %v", gotFInQ)
+
+	// Built-in keyword functions remain unquoted.
+	require.Equal(t, "CAST()", formatSessionCandidateText(Candidate{Text: "CAST", Type: CandidateFunction}, false))
 }
 
 func TestCompleteSession_ReadOnlyScene(t *testing.T) {

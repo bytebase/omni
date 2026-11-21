@@ -169,10 +169,14 @@ func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 	case CandidateKeyword, CandidateType_:
 		return c.Text
 	case CandidateFunction:
-		if strings.HasSuffix(c.Text, "()") {
-			return c.Text
+		name := strings.TrimSuffix(c.Text, "()")
+		if caretInQuotes {
+			return QuoteIdentifierIfNeeded(name, true)
 		}
-		return c.Text + "()"
+		if !oracleBuiltinFunctionKeywords[strings.ToUpper(name)] {
+			name = QuoteIdentifierIfNeeded(name, false)
+		}
+		return name + "()"
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)
 	}
