@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 // DatabaseMetadata converts the named database in the catalog to a
@@ -195,8 +196,12 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			Comment:                        formatSyncedComment(col.Comment),
 			NotSecondary:                   col.NotSecondary,
 			IsGeneratedInvisiblePrimaryKey: col.GeneratedInvisiblePrimaryKey,
-			CharsetInherited:               col.Charset != "" && !col.CharsetExplicit,
-			CollationInherited:             col.Collation != "" && !col.CollationExplicit,
+		}
+		if col.Charset != "" {
+			colMeta.CharsetInherited = proto.Bool(!col.CharsetExplicit)
+		}
+		if col.Collation != "" {
+			colMeta.CollationInherited = proto.Bool(!col.CollationExplicit)
 		}
 		switch {
 		case col.AutoIncrement:
@@ -416,7 +421,16 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			Algorithm:  int32(p.Algorithm),
 		}
 		if p.SubType != "" {
-			if len(pd.SubPartitions) > 0 {
+			switch {
+			case p.UseDefaultSubpartitions && p.UseDefaultNumSubpartitions:
+				// Preserve implicit subpartition generation rather than exporting auto-populated entries.
+				part.Subpartitions = []*metadata.TablePartitionMetadata{{
+					Type:       subType,
+					Expression: subExpr,
+					UseDefault: "default",
+					Algorithm:  int32(p.SubAlgo),
+				}}
+			case len(pd.SubPartitions) > 0:
 				for _, spd := range pd.SubPartitions {
 					part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
 						Name:       spd.Name,
@@ -427,7 +441,7 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 						Algorithm:  int32(p.SubAlgo),
 					})
 				}
-			} else if subUseDefault != "" {
+			case subUseDefault != "":
 				part.Subpartitions = []*metadata.TablePartitionMetadata{{
 					Type:       subType,
 					Expression: subExpr,

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 // DatabaseMetadata converts the named database in the catalog to a
@@ -205,15 +206,19 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			continue
 		}
 		colMeta := &metadata.ColumnMetadata{
-			Name:               col.Name,
-			Position:           int32(col.Position),
-			Type:               col.ColumnType,
-			Nullable:           col.Nullable,
-			CharacterSet:       col.Charset,
-			Collation:          col.Collation,
-			Comment:            formatSyncedComment(col.Comment),
-			CharsetInherited:   col.Charset != "" && !col.CharsetExplicit,
-			CollationInherited: col.Collation != "" && !col.CollationExplicit,
+			Name:         col.Name,
+			Position:     int32(col.Position),
+			Type:         col.ColumnType,
+			Nullable:     col.Nullable,
+			CharacterSet: col.Charset,
+			Collation:    col.Collation,
+			Comment:      formatSyncedComment(col.Comment),
+		}
+		if col.Charset != "" {
+			colMeta.CharsetInherited = proto.Bool(!col.CharsetExplicit)
+		}
+		if col.Collation != "" {
+			colMeta.CollationInherited = proto.Bool(!col.CollationExplicit)
 		}
 		switch {
 		case col.AutoIncrement:

@@ -427,14 +427,14 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	}
 	require.True(t, cols["my_row_id"].IsGeneratedInvisiblePrimaryKey)
 	require.True(t, cols["no_sec"].NotSecondary)
-	require.True(t, cols["name"].CharsetInherited)
-	require.True(t, cols["name"].CollationInherited)
-	require.False(t, cols["cs_col"].CharsetInherited)
-	require.True(t, cols["cs_col"].CollationInherited)
-	require.True(t, cols["col_col"].CharsetInherited)
-	require.False(t, cols["col_col"].CollationInherited)
-	require.False(t, cols["no_sec"].CharsetInherited)
-	require.False(t, cols["no_sec"].CollationInherited)
+	require.True(t, cols["name"].GetCharsetInherited())
+	require.True(t, cols["name"].GetCollationInherited())
+	require.False(t, cols["cs_col"].GetCharsetInherited())
+	require.True(t, cols["cs_col"].GetCollationInherited())
+	require.True(t, cols["col_col"].GetCharsetInherited())
+	require.False(t, cols["col_col"].GetCollationInherited())
+	require.False(t, cols["no_sec"].GetCharsetInherited())
+	require.False(t, cols["no_sec"].GetCollationInherited())
 
 	reloaded := New()
 	report, err := reloaded.LoadMetadata(context.Background(), meta)
@@ -607,4 +607,54 @@ func TestDatabaseDefinitionPreservesParentCommentWithExplicitSubpartitions(t *te
 	_, err = restored.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 	require.Equal(t, "p0_parent", restored.GetDatabase("app").GetTable("sub_t").Partitioning.Partitions[0].Comment)
+}
+
+func TestDatabaseDefinitionDefaultDroppedNotSecondaryExplicitCharsetAndImplicitSubpartitions(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		USE app;
+		CREATE TABLE col_t (
+			id INT PRIMARY KEY,
+			a VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+			b VARCHAR(20),
+			c INT NOT NULL NOT SECONDARY,
+			d INT DEFAULT 1
+		) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+		ALTER TABLE col_t ALTER COLUMN d DROP DEFAULT;
+		CREATE TABLE sub_default (
+			id INT NOT NULL,
+			k INT NOT NULL
+		) PARTITION BY RANGE (id) SUBPARTITION BY HASH (k) (PARTITION p0 VALUES LESS THAN (10));
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "`a` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+	require.Contains(t, def, "`b` varchar(20) DEFAULT NULL")
+	require.Contains(t, def, "`c` int NOT NULL NOT SECONDARY")
+	require.Contains(t, def, "ALTER TABLE `col_t` ALTER COLUMN `d` DROP DEFAULT;")
+	require.NotContains(t, def, "SUBPARTITION `p0sp0`")
+	require.Contains(t, def, "SUBPARTITION BY HASH (`k`)")
+
+	reloaded := New()
+	_, err = reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	reSub := reloaded.GetDatabase("app").GetTable("sub_default")
+	require.True(t, reSub.Partitioning.UseDefaultSubpartitions)
+	require.True(t, reSub.Partitioning.UseDefaultNumSubpartitions)
+
+	execd := New()
+	_, err = execd.Exec("CREATE DATABASE app DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	reColT := execd.GetDatabase("app").GetTable("col_t")
+	require.True(t, reColT.GetColumn("c").NotSecondary)
+	require.True(t, reColT.GetColumn("d").DefaultDropped)
+	require.True(t, reColT.GetColumn("a").CharsetExplicit)
+	require.False(t, reColT.GetColumn("b").CharsetExplicit)
+	reExecSub := execd.GetDatabase("app").GetTable("sub_default")
+	require.True(t, reExecSub.Partitioning.UseDefaultSubpartitions)
+	require.True(t, reExecSub.Partitioning.UseDefaultNumSubpartitions)
 }

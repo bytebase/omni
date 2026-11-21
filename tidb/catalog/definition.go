@@ -729,6 +729,14 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 		return err
 	}
 
+	for _, col := range table.Columns {
+		if col.GetDefaultDropped() {
+			if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` ALTER COLUMN `%s` DROP DEFAULT;\n\n", table.Name, col.Name); err != nil {
+				return err
+			}
+		}
+	}
+
 	// TiFlash replica precedes CACHE because a cached table rejects other ALTER TABLE statements (8242).
 	if table.TiflashReplica > 0 || len(table.TiflashLocationLabels) > 0 {
 		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` SET TIFLASH REPLICA %d", table.Name, table.TiflashReplica); err != nil {

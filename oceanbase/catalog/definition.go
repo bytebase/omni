@@ -822,9 +822,21 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 			return err
 		}
 	}
+	if table.ColumnGroups != "" {
+		if _, err := fmt.Fprintf(buf, " WITH COLUMN GROUP(%s)", table.ColumnGroups); err != nil {
+			return err
+		}
+	}
 
 	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
 		return err
+	}
+	for _, col := range table.Columns {
+		if col.GetDefaultDropped() {
+			if _, err := fmt.Fprintf(buf, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
+				return err
+			}
+		}
 	}
 	if table.HasMaterializedViewLog {
 		if _, err := fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW LOG ON %s;\n\n", quoteIdent(table.Name)); err != nil {
@@ -1577,13 +1589,13 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 		return err
 	}
 
-	if column.CharacterSet != "" && column.CharacterSet != table.Charset {
+	if column.CharacterSet != "" && (column.CharsetInherited != nil && !*column.CharsetInherited || column.CharacterSet != table.Charset) {
 		if _, err := fmt.Fprintf(buf, " CHARACTER SET %s", column.CharacterSet); err != nil {
 			return err
 		}
 	}
 
-	if column.Collation != "" && column.Collation != table.Collation {
+	if column.Collation != "" && (column.CollationInherited != nil && !*column.CollationInherited || column.Collation != table.Collation) {
 		if _, err := fmt.Fprintf(buf, " COLLATE %s", column.Collation); err != nil {
 			return err
 		}

@@ -937,9 +937,10 @@ message ColumnMetadata {
 
   // True when a string column's character_set or collation was inherited from
   // its table rather than explicitly declared (MySQL / OceanBase). Unset on
-  // explicit declarations and legacy live syncs.
-  bool charset_inherited = 28;
-  bool collation_inherited = 29;
+  // legacy syncs; explicit false distinguishes an explicit declaration matching
+  // the table default from an unflagged legacy snapshot.
+  optional bool charset_inherited = 28;
+  optional bool collation_inherited = 29;
 }
 
 message GenerationMetadata {

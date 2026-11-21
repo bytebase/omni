@@ -481,7 +481,7 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 		Name:     "ev_alloc",
 		Schedule: &nodes.EventSchedule{RawText: "EVERY 1 HOUR"},
 		Comment:  "ev cmt",
-		BodyText: "DO SELECT 1",
+		BodyText: "SELECT 1",
 	}))
 	allocMeta := allocCatalog.DatabaseMetadata("alloc_db")
 	rendered, err := DatabaseDefinition(allocMeta, DefinitionOptions{})
@@ -507,6 +507,18 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Len(t, allocSchema.Tables[0].Triggers, 1)
 	require.Equal(t, "trg_alloc", allocSchema.Tables[0].Triggers[0].Name)
 
+	reloadedAlloc := New()
+	allocReport, err := reloadedAlloc.LoadMetadata(context.Background(), allocMeta)
+	require.NoError(t, err)
+	require.Empty(t, allocReport.Degraded)
+	require.Empty(t, allocReport.Missing)
+	require.Empty(t, allocReport.Incomplete)
+	reAllocDB := reloadedAlloc.GetDatabase("alloc_db")
+	require.Contains(t, reAllocDB.Functions, "fn_inc")
+	require.Contains(t, reAllocDB.Procedures, "proc_noop")
+	require.Contains(t, reAllocDB.Triggers, "trg_alloc")
+	require.Contains(t, reAllocDB.Events, "ev_alloc")
+
 	// DatabaseDefinition renders view execution attributes, placement policy, TiFlash, cache, compression, key block size, escaped comments, and global temp tables.
 	defCatalog := New()
 	_, err = defCatalog.Exec(`
@@ -521,10 +533,12 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 			id INT PRIMARY KEY,
 			k INT,
 			pid INT,
+			d_col INT DEFAULT 1,
 			note VARCHAR(50) COMMENT 'it''s a \\ path',
 			KEY k_blk (k) KEY_BLOCK_SIZE = 4,
 			CONSTRAINT fk_ext FOREIGN KEY (pid) REFERENCES ref_db.parent_t (id)
 		) COMPRESSION='zlib' COMMENT='O''Reilly' PLACEMENT POLICY = p_tbl;
+		ALTER TABLE placed_tbl ALTER COLUMN d_col DROP DEFAULT;
 		ALTER TABLE placed_tbl SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';
 		ALTER TABLE placed_tbl CACHE;
 		CREATE GLOBAL TEMPORARY TABLE gtt_tbl (id INT PRIMARY KEY) ON COMMIT DELETE ROWS;
@@ -541,6 +555,7 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Contains(t, defRendered, `COMMENT='O\'Reilly'`)
 	require.Contains(t, defRendered, `COMMENT 'it\'s a \\ path'`)
 	require.Contains(t, defRendered, "KEY `k_blk` (`k`) KEY_BLOCK_SIZE=4")
+	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` ALTER COLUMN `d_col` DROP DEFAULT;")
 	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'host';")
 	require.Contains(t, defRendered, "ALTER TABLE `placed_tbl` CACHE;")
 	require.Less(t, strings.Index(defRendered, "SET TIFLASH REPLICA 2"), strings.Index(defRendered, "ALTER TABLE `placed_tbl` CACHE"))
@@ -563,6 +578,7 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Equal(t, 2, rePlaced.TiFlashReplica)
 	require.Equal(t, []string{"zone", "host"}, rePlaced.TiFlashLocationLabels)
 	require.True(t, rePlaced.Cached)
+	require.True(t, rePlaced.GetColumn("d_col").DefaultDropped)
 
 	// LoadMetadataInto clears database-level placement policy & TiFlash settings when unset in target snapshot.
 	_, err = restored.LoadMetadataInto(context.Background(), &metadata.DatabaseSchemaMetadata{

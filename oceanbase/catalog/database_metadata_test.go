@@ -442,14 +442,14 @@ func TestDatabaseMetadataViewOptionsTablespaceAndCharsetExplicit(t *testing.T) {
 	for _, col := range s.Tables[0].Columns {
 		cols[col.Name] = col
 	}
-	require.True(t, cols["bare_col"].CharsetInherited)
-	require.True(t, cols["bare_col"].CollationInherited)
-	require.False(t, cols["cs_col"].CharsetInherited)
-	require.True(t, cols["cs_col"].CollationInherited)
-	require.True(t, cols["col_col"].CharsetInherited)
-	require.False(t, cols["col_col"].CollationInherited)
-	require.False(t, cols["id"].CharsetInherited)
-	require.False(t, cols["id"].CollationInherited)
+	require.True(t, cols["bare_col"].GetCharsetInherited())
+	require.True(t, cols["bare_col"].GetCollationInherited())
+	require.False(t, cols["cs_col"].GetCharsetInherited())
+	require.True(t, cols["cs_col"].GetCollationInherited())
+	require.True(t, cols["col_col"].GetCharsetInherited())
+	require.False(t, cols["col_col"].GetCollationInherited())
+	require.False(t, cols["id"].GetCharsetInherited())
+	require.False(t, cols["id"].GetCollationInherited())
 
 	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
 	require.Equal(t, "LOCAL", s.Views[1].CheckOption)
@@ -612,13 +612,17 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 			k INT,
 			s INT,
 			txt VARCHAR(100),
+			explicit_c VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			inherited_c VARCHAR(20),
+			d_col INT DEFAULT 1,
 			v VECTOR(3),
 			note VARCHAR(50) COMMENT 'it''s a \\ path',
 			PRIMARY KEY (id),
 			KEY k_global (k) GLOBAL STORING (s) KEY_BLOCK_SIZE = 4,
 			FULLTEXT KEY ft_txt (txt) WITH PARSER ik PARSER_PROPERTIES=(ik_mode='smart'),
 			VECTOR KEY v_cos (v) WITH (TYPE=HNSW, DISTANCE=COSINE, LIB=VSAG)
-		) TABLESPACE ts_ob COMMENT='O''Reilly' PARTITION BY HASH (id) PARTITIONS 2;
+		) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TABLESPACE ts_ob COMMENT='O''Reilly' PARTITION BY HASH (id) PARTITIONS 2 WITH COLUMN GROUP(all columns);
+		ALTER TABLE ob_tbl ALTER COLUMN d_col DROP DEFAULT;
 		CREATE MATERIALIZED VIEW LOG ON ob_tbl;
 		CREATE MATERIALIZED VIEW mv_pk (PRIMARY KEY (id)) AS SELECT id, note FROM ob_tbl;
 		CREATE VIEW v_ob AS SELECT id, note FROM ob_tbl WITH LOCAL CHECK OPTION;
@@ -649,6 +653,10 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.Contains(t, obDef, "FULLTEXT KEY `ft_txt` (`txt`) WITH PARSER ik PARSER_PROPERTIES=(ik_mode='smart')")
 	require.Contains(t, obDef, "CREATE MATERIALIZED VIEW LOG ON `ob_tbl`;")
 	require.Contains(t, obDef, "CREATE MATERIALIZED VIEW `mv_pk` (PRIMARY KEY (`id`))")
+	require.Contains(t, obDef, "WITH COLUMN GROUP(all columns)")
+	require.Contains(t, obDef, "`explicit_c` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
+	require.Contains(t, obDef, "`inherited_c` varchar(20) DEFAULT NULL")
+	require.Contains(t, obDef, "ALTER TABLE `ob_tbl` ALTER COLUMN `d_col` DROP DEFAULT;")
 	require.Contains(t, obDef, "CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_ob`")
 	require.Contains(t, obDef, "WITH LOCAL CHECK OPTION")
 
@@ -656,6 +664,11 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	_, err = restoredOB.Exec("CREATE DATABASE def_ob;\nUSE def_ob;\n"+obDef, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 	require.True(t, restoredOB.GetDatabase("def_ob").MaterializedViewLogs["ob_tbl"])
+	reOBTbl := restoredOB.GetDatabase("def_ob").GetTable("ob_tbl")
+	require.True(t, reOBTbl.GetColumn("d_col").DefaultDropped)
+	require.False(t, reOBTbl.ColumnGroups.IsEmpty())
+	require.True(t, reOBTbl.GetColumn("explicit_c").CharsetExplicit)
+	require.False(t, reOBTbl.GetColumn("inherited_c").CharsetExplicit)
 	reMVPK := restoredOB.GetDatabase("def_ob").Views["mv_pk"]
 	require.NotNil(t, reMVPK)
 	require.Len(t, reMVPK.Indexes, 1)

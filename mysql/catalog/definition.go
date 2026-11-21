@@ -669,8 +669,17 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 		}
 	}
 
-	_, err := io.WriteString(buf, ";\n\n")
-	return err
+	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
+		return err
+	}
+	for _, col := range table.Columns {
+		if col.GetDefaultDropped() {
+			if _, err := fmt.Fprintf(buf, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePartitionMetadata, engine string) error {
@@ -760,11 +769,16 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 	}
 
 	subUseDefault := 0
+	subImplicitDefault := false
 	if len(partitions[0].Subpartitions) > 0 && partitions[0].Subpartitions[0].UseDefault != "" {
-		var err error
-		subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
-		if err != nil {
-			return err
+		if partitions[0].Subpartitions[0].UseDefault == "default" {
+			subImplicitDefault = true
+		} else {
+			var err error
+			subUseDefault, err = strconv.Atoi(partitions[0].Subpartitions[0].UseDefault)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -807,7 +821,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				return err
 			}
 
-			if subUseDefault == 0 && len(partition.Subpartitions) > 0 {
+			if !subImplicitDefault && subUseDefault == 0 && len(partition.Subpartitions) > 0 {
 				if _, err := fmt.Fprint(buf, "\n ("); err != nil {
 					return err
 				}
@@ -1304,13 +1318,13 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 		return err
 	}
 
-	if column.CharacterSet != "" && column.CharacterSet != table.Charset {
+	if column.CharacterSet != "" && (column.CharsetInherited != nil && !*column.CharsetInherited || column.CharacterSet != table.Charset) {
 		if _, err := fmt.Fprintf(buf, " CHARACTER SET %s", column.CharacterSet); err != nil {
 			return err
 		}
 	}
 
-	if column.Collation != "" && column.Collation != table.Collation {
+	if column.Collation != "" && (column.CollationInherited != nil && !*column.CollationInherited || column.Collation != table.Collation) {
 		if _, err := fmt.Fprintf(buf, " COLLATE %s", column.Collation); err != nil {
 			return err
 		}
@@ -1338,6 +1352,11 @@ func printColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata, ta
 
 	if !column.Nullable {
 		if _, err := fmt.Fprint(buf, " NOT NULL"); err != nil {
+			return err
+		}
+	}
+	if column.NotSecondary {
+		if _, err := fmt.Fprint(buf, " NOT SECONDARY"); err != nil {
 			return err
 		}
 	}

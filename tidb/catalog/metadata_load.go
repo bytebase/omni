@@ -12,13 +12,16 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	mysqlast "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 	nodes "github.com/bytebase/omni/tidb/ast"
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 // LoadMetadataReport lists the snapshot objects LoadMetadata could not install
-// as the snapshot defines them. Keys are "table:<name>", "view:<name>" and
-// "sequence:<name>".
+// as the snapshot defines them. Keys are "table:<name>", "view:<name>",
+// "sequence:<name>", "function:<name>", "procedure:<name>",
+// "trigger:<table>.<name>", and "event:<name>".
 type LoadMetadataReport struct {
 	// Degraded maps each object replaced by a stand-in to the error its
 	// definition failed with.
@@ -109,7 +112,11 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			continue
 		}
 		if standInErr := c.installStandIn(o); standInErr != nil {
-			report.Missing[o.key()] = standInErr
+			if errors.Is(standInErr, errNoStandIn) {
+				report.Missing[o.key()] = err
+			} else {
+				report.Missing[o.key()] = standInErr
+			}
 			continue
 		}
 		report.Degraded[o.key()] = err
@@ -184,20 +191,30 @@ const (
 	metadataSequence metadataObjectKind = iota
 	metadataTable
 	metadataView
+	metadataFunction
+	metadataProcedure
+	metadataTrigger
+	metadataEvent
 )
 
 // metadataObject is one install step. The metadata pointer matching kind is
 // set.
 type metadataObject struct {
-	kind metadataObjectKind
-	name string
+	kind   metadataObjectKind
+	name   string
+	parent string
+	order  int
 	// snapshotDatabase is the database the snapshot's references qualify
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
 
-	table    *metadata.TableMetadata
-	view     *metadata.ViewMetadata
-	sequence *metadata.SequenceMetadata
+	table     *metadata.TableMetadata
+	view      *metadata.ViewMetadata
+	sequence  *metadata.SequenceMetadata
+	function  *metadata.FunctionMetadata
+	procedure *metadata.ProcedureMetadata
+	trigger   *metadata.TriggerMetadata
+	event     *metadata.EventMetadata
 
 	// incomplete is the first part of a table's definition its install left out.
 	incomplete error
@@ -210,8 +227,16 @@ func (o *metadataObject) key() string {
 		return "sequence:" + o.name
 	case metadataTable:
 		return "table:" + o.name
-	default:
+	case metadataView:
 		return "view:" + o.name
+	case metadataFunction:
+		return "function:" + o.name
+	case metadataProcedure:
+		return "procedure:" + o.name
+	case metadataTrigger:
+		return "trigger:" + o.parent + "." + o.name
+	default:
+		return "event:" + o.name
 	}
 }
 
@@ -223,8 +248,14 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 	var out []*metadataObject
 	for _, s := range meta.GetSchemas() {
 		for _, t := range s.GetTables() {
-			if t.GetName() != "" {
-				out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
+			if t.GetName() == "" {
+				continue
+			}
+			out = append(out, &metadataObject{kind: metadataTable, name: t.GetName(), table: t, snapshotDatabase: meta.GetName()})
+			for i, trg := range t.GetTriggers() {
+				if trg.GetName() != "" {
+					out = append(out, &metadataObject{kind: metadataTrigger, name: trg.GetName(), parent: t.GetName(), order: i, trigger: trg})
+				}
 			}
 		}
 		for _, v := range s.GetViews() {
@@ -237,8 +268,26 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				out = append(out, &metadataObject{kind: metadataSequence, name: q.GetName(), sequence: q})
 			}
 		}
+		for _, fn := range s.GetFunctions() {
+			if fn.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataFunction, name: fn.GetName(), function: fn})
+			}
+		}
+		for _, proc := range s.GetProcedures() {
+			if proc.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataProcedure, name: proc.GetName(), procedure: proc})
+			}
+		}
+		for _, ev := range s.GetEvents() {
+			if ev.GetName() != "" {
+				out = append(out, &metadataObject{kind: metadataEvent, name: ev.GetName(), event: ev})
+			}
+		}
 	}
 	slices.SortFunc(out, func(a, b *metadataObject) int {
+		if a.kind == metadataTrigger && b.kind == metadataTrigger {
+			return cmp.Or(cmp.Compare(a.parent, b.parent), cmp.Compare(a.order, b.order), cmp.Compare(a.name, b.name))
+		}
 		return cmp.Or(cmp.Compare(a.kind, b.kind), cmp.Compare(a.name, b.name))
 	})
 	return out
@@ -247,10 +296,10 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 // --- Installing ---
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
-	if o.kind == metadataSequence {
+	switch o.kind {
+	case metadataSequence:
 		return c.installMetadataSequence(o.sequence)
-	}
-	if o.kind == metadataView {
+	case metadataView:
 		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, c.CurrentDatabase())
 		if err != nil {
 			return err
@@ -263,6 +312,35 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		// not a column list the view was created with, so they stay inferred.
 		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
 		return nil
+	case metadataFunction:
+		stmt, err := parseTiDBRoutine(o.function.GetDefinition(), false)
+		if err != nil {
+			return err
+		}
+		return c.DefineFunction(stmt)
+	case metadataProcedure:
+		stmt, err := parseTiDBRoutine(o.procedure.GetDefinition(), true)
+		if err != nil {
+			return err
+		}
+		return c.DefineProcedure(stmt)
+	case metadataTrigger:
+		if o.trigger.GetTiming() == "" || o.trigger.GetEvent() == "" {
+			return errors.New("trigger has no timing or event")
+		}
+		return c.DefineTrigger(&nodes.CreateTriggerStmt{
+			Name:     o.trigger.GetName(),
+			Timing:   o.trigger.GetTiming(),
+			Event:    o.trigger.GetEvent(),
+			Table:    &nodes.TableRef{Name: o.parent},
+			BodyText: o.trigger.GetBody(),
+		})
+	case metadataEvent:
+		stmt, err := parseTiDBEvent(o.event.GetDefinition())
+		if err != nil {
+			return err
+		}
+		return c.DefineEvent(stmt)
 	}
 	stmt, omitted, err := metadataTableStmt(o.table, o.snapshotDatabase)
 	if err != nil {
@@ -957,12 +1035,36 @@ func nameViewColumns(v *View, names []string) {
 
 // --- Stand-ins ---
 
-// installStandIn installs o's stand-in.
+var errNoStandIn = errors.New("no stand-in for this kind of object")
+
+// installStandIn installs o's stand-in, or returns errNoStandIn for a kind
+// without one.
 func (c *Catalog) installStandIn(o *metadataObject) error {
-	if o.kind == metadataView {
+	switch o.kind {
+	case metadataTable:
+		return c.DefineTable(standInTableStmt(o.table))
+	case metadataView:
 		return c.DefineView(standInViewStmt(o.view))
+	case metadataTrigger:
+		timing, event := o.trigger.GetTiming(), o.trigger.GetEvent()
+		if timing == "" {
+			timing = "BEFORE"
+		}
+		if event == "" {
+			event = "INSERT"
+		}
+		return c.DefineTrigger(&nodes.CreateTriggerStmt{
+			Name:     o.name,
+			Timing:   timing,
+			Event:    event,
+			Table:    &nodes.TableRef{Name: o.parent},
+			BodyText: "BEGIN END",
+		})
+	case metadataEvent:
+		return c.DefineEvent(&nodes.CreateEventStmt{Name: o.name})
+	default:
+		return errNoStandIn
 	}
-	return c.DefineTable(standInTableStmt(o.table))
 }
 
 // standInPlaceholder names the one column of a stand-in with no column names;
@@ -1110,4 +1212,88 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
 	}
 	return s
+}
+
+func parseMySQLFirst[T mysqlast.Node](sql string) (T, error) {
+	var zero T
+	if strings.TrimSpace(sql) == "" {
+		return zero, errors.New("empty definition")
+	}
+	list, err := mysqlparser.Parse(sql)
+	if err != nil {
+		return zero, err
+	}
+	if list != nil {
+		for _, item := range list.Items {
+			if stmt, ok := item.(T); ok {
+				return stmt, nil
+			}
+		}
+	}
+	return zero, fmt.Errorf("no %T statement", zero)
+}
+
+func toTiDBDataType(dt *mysqlast.DataType) *nodes.DataType {
+	if dt == nil {
+		return nil
+	}
+	return &nodes.DataType{
+		Name:     dt.Name,
+		Length:   dt.Length,
+		Scale:    dt.Scale,
+		Unsigned: dt.Unsigned,
+		Charset:  dt.Charset,
+	}
+}
+
+func parseTiDBRoutine(definition string, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
+	src, err := parseMySQLFirst[*mysqlast.CreateFunctionStmt](definition)
+	if err != nil {
+		return nil, err
+	}
+	var name *nodes.TableRef
+	if src.Name != nil {
+		name = &nodes.TableRef{Name: src.Name.Name}
+	}
+	params := make([]*nodes.FuncParam, 0, len(src.Params))
+	for _, p := range src.Params {
+		params = append(params, &nodes.FuncParam{
+			Direction: p.Direction,
+			Name:      p.Name,
+			TypeName:  toTiDBDataType(p.TypeName),
+		})
+	}
+	chars := make([]*nodes.RoutineCharacteristic, 0, len(src.Characteristics))
+	for _, ch := range src.Characteristics {
+		chars = append(chars, &nodes.RoutineCharacteristic{Name: ch.Name, Value: ch.Value})
+	}
+	return &nodes.CreateFunctionStmt{
+		IsProcedure:     isProcedure,
+		Definer:         src.Definer,
+		Name:            name,
+		Params:          params,
+		Returns:         toTiDBDataType(src.Returns),
+		BodyText:        src.BodyText,
+		Characteristics: chars,
+	}, nil
+}
+
+func parseTiDBEvent(definition string) (*nodes.CreateEventStmt, error) {
+	src, err := parseMySQLFirst[*mysqlast.CreateEventStmt](definition)
+	if err != nil {
+		return nil, err
+	}
+	var schedule *nodes.EventSchedule
+	if src.Schedule != nil {
+		schedule = &nodes.EventSchedule{RawText: src.Schedule.RawText}
+	}
+	return &nodes.CreateEventStmt{
+		Definer:      src.Definer,
+		Name:         src.Name,
+		Schedule:     schedule,
+		OnCompletion: src.OnCompletion,
+		Enable:       src.Enable,
+		Comment:      src.Comment,
+		BodyText:     src.BodyText,
+	}, nil
 }
