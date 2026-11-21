@@ -4,52 +4,52 @@ import "github.com/bytebase/omni/mongo/ast"
 
 // dbMethodNames maps keyword token types to method name strings for known database methods.
 var dbMethodNames = map[int]string{
-	kwGetName:                  "getName",
-	kwGetSiblingDB:             "getSiblingDB",
-	kwGetMongo:                 "getMongo",
-	kwGetCollectionNames:       "getCollectionNames",
-	kwGetCollectionInfos:       "getCollectionInfos",
-	kwGetCollection:            "getCollection",
-	kwCreateCollection:         "createCollection",
-	kwCreateView:               "createView",
-	kwDropDatabase:             "dropDatabase",
-	kwAdminCommand:             "adminCommand",
-	kwRunCommand:               "runCommand",
-	kwGetProfilingStatus:       "getProfilingStatus",
-	kwSetProfilingLevel:        "setProfilingLevel",
-	kwGetLogComponents:         "getLogComponents",
-	kwSetLogLevel:              "setLogLevel",
-	kwFsyncLock:                "fsyncLock",
-	kwFsyncUnlock:              "fsyncUnlock",
-	kwCurrentOp:                "currentOp",
-	kwKillOp:                   "killOp",
-	kwGetUser:                  "getUser",
-	kwGetUsers:                 "getUsers",
-	kwCreateUser:               "createUser",
-	kwUpdateUser:               "updateUser",
-	kwDropUser:                 "dropUser",
-	kwDropAllUsers:             "dropAllUsers",
-	kwGrantRolesToUser:         "grantRolesToUser",
-	kwRevokeRolesFromUser:      "revokeRolesFromUser",
-	kwGetRole:                  "getRole",
-	kwGetRoles:                 "getRoles",
-	kwCreateRole:               "createRole",
-	kwUpdateRole:               "updateRole",
-	kwDropRole:                 "dropRole",
-	kwDropAllRoles:             "dropAllRoles",
-	kwGrantPrivilegesToRole:    "grantPrivilegesToRole",
-	kwRevokePrivilegesFromRole: "revokePrivilegesFromRole",
-	kwGrantRolesToRole:         "grantRolesToRole",
-	kwRevokeRolesFromRole:      "revokeRolesFromRole",
-	kwServerStatus:             "serverStatus",
-	kwIsMaster:                 "isMaster",
-	kwHello:                    "hello",
-	kwHostInfo:                 "hostInfo",
-	kwAggregate:                "aggregate",
-	kwWatch:                    "watch",
-	kwStats:                    "stats",
-	kwVersion:                  "version",
-	kwPrintReplicationInfo:     "printReplicationInfo",
+	kwGetName:                       "getName",
+	kwGetSiblingDB:                  "getSiblingDB",
+	kwGetMongo:                      "getMongo",
+	kwGetCollectionNames:            "getCollectionNames",
+	kwGetCollectionInfos:            "getCollectionInfos",
+	kwGetCollection:                 "getCollection",
+	kwCreateCollection:              "createCollection",
+	kwCreateView:                    "createView",
+	kwDropDatabase:                  "dropDatabase",
+	kwAdminCommand:                  "adminCommand",
+	kwRunCommand:                    "runCommand",
+	kwGetProfilingStatus:            "getProfilingStatus",
+	kwSetProfilingLevel:             "setProfilingLevel",
+	kwGetLogComponents:              "getLogComponents",
+	kwSetLogLevel:                   "setLogLevel",
+	kwFsyncLock:                     "fsyncLock",
+	kwFsyncUnlock:                   "fsyncUnlock",
+	kwCurrentOp:                     "currentOp",
+	kwKillOp:                        "killOp",
+	kwGetUser:                       "getUser",
+	kwGetUsers:                      "getUsers",
+	kwCreateUser:                    "createUser",
+	kwUpdateUser:                    "updateUser",
+	kwDropUser:                      "dropUser",
+	kwDropAllUsers:                  "dropAllUsers",
+	kwGrantRolesToUser:              "grantRolesToUser",
+	kwRevokeRolesFromUser:           "revokeRolesFromUser",
+	kwGetRole:                       "getRole",
+	kwGetRoles:                      "getRoles",
+	kwCreateRole:                    "createRole",
+	kwUpdateRole:                    "updateRole",
+	kwDropRole:                      "dropRole",
+	kwDropAllRoles:                  "dropAllRoles",
+	kwGrantPrivilegesToRole:         "grantPrivilegesToRole",
+	kwRevokePrivilegesFromRole:      "revokePrivilegesFromRole",
+	kwGrantRolesToRole:              "grantRolesToRole",
+	kwRevokeRolesFromRole:           "revokeRolesFromRole",
+	kwServerStatus:                  "serverStatus",
+	kwIsMaster:                      "isMaster",
+	kwHello:                         "hello",
+	kwHostInfo:                      "hostInfo",
+	kwAggregate:                     "aggregate",
+	kwWatch:                         "watch",
+	kwStats:                         "stats",
+	kwVersion:                       "version",
+	kwPrintReplicationInfo:          "printReplicationInfo",
 	kwPrintSecondaryReplicationInfo: "printSecondaryReplicationInfo",
 }
 
@@ -90,8 +90,8 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 	identTok := p.cur
 	identName := identTok.Str
 
-	// Check for getMongo — could be encryption chain, connection chain, or standalone
-	if identTok.Type == kwGetMongo {
+	// Check for getMongo() — could be encryption chain, connection chain, or standalone
+	if identTok.Type == kwGetMongo && p.peekNext().Type == '(' {
 		p.advance() // consume getMongo
 		// Parse getMongo()
 		args, err := p.parseArguments()
@@ -134,25 +134,29 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 		}, nil
 	}
 
-	// Check for getCollection("name") → collection access
-	if identTok.Type == kwGetCollection {
+	// Check for getCollection("name").method() → collection access, or standalone db.getCollection(...)
+	if identTok.Type == kwGetCollection && p.peekNext().Type == '(' {
 		p.advance() // consume getCollection
-		if _, err := p.expect('('); err != nil {
+		args, err := p.parseArguments()
+		if err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokString {
-			return nil, p.errorAtCur("expected string argument for getCollection()")
+		if p.cur.Type == '.' {
+			if len(args) != 1 {
+				return nil, p.errorAtCur("expected string argument for getCollection()")
+			}
+			strArg, ok := args[0].(*ast.StringLiteral)
+			if !ok {
+				return nil, p.errorAtCur("expected string argument for getCollection()")
+			}
+			p.advance() // consume '.'
+			return p.parseCollectionStatement(strArg.Value, strArg.Loc, "getCollection", stmtStart)
 		}
-		collName := p.cur.Str
-		collTok := p.advance()
-		collLoc := ast.Loc{Start: collTok.Loc, End: collTok.End}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect('.'); err != nil {
-			return nil, err
-		}
-		return p.parseCollectionStatement(collName, collLoc, "getCollection", stmtStart)
+		return &ast.DatabaseStatement{
+			Method: "getCollection",
+			Args:   args,
+			Loc:    ast.Loc{Start: stmtStart, End: p.prev.End},
+		}, nil
 	}
 
 	// Check if this is a known database method followed by '('
@@ -162,10 +166,15 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		chain, err := p.parseDatabaseMethodChain(identName)
+		if err != nil {
+			return nil, err
+		}
 		return &ast.DatabaseStatement{
-			Method: identName,
-			Args:   args,
-			Loc:    ast.Loc{Start: stmtStart, End: p.prev.End},
+			Method:         identName,
+			Args:           args,
+			ChainedMethods: chain,
+			Loc:            ast.Loc{Start: stmtStart, End: p.prev.End},
 		}, nil
 	}
 
@@ -180,10 +189,15 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		chain, err := p.parseDatabaseMethodChain(identName)
+		if err != nil {
+			return nil, err
+		}
 		return &ast.DatabaseStatement{
-			Method: identName,
-			Args:   args,
-			Loc:    ast.Loc{Start: stmtStart, End: p.prev.End},
+			Method:         identName,
+			Args:           args,
+			ChainedMethods: chain,
+			Loc:            ast.Loc{Start: stmtStart, End: p.prev.End},
 		}, nil
 	}
 
@@ -196,4 +210,38 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 	}
 
 	return nil, p.syntaxErrorAtCur()
+}
+
+// parseDatabaseMethodChain parses optional trailing .method(args)... calls on a
+// database method result (e.g. db.aggregate([...]).toArray(),
+// db.watch().getResumeToken(), db.getSiblingDB("other").getMongo(), or
+// db.getSiblingDB("other").users.find()).
+func (p *Parser) parseDatabaseMethodChain(dbMethod string) ([]ast.MethodCall, error) {
+	var chain []ast.MethodCall
+	for p.cur.Type == '.' {
+		p.advance() // consume '.'
+		name, tok, err := p.expectIdent()
+		if err != nil {
+			return nil, err
+		}
+		// After getSiblingDB(...), allow one collection property segment before a method call:
+		//   db.getSiblingDB("other").users.find()
+		if dbMethod == "getSiblingDB" && len(chain) == 0 && p.cur.Type == '.' {
+			chain = append(chain, ast.MethodCall{
+				Name: name,
+				Loc:  ast.Loc{Start: tok.Loc, End: tok.End},
+			})
+			continue
+		}
+		args, err := p.parseArguments()
+		if err != nil {
+			return nil, err
+		}
+		chain = append(chain, ast.MethodCall{
+			Name: name,
+			Args: args,
+			Loc:  ast.Loc{Start: tok.Loc, End: p.prev.End},
+		})
+	}
+	return chain, nil
 }

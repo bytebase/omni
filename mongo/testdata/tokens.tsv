@@ -1,0 +1,15 @@
+# MongoDB Shell (mongosh) token forms for generated compat rows: the text
+# written for each terminal class in MongoShell.g4. Keywords, method names, and
+# punctuation are literals in the grammar and need no row. Sources:
+#   github.com/mongodb-js/mongosh@82c228b597c3221de59bdbfaff4c346622780cdd (v2.14.3)
+#   ECMAScript / mongosh lexical tokens (identifiers, strings, numbers, regexes,
+#   and $-prefixed MongoDB query/aggregation operators).
+# A sample of one name, string, number, or $-variable stands for its class when
+# the docs recognizer reads a statement.
+# columns: token, form, note
+IDENT	a	identifier (ASCII letter, _, or Unicode letter followed by letters, digits, _, $)
+STRING	's'	string literal (single-quoted so the shared recognizer lexes it as a string class; mongosh accepts single and double quotes)
+NUMBER	1	numeric literal (integer, float, hex, or scientific notation)
+NEG_NUMBER	-1	negative numeric literal (mongosh lexes leading '-' immediately before digits as one signed number)
+REGEX	/a/i	JavaScript / BSON regular expression literal (/pattern/flags)
+FIELD_OP	$gt	$-prefixed MongoDB operator or field path key in a document literal

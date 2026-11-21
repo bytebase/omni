@@ -16,9 +16,10 @@ type Node interface {
 // Statement nodes — one per mongosh command family
 // ---------------------------------------------------------------------------
 
-// ShowCommand represents show dbs, show collections, show profile, etc.
+// ShowCommand represents show dbs, show collections, show profile, show log <name>, etc.
 type ShowCommand struct {
-	Target string // e.g. "dbs", "collections", "profile"
+	Target string // e.g. "databases", "collections", "profile", "log"
+	Arg    string // optional argument (e.g. log name in "show log global")
 	Loc    Loc
 }
 
@@ -40,11 +41,14 @@ type CollectionStatement struct {
 
 func (n *CollectionStatement) GetLoc() Loc { return n.Loc }
 
-// DatabaseStatement represents db.method() calls (e.g. db.getCollectionNames()).
+// DatabaseStatement represents db.method() calls (e.g. db.getCollectionNames()),
+// optionally followed by chained method calls (e.g. db.aggregate([...]).toArray(),
+// db.getSiblingDB("other").users.find()).
 type DatabaseStatement struct {
-	Method string // method name
-	Args   []Node // arguments
-	Loc    Loc
+	Method         string       // method name
+	Args           []Node       // arguments
+	ChainedMethods []MethodCall // optional chained method/property calls
+	Loc            Loc
 }
 
 func (n *DatabaseStatement) GetLoc() Loc { return n.Loc }

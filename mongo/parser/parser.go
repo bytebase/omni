@@ -111,7 +111,28 @@ func (p *Parser) skipToNextStatement() {
 func (p *Parser) parseStatement() (ast.Node, error) {
 	switch p.cur.Type {
 	case kwShow:
+		if p.peekNext().Type == '(' {
+			return p.parseNativeFunctionCall()
+		}
 		return p.parseShowCommand()
+	case kwUse:
+		if p.peekNext().Type == '(' {
+			return p.parseNativeFunctionCall()
+		}
+		return p.parseUseCommand()
+	case kwExit, kwQuit, kwIt, kwCls:
+		if p.peekNext().Type == '(' {
+			return p.parseNativeFunctionCall()
+		}
+		return p.parseDirectShellCommand()
+	case kwConfig, kwEJSON:
+		if p.peekNext().Type == '.' {
+			return p.parseQualifiedNativeCall()
+		}
+		if p.peekNext().Type == '(' {
+			return p.parseNativeFunctionCall()
+		}
+		return nil, p.syntaxErrorAtCur()
 	case kwDb:
 		return p.parseDbStatement()
 	case kwRs:
@@ -131,6 +152,20 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 		}
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// hasNewlineBeforeCur reports whether a line break appeared between the end of
+// the previously consumed token and the start of the current token.
+func (p *Parser) hasNewlineBeforeCur() bool {
+	if p.prev.End <= 0 || p.cur.Loc <= p.prev.End {
+		return false
+	}
+	for i := p.prev.End; i < p.cur.Loc && i < len(p.input); i++ {
+		if p.input[i] == '\n' || p.input[i] == '\r' {
+			return true
+		}
+	}
+	return false
 }
 
 // advance consumes the current token and moves to the next one.

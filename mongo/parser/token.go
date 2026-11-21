@@ -47,198 +47,202 @@ const (
 // mongosh keywords are case-sensitive (unlike SQL).
 const (
 	// --- mongosh top-level objects ---
-	kwDb  = 700 + iota // db
-	kwRs               // rs
-	kwSh               // sh
-	kwSp               // sp
+	kwDb = 700 + iota // db
+	kwRs              // rs
+	kwSh              // sh
+	kwSp              // sp
 
-	// --- show command variants ---
-	kwShow         // show
-	kwDbs          // dbs
-	kwDatabases    // databases
-	kwCollections  // collections
-	kwTables       // tables
-	kwProfile      // profile
-	kwUsers        // users
-	kwRoles        // roles
-	kwLog          // log
-	kwLogs         // logs
-	kwStartupWarnings // startupWarnings
+	// --- show / direct shell command variants ---
+	kwShow                   // show
+	kwUse                    // use
+	kwDbs                    // dbs
+	kwDatabases              // databases
+	kwCollections            // collections
+	kwTables                 // tables
+	kwProfile                // profile
+	kwUsers                  // users
+	kwRoles                  // roles
+	kwLog                    // log
+	kwLogs                   // logs
+	kwStartupWarnings        // startupWarnings
+	kwAutomationNotices      // automationNotices
+	kwNonGenuineMongoDBCheck // nonGenuineMongoDBCheck
 
 	// --- JavaScript literals/keywords ---
-	kwTrue      // true
-	kwFalse     // false
-	kwNull      // null
-	kwUndefined // undefined
-	kwNew       // new
-	kwVar       // var
-	kwLet       // let
-	kwConst     // const
-	kwFunction  // function
-	kwReturn    // return
-	kwIf        // if
-	kwElse      // else
-	kwFor       // for
-	kwWhile     // while
-	kwDo        // do
-	kwBreak     // break
-	kwContinue  // continue
-	kwSwitch    // switch
-	kwCase      // case
-	kwDefault   // default
-	kwThrow     // throw
-	kwTry       // try
-	kwCatch     // catch
-	kwFinally   // finally
-	kwTypeof    // typeof
+	kwTrue       // true
+	kwFalse      // false
+	kwNull       // null
+	kwUndefined  // undefined
+	kwNew        // new
+	kwVar        // var
+	kwLet        // let
+	kwConst      // const
+	kwFunction   // function
+	kwReturn     // return
+	kwIf         // if
+	kwElse       // else
+	kwFor        // for
+	kwWhile      // while
+	kwDo         // do
+	kwBreak      // break
+	kwContinue   // continue
+	kwSwitch     // switch
+	kwCase       // case
+	kwDefault    // default
+	kwThrow      // throw
+	kwTry        // try
+	kwCatch      // catch
+	kwFinally    // finally
+	kwTypeof     // typeof
 	kwInstanceof // instanceof
-	kwVoid      // void
-	kwDelete    // delete
-	kwIn        // in
-	kwOf        // of
-	kwThis      // this
-	kwClass     // class
-	kwExtends   // extends
-	kwSuper     // super
-	kwYield     // yield
-	kwAsync     // async
-	kwAwait     // await
-	kwExport    // export
-	kwImport    // import
-	kwFrom      // from
+	kwVoid       // void
+	kwDelete     // delete
+	kwIn         // in
+	kwOf         // of
+	kwThis       // this
+	kwClass      // class
+	kwExtends    // extends
+	kwSuper      // super
+	kwYield      // yield
+	kwAsync      // async
+	kwAwait      // await
+	kwExport     // export
+	kwImport     // import
+	kwFrom       // from
 
 	// --- BSON helpers ---
-	kwObjectId       // ObjectId
-	kwNumberLong     // NumberLong
-	kwNumberInt      // NumberInt
-	kwNumberDecimal  // NumberDecimal
-	kwTimestamp      // Timestamp
-	kwDate           // Date
-	kwISODate        // ISODate
-	kwUUID           // UUID
-	kwMD5            // MD5
-	kwHexData        // HexData
-	kwBinData        // BinData
-	kwCode           // Code
-	kwDBRef          // DBRef
-	kwMinKey         // MinKey
-	kwMaxKey         // MaxKey
-	kwRegExp         // RegExp
-	kwSymbol         // Symbol
+	kwObjectId      // ObjectId
+	kwNumberLong    // NumberLong
+	kwNumberInt     // NumberInt
+	kwNumberDecimal // NumberDecimal
+	kwTimestamp     // Timestamp
+	kwDate          // Date
+	kwISODate       // ISODate
+	kwUUID          // UUID
+	kwMD5           // MD5
+	kwHexData       // HexData
+	kwBinData       // BinData
+	kwCode          // Code
+	kwDBRef         // DBRef
+	kwMinKey        // MinKey
+	kwMaxKey        // MaxKey
+	kwRegExp        // RegExp
+	kwSymbol        // Symbol
+	kwEJSON         // EJSON
 
 	// --- Collection methods ---
-	kwFind             // find
-	kwFindOne          // findOne
-	kwFindOneAndDelete // findOneAndDelete
-	kwFindOneAndReplace // findOneAndReplace
-	kwFindOneAndUpdate  // findOneAndUpdate
-	kwInsertOne        // insertOne
-	kwInsertMany       // insertMany
-	kwUpdateOne        // updateOne
-	kwUpdateMany       // updateMany
-	kwDeleteOne        // deleteOne
-	kwDeleteMany       // deleteMany
-	kwReplaceOne       // replaceOne
-	kwBulkWrite        // bulkWrite
-	kwAggregate        // aggregate
-	kwCount            // count
-	kwCountDocuments   // countDocuments
+	kwFind                   // find
+	kwFindOne                // findOne
+	kwFindOneAndDelete       // findOneAndDelete
+	kwFindOneAndReplace      // findOneAndReplace
+	kwFindOneAndUpdate       // findOneAndUpdate
+	kwInsertOne              // insertOne
+	kwInsertMany             // insertMany
+	kwUpdateOne              // updateOne
+	kwUpdateMany             // updateMany
+	kwDeleteOne              // deleteOne
+	kwDeleteMany             // deleteMany
+	kwReplaceOne             // replaceOne
+	kwBulkWrite              // bulkWrite
+	kwAggregate              // aggregate
+	kwCount                  // count
+	kwCountDocuments         // countDocuments
 	kwEstimatedDocumentCount // estimatedDocumentCount
-	kwDistinct         // distinct
-	kwMapReduce        // mapReduce
-	kwWatch            // watch
-	kwCreateIndex      // createIndex
-	kwCreateIndexes    // createIndexes
-	kwDropIndex        // dropIndex
-	kwDropIndexes      // dropIndexes
-	kwGetIndexes       // getIndexes
-	kwReIndex          // reIndex
-	kwDrop             // drop
-	kwRenameCollection // renameCollection
-	kwStats            // stats
-	kwDataSize         // dataSize
-	kwStorageSize      // storageSize
-	kwTotalSize        // totalSize
-	kwTotalIndexSize   // totalIndexSize
-	kwValidate         // validate
-	kwExplain          // explain
-	kwGetShardDistribution // getShardDistribution
-	kwLatencyStats     // latencyStats
+	kwDistinct               // distinct
+	kwMapReduce              // mapReduce
+	kwWatch                  // watch
+	kwCreateIndex            // createIndex
+	kwCreateIndexes          // createIndexes
+	kwDropIndex              // dropIndex
+	kwDropIndexes            // dropIndexes
+	kwGetIndexes             // getIndexes
+	kwReIndex                // reIndex
+	kwDrop                   // drop
+	kwRenameCollection       // renameCollection
+	kwStats                  // stats
+	kwDataSize               // dataSize
+	kwStorageSize            // storageSize
+	kwTotalSize              // totalSize
+	kwTotalIndexSize         // totalIndexSize
+	kwValidate               // validate
+	kwExplain                // explain
+	kwGetShardDistribution   // getShardDistribution
+	kwLatencyStats           // latencyStats
 
 	// --- Cursor methods ---
-	kwSort      // sort
-	kwLimit     // limit
-	kwSkip      // skip
-	kwToArray   // toArray
-	kwForEach   // forEach
-	kwMap       // map
-	kwHasNext   // hasNext
-	kwNext      // next
-	kwItcount   // itcount
-	kwSize      // size
-	kwPretty    // pretty
-	kwHint      // hint
-	kwMin       // min
-	kwMax       // max
-	kwReadPref  // readPref
-	kwComment   // comment
-	kwBatchSize // batchSize
-	kwClose     // close
-	kwCollation // collation
-	kwNoCursorTimeout // noCursorTimeout
+	kwSort                // sort
+	kwLimit               // limit
+	kwSkip                // skip
+	kwToArray             // toArray
+	kwForEach             // forEach
+	kwMap                 // map
+	kwHasNext             // hasNext
+	kwNext                // next
+	kwItcount             // itcount
+	kwSize                // size
+	kwPretty              // pretty
+	kwHint                // hint
+	kwMin                 // min
+	kwMax                 // max
+	kwReadPref            // readPref
+	kwComment             // comment
+	kwBatchSize           // batchSize
+	kwClose               // close
+	kwCollation           // collation
+	kwNoCursorTimeout     // noCursorTimeout
 	kwAllowPartialResults // allowPartialResults
-	kwReturnKey // returnKey
-	kwShowRecordId // showRecordId
-	kwAllowDiskUse // allowDiskUse
-	kwMaxTimeMS // maxTimeMS
-	kwReadConcern // readConcern
-	kwWriteConcern // writeConcern
-	kwTailable  // tailable
-	kwOplogReplay // oplogReplay
-	kwProjection  // projection
+	kwReturnKey           // returnKey
+	kwShowRecordId        // showRecordId
+	kwAllowDiskUse        // allowDiskUse
+	kwMaxTimeMS           // maxTimeMS
+	kwReadConcern         // readConcern
+	kwWriteConcern        // writeConcern
+	kwTailable            // tailable
+	kwOplogReplay         // oplogReplay
+	kwProjection          // projection
 
 	// --- Database methods ---
-	kwGetName                 // getName
-	kwGetSiblingDB            // getSiblingDB
-	kwGetMongo                // getMongo
-	kwGetCollectionNames      // getCollectionNames
-	kwGetCollectionInfos      // getCollectionInfos
-	kwGetCollection           // getCollection
-	kwCreateCollection        // createCollection
-	kwCreateView              // createView
-	kwDropDatabase            // dropDatabase
-	kwAdminCommand            // adminCommand
-	kwRunCommand              // runCommand
-	kwGetProfilingStatus      // getProfilingStatus
-	kwSetProfilingLevel       // setProfilingLevel
-	kwGetLogComponents        // getLogComponents
-	kwSetLogLevel             // setLogLevel
-	kwFsyncLock               // fsyncLock
-	kwFsyncUnlock             // fsyncUnlock
-	kwCurrentOp               // currentOp
-	kwKillOp                  // killOp
-	kwGetUser                 // getUser
-	kwGetUsers                // getUsers
-	kwCreateUser              // createUser
-	kwUpdateUser              // updateUser
-	kwDropUser                // dropUser
-	kwDropAllUsers            // dropAllUsers
-	kwGrantRolesToUser        // grantRolesToUser
-	kwRevokeRolesFromUser     // revokeRolesFromUser
-	kwGetRole                 // getRole
-	kwGetRoles                // getRoles
-	kwCreateRole              // createRole
-	kwUpdateRole              // updateRole
-	kwDropRole                // dropRole
-	kwDropAllRoles            // dropAllRoles
-	kwGrantPrivilegesToRole   // grantPrivilegesToRole
+	kwGetName                  // getName
+	kwGetSiblingDB             // getSiblingDB
+	kwGetMongo                 // getMongo
+	kwGetCollectionNames       // getCollectionNames
+	kwGetCollectionInfos       // getCollectionInfos
+	kwGetCollection            // getCollection
+	kwCreateCollection         // createCollection
+	kwCreateView               // createView
+	kwDropDatabase             // dropDatabase
+	kwAdminCommand             // adminCommand
+	kwRunCommand               // runCommand
+	kwGetProfilingStatus       // getProfilingStatus
+	kwSetProfilingLevel        // setProfilingLevel
+	kwGetLogComponents         // getLogComponents
+	kwSetLogLevel              // setLogLevel
+	kwFsyncLock                // fsyncLock
+	kwFsyncUnlock              // fsyncUnlock
+	kwCurrentOp                // currentOp
+	kwKillOp                   // killOp
+	kwGetUser                  // getUser
+	kwGetUsers                 // getUsers
+	kwCreateUser               // createUser
+	kwUpdateUser               // updateUser
+	kwDropUser                 // dropUser
+	kwDropAllUsers             // dropAllUsers
+	kwGrantRolesToUser         // grantRolesToUser
+	kwRevokeRolesFromUser      // revokeRolesFromUser
+	kwGetRole                  // getRole
+	kwGetRoles                 // getRoles
+	kwCreateRole               // createRole
+	kwUpdateRole               // updateRole
+	kwDropRole                 // dropRole
+	kwDropAllRoles             // dropAllRoles
+	kwGrantPrivilegesToRole    // grantPrivilegesToRole
 	kwRevokePrivilegesFromRole // revokePrivilegesFromRole
-	kwGrantRolesToRole        // grantRolesToRole
-	kwRevokeRolesFromRole     // revokeRolesFromRole
-	kwServerStatus            // serverStatus
-	kwIsMaster                // isMaster
-	kwHello                   // hello
-	kwHostInfo                // hostInfo
+	kwGrantRolesToRole         // grantRolesToRole
+	kwRevokeRolesFromRole      // revokeRolesFromRole
+	kwServerStatus             // serverStatus
+	kwIsMaster                 // isMaster
+	kwHello                    // hello
+	kwHostInfo                 // hostInfo
 
 	// --- Bulk operations ---
 	kwInitializeOrderedBulkOp   // initializeOrderedBulkOp
@@ -251,62 +255,62 @@ const (
 	kwToJSON                    // toJSON
 
 	// --- Replica set methods ---
-	kwStatus       // status
-	kwConf         // conf
-	kwConfig       // config
-	kwInitiate     // initiate
-	kwReconfig     // reconfig
-	kwAdd          // add
-	kwAddArb       // addArb
-	kwStepDown     // stepDown
-	kwFreeze       // freeze
-	kwSlaveOk      // slaveOk
-	kwSecondaryOk  // secondaryOk
-	kwSyncFrom     // syncFrom
-	kwPrintReplicationInfo     // printReplicationInfo
+	kwStatus                        // status
+	kwConf                          // conf
+	kwConfig                        // config
+	kwInitiate                      // initiate
+	kwReconfig                      // reconfig
+	kwAdd                           // add
+	kwAddArb                        // addArb
+	kwStepDown                      // stepDown
+	kwFreeze                        // freeze
+	kwSlaveOk                       // slaveOk
+	kwSecondaryOk                   // secondaryOk
+	kwSyncFrom                      // syncFrom
+	kwPrintReplicationInfo          // printReplicationInfo
 	kwPrintSecondaryReplicationInfo // printSecondaryReplicationInfo
 
 	// --- Sharding methods ---
-	kwAddShard           // addShard
-	kwAddShardTag        // addShardTag
-	kwAddShardToZone     // addShardToZone
-	kwAddTagRange        // addTagRange
-	kwDisableAutoSplit   // disableAutoSplit
-	kwEnableAutoSplit    // enableAutoSplit
-	kwEnableSharding     // enableSharding
-	kwDisableBalancing   // disableBalancing
-	kwEnableBalancing    // enableBalancing
-	kwGetBalancerState   // getBalancerState
-	kwIsBalancerRunning  // isBalancerRunning
-	kwMoveChunk          // moveChunk
+	kwAddShard            // addShard
+	kwAddShardTag         // addShardTag
+	kwAddShardToZone      // addShardToZone
+	kwAddTagRange         // addTagRange
+	kwDisableAutoSplit    // disableAutoSplit
+	kwEnableAutoSplit     // enableAutoSplit
+	kwEnableSharding      // enableSharding
+	kwDisableBalancing    // disableBalancing
+	kwEnableBalancing     // enableBalancing
+	kwGetBalancerState    // getBalancerState
+	kwIsBalancerRunning   // isBalancerRunning
+	kwMoveChunk           // moveChunk
 	kwRemoveRangeFromZone // removeRangeFromZone
-	kwRemoveShard        // removeShard
-	kwRemoveShardTag     // removeShardTag
+	kwRemoveShard         // removeShard
+	kwRemoveShardTag      // removeShardTag
 	kwRemoveShardFromZone // removeShardFromZone
-	kwSetBalancerState   // setBalancerState
-	kwShardCollection    // shardCollection
-	kwSplitAt            // splitAt
-	kwSplitFind          // splitFind
-	kwStartBalancer      // startBalancer
-	kwStopBalancer       // stopBalancer
-	kwUpdateZoneKeyRange // updateZoneKeyRange
+	kwSetBalancerState    // setBalancerState
+	kwShardCollection     // shardCollection
+	kwSplitAt             // splitAt
+	kwSplitFind           // splitFind
+	kwStartBalancer       // startBalancer
+	kwStopBalancer        // stopBalancer
+	kwUpdateZoneKeyRange  // updateZoneKeyRange
 
 	// --- Connection methods ---
-	kwMongo       // Mongo
-	kwConnect     // connect
+	kwMongo   // Mongo
+	kwConnect // connect
 
 	// --- Encryption ---
-	kwGetKeyVault          // getKeyVault
-	kwGetClientEncryption  // getClientEncryption
-	kwCreateKey            // createKey
-	kwGetKey               // getKey
-	kwGetKeys              // getKeys
-	kwDeleteKey            // deleteKey
-	kwAddKeyAlternateName  // addKeyAlternateName
+	kwGetKeyVault            // getKeyVault
+	kwGetClientEncryption    // getClientEncryption
+	kwCreateKey              // createKey
+	kwGetKey                 // getKey
+	kwGetKeys                // getKeys
+	kwDeleteKey              // deleteKey
+	kwAddKeyAlternateName    // addKeyAlternateName
 	kwRemoveKeyAlternateName // removeKeyAlternateName
-	kwRewrapManyDataKey    // rewrapManyDataKey
-	kwEncrypt              // encrypt
-	kwDecrypt              // decrypt
+	kwRewrapManyDataKey      // rewrapManyDataKey
+	kwEncrypt                // encrypt
+	kwDecrypt                // decrypt
 
 	// --- Plan cache ---
 	kwGetPlanCache // getPlanCache
@@ -314,39 +318,39 @@ const (
 	kwList         // list
 
 	// --- Native mongosh functions ---
-	kwSleep            // sleep
-	kwLoad             // load
-	kwPrint            // print
-	kwPrintjson        // printjson
-	kwQuit             // quit
-	kwExit             // exit
-	kwVersion          // version
-	kwCls              // cls
-	kwHelp             // help
-	kwIt               // it
-	kwNumberIsNaN      // Number.isNaN
-	kwIsNaN            // isNaN
-	kwIsFinite         // isFinite
-	kwParseInt         // parseInt
-	kwParseFloat       // parseFloat
-	kwEncodeURI        // encodeURI
+	kwSleep              // sleep
+	kwLoad               // load
+	kwPrint              // print
+	kwPrintjson          // printjson
+	kwQuit               // quit
+	kwExit               // exit
+	kwVersion            // version
+	kwCls                // cls
+	kwHelp               // help
+	kwIt                 // it
+	kwNumberIsNaN        // Number.isNaN
+	kwIsNaN              // isNaN
+	kwIsFinite           // isFinite
+	kwParseInt           // parseInt
+	kwParseFloat         // parseFloat
+	kwEncodeURI          // encodeURI
 	kwEncodeURIComponent // encodeURIComponent
-	kwDecodeURI        // decodeURI
+	kwDecodeURI          // decodeURI
 	kwDecodeURIComponent // decodeURIComponent
-	kwJSON             // JSON
+	kwJSON               // JSON
 
 	// --- Misc ---
-	kwConvert       // convert
-	kwTo            // to
-	kwType          // type
-	kwNumber        // Number
-	kwString        // String
-	kwBoolean       // Boolean
-	kwArray         // Array
-	kwObject        // Object
-	kwMath          // Math
-	kwInfinity      // Infinity
-	kwNaN           // NaN
+	kwConvert  // convert
+	kwTo       // to
+	kwType     // type
+	kwNumber   // Number
+	kwString   // String
+	kwBoolean  // Boolean
+	kwArray    // Array
+	kwObject   // Object
+	kwMath     // Math
+	kwInfinity // Infinity
+	kwNaN      // NaN
 )
 
 // Exported token type constants for use by external packages (e.g., completion).
@@ -370,18 +374,21 @@ var keywords = map[string]int{
 	"sh": kwSh,
 	"sp": kwSp,
 
-	// show variants
-	"show":            kwShow,
-	"dbs":             kwDbs,
-	"databases":       kwDatabases,
-	"collections":     kwCollections,
-	"tables":          kwTables,
-	"profile":         kwProfile,
-	"users":           kwUsers,
-	"roles":           kwRoles,
-	"log":             kwLog,
-	"logs":            kwLogs,
-	"startupWarnings": kwStartupWarnings,
+	// show / direct shell variants
+	"show":                   kwShow,
+	"use":                    kwUse,
+	"dbs":                    kwDbs,
+	"databases":              kwDatabases,
+	"collections":            kwCollections,
+	"tables":                 kwTables,
+	"profile":                kwProfile,
+	"users":                  kwUsers,
+	"roles":                  kwRoles,
+	"log":                    kwLog,
+	"logs":                   kwLogs,
+	"startupWarnings":        kwStartupWarnings,
+	"automationNotices":      kwAutomationNotices,
+	"nonGenuineMongoDBCheck": kwNonGenuineMongoDBCheck,
 
 	// JS literals/keywords
 	"true":       kwTrue,
@@ -443,45 +450,46 @@ var keywords = map[string]int{
 	"MaxKey":        kwMaxKey,
 	"RegExp":        kwRegExp,
 	"Symbol":        kwSymbol,
+	"EJSON":         kwEJSON,
 
 	// Collection methods
-	"find":                    kwFind,
-	"findOne":                 kwFindOne,
-	"findOneAndDelete":        kwFindOneAndDelete,
-	"findOneAndReplace":       kwFindOneAndReplace,
-	"findOneAndUpdate":        kwFindOneAndUpdate,
-	"insertOne":               kwInsertOne,
-	"insertMany":              kwInsertMany,
-	"updateOne":               kwUpdateOne,
-	"updateMany":              kwUpdateMany,
-	"deleteOne":               kwDeleteOne,
-	"deleteMany":              kwDeleteMany,
-	"replaceOne":              kwReplaceOne,
-	"bulkWrite":               kwBulkWrite,
-	"aggregate":               kwAggregate,
-	"count":                   kwCount,
-	"countDocuments":          kwCountDocuments,
-	"estimatedDocumentCount":  kwEstimatedDocumentCount,
-	"distinct":                kwDistinct,
-	"mapReduce":               kwMapReduce,
-	"watch":                   kwWatch,
-	"createIndex":             kwCreateIndex,
-	"createIndexes":           kwCreateIndexes,
-	"dropIndex":               kwDropIndex,
-	"dropIndexes":             kwDropIndexes,
-	"getIndexes":              kwGetIndexes,
-	"reIndex":                 kwReIndex,
-	"drop":                    kwDrop,
-	"renameCollection":        kwRenameCollection,
-	"stats":                   kwStats,
-	"dataSize":                kwDataSize,
-	"storageSize":             kwStorageSize,
-	"totalSize":               kwTotalSize,
-	"totalIndexSize":          kwTotalIndexSize,
-	"validate":                kwValidate,
-	"explain":                 kwExplain,
-	"getShardDistribution":    kwGetShardDistribution,
-	"latencyStats":            kwLatencyStats,
+	"find":                   kwFind,
+	"findOne":                kwFindOne,
+	"findOneAndDelete":       kwFindOneAndDelete,
+	"findOneAndReplace":      kwFindOneAndReplace,
+	"findOneAndUpdate":       kwFindOneAndUpdate,
+	"insertOne":              kwInsertOne,
+	"insertMany":             kwInsertMany,
+	"updateOne":              kwUpdateOne,
+	"updateMany":             kwUpdateMany,
+	"deleteOne":              kwDeleteOne,
+	"deleteMany":             kwDeleteMany,
+	"replaceOne":             kwReplaceOne,
+	"bulkWrite":              kwBulkWrite,
+	"aggregate":              kwAggregate,
+	"count":                  kwCount,
+	"countDocuments":         kwCountDocuments,
+	"estimatedDocumentCount": kwEstimatedDocumentCount,
+	"distinct":               kwDistinct,
+	"mapReduce":              kwMapReduce,
+	"watch":                  kwWatch,
+	"createIndex":            kwCreateIndex,
+	"createIndexes":          kwCreateIndexes,
+	"dropIndex":              kwDropIndex,
+	"dropIndexes":            kwDropIndexes,
+	"getIndexes":             kwGetIndexes,
+	"reIndex":                kwReIndex,
+	"drop":                   kwDrop,
+	"renameCollection":       kwRenameCollection,
+	"stats":                  kwStats,
+	"dataSize":               kwDataSize,
+	"storageSize":            kwStorageSize,
+	"totalSize":              kwTotalSize,
+	"totalIndexSize":         kwTotalIndexSize,
+	"validate":               kwValidate,
+	"explain":                kwExplain,
+	"getShardDistribution":   kwGetShardDistribution,
+	"latencyStats":           kwLatencyStats,
 
 	// Cursor methods
 	"sort":                kwSort,
@@ -516,47 +524,47 @@ var keywords = map[string]int{
 	"projection":          kwProjection,
 
 	// Database methods
-	"getName":            kwGetName,
-	"getSiblingDB":       kwGetSiblingDB,
-	"getMongo":           kwGetMongo,
-	"getCollectionNames": kwGetCollectionNames,
-	"getCollectionInfos": kwGetCollectionInfos,
-	"getCollection":      kwGetCollection,
-	"createCollection":   kwCreateCollection,
-	"createView":         kwCreateView,
-	"dropDatabase":       kwDropDatabase,
-	"adminCommand":       kwAdminCommand,
-	"runCommand":         kwRunCommand,
-	"getProfilingStatus": kwGetProfilingStatus,
-	"setProfilingLevel":  kwSetProfilingLevel,
-	"getLogComponents":   kwGetLogComponents,
-	"setLogLevel":        kwSetLogLevel,
-	"fsyncLock":          kwFsyncLock,
-	"fsyncUnlock":        kwFsyncUnlock,
-	"currentOp":          kwCurrentOp,
-	"killOp":             kwKillOp,
-	"getUser":            kwGetUser,
-	"getUsers":           kwGetUsers,
-	"createUser":         kwCreateUser,
-	"updateUser":         kwUpdateUser,
-	"dropUser":           kwDropUser,
-	"dropAllUsers":       kwDropAllUsers,
-	"grantRolesToUser":   kwGrantRolesToUser,
-	"revokeRolesFromUser": kwRevokeRolesFromUser,
-	"getRole":            kwGetRole,
-	"getRoles":           kwGetRoles,
-	"createRole":         kwCreateRole,
-	"updateRole":         kwUpdateRole,
-	"dropRole":           kwDropRole,
-	"dropAllRoles":       kwDropAllRoles,
-	"grantPrivilegesToRole":   kwGrantPrivilegesToRole,
+	"getName":                  kwGetName,
+	"getSiblingDB":             kwGetSiblingDB,
+	"getMongo":                 kwGetMongo,
+	"getCollectionNames":       kwGetCollectionNames,
+	"getCollectionInfos":       kwGetCollectionInfos,
+	"getCollection":            kwGetCollection,
+	"createCollection":         kwCreateCollection,
+	"createView":               kwCreateView,
+	"dropDatabase":             kwDropDatabase,
+	"adminCommand":             kwAdminCommand,
+	"runCommand":               kwRunCommand,
+	"getProfilingStatus":       kwGetProfilingStatus,
+	"setProfilingLevel":        kwSetProfilingLevel,
+	"getLogComponents":         kwGetLogComponents,
+	"setLogLevel":              kwSetLogLevel,
+	"fsyncLock":                kwFsyncLock,
+	"fsyncUnlock":              kwFsyncUnlock,
+	"currentOp":                kwCurrentOp,
+	"killOp":                   kwKillOp,
+	"getUser":                  kwGetUser,
+	"getUsers":                 kwGetUsers,
+	"createUser":               kwCreateUser,
+	"updateUser":               kwUpdateUser,
+	"dropUser":                 kwDropUser,
+	"dropAllUsers":             kwDropAllUsers,
+	"grantRolesToUser":         kwGrantRolesToUser,
+	"revokeRolesFromUser":      kwRevokeRolesFromUser,
+	"getRole":                  kwGetRole,
+	"getRoles":                 kwGetRoles,
+	"createRole":               kwCreateRole,
+	"updateRole":               kwUpdateRole,
+	"dropRole":                 kwDropRole,
+	"dropAllRoles":             kwDropAllRoles,
+	"grantPrivilegesToRole":    kwGrantPrivilegesToRole,
 	"revokePrivilegesFromRole": kwRevokePrivilegesFromRole,
-	"grantRolesToRole":        kwGrantRolesToRole,
-	"revokeRolesFromRole":     kwRevokeRolesFromRole,
-	"serverStatus":            kwServerStatus,
-	"isMaster":                kwIsMaster,
-	"hello":                   kwHello,
-	"hostInfo":                kwHostInfo,
+	"grantRolesToRole":         kwGrantRolesToRole,
+	"revokeRolesFromRole":      kwRevokeRolesFromRole,
+	"serverStatus":             kwServerStatus,
+	"isMaster":                 kwIsMaster,
+	"hello":                    kwHello,
+	"hostInfo":                 kwHostInfo,
 
 	// Bulk operations
 	"initializeOrderedBulkOp":   kwInitializeOrderedBulkOp,
@@ -569,20 +577,20 @@ var keywords = map[string]int{
 	"toJSON":                    kwToJSON,
 
 	// Replica set methods
-	"status":                          kwStatus,
-	"conf":                            kwConf,
-	"config":                          kwConfig,
-	"initiate":                        kwInitiate,
-	"reconfig":                        kwReconfig,
-	"add":                             kwAdd,
-	"addArb":                          kwAddArb,
-	"stepDown":                        kwStepDown,
-	"freeze":                          kwFreeze,
-	"slaveOk":                         kwSlaveOk,
-	"secondaryOk":                     kwSecondaryOk,
-	"syncFrom":                        kwSyncFrom,
-	"printReplicationInfo":            kwPrintReplicationInfo,
-	"printSecondaryReplicationInfo":   kwPrintSecondaryReplicationInfo,
+	"status":                        kwStatus,
+	"conf":                          kwConf,
+	"config":                        kwConfig,
+	"initiate":                      kwInitiate,
+	"reconfig":                      kwReconfig,
+	"add":                           kwAdd,
+	"addArb":                        kwAddArb,
+	"stepDown":                      kwStepDown,
+	"freeze":                        kwFreeze,
+	"slaveOk":                       kwSlaveOk,
+	"secondaryOk":                   kwSecondaryOk,
+	"syncFrom":                      kwSyncFrom,
+	"printReplicationInfo":          kwPrintReplicationInfo,
+	"printSecondaryReplicationInfo": kwPrintSecondaryReplicationInfo,
 
 	// Sharding methods
 	"addShard":            kwAddShard,
@@ -632,25 +640,25 @@ var keywords = map[string]int{
 	"list":         kwList,
 
 	// Native functions
-	"sleep":                kwSleep,
-	"load":                 kwLoad,
-	"print":                kwPrint,
-	"printjson":            kwPrintjson,
-	"quit":                 kwQuit,
-	"exit":                 kwExit,
-	"version":              kwVersion,
-	"cls":                  kwCls,
-	"help":                 kwHelp,
-	"it":                   kwIt,
-	"isNaN":                kwIsNaN,
-	"isFinite":             kwIsFinite,
-	"parseInt":             kwParseInt,
-	"parseFloat":           kwParseFloat,
-	"encodeURI":            kwEncodeURI,
-	"encodeURIComponent":   kwEncodeURIComponent,
-	"decodeURI":            kwDecodeURI,
-	"decodeURIComponent":   kwDecodeURIComponent,
-	"JSON":                 kwJSON,
+	"sleep":              kwSleep,
+	"load":               kwLoad,
+	"print":              kwPrint,
+	"printjson":          kwPrintjson,
+	"quit":               kwQuit,
+	"exit":               kwExit,
+	"version":            kwVersion,
+	"cls":                kwCls,
+	"help":               kwHelp,
+	"it":                 kwIt,
+	"isNaN":              kwIsNaN,
+	"isFinite":           kwIsFinite,
+	"parseInt":           kwParseInt,
+	"parseFloat":         kwParseFloat,
+	"encodeURI":          kwEncodeURI,
+	"encodeURIComponent": kwEncodeURIComponent,
+	"decodeURI":          kwDecodeURI,
+	"decodeURIComponent": kwDecodeURIComponent,
+	"JSON":               kwJSON,
 
 	// Misc
 	"convert":  kwConvert,

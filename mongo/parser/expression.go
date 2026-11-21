@@ -122,12 +122,21 @@ func (p *Parser) parseValue() (ast.Node, error) {
 			Column:   col,
 		}
 
-	// BSON helper functions
+	// BSON helper functions: only parse as a call when followed by '('.
+	// Otherwise fall through so static method chains like
+	// ObjectId.createFromHexString("...") and Timestamp.fromInt(1) work.
 	case kwObjectId, kwISODate, kwDate, kwUUID,
 		kwNumberLong, kwNumberInt, kwNumberDecimal,
 		kwTimestamp, kwRegExp, kwBinData, kwHexData,
 		kwMinKey, kwMaxKey, kwCode, kwDBRef, kwSymbol, kwMD5:
-		return p.parseHelperCall()
+		if p.peekNext().Type == '(' {
+			return p.parseHelperCall()
+		}
+		tok := p.advance()
+		return &ast.Identifier{
+			Name: tok.Str,
+			Loc:  ast.Loc{Start: tok.Loc, End: tok.End},
+		}, nil
 
 	default:
 		// Handle identifier-like tokens that could be helper names
