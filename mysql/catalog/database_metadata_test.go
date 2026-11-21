@@ -2102,3 +2102,60 @@ func TestDatabaseMetadataExportsTimestampDefaultsInSessionTimeZone(t *testing.T)
 	require.NotNil(t, got)
 	require.True(t, want.Equal(*got), "want %v, got %v", want, got)
 }
+
+// TestDatabaseMetadataKeepsQuotedReturnTypeMembers pins a function whose ENUM
+// return type has " CHARSET " inside a member: only the trailing CHARSET clause
+// is dropped, and the definition reloads.
+func TestDatabaseMetadataKeepsQuotedReturnTypeMembers(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE FUNCTION f_enum() RETURNS ENUM('a CHARSET b','c') DETERMINISTIC RETURN 'c';", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	require.Len(t, meta.Schemas[0].Functions, 1)
+	def := meta.Schemas[0].Functions[0].Definition
+	require.Contains(t, def, "'a CHARSET b','c')")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["f_enum"])
+}
+
+// TestDatabaseMetadataStringArithmeticViewTypes pins arithmetic over string
+// operands as mysql:8.0.46 reports it: the string is read as a double, so + - * / and
+// % are double, and DIV is a signed bigint.
+func TestDatabaseMetadataStringArithmeticViewTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE ts (v VARCHAR(10), d DECIMAL(10,2)); "+
+		"CREATE VIEW vs AS SELECT '1.5' + 1 AS s1, v + 1 AS s2, v / 2 AS s3, v * 2 AS s4, v - d AS s5, '2' + '3' AS s6, v DIV 2 AS s7, v % 2 AS s8, -v AS s9 FROM ts;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, col := range c.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		got[col.Name] = col.Type
+	}
+	for _, name := range []string{"s1", "s2", "s3", "s4", "s5", "s6", "s8", "s9"} {
+		require.Equal(t, "double", got[name], name)
+	}
+	require.Equal(t, "bigint", got["s7"])
+}
+
+// TestDatabaseMetadataBinaryBitwiseViewTypes pins bitwise operators over
+// binary strings as mysql:8.0.46 reports them: & | ^ over two are a varbinary
+// as long as the longer, ~ << >> keep their operand's length, and any other
+// operand makes the result a bigint unsigned.
+func TestDatabaseMetadataBinaryBitwiseViewTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE tb (a VARBINARY(3), b VARBINARY(5), c BINARY(4), i INT, v VARCHAR(10)); "+
+		"CREATE VIEW vb AS SELECT a & b AS b1, a | b AS b2, a ^ b AS b3, ~a AS b4, a << 1 AS b5, a >> 1 AS b6, a & i AS b7, a & 1 AS b8, c & c AS b9, v & 1 AS b10 FROM tb;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, col := range c.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		got[col.Name] = col.Type
+	}
+	require.Equal(t, map[string]string{
+		"b1": "varbinary(5)", "b2": "varbinary(5)", "b3": "varbinary(5)", "b4": "varbinary(3)", "b5": "varbinary(3)",
+		"b6": "varbinary(3)", "b7": "bigint unsigned", "b8": "bigint unsigned", "b9": "varbinary(4)", "b10": "bigint unsigned",
+	}, got)
+}

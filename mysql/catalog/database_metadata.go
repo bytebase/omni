@@ -1185,6 +1185,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			if rt == nil {
 				return nil
 			}
+			if isArithmeticStringOperand(rt) {
+				return &ResolvedType{BaseType: BaseTypeDouble}
+			}
 			switch rt.BaseType {
 			case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt:
 				return &ResolvedType{BaseType: BaseTypeInt}
@@ -1205,6 +1208,13 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			"XOR":
 			return BoolType
 		case "&", "|", "^", "<<", ">>", "~":
+			// Over binary strings these are binary strings: on mysql:8.0.46,
+			// varbinary_3 & varbinary_5 is varbinary(5), and ~a, a << 1 and
+			// a >> 1 keep a's varbinary(3). Any other operand makes them a
+			// bigint unsigned.
+			if bt := bitwiseBinaryStringType(c, db, q, e); bt != nil {
+				return bt
+			}
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
 		case "->":
 			return &ResolvedType{BaseType: BaseTypeJSON}
@@ -1213,8 +1223,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)
+			// A string operand is read as a double: '1.5' + 1, varchar_col / 2
+			// and varchar_col % 2 are double on mysql:8.0.46, oceanbase-ce 4.3.5.6 and TiDB v8.5.5.
 			if (lt != nil && (lt.BaseType == BaseTypeDouble || lt.BaseType == BaseTypeFloat)) ||
-				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) {
+				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) ||
+				isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
 				return &ResolvedType{BaseType: BaseTypeDouble}
 			}
 			if opUpper == "/" ||
@@ -1232,6 +1245,10 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		case "DIV":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)
+			// varchar_col DIV 2 is a signed bigint.
+			if isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
+				return &ResolvedType{BaseType: BaseTypeBigInt}
+			}
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		}
 		return e.ResultType
@@ -2400,20 +2417,53 @@ func normalizeRoutineDefinition(def string, isProcedure bool) string {
 	return def
 }
 
+// stripReturnsCharset drops the CHARSET clause SHOW CREATE FUNCTION writes
+// after a string return type, as live sync does. Every search skips quoted
+// text: RETURNS ENUM('a CHARSET b','c') holds " CHARSET " in a member.
 func stripReturnsCharset(def string) string {
-	returnsIdx := strings.Index(def, " RETURNS ")
+	returnsIdx := indexOutsideQuotes(def, " RETURNS ", 0)
 	if returnsIdx == -1 {
 		return def
 	}
-	lineEnd := strings.Index(def[returnsIdx:], "\n")
+	lineEnd := indexOutsideQuotes(def, "\n", returnsIdx)
 	if lineEnd == -1 {
 		return def
 	}
-	charsetIdx := strings.Index(def[returnsIdx:returnsIdx+lineEnd], " CHARSET ")
+	charsetIdx := indexOutsideQuotes(def[:lineEnd], " CHARSET ", returnsIdx)
 	if charsetIdx == -1 {
 		return def
 	}
-	return def[:returnsIdx+charsetIdx] + def[returnsIdx+lineEnd:]
+	return def[:charsetIdx] + def[lineEnd:]
+}
+
+// indexOutsideQuotes is the offset of the first sub in s at or after start
+// that is not inside a '...', "..." or `...` quoted run, or -1.
+func indexOutsideQuotes(s, sub string, start int) int {
+	var quote byte
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case c == '\\' && quote != '`':
+				i++
+			case c == quote:
+				if i+1 < len(s) && s[i+1] == quote {
+					i++
+				} else {
+					quote = 0
+				}
+			}
+			continue
+		}
+		if c == '\'' || c == '"' || c == '`' {
+			quote = c
+			continue
+		}
+		if strings.HasPrefix(s[i:], sub) {
+			return i
+		}
+	}
+	return -1
 }
 
 func sumAvgResolvedType(c *Catalog, db *Database, q *Query, arg AnalyzedExpr, isAvg bool) *ResolvedType {
@@ -2728,4 +2778,58 @@ func escapeFunctionalIndexQuotes(expr string) string {
 		b.WriteByte(expr[i])
 	}
 	return b.String()
+}
+
+// isArithmeticStringOperand reports a character or binary string, which an
+// arithmetic operator reads as a double.
+func isArithmeticStringOperand(rt *ResolvedType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,
+		BaseTypeBinary, BaseTypeVarBinary, BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob,
+		BaseTypeEnum, BaseTypeSet:
+		return true
+	}
+	return false
+}
+
+// bitwiseBinaryStringType is a bitwise operator's binary-string result: &, |
+// and ^ over two binary strings as long as the longer, and ~, << and >> over
+// one as long as it; nil otherwise.
+func bitwiseBinaryStringType(c *Catalog, db *Database, q *Query, e *OpExprQ) *ResolvedType {
+	// An operand's column type, as the view column would report it: a column
+	// reference resolves through its table there.
+	binLen := func(x AnalyzedExpr) (int, bool) {
+		if x == nil {
+			return 0, false
+		}
+		ct := strings.ToLower(strings.TrimSpace(resolveAnalyzedExprColumnType(c, db, q, x)))
+		for _, prefix := range []string{"varbinary(", "binary("} {
+			if strings.HasPrefix(ct, prefix) && strings.HasSuffix(ct, ")") {
+				if n, err := strconv.Atoi(ct[len(prefix) : len(ct)-1]); err == nil && n > 0 {
+					return n, true
+				}
+			}
+		}
+		return 0, false
+	}
+	switch e.Op {
+	case "~":
+		if n, ok := binLen(e.Right); ok {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: n}
+		}
+	case "<<", ">>":
+		if n, ok := binLen(e.Left); ok {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: n}
+		}
+	default:
+		ln, lok := binLen(e.Left)
+		rn, rok := binLen(e.Right)
+		if lok && rok {
+			return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(ln, rn)}
+		}
+	}
+	return nil
 }

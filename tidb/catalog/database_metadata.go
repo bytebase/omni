@@ -805,6 +805,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			if rt == nil {
 				return nil
 			}
+			if isArithmeticStringOperand(rt) {
+				return &ResolvedType{BaseType: BaseTypeDouble}
+			}
 			switch rt.BaseType {
 			case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt:
 				return &ResolvedType{BaseType: BaseTypeBigInt}
@@ -837,8 +840,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)
+			// A string operand is read as a double: '1.5' + 1, varchar_col / 2
+			// and varchar_col % 2 are double on mysql:8.0.46, oceanbase-ce 4.3.5.6 and TiDB v8.5.5.
 			if (lt != nil && (lt.BaseType == BaseTypeDouble || lt.BaseType == BaseTypeFloat)) ||
-				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) {
+				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) ||
+				isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
 				return &ResolvedType{BaseType: BaseTypeDouble}
 			}
 			if opUpper == "/" ||
@@ -856,6 +862,10 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		case "DIV":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)
+			// varchar_col DIV 2 is a signed bigint.
+			if isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
+				return &ResolvedType{BaseType: BaseTypeBigInt}
+			}
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		}
 		return e.ResultType
@@ -2113,4 +2123,19 @@ func joinPartitionColumns(cols []string) string {
 		quoted[i] = "`" + strings.ReplaceAll(c, "`", "``") + "`"
 	}
 	return strings.Join(quoted, ",")
+}
+
+// isArithmeticStringOperand reports a character or binary string, which an
+// arithmetic operator reads as a double.
+func isArithmeticStringOperand(rt *ResolvedType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,
+		BaseTypeBinary, BaseTypeVarBinary, BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob,
+		BaseTypeEnum, BaseTypeSet:
+		return true
+	}
+	return false
 }

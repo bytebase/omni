@@ -1993,3 +1993,41 @@ func TestDatabaseMetadataUnsignedArithmeticViewTypes(t *testing.T) {
 	// Unary plus keeps the operand, with the display width OceanBase prints.
 	require.Equal(t, "tinyint(3) unsigned", neg["n3"])
 }
+
+// TestDatabaseMetadataKeepsQuotedReturnTypeMembers pins a function whose ENUM
+// return type has " CHARSET " inside a member: only the trailing CHARSET clause
+// is dropped, and the definition reloads.
+func TestDatabaseMetadataKeepsQuotedReturnTypeMembers(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE FUNCTION f_enum() RETURNS ENUM('a CHARSET b','c') DETERMINISTIC RETURN 'c';", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	require.Len(t, meta.Schemas[0].Functions, 1)
+	def := meta.Schemas[0].Functions[0].Definition
+	require.Contains(t, def, "'a CHARSET b','c')")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["f_enum"])
+}
+
+// TestDatabaseMetadataStringArithmeticViewTypes pins arithmetic over string
+// operands as oceanbase-ce 4.3.5.6 reports it: the string is read as a double, so + - * / and
+// % are double, and DIV is a signed bigint.
+func TestDatabaseMetadataStringArithmeticViewTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE ts (v VARCHAR(10), d DECIMAL(10,2)); "+
+		"CREATE VIEW vs AS SELECT '1.5' + 1 AS s1, v + 1 AS s2, v / 2 AS s3, v * 2 AS s4, v - d AS s5, '2' + '3' AS s6, v DIV 2 AS s7, v % 2 AS s8, -v AS s9 FROM ts;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, col := range c.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		got[col.Name] = col.Type
+	}
+	for _, name := range []string{"s1", "s2", "s3", "s4", "s5", "s6", "s8", "s9"} {
+		require.Equal(t, "double", got[name], name)
+	}
+	require.Equal(t, "bigint", got["s7"])
+}
