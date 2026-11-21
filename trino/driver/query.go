@@ -394,11 +394,17 @@ func rowCap(statement string) (hasCap, known bool) {
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return false, false
 	}
-	query, ok := file.Stmts[0].(*parser.QueryStmt)
-	if !ok || query.Query == nil {
+	var query *parser.Query
+	switch stmt := file.Stmts[0].(type) {
+	case *parser.QueryStmt:
+		query = stmt.Query
+	case *parser.WithFunctionStmt:
+		query = stmt.Query
+	}
+	if query == nil {
 		return false, false
 	}
-	return query.Query.Limit != nil || query.Query.Fetch != nil, true
+	return query.Limit != nil || query.Fetch != nil, true
 }
 
 // trimStatement trims a segment the way Bytebase's splitter trimmed the

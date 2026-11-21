@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
-	"github.com/bytebase/omni/trino/ast"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -105,41 +104,6 @@ func catalogNeeded(normName, defaultDB, lowerStmt string) bool {
 		return true
 	}
 	return strings.Contains(lowerStmt, strings.ToLower(normName))
-}
-
-// spanQueryType is the classification the Bytebase query-span extractor used.
-// EXPLAIN ANALYZE is reported as the inner statement's type.
-func spanQueryType(node ast.Node) (QueryType, bool) {
-	if node == nil {
-		return Unknown, false
-	}
-	switch n := node.(type) {
-	case *parser.QueryStmt:
-		return Select, false
-	case *parser.ExplainStmt:
-		if n.Analyze {
-			innerType, _ := spanQueryType(n.Statement)
-			return innerType, true
-		}
-		return Explain, false
-	case *parser.ShowStmt,
-		*parser.DescribeInputStmt, *parser.DescribeOutputStmt:
-		return SelectInfoSchema, false
-	case *parser.BranchStmt:
-		if n.Kind == parser.BranchShow {
-			return SelectInfoSchema, false
-		}
-		return DDL, false
-	case *parser.SetSessionStmt, *parser.ResetSessionStmt,
-		*parser.SetSessionAuthorizationStmt, *parser.ResetSessionAuthorizationStmt,
-		*parser.SetPathStmt, *parser.SetRoleStmt, *parser.SetTimeZoneStmt,
-		*parser.UseStmt:
-		return Select, false
-	case *parser.InsertStmt, *parser.UpdateStmt, *parser.DeleteStmt,
-		*parser.MergeStmt, *parser.TruncateStmt, *parser.CallStmt:
-		return DML, false
-	}
-	return DDL, false
 }
 
 func spanContainsSystemSchema(sql string) bool {

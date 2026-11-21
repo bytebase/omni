@@ -163,6 +163,8 @@ func TestResolveQuerySpanSystemTables(t *testing.T) {
 		{"SELECT * FROM information_schema.tables", QueryTypeSelectInfoSchema, "information_schema.tables"},
 		{"SELECT table_name FROM information_schema.columns WHERE table_schema = 'testdb'", QueryTypeSelectInfoSchema, "information_schema.columns"},
 		{"SELECT * FROM sys.fe_locks", QueryTypeSelectInfoSchema, "sys.fe_locks"},
+		{"SELECT * FROM _statistics_.column_statistics", QueryTypeSelectInfoSchema, "_statistics_.column_statistics"},
+		{"SELECT * FROM _statistics_.column_statistics c JOIN information_schema.tables t ON c.table_id = t.table_name", QueryTypeSelectInfoSchema, "_statistics_.column_statistics"},
 		{"SELECT * FROM users", QueryTypeSelect, "testdb.users"},
 	}
 	for _, tc := range tests {
@@ -182,9 +184,14 @@ func TestResolveQuerySpanSystemTables(t *testing.T) {
 }
 
 func TestResolveQuerySpanMixedTables(t *testing.T) {
-	_, err := ResolveQuerySpan("SELECT * FROM users JOIN information_schema.tables", ResolveOptions{DefaultDatabase: "testdb"})
-	if !errors.Is(err, ErrMixUserSystemTables) {
-		t.Fatalf("err = %v, want ErrMixUserSystemTables", err)
+	for _, sql := range []string{
+		"SELECT * FROM users JOIN information_schema.tables",
+		"SELECT * FROM _statistics_.column_statistics JOIN users",
+	} {
+		_, err := ResolveQuerySpan(sql, ResolveOptions{DefaultDatabase: "testdb"})
+		if !errors.Is(err, ErrMixUserSystemTables) {
+			t.Fatalf("%q: err = %v, want ErrMixUserSystemTables", sql, err)
+		}
 	}
 }
 
@@ -417,14 +424,12 @@ func TestResolveQuerySpanResultsLineage(t *testing.T) {
 }
 
 func TestIsSystemDatabase(t *testing.T) {
-	// The pinned 3.4.10 server answers SHOW DATABASES with information_schema
-	// and sys, and ANALYZE TABLE creates no `_statistics_`
-	// (starrocks/testdata/pins.tsv). Doris's mysql and __internal_schema are
-	// not StarRocks databases.
+	// StarRocks system databases are information_schema, sys, and _statistics_.
+	// Doris's mysql and __internal_schema are not StarRocks databases.
 	for name, want := range map[string]bool{
 		"information_schema": true,
 		"sys":                true,
-		"_statistics_":       false,
+		"_statistics_":       true,
 		"mysql":              false,
 		"__internal_schema":  false,
 		"app":                false,
