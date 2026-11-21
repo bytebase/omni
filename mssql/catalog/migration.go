@@ -1147,7 +1147,7 @@ func blockingSchemaBoundViewDrop(from *Catalog, diff *SchemaDiff) string {
 	}
 	droppedFunctions := make(map[string]bool)
 	for _, funcDiff := range diff.Functions {
-		if funcDiff.Action == DiffDrop {
+		if funcDiff.Action == DiffDrop && !functionReplacementUsedByComputed(diff, funcDiff) {
 			droppedFunctions[strings.ToLower(objectID(funcDiff.SchemaName, funcDiffBaseName(funcDiff)))] = true
 		}
 	}
@@ -1179,7 +1179,7 @@ func blockingSchemaBoundDrop(from *Catalog, diff *SchemaDiff) string {
 	}
 	droppedFunctions := make(map[string]bool)
 	for _, funcDiff := range diff.Functions {
-		if funcDiff.Action == DiffDrop {
+		if funcDiff.Action == DiffDrop && !functionReplacementUsedByComputed(diff, funcDiff) {
 			droppedFunctions[strings.ToLower(objectID(funcDiff.SchemaName, funcDiffBaseName(funcDiff)))] = true
 		}
 	}
@@ -1636,6 +1636,24 @@ func blockingFunctionComputedColumn(from *Catalog, diff *SchemaDiff, earlyFuncDr
 						return fmt.Sprintf("%s.%s is used by computed column %s.%s.%s",
 							quote(fd.SchemaName), quote(fd.FunctionName), quote(schema.Name), quote(table.Name), quote(col.Name))
 					}
+				}
+			}
+		}
+	}
+	// A dropped function left unchanged because a computed column references it
+	// also blocks dropping any function it schema-binds to.
+	for _, skipped := range diff.Functions {
+		if skipped.Action != DiffDrop || skipped.OldFunction == nil || !isSchemaBound(skipped.OldFunction.Definition) {
+			continue
+		}
+		if !functionReplacementUsedByComputed(diff, skipped) {
+			continue
+		}
+		for _, drops := range [][]*FunctionDiffEntry{earlyFuncDrops, remainingFuncDrops} {
+			for _, fd := range drops {
+				if definitionReferencesFunction(skipped.OldFunction.Definition, skipped.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+					return fmt.Sprintf("%s.%s is referenced by schema-bound function %s.%s (used by a computed column)",
+						quote(fd.SchemaName), quote(fd.FunctionName), quote(skipped.SchemaName), quote(skipped.FunctionName))
 				}
 			}
 		}
@@ -2253,6 +2271,45 @@ func dropTablesAndFunctionsInOrder(droppedTables []tableWithSchema, functionDrop
 				}
 			}
 		}
+		var droppedCompCols map[string]bool
+		for _, col := range tws.table.Columns {
+			if !isComputedColumnType(col.Type) {
+				continue
+			}
+			for _, funcDiff := range functionDrops {
+				if expressionReferencesFunction(col.Type, tws.schema, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
+					if droppedCompCols == nil {
+						droppedCompCols = make(map[string]bool)
+					}
+					droppedCompCols[strings.ToLower(col.Name)] = true
+					break
+				}
+			}
+		}
+		if len(droppedCompCols) > 0 {
+			for _, idx := range tws.table.Indexes {
+				usesComp := false
+				for _, expr := range idx.Expressions {
+					if droppedCompCols[strings.ToLower(expr)] {
+						usesComp = true
+						break
+					}
+				}
+				if !usesComp {
+					continue
+				}
+				if idx.IsConstraint {
+					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tws.schema), quote(tws.table.Name), quote(idx.Name))
+				} else {
+					fmt.Fprintf(buf, "DROP INDEX %s ON %s.%s;\n", quote(idx.Name), quote(tws.schema), quote(tws.table.Name))
+				}
+			}
+			for _, col := range tws.table.Columns {
+				if droppedCompCols[strings.ToLower(col.Name)] {
+					fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tws.schema), quote(tws.table.Name), quote(col.Name))
+				}
+			}
+		}
 	}
 	for _, funcDiff := range orderedFunctionDrops(functionDrops) {
 		fmt.Fprintf(buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
@@ -2442,28 +2499,34 @@ func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 }
 
 func functionReplacementUsedByComputed(diff *SchemaDiff, funcDiff *FunctionDiffEntry) bool {
-	if !functionUsedByComputed(diff, funcDiff.FunctionName) {
+	if !functionUsedByComputed(diff, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
 		return false
 	}
 	for _, other := range diff.Functions {
-		if other.Action == DiffDrop && other.FunctionName == funcDiff.FunctionName {
+		if other.Action == DiffDrop && strings.EqualFold(other.SchemaName, funcDiff.SchemaName) && strings.EqualFold(other.FunctionName, funcDiff.FunctionName) {
 			return true
 		}
 	}
 	return false
 }
 
-func functionUsedByComputed(diff *SchemaDiff, functionName string) bool {
+func functionUsedByComputed(diff *SchemaDiff, fnSchema, fnName string) bool {
 	for _, tableDiff := range diff.Tables {
-		tables := []*metadata.TableMetadata{tableDiff.OldTable, tableDiff.NewTable}
-		for _, table := range tables {
-			if table == nil {
+		if tableDiff.Action != DiffAlter || tableDiff.OldTable == nil {
+			continue
+		}
+		droppedCols := make(map[string]bool)
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop && colDiff.OldColumn != nil {
+				droppedCols[strings.ToLower(colDiff.OldColumn.Name)] = true
+			}
+		}
+		for _, column := range tableDiff.OldTable.Columns {
+			if droppedCols[strings.ToLower(column.Name)] {
 				continue
 			}
-			for _, column := range table.Columns {
-				if isComputedColumnType(column.Type) && strings.Contains(strings.ToLower(column.Type), strings.ToLower(functionName)) {
-					return true
-				}
+			if isComputedColumnType(column.Type) && expressionReferencesFunction(column.Type, tableDiff.SchemaName, fnSchema, fnName) {
+				return true
 			}
 		}
 	}

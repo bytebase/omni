@@ -1787,3 +1787,44 @@ CREATE TABLE [dbo].[t] ([id] int NOT NULL, [c] AS ([dbo].[g]()), CONSTRAINT [PK_
 	require.Contains(t, sql, "computed column")
 	require.NotContains(t, sql, "ADD [c] AS")
 }
+
+func TestMigrationDropsSchemaBoundFunctionWithComputedConsumerAndPrerequisiteTable(t *testing.T) {
+	t.Run("drops consumer table, function, and prerequisite table in order", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		dropU := strings.Index(sql, "DROP TABLE [dbo].[u]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropU, 0)
+		require.Less(t, dropU, dropF)
+		require.Less(t, dropF, dropT)
+	})
+
+	t.Run("rejects dropping prerequisite table when altered table retains computed column", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [extra] int NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "DROP TABLE [dbo].[t]")
+	})
+}
