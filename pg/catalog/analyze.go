@@ -704,23 +704,37 @@ func (ac *analyzeCtx) transformFromClauseItem(n nodes.Node) (JoinNode, error) {
 	}
 }
 
+// exposedFromEntry tracks one exposed FROM table/alias name together with
+// relation identity so distinct unaliased relations from different schemas
+// (e.g. s1.t, s2.t) do not trigger a false duplicate-alias error.
+type exposedFromEntry struct {
+	name         string
+	relOID       uint32
+	unaliasedRel bool
+}
+
 // hasFromRelationName reports whether any exposed FROM item in the current
 // query has name relname (respecting join aliases that hide inner tables).
 func (ac *analyzeCtx) hasFromRelationName(relname string) bool {
 	if ac.query.JoinTree == nil {
 		return false
 	}
-	var names []string
+	var entries []exposedFromEntry
 	for _, jn := range ac.query.JoinTree.FromList {
-		names = ac.collectExposedNames(jn, names)
+		entries = ac.collectExposedNames(jn, entries)
 	}
-	return slices.Contains(names, relname)
+	for _, e := range entries {
+		if e.name == relname {
+			return true
+		}
+	}
+	return false
 }
 
 // collectExposedNames appends the exposed FROM table/alias names of jn.
 //
 // pg: src/backend/parser/parse_relation.c — checkNameSpaceConflicts
-func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []string) []string {
+func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []exposedFromEntry) []exposedFromEntry {
 	switch v := jn.(type) {
 	case *RangeTableRef:
 		if v.RTIndex < 0 || v.RTIndex >= len(ac.query.RangeTable) {
@@ -732,13 +746,17 @@ func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []string) []string {
 			return dst
 		}
 		if rte.ERef != "" {
-			return append(dst, rte.ERef)
+			return append(dst, exposedFromEntry{
+				name:         rte.ERef,
+				relOID:       rte.RelOID,
+				unaliasedRel: rte.Kind == RTERelation && rte.Alias == "",
+			})
 		}
 		return dst
 	case *JoinExprNode:
 		if v.RTIndex >= 0 && v.RTIndex < len(ac.query.RangeTable) {
 			if alias := ac.query.RangeTable[v.RTIndex].Alias; alias != "" {
-				return append(dst, alias)
+				return append(dst, exposedFromEntry{name: alias})
 			}
 		}
 		dst = ac.collectExposedNames(v.Left, dst)
@@ -747,27 +765,34 @@ func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []string) []string {
 	return dst
 }
 
-// checkFromConflicts verifies that no exposed table/alias name appears in both
-// left and right FROM namespaces.
+// checkFromConflicts verifies that no conflicting exposed table/alias name
+// appears in both left and right FROM namespaces. Two unaliased relations with
+// the same local name from different schemas (distinct RelOIDs) are permitted.
 //
 // pg: src/backend/parser/parse_relation.c — checkNameSpaceConflicts
 func (ac *analyzeCtx) checkFromConflicts(left, right []JoinNode) error {
-	var leftNames []string
+	var leftEntries []exposedFromEntry
 	for _, jn := range left {
-		leftNames = ac.collectExposedNames(jn, leftNames)
+		leftEntries = ac.collectExposedNames(jn, leftEntries)
 	}
-	if len(leftNames) == 0 {
+	if len(leftEntries) == 0 {
 		return nil
 	}
-	var rightNames []string
+	var rightEntries []exposedFromEntry
 	for _, jn := range right {
-		rightNames = ac.collectExposedNames(jn, rightNames)
+		rightEntries = ac.collectExposedNames(jn, rightEntries)
 	}
-	for _, rn := range rightNames {
-		if slices.Contains(leftNames, rn) {
+	for _, re := range rightEntries {
+		for _, le := range leftEntries {
+			if le.name != re.name {
+				continue
+			}
+			if le.unaliasedRel && re.unaliasedRel && le.relOID != 0 && re.relOID != 0 && le.relOID != re.relOID {
+				continue
+			}
 			return &Error{
 				Code:    CodeDuplicateAlias,
-				Message: fmt.Sprintf("table name %q specified more than once", rn),
+				Message: fmt.Sprintf("table name %q specified more than once", re.name),
 			}
 		}
 	}
@@ -878,10 +903,12 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 	}
 	if je.JoinUsing != nil && je.JoinUsing.Aliasname != "" {
 		exposed := ac.collectExposedNames(left, ac.collectExposedNames(right, nil))
-		if slices.Contains(exposed, je.JoinUsing.Aliasname) {
-			return nil, &Error{
-				Code:    CodeDuplicateAlias,
-				Message: fmt.Sprintf("table name %q specified more than once", je.JoinUsing.Aliasname),
+		for _, e := range exposed {
+			if e.name == je.JoinUsing.Aliasname {
+				return nil, &Error{
+					Code:    CodeDuplicateAlias,
+					Message: fmt.Sprintf("table name %q specified more than once", je.JoinUsing.Aliasname),
+				}
 			}
 		}
 	}
@@ -999,6 +1026,13 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 		if !rUsed[i] {
 			addColumn(name, ac.nsColumnVar(rRT, i))
 		}
+	}
+	if je.Alias != nil && je.Alias.Colnames != nil {
+		aliasCols, err := applyColumnAliases(je.Alias, joinAlias, rte.ColNames)
+		if err != nil {
+			return nil, err
+		}
+		rte.aliasColumns = aliasCols
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -4800,7 +4834,8 @@ func (ac *analyzeCtx) defineWindowDef(wd *nodes.WindowDef) (uint32, error) {
 }
 
 func (ac *analyzeCtx) buildWindowDef(wd *nodes.WindowDef, isDefinition bool) (uint32, error) {
-	// If referencing a named window, find it.
+	// If referencing a named window, find it and inherit its clauses.
+	var refWC *WindowClauseQ
 	if wd.Refname != "" {
 		found := -1
 		if !isDefinition || ac.definedWindows[wd.Refname] {
@@ -4814,6 +4849,7 @@ func (ac *analyzeCtx) buildWindowDef(wd *nodes.WindowDef, isDefinition bool) (ui
 		if found < 0 {
 			return 0, &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("window %q does not exist", wd.Refname)}
 		}
+		refWC = ac.query.WindowClause[found]
 		if !isDefinition && wd.PartitionClause == nil && wd.OrderClause == nil && wd.StartOffset == nil && wd.EndOffset == nil && wd.FrameOptions&nodes.FRAMEOPTION_NONDEFAULT == 0 {
 			return uint32(found), nil
 		}
@@ -4823,6 +4859,10 @@ func (ac *analyzeCtx) buildWindowDef(wd *nodes.WindowDef, isDefinition bool) (ui
 	wc := &WindowClauseQ{
 		Name:         wd.Name,
 		FrameOptions: wd.FrameOptions,
+	}
+	if refWC != nil {
+		wc.PartitionBy = slices.Clone(refWC.PartitionBy)
+		wc.OrderBy = slices.Clone(refWC.OrderBy)
 	}
 
 	// PARTITION BY.
@@ -7148,6 +7188,23 @@ func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType ui
 	return retOID, true, nil
 }
 
+// transformJsonValueArg transforms a JsonValueExpr argument, retaining any
+// explicit FORMAT JSON/JSONB clause.
+func (ac *analyzeCtx) transformJsonValueArg(jve *nodes.JsonValueExpr) (AnalyzedExpr, error) {
+	expr, err := ac.transformExpr(jve.RawExpr)
+	if err != nil {
+		return nil, err
+	}
+	if jve.Format != nil && jve.Format.FormatType != nodes.JS_FORMAT_DEFAULT {
+		return &JsonValueExprQ{
+			Expr:       expr,
+			Format:     int(jve.Format.FormatType),
+			ResultType: expr.exprType(),
+		}, nil
+	}
+	return expr, nil
+}
+
 // transformJsonObjectConstructor transforms JSON_OBJECT(...).
 func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstructor) (AnalyzedExpr, error) {
 	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
@@ -7166,7 +7223,7 @@ func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstruc
 				args = append(args, keyExpr)
 				// Transform value
 				if kv.Value != nil {
-					valExpr, err := ac.transformExpr(kv.Value.RawExpr)
+					valExpr, err := ac.transformJsonValueArg(kv.Value)
 					if err != nil {
 						return nil, err
 					}
@@ -7195,7 +7252,7 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 	if n.Exprs != nil {
 		for _, item := range n.Exprs.Items {
 			if jve, ok := item.(*nodes.JsonValueExpr); ok {
-				expr, err := ac.transformExpr(jve.RawExpr)
+				expr, err := ac.transformJsonValueArg(jve)
 				if err != nil {
 					return nil, err
 				}
@@ -7291,7 +7348,7 @@ func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (
 func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr, error) {
 	var args []AnalyzedExpr
 	if n.Arg != nil {
-		expr, err := ac.transformExpr(n.Arg.RawExpr)
+		expr, err := ac.transformJsonValueArg(n.Arg)
 		if err != nil {
 			return nil, err
 		}
@@ -7331,7 +7388,7 @@ func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedEx
 			args = append(args, keyExpr)
 		}
 		if n.Arg.Value != nil {
-			valExpr, err := ac.transformExpr(n.Arg.Value.RawExpr)
+			valExpr, err := ac.transformJsonValueArg(n.Arg.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -7365,8 +7422,13 @@ func (ac *analyzeCtx) transformJsonValueExpr(n *nodes.JsonValueExpr) (AnalyzedEx
 	if err != nil {
 		return nil, err
 	}
+	format := 0
+	if n.Format != nil {
+		format = int(n.Format.FormatType)
+	}
 	return &JsonValueExprQ{
 		Expr:       expr,
+		Format:     format,
 		ResultType: expr.exprType(),
 	}, nil
 }

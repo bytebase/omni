@@ -69,7 +69,12 @@ func handLabel(rule string) bool {
 func TestQuerySimulationFixes(t *testing.T) {
 	setup := func(t *testing.T) *Catalog {
 		t.Helper()
-		c, err := LoadSQL("CREATE TABLE a (b int PRIMARY KEY, a int, d int); CREATE TABLE b (b int PRIMARY KEY, c int);")
+		c, err := LoadSQL(`
+			CREATE TABLE a (b int PRIMARY KEY, a int, d int);
+			CREATE TABLE b (b int PRIMARY KEY, c int);
+			CREATE SCHEMA s1; CREATE TABLE s1.t (id int);
+			CREATE SCHEMA s2; CREATE TABLE s2.t (id int);
+		`)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,8 +166,17 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"dedup_col_alias_var_refs", "CREATE VIEW _v(first, second, third) AS SELECT x.* FROM a AS x(a)", "a_1 AS second"},
 			{"json_array_query_constructor", "CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT b FROM a) AS j", "JSON_ARRAY( SELECT"},
 			{"json_arrayagg_preserve", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE b > 0) AS j FROM a", "JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE (b > 0))"},
+			{"json_arrayagg_null_on_null", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b NULL ON NULL) AS j FROM a", "JSON_ARRAYAGG(b NULL ON NULL RETURNING json)"},
+			{"json_array_null_on_null", "CREATE VIEW _v AS SELECT JSON_ARRAY(b NULL ON NULL) AS j FROM a", "JSON_ARRAY(b NULL ON NULL RETURNING json)"},
+			{"json_arrayagg_format_json", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b::text FORMAT JSON) AS j FROM a", "FORMAT JSON"},
+			{"json_objectagg_format_json", "CREATE VIEW _v AS SELECT JSON_OBJECTAGG('k' : b::text FORMAT JSON) AS j FROM a", "FORMAT JSON"},
 			{"json_objectagg_over_preserve", "CREATE VIEW _v AS SELECT JSON_OBJECTAGG('k' : b WITH UNIQUE) OVER (PARTITION BY d) AS j FROM a", "JSON_OBJECTAGG('k' : b WITH UNIQUE RETURNING json) OVER (PARTITION BY d)"},
 			{"xmltable_preserve", "CREATE VIEW _v AS SELECT x.id, x.ord FROM XMLTABLE(XMLNAMESPACES(DEFAULT 'http://ex'), '/r' PASSING '<r/>'::xml COLUMNS id int PATH '@id' NOT NULL, ord FOR ORDINALITY) x", "XMLTABLE(XMLNAMESPACES(DEFAULT 'http://ex'), '/r' PASSING '<r/>'::xml COLUMNS id integer PATH '@id' NOT NULL, ord FOR ORDINALITY) x"},
+			{"cross_schema_unaliased_same_name", "CREATE VIEW _v AS SELECT 1 AS x FROM s1.t, s2.t", "s2.t"},
+			{"inherited_window_order_for_groups", "CREATE VIEW _v AS SELECT count(*) OVER w2 AS n FROM a WINDOW w AS (ORDER BY b), w2 AS (w GROUPS UNBOUNDED PRECEDING)", "OVER w2"},
+			{"multiple_unnamed_subqueries", "CREATE VIEW _v AS SELECT 1 AS x FROM (SELECT 1), (SELECT 2)", "unnamed_subquery_1"},
+			{"aliased_join_deparse", "CREATE VIEW _v AS SELECT b FROM (a FULL JOIN b USING (b)) j", ") j"},
+			{"pg17_integer_literals", "CREATE VIEW _v AS SELECT '0xFF'::integer AS h, '1_000'::bigint AS u, '0o77'::smallint AS o, '0b1010'::int AS b", "'0xFF'::integer"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -184,9 +198,14 @@ func TestQuerySimulationFixes(t *testing.T) {
 					t.Errorf("view def %q does not contain %q", def, tc.wantSub)
 				}
 				// Verify the deparsed view definition can be recreated cleanly.
-				if tc.name == "typed_empty_array" || tc.name == "dedup_col_alias_var_refs" ||
-					tc.name == "json_array_query_constructor" || tc.name == "json_arrayagg_preserve" ||
-					tc.name == "json_objectagg_over_preserve" || tc.name == "xmltable_preserve" {
+				switch tc.name {
+				case "typed_empty_array", "dedup_col_alias_var_refs",
+					"json_array_query_constructor", "json_arrayagg_preserve",
+					"json_arrayagg_null_on_null", "json_array_null_on_null",
+					"json_arrayagg_format_json", "json_objectagg_format_json",
+					"json_objectagg_over_preserve", "xmltable_preserve",
+					"cross_schema_unaliased_same_name", "multiple_unnamed_subqueries",
+					"aliased_join_deparse", "pg17_integer_literals":
 					c2 := setup(t)
 					res2, err := c2.Exec("CREATE VIEW _v2 AS "+def, nil)
 					if err != nil {

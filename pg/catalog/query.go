@@ -1230,6 +1230,7 @@ func (j *JsonIsPredicateExpr) exprCollation() uint32 { return 0 }
 // pg: src/include/nodes/primnodes.h — JsonValueExpr (PG16+)
 type JsonValueExprQ struct {
 	Expr       AnalyzedExpr
+	Format     int // 0=default, 1=FORMAT JSON, 2=FORMAT JSONB (matches nodes.JsonFormatType)
 	ResultType uint32
 }
 

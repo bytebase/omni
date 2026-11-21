@@ -540,6 +540,71 @@ func uniqueColumnAliases(colNames []string) []string {
 	return out
 }
 
+// rteRefName returns the unique deparse reference name for rte within query,
+// disambiguating generated aliases (such as multiple unnamed subqueries)
+// against explicit aliases and other generated names.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_rtable_names
+func (d *deparseCtx) rteRefName(query *Query, rte *RangeTableEntry) string {
+	if query == nil || rte == nil {
+		if rte != nil {
+			if rte.Alias != "" {
+				return rte.Alias
+			}
+			return rte.ERef
+		}
+		return ""
+	}
+	if rte.Alias != "" {
+		return rte.Alias
+	}
+	if rte.Kind != RTESubquery {
+		return rte.ERef
+	}
+	// Reserve all explicit aliases and non-unnamed-subquery ERefs first.
+	used := make(map[string]bool, len(query.RangeTable))
+	for _, other := range query.RangeTable {
+		if other.Kind == RTESubquery && other.Alias == "" {
+			continue
+		}
+		if other.Kind == RTEJoin && other.Alias == "" {
+			continue
+		}
+		name := other.Alias
+		if name == "" {
+			name = other.ERef
+		}
+		if name != "" {
+			used[name] = true
+		}
+	}
+	// Assign unique generated names in RangeTable order.
+	for _, other := range query.RangeTable {
+		if other.Kind != RTESubquery || other.Alias != "" {
+			continue
+		}
+		base := other.ERef
+		if base == "" {
+			base = "unnamed_subquery"
+		}
+		name := base
+		if used[name] {
+			for n := 1; ; n++ {
+				cand := fmt.Sprintf("%s_%d", base, n)
+				if !used[cand] {
+					name = cand
+					break
+				}
+			}
+		}
+		used[name] = true
+		if other == rte {
+			return name
+		}
+	}
+	return rte.ERef
+}
+
 // getFromClauseItem deparses a single FROM clause item.
 //
 // pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item
@@ -573,10 +638,7 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			subCtx.getQueryDef(rte.Subquery)
 			d.indentLevel = subCtx.indentLevel
 			d.buf.WriteByte(')')
-			refname := rte.Alias
-			if refname == "" {
-				refname = rte.ERef
-			}
+			refname := d.rteRefName(query, rte)
 			if refname != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(refname))
@@ -661,8 +723,14 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 		}
 
 	case *JoinExprNode:
-		// pg: get_from_clause_item wraps joins in parens when !PRETTY_PAREN
-		if !d.prettyParen {
+		var joinRTE *RangeTableEntry
+		if v.RTIndex >= 0 && v.RTIndex < len(query.RangeTable) {
+			joinRTE = query.RangeTable[v.RTIndex]
+		}
+		hasJoinAlias := joinRTE != nil && joinRTE.Alias != ""
+		// pg: get_from_clause_item wraps joins in parens when !PRETTY_PAREN or aliased
+		needParens := !d.prettyParen || hasJoinAlias
+		if needParens {
 			d.buf.WriteByte('(')
 		}
 
@@ -711,8 +779,15 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			d.buf.WriteString(" ON TRUE")
 		}
 
-		if !d.prettyParen {
+		if needParens {
 			d.buf.WriteByte(')')
+		}
+		if hasJoinAlias {
+			d.buf.WriteByte(' ')
+			d.buf.WriteString(quoteIdentifier(joinRTE.Alias))
+			if joinRTE.aliasColumns > 0 {
+				d.writeColumnAliasList(joinRTE.ColNames)
+			}
 		}
 	}
 }
@@ -853,6 +928,12 @@ func (d *deparseCtx) getRuleExpr(expr AnalyzedExpr, showImplicit bool) {
 		d.getJsonIsPredicate(v)
 	case *JsonValueExprQ:
 		d.getRuleExpr(v.Expr, showImplicit)
+		switch v.Format {
+		case 1: // JS_FORMAT_JSON
+			d.buf.WriteString(" FORMAT JSON")
+		case 2: // JS_FORMAT_JSONB
+			d.buf.WriteString(" FORMAT JSONB")
+		}
 	// --- Plan-Internal Stubs ---
 	case *SubPlanExpr:
 		d.buf.WriteString("/* SubPlan */")
@@ -903,8 +984,9 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	}
 
 	rte := ctx.query.RangeTable[v.RangeIdx]
+	refName := ctx.rteRefName(ctx.query, rte)
 	if v.AttNum == 0 {
-		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(quoteIdentifier(refName))
 		d.buf.WriteString(".*")
 		if isTopLevel {
 			if v.TypeOID != 0 && v.TypeOID != RECORDOID {
@@ -917,7 +999,7 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 			}
 			return ""
 		}
-		return rte.ERef
+		return refName
 	}
 	colNames := ctx.rtePrintedColNames(rte)
 	colIdx := int(v.AttNum - 1)
@@ -952,7 +1034,7 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	needPrefix := v.LevelsUp > 0 || d.hasParentNamespace || len(d.query.RangeTable) != 1
 
 	if needPrefix {
-		d.buf.WriteString(quoteIdentifier(rte.ERef))
+		d.buf.WriteString(quoteIdentifier(refName))
 		d.buf.WriteByte('.')
 	}
 	d.buf.WriteString(quoteIdentifier(colName))
@@ -983,10 +1065,17 @@ func (d *deparseCtx) getConstExpr(c *ConstExpr, showType int) {
 
 	switch c.TypeOID {
 	case INT4OID:
-		if len(c.Value) > 0 && c.Value[0] != '-' {
+		allDigits := len(c.Value) > 0
+		for i := 0; i < len(c.Value); i++ {
+			if c.Value[i] < '0' || c.Value[i] > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
 			d.buf.WriteString(c.Value)
 		} else {
-			fmt.Fprintf(d.buf, "'%s'", c.Value)
+			simpleQuoteLiteral(d.buf, c.Value)
 			needLabel = true
 		}
 	case INT8OID:
@@ -2941,11 +3030,12 @@ func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
 			}
 			d.getRuleExpr(arg, true)
 		}
-		if j.AbsentOnNull {
-			if hasContent {
-				d.buf.WriteByte(' ')
+		if len(j.Args) > 0 {
+			if j.AbsentOnNull {
+				d.buf.WriteString(" ABSENT ON NULL")
+			} else {
+				d.buf.WriteString(" NULL ON NULL")
 			}
-			d.buf.WriteString("ABSENT ON NULL")
 			hasContent = true
 		}
 		writeReturning(hasContent)
@@ -2974,13 +3064,15 @@ func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
 			d.getAggOrderBy(j.AggOrder)
 			hasContent = true
 		}
-		if j.AbsentOnNull {
-			if hasContent {
-				d.buf.WriteByte(' ')
-			}
-			d.buf.WriteString("ABSENT ON NULL")
-			hasContent = true
+		if hasContent {
+			d.buf.WriteByte(' ')
 		}
+		if j.AbsentOnNull {
+			d.buf.WriteString("ABSENT ON NULL")
+		} else {
+			d.buf.WriteString("NULL ON NULL")
+		}
+		hasContent = true
 		writeReturning(hasContent)
 		d.buf.WriteByte(')')
 		writeAggSuffix()

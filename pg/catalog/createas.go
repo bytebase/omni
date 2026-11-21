@@ -388,7 +388,7 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 	trimmed := strings.TrimSpace(val)
 	switch targetType {
 	case INT2OID:
-		v, err := strconv.ParseInt(trimmed, 10, 64)
+		v, err := parsePGInteger(trimmed)
 		if err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
@@ -399,7 +399,7 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type smallint", val)}
 		}
 	case INT4OID, OIDOID, XIDOID, CIDOID:
-		v, err := strconv.ParseInt(trimmed, 10, 64)
+		v, err := parsePGInteger(trimmed)
 		if err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
@@ -414,7 +414,7 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 			return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type %s", val, c.typeName(targetType))}
 		}
 	case INT8OID:
-		if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
+		if _, err := parsePGInteger(trimmed); err != nil {
 			if errors.Is(err, strconv.ErrRange) {
 				return &Error{Code: CodeNumericValueOutOfRange, Message: fmt.Sprintf("value %q is out of range for type bigint", val)}
 			}
@@ -489,6 +489,87 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 		}
 	}
 	return nil
+}
+
+// parsePGInteger parses an integer literal using PostgreSQL 17 input syntax:
+// optional +/- sign, optional 0x/0o/0b base prefix, and underscore digit
+// separators (matching src/backend/utils/adt/numutils.c pg_strtoint64_safe).
+func parsePGInteger(s string) (int64, error) {
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+	neg := false
+	if s[0] == '+' || s[0] == '-' {
+		neg = s[0] == '-'
+		s = s[1:]
+	}
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+
+	base := 10
+	allowLeadingUnderscore := false
+	if len(s) >= 2 && s[0] == '0' {
+		switch s[1] {
+		case 'x', 'X':
+			base = 16
+			s = s[2:]
+			allowLeadingUnderscore = true
+		case 'o', 'O':
+			base = 8
+			s = s[2:]
+			allowLeadingUnderscore = true
+		case 'b', 'B':
+			base = 2
+			s = s[2:]
+			allowLeadingUnderscore = true
+		}
+	}
+	if s == "" {
+		return 0, strconv.ErrSyntax
+	}
+
+	isDigit := func(ch byte) bool {
+		switch base {
+		case 2:
+			return ch == '0' || ch == '1'
+		case 8:
+			return ch >= '0' && ch <= '7'
+		case 10:
+			return ch >= '0' && ch <= '9'
+		case 16:
+			return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+		}
+		return false
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(s) + 1)
+	if neg {
+		buf.WriteByte('-')
+	}
+	digits := 0
+	prevUnderscore := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '_' {
+			if prevUnderscore || (digits == 0 && !allowLeadingUnderscore) {
+				return 0, strconv.ErrSyntax
+			}
+			prevUnderscore = true
+			continue
+		}
+		if !isDigit(ch) {
+			return 0, strconv.ErrSyntax
+		}
+		buf.WriteByte(ch)
+		digits++
+		prevUnderscore = false
+	}
+	if digits == 0 || prevUnderscore {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.ParseInt(buf.String(), base, 64)
 }
 
 func validateNumericLiteral(raw, trimmed string) error {
