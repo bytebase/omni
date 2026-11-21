@@ -47,7 +47,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		if t.Temporary {
 			continue
 		}
-		tableProto := tableToProto(db.Name, t)
+		tableProto := tableToProto(db.Name, t, c.resolveEffectiveTimeZone())
 		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
 		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
 	}
@@ -1175,8 +1175,25 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		return e.TargetType
 	case *OpExprQ:
 		opUpper := strings.ToUpper(e.Op)
-		if e.Left == nil && (opUpper == "+" || opUpper == "-") {
+		if e.Left == nil && opUpper == "+" {
 			return resolveExprResolvedType(c, db, q, e.Right)
+		}
+		if e.Left == nil && opUpper == "-" {
+			// Negation is signed and may widen; on mysql:8.0.46
+			// -t (TINYINT UNSIGNED) is int, -i (INT UNSIGNED) and -u (BIGINT UNSIGNED) are bigint, -d (DECIMAL(10,2) UNSIGNED) is decimal(10,2).
+			rt := resolveExprResolvedType(c, db, q, e.Right)
+			if rt == nil {
+				return nil
+			}
+			switch rt.BaseType {
+			case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt:
+				return &ResolvedType{BaseType: BaseTypeInt}
+			case BaseTypeInt, BaseTypeBigInt:
+				return &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			cp := *rt
+			cp.Unsigned = false
+			return &cp
 		}
 		if ct := resolveIntervalOpColumnType(c, db, q, e, false); ct != "" {
 			return parseColumnResolvedType(ct)
@@ -1208,9 +1225,14 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 				}
 				return &ResolvedType{BaseType: BaseTypeDecimal}
 			}
-			return &ResolvedType{BaseType: BaseTypeBigInt}
+			// Integer arithmetic is unsigned when either operand is: u + 1,
+			// s + u, i * s and u % 2 are bigint unsigned on mysql:8.0.46,
+			// oceanbase-ce 4.3.5.6 and TiDB v8.5.5.
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		case "DIV":
-			return &ResolvedType{BaseType: BaseTypeBigInt}
+			lt := resolveExprResolvedType(c, db, q, e.Left)
+			rt := resolveExprResolvedType(c, db, q, e.Right)
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		}
 		return e.ResultType
 	case *CaseExprQ, *CoalesceExprQ:
@@ -2137,7 +2159,9 @@ func resolvedTypeToColumnType(rt *ResolvedType) string {
 	}
 }
 
-func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
+// sessionTZ is the catalog's effective time zone, in which a TIMESTAMP
+// literal default is written, as ShowCreateTable writes it.
+func tableToProto(dbName string, t *Table, sessionTZ resolvedTimeZone) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
 		Name:       t.Name,
 		Engine:     t.Engine,
@@ -2179,6 +2203,13 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 		switch {
 		case col.AutoIncrement:
 			colMeta.Default = autoIncrementSymbol
+		case col.Default != nil && col.DefaultTimestampUTC != nil && col.DefaultKind == ColumnDefaultConstant:
+			// A TIMESTAMP literal names an instant, kept in UTC: written in the
+			// current session time zone, as SHOW CREATE TABLE shows it, a
+			// default created under +03:00 as 12:00:00 reads 09:00:00 once the
+			// session is +00:00, and LoadMetadata under that zone keeps the
+			// instant.
+			colMeta.Default = normalizeDefault(formatDefaultForTZ(*col.Default, col, sessionTZ), col.DefaultKind)
 		case col.Default != nil:
 			colMeta.Default = normalizeDefault(*col.Default, col.DefaultKind)
 		case col.Nullable && !col.DefaultDropped:

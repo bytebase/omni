@@ -22,6 +22,9 @@
 > exec
 | CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));
 < ok 0 0
+> exec
+| CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -104,7 +107,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795255147548298
+| __word_segment_19_1795257251884077
 : bytes
 | A
 : int64 -1
@@ -122,7 +125,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795255147547915
+| __doc_id_1795257251883674
 : bytes
 | A
 : int64 -1
@@ -158,7 +161,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795255147742812
+| __word_segment_19_1795257252118926
 : bytes
 | A
 : int64 -1
@@ -176,7 +179,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795255147742573
+| __doc_id_1795257252118560
 : bytes
 | A
 : int64 -1
@@ -203,6 +206,42 @@
 : bytes
 | BTREE
 : int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| k_global
+: bytes
+| b
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| k_plain
+: bytes
+| c
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
 : int64 1
 : bytes
 |
@@ -248,7 +287,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795255146968227
+| __vid_1795257251225000
 : bytes
 | A
 : int64 -1
@@ -266,7 +305,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795255146968625
+| __type_17_1795257251225474
 : bytes
 | A
 : int64 -1
@@ -284,7 +323,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795255146968227
+| __vid_1795257251225000
 : bytes
 | A
 : int64 -1
@@ -302,7 +341,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795255146970465
+| __scn_17_1795257251229216
 : bytes
 | A
 : int64 -1
@@ -320,7 +359,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795255146968227
+| __vid_1795257251225000
 : bytes
 | A
 : int64 -1
@@ -338,7 +377,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795255146968625
+| __type_17_1795257251225474
 : bytes
 | A
 : int64 -1
@@ -356,7 +395,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795255146971428
+| __key_17_1795257251230542
 : bytes
 | A
 : int64 -1
@@ -632,6 +671,72 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| c
+: uint64 3
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
 : bytes
 | ''
 : bytes
@@ -999,6 +1104,29 @@
 < row
 : bytes
 | t_ft_default
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_global
 : bytes
 | BASE TABLE
 : bytes
@@ -1151,6 +1279,26 @@
 |   FULLTEXT KEY `fk2` (`body`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_global`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_global
+: bytes
+| CREATE TABLE `t_global` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   UNIQUE KEY `k_global` (`b`) BLOCK_SIZE 16384 GLOBAL
+|  ,
+|   KEY `k_plain` (`c`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`a`)
+| (partition `p0`,
+| partition `p1`)
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_vec`
 < result
 < column "Table" "VARCHAR" "string"
@@ -1243,6 +1391,15 @@
 |   `body` varchar(200) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   FULLTEXT KEY `fk2` (`body`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE TABLE `t_global` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL,
+|   UNIQUE KEY `k_global` (`b`) GLOBAL,
+|   KEY `k_plain` (`c`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 < ok 0 0
 > exec
@@ -1341,7 +1498,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795255150019409
+| __word_segment_19_1795257255112943
 : bytes
 | A
 : int64 -1
@@ -1359,7 +1516,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795255150019222
+| __doc_id_1795257255112686
 : bytes
 | A
 : int64 -1
@@ -1395,7 +1552,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795255150190432
+| __word_segment_19_1795257255303298
 : bytes
 | A
 : int64 -1
@@ -1413,7 +1570,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795255150190199
+| __doc_id_1795257255303034
 : bytes
 | A
 : int64 -1
@@ -1440,6 +1597,42 @@
 : bytes
 | BTREE
 : int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| k_global
+: bytes
+| b
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| k_plain
+: bytes
+| c
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
 : int64 1
 : bytes
 |
@@ -1485,7 +1678,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795255150361901
+| __vid_1795257255686485
 : bytes
 | A
 : int64 -1
@@ -1503,7 +1696,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795255150362146
+| __type_17_1795257255686813
 : bytes
 | A
 : int64 -1
@@ -1521,7 +1714,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795255150361901
+| __vid_1795257255686485
 : bytes
 | A
 : int64 -1
@@ -1539,7 +1732,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795255150363597
+| __scn_17_1795257255688734
 : bytes
 | A
 : int64 -1
@@ -1557,7 +1750,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795255150361901
+| __vid_1795257255686485
 : bytes
 | A
 : int64 -1
@@ -1575,7 +1768,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795255150362146
+| __type_17_1795257255686813
 : bytes
 | A
 : int64 -1
@@ -1593,7 +1786,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795255150364359
+| __key_17_1795257255689986
 : bytes
 | A
 : int64 -1
@@ -1869,6 +2062,72 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_global
+: bytes
+| c
+: uint64 3
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
 : bytes
 | ''
 : bytes
@@ -2258,6 +2517,29 @@
 | utf8mb4
 < row
 : bytes
+| t_global
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_vec
 : bytes
 | BASE TABLE
@@ -2383,6 +2665,22 @@
 |   `body` varchar(200) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   FULLTEXT KEY `fk2` (`body`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_global`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_global
+: bytes
+| CREATE TABLE `t_global` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   UNIQUE KEY `k_global` (`b`) BLOCK_SIZE 16384 GLOBAL,
+|   KEY `k_plain` (`c`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_vec`

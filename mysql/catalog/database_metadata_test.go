@@ -2038,3 +2038,67 @@ func TestDatabaseMetadataModuloViewNullability(t *testing.T) {
 	}
 	require.False(t, cols[4].Nullable)
 }
+
+// TestDatabaseMetadataUnsignedArithmeticViewTypes pins integer arithmetic over
+// unsigned columns as mysql:8.0.46, oceanbase-ce 4.3.5.6 and TiDB v8.5.5 report
+// it: unsigned when either operand is, and no unsigned decimal; negation is
+// signed and widens as each engine does.
+func TestDatabaseMetadataUnsignedArithmeticViewTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE TABLE tu (u BIGINT UNSIGNED NOT NULL, i INT UNSIGNED NOT NULL, s INT NOT NULL, d DECIMAL(10,2) UNSIGNED NOT NULL); "+
+		"CREATE TABLE tn (t TINYINT UNSIGNED NOT NULL, d DECIMAL(10,2) UNSIGNED NOT NULL); "+
+		"CREATE VIEW vu AS SELECT u + 1 AS a1, u - 1 AS a2, u * 2 AS a3, s + u AS a4, i * s AS a5, u DIV 2 AS a6, u % 2 AS a7, -u AS a8, s + 1 AS a9, d + 1 AS a10 FROM tu; "+
+		"CREATE VIEW vn AS SELECT -t AS n1, -d AS n2, +t AS n3 FROM tn;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, v := range c.DatabaseMetadata("app").Schemas[0].Views {
+		if v.Name != "vu" {
+			continue
+		}
+		for _, col := range v.Columns {
+			got[col.Name] = col.Type
+		}
+	}
+	for _, name := range []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7"} {
+		require.Equal(t, "bigint unsigned", got[name], name)
+	}
+	require.Equal(t, "bigint", got["a8"])
+	require.Equal(t, "bigint", got["a9"])
+	require.Equal(t, "decimal(11,2)", got["a10"])
+	neg := map[string]string{}
+	for _, v := range c.DatabaseMetadata("app").Schemas[0].Views {
+		if v.Name != "vn" {
+			continue
+		}
+		for _, col := range v.Columns {
+			neg[col.Name] = col.Type
+		}
+	}
+	require.Equal(t, "int", neg["n1"])
+	require.Equal(t, "decimal(10,2)", neg["n2"])
+	require.Equal(t, "tinyint unsigned", neg["n3"])
+}
+
+// TestDatabaseMetadataExportsTimestampDefaultsInSessionTimeZone pins a
+// TIMESTAMP literal default created under +03:00 and exported once the session
+// is +00:00: mysql:8.0.46 then shows DEFAULT '2026-01-01 09:00:00', and the
+// export writes the same, so a load under UTC keeps the instant.
+func TestDatabaseMetadataExportsTimestampDefaultsInSessionTimeZone(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; SET time_zone = '+03:00'; "+
+		"CREATE TABLE tt (ts TIMESTAMP NULL DEFAULT '2026-01-01 12:00:00'); SET time_zone = '+00:00';", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.Contains(t, c.ShowCreateTable("app", "tt"), "DEFAULT '2026-01-01 09:00:00'")
+	meta := c.DatabaseMetadata("app")
+	require.Equal(t, "'2026-01-01 09:00:00'", meta.Schemas[0].Tables[0].Columns[0].Default)
+
+	reloaded := New()
+	_, err = reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	want := c.GetDatabase("app").GetTable("tt").GetColumn("ts").DefaultTimestampUTC
+	got := reloaded.GetDatabase("app").GetTable("tt").GetColumn("ts").DefaultTimestampUTC
+	require.NotNil(t, want)
+	require.NotNil(t, got)
+	require.True(t, want.Equal(*got), "want %v, got %v", want, got)
+}

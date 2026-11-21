@@ -297,7 +297,9 @@ CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((C
 
 CREATE TABLE t_ft (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk (body) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3));
 
-CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));`
+CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));
+
+CREATE TABLE t_global (a INT, b INT, c INT, KEY k_plain (c), UNIQUE KEY k_global (b) GLOBAL) PARTITION BY HASH(a) PARTITIONS 2;`
 	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
 	if err != nil {
 		t.Fatalf("restoring OceanBase dump: %v", err)
@@ -333,6 +335,12 @@ CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY f
 			if idx.Parser != tc.parser || fmt.Sprint(idx.ParserProperties) != tc.props || strings.Join(idx.Expressions, ",") != "body" {
 				t.Errorf("%s full-text index = %+v", tc.table, idx)
 			}
+		}
+	}
+	for _, idx := range tables["t_global"].Indexes {
+		wantGlobal := idx.Name == "k_global"
+		if idx.IsGlobal != wantGlobal || (wantGlobal && idx.Scope != "GLOBAL") || (!wantGlobal && idx.Scope != "") {
+			t.Errorf("t_global index %s scope = %q, global = %v", idx.Name, idx.Scope, idx.IsGlobal)
 		}
 	}
 	if diff := restoreDiff(source, restored); diff != "" {

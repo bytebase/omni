@@ -795,8 +795,27 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		return e.TargetType
 	case *OpExprQ:
 		opUpper := strings.ToUpper(e.Op)
-		if e.Left == nil && (opUpper == "+" || opUpper == "-") {
+		if e.Left == nil && opUpper == "+" {
 			return resolveExprResolvedType(c, db, q, e.Right)
+		}
+		if e.Left == nil && opUpper == "-" {
+			// Negation is signed and may widen; on TiDB v8.5.5
+			// every integer negates to bigint, and -d (DECIMAL(10,2) UNSIGNED) is decimal(11,2).
+			rt := resolveExprResolvedType(c, db, q, e.Right)
+			if rt == nil {
+				return nil
+			}
+			switch rt.BaseType {
+			case BaseTypeTinyInt, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt:
+				return &ResolvedType{BaseType: BaseTypeBigInt}
+			case BaseTypeDecimal:
+				if rt.Precision > 0 {
+					return &ResolvedType{BaseType: BaseTypeDecimal, Precision: rt.Precision + 1, Scale: rt.Scale}
+				}
+			}
+			cp := *rt
+			cp.Unsigned = false
+			return &cp
 		}
 		if ct := resolveIntervalOpColumnType(c, db, q, e, true); ct != "" {
 			return parseColumnResolvedType(ct)
@@ -830,9 +849,14 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 				}
 				return &ResolvedType{BaseType: BaseTypeDecimal}
 			}
-			return &ResolvedType{BaseType: BaseTypeBigInt}
+			// Integer arithmetic is unsigned when either operand is: u + 1,
+			// s + u, i * s and u % 2 are bigint unsigned on mysql:8.0.46,
+			// oceanbase-ce 4.3.5.6 and TiDB v8.5.5.
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		case "DIV":
-			return &ResolvedType{BaseType: BaseTypeBigInt}
+			lt := resolveExprResolvedType(c, db, q, e.Left)
+			rt := resolveExprResolvedType(c, db, q, e.Right)
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		}
 		return e.ResultType
 	case *CaseExprQ, *CoalesceExprQ:

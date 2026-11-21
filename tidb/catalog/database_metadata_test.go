@@ -1593,3 +1593,44 @@ func TestDatabaseMetadataKeepsSnapshotTypeForUnresolvedViewColumns(t *testing.T)
 	require.Equal(t, "int", cols[0].Type)
 	require.Equal(t, "varchar(32)", cols[1].Type)
 }
+
+// TestDatabaseMetadataUnsignedArithmeticViewTypes pins integer arithmetic over
+// unsigned columns as mysql:8.0.46, oceanbase-ce 4.3.5.6 and TiDB v8.5.5 report
+// it: unsigned when either operand is, and no unsigned decimal; negation is
+// signed and widens as each engine does.
+func TestDatabaseMetadataUnsignedArithmeticViewTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE TABLE tu (u BIGINT UNSIGNED NOT NULL, i INT UNSIGNED NOT NULL, s INT NOT NULL, d DECIMAL(10,2) UNSIGNED NOT NULL); "+
+		"CREATE TABLE tn (t TINYINT UNSIGNED NOT NULL, d DECIMAL(10,2) UNSIGNED NOT NULL); "+
+		"CREATE VIEW vu AS SELECT u + 1 AS a1, u - 1 AS a2, u * 2 AS a3, s + u AS a4, i * s AS a5, u DIV 2 AS a6, u % 2 AS a7, -u AS a8, s + 1 AS a9, d + 1 AS a10 FROM tu; "+
+		"CREATE VIEW vn AS SELECT -t AS n1, -d AS n2, +t AS n3 FROM tn;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	got := map[string]string{}
+	for _, v := range c.DatabaseMetadata("app").Schemas[0].Views {
+		if v.Name != "vu" {
+			continue
+		}
+		for _, col := range v.Columns {
+			got[col.Name] = col.Type
+		}
+	}
+	for _, name := range []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7"} {
+		require.Equal(t, "bigint unsigned", got[name], name)
+	}
+	require.Equal(t, "bigint", got["a8"])
+	require.Equal(t, "bigint", got["a9"])
+	require.Equal(t, "decimal(11,2)", got["a10"])
+	neg := map[string]string{}
+	for _, v := range c.DatabaseMetadata("app").Schemas[0].Views {
+		if v.Name != "vn" {
+			continue
+		}
+		for _, col := range v.Columns {
+			neg[col.Name] = col.Type
+		}
+	}
+	require.Equal(t, "bigint", neg["n1"])
+	require.Equal(t, "decimal(11,2)", neg["n2"])
+	require.Equal(t, "tinyint unsigned", neg["n3"])
+}

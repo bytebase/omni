@@ -1882,6 +1882,17 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 		if con.Type == oceanbaseast.ConstrFulltextIndex {
 			idx.Parser, idx.ParserProperties = fulltextParser(con.IndexOptions)
 		}
+		// A GLOBAL index spans the partitions; a restore that drops the word
+		// makes it local, and a unique key without the partition key then
+		// fails with 1503. oceanbase-ce 4.3.5.6 prints LOCAL for every other
+		// index, written or not, so only GLOBAL is kept, as the catalog
+		// exports an index written without a scope.
+		for _, opt := range con.IndexOptions {
+			if opt != nil && strings.EqualFold(opt.Name, "GLOBAL") {
+				idx.Scope = "GLOBAL"
+				idx.IsGlobal = true
+			}
+		}
 		if con.Type == oceanbaseast.ConstrVector {
 			idx.IsVector = true
 			idx.Type = ""
