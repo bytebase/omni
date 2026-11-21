@@ -279,12 +279,14 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	for changed := true; changed; {
 		changed = false
 		for oid, child := range c.indexes {
-			if child != nil && child.ParentIndexOID != 0 && idxOIDs[child.ParentIndexOID] && !idxOIDs[oid] {
+			if child != nil && child.Schema != nil && child.ParentIndexOID != 0 && idxOIDs[child.ParentIndexOID] && !idxOIDs[oid] {
 				idxOIDs[oid] = true
+				idxs = append(idxs, memberIdx{schema: child.Schema, idx: child})
 				changed = true
 			}
 		}
 	}
+	sort.Slice(idxs, func(i, j int) bool { return idxs[i].idx.OID < idxs[j].idx.OID })
 	var trigs []*Trigger
 	trigOIDs := map[uint32]bool{}
 	for oid, trig := range c.triggers {
@@ -293,16 +295,17 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			trigOIDs[oid] = true
 		}
 	}
-	sort.Slice(trigs, func(i, j int) bool { return trigs[i].OID < trigs[j].OID })
 	for changed := true; changed; {
 		changed = false
 		for oid, child := range c.triggers {
 			if child != nil && child.ParentTriggerOID != 0 && trigOIDs[child.ParentTriggerOID] && !trigOIDs[oid] {
 				trigOIDs[oid] = true
+				trigs = append(trigs, child)
 				changed = true
 			}
 		}
 	}
+	sort.Slice(trigs, func(i, j int) bool { return trigs[i].OID < trigs[j].OID })
 	for _, x := range idxs {
 		if x.idx.ParentIndexOID != 0 && !idxOIDs[x.idx.ParentIndexOID] && !relOIDs[x.idx.RelOID] {
 			return &Error{

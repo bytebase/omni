@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
@@ -132,8 +133,27 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 			targets = append(targets, target{schema: schema, name: idxName, idx: idx})
 		}
 	}
+	for changed := true; changed; {
+		changed = false
+		var added []target
+		for oid, child := range c.indexes {
+			if child != nil && child.Schema != nil && child.ParentIndexOID != 0 && dropIdxOIDs[child.ParentIndexOID] && !dropIdxOIDs[oid] {
+				dropIdxOIDs[oid] = true
+				added = append(added, target{schema: child.Schema, name: child.Name, idx: child})
+				changed = true
+			}
+		}
+		sort.Slice(added, func(i, j int) bool { return added[i].idx.OID < added[j].idx.OID })
+		targets = append(targets, added...)
+	}
 	if !cascade {
 		for _, t := range targets {
+			if t.idx.ConstraintOID != 0 {
+				return &Error{
+					Code:    CodeDependentObjects,
+					Message: fmt.Sprintf("cannot drop index %q because constraint requires it", t.name),
+				}
+			}
 			for _, refClass := range []byte{'r', 'i'} {
 				for _, dep := range c.findNormalDependents(refClass, t.idx.OID) {
 					if dep.ObjType == 'i' && dropIdxOIDs[dep.ObjOID] {

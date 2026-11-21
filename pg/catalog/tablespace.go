@@ -1202,12 +1202,16 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	for changed := true; changed; {
 		changed = false
 		for oid, child := range c.indexes {
-			if child != nil && child.ParentIndexOID != 0 && ownedIdxOIDs[child.ParentIndexOID] && !ownedIdxOIDs[oid] {
+			if child != nil && child.Schema != nil && child.ParentIndexOID != 0 && ownedIdxOIDs[child.ParentIndexOID] && !ownedIdxOIDs[oid] {
 				ownedIdxOIDs[oid] = true
+				if !ownedRelOIDs[child.RelOID] {
+					indexes = append(indexes, ownedIdx{schema: child.Schema, idx: child})
+				}
 				changed = true
 			}
 		}
 	}
+	sort.Slice(indexes, func(i, j int) bool { return indexes[i].idx.OID < indexes[j].idx.OID })
 	for _, x := range indexes {
 		if x.idx.ParentIndexOID != 0 && !ownedIdxOIDs[x.idx.ParentIndexOID] && !ownedRelOIDs[x.idx.RelOID] {
 			return &Error{
@@ -1232,16 +1236,19 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			ownedTrigOIDs[oid] = true
 		}
 	}
-	sort.Slice(autoExtTriggers, func(i, j int) bool { return autoExtTriggers[i].OID < autoExtTriggers[j].OID })
 	for changed := true; changed; {
 		changed = false
 		for oid, child := range c.triggers {
 			if child != nil && child.ParentTriggerOID != 0 && ownedTrigOIDs[child.ParentTriggerOID] && !ownedTrigOIDs[oid] {
 				ownedTrigOIDs[oid] = true
+				if !ownedRelOIDs[child.RelOID] {
+					autoExtTriggers = append(autoExtTriggers, child)
+				}
 				changed = true
 			}
 		}
 	}
+	sort.Slice(autoExtTriggers, func(i, j int) bool { return autoExtTriggers[i].OID < autoExtTriggers[j].OID })
 	for _, trig := range autoExtTriggers {
 		if trig.ParentTriggerOID != 0 && !ownedTrigOIDs[trig.ParentTriggerOID] && !ownedRelOIDs[trig.RelOID] {
 			return errDependentObjects("trigger", trig.Name)

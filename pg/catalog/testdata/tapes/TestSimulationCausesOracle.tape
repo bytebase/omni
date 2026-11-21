@@ -2845,6 +2845,43 @@
 | CREATE EXTENSION hstore;
 | CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
 | CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
+| CREATE UNIQUE INDEX pt_dep_uidx ON ONLY pt_dep (id);
+| CREATE UNIQUE INDEX pt_dep_1_uidx ON pt_dep_1 (id);
+| ALTER INDEX pt_dep_uidx ATTACH PARTITION pt_dep_1_uidx;
+| CREATE TABLE fk_child (pid int REFERENCES pt_dep_1(id));
+| ALTER INDEX pt_dep_uidx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< error
+| 2BP01 cannot drop extension hstore because other objects depend on it
+| detail: constraint fk_child_pid_fkey on table fk_child depends on index pt_dep_1_uidx
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
+| CREATE UNIQUE INDEX pt_dep_uidx ON ONLY pt_dep (id);
+| CREATE UNIQUE INDEX pt_dep_1_uidx ON pt_dep_1 (id);
+| ALTER INDEX pt_dep_uidx ATTACH PARTITION pt_dep_1_uidx;
+| CREATE TABLE fk_child (pid int REFERENCES pt_dep_1(id));
+| ALTER INDEX pt_dep_uidx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
 | CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
 | CREATE TRIGGER pt_tr BEFORE INSERT ON pt_dep FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
 | ALTER TRIGGER pt_tr ON pt_dep_1 DEPENDS ON EXTENSION hstore;
