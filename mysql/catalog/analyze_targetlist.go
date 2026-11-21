@@ -16,6 +16,9 @@ func analyzeTargetList(c *Catalog, targetList []nodes.ExprNode, q *Query, scope 
 			return err
 		}
 		q.TargetList = append(q.TargetList, entries...)
+		for _, te := range entries {
+			scope.addSelectAlias(te.ResName, te.Expr)
+		}
 	}
 	return nil
 }

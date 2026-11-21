@@ -16,6 +16,8 @@ type analyzerScope struct {
 	cols          [][]*Column                 // parallel to base entries: entry index -> catalog Column pointers
 	dbNames       []string                    // parallel to base entries: database name for base tables/views (empty for CTEs/derived)
 	parent        *analyzerScope
+	barrier       bool                        // non-LATERAL derived table barrier: skips this level while preserving LevelsUp
+	selectAliases map[string]AnalyzedExpr     // preceding select-list aliases visible to nested subqueries
 	ctes          map[string]*CommonTableExprQ // CTEs visible in this scope (propagated to nested subqueries)
 	reachableCTEs map[*nodes.CommonTableExpr]bool
 	source        string // original SQL text for expression-derived column names
@@ -100,14 +102,7 @@ func (s *analyzerScope) resolveColumn(colName string) (int, int, error) {
 func (s *analyzerScope) resolveQualifiedColumn(tableName, colName string) (int, int, error) {
 	entryIdx, pos, err := s.base.ResolveQualifiedColumn(tableName, colName)
 	if err != nil {
-		if strings.Contains(err.Error(), "unknown table") {
-			return 0, 0, &Error{
-				Code:     ErrUnknownTable,
-				SQLState: sqlState(ErrUnknownTable),
-				Message:  fmt.Sprintf("Unknown table '%s'", tableName),
-			}
-		}
-		return 0, 0, errNoSuchColumn(colName, "field list")
+		return 0, 0, errNoSuchColumn(tableName+"."+colName, "field list")
 	}
 	return s.rteMap[entryIdx], pos, nil
 }
@@ -124,12 +119,36 @@ func (s *analyzerScope) getColumns(tableName string) []*Column {
 	return nil
 }
 
+// addSelectAlias records a preceding select-list alias so nested subqueries
+// in the same SELECT / GROUP BY / HAVING / ORDER BY can reference it.
+func (s *analyzerScope) addSelectAlias(name string, expr AnalyzedExpr) {
+	if name == "" || expr == nil {
+		return
+	}
+	if s.selectAliases == nil {
+		s.selectAliases = make(map[string]AnalyzedExpr)
+	}
+	lower := strings.ToLower(name)
+	if _, exists := s.selectAliases[lower]; !exists {
+		s.selectAliases[lower] = expr
+	}
+}
+
 // resolveColumnFull resolves an unqualified column, trying parent scopes
 // if not found locally. Returns (rteIdx, attNum, levelsUp, error).
 func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error) {
-	rteIdx, attNum, err := s.resolveColumn(colName)
-	if err == nil {
-		return rteIdx, attNum, 0, nil
+	if !s.barrier {
+		rteIdx, attNum, err := s.resolveColumn(colName)
+		if err == nil {
+			return rteIdx, attNum, 0, nil
+		}
+		if s.parent != nil {
+			rteIdx, attNum, parentLevels, parentErr := s.parent.resolveColumnFull(colName)
+			if parentErr == nil {
+				return rteIdx, attNum, parentLevels + 1, nil
+			}
+		}
+		return 0, 0, 0, err
 	}
 	if s.parent != nil {
 		rteIdx, attNum, parentLevels, parentErr := s.parent.resolveColumnFull(colName)
@@ -137,7 +156,37 @@ func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error)
 			return rteIdx, attNum, parentLevels + 1, nil
 		}
 	}
-	return 0, 0, 0, err
+	return 0, 0, 0, errNoSuchColumn(colName, "field list")
+}
+
+// resolveColumnOrOuterAlias resolves an unqualified column name against local
+// tables, then enclosing query blocks' tables and preceding select-list aliases
+// (MySQL allows subqueries in a SELECT list / HAVING / ORDER BY to reference
+// outer select-list aliases, while rejecting them in the same block's field list).
+func (s *analyzerScope) resolveColumnOrOuterAlias(colName string) (int, int, int, AnalyzedExpr, error) {
+	var firstErr error
+	if !s.barrier {
+		rteIdx, attNum, err := s.resolveColumn(colName)
+		if err == nil {
+			return rteIdx, attNum, 0, nil, nil
+		}
+		firstErr = err
+	} else {
+		firstErr = errNoSuchColumn(colName, "field list")
+	}
+	lower := strings.ToLower(colName)
+	for p, levelsUp := s.parent, 1; p != nil; p, levelsUp = p.parent, levelsUp+1 {
+		if p.barrier {
+			continue
+		}
+		if rteIdx, attNum, err := p.resolveColumn(colName); err == nil {
+			return rteIdx, attNum, levelsUp, nil, nil
+		}
+		if expr, ok := p.selectAliases[lower]; ok {
+			return 0, 0, levelsUp, expr, nil
+		}
+	}
+	return 0, 0, 0, nil, firstErr
 }
 
 // resolveQualifiedColumnFull resolves a qualified column, trying parent scopes
@@ -149,6 +198,18 @@ func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (i
 // resolveSchemaQualifiedColumnFull resolves a schema.table.column (or table.column
 // when schemaName is empty), trying parent scopes if not found locally.
 func (s *analyzerScope) resolveSchemaQualifiedColumnFull(schemaName, tableName, colName string) (int, int, int, error) {
+	if s.barrier {
+		if s.parent != nil {
+			rteIdx, attNum, parentLevels, parentErr := s.parent.resolveSchemaQualifiedColumnFull(schemaName, tableName, colName)
+			if parentErr == nil {
+				return rteIdx, attNum, parentLevels + 1, nil
+			}
+		}
+		if schemaName != "" {
+			return 0, 0, 0, errNoSuchColumn(schemaName+"."+tableName+"."+colName, "field list")
+		}
+		return 0, 0, 0, errNoSuchColumn(tableName+"."+colName, "field list")
+	}
 	if schemaName != "" {
 		entries := s.base.AllEntries()
 		for i, e := range entries {

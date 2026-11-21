@@ -144,11 +144,192 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 		}
 		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
 	}
-	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
+	rteIdx, attNum, levelsUp, aliasExpr, err := scope.resolveColumnOrOuterAlias(ref.Column)
 	if err != nil {
 		return nil, err
 	}
+	if aliasExpr != nil {
+		return shiftExprLevelsUp(aliasExpr, levelsUp, 0), nil
+	}
 	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+}
+
+// shiftExprLevelsUp returns a copy of expr with every VarExprQ crossing above
+// minDepth shifted by +delta levels, so an outer select-list alias expression
+// keeps valid LevelsUp coordinates inside a nested subquery.
+func shiftExprLevelsUp(expr AnalyzedExpr, delta, minDepth int) AnalyzedExpr {
+	if expr == nil || delta == 0 {
+		return expr
+	}
+	switch e := expr.(type) {
+	case *VarExprQ:
+		if e.LevelsUp < minDepth {
+			return e
+		}
+		cp := *e
+		cp.LevelsUp += delta
+		return &cp
+	case *ConstExprQ:
+		return e
+	case *FuncCallExprQ:
+		cp := *e
+		if len(e.Args) > 0 {
+			cp.Args = make([]AnalyzedExpr, len(e.Args))
+			for i, a := range e.Args {
+				cp.Args[i] = shiftExprLevelsUp(a, delta, minDepth)
+			}
+		}
+		if e.Over != nil && len(e.Over.PartitionBy) > 0 {
+			ov := *e.Over
+			ov.PartitionBy = make([]AnalyzedExpr, len(e.Over.PartitionBy))
+			for i, p := range e.Over.PartitionBy {
+				ov.PartitionBy[i] = shiftExprLevelsUp(p, delta, minDepth)
+			}
+			cp.Over = &ov
+		}
+		return &cp
+	case *OpExprQ:
+		cp := *e
+		cp.Left = shiftExprLevelsUp(e.Left, delta, minDepth)
+		cp.Right = shiftExprLevelsUp(e.Right, delta, minDepth)
+		return &cp
+	case *BoolExprQ:
+		cp := *e
+		if len(e.Args) > 0 {
+			cp.Args = make([]AnalyzedExpr, len(e.Args))
+			for i, a := range e.Args {
+				cp.Args[i] = shiftExprLevelsUp(a, delta, minDepth)
+			}
+		}
+		return &cp
+	case *CaseExprQ:
+		cp := *e
+		cp.TestExpr = shiftExprLevelsUp(e.TestExpr, delta, minDepth)
+		cp.Default = shiftExprLevelsUp(e.Default, delta, minDepth)
+		if len(e.Args) > 0 {
+			cp.Args = make([]*CaseWhenQ, len(e.Args))
+			for i, w := range e.Args {
+				cp.Args[i] = &CaseWhenQ{
+					Cond: shiftExprLevelsUp(w.Cond, delta, minDepth),
+					Then: shiftExprLevelsUp(w.Then, delta, minDepth),
+				}
+			}
+		}
+		return &cp
+	case *CoalesceExprQ:
+		cp := *e
+		if len(e.Args) > 0 {
+			cp.Args = make([]AnalyzedExpr, len(e.Args))
+			for i, a := range e.Args {
+				cp.Args[i] = shiftExprLevelsUp(a, delta, minDepth)
+			}
+		}
+		return &cp
+	case *NullTestExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		return &cp
+	case *SubLinkExprQ:
+		cp := *e
+		cp.TestExpr = shiftExprLevelsUp(e.TestExpr, delta, minDepth)
+		cp.Subquery = shiftQueryLevelsUp(e.Subquery, delta, minDepth+1)
+		return &cp
+	case *InListExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		if len(e.List) > 0 {
+			cp.List = make([]AnalyzedExpr, len(e.List))
+			for i, a := range e.List {
+				cp.List[i] = shiftExprLevelsUp(a, delta, minDepth)
+			}
+		}
+		return &cp
+	case *BetweenExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		cp.Lower = shiftExprLevelsUp(e.Lower, delta, minDepth)
+		cp.Upper = shiftExprLevelsUp(e.Upper, delta, minDepth)
+		return &cp
+	case *LikeExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		cp.Pattern = shiftExprLevelsUp(e.Pattern, delta, minDepth)
+		cp.Escape = shiftExprLevelsUp(e.Escape, delta, minDepth)
+		return &cp
+	case *CollateExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		return &cp
+	case *RowExprQ:
+		cp := *e
+		if len(e.Args) > 0 {
+			cp.Args = make([]AnalyzedExpr, len(e.Args))
+			for i, a := range e.Args {
+				cp.Args[i] = shiftExprLevelsUp(a, delta, minDepth)
+			}
+		}
+		return &cp
+	case *CastExprQ:
+		cp := *e
+		cp.Arg = shiftExprLevelsUp(e.Arg, delta, minDepth)
+		return &cp
+	case *IntervalExprQ:
+		cp := *e
+		cp.Value = shiftExprLevelsUp(e.Value, delta, minDepth)
+		return &cp
+	default:
+		return expr
+	}
+}
+
+func shiftQueryLevelsUp(q *Query, delta, minDepth int) *Query {
+	if q == nil || delta == 0 {
+		return q
+	}
+	cp := *q
+	if len(q.RangeTable) > 0 {
+		cp.RangeTable = make([]*RangeTableEntryQ, len(q.RangeTable))
+		for i, rte := range q.RangeTable {
+			if rte != nil && rte.Subquery != nil {
+				rteCp := *rte
+				rteCp.Subquery = shiftQueryLevelsUp(rte.Subquery, delta, minDepth+1)
+				cp.RangeTable[i] = &rteCp
+			} else {
+				cp.RangeTable[i] = rte
+			}
+		}
+	}
+	if len(q.CTEList) > 0 {
+		cp.CTEList = make([]*CommonTableExprQ, len(q.CTEList))
+		for i, cte := range q.CTEList {
+			if cte != nil && cte.Query != nil {
+				cteCp := *cte
+				cteCp.Query = shiftQueryLevelsUp(cte.Query, delta, minDepth)
+				cp.CTEList[i] = &cteCp
+			} else {
+				cp.CTEList[i] = cte
+			}
+		}
+	}
+	if len(q.TargetList) > 0 {
+		cp.TargetList = make([]*TargetEntryQ, len(q.TargetList))
+		for i, te := range q.TargetList {
+			teCp := *te
+			teCp.Expr = shiftExprLevelsUp(te.Expr, delta, minDepth)
+			cp.TargetList[i] = &teCp
+		}
+	}
+	if q.JoinTree != nil {
+		jt := *q.JoinTree
+		jt.Quals = shiftExprLevelsUp(jt.Quals, delta, minDepth)
+		cp.JoinTree = &jt
+	}
+	cp.HavingQual = shiftExprLevelsUp(q.HavingQual, delta, minDepth)
+	cp.LimitCount = shiftExprLevelsUp(q.LimitCount, delta, minDepth)
+	cp.LimitOffset = shiftExprLevelsUp(q.LimitOffset, delta, minDepth)
+	cp.LArg = shiftQueryLevelsUp(q.LArg, delta, minDepth)
+	cp.RArg = shiftQueryLevelsUp(q.RArg, delta, minDepth)
+	return &cp
 }
 
 // analyzeFuncCall resolves a function call expression.

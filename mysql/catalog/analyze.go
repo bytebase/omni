@@ -89,9 +89,13 @@ func (c *Catalog) analyzeSelectStmtIn(stmt *nodes.SelectStmt, parentScope *analy
 		return nil, err
 	}
 
-	// Step 3: Analyze WHERE clause.
+	// Step 3: Analyze WHERE clause. Select-list aliases are not visible in
+	// WHERE (even inside subqueries in WHERE).
 	if stmt.Where != nil {
+		savedAliases := scope.selectAliases
+		scope.selectAliases = nil
 		analyzed, err := analyzeExpr(c, stmt.Where, scope)
+		scope.selectAliases = savedAliases
 		if err != nil {
 			return nil, err
 		}
@@ -508,11 +512,17 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
 func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
-	// Recursively analyze the inner SELECT. FROM subqueries are not correlated
-	// (unless LATERAL), but enclosing CTEs remain visible inside them.
-	var parentScope *analyzerScope
-	if subq.Lateral {
-		parentScope = scope
+	// Recursively analyze the inner SELECT. A LATERAL derived table can
+	// reference preceding tables in its immediate containing FROM clause; a
+	// non-LATERAL derived table cannot, but since MySQL 8.0.14 can reference
+	// enclosing ancestor query blocks. A barrier scope at the immediate level
+	// skips immediate-block lookup while keeping LevelsUp accurate.
+	parentScope := scope
+	if !subq.Lateral && scope != nil {
+		parentScope = &analyzerScope{
+			parent:  scope.parent,
+			barrier: true,
+		}
 	}
 	innerQ, err := c.analyzeSelectStmtIn(subq.Select, parentScope, cteMap, scope.reachableCTEs, scope.source)
 	if err != nil {

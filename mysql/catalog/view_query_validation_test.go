@@ -76,6 +76,11 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"unknown_col_from_table", "CREATE VIEW v AS SELECT no_col FROM t", ErrNoSuchColumn},
 		{"wrong_schema_col", "CREATE VIEW v AS SELECT db2.t.a FROM t", ErrNoSuchColumn},
 		{"derived_table_unknown_col", "CREATE VIEW v AS SELECT d.no_col FROM (SELECT 1 + 1) AS d", ErrNoSuchColumn},
+		{"non_lateral_sibling_table_ref", "CREATE VIEW v AS SELECT d.x FROM t, (SELECT t.a AS x) AS d", ErrNoSuchColumn},
+		{"select_alias_same_list_ref", "CREATE VIEW v AS SELECT a + 1 AS x, x + 1 AS y FROM t", ErrNoSuchColumn},
+		{"select_alias_where_subquery_ref", "CREATE VIEW v AS SELECT a + 1 AS x FROM t WHERE (SELECT x) = 1", ErrNoSuchColumn},
+		{"select_alias_forward_subquery_ref", "CREATE VIEW v AS SELECT (SELECT x + 1) AS y, a + 1 AS x FROM t", ErrNoSuchColumn},
+		{"select_alias_qualified_subquery_ref", "CREATE VIEW v AS SELECT a + 1 AS x, (SELECT t.x) AS y FROM t", ErrNoSuchColumn},
 		{"reachable_cte_unknown_col", "CREATE VIEW v AS WITH bad AS (SELECT missing_col), used AS (SELECT * FROM bad) SELECT * FROM used", ErrNoSuchColumn},
 	}
 
@@ -115,6 +120,11 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"derived_expr_col_name", "CREATE VIEW v AS SELECT d.`1 + 1` FROM (SELECT 1 + 1) AS d"},
 		{"derived_func_col_name", "CREATE VIEW v AS SELECT d.`COUNT(*)` FROM (SELECT COUNT(*) FROM t) AS d"},
 		{"cte_expr_col_name", "CREATE VIEW v AS WITH c AS (SELECT 1 + 1) SELECT c.`1 + 1` FROM c"},
+		{"non_lateral_derived_outer_scope", "CREATE VIEW v AS SELECT (SELECT d.x FROM (SELECT t.a AS x) AS d) AS x FROM t"},
+		{"lateral_derived_sibling_scope", "CREATE VIEW v AS SELECT d.x FROM t, LATERAL (SELECT t.a AS x) AS d"},
+		{"preceding_select_alias_in_subquery", "CREATE VIEW v AS SELECT a + 1 AS x, (SELECT x + 1) AS y FROM t"},
+		{"preceding_select_alias_nested_subquery", "CREATE VIEW v AS SELECT a + 1 AS x, (SELECT (SELECT x + 1)) AS y FROM t"},
+		{"preceding_select_alias_in_having_subquery", "CREATE VIEW v AS SELECT a + 1 AS x FROM t GROUP BY a HAVING (SELECT x) > 0"},
 		{"dual_literal", "CREATE VIEW v AS SELECT 1 FROM DUAL"},
 	}
 	for _, tc := range accepted {
