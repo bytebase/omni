@@ -48,12 +48,12 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	case *nodes.StarExpr:
 		// SELECT *
-		return expandStar("", q, scope, resNo)
+		return expandStar("", "", q, scope, resNo)
 
 	case *nodes.ColumnRef:
 		if n.Star {
-			// SELECT t.*
-			return expandStar(n.Table, q, scope, resNo)
+			// SELECT t.* or SELECT db.t.*
+			return expandStar(n.Schema, n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
 		analyzed, err := analyzeExpr(c, item, scope)
@@ -86,34 +86,52 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	}
 }
 
-// expandStar expands a star expression (SELECT * or SELECT t.*) into
-// individual TargetEntryQ values.
-func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+// expandStar expands a star expression (SELECT *, SELECT t.*, or SELECT db.t.*)
+// into individual TargetEntryQ values.
+func expandStar(schemaName, tableName string, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 
 	if tableName == "" {
-		// SELECT * — expand all tables in scope order.
+		// SELECT * — expand all tables in scope order, omitting coalesced
+		// USING/NATURAL join columns from the right side.
 		for _, e := range scope.allEntries() {
-			entries, err := expandScopeEntry(e, q, scope, resNo)
+			entries, err := expandScopeEntry(e, q, scope, resNo, true)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		}
 	} else {
-		// SELECT t.* — expand only the named table.
-		lower := toLower(tableName)
-		if i := scope.entryIndex(lower); i >= 0 {
-			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
+		// SELECT t.* / SELECT db.t.* — expand all columns of the named table,
+		// including columns coalesced by USING/NATURAL (MySQL keeps every
+		// column of the named table for qualified stars).
+		idx := -1
+		if schemaName != "" {
+			entries := scope.base.AllEntries()
+			for i, e := range entries {
+				if i < len(scope.dbNames) && toLower(scope.dbNames[i]) == toLower(schemaName) && toLower(e.Name) == toLower(tableName) {
+					idx = i
+					break
+				}
+			}
+		} else {
+			idx = scope.entryIndex(toLower(tableName))
+		}
+		if idx >= 0 {
+			entries, err := expandScopeEntry(scope.entry(idx), q, scope, resNo, false)
 			if err != nil {
 				return nil, err
 			}
 			result = append(result, entries...)
 		} else {
+			name := tableName
+			if schemaName != "" {
+				name = schemaName + "." + tableName
+			}
 			return nil, &Error{
 				Code:     ErrUnknownTable,
 				SQLState: sqlState(ErrUnknownTable),
-				Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+				Message:  fmt.Sprintf("Unknown table '%s'", name),
 			}
 		}
 	}
@@ -124,14 +142,15 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	return result, nil
 }
 
-// expandScopeEntry expands all columns from a single scope entry,
-// skipping columns marked as coalesced by USING/NATURAL.
-func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+// expandScopeEntry expands all columns from a single scope entry, optionally
+// skipping columns marked as coalesced by USING/NATURAL (true for unqualified
+// SELECT *, false for qualified SELECT t.*).
+func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int, skipCoalesced bool) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 	rte := q.RangeTable[e.rteIdx]
 	for i, col := range e.columns {
-		// Skip columns that were coalesced away by USING/NATURAL.
-		if scope.isCoalesced(e.name, col.Name) {
+		// Skip columns that were coalesced away by USING/NATURAL on unqualified *.
+		if skipCoalesced && scope.isCoalesced(e.name, col.Name) {
 			continue
 		}
 		te := &TargetEntryQ{
