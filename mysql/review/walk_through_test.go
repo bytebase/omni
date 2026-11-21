@@ -284,6 +284,24 @@ func TestWalkThroughMySQLTargetGroups(t *testing.T) {
 	}
 }
 
+// TestWalkThroughMySQLPartitionMaintenance pins that ALTER TABLE with only
+// ANALYZE, CHECK, OPTIMIZE, or REPAIR PARTITION reports a status row instead
+// of a SQL error on a missing table or view (measured on mysql:8.0.46), so
+// WALK_THROUGH must stay silent on them.
+func TestWalkThroughMySQLPartitionMaintenance(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	for _, stmt := range []string{
+		"ALTER TABLE nosuch OPTIMIZE PARTITION ALL;",
+		"ALTER TABLE nosuch ANALYZE PARTITION ALL;",
+		"ALTER TABLE nosuch CHECK PARTITION ALL;",
+		"ALTER TABLE nosuch REPAIR PARTITION ALL;",
+		"ALTER TABLE v CHECK PARTITION ALL;",
+	} {
+		noFinding(t, stmt, shop)
+	}
+	oneFinding(t, "ALTER TABLE nosuch REBUILD PARTITION ALL;", 0, "Table `nosuch` doesn't exist.", shop)
+}
+
 // walkForms are the statement forms of the MySQL spec's §5 table, each on
 // walkSchema. A form the table lists must lower.
 var walkForms = []walktest.Form{

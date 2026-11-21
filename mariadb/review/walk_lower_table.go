@@ -21,6 +21,12 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	case refUnknown:
 		return false
 	}
+	if alterIsPartitionMaintenanceOnly(v.Commands) {
+		// ANALYZE, CHECK, OPTIMIZE, and REPAIR PARTITION report a status
+		// row rather than a SQL error when the table is missing or a view,
+		// and change no names the walk tracks (measured on mariadb:11.8.8).
+		return true
+	}
 	f, temp, kind := b.resolve(r)
 	switch {
 	case temp:
@@ -39,6 +45,16 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		// columns: the walk follows neither (MariaDB spec §2.3; see
 		// walker.versioned).
 		return false
+	}
+	if v.IfExists {
+		if f == walk.Absent {
+			// IF EXISTS turns a missing table into a note and skips all
+			// subcommands (measured on mariadb:11.8.8).
+			return true
+		}
+		if kind != relTable {
+			return false
+		}
 	}
 	b.tableNeeds(r)
 	if f == walk.Absent || kind == relView {
@@ -109,6 +125,27 @@ func alterEarly(t ast.AlterTableCmdType) bool {
 		return true
 	}
 	return false
+}
+
+// alterIsPartitionMaintenanceOnly reports whether an ALTER TABLE consists
+// solely of partition maintenance actions (ANALYZE, CHECK, OPTIMIZE, REPAIR
+// PARTITION), which MariaDB answers with a status row instead of a SQL error
+// even when the table is missing or a view.
+func alterIsPartitionMaintenanceOnly(cmds []*ast.AlterTableCmd) bool {
+	if len(cmds) == 0 {
+		return false
+	}
+	for _, c := range cmds {
+		if c == nil {
+			return false
+		}
+		switch c.Type {
+		case ast.ATAnalyzePartition, ast.ATCheckPartition, ast.ATOptimizePartition, ast.ATRepairPartition:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // alterNoFacts reports whether a subcommand changes no name the walk

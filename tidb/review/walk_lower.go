@@ -439,7 +439,7 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 		}
 	}
 	for _, c := range v.Constraints {
-		if c.Type != ast.ConstrCheck && b.tooLong(keyName(c), rangeOf(c.Loc)) {
+		if c.Type != ast.ConstrCheck && c.Type != ast.ConstrFulltextIndex && b.tooLong(keyName(c), rangeOf(c.Loc)) {
 			return true
 		}
 	}
@@ -487,7 +487,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 				foreignKeys[k] = true
 			}
 			continue
-		case ast.ConstrCheck:
+		case ast.ConstrCheck, ast.ConstrFulltextIndex:
 			continue
 		}
 		k, ok := b.key(spaceIndex, c.Name)
@@ -569,7 +569,9 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	case ast.ConstrPrimaryKey:
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Present, "")
 		return true
-	case ast.ConstrCheck:
+	case ast.ConstrCheck, ast.ConstrFulltextIndex:
+		// TiDB parses FULLTEXT keys in CREATE/ALTER TABLE as a no-op and
+		// keeps no index (measured on v8.5.5).
 	case ast.ConstrForeignKey:
 		k, ok := b.key(spaceTableForeignKey, keyName(c))
 		switch {

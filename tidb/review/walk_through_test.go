@@ -350,6 +350,20 @@ func TestWalkThroughTiDBExplain(t *testing.T) {
 	noFinding(t, "EXPLAIN ANALYZE SELECT 1;\nEXPLAIN ANALYZE UPDATE t SET a = 1;", shop)
 }
 
+// TestWalkThroughTiDBFulltextIgnored pins that TiDB parses FULLTEXT keys in
+// CREATE TABLE and ALTER TABLE as no-ops without creating an index (measured
+// on v8.5.5), so WALK_THROUGH must neither flag a colliding index name nor
+// record the FULLTEXT key as present.
+func TestWalkThroughTiDBFulltextIgnored(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	noFinding(t, "ALTER TABLE t ADD FULLTEXT i (a);", shop)
+	noFinding(t, "ALTER TABLE t ADD CONSTRAINT i FULLTEXT (a);", shop)
+	noFinding(t, "CREATE TABLE x (a text, FULLTEXT ft (a));\nALTER TABLE x ADD INDEX ft (a);", shop)
+	oneFinding(t, "CREATE TABLE x (a text, FULLTEXT ft (a));\nALTER TABLE x DROP INDEX ft;", 1, "Index `ft` doesn't exist in `x`.", shop)
+	// Missing table still fails on ALTER TABLE ... ADD FULLTEXT.
+	oneFinding(t, "ALTER TABLE nosuch ADD FULLTEXT ft (a);", 0, "Table `nosuch` doesn't exist.", shop)
+}
+
 // walkForms are the statement forms the walk lowers (the MySQL spec's §5
 // table, with spec §3's TiDB deltas), each on walkSchema. A form the table
 // lists must lower.

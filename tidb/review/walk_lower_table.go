@@ -106,8 +106,8 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATAddLastPartition, ast.ATDropFirstPartition,
 		ast.ATReorganizeLastPartition, ast.ATReorganizeFirstPartition:
 		return true
-	case ast.ATAddConstraint:
-		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck
+	case ast.ATAddConstraint, ast.ATAddIndex:
+		return c.Constraint != nil && (c.Constraint.Type == ast.ConstrCheck || c.Constraint.Type == ast.ConstrFulltextIndex)
 	}
 	return false
 }
@@ -362,8 +362,9 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if con == nil {
 				continue
 			}
-			// A CHECK constraint's name may be long (namesTooLong).
-			if con.Type != ast.ConstrCheck && b.tooLong(keyName(con), rng) {
+			// A CHECK constraint's name may be long (namesTooLong), and TiDB
+			// ignores FULLTEXT keys in ALTER TABLE (measured on v8.5.5).
+			if con.Type != ast.ConstrCheck && con.Type != ast.ConstrFulltextIndex && b.tooLong(keyName(con), rng) {
 				return true
 			}
 			switch con.Type {
@@ -374,7 +375,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				if b.fks && twice("add foreign key", spaceTableForeignKey, keyName(con), rng, statesTwice("adds", "foreign key", ident(keyName(con)))) {
 					return true
 				}
-			case ast.ConstrCheck:
+			case ast.ConstrCheck, ast.ConstrFulltextIndex:
 			default:
 				if k, ok := b.key(spaceIndex, con.Name); ok && k == primaryIndex {
 					b.fail(rng, nil, review.ReservedName, reservedPrimary)
@@ -461,7 +462,9 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
-	case ast.ConstrCheck:
+	case ast.ConstrCheck, ast.ConstrFulltextIndex:
+		// TiDB parses FULLTEXT keys in ALTER TABLE as a no-op and adds no
+		// index (measured on v8.5.5).
 		return
 	case ast.ConstrForeignKey:
 		if !b.fks {

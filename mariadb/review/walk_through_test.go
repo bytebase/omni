@@ -441,6 +441,28 @@ func TestWalkThroughMariaDBTargetGroups(t *testing.T) {
 	}
 }
 
+// TestWalkThroughMariaDBAlterIfExistsAndPartitionMaintenance pins that
+// ALTER TABLE IF EXISTS on a missing table and partition maintenance actions
+// (OPTIMIZE, ANALYZE, CHECK, REPAIR PARTITION) produce no SQL error on
+// mariadb:11.8.8, so WALK_THROUGH stays silent on them.
+func TestWalkThroughMariaDBAlterIfExistsAndPartitionMaintenance(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	for _, stmt := range []string{
+		"ALTER TABLE IF EXISTS nosuch;",
+		"ALTER TABLE IF EXISTS nosuch ADD COLUMN x int;",
+		"ALTER TABLE nosuch OPTIMIZE PARTITION ALL;",
+		"ALTER TABLE nosuch ANALYZE PARTITION ALL;",
+		"ALTER TABLE nosuch CHECK PARTITION ALL;",
+		"ALTER TABLE nosuch REPAIR PARTITION ALL;",
+		"ALTER TABLE v CHECK PARTITION ALL;",
+	} {
+		noFinding(t, stmt, shop)
+	}
+	// ALTER TABLE IF EXISTS on an existing table still checks its subcommands.
+	oneFinding(t, "ALTER TABLE IF EXISTS t ADD COLUMN a int;", 0, "Column `a` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE nosuch REBUILD PARTITION ALL;", 0, "Table `nosuch` doesn't exist.", shop)
+}
+
 // walkForms are the statement forms of the MySQL spec's §5 table and the
 // MariaDB spec's §2.3, each on walkSchema. A form the tables list must
 // lower.
