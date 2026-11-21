@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mongo"
 )
 
 func testSessionConfig(collections ...string) SessionConfig {
@@ -67,11 +68,19 @@ func TestCompleteSessionDotAccess(t *testing.T) {
 	if !hasCandidateWithType(results, "$valid_1", CandidateCollection) {
 		t.Error("expected bare collection '$valid_1'")
 	}
-	if !hasCandidateWithType(results, `["my-collection"]`, CandidateCollection) {
-		t.Errorf("expected bracket-quoted 'my-collection', got %v", candidateTexts(results))
+	if !hasCandidateWithType(results, `getCollection("my-collection")`, CandidateCollection) {
+		t.Errorf("expected getCollection(...) for 'my-collection', got %v", candidateTexts(results))
 	}
-	if !hasCandidateWithType(results, `["a\"b\\c"]`, CandidateCollection) {
-		t.Errorf("expected escaped bracket-quoted collection, got %v", candidateTexts(results))
+	if !hasCandidateWithType(results, `getCollection("a\"b\\c")`, CandidateCollection) {
+		t.Errorf("expected escaped getCollection(...) collection, got %v", candidateTexts(results))
+	}
+	for _, c := range results {
+		if c.Type != CandidateCollection {
+			continue
+		}
+		if _, err := mongo.Parse("db." + c.Text + ".find()"); err != nil {
+			t.Errorf("inserting dot-access candidate %q produced unparseable statement: %v", c.Text, err)
+		}
 	}
 	if !hasCandidateWithType(results, "getName", CandidateDbMethod) {
 		t.Error("expected db method 'getName'")
@@ -122,8 +131,8 @@ func TestCompleteSessionBracketAccess(t *testing.T) {
 		if !hasCandidateWithType(results, "users", CandidateCollection) {
 			t.Errorf("expected bare 'users', got %v", candidateTexts(results))
 		}
-		if !hasCandidateWithType(results, `["my-collection"]`, CandidateCollection) {
-			t.Errorf("expected bracket-quoted 'my-collection', got %v", candidateTexts(results))
+		if !hasCandidateWithType(results, `getCollection("my-collection")`, CandidateCollection) {
+			t.Errorf("expected getCollection(...) for 'my-collection', got %v", candidateTexts(results))
 		}
 	})
 }
@@ -136,8 +145,8 @@ func TestCompleteSessionMultiline(t *testing.T) {
 	if !hasCandidateWithType(results, "users", CandidateCollection) {
 		t.Error("expected collection 'users' on second line")
 	}
-	if !hasCandidateWithType(results, `["my-collection"]`, CandidateCollection) {
-		t.Error("expected bracket-quoted 'my-collection' on second line")
+	if !hasCandidateWithType(results, `getCollection("my-collection")`, CandidateCollection) {
+		t.Error("expected getCollection(...) for 'my-collection' on second line")
 	}
 	if !hasCandidateWithType(results, "runCommand", CandidateDbMethod) {
 		t.Error("expected db method 'runCommand' on second line")

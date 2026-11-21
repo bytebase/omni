@@ -26,7 +26,7 @@ type SessionConfig struct {
 // statement at the 1-based line and 0-based UTF-16 code-unit caretOffset.
 //
 // Collection candidates are formatted for the active access syntax:
-//   - dot access (`db.|`): valid JavaScript identifiers stay bare; others use `["name"]`.
+//   - dot access (`db.|`): valid JavaScript identifiers stay bare; others use `getCollection("name")`.
 //   - bracket access (`db[|`): formatted as `"name"]`.
 //   - inside an open bracket quote (`db["|` or `db['|`): escaped content without outer delimiters.
 //
@@ -132,7 +132,7 @@ func formatCollectionCandidate(name string, inBracket bool, quote byte) string {
 		return `"` + escapeJSString(name, '"') + `"]`
 	}
 	if !isValidJSIdentifier(name) {
-		return `["` + escapeJSString(name, '"') + `"]`
+		return `getCollection("` + escapeJSString(name, '"') + `")`
 	}
 	return name
 }
