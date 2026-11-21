@@ -1249,7 +1249,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 		result.Generated = 's'
 	}
 	if cd.Fdwoptions != nil && len(cd.Fdwoptions.Items) > 0 {
-		fdwOpts, err := applyForeignOptionChanges(nil, cd.Fdwoptions, c.snapshot)
+		fdwOpts, err := applyForeignOptionChanges(nil, cd.Fdwoptions)
 		if err != nil {
 			return ColumnDef{}, nil, err
 		}

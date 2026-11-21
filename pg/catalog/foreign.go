@@ -60,26 +60,72 @@ func stringPtrEqual(a, b *string) bool {
 	return *a == *b
 }
 
-func extractFdwFuncOptions(funcOpts *nodes.List) (handler, validator string, hasHandler, hasValidator bool) {
+func (c *Catalog) resolveFdwFuncOptions(funcOpts *nodes.List) (handler, validator string, hasHandler, hasValidator bool, err error) {
 	if funcOpts == nil {
-		return "", "", false, false
+		return "", "", false, false, nil
 	}
 	for _, item := range funcOpts.Items {
 		de, ok := item.(*nodes.DefElem)
 		if !ok {
 			continue
 		}
-		val := formatCatalogOptionName(de)
 		switch strings.ToLower(de.Defname) {
 		case "handler":
-			handler = val
+			handler, err = c.validateFdwFunc(de, nil, FDWHANDLEROID, "fdw_handler")
+			if err != nil {
+				return "", "", false, false, err
+			}
 			hasHandler = true
 		case "validator":
-			validator = val
+			validator, err = c.validateFdwFunc(de, []uint32{TEXTARRAYOID, OIDOID}, 0, "")
+			if err != nil {
+				return "", "", false, false, err
+			}
 			hasValidator = true
 		}
 	}
-	return handler, validator, hasHandler, hasValidator
+	return handler, validator, hasHandler, hasValidator, nil
+}
+
+func (c *Catalog) validateFdwFunc(de *nodes.DefElem, expectedArgs []uint32, expectedRet uint32, retTypeName string) (string, error) {
+	formatted := formatCatalogOptionName(de)
+	if formatted == "" {
+		return "", nil
+	}
+	var schemaName, funcName string
+	switch v := de.Arg.(type) {
+	case *nodes.List:
+		schemaName, funcName = qualifiedName(v)
+	case *nodes.String:
+		funcName = v.Str
+	}
+	if funcName == "" {
+		return "", errUndefinedFunction(formatted, expectedArgs)
+	}
+	foundWrongRet := false
+	for _, p := range c.procByName[funcName] {
+		if !slices.Equal(p.ArgTypes, expectedArgs) {
+			continue
+		}
+		if schemaName != "" {
+			up := c.userProcs[p.OID]
+			if schemaName == "pg_catalog" {
+				if up != nil {
+					continue
+				}
+			} else if up == nil || c.schemaByName[schemaName] == nil || up.Schema.OID != c.schemaByName[schemaName].OID {
+				continue
+			}
+		}
+		if expectedRet == 0 || p.RetType == expectedRet {
+			return formatted, nil
+		}
+		foundWrongRet = true
+	}
+	if foundWrongRet {
+		return "", errInvalidObjectDefinition("function " + formatted + " must return type " + retTypeName)
+	}
+	return "", errUndefinedFunction(funcName, expectedArgs)
 }
 
 // formatCatalogOptionName formats a qualified/unqualified object reference
@@ -137,11 +183,13 @@ func (c *Catalog) CreateFdwStmt(stmt *nodes.CreateFdwStmt) error {
 	if c.fdws[stmt.Fdwname] != nil {
 		return errDuplicateObject("foreign-data wrapper", stmt.Fdwname)
 	}
-	handler, validator, _, _ := extractFdwFuncOptions(stmt.FuncOptions)
+	handler, validator, _, _, err := c.resolveFdwFuncOptions(stmt.FuncOptions)
+	if err != nil {
+		return err
+	}
 	var opts []string
 	if stmt.Options != nil {
-		var err error
-		opts, err = applyForeignOptionChanges(nil, stmt.Options, c.snapshot)
+		opts, err = applyForeignOptionChanges(nil, stmt.Options)
 		if err != nil {
 			return err
 		}
@@ -166,7 +214,17 @@ func (c *Catalog) AlterFdwStmt(stmt *nodes.AlterFdwStmt) error {
 	if fdw == nil {
 		return errUndefinedObject("foreign-data wrapper", stmt.Fdwname)
 	}
-	handler, validator, hasHandler, hasValidator := extractFdwFuncOptions(stmt.FuncOptions)
+	handler, validator, hasHandler, hasValidator, err := c.resolveFdwFuncOptions(stmt.FuncOptions)
+	if err != nil {
+		return err
+	}
+	opts := fdw.Options
+	if stmt.Options != nil {
+		opts, err = applyForeignOptionChanges(fdw.Options, stmt.Options)
+		if err != nil {
+			return err
+		}
+	}
 	if hasHandler {
 		fdw.Handler = handler
 	}
@@ -174,10 +232,6 @@ func (c *Catalog) AlterFdwStmt(stmt *nodes.AlterFdwStmt) error {
 		fdw.Validator = validator
 	}
 	if stmt.Options != nil {
-		opts, err := applyForeignOptionChanges(fdw.Options, stmt.Options, c.snapshot)
-		if err != nil {
-			return err
-		}
 		fdw.Options = opts
 	}
 	return nil
@@ -201,7 +255,7 @@ func (c *Catalog) CreateForeignServerStmt(stmt *nodes.CreateForeignServerStmt) e
 	var opts []string
 	if stmt.Options != nil {
 		var err error
-		opts, err = applyForeignOptionChanges(nil, stmt.Options, c.snapshot)
+		opts, err = applyForeignOptionChanges(nil, stmt.Options)
 		if err != nil {
 			return err
 		}
@@ -236,6 +290,14 @@ func (c *Catalog) AlterForeignServerStmt(stmt *nodes.AlterForeignServerStmt) err
 	if srv == nil {
 		return errUndefinedObject("server", stmt.Servername)
 	}
+	opts := srv.Options
+	if stmt.Options != nil {
+		var err error
+		opts, err = applyForeignOptionChanges(srv.Options, stmt.Options)
+		if err != nil {
+			return err
+		}
+	}
 	if stmt.HasVersion {
 		if stmt.HasVersionNull {
 			srv.Version = nil
@@ -245,10 +307,6 @@ func (c *Catalog) AlterForeignServerStmt(stmt *nodes.AlterForeignServerStmt) err
 		}
 	}
 	if stmt.Options != nil {
-		opts, err := applyForeignOptionChanges(srv.Options, stmt.Options, c.snapshot)
-		if err != nil {
-			return err
-		}
 		srv.Options = opts
 	}
 	return nil
@@ -279,17 +337,19 @@ func (c *Catalog) removeFdwObjects(stmt *nodes.DropStmt) error {
 			targets = append(targets, fdw)
 		}
 	}
+	depsByFdw := make(map[string][]*ForeignServer, len(targets))
 	for _, fdw := range targets {
-		var depServers []*ForeignServer
 		for _, srv := range c.foreignServers {
 			if srv.FdwName == fdw.Name {
-				depServers = append(depServers, srv)
+				depsByFdw[fdw.Name] = append(depsByFdw[fdw.Name], srv)
 			}
 		}
-		if len(depServers) > 0 && !cascade {
+		if len(depsByFdw[fdw.Name]) > 0 && !cascade {
 			return errDependentObjects("foreign-data wrapper", fdw.Name)
 		}
-		for _, srv := range depServers {
+	}
+	for _, fdw := range targets {
+		for _, srv := range depsByFdw[fdw.Name] {
 			if err := c.dropForeignServer(srv, cascade); err != nil {
 				return err
 			}
@@ -325,6 +385,13 @@ func (c *Catalog) removeForeignServerObjects(stmt *nodes.DropStmt) error {
 			targets = append(targets, srv)
 		}
 	}
+	if !cascade {
+		for _, srv := range targets {
+			if len(c.foreignTablesOfServer(srv.Name)) > 0 {
+				return errDependentObjects("server", srv.Name)
+			}
+		}
+	}
 	for _, srv := range targets {
 		if err := c.dropForeignServer(srv, cascade); err != nil {
 			return err
@@ -333,13 +400,18 @@ func (c *Catalog) removeForeignServerObjects(stmt *nodes.DropStmt) error {
 	return nil
 }
 
-func (c *Catalog) dropForeignServer(srv *ForeignServer, cascade bool) error {
+func (c *Catalog) foreignTablesOfServer(serverName string) []*Relation {
 	var depTables []*Relation
 	for _, rel := range c.relationByOID {
-		if rel != nil && rel.RelKind == 'f' && rel.ForeignServer == srv.Name {
+		if rel != nil && rel.RelKind == 'f' && rel.ForeignServer == serverName {
 			depTables = append(depTables, rel)
 		}
 	}
+	return depTables
+}
+
+func (c *Catalog) dropForeignServer(srv *ForeignServer, cascade bool) error {
+	depTables := c.foreignTablesOfServer(srv.Name)
 	if len(depTables) > 0 && !cascade {
 		return errDependentObjects("server", srv.Name)
 	}

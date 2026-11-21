@@ -4472,9 +4472,13 @@ func TestTableOwnerOnlyChangeDoesNotProduceSpuriousDiff(t *testing.T) {
 			}},
 		}
 	}
-	sql, err := testMetadataMigration(withOwner("alice"), withOwner("bob"))
+	sql, err := testMetadataMigration(withOwner(""), withOwner("postgres"))
 	require.NoError(t, err)
 	require.Empty(t, sql)
+
+	sql, err = testMetadataMigration(withOwner("alice"), withOwner("bob"))
+	require.NoError(t, err)
+	require.Contains(t, sql, `ALTER TABLE "public"."t" OWNER TO bob`)
 }
 
 func TestFunctionSetClauseWithoutDefaultsPreserved(t *testing.T) {
@@ -4990,7 +4994,7 @@ func TestRound14Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, trigSQL, `DROP TRIGGER "trg_events" ON "public"."events"`)
 	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_view" INSTEAD OF INSERT ON "public"."v_events"`)
-	require.Contains(t, trigSQL, `EXECUTE FUNCTION "audit_fn"('tenant', 'ops')`)
+	require.Contains(t, trigSQL, `EXECUTE FUNCTION "public"."audit_fn"('tenant', 'ops')`)
 	require.Contains(t, trigSQL, `DROP TRIGGER "trg_mv" ON "public"."mv_events"`)
 	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_mv" AFTER TRUNCATE ON "public"."mv_events"`)
 
@@ -5211,4 +5215,91 @@ func TestRound16Fixes(t *testing.T) {
 	require.Contains(t, fnSQL, `SUPPORT public.sup_fn`)
 	require.Contains(t, fnSQL, `AS '$libdir/mylib', 'c_add_entry'`)
 	require.Contains(t, fnSQL, `AS '$libdir/libfoo', 'foo_entry'`)
+}
+
+func TestRound17Fixes(t *testing.T) {
+	// 1. Routine parameter name, mode, and multiple OUT param type changes emit DROP + CREATE.
+	paramFnMeta := func(def string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "pfn",
+					Signature:  "pfn(integer)",
+					Definition: def,
+				}},
+			}},
+		}
+	}
+	renameParamSQL, err := testMetadataMigration(
+		paramFnMeta(`CREATE FUNCTION public.pfn(a integer, OUT x integer, OUT y text) RETURNS record LANGUAGE sql AS $$ SELECT a, 'x' $$`),
+		paramFnMeta(`CREATE FUNCTION public.pfn(b integer, OUT x integer, OUT y text) RETURNS record LANGUAGE sql AS $$ SELECT b, 'x' $$`),
+	)
+	require.NoError(t, err)
+	require.Contains(t, renameParamSQL, `DROP FUNCTION "public"."pfn"(integer)`)
+	require.Contains(t, renameParamSQL, `CREATE FUNCTION "public"."pfn"("b" integer, OUT "x" integer, OUT "y" text)`)
+
+	outTypeSQL, err := testMetadataMigration(
+		paramFnMeta(`CREATE FUNCTION public.pfn(a integer, OUT x integer, OUT y text) RETURNS record LANGUAGE sql AS $$ SELECT a, 'x' $$`),
+		paramFnMeta(`CREATE FUNCTION public.pfn(a integer, OUT x integer, OUT y bigint) RETURNS record LANGUAGE sql AS $$ SELECT a, 1::bigint $$`),
+	)
+	require.NoError(t, err)
+	require.Contains(t, outTypeSQL, `DROP FUNCTION "public"."pfn"(integer)`)
+	require.Contains(t, outTypeSQL, `OUT "y" bigint`)
+
+	// 2. Trigger calling cross-schema function preserves qualified function schema.
+	crossTrigMeta := func(withTrig bool) *metadatapb.DatabaseSchemaMetadata {
+		tbl := pgTable("t", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})
+		if withTrig {
+			tbl.Triggers = []*metadatapb.TriggerMetadata{{
+				Name:   "trg_app",
+				Timing: "BEFORE",
+				Event:  "INSERT",
+				Body:   `CREATE TRIGGER trg_app BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION app.audit()`,
+			}}
+		}
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "public", Tables: []*metadatapb.TableMetadata{tbl}},
+				{
+					Name: "app",
+					Functions: []*metadatapb.FunctionMetadata{{
+						Name:       "audit",
+						Signature:  "audit()",
+						Definition: `CREATE FUNCTION app.audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$`,
+					}},
+				},
+			},
+		}
+	}
+	crossTrigSQL, err := MetadataMigration(
+		context.Background(),
+		crossTrigMeta(false),
+		crossTrigMeta(true),
+		MetadataMigrationOptions{
+			SourceSearchPath: []string{"public"},
+			TargetSearchPath: []string{"public"},
+		},
+	)
+	require.NoError(t, err)
+	require.Contains(t, crossTrigSQL, `EXECUTE FUNCTION "app"."audit"()`)
+
+	// 3. Table ownership migrations: owner on added table and owner-only change on existing table.
+	ownerMeta := func(owner string, include bool) *metadatapb.DatabaseSchemaMetadata {
+		sm := &metadatapb.SchemaMetadata{Name: "public"}
+		if include {
+			tbl := pgTable("owned_tbl", 0, &metadatapb.ColumnMetadata{Name: "id", Type: "integer"})
+			tbl.Owner = owner
+			sm.Tables = []*metadatapb.TableMetadata{tbl}
+		}
+		return &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{sm}}
+	}
+	addOwnerSQL, err := testMetadataMigration(ownerMeta("", false), ownerMeta("alice", true))
+	require.NoError(t, err)
+	require.Contains(t, addOwnerSQL, `CREATE TABLE "public"."owned_tbl"`)
+	require.Contains(t, addOwnerSQL, `ALTER TABLE "public"."owned_tbl" OWNER TO alice`)
+
+	chgOwnerSQL, err := testMetadataMigration(ownerMeta("alice", true), ownerMeta("bob", true))
+	require.NoError(t, err)
+	require.Contains(t, chgOwnerSQL, `ALTER TABLE "public"."owned_tbl" OWNER TO bob`)
 }

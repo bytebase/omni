@@ -10,7 +10,7 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
-func applyForeignOptionChanges(existing []string, opts *nodes.List, snapshot bool) ([]string, error) {
+func applyForeignOptionChanges(existing []string, opts *nodes.List) ([]string, error) {
 	updated := slices.Clone(existing)
 	indexOf := func(name string) int {
 		prefix := name + "="
@@ -30,30 +30,19 @@ func applyForeignOptionChanges(existing []string, opts *nodes.List, snapshot boo
 		switch nodes.DefElemAction(de.Defaction) {
 		case nodes.DEFELEM_DROP:
 			if idx < 0 {
-				if snapshot {
-					continue
-				}
 				return nil, errUndefinedObject("option", de.Defname)
 			}
 			updated = append(updated[:idx], updated[idx+1:]...)
 		case nodes.DEFELEM_SET:
 			if idx < 0 {
-				if !snapshot {
-					return nil, errUndefinedObject("option", de.Defname)
-				}
-				updated = append(updated, de.Defname+"="+defElemString(de))
-			} else {
-				updated[idx] = de.Defname + "=" + defElemString(de)
+				return nil, errUndefinedObject("option", de.Defname)
 			}
+			updated[idx] = de.Defname + "=" + defElemString(de)
 		default: // DEFELEM_ADD or DEFELEM_UNSPEC
 			if idx >= 0 {
-				if !snapshot {
-					return nil, errDuplicateObject("option", de.Defname)
-				}
-				updated[idx] = de.Defname + "=" + defElemString(de)
-			} else {
-				updated = append(updated, de.Defname+"="+defElemString(de))
+				return nil, errDuplicateObject("option", de.Defname)
 			}
+			updated = append(updated, de.Defname+"="+defElemString(de))
 		}
 	}
 	return updated, nil
@@ -1147,7 +1136,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			return errWrongObjectType(relName, "a foreign table")
 		}
 		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
-			updated, err := applyForeignOptionChanges(rel.ForeignOptions, opts, c.snapshot)
+			updated, err := applyForeignOptionChanges(rel.ForeignOptions, opts)
 			if err != nil {
 				return err
 			}
@@ -1164,7 +1153,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			return errUndefinedColumn(atc.Name)
 		}
 		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
-			updated, err := applyForeignOptionChanges(rel.Columns[idx].ForeignOptions, opts, c.snapshot)
+			updated, err := applyForeignOptionChanges(rel.Columns[idx].ForeignOptions, opts)
 			if err != nil {
 				return err
 			}

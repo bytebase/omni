@@ -122,8 +122,11 @@ func triggersChanged(fromCat, toCat *Catalog, a, b *Trigger) bool {
 	return false
 }
 
-// resolveTriggerFuncName resolves a trigger's FuncOID to a qualified function name.
+// resolveTriggerFuncName resolves a trigger's FuncOID to a schema-qualified function name when user-defined.
 func resolveTriggerFuncName(c *Catalog, funcOID uint32) string {
+	if up := c.userProcs[funcOID]; up != nil && up.Schema != nil {
+		return up.Schema.Name + "." + up.Name
+	}
 	p := c.procByOID[funcOID]
 	if p == nil {
 		return ""

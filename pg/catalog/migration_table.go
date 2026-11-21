@@ -61,6 +61,43 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityTable,
 			})
+			if entry.To.OwnerName != "" && entry.To.OwnerName != "postgres" {
+				qn := formatRelationTargetName(entry.SchemaName, entry.To)
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityMetadata,
+				})
+			}
+
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			rk := entry.To.RelKind
+			if rk != 'r' && rk != 'p' {
+				continue
+			}
+			if effectiveTableOwner(entry.From) != effectiveTableOwner(entry.To) && entry.To.OwnerName != "" {
+				qn := formatRelationTargetName(entry.SchemaName, entry.To)
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityMetadata,
+				})
+			}
 
 		case DiffDrop:
 			if entry.From == nil {

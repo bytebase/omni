@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -414,12 +415,18 @@ func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *User
 			return true
 		}
 	}
-	// Check arg names — PG doesn't allow renaming params via CREATE OR REPLACE.
-	if len(from.ArgNames) != len(to.ArgNames) {
+	// Check arg names and modes — PG doesn't allow changing them via CREATE OR REPLACE.
+	if !slices.Equal(from.ArgNames, to.ArgNames) {
 		return true
 	}
-	for i := range from.ArgNames {
-		if from.ArgNames[i] != to.ArgNames[i] {
+	if !slices.Equal(from.ArgModes, to.ArgModes) {
+		return true
+	}
+	if len(from.AllArgTypes) != len(to.AllArgTypes) {
+		return true
+	}
+	for i := range from.AllArgTypes {
+		if fromCat.FormatType(from.AllArgTypes[i], -1) != toCat.FormatType(to.AllArgTypes[i], -1) {
 			return true
 		}
 	}

@@ -3225,6 +3225,12 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 			}
 			if tbl := findTable(sm, tableName); tbl != nil {
 				setConstraintCommentOnTable(tbl, conName, c.To)
+			} else if part := findPartitionInSchema(result, schemaName, tableName); part != nil {
+				setConstraintCommentOnTable(&metadatapb.TableMetadata{
+					Indexes:            part.Indexes,
+					CheckConstraints:   part.CheckConstraints,
+					ExcludeConstraints: part.ExcludeConstraints,
+				}, conName, c.To)
 			} else if ext := findExternalTable(sm, tableName); ext != nil {
 				for _, chk := range ext.CheckConstraints {
 					if chk.Name == conName {

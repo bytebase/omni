@@ -204,12 +204,8 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 	}
 
 	// EXECUTE FUNCTION.
-	funcName := resolveTriggerFuncName(c, trig.FuncOID)
-	if funcName == "" {
-		funcName = "unknown_function"
-	}
 	b.WriteString(" EXECUTE FUNCTION ")
-	b.WriteString(quoteIdentAlways(funcName))
+	b.WriteString(resolveEventTriggerFuncSQLName(c, trig.FuncOID))
 	b.WriteString("(")
 	for i, arg := range trig.Args {
 		if i > 0 {

@@ -119,7 +119,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.ForceRowSecurity != to.ForceRowSecurity {
 		changed = true
 	}
-	if from.Owner != to.Owner {
+	if from.Owner != to.Owner || effectiveTableOwner(from) != effectiveTableOwner(to) {
 		changed = true
 	}
 	if from.RelKind != to.RelKind {
@@ -301,6 +301,16 @@ func inhParentsEqual(fromCat, toCat *Catalog, fromOIDs, toOIDs []uint32) bool {
 	fromNames := resolveRelNames(fromCat, fromOIDs)
 	toNames := resolveRelNames(toCat, toOIDs)
 	return stringSliceEqual(fromNames, toNames)
+}
+
+// effectiveTableOwner normalizes unset snapshot ownership to "postgres" so
+// DDL catalogs (where currentOwner() defaults to "postgres") and metadata
+// snapshots without an explicit owner match without spurious OWNER TO diffs.
+func effectiveTableOwner(rel *Relation) string {
+	if rel == nil || rel.OwnerName == "" {
+		return "postgres"
+	}
+	return rel.OwnerName
 }
 
 // resolveRelNames resolves a list of relation OIDs to qualified names.

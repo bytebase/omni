@@ -2184,7 +2184,16 @@ func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
 	// 4. Foreign data wrapper and foreign server DDL updates metadata and foreign tables.
 	t.Run("fdw_and_foreign_server_ddl", func(t *testing.T) {
 		meta := &metadatapb.DatabaseSchemaMetadata{
-			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+			Schemas: []*metadatapb.SchemaMetadata{
+				{Name: "public"},
+				{
+					Name: "app",
+					Functions: []*metadatapb.FunctionMetadata{
+						{Name: "h", Signature: "h()", Definition: "CREATE FUNCTION app.h() RETURNS fdw_handler LANGUAGE internal AS 'h'"},
+						{Name: "v", Signature: "v(text[], oid)", Definition: "CREATE FUNCTION app.v(text[], oid) RETURNS void LANGUAGE internal AS 'v'"},
+					},
+				},
+			},
 		}
 		catBefore := New()
 		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
@@ -2386,4 +2395,94 @@ func TestApplyDiffToMetadataRound16Fixes(t *testing.T) {
 	require.Contains(t, byFn["my_c_fn"].Definition, `AS '$libdir/foo', 'foo_entry'`)
 	require.Contains(t, byFn, "c_new")
 	require.Contains(t, byFn["c_new"].Definition, `AS '$libdir/bar', 'bar_sym'`)
+}
+
+func TestApplyDiffToMetadataRound17Fixes(t *testing.T) {
+	// 1. Loaded snapshot catalogs enforce foreign-option action preconditions, FDW routine resolution/atomicity, and multi-server DROP atomicity.
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:    "pg_fdw",
+			Options: []string{"debug=true"},
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{
+			{Name: "s_free", Fdw: "pg_fdw", Options: []string{"host=h1"}},
+			{Name: "s_used", Fdw: "pg_fdw", Options: []string{"host=h2"}},
+		},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "good_h", Signature: "good_h()", Definition: "CREATE FUNCTION public.good_h() RETURNS fdw_handler LANGUAGE internal AS 'h'"},
+				{Name: "bad_h", Signature: "bad_h()", Definition: "CREATE FUNCTION public.bad_h() RETURNS integer LANGUAGE sql AS 'SELECT 1'"},
+			},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ft_used",
+				ExternalServerName: "s_used",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "orders",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:             "orders_p1",
+					Expression:       "RANGE (id)",
+					Value:            "FOR VALUES FROM (1) TO (10)",
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "chk_p1", Expression: "(id > 0)"}},
+				}},
+			}},
+		}},
+	}
+	cat := New()
+	_, err := cat.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	// Snapshot must reject SET/DROP of missing options and ADD of existing options.
+	for _, badSQL := range []string{
+		`ALTER SERVER s_free OPTIONS (SET missing 'x');`,
+		`ALTER SERVER s_free OPTIONS (DROP missing);`,
+		`ALTER SERVER s_free OPTIONS (ADD host 'dup');`,
+		`ALTER FOREIGN DATA WRAPPER pg_fdw OPTIONS (SET missing 'x');`,
+	} {
+		res, execErr := cat.Exec(badSQL, nil)
+		require.NoError(t, execErr)
+		require.Len(t, res, 1)
+		require.Error(t, res[0].Error, badSQL)
+	}
+	require.Equal(t, []string{"host=h1"}, cat.foreignServers["s_free"].Options)
+
+	// FDW handler/validator resolution & atomic option check on ALTER FDW.
+	for _, badFdw := range []string{
+		`CREATE FOREIGN DATA WRAPPER missing_h_fdw HANDLER no_such_fn;`,
+		`CREATE FOREIGN DATA WRAPPER wrong_ret_fdw HANDLER public.bad_h;`,
+		`CREATE FOREIGN DATA WRAPPER missing_v_fdw VALIDATOR no_such_val;`,
+		`ALTER FOREIGN DATA WRAPPER pg_fdw HANDLER public.good_h OPTIONS (DROP missing);`,
+	} {
+		res, execErr := cat.Exec(badFdw, nil)
+		require.NoError(t, execErr)
+		require.Len(t, res, 1)
+		require.Error(t, res[0].Error, badFdw)
+	}
+	require.Empty(t, cat.fdws["pg_fdw"].Handler, "rejected ALTER FDW must not mutate Handler")
+
+	// Multi-target DROP SERVER must not delete s_free when s_used has dependents.
+	res, err := cat.Exec(`DROP SERVER s_free, s_used;`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Error(t, res[0].Error)
+	require.NotNil(t, cat.foreignServers["s_free"], "failed multi-target DROP SERVER must leave s_free intact")
+
+	// 2. Partition constraint comments apply to TablePartitionMetadata.
+	catAfter := cat.Clone()
+	res, err = catAfter.Exec(`COMMENT ON CONSTRAINT chk_p1 ON public.orders_p1 IS 'part chk doc';`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NoError(t, res[0].Error)
+
+	got := ApplyDiffToMetadata(meta, cat, catAfter, Diff(cat, catAfter))
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+	orders := findTable(pub, "orders")
+	require.NotNil(t, orders)
+	require.Len(t, orders.Partitions, 1)
+	require.Equal(t, "part chk doc", orders.Partitions[0].CheckConstraints[0].Comment)
 }

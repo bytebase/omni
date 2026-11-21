@@ -147,5 +147,19 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if !slices.Equal(fp.ArgDefaults, tp.ArgDefaults) {
 		return true
 	}
+	if !slices.Equal(fp.ArgNames, tp.ArgNames) {
+		return true
+	}
+	if !slices.Equal(fp.ArgModes, tp.ArgModes) {
+		return true
+	}
+	if len(fp.AllArgTypes) != len(tp.AllArgTypes) {
+		return true
+	}
+	for i := range fp.AllArgTypes {
+		if from.FormatType(fp.AllArgTypes[i], -1) != to.FormatType(tp.AllArgTypes[i], -1) {
+			return true
+		}
+	}
 	return false
 }
