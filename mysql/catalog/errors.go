@@ -141,6 +141,39 @@ const (
 	// ErrConstraintDoesNotExist is 3940, which mysql:8.0.46 answers when a
 	// DROP CONSTRAINT or ALTER CONSTRAINT names no constraint of the table.
 	ErrConstraintDoesNotExist = 3940
+	// ErrAlterConstraintNotSupported is 3941, which mysql:8.0.46 answers when
+	// ALTER CONSTRAINT ... [NOT] ENFORCED names a non-CHECK constraint.
+	ErrAlterConstraintNotSupported = 3941
+	// ErrTableCantHandleFt is 1214, which mysql:8.0.46 answers when adding a
+	// FULLTEXT index to a partitioned table.
+	ErrTableCantHandleFt = 1214
+	// ErrForbidSchemaChange is 1450, which mysql:8.0.46 answers when RENAME
+	// TABLE moves a view to another database.
+	ErrForbidSchemaChange = 1450
+	// ErrPartitionRequiresValues is 1479, which mysql:8.0.46 answers when a
+	// RANGE or LIST partition definition omits VALUES LESS THAN / VALUES IN.
+	ErrPartitionRequiresValues = 1479
+	// ErrForeignKeyOnPartitioned is 1506, which mysql:8.0.46 answers when
+	// partitioning is combined with foreign keys.
+	ErrForeignKeyOnPartitioned = 1506
+	// ErrDropLastPartition is 1508, which mysql:8.0.46 answers when DROP
+	// PARTITION would remove all partitions of a table.
+	ErrDropLastPartition = 1508
+	// ErrCoalesceOnlyOnHashPartition is 1509, which mysql:8.0.46 answers when
+	// COALESCE PARTITION is run on a RANGE/LIST partitioned table.
+	ErrCoalesceOnlyOnHashPartition = 1509
+	// ErrReorgNoParam is 1511, which mysql:8.0.46 answers when REORGANIZE
+	// PARTITION without arguments is run on a non-HASH/KEY table.
+	ErrReorgNoParam = 1511
+	// ErrSameNamePartition is 1517, which mysql:8.0.46 answers when a partition
+	// name duplicates an existing or sibling partition name.
+	ErrSameNamePartition = 1517
+	// ErrDropIndexNeededInFK is 1553, which mysql:8.0.46 answers when dropping
+	// an index that is still required by a foreign key constraint.
+	ErrDropIndexNeededInFK = 1553
+	// ErrDependentByPartitionFunc is 3855, which mysql:8.0.46 answers when
+	// dropping or renaming a column referenced by a partitioning function.
+	ErrDependentByPartitionFunc = 3855
 )
 
 var sqlStateMap = map[int]string{
@@ -957,4 +990,63 @@ func errWrongParamCount(fnName string) error {
 func errFunctionalIndexColumnDep(colName string) error {
 	return &Error{Code: ErrFunctionalIndexColumnDep, SQLState: sqlState(ErrFunctionalIndexColumnDep),
 		Message: fmt.Sprintf("Column '%s' has a functional index dependency and cannot be dropped or renamed.", colName)}
+}
+
+func errTableCantHandleFt() error {
+	return &Error{Code: ErrTableCantHandleFt, SQLState: "HY000",
+		Message: "The used table type doesn't support FULLTEXT indexes"}
+}
+
+func errForbidSchemaChange(fromDB, toDB string) error {
+	return &Error{Code: ErrForbidSchemaChange, SQLState: "HY000",
+		Message: fmt.Sprintf("Changing schema from '%s' to '%s' is not allowed.", fromDB, toDB)}
+}
+
+func errPartitionRequiresValues(partType string) error {
+	kind, kw := "RANGE", "LESS THAN"
+	if strings.HasPrefix(partType, "LIST") {
+		kind, kw = "LIST", "IN"
+	}
+	return &Error{Code: ErrPartitionRequiresValues, SQLState: "HY000",
+		Message: fmt.Sprintf("Syntax error: %s PARTITIONING requires definition of VALUES %s for each partition", kind, kw)}
+}
+
+func errForeignKeyOnPartitioned() error {
+	return &Error{Code: ErrForeignKeyOnPartitioned, SQLState: "HY000",
+		Message: "Foreign keys are not yet supported in conjunction with partitioning"}
+}
+
+func errDropLastPartition() error {
+	return &Error{Code: ErrDropLastPartition, SQLState: "HY000",
+		Message: "Cannot remove all partitions, use DROP TABLE instead"}
+}
+
+func errCoalesceOnlyOnHashPartition() error {
+	return &Error{Code: ErrCoalesceOnlyOnHashPartition, SQLState: "HY000",
+		Message: "COALESCE PARTITION can only be used on hash/key partitions"}
+}
+
+func errReorgNoParam() error {
+	return &Error{Code: ErrReorgNoParam, SQLState: "HY000",
+		Message: "REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs"}
+}
+
+func errSameNamePartition(name string) error {
+	return &Error{Code: ErrSameNamePartition, SQLState: "HY000",
+		Message: fmt.Sprintf("Duplicate partition name %s", name)}
+}
+
+func errDropIndexNeededInFK(name string) error {
+	return &Error{Code: ErrDropIndexNeededInFK, SQLState: "HY000",
+		Message: fmt.Sprintf("Cannot drop index '%s': needed in a foreign key constraint", name)}
+}
+
+func errDependentByPartitionFunc(colName string) error {
+	return &Error{Code: ErrDependentByPartitionFunc, SQLState: "HY000",
+		Message: fmt.Sprintf("Column '%s' has a partitioning function dependency and cannot be dropped or renamed.", colName)}
+}
+
+func errAlterConstraintNotSupported(name string) error {
+	return &Error{Code: ErrAlterConstraintNotSupported, SQLState: "HY000",
+		Message: fmt.Sprintf("ALTER CONSTRAINT statement is not supported for the constraint '%s'.", name)}
 }

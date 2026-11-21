@@ -370,6 +370,107 @@ func TestWalkThroughMySQLLowersEveryForm(t *testing.T) {
 	walktest.Coverage(t, walkForms, formLowering(walkSchema()))
 }
 
+func TestWalkThroughMySQLFKGeneratedIndex(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "parent",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name: "child",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id"},
+						{Name: "pid"},
+						{Name: "other"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+						{Name: "fk_pid", Type: "BTREE", Expressions: []string{"pid"}},
+						{Name: "idx_other", Type: "BTREE", Expressions: []string{"other"}},
+						{Name: "uq_pid", Type: "BTREE", Unique: true, Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_pid", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+			},
+		}},
+	}
+	target := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+
+	// Synced index fk_pid matches the FK's columns and could be HA_GENERATED_KEY,
+	// so CREATE/ADD INDEX reusing its name must not false-positive.
+	noFinding(t, "CREATE INDEX fk_pid ON child (pid);", target)
+	noFinding(t, "CREATE UNIQUE INDEX fk_pid ON child (pid);", target)
+	noFinding(t, "ALTER TABLE child ADD KEY fk_pid (pid);", target)
+
+	// Once created explicitly, a second CREATE INDEX of the same name fails (1061).
+	oneFinding(t, "CREATE INDEX fk_pid ON child (pid);\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+
+	// Non-matching or UNIQUE indexes cannot be HA_GENERATED_KEY and still report 1061.
+	oneFinding(t, "CREATE INDEX idx_other ON child (other);", 0, "Index `idx_other` already exists in `child`.", target)
+	oneFinding(t, "CREATE INDEX uq_pid ON child (pid);", 0, "Index `uq_pid` already exists in `child`.", target)
+
+	// Adding another index may drop the generated fk_pid, so a later DROP INDEX fk_pid
+	// must stay silent; without an intervening ADD, dropping twice still catches the second.
+	noFinding(t, "ALTER TABLE child ADD KEY idx_new (pid);\nDROP INDEX fk_pid ON child;", target)
+	oneFinding(t, "DROP INDEX fk_pid ON child;\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
+
+	// RENAME TABLE carries the FK-generated index candidate to the new table name.
+	noFinding(t, "RENAME TABLE child TO child2;\nCREATE INDEX fk_pid ON child2 (pid);", target)
+
+	// Explicitly adding fk_pid in a multi-command ALTER preserves its Present fact
+	// regardless of whether an unrelated ADD INDEX comes before or after it.
+	oneFinding(t, "ALTER TABLE child ADD INDEX fk_pid (pid), ADD INDEX idx_new (other);\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+	oneFinding(t, "ALTER TABLE child ADD INDEX idx_new (other), ADD INDEX fk_pid (pid);\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+
+	// Dropping or renaming fk_pid alongside another ADD INDEX in the same ALTER
+	// preserves its Absent fact for subsequent statements.
+	oneFinding(t, "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
+	oneFinding(t, "ALTER TABLE child RENAME INDEX fk_pid TO fk_pid_explicit, ADD INDEX idx_new (other);\nDROP INDEX fk_pid ON child;", 1, "Index `fk_pid` doesn't exist in `child`.", target)
+
+	// Dropping the backing FK retires fk_pid as a generated candidate for later
+	// statements (where creating fk_pid again fails with 1061), while an ADD KEY
+	// in the same ALTER still succeeds without a false positive.
+	oneFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid;\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
+	noFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid, ADD KEY fk_pid (pid);", target)
+
+	// RENAME TABLE rewrites generated <tbl>_ibfk_<n> FK owner names when moving
+	// index candidates so dropping the renamed FK retires the candidate.
+	schemaIbfk := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				schema.Schemas[0].Tables[0],
+				{
+					Name: "child",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id"},
+						{Name: "pid"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+						{Name: "pid", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "child_ibfk_1", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+			},
+		}},
+	}
+	targetIbfk := review.Target{Schema: schemaIbfk, ForeignKeyChecks: review.SwitchOn}
+	oneFinding(t, "RENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nCREATE INDEX pid ON kid (pid);", 2, "Index `pid` already exists in `kid`.", targetIbfk)
+}
+
 // formLowering walks a form on the schema, as walktest.Coverage asks.
 func formLowering(schema *metadata.DatabaseSchemaMetadata) func(t *testing.T, sql string) (n, lowered int, last bool) {
 	return func(t *testing.T, sql string) (n, lowered int, last bool) {

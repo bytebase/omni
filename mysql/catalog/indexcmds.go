@@ -21,8 +21,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tableName := stmt.Table.Name
-	tbl := db.Tables[toLower(tableName)]
+	tableKey := toLower(tableName)
+	tbl := db.Tables[tableKey]
 	if tbl == nil {
+		if db.Views[tableKey] != nil {
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -33,19 +37,38 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return err
 	}
 
+	// MySQL allows a new index to reuse the name of an implicitly generated FK
+	// backing index (HA_GENERATED_KEY), dropping the generated index at the end
+	// if the new index covers its columns and otherwise keeping (or renaming) it.
+	snapshot := cloneTable(tbl)
+	preGen := collectGeneratedFKIndexes(tbl, nil)
+	tbl.ignoredGeneratedIndexes = preGen
+	defer func() { tbl.ignoredGeneratedIndexes = nil }()
+	rollback := func(err error) error {
+		undoAlter(db, tableKey, tbl, snapshot)
+		return err
+	}
+
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
 		if stmt.IfNotExists {
+			undoAlter(db, tableKey, tbl, snapshot)
 			return nil
 		}
-		return errDupKeyName(stmt.IndexName)
+		return rollback(errDupKeyName(stmt.IndexName))
 	}
 
 	// A key part that names a column the table does not have is 1072, checked
 	// after the key's name: mysql:8.0.46 answers 1061 for a name the table
 	// already has and 1072 only for one it does not.
 	if err := validateKeyPartsExist(tbl, nil, stmt.Columns); err != nil {
-		return err
+		return rollback(err)
+	}
+
+	// Partitioned tables do not support FULLTEXT indexes; MySQL 8.0 answers
+	// 1214 ahead of the column-type check (1283).
+	if stmt.Fulltext && tbl.Partitioning != nil {
+		return rollback(errTableCantHandleFt())
 	}
 
 	// Build index columns from AST columns.
@@ -71,12 +94,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	effUsingType := resolveIndexUsingType(stmt.IndexType, stmt.Options)
 	if stmt.Unique {
 		if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, effUsingType); err != nil {
-			return err
+			return rollback(err)
 		}
 	}
 	usingSpatial := !stmt.Unique && isSpatialIndexType(effUsingType)
 	if err := c.validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial, stmt.Unique); err != nil {
-		return err
+		return rollback(err)
 	}
 	seenCols := make(map[string]bool, len(stmt.Columns))
 	for _, ic := range stmt.Columns {
@@ -86,7 +109,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && cr.Column != "" {
 			k := toLower(cr.Column)
 			if seenCols[k] {
-				return errDupColumn(cr.Column)
+				return rollback(errDupColumn(cr.Column))
 			}
 			seenCols[k] = true
 		}
@@ -122,19 +145,23 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	applyIndexOptions(idx, stmt.Options)
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
-		return err
+		return rollback(err)
 	}
 	if err := synthesizeFunctionalIndexColumns(tbl, idx, c.isIgnoreSpaceSQLMode()); err != nil {
-		return err
+		return rollback(err)
 	}
 	if !idx.Fulltext && !idx.Spatial && hasFunctionalIndexColumns(idx.Columns) {
 		if err := c.validateIndexTotalKeyWidth(tbl, idx.Columns); err != nil {
-			removeFunctionalIndexHiddenColumns(tbl, idx)
-			return err
+			return rollback(err)
 		}
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
+	tbl.ignoredGeneratedIndexes = nil
+	droppedGen := reconcileGeneratedFKIndexes(tbl, preGen)
+	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedGen); err != nil {
+		return rollback(err)
+	}
 
 	// If unique, also add a UniqueKey constraint.
 	if stmt.Unique {
@@ -169,8 +196,12 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	}
 
 	tableName := stmt.Table.Name
-	tbl := db.Tables[toLower(tableName)]
+	tableKey := toLower(tableName)
+	tbl := db.Tables[tableKey]
 	if tbl == nil {
+		if db.Views[tableKey] != nil {
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -200,8 +231,12 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 			break
 		}
 	}
+	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, []*Index{dropped}); err != nil {
+		undoAlter(db, tableKey, tbl, snapshot)
+		return err
+	}
 	if err := validateAutoIncrementKeyed(tbl); err != nil {
-		undoAlter(db, toLower(tableName), tbl, snapshot)
+		undoAlter(db, tableKey, tbl, snapshot)
 		return err
 	}
 

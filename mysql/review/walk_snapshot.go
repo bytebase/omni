@@ -97,6 +97,14 @@ type mysqlSnapshot struct {
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
+	// fkGeneratedIndexes lists synced indexes that could be implicitly
+	// generated foreign-key backing indexes (MySQL's HA_GENERATED_KEY), keyed
+	// by table key then index key, mapping to the keys of the synced foreign
+	// keys whose column list matches the index. Because SHOW CREATE TABLE and
+	// INFORMATION_SCHEMA.STATISTICS do not distinguish a generated FK backing
+	// index from an explicit one, MySQL may accept CREATE INDEX or ALTER TABLE
+	// ADD INDEX reusing its name (dropping the generated index first).
+	fkGeneratedIndexes map[string]map[string][]string
 	// partial lists the spaces with no name known to be absent, as the
 	// space and its table's key ("" for a space of the database): where the
 	// sync lists a name outside ASCII.
@@ -105,18 +113,19 @@ type mysqlSnapshot struct {
 
 func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mysqlSnapshot {
 	s := &mysqlSnapshot{
-		relations:        make(map[string]string),
-		columns:          make(map[string]map[string]bool),
-		indexes:          make(map[string]map[string]bool),
-		foreignKeys:      make(map[string]bool),
-		triggers:         make(map[string]string),
-		tableForeignKeys: make(map[string]map[string]bool),
-		procedures:       make(map[string]bool),
-		functions:        make(map[string]bool),
-		events:           make(map[string]bool),
-		triggered:        make(map[string]bool),
-		ignoresFKs:       make(map[string]bool),
-		partial:          make(map[[2]string]bool),
+		relations:          make(map[string]string),
+		columns:            make(map[string]map[string]bool),
+		indexes:            make(map[string]map[string]bool),
+		foreignKeys:        make(map[string]bool),
+		triggers:           make(map[string]string),
+		tableForeignKeys:   make(map[string]map[string]bool),
+		procedures:         make(map[string]bool),
+		functions:          make(map[string]bool),
+		events:             make(map[string]bool),
+		triggered:          make(map[string]bool),
+		ignoresFKs:         make(map[string]bool),
+		fkGeneratedIndexes: make(map[string]map[string][]string),
+		partial:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// mark notes a key outside ASCII in a space of the database (table
@@ -163,6 +172,24 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				set(fks, spaceTableForeignKey, tk, fk.GetName())
 			}
 			s.tableForeignKeys[tk] = fks
+			if keepsFKs(t.GetEngine()) && len(t.GetForeignKeys()) > 0 {
+				var fkGen map[string][]string
+				for _, i := range t.GetIndexes() {
+					owners := fkGeneratedIndexOwners(i, t.GetForeignKeys(), foldTables)
+					if len(owners) == 0 {
+						continue
+					}
+					if ik, ok := nameKey(spaceIndex, i.GetName(), foldTables); ok {
+						if fkGen == nil {
+							fkGen = make(map[string][]string)
+						}
+						fkGen[ik] = owners
+					}
+				}
+				if len(fkGen) > 0 {
+					s.fkGeneratedIndexes[tk] = fkGen
+				}
+			}
 			for _, tr := range t.GetTriggers() {
 				if k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables); ok {
 					// 5.7 keeps case variants apart: a key two triggers
@@ -272,4 +299,54 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		return in(s.events)
 	}
 	return walk.Unknown, ""
+}
+
+// fkGeneratedIndexOwners returns the keys of synced foreign keys that could
+// have implicitly generated idx as a backing index (HA_GENERATED_KEY): a plain,
+// non-unique, non-primary, comment-less BTREE index with no prefix lengths or
+// descending parts whose columns match the foreign key's columns in order.
+func fkGeneratedIndexOwners(idx *metadata.IndexMetadata, fks []*metadata.ForeignKeyMetadata, foldTables bool) []string {
+	if idx == nil || idx.GetPrimary() || idx.GetUnique() || idx.GetComment() != "" {
+		return nil
+	}
+	if typ := idx.GetType(); typ != "" && !strings.EqualFold(typ, "BTREE") {
+		return nil
+	}
+	for _, kl := range idx.GetKeyLength() {
+		if kl > 0 {
+			return nil
+		}
+	}
+	for _, desc := range idx.GetDescending() {
+		if desc {
+			return nil
+		}
+	}
+	exprs := idx.GetExpressions()
+	if len(exprs) == 0 {
+		return nil
+	}
+	var owners []string
+	for _, fk := range fks {
+		cols := fk.GetColumns()
+		if len(cols) != len(exprs) {
+			continue
+		}
+		match := true
+		for i, c := range cols {
+			if !strings.EqualFold(exprs[i], c) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		fkKey, ok := nameKey(spaceForeignKey, fk.GetName(), foldTables)
+		if !ok {
+			fkKey = ""
+		}
+		owners = append(owners, fkKey)
+	}
+	return owners
 }
