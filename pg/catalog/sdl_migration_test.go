@@ -293,3 +293,80 @@ CREATE VIEW public.v AS SELECT id FROM archive.base;
 		t.Fatalf("expected error when non-skipped view depends on newly created skipped table, got plan:\n%s", plan.SQL())
 	}
 }
+
+func TestBuildSDLMigrationPlan_SkipSchemasAllowsUnreferencedColumnAlter(t *testing.T) {
+	// archive.v only selects id, so changing note's type in public.t is valid
+	// in PostgreSQL even while archive.v remains intact.
+	source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id integer PRIMARY KEY, note integer);
+CREATE VIEW archive.v AS SELECT id FROM public.t;
+`
+	target := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id integer PRIMARY KEY, note bigint);
+CREATE VIEW archive.v AS SELECT id FROM public.t;
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err != nil {
+		t.Fatalf("expected unreferenced column alteration to succeed, got error: %v", err)
+	}
+	if plan == nil || !strings.Contains(plan.SQL(), "note") || strings.Contains(plan.SQL(), "archive") {
+		t.Fatalf("unexpected plan: %v", plan)
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasDistinguishesAlterFromCreate(t *testing.T) {
+	source := `
+CREATE SCHEMA archive;
+CREATE TABLE archive.base (id integer PRIMARY KEY);
+`
+	// Unrelated alteration on existing archive.base must not block a view that
+	// only references the pre-existing id column.
+	targetSafe := `
+CREATE SCHEMA archive;
+CREATE TABLE archive.base (id integer PRIMARY KEY, note text);
+CREATE VIEW public.v AS SELECT id FROM archive.base;
+`
+	plan, err := BuildSDLMigrationPlan(source, targetSafe, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err != nil {
+		t.Fatalf("expected view referencing pre-existing column to succeed, got error: %v", err)
+	}
+	if plan == nil || !strings.Contains(plan.SQL(), "CREATE VIEW") || strings.Contains(plan.SQL(), "ADD COLUMN") {
+		t.Fatalf("unexpected plan: %v", plan)
+	}
+
+	// Referencing the newly added (and skipped) note column must be rejected.
+	targetMissingCol := `
+CREATE SCHEMA archive;
+CREATE TABLE archive.base (id integer PRIMARY KEY, note text);
+CREATE VIEW public.v AS SELECT id, note FROM archive.base;
+`
+	if plan, err := BuildSDLMigrationPlan(source, targetMissingCol, SDLMigrationOptions{SkipSchemas: []string{"archive"}}); err == nil {
+		t.Fatalf("expected error when view references skipped newly added column, got plan:\n%s", plan.SQL())
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsTriggerDependingOnSkippedFunction(t *testing.T) {
+	target := `
+CREATE SCHEMA archive;
+CREATE FUNCTION archive.audit_fn() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+	RETURN NEW;
+END;
+$$;
+CREATE TABLE public.t (id integer PRIMARY KEY);
+CREATE TRIGGER trg_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION archive.audit_fn();
+`
+	plan, err := BuildSDLMigrationPlan("", target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected error when retained trigger depends on newly created skipped function, got plan:\n%s", plan.SQL())
+	}
+}
