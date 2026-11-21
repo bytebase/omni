@@ -696,3 +696,24 @@ func TestDatabaseMetadataSetOpArithmeticAndStringSumAvg(t *testing.T) {
 	require.Equal(t, "double", views["v_agg"].Columns[0].Type)
 	require.Equal(t, "double", views["v_agg"].Columns[1].Type)
 }
+
+func TestDatabaseMetadataASTFallbackOverSourceView(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (s VARCHAR(20));
+		CREATE VIEW base AS SELECT s FROM t;
+		CREATE VIEW derived AS SELECT s COLLATE utf8mb4_bin AS s FROM base;
+	`, nil)
+	require.NoError(t, err)
+
+	exported := c.DatabaseMetadata("app")
+	views := make(map[string]*metadata.ViewMetadata)
+	for _, v := range exported.Schemas[0].Views {
+		views[v.Name] = v
+	}
+
+	require.Len(t, views["derived"].Columns, 1)
+	require.Equal(t, "varchar(20)", views["derived"].Columns[0].Type)
+}

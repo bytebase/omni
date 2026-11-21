@@ -1869,6 +1869,12 @@ func resolveQueryExprResolvedType(c *viewMetaResolver, db *Database, q *Query, i
 	return resolve()
 }
 
+type viewFallbackRelation struct {
+	table  *Table
+	view   *View
+	viewDB *Database
+}
+
 // viewASTFallbackTypes resolves target column types directly from the retained
 // SELECT AST when semantic analysis left v.AnalyzedQuery nil (for example,
 // views containing COLLATE expressions).
@@ -1880,9 +1886,9 @@ func (c *viewMetaResolver) viewASTFallbackTypes(db *Database, v *View) []string 
 	for sel.SetOp != 0 && sel.Left != nil {
 		sel = sel.Left
 	}
-	relations := map[string]viewRelationInfo{}
+	relations := map[string]viewFallbackRelation{}
 	for _, from := range sel.From {
-		collectViewRelations(from, db, false, relations)
+		c.collectViewFallbackRelations(from, db, relations)
 	}
 	types := make([]string, len(sel.TargetList))
 	for i, target := range sel.TargetList {
@@ -1890,39 +1896,80 @@ func (c *viewMetaResolver) viewASTFallbackTypes(db *Database, v *View) []string 
 		if rt, ok := target.(*nodes.ResTarget); ok {
 			expr = rt.Val
 		}
-		types[i] = resolveViewASTExprType(expr, relations)
+		types[i] = c.resolveViewASTExprType(expr, relations)
 	}
 	return types
 }
 
-func resolveViewASTExprType(expr nodes.ExprNode, relations map[string]viewRelationInfo) string {
+func (c *viewMetaResolver) collectViewFallbackRelations(te nodes.TableExpr, db *Database, out map[string]viewFallbackRelation) {
+	switch n := te.(type) {
+	case *nodes.TableRef:
+		targetDB := db
+		if n.Schema != "" && c != nil {
+			targetDB = c.GetDatabase(n.Schema)
+		}
+		if targetDB == nil {
+			return
+		}
+		key := n.Name
+		if n.Alias != "" {
+			key = n.Alias
+		}
+		if tbl := targetDB.GetTable(n.Name); tbl != nil {
+			out[toLower(key)] = viewFallbackRelation{table: tbl}
+			return
+		}
+		if sv := targetDB.Views[toLower(n.Name)]; sv != nil {
+			out[toLower(key)] = viewFallbackRelation{view: sv, viewDB: targetDB}
+		}
+	case *nodes.JoinClause:
+		c.collectViewFallbackRelations(n.Left, db, out)
+		c.collectViewFallbackRelations(n.Right, db, out)
+	}
+}
+
+func (c *viewMetaResolver) lookupViewFallbackColumnType(rel viewFallbackRelation, colName string) (string, bool) {
+	if rel.table != nil {
+		if col := rel.table.GetColumn(colName); col != nil {
+			return col.ColumnType, true
+		}
+		return "", false
+	}
+	if rel.view != nil && c != nil {
+		for _, col := range c.viewColumnsToProto(rel.viewDB, rel.view) {
+			if strings.EqualFold(col.Name, colName) {
+				return col.Type, true
+			}
+		}
+	}
+	return "", false
+}
+
+func (c *viewMetaResolver) resolveViewASTExprType(expr nodes.ExprNode, relations map[string]viewFallbackRelation) string {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return resolveViewASTExprType(e.Expr, relations)
+		return c.resolveViewASTExprType(e.Expr, relations)
 	case *nodes.CollateExpr:
-		return resolveViewASTExprType(e.Expr, relations)
+		return c.resolveViewASTExprType(e.Expr, relations)
 	case *nodes.ColumnRef:
 		if e.Star {
 			return ""
 		}
 		if e.Table != "" {
-			if rel, ok := relations[toLower(e.Table)]; ok && rel.table != nil {
-				if col := rel.table.GetColumn(e.Column); col != nil {
-					return col.ColumnType
+			if rel, ok := relations[toLower(e.Table)]; ok {
+				if ct, found := c.lookupViewFallbackColumnType(rel, e.Column); found {
+					return ct
 				}
 			}
 			return ""
 		}
 		var found string
 		for _, rel := range relations {
-			if rel.table == nil {
-				continue
-			}
-			if col := rel.table.GetColumn(e.Column); col != nil {
+			if ct, ok := c.lookupViewFallbackColumnType(rel, e.Column); ok {
 				if found != "" {
 					return ""
 				}
-				found = col.ColumnType
+				found = ct
 			}
 		}
 		return found
