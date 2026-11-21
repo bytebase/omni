@@ -30,7 +30,8 @@ CREATE TABLE events (
   attrs Map(String, String),
   level Enum8('info' = 1, 'warn' = 2) DEFAULT 'info',
   seen Date DEFAULT '2026-01-02',
-  retries UInt32 DEFAULT 3
+  retries UInt32 DEFAULT 3,
+  INDEX name_bloom name TYPE bloom_filter GRANULARITY 4
 )
 ENGINE = MergeTree
 ORDER BY (id, name)
@@ -47,7 +48,7 @@ COMMENT 'line1\nline2';
 CREATE TABLE scratch (
   k Int32
 )
-ENGINE = MergeTree
+ENGINE = ReplacingMergeTree
 ORDER BY tuple();
 
 CREATE VIEW event_names AS SELECT id, name FROM events COMMENT 'active ''view''';

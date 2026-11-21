@@ -462,6 +462,11 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 					}
 				}
 			}
+			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
+				if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, widenOptionalJoin); ok {
+					return meta.nullable
+				}
+			}
 		}
 		return false
 	case *CastExprQ:
@@ -997,8 +1002,8 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 				return resolvedTypeToColumnType(cm.Type), cm.Nullable || opt, cm.Charset, cm.Collation, true
 			}
 		}
-	case RTESubquery:
-		if rte.Subquery != nil {
+	case RTESubquery, RTECTE:
+		if rte.Subquery != nil && rte.Subquery != q {
 			if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, ve.AttNum-1, widenOptionalJoin); ok {
 				return meta.colType, meta.nullable || opt, meta.charset, meta.collation, true
 			}
@@ -1030,7 +1035,7 @@ func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ) s
 			}
 		}
 	}
-	if rte.Kind == RTESubquery && rte.Subquery != nil {
+	if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
 		if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, true); ok && meta.colType != "" {
 			return meta.colType
 		}
@@ -1211,7 +1216,7 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 					}
 				}
 			}
-			if rte.Kind == RTESubquery && rte.Subquery != nil {
+			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
 				if subTE := nthNonJunkTarget(rte.Subquery, e.AttNum-1); subTE != nil {
 					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr)
 				}

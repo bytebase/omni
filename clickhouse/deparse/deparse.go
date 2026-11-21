@@ -266,10 +266,34 @@ type tableState struct {
 	id          int
 	name        string
 	columns     map[string]*columnState
+	indexes     []*indexState
 	sortingKeys []string
 	primaryKeys []string
 	comment     string
 	engine      string
+}
+
+type indexState struct {
+	name        string
+	expressions []string
+	tp          string
+	granularity int64
+}
+
+func (idx *indexState) toString(buf *strings.Builder) error {
+	expr := strings.Join(idx.expressions, ", ")
+	if len(idx.expressions) > 1 {
+		expr = "(" + expr + ")"
+	}
+	if _, err := fmt.Fprintf(buf, "INDEX %s %s TYPE %s", quoteIdentifier(idx.name), expr, idx.tp); err != nil {
+		return err
+	}
+	if idx.granularity > 0 {
+		if _, err := fmt.Fprintf(buf, " GRANULARITY %d", idx.granularity); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (t *tableState) toString(buf *strings.Builder) error {
@@ -298,6 +322,16 @@ func (t *tableState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
+	for i, idx := range t.indexes {
+		if len(columns) > 0 || i > 0 {
+			if _, err := fmt.Fprint(buf, ",\n  "); err != nil {
+				return err
+			}
+		}
+		if err := idx.toString(buf); err != nil {
+			return err
+		}
+	}
 	if _, err := buf.WriteString("\n)"); err != nil {
 		return err
 	}
@@ -314,12 +348,10 @@ func (t *tableState) toString(buf *strings.Builder) error {
 		if _, err := fmt.Fprintf(buf, "\nORDER BY (%s)", strings.Join(t.sortingKeys, ", ")); err != nil {
 			return err
 		}
-	} else {
-		// MergeTree tables require an explicit ORDER BY clause; tuple() matches ClickHouse's empty-order form.
-		if strings.ToLower(t.engine) == "mergetree" {
-			if _, err := buf.WriteString("\nORDER BY tuple()"); err != nil {
-				return err
-			}
+	} else if isMergeTreeEngine(t.engine) {
+		// MergeTree-family engines require an explicit ORDER BY clause; tuple() matches ClickHouse's empty-order form.
+		if _, err := buf.WriteString("\nORDER BY tuple()"); err != nil {
+			return err
 		}
 	}
 	if len(t.primaryKeys) == 1 {
@@ -342,6 +374,16 @@ func (t *tableState) toString(buf *strings.Builder) error {
 	return nil
 }
 
+// isMergeTreeEngine reports whether engine is MergeTree or a MergeTree-family
+// variant (e.g. ReplacingMergeTree, ReplicatedSummingMergeTree).
+func isMergeTreeEngine(engine string) bool {
+	base := strings.TrimSpace(engine)
+	if idx := strings.IndexByte(base, '('); idx >= 0 {
+		base = strings.TrimSpace(base[:idx])
+	}
+	return strings.HasSuffix(strings.ToLower(base), "mergetree")
+}
+
 func newTableState(id int, name string) *tableState {
 	return &tableState{
 		id:      id,
@@ -362,9 +404,22 @@ func convertToTableState(id int, table *metadatapb.TableMetadata) *tableState {
 		state.columns[column.Name] = convertToColumnState(i, column)
 	}
 	for _, index := range table.Indexes {
-		if index != nil && index.Primary {
-			state.primaryKeys = index.Expressions
-			break
+		if index == nil {
+			continue
+		}
+		if index.Primary {
+			if len(state.primaryKeys) == 0 {
+				state.primaryKeys = index.Expressions
+			}
+			continue
+		}
+		if index.Name != "" && index.Type != "" && len(index.Expressions) > 0 {
+			state.indexes = append(state.indexes, &indexState{
+				name:        index.Name,
+				expressions: index.Expressions,
+				tp:          index.Type,
+				granularity: index.Granularity,
+			})
 		}
 	}
 	return state

@@ -46,13 +46,13 @@ func TestDatabaseDefinitionTablesAndViews(t *testing.T) {
 							{Name: "created_at", Type: "DateTime", Default: "now()"},
 						},
 						Indexes: []*metadatapb.IndexMetadata{
-							{Name: "secondary", Primary: false, Expressions: []string{"status"}},
+							{Name: "status_bloom", Primary: false, Type: "bloom_filter", Granularity: 4, Expressions: []string{"status"}},
 							{Name: "primary", Primary: true, Expressions: []string{"tenant_id"}},
 						},
 					},
 					{
 						Name:   "scratch",
-						Engine: "MergeTree",
+						Engine: "ReplacingMergeTree",
 						Columns: []*metadatapb.ColumnMetadata{
 							{Name: "k", Type: "Int32"},
 						},
@@ -93,7 +93,8 @@ CREATE TABLE ` + "`events`" + ` (
   ` + "`payload`" + ` Nullable(String) DEFAULT NULL,
   ` + "`status`" + ` String DEFAULT 'pending',
   ` + "`seen`" + ` Date DEFAULT '2026-01-02',
-  ` + "`created_at`" + ` DateTime DEFAULT now()
+  ` + "`created_at`" + ` DateTime DEFAULT now(),
+  INDEX ` + "`status_bloom`" + ` status TYPE bloom_filter GRANULARITY 4
 )
 ENGINE = MergeTree
 ORDER BY (tenant_id, created_at)
@@ -106,7 +107,7 @@ COMMENT 'raw \'events\'\\log';
 CREATE TABLE ` + "`scratch`" + ` (
   ` + "`k`" + ` Int32
 )
-ENGINE = MergeTree
+ENGINE = ReplacingMergeTree
 ORDER BY tuple();
 
 --

@@ -446,6 +446,9 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 			SELECT id, label FROM a
 			UNION ALL
 			SELECT id, note FROM b;
+		CREATE VIEW v_cte AS
+			WITH x AS (SELECT 'abc' AS s, id FROM a)
+			SELECT s, id FROM x;
 	`, nil)
 	require.NoError(t, err)
 	for _, r := range results {
@@ -468,6 +471,13 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	vUnion := views["v_union"]
 	require.Len(t, vUnion.Columns, 2)
 	require.Equal(t, "varchar(64)", vUnion.Columns[1].Type)
+
+	vCTE := views["v_cte"]
+	require.Len(t, vCTE.Columns, 2)
+	require.Equal(t, "s", vCTE.Columns[0].Name)
+	require.Equal(t, "varchar(3)", vCTE.Columns[0].Type)
+	require.Equal(t, "id", vCTE.Columns[1].Name)
+	require.Equal(t, "int(11)", vCTE.Columns[1].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {

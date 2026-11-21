@@ -53,12 +53,13 @@ func TestDatabaseDefinitionExecutesOnClickHouse(t *testing.T) {
 						{Name: "created_at", Type: "DateTime", Default: "now()"},
 					},
 					Indexes: []*metadatapb.IndexMetadata{
+						{Name: "name_bloom", Type: "bloom_filter", Granularity: 4, Expressions: []string{"name"}},
 						{Primary: true, Expressions: []string{"id"}},
 					},
 				},
 				{
 					Name:   "scratch",
-					Engine: "MergeTree",
+					Engine: "ReplacingMergeTree",
 					Columns: []*metadatapb.ColumnMetadata{
 						{Name: "k", Type: "Int32", Default: "NULL"},
 					},

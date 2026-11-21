@@ -12,7 +12,8 @@
 |   attrs Map(String, String),
 |   level Enum8('info' = 1, 'warn' = 2) DEFAULT 'info',
 |   seen Date DEFAULT '2026-01-02',
-|   retries UInt32 DEFAULT 3
+|   retries UInt32 DEFAULT 3,
+|   INDEX name_bloom name TYPE bloom_filter GRANULARITY 4
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)
@@ -35,7 +36,7 @@
 | CREATE TABLE scratch (
 |   k Int32
 | )
-| ENGINE = MergeTree
+| ENGINE = ReplacingMergeTree
 | ORDER BY tuple();
 < ok 0 -
 > exec
@@ -370,7 +371,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testdeparseroundtrip.events (`id` UInt64, `name` String COMMENT 'the \'event\' name\\v1', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `level` Enum8('info' = 1, 'warn' = 2) DEFAULT 'info', `seen` Date DEFAULT '2026-01-02', `retries` UInt32 DEFAULT 3) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events \'table\''
+| CREATE TABLE omni_testdeparseroundtrip.events (`id` UInt64, `name` String COMMENT 'the \'event\' name\\v1', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `level` Enum8('info' = 1, 'warn' = 2) DEFAULT 'info', `seen` Date DEFAULT '2026-01-02', `retries` UInt32 DEFAULT 3, INDEX name_bloom name TYPE bloom_filter GRANULARITY 4) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events \'table\''
 : string
 | events 'table'
 : string
@@ -397,11 +398,11 @@
 : string
 | scratch
 : string
-| MergeTree
+| ReplacingMergeTree
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testdeparseroundtrip.scratch (`k` Int32) ENGINE = MergeTree ORDER BY tuple() SETTINGS index_granularity = 8192
+| CREATE TABLE omni_testdeparseroundtrip.scratch (`k` Int32) ENGINE = ReplacingMergeTree ORDER BY tuple() SETTINGS index_granularity = 8192
 : string
 |
 : string
@@ -427,6 +428,14 @@
 < column "type" "String" "string"
 < column "expr" "String" "string"
 < column "granularity" "UInt64" "uint64"
+< row
+: string
+| name_bloom
+: string
+| bloom_filter
+: string
+| name
+: uint64 4
 > query ^
 : string
 | omni_testdeparseroundtrip
@@ -468,7 +477,8 @@
 |   `attrs` Map(String, String),
 |   `level` Enum8('info' = 1, 'warn' = 2) DEFAULT 'info',
 |   `seen` Date DEFAULT '2026-01-02',
-|   `retries` UInt32 DEFAULT 3
+|   `retries` UInt32 DEFAULT 3,
+|   INDEX `name_bloom` name TYPE bloom_filter GRANULARITY 4
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)
@@ -497,7 +507,7 @@
 | CREATE TABLE `scratch` (
 |   `k` Int32
 | )
-| ENGINE = MergeTree
+| ENGINE = ReplacingMergeTree
 | ORDER BY tuple();
 < ok 0 -
 > exec
@@ -837,7 +847,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testdeparseroundtrip.events (`id` UInt64, `name` String COMMENT 'the \'event\' name\\v1', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)) DEFAULT NULL, `tags` Array(String), `attrs` Map(String, String), `level` Enum8('info' = 1, 'warn' = 2) DEFAULT 'info', `seen` Date DEFAULT '2026-01-02', `retries` UInt32 DEFAULT 3) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events \'table\''
+| CREATE TABLE omni_testdeparseroundtrip.events (`id` UInt64, `name` String COMMENT 'the \'event\' name\\v1', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)) DEFAULT NULL, `tags` Array(String), `attrs` Map(String, String), `level` Enum8('info' = 1, 'warn' = 2) DEFAULT 'info', `seen` Date DEFAULT '2026-01-02', `retries` UInt32 DEFAULT 3, INDEX name_bloom name TYPE bloom_filter GRANULARITY 4) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events \'table\''
 : string
 | events 'table'
 : string
@@ -864,11 +874,11 @@
 : string
 | scratch
 : string
-| MergeTree
+| ReplacingMergeTree
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testdeparseroundtrip.scratch (`k` Int32) ENGINE = MergeTree ORDER BY tuple() SETTINGS index_granularity = 8192
+| CREATE TABLE omni_testdeparseroundtrip.scratch (`k` Int32) ENGINE = ReplacingMergeTree ORDER BY tuple() SETTINGS index_granularity = 8192
 : string
 |
 : string
@@ -894,6 +904,14 @@
 < column "type" "String" "string"
 < column "expr" "String" "string"
 < column "granularity" "UInt64" "uint64"
+< row
+: string
+| name_bloom
+: string
+| bloom_filter
+: string
+| name
+: uint64 4
 > query ^
 : string
 | omni_testdeparseroundtrip
