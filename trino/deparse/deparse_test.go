@@ -2192,6 +2192,7 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 			Views: []*metadatapb.ViewMetadata{
 				{Name: "v_json_table", Definition: "SELECT abs(jt.n), abs(jt.o) FROM t, JSON_TABLE(t.j, 'lax $' COLUMNS (o FOR ORDINALITY, n BIGINT PATH 'lax $.n')) AS jt"},
 				{Name: "v_order_alias", Definition: "SELECT n AS x FROM t ORDER BY abs(x)"},
+				{Name: "v_order_source", Definition: "SELECT n AS x FROM t ORDER BY abs(n), abs(t.n)"},
 				{Name: "v_array_concat", Definition: "SELECT cardinality(ARRAY[1] || ARRAY[2]) AS c"},
 			},
 		}},
@@ -2199,6 +2200,7 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, typedBuiltins, `SELECT abs(jt.n), abs(jt.o) FROM "cat"."s".t, JSON_TABLE(`)
 	assert.Contains(t, typedBuiltins, `ORDER BY abs(x);`)
+	assert.Contains(t, typedBuiltins, `ORDER BY abs(n), abs(t.n);`)
 	assert.Contains(t, typedBuiltins, `SELECT cardinality(ARRAY[1] || ARRAY[2]) AS c;`)
 
 	// JOIN ... USING exposes one coalesced column and UNNEST returns its

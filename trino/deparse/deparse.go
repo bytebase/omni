@@ -2467,6 +2467,9 @@ type trinoASTWalker struct {
 	fromSeen             map[string]struct{}
 	hasQuery             bool
 	hasUnboundColOrParam bool
+	// pendingOrderBy is the ORDER BY of the query whose body is the next
+	// QuerySpec walked; that QuerySpec walks it in its own FROM scope.
+	pendingOrderBy       []trinoparser.SortItem
 	usedUnknownSkippedFn bool
 }
 
@@ -2964,6 +2967,8 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 	}
 	switch n := qn.(type) {
 	case *trinoparser.QuerySpec:
+		orderBy := w.pendingOrderBy
+		w.pendingOrderBy = nil
 		specEnv := make(map[string]string, len(curEnv))
 		for k, v := range curEnv {
 			specEnv[k] = v
@@ -3066,6 +3071,20 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 						proj = append(proj, trinoProjCol{name: colName, typ: colType})
 					}
 				}
+			}
+		}
+		if len(orderBy) > 0 {
+			// ORDER BY sees the FROM columns and relation aliases, with the
+			// output column names shadowing them
+			// (https://trino.io/docs/current/sql/select.html#order-by-clause).
+			orderEnv := maps.Clone(specEnv)
+			for _, pc := range proj {
+				if pc.name != "" && pc.typ != "" {
+					orderEnv[pc.name] = pc.typ
+				}
+			}
+			for _, ob := range orderBy {
+				w.walkExpr(ob.Expr, orderEnv, ctes)
 			}
 		}
 		return singleType, proj
@@ -3212,10 +3231,17 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 			}
 		}
 	}
+	orderBy := q.OrderBy
+	if _, isSpec := q.Body.(*trinoparser.QuerySpec); isSpec && len(orderBy) > 0 {
+		// A plain SELECT walks its ORDER BY inside its own FROM scope.
+		w.pendingOrderBy = orderBy
+		orderBy = nil
+	}
 	ret, proj := w.walkQueryNodeCols(q.Body, curEnv, scope)
-	// ORDER BY may name the query's output columns, which shadow outer names.
+	// Over a set operation or other body, ORDER BY names the output columns,
+	// which shadow outer names.
 	orderEnv := curEnv
-	if len(q.OrderBy) > 0 && len(proj) > 0 {
+	if len(orderBy) > 0 && len(proj) > 0 {
 		orderEnv = maps.Clone(curEnv)
 		if orderEnv == nil {
 			orderEnv = make(map[string]string, len(proj))
@@ -3226,7 +3252,7 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 			}
 		}
 	}
-	for _, ob := range q.OrderBy {
+	for _, ob := range orderBy {
 		w.walkExpr(ob.Expr, orderEnv, scope)
 	}
 	if q.Offset != nil {
