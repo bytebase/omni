@@ -437,7 +437,7 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	results, err := c.Exec(`
 		CREATE DATABASE app;
 		USE app;
-		CREATE TABLE a (id INT NOT NULL, label VARCHAR(32) NOT NULL);
+		CREATE TABLE a (id INT NOT NULL, label VARCHAR(32) NOT NULL, opt_val INT NULL);
 		CREATE TABLE b (id INT NOT NULL, note VARCHAR(64) NOT NULL);
 		CREATE VIEW v_join AS
 			SELECT a.id, a.label, b.note
@@ -449,6 +449,9 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 		CREATE VIEW v_cte AS
 			WITH x AS (SELECT 'abc' AS s, id FROM a)
 			SELECT s, id FROM x;
+		CREATE VIEW v_literals_and_coalesce AS
+			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, COALESCE(opt_val, 0) AS non_null_val
+			FROM a;
 	`, nil)
 	require.NoError(t, err)
 	for _, r := range results {
@@ -478,6 +481,13 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "varchar(3)", vCTE.Columns[0].Type)
 	require.Equal(t, "id", vCTE.Columns[1].Name)
 	require.Equal(t, "int(11)", vCTE.Columns[1].Type)
+
+	vLit := views["v_literals_and_coalesce"]
+	require.Len(t, vLit.Columns, 4)
+	require.Equal(t, "varchar(3)", vLit.Columns[0].Type)
+	require.Equal(t, "varchar(4)", vLit.Columns[1].Type)
+	require.Equal(t, "int", vLit.Columns[2].Type)
+	require.False(t, vLit.Columns[3].Nullable, "COALESCE with non-null fallback must not be nullable")
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {

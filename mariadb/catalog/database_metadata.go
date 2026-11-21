@@ -257,8 +257,10 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			if collation != "" {
 				col.Collation = collation
 			}
-		} else if !col.Nullable && te != nil && te.Expr != nil && isAnalyzedExprNullable(c, db, leftQ, optionalRT, te.Expr, true) {
-			col.Nullable = true
+		} else if te != nil && te.Expr != nil {
+			if nullable, known := analyzedExprNullable(c, db, leftQ, optionalRT, te.Expr, true); known {
+				col.Nullable = nullable
+			}
 		}
 		if col.Type == "" {
 			col.Type = resolveTargetType(i)
@@ -432,15 +434,20 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 }
 
 func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool) bool {
+	nullable, _ := analyzedExprNullable(c, db, q, opt, expr, widenOptionalJoin)
+	return nullable
+}
+
+func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool) (bool, bool) {
 	if expr == nil {
-		return false
+		return false, false
 	}
 	switch e := expr.(type) {
 	case *ConstExprQ:
-		return e.IsNull
+		return e.IsNull, true
 	case *VarExprQ:
 		if widenOptionalJoin && opt[e.RangeIdx] {
-			return true
+			return true, true
 		}
 		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
 			rte := q.RangeTable[e.RangeIdx]
@@ -452,112 +459,112 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 				if origDB != nil {
 					if tbl := origDB.GetTable(rte.TableName); tbl != nil {
 						if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
-							return col.Nullable
+							return col.Nullable, true
 						}
 					}
 					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
 						if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, widenOptionalJoin); ok {
-							return meta.nullable
+							return meta.nullable, true
 						}
 					}
 				}
 			}
 			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
 				if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, widenOptionalJoin); ok {
-					return meta.nullable
+					return meta.nullable, true
 				}
 			}
 		}
-		return false
+		return false, false
 	case *CastExprQ:
-		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin)
+		return analyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin)
 	case *OpExprQ:
 		if e.Op == "/" || e.Op == "%" || strings.EqualFold(e.Op, "DIV") || strings.EqualFold(e.Op, "MOD") {
-			return true
+			return true, true
 		}
 		switch strings.ToUpper(e.Op) {
 		case "<=>", "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
-			return false
+			return false, true
 		case "BINARY":
-			return true
+			return true, true
 		}
-		return isAnalyzedExprNullable(c, db, q, opt, e.Left, widenOptionalJoin) || isAnalyzedExprNullable(c, db, q, opt, e.Right, widenOptionalJoin)
+		return isAnalyzedExprNullable(c, db, q, opt, e.Left, widenOptionalJoin) || isAnalyzedExprNullable(c, db, q, opt, e.Right, widenOptionalJoin), true
 	case *NullTestExprQ:
-		return false
+		return false, true
 	case *BetweenExprQ:
 		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin) ||
 			isAnalyzedExprNullable(c, db, q, opt, e.Lower, widenOptionalJoin) ||
-			isAnalyzedExprNullable(c, db, q, opt, e.Upper, widenOptionalJoin)
+			isAnalyzedExprNullable(c, db, q, opt, e.Upper, widenOptionalJoin), true
 	case *InListExprQ:
 		if isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin) {
-			return true
+			return true, true
 		}
 		for _, item := range e.List {
 			if isAnalyzedExprNullable(c, db, q, opt, item, widenOptionalJoin) {
-				return true
+				return true, true
 			}
 		}
-		return false
+		return false, true
 	case *BoolExprQ:
 		for _, arg := range e.Args {
 			if isAnalyzedExprNullable(c, db, q, opt, arg, widenOptionalJoin) {
-				return true
+				return true, true
 			}
 		}
-		return false
+		return false, true
 	case *SubLinkExprQ:
 		switch e.Kind {
 		case SubLinkExists:
-			return false
+			return false, true
 		case SubLinkScalar, SubLinkIn, SubLinkAny, SubLinkAll:
-			return true
+			return true, true
 		}
-		return false
+		return false, false
 	case *FuncCallExprQ:
 		if strings.EqualFold(e.Name, "count") {
-			return false
+			return false, true
 		}
 		switch strings.ToLower(e.Name) {
 		case "nullif", "mod",
 			"date_add", "date_sub", "adddate", "subdate",
 			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
-			return true
+			return true, true
 		}
 		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
 			return isAnalyzedExprNullable(c, db, q, opt, e.Args[1], widenOptionalJoin) ||
-				isAnalyzedExprNullable(c, db, q, opt, e.Args[2], widenOptionalJoin)
+				isAnalyzedExprNullable(c, db, q, opt, e.Args[2], widenOptionalJoin), true
 		}
 		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) {
-			return true
+			return true, true
 		}
 		for _, arg := range e.Args {
 			if isAnalyzedExprNullable(c, db, q, opt, arg, widenOptionalJoin) {
-				return true
+				return true, true
 			}
 		}
-		return false
+		return false, true
 	case *CoalesceExprQ:
 		if len(e.Args) == 0 {
-			return true
+			return true, true
 		}
 		for _, arg := range e.Args {
 			if !isAnalyzedExprNullable(c, db, q, opt, arg, widenOptionalJoin) {
-				return false
+				return false, true
 			}
 		}
-		return true
+		return true, true
 	case *CaseExprQ:
 		if e.Default == nil || isAnalyzedExprNullable(c, db, q, opt, e.Default, widenOptionalJoin) {
-			return true
+			return true, true
 		}
 		for _, w := range e.Args {
 			if w != nil && isAnalyzedExprNullable(c, db, q, opt, w.Then, widenOptionalJoin) {
-				return true
+				return true, true
 			}
 		}
-		return false
+		return false, true
 	default:
-		return false
+		return false, false
 	}
 }
 
@@ -721,6 +728,9 @@ func parseSetOpColType(colType string) parsedSetOpType {
 func isConstString(cn *ConstExprQ) bool {
 	if cn == nil || cn.IsNull || cn.Keyword {
 		return false
+	}
+	if cn.IsString {
+		return true
 	}
 	if cn.Type != nil {
 		return isResolvedStringType(cn.Type)
@@ -1174,6 +1184,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		if e.IsNull {
 			return nil
+		}
+		if e.IsString {
+			return &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(e.Value)}
 		}
 		if e.Value == "TRUE" || e.Value == "FALSE" {
 			return BoolType
