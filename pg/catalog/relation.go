@@ -106,7 +106,8 @@ type Relation struct {
 	ForeignServer  string
 	ForeignOptions []string
 	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
-	OwnerName string
+	OwnerName     string
+	OwnerExplicit bool
 
 	// Relation flags (pg_class).
 	Owner       uint32           // relowner

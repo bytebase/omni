@@ -1215,29 +1215,24 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 		return err
 	}
 
-	// Pre-validate support routine options before mutating the function.
-	var resolvedSupport string
-	var resolvedSupportOID uint32
+	nextVolatile := bp.Volatile
+	nextStrict := bp.IsStrict
+	nextSecDef := bp.SecDef
+	nextParallel := bp.Parallel
+	nextLeakProof := bp.LeakProof
+	var nextCost, nextRows, nextSupport string
+	var nextSupportOID uint32
+	var nextSetConfig []string
 	var hasSupport bool
-	if stmt.Actions != nil {
-		for _, item := range stmt.Actions.Items {
-			de, ok := item.(*nodes.DefElem)
-			if !ok {
-				continue
-			}
-			if strings.EqualFold(de.Defname, "support") {
-				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
-				if err != nil {
-					return err
-				}
-				resolvedSupport = sup
-				resolvedSupportOID = supOID
-				hasSupport = true
-			}
-		}
+	if up != nil {
+		nextCost = up.Cost
+		nextRows = up.Rows
+		nextSetConfig = slices.Clone(up.SetConfig)
+		nextSupport = up.Support
+		nextSupportOID = up.SupportOID
 	}
 
-	// Process actions.
+	// Validate every action before mutating bp, up, or catalog dependencies.
 	if stmt.Actions != nil {
 		for _, item := range stmt.Actions.Items {
 			de, ok := item.(*nodes.DefElem)
@@ -1246,52 +1241,33 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			}
 			switch strings.ToLower(de.Defname) {
 			case "volatility":
-				v := strings.ToLower(defElemString(de))
-				switch v {
+				switch strings.ToLower(defElemString(de)) {
 				case "immutable":
-					bp.Volatile = 'i'
+					nextVolatile = 'i'
 				case "stable":
-					bp.Volatile = 's'
+					nextVolatile = 's'
 				case "volatile":
-					bp.Volatile = 'v'
-				}
-				if up != nil {
-					up.Volatile = bp.Volatile
+					nextVolatile = 'v'
 				}
 			case "strict":
-				bp.IsStrict = defElemBool(de)
-				if up != nil {
-					up.IsStrict = bp.IsStrict
-				}
+				nextStrict = defElemBool(de)
 			case "called_on_null_input":
-				bp.IsStrict = !defElemBool(de)
-				if up != nil {
-					up.IsStrict = bp.IsStrict
-				}
+				nextStrict = !defElemBool(de)
 			case "security":
 				// pg: SECURITY DEFINER → Boolean(true), SECURITY INVOKER → Boolean(false)
-				var secDef bool
 				if s, ok := de.Arg.(*nodes.String); ok {
-					secDef = strings.ToLower(s.Str) == "definer"
+					nextSecDef = strings.ToLower(s.Str) == "definer"
 				} else {
-					secDef = defElemBool(de)
-				}
-				bp.SecDef = secDef
-				if up != nil {
-					up.SecDef = secDef
+					nextSecDef = defElemBool(de)
 				}
 			case "parallel":
-				v := strings.ToLower(defElemString(de))
-				switch v {
+				switch strings.ToLower(defElemString(de)) {
 				case "safe":
-					bp.Parallel = 's'
+					nextParallel = 's'
 				case "restricted":
-					bp.Parallel = 'r'
+					nextParallel = 'r'
 				case "unsafe":
-					bp.Parallel = 'u'
-				}
-				if up != nil {
-					up.Parallel = bp.Parallel
+					nextParallel = 'u'
 				}
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction
@@ -1300,8 +1276,8 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "COST must be positive"}
 				}
-				if ok && up != nil {
-					up.Cost = raw
+				if ok {
+					nextCost = raw
 				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1429-1439)
@@ -1314,30 +1290,49 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS is not applicable when function does not return a set"}
 				}
-				if ok && up != nil {
-					up.Rows = raw
+				if ok {
+					nextRows = raw
 				}
 			case "leakproof":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1413-1420)
-				lp := defElemBool(de)
-				bp.LeakProof = lp
-				if up != nil {
-					up.LeakProof = lp
-				}
+				nextLeakProof = defElemBool(de)
 			case "set":
 				if up != nil {
 					if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
-						up.SetConfig = c.applyFuncSetConfig(up.SetConfig, vs)
+						nextSetConfig = c.applyFuncSetConfig(nextSetConfig, vs)
 					}
 				}
 			case "support":
-				if up != nil && hasSupport {
-					oldSupportOID := up.SupportOID
-					up.Support = resolvedSupport
-					up.SupportOID = resolvedSupportOID
-					c.updateSupportDep(up.OID, oldSupportOID, resolvedSupportOID)
+				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				if err != nil {
+					return err
 				}
+				nextSupport = sup
+				nextSupportOID = supOID
+				hasSupport = true
 			}
+		}
+	}
+
+	bp.Volatile = nextVolatile
+	bp.IsStrict = nextStrict
+	bp.SecDef = nextSecDef
+	bp.Parallel = nextParallel
+	bp.LeakProof = nextLeakProof
+	if up != nil {
+		up.Volatile = nextVolatile
+		up.IsStrict = nextStrict
+		up.SecDef = nextSecDef
+		up.Parallel = nextParallel
+		up.LeakProof = nextLeakProof
+		up.Cost = nextCost
+		up.Rows = nextRows
+		up.SetConfig = nextSetConfig
+		if hasSupport {
+			oldSupportOID := up.SupportOID
+			up.Support = nextSupport
+			up.SupportOID = nextSupportOID
+			c.updateSupportDep(up.OID, oldSupportOID, nextSupportOID)
 		}
 	}
 

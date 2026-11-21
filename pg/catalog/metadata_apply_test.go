@@ -2767,4 +2767,29 @@ func TestApplyDiffToMetadataRound20Fixes(t *testing.T) {
 		require.NoError(t, r.Error, r.SQL)
 	}
 	require.Empty(t, retargetCat.findUserProcsByName(retargetCat.schemaByName["public"], "caller"))
+
+	// 3. ALTER FUNCTION rejects invalid combinations atomically before updating SUPPORT or dependencies.
+	atomicCat := cat.Clone()
+	atomicRes, err := atomicCat.Exec(`ALTER FUNCTION public.sup2(internal) SUPPORT public.sup1 ROWS 1;`, nil)
+	require.NoError(t, err)
+	require.Len(t, atomicRes, 1)
+	require.Error(t, atomicRes[0].Error)
+	sup2Proc := atomicCat.findExactProc(atomicCat.schemaByName["public"], "sup2", []uint32{INTERNALOID})
+	require.NotNil(t, sup2Proc)
+	require.Empty(t, atomicCat.userProcs[sup2Proc.OID].Support)
+	require.Zero(t, atomicCat.userProcs[sup2Proc.OID].SupportOID)
+	dropSup1Res, err := atomicCat.Exec(`DROP FUNCTION public.sup1(internal) RESTRICT;`, nil)
+	require.NoError(t, err)
+	require.Len(t, dropSup1Res, 1)
+	require.Error(t, dropSup1Res[0].Error) // still referenced by caller, NOT by sup2!
+
+	// Drop caller first; sup1 must now drop cleanly if atomicCat did not leak a sup2 -> sup1 dep.
+	dropCleanRes, err := atomicCat.Exec(`
+		DROP FUNCTION public.caller(integer);
+		DROP FUNCTION public.sup1(internal) RESTRICT;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range dropCleanRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
 }

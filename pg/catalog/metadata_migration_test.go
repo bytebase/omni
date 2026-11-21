@@ -5563,3 +5563,96 @@ func TestRound20Fixes(t *testing.T) {
 	require.Contains(t, commentSQL, `COMMENT ON FUNCTION public."select"(integer) IS 'keyword'`)
 	require.Contains(t, commentSQL, `COMMENT ON PROCEDURE public."my-func"(integer) IS 'hyphen'`)
 }
+
+func TestRound21Fixes(t *testing.T) {
+	// 1. Explicit postgres ownership on new table and partition child emits OWNER TO postgres.
+	partFrom := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	partTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events",
+				Owner:   "postgres",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:       "events_1",
+					Expression: "RANGE (id)",
+					Value:      "FOR VALUES FROM (0) TO (10)",
+				}},
+			}},
+		}},
+	}
+	partSQL, err := testMetadataMigration(partFrom, partTo)
+	require.NoError(t, err)
+	require.Contains(t, partSQL, `ALTER TABLE "public"."events" OWNER TO postgres`)
+	require.Contains(t, partSQL, `ALTER TABLE "public"."events_1" OWNER TO postgres`)
+
+	// 2. Rebuilding an inherited table restores unchanged owner, outbound/inbound FKs, triggers, RLS, policies, grants, and comments.
+	setupRebuild := func(parent string) *Catalog {
+		c := New()
+		sql := strings.ReplaceAll(`
+			CREATE ROLE alice;
+			CREATE FUNCTION public.trg_fn() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+			CREATE TABLE public.p1 (id integer);
+			CREATE TABLE public.p2 (id integer);
+			CREATE TABLE public.ref_target (id integer PRIMARY KEY);
+			CREATE TABLE public.child (
+				id integer PRIMARY KEY,
+				ref_id integer CONSTRAINT child_ref_fk REFERENCES public.ref_target(id)
+			) INHERITS (public.__PARENT__);
+			ALTER TABLE public.child OWNER TO alice;
+			ALTER TABLE public.child ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE public.child FORCE ROW LEVEL SECURITY;
+			CREATE POLICY child_pol ON public.child USING (true);
+			CREATE TRIGGER child_trg BEFORE INSERT ON public.child FOR EACH ROW EXECUTE FUNCTION public.trg_fn();
+			GRANT SELECT ON public.child TO PUBLIC;
+			COMMENT ON TABLE public.child IS 'kept comment';
+			CREATE TABLE public.inbound (
+				child_id integer CONSTRAINT inbound_child_fk REFERENCES public.child(id)
+			);
+		`, "__PARENT__", parent)
+		res, execErr := c.Exec(sql, nil)
+		require.NoError(t, execErr)
+		for _, r := range res {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		return c
+	}
+	inhFrom := setupRebuild("p1")
+	inhTo := setupRebuild("p2")
+
+	rebuildSQL := GenerateMigration(inhFrom, inhTo, Diff(inhFrom, inhTo)).SQL()
+	require.Contains(t, rebuildSQL, `DROP TABLE "public"."child" CASCADE`)
+	createChildIdx := strings.Index(rebuildSQL, `CREATE TABLE "public"."child"`)
+	rlsIdx := strings.Index(rebuildSQL, `ENABLE ROW LEVEL SECURITY`)
+	require.NotEqual(t, -1, createChildIdx)
+	require.NotEqual(t, -1, rlsIdx)
+	require.Less(t, createChildIdx, rlsIdx, "CREATE TABLE must precede ENABLE ROW LEVEL SECURITY:\n%s", rebuildSQL)
+	require.Contains(t, rebuildSQL, `ALTER TABLE "public"."child" OWNER TO alice`)
+	require.Contains(t, rebuildSQL, `ADD CONSTRAINT child_ref_fk FOREIGN KEY`)
+	require.Contains(t, rebuildSQL, `ADD CONSTRAINT inbound_child_fk FOREIGN KEY`)
+	require.Contains(t, rebuildSQL, `CREATE TRIGGER "child_trg"`)
+	require.Contains(t, rebuildSQL, `FORCE ROW LEVEL SECURITY`)
+	require.Contains(t, rebuildSQL, `CREATE POLICY "child_pol" ON "public"."child"`)
+	require.Contains(t, rebuildSQL, `GRANT SELECT ON TABLE "public"."child" TO PUBLIC`)
+	require.Contains(t, rebuildSQL, `COMMENT ON TABLE "public"."child" IS 'kept comment'`)
+
+	// 3. Routine identifier containing '(' keeps full routine name quoted in comments.
+	parenFrom := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+	parenTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "audit(v2",
+				Signature:  "audit(v2(integer)",
+				Definition: `CREATE FUNCTION public."audit(v2"(integer) RETURNS integer LANGUAGE sql AS 'SELECT $1'`,
+				Comment:    "has paren",
+			}},
+		}},
+	}
+	parenSQL, err := testMetadataMigration(parenFrom, parenTo)
+	require.NoError(t, err)
+	require.Contains(t, parenSQL, `COMMENT ON FUNCTION public."audit(v2"(integer) IS 'has paren'`)
+}

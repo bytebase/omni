@@ -997,6 +997,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				return err
 			}
 			rel.OwnerName = owner
+			rel.OwnerExplicit = true
 			c.transferACLs('r', rel.OID, oldOwner, owner)
 			if rel.RowTypeOID != 0 {
 				if _, ok := c.typeOwners[rel.RowTypeOID]; ok {

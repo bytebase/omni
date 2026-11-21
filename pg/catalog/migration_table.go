@@ -31,6 +31,24 @@ func formatRelationName(schemaName, relName string, rel *Relation) string {
 	return migrationQualifiedName(schemaName, relName)
 }
 
+func buildTableOwnerOp(schemaName, tableName string, rel *Relation) (MigrationOp, bool) {
+	if rel == nil || rel.OwnerName == "" || (!rel.OwnerExplicit && rel.OwnerName == "postgres") {
+		return MigrationOp{}, false
+	}
+	qn := formatRelationTargetName(schemaName, rel)
+	return MigrationOp{
+		Type:          OpAlterTable,
+		SchemaName:    schemaName,
+		ObjectName:    tableName,
+		SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(rel.OwnerName)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        rel.OID,
+		Priority:      PriorityMetadata,
+	}, true
+}
+
 // generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
 func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
@@ -61,19 +79,8 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityTable,
 			})
-			if entry.To.OwnerName != "" && entry.To.OwnerName != "postgres" {
-				qn := formatRelationTargetName(entry.SchemaName, entry.To)
-				ops = append(ops, MigrationOp{
-					Type:          OpAlterTable,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
-					Transactional: true,
-					Phase:         PhaseMain,
-					ObjType:       'r',
-					ObjOID:        entry.To.OID,
-					Priority:      PriorityMetadata,
-				})
+			if ownerOp, ok := buildTableOwnerOp(entry.SchemaName, entry.Name, entry.To); ok {
+				ops = append(ops, ownerOp)
 			}
 
 		case DiffModify:
@@ -84,19 +91,10 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if rk != 'r' && rk != 'p' {
 				continue
 			}
-			if effectiveTableOwner(entry.From) != effectiveTableOwner(entry.To) && entry.To.OwnerName != "" {
-				qn := formatRelationTargetName(entry.SchemaName, entry.To)
-				ops = append(ops, MigrationOp{
-					Type:          OpAlterTable,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(entry.To.OwnerName)),
-					Transactional: true,
-					Phase:         PhaseMain,
-					ObjType:       'r',
-					ObjOID:        entry.To.OID,
-					Priority:      PriorityMetadata,
-				})
+			if effectiveTableOwner(entry.From) != effectiveTableOwner(entry.To) || tableRebuilt(from, to, entry.From, entry.To) {
+				if ownerOp, ok := buildTableOwnerOp(entry.SchemaName, entry.Name, entry.To); ok {
+					ops = append(ops, ownerOp)
+				}
 			}
 
 		case DiffDrop:

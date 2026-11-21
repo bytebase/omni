@@ -40,7 +40,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			toIsTable := entry.To.RelKind == 'r' || entry.To.RelKind == 'p'
 			// tableRebuilt says the same for the other generators.
 			if fromIsTable && toIsTable && entry.From.RelKind != entry.To.RelKind {
-				ops = append(ops, buildTableRecreateOps(from, to, entry,
+				ops = append(ops, buildTableRecreateOps(from, to, diff, entry,
 					fmt.Sprintf("converting table from relkind '%c' to '%c'", entry.From.RelKind, entry.To.RelKind))...)
 				continue
 			}
@@ -54,7 +54,7 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			} else if fromIsTable && toIsTable && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
 				// Non-partition inheritance changed: PG does not support ALTER TABLE ... INHERITS.
 				// We must DROP + CREATE the table. Only for actual tables.
-				ops = append(ops, buildTableRecreateOps(from, to, entry, "changing table inheritance")...)
+				ops = append(ops, buildTableRecreateOps(from, to, diff, entry, "changing table inheritance")...)
 				continue
 			}
 
@@ -96,8 +96,14 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 
-	// Deterministic ordering.
-	sort.Slice(ops, func(i, j int) bool {
+	// Deterministic ordering within Phase/Priority so table creation precedes post-create ALTERs.
+	sort.SliceStable(ops, func(i, j int) bool {
+		if ops[i].Phase != ops[j].Phase {
+			return ops[i].Phase < ops[j].Phase
+		}
+		if ops[i].Priority != ops[j].Priority {
+			return ops[i].Priority < ops[j].Priority
+		}
 		if ops[i].Type != ops[j].Type {
 			return ops[i].Type < ops[j].Type
 		}
@@ -228,7 +234,7 @@ func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []Migr
 		}
 	}
 
-	return []MigrationOp{{
+	ops := []MigrationOp{{
 		Type:            OpCreateTable,
 		SchemaName:      entry.SchemaName,
 		ObjectName:      entry.Name,
@@ -240,6 +246,10 @@ func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []Migr
 		Priority:        PriorityTable,
 		secondarySchema: parentSchema,
 	}}
+	if ownerOp, ok := buildTableOwnerOp(entry.SchemaName, entry.Name, rel); ok {
+		ops = append(ops, ownerOp)
+	}
+	return ops
 }
 
 // formatPartitionValue formats a single partition bound value.
@@ -391,10 +401,11 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 }
 
 // buildTableRecreateOps generates DROP TABLE CASCADE + CREATE TABLE + CREATE INDEX ops
-// for a table that must be recreated (e.g., RelKind change, inheritance change).
-// DROP TABLE CASCADE also destroys dependent views and indexes, so indexes must
-// be regenerated. Dependent views are handled by wrapColumnTypeChangesWithViewOps.
-func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason string) []MigrationOp {
+// and restores unchanged non-inline dependents (FKs, EXCLUDE constraints, triggers, RLS,
+// policies, grants, comments) for a table that must be recreated (e.g., RelKind change,
+// inheritance change). Dependent views are handled by wrapColumnTypeChangesWithViewOps
+// and rules by generateRuleDDL.
+func buildTableRecreateOps(from, to *Catalog, diff *SchemaDiff, entry RelationDiffEntry, reason string) []MigrationOp {
 	var ops []MigrationOp
 	qn := formatRelationName(entry.SchemaName, entry.Name, entry.From)
 
@@ -446,6 +457,205 @@ func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason st
 	}
 	if normalizeReplicaIdentity(entry.To.ReplicaIdentity) != 'd' {
 		ops = append(ops, generateReplicaIdentityDDL(to, entry)...)
+	}
+
+	ops = append(ops, restoreRebuiltTableDependents(from, to, diff, entry)...)
+
+	return ops
+}
+
+func restoreRebuiltTableDependents(from, to *Catalog, diff *SchemaDiff, entry RelationDiffEntry) []MigrationOp {
+	var ops []MigrationOp
+	rel := entry.To
+	if rel == nil {
+		return nil
+	}
+
+	handledCon := make(map[string]bool)
+	for _, ce := range entry.Constraints {
+		if ce.Action == DiffAdd || ce.Action == DiffModify {
+			handledCon[ce.Name] = true
+		}
+	}
+	for _, con := range to.ConstraintsOf(rel.OID) {
+		if (con.Type != ConstraintFK && con.Type != ConstraintExclude) || con.ConParentID != 0 || handledCon[con.Name] {
+			continue
+		}
+		ops = append(ops, buildAddConstraintOp(to, entry.SchemaName, entry.Name, con))
+	}
+
+	// Inbound FKs from kept, non-rebuilt relations are also dropped by DROP TABLE ... CASCADE.
+	relDiffByKey := make(map[string]RelationDiffEntry)
+	if diff != nil {
+		for _, re := range diff.Relations {
+			relDiffByKey[re.SchemaName+"."+re.Name] = re
+		}
+	}
+	var schemaNames []string
+	for _, sc := range to.UserSchemas() {
+		if sc != nil && !isTempSchemaName(sc.Name) {
+			schemaNames = append(schemaNames, sc.Name)
+		}
+	}
+	sort.Strings(schemaNames)
+	for _, scName := range schemaNames {
+		sc := to.schemaByName[scName]
+		if sc == nil {
+			continue
+		}
+		relNames := make([]string, 0, len(sc.Relations))
+		for rName := range sc.Relations {
+			relNames = append(relNames, rName)
+		}
+		sort.Strings(relNames)
+		for _, rName := range relNames {
+			other := sc.Relations[rName]
+			if other == nil || other.OID == rel.OID || (other.RelKind != 'r' && other.RelKind != 'p') {
+				continue
+			}
+			otherKey := scName + "." + rName
+			otherDiff, hasDiff := relDiffByKey[otherKey]
+			if hasDiff && otherDiff.Action == DiffAdd {
+				continue
+			}
+			if hasDiff && otherDiff.From != nil && otherDiff.To != nil && tableRebuilt(from, to, otherDiff.From, otherDiff.To) {
+				continue
+			}
+			otherHandled := make(map[string]bool)
+			if hasDiff {
+				for _, ce := range otherDiff.Constraints {
+					if ce.Action == DiffAdd || ce.Action == DiffModify {
+						otherHandled[ce.Name] = true
+					}
+				}
+			}
+			for _, con := range to.ConstraintsOf(other.OID) {
+				if con.Type == ConstraintFK && con.ConParentID == 0 && con.FRelOID == rel.OID && !otherHandled[con.Name] {
+					ops = append(ops, buildAddConstraintOp(to, scName, rName, con))
+				}
+			}
+		}
+	}
+
+	handledTrig := make(map[string]bool)
+	for _, te := range entry.Triggers {
+		if te.Action == DiffAdd || te.Action == DiffModify {
+			handledTrig[te.Name] = true
+		}
+	}
+	for _, trig := range to.TriggersOf(rel.OID) {
+		if trig.ParentTriggerOID == 0 && !handledTrig[trig.Name] {
+			ops = append(ops, buildCreateAndModeTriggerOps(to, entry.SchemaName, entry.Name, trig)...)
+		}
+	}
+
+	targetQN := formatRelationName(entry.SchemaName, entry.Name, rel)
+	if !entry.RLSChanged {
+		if rel.RowSecurity {
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", targetQN),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        rel.OID,
+				Priority:      PriorityColumn,
+			})
+		}
+		if rel.ForceRowSecurity {
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("ALTER TABLE %s FORCE ROW LEVEL SECURITY", targetQN),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        rel.OID,
+				Priority:      PriorityColumn,
+			})
+		}
+	}
+
+	handledPol := make(map[string]bool)
+	for _, pe := range entry.Policies {
+		if pe.Action == DiffAdd || pe.Action == DiffModify {
+			handledPol[pe.Name] = true
+		}
+	}
+	for _, pol := range to.policiesByRel[rel.OID] {
+		if !handledPol[pol.Name] {
+			ops = append(ops, buildCreatePolicyOpForRel(entry.SchemaName, entry.Name, rel, pol))
+		}
+	}
+
+	handledGrantSQL := make(map[string]bool)
+	if diff != nil {
+		for _, ge := range diff.Grants {
+			if (ge.Action == DiffAdd || ge.Action == DiffModify) && ge.To.ObjType == 'r' && ge.To.ObjOID == rel.OID {
+				handledGrantSQL[formatGrantSQL(ge.To, resolveGrantObjName(to, 'r', rel.OID))] = true
+			}
+		}
+	}
+	for _, gop := range restoreGrantOps(to, 'r', rel.OID) {
+		if !handledGrantSQL[gop.SQL] {
+			ops = append(ops, gop)
+		}
+	}
+
+	handledComments := make(map[string]bool)
+	if diff != nil {
+		for _, ce := range diff.Comments {
+			if ce.Action == DiffAdd || ce.Action == DiffModify {
+				if sql := formatCommentEntrySQL(to, ce, ce.To); sql != "" {
+					handledComments[sql] = true
+				}
+			}
+		}
+	}
+	appendComment := func(objType byte, oid uint32, subID int16, desc string) {
+		if txt, ok := to.GetComment(objType, oid, subID); ok && txt != "" {
+			if sql := formatCommentSQL(to, objType, desc, subID, txt); sql != "" && !handledComments[sql] {
+				handledComments[sql] = true
+				ops = append(ops, MigrationOp{
+					Type:          OpComment,
+					ObjectName:    desc,
+					SQL:           sql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       objType,
+					Priority:      PriorityMetadata,
+				})
+			}
+		}
+	}
+	relDesc := entry.SchemaName + "." + entry.Name
+	appendComment('r', rel.OID, 0, relDesc)
+	for _, col := range rel.Columns {
+		appendComment('r', rel.OID, col.AttNum, relDesc)
+	}
+	for _, idx := range to.IndexesOf(rel.OID) {
+		if idx.ConstraintOID == 0 {
+			appendComment('i', idx.OID, 0, entry.SchemaName+"."+idx.Name)
+		}
+	}
+	for _, con := range to.ConstraintsOf(rel.OID) {
+		appendComment('c', con.OID, 0, relDesc+"."+con.Name)
+	}
+	for _, trig := range to.TriggersOf(rel.OID) {
+		if trig.ParentTriggerOID == 0 {
+			appendComment('g', trig.OID, 0, relDesc+"."+trig.Name)
+		}
+	}
+	for _, pol := range to.policiesByRel[rel.OID] {
+		appendComment('p', pol.OID, 0, relDesc+"."+pol.Name)
+	}
+	for _, r := range to.rules {
+		if r != nil && r.OwnerRelOID == rel.OID {
+			appendComment('R', r.OID, 0, relDesc+"."+r.Name)
+		}
 	}
 
 	return ops

@@ -725,20 +725,21 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		storedTablespace = ""
 	}
 	rel := &Relation{
-		OID:          relOID,
-		Name:         relName,
-		Schema:       schema,
-		RelKind:      relkind,
-		Columns:      columns,
-		colByName:    colByName,
-		RowTypeOID:   rowTypeOID,
-		ArrayOID:     arrayOID,
-		InhParents:   parentOIDs,
-		InhCount:     len(parentOIDs),
-		OfTypeOID:    ofTypeOID,
-		Tablespace:   storedTablespace,
-		AccessMethod: tableAccessMethod,
-		OwnerName:    c.currentOwner(),
+		OID:           relOID,
+		Name:          relName,
+		Schema:        schema,
+		RelKind:       relkind,
+		Columns:       columns,
+		colByName:     colByName,
+		RowTypeOID:    rowTypeOID,
+		ArrayOID:      arrayOID,
+		InhParents:    parentOIDs,
+		InhCount:      len(parentOIDs),
+		OfTypeOID:     ofTypeOID,
+		Tablespace:    storedTablespace,
+		AccessMethod:  tableAccessMethod,
+		OwnerName:     c.currentOwner(),
+		OwnerExplicit: !c.installingSnapshot && c.currentUser != "",
 	}
 
 	// Parse persistence from RangeVar.

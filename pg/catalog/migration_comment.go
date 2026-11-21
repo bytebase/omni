@@ -131,7 +131,7 @@ func commentObjectTarget(c *Catalog, entry CommentDiffEntry) string {
 	case 'f': // function/procedure
 		target := entry.ObjDescription
 		if schema, obj, ok := commentParts2(entry); ok {
-			if name, args, hasParen := strings.Cut(obj, "("); hasParen {
+			if name, args, hasParen := splitRoutineIdentityNameAndArgs(obj); hasParen {
 				target = quoteIdentifier(schema) + "." + quoteIdentifier(name) + "(" + args
 			}
 		}
@@ -207,6 +207,27 @@ func formatRuleCommentTarget(c *Catalog, entry CommentDiffEntry) string {
 			formatRelationName(parts[0], parts[1], rel))
 	}
 	return fmt.Sprintf("RULE %s", quoteIdentAlways(entry.ObjDescription))
+}
+
+// splitRoutineIdentityNameAndArgs splits "funcname(arg1, numeric(10, 2))" at
+// the opening paren of its parameter list even when funcname itself contains '('.
+func splitRoutineIdentityNameAndArgs(obj string) (name, args string, ok bool) {
+	if !strings.HasSuffix(obj, ")") {
+		return strings.Cut(obj, "(")
+	}
+	depth := 0
+	for i := len(obj) - 1; i >= 0; i-- {
+		switch obj[i] {
+		case ')':
+			depth++
+		case '(':
+			depth--
+			if depth == 0 {
+				return obj[:i], obj[i+1:], true
+			}
+		}
+	}
+	return "", "", false
 }
 
 // resolveIsProcedure checks if a function identity (e.g. "schema.name(argtypes)")

@@ -1429,6 +1429,7 @@ func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
 		return
 	}
 	rel.OwnerName = owner
+	rel.OwnerExplicit = owner != ""
 	for _, idx := range c.indexesByRel[rel.OID] {
 		idx.OwnerName = owner
 	}
@@ -1844,19 +1845,38 @@ func unquoteIdent(s string) string {
 }
 
 func routineCommentTarget(qualified func(string) string, name, sig string) string {
-	sigName, args, hasParen := strings.Cut(sig, "(")
-	if !hasParen {
-		if name != "" {
-			return qualified(name)
+	var rawArgs string
+	var hasParen bool
+	if name != "" {
+		for _, prefix := range []string{name, quoteIdent(name), quoteIdentifier(name)} {
+			if rest, ok := strings.CutPrefix(sig, prefix); ok {
+				if rest == "" {
+					return qualified(name)
+				}
+				if strings.HasPrefix(rest, "(") {
+					rawArgs = rest[1:]
+					hasParen = true
+					break
+				}
+			}
 		}
-		return qualified(unquoteIdent(sig))
 	}
-	if name == "" {
-		name = unquoteIdent(sigName)
+	if !hasParen {
+		sigName, args, ok := splitRoutineIdentityNameAndArgs(sig)
+		if !ok {
+			if name != "" {
+				return qualified(name)
+			}
+			return qualified(unquoteIdent(sig))
+		}
+		if name == "" {
+			name = unquoteIdent(sigName)
+		}
+		rawArgs = args
 	}
-	_, strippedArgs, ok := strings.Cut(signatureTypesOnly("fn("+args), "(")
+	_, strippedArgs, ok := strings.Cut(signatureTypesOnly("fn("+rawArgs), "(")
 	if !ok {
-		strippedArgs = args
+		strippedArgs = rawArgs
 	}
 	return qualified(name) + "(" + strippedArgs
 }
