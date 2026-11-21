@@ -516,6 +516,9 @@ func parseFunctionSignature(definition string) (declName []string, params []func
 	if raw, ok := stmt.(*nodes.RawStmt); ok {
 		stmt = raw.Stmt
 	}
+	if ro, ok := stmt.(*nodes.RedshiftObjectStmt); ok && strings.EqualFold(ro.Command, "create") && strings.EqualFold(ro.ObjectType, "external function") {
+		return parseExternalFunctionSignature(definition, extractNodeStringParts(ro.Name))
+	}
 	cf, ok := stmt.(*nodes.CreateFunctionStmt)
 	if !ok {
 		return nil, nil, "", false
@@ -536,6 +539,55 @@ func parseFunctionSignature(definition string) (declName []string, params []func
 		})
 	}
 	return declName, params, returnType, true
+}
+
+func parseExternalFunctionSignature(definition string, declName []string) ([]string, []functionParam, string, bool) {
+	lex := pgparser.NewLexer(definition)
+	sawFunction := false
+	openLoc, closeEnd := -1, -1
+	depth := 0
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		if !sawFunction {
+			if strings.EqualFold(tok.Str, "function") {
+				sawFunction = true
+			}
+			continue
+		}
+		if tok.Type == '(' {
+			if depth == 0 {
+				openLoc = tok.End
+			}
+			depth++
+			continue
+		}
+		if tok.Type == ')' && depth > 0 {
+			depth--
+			if depth == 0 {
+				closeEnd = tok.Loc
+				break
+			}
+		}
+	}
+	if len(declName) == 0 || openLoc < 0 || closeEnd < openLoc || closeEnd > len(definition) {
+		return declName, nil, "", false
+	}
+	inner := strings.TrimSpace(definition[openLoc:closeEnd])
+	if inner == "" {
+		return declName, nil, "", true
+	}
+	sigTypes, ok := parseSignatureParamTypes(inner)
+	if !ok {
+		return declName, nil, "", false
+	}
+	params := make([]functionParam, len(sigTypes))
+	for i, st := range sigTypes {
+		params[i] = functionParam{typeName: st}
+	}
+	return declName, params, "", true
 }
 
 func detectCreateRoutineKind(definition string) string {

@@ -2281,6 +2281,32 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, extFnOut, "CREATE EXTERNAL FUNCTION public.f_distance")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "wrong_name",
+				Signature:  "(double precision, double precision, double precision, double precision)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "does not match metadata identity")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_distance",
+				Signature:  "(integer)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "parameter count")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

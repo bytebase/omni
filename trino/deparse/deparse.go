@@ -1706,7 +1706,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 				}
 				dependencies[ei][depIdx] = struct{}{}
 			}
-			if parsed[origIdx].parsed && call.catalog == "" && call.nameEnd > call.nameStart && call.nameEnd <= len(f.fn.Definition) {
+			if call.catalog == "" && call.nameEnd > call.nameStart && call.nameEnd <= len(f.fn.Definition) {
 				var prefix string
 				if call.schema == "" {
 					prefix = qualifyTrinoObjectPrefix(metadata.Name, f.schema)
@@ -2817,9 +2817,27 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 	case *trinoparser.ParenQuery:
 		return w.walkQueryWithCols(n.Inner, nil, curEnv, ctes)
 	case *trinoparser.ValuesQuery:
+		var proj []trinoProjCol
 		for _, row := range n.Rows {
-			w.walkExpr(row, curEnv, ctes)
+			var rowCols []trinoparser.Expr
+			if rc, ok := row.(*trinoparser.RowConstructor); ok {
+				rowCols = rc.Elements
+			} else {
+				rowCols = []trinoparser.Expr{row}
+			}
+			for colIdx, el := range rowCols {
+				et := w.walkExpr(el, curEnv, ctes)
+				for len(proj) <= colIdx {
+					proj = append(proj, trinoProjCol{})
+				}
+				proj[colIdx].typ = combineTrinoTypes(proj[colIdx].typ, et)
+			}
 		}
+		var singleType string
+		if len(proj) == 1 {
+			singleType = proj[0].typ
+		}
+		return singleType, proj
 	}
 	return "", nil
 }
@@ -3538,6 +3556,8 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 		isIdent bool
 		text    string
 		punct   byte
+		start   int
+		end     int
 	}
 	var toks []token
 	for i := 0; i < len(sql); {
@@ -3572,6 +3592,7 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 				i++
 			}
 		case ch == '"':
+			start := i
 			i++
 			var sb strings.Builder
 			for i < len(sql) {
@@ -3587,16 +3608,16 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 				sb.WriteByte(sql[i])
 				i++
 			}
-			toks = append(toks, token{isIdent: true, text: sb.String()})
+			toks = append(toks, token{isIdent: true, text: sb.String(), start: start, end: i})
 		case isIdentStartChar(ch):
 			start := i
 			i++
 			for i < len(sql) && isIdentContChar(sql[i]) {
 				i++
 			}
-			toks = append(toks, token{isIdent: true, text: sql[start:i]})
+			toks = append(toks, token{isIdent: true, text: sql[start:i], start: start, end: i})
 		case ch == '.' || ch == '(' || ch == ')' || ch == ',':
-			toks = append(toks, token{punct: ch})
+			toks = append(toks, token{punct: ch, start: i, end: i + 1})
 			i++
 		default:
 			i++
@@ -3673,15 +3694,15 @@ func scanFunctionCallTokens(sql string, skipHeader bool) []functionCallRef {
 			continue
 		}
 		if i+5 < len(toks) && toks[i].isIdent && toks[i+1].punct == '.' && toks[i+2].isIdent && toks[i+3].punct == '.' && toks[i+4].isIdent && toks[i+5].punct == '(' {
-			calls = append(calls, functionCallRef{catalog: toks[i].text, schema: toks[i+2].text, name: toks[i+4].text, argCount: countArgs(i + 5)})
+			calls = append(calls, functionCallRef{catalog: toks[i].text, schema: toks[i+2].text, name: toks[i+4].text, nameStart: toks[i].start, nameEnd: toks[i+4].end, argCount: countArgs(i + 5)})
 			continue
 		}
 		if i+3 < len(toks) && toks[i].isIdent && toks[i+1].punct == '.' && toks[i+2].isIdent && toks[i+3].punct == '(' {
-			calls = append(calls, functionCallRef{schema: toks[i].text, name: toks[i+2].text, argCount: countArgs(i + 3)})
+			calls = append(calls, functionCallRef{schema: toks[i].text, name: toks[i+2].text, nameStart: toks[i].start, nameEnd: toks[i+2].end, argCount: countArgs(i + 3)})
 			continue
 		}
 		if toks[i].isIdent && toks[i+1].punct == '(' {
-			calls = append(calls, functionCallRef{name: toks[i].text, argCount: countArgs(i + 1)})
+			calls = append(calls, functionCallRef{name: toks[i].text, nameStart: toks[i].start, nameEnd: toks[i].end, argCount: countArgs(i + 1)})
 		}
 	}
 	return calls

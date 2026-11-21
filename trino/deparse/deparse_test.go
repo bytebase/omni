@@ -2048,4 +2048,35 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, fallbackRetType, "RETURNS decimal(10,2)")
+
+	// VALUES projection types propagate to enclosing aliases, and downgraded
+	// function definitions qualify unambiguous UDF calls in their bodies.
+	valuesAndFallback, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+				},
+				{
+					Name:       "callee",
+					Definition: "CREATE FUNCTION s.callee() RETURNS bigint RETURN 1",
+				},
+				{
+					Name:       "caller_fb",
+					Signature:  "()",
+					Definition: "CREATE FUNCTION s.caller_fb() RETURNS bigint COMMENT 'unparseable LANGUAGE clause' LANGUAGE PYTHON RETURN callee()",
+				},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_vals",
+				Definition: "SELECT abs(q.n) FROM (VALUES BIGINT '1') AS q(n)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, valuesAndFallback, `SELECT abs(q.n) FROM (VALUES BIGINT '1') AS q(n);`)
+	assert.Contains(t, valuesAndFallback, `RETURN "cat"."s".callee();`)
 }
