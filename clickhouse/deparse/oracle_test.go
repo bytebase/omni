@@ -76,6 +76,10 @@ func TestDatabaseDefinitionExecutesOnClickHouse(t *testing.T) {
 			},
 			Views: []*metadatapb.ViewMetadata{
 				{
+					Name:       "a_derived",
+					Definition: "SELECT id FROM `query view`",
+				},
+				{
 					Name:       "synced_view",
 					Definition: "CREATE VIEW " + database + ".synced_view (`id` UInt64, `name` String) AS SELECT id, name FROM " + database + ".events",
 				},
@@ -101,10 +105,10 @@ func TestDatabaseDefinitionExecutesOnClickHouse(t *testing.T) {
 		require.NoError(t, err, "statement failed:\n%s", block)
 	}
 
-	// Verify ClickHouse stored all 3 tables and 2 views with expected comments and defaults.
+	// Verify ClickHouse stored all 3 tables and 3 views with expected comments and defaults.
 	var count uint64
 	require.NoError(t, conn.QueryRowContext(ctx, "SELECT count() FROM system.tables WHERE database = $1", database).Scan(&count))
-	require.Equal(t, uint64(5), count)
+	require.Equal(t, uint64(6), count)
 
 	var seenDefault, eventComment string
 	require.NoError(t, conn.QueryRowContext(ctx,

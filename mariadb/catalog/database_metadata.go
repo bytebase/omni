@@ -2014,7 +2014,21 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 		}
 		total := 0
 		hasText := false
+		hasBinary := false
 		maxRank := 0
+		trackCat := func(p parsedSetOpType) {
+			switch p.cat {
+			case "text":
+				hasText = true
+				maxRank = max(maxRank, p.rank)
+			case "binary":
+				hasBinary = true
+			case "blob":
+				hasBinary = true
+				hasText = true
+				maxRank = max(maxRank, p.rank)
+			}
+		}
 		if name == "concat_ws" {
 			if len(e.Args) < 2 {
 				return ""
@@ -2023,10 +2037,7 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 			if !sok {
 				return ""
 			}
-			if sp.cat == "text" {
-				hasText = true
-				maxRank = max(maxRank, sp.rank)
-			}
+			trackCat(sp)
 			nonNull := 0
 			for _, arg := range e.Args[1:] {
 				ap, aw, aok := argWidth(arg)
@@ -2036,10 +2047,7 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 				if ap.cat == "null" {
 					continue
 				}
-				if ap.cat == "text" {
-					hasText = true
-					maxRank = max(maxRank, ap.rank)
-				}
+				trackCat(ap)
 				total += aw
 				nonNull++
 			}
@@ -2055,12 +2063,18 @@ func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCall
 				if ap.cat == "null" {
 					return "binary(0)"
 				}
-				if ap.cat == "text" {
-					hasText = true
-					maxRank = max(maxRank, ap.rank)
-				}
+				trackCat(ap)
 				total += aw
 			}
+		}
+		if hasBinary {
+			if hasText || total > 65535 {
+				if maxRank <= 3 {
+					return "mediumblob"
+				}
+				return "longblob"
+			}
+			return fmt.Sprintf("varbinary(%d)", total)
 		}
 		if hasText || total > 65535 {
 			if maxRank <= 3 {

@@ -238,3 +238,36 @@ CREATE OR REPLACE VIEW ` + "`v2`" + ` AS SELECT 2;
 `
 	require.Equal(t, want, got)
 }
+
+func TestDatabaseDefinitionOrdersDependentViews(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "analytics",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "a_derived", Definition: "SELECT id FROM analytics.z_base"},
+				{Name: "m_independent", Definition: "SELECT 1"},
+				{Name: "z_base", Definition: "SELECT id FROM events"},
+			},
+		}},
+	}
+
+	got, err := DatabaseDefinition(meta)
+	require.NoError(t, err)
+
+	want := `--
+-- View structure for ` + "`m_independent`" + `
+--
+CREATE OR REPLACE VIEW ` + "`m_independent`" + ` AS SELECT 1;
+
+--
+-- View structure for ` + "`z_base`" + `
+--
+CREATE OR REPLACE VIEW ` + "`z_base`" + ` AS SELECT id FROM events;
+
+--
+-- View structure for ` + "`a_derived`" + `
+--
+CREATE OR REPLACE VIEW ` + "`a_derived`" + ` AS SELECT id FROM analytics.z_base;
+`
+	require.Equal(t, want, got)
+}

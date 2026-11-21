@@ -113,8 +113,8 @@ func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state 
 		if !ok {
 			continue
 		}
-		// Follow the order of the input views.
-		for _, view := range schema.Views {
+		// Emit views in dependency order while preserving snapshot order among independent views.
+		for _, view := range orderViewsByDependency(schema.Views, to.Name) {
 			if view == nil {
 				continue
 			}
@@ -137,6 +137,203 @@ func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state 
 		}
 	}
 	return nil
+}
+
+// orderViewsByDependency topologically orders views so that any view reading
+// another view in the same schema is emitted after its dependency, preserving
+// original snapshot order among independent views.
+func orderViewsByDependency(views []*metadatapb.ViewMetadata, dbName string) []*metadatapb.ViewMetadata {
+	n := len(views)
+	if n <= 1 {
+		return views
+	}
+	nameToIdx := make(map[string]int, n)
+	for i, v := range views {
+		if v != nil && v.Name != "" {
+			if _, exists := nameToIdx[v.Name]; !exists {
+				nameToIdx[v.Name] = i
+			}
+		}
+	}
+	inDegree := make([]int, n)
+	dependents := make([][]int, n)
+	for i, v := range views {
+		if v == nil || v.Definition == "" {
+			continue
+		}
+		seenDep := make(map[int]bool)
+		for _, ref := range referencedRelations(v.Definition, dbName) {
+			depIdx, ok := nameToIdx[ref]
+			if !ok || depIdx == i || seenDep[depIdx] {
+				continue
+			}
+			seenDep[depIdx] = true
+			dependents[depIdx] = append(dependents[depIdx], i)
+			inDegree[i]++
+		}
+	}
+
+	emitted := make([]bool, n)
+	ordered := make([]*metadatapb.ViewMetadata, 0, n)
+	for len(ordered) < n {
+		next := -1
+		for i := 0; i < n; i++ {
+			if !emitted[i] && inDegree[i] == 0 {
+				next = i
+				break
+			}
+		}
+		if next == -1 {
+			// Cycle fallback: emit remaining views in original snapshot order.
+			for i := 0; i < n; i++ {
+				if !emitted[i] {
+					ordered = append(ordered, views[i])
+					emitted[i] = true
+				}
+			}
+			break
+		}
+		emitted[next] = true
+		ordered = append(ordered, views[next])
+		for _, dep := range dependents[next] {
+			inDegree[dep]--
+		}
+	}
+	return ordered
+}
+
+// referencedRelations extracts unqualified relation names referenced after FROM
+// or JOIN in a ClickHouse view definition, stripping dbName when qualified.
+func referencedRelations(sql, dbName string) []string {
+	type tok struct {
+		text   string
+		quoted bool
+	}
+	var tokens []tok
+	for i := 0; i < len(sql); {
+		c := sql[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' {
+			i++
+			continue
+		}
+		if c == '-' && i+1 < len(sql) && sql[i+1] == '-' {
+			i += 2
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if c == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+			i += 2
+			for i+1 < len(sql) && !(sql[i] == '*' && sql[i+1] == '/') {
+				i++
+			}
+			if i+1 < len(sql) {
+				i += 2
+			}
+			continue
+		}
+		if c == '\'' {
+			i++
+			for i < len(sql) {
+				if sql[i] == '\\' && i+1 < len(sql) {
+					i += 2
+					continue
+				}
+				if sql[i] == '\'' {
+					i++
+					if i < len(sql) && sql[i] == '\'' {
+						i++
+						continue
+					}
+					break
+				}
+				i++
+			}
+			continue
+		}
+		if c == '`' || c == '"' {
+			quote := c
+			i++
+			var sb strings.Builder
+			for i < len(sql) {
+				if sql[i] == '\\' && i+1 < len(sql) {
+					switch sql[i+1] {
+					case 'n':
+						sb.WriteByte('\n')
+					case 'r':
+						sb.WriteByte('\r')
+					case 't':
+						sb.WriteByte('\t')
+					case 'b':
+						sb.WriteByte('\b')
+					case 'f':
+						sb.WriteByte('\f')
+					case '0':
+						sb.WriteByte(0)
+					default:
+						sb.WriteByte(sql[i+1])
+					}
+					i += 2
+					continue
+				}
+				if sql[i] == quote {
+					i++
+					if i < len(sql) && sql[i] == quote {
+						sb.WriteByte(quote)
+						i++
+						continue
+					}
+					break
+				}
+				sb.WriteByte(sql[i])
+				i++
+			}
+			tokens = append(tokens, tok{text: sb.String(), quoted: true})
+			continue
+		}
+		if c == '.' {
+			tokens = append(tokens, tok{text: "."})
+			i++
+			continue
+		}
+		if isIdentByte(c) {
+			start := i
+			for i < len(sql) && isIdentByte(sql[i]) {
+				i++
+			}
+			tokens = append(tokens, tok{text: sql[start:i]})
+			continue
+		}
+		tokens = append(tokens, tok{text: string(c)})
+		i++
+	}
+
+	var refs []string
+	for i := 0; i < len(tokens)-1; i++ {
+		if tokens[i].quoted {
+			continue
+		}
+		if !strings.EqualFold(tokens[i].text, "FROM") && !strings.EqualFold(tokens[i].text, "JOIN") {
+			continue
+		}
+		j := i + 1
+		if tokens[j].text == "(" {
+			continue
+		}
+		if j+2 < len(tokens) && !tokens[j+1].quoted && tokens[j+1].text == "." {
+			if dbName == "" || tokens[j].text == dbName {
+				refs = append(refs, tokens[j+2].text)
+			}
+		} else {
+			refs = append(refs, tokens[j].text)
+		}
+	}
+	return refs
+}
+
+func isIdentByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$'
 }
 
 func getTableAnnouncement(name string) string {

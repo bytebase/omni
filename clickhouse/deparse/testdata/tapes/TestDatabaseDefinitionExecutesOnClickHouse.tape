@@ -56,6 +56,12 @@
 | --
 | CREATE OR REPLACE VIEW `query view` AS SELECT id, seen FROM events WHERE retries > 0 COMMENT 'filtered \'events\''
 < ok 0 -
+> exec
+| --
+| -- View structure for `a_derived`
+| --
+| CREATE OR REPLACE VIEW `a_derived` AS SELECT id FROM `query view`
+< ok 0 -
 > query
 | SELECT count() FROM system.tables WHERE database = $1
 : string
@@ -63,7 +69,7 @@
 < result
 < column "count()" "UInt64" "uint64"
 < row
-: uint64 5
+: uint64 6
 > query
 | SELECT column_default FROM information_schema.columns WHERE table_schema = $1 AND table_name = 'events' AND column_name = 'seen'
 : string

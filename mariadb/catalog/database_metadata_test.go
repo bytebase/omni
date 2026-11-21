@@ -455,7 +455,7 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 			SELECT '123' AS num_str, 'TRUE' AS bool_str, 123 AS num_int, 4294967296 AS num_big, COALESCE(opt_val, 0) AS non_null_val, fn_double(id) AS fn_val, REPLACE('a', 'a', 'long') AS rep_str
 			FROM a;
 		CREATE VIEW v_bitwise AS
-			SELECT x & y AS bits FROM bin_t;
+			SELECT x & y AS bits, CONCAT(x, 'a') AS bin_concat FROM bin_t;
 	`, nil)
 	require.NoError(t, err)
 	for _, r := range results {
@@ -498,8 +498,9 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "varchar(4)", vLit.Columns[6].Type)
 
 	vBit := views["v_bitwise"]
-	require.Len(t, vBit.Columns, 1)
+	require.Len(t, vBit.Columns, 2)
 	require.Equal(t, "bigint unsigned", vBit.Columns[0].Type)
+	require.Equal(t, "varbinary(5)", vBit.Columns[1].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {
