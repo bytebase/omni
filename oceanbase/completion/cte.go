@@ -164,6 +164,20 @@ func findActiveSelectScope(
 			continue
 		}
 		if cte.Select != nil && locContains(cte.Select.Loc, cursor) {
+			if cte.Recursive && cte.Name != "" {
+				key := strings.ToLower(cte.Name)
+				if len(cte.Columns) > 0 {
+					ctes[key] = slices.Clone(cte.Columns)
+				} else {
+					unwrapped := cte.Select
+					for unwrapped != nil && unwrapped.ParenSource != nil {
+						unwrapped = unwrapped.ParenSource
+					}
+					if unwrapped != nil && unwrapped.SetOp != ast.SetOpNone && unwrapped.Left != nil && !locContains(unwrapped.Left.Loc, cursor) {
+						ctes[key] = projectSelectColumns(cat, unwrapped.Left, ctes, caseSensitive)
+					}
+				}
+			}
 			return findActiveSelectScope(cte.Select, cursor, cat, ctes, outerScopes, caseSensitive)
 		}
 		if cte.Name == "" {
@@ -288,23 +302,37 @@ func projectSelectColumns(
 	ctes map[string][]string,
 	caseSensitive bool,
 ) []string {
-	leaf := ast.LeftmostQueryLeaf(s)
-	if leaf == nil {
-		return nil
-	}
 	localCTEs := maps.Clone(ctes)
 	if localCTEs == nil {
 		localCTEs = make(map[string][]string)
 	}
-	for _, cte := range leaf.CTEs {
-		if cte == nil || cte.Name == "" {
-			continue
+	registerCTEs := func(list []*ast.CommonTableExpr) {
+		for _, cte := range list {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			if len(cte.Columns) > 0 {
+				localCTEs[strings.ToLower(cte.Name)] = slices.Clone(cte.Columns)
+			} else if cte.Select != nil {
+				localCTEs[strings.ToLower(cte.Name)] = projectSelectColumns(cat, cte.Select, localCTEs, caseSensitive)
+			}
 		}
-		if len(cte.Columns) > 0 {
-			localCTEs[strings.ToLower(cte.Name)] = slices.Clone(cte.Columns)
-		} else if cte.Select != nil {
-			localCTEs[strings.ToLower(cte.Name)] = projectSelectColumns(cat, cte.Select, localCTEs, caseSensitive)
+	}
+	var leaf *ast.SelectStmt
+	for cur := s; cur != nil; {
+		registerCTEs(cur.CTEs)
+		switch {
+		case cur.ParenSource != nil:
+			cur = cur.ParenSource
+		case cur.SetOp != ast.SetOpNone && cur.Left != nil:
+			cur = cur.Left
+		default:
+			leaf = cur
+			cur = nil
 		}
+	}
+	if leaf == nil {
+		return nil
 	}
 
 	sources := collectSelectFromSources(cat, leaf.From, localCTEs, caseSensitive)

@@ -991,4 +991,18 @@ func TestCompleteSession_CodexRound4Fixes(t *testing.T) {
 	gotCTEChain := CompleteSession(context.Background(), cfg, sql, 1, len(sql)-len(" FROM c25"))
 	require.Len(t, gotCTEChain, 1)
 	require.True(t, containsCandidate(gotCTEChain, "col", CandidateColumn), "got %v", gotCTEChain)
+
+	// 4. Wrapper CTEs on set-operation derived tables project columns accurately.
+	unionSQL := "SELECT d. FROM (WITH x AS (SELECT 1 AS n) SELECT * FROM x UNION ALL SELECT * FROM x) d"
+	gotUnionDerived := CompleteSession(context.Background(), cfg, unionSQL, 1, len("SELECT d."))
+	require.True(t, containsCandidate(gotUnionDerived, "n", CandidateColumn), "got %v", gotUnionDerived)
+
+	// 5. Recursive CTE columns are visible inside the recursive arm (both explicit and implicit).
+	recExplicit := "WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT c. FROM c) SELECT * FROM c"
+	gotRecExplicit := CompleteSession(context.Background(), cfg, recExplicit, 1, len("WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT c."))
+	require.True(t, containsCandidate(gotRecExplicit, "n", CandidateColumn), "got %v", gotRecExplicit)
+
+	recImplicit := "WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c. FROM c) SELECT * FROM c"
+	gotRecImplicit := CompleteSession(context.Background(), cfg, recImplicit, 1, len("WITH RECURSIVE c AS (SELECT 1 AS n UNION ALL SELECT c."))
+	require.True(t, containsCandidate(gotRecImplicit, "n", CandidateColumn), "got %v", gotRecImplicit)
 }
