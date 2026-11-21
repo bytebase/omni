@@ -185,6 +185,7 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"aliased_join_deparse", "CREATE VIEW _v AS SELECT b FROM (a FULL JOIN b USING (b)) j", ") j"},
 			{"aliased_cross_join_deparse", "CREATE VIEW _v AS SELECT d, c FROM (a CROSS JOIN b) j", "j.d"},
 			{"aliased_join_dedup_col_refs", "CREATE VIEW _v(first, second, third, fourth, fifth) AS SELECT j.* FROM (a CROSS JOIN b) AS j(c)", "j.c_1 AS fifth"},
+			{"aliased_join_dup_cols_no_col_alias", "CREATE VIEW _v(first, second, third, fourth, fifth) AS SELECT j.* FROM (a CROSS JOIN b) j", "j.b_1 AS fourth"},
 			{"json_returning_bytea", "CREATE VIEW _v AS SELECT JSON_ARRAY(1 RETURNING bytea) AS j, JSON_OBJECT('k' : 1 RETURNING bytea) AS o, JSON_ARRAYAGG(b RETURNING bytea) AS ja FROM a", "RETURNING bytea"},
 			{"json_returning_typmod", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b RETURNING varchar(5)) AS ja, JSON_ARRAY(1 RETURNING varchar(10)) AS j FROM a", "RETURNING character varying(5)"},
 			{"unnamed_subquery_no_shadow_outer", "CREATE VIEW _v AS SELECT (SELECT unnamed_subquery.b FROM (SELECT 2 AS b)) AS z FROM a AS unnamed_subquery", "unnamed_subquery_1"},
@@ -221,7 +222,7 @@ func TestQuerySimulationFixes(t *testing.T) {
 					"xmltable_preserve", "cross_schema_unaliased_same_name",
 					"multiple_unnamed_subqueries", "aliased_join_deparse",
 					"aliased_cross_join_deparse", "aliased_join_dedup_col_refs",
-					"json_returning_bytea", "json_returning_typmod",
+					"aliased_join_dup_cols_no_col_alias", "json_returning_bytea", "json_returning_typmod",
 					"unnamed_subquery_no_shadow_outer", "pg17_integer_literals",
 					"pg17_numeric_literals", "signed_oid_literal":
 					c2 := setup(t)
@@ -257,8 +258,50 @@ func TestQuerySimulationFixes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetViewDefinition: %v", err)
 		}
-		if !strings.Contains(def, "merge_action()") {
+		if !strings.Contains(def, `"merge_action"()`) {
 			t.Errorf("unexpected view def %q", def)
+		}
+		res2, err := c.Exec("CREATE VIEW _v2 AS "+def, nil)
+		if err != nil {
+			t.Fatalf("recreate exec error for %q: %v", def, err)
+		}
+		for _, r := range res2 {
+			if r.Error != nil {
+				t.Fatalf("recreate stmt error for %q: %v", def, r.Error)
+			}
+		}
+	})
+
+	t.Run("deep_nested_unnamed_subqueries", func(t *testing.T) {
+		c := setup(t)
+		q := "SELECT 1 AS x"
+		for i := 0; i < 35; i++ {
+			q = "SELECT * FROM (" + q + ")"
+		}
+		res, err := c.Exec("CREATE VIEW _v AS "+q, nil)
+		if err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("stmt error: %v", r.Error)
+			}
+		}
+		def, err := c.GetViewDefinition("public", "_v")
+		if err != nil {
+			t.Fatalf("GetViewDefinition: %v", err)
+		}
+		if !strings.Contains(def, "unnamed_subquery_34") {
+			t.Errorf("expected unnamed_subquery_34 in view def")
+		}
+		res2, err := c.Exec("CREATE VIEW _v2 AS "+def, nil)
+		if err != nil {
+			t.Fatalf("recreate exec error: %v", err)
+		}
+		for _, r := range res2 {
+			if r.Error != nil {
+				t.Fatalf("recreate stmt error: %v", r.Error)
+			}
 		}
 	})
 

@@ -122,6 +122,12 @@ type deparseCtx struct {
 	// up one level at a time made a long UNION of such arms quadratic.
 	setOpLevels int
 	aboveSetOps *deparseCtx
+
+	// Cached RTE deparse reference names for rteRefNamesQuery and the union of
+	// all reserved reference names across this scope and enclosing scopes.
+	rteRefNamesQuery *Query
+	rteRefNames      map[*RangeTableEntry]string
+	usedRefNames     map[string]bool
 }
 
 const (
@@ -517,11 +523,25 @@ func (d *deparseCtx) rtePrintedColNames(rte *RangeTableEntry) []string {
 			return uniqueColumnAliases(rte.ColNames)
 		}
 	case RTEJoin:
-		if rte.Alias != "" && rte.aliasColumns > 0 {
+		if rte.Alias != "" && (rte.aliasColumns > 0 || hasDuplicateStrings(rte.ColNames)) {
 			return uniqueColumnAliases(rte.ColNames)
 		}
 	}
 	return rte.ColNames
+}
+
+func hasDuplicateStrings(ss []string) bool {
+	if len(ss) < 2 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(ss))
+	for _, s := range ss {
+		if _, dup := seen[s]; dup {
+			return true
+		}
+		seen[s] = struct{}{}
+	}
+	return false
 }
 
 func uniqueColumnAliases(colNames []string) []string {
@@ -542,6 +562,81 @@ func uniqueColumnAliases(colNames []string) []string {
 		out[i] = name
 	}
 	return out
+}
+
+// ensureRTERefNames computes and caches the unique deparse reference name for
+// every RTE in query together with the union of reserved names across this
+// scope and all enclosing scopes, avoiding repeated ancestor recomputation.
+//
+// pg: src/backend/utils/adt/ruleutils.c — set_rtable_names
+func (d *deparseCtx) ensureRTERefNames(query *Query) (map[*RangeTableEntry]string, map[string]bool) {
+	if query == nil {
+		return nil, nil
+	}
+	if d.rteRefNamesQuery == query {
+		return d.rteRefNames, d.usedRefNames
+	}
+	var parentUsed map[string]bool
+	for p := d.parentCtx; p != nil; p = p.parentCtx {
+		if p.query != nil {
+			_, parentUsed = p.ensureRTERefNames(p.query)
+			break
+		}
+	}
+	if len(query.RangeTable) == 0 {
+		d.rteRefNamesQuery = query
+		d.rteRefNames = nil
+		d.usedRefNames = parentUsed
+		return nil, parentUsed
+	}
+	used := make(map[string]bool, len(parentUsed)+len(query.RangeTable))
+	for name := range parentUsed {
+		used[name] = true
+	}
+	names := make(map[*RangeTableEntry]string, len(query.RangeTable))
+	// Reserve all explicit aliases and non-unnamed-subquery ERefs first.
+	for _, other := range query.RangeTable {
+		if other.Kind == RTESubquery && other.Alias == "" {
+			continue
+		}
+		if other.Kind == RTEJoin && other.Alias == "" {
+			continue
+		}
+		name := other.Alias
+		if name == "" {
+			name = other.ERef
+		}
+		if name != "" {
+			names[other] = name
+			used[name] = true
+		}
+	}
+	// Assign unique generated names for unnamed subqueries in RangeTable order.
+	for _, other := range query.RangeTable {
+		if other.Kind != RTESubquery || other.Alias != "" {
+			continue
+		}
+		base := other.ERef
+		if base == "" {
+			base = "unnamed_subquery"
+		}
+		name := base
+		if used[name] {
+			for n := 1; ; n++ {
+				cand := fmt.Sprintf("%s_%d", base, n)
+				if !used[cand] {
+					name = cand
+					break
+				}
+			}
+		}
+		names[other] = name
+		used[name] = true
+	}
+	d.rteRefNamesQuery = query
+	d.rteRefNames = names
+	d.usedRefNames = used
+	return names, used
 }
 
 // rteRefName returns the unique deparse reference name for rte within query,
@@ -565,60 +660,9 @@ func (d *deparseCtx) rteRefName(query *Query, rte *RangeTableEntry) string {
 	if rte.Kind != RTESubquery {
 		return rte.ERef
 	}
-	// Reserve all explicit aliases and non-unnamed-subquery ERefs in this query
-	// and all enclosing queries so generated names never shadow correlated refs.
-	used := make(map[string]bool, len(query.RangeTable))
-	for p := d.parentCtx; p != nil; p = p.parentCtx {
-		if p.query == nil {
-			continue
-		}
-		for _, outer := range p.query.RangeTable {
-			if outer.Kind == RTEJoin && outer.Alias == "" {
-				continue
-			}
-			if name := p.rteRefName(p.query, outer); name != "" {
-				used[name] = true
-			}
-		}
-	}
-	for _, other := range query.RangeTable {
-		if other.Kind == RTESubquery && other.Alias == "" {
-			continue
-		}
-		if other.Kind == RTEJoin && other.Alias == "" {
-			continue
-		}
-		name := other.Alias
-		if name == "" {
-			name = other.ERef
-		}
-		if name != "" {
-			used[name] = true
-		}
-	}
-	// Assign unique generated names in RangeTable order.
-	for _, other := range query.RangeTable {
-		if other.Kind != RTESubquery || other.Alias != "" {
-			continue
-		}
-		base := other.ERef
-		if base == "" {
-			base = "unnamed_subquery"
-		}
-		name := base
-		if used[name] {
-			for n := 1; ; n++ {
-				cand := fmt.Sprintf("%s_%d", base, n)
-				if !used[cand] {
-					name = cand
-					break
-				}
-			}
-		}
-		used[name] = true
-		if other == rte {
-			return name
-		}
+	names, _ := d.ensureRTERefNames(query)
+	if name, ok := names[rte]; ok {
+		return name
 	}
 	return rte.ERef
 }
@@ -803,7 +847,7 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 		if hasJoinAlias {
 			d.buf.WriteByte(' ')
 			d.buf.WriteString(quoteIdentifier(joinRTE.Alias))
-			if joinRTE.aliasColumns > 0 {
+			if joinRTE.aliasColumns > 0 || hasDuplicateStrings(joinRTE.ColNames) {
 				d.writeColumnAliasList(joinRTE.ColNames)
 			}
 		}
@@ -2591,6 +2635,9 @@ func (d *deparseCtx) subContext() *deparseCtx {
 
 // subContextBuf creates a child deparse context writing to a different buffer.
 func (d *deparseCtx) subContextBuf(buf *bytes.Buffer) *deparseCtx {
+	if d.query != nil {
+		d.ensureRTERefNames(d.query)
+	}
 	return &deparseCtx{
 		catalog:            d.catalog,
 		buf:                buf,
@@ -2604,6 +2651,9 @@ func (d *deparseCtx) subContextBuf(buf *bytes.Buffer) *deparseCtx {
 		parentCtx:          d.parentCtx,
 		setOpLevels:        d.setOpLevels,
 		aboveSetOps:        d.aboveSetOps,
+		rteRefNamesQuery:   d.rteRefNamesQuery,
+		rteRefNames:        d.rteRefNames,
+		usedRefNames:       d.usedRefNames,
 	}
 }
 
@@ -2890,7 +2940,7 @@ func isReservedWord(name string) bool {
 		"json_array", "json_arrayagg", "json_exists",
 		"json_object", "json_objectagg", "json_query",
 		"json_scalar", "json_serialize", "json_table", "json_value",
-		"least", "national", "nchar", "none", "normalize", "nullif",
+		"least", "merge_action", "national", "nchar", "none", "normalize", "nullif",
 		"numeric", "out", "overlay", "position", "precision",
 		"real", "row", "setof", "smallint", "substring", "time",
 		"timestamp", "treat", "trim", "values", "varchar",
