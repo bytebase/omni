@@ -1763,6 +1763,61 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "unnamed")
+
+	// Cyclic UDF dependencies, nonexistent FK target columns, and non-function statements
+	// in FunctionMetadata fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "cyc_a",
+					Definition: "CREATE FUNCTION s.cyc_a(x int) RETURNS int IMMUTABLE AS $$ SELECT s.cyc_b(x) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "cyc_b",
+					Definition: "CREATE FUNCTION s.cyc_b(x int) RETURNS int IMMUTABLE AS $$ SELECT s.cyc_a(x) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:    "parent",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Indexes: []*metadatapb.IndexMetadata{{Name: "parent_pk", Primary: true, Expressions: []string{"id"}}},
+				},
+				{
+					Name:    "child",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "p_id", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "child_fk",
+						Columns:           []string{"p_id"},
+						ReferencedSchema:  "s",
+						ReferencedTable:   "parent",
+						ReferencedColumns: []string{"no_such_col"},
+					}},
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "nonexistent column")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "not_a_fn",
+				Definition: "CREATE TABLE s.not_a_fn(id int)",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "CREATE FUNCTION")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

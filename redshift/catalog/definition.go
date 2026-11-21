@@ -578,8 +578,8 @@ func validateRoutineIdentity(kind, schemaName, objName, signature, def string, e
 	if expectProc && (!parsed || detectedKind != "procedure") {
 		return nil, "", false, fmt.Errorf("%s %s definition must be a CREATE PROCEDURE statement", kind, qualifyName(schemaName, objName))
 	}
-	if !expectProc && detectedKind == "procedure" {
-		return nil, "", false, fmt.Errorf("%s %s definition declares a procedure instead of a function", kind, qualifyName(schemaName, objName))
+	if !expectProc && detectedKind != "function" {
+		return nil, "", false, fmt.Errorf("%s %s definition must be a CREATE FUNCTION statement", kind, qualifyName(schemaName, objName))
 	}
 	if len(declName) > 0 {
 		mismatch := func() error {
@@ -1690,7 +1690,28 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		return nil
 	}
 
-	for _, idx := range topoOrder(len(items), dependencies) {
+	for _, item := range items {
+		if item.kind != objectKindTable {
+			continue
+		}
+		for _, fk := range item.table.foreignKeys {
+			if refTable := findTableInItems(items, fk.referencedSchema, fk.referencedTable, caseSensitive); refTable != nil {
+				for _, refCol := range fk.referencedColumns {
+					if !hasTableColumn(refTable.columns, refCol) {
+						return fmt.Errorf("foreign key %s on %s references nonexistent column %q on %s", fk.name, item.table.qualifiedName(), refCol, refTable.qualifiedName())
+					}
+				}
+			}
+		}
+	}
+
+	ordered, cyclic := topoOrder(len(items), dependencies)
+	for _, idx := range cyclic {
+		if items[idx].kind == objectKindFunc {
+			return fmt.Errorf("cyclic function dependency involving %s cannot be restored because Redshift requires callees to exist first", qualifyName(items[idx].schema, items[idx].fn.name))
+		}
+	}
+	for _, idx := range ordered {
 		item := items[idx]
 		switch item.kind {
 		case objectKindFunc:
@@ -1878,7 +1899,7 @@ func (h *intMinHeap) Pop() any {
 // topoOrder returns indices 0..n-1 ordered so each item follows its
 // dependencies, preserving input order among independent items and breaking
 // cycles in input order in O((n + E) log n) time.
-func topoOrder(n int, dependencies []map[int]struct{}) []int {
+func topoOrder(n int, dependencies []map[int]struct{}) ([]int, []int) {
 	remaining := make([]int, n)
 	dependents := make([][]int, n)
 	ready := make(intMinHeap, 0, n)
@@ -1895,6 +1916,7 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 	heap.Init(&ready)
 
 	ordered := make([]int, 0, n)
+	var cyclic []int
 	done := make([]bool, n)
 	cursor := 0
 	for len(ordered) < n {
@@ -1909,6 +1931,7 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 				break
 			}
 			u = cursor
+			cyclic = append(cyclic, u)
 			cursor++
 		}
 		if done[u] {
@@ -1926,7 +1949,19 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 			}
 		}
 	}
-	return ordered
+	return ordered, cyclic
+}
+
+func findTableInItems(items []orderedObject, schemaName, tableName string, caseSensitive bool) *tableState {
+	if schemaName == "" || tableName == "" {
+		return nil
+	}
+	for _, it := range items {
+		if it.kind == objectKindTable && identEqual(it.schema, schemaName, caseSensitive) && identEqual(it.name, tableName, caseSensitive) {
+			return it.table
+		}
+	}
+	return nil
 }
 
 // writeTableWithOptions writes one table, its comments (table, column, and
