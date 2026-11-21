@@ -8,12 +8,42 @@
 | INSERT dbo.test VALUES (1, 2), (2, 2), (3, 2), (4, 2)
 < ok 4 -
 > exec
-| SELECT * INTO [omni_TestOracleBackupTop].[dbo].[rollback_test_omni_TestOracleBackupTop] FROM (
+| SELECT * INTO [omni_TestOracleBackupTop].[dbo].[top_only_test_omni_TestOracleBackupTop] FROM (
 |   SELECT TOP (3) [omni_TestOracleBackupTop].[dbo].[test].* FROM test WHERE c2 = 2) AS backup_table;
 < ok 3 -
 > query
-| SELECT COUNT(*) FROM dbo.[rollback_test_omni_TestOracleBackupTop]
+| SELECT COUNT(*) FROM dbo.[top_only_test_omni_TestOracleBackupTop]
 < result
 < column "" "INT"
 < row
 : int64 3
+> exec
+| SELECT * INTO [omni_TestOracleBackupTop].[dbo].[top_opt_test_omni_TestOracleBackupTop] FROM (
+|   SELECT TOP (3) [omni_TestOracleBackupTop].[dbo].[test].* FROM test WHERE c2 = 2) AS backup_table OPTION (RECOMPILE);
+< ok 3 -
+> query
+| SELECT COUNT(*) FROM dbo.[top_opt_test_omni_TestOracleBackupTop]
+< result
+< column "" "INT"
+< row
+: int64 3
+> exec
+| SELECT * INTO [omni_TestOracleBackupTop].[dbo].[opt_comment_test_omni_TestOracleBackupTop] FROM (
+|   SELECT [omni_TestOracleBackupTop].[dbo].[test].* FROM test) AS backup_table OPTION (RECOMPILE);
+< ok 4 -
+> query
+| SELECT COUNT(*) FROM dbo.[opt_comment_test_omni_TestOracleBackupTop]
+< result
+< column "" "INT"
+< row
+: int64 4
+> exec
+| SELECT * INTO [omni_TestOracleBackupTop].[dbo].[opt_nested_test_omni_TestOracleBackupTop] FROM (
+|   SELECT [omni_TestOracleBackupTop].[dbo].[test].* FROM test) AS backup_table OPTION (RECOMPILE);
+< ok 4 -
+> query
+| SELECT COUNT(*) FROM dbo.[opt_nested_test_omni_TestOracleBackupTop]
+< result
+< column "" "INT"
+< row
+: int64 4
