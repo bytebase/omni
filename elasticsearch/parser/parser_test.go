@@ -25,6 +25,11 @@ func TestRequestLineValidation(t *testing.T) {
 		{name: "multiple inline comments", input: "GET /_search /* c1 */ /* c2 */ // end", wantM: "GET", wantU: "/_search"},
 		{name: "quoted space in query", input: `GET /_search?q="a b"`, wantM: "GET", wantU: `/_search?q="a b"`},
 		{name: "quoted space with trailing comment", input: `GET /_search?q="a b" // comment`, wantM: "GET", wantU: `/_search?q="a b"`},
+		{name: "wildcard all indices", input: "GET /*", wantM: "GET", wantU: "/*"},
+		{name: "wildcard search", input: "GET /*/_search", wantM: "GET", wantU: "/*/_search"},
+		{name: "wildcard settings with query", input: "GET /*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden", wantM: "GET", wantU: "/*/_settings?filter_path=**.hidden&expand_wildcards=open,hidden"},
+		{name: "wildcard prefix index", input: "GET /*-logs/_search", wantM: "GET", wantU: "/*-logs/_search"},
+		{name: "wildcard with inline comment", input: "GET /*/_search /* comment */", wantM: "GET", wantU: "/*/_search"},
 		{name: "CRLF single body", input: "POST /my_index/_search\r\n{\"query\": {}}", wantM: "POST", wantU: "/my_index/_search", docs: 1},
 		{name: "CRLF multi-doc bulk", input: "POST /_bulk\r\n{\"index\":{\"_index\":\"a\"}}\r\n{\"f\":1}\r\n", wantM: "POST", wantU: "/_bulk", docs: 2},
 	}

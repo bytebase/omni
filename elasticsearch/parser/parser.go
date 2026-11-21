@@ -425,7 +425,7 @@ func (s *state) request() error {
 }
 
 func (s *state) url() (string, error) {
-	if s.eof() || s.ch == '\n' || s.ch == '\r' || s.ch == '#' || (s.ch == '/' && (s.peek(0) == '/' || s.peek(0) == '*')) {
+	if s.eof() || s.ch == '\n' || s.ch == '\r' || s.ch == '#' || (s.ch == '/' && s.peek(0) == '/') {
 		return "", fmt.Errorf("Missing url")
 	}
 	var url strings.Builder
