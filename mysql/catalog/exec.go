@@ -1600,6 +1600,67 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
 			}
 			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "cot", "degrees", "radians":
+			// Doubles: ASIN and ACOS out of [-1, 1] are NULL, a result that is
+			// no finite double is 1690 (COT(0)), as on mysql:8.0.46; ATAN takes
+			// one argument or two, as ATAN2 does. Go's math library can differ
+			// from the server's C library in the last digit of a result
+			// (TAN(1), COS(0.1)), which only an exact comparison of the two
+			// sees. PI() is left out: it compares at its six shown decimals
+			// (PI() = 3.141593 is 1).
+			fn := toLower(e.Name)
+			two := fn == "atan" || fn == "atan2"
+			if len(e.Args) < 1 || len(e.Args) > 2 || (!two && len(e.Args) != 1) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			xs := make([]float64, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			x := xs[0]
+			var f float64
+			switch fn {
+			case "sin":
+				f = math.Sin(x)
+			case "cos":
+				f = math.Cos(x)
+			case "tan":
+				f = math.Tan(x)
+			case "asin", "acos":
+				if x < -1 || x > 1 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				if fn == "asin" {
+					f = math.Asin(x)
+				} else {
+					f = math.Acos(x)
+				}
+			case "atan", "atan2":
+				if len(xs) == 2 {
+					f = math.Atan2(xs[0], xs[1])
+				} else {
+					f = math.Atan(x)
+				}
+			case "cot":
+				f = 1 / math.Tan(x)
+			case "degrees":
+				f = x * 180 / math.Pi
+			case "radians":
+				f = x * math.Pi / 180
+			}
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
 		case "power", "pow":
 			// POWER is a double; a result that is no finite double is 1690:
 			// POWER(-8, 0.5), POWER(10, 400) and POWER(0, -1) on mysql:8.0.46.
@@ -2201,7 +2262,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs", "sha1", "sha", "md5",
-				"sqrt", "exp", "ln", "log2", "log10",
+				"sqrt", "exp", "ln", "log2", "log10", "sin", "cos", "tan", "asin", "acos", "cot", "degrees", "radians",
 				"quarter", "month", "year", "dayofmonth", "day", "dayofweek", "weekday", "dayofyear",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
@@ -2235,9 +2296,9 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc != 2 {
 					err = errWrongParamCount("TRUNCATE")
 				}
-			case "log":
+			case "log", "atan", "atan2":
 				if argc < 1 || argc > 2 {
-					err = errWrongParamCount("LOG")
+					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "concat_ws", "elt":
 				if argc < 2 {

@@ -44744,6 +44744,347 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE z (b VARBINARY(495), i TIME(6), KEY ((CONCAT(b, i))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(496), i TIME(6), KEY ((CONCAT(b, i))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(498), i TIME(3), KEY ((CONCAT(b, i))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(499), i TIME(3), KEY ((CONCAT(b, i))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(3028), i INT, KEY (b, ((LOWER(i))))) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i))))) DEFAULT CHARSET=latin1
+< error
+| 1071 42000 Specified key was too long; max key length is 3072 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i)))))
+< error
+| 1071 42000 Specified key was too long; max key length is 3072 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET @x = COT(0)
+< error
+| 1690 22003 DOUBLE value is out of range in 'cot(0)'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -52307,6 +52648,176 @@
 : bytes
 | 50089
 > exec
+| SET @x = SIN(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = COS(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = TAN(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = ASIN(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1.5707963267948966
+> exec
+| SET @x = ACOS(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = ATAN(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.7853981633974483
+> exec
+| SET @x = ATAN(1, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.7853981633974483
+> exec
+| SET @x = ATAN2(1, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.7853981633974483
+> exec
+| SET @x = DEGREES(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 57.29577951308232
+> exec
+| SET @x = RADIANS(180)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3.141592653589793
+> exec
+| SET @x = SIN('0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = IFNULL(ASIN(2), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = IFNULL(ACOS(-2), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = SIN(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.8414709848078965
+> exec
+| SET @x = COS(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.5403023058681398
+> exec
+| SET @x = (TAN(1) > 1.557)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = (COT(1) > 0.642)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -53069,6 +53580,19 @@
 < ok 0 0
 > exec
 | SET SESSION sql_mode = (ORD(_ucs2 X'00E9') = 233)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (SIN(0) = 0)
 < ok 0 0
 > query
 | SELECT @@sql_mode

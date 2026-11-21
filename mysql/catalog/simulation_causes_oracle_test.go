@@ -5230,6 +5230,16 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    3120,
 			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE INNODB_SYSTEM"},
 		},
+		// TIME(fsp) counts its fraction in a binary CONCAT, and a number under
+		// LOWER becomes 11 utf8mb4 characters whatever the table's charset.
+		{name: "functional binary CONCAT with a TIME(6) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(495), i TIME(6), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a TIME(6) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(496), i TIME(6), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "functional binary CONCAT with a TIME(3) column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(498), i TIME(3), KEY ((CONCAT(b, i))))", code: 0},
+		{name: "functional binary CONCAT with a TIME(3) column past 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(499), i TIME(3), KEY ((CONCAT(b, i))))", code: 3757},
+		{name: "key of LOWER(int) beside a binary column at 3072 bytes in latin1", stmt: "CREATE TABLE z (b VARBINARY(3028), i INT, KEY (b, ((LOWER(i))))) DEFAULT CHARSET=latin1", code: 0},
+		{name: "key of LOWER(int) beside a binary column past 3072 bytes in latin1", stmt: "CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i))))) DEFAULT CHARSET=latin1", code: 1071},
+		{name: "key of LOWER(int) beside a binary column past 3072 bytes in utf8mb4", stmt: "CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i)))))", code: 1071},
+		{name: "SET COT(0)", stmt: "SET @x = COT(0)", code: 1690},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6351,6 +6361,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"IFNULL(SQRT(-1), 'n')", "IFNULL(LN(0), 'n')", "IFNULL(LOG(1, 100), 'n')", "IFNULL(LOG(-1, 2), 'n')", "IFNULL(LOG10(0), 'n')",
 		"ORD(_ucs2 X'00E9')", "CHAR_LENGTH(_ucs2 X'00E9')", "LENGTH(_ucs2 X'00E9')", "ORD(_latin1 X'E9')", "CHAR_LENGTH(_latin1 'abc')",
 		"ORD(_ucs2 'a')", "ORD(_utf16 X'D83DDE00')", "CHAR_LENGTH(_utf32 X'0001F600')", "LENGTH(_latin1 X'E9')", "ORD(_ucs2 'é')",
+		"SIN(0)", "COS(0)", "TAN(0)", "ASIN(1)", "ACOS(1)", "ATAN(1)", "ATAN(1, 1)", "ATAN2(1, 1)",
+		"DEGREES(1)", "RADIANS(180)", "SIN('0')", "IFNULL(ASIN(2), 'n')", "IFNULL(ACOS(-2), 'n')", "SIN(1)", "COS(1)",
+		"(TAN(1) > 1.557)", "(COT(1) > 0.642)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6468,7 +6481,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

@@ -488,8 +488,8 @@ func functionalTypeWidthKnown(rt *ResolvedType) bool {
 // a string in a functional key part, as mysql:8.0.46 measures it: CONCAT(
 // varbinary_501, int_col) is 512 bytes. Integers take their display width
 // (INT 11, INT UNSIGNED 10, BIGINT 20, TINYINT(1) 1), DECIMAL(M,D) M+1 and one
-// more for a fraction, DOUBLE 22, FLOAT 23, DATE 10, DATETIME 19 and its
-// fraction, TIME 10, YEAR 5, BIT(n) n.
+// more for a fraction, DOUBLE 22, FLOAT 23, DATE 10, DATETIME 19 and TIME 10,
+// each with its fraction, YEAR 5, BIT(n) n.
 func numericColumnStringWidth(col *Column) (int, bool) {
 	ct := strings.ToLower(col.ColumnType)
 	unsigned := strings.Contains(ct, "unsigned")
@@ -554,6 +554,9 @@ func numericColumnStringWidth(col *Column) (int, bool) {
 		}
 		return 19, true
 	case "time":
+		if fsp, _, ok := arg(); ok && fsp > 0 {
+			return 11 + fsp, true // TIME(6) is 17 characters
+		}
 		return 10, true
 	case "year":
 		return 5, true
@@ -695,6 +698,16 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 	switch name {
 	case "lower", "lcase", "upper", "ucase", "trim", "ltrim", "rtrim", "reverse":
 		if len(e.Args) > 0 {
+			// A number or a temporal value becomes a string at its display
+			// width in the connection's charset, utf8mb4 by default: LOWER(int)
+			// is 11 characters, 44 bytes, in a latin1 table as in a utf8mb4 one.
+			if cr, ok := peelFunctionalIndexParens(e.Args[0]).(*nodes.ColumnRef); ok {
+				if col := tbl.GetColumn(cr.Column); col != nil {
+					if n, ok := numericColumnStringWidth(col); ok {
+						return &ResolvedType{BaseType: BaseTypeVarchar, Length: n, Charset: "utf8mb4"}
+					}
+				}
+			}
 			rt := inferFunctionalIndexExprType(tbl, e.Args[0])
 			if rt != nil && (isResolvedStringType(rt) || isResolvedBinaryType(rt)) {
 				cp := *rt
