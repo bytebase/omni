@@ -229,6 +229,26 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 		d.getRuleExpr(query.HavingQual, false)
 	}
 
+	// WINDOW clause.
+	//
+	// pg: src/backend/utils/adt/ruleutils.c — get_basic_select_query
+	hasWindow := false
+	for _, wc := range query.WindowClause {
+		if wc.Name == "" {
+			continue
+		}
+		if hasWindow {
+			d.buf.WriteString(", ")
+		} else {
+			d.appendContextKeyword(" WINDOW ", -prettyIndentStd, prettyIndentStd, 1)
+			hasWindow = true
+		}
+		d.buf.WriteString(quoteIdentifier(wc.Name))
+		d.buf.WriteString(" AS (")
+		d.getWindowSpec(wc)
+		d.buf.WriteByte(')')
+	}
+
 	// ORDER BY.
 	//
 	// pg: src/backend/utils/adt/ruleutils.c — get_rule_orderby
@@ -2029,22 +2049,22 @@ func (d *deparseCtx) deparseFrameOptions(wc *WindowClauseQ) {
 	// Start bound.
 	switch {
 	case fo&frameOptStartUnbPre != 0:
-		d.buf.WriteString("UNBOUNDED PRECEDING ")
+		d.buf.WriteString("UNBOUNDED PRECEDING")
 	case fo&frameOptStartCurRow != 0:
-		d.buf.WriteString("CURRENT ROW ")
+		d.buf.WriteString("CURRENT ROW")
 	case fo&frameOptStartOffset != 0:
 		if wc.StartOffset != nil {
 			d.getRuleExpr(wc.StartOffset, false)
 		}
 		if fo&frameOptStartOffPre != 0 {
-			d.buf.WriteString(" PRECEDING ")
+			d.buf.WriteString(" PRECEDING")
 		} else {
-			d.buf.WriteString(" FOLLOWING ")
+			d.buf.WriteString(" FOLLOWING")
 		}
 	}
 
 	if fo&frameOptBetween != 0 {
-		d.buf.WriteString("AND ")
+		d.buf.WriteString(" AND ")
 
 		// End bound.
 		switch {

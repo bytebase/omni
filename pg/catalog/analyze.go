@@ -458,6 +458,10 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		}
 	}
 
+	if err := ac.checkDefinedWindows(); err != nil {
+		return nil, err
+	}
+
 	// 7. Process LIMIT/OFFSET.
 	if stmt.LimitCount != nil {
 		lc, err := ac.transformExpr(stmt.LimitCount)
@@ -3939,6 +3943,10 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		}
 	}
 
+	if err := subAc.checkDefinedWindows(); err != nil {
+		return nil, err
+	}
+
 	if stmt.LimitCount != nil {
 		lc, err := subAc.transformExpr(stmt.LimitCount)
 		if err != nil {
@@ -4802,6 +4810,20 @@ func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
 	}
 
 	return ac.buildWindowDef(wd, false)
+}
+
+// checkDefinedWindows verifies that every named window referenced by an OVER
+// clause in the query was declared in its WINDOW clause.
+func (ac *analyzeCtx) checkDefinedWindows() error {
+	for _, wc := range ac.query.WindowClause {
+		if wc.Name != "" && !ac.definedWindows[wc.Name] {
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("window %q does not exist", wc.Name),
+			}
+		}
+	}
+	return nil
 }
 
 // defineWindowDef processes a named window definition in a query's WINDOW clause.
@@ -6835,10 +6857,18 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 		if err != nil {
 			return nil, err
 		}
+		expr, err = ac.catalog.coerceToTargetTypeWithFormat(expr, expr.exprType(), XMLOID, 'a', 'i')
+		if err != nil {
+			return nil, err
+		}
 		tf.DocExpr = expr
 	}
 	if rtf.Rowexpr != nil {
 		expr, err := ac.transformExpr(rtf.Rowexpr)
+		if err != nil {
+			return nil, err
+		}
+		expr, err = ac.catalog.coerceToTargetTypeWithFormat(expr, expr.exprType(), TEXTOID, 'a', 'i')
 		if err != nil {
 			return nil, err
 		}
@@ -6848,6 +6878,10 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 		for _, item := range rtf.Namespaces.Items {
 			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil && rt.Val != nil {
 				expr, err := ac.transformExpr(rt.Val)
+				if err != nil {
+					return nil, err
+				}
+				expr, err = ac.catalog.coerceToTargetTypeWithFormat(expr, expr.exprType(), TEXTOID, 'a', 'i')
 				if err != nil {
 					return nil, err
 				}
@@ -6906,10 +6940,18 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 				if err != nil {
 					return nil, err
 				}
+				colExpr, err = ac.catalog.coerceToTargetTypeWithFormat(colExpr, colExpr.exprType(), TEXTOID, 'a', 'i')
+				if err != nil {
+					return nil, err
+				}
 			}
 			if col.Coldefexpr != nil {
 				var err error
 				defExpr, err = ac.transformExpr(col.Coldefexpr)
+				if err != nil {
+					return nil, err
+				}
+				defExpr, err = ac.catalog.coerceToTargetTypeWithFormat(defExpr, defExpr.exprType(), typeOID, 'a', 'i')
 				if err != nil {
 					return nil, err
 				}
@@ -7344,6 +7386,13 @@ func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (
 		}
 	}
 	if c.Over != nil {
+		if len(aggOrder) > 0 {
+			err = &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "aggregate ORDER BY is not implemented for window functions",
+			}
+			return
+		}
 		winRef, err = ac.resolveWindowDef(c.Over)
 		if err != nil {
 			return
