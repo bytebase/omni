@@ -48,12 +48,72 @@ func isObjectIdentifierCandidate(t CandidateType) bool {
 // QuoteIdentifierIfNeeded backtick-quotes an object identifier when it would
 // otherwise be invalid as a bare identifier, so that accepting the completion
 // inserts valid SQL. When the caret already sits inside a backtick-quoted
-// identifier the user is typing, the name is returned unquoted.
+// identifier the user is typing, outer delimiters are omitted while embedded
+// backticks are still doubled so they cannot prematurely close the identifier.
 func QuoteIdentifierIfNeeded(name string, caretInBacktick bool, isReservedKeyword func(string) bool) string {
-	if caretInBacktick || !identifierNeedsQuoting(name, isReservedKeyword) {
+	if caretInBacktick {
+		return strings.ReplaceAll(name, "`", "``")
+	}
+	if !identifierNeedsQuoting(name, isReservedKeyword) {
 		return name
 	}
 	return backtickIdentifier(name)
+}
+
+// IdentBeforeDot scans left from pos expecting (optional whitespace) '.'
+// (optional whitespace) <identifier>, returning the identifier text, the byte
+// index where it starts, and whether the pattern matched. The identifier may
+// be bare or backtick-quoted (with doubled “ unescaped).
+func IdentBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
+	pos = max(0, min(pos, len(sql)))
+	i := pos
+	for i > 0 && isSpaceByte(sql[i-1]) {
+		i--
+	}
+	if i == 0 || sql[i-1] != '.' {
+		return "", pos, false
+	}
+	i-- // consume '.'
+	for i > 0 && isSpaceByte(sql[i-1]) {
+		i--
+	}
+	if i == 0 {
+		return "", pos, false
+	}
+	if sql[i-1] == '`' {
+		end := i - 1
+		j := end - 1
+		for j >= 0 {
+			if sql[j] == '`' {
+				if j > 0 && sql[j-1] == '`' {
+					j -= 2
+					continue
+				}
+				return strings.ReplaceAll(sql[j+1:end], "``", "`"), j, true
+			}
+			j--
+		}
+		return "", pos, false
+	}
+	end := i
+	for i > 0 {
+		if c := sql[i-1]; c < utf8.RuneSelf {
+			if !isIdentByte(c) {
+				break
+			}
+			i--
+			continue
+		}
+		r, size := utf8.DecodeLastRuneInString(sql[:i])
+		if r == utf8.RuneError || !isIdentRune(r) {
+			break
+		}
+		i -= size
+	}
+	if i == end {
+		return "", pos, false
+	}
+	return sql[i:end], i, true
 }
 
 func identifierNeedsQuoting(name string, isReservedKeyword func(string) bool) bool {

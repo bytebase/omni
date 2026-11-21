@@ -104,6 +104,10 @@ func TestCompleteSession_CrossDBAndHelpers(t *testing.T) {
 	require.True(t, containsCandidate(got, "c3", CandidateColumn))
 	require.Zero(t, listCalls)
 
+	gotOtherTbl := CompleteSession(context.Background(), cfg, "SELECT * FROM otherdb.", 1, len("SELECT * FROM otherdb."))
+	require.True(t, containsCandidate(gotOtherTbl, "t2", CandidateTable), "got %v", gotOtherTbl)
+	require.False(t, containsCandidate(gotOtherTbl, "t1", CandidateTable), "got %v", gotOtherTbl)
+
 	got2 := CompleteSession(context.Background(), cfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
 	require.True(t, containsCandidate(got2, "otherdb", CandidateDatabase))
 	require.Equal(t, 1, listCalls)

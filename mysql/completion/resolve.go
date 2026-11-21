@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"github.com/bytebase/omni/internal/mysqlcomplete"
 	"github.com/bytebase/omni/mysql/catalog"
 	"github.com/bytebase/omni/mysql/parser"
 )
@@ -119,25 +120,25 @@ func resolveRules(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cur
 func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	switch rule {
 	case "table_ref":
-		return resolveTableRef(cat)
+		return resolveTableRef(cat, sql, cursorOffset)
 	case "columnref":
 		return resolveColumnRefScoped(cat, sql, cursorOffset)
 	case "database_ref":
 		return resolveDatabaseRef(cat)
 	case "function_ref", "func_name":
-		return resolveFunctionRef(cat)
+		return resolveFunctionRef(cat, sql, cursorOffset)
 	case "procedure_ref":
-		return resolveProcedureRef(cat)
+		return resolveProcedureRef(cat, sql, cursorOffset)
 	case "index_ref":
-		return resolveIndexRef(cat)
+		return resolveIndexRef(cat, sql, cursorOffset)
 	case "trigger_ref":
-		return resolveTriggerRef(cat)
+		return resolveTriggerRef(cat, sql, cursorOffset)
 	case "event_ref":
-		return resolveEventRef(cat)
+		return resolveEventRef(cat, sql, cursorOffset)
 	case "view_ref":
-		return resolveViewRef(cat)
+		return resolveViewRef(cat, sql, cursorOffset)
 	case "constraint_ref":
-		return resolveConstraintRef(cat)
+		return resolveConstraintRef(cat, sql, cursorOffset)
 	case "charset":
 		return resolveCharset()
 	case "engine":
@@ -150,12 +151,21 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int
 	return nil
 }
 
-// resolveTableRef returns tables and views from the current database.
-func resolveTableRef(cat *catalog.Catalog) []Candidate {
+// resolveTargetDB returns the database named before '.' at cursorOffset when
+// present, falling back to the catalog's current database for unqualified refs.
+func resolveTargetDB(cat *catalog.Catalog, sql string, cursorOffset int) (*catalog.Database, bool) {
 	if cat == nil {
-		return nil
+		return nil, false
 	}
-	db := currentDB(cat)
+	if dbName, _, ok := mysqlcomplete.IdentBeforeDot(sql, cursorOffset); ok {
+		return cat.GetDatabase(dbName), true
+	}
+	return currentDB(cat), false
+}
+
+// resolveTableRef returns tables and views from the referenced or current database.
+func resolveTableRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -272,30 +282,36 @@ func resolveDatabaseRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveFunctionRef returns catalog functions + built-in function names.
-func resolveFunctionRef(cat *catalog.Catalog) []Candidate {
+// resolveFunctionRef returns catalog functions (+ built-in names when unqualified).
+func resolveFunctionRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, qualified := resolveTargetDB(cat, sql, cursorOffset)
+	if qualified {
+		if db == nil {
+			return nil
+		}
+		var result []Candidate
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
+		}
+		return result
+	}
 	var result []Candidate
 	// Built-in functions always available.
 	for _, name := range builtinFunctions {
 		result = append(result, Candidate{Text: name, Type: CandidateFunction})
 	}
 	// Catalog functions from current database.
-	if cat != nil {
-		if db := currentDB(cat); db != nil {
-			for _, fn := range db.Functions {
-				result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
-			}
+	if db != nil {
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
 		}
 	}
 	return result
 }
 
-// resolveProcedureRef returns catalog procedures from the current database.
-func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveProcedureRef returns catalog procedures from the referenced or current database.
+func resolveProcedureRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -306,13 +322,10 @@ func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveIndexRef returns indexes from all tables in the current database.
+// resolveIndexRef returns indexes from all tables in the referenced or current database.
 // Table-scoped resolution will be refined in later phases.
-func resolveIndexRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+func resolveIndexRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -329,12 +342,9 @@ func resolveIndexRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveTriggerRef returns triggers from the current database.
-func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveTriggerRef returns triggers from the referenced or current database.
+func resolveTriggerRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -345,12 +355,9 @@ func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveEventRef returns events from the current database.
-func resolveEventRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveEventRef returns events from the referenced or current database.
+func resolveEventRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -361,12 +368,9 @@ func resolveEventRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveViewRef returns views from the current database.
-func resolveViewRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveViewRef returns views from the referenced or current database.
+func resolveViewRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -377,12 +381,9 @@ func resolveViewRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveConstraintRef returns constraint names from all tables in the current database.
-func resolveConstraintRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveConstraintRef returns constraint names from all tables in the referenced or current database.
+func resolveConstraintRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}

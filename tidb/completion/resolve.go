@@ -3,6 +3,7 @@ package completion
 import (
 	"strings"
 
+	"github.com/bytebase/omni/internal/mysqlcomplete"
 	"github.com/bytebase/omni/tidb/catalog"
 	"github.com/bytebase/omni/tidb/parser"
 )
@@ -120,25 +121,25 @@ func resolveRules(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cur
 func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	switch rule {
 	case "table_ref":
-		return resolveTableRef(cat)
+		return resolveTableRef(cat, sql, cursorOffset)
 	case "columnref":
 		return resolveColumnRefScoped(cat, sql, cursorOffset)
 	case "database_ref":
 		return resolveDatabaseRef(cat)
 	case "function_ref", "func_name":
-		return resolveFunctionRef(cat)
+		return resolveFunctionRef(cat, sql, cursorOffset)
 	case "procedure_ref":
-		return resolveProcedureRef(cat)
+		return resolveProcedureRef(cat, sql, cursorOffset)
 	case "index_ref":
-		return resolveIndexRef(cat)
+		return resolveIndexRef(cat, sql, cursorOffset)
 	case "trigger_ref":
-		return resolveTriggerRef(cat)
+		return resolveTriggerRef(cat, sql, cursorOffset)
 	case "event_ref":
-		return resolveEventRef(cat)
+		return resolveEventRef(cat, sql, cursorOffset)
 	case "view_ref":
-		return resolveViewRef(cat)
+		return resolveViewRef(cat, sql, cursorOffset)
 	case "constraint_ref":
-		return resolveConstraintRef(cat)
+		return resolveConstraintRef(cat, sql, cursorOffset)
 	case "charset":
 		return resolveCharset()
 	case "engine":
@@ -151,12 +152,21 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int
 	return nil
 }
 
-// resolveTableRef returns tables and views from the current database.
-func resolveTableRef(cat *catalog.Catalog) []Candidate {
+// resolveTargetDB returns the database named before '.' at cursorOffset when
+// present, falling back to the catalog's current database for unqualified refs.
+func resolveTargetDB(cat *catalog.Catalog, sql string, cursorOffset int) (*catalog.Database, bool) {
 	if cat == nil {
-		return nil
+		return nil, false
 	}
-	db := currentDB(cat)
+	if dbName, _, ok := mysqlcomplete.IdentBeforeDot(sql, cursorOffset); ok {
+		return cat.GetDatabase(dbName), true
+	}
+	return currentDB(cat), false
+}
+
+// resolveTableRef returns tables and views from the referenced or current database.
+func resolveTableRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -302,30 +312,36 @@ func resolveDatabaseRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveFunctionRef returns catalog functions + built-in function names.
-func resolveFunctionRef(cat *catalog.Catalog) []Candidate {
+// resolveFunctionRef returns catalog functions (+ built-in names when unqualified).
+func resolveFunctionRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, qualified := resolveTargetDB(cat, sql, cursorOffset)
+	if qualified {
+		if db == nil {
+			return nil
+		}
+		var result []Candidate
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
+		}
+		return result
+	}
 	var result []Candidate
 	// Built-in functions always available.
 	for _, name := range builtinFunctions {
 		result = append(result, Candidate{Text: name, Type: CandidateFunction})
 	}
 	// Catalog functions from current database.
-	if cat != nil {
-		if db := currentDB(cat); db != nil {
-			for _, fn := range db.Functions {
-				result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
-			}
+	if db != nil {
+		for _, fn := range db.Functions {
+			result = append(result, Candidate{Text: fn.Name, Type: CandidateFunction})
 		}
 	}
 	return result
 }
 
-// resolveProcedureRef returns catalog procedures from the current database.
-func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveProcedureRef returns catalog procedures from the referenced or current database.
+func resolveProcedureRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -336,13 +352,10 @@ func resolveProcedureRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveIndexRef returns indexes from all tables in the current database.
+// resolveIndexRef returns indexes from all tables in the referenced or current database.
 // Table-scoped resolution will be refined in later phases.
-func resolveIndexRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+func resolveIndexRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -359,12 +372,9 @@ func resolveIndexRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveTriggerRef returns triggers from the current database.
-func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveTriggerRef returns triggers from the referenced or current database.
+func resolveTriggerRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -375,12 +385,9 @@ func resolveTriggerRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveEventRef returns events from the current database.
-func resolveEventRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveEventRef returns events from the referenced or current database.
+func resolveEventRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -391,12 +398,9 @@ func resolveEventRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveViewRef returns views from the current database.
-func resolveViewRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveViewRef returns views from the referenced or current database.
+func resolveViewRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -407,12 +411,9 @@ func resolveViewRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveConstraintRef returns constraint names from all tables in the current database.
-func resolveConstraintRef(cat *catalog.Catalog) []Candidate {
-	if cat == nil {
-		return nil
-	}
-	db := currentDB(cat)
+// resolveConstraintRef returns constraint names from all tables in the referenced or current database.
+func resolveConstraintRef(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	db, _ := resolveTargetDB(cat, sql, cursorOffset)
 	if db == nil {
 		return nil
 	}
@@ -482,70 +483,18 @@ func currentDB(cat *catalog.Catalog) *catalog.Database {
 	return cat.GetDatabase(name)
 }
 
-// identBeforeDot scans left from pos expecting (optional whitespace) '.'
-// (optional whitespace) <identifier>, returning the identifier text, the index
-// where it starts, and whether the pattern matched. The identifier may be bare
-// or backtick-quoted.
-func identBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
-	if pos > len(sql) {
-		pos = len(sql)
-	}
-	i := pos
-	for i > 0 && isSpaceByte(sql[i-1]) {
-		i--
-	}
-	if i == 0 || sql[i-1] != '.' {
-		return "", pos, false
-	}
-	i-- // consume the dot
-	for i > 0 && isSpaceByte(sql[i-1]) {
-		i--
-	}
-	if i == 0 {
-		return "", pos, false
-	}
-	if sql[i-1] == '`' {
-		end := i - 1
-		j := end - 1
-		for j >= 0 && sql[j] != '`' {
-			j--
-		}
-		if j < 0 {
-			return "", pos, false
-		}
-		return sql[j+1 : end], j, true
-	}
-	end := i
-	for i > 0 && isIdentByte(sql[i-1]) {
-		i--
-	}
-	if i == end {
-		return "", pos, false
-	}
-	return sql[i:end], i, true
-}
-
 // columnQualifier returns the optional database part and the table/alias part of
 // the qualifier preceding the dot at the cursor: `db1.t.` -> ("db1","t"),
 // `t.`/`a.` -> ("","t")/("","a"), and ("","") when the reference is unqualified.
 // The caller passes the collect offset, which sits at the start of the partial
 // column name.
 func columnQualifier(sql string, offset int) (db, name string) {
-	n, start, ok := identBeforeDot(sql, offset)
+	n, start, ok := mysqlcomplete.IdentBeforeDot(sql, offset)
 	if !ok {
 		return "", ""
 	}
-	if d, _, ok2 := identBeforeDot(sql, start); ok2 {
+	if d, _, ok2 := mysqlcomplete.IdentBeforeDot(sql, start); ok2 {
 		db = d
 	}
 	return db, n
-}
-
-func isSpaceByte(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
-}
-
-func isIdentByte(b byte) bool {
-	return b == '_' || b == '$' ||
-		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }

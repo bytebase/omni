@@ -89,12 +89,41 @@ func TestQuoteIdentifierIfNeeded(t *testing.T) {
 		{"foo-bar", false, "`foo-bar`"},
 		{"1col", false, "`1col`"},
 		{"a`b", false, "`a``b`"},
+		{"a`b", true, "a``b"},
 		{"order", true, "order"},
 	}
 	for _, tc := range cases {
 		require.Equal(t, tc.want, QuoteIdentifierIfNeeded(tc.name, tc.caretInBacktick),
 			"QuoteIdentifierIfNeeded(%q, %v)", tc.name, tc.caretInBacktick)
 	}
+}
+
+func TestCompleteSession_QualifiedTableAcrossDatabases(t *testing.T) {
+	appMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "appdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{Name: "t1", Columns: []*metadatapb.ColumnMetadata{{Name: "c1"}}}},
+		}},
+	}
+	otherMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "otherdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{Name: "t2", Columns: []*metadatapb.ColumnMetadata{{Name: "c2"}}}},
+		}},
+	}
+	cfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			if db == "otherdb" {
+				return db, otherMeta, true, true
+			}
+			return db, appMeta, true, true
+		},
+	}
+
+	got := CompleteSession(context.Background(), cfg, "SELECT * FROM otherdb.", 1, len("SELECT * FROM otherdb."))
+	require.True(t, containsCandidate(got, "t2", CandidateTable), "got %v", got)
+	require.False(t, containsCandidate(got, "t1", CandidateTable), "got %v", got)
 }
 
 func TestCaretInsideBacktickIdentifier(t *testing.T) {

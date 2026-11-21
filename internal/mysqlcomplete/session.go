@@ -126,6 +126,7 @@ func CompleteSession(
 	PopulateCatalog(ctx, cfg, stmt, pos, dialect.HasDatabaseRule, cat.RegisterDB, cat.LoadDB, cat.SetCurrentDB)
 
 	caretInBacktick := CaretInsideBacktickIdentifier(stmt, pos)
+	hasOpenParenAfter := hasFollowingOpenParen(stmt, pos)
 	type candKey struct {
 		typ        CandidateType
 		text       string
@@ -142,7 +143,7 @@ func CompleteSession(
 		case isObjectIdentifierCandidate(t):
 			text = QuoteIdentifierIfNeeded(c.Text, caretInBacktick, dialect.IsReservedKeyword)
 		case t == CandidateFunction:
-			if !strings.HasSuffix(text, "()") {
+			if !hasOpenParenAfter && !strings.HasSuffix(text, "()") {
 				text += "()"
 			}
 		default:
@@ -406,6 +407,21 @@ func appendUniqueDB(dst []string, dbs ...string) []string {
 		dst = append(dst, db)
 	}
 	return dst
+}
+
+func hasFollowingOpenParen(sql string, pos int) bool {
+	i := max(0, min(pos, len(sql)))
+	for i < len(sql) {
+		sz, isIdent := nextIdentRune(sql, i)
+		if !isIdent {
+			break
+		}
+		i += sz
+	}
+	for i < len(sql) && isSpaceByte(sql[i]) {
+		i++
+	}
+	return i < len(sql) && sql[i] == '('
 }
 
 // LineOffsetToBytePos converts a 1-based line and 0-based UTF-16 code-unit

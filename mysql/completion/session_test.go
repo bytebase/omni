@@ -150,6 +150,31 @@ func TestCompleteSession_CrossDBAndLazyEnumeration(t *testing.T) {
 	require.Zero(t, loads["unuseddb"])
 	require.Zero(t, listCalls)
 
+	// Qualified object completion resolves against the referenced DB (otherdb), not DefaultDatabase (appdb).
+	otherFullMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "otherdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{Name: "other_tbl", Columns: []*metadatapb.ColumnMetadata{{Name: "c2"}}}},
+			Views:  []*metadatapb.ViewMetadata{{Name: "other_view", Definition: "SELECT c2 FROM other_tbl"}},
+		}},
+	}
+	otherOnlyCfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			if db == "otherdb" {
+				return db, otherFullMeta, true, true
+			}
+			return db, appMeta, true, true
+		},
+	}
+	gotOtherTbl := CompleteSession(context.Background(), otherOnlyCfg, "SELECT * FROM otherdb.", 1, len("SELECT * FROM otherdb."))
+	require.True(t, containsCandidate(gotOtherTbl, "other_tbl", CandidateTable), "got %v", gotOtherTbl)
+	require.True(t, containsCandidate(gotOtherTbl, "other_view", CandidateView), "got %v", gotOtherTbl)
+	require.False(t, containsCandidate(gotOtherTbl, "t1", CandidateTable), "must not leak appdb.t1 into otherdb.; got %v", gotOtherTbl)
+
+	gotOtherView := CompleteSession(context.Background(), otherOnlyCfg, "DROP VIEW otherdb.", 1, len("DROP VIEW otherdb."))
+	require.True(t, containsCandidate(gotOtherView, "other_view", CandidateView), "got %v", gotOtherView)
+
 	got2 := CompleteSession(context.Background(), cfg, "SELECT * FROM ", 1, len("SELECT * FROM "))
 	require.True(t, containsCandidate(got2, "otherdb", CandidateDatabase))
 	require.True(t, containsCandidate(got2, "unuseddb", CandidateDatabase))
@@ -230,6 +255,10 @@ func TestCompleteSession_StatementIsolationUTF16AndHelpers(t *testing.T) {
 	gotFunc := CompleteSession(context.Background(), cfg, "SELECT  FROM t1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotFunc, "COUNT()", CandidateFunction))
 	require.False(t, containsCandidate(gotFunc, "COUNT", CandidateFunction))
+
+	gotFuncParen := CompleteSession(context.Background(), cfg, "SELECT CO(a1) FROM t1", 1, len("SELECT CO"))
+	require.True(t, containsCandidate(gotFuncParen, "COUNT", CandidateFunction), "got %v", gotFuncParen)
+	require.False(t, containsCandidate(gotFuncParen, "COUNT()", CandidateFunction), "must not insert duplicate () before existing (; got %v", gotFuncParen)
 
 	gotView := CompleteSession(context.Background(), cfg, "SELECT  FROM v1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotView, "a1", CandidateColumn))

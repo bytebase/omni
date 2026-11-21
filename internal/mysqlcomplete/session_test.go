@@ -625,6 +625,43 @@ func TestCompleteSession_PreservesDistinctDefinitionsAndUTF16Caret(t *testing.T)
 		{Type: CandidateFunction, Text: "COUNT()"},
 		{Type: CandidateFunction, Text: "SUM()"},
 	}, got)
+
+	// Existing open parenthesis after the caret suppresses adding "()".
+	for _, tc := range []struct {
+		name string
+		stmt string
+		pos  int
+	}{
+		{name: "immediate paren", stmt: "SELECT CO(id) FROM t", pos: len("SELECT CO")},
+		{name: "mid-ident before paren", stmt: "SELECT COUNT(id) FROM t", pos: len("SELECT CO")},
+		{name: "space before paren", stmt: "SELECT CO (id) FROM t", pos: len("SELECT CO")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotParen := CompleteSession(
+				context.Background(),
+				SessionConfig{},
+				Dialect{
+					CurrentStatement:  func(statement string, pos int) (string, int) { return statement, pos },
+					IsReservedKeyword: func(string) bool { return false },
+					HasDatabaseRule:   func(string, int) bool { return false },
+					NewCatalog: func(context.Context) CatalogHooks {
+						return CatalogHooks{
+							RegisterDB:   func(string) {},
+							LoadDB:       func(string, *metadatapb.DatabaseSchemaMetadata) {},
+							SetCurrentDB: func(string) {},
+							Complete: func(string, int) []Candidate {
+								return []Candidate{{Type: CandidateFunction, Text: "COUNT"}}
+							},
+						}
+					},
+				},
+				tc.stmt,
+				1,
+				tc.pos,
+			)
+			require.Equal(t, []Candidate{{Type: CandidateFunction, Text: "COUNT"}}, gotParen)
+		})
+	}
 }
 
 func TestDollarAndUnicodeIdentifiersConsistentAcrossHelpers(t *testing.T) {
@@ -639,6 +676,20 @@ func TestDollarAndUnicodeIdentifiersConsistentAcrossHelpers(t *testing.T) {
 
 	require.False(t, identifierNeedsQuoting("sales$archive", nil))
 	require.True(t, identifierNeedsQuoting("1$bad", nil))
+
+	// Embedded backticks stay doubled even when already inside an open backtick.
+	require.Equal(t, "a``b", QuoteIdentifierIfNeeded("a`b", true, nil))
+	require.Equal(t, "`a``b`", QuoteIdentifierIfNeeded("a`b", false, nil))
+
+	// IdentBeforeDot parses bare, spaced, and backtick-escaped qualifiers.
+	ident, _, ok := IdentBeforeDot("SELECT * FROM otherdb.", len("SELECT * FROM otherdb."))
+	require.True(t, ok)
+	require.Equal(t, "otherdb", ident)
+	ident, _, ok = IdentBeforeDot("SELECT * FROM `a``b` . ", len("SELECT * FROM `a``b` . "))
+	require.True(t, ok)
+	require.Equal(t, "a`b", ident)
+	_, _, ok = IdentBeforeDot("SELECT * FROM ", len("SELECT * FROM "))
+	require.False(t, ok)
 
 	// Post-CTE main statement starts filter write verbs while mid-query clauses do not.
 	require.True(t, CaretAtStatementStart("WITH c AS (SELECT 1) ", len("WITH c AS (SELECT 1) ")))
