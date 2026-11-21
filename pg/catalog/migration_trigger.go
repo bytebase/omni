@@ -168,6 +168,14 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 	b.WriteString(" ON ")
 	b.WriteString(qualifiedTable)
 
+	// FROM referenced_table (constraint triggers only, before DEFERRABLE).
+	if trig.IsConstraint {
+		if from := constraintTriggerFromName(c, trig); from != "" {
+			b.WriteString(" FROM ")
+			b.WriteString(from)
+		}
+	}
+
 	// DEFERRABLE / INITIALLY DEFERRED (constraint triggers only, after ON table).
 	if trig.IsConstraint && trig.Deferrable {
 		b.WriteString(" DEFERRABLE")
@@ -204,13 +212,16 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 	}
 
 	// EXECUTE FUNCTION.
-	funcName := resolveTriggerFuncName(c, trig.FuncOID)
-	if funcName == "" {
-		funcName = "unknown_function"
-	}
 	b.WriteString(" EXECUTE FUNCTION ")
-	b.WriteString(quoteIdentAlways(funcName))
-	b.WriteString("()")
+	b.WriteString(resolveEventTriggerFuncSQLName(c, trig.FuncOID))
+	b.WriteString("(")
+	for i, arg := range trig.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(quoteLiteral(arg))
+	}
+	b.WriteString(")")
 
 	return MigrationOp{
 		Type:          OpCreateTrigger,
@@ -259,4 +270,17 @@ func buildCreateAndModeTriggerOps(c *Catalog, schemaName, tableName string, trig
 		Priority:      PriorityTrigger,
 	})
 	return ops
+}
+
+// constraintTriggerFromName formats the relation a constraint trigger's FROM
+// clause names, or returns "" when it names none.
+func constraintTriggerFromName(c *Catalog, trig *Trigger) string {
+	if c == nil || trig == nil || !trig.IsConstraint || trig.ConstraintRelOID == 0 {
+		return ""
+	}
+	rel := c.GetRelationByOID(trig.ConstraintRelOID)
+	if rel == nil || rel.Schema == nil {
+		return ""
+	}
+	return formatRelationName(rel.Schema.Name, rel.Name, rel)
 }

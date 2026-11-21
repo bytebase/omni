@@ -101,6 +101,13 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 	}
+	if relkind == 'f' {
+		for _, cdef := range constraintDefs {
+			if err := validateForeignTableConstraintType(cdef.Type); err != nil {
+				return err
+			}
+		}
+	}
 
 	// Build a name→index map for the child column defs (used by merge).
 	// Mark all columns from the CREATE statement as locally defined.
@@ -508,6 +515,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			CollationSchema:  collSchema,
 			CollationName:    cd.CollationName,
 			UserCollationOID: colUserCollOIDs[i],
+			ForeignOptions:   slices.Clone(cd.ForeignOptions),
 		}
 	}
 
@@ -724,20 +732,21 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		storedTablespace = ""
 	}
 	rel := &Relation{
-		OID:          relOID,
-		Name:         relName,
-		Schema:       schema,
-		RelKind:      relkind,
-		Columns:      columns,
-		colByName:    colByName,
-		RowTypeOID:   rowTypeOID,
-		ArrayOID:     arrayOID,
-		InhParents:   parentOIDs,
-		InhCount:     len(parentOIDs),
-		OfTypeOID:    ofTypeOID,
-		Tablespace:   storedTablespace,
-		AccessMethod: tableAccessMethod,
-		OwnerName:    c.currentOwner(),
+		OID:           relOID,
+		Name:          relName,
+		Schema:        schema,
+		RelKind:       relkind,
+		Columns:       columns,
+		colByName:     colByName,
+		RowTypeOID:    rowTypeOID,
+		ArrayOID:      arrayOID,
+		InhParents:    parentOIDs,
+		InhCount:      len(parentOIDs),
+		OfTypeOID:     ofTypeOID,
+		Tablespace:    storedTablespace,
+		AccessMethod:  tableAccessMethod,
+		OwnerName:     c.currentOwner(),
+		OwnerExplicit: !c.installingSnapshot && c.currentUser != "",
 	}
 
 	// Parse persistence from RangeVar.
@@ -847,14 +856,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				}
 			}
 
+			listVals, listKeywords := deparseDatumListWithKinds(bs.Listdatums)
+			lowerVals, lowerKeywords := deparseDatumListWithKinds(bs.Lowerdatums)
+			upperVals, upperKeywords := deparseDatumListWithKinds(bs.Upperdatums)
 			rel.PartitionBound = &PartitionBound{
-				Strategy:   bs.Strategy,
-				IsDefault:  bs.IsDefault,
-				ListValues: deparseDatumList(bs.Listdatums),
-				LowerBound: deparseDatumList(bs.Lowerdatums),
-				UpperBound: deparseDatumList(bs.Upperdatums),
-				Modulus:    bs.Modulus,
-				Remainder:  bs.Remainder,
+				Strategy:      bs.Strategy,
+				IsDefault:     bs.IsDefault,
+				ListValues:    listVals,
+				ListKeywords:  listKeywords,
+				LowerBound:    lowerVals,
+				LowerKeywords: lowerKeywords,
+				UpperBound:    upperVals,
+				UpperKeywords: upperKeywords,
+				Modulus:       bs.Modulus,
+				Remainder:     bs.Remainder,
 			}
 		}
 		// Set PartitionOf to the parent table OID.
@@ -1247,6 +1262,13 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	if cd.Generated == 's' {
 		result.Generated = 's'
 	}
+	if cd.Fdwoptions != nil && len(cd.Fdwoptions.Items) > 0 {
+		fdwOpts, err := applyForeignOptionChanges(nil, cd.Fdwoptions)
+		if err != nil {
+			return ColumnDef{}, nil, err
+		}
+		result.ForeignOptions = fdwOpts
+	}
 
 	// Process inline column constraints.
 	var cons []ConstraintDef
@@ -1521,9 +1543,11 @@ func (c *Catalog) checkPartitionBoundOverlap(parentOID, selfOID uint32, newBound
 
 		switch newBound.Strategy {
 		case 'l': // LIST
-			for _, nv := range newBound.ListValues {
-				for _, ev := range eb.ListValues {
-					if nv == ev {
+			for i, nv := range newBound.ListValues {
+				newKw := i < len(newBound.ListKeywords) && newBound.ListKeywords[i]
+				for j, ev := range eb.ListValues {
+					evKw := j < len(eb.ListKeywords) && eb.ListKeywords[j]
+					if nv == ev && newKw == evKw {
 						return errInvalidObjectDefinition(
 							fmt.Sprintf("partition bound value %q already exists in partition %q", nv, existing.Name))
 					}

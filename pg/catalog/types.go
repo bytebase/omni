@@ -37,6 +37,7 @@ type ColumnDef struct {
 	CollClause       *nodes.CollateClause // raw COLLATE clause for resolution check
 	StorageName      string               // explicit STORAGE directive; empty = default
 	Compression      string               // explicit COMPRESSION directive; empty = default
+	ForeignOptions   []string             // per-column FDW options
 	IsFromType       bool                 // true if column came from OF TYPE (typed table)
 }
 
@@ -54,24 +55,26 @@ const (
 
 // ConstraintDef describes a constraint in a CREATE TABLE statement.
 type ConstraintDef struct {
-	Name           string // empty = auto-generate
-	Type           ConstraintType
-	Columns        []string   // PK/UNIQUE/FK local columns
-	IncludeColumns []string   // PK/UNIQUE/EXCLUDE INCLUDE columns
-	IndexName      string     // PK/UNIQUE: user-specified USING INDEX name
-	RefSchema      string     // FK only
-	RefTable       string     // FK only
-	RefColumns     []string   // FK only (empty = use PK of target)
-	FKUpdAction    byte       // FK only: 'a', 'r', 'c', 'n', 'd'
-	FKDelAction    byte       // FK only: 'a', 'r', 'c', 'n', 'd'
-	FKMatchType    byte       // FK only: 's', 'f', 'p'
-	Deferrable     bool       // DEFERRABLE
-	Deferred       bool       // INITIALLY DEFERRED
-	SkipValidation bool       // NOT VALID (CHECK/FK only)
-	CheckExpr      string     // CHECK only
-	RawCheckExpr   nodes.Node // raw AST node for CHECK expression (for analysis)
-	ExclOps        []string   // EXCLUDE only: operator names per column
-	ExclOpSchemas  []string   // EXCLUDE only: operator schema per column ("" when unqualified)
+	Name             string // empty = auto-generate
+	Type             ConstraintType
+	Columns          []string   // PK/UNIQUE/FK local columns
+	IncludeColumns   []string   // PK/UNIQUE/EXCLUDE INCLUDE columns
+	NullsNotDistinct bool       // UNIQUE NULLS NOT DISTINCT
+	IndexName        string     // PK/UNIQUE: user-specified USING INDEX name
+	RefSchema        string     // FK only
+	RefTable         string     // FK only
+	RefColumns       []string   // FK only (empty = use PK of target)
+	FKUpdAction      byte       // FK only: 'a', 'r', 'c', 'n', 'd'
+	FKDelAction      byte       // FK only: 'a', 'r', 'c', 'n', 'd'
+	FKMatchType      byte       // FK only: 's', 'f', 'p'
+	Deferrable       bool       // DEFERRABLE
+	Deferred         bool       // INITIALLY DEFERRED
+	SkipValidation   bool       // NOT VALID (CHECK/FK only)
+	NoInherit        bool       // CHECK ... NO INHERIT
+	CheckExpr        string     // CHECK only
+	RawCheckExpr     nodes.Node // raw AST node for CHECK expression (for analysis)
+	ExclOps          []string   // EXCLUDE only: operator names per column
+	ExclOpSchemas    []string   // EXCLUDE only: operator schema per column ("" when unqualified)
 	// ExclOpClasses holds, per EXCLUDE column, the operator class the statement
 	// named, dotted when qualified, or "" for the default.
 	ExclOpClasses []string

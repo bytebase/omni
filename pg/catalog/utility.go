@@ -124,7 +124,44 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.CreateForeignTableStmt:
 		// CREATE FOREIGN TABLE: delegate to DefineRelation with relkind='f'
 		// pg: src/backend/commands/tablecmds.c — DefineRelation (foreign table)
-		return c.DefineRelation(&s.Base, 'f')
+		var schemaName, relName string
+		if s.Base.Relation != nil {
+			schemaName, relName = s.Base.Relation.Schemaname, s.Base.Relation.Relname
+		}
+		targetSchema, _ := c.resolveTargetSchema(schemaName)
+		existed := s.Base.IfNotExists && targetSchema != nil && targetSchema.Relations[relName] != nil
+		if !existed && !c.allowImplicitForeignServer {
+			if s.Servername == "" || c.foreignServers[s.Servername] == nil {
+				return errUndefinedObject("server", s.Servername)
+			}
+		}
+		if err := validateCreateForeignTableConstraints(&s.Base); err != nil {
+			return err
+		}
+		var foreignOpts []string
+		if !existed && s.Options != nil {
+			var err error
+			foreignOpts, err = applyForeignOptionChanges(nil, s.Options)
+			if err != nil {
+				return err
+			}
+		}
+		if err := c.DefineRelation(&s.Base, 'f'); err != nil {
+			return err
+		}
+		if !existed {
+			var rel *Relation
+			if targetSchema != nil {
+				rel = targetSchema.Relations[relName]
+			} else {
+				rel = c.GetRelation(schemaName, relName)
+			}
+			if rel != nil && rel.RelKind == 'f' {
+				rel.ForeignServer = s.Servername
+				rel.ForeignOptions = foreignOpts
+			}
+		}
+		return nil
 	case *nodes.CreateStatsStmt:
 		// CREATE STATISTICS: no-op for pgddl (planner hint)
 		return nil
@@ -193,17 +230,13 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER EXTENSION ... ADD/DROP: no-op for pgddl
 		return nil
 	case *nodes.CreateFdwStmt:
-		// CREATE FOREIGN DATA WRAPPER: no-op for pgddl
-		return nil
+		return c.CreateFdwStmt(s)
 	case *nodes.AlterFdwStmt:
-		// ALTER FOREIGN DATA WRAPPER: no-op for pgddl
-		return nil
+		return c.AlterFdwStmt(s)
 	case *nodes.CreateForeignServerStmt:
-		// CREATE SERVER: no-op for pgddl
-		return nil
+		return c.CreateForeignServerStmt(s)
 	case *nodes.AlterForeignServerStmt:
-		// ALTER SERVER: no-op for pgddl
-		return nil
+		return c.AlterForeignServerStmt(s)
 	case *nodes.CreateUserMappingStmt:
 		// CREATE USER MAPPING: no-op for pgddl
 		return nil
@@ -810,9 +843,10 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 		c.SetSearchPath([]string{"$user", "public"})
 		c.defaultTablespace = ""
 		c.defaultTableAccessMethod = ""
+		clear(c.sessionSettings)
 		return nil
 	}
-	switch s.Name {
+	switch strings.ToLower(s.Name) {
 	case "search_path":
 		return c.processSetSearchPath(s)
 	case "default_tablespace":
@@ -822,7 +856,20 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 	case "role":
 		return c.processSetRole(s)
 	}
-	// All other SET/RESET commands: no-op for pgddl.
+	key := strings.ToLower(s.Name)
+	if key != "" {
+		if c.sessionSettings == nil {
+			c.sessionSettings = make(map[string]string)
+		}
+		switch s.Kind {
+		case nodes.VAR_SET_VALUE:
+			if val := formatFuncSetArgs(s.Args); val != "" {
+				c.sessionSettings[key] = val
+			}
+		case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+			delete(c.sessionSettings, key)
+		}
+	}
 	return nil
 }
 
@@ -952,6 +999,58 @@ func (c *Catalog) processSetRole(s *nodes.VariableSetStmt) error {
 		// RESET ROLE / SET ROLE TO DEFAULT → revert to session user.
 		// pg: SetCurrentRoleId(InvalidOid, ...) → falls back to SessionUserId
 		c.ResetRole()
+	}
+	return nil
+}
+
+func validateCreateForeignTableConstraints(stmt *nodes.CreateStmt) error {
+	if stmt == nil {
+		return nil
+	}
+	checkNode := func(n *nodes.Constraint) error {
+		if n == nil {
+			return nil
+		}
+		switch n.Contype {
+		case nodes.CONSTR_PRIMARY:
+			return validateForeignTableConstraintType(ConstraintPK)
+		case nodes.CONSTR_UNIQUE:
+			return validateForeignTableConstraintType(ConstraintUnique)
+		case nodes.CONSTR_FOREIGN:
+			return validateForeignTableConstraintType(ConstraintFK)
+		case nodes.CONSTR_EXCLUSION:
+			return validateForeignTableConstraintType(ConstraintExclude)
+		}
+		return nil
+	}
+	if stmt.TableElts != nil {
+		for _, elt := range stmt.TableElts.Items {
+			switch n := elt.(type) {
+			case *nodes.ColumnDef:
+				if n.Constraints != nil {
+					for _, item := range n.Constraints.Items {
+						if con, ok := item.(*nodes.Constraint); ok {
+							if err := checkNode(con); err != nil {
+								return err
+							}
+						}
+					}
+				}
+			case *nodes.Constraint:
+				if err := checkNode(n); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if stmt.Constraints != nil {
+		for _, item := range stmt.Constraints.Items {
+			if con, ok := item.(*nodes.Constraint); ok {
+				if err := checkNode(con); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

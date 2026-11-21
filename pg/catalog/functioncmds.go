@@ -2,6 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"math"
+	"slices"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -23,8 +26,16 @@ type UserProc struct {
 	IsStrict     bool
 	SecDef       bool
 	LeakProof    bool
+	IsWindow     bool
+	Cost         string
+	Rows         string
+	SetConfig    []string
+	Support      string
+	SupportOID   uint32
 	Language     string
 	Body         string
+	LinkSymbol   string
+	HasSqlBody   bool     // SQL-standard body (RETURN / BEGIN ATOMIC) without AS '...'
 	ArgNames     []string // all parameter names (IN+OUT+INOUT+TABLE)
 	ArgModes     []byte   // 'i','o','b','v','t' per parameter; nil if all IN
 	AllArgTypes  []uint32 // all parameter types (IN+OUT+INOUT); nil if no OUT params
@@ -36,6 +47,8 @@ type UserProc struct {
 	// ArgDefaultTypes is the type of each parameter default, for the last
 	// NArgDefaults input parameters; nil when one could not be analyzed.
 	ArgDefaultTypes []uint32
+	// ArgDefaults stores deparsed default expressions parallel to ArgTypes.
+	ArgDefaults []string
 }
 
 // CreateFunctionStmt creates a user-defined function or procedure from a pgparser AST.
@@ -57,10 +70,13 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// Process options.
 	// pg: src/backend/commands/functioncmds.c — compute_function_attributes
 	// ---------------------------------------------------------------
-	var language, body string
+	var language, body, linkSymbol, support string
+	var supportOID uint32
 	var volatile, parallel byte
 	var isStrict, secDef, isLeakProof bool
 	var isWindowFunc bool
+	var costStr, rowsStr string
+	var setConfig []string
 	hasAsClause := false
 	rowsSet := false
 
@@ -75,13 +91,15 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				language = defElemString(de)
 			case "as":
 				hasAsClause = true
-				// Arg is a String or a List of Strings; use first string.
 				switch v := de.Arg.(type) {
 				case *nodes.String:
 					body = v.Str
 				case *nodes.List:
 					if len(v.Items) > 0 {
 						body = stringVal(v.Items[0])
+					}
+					if len(v.Items) > 1 {
+						linkSymbol = stringVal(v.Items[1])
 					}
 				}
 			case "volatility":
@@ -141,25 +159,46 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				isWindowFunc = defElemBool(de)
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "COST must be positive"}
 				}
+				if ok {
+					costStr = raw
+				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — compute_function_attributes
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS must be positive"}
 				}
+				if ok {
+					rowsStr = raw
+				}
 				rowsSet = true
 			case "set":
-				// Ignored.
+				if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
+					nextSet, err := c.applyFuncSetConfig(setConfig, vs)
+					if err != nil {
+						return err
+					}
+					setConfig = nextSet
+				}
+			case "support":
+				if isProcedure {
+					return errInvalidFunctionDefinition("invalid attribute in procedure definition")
+				}
+				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				if err != nil {
+					return err
+				}
+				support = sup
+				supportOID = supOID
 			}
 		}
 	}
-
-	// Suppress unused variable warning — isWindowFunc is validated above but not stored.
-	_ = isWindowFunc
 
 	// ---------------------------------------------------------------
 	// SQL body default language.
@@ -190,6 +229,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// ---------------------------------------------------------------
 	if !hasAsClause && !hasSqlBody {
 		return errInvalidFunctionDefinition("no function body specified")
+	}
+	sqlStandardBody := hasSqlBody && !hasAsClause
+	if sqlStandardBody {
+		body = c.deparseSqlBody(stmt.SqlBody)
 	}
 
 	// ---------------------------------------------------------------
@@ -485,6 +528,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	kind := byte('f')
 	if isProcedure {
 		kind = 'p'
+	} else if isWindowFunc {
+		kind = PROKIND_WINDOW
 	}
 
 	if volatile == 0 {
@@ -494,6 +539,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		parallel = 'u'
 	}
 
+	argDefaults := c.paramDefaults(stmt.Parameters, len(argOIDs), int(nArgDefaults))
 	defaultTypes := c.paramDefaultTypes(stmt.Parameters, argOIDs, int(nArgDefaults))
 
 	// Check for existing function with same signature.
@@ -501,6 +547,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	if existing != nil {
 		if !orReplace {
 			return errDuplicateFunction(name)
+		}
+		if existing.Kind != kind {
+			return errInvalidFunctionDefinition(fmt.Sprintf(
+				"cannot change routine kind of existing function %q", name))
 		}
 		// OrReplace: verify return type and setof flag match.
 		if existing.RetType != retOID || existing.RetSet != returnSet {
@@ -528,20 +578,33 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			}
 			up.NArgDefaults = nArgDefaults
 			up.ArgDefaultTypes = defaultTypes
+			up.ArgDefaults = argDefaults
 			existing.NArgDefaults = nArgDefaults
 			up.Volatile = volatile
 			up.Parallel = parallel
 			up.IsStrict = isStrict
 			up.SecDef = secDef
 			up.LeakProof = isLeakProof
+			up.IsWindow = isWindowFunc
+			up.Cost = costStr
+			up.Rows = rowsStr
+			up.SetConfig = slices.Clone(setConfig)
+			up.Support = support
+			up.SupportOID = supportOID
 			up.Language = language
 			up.Body = body
+			up.LinkSymbol = linkSymbol
+			up.HasSqlBody = sqlStandardBody
 		}
 		existing.Volatile = volatile
 		existing.Parallel = parallel
 		existing.IsStrict = isStrict
 		existing.SecDef = secDef
 		existing.LeakProof = isLeakProof
+		// Rebuild all normal dependencies (arg/return types, support, defaults, SQL body)
+		// so dropped helpers/tables from replaced defaults or bodies are detached.
+		c.removeDepsOf('f', existing.OID)
+		c.recordFunctionDependencies(existing.OID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
 		return nil
 	}
 
@@ -596,29 +659,55 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 
 	// Create UserProc metadata.
 	up := &UserProc{
-		OID:          procOID,
-		Name:         name,
-		Schema:       schema,
-		OwnerName:    c.currentOwner(),
-		Kind:         kind,
-		ArgTypes:     argOIDs,
-		RetType:      retOID,
-		RetSet:       returnSet,
-		Volatile:     volatile,
-		Parallel:     parallel,
-		IsStrict:     isStrict,
-		SecDef:       secDef,
-		LeakProof:    isLeakProof,
-		Language:     language,
-		Body:         body,
-		ArgNames:     allArgNames,
-		ArgModes:     storedArgModes,
-		AllArgTypes:  storedAllArgTypes,
-		NArgDefaults: nArgDefaults,
+		OID:             procOID,
+		Name:            name,
+		Schema:          schema,
+		OwnerName:       c.currentOwner(),
+		Kind:            kind,
+		ArgTypes:        argOIDs,
+		RetType:         retOID,
+		RetSet:          returnSet,
+		Volatile:        volatile,
+		Parallel:        parallel,
+		IsStrict:        isStrict,
+		SecDef:          secDef,
+		LeakProof:       isLeakProof,
+		IsWindow:        isWindowFunc,
+		Cost:            costStr,
+		Rows:            rowsStr,
+		SetConfig:       slices.Clone(setConfig),
+		Support:         support,
+		SupportOID:      supportOID,
+		Language:        language,
+		Body:            body,
+		LinkSymbol:      linkSymbol,
+		HasSqlBody:      sqlStandardBody,
+		ArgNames:        allArgNames,
+		ArgModes:        storedArgModes,
+		AllArgTypes:     storedAllArgTypes,
+		ArgDefaultTypes: defaultTypes,
+		ArgDefaults:     argDefaults,
+		NArgDefaults:    nArgDefaults,
 	}
 	c.userProcs[procOID] = up
 
-	// Record dependencies on arg/return types.
+	c.recordFunctionDependencies(procOID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
+
+	return nil
+}
+
+func (c *Catalog) recordFunctionDependencies(
+	procOID uint32,
+	argOIDs []uint32,
+	retOID uint32,
+	supportOID uint32,
+	params *nodes.List,
+	language string,
+	body string,
+	sqlStandardBody bool,
+	sqlBody nodes.Node,
+) {
+	// Record dependencies on arg/return/support types/routines.
 	for _, aoid := range argOIDs {
 		if aoid >= FirstNormalObjectId {
 			c.recordDependency('f', procOID, 0, 't', aoid, 0, DepNormal)
@@ -627,11 +716,14 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	if retOID >= FirstNormalObjectId {
 		c.recordDependency('f', procOID, 0, 't', retOID, 0, DepNormal)
 	}
+	if supportOID >= FirstNormalObjectId {
+		c.recordDependency('f', procOID, 0, 'f', supportOID, 0, DepNormal)
+	}
 
 	// Record dependencies from default expressions.
 	// pg: src/backend/commands/functioncmds.c — CreateFunction (recordDependencyOnExpr for defaults)
-	if stmt.Parameters != nil {
-		for _, item := range stmt.Parameters.Items {
+	if params != nil {
+		for _, item := range params.Items {
 			fp, ok := item.(*nodes.FunctionParameter)
 			if !ok || fp.Defexpr == nil {
 				continue
@@ -642,7 +734,6 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			}
 		}
 	}
-	up.ArgDefaultTypes = defaultTypes
 
 	// Record dependencies from SQL function body.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate
@@ -652,11 +743,13 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// For LANGUAGE sql functions, parse the body and extract table/function
 	// references so the migration toposort orders tables before functions
 	// that reference them.
-	if strings.EqualFold(language, "sql") && body != "" {
-		c.recordFuncBodyDeps(procOID, body)
+	if strings.EqualFold(language, "sql") {
+		if sqlStandardBody && sqlBody != nil {
+			c.recordDepsFromNode('f', procOID, sqlBody, true)
+		} else if body != "" {
+			c.recordFuncBodyDeps(procOID, body)
+		}
 	}
-
-	return nil
 }
 
 // paramDefaultTypes returns the type of each parameter default, in order,
@@ -694,6 +787,31 @@ func (c *Catalog) paramDefaultTypes(params *nodes.List, argOIDs []uint32, nDefau
 	return types
 }
 
+func (c *Catalog) paramDefaults(params *nodes.List, nInputArgs, nDefaults int) []string {
+	if params == nil || nDefaults == 0 || nDefaults > nInputArgs {
+		return nil
+	}
+	defaults := make([]string, nInputArgs)
+	inputIdx := 0
+	for _, item := range params.Items {
+		fp, ok := item.(*nodes.FunctionParameter)
+		if !ok {
+			continue
+		}
+		if fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
+			continue
+		}
+		if fp.Defexpr != nil && inputIdx < len(defaults) {
+			analyzed, err := c.AnalyzeExprNoContext(fp.Defexpr)
+			if err == nil && analyzed != nil {
+				defaults[inputIdx] = c.DeparseExpr(analyzed, nil, false)
+			}
+		}
+		inputIdx++
+	}
+	return defaults
+}
+
 func createFunctionStmtIsProcedure(stmt *nodes.CreateFunctionStmt) bool {
 	if stmt == nil || stmt.Options == nil {
 		return false
@@ -725,7 +843,7 @@ func (c *Catalog) recordFuncBodyDeps(funcOID uint32, body string) {
 		if !ok {
 			continue
 		}
-		c.recordDepsFromNode('f', funcOID, raw.Stmt)
+		c.recordDepsFromNode('f', funcOID, raw.Stmt, false)
 	}
 }
 
@@ -733,53 +851,32 @@ func (c *Catalog) recordFuncBodyDeps(funcOID uint32, body string) {
 // any RangeVar (table reference) found. This is a lightweight alternative
 // to full semantic analysis that works even when the query contains
 // unresolvable references (e.g., function parameters).
-func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) {
+//
+// sqlStandard is true for a SQL-standard body (RETURN or BEGIN ATOMIC), which
+// PostgreSQL parses at definition time and whose referenced routines and types
+// it records as dependencies. A string body records none of those, so for it
+// only table references are kept, as ordering hints for migrations.
+func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node, sqlStandard bool) {
 	if n == nil {
 		return
 	}
-	switch v := n.(type) {
-	case *nodes.RangeVar:
-		c.recordDepsOnRangeVar(objType, objOID, v)
-	case *nodes.SelectStmt:
-		if v.FromClause != nil {
-			for _, from := range v.FromClause.Items {
-				c.recordDepsFromNode(objType, objOID, from)
+	// The generated walker reaches every expression container (array
+	// constructors, row expressions, indirection, CASE arms, subqueries).
+	nodes.Inspect(n, func(node nodes.Node) bool {
+		switch v := node.(type) {
+		case *nodes.RangeVar:
+			c.recordDepsOnRangeVar(objType, objOID, v)
+		case *nodes.FuncCall:
+			if sqlStandard {
+				c.recordDepsOnFuncCall(objType, objOID, v)
+			}
+		case *nodes.TypeCast:
+			if sqlStandard {
+				c.recordDepsOnTypeName(objType, objOID, v.TypeName)
 			}
 		}
-		c.recordDepsFromNode(objType, objOID, v.WhereClause)
-		if v.Larg != nil {
-			c.recordDepsFromNode(objType, objOID, v.Larg)
-		}
-		if v.Rarg != nil {
-			c.recordDepsFromNode(objType, objOID, v.Rarg)
-		}
-		if v.WithClause != nil {
-			for _, cte := range v.WithClause.Ctes.Items {
-				c.recordDepsFromNode(objType, objOID, cte)
-			}
-		}
-	case *nodes.CommonTableExpr:
-		c.recordDepsFromNode(objType, objOID, v.Ctequery)
-	case *nodes.JoinExpr:
-		c.recordDepsFromNode(objType, objOID, v.Larg)
-		c.recordDepsFromNode(objType, objOID, v.Rarg)
-	case *nodes.RangeSubselect:
-		c.recordDepsFromNode(objType, objOID, v.Subquery)
-	case *nodes.SubLink:
-		c.recordDepsFromNode(objType, objOID, v.Subselect)
-	case *nodes.InsertStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-		c.recordDepsFromNode(objType, objOID, v.SelectStmt)
-	case *nodes.UpdateStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-		if v.FromClause != nil {
-			for _, from := range v.FromClause.Items {
-				c.recordDepsFromNode(objType, objOID, from)
-			}
-		}
-	case *nodes.DeleteStmt:
-		c.recordDepsFromNode(objType, objOID, v.Relation)
-	}
+		return true
+	})
 }
 
 // recordDepsOnRangeVar resolves a RangeVar to a catalog relation and records
@@ -792,6 +889,241 @@ func (c *Catalog) recordDepsOnRangeVar(objType byte, objOID uint32, rv *nodes.Ra
 	if err == nil && rel != nil {
 		c.recordDependency(objType, objOID, 0, 'r', rel.OID, 0, DepNormal)
 	}
+}
+
+// recordDepsOnTypeName records a dependency on the user-defined type a cast
+// names, and on its element type when it names an array of one.
+func (c *Catalog) recordDepsOnTypeName(objType byte, objOID uint32, tn *nodes.TypeName) {
+	if tn == nil {
+		return
+	}
+	oid, _, err := c.resolveTypeName(tn)
+	if err != nil || oid < FirstNormalObjectId {
+		return
+	}
+	c.recordDependency(objType, objOID, 0, 't', oid, 0, DepNormal)
+	if bt := c.typeByOID[oid]; bt != nil && bt.Elem >= FirstNormalObjectId {
+		c.recordDependency(objType, objOID, 0, 't', bt.Elem, 0, DepNormal)
+	}
+}
+
+// recordDepsOnFuncCall resolves a FuncCall AST node to matching user-defined
+// routine(s) and records DepNormal dependencies when found.
+func (c *Catalog) recordDepsOnFuncCall(objType byte, objOID uint32, fc *nodes.FuncCall) {
+	if c == nil || fc == nil || fc.Funcname == nil {
+		return
+	}
+	schemaName, funcName := qualifiedName(fc.Funcname)
+	if funcName == "" {
+		return
+	}
+	procs := c.filterProcsBySearchPath(schemaName, c.procByName[funcName])
+	if len(procs) == 0 {
+		return
+	}
+
+	var nargs int
+	var argNames []string
+	var hasNamed bool
+	if fc.Args != nil {
+		nargs = len(fc.Args.Items)
+		for _, item := range fc.Args.Items {
+			if na, ok := item.(*nodes.NamedArgExpr); ok {
+				hasNamed = true
+				argNames = append(argNames, na.Name)
+			} else {
+				argNames = append(argNames, "")
+			}
+		}
+	}
+	if !hasNamed {
+		argNames = nil
+	}
+
+	matchesCall := func(p *BuiltinProc) bool {
+		if fc.AggStar {
+			return true
+		}
+		if argNames != nil {
+			_, ok := namedCallPositions(p, argNames, fc.FuncVariadic)
+			return ok
+		}
+		_, ok := candidateArgTypesForCall(p, nargs, fc.FuncVariadic)
+		return ok
+	}
+
+	var targetSchemaOID uint32
+	if schemaName != "" {
+		sc := c.schemaByName[schemaName]
+		if sc == nil {
+			return
+		}
+		targetSchemaOID = sc.OID
+	}
+
+	recordProc := func(p *BuiltinProc) {
+		if objType == 'f' && p.OID == objOID {
+			return
+		}
+		for _, d := range c.deps {
+			if d.ObjType == objType && d.ObjOID == objOID && d.RefType == 'f' && d.RefOID == p.OID && d.DepType == DepNormal {
+				return
+			}
+		}
+		c.recordDependency(objType, objOID, 0, 'f', p.OID, 0, DepNormal)
+	}
+
+	var matched []*BuiltinProc
+	for _, p := range procs {
+		if p.OID < FirstNormalObjectId {
+			continue
+		}
+		up := c.userProcs[p.OID]
+		if up == nil || up.Schema == nil {
+			continue
+		}
+		if targetSchemaOID != 0 && up.Schema.OID != targetSchemaOID {
+			continue
+		}
+		if matchesCall(p) {
+			matched = append(matched, p)
+		}
+	}
+	if len(matched) == 0 {
+		return
+	}
+
+	// When every argument's type is evident from the AST, pick the overload
+	// PostgreSQL would call; otherwise keep every candidate.
+	argTypes := c.literalCallArgTypes(fc)
+	narrow := func(cands []*BuiltinProc) []*BuiltinProc {
+		if len(cands) <= 1 || argTypes == nil {
+			return cands
+		}
+		if p, _, err := c.resolveFuncOverload(cands, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
+			return []*BuiltinProc{p}
+		}
+		return cands
+	}
+
+	if schemaName != "" {
+		for _, p := range narrow(matched) {
+			recordProc(p)
+		}
+		return
+	}
+
+	// With argument types known, resolve the overload across every schema on
+	// search_path, as PostgreSQL does: the match may sit in a later schema than
+	// another arity-compatible candidate. An earlier schema hides a routine
+	// with the same argument types in a later one.
+	if argTypes != nil {
+		var visible []*BuiltinProc
+		seenSig := make(map[string]bool)
+		// pg_catalog is searched first unless search_path names it.
+		for _, p := range procs {
+			if p.OID < FirstNormalObjectId && matchesCall(p) {
+				sig := fmt.Sprint(p.ArgTypes)
+				if !seenSig[sig] {
+					seenSig[sig] = true
+					visible = append(visible, p)
+				}
+			}
+		}
+		for _, sname := range c.searchPath {
+			sc := c.schemaByName[sname]
+			if sc == nil {
+				continue
+			}
+			for _, p := range matched {
+				up := c.userProcs[p.OID]
+				if up == nil || up.Schema == nil || up.Schema.OID != sc.OID {
+					continue
+				}
+				sig := fmt.Sprint(p.ArgTypes)
+				if seenSig[sig] {
+					continue
+				}
+				seenSig[sig] = true
+				visible = append(visible, p)
+			}
+		}
+		if len(visible) > 0 {
+			if p, _, err := c.resolveFuncOverload(visible, argTypes, argNames, fc.AggStar, fc.FuncVariadic); err == nil && p != nil {
+				// A built-in routine needs no dependency.
+				if p.OID >= FirstNormalObjectId {
+					recordProc(p)
+				}
+				return
+			}
+		}
+	}
+
+	// For unqualified calls, prefer routines in the first visible schema along search_path.
+	for _, sname := range c.searchPath {
+		sc := c.schemaByName[sname]
+		if sc == nil {
+			continue
+		}
+		var inSchema []*BuiltinProc
+		for _, p := range matched {
+			if up := c.userProcs[p.OID]; up != nil && up.Schema != nil && up.Schema.OID == sc.OID {
+				inSchema = append(inSchema, p)
+			}
+		}
+		if len(inSchema) > 0 {
+			for _, p := range narrow(inSchema) {
+				recordProc(p)
+			}
+			return
+		}
+	}
+	for _, p := range narrow(matched) {
+		recordProc(p)
+	}
+}
+
+// literalCallArgTypes returns the type of each argument of fc when every one
+// is a constant or a cast, the forms whose type needs no analysis, and nil
+// otherwise.
+func (c *Catalog) literalCallArgTypes(fc *nodes.FuncCall) []uint32 {
+	if fc == nil || fc.Args == nil || fc.AggStar {
+		return nil
+	}
+	types := make([]uint32, 0, len(fc.Args.Items))
+	for _, item := range fc.Args.Items {
+		if na, ok := item.(*nodes.NamedArgExpr); ok {
+			item = na.Arg
+		}
+		var t uint32
+		switch v := item.(type) {
+		case *nodes.A_Const:
+			switch val := v.Val.(type) {
+			case *nodes.Integer:
+				t = INT4OID
+				if val.Ival > math.MaxInt32 || val.Ival < math.MinInt32 {
+					t = INT8OID
+				}
+			case *nodes.Float:
+				t = NUMERICOID
+			case *nodes.Boolean:
+				t = BOOLOID
+			default:
+				// A string literal or NULL is unknown until resolution.
+				t = UNKNOWNOID
+			}
+		case *nodes.TypeCast:
+			oid, _, err := c.resolveTypeName(v.TypeName)
+			if err != nil {
+				return nil
+			}
+			t = oid
+		default:
+			return nil
+		}
+		types = append(types, t)
+	}
+	return types
 }
 
 // CreateCast registers a user-defined cast.
@@ -1127,7 +1459,24 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 		return err
 	}
 
-	// Process actions.
+	nextVolatile := bp.Volatile
+	nextStrict := bp.IsStrict
+	nextSecDef := bp.SecDef
+	nextParallel := bp.Parallel
+	nextLeakProof := bp.LeakProof
+	var nextCost, nextRows, nextSupport string
+	var nextSupportOID uint32
+	var nextSetConfig []string
+	var hasSupport bool
+	if up != nil {
+		nextCost = up.Cost
+		nextRows = up.Rows
+		nextSetConfig = slices.Clone(up.SetConfig)
+		nextSupport = up.Support
+		nextSupportOID = up.SupportOID
+	}
+
+	// Validate every action before mutating bp, up, or catalog dependencies.
 	if stmt.Actions != nil {
 		for _, item := range stmt.Actions.Items {
 			de, ok := item.(*nodes.DefElem)
@@ -1136,62 +1485,48 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			}
 			switch strings.ToLower(de.Defname) {
 			case "volatility":
-				v := strings.ToLower(defElemString(de))
-				switch v {
+				switch strings.ToLower(defElemString(de)) {
 				case "immutable":
-					bp.Volatile = 'i'
+					nextVolatile = 'i'
 				case "stable":
-					bp.Volatile = 's'
+					nextVolatile = 's'
 				case "volatile":
-					bp.Volatile = 'v'
-				}
-				if up != nil {
-					up.Volatile = bp.Volatile
+					nextVolatile = 'v'
 				}
 			case "strict":
-				bp.IsStrict = defElemBool(de)
-				if up != nil {
-					up.IsStrict = bp.IsStrict
-				}
+				nextStrict = defElemBool(de)
 			case "called_on_null_input":
-				bp.IsStrict = !defElemBool(de)
-				if up != nil {
-					up.IsStrict = bp.IsStrict
-				}
+				nextStrict = !defElemBool(de)
 			case "security":
 				// pg: SECURITY DEFINER → Boolean(true), SECURITY INVOKER → Boolean(false)
-				var secDef bool
 				if s, ok := de.Arg.(*nodes.String); ok {
-					secDef = strings.ToLower(s.Str) == "definer"
+					nextSecDef = strings.ToLower(s.Str) == "definer"
 				} else {
-					secDef = defElemBool(de)
-				}
-				bp.SecDef = secDef
-				if up != nil {
-					up.SecDef = secDef
+					nextSecDef = defElemBool(de)
 				}
 			case "parallel":
-				v := strings.ToLower(defElemString(de))
-				switch v {
+				switch strings.ToLower(defElemString(de)) {
 				case "safe":
-					bp.Parallel = 's'
+					nextParallel = 's'
 				case "restricted":
-					bp.Parallel = 'r'
+					nextParallel = 'r'
 				case "unsafe":
-					bp.Parallel = 'u'
-				}
-				if up != nil {
-					up.Parallel = bp.Parallel
+					nextParallel = 'u'
 				}
 			case "cost":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "COST must be positive"}
 				}
+				if ok {
+					nextCost = raw
+				}
 			case "rows":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1429-1439)
-				if v, ok := defElemInt(de); ok && v <= 0 {
+				raw, val, ok := defElemNumeric(de)
+				if ok && val <= 0 {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS must be positive"}
 				}
@@ -1199,18 +1534,272 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					return &Error{Code: CodeInvalidParameterValue,
 						Message: "ROWS is not applicable when function does not return a set"}
 				}
+				if ok {
+					nextRows = raw
+				}
 			case "leakproof":
 				// pg: src/backend/commands/functioncmds.c — AlterFunction (line 1413-1420)
-				lp := defElemBool(de)
-				bp.LeakProof = lp
+				nextLeakProof = defElemBool(de)
+			case "set":
 				if up != nil {
-					up.LeakProof = lp
+					if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
+						nextSet, err := c.applyFuncSetConfig(nextSetConfig, vs)
+						if err != nil {
+							return err
+						}
+						nextSetConfig = nextSet
+					}
 				}
-			case "support", "set":
-				// No-op: not tracked in pgddl.
+			case "support":
+				sup, supOID, err := c.resolveRoutineRef(de, []uint32{INTERNALOID}, INTERNALOID, "internal")
+				if err != nil {
+					return err
+				}
+				nextSupport = sup
+				nextSupportOID = supOID
+				hasSupport = true
 			}
 		}
 	}
 
+	bp.Volatile = nextVolatile
+	bp.IsStrict = nextStrict
+	bp.SecDef = nextSecDef
+	bp.Parallel = nextParallel
+	bp.LeakProof = nextLeakProof
+	if up != nil {
+		up.Volatile = nextVolatile
+		up.IsStrict = nextStrict
+		up.SecDef = nextSecDef
+		up.Parallel = nextParallel
+		up.LeakProof = nextLeakProof
+		up.Cost = nextCost
+		up.Rows = nextRows
+		up.SetConfig = nextSetConfig
+		if hasSupport {
+			oldSupportOID := up.SupportOID
+			up.Support = nextSupport
+			up.SupportOID = nextSupportOID
+			c.updateSupportDep(up.OID, oldSupportOID, nextSupportOID)
+		}
+	}
+
 	return nil
+}
+
+func (c *Catalog) updateSupportDep(procOID, oldSupportOID, newSupportOID uint32) {
+	if procOID == 0 || oldSupportOID == newSupportOID {
+		return
+	}
+	if oldSupportOID >= FirstNormalObjectId {
+		for i, d := range c.deps {
+			if d.ObjType == 'f' && d.ObjOID == procOID && d.RefType == 'f' && d.RefOID == oldSupportOID && d.DepType == DepNormal {
+				c.deps = append(c.deps[:i], c.deps[i+1:]...)
+				break
+			}
+		}
+	}
+	if newSupportOID >= FirstNormalObjectId {
+		c.recordDependency('f', procOID, 0, 'f', newSupportOID, 0, DepNormal)
+	}
+}
+
+func defElemNumeric(d *nodes.DefElem) (string, float64, bool) {
+	if d == nil || d.Arg == nil {
+		return "", 0, false
+	}
+	extract := func(n nodes.Node) (string, float64, bool) {
+		switch v := n.(type) {
+		case *nodes.Integer:
+			return strconv.FormatInt(v.Ival, 10), float64(v.Ival), true
+		case *nodes.Float:
+			f, err := strconv.ParseFloat(v.Fval, 64)
+			if err != nil {
+				return "", 0, false
+			}
+			return v.Fval, f, true
+		}
+		return "", 0, false
+	}
+	if ac, ok := d.Arg.(*nodes.A_Const); ok {
+		return extract(ac.Val)
+	}
+	return extract(d.Arg)
+}
+
+func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) ([]string, error) {
+	if vs == nil {
+		return existing, nil
+	}
+	if vs.Kind == nodes.VAR_RESET_ALL {
+		return nil, nil
+	}
+	key := strings.ToLower(vs.Name)
+	if key == "" {
+		return existing, nil
+	}
+	removeVar := func(items []string) []string {
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			if name, ok := funcSetConfigVarName(item); ok && name == key {
+				continue
+			}
+			out = append(out, item)
+		}
+		return out
+	}
+	out := removeVar(existing)
+	switch vs.Kind {
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		return out, nil
+	case nodes.VAR_SET_CURRENT:
+		resolved, ok := c.resolveCurrentSettingValue(key)
+		if !ok {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: fmt.Sprintf("untracked configuration parameter %q in SET ... FROM CURRENT", vs.Name),
+			}
+		}
+		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), resolved)), nil
+	case nodes.VAR_SET_VALUE:
+		val := formatFuncSetArgs(vs.Args)
+		if val == "" {
+			return out, nil
+		}
+		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), val)), nil
+	default:
+		return out, nil
+	}
+}
+
+func (c *Catalog) resolveCurrentSettingValue(key string) (string, bool) {
+	if c == nil {
+		return "", false
+	}
+	switch key {
+	case "search_path":
+		if len(c.searchPath) == 0 {
+			return "'$user', 'public'", true
+		}
+		parts := make([]string, 0, len(c.searchPath))
+		for _, s := range c.searchPath {
+			parts = append(parts, quoteLiteral(s))
+		}
+		return strings.Join(parts, ", "), true
+	case "default_tablespace":
+		return quoteLiteral(c.defaultTablespace), true
+	case "default_table_access_method":
+		if c.defaultTableAccessMethod == "" {
+			return "'heap'", true
+		}
+		return quoteLiteral(c.defaultTableAccessMethod), true
+	case "role":
+		if c.currentUser == "" {
+			return "'none'", true
+		}
+		return quoteLiteral(c.currentUser), true
+	}
+	if val, ok := c.sessionSettings[key]; ok {
+		return val, true
+	}
+	return "", false
+}
+
+func funcSetConfigVarName(clause string) (string, bool) {
+	rest, ok := strings.CutPrefix(clause, "SET ")
+	if !ok {
+		return "", false
+	}
+	var raw string
+	if strings.HasPrefix(rest, `"`) {
+		var b strings.Builder
+		for i := 1; i < len(rest); i++ {
+			if rest[i] == '"' {
+				if i+1 < len(rest) && rest[i+1] == '"' {
+					b.WriteByte('"')
+					i++
+					continue
+				}
+				return strings.ToLower(b.String()), true
+			}
+			b.WriteByte(rest[i])
+		}
+		return "", false
+	}
+	if idx := strings.IndexAny(rest, " ="); idx >= 0 {
+		raw = rest[:idx]
+	} else {
+		raw = rest
+	}
+	return strings.ToLower(raw), raw != ""
+}
+
+func formatFuncSetArgs(args *nodes.List) string {
+	if args == nil || len(args.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(args.Items))
+	for _, item := range args.Items {
+		switch v := item.(type) {
+		case *nodes.A_Const:
+			switch val := v.Val.(type) {
+			case *nodes.String:
+				parts = append(parts, quoteLiteral(val.Str))
+			case *nodes.Integer:
+				parts = append(parts, strconv.FormatInt(val.Ival, 10))
+			case *nodes.Float:
+				parts = append(parts, val.Fval)
+			case *nodes.Boolean:
+				if val.Boolval {
+					parts = append(parts, "true")
+				} else {
+					parts = append(parts, "false")
+				}
+			}
+		case *nodes.String:
+			parts = append(parts, quoteLiteral(v.Str))
+		case *nodes.Integer:
+			parts = append(parts, strconv.FormatInt(v.Ival, 10))
+		case *nodes.Float:
+			parts = append(parts, v.Fval)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (c *Catalog) deparseSqlBody(sqlBody nodes.Node) string {
+	if sqlBody == nil {
+		return ""
+	}
+	d := &ruleDeparser{cat: c}
+	switch n := sqlBody.(type) {
+	case *nodes.ReturnStmt:
+		return "RETURN " + d.deparseExpr(n.Returnval)
+	case *nodes.List:
+		stmts := n.Items
+		if len(n.Items) == 1 {
+			if inner, ok := n.Items[0].(*nodes.List); ok {
+				stmts = inner.Items
+			}
+		}
+		var b strings.Builder
+		b.WriteString("BEGIN ATOMIC\n")
+		for _, item := range stmts {
+			var stmtSQL string
+			if ret, ok := item.(*nodes.ReturnStmt); ok {
+				stmtSQL = "RETURN " + d.deparseExpr(ret.Returnval)
+			} else {
+				stmtSQL = d.deparseActionStmt(item)
+			}
+			if stmtSQL != "" {
+				b.WriteByte(' ')
+				b.WriteString(stmtSQL)
+				b.WriteString(";\n")
+			}
+		}
+		b.WriteString("END")
+		return b.String()
+	default:
+		return d.deparseActionStmt(sqlBody)
+	}
 }

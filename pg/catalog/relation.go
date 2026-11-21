@@ -16,13 +16,16 @@ type PartitionInfo struct {
 
 // PartitionBound stores partition bound for a partition child.
 type PartitionBound struct {
-	Strategy   byte // must match parent's strategy
-	IsDefault  bool
-	ListValues []string // deparsed datum strings (LIST)
-	LowerBound []string // deparsed lower bound values (RANGE)
-	UpperBound []string // deparsed upper bound values (RANGE)
-	Modulus    int      // HASH modulus
-	Remainder  int      // HASH remainder
+	Strategy      byte // must match parent's strategy
+	IsDefault     bool
+	ListValues    []string // deparsed datum strings (LIST)
+	ListKeywords  []bool   // true when the LIST datum is SQL NULL rather than a quoted literal
+	LowerBound    []string // deparsed lower bound values (RANGE)
+	LowerKeywords []bool   // true when the RANGE lower datum is an unquoted keyword (MINVALUE, MAXVALUE, NULL)
+	UpperBound    []string // deparsed upper bound values (RANGE)
+	UpperKeywords []bool   // true when the RANGE upper datum is an unquoted keyword (MINVALUE, MAXVALUE, NULL)
+	Modulus       int      // HASH modulus
+	Remainder     int      // HASH remainder
 }
 
 // Column represents a table column.
@@ -49,6 +52,7 @@ type Column struct {
 	CollationSchema  string       // explicit collation schema when outside public/pg_catalog
 	CollationName    string       // explicit collation name (empty = type default)
 	UserCollationOID uint32       // user collation OID when CollationName names a user collation
+	ForeignOptions   []string     // per-column FDW options
 	Ndims            int16        // attndims — declared array dimensions
 }
 
@@ -98,8 +102,12 @@ type Relation struct {
 	// AccessMethod is the table access method (pg_class.relam), or "" when
 	// unset (e.g. default heap or partitioned table without explicit USING).
 	AccessMethod string
+	// ForeignServer and ForeignOptions store server and ftoptions for RelKind='f'.
+	ForeignServer  string
+	ForeignOptions []string
 	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
-	OwnerName string
+	OwnerName     string
+	OwnerExplicit bool
 
 	// Relation flags (pg_class).
 	Owner       uint32           // relowner

@@ -72,7 +72,12 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 		if !ok {
 			continue
 		}
-		if fi.subtype != ti.subtype || formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) {
+		if fi.subtype != ti.subtype ||
+			formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) ||
+			fi.rt.SubtypeOpclass != ti.rt.SubtypeOpclass ||
+			fi.rt.Canonical != ti.rt.Canonical ||
+			fi.rt.SubtypeDiff != ti.rt.SubtypeDiff ||
+			rangeMultirangeIdentity(from, fi.rt) != rangeMultirangeIdentity(to, ti.rt) {
 			entries = append(entries, RangeDiffEntry{
 				Action:     DiffModify,
 				SchemaName: k.Schema,
@@ -92,4 +97,21 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 	})
 
 	return entries
+}
+
+type rangeMultirangeIdent struct {
+	schema string
+	name   string
+}
+
+func rangeMultirangeIdentity(c *Catalog, rt *RangeType) rangeMultirangeIdent {
+	if c != nil && rt != nil && rt.MultirangeOID != 0 {
+		if bt := c.typeByOID[rt.MultirangeOID]; bt != nil {
+			if s := c.schemas[bt.Namespace]; s != nil && s.Name != "" {
+				return rangeMultirangeIdent{schema: s.Name, name: bt.TypeName}
+			}
+			return rangeMultirangeIdent{name: bt.TypeName}
+		}
+	}
+	return rangeMultirangeIdent{}
 }

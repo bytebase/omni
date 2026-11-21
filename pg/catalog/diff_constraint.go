@@ -79,7 +79,13 @@ func constraintsEqual(from, to *Catalog, a, b *Constraint) bool {
 	if !sameColumns(from, a.RelOID, a.IncludeColumns, to, b.RelOID, b.IncludeColumns) {
 		return false
 	}
+	if constraintNullsNotDistinct(from, a) != constraintNullsNotDistinct(to, b) {
+		return false
+	}
 	if a.CheckExpr != b.CheckExpr {
+		return false
+	}
+	if a.Type == ConstraintCheck && a.ConNoInherit != b.ConNoInherit {
 		return false
 	}
 	if a.FKUpdAction != b.FKUpdAction {
@@ -223,4 +229,14 @@ func stringSliceEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// constraintNullsNotDistinct reports whether a key constraint's backing index
+// treats nulls as equal (UNIQUE NULLS NOT DISTINCT).
+func constraintNullsNotDistinct(c *Catalog, con *Constraint) bool {
+	if c == nil || con == nil || con.IndexOID == 0 {
+		return false
+	}
+	idx := c.GetIndexByOID(con.IndexOID)
+	return idx != nil && idx.NullsNotDistinct
 }

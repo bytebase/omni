@@ -96,6 +96,11 @@ type Catalog struct {
 	eventTriggers      map[uint32]*EventTrigger
 	eventTriggerByName map[string]*EventTrigger
 
+	// Foreign data wrappers and servers.
+	fdws                       map[string]*ForeignDataWrapper
+	foreignServers             map[string]*ForeignServer
+	allowImplicitForeignServer bool
+
 	// Comments.
 	comments map[commentKey]string
 
@@ -142,6 +147,9 @@ type Catalog struct {
 	// defaultTableAccessMethod is the session's default_table_access_method
 	// setting, "" for the server default (heap).
 	defaultTableAccessMethod string
+	// sessionSettings records non-built-in session GUC values set via SET/RESET
+	// so CREATE/ALTER FUNCTION ... SET var FROM CURRENT can freeze them.
+	sessionSettings map[string]string
 	// snapshot marks a catalog loaded from a live schema. A snapshot carries
 	// no tablespace or access-method objects, so a name it does not hold may
 	// still exist on the server the snapshot came from.
@@ -160,6 +168,8 @@ type Catalog struct {
 
 	// Dependencies.
 	deps []DepEntry
+	// droppingObjects guards recursive CASCADE drops against cyclic dependencies.
+	droppingObjects map[depKey]bool
 
 	// Session and current user names.
 	// pg: src/backend/utils/init/miscinit.c — SessionUserId, CurrentUserId
@@ -216,6 +226,8 @@ func New() *Catalog {
 		rules:              make(map[uint32]*Rule),
 		eventTriggers:      make(map[uint32]*EventTrigger),
 		eventTriggerByName: make(map[string]*EventTrigger),
+		fdws:               make(map[string]*ForeignDataWrapper),
+		foreignServers:     make(map[string]*ForeignServer),
 		comments:           make(map[commentKey]string),
 		policies:           make(map[uint32]*Policy),
 		policiesByRel:      make(map[uint32][]*Policy),
@@ -236,6 +248,7 @@ func New() *Catalog {
 		opFamilies:         make(map[uint32]*OpFamily),
 		opClasses:          make(map[uint32]*OpClass),
 		opClassByKey:       make(map[opClassKey]*OpClass),
+		sessionSettings:    make(map[string]string),
 	}
 
 	// Index types.

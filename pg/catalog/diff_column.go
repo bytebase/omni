@@ -1,6 +1,8 @@
 package catalog
 
-import "sort"
+import (
+	"sort"
+)
 
 // diffColumns compares columns between two versions of a relation.
 // Identity key is the column Name within the relation.
@@ -71,11 +73,19 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 	if a.NotNull != b.NotNull {
 		return true
 	}
-	if a.HasDefault != b.HasDefault {
-		return true
-	}
-	if a.Default != b.Default {
-		return true
+	// An identity column's default is the catalog's nextval stand-in for its
+	// sequence, written differently by Exec and by a metadata load; the
+	// identity itself, compared below, is what PostgreSQL stores.
+	if a.Identity == 0 || b.Identity == 0 {
+		if a.HasDefault != b.HasDefault {
+			return true
+		}
+		// A nextval default names its sequence qualified or not depending on
+		// how it entered the catalog (sync writes it qualified); compare the
+		// sequence it resolves to.
+		if a.Default != b.Default && qualifyNextvalDefault(from, a.Default) != qualifyNextvalDefault(to, b.Default) {
+			return true
+		}
 	}
 	if a.Identity != b.Identity {
 		return true
@@ -93,6 +103,9 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 		return true
 	}
 	if a.Compression != b.Compression {
+		return true
+	}
+	if !foreignOptionsEqual(a.ForeignOptions, b.ForeignOptions) {
 		return true
 	}
 	return false

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -95,7 +96,10 @@ func funcIdentity(c *Catalog, up *UserProc) string {
 
 // funcChanged returns true if any tracked attribute differs between two UserProcs.
 func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
-	if fp.Body != tp.Body {
+	if fp.Kind != tp.Kind {
+		return true
+	}
+	if fp.Body != tp.Body || fp.HasSqlBody != tp.HasSqlBody {
 		return true
 	}
 	if fp.Volatile != tp.Volatile {
@@ -113,7 +117,25 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if fp.LeakProof != tp.LeakProof {
 		return true
 	}
+	if fp.IsWindow != tp.IsWindow {
+		return true
+	}
+	if fp.Cost != tp.Cost {
+		return true
+	}
+	if fp.Rows != tp.Rows {
+		return true
+	}
+	if !slices.Equal(fp.SetConfig, tp.SetConfig) {
+		return true
+	}
+	if fp.Support != tp.Support {
+		return true
+	}
 	if fp.Language != tp.Language {
+		return true
+	}
+	if fp.LinkSymbol != tp.LinkSymbol {
 		return true
 	}
 	if from.FormatType(fp.RetType, -1) != to.FormatType(tp.RetType, -1) {
@@ -121,6 +143,26 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	}
 	if fp.RetSet != tp.RetSet {
 		return true
+	}
+	if fp.NArgDefaults != tp.NArgDefaults {
+		return true
+	}
+	if !slices.Equal(fp.ArgDefaults, tp.ArgDefaults) {
+		return true
+	}
+	if !slices.Equal(fp.ArgNames, tp.ArgNames) {
+		return true
+	}
+	if !slices.Equal(fp.ArgModes, tp.ArgModes) {
+		return true
+	}
+	if len(fp.AllArgTypes) != len(tp.AllArgTypes) {
+		return true
+	}
+	for i := range fp.AllArgTypes {
+		if from.FormatType(fp.AllArgTypes[i], -1) != to.FormatType(tp.AllArgTypes[i], -1) {
+			return true
+		}
 	}
 	return false
 }

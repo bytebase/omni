@@ -48,6 +48,7 @@ const (
 	OpCreateSchema       MigrationOpType = "CreateSchema"
 	OpDropSchema         MigrationOpType = "DropSchema"
 	OpAlterSchema        MigrationOpType = "AlterSchema"
+	OpAlterDatabase      MigrationOpType = "AlterDatabase"
 	OpCreateTable        MigrationOpType = "CreateTable"
 	OpDropTable          MigrationOpType = "DropTable"
 	OpAddColumn          MigrationOpType = "AddColumn"
@@ -104,10 +105,11 @@ type MigrationOp struct {
 	ParentObject  string // optional, for FK deferred creation
 
 	// Metadata for dependency-driven ordering (used by sortMigrationOps).
-	Phase    MigrationPhase // PhasePre, PhaseMain, or PhasePost
-	ObjType  byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
-	ObjOID   uint32         // OID in source catalog (from for DROP, to for CREATE)
-	Priority int            // tie-breaker for topo sort (lower = earlier)
+	Phase           MigrationPhase // PhasePre, PhaseMain, or PhasePost
+	ObjType         byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
+	ObjOID          uint32         // OID in source catalog (from for DROP, to for CREATE)
+	Priority        int            // tie-breaker for topo sort (lower = earlier)
+	secondarySchema string         // child or parent schema for cross-schema partition operations
 }
 
 // MigrationPlan holds an ordered list of DDL operations that transform
@@ -205,6 +207,14 @@ func (p *MigrationPlan) Warnings() []MigrationOp {
 // GenerateMigration produces a MigrationPlan that transforms the `from`
 // catalog into the `to` catalog, using the precomputed diff.
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
+	// A renamed or moved range keeps its OID. Rename it first, then plan the
+	// rest from the renamed catalog, so nothing that depends on it is rebuilt.
+	if renamed, renameOps := renameRetainedRanges(from, to, diff); renamed != nil {
+		plan := GenerateMigration(renamed, to, Diff(renamed, to))
+		plan.Ops = append(renameOps, plan.Ops...)
+		return plan
+	}
+
 	var ops []MigrationOp
 
 	// Phase 1: DROP (reverse dependency order)
@@ -226,7 +236,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// functions with RETURNS SETOF deps are placed after tables.
 	ops = append(ops, generateFunctionDDL(from, to, diff)...)
 	ops = append(ops, generateAccessMethodDDL(from, to, diff)...)
+	ops = append(ops, generateForeignDataWrapperDDL(from, to, diff)...)
+	ops = append(ops, generateForeignServerDDL(from, to, diff)...)
 	ops = append(ops, generateTableDDL(from, to, diff)...)
+	ops = append(ops, generateForeignTableDDL(from, to, diff)...)
 	ops = append(ops, generateColumnDDL(from, to, diff)...)
 	ops = append(ops, generateConstraintDDL(from, to, diff)...)
 	ops = append(ops, generateViewDDL(from, to, diff)...)
@@ -247,6 +260,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops, extraViewTables, directViews = wrapModifiedCollationDependents(from, to, diff, ops)
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops, extraViewTables, directViews)
 	ops = reconcileRulesWithDroppedRelations(from, to, ops)
+	ops = reconcileCanonicalRangeDrops(from, ops)
 	ops = deferDropsOfTypesInUse(from, to, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.
@@ -268,19 +282,23 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	for oid := range extraTableOIDs {
 		tableOIDs[oid] = true
 	}
-	for _, rel := range diff.Relations {
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	renamedServers := renamedForeignServerNames(diff)
+	collectViewWrapOID := func(rel RelationDiffEntry) {
 		if rel.Action != DiffModify {
-			continue
+			return
 		}
 		needsViewWrap := false
 
-		// RelKind change (e.g., table → partitioned) or inheritance change
-		// trigger DROP TABLE CASCADE which destroys dependent views.
+		// tableRebuilt (RelKind change) or foreign server replacement/change
+		// triggers DROP CASCADE which destroys dependent views.
 		if rel.From != nil && rel.To != nil {
-			if rel.From.RelKind != rel.To.RelKind {
-				needsViewWrap = true
-			}
-			if !inhParentsEqual(from, to, rel.From.InhParents, rel.To.InhParents) {
+			if rel.From.RelKind == 'f' && rel.To.RelKind == 'f' {
+				serverChanged := rel.From.ForeignServer != rel.To.ForeignServer && renamedServers[rel.From.ForeignServer] != rel.To.ForeignServer
+				if serverChanged || rebuiltServers[rel.From.ForeignServer] {
+					needsViewWrap = true
+				}
+			} else if tableRebuilt(from, to, rel.From, rel.To) {
 				needsViewWrap = true
 			}
 			if rel.From.RelKind == 'v' && rel.To.RelKind == 'v' &&
@@ -291,7 +309,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 
 		if !needsViewWrap {
 			for _, col := range rel.Columns {
-				// Column drop: PG cannot drop a column when a view depends on the table.
+				// Column drop: PG cannot drop a column when a view depends on the relation.
 				if col.Action == DiffDrop {
 					needsViewWrap = true
 					break
@@ -310,10 +328,35 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			}
 		}
 		if needsViewWrap {
-			// Look up the table OID from the `from` catalog (where deps are recorded).
+			// Look up the relation OID from the `from` catalog (where deps are recorded).
 			r := from.GetRelation(rel.SchemaName, rel.Name)
 			if r != nil {
 				tableOIDs[r.OID] = true
+			}
+		}
+	}
+	for _, rel := range diff.Relations {
+		collectViewWrapOID(rel)
+	}
+	for _, rel := range diff.ForeignTables {
+		collectViewWrapOID(rel)
+		if rel.Action == DiffDrop && rel.From != nil {
+			// Foreign table renames/schema moves report DiffDrop+DiffAdd with the same OID;
+			// rebuild dependent views around the CASCADE drop even when the view has no diff.
+			if toRel := to.GetRelationByOID(rel.From.OID); toRel != nil && toRel.RelKind == 'f' {
+				tableOIDs[rel.From.OID] = true
+			}
+		}
+	}
+	if from != nil && to != nil && len(rebuiltServers) > 0 {
+		for _, s := range from.schemas {
+			if s == nil {
+				continue
+			}
+			for _, rel := range s.Relations {
+				if rel != nil && rel.RelKind == 'f' && rebuiltServers[rel.ForeignServer] && to.GetRelation(s.Name, rel.Name) != nil {
+					tableOIDs[rel.OID] = true
+				}
 			}
 		}
 	}
@@ -701,12 +744,23 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 	}
 
 	// Build adjacency from catalog deps.
+	typeDependsOnFunc := make(map[[2]uint32]bool)
+	for _, d := range c.deps {
+		if d.ObjType == 't' && d.RefType == 'f' && d.DepType != DepInternal {
+			typeDependsOnFunc[[2]uint32{d.ObjOID, d.RefOID}] = true
+		}
+	}
 	adj := make([][]int, n)
 	inDegree := make([]int, n)
 	edgeSeen := make(map[[2]int]bool) // avoid duplicate edges
 
 	for _, d := range c.deps {
 		if d.DepType == DepInternal {
+			continue
+		}
+		// Skip the function -> type edge of a canonical range/function cycle:
+		// forward runs shell -> function -> full range; reverse drops range CASCADE before function.
+		if d.ObjType == 'f' && d.RefType == 't' && typeDependsOnFunc[[2]uint32{d.RefOID, d.ObjOID}] {
 			continue
 		}
 
@@ -933,6 +987,33 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 	}
 	for i := range late {
 		ops[i].Phase = PhaseLateDrop
+	}
+	return ops
+}
+
+// reconcileCanonicalRangeDrops marks canonical function drops as IF EXISTS
+// when their range type is dropped with CASCADE in the same PhasePre.
+func reconcileCanonicalRangeDrops(from *Catalog, ops []MigrationOp) []MigrationOp {
+	if from == nil {
+		return ops
+	}
+	cascadedFuncs := make(map[uint32]bool)
+	for _, op := range ops {
+		if op.Phase == PhasePre && op.Type == OpDropType && op.ObjOID != 0 {
+			if rt := from.rangeTypes[op.ObjOID]; rt != nil && rt.CanonicalOID != 0 {
+				cascadedFuncs[rt.CanonicalOID] = true
+			}
+		}
+	}
+	if len(cascadedFuncs) == 0 {
+		return ops
+	}
+	for i := range ops {
+		if ops[i].Phase == PhasePre && ops[i].Type == OpDropFunction && cascadedFuncs[ops[i].ObjOID] {
+			if rest, ok := strings.CutPrefix(ops[i].SQL, "DROP FUNCTION "); ok && !strings.HasPrefix(rest, "IF EXISTS ") {
+				ops[i].SQL = "DROP FUNCTION IF EXISTS " + rest
+			}
+		}
 	}
 	return ops
 }
@@ -1685,7 +1766,13 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 		}
 	}
-	if len(modifiedCollOIDs) == 0 && len(collChangedDomainOIDs) == 0 && len(rebuiltRangeOIDs) == 0 {
+	rebuiltFuncOIDs := make(map[uint32]bool)
+	for _, entry := range diff.Functions {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil && signatureChanged(from, entry.From, to, entry.To) {
+			rebuiltFuncOIDs[entry.From.OID] = true
+		}
+	}
+	if len(modifiedCollOIDs) == 0 && len(collChangedDomainOIDs) == 0 && len(rebuiltRangeOIDs) == 0 && len(rebuiltFuncOIDs) == 0 {
 		return ops, nil, nil
 	}
 
@@ -1705,6 +1792,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	mainCreatedRule := make(map[string]bool)
 	mainCreatedFunc := make(map[string]bool)
 	mainComments := make(map[string]bool)
+	mainGrants := make(map[string]bool)
 
 	for _, op := range ops {
 		if op.Phase == PhasePre {
@@ -1756,6 +1844,8 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				mainCreatedFunc[op.SchemaName+"."+op.ObjectName] = true
 			case OpComment:
 				mainComments[op.SQL] = true
+			case OpGrant:
+				mainGrants[op.SQL] = true
 			}
 		}
 	}
@@ -1776,6 +1866,14 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					ObjType:       objType,
 					Priority:      PriorityMetadata,
 				})
+			}
+		}
+	}
+	appendGrantRestoreOps := func(objType byte, toOID uint32) {
+		for _, gop := range restoreGrantOps(to, objType, toOID) {
+			if !mainGrants[gop.SQL] {
+				mainGrants[gop.SQL] = true
+				mainExtra = append(mainExtra, gop)
 			}
 		}
 	}
@@ -1884,6 +1982,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					Priority:      PriorityType,
 				})
 				appendCommentRestoreOp('t', toOID, 0, key)
+				appendGrantRestoreOps('T', toOID)
 				for _, dc := range toDT.Constraints {
 					appendCommentRestoreOp('d', dc.OID, 0, key+"."+dc.Name)
 				}
@@ -1924,7 +2023,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			Type:          OpDropType,
 			SchemaName:    sc.Name,
 			ObjectName:    rt.Name,
-			SQL:           fmt.Sprintf("DROP TYPE %s", qn),
+			SQL:           formatDropRangeTypeSQL(qn, rt),
 			Transactional: true,
 			Phase:         PhasePre,
 			ObjType:       't',
@@ -1933,18 +2032,9 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		})
 		if toOID := resolveTypeOIDByName(to, sc.Name, rt.Name); toOID != 0 {
 			if toRT := to.rangeTypes[toOID]; toRT != nil {
-				mainExtra = append(mainExtra, MigrationOp{
-					Type:          OpCreateType,
-					SchemaName:    sc.Name,
-					ObjectName:    rt.Name,
-					SQL:           formatCreateRange(to, sc.Name, rt.Name, toRT),
-					Transactional: true,
-					Phase:         PhaseMain,
-					ObjType:       't',
-					ObjOID:        toOID,
-					Priority:      PriorityType,
-				})
+				mainExtra = append(mainExtra, buildCreateRangeOps(to, sc.Name, rt.Name, toRT)...)
 				appendCommentRestoreOp('t', toOID, 0, key)
+				appendGrantRestoreOps('T', toOID)
 			}
 		}
 	}
@@ -2274,7 +2364,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	// 2. Detach or rebuild kept table columns and composite attributes.
 	var relList []*Relation
 	for _, r := range from.relationByOID {
-		if r != nil && r.Schema != nil && (r.RelKind == 'r' || r.RelKind == 'p' || r.RelKind == 'c') && !preDroppedRel[r.OID] {
+		if r != nil && r.Schema != nil && (r.RelKind == 'r' || r.RelKind == 'p' || r.RelKind == 'f' || r.RelKind == 'c') && !preDroppedRel[r.OID] {
 			relList = append(relList, r)
 		}
 	}
@@ -2301,14 +2391,17 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		for _, fromCol := range fromRel.Columns {
 			colUsesModColl := modifiedCollOIDs[fromCol.UserCollationOID]
 			modCollDepCount := 0
-			exprUsesRebuiltType := false
+			exprUsesRebuiltDep := false
 			for _, d := range from.deps {
 				if d.ObjType == 'r' && d.ObjOID == fromRel.OID && d.ObjSubID == int32(fromCol.AttNum) {
 					if d.RefType == 'L' && modifiedCollOIDs[d.RefOID] {
 						modCollDepCount++
 					}
 					if d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID] && d.RefOID != fromCol.TypeOID {
-						exprUsesRebuiltType = true
+						exprUsesRebuiltDep = true
+					}
+					if d.RefType == 'f' && rebuiltFuncOIDs[d.RefOID] {
+						exprUsesRebuiltDep = true
 					}
 				}
 			}
@@ -2316,7 +2409,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			if colUsesModColl {
 				ownCount = 1
 			}
-			exprUsesModColl := modCollDepCount > ownCount || exprUsesRebuiltType
+			exprUsesModColl := modCollDepCount > ownCount || exprUsesRebuiltDep
 			rebuiltDomBase, colUsesRebuiltDom := unwrappedDetachType(fromCol.TypeOID)
 
 			toIdx, kept := toRel.colByName[fromCol.Name]
@@ -2543,7 +2636,9 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		if d.DepType == DepInternal {
 			continue
 		}
-		refMatch := (d.RefType == 'L' && modifiedCollOIDs[d.RefOID]) || (d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID])
+		refMatch := (d.RefType == 'L' && modifiedCollOIDs[d.RefOID]) ||
+			(d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID]) ||
+			(d.RefType == 'f' && rebuiltFuncOIDs[d.RefOID])
 		if !refMatch {
 			continue
 		}
@@ -2758,6 +2853,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						mainCreatedFunc[fnKey] = true
 						mainExtra = append(mainExtra, buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP}))
 						appendCommentRestoreOp('f', toUP.OID, 0, id)
+						appendGrantRestoreOps('f', toUP.OID)
 						break
 					}
 				}
@@ -2769,6 +2865,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 							if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
 								ops[i] = buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP})
 								appendCommentRestoreOp('f', toUP.OID, 0, id)
+								appendGrantRestoreOps('f', toUP.OID)
 								break
 							}
 						}

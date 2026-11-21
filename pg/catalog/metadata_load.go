@@ -71,15 +71,54 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		c.databaseOwners[dbKey] = dbOwner
 		c.roles[dbOwner] = true
 	}
-	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
+	if opts.Full {
+		c.installForeignWrappersAndServers(meta)
+	}
+	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full), c.searchPath...) {
 		if err := c.installGroup(ctx, group, opts.Full, report); err != nil {
 			return report, err
 		}
 	}
 	if opts.Full {
+		c.linkForeignWrapperFuncDeps()
 		c.installMetadataComments(meta)
 	}
 	return report, nil
+}
+
+func (c *Catalog) installForeignWrappersAndServers(meta *metadata.DatabaseSchemaMetadata) {
+	for _, fdw := range meta.GetForeignDataWrappers() {
+		if fdw.GetName() == "" || c.fdws[fdw.GetName()] != nil {
+			continue
+		}
+		c.fdws[fdw.GetName()] = &ForeignDataWrapper{
+			OID:       c.oidGen.Next(),
+			Name:      fdw.GetName(),
+			Handler:   fdw.GetHandler(),
+			Validator: fdw.GetValidator(),
+			Options:   slices.Clone(fdw.GetOptions()),
+		}
+	}
+	for _, srv := range meta.GetForeignServers() {
+		if srv.GetName() == "" || c.foreignServers[srv.GetName()] != nil {
+			continue
+		}
+		fs := &ForeignServer{
+			OID:     c.oidGen.Next(),
+			Name:    srv.GetName(),
+			FdwName: srv.GetFdw(),
+			Options: slices.Clone(srv.GetOptions()),
+		}
+		if srv.Type != nil {
+			t := *srv.Type
+			fs.Type = &t
+		}
+		if srv.Version != nil {
+			v := *srv.Version
+			fs.Version = &v
+		}
+		c.foreignServers[srv.GetName()] = fs
+	}
 }
 
 // --- Objects ---
@@ -104,6 +143,7 @@ const (
 	metadataMatView
 	metadataIndex
 	metadataConstraint
+	metadataTrigger
 )
 
 // metadataObject is one install step. Every kind but a schema sets the metadata
@@ -121,6 +161,7 @@ type metadataObject struct {
 	composite  *metadata.CompositeTypeMetadata
 	sequence   *metadata.SequenceMetadata
 	table      *metadata.TableMetadata
+	external   *metadata.ExternalTableMetadata
 	view       *metadata.ViewMetadata
 	matView    *metadata.MaterializedViewMetadata
 	function   *metadata.FunctionMetadata
@@ -128,6 +169,7 @@ type metadataObject struct {
 	fk         *metadata.ForeignKeyMetadata
 	check      *metadata.CheckConstraintMetadata
 	exclude    *metadata.ExcludeConstraintMetadata
+	trigger    *metadata.TriggerMetadata
 
 	// procedure marks a function that is a procedure.
 	procedure bool
@@ -136,6 +178,9 @@ type metadataObject struct {
 	// createStmt is a function's parsed definition, or nil when the snapshot
 	// has none that parses.
 	createStmt *nodes.CreateFunctionStmt
+	// triggerStmt is a trigger's parsed CREATE TRIGGER AST, or nil when bodyErr explains why.
+	triggerStmt    *nodes.CreateTrigStmt
+	triggerBodyErr error
 	// body is a view's parsed query, or nil with bodyErr saying why.
 	body    *nodes.SelectStmt
 	bodyErr error
@@ -173,6 +218,8 @@ func (o *metadataObject) key() string {
 		return "func:" + o.schema + "." + o.name + "|" + metadataFunctionIdentity(o.function)
 	case metadataIndex:
 		return "idx:" + o.schema + "." + o.parent + "." + o.name
+	case metadataTrigger:
+		return "trg:" + o.schema + "." + o.parent + "." + o.name
 	default:
 		return "con:" + o.schema + "." + o.parent + "." + o.name
 	}
@@ -242,12 +289,21 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, o)
 			out = appendPartitionTables(out, schema, t)
 		}
-		// A foreign table loads as a plain table: query analysis needs only its columns.
+		// Foreign tables install with relkind 'f' so ALTER FOREIGN TABLE and
+		// walk-through option updates operate on their foreign metadata.
 		for _, et := range s.GetExternalTables() {
-			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: et.GetName(), table: &metadata.TableMetadata{
-				Name:    et.GetName(),
-				Columns: et.GetColumns(),
-			}})
+			out = append(out, &metadataObject{
+				kind:     metadataTable,
+				schema:   schema,
+				name:     et.GetName(),
+				external: et,
+				skipDump: et.GetSkipDump(),
+				table: &metadata.TableMetadata{
+					Name:             et.GetName(),
+					Columns:          et.GetColumns(),
+					CheckConstraints: et.GetCheckConstraints(),
+				},
+			})
 		}
 		for _, v := range s.GetViews() {
 			body, err := parseSelect(v.GetDefinition())
@@ -289,6 +345,28 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: fk.GetName(), parent: t.GetName(), fk: fk})
 			}
 			out = appendPartitionConstraintObjects(out, schema, t.GetName(), t.GetPartitions())
+		}
+		for _, et := range s.GetExternalTables() {
+			out = appendConstraintObjects(out, schema, et.GetName(), nil, et.GetCheckConstraints(), nil)
+			for _, tr := range et.GetTriggers() {
+				var trigStmt *nodes.CreateTrigStmt
+				var bodyErr error
+				if strings.TrimSpace(tr.GetBody()) == "" {
+					bodyErr = errors.New("trigger has no body")
+				} else {
+					trigStmt, bodyErr = parseStatement[*nodes.CreateTrigStmt](tr.GetBody())
+				}
+				out = append(out, &metadataObject{
+					kind:           metadataTrigger,
+					schema:         schema,
+					name:           tr.GetName(),
+					parent:         et.GetName(),
+					trigger:        tr,
+					triggerStmt:    trigStmt,
+					triggerBodyErr: bodyErr,
+					skipDump:       tr.GetSkipDump(),
+				})
+			}
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			out = appendIndexObjects(out, schema, mv.GetName(), mv.GetIndexes())
@@ -441,7 +519,7 @@ func sequenceOwners(s *metadata.SchemaMetadata) (owned map[string]map[string]*me
 // orderMetadataObjects groups objects into the strongly connected components
 // of their dependencies, each sorted by compareMetadataObjects, and orders the
 // groups so each one follows the groups it depends on.
-func orderMetadataObjects(objects []*metadataObject) [][]*metadataObject {
+func orderMetadataObjects(objects []*metadataObject, searchPath ...string) [][]*metadataObject {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -449,7 +527,7 @@ func orderMetadataObjects(objects []*metadataObject) [][]*metadataObject {
 	for _, o := range objects {
 		byKey[o.key()] = o
 	}
-	edges := metadataDependencies(objects, byKey)
+	edges := metadataDependencies(objects, byKey, searchPath)
 	sccs := stronglyConnectedObjects(objects, byKey, edges)
 
 	sccOf := make(map[string]int, len(objects))
@@ -521,7 +599,7 @@ func (q *componentQueue) Pop() any {
 
 // metadataDependencies maps each object's key to the keys of the objects it
 // needs installed first. It records only dependencies the snapshot contains.
-func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject) map[string][]string {
+func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject, searchPath []string) map[string][]string {
 	// functionKeys maps "schema.name" to the keys of the function's overloads.
 	functionKeys := make(map[string][]string)
 	for _, o := range objects {
@@ -532,14 +610,14 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 
 	edges := make(map[string][]string, len(objects))
 	for _, o := range objects {
-		if deps := o.dependencies(byKey, functionKeys); len(deps) > 0 {
+		if deps := o.dependencies(byKey, functionKeys, searchPath); len(deps) > 0 {
 			edges[o.key()] = deps
 		}
 	}
 	return edges
 }
 
-func (o *metadataObject) dependencies(byKey map[string]*metadataObject, functionKeys map[string][]string) []string {
+func (o *metadataObject) dependencies(byKey map[string]*metadataObject, functionKeys map[string][]string, searchPath []string) []string {
 	self := o.key()
 	var deps []string
 	add := func(key string) {
@@ -565,6 +643,33 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 		name, nameOK := tn.Names.Items[1].(*nodes.String)
 		if schemaOK && nameOK {
 			addRef(schema.Str, name.Str)
+		}
+	}
+	addRoutineRef := func(funcSchema, funcName string) {
+		if funcSchema != "" {
+			for _, key := range functionKeys[funcSchema+"."+funcName] {
+				add(key)
+			}
+			return
+		}
+		var cands []string
+		for _, sp := range searchPath {
+			if sp != "" && sp != "$user" && sp != "pg_catalog" && sp != "pg_temp" && !slices.Contains(cands, sp) {
+				cands = append(cands, sp)
+			}
+		}
+		for _, fallback := range []string{o.schema, "public"} {
+			if fallback != "" && !slices.Contains(cands, fallback) {
+				cands = append(cands, fallback)
+			}
+		}
+		for _, cand := range cands {
+			if keys := functionKeys[cand+"."+funcName]; len(keys) > 0 {
+				for _, key := range keys {
+					add(key)
+				}
+				return
+			}
 		}
 	}
 	if o.kind != metadataSchema {
@@ -620,6 +725,35 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 			}
 		}
 		addTypeName(o.createStmt.ReturnType)
+		if opts := o.createStmt.Options; opts != nil {
+			for _, item := range opts.Items {
+				de, ok := item.(*nodes.DefElem)
+				if !ok || !strings.EqualFold(de.Defname, "support") {
+					continue
+				}
+				if formatted := formatCatalogOptionName(de); formatted != "" {
+					s, fn := parseRoutineRefName(formatted)
+					addRoutineRef(s, fn)
+				}
+			}
+		}
+		if o.createStmt.SqlBody != nil {
+			_, relRefs, typeRefs := collectExprDeps(o.createStmt.SqlBody)
+			for _, ref := range relRefs {
+				add("rel:" + ref)
+			}
+			for _, ref := range typeRefs {
+				add("type:" + ref)
+				add("rel:" + ref)
+			}
+			nodes.Inspect(o.createStmt.SqlBody, func(n nodes.Node) bool {
+				if fc, ok := n.(*nodes.FuncCall); ok && fc.Funcname != nil {
+					s, fn := qualifiedName(fc.Funcname)
+					addRoutineRef(s, fn)
+				}
+				return true
+			})
+		}
 	case metadataIndex:
 		add(metadataRelationKey(o.schema, o.parent))
 		add(o.parentIndexKey)
@@ -631,6 +765,12 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 				refSchema = o.schema
 			}
 			add(metadataRelationKey(refSchema, o.fk.GetReferencedTable()))
+		}
+	case metadataTrigger:
+		add(metadataRelationKey(o.schema, o.parent))
+		if o.triggerStmt != nil && o.triggerStmt.Funcname != nil {
+			funcSchema, funcName := qualifiedName(o.triggerStmt.Funcname)
+			addRoutineRef(funcSchema, funcName)
 		}
 	default:
 	}
@@ -774,8 +914,18 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err != nil {
 			return err
 		}
-		if err := c.DefineRelation(stmt, 'r'); err != nil {
+		relKind := byte('r')
+		if o.external != nil {
+			relKind = 'f'
+		}
+		if err := c.DefineRelation(stmt, relKind); err != nil {
 			return err
+		}
+		if o.external != nil {
+			if rel := c.GetRelation(o.schema, o.name); rel != nil && rel.RelKind == 'f' {
+				rel.ForeignServer = o.external.GetExternalServerName()
+				rel.ForeignOptions = slices.Clone(o.external.GetOptions())
+			}
 		}
 		c.ownSerialSequences(o)
 		c.setSnapshotTableOwner(o)
@@ -823,6 +973,37 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 			return err
 		}
 		return c.AlterTableStmt(stmt)
+	case metadataTrigger:
+		if o.triggerBodyErr != nil {
+			return o.triggerBodyErr
+		}
+		if o.triggerStmt == nil {
+			return errors.New("trigger has no body")
+		}
+		stmt := o.triggerStmt
+		if stmt.Relation == nil {
+			stmt.Relation = &nodes.RangeVar{Schemaname: o.schema, Relname: o.parent}
+		} else if stmt.Relation.Schemaname == "" {
+			stmt.Relation.Schemaname = o.schema
+		}
+		if o.name != "" && stmt.Trigname == "" {
+			stmt.Trigname = o.name
+		}
+		if err := c.CreateTriggerStmt(stmt); err != nil {
+			return err
+		}
+		if o.trigger != nil && o.trigger.GetComment() != "" {
+			if rel := c.GetRelation(o.schema, o.parent); rel != nil {
+				trigName := cmp.Or(stmt.Trigname, o.name)
+				for _, installed := range c.TriggersOf(rel.OID) {
+					if installed.Name == trigName && installed.ParentTriggerOID == 0 {
+						c.comments[commentKey{ObjType: 'g', ObjOID: installed.OID}] = o.trigger.GetComment()
+						break
+					}
+				}
+			}
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
 	}
@@ -1000,8 +1181,18 @@ func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) 
 		}
 		def := &nodes.ColumnDef{Colname: col.GetName(), TypeName: tn, IsNotNull: !col.GetNullable()}
 		if col.GetCollation() != "" {
-			// Sync reports a column's collation by its bare name.
-			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
+			def.CollClause = &nodes.CollateClause{Collname: metadataNameList(col.GetCollationSchema(), unquoteIdent(col.GetCollation()))}
+		}
+		if opts := col.GetOptions(); len(opts) > 0 {
+			fdwItems := make([]nodes.Node, 0, len(opts))
+			for _, opt := range opts {
+				if k, v, ok := strings.Cut(opt, "="); ok {
+					fdwItems = append(fdwItems, &nodes.DefElem{Defname: k, Arg: &nodes.String{Str: v}})
+				}
+			}
+			if len(fdwItems) > 0 {
+				def.Fdwoptions = &nodes.List{Items: fdwItems}
+			}
 		}
 		if full {
 			setColumnValueProperties(schema, def, col, o.ownedSequences[col.GetName()])
@@ -1086,6 +1277,18 @@ func metadataKeyConstraint(idx *metadata.IndexMetadata) ConstraintDef {
 	}
 	for _, expr := range idx.GetExpressions() {
 		def.Columns = append(def.Columns, unquoteIdent(expr))
+	}
+	// Expressions holds only the key columns; INCLUDE columns and NULLS NOT
+	// DISTINCT are in the definition.
+	if stmt, err := parseStatement[*nodes.IndexStmt](idx.GetDefinition()); err == nil {
+		def.NullsNotDistinct = stmt.Nulls_not_distinct && !idx.GetPrimary()
+		if stmt.IndexIncludingParams != nil {
+			for _, item := range stmt.IndexIncludingParams.Items {
+				if elem, ok := item.(*nodes.IndexElem); ok && elem.Name != "" {
+					def.IncludeColumns = append(def.IncludeColumns, elem.Name)
+				}
+			}
+		}
 	}
 	return def
 }
@@ -1240,9 +1443,19 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			comment("TABLE "+qualified(t.GetName()), t.GetComment())
 			columns(t.GetName(), t.GetColumns())
 			indexes(s.GetName(), t.GetName(), t.GetIndexes())
+			for _, fk := range t.GetForeignKeys() {
+				comment("CONSTRAINT "+quoteIdent(fk.GetName())+" ON "+qualified(t.GetName()), fk.GetComment())
+			}
+			for _, chk := range t.GetCheckConstraints() {
+				comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+qualified(t.GetName()), chk.GetComment())
+			}
 			forEachPartition(s.GetName(), t, func(partitionSchema string, p *metadata.TablePartitionMetadata) {
-				comment("TABLE "+quoteIdent(partitionSchema)+"."+quoteIdent(p.GetName()), p.GetComment())
+				partQualified := quoteIdent(partitionSchema) + "." + quoteIdent(p.GetName())
+				comment("TABLE "+partQualified, p.GetComment())
 				indexes(partitionSchema, p.GetName(), p.GetIndexes())
+				for _, chk := range p.GetCheckConstraints() {
+					comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+partQualified, chk.GetComment())
+				}
 			})
 		}
 		for _, v := range s.GetViews() {
@@ -1253,6 +1466,12 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			comment("MATERIALIZED VIEW "+qualified(mv.GetName()), mv.GetComment())
 			indexes(s.GetName(), mv.GetName(), mv.GetIndexes())
 		}
+		for _, et := range s.GetExternalTables() {
+			columns(et.GetName(), et.GetColumns())
+			for _, chk := range et.GetCheckConstraints() {
+				comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+qualified(et.GetName()), chk.GetComment())
+			}
+		}
 		for _, fn := range s.GetFunctions() {
 			if fn.GetSignature() == "" {
 				continue
@@ -1261,11 +1480,11 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			if isProcedureDefinition(fn.GetDefinition()) {
 				kind = "PROCEDURE "
 			}
-			comment(kind+schema+"."+signatureTypesOnly(fn.GetSignature()), fn.GetComment())
+			comment(kind+routineCommentTarget(qualified, fn.GetName(), fn.GetSignature()), fn.GetComment())
 		}
 		for _, p := range s.GetProcedures() {
 			if p.GetSignature() != "" {
-				comment("PROCEDURE "+schema+"."+signatureTypesOnly(p.GetSignature()), p.GetComment())
+				comment("PROCEDURE "+routineCommentTarget(qualified, p.GetName(), p.GetSignature()), p.GetComment())
 			}
 		}
 	}
@@ -1326,6 +1545,7 @@ func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
 		return
 	}
 	rel.OwnerName = owner
+	rel.OwnerExplicit = owner != ""
 	for _, idx := range c.indexesByRel[rel.OID] {
 		idx.OwnerName = owner
 	}
@@ -1738,4 +1958,41 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], `""`, `"`)
 	}
 	return s
+}
+
+func routineCommentTarget(qualified func(string) string, name, sig string) string {
+	var rawArgs string
+	var hasParen bool
+	if name != "" {
+		for _, prefix := range []string{name, quoteIdent(name), quoteIdentifier(name)} {
+			if rest, ok := strings.CutPrefix(sig, prefix); ok {
+				if rest == "" {
+					return qualified(name)
+				}
+				if strings.HasPrefix(rest, "(") {
+					rawArgs = rest[1:]
+					hasParen = true
+					break
+				}
+			}
+		}
+	}
+	if !hasParen {
+		sigName, args, ok := splitRoutineIdentityNameAndArgs(sig)
+		if !ok {
+			if name != "" {
+				return qualified(name)
+			}
+			return qualified(unquoteIdent(sig))
+		}
+		if name == "" {
+			name = unquoteIdent(sigName)
+		}
+		rawArgs = args
+	}
+	_, strippedArgs, ok := strings.Cut(signatureTypesOnly("fn("+rawArgs), "(")
+	if !ok {
+		strippedArgs = rawArgs
+	}
+	return qualified(name) + "(" + strippedArgs
 }

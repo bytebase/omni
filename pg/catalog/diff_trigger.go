@@ -6,25 +6,34 @@ import "sort"
 // Identity key is the trigger Name. A partition's clone of its parent's
 // trigger is left out: PostgreSQL creates and drops it with the parent's.
 func diffTriggers(from, to *Catalog, fromRelOID, toRelOID uint32) []TriggerDiffEntry {
-	// Build name→*Trigger maps.
+	// Build name→*Trigger maps; retain full maps to avoid treating
+	// extension-membership (SkipDump) transitions as trigger create/drop.
+	fromAll := make(map[string]*Trigger)
 	fromMap := make(map[string]*Trigger)
 	for _, trig := range from.TriggersOf(fromRelOID) {
 		if trig.ParentTriggerOID == 0 {
-			fromMap[trig.Name] = trig
+			fromAll[trig.Name] = trig
+			if !from.isExtensionMember(trig.OID) {
+				fromMap[trig.Name] = trig
+			}
 		}
 	}
+	toAll := make(map[string]*Trigger)
 	toMap := make(map[string]*Trigger)
 	for _, trig := range to.TriggersOf(toRelOID) {
 		if trig.ParentTriggerOID == 0 {
-			toMap[trig.Name] = trig
+			toAll[trig.Name] = trig
+			if !to.isExtensionMember(trig.OID) {
+				toMap[trig.Name] = trig
+			}
 		}
 	}
 
 	var result []TriggerDiffEntry
 
-	// Dropped: in from but not in to.
+	// Dropped: in from (user-managed) and not present in to at all.
 	for name, fromTrig := range fromMap {
-		if _, ok := toMap[name]; !ok {
+		if _, ok := toAll[name]; !ok {
 			result = append(result, TriggerDiffEntry{
 				Action: DiffDrop,
 				Name:   name,
@@ -33,10 +42,21 @@ func diffTriggers(from, to *Catalog, fromRelOID, toRelOID uint32) []TriggerDiffE
 		}
 	}
 
-	// Added or modified: in to.
+	// Added or modified: in to (user-managed).
 	for name, toTrig := range toMap {
 		fromTrig, ok := fromMap[name]
 		if !ok {
+			if prevTrig, existed := fromAll[name]; existed {
+				if triggersChanged(from, to, prevTrig, toTrig) {
+					result = append(result, TriggerDiffEntry{
+						Action: DiffModify,
+						Name:   name,
+						From:   prevTrig,
+						To:     toTrig,
+					})
+				}
+				continue
+			}
 			result = append(result, TriggerDiffEntry{
 				Action: DiffAdd,
 				Name:   name,
@@ -118,15 +138,21 @@ func triggersChanged(fromCat, toCat *Catalog, a, b *Trigger) bool {
 	if a.Initdeferred != b.Initdeferred {
 		return true
 	}
+	if constraintTriggerFromName(fromCat, a) != constraintTriggerFromName(toCat, b) {
+		return true
+	}
 
 	return false
 }
 
-// resolveTriggerFuncName resolves a trigger's FuncOID to a qualified function name.
+// resolveTriggerFuncName resolves a trigger's FuncOID to a schema-qualified function name when user-defined.
 func resolveTriggerFuncName(c *Catalog, funcOID uint32) string {
+	if up := c.userProcs[funcOID]; up != nil && up.Schema != nil {
+		return quoteIdentAlways(up.Schema.Name) + "." + quoteIdentAlways(up.Name)
+	}
 	p := c.procByOID[funcOID]
 	if p == nil {
 		return ""
 	}
-	return p.Name
+	return quoteIdentAlways(p.Name)
 }

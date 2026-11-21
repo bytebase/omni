@@ -3,6 +3,8 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMigrationRange(t *testing.T) {
@@ -144,4 +146,68 @@ func TestMigrationRange(t *testing.T) {
 			tt.check(t, plan)
 		})
 	}
+}
+
+func TestRangeRenameKeepsIdentity(t *testing.T) {
+	plan := func(t *testing.T, base, change string) (string, *Catalog, *Catalog) {
+		t.Helper()
+		from := New()
+		_, err := from.Exec(base, nil)
+		require.NoError(t, err)
+		to := from.Clone()
+		_, err = to.Exec(change, nil)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		applied := from.Clone()
+		res, err := applied.Exec(sql, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range res {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		require.True(t, Diff(applied, to).IsEmpty(), sql)
+		return sql, applied, to
+	}
+	base := `
+		CREATE SCHEMA s2;
+		CREATE ROLE u1;
+		CREATE TYPE public.r1 AS RANGE (subtype = int4);
+		GRANT USAGE ON TYPE public.r1 TO u1;
+		COMMENT ON TYPE public.r1 IS 'kept';
+		CREATE FUNCTION public.f(x public.r1) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1';
+		CREATE DOMAIN public.d AS public.r1;
+		CREATE TABLE public.t (c public.r1, n int);
+		CREATE VIEW public.v AS SELECT c FROM public.t;
+	`
+
+	// RENAME TO keeps the range, so its column, function, domain, view, grant, and comment stay.
+	sql, _, _ := plan(t, base, `ALTER TYPE public.r1 RENAME TO r2;`)
+	require.Equal(t, `ALTER TYPE "public"."r1" RENAME TO "r2"`, sql)
+
+	// SET SCHEMA leaves the multirange behind, as PostgreSQL 17 does.
+	sql, applied, _ := plan(t, base, `ALTER TYPE public.r1 SET SCHEMA s2;`)
+	require.Equal(t, `ALTER TYPE "public"."r1" SET SCHEMA "s2"`, sql)
+	require.NotZero(t, resolveTypeOIDByName(applied, "public", "r1_multirange"))
+
+	// A move and rename of both the range and its multirange.
+	sql, _, _ = plan(t, base, `
+		ALTER TYPE public.r1 SET SCHEMA s2;
+		ALTER TYPE s2.r1 RENAME TO r2;
+		ALTER TYPE public.r1_multirange SET SCHEMA s2;
+		ALTER TYPE s2.r1_multirange RENAME TO r2_multirange;
+	`)
+	require.Equal(t, strings.Join([]string{
+		`ALTER TYPE "public"."r1" SET SCHEMA "s2"`,
+		`ALTER TYPE "s2"."r1" RENAME TO "r2"`,
+		`ALTER TYPE "public"."r1_multirange" SET SCHEMA "s2"`,
+		`ALTER TYPE "s2"."r1_multirange" RENAME TO "r2_multirange"`,
+	}, ";\n"), sql)
+
+	// A move into a schema the migration creates cannot run first, so it stays a rebuild.
+	sql, _, _ = plan(t, `CREATE TYPE public.r1 AS RANGE (subtype = int4);`, `
+		CREATE SCHEMA s3;
+		ALTER TYPE public.r1 SET SCHEMA s3;
+		ALTER TYPE public.r1_multirange SET SCHEMA s3;
+	`)
+	require.NotContains(t, sql, "ALTER TYPE")
+	require.Contains(t, sql, `DROP TYPE "public"."r1"`)
 }

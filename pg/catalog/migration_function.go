@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -22,7 +23,11 @@ func generateFunctionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropFunctionOp(from, entry))
+			op := buildDropFunctionOp(from, entry)
+			if functionDetachedInPhaseMain(diff, entry.From) {
+				op.Phase = PhaseLateDrop
+			}
+			ops = append(ops, op)
 
 		case DiffModify:
 			if entry.From == nil || entry.To == nil {
@@ -95,14 +100,21 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	b.WriteString("\nLANGUAGE ")
 	b.WriteString(proc.Language)
 
-	// Attributes (functions only).
+	// Attributes (functions only), or SECURITY DEFINER and SET options for procedures.
 	if proc.Kind != 'p' {
 		b.WriteString(formatFuncAttributes(proc))
+	} else {
+		if proc.SecDef {
+			b.WriteString("\nSECURITY DEFINER")
+		}
+		for _, sc := range proc.SetConfig {
+			b.WriteByte('\n')
+			b.WriteString(sc)
+		}
 	}
 
 	// Body.
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpCreateFunction,
@@ -144,8 +156,7 @@ func buildReplaceeFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	b.WriteString(formatFuncAttributes(proc))
 
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -189,8 +200,32 @@ func buildDropFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	}
 }
 
+func functionDetachedInPhaseMain(diff *SchemaDiff, proc *UserProc) bool {
+	if diff == nil || proc == nil {
+		return false
+	}
+	for _, fdw := range diff.ForeignDataWrappers {
+		if fdw.Action == DiffModify && fdw.From != nil &&
+			(fdw.From.HandlerOID == proc.OID || fdw.From.ValidatorOID == proc.OID) {
+			return true
+		}
+	}
+	for _, fn := range diff.Functions {
+		if fn.Action == DiffModify && fn.From != nil && fn.From.SupportOID == proc.OID {
+			return true
+		}
+	}
+	return false
+}
+
 // formatFuncParams formats the parameter list for CREATE FUNCTION/PROCEDURE.
 func formatFuncParams(c *Catalog, proc *UserProc) string {
+	return formatFuncParamsWith(c, proc, func(oid uint32) string { return c.FormatType(oid, -1) })
+}
+
+// formatFuncParamsWith is formatFuncParams with the parameter types written by
+// formatType.
+func formatFuncParamsWith(c *Catalog, proc *UserProc, formatType func(uint32) string) string {
 	if len(proc.ArgTypes) == 0 && len(proc.AllArgTypes) == 0 {
 		return ""
 	}
@@ -202,25 +237,28 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 	}
 
 	var parts []string
+	inputIdx := 0
 	for i, toid := range argTypes {
 		// Skip TABLE mode params — they go in RETURNS TABLE(...).
-		if proc.ArgModes != nil && i < len(proc.ArgModes) && proc.ArgModes[i] == 't' {
+		var mode byte
+		if proc.ArgModes != nil && i < len(proc.ArgModes) {
+			mode = proc.ArgModes[i]
+		}
+		if mode == 't' {
 			continue
 		}
 
 		var param strings.Builder
 
 		// Mode prefix.
-		if proc.ArgModes != nil && i < len(proc.ArgModes) {
-			switch proc.ArgModes[i] {
-			case 'o':
-				param.WriteString("OUT ")
-			case 'b':
-				param.WriteString("INOUT ")
-			case 'v':
-				param.WriteString("VARIADIC ")
+		switch mode {
+		case 'o':
+			param.WriteString("OUT ")
+		case 'b':
+			param.WriteString("INOUT ")
+		case 'v':
+			param.WriteString("VARIADIC ")
 			// 'i' (IN) is implicit, 't' (TABLE) handled separately
-			}
 		}
 
 		// Parameter name.
@@ -230,7 +268,16 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 		}
 
 		// Type.
-		param.WriteString(c.FormatType(toid, -1))
+		param.WriteString(formatType(toid))
+
+		// Default expression for input parameters.
+		if mode != 'o' {
+			if proc.ArgDefaults != nil && inputIdx < len(proc.ArgDefaults) && proc.ArgDefaults[inputIdx] != "" {
+				param.WriteString(" DEFAULT ")
+				param.WriteString(proc.ArgDefaults[inputIdx])
+			}
+			inputIdx++
+		}
 
 		parts = append(parts, param.String())
 	}
@@ -279,7 +326,7 @@ func formatFuncAttributes(proc *UserProc) string {
 		parts = append(parts, "IMMUTABLE")
 	case 's':
 		parts = append(parts, "STABLE")
-	// 'v' (VOLATILE) is default, omit.
+		// 'v' (VOLATILE) is default, omit.
 	}
 
 	// Strictness.
@@ -303,13 +350,37 @@ func formatFuncAttributes(proc *UserProc) string {
 		parts = append(parts, "PARALLEL SAFE")
 	case 'r':
 		parts = append(parts, "PARALLEL RESTRICTED")
-	// 'u' (UNSAFE) is default, omit.
+		// 'u' (UNSAFE) is default, omit.
+	}
+
+	if proc.IsWindow {
+		parts = append(parts, "WINDOW")
+	}
+	if proc.Cost != "" {
+		parts = append(parts, "COST "+proc.Cost)
+	}
+	if proc.Rows != "" {
+		parts = append(parts, "ROWS "+proc.Rows)
+	}
+	parts = append(parts, proc.SetConfig...)
+	if proc.Support != "" {
+		parts = append(parts, "SUPPORT "+proc.Support)
 	}
 
 	if len(parts) == 0 {
 		return ""
 	}
 	return "\n" + strings.Join(parts, "\n")
+}
+
+func formatFunctionBodyClause(proc *UserProc) string {
+	if proc.HasSqlBody {
+		return "\n" + proc.Body
+	}
+	if proc.LinkSymbol != "" {
+		return "\nAS " + quoteLiteral(proc.Body) + ", " + quoteLiteral(proc.LinkSymbol)
+	}
+	return "\nAS " + dollarQuote(proc.Body)
 }
 
 // buildReplaceProcedureOp generates a CREATE OR REPLACE PROCEDURE op.
@@ -326,8 +397,15 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	b.WriteString("\nLANGUAGE ")
 	b.WriteString(proc.Language)
 
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	if proc.SecDef {
+		b.WriteString("\nSECURITY DEFINER")
+	}
+	for _, sc := range proc.SetConfig {
+		b.WriteByte('\n')
+		b.WriteString(sc)
+	}
+
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -348,6 +426,9 @@ func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *User
 	if from.Kind != to.Kind {
 		return true
 	}
+	if from.IsWindow != to.IsWindow {
+		return true
+	}
 	if len(from.ArgTypes) != len(to.ArgTypes) {
 		return true
 	}
@@ -365,14 +446,24 @@ func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *User
 			return true
 		}
 	}
-	// Check arg names — PG doesn't allow renaming params via CREATE OR REPLACE.
-	if len(from.ArgNames) != len(to.ArgNames) {
+	// Check arg names and modes — PG doesn't allow changing them via CREATE OR REPLACE.
+	if !slices.Equal(from.ArgNames, to.ArgNames) {
 		return true
 	}
-	for i := range from.ArgNames {
-		if from.ArgNames[i] != to.ArgNames[i] {
+	if !slices.Equal(from.ArgModes, to.ArgModes) {
+		return true
+	}
+	if len(from.AllArgTypes) != len(to.AllArgTypes) {
+		return true
+	}
+	for i := range from.AllArgTypes {
+		if fromCat.FormatType(from.AllArgTypes[i], -1) != toCat.FormatType(to.AllArgTypes[i], -1) {
 			return true
 		}
+	}
+	// PG doesn't allow removing input parameter defaults via CREATE OR REPLACE.
+	if from.NArgDefaults > to.NArgDefaults {
+		return true
 	}
 	return false
 }
@@ -389,6 +480,12 @@ func hasTableReturn(proc *UserProc) bool {
 
 // formatReturnsTable formats a RETURNS TABLE(...) clause.
 func formatReturnsTable(c *Catalog, proc *UserProc) string {
+	return formatReturnsTableWith(proc, func(oid uint32) string { return c.FormatType(oid, -1) })
+}
+
+// formatReturnsTableWith is formatReturnsTable with the column types written
+// by formatType.
+func formatReturnsTableWith(proc *UserProc, formatType func(uint32) string) string {
 	var cols []string
 	for i, mode := range proc.ArgModes {
 		if mode == 't' {
@@ -396,18 +493,29 @@ func formatReturnsTable(c *Catalog, proc *UserProc) string {
 			if i < len(proc.ArgNames) {
 				name = proc.ArgNames[i]
 			}
-			typeName := c.FormatType(proc.AllArgTypes[i], -1)
+			typeName := formatType(proc.AllArgTypes[i])
 			cols = append(cols, fmt.Sprintf("%s %s", quoteIdentAlways(name), typeName))
 		}
 	}
 	return "TABLE(" + strings.Join(cols, ", ") + ")"
 }
 
-// dollarQuote wraps a function body in dollar-quoting.
-// If the body contains $$, uses $fn$...$fn$ instead.
+// dollarQuote wraps a function body in dollar-quoting using $$ when absent
+// from body, or another safe dollar tag.
 func dollarQuote(body string) string {
-	if strings.Contains(body, "$$") {
-		return fmt.Sprintf("$fn$%s$fn$", body)
+	return dollarQuoteWithDefault(body, "$$")
+}
+
+func dollarQuoteWithDefault(body, preferred string) string {
+	for _, tag := range []string{preferred, "$fn$", "$body$"} {
+		if tag != "" && !strings.Contains(body, tag) {
+			return tag + body + tag
+		}
 	}
-	return fmt.Sprintf("$$%s$$", body)
+	for i := 1; ; i++ {
+		tag := fmt.Sprintf("$fn%d$", i)
+		if !strings.Contains(body, tag) {
+			return tag + body + tag
+		}
+	}
 }

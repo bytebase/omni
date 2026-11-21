@@ -309,6 +309,48 @@ func TestMigrationFunction(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "Procedure with SECURITY DEFINER preserves SECURITY DEFINER on CREATE and REPLACE",
+			fromSQL: "",
+			toSQL: `
+				CREATE PROCEDURE public.sec_proc(x integer)
+				LANGUAGE plpgsql
+				SECURITY DEFINER
+				AS $$ BEGIN NULL; END; $$;
+			`,
+			check: func(t *testing.T, plan *MigrationPlan) {
+				ops := filterOps(plan, OpCreateFunction)
+				if len(ops) != 1 {
+					t.Fatalf("expected 1 CreateFunction op, got %d", len(ops))
+				}
+				if !strings.Contains(ops[0].SQL, "SECURITY DEFINER") {
+					t.Errorf("missing SECURITY DEFINER in CREATE PROCEDURE: %s", ops[0].SQL)
+				}
+			},
+		},
+		{
+			name: "Procedure altered to SECURITY DEFINER preserves SECURITY DEFINER",
+			fromSQL: `
+				CREATE PROCEDURE public.sec_proc(x integer)
+				LANGUAGE plpgsql
+				AS $$ BEGIN NULL; END; $$;
+			`,
+			toSQL: `
+				CREATE PROCEDURE public.sec_proc(x integer)
+				LANGUAGE plpgsql
+				SECURITY DEFINER
+				AS $$ BEGIN NULL; END; $$;
+			`,
+			check: func(t *testing.T, plan *MigrationPlan) {
+				ops := filterOps(plan, OpAlterFunction)
+				if len(ops) != 1 {
+					t.Fatalf("expected 1 AlterFunction op, got %d", len(ops))
+				}
+				if !strings.Contains(ops[0].SQL, "SECURITY DEFINER") {
+					t.Errorf("missing SECURITY DEFINER in CREATE OR REPLACE PROCEDURE: %s", ops[0].SQL)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -327,4 +369,3 @@ func TestMigrationFunction(t *testing.T) {
 		})
 	}
 }
-

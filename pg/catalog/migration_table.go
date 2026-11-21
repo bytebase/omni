@@ -31,6 +31,24 @@ func formatRelationName(schemaName, relName string, rel *Relation) string {
 	return migrationQualifiedName(schemaName, relName)
 }
 
+func buildTableOwnerOp(schemaName, tableName string, rel *Relation) (MigrationOp, bool) {
+	if rel == nil || rel.OwnerName == "" || (!rel.OwnerExplicit && rel.OwnerName == "postgres") {
+		return MigrationOp{}, false
+	}
+	qn := formatRelationTargetName(schemaName, rel)
+	return MigrationOp{
+		Type:          OpAlterTable,
+		SchemaName:    schemaName,
+		ObjectName:    tableName,
+		SQL:           fmt.Sprintf("ALTER TABLE %s OWNER TO %s", qn, quoteIdentifier(rel.OwnerName)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        rel.OID,
+		Priority:      PriorityMetadata,
+	}, true
+}
+
 // generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
 func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
@@ -61,6 +79,23 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityTable,
 			})
+			if ownerOp, ok := buildTableOwnerOp(entry.SchemaName, entry.Name, entry.To); ok {
+				ops = append(ops, ownerOp)
+			}
+
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			rk := entry.To.RelKind
+			if rk != 'r' && rk != 'p' {
+				continue
+			}
+			if effectiveTableOwner(entry.From) != effectiveTableOwner(entry.To) || tableRebuilt(from, to, entry.From, entry.To) {
+				if ownerOp, ok := buildTableOwnerOp(entry.SchemaName, entry.Name, entry.To); ok {
+					ops = append(ops, ownerOp)
+				}
+			}
 
 		case DiffDrop:
 			if entry.From == nil {
@@ -152,7 +187,7 @@ func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relati
 		case ConstraintPK:
 			inlineConstraints = append(inlineConstraints, formatPKConstraint(rel, con))
 		case ConstraintUnique:
-			inlineConstraints = append(inlineConstraints, formatUniqueConstraint(rel, con))
+			inlineConstraints = append(inlineConstraints, formatUniqueConstraint(c, rel, con))
 		case ConstraintCheck:
 			inlineConstraints = append(inlineConstraints, formatCheckConstraint(con))
 		}
@@ -469,10 +504,14 @@ func formatPKConstraint(rel *Relation, con *Constraint) string {
 }
 
 // formatUniqueConstraint formats a UNIQUE constraint clause.
-func formatUniqueConstraint(rel *Relation, con *Constraint) string {
+func formatUniqueConstraint(c *Catalog, rel *Relation, con *Constraint) string {
 	cols := columnAttnumsToQuotedNames(rel, con.Columns)
-	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
-		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+	nulls := ""
+	if constraintNullsNotDistinct(c, con) {
+		nulls = " NULLS NOT DISTINCT"
+	}
+	clause := fmt.Sprintf("CONSTRAINT %s UNIQUE%s (%s)",
+		quoteIdentAlways(con.Name), nulls, strings.Join(cols, ", "))
 	if len(con.IncludeColumns) > 0 {
 		inc := columnAttnumsToQuotedNames(rel, con.IncludeColumns)
 		clause += fmt.Sprintf(" INCLUDE (%s)", strings.Join(inc, ", "))
@@ -482,8 +521,12 @@ func formatUniqueConstraint(rel *Relation, con *Constraint) string {
 
 // formatCheckConstraint formats a CHECK constraint clause.
 func formatCheckConstraint(con *Constraint) string {
-	return fmt.Sprintf("CONSTRAINT %s CHECK (%s)",
+	clause := fmt.Sprintf("CONSTRAINT %s CHECK (%s)",
 		quoteIdentAlways(con.Name), con.CheckExpr)
+	if con.ConNoInherit {
+		clause += " NO INHERIT"
+	}
+	return clause
 }
 
 // resolveAttnumsToNames converts attnums to quoted column names.

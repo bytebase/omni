@@ -55,15 +55,24 @@ func TestTruncateCascadeOK(t *testing.T) {
 
 func TestTruncateForeignTableRejected(t *testing.T) {
 	c := New()
+	if err := c.CreateFdwStmt(&nodes.CreateFdwStmt{Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.CreateForeignServerStmt(&nodes.CreateForeignServerStmt{Servername: "srv", Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
 	// Create a foreign table.
-	c.ProcessUtility(&nodes.CreateForeignTableStmt{
+	if err := c.ProcessUtility(&nodes.CreateForeignTableStmt{
 		Base: nodes.CreateStmt{
 			Relation: &nodes.RangeVar{Relname: "ft"},
 			TableElts: &nodes.List{Items: []nodes.Node{
 				makeColumnDefNode(ColumnDef{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}),
 			}},
 		},
-	})
+		Servername: "srv",
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	// TRUNCATE ft — should fail because foreign tables cannot be truncated.
 	stmt := &nodes.TruncateStmt{
@@ -195,7 +204,7 @@ func TestGrantSelectOnFunctionError(t *testing.T) {
 	c := New()
 	// Create a function.
 	funcStmt := &nodes.CreateFunctionStmt{
-		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myfunc"}}},
+		Funcname:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myfunc"}}},
 		ReturnType: makeTypeNameNode(TypeName{Name: "int4", TypeMod: -1}),
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},
@@ -214,7 +223,7 @@ func TestGrantSelectOnFunctionError(t *testing.T) {
 		Objtype: nodes.OBJECT_FUNCTION,
 		Objects: &nodes.List{Items: []nodes.Node{
 			&nodes.ObjectWithArgs{
-				Objname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myfunc"}}},
+				Objname:         &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myfunc"}}},
 				ArgsUnspecified: true,
 			},
 		}},
@@ -322,7 +331,7 @@ func TestDropFunctionOnAggregateHint(t *testing.T) {
 	c := New()
 	// Create a function and manually set its Kind to 'a' (aggregate).
 	funcStmt := &nodes.CreateFunctionStmt{
-		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myagg"}}},
+		Funcname:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myagg"}}},
 		ReturnType: makeTypeNameNode(TypeName{Name: "int4", TypeMod: -1}),
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},

@@ -62,7 +62,11 @@ func LoadSDL(sql string) (*Catalog, error) {
 		}
 	}
 
-	// Execute in topologically sorted order.
+	// Execute in topologically sorted order. SDL declares schema objects only and
+	// does not declare external FDW/server objects, so permit foreign tables to
+	// reference servers managed outside the SDL snapshot during load.
+	c.allowImplicitForeignServer = true
+	defer func() { c.allowImplicitForeignServer = false }()
 	for _, stmt := range ordered {
 		// Before executing a CompositeTypeStmt, remove its shell type so
 		// DefineRelation does not see a conflicting type name.

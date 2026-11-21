@@ -237,11 +237,11 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	servertype, err := p.parseOptType()
+	servertype, hasServertype, err := p.parseOptType()
 	if err != nil {
 		return nil, err
 	}
-	version, err := p.parseOptForeignServerVersion()
+	version, hasVersion, hasVersionNull, err := p.parseOptForeignServerVersion()
 	if err != nil {
 		return nil, err
 	}
@@ -263,13 +263,16 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	return &nodes.CreateForeignServerStmt{
-		Servername:  name,
-		Servertype:  servertype,
-		Version:     version,
-		Fdwname:     fdwname,
-		IfNotExists: ifNotExists,
-		Options:     options,
-		Loc:         nodes.Loc{Start: p.stmtStart, End: p.prev.End},
+		Servername:     name,
+		Servertype:     servertype,
+		HasServertype:  hasServertype,
+		Version:        version,
+		HasVersion:     hasVersion,
+		HasVersionNull: hasVersionNull,
+		Fdwname:        fdwname,
+		IfNotExists:    ifNotExists,
+		Options:        options,
+		Loc:            nodes.Loc{Start: p.stmtStart, End: p.prev.End},
 	}, nil
 }
 
@@ -313,9 +316,10 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 	}
 
 	hasVersion := false
+	hasVersionNull := false
 	version := ""
 	if p.cur.Type == VERSION_P {
-		if version, err = p.parseForeignServerVersion(); err != nil {
+		if version, hasVersionNull, err = p.parseForeignServerVersion(); err != nil {
 			return nil, err
 		}
 		hasVersion = true
@@ -337,49 +341,51 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.AlterForeignServerStmt{
-		Servername: name,
-		Version:    version,
-		Options:    options,
-		HasVersion: hasVersion,
-		Loc:        nodes.Loc{Start: p.stmtStart, End: p.prev.End},
+		Servername:     name,
+		Version:        version,
+		Options:        options,
+		HasVersion:     hasVersion,
+		HasVersionNull: hasVersionNull,
+		Loc:            nodes.Loc{Start: p.stmtStart, End: p.prev.End},
 	}, nil
 }
 
 // parseOptType parses opt_type: TYPE_P Sconst | /*EMPTY*/.
-func (p *Parser) parseOptType() (string, error) {
+func (p *Parser) parseOptType() (string, bool, error) {
 	if p.cur.Type != TYPE_P {
-		return "", nil
+		return "", false, nil
 	}
 	p.advance()
 	tok, err := p.expect(SCONST)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return tok.Str, nil
+	return tok.Str, true, nil
 }
 
 // parseForeignServerVersion parses foreign_server_version:
 // VERSION_P Sconst | VERSION_P NULL_P.
-func (p *Parser) parseForeignServerVersion() (string, error) {
+func (p *Parser) parseForeignServerVersion() (string, bool, error) {
 	if _, err := p.expect(VERSION_P); err != nil {
-		return "", err
+		return "", false, err
 	}
 	if p.cur.Type == NULL_P {
 		p.advance()
-		return "", nil
+		return "", true, nil
 	}
 	tok, err := p.expect(SCONST)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return tok.Str, nil
+	return tok.Str, false, nil
 }
 
-func (p *Parser) parseOptForeignServerVersion() (string, error) {
+func (p *Parser) parseOptForeignServerVersion() (string, bool, bool, error) {
 	if p.cur.Type == VERSION_P {
-		return p.parseForeignServerVersion()
+		v, isNull, err := p.parseForeignServerVersion()
+		return v, err == nil, isNull, err
 	}
-	return "", nil
+	return "", false, false, nil
 }
 
 func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {

@@ -2435,10 +2435,23 @@ func (d *deparseCtx) armContext() *deparseCtx {
 //
 // pg: src/backend/utils/adt/ruleutils.c — generate_relation_name
 func (d *deparseCtx) generateRelationName(rte *RangeTableEntry) string {
-	if rte.SchemaName != "" && rte.SchemaName != "public" {
-		return quoteIdentifier(rte.SchemaName) + "." + quoteIdentifier(rte.RelName)
+	schemaName := rte.SchemaName
+	relName := rte.RelName
+	if d.catalog != nil && rte.RelOID != 0 {
+		if rel := d.catalog.GetRelationByOID(rte.RelOID); rel != nil {
+			relName = rel.Name
+			if rel.Schema != nil {
+				isUnqualifiedTemp := rel.Persistence == 't' && isTempSchemaName(rel.Schema.Name) && schemaName == ""
+				if !isUnqualifiedTemp && (schemaName != "" || rel.Schema.Name != "public") {
+					schemaName = rel.Schema.Name
+				}
+			}
+		}
 	}
-	return quoteIdentifier(rte.RelName)
+	if schemaName != "" && schemaName != "public" {
+		return quoteIdentifier(schemaName) + "." + quoteIdentifier(relName)
+	}
+	return quoteIdentifier(relName)
 }
 
 // generateFuncName generates a function name for deparse.

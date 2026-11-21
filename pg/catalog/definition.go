@@ -2573,10 +2573,19 @@ func addFunctionNameEdges(graph *definitionGraph, functionMap map[string]*metada
 // a signature matches nothing, so only the function the catalog can name is
 // ordered.
 func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []string) bool {
-	if function == nil || function.Signature == "" {
+	if function == nil {
 		return false
 	}
-	args, ok := signatureArguments(function.Signature, function.Name)
+	return routineSignatureMatches(function.Name, function.Signature, expected)
+}
+
+// routineSignatureMatches reports whether a routine signature as sync writes
+// it, name(identity arguments), takes the expected input argument types.
+func routineSignatureMatches(name, signature string, expected []string) bool {
+	if signature == "" {
+		return false
+	}
+	args, ok := signatureArguments(signature, name)
 	if !ok {
 		return false
 	}

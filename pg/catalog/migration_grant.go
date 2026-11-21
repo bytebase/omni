@@ -29,6 +29,12 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 		case DiffDrop:
 			g := entry.From
+			if grantDroppedWithRelationChange(from, to, diff, g) {
+				continue
+			}
+			// Columns the migration drops lose their privileges with them; a
+			// revoke naming one would fail, so revoke only the surviving ones.
+			g.Columns = survivingGrantColumns(diff, g)
 			objName := resolveGrantObjName(from, g.ObjType, g.ObjOID)
 			sql := formatRevokeSQL(g, objName)
 			ops = append(ops, MigrationOp{
@@ -85,6 +91,86 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+func grantDroppedWithRelationChange(from, to *Catalog, diff *SchemaDiff, g Grant) bool {
+	if g.ObjType != 'r' || diff == nil {
+		return false
+	}
+	// A column grant disappears with its columns only when every one is dropped.
+	droppedGrantColumn := func() bool {
+		return len(g.Columns) > 0 && len(survivingGrantColumns(diff, g)) == 0
+	}
+	for _, entry := range diff.Relations {
+		if entry.From == nil || entry.From.OID != g.ObjOID {
+			continue
+		}
+		switch entry.Action {
+		case DiffDrop:
+			return true
+		case DiffModify:
+			if entry.To != nil && tableRebuilt(from, to, entry.From, entry.To) {
+				return true
+			}
+			return droppedGrantColumn()
+		}
+	}
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	renamedServers := renamedForeignServerNames(diff)
+	for _, ft := range diff.ForeignTables {
+		if ft.From == nil || ft.From.OID != g.ObjOID {
+			continue
+		}
+		switch ft.Action {
+		case DiffDrop:
+			return true
+		case DiffModify:
+			serverChanged := ft.From.ForeignServer != ft.To.ForeignServer && renamedServers[ft.From.ForeignServer] != ft.To.ForeignServer
+			if ft.To == nil || serverChanged || rebuiltServers[ft.From.ForeignServer] {
+				return true
+			}
+			return droppedGrantColumn()
+		}
+	}
+	if from != nil && len(rebuiltServers) > 0 {
+		if rel := from.GetRelationByOID(g.ObjOID); rel != nil && rel.RelKind == 'f' && rebuiltServers[rel.ForeignServer] {
+			return true
+		}
+	}
+	return false
+}
+
+// survivingGrantColumns returns the columns of g that the diff keeps on its
+// relation, or g.Columns unchanged when g is not a column grant.
+func survivingGrantColumns(diff *SchemaDiff, g Grant) []string {
+	if g.ObjType != 'r' || len(g.Columns) == 0 || diff == nil {
+		return g.Columns
+	}
+	dropped := make(map[string]bool)
+	collect := func(entries []RelationDiffEntry) {
+		for _, entry := range entries {
+			if entry.Action != DiffModify || entry.From == nil || entry.From.OID != g.ObjOID {
+				continue
+			}
+			for _, col := range entry.Columns {
+				if col.Action == DiffDrop {
+					dropped[col.Name] = true
+				}
+			}
+		}
+	}
+	collect(diff.Relations)
+	collect(diff.ForeignTables)
+	if len(dropped) == 0 {
+		return g.Columns
+	}
+	kept := make([]string, 0, len(g.Columns))
+	for _, col := range g.Columns {
+		if !dropped[col] {
+			kept = append(kept, col)
+		}
+	}
+	return kept
 }
 
 // restoreGrantOps grants again every privilege an object holds in c. A

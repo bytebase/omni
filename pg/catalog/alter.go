@@ -10,6 +10,44 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
+func applyForeignOptionChanges(existing []string, opts *nodes.List) ([]string, error) {
+	updated := slices.Clone(existing)
+	indexOf := func(name string) int {
+		prefix := name + "="
+		for i, entry := range updated {
+			if strings.HasPrefix(entry, prefix) {
+				return i
+			}
+		}
+		return -1
+	}
+	for _, item := range opts.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok || de.Defname == "" {
+			continue
+		}
+		idx := indexOf(de.Defname)
+		switch nodes.DefElemAction(de.Defaction) {
+		case nodes.DEFELEM_DROP:
+			if idx < 0 {
+				return nil, errUndefinedObject("option", de.Defname)
+			}
+			updated = append(updated[:idx], updated[idx+1:]...)
+		case nodes.DEFELEM_SET:
+			if idx < 0 {
+				return nil, errUndefinedObject("option", de.Defname)
+			}
+			updated[idx] = de.Defname + "=" + defElemString(de)
+		default: // DEFELEM_ADD or DEFELEM_UNSPEC
+			if idx >= 0 {
+				return nil, errDuplicateObject("option", de.Defname)
+			}
+			updated = append(updated, de.Defname+"="+defElemString(de))
+		}
+	}
+	return updated, nil
+}
+
 // atCmdPass maps AlterTableType to execution pass.
 // PG executes ALTER TABLE subcommands in pass order, not statement order.
 // Mirrors PG's AT_PASS_* constants:
@@ -959,6 +997,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				return err
 			}
 			rel.OwnerName = owner
+			rel.OwnerExplicit = true
 			c.transferACLs('r', rel.OID, oldOwner, owner)
 			if rel.RowTypeOID != 0 {
 				if _, ok := c.typeOwners[rel.RowTypeOID]; ok {
@@ -1097,14 +1136,29 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if rel.RelKind != 'f' {
 			return errWrongObjectType(relName, "a foreign table")
 		}
+		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
+			updated, err := applyForeignOptionChanges(rel.ForeignOptions, opts)
+			if err != nil {
+				return err
+			}
+			rel.ForeignOptions = updated
+		}
 		return nil
 
 	case nodes.AT_AlterColumnGenericOptions:
 		if rel.RelKind != 'f' {
 			return errWrongObjectType(relName, "a foreign table")
 		}
-		if _, exists := rel.colByName[atc.Name]; !exists {
+		idx, exists := rel.colByName[atc.Name]
+		if !exists {
 			return errUndefinedColumn(atc.Name)
+		}
+		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
+			updated, err := applyForeignOptionChanges(rel.Columns[idx].ForeignOptions, opts)
+			if err != nil {
+				return err
+			}
+			rel.Columns[idx].ForeignOptions = updated
 		}
 		return nil
 
@@ -1340,6 +1394,10 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameRule(stmt)
 	case nodes.OBJECT_COLLATION:
 		return c.renameCollation(stmt)
+	case nodes.OBJECT_FDW:
+		return c.renameFdw(stmt)
+	case nodes.OBJECT_FOREIGN_SERVER:
+		return c.renameForeignServer(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
 		return nil // Domain constraints: no-op for pgddl
 	case nodes.OBJECT_ATTRIBUTE:
@@ -1611,6 +1669,12 @@ func (c *Catalog) renameType(stmt *nodes.RenameStmt) error {
 		}
 	}
 
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil {
+			rt.Name = newName
+		}
+	}
+
 	return nil
 }
 
@@ -1877,6 +1941,8 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		bp.Name = newName
 		up.Name = newName
 		c.procByName[newName] = append(c.procByName[newName], bp)
+		c.updateFdwRoutineRefs(up.OID, schema.Name, newName, false)
+		c.updateSupportRoutineRefs(up.OID, schema.Name, newName, false)
 		return nil
 	}
 
@@ -1915,6 +1981,8 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 		c.procByName[newName] = append(c.procByName[newName], bp)
 	}
 	up.Name = newName
+	c.updateFdwRoutineRefs(up.OID, schema.Name, newName, false)
+	c.updateSupportRoutineRefs(up.OID, schema.Name, newName, false)
 	return nil
 }
 
@@ -2052,6 +2120,7 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		CollationSchema:  collSchema,
 		CollationName:    colDef.CollationName,
 		UserCollationOID: userCollOID,
+		ForeignOptions:   slices.Clone(colDef.ForeignOptions),
 	}
 	if colDef.Default != "" || colDef.RawDefault != nil {
 		col.HasDefault = true
@@ -2202,6 +2271,7 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	rel.Columns = append(rel.Columns[:idx], rel.Columns[idx+1:]...)
 	c.renumberColumns(rel)
 	c.shiftAttnumsAfterDrop(rel, attNum)
+	c.stripDroppedColumnGrants(rel.OID, colName)
 
 	// AlterTableStmt hands the drop to rel's children; a child passes it on
 	// to its own, one level at a time as PostgreSQL does.
@@ -2216,6 +2286,26 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) stripDroppedColumnGrants(relOID uint32, colName string) {
+	kept := c.grants[:0]
+	for _, g := range c.grants {
+		if g.ObjType == 'r' && g.ObjOID == relOID && len(g.Columns) > 0 && slices.Contains(g.Columns, colName) {
+			filtered := make([]string, 0, len(g.Columns)-1)
+			for _, col := range g.Columns {
+				if col != colName {
+					filtered = append(filtered, col)
+				}
+			}
+			if len(filtered) == 0 {
+				continue
+			}
+			g.Columns = filtered
+		}
+		kept = append(kept, g)
+	}
+	c.grants = kept
 }
 
 // atDropConstraint drops a constraint from a relation.
@@ -2883,14 +2973,20 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 
 	// Store partition bound.
 	if pc.Bound != nil {
+		listVals, listKeywords := deparseDatumListWithKinds(pc.Bound.Listdatums)
+		lowerVals, lowerKeywords := deparseDatumListWithKinds(pc.Bound.Lowerdatums)
+		upperVals, upperKeywords := deparseDatumListWithKinds(pc.Bound.Upperdatums)
 		part.PartitionBound = &PartitionBound{
-			Strategy:   pc.Bound.Strategy,
-			IsDefault:  pc.Bound.IsDefault,
-			ListValues: deparseDatumList(pc.Bound.Listdatums),
-			LowerBound: deparseDatumList(pc.Bound.Lowerdatums),
-			UpperBound: deparseDatumList(pc.Bound.Upperdatums),
-			Modulus:    pc.Bound.Modulus,
-			Remainder:  pc.Bound.Remainder,
+			Strategy:      pc.Bound.Strategy,
+			IsDefault:     pc.Bound.IsDefault,
+			ListValues:    listVals,
+			ListKeywords:  listKeywords,
+			LowerBound:    lowerVals,
+			LowerKeywords: lowerKeywords,
+			UpperBound:    upperVals,
+			UpperKeywords: upperKeywords,
+			Modulus:       pc.Bound.Modulus,
+			Remainder:     pc.Bound.Remainder,
 		}
 	}
 	part.PartitionOf = parent.OID
@@ -3580,6 +3676,8 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 			}
 		}
 		up.Schema = newSchema
+		c.updateFdwRoutineRefs(up.OID, newSchema.Name, up.Name, true)
+		c.updateSupportRoutineRefs(up.OID, newSchema.Name, up.Name, true)
 		return nil
 	}
 
@@ -3613,6 +3711,8 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		}
 	}
 	up.Schema = newSchema
+	c.updateFdwRoutineRefs(up.OID, newSchema.Name, up.Name, true)
+	c.updateSupportRoutineRefs(up.OID, newSchema.Name, up.Name, true)
 	return nil
 }
 

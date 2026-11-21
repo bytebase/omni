@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // formatRangeCollation formats the explicit COLLATION option of a range type,
@@ -20,10 +21,77 @@ func formatRangeCollation(rt *RangeType) string {
 func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) string {
 	subTypeName := cat.FormatType(rt.SubTypeOID, -1)
 	qualName := migrationQualifiedName(schemaName, name)
-	if coll := formatRangeCollation(rt); coll != "" {
-		return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s, COLLATION = %s)", qualName, subTypeName, coll)
+	params := []string{"SUBTYPE = " + subTypeName}
+	if rt.SubtypeOpclass != "" {
+		params = append(params, "SUBTYPE_OPCLASS = "+formatCatalogIdentRef(rt.SubtypeOpclass))
 	}
-	return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s)", qualName, subTypeName)
+	if coll := formatRangeCollation(rt); coll != "" {
+		params = append(params, "COLLATION = "+coll)
+	}
+	if rt.Canonical != "" {
+		params = append(params, "CANONICAL = "+formatCatalogIdentRef(rt.Canonical))
+	}
+	if rt.SubtypeDiff != "" {
+		params = append(params, "SUBTYPE_DIFF = "+formatCatalogIdentRef(rt.SubtypeDiff))
+	}
+	if mt := cat.TypeByOID(rt.MultirangeOID); mt != nil && mt.TypeName != "" {
+		mrSchemaName := schemaName
+		if ms := cat.schemas[mt.Namespace]; ms != nil && ms.Name != "" {
+			mrSchemaName = ms.Name
+		}
+		if mrSchemaName != schemaName || mt.TypeName != makeMultirangeTypeName(name) {
+			params = append(params, "MULTIRANGE_TYPE_NAME = "+migrationQualifiedName(mrSchemaName, mt.TypeName))
+		}
+	}
+	return fmt.Sprintf("CREATE TYPE %s AS RANGE (%s)", qualName, strings.Join(params, ", "))
+}
+
+func formatDropRangeTypeSQL(qualName string, rt *RangeType) string {
+	if rt != nil && rt.CanonicalOID != 0 {
+		// Canonical ranges and functions depend on each other; CASCADE breaks the drop cycle.
+		return fmt.Sprintf("DROP TYPE %s CASCADE", qualName)
+	}
+	return fmt.Sprintf("DROP TYPE %s", qualName)
+}
+
+func buildCreateRangeOps(to *Catalog, schemaName, name string, rt *RangeType) []MigrationOp {
+	qualName := migrationQualifiedName(schemaName, name)
+	if rt.Canonical != "" {
+		// Shell type lets canonical functions accept/return the range before full range definition.
+		return []MigrationOp{
+			{
+				Type:          OpCreateType,
+				SchemaName:    schemaName,
+				ObjectName:    name,
+				SQL:           fmt.Sprintf("CREATE TYPE %s", qualName),
+				Transactional: true,
+				Phase:         PhaseMain,
+				Priority:      PriorityType,
+			},
+			{
+				Type:          OpCreateType,
+				SchemaName:    schemaName,
+				ObjectName:    name,
+				SQL:           formatCreateRange(to, schemaName, name, rt),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        rt.OID,
+				Priority:      PriorityTable,
+			},
+		}
+	}
+	return []MigrationOp{{
+		Type:          OpCreateType,
+		SchemaName:    schemaName,
+		ObjectName:    name,
+		SQL:           formatCreateRange(to, schemaName, name, rt),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       't',
+		ObjOID:        rt.OID,
+		Priority:      PriorityType,
+	}}
 }
 
 // generateRangeDDL produces DDL operations for range type changes
@@ -36,18 +104,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To == nil {
 				continue
 			}
-			sql := formatCreateRange(to, entry.SchemaName, entry.Name, entry.To)
-			ops = append(ops, MigrationOp{
-				Type:          OpCreateType,
-				SchemaName:    entry.SchemaName,
-				ObjectName:    entry.Name,
-				SQL:           sql,
-				Transactional: true,
-				Phase:         PhaseMain,
-				ObjType:       't',
-				ObjOID:        entry.To.OID,
-				Priority:      PriorityType,
-			})
+			ops = append(ops, buildCreateRangeOps(to, entry.SchemaName, entry.Name, entry.To)...)
 		case DiffDrop:
 			if entry.From == nil {
 				continue
@@ -57,7 +114,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpDropType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
+				SQL:           formatDropRangeTypeSQL(qualName, entry.From),
 				Transactional: true,
 				Phase:         PhasePre,
 				ObjType:       't',
@@ -92,25 +149,15 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Type:          OpDropType,
 						SchemaName:    entry.SchemaName,
 						ObjectName:    entry.Name,
-						SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
+						SQL:           formatDropRangeTypeSQL(qualName, entry.From),
 						Transactional: true,
 						Phase:         PhasePre,
 						ObjType:       't',
 						ObjOID:        entry.From.OID,
 						Priority:      PriorityType,
 					},
-					MigrationOp{
-						Type:          OpCreateType,
-						SchemaName:    entry.SchemaName,
-						ObjectName:    entry.Name,
-						SQL:           formatCreateRange(to, entry.SchemaName, entry.Name, entry.To),
-						Transactional: true,
-						Phase:         PhaseMain,
-						ObjType:       't',
-						ObjOID:        entry.To.OID,
-						Priority:      PriorityType,
-					},
 				)
+				ops = append(ops, buildCreateRangeOps(to, entry.SchemaName, entry.Name, entry.To)...)
 				continue
 			}
 			fromColl := formatRangeCollation(entry.From)
@@ -121,12 +168,16 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if toColl == "" {
 				toColl = "default"
 			}
+			changeDesc := fmt.Sprintf("collation changed from %s to %s", fromColl, toColl)
+			if fromColl == toColl {
+				changeDesc = "definition changed"
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("-- range type %s collation changed from %s to %s; requires DROP + CREATE", qualName, fromColl, toColl),
-				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: collation changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromColl, toColl),
+				SQL:           fmt.Sprintf("-- range type %s %s; requires DROP + CREATE", qualName, changeDesc),
+				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: %s; DROP + CREATE would break dependent columns", qualName, changeDesc),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       't',
@@ -145,5 +196,122 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 		return ops[i].ObjectName < ops[j].ObjectName
 	})
+	return ops
+}
+
+// renameRetainedRanges finds ranges that the diff reports as a drop and an add
+// with the same OID, which is what ALTER TYPE ... RENAME TO and ... SET SCHEMA
+// leave behind. It returns a clone of from with those renames applied, and the
+// ALTER TYPE ops that perform them, so the rest of the plan sees one retained
+// range instead of a rebuild that loses its grants, comments, and dependents.
+// A rename the catalog refuses (a name already taken, a schema that does not
+// exist yet) stays a drop and an add.
+func renameRetainedRanges(from, to *Catalog, diff *SchemaDiff) (*Catalog, []MigrationOp) {
+	if from == nil || to == nil || diff == nil {
+		return nil, nil
+	}
+	added := make(map[uint32]RangeDiffEntry)
+	for _, e := range diff.Ranges {
+		if e.Action == DiffAdd && e.To != nil && e.To.OID != 0 {
+			added[e.To.OID] = e
+		}
+	}
+	var renamed *Catalog
+	var ops []MigrationOp
+	for _, e := range diff.Ranges {
+		if e.Action != DiffDrop || e.From == nil || e.From.OID == 0 {
+			continue
+		}
+		a, ok := added[e.From.OID]
+		if !ok {
+			continue
+		}
+		cur := renamed
+		if cur == nil {
+			cur = from
+		}
+		try := cur.Clone()
+		stmts := alterTypeIdentitySQL(e.SchemaName, e.Name, a.SchemaName, a.Name)
+		if !applyCatalogSQL(try, stmts) {
+			continue
+		}
+		// The multirange keeps its own name, so move it separately when the
+		// target names it differently from where the range's statements left it.
+		if mrOID := e.From.MultirangeOID; mrOID != 0 && mrOID == a.To.MultirangeOID {
+			got, want := typeIdentity(try, mrOID), typeIdentity(to, mrOID)
+			if got.schema != "" && want.schema != "" && got != want {
+				mr := alterTypeIdentitySQL(got.schema, got.name, want.schema, want.name)
+				if !applyCatalogSQL(try, mr) {
+					continue
+				}
+				stmts = append(stmts, mr...)
+			}
+		}
+		renamed = try
+		ops = append(ops, rangeRenameOps(e.From.OID, a.SchemaName, a.Name, stmts)...)
+	}
+	return renamed, ops
+}
+
+type typeIdent struct {
+	schema string
+	name   string
+}
+
+func typeIdentity(c *Catalog, oid uint32) typeIdent {
+	bt := c.typeByOID[oid]
+	if bt == nil {
+		return typeIdent{}
+	}
+	s := c.schemas[bt.Namespace]
+	if s == nil {
+		return typeIdent{}
+	}
+	return typeIdent{schema: s.Name, name: bt.TypeName}
+}
+
+// alterTypeIdentitySQL moves a type to toSchema, then renames it to toName.
+func alterTypeIdentitySQL(fromSchema, fromName, toSchema, toName string) []string {
+	var stmts []string
+	if fromSchema != toSchema {
+		stmts = append(stmts, fmt.Sprintf("ALTER TYPE %s SET SCHEMA %s", migrationQualifiedName(fromSchema, fromName), quoteIdentAlways(toSchema)))
+	}
+	if fromName != toName {
+		stmts = append(stmts, fmt.Sprintf("ALTER TYPE %s RENAME TO %s", migrationQualifiedName(toSchema, fromName), quoteIdentAlways(toName)))
+	}
+	return stmts
+}
+
+// applyCatalogSQL runs stmts on c and reports whether every one succeeded.
+func applyCatalogSQL(c *Catalog, stmts []string) bool {
+	for _, s := range stmts {
+		res, err := c.Exec(s, nil)
+		if err != nil {
+			return false
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func rangeRenameOps(oid uint32, schemaName, name string, stmts []string) []MigrationOp {
+	ops := make([]MigrationOp, 0, len(stmts))
+	for _, s := range stmts {
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterType,
+			SchemaName:    schemaName,
+			ObjectName:    name,
+			SQL:           s,
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       't',
+			ObjOID:        oid,
+			Priority:      PriorityType,
+		})
+	}
 	return ops
 }

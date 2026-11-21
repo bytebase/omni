@@ -54,6 +54,11 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 			recreatedConIdxOIDs := make(map[uint32]bool)
+			attachingRel := relEntry.From != nil && relEntry.To != nil &&
+				(relEntry.From.RelKind == 'r' || relEntry.From.RelKind == 'p') &&
+				(relEntry.To.RelKind == 'r' || relEntry.To.RelKind == 'p') &&
+				relEntry.To.PartitionOf != 0 &&
+				relEntry.From.PartitionOf != relEntry.To.PartitionOf
 			for _, ce := range relEntry.Constraints {
 				if (ce.Action == DiffAdd || ce.Action == DiffModify) && ce.To != nil && ce.To.IndexOID != 0 {
 					recreatedConIdxOIDs[ce.To.IndexOID] = true
@@ -70,6 +75,9 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						continue
 					}
 					if idx.ParentIndexOID != 0 {
+						if attachingRel {
+							continue
+						}
 						attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idx))
 						attaching[idx.OID] = true
 					}
@@ -114,7 +122,9 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						continue
 					}
 					if idxTo.ParentIndexOID != 0 {
-						attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idxTo))
+						if !attachingRel {
+							attachOps = append(attachOps, attachIndexOp(to, relEntry.SchemaName, idxTo))
+						}
 						if !indexesChanged(from, to, idxFrom, idxTo) {
 							continue
 						}
@@ -412,6 +422,11 @@ func buildCreateIndexSQL(idx *Index, rel *Relation, schemaName string) string {
 			b.WriteString(quoteIdentifier(colName))
 		}
 		b.WriteString(")")
+	}
+
+	// NULLS NOT DISTINCT, after INCLUDE as pg_get_indexdef places it.
+	if idx.NullsNotDistinct {
+		b.WriteString(" NULLS NOT DISTINCT")
 	}
 
 	// WHERE clause.

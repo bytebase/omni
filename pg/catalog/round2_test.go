@@ -849,9 +849,9 @@ func TestAlterConstraintDeferrable(t *testing.T) {
 	atCmd := &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AlterConstraint),
 		Def: &nodes.Constraint{
-			Conname:       "t_pk",
-			Deferrable:    true,
-			Initdeferred:  true,
+			Conname:      "t_pk",
+			Deferrable:   true,
+			Initdeferred: true,
 		},
 	}
 	if err := c.AlterTableStmt(makeAlterTableStmt("", "t", atCmd)); err != nil {
@@ -985,6 +985,12 @@ func TestAlterTSConfigurationStmtNoOp(t *testing.T) {
 
 func TestCreateForeignTableStmt(t *testing.T) {
 	c := New()
+	if err := c.CreateFdwStmt(&nodes.CreateFdwStmt{Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.CreateForeignServerStmt(&nodes.CreateForeignServerStmt{Servername: "foreign_srv", Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
 
 	stmt := &nodes.CreateForeignTableStmt{
 		Base: nodes.CreateStmt{

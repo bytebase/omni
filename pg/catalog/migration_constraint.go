@@ -149,8 +149,12 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 
 	case ConstraintUnique:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
-		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE (%s)",
-			qualifiedTable, quoteIdentifier(con.Name), joinQuoted(colNames))
+		nulls := ""
+		if constraintNullsNotDistinct(to, con) {
+			nulls = " NULLS NOT DISTINCT"
+		}
+		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s UNIQUE%s (%s)",
+			qualifiedTable, quoteIdentifier(con.Name), nulls, joinQuoted(colNames))
 		if len(con.IncludeColumns) > 0 {
 			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
 			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
@@ -168,6 +172,9 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 	case ConstraintCheck:
 		sql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s CHECK (%s)",
 			qualifiedTable, quoteIdentifier(con.Name), con.CheckExpr)
+		if con.ConNoInherit {
+			sql += " NO INHERIT"
+		}
 
 	case ConstraintFK:
 		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
@@ -178,6 +185,13 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 			qualifiedTable, quoteIdentifier(con.Name),
 			joinQuoted(colNames), refTable, joinQuoted(refColNames))
 
+		// MATCH SIMPLE is the default; FULL and PARTIAL must be spelled out.
+		switch con.FKMatchType {
+		case 'f':
+			fkClause += " MATCH FULL"
+		case 'p':
+			fkClause += " MATCH PARTIAL"
+		}
 		// ON DELETE action.
 		if action := fkActionString(con.FKDelAction); action != "" {
 			fkClause += " ON DELETE " + action
@@ -198,52 +212,8 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		sql = fkClause
 
 	case ConstraintExclude:
-		colNames := resolveAttnumsToNames(to, con.RelOID, con.Columns)
-		var backing *Index
-		if con.IndexOID != 0 {
-			backing = to.GetIndexByOID(con.IndexOID)
-		}
-		var parts []string
-		for i, colName := range colNames {
-			elem := quoteIdentifier(colName)
-			if backing != nil && i < len(backing.OpClasses) && backing.OpClasses[i] != "" {
-				var opc []string
-				for _, part := range strings.Split(backing.OpClasses[i], ".") {
-					opc = append(opc, quoteIdentifier(part))
-				}
-				elem += " " + strings.Join(opc, ".")
-			}
-			op := "="
-			if i < len(con.ExclOps) {
-				op = con.ExclOps[i]
-			}
-			if i < len(con.ExclOpSchemas) && con.ExclOpSchemas[i] != "" {
-				op = "OPERATOR(" + quoteIdentifier(con.ExclOpSchemas[i]) + "." + op + ")"
-			}
-			parts = append(parts, fmt.Sprintf("%s WITH %s", elem, op))
-		}
-		// Determine the index access method from the backing index.
-		method := "gist" // default for EXCLUDE constraints
-		if con.IndexOID != 0 {
-			if idx := to.GetIndexByOID(con.IndexOID); idx != nil && idx.AccessMethod != "" {
-				method = idx.AccessMethod
-			}
-		}
-		clause := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s EXCLUDE USING %s (%s)",
-			qualifiedTable, quoteIdentifier(con.Name), method, strings.Join(parts, ", "))
-		if len(con.IncludeColumns) > 0 {
-			incNames := resolveAttnumsToNames(to, con.RelOID, con.IncludeColumns)
-			clause += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
-		}
-		if con.Deferrable {
-			clause += " DEFERRABLE"
-			if con.Deferred {
-				clause += " INITIALLY DEFERRED"
-			} else {
-				clause += " INITIALLY IMMEDIATE"
-			}
-		}
-		sql = clause
+		sql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s",
+			qualifiedTable, quoteIdentifier(con.Name), formatExcludeConstraintExpr(to, con))
 
 	default:
 		sql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s /* unsupported type %c */",
@@ -346,4 +316,57 @@ func joinQuoted(names []string) string {
 		quoted[i] = quoteIdentifier(n)
 	}
 	return strings.Join(quoted, ", ")
+}
+
+// formatExcludeConstraintExpr formats an EXCLUDE constraint definition from
+// its exclusion fields and backing index (e.g. `EXCLUDE USING gist ("r" WITH &&)`).
+func formatExcludeConstraintExpr(c *Catalog, con *Constraint) string {
+	if c == nil || con == nil {
+		return ""
+	}
+	if len(con.Columns) == 0 && len(con.ExclOps) == 0 && con.CheckExpr != "" {
+		return con.CheckExpr
+	}
+	colNames := resolveAttnumsToNames(c, con.RelOID, con.Columns)
+	var backing *Index
+	if con.IndexOID != 0 {
+		backing = c.GetIndexByOID(con.IndexOID)
+	}
+	var parts []string
+	for i, colName := range colNames {
+		elem := quoteIdentifier(colName)
+		if backing != nil && i < len(backing.OpClasses) && backing.OpClasses[i] != "" {
+			var opc []string
+			for _, part := range strings.Split(backing.OpClasses[i], ".") {
+				opc = append(opc, quoteIdentifier(part))
+			}
+			elem += " " + strings.Join(opc, ".")
+		}
+		op := "="
+		if i < len(con.ExclOps) {
+			op = con.ExclOps[i]
+		}
+		if i < len(con.ExclOpSchemas) && con.ExclOpSchemas[i] != "" {
+			op = "OPERATOR(" + quoteIdentifier(con.ExclOpSchemas[i]) + "." + op + ")"
+		}
+		parts = append(parts, fmt.Sprintf("%s WITH %s", elem, op))
+	}
+	method := "gist" // default for EXCLUDE constraints
+	if backing != nil && backing.AccessMethod != "" {
+		method = backing.AccessMethod
+	}
+	expr := fmt.Sprintf("EXCLUDE USING %s (%s)", method, strings.Join(parts, ", "))
+	if len(con.IncludeColumns) > 0 {
+		incNames := resolveAttnumsToNames(c, con.RelOID, con.IncludeColumns)
+		expr += fmt.Sprintf(" INCLUDE (%s)", joinQuoted(incNames))
+	}
+	if con.Deferrable {
+		expr += " DEFERRABLE"
+		if con.Deferred {
+			expr += " INITIALLY DEFERRED"
+		} else {
+			expr += " INITIALLY IMMEDIATE"
+		}
+	}
+	return expr
 }

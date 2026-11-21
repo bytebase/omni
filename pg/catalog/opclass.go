@@ -562,6 +562,11 @@ func (c *Catalog) renameOpClass(stmt *nodes.RenameStmt) error {
 		}
 	}
 	opc.Name = stmt.Newname
+	opcSchema := ""
+	if s := c.schemas[opc.Schema]; s != nil {
+		opcSchema = s.Name
+	}
+	c.updateRangeOpclassRefs(opc.OID, opcSchema, opc.Name, false)
 	return nil
 }
 
@@ -603,6 +608,7 @@ func (c *Catalog) alterOpClassNamespace(stmt *nodes.AlterObjectSchemaStmt, newSc
 		}
 	}
 	opc.Schema = newSchema.OID
+	c.updateRangeOpclassRefs(opc.OID, newSchema.Name, opc.Name, true)
 	return nil
 }
 

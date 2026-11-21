@@ -115,6 +115,7 @@ func (c *Catalog) Clone() *Catalog {
 			cr.Columns = make([]*Column, len(r.Columns))
 			for i, col := range r.Columns {
 				cc := *col
+				cc.ForeignOptions = slices.Clone(col.ForeignOptions)
 				cr.Columns[i] = &cc
 			}
 		}
@@ -154,20 +155,15 @@ func (c *Catalog) Clone() *Catalog {
 		// PartitionBound: deep copy if non-nil.
 		if r.PartitionBound != nil {
 			pb := *r.PartitionBound
-			if r.PartitionBound.ListValues != nil {
-				pb.ListValues = make([]string, len(r.PartitionBound.ListValues))
-				copy(pb.ListValues, r.PartitionBound.ListValues)
-			}
-			if r.PartitionBound.LowerBound != nil {
-				pb.LowerBound = make([]string, len(r.PartitionBound.LowerBound))
-				copy(pb.LowerBound, r.PartitionBound.LowerBound)
-			}
-			if r.PartitionBound.UpperBound != nil {
-				pb.UpperBound = make([]string, len(r.PartitionBound.UpperBound))
-				copy(pb.UpperBound, r.PartitionBound.UpperBound)
-			}
+			pb.ListValues = slices.Clone(r.PartitionBound.ListValues)
+			pb.ListKeywords = slices.Clone(r.PartitionBound.ListKeywords)
+			pb.LowerBound = slices.Clone(r.PartitionBound.LowerBound)
+			pb.LowerKeywords = slices.Clone(r.PartitionBound.LowerKeywords)
+			pb.UpperBound = slices.Clone(r.PartitionBound.UpperBound)
+			pb.UpperKeywords = slices.Clone(r.PartitionBound.UpperKeywords)
 			cr.PartitionBound = &pb
 		}
+		cr.ForeignOptions = slices.Clone(r.ForeignOptions)
 		// AnalyzedQuery: shallow copy (shared, not mutated by dry-run).
 		// Fix Schema pointer.
 		cr.Schema = clone.schemas[r.Schema.OID]
@@ -319,6 +315,8 @@ func (c *Catalog) Clone() *Catalog {
 			cup.ArgDefaultTypes = make([]uint32, len(up.ArgDefaultTypes))
 			copy(cup.ArgDefaultTypes, up.ArgDefaultTypes)
 		}
+		cup.ArgDefaults = slices.Clone(up.ArgDefaults)
+		cup.SetConfig = slices.Clone(up.SetConfig)
 		cup.Schema = clone.schemas[up.Schema.OID]
 		clone.userProcs[oid] = &cup
 
@@ -451,8 +449,32 @@ func (c *Catalog) Clone() *Catalog {
 	for name, owner := range c.databaseOwners {
 		clone.databaseOwners[name] = owner
 	}
+	clone.fdws = make(map[string]*ForeignDataWrapper, len(c.fdws))
+	for name, fdw := range c.fdws {
+		if fdw == nil {
+			continue
+		}
+		cf := *fdw
+		cf.Options = slices.Clone(fdw.Options)
+		clone.fdws[name] = &cf
+	}
+	clone.foreignServers = make(map[string]*ForeignServer, len(c.foreignServers))
+	for name, srv := range c.foreignServers {
+		if srv == nil {
+			continue
+		}
+		cs := *srv
+		cs.Type = cloneStringPtr(srv.Type)
+		cs.Version = cloneStringPtr(srv.Version)
+		cs.Options = slices.Clone(srv.Options)
+		clone.foreignServers[name] = &cs
+	}
 	clone.defaultTablespace = c.defaultTablespace
 	clone.defaultTableAccessMethod = c.defaultTableAccessMethod
+	clone.sessionSettings = make(map[string]string, len(c.sessionSettings))
+	for k, v := range c.sessionSettings {
+		clone.sessionSettings[k] = v
+	}
 	clone.snapshot = c.snapshot
 	clone.installingSnapshot = c.installingSnapshot
 	clone.roles = make(map[string]bool, len(c.roles))

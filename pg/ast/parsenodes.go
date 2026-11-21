@@ -1776,24 +1776,28 @@ func (n *AlterFdwStmt) Tag() NodeTag { return T_AlterFdwStmt }
 
 // CreateForeignServerStmt represents a CREATE SERVER statement.
 type CreateForeignServerStmt struct {
-	Servername  string // server name
-	Servertype  string // optional server type
-	Version     string // optional server version
-	Fdwname     string // FDW name
-	IfNotExists bool   // just do nothing if it already exists?
-	Options     *List  // generic options to server
-	Loc         Loc    // token location
+	Servername     string // server name
+	Servertype     string // optional server type
+	HasServertype  bool   // TYPE clause was specified
+	Version        string // optional server version
+	HasVersion     bool   // VERSION clause was specified
+	HasVersionNull bool   // VERSION NULL was specified
+	Fdwname        string // FDW name
+	IfNotExists    bool   // just do nothing if it already exists?
+	Options        *List  // generic options to server
+	Loc            Loc    // token location
 }
 
 func (n *CreateForeignServerStmt) Tag() NodeTag { return T_CreateForeignServerStmt }
 
 // AlterForeignServerStmt represents an ALTER SERVER statement.
 type AlterForeignServerStmt struct {
-	Servername string // server name
-	Version    string // optional server version
-	Options    *List  // generic options to server
-	HasVersion bool   // version was specified
-	Loc        Loc    // token location
+	Servername     string // server name
+	Version        string // optional server version
+	Options        *List  // generic options to server
+	HasVersion     bool   // version was specified
+	HasVersionNull bool   // VERSION NULL was specified
+	Loc            Loc    // token location
 }
 
 func (n *AlterForeignServerStmt) Tag() NodeTag { return T_AlterForeignServerStmt }
