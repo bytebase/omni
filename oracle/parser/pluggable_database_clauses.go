@@ -199,6 +199,15 @@ func (p *Parser) parseCreatePDBClauses(opts *nodes.List, kind pdbKind, dblink bo
 		}
 		seen[key] = true
 		switch {
+		case kind == pdbFromSeed && key == "USER":
+			// Oracle consumes USER before refusing the missing ADMIN keyword.
+			p.advance()
+			return p.syntaxErrorAtCur()
+		case kind == pdbClone && (key == "HOST" || key == "PORT"):
+			// Oracle consumes HOST/PORT on a proxy clone before refusing the
+			// clause at what follows it.
+			p.advance()
+			return p.syntaxErrorAtCur()
 		case kind == pdbFromSeed && key == "ADMIN":
 			p.advance()
 			if err := p.adbExpect("USER"); err != nil {

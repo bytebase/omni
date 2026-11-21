@@ -1101,8 +1101,9 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parsePivotSuffix(ref)
 	}
 
-	// TABLE(collection_expression) — table collection expression
-	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
+	// TABLE(collection_expression) — table collection expression.
+	// TABLE is reserved in Oracle SQL so it cannot name a table here.
+	if p.cur.Type == kwTABLE {
 		ref, err := p.parseTableCollectionExpr(start)
 		if err != nil {
 			return nil, err
@@ -1313,7 +1314,7 @@ func (p *Parser) isTableAliasCandidate() bool {
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
 		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE",
-			"SIBLINGS", "APPLY", "SEARCH", "CYCLE", "VERSIONS", "PERIOD",
+			"SIBLINGS", "SEARCH", "CYCLE", "VERSIONS", "PERIOD",
 			"XML":
 			return false
 		}

@@ -116,10 +116,13 @@ func (p *Parser) parseViewConstraintState() error {
 // present. Oracle allows this only in ALTER TABLE enable/modify-constraint
 // contexts, not inside CREATE TABLE constraints.
 func (p *Parser) parseExceptionsIntoClause() error {
-	if !p.isIdentLikeStr("EXCEPTIONS") || p.peekNext().Type != kwINTO {
+	if !p.isIdentLikeStr("EXCEPTIONS") {
 		return nil
 	}
 	p.advance() // consume EXCEPTIONS
+	if p.cur.Type != kwINTO {
+		return p.syntaxErrorAtCur()
+	}
 	p.advance() // consume INTO
 	name, err := p.parseObjectName()
 	if err != nil {
@@ -163,6 +166,9 @@ var identLikeUsingIndexProperties = map[string]bool{
 // statement terminator.
 func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 	p.advance() // consume USING
+	if p.cur.Type != kwINDEX {
+		return p.syntaxErrorAtCur()
+	}
 	p.advance() // consume INDEX
 
 	// (create_index_statement) — validate the required structure CREATE

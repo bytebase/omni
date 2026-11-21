@@ -292,37 +292,15 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 
 		// ADD ( PERIOD FOR valid_time_column [ ( start, end ) ] )
 		if p.atWord("PERIOD") && p.peekNext().Type == kwFOR {
-			p.advance() // consume PERIOD
-			if err := p.atExpect(kwFOR); err != nil {
-				return nil, err
-			}
-			name, err := p.parseATNameString()
+			cmd, err := p.parseAlterTableAddPeriod(start)
 			if err != nil {
 				return nil, err
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				if err := p.parseATName(); err != nil {
-					return nil, err
-				}
-				if err := p.atExpect(','); err != nil {
-					return nil, err
-				}
-				if err := p.parseATName(); err != nil {
-					return nil, err
-				}
-				if err := p.atExpect(')'); err != nil {
-					return nil, err
-				}
 			}
 			if err := p.atExpect(')'); err != nil {
 				return nil, err
 			}
-			return &nodes.AlterTableCmd{
-				Action:     nodes.AT_ADD_PERIOD,
-				ColumnName: name,
-				Loc:        nodes.Loc{Start: start, End: p.prev.End},
-			}, nil
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
 		}
 
 		// Column definitions and out-of-line constraints, in any order
@@ -419,6 +397,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, options), nil
 	}
 
+	// ADD PERIOD FOR valid_time_column [ ( start, end ) ] (without outer parens).
+	if p.atWord("PERIOD") && p.peekNext().Type == kwFOR {
+		return p.parseAlterTableAddPeriod(start)
+	}
+
 	// ADD column_def (without parentheses), whose datatype Oracle leaves to
 	// the resolve phase here: see alterTableAddColumn.
 	defer func(saved bool) { p.alterTableAddColumn = saved }(p.alterTableAddColumn)
@@ -441,6 +424,38 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		Action:    nodes.AT_ADD_COLUMN,
 		ColumnDef: col,
 		Loc:       nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
+}
+
+// parseAlterTableAddPeriod reads PERIOD FOR valid_time_column [ ( start, end ) ].
+func (p *Parser) parseAlterTableAddPeriod(start int) (*nodes.AlterTableCmd, error) {
+	p.advance() // consume PERIOD
+	if err := p.atExpect(kwFOR); err != nil {
+		return nil, err
+	}
+	name, err := p.parseATNameString()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == '(' {
+		p.advance()
+		if err := p.parseATName(); err != nil {
+			return nil, err
+		}
+		if err := p.atExpect(','); err != nil {
+			return nil, err
+		}
+		if err := p.parseATName(); err != nil {
+			return nil, err
+		}
+		if err := p.atExpect(')'); err != nil {
+			return nil, err
+		}
+	}
+	return &nodes.AlterTableCmd{
+		Action:     nodes.AT_ADD_PERIOD,
+		ColumnName: name,
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
@@ -1255,7 +1270,7 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	}
 
 	// [ USING INDEX ... ]
-	if p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX {
+	if p.cur.Type == kwUSING {
 		var cs constraintState
 		if err := p.parseUsingIndexClause(&cs); err != nil {
 			return nil, err

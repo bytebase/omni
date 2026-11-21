@@ -447,6 +447,14 @@ func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 	if p.cur.Type == kwVALUES {
 		p.advance()
 		if p.cur.Type != '(' {
+			// Oracle's SQL parser shares the VALUES record rule before rejecting
+			// non-parenthesized VALUES on multi-table INSERT, so VALUES 1)
+			// reports the ')' after the expression rather than 1.
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			_ = expr
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
