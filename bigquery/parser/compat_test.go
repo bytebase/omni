@@ -425,6 +425,16 @@ func TestBigQueryVerdict(t *testing.T) {
 			want: compat.Reject,
 		},
 		{
+			name: "grammar refusal duplicate DYNAMIC LABEL",
+			err:  apiErr(http.StatusBadRequest, "invalidQuery", `DYNAMIC LABEL cannot be used more than once in a single element table at [1:59]`),
+			want: compat.Reject,
+		},
+		{
+			name: "grammar refusal duplicate DYNAMIC PROPERTIES",
+			err:  apiErr(http.StatusBadRequest, "invalidQuery", `DYNAMIC PROPERTIES cannot be used more than once in a single element table at [1:64]`),
+			want: compat.Reject,
+		},
+		{
 			name: "grammar refusal unsupported object type",
 			err:  apiErr(http.StatusBadRequest, "invalidQuery", `ROLE is not a supported object type at [1:6]`),
 			want: compat.Reject,

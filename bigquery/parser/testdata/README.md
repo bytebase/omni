@@ -21,9 +21,9 @@ differences (793 seconds).
 
 | Rows | Total | Agree | Only BigQuery accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,345 | 186 | 83 | 89.71% |
-| Near-misses | 6,223 | 6,162 | 43 | 18 | 99.02% |
-| **All** | **8,837** | **8,507** | **229** | **101** | **96.27%** |
+| One per alternative | 2,614 | 2,346 | 185 | 83 | 89.75% |
+| Near-misses | 6,223 | 6,164 | 41 | 18 | 99.05% |
+| **All** | **8,837** | **8,510** | **226** | **101** | **96.30%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
 refuses every input (`../../../googlesql/testdata/tokens.tsv`).
@@ -43,12 +43,12 @@ those exact 8,837 generated rows produces:
 | --- | --- | ---: | --- |
 | `reject` / `reject` (agree) | `reject` / `reject` (agree) | 5,072 | Both engines reject invalid syntax |
 | `accept` / `accept` (agree) | `accept` / `accept` (agree) | 1,954 | Both engines accept shared GoogleSQL |
-| `reject` / `accept` (Spanner-only) | `reject` / `reject` (agree) | 1,090 | Statements Spanner refused before parsing (pipes, `MERGE`, `LOAD DATA`, `BEGIN ... END`, `SET @@...`, `SHOW`, `EXPORT`, `IMPORT`, `EXECUTE IMMEDIATE`) that BigQuery parses and rejects as syntax errors |
+| `reject` / `accept` (Spanner-only) | `reject` / `reject` (agree) | 1,093 | Statements Spanner refused before parsing (pipes, `MERGE`, `LOAD DATA`, `BEGIN ... END`, `SET @@...`, `SHOW`, `EXPORT`, `IMPORT`, `EXECUTE IMMEDIATE`, duplicate `DYNAMIC LABEL`) that BigQuery parses and rejects as syntax errors |
 | `accept` / `reject` (omni-only) | `accept` / `accept` (agree) | 391 | BigQuery-dialect statements Spanner refused (scripting `DECLARE`/`IF`/`CASE`/`WHILE`/`LOOP`/`REPEAT`/`FOR`/`BREAK`/`RETURN`/`RAISE`, `QUALIFY`, `IS DISTINCT FROM`, `(SELECT NULL) AS a`, `CREATE TABLE a` without columns, `CREATE FUNCTION`/`PROCEDURE`/`ROW ACCESS POLICY`/`MATERIALIZED VIEW`, `GRANT`/`REVOKE`, `TRUNCATE`, `ANALYZE`) that BigQuery parses |
 | `reject` / `reject` (agree) | `reject` / `accept` (BQ-only) | 195 | BigQuery-dialect forms both omni and Spanner rejected (`FROM`-first pipe queries, `CREATE MODEL`, `CREATE EXTERNAL TABLE/SCHEMA`, `ALTER SEARCH/VECTOR INDEX`, `ALTER ROW ACCESS POLICY`, `PRIVILEGE RESTRICTION`, `CONNECTION`, etc.) |
 | `accept` / `accept` (agree) | `accept` / `reject` (omni-only) | 59 | Spanner-dialect or disabled-in-BigQuery forms (braced constructors, Spanner `PRIMARY KEY` / `INTERLEAVE` / `NULL_FILTERED` / `LOCALITY GROUP` / `ROW DELETION POLICY`, `FOR UPDATE`, `DESCRIBE ... |>`) |
 | `accept` / `reject` (omni-only) | `accept` / `reject` (omni-only) | 42 | Generic entity DDL (`CREATE/ALTER/DROP a ...`), empty `CREATE TABLE a()`, reserved keywords, and strict near-misses rejected by both engines |
-| `reject` / `accept` (Spanner-only) | `reject` / `accept` (BQ-only) | 34 | Shared GoogleSQL forms accepted by both engines that omni still rejects (`CREATE MODEL`, `DROP MODEL`, `SELECT NULL.*`, `EXPLAIN`, `CREATE CONSTANT`, `DEFINE TABLE`, `DYNAMIC LABEL` duplicates) |
+| `reject` / `accept` (Spanner-only) | `reject` / `accept` (BQ-only) | 31 | Shared GoogleSQL forms accepted by both engines that omni still rejects (`CREATE MODEL`, `DROP MODEL`, `SELECT NULL.*`, `EXPLAIN`, `CREATE CONSTANT`, `DEFINE TABLE`) |
 
 ## How the BigQuery dry-run judge works
 
@@ -74,7 +74,9 @@ those exact 8,837 generated rows produces:
        GoogleSQL parser-action refusal in `grammarRefusals`
        (`../grammar_refusals_test.go`, mirrored from
        `googlesql/spanner-oracle/grammar_refusals.go` plus the lookahead
-       transformer refusal `EXCEPT must be followed by ALL, DISTINCT, or "("`).
+       transformer refusal `EXCEPT must be followed by ALL, DISTINCT, or "("`
+       and the `MergeDynamicLabelProperties` refusal `DYNAMIC LABEL|PROPERTIES
+       cannot be used more than once in a single element table`).
      - Note: only the `"Syntax error:"` prefix is matched (not substrings), so
        syntactically valid outer statements such as `EXECUTE IMMEDIATE 'a'`
        (which BigQuery reports as ``Invalid EXECUTE IMMEDIATE sql string `a`,
@@ -104,10 +106,10 @@ those exact 8,837 generated rows produces:
 
 ## Gap breakdown
 
-### Only BigQuery accepts (229 rows: 186 alternatives, 43 near-misses)
+### Only BigQuery accepts (226 rows: 185 alternatives, 41 near-misses)
 
-Every one of these 229 rows was verified directly against BigQuery's error
-messages: all 229 return `OK` or genuine post-parse semantic/qualification/
+Every one of these 226 rows was verified directly against BigQuery's error
+messages: all 226 return `OK` or genuine post-parse semantic/qualification/
 unsupported-statement messages (zero missed syntax errors).
 
 | Family | Rows | Notes |
@@ -123,7 +125,6 @@ unsupported-statement messages (zero missed syntax errors).
 | Arbitrary-expression dot-star (`SELECT NULL.*`, `|> EXTEND NULL.*`, `|> AGGREGATE NULL.*`) | 5 | `googlesql/parser` restricts `.*` to path expressions. |
 | `DEFINE TABLE` and `EXPLAIN` statements | 4 | Parsed by BigQuery's GoogleSQL frontend (`Statement not supported`). |
 | Constants (`CREATE/DROP CONSTANT`) | 3 | Not yet parsed by `googlesql/parser`. |
-| Duplicate `DYNAMIC LABEL` in `CREATE PROPERTY GRAPH` | 3 | BigQuery reports a post-parse duplicate-label error even before EOF on the near-miss twin. |
 | `CREATE INDEX` table alias (`CREATE INDEX a ON a a(NULL)`) | 2 | BigQuery parses the optional alias before reporting `CREATE INDEX is not supported`. |
 | `CREATE TABLE ... COPY/CLONE ... FOR SYSTEM_TIME AS OF` | 2 | Time-travel clause on `COPY`/`CLONE` source. |
 | Combined integer + brace statement hint (`@1@{ a = NULL } BEGIN`) | 1 | `googlesql/parser` handles `@1` and `@{...}` separately, not stacked. |

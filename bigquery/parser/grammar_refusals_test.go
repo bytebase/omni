@@ -6,25 +6,27 @@ import "regexp"
 // its parser actions refuses input the rules derive, without the "Syntax error:"
 // prefix (mirrors googlesql/spanner-oracle/grammar_refusals.go, generated from
 // googlesql/testdata/googlesql.tm, plus the lookahead-transformer refusal on
-// bare EXCEPT). Each pattern accepts both "[at 1:N]" and BigQuery's "at [1:N]"
-// position suffix.
+// bare EXCEPT and the MergeDynamicLabelProperties action refusal on duplicate
+// DYNAMIC LABEL/PROPERTIES). Each pattern accepts both "[at 1:N]" and
+// BigQuery's "at [1:N]" position suffix.
 var grammarRefusals = []*regexp.Regexp{
-	regexp.MustCompile(`^EXCEPT must be followed by ALL, DISTINCT, or "\("(?:$|\s+\[at |\s+at \[)`),                               // lookahead_transformer
-	regexp.MustCompile(`^Hints are not allowed on DEFINE MACRO statements\.(?:$|\s+\[at |\s+at \[)`),                              // googlesql.tm:1195
-	regexp.MustCompile(`^Hints are not allowed on DEFINE MACRO statements(?:$|\s+\[at |\s+at \[)`),                                // googlesql.tm:1206
-	regexp.MustCompile(`^Mismatched end label; expected .*, got .*`),                                                              // googlesql.tm:1244
-	regexp.MustCompile(`^Pipe operators are not supported on this statement(?:$|\s+\[at |\s+at \[)`),                              // googlesql.tm:1269
-	regexp.MustCompile(`^RUN statement is not supported\.(?:$|\s+\[at |\s+at \[)`),                                                // googlesql.tm:1375
-	regexp.MustCompile(`^ADD ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                               // googlesql.tm:1587
-	regexp.MustCompile(`^REPLACE ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                           // googlesql.tm:1597
-	regexp.MustCompile(`^DROP ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                              // googlesql.tm:1607
-	regexp.MustCompile(`^EXTERNAL TABLE FUNCTION is not supported(?:$|\s+\[at |\s+at \[)`),                                        // googlesql.tm:1800
-	regexp.MustCompile(`^ALTER TABLE FUNCTION is not supported(?:$|\s+\[at |\s+at \[)`),                                           // googlesql.tm:1852
-	regexp.MustCompile(`^ALTER .* is not supported(?:$|\s+\[at |\s+at \[)`),                                                       // googlesql.tm:1883
-	regexp.MustCompile(`^Parenthesized SET statement requires a variable list(?:$|\s+\[at |\s+at \[)`),                            // googlesql.tm:2041
-	regexp.MustCompile(`^Using SET with multiple variables requires parentheses around the variable list(?:$|\s+\[at |\s+at \[)`), // googlesql.tm:2048
-	regexp.MustCompile(`^Keyword REMOTE is not supported(?:$|\s+\[at |\s+at \[)`),                                                 // googlesql.tm:2313
-	regexp.MustCompile(`^WITH CONNECTION clause is not supported(?:$|\s+\[at |\s+at \[)`),                                         // googlesql.tm:2322
+	regexp.MustCompile(`^EXCEPT must be followed by ALL, DISTINCT, or "\("(?:$|\s+\[at |\s+at \[)`),                                    // lookahead_transformer
+	regexp.MustCompile(`^DYNAMIC (?:LABEL|PROPERTIES) cannot be used more than once in a single element table(?:$|\s+\[at |\s+at \[)`), // googlesql.tm:2862 (MergeDynamicLabelProperties)
+	regexp.MustCompile(`^Hints are not allowed on DEFINE MACRO statements\.(?:$|\s+\[at |\s+at \[)`),                                   // googlesql.tm:1195
+	regexp.MustCompile(`^Hints are not allowed on DEFINE MACRO statements(?:$|\s+\[at |\s+at \[)`),                                     // googlesql.tm:1206
+	regexp.MustCompile(`^Mismatched end label; expected .*, got .*`),                                                                   // googlesql.tm:1244
+	regexp.MustCompile(`^Pipe operators are not supported on this statement(?:$|\s+\[at |\s+at \[)`),                                   // googlesql.tm:1269
+	regexp.MustCompile(`^RUN statement is not supported\.(?:$|\s+\[at |\s+at \[)`),                                                     // googlesql.tm:1375
+	regexp.MustCompile(`^ADD ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                                    // googlesql.tm:1587
+	regexp.MustCompile(`^REPLACE ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                                // googlesql.tm:1597
+	regexp.MustCompile(`^DROP ROW DELETION POLICY clause is not supported\.(?:$|\s+\[at |\s+at \[)`),                                   // googlesql.tm:1607
+	regexp.MustCompile(`^EXTERNAL TABLE FUNCTION is not supported(?:$|\s+\[at |\s+at \[)`),                                             // googlesql.tm:1800
+	regexp.MustCompile(`^ALTER TABLE FUNCTION is not supported(?:$|\s+\[at |\s+at \[)`),                                                // googlesql.tm:1852
+	regexp.MustCompile(`^ALTER .* is not supported(?:$|\s+\[at |\s+at \[)`),                                                            // googlesql.tm:1883
+	regexp.MustCompile(`^Parenthesized SET statement requires a variable list(?:$|\s+\[at |\s+at \[)`),                                 // googlesql.tm:2041
+	regexp.MustCompile(`^Using SET with multiple variables requires parentheses around the variable list(?:$|\s+\[at |\s+at \[)`),      // googlesql.tm:2048
+	regexp.MustCompile(`^Keyword REMOTE is not supported(?:$|\s+\[at |\s+at \[)`),                                                      // googlesql.tm:2313
+	regexp.MustCompile(`^WITH CONNECTION clause is not supported(?:$|\s+\[at |\s+at \[)`),                                              // googlesql.tm:2322
 	regexp.MustCompile(`^The body of each CREATE FUNCTION statement is an expression, not a query; to use a query as an expression, the query must be wrapped with additional parentheses to make it a scalar subquery expression(?:$|\s+\[at |\s+at \[)`), // googlesql.tm:2420
 	regexp.MustCompile(`^CREATE LOCALITY GROUP is not supported(?:$|\s+\[at |\s+at \[)`),                                             // googlesql.tm:2905
 	regexp.MustCompile(`^UNDROP .* is not supported(?:$|\s+\[at |\s+at \[)`),                                                         // googlesql.tm:2939
