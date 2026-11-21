@@ -176,6 +176,8 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"inherited_window_order_for_groups", "CREATE VIEW _v AS SELECT count(*) OVER w2 AS n FROM a WINDOW w AS (ORDER BY b), w2 AS (w GROUPS UNBOUNDED PRECEDING)", "OVER w2"},
 			{"multiple_unnamed_subqueries", "CREATE VIEW _v AS SELECT 1 AS x FROM (SELECT 1), (SELECT 2)", "unnamed_subquery_1"},
 			{"aliased_join_deparse", "CREATE VIEW _v AS SELECT b FROM (a FULL JOIN b USING (b)) j", ") j"},
+			{"aliased_cross_join_deparse", "CREATE VIEW _v AS SELECT d, c FROM (a CROSS JOIN b) j", "j.d"},
+			{"json_returning_bytea", "CREATE VIEW _v AS SELECT JSON_ARRAY(1 RETURNING bytea) AS j, JSON_OBJECT('k' : 1 RETURNING bytea) AS o, JSON_ARRAYAGG(b RETURNING bytea) AS ja FROM a", "RETURNING bytea"},
 			{"pg17_integer_literals", "CREATE VIEW _v AS SELECT '0xFF'::integer AS h, '1_000'::bigint AS u, '0o77'::smallint AS o, '0b1010'::int AS b", "'0xFF'::integer"},
 		}
 		for _, tc := range cases {
@@ -205,7 +207,8 @@ func TestQuerySimulationFixes(t *testing.T) {
 					"json_arrayagg_format_json", "json_objectagg_format_json",
 					"json_objectagg_over_preserve", "xmltable_preserve",
 					"cross_schema_unaliased_same_name", "multiple_unnamed_subqueries",
-					"aliased_join_deparse", "pg17_integer_literals":
+					"aliased_join_deparse", "aliased_cross_join_deparse",
+					"json_returning_bytea", "pg17_integer_literals":
 					c2 := setup(t)
 					res2, err := c2.Exec("CREATE VIEW _v2 AS "+def, nil)
 					if err != nil {
@@ -218,6 +221,38 @@ func TestQuerySimulationFixes(t *testing.T) {
 					}
 				}
 			})
+		}
+	})
+
+	t.Run("xmltable_column_type_dep", func(t *testing.T) {
+		c := setup(t)
+		res, err := c.Exec(`
+			CREATE TYPE mood AS ENUM ('happy');
+			CREATE VIEW _v AS SELECT 1 AS n FROM XMLTABLE('/r' PASSING '<r/>'::xml COLUMNS x mood) t;
+		`, nil)
+		if err != nil {
+			t.Fatalf("setup error: %v", err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("setup stmt error: %v", r.Error)
+			}
+		}
+		res, err = c.Exec("DROP TYPE mood", nil)
+		if err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+		assertErrorCode(t, res[0].Error, CodeDependentObjects)
+
+		res, err = c.Exec("DROP TYPE mood CASCADE", nil)
+		if err != nil {
+			t.Fatalf("cascade exec error: %v", err)
+		}
+		if res[0].Error != nil {
+			t.Fatalf("cascade stmt error: %v", res[0].Error)
+		}
+		if _, err := c.GetViewDefinition("public", "_v"); err == nil {
+			t.Fatalf("expected view _v to be dropped by DROP TYPE mood CASCADE")
 		}
 	})
 }

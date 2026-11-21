@@ -745,6 +745,9 @@ func (w *viewDepWalker) query(q *Query) {
 					w.expr(ns.Expr)
 				}
 				for _, col := range rte.TableFunc.Columns {
+					if col.TypeOID >= FirstNormalObjectId {
+						w.c.recordDependency('r', w.viewOID, 0, 't', col.TypeOID, 0, DepNormal)
+					}
 					w.expr(col.ColExpr)
 					w.expr(col.DefaultExpr)
 				}

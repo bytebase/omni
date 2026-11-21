@@ -1160,7 +1160,7 @@ func joinNodeRTIndex(jn JoinNode) int {
 // pg: src/backend/parser/parse_clause.c — transformFromClauseItem (res_nscolumns)
 func (ac *analyzeCtx) nsColumnVar(rtIdx, colIdx int) *VarExpr {
 	rte := ac.query.RangeTable[rtIdx]
-	if rte.Kind == RTEJoin && colIdx < len(rte.JoinAliasVars) {
+	if rte.Kind == RTEJoin && rte.Alias == "" && colIdx < len(rte.JoinAliasVars) {
 		if v, ok := rte.JoinAliasVars[colIdx].(*VarExpr); ok {
 			cp := *v
 			return &cp
@@ -1827,7 +1827,7 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	} else {
 		// Qualified table.* or no join tree: iterate RTEs directly.
 		for rtIdx, rte := range ac.query.RangeTable {
-			if rte.Kind == RTEJoin {
+			if rte.Kind == RTEJoin && rte.Alias == "" {
 				continue
 			}
 			if tableName != "" && rte.ERef != tableName {
@@ -1844,22 +1844,15 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 			}
 			hasSource = true
 			for colIdx, colName := range rte.ColNames {
-				var coll uint32
-				if colIdx < len(rte.ColCollations) {
-					coll = rte.ColCollations[colIdx]
-				}
+				v := ac.nsColumnVar(rtIdx, colIdx)
 				te := &TargetEntry{
-					Expr: &VarExpr{
-						RangeIdx:  rtIdx,
-						AttNum:    int16(colIdx + 1),
-						TypeOID:   rte.ColTypes[colIdx],
-						TypeMod:   rte.ColTypMods[colIdx],
-						Collation: coll,
-					},
-					ResNo:      int16(startIdx + len(entries) + 1),
-					ResName:    colName,
-					ResOrigTbl: rte.RelOID,
-					ResOrigCol: int16(colIdx + 1),
+					Expr:    v,
+					ResNo:   int16(startIdx + len(entries) + 1),
+					ResName: colName,
+				}
+				if src := ac.query.RangeTable[v.RangeIdx]; src.Kind != RTEJoin {
+					te.ResOrigTbl = src.RelOID
+					te.ResOrigCol = v.AttNum
 				}
 				entries = append(entries, te)
 			}
@@ -7179,7 +7172,13 @@ func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType ui
 	if err != nil {
 		return 0, false, err
 	}
-	if !ac.catalog.CanCoerce(JSONOID, retOID, 'e') {
+	baseOID := retOID
+	for dt := ac.catalog.domainTypes[baseOID]; dt != nil; dt = ac.catalog.domainTypes[baseOID] {
+		baseOID = dt.BaseTypeOID
+	}
+	// pg: src/backend/parser/parse_expr.c — transformJsonOutput:
+	// RETURNING bytea uses SQL/JSON binary serialization rather than a json->bytea cast.
+	if baseOID != BYTEAOID && !ac.catalog.CanCoerce(JSONOID, retOID, 'e') {
 		return 0, false, &Error{
 			Code:    CodeCannotCoerce,
 			Message: fmt.Sprintf("cannot cast type json to %s", ac.catalog.typeName(retOID)),
