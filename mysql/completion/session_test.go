@@ -907,3 +907,88 @@ func TestCompleteSession_All12ReproScenarios(t *testing.T) {
 	require.False(t, StatementReferencesDatabase("SELECT `old.db.foo` FROM t", "db"))
 	require.True(t, StatementReferencesDatabase("SELECT * FROM `a``b`.t", "a`b"))
 }
+
+func TestCompleteSession_CodexRound4Fixes(t *testing.T) {
+	dbs := map[string]*metadatapb.DatabaseSchemaMetadata{
+		"appdb": {
+			Name: "appdb",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "t1",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "outer_col"}, {Name: "shared_id"}},
+					},
+					{
+						Name:    "t2",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "inner_col"}, {Name: "shared_id"}},
+					},
+				},
+			}},
+		},
+		"remote": {
+			Name: "remote",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "orders",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "order_id"}, {Name: "amount"}},
+					},
+				},
+			}},
+		},
+	}
+	var loaded []string
+	cfg := SessionConfig{
+		DefaultDatabase: "appdb",
+		LoadDatabase: func(_ context.Context, db string) (string, *metadatapb.DatabaseSchemaMetadata, bool, bool) {
+			loaded = append(loaded, db)
+			meta, ok := dbs[strings.ToLower(db)]
+			if !ok {
+				return db, nil, false, false
+			}
+			return meta.Name, meta, false, true
+		},
+		ListDatabaseNames: func(context.Context) ([]string, error) {
+			return []string{"appdb", "remote"}, nil
+		},
+	}
+
+	// 1. Correlated outer table alias resolves inside subquery SELECT & EXISTS,
+	//    while matching inner aliases shadow outer ones.
+	gotCorr := CompleteSession(context.Background(), cfg, "SELECT (SELECT o. FROM t2 i) FROM t1 o", 1, len("SELECT (SELECT o."))
+	require.True(t, containsCandidate(gotCorr, "outer_col", CandidateColumn), "got %v", gotCorr)
+	require.False(t, containsCandidate(gotCorr, "inner_col", CandidateColumn), "got %v", gotCorr)
+
+	gotExists := CompleteSession(context.Background(), cfg, "SELECT * FROM t1 o WHERE EXISTS (SELECT 1 FROM t2 i WHERE o.)", 1, len("SELECT * FROM t1 o WHERE EXISTS (SELECT 1 FROM t2 i WHERE o."))
+	require.True(t, containsCandidate(gotExists, "outer_col", CandidateColumn), "got %v", gotExists)
+	require.False(t, containsCandidate(gotExists, "inner_col", CandidateColumn), "got %v", gotExists)
+
+	gotShadow := CompleteSession(context.Background(), cfg, "SELECT (SELECT o. FROM t2 o) FROM t1 o", 1, len("SELECT (SELECT o."))
+	require.True(t, containsCandidate(gotShadow, "inner_col", CandidateColumn), "got %v", gotShadow)
+	require.False(t, containsCandidate(gotShadow, "outer_col", CandidateColumn), "got %v", gotShadow)
+
+	// 2. Executable comments retain qualifier discovery and target lookup.
+	loaded = nil
+	gotExecWhere := CompleteSession(context.Background(), cfg, "SELECT * FROM /*! remote.orders */ WHERE ", 1, len("SELECT * FROM /*! remote.orders */ WHERE "))
+	require.Contains(t, loaded, "remote")
+	require.True(t, containsCandidate(gotExecWhere, "order_id", CandidateColumn), "got %v", gotExecWhere)
+	require.True(t, containsCandidate(gotExecWhere, "amount", CandidateColumn), "got %v", gotExecWhere)
+
+	gotExecVerWhere := CompleteSession(context.Background(), cfg, "SELECT * FROM /*!50000 remote.orders */ WHERE ", 1, len("SELECT * FROM /*!50000 remote.orders */ WHERE "))
+	require.True(t, containsCandidate(gotExecVerWhere, "order_id", CandidateColumn), "got %v", gotExecVerWhere)
+
+	gotExecDot := CompleteSession(context.Background(), cfg, "SELECT * FROM /*! remote. */", 1, len("SELECT * FROM /*! remote."))
+	require.True(t, containsCandidate(gotExecDot, "orders", CandidateTable), "got %v", gotExecDot)
+
+	// 3. Repeated duplicate wildcard expansion in chained CTEs stays bounded.
+	var sb strings.Builder
+	sb.WriteString("WITH c0 AS (SELECT 1 AS col)")
+	for i := 1; i <= 25; i++ {
+		fmt.Fprintf(&sb, ", c%d AS (SELECT c%d.*, c%d.* FROM c%d)", i, i-1, i-1, i-1)
+	}
+	sb.WriteString(" SELECT c25. FROM c25")
+	sql := sb.String()
+	gotCTEChain := CompleteSession(context.Background(), cfg, sql, 1, len(sql)-len(" FROM c25"))
+	require.Len(t, gotCTEChain, 1)
+	require.True(t, containsCandidate(gotCTEChain, "col", CandidateColumn), "got %v", gotCTEChain)
+}

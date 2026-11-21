@@ -4,6 +4,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 func isIdentByte(b byte) bool {
@@ -298,88 +300,43 @@ func CaretInsideBacktickIdentifier(statement string, pos int) bool {
 	return count%2 == 1
 }
 
-// stripStringsAndComments returns statement with the contents of string literals
-// ('...', "..."), line comments (-- , #), and block comments (/* */) replaced by
-// spaces, preserving byte length (newlines kept) so caret offsets stay valid.
-// Backtick-quoted identifiers are left intact.
+// stripStringsAndComments blanks string literals and ordinary comments while
+// preserving executable-comment SQL (/*! ... */, /*T! ... */), backtick
+// identifiers, newlines, and original byte offsets using the engine lexer.
 func stripStringsAndComments(statement string) string {
-	out := []byte(statement)
-	n := len(out)
-	blank := func(i int) {
-		if out[i] != '\n' {
+	out := make([]byte, len(statement))
+	for i := 0; i < len(statement); i++ {
+		if statement[i] == '\n' {
+			out[i] = '\n'
+		} else {
 			out[i] = ' '
 		}
 	}
-	i := 0
-	for i < n {
-		switch c := out[i]; {
-		case c == '\'' || c == '"':
-			q := c
-			blank(i)
-			i++
-			for i < n {
-				if out[i] == '\\' && i+1 < n {
-					blank(i)
-					blank(i + 1)
-					i += 2
-					continue
-				}
-				if out[i] == q {
-					if i+1 < n && out[i+1] == q {
-						blank(i)
-						blank(i + 1)
-						i += 2
-						continue
-					}
-					blank(i)
-					i++
-					break
-				}
-				blank(i)
-				i++
-			}
-		case c == '#':
-			for i < n && out[i] != '\n' {
-				out[i] = ' '
-				i++
-			}
-		case c == '-' && i+1 < n && out[i+1] == '-' && (i+2 >= n || isSpaceByte(out[i+2])):
-			for i < n && out[i] != '\n' {
-				out[i] = ' '
-				i++
-			}
-		case c == '/' && i+1 < n && out[i+1] == '*':
-			blank(i)
-			blank(i + 1)
-			i += 2
-			for i < n {
-				if out[i] == '*' && i+1 < n && out[i+1] == '/' {
-					blank(i)
-					blank(i + 1)
-					i += 2
-					break
-				}
-				blank(i)
-				i++
-			}
-		case c == '`':
-			i++
-			for i < n {
-				if out[i] == '`' {
-					if i+1 < n && out[i+1] == '`' {
-						i += 2
-						continue
-					}
-					i++
-					break
-				}
-				i++
-			}
-		default:
-			i++
+	lex := parser.NewLexer(statement)
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
 		}
+		if tok.Loc < 0 || tok.End > len(statement) || tok.Loc >= tok.End {
+			continue
+		}
+		if isStringLiteralSpan(statement[tok.Loc:tok.End]) {
+			continue
+		}
+		copy(out[tok.Loc:tok.End], statement[tok.Loc:tok.End])
 	}
 	return string(out)
+}
+
+func isStringLiteralSpan(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	if raw[0] == '\'' || raw[0] == '"' {
+		return true
+	}
+	return len(raw) >= 2 && (raw[0] == 'b' || raw[0] == 'B' || raw[0] == 'x' || raw[0] == 'X') && raw[1] == '\''
 }
 
 func isSpaceByte(b byte) bool {

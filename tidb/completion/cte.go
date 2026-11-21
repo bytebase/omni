@@ -51,13 +51,30 @@ func resolveColumnsASTScoped(
 		return nil, false
 	}
 
-	activeSel, ctes := findActiveSelectScope(sel, cursor, cat, nil, caseSensitive)
+	activeSel, ctes, outerScopes := findActiveSelectScope(sel, cursor, cat, nil, nil, caseSensitive)
 	if activeSel == nil {
 		return nil, false
 	}
 
 	sources := collectSelectFromSources(cat, activeSel.From, ctes, caseSensitive)
-	if len(sources) == 0 && len(ctes) == 0 {
+	scopes := make([][]resolvedTableSource, 0, 1+len(outerScopes))
+	scopes = append(scopes, sources)
+	scopes = append(scopes, outerScopes...)
+
+	hasAnySource := false
+	hasCTEOrDerived := false
+	for _, scope := range scopes {
+		if len(scope) > 0 {
+			hasAnySource = true
+		}
+		for _, src := range scope {
+			if src.isCTE {
+				hasCTEOrDerived = true
+				break
+			}
+		}
+	}
+	if !hasAnySource && len(ctes) == 0 {
 		return nil, false
 	}
 
@@ -75,27 +92,35 @@ func resolveColumnsASTScoped(
 
 	if qName != "" {
 		matchedAny := false
-		for _, src := range sources {
-			if src.remote {
-				continue
-			}
-			if !strings.EqualFold(src.alias, qName) && !strings.EqualFold(src.table, qName) {
-				continue
-			}
-			if qDB != "" {
-				if src.isCTE {
+		for _, scope := range scopes {
+			scopeMatched := false
+			for _, src := range scope {
+				if src.remote {
 					continue
 				}
-				srcDB := src.database
-				if srcDB == "" {
-					srcDB = cat.CurrentDatabase()
-				}
-				if !dbNameEquals(srcDB, qDB, caseSensitive) {
+				if !strings.EqualFold(src.alias, qName) && !strings.EqualFold(src.table, qName) {
 					continue
 				}
+				if qDB != "" {
+					if src.isCTE {
+						continue
+					}
+					srcDB := src.database
+					if srcDB == "" {
+						srcDB = cat.CurrentDatabase()
+					}
+					if !dbNameEquals(srcDB, qDB, caseSensitive) {
+						continue
+					}
+				}
+				scopeMatched = true
+				matchedAny = true
+				appendCols(src.cols)
 			}
-			matchedAny = true
-			appendCols(src.cols)
+			// Inner aliases/tables shadow outer scopes of the same name.
+			if scopeMatched {
+				break
+			}
 		}
 		if !matchedAny && qDB == "" {
 			if cteCols, isCTE := ctes[strings.ToLower(qName)]; isCTE {
@@ -105,15 +130,13 @@ func resolveColumnsASTScoped(
 		return result, true
 	}
 
-	hasCTEOrDerived := false
-	for _, src := range sources {
-		if src.isCTE {
-			hasCTEOrDerived = true
+	for _, scope := range scopes {
+		for _, src := range scope {
+			if src.remote {
+				continue
+			}
+			appendCols(src.cols)
 		}
-		if src.remote {
-			continue
-		}
-		appendCols(src.cols)
 	}
 	if len(result) > 0 || hasCTEOrDerived {
 		return result, true
@@ -126,10 +149,11 @@ func findActiveSelectScope(
 	cursor int,
 	cat *catalog.Catalog,
 	outerCTEs map[string][]string,
+	outerScopes [][]resolvedTableSource,
 	caseSensitive bool,
-) (*ast.SelectStmt, map[string][]string) {
+) (*ast.SelectStmt, map[string][]string, [][]resolvedTableSource) {
 	if s == nil {
-		return nil, outerCTEs
+		return nil, outerCTEs, outerScopes
 	}
 	ctes := maps.Clone(outerCTEs)
 	if ctes == nil {
@@ -140,7 +164,7 @@ func findActiveSelectScope(
 			continue
 		}
 		if cte.Select != nil && locContains(cte.Select.Loc, cursor) {
-			return findActiveSelectScope(cte.Select, cursor, cat, ctes, caseSensitive)
+			return findActiveSelectScope(cte.Select, cursor, cat, ctes, outerScopes, caseSensitive)
 		}
 		if cte.Name == "" {
 			continue
@@ -153,81 +177,110 @@ func findActiveSelectScope(
 	}
 
 	if s.ParenSource != nil {
-		return findActiveSelectScope(s.ParenSource, cursor, cat, ctes, caseSensitive)
+		return findActiveSelectScope(s.ParenSource, cursor, cat, ctes, outerScopes, caseSensitive)
 	}
 	if s.SetOp != ast.SetOpNone {
 		if s.Right != nil && locContains(s.Right.Loc, cursor) {
-			return findActiveSelectScope(s.Right, cursor, cat, ctes, caseSensitive)
+			return findActiveSelectScope(s.Right, cursor, cat, ctes, outerScopes, caseSensitive)
 		}
 		if s.Left != nil {
-			return findActiveSelectScope(s.Left, cursor, cat, ctes, caseSensitive)
+			return findActiveSelectScope(s.Left, cursor, cat, ctes, outerScopes, caseSensitive)
 		}
 	}
 
-	if sub := findSubqueryAtCursor(s, cursor); sub != nil {
-		return findActiveSelectScope(sub.Select, cursor, cat, ctes, caseSensitive)
+	if sub, canSeeCurFrom := findSubqueryAtCursor(s, cursor); sub != nil {
+		nextOuter := outerScopes
+		if canSeeCurFrom && len(s.From) > 0 {
+			curSources := collectSelectFromSources(cat, s.From, ctes, caseSensitive)
+			if len(curSources) > 0 {
+				nextOuter = make([][]resolvedTableSource, 0, 1+len(outerScopes))
+				nextOuter = append(nextOuter, curSources)
+				nextOuter = append(nextOuter, outerScopes...)
+			}
+		}
+		return findActiveSelectScope(sub, cursor, cat, ctes, nextOuter, caseSensitive)
 	}
-	return s, ctes
+	return s, ctes, outerScopes
 }
 
 func locContains(loc ast.Loc, cursor int) bool {
 	return loc.Start >= 0 && loc.End >= loc.Start && cursor >= loc.Start && cursor <= loc.End
 }
 
-func findSubqueryAtCursor(s *ast.SelectStmt, cursor int) *ast.SubqueryExpr {
+func findSubqueryAtCursor(s *ast.SelectStmt, cursor int) (*ast.SelectStmt, bool) {
 	for _, te := range s.From {
-		if sub := findSubqueryInTableExpr(te, cursor); sub != nil {
-			return sub
+		if sub, lateral := findSubqueryInTableExpr(te, cursor); sub != nil {
+			return sub, lateral
 		}
 	}
 	for _, e := range s.TargetList {
-		if sub := findSubqueryInExpr(e, cursor); sub != nil {
-			return sub
+		if sub := findSubqueryInAST(e, cursor); sub != nil {
+			return sub, true
 		}
 	}
-	if sub := findSubqueryInExpr(s.Where, cursor); sub != nil {
-		return sub
+	if sub := findSubqueryInAST(s.Where, cursor); sub != nil {
+		return sub, true
 	}
 	for _, e := range s.GroupBy {
-		if sub := findSubqueryInExpr(e, cursor); sub != nil {
-			return sub
+		if sub := findSubqueryInAST(e, cursor); sub != nil {
+			return sub, true
 		}
 	}
-	if sub := findSubqueryInExpr(s.Having, cursor); sub != nil {
-		return sub
+	if sub := findSubqueryInAST(s.Having, cursor); sub != nil {
+		return sub, true
 	}
-	return nil
+	for _, ob := range s.OrderBy {
+		if ob != nil {
+			if sub := findSubqueryInAST(ob.Expr, cursor); sub != nil {
+				return sub, true
+			}
+		}
+	}
+	return nil, false
 }
 
-func findSubqueryInTableExpr(te ast.TableExpr, cursor int) *ast.SubqueryExpr {
+func findSubqueryInTableExpr(te ast.TableExpr, cursor int) (*ast.SelectStmt, bool) {
 	switch v := te.(type) {
 	case *ast.JoinClause:
-		if sub := findSubqueryInTableExpr(v.Left, cursor); sub != nil {
-			return sub
+		if sub, lateral := findSubqueryInTableExpr(v.Left, cursor); sub != nil {
+			return sub, lateral
 		}
 		return findSubqueryInTableExpr(v.Right, cursor)
 	case *ast.SubqueryExpr:
 		if v.Select != nil && locContains(v.Loc, cursor) {
-			return v
+			return v.Select, v.Lateral
 		}
 	}
-	return nil
+	return nil, false
 }
 
-func findSubqueryInExpr(expr ast.Node, cursor int) *ast.SubqueryExpr {
-	if expr == nil {
+func findSubqueryInAST(node ast.Node, cursor int) *ast.SelectStmt {
+	if node == nil {
 		return nil
 	}
-	switch v := expr.(type) {
-	case *ast.SubqueryExpr:
-		if v.Select != nil && locContains(v.Loc, cursor) {
-			return v
+	var found *ast.SelectStmt
+	ast.Inspect(node, func(n ast.Node) bool {
+		if found != nil || n == nil {
+			return false
 		}
-	case *ast.ResTarget:
-		return findSubqueryInExpr(v.Val, cursor)
-	}
-	return nil
+		switch v := n.(type) {
+		case *ast.SubqueryExpr:
+			if v.Select != nil && locContains(v.Loc, cursor) {
+				found = v.Select
+			}
+			return false
+		case *ast.ExistsExpr:
+			if v.Select != nil && locContains(v.Loc, cursor) {
+				found = v.Select
+			}
+			return false
+		}
+		return true
+	})
+	return found
 }
+
+const maxProjectedCTEColumns = 4096
 
 func projectSelectColumns(
 	cat *catalog.Catalog,
@@ -255,28 +308,48 @@ func projectSelectColumns(
 	}
 
 	sources := collectSelectFromSources(cat, leaf.From, localCTEs, caseSensitive)
+	seen := make(map[string]bool)
 	var cols []string
+	addCol := func(name string) {
+		if name == "" || len(cols) >= maxProjectedCTEColumns {
+			return
+		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		cols = append(cols, name)
+	}
+	addCols := func(list []string) {
+		for _, name := range list {
+			addCol(name)
+			if len(cols) >= maxProjectedCTEColumns {
+				return
+			}
+		}
+	}
 	appendExpr := func(alias string, val ast.ExprNode) {
 		if alias != "" {
-			cols = append(cols, alias)
+			addCol(alias)
 			return
 		}
 		switch v := val.(type) {
 		case *ast.StarExpr:
 			for _, src := range sources {
-				cols = append(cols, src.cols...)
+				addCols(src.cols)
 			}
 		case *ast.ColumnRef:
 			if v.Star {
 				for _, src := range sources {
 					if v.Table == "" || strings.EqualFold(src.alias, v.Table) || strings.EqualFold(src.table, v.Table) {
-						cols = append(cols, src.cols...)
+						addCols(src.cols)
 					}
 				}
 				return
 			}
 			if v.Column != "" && v.Column != "_x" {
-				cols = append(cols, v.Column)
+				addCol(v.Column)
 			}
 		}
 	}
