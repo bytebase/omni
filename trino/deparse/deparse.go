@@ -80,7 +80,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("external table %s.%s cannot be restored by Trino SDL renderer", s.Name, et.Name)
 			}
 		}
-		if len(s.Streams) > 0 || len(s.Tasks) > 0 || len(s.Packages) > 0 || len(s.Events) > 0 || len(s.EnumTypes) > 0 || len(s.CompositeTypes) > 0 || len(s.Synonyms) > 0 {
+		if len(s.Streams) > 0 || len(s.Tasks) > 0 || len(s.Packages) > 0 || len(s.Events) > 0 || len(s.EnumTypes) > 0 || len(s.CompositeTypes) > 0 || len(s.Synonyms) > 0 || len(s.Collations) > 0 || len(s.RangeTypes) > 0 {
 			return nil, fmt.Errorf("schema %s contains schema objects unsupported by Trino SDL renderer", s.Name)
 		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))

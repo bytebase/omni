@@ -991,4 +991,23 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	assert.Contains(t, pyOut, `CREATE FUNCTION "cat"."s".py_add(x bigint, y bigint) RETURNS bigint LANGUAGE PYTHON WITH (handler = 'add') COMMENT 'adds one''s arg' AS $$def add(x, y): return x + y$$;`)
 	assert.Contains(t, pyOut, `CREATE FUNCTION "cat".s.py_replace(x bigint) RETURNS bigint LANGUAGE PYTHON COMMENT 'updated comment' WITH (handler = 'id') AS $$def id(x): return x$$;`)
 	assert.Less(t, strings.Index(pyOut, `CREATE FUNCTION "cat"."s".py_add(`), strings.Index(pyOut, `CREATE FUNCTION "cat"."s".py_wrap(`))
+
+	// Unrendered schema collations and range types fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:       "s",
+			Collations: []*metadatapb.CollationMetadata{{Name: "custom_coll"}},
+		}},
+	})
+	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:       "s",
+			RangeTypes: []*metadatapb.RangeTypeMetadata{{Name: "floatrange"}},
+		}},
+	})
+	require.ErrorContains(t, err, "unsupported")
 }

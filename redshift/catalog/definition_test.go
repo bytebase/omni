@@ -49,7 +49,9 @@ COMMENT ON COLUMN "public"."orders"."label" IS 'display name';
 					Comment:    "last 30 days",
 				})
 			},
-			want: `CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id, total FROM orders;
+			want: `SET search_path TO "public";
+CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id, total FROM orders;
+RESET search_path;
 COMMENT ON VIEW "public"."recent_orders" IS 'last 30 days';
 `,
 		},
@@ -178,7 +180,9 @@ COMMENT ON COLUMN "public"."orders"."id" IS 'surrogate key';
 --
 -- View structure for `+"`recent_orders`"+`
 --
+SET search_path TO "public";
 CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id FROM orders;
+RESET search_path;
 `, got)
 
 	table, err := GetTableDefinition("public", metadata.Schemas[0].Tables[0])
@@ -511,7 +515,7 @@ COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
 					{
 						Name:       "late_v",
 						Definition: `CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING`,
-						Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "ignored on late-binding view"}},
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
 					},
 				},
 				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
@@ -537,22 +541,28 @@ CREATE TABLE "public"."Events" (
 --
 -- View structure for `+"`late_v`"+`
 --
+SET search_path TO "public";
 CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING;
+RESET search_path;
 
 --
 -- Materialized view structure for `+"`z_mv_base`"+`
 --
+SET search_path TO "public";
 CREATE MATERIALIZED VIEW "public"."z_mv_base" AS SELECT id FROM "public"."Events";
+RESET search_path;
 
 --
 -- Materialized view structure for `+"`a_mv_top`"+`
 --
+SET search_path TO "public";
 CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_base";
+RESET search_path;
 `, got)
 
 	mixedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "MixedView", Definition: "SELECT 1"})
 	require.NoError(t, err)
-	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nCREATE OR REPLACE VIEW \"public\".\"MixedView\" AS SELECT 1;\n", mixedView)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nSET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"MixedView\" AS SELECT 1;\nRESET search_path;\n", mixedView)
 
 	mixedColView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{
 		Name:       "v",
@@ -560,7 +570,7 @@ CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_ba
 		Definition: `SELECT 1 AS "MixedAlias"`,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nCREATE OR REPLACE VIEW \"public\".\"v\" AS SELECT 1 AS \"MixedAlias\";\n", mixedColView)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nSET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"v\" AS SELECT 1 AS \"MixedAlias\";\nRESET search_path;\n", mixedColView)
 
 	newlineNameDump, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
 		Schemas: []*metadatapb.SchemaMetadata{
@@ -588,7 +598,9 @@ func TestDatabaseDefinitionRoutinesAndViewColumnComments(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, `CREATE OR REPLACE VIEW "public"."v" AS SELECT 1 AS id;
+	require.Equal(t, `SET search_path TO "public";
+CREATE OR REPLACE VIEW "public"."v" AS SELECT 1 AS id;
+RESET search_path;
 COMMENT ON VIEW "public"."v" IS 'view note';
 COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
 `, viewDef)
@@ -1542,6 +1554,54 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "rules")
+
+	// Public views (including query-only and complete CREATE VIEW public.v) and public materialized views set search_path.
+	pubViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_qual", Definition: "CREATE VIEW public.v_qual AS SELECT id FROM t"},
+				{Name: "v_query", Definition: "SELECT id FROM t"},
+			},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+				{Name: "mv_pub", Definition: "SELECT id FROM t"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE VIEW public.v_qual AS SELECT id FROM t;\nRESET search_path;\n")
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"v_query\" AS SELECT id FROM t;\nRESET search_path;\n")
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE MATERIALIZED VIEW \"public\".\"mv_pub\" AS SELECT id FROM t;\nRESET search_path;\n")
+
+	// Unrendered extensions, late-binding view column comments, and FKs missing ReferencedTable fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:       "dev",
+		Extensions: []*metadatapb.ExtensionMetadata{{Name: "plpgsql"}},
+	})
+	require.ErrorContains(t, err, "extensions")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "late_cmt",
+				Definition: `CREATE VIEW "public"."late_cmt" AS SELECT 1 AS id WITH NO SCHEMA BINDING`,
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "unsupported"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "late-binding")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_missing_tbl",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_empty_ref",
+			Columns:           []string{"id"},
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "referenced table")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

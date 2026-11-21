@@ -26,6 +26,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to.Datashare {
 		return "", fmt.Errorf("datashare database %q cannot be restored because DatabaseSchemaMetadata does not capture FROM DATASHARE configuration", to.Name)
 	}
+	if len(to.Extensions) > 0 {
+		return "", fmt.Errorf("database %q extensions cannot be restored because Redshift does not support PostgreSQL extensions", to.Name)
+	}
 	caseSensitive := needsCaseSensitiveIdentifiers(to)
 	seenSchemas := make(map[string]struct{}, len(to.Schemas))
 	for _, schema := range to.Schemas {
@@ -1999,7 +2002,13 @@ func writeView(w io.StringWriter, view *viewState) error {
 			return err
 		}
 	}
-	if !isLateBindingView(view.definition) {
+	if isLateBindingView(view.definition) {
+		for _, column := range sortedColumns(view.columns) {
+			if column.comment != "" {
+				return fmt.Errorf("column %s comment on late-binding view %s cannot be restored because Redshift does not support COMMENT ON COLUMN for late-binding views", quoteDefinitionIdentifier(column.name), view.qualifiedName())
+			}
+		}
+	} else {
 		for _, column := range sortedColumns(view.columns) {
 			if column.comment == "" {
 				continue
@@ -2347,6 +2356,9 @@ func convertToForeignKeyState(id int, tableSchema string, foreignKey *metadatapb
 }
 
 func (f *foreignKeyState) toString(buf *strings.Builder) error {
+	if f.referencedTable == "" {
+		return fmt.Errorf("foreign key %s has empty referenced table", f.name)
+	}
 	if len(f.columns) == 0 || len(f.columns) != len(f.referencedColumns) {
 		return fmt.Errorf("foreign key %s has %d columns and %d referenced columns", f.name, len(f.columns), len(f.referencedColumns))
 	}
@@ -2781,20 +2793,16 @@ func (v *viewState) toString(buf io.StringWriter) error {
 		return fmt.Errorf("view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
-	needsSearchPath := v.schema != "" && v.schema != "public"
 	if vs := parseViewStmt(trimmed); vs != nil {
 		if err := v.validateTarget("view", vs.View); err != nil {
 			return err
 		}
 		stmt = trimmed
-		if vs.View != nil && vs.View.Schemaname == "" {
-			needsSearchPath = v.schema != ""
-		}
 	} else {
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
 	stmt = appendTerminator(stmt) + "\n"
-	if needsSearchPath {
+	if v.schema != "" {
 		return writeWithSchemaSearchPath(buf, v.schema, stmt)
 	}
 	_, err := buf.WriteString(stmt)
@@ -2807,24 +2815,18 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 		return fmt.Errorf("materialized view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
-	needsSearchPath := v.schema != "" && v.schema != "public"
 	if ctas := parseMaterializedViewStmt(trimmed); ctas != nil {
 		if ctas.Into != nil {
 			if err := v.validateTarget("materialized view", ctas.Into.Rel); err != nil {
 				return err
 			}
-			stmt = trimmed
-			if ctas.Into.Rel != nil && ctas.Into.Rel.Schemaname == "" {
-				needsSearchPath = v.schema != ""
-			}
-		} else {
-			stmt = trimmed
 		}
+		stmt = trimmed
 	} else {
 		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
 	stmt = appendTerminator(stmt) + "\n"
-	if needsSearchPath {
+	if v.schema != "" {
 		return writeWithSchemaSearchPath(buf, v.schema, stmt)
 	}
 	_, err := buf.WriteString(stmt)
