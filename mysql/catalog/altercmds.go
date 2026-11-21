@@ -46,6 +46,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		if alterIsPartitionMaintenanceOnly(stmt.Commands) {
 			return nil
 		}
+		if db.Views[key] != nil {
+			// TRUNCATE PARTITION on a view answers 1505 rather than 1347 on mysql:8.0.46.
+			if alterIsTruncatePartitionOnly(stmt.Commands) {
+				return errPartitionMgmtOnNonPartitioned()
+			}
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	// PERFORMANCE_SCHEMA holds the performance schema's own tables: on a table
@@ -68,6 +75,16 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	if repartition != nil {
+		// MySQL checks empty RANGE/LIST (1492), subpartition mix (1500), and
+		// duplicate partition fields (1652) before checking whether the table
+		// participates in foreign keys (1506), and checks 1506 ahead of column
+		// existence (1488, 1054) and unique-key coverage (1503) (mysql:8.0.46).
+		if err := validatePartitionClausePreFK(repartition); err != nil {
+			return err
+		}
+		if c.tableHasFKAfterAlter(db, tbl, stmt.Commands) {
+			return errForeignKeyOnPartitioned()
+		}
 		// What the clause says about the table's columns is judged here, in the order
 		// MySQL judges it (1492, 1500, 1652, 1488, 1054). The unique keys that must
 		// cover it are judged after the commands, by validateAlteredUniqueKeys, since
@@ -483,13 +500,31 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return errTablespaceDiscarded(db.Name, tbl.Name)
 	}
+	// When ALTER TABLE adds an index, MySQL drops existing implicitly generated
+	// FK backing indexes (HA_GENERATED_KEY) before checking duplicate key names
+	// and allocates new names, then re-creates any still-needed FK backing index
+	// after the commands run.
+	var strippedGen []*Index
+	if alterAddsIndex(stmt.Commands) {
+		strippedGen = stripGeneratedFKIndexes(tbl, alterExplicitIndexTargets(stmt.Commands))
+	}
+	removesPartitioning := alterRemovesPartitioning(stmt.Commands)
+	hasRepartition := alterRepartition(stmt.Commands) != nil
+	keepsOldPartitioning := tbl.Partitioning != nil && !removesPartitioning && !hasRepartition
+	willBePartitioned := (tbl.Partitioning != nil && !removesPartitioning) || hasRepartition
 	deferKeyWidths := alterChangesIndexCapacity(stmt.Commands)
 	targetEngine := alterTargetEngine(tbl, stmt.Commands)
+	var droppedIndexes []*Index
 	for _, cmd := range stmt.Commands {
-		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths, preExprs); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine, !deferKeyWidths, keepsOldPartitioning, willBePartitioned, preExprs, &droppedIndexes); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
+	}
+	restoreGeneratedFKIndexes(tbl, strippedGen)
+	if err := c.validateDroppedIndexesForFK(tbl, droppedIndexes); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
 	}
 	if err := validateDroppedOrRenamedDefaultExprDeps(tbl, origTableName, droppedOrRenamed, preExprs); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
@@ -698,6 +733,122 @@ func alterIsPartitionMaintenanceOnly(commands []*nodes.AlterTableCmd) bool {
 	return true
 }
 
+// alterIsTruncatePartitionOnly reports whether every command is TRUNCATE PARTITION.
+func alterIsTruncatePartitionOnly(commands []*nodes.AlterTableCmd) bool {
+	if len(commands) == 0 {
+		return false
+	}
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTruncatePartition {
+			return false
+		}
+	}
+	return true
+}
+
+// alterAddsIndex reports whether commands add any index or unique/primary key.
+func alterAddsIndex(commands []*nodes.AlterTableCmd) bool {
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		for _, con := range alterConstraints(cmd) {
+			if con == nil {
+				continue
+			}
+			switch con.Type {
+			case nodes.ConstrPrimaryKey, nodes.ConstrUnique, nodes.ConstrIndex,
+				nodes.ConstrFulltextIndex, nodes.ConstrSpatialIndex:
+				return true
+			}
+		}
+		for _, colDef := range alterColumnDefs(cmd) {
+			if colDef == nil {
+				continue
+			}
+			if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+				return true
+			}
+			for _, cc := range colDef.Constraints {
+				if cc.Type == nodes.ColConstrPrimaryKey || cc.Type == nodes.ColConstrUnique {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// alterExplicitIndexTargets returns lower-cased index names explicitly targeted
+// by DROP/RENAME/ALTER visibility commands in the same ALTER TABLE.
+func alterExplicitIndexTargets(commands []*nodes.AlterTableCmd) map[string]bool {
+	targets := make(map[string]bool)
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Name == "" {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATDropIndex, nodes.ATRenameIndex, nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible:
+			targets[toLower(cmd.Name)] = true
+		}
+	}
+	return targets
+}
+
+// tableHasFKAfterAlter reports whether tbl participates in any foreign key
+// (either as a child table whose FK is not dropped by commands, or as a parent
+// table referenced by another table's FK).
+func (c *Catalog) tableHasFKAfterAlter(db *Database, tbl *Table, commands []*nodes.AlterTableCmd) bool {
+	droppedFKs := make(map[string]bool)
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATDropConstraint {
+			continue
+		}
+		if cmd.ConstraintKeyword == nodes.ConstraintKeywordForeignKey || cmd.ConstraintKeyword == nodes.ConstraintKeywordConstraint {
+			droppedFKs[toLower(cmd.Name)] = true
+		}
+	}
+	for _, con := range tbl.Constraints {
+		if con != nil && con.Type == ConForeignKey && !droppedFKs[toLower(con.Name)] {
+			return true
+		}
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		for _, con := range alterConstraints(cmd) {
+			if con != nil && con.Type == nodes.ConstrForeignKey {
+				return true
+			}
+		}
+	}
+	_, _, referenced := c.findReferencingFK(db.Name, tbl.Name)
+	return referenced
+}
+
+func isRangeOrListPartitioning(pi *PartitionInfo) bool {
+	if pi == nil {
+		return false
+	}
+	switch pi.Type {
+	case "RANGE", "RANGE COLUMNS", "LIST", "LIST COLUMNS":
+		return true
+	}
+	return false
+}
+
+func isHashOrKeyPartitioning(pi *PartitionInfo) bool {
+	if pi == nil {
+		return false
+	}
+	return pi.Type == "HASH" || pi.Type == "KEY"
+}
+
+func partitionUsesColumn(tbl *Table, colName string) bool {
+	return tbl.Partitioning != nil && containsFold(tbl.Partitioning.keyColumns, colName)
+}
+
 // alterExchangeSelf refuses an EXCHANGE PARTITION that names the table being
 // altered as the table to swap with: 1066 "Not unique table/alias", answered
 // before either table is looked up (measured on mysql:8.0.46). A name in another
@@ -881,28 +1032,28 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string, checkIndexWidths bool, preExprs map[nodes.ExprNode]bool) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string, checkIndexWidths, keepsOldPartitioning, willBePartitioned bool, preExprs map[nodes.ExprNode]bool, droppedIndexes *[]*Index) error {
 	if tableHasDiscardedTablespace(tbl) && alterCmdRequiresTablespace(cmd) &&
 		!(cmd.Type == nodes.ATDropPartition && tbl.Partitioning != nil && !tbl.TablespaceDiscarded) {
 		return errTablespaceDiscarded(db.Name, tbl.Name)
 	}
 	switch cmd.Type {
 	case nodes.ATAddColumn:
-		return c.alterAddColumn(tbl, cmd, leaves)
+		return c.alterAddColumn(tbl, cmd, leaves, willBePartitioned)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd)
+		return c.alterDropColumn(tbl, cmd, keepsOldPartitioning)
 	case nodes.ATModifyColumn:
-		return c.alterModifyColumn(tbl, cmd)
+		return c.alterModifyColumn(tbl, cmd, keepsOldPartitioning)
 	case nodes.ATChangeColumn:
-		return c.alterChangeColumn(tbl, cmd)
+		return c.alterChangeColumn(tbl, cmd, keepsOldPartitioning)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, leaves, checkIndexWidths)
+		return c.alterAddConstraint(tbl, cmd, leaves, checkIndexWidths, willBePartitioned)
 	case nodes.ATDropIndex:
-		return c.alterDropIndex(tbl, cmd)
+		return c.alterDropIndex(tbl, cmd, droppedIndexes)
 	case nodes.ATDropConstraint:
-		return c.alterDropConstraint(tbl, cmd)
+		return c.alterDropConstraint(tbl, cmd, droppedIndexes)
 	case nodes.ATRenameColumn:
-		return c.alterRenameColumn(tbl, cmd)
+		return c.alterRenameColumn(tbl, cmd, keepsOldPartitioning)
 	case nodes.ATRenameIndex:
 		return c.alterRenameIndex(tbl, cmd)
 	case nodes.ATRenameTable:
@@ -1012,7 +1163,7 @@ func alterCmdRequiresTablespace(cmd *nodes.AlterTableCmd) bool {
 }
 
 // alterAddColumn adds a new column to the table.
-func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
+func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, willBePartitioned bool) error {
 	// The parenthesized form reads a table element list, so it carries the
 	// constraints written beside the columns:
 	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
@@ -1028,7 +1179,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, leaves ma
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, leaves, true); err != nil {
+			}, leaves, true, willBePartitioned); err != nil {
 				return err
 			}
 		}
@@ -1192,7 +1343,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 }
 
 // alterDropColumn removes a column from the table.
-func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOldPartitioning bool) error {
 	colKey := toLower(cmd.Name)
 	if _, exists := tbl.colByName[colKey]; !exists {
 		if cmd.IfExists {
@@ -1208,6 +1359,9 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 	if len(tbl.Columns) == 1 {
 		return errCantRemoveAllFields()
+	}
+	if keepsOldPartitioning && partitionUsesColumn(tbl, cmd.Name) {
+		return errDependentByPartitionFunc(cmd.Name)
 	}
 
 	// Check if column is referenced by a generated column expression (functional
@@ -1303,24 +1457,24 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 }
 
 // alterModifyColumn replaces a column definition in-place (same name).
-func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOldPartitioning bool) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd)
+	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd, keepsOldPartitioning)
 }
 
 // alterChangeColumn replaces a column (old name -> new name + new definition).
-func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOldPartitioning bool) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Name, cmd)
+	return c.alterReplaceColumn(tbl, cmd.Name, cmd, keepsOldPartitioning)
 }
 
 // alterReplaceColumn is the shared implementation for MODIFY and CHANGE COLUMN.
 // oldName is the existing column to replace; cmd.Column defines the new column.
-func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd, keepsOldPartitioning bool) error {
 	colDef := cmd.Column
 	if err := validateColumnDefSemantics(colDef, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
@@ -1336,6 +1490,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if newKey != oldKey {
 		if _, dup := tbl.colByName[newKey]; dup {
 			return errDupColumn(colDef.Name)
+		}
+		if keepsOldPartitioning && partitionUsesColumn(tbl, oldName) {
+			return errDependentByPartitionFunc(oldName)
 		}
 	}
 
@@ -1421,7 +1578,7 @@ func duplicateKeyColumnName(con *nodes.Constraint) string {
 }
 
 // alterAddConstraint adds a constraint or index to the table.
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, checkWidths bool) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, checkWidths, willBePartitioned bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1549,6 +1706,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if len(con.RefColumns) == 0 || len(cols) != len(con.RefColumns) {
 			return errWrongFkDef(fkErrorDisplayName(con), "Key reference and table reference don't match")
 		}
+		if willBePartitioned {
+			return errForeignKeyOnPartitioned()
+		}
 		conName := con.Name
 		if conName == "" {
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
@@ -1669,6 +1829,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
+		if willBePartitioned {
+			return errTableCantHandleFt()
+		}
 		idxCols := buildIndexColumns(con)
 		if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 			return err
@@ -1731,7 +1894,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 }
 
 // alterDropIndex removes an index (and any associated constraint) by name.
-func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd, droppedIndexes *[]*Index) error {
 	name := cmd.Name
 	key := toLower(name)
 
@@ -1756,6 +1919,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 		return errCantDropKey(name)
 	}
+	*droppedIndexes = append(*droppedIndexes, dropped)
 	removeFunctionalIndexHiddenColumns(tbl, dropped)
 
 	// Also remove any constraint that references this index.
@@ -1770,7 +1934,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 }
 
 // alterDropConstraint removes a constraint by name.
-func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd, droppedIndexes *[]*Index) error {
 	name := cmd.Name
 	key := toLower(name)
 
@@ -1813,13 +1977,30 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		return errCantDropKey(name)
 	}
 
-	// For FK constraints, MySQL keeps the backing index when dropping the FK.
+	// For FK constraints, MySQL keeps the backing index when dropping the FK,
+	// and it is no longer an FK-generated index unless another FK still needs it.
 	// For other constraints (e.g., PRIMARY KEY), also remove the corresponding index.
-	if !isForeignKey {
+	if isForeignKey {
+		for _, idx := range tbl.Indexes {
+			if idx != nil && idx.Generated {
+				needed := false
+				for _, con := range tbl.Constraints {
+					if con != nil && con.Type == ConForeignKey && fkIndexCoversColumns(idx, con.Columns) {
+						needed = true
+						break
+					}
+				}
+				if !needed {
+					idx.Generated = false
+				}
+			}
+		}
+	} else {
 		for i, idx := range tbl.Indexes {
 			if toLower(idx.Name) == key {
 				dropped := idx
 				tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
+				*droppedIndexes = append(*droppedIndexes, dropped)
 				removeFunctionalIndexHiddenColumns(tbl, dropped)
 				break
 			}
@@ -1830,7 +2011,7 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 }
 
 // alterRenameColumn changes a column name in-place.
-func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOldPartitioning bool) error {
 	oldKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
@@ -1842,6 +2023,9 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		if _, dup := tbl.colByName[newKey]; dup {
 			return errDupColumn(cmd.NewName)
 		}
+	}
+	if keepsOldPartitioning && partitionUsesColumn(tbl, cmd.Name) {
+		return errDependentByPartitionFunc(cmd.Name)
 	}
 
 	tbl.Columns[idx].Name = cmd.NewName
@@ -1867,6 +2051,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == oldKey {
 			idx.Name = cmd.NewName
+			idx.Generated = false
 			if newKey != oldKey {
 				renameFunctionalIndexHiddenColumns(tbl, idx, cmd.NewName)
 			}
@@ -1908,7 +2093,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
@@ -2061,6 +2246,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
 			idx.Visible = visible
+			idx.Generated = false
 			return nil
 		}
 	}
@@ -2304,17 +2490,24 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
 func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	key := toLower(cmd.Name)
+	var nonCheck *Constraint
 	for _, con := range tbl.Constraints {
-		if toLower(con.Name) == key && con.Type == ConCheck {
-			con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
-			return nil
+		if toLower(con.Name) == key {
+			if con.Type == ConCheck {
+				con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
+				return nil
+			}
+			nonCheck = con
 		}
 	}
-	// ALTER CHECK reports a missing check constraint, ALTER CONSTRAINT a
-	// missing constraint; both spellings alter a check (measured on
-	// mysql:8.0.46).
+	// ALTER CHECK reports a missing check constraint (3821); ALTER CONSTRAINT
+	// reports 3941 when a non-CHECK constraint of that name exists on the table
+	// and 3940 when no constraint of that name exists (measured on mysql:8.0.46).
 	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
 		return errCheckConstraintNotFound(cmd.Name)
+	}
+	if nonCheck != nil {
+		return errAlterConstraintNotSupported(cmd.Name)
 	}
 	return errConstraintDoesNotExist(cmd.Name)
 }
@@ -2410,6 +2603,18 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	if isRangeOrListPartitioning(tbl.Partitioning) {
+		if len(cmd.PartitionDefs) == 0 {
+			return errPartitionsMustBeDefined()
+		}
+		// MySQL checks that each RANGE/LIST partition definition provides
+		// VALUES LESS THAN / VALUES IN (1479) ahead of tablespace checks (3510).
+		for _, pd := range cmd.PartitionDefs {
+			if pd != nil && pd.Values == nil {
+				return errPartitionRequiresValues(tbl.Partitioning.Type)
+			}
+		}
+	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
@@ -2425,6 +2630,21 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 		}
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
+	}
+	existingNames := make(map[string]bool, len(tbl.Partitioning.Partitions))
+	for _, pd := range tbl.Partitioning.Partitions {
+		if pd != nil && pd.Name != "" {
+			existingNames[toLower(pd.Name)] = true
+		}
+	}
+	for _, pd := range cmd.PartitionDefs {
+		if pd != nil && pd.Name != "" {
+			key := toLower(pd.Name)
+			if existingNames[key] {
+				return errSameNamePartition(pd.Name)
+			}
+			existingNames[key] = true
+		}
 	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
@@ -2477,6 +2697,12 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	// MySQL counts every name listed in DROP PARTITION against the table's
+	// partition count and answers 1508 when the count would drop all partitions
+	// (including duplicates like `DROP PARTITION p1, p1` on a 2-partition table).
+	if len(tbl.Partitioning.Partitions) > 0 && len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
+		return errDropLastPartition()
+	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
 		dropSet[toLower(name)] = true
@@ -2486,6 +2712,9 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if !dropSet[toLower(pd.Name)] {
 			remaining = append(remaining, pd)
 		}
+	}
+	if len(tbl.Partitioning.Partitions) > 0 && len(remaining) == 0 {
+		return errDropLastPartition()
 	}
 	tbl.Partitioning.Partitions = remaining
 	return nil
@@ -2525,6 +2754,9 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	if !isHashOrKeyPartitioning(tbl.Partitioning) {
+		return errCoalesceOnlyOnHashPartition()
+	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
 	if currentCount == 0 {
@@ -2545,6 +2777,16 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd, targetEngine string) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 && !isHashOrKeyPartitioning(tbl.Partitioning) {
+		return errReorgNoParam()
+	}
+	if isRangeOrListPartitioning(tbl.Partitioning) {
+		for _, pd := range cmd.PartitionDefs {
+			if pd != nil && pd.Values == nil {
+				return errPartitionRequiresValues(tbl.Partitioning.Type)
+			}
+		}
 	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
@@ -2567,6 +2809,21 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 	}
 	if insertPos < 0 {
 		insertPos = len(remaining)
+	}
+	existingNames := make(map[string]bool, len(remaining))
+	for _, pd := range remaining {
+		if pd != nil && pd.Name != "" {
+			existingNames[toLower(pd.Name)] = true
+		}
+	}
+	for _, pd := range cmd.PartitionDefs {
+		if pd != nil && pd.Name != "" {
+			key := toLower(pd.Name)
+			if existingNames[key] {
+				return errSameNamePartition(pd.Name)
+			}
+			existingNames[key] = true
+		}
 	}
 
 	// Build new partitions.

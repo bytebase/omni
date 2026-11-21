@@ -44,20 +44,24 @@ func TestSimulation(t *testing.T) {
 }
 
 // simulationFixtures are the starting schemas, in testdata/fixtures. They are
-// one table under four namings. A compat.tsv statement writes utf8mb4 for every
-// name it holds, the table's, a column's and an index's alike
+// one table under four namings plus three object-kind fixtures (a view, a
+// partitioned table, and a table with a foreign key and check constraint). A
+// compat.tsv statement writes utf8mb4 for every name it holds, the table's, a
+// column's, an index's, a partition's, and a constraint's alike
 // (mysql/testdata/tokens.tsv), so what a statement finds is set by what the
-// fixture names utf8mb4: nothing, the table, a column of it too, and an index
-// of it too.
-var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_table@column", "one_table@index"}
+// fixture names utf8mb4.
+var simulationFixtures = []string{
+	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
+	"objects@view", "objects@partitioned", "objects@fk",
+}
 
 // simulationFamilies are the leading words of the statements the file holds:
 // DDL on tables, indexes and views, whose whole effect is in the database a
 // row reads back. Statements on databases, routines, triggers, events,
 // tablespaces, accounts and the server are not simulated here yet: what they
 // change is outside that database, or is no table or view text. Note that
-// "CREATE DEFINER " (kept for views) also admits the four fixtures'
-// `CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;` rows, which stay open
+// "CREATE DEFINER " (kept for views) also admits each fixture's
+// `CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;` row, which stays open
 // until simulationForms reads stored routines in addition to SHOW FULL TABLES.
 var simulationFamilies = []string{
 	"ALTER TABLE ", "CREATE TABLE ", "DROP TABLE ", "RENAME TABLE ", "TRUNCATE ",
@@ -207,6 +211,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 
 	var stored strings.Builder
 	stored.WriteString(database)
+	stored.WriteString("SET FOREIGN_KEY_CHECKS = 0;\n")
 	for _, kind := range []string{"TABLE", "VIEW"} { // a view reads the tables
 		for _, f := range engine.Forms {
 			if f.Kind == kind {
@@ -214,6 +219,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 			}
 		}
 	}
+	stored.WriteString("SET FOREIGN_KEY_CHECKS = 1;\n")
 	want, err := LoadSQL(stored.String())
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what MySQL stores: %v", err)}

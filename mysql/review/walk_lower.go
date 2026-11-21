@@ -168,6 +168,13 @@ func (b *builder) clearDatabase(d string) {
 	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
+	b.Session(func() {
+		for gk := range b.w.fkGeneratedIndexes {
+			if names := walk.Names(gk.Parent); len(names) > 0 && names[0] == d {
+				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+	})
 }
 
 // alterDatabase follows ALTER DATABASE, of the current database when it
@@ -414,6 +421,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	path := tablePath(r.db, r.name)
 	b.Set(relKey(r.db, r.name), walk.Present, relTable)
 	b.Clear(walk.Scope{Parent: path, Deep: true})
+	b.clearTableFKGenerated(r.db, r.name)
 	if v.Like != nil || v.Select != nil {
 		b.Forget(walk.Scope{Parent: path, Deep: true})
 	}
@@ -442,10 +450,13 @@ func (b *builder) columnKeys(r tableRef, c *ast.ColumnDef) bool {
 	for _, cc := range c.Constraints {
 		switch cc.Type {
 		case ast.ColConstrPrimaryKey:
-			b.Set(idxKey(r.db, r.name, primaryIndex), walk.Present, "")
+			ik := idxKey(r.db, r.name, primaryIndex)
+			b.Set(ik, walk.Present, "")
+			b.onIndexAdded(r, ik, true)
 			primary = true
 		case ast.ColConstrUnique:
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
+			b.onIndexAdded(r, walk.Key{}, false)
 		case ast.ColConstrReferences:
 			b.mayAddForeignKeys(r)
 		}
@@ -461,7 +472,9 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	indexes := walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)}
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
-		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Present, "")
+		ik := idxKey(r.db, r.name, primaryIndex)
+		b.Set(ik, walk.Present, "")
+		b.onIndexAdded(r, ik, true)
 		return true
 	case ast.ConstrCheck:
 	case ast.ConstrForeignKey:
@@ -482,9 +495,12 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 		b.MayAdd(indexes)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.Set(idxKey(r.db, r.name, k), walk.Present, "")
+			ik := idxKey(r.db, r.name, k)
+			b.Set(ik, walk.Present, "")
+			b.onIndexAdded(r, ik, true)
 		} else {
 			b.MayAdd(indexes)
+			b.onIndexAdded(r, walk.Key{}, false)
 		}
 	}
 	return false

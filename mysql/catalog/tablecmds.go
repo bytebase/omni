@@ -150,6 +150,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		return errDupTable(tableName)
 	}
 	if db.Views[key] != nil {
+		if stmt.IfNotExists {
+			return nil
+		}
 		return errDupTable(tableName)
 	}
 
@@ -1049,6 +1052,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 
 	// Process partition clause.
 	if stmt.Partitions != nil {
+		if declared {
+			if err := validatePartitionClausePreFK(stmt.Partitions); err != nil {
+				return err
+			}
+			for _, con := range tbl.Constraints {
+				if con != nil && con.Type == ConForeignKey {
+					return errForeignKeyOnPartitioned()
+				}
+			}
+			for _, idx := range tbl.Indexes {
+				if idx != nil && idx.Fulltext {
+					return errTableCantHandleFt()
+				}
+			}
+		}
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
@@ -1669,10 +1687,11 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
 }
 
-// validatePartitionClauseShape runs the checks the clause makes on its own, without
-// the unique keys that must cover it: what it defines (1492), what it mixes (1500),
-// the columns it names (1652, 1488, 1054) and its bounds (1481, 1493, 1491).
-func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
+// validatePartitionClausePreFK runs the checks a PARTITION BY clause makes
+// before MySQL checks whether the table has foreign keys (1506): empty
+// RANGE/LIST (1492), HASH/KEY with subpartitions (1500), and duplicate field
+// names in a partition/subpartition column list (1652).
+func validatePartitionClausePreFK(pc *nodes.PartitionClause) error {
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return errPartitionsMustBeDefined()
 	}
@@ -1681,6 +1700,30 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 	// column either function names (mysql:8.0.46).
 	if (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) && partitionClauseHasSubpartitions(pc) {
 		return errPartitionSubpartMix()
+	}
+	if err := validatePartitionDuplicateFields(pc.Columns); err != nil {
+		return err
+	}
+	return validatePartitionDuplicateFields(pc.SubPartColumns)
+}
+
+func validatePartitionDuplicateFields(columns []string) error {
+	seen := map[string]bool{}
+	for _, name := range columns {
+		if seen[toLower(name)] {
+			return errDupPartitionField(name)
+		}
+		seen[toLower(name)] = true
+	}
+	return nil
+}
+
+// validatePartitionClauseShape runs the checks the clause makes on its own, without
+// the unique keys that must cover it: what it defines (1492), what it mixes (1500),
+// the columns it names (1652, 1488, 1054) and its bounds (1481, 1493, 1491).
+func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := validatePartitionClausePreFK(pc); err != nil {
+		return err
 	}
 	// Every column the clause names must be a column of the table. KEY's name list
 	// answers 1488, a partitioning expression 1054, and a name the list repeats 1652,
@@ -2300,22 +2343,27 @@ func validateNonPrimaryIndexName(name string) error {
 	return nil
 }
 
+// fkIndexCoversColumns reports whether idx is a B-tree/Hash index whose leading
+// whole-column key parts match cols in order (eligible to back a foreign key).
+func fkIndexCoversColumns(idx *Index, cols []string) bool {
+	if idx == nil || idx.Fulltext || idx.Spatial || len(cols) == 0 || len(idx.Columns) < len(cols) {
+		return false
+	}
+	for i, col := range cols {
+		ic := idx.Columns[i]
+		if ic == nil || ic.Expr != "" || ic.Length != 0 || !strings.EqualFold(ic.Name, col) {
+			return false
+		}
+	}
+	return true
+}
+
 // hasIndexCoveringColumns returns true if the table already has an index whose
 // leading columns match the given FK columns (left-prefix match). MySQL 8.0
 // reuses such an index instead of creating an implicit backing index for the FK.
 func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
 	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) < len(fkCols) {
-			continue
-		}
-		match := true
-		for i, col := range fkCols {
-			if !strings.EqualFold(idx.Columns[i].Name, col) {
-				match = false
-				break
-			}
-		}
-		if match {
+		if fkIndexCoversColumns(idx, fkCols) {
 			return true
 		}
 	}
@@ -2355,13 +2403,117 @@ func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*
 	idxName := conName
 	if idxName == "" {
 		idxName = allocIndexName(tbl, cols[0])
+	} else if indexNameExists(tbl, idxName) {
+		idxName = allocIndexName(tbl, idxName)
 	}
 	tbl.Indexes = append(tbl.Indexes, &Index{
-		Name:    idxName,
-		Table:   tbl,
-		Columns: idxCols,
-		Visible: true,
+		Name:      idxName,
+		Table:     tbl,
+		Columns:   idxCols,
+		Visible:   true,
+		Generated: true,
 	})
+}
+
+// stripGeneratedFKIndexes removes implicitly generated FK backing indexes
+// (HA_GENERATED_KEY) from tbl.Indexes, except any whose lower-cased name is in
+// keep, and returns the stripped indexes in their original order.
+func stripGeneratedFKIndexes(tbl *Table, keep map[string]bool) []*Index {
+	var stripped []*Index
+	remaining := tbl.Indexes[:0]
+	for _, idx := range tbl.Indexes {
+		if idx != nil && idx.Generated && !keep[toLower(idx.Name)] {
+			stripped = append(stripped, idx)
+			continue
+		}
+		remaining = append(remaining, idx)
+	}
+	tbl.Indexes = remaining
+	return stripped
+}
+
+// restoreGeneratedFKIndexes ensures every remaining foreign key on tbl is
+// covered by an index after an ALTER TABLE or CREATE INDEX that stripped
+// generated FK backing indexes, reusing an original stripped index when its
+// name is still free.
+func restoreGeneratedFKIndexes(tbl *Table, stripped []*Index) {
+	if len(stripped) == 0 {
+		return
+	}
+	used := make(map[*Index]bool, len(stripped))
+	for _, con := range tbl.Constraints {
+		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+			continue
+		}
+		if hasIndexCoveringColumns(tbl, con.Columns) {
+			continue
+		}
+		restored := false
+		for _, g := range stripped {
+			if used[g] || !fkIndexCoversColumns(g, con.Columns) {
+				continue
+			}
+			if !indexNameExists(tbl, g.Name) {
+				tbl.Indexes = append(tbl.Indexes, g)
+				used[g] = true
+				restored = true
+				break
+			}
+		}
+		if !restored {
+			idxCols := make([]*IndexColumn, len(con.Columns))
+			for i, col := range con.Columns {
+				idxCols[i] = &IndexColumn{Name: col}
+			}
+			ensureFKBackingIndex(tbl, con.Name, con.Columns, idxCols)
+		}
+	}
+}
+
+// validateDroppedIndexesForFK checks that none of the dropped indexes is still
+// required to back a foreign key on tbl or a foreign key on another table
+// referencing tbl (MySQL 8.0 error 1553).
+func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) error {
+	if len(dropped) == 0 || !isInnoDBEngine(tbl.Engine) {
+		return nil
+	}
+	for _, d := range dropped {
+		if d == nil {
+			continue
+		}
+		for _, con := range tbl.Constraints {
+			if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+				continue
+			}
+			if fkIndexCoversColumns(d, con.Columns) && !hasIndexCoveringColumns(tbl, con.Columns) {
+				return errDropIndexNeededInFK(d.Name)
+			}
+		}
+		if tbl.Database == nil {
+			continue
+		}
+		dbKey := toLower(tbl.Database.Name)
+		tblKey := toLower(tbl.Name)
+		for _, db := range c.databases {
+			for _, other := range db.Tables {
+				for _, con := range other.Constraints {
+					if con == nil || con.Type != ConForeignKey || len(con.RefColumns) == 0 {
+						continue
+					}
+					refDB := con.RefDatabase
+					if refDB == "" {
+						refDB = db.Name
+					}
+					if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
+						if fkIndexCoversColumns(d, con.RefColumns) && !hasIndexCoveringColumns(tbl, con.RefColumns) {
+							return errDropIndexNeededInFK(d.Name)
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func indexNameExists(tbl *Table, name string) bool {
@@ -3685,6 +3837,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	}
 	srcTbl := srcDB.GetTable(stmt.Like.Name)
 	if srcTbl == nil {
+		if srcDB.Views[toLower(stmt.Like.Name)] != nil {
+			return errWrongObject(srcDB.Name, stmt.Like.Name, "BASE TABLE")
+		}
 		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
 	}
 	if isInnoDBEngine(srcTbl.Engine) && srcTbl.Tablespace != "" {

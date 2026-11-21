@@ -249,12 +249,19 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.leave(fk)
 			b.arrive(tk)
 		}
+		if b.w.fkGeneratedIndexes[fk] {
+			b.Session(func() { delete(b.w.fkGeneratedIndexes, fk) })
+		}
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
 			return false
 		}
-		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
+		ik := idxKey(r.db, r.name, k)
+		b.need(ik, walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
+		if b.w.fkGeneratedIndexes[ik] {
+			b.Session(func() { delete(b.w.fkGeneratedIndexes, ik) })
+		}
 	default:
 		return alterNoFacts(c)
 	}
@@ -452,7 +459,10 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			ik := idxKey(r.db, r.name, k)
+			if !b.w.fkGeneratedIndexes[ik] {
+				b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			}
 		}
 	}
 	b.constraint(r, c)
@@ -472,6 +482,9 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range) bool 
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)
+	if b.w.fkGeneratedIndexes[ik] {
+		b.Session(func() { delete(b.w.fkGeneratedIndexes, ik) })
+	}
 	return true
 }
 
@@ -524,6 +537,7 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 	b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
 	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
+	fromPath := tablePath(from.db, from.name)
 	b.Session(func() {
 		if b.w.triggered[fk] {
 			b.w.triggered[tk] = true
@@ -534,6 +548,16 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 			b.w.ignoresFKs[tk] = true
 		} else {
 			delete(b.w.ignoresFKs, tk)
+		}
+		var movedGen []string
+		for gk := range b.w.fkGeneratedIndexes {
+			if gk.Parent == fromPath {
+				movedGen = append(movedGen, gk.Name)
+				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+		for _, name := range movedGen {
+			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, name)] = true
 		}
 	})
 }
@@ -638,6 +662,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(k, walk.Absent, "")
 			b.Clear(path)
 			b.droppedOwned(r)
+			b.clearTableFKGenerated(r.db, r.name)
 		}
 	}
 	return true

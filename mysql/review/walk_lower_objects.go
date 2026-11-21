@@ -48,10 +48,11 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if v.IfNotExists {
 		b.Next()
 		b.Optional()
-	} else {
+	} else if !b.w.fkGeneratedIndexes[ik] {
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")
+	b.onIndexAdded(r, ik, true)
 	return true
 }
 

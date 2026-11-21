@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/mysql/ast"
@@ -42,6 +43,7 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		snap = nil
 		w.anyTrigger = true
 		w.anyFunction = true
+		w.fkGeneratedIndexes = make(map[walk.Key]bool)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -206,26 +208,36 @@ type walker struct {
 	anyFunction bool
 	// ignoresFKs lists the tables whose engine may ignore foreign keys.
 	ignoresFKs map[walk.Key]bool
+	// fkGeneratedIndexes lists synced index keys that may be MySQL-generated
+	// foreign-key backing indexes (HA_GENERATED_KEY), which MySQL drops when a
+	// later CREATE INDEX or ALTER TABLE ADD INDEX adds an index.
+	fkGeneratedIndexes map[walk.Key]bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	fold := t.LowerCaseTableNames != 0
 	snap := newMySQLSnapshot(t.Schema, fold)
 	w := &walker{
-		sql:        sql,
-		stmts:      stmts,
-		snap:       snap,
-		foldTables: fold,
-		current:    snap.db,
-		fkChecks:   t.ForeignKeyChecks,
-		triggered:  make(map[walk.Key]bool),
-		ignoresFKs: make(map[walk.Key]bool),
+		sql:                sql,
+		stmts:              stmts,
+		snap:               snap,
+		foldTables:         fold,
+		current:            snap.db,
+		fkChecks:           t.ForeignKeyChecks,
+		triggered:          make(map[walk.Key]bool),
+		ignoresFKs:         make(map[walk.Key]bool),
+		fkGeneratedIndexes: make(map[walk.Key]bool),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
 	}
 	for name := range snap.ignoresFKs {
 		w.ignoresFKs[relKey(snap.db, name)] = true
+	}
+	for tbl, idxs := range snap.fkGeneratedIndexes {
+		for idx := range idxs {
+			w.fkGeneratedIndexes[idxKey(snap.db, tbl, idx)] = true
+		}
 	}
 	return w
 }
@@ -563,4 +575,49 @@ func (b *builder) mayBeView(tr *ast.TableRef) bool {
 // created or dropped temporary tables of any name.
 func (b *builder) forgetTemporary() {
 	b.Forget(walk.Scope{Space: spaceTemporary, Deep: true})
+}
+
+// onIndexAdded updates tracked FK-generated indexes on r after a statement adds
+// an index (with key ik when knownName is true): MySQL drops any generated FK
+// backing index that the new index makes redundant, so other synced candidates
+// on r become Unknown in the ledger, and ik itself becomes an explicit index.
+func (b *builder) onIndexAdded(r tableRef, ik walk.Key, knownName bool) {
+	parent := tablePath(r.db, r.name)
+	var others []walk.Key
+	for gk := range b.w.fkGeneratedIndexes {
+		if gk.Parent != parent {
+			continue
+		}
+		if knownName && gk == ik {
+			continue
+		}
+		others = append(others, gk)
+	}
+	slices.SortFunc(others, func(a, b walk.Key) int { return strings.Compare(a.Name, b.Name) })
+	for _, gk := range others {
+		b.Set(gk, walk.Unknown, "")
+	}
+	if len(others) > 0 || (knownName && b.w.fkGeneratedIndexes[ik]) {
+		b.Session(func() {
+			for _, gk := range others {
+				delete(b.w.fkGeneratedIndexes, gk)
+			}
+			if knownName {
+				delete(b.w.fkGeneratedIndexes, ik)
+			}
+		})
+	}
+}
+
+// clearTableFKGenerated clears any tracked FK-generated index candidates for
+// the table at (db, name) when the table is dropped or recreated.
+func (b *builder) clearTableFKGenerated(db, name string) {
+	parent := tablePath(db, name)
+	b.Session(func() {
+		for gk := range b.w.fkGeneratedIndexes {
+			if gk.Parent == parent {
+				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+	})
 }
