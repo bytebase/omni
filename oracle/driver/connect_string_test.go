@@ -45,6 +45,9 @@ func TestParseConnectString(t *testing.T) {
 		{"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db)(PORT=1522))(CONNECT_DATA=(SID=orcl)))", sid("orcl", ep("db", "1522")), true},
 		{"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db))(CONNECT_DATA=(SERVICE_NAME=orcl)))", svc("orcl", ep("db", "1521")), true},
 		{"( DESCRIPTION = ( ADDRESS = ( HOST = db ) ( PORT = 1521 ) ) ( CONNECT_DATA = ( SERVICE_NAME = orcl ) ) )", svc("orcl", ep("db", "1521")), true},
+		{"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=\"DB.Example.com\")(PORT=\"1521\"))(CONNECT_DATA=(SERVICE_NAME=\"orcl\")))", svc("orcl", ep("db.example.com", "1521")), true},
+		{"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST='db.example.com')(PORT='1522'))(CONNECT_DATA=(SID='orcl')))", sid("orcl", ep("db.example.com", "1522")), true},
+		{"(DESCRIPTION_LIST=(DESCRIPTION=(ADDRESS=(HOST=\"h1\")(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=\"proddb\")))(DESCRIPTION=(ADDRESS=(HOST=h2)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=PRODDB))))", svc("proddb", ep("h1", "1521"), ep("h2", "1521")), true},
 		{"(DESCRIPTION=(SOURCE_ROUTE=no)(ADDRESS=(HOST=db)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", svc("orcl", ep("db", "1521")), true},
 		// RAC and Data Guard: several addresses, one service.
 		{"(DESCRIPTION=(ADDRESS_LIST=(LOAD_BALANCE=on)(ADDRESS=(PROTOCOL=TCP)(HOST=rac1-vip)(PORT=1521))(ADDRESS=(PROTOCOL=TCP)(HOST=rac2-vip)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=proddb)))", svc("proddb", ep("rac1-vip", "1521"), ep("rac2-vip", "1521")), true},
@@ -73,6 +76,7 @@ func TestParseConnectString(t *testing.T) {
 		{"(DESCRIPTION=(SOURCE_ROUTE=yes)(ADDRESS=(HOST=cman)(PORT=1521))(ADDRESS=(HOST=real)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=svc)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(SOURCE_ROUTE=ON)(ADDRESS=(HOST=cman)(PORT=1521))(ADDRESS=(HOST=real)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=svc)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(SOURCE_ROUTE=true)(ADDRESS=(HOST=cman)(PORT=1521))(ADDRESS=(HOST=real)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=svc)))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(SOURCE_ROUTE=\"yes\")(ADDRESS=(HOST=cman)(PORT=1521))(ADDRESS=(HOST=real)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=svc)))", ConnectTarget{}, false},
 
 		// Conflicting or mixed identities.
 		{"(DESCRIPTION_LIST=(DESCRIPTION=(ADDRESS=(HOST=h1)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=proddb)))(DESCRIPTION=(ADDRESS=(HOST=h2)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=reportdb))))", ConnectTarget{}, false},
@@ -90,7 +94,12 @@ func TestParseConnectString(t *testing.T) {
 		{"(DESCRIPTION=(ADDRESS=(HOST=a)(HOST=b)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(ADDRESS=(HOST=a)(PORT=1521)(PORT=1522))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(ADDRESS=(HOST= )(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(ADDRESS=(HOST=\"\")(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(ADDRESS=(HOST=\"db)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(ADDRESS=(HOST=db\")(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(ADDRESS=(HOST=\"a\" \"b\")(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(ADDRESS=(HOST=a)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME= )))", ConnectTarget{}, false},
+		{"(DESCRIPTION=(ADDRESS=(HOST=a)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME='')))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(ADDRESS=(HOST=a)(PORT=1521)(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
 		{"(DESCRIPTION=(CONNECT_DATA=(SERVICE_NAME=orcl)))", ConnectTarget{}, false},
 	}

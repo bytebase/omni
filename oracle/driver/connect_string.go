@@ -30,7 +30,7 @@ var (
 	tnsAddressPattern = regexp.MustCompile(`(?i)\(\s*ADDRESS\s*=`)
 	// tnsSourceRoutePattern matches a descriptor whose addresses are a hop chain
 	// through Connection Manager rather than alternatives.
-	tnsSourceRoutePattern = regexp.MustCompile(`(?i)\(\s*SOURCE_ROUTE\s*=\s*(YES|ON|TRUE)\s*\)`)
+	tnsSourceRoutePattern = regexp.MustCompile(`(?i)\(\s*SOURCE_ROUTE\s*=\s*['"]?(YES|ON|TRUE)['"]?\s*\)`)
 	// connectSchemePattern matches the Easy Connect Plus `tcp://` / `tcps://` prefix.
 	connectSchemePattern = regexp.MustCompile(`(?i)^tcps?://`)
 )
@@ -151,8 +151,8 @@ func parseTNSDescriptor(s string) (ConnectTarget, bool) {
 		if key != "SERVICE_NAME" && key != "SID" {
 			continue
 		}
-		val := strings.TrimSpace(m[2])
-		if val == "" {
+		val, ok := decodeTNSValue(m[2])
+		if !ok {
 			return ConnectTarget{}, false
 		}
 		if len(identities) == 0 {
@@ -179,15 +179,16 @@ func parseTNSDescriptor(s string) (ConnectTarget, bool) {
 		}
 		var hosts, ports []string
 		for _, m := range tnsKeywordPattern.FindAllStringSubmatch(block, -1) {
-			val := strings.TrimSpace(m[2])
 			switch strings.ToUpper(m[1]) {
 			case "HOST":
-				if val == "" {
+				val, ok := decodeTNSValue(m[2])
+				if !ok {
 					return ConnectTarget{}, false
 				}
 				hosts = append(hosts, val)
 			case "PORT":
-				if val == "" {
+				val, ok := decodeTNSValue(m[2])
+				if !ok {
 					return ConnectTarget{}, false
 				}
 				ports = append(ports, val)
@@ -208,6 +209,33 @@ func parseTNSDescriptor(s string) (ConnectTarget, bool) {
 	}
 	target.Endpoints = endpoints
 	return target, true
+}
+
+// decodeTNSValue strips surrounding whitespace and optional matching single or
+// double quotes from a TNS parameter value. Unmatched or empty quotes fail.
+func decodeTNSValue(raw string) (string, bool) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "", false
+	}
+	if q := v[0]; q == '"' || q == '\'' {
+		if len(v) < 2 || v[len(v)-1] != q {
+			return "", false
+		}
+		inner := v[1 : len(v)-1]
+		if strings.IndexByte(inner, q) >= 0 {
+			return "", false
+		}
+		inner = strings.TrimSpace(inner)
+		if inner == "" {
+			return "", false
+		}
+		return inner, true
+	}
+	if v[len(v)-1] == '"' || v[len(v)-1] == '\'' {
+		return "", false
+	}
+	return v, true
 }
 
 // tnsBlock returns the parenthesized block starting at s[start] and reports

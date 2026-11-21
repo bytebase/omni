@@ -220,3 +220,76 @@ func TestBuildSDLMigrationPlan_PreservesExtensionsWithSkipSchemas(t *testing.T) 
 		t.Fatalf("expected extension creation to be preserved, got:\n%s", plan.SQL())
 	}
 }
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsCrossSchemaViewDependency(t *testing.T) {
+	source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id integer PRIMARY KEY);
+CREATE VIEW archive.v AS SELECT id FROM public.t;
+`
+	target := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id bigint PRIMARY KEY);
+CREATE VIEW archive.v AS SELECT id FROM public.t;
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected dependency conflict error, got plan:\n%s", plan.SQL())
+	}
+	if !strings.Contains(err.Error(), "archive") {
+		t.Fatalf("expected error mentioning skipped schema archive, got: %v", err)
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsTransitiveViewAndDropTableConflict(t *testing.T) {
+	source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id integer PRIMARY KEY);
+CREATE VIEW public.v1 AS SELECT id FROM public.t;
+CREATE VIEW archive.v2 AS SELECT id FROM public.v1;
+`
+	// Column type change on public.t transitively breaks archive.v2.
+	targetAlter := `
+CREATE SCHEMA archive;
+CREATE TABLE public.t (id bigint PRIMARY KEY);
+CREATE VIEW public.v1 AS SELECT id FROM public.t;
+CREATE VIEW archive.v2 AS SELECT id FROM public.v1;
+`
+	if plan, err := BuildSDLMigrationPlan(source, targetAlter, SDLMigrationOptions{SkipSchemas: []string{"archive"}}); err == nil {
+		t.Fatalf("expected transitive column-alter dependency error, got plan:\n%s", plan.SQL())
+	}
+
+	// Dropping public.t while archive.v2 depends on it (via public.v1) must also fail.
+	if plan, err := BuildSDLMigrationPlan(source, "", SDLMigrationOptions{SkipSchemas: []string{"archive"}}); err == nil {
+		t.Fatalf("expected drop-table dependency error, got plan:\n%s", plan.SQL())
+	}
+
+	// Adding an unrelated column to public.t does not break archive.v2 and must succeed.
+	targetSafe := `
+CREATE TABLE public.t (id integer PRIMARY KEY, note text);
+CREATE VIEW public.v1 AS SELECT id FROM public.t;
+`
+	plan, err := BuildSDLMigrationPlan(source, targetSafe, SDLMigrationOptions{SkipSchemas: []string{"archive"}})
+	if err != nil {
+		t.Fatalf("expected safe ADD COLUMN to succeed despite skipped view, got error: %v", err)
+	}
+	if plan == nil || !strings.Contains(plan.SQL(), "note") || strings.Contains(plan.SQL(), "archive") {
+		t.Fatalf("unexpected plan for safe ADD COLUMN: %v", plan)
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsNewDependencyOnSkippedCreate(t *testing.T) {
+	target := `
+CREATE SCHEMA archive;
+CREATE TABLE archive.base (id integer PRIMARY KEY);
+CREATE VIEW public.v AS SELECT id FROM archive.base;
+`
+	plan, err := BuildSDLMigrationPlan("", target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected error when non-skipped view depends on newly created skipped table, got plan:\n%s", plan.SQL())
+	}
+}
