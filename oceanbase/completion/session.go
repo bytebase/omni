@@ -93,12 +93,13 @@ func postProcessSessionCandidates(
 	isFuncInvocation func(stmt string, pos int) bool,
 ) []Candidate {
 	caretInBacktick := CaretInsideBacktickIdentifier(stmt, pos)
+	_, _, dbQualified := identBeforeDot(stmt, max(0, pos-extractIdentPrefixLen(stmt, pos)))
 	var funcInvocationChecked bool
 	var appendFuncParens bool
 	shouldAppendFuncParens := func() bool {
 		if !funcInvocationChecked {
 			funcInvocationChecked = true
-			appendFuncParens = !hasFollowingOpenParen(stmt, pos) && (isFuncInvocation == nil || isFuncInvocation(stmt, pos))
+			appendFuncParens = !caretInBacktick && !hasFollowingOpenParen(stmt, pos) && (isFuncInvocation == nil || isFuncInvocation(stmt, pos))
 		}
 		return appendFuncParens
 	}
@@ -115,7 +116,15 @@ func postProcessSessionCandidates(
 		case isObjectIdentifierCandidate(c.Type):
 			text = QuoteIdentifierIfNeeded(c.Text, caretInBacktick)
 		case c.Type == CandidateFunction:
-			if !strings.HasSuffix(text, "()") && shouldAppendFuncParens() {
+			base, hadParens := strings.CutSuffix(text, "()")
+			// Preserve built-in function syntax unquoted (several built-ins such
+			// as IF/LEFT/REPLACE are reserved keywords); quote catalog stored
+			// functions before attaching invocation parens.
+			if caretInBacktick || dbQualified || !isBuiltinFunction(base) {
+				base = QuoteIdentifierIfNeeded(base, caretInBacktick)
+			}
+			text = base
+			if hadParens || shouldAppendFuncParens() {
 				text += "()"
 			}
 		default:
@@ -322,6 +331,19 @@ func populateCatalog(
 	if defaultName != "" {
 		setCurrentDB(defaultName)
 	}
+}
+
+var builtinFunctionSet = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(builtinFunctions))
+	for _, name := range builtinFunctions {
+		set[strings.ToUpper(name)] = struct{}{}
+	}
+	return set
+}()
+
+func isBuiltinFunction(name string) bool {
+	_, ok := builtinFunctionSet[strings.ToUpper(name)]
+	return ok
 }
 
 func isReservedKeyword(name string) bool {

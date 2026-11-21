@@ -259,8 +259,11 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 					{Name: "t2", Columns: []*metadatapb.ColumnMetadata{{Name: "b1"}}},
 					{Name: "order", Columns: []*metadatapb.ColumnMetadata{{Name: "id"}}},
 				},
-				Views:     []*metadatapb.ViewMetadata{{Name: "v1", Definition: "SELECT a1 FROM t1"}},
-				Functions: []*metadatapb.FunctionMetadata{{Name: "my_udf", Definition: "CREATE FUNCTION my_udf() RETURNS INT RETURN 1"}},
+				Views: []*metadatapb.ViewMetadata{{Name: "v1", Definition: "SELECT a1 FROM t1"}},
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "my_udf", Definition: "CREATE FUNCTION my_udf() RETURNS INT RETURN 1"},
+					{Name: "my-func", Definition: "CREATE FUNCTION `my-func`() RETURNS INT RETURN 1"},
+				},
 			}},
 		}, true),
 	}
@@ -271,14 +274,19 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 
 	gotFunc := CompleteSession(context.Background(), cfg, "SELECT  FROM t1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotFunc, "COUNT()", CandidateFunction))
+	require.True(t, containsCandidate(gotFunc, "LEFT()", CandidateFunction), "reserved built-in must stay unquoted; got %v", gotFunc)
+	require.False(t, containsCandidate(gotFunc, "`LEFT`()", CandidateFunction))
 	require.True(t, containsCandidate(gotFunc, "my_udf()", CandidateFunction))
+	require.True(t, containsCandidate(gotFunc, "`my-func`()", CandidateFunction), "got %v", gotFunc)
+	require.False(t, containsCandidate(gotFunc, "my-func()", CandidateFunction))
 	require.False(t, containsCandidate(gotFunc, "COUNT", CandidateFunction))
 
 	gotFuncParen := CompleteSession(context.Background(), cfg, "SELECT CO(a1) FROM t1", 1, len("SELECT CO"))
 	require.True(t, containsCandidate(gotFuncParen, "COUNT", CandidateFunction), "got %v", gotFuncParen)
 	require.False(t, containsCandidate(gotFuncParen, "COUNT()", CandidateFunction), "must not insert duplicate () before existing (; got %v", gotFuncParen)
 
-	// DDL and SHOW routine-name contexts must NOT append () to function candidates.
+	// DDL and SHOW routine-name contexts must NOT append () to function candidates,
+	// while still backtick-quoting non-identifier stored function names.
 	for _, routineStmt := range []string{
 		"DROP FUNCTION ",
 		"DROP FUNCTION IF EXISTS ",
@@ -287,8 +295,24 @@ func TestCompleteSession_StatementIsolationUTF16AndFunctions(t *testing.T) {
 	} {
 		gotRoutine := CompleteSession(context.Background(), cfg, routineStmt, 1, len(routineStmt))
 		require.True(t, containsCandidate(gotRoutine, "my_udf", CandidateFunction), "%q should offer bare my_udf; got %v", routineStmt, gotRoutine)
+		require.True(t, containsCandidate(gotRoutine, "`my-func`", CandidateFunction), "%q should quote `my-func`; got %v", routineStmt, gotRoutine)
 		require.False(t, containsCandidate(gotRoutine, "my_udf()", CandidateFunction), "%q must not append (); got %v", routineStmt, gotRoutine)
+		require.False(t, containsCandidate(gotRoutine, "`my-func`()", CandidateFunction), "%q must not append (); got %v", routineStmt, gotRoutine)
 	}
+
+	gotQualifiedFunc := postProcessSessionCandidates("DROP FUNCTION otherdb.", len("DROP FUNCTION otherdb."), false, []Candidate{
+		{Type: CandidateFunction, Text: "LEFT"},
+		{Type: CandidateFunction, Text: "my-func"},
+	}, func(string, int) bool { return false })
+	require.True(t, containsCandidate(gotQualifiedFunc, "`my-func`", CandidateFunction), "got %v", gotQualifiedFunc)
+	require.True(t, containsCandidate(gotQualifiedFunc, "`LEFT`", CandidateFunction), "qualified stored function matching builtin keyword should quote; got %v", gotQualifiedFunc)
+
+	gotQualifiedExprFunc := postProcessSessionCandidates("SELECT otherdb.", len("SELECT otherdb."), false, []Candidate{
+		{Type: CandidateFunction, Text: "LEFT"},
+		{Type: CandidateFunction, Text: "my-func"},
+	}, func(string, int) bool { return true })
+	require.True(t, containsCandidate(gotQualifiedExprFunc, "`LEFT`()", CandidateFunction), "got %v", gotQualifiedExprFunc)
+	require.True(t, containsCandidate(gotQualifiedExprFunc, "`my-func`()", CandidateFunction), "got %v", gotQualifiedExprFunc)
 
 	gotView := CompleteSession(context.Background(), cfg, "SELECT  FROM v1", 1, len("SELECT "))
 	require.True(t, containsCandidate(gotView, "a1", CandidateColumn))
