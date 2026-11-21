@@ -1670,6 +1670,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			return err
 		}
 		for _, item := range deferred {
+			if item.fk.comment != "" && item.fk.name == "" {
+				return fmt.Errorf("foreign key comment on %s cannot be restored because the constraint is unnamed", item.table.qualifiedName())
+			}
 			var buf strings.Builder
 			if err := item.fk.toString(&buf); err != nil {
 				return err
@@ -1953,6 +1956,9 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
 		}
+		if idx.comment != "" && idx.name == "" {
+			return fmt.Errorf("index comment on %s cannot be restored because the constraint is unnamed", table.qualifiedName())
+		}
 		for _, key := range idx.keys {
 			colName, ok := parseConstraintColumnName(key)
 			if !ok || !hasTableColumn(table.columns, colName) {
@@ -1963,6 +1969,14 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 	for _, fk := range sortedForeignKeys(table.foreignKeys) {
 		if len(fk.columns) == 0 || len(fk.columns) != len(fk.referencedColumns) {
 			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
+		}
+		for _, col := range fk.columns {
+			if !hasTableColumn(table.columns, col) {
+				return fmt.Errorf("foreign key %s on %s column %q is not a table column", fk.name, table.qualifiedName(), col)
+			}
+		}
+		if fk.comment != "" && fk.name == "" {
+			return fmt.Errorf("foreign key comment on %s cannot be restored because the constraint is unnamed", table.qualifiedName())
 		}
 		if !isSupportedRedshiftFKAction(fk.onDelete) {
 			return fmt.Errorf("foreign key %s on %s has unsupported ON DELETE action %q", fk.name, table.qualifiedName(), fk.onDelete)

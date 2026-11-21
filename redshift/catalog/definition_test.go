@@ -1739,6 +1739,30 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Columns: []*metadatapb.ColumnMetadata{{Name: "id"}},
 	})
 	require.ErrorContains(t, err, "no data type")
+
+	// Nonexistent FK source columns and comments on unnamed PK/UNIQUE constraints fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_fk_col",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_bad",
+			Columns:           []string{"missing"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "not a table column")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_unnamed_pk_cmt",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{
+			Primary:     true,
+			Expressions: []string{"id"},
+			Comment:     "cannot comment unnamed constraint",
+		}},
+	})
+	require.ErrorContains(t, err, "unnamed")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

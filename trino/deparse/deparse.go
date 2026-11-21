@@ -147,7 +147,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
 				Name:         v.Name,
-				Definition:   qualifyTrinoViewBody(metadata.Name, s.Name, v.Definition),
+				Definition:   v.Definition,
 				Comment:      v.Comment,
 				Columns:      viewCols,
 				Dependencies: fromProtoDependencies(v.DependencyColumns),
@@ -170,12 +170,21 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			seenRelations[relKey] = struct{}{}
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
 				Name:         mv.Name,
-				Definition:   qualifyTrinoViewBody(metadata.Name, s.Name, mv.Definition),
+				Definition:   mv.Definition,
 				Comment:      mv.Comment,
 				Dependencies: fromProtoDependencies(mv.DependencyColumns),
 			})
 		}
 		out.Schemas = append(out.Schemas, schemaMeta)
+	}
+	funcCat := buildTrinoFuncCatalog(out)
+	for _, schemaMeta := range out.Schemas {
+		for _, v := range schemaMeta.Views {
+			v.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, v.Definition, funcCat)
+		}
+		for _, mv := range schemaMeta.MaterializedViews {
+			mv.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, mv.Definition, funcCat)
+		}
 	}
 	return out, nil
 }
@@ -234,9 +243,8 @@ func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
 	}
 }
 
-func qualifyTrinoViewBody(dbName, schemaName, definition string) string {
-	prefix := qualifyTrinoObjectPrefix(dbName, schemaName)
-	if prefix == "" || strings.TrimSpace(definition) == "" {
+func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncCatalog) string {
+	if strings.TrimSpace(definition) == "" {
 		return definition
 	}
 	file, err := trinoparser.Parse(definition)
@@ -247,248 +255,45 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string) string {
 	if !ok || qs.Query == nil {
 		return definition
 	}
-	var offsets []int
+	calls, unqualTables := collectTrinoQueryASTRefs(qs.Query, schemaName, cat)
+	type prefixEdit struct {
+		offset int
+		prefix string
+	}
+	var edits []prefixEdit
 	seen := make(map[int]struct{})
-	addName := func(qn *ast.QualifiedName, ctes map[string]struct{}) {
-		if qn == nil || len(qn.Parts) != 1 {
+	addEdit := func(qnLoc ast.Loc, prefix string) {
+		if prefix == "" || qnLoc.Start < 0 || qnLoc.End <= qnLoc.Start || qnLoc.End > len(definition) {
 			return
 		}
-		if _, isCTE := ctes[strings.ToLower(qn.Parts[0].Value)]; isCTE {
-			return
-		}
-		if qn.Loc.Start < 0 || qn.Loc.End <= qn.Loc.Start || qn.Loc.End > len(definition) {
-			return
-		}
-		if _, dup := seen[qn.Loc.Start]; !dup {
-			seen[qn.Loc.Start] = struct{}{}
-			offsets = append(offsets, qn.Loc.Start)
+		if _, dup := seen[qnLoc.Start]; !dup {
+			seen[qnLoc.Start] = struct{}{}
+			edits = append(edits, prefixEdit{offset: qnLoc.Start, prefix: prefix})
 		}
 	}
-	var visitQuery func(q *trinoparser.Query, ctes map[string]struct{})
-	var visitExpr func(expr trinoparser.Expr, ctes map[string]struct{})
-	visitExpr = func(expr trinoparser.Expr, ctes map[string]struct{}) {
-		if expr == nil {
-			return
-		}
-		switch e := expr.(type) {
-		case *trinoparser.UnaryExpr:
-			visitExpr(e.Operand, ctes)
-		case *trinoparser.ParenExpr:
-			visitExpr(e.Expr, ctes)
-		case *trinoparser.NotExpr:
-			visitExpr(e.Operand, ctes)
-		case *trinoparser.CastExpr:
-			visitExpr(e.Expr, ctes)
-		case *trinoparser.LogicalExpr:
-			visitExpr(e.Left, ctes)
-			visitExpr(e.Right, ctes)
-		case *trinoparser.BinaryExpr:
-			visitExpr(e.Left, ctes)
-			visitExpr(e.Right, ctes)
-		case *trinoparser.ComparisonExpr:
-			visitExpr(e.Left, ctes)
-			visitExpr(e.Right, ctes)
-		case *trinoparser.QuantifiedComparisonExpr:
-			visitExpr(e.Left, ctes)
-			visitExpr(e.Subquery, ctes)
-		case *trinoparser.BetweenExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Lower, ctes)
-			visitExpr(e.Upper, ctes)
-		case *trinoparser.InListExpr:
-			visitExpr(e.Value, ctes)
-			for _, item := range e.List {
-				visitExpr(item, ctes)
-			}
-		case *trinoparser.InSubqueryExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Subquery, ctes)
-		case *trinoparser.LikeExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Pattern, ctes)
-			visitExpr(e.Escape, ctes)
-		case *trinoparser.IsNullExpr:
-			visitExpr(e.Value, ctes)
-		case *trinoparser.IsDistinctFromExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Right, ctes)
-		case *trinoparser.IsBooleanExpr:
-			visitExpr(e.Value, ctes)
-		case *trinoparser.MatchExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Subquery, ctes)
-		case *trinoparser.UniqueExpr:
-			visitExpr(e.Subquery, ctes)
-		case *trinoparser.SubqueryExpr:
-			if e.Query != nil {
-				visitQuery(e.Query, ctes)
-			}
-		case *trinoparser.CaseExpr:
-			visitExpr(e.Operand, ctes)
-			for _, w := range e.Whens {
-				visitExpr(w.Cond, ctes)
-				visitExpr(w.Result, ctes)
-			}
-			visitExpr(e.Else, ctes)
-		case *trinoparser.AtTimeZoneExpr:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Zone, ctes)
-		case *trinoparser.AtLocalExpr:
-			visitExpr(e.Value, ctes)
-		case *trinoparser.ArrayConstructor:
-			for _, el := range e.Elements {
-				visitExpr(el, ctes)
-			}
-		case *trinoparser.RowConstructor:
-			for _, el := range e.Elements {
-				visitExpr(el, ctes)
-			}
-		case *trinoparser.Subscript:
-			visitExpr(e.Value, ctes)
-			visitExpr(e.Index, ctes)
-		case *trinoparser.Dereference:
-			visitExpr(e.Base, ctes)
-		case *trinoparser.OverlayExpr:
-			visitExpr(e.Source, ctes)
-			visitExpr(e.Replacing, ctes)
-			visitExpr(e.From, ctes)
-			visitExpr(e.For, ctes)
-		case *trinoparser.ExtractExpr:
-			visitExpr(e.Source, ctes)
-		case *trinoparser.SubstringExpr:
-			visitExpr(e.Source, ctes)
-			visitExpr(e.From, ctes)
-			visitExpr(e.For, ctes)
-		case *trinoparser.TrimExpr:
-			visitExpr(e.Char, ctes)
-			visitExpr(e.Source, ctes)
-		case *trinoparser.NormalizeExpr:
-			visitExpr(e.Source, ctes)
-		case *trinoparser.PositionExpr:
-			visitExpr(e.Needle, ctes)
-			visitExpr(e.Haystack, ctes)
-		case *trinoparser.LambdaExpr:
-			visitExpr(e.Body, ctes)
-		case *trinoparser.NamedArgument:
-			visitExpr(e.Value, ctes)
-		case *trinoparser.FuncCall:
-			for _, a := range e.Args {
-				visitExpr(a, ctes)
-			}
-			for _, ob := range e.OrderBy {
-				visitExpr(ob.Expr, ctes)
-			}
-			visitExpr(e.Filter, ctes)
-			if e.Over != nil {
-				for _, pb := range e.Over.PartitionBy {
-					visitExpr(pb, ctes)
-				}
-				for _, ob := range e.Over.OrderBy {
-					visitExpr(ob.Expr, ctes)
-				}
-			}
-		}
+	relPrefix := qualifyTrinoObjectPrefix(dbName, schemaName)
+	for _, qn := range unqualTables {
+		addEdit(qn.Loc, relPrefix)
 	}
-	var visitRel func(rel trinoparser.Relation, ctes map[string]struct{})
-	visitRel = func(rel trinoparser.Relation, ctes map[string]struct{}) {
-		if rel == nil {
-			return
+	for _, call := range calls {
+		if len(cat.resolveCall(schemaName, call)) == 0 || call.catalog != "" {
+			continue
 		}
-		switch r := rel.(type) {
-		case *trinoparser.TableRelation:
-			addName(r.Name, ctes)
-		case *trinoparser.Join:
-			visitRel(r.Left, ctes)
-			visitRel(r.Right, ctes)
-			visitExpr(r.On, ctes)
-		case *trinoparser.AliasedRelation:
-			visitRel(r.Inner, ctes)
-		case *trinoparser.NearestRelation:
-			visitRel(r.From, ctes)
-			visitExpr(r.Where, ctes)
-			visitExpr(r.Match, ctes)
-		case *trinoparser.SubqueryRelation:
-			visitQuery(r.Query, ctes)
-		case *trinoparser.LateralRelation:
-			visitQuery(r.Query, ctes)
-		case *trinoparser.UnnestRelation:
-			for _, ex := range r.Exprs {
-				visitExpr(ex, ctes)
-			}
-		case *trinoparser.ParenRelation:
-			visitRel(r.Inner, ctes)
-		case *trinoparser.TableFunctionRelation:
-			if r.Call != nil {
-				for _, arg := range r.Call.Args {
-					visitExpr(arg.Expr, ctes)
-					if arg.Table != nil {
-						addName(arg.Table.Name, ctes)
-						visitQuery(arg.Table.Query, ctes)
-					}
-				}
-			}
+		var prefix string
+		if call.schema == "" {
+			prefix = relPrefix
+		} else if dbName != "" {
+			prefix = quoteIdentifier(dbName) + "."
 		}
+		addEdit(ast.Loc{Start: call.nameStart, End: call.nameEnd}, prefix)
 	}
-	var visitNode func(qn trinoparser.QueryNode, ctes map[string]struct{})
-	visitNode = func(qn trinoparser.QueryNode, ctes map[string]struct{}) {
-		if qn == nil {
-			return
-		}
-		switch n := qn.(type) {
-		case *trinoparser.QuerySpec:
-			for _, rel := range n.From {
-				visitRel(rel, ctes)
-			}
-			visitExpr(n.Where, ctes)
-			visitExpr(n.Having, ctes)
-			for _, it := range n.Items {
-				visitExpr(it.Expr, ctes)
-			}
-		case *trinoparser.TableQuery:
-			addName(n.Name, ctes)
-		case *trinoparser.SetOperation:
-			visitNode(n.Left, ctes)
-			visitNode(n.Right, ctes)
-		case *trinoparser.ParenQuery:
-			visitQuery(n.Inner, ctes)
-		case *trinoparser.ValuesQuery:
-			for _, row := range n.Rows {
-				visitExpr(row, ctes)
-			}
-		}
-	}
-	visitQuery = func(q *trinoparser.Query, ctes map[string]struct{}) {
-		if q == nil {
-			return
-		}
-		scope := make(map[string]struct{}, len(ctes))
-		for k := range ctes {
-			scope[k] = struct{}{}
-		}
-		if q.With != nil {
-			for _, cte := range q.With.CTEs {
-				if q.With.Recursive && cte.Name != nil && cte.Name.Value != "" {
-					scope[strings.ToLower(cte.Name.Value)] = struct{}{}
-				}
-				visitQuery(cte.Query, scope)
-				if cte.Name != nil && cte.Name.Value != "" {
-					scope[strings.ToLower(cte.Name.Value)] = struct{}{}
-				}
-			}
-		}
-		visitNode(q.Body, scope)
-		for _, ob := range q.OrderBy {
-			visitExpr(ob.Expr, scope)
-		}
-	}
-	visitQuery(qs.Query, nil)
-	if len(offsets) == 0 {
+	if len(edits) == 0 {
 		return definition
 	}
-	slices.SortFunc(offsets, func(a, b int) int { return b - a })
+	slices.SortFunc(edits, func(a, b prefixEdit) int { return b.offset - a.offset })
 	out := definition
-	for _, off := range offsets {
-		out = out[:off] + prefix + out[off:]
+	for _, ed := range edits {
+		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
 	}
 	return out
 }
@@ -980,23 +785,21 @@ type trinoFuncCatalog struct {
 	byKey  map[string][]int
 }
 
-func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
+func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	var fns []orderedFunction
-	for _, schema := range metadata.Schemas {
-		if schema == nil {
-			continue
-		}
-		for _, fn := range schema.Functions {
-			if fn == nil {
+	if metadata != nil {
+		for _, schema := range metadata.Schemas {
+			if schema == nil {
 				continue
 			}
-			fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
+			for _, fn := range schema.Functions {
+				if fn == nil {
+					continue
+				}
+				fns = append(fns, orderedFunction{schema: schema.Name, fn: fn})
+			}
 		}
 	}
-	if len(fns) == 0 {
-		return fns
-	}
-
 	parsed := make([]parsedTrinoFn, len(fns))
 	byKey := make(map[string][]int, len(fns))
 	for i, f := range fns {
@@ -1027,13 +830,25 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 			}
 		}
 	}
-
-	cat := &trinoFuncCatalog{
-		dbName: metadata.Name,
+	dbName := ""
+	if metadata != nil {
+		dbName = metadata.Name
+	}
+	return &trinoFuncCatalog{
+		dbName: dbName,
 		fns:    fns,
 		parsed: parsed,
 		byKey:  byKey,
 	}
+}
+
+func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
+	cat := buildTrinoFuncCatalog(metadata)
+	fns := cat.fns
+	if len(fns) == 0 {
+		return fns
+	}
+	parsed := cat.parsed
 
 	type prefixEdit struct {
 		offset int
@@ -1600,616 +1415,647 @@ func combineTrinoTypes(a, b string) string {
 	return ""
 }
 
+type trinoASTWalker struct {
+	callerSchema string
+	cat          *trinoFuncCatalog
+	calls        []functionCallRef
+	unqualTables []*ast.QualifiedName
+}
+
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
-	var calls []functionCallRef
 	env := make(map[string]string, len(params))
 	for _, p := range params {
 		if p.name != "" {
 			env[strings.ToLower(p.name)] = p.typeName
 		}
 	}
+	w := &trinoASTWalker{callerSchema: callerSchema, cat: cat}
+	w.walkStmt(root, env)
+	return w.calls
+}
 
-	var walkExpr func(expr trinoparser.Expr, curEnv map[string]string) string
-	var walkQuery func(q *trinoparser.Query, curEnv map[string]string) string
-	var walkQueryNode func(qn trinoparser.QueryNode, curEnv map[string]string) string
-	var walkRelation func(rel trinoparser.Relation, curEnv map[string]string)
+func collectTrinoQueryASTRefs(q *trinoparser.Query, callerSchema string, cat *trinoFuncCatalog) ([]functionCallRef, []*ast.QualifiedName) {
+	w := &trinoASTWalker{callerSchema: callerSchema, cat: cat}
+	w.walkQuery(q, nil, nil)
+	return w.calls, w.unqualTables
+}
 
-	walkRelation = func(rel trinoparser.Relation, curEnv map[string]string) {
-		if rel == nil {
-			return
+func (w *trinoASTWalker) recordUnqualTable(qn *ast.QualifiedName, ctes map[string]struct{}) {
+	if qn == nil || len(qn.Parts) != 1 {
+		return
+	}
+	if _, isCTE := ctes[strings.ToLower(qn.Parts[0].Value)]; isCTE {
+		return
+	}
+	w.unqualTables = append(w.unqualTables, qn)
+}
+
+func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[string]string, ctes map[string]struct{}) {
+	if rel == nil {
+		return
+	}
+	switch r := rel.(type) {
+	case *trinoparser.Join:
+		w.walkRelation(r.Left, curEnv, ctes)
+		w.walkRelation(r.Right, curEnv, ctes)
+		w.walkExpr(r.On, curEnv, ctes)
+	case *trinoparser.AliasedRelation:
+		w.walkRelation(r.Inner, curEnv, ctes)
+		if r.Sample != nil {
+			w.walkExpr(r.Sample.Percentage, curEnv, ctes)
 		}
-		switch r := rel.(type) {
-		case *trinoparser.Join:
-			walkRelation(r.Left, curEnv)
-			walkRelation(r.Right, curEnv)
-			walkExpr(r.On, curEnv)
-		case *trinoparser.AliasedRelation:
-			walkRelation(r.Inner, curEnv)
-			if r.Sample != nil {
-				walkExpr(r.Sample.Percentage, curEnv)
-			}
-		case *trinoparser.TableRelation:
-			if r.Period != nil {
-				walkExpr(r.Period.End, curEnv)
-			}
-		case *trinoparser.NearestRelation:
-			walkRelation(r.From, curEnv)
-			walkExpr(r.Where, curEnv)
-			walkExpr(r.Match, curEnv)
-		case *trinoparser.SubqueryRelation:
-			walkQuery(r.Query, curEnv)
-		case *trinoparser.LateralRelation:
-			walkQuery(r.Query, curEnv)
-		case *trinoparser.UnnestRelation:
-			for _, ex := range r.Exprs {
-				walkExpr(ex, curEnv)
-			}
-		case *trinoparser.ParenRelation:
-			walkRelation(r.Inner, curEnv)
-		case *trinoparser.TableFunctionRelation:
-			if r.Call != nil {
-				for _, arg := range r.Call.Args {
-					walkExpr(arg.Expr, curEnv)
-					if arg.Table != nil {
-						walkQuery(arg.Table.Query, curEnv)
-						for _, pb := range arg.Table.PartitionBy {
-							walkExpr(pb, curEnv)
-						}
-						for _, ob := range arg.Table.OrderBy {
-							walkExpr(ob.Expr, curEnv)
-						}
+	case *trinoparser.TableRelation:
+		w.recordUnqualTable(r.Name, ctes)
+		if r.Period != nil {
+			w.walkExpr(r.Period.End, curEnv, ctes)
+		}
+	case *trinoparser.NearestRelation:
+		w.walkRelation(r.From, curEnv, ctes)
+		w.walkExpr(r.Where, curEnv, ctes)
+		w.walkExpr(r.Match, curEnv, ctes)
+	case *trinoparser.SubqueryRelation:
+		w.walkQuery(r.Query, curEnv, ctes)
+	case *trinoparser.LateralRelation:
+		w.walkQuery(r.Query, curEnv, ctes)
+	case *trinoparser.UnnestRelation:
+		for _, ex := range r.Exprs {
+			w.walkExpr(ex, curEnv, ctes)
+		}
+	case *trinoparser.ParenRelation:
+		w.walkRelation(r.Inner, curEnv, ctes)
+	case *trinoparser.TableFunctionRelation:
+		if r.Call != nil {
+			for _, arg := range r.Call.Args {
+				w.walkExpr(arg.Expr, curEnv, ctes)
+				if arg.Table != nil {
+					w.recordUnqualTable(arg.Table.Name, ctes)
+					w.walkQuery(arg.Table.Query, curEnv, ctes)
+					for _, pb := range arg.Table.PartitionBy {
+						w.walkExpr(pb, curEnv, ctes)
+					}
+					for _, ob := range arg.Table.OrderBy {
+						w.walkExpr(ob.Expr, curEnv, ctes)
 					}
 				}
 			}
 		}
 	}
+}
 
-	walkQueryNode = func(qn trinoparser.QueryNode, curEnv map[string]string) string {
-		if qn == nil {
-			return ""
-		}
-		switch n := qn.(type) {
-		case *trinoparser.QuerySpec:
-			for _, rel := range n.From {
-				walkRelation(rel, curEnv)
-			}
-			walkExpr(n.Where, curEnv)
-			if n.GroupBy != nil {
-				for _, el := range n.GroupBy.Elements {
-					for _, ex := range el.Exprs {
-						walkExpr(ex, curEnv)
-					}
-					for _, set := range el.Sets {
-						for _, ex := range set {
-							walkExpr(ex, curEnv)
-						}
-					}
-				}
-			}
-			walkExpr(n.Having, curEnv)
-			for _, w := range n.Windows {
-				for _, pb := range w.Spec.PartitionBy {
-					walkExpr(pb, curEnv)
-				}
-				for _, ob := range w.Spec.OrderBy {
-					walkExpr(ob.Expr, curEnv)
-				}
-				if w.Spec.Frame != nil {
-					walkExpr(w.Spec.Frame.Start.Value, curEnv)
-					if w.Spec.Frame.End != nil {
-						walkExpr(w.Spec.Frame.End.Value, curEnv)
-					}
-				}
-			}
-			var singleType string
-			for idx, item := range n.Items {
-				it := walkExpr(item.Expr, curEnv)
-				if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
-					singleType = it
-				}
-			}
-			return singleType
-		case *trinoparser.SetOperation:
-			lt := walkQueryNode(n.Left, curEnv)
-			rt := walkQueryNode(n.Right, curEnv)
-			return combineTrinoTypes(lt, rt)
-		case *trinoparser.ParenQuery:
-			return walkQuery(n.Inner, curEnv)
-		case *trinoparser.ValuesQuery:
-			for _, row := range n.Rows {
-				walkExpr(row, curEnv)
-			}
-		}
+func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[string]string, ctes map[string]struct{}) string {
+	if qn == nil {
 		return ""
 	}
+	switch n := qn.(type) {
+	case *trinoparser.QuerySpec:
+		for _, rel := range n.From {
+			w.walkRelation(rel, curEnv, ctes)
+		}
+		w.walkExpr(n.Where, curEnv, ctes)
+		if n.GroupBy != nil {
+			for _, el := range n.GroupBy.Elements {
+				for _, ex := range el.Exprs {
+					w.walkExpr(ex, curEnv, ctes)
+				}
+				for _, set := range el.Sets {
+					for _, ex := range set {
+						w.walkExpr(ex, curEnv, ctes)
+					}
+				}
+			}
+		}
+		w.walkExpr(n.Having, curEnv, ctes)
+		for _, win := range n.Windows {
+			for _, pb := range win.Spec.PartitionBy {
+				w.walkExpr(pb, curEnv, ctes)
+			}
+			for _, ob := range win.Spec.OrderBy {
+				w.walkExpr(ob.Expr, curEnv, ctes)
+			}
+			if win.Spec.Frame != nil {
+				w.walkExpr(win.Spec.Frame.Start.Value, curEnv, ctes)
+				if win.Spec.Frame.End != nil {
+					w.walkExpr(win.Spec.Frame.End.Value, curEnv, ctes)
+				}
+			}
+		}
+		var singleType string
+		for idx, item := range n.Items {
+			it := w.walkExpr(item.Expr, curEnv, ctes)
+			if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
+				singleType = it
+			}
+		}
+		return singleType
+	case *trinoparser.TableQuery:
+		w.recordUnqualTable(n.Name, ctes)
+	case *trinoparser.SetOperation:
+		lt := w.walkQueryNode(n.Left, curEnv, ctes)
+		rt := w.walkQueryNode(n.Right, curEnv, ctes)
+		return combineTrinoTypes(lt, rt)
+	case *trinoparser.ParenQuery:
+		return w.walkQuery(n.Inner, curEnv, ctes)
+	case *trinoparser.ValuesQuery:
+		for _, row := range n.Rows {
+			w.walkExpr(row, curEnv, ctes)
+		}
+	}
+	return ""
+}
 
-	walkQuery = func(q *trinoparser.Query, curEnv map[string]string) string {
-		if q == nil {
-			return ""
-		}
-		if q.With != nil {
-			for _, cte := range q.With.CTEs {
-				walkQuery(cte.Query, curEnv)
-			}
-		}
-		ret := walkQueryNode(q.Body, curEnv)
-		for _, ob := range q.OrderBy {
-			walkExpr(ob.Expr, curEnv)
-		}
-		if q.Offset != nil {
-			walkExpr(q.Offset.Count, curEnv)
-		}
-		if q.Limit != nil {
-			walkExpr(q.Limit.Count, curEnv)
-		}
-		if q.Fetch != nil {
-			walkExpr(q.Fetch.Count, curEnv)
-		}
-		return ret
+func (w *trinoASTWalker) walkQuery(q *trinoparser.Query, curEnv map[string]string, ctes map[string]struct{}) string {
+	if q == nil {
+		return ""
 	}
-	walkJSONPath := func(path *trinoparser.JSONPathInvocation, curEnv map[string]string) {
-		if path == nil {
-			return
-		}
-		if path.Input != nil {
-			walkExpr(path.Input.Expr, curEnv)
-		}
-		for _, p := range path.Passing {
-			if p.Value != nil {
-				walkExpr(p.Value.Expr, curEnv)
+	scope := make(map[string]struct{}, len(ctes))
+	for k := range ctes {
+		scope[k] = struct{}{}
+	}
+	if q.With != nil {
+		for _, cte := range q.With.CTEs {
+			if q.With.Recursive && cte.Name != nil && cte.Name.Value != "" {
+				scope[strings.ToLower(cte.Name.Value)] = struct{}{}
+			}
+			w.walkQuery(cte.Query, curEnv, scope)
+			if cte.Name != nil && cte.Name.Value != "" {
+				scope[strings.ToLower(cte.Name.Value)] = struct{}{}
 			}
 		}
 	}
-	walkExpr = func(expr trinoparser.Expr, curEnv map[string]string) string {
-		if expr == nil {
-			return ""
+	ret := w.walkQueryNode(q.Body, curEnv, scope)
+	for _, ob := range q.OrderBy {
+		w.walkExpr(ob.Expr, curEnv, scope)
+	}
+	if q.Offset != nil {
+		w.walkExpr(q.Offset.Count, curEnv, scope)
+	}
+	if q.Limit != nil {
+		w.walkExpr(q.Limit.Count, curEnv, scope)
+	}
+	if q.Fetch != nil {
+		w.walkExpr(q.Fetch.Count, curEnv, scope)
+	}
+	return ret
+}
+
+func (w *trinoASTWalker) walkJSONPath(path *trinoparser.JSONPathInvocation, curEnv map[string]string, ctes map[string]struct{}) {
+	if path == nil {
+		return
+	}
+	if path.Input != nil {
+		w.walkExpr(path.Input.Expr, curEnv, ctes)
+	}
+	for _, p := range path.Passing {
+		if p.Value != nil {
+			w.walkExpr(p.Value.Expr, curEnv, ctes)
 		}
-		switch e := expr.(type) {
-		case *trinoparser.NamedArgument:
-			return walkExpr(e.Value, curEnv)
-		case *trinoparser.ColumnRef:
-			if e.Name != nil {
-				return curEnv[strings.ToLower(e.Name.Value)]
-			}
-		case *trinoparser.Dereference:
-			baseType := walkExpr(e.Base, curEnv)
-			if e.FieldName != nil && e.FieldName.Value != "" {
-				if base, inner, ok := splitParameterizedType(baseType); ok && base == "row" {
-					target := strings.ToLower(e.FieldName.Value)
-					for _, part := range splitTopLevelComma(inner) {
-						if name, typ := splitRowField(part); name == target {
-							return typ
-						}
+	}
+}
+
+func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]string, ctes map[string]struct{}) string {
+	if expr == nil {
+		return ""
+	}
+	switch e := expr.(type) {
+	case *trinoparser.NamedArgument:
+		return w.walkExpr(e.Value, curEnv, ctes)
+	case *trinoparser.ColumnRef:
+		if e.Name != nil {
+			return curEnv[strings.ToLower(e.Name.Value)]
+		}
+	case *trinoparser.Dereference:
+		baseType := w.walkExpr(e.Base, curEnv, ctes)
+		if e.FieldName != nil && e.FieldName.Value != "" {
+			if base, inner, ok := splitParameterizedType(baseType); ok && base == "row" {
+				target := strings.ToLower(e.FieldName.Value)
+				for _, part := range splitTopLevelComma(inner) {
+					if name, typ := splitRowField(part); name == target {
+						return typ
 					}
 				}
 			}
-		case *trinoparser.Subscript:
-			baseType := walkExpr(e.Value, curEnv)
-			walkExpr(e.Index, curEnv)
-			if base, inner, ok := splitParameterizedType(baseType); ok {
-				switch base {
-				case "array":
-					return inner
-				case "map":
-					if parts := splitTopLevelComma(inner); len(parts) == 2 {
-						return parts[1]
-					}
+		}
+	case *trinoparser.Subscript:
+		baseType := w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Index, curEnv, ctes)
+		if base, inner, ok := splitParameterizedType(baseType); ok {
+			switch base {
+			case "array":
+				return inner
+			case "map":
+				if parts := splitTopLevelComma(inner); len(parts) == 2 {
+					return parts[1]
 				}
 			}
-		case *trinoparser.Literal:
-			switch e.Kind {
-			case trinoparser.LiteralBool:
-				return "boolean"
-			case trinoparser.LiteralInteger:
-				if v, err := strconv.ParseInt(e.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
+		}
+	case *trinoparser.Literal:
+		switch e.Kind {
+		case trinoparser.LiteralBool:
+			return "boolean"
+		case trinoparser.LiteralInteger:
+			if v, err := strconv.ParseInt(e.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
+				return "integer"
+			}
+			return "bigint"
+		case trinoparser.LiteralDecimal:
+			return "decimal"
+		case trinoparser.LiteralDouble:
+			return "double"
+		case trinoparser.LiteralString:
+			return "varchar"
+		case trinoparser.LiteralBinary:
+			return "varbinary"
+		}
+	case *trinoparser.TypeConstructor:
+		return normalizeTrinoTypeName(e.Name)
+	case *trinoparser.IntervalLiteral:
+		return "interval"
+	case *trinoparser.SpecialFuncExpr:
+		switch strings.ToUpper(e.Name) {
+		case "CURRENT_DATE":
+			return "date"
+		case "LOCALTIME":
+			return "time"
+		case "LOCALTIMESTAMP":
+			return "timestamp"
+		case "CURRENT_TIME":
+			return "time with time zone"
+		case "CURRENT_TIMESTAMP":
+			return "timestamp with time zone"
+		case "CURRENT_USER", "CURRENT_CATALOG", "CURRENT_SCHEMA", "CURRENT_PATH":
+			return "varchar"
+		}
+	case *trinoparser.CastExpr:
+		w.walkExpr(e.Expr, curEnv, ctes)
+		return normalizeTrinoDataType(e.Type)
+	case *trinoparser.UnaryExpr:
+		if e.Op == "-" {
+			if lit, ok := e.Operand.(*trinoparser.Literal); ok && lit.Kind == trinoparser.LiteralInteger {
+				if v, err := strconv.ParseInt("-"+lit.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
 					return "integer"
 				}
 				return "bigint"
-			case trinoparser.LiteralDecimal:
-				return "decimal"
-			case trinoparser.LiteralDouble:
-				return "double"
-			case trinoparser.LiteralString:
-				return "varchar"
-			case trinoparser.LiteralBinary:
-				return "varbinary"
-			}
-		case *trinoparser.TypeConstructor:
-			return normalizeTrinoTypeName(e.Name)
-		case *trinoparser.IntervalLiteral:
-			return "interval"
-		case *trinoparser.SpecialFuncExpr:
-			switch strings.ToUpper(e.Name) {
-			case "CURRENT_DATE":
-				return "date"
-			case "LOCALTIME":
-				return "time"
-			case "LOCALTIMESTAMP":
-				return "timestamp"
-			case "CURRENT_TIME":
-				return "time with time zone"
-			case "CURRENT_TIMESTAMP":
-				return "timestamp with time zone"
-			case "CURRENT_USER", "CURRENT_CATALOG", "CURRENT_SCHEMA", "CURRENT_PATH":
-				return "varchar"
-			}
-		case *trinoparser.CastExpr:
-			walkExpr(e.Expr, curEnv)
-			return normalizeTrinoDataType(e.Type)
-		case *trinoparser.UnaryExpr:
-			if e.Op == "-" {
-				if lit, ok := e.Operand.(*trinoparser.Literal); ok && lit.Kind == trinoparser.LiteralInteger {
-					if v, err := strconv.ParseInt("-"+lit.Value, 10, 64); err == nil && v >= math.MinInt32 && v <= math.MaxInt32 {
-						return "integer"
-					}
-					return "bigint"
-				}
-			}
-			return walkExpr(e.Operand, curEnv)
-		case *trinoparser.ParenExpr:
-			return walkExpr(e.Expr, curEnv)
-		case *trinoparser.NotExpr:
-			walkExpr(e.Operand, curEnv)
-			return "boolean"
-		case *trinoparser.LogicalExpr:
-			walkExpr(e.Left, curEnv)
-			walkExpr(e.Right, curEnv)
-			return "boolean"
-		case *trinoparser.BinaryExpr:
-			lt := walkExpr(e.Left, curEnv)
-			rt := walkExpr(e.Right, curEnv)
-			switch e.Op {
-			case "||":
-				return "varchar"
-			case "+", "-", "*", "/", "%":
-				return commonTrinoNumericType(lt, rt)
-			}
-		case *trinoparser.CaseExpr:
-			walkExpr(e.Operand, curEnv)
-			res := ""
-			for _, w := range e.Whens {
-				walkExpr(w.Cond, curEnv)
-				res = combineTrinoTypes(res, walkExpr(w.Result, curEnv))
-			}
-			res = combineTrinoTypes(res, walkExpr(e.Else, curEnv))
-			return res
-		case *trinoparser.AtTimeZoneExpr:
-			t := walkExpr(e.Value, curEnv)
-			walkExpr(e.Zone, curEnv)
-			return zonedTrinoDateTimeType(t)
-		case *trinoparser.AtLocalExpr:
-			return zonedTrinoDateTimeType(walkExpr(e.Value, curEnv))
-		case *trinoparser.ArrayConstructor:
-			elemType := ""
-			for _, el := range e.Elements {
-				elemType = combineTrinoTypes(elemType, walkExpr(el, curEnv))
-			}
-			if elemType != "" {
-				return "array(" + elemType + ")"
-			}
-			return "array"
-		case *trinoparser.RowConstructor:
-			fieldTypes := make([]string, len(e.Elements))
-			allKnown := len(e.Elements) > 0
-			for j, el := range e.Elements {
-				ft := walkExpr(el, curEnv)
-				if ft == "" {
-					allKnown = false
-				}
-				fieldTypes[j] = ft
-			}
-			if allKnown {
-				return "row(" + strings.Join(fieldTypes, ",") + ")"
-			}
-			return "row"
-		case *trinoparser.OverlayExpr:
-			walkExpr(e.Source, curEnv)
-			walkExpr(e.Replacing, curEnv)
-			walkExpr(e.From, curEnv)
-			walkExpr(e.For, curEnv)
-			return "varchar"
-		case *trinoparser.ExtractExpr:
-			walkExpr(e.Source, curEnv)
-			return "bigint"
-		case *trinoparser.SubstringExpr:
-			walkExpr(e.Source, curEnv)
-			walkExpr(e.From, curEnv)
-			walkExpr(e.For, curEnv)
-			return "varchar"
-		case *trinoparser.ComparisonExpr:
-			walkExpr(e.Left, curEnv)
-			walkExpr(e.Right, curEnv)
-			return "boolean"
-		case *trinoparser.QuantifiedComparisonExpr:
-			walkExpr(e.Left, curEnv)
-			walkExpr(e.Subquery, curEnv)
-			return "boolean"
-		case *trinoparser.BetweenExpr:
-			walkExpr(e.Value, curEnv)
-			walkExpr(e.Lower, curEnv)
-			walkExpr(e.Upper, curEnv)
-			return "boolean"
-		case *trinoparser.InListExpr:
-			walkExpr(e.Value, curEnv)
-			for _, item := range e.List {
-				walkExpr(item, curEnv)
-			}
-			return "boolean"
-		case *trinoparser.InSubqueryExpr:
-			walkExpr(e.Value, curEnv)
-			walkExpr(e.Subquery, curEnv)
-			return "boolean"
-		case *trinoparser.LikeExpr:
-			walkExpr(e.Value, curEnv)
-			walkExpr(e.Pattern, curEnv)
-			walkExpr(e.Escape, curEnv)
-			return "boolean"
-		case *trinoparser.IsNullExpr:
-			walkExpr(e.Value, curEnv)
-			return "boolean"
-		case *trinoparser.IsDistinctFromExpr:
-			walkExpr(e.Value, curEnv)
-			walkExpr(e.Right, curEnv)
-			return "boolean"
-		case *trinoparser.IsBooleanExpr:
-			walkExpr(e.Value, curEnv)
-			return "boolean"
-		case *trinoparser.MatchExpr:
-			walkExpr(e.Value, curEnv)
-			walkExpr(e.Subquery, curEnv)
-			return "boolean"
-		case *trinoparser.UniqueExpr:
-			walkExpr(e.Subquery, curEnv)
-			return "boolean"
-		case *trinoparser.SubqueryExpr:
-			var subType string
-			if e.Query != nil {
-				subType = walkQuery(e.Query, curEnv)
-			} else if e.RawText != "" {
-				calls = append(calls, scanFunctionCallRefs(e.RawText)...)
-			}
-			if e.Kind == trinoparser.SubqueryExists || e.Kind == trinoparser.SubqueryUnique {
-				return "boolean"
-			}
-			if e.Kind == trinoparser.SubqueryScalar {
-				return subType
-			}
-		case *trinoparser.TrimExpr:
-			walkExpr(e.Char, curEnv)
-			walkExpr(e.Source, curEnv)
-			return "varchar"
-		case *trinoparser.NormalizeExpr:
-			walkExpr(e.Source, curEnv)
-			return "varchar"
-		case *trinoparser.PositionExpr:
-			walkExpr(e.Needle, curEnv)
-			walkExpr(e.Haystack, curEnv)
-			return "bigint"
-		case *trinoparser.ListaggExpr:
-			walkExpr(e.Arg, curEnv)
-			walkExpr(e.Separator, curEnv)
-			for _, ob := range e.WithinGroupBy {
-				walkExpr(ob.Expr, curEnv)
-			}
-			walkExpr(e.Filter, curEnv)
-			return "varchar"
-		case *trinoparser.LambdaExpr:
-			lambdaEnv := curEnv
-			if len(e.Params) > 0 {
-				lambdaEnv = make(map[string]string, len(curEnv))
-				for k, v := range curEnv {
-					lambdaEnv[k] = v
-				}
-				for _, p := range e.Params {
-					if p != nil {
-						delete(lambdaEnv, strings.ToLower(p.Value))
-					}
-				}
-			}
-			walkExpr(e.Body, lambdaEnv)
-		case *trinoparser.JSONExistsExpr:
-			walkJSONPath(e.Path, curEnv)
-			return "boolean"
-		case *trinoparser.JSONValueFunc:
-			walkJSONPath(e.Path, curEnv)
-			if e.OnEmpty != nil {
-				walkExpr(e.OnEmpty.Default, curEnv)
-			}
-			if e.OnError != nil {
-				walkExpr(e.OnError.Default, curEnv)
-			}
-			return normalizeTrinoDataType(e.Returning)
-		case *trinoparser.JSONQueryFunc:
-			walkJSONPath(e.Path, curEnv)
-			return normalizeTrinoDataType(e.Returning)
-		case *trinoparser.JSONObjectExpr:
-			for _, m := range e.Members {
-				walkExpr(m.Key, curEnv)
-				if m.Value != nil {
-					walkExpr(m.Value.Expr, curEnv)
-				}
-			}
-			return normalizeTrinoDataType(e.Returning)
-		case *trinoparser.JSONArrayExpr:
-			for _, el := range e.Elements {
-				if el != nil {
-					walkExpr(el.Expr, curEnv)
-				}
-			}
-			return normalizeTrinoDataType(e.Returning)
-		case *trinoparser.MethodCall:
-			walkExpr(e.Value, curEnv)
-			for _, a := range e.Args {
-				walkExpr(a, curEnv)
-			}
-		case *trinoparser.StaticMethodCall:
-			for _, a := range e.Args {
-				walkExpr(a, curEnv)
-			}
-		case *trinoparser.FuncCall:
-			argTypes := make([]string, len(e.Args))
-			var argNames []string
-			for j, a := range e.Args {
-				if na, ok := a.(*trinoparser.NamedArgument); ok && na != nil {
-					argTypes[j] = walkExpr(na.Value, curEnv)
-					if na.Name != nil && na.Name.Value != "" {
-						if argNames == nil {
-							argNames = make([]string, len(e.Args))
-						}
-						argNames[j] = na.Name.Value
-					}
-				} else {
-					argTypes[j] = walkExpr(a, curEnv)
-				}
-			}
-			for _, ob := range e.OrderBy {
-				walkExpr(ob.Expr, curEnv)
-			}
-			walkExpr(e.Filter, curEnv)
-			if e.Over != nil {
-				for _, pb := range e.Over.PartitionBy {
-					walkExpr(pb, curEnv)
-				}
-				for _, ob := range e.Over.OrderBy {
-					walkExpr(ob.Expr, curEnv)
-				}
-				if e.Over.Frame != nil {
-					walkExpr(e.Over.Frame.Start.Value, curEnv)
-					if e.Over.Frame.End != nil {
-						walkExpr(e.Over.Frame.End.Value, curEnv)
-					}
-				}
-			}
-			var nameStart, nameEnd int
-			var catalog, schema, name string
-			if e.Name != nil && len(e.Name.Parts) > 0 {
-				nameStart, nameEnd = e.Name.Loc.Start, e.Name.Loc.End
-				parts := e.Name.Parts
-				switch len(parts) {
-				case 1:
-					name = parts[0].Value
-				case 2:
-					schema, name = parts[0].Value, parts[1].Value
-				case 3:
-					catalog, schema, name = parts[0].Value, parts[1].Value, parts[2].Value
-				default:
-					// 4+ parts cannot reference a local catalog function.
-					return ""
-				}
-			}
-			if name != "" {
-				ref := functionCallRef{
-					catalog:   catalog,
-					schema:    schema,
-					name:      name,
-					nameStart: nameStart,
-					nameEnd:   nameEnd,
-					argNames:  argNames,
-					argTypes:  argTypes,
-					argCount:  len(argTypes),
-				}
-				calls = append(calls, ref)
-				if matches := cat.resolveCall(callerSchema, ref); len(matches) > 0 {
-					ret := cat.parsed[matches[0]].returnType
-					same := ret != ""
-					for _, m := range matches[1:] {
-						if cat.parsed[m].returnType != ret {
-							same = false
-							break
-						}
-					}
-					if same {
-						return ret
-					}
-				}
-				switch strings.ToLower(name) {
-				case "length", "cardinality", "strpos", "count":
-					return "bigint"
-				case "lower", "upper", "trim", "ltrim", "rtrim", "concat", "substr", "substring", "replace", "reverse":
-					return "varchar"
-				case "coalesce", "nullif":
-					for _, at := range argTypes {
-						if at != "" {
-							return at
-						}
-					}
-				}
 			}
 		}
-		return ""
-	}
-
-	var walkStmt func(stmt trinoparser.RoutineStatement, curEnv map[string]string)
-	walkStmt = func(stmt trinoparser.RoutineStatement, curEnv map[string]string) {
-		if stmt == nil {
-			return
+		return w.walkExpr(e.Operand, curEnv, ctes)
+	case *trinoparser.ParenExpr:
+		return w.walkExpr(e.Expr, curEnv, ctes)
+	case *trinoparser.NotExpr:
+		w.walkExpr(e.Operand, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.LogicalExpr:
+		w.walkExpr(e.Left, curEnv, ctes)
+		w.walkExpr(e.Right, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.BinaryExpr:
+		lt := w.walkExpr(e.Left, curEnv, ctes)
+		rt := w.walkExpr(e.Right, curEnv, ctes)
+		switch e.Op {
+		case "||":
+			return "varchar"
+		case "+", "-", "*", "/", "%":
+			return commonTrinoNumericType(lt, rt)
 		}
-		switch s := stmt.(type) {
-		case *trinoparser.ReturnStatement:
-			walkExpr(s.Value, curEnv)
-		case *trinoparser.AssignmentStatement:
-			walkExpr(s.Value, curEnv)
-		case *trinoparser.IfStatement:
-			walkExpr(s.Condition, curEnv)
-			for _, st := range s.Then {
-				walkStmt(st, curEnv)
+	case *trinoparser.CaseExpr:
+		w.walkExpr(e.Operand, curEnv, ctes)
+		res := ""
+		for _, wh := range e.Whens {
+			w.walkExpr(wh.Cond, curEnv, ctes)
+			res = combineTrinoTypes(res, w.walkExpr(wh.Result, curEnv, ctes))
+		}
+		res = combineTrinoTypes(res, w.walkExpr(e.Else, curEnv, ctes))
+		return res
+	case *trinoparser.AtTimeZoneExpr:
+		t := w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Zone, curEnv, ctes)
+		return zonedTrinoDateTimeType(t)
+	case *trinoparser.AtLocalExpr:
+		return zonedTrinoDateTimeType(w.walkExpr(e.Value, curEnv, ctes))
+	case *trinoparser.ArrayConstructor:
+		elemType := ""
+		for _, el := range e.Elements {
+			elemType = combineTrinoTypes(elemType, w.walkExpr(el, curEnv, ctes))
+		}
+		if elemType != "" {
+			return "array(" + elemType + ")"
+		}
+		return "array"
+	case *trinoparser.RowConstructor:
+		fieldTypes := make([]string, len(e.Elements))
+		allKnown := len(e.Elements) > 0
+		for j, el := range e.Elements {
+			ft := w.walkExpr(el, curEnv, ctes)
+			if ft == "" {
+				allKnown = false
 			}
-			for _, elif := range s.ElseIfs {
-				walkExpr(elif.Condition, curEnv)
-				for _, st := range elif.Body {
-					walkStmt(st, curEnv)
-				}
-			}
-			for _, st := range s.Else {
-				walkStmt(st, curEnv)
-			}
-		case *trinoparser.CaseStatement:
-			walkExpr(s.Operand, curEnv)
-			for _, w := range s.Whens {
-				walkExpr(w.Condition, curEnv)
-				for _, st := range w.Body {
-					walkStmt(st, curEnv)
-				}
-			}
-			for _, st := range s.Else {
-				walkStmt(st, curEnv)
-			}
-		case *trinoparser.LoopStatement:
-			for _, st := range s.Body {
-				walkStmt(st, curEnv)
-			}
-		case *trinoparser.WhileStatement:
-			walkExpr(s.Condition, curEnv)
-			for _, st := range s.Body {
-				walkStmt(st, curEnv)
-			}
-		case *trinoparser.RepeatStatement:
-			for _, st := range s.Body {
-				walkStmt(st, curEnv)
-			}
-			walkExpr(s.Condition, curEnv)
-		case *trinoparser.CompoundStatement:
-			childEnv := make(map[string]string, len(curEnv)+len(s.Declarations))
+			fieldTypes[j] = ft
+		}
+		if allKnown {
+			return "row(" + strings.Join(fieldTypes, ",") + ")"
+		}
+		return "row"
+	case *trinoparser.OverlayExpr:
+		w.walkExpr(e.Source, curEnv, ctes)
+		w.walkExpr(e.Replacing, curEnv, ctes)
+		w.walkExpr(e.From, curEnv, ctes)
+		w.walkExpr(e.For, curEnv, ctes)
+		return "varchar"
+	case *trinoparser.ExtractExpr:
+		w.walkExpr(e.Source, curEnv, ctes)
+		return "bigint"
+	case *trinoparser.SubstringExpr:
+		w.walkExpr(e.Source, curEnv, ctes)
+		w.walkExpr(e.From, curEnv, ctes)
+		w.walkExpr(e.For, curEnv, ctes)
+		return "varchar"
+	case *trinoparser.ComparisonExpr:
+		w.walkExpr(e.Left, curEnv, ctes)
+		w.walkExpr(e.Right, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.QuantifiedComparisonExpr:
+		w.walkExpr(e.Left, curEnv, ctes)
+		w.walkExpr(e.Subquery, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.BetweenExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Lower, curEnv, ctes)
+		w.walkExpr(e.Upper, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.InListExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		for _, item := range e.List {
+			w.walkExpr(item, curEnv, ctes)
+		}
+		return "boolean"
+	case *trinoparser.InSubqueryExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Subquery, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.LikeExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Pattern, curEnv, ctes)
+		w.walkExpr(e.Escape, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.IsNullExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.IsDistinctFromExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Right, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.IsBooleanExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.MatchExpr:
+		w.walkExpr(e.Value, curEnv, ctes)
+		w.walkExpr(e.Subquery, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.UniqueExpr:
+		w.walkExpr(e.Subquery, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.SubqueryExpr:
+		var subType string
+		if e.Query != nil {
+			subType = w.walkQuery(e.Query, curEnv, ctes)
+		} else if e.RawText != "" {
+			w.calls = append(w.calls, scanFunctionCallRefs(e.RawText)...)
+		}
+		if e.Kind == trinoparser.SubqueryExists || e.Kind == trinoparser.SubqueryUnique {
+			return "boolean"
+		}
+		if e.Kind == trinoparser.SubqueryScalar {
+			return subType
+		}
+	case *trinoparser.TrimExpr:
+		w.walkExpr(e.Char, curEnv, ctes)
+		w.walkExpr(e.Source, curEnv, ctes)
+		return "varchar"
+	case *trinoparser.NormalizeExpr:
+		w.walkExpr(e.Source, curEnv, ctes)
+		return "varchar"
+	case *trinoparser.PositionExpr:
+		w.walkExpr(e.Needle, curEnv, ctes)
+		w.walkExpr(e.Haystack, curEnv, ctes)
+		return "bigint"
+	case *trinoparser.ListaggExpr:
+		w.walkExpr(e.Arg, curEnv, ctes)
+		w.walkExpr(e.Separator, curEnv, ctes)
+		for _, ob := range e.WithinGroupBy {
+			w.walkExpr(ob.Expr, curEnv, ctes)
+		}
+		w.walkExpr(e.Filter, curEnv, ctes)
+		return "varchar"
+	case *trinoparser.LambdaExpr:
+		lambdaEnv := curEnv
+		if len(e.Params) > 0 {
+			lambdaEnv = make(map[string]string, len(curEnv))
 			for k, v := range curEnv {
-				childEnv[k] = v
+				lambdaEnv[k] = v
 			}
-			for _, decl := range s.Declarations {
-				walkExpr(decl.Default, childEnv)
-				dt := normalizeTrinoDataType(decl.Type)
-				for _, n := range decl.Names {
-					if n != nil && dt != "" {
-						childEnv[strings.ToLower(n.Value)] = dt
+			for _, p := range e.Params {
+				if p != nil {
+					delete(lambdaEnv, strings.ToLower(p.Value))
+				}
+			}
+		}
+		w.walkExpr(e.Body, lambdaEnv, ctes)
+	case *trinoparser.JSONExistsExpr:
+		w.walkJSONPath(e.Path, curEnv, ctes)
+		return "boolean"
+	case *trinoparser.JSONValueFunc:
+		w.walkJSONPath(e.Path, curEnv, ctes)
+		if e.OnEmpty != nil {
+			w.walkExpr(e.OnEmpty.Default, curEnv, ctes)
+		}
+		if e.OnError != nil {
+			w.walkExpr(e.OnError.Default, curEnv, ctes)
+		}
+		return normalizeTrinoDataType(e.Returning)
+	case *trinoparser.JSONQueryFunc:
+		w.walkJSONPath(e.Path, curEnv, ctes)
+		return normalizeTrinoDataType(e.Returning)
+	case *trinoparser.JSONObjectExpr:
+		for _, m := range e.Members {
+			w.walkExpr(m.Key, curEnv, ctes)
+			if m.Value != nil {
+				w.walkExpr(m.Value.Expr, curEnv, ctes)
+			}
+		}
+		return normalizeTrinoDataType(e.Returning)
+	case *trinoparser.JSONArrayExpr:
+		for _, el := range e.Elements {
+			if el != nil {
+				w.walkExpr(el.Expr, curEnv, ctes)
+			}
+		}
+		return normalizeTrinoDataType(e.Returning)
+	case *trinoparser.MethodCall:
+		w.walkExpr(e.Value, curEnv, ctes)
+		for _, a := range e.Args {
+			w.walkExpr(a, curEnv, ctes)
+		}
+	case *trinoparser.StaticMethodCall:
+		for _, a := range e.Args {
+			w.walkExpr(a, curEnv, ctes)
+		}
+	case *trinoparser.FuncCall:
+		argTypes := make([]string, len(e.Args))
+		var argNames []string
+		for j, a := range e.Args {
+			if na, ok := a.(*trinoparser.NamedArgument); ok && na != nil {
+				argTypes[j] = w.walkExpr(na.Value, curEnv, ctes)
+				if na.Name != nil && na.Name.Value != "" {
+					if argNames == nil {
+						argNames = make([]string, len(e.Args))
+					}
+					argNames[j] = na.Name.Value
+				}
+			} else {
+				argTypes[j] = w.walkExpr(a, curEnv, ctes)
+			}
+		}
+		for _, ob := range e.OrderBy {
+			w.walkExpr(ob.Expr, curEnv, ctes)
+		}
+		w.walkExpr(e.Filter, curEnv, ctes)
+		if e.Over != nil {
+			for _, pb := range e.Over.PartitionBy {
+				w.walkExpr(pb, curEnv, ctes)
+			}
+			for _, ob := range e.Over.OrderBy {
+				w.walkExpr(ob.Expr, curEnv, ctes)
+			}
+			if e.Over.Frame != nil {
+				w.walkExpr(e.Over.Frame.Start.Value, curEnv, ctes)
+				if e.Over.Frame.End != nil {
+					w.walkExpr(e.Over.Frame.End.Value, curEnv, ctes)
+				}
+			}
+		}
+		var nameStart, nameEnd int
+		var catalog, schema, name string
+		if e.Name != nil && len(e.Name.Parts) > 0 {
+			nameStart, nameEnd = e.Name.Loc.Start, e.Name.Loc.End
+			parts := e.Name.Parts
+			switch len(parts) {
+			case 1:
+				name = parts[0].Value
+			case 2:
+				schema, name = parts[0].Value, parts[1].Value
+			case 3:
+				catalog, schema, name = parts[0].Value, parts[1].Value, parts[2].Value
+			default:
+				return ""
+			}
+		}
+		if name != "" {
+			ref := functionCallRef{
+				catalog:   catalog,
+				schema:    schema,
+				name:      name,
+				nameStart: nameStart,
+				nameEnd:   nameEnd,
+				argNames:  argNames,
+				argTypes:  argTypes,
+				argCount:  len(argTypes),
+			}
+			w.calls = append(w.calls, ref)
+			if matches := w.cat.resolveCall(w.callerSchema, ref); len(matches) > 0 {
+				ret := w.cat.parsed[matches[0]].returnType
+				same := ret != ""
+				for _, m := range matches[1:] {
+					if w.cat.parsed[m].returnType != ret {
+						same = false
+						break
+					}
+				}
+				if same {
+					return ret
+				}
+			}
+			switch strings.ToLower(name) {
+			case "length", "cardinality", "strpos", "count":
+				return "bigint"
+			case "lower", "upper", "trim", "ltrim", "rtrim", "concat", "substr", "substring", "replace", "reverse":
+				return "varchar"
+			case "coalesce", "nullif":
+				for _, at := range argTypes {
+					if at != "" {
+						return at
 					}
 				}
 			}
-			for _, st := range s.Body {
-				walkStmt(st, childEnv)
-			}
 		}
 	}
+	return ""
+}
 
-	walkStmt(root, env)
-	return calls
+func (w *trinoASTWalker) walkStmt(stmt trinoparser.RoutineStatement, curEnv map[string]string) {
+	if stmt == nil {
+		return
+	}
+	switch s := stmt.(type) {
+	case *trinoparser.ReturnStatement:
+		w.walkExpr(s.Value, curEnv, nil)
+	case *trinoparser.AssignmentStatement:
+		w.walkExpr(s.Value, curEnv, nil)
+	case *trinoparser.IfStatement:
+		w.walkExpr(s.Condition, curEnv, nil)
+		for _, st := range s.Then {
+			w.walkStmt(st, curEnv)
+		}
+		for _, elif := range s.ElseIfs {
+			w.walkExpr(elif.Condition, curEnv, nil)
+			for _, st := range elif.Body {
+				w.walkStmt(st, curEnv)
+			}
+		}
+		for _, st := range s.Else {
+			w.walkStmt(st, curEnv)
+		}
+	case *trinoparser.CaseStatement:
+		w.walkExpr(s.Operand, curEnv, nil)
+		for _, wh := range s.Whens {
+			w.walkExpr(wh.Condition, curEnv, nil)
+			for _, st := range wh.Body {
+				w.walkStmt(st, curEnv)
+			}
+		}
+		for _, st := range s.Else {
+			w.walkStmt(st, curEnv)
+		}
+	case *trinoparser.LoopStatement:
+		for _, st := range s.Body {
+			w.walkStmt(st, curEnv)
+		}
+	case *trinoparser.WhileStatement:
+		w.walkExpr(s.Condition, curEnv, nil)
+		for _, st := range s.Body {
+			w.walkStmt(st, curEnv)
+		}
+	case *trinoparser.RepeatStatement:
+		for _, st := range s.Body {
+			w.walkStmt(st, curEnv)
+		}
+		w.walkExpr(s.Condition, curEnv, nil)
+	case *trinoparser.CompoundStatement:
+		childEnv := make(map[string]string, len(curEnv)+len(s.Declarations))
+		for k, v := range curEnv {
+			childEnv[k] = v
+		}
+		for _, decl := range s.Declarations {
+			w.walkExpr(decl.Default, childEnv, nil)
+			dt := normalizeTrinoDataType(decl.Type)
+			for _, n := range decl.Names {
+				if n != nil && dt != "" {
+					childEnv[strings.ToLower(n.Value)] = dt
+				}
+			}
+		}
+		for _, st := range s.Body {
+			w.walkStmt(st, childEnv)
+		}
+	}
 }
 
 // scanFunctionCallRefs extracts unqualified and schema-qualified call sites

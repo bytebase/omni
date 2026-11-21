@@ -397,7 +397,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS "s"."mv_top_unparsed" AS
 SELECT /* syntax unknown to GetQuerySpan */ * FROM TABLE(exclude_columns(TABLE(s.mv_base), DESCRIPTOR(x)));
 
 CREATE OR REPLACE VIEW "s"."v_top" AS
-SELECT s.caller(id) FROM "s"."v_base" -- trailing view comment
+SELECT "cat".s.caller(id) FROM "s"."v_base" -- trailing view comment
 ;
 COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 
@@ -1118,4 +1118,35 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "no data type")
+
+	// View/MV bodies qualify unqualified relations inside JSON expressions and
+	// qualify UDF calls while preserving unqualified built-ins (length).
+	viewExprAndUDF, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "my_fn",
+				Definition: "CREATE FUNCTION s.my_fn(x bigint) RETURNS bigint RETURN x + 1",
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Type: "bigint"},
+					{Name: "name", Type: "varchar"},
+				},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_json_udf",
+				Definition: "SELECT JSON_OBJECT('id' VALUE (SELECT my_fn(id) FROM t)), length(name) FROM t",
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_udf",
+				Definition: "SELECT s.my_fn(id) FROM t",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, viewExprAndUDF, `SELECT JSON_OBJECT('id' VALUE (SELECT "cat"."s".my_fn(id) FROM "cat"."s".t)), length(name) FROM "cat"."s".t;`)
+	assert.Contains(t, viewExprAndUDF, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv_udf\" AS\nSELECT \"cat\".s.my_fn(id) FROM \"cat\".\"s\".t;")
 }
