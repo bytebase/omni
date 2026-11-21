@@ -79,7 +79,7 @@ func TestWalkThrough_2_4_AlterTableDropColumnUsedInFK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	// Error code 1828: Cannot drop column needed in FK constraint.
+	// Error code 5320: OceanBase refuses dropping a column used in a FK constraint.
 	if results[0].Error == nil {
 		t.Fatal("expected error when dropping column used in FK, got nil")
 	}
@@ -87,8 +87,8 @@ func TestWalkThrough_2_4_AlterTableDropColumnUsedInFK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *catalog.Error, got %T: %v", results[0].Error, results[0].Error)
 	}
-	if catErr.Code != 1828 {
-		t.Errorf("expected error code 1828, got %d: %s", catErr.Code, catErr.Message)
+	if catErr.Code != 5320 {
+		t.Errorf("expected error code 5320, got %d: %s", catErr.Code, catErr.Message)
 	}
 }
 

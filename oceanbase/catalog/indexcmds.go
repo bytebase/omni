@@ -19,8 +19,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	tableName := stmt.Table.Name
 	tbl := db.Tables[toLower(tableName)]
+	isView := false
 	if tbl == nil {
-		return errNoSuchTable(db.Name, tableName)
+		if v := db.Views[toLower(tableName)]; v != nil {
+			tbl = c.viewAsTable(db, v)
+			isView = true
+		} else {
+			return errNoSuchTable(db.Name, tableName)
+		}
 	}
 
 	// The name's own database must exist and be the table's: 4.3.5.6 answers 1049 for
@@ -43,8 +49,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Vector:
 		kind = keyVector
 	}
-	if err := checkKeyParts(tbl, createIndexColumns(stmt), kind, stmt.Options); err != nil {
+	if err := checkKeyPartsMode(tbl, createIndexColumns(stmt), kind, stmt.Options, isView); err != nil {
 		return err
+	}
+	if isView {
+		return errNotBaseTable(db.Name, tableName)
 	}
 
 	if err := validateStoringColumns(tbl, stmt.Options); err != nil {
@@ -151,6 +160,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	tableName := stmt.Table.Name
 	tbl := db.Tables[toLower(tableName)]
 	if tbl == nil {
+		if db.Views[toLower(tableName)] != nil {
+			// OceanBase 4.3.5.6 checks index existence on a view and answers 1091.
+			return errCantDropKey(stmt.Name)
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -167,6 +180,11 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		}
 	}
 	if !found {
+		// OceanBase 4.3.5.6 answers 1146 (Table doesn't exist) for DROP INDEX
+		// of a missing index on a table that holds a foreign key constraint.
+		if tableHasForeignKey(tbl) {
+			return errFKNoRefTable()
+		}
 		return errCantDropKey(stmt.Name)
 	}
 	removeFunctionalIndexHiddenColumns(tbl, dropped)
