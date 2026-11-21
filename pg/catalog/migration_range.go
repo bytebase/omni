@@ -198,3 +198,120 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 	return ops
 }
+
+// renameRetainedRanges finds ranges that the diff reports as a drop and an add
+// with the same OID, which is what ALTER TYPE ... RENAME TO and ... SET SCHEMA
+// leave behind. It returns a clone of from with those renames applied, and the
+// ALTER TYPE ops that perform them, so the rest of the plan sees one retained
+// range instead of a rebuild that loses its grants, comments, and dependents.
+// A rename the catalog refuses (a name already taken, a schema that does not
+// exist yet) stays a drop and an add.
+func renameRetainedRanges(from, to *Catalog, diff *SchemaDiff) (*Catalog, []MigrationOp) {
+	if from == nil || to == nil || diff == nil {
+		return nil, nil
+	}
+	added := make(map[uint32]RangeDiffEntry)
+	for _, e := range diff.Ranges {
+		if e.Action == DiffAdd && e.To != nil && e.To.OID != 0 {
+			added[e.To.OID] = e
+		}
+	}
+	var renamed *Catalog
+	var ops []MigrationOp
+	for _, e := range diff.Ranges {
+		if e.Action != DiffDrop || e.From == nil || e.From.OID == 0 {
+			continue
+		}
+		a, ok := added[e.From.OID]
+		if !ok {
+			continue
+		}
+		cur := renamed
+		if cur == nil {
+			cur = from
+		}
+		try := cur.Clone()
+		stmts := alterTypeIdentitySQL(e.SchemaName, e.Name, a.SchemaName, a.Name)
+		if !applyCatalogSQL(try, stmts) {
+			continue
+		}
+		// The multirange keeps its own name, so move it separately when the
+		// target names it differently from where the range's statements left it.
+		if mrOID := e.From.MultirangeOID; mrOID != 0 && mrOID == a.To.MultirangeOID {
+			got, want := typeIdentity(try, mrOID), typeIdentity(to, mrOID)
+			if got.schema != "" && want.schema != "" && got != want {
+				mr := alterTypeIdentitySQL(got.schema, got.name, want.schema, want.name)
+				if !applyCatalogSQL(try, mr) {
+					continue
+				}
+				stmts = append(stmts, mr...)
+			}
+		}
+		renamed = try
+		ops = append(ops, rangeRenameOps(e.From.OID, a.SchemaName, a.Name, stmts)...)
+	}
+	return renamed, ops
+}
+
+type typeIdent struct {
+	schema string
+	name   string
+}
+
+func typeIdentity(c *Catalog, oid uint32) typeIdent {
+	bt := c.typeByOID[oid]
+	if bt == nil {
+		return typeIdent{}
+	}
+	s := c.schemas[bt.Namespace]
+	if s == nil {
+		return typeIdent{}
+	}
+	return typeIdent{schema: s.Name, name: bt.TypeName}
+}
+
+// alterTypeIdentitySQL moves a type to toSchema, then renames it to toName.
+func alterTypeIdentitySQL(fromSchema, fromName, toSchema, toName string) []string {
+	var stmts []string
+	if fromSchema != toSchema {
+		stmts = append(stmts, fmt.Sprintf("ALTER TYPE %s SET SCHEMA %s", migrationQualifiedName(fromSchema, fromName), quoteIdentAlways(toSchema)))
+	}
+	if fromName != toName {
+		stmts = append(stmts, fmt.Sprintf("ALTER TYPE %s RENAME TO %s", migrationQualifiedName(toSchema, fromName), quoteIdentAlways(toName)))
+	}
+	return stmts
+}
+
+// applyCatalogSQL runs stmts on c and reports whether every one succeeded.
+func applyCatalogSQL(c *Catalog, stmts []string) bool {
+	for _, s := range stmts {
+		res, err := c.Exec(s, nil)
+		if err != nil {
+			return false
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func rangeRenameOps(oid uint32, schemaName, name string, stmts []string) []MigrationOp {
+	ops := make([]MigrationOp, 0, len(stmts))
+	for _, s := range stmts {
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterType,
+			SchemaName:    schemaName,
+			ObjectName:    name,
+			SQL:           s,
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       't',
+			ObjOID:        oid,
+			Priority:      PriorityType,
+		})
+	}
+	return ops
+}

@@ -207,6 +207,14 @@ func (p *MigrationPlan) Warnings() []MigrationOp {
 // GenerateMigration produces a MigrationPlan that transforms the `from`
 // catalog into the `to` catalog, using the precomputed diff.
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
+	// A renamed or moved range keeps its OID. Rename it first, then plan the
+	// rest from the renamed catalog, so nothing that depends on it is rebuilt.
+	if renamed, renameOps := renameRetainedRanges(from, to, diff); renamed != nil {
+		plan := GenerateMigration(renamed, to, Diff(renamed, to))
+		plan.Ops = append(renameOps, plan.Ops...)
+		return plan
+	}
+
 	var ops []MigrationOp
 
 	// Phase 1: DROP (reverse dependency order)
