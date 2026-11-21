@@ -329,8 +329,7 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 			nil,
 			{Name: "skipped_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t_hidden"}}},
 			{
-				Name:  "s",
-				Owner: "schema_admin",
+				Name: "s",
 				Functions: []*metadatapb.FunctionMetadata{
 					nil,
 					{Name: "fn_skip", Definition: "CREATE FUNCTION s.fn_skip() RETURNS int RETURN 1", SkipDump: true},
@@ -342,7 +341,6 @@ func TestDatabaseDefinitionFromProto(t *testing.T) {
 					{Name: "t_skip", SkipDump: true},
 					{
 						Name:    "t",
-						Owner:   "tbl_owner",
 						Comment: "events table",
 						Columns: []*metadatapb.ColumnMetadata{
 							nil,
@@ -402,10 +400,6 @@ CREATE OR REPLACE VIEW "s"."v_top" AS
 SELECT s.caller(id) FROM "s"."v_base" -- trailing view comment
 ;
 COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
-
-ALTER TABLE "s"."t" SET AUTHORIZATION "tbl_owner";
-
-ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 
 `, got)
 
@@ -1105,4 +1099,23 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Contains(t, unqualViewOut, `WITH cte AS (SELECT id FROM "cat"."s".t) SELECT id FROM cte;`)
 	assert.Contains(t, unqualViewOut, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv_unqual\" AS\nSELECT id FROM \"cat\".\"s\".t;")
+
+	// Ambiguous schema/table owners (user vs role) and table columns without a type fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name:    "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "s", Owner: "role_a"}},
+	})
+	require.ErrorContains(t, err, "owner")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t_empty_type",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "no data type")
 }

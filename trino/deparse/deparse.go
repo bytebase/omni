@@ -46,9 +46,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		if s.Comment != "" {
 			return nil, fmt.Errorf("schema %s comment cannot be restored because Trino does not support COMMENT ON SCHEMA", s.Name)
 		}
+		if s.Owner != "" {
+			return nil, fmt.Errorf("schema %s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", s.Name, s.Owner)
+		}
 		schemaMeta := &SchemaMetadata{
 			Name:              s.Name,
-			Owner:             s.Owner,
 			Functions:         make([]*FunctionMetadata, 0, len(s.Functions)),
 			Tables:            make([]*TableMetadata, 0, len(s.Tables)),
 			Views:             make([]*ViewMetadata, 0, len(s.Views)),
@@ -100,7 +102,10 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if len(t.Indexes) > 0 || len(t.ForeignKeys) > 0 || len(t.CheckConstraints) > 0 || len(t.ExcludeConstraints) > 0 || len(t.Partitions) > 0 || len(t.Triggers) > 0 || len(t.Rules) > 0 || t.CreateOptions != "" || t.Engine != "" || t.Collation != "" || t.Charset != "" || len(t.SortingKeys) > 0 || t.ShardingInfo != "" || t.PrimaryKeyType != "" {
 				return nil, fmt.Errorf("table %s.%s constraints or table options cannot be restored by Trino SDL renderer", s.Name, t.Name)
 			}
-			cols, err := fromProtoColumns(s.Name, t.Name, t.Columns)
+			if t.Owner != "" {
+				return nil, fmt.Errorf("table %s.%s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", s.Name, t.Name, t.Owner)
+			}
+			cols, err := fromProtoColumns(s.Name, t.Name, t.Columns, true)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +125,6 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			schemaMeta.Tables = append(schemaMeta.Tables, &TableMetadata{
 				Name:    t.Name,
-				Owner:   t.Owner,
 				Columns: cols,
 				Comment: t.Comment,
 			})
@@ -137,7 +141,7 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				return nil, fmt.Errorf("schema %s has duplicate view %s", s.Name, quoteIdentifier(v.Name))
 			}
 			seenRelations[relKey] = struct{}{}
-			viewCols, err := fromProtoColumns(s.Name, v.Name, v.Columns)
+			viewCols, err := fromProtoColumns(s.Name, v.Name, v.Columns, false)
 			if err != nil {
 				return nil, err
 			}
@@ -523,7 +527,7 @@ func validateTrinoFunctionSignature(schemaName, fnName, signature string, declPa
 	return nil
 }
 
-func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMetadata) ([]*ColumnMetadata, error) {
+func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMetadata, requireType bool) ([]*ColumnMetadata, error) {
 	if len(cols) == 0 {
 		return nil, nil
 	}
@@ -531,6 +535,9 @@ func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMet
 	for _, c := range cols {
 		if c == nil {
 			continue
+		}
+		if requireType && strings.TrimSpace(c.Type) == "" {
+			return nil, fmt.Errorf("column %s.%s.%s has no data type", schemaName, tableName, c.Name)
 		}
 		if c.Generation != nil {
 			return nil, fmt.Errorf("column %s.%s.%s generated expression cannot be restored by Trino SDL renderer", schemaName, tableName, c.Name)
