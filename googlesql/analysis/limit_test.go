@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/googlesql/parser"
 )
 
 // TestRewriteResultLimit holds the rewriter to the cases the Spanner driver's
@@ -114,11 +116,29 @@ func TestRewriteResultLimit(t *testing.T) {
 			statement: "UPDATE t SET x = 1 WHERE id = 2",
 			want:      "UPDATE t SET x = 1 WHERE id = 2",
 		},
+		{
+			name:      "unparsable query is unchanged",
+			statement: "SELECT x FROM",
+			want:      "SELECT x FROM",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, RewriteResultLimit(tc.statement, 100))
 		})
+	}
+}
+
+func TestRewriteResultLimitParses(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT x FROM t",
+		"WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
+		"SELECT x FROM t |> WHERE x > 1 |> LIMIT 5000",
+		"SELECT x FROM t |> AGGREGATE COUNT(*) AS n",
+	} {
+		rewritten := RewriteResultLimit(statement, 100)
+		_, err := parser.Parse(rewritten)
+		require.NoError(t, err, "rewritten: %s", rewritten)
 	}
 }
 

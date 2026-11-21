@@ -105,6 +105,29 @@ func TestResolveQuerySpanTables(t *testing.T) {
 			want:      []string{"testdb.items"},
 		},
 		{
+			name:      "simple CTE",
+			statement: "WITH cte AS (SELECT * FROM users)\nSELECT * FROM cte",
+			want:      []string{"testdb.users"},
+		},
+		{
+			name:      "multiple CTEs",
+			statement: "WITH\ncte1 AS (SELECT * FROM table1),\ncte2 AS (SELECT * FROM table2)\nSELECT * FROM cte1 JOIN cte2",
+			want:      []string{"testdb.table1", "testdb.table2"},
+		},
+		{
+			name:      "nested CTEs",
+			statement: "WITH outer_cte AS (\n  WITH inner_cte AS (SELECT * FROM base_table)\n  SELECT * FROM inner_cte\n)\nSELECT * FROM outer_cte",
+			want:      []string{"testdb.base_table"},
+		},
+		{
+			name: "CTE referencing another CTE",
+			statement: `WITH
+				base_data AS (SELECT id, name, department_id FROM employees WHERE active = true),
+				dept_summary AS (SELECT d.name as dept_name, COUNT(b.id) as emp_count FROM base_data b JOIN departments d ON b.department_id = d.id GROUP BY d.name)
+			SELECT * FROM dept_summary WHERE emp_count > 10`,
+			want: []string{"testdb.employees", "testdb.departments"},
+		},
+		{
 			name:      "EXPLAIN exposes the planned statement's tables",
 			statement: "EXPLAIN SELECT * FROM users",
 			want:      []string{"testdb.users"},
@@ -159,6 +182,7 @@ func TestResolveQuerySpanSystemTables(t *testing.T) {
 		{"SELECT table_name FROM information_schema.columns WHERE table_schema = 'testdb'", QueryTypeSelectInfoSchema, "information_schema.columns"},
 		{"SELECT * FROM mysql.user", QueryTypeSelectInfoSchema, "mysql.user"},
 		{"SELECT * FROM __internal_schema.audit_log", QueryTypeSelectInfoSchema, "__internal_schema.audit_log"},
+		{"SELECT * FROM _statistics_.table_statistics", QueryTypeSelect, "_statistics_.table_statistics"},
 		{"SELECT * FROM users", QueryTypeSelect, "testdb.users"},
 	}
 	for _, tc := range tests {

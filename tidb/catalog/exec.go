@@ -56,9 +56,9 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		// Parse has already bounded the tree height, so the walk is safe.
 		if containsParamMarker(item) {
 			result.Error = &Error{
-				Code:     0,
-				SQLState: "HY000",
-				Message:  "parameter marker (?) is not allowed in a DDL statement",
+				Code:     ErrSyntax,
+				SQLState: sqlState(ErrSyntax),
+				Message:  "syntax error, unexpected '?'",
 			}
 			results = append(results, result)
 			if !continueOnError {
