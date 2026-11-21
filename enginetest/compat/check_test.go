@@ -547,3 +547,149 @@ func TestCheckJoinsTheRowsOfMoreGrammars(t *testing.T) {
 		t.Errorf("a row two grammars generate: %q %q", rec.errors, rec.fatal)
 	}
 }
+
+func TestVerifyPassesOnMatchingFileAndWritesNothing(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "verify")
+	t.Setenv("CI", "true")
+
+	s := suite(t, "accept\taccept\tengine\tr/A\tA\nreject\taccept\tengine\tr/B\tB\naccept\treject\tengine\tr/C\tC\n",
+		map[string]string{"A": Accept, "C": Accept})
+	var asked []string
+	s.Judge = judgeOf(map[string]string{"A": Accept, "B": Accept, "C": Reject}, &asked)
+	before := read(t, s.Path)
+
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("verify: %q %q", rec.errors, rec.fatal)
+	}
+	if got := strings.Join(asked, ","); got != "A,B,C" {
+		t.Errorf("verify asked judge %q, want every row A,B,C", got)
+	}
+	if read(t, s.Path) != before {
+		t.Errorf("verify modified %s", s.Path)
+	}
+
+	// Docs suite passes in verify mode too and writes nothing.
+	ds := docsSuite(t, docsRows, docsOmni)
+	beforeDocs := read(t, ds.Path)
+	if rec := run(t, ds); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("docs verify: %q %q", rec.errors, rec.fatal)
+	}
+	if read(t, ds.Path) != beforeDocs {
+		t.Errorf("docs verify modified %s", ds.Path)
+	}
+}
+
+func TestVerifyFailsOnTamperedExpectedAndWritesNothing(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "verify")
+	t.Setenv("CI", "true")
+
+	// Hand-edited expected cell on engine suite.
+	s := suite(t, "accept\taccept\tengine\tr/A\tA\nreject\treject\tengine\tr/B\tB\n",
+		map[string]string{"A": Accept})
+	var asked []string
+	s.Judge = judgeOf(map[string]string{"A": Accept, "B": Accept}, &asked)
+	before := read(t, s.Path)
+
+	rec := run(t, s)
+	if !rec.failed("the judge's answer differs from the committed expected cell") || !rec.failed("the engine judge now says accept, the row records reject") {
+		t.Errorf("tampered expected cell passed verify: %q %q", rec.errors, rec.fatal)
+	}
+	if read(t, s.Path) != before {
+		t.Errorf("verify modified %s on mismatch", s.Path)
+	}
+
+	// Hand-edited expected cell on docs suite.
+	edited := strings.Replace(docsRows, "reject\tundocumented\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-2", "reject\treject\tdocs\tstmt(IF_EXISTS)?/IF_EXISTS!drop-2", 1)
+	ds := docsSuite(t, edited, docsOmni)
+	beforeDocs := read(t, ds.Path)
+	if rec := run(t, ds); !rec.failed("the docs judge now says undocumented, the row records reject") {
+		t.Errorf("tampered docs cell passed verify: %q %q", rec.errors, rec.fatal)
+	}
+	if read(t, ds.Path) != beforeDocs {
+		t.Errorf("docs verify modified %s on mismatch", ds.Path)
+	}
+}
+
+func TestVerifyRejectsUpdateCompatPinMismatchMissingFileGeneratedDiffAndUnjudged(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "verify")
+	t.Setenv("CI", "true")
+
+	// -update-compat cannot be combined with OMNI_RECORD=verify.
+	s := suite(t, "reject\taccept\tengine\tr/B\tB\n", map[string]string{"B": Accept})
+	var asked []string
+	s.Judge = judgeOf(map[string]string{"B": Accept}, &asked)
+	before := read(t, s.Path)
+	*updateCompat = true
+	rec := run(t, s)
+	*updateCompat = false
+	if !strings.Contains(rec.fatal, "-update-compat cannot be combined with OMNI_RECORD=verify") {
+		t.Errorf("-update-compat + verify: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, s.Path) != before {
+		t.Errorf("-update-compat + verify asked %q or modified file", asked)
+	}
+
+	// Missing compat.tsv fails and creates nothing.
+	missing := suite(t, "", nil)
+	if err := os.Remove(missing.Path); err != nil {
+		t.Fatal(err)
+	}
+	if rec := run(t, missing); !strings.Contains(rec.fatal, "no ") {
+		t.Errorf("missing file: %q %q", rec.errors, rec.fatal)
+	}
+	if _, err := os.Stat(missing.Path); !os.IsNotExist(err) {
+		t.Errorf("verify created missing %s", missing.Path)
+	}
+
+	// Pin mismatch fails without asking the judge and writes nothing.
+	pinMismatch := suite(t, "accept\taccept\tengine\tr/A\tA\n", map[string]string{"A": Accept})
+	write(t, pinMismatch.Pins, "default\timg:2\tsha256:def\tv2\n")
+	asked = nil
+	pinMismatch.Judge = judgeOf(map[string]string{"A": Accept}, &asked)
+	beforePin := read(t, pinMismatch.Path)
+	if rec := run(t, pinMismatch); !strings.Contains(rec.fatal, "was recorded at pin") {
+		t.Errorf("pin mismatch: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, pinMismatch.Path) != beforePin {
+		t.Errorf("pin mismatch asked %q or modified file", asked)
+	}
+
+	// Unjudged row fails without asking the judge and writes nothing.
+	unjudged := suite(t, "?\t?\t-\tissue:BYT-1\tA\n", nil)
+	asked = nil
+	unjudged.Judge = judgeOf(map[string]string{"A": Reject}, &asked)
+	beforeUnjudged := read(t, unjudged.Path)
+	if rec := run(t, unjudged); !rec.failed("not judged yet") {
+		t.Errorf("unjudged row: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, unjudged.Path) != beforeUnjudged {
+		t.Errorf("unjudged row asked %q or modified file", asked)
+	}
+
+	// Generated rows mismatch fails and writes nothing.
+	gen := suite(t, "accept\taccept\tengine\tDropStmt/DROP_TABLE_identifier\tDROP TABLE t\n", map[string]string{"DROP TABLE t": Accept})
+	dir := filepath.Dir(gen.Path)
+	gen.Grammar, gen.Tokens = filepath.Join(dir, "g.y"), filepath.Join(dir, "tokens.tsv")
+	write(t, gen.Grammar, tinyGrammar)
+	write(t, gen.Tokens, "identifier\tt\n")
+	asked = nil
+	gen.Judge = judgeOf(map[string]string{"DROP TABLE t": Accept}, &asked)
+	beforeGen := read(t, gen.Path)
+	if rec := run(t, gen); !rec.failed("not what") {
+		t.Errorf("generated rows mismatch: %q %q", rec.errors, rec.fatal)
+	}
+	if read(t, gen.Path) != beforeGen {
+		t.Errorf("verify modified %s on generated rows mismatch", gen.Path)
+	}
+
+	// Direct (*File).Write callers (such as fuzz-row tests with -update-compat)
+	// are also blocked from writing under OMNI_RECORD=verify.
+	directPath := filepath.Join(t.TempDir(), "compat.tsv")
+	directFile := &File{Pin: "default img:1 sha256:abc v1"}
+	if err := directFile.Write(directPath); err == nil || !strings.Contains(err.Error(), "OMNI_RECORD=verify") {
+		t.Errorf("File.Write in verify mode: got %v, want error naming OMNI_RECORD=verify", err)
+	}
+	if _, err := os.Stat(directPath); !os.IsNotExist(err) {
+		t.Errorf("File.Write in verify mode created %s", directPath)
+	}
+}

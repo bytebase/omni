@@ -1,7 +1,9 @@
 // Package compat holds an engine's parser to its compat.tsv: one row per
 // statement, with omni's verdict and the judge's. A replay reads the file
 // and needs no server; a recording (OMNI_RECORD=1) asks the judge for every
-// row not judged yet and writes the answers.
+// row not judged yet and writes the answers; a verification (OMNI_RECORD=verify)
+// asks the judge for every row, fails on any difference from the committed
+// answers, and writes nothing.
 package compat
 
 import (
@@ -62,10 +64,11 @@ type Suite struct {
 	Omni func(sql string) string
 	// Source names the judge: SourceEngine, SourceGrammar or SourceDocs.
 	Source string
-	// Judge is called only in a recording, and returns the function that
-	// asks the judge about one statement. It starts the server where there
-	// is one, and fails t unless that server is pin. An error from the
-	// returned function means no verdict, never a rejection.
+	// Judge is called in a recording (OMNI_RECORD=1) and in a verification
+	// (OMNI_RECORD=verify), and returns the function that asks the judge about
+	// one statement. It starts the server where there is one, and fails t
+	// unless that server is pin. An error from the returned function means no
+	// verdict, never a rejection.
 	//
 	// A SourceGrammar or SourceDocs suite has no Judge: a recognizer over
 	// Grammar judges it (see recognizer), and since that needs no server,
@@ -104,6 +107,13 @@ func Check(t *testing.T, s Suite) {
 
 func check(t testing.TB, s Suite) {
 	t.Helper()
+	mode, err := enginetest.RunMode()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if mode == enginetest.ModeVerify && *updateCompat {
+		t.Fatalf("-update-compat cannot be combined with %s=verify: verification writes nothing", enginetest.RecordEnv)
+	}
 	pin, err := enginetest.LoadPin(s.Pins, "default")
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -118,7 +128,8 @@ func check(t testing.TB, s Suite) {
 				s.Pins, pin.Digest, strings.Join(s.Vendor, ", "), got)
 		}
 	}
-	recording := enginetest.Recording(t)
+	recording := mode == enginetest.ModeRecord
+	verifying := mode == enginetest.ModeVerify
 	run := enginetest.RunCommand(t)
 	record := enginetest.RecordCommand(t)
 	changed := false
@@ -168,9 +179,8 @@ func check(t testing.TB, s Suite) {
 	}
 
 	if want := s.recordedPin(pin); f.Pin != want {
-		if !recording {
-			t.Errorf("%s was recorded at pin %q, but %s pins %q. Record it:\n  %s", s.Path, f.Pin, s.Pins, want, record)
-		} else {
+		switch mode {
+		case enginetest.ModeRecord:
 			// Every expected cell describes the old server, or the old
 			// reading of its answers: ask again.
 			for i := range f.Rows {
@@ -178,6 +188,10 @@ func check(t testing.TB, s Suite) {
 			}
 			f.Pin = want
 			changed = true
+		case enginetest.ModeVerify:
+			t.Fatalf("%s was recorded at pin %q, but %s pins %q. Record it:\n  %s", s.Path, f.Pin, s.Pins, want, record)
+		default:
+			t.Errorf("%s was recorded at pin %q, but %s pins %q. Record it:\n  %s", s.Path, f.Pin, s.Pins, want, record)
 		}
 	}
 
@@ -207,6 +221,25 @@ func check(t testing.TB, s Suite) {
 		if n > 0 {
 			changed = true
 		}
+		if err != nil {
+			t.Errorf("%v", err)
+		}
+	}
+
+	var verified []string
+	if verifying && recognize == nil {
+		var unjudged []string
+		for _, r := range f.Rows {
+			if r.Expected == Unjudged || r.Omni == Unjudged {
+				unjudged = append(unjudged, describe(s.Path, r, s.Omni(r.Statement)))
+			}
+		}
+		if len(unjudged) > 0 {
+			report(t, "not judged yet. Record them:\n  "+record, unjudged)
+			return
+		}
+		var err error
+		verified, err = verifyJudge(t, s, pin, f.Rows)
 		if err != nil {
 			t.Errorf("%v", err)
 		}
@@ -274,6 +307,7 @@ func check(t testing.TB, s Suite) {
 		tally.add(*r, now)
 	}
 	report(t, "not judged yet. Record them:\n  "+record, unjudged)
+	report(t, "the judge's answer differs from the committed expected cell", verified)
 	report(t, "the judge's cell is not what its recognizer gives: the grammar changed, or the cell was edited. Record them:\n  "+record, moved)
 	report(t, "an override that corrects nothing", misplaced)
 	report(t, "a gap closed: omni now says what the judge says. Commit it:\n  "+run+" -update-compat", closed)
@@ -282,6 +316,9 @@ func check(t testing.TB, s Suite) {
 	tally.log(t, s.Path, f.Pin)
 
 	if changed {
+		if verifying {
+			t.Fatalf("compat: internal error: verify mode attempted to write %s", s.Path)
+		}
 		if err := f.Write(s.Path); err != nil {
 			t.Fatalf("%v", err)
 		}
@@ -484,6 +521,55 @@ func judge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row, recognize reco
 			len(unanswered), maxUnanswered, strings.Join(unanswered, "\n  "))
 	}
 	return filled, nil
+}
+
+// verifyJudge asks s.Judge about every judged row and collects any difference
+// from the committed expected cell (or source), without modifying rows.
+func verifyJudge(t testing.TB, s Suite, pin enginetest.Pin, rows []Row) ([]string, error) {
+	t.Helper()
+	todo := 0
+	for _, r := range rows {
+		if r.Expected != Unjudged {
+			todo++
+		}
+	}
+	if todo == 0 {
+		return nil, nil
+	}
+	if s.Judge == nil {
+		return nil, fmt.Errorf("%s has %d rows to verify and the suite has no judge", s.Path, todo)
+	}
+	server := s.Judge(t, pin)
+	var mismatched, unanswered []string
+	checked := 0
+	for _, r := range rows {
+		if r.Expected == Unjudged || len(unanswered) >= maxUnanswered {
+			continue
+		}
+		v, err := server(r.Statement)
+		if err == nil {
+			err = validVerdict(v)
+		}
+		if err == nil && (v == Unjudged || v == Undocumented && s.Source != SourceDocs) {
+			err = fmt.Errorf("the judge answered %q", v)
+		}
+		if err != nil {
+			unanswered = append(unanswered, fmt.Sprintf("%s %q: %v", r.Rule, r.Statement, err))
+			continue
+		}
+		if v != r.Expected || s.Source != r.Source {
+			mismatched = append(mismatched, fmt.Sprintf("%s: the %s judge now says %s, the row records %s (%s):\n    %s\n",
+				describeRule(s.Path, r), s.Source, v, r.Expected, r.Source, r.Statement))
+		}
+		if checked++; checked%1000 == 0 {
+			fmt.Fprintf(os.Stderr, "compat: %s: verified %d of %d rows\n", s.Path, checked, todo)
+		}
+	}
+	if len(unanswered) > 0 {
+		return mismatched, fmt.Errorf("the judge gave no verdict for %d statements (stopping at %d):\n  %s",
+			len(unanswered), maxUnanswered, strings.Join(unanswered, "\n  "))
+	}
+	return mismatched, nil
 }
 
 // describeRule names a row by where it is and its rule.

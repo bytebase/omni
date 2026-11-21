@@ -5,9 +5,11 @@
 //
 // The engine's side of every row is a conversation: build the fixture, run
 // the statement, read what is stored. The engine's test holds it on a tape
-// (enginetest/tape), so a replay reads the answers and starts no server, and
-// a recording (OMNI_RECORD=1) asks the pinned server and writes both the
-// tape and the file's expected column.
+// (enginetest/tape), so a replay reads the answers and starts no server, a
+// recording (OMNI_RECORD=1) asks the pinned server and writes both the tape
+// and the file's expected column, and a verification (OMNI_RECORD=verify) asks
+// the pinned server again, fails on any difference from the committed files,
+// and writes nothing.
 //
 // The design is §3 of
 // docs/specs/2026-11-11-engine-compatibility-without-servers-design.md.
@@ -127,11 +129,19 @@ func Check(t *testing.T, s Suite) {
 
 func check(t testing.TB, s Suite) {
 	t.Helper()
+	mode, err := enginetest.RunMode()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if mode == enginetest.ModeVerify && compat.Updating() {
+		t.Fatalf("-update-compat cannot be combined with %s=verify: verification writes nothing", enginetest.RecordEnv)
+	}
 	pin, err := enginetest.LoadPin(s.Pins, "default")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	recording := enginetest.Recording(t)
+	recording := mode == enginetest.ModeRecord
+	verifying := mode == enginetest.ModeVerify
 	run := enginetest.RunCommand(t)
 	record := enginetest.RecordCommand(t)
 	changed := false
@@ -211,6 +221,8 @@ func check(t testing.TB, s Suite) {
 			// The pin is the one the row was recorded at, so this is an
 			// answer that changes between recordings. It is not written.
 			moved = append(moved, fmt.Sprintf("%s: the engine now answers %s, and the row records %s at the same pin:\n    %s\n", r.where(s.Path), got, r.Expected, r.Statement))
+		case verifying:
+			moved = append(moved, fmt.Sprintf("%s: the engine now answers %s, and the row records %s:\n    %s\n", r.where(s.Path), got, r.Expected, r.Statement))
 		default:
 			moved = append(moved, fmt.Sprintf("%s: the tape answers %s, and the row records %s:\n    %s\n", r.where(s.Path), got, r.Expected, r.Statement))
 		}
@@ -237,9 +249,12 @@ func check(t testing.TB, s Suite) {
 			t.Logf("%s%s", r.describe(s.Path, now, omni), indent(fx.SQL+"\n"+answer.Text()))
 		}
 	}
-	if recording {
+	switch mode {
+	case enginetest.ModeRecord:
 		report(t, "an answer does not reproduce, so it cannot be replayed", moved)
-	} else {
+	case enginetest.ModeVerify:
+		report(t, "the engine's answer differs from the committed expected cell", moved)
+	default:
 		report(t, "the tape and the file disagree. Record them:\n  "+record, moved)
 	}
 	report(t, "a gap closed: omni now does what the engine does. Commit it:\n  "+run+" -update-compat", closed)
@@ -248,6 +263,9 @@ func check(t testing.TB, s Suite) {
 	tally.log(t, s.Path, f.Pin)
 
 	if changed {
+		if verifying {
+			t.Fatalf("simulate: internal error: verify mode attempted to write %s", s.Path)
+		}
 		if err := f.Write(s.Path); err != nil {
 			t.Fatalf("%v", err)
 		}

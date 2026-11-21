@@ -94,6 +94,12 @@ func replay(t *testing.T) {
 	resetRegistry()
 }
 
+func verify(t *testing.T) {
+	t.Setenv(enginetest.RecordEnv, "verify")
+	t.Setenv("CI", "1")
+	resetRegistry()
+}
+
 // session is the body most tests run: every kind of request and answer.
 func everything(srv *Server) func(t testing.TB) []string {
 	return func(t testing.TB) []string {
@@ -679,7 +685,7 @@ func TestOnlyAPassingRunOfEveryTestAccountsForTapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out strings.Builder
-	for _, mode := range []func(*testing.T){record, replay} {
+	for _, mode := range []func(*testing.T){record, replay, verify} {
 		mode(t)
 		if code := account(1, false, &out); code != 1 {
 			t.Errorf("a failed run exits %d, want 1", code)
@@ -695,6 +701,14 @@ func TestOnlyAPassingRunOfEveryTestAccountsForTapes(t *testing.T) {
 	replay(t)
 	if code := account(0, false, &out); code != 1 || !strings.Contains(out.String(), "TestGone.tape belongs to no test that ran") {
 		t.Errorf("a passing replay of every test exits %d with %q", code, out.String())
+	}
+	out.Reset()
+	verify(t)
+	if code := account(0, false, &out); code != 1 || !strings.Contains(out.String(), "TestGone.tape belongs to no test that ran") {
+		t.Errorf("a passing verify of every test exits %d with %q", code, out.String())
+	}
+	if _, err := os.Stat(stray); err != nil {
+		t.Errorf("a passing verify deleted %s: %v", stray, err)
 	}
 	record(t)
 	if code := account(0, false, &out); code != 0 {
@@ -727,13 +741,18 @@ func TestLeftovers(t *testing.T) {
 	}); len(errs) > 0 {
 		t.Fatal(errs)
 	}
-	got := strings.Join(leftovers(false), "\n")
-	for _, want := range []string{"TestGone.tape belongs to no test that ran", `no test opened stream "TestFake default#2"`} {
-		if !strings.Contains(got, want) {
-			t.Errorf("leftovers lack %q: %s", want, got)
+	for _, mode := range []enginetest.Mode{enginetest.ModeReplay, enginetest.ModeVerify} {
+		got := strings.Join(leftovers(mode), "\n")
+		for _, want := range []string{"TestGone.tape belongs to no test that ran", `no test opened stream "TestFake default#2"`} {
+			if !strings.Contains(got, want) {
+				t.Errorf("leftovers(%s) lack %q: %s", mode, want, got)
+			}
+		}
+		if _, err := os.Stat(stray); err != nil {
+			t.Errorf("leftovers(%s) deleted %s: %v", mode, stray, err)
 		}
 	}
-	if got := leftovers(true); len(got) > 0 {
+	if got := leftovers(enginetest.ModeRecord); len(got) > 0 {
 		t.Errorf("a recording's leftovers: %q", got)
 	}
 	if _, err := os.Stat(stray); !os.IsNotExist(err) {
@@ -1301,7 +1320,7 @@ func (renamingCodec) MadeUp() *regexp.Regexp { return fakeMadeUp }
 func (renamingCodec) StandIn(_ string, n int) string { return fmt.Sprintf("made_%d", n) }
 
 // TestLiveRunsOnlyInARecording holds tape.Live to skipping a test in a
-// replay and letting it run in a recording.
+// replay or verification and letting it run only in a recording.
 func TestLiveRunsOnlyInARecording(t *testing.T) {
 	ran := func(setup func(*testing.T)) bool {
 		var reached bool
@@ -1314,6 +1333,9 @@ func TestLiveRunsOnlyInARecording(t *testing.T) {
 	}
 	if ran(replay) {
 		t.Errorf("Live let a replay run")
+	}
+	if ran(verify) {
+		t.Errorf("Live let a verification run")
 	}
 	if !ran(record) {
 		t.Errorf("Live skipped a recording")
@@ -1409,5 +1431,283 @@ func TestRawRecordingRefusesAnExchangeWithNoAnswer(t *testing.T) {
 	}
 	if strings.Contains(string(b), "raw") {
 		t.Errorf("the tape holds a failed exchange:\n%s", b)
+	}
+}
+
+// snapshotDir returns every file in dir and its bytes, so verify tests can
+// assert nothing on disk was created, deleted, or modified.
+func snapshotDir(t *testing.T, d string) map[string]string {
+	t.Helper()
+	entries, err := os.ReadDir(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap := map[string]string{}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join(d, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snap[e.Name()] = string(b)
+	}
+	return snap
+}
+
+func TestVerifyOpenAndRawPassAndWriteNothing(t *testing.T) {
+	srv, e := harness(t)
+	liveCalls := 0
+	baseLive := srv.Live
+	srv.Live = func(tb testing.TB, pin enginetest.Pin) driver.Connector {
+		liveCalls++
+		return baseLive(tb, pin)
+	}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", everything(srv))
+	if len(errs) > 0 {
+		t.Fatalf("recording failed: %v", errs)
+	}
+	rawBody := func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", func(req string) (string, error) {
+			return "answer to " + req, nil
+		})
+		var log []string
+		for _, req := range []string{"list", "find\ndocs"} {
+			ans, err := r.Do(req)
+			if err != nil {
+				return append(log, err.Error())
+			}
+			log = append(log, ans)
+		}
+		return log
+	}
+	rawRecorded, errs := run(t, "TestRaw", rawBody)
+	if len(errs) > 0 {
+		t.Fatalf("raw recording failed: %v", errs)
+	}
+
+	before := snapshotDir(t, dir)
+	liveCalls = 0
+	verify(t)
+	verified, errs := run(t, "TestFake", everything(srv))
+	if len(errs) > 0 {
+		t.Fatalf("verify failed: %v", errs)
+	}
+	if liveCalls != 1 {
+		t.Errorf("verify called live server %d times, want 1", liveCalls)
+	}
+	if strings.Join(verified, "\n") != strings.Join(recorded, "\n") {
+		t.Errorf("verify output differs from recording:\ngot:\n%s\nwant:\n%s", strings.Join(verified, "\n"), strings.Join(recorded, "\n"))
+	}
+	rawVerified, errs := run(t, "TestRaw", rawBody)
+	if len(errs) > 0 {
+		t.Fatalf("raw verify failed: %v", errs)
+	}
+	if strings.Join(rawVerified, "\n") != strings.Join(rawRecorded, "\n") {
+		t.Errorf("raw verify output differs: %q vs %q", rawVerified, rawRecorded)
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, before) {
+		t.Errorf("verify modified files on disk:\nbefore: %v\nafter:  %v", before, after)
+	}
+
+	// Renamer normalization also works during verify against freshly made-up names.
+	srv.Codec = renamingCodec{}
+	madeUp := renamingCodec{}.MadeUp()
+	renameBody := func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		var first string
+		if err := db.QueryRow("SELECT made").Scan(&first); err != nil {
+			return []string{err.Error()}
+		}
+		_, err := db.Exec("DROP " + madeUp.FindString(first))
+		return []string{first, fmt.Sprint(err)}
+	}
+	record(t)
+	resetRegistry()
+	if _, errs := run(t, "TestRenamed", renameBody); len(errs) > 0 {
+		t.Fatalf("rename recording failed: %v", errs)
+	}
+	beforeRename := snapshotDir(t, dir)
+	prevNow := e.now
+	verify(t)
+	if _, errs := run(t, "TestRenamed", renameBody); len(errs) > 0 {
+		t.Fatalf("rename verify failed: %v", errs)
+	}
+	if e.now <= prevNow {
+		t.Errorf("rename verify did not query live server")
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, beforeRename) {
+		t.Errorf("rename verify modified files on disk")
+	}
+}
+
+func TestVerifyFailsOnTamperedTapeAndWritesNothing(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	path := filepath.Join(dir, "TestFake.tape")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := strings.Replace(string(b), "< ok 4 -\n", "< ok 9 -\n", 1)
+	if tampered == string(b) {
+		t.Fatal("failed to tamper tape")
+	}
+	if err := os.WriteFile(path, []byte(tampered), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := snapshotDir(t, dir)
+
+	verify(t)
+	_, errs := run(t, "TestFake", everything(srv))
+	if len(errs) != 1 || !strings.Contains(errs[0], "answered request 1") || !strings.Contains(errs[0], "differently than the committed tape") {
+		t.Errorf("tampered tape verify: got %q", errs)
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, before) {
+		t.Errorf("verify modified tampered tape on disk")
+	}
+
+	// OpenRaw tampered answer.
+	record(t)
+	resetRegistry()
+	rawBody := func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", func(req string) (string, error) { return "live-" + req, nil })
+		_, _ = r.Do("ping")
+		return nil
+	}
+	if _, errs := run(t, "TestRaw", rawBody); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	rawPath := filepath.Join(dir, "TestRaw.tape")
+	rb, err := os.ReadFile(rawPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawTampered := strings.Replace(string(rb), "| live-ping\n", "| hand-edited\n", 1)
+	if err := os.WriteFile(rawPath, []byte(rawTampered), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	beforeRaw := snapshotDir(t, dir)
+
+	verify(t)
+	_, errs = run(t, "TestRaw", rawBody)
+	if len(errs) != 1 || !strings.Contains(errs[0], "answered request 1") || !strings.Contains(errs[0], "differently than the committed tape") {
+		t.Errorf("tampered raw tape verify: got %q", errs)
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, beforeRaw) {
+		t.Errorf("verify modified tampered raw tape on disk")
+	}
+}
+
+func TestVerifyFailsOnMismatchedRequestsStreamsPinMissingParseErrorAndTimeout(t *testing.T) {
+	srv, _ := harness(t)
+
+	// Missing tape.
+	verify(t)
+	if _, errs := run(t, "TestMissing", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], "no tape") {
+		t.Errorf("missing tape: got %q", errs)
+	}
+	if len(snapshotDir(t, dir)) != 0 {
+		t.Errorf("verify created a file for a missing tape")
+	}
+
+	// Record a valid tape, then test request/stream/pin/timeout failures.
+	record(t)
+	resetRegistry()
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	before := snapshotDir(t, dir)
+
+	// Different request.
+	verify(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		_, _ = Open(t, srv, "default").Exec("CREATE TABLE other (a INT)")
+		return nil
+	}); len(errs) != 1 || !strings.Contains(errs[0], "request 1 differs from the committed tape") {
+		t.Errorf("different request: got %q", errs)
+	}
+
+	// Fewer requests than committed tape holds.
+	verify(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		_, _ = Open(t, srv, "default").Exec("CREATE TABLE t (a INT)\n-- a second line", 1, "two", nil, []byte("x"))
+		return nil
+	}); len(errs) != 1 || !strings.Contains(errs[0], "holds 5 recorded requests the test never sent") {
+		t.Errorf("fewer requests: got %q", errs)
+	}
+
+	// More requests than committed tape holds.
+	verify(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		_, _ = db.Exec("CREATE TABLE t (a INT)\n-- a second line", 1, "two", nil, []byte("x"))
+		_, _ = db.Exec("BAD")
+		rows, _ := db.Query("SELECT rows")
+		if rows != nil {
+			rows.Close()
+		}
+		tx, _ := db.Begin()
+		_, _ = tx.Exec("INSERT INTO t VALUES (1)")
+		_ = tx.Commit()
+		_, _ = db.Exec("EXTRA")
+		return nil
+	}); len(errs) != 1 || !strings.Contains(errs[0], "sent 1 more requests than the committed tape holds") {
+		t.Errorf("extra request: got %q", errs)
+	}
+
+	// Extra stream not in tape.
+	verify(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		Open(t, srv, "default")
+		return nil
+	}); len(errs) == 0 || !strings.Contains(errs[0], `has no stream "TestFake default#2"`) {
+		t.Errorf("extra stream: got %q", errs)
+	}
+
+	// Unrecordable live error (timeout) must fail and not rewrite disk.
+	verify(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		_, _ = Open(t, srv, "default").Exec("TIMEOUT")
+		return nil
+	}); len(errs) == 0 || !strings.Contains(errs[0], "can't be verified") {
+		t.Errorf("timeout during verify: got %q", errs)
+	}
+
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, before) {
+		t.Errorf("verify modified files on disk after failures")
+	}
+
+	// Pin mismatch.
+	if err := os.WriteFile(srv.Pins, []byte("default\timg:2\tsha256:2\t2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	verify(t)
+	if _, errs := run(t, "TestFake", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], "was recorded at pin") {
+		t.Errorf("pin mismatch: got %q", errs)
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, before) {
+		t.Errorf("verify modified files on disk after pin mismatch")
+	}
+
+	// Unparseable tape must fail and NOT be overwritten.
+	if err := os.WriteFile(srv.Pins, []byte("default\timg:1\tsha256:1\t1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	corruptPath := filepath.Join(dir, "TestCorrupt.tape")
+	if err := os.WriteFile(corruptPath, []byte("<<<<<<< HEAD\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	beforeCorrupt := snapshotDir(t, dir)
+	verify(t)
+	if _, errs := run(t, "TestCorrupt", everything(srv)); len(errs) != 1 || !strings.Contains(errs[0], "unexpected line") {
+		t.Errorf("corrupt tape: got %q", errs)
+	}
+	if after := snapshotDir(t, dir); !reflect.DeepEqual(after, beforeCorrupt) {
+		t.Errorf("verify overwrote corrupt tape on disk")
 	}
 }
