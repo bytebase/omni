@@ -406,7 +406,7 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 			if !ok {
 				continue
 			}
-			_, err := ac.resolveWindowDef(wd)
+			_, err := ac.defineWindowDef(wd)
 			if err != nil {
 				return nil, err
 			}
@@ -631,8 +631,9 @@ type analyzeCtx struct {
 	domainBaseTypMod    int32  // base type modifier for domain VALUE keyword
 	domainBaseCollation uint32 // base type collation for domain VALUE keyword
 	opts                AnalyzeOptions
-	onNamespace         []JoinNode   // while analyzing a JOIN's ON condition, the join's two inputs
-	onVisible           map[int]bool // the range table entries of onNamespace, built by visibleRTEs when first asked
+	onNamespace         []JoinNode      // while analyzing a JOIN's ON condition, the join's two inputs
+	onVisible           map[int]bool    // the range table entries of onNamespace, built by visibleRTEs when first asked
+	definedWindows      map[string]bool // named WINDOW definitions seen in this query's WINDOW clause
 
 	// The analyzer nests each arm of a left-deep UNION one level inside the
 	// next, and the level of a set operation has no range table, nor CTEs
@@ -3864,6 +3865,18 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		q.HavingQual = having
 	}
 
+	if stmt.WindowClause != nil {
+		for _, item := range stmt.WindowClause.Items {
+			wd, ok := item.(*nodes.WindowDef)
+			if !ok {
+				continue
+			}
+			if _, err := subAc.defineWindowDef(wd); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if stmt.SortClause != nil {
 		for _, item := range stmt.SortClause.Items {
 			sb, ok := item.(*nodes.SortBy)
@@ -4498,6 +4511,13 @@ func (ac *analyzeCtx) transformAArrayExprWithTarget(ae *nodes.A_ArrayExpr, targe
 	}
 
 	arrayType := ac.catalog.findArrayType(elemType)
+	if arrayType == 0 && targetArrayOID != 0 && elemType == targetArrayOID {
+		// Multidimensional array (e.g. ARRAY[[]]::int[]) keeps targetArrayOID.
+		arrayType = targetArrayOID
+		if baseElem := ac.catalog.getBaseElementType(targetArrayOID); baseElem != 0 {
+			elemType = baseElem
+		}
+	}
 
 	return &ArrayExprQ{
 		ElementType: elemType,
@@ -4729,7 +4749,8 @@ func (ac *analyzeCtx) transformCollateClause(cc *nodes.CollateClause) (AnalyzedE
 	}, nil
 }
 
-// resolveWindowDef resolves a WINDOW clause reference, creating or finding the WindowClauseQ.
+// resolveWindowDef resolves an OVER clause (either an inline specification or a
+// bare named-window reference `OVER w`), returning its index in WindowClause.
 //
 // pg: src/backend/parser/parse_clause.c — transformWindowDefinitions
 func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
@@ -4738,27 +4759,64 @@ func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
 		return 0, fmt.Errorf("unsupported OVER clause type: %T", overNode)
 	}
 
-	// Reject duplicate named window definitions.
-	// pg: src/backend/parser/parse_clause.c — transformWindowDefinitions
-	if wd.Name != "" {
-		for _, existing := range ac.query.WindowClause {
-			if existing.Name == wd.Name {
-				return 0, &Error{
-					Code:    CodeWindowingError,
-					Message: fmt.Sprintf("window %q is already defined", wd.Name),
-				}
-			}
-		}
-	}
-
-	// If referencing a named window, find it.
-	if wd.Refname != "" {
+	// Bare named-window reference (`OVER w`): parseOverClause populates wd.Name
+	// with no inline clauses. Reuse an existing entry with that name (whether
+	// already defined or forward-referenced by another window function) instead
+	// of treating it as a duplicate WINDOW definition.
+	if wd.Name != "" && wd.Refname == "" && wd.PartitionClause == nil && wd.OrderClause == nil && wd.StartOffset == nil && wd.EndOffset == nil {
 		for i, wc := range ac.query.WindowClause {
-			if wc.Name == wd.Refname {
+			if wc.Name == wd.Name {
 				return uint32(i), nil
 			}
 		}
-		return 0, &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("window %q does not exist", wd.Refname)}
+		idx := uint32(len(ac.query.WindowClause))
+		ac.query.WindowClause = append(ac.query.WindowClause, &WindowClauseQ{
+			Name:         wd.Name,
+			FrameOptions: wd.FrameOptions,
+		})
+		return idx, nil
+	}
+
+	return ac.buildWindowDef(wd, false)
+}
+
+// defineWindowDef processes a named window definition in a query's WINDOW clause.
+//
+// pg: src/backend/parser/parse_clause.c — transformWindowDefinitions
+func (ac *analyzeCtx) defineWindowDef(wd *nodes.WindowDef) (uint32, error) {
+	if wd.Name != "" {
+		if ac.definedWindows == nil {
+			ac.definedWindows = make(map[string]bool)
+		}
+		if ac.definedWindows[wd.Name] {
+			return 0, &Error{
+				Code:    CodeWindowingError,
+				Message: fmt.Sprintf("window %q is already defined", wd.Name),
+			}
+		}
+		ac.definedWindows[wd.Name] = true
+	}
+	return ac.buildWindowDef(wd, true)
+}
+
+func (ac *analyzeCtx) buildWindowDef(wd *nodes.WindowDef, isDefinition bool) (uint32, error) {
+	// If referencing a named window, find it.
+	if wd.Refname != "" {
+		found := -1
+		if !isDefinition || ac.definedWindows[wd.Refname] {
+			for i, wc := range ac.query.WindowClause {
+				if wc.Name == wd.Refname {
+					found = i
+					break
+				}
+			}
+		}
+		if found < 0 {
+			return 0, &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("window %q does not exist", wd.Refname)}
+		}
+		if !isDefinition && wd.PartitionClause == nil && wd.OrderClause == nil && wd.StartOffset == nil && wd.EndOffset == nil && wd.FrameOptions&nodes.FRAMEOPTION_NONDEFAULT == 0 {
+			return uint32(found), nil
+		}
 	}
 
 	// Build WindowClauseQ.
@@ -4844,7 +4902,17 @@ func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
 		}
 	}
 
-	// Check if this matches an existing unnamed window clause.
+	// If an earlier OVER w created a placeholder entry for this WINDOW definition,
+	// populate it in place so existing WindowFuncExpr.WinRef indexes resolve to it.
+	if isDefinition && wd.Name != "" {
+		for i, existing := range ac.query.WindowClause {
+			if existing.Name == wd.Name {
+				ac.query.WindowClause[i] = wc
+				return uint32(i), nil
+			}
+		}
+	}
+
 	idx := uint32(len(ac.query.WindowClause))
 	ac.query.WindowClause = append(ac.query.WindowClause, wc)
 	return idx, nil
@@ -6731,22 +6799,32 @@ func (ac *analyzeCtx) transformRangeTableSampleItem(rts *nodes.RangeTableSample)
 //
 // pg: src/backend/parser/parse_clause.c — transformRangeTableFunc
 func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNode, error) {
+	tf := &TableFuncQ{}
 	if rtf.Docexpr != nil {
-		if _, err := ac.transformExpr(rtf.Docexpr); err != nil {
+		expr, err := ac.transformExpr(rtf.Docexpr)
+		if err != nil {
 			return nil, err
 		}
+		tf.DocExpr = expr
 	}
 	if rtf.Rowexpr != nil {
-		if _, err := ac.transformExpr(rtf.Rowexpr); err != nil {
+		expr, err := ac.transformExpr(rtf.Rowexpr)
+		if err != nil {
 			return nil, err
 		}
+		tf.RowExpr = expr
 	}
 	if rtf.Namespaces != nil {
 		for _, item := range rtf.Namespaces.Items {
 			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil && rt.Val != nil {
-				if _, err := ac.transformExpr(rt.Val); err != nil {
+				expr, err := ac.transformExpr(rt.Val)
+				if err != nil {
 					return nil, err
 				}
+				tf.Namespaces = append(tf.Namespaces, TableFuncNamespaceQ{
+					Name: rt.Name,
+					Expr: expr,
+				})
 			}
 		}
 	}
@@ -6774,6 +6852,12 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 				colTypes = append(colTypes, INT4OID)
 				colTypMods = append(colTypMods, -1)
 				colCollations = append(colCollations, 0)
+				tf.Columns = append(tf.Columns, TableFuncColQ{
+					Name:          col.Colname,
+					TypeOID:       INT4OID,
+					TypeMod:       -1,
+					ForOrdinality: true,
+				})
 				continue
 			}
 			var typeOID uint32 = TEXTOID
@@ -6785,13 +6869,18 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 					return nil, err
 				}
 			}
+			var colExpr, defExpr AnalyzedExpr
 			if col.Colexpr != nil {
-				if _, err := ac.transformExpr(col.Colexpr); err != nil {
+				var err error
+				colExpr, err = ac.transformExpr(col.Colexpr)
+				if err != nil {
 					return nil, err
 				}
 			}
 			if col.Coldefexpr != nil {
-				if _, err := ac.transformExpr(col.Coldefexpr); err != nil {
+				var err error
+				defExpr, err = ac.transformExpr(col.Coldefexpr)
+				if err != nil {
 					return nil, err
 				}
 			}
@@ -6799,6 +6888,14 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 			colTypes = append(colTypes, typeOID)
 			colTypMods = append(colTypMods, typMod)
 			colCollations = append(colCollations, ac.catalog.typeCollation(typeOID))
+			tf.Columns = append(tf.Columns, TableFuncColQ{
+				Name:        col.Colname,
+				TypeOID:     typeOID,
+				TypeMod:     typMod,
+				IsNotNull:   col.IsNotNull,
+				ColExpr:     colExpr,
+				DefaultExpr: defExpr,
+			})
 		}
 	}
 
@@ -6817,13 +6914,14 @@ func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNo
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
-		Kind:          RTEFunction,
+		Kind:          RTETableFunc,
 		Alias:         alias,
 		ERef:          eref,
 		ColNames:      colNames,
 		ColTypes:      colTypes,
 		ColTypMods:    colTypMods,
 		ColCollations: colCollations,
+		TableFunc:     tf,
 		Lateral:       rtf.Lateral,
 		aliasColumns:  aliasColumns,
 	}
@@ -7029,29 +7127,30 @@ func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr
 }
 
 // resolveJsonOutput validates an optional SQL/JSON RETURNING output clause
-// and returns the resolved output type OID (defaulting to defaultType).
+// and returns the resolved output type OID (defaulting to defaultType) and
+// whether an explicit RETURNING type was specified.
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonOutput
-func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType uint32) (uint32, error) {
+func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType uint32) (uint32, bool, error) {
 	if output == nil || output.TypeName == nil {
-		return defaultType, nil
+		return defaultType, false, nil
 	}
 	retOID, _, err := ac.catalog.resolveTypeName(output.TypeName)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	if !ac.catalog.CanCoerce(JSONOID, retOID, 'e') {
-		return 0, &Error{
+		return 0, false, &Error{
 			Code:    CodeCannotCoerce,
 			Message: fmt.Sprintf("cannot cast type json to %s", ac.catalog.typeName(retOID)),
 		}
 	}
-	return retOID, nil
+	return retOID, true, nil
 }
 
 // transformJsonObjectConstructor transforms JSON_OBJECT(...).
 func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstructor) (AnalyzedExpr, error) {
-	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7079,13 +7178,16 @@ func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstruc
 	return &JsonConstructorExprQ{
 		ConstructorType: JsonConstructorObject,
 		Args:            args,
+		AbsentOnNull:    n.AbsentOnNull,
+		UniqueKeys:      n.UniqueKeys,
+		HasReturning:    hasReturning,
 		ResultType:      resultType,
 	}, nil
 }
 
 // transformJsonArrayConstructor transforms JSON_ARRAY(...).
 func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructor) (AnalyzedExpr, error) {
-	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7110,6 +7212,8 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 	return &JsonConstructorExprQ{
 		ConstructorType: JsonConstructorArray,
 		Args:            args,
+		AbsentOnNull:    n.AbsentOnNull,
+		HasReturning:    hasReturning,
 		ResultType:      resultType,
 	}, nil
 }
@@ -7118,7 +7222,7 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonArrayQueryConstructor
 func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQueryConstructor) (AnalyzedExpr, error) {
-	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7138,40 +7242,47 @@ func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQuery
 		return nil, &Error{Code: CodeSyntaxError, Message: "subquery must return only one column"}
 	}
 	return &JsonConstructorExprQ{
-		ConstructorType: JsonConstructorArray,
-		Args:            []AnalyzedExpr{&SubLinkExpr{SubLinkType: SubLinkExprType, SubQuery: subQuery, ResultType: outputTargetList[0].Expr.exprType()}},
+		ConstructorType: JsonConstructorArrayQuery,
+		Subquery:        subQuery,
+		AbsentOnNull:    n.AbsentOnNull,
+		HasReturning:    hasReturning,
 		ResultType:      resultType,
 	}, nil
 }
 
 // transformJsonAggClauses analyzes common FILTER / ORDER BY / OVER / RETURNING
 // clauses of JSON_ARRAYAGG and JSON_OBJECTAGG.
-func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (uint32, error) {
-	resultType := uint32(JSONOID)
+func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (
+	resultType uint32, hasReturning bool, aggOrder []*AggSortBy, aggFilter AnalyzedExpr, hasOver bool, winRef uint32, err error,
+) {
+	resultType = JSONOID
 	if c == nil {
-		return resultType, nil
+		return
 	}
-	var err error
-	resultType, err = ac.resolveJsonOutput(c.Output, JSONOID)
+	resultType, hasReturning, err = ac.resolveJsonOutput(c.Output, JSONOID)
 	if err != nil {
-		return 0, err
+		return
 	}
 	if c.Agg_filter != nil {
-		if _, err := ac.transformExpr(c.Agg_filter); err != nil {
-			return 0, err
+		aggFilter, err = ac.transformExpr(c.Agg_filter)
+		if err != nil {
+			return
 		}
 	}
 	if c.Agg_order != nil {
-		if _, err := ac.transformAggOrder(c.Agg_order); err != nil {
-			return 0, err
+		aggOrder, err = ac.transformAggOrder(c.Agg_order)
+		if err != nil {
+			return
 		}
 	}
 	if c.Over != nil {
-		if _, err := ac.resolveWindowDef(c.Over); err != nil {
-			return 0, err
+		winRef, err = ac.resolveWindowDef(c.Over)
+		if err != nil {
+			return
 		}
+		hasOver = true
 	}
-	return resultType, nil
+	return
 }
 
 // transformJsonArrayAgg transforms JSON_ARRAYAGG(...).
@@ -7186,14 +7297,22 @@ func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr
 		}
 		args = append(args, expr)
 	}
-	resultType, err := ac.transformJsonAggClauses(n.Constructor)
+	resultType, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {
 		return nil, err
 	}
-	ac.query.HasAggs = true
+	if !hasOver {
+		ac.query.HasAggs = true
+	}
 	return &JsonConstructorExprQ{
-		ConstructorType: JsonConstructorArray,
+		ConstructorType: JsonConstructorArrayAgg,
 		Args:            args,
+		AggOrder:        aggOrder,
+		AggFilter:       aggFilter,
+		HasOver:         hasOver,
+		WinRef:          winRef,
+		AbsentOnNull:    n.AbsentOnNull,
+		HasReturning:    hasReturning,
 		ResultType:      resultType,
 	}, nil
 }
@@ -7219,14 +7338,23 @@ func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedEx
 			args = append(args, valExpr)
 		}
 	}
-	resultType, err := ac.transformJsonAggClauses(n.Constructor)
+	resultType, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {
 		return nil, err
 	}
-	ac.query.HasAggs = true
+	if !hasOver {
+		ac.query.HasAggs = true
+	}
 	return &JsonConstructorExprQ{
-		ConstructorType: JsonConstructorObject,
+		ConstructorType: JsonConstructorObjectAgg,
 		Args:            args,
+		AggOrder:        aggOrder,
+		AggFilter:       aggFilter,
+		HasOver:         hasOver,
+		WinRef:          winRef,
+		AbsentOnNull:    n.AbsentOnNull,
+		UniqueKeys:      n.UniqueKeys,
+		HasReturning:    hasReturning,
 		ResultType:      resultType,
 	}, nil
 }
@@ -7303,6 +7431,14 @@ func checkLimitExprCalls(expr AnalyzedExpr, construct string) error {
 			err = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in " + construct}
 		case *WindowFuncExpr:
 			err = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in " + construct}
+		case *JsonConstructorExprQ:
+			if v, ok := e.(*JsonConstructorExprQ); ok && (v.ConstructorType == JsonConstructorArrayAgg || v.ConstructorType == JsonConstructorObjectAgg) {
+				if v.HasOver {
+					err = &Error{Code: CodeWindowingError, Message: "window functions are not allowed in " + construct}
+				} else {
+					err = &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in " + construct}
+				}
+			}
 		}
 		return err == nil
 	})

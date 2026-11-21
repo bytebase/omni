@@ -648,11 +648,12 @@ const (
 type RTEKind int
 
 const (
-	RTERelation RTEKind = iota // plain table
-	RTESubquery                // subquery in FROM
-	RTEJoin                    // join result
-	RTECTE                     // CTE reference
-	RTEFunction                // function in FROM clause
+	RTERelation  RTEKind = iota // plain table
+	RTESubquery                 // subquery in FROM
+	RTEJoin                     // join result
+	RTECTE                      // CTE reference
+	RTEFunction                 // function in FROM clause
+	RTETableFunc                // table function in FROM clause (e.g. XMLTABLE)
 )
 
 // RangeTableEntry represents an entry in the query's range table.
@@ -682,6 +683,7 @@ type RangeTableEntry struct {
 	CTEIndex      int                 // for RTECTE: index into Query.CTEList
 	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
 	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
+	TableFunc     *TableFuncQ         // for RTETableFunc: XMLTABLE definition
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
 	// FuncColCounts holds, for RTEFunction, how many of ColNames each of
 	// FuncExprs produces, in order; an ORDINALITY column follows them all.
@@ -717,6 +719,33 @@ type funcColDef struct {
 	typmods    []int32
 	collations []uint32
 	collNames  [][]string // the COLLATE clause's name, schema first when qualified; nil without one
+}
+
+// TableFuncNamespaceQ represents a namespace entry in XMLTABLE XMLNAMESPACES.
+type TableFuncNamespaceQ struct {
+	Name string       // alias name (empty for DEFAULT)
+	Expr AnalyzedExpr // namespace URI expression
+}
+
+// TableFuncColQ represents a column definition in XMLTABLE COLUMNS.
+type TableFuncColQ struct {
+	Name          string
+	TypeOID       uint32
+	TypeMod       int32
+	ForOrdinality bool
+	IsNotNull     bool
+	ColExpr       AnalyzedExpr // PATH expression (nil if omitted)
+	DefaultExpr   AnalyzedExpr // DEFAULT expression (nil if omitted)
+}
+
+// TableFuncQ represents an analyzed XMLTABLE(...) FROM clause item.
+//
+// pg: src/include/nodes/primnodes.h — TableFunc
+type TableFuncQ struct {
+	DocExpr    AnalyzedExpr
+	RowExpr    AnalyzedExpr
+	Namespaces []TableFuncNamespaceQ
+	Columns    []TableFuncColQ
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
@@ -1127,17 +1156,29 @@ type JsonConstructorType int
 const (
 	JsonConstructorObject JsonConstructorType = iota
 	JsonConstructorArray
+	JsonConstructorArrayQuery
+	JsonConstructorArrayAgg
+	JsonConstructorObjectAgg
 	JsonConstructorScalar
 	JsonConstructorParse
 	JsonConstructorSerialize
 )
 
-// JsonConstructorExprQ represents JSON_OBJECT(...) or JSON_ARRAY(...) constructors.
+// JsonConstructorExprQ represents JSON_OBJECT(...), JSON_ARRAY(...),
+// JSON_ARRAY(subquery), JSON_ARRAYAGG(...), JSON_OBJECTAGG(...), etc.
 //
 // pg: src/include/nodes/primnodes.h — JsonConstructorExpr (PG16+)
 type JsonConstructorExprQ struct {
 	ConstructorType JsonConstructorType
 	Args            []AnalyzedExpr
+	Subquery        *Query       // for JsonConstructorArrayQuery
+	AggOrder        []*AggSortBy // ORDER BY for JSON_ARRAYAGG
+	AggFilter       AnalyzedExpr // FILTER (WHERE ...) for JSON_ARRAYAGG / JSON_OBJECTAGG
+	HasOver         bool         // true when OVER clause is present
+	WinRef          uint32       // index into Query.WindowClause when HasOver
+	AbsentOnNull    bool         // ABSENT ON NULL
+	UniqueKeys      bool         // WITH UNIQUE [KEYS]
+	HasReturning    bool         // explicit RETURNING type clause
 	ResultType      uint32
 	Collation       uint32
 }

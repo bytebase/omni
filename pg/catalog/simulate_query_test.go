@@ -150,12 +150,19 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"table_col_alias_dedup", "CREATE VIEW _v AS SELECT FROM a AS a(a)", "a(a, a_1, d)"},
 			{"exists_col_name", "CREATE VIEW _v AS SELECT EXISTS(SELECT)", `AS "exists"`},
 			{"user_deparse_and_name", "CREATE VIEW _v AS SELECT USER", `USER AS "user"`},
-			{"bit_literal", "CREATE VIEW _v AS SELECT B'1'", "'1'::bit"},
-			{"hex_bit_literal", "CREATE VIEW _v AS SELECT X'1F'", "'00011111'::bit"},
-			{"typed_empty_array", "CREATE VIEW _v AS SELECT ARRAY[]::int[]", "ARRAY[]"},
-			{"valid_bit_hex_literal", "CREATE VIEW _v AS SELECT BIT 'x1F'", "'x1F'::bit"},
+			{"bit_literal", "CREATE VIEW _v AS SELECT B'1'", `'1'::"bit"`},
+			{"hex_bit_literal", "CREATE VIEW _v AS SELECT X'1F'", `'00011111'::"bit"`},
+			{"typed_empty_array", "CREATE VIEW _v AS SELECT ARRAY[]::int[]", "ARRAY[]::integer[]"},
+			{"nested_typed_empty_array", "CREATE VIEW _v AS SELECT ARRAY[[]]::int[]", "ARRAY[ARRAY[]::integer[]]"},
+			{"valid_bit_hex_literal", "CREATE VIEW _v AS SELECT BIT 'x1F'", `'x1F'::"bit"`},
 			{"array_sublink_deparse", "CREATE VIEW _v AS SELECT ARRAY(SELECT 1)", `ARRAY( SELECT 1) AS "array"`},
 			{"array_type_with_typmod", "CREATE VIEW _v AS SELECT NULL::varchar(10)[]", "character varying[]"},
+			{"named_window_refs", "CREATE VIEW _v AS SELECT count(*) OVER w AS c, sum(a) OVER w AS s FROM a WINDOW w AS (ORDER BY b)", "OVER w"},
+			{"dedup_col_alias_var_refs", "CREATE VIEW _v(first, second, third) AS SELECT x.* FROM a AS x(a)", "a_1 AS second"},
+			{"json_array_query_constructor", "CREATE VIEW _v AS SELECT JSON_ARRAY(SELECT b FROM a) AS j", "JSON_ARRAY( SELECT"},
+			{"json_arrayagg_preserve", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE b > 0) AS j FROM a", "JSON_ARRAYAGG(b ORDER BY b ABSENT ON NULL RETURNING jsonb) FILTER (WHERE (b > 0))"},
+			{"json_objectagg_over_preserve", "CREATE VIEW _v AS SELECT JSON_OBJECTAGG('k' : b WITH UNIQUE) OVER (PARTITION BY d) AS j FROM a", "JSON_OBJECTAGG('k' : b WITH UNIQUE RETURNING json) OVER (PARTITION BY d)"},
+			{"xmltable_preserve", "CREATE VIEW _v AS SELECT x.id, x.ord FROM XMLTABLE(XMLNAMESPACES(DEFAULT 'http://ex'), '/r' PASSING '<r/>'::xml COLUMNS id int PATH '@id' NOT NULL, ord FOR ORDINALITY) x", "XMLTABLE(XMLNAMESPACES(DEFAULT 'http://ex'), '/r' PASSING '<r/>'::xml COLUMNS id integer PATH '@id' NOT NULL, ord FOR ORDINALITY) x"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -175,6 +182,21 @@ func TestQuerySimulationFixes(t *testing.T) {
 				}
 				if !strings.Contains(def, tc.wantSub) {
 					t.Errorf("view def %q does not contain %q", def, tc.wantSub)
+				}
+				// Verify the deparsed view definition can be recreated cleanly.
+				if tc.name == "typed_empty_array" || tc.name == "dedup_col_alias_var_refs" ||
+					tc.name == "json_array_query_constructor" || tc.name == "json_arrayagg_preserve" ||
+					tc.name == "json_objectagg_over_preserve" || tc.name == "xmltable_preserve" {
+					c2 := setup(t)
+					res2, err := c2.Exec("CREATE VIEW _v2 AS "+def, nil)
+					if err != nil {
+						t.Fatalf("recreate exec error for %q: %v", def, err)
+					}
+					for _, r := range res2 {
+						if r.Error != nil {
+							t.Fatalf("recreate stmt error for %q: %v", def, r.Error)
+						}
+					}
 				}
 			})
 		}

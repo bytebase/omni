@@ -98,6 +98,12 @@ func AnalyzedExprChildren(expr AnalyzedExpr) []AnalyzedExpr {
 		add(v.Args...)
 	case *JsonConstructorExprQ:
 		add(v.Args...)
+		for _, sb := range v.AggOrder {
+			if sb != nil {
+				add(sb.Expr)
+			}
+		}
+		add(v.AggFilter)
 	case *JsonExprQ:
 		add(v.Expr)
 	case *JsonIsPredicateExpr:

@@ -444,6 +444,10 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 				found = true
 				return false
 			}
+			if jc, ok := e.(*JsonConstructorExprQ); ok && jc.Subquery != nil && queryReferencesTempRelation(c, jc.Subquery) {
+				found = true
+				return false
+			}
 			return true
 		})
 		return found
@@ -467,6 +471,21 @@ func queryReferencesTempRelation(c *Catalog, q *Query) bool {
 		for _, fe := range rte.FuncExprs {
 			if exprHasTemp(fe) {
 				return true
+			}
+		}
+		if rte.TableFunc != nil {
+			if exprHasTemp(rte.TableFunc.DocExpr) || exprHasTemp(rte.TableFunc.RowExpr) {
+				return true
+			}
+			for _, ns := range rte.TableFunc.Namespaces {
+				if exprHasTemp(ns.Expr) {
+					return true
+				}
+			}
+			for _, col := range rte.TableFunc.Columns {
+				if exprHasTemp(col.ColExpr) || exprHasTemp(col.DefaultExpr) {
+					return true
+				}
 			}
 		}
 		if rte.Tablesample != nil {
@@ -631,6 +650,10 @@ func targetListHasWindowFunc(tlist []*TargetEntry) bool {
 				found = true
 				return false
 			}
+			if jc, ok := e.(*JsonConstructorExprQ); ok && jc.HasOver {
+				found = true
+				return false
+			}
 			return true
 		})
 		if found {
@@ -713,6 +736,18 @@ func (w *viewDepWalker) query(q *Query) {
 		case RTEFunction:
 			for _, fe := range rte.FuncExprs {
 				w.expr(fe)
+			}
+		case RTETableFunc:
+			if rte.TableFunc != nil {
+				w.expr(rte.TableFunc.DocExpr)
+				w.expr(rte.TableFunc.RowExpr)
+				for _, ns := range rte.TableFunc.Namespaces {
+					w.expr(ns.Expr)
+				}
+				for _, col := range rte.TableFunc.Columns {
+					w.expr(col.ColExpr)
+					w.expr(col.DefaultExpr)
+				}
 			}
 		}
 	}
@@ -893,6 +928,10 @@ func (w *viewDepWalker) varDeps(expr AnalyzedExpr) {
 			w.varDeps(v.TestExpr)
 			w.query(v.SubQuery)
 			return false
+		case *JsonConstructorExprQ:
+			if v.Subquery != nil {
+				w.query(v.Subquery)
+			}
 		}
 		return true
 	})
