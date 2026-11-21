@@ -376,4 +376,58 @@ func TestQuerySimulationFixes(t *testing.T) {
 			t.Fatalf("expected view _v to be dropped by DROP TYPE mood CASCADE")
 		}
 	})
+
+	t.Run("long_dup_join_col_aliases", func(t *testing.T) {
+		longASCII := strings.Repeat("c", 63)
+		// 60 ASCII + 2-byte UTF-8 ("é") + 1 ASCII = 63 bytes; clipping to 61 bytes
+		// must stop at byte 60 so the multibyte rune is never split.
+		longUTF8 := strings.Repeat("a", 60) + "é" + "b"
+		existingSuffix := strings.Repeat("c", 61) + "_1"
+
+		got := uniqueColumnAliases([]string{longASCII, longASCII, existingSuffix})
+		want := []string{longASCII, strings.Repeat("c", 61) + "_2", existingSuffix}
+		if !slices.Equal(got, want) {
+			t.Fatalf("uniqueColumnAliases(longASCII dup + _1 collision) = %q, want %q", got, want)
+		}
+
+		for _, tc := range []struct {
+			name     string
+			col      string
+			wantClip string
+		}{
+			{"ascii_63", longASCII, strings.Repeat("c", 61) + "_1"},
+			{"utf8_63", longUTF8, strings.Repeat("a", 60) + "_1"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				c := New()
+				setupSQL := "CREATE TABLE t1 (\"" + tc.col + "\" int); CREATE TABLE t2 (\"" + tc.col + "\" int); " +
+					"CREATE VIEW _v(p, q) AS SELECT j.* FROM (t1 CROSS JOIN t2) j;"
+				res, err := c.Exec(setupSQL, nil)
+				if err != nil {
+					t.Fatalf("exec error: %v", err)
+				}
+				for _, r := range res {
+					if r.Error != nil {
+						t.Fatalf("stmt error: %v", r.Error)
+					}
+				}
+				def, err := c.GetViewDefinition("public", "_v")
+				if err != nil {
+					t.Fatalf("GetViewDefinition: %v", err)
+				}
+				if !strings.Contains(def, tc.wantClip) {
+					t.Fatalf("expected deparsed view to contain %q, got:\n%s", tc.wantClip, def)
+				}
+				res, err = c.Exec("CREATE VIEW _v2(p, q) AS "+def, nil)
+				if err != nil {
+					t.Fatalf("recreate exec error: %v", err)
+				}
+				for _, r := range res {
+					if r.Error != nil {
+						t.Fatalf("recreate stmt error: %v\nviewdef:\n%s", r.Error, def)
+					}
+				}
+			})
+		}
+	})
 }

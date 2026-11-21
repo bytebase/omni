@@ -536,6 +536,7 @@ func hasDuplicateStrings(ss []string) bool {
 	}
 	seen := make(map[string]struct{}, len(ss))
 	for _, s := range ss {
+		s = clipUTF8Bytes(s, maxPGIdentifierBytes)
 		if _, dup := seen[s]; dup {
 			return true
 		}
@@ -544,15 +545,27 @@ func hasDuplicateStrings(ss []string) bool {
 	return false
 }
 
+// appendUniqueSuffix appends "_<n>" to base, clipping base at a UTF-8 boundary
+// so the resulting identifier stays within PostgreSQL's NAMEDATALEN-1 (63)
+// byte limit.
+func appendUniqueSuffix(base string, n int) string {
+	suffix := fmt.Sprintf("_%d", n)
+	return clipUTF8Bytes(base, maxPGIdentifierBytes-len(suffix)) + suffix
+}
+
 func uniqueColumnAliases(colNames []string) []string {
+	bounded := make([]string, len(colNames))
+	for i, cn := range colNames {
+		bounded[i] = clipUTF8Bytes(cn, maxPGIdentifierBytes)
+	}
 	out := make([]string, len(colNames))
 	used := make(map[string]bool, len(colNames))
-	for i, cn := range colNames {
+	for i, cn := range bounded {
 		name := cn
 		if used[name] {
 			for n := 1; ; n++ {
-				cand := fmt.Sprintf("%s_%d", cn, n)
-				if !used[cand] && !slices.Contains(colNames[i+1:], cand) {
+				cand := appendUniqueSuffix(cn, n)
+				if !used[cand] && !slices.Contains(bounded[i+1:], cand) {
 					name = cand
 					break
 				}
@@ -607,6 +620,7 @@ func (d *deparseCtx) ensureRTERefNames(query *Query) (map[*RangeTableEntry]strin
 			name = other.ERef
 		}
 		if name != "" {
+			name = clipUTF8Bytes(name, maxPGIdentifierBytes)
 			names[other] = name
 			used[name] = true
 		}
@@ -620,10 +634,10 @@ func (d *deparseCtx) ensureRTERefNames(query *Query) (map[*RangeTableEntry]strin
 		if base == "" {
 			base = "unnamed_subquery"
 		}
-		name := base
+		name := clipUTF8Bytes(base, maxPGIdentifierBytes)
 		if used[name] {
 			for n := 1; ; n++ {
-				cand := fmt.Sprintf("%s_%d", base, n)
+				cand := appendUniqueSuffix(base, n)
 				if !used[cand] {
 					name = cand
 					break
