@@ -19,6 +19,7 @@ import (
 	"github.com/paulmach/orb/encoding/wkt"
 	"github.com/shopspring/decimal"
 
+	chanalysis "github.com/bytebase/omni/clickhouse/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -52,7 +53,7 @@ func (s *session) Close() error {
 // Query runs each statement of script in order and returns one Result per
 // statement run. A statement that fails ends the script.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
-	statements, err := splitSQL(script)
+	statements, err := chanalysis.Split(script)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +66,12 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	for _, single := range statements {
 		statement := single.Text
 		if opts.Explain {
-			statement = explainStatement(statement, opts.ExplainFormat)
+			statement = chanalysis.ExplainStatement(statement, opts.ExplainFormat)
 		} else if opts.Limit > 0 {
-			statement = statementWithResultLimit(statement, opts.Limit)
+			statement = chanalysis.StatementWithResultLimit(statement, opts.Limit)
 		}
 		startTime := time.Now()
-		withRows, err := statementReadsRows(statement)
+		withRows, err := chanalysis.StatementReadsRows(statement)
 		if err != nil {
 			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(startTime)})
 			break
@@ -459,72 +460,21 @@ func normalizeJSONValue(value any) any {
 // written. ClickHouse states the format in the statement, and only EXPLAIN
 // ANALYZE runs what it plans.
 func describeExplain(statement string) *driver.Plan {
-	if !startsWithExplain(statement) {
+	format, executed, ok := chanalysis.DescribeExplain(statement)
+	if !ok {
 		return nil
 	}
-	return &driver.Plan{Format: explainFormatOf(statement), Executed: explainAnalyzes(statement)}
+	return &driver.Plan{Format: format, Executed: executed}
 }
 
-// explainAnalyzes reports whether statement's EXPLAIN is the ANALYZE kind,
-// whose output is a plan of an execution that happened.
-func explainAnalyzes(statement string) bool {
-	body, err := removeQuotedTextAndComment(statement)
-	if err != nil {
-		return false
-	}
-	tokens := keywordTokens(body)
-	return len(tokens) > 1 && tokens[1].word && strings.EqualFold(tokens[1].text, "ANALYZE")
-}
-
-// explainFormatOf reads the format from an EXPLAIN the caller wrote, which the
-// driver runs as written. Only the statement's second word states one; every
-// other EXPLAIN kind is text.
-func explainFormatOf(statement string) string {
-	body, err := removeQuotedTextAndComment(statement)
-	if err != nil {
-		return "TEXT"
-	}
-	tokens := keywordTokens(body)
-	// Skip EXPLAIN and its optional kind, unless the first word is already a
-	// setting (json = 1).
-	i := 1
-	if i < len(tokens) && tokens[i].word && !(i+1 < len(tokens) && tokens[i+1].text == "=") {
-		kind := tokens[i].text
-		i++
-		if strings.EqualFold(kind, "QUERY") || strings.EqualFold(kind, "TABLE") {
-			i++
-		}
-		if strings.EqualFold(kind, "JSON") {
-			return "JSON"
+func filterEmptyStatements(list []chanalysis.Statement) []chanalysis.Statement {
+	var out []chanalysis.Statement
+	for _, s := range list {
+		if !s.Empty {
+			out = append(out, s)
 		}
 	}
-	// The settings are name = value pairs; the query body starts at the first
-	// word that is not one.
-	for i < len(tokens) {
-		if !tokens[i].word || i+1 >= len(tokens) || tokens[i+1].text != "=" || i+2 >= len(tokens) {
-			break
-		}
-		if strings.EqualFold(tokens[i].text, "JSON") {
-			if settingIsOff(tokens[i+2].text) {
-				return "TEXT"
-			}
-			return "JSON"
-		}
-		i += 3
-		if i >= len(tokens) || tokens[i].text != "," {
-			break
-		}
-		i++
-	}
-	return "TEXT"
-}
-
-func settingIsOff(value string) bool {
-	switch strings.ToUpper(value) {
-	case "0", "FALSE", "OFF", "NO":
-		return true
-	}
-	return false
+	return out
 }
 
 // translateAggregateFunctionError rewrites the client's opaque "unsupported

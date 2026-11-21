@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	dbxanalysis "github.com/bytebase/omni/databricks/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -32,7 +33,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		if opts.Log != nil {
 			opts.Log.CommandExecute(command)
 		}
-		statement := trimStatement(command.Text)
+		statement := dbxanalysis.TrimStatement(command.Text)
 		result, err := d.queryStatement(ctx, statement, driver.QueryOptions{})
 		if err != nil {
 			if opts.Log != nil {
@@ -54,7 +55,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 // count as a num_affected_rows column instead. A read states rows, not a count,
 // even when one of them is named num_affected_rows.
 func affectedRows(statement string, result *driver.Result) int64 {
-	if result == nil || classifyStatement(statement) {
+	if result == nil || dbxanalysis.ClassifyStatement(statement) {
 		return 0
 	}
 	for column, header := range result.Columns {
