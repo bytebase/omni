@@ -55,3 +55,21 @@ func TestParseDoBlock(t *testing.T) {
 		t.Fatalf("Parse(DO block) returned %d statements, want 1", len(parsed))
 	}
 }
+
+func TestParseScript(t *testing.T) {
+	const script = "SELECT 1;\n\n;\n\nCREATE TABLE t (id INT)"
+	parsed, err := ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript: %v", err)
+	}
+	if len(parsed) != 2 {
+		t.Fatalf("ParseScript returned %d statements, want 2", len(parsed))
+	}
+	if parsed[0].Text() != "SELECT 1" {
+		t.Errorf("parsed[0].Text() = %q, want %q", parsed[0].Text(), "SELECT 1")
+	}
+	wantSplit := []string{`SELECT 1;`, ``, `SELECT FROM;`, `SELECT 2;`}
+	if diff := cmp.Diff(wantSplit, SplitScript(`SELECT 1; ; SELECT FROM; SELECT 2;`)); diff != "" {
+		t.Errorf("SplitScript() mismatch (-want +got):\n%s", diff)
+	}
+}

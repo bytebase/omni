@@ -56,6 +56,13 @@ type ChangeMetadata interface {
 	IndexTable(searchPath []string, name string) (schema, table string, ok bool)
 }
 
+// ExtractChangedResourcesFromParsed returns the changed resources and DML
+// statements of opaque ParsedStatement values, keeping cockroachdb-parser
+// types out of callers.
+func ExtractChangedResourcesFromParsed(stmts []ParsedStatement, database string, searchPath []string, metadata ChangeMetadata) Changes {
+	return ExtractChangedResources(unwrapStatements(stmts), database, searchPath, metadata)
+}
+
 // ExtractChangedResources returns the tables a script writes and the DML
 // statements to estimate, replaying the search path changes it makes: SET,
 // RESET, DISCARD ALL and the transactions that scope SET LOCAL. database is

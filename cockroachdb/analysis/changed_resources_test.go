@@ -565,3 +565,17 @@ COMMIT;`
 		t.Errorf("resources mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestExtractChangedResourcesFromParsed(t *testing.T) {
+	parsed, err := ParseScript(`UPSERT INTO t VALUES (1); UPDATE t SET c = 2;`)
+	if err != nil {
+		t.Fatalf("ParseScript: %v", err)
+	}
+	got := ExtractChangedResourcesFromParsed(parsed, "db", []string{"public"}, nil)
+	if diff := cmp.Diff([]string{"db.public.t"}, resourceNames(got)); diff != "" {
+		t.Errorf("resources mismatch (-want +got):\n%s", diff)
+	}
+	if got.InsertCount != 1 || got.DMLCount != 1 {
+		t.Errorf("counts = (InsertCount=%d, DMLCount=%d), want (1, 1)", got.InsertCount, got.DMLCount)
+	}
+}

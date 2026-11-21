@@ -23,12 +23,11 @@
 //
 // It implements Driver, Syncer, Querier and Executor, and the row estimate
 // CountAffectedRows that a review's affected-row limit reads. There is no
-// Dumper: redshift/catalog loads a definition from SQL, simulates it, diffs two
-// catalogs and generates a migration, but it has no renderer for a synced
-// snapshot. Its LoadMetadata installs a column's coarse type because completion
-// reads the shape, so a dump built on LoadMetadata, Diff and GenerateMigration
-// would write types the sync did not read. Bytebase's Dump wrote nothing either,
-// so nothing is lost yet; VERIFY.md says what a dump needs.
+// Dumper: although redshift/catalog provides DatabaseDefinition for rendering
+// synced snapshots, SyncDatabase here only populates tables and ordinary views
+// (not functions, procedures, materialized views, or storage attributes such as
+// DISTSTYLE/DISTKEY/SORTKEY/ENCODE), so advertising driver.Dumper before sync is
+// extended and re-recorded against Redshift would produce incomplete dumps.
 //
 // # The connection
 //

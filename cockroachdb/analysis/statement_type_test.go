@@ -107,3 +107,14 @@ func mustParse(t *testing.T, script string) statements.Statements {
 	}
 	return parsed
 }
+
+func TestStatementTypesFromParsed(t *testing.T) {
+	parsed, err := ParseScript(`CREATE TABLE t (id INT); UPSERT INTO t VALUES (1);`)
+	if err != nil {
+		t.Fatalf("ParseScript: %v", err)
+	}
+	want := []StatementType{CreateTable, Insert}
+	if diff := cmp.Diff(want, StatementTypesFromParsed(parsed)); diff != "" {
+		t.Errorf("StatementTypesFromParsed() mismatch (-want +got):\n%s", diff)
+	}
+}

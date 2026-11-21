@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/internal/testcontainer"
+	trinoparser "github.com/bytebase/omni/trino/parser"
 )
 
 // connectOracle opens the round-trip gate's Trino: the test's tape, or the
@@ -156,4 +158,64 @@ func splitStatements(ddl string) []string {
 		}
 	}
 	return out
+}
+
+// TestDatabaseDefinitionFromProtoOnTrino sends DatabaseDefinitionFromProto's
+// newly added rendering paths (tables with defaults and comments, routines,
+// views with comments, and materialized views) to the pinned Trino 482 server
+// and asserts every emitted statement is accepted syntactically.
+func TestDatabaseDefinitionFromProtoOnTrino(t *testing.T) {
+	o := connectOracle(t)
+
+	ddl, err := DatabaseDefinitionFromProto(&metadata.DatabaseSchemaMetadata{
+		Name: "memory",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "default",
+			Tables: []*metadata.TableMetadata{{
+				Name:    "items",
+				Comment: "catalog items",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "bigint", Nullable: false, Default: "1 -- seed"},
+					{Name: "label", Type: "varchar", Nullable: true, Default: "ok", Comment: "display label"},
+				},
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "add_one",
+				Definition: "CREATE FUNCTION add_one(x bigint) RETURNS bigint COMMENT 'increment by one' RETURN x + 1",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_items",
+				Comment:    "item view",
+				Definition: "SELECT id, add_one(id) AS next_id FROM items",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Comment: "item id"},
+					{Name: "next_id"},
+				},
+			}},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name:       "mv_items",
+				Definition: "SELECT id FROM items",
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("DatabaseDefinitionFromProto: %v", err)
+	}
+
+	for _, seg := range trinoparser.Split(ddl) {
+		stmt := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(seg.Text), ";"))
+		if stmt == "" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		res, err := o.CheckSyntax(ctx, stmt)
+		cancel()
+		if err != nil {
+			t.Fatalf("oracle CheckSyntax(%q): %v", stmt, err)
+		}
+		if !res.Accepted {
+			t.Errorf("Trino rejected generated DDL:\n%s\nerrorName=%q code=%d msg=%s",
+				stmt, res.ErrorName, res.ErrorCode, res.Message)
+		}
+	}
 }

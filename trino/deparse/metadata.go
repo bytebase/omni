@@ -45,30 +45,77 @@ type SchemaMetadata struct {
 	// Name is the schema name, emitted double-quoted in CREATE SCHEMA and as
 	// the first qualifier of every CREATE TABLE and CREATE VIEW.
 	Name string
+	// Owner is the optional schema owner, emitted as ALTER SCHEMA ... SET AUTHORIZATION.
+	Owner string
+	// Functions are the schema's user-defined functions, in snapshot order;
+	// each becomes one CREATE FUNCTION statement in callee-before-caller order.
+	Functions []*FunctionMetadata
 	// Tables are the schema's tables, in snapshot order; each becomes one
 	// CREATE TABLE statement.
 	Tables []*TableMetadata
 	// Views are the schema's views, in snapshot order; each becomes one
 	// CREATE OR REPLACE VIEW statement after every schema's tables.
 	Views []*ViewMetadata
+	// MaterializedViews are the schema's materialized views, in snapshot order;
+	// each becomes one CREATE MATERIALIZED VIEW statement in dependency order.
+	MaterializedViews []*ViewMetadata
+	// SkipDump keeps the schema's functions and table column types available for
+	// call resolution without emitting the schema or its objects.
+	SkipDump bool
+}
+
+// FunctionMetadata is one user-defined function; Definition holds its CREATE FUNCTION DDL.
+type FunctionMetadata struct {
+	Name       string
+	Definition string
+	// Signature carries optional parameter signature metadata when Definition
+	// is absent (e.g. externally managed SkipDump routines).
+	Signature string
+	Comment   string
+	// SkipDump keeps the function available for call qualification without
+	// emitting or dependency-ordering its CREATE FUNCTION statement.
+	SkipDump bool
+}
+
+// ViewDependency identifies a relation that a view or materialized view reads.
+type ViewDependency struct {
+	Schema string
+	Table  string
 }
 
 // ViewMetadata is one view; it renders to a single CREATE OR REPLACE VIEW
-// statement.
+// (or CREATE MATERIALIZED VIEW IF NOT EXISTS) statement.
 type ViewMetadata struct {
 	// Name is the view name, emitted double-quoted.
 	Name string
 	// Definition is the SELECT text the view is created AS, emitted as-is.
 	Definition string
+	// Comment is the optional view/materialized-view comment, emitted as COMMENT '...'.
+	Comment string
+	// Columns holds optional view columns (used to restore COMMENT ON COLUMN).
+	Columns []*ColumnMetadata
+	// Dependencies records explicit view/table references used before falling
+	// back to query-span analysis.
+	Dependencies []ViewDependency
+	// SkipDump keeps the view's column types available for call resolution
+	// without emitting CREATE VIEW.
+	SkipDump bool
 }
 
 // TableMetadata is one table; it renders to a single CREATE TABLE statement.
 type TableMetadata struct {
 	// Name is the table name, emitted double-quoted.
 	Name string
+	// Owner is the optional table owner, emitted as ALTER TABLE ... SET AUTHORIZATION.
+	Owner string
 	// Columns are the table's columns, in ordinal order; the order is preserved
 	// in the emitted column list.
 	Columns []*ColumnMetadata
+	// Comment is the optional table comment, emitted as COMMENT '...'.
+	Comment string
+	// SkipDump keeps the table's column types available for call resolution
+	// without emitting or validating CREATE TABLE.
+	SkipDump bool
 }
 
 // ColumnMetadata is one column of a table.
@@ -81,4 +128,8 @@ type ColumnMetadata struct {
 	// Nullable reports whether the column accepts NULL. A non-nullable column
 	// gets a trailing NOT NULL.
 	Nullable bool
+	// Default is the optional column default expression/literal.
+	Default string
+	// Comment is the optional column comment, emitted as COMMENT '...'.
+	Comment string
 }

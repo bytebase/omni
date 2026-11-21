@@ -1,0 +1,2520 @@
+package catalog
+
+import (
+	"os"
+	"strings"
+	"testing"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	pgparser "github.com/bytebase/omni/redshift/parser"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+)
+
+func TestGetObjectDefinition(t *testing.T) {
+	tests := []struct {
+		name string
+		get  func() (string, error)
+		want string
+	}{
+		{
+			name: "table with comments",
+			get: func() (string, error) {
+				return GetTableDefinition("public", &metadatapb.TableMetadata{
+					Name:    "orders",
+					Comment: "one row per order",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "id", Type: "integer", Comment: "surrogate key"},
+						{Name: "total", Type: "numeric(10,2)", Nullable: true},
+						{Name: "label", Type: "character varying(50)", Nullable: true, Comment: "display name"},
+					},
+				})
+			},
+			want: `CREATE TABLE "public"."orders" (
+  "id" integer NOT NULL,
+  "total" numeric(10,2),
+  "label" character varying(50)
+);
+COMMENT ON TABLE "public"."orders" IS 'one row per order';
+COMMENT ON COLUMN "public"."orders"."id" IS 'surrogate key';
+COMMENT ON COLUMN "public"."orders"."label" IS 'display name';
+`,
+		},
+		{
+			name: "view with comment",
+			get: func() (string, error) {
+				return GetViewDefinition("public", &metadatapb.ViewMetadata{
+					Name:       "recent_orders",
+					Definition: "SELECT id, total FROM orders",
+					Comment:    "last 30 days",
+				})
+			},
+			want: `SET search_path TO "public";
+CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id, total FROM orders;
+RESET search_path;
+COMMENT ON VIEW "public"."recent_orders" IS 'last 30 days';
+`,
+		},
+		{
+			name: "table outside the default schema keeps its qualifier",
+			get: func() (string, error) {
+				return GetTableDefinition("analytics", &metadatapb.TableMetadata{
+					Name:    "orders",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				})
+			},
+			want: `CREATE TABLE "analytics"."orders" (
+  "id" integer NOT NULL
+);
+`,
+		},
+		{
+			name: "comments with apostrophes stay valid",
+			get: func() (string, error) {
+				return GetTableDefinition("public", &metadatapb.TableMetadata{
+					Name:    "orders",
+					Comment: "owner's orders",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "don't drop"}},
+				})
+			},
+			want: `CREATE TABLE "public"."orders" (
+  "id" integer NOT NULL
+);
+COMMENT ON TABLE "public"."orders" IS 'owner''s orders';
+COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
+`,
+		},
+		{
+			name: "column collation and defaults",
+			get: func() (string, error) {
+				return GetTableDefinition("public", &metadatapb.TableMetadata{
+					Name: "items",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "status", Type: "character varying(20)", Default: "'active'"},
+						{Name: "title", Type: "character varying(50)", Collation: "case_insensitive", Default: "'it''s ok'", Nullable: true},
+						{Name: "code", Type: "character varying(20)", Collation: "CS", Default: "SYSDATE", Nullable: true},
+						{Name: "tag", Type: "character varying(20)", Default: "owner's", Nullable: true},
+						{Name: "qty", Type: "integer", Default: "0"},
+						{Name: "active", Type: "boolean", Default: "true"},
+					},
+				})
+			},
+			want: `CREATE TABLE "public"."items" (
+  "status" character varying(20) NOT NULL DEFAULT 'active',
+  "title" character varying(50) COLLATE CASE_INSENSITIVE DEFAULT 'it''s ok',
+  "code" character varying(20) COLLATE CS DEFAULT SYSDATE,
+  "tag" character varying(20) DEFAULT 'owner''s',
+  "qty" integer NOT NULL DEFAULT 0,
+  "active" boolean NOT NULL DEFAULT true
+);
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.get()
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestColumnCommentOrderIsStable pins the ordering of the trailing COMMENT ON
+// COLUMN statements across runs.
+func TestColumnCommentOrderIsStable(t *testing.T) {
+	table := &metadatapb.TableMetadata{Name: "wide"}
+	for _, name := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+		table.Columns = append(table.Columns, &metadatapb.ColumnMetadata{
+			Name:     name,
+			Type:     "integer",
+			Nullable: true,
+			Comment:  "note " + name,
+		})
+	}
+
+	first, err := GetTableDefinition("public", table)
+	require.NoError(t, err)
+	require.Equal(t, 8, strings.Count(first, "COMMENT ON COLUMN"))
+
+	for i := 0; i < 200; i++ {
+		got, err := GetTableDefinition("public", table)
+		require.NoError(t, err)
+		require.Equalf(t, first, got, "column comment order changed on iteration %d", i)
+	}
+}
+
+// TestDatabaseDefinitionKeepsSections ensures the whole-database output frames
+// each object with its banner and matches the single-object entry points.
+func TestDatabaseDefinitionKeepsSections(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "orders",
+						Comment: "one row per order",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "surrogate key"}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{Name: "recent_orders", Definition: "SELECT id FROM orders"},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+
+	require.Equal(t, `--
+-- Table structure for `+"`orders`"+`
+--
+CREATE TABLE "public"."orders" (
+  "id" integer NOT NULL
+);
+COMMENT ON TABLE "public"."orders" IS 'one row per order';
+COMMENT ON COLUMN "public"."orders"."id" IS 'surrogate key';
+
+--
+-- View structure for `+"`recent_orders`"+`
+--
+SET search_path TO "public";
+CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id FROM orders;
+RESET search_path;
+`, got)
+
+	table, err := GetTableDefinition("public", metadata.Schemas[0].Tables[0])
+	require.NoError(t, err)
+	require.Contains(t, got, table)
+}
+
+// TestDatabaseDefinitionCreatesSchemasAndOrdersDependencies pins that
+// non-public schemas are created first, FK parent tables precede child tables,
+// dependent views follow the views they read, and nil entries do not panic.
+func TestDatabaseDefinitionCreatesSchemasAndOrdersDependencies(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			nil,
+			{
+				Name: "analytics",
+				Tables: []*metadatapb.TableMetadata{
+					nil,
+					{
+						Name: "a_child",
+						Columns: []*metadatapb.ColumnMetadata{
+							nil,
+							{Name: "id", Type: "integer"},
+							{Name: "parent_id", Type: "integer", Nullable: true},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							nil,
+							{
+								Name:              "a_child_parent_fk",
+								Columns:           []string{"parent_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "z_parent",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					nil,
+					{Name: "a_summary", Definition: `SELECT id FROM "analytics"."z_base"`},
+					{Name: "z_base", Definition: `SELECT id FROM "analytics"."a_child"`},
+				},
+			},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "z_parent",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "z_parent_pkey", Primary: true, Expressions: []string{"id"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+
+	require.Equal(t, `CREATE SCHEMA IF NOT EXISTS "analytics";
+
+--
+-- Table structure for `+"`z_parent`"+`
+--
+CREATE TABLE "public"."z_parent" (
+  "id" integer NOT NULL,
+  CONSTRAINT "z_parent_pkey" PRIMARY KEY (id)
+);
+
+--
+-- Table structure for `+"`a_child`"+`
+--
+CREATE TABLE "analytics"."a_child" (
+  "id" integer NOT NULL,
+  "parent_id" integer,
+  CONSTRAINT "a_child_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."z_parent"("id")
+);
+
+--
+-- View structure for `+"`z_base`"+`
+--
+SET search_path TO "analytics", public;
+CREATE OR REPLACE VIEW "analytics"."z_base" AS SELECT id FROM "analytics"."a_child";
+RESET search_path;
+
+--
+-- View structure for `+"`a_summary`"+`
+--
+SET search_path TO "analytics", public;
+CREATE OR REPLACE VIEW "analytics"."a_summary" AS SELECT id FROM "analytics"."z_base";
+RESET search_path;
+`, got)
+}
+
+// TestForeignKeyKeepsReferencedSchemaAndCompositeColumns pins the qualifier on
+// the REFERENCES target and composite multi-column foreign key syntax.
+func TestForeignKeyKeepsReferencedSchemaAndCompositeColumns(t *testing.T) {
+	got, err := GetTableDefinition("analytics", &metadatapb.TableMetadata{
+		Name: "child",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer"},
+			{Name: "tenant_id", Type: "integer", Nullable: true},
+			{Name: "parent_id", Type: "integer", Nullable: true},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "child_parent_fk",
+				Columns:           []string{"tenant_id", "parent_id"},
+				ReferencedSchema:  "warehouse",
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"tenant_id", "id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, `CONSTRAINT "child_parent_fk" FOREIGN KEY ("tenant_id", "parent_id") REFERENCES "warehouse"."parent"("tenant_id", "id")`)
+	require.NotContains(t, got, `REFERENCES "parent"`)
+}
+
+// TestIdentifiersNeedingQuotesSurvive covers identifiers with spaces, mixed
+// case, and embedded double quotes.
+func TestIdentifiersNeedingQuotesSurvive(t *testing.T) {
+	got, err := GetTableDefinition("Sales Data", &metadatapb.TableMetadata{
+		Name: "MixedCase",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: `od"d`, Type: "integer", Comment: "quoted name"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+CREATE TABLE "Sales Data"."MixedCase" (
+  "od""d" integer NOT NULL
+);
+COMMENT ON COLUMN "Sales Data"."MixedCase"."od""d" IS 'quoted name';
+`, got)
+}
+
+// TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted pins the split between
+// pg_get_indexdef expressions (already quoted) and foreign key columns (bare),
+// and checks that explicit constraint names are preserved.
+func TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted(t *testing.T) {
+	got, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "MixedCase", Type: "integer"},
+			{Name: "parent_id", Type: "integer", Nullable: true},
+		},
+		Indexes: []*metadatapb.IndexMetadata{
+			{Name: "t_pkey", Primary: true, Expressions: []string{`"MixedCase"`}},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "t_parent_fk",
+				Columns:           []string{"parent_id"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	require.True(t, strings.HasPrefix(got, "SET enable_case_sensitive_identifier TO true;\n\n"))
+	require.Contains(t, got, `CONSTRAINT "t_pkey" PRIMARY KEY ("MixedCase")`)
+	require.NotContains(t, got, `"""MixedCase"""`)
+	require.Contains(t, got, `CONSTRAINT "t_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
+}
+
+// TestDatabaseDefinitionDefersCyclicForeignKeys pins that mutually referencing
+// tables defer the back-edge FK until after both tables exist.
+func TestDatabaseDefinitionDefersCyclicForeignKeys(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "alpha",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+							{Name: "beta_id", Type: "integer", Nullable: true},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "alpha_pkey", Primary: true, Expressions: []string{"id"}},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							{
+								Name:              "alpha_beta_fk",
+								Columns:           []string{"beta_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "beta",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+					{
+						Name: "beta",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+							{Name: "alpha_id", Type: "integer", Nullable: true},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "beta_pkey", Primary: true, Expressions: []string{"id"}},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							{
+								Name:              "beta_alpha_fk",
+								Columns:           []string{"alpha_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "alpha",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	require.Equal(t, `--
+-- Table structure for `+"`alpha`"+`
+--
+CREATE TABLE "public"."alpha" (
+  "id" integer NOT NULL,
+  "beta_id" integer,
+  CONSTRAINT "alpha_pkey" PRIMARY KEY (id)
+);
+
+--
+-- Table structure for `+"`beta`"+`
+--
+CREATE TABLE "public"."beta" (
+  "id" integer NOT NULL,
+  "alpha_id" integer,
+  CONSTRAINT "beta_pkey" PRIMARY KEY (id),
+  CONSTRAINT "beta_alpha_fk" FOREIGN KEY ("alpha_id") REFERENCES "public"."alpha"("id")
+);
+
+ALTER TABLE "public"."alpha" ADD CONSTRAINT "alpha_beta_fk" FOREIGN KEY ("beta_id") REFERENCES "public"."beta"("id");
+`, got)
+}
+
+// TestDatabaseDefinitionScopedCTEShadowing pins that a nested CTE with the
+// same name as a real view does not suppress an outer reference to that view.
+func TestDatabaseDefinitionScopedCTEShadowing(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "a_consumer",
+						Definition: `SELECT sub.x, v.x AS y FROM (WITH z_base AS (SELECT 1 AS x) SELECT x FROM z_base) sub JOIN z_base v ON true`,
+					},
+					{
+						Name:       "z_base",
+						Definition: `SELECT 2 AS x`,
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	zIdx := strings.Index(got, "View structure for `z_base`")
+	aIdx := strings.Index(got, "View structure for `a_consumer`")
+	require.Greater(t, aIdx, zIdx, "expected z_base before a_consumer:\n%s", got)
+}
+
+// TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump pins
+// late-binding view preservation, materialized view emission, identity columns,
+// token-based default expression matching, SkipDump, and mixed-case setting.
+func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testing.T) {
+	skippedTable, err := GetTableDefinition("public", &metadatapb.TableMetadata{Name: "ignored", SkipDump: true})
+	require.NoError(t, err)
+	require.Empty(t, skippedTable)
+
+	skippedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "ignored", Definition: "SELECT 1", SkipDump: true})
+	require.NoError(t, err)
+	require.Empty(t, skippedView)
+
+	tableWithIdentityAndStrings, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "events",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "bigint", IsIdentity: true, IdentitySeed: 10, IdentityIncrement: 5},
+			{Name: "ext_id", Type: "bigint", IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT, IdentitySeed: 1, IdentityIncrement: 1},
+			{Name: "weather", Type: "character varying(20)", Default: "snow", Nullable: true},
+			{Name: "status", Type: "character varying(20)", Default: "current_status", Nullable: true},
+			{Name: "note", Type: "character varying(40)", Default: "timestamp note", Nullable: true},
+			{Name: "legacy", Type: "character varying(40)", Default: "pending (old)", Nullable: true},
+			{Name: "created_at", Type: "timestamp", Default: "now()"},
+			{Name: "max_score", Type: "integer", Default: "GREATEST(1, 2)"},
+			{Name: "big_num", Type: "double precision", Default: "2.0e19"},
+			{Name: "opt", Type: "integer", Default: "null", Nullable: true},
+			{Name: "esc_str", Type: "character varying(20)", Default: `E'line\n'`, Nullable: true},
+			{Name: "dollar_str", Type: "character varying(20)", Default: `$$pending$$`, Nullable: true},
+			{Name: "win_path", Type: "character varying(64)", Default: `C:\temp\a'b`, Comment: `\'; DROP TABLE victim; --`, Nullable: true},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `CREATE TABLE "public"."events" (
+  "id" bigint IDENTITY(10, 5) NOT NULL,
+  "ext_id" bigint GENERATED BY DEFAULT AS IDENTITY(1, 1) NOT NULL,
+  "weather" character varying(20) DEFAULT 'snow',
+  "status" character varying(20) DEFAULT 'current_status',
+  "note" character varying(40) DEFAULT 'timestamp note',
+  "legacy" character varying(40) DEFAULT 'pending (old)',
+  "created_at" timestamp NOT NULL DEFAULT now(),
+  "max_score" integer NOT NULL DEFAULT GREATEST(1, 2),
+  "big_num" double precision NOT NULL DEFAULT 2.0e19,
+  "opt" integer DEFAULT NULL,
+  "esc_str" character varying(20) DEFAULT E'line\n',
+  "dollar_str" character varying(20) DEFAULT $$pending$$,
+  "win_path" character varying(64) DEFAULT 'C:\\temp\\a''b'
+);
+COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
+`, tableWithIdentityAndStrings)
+
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "hidden_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t"}}},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "SkipMe", SkipDump: true},
+					{Name: "Events", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{Name: "skip_view", Definition: "SELECT 1", SkipDump: true},
+					{
+						Name:       "late_v",
+						Definition: `CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING`,
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "skip_mv", Definition: "SELECT 1", SkipDump: true},
+					{Name: "a_mv_top", Definition: `SELECT id FROM "public"."z_mv_base"`},
+					{Name: "z_mv_base", Definition: `SELECT id FROM "public"."Events"`},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+--
+-- Table structure for `+"`Events`"+`
+--
+CREATE TABLE "public"."Events" (
+  "id" integer NOT NULL
+);
+
+--
+-- View structure for `+"`late_v`"+`
+--
+SET search_path TO "public";
+CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING;
+RESET search_path;
+
+--
+-- Materialized view structure for `+"`z_mv_base`"+`
+--
+SET search_path TO "public";
+CREATE MATERIALIZED VIEW "public"."z_mv_base" AS SELECT id FROM "public"."Events";
+RESET search_path;
+
+--
+-- Materialized view structure for `+"`a_mv_top`"+`
+--
+SET search_path TO "public";
+CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_base";
+RESET search_path;
+`, got)
+
+	mixedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "MixedView", Definition: "SELECT 1"})
+	require.NoError(t, err)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nSET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"MixedView\" AS SELECT 1;\nRESET search_path;\n", mixedView)
+
+	mixedColView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v",
+		Columns:    []*metadatapb.ColumnMetadata{{Name: "MixedAlias"}},
+		Definition: `SELECT 1 AS "MixedAlias"`,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SET enable_case_sensitive_identifier TO true;\n\nSET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"v\" AS SELECT 1 AS \"MixedAlias\";\nRESET search_path;\n", mixedColView)
+
+	newlineNameDump, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "safe\nDROP TABLE victim; --", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, newlineNameDump, "-- Table structure for `safe DROP TABLE victim; --`\n--\nCREATE TABLE")
+}
+
+// TestDatabaseDefinitionRoutinesAndViewColumnComments pins UDF/procedure
+// emission order and view column COMMENT ON COLUMN statements.
+func TestDatabaseDefinitionRoutinesAndViewColumnComments(t *testing.T) {
+	viewDef, err := GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v",
+		Definition: "SELECT 1 AS id",
+		Comment:    "view note",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer", Comment: "view col note"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET search_path TO "public";
+CREATE OR REPLACE VIEW "public"."v" AS SELECT 1 AS id;
+RESET search_path;
+COMMENT ON VIEW "public"."v" IS 'view note';
+COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
+`, viewDef)
+
+	got, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "skip_fn", SkipDump: true},
+					{
+						Name:       "a_wrapper",
+						Definition: "CREATE FUNCTION public.a_wrapper(x int) RETURNS int IMMUTABLE AS $$ SELECT public.f_inc(x) * 2 $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "f_inc",
+						Definition: "CREATE FUNCTION public.f_inc(x int) RETURNS int IMMUTABLE AS $$ SELECT x + 1 $$ LANGUAGE SQL",
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "t",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "0"}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v",
+						Definition: "SELECT public.f_inc(id) AS next_id FROM public.t",
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "next_id", Type: "integer", Comment: "computed"}},
+					},
+				},
+				Procedures: []*metadatapb.ProcedureMetadata{
+					{Name: "skip_proc", SkipDump: true},
+					{
+						Name:       "p_cleanup",
+						Definition: "CREATE PROCEDURE public.p_cleanup() AS $$ BEGIN DELETE FROM public.t; END; $$ LANGUAGE plpgsql",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	fnIdx := strings.Index(got, "Function structure for `f_inc`")
+	wrapperIdx := strings.Index(got, "Function structure for `a_wrapper`")
+	tblIdx := strings.Index(got, "Table structure for `t`")
+	viewIdx := strings.Index(got, "View structure for `v`")
+	procIdx := strings.Index(got, "Procedure structure for `p_cleanup`")
+	require.GreaterOrEqual(t, fnIdx, 0)
+	require.Greater(t, wrapperIdx, fnIdx)
+	require.Greater(t, tblIdx, wrapperIdx)
+	require.Greater(t, viewIdx, tblIdx)
+	require.Greater(t, procIdx, viewIdx)
+	require.Contains(t, got, `COMMENT ON COLUMN "public"."v"."next_id" IS 'computed';`)
+	require.NotContains(t, got, "skip_fn")
+	require.NotContains(t, got, "skip_proc")
+
+	// A table with no columns returns an error instead of invalid SQL.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{Name: "empty_t"})
+	require.Error(t, err)
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "empty_t"}}},
+		},
+	})
+	require.Error(t, err)
+
+	// A caller without DependencyTables that calls a table-dependent UDF moves
+	// to the post-table pass after its callee.
+	crossPass, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "a_caller",
+						Definition: "CREATE FUNCTION public.a_caller(x int) RETURNS int AS $$ SELECT public.z_table_fn(x) $$ LANGUAGE SQL",
+					},
+					{
+						Name:             "z_table_fn",
+						Definition:       "CREATE FUNCTION public.z_table_fn(x int) RETURNS int AS $$ SELECT x $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "t"}},
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	tPos := strings.Index(crossPass, "Table structure for `t`")
+	zPos := strings.Index(crossPass, "Function structure for `z_table_fn`")
+	aPos := strings.Index(crossPass, "Function structure for `a_caller`")
+	require.Greater(t, zPos, tPos, "expected z_table_fn after table t:\n%s", crossPass)
+	require.Greater(t, aPos, zPos, "expected a_caller after z_table_fn:\n%s", crossPass)
+
+	// Overloaded UDFs: f(int) calls wrapper(int) which calls f(int, int).
+	// Name-only matching would create a false cycle between f and wrapper.
+	overloaded, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:    "analytics",
+				Owner:   "app_owner",
+				Comment: "analytics schema",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f",
+						Definition: "CREATE FUNCTION analytics.f(a int) RETURNS int IMMUTABLE AS $$ SELECT analytics.wrapper(a) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "wrapper",
+						Definition: "CREATE FUNCTION analytics.wrapper(x int) RETURNS int IMMUTABLE AS $$ SELECT analytics.f(x, 0) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "f",
+						Definition: "CREATE FUNCTION analytics.f(a int, b int) RETURNS int IMMUTABLE AS $$ SELECT a + b $$ LANGUAGE SQL",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, overloaded, "ALTER SCHEMA \"analytics\" OWNER TO \"app_owner\";\n")
+	require.Contains(t, overloaded, "COMMENT ON SCHEMA \"analytics\" IS 'analytics schema';\n")
+	fTwoPos := strings.Index(overloaded, "CREATE FUNCTION analytics.f(a int, b int)")
+	wrapPos := strings.Index(overloaded, "CREATE FUNCTION analytics.wrapper(x int)")
+	fOnePos := strings.Index(overloaded, "CREATE FUNCTION analytics.f(a int)")
+	require.Greater(t, wrapPos, fTwoPos, "expected f(int,int) before wrapper(int):\n%s", overloaded)
+	require.Greater(t, fOnePos, wrapPos, "expected wrapper(int) before f(int):\n%s", overloaded)
+
+	// Mismatched FK column counts return an error instead of truncating.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "bad_fk",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "a", Type: "integer"},
+			{Name: "b", Type: "integer"},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "bad_fk",
+				Columns:           []string{"a", "b"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"x"},
+			},
+		},
+	})
+	require.Error(t, err)
+}
+
+// TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that
+// materialized views precede ordinary views that read them, omitted FK
+// ReferencedSchema defaults to the table's schema, and empty view definitions
+// return an error.
+func TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView(t *testing.T) {
+	fkTable, err := GetTableDefinition("analytics", &metadatapb.TableMetadata{
+		Name: "child",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "parent_id", Type: "integer", Nullable: true},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "child_parent_fk",
+				Columns:           []string{"parent_id"},
+				ReferencedTable:   "parent",
+				ReferencedColumns: []string{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, fkTable, `REFERENCES "analytics"."parent"("id")`)
+
+	_, err = GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "empty_v", Definition: "   "})
+	require.Error(t, err)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "public", Views: []*metadatapb.ViewMetadata{{Name: "empty_v"}}},
+		},
+	})
+	require.Error(t, err)
+
+	got, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{
+					{Name: "v_uses_mv", Definition: `SELECT id FROM "public"."mv_base"`},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "mv_base", Definition: `SELECT 1 AS id`},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	mvIdx := strings.Index(got, "Materialized view structure for `mv_base`")
+	vIdx := strings.Index(got, "View structure for `v_uses_mv`")
+	require.Greater(t, vIdx, mvIdx, "expected mv_base before v_uses_mv:\n%s", got)
+}
+
+func TestDatabaseDefinitionCrossKindOrderingExternalTablesAndValidation(t *testing.T) {
+	// 1 & 2. Unified cross-kind ordering: view-dependent functions follow views,
+	// table-dependent functions follow tables, and SkipDump external tables are ignored cleanly.
+	unified, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:             "v_summary_fn",
+						Definition:       "CREATE FUNCTION public.v_summary_fn() RETURNS int AS $$ SELECT count(*)::int FROM public.v_events $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "v_events"}},
+					},
+					{
+						Name:             "next_code_fn",
+						Definition:       "CREATE FUNCTION public.next_code_fn() RETURNS int AS $$ SELECT coalesce(max(id), 0) + 1 FROM public.base_tbl $$ LANGUAGE SQL",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "base_tbl"}},
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "base_tbl",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					},
+				},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{Name: "skip_ext", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}, SkipDump: true},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v_events",
+						Definition: `SELECT id FROM "public"."base_tbl"`,
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotContains(t, unified, "skip_ext")
+
+	basePos := strings.Index(unified, "Table structure for `base_tbl`")
+	nextFnPos := strings.Index(unified, "Function structure for `next_code_fn`")
+	viewPos := strings.Index(unified, "View structure for `v_events`")
+	vFnPos := strings.Index(unified, "Function structure for `v_summary_fn`")
+
+	require.Greater(t, nextFnPos, basePos, "expected base_tbl before next_code_fn:\n%s", unified)
+	require.Greater(t, viewPos, basePos, "expected base_tbl before v_events:\n%s", unified)
+	require.Greater(t, vFnPos, viewPos, "expected v_events before v_summary_fn:\n%s", unified)
+
+	// Any table column DEFAULT referencing a UDF (even without a cycle) is rejected.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "pure_fn",
+						Definition: "CREATE FUNCTION public.pure_fn() RETURNS int IMMUTABLE AS $$ SELECT 42 $$ LANGUAGE SQL",
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "consumer_tbl",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "code", Type: "integer", Default: "public.pure_fn()"},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	// Obsolete Python UDFs (LANGUAGE plpythonu) are rejected explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "py_add",
+						Definition: "CREATE FUNCTION public.py_add(a int, b int) RETURNS int IMMUTABLE AS $$ return a + b $$ LANGUAGE plpythonu",
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "plpythonu")
+
+	// Non-skipped external table returns an explicit error because SchemaMetadata
+	// does not capture CREATE EXTERNAL SCHEMA configuration.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "spectrum",
+				ExternalTables: []*metadatapb.ExternalTableMetadata{
+					{
+						Name:    "ext_events",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					},
+				},
+			},
+		},
+	})
+	require.ErrorContains(t, err, "external schema")
+
+	// 4. Same-arity overload resolution via nested builtin / expression return type:
+	// fmt_val(int) -> caller_wrap(text) -> fmt_val(text), where caller_wrap calls fmt_val(length(x)).
+	sameArity, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "fmt_val",
+						Definition: "CREATE FUNCTION public.fmt_val(s text) RETURNS text IMMUTABLE AS $$ SELECT public.caller_wrap(s) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "caller_wrap",
+						Definition: "CREATE FUNCTION public.caller_wrap(s text) RETURNS text IMMUTABLE AS $$ SELECT public.fmt_val(length(s)) $$ LANGUAGE SQL",
+					},
+					{
+						Name:       "fmt_val",
+						Definition: "CREATE FUNCTION public.fmt_val(n int) RETURNS text IMMUTABLE AS $$ SELECT n::text $$ LANGUAGE SQL",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	intFnPos := strings.Index(sameArity, "CREATE FUNCTION public.fmt_val(n int)")
+	wrapFnPos := strings.Index(sameArity, "CREATE FUNCTION public.caller_wrap(s text)")
+	textFnPos := strings.Index(sameArity, "CREATE FUNCTION public.fmt_val(s text)")
+	require.Greater(t, wrapFnPos, intFnPos, "expected fmt_val(int) before caller_wrap(text):\n%s", sameArity)
+	require.Greater(t, textFnPos, wrapFnPos, "expected caller_wrap(text) before fmt_val(text):\n%s", sameArity)
+
+	// 5. Multiple unnamed foreign keys are both emitted.
+	unnamedFKs, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "order_items",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "order_id", Type: "integer"},
+			{Name: "product_id", Type: "integer"},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{
+				Name:              "",
+				Columns:           []string{"order_id"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "orders",
+				ReferencedColumns: []string{"id"},
+			},
+			{
+				Name:              "",
+				Columns:           []string{"product_id"},
+				ReferencedSchema:  "public",
+				ReferencedTable:   "products",
+				ReferencedColumns: []string{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, unnamedFKs, `FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id")`)
+	require.Contains(t, unnamedFKs, `FOREIGN KEY ("product_id") REFERENCES "public"."products"("id")`)
+
+	// 6. Primary/unique key constraints without columns fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "empty_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "empty_pk_pkey", Primary: true}},
+	})
+	require.Error(t, err)
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "empty_uk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "code", Type: "text"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "empty_uk_key", Unique: true}},
+	})
+	require.Error(t, err)
+
+	// 7. Table owner and key/FK constraint comments:
+	// - In GetTableDefinition: OWNER TO follows table, column, and constraint comments.
+	// - In DatabaseDefinition: schema/table OWNER TO statements run at the end after objects & comments.
+	ownedTbl, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "owned_tbl",
+		Owner:   "AppOwner",
+		Comment: "table comment",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "id comment"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "owned_tbl_pkey", Primary: true, Expressions: []string{"id"}, Comment: "pk comment"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+CREATE TABLE "public"."owned_tbl" (
+  "id" integer NOT NULL,
+  CONSTRAINT "owned_tbl_pkey" PRIMARY KEY (id)
+);
+COMMENT ON TABLE "public"."owned_tbl" IS 'table comment';
+COMMENT ON COLUMN "public"."owned_tbl"."id" IS 'id comment';
+COMMENT ON CONSTRAINT "owned_tbl_pkey" ON "public"."owned_tbl" IS 'pk comment';
+ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
+`, ownedTbl)
+
+	deferredOwnersAndComments, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:    "reporting",
+				Owner:   "reporting_owner",
+				Comment: "reporting schema",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "t_child",
+						Owner:   "table_owner",
+						Comment: "child table",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+						Indexes: []*metadatapb.IndexMetadata{{Name: "t_child_pkey", Primary: true, Expressions: []string{"id"}, Comment: "pk note"}},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+							Name:              "fk_self",
+							Columns:           []string{"id"},
+							ReferencedSchema:  "reporting",
+							ReferencedTable:   "t_child",
+							ReferencedColumns: []string{"id"},
+							Comment:           "self fk note",
+						}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v_line_comment",
+						Definition: "SELECT id FROM reporting.t_child -- end of view",
+					},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{
+						Name:       "mv_line_comment",
+						Definition: "SELECT id FROM reporting.t_child -- end of mv",
+					},
+				},
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f_line_comment",
+						Definition: "CREATE FUNCTION reporting.f_line_comment(a int) RETURNS int IMMUTABLE AS $$ SELECT a -- inside body\n$$ LANGUAGE SQL -- trailing comment",
+					},
+				},
+				Procedures: []*metadatapb.ProcedureMetadata{
+					{
+						Name:       "p_line_comment",
+						Definition: "CREATE PROCEDURE reporting.p_line_comment(x varchar(20)) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql -- trailing proc comment",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"t_child_pkey\" ON \"reporting\".\"t_child\" IS 'pk note';\n")
+	require.Contains(t, deferredOwnersAndComments, "COMMENT ON CONSTRAINT \"fk_self\" ON \"reporting\".\"t_child\" IS 'self fk note';\n")
+
+	publicOwned, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Owner: "PublicOwner",
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+ALTER SCHEMA "public" OWNER TO "PublicOwner";
+`, publicOwned)
+
+	// Cross-database view references (otherdb.s.b) must not match local views
+	// and introduce false dependency cycles.
+	crossDBViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "localdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "a", Definition: "SELECT x FROM otherdb.s.b WITH NO SCHEMA BINDING"},
+				{Name: "b", Definition: "SELECT x FROM s.a WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(crossDBViews, `CREATE OR REPLACE VIEW "s"."a"`), strings.Index(crossDBViews, `CREATE OR REPLACE VIEW "s"."b"`))
+
+	// Redshift numeric overload resolution respects implicit cast direction
+	// (int8 argument cannot implicitly coerce to int4 overload).
+	narrowCastFuncs, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "localdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f_num",
+					Definition: "CREATE FUNCTION s.f_num(x int4) RETURNS int4 IMMUTABLE AS $$ SELECT s.caller_big(CAST(1 AS int8)) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "caller_big",
+					Definition: "CREATE FUNCTION s.caller_big(v int8) RETURNS int8 IMMUTABLE AS $$ SELECT s.f_num(v) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "f_num",
+					Definition: "CREATE FUNCTION s.f_num(x int8) RETURNS int8 IMMUTABLE AS $$ SELECT x $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(narrowCastFuncs, "f_num(x int8)"), strings.Index(narrowCastFuncs, "caller_big("))
+	require.Less(t, strings.Index(narrowCastFuncs, "caller_big("), strings.Index(narrowCastFuncs, "f_num(x int4)"))
+
+	// Database-level Owner emits ALTER DATABASE ... OWNER TO ... (and enables
+	// case-sensitive identifiers when needed), or rejects an empty database name.
+	dbOwned, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:  "analytics",
+		Owner: "DbAdmin",
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+ALTER DATABASE "analytics" OWNER TO "DbAdmin";
+`, dbOwned)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Owner: "DbAdmin",
+	})
+	require.ErrorContains(t, err, "database name is empty")
+
+	// Late-binding views (WITH NO SCHEMA BINDING) must not add reverse relation
+	// dependencies onto views that later depend on them.
+	lbvOrder, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "regular_v", Definition: "SELECT x FROM s.late_v"},
+				{Name: "late_v", Definition: "CREATE VIEW s.late_v AS SELECT x FROM s.regular_v WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(lbvOrder, `CREATE VIEW s.late_v AS`), strings.Index(lbvOrder, `CREATE OR REPLACE VIEW "s"."regular_v"`))
+
+	// Unrepresented table/column options fail explicitly rather than dropping attributes.
+	_, err = GetTableDefinition("s", &metadatapb.TableMetadata{
+		Name:          "t",
+		CreateOptions: "DISTSTYLE EVEN",
+		Columns:       []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+	})
+	require.ErrorContains(t, err, "create options")
+
+	_, err = GetTableDefinition("s", &metadatapb.TableMetadata{
+		Name:    "t",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Options: []string{"encode=az64"}}},
+	})
+	require.ErrorContains(t, err, "options")
+
+	// Non-skipped PostgreSQL sequences fail explicitly; SkipDump sequences are ignored.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "public",
+			Sequences: []*metadatapb.SequenceMetadata{{Name: "ord_seq"}},
+		}},
+	})
+	require.ErrorContains(t, err, "sequence")
+
+	// Non-public schema UDFs set search_path so unqualified sibling calls resolve.
+	require.Contains(t, narrowCastFuncs, "SET search_path TO \"s\", public;\nCREATE FUNCTION s.caller_big")
+	require.Contains(t, narrowCastFuncs, "RESET search_path;\n")
+	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")
+	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE plpgsql -- trailing proc comment\n;\n")
+
+	createTablePos := strings.Index(deferredOwnersAndComments, `CREATE TABLE "reporting"."t_child"`)
+	createViewPos := strings.Index(deferredOwnersAndComments, `CREATE OR REPLACE VIEW "reporting"."v_line_comment"`)
+	createProcPos := strings.Index(deferredOwnersAndComments, `CREATE PROCEDURE reporting.p_line_comment(x varchar(20))`)
+	tblOwnerPos := strings.Index(deferredOwnersAndComments, `ALTER TABLE "reporting"."t_child" OWNER TO "table_owner";`)
+	schemaOwnerPos := strings.Index(deferredOwnersAndComments, `ALTER SCHEMA "reporting" OWNER TO "reporting_owner";`)
+	require.Greater(t, tblOwnerPos, createTablePos)
+	require.Greater(t, tblOwnerPos, createViewPos)
+	require.Greater(t, tblOwnerPos, createProcPos)
+	require.Greater(t, schemaOwnerPos, tblOwnerPos)
+
+	// 8. Unsupported Redshift metadata returns explicit errors instead of emitting
+	// invalid DDL, and apostrophes in SQL comments do not suppress quoted
+	// uppercase identifier detection.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:      "shared_db",
+		Datashare: true,
+	})
+	require.ErrorContains(t, err, "datashare")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_comment",
+				Definition: "CREATE FUNCTION public.f_comment() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON FUNCTION")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_comment",
+				Definition: "CREATE PROCEDURE public.p_comment() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON PROCEDURE")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_comment",
+				Definition: "SELECT 1",
+				Comment:    "unsupported",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "COMMENT ON MATERIALIZED VIEW")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:             "cyc_next",
+				Definition:       "CREATE FUNCTION public.cyc_next() RETURNS int AS $$ SELECT coalesce(max(id), 0) + 1 FROM public.cyc_tbl $$ LANGUAGE SQL",
+				DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "cyc_tbl"}},
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "cyc_tbl",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "public.cyc_next()"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	commentQuoteIdent, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_comment_quote",
+				Definition: "SELECT\n-- don't treat this comment apostrophe as a string\n1 AS \"MixedAlias\"",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, commentQuoteIdent, "SET enable_case_sensitive_identifier TO true;\n")
+
+	// 9. CASE expression result types resolve overloaded UDFs without false cycles.
+	caseOverload, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f_case",
+					Definition: "CREATE FUNCTION public.f_case(s text) RETURNS text IMMUTABLE AS $$ SELECT public.case_wrap(s) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "case_wrap",
+					Definition: "CREATE FUNCTION public.case_wrap(s text) RETURNS text IMMUTABLE AS $$ SELECT public.f_case(CASE WHEN s IS NOT NULL THEN length(s) ELSE 0 END) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "f_case",
+					Definition: "CREATE FUNCTION public.f_case(n int) RETURNS text IMMUTABLE AS $$ SELECT n::text $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	caseIntPos := strings.Index(caseOverload, "CREATE FUNCTION public.f_case(n int)")
+	caseWrapPos := strings.Index(caseOverload, "CREATE FUNCTION public.case_wrap(s text)")
+	caseTextPos := strings.Index(caseOverload, "CREATE FUNCTION public.f_case(s text)")
+	require.Greater(t, caseWrapPos, caseIntPos)
+	require.Greater(t, caseTextPos, caseWrapPos)
+
+	// 10. Unsupported FK actions (anything other than empty or NO ACTION) are rejected.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_cascade",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "parent_id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_parent",
+			Columns:           []string{"parent_id"},
+			ReferencedSchema:  "public",
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			OnDelete:          "CASCADE",
+		}},
+	})
+	require.ErrorContains(t, err, "ON DELETE")
+
+	noActionFK, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_no_action",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "parent_id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_parent",
+			Columns:           []string{"parent_id"},
+			ReferencedSchema:  "public",
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			OnDelete:          "NO ACTION",
+			OnUpdate:          "NO ACTION",
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, noActionFK, `CONSTRAINT "fk_parent" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
+
+	// 11. Check constraints and duplicate column names are rejected explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:             "chk_tbl",
+		Columns:          []*metadatapb.ColumnMetadata{{Name: "age", Type: "integer"}},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "chk_age", Expression: "age > 0"}},
+	})
+	require.ErrorContains(t, err, "CHECK")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "dup_tbl",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer"},
+			{Name: "id", Type: "bigint"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate column")
+
+	// 12. Colliding relation names across tables, views, and materialized views fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "events", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			Views:  []*metadatapb.ViewMetadata{{Name: "events", Definition: "SELECT 1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate relation")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:              "public",
+			Views:             []*metadatapb.ViewMetadata{{Name: "mv_dup", Definition: "SELECT 1"}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_dup", Definition: "SELECT 1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate relation")
+
+	// Case-distinct relation names ("t" and "T") are preserved when enable_case_sensitive_identifier is enabled.
+	caseDistinctRels, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			Views:  []*metadatapb.ViewMetadata{{Name: "T", Definition: "SELECT 1"}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, caseDistinctRels, `CREATE TABLE "public"."t"`)
+	require.Contains(t, caseDistinctRels, `CREATE OR REPLACE VIEW "public"."T"`)
+
+	// Duplicate schema names fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "app"},
+			{Name: "app"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate schema")
+
+	// Redshift function identity mismatch is rejected explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION s.g() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
+
+	// Single-candidate UDF with different arity than a built-in call (e.g. length(text) vs s.length(int, int))
+	// must not form a false dependency edge.
+	aritySingle, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "length",
+					Definition: "CREATE FUNCTION s.length(a int, b int) RETURNS int IMMUTABLE AS $$ SELECT s.txt_caller('hi') $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "txt_caller",
+					Definition: "CREATE FUNCTION s.txt_caller(v text) RETURNS int IMMUTABLE AS $$ SELECT length(v) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(aritySingle, "CREATE FUNCTION s.txt_caller"), strings.Index(aritySingle, "CREATE FUNCTION s.length"))
+
+	// Unqualified non-public procedures set and reset search_path around creation.
+	procOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "reporting",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_unqual",
+				Definition: "CREATE PROCEDURE p_unqual() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, procOut, "SET search_path TO \"reporting\", public;\nCREATE PROCEDURE p_unqual()")
+	require.Contains(t, procOut, "RESET search_path;\n")
+
+	// Procedure identity / kind / signature mismatches and complete view target mismatches fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Definition: "CREATE PROCEDURE s.q() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Definition: "CREATE FUNCTION s.p() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "CREATE PROCEDURE")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Signature:  "(int)",
+				Definition: "CREATE PROCEDURE s.p(v varchar(20)) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "signature")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v",
+				Definition: "CREATE VIEW s.w AS SELECT 1 WITH NO SCHEMA BINDING",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
+
+	// Unsupported secondary indexes (neither primary nor unique) fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_sec_idx",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "idx_t_id", Expressions: []string{"id"}}},
+	})
+	require.ErrorContains(t, err, "secondary index")
+
+	// pg_catalog precedes local UDFs for same-signature unqualified calls.
+	builtinPrec, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x int4) RETURNS int4 IMMUTABLE AS $$ SELECT s.builtin_caller(x) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "builtin_caller",
+					Definition: "CREATE FUNCTION s.builtin_caller(n int4) RETURNS int4 IMMUTABLE AS $$ SELECT abs(n) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(builtinPrec, "CREATE FUNCTION s.builtin_caller("), strings.Index(builtinPrec, "CREATE FUNCTION s.abs("))
+
+	// public schema functions and procedures set/reset search_path too.
+	require.Contains(t, builtinPrec, "SET search_path TO \"s\", public;\nCREATE FUNCTION s.builtin_caller")
+	pubProcOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_pub",
+				Definition: "CREATE PROCEDURE p_pub() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, pubProcOut, "SET search_path TO \"public\";\nCREATE PROCEDURE p_pub()")
+	require.Contains(t, pubProcOut, "RESET search_path;\n")
+
+	// CHAR (bpchar) stays distinct from VARCHAR so VARCHAR args do not match CHAR overloads.
+	charVsVarchar, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "str_fn",
+					Definition: "CREATE FUNCTION s.str_fn(c char(4)) RETURNS varchar IMMUTABLE AS $$ SELECT s.str_wrap('ok'::varchar) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "str_wrap",
+					Definition: "CREATE FUNCTION s.str_wrap(v varchar) RETURNS varchar IMMUTABLE AS $$ SELECT s.str_fn(v) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "str_fn",
+					Definition: "CREATE FUNCTION s.str_fn(v varchar) RETURNS varchar IMMUTABLE AS $$ SELECT v $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(v varchar)"), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("))
+	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(c char(4))"))
+
+	// Non-public views wrap creation in schema search_path so unqualified relations resolve.
+	require.Contains(t, deferredOwnersAndComments, "SET search_path TO \"reporting\", public;\nCREATE OR REPLACE VIEW \"reporting\".\"v_line_comment\"")
+
+	// Unrendered view triggers and rules fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_trig",
+				Definition: "SELECT 1",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", Body: "CREATE TRIGGER tr_v ..."}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "triggers")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_rule",
+				Definition: "SELECT 1",
+				Rules:      []*metadatapb.RuleMetadata{{Name: "rl_v"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "rules")
+
+	// Public views (including query-only and complete CREATE VIEW public.v) and public materialized views set search_path.
+	pubViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_qual", Definition: "CREATE VIEW public.v_qual AS SELECT id FROM t"},
+				{Name: "v_query", Definition: "SELECT id FROM t"},
+			},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+				{Name: "mv_pub", Definition: "SELECT id FROM t"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE VIEW public.v_qual AS SELECT id FROM t;\nRESET search_path;\n")
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE OR REPLACE VIEW \"public\".\"v_query\" AS SELECT id FROM t;\nRESET search_path;\n")
+	require.Contains(t, pubViews, "SET search_path TO \"public\";\nCREATE MATERIALIZED VIEW \"public\".\"mv_pub\" AS SELECT id FROM t;\nRESET search_path;\n")
+
+	// Unrendered extensions, late-binding view column comments, and FKs missing ReferencedTable fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:       "dev",
+		Extensions: []*metadatapb.ExtensionMetadata{{Name: "plpgsql"}},
+	})
+	require.ErrorContains(t, err, "unsupported")
+
+	// Multiword routine parameter types (timestamp with time zone) match Signature metadata.
+	multiwordSig, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "ts_fn",
+				Signature:  "(timestamp with time zone)",
+				Definition: "CREATE FUNCTION s.ts_fn(ts timestamptz) RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, multiwordSig, "CREATE FUNCTION s.ts_fn(ts timestamptz)")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "late_cmt",
+				Definition: `CREATE VIEW "public"."late_cmt" AS SELECT 1 AS id WITH NO SCHEMA BINDING`,
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Comment: "unsupported"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "late-binding")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "fk_missing_tbl",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_empty_ref",
+			Columns:           []string{"id"},
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "referenced table")
+
+	// Large integer literals classify as int8 (> int32 max) and unrendered column attrs & FK match modes fail.
+	bigIntOverloads, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "big_f",
+					Definition: "CREATE FUNCTION s.big_f(a int4) RETURNS int8 IMMUTABLE AS $$ SELECT s.big_caller() $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "big_caller",
+					Definition: "CREATE FUNCTION s.big_caller() RETURNS int8 IMMUTABLE AS $$ SELECT s.big_f(5000000000) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "big_f",
+					Definition: "CREATE FUNCTION s.big_f(a int8) RETURNS int8 IMMUTABLE AS $$ SELECT a $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_f(a int8)"), strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_caller("))
+	require.Less(t, strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_caller("), strings.Index(bigIntOverloads, "CREATE FUNCTION s.big_f(a int4)"))
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_bad_col",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:     "c",
+			Type:     "varchar(10)",
+			OnUpdate: "CURRENT_TIMESTAMP",
+		}},
+	})
+	require.ErrorContains(t, err, "attributes cannot be restored")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_fk_match",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_match",
+			Columns:           []string{"id"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+			MatchType:         "FULL",
+		}},
+	})
+	require.ErrorContains(t, err, "MATCH")
+
+	// OUT parameters are excluded from routine signature checks, and unsupported table attrs/collations fail.
+	outProc, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_out",
+				Signature:  "(integer)",
+				Definition: "CREATE PROCEDURE s.p_out(IN x integer, OUT y integer) AS $$ BEGIN y := x; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, outProc, "CREATE PROCEDURE s.p_out(IN x integer, OUT y integer)")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:      "t_bad_coll",
+		Collation: "en_US.utf8",
+		Columns:   []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+	})
+	require.ErrorContains(t, err, "collation")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_col_coll",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "c", Type: "varchar(10)", CollationSchema: "pg_catalog", Collation: "default"}},
+	})
+	require.ErrorContains(t, err, "collation")
+
+	// Built-in aggregates (sum) take precedence over local UDFs; empty column types,
+	// expression keys in PK/UNIQUE, default subqueries, and DB collation fail explicitly.
+	aggPrec, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "sum",
+					Definition: "CREATE FUNCTION s.sum(x int4) RETURNS int8 IMMUTABLE AS $$ SELECT s.agg_caller(x)::int8 $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "agg_caller",
+					Definition: "CREATE FUNCTION s.agg_caller(n int4) RETURNS int8 IMMUTABLE AS $$ SELECT sum(n) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(aggPrec, "CREATE FUNCTION s.agg_caller("), strings.Index(aggPrec, "CREATE FUNCTION s.sum("))
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:      "dev",
+		Collation: "case_insensitive",
+	})
+	require.ErrorContains(t, err, "collation")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_expr_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "email", Type: "varchar(100)"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_expr", Primary: true, Expressions: []string{"lower(email)"}}},
+	})
+	require.ErrorContains(t, err, "not a table column")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_subq_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:    "id",
+			Type:    "integer",
+			Default: "(SELECT 1)",
+		}},
+	})
+	require.ErrorContains(t, err, "subquery")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_empty_type",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id"}},
+	})
+	require.ErrorContains(t, err, "no data type")
+
+	// Nonexistent FK source columns and comments on unnamed PK/UNIQUE constraints fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_bad_fk_col",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "fk_bad",
+			Columns:           []string{"missing"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "not a table column")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_unnamed_pk_cmt",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{
+			Primary:     true,
+			Expressions: []string{"id"},
+			Comment:     "cannot comment unnamed constraint",
+		}},
+	})
+	require.ErrorContains(t, err, "unnamed")
+
+	// Cyclic UDF dependencies, nonexistent FK target columns, and non-function statements
+	// in FunctionMetadata fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "cyc_a",
+					Definition: "CREATE FUNCTION s.cyc_a(x int) RETURNS int IMMUTABLE AS $$ SELECT s.cyc_b(x) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "cyc_b",
+					Definition: "CREATE FUNCTION s.cyc_b(x int) RETURNS int IMMUTABLE AS $$ SELECT s.cyc_a(x) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:    "parent",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Indexes: []*metadatapb.IndexMetadata{{Name: "parent_pk", Primary: true, Expressions: []string{"id"}}},
+				},
+				{
+					Name:    "child",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "p_id", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "child_fk",
+						Columns:           []string{"p_id"},
+						ReferencedSchema:  "s",
+						ReferencedTable:   "parent",
+						ReferencedColumns: []string{"no_such_col"},
+					}},
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "nonexistent column")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "not_a_fn",
+				Definition: "CREATE TABLE s.not_a_fn(id int)",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "CREATE FUNCTION")
+
+	// Multiple primary keys and IDENTITY on non-integer types fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_two_pks",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "a", Type: "integer"},
+			{Name: "b", Type: "integer"},
+		},
+		Indexes: []*metadatapb.IndexMetadata{
+			{Name: "pk1", Primary: true, Expressions: []string{"a"}},
+			{Name: "pk2", Primary: true, Expressions: []string{"b"}},
+		},
+	})
+	require.ErrorContains(t, err, "multiple primary keys")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_bad_ident_type",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:       "id",
+			Type:       "varchar(20)",
+			IsIdentity: true,
+		}},
+	})
+	require.ErrorContains(t, err, "non-integer")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_keylen",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "code", Type: "varchar(20)"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_code", Unique: true, Expressions: []string{"code"}, KeyLength: []int64{10}}},
+	})
+	require.ErrorContains(t, err, "key lengths")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_desc",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_id", Unique: true, Expressions: []string{"id"}, Descending: []bool{true}}},
+	})
+	require.ErrorContains(t, err, "descending")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_type",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_id", Unique: true, Expressions: []string{"id"}, Type: "hash"}},
+	})
+	require.ErrorContains(t, err, "unsupported type")
+
+	// When case-sensitive identifiers are active, constraint column validation
+	// must not accept a case-only mismatch like "foo" for "Foo".
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_case_col",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "Foo", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_foo", Primary: true, Expressions: []string{"foo"}}},
+	})
+	require.ErrorContains(t, err, "not a table column")
+
+	// KeyLength -1 sentinel is accepted, while positive key lengths are rejected.
+	sentinelDDL, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_sentinel",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_id", Primary: true, Expressions: []string{"id"}, KeyLength: []int64{-1}}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, sentinelDDL, `CONSTRAINT "pk_id" PRIMARY KEY (id)`)
+
+	// Self-recursive UDFs, duplicate function signatures, cyclic standard views, and
+	// FKs pointing to non-unique target columns fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "rec_fn",
+				Definition: "CREATE FUNCTION s.rec_fn(x int) RETURNS int STABLE AS $$ SELECT CASE WHEN $1 <= 0 THEN 0 ELSE s.rec_fn($1 - 1) END $$ LANGUAGE sql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "self-recursive")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "dup_fn", Definition: "CREATE FUNCTION s.dup_fn(x int) RETURNS int IMMUTABLE AS $$ SELECT $1 $$ LANGUAGE sql"},
+				{Name: "dup_fn", Definition: "CREATE FUNCTION s.dup_fn(y int4) RETURNS int IMMUTABLE AS $$ SELECT $1 + 1 $$ LANGUAGE sql"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate function")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_a", Definition: "SELECT 1 FROM s.v_b"},
+				{Name: "v_b", Definition: "SELECT 1 FROM s.v_a"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "parent", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				{
+					Name:    "child",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "p_id", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "child_fk",
+						Columns:           []string{"p_id"},
+						ReferencedSchema:  "s",
+						ReferencedTable:   "parent",
+						ReferencedColumns: []string{"id"},
+					}},
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "primary key or unique")
+
+	// Variadic built-ins (such as concat with 2+ args) take precedence over
+	// schema UDFs of the same name so they are not treated as self-recursive,
+	// and unparsed DDL fallback skips the CREATE FUNCTION declaration header.
+	varAndFallback, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "concat",
+					Definition: "CREATE FUNCTION s.concat(a text, b text) RETURNS text IMMUTABLE AS $$ SELECT concat($1, $2) $$ LANGUAGE sql",
+				},
+				{
+					Name:       "unparsed_fn",
+					Definition: "CREATE FUNCTION s.unparsed_fn(a text) RETURNS text SET search_path FROM CURRENT IMMUTABLE AS $$ SELECT concat($1, 'x') $$ LANGUAGE sql",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, varAndFallback, "CREATE FUNCTION s.unparsed_fn(a text)")
+
+	// Duplicate constraint names across indexes and foreign keys fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_dup_con",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer"},
+			{Name: "p_id", Type: "integer"},
+		},
+		Indexes: []*metadatapb.IndexMetadata{{
+			Name:        "shared_name",
+			Primary:     true,
+			Expressions: []string{"id"},
+		}},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+			Name:              "shared_name",
+			Columns:           []string{"p_id"},
+			ReferencedTable:   "parent",
+			ReferencedColumns: []string{"id"},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate constraint name")
+
+	// Duplicate procedure signatures, identity+default conflicts, and duplicate
+	// view columns fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{
+				{Name: "p_dup", Definition: "CREATE PROCEDURE s.p_dup(x int) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql"},
+				{Name: "p_dup", Definition: "CREATE PROCEDURE s.p_dup(y int4) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate procedure")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_ident_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:       "id",
+			Type:       "integer",
+			IsIdentity: true,
+			Default:    "1",
+		}},
+	})
+	require.ErrorContains(t, err, "default value")
+
+	_, err = GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v_dup_col",
+		Definition: "SELECT 1 AS a, 2 AS b",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "c", Type: "integer", Comment: "first"},
+			{Name: "c", Type: "integer", Comment: "second"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate column")
+
+	// Nullable primary-key columns fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_nullable_pk",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_id", Primary: true, Expressions: []string{"id"}}},
+	})
+	require.ErrorContains(t, err, "cannot be nullable")
+
+	// Unqualified view and MV references qualify from recorded DependencyColumns
+	// when the target belongs to another schema (such as "shared").
+	crossDepViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "shared",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			},
+			{
+				Name: "app",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v",
+					Definition:        "SELECT id FROM t",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "t"}},
+				}},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:              "mv",
+					Definition:        "SELECT id FROM t",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "t"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossDepViews, `CREATE OR REPLACE VIEW "app"."v" AS SELECT id FROM "shared".t;`)
+	require.Contains(t, crossDepViews, `CREATE MATERIALIZED VIEW "app"."mv" AS SELECT id FROM "shared".t;`)
+
+	// Skipped unsupported schema objects are omitted cleanly, while unrendered
+	// non-UNICODE CharacterSet or database-level attributes fail explicitly.
+	skippedTypesOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:         "dev",
+		CharacterSet: "UNICODE",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:           "s",
+			EnumTypes:      []*metadatapb.EnumTypeMetadata{{Name: "e", Values: []string{"a"}, SkipDump: true}},
+			CompositeTypes: []*metadatapb.CompositeTypeMetadata{{Name: "c", SkipDump: true}},
+			Collations:     []*metadatapb.CollationMetadata{{Name: "col", SkipDump: true}},
+			RangeTypes:     []*metadatapb.RangeTypeMetadata{{Name: "r", SkipDump: true}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, skippedTypesOut, `CREATE SCHEMA IF NOT EXISTS "s";`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", CharacterSet: "LATIN1"})
+	require.ErrorContains(t, err, "character set")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", SearchPath: "app"})
+	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", DefaultSchema: "app"})
+	require.ErrorContains(t, err, "unsupported")
+
+	// Standalone GetViewDefinition activates enable_case_sensitive_identifier
+	// when DependencyColumns resolves to a mixed-case target schema or table.
+	mixedDepView, err := GetViewDefinition("app", &metadatapb.ViewMetadata{
+		Name:              "v_mixed_dep",
+		Definition:        `SELECT id FROM "T"`,
+		DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "Shared", Table: "T"}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, mixedDepView, "SET enable_case_sensitive_identifier TO true;")
+	require.Contains(t, mixedDepView, `CREATE OR REPLACE VIEW "app"."v_mixed_dep" AS SELECT id FROM "Shared"."T";`)
+
+	// Self-referential views, orphaned identity attributes, and cross-schema SQL
+	// function DependencyTables are handled explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "s",
+			Views: []*metadatapb.ViewMetadata{{Name: "self_v", Definition: "SELECT * FROM s.self_v"}},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_orphan_ident",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:               "id",
+			Type:               "integer",
+			IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT,
+		}},
+	})
+	require.ErrorContains(t, err, "IsIdentity")
+
+	crossFnOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "skip_evt", SkipDump: true}},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:   "shared",
+				Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			},
+			{
+				Name: "app",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:             "fn_cross",
+					Definition:       "CREATE FUNCTION app.fn_cross() RETURNS integer IMMUTABLE AS $$ SELECT id FROM t $$ LANGUAGE sql",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "shared", Table: "t"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossFnOut, `CREATE FUNCTION app.fn_cross() RETURNS integer IMMUTABLE AS $$ SELECT id FROM "shared".t $$ LANGUAGE sql;`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		EventTriggers: []*metadatapb.EventTriggerMetadata{{Name: "evt"}},
+	})
+	require.ErrorContains(t, err, "unsupported")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "ext_fn",
+				Definition: "CREATE FUNCTION app.ext_fn() RETURNS integer IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE sql",
+				SkipDump:   true,
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_skip_fn_def",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:    "v",
+					Type:    "integer",
+					Default: "ext_fn()",
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	// Standalone GetTableDefinition rejects schema-qualified UDF defaults,
+	// cross-kind function/procedure signature collisions fail explicitly, and
+	// unknown-typed derived arguments conservatively keep UDF dependencies.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_standalone_udf_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:    "v",
+			Type:    "integer",
+			Default: "ext.next_id()",
+		}},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "do_work",
+				Signature:  "(integer)",
+				Definition: "CREATE FUNCTION app.do_work(a integer) RETURNS integer IMMUTABLE AS $$ SELECT a $$ LANGUAGE sql",
+			}},
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "do_work",
+				Signature:  "(integer)",
+				Definition: "CREATE PROCEDURE app.do_work(a integer) AS $$ BEGIN END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate")
+
+	derivedDepOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "caller",
+					Definition: "CREATE FUNCTION app.caller() RETURNS integer IMMUTABLE AS $$ SELECT abs(n) FROM (SELECT 'x'::varchar AS n) q $$ LANGUAGE sql",
+				},
+				{
+					Name:       "abs",
+					Signature:  "(character varying)",
+					Definition: "CREATE FUNCTION app.abs(s varchar) RETURNS integer IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE sql",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	idxAbs := strings.Index(derivedDepOut, "CREATE FUNCTION app.abs")
+	idxCaller := strings.Index(derivedDepOut, "CREATE FUNCTION app.caller")
+	require.Greater(t, idxAbs, -1)
+	require.Greater(t, idxCaller, idxAbs)
+
+	seedOnlyOut, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_seed_only",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:         "id",
+			Type:         "integer",
+			IsIdentity:   true,
+			IdentitySeed: 10,
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, seedOnlyOut, "IDENTITY(10, 1)")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "",
+			Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
+
+	skipTrigOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:     "t_skip_trig",
+				Columns:  []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Triggers: []*metadatapb.TriggerMetadata{{Name: "tr_t", SkipDump: true}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_skip_trig",
+				Definition: "SELECT id FROM t_skip_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", SkipDump: true}},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_skip_trig",
+				Definition: "SELECT id FROM t_skip_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_mv", SkipDump: true}},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, skipTrigOut, `CREATE TABLE "public"."t_skip_trig"`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:              "public",
+			Views:             []*metadatapb.ViewMetadata{{Name: "v_src", Definition: "SELECT 1 AS id"}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_bad", Definition: "SELECT id FROM v_src"}},
+		}},
+	})
+	require.ErrorContains(t, err, "standard view")
+
+	extFnOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_distance",
+				Signature:  "(double precision, double precision, double precision, double precision)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, extFnOut, "CREATE EXTERNAL FUNCTION public.f_distance")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "wrong_name",
+				Signature:  "(double precision, double precision, double precision, double precision)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "does not match metadata identity")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_distance",
+				Signature:  "(integer)",
+				Definition: "CREATE EXTERNAL FUNCTION public.f_distance(float, float, float, float) RETURNS float STABLE LAMBDA 'lambda_distance' IAM_ROLE 'arn:aws:iam::123456789012:role/RedshiftLambdaRole'",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "parameter count")
+
+	// Non-public routine calling overload whose matching signature lives in public
+	// still orders public overload before the caller even when s defines another overload.
+	searchPathOverloadOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "s",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "f",
+						Signature:  "(character varying)",
+						Definition: "CREATE FUNCTION s.f(x varchar) RETURNS integer IMMUTABLE AS $$ SELECT 0 $$ LANGUAGE sql",
+					},
+					{
+						Name:       "g",
+						Signature:  "()",
+						Definition: "CREATE FUNCTION s.g() RETURNS integer IMMUTABLE AS $$ SELECT f(1) $$ LANGUAGE sql",
+					},
+				},
+			},
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "f",
+					Signature:  "(integer)",
+					Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer IMMUTABLE AS $$ SELECT x $$ LANGUAGE sql",
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	idxPubF := strings.Index(searchPathOverloadOut, "CREATE FUNCTION public.f")
+	idxSG := strings.Index(searchPathOverloadOut, "CREATE FUNCTION s.g")
+	require.Greater(t, idxPubF, -1)
+	require.Greater(t, idxSG, idxPubF)
+
+	// Empty relation names fail explicitly; FKs targeting views/MVs fail; and
+	// query-body WITH NO SCHEMA BINDING views break cyclic dependencies.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
+
+	for _, tc := range []struct {
+		name string
+		meta *metadatapb.SchemaMetadata
+	}{
+		{
+			name: "fk_view",
+			meta: &metadatapb.SchemaMetadata{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:       "v_target",
+					Definition: "SELECT 1 AS id",
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t_fk_view",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "vid", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "fk_v",
+						Columns:           []string{"vid"},
+						ReferencedSchema:  "public",
+						ReferencedTable:   "v_target",
+						ReferencedColumns: []string{"id"},
+					}},
+				}},
+			},
+		},
+		{
+			name: "fk_mv",
+			meta: &metadatapb.SchemaMetadata{
+				Name: "public",
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:       "mv_target",
+					Definition: "SELECT 1 AS id",
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t_fk_mv",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "vid", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "fk_mv",
+						Columns:           []string{"vid"},
+						ReferencedSchema:  "public",
+						ReferencedTable:   "mv_target",
+						ReferencedColumns: []string{"id"},
+					}},
+				}},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+				Name:    "dev",
+				Schemas: []*metadatapb.SchemaMetadata{tc.meta},
+			})
+			require.ErrorContains(t, err, "non-table")
+		})
+	}
+
+	lateQueryCycle, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "reg_v", Definition: "SELECT id FROM late_v"},
+				{Name: "late_v", Definition: "SELECT id FROM reg_v WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	idxLateV := strings.Index(lateQueryCycle, `CREATE OR REPLACE VIEW "public"."late_v"`)
+	idxRegV := strings.Index(lateQueryCycle, `CREATE OR REPLACE VIEW "public"."reg_v"`)
+	require.Greater(t, idxLateV, -1)
+	require.Greater(t, idxRegV, idxLateV)
+
+	// Empty column names fail on both table entry points and on views.
+	emptyCol := &metadatapb.TableMetadata{Name: "t_empty_col", Columns: []*metadatapb.ColumnMetadata{{Name: "", Type: "integer"}}}
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:    "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public", Tables: []*metadatapb.TableMetadata{emptyCol}}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+	_, err = GetTableDefinition("public", emptyCol)
+	require.ErrorContains(t, err, "column with empty name")
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Views: []*metadatapb.ViewMetadata{{Name: "v_empty_col", Definition: "SELECT 1 AS x", Columns: []*metadatapb.ColumnMetadata{{Name: "", Comment: "c"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+
+	// The terminator follows a trailing line comment even after an E'...'
+	// string with an escaped quote.
+	escaped, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Views: []*metadatapb.ViewMetadata{{Name: "v_escaped", Definition: `SELECT E'it\'s' AS txt -- note`}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, escaped, "SELECT E'it\\'s' AS txt -- note\n;")
+
+	// An unqualified reference resolved to another schema by DependencyColumns
+	// orders against that schema, not as a self-reference.
+	crossDep, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "shared", Tables: []*metadatapb.TableMetadata{{Name: "v", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}}},
+			{Name: "app", Views: []*metadatapb.ViewMetadata{{
+				Name:              "v",
+				Definition:        "SELECT id FROM v",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "v"}},
+			}}},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossDep, `FROM "shared".v`)
+
+	// A default ending in a line comment is closed before the next column.
+	commentedDefault, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_commented_default",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "a", Type: "integer", Nullable: true, Default: "1 -- default"},
+					{Name: "b", Type: "integer", Nullable: true},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, commentedDefault, "DEFAULT 1 -- default\n,")
+}
+
+// TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
+// recorded Redshift 1.0.539507 cluster sync snapshot (../driver/testdata/sync/dev.json),
+// parsing every statement and executing it against the Redshift catalog simulator.
+func TestDatabaseDefinitionDevSnapshotReplay(t *testing.T) {
+	body, err := os.ReadFile("../driver/testdata/sync/dev.json")
+	require.NoError(t, err)
+	db := &metadatapb.DatabaseSchemaMetadata{}
+	require.NoError(t, protojson.Unmarshal(body, db))
+
+	ddl, err := DatabaseDefinition(db)
+	require.NoError(t, err)
+	require.NotEmpty(t, ddl)
+
+	lookupPos := strings.Index(ddl, `CREATE TABLE "public"."lookup"`)
+	factsPos := strings.Index(ddl, `CREATE TABLE "app"."facts"`)
+	require.Greater(t, lookupPos, -1)
+	require.Greater(t, factsPos, lookupPos)
+
+	_, err = pgparser.Parse(ddl)
+	require.NoError(t, err)
+
+	results, err := New().Exec(ddl, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error)
+	}
+}
