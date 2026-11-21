@@ -2594,7 +2594,7 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 		state.unsupportedReason = "sharding info cannot be restored by Redshift DDL renderer"
 	case len(table.Partitions) > 0:
 		state.unsupportedReason = "partitions cannot be restored because Redshift does not support declarative partitions"
-	case len(table.Triggers) > 0:
+	case hasActiveTriggers(table.Triggers):
 		state.unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
 	case len(table.Rules) > 0:
 		state.unsupportedReason = "rules cannot be restored because Redshift does not support rules"
@@ -3240,10 +3240,16 @@ func isSupportedRedshiftIdentityType(tp string) bool {
 	}
 }
 
+func hasActiveTriggers(triggers []*metadatapb.TriggerMetadata) bool {
+	return slices.ContainsFunc(triggers, func(tr *metadatapb.TriggerMetadata) bool {
+		return tr != nil && !tr.SkipDump
+	})
+}
+
 func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata, caseSensitive bool) *viewState {
 	var unsupportedReason string
 	switch {
-	case len(view.Triggers) > 0:
+	case hasActiveTriggers(view.Triggers):
 		unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
 	case len(view.Rules) > 0:
 		unsupportedReason = "rules cannot be restored because Redshift does not support rules"
@@ -3284,7 +3290,7 @@ func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.Ma
 	switch {
 	case len(mv.Indexes) > 0:
 		unsupportedReason = "indexes cannot be restored by Redshift DDL renderer"
-	case len(mv.Triggers) > 0:
+	case hasActiveTriggers(mv.Triggers):
 		unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
 	}
 	return &viewState{

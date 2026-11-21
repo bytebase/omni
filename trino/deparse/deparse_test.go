@@ -1953,4 +1953,43 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, nestedAndAlias, `SELECT sqrt(abs(1)), abs(x) FROM "cat"."s".t AS q(k, x);`)
 	assert.Contains(t, nestedAndAlias, `SELECT abs(j.n), abs(j.m) FROM ("cat"."s".t JOIN "cat"."s".u ON t.id = u.id) j;`)
+
+	// SkipDump triggers on tables, views, and materialized views are ignored,
+	// and direct-model materialized view column comments fail explicitly.
+	skipTrigs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:     "t_trig",
+				Columns:  []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+				Triggers: []*metadatapb.TriggerMetadata{{Name: "tr_t", SkipDump: true}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_trig",
+				Definition: "SELECT id FROM t_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", SkipDump: true}},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_trig",
+				Definition: "SELECT id FROM t_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_mv", SkipDump: true}},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, skipTrigs, `CREATE TABLE IF NOT EXISTS "s"."t_trig"`)
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			MaterializedViews: []*ViewMetadata{{
+				Name:       "mv_col_cmt",
+				Definition: "SELECT 1 AS id",
+				Columns:    []*ColumnMetadata{{Name: "id", Comment: "unsupported"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "comment cannot be restored")
 }

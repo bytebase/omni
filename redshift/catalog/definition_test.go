@@ -2233,6 +2233,30 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "empty name")
+
+	skipTrigOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:     "t_skip_trig",
+				Columns:  []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Triggers: []*metadatapb.TriggerMetadata{{Name: "tr_t", SkipDump: true}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_skip_trig",
+				Definition: "SELECT id FROM t_skip_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_v", SkipDump: true}},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_skip_trig",
+				Definition: "SELECT id FROM t_skip_trig",
+				Triggers:   []*metadatapb.TriggerMetadata{{Name: "tr_mv", SkipDump: true}},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, skipTrigOut, `CREATE TABLE "public"."t_skip_trig"`)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
