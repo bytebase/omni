@@ -491,7 +491,7 @@ func validateDroppedOrRenamedDefaultExprDeps(tbl *Table, origTableName string, d
 			if col == nil || !col.DefaultIsExpr || col.DefaultExprNode == nil || !preExprs[col.DefaultExprNode] {
 				continue
 			}
-			if exprReferencesColumn(col.DefaultExprNode, tbl.Name, target) {
+			if exprReferencesColumn(col.DefaultExprNode, target) {
 				return errDependentByDefaultValExpr(target, origTableName)
 			}
 		}
@@ -499,14 +499,18 @@ func validateDroppedOrRenamedDefaultExprDeps(tbl *Table, origTableName string, d
 	return nil
 }
 
-func exprReferencesColumn(expr nodes.ExprNode, tableName, colName string) bool {
+// exprReferencesColumn reports whether a stored DEFAULT expression names the
+// column. Every reference in it is the table's own: mysql:8.0.46 takes
+// `DEFAULT (db.t.a + 1)`, `(other.t.a + 1)` and `(y.a + 1)` alike, stores `a`,
+// and refuses dropping or renaming `a` with 3766 for each.
+func exprReferencesColumn(expr nodes.ExprNode, colName string) bool {
 	found := false
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		if found {
 			return false
 		}
 		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
-			if cr.Schema == "" && (cr.Table == "" || strings.EqualFold(cr.Table, tableName)) && strings.EqualFold(cr.Column, colName) {
+			if strings.EqualFold(cr.Column, colName) {
 				found = true
 				return false
 			}

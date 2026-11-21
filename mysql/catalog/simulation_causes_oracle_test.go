@@ -5218,6 +5218,48 @@ func TestSimulationCausesOracle(t *testing.T) {
 			cleanup:  []string{"SET SESSION default_tmp_storage_engine = DEFAULT", "DROP TEMPORARY TABLE IF EXISTS a"},
 		},
 		{name: "SET default_storage_engine to an unknown engine", stmt: "SET default_storage_engine = nosuch", code: 1286},
+		// Without NO_ENGINE_SUBSTITUTION an unknown engine is the session's default
+		// on CREATE TABLE and the table's own on ALTER TABLE.
+		{
+			name:     "CREATE TABLE substitutes the session's default engine",
+			session:  []string{"SET SESSION sql_mode = ''", "SET SESSION default_storage_engine = MyISAM"},
+			stmt:     "CREATE TABLE a (id INT) ENGINE=nosuch",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT", "SET SESSION default_storage_engine = DEFAULT"},
+		},
+		{
+			name:     "CREATE TABLE substitutes MyISAM before the InnoDB-only checks",
+			session:  []string{"SET SESSION sql_mode = ''", "SET SESSION default_storage_engine = MyISAM"},
+			stmt:     "CREATE TABLE a (id INT) ENGINE=nosuch TABLESPACE innodb_system ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=3",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT", "SET SESSION default_storage_engine = DEFAULT"},
+		},
+		{
+			name:     "CREATE TEMPORARY TABLE substitutes default_tmp_storage_engine",
+			session:  []string{"SET SESSION sql_mode = ''", "SET SESSION default_tmp_storage_engine = MEMORY"},
+			stmt:     "CREATE TEMPORARY TABLE a (id INT) ENGINE=nosuch",
+			code:     0,
+			contains: []string{"ENGINE=MEMORY"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT", "SET SESSION default_tmp_storage_engine = DEFAULT", "DROP TEMPORARY TABLE IF EXISTS a"},
+		},
+		{
+			name:     "ALTER TABLE keeps the table's engine for an unknown one",
+			setup:    []string{"CREATE TABLE a (id INT) ENGINE=MEMORY"},
+			session:  []string{"SET SESSION sql_mode = ''", "SET SESSION default_storage_engine = MyISAM"},
+			stmt:     "ALTER TABLE a ENGINE=nosuch, ADD COLUMN b INT",
+			code:     0,
+			contains: []string{"ENGINE=MEMORY", "`b` int"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT", "SET SESSION default_storage_engine = DEFAULT"},
+		},
+		{
+			name:    "a partition naming an unknown engine takes the table's",
+			session: []string{"SET SESSION sql_mode = ''", "SET SESSION default_storage_engine = MyISAM"},
+			stmt:    "CREATE TABLE a (id INT) ENGINE=InnoDB PARTITION BY HASH(id) (PARTITION p0 ENGINE=nosuch TABLESPACE innodb_system)",
+			code:    1478,
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT", "SET SESSION default_storage_engine = DEFAULT"},
+		},
 		{name: "SET EXP overflow", stmt: "SET @x = EXP(1000)", code: 1690},
 		// An unsigned DECIMAL counts its sign slot too in a binary CONCAT.
 		{name: "functional binary CONCAT with a DECIMAL(10,0) UNSIGNED column at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(501), d DECIMAL(10,0) UNSIGNED, KEY ((CONCAT(b, d))))", code: 0},
@@ -5268,6 +5310,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "AUTOEXTEND_SIZE in a general tablespace INNODB_SYSTEM", setup: []string{"CREATE TABLESPACE INNODB_SYSTEM ADD DATAFILE 'innodb_sys_a.ibd'"}, stmt: "CREATE TABLE z (id INT) TABLESPACE INNODB_SYSTEM AUTOEXTEND_SIZE=4M", code: 4024, cleanup: []string{"DROP TABLESPACE INNODB_SYSTEM"}},
 		{name: "AUTOEXTEND_SIZE in innodb_file_per_table", stmt: "CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table AUTOEXTEND_SIZE=4M", code: 0},
 		{name: "AUTOEXTEND_SIZE in innodb_system", stmt: "CREATE TABLE z (id INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=4M", code: 1478},
+		{name: "DISCARD TABLESPACE in a general tablespace INNODB_FILE_PER_TABLE", setup: []string{"CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_d.ibd'", "CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE"}, stmt: "ALTER TABLE z DISCARD TABLESPACE", code: 1148, cleanup: []string{"DROP TABLE IF EXISTS z", "DROP TABLESPACE INNODB_FILE_PER_TABLE"}},
+		{name: "IMPORT TABLESPACE in a general tablespace INNODB_FILE_PER_TABLE", setup: []string{"CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_i.ibd'", "CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE"}, stmt: "ALTER TABLE z IMPORT TABLESPACE", code: 1148, cleanup: []string{"DROP TABLE IF EXISTS z", "DROP TABLESPACE INNODB_FILE_PER_TABLE"}},
+		{name: "DISCARD TABLESPACE in innodb_file_per_table", setup: []string{"CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table"}, stmt: "ALTER TABLE z DISCARD TABLESPACE", code: 0},
 		{name: "SET GREATEST with one argument", stmt: "SET @x = GREATEST(1)", code: 1582},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
@@ -6172,6 +6217,32 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	qualCat := New()
 	execAlterClauses(t, qualCat, "CREATE DATABASE d_qual_own; USE d_qual_own; CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)));")
+	// The qualified references are the table's own columns: dropping or renaming
+	// one is 3766 for the DEFAULT, and 3837 for the functional index alone.
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE q_fn (a INT, KEY ((d_qual_own.q_fn.a + 1)))"); err != nil {
+		t.Fatalf("mysql schema+table qualified functional index: %v", err)
+	}
+	execAlterClauses(t, qualCat, "CREATE TABLE q_fn (a INT, KEY ((d_qual_own.q_fn.a + 1)));")
+	for _, tc := range []struct {
+		stmt string
+		code int
+	}{
+		{"ALTER TABLE q_own DROP COLUMN a", 3766},
+		{"ALTER TABLE q_own RENAME COLUMN a TO c", 3766},
+		{"ALTER TABLE q_fn DROP COLUMN a", 3837},
+		{"ALTER TABLE q_fn RENAME COLUMN a TO c", 3837},
+	} {
+		_, err := conn.ExecContext(ctx, tc.stmt)
+		if err == nil {
+			t.Fatalf("mysql %s succeeded, want %d", tc.stmt, tc.code)
+		}
+		if code, _ := simulationEngineRefusal(t, tc.stmt, err); code != tc.code {
+			t.Fatalf("mysql %s got %d, want %d", tc.stmt, code, tc.code)
+		}
+		if got, _ := simulationCatalogRefusal(t, qualCat, tc.stmt); got != tc.code {
+			t.Fatalf("catalog %s got %d, want %d", tc.stmt, got, tc.code)
+		}
+	}
 
 	// Live MySQL 8.0.46 oracle checks for skipped-branch sysvar validation and scientific notation SET coercion.
 	reset()

@@ -436,10 +436,33 @@ var canonicalEngineNames = map[string]string{
 	"merge": "MRG_MyISAM",
 }
 
+// engineSubstituted reports whether MySQL substitutes another engine for an
+// ENGINE option's name: one the pinned server does not ship, which a sql_mode
+// without NO_ENGINE_SUBSTITUTION lets through with a warning. CREATE TABLE then
+// takes the session's default engine, default_tmp_storage_engine for a
+// TEMPORARY table, and ALTER TABLE keeps the table's own: under
+// default_storage_engine = MyISAM, `ENGINE = nosuch` creates a MyISAM table and
+// leaves a MEMORY one MEMORY (mysql:8.0.46).
+func engineSubstituted(name string) bool {
+	key := strings.ToLower(strings.TrimSpace(name))
+	return !storageEngines[key] && key != performanceSchemaEngine
+}
+
+// sessionDefaultEngine is the engine CREATE TABLE gives a table that names
+// none, or names one MySQL substitutes.
+func (c *Catalog) sessionDefaultEngine(temporary bool) string {
+	if temporary {
+		return c.session.DefaultTmpStorageEngine
+	}
+	return c.session.DefaultStorageEngine
+}
+
 // storedEngineName is the engine a table or partition keeps for an ENGINE
 // option: a name it may keep, with an alias written as MySQL stores it, and the
-// catalog's empty default — InnoDB — for `DEFAULT` and for a name MySQL
-// substitutes.
+// catalog's empty default — InnoDB — for `DEFAULT` (which names InnoDB on
+// mysql:8.0.46 whatever the session's default engine) and for a name MySQL
+// substitutes. A table-level caller handles a substituted name first, through
+// engineSubstituted.
 func storedEngineName(name string) string {
 	key := strings.ToLower(strings.TrimSpace(name))
 	if !storageEngines[key] || key == "default" {

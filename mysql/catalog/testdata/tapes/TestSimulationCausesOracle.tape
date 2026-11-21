@@ -44561,6 +44561,332 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MyISAM
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) ENGINE=nosuch
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MyISAM
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) ENGINE=nosuch TABLESPACE innodb_system ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=3
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=3
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION default_tmp_storage_engine = MEMORY
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (id INT) ENGINE=nosuch
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| SET SESSION default_tmp_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) ENGINE=MEMORY
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MyISAM
+< ok 0 0
+> exec
+| ALTER TABLE a ENGINE=nosuch, ADD COLUMN b INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MyISAM
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) ENGINE=InnoDB PARTITION BY HASH(id) (PARTITION p0 ENGINE=nosuch TABLESPACE innodb_system)
+< error
+| 1478 HY000 InnoDB : A partitioned table is not allowed in a shared tablespace.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET @x = EXP(1000)
 < error
 | 1690 22003 DOUBLE value is out of range in 'exp(1000)'
@@ -45761,6 +46087,161 @@
 | CREATE TABLE z (id INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=4M
 < error
 | 1478 HY000 InnoDB : AUTOEXTEND_SIZE is not accepted for system tablespace.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_d.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE
+< ok 0 0
+> exec
+| ALTER TABLE z DISCARD TABLESPACE
+< error
+| 1148 42000 InnoDB: Cannot discard table `test/z` because it is in a general tablespace. It must be file-per-table.
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_FILE_PER_TABLE
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_i.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE
+< ok 0 0
+> exec
+| ALTER TABLE z IMPORT TABLESPACE
+< error
+| 1148 42000 InnoDB: Cannot import table `test/z` because it is in a general tablespace. It must be file-per-table.
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_FILE_PER_TABLE
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table
+< ok 0 0
+> exec
+| ALTER TABLE z DISCARD TABLESPACE
+< ok 0 0
 > exec
 | SET NAMES utf8mb4
 < ok 0 0
@@ -50282,6 +50763,25 @@
 > exec
 | CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)))
 < ok 0 0
+> exec
+| CREATE TABLE q_fn (a INT, KEY ((d_qual_own.q_fn.a + 1)))
+< ok 0 0
+> exec
+| ALTER TABLE q_own DROP COLUMN a
+< error
+| 3766 HY000 Column 'a' of table 'q_own' has a default value expression dependency and cannot be dropped or renamed.
+> exec
+| ALTER TABLE q_own RENAME COLUMN a TO c
+< error
+| 3766 HY000 Column 'a' of table 'q_own' has a default value expression dependency and cannot be dropped or renamed.
+> exec
+| ALTER TABLE q_fn DROP COLUMN a
+< error
+| 3837 HY000 Column 'a' has a functional index dependency and cannot be dropped or renamed.
+> exec
+| ALTER TABLE q_fn RENAME COLUMN a TO c
+< error
+| 3837 HY000 Column 'a' has a functional index dependency and cannot be dropped or renamed.
 > exec
 | SET NAMES utf8mb4
 < ok 0 0
@@ -55079,7 +55579,7 @@
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS d_qual_own
-< ok 2 0
+< ok 3 0
 > exec
 | USE `db_cs_bin`
 < ok 0 0

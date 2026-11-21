@@ -892,7 +892,9 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, partitionNames []stri
 	if tbl.Temporary {
 		return errCannotDiscardImportTempTable()
 	}
-	if tbl.Tablespace != "" && !strings.EqualFold(unquoteTableOption(tbl.Tablespace), "innodb_file_per_table") {
+	// Only the exact built-in name is file-per-table: a general tablespace named
+	// INNODB_FILE_PER_TABLE answers 1148 on mysql:8.0.46.
+	if tbl.Tablespace != "" && unquoteTableOption(tbl.Tablespace) != "innodb_file_per_table" {
 		return errNotAllowedCommand()
 	}
 	dbName := ""
@@ -987,7 +989,12 @@ func (c *Catalog) validatePartitionTablespaces(tableName string, temporary bool,
 				continue
 			}
 			if engineOptionName(opt.Name) {
-				partEngine = storedEngineName(opt.Value)
+				// A partition naming an engine MySQL substitutes takes the
+				// table's (mysql:8.0.46).
+				partEngine = tableEngine
+				if !engineSubstituted(opt.Value) {
+					partEngine = storedEngineName(opt.Value)
+				}
 			} else if strings.EqualFold(opt.Name, "tablespace") {
 				partTS = opt.Value
 			}

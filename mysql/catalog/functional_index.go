@@ -272,8 +272,10 @@ func validateDroppedOrRenamedFunctionalIndexDeps(tbl *Table, origTableName strin
 				if depCol != "" {
 					return false
 				}
-				if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && cr.Schema == "" &&
-					(cr.Table == "" || strings.EqualFold(cr.Table, origTableName) || strings.EqualFold(cr.Table, tbl.Name)) {
+				// Whatever qualifies it, a reference is the table's own column:
+				// mysql:8.0.46 refuses dropping `a` under KEY ((db.t.a + 1)) and
+				// KEY ((other.t.a + 1)) alike with 3837.
+				if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
 					if droppedSet[toLower(cr.Column)] {
 						depCol = cr.Column
 						return false

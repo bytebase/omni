@@ -158,7 +158,7 @@ func refusedRowOption(tbl *Table, commands []*nodes.AlterTableCmd) string {
 		}
 		switch {
 		case engineOptionName(cmd.Option.Name):
-			engine = storedEngineName(cmd.Option.Value)
+			engine = alterEngineName(tbl, cmd.Option.Value)
 		case eqFoldStr(cmd.Option.Name, "ROW_FORMAT"):
 			rowFormat = cmd.Option.Value
 		case eqFoldStr(cmd.Option.Name, "COMPRESSION"):
@@ -208,10 +208,19 @@ func alterTargetEngine(tbl *Table, commands []*nodes.AlterTableCmd) string {
 	engine := tbl.Engine
 	for _, cmd := range commands {
 		if cmd != nil && cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
-			engine = storedEngineName(cmd.Option.Value)
+			engine = alterEngineName(tbl, cmd.Option.Value)
 		}
 	}
 	return engine
+}
+
+// alterEngineName is the engine ALTER TABLE ... ENGINE leaves the table in: the
+// table's own for a name MySQL substitutes (see engineSubstituted).
+func alterEngineName(tbl *Table, name string) string {
+	if engineSubstituted(name) {
+		return tbl.Engine
+	}
+	return storedEngineName(name)
 }
 
 func alterTargetTablespace(tbl *Table, commands []*nodes.AlterTableCmd) string {
@@ -1925,8 +1934,8 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		// `ENGINE = 'DEFAULT'` names the server's configured default engine,
 		// which is the catalog's empty engine, and MySQL switches the table to
 		// it: a MyISAM table reads back InnoDB (measured on mysql:8.0.46). A
-		// name the server substitutes for reads as that default too.
-		tbl.Engine = storedEngineName(opt.Value)
+		// name the server substitutes leaves the table's engine as it was.
+		tbl.Engine = alterEngineName(tbl, opt.Value)
 		// The partitions are rebuilt in the new engine too; a partition that
 		// records its engine records the new one.
 		if tbl.Partitioning != nil {

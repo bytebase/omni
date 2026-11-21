@@ -92,13 +92,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 
 	if declared {
-		effEngine := c.session.DefaultStorageEngine
-		if stmt.Temporary {
-			effEngine = c.session.DefaultTmpStorageEngine
-		}
-		if effEngine == "" {
-			effEngine = "InnoDB"
-		}
+		effEngine := c.sessionDefaultEngine(stmt.Temporary)
 		effTS := ""
 		effEncryption := ""
 		effRowFormat := ""
@@ -108,7 +102,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				continue
 			}
 			if engineOptionName(opt.Name) {
-				effEngine = storedEngineName(opt.Value)
+				if engineSubstituted(opt.Value) {
+					effEngine = c.sessionDefaultEngine(stmt.Temporary)
+				} else {
+					effEngine = storedEngineName(opt.Value)
+				}
 			} else if strings.EqualFold(opt.Name, "tablespace") {
 				effTS = opt.Value
 			} else if strings.EqualFold(opt.Name, "encryption") {
@@ -196,11 +194,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	// default_tmp_storage_engine for a TEMPORARY one: under
 	// default_storage_engine = MyISAM, mysql:8.0.46 stores ENGINE=MyISAM.
 	if declared {
-		if stmt.Temporary {
-			tbl.Engine = c.session.DefaultTmpStorageEngine
-		} else {
-			tbl.Engine = c.session.DefaultStorageEngine
-		}
+		tbl.Engine = c.sessionDefaultEngine(stmt.Temporary)
 	}
 
 	// Apply table options.
@@ -212,7 +206,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			// A loader's snapshot keeps the engine its server reported, which the
 			// pinned one may not ship; an authored statement keeps what the
 			// pinned server would store.
-			if declared {
+			// An engine MySQL substitutes is the session's default.
+			if declared && engineSubstituted(opt.Value) {
+				tbl.Engine = c.sessionDefaultEngine(stmt.Temporary)
+			} else if declared {
 				tbl.Engine = storedEngineName(opt.Value)
 			} else {
 				tbl.Engine = opt.Value
