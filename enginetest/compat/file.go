@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/grammar"
 )
 
@@ -191,8 +192,15 @@ func accepts(v string) bool { return v == Accept }
 func rejects(v string) bool { return v == Reject || strings.HasPrefix(v, Reject+"@") }
 
 // Write writes the file: the pin, the columns line, the other comments, and
-// the rows in order.
+// the rows in order. It refuses to write in verification mode (OMNI_RECORD=verify).
 func (f *File) Write(path string) error {
+	mode, err := enginetest.RunMode()
+	if err != nil {
+		return err
+	}
+	if mode == enginetest.ModeVerify {
+		return fmt.Errorf("compat: cannot write %s with %s=verify: verification writes nothing", path, enginetest.RecordEnv)
+	}
 	var b strings.Builder
 	b.WriteString(pinPrefix + f.Pin + "\n")
 	b.WriteString(columnsHeader + "\n")

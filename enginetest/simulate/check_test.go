@@ -572,4 +572,14 @@ func TestVerifyRejectsUpdateCompatMissingPinRowsAndUnjudged(t *testing.T) {
 	if len(asked) != 0 || read(t, unjudged.Path) != beforeUnjudged {
 		t.Errorf("unjudged row asked %q or modified file", asked)
 	}
+
+	// Direct (*File).Write callers are also blocked under OMNI_RECORD=verify.
+	directPath := filepath.Join(t.TempDir(), "simulate.tsv")
+	directFile := &File{Pin: "default img:1 sha256:abc v1"}
+	if err := directFile.Write(directPath); err == nil || !strings.Contains(err.Error(), "OMNI_RECORD=verify") {
+		t.Errorf("File.Write in verify mode: got %v, want error naming OMNI_RECORD=verify", err)
+	}
+	if _, err := os.Stat(directPath); !os.IsNotExist(err) {
+		t.Errorf("File.Write in verify mode created %s", directPath)
+	}
 }

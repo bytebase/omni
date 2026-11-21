@@ -681,4 +681,15 @@ func TestVerifyRejectsUpdateCompatPinMismatchMissingFileGeneratedDiffAndUnjudged
 	if read(t, gen.Path) != beforeGen {
 		t.Errorf("verify modified %s on generated rows mismatch", gen.Path)
 	}
+
+	// Direct (*File).Write callers (such as fuzz-row tests with -update-compat)
+	// are also blocked from writing under OMNI_RECORD=verify.
+	directPath := filepath.Join(t.TempDir(), "compat.tsv")
+	directFile := &File{Pin: "default img:1 sha256:abc v1"}
+	if err := directFile.Write(directPath); err == nil || !strings.Contains(err.Error(), "OMNI_RECORD=verify") {
+		t.Errorf("File.Write in verify mode: got %v, want error naming OMNI_RECORD=verify", err)
+	}
+	if _, err := os.Stat(directPath); !os.IsNotExist(err) {
+		t.Errorf("File.Write in verify mode created %s", directPath)
+	}
 }
