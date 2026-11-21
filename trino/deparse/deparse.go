@@ -2365,6 +2365,31 @@ func commonTrinoNumericType(a, b string) string {
 	return b
 }
 
+// trinoConcatResultType returns the type of `a || b`: an array when either
+// operand is one (array || array, array || element, element || array), a
+// varbinary for two varbinaries, unknown when both operands are unknown, and
+// otherwise a varchar
+// (https://trino.io/docs/current/functions/array.html#concatenation-operator).
+func trinoConcatResultType(a, b string) string {
+	aBase, _, aParam := splitParameterizedType(a)
+	bBase, _, bParam := splitParameterizedType(b)
+	aArray := aParam && aBase == "array"
+	bArray := bParam && bBase == "array"
+	switch {
+	case aArray && bArray:
+		return combineTrinoTypes(a, b)
+	case aArray:
+		return a
+	case bArray:
+		return b
+	case a == "" && b == "":
+		return ""
+	case a == "varbinary" && b == "varbinary":
+		return "varbinary"
+	}
+	return "varchar"
+}
+
 func combineTrinoTypes(a, b string) string {
 	if a == "" {
 		return b
@@ -2664,7 +2689,11 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 			}
 		}
 	case *trinoparser.JSONTableRelation:
-		w.walkJSONTable(r, curEnv, ctes)
+		proj := w.walkJSONTable(r, curEnv, ctes)
+		if bind {
+			w.bindRelationOrderedCols("", projColsToMap(proj, nil), proj, curEnv)
+		}
+		return proj
 	case *trinoparser.PatternRecognition:
 		return w.walkPatternRecognition(r, curEnv, ctes, bind)
 	}
@@ -2806,15 +2835,20 @@ func trinoPatternVariables(r *trinoparser.PatternRecognition) []string {
 	return vars
 }
 
-func (w *trinoASTWalker) walkJSONTable(r *trinoparser.JSONTableRelation, curEnv map[string]string, ctes map[string]struct{}) {
+// walkJSONTable walks a JSON_TABLE relation and returns its output columns:
+// every ordinality, value and query column, with nested COLUMNS lists
+// flattened in declaration order. An ordinality column is a bigint.
+func (w *trinoASTWalker) walkJSONTable(r *trinoparser.JSONTableRelation, curEnv map[string]string, ctes map[string]struct{}) []trinoProjCol {
 	if r == nil {
-		return
+		return nil
 	}
 	w.walkJSONPath(r.Path, curEnv, ctes)
-	w.walkJSONTableColumns(r.Columns, curEnv, ctes)
+	var proj []trinoProjCol
+	w.walkJSONTableColumns(r.Columns, curEnv, ctes, &proj)
+	return proj
 }
 
-func (w *trinoASTWalker) walkJSONTableColumns(cols []trinoparser.JSONTableColumn, curEnv map[string]string, ctes map[string]struct{}) {
+func (w *trinoASTWalker) walkJSONTableColumns(cols []trinoparser.JSONTableColumn, curEnv map[string]string, ctes map[string]struct{}, proj *[]trinoProjCol) {
 	for _, col := range cols {
 		if col.OnEmpty != nil {
 			w.walkExpr(col.OnEmpty.Default, curEnv, ctes)
@@ -2822,8 +2856,18 @@ func (w *trinoASTWalker) walkJSONTableColumns(cols []trinoparser.JSONTableColumn
 		if col.OnError != nil {
 			w.walkExpr(col.OnError.Default, curEnv, ctes)
 		}
+		switch col.Kind {
+		case trinoparser.JSONTableOrdinalityColumn, trinoparser.JSONTableValueColumn, trinoparser.JSONTableQueryColumn:
+			if col.Name != nil {
+				typ := "bigint"
+				if col.Kind != trinoparser.JSONTableOrdinalityColumn {
+					typ = normalizeTrinoDataType(col.Type)
+				}
+				*proj = append(*proj, trinoProjCol{name: strings.ToLower(col.Name.Value), typ: typ})
+			}
+		}
 		if len(col.Columns) > 0 {
-			w.walkJSONTableColumns(col.Columns, curEnv, ctes)
+			w.walkJSONTableColumns(col.Columns, curEnv, ctes, proj)
 		}
 	}
 }
@@ -3083,8 +3127,21 @@ func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []t
 		}
 	}
 	ret, proj := w.walkQueryNodeCols(q.Body, curEnv, scope)
+	// ORDER BY may name the query's output columns, which shadow outer names.
+	orderEnv := curEnv
+	if len(q.OrderBy) > 0 && len(proj) > 0 {
+		orderEnv = maps.Clone(curEnv)
+		if orderEnv == nil {
+			orderEnv = make(map[string]string, len(proj))
+		}
+		for _, pc := range proj {
+			if pc.name != "" && pc.typ != "" {
+				orderEnv[pc.name] = pc.typ
+			}
+		}
+	}
 	for _, ob := range q.OrderBy {
-		w.walkExpr(ob.Expr, curEnv, scope)
+		w.walkExpr(ob.Expr, orderEnv, scope)
 	}
 	if q.Offset != nil {
 		w.walkExpr(q.Offset.Count, curEnv, scope)
@@ -3249,7 +3306,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		rt := w.walkExpr(e.Right, curEnv, ctes)
 		switch e.Op {
 		case "||":
-			return "varchar"
+			return trinoConcatResultType(lt, rt)
 		case "+", "-", "*", "/", "%":
 			return commonTrinoNumericType(lt, rt)
 		}

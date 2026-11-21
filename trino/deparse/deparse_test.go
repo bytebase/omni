@@ -2173,4 +2173,31 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, matchRecognize, `SELECT abs(m.n), abs(m.k) FROM "cat"."s".t MATCH_RECOGNIZE`)
 	assert.Contains(t, matchRecognize, `SELECT abs(r.id), abs(r.q) FROM "cat"."s".t MATCH_RECOGNIZE`)
+
+	// JSON_TABLE columns, ORDER BY output aliases, and array concatenation
+	// keep their types, so calls stay on Trino's built-ins instead of the
+	// same-schema varchar UDFs.
+	typedBuiltins, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}, {Name: "j", Type: "varchar"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "abs", Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x"},
+				{Name: "cardinality", Definition: "CREATE FUNCTION s.cardinality(x varchar) RETURNS bigint RETURN 1"},
+			},
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_json_table", Definition: "SELECT abs(jt.n), abs(jt.o) FROM t, JSON_TABLE(t.j, 'lax $' COLUMNS (o FOR ORDINALITY, n BIGINT PATH 'lax $.n')) AS jt"},
+				{Name: "v_order_alias", Definition: "SELECT n AS x FROM t ORDER BY abs(x)"},
+				{Name: "v_array_concat", Definition: "SELECT cardinality(ARRAY[1] || ARRAY[2]) AS c"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, typedBuiltins, `SELECT abs(jt.n), abs(jt.o) FROM "cat"."s".t, JSON_TABLE(`)
+	assert.Contains(t, typedBuiltins, `ORDER BY abs(x);`)
+	assert.Contains(t, typedBuiltins, `SELECT cardinality(ARRAY[1] || ARRAY[2]) AS c;`)
 }

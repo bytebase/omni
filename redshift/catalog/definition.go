@@ -3338,6 +3338,8 @@ type viewState struct {
 
 func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView bool) string {
 	switch {
+	case column.Name == "":
+		return "column with empty name cannot be restored because Redshift rejects zero-length identifiers"
 	case column.Generation != nil:
 		return fmt.Sprintf("column %s generated expression cannot be restored because Redshift does not support generated columns", quoteDefinitionIdentifier(column.Name))
 	case column.DefaultOnNull || column.OnUpdate != "" || column.CharacterSet != "" || column.Srid != nil || column.IsInvisible || column.DefaultConstraintName != "":

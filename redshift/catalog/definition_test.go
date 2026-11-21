@@ -2426,6 +2426,24 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	idxRegV := strings.Index(lateQueryCycle, `CREATE OR REPLACE VIEW "public"."reg_v"`)
 	require.Greater(t, idxLateV, -1)
 	require.Greater(t, idxRegV, idxLateV)
+
+	// Empty column names fail on both table entry points and on views.
+	emptyCol := &metadatapb.TableMetadata{Name: "t_empty_col", Columns: []*metadatapb.ColumnMetadata{{Name: "", Type: "integer"}}}
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:    "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public", Tables: []*metadatapb.TableMetadata{emptyCol}}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
+	_, err = GetTableDefinition("public", emptyCol)
+	require.ErrorContains(t, err, "column with empty name")
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "public",
+			Views: []*metadatapb.ViewMetadata{{Name: "v_empty_col", Definition: "SELECT 1 AS x", Columns: []*metadatapb.ColumnMetadata{{Name: "", Comment: "c"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "column with empty name")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
