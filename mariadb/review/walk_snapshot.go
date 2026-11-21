@@ -109,6 +109,13 @@ type mariadbSnapshot struct {
 	// mixed lists the spaces where the sync lists a name outside ASCII, as
 	// the space and its table's key ("" for a space of the database).
 	mixed map[[2]string]bool
+	// fkGeneratedIdx lists synced non-unique secondary indexes that may be
+	// InnoDB auto-generated foreign-key backing indexes (HA_GENERATED_KEY),
+	// mapped by table key -> index key -> lowercased index columns (nil when
+	// column metadata was not provided). MariaDB silently drops such an index
+	// when a newly added explicit index covers its columns, even under the same
+	// index name.
+	fkGeneratedIdx map[string]map[string][]string
 }
 
 func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mariadbSnapshot {
@@ -126,6 +133,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 		triggered:        make(map[string]bool),
 		ignoresFKs:       make(map[string]bool),
 		mixed:            make(map[[2]string]bool),
+		fkGeneratedIdx:   make(map[string]map[string][]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// mark notes a key outside ASCII in a space of a table, or of the
@@ -176,6 +184,18 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 				set(fks, spaceTableForeignKey, tk, fk.GetName())
 			}
 			s.tableForeignKeys[tk] = fks
+			if len(t.GetForeignKeys()) > 0 {
+				for _, i := range t.GetIndexes() {
+					if cols, ok := mayBeFKGeneratedIndex(i, t.GetForeignKeys()); ok {
+						if ik, valid := nameKey(spaceIndex, i.GetName(), foldTables); valid {
+							if s.fkGeneratedIdx[tk] == nil {
+								s.fkGeneratedIdx[tk] = make(map[string][]string)
+							}
+							s.fkGeneratedIdx[tk][ik] = cols
+						}
+					}
+				}
+			}
 			for _, tr := range t.GetTriggers() {
 				if k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables); ok {
 					// MariaDB keeps case variants apart: a key two
@@ -284,4 +304,74 @@ func (s *mariadbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		return in(s.events)
 	}
 	return walk.Unknown, ""
+}
+
+// mayBeFKGeneratedIndex reports whether a synced index could be an InnoDB
+// auto-generated foreign-key backing index (HA_GENERATED_KEY) for one of fks,
+// and returns its lowercased column list (nil when column metadata is absent).
+func mayBeFKGeneratedIndex(idx *metadata.IndexMetadata, fks []*metadata.ForeignKeyMetadata) ([]string, bool) {
+	if idx == nil || idx.GetPrimary() || idx.GetUnique() {
+		return nil, false
+	}
+	switch strings.ToUpper(idx.GetType()) {
+	case "FULLTEXT", "SPATIAL", "VECTOR", "HASH", "RTREE":
+		return nil, false
+	}
+	for _, l := range idx.GetKeyLength() {
+		if l > 0 {
+			return nil, false
+		}
+	}
+	idxName := strings.ToLower(idx.GetName())
+	exprs := idx.GetExpressions()
+	for _, fk := range fks {
+		if fk == nil {
+			continue
+		}
+		fkCols := fk.GetColumns()
+		if len(exprs) > 0 && len(fkCols) > 0 {
+			if len(exprs) != len(fkCols) {
+				continue
+			}
+			match := true
+			lowerCols := make([]string, len(fkCols))
+			for j := range fkCols {
+				if !strings.EqualFold(exprs[j], fkCols[j]) {
+					match = false
+					break
+				}
+				lowerCols[j] = strings.ToLower(fkCols[j])
+			}
+			if !match {
+				continue
+			}
+			if isFKGeneratedIndexName(idxName, fk.GetName(), lowerCols[0]) {
+				return lowerCols, true
+			}
+		} else if fk.GetName() != "" && idxName == strings.ToLower(fk.GetName()) {
+			return nil, true
+		}
+	}
+	return nil, false
+}
+
+func isFKGeneratedIndexName(idxLower, fkName, firstColLower string) bool {
+	if fkName != "" && idxLower == strings.ToLower(fkName) {
+		return true
+	}
+	if firstColLower == "" {
+		return false
+	}
+	if idxLower == firstColLower {
+		return true
+	}
+	if rest, ok := strings.CutPrefix(idxLower, firstColLower+"_"); ok && rest != "" {
+		for i := 0; i < len(rest); i++ {
+			if rest[i] < '0' || rest[i] > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

@@ -18,6 +18,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	tableName := stmt.Table.Name
 	tbl := db.Tables[toLower(tableName)]
 	if tbl == nil {
+		if db.Views[toLower(tableName)] != nil {
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -100,13 +103,25 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 	}
 
+	// Snapshot before dropping any covered implicit FK backing index or adding
+	// hidden columns so any subsequent failure leaves the table as it was.
+	snapshot := cloneTable(tbl)
+	resolvedType := resolveIndexUsingType(stmt.IndexType, stmt.Options)
+	if long {
+		resolvedType = "HASH"
+	}
+	dropImplicitFKIndexesCoveredBy(tbl, idxCols, resolvedType, stmt.Fulltext, stmt.Spatial, stmt.Vector)
+	nameExists = indexNameExists(tbl, stmt.IndexName)
+
 	if nameExists {
+		*tbl = snapshot
 		if stmt.OrReplace {
 			return c.replaceIndex(tbl, stmt)
 		}
 		return errDupKeyName(stmt.IndexName)
 	}
 	if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
+		*tbl = snapshot
 		return err
 	}
 
@@ -127,6 +142,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		idx.IndexType = "SPATIAL"
 	case stmt.Vector:
 		if err := validateVectorIndex(tbl, idxCols); err != nil {
+			*tbl = snapshot
 			return err
 		}
 		idx.Vector = true
@@ -143,11 +159,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	applyIndexOptions(idx, stmt.Options)
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
+		*tbl = snapshot
 		return err
 	}
 	// Hidden columns go on the table before the checks that can still fail, and a statement that
 	// fails leaves the table as it was, or a retry would allocate another set beside them.
-	snapshot := cloneTable(tbl)
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
 		*tbl = snapshot
 		return err
@@ -243,14 +259,18 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	tableName := stmt.Table.Name
 	tbl := db.Tables[toLower(tableName)]
 	if tbl == nil {
+		if db.Views[toLower(tableName)] != nil {
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	// Dropping a key can unkey an AUTO_INCREMENT column (1075) or promote an
-	// IGNORED index to the implicit primary key (4174), both verified on 11.8.8,
-	// so keep the table to put back when either fails.
+	// Dropping a key can unkey an AUTO_INCREMENT column (1075), promote an
+	// IGNORED index to the implicit primary key (4174), or leave a foreign key
+	// without a covering index (1553), all verified on 11.8.8, so keep the table
+	// to put back when any fails.
 	var snapshot *Table
-	if hasIgnoredIndex(tbl) || needsAutoIncrementCheck(tbl, nil) {
+	if hasIgnoredIndex(tbl) || needsAutoIncrementCheck(tbl, nil) || (c.foreignKeyChecks && tableHasForeignKey(tbl)) {
 		s := cloneTable(tbl)
 		snapshot = &s
 	}
@@ -261,6 +281,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	}
 
 	if snapshot != nil {
+		if c.foreignKeyChecks && !checkFKIndexCoverage(tbl) {
+			*tbl = *snapshot
+			return errDropIndexFK(stmt.Name)
+		}
 		if err := validateAutoIncrementKeyed(tbl); err != nil {
 			*tbl = *snapshot
 			return err

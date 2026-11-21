@@ -2338,26 +2338,127 @@ func validateNonPrimaryIndexName(name string) error {
 	return nil
 }
 
-// hasIndexCoveringColumns returns true if the table already has an index whose
-// leading columns match the given FK columns (left-prefix match). MySQL 8.0
-// reuses such an index instead of creating an implicit backing index for the FK.
-func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
+// indexColsCover reports whether a non-FULLTEXT/SPATIAL/VECTOR index's key parts
+// have leading non-prefix, non-expression columns matching fkCols (left-prefix match).
+func indexColsCover(idxCols []*IndexColumn, fkCols []string) bool {
+	if len(fkCols) == 0 || len(idxCols) < len(fkCols) {
+		return false
+	}
+	for i, col := range fkCols {
+		ic := idxCols[i]
+		if ic == nil || ic.Expr != "" || ic.Length != 0 || ic.WithoutOverlaps || !strings.EqualFold(ic.Name, col) {
+			return false
+		}
+	}
+	return true
+}
+
+// indexTypeSupportsFK reports whether an index algorithm can back a foreign key
+// (and thus replace an implicit HA_GENERATED_KEY backing index). InnoDB only
+// uses default or BTREE indexes for foreign keys; HASH / RTREE / FULLTEXT /
+// SPATIAL / VECTOR cannot replace an implicit FK backing index.
+func indexTypeSupportsFK(indexType string) bool {
+	return indexType == "" || strings.EqualFold(indexType, "BTREE")
+}
+
+// indexCoversFKColumns reports whether idx can back a foreign key on fkCols.
+func indexCoversFKColumns(idx *Index, fkCols []string) bool {
+	if idx == nil || idx.Fulltext || idx.Spatial || idx.Vector || !indexTypeSupportsFK(idx.IndexType) {
+		return false
+	}
+	return indexColsCover(idx.Columns, fkCols)
+}
+
+// findCoveringIndex returns the first index on tbl that covers fkCols, or nil.
+func findCoveringIndex(tbl *Table, fkCols []string) *Index {
 	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) < len(fkCols) {
-			continue
+		if indexCoversFKColumns(idx, fkCols) {
+			return idx
 		}
-		match := true
-		for i, col := range fkCols {
-			if !strings.EqualFold(idx.Columns[i].Name, col) {
-				match = false
-				break
-			}
-		}
-		if match {
+	}
+	return nil
+}
+
+// hasIndexCoveringColumns returns true if the table already has an index whose
+// leading columns match the given FK columns (left-prefix match).
+func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
+	return findCoveringIndex(tbl, fkCols) != nil
+}
+
+// hasImplicitFKIndex reports whether tbl currently holds any auto-generated
+// FK backing index (HA_GENERATED_KEY).
+func hasImplicitFKIndex(tbl *Table) bool {
+	for _, idx := range tbl.Indexes {
+		if idx != nil && idx.Implicit {
 			return true
 		}
 	}
 	return false
+}
+
+// dropImplicitFKIndexesCoveredBy removes any implicit FK backing index on tbl
+// whose columns are covered by a newly added explicit BTREE/default index.
+// MariaDB drops such HA_GENERATED_KEY indexes before checking duplicate
+// index names or allocating automatic names.
+func dropImplicitFKIndexesCoveredBy(tbl *Table, newCols []*IndexColumn, indexType string, fulltext, spatial, vector bool) {
+	if fulltext || spatial || vector || !indexTypeSupportsFK(indexType) || !hasImplicitFKIndex(tbl) {
+		return
+	}
+	kept := tbl.Indexes[:0]
+	for _, idx := range tbl.Indexes {
+		if idx != nil && idx.Implicit {
+			colNames := make([]string, 0, len(idx.Columns))
+			for _, ic := range idx.Columns {
+				if ic != nil && ic.Name != "" {
+					colNames = append(colNames, ic.Name)
+				}
+			}
+			if len(colNames) == len(idx.Columns) && indexColsCover(newCols, colNames) {
+				continue
+			}
+		}
+		kept = append(kept, idx)
+	}
+	tbl.Indexes = kept
+}
+
+// tableHasForeignKey reports whether tbl defines any foreign key constraint.
+func tableHasForeignKey(tbl *Table) bool {
+	for _, con := range tbl.Constraints {
+		if con != nil && con.Type == ConForeignKey {
+			return true
+		}
+	}
+	return false
+}
+
+// columnInPrimaryKey reports whether colName is part of tbl's primary key.
+func columnInPrimaryKey(tbl *Table, colName string) bool {
+	for _, idx := range tbl.Indexes {
+		if idx == nil || !idx.Primary {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if ic != nil && strings.EqualFold(ic.Name, colName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkFKIndexCoverage verifies that every foreign key constraint on tbl still
+// has a covering index. If not, it returns false.
+func checkFKIndexCoverage(tbl *Table) bool {
+	for _, con := range tbl.Constraints {
+		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+			continue
+		}
+		if !hasIndexCoveringColumns(tbl, con.Columns) {
+			return false
+		}
+	}
+	return true
 }
 
 // fkName returns the name a foreign key takes, and the index it adds when
@@ -2396,10 +2497,11 @@ func insertFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*
 		idxName = allocIndexName(tbl, cols[0])
 	}
 	idx := &Index{
-		Name:    idxName,
-		Table:   tbl,
-		Columns: idxCols,
-		Visible: true,
+		Name:     idxName,
+		Table:    tbl,
+		Columns:  idxCols,
+		Visible:  true,
+		Implicit: true,
 	}
 	if at < 0 || at > len(tbl.Indexes) {
 		at = len(tbl.Indexes)
@@ -2767,7 +2869,7 @@ func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
 	}
 	key := toLower(name)
 	for _, con := range pending.Constraints {
-		if con.Type == ConCheck && !isColumnCheck(con) && toLower(con.Name) == key {
+		if (con.Type == ConForeignKey || (con.Type == ConCheck && !isColumnCheck(con))) && toLower(con.Name) == key {
 			return true
 		}
 	}

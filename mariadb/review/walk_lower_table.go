@@ -295,6 +295,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.NewName), r.written)) // 1061
 			b.leave(fk)
 			b.arrive(tk)
+			b.Session(func() { delete(b.w.fkGeneratedIdx, fk) })
 		}
 	default:
 		// A command the walk does not follow ends it, unless it touches
@@ -517,6 +518,26 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 		b.need(tc, walk.Absent, nil, rng, "", alreadyExists("column", ident(to), r.written)) // 1060
 		b.leave(fc)
 		b.arrive(tc)
+		tblPath := tablePath(r.db, r.name)
+		b.Session(func() {
+			for ik, cols := range b.w.fkGeneratedIdx {
+				if ik.Parent != tblPath || len(cols) == 0 {
+					continue
+				}
+				var updated []string
+				for j, col := range cols {
+					if col == fk {
+						if updated == nil {
+							updated = append([]string(nil), cols...)
+						}
+						updated[j] = tk
+					}
+				}
+				if updated != nil {
+					b.w.fkGeneratedIdx[ik] = updated
+				}
+			}
+		})
 	}
 	return true
 }
@@ -543,9 +564,11 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 			if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
 				return
 			}
+			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 			break
 		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+		b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 	case ast.ConstrCheck:
 		return
 	case ast.ConstrForeignKey:
@@ -571,17 +594,102 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		}
 		b.foreignKeyTarget(r, c)
 	default:
+		isRegular := (c.Type == ast.ConstrIndex || c.Type == ast.ConstrUnique) && indexTypeSupportsFK(c.IndexType, c.IndexOptions)
 		if k, ok := b.key(spaceIndex, c.Name); ok {
+			ik := idxKey(r.db, r.name, k)
 			if c.IfNotExists {
-				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+				if f, _ := b.l.Lookup(ik); f != walk.Absent {
 					return
 				}
 			} else {
-				b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+				replacedFKIdx := false
+				if isRegular {
+					replacedFKIdx = b.replaceFKGeneratedIndexes(r, ik, c.IndexColumns)
+				}
+				if !replacedFKIdx {
+					b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+				}
 			}
+		} else if isRegular {
+			// Unnamed ADD KEY/UNIQUE can still drop an implicit FK backing index.
+			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 		}
 	}
 	b.constraint(r, c)
+}
+
+// replaceFKGeneratedIndexes accounts for MariaDB silently dropping an InnoDB
+// auto-generated foreign-key backing index (HA_GENERATED_KEY) when a newly
+// added regular index covers its columns. It reports whether newIdxKey itself
+// may be replaced (so a 1061 duplicate-key check on newIdxKey would be unsound)
+// and marks any other covered candidate index on r as Unknown.
+func (b *builder) replaceFKGeneratedIndexes(r tableRef, newIdxKey walk.Key, cols []*ast.IndexColumn) bool {
+	if len(b.w.fkGeneratedIdx) == 0 {
+		return false
+	}
+	parent := tablePath(r.db, r.name)
+	replacedSelf := false
+	var drop []walk.Key
+	for k, fkCols := range b.w.fkGeneratedIdx {
+		if k.Parent != parent {
+			continue
+		}
+		if !astIndexColsCover(cols, fkCols) {
+			continue
+		}
+		drop = append(drop, k)
+		if k == newIdxKey {
+			replacedSelf = true
+		} else {
+			b.Set(k, walk.Unknown, "")
+		}
+	}
+	if len(drop) > 0 {
+		b.Session(func() {
+			for _, k := range drop {
+				delete(b.w.fkGeneratedIdx, k)
+			}
+		})
+	}
+	return replacedSelf
+}
+
+// indexTypeSupportsFK reports whether a regular index declaration uses a
+// default or BTREE algorithm (the only algorithms that can replace an InnoDB
+// auto-generated FK backing index).
+func indexTypeSupportsFK(indexType string, opts []*ast.IndexOption) bool {
+	resolved := strings.ToUpper(indexType)
+	for _, opt := range opts {
+		if opt != nil && strings.EqualFold(opt.Name, "USING") {
+			if s, ok := opt.Value.(*ast.StringLit); ok {
+				resolved = strings.ToUpper(s.Value)
+			}
+		}
+	}
+	return resolved == "" || resolved == "BTREE"
+}
+
+// astIndexColsCover reports whether a newly added index's key parts cover
+// fkCols (left-prefix match of plain, non-prefix columns). When fkCols is nil
+// (column metadata unavailable), it conservatively returns true.
+func astIndexColsCover(idxCols []*ast.IndexColumn, fkCols []string) bool {
+	if len(fkCols) == 0 {
+		return true
+	}
+	if len(idxCols) < len(fkCols) {
+		return false
+	}
+	for i, want := range fkCols {
+		ic := idxCols[i]
+		if ic == nil || ic.Functional || ic.HasPrefix || ic.Length != 0 || ic.WithoutOverlaps {
+			return false
+		}
+		ref, ok := ic.Expr.(*ast.ColumnRef)
+		if !ok || !strings.EqualFold(ref.Column, want) {
+			return false
+		}
+	}
+	return true
 }
 
 // dropIndexName follows DROP INDEX, of the primary key when the name is
@@ -600,6 +708,7 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExi
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)
+	b.Session(func() { delete(b.w.fkGeneratedIdx, ik) })
 	return true
 }
 
@@ -672,6 +781,23 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 			b.w.versioned[tk] = true
 		} else {
 			delete(b.w.versioned, tk)
+		}
+		fromPath := tablePath(from.db, from.name)
+		var movedIdx []struct {
+			name string
+			cols []string
+		}
+		for k, cols := range b.w.fkGeneratedIdx {
+			if k.Parent == fromPath {
+				movedIdx = append(movedIdx, struct {
+					name string
+					cols []string
+				}{k.Name, cols})
+				delete(b.w.fkGeneratedIdx, k)
+			}
+		}
+		for _, m := range movedIdx {
+			b.w.fkGeneratedIdx[idxKey(to.db, to.name, m.name)] = m.cols
 		}
 	})
 }
@@ -777,6 +903,14 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(k, walk.Absent, "")
 			b.Clear(path)
 			b.droppedOwned(r)
+			tblPath := tablePath(r.db, r.name)
+			b.Session(func() {
+				for ik := range b.w.fkGeneratedIdx {
+					if ik.Parent == tblPath {
+						delete(b.w.fkGeneratedIdx, ik)
+					}
+				}
+			})
 		}
 	}
 	return true
