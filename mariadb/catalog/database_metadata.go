@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	nodes "github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/metadata"
 )
 
@@ -108,6 +109,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		tableProto.Triggers = append(tableProto.Triggers, triggerToProto(tr))
 	}
 
+	viewResolver := newViewMetaResolver(c)
 	for _, vName := range sortedMapKeys(db.Views) {
 		v := db.Views[vName]
 		if v == nil {
@@ -124,7 +126,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
 			Name:        v.Name,
 			Definition:  def,
-			Columns:     c.viewColumnsToProto(db, v),
+			Columns:     viewResolver.viewColumnsToProto(db, v),
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
 			CheckOption: v.CheckOption,
@@ -192,7 +194,45 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	return dbMeta
 }
 
-func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
+type viewMetaTargetKey struct {
+	q     *Query
+	idx   int
+	widen bool
+}
+
+type viewMetaTargetEntry struct {
+	meta viewTargetMeta
+	ok   bool
+}
+
+type viewMetaResolvedKey struct {
+	q   *Query
+	idx int
+}
+
+// viewMetaResolver holds per-DatabaseMetadata-call memoization caches so deep
+// DAGs of dependent views resolve in linear rather than exponential time.
+type viewMetaResolver struct {
+	*Catalog
+	targetCache   map[viewMetaTargetKey]viewMetaTargetEntry
+	targetActive  map[viewMetaTargetKey]bool
+	resolvedCache map[viewMetaResolvedKey]*ResolvedType
+	resolvedDone  map[viewMetaResolvedKey]bool
+	resolvedAct   map[viewMetaResolvedKey]bool
+}
+
+func newViewMetaResolver(c *Catalog) *viewMetaResolver {
+	return &viewMetaResolver{
+		Catalog:       c,
+		targetCache:   make(map[viewMetaTargetKey]viewMetaTargetEntry),
+		targetActive:  make(map[viewMetaTargetKey]bool),
+		resolvedCache: make(map[viewMetaResolvedKey]*ResolvedType),
+		resolvedDone:  make(map[viewMetaResolvedKey]bool),
+		resolvedAct:   make(map[viewMetaResolvedKey]bool),
+	}
+}
+
+func (c *viewMetaResolver) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
 	leftQ := leftmostAnalyzedQuery(v.AnalyzedQuery)
 	var nonJunkTargets []*TargetEntryQ
 	if leftQ != nil {
@@ -202,9 +242,16 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			}
 		}
 	}
+	var astFallbackTypes []string
+	if len(nonJunkTargets) == 0 && v.Definition != "" {
+		astFallbackTypes = c.viewASTFallbackTypes(db, v)
+	}
 	optionalRT := optionalJoinRangeIndices(leftQ)
 	resolveTargetType := func(i int) string {
 		if i < 0 || i >= len(nonJunkTargets) {
+			if i >= 0 && i < len(astFallbackTypes) {
+				return astFallbackTypes[i]
+			}
 			return ""
 		}
 		te := nonJunkTargets[i]
@@ -368,7 +415,28 @@ func queryAtLevel(q *Query, outer []*Query, levelsUp int) (*Query, []*Query) {
 	return nil, nil
 }
 
-func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOptionalJoin bool, outer ...*Query) (viewTargetMeta, bool) {
+func resolveQueryTargetMeta(c *viewMetaResolver, db *Database, q *Query, idx int, widenOptionalJoin bool, outer ...*Query) (viewTargetMeta, bool) {
+	if q == nil {
+		return viewTargetMeta{}, false
+	}
+	if len(outer) == 0 && c != nil {
+		key := viewMetaTargetKey{q: q, idx: idx, widen: widenOptionalJoin}
+		if cached, ok := c.targetCache[key]; ok {
+			return cached.meta, cached.ok
+		}
+		if c.targetActive[key] {
+			return viewTargetMeta{}, false
+		}
+		c.targetActive[key] = true
+		meta, ok := resolveQueryTargetMetaUncached(c, db, q, idx, widenOptionalJoin)
+		delete(c.targetActive, key)
+		c.targetCache[key] = viewMetaTargetEntry{meta: meta, ok: ok}
+		return meta, ok
+	}
+	return resolveQueryTargetMetaUncached(c, db, q, idx, widenOptionalJoin, outer...)
+}
+
+func resolveQueryTargetMetaUncached(c *viewMetaResolver, db *Database, q *Query, idx int, widenOptionalJoin bool, outer ...*Query) (viewTargetMeta, bool) {
 	if q == nil {
 		return viewTargetMeta{}, false
 	}
@@ -451,12 +519,12 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 	}, true
 }
 
-func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) bool {
+func isAnalyzedExprNullable(c *viewMetaResolver, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) bool {
 	nullable, _ := analyzedExprNullable(c, db, q, opt, expr, widenOptionalJoin, outer...)
 	return nullable
 }
 
-func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) (bool, bool) {
+func analyzedExprNullable(c *viewMetaResolver, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) (bool, bool) {
 	if expr == nil {
 		return false, false
 	}
@@ -1053,7 +1121,7 @@ func exprUsesOptionalJoin(expr AnalyzedExpr, optionalRT map[int]bool) bool {
 	return false
 }
 
-func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT map[int]bool, te *TargetEntryQ, widenOptionalJoin bool, outer ...*Query) (colType string, nullable bool, charset, collation string, ok bool) {
+func resolveTargetColumnMetadata(c *viewMetaResolver, db *Database, q *Query, optionalRT map[int]bool, te *TargetEntryQ, widenOptionalJoin bool, outer ...*Query) (colType string, nullable bool, charset, collation string, ok bool) {
 	if te == nil {
 		return "", false, "", "", false
 	}
@@ -1120,7 +1188,7 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 	return "", false, "", "", false
 }
 
-func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ, outer ...*Query) string {
+func resolveVarExprColumnType(c *viewMetaResolver, db *Database, q *Query, e *VarExprQ, outer ...*Query) string {
 	if e == nil {
 		return ""
 	}
@@ -1155,7 +1223,7 @@ func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ, o
 	return ""
 }
 
-func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) string {
+func resolveAnalyzedExprColumnType(c *viewMetaResolver, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) string {
 	if expr == nil {
 		return ""
 	}
@@ -1237,7 +1305,7 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 	return ""
 }
 
-func combineControlFlowColumnTypes(c *Catalog, db *Database, q *Query, branches []AnalyzedExpr, outer ...*Query) string {
+func combineControlFlowColumnTypes(c *viewMetaResolver, db *Database, q *Query, branches []AnalyzedExpr, outer ...*Query) string {
 	var combinedType string
 	var combinedExpr AnalyzedExpr
 	for _, b := range branches {
@@ -1283,7 +1351,7 @@ func normalizeControlFlowColumnType(colType string) string {
 	return colType
 }
 
-func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) *ResolvedType {
+func resolveExprResolvedType(c *viewMetaResolver, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) *ResolvedType {
 	if expr == nil {
 		return nil
 	}
@@ -1334,16 +1402,12 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 						}
 					}
 					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
-						if subTE := nthNonJunkTarget(sv.AnalyzedQuery, e.AttNum-1); subTE != nil {
-							return resolveExprResolvedType(c, origDB, sv.AnalyzedQuery, subTE.Expr)
-						}
+						return resolveQueryExprResolvedType(c, origDB, sv.AnalyzedQuery, e.AttNum-1)
 					}
 				}
 			}
 			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != targetQ {
-				if subTE := nthNonJunkTarget(rte.Subquery, e.AttNum-1); subTE != nil {
-					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr, targetOuter...)
-				}
+				return resolveQueryExprResolvedType(c, db, rte.Subquery, e.AttNum-1, targetOuter...)
 			}
 		}
 		return nil
@@ -1492,7 +1556,7 @@ func intLiteralResolvedType(val string) *ResolvedType {
 	return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, digits), Scale: 0}
 }
 
-func resolveStoredFunctionColumnType(c *Catalog, db *Database, e *FuncCallExprQ) string {
+func resolveStoredFunctionColumnType(c *viewMetaResolver, db *Database, e *FuncCallExprQ) string {
 	fn := lookupStoredFunction(c, db, e)
 	if fn == nil || fn.Returns == "" {
 		return ""
@@ -1503,7 +1567,7 @@ func resolveStoredFunctionColumnType(c *Catalog, db *Database, e *FuncCallExprQ)
 	return strings.ToLower(strings.TrimSpace(fn.Returns))
 }
 
-func lookupStoredFunction(c *Catalog, db *Database, e *FuncCallExprQ) *Routine {
+func lookupStoredFunction(c *viewMetaResolver, db *Database, e *FuncCallExprQ) *Routine {
 	if e == nil {
 		return nil
 	}
@@ -1675,8 +1739,145 @@ func parseColumnResolvedType(colType string) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeVarchar, Length: p}
 	case "char":
 		return &ResolvedType{BaseType: BaseTypeChar, Length: p}
+	case "tinytext":
+		return &ResolvedType{BaseType: BaseTypeTinyText}
+	case "text":
+		return &ResolvedType{BaseType: BaseTypeText}
+	case "mediumtext":
+		return &ResolvedType{BaseType: BaseTypeMediumText}
+	case "longtext":
+		return &ResolvedType{BaseType: BaseTypeLongText}
+	case "binary":
+		return &ResolvedType{BaseType: BaseTypeBinary, Length: p}
+	case "varbinary":
+		return &ResolvedType{BaseType: BaseTypeVarBinary, Length: p}
+	case "tinyblob":
+		return &ResolvedType{BaseType: BaseTypeTinyBlob}
+	case "blob":
+		return &ResolvedType{BaseType: BaseTypeBlob}
+	case "mediumblob":
+		return &ResolvedType{BaseType: BaseTypeMediumBlob}
+	case "longblob":
+		return &ResolvedType{BaseType: BaseTypeLongBlob}
+	case "json":
+		return &ResolvedType{BaseType: BaseTypeJSON}
+	case "bit":
+		return &ResolvedType{BaseType: BaseTypeBit, Length: p}
+	case "enum":
+		return &ResolvedType{BaseType: BaseTypeEnum}
+	case "set":
+		return &ResolvedType{BaseType: BaseTypeSet}
 	default:
 		return nil
+	}
+}
+
+func resolveQueryExprResolvedType(c *viewMetaResolver, db *Database, q *Query, idx int, outer ...*Query) *ResolvedType {
+	if q == nil || idx < 0 {
+		return nil
+	}
+	if len(outer) == 0 && c != nil {
+		key := viewMetaResolvedKey{q: q, idx: idx}
+		if c.resolvedDone[key] {
+			return c.resolvedCache[key]
+		}
+		if c.resolvedAct[key] {
+			return nil
+		}
+		c.resolvedAct[key] = true
+		var rt *ResolvedType
+		if subTE := nthNonJunkTarget(q, idx); subTE != nil {
+			rt = resolveExprResolvedType(c, db, q, subTE.Expr)
+		}
+		delete(c.resolvedAct, key)
+		c.resolvedDone[key] = true
+		c.resolvedCache[key] = rt
+		return rt
+	}
+	if subTE := nthNonJunkTarget(q, idx); subTE != nil {
+		return resolveExprResolvedType(c, db, q, subTE.Expr, outer...)
+	}
+	return nil
+}
+
+// viewASTFallbackTypes resolves target column types directly from the parsed
+// SELECT AST when semantic analysis left v.AnalyzedQuery nil (for example,
+// views containing COLLATE expressions).
+func (c *viewMetaResolver) viewASTFallbackTypes(db *Database, v *View) []string {
+	body, _ := cutViewCheckOption(v.Definition)
+	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
+	if err != nil || sel == nil {
+		return nil
+	}
+	for sel.SetOp != 0 && sel.Left != nil {
+		sel = sel.Left
+	}
+	relations := map[string]viewRelationInfo{}
+	for _, from := range sel.From {
+		collectViewRelations(from, db, false, relations)
+	}
+	types := make([]string, len(sel.TargetList))
+	for i, target := range sel.TargetList {
+		expr := target
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			expr = rt.Val
+		}
+		types[i] = resolveViewASTExprType(expr, relations)
+	}
+	return types
+}
+
+func resolveViewASTExprType(expr nodes.ExprNode, relations map[string]viewRelationInfo) string {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return resolveViewASTExprType(e.Expr, relations)
+	case *nodes.CollateExpr:
+		return resolveViewASTExprType(e.Expr, relations)
+	case *nodes.ColumnRef:
+		if e.Star {
+			return ""
+		}
+		if e.Table != "" {
+			if rel, ok := relations[toLower(e.Table)]; ok && rel.table != nil {
+				if col := rel.table.GetColumn(e.Column); col != nil {
+					return col.ColumnType
+				}
+			}
+			return ""
+		}
+		var found string
+		for _, rel := range relations {
+			if rel.table == nil {
+				continue
+			}
+			if col := rel.table.GetColumn(e.Column); col != nil {
+				if found != "" {
+					return ""
+				}
+				found = col.ColumnType
+			}
+		}
+		return found
+	case *nodes.StringLit:
+		n := utf8.RuneCountInString(e.Value)
+		if n == 0 {
+			return "char(0)"
+		}
+		return fmt.Sprintf("varchar(%d)", n)
+	case *nodes.IntLit:
+		return resolvedTypeToColumnType(intLiteralResolvedType(strconv.FormatInt(e.Value, 10)))
+	case *nodes.FloatLit:
+		if strings.ContainsAny(e.Value, "eE") {
+			return "double"
+		}
+		whole, frac, _ := strings.Cut(strings.TrimLeft(e.Value, "+-"), ".")
+		return fmt.Sprintf("decimal(%d,%d)", len(whole)+len(frac), len(frac))
+	case *nodes.BoolLit:
+		return "int"
+	case *nodes.NullLit:
+		return "binary(0)"
+	default:
+		return ""
 	}
 }
 
@@ -1703,7 +1904,7 @@ func constIntScalarArg(expr AnalyzedExpr) (int, bool) {
 	return 0, false
 }
 
-func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
+func resolveNumericScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
 	if e == nil || len(e.Args) == 0 {
 		return nil
 	}
@@ -1790,7 +1991,7 @@ func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCal
 	return nil
 }
 
-func resolveSubLinkColumnType(c *Catalog, db *Database, q *Query, s *SubLinkExprQ, outer ...*Query) string {
+func resolveSubLinkColumnType(c *viewMetaResolver, db *Database, q *Query, s *SubLinkExprQ, outer ...*Query) string {
 	if s == nil {
 		return ""
 	}
@@ -1841,7 +2042,7 @@ func formatTemporalTypeWithFSP(base string, fsp int) string {
 	return base
 }
 
-func exprTemporalFSP(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) int {
+func exprTemporalFSP(c *viewMetaResolver, db *Database, q *Query, expr AnalyzedExpr) int {
 	if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
 		p := parseSetOpColType(ct)
 		if p.cat == "time" || p.cat == "datetime" || p.cat == "timestamp" {
@@ -1860,7 +2061,7 @@ func exprTemporalFSP(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) int 
 	return 0
 }
 
-func resolveBinaryUnaryColumnType(c *Catalog, db *Database, q *Query, operand AnalyzedExpr) string {
+func resolveBinaryUnaryColumnType(c *viewMetaResolver, db *Database, q *Query, operand AnalyzedExpr) string {
 	if operand == nil {
 		return ""
 	}
@@ -1919,7 +2120,7 @@ func charsetMaxBytes(charset string) int {
 	}
 }
 
-func exprCharsetMaxBytes(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) int {
+func exprCharsetMaxBytes(c *viewMetaResolver, db *Database, q *Query, expr AnalyzedExpr) int {
 	cs := ""
 	if ve, ok := expr.(*VarExprQ); ok && q != nil && ve.LevelsUp == 0 && ve.RangeIdx >= 0 && ve.RangeIdx < len(q.RangeTable) {
 		rte := q.RangeTable[ve.RangeIdx]
@@ -1946,7 +2147,7 @@ func exprCharsetMaxBytes(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) 
 	return charsetMaxBytes(cs)
 }
 
-func resolveTemporalScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
+func resolveTemporalScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
 	if e == nil {
 		return nil
 	}
@@ -1991,7 +2192,7 @@ func resolveTemporalScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCa
 	return nil
 }
 
-func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ, outer ...*Query) string {
+func resolveScalarFuncColumnType(c *viewMetaResolver, db *Database, q *Query, e *FuncCallExprQ, outer ...*Query) string {
 	if e == nil {
 		return ""
 	}
@@ -2659,7 +2860,7 @@ func indexOutsideQuotes(s, sub string, start int) int {
 	return -1
 }
 
-func sumAvgResolvedType(c *Catalog, db *Database, q *Query, arg AnalyzedExpr, isAvg bool) *ResolvedType {
+func sumAvgResolvedType(c *viewMetaResolver, db *Database, q *Query, arg AnalyzedExpr, isAvg bool) *ResolvedType {
 	rt := resolveExprResolvedType(c, db, q, arg)
 	if rt == nil {
 		return nil

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -508,6 +509,53 @@ func TestDatabaseMetadataViewAnalyzedColumns(t *testing.T) {
 	require.Equal(t, "varbinary(8)", vBit.Columns[2].Type)
 	require.Equal(t, "varchar(5)", vBit.Columns[3].Type)
 	require.Equal(t, "varchar(5)", vBit.Columns[4].Type)
+}
+
+func TestDatabaseMetadataViewCollateArithmeticAndDeepChain(t *testing.T) {
+	c := New()
+	results, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (id INT NOT NULL, s VARCHAR(20) NOT NULL, b VARBINARY(4) NOT NULL, txt TEXT NOT NULL);
+		CREATE VIEW v_collate AS SELECT id, s COLLATE utf8mb4_bin AS s FROM t;
+		CREATE VIEW v_arith AS SELECT b + 1 AS bin_add, txt + 1 AS txt_add FROM t;
+		CREATE VIEW v0 AS SELECT id AS x FROM t;
+	`, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, "statement %d failed", r.Index)
+	}
+
+	// Build a 30-layer chain where each view references the previous view twice
+	// (x + x). Without memoization this takes O(2^30) work.
+	for i := 1; i <= 30; i++ {
+		stmt := fmt.Sprintf("CREATE VIEW v%d AS SELECT x + x AS x FROM v%d;", i, i-1)
+		res, execErr := c.Exec(stmt, nil)
+		require.NoError(t, execErr)
+		for _, r := range res {
+			require.NoError(t, r.Error)
+		}
+	}
+
+	meta := c.DatabaseMetadata("app")
+	views := map[string]*metadata.ViewMetadata{}
+	for _, v := range meta.Schemas[0].Views {
+		views[v.Name] = v
+	}
+
+	vCol := views["v_collate"]
+	require.Len(t, vCol.Columns, 2)
+	require.Equal(t, "int(11)", vCol.Columns[0].Type)
+	require.Equal(t, "varchar(20)", vCol.Columns[1].Type)
+
+	vArith := views["v_arith"]
+	require.Len(t, vArith.Columns, 2)
+	require.Equal(t, "double", vArith.Columns[0].Type)
+	require.Equal(t, "double", vArith.Columns[1].Type)
+
+	vDeep := views["v30"]
+	require.Len(t, vDeep.Columns, 1)
+	require.Equal(t, "bigint", vDeep.Columns[0].Type)
 }
 
 func TestDatabaseMetadataFunctionalIndexAndSystemTimePartition(t *testing.T) {
