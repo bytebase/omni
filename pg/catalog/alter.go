@@ -354,10 +354,18 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				parentCon := c.consByRel[rel.OID][len(c.consByRel[rel.OID])-1]
 				if parentCon.IndexOID != 0 {
 					if parentIdx := c.indexes[parentCon.IndexOID]; parentIdx != nil {
-						c.cloneIndexToPartitionTree(rel, parentIdx)
+						if err := c.cloneIndexConstraintToPartitionTree(rel, parentIdx); err != nil {
+							restore()
+							return err
+						}
 						continue
 					}
 				}
+			}
+			if subtype == nodes.AT_DropConstraint && rel.RelKind == 'p' {
+				// atDropConstraint already follows ConParentID links to drop
+				// partition child constraints and their backing indexes.
+				continue
 			}
 			for _, childOID := range c.findChildRelations(rel.OID) {
 				childRel := c.relationByOID[childOID]
@@ -2350,22 +2358,84 @@ func (c *Catalog) stripDroppedColumnGrants(relOID uint32, colName string) {
 func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string, cascade, ifExists bool) error {
 	for _, con := range c.consByRel[rel.OID] {
 		if con.Name == conName {
-			// Check for NORMAL dependents (e.g. views) — require CASCADE.
-			if deps := c.findNormalDependents('c', con.OID); len(deps) > 0 {
-				if !cascade {
-					return errDependentObjects("constraint", conName)
-				}
-				c.dropDependents('c', con.OID)
-			}
+			// Collect this constraint and all descendant partition constraints
+			// linked via ConParentID so dependent checks and cascade drops cover
+			// the whole partition constraint hierarchy before removing anything.
+			dropCons := []*Constraint{con}
+			dropConOIDs := map[uint32]bool{con.OID: true}
+			dropIdxOIDs := map[uint32]bool{}
 			if con.IndexOID != 0 {
-				if deps := c.findNormalDependents('r', con.IndexOID); len(deps) > 0 {
-					if !cascade {
+				dropIdxOIDs[con.IndexOID] = true
+			}
+			for changed := true; changed; {
+				changed = false
+				var added []*Constraint
+				for oid, child := range c.constraints {
+					if child == nil || dropConOIDs[oid] {
+						continue
+					}
+					matched := child.ConParentID != 0 && dropConOIDs[child.ConParentID]
+					if !matched && child.Type == ConstraintCheck {
+						if childRel := c.relationByOID[child.RelOID]; childRel != nil && childRel.PartitionOf != 0 {
+							for _, dc := range dropCons {
+								if dc.Type == ConstraintCheck && dc.RelOID == childRel.PartitionOf && dc.Name == child.Name {
+									matched = true
+									break
+								}
+							}
+						}
+					}
+					if matched {
+						dropConOIDs[oid] = true
+						if child.IndexOID != 0 {
+							dropIdxOIDs[child.IndexOID] = true
+						}
+						added = append(added, child)
+						changed = true
+					}
+				}
+				sort.Slice(added, func(i, j int) bool { return added[i].OID < added[j].OID })
+				dropCons = append(dropCons, added...)
+			}
+			if !cascade {
+				for _, dc := range dropCons {
+					for _, dep := range c.findNormalDependents('c', dc.OID) {
+						if dep.ObjType == 'c' && dropConOIDs[dep.ObjOID] {
+							continue
+						}
 						return errDependentObjects("constraint", conName)
 					}
-					c.dropDependents('r', con.IndexOID)
+					if dc.IndexOID != 0 {
+						for _, dep := range c.findNormalDependents('r', dc.IndexOID) {
+							if (dep.ObjType == 'c' && dropConOIDs[dep.ObjOID]) ||
+								(dep.ObjType == 'i' && dropIdxOIDs[dep.ObjOID]) {
+								continue
+							}
+							return errDependentObjects("constraint", conName)
+						}
+					}
+				}
+			} else {
+				for _, dc := range dropCons {
+					if len(c.findNormalDependents('c', dc.OID)) > 0 {
+						c.dropDependents('c', dc.OID)
+					}
+					if dc.IndexOID != 0 && len(c.findNormalDependents('r', dc.IndexOID)) > 0 {
+						c.dropDependents('r', dc.IndexOID)
+					}
 				}
 			}
-			c.removeConstraint(schema, con)
+			for i := len(dropCons) - 1; i >= 0; i-- {
+				dc := dropCons[i]
+				if c.constraints[dc.OID] == nil {
+					continue
+				}
+				dcSchema := schema
+				if dcRel := c.relationByOID[dc.RelOID]; dcRel != nil && dcRel.Schema != nil {
+					dcSchema = dcRel.Schema
+				}
+				c.removeConstraint(dcSchema, dc)
+			}
 			return nil
 		}
 	}

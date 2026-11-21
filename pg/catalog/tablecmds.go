@@ -1792,6 +1792,81 @@ func (c *Catalog) cloneIndexToPartitionTree(parent *Relation, idx *Index) {
 	}
 }
 
+// cloneIndexConstraintToPartitionTree propagates an index-backed constraint
+// (PK/UNIQUE/EXCLUDE) added to a partitioned table down to existing partitions.
+// For PRIMARY KEY, it first validates that no partition has an incompatible
+// existing primary key, reusing and attaching any compatible existing PK.
+func (c *Catalog) cloneIndexConstraintToPartitionTree(parent *Relation, parentIdx *Index) error {
+	if parent == nil || parentIdx == nil {
+		return nil
+	}
+	parentCon := c.constraints[parentIdx.ConstraintOID]
+	if parentCon != nil && parentCon.Type == ConstraintPK {
+		var validate func(curParent *Relation, curCols, curIncl []int16) error
+		validate = func(curParent *Relation, curCols, curIncl []int16) error {
+			for _, childOID := range c.findPartitionChildRelations(curParent.OID) {
+				child := c.relationByOID[childOID]
+				if child == nil {
+					continue
+				}
+				mappedCols := c.mapColumnAttnums(curParent, child, curCols)
+				mappedIncl := c.mapColumnAttnums(curParent, child, curIncl)
+				if existingPK := c.findPKConstraint(child.OID); existingPK != nil {
+					if !slices.Equal(existingPK.Columns, mappedCols) ||
+						!slices.Equal(existingPK.IncludeColumns, mappedIncl) ||
+						existingPK.Deferrable != parentCon.Deferrable ||
+						existingPK.Deferred != parentCon.Deferred {
+						return errDuplicatePKey(child.Name)
+					}
+				}
+				if child.RelKind == 'p' {
+					if err := validate(child, mappedCols, mappedIncl); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		if err := validate(parent, parentCon.Columns, parentCon.IncludeColumns); err != nil {
+			return err
+		}
+	}
+
+	var propagate func(curParent *Relation, curIdx *Index)
+	propagate = func(curParent *Relation, curIdx *Index) {
+		curCon := c.constraints[curIdx.ConstraintOID]
+		for _, childOID := range c.findPartitionChildRelations(curParent.OID) {
+			child := c.relationByOID[childOID]
+			if child == nil {
+				continue
+			}
+			if curCon != nil && curCon.Type == ConstraintPK {
+				if existingPK := c.findPKConstraint(child.OID); existingPK != nil {
+					existingPK.ConParentID = curCon.OID
+					var existingIdx *Index
+					if existingPK.IndexOID != 0 {
+						existingIdx = c.indexes[existingPK.IndexOID]
+					}
+					if existingIdx != nil {
+						existingIdx.ParentIndexOID = curIdx.OID
+						c.recordDependency('i', existingIdx.OID, 0, 'i', curIdx.OID, 0, DepInternal)
+						if child.RelKind == 'p' {
+							propagate(child, existingIdx)
+						}
+					}
+					continue
+				}
+			}
+			partIdx := c.cloneIndexToPartition(child.Schema, curParent, child, curIdx)
+			if partIdx != nil && child.RelKind == 'p' {
+				propagate(child, partIdx)
+			}
+		}
+	}
+	propagate(parent, parentIdx)
+	return nil
+}
+
 func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relation, idx *Index) *Index {
 	// Map parent attnums to partition attnums by column name.
 	partAttnums := c.mapColumnAttnums(parent, partition, idx.Columns)

@@ -186,9 +186,10 @@ CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 		}
 	}
 
-	// ALTER TABLE ... ADD UNIQUE on a partitioned table links child constraint via ConParentID.
-	if got, c := execCode(t, setup, "ALTER TABLE a ADD UNIQUE (a)"); got != "" {
-		t.Fatalf("ALTER TABLE a ADD UNIQUE (a): got code %q, want ok", got)
+	// ALTER TABLE ... ADD UNIQUE on a partitioned table links child constraint via ConParentID,
+	// and dropping it through the parent removes both parent and child constraints + indexes.
+	if got, c := execCode(t, setup, "ALTER TABLE a ADD CONSTRAINT uq_a UNIQUE (a)"); got != "" {
+		t.Fatalf("ALTER TABLE a ADD CONSTRAINT uq_a UNIQUE (a): got code %q, want ok", got)
 	} else {
 		p1 := c.GetRelation("public", "a_p1")
 		found := false
@@ -198,7 +199,73 @@ CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 			}
 		}
 		if !found {
-			t.Fatalf("expected ALTER TABLE a ADD UNIQUE (a) to clone a linked unique constraint onto partition a_p1")
+			t.Fatalf("expected ALTER TABLE a ADD CONSTRAINT uq_a UNIQUE (a) to clone a linked unique constraint onto partition a_p1")
+		}
+		if results, err := c.Exec("ALTER TABLE a DROP CONSTRAINT uq_a", nil); err != nil {
+			t.Fatalf("DROP CONSTRAINT uq_a: %v", err)
+		} else if len(results) > 0 && results[0].Error != nil {
+			t.Fatalf("DROP CONSTRAINT uq_a: %v", results[0].Error)
+		}
+		for _, con := range c.ConstraintsOf(p1.OID) {
+			if con.Type == ConstraintUnique {
+				t.Fatalf("expected DROP CONSTRAINT uq_a to remove child unique constraint, still have %q", con.Name)
+			}
+		}
+		for _, idx := range c.IndexesOf(p1.OID) {
+			if !idx.IsPrimary {
+				t.Fatalf("expected DROP CONSTRAINT uq_a to remove child backing index, still have %q", idx.Name)
+			}
+		}
+	}
+
+	// Adding a PRIMARY KEY to a partitioned table when a partition already has
+	// an incompatible primary key must fail with 42P16 and roll back cleanly.
+	pkConflictSetup := `
+CREATE TABLE p (a int, b int) PARTITION BY RANGE (a);
+CREATE TABLE ch PARTITION OF p FOR VALUES FROM (0) TO (10);
+ALTER TABLE ch ADD PRIMARY KEY (b);
+`
+	if got, c := execCode(t, pkConflictSetup, "ALTER TABLE p ADD PRIMARY KEY (a)"); got != CodeDuplicatePKey {
+		t.Fatalf("incompatible child PK: got code %q, want %q", got, CodeDuplicatePKey)
+	} else {
+		p := c.GetRelation("public", "p")
+		ch := c.GetRelation("public", "ch")
+		if len(c.ConstraintsOf(p.OID)) != 0 {
+			t.Fatalf("expected rollback on parent p, still have constraints %+v", c.ConstraintsOf(p.OID))
+		}
+		if len(c.ConstraintsOf(ch.OID)) != 1 {
+			t.Fatalf("expected child ch to keep its single PK, got %d constraints", len(c.ConstraintsOf(ch.OID)))
+		}
+	}
+
+	// Adding a PRIMARY KEY to a partitioned table when a partition already has a
+	// compatible primary key attaches it instead of duplicating PKs, and dropping
+	// it through the parent removes both.
+	pkReuseSetup := `
+CREATE TABLE p (a int, b int) PARTITION BY RANGE (a);
+CREATE TABLE ch PARTITION OF p FOR VALUES FROM (0) TO (10);
+ALTER TABLE ch ADD PRIMARY KEY (a);
+`
+	if got, c := execCode(t, pkReuseSetup, "ALTER TABLE p ADD PRIMARY KEY (a)"); got != "" {
+		t.Fatalf("compatible child PK: got code %q, want ok", got)
+	} else {
+		ch := c.GetRelation("public", "ch")
+		var pks []*Constraint
+		for _, con := range c.ConstraintsOf(ch.OID) {
+			if con.Type == ConstraintPK {
+				pks = append(pks, con)
+			}
+		}
+		if len(pks) != 1 || pks[0].ConParentID == 0 {
+			t.Fatalf("expected single attached PK on ch, got %+v", pks)
+		}
+		if results, err := c.Exec("ALTER TABLE p DROP CONSTRAINT p_pkey", nil); err != nil {
+			t.Fatalf("DROP CONSTRAINT p_pkey: %v", err)
+		} else if len(results) > 0 && results[0].Error != nil {
+			t.Fatalf("DROP CONSTRAINT p_pkey: %v", results[0].Error)
+		}
+		if len(c.ConstraintsOf(ch.OID)) != 0 {
+			t.Fatalf("expected DROP CONSTRAINT p_pkey to drop child PK, still have %+v", c.ConstraintsOf(ch.OID))
 		}
 	}
 }

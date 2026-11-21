@@ -1186,8 +1186,29 @@ func (c *Catalog) operatorVisibleFor(name string, colType uint32) bool {
 	return false
 }
 
-// removeConstraint removes a single constraint and its backing index (if any).
+// removeConstraint removes a single constraint, any partition child constraints
+// linked to it via ConParentID, and its backing index (if any).
 func (c *Catalog) removeConstraint(schema *Schema, con *Constraint) {
+	if con == nil {
+		return
+	}
+	var children []*Constraint
+	for oid, child := range c.constraints {
+		if child != nil && child.ConParentID == con.OID && oid != con.OID {
+			children = append(children, child)
+		}
+	}
+	sort.Slice(children, func(i, j int) bool { return children[i].OID < children[j].OID })
+	for _, child := range children {
+		if c.constraints[child.OID] == child {
+			childSchema := schema
+			if childRel := c.relationByOID[child.RelOID]; childRel != nil && childRel.Schema != nil {
+				childSchema = childRel.Schema
+			}
+			c.removeConstraint(childSchema, child)
+		}
+	}
+
 	// Remove backing index if present.
 	if con.IndexOID != 0 {
 		if idx := c.indexes[con.IndexOID]; idx != nil {
