@@ -16,6 +16,12 @@
 > exec
 | CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
 < ok 0 0
+> exec
+| CREATE TABLE t_ft (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk (body) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3));
+< ok 0 0
+> exec
+| CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -94,6 +100,114 @@
 |
 < row
 : bytes
+| t_ft
+: bytes
+| fk
+: bytes
+| __word_segment_19_1795255147548298
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft
+: bytes
+| fk
+: bytes
+| __doc_id_1795255147547915
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| fk2
+: bytes
+| __word_segment_19_1795255147742812
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| fk2
+: bytes
+| __doc_id_1795255147742573
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
 | t_vec
 : bytes
 | PRIMARY
@@ -134,7 +248,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795253830199697
+| __vid_1795255146968227
 : bytes
 | A
 : int64 -1
@@ -152,7 +266,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795253830199989
+| __type_17_1795255146968625
 : bytes
 | A
 : int64 -1
@@ -170,7 +284,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795253830199697
+| __vid_1795255146968227
 : bytes
 | A
 : int64 -1
@@ -188,7 +302,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795253830201387
+| __scn_17_1795255146970465
 : bytes
 | A
 : int64 -1
@@ -206,7 +320,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795253830199697
+| __vid_1795255146968227
 : bytes
 | A
 : int64 -1
@@ -224,7 +338,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795253830199989
+| __type_17_1795255146968625
 : bytes
 | A
 : int64 -1
@@ -242,7 +356,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795253830202157
+| __key_17_1795255146971428
 : bytes
 | A
 : int64 -1
@@ -426,6 +540,94 @@
 | YES
 : bytes
 | varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft
+: bytes
+| body
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(200)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft_default
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft_default
+: bytes
+| body
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(200)
 : bytes
 | utf8mb4
 : bytes
@@ -751,6 +953,52 @@
 < row
 : bytes
 | t_fn
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_ft
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_ft_default
 : bytes
 | BASE TABLE
 : bytes
@@ -873,6 +1121,36 @@
 |   KEY `k2` ((CONCAT(`code`,'c\\d'))) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_ft`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_ft
+: bytes
+| CREATE TABLE `t_ft` (
+|   `id` int(11) NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk` (`body`) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_ft_default`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_ft_default
+: bytes
+| CREATE TABLE `t_ft_default` (
+|   `id` int(11) NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk2` (`body`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_vec`
 < result
 < column "Table" "VARCHAR" "string"
@@ -949,6 +1227,22 @@
 |   `code` varchar(10) DEFAULT NULL,
 |   KEY `k1` ((CONCAT(`code`,'a\'b'))),
 |   KEY `k2` ((CONCAT(`code`,'c\\d')))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE TABLE `t_ft` (
+|   `id` int NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk` (`body`) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE TABLE `t_ft_default` (
+|   `id` int NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk2` (`body`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 < ok 0 0
 > exec
@@ -1043,6 +1337,114 @@
 |
 < row
 : bytes
+| t_ft
+: bytes
+| fk
+: bytes
+| __word_segment_19_1795255150019409
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft
+: bytes
+| fk
+: bytes
+| __doc_id_1795255150019222
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| fk2
+: bytes
+| __word_segment_19_1795255150190432
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| fk2
+: bytes
+| __doc_id_1795255150190199
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
+: bytes
+| FULLTEXT
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_ft_default
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
 | t_vec
 : bytes
 | PRIMARY
@@ -1083,7 +1485,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795253832165205
+| __vid_1795255150361901
 : bytes
 | A
 : int64 -1
@@ -1101,7 +1503,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795253832165461
+| __type_17_1795255150362146
 : bytes
 | A
 : int64 -1
@@ -1119,7 +1521,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795253832165205
+| __vid_1795255150361901
 : bytes
 | A
 : int64 -1
@@ -1137,7 +1539,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795253832166870
+| __scn_17_1795255150363597
 : bytes
 | A
 : int64 -1
@@ -1155,7 +1557,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795253832165205
+| __vid_1795255150361901
 : bytes
 | A
 : int64 -1
@@ -1173,7 +1575,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795253832165461
+| __type_17_1795255150362146
 : bytes
 | A
 : int64 -1
@@ -1191,7 +1593,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795253832167580
+| __key_17_1795255150364359
 : bytes
 | A
 : int64 -1
@@ -1375,6 +1777,94 @@
 | YES
 : bytes
 | varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft
+: bytes
+| body
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(200)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft_default
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_ft_default
+: bytes
+| body
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(200)
 : bytes
 | utf8mb4
 : bytes
@@ -1722,6 +2212,52 @@
 | utf8mb4
 < row
 : bytes
+| t_ft
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_ft_default
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_vec
 : bytes
 | BASE TABLE
@@ -1817,6 +2353,36 @@
 |   `code` varchar(10) DEFAULT NULL,
 |   KEY `k1` ((CONCAT(`code`,'a\'b'))) BLOCK_SIZE 16384 LOCAL,
 |   KEY `k2` ((CONCAT(`code`,'c\\d'))) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_ft`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_ft
+: bytes
+| CREATE TABLE `t_ft` (
+|   `id` int(11) NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk` (`body`) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3) BLOCK_SIZE 16384
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_ft_default`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_ft_default
+: bytes
+| CREATE TABLE `t_ft_default` (
+|   `id` int(11) NOT NULL,
+|   `body` varchar(200) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `fk2` (`body`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_vec`

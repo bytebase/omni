@@ -35,6 +35,12 @@
 > exec
 | CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
 < ok 0 0
+> exec
+| CREATE TABLE p_hash_named (id INT) PARTITION BY HASH(id) PARTITIONS 2 (PARTITION pa COMMENT='first', PARTITION pb);
+< ok 0 0
+> exec
+| CREATE TABLE p_key_named (id INT) PARTITION BY KEY(id) PARTITIONS 2 (PARTITION ka, PARTITION kb);
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -270,9 +276,53 @@
 < column "SRS_ID" "UNSIGNED INT"
 < row
 : bytes
+| p_hash_named
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | p_key
 : bytes
 | a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key_named
+: bytes
+| id
 : int64 1
 : null
 : bytes
@@ -707,6 +757,36 @@
 < column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| pa
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+| first
+< row
+: bytes
+| p_hash_named
+: bytes
+| pb
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
 | p_key
 : bytes
 | p0
@@ -731,6 +811,36 @@
 : null
 : bytes
 | `a`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| ka
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| kb
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
 : null
 : null
 : bytes
@@ -804,6 +914,21 @@
 : bytes
 |
 > query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_hash_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_hash_named
+: bytes
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION pa COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION pb ENGINE = InnoDB) */
+> query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key`
 < result
 < column "Table" "VARCHAR" "string"
@@ -817,6 +942,21 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY */ /*!50611 ALGORITHM = 1 */ /*!50100 (a)
 | PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_key_named
+: bytes
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (id)
+| (PARTITION ka ENGINE = InnoDB,
+|  PARTITION kb ENGINE = InnoDB) */
 > query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_quoted`
 < result
@@ -909,7 +1049,53 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key_named
 : bytes
 | BASE TABLE
 : bytes
@@ -1242,7 +1428,7 @@
 | utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE `omni_sync_show_create_roundtrip`
-< ok 10 0
+< ok 12 0
 > exec
 | CREATE DATABASE `omni_sync_show_create_roundtrip`
 < ok 1 0
@@ -1259,11 +1445,39 @@
 | /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
 < ok 0 0
 > exec
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION `pa` ENGINE=InnoDB COMMENT = 'first',
+|  PARTITION `pb` ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
+< ok 0 0
+> exec
+| /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
+< ok 0 0
+> exec
 | CREATE TABLE `p_key` (
 |   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY ALGORITHM = 1 (`a`)
 | PARTITIONS 2 */
+< ok 0 0
+> exec
+| /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
+< ok 0 0
+> exec
+| /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
+< ok 0 0
+> exec
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (`id`)
+| (PARTITION `ka` ENGINE=InnoDB,
+|  PARTITION `kb` ENGINE=InnoDB) */
 < ok 0 0
 > exec
 | /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
@@ -1602,9 +1816,53 @@
 < column "SRS_ID" "UNSIGNED INT"
 < row
 : bytes
+| p_hash_named
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | p_key
 : bytes
 | a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key_named
+: bytes
+| id
 : int64 1
 : null
 : bytes
@@ -2039,6 +2297,36 @@
 < column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| pa
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+| first
+< row
+: bytes
+| p_hash_named
+: bytes
+| pb
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
 | p_key
 : bytes
 | p0
@@ -2063,6 +2351,36 @@
 : null
 : bytes
 | `a`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| ka
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| kb
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
 : null
 : null
 : bytes
@@ -2136,6 +2454,21 @@
 : bytes
 |
 > query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_hash_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_hash_named
+: bytes
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION pa COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION pb ENGINE = InnoDB) */
+> query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key`
 < result
 < column "Table" "VARCHAR" "string"
@@ -2149,6 +2482,21 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY */ /*!50611 ALGORITHM = 1 */ /*!50100 (a)
 | PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_key_named
+: bytes
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (id)
+| (PARTITION ka ENGINE = InnoDB,
+|  PARTITION kb ENGINE = InnoDB) */
 > query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_quoted`
 < result
@@ -2241,7 +2589,53 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key_named
 : bytes
 | BASE TABLE
 : bytes
@@ -2612,6 +3006,12 @@
 > exec
 | CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
 < ok 0 0
+> exec
+| CREATE TABLE p_hash_named (id INT) PARTITION BY HASH(id) PARTITIONS 2 (PARTITION pa COMMENT='first', PARTITION pb);
+< ok 0 0
+> exec
+| CREATE TABLE p_key_named (id INT) PARTITION BY KEY(id) PARTITIONS 2 (PARTITION ka, PARTITION kb);
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -2847,9 +3247,53 @@
 < column "SRS_ID" "UNSIGNED INT"
 < row
 : bytes
+| p_hash_named
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | p_key
 : bytes
 | a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key_named
+: bytes
+| id
 : int64 1
 : null
 : bytes
@@ -3284,6 +3728,36 @@
 < column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| pa
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+| first
+< row
+: bytes
+| p_hash_named
+: bytes
+| pb
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
 | p_key
 : bytes
 | p0
@@ -3308,6 +3782,36 @@
 : null
 : bytes
 | `a`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| ka
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| kb
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
 : null
 : null
 : bytes
@@ -3381,6 +3885,21 @@
 : bytes
 |
 > query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_hash_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_hash_named
+: bytes
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION pa COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION pb ENGINE = InnoDB) */
+> query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key`
 < result
 < column "Table" "VARCHAR" "string"
@@ -3394,6 +3913,21 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY */ /*!50611 ALGORITHM = 1 */ /*!50100 (a)
 | PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_key_named
+: bytes
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (id)
+| (PARTITION ka ENGINE = InnoDB,
+|  PARTITION kb ENGINE = InnoDB) */
 > query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_quoted`
 < result
@@ -3486,7 +4020,53 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key_named
 : bytes
 | BASE TABLE
 : bytes
@@ -3819,7 +4399,7 @@
 | utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE `omni_sync_show_create_roundtrip`
-< ok 10 0
+< ok 12 0
 > exec
 | CREATE DATABASE `omni_sync_show_create_roundtrip`
 < ok 1 0
@@ -3836,11 +4416,39 @@
 | /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
 < ok 0 0
 > exec
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION `pa` ENGINE=InnoDB COMMENT = 'first',
+|  PARTITION `pb` ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
+< ok 0 0
+> exec
+| /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
+< ok 0 0
+> exec
 | CREATE TABLE `p_key` (
 |   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY ALGORITHM = 1 (`a`)
 | PARTITIONS 2 */
+< ok 0 0
+> exec
+| /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
+< ok 0 0
+> exec
+| /*!80030 SET @OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@@SQL_GENERATE_INVISIBLE_PRIMARY_KEY, SQL_GENERATE_INVISIBLE_PRIMARY_KEY=OFF */
+< ok 0 0
+> exec
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (`id`)
+| (PARTITION `ka` ENGINE=InnoDB,
+|  PARTITION `kb` ENGINE=InnoDB) */
 < ok 0 0
 > exec
 | /*!80030 SET SQL_GENERATE_INVISIBLE_PRIMARY_KEY=@OLD_SQL_GENERATE_INVISIBLE_PRIMARY_KEY */
@@ -4179,9 +4787,53 @@
 < column "SRS_ID" "UNSIGNED INT"
 < row
 : bytes
+| p_hash_named
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | p_key
 : bytes
 | a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key_named
+: bytes
+| id
 : int64 1
 : null
 : bytes
@@ -4616,6 +5268,36 @@
 < column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| pa
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+| first
+< row
+: bytes
+| p_hash_named
+: bytes
+| pb
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
 | p_key
 : bytes
 | p0
@@ -4640,6 +5322,36 @@
 : null
 : bytes
 | `a`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| ka
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key_named
+: bytes
+| kb
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `id`
 : null
 : null
 : bytes
@@ -4713,6 +5425,21 @@
 : bytes
 |
 > query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_hash_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_hash_named
+: bytes
+| CREATE TABLE `p_hash_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION pa COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION pb ENGINE = InnoDB) */
+> query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key`
 < result
 < column "Table" "VARCHAR" "string"
@@ -4726,6 +5453,21 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 | /*!50100 PARTITION BY KEY */ /*!50611 ALGORITHM = 1 */ /*!50100 (a)
 | PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_key_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p_key_named
+: bytes
+| CREATE TABLE `p_key_named` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (id)
+| (PARTITION ka ENGINE = InnoDB,
+|  PARTITION kb ENGINE = InnoDB) */
 > query
 | SHOW CREATE TABLE `omni_sync_show_create_roundtrip`.`p_quoted`
 < result
@@ -4818,7 +5560,53 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
+| p_hash_named
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| 0
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key_named
 : bytes
 | BASE TABLE
 : bytes

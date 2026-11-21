@@ -1227,7 +1227,10 @@ func preserveMetadataViewColumns(v *View, cols []*metadata.ColumnMetadata) {
 		if vc.Name == "" {
 			vc.Name = col.GetName()
 		}
-		if v.AnalyzedQuery == nil && vc.ColumnType == "" {
+		// The snapshot's type is the engine's: DatabaseMetadata reports it
+		// for any column whose type analysis leaves unresolved, as it does
+		// MD5(name), not only when the whole view fails to analyze.
+		if vc.ColumnType == "" {
 			vc.ColumnType = col.GetType()
 		}
 		if vc.Charset == "" {

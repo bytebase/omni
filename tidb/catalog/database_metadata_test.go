@@ -1564,3 +1564,32 @@ func TestDatabaseMetadataQuotesPartitionColumns(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "`a,b`,`c`", restored.DatabaseMetadata("app").Schemas[0].Tables[0].Partitions[0].Expression)
 }
+
+// TestDatabaseMetadataKeepsSnapshotTypeForUnresolvedViewColumns pins that a
+// view column whose type analysis cannot resolve keeps the type the snapshot
+// supplied, even when the rest of the view analyzes.
+func TestDatabaseMetadataKeepsSnapshotTypeForUnresolvedViewColumns(t *testing.T) {
+	c := New()
+	_, err := c.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Position: 1, Type: "int", Nullable: false}, {Name: "name", Position: 2, Type: "varchar(32)", Nullable: true}},
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v",
+				Definition: "select `app`.`t`.`id` AS `id`,md5(`app`.`t`.`name`) AS `digest` from `app`.`t`",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int"},
+					{Name: "digest", Position: 2, Type: "varchar(32)", Nullable: true},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	cols := c.DatabaseMetadata("app").Schemas[0].Views[0].Columns
+	require.Len(t, cols, 2)
+	require.Equal(t, "int", cols[0].Type)
+	require.Equal(t, "varchar(32)", cols[1].Type)
+}

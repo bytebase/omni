@@ -307,7 +307,11 @@ CREATE TABLE p_sub (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY KEY ALG
 
 CREATE TABLE p_quoted (` + "`a,b`" + ` INT, c INT) PARTITION BY KEY (` + "`a,b`" + `, c) PARTITIONS 2;
 
-CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));`
+CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
+
+CREATE TABLE p_hash_named (id INT) PARTITION BY HASH(id) PARTITIONS 2 (PARTITION pa COMMENT='first', PARTITION pb);
+
+CREATE TABLE p_key_named (id INT) PARTITION BY KEY(id) PARTITIONS 2 (PARTITION ka, PARTITION kb);`
 	for _, role := range []string{testcontainer.Default, testcontainer.MySQL84} {
 		t.Run(role, func(t *testing.T) {
 			const dbName = "omni_sync_show_create_roundtrip"
@@ -343,6 +347,15 @@ CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((C
 					if sp.Algorithm != 1 {
 						t.Errorf("p_sub subpartition %s ALGORITHM on %s = %d, want 1", sp.Name, role, sp.Algorithm)
 					}
+				}
+			}
+			for name, want := range map[string]string{"p_hash_named": "pa,pb", "p_key_named": "ka,kb"} {
+				var names []string
+				for _, p := range tables[name].Partitions {
+					names = append(names, p.Name)
+				}
+				if strings.Join(names, ",") != want {
+					t.Errorf("%s partitions on %s = %v, want %s", name, role, names, want)
 				}
 			}
 			if diff := restoreDiff(source, restored); diff != "" {

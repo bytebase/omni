@@ -1222,6 +1222,13 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
 		pi.NumParts = 1
 	}
+	// Explicit definitions are what MySQL keeps, PARTITIONS n beside them
+	// only a count they must match: mysql:8.0.46 shows PARTITION BY HASH (id)
+	// PARTITIONS 2 (PARTITION pa COMMENT 'first', PARTITION pb) as the list
+	// alone. NumParts stays for generated partitions, which show as the count.
+	if len(pc.Partitions) > 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
+		pi.NumParts = 0
+	}
 
 	switch pc.Type {
 	case nodes.PartitionRange:

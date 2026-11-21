@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -292,7 +293,11 @@ CREATE TABLE t_vec (id INT PRIMARY KEY, v VECTOR(3), VECTOR INDEX vi(v) WITH (di
 
 CREATE TABLE p_quoted (` + "`a,b`" + ` INT, c INT) PARTITION BY KEY (` + "`a,b`" + `, c) PARTITIONS 2;
 
-CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));`
+CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
+
+CREATE TABLE t_ft (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk (body) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3));
+
+CREATE TABLE t_ft_default (id INT PRIMARY KEY, body VARCHAR(200), FULLTEXT KEY fk2 (body));`
 	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
 	if err != nil {
 		t.Fatalf("restoring OceanBase dump: %v", err)
@@ -319,6 +324,16 @@ CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((C
 	}
 	if strings.Join(names, ",") != "PRIMARY,vi" {
 		t.Errorf("t_vec indexes = %v, want PRIMARY and vi alone", names)
+	}
+	for _, tc := range []struct{ table, parser, props string }{{"t_ft", "ngram", "map[ngram_token_size:3]"}, {"t_ft_default", "", "map[]"}} {
+		for _, idx := range tables[tc.table].Indexes {
+			if idx.Primary {
+				continue
+			}
+			if idx.Parser != tc.parser || fmt.Sprint(idx.ParserProperties) != tc.props || strings.Join(idx.Expressions, ",") != "body" {
+				t.Errorf("%s full-text index = %+v", tc.table, idx)
+			}
+		}
 	}
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("restored OceanBase database differs from source (-source +restored):\n%s", diff)

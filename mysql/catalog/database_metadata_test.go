@@ -1918,3 +1918,83 @@ func TestDatabaseMetadataEscapesFunctionalIndexExpressions(t *testing.T) {
 	}
 	require.Equal(t, exprs, reExprs)
 }
+
+// TestDatabaseMetadataStripsQuotedDefiners pins a routine whose DEFINER account
+// holds the object keyword itself: the exported definition drops the whole
+// account, reloads, and renders.
+func TestDatabaseMetadataStripsQuotedDefiners(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE DEFINER='my FUNCTION user'@'%' FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1; "+
+		"CREATE DEFINER='my PROCEDURE user'@'%' PROCEDURE p1() SELECT 1;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	require.Len(t, s.Functions, 1)
+	require.Len(t, s.Procedures, 1)
+	require.True(t, strings.HasPrefix(s.Functions[0].Definition, "CREATE FUNCTION `f1`"), s.Functions[0].Definition)
+	require.True(t, strings.HasPrefix(s.Procedures[0].Definition, "CREATE PROCEDURE `p1`"), s.Procedures[0].Definition)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["f1"])
+	require.NotNil(t, reloaded.GetDatabase("app").Procedures["p1"])
+}
+
+// TestDatabaseDefinitionSDLOmitsDropDefault pins that the SDL form of a column
+// whose default was dropped carries no ALTER TABLE, which LoadSDL refuses.
+func TestDatabaseDefinitionSDLOmitsDropDefault(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE t (a INT NULL, b INT NOT NULL); ALTER TABLE t ALTER COLUMN a DROP DEFAULT;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "ALTER TABLE `t` ALTER COLUMN `a` DROP DEFAULT;")
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.NotContains(t, sdl, "ALTER TABLE")
+	_, err = LoadSDL("CREATE DATABASE app; USE app;\n" + sdl)
+	require.NoError(t, err)
+}
+
+// TestDatabaseMetadataKeepsExplicitHashPartitions pins HASH and KEY partitions
+// written out beside a PARTITIONS count: mysql:8.0.46 keeps the list
+// (PARTITION pa COMMENT 'first', PARTITION pb) and shows no count, so the
+// export lists them and reloads them by name.
+func TestDatabaseMetadataKeepsExplicitHashPartitions(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE TABLE h1 (id INT) PARTITION BY HASH(id) PARTITIONS 2 (PARTITION pa COMMENT='first', PARTITION pb); "+
+		"CREATE TABLE h2 (id INT) PARTITION BY KEY(id) PARTITIONS 2 (PARTITION ka, PARTITION kb); "+
+		"CREATE TABLE h3 (id INT) PARTITION BY HASH(id) PARTITIONS 2;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.NotContains(t, c.ShowCreateTable("app", "h1"), "PARTITIONS 2")
+	require.Contains(t, c.ShowCreateTable("app", "h3"), "PARTITIONS 2")
+	meta := c.DatabaseMetadata("app")
+	tables := map[string]*metadata.TableMetadata{}
+	for _, tbl := range meta.Schemas[0].Tables {
+		tables[tbl.Name] = tbl
+	}
+	for name, want := range map[string]string{"h1": "pa,pb", "h2": "ka,kb"} {
+		var names []string
+		for _, p := range tables[name].Partitions {
+			require.Empty(t, p.UseDefault, name)
+			names = append(names, p.Name)
+		}
+		require.Equal(t, want, strings.Join(names, ","))
+	}
+	require.Equal(t, "first", tables["h1"].Partitions[0].Comment)
+	require.Equal(t, "2", tables["h3"].Partitions[0].UseDefault)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Incomplete)
+	reParts := reloaded.GetDatabase("app").GetTable("h1").Partitioning.Partitions
+	require.Len(t, reParts, 2)
+	require.Equal(t, "pa", reParts[0].Name)
+	require.Equal(t, "first", reParts[0].Comment)
+}

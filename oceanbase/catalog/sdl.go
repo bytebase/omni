@@ -147,7 +147,10 @@ func validateSDLStmt(stmt nodes.Node) error {
 		*nodes.CreateViewStmt,
 		*nodes.CreateFunctionStmt, // function or procedure (IsProcedure)
 		*nodes.CreateTriggerStmt,
-		*nodes.CreateEventStmt:
+		*nodes.CreateEventStmt,
+		// A materialized view log is declared on its table, as the SDL form
+		// writes it after the table.
+		*nodes.CreateMaterializedViewLogStmt:
 		return nil
 
 	// ---- Allowed session statements ----

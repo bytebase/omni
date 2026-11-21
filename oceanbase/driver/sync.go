@@ -1864,9 +1864,10 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 		if !ok {
 			continue
 		}
-		if con.Type == oceanbaseast.ConstrVector {
-			idx.IsVector = true
-			idx.Type = ""
+		// STATISTICS lists a FULLTEXT or VECTOR key over the hidden columns
+		// that hold it (__word_segment_<n>, __doc_id_<n>; __vid_<n>,
+		// __type_<n>); its own columns are in SHOW CREATE TABLE.
+		if con.Type == oceanbaseast.ConstrFulltextIndex || con.Type == oceanbaseast.ConstrVector {
 			idx.Expressions = idx.Expressions[:0]
 			idx.KeyLength = idx.KeyLength[:0]
 			idx.Descending = idx.Descending[:0]
@@ -1877,6 +1878,13 @@ func reconcileIndexesFromShowCreate(t *metadatapb.TableMetadata, constraints []*
 					idx.Descending = append(idx.Descending, false)
 				}
 			}
+		}
+		if con.Type == oceanbaseast.ConstrFulltextIndex {
+			idx.Parser, idx.ParserProperties = fulltextParser(con.IndexOptions)
+		}
+		if con.Type == oceanbaseast.ConstrVector {
+			idx.IsVector = true
+			idx.Type = ""
 			for _, opt := range con.IndexOptions {
 				if opt != nil && strings.EqualFold(opt.Name, "WITH") {
 					idx.VectorParams = vectorParams(opt)
@@ -1907,4 +1915,46 @@ func vectorParams(opt *oceanbaseast.IndexOption) []string {
 		params = append(params, strings.ToUpper(prop.Name)+"="+value)
 	}
 	return params
+}
+
+// fulltextParser is a FULLTEXT KEY's WITH PARSER and PARSER_PROPERTIES as SHOW
+// CREATE TABLE prints them, with every default filled in. oceanbase-ce 4.3.5.6
+// prints an index written with neither as WITH PARSER space
+// PARSER_PROPERTIES=(min_token_size=3,max_token_size=84), which the catalog
+// exports as no parser at all, so that default is left empty.
+func fulltextParser(opts []*oceanbaseast.IndexOption) (string, map[string]string) {
+	parser := ""
+	var props map[string]string
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		switch strings.ToUpper(opt.Name) {
+		case "PARSER":
+			if v, ok := opt.Value.(*oceanbaseast.StringLit); ok {
+				parser = strings.ToLower(v.Value)
+			}
+		case "PARSER_PROPERTIES":
+			props = make(map[string]string, len(opt.Properties))
+			for _, prop := range opt.Properties {
+				if prop == nil {
+					continue
+				}
+				key := strings.ToLower(prop.Name)
+				switch v := prop.Value.(type) {
+				case *oceanbaseast.IntLit:
+					props[key] = strconv.FormatInt(v.Value, 10)
+				case *oceanbaseast.StringLit:
+					props[key] = v.Value
+					if key == "ik_mode" {
+						props[key] = strings.ToLower(v.Value)
+					}
+				}
+			}
+		}
+	}
+	if parser == "space" && len(props) == 2 && props["min_token_size"] == "3" && props["max_token_size"] == "84" {
+		return "", nil
+	}
+	return parser, props
 }

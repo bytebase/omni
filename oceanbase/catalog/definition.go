@@ -802,8 +802,11 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	if _, err := io.WriteString(buf, ";\n\n"); err != nil {
 		return err
 	}
+	// A dropped default is restored by ALTER TABLE ... DROP DEFAULT, which the
+	// declarative SDL form (sorted) cannot hold: LoadSDL refuses every ALTER
+	// TABLE. The SDL column keeps no DEFAULT clause instead.
 	for _, col := range table.Columns {
-		if col.GetDefaultDropped() {
+		if col.GetDefaultDropped() && !sorted {
 			if _, err := fmt.Fprintf(buf, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
 				return err
 			}

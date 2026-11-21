@@ -1851,3 +1851,58 @@ func TestDatabaseMetadataQuotesPartitionColumns(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "`a,b`, `c`", restored.DatabaseMetadata("app").Schemas[0].Tables[0].Partitions[0].Expression)
 }
+
+// TestDatabaseMetadataStripsQuotedDefiners pins a routine whose DEFINER account
+// holds the object keyword itself: the exported definition drops the whole
+// account, reloads, and renders.
+func TestDatabaseMetadataStripsQuotedDefiners(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE DEFINER='my FUNCTION user'@'%' FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1; "+
+		"CREATE DEFINER='my PROCEDURE user'@'%' PROCEDURE p1() SELECT 1;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	s := meta.Schemas[0]
+	require.Len(t, s.Functions, 1)
+	require.Len(t, s.Procedures, 1)
+	require.True(t, strings.HasPrefix(s.Functions[0].Definition, "CREATE FUNCTION `f1`"), s.Functions[0].Definition)
+	require.True(t, strings.HasPrefix(s.Procedures[0].Definition, "CREATE PROCEDURE `p1`"), s.Procedures[0].Definition)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["f1"])
+	require.NotNil(t, reloaded.GetDatabase("app").Procedures["p1"])
+}
+
+// TestDatabaseDefinitionSDLOmitsDropDefault pins that the SDL form of a column
+// whose default was dropped carries no ALTER TABLE, which LoadSDL refuses.
+func TestDatabaseDefinitionSDLOmitsDropDefault(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE t (a INT NULL, b INT NOT NULL); ALTER TABLE t ALTER COLUMN a DROP DEFAULT;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "ALTER TABLE `t` ALTER COLUMN `a` DROP DEFAULT;")
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.NotContains(t, sdl, "ALTER TABLE")
+	_, err = LoadSDL("CREATE DATABASE app; USE app;\n" + sdl)
+	require.NoError(t, err)
+}
+
+// TestDatabaseDefinitionSDLKeepsMaterializedViewLog pins that the SDL form's
+// CREATE MATERIALIZED VIEW LOG loads back.
+func TestDatabaseDefinitionSDLKeepsMaterializedViewLog(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE t (id INT PRIMARY KEY); CREATE MATERIALIZED VIEW LOG ON t;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	sdl, err := DatabaseDefinition(c.DatabaseMetadata("app"), DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, sdl, "CREATE MATERIALIZED VIEW LOG ON `t`;")
+	loaded, err := LoadSDL("CREATE DATABASE app; USE app;\n" + sdl)
+	require.NoError(t, err)
+	require.True(t, loaded.DatabaseMetadata("app").Schemas[0].Tables[0].GetHasMaterializedViewLog())
+}

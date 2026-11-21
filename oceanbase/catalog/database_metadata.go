@@ -2249,13 +2249,9 @@ func normalizeRoutineDefinition(def string, isProcedure bool) string {
 	if def == "" {
 		return ""
 	}
-	keyword := " FUNCTION "
-	if isProcedure {
-		keyword = " PROCEDURE "
-	}
-	if idx := strings.Index(def, keyword); idx >= 0 {
-		def = "CREATE" + def[idx:]
-	}
+	// The account is scanned, not searched for the object keyword:
+	// DEFINER='my FUNCTION user'@'%' holds " FUNCTION " itself.
+	def = stripLeadingDefiner(def)
 	if !isProcedure {
 		def = stripReturnsCharset(def)
 	}
