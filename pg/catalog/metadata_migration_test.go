@@ -6870,3 +6870,109 @@ func TestRound32Fixes(t *testing.T) {
 	require.Empty(t, Diff(defApplied, defTo).Functions)
 	require.Empty(t, Diff(defApplied, defTo).Relations)
 }
+
+func TestRound33Fixes(t *testing.T) {
+	// 1. Renaming a foreign server emits ALTER SERVER ... RENAME TO and preserves foreign tables and views.
+	srvFrom := New()
+	_, err := srvFrom.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_srv;
+		CREATE SERVER srv_old FOREIGN DATA WRAPPER w_srv OPTIONS (host 'h1');
+		CREATE FOREIGN TABLE public.ft_srv (id int) SERVER srv_old;
+		CREATE VIEW public.v_ft_srv AS SELECT id FROM public.ft_srv;
+	`, nil)
+	require.NoError(t, err)
+	srvTo := srvFrom.Clone()
+	_, err = srvTo.Exec(`
+		ALTER SERVER srv_old RENAME TO srv_new;
+		ALTER SERVER srv_new OPTIONS (SET host 'h2');
+	`, nil)
+	require.NoError(t, err)
+	srvSQL := GenerateMigration(srvFrom, srvTo, Diff(srvFrom, srvTo)).SQL()
+	require.Contains(t, srvSQL, `ALTER SERVER srv_old RENAME TO srv_new`)
+	require.NotContains(t, srvSQL, `DROP SERVER`)
+	require.NotContains(t, srvSQL, `DROP FOREIGN TABLE`)
+	srvApplied := srvFrom.Clone()
+	srvExec, err := srvApplied.Exec(srvSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range srvExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(srvApplied, srvTo).ForeignServers)
+	require.Empty(t, Diff(srvApplied, srvTo).ForeignTables)
+	require.Empty(t, Diff(srvApplied, srvTo).Relations)
+
+	// 2. Removing a function parameter default rebuilds all retained dependents (defaults, generated columns, CHECK, indexes, policies, triggers, views).
+	fnFrom := New()
+	_, err = fnFrom.Exec(`
+		CREATE FUNCTION public.fn_all_dep(a int DEFAULT 0) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT a + 1';
+		CREATE FUNCTION public.fn_all_dep_trig() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE TABLE public.t_fn_dep (
+			id int,
+			x int DEFAULT public.fn_all_dep(1),
+			g int GENERATED ALWAYS AS (public.fn_all_dep(id)) STORED,
+			CONSTRAINT chk_fn_dep CHECK (public.fn_all_dep(id) > 0)
+		);
+		CREATE INDEX idx_fn_expr ON public.t_fn_dep ((public.fn_all_dep(id)));
+		CREATE INDEX idx_fn_part ON public.t_fn_dep (id) WHERE public.fn_all_dep(id) > 0;
+		CREATE POLICY pol_fn_dep ON public.t_fn_dep USING (public.fn_all_dep(id) > 0);
+		CREATE TRIGGER tr_fn_dep BEFORE INSERT ON public.t_fn_dep FOR EACH ROW WHEN (public.fn_all_dep(NEW.id) > 0) EXECUTE FUNCTION public.fn_all_dep_trig();
+		CREATE VIEW public.v_fn_dep AS SELECT public.fn_all_dep(id) AS val FROM public.t_fn_dep;
+	`, nil)
+	require.NoError(t, err)
+	fnTo := New()
+	_, err = fnTo.Exec(`
+		CREATE FUNCTION public.fn_all_dep(a int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT a + 1';
+		CREATE FUNCTION public.fn_all_dep_trig() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE TABLE public.t_fn_dep (
+			id int,
+			x int DEFAULT public.fn_all_dep(1),
+			g int GENERATED ALWAYS AS (public.fn_all_dep(id)) STORED,
+			CONSTRAINT chk_fn_dep CHECK (public.fn_all_dep(id) > 0)
+		);
+		CREATE INDEX idx_fn_expr ON public.t_fn_dep ((public.fn_all_dep(id)));
+		CREATE INDEX idx_fn_part ON public.t_fn_dep (id) WHERE public.fn_all_dep(id) > 0;
+		CREATE POLICY pol_fn_dep ON public.t_fn_dep USING (public.fn_all_dep(id) > 0);
+		CREATE TRIGGER tr_fn_dep BEFORE INSERT ON public.t_fn_dep FOR EACH ROW WHEN (public.fn_all_dep(NEW.id) > 0) EXECUTE FUNCTION public.fn_all_dep_trig();
+		CREATE VIEW public.v_fn_dep AS SELECT public.fn_all_dep(id) AS val FROM public.t_fn_dep;
+	`, nil)
+	require.NoError(t, err)
+	fnSQL := GenerateMigration(fnFrom, fnTo, Diff(fnFrom, fnTo)).SQL()
+	fnApplied := fnFrom.Clone()
+	fnExec, err := fnApplied.Exec(fnSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range fnExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(fnApplied, fnTo).Functions)
+	require.Empty(t, Diff(fnApplied, fnTo).Relations)
+
+	// 3. Foreign tables reject PK, UNIQUE, FK, and EXCLUDE constraints while permitting CHECK and NOT NULL.
+	ftCat := New()
+	_, err = ftCat.Exec(`
+		CREATE FOREIGN DATA WRAPPER w_con;
+		CREATE SERVER srv_con FOREIGN DATA WRAPPER w_con;
+		CREATE TABLE public.ref_tbl (id int PRIMARY KEY);
+	`, nil)
+	require.NoError(t, err)
+	for _, badSQL := range []string{
+		`CREATE FOREIGN TABLE public.ft_pk (id int PRIMARY KEY) SERVER srv_con;`,
+		`CREATE FOREIGN TABLE public.ft_uniq (id int, UNIQUE (id)) SERVER srv_con;`,
+		`CREATE FOREIGN TABLE public.ft_fk (id int REFERENCES public.ref_tbl(id)) SERVER srv_con;`,
+		`CREATE FOREIGN TABLE public.ft_excl (id int, EXCLUDE USING btree (id WITH =)) SERVER srv_con;`,
+	} {
+		res, execErr := ftCat.Exec(badSQL, nil)
+		if execErr == nil {
+			require.NotEmpty(t, res)
+			execErr = res[0].Error
+		}
+		require.Error(t, execErr, badSQL)
+	}
+	resOK, err := ftCat.Exec(`
+		CREATE FOREIGN TABLE public.ft_ok (id int NOT NULL, CONSTRAINT chk_ft CHECK (id > 0)) SERVER srv_con;
+		ALTER FOREIGN TABLE public.ft_ok ADD CONSTRAINT ft_ok_pk PRIMARY KEY (id);
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Len(t, resOK, 2)
+	require.NoError(t, resOK[0].Error)
+	require.Error(t, resOK[1].Error)
+}

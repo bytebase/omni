@@ -126,6 +126,7 @@ func grantDroppedWithRelationChange(from, to *Catalog, diff *SchemaDiff, g Grant
 		}
 	}
 	rebuiltServers := rebuiltForeignServerNames(diff)
+	renamedServers := renamedForeignServerNames(diff)
 	for _, ft := range diff.ForeignTables {
 		if ft.From == nil || ft.From.OID != g.ObjOID {
 			continue
@@ -134,7 +135,8 @@ func grantDroppedWithRelationChange(from, to *Catalog, diff *SchemaDiff, g Grant
 		case DiffDrop:
 			return true
 		case DiffModify:
-			if ft.To == nil || ft.From.ForeignServer != ft.To.ForeignServer || rebuiltServers[ft.From.ForeignServer] {
+			serverChanged := ft.From.ForeignServer != ft.To.ForeignServer && renamedServers[ft.From.ForeignServer] != ft.To.ForeignServer
+			if ft.To == nil || serverChanged || rebuiltServers[ft.From.ForeignServer] {
 				return true
 			}
 			return droppedGrantColumn(ft.Columns)

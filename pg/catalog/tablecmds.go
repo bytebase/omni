@@ -101,6 +101,13 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 	}
+	if relkind == 'f' {
+		for _, cdef := range constraintDefs {
+			if err := validateForeignTableConstraintType(cdef.Type); err != nil {
+				return err
+			}
+		}
+	}
 
 	// Build a name→index map for the child column defs (used by merge).
 	// Mark all columns from the CREATE statement as locally defined.

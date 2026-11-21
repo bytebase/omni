@@ -275,6 +275,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		tableOIDs[oid] = true
 	}
 	rebuiltServers := rebuiltForeignServerNames(diff)
+	renamedServers := renamedForeignServerNames(diff)
 	collectViewWrapOID := func(rel RelationDiffEntry) {
 		if rel.Action != DiffModify {
 			return
@@ -285,7 +286,8 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		// triggers DROP CASCADE which destroys dependent views.
 		if rel.From != nil && rel.To != nil {
 			if rel.From.RelKind == 'f' && rel.To.RelKind == 'f' {
-				if rel.From.ForeignServer != rel.To.ForeignServer || rebuiltServers[rel.From.ForeignServer] {
+				serverChanged := rel.From.ForeignServer != rel.To.ForeignServer && renamedServers[rel.From.ForeignServer] != rel.To.ForeignServer
+				if serverChanged || rebuiltServers[rel.From.ForeignServer] {
 					needsViewWrap = true
 				}
 			} else if tableRebuilt(from, to, rel.From, rel.To) {
@@ -350,13 +352,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			}
 		}
 	}
-	rebuiltFuncOIDs := make(map[uint32]bool)
-	for _, fn := range diff.Functions {
-		if fn.Action == DiffModify && fn.From != nil && fn.To != nil && signatureChanged(from, fn.From, to, fn.To) {
-			rebuiltFuncOIDs[fn.From.OID] = true
-		}
-	}
-	if len(tableOIDs) == 0 && len(directViewOIDs) == 0 && len(rebuiltFuncOIDs) == 0 {
+	if len(tableOIDs) == 0 && len(directViewOIDs) == 0 {
 		return ops
 	}
 
@@ -383,21 +379,6 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		seen[oid] = true
 		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
 		queue = append(queue, oid)
-	}
-	for _, d := range from.deps {
-		if d.RefType != 'f' || !rebuiltFuncOIDs[d.RefOID] || d.ObjType != 'r' || seen[d.ObjOID] {
-			continue
-		}
-		rel := from.GetRelationByOID(d.ObjOID)
-		if rel == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') || rel.Schema == nil {
-			continue
-		}
-		if toRel := to.GetRelation(rel.Schema.Name, rel.Name); toRel == nil || (toRel.RelKind != 'v' && toRel.RelKind != 'm') {
-			continue
-		}
-		seen[rel.OID] = true
-		viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID, relKind: rel.RelKind, persistence: rel.Persistence})
-		queue = append(queue, rel.OID)
 	}
 	for len(queue) > 0 {
 		refOID := queue[0]
@@ -1777,7 +1758,13 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 		}
 	}
-	if len(modifiedCollOIDs) == 0 && len(collChangedDomainOIDs) == 0 && len(rebuiltRangeOIDs) == 0 {
+	rebuiltFuncOIDs := make(map[uint32]bool)
+	for _, entry := range diff.Functions {
+		if entry.Action == DiffModify && entry.From != nil && entry.To != nil && signatureChanged(from, entry.From, to, entry.To) {
+			rebuiltFuncOIDs[entry.From.OID] = true
+		}
+	}
+	if len(modifiedCollOIDs) == 0 && len(collChangedDomainOIDs) == 0 && len(rebuiltRangeOIDs) == 0 && len(rebuiltFuncOIDs) == 0 {
 		return ops, nil, nil
 	}
 
@@ -2369,7 +2356,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	// 2. Detach or rebuild kept table columns and composite attributes.
 	var relList []*Relation
 	for _, r := range from.relationByOID {
-		if r != nil && r.Schema != nil && (r.RelKind == 'r' || r.RelKind == 'p' || r.RelKind == 'c') && !preDroppedRel[r.OID] {
+		if r != nil && r.Schema != nil && (r.RelKind == 'r' || r.RelKind == 'p' || r.RelKind == 'f' || r.RelKind == 'c') && !preDroppedRel[r.OID] {
 			relList = append(relList, r)
 		}
 	}
@@ -2396,14 +2383,17 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		for _, fromCol := range fromRel.Columns {
 			colUsesModColl := modifiedCollOIDs[fromCol.UserCollationOID]
 			modCollDepCount := 0
-			exprUsesRebuiltType := false
+			exprUsesRebuiltDep := false
 			for _, d := range from.deps {
 				if d.ObjType == 'r' && d.ObjOID == fromRel.OID && d.ObjSubID == int32(fromCol.AttNum) {
 					if d.RefType == 'L' && modifiedCollOIDs[d.RefOID] {
 						modCollDepCount++
 					}
 					if d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID] && d.RefOID != fromCol.TypeOID {
-						exprUsesRebuiltType = true
+						exprUsesRebuiltDep = true
+					}
+					if d.RefType == 'f' && rebuiltFuncOIDs[d.RefOID] {
+						exprUsesRebuiltDep = true
 					}
 				}
 			}
@@ -2411,7 +2401,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			if colUsesModColl {
 				ownCount = 1
 			}
-			exprUsesModColl := modCollDepCount > ownCount || exprUsesRebuiltType
+			exprUsesModColl := modCollDepCount > ownCount || exprUsesRebuiltDep
 			rebuiltDomBase, colUsesRebuiltDom := unwrappedDetachType(fromCol.TypeOID)
 
 			toIdx, kept := toRel.colByName[fromCol.Name]
@@ -2638,7 +2628,9 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		if d.DepType == DepInternal {
 			continue
 		}
-		refMatch := (d.RefType == 'L' && modifiedCollOIDs[d.RefOID]) || (d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID])
+		refMatch := (d.RefType == 'L' && modifiedCollOIDs[d.RefOID]) ||
+			(d.RefType == 't' && rebuiltTypeRefOIDs[d.RefOID]) ||
+			(d.RefType == 'f' && rebuiltFuncOIDs[d.RefOID])
 		if !refMatch {
 			continue
 		}

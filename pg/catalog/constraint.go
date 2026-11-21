@@ -56,8 +56,30 @@ func (c *Catalog) AddConstraint(schemaName, tableName string, def ConstraintDef)
 	return c.addConstraint(schema, rel, def)
 }
 
+func validateForeignTableConstraintType(t ConstraintType) error {
+	switch t {
+	case ConstraintCheck:
+		return nil
+	case ConstraintPK:
+		return &Error{Code: CodeFeatureNotSupported, Message: "PRIMARY KEY constraints are not supported on foreign tables"}
+	case ConstraintUnique:
+		return &Error{Code: CodeFeatureNotSupported, Message: "UNIQUE constraints are not supported on foreign tables"}
+	case ConstraintFK:
+		return &Error{Code: CodeFeatureNotSupported, Message: "FOREIGN KEY constraints are not supported on foreign tables"}
+	case ConstraintExclude:
+		return &Error{Code: CodeFeatureNotSupported, Message: "EXCLUDE constraints are not supported on foreign tables"}
+	default:
+		return &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("constraints of type %c are not supported on foreign tables", t)}
+	}
+}
+
 // addConstraint adds a constraint to a relation during CREATE TABLE.
 func (c *Catalog) addConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
+	if rel.RelKind == 'f' {
+		if err := validateForeignTableConstraintType(def.Type); err != nil {
+			return err
+		}
+	}
 	switch def.Type {
 	case ConstraintPK:
 		return c.addPKConstraint(schema, rel, def)

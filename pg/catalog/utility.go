@@ -135,6 +135,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				return errUndefinedObject("server", s.Servername)
 			}
 		}
+		if err := validateCreateForeignTableConstraints(&s.Base); err != nil {
+			return err
+		}
 		var foreignOpts []string
 		if !existed && s.Options != nil {
 			var err error
@@ -996,6 +999,58 @@ func (c *Catalog) processSetRole(s *nodes.VariableSetStmt) error {
 		// RESET ROLE / SET ROLE TO DEFAULT → revert to session user.
 		// pg: SetCurrentRoleId(InvalidOid, ...) → falls back to SessionUserId
 		c.ResetRole()
+	}
+	return nil
+}
+
+func validateCreateForeignTableConstraints(stmt *nodes.CreateStmt) error {
+	if stmt == nil {
+		return nil
+	}
+	checkNode := func(n *nodes.Constraint) error {
+		if n == nil {
+			return nil
+		}
+		switch n.Contype {
+		case nodes.CONSTR_PRIMARY:
+			return validateForeignTableConstraintType(ConstraintPK)
+		case nodes.CONSTR_UNIQUE:
+			return validateForeignTableConstraintType(ConstraintUnique)
+		case nodes.CONSTR_FOREIGN:
+			return validateForeignTableConstraintType(ConstraintFK)
+		case nodes.CONSTR_EXCLUSION:
+			return validateForeignTableConstraintType(ConstraintExclude)
+		}
+		return nil
+	}
+	if stmt.TableElts != nil {
+		for _, elt := range stmt.TableElts.Items {
+			switch n := elt.(type) {
+			case *nodes.ColumnDef:
+				if n.Constraints != nil {
+					for _, item := range n.Constraints.Items {
+						if con, ok := item.(*nodes.Constraint); ok {
+							if err := checkNode(con); err != nil {
+								return err
+							}
+						}
+					}
+				}
+			case *nodes.Constraint:
+				if err := checkNode(n); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if stmt.Constraints != nil {
+		for _, item := range stmt.Constraints.Items {
+			if con, ok := item.(*nodes.Constraint); ok {
+				if err := checkNode(con); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

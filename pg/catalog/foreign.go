@@ -837,12 +837,36 @@ func diffForeignServers(from, to *Catalog) []ForeignServerDiffEntry {
 		}
 	}
 	var out []ForeignServerDiffEntry
+	matchedFrom := make(map[string]bool)
+	matchedTo := make(map[string]bool)
+	unmatchedToByOID := make(map[uint32]*ForeignServer)
+	for name, toSrv := range toMap {
+		if _, ok := fromMap[name]; !ok && toSrv.OID != 0 {
+			unmatchedToByOID[toSrv.OID] = toSrv
+		}
+	}
 	for name, fromSrv := range fromMap {
+		if _, ok := toMap[name]; !ok && fromSrv.OID != 0 {
+			if toSrv, ok := unmatchedToByOID[fromSrv.OID]; ok {
+				matchedFrom[name] = true
+				matchedTo[toSrv.Name] = true
+				out = append(out, ForeignServerDiffEntry{Action: DiffModify, Name: toSrv.Name, From: fromSrv, To: toSrv})
+				delete(unmatchedToByOID, fromSrv.OID)
+			}
+		}
+	}
+	for name, fromSrv := range fromMap {
+		if matchedFrom[name] {
+			continue
+		}
 		if _, ok := toMap[name]; !ok {
 			out = append(out, ForeignServerDiffEntry{Action: DiffDrop, Name: name, From: fromSrv})
 		}
 	}
 	for name, toSrv := range toMap {
+		if matchedTo[name] {
+			continue
+		}
 		fromSrv, ok := fromMap[name]
 		if !ok {
 			out = append(out, ForeignServerDiffEntry{Action: DiffAdd, Name: name, To: toSrv})

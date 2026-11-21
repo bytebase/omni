@@ -126,6 +126,19 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 	return ops
 }
 
+func renamedForeignServerNames(diff *SchemaDiff) map[string]string {
+	renamed := make(map[string]string)
+	if diff == nil {
+		return renamed
+	}
+	for _, srv := range diff.ForeignServers {
+		if srv.Action == DiffModify && srv.From != nil && srv.To != nil && srv.From.Name != srv.To.Name {
+			renamed[srv.From.Name] = srv.To.Name
+		}
+	}
+	return renamed
+}
+
 func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	renamedFDWs := make(map[string]string)
 	for _, fdw := range diff.ForeignDataWrappers {
@@ -170,6 +183,18 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 					Priority:      PriorityTable,
 				})
 				continue
+			}
+			if entry.From.Name != entry.To.Name {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER SERVER %s RENAME TO %s", quoteIdentifier(entry.From.Name), quoteIdentifier(entry.To.Name)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityFunction,
+				})
 			}
 			var clauses []string
 			if !stringPtrEqual(entry.From.Version, entry.To.Version) {
@@ -259,6 +284,7 @@ func formatCatalogIdentRef(ref string) string {
 }
 
 func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	renamedServers := renamedForeignServerNames(diff)
 	var ops []MigrationOp
 
 	for _, entry := range diff.ForeignTables {
@@ -291,7 +317,7 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 				continue
 			}
 			qn := formatRelationTargetName(entry.SchemaName, entry.To)
-			if entry.From.ForeignServer != entry.To.ForeignServer {
+			if entry.From.ForeignServer != entry.To.ForeignServer && renamedServers[entry.From.ForeignServer] != entry.To.ForeignServer {
 				fromQN := formatRelationTargetName(entry.SchemaName, entry.From)
 				ops = append(ops, MigrationOp{
 					Type:          OpDropTable,
