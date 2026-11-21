@@ -2095,4 +2095,23 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, downgradedSameSchema, `FROM "cat"."s".t AS OF TIMESTAMP`)
+
+	// Empty relation names fail explicitly on both public entry points.
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:   "s",
+			Tables: []*TableMetadata{{Name: "", Columns: []*ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "s",
+			Views: []*metadatapb.ViewMetadata{{Name: "", Definition: "SELECT 1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
 }

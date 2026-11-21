@@ -1579,6 +1579,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		}
 		seenRels := make(map[string]string, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
 		checkRel := func(kind, name string) error {
+			if name == "" {
+				return fmt.Errorf("schema %s has %s with empty name", quoteDefinitionIdentifier(schema.Name), kind)
+			}
 			key := identKey(name, caseSensitive)
 			if prev, exists := seenRels[key]; exists {
 				return fmt.Errorf("schema %s has duplicate relation %s (%s and %s)", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(name), prev, kind)
@@ -1944,6 +1947,13 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			continue
 		}
 		for _, fk := range item.table.foreignKeys {
+			refSchema := fk.referencedSchema
+			if refSchema == "" {
+				refSchema = item.schema
+			}
+			if refRel, isNonTable := findNonTableRelationInItems(items, refSchema, fk.referencedTable, caseSensitive); isNonTable {
+				return fmt.Errorf("foreign key %s on %s cannot reference non-table relation %s", fk.name, item.table.qualifiedName(), qualifyName(refRel.schema, refRel.name))
+			}
 			if refTable := findTableInItems(items, fk.referencedSchema, fk.referencedTable, caseSensitive); refTable != nil {
 				for _, refCol := range fk.referencedColumns {
 					if !hasTableColumn(refTable.columns, refCol, caseSensitive) {
@@ -2255,6 +2265,18 @@ func findTableInItems(items []orderedObject, schemaName, tableName string, caseS
 		}
 	}
 	return nil
+}
+
+func findNonTableRelationInItems(items []orderedObject, schemaName, relName string, caseSensitive bool) (orderedObject, bool) {
+	if schemaName == "" || relName == "" {
+		return orderedObject{}, false
+	}
+	for _, it := range items {
+		if (it.kind == objectKindView || it.kind == objectKindMaterializedView) && identEqual(it.schema, schemaName, caseSensitive) && identEqual(it.name, relName, caseSensitive) {
+			return it, true
+		}
+	}
+	return orderedObject{}, false
 }
 
 // writeTableWithOptions writes one table, its comments (table, column, and
@@ -3626,7 +3648,14 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 // isLateBindingView reports whether definition is a CREATE VIEW ... WITH NO
 // SCHEMA BINDING statement, whose columns Redshift does not allow commenting.
 func isLateBindingView(definition string) bool {
-	vs := parseViewStmt(strings.TrimSpace(definition))
+	trimmed := strings.TrimSpace(definition)
+	if trimmed == "" {
+		return false
+	}
+	vs := parseViewStmt(trimmed)
+	if vs == nil {
+		vs = parseViewStmt("CREATE VIEW _v AS " + trimmed)
+	}
 	if vs == nil || vs.Options == nil {
 		return false
 	}

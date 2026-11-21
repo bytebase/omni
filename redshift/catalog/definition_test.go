@@ -2343,6 +2343,89 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	idxSG := strings.Index(searchPathOverloadOut, "CREATE FUNCTION s.g")
 	require.Greater(t, idxPubF, -1)
 	require.Greater(t, idxSG, idxPubF)
+
+	// Empty relation names fail explicitly; FKs targeting views/MVs fail; and
+	// query-body WITH NO SCHEMA BINDING views break cyclic dependencies.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:   "public",
+			Tables: []*metadatapb.TableMetadata{{Name: "", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "empty name")
+
+	for _, tc := range []struct {
+		name string
+		meta *metadatapb.SchemaMetadata
+	}{
+		{
+			name: "fk_view",
+			meta: &metadatapb.SchemaMetadata{
+				Name: "public",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:       "v_target",
+					Definition: "SELECT 1 AS id",
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t_fk_view",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "vid", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "fk_v",
+						Columns:           []string{"vid"},
+						ReferencedSchema:  "public",
+						ReferencedTable:   "v_target",
+						ReferencedColumns: []string{"id"},
+					}},
+				}},
+			},
+		},
+		{
+			name: "fk_mv",
+			meta: &metadatapb.SchemaMetadata{
+				Name: "public",
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:       "mv_target",
+					Definition: "SELECT 1 AS id",
+				}},
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t_fk_mv",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "vid", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "fk_mv",
+						Columns:           []string{"vid"},
+						ReferencedSchema:  "public",
+						ReferencedTable:   "mv_target",
+						ReferencedColumns: []string{"id"},
+					}},
+				}},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+				Name:    "dev",
+				Schemas: []*metadatapb.SchemaMetadata{tc.meta},
+			})
+			require.ErrorContains(t, err, "non-table")
+		})
+	}
+
+	lateQueryCycle, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "reg_v", Definition: "SELECT id FROM late_v"},
+				{Name: "late_v", Definition: "SELECT id FROM reg_v WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	idxLateV := strings.Index(lateQueryCycle, `CREATE OR REPLACE VIEW "public"."late_v"`)
+	idxRegV := strings.Index(lateQueryCycle, `CREATE OR REPLACE VIEW "public"."reg_v"`)
+	require.Greater(t, idxLateV, -1)
+	require.Greater(t, idxRegV, idxLateV)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

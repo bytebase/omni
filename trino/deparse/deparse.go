@@ -136,6 +136,17 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			return nil, fmt.Errorf("schema %s contains schema objects unsupported by Trino SDL renderer", s.Name)
 		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
+		checkProtoRelation := func(kind, name string) error {
+			if name == "" {
+				return fmt.Errorf("schema %s has %s with empty name", s.Name, kind)
+			}
+			relKey := strings.ToLower(name)
+			if _, exists := seenRelations[relKey]; exists {
+				return fmt.Errorf("schema %s has duplicate %s %s", s.Name, kind, quoteIdentifier(name))
+			}
+			seenRelations[relKey] = struct{}{}
+			return nil
+		}
 		for _, t := range s.Tables {
 			if t == nil {
 				continue
@@ -146,11 +157,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				}
 				continue
 			}
-			relKey := strings.ToLower(t.Name)
-			if _, exists := seenRelations[relKey]; exists {
-				return nil, fmt.Errorf("schema %s has duplicate table %s", s.Name, quoteIdentifier(t.Name))
+			if err := checkProtoRelation("table", t.Name); err != nil {
+				return nil, err
 			}
-			seenRelations[relKey] = struct{}{}
 			if len(t.Indexes) > 0 || len(t.ForeignKeys) > 0 || len(t.CheckConstraints) > 0 || len(t.ExcludeConstraints) > 0 || len(t.Partitions) > 0 || hasActiveTriggers(t.Triggers) || len(t.Rules) > 0 || t.CreateOptions != "" || t.Engine != "" || t.Collation != "" || t.Charset != "" || len(t.SortingKeys) > 0 || t.ShardingInfo != "" || t.PrimaryKeyType != "" {
 				return nil, fmt.Errorf("table %s.%s constraints or table options cannot be restored by Trino SDL renderer", s.Name, t.Name)
 			}
@@ -186,11 +195,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if hasActiveTriggers(v.Triggers) || len(v.Rules) > 0 {
 				return nil, fmt.Errorf("view %s.%s triggers or rules cannot be restored by Trino SDL renderer", s.Name, v.Name)
 			}
-			relKey := strings.ToLower(v.Name)
-			if _, exists := seenRelations[relKey]; exists {
-				return nil, fmt.Errorf("schema %s has duplicate view %s", s.Name, quoteIdentifier(v.Name))
+			if err := checkProtoRelation("view", v.Name); err != nil {
+				return nil, err
 			}
-			seenRelations[relKey] = struct{}{}
 			viewCols, err := fromProtoColumns(s.Name, v.Name, v.Columns, false)
 			if err != nil {
 				return nil, err
@@ -213,11 +220,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if len(mv.Indexes) > 0 || hasActiveTriggers(mv.Triggers) {
 				return nil, fmt.Errorf("materialized view %s.%s indexes or triggers cannot be restored by Trino SDL renderer", s.Name, mv.Name)
 			}
-			relKey := strings.ToLower(mv.Name)
-			if _, exists := seenRelations[relKey]; exists {
-				return nil, fmt.Errorf("schema %s has duplicate materialized view %s", s.Name, quoteIdentifier(mv.Name))
+			if err := checkProtoRelation("materialized view", mv.Name); err != nil {
+				return nil, err
 			}
-			seenRelations[relKey] = struct{}{}
 			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &ViewMetadata{
 				Name:         mv.Name,
 				Definition:   mv.Definition,
@@ -991,6 +996,9 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		}
 		seenRelations := make(map[string]struct{}, len(schema.Tables)+len(schema.Views)+len(schema.MaterializedViews))
 		checkRelation := func(kind, name string) error {
+			if name == "" {
+				return fmt.Errorf("schema %s has %s with empty name", schema.Name, kind)
+			}
 			relKey := strings.ToLower(name)
 			if _, exists := seenRelations[relKey]; exists {
 				return fmt.Errorf("schema %s has duplicate %s %s", schema.Name, kind, quoteIdentifier(name))
