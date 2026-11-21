@@ -1818,6 +1818,30 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "CREATE FUNCTION")
+
+	// Multiple primary keys and IDENTITY on non-integer types fail explicitly.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_two_pks",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "a", Type: "integer"},
+			{Name: "b", Type: "integer"},
+		},
+		Indexes: []*metadatapb.IndexMetadata{
+			{Name: "pk1", Primary: true, Expressions: []string{"a"}},
+			{Name: "pk2", Primary: true, Expressions: []string{"b"}},
+		},
+	})
+	require.ErrorContains(t, err, "multiple primary keys")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_bad_ident_type",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:       "id",
+			Type:       "varchar(20)",
+			IsIdentity: true,
+		}},
+	})
+	require.ErrorContains(t, err, "non-integer")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

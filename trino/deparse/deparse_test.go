@@ -1037,7 +1037,7 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 			Functions: []*metadatapb.FunctionMetadata{
 				{
 					Name:       "length",
-					Definition: "CREATE FUNCTION s.length(x varchar) RETURNS bigint RETURN s.use_qual(x)",
+					Definition: "CREATE FUNCTION s.length(x varchar) RETURNS bigint RETURN CAST(x AS bigint)",
 				},
 				{
 					Name:       "use_builtin",
@@ -1053,6 +1053,7 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_builtin(x varchar) RETURNS bigint RETURN length(x);`)
 	assert.Contains(t, builtinShadow, `CREATE FUNCTION "cat".s.use_qual(x varchar) RETURNS bigint RETURN "cat".s.length(x);`)
+	assert.Less(t, strings.Index(builtinShadow, `CREATE FUNCTION "cat".s.length(`), strings.Index(builtinShadow, `CREATE FUNCTION "cat".s.use_qual(`))
 
 	// Unqualified UDF calls inside scalar subqueries (RETURN (SELECT callee(x))) are
 	// both ordered after their callee and rewritten to catalog.schema.callee.
@@ -1149,4 +1150,55 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.Contains(t, viewExprAndUDF, `SELECT JSON_OBJECT('id' VALUE (SELECT "cat"."s".my_fn(id) FROM "cat"."s".t)), length(name) FROM "cat"."s".t;`)
 	assert.Contains(t, viewExprAndUDF, "CREATE MATERIALIZED VIEW IF NOT EXISTS \"s\".\"mv_udf\" AS\nSELECT \"cat\".s.my_fn(id) FROM \"cat\".\"s\".t;")
+
+	// Non-CREATE FUNCTION definitions, cyclic UDFs, duplicate function signatures,
+	// and view column defaults fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "not_fn",
+				Definition: "CREATE TABLE s.not_fn(id bigint)",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "CREATE FUNCTION")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "c_a", Definition: "CREATE FUNCTION s.c_a(x bigint) RETURNS bigint RETURN s.c_b(x)"},
+				{Name: "c_b", Definition: "CREATE FUNCTION s.c_b(x bigint) RETURNS bigint RETURN s.c_a(x)"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "dup_f", Definition: "CREATE FUNCTION s.dup_f(x int) RETURNS int RETURN x"},
+				{Name: "dup_f", Definition: "CREATE FUNCTION s.dup_f(y integer) RETURNS integer RETURN y + 1"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate function")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_def_col",
+				Definition: "SELECT 1 AS id",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Default: "1"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "default cannot be restored")
 }

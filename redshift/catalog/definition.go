@@ -1984,9 +1984,16 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
+	primaryCount := 0
 	for _, idx := range table.indexes {
 		if !idx.primary && !idx.unique {
 			return fmt.Errorf("index %s on %s cannot be restored because Redshift does not support secondary indexes", idx.name, table.qualifiedName())
+		}
+		if idx.primary {
+			primaryCount++
+			if primaryCount > 1 {
+				return fmt.Errorf("table %s declares multiple primary keys", table.qualifiedName())
+			}
 		}
 		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
@@ -2661,6 +2668,9 @@ func (c *columnState) toString(buf *strings.Builder) error {
 		}
 	}
 	if c.isIdentity {
+		if !isSupportedRedshiftIdentityType(c.tp) {
+			return fmt.Errorf("column %s identity is not supported on non-integer type %q", quoteDefinitionIdentifier(c.name), c.tp)
+		}
 		seed, step := c.identitySeed, c.identityIncrement
 		if step == 0 {
 			seed, step = 1, 1
@@ -2908,6 +2918,8 @@ func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView b
 		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
 	case isView && (len(column.Options) > 0 || column.Collation != "" || column.CollationSchema != "" || column.Default != "" || column.IsIdentity):
 		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
+	case !isView && column.IsIdentity && !isSupportedRedshiftIdentityType(column.Type):
+		return fmt.Sprintf("column %s identity is not supported on non-integer type %q", quoteDefinitionIdentifier(column.Name), column.Type)
 	case !isView && (column.CollationSchema != "" || column.Collation != ""):
 		if _, ok := supportedRedshiftCollation(column.CollationSchema, column.Collation); !ok {
 			return fmt.Sprintf("column %s collation %s is not supported by Redshift CREATE TABLE", quoteDefinitionIdentifier(column.Name), qualifyName(column.CollationSchema, column.Collation))
@@ -2915,6 +2927,15 @@ func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView b
 		return ""
 	default:
 		return ""
+	}
+}
+
+func isSupportedRedshiftIdentityType(tp string) bool {
+	switch strings.ToLower(strings.TrimSpace(tp)) {
+	case "int", "integer", "int4", "bigint", "int8":
+		return true
+	default:
+		return false
 	}
 }
 

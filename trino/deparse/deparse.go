@@ -56,14 +56,19 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			Views:             make([]*ViewMetadata, 0, len(s.Views)),
 			MaterializedViews: make([]*ViewMetadata, 0, len(s.MaterializedViews)),
 		}
+		seenFuncSigs := make(map[string]struct{}, len(s.Functions))
 		for _, fn := range s.Functions {
 			if fn == nil || fn.SkipDump {
 				continue
 			}
-			def, err := prepareTrinoFunctionDefinition(metadata.Name, s.Name, fn)
+			def, sigKey, err := prepareTrinoFunctionDefinition(metadata.Name, s.Name, fn)
 			if err != nil {
 				return nil, err
 			}
+			if _, exists := seenFuncSigs[sigKey]; exists {
+				return nil, fmt.Errorf("schema %s has duplicate function signature %s", s.Name, sigKey)
+			}
+			seenFuncSigs[sigKey] = struct{}{}
 			schemaMeta.Functions = append(schemaMeta.Functions, &FunctionMetadata{
 				Name:       fn.Name,
 				Definition: def,
@@ -189,10 +194,17 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	return out, nil
 }
 
-func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, error) {
+func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, string, error) {
+	if strings.TrimSpace(fn.Definition) == "" {
+		return "", "", fmt.Errorf("function %s.%s has no definition to restore", schemaName, fn.Name)
+	}
+	if !isTrinoCreateFunctionHeader(fn.Definition) {
+		return "", "", fmt.Errorf("function %s.%s definition must be a CREATE FUNCTION statement", schemaName, fn.Name)
+	}
+	fallbackSigKey := strings.ToLower(fn.Name) + "(" + strings.ToLower(strings.TrimSpace(fn.Signature)) + ")"
 	cfs, _, _, ok := parseTrinoCreateFunction(fn.Definition)
 	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
-		return fn.Definition, nil
+		return fn.Definition, fallbackSigKey, nil
 	}
 	declName := cfs.Spec.Declaration.Name
 	parts := declName.Parts
@@ -203,7 +215,7 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 	switch len(parts) {
 	case 1:
 		if !strings.EqualFold(parts[0].Value, fn.Name) {
-			return "", mismatch()
+			return "", "", mismatch()
 		}
 		if declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
 			if prefix := qualifyTrinoObjectPrefix(dbName, schemaName); prefix != "" {
@@ -212,7 +224,7 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		}
 	case 2:
 		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
-			return "", mismatch()
+			return "", "", mismatch()
 		}
 		if dbName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
 			def = fn.Definition[:declName.Loc.Start] + quoteIdentifier(dbName) + "." + fn.Definition[declName.Loc.Start:]
@@ -221,15 +233,41 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
 			!strings.EqualFold(parts[1].Value, schemaName) ||
 			!strings.EqualFold(parts[2].Value, fn.Name) {
-			return "", mismatch()
+			return "", "", mismatch()
 		}
 	default:
-		return "", mismatch()
+		return "", "", mismatch()
 	}
 	if err := validateTrinoFunctionSignature(schemaName, fn.Name, fn.Signature, cfs.Spec.Declaration.Parameters); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return def, nil
+	paramTypes := make([]string, len(cfs.Spec.Declaration.Parameters))
+	for i, p := range cfs.Spec.Declaration.Parameters {
+		paramTypes[i] = normalizeTrinoDataType(p.Type)
+	}
+	sigKey := strings.ToLower(fn.Name) + "(" + strings.Join(paramTypes, ",") + ")"
+	return def, sigKey, nil
+}
+
+func isTrinoCreateFunctionHeader(definition string) bool {
+	var words []string
+	i := 0
+	for len(words) < 4 {
+		i = skipSQLWhitespaceAndComments(definition, i)
+		if i >= len(definition) || !isIdentStartChar(definition[i]) {
+			break
+		}
+		j := i + 1
+		for j < len(definition) && isIdentContChar(definition[j]) {
+			j++
+		}
+		words = append(words, strings.ToUpper(definition[i:j]))
+		i = j
+	}
+	if len(words) >= 2 && words[0] == "CREATE" && words[1] == "FUNCTION" {
+		return true
+	}
+	return len(words) >= 4 && words[0] == "CREATE" && words[1] == "OR" && words[2] == "REPLACE" && words[3] == "FUNCTION"
 }
 
 func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
@@ -344,6 +382,9 @@ func fromProtoColumns(schemaName, tableName string, cols []*metadatapb.ColumnMet
 		if requireType && strings.TrimSpace(c.Type) == "" {
 			return nil, fmt.Errorf("column %s.%s.%s has no data type", schemaName, tableName, c.Name)
 		}
+		if !requireType && c.Default != "" {
+			return nil, fmt.Errorf("column %s.%s.%s default cannot be restored on a view by Trino SDL renderer", schemaName, tableName, c.Name)
+		}
 		if c.Generation != nil {
 			return nil, fmt.Errorf("column %s.%s.%s generated expression cannot be restored by Trino SDL renderer", schemaName, tableName, c.Name)
 		}
@@ -408,7 +449,11 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		writeCreateSchema(&buf, schema.Name)
 		buf.WriteString("\n\n")
 	}
-	for _, fn := range orderedFunctions(metadata) {
+	fns, err := orderedFunctions(metadata)
+	if err != nil {
+		return "", err
+	}
+	for _, fn := range fns {
 		if err := writeCreateFunction(&buf, fn.schema, fn.fn); err != nil {
 			return "", err
 		}
@@ -842,11 +887,11 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	}
 }
 
-func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
+func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, error) {
 	cat := buildTrinoFuncCatalog(metadata)
 	fns := cat.fns
 	if len(fns) == 0 {
-		return fns
+		return fns, nil
 	}
 	parsed := cat.parsed
 
@@ -911,14 +956,17 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 	}
 
 	if len(fns) < 2 {
-		return fns
+		return fns, nil
 	}
-	indices := topoOrder(len(fns), dependencies)
+	indices, cyclic := topoOrder(len(fns), dependencies)
+	if len(cyclic) > 0 {
+		return nil, fmt.Errorf("cyclic function dependency involving %s.%s cannot be restored because Trino requires UDFs to be declared before use", fns[cyclic[0]].schema, fns[cyclic[0]].fn.Name)
+	}
 	ordered := make([]orderedFunction, len(indices))
 	for i, idx := range indices {
 		ordered[i] = fns[idx]
 	}
-	return ordered
+	return ordered, nil
 }
 
 type functionCallRef struct {
@@ -2405,7 +2453,7 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 			addDep(i, access.Schema, access.Table)
 		}
 	}
-	indices := topoOrder(len(views), dependencies)
+	indices, _ := topoOrder(len(views), dependencies)
 	ordered := make([]orderedView, len(indices))
 	for i, idx := range indices {
 		ordered[i] = views[idx]
@@ -2419,13 +2467,14 @@ func objectKey(schema, name string) string {
 }
 
 // topoOrder returns item indices ordered so each item follows its dependencies,
-// keeping input order among independent items and breaking cycles in input order.
-func topoOrder(n int, dependencies []map[int]struct{}) []int {
+// keeping input order among independent items and returning indices where a cycle was broken.
+func topoOrder(n int, dependencies []map[int]struct{}) ([]int, []int) {
 	remaining := make([]int, n)
 	for i, deps := range dependencies {
 		remaining[i] = len(deps)
 	}
 	ordered := make([]int, 0, n)
+	var cyclic []int
 	done := make([]bool, n)
 	for len(ordered) < n {
 		progressed := false
@@ -2445,11 +2494,12 @@ func topoOrder(n int, dependencies []map[int]struct{}) []int {
 		if !progressed {
 			for i := 0; i < n; i++ {
 				if !done[i] {
+					cyclic = append(cyclic, i)
 					done[i] = true
 					ordered = append(ordered, i)
 				}
 			}
 		}
 	}
-	return ordered
+	return ordered, cyclic
 }
