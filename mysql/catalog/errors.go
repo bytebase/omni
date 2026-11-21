@@ -805,6 +805,18 @@ func errWrongTypeForVar(varName string) error {
 		Message: fmt.Sprintf("Incorrect argument type to variable '%s'", varName)}
 }
 
+// errLocalVariable is 1228, a session-only variable set at global scope.
+func errLocalVariable(varName string) error {
+	return &Error{Code: 1228, SQLState: "HY000",
+		Message: fmt.Sprintf("Variable '%s' is a SESSION variable and can't be used with SET GLOBAL", varName)}
+}
+
+// errGlobalVariable is 1229, a global-only variable set at session scope.
+func errGlobalVariable(varName string) error {
+	return &Error{Code: 1229, SQLState: "HY000",
+		Message: fmt.Sprintf("Variable '%s' is a GLOBAL variable and should be set with SET GLOBAL", varName)}
+}
+
 func errIncorrectGlobalLocalVar(varName, detail string) error {
 	return &Error{Code: ErrIncorrectGlobalLocalVar, SQLState: sqlState(ErrIncorrectGlobalLocalVar),
 		Message: fmt.Sprintf("Variable '%s' is a %s", varName, detail)}

@@ -1486,6 +1486,13 @@ func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.S
 }
 
 func (c *Catalog) setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+	if pe, ok := expr.(*nodes.ParenExpr); ok {
+		if stripped := stripColumnQualifiers(pe.Expr); stripped != pe.Expr {
+			cp := *pe
+			cp.Expr = stripped
+			expr = &cp
+		}
+	}
 	if sl, ok := expr.(*nodes.StringLit); ok {
 		if normVal, isHex, shouldRewrite := c.resolveNormalizedStringDefaultLiteral(col, sl); shouldRewrite {
 			if isHex {
@@ -2247,8 +2254,9 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
-				idxCol.Expr = nodeToSQL(ic.Expr)
-				idxCol.ExprNode = ic.Expr
+				expr := stripColumnQualifiers(ic.Expr)
+				idxCol.Expr = nodeToSQL(expr)
+				idxCol.ExprNode = expr
 			}
 			result = append(result, idxCol)
 		}

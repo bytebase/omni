@@ -758,11 +758,21 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		if err := c.validateTablespaceCreateEngine(stmt.Engine, "DROP UNDO TABLESPACE"); err != nil {
 			return err
 		}
+		// The built-in tablespaces are reserved: DROP UNDO TABLESPACE of
+		// innodb_undo_001, active or not, is 3119 for the innodb_ prefix, and of
+		// innodb_system 3119 for the name (mysql:8.0.46). An undo tablespace
+		// with that prefix is a default one, since CREATE refuses the prefix.
+		if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo && strings.HasPrefix(stmt.Name, "innodb_") {
+			return errReservedInnoDBTablespacePrefix()
+		}
+		if stmt.Name == "innodb_system" || stmt.Name == "innodb_temporary" {
+			return errWrongTablespaceNameReserved(stmt.Name)
+		}
 		if c.isGeneralTablespaceName(stmt.Name) {
 			return errWrongTablespaceKind("DROP UNDO TABLESPACE", stmt.Name, "a general", "DROP TABLESPACE")
 		}
-		// An innodb_ prefix is reserved only for CREATE: DROP UNDO TABLESPACE
-		// innodb_x names no tablespace, 3510.
+		// Another innodb_ name is no tablespace: DROP UNDO TABLESPACE
+		// innodb_x is 3510.
 		active, exists := c.undoTablespaces[stmt.Name]
 		if !exists {
 			return errTablespaceDoesNotExist(stmt.Name)
@@ -780,12 +790,19 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	// Only the exact built-in names exist beside the general tablespaces, and
 	// they are reserved: DROP TABLESPACE innodb_system is 3119, while
 	// innodb_nosuch and INNODB_SYSTEM are 3510 on mysql:8.0.46.
-	builtin := stmt.Name == "innodb_system" || stmt.Name == "innodb_temporary"
+	_, isUndo := c.undoTablespaces[stmt.Name]
+	builtinUndo := isUndo && strings.HasPrefix(stmt.Name, "innodb_")
+	builtin := stmt.Name == "innodb_system" || stmt.Name == "innodb_temporary" || builtinUndo
 	if !c.tablespaces[stmt.Name] && !builtin {
 		return errTablespaceDoesNotExist(stmt.Name)
 	}
 	if stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
 		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
+	}
+	// A default undo tablespace is reserved by its prefix: DROP TABLESPACE
+	// innodb_undo_001 is 3119 after the engine check (mysql:8.0.46).
+	if builtinUndo {
+		return errReservedInnoDBTablespacePrefix()
 	}
 	if builtin {
 		return errWrongTablespaceNameReserved(stmt.Name)

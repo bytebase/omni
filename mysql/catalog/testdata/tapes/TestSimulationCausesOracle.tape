@@ -46325,6 +46325,445 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET @x = FIELD('a')
+< error
+| 1582 42000 Incorrect parameter count in the call to native function 'FIELD'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP UNDO TABLESPACE innodb_undo_002
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE innodb_undo_002
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE innodb_undo_002 ENGINE=MyISAM
+< error
+| 3642 HY000 Engine 'MyISAM' does not match stored engine 'InnoDB' for tablespace 'innodb_undo_002'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP UNDO TABLESPACE innodb_system
+< error
+| 3119 42000 InnoDB: `innodb_system` is a reserved tablespace name.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP UNDO TABLESPACE INNODB_UNDO_001
+< error
+| 3510 HY000 Tablespace INNODB_UNDO_001 doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE UNDO TABLESPACE u_def ADD DATAFILE 'u_def.ibu'
+< ok 0 0
+> exec
+| ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE
+< ok 0 0
+> exec
+| DROP UNDO TABLESPACE innodb_undo_001
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE
+< ok 0 0
+> exec
+| ALTER UNDO TABLESPACE u_def SET INACTIVE
+< ok 0 0
+> exec
+| SELECT SLEEP(3)
+< ok 0 0
+> exec
+| DROP UNDO TABLESPACE u_def
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT, y INT DEFAULT (other.a.x + 1), z INT DEFAULT (q.x * 2), KEY k ((w.v.x + 1)))
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `x` int DEFAULT NULL,
+|   `y` int DEFAULT ((`x` + 1)),
+|   `z` int DEFAULT ((`x` * 2)),
+|   KEY `k` (((`x` + 1)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT)
+< ok 0 0
+> exec
+| CREATE INDEX k2 ON a ((z.x + 2))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD COLUMN d INT DEFAULT (q.x), ADD KEY k3 ((w.x + 3))
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `x` int DEFAULT NULL,
+|   `d` int DEFAULT (`x`),
+|   KEY `k2` (((`x` + 2))),
+|   KEY `k3` (((`x` + 3)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -54237,6 +54676,136 @@
 : bytes
 |q "\x02"
 > exec
+| SET @x = FIELD('a', 'b', 'a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = FIELD(NULL, 'a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = FIELD('A', 'a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(2, '2', 2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(1, '1.0')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(1e0, '1')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(1, NULL, 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = FIELD('b', 'a', NULL, 'b')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = FIELD(X'61', 'a')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(X'61', 'A')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = FIELD(1, 'abc', 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = FIELD('abc', 0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = FIELD(2.50, 2.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -55064,6 +55633,32 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = FIELD('a', 'a')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = FIELD('z', 'a')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -55155,6 +55750,189 @@
 < row
 : bytes
 | 1
+> exec
+| SET foreign_key_checks = 0, @@SESSION.max_connections = 1
+< error
+| 1229 HY000 Variable 'max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET foreign_key_checks = 0, max_connections = 1
+< error
+| 1229 HY000 Variable 'max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET foreign_key_checks = 0, @@max_connections = 1
+< error
+| 1229 HY000 Variable 'max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET GLOBAL foreign_key_checks = 1, sql_log_bin = 0
+< error
+| 1228 HY000 Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET foreign_key_checks = 0, @@GLOBAL.timestamp = 1
+< error
+| 1228 HY000 Variable 'timestamp' is a SESSION variable and can't be used with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET foreign_key_checks = 0, PERSIST sql_log_bin = 0
+< error
+| 1228 HY000 Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
+> query
+| SELECT CAST(@@foreign_key_checks AS CHAR)
+< result
+< column "CAST(@@foreign_key_checks AS CHAR)" "VARCHAR"
+< row
+: bytes
+| 1
+> exec
+| SET SESSION time_zone = '+307445734561825861:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:44
+> exec
+| SET SESSION time_zone = '-307445734561825861:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| -00:44
+> exec
+| SET SESSION time_zone = '+9223372036854775807:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| -01:00
+> exec
+| SET SESSION time_zone = '+18446744073709551616:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:00
+> exec
+| SET SESSION time_zone = '+0014:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +14:00
+> exec
+| SET SESSION time_zone = '-0:00'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:00
+> exec
+| SET SESSION time_zone = '+:30'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:30
+> exec
+| SET SESSION time_zone = '+1:5'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +01:05
+> exec
+| SET SESSION time_zone = '+00:0000000000000000000001'
+< ok 0 0
+> query
+| SELECT @@time_zone
+< result
+< column "@@time_zone" "VARCHAR"
+< row
+: bytes
+| +00:01
+> exec
+| SET SESSION time_zone = '+15:00'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '+15:00'
+> exec
+| SET SESSION time_zone = '-14:00'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '-14:00'
+> exec
+| SET SESSION time_zone = '+00:060'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '+00:060'
+> exec
+| SET SESSION time_zone = '+01:00x'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '+01:00x'
+> exec
+| SET SESSION time_zone = '+0:18446744073709551615'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '+0:18446744073709551615'
+> exec
+| SET SESSION time_zone = '+12:'
+< error
+| 1298 HY000 Unknown or incorrect time zone: '+12:'
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
 > exec
 | SET @x_scope = @@GLOBAL.max_connections
 < ok 0 0

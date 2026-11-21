@@ -240,6 +240,8 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				if upd != nil {
 					updates = append(updates, upd)
 				}
+			} else if err := checkUnmodeledSysvarScope(varName, scope); err != nil {
+				return err
 			}
 			// Silently accept all other SET variables.
 		}
@@ -420,6 +422,22 @@ func canonicalMySQLCollationName(raw string) string {
 		return "utf8mb3_" + strings.TrimPrefix(coll, "utf8_")
 	}
 	return coll
+}
+
+// checkUnmodeledSysvarScope refuses assigning a variable the catalog does not
+// model at a scope it lacks, which MySQL checks before applying any assignment
+// of the statement: SET foreign_key_checks = 0, @@SESSION.max_connections = 1
+// is 1229 and SET GLOBAL sql_log_bin = 0 is 1228 on mysql:8.0.46, PERSIST and
+// PERSIST_ONLY counting as GLOBAL.
+func checkUnmodeledSysvarScope(varName string, scope setVarScope) error {
+	globalOnly, sessionOnly := validate.SystemVariableScope(varName)
+	if globalOnly && scope == setScopeSession {
+		return errGlobalVariable(varName)
+	}
+	if sessionOnly && scope != setScopeSession {
+		return errLocalVariable(varName)
+	}
+	return nil
 }
 
 func checkReadOnlySysvarWrite(varName string, scope setVarScope, allowPersistOnly bool) (func(), error) {
@@ -1681,6 +1699,60 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(rats[bi], scales[bi]), isDecimal: true}, true, nil
 			}
 			return userVarValue{kind: userVarNumeric, str: rats[bi].Num().String()}, true, nil
+		case "field":
+			// FIELD(x, a, b, ...) is the 1-based position of the first argument
+			// equal to x, 0 when x is NULL or nothing matches; NULL arguments
+			// never match. Strings compare under the collation, binary when one
+			// is binary; with a number among them every argument compares as a
+			// number, a string by its numeric prefix. On mysql:8.0.46
+			// FIELD('A', 'a') is 1, FIELD(X'61', 'A') 0, FIELD(2, '2', 2) 1 and
+			// FIELD('abc', 0) 1, and SET sql_mode = FIELD('a', 'a') sets mode 1.
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount("FIELD")
+			}
+			args := make([]userVarValue, len(e.Args))
+			anyNumeric, anyBinary := false, false
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				switch v.kind {
+				case userVarNumeric:
+					anyNumeric = true
+				case userVarString:
+					anyBinary = anyBinary || v.binary
+				case userVarNull:
+				default:
+					return userVarValue{}, false, nil
+				}
+				args[i] = v
+			}
+			pos := 0
+			if args[0].kind != userVarNull {
+				for i := 1; i < len(args) && pos == 0; i++ {
+					if args[i].kind == userVarNull {
+						continue
+					}
+					var cmp int
+					if anyNumeric {
+						l, _, _, lok := setNumKind(args[0])
+						r, _, _, rok := setNumKind(args[i])
+						if !lok || !rok {
+							return userVarValue{}, false, nil
+						}
+						cmp = l.Cmp(r)
+					} else {
+						cmp = c.compareSetValues(
+							userVarValue{kind: userVarString, str: args[0].str, binary: anyBinary},
+							userVarValue{kind: userVarString, str: args[i].str, binary: anyBinary})
+					}
+					if cmp == 0 {
+						pos = i
+					}
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(pos)}, true, nil
 		case "pi":
 			// PI() is the double π: SET sql_mode = (PI() > 3) sets mode 1 and
 			// SET @p = PI() stores 3.141592653589793 on mysql:8.0.46. The server
@@ -2366,7 +2438,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				if argc != 2 {
 					err = errWrongParamCount("TRIM")
 				}
-			case "greatest", "least":
+			case "greatest", "least", "field":
 				if argc < 2 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}

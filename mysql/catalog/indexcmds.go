@@ -58,8 +58,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
-			col.Expr = nodeToSQL(ic.Expr)
-			col.ExprNode = ic.Expr
+			expr := stripColumnQualifiers(ic.Expr)
+			col.Expr = nodeToSQL(expr)
+			col.ExprNode = expr
 		}
 		idxCols = append(idxCols, col)
 	}

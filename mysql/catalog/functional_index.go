@@ -130,6 +130,40 @@ func stripTableQualifiersFromTableExprs(tbl *Table, oldDB, oldTable string, clon
 	}
 }
 
+// stripColumnQualifiers drops the qualifiers of the column references in a
+// DEFAULT or functional index expression. MySQL resolves each to the table's
+// own column whatever schema or table names it and stores the bare name:
+// mysql:8.0.46 takes `DEFAULT (other.t.a + 1)`, `DEFAULT (y.a + 1)` and
+// `KEY ((x.y.a + 1))` beside a column a and shows `a` for each. The parsed
+// statement owns expr, so a copy is changed.
+func stripColumnQualifiers(expr nodes.ExprNode) nodes.ExprNode {
+	if expr == nil {
+		return nil
+	}
+	qualified := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && (cr.Table != "" || cr.Schema != "") {
+			qualified = true
+		}
+		return !qualified
+	})
+	if !qualified {
+		return expr
+	}
+	cloned, err := parseExpr(nodeToSQL(expr))
+	if err != nil || cloned == nil {
+		return expr
+	}
+	nodes.Inspect(cloned, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+			cr.Schema = ""
+			cr.Table = ""
+		}
+		return true
+	})
+	return cloned
+}
+
 func rebindTableExprQualifiers(expr nodes.ExprNode, oldDB, oldTable string, cloneAST bool) (nodes.ExprNode, string, bool) {
 	if expr == nil {
 		return nil, "", false
@@ -222,12 +256,7 @@ func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr 
 		if !ok || cr.Column == "" {
 			return true
 		}
-		schemaOK := cr.Schema == "" || (tbl.Database != nil && strings.EqualFold(cr.Schema, tbl.Database.Name))
-		tableOK := cr.Table == "" || strings.EqualFold(cr.Table, tbl.Name)
-		if !schemaOK || !tableOK {
-			err = errNoSuchColumn(cr.Column, "functional index")
-			return false
-		}
+		// A qualifier is ignored (see stripColumnQualifiers).
 		if leaves != nil {
 			// A functional index's hidden column is no name an expression
 			// resolves, on ALTER as on CREATE: mysql:8.0.46 answers 1054.

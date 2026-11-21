@@ -109,12 +109,7 @@ func (c *Catalog) validateTableDefaultExpressions(tbl *Table) error {
 				if x.Column == "" {
 					return true
 				}
-				schemaOK := x.Schema == "" || (tbl.Database != nil && strings.EqualFold(x.Schema, tbl.Database.Name))
-				tableOK := x.Table == "" || strings.EqualFold(x.Table, tbl.Name)
-				if !schemaOK || !tableOK {
-					err = errNoSuchColumn(x.Column, "default value expression")
-					return false
-				}
+				// A qualifier is ignored (see stripColumnQualifiers).
 				refIdx, ok := tbl.colByName[toLower(x.Column)]
 				if !ok || tbl.Columns[refIdx].Hidden == ColumnHiddenSystem {
 					err = errNoSuchColumn(x.Column, "default value expression")
@@ -2243,46 +2238,51 @@ func coerceSetDefault(col *Column, kind literalDefaultKind, val string, unquoted
 	return "", false
 }
 
+// parseTimeZoneOffset reads a `[+-]H:M` time zone as MySQL's str_to_offset
+// does (sql/tztime.cc): either digit run may be empty or as long as it likes,
+// and both accumulate in unsigned 64-bit arithmetic that wraps, so
+// '+307445734561825861:00' wraps to 44 minutes and mysql:8.0.46 takes it as
+// +00:44, and '+18446744073709551616:00' as +00:00. The result must lie in
+// [-13:59, +14:00] with at most 59 minutes, and it is named from the offset:
+// '+0014:00' reads back +14:00 and '-0:00' +00:00.
 func parseTimeZoneOffset(tz string) (norm string, offsetMin int, ok bool) {
 	if len(tz) < 4 || (tz[0] != '+' && tz[0] != '-') {
 		return "", 0, false
 	}
-	rest := tz[1:]
-	colon := strings.IndexByte(rest, ':')
-	if colon < 1 || colon >= len(rest)-1 {
+	i := 1
+	var hours uint64
+	for i < len(tz) && isASCIIDigit(tz[i]) {
+		hours = hours*10 + uint64(tz[i]-'0')
+		i++
+	}
+	if i+1 >= len(tz) || tz[i] != ':' {
 		return "", 0, false
 	}
-	hStr := rest[:colon]
-	mStr := rest[colon+1:]
-	for i := 0; i < len(hStr); i++ {
-		if !isASCIIDigit(hStr[i]) {
-			return "", 0, false
-		}
+	i++
+	var minutes uint64
+	for i < len(tz) && isASCIIDigit(tz[i]) {
+		minutes = minutes*10 + uint64(tz[i]-'0')
+		i++
 	}
-	for i := 0; i < len(mStr); i++ {
-		if !isASCIIDigit(mStr[i]) {
-			return "", 0, false
-		}
-	}
-	hh, errH := strconv.Atoi(hStr)
-	mm, errM := strconv.Atoi(mStr)
-	if errH != nil || errM != nil || mm > 59 {
+	if i != len(tz) {
 		return "", 0, false
 	}
-	total := hh*60 + mm
+	offsetSec := (int64(hours*60) + int64(minutes)) * 60
 	if tz[0] == '-' {
-		if total == 0 {
-			return "+00:00", 0, true
-		}
-		if total > 13*60+59 {
-			return "", 0, false
-		}
-		return fmt.Sprintf("-%02d:%02d", hh, mm), -total, true
+		offsetSec = -offsetSec
 	}
-	if total > 14*60 {
+	if minutes > 59 || offsetSec < -(13*3600+59*60) || offsetSec > 14*3600 {
 		return "", 0, false
 	}
-	return fmt.Sprintf("+%02d:%02d", hh, mm), total, true
+	sign := "+"
+	if offsetSec < 0 {
+		sign = "-"
+	}
+	abs := offsetSec
+	if abs < 0 {
+		abs = -abs
+	}
+	return fmt.Sprintf("%s%02d:%02d", sign, abs/3600, abs%3600/60), int(offsetSec / 60), true
 }
 
 // validateAndNormalizeSessionTimeZone validates a SET time_zone value per MySQL

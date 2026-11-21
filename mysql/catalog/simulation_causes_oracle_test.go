@@ -5314,6 +5314,37 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "IMPORT TABLESPACE in a general tablespace INNODB_FILE_PER_TABLE", setup: []string{"CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_i.ibd'", "CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE"}, stmt: "ALTER TABLE z IMPORT TABLESPACE", code: 1148, cleanup: []string{"DROP TABLE IF EXISTS z", "DROP TABLESPACE INNODB_FILE_PER_TABLE"}},
 		{name: "DISCARD TABLESPACE in innodb_file_per_table", setup: []string{"CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table"}, stmt: "ALTER TABLE z DISCARD TABLESPACE", code: 0},
 		{name: "SET GREATEST with one argument", stmt: "SET @x = GREATEST(1)", code: 1582},
+		{name: "SET FIELD with one argument", stmt: "SET @x = FIELD('a')", code: 1582},
+		// The default undo tablespaces are reserved, active or not.
+		{name: "DROP UNDO TABLESPACE innodb_undo_002", stmt: "DROP UNDO TABLESPACE innodb_undo_002", code: 3119},
+		{name: "DROP TABLESPACE innodb_undo_002", stmt: "DROP TABLESPACE innodb_undo_002", code: 3119},
+		{name: "DROP TABLESPACE innodb_undo_002 ENGINE=MyISAM", stmt: "DROP TABLESPACE innodb_undo_002 ENGINE=MyISAM", code: 3642},
+		{name: "DROP UNDO TABLESPACE innodb_system", stmt: "DROP UNDO TABLESPACE innodb_system", code: 3119},
+		{name: "DROP UNDO TABLESPACE INNODB_UNDO_001", stmt: "DROP UNDO TABLESPACE INNODB_UNDO_001", code: 3510},
+		{
+			name:    "DROP UNDO TABLESPACE of an inactive default one",
+			setup:   []string{"CREATE UNDO TABLESPACE u_def ADD DATAFILE 'u_def.ibu'", "ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE"},
+			stmt:    "DROP UNDO TABLESPACE innodb_undo_001",
+			code:    3119,
+			cleanup: []string{"ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE", "ALTER UNDO TABLESPACE u_def SET INACTIVE", "SELECT SLEEP(3)", "DROP UNDO TABLESPACE u_def"},
+		},
+		// Whatever qualifies it, a column a DEFAULT or a functional index names is
+		// the table's own, stored bare.
+		{
+			name:     "CREATE TABLE with mismatched qualifiers in DEFAULT and a functional index",
+			stmt:     "CREATE TABLE a (x INT, y INT DEFAULT (other.a.x + 1), z INT DEFAULT (q.x * 2), KEY k ((w.v.x + 1)))",
+			code:     0,
+			contains: []string{"DEFAULT ((`x` + 1))", "DEFAULT ((`x` * 2))", "KEY `k` (((`x` + 1)))"},
+			omits:    []string{"`other`", "`q`", "`w`"},
+		},
+		{
+			name:     "CREATE INDEX and ALTER TABLE with mismatched qualifiers",
+			setup:    []string{"CREATE TABLE a (x INT)", "CREATE INDEX k2 ON a ((z.x + 2))"},
+			stmt:     "ALTER TABLE a ADD COLUMN d INT DEFAULT (q.x), ADD KEY k3 ((w.x + 3))",
+			code:     0,
+			contains: []string{"DEFAULT (`x`)", "KEY `k2` (((`x` + 2)))", "KEY `k3` (((`x` + 3)))"},
+			omits:    []string{"`z`", "`q`", "`w`"},
+		},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6467,6 +6498,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"GREATEST(0, 1)", "GREATEST(1, 2.5)", "GREATEST('a', 'B')", "GREATEST(1, '2')", "GREATEST(10, '9')",
 		"GREATEST('10', '9')", "GREATEST(1.5e0, 2)", "LEAST(3, 1, 2)", "LEAST('b', 'A')", "GREATEST(-1, '-2')",
 		"LEAST(1, 'abc')", "GREATEST(2, 'abc')", "GREATEST(2.5, 3)", "GREATEST(X'01', X'02')",
+		"FIELD('a', 'b', 'a')", "FIELD(NULL, 'a')", "FIELD('A', 'a')", "FIELD(2, '2', 2)", "FIELD(1, '1.0')", "FIELD(1e0, '1')",
+		"FIELD(1, NULL, 1)", "FIELD('b', 'a', NULL, 'b')", "FIELD(X'61', 'a')", "FIELD(X'61', 'A')", "FIELD(1, 'abc', 1)", "FIELD('abc', 0)", "FIELD(2.50, 2.5)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6584,7 +6617,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6669,6 +6702,71 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if got := castCat.userVars["fk"].str; got != fk || fk != "1" {
 			t.Fatalf("%s: foreign_key_checks catalog %q, mysql %q, want 1", stmt, got, fk)
 		}
+	}
+	// Assigning one at a scope it lacks is 1229 or 1228 and fails the whole
+	// SET too.
+	for _, tc := range []struct {
+		stmt string
+		code int
+	}{
+		{"SET foreign_key_checks = 0, @@SESSION.max_connections = 1", 1229},
+		{"SET foreign_key_checks = 0, max_connections = 1", 1229},
+		{"SET foreign_key_checks = 0, @@max_connections = 1", 1229},
+		{"SET GLOBAL foreign_key_checks = 1, sql_log_bin = 0", 1228},
+		{"SET foreign_key_checks = 0, @@GLOBAL.timestamp = 1", 1228},
+		{"SET foreign_key_checks = 0, PERSIST sql_log_bin = 0", 1228},
+	} {
+		if _, err := conn.ExecContext(ctx, tc.stmt); err == nil {
+			t.Fatalf("mysql %s succeeded, want %d", tc.stmt, tc.code)
+		} else if code, _ := simulationEngineRefusal(t, tc.stmt, err); code != tc.code {
+			t.Fatalf("mysql %s got %d, want %d", tc.stmt, code, tc.code)
+		}
+		if got, _ := simulationCatalogRefusal(t, castCat, tc.stmt); got != tc.code {
+			t.Fatalf("catalog %s got %d, want %d", tc.stmt, got, tc.code)
+		}
+		var fk string
+		if err := conn.QueryRowContext(ctx, "SELECT CAST(@@foreign_key_checks AS CHAR)").Scan(&fk); err != nil {
+			t.Fatalf("mysql read foreign_key_checks: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @fk = @@foreign_key_checks;")
+		if got := castCat.userVars["fk"].str; got != fk || fk != "1" {
+			t.Fatalf("%s: foreign_key_checks catalog %q, mysql %q, want 1", tc.stmt, got, fk)
+		}
+	}
+
+	// A [+-]H:M time zone accumulates in wrapping unsigned arithmetic and reads
+	// back named from the offset it comes to.
+	for _, tz := range []string{
+		"+307445734561825861:00", "-307445734561825861:00", "+9223372036854775807:00", "+18446744073709551616:00",
+		"+0014:00", "-0:00", "+:30", "+1:5", "+00:0000000000000000000001",
+		"+15:00", "-14:00", "+00:060", "+01:00x", "+0:18446744073709551615", "+12:",
+	} {
+		stmt := "SET SESSION time_zone = '" + tz + "'"
+		_, srvErr := conn.ExecContext(ctx, stmt)
+		srvCode := 0
+		if srvErr != nil {
+			srvCode, _ = simulationEngineRefusal(t, stmt, srvErr)
+		}
+		if got, _ := simulationCatalogRefusal(t, castCat, stmt); got != srvCode {
+			t.Fatalf("catalog %s got %d, mysql %d", stmt, got, srvCode)
+		}
+		if srvCode != 0 {
+			continue
+		}
+		var srvTZ string
+		if err := conn.QueryRowContext(ctx, "SELECT @@time_zone").Scan(&srvTZ); err != nil {
+			t.Fatalf("mysql SELECT @@time_zone: %v", err)
+		}
+		execAlterClauses(t, castCat, "SET @tz = @@time_zone;")
+		if got := castCat.userVars["tz"].str; got != srvTZ {
+			t.Fatalf("%s: catalog @@time_zone %q, mysql %q", stmt, got, srvTZ)
+		}
+	}
+	for _, stmt := range []string{"SET SESSION time_zone = DEFAULT"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, castCat, stmt+";")
 	}
 	for _, stmt := range []string{"SET @x_scope = @@GLOBAL.max_connections", "SET @x_scope = @@SESSION.warning_count", "SET @x_scope = @@max_connections"} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
