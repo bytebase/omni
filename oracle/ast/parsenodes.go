@@ -5047,6 +5047,7 @@ type CreateVectorIndexStmt struct {
 	Name           *ObjectName // index name
 	IfNotExists    bool
 	TableName      *ObjectName // ON table
+	TableAlias     string      // optional table alias
 	Column         string      // (column_name)
 	IncludeColumns []string    // INCLUDE (col, ...)
 	Organization   string      // INMEMORY_NEIGHBOR_GRAPH, NEIGHBOR_PARTITIONS

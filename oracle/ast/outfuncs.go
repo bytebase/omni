@@ -8181,6 +8181,9 @@ func writeCreateVectorIndexStmt(sb *strings.Builder, n *CreateVectorIndexStmt) {
 		sb.WriteString(" :table_name ")
 		writeNode(sb, n.TableName)
 	}
+	if n.TableAlias != "" {
+		sb.WriteString(fmt.Sprintf(" :table_alias %q", n.TableAlias))
+	}
 	if n.Column != "" {
 		sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
 	}

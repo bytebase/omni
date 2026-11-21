@@ -184,13 +184,13 @@ func (p *Parser) parseATColumnProperties(opts *nodes.List) error {
 		switch {
 		case p.cur.Type == kwNESTED:
 			err = p.parseATNestedTableStorage()
-		case p.isATLobStorageStart():
+		case p.isATLobStorageStart() || p.atWord("LOB"):
 			if err = p.parseATLobStorage(); err == nil && p.cur.Type == '(' && p.peekNext().Type == kwPARTITION {
 				err = p.parseATLobPartitionStorage()
 			}
 		case p.atWord("XMLTYPE"):
 			err = p.parseATXMLTypeColumnProperties()
-		case p.cur.Type == kwJSON && p.peekNext().Type == '(':
+		case p.cur.Type == kwJSON:
 			// json_storage_clause: JSON ( column [, column ]... ) STORE AS
 			// [ lob_segname ] ( LOB_parameters )
 			p.advance()

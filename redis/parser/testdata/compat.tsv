@@ -1,0 +1,1383 @@
+# pin: default redis:7.4.12-alpine sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe 7.4.12
+# columns: omni, expected, source, rule, statement
+accept	accept	engine	commandLine/command_EOF	ASKING
+reject	reject	engine	commandLine/command_EOF!insert	ASKING zzz
+reject	reject	engine	commandLine/command_EOF!swap	AUTH
+accept	accept	engine	command/standaloneCommand	ASKING
+accept	accept	engine	command/aclCommand	ACL CAT
+reject	reject	engine	command/aclCommand!drop-1	CAT
+reject	reject	engine	command/aclCommand!drop-2	ACL
+accept	accept	engine	command/aclCommand!insert	ACL CAT zzz
+reject	reject	engine	command/aclCommand!swap	ADDSLOTS CAT
+accept	accept	engine	command/clientCommand	CLIENT GETNAME
+reject	reject	engine	command/clientCommand!drop-1	GETNAME
+reject	reject	engine	command/clientCommand!drop-2	CLIENT
+reject	reject	engine	command/clientCommand!insert	CLIENT GETNAME zzz
+reject	reject	engine	command/clientCommand!swap	CLUSTER GETNAME
+accept	accept	engine	command/clusterCommand	CLUSTER BUMPEPOCH
+reject	reject	engine	command/clusterCommand!drop-1	BUMPEPOCH
+reject	reject	engine	command/clusterCommand!drop-2	CLUSTER
+reject	reject	engine	command/clusterCommand!insert	CLUSTER BUMPEPOCH zzz
+reject	reject	engine	command/clusterCommand!swap	COMMAND BUMPEPOCH
+accept	accept	engine	command/commandCommand	COMMAND
+reject	reject	engine	command/commandCommand!insert	COMMAND zzz
+reject	reject	engine	command/commandCommand!swap	CONFIG
+accept	accept	engine	command/configCommand	CONFIG HELP
+reject	reject	engine	command/configCommand!drop-1	HELP
+reject	reject	engine	command/configCommand!insert	CONFIG HELP zzz
+reject	reject	engine	command/configCommand!swap	CONSUMERS HELP
+accept	accept	engine	command/functionCommand	FUNCTION DUMP
+reject	reject	engine	command/functionCommand!drop-1	DUMP
+reject	reject	engine	command/functionCommand!drop-2	FUNCTION
+reject	reject	engine	command/functionCommand!insert	FUNCTION DUMP zzz
+reject	reject	engine	command/functionCommand!swap	GENPASS DUMP
+accept	accept	engine	command/latencyCommand	LATENCY DOCTOR
+reject	reject	engine	command/latencyCommand!drop-1	DOCTOR
+reject	reject	engine	command/latencyCommand!drop-2	LATENCY
+reject	reject	engine	command/latencyCommand!insert	LATENCY DOCTOR zzz
+reject	reject	engine	command/latencyCommand!swap	LATEST DOCTOR
+accept	accept	engine	command/memoryCommand	MEMORY DOCTOR
+reject	reject	engine	command/memoryCommand!drop-2	MEMORY
+reject	reject	engine	command/memoryCommand!insert	MEMORY DOCTOR zzz
+accept	accept	engine	command/memoryCommand!swap	MGET DOCTOR
+accept	accept	engine	command/moduleCommand	MODULE HELP
+reject	reject	engine	command/moduleCommand!drop-2	MODULE
+reject	reject	engine	command/moduleCommand!insert	MODULE HELP zzz
+reject	reject	engine	command/moduleCommand!swap	MONITOR HELP
+accept	accept	engine	command/objectCommand	OBJECT HELP
+reject	reject	engine	command/objectCommand!drop-2	OBJECT
+reject	reject	engine	command/objectCommand!insert	OBJECT HELP zzz
+reject	reject	engine	command/objectCommand!swap	PAUSE HELP
+accept	accept	engine	command/pubsubCommand	PUBSUB CHANNELS
+reject	reject	engine	command/pubsubCommand!drop-1	CHANNELS
+reject	reject	engine	command/pubsubCommand!drop-2	PUBSUB
+accept	accept	engine	command/pubsubCommand!insert	PUBSUB CHANNELS zzz
+accept	accept	engine	command/pubsubCommand!swap	PUNSUBSCRIBE CHANNELS
+accept	accept	engine	command/scriptCommand	SCRIPT FLUSH
+reject	reject	engine	command/scriptCommand!drop-1	FLUSH
+reject	reject	engine	command/scriptCommand!drop-2	SCRIPT
+accept	accept	engine	command/scriptCommand!insert	SCRIPT FLUSH zzz
+accept	accept	engine	command/scriptCommand!swap	SDIFF FLUSH
+accept	accept	engine	command/slowlogCommand	SLOWLOG GET
+reject	reject	engine	command/slowlogCommand!drop-1	GET
+reject	reject	engine	command/slowlogCommand!drop-2	SLOWLOG
+accept	accept	engine	command/slowlogCommand!insert	SLOWLOG GET zzz
+accept	accept	engine	command/slowlogCommand!swap	SMEMBERS GET
+accept	accept	engine	command/xgroupCommand	XGROUP HELP
+reject	reject	engine	command/xgroupCommand!drop-2	XGROUP
+reject	reject	engine	command/xgroupCommand!insert	XGROUP HELP zzz
+accept	accept	engine	command/xinfoCommand	XINFO HELP
+reject	reject	engine	command/xinfoCommand!drop-2	XINFO
+reject	reject	engine	command/xinfoCommand!insert	XINFO HELP zzz
+accept	accept	engine	command/xinfoCommand!swap	XLEN HELP
+accept	accept	engine	standaloneCommand/APPEND_arg_arg	APPEND a a
+reject	reject	engine	standaloneCommand/APPEND_arg_arg!drop-1	a a
+reject	reject	engine	standaloneCommand/APPEND_arg_arg!drop-2	APPEND a
+reject	reject	engine	standaloneCommand/APPEND_arg_arg!insert	APPEND a a zzz
+reject	reject	engine	standaloneCommand/APPEND_arg_arg!swap	ASKING a a
+accept	accept	engine	standaloneCommand/ASKING	ASKING
+accept	accept	engine	standaloneCommand/AUTH_arg_variadicArgs	AUTH a
+reject	reject	engine	standaloneCommand/AUTH_arg_variadicArgs!drop-1	a
+accept	accept	engine	standaloneCommand/AUTH_arg_variadicArgs!insert	AUTH a zzz
+reject	reject	engine	standaloneCommand/AUTH_arg_variadicArgs!swap	BGREWRITEAOF a
+accept	accept	engine	standaloneCommand/BGREWRITEAOF	BGREWRITEAOF
+reject	reject	engine	standaloneCommand/BGREWRITEAOF!insert	BGREWRITEAOF zzz
+accept	accept	engine	standaloneCommand/BGSAVE_variadicArgs	BGSAVE
+accept	accept	engine	standaloneCommand/BGSAVE_variadicArgs!insert	BGSAVE zzz
+reject	reject	engine	standaloneCommand/BGSAVE_variadicArgs!swap	BITCOUNT
+accept	accept	engine	standaloneCommand/BITCOUNT_arg_variadicArgs	BITCOUNT a
+accept	accept	engine	standaloneCommand/BITCOUNT_arg_variadicArgs!insert	BITCOUNT a zzz
+accept	accept	engine	standaloneCommand/BITFIELD_arg_variadicArgs	BITFIELD a
+reject	reject	engine	standaloneCommand/BITFIELD_arg_variadicArgs!drop-2	BITFIELD
+accept	accept	engine	standaloneCommand/BITFIELD_arg_variadicArgs!insert	BITFIELD a zzz
+accept	accept	engine	standaloneCommand/BITFIELD_RO_arg_variadicArgs	BITFIELD_RO a
+reject	reject	engine	standaloneCommand/BITFIELD_RO_arg_variadicArgs!drop-2	BITFIELD_RO
+accept	accept	engine	standaloneCommand/BITFIELD_RO_arg_variadicArgs!insert	BITFIELD_RO a zzz
+reject	reject	engine	standaloneCommand/BITFIELD_RO_arg_variadicArgs!swap	BITOP a
+accept	accept	engine	standaloneCommand/BITOP_arg_arg_arg_variadicArgs	BITOP a a a
+reject	reject	engine	standaloneCommand/BITOP_arg_arg_arg_variadicArgs!drop-1	a a a
+reject	reject	engine	standaloneCommand/BITOP_arg_arg_arg_variadicArgs!drop-2	BITOP a a
+accept	accept	engine	standaloneCommand/BITOP_arg_arg_arg_variadicArgs!insert	BITOP a a a zzz
+accept	accept	engine	standaloneCommand/BITOP_arg_arg_arg_variadicArgs!swap	BITPOS a a a
+accept	accept	engine	standaloneCommand/BITPOS_arg_arg_variadicArgs	BITPOS a a
+reject	reject	engine	standaloneCommand/BITPOS_arg_arg_variadicArgs!drop-2	BITPOS a
+accept	accept	engine	standaloneCommand/BITPOS_arg_arg_variadicArgs!insert	BITPOS a a zzz
+reject	reject	engine	standaloneCommand/BITPOS_arg_arg_variadicArgs!swap	BLMOVE a a
+accept	accept	engine	standaloneCommand/BLMOVE_arg_arg_arg_arg_arg	BLMOVE a a a a a
+reject	reject	engine	standaloneCommand/BLMOVE_arg_arg_arg_arg_arg!drop-1	a a a a a
+reject	reject	engine	standaloneCommand/BLMOVE_arg_arg_arg_arg_arg!drop-2	BLMOVE a a a a
+reject	reject	engine	standaloneCommand/BLMOVE_arg_arg_arg_arg_arg!insert	BLMOVE a a a a a zzz
+accept	accept	engine	standaloneCommand/BLMOVE_arg_arg_arg_arg_arg!swap	BLMPOP a a a a a
+accept	accept	engine	standaloneCommand/BLMPOP_arg_arg_arg_arg_variadicArgs	BLMPOP a a a a
+reject	reject	engine	standaloneCommand/BLMPOP_arg_arg_arg_arg_variadicArgs!drop-1	a a a a
+reject	reject	engine	standaloneCommand/BLMPOP_arg_arg_arg_arg_variadicArgs!drop-2	BLMPOP a a a
+accept	accept	engine	standaloneCommand/BLMPOP_arg_arg_arg_arg_variadicArgs!insert	BLMPOP a a a a zzz
+accept	accept	engine	standaloneCommand/BLMPOP_arg_arg_arg_arg_variadicArgs!swap	BLPOP a a a a
+accept	accept	engine	standaloneCommand/BLPOP_arg_arg_variadicArgs	BLPOP a a
+reject	reject	engine	standaloneCommand/BLPOP_arg_arg_variadicArgs!drop-2	BLPOP a
+accept	accept	engine	standaloneCommand/BLPOP_arg_arg_variadicArgs!insert	BLPOP a a zzz
+accept	accept	engine	standaloneCommand/BRPOP_arg_arg_variadicArgs	BRPOP a a
+reject	reject	engine	standaloneCommand/BRPOP_arg_arg_variadicArgs!drop-2	BRPOP a
+accept	accept	engine	standaloneCommand/BRPOP_arg_arg_variadicArgs!insert	BRPOP a a zzz
+reject	reject	engine	standaloneCommand/BRPOP_arg_arg_variadicArgs!swap	BRPOPLPUSH a a
+accept	accept	engine	standaloneCommand/BRPOPLPUSH_arg_arg_arg	BRPOPLPUSH a a a
+reject	reject	engine	standaloneCommand/BRPOPLPUSH_arg_arg_arg!insert	BRPOPLPUSH a a a zzz
+reject	reject	engine	standaloneCommand/BRPOPLPUSH_arg_arg_arg!swap	BUMPEPOCH a a a
+accept	accept	engine	standaloneCommand/BZMPOP_arg_arg_arg_arg_variadicArgs	BZMPOP a a a a
+reject	reject	engine	standaloneCommand/BZMPOP_arg_arg_arg_arg_variadicArgs!drop-2	BZMPOP a a a
+accept	accept	engine	standaloneCommand/BZMPOP_arg_arg_arg_arg_variadicArgs!insert	BZMPOP a a a a zzz
+accept	accept	engine	standaloneCommand/BZMPOP_arg_arg_arg_arg_variadicArgs!swap	BZPOPMAX a a a a
+accept	accept	engine	standaloneCommand/BZPOPMAX_arg_arg_variadicArgs	BZPOPMAX a a
+reject	reject	engine	standaloneCommand/BZPOPMAX_arg_arg_variadicArgs!drop-2	BZPOPMAX a
+accept	accept	engine	standaloneCommand/BZPOPMAX_arg_arg_variadicArgs!insert	BZPOPMAX a a zzz
+accept	accept	engine	standaloneCommand/BZPOPMIN_arg_arg_variadicArgs	BZPOPMIN a a
+reject	reject	engine	standaloneCommand/BZPOPMIN_arg_arg_variadicArgs!drop-2	BZPOPMIN a
+accept	accept	engine	standaloneCommand/BZPOPMIN_arg_arg_variadicArgs!insert	BZPOPMIN a a zzz
+reject	reject	engine	standaloneCommand/BZPOPMIN_arg_arg_variadicArgs!swap	CACHING a a
+accept	accept	engine	standaloneCommand/COPY_arg_arg_variadicArgs	COPY a a
+reject	reject	engine	standaloneCommand/COPY_arg_arg_variadicArgs!drop-2	COPY a
+accept	accept	engine	standaloneCommand/COPY_arg_arg_variadicArgs!insert	COPY a a zzz
+reject	reject	engine	standaloneCommand/COPY_arg_arg_variadicArgs!swap	COUNT a a
+accept	accept	engine	standaloneCommand/DBSIZE	DBSIZE
+reject	reject	engine	standaloneCommand/DBSIZE!insert	DBSIZE zzz
+reject	reject	engine	standaloneCommand/DBSIZE!swap	DEBUG
+accept	accept	engine	standaloneCommand/DEBUG_arg_variadicArgs	DEBUG a
+accept	accept	engine	standaloneCommand/DEBUG_arg_variadicArgs!insert	DEBUG a zzz
+accept	accept	engine	standaloneCommand/DECR_arg	DECR a
+reject	reject	engine	standaloneCommand/DECR_arg!drop-2	DECR
+reject	reject	engine	standaloneCommand/DECR_arg!insert	DECR a zzz
+reject	reject	engine	standaloneCommand/DECR_arg!swap	DECRBY a
+accept	accept	engine	standaloneCommand/DECRBY_arg_arg	DECRBY a a
+reject	reject	engine	standaloneCommand/DECRBY_arg_arg!insert	DECRBY a a zzz
+accept	accept	engine	standaloneCommand/DECRBY_arg_arg!swap	DEL a a
+accept	accept	engine	standaloneCommand/DEL_arg_variadicArgs	DEL a
+reject	reject	engine	standaloneCommand/DEL_arg_variadicArgs!drop-2	DEL
+accept	accept	engine	standaloneCommand/DEL_arg_variadicArgs!insert	DEL a zzz
+reject	reject	engine	standaloneCommand/DEL_arg_variadicArgs!swap	DELCONSUMER a
+accept	accept	engine	standaloneCommand/DISCARD	DISCARD
+reject	reject	engine	standaloneCommand/DISCARD!insert	DISCARD zzz
+reject	reject	engine	standaloneCommand/DISCARD!swap	DOCS
+accept	accept	engine	standaloneCommand/DUMP_arg	DUMP a
+reject	reject	engine	standaloneCommand/DUMP_arg!insert	DUMP a zzz
+accept	accept	engine	standaloneCommand/ECHO_arg	ECHO a
+reject	reject	engine	standaloneCommand/ECHO_arg!drop-2	ECHO
+reject	reject	engine	standaloneCommand/ECHO_arg!insert	ECHO a zzz
+reject	reject	engine	standaloneCommand/ECHO_arg!swap	ENCODING a
+accept	accept	engine	standaloneCommand/EVAL_arg_arg_variadicArgs	EVAL a a
+reject	reject	engine	standaloneCommand/EVAL_arg_arg_variadicArgs!drop-2	EVAL a
+accept	accept	engine	standaloneCommand/EVAL_arg_arg_variadicArgs!insert	EVAL a a zzz
+accept	accept	engine	standaloneCommand/EVAL_RO_arg_arg_variadicArgs	EVAL_RO a a
+reject	reject	engine	standaloneCommand/EVAL_RO_arg_arg_variadicArgs!drop-2	EVAL_RO a
+accept	accept	engine	standaloneCommand/EVAL_RO_arg_arg_variadicArgs!insert	EVAL_RO a a zzz
+reject	reject	engine	standaloneCommand/EVAL_RO_arg_arg_variadicArgs!swap	EXEC a a
+accept	accept	engine	standaloneCommand/EVALSHA_arg_arg_variadicArgs	EVALSHA a a
+reject	reject	engine	standaloneCommand/EVALSHA_arg_arg_variadicArgs!drop-2	EVALSHA a
+accept	accept	engine	standaloneCommand/EVALSHA_arg_arg_variadicArgs!insert	EVALSHA a a zzz
+accept	accept	engine	standaloneCommand/EVALSHA_RO_arg_arg_variadicArgs	EVALSHA_RO a a
+reject	reject	engine	standaloneCommand/EVALSHA_RO_arg_arg_variadicArgs!drop-2	EVALSHA_RO a
+accept	accept	engine	standaloneCommand/EVALSHA_RO_arg_arg_variadicArgs!insert	EVALSHA_RO a a zzz
+accept	accept	engine	standaloneCommand/EXEC	EXEC
+reject	reject	engine	standaloneCommand/EXEC!insert	EXEC zzz
+reject	reject	engine	standaloneCommand/EXEC!swap	EXISTS
+accept	accept	engine	standaloneCommand/EXISTS_arg_variadicArgs	EXISTS a
+accept	accept	engine	standaloneCommand/EXISTS_arg_variadicArgs!insert	EXISTS a zzz
+reject	reject	engine	standaloneCommand/EXISTS_arg_variadicArgs!swap	EXPIRE a
+accept	accept	engine	standaloneCommand/EXPIRE_arg_arg_variadicArgs	EXPIRE a a
+accept	accept	engine	standaloneCommand/EXPIRE_arg_arg_variadicArgs!insert	EXPIRE a a zzz
+accept	accept	engine	standaloneCommand/EXPIREAT_arg_arg_variadicArgs	EXPIREAT a a
+reject	reject	engine	standaloneCommand/EXPIREAT_arg_arg_variadicArgs!drop-2	EXPIREAT a
+accept	accept	engine	standaloneCommand/EXPIREAT_arg_arg_variadicArgs!insert	EXPIREAT a a zzz
+reject	reject	engine	standaloneCommand/EXPIREAT_arg_arg_variadicArgs!swap	EXPIRETIME a a
+accept	accept	engine	standaloneCommand/EXPIRETIME_arg	EXPIRETIME a
+reject	reject	engine	standaloneCommand/EXPIRETIME_arg!drop-2	EXPIRETIME
+reject	reject	engine	standaloneCommand/EXPIRETIME_arg!insert	EXPIRETIME a zzz
+accept	accept	engine	standaloneCommand/EXPIRETIME_arg!swap	FAILOVER a
+accept	accept	engine	standaloneCommand/FAILOVER_variadicArgs	FAILOVER
+accept	accept	engine	standaloneCommand/FAILOVER_variadicArgs!insert	FAILOVER zzz
+reject	reject	engine	standaloneCommand/FAILOVER_variadicArgs!swap	FCALL
+accept	accept	engine	standaloneCommand/FCALL_arg_arg_variadicArgs	FCALL a a
+reject	reject	engine	standaloneCommand/FCALL_arg_arg_variadicArgs!drop-2	FCALL a
+accept	accept	engine	standaloneCommand/FCALL_arg_arg_variadicArgs!insert	FCALL a a zzz
+accept	accept	engine	standaloneCommand/FCALL_RO_arg_arg_variadicArgs	FCALL_RO a a
+reject	reject	engine	standaloneCommand/FCALL_RO_arg_arg_variadicArgs!drop-2	FCALL_RO a
+accept	accept	engine	standaloneCommand/FCALL_RO_arg_arg_variadicArgs!insert	FCALL_RO a a zzz
+reject	reject	engine	standaloneCommand/FCALL_RO_arg_arg_variadicArgs!swap	FLUSH a a
+accept	accept	engine	standaloneCommand/FLUSHALL_variadicArgs	FLUSHALL
+accept	accept	engine	standaloneCommand/FLUSHALL_variadicArgs!insert	FLUSHALL zzz
+accept	accept	engine	standaloneCommand/FLUSHDB_variadicArgs	FLUSHDB
+accept	accept	engine	standaloneCommand/FLUSHDB_variadicArgs!insert	FLUSHDB zzz
+reject	reject	engine	standaloneCommand/FLUSHDB_variadicArgs!swap	FLUSHSLOTS
+accept	accept	engine	standaloneCommand/GEOADD_arg_arg_arg_arg_variadicArgs	GEOADD a a a a
+reject	reject	engine	standaloneCommand/GEOADD_arg_arg_arg_arg_variadicArgs!drop-2	GEOADD a a a
+accept	accept	engine	standaloneCommand/GEOADD_arg_arg_arg_arg_variadicArgs!insert	GEOADD a a a a zzz
+accept	accept	engine	standaloneCommand/GEOADD_arg_arg_arg_arg_variadicArgs!swap	GEODIST a a a a
+accept	accept	engine	standaloneCommand/GEODIST_arg_arg_arg_variadicArgs	GEODIST a a a
+reject	reject	engine	standaloneCommand/GEODIST_arg_arg_arg_variadicArgs!drop-2	GEODIST a a
+accept	accept	engine	standaloneCommand/GEODIST_arg_arg_arg_variadicArgs!insert	GEODIST a a a zzz
+accept	accept	engine	standaloneCommand/GEODIST_arg_arg_arg_variadicArgs!swap	GEOHASH a a a
+accept	accept	engine	standaloneCommand/GEOHASH_arg_variadicArgs	GEOHASH a
+reject	reject	engine	standaloneCommand/GEOHASH_arg_variadicArgs!drop-2	GEOHASH
+accept	accept	engine	standaloneCommand/GEOHASH_arg_variadicArgs!insert	GEOHASH a zzz
+accept	accept	engine	standaloneCommand/GEOPOS_arg_variadicArgs	GEOPOS a
+reject	reject	engine	standaloneCommand/GEOPOS_arg_variadicArgs!drop-2	GEOPOS
+accept	accept	engine	standaloneCommand/GEOPOS_arg_variadicArgs!insert	GEOPOS a zzz
+reject	reject	engine	standaloneCommand/GEOPOS_arg_variadicArgs!swap	GEORADIUS a
+accept	accept	engine	standaloneCommand/GEORADIUS_arg_arg_arg_arg_arg_variadicArgs	GEORADIUS a a a a a
+reject	reject	engine	standaloneCommand/GEORADIUS_arg_arg_arg_arg_arg_variadicArgs!drop-2	GEORADIUS a a a a
+accept	accept	engine	standaloneCommand/GEORADIUS_arg_arg_arg_arg_arg_variadicArgs!insert	GEORADIUS a a a a a zzz
+accept	accept	engine	standaloneCommand/GEORADIUS_arg_arg_arg_arg_arg_variadicArgs!swap	GEORADIUSBYMEMBER a a a a a
+accept	accept	engine	standaloneCommand/GEORADIUS_RO_arg_arg_arg_arg_arg_variadicArgs	GEORADIUS_RO a a a a a
+reject	reject	engine	standaloneCommand/GEORADIUS_RO_arg_arg_arg_arg_arg_variadicArgs!drop-2	GEORADIUS_RO a a a a
+accept	accept	engine	standaloneCommand/GEORADIUS_RO_arg_arg_arg_arg_arg_variadicArgs!insert	GEORADIUS_RO a a a a a zzz
+reject	reject	engine	standaloneCommand/GEORADIUS_RO_arg_arg_arg_arg_arg_variadicArgs!swap	GEOSEARCH a a a a a
+accept	accept	engine	standaloneCommand/GEORADIUSBYMEMBER_arg_arg_arg_arg_variadicArgs	GEORADIUSBYMEMBER a a a a
+reject	reject	engine	standaloneCommand/GEORADIUSBYMEMBER_arg_arg_arg_arg_variadicArgs!drop-2	GEORADIUSBYMEMBER a a a
+accept	accept	engine	standaloneCommand/GEORADIUSBYMEMBER_arg_arg_arg_arg_variadicArgs!insert	GEORADIUSBYMEMBER a a a a zzz
+accept	accept	engine	standaloneCommand/GEORADIUSBYMEMBER_RO_arg_arg_arg_arg_variadicArgs	GEORADIUSBYMEMBER_RO a a a a
+reject	reject	engine	standaloneCommand/GEORADIUSBYMEMBER_RO_arg_arg_arg_arg_variadicArgs!drop-2	GEORADIUSBYMEMBER_RO a a a
+accept	accept	engine	standaloneCommand/GEORADIUSBYMEMBER_RO_arg_arg_arg_arg_variadicArgs!insert	GEORADIUSBYMEMBER_RO a a a a zzz
+accept	accept	engine	standaloneCommand/GEOSEARCH_arg_arg_arg_arg_arg_arg_variadicArgs	GEOSEARCH a a a a a a
+reject	reject	engine	standaloneCommand/GEOSEARCH_arg_arg_arg_arg_arg_arg_variadicArgs!drop-1	a a a a a a
+accept	accept	engine	standaloneCommand/GEOSEARCH_arg_arg_arg_arg_arg_arg_variadicArgs!insert	GEOSEARCH a a a a a a zzz
+reject	reject	engine	standaloneCommand/GEOSEARCH_arg_arg_arg_arg_arg_arg_variadicArgs!swap	GEOSEARCHSTORE a a a a a a
+accept	accept	engine	standaloneCommand/GEOSEARCHSTORE_arg_arg_arg_arg_arg_arg_arg_variadicArgs	GEOSEARCHSTORE a a a a a a a
+reject	reject	engine	standaloneCommand/GEOSEARCHSTORE_arg_arg_arg_arg_arg_arg_arg_variadicArgs!drop-1	a a a a a a a
+accept	accept	engine	standaloneCommand/GEOSEARCHSTORE_arg_arg_arg_arg_arg_arg_arg_variadicArgs!insert	GEOSEARCHSTORE a a a a a a a zzz
+reject	reject	engine	standaloneCommand/GEOSEARCHSTORE_arg_arg_arg_arg_arg_arg_arg_variadicArgs!swap	GET a a a a a a a
+accept	accept	engine	standaloneCommand/GET_arg	GET a
+reject	reject	engine	standaloneCommand/GET_arg!insert	GET a zzz
+reject	reject	engine	standaloneCommand/GET_arg!swap	GETBIT a
+accept	accept	engine	standaloneCommand/GETBIT_arg_arg	GETBIT a a
+reject	reject	engine	standaloneCommand/GETBIT_arg_arg!insert	GETBIT a a zzz
+reject	reject	engine	standaloneCommand/GETBIT_arg_arg!swap	GETDEL a a
+accept	accept	engine	standaloneCommand/GETDEL_arg	GETDEL a
+reject	reject	engine	standaloneCommand/GETDEL_arg!drop-2	GETDEL
+reject	reject	engine	standaloneCommand/GETDEL_arg!insert	GETDEL a zzz
+accept	accept	engine	standaloneCommand/GETEX_arg_variadicArgs	GETEX a
+reject	reject	engine	standaloneCommand/GETEX_arg_variadicArgs!drop-2	GETEX
+accept	accept	engine	standaloneCommand/GETEX_arg_variadicArgs!insert	GETEX a zzz
+reject	reject	engine	standaloneCommand/GETEX_arg_variadicArgs!swap	GETKEYS a
+accept	accept	engine	standaloneCommand/GETRANGE_arg_arg_arg	GETRANGE a a a
+reject	reject	engine	standaloneCommand/GETRANGE_arg_arg_arg!drop-2	GETRANGE a a
+reject	reject	engine	standaloneCommand/GETRANGE_arg_arg_arg!insert	GETRANGE a a a zzz
+reject	reject	engine	standaloneCommand/GETRANGE_arg_arg_arg!swap	GETREDIR a a a
+accept	accept	engine	standaloneCommand/GETSET_arg_arg	GETSET a a
+reject	reject	engine	standaloneCommand/GETSET_arg_arg!drop-2	GETSET a
+reject	reject	engine	standaloneCommand/GETSET_arg_arg!insert	GETSET a a zzz
+reject	reject	engine	standaloneCommand/GETSET_arg_arg!swap	GETUSER a a
+accept	accept	engine	standaloneCommand/HDEL_arg_arg_variadicArgs	HDEL a a
+reject	reject	engine	standaloneCommand/HDEL_arg_arg_variadicArgs!drop-2	HDEL a
+accept	accept	engine	standaloneCommand/HDEL_arg_arg_variadicArgs!insert	HDEL a a zzz
+accept	accept	engine	standaloneCommand/HDEL_arg_arg_variadicArgs!swap	HELLO a a
+accept	accept	engine	standaloneCommand/HELLO_variadicArgs	HELLO
+accept	accept	engine	standaloneCommand/HELLO_variadicArgs!insert	HELLO zzz
+accept	accept	engine	standaloneCommand/HEXISTS_arg_arg	HEXISTS a a
+reject	reject	engine	standaloneCommand/HEXISTS_arg_arg!drop-2	HEXISTS a
+reject	reject	engine	standaloneCommand/HEXISTS_arg_arg!insert	HEXISTS a a zzz
+reject	reject	engine	standaloneCommand/HEXISTS_arg_arg!swap	HEXPIRE a a
+accept	accept	engine	standaloneCommand/HEXPIRE_arg_arg_arg_arg_arg_variadicArgs	HEXPIRE a a a a a
+reject	reject	engine	standaloneCommand/HEXPIRE_arg_arg_arg_arg_arg_variadicArgs!drop-2	HEXPIRE a a a a
+accept	accept	engine	standaloneCommand/HEXPIRE_arg_arg_arg_arg_arg_variadicArgs!insert	HEXPIRE a a a a a zzz
+accept	accept	engine	standaloneCommand/HEXPIREAT_arg_arg_arg_arg_arg_variadicArgs	HEXPIREAT a a a a a
+reject	reject	engine	standaloneCommand/HEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!drop-2	HEXPIREAT a a a a
+accept	accept	engine	standaloneCommand/HEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!insert	HEXPIREAT a a a a a zzz
+accept	accept	engine	standaloneCommand/HEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!swap	HEXPIRETIME a a a a a
+accept	accept	engine	standaloneCommand/HEXPIRETIME_arg_arg_arg_arg_variadicArgs	HEXPIRETIME a a a a
+reject	reject	engine	standaloneCommand/HEXPIRETIME_arg_arg_arg_arg_variadicArgs!drop-2	HEXPIRETIME a a a
+accept	accept	engine	standaloneCommand/HEXPIRETIME_arg_arg_arg_arg_variadicArgs!insert	HEXPIRETIME a a a a zzz
+reject	reject	engine	standaloneCommand/HEXPIRETIME_arg_arg_arg_arg_variadicArgs!swap	HGET a a a a
+accept	accept	engine	standaloneCommand/HGET_arg_arg	HGET a a
+reject	reject	engine	standaloneCommand/HGET_arg_arg!drop-2	HGET a
+reject	reject	engine	standaloneCommand/HGET_arg_arg!insert	HGET a a zzz
+reject	reject	engine	standaloneCommand/HGET_arg_arg!swap	HGETALL a a
+accept	accept	engine	standaloneCommand/HGETALL_arg	HGETALL a
+reject	reject	engine	standaloneCommand/HGETALL_arg!drop-2	HGETALL
+reject	reject	engine	standaloneCommand/HGETALL_arg!insert	HGETALL a zzz
+reject	reject	engine	standaloneCommand/HGETALL_arg!swap	HINCRBY a
+accept	accept	engine	standaloneCommand/HINCRBY_arg_arg_arg	HINCRBY a a a
+reject	reject	engine	standaloneCommand/HINCRBY_arg_arg_arg!drop-2	HINCRBY a a
+reject	reject	engine	standaloneCommand/HINCRBY_arg_arg_arg!insert	HINCRBY a a a zzz
+accept	accept	engine	standaloneCommand/HINCRBYFLOAT_arg_arg_arg	HINCRBYFLOAT a a a
+reject	reject	engine	standaloneCommand/HINCRBYFLOAT_arg_arg_arg!drop-2	HINCRBYFLOAT a a
+reject	reject	engine	standaloneCommand/HINCRBYFLOAT_arg_arg_arg!insert	HINCRBYFLOAT a a a zzz
+reject	reject	engine	standaloneCommand/HINCRBYFLOAT_arg_arg_arg!swap	HISTOGRAM a a a
+accept	accept	engine	standaloneCommand/HKEYS_arg	HKEYS a
+reject	reject	engine	standaloneCommand/HKEYS_arg!drop-2	HKEYS
+reject	reject	engine	standaloneCommand/HKEYS_arg!insert	HKEYS a zzz
+accept	accept	engine	standaloneCommand/HLEN_arg	HLEN a
+reject	reject	engine	standaloneCommand/HLEN_arg!drop-2	HLEN
+reject	reject	engine	standaloneCommand/HLEN_arg!insert	HLEN a zzz
+reject	reject	engine	standaloneCommand/HLEN_arg!swap	HMGET a
+accept	accept	engine	standaloneCommand/HMGET_arg_arg_variadicArgs	HMGET a a
+accept	accept	engine	standaloneCommand/HMGET_arg_arg_variadicArgs!insert	HMGET a a zzz
+reject	reject	engine	standaloneCommand/HMGET_arg_arg_variadicArgs!swap	HMSET a a
+accept	accept	engine	standaloneCommand/HMSET_arg_arg_arg_variadicArgs	HMSET a a a
+accept	accept	engine	standaloneCommand/HMSET_arg_arg_arg_variadicArgs!insert	HMSET a a a zzz
+reject	reject	engine	standaloneCommand/HMSET_arg_arg_arg_variadicArgs!swap	HPERSIST a a a
+accept	accept	engine	standaloneCommand/HPERSIST_arg_arg_arg_arg_variadicArgs	HPERSIST a a a a
+accept	accept	engine	standaloneCommand/HPERSIST_arg_arg_arg_arg_variadicArgs!insert	HPERSIST a a a a zzz
+reject	reject	engine	standaloneCommand/HPERSIST_arg_arg_arg_arg_variadicArgs!swap	HPEXPIRE a a a a
+accept	accept	engine	standaloneCommand/HPEXPIRE_arg_arg_arg_arg_arg_variadicArgs	HPEXPIRE a a a a a
+accept	accept	engine	standaloneCommand/HPEXPIRE_arg_arg_arg_arg_arg_variadicArgs!insert	HPEXPIRE a a a a a zzz
+accept	accept	engine	standaloneCommand/HPEXPIREAT_arg_arg_arg_arg_arg_variadicArgs	HPEXPIREAT a a a a a
+reject	reject	engine	standaloneCommand/HPEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!drop-2	HPEXPIREAT a a a a
+accept	accept	engine	standaloneCommand/HPEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!insert	HPEXPIREAT a a a a a zzz
+accept	accept	engine	standaloneCommand/HPEXPIREAT_arg_arg_arg_arg_arg_variadicArgs!swap	HPEXPIRETIME a a a a a
+accept	accept	engine	standaloneCommand/HPEXPIRETIME_arg_arg_arg_arg_variadicArgs	HPEXPIRETIME a a a a
+reject	reject	engine	standaloneCommand/HPEXPIRETIME_arg_arg_arg_arg_variadicArgs!drop-2	HPEXPIRETIME a a a
+accept	accept	engine	standaloneCommand/HPEXPIRETIME_arg_arg_arg_arg_variadicArgs!insert	HPEXPIRETIME a a a a zzz
+accept	accept	engine	standaloneCommand/HPTTL_arg_arg_arg_arg_variadicArgs	HPTTL a a a a
+reject	reject	engine	standaloneCommand/HPTTL_arg_arg_arg_arg_variadicArgs!drop-2	HPTTL a a a
+accept	accept	engine	standaloneCommand/HPTTL_arg_arg_arg_arg_variadicArgs!insert	HPTTL a a a a zzz
+accept	accept	engine	standaloneCommand/HPTTL_arg_arg_arg_arg_variadicArgs!swap	HRANDFIELD a a a a
+accept	accept	engine	standaloneCommand/HRANDFIELD_arg_variadicArgs	HRANDFIELD a
+reject	reject	engine	standaloneCommand/HRANDFIELD_arg_variadicArgs!drop-2	HRANDFIELD
+accept	accept	engine	standaloneCommand/HRANDFIELD_arg_variadicArgs!insert	HRANDFIELD a zzz
+reject	reject	engine	standaloneCommand/HRANDFIELD_arg_variadicArgs!swap	HSCAN a
+accept	accept	engine	standaloneCommand/HSCAN_arg_arg_variadicArgs	HSCAN a a
+accept	accept	engine	standaloneCommand/HSCAN_arg_arg_variadicArgs!insert	HSCAN a a zzz
+reject	reject	engine	standaloneCommand/HSCAN_arg_arg_variadicArgs!swap	HSET a a
+accept	accept	engine	standaloneCommand/HSET_arg_arg_arg_variadicArgs	HSET a a a
+accept	accept	engine	standaloneCommand/HSET_arg_arg_arg_variadicArgs!insert	HSET a a a zzz
+accept	accept	engine	standaloneCommand/HSETNX_arg_arg_arg	HSETNX a a a
+reject	reject	engine	standaloneCommand/HSETNX_arg_arg_arg!drop-2	HSETNX a a
+reject	reject	engine	standaloneCommand/HSETNX_arg_arg_arg!insert	HSETNX a a a zzz
+reject	reject	engine	standaloneCommand/HSETNX_arg_arg_arg!swap	HSTRLEN a a a
+accept	accept	engine	standaloneCommand/HSTRLEN_arg_arg	HSTRLEN a a
+reject	reject	engine	standaloneCommand/HSTRLEN_arg_arg!drop-2	HSTRLEN a
+reject	reject	engine	standaloneCommand/HSTRLEN_arg_arg!insert	HSTRLEN a a zzz
+reject	reject	engine	standaloneCommand/HSTRLEN_arg_arg!swap	HTTL a a
+accept	accept	engine	standaloneCommand/HTTL_arg_arg_arg_arg_variadicArgs	HTTL a a a a
+reject	reject	engine	standaloneCommand/HTTL_arg_arg_arg_arg_variadicArgs!drop-2	HTTL a a a
+accept	accept	engine	standaloneCommand/HTTL_arg_arg_arg_arg_variadicArgs!insert	HTTL a a a a zzz
+reject	reject	engine	standaloneCommand/HTTL_arg_arg_arg_arg_variadicArgs!swap	HVALS a a a a
+accept	accept	engine	standaloneCommand/HVALS_arg	HVALS a
+reject	reject	engine	standaloneCommand/HVALS_arg!drop-2	HVALS
+reject	reject	engine	standaloneCommand/HVALS_arg!insert	HVALS a zzz
+reject	reject	engine	standaloneCommand/HVALS_arg!swap	ID a
+accept	accept	engine	standaloneCommand/INCR_arg	INCR a
+reject	reject	engine	standaloneCommand/INCR_arg!drop-2	INCR
+reject	reject	engine	standaloneCommand/INCR_arg!insert	INCR a zzz
+reject	reject	engine	standaloneCommand/INCR_arg!swap	INCRBY a
+accept	accept	engine	standaloneCommand/INCRBY_arg_arg	INCRBY a a
+reject	reject	engine	standaloneCommand/INCRBY_arg_arg!insert	INCRBY a a zzz
+accept	accept	engine	standaloneCommand/INCRBYFLOAT_arg_arg	INCRBYFLOAT a a
+reject	reject	engine	standaloneCommand/INCRBYFLOAT_arg_arg!drop-2	INCRBYFLOAT a
+reject	reject	engine	standaloneCommand/INCRBYFLOAT_arg_arg!insert	INCRBYFLOAT a a zzz
+accept	accept	engine	standaloneCommand/INCRBYFLOAT_arg_arg!swap	INFO a a
+accept	accept	engine	standaloneCommand/INFO_variadicArgs	INFO
+accept	accept	engine	standaloneCommand/INFO_variadicArgs!insert	INFO zzz
+reject	reject	engine	standaloneCommand/INFO_variadicArgs!swap	KEYS
+accept	accept	engine	standaloneCommand/KEYS_arg	KEYS a
+reject	reject	engine	standaloneCommand/KEYS_arg!insert	KEYS a zzz
+reject	reject	engine	standaloneCommand/KEYS_arg!swap	KEYSLOT a
+accept	accept	engine	standaloneCommand/LASTSAVE	LASTSAVE
+reject	reject	engine	standaloneCommand/LASTSAVE!insert	LASTSAVE zzz
+accept	accept	engine	standaloneCommand/LCS_arg_arg_variadicArgs	LCS a a
+reject	reject	engine	standaloneCommand/LCS_arg_arg_variadicArgs!drop-2	LCS a
+accept	accept	engine	standaloneCommand/LCS_arg_arg_variadicArgs!insert	LCS a a zzz
+reject	reject	engine	standaloneCommand/LCS_arg_arg_variadicArgs!swap	LEN a a
+accept	accept	engine	standaloneCommand/LINDEX_arg_arg	LINDEX a a
+reject	reject	engine	standaloneCommand/LINDEX_arg_arg!drop-2	LINDEX a
+reject	reject	engine	standaloneCommand/LINDEX_arg_arg!insert	LINDEX a a zzz
+reject	reject	engine	standaloneCommand/LINDEX_arg_arg!swap	LINKS a a
+accept	accept	engine	standaloneCommand/LINSERT_arg_arg_arg_arg	LINSERT a a a a
+reject	reject	engine	standaloneCommand/LINSERT_arg_arg_arg_arg!drop-2	LINSERT a a a
+reject	reject	engine	standaloneCommand/LINSERT_arg_arg_arg_arg!insert	LINSERT a a a a zzz
+reject	reject	engine	standaloneCommand/LINSERT_arg_arg_arg_arg!swap	LIST a a a a
+accept	accept	engine	standaloneCommand/LLEN_arg	LLEN a
+reject	reject	engine	standaloneCommand/LLEN_arg!drop-2	LLEN
+reject	reject	engine	standaloneCommand/LLEN_arg!insert	LLEN a zzz
+reject	reject	engine	standaloneCommand/LLEN_arg!swap	LMOVE a
+accept	accept	engine	standaloneCommand/LMOVE_arg_arg_arg_arg	LMOVE a a a a
+reject	reject	engine	standaloneCommand/LMOVE_arg_arg_arg_arg!drop-2	LMOVE a a a
+reject	reject	engine	standaloneCommand/LMOVE_arg_arg_arg_arg!insert	LMOVE a a a a zzz
+accept	accept	engine	standaloneCommand/LMOVE_arg_arg_arg_arg!swap	LMPOP a a a a
+accept	accept	engine	standaloneCommand/LMPOP_arg_arg_arg_variadicArgs	LMPOP a a a
+reject	reject	engine	standaloneCommand/LMPOP_arg_arg_arg_variadicArgs!drop-2	LMPOP a a
+accept	accept	engine	standaloneCommand/LMPOP_arg_arg_arg_variadicArgs!insert	LMPOP a a a zzz
+reject	reject	engine	standaloneCommand/LMPOP_arg_arg_arg_variadicArgs!swap	LOAD a a a
+accept	accept	engine	standaloneCommand/LOLWUT_variadicArgs	LOLWUT
+accept	accept	engine	standaloneCommand/LOLWUT_variadicArgs!insert	LOLWUT zzz
+reject	reject	engine	standaloneCommand/LOLWUT_variadicArgs!swap	LPOP
+accept	accept	engine	standaloneCommand/LPOP_arg_variadicArgs	LPOP a
+accept	accept	engine	standaloneCommand/LPOP_arg_variadicArgs!insert	LPOP a zzz
+reject	reject	engine	standaloneCommand/LPOP_arg_variadicArgs!swap	LPOS a
+accept	accept	engine	standaloneCommand/LPOS_arg_arg_variadicArgs	LPOS a a
+accept	accept	engine	standaloneCommand/LPOS_arg_arg_variadicArgs!insert	LPOS a a zzz
+accept	accept	engine	standaloneCommand/LPUSH_arg_arg_variadicArgs	LPUSH a a
+reject	reject	engine	standaloneCommand/LPUSH_arg_arg_variadicArgs!drop-2	LPUSH a
+accept	accept	engine	standaloneCommand/LPUSH_arg_arg_variadicArgs!insert	LPUSH a a zzz
+accept	accept	engine	standaloneCommand/LPUSHX_arg_arg_variadicArgs	LPUSHX a a
+reject	reject	engine	standaloneCommand/LPUSHX_arg_arg_variadicArgs!drop-2	LPUSHX a
+accept	accept	engine	standaloneCommand/LPUSHX_arg_arg_variadicArgs!insert	LPUSHX a a zzz
+reject	reject	engine	standaloneCommand/LPUSHX_arg_arg_variadicArgs!swap	LRANGE a a
+accept	accept	engine	standaloneCommand/LRANGE_arg_arg_arg	LRANGE a a a
+reject	reject	engine	standaloneCommand/LRANGE_arg_arg_arg!insert	LRANGE a a a zzz
+accept	accept	engine	standaloneCommand/LREM_arg_arg_arg	LREM a a a
+reject	reject	engine	standaloneCommand/LREM_arg_arg_arg!drop-2	LREM a a
+reject	reject	engine	standaloneCommand/LREM_arg_arg_arg!insert	LREM a a a zzz
+accept	accept	engine	standaloneCommand/LSET_arg_arg_arg	LSET a a a
+reject	reject	engine	standaloneCommand/LSET_arg_arg_arg!drop-2	LSET a a
+reject	reject	engine	standaloneCommand/LSET_arg_arg_arg!insert	LSET a a a zzz
+accept	accept	engine	standaloneCommand/LTRIM_arg_arg_arg	LTRIM a a a
+reject	reject	engine	standaloneCommand/LTRIM_arg_arg_arg!drop-2	LTRIM a a
+reject	reject	engine	standaloneCommand/LTRIM_arg_arg_arg!insert	LTRIM a a a zzz
+reject	reject	engine	standaloneCommand/LTRIM_arg_arg_arg!swap	MEET a a a
+accept	accept	engine	standaloneCommand/MGET_arg_variadicArgs	MGET a
+reject	reject	engine	standaloneCommand/MGET_arg_variadicArgs!drop-2	MGET
+accept	accept	engine	standaloneCommand/MGET_arg_variadicArgs!insert	MGET a zzz
+reject	reject	engine	standaloneCommand/MGET_arg_variadicArgs!swap	MIGRATE a
+accept	accept	engine	standaloneCommand/MIGRATE_arg_arg_arg_arg_arg_variadicArgs	MIGRATE a a a a a
+reject	reject	engine	standaloneCommand/MIGRATE_arg_arg_arg_arg_arg_variadicArgs!drop-2	MIGRATE a a a a
+accept	accept	engine	standaloneCommand/MIGRATE_arg_arg_arg_arg_arg_variadicArgs!insert	MIGRATE a a a a a zzz
+reject	reject	engine	standaloneCommand/MIGRATE_arg_arg_arg_arg_arg_variadicArgs!swap	MODULE a a a a a
+accept	accept	engine	standaloneCommand/MONITOR	MONITOR
+reject	reject	engine	standaloneCommand/MONITOR!insert	MONITOR zzz
+reject	reject	engine	standaloneCommand/MONITOR!swap	MOVE
+accept	accept	engine	standaloneCommand/MOVE_arg_arg	MOVE a a
+reject	reject	engine	standaloneCommand/MOVE_arg_arg!drop-2	MOVE a
+reject	reject	engine	standaloneCommand/MOVE_arg_arg!insert	MOVE a a zzz
+accept	accept	engine	standaloneCommand/MSET_arg_arg_variadicArgs	MSET a a
+reject	reject	engine	standaloneCommand/MSET_arg_arg_variadicArgs!drop-2	MSET a
+accept	accept	engine	standaloneCommand/MSET_arg_arg_variadicArgs!insert	MSET a a zzz
+accept	accept	engine	standaloneCommand/MSETNX_arg_arg_variadicArgs	MSETNX a a
+reject	reject	engine	standaloneCommand/MSETNX_arg_arg_variadicArgs!drop-2	MSETNX a
+accept	accept	engine	standaloneCommand/MSETNX_arg_arg_variadicArgs!insert	MSETNX a a zzz
+reject	reject	engine	standaloneCommand/MSETNX_arg_arg_variadicArgs!swap	MULTI a a
+accept	accept	engine	standaloneCommand/MULTI	MULTI
+reject	reject	engine	standaloneCommand/MULTI!insert	MULTI zzz
+reject	reject	engine	standaloneCommand/MULTI!swap	MYID
+accept	accept	engine	standaloneCommand/PERSIST_arg	PERSIST a
+reject	reject	engine	standaloneCommand/PERSIST_arg!drop-2	PERSIST
+reject	reject	engine	standaloneCommand/PERSIST_arg!insert	PERSIST a zzz
+reject	reject	engine	standaloneCommand/PERSIST_arg!swap	PEXPIRE a
+accept	accept	engine	standaloneCommand/PEXPIRE_arg_arg_variadicArgs	PEXPIRE a a
+accept	accept	engine	standaloneCommand/PEXPIRE_arg_arg_variadicArgs!insert	PEXPIRE a a zzz
+accept	accept	engine	standaloneCommand/PEXPIREAT_arg_arg_variadicArgs	PEXPIREAT a a
+reject	reject	engine	standaloneCommand/PEXPIREAT_arg_arg_variadicArgs!drop-2	PEXPIREAT a
+accept	accept	engine	standaloneCommand/PEXPIREAT_arg_arg_variadicArgs!insert	PEXPIREAT a a zzz
+reject	reject	engine	standaloneCommand/PEXPIREAT_arg_arg_variadicArgs!swap	PEXPIRETIME a a
+accept	accept	engine	standaloneCommand/PEXPIRETIME_arg	PEXPIRETIME a
+reject	reject	engine	standaloneCommand/PEXPIRETIME_arg!drop-2	PEXPIRETIME
+reject	reject	engine	standaloneCommand/PEXPIRETIME_arg!insert	PEXPIRETIME a zzz
+accept	accept	engine	standaloneCommand/PFADD_arg_variadicArgs	PFADD a
+reject	reject	engine	standaloneCommand/PFADD_arg_variadicArgs!drop-2	PFADD
+accept	accept	engine	standaloneCommand/PFADD_arg_variadicArgs!insert	PFADD a zzz
+accept	accept	engine	standaloneCommand/PFCOUNT_arg_variadicArgs	PFCOUNT a
+reject	reject	engine	standaloneCommand/PFCOUNT_arg_variadicArgs!drop-2	PFCOUNT
+accept	accept	engine	standaloneCommand/PFCOUNT_arg_variadicArgs!insert	PFCOUNT a zzz
+reject	reject	engine	standaloneCommand/PFCOUNT_arg_variadicArgs!swap	PFDEBUG a
+accept	accept	engine	standaloneCommand/PFDEBUG_arg_arg	PFDEBUG a a
+reject	reject	engine	standaloneCommand/PFDEBUG_arg_arg!insert	PFDEBUG a a zzz
+accept	accept	engine	standaloneCommand/PFDEBUG_arg_arg!swap	PFMERGE a a
+accept	accept	engine	standaloneCommand/PFMERGE_arg_variadicArgs	PFMERGE a
+reject	reject	engine	standaloneCommand/PFMERGE_arg_variadicArgs!drop-2	PFMERGE
+accept	accept	engine	standaloneCommand/PFMERGE_arg_variadicArgs!insert	PFMERGE a zzz
+reject	reject	engine	standaloneCommand/PFMERGE_arg_variadicArgs!swap	PFSELFTEST a
+accept	accept	engine	standaloneCommand/PFSELFTEST	PFSELFTEST
+reject	reject	engine	standaloneCommand/PFSELFTEST!insert	PFSELFTEST zzz
+accept	accept	engine	standaloneCommand/PING_variadicArgs	PING
+accept	accept	engine	standaloneCommand/PING_variadicArgs!insert	PING zzz
+reject	reject	engine	standaloneCommand/PING_variadicArgs!swap	PSETEX
+accept	accept	engine	standaloneCommand/PSETEX_arg_arg_arg	PSETEX a a a
+reject	reject	engine	standaloneCommand/PSETEX_arg_arg_arg!drop-2	PSETEX a a
+reject	reject	engine	standaloneCommand/PSETEX_arg_arg_arg!insert	PSETEX a a a zzz
+accept	accept	engine	standaloneCommand/PSETEX_arg_arg_arg!swap	PSUBSCRIBE a a a
+accept	accept	engine	standaloneCommand/PSUBSCRIBE_arg_variadicArgs	PSUBSCRIBE a
+reject	reject	engine	standaloneCommand/PSUBSCRIBE_arg_variadicArgs!drop-2	PSUBSCRIBE
+accept	accept	engine	standaloneCommand/PSUBSCRIBE_arg_variadicArgs!insert	PSUBSCRIBE a zzz
+reject	reject	engine	standaloneCommand/PSUBSCRIBE_arg_variadicArgs!swap	PSYNC a
+accept	accept	engine	standaloneCommand/PSYNC_arg_arg_variadicArgs	PSYNC a a
+accept	accept	engine	standaloneCommand/PSYNC_arg_arg_variadicArgs!insert	PSYNC a a zzz
+reject	reject	engine	standaloneCommand/PSYNC_arg_arg_variadicArgs!swap	PTTL a a
+accept	accept	engine	standaloneCommand/PTTL_arg	PTTL a
+reject	reject	engine	standaloneCommand/PTTL_arg!drop-2	PTTL
+reject	reject	engine	standaloneCommand/PTTL_arg!insert	PTTL a zzz
+reject	reject	engine	standaloneCommand/PTTL_arg!swap	PUBLISH a
+accept	accept	engine	standaloneCommand/PUBLISH_arg_arg	PUBLISH a a
+reject	reject	engine	standaloneCommand/PUBLISH_arg_arg!insert	PUBLISH a a zzz
+reject	reject	engine	standaloneCommand/PUBLISH_arg_arg!swap	PUBSUB a a
+accept	accept	engine	standaloneCommand/PUNSUBSCRIBE_variadicArgs	PUNSUBSCRIBE
+accept	accept	engine	standaloneCommand/PUNSUBSCRIBE_variadicArgs!insert	PUNSUBSCRIBE zzz
+reject	reject	engine	standaloneCommand/PUNSUBSCRIBE_variadicArgs!swap	PURGE
+accept	accept	engine	standaloneCommand/QUIT_variadicArgs	QUIT
+accept	accept	engine	standaloneCommand/QUIT_variadicArgs!insert	QUIT zzz
+accept	accept	engine	standaloneCommand/RANDOMKEY	RANDOMKEY
+reject	reject	engine	standaloneCommand/RANDOMKEY!insert	RANDOMKEY zzz
+accept	accept	engine	standaloneCommand/READONLY	READONLY
+reject	reject	engine	standaloneCommand/READONLY!insert	READONLY zzz
+accept	accept	engine	standaloneCommand/READWRITE	READWRITE
+reject	reject	engine	standaloneCommand/READWRITE!insert	READWRITE zzz
+reject	reject	engine	standaloneCommand/READWRITE!swap	REFCOUNT
+accept	accept	engine	standaloneCommand/RENAME_arg_arg	RENAME a a
+reject	reject	engine	standaloneCommand/RENAME_arg_arg!drop-2	RENAME a
+reject	reject	engine	standaloneCommand/RENAME_arg_arg!insert	RENAME a a zzz
+accept	accept	engine	standaloneCommand/RENAMENX_arg_arg	RENAMENX a a
+reject	reject	engine	standaloneCommand/RENAMENX_arg_arg!drop-2	RENAMENX a
+reject	reject	engine	standaloneCommand/RENAMENX_arg_arg!insert	RENAMENX a a zzz
+accept	accept	engine	standaloneCommand/RENAMENX_arg_arg!swap	REPLCONF a a
+accept	accept	engine	standaloneCommand/REPLCONF_variadicArgs	REPLCONF
+accept	accept	engine	standaloneCommand/REPLCONF_variadicArgs!insert	REPLCONF zzz
+reject	reject	engine	standaloneCommand/REPLCONF_variadicArgs!swap	REPLICAOF
+accept	accept	engine	standaloneCommand/REPLICAOF_arg_arg	REPLICAOF a a
+reject	reject	engine	standaloneCommand/REPLICAOF_arg_arg!drop-2	REPLICAOF a
+reject	reject	engine	standaloneCommand/REPLICAOF_arg_arg!insert	REPLICAOF a a zzz
+reject	reject	engine	standaloneCommand/REPLICAOF_arg_arg!swap	REPLICAS a a
+accept	accept	engine	standaloneCommand/RESET	RESET
+reject	reject	engine	standaloneCommand/RESET!insert	RESET zzz
+reject	reject	engine	standaloneCommand/RESET!swap	RESETSTAT
+accept	accept	engine	standaloneCommand/RESTORE_arg_arg_arg_variadicArgs	RESTORE a a a
+reject	reject	engine	standaloneCommand/RESTORE_arg_arg_arg_variadicArgs!drop-2	RESTORE a a
+accept	accept	engine	standaloneCommand/RESTORE_arg_arg_arg_variadicArgs!insert	RESTORE a a a zzz
+reject	reject	engine	standaloneCommand/RESTORE_arg_arg_arg_variadicArgs!swap	REWRITE a a a
+accept	accept	engine	standaloneCommand/RESTORE-ASKING_arg_arg_arg_variadicArgs	RESTORE-ASKING a a a
+reject	reject	engine	standaloneCommand/RESTORE-ASKING_arg_arg_arg_variadicArgs!drop-2	RESTORE-ASKING a a
+accept	accept	engine	standaloneCommand/RESTORE-ASKING_arg_arg_arg_variadicArgs!insert	RESTORE-ASKING a a a zzz
+accept	accept	engine	standaloneCommand/ROLE	ROLE
+reject	reject	engine	standaloneCommand/ROLE!insert	ROLE zzz
+reject	reject	engine	standaloneCommand/ROLE!swap	RPOP
+accept	accept	engine	standaloneCommand/RPOP_arg_variadicArgs	RPOP a
+accept	accept	engine	standaloneCommand/RPOP_arg_variadicArgs!insert	RPOP a zzz
+reject	reject	engine	standaloneCommand/RPOP_arg_variadicArgs!swap	RPOPLPUSH a
+accept	accept	engine	standaloneCommand/RPOPLPUSH_arg_arg	RPOPLPUSH a a
+reject	reject	engine	standaloneCommand/RPOPLPUSH_arg_arg!insert	RPOPLPUSH a a zzz
+accept	accept	engine	standaloneCommand/RPUSH_arg_arg_variadicArgs	RPUSH a a
+reject	reject	engine	standaloneCommand/RPUSH_arg_arg_variadicArgs!drop-2	RPUSH a
+accept	accept	engine	standaloneCommand/RPUSH_arg_arg_variadicArgs!insert	RPUSH a a zzz
+accept	accept	engine	standaloneCommand/RPUSHX_arg_arg_variadicArgs	RPUSHX a a
+reject	reject	engine	standaloneCommand/RPUSHX_arg_arg_variadicArgs!drop-2	RPUSHX a
+accept	accept	engine	standaloneCommand/RPUSHX_arg_arg_variadicArgs!insert	RPUSHX a a zzz
+accept	accept	engine	standaloneCommand/SADD_arg_arg_variadicArgs	SADD a a
+reject	reject	engine	standaloneCommand/SADD_arg_arg_variadicArgs!drop-2	SADD a
+accept	accept	engine	standaloneCommand/SADD_arg_arg_variadicArgs!insert	SADD a a zzz
+reject	reject	engine	standaloneCommand/SADD_arg_arg_variadicArgs!swap	SAVE a a
+accept	accept	engine	standaloneCommand/SAVE	SAVE
+reject	reject	engine	standaloneCommand/SAVE!insert	SAVE zzz
+reject	reject	engine	standaloneCommand/SAVE!swap	SAVECONFIG
+accept	accept	engine	standaloneCommand/SCAN_arg_variadicArgs	SCAN a
+reject	reject	engine	standaloneCommand/SCAN_arg_variadicArgs!drop-2	SCAN
+accept	accept	engine	standaloneCommand/SCAN_arg_variadicArgs!insert	SCAN a zzz
+accept	accept	engine	standaloneCommand/SCARD_arg	SCARD a
+reject	reject	engine	standaloneCommand/SCARD_arg!drop-2	SCARD
+reject	reject	engine	standaloneCommand/SCARD_arg!insert	SCARD a zzz
+reject	reject	engine	standaloneCommand/SCARD_arg!swap	SCRIPT a
+accept	accept	engine	standaloneCommand/SDIFF_arg_variadicArgs	SDIFF a
+reject	reject	engine	standaloneCommand/SDIFF_arg_variadicArgs!drop-2	SDIFF
+accept	accept	engine	standaloneCommand/SDIFF_arg_variadicArgs!insert	SDIFF a zzz
+reject	reject	engine	standaloneCommand/SDIFF_arg_variadicArgs!swap	SDIFFSTORE a
+accept	accept	engine	standaloneCommand/SDIFFSTORE_arg_arg_variadicArgs	SDIFFSTORE a a
+accept	accept	engine	standaloneCommand/SDIFFSTORE_arg_arg_variadicArgs!insert	SDIFFSTORE a a zzz
+reject	reject	engine	standaloneCommand/SDIFFSTORE_arg_arg_variadicArgs!swap	SELECT a a
+accept	accept	engine	standaloneCommand/SELECT_arg	SELECT a
+reject	reject	engine	standaloneCommand/SELECT_arg!drop-2	SELECT
+reject	reject	engine	standaloneCommand/SELECT_arg!insert	SELECT a zzz
+reject	reject	engine	standaloneCommand/SELECT_arg!swap	SET a
+accept	accept	engine	standaloneCommand/SET_arg_arg_variadicArgs	SET a a
+accept	accept	engine	standaloneCommand/SET_arg_arg_variadicArgs!insert	SET a a zzz
+reject	reject	engine	standaloneCommand/SET_arg_arg_variadicArgs!swap	SETBIT a a
+accept	accept	engine	standaloneCommand/SETBIT_arg_arg_arg	SETBIT a a a
+reject	reject	engine	standaloneCommand/SETBIT_arg_arg_arg!insert	SETBIT a a a zzz
+accept	accept	engine	standaloneCommand/SETEX_arg_arg_arg	SETEX a a a
+reject	reject	engine	standaloneCommand/SETEX_arg_arg_arg!drop-2	SETEX a a
+reject	reject	engine	standaloneCommand/SETEX_arg_arg_arg!insert	SETEX a a a zzz
+reject	reject	engine	standaloneCommand/SETEX_arg_arg_arg!swap	SETID a a a
+accept	accept	engine	standaloneCommand/SETNX_arg_arg	SETNX a a
+reject	reject	engine	standaloneCommand/SETNX_arg_arg!drop-2	SETNX a
+reject	reject	engine	standaloneCommand/SETNX_arg_arg!insert	SETNX a a zzz
+reject	reject	engine	standaloneCommand/SETNX_arg_arg!swap	SETRANGE a a
+accept	accept	engine	standaloneCommand/SETRANGE_arg_arg_arg	SETRANGE a a a
+reject	reject	engine	standaloneCommand/SETRANGE_arg_arg_arg!insert	SETRANGE a a a zzz
+reject	reject	engine	standaloneCommand/SETRANGE_arg_arg_arg!swap	SETSLOT a a a
+accept	accept	engine	standaloneCommand/SHUTDOWN_variadicArgs	SHUTDOWN
+accept	accept	engine	standaloneCommand/SHUTDOWN_variadicArgs!insert	SHUTDOWN zzz
+reject	reject	engine	standaloneCommand/SHUTDOWN_variadicArgs!swap	SINTER
+accept	accept	engine	standaloneCommand/SINTER_arg_variadicArgs	SINTER a
+accept	accept	engine	standaloneCommand/SINTER_arg_variadicArgs!insert	SINTER a zzz
+reject	reject	engine	standaloneCommand/SINTER_arg_variadicArgs!swap	SINTERCARD a
+accept	accept	engine	standaloneCommand/SINTERCARD_arg_arg_variadicArgs	SINTERCARD a a
+accept	accept	engine	standaloneCommand/SINTERCARD_arg_arg_variadicArgs!insert	SINTERCARD a a zzz
+accept	accept	engine	standaloneCommand/SINTERSTORE_arg_arg_variadicArgs	SINTERSTORE a a
+reject	reject	engine	standaloneCommand/SINTERSTORE_arg_arg_variadicArgs!drop-2	SINTERSTORE a
+accept	accept	engine	standaloneCommand/SINTERSTORE_arg_arg_variadicArgs!insert	SINTERSTORE a a zzz
+accept	accept	engine	standaloneCommand/SISMEMBER_arg_arg	SISMEMBER a a
+reject	reject	engine	standaloneCommand/SISMEMBER_arg_arg!drop-2	SISMEMBER a
+reject	reject	engine	standaloneCommand/SISMEMBER_arg_arg!insert	SISMEMBER a a zzz
+accept	accept	engine	standaloneCommand/SLAVEOF_arg_arg	SLAVEOF a a
+reject	reject	engine	standaloneCommand/SLAVEOF_arg_arg!drop-2	SLAVEOF a
+reject	reject	engine	standaloneCommand/SLAVEOF_arg_arg!insert	SLAVEOF a a zzz
+reject	reject	engine	standaloneCommand/SLAVEOF_arg_arg!swap	SLAVES a a
+accept	accept	engine	standaloneCommand/SMEMBERS_arg	SMEMBERS a
+reject	reject	engine	standaloneCommand/SMEMBERS_arg!drop-2	SMEMBERS
+reject	reject	engine	standaloneCommand/SMEMBERS_arg!insert	SMEMBERS a zzz
+reject	reject	engine	standaloneCommand/SMEMBERS_arg!swap	SMISMEMBER a
+accept	accept	engine	standaloneCommand/SMISMEMBER_arg_arg_variadicArgs	SMISMEMBER a a
+accept	accept	engine	standaloneCommand/SMISMEMBER_arg_arg_variadicArgs!insert	SMISMEMBER a a zzz
+reject	reject	engine	standaloneCommand/SMISMEMBER_arg_arg_variadicArgs!swap	SMOVE a a
+accept	accept	engine	standaloneCommand/SMOVE_arg_arg_arg	SMOVE a a a
+reject	reject	engine	standaloneCommand/SMOVE_arg_arg_arg!insert	SMOVE a a a zzz
+accept	accept	engine	standaloneCommand/SMOVE_arg_arg_arg!swap	SORT a a a
+accept	accept	engine	standaloneCommand/SORT_arg_variadicArgs	SORT a
+reject	reject	engine	standaloneCommand/SORT_arg_variadicArgs!drop-2	SORT
+accept	accept	engine	standaloneCommand/SORT_arg_variadicArgs!insert	SORT a zzz
+accept	accept	engine	standaloneCommand/SORT_RO_arg_variadicArgs	SORT_RO a
+reject	reject	engine	standaloneCommand/SORT_RO_arg_variadicArgs!drop-2	SORT_RO
+accept	accept	engine	standaloneCommand/SORT_RO_arg_variadicArgs!insert	SORT_RO a zzz
+accept	accept	engine	standaloneCommand/SPOP_arg_variadicArgs	SPOP a
+reject	reject	engine	standaloneCommand/SPOP_arg_variadicArgs!drop-2	SPOP
+accept	accept	engine	standaloneCommand/SPOP_arg_variadicArgs!insert	SPOP a zzz
+reject	reject	engine	standaloneCommand/SPOP_arg_variadicArgs!swap	SPUBLISH a
+accept	accept	engine	standaloneCommand/SPUBLISH_arg_arg	SPUBLISH a a
+reject	reject	engine	standaloneCommand/SPUBLISH_arg_arg!insert	SPUBLISH a a zzz
+accept	accept	engine	standaloneCommand/SPUBLISH_arg_arg!swap	SRANDMEMBER a a
+accept	accept	engine	standaloneCommand/SRANDMEMBER_arg_variadicArgs	SRANDMEMBER a
+reject	reject	engine	standaloneCommand/SRANDMEMBER_arg_variadicArgs!drop-2	SRANDMEMBER
+accept	accept	engine	standaloneCommand/SRANDMEMBER_arg_variadicArgs!insert	SRANDMEMBER a zzz
+reject	reject	engine	standaloneCommand/SRANDMEMBER_arg_variadicArgs!swap	SREM a
+accept	accept	engine	standaloneCommand/SREM_arg_arg_variadicArgs	SREM a a
+accept	accept	engine	standaloneCommand/SREM_arg_arg_variadicArgs!insert	SREM a a zzz
+accept	accept	engine	standaloneCommand/SSCAN_arg_arg_variadicArgs	SSCAN a a
+reject	reject	engine	standaloneCommand/SSCAN_arg_arg_variadicArgs!drop-2	SSCAN a
+accept	accept	engine	standaloneCommand/SSCAN_arg_arg_variadicArgs!insert	SSCAN a a zzz
+accept	accept	engine	standaloneCommand/SSCAN_arg_arg_variadicArgs!swap	SSUBSCRIBE a a
+accept	accept	engine	standaloneCommand/SSUBSCRIBE_arg_variadicArgs	SSUBSCRIBE a
+reject	reject	engine	standaloneCommand/SSUBSCRIBE_arg_variadicArgs!drop-2	SSUBSCRIBE
+accept	accept	engine	standaloneCommand/SSUBSCRIBE_arg_variadicArgs!insert	SSUBSCRIBE a zzz
+reject	reject	engine	standaloneCommand/SSUBSCRIBE_arg_variadicArgs!swap	STATS a
+accept	accept	engine	standaloneCommand/STRLEN_arg	STRLEN a
+reject	reject	engine	standaloneCommand/STRLEN_arg!drop-2	STRLEN
+reject	reject	engine	standaloneCommand/STRLEN_arg!insert	STRLEN a zzz
+accept	accept	engine	standaloneCommand/SUBSCRIBE_arg_variadicArgs	SUBSCRIBE a
+reject	reject	engine	standaloneCommand/SUBSCRIBE_arg_variadicArgs!drop-2	SUBSCRIBE
+accept	accept	engine	standaloneCommand/SUBSCRIBE_arg_variadicArgs!insert	SUBSCRIBE a zzz
+reject	reject	engine	standaloneCommand/SUBSCRIBE_arg_variadicArgs!swap	SUBSTR a
+accept	accept	engine	standaloneCommand/SUBSTR_arg_arg_arg	SUBSTR a a a
+reject	reject	engine	standaloneCommand/SUBSTR_arg_arg_arg!drop-2	SUBSTR a a
+reject	reject	engine	standaloneCommand/SUBSTR_arg_arg_arg!insert	SUBSTR a a a zzz
+accept	accept	engine	standaloneCommand/SUBSTR_arg_arg_arg!swap	SUNION a a a
+accept	accept	engine	standaloneCommand/SUNION_arg_variadicArgs	SUNION a
+reject	reject	engine	standaloneCommand/SUNION_arg_variadicArgs!drop-2	SUNION
+accept	accept	engine	standaloneCommand/SUNION_arg_variadicArgs!insert	SUNION a zzz
+reject	reject	engine	standaloneCommand/SUNION_arg_variadicArgs!swap	SUNIONSTORE a
+accept	accept	engine	standaloneCommand/SUNIONSTORE_arg_arg_variadicArgs	SUNIONSTORE a a
+accept	accept	engine	standaloneCommand/SUNIONSTORE_arg_arg_variadicArgs!insert	SUNIONSTORE a a zzz
+accept	accept	engine	standaloneCommand/SUNIONSTORE_arg_arg_variadicArgs!swap	SUNSUBSCRIBE a a
+accept	accept	engine	standaloneCommand/SUNSUBSCRIBE_variadicArgs	SUNSUBSCRIBE
+accept	accept	engine	standaloneCommand/SUNSUBSCRIBE_variadicArgs!insert	SUNSUBSCRIBE zzz
+reject	reject	engine	standaloneCommand/SUNSUBSCRIBE_variadicArgs!swap	SWAPDB
+accept	accept	engine	standaloneCommand/SWAPDB_arg_arg	SWAPDB a a
+reject	reject	engine	standaloneCommand/SWAPDB_arg_arg!drop-2	SWAPDB a
+reject	reject	engine	standaloneCommand/SWAPDB_arg_arg!insert	SWAPDB a a zzz
+reject	reject	engine	standaloneCommand/SWAPDB_arg_arg!swap	SYNC a a
+accept	accept	engine	standaloneCommand/SYNC	SYNC
+reject	reject	engine	standaloneCommand/SYNC!insert	SYNC zzz
+accept	accept	engine	standaloneCommand/TIME	TIME
+reject	reject	engine	standaloneCommand/TIME!insert	TIME zzz
+reject	reject	engine	standaloneCommand/TIME!swap	TOUCH
+accept	accept	engine	standaloneCommand/TOUCH_arg_variadicArgs	TOUCH a
+accept	accept	engine	standaloneCommand/TOUCH_arg_variadicArgs!insert	TOUCH a zzz
+reject	reject	engine	standaloneCommand/TOUCH_arg_variadicArgs!swap	TRACKING a
+accept	accept	engine	standaloneCommand/TTL_arg	TTL a
+reject	reject	engine	standaloneCommand/TTL_arg!drop-2	TTL
+reject	reject	engine	standaloneCommand/TTL_arg!insert	TTL a zzz
+accept	accept	engine	standaloneCommand/TYPE_arg	TYPE a
+reject	reject	engine	standaloneCommand/TYPE_arg!drop-2	TYPE
+reject	reject	engine	standaloneCommand/TYPE_arg!insert	TYPE a zzz
+reject	reject	engine	standaloneCommand/TYPE_arg!swap	UNBLOCK a
+accept	accept	engine	standaloneCommand/UNLINK_arg_variadicArgs	UNLINK a
+reject	reject	engine	standaloneCommand/UNLINK_arg_variadicArgs!drop-2	UNLINK
+accept	accept	engine	standaloneCommand/UNLINK_arg_variadicArgs!insert	UNLINK a zzz
+reject	reject	engine	standaloneCommand/UNLINK_arg_variadicArgs!swap	UNLOAD a
+accept	accept	engine	standaloneCommand/UNSUBSCRIBE_variadicArgs	UNSUBSCRIBE
+accept	accept	engine	standaloneCommand/UNSUBSCRIBE_variadicArgs!insert	UNSUBSCRIBE zzz
+accept	accept	engine	standaloneCommand/UNWATCH	UNWATCH
+reject	reject	engine	standaloneCommand/UNWATCH!insert	UNWATCH zzz
+reject	reject	engine	standaloneCommand/UNWATCH!swap	USAGE
+accept	accept	engine	standaloneCommand/WAIT_arg_arg	WAIT a a
+reject	reject	engine	standaloneCommand/WAIT_arg_arg!drop-2	WAIT a
+reject	reject	engine	standaloneCommand/WAIT_arg_arg!insert	WAIT a a zzz
+reject	reject	engine	standaloneCommand/WAIT_arg_arg!swap	WAITAOF a a
+accept	accept	engine	standaloneCommand/WAITAOF_arg_arg_arg	WAITAOF a a a
+reject	reject	engine	standaloneCommand/WAITAOF_arg_arg_arg!insert	WAITAOF a a a zzz
+accept	accept	engine	standaloneCommand/WAITAOF_arg_arg_arg!swap	WATCH a a a
+accept	accept	engine	standaloneCommand/WATCH_arg_variadicArgs	WATCH a
+reject	reject	engine	standaloneCommand/WATCH_arg_variadicArgs!drop-2	WATCH
+accept	accept	engine	standaloneCommand/WATCH_arg_variadicArgs!insert	WATCH a zzz
+reject	reject	engine	standaloneCommand/WATCH_arg_variadicArgs!swap	WHOAMI a
+accept	accept	engine	standaloneCommand/XACK_arg_arg_arg_variadicArgs	XACK a a a
+reject	reject	engine	standaloneCommand/XACK_arg_arg_arg_variadicArgs!drop-2	XACK a a
+accept	accept	engine	standaloneCommand/XACK_arg_arg_arg_variadicArgs!insert	XACK a a a zzz
+reject	reject	engine	standaloneCommand/XACK_arg_arg_arg_variadicArgs!swap	XADD a a a
+accept	accept	engine	standaloneCommand/XADD_arg_arg_arg_arg_variadicArgs	XADD a a a a
+accept	accept	engine	standaloneCommand/XADD_arg_arg_arg_arg_variadicArgs!insert	XADD a a a a zzz
+reject	reject	engine	standaloneCommand/XADD_arg_arg_arg_arg_variadicArgs!swap	XAUTOCLAIM a a a a
+accept	accept	engine	standaloneCommand/XAUTOCLAIM_arg_arg_arg_arg_arg_variadicArgs	XAUTOCLAIM a a a a a
+accept	accept	engine	standaloneCommand/XAUTOCLAIM_arg_arg_arg_arg_arg_variadicArgs!insert	XAUTOCLAIM a a a a a zzz
+accept	accept	engine	standaloneCommand/XCLAIM_arg_arg_arg_arg_arg_variadicArgs	XCLAIM a a a a a
+reject	reject	engine	standaloneCommand/XCLAIM_arg_arg_arg_arg_arg_variadicArgs!drop-2	XCLAIM a a a a
+accept	accept	engine	standaloneCommand/XCLAIM_arg_arg_arg_arg_arg_variadicArgs!insert	XCLAIM a a a a a zzz
+accept	accept	engine	standaloneCommand/XCLAIM_arg_arg_arg_arg_arg_variadicArgs!swap	XDEL a a a a a
+accept	accept	engine	standaloneCommand/XDEL_arg_arg_variadicArgs	XDEL a a
+reject	reject	engine	standaloneCommand/XDEL_arg_arg_variadicArgs!drop-2	XDEL a
+accept	accept	engine	standaloneCommand/XDEL_arg_arg_variadicArgs!insert	XDEL a a zzz
+reject	reject	engine	standaloneCommand/XDEL_arg_arg_variadicArgs!swap	XGROUP a a
+accept	accept	engine	standaloneCommand/XLEN_arg	XLEN a
+reject	reject	engine	standaloneCommand/XLEN_arg!drop-2	XLEN
+reject	reject	engine	standaloneCommand/XLEN_arg!insert	XLEN a zzz
+reject	reject	engine	standaloneCommand/XLEN_arg!swap	XPENDING a
+accept	accept	engine	standaloneCommand/XPENDING_arg_arg_variadicArgs	XPENDING a a
+accept	accept	engine	standaloneCommand/XPENDING_arg_arg_variadicArgs!insert	XPENDING a a zzz
+reject	reject	engine	standaloneCommand/XPENDING_arg_arg_variadicArgs!swap	XRANGE a a
+accept	accept	engine	standaloneCommand/XRANGE_arg_arg_arg_variadicArgs	XRANGE a a a
+accept	accept	engine	standaloneCommand/XRANGE_arg_arg_arg_variadicArgs!insert	XRANGE a a a zzz
+accept	accept	engine	standaloneCommand/XREAD_arg_arg_arg_variadicArgs	XREAD a a a
+reject	reject	engine	standaloneCommand/XREAD_arg_arg_arg_variadicArgs!drop-2	XREAD a a
+accept	accept	engine	standaloneCommand/XREAD_arg_arg_arg_variadicArgs!insert	XREAD a a a zzz
+reject	reject	engine	standaloneCommand/XREAD_arg_arg_arg_variadicArgs!swap	XREADGROUP a a a
+accept	accept	engine	standaloneCommand/XREADGROUP_arg_arg_arg_arg_arg_arg_variadicArgs	XREADGROUP a a a a a a
+reject	reject	engine	standaloneCommand/XREADGROUP_arg_arg_arg_arg_arg_arg_variadicArgs!drop-2	XREADGROUP a a a a a
+accept	accept	engine	standaloneCommand/XREADGROUP_arg_arg_arg_arg_arg_arg_variadicArgs!insert	XREADGROUP a a a a a a zzz
+accept	accept	engine	standaloneCommand/XREADGROUP_arg_arg_arg_arg_arg_arg_variadicArgs!swap	XREVRANGE a a a a a a
+accept	accept	engine	standaloneCommand/XREVRANGE_arg_arg_arg_variadicArgs	XREVRANGE a a a
+reject	reject	engine	standaloneCommand/XREVRANGE_arg_arg_arg_variadicArgs!drop-2	XREVRANGE a a
+accept	accept	engine	standaloneCommand/XREVRANGE_arg_arg_arg_variadicArgs!insert	XREVRANGE a a a zzz
+accept	accept	engine	standaloneCommand/XREVRANGE_arg_arg_arg_variadicArgs!swap	XSETID a a a
+accept	accept	engine	standaloneCommand/XSETID_arg_arg_variadicArgs	XSETID a a
+reject	reject	engine	standaloneCommand/XSETID_arg_arg_variadicArgs!drop-2	XSETID a
+accept	accept	engine	standaloneCommand/XSETID_arg_arg_variadicArgs!insert	XSETID a a zzz
+reject	reject	engine	standaloneCommand/XSETID_arg_arg_variadicArgs!swap	XTRIM a a
+accept	accept	engine	standaloneCommand/XTRIM_arg_arg_arg_variadicArgs	XTRIM a a a
+accept	accept	engine	standaloneCommand/XTRIM_arg_arg_arg_variadicArgs!insert	XTRIM a a a zzz
+accept	accept	engine	standaloneCommand/ZADD_arg_arg_arg_variadicArgs	ZADD a a a
+reject	reject	engine	standaloneCommand/ZADD_arg_arg_arg_variadicArgs!drop-2	ZADD a a
+accept	accept	engine	standaloneCommand/ZADD_arg_arg_arg_variadicArgs!insert	ZADD a a a zzz
+reject	reject	engine	standaloneCommand/ZADD_arg_arg_arg_variadicArgs!swap	ZCARD a a a
+accept	accept	engine	standaloneCommand/ZCARD_arg	ZCARD a
+reject	reject	engine	standaloneCommand/ZCARD_arg!drop-2	ZCARD
+reject	reject	engine	standaloneCommand/ZCARD_arg!insert	ZCARD a zzz
+reject	reject	engine	standaloneCommand/ZCARD_arg!swap	ZCOUNT a
+accept	accept	engine	standaloneCommand/ZCOUNT_arg_arg_arg	ZCOUNT a a a
+reject	reject	engine	standaloneCommand/ZCOUNT_arg_arg_arg!drop-2	ZCOUNT a a
+reject	reject	engine	standaloneCommand/ZCOUNT_arg_arg_arg!insert	ZCOUNT a a a zzz
+accept	accept	engine	standaloneCommand/ZCOUNT_arg_arg_arg!swap	ZDIFF a a a
+accept	accept	engine	standaloneCommand/ZDIFF_arg_arg_variadicArgs	ZDIFF a a
+reject	reject	engine	standaloneCommand/ZDIFF_arg_arg_variadicArgs!drop-2	ZDIFF a
+accept	accept	engine	standaloneCommand/ZDIFF_arg_arg_variadicArgs!insert	ZDIFF a a zzz
+reject	reject	engine	standaloneCommand/ZDIFF_arg_arg_variadicArgs!swap	ZDIFFSTORE a a
+accept	accept	engine	standaloneCommand/ZDIFFSTORE_arg_arg_arg_variadicArgs	ZDIFFSTORE a a a
+accept	accept	engine	standaloneCommand/ZDIFFSTORE_arg_arg_arg_variadicArgs!insert	ZDIFFSTORE a a a zzz
+accept	accept	engine	standaloneCommand/ZINCRBY_arg_arg_arg	ZINCRBY a a a
+reject	reject	engine	standaloneCommand/ZINCRBY_arg_arg_arg!drop-2	ZINCRBY a a
+reject	reject	engine	standaloneCommand/ZINCRBY_arg_arg_arg!insert	ZINCRBY a a a zzz
+accept	accept	engine	standaloneCommand/ZINCRBY_arg_arg_arg!swap	ZINTER a a a
+accept	accept	engine	standaloneCommand/ZINTER_arg_arg_variadicArgs	ZINTER a a
+reject	reject	engine	standaloneCommand/ZINTER_arg_arg_variadicArgs!drop-2	ZINTER a
+accept	accept	engine	standaloneCommand/ZINTER_arg_arg_variadicArgs!insert	ZINTER a a zzz
+accept	accept	engine	standaloneCommand/ZINTERCARD_arg_arg_variadicArgs	ZINTERCARD a a
+reject	reject	engine	standaloneCommand/ZINTERCARD_arg_arg_variadicArgs!drop-2	ZINTERCARD a
+accept	accept	engine	standaloneCommand/ZINTERCARD_arg_arg_variadicArgs!insert	ZINTERCARD a a zzz
+reject	reject	engine	standaloneCommand/ZINTERCARD_arg_arg_variadicArgs!swap	ZINTERSTORE a a
+accept	accept	engine	standaloneCommand/ZINTERSTORE_arg_arg_arg_variadicArgs	ZINTERSTORE a a a
+accept	accept	engine	standaloneCommand/ZINTERSTORE_arg_arg_arg_variadicArgs!insert	ZINTERSTORE a a a zzz
+accept	accept	engine	standaloneCommand/ZLEXCOUNT_arg_arg_arg	ZLEXCOUNT a a a
+reject	reject	engine	standaloneCommand/ZLEXCOUNT_arg_arg_arg!drop-2	ZLEXCOUNT a a
+reject	reject	engine	standaloneCommand/ZLEXCOUNT_arg_arg_arg!insert	ZLEXCOUNT a a a zzz
+accept	accept	engine	standaloneCommand/ZMPOP_arg_arg_arg_variadicArgs	ZMPOP a a a
+reject	reject	engine	standaloneCommand/ZMPOP_arg_arg_arg_variadicArgs!drop-2	ZMPOP a a
+accept	accept	engine	standaloneCommand/ZMPOP_arg_arg_arg_variadicArgs!insert	ZMPOP a a a zzz
+accept	accept	engine	standaloneCommand/ZMPOP_arg_arg_arg_variadicArgs!swap	ZMSCORE a a a
+accept	accept	engine	standaloneCommand/ZMSCORE_arg_arg_variadicArgs	ZMSCORE a a
+reject	reject	engine	standaloneCommand/ZMSCORE_arg_arg_variadicArgs!drop-2	ZMSCORE a
+accept	accept	engine	standaloneCommand/ZMSCORE_arg_arg_variadicArgs!insert	ZMSCORE a a zzz
+accept	accept	engine	standaloneCommand/ZMSCORE_arg_arg_variadicArgs!swap	ZPOPMAX a a
+accept	accept	engine	standaloneCommand/ZPOPMAX_arg_variadicArgs	ZPOPMAX a
+reject	reject	engine	standaloneCommand/ZPOPMAX_arg_variadicArgs!drop-2	ZPOPMAX
+accept	accept	engine	standaloneCommand/ZPOPMAX_arg_variadicArgs!insert	ZPOPMAX a zzz
+accept	accept	engine	standaloneCommand/ZPOPMIN_arg_variadicArgs	ZPOPMIN a
+reject	reject	engine	standaloneCommand/ZPOPMIN_arg_variadicArgs!drop-2	ZPOPMIN
+accept	accept	engine	standaloneCommand/ZPOPMIN_arg_variadicArgs!insert	ZPOPMIN a zzz
+accept	accept	engine	standaloneCommand/ZRANDMEMBER_arg_variadicArgs	ZRANDMEMBER a
+reject	reject	engine	standaloneCommand/ZRANDMEMBER_arg_variadicArgs!drop-2	ZRANDMEMBER
+accept	accept	engine	standaloneCommand/ZRANDMEMBER_arg_variadicArgs!insert	ZRANDMEMBER a zzz
+reject	reject	engine	standaloneCommand/ZRANDMEMBER_arg_variadicArgs!swap	ZRANGE a
+accept	accept	engine	standaloneCommand/ZRANGE_arg_arg_arg_variadicArgs	ZRANGE a a a
+reject	reject	engine	standaloneCommand/ZRANGE_arg_arg_arg_variadicArgs!drop-2	ZRANGE a a
+accept	accept	engine	standaloneCommand/ZRANGE_arg_arg_arg_variadicArgs!insert	ZRANGE a a a zzz
+accept	accept	engine	standaloneCommand/ZRANGEBYLEX_arg_arg_arg_variadicArgs	ZRANGEBYLEX a a a
+reject	reject	engine	standaloneCommand/ZRANGEBYLEX_arg_arg_arg_variadicArgs!drop-2	ZRANGEBYLEX a a
+accept	accept	engine	standaloneCommand/ZRANGEBYLEX_arg_arg_arg_variadicArgs!insert	ZRANGEBYLEX a a a zzz
+accept	accept	engine	standaloneCommand/ZRANGEBYSCORE_arg_arg_arg_variadicArgs	ZRANGEBYSCORE a a a
+reject	reject	engine	standaloneCommand/ZRANGEBYSCORE_arg_arg_arg_variadicArgs!drop-2	ZRANGEBYSCORE a a
+accept	accept	engine	standaloneCommand/ZRANGEBYSCORE_arg_arg_arg_variadicArgs!insert	ZRANGEBYSCORE a a a zzz
+reject	reject	engine	standaloneCommand/ZRANGEBYSCORE_arg_arg_arg_variadicArgs!swap	ZRANGESTORE a a a
+accept	accept	engine	standaloneCommand/ZRANGESTORE_arg_arg_arg_arg_variadicArgs	ZRANGESTORE a a a a
+accept	accept	engine	standaloneCommand/ZRANGESTORE_arg_arg_arg_arg_variadicArgs!insert	ZRANGESTORE a a a a zzz
+accept	accept	engine	standaloneCommand/ZRANGESTORE_arg_arg_arg_arg_variadicArgs!swap	ZRANK a a a a
+accept	accept	engine	standaloneCommand/ZRANK_arg_arg_variadicArgs	ZRANK a a
+reject	reject	engine	standaloneCommand/ZRANK_arg_arg_variadicArgs!drop-2	ZRANK a
+accept	accept	engine	standaloneCommand/ZRANK_arg_arg_variadicArgs!insert	ZRANK a a zzz
+accept	accept	engine	standaloneCommand/ZREM_arg_arg_variadicArgs	ZREM a a
+reject	reject	engine	standaloneCommand/ZREM_arg_arg_variadicArgs!drop-2	ZREM a
+accept	accept	engine	standaloneCommand/ZREM_arg_arg_variadicArgs!insert	ZREM a a zzz
+reject	reject	engine	standaloneCommand/ZREM_arg_arg_variadicArgs!swap	ZREMRANGEBYLEX a a
+accept	accept	engine	standaloneCommand/ZREMRANGEBYLEX_arg_arg_arg	ZREMRANGEBYLEX a a a
+reject	reject	engine	standaloneCommand/ZREMRANGEBYLEX_arg_arg_arg!insert	ZREMRANGEBYLEX a a a zzz
+accept	accept	engine	standaloneCommand/ZREMRANGEBYRANK_arg_arg_arg	ZREMRANGEBYRANK a a a
+reject	reject	engine	standaloneCommand/ZREMRANGEBYRANK_arg_arg_arg!drop-2	ZREMRANGEBYRANK a a
+reject	reject	engine	standaloneCommand/ZREMRANGEBYRANK_arg_arg_arg!insert	ZREMRANGEBYRANK a a a zzz
+accept	accept	engine	standaloneCommand/ZREMRANGEBYSCORE_arg_arg_arg	ZREMRANGEBYSCORE a a a
+reject	reject	engine	standaloneCommand/ZREMRANGEBYSCORE_arg_arg_arg!drop-2	ZREMRANGEBYSCORE a a
+reject	reject	engine	standaloneCommand/ZREMRANGEBYSCORE_arg_arg_arg!insert	ZREMRANGEBYSCORE a a a zzz
+accept	accept	engine	standaloneCommand/ZREVRANGE_arg_arg_arg_variadicArgs	ZREVRANGE a a a
+reject	reject	engine	standaloneCommand/ZREVRANGE_arg_arg_arg_variadicArgs!drop-2	ZREVRANGE a a
+accept	accept	engine	standaloneCommand/ZREVRANGE_arg_arg_arg_variadicArgs!insert	ZREVRANGE a a a zzz
+accept	accept	engine	standaloneCommand/ZREVRANGEBYLEX_arg_arg_arg_variadicArgs	ZREVRANGEBYLEX a a a
+reject	reject	engine	standaloneCommand/ZREVRANGEBYLEX_arg_arg_arg_variadicArgs!drop-2	ZREVRANGEBYLEX a a
+accept	accept	engine	standaloneCommand/ZREVRANGEBYLEX_arg_arg_arg_variadicArgs!insert	ZREVRANGEBYLEX a a a zzz
+accept	accept	engine	standaloneCommand/ZREVRANGEBYSCORE_arg_arg_arg_variadicArgs	ZREVRANGEBYSCORE a a a
+reject	reject	engine	standaloneCommand/ZREVRANGEBYSCORE_arg_arg_arg_variadicArgs!drop-2	ZREVRANGEBYSCORE a a
+accept	accept	engine	standaloneCommand/ZREVRANGEBYSCORE_arg_arg_arg_variadicArgs!insert	ZREVRANGEBYSCORE a a a zzz
+accept	accept	engine	standaloneCommand/ZREVRANGEBYSCORE_arg_arg_arg_variadicArgs!swap	ZREVRANK a a a
+accept	accept	engine	standaloneCommand/ZREVRANK_arg_arg_variadicArgs	ZREVRANK a a
+reject	reject	engine	standaloneCommand/ZREVRANK_arg_arg_variadicArgs!drop-2	ZREVRANK a
+accept	accept	engine	standaloneCommand/ZREVRANK_arg_arg_variadicArgs!insert	ZREVRANK a a zzz
+accept	accept	engine	standaloneCommand/ZSCAN_arg_arg_variadicArgs	ZSCAN a a
+reject	reject	engine	standaloneCommand/ZSCAN_arg_arg_variadicArgs!drop-2	ZSCAN a
+accept	accept	engine	standaloneCommand/ZSCAN_arg_arg_variadicArgs!insert	ZSCAN a a zzz
+accept	accept	engine	standaloneCommand/ZSCORE_arg_arg	ZSCORE a a
+reject	reject	engine	standaloneCommand/ZSCORE_arg_arg!drop-2	ZSCORE a
+reject	reject	engine	standaloneCommand/ZSCORE_arg_arg!insert	ZSCORE a a zzz
+accept	accept	engine	standaloneCommand/ZUNION_arg_arg_variadicArgs	ZUNION a a
+reject	reject	engine	standaloneCommand/ZUNION_arg_arg_variadicArgs!drop-2	ZUNION a
+accept	accept	engine	standaloneCommand/ZUNION_arg_arg_variadicArgs!insert	ZUNION a a zzz
+reject	reject	engine	standaloneCommand/ZUNION_arg_arg_variadicArgs!swap	ZUNIONSTORE a a
+accept	accept	engine	standaloneCommand/ZUNIONSTORE_arg_arg_arg_variadicArgs	ZUNIONSTORE a a a
+accept	accept	engine	standaloneCommand/ZUNIONSTORE_arg_arg_arg_variadicArgs!insert	ZUNIONSTORE a a a zzz
+reject	reject	engine	standaloneCommand/ZUNIONSTORE_arg_arg_arg_variadicArgs!swap	ACL a a a
+accept	accept	engine	aclCommand/ACL_CAT_variadicArgs	ACL CAT
+accept	accept	engine	aclCommand/ACL_DELUSER_arg_variadicArgs	ACL DELUSER a
+reject	reject	engine	aclCommand/ACL_DELUSER_arg_variadicArgs!drop-1	DELUSER a
+reject	reject	engine	aclCommand/ACL_DELUSER_arg_variadicArgs!drop-2	ACL a
+reject	reject	engine	aclCommand/ACL_DELUSER_arg_variadicArgs!drop-3	ACL DELUSER
+accept	accept	engine	aclCommand/ACL_DELUSER_arg_variadicArgs!insert	ACL DELUSER a zzz
+reject	reject	engine	aclCommand/ACL_DELUSER_arg_variadicArgs!swap	ADDSLOTS DELUSER a
+accept	accept	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs	ACL DRYRUN a a
+reject	reject	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs!drop-1	DRYRUN a a
+reject	reject	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs!drop-2	ACL a a
+reject	reject	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs!drop-3	ACL DRYRUN a
+accept	accept	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs!insert	ACL DRYRUN a a zzz
+reject	reject	engine	aclCommand/ACL_DRYRUN_arg_arg_variadicArgs!swap	ADDSLOTS DRYRUN a a
+accept	accept	engine	aclCommand/ACL_GENPASS_variadicArgs	ACL GENPASS
+reject	reject	engine	aclCommand/ACL_GENPASS_variadicArgs!drop-1	GENPASS
+accept	accept	engine	aclCommand/ACL_GENPASS_variadicArgs!insert	ACL GENPASS zzz
+reject	reject	engine	aclCommand/ACL_GENPASS_variadicArgs!swap	ADDSLOTS GENPASS
+accept	accept	engine	aclCommand/ACL_GETUSER_arg	ACL GETUSER a
+reject	reject	engine	aclCommand/ACL_GETUSER_arg!drop-1	GETUSER a
+reject	reject	engine	aclCommand/ACL_GETUSER_arg!drop-3	ACL GETUSER
+reject	reject	engine	aclCommand/ACL_GETUSER_arg!insert	ACL GETUSER a zzz
+reject	reject	engine	aclCommand/ACL_GETUSER_arg!swap	ADDSLOTS GETUSER a
+accept	accept	engine	aclCommand/ACL_HELP	ACL HELP
+reject	reject	engine	aclCommand/ACL_HELP!insert	ACL HELP zzz
+reject	reject	engine	aclCommand/ACL_HELP!swap	ADDSLOTS HELP
+accept	accept	engine	aclCommand/ACL_LIST	ACL LIST
+reject	reject	engine	aclCommand/ACL_LIST!drop-1	LIST
+reject	reject	engine	aclCommand/ACL_LIST!insert	ACL LIST zzz
+reject	reject	engine	aclCommand/ACL_LIST!swap	ADDSLOTS LIST
+accept	accept	engine	aclCommand/ACL_LOAD	ACL LOAD
+reject	reject	engine	aclCommand/ACL_LOAD!drop-1	LOAD
+reject	reject	engine	aclCommand/ACL_LOAD!insert	ACL LOAD zzz
+reject	reject	engine	aclCommand/ACL_LOAD!swap	ADDSLOTS LOAD
+accept	accept	engine	aclCommand/ACL_LOG_variadicArgs	ACL LOG
+reject	reject	engine	aclCommand/ACL_LOG_variadicArgs!drop-1	LOG
+accept	accept	engine	aclCommand/ACL_LOG_variadicArgs!insert	ACL LOG zzz
+reject	reject	engine	aclCommand/ACL_LOG_variadicArgs!swap	ADDSLOTS LOG
+accept	accept	engine	aclCommand/ACL_SAVE	ACL SAVE
+reject	reject	engine	aclCommand/ACL_SAVE!insert	ACL SAVE zzz
+reject	reject	engine	aclCommand/ACL_SAVE!swap	ADDSLOTS SAVE
+accept	accept	engine	aclCommand/ACL_SETUSER_arg_variadicArgs	ACL SETUSER a
+reject	reject	engine	aclCommand/ACL_SETUSER_arg_variadicArgs!drop-1	SETUSER a
+reject	reject	engine	aclCommand/ACL_SETUSER_arg_variadicArgs!drop-3	ACL SETUSER
+accept	accept	engine	aclCommand/ACL_SETUSER_arg_variadicArgs!insert	ACL SETUSER a zzz
+reject	reject	engine	aclCommand/ACL_SETUSER_arg_variadicArgs!swap	ADDSLOTS SETUSER a
+accept	accept	engine	aclCommand/ACL_USERS	ACL USERS
+reject	reject	engine	aclCommand/ACL_USERS!drop-1	USERS
+reject	reject	engine	aclCommand/ACL_USERS!insert	ACL USERS zzz
+reject	reject	engine	aclCommand/ACL_USERS!swap	ADDSLOTS USERS
+accept	accept	engine	aclCommand/ACL_WHOAMI	ACL WHOAMI
+reject	reject	engine	aclCommand/ACL_WHOAMI!drop-1	WHOAMI
+reject	reject	engine	aclCommand/ACL_WHOAMI!insert	ACL WHOAMI zzz
+reject	reject	engine	aclCommand/ACL_WHOAMI!swap	ADDSLOTS WHOAMI
+accept	accept	engine	clientCommand/CLIENT_CACHING_arg	CLIENT CACHING a
+reject	reject	engine	clientCommand/CLIENT_CACHING_arg!drop-1	CACHING a
+reject	reject	engine	clientCommand/CLIENT_CACHING_arg!drop-2	CLIENT a
+reject	reject	engine	clientCommand/CLIENT_CACHING_arg!drop-3	CLIENT CACHING
+reject	reject	engine	clientCommand/CLIENT_CACHING_arg!insert	CLIENT CACHING a zzz
+reject	reject	engine	clientCommand/CLIENT_CACHING_arg!swap	CLUSTER CACHING a
+accept	accept	engine	clientCommand/CLIENT_GETNAME	CLIENT GETNAME
+accept	accept	engine	clientCommand/CLIENT_GETREDIR	CLIENT GETREDIR
+reject	reject	engine	clientCommand/CLIENT_GETREDIR!drop-1	GETREDIR
+reject	reject	engine	clientCommand/CLIENT_GETREDIR!insert	CLIENT GETREDIR zzz
+reject	reject	engine	clientCommand/CLIENT_GETREDIR!swap	CLUSTER GETREDIR
+accept	accept	engine	clientCommand/CLIENT_HELP	CLIENT HELP
+reject	reject	engine	clientCommand/CLIENT_HELP!insert	CLIENT HELP zzz
+accept	accept	engine	clientCommand/CLIENT_ID	CLIENT ID
+reject	reject	engine	clientCommand/CLIENT_ID!drop-1	ID
+reject	reject	engine	clientCommand/CLIENT_ID!insert	CLIENT ID zzz
+reject	reject	engine	clientCommand/CLIENT_ID!swap	CLUSTER ID
+accept	accept	engine	clientCommand/CLIENT_INFO	CLIENT INFO
+reject	reject	engine	clientCommand/CLIENT_INFO!insert	CLIENT INFO zzz
+accept	accept	engine	clientCommand/CLIENT_KILL_arg_variadicArgs	CLIENT KILL a
+reject	reject	engine	clientCommand/CLIENT_KILL_arg_variadicArgs!drop-1	KILL a
+reject	reject	engine	clientCommand/CLIENT_KILL_arg_variadicArgs!drop-3	CLIENT KILL
+accept	accept	engine	clientCommand/CLIENT_KILL_arg_variadicArgs!insert	CLIENT KILL a zzz
+reject	reject	engine	clientCommand/CLIENT_KILL_arg_variadicArgs!swap	CLUSTER KILL a
+accept	accept	engine	clientCommand/CLIENT_LIST_variadicArgs	CLIENT LIST
+accept	accept	engine	clientCommand/CLIENT_LIST_variadicArgs!insert	CLIENT LIST zzz
+reject	reject	engine	clientCommand/CLIENT_LIST_variadicArgs!swap	CLUSTER LIST
+accept	accept	engine	clientCommand/CLIENT_NO-EVICT_arg	CLIENT NO-EVICT a
+reject	reject	engine	clientCommand/CLIENT_NO-EVICT_arg!drop-1	NO-EVICT a
+reject	reject	engine	clientCommand/CLIENT_NO-EVICT_arg!drop-3	CLIENT NO-EVICT
+reject	reject	engine	clientCommand/CLIENT_NO-EVICT_arg!insert	CLIENT NO-EVICT a zzz
+reject	reject	engine	clientCommand/CLIENT_NO-EVICT_arg!swap	CLUSTER NO-EVICT a
+accept	accept	engine	clientCommand/CLIENT_NO-TOUCH_arg	CLIENT NO-TOUCH a
+reject	reject	engine	clientCommand/CLIENT_NO-TOUCH_arg!drop-1	NO-TOUCH a
+reject	reject	engine	clientCommand/CLIENT_NO-TOUCH_arg!drop-3	CLIENT NO-TOUCH
+reject	reject	engine	clientCommand/CLIENT_NO-TOUCH_arg!insert	CLIENT NO-TOUCH a zzz
+reject	reject	engine	clientCommand/CLIENT_NO-TOUCH_arg!swap	CLUSTER NO-TOUCH a
+accept	accept	engine	clientCommand/CLIENT_PAUSE_arg_variadicArgs	CLIENT PAUSE a
+reject	reject	engine	clientCommand/CLIENT_PAUSE_arg_variadicArgs!drop-1	PAUSE a
+reject	reject	engine	clientCommand/CLIENT_PAUSE_arg_variadicArgs!drop-3	CLIENT PAUSE
+accept	accept	engine	clientCommand/CLIENT_PAUSE_arg_variadicArgs!insert	CLIENT PAUSE a zzz
+reject	reject	engine	clientCommand/CLIENT_PAUSE_arg_variadicArgs!swap	CLUSTER PAUSE a
+accept	accept	engine	clientCommand/CLIENT_REPLY_arg	CLIENT REPLY a
+reject	reject	engine	clientCommand/CLIENT_REPLY_arg!drop-1	REPLY a
+reject	reject	engine	clientCommand/CLIENT_REPLY_arg!drop-3	CLIENT REPLY
+reject	reject	engine	clientCommand/CLIENT_REPLY_arg!insert	CLIENT REPLY a zzz
+reject	reject	engine	clientCommand/CLIENT_REPLY_arg!swap	CLUSTER REPLY a
+accept	accept	engine	clientCommand/CLIENT_SETINFO_arg_arg	CLIENT SETINFO a a
+reject	reject	engine	clientCommand/CLIENT_SETINFO_arg_arg!drop-1	SETINFO a a
+reject	reject	engine	clientCommand/CLIENT_SETINFO_arg_arg!drop-2	CLIENT a a
+reject	reject	engine	clientCommand/CLIENT_SETINFO_arg_arg!drop-3	CLIENT SETINFO a
+reject	reject	engine	clientCommand/CLIENT_SETINFO_arg_arg!insert	CLIENT SETINFO a a zzz
+reject	reject	engine	clientCommand/CLIENT_SETINFO_arg_arg!swap	CLUSTER SETINFO a a
+accept	accept	engine	clientCommand/CLIENT_SETNAME_arg	CLIENT SETNAME a
+reject	reject	engine	clientCommand/CLIENT_SETNAME_arg!drop-1	SETNAME a
+reject	reject	engine	clientCommand/CLIENT_SETNAME_arg!drop-3	CLIENT SETNAME
+reject	reject	engine	clientCommand/CLIENT_SETNAME_arg!insert	CLIENT SETNAME a zzz
+reject	reject	engine	clientCommand/CLIENT_SETNAME_arg!swap	CLUSTER SETNAME a
+accept	accept	engine	clientCommand/CLIENT_TRACKING_arg_variadicArgs	CLIENT TRACKING a
+reject	reject	engine	clientCommand/CLIENT_TRACKING_arg_variadicArgs!drop-3	CLIENT TRACKING
+accept	accept	engine	clientCommand/CLIENT_TRACKING_arg_variadicArgs!insert	CLIENT TRACKING a zzz
+reject	reject	engine	clientCommand/CLIENT_TRACKING_arg_variadicArgs!swap	CLUSTER TRACKING a
+accept	accept	engine	clientCommand/CLIENT_TRACKINGINFO	CLIENT TRACKINGINFO
+reject	reject	engine	clientCommand/CLIENT_TRACKINGINFO!drop-1	TRACKINGINFO
+reject	reject	engine	clientCommand/CLIENT_TRACKINGINFO!insert	CLIENT TRACKINGINFO zzz
+reject	reject	engine	clientCommand/CLIENT_TRACKINGINFO!swap	CLUSTER TRACKINGINFO
+accept	accept	engine	clientCommand/CLIENT_UNBLOCK_arg_variadicArgs	CLIENT UNBLOCK a
+reject	reject	engine	clientCommand/CLIENT_UNBLOCK_arg_variadicArgs!drop-3	CLIENT UNBLOCK
+accept	accept	engine	clientCommand/CLIENT_UNBLOCK_arg_variadicArgs!insert	CLIENT UNBLOCK a zzz
+reject	reject	engine	clientCommand/CLIENT_UNBLOCK_arg_variadicArgs!swap	CLUSTER UNBLOCK a
+accept	accept	engine	clientCommand/CLIENT_UNPAUSE	CLIENT UNPAUSE
+reject	reject	engine	clientCommand/CLIENT_UNPAUSE!drop-1	UNPAUSE
+reject	reject	engine	clientCommand/CLIENT_UNPAUSE!insert	CLIENT UNPAUSE zzz
+reject	reject	engine	clientCommand/CLIENT_UNPAUSE!swap	CLUSTER UNPAUSE
+accept	accept	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs	CLUSTER ADDSLOTS a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs!drop-1	ADDSLOTS a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs!drop-2	CLUSTER a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs!drop-3	CLUSTER ADDSLOTS
+accept	accept	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs!insert	CLUSTER ADDSLOTS a zzz
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTS_arg_variadicArgs!swap	COMMAND ADDSLOTS a
+accept	accept	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs	CLUSTER ADDSLOTSRANGE a a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs!drop-1	ADDSLOTSRANGE a a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs!drop-2	CLUSTER a a
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs!drop-3	CLUSTER ADDSLOTSRANGE a
+accept	accept	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs!insert	CLUSTER ADDSLOTSRANGE a a zzz
+reject	reject	engine	clusterCommand/CLUSTER_ADDSLOTSRANGE_arg_arg_variadicArgs!swap	COMMAND ADDSLOTSRANGE a a
+accept	accept	engine	clusterCommand/CLUSTER_BUMPEPOCH	CLUSTER BUMPEPOCH
+accept	accept	engine	clusterCommand/CLUSTER_COUNT-FAILURE-REPORTS_arg	CLUSTER COUNT-FAILURE-REPORTS a
+reject	reject	engine	clusterCommand/CLUSTER_COUNT-FAILURE-REPORTS_arg!drop-1	COUNT-FAILURE-REPORTS a
+reject	reject	engine	clusterCommand/CLUSTER_COUNT-FAILURE-REPORTS_arg!drop-3	CLUSTER COUNT-FAILURE-REPORTS
+reject	reject	engine	clusterCommand/CLUSTER_COUNT-FAILURE-REPORTS_arg!insert	CLUSTER COUNT-FAILURE-REPORTS a zzz
+reject	reject	engine	clusterCommand/CLUSTER_COUNT-FAILURE-REPORTS_arg!swap	COMMAND COUNT-FAILURE-REPORTS a
+accept	accept	engine	clusterCommand/CLUSTER_COUNTKEYSINSLOT_arg	CLUSTER COUNTKEYSINSLOT a
+reject	reject	engine	clusterCommand/CLUSTER_COUNTKEYSINSLOT_arg!drop-1	COUNTKEYSINSLOT a
+reject	reject	engine	clusterCommand/CLUSTER_COUNTKEYSINSLOT_arg!drop-3	CLUSTER COUNTKEYSINSLOT
+reject	reject	engine	clusterCommand/CLUSTER_COUNTKEYSINSLOT_arg!insert	CLUSTER COUNTKEYSINSLOT a zzz
+reject	reject	engine	clusterCommand/CLUSTER_COUNTKEYSINSLOT_arg!swap	COMMAND COUNTKEYSINSLOT a
+accept	accept	engine	clusterCommand/CLUSTER_DELSLOTS_arg_variadicArgs	CLUSTER DELSLOTS a
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTS_arg_variadicArgs!drop-1	DELSLOTS a
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTS_arg_variadicArgs!drop-3	CLUSTER DELSLOTS
+accept	accept	engine	clusterCommand/CLUSTER_DELSLOTS_arg_variadicArgs!insert	CLUSTER DELSLOTS a zzz
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTS_arg_variadicArgs!swap	COMMAND DELSLOTS a
+accept	accept	engine	clusterCommand/CLUSTER_DELSLOTSRANGE_arg_arg_variadicArgs	CLUSTER DELSLOTSRANGE a a
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTSRANGE_arg_arg_variadicArgs!drop-1	DELSLOTSRANGE a a
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTSRANGE_arg_arg_variadicArgs!drop-3	CLUSTER DELSLOTSRANGE a
+accept	accept	engine	clusterCommand/CLUSTER_DELSLOTSRANGE_arg_arg_variadicArgs!insert	CLUSTER DELSLOTSRANGE a a zzz
+reject	reject	engine	clusterCommand/CLUSTER_DELSLOTSRANGE_arg_arg_variadicArgs!swap	COMMAND DELSLOTSRANGE a a
+accept	accept	engine	clusterCommand/CLUSTER_FAILOVER_variadicArgs	CLUSTER FAILOVER
+accept	accept	engine	clusterCommand/CLUSTER_FAILOVER_variadicArgs!insert	CLUSTER FAILOVER zzz
+reject	reject	engine	clusterCommand/CLUSTER_FAILOVER_variadicArgs!swap	COMMAND FAILOVER
+accept	accept	engine	clusterCommand/CLUSTER_FLUSHSLOTS	CLUSTER FLUSHSLOTS
+reject	reject	engine	clusterCommand/CLUSTER_FLUSHSLOTS!insert	CLUSTER FLUSHSLOTS zzz
+reject	reject	engine	clusterCommand/CLUSTER_FLUSHSLOTS!swap	COMMAND FLUSHSLOTS
+accept	accept	engine	clusterCommand/CLUSTER_FORGET_arg	CLUSTER FORGET a
+reject	reject	engine	clusterCommand/CLUSTER_FORGET_arg!drop-1	FORGET a
+reject	reject	engine	clusterCommand/CLUSTER_FORGET_arg!drop-3	CLUSTER FORGET
+reject	reject	engine	clusterCommand/CLUSTER_FORGET_arg!insert	CLUSTER FORGET a zzz
+reject	reject	engine	clusterCommand/CLUSTER_FORGET_arg!swap	COMMAND FORGET a
+accept	accept	engine	clusterCommand/CLUSTER_GETKEYSINSLOT_arg_arg	CLUSTER GETKEYSINSLOT a a
+reject	reject	engine	clusterCommand/CLUSTER_GETKEYSINSLOT_arg_arg!drop-1	GETKEYSINSLOT a a
+reject	reject	engine	clusterCommand/CLUSTER_GETKEYSINSLOT_arg_arg!drop-3	CLUSTER GETKEYSINSLOT a
+reject	reject	engine	clusterCommand/CLUSTER_GETKEYSINSLOT_arg_arg!insert	CLUSTER GETKEYSINSLOT a a zzz
+reject	reject	engine	clusterCommand/CLUSTER_GETKEYSINSLOT_arg_arg!swap	COMMAND GETKEYSINSLOT a a
+accept	accept	engine	clusterCommand/CLUSTER_HELP	CLUSTER HELP
+reject	reject	engine	clusterCommand/CLUSTER_HELP!insert	CLUSTER HELP zzz
+accept	accept	engine	clusterCommand/CLUSTER_INFO	CLUSTER INFO
+reject	reject	engine	clusterCommand/CLUSTER_INFO!insert	CLUSTER INFO zzz
+accept	accept	engine	clusterCommand/CLUSTER_KEYSLOT_arg	CLUSTER KEYSLOT a
+reject	reject	engine	clusterCommand/CLUSTER_KEYSLOT_arg!drop-3	CLUSTER KEYSLOT
+reject	reject	engine	clusterCommand/CLUSTER_KEYSLOT_arg!insert	CLUSTER KEYSLOT a zzz
+reject	reject	engine	clusterCommand/CLUSTER_KEYSLOT_arg!swap	COMMAND KEYSLOT a
+accept	accept	engine	clusterCommand/CLUSTER_LINKS	CLUSTER LINKS
+reject	reject	engine	clusterCommand/CLUSTER_LINKS!drop-1	LINKS
+reject	reject	engine	clusterCommand/CLUSTER_LINKS!insert	CLUSTER LINKS zzz
+reject	reject	engine	clusterCommand/CLUSTER_LINKS!swap	COMMAND LINKS
+accept	accept	engine	clusterCommand/CLUSTER_MEET_arg_arg_variadicArgs	CLUSTER MEET a a
+reject	reject	engine	clusterCommand/CLUSTER_MEET_arg_arg_variadicArgs!drop-1	MEET a a
+reject	reject	engine	clusterCommand/CLUSTER_MEET_arg_arg_variadicArgs!drop-3	CLUSTER MEET a
+accept	accept	engine	clusterCommand/CLUSTER_MEET_arg_arg_variadicArgs!insert	CLUSTER MEET a a zzz
+reject	reject	engine	clusterCommand/CLUSTER_MEET_arg_arg_variadicArgs!swap	COMMAND MEET a a
+accept	accept	engine	clusterCommand/CLUSTER_MYID	CLUSTER MYID
+reject	reject	engine	clusterCommand/CLUSTER_MYID!insert	CLUSTER MYID zzz
+reject	reject	engine	clusterCommand/CLUSTER_MYID!swap	COMMAND MYID
+accept	accept	engine	clusterCommand/CLUSTER_MYSHARDID	CLUSTER MYSHARDID
+reject	reject	engine	clusterCommand/CLUSTER_MYSHARDID!drop-1	MYSHARDID
+reject	reject	engine	clusterCommand/CLUSTER_MYSHARDID!insert	CLUSTER MYSHARDID zzz
+reject	reject	engine	clusterCommand/CLUSTER_MYSHARDID!swap	COMMAND MYSHARDID
+accept	accept	engine	clusterCommand/CLUSTER_NODES	CLUSTER NODES
+reject	reject	engine	clusterCommand/CLUSTER_NODES!drop-1	NODES
+reject	reject	engine	clusterCommand/CLUSTER_NODES!insert	CLUSTER NODES zzz
+reject	reject	engine	clusterCommand/CLUSTER_NODES!swap	COMMAND NODES
+accept	accept	engine	clusterCommand/CLUSTER_REPLICAS_arg	CLUSTER REPLICAS a
+reject	reject	engine	clusterCommand/CLUSTER_REPLICAS_arg!drop-1	REPLICAS a
+reject	reject	engine	clusterCommand/CLUSTER_REPLICAS_arg!drop-3	CLUSTER REPLICAS
+reject	reject	engine	clusterCommand/CLUSTER_REPLICAS_arg!insert	CLUSTER REPLICAS a zzz
+reject	reject	engine	clusterCommand/CLUSTER_REPLICAS_arg!swap	COMMAND REPLICAS a
+accept	accept	engine	clusterCommand/CLUSTER_REPLICATE_arg	CLUSTER REPLICATE a
+reject	reject	engine	clusterCommand/CLUSTER_REPLICATE_arg!drop-1	REPLICATE a
+reject	reject	engine	clusterCommand/CLUSTER_REPLICATE_arg!drop-3	CLUSTER REPLICATE
+reject	reject	engine	clusterCommand/CLUSTER_REPLICATE_arg!insert	CLUSTER REPLICATE a zzz
+reject	reject	engine	clusterCommand/CLUSTER_REPLICATE_arg!swap	COMMAND REPLICATE a
+accept	accept	engine	clusterCommand/CLUSTER_RESET_variadicArgs	CLUSTER RESET
+accept	accept	engine	clusterCommand/CLUSTER_RESET_variadicArgs!insert	CLUSTER RESET zzz
+reject	reject	engine	clusterCommand/CLUSTER_RESET_variadicArgs!swap	COMMAND RESET
+accept	accept	engine	clusterCommand/CLUSTER_SAVECONFIG	CLUSTER SAVECONFIG
+reject	reject	engine	clusterCommand/CLUSTER_SAVECONFIG!insert	CLUSTER SAVECONFIG zzz
+reject	reject	engine	clusterCommand/CLUSTER_SAVECONFIG!swap	COMMAND SAVECONFIG
+accept	accept	engine	clusterCommand/CLUSTER_SET-CONFIG-EPOCH_arg	CLUSTER SET-CONFIG-EPOCH a
+reject	reject	engine	clusterCommand/CLUSTER_SET-CONFIG-EPOCH_arg!drop-1	SET-CONFIG-EPOCH a
+reject	reject	engine	clusterCommand/CLUSTER_SET-CONFIG-EPOCH_arg!drop-3	CLUSTER SET-CONFIG-EPOCH
+reject	reject	engine	clusterCommand/CLUSTER_SET-CONFIG-EPOCH_arg!insert	CLUSTER SET-CONFIG-EPOCH a zzz
+reject	reject	engine	clusterCommand/CLUSTER_SET-CONFIG-EPOCH_arg!swap	COMMAND SET-CONFIG-EPOCH a
+accept	accept	engine	clusterCommand/CLUSTER_SETSLOT_arg_arg_variadicArgs	CLUSTER SETSLOT a a
+reject	reject	engine	clusterCommand/CLUSTER_SETSLOT_arg_arg_variadicArgs!drop-1	SETSLOT a a
+reject	reject	engine	clusterCommand/CLUSTER_SETSLOT_arg_arg_variadicArgs!drop-3	CLUSTER SETSLOT a
+accept	accept	engine	clusterCommand/CLUSTER_SETSLOT_arg_arg_variadicArgs!insert	CLUSTER SETSLOT a a zzz
+reject	reject	engine	clusterCommand/CLUSTER_SETSLOT_arg_arg_variadicArgs!swap	COMMAND SETSLOT a a
+accept	accept	engine	clusterCommand/CLUSTER_SHARDS	CLUSTER SHARDS
+reject	reject	engine	clusterCommand/CLUSTER_SHARDS!drop-1	SHARDS
+reject	reject	engine	clusterCommand/CLUSTER_SHARDS!insert	CLUSTER SHARDS zzz
+reject	reject	engine	clusterCommand/CLUSTER_SHARDS!swap	COMMAND SHARDS
+accept	accept	engine	clusterCommand/CLUSTER_SLAVES_arg	CLUSTER SLAVES a
+reject	reject	engine	clusterCommand/CLUSTER_SLAVES_arg!drop-1	SLAVES a
+reject	reject	engine	clusterCommand/CLUSTER_SLAVES_arg!drop-3	CLUSTER SLAVES
+reject	reject	engine	clusterCommand/CLUSTER_SLAVES_arg!insert	CLUSTER SLAVES a zzz
+reject	reject	engine	clusterCommand/CLUSTER_SLAVES_arg!swap	COMMAND SLAVES a
+accept	accept	engine	clusterCommand/CLUSTER_SLOTS	CLUSTER SLOTS
+reject	reject	engine	clusterCommand/CLUSTER_SLOTS!drop-1	SLOTS
+reject	reject	engine	clusterCommand/CLUSTER_SLOTS!insert	CLUSTER SLOTS zzz
+reject	reject	engine	clusterCommand/CLUSTER_SLOTS!swap	COMMAND SLOTS
+accept	accept	engine	commandCommand/COMMAND	COMMAND
+accept	accept	engine	commandCommand/COMMAND_COUNT	COMMAND COUNT
+reject	reject	engine	commandCommand/COMMAND_COUNT!drop-1	COUNT
+reject	reject	engine	commandCommand/COMMAND_COUNT!insert	COMMAND COUNT zzz
+reject	reject	engine	commandCommand/COMMAND_COUNT!swap	CONFIG COUNT
+accept	accept	engine	commandCommand/COMMAND_DOCS_variadicArgs	COMMAND DOCS
+accept	accept	engine	commandCommand/COMMAND_DOCS_variadicArgs!insert	COMMAND DOCS zzz
+reject	reject	engine	commandCommand/COMMAND_DOCS_variadicArgs!swap	CONFIG DOCS
+accept	accept	engine	commandCommand/COMMAND_GETKEYS_arg_variadicArgs	COMMAND GETKEYS a
+reject	reject	engine	commandCommand/COMMAND_GETKEYS_arg_variadicArgs!drop-2	COMMAND a
+reject	reject	engine	commandCommand/COMMAND_GETKEYS_arg_variadicArgs!drop-3	COMMAND GETKEYS
+accept	accept	engine	commandCommand/COMMAND_GETKEYS_arg_variadicArgs!insert	COMMAND GETKEYS a zzz
+reject	reject	engine	commandCommand/COMMAND_GETKEYS_arg_variadicArgs!swap	CONFIG GETKEYS a
+accept	accept	engine	commandCommand/COMMAND_GETKEYSANDFLAGS_arg_variadicArgs	COMMAND GETKEYSANDFLAGS a
+reject	reject	engine	commandCommand/COMMAND_GETKEYSANDFLAGS_arg_variadicArgs!drop-1	GETKEYSANDFLAGS a
+reject	reject	engine	commandCommand/COMMAND_GETKEYSANDFLAGS_arg_variadicArgs!drop-3	COMMAND GETKEYSANDFLAGS
+accept	accept	engine	commandCommand/COMMAND_GETKEYSANDFLAGS_arg_variadicArgs!insert	COMMAND GETKEYSANDFLAGS a zzz
+reject	reject	engine	commandCommand/COMMAND_GETKEYSANDFLAGS_arg_variadicArgs!swap	CONFIG GETKEYSANDFLAGS a
+accept	accept	engine	commandCommand/COMMAND_HELP	COMMAND HELP
+reject	reject	engine	commandCommand/COMMAND_HELP!insert	COMMAND HELP zzz
+accept	accept	engine	commandCommand/COMMAND_INFO_variadicArgs	COMMAND INFO
+accept	accept	engine	commandCommand/COMMAND_INFO_variadicArgs!insert	COMMAND INFO zzz
+reject	reject	engine	commandCommand/COMMAND_INFO_variadicArgs!swap	CONFIG INFO
+accept	accept	engine	commandCommand/COMMAND_LIST_variadicArgs	COMMAND LIST
+accept	accept	engine	commandCommand/COMMAND_LIST_variadicArgs!insert	COMMAND LIST zzz
+reject	reject	engine	commandCommand/COMMAND_LIST_variadicArgs!swap	CONFIG LIST
+accept	accept	engine	configCommand/CONFIG_GET_arg_variadicArgs	CONFIG GET a
+reject	reject	engine	configCommand/CONFIG_GET_arg_variadicArgs!drop-2	CONFIG a
+reject	reject	engine	configCommand/CONFIG_GET_arg_variadicArgs!drop-3	CONFIG GET
+accept	accept	engine	configCommand/CONFIG_GET_arg_variadicArgs!insert	CONFIG GET a zzz
+reject	reject	engine	configCommand/CONFIG_GET_arg_variadicArgs!swap	CONSUMERS GET a
+accept	accept	engine	configCommand/CONFIG_HELP	CONFIG HELP
+accept	accept	engine	configCommand/CONFIG_RESETSTAT	CONFIG RESETSTAT
+reject	reject	engine	configCommand/CONFIG_RESETSTAT!insert	CONFIG RESETSTAT zzz
+reject	reject	engine	configCommand/CONFIG_RESETSTAT!swap	CONSUMERS RESETSTAT
+accept	accept	engine	configCommand/CONFIG_REWRITE	CONFIG REWRITE
+reject	reject	engine	configCommand/CONFIG_REWRITE!drop-1	REWRITE
+reject	reject	engine	configCommand/CONFIG_REWRITE!insert	CONFIG REWRITE zzz
+reject	reject	engine	configCommand/CONFIG_REWRITE!swap	CONSUMERS REWRITE
+accept	accept	engine	configCommand/CONFIG_SET_arg_arg_variadicArgs	CONFIG SET a a
+reject	reject	engine	configCommand/CONFIG_SET_arg_arg_variadicArgs!drop-2	CONFIG a a
+reject	reject	engine	configCommand/CONFIG_SET_arg_arg_variadicArgs!drop-3	CONFIG SET a
+accept	accept	engine	configCommand/CONFIG_SET_arg_arg_variadicArgs!insert	CONFIG SET a a zzz
+reject	reject	engine	configCommand/CONFIG_SET_arg_arg_variadicArgs!swap	CONSUMERS SET a a
+accept	accept	engine	functionCommand/FUNCTION_DELETE_arg	FUNCTION DELETE a
+reject	reject	engine	functionCommand/FUNCTION_DELETE_arg!drop-1	DELETE a
+reject	reject	engine	functionCommand/FUNCTION_DELETE_arg!drop-2	FUNCTION a
+reject	reject	engine	functionCommand/FUNCTION_DELETE_arg!drop-3	FUNCTION DELETE
+reject	reject	engine	functionCommand/FUNCTION_DELETE_arg!insert	FUNCTION DELETE a zzz
+reject	reject	engine	functionCommand/FUNCTION_DELETE_arg!swap	GENPASS DELETE a
+accept	accept	engine	functionCommand/FUNCTION_DUMP	FUNCTION DUMP
+accept	accept	engine	functionCommand/FUNCTION_FLUSH_variadicArgs	FUNCTION FLUSH
+accept	accept	engine	functionCommand/FUNCTION_FLUSH_variadicArgs!insert	FUNCTION FLUSH zzz
+reject	reject	engine	functionCommand/FUNCTION_FLUSH_variadicArgs!swap	GENPASS FLUSH
+accept	accept	engine	functionCommand/FUNCTION_HELP	FUNCTION HELP
+reject	reject	engine	functionCommand/FUNCTION_HELP!insert	FUNCTION HELP zzz
+reject	reject	engine	functionCommand/FUNCTION_HELP!swap	GENPASS HELP
+accept	accept	engine	functionCommand/FUNCTION_KILL	FUNCTION KILL
+reject	reject	engine	functionCommand/FUNCTION_KILL!drop-1	KILL
+reject	reject	engine	functionCommand/FUNCTION_KILL!insert	FUNCTION KILL zzz
+reject	reject	engine	functionCommand/FUNCTION_KILL!swap	GENPASS KILL
+accept	accept	engine	functionCommand/FUNCTION_LIST_variadicArgs	FUNCTION LIST
+accept	accept	engine	functionCommand/FUNCTION_LIST_variadicArgs!insert	FUNCTION LIST zzz
+reject	reject	engine	functionCommand/FUNCTION_LIST_variadicArgs!swap	GENPASS LIST
+accept	accept	engine	functionCommand/FUNCTION_LOAD_arg_variadicArgs	FUNCTION LOAD a
+reject	reject	engine	functionCommand/FUNCTION_LOAD_arg_variadicArgs!drop-1	LOAD a
+reject	reject	engine	functionCommand/FUNCTION_LOAD_arg_variadicArgs!drop-3	FUNCTION LOAD
+accept	accept	engine	functionCommand/FUNCTION_LOAD_arg_variadicArgs!insert	FUNCTION LOAD a zzz
+reject	reject	engine	functionCommand/FUNCTION_LOAD_arg_variadicArgs!swap	GENPASS LOAD a
+accept	accept	engine	functionCommand/FUNCTION_RESTORE_arg_variadicArgs	FUNCTION RESTORE a
+reject	reject	engine	functionCommand/FUNCTION_RESTORE_arg_variadicArgs!drop-1	RESTORE a
+reject	reject	engine	functionCommand/FUNCTION_RESTORE_arg_variadicArgs!drop-3	FUNCTION RESTORE
+accept	accept	engine	functionCommand/FUNCTION_RESTORE_arg_variadicArgs!insert	FUNCTION RESTORE a zzz
+reject	reject	engine	functionCommand/FUNCTION_RESTORE_arg_variadicArgs!swap	GENPASS RESTORE a
+accept	accept	engine	functionCommand/FUNCTION_STATS	FUNCTION STATS
+reject	reject	engine	functionCommand/FUNCTION_STATS!drop-1	STATS
+reject	reject	engine	functionCommand/FUNCTION_STATS!insert	FUNCTION STATS zzz
+reject	reject	engine	functionCommand/FUNCTION_STATS!swap	GENPASS STATS
+accept	accept	engine	latencyCommand/LATENCY_DOCTOR	LATENCY DOCTOR
+accept	accept	engine	latencyCommand/LATENCY_GRAPH_arg	LATENCY GRAPH a
+reject	reject	engine	latencyCommand/LATENCY_GRAPH_arg!drop-1	GRAPH a
+reject	reject	engine	latencyCommand/LATENCY_GRAPH_arg!drop-2	LATENCY a
+reject	reject	engine	latencyCommand/LATENCY_GRAPH_arg!drop-3	LATENCY GRAPH
+reject	reject	engine	latencyCommand/LATENCY_GRAPH_arg!insert	LATENCY GRAPH a zzz
+reject	reject	engine	latencyCommand/LATENCY_GRAPH_arg!swap	LATEST GRAPH a
+accept	accept	engine	latencyCommand/LATENCY_HELP	LATENCY HELP
+reject	reject	engine	latencyCommand/LATENCY_HELP!insert	LATENCY HELP zzz
+reject	reject	engine	latencyCommand/LATENCY_HELP!swap	LATEST HELP
+accept	accept	engine	latencyCommand/LATENCY_HISTOGRAM_variadicArgs	LATENCY HISTOGRAM
+reject	reject	engine	latencyCommand/LATENCY_HISTOGRAM_variadicArgs!drop-1	HISTOGRAM
+accept	accept	engine	latencyCommand/LATENCY_HISTOGRAM_variadicArgs!insert	LATENCY HISTOGRAM zzz
+reject	reject	engine	latencyCommand/LATENCY_HISTOGRAM_variadicArgs!swap	LATEST HISTOGRAM
+accept	accept	engine	latencyCommand/LATENCY_HISTORY_arg	LATENCY HISTORY a
+reject	reject	engine	latencyCommand/LATENCY_HISTORY_arg!drop-1	HISTORY a
+reject	reject	engine	latencyCommand/LATENCY_HISTORY_arg!drop-3	LATENCY HISTORY
+reject	reject	engine	latencyCommand/LATENCY_HISTORY_arg!insert	LATENCY HISTORY a zzz
+reject	reject	engine	latencyCommand/LATENCY_HISTORY_arg!swap	LATEST HISTORY a
+accept	accept	engine	latencyCommand/LATENCY_LATEST	LATENCY LATEST
+reject	reject	engine	latencyCommand/LATENCY_LATEST!drop-1	LATEST
+reject	reject	engine	latencyCommand/LATENCY_LATEST!insert	LATENCY LATEST zzz
+reject	reject	engine	latencyCommand/LATENCY_LATEST!swap	LATEST LATEST
+accept	accept	engine	latencyCommand/LATENCY_RESET_variadicArgs	LATENCY RESET
+accept	accept	engine	latencyCommand/LATENCY_RESET_variadicArgs!insert	LATENCY RESET zzz
+reject	reject	engine	latencyCommand/LATENCY_RESET_variadicArgs!swap	LATEST RESET
+accept	accept	engine	memoryCommand/MEMORY_DOCTOR	MEMORY DOCTOR
+accept	accept	engine	memoryCommand/MEMORY_HELP	MEMORY HELP
+reject	reject	engine	memoryCommand/MEMORY_HELP!insert	MEMORY HELP zzz
+accept	accept	engine	memoryCommand/MEMORY_HELP!swap	MGET HELP
+accept	accept	engine	memoryCommand/MEMORY_MALLOC-STATS	MEMORY MALLOC-STATS
+reject	reject	engine	memoryCommand/MEMORY_MALLOC-STATS!drop-1	MALLOC-STATS
+reject	reject	engine	memoryCommand/MEMORY_MALLOC-STATS!insert	MEMORY MALLOC-STATS zzz
+accept	accept	engine	memoryCommand/MEMORY_MALLOC-STATS!swap	MGET MALLOC-STATS
+accept	accept	engine	memoryCommand/MEMORY_PURGE	MEMORY PURGE
+reject	reject	engine	memoryCommand/MEMORY_PURGE!insert	MEMORY PURGE zzz
+accept	accept	engine	memoryCommand/MEMORY_PURGE!swap	MGET PURGE
+accept	accept	engine	memoryCommand/MEMORY_STATS	MEMORY STATS
+reject	reject	engine	memoryCommand/MEMORY_STATS!insert	MEMORY STATS zzz
+accept	accept	engine	memoryCommand/MEMORY_STATS!swap	MGET STATS
+accept	accept	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs	MEMORY USAGE a
+reject	reject	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs!drop-1	USAGE a
+reject	reject	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs!drop-2	MEMORY a
+reject	reject	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs!drop-3	MEMORY USAGE
+accept	accept	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs!insert	MEMORY USAGE a zzz
+accept	accept	engine	memoryCommand/MEMORY_USAGE_arg_variadicArgs!swap	MGET USAGE a
+accept	accept	engine	moduleCommand/MODULE_HELP	MODULE HELP
+accept	accept	engine	moduleCommand/MODULE_LIST	MODULE LIST
+reject	reject	engine	moduleCommand/MODULE_LIST!insert	MODULE LIST zzz
+reject	reject	engine	moduleCommand/MODULE_LIST!swap	MONITOR LIST
+accept	accept	engine	moduleCommand/MODULE_LOAD_arg_variadicArgs	MODULE LOAD a
+reject	reject	engine	moduleCommand/MODULE_LOAD_arg_variadicArgs!drop-2	MODULE a
+reject	reject	engine	moduleCommand/MODULE_LOAD_arg_variadicArgs!drop-3	MODULE LOAD
+accept	accept	engine	moduleCommand/MODULE_LOAD_arg_variadicArgs!insert	MODULE LOAD a zzz
+reject	reject	engine	moduleCommand/MODULE_LOAD_arg_variadicArgs!swap	MONITOR LOAD a
+accept	accept	engine	moduleCommand/MODULE_LOADEX_arg_variadicArgs	MODULE LOADEX a
+reject	reject	engine	moduleCommand/MODULE_LOADEX_arg_variadicArgs!drop-1	LOADEX a
+reject	reject	engine	moduleCommand/MODULE_LOADEX_arg_variadicArgs!drop-3	MODULE LOADEX
+accept	accept	engine	moduleCommand/MODULE_LOADEX_arg_variadicArgs!insert	MODULE LOADEX a zzz
+reject	reject	engine	moduleCommand/MODULE_LOADEX_arg_variadicArgs!swap	MONITOR LOADEX a
+accept	accept	engine	moduleCommand/MODULE_UNLOAD_arg	MODULE UNLOAD a
+reject	reject	engine	moduleCommand/MODULE_UNLOAD_arg!drop-3	MODULE UNLOAD
+reject	reject	engine	moduleCommand/MODULE_UNLOAD_arg!insert	MODULE UNLOAD a zzz
+reject	reject	engine	moduleCommand/MODULE_UNLOAD_arg!swap	MONITOR UNLOAD a
+accept	accept	engine	objectCommand/OBJECT_ENCODING_arg	OBJECT ENCODING a
+reject	reject	engine	objectCommand/OBJECT_ENCODING_arg!drop-2	OBJECT a
+reject	reject	engine	objectCommand/OBJECT_ENCODING_arg!drop-3	OBJECT ENCODING
+reject	reject	engine	objectCommand/OBJECT_ENCODING_arg!insert	OBJECT ENCODING a zzz
+reject	reject	engine	objectCommand/OBJECT_ENCODING_arg!swap	PAUSE ENCODING a
+accept	accept	engine	objectCommand/OBJECT_FREQ_arg	OBJECT FREQ a
+reject	reject	engine	objectCommand/OBJECT_FREQ_arg!drop-1	FREQ a
+reject	reject	engine	objectCommand/OBJECT_FREQ_arg!drop-3	OBJECT FREQ
+reject	reject	engine	objectCommand/OBJECT_FREQ_arg!insert	OBJECT FREQ a zzz
+reject	reject	engine	objectCommand/OBJECT_FREQ_arg!swap	PAUSE FREQ a
+accept	accept	engine	objectCommand/OBJECT_HELP	OBJECT HELP
+accept	accept	engine	objectCommand/OBJECT_IDLETIME_arg	OBJECT IDLETIME a
+reject	reject	engine	objectCommand/OBJECT_IDLETIME_arg!drop-1	IDLETIME a
+reject	reject	engine	objectCommand/OBJECT_IDLETIME_arg!drop-3	OBJECT IDLETIME
+reject	reject	engine	objectCommand/OBJECT_IDLETIME_arg!insert	OBJECT IDLETIME a zzz
+reject	reject	engine	objectCommand/OBJECT_IDLETIME_arg!swap	PAUSE IDLETIME a
+accept	accept	engine	objectCommand/OBJECT_REFCOUNT_arg	OBJECT REFCOUNT a
+reject	reject	engine	objectCommand/OBJECT_REFCOUNT_arg!drop-1	REFCOUNT a
+reject	reject	engine	objectCommand/OBJECT_REFCOUNT_arg!drop-3	OBJECT REFCOUNT
+reject	reject	engine	objectCommand/OBJECT_REFCOUNT_arg!insert	OBJECT REFCOUNT a zzz
+reject	reject	engine	objectCommand/OBJECT_REFCOUNT_arg!swap	PAUSE REFCOUNT a
+accept	accept	engine	pubsubCommand/PUBSUB_CHANNELS_variadicArgs	PUBSUB CHANNELS
+accept	accept	engine	pubsubCommand/PUBSUB_HELP	PUBSUB HELP
+reject	reject	engine	pubsubCommand/PUBSUB_HELP!insert	PUBSUB HELP zzz
+accept	accept	engine	pubsubCommand/PUBSUB_HELP!swap	PUNSUBSCRIBE HELP
+accept	accept	engine	pubsubCommand/PUBSUB_NUMPAT	PUBSUB NUMPAT
+reject	reject	engine	pubsubCommand/PUBSUB_NUMPAT!drop-1	NUMPAT
+reject	reject	engine	pubsubCommand/PUBSUB_NUMPAT!insert	PUBSUB NUMPAT zzz
+accept	accept	engine	pubsubCommand/PUBSUB_NUMPAT!swap	PUNSUBSCRIBE NUMPAT
+accept	accept	engine	pubsubCommand/PUBSUB_NUMSUB_variadicArgs	PUBSUB NUMSUB
+reject	reject	engine	pubsubCommand/PUBSUB_NUMSUB_variadicArgs!drop-1	NUMSUB
+accept	accept	engine	pubsubCommand/PUBSUB_NUMSUB_variadicArgs!insert	PUBSUB NUMSUB zzz
+accept	accept	engine	pubsubCommand/PUBSUB_NUMSUB_variadicArgs!swap	PUNSUBSCRIBE NUMSUB
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDCHANNELS_variadicArgs	PUBSUB SHARDCHANNELS
+reject	reject	engine	pubsubCommand/PUBSUB_SHARDCHANNELS_variadicArgs!drop-1	SHARDCHANNELS
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDCHANNELS_variadicArgs!insert	PUBSUB SHARDCHANNELS zzz
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDCHANNELS_variadicArgs!swap	PUNSUBSCRIBE SHARDCHANNELS
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDNUMSUB_variadicArgs	PUBSUB SHARDNUMSUB
+reject	reject	engine	pubsubCommand/PUBSUB_SHARDNUMSUB_variadicArgs!drop-1	SHARDNUMSUB
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDNUMSUB_variadicArgs!insert	PUBSUB SHARDNUMSUB zzz
+accept	accept	engine	pubsubCommand/PUBSUB_SHARDNUMSUB_variadicArgs!swap	PUNSUBSCRIBE SHARDNUMSUB
+accept	accept	engine	scriptCommand/SCRIPT_DEBUG_arg	SCRIPT DEBUG a
+reject	reject	engine	scriptCommand/SCRIPT_DEBUG_arg!drop-3	SCRIPT DEBUG
+reject	reject	engine	scriptCommand/SCRIPT_DEBUG_arg!insert	SCRIPT DEBUG a zzz
+accept	accept	engine	scriptCommand/SCRIPT_DEBUG_arg!swap	SDIFF DEBUG a
+accept	accept	engine	scriptCommand/SCRIPT_EXISTS_arg_variadicArgs	SCRIPT EXISTS a
+reject	reject	engine	scriptCommand/SCRIPT_EXISTS_arg_variadicArgs!drop-3	SCRIPT EXISTS
+accept	accept	engine	scriptCommand/SCRIPT_EXISTS_arg_variadicArgs!insert	SCRIPT EXISTS a zzz
+accept	accept	engine	scriptCommand/SCRIPT_EXISTS_arg_variadicArgs!swap	SDIFF EXISTS a
+accept	accept	engine	scriptCommand/SCRIPT_FLUSH_variadicArgs	SCRIPT FLUSH
+accept	accept	engine	scriptCommand/SCRIPT_HELP	SCRIPT HELP
+reject	reject	engine	scriptCommand/SCRIPT_HELP!insert	SCRIPT HELP zzz
+accept	accept	engine	scriptCommand/SCRIPT_HELP!swap	SDIFF HELP
+accept	accept	engine	scriptCommand/SCRIPT_KILL	SCRIPT KILL
+reject	reject	engine	scriptCommand/SCRIPT_KILL!insert	SCRIPT KILL zzz
+accept	accept	engine	scriptCommand/SCRIPT_KILL!swap	SDIFF KILL
+accept	accept	engine	scriptCommand/SCRIPT_LOAD_arg	SCRIPT LOAD a
+reject	reject	engine	scriptCommand/SCRIPT_LOAD_arg!drop-3	SCRIPT LOAD
+reject	reject	engine	scriptCommand/SCRIPT_LOAD_arg!insert	SCRIPT LOAD a zzz
+accept	accept	engine	scriptCommand/SCRIPT_LOAD_arg!swap	SDIFF LOAD a
+accept	accept	engine	slowlogCommand/SLOWLOG_GET_variadicArgs	SLOWLOG GET
+accept	accept	engine	slowlogCommand/SLOWLOG_HELP	SLOWLOG HELP
+reject	reject	engine	slowlogCommand/SLOWLOG_HELP!insert	SLOWLOG HELP zzz
+accept	accept	engine	slowlogCommand/SLOWLOG_HELP!swap	SMEMBERS HELP
+accept	accept	engine	slowlogCommand/SLOWLOG_LEN	SLOWLOG LEN
+reject	reject	engine	slowlogCommand/SLOWLOG_LEN!drop-1	LEN
+reject	reject	engine	slowlogCommand/SLOWLOG_LEN!insert	SLOWLOG LEN zzz
+accept	accept	engine	slowlogCommand/SLOWLOG_LEN!swap	SMEMBERS LEN
+accept	accept	engine	slowlogCommand/SLOWLOG_RESET	SLOWLOG RESET
+reject	reject	engine	slowlogCommand/SLOWLOG_RESET!insert	SLOWLOG RESET zzz
+accept	accept	engine	slowlogCommand/SLOWLOG_RESET!swap	SMEMBERS RESET
+accept	accept	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs	XGROUP CREATE a a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs!drop-1	CREATE a a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs!drop-2	XGROUP a a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs!drop-3	XGROUP CREATE a a
+accept	accept	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs!insert	XGROUP CREATE a a a zzz
+reject	reject	engine	xgroupCommand/XGROUP_CREATE_arg_arg_arg_variadicArgs!swap	XINFO CREATE a a a
+accept	accept	engine	xgroupCommand/XGROUP_CREATECONSUMER_arg_arg_arg	XGROUP CREATECONSUMER a a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATECONSUMER_arg_arg_arg!drop-1	CREATECONSUMER a a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATECONSUMER_arg_arg_arg!drop-3	XGROUP CREATECONSUMER a a
+reject	reject	engine	xgroupCommand/XGROUP_CREATECONSUMER_arg_arg_arg!insert	XGROUP CREATECONSUMER a a a zzz
+reject	reject	engine	xgroupCommand/XGROUP_CREATECONSUMER_arg_arg_arg!swap	XINFO CREATECONSUMER a a a
+accept	accept	engine	xgroupCommand/XGROUP_DELCONSUMER_arg_arg_arg	XGROUP DELCONSUMER a a a
+reject	reject	engine	xgroupCommand/XGROUP_DELCONSUMER_arg_arg_arg!drop-1	DELCONSUMER a a a
+reject	reject	engine	xgroupCommand/XGROUP_DELCONSUMER_arg_arg_arg!drop-3	XGROUP DELCONSUMER a a
+reject	reject	engine	xgroupCommand/XGROUP_DELCONSUMER_arg_arg_arg!insert	XGROUP DELCONSUMER a a a zzz
+reject	reject	engine	xgroupCommand/XGROUP_DELCONSUMER_arg_arg_arg!swap	XINFO DELCONSUMER a a a
+accept	accept	engine	xgroupCommand/XGROUP_DESTROY_arg_arg	XGROUP DESTROY a a
+reject	reject	engine	xgroupCommand/XGROUP_DESTROY_arg_arg!drop-1	DESTROY a a
+reject	reject	engine	xgroupCommand/XGROUP_DESTROY_arg_arg!drop-3	XGROUP DESTROY a
+reject	reject	engine	xgroupCommand/XGROUP_DESTROY_arg_arg!insert	XGROUP DESTROY a a zzz
+reject	reject	engine	xgroupCommand/XGROUP_DESTROY_arg_arg!swap	XINFO DESTROY a a
+accept	accept	engine	xgroupCommand/XGROUP_HELP	XGROUP HELP
+accept	accept	engine	xgroupCommand/XGROUP_SETID_arg_arg_arg_variadicArgs	XGROUP SETID a a a
+reject	reject	engine	xgroupCommand/XGROUP_SETID_arg_arg_arg_variadicArgs!drop-3	XGROUP SETID a a
+accept	accept	engine	xgroupCommand/XGROUP_SETID_arg_arg_arg_variadicArgs!insert	XGROUP SETID a a a zzz
+reject	reject	engine	xgroupCommand/XGROUP_SETID_arg_arg_arg_variadicArgs!swap	XINFO SETID a a a
+accept	accept	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg	XINFO CONSUMERS a a
+reject	reject	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg!drop-1	CONSUMERS a a
+reject	reject	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg!drop-2	XINFO a a
+reject	reject	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg!drop-3	XINFO CONSUMERS a
+reject	reject	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg!insert	XINFO CONSUMERS a a zzz
+reject	reject	engine	xinfoCommand/XINFO_CONSUMERS_arg_arg!swap	XLEN CONSUMERS a a
+accept	accept	engine	xinfoCommand/XINFO_GROUPS_arg	XINFO GROUPS a
+reject	reject	engine	xinfoCommand/XINFO_GROUPS_arg!drop-1	GROUPS a
+reject	reject	engine	xinfoCommand/XINFO_GROUPS_arg!drop-2	XINFO a
+reject	reject	engine	xinfoCommand/XINFO_GROUPS_arg!drop-3	XINFO GROUPS
+reject	reject	engine	xinfoCommand/XINFO_GROUPS_arg!insert	XINFO GROUPS a zzz
+reject	reject	engine	xinfoCommand/XINFO_GROUPS_arg!swap	XLEN GROUPS a
+accept	accept	engine	xinfoCommand/XINFO_HELP	XINFO HELP
+accept	accept	engine	xinfoCommand/XINFO_STREAM_arg_variadicArgs	XINFO STREAM a
+reject	reject	engine	xinfoCommand/XINFO_STREAM_arg_variadicArgs!drop-1	STREAM a
+reject	reject	engine	xinfoCommand/XINFO_STREAM_arg_variadicArgs!drop-3	XINFO STREAM
+accept	accept	engine	xinfoCommand/XINFO_STREAM_arg_variadicArgs!insert	XINFO STREAM a zzz
+reject	reject	engine	xinfoCommand/XINFO_STREAM_arg_variadicArgs!swap	XLEN STREAM a
+accept	accept	engine	variadicArgs/%empty	BGSAVE
+accept	accept	engine	variadicArgs/arg_variadicArgs	BGSAVE a
+accept	accept	engine	variadicArgs/arg_variadicArgs!insert	BGSAVE a zzz
+accept	accept	engine	arg/WORD	AUTH a
+accept	accept	engine	arg/SINGLE_QUOTED	AUTH 's'
+accept	accept	engine	arg/SINGLE_QUOTED!insert	AUTH 's' zzz
+accept	accept	engine	arg/DOUBLE_QUOTED	AUTH "s\n"
+accept	accept	engine	arg/DOUBLE_QUOTED!insert	AUTH "s\n" zzz
+accept	accept	engine	arg/HASH_ARG	AUTH #channel
+accept	accept	engine	arg/HASH_ARG!insert	AUTH #channel zzz
+accept	accept	engine	arg/INT_LITERAL	AUTH 1
+accept	accept	engine	arg/INT_LITERAL!insert	AUTH 1 zzz
+accept	accept	engine	arg/FLOAT_LITERAL	AUTH 1.5
+accept	accept	engine	arg/FLOAT_LITERAL!insert	AUTH 1.5 zzz
+reject	reject	engine	suite:lexical	GET "unclosed
+reject	reject	engine	suite:lexical	GET 'unclosed
+reject	reject	engine	suite:lexical	GET "a\"
+accept	accept	engine	suite:lexical	GET "two words"
+accept	accept	engine	suite:lexical	GET 'c:\path'
+accept	accept	engine	suite:lexical	SET a "say \"hi\"\x41\n\r\t"
+accept	accept	engine	suite:lexical	GET ""
+accept	accept	engine	suite:lexical	GET ''
+accept	accept	engine	suite:lexical	gEt a
+accept	accept	engine	suite:lexical	AcL lIsT
+reject	reject	engine	suite:lexical	acl|list
+reject	reject	engine	suite:lexical	# not a comment
+accept	accept	engine	suite:lexical	GET #channel

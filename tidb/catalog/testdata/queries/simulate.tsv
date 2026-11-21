@@ -1,0 +1,384 @@
+# pin: default pingcap/tidb:v8.5.5 sha256:f2178ff6cd26f190c64a92cf867148ec6ee6fa31e214cc402bfbbb6bf5f70f26 v8.5.5
+# columns: omni, expected, source, fixture, rule, statement
+1051	1051	engine	one_table@column	IdentListWithParenOpt/%empty	CREATE VIEW _v AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	one_table@column	IdentListWithParenOpt/(_IdentList_)	CREATE VIEW _v AS WITH ident(ident) AS(SELECT *) SELECT *
+ok:e204bf12723e	ok:e204bf12723e	engine	one_table@column	NotSym/not	CREATE VIEW _v AS SELECT ident IS NOT TRUE FROM ident
+1347	1347	engine	one_table@column	NextValueForSequence/NEXT_VALUE_forKwd_TableName	CREATE VIEW _v AS SELECT NEXT VALUE FOR ident FROM ident
+1347	1347	engine	one_table@column	NextValueForSequence/NEXTVAL_(_TableName_)	CREATE VIEW _v AS SELECT NEXTVAL(ident) FROM ident
+ok:2fd302eb5ee3	ok:2fd302eb5ee3	engine	one_table@column	DoStmt/DO_ExpressionList	CREATE VIEW _v AS SELECT ident FROM ident
+1064	1064	engine	one_table@column	DeleteFromStmt/WithClause_DeleteWithoutUsingStmt	CREATE VIEW _v AS WITH ident AS(SELECT *) DELETE FROM ident
+1064	1064	engine	one_table@column	DeleteFromStmt/WithClause_DeleteWithoutUsingStmt!insert	CREATE VIEW _v AS WITH ident AS(SELECT *) DELETE FROM ident zzz
+1064	1064	engine	one_table@column	DeleteFromStmt/WithClause_DeleteWithUsingStmt	CREATE VIEW _v AS WITH ident AS(SELECT *) DELETE FROM ident USING ident
+1064	1064	engine	one_table@column	DeleteFromStmt/WithClause_DeleteWithUsingStmt!drop-11	CREATE VIEW _v AS WITH ident AS(SELECT *) DELETE FROM ident ident
+1064	1064	engine	one_table@column	DeleteFromStmt/WithClause_DeleteWithUsingStmt!insert	CREATE VIEW _v AS WITH ident AS(SELECT *) DELETE FROM ident USING ident zzz
+1351	1351	engine	one_table@column	Expression/singleAtIdentifier_assignmentEq_Expression	CREATE VIEW _v AS SELECT @v := ident FROM ident
+ok:e3a9f272359a	ok:e3a9f272359a	engine	one_table@column	Expression/Expression_logOr_Expression	CREATE VIEW _v AS SELECT ident || ident FROM ident
+ok:10a9303feac3	ok:10a9303feac3	engine	one_table@column	Expression/Expression_XOR_Expression	CREATE VIEW _v AS SELECT ident XOR ident FROM ident
+ok:ca9b61a1c239	ok:ca9b61a1c239	engine	one_table@column	Expression/Expression_logAnd_Expression	CREATE VIEW _v AS SELECT ident && ident FROM ident
+ok:81939a599049	ok:81939a599049	engine	one_table@column	Expression/NOT_Expression	CREATE VIEW _v AS SELECT NOT ident FROM ident
+ok	1105	engine	one_table@column	Expression/MATCH_(_ColumnNameList_)_AGAINST_(_BitExpr_FulltextSearchModifierOpt_)	CREATE VIEW _v AS SELECT MATCH(ident) AGAINST(ident) FROM ident
+ok:baf4e081a2ab	ok:baf4e081a2ab	engine	one_table@column	Expression/BoolPri_IsOrNotOp_trueKwd	CREATE VIEW _v AS SELECT ident IS TRUE FROM ident
+ok:40b98cd66ae4	ok:40b98cd66ae4	engine	one_table@column	Expression/BoolPri_IsOrNotOp_falseKwd	CREATE VIEW _v AS SELECT ident IS FALSE FROM ident
+ok:d3849a06ae00	ok:d3849a06ae00	engine	one_table@column	Expression/BoolPri_IsOrNotOp_UNKNOWN	CREATE VIEW _v AS SELECT ident IS UNKNOWN FROM ident
+ok	1105	engine	one_table@column	FulltextSearchModifierOpt/IN_NATURAL_LANGUAGE_MODE	CREATE VIEW _v AS SELECT MATCH(ident) AGAINST(ident IN NATURAL LANGUAGE MODE) FROM ident
+ok	1105	engine	one_table@column	FulltextSearchModifierOpt/IN_NATURAL_LANGUAGE_MODE_WITH_QUERY_EXPANSION	CREATE VIEW _v AS SELECT MATCH(ident) AGAINST(ident IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION) FROM ident
+ok	1105	engine	one_table@column	FulltextSearchModifierOpt/IN_BOOLEAN_MODE	CREATE VIEW _v AS SELECT MATCH(ident) AGAINST(ident IN BOOLEAN MODE) FROM ident
+ok	1105	engine	one_table@column	FulltextSearchModifierOpt/WITH_QUERY_EXPANSION	CREATE VIEW _v AS SELECT MATCH(ident) AGAINST(ident WITH QUERY EXPANSION) FROM ident
+ok:1ed2564adf38	ok:1ed2564adf38	engine	one_table@column	logOr/OR	CREATE VIEW _v AS SELECT ident OR ident FROM ident
+ok:16e15012e760	ok:16e15012e760	engine	one_table@column	logAnd/AND	CREATE VIEW _v AS SELECT ident AND ident FROM ident
+1060	1060	engine	one_table@column	ExpressionList/ExpressionList_,_Expression	CREATE VIEW _v AS SELECT ident, ident FROM ident
+1582	1582	engine	one_table@column	ExpressionListOpt/%empty	CREATE VIEW _v AS SELECT ASCII() FROM ident
+1054	1054	engine	one_table@column	ExpressionListOpt/%empty!insert	CREATE VIEW _v AS SELECT ASCII(zzz) FROM ident
+ok:b67d2367371d	ok:b67d2367371d	engine	one_table@column	ExpressionListOpt/ExpressionList	CREATE VIEW _v AS SELECT ASCII(ident) FROM ident
+ok:701753f3916b	ok:701753f3916b	engine	one_table@column	FuncDatetimePrecListOpt/%empty	CREATE VIEW _v AS SELECT CURTIME() FROM ident
+ok:3c991bfcbcb1	ok:3c991bfcbcb1	engine	one_table@column	FuncDatetimePrecListOpt/FuncDatetimePrecList	CREATE VIEW _v AS SELECT CURTIME(1) FROM ident
+ok:1d7cedea9d68	ok:1d7cedea9d68	engine	one_table@column	BoolPri/BoolPri_IsOrNotOp_NULL	CREATE VIEW _v AS SELECT ident IS NULL FROM ident
+ok:84e23a7e14b6	ok:84e23a7e14b6	engine	one_table@column	BoolPri/BoolPri_CompareOp_PredicateExpr	CREATE VIEW _v AS SELECT ident >= ident FROM ident
+1051	1051	engine	one_table@column	BoolPri/BoolPri_CompareOp_AnyOrAll_SubSelect	CREATE VIEW _v AS SELECT ident >= ANY(SELECT *) FROM ident
+1051	1051	engine	one_table@column	BoolPri/BoolPri_CompareOp_AnyOrAll_SubSelect!drop-3	CREATE VIEW _v AS SELECT ident >=(SELECT *) FROM ident
+1351	1351	engine	one_table@column	BoolPri/BoolPri_CompareOp_singleAtIdentifier_assignmentEq_PredicateExpr	CREATE VIEW _v AS SELECT ident >= @v := ident FROM ident
+ok:e7bdba7eff85	ok:e7bdba7eff85	engine	one_table@column	CompareOp/>	CREATE VIEW _v AS SELECT ident > ident FROM ident
+ok:5de4adcb28e3	ok:5de4adcb28e3	engine	one_table@column	CompareOp/<=	CREATE VIEW _v AS SELECT ident <= ident FROM ident
+ok:a3155e2072a2	ok:a3155e2072a2	engine	one_table@column	CompareOp/<	CREATE VIEW _v AS SELECT ident < ident FROM ident
+ok:04669f2b072e	ok:04669f2b072e	engine	one_table@column	CompareOp/!=	CREATE VIEW _v AS SELECT ident != ident FROM ident
+ok:6d03b64d6889	ok:6d03b64d6889	engine	one_table@column	CompareOp/<>	CREATE VIEW _v AS SELECT ident <> ident FROM ident
+ok:380de67f4d89	ok:380de67f4d89	engine	one_table@column	CompareOp/=	CREATE VIEW _v AS SELECT ident = ident FROM ident
+ok:8edf0643aa1e	ok:8edf0643aa1e	engine	one_table@column	CompareOp/<=>	CREATE VIEW _v AS SELECT ident <=> ident FROM ident
+ok:ff770375d7a4	ok:ff770375d7a4	engine	one_table@column	BetweenOrNotOp/BETWEEN	CREATE VIEW _v AS SELECT ident BETWEEN ident AND ident FROM ident
+ok:f41854245007	ok:f41854245007	engine	one_table@column	BetweenOrNotOp/NotSym_BETWEEN	CREATE VIEW _v AS SELECT ident NOT BETWEEN ident AND ident FROM ident
+ok:0d2b965c3c47	ok:0d2b965c3c47	engine	one_table@column	InOrNotOp/IN	CREATE VIEW _v AS SELECT ident IN(ident) FROM ident
+ok	1305	engine	one_table@column	InOrNotOp/IN!drop-1	CREATE VIEW _v AS SELECT ident(ident) FROM ident
+ok:ffbe4fc6cd26	ok:ffbe4fc6cd26	engine	one_table@column	InOrNotOp/NotSym_IN	CREATE VIEW _v AS SELECT ident NOT IN(ident) FROM ident
+ok:d2a203b83637	ok:d2a203b83637	engine	one_table@column	LikeOrNotOp/LIKE	CREATE VIEW _v AS SELECT ident LIKE ident FROM ident
+ok:eb26c42edab9	ok:eb26c42edab9	engine	one_table@column	LikeOrNotOp/NotSym_LIKE	CREATE VIEW _v AS SELECT ident NOT LIKE ident FROM ident
+ok:c710e0819094	ok:c710e0819094	engine	one_table@column	IlikeOrNotOp/ILIKE	CREATE VIEW _v AS SELECT ident ILIKE ident FROM ident
+ok:a4dfc1e31639	ok:a4dfc1e31639	engine	one_table@column	IlikeOrNotOp/NotSym_ILIKE	CREATE VIEW _v AS SELECT ident NOT ILIKE ident FROM ident
+ok:782b89223458	ok:782b89223458	engine	one_table@column	RegexpOrNotOp/RegexpSym	CREATE VIEW _v AS SELECT ident REGEXP ident FROM ident
+ok:fac4f034691b	ok:fac4f034691b	engine	one_table@column	RegexpOrNotOp/NotSym_RegexpSym	CREATE VIEW _v AS SELECT ident NOT REGEXP ident FROM ident
+1051	1051	engine	one_table@column	AnyOrAll/SOME	CREATE VIEW _v AS SELECT ident >= SOME(SELECT *) FROM ident
+1051	1051	engine	one_table@column	AnyOrAll/ALL	CREATE VIEW _v AS SELECT ident >= ALL(SELECT *) FROM ident
+1051	1051	engine	one_table@column	PredicateExpr/BitExpr_InOrNotOp_SubSelect	CREATE VIEW _v AS SELECT ident IN(SELECT *) FROM ident
+ok	3146	engine	one_table@column	PredicateExpr/BitExpr_memberof_(_SimpleExpr_)	CREATE VIEW _v AS SELECT ident MEMBER OF(ident) FROM ident
+ok:ed3717958054	ok:ed3717958054	engine	one_table@column	RegexpSym/RLIKE	CREATE VIEW _v AS SELECT ident RLIKE ident FROM ident
+1051	1051	engine	one_table@column	Field/*	CREATE VIEW _v AS SELECT *
+1051	1051	engine	one_table@column	Field/Identifier_._*	CREATE VIEW _v AS SELECT ident.*
+1051	1051	engine	one_table@column	Field/Identifier_._Identifier_._*	CREATE VIEW _v AS SELECT ident.ident.*
+1054	1054	engine	one_table@column	Field/Expression_FieldAsNameOpt	CREATE VIEW _v AS SELECT ident
+1054	1054	engine	one_table@column	Field/Expression_FieldAsNameOpt!insert	CREATE VIEW _v AS SELECT ident zzz
+1054	1054	engine	one_table@column	FieldAsNameOpt/FieldAsName	CREATE VIEW _v AS SELECT ident ident
+1054	1054	engine	one_table@column	FieldAsName/AS_Identifier	CREATE VIEW _v AS SELECT ident AS ident
+1054	1054	engine	one_table@column	FieldAsName/stringLit	CREATE VIEW _v AS SELECT ident 'binary'
+1054	1054	engine	one_table@column	FieldAsName/AS_stringLit	CREATE VIEW _v AS SELECT ident AS 'binary'
+1051	1051	engine	one_table@column	FieldList/FieldList_,_Field	CREATE VIEW _v AS SELECT *, *
+1051	1051	engine	one_table@column	WithRollupClause/%empty	CREATE VIEW _v AS SELECT * GROUP BY ident
+1051	1051	engine	one_table@column	WithRollupClause/WITH_ROLLUP	CREATE VIEW _v AS SELECT * GROUP BY ident WITH ROLLUP
+1051	1051	engine	one_table@column	HavingClause/HAVING_Expression	CREATE VIEW _v AS SELECT * HAVING ident
+ok	1051	engine	one_table@column	RowValue/(_ValuesOpt_)	CREATE VIEW _v AS VALUES ROW()
+ok	1051	engine	one_table@column	ValuesOpt/%empty!insert	CREATE VIEW _v AS VALUES ROW(zzz)
+ok	1051	engine	one_table@column	ValuesOpt/Values	CREATE VIEW _v AS VALUES ROW(ident)
+ok	1051	engine	one_table@column	Values/Values_,_ExprOrDefault	CREATE VIEW _v AS VALUES ROW(ident, ident)
+ok:fa212f5aff6d	ok:fa212f5aff6d	engine	one_table@column	Literal/FALSE	CREATE VIEW _v AS SELECT FALSE FROM ident
+1054	1054	engine	one_table@column	Literal/FALSE!swap	CREATE VIEW _v AS SELECT FAULTS FROM ident
+ok:d86429d4eef5	ok:d86429d4eef5	engine	one_table@column	Literal/NULL	CREATE VIEW _v AS SELECT NULL FROM ident
+1054	1054	engine	one_table@column	Literal/NULL!swap	CREATE VIEW _v AS SELECT NULLS FROM ident
+ok:16962221c7dd	ok:16962221c7dd	engine	one_table@column	Literal/TRUE	CREATE VIEW _v AS SELECT TRUE FROM ident
+1054	1054	engine	one_table@column	Literal/TRUE!swap	CREATE VIEW _v AS SELECT TRUE_CARD_COST FROM ident
+ok:7b23d60330f4	ok:7b23d60330f4	engine	one_table@column	Literal/floatLit	CREATE VIEW _v AS SELECT 1e0 FROM ident
+ok:0015089c0435	ok:0015089c0435	engine	one_table@column	Literal/decLit	CREATE VIEW _v AS SELECT 1.5 FROM ident
+ok:e547a41c1a2a	ok:e547a41c1a2a	engine	one_table@column	Literal/intLit	CREATE VIEW _v AS SELECT 1 FROM ident
+ok:82f33d9734c5	ok:82f33d9734c5	engine	one_table@column	Literal/StringLiteral	CREATE VIEW _v AS SELECT 'binary' FROM ident
+ok:e487b6cb48d4	ok:e487b6cb48d4	engine	one_table@column	Literal/UNDERSCORE_CHARSET_stringLit	CREATE VIEW _v AS SELECT _utf8 'binary' FROM ident
+ok:1f5dc5c8782b	ok:1f5dc5c8782b	engine	one_table@column	Literal/hexLit	CREATE VIEW _v AS SELECT 0x1 FROM ident
+ok:f8b721983bd5	ok:f8b721983bd5	engine	one_table@column	Literal/bitLit	CREATE VIEW _v AS SELECT b'1' FROM ident
+ok:2ea8530382e4	ok:2ea8530382e4	engine	one_table@column	Literal/UNDERSCORE_CHARSET_hexLit	CREATE VIEW _v AS SELECT _utf8 0x1 FROM ident
+ok:8c250196b120	ok:8c250196b120	engine	one_table@column	Literal/UNDERSCORE_CHARSET_bitLit	CREATE VIEW _v AS SELECT _utf8 b'1' FROM ident
+ok:bc20cc2e2449	ok:bc20cc2e2449	engine	one_table@column	StringLiteral/StringLiteral_stringLit	CREATE VIEW _v AS SELECT 'binary' 'binary' FROM ident
+1051	1051	engine	one_table@column	OrderBy/ORDER_BY_ByList	CREATE VIEW _v AS SELECT * ORDER BY ident
+1051	1051	engine	one_table@column	ByList/ByList_,_ByItem	CREATE VIEW _v AS SELECT * GROUP BY ident, ident
+1051	1235	engine	one_table@column	ByItem/Expression_Order	CREATE VIEW _v AS SELECT * GROUP BY ident ASC
+1051	1235	engine	one_table@column	Order/DESC	CREATE VIEW _v AS SELECT * GROUP BY ident DESC
+ok:9859c2ddcd84	ok:9859c2ddcd84	engine	one_table@column	BitExpr/BitExpr_|_BitExpr	CREATE VIEW _v AS SELECT ident | ident FROM ident
+ok:694aec658138	ok:694aec658138	engine	one_table@column	BitExpr/BitExpr_&_BitExpr	CREATE VIEW _v AS SELECT ident & ident FROM ident
+ok:357edbc18eb4	ok:357edbc18eb4	engine	one_table@column	BitExpr/BitExpr_<<_BitExpr	CREATE VIEW _v AS SELECT ident << ident FROM ident
+ok:5a6b064f318d	ok:5a6b064f318d	engine	one_table@column	BitExpr/BitExpr_>>_BitExpr	CREATE VIEW _v AS SELECT ident >> ident FROM ident
+ok:7e7b1e29973a	ok:7e7b1e29973a	engine	one_table@column	BitExpr/BitExpr_+_BitExpr	CREATE VIEW _v AS SELECT ident + ident FROM ident
+ok:2a221f2ce7d1	ok:2a221f2ce7d1	engine	one_table@column	BitExpr/BitExpr_-_BitExpr	CREATE VIEW _v AS SELECT ident - ident FROM ident
+ok:a91c6ba2b300	ok:a91c6ba2b300	engine	one_table@column	BitExpr/BitExpr_+_INTERVAL_Expression_TimeUnit	CREATE VIEW _v AS SELECT ident + INTERVAL ident MICROSECOND FROM ident
+ok:58429025d3ed	ok:58429025d3ed	engine	one_table@column	BitExpr/BitExpr_-_INTERVAL_Expression_TimeUnit	CREATE VIEW _v AS SELECT ident - INTERVAL ident MICROSECOND FROM ident
+ok:edf551d838e1	ok:edf551d838e1	engine	one_table@column	BitExpr/INTERVAL_Expression_TimeUnit_+_BitExpr	CREATE VIEW _v AS SELECT INTERVAL ident MICROSECOND + ident FROM ident
+ok:8eb139cae7d4	ok:8eb139cae7d4	engine	one_table@column	BitExpr/BitExpr_*_BitExpr	CREATE VIEW _v AS SELECT ident * ident FROM ident
+ok:afcfe2e51d58	ok:afcfe2e51d58	engine	one_table@column	BitExpr/BitExpr_/_BitExpr	CREATE VIEW _v AS SELECT ident / ident FROM ident
+ok:e130c5266d41	ok:e130c5266d41	engine	one_table@column	BitExpr/BitExpr_%_BitExpr	CREATE VIEW _v AS SELECT ident % ident FROM ident
+ok:563bf0383bbf	ok:563bf0383bbf	engine	one_table@column	BitExpr/BitExpr_DIV_BitExpr	CREATE VIEW _v AS SELECT ident DIV ident FROM ident
+ok:273fd64e58a2	ok:273fd64e58a2	engine	one_table@column	BitExpr/BitExpr_MOD_BitExpr	CREATE VIEW _v AS SELECT ident MOD ident FROM ident
+ok:e21c2f6b27f1	ok:e21c2f6b27f1	engine	one_table@column	BitExpr/BitExpr_^_BitExpr	CREATE VIEW _v AS SELECT ident ^ ident FROM ident
+ok:0dce2bc0f2b0	ok:0dce2bc0f2b0	engine	one_table@column	SimpleIdent/Identifier_._Identifier	CREATE VIEW _v AS SELECT ident.ident FROM ident
+1054	1054	engine	one_table@column	SimpleIdent/Identifier_._Identifier_._Identifier	CREATE VIEW _v AS SELECT ident.ident.ident FROM ident
+ok:644d6f37a230	ok:644d6f37a230	engine	one_table@column	SimpleExpr/FunctionCallKeyword	CREATE VIEW _v AS SELECT CURRENT_USER FROM ident
+ok	1305	engine	one_table@column	SimpleExpr/FunctionCallGeneric	CREATE VIEW _v AS SELECT ident() FROM ident
+ok:45442874ea2c	ok:45442874ea2c	engine	one_table@column	SimpleExpr/SimpleExpr_COLLATE_CollationName	CREATE VIEW _v AS SELECT ident COLLATE 'binary' FROM ident
+3579	3579	engine	one_table@column	SimpleExpr/WindowFuncCall	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER ident FROM ident
+1149	1149	engine	one_table@column	SimpleExpr/paramMarker	CREATE VIEW _v AS SELECT ? FROM ident
+1351	1351	engine	one_table@column	SimpleExpr/Variable	CREATE VIEW _v AS SELECT @@v FROM ident
+ok:8d1665f8f949	ok:8d1665f8f949	engine	one_table@column	SimpleExpr/SumExpr	CREATE VIEW _v AS SELECT AVG(ident) FROM ident
+ok:aebf30109fc5	ok:aebf30109fc5	engine	one_table@column	SimpleExpr/!_SimpleExpr	CREATE VIEW _v AS SELECT ! ident FROM ident
+ok:c77117e9c465	ok:c77117e9c465	engine	one_table@column	SimpleExpr/~_SimpleExpr	CREATE VIEW _v AS SELECT ~ ident FROM ident
+ok:5ca5d248b932	ok:5ca5d248b932	engine	one_table@column	SimpleExpr/-_SimpleExpr	CREATE VIEW _v AS SELECT - ident FROM ident
+ok:16c3e4ab3e4a	ok:16c3e4ab3e4a	engine	one_table@column	SimpleExpr/+_SimpleExpr	CREATE VIEW _v AS SELECT + ident FROM ident
+1241	1241	engine	one_table@column	SimpleExpr/ROW_(_ExpressionList_,_Expression_)	CREATE VIEW _v AS SELECT ROW(ident, ident) FROM ident
+1051	1051	engine	one_table@column	SimpleExpr/EXISTS_SubSelect	CREATE VIEW _v AS SELECT EXISTS(SELECT *) FROM ident
+ok:2fd302eb5ee3	ok:2fd302eb5ee3	engine	one_table@column	SimpleExpr/{_Identifier_Expression_}	CREATE VIEW _v AS SELECT { ident ident } FROM ident
+ok:2756f4692527	ok:2756f4692527	engine	one_table@column	SimpleExpr/BINARY_SimpleExpr	CREATE VIEW _v AS SELECT BINARY ident FROM ident
+ok:18559b3aba16	ok:18559b3aba16	engine	one_table@column	SimpleExpr/builtinCast_(_Expression_AS_CastType_ArrayKwdOpt_)	CREATE VIEW _v AS SELECT CAST(ident AS BINARY) FROM ident
+ok:9381a8ecb79d	ok:9381a8ecb79d	engine	one_table@column	SimpleExpr/CASE_ExpressionOpt_WhenClauseList_ElseOpt_END	CREATE VIEW _v AS SELECT CASE WHEN ident THEN ident END FROM ident
+ok:032efffc7cf0	ok:032efffc7cf0	engine	one_table@column	SimpleExpr/CONVERT_(_Expression_,_CastType_)	CREATE VIEW _v AS SELECT CONVERT(ident, BINARY) FROM ident
+ok:c6b7811d40e8	ok:c6b7811d40e8	engine	one_table@column	SimpleExpr/CONVERT_(_Expression_USING_CharsetName_)	CREATE VIEW _v AS SELECT CONVERT(ident USING 'binary') FROM ident
+ok:e5650da72660	ok:e5650da72660	engine	one_table@column	SimpleExpr/DEFAULT_(_SimpleIdent_)	CREATE VIEW _v AS SELECT DEFAULT(ident) FROM ident
+ok:10022b5d18ac	ok:10022b5d18ac	engine	one_table@column	SimpleExpr/VALUES_(_SimpleIdent_)	CREATE VIEW _v AS SELECT VALUES(ident) FROM ident
+ok	3146	engine	one_table@column	SimpleExpr/SimpleIdent_jss_stringLit	CREATE VIEW _v AS SELECT ident -> 'binary' FROM ident
+ok	3146	engine	one_table@column	SimpleExpr/SimpleIdent_juss_stringLit	CREATE VIEW _v AS SELECT ident ->> 'binary' FROM ident
+ok	1235	engine	one_table@column	ArrayKwdOpt/ARRAY	CREATE VIEW _v AS SELECT CAST(ident AS BINARY ARRAY) FROM ident
+1051	1051	engine	one_table@column	DistinctKwd/DISTINCT	CREATE VIEW _v AS SELECT DISTINCT *
+1051	1051	engine	one_table@column	DistinctKwd/DISTINCTROW	CREATE VIEW _v AS SELECT DISTINCTROW *
+1051	1051	engine	one_table@column	DistinctOpt/ALL	CREATE VIEW _v AS SELECT ALL *
+ok:7eab5f385f4a	ok:7eab5f385f4a	engine	one_table@column	DefaultFalseDistinctOpt/DistinctOpt	CREATE VIEW _v AS SELECT AVG(ALL ident) FROM ident
+1051	1051	engine	one_table@column	DefaultTrueDistinctOpt/%empty	CREATE VIEW _v AS SELECT * UNION SELECT *
+1051	1051	engine	one_table@column	DefaultTrueDistinctOpt/DistinctOpt	CREATE VIEW _v AS SELECT * UNION ALL SELECT *
+ok:e18c287686b8	ok:e18c287686b8	engine	one_table@column	BuggyDefaultFalseDistinctOpt/DistinctKwd_ALL	CREATE VIEW _v AS SELECT AVG(DISTINCT ALL ident) FROM ident
+ok:6de925577b73	ok:6de925577b73	engine	one_table@column	BuggyDefaultFalseDistinctOpt/DistinctKwd_ALL!drop-2	CREATE VIEW _v AS SELECT AVG(DISTINCT ident) FROM ident
+ok:3562ec169bbc	ok:3562ec169bbc	engine	one_table@column	BuggyDefaultFalseDistinctOpt/DistinctKwd_ALL!swap	CREATE VIEW _v AS SELECT AVG(DISTINCTROW ALL ident) FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/CHARSET	CREATE VIEW _v AS SELECT CHARSET() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/COALESCE	CREATE VIEW _v AS SELECT COALESCE() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/COLLATION	CREATE VIEW _v AS SELECT COLLATION() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/DATE	CREATE VIEW _v AS SELECT DATE() FROM ident
+ok:b28fa0714f4d	ok:b28fa0714f4d	engine	one_table@column	FunctionNameConflict/DATABASE	CREATE VIEW _v AS SELECT DATABASE() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/DAY	CREATE VIEW _v AS SELECT DAY() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/HOUR	CREATE VIEW _v AS SELECT HOUR() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/IF	CREATE VIEW _v AS SELECT IF() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/INTERVAL	CREATE VIEW _v AS SELECT INTERVAL() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/LOG	CREATE VIEW _v AS SELECT LOG() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/FORMAT	CREATE VIEW _v AS SELECT FORMAT() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/LEFT	CREATE VIEW _v AS SELECT LEFT() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/MICROSECOND	CREATE VIEW _v AS SELECT MICROSECOND() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/MINUTE	CREATE VIEW _v AS SELECT MINUTE() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/MONTH	CREATE VIEW _v AS SELECT MONTH() FROM ident
+ok:45eca51a5651	ok:45eca51a5651	engine	one_table@column	FunctionNameConflict/builtinNow	CREATE VIEW _v AS SELECT NOW() FROM ident
+ok	1305	engine	one_table@column	FunctionNameConflict/POINT	CREATE VIEW _v AS SELECT POINT() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/QUARTER	CREATE VIEW _v AS SELECT QUARTER() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/REPEAT	CREATE VIEW _v AS SELECT REPEAT() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/REPLACE	CREATE VIEW _v AS SELECT REPLACE() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/REVERSE	CREATE VIEW _v AS SELECT REVERSE() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/RIGHT	CREATE VIEW _v AS SELECT RIGHT() FROM ident
+ok:89bc77fd116c	ok:89bc77fd116c	engine	one_table@column	FunctionNameConflict/ROW_COUNT	CREATE VIEW _v AS SELECT ROW_COUNT() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/SECOND	CREATE VIEW _v AS SELECT SECOND() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/TIME	CREATE VIEW _v AS SELECT TIME() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/TIMESTAMP	CREATE VIEW _v AS SELECT TIMESTAMP() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/TRUNCATE	CREATE VIEW _v AS SELECT TRUNCATE() FROM ident
+ok:038cb783fa14	ok:038cb783fa14	engine	one_table@column	FunctionNameConflict/USER	CREATE VIEW _v AS SELECT USER() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/WEEK	CREATE VIEW _v AS SELECT WEEK() FROM ident
+1582	1582	engine	one_table@column	FunctionNameConflict/YEAR	CREATE VIEW _v AS SELECT YEAR() FROM ident
+ok:3cfb6ea18a99	ok:3cfb6ea18a99	engine	one_table@column	OptionalBraces/(_)	CREATE VIEW _v AS SELECT CURRENT_USER() FROM ident
+ok:0bbc2e144195	ok:0bbc2e144195	engine	one_table@column	FunctionNameOptionalBraces/CURRENT_DATE	CREATE VIEW _v AS SELECT CURRENT_DATE FROM ident
+ok:b751dbbbe6bf	ok:b751dbbbe6bf	engine	one_table@column	FunctionNameOptionalBraces/CURRENT_ROLE	CREATE VIEW _v AS SELECT CURRENT_ROLE FROM ident
+ok:13e48f39c456	ok:13e48f39c456	engine	one_table@column	FunctionNameOptionalBraces/UTC_DATE	CREATE VIEW _v AS SELECT UTC_DATE FROM ident
+ok:6b5ada9d7856	ok:6b5ada9d7856	engine	one_table@column	FunctionNameOptionalBraces/TIDB_CURRENT_TSO	CREATE VIEW _v AS SELECT TIDB_CURRENT_TSO FROM ident
+1054	1054	engine	one_table@column	FunctionNameOptionalBraces/TIDB_CURRENT_TSO!swap	CREATE VIEW _v AS SELECT TIDB_JSON FROM ident
+ok:bb03b5afd06d	ok:bb03b5afd06d	engine	one_table@column	FunctionNameDatetimePrecision/CURRENT_TIME	CREATE VIEW _v AS SELECT CURRENT_TIME FROM ident
+ok:c2d417f20714	ok:c2d417f20714	engine	one_table@column	FunctionNameDatetimePrecision/CURRENT_TIMESTAMP	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP FROM ident
+ok:200d96c318a7	ok:200d96c318a7	engine	one_table@column	FunctionNameDatetimePrecision/LOCALTIME	CREATE VIEW _v AS SELECT LOCALTIME FROM ident
+ok:0ddba5ed37d3	ok:0ddba5ed37d3	engine	one_table@column	FunctionNameDatetimePrecision/LOCALTIMESTAMP	CREATE VIEW _v AS SELECT LOCALTIMESTAMP FROM ident
+1054	1054	engine	one_table@column	FunctionNameDatetimePrecision/LOCALTIMESTAMP!swap	CREATE VIEW _v AS SELECT LOCATION FROM ident
+ok:590e7c386a67	ok:590e7c386a67	engine	one_table@column	FunctionNameDatetimePrecision/UTC_TIME	CREATE VIEW _v AS SELECT UTC_TIME FROM ident
+ok:6f15139833e1	ok:6f15139833e1	engine	one_table@column	FunctionNameDatetimePrecision/UTC_TIMESTAMP	CREATE VIEW _v AS SELECT UTC_TIMESTAMP FROM ident
+1054	1054	engine	one_table@column	FunctionNameDatetimePrecision/UTC_TIMESTAMP!swap	CREATE VIEW _v AS SELECT UTILIZATION_LIMIT FROM ident
+ok:0d37ea072576	ok:0d37ea072576	engine	one_table@column	FunctionCallKeyword/builtinCurDate_(_)	CREATE VIEW _v AS SELECT CURDATE() FROM ident
+ok:1cbd79475137	ok:1cbd79475137	engine	one_table@column	FunctionCallKeyword/CHAR_(_ExpressionList_)	CREATE VIEW _v AS SELECT CHAR(ident) FROM ident
+ok:4dabb07a512a	ok:4dabb07a512a	engine	one_table@column	FunctionCallKeyword/CHAR_(_ExpressionList_USING_CharsetName_)	CREATE VIEW _v AS SELECT CHAR(ident USING 'binary') FROM ident
+ok	1292	engine	one_table@column	FunctionCallKeyword/DATE_stringLit	CREATE VIEW _v AS SELECT DATE 'binary' FROM ident
+1054	1054	engine	one_table@column	FunctionCallKeyword/DATE_stringLit!drop-2	CREATE VIEW _v AS SELECT DATE FROM ident
+ok	1292	engine	one_table@column	FunctionCallKeyword/TIME_stringLit	CREATE VIEW _v AS SELECT TIME 'binary' FROM ident
+1054	1054	engine	one_table@column	FunctionCallKeyword/TIME_stringLit!drop-2	CREATE VIEW _v AS SELECT TIME FROM ident
+ok	1292	engine	one_table@column	FunctionCallKeyword/TIMESTAMP_stringLit	CREATE VIEW _v AS SELECT TIMESTAMP 'binary' FROM ident
+1054	1054	engine	one_table@column	FunctionCallKeyword/TIMESTAMP_stringLit!drop-2	CREATE VIEW _v AS SELECT TIMESTAMP FROM ident
+1582	1582	engine	one_table@column	FunctionCallKeyword/INSERT_(_ExpressionListOpt_)	CREATE VIEW _v AS SELECT INSERT() FROM ident
+ok:3c2918aa4c92	ok:3c2918aa4c92	engine	one_table@column	FunctionCallKeyword/MOD_(_BitExpr_,_BitExpr_)	CREATE VIEW _v AS SELECT MOD(ident, ident) FROM ident
+1582	1582	engine	one_table@column	FunctionCallKeyword/PASSWORD_(_ExpressionListOpt_)	CREATE VIEW _v AS SELECT PASSWORD() FROM ident
+ok:2c1047c00667	ok:2c1047c00667	engine	one_table@column	FunctionCallNonKeyword/builtinSysDate_(_FuncDatetimePrecListOpt_)	CREATE VIEW _v AS SELECT SYSDATE() FROM ident
+ok:2a460684ca98	ok:2a460684ca98	engine	one_table@column	FunctionCallNonKeyword/FunctionNameDateArithMultiForms_(_Expression_,_Expression_)	CREATE VIEW _v AS SELECT ADDDATE(ident, ident) FROM ident
+ok:af0510b402a5	ok:af0510b402a5	engine	one_table@column	FunctionCallNonKeyword/FunctionNameDateArithMultiForms_(_Expression_,_INTERVAL_Expression_TimeUnit_)	CREATE VIEW _v AS SELECT ADDDATE(ident, INTERVAL ident MICROSECOND) FROM ident
+ok:b154257307bc	ok:b154257307bc	engine	one_table@column	FunctionCallNonKeyword/FunctionNameDateArith_(_Expression_,_INTERVAL_Expression_TimeUnit_)	CREATE VIEW _v AS SELECT DATE_ADD(ident, INTERVAL ident MICROSECOND) FROM ident
+ok:1b71e1f40798	ok:1b71e1f40798	engine	one_table@column	FunctionCallNonKeyword/builtinExtract_(_TimeUnit_FROM_Expression_)	CREATE VIEW _v AS SELECT EXTRACT(MICROSECOND FROM ident) FROM ident
+ok:013902b8c895	ok:013902b8c895	engine	one_table@column	FunctionCallNonKeyword/GET_FORMAT_(_GetFormatSelector_,_Expression_)	CREATE VIEW _v AS SELECT GET_FORMAT(DATE, ident) FROM ident
+ok:c7e3a254903e	ok:c7e3a254903e	engine	one_table@column	FunctionCallNonKeyword/builtinPosition_(_BitExpr_IN_Expression_)	CREATE VIEW _v AS SELECT POSITION(ident IN ident) FROM ident
+ok:62b52c244534	ok:62b52c244534	engine	one_table@column	FunctionCallNonKeyword/builtinSubstring_(_Expression_,_Expression_)	CREATE VIEW _v AS SELECT SUBSTRING(ident, ident) FROM ident
+ok:ebfc0859a72a	ok:ebfc0859a72a	engine	one_table@column	FunctionCallNonKeyword/builtinSubstring_(_Expression_FROM_Expression_)	CREATE VIEW _v AS SELECT SUBSTRING(ident FROM ident) FROM ident
+ok:f43b9550f7d4	ok:f43b9550f7d4	engine	one_table@column	FunctionCallNonKeyword/builtinSubstring_(_Expression_,_Expression_,_Expression_)	CREATE VIEW _v AS SELECT SUBSTRING(ident, ident, ident) FROM ident
+ok:52a9f4f0d520	ok:52a9f4f0d520	engine	one_table@column	FunctionCallNonKeyword/builtinSubstring_(_Expression_FROM_Expression_FOR_Expression_)	CREATE VIEW _v AS SELECT SUBSTRING(ident FROM ident FOR ident) FROM ident
+ok:bcdd2fdc7c47	ok:bcdd2fdc7c47	engine	one_table@column	FunctionCallNonKeyword/TIMESTAMPADD_(_TimestampUnit_,_Expression_,_Expression_)	CREATE VIEW _v AS SELECT TIMESTAMPADD(MICROSECOND, ident, ident) FROM ident
+ok:0ca8c215bde2	ok:0ca8c215bde2	engine	one_table@column	FunctionCallNonKeyword/TIMESTAMPDIFF_(_TimestampUnit_,_Expression_,_Expression_)	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MICROSECOND, ident, ident) FROM ident
+ok:064ffca42913	ok:064ffca42913	engine	one_table@column	FunctionCallNonKeyword/builtinTrim_(_Expression_)	CREATE VIEW _v AS SELECT TRIM(ident) FROM ident
+ok:1a6a6c64e707	ok:1a6a6c64e707	engine	one_table@column	FunctionCallNonKeyword/builtinTrim_(_Expression_FROM_Expression_)	CREATE VIEW _v AS SELECT TRIM(ident FROM ident) FROM ident
+ok:9060d923f018	ok:9060d923f018	engine	one_table@column	FunctionCallNonKeyword/builtinTrim_(_TrimDirection_FROM_Expression_)	CREATE VIEW _v AS SELECT TRIM(BOTH FROM ident) FROM ident
+ok:d5b757336d59	ok:d5b757336d59	engine	one_table@column	FunctionCallNonKeyword/builtinTrim_(_TrimDirection_Expression_FROM_Expression_)	CREATE VIEW _v AS SELECT TRIM(BOTH ident FROM ident) FROM ident
+ok:b203f6cdd870	ok:b203f6cdd870	engine	one_table@column	FunctionCallNonKeyword/weightString_(_Expression_)	CREATE VIEW _v AS SELECT WEIGHT_STRING(ident) FROM ident
+ok:6cc67e15f2ca	ok:6cc67e15f2ca	engine	one_table@column	FunctionCallNonKeyword/weightString_(_Expression_AS_Char_FieldLen_)	CREATE VIEW _v AS SELECT WEIGHT_STRING(ident AS CHARACTER(1)) FROM ident
+ok:335e3e28c0a8	ok:335e3e28c0a8	engine	one_table@column	FunctionCallNonKeyword/weightString_(_Expression_AS_BINARY_FieldLen_)	CREATE VIEW _v AS SELECT WEIGHT_STRING(ident AS BINARY(1)) FROM ident
+1347	1347	engine	one_table@column	FunctionCallNonKeyword/FunctionNameSequence	CREATE VIEW _v AS SELECT LASTVAL(ident) FROM ident
+ok:bd37db5c718c	ok:bd37db5c718c	engine	one_table@column	FunctionCallNonKeyword/builtinTranslate_(_Expression_,_Expression_,_Expression_)	CREATE VIEW _v AS SELECT TRANSLATE(ident, ident, ident) FROM ident
+ok:7832ea8cb75b	ok:7832ea8cb75b	engine	one_table@column	GetFormatSelector/DATETIME	CREATE VIEW _v AS SELECT GET_FORMAT(DATETIME, ident) FROM ident
+ok:d90d5968a49b	ok:d90d5968a49b	engine	one_table@column	GetFormatSelector/TIME	CREATE VIEW _v AS SELECT GET_FORMAT(TIME, ident) FROM ident
+ok:4859b10b71b5	ok:4859b10b71b5	engine	one_table@column	GetFormatSelector/TIMESTAMP	CREATE VIEW _v AS SELECT GET_FORMAT(TIMESTAMP, ident) FROM ident
+ok:8dc34b0b760c	ok:8dc34b0b760c	engine	one_table@column	FunctionNameDateArith/builtinDateSub	CREATE VIEW _v AS SELECT DATE_SUB(ident, INTERVAL ident MICROSECOND) FROM ident
+ok:d4308c2470a0	ok:d4308c2470a0	engine	one_table@column	FunctionNameDateArithMultiForms/subDate	CREATE VIEW _v AS SELECT SUBDATE(ident, ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/BOTH!insert	CREATE VIEW _v AS SELECT TRIM(BOTH zzz FROM ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/BOTH!swap	CREATE VIEW _v AS SELECT TRIM(BOUND FROM ident) FROM ident
+ok:108b526920b4	ok:108b526920b4	engine	one_table@column	TrimDirection/LEADING	CREATE VIEW _v AS SELECT TRIM(LEADING FROM ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/LEADING!insert	CREATE VIEW _v AS SELECT TRIM(LEADING zzz FROM ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/LEADING!swap	CREATE VIEW _v AS SELECT TRIM(LEARNER FROM ident) FROM ident
+ok:801792003c12	ok:801792003c12	engine	one_table@column	TrimDirection/TRAILING	CREATE VIEW _v AS SELECT TRIM(TRAILING FROM ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/TRAILING!insert	CREATE VIEW _v AS SELECT TRIM(TRAILING zzz FROM ident) FROM ident
+1054	1054	engine	one_table@column	TrimDirection/TRAILING!swap	CREATE VIEW _v AS SELECT TRIM(TRANSACTION FROM ident) FROM ident
+1347	1347	engine	one_table@column	FunctionNameSequence/SETVAL_(_TableName_,_SignedNum_)	CREATE VIEW _v AS SELECT SETVAL(ident, 1) FROM ident
+ok:d5f461d29a1d	ok:d5f461d29a1d	engine	one_table@column	SumExpr/builtinApproxCountDistinct_(_ExpressionList_)	CREATE VIEW _v AS SELECT APPROX_COUNT_DISTINCT(ident) FROM ident
+ok	1105	engine	one_table@column	SumExpr/builtinApproxPercentile_(_ExpressionList_)	CREATE VIEW _v AS SELECT APPROX_PERCENTILE(ident) FROM ident
+ok:f6c256bb45ae	ok:f6c256bb45ae	engine	one_table@column	SumExpr/builtinBitAnd_(_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_AND(ident) FROM ident
+ok:95983f7f70b6	ok:95983f7f70b6	engine	one_table@column	SumExpr/builtinBitAnd_(_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_AND(ALL ident) FROM ident
+ok:f00cda18d785	ok:f00cda18d785	engine	one_table@column	SumExpr/builtinBitOr_(_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_OR(ident) FROM ident
+ok:ce3ec1e80a3d	ok:ce3ec1e80a3d	engine	one_table@column	SumExpr/builtinBitOr_(_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_OR(ALL ident) FROM ident
+ok:81f12fbb8a20	ok:81f12fbb8a20	engine	one_table@column	SumExpr/builtinBitXor_(_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_XOR(ident) FROM ident
+ok:bfc9bacb2133	ok:bfc9bacb2133	engine	one_table@column	SumExpr/builtinBitXor_(_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT BIT_XOR(ALL ident) FROM ident
+ok:d97572086417	ok:d97572086417	engine	one_table@column	SumExpr/builtinCount_(_DistinctKwd_ExpressionList_)	CREATE VIEW _v AS SELECT COUNT(DISTINCT ident) FROM ident
+ok:4c89b667b079	ok:4c89b667b079	engine	one_table@column	SumExpr/builtinCount_(_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT COUNT(ALL ident) FROM ident
+ok:0ae9633b55ac	ok:0ae9633b55ac	engine	one_table@column	SumExpr/builtinCount_(_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT COUNT(ident) FROM ident
+ok:938f70a4ee44	ok:938f70a4ee44	engine	one_table@column	SumExpr/builtinCount_(_*_)_OptWindowingClause	CREATE VIEW _v AS SELECT COUNT(*) FROM ident
+ok:f26febbd0a85	ok:f26febbd0a85	engine	one_table@column	SumExpr/builtinGroupConcat_(_BuggyDefaultFalseDistinctOpt_ExpressionList_OrderByOptional_OptGConcatSeparator_)_OptWindowingClause	CREATE VIEW _v AS SELECT GROUP_CONCAT(ident) FROM ident
+ok:f04e6d3cd3ff	ok:f04e6d3cd3ff	engine	one_table@column	SumExpr/builtinMax_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT MAX(ident) FROM ident
+ok:df8980014a99	ok:df8980014a99	engine	one_table@column	SumExpr/builtinMin_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT MIN(ident) FROM ident
+ok:fbc5e5c74f9b	ok:fbc5e5c74f9b	engine	one_table@column	SumExpr/builtinMin_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause!swap	CREATE VIEW _v AS SELECT MINUTE(ident) FROM ident
+ok:0c585683787f	ok:0c585683787f	engine	one_table@column	SumExpr/builtinSum_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT SUM(ident) FROM ident
+ok:f028d3594f39	ok:f028d3594f39	engine	one_table@column	SumExpr/builtinStddevPop_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT STDDEV_POP(ident) FROM ident
+ok:2020d4917e10	ok:2020d4917e10	engine	one_table@column	SumExpr/builtinStddevSamp_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT STDDEV_SAMP(ident) FROM ident
+ok:1fb3293220bc	ok:1fb3293220bc	engine	one_table@column	SumExpr/builtinVarPop_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT VAR_POP(ident) FROM ident
+ok:a7599a372bec	ok:a7599a372bec	engine	one_table@column	SumExpr/builtinVarSamp_(_BuggyDefaultFalseDistinctOpt_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT VAR_SAMP(ident) FROM ident
+ok:35682706ece3	ok:35682706ece3	engine	one_table@column	SumExpr/JSON_ARRAYAGG_(_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ident) FROM ident
+ok:0dd0ae773cc1	ok:0dd0ae773cc1	engine	one_table@column	SumExpr/JSON_ARRAYAGG_(_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL ident) FROM ident
+ok:4e9014608967	ok:4e9014608967	engine	one_table@column	SumExpr/JSON_OBJECTAGG_(_Expression_,_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(ident, ident) FROM ident
+ok:50a9ecb513f1	ok:50a9ecb513f1	engine	one_table@column	SumExpr/JSON_OBJECTAGG_(_ALL_Expression_,_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(ALL ident, ident) FROM ident
+ok:2dfe9df016ad	ok:2dfe9df016ad	engine	one_table@column	SumExpr/JSON_OBJECTAGG_(_Expression_,_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(ident, ALL ident) FROM ident
+ok:1aeff3fde141	ok:1aeff3fde141	engine	one_table@column	SumExpr/JSON_OBJECTAGG_(_ALL_Expression_,_ALL_Expression_)_OptWindowingClause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(ALL ident, ALL ident) FROM ident
+ok:de728a5449ae	ok:de728a5449ae	engine	one_table@column	OptGConcatSeparator/SEPARATOR_stringLit	CREATE VIEW _v AS SELECT GROUP_CONCAT(ident SEPARATOR 'binary') FROM ident
+1305	1305	engine	one_table@column	FunctionCallGeneric/Identifier_._Identifier_(_ExpressionListOpt_)	CREATE VIEW _v AS SELECT ident.ident() FROM ident
+ok:1439c77448f1	ok:1439c77448f1	engine	one_table@column	FuncDatetimePrec/(_)	CREATE VIEW _v AS SELECT CURRENT_TIME() FROM ident
+ok:097f4efa617d	ok:097f4efa617d	engine	one_table@column	FuncDatetimePrec/(_intLit_)	CREATE VIEW _v AS SELECT CURRENT_TIME(1) FROM ident
+1054	1054	engine	one_table@column	ExpressionOpt/%empty!insert	CREATE VIEW _v AS SELECT CASE zzz WHEN ident THEN ident END FROM ident
+ok:c12acc5ae147	ok:c12acc5ae147	engine	one_table@column	ExpressionOpt/Expression	CREATE VIEW _v AS SELECT CASE ident WHEN ident THEN ident END FROM ident
+ok:d728914402ba	ok:d728914402ba	engine	one_table@column	WhenClauseList/WhenClauseList_WhenClause	CREATE VIEW _v AS SELECT CASE WHEN ident THEN ident WHEN ident THEN ident END FROM ident
+ok:76e9e1cb7337	ok:76e9e1cb7337	engine	one_table@column	ElseOpt/ELSE_Expression	CREATE VIEW _v AS SELECT CASE WHEN ident THEN ident ELSE ident END FROM ident
+ok:4b79d4c8389e	ok:4b79d4c8389e	engine	one_table@column	CastType/Char_OptFieldLen_OptBinary	CREATE VIEW _v AS SELECT CAST(ident AS CHARACTER) FROM ident
+ok:6b4b2cf61755	ok:6b4b2cf61755	engine	one_table@column	CastType/DATE	CREATE VIEW _v AS SELECT CAST(ident AS DATE) FROM ident
+ok:bd37847d66ef	ok:bd37847d66ef	engine	one_table@column	CastType/YEAR	CREATE VIEW _v AS SELECT CAST(ident AS YEAR) FROM ident
+ok:f22307fd04fc	ok:f22307fd04fc	engine	one_table@column	CastType/DATETIME_OptFieldLen	CREATE VIEW _v AS SELECT CAST(ident AS DATETIME) FROM ident
+ok:88ab48d22f46	ok:88ab48d22f46	engine	one_table@column	CastType/DECIMAL_FloatOpt	CREATE VIEW _v AS SELECT CAST(ident AS DECIMAL) FROM ident
+ok:80871196871d	ok:80871196871d	engine	one_table@column	CastType/TIME_OptFieldLen	CREATE VIEW _v AS SELECT CAST(ident AS TIME) FROM ident
+ok:6a1ae091b1a4	ok:6a1ae091b1a4	engine	one_table@column	CastType/SIGNED_OptInteger	CREATE VIEW _v AS SELECT CAST(ident AS SIGNED) FROM ident
+ok:5f4cbc04a728	ok:5f4cbc04a728	engine	one_table@column	CastType/UNSIGNED_OptInteger	CREATE VIEW _v AS SELECT CAST(ident AS UNSIGNED) FROM ident
+ok:7fbd6f98fe8b	ok:7fbd6f98fe8b	engine	one_table@column	CastType/JSON	CREATE VIEW _v AS SELECT CAST(ident AS JSON) FROM ident
+ok:9824d6785158	ok:9824d6785158	engine	one_table@column	CastType/DOUBLE	CREATE VIEW _v AS SELECT CAST(ident AS DOUBLE) FROM ident
+ok:2cb032884396	ok:2cb032884396	engine	one_table@column	CastType/FLOAT_FloatOpt	CREATE VIEW _v AS SELECT CAST(ident AS FLOAT) FROM ident
+ok:997866b5f95e	ok:997866b5f95e	engine	one_table@column	CastType/REAL	CREATE VIEW _v AS SELECT CAST(ident AS REAL) FROM ident
+ok:fc506501ce17	ok:fc506501ce17	engine	one_table@column	CastType/VECTOR_OptVectorElementType_OptFieldLen	CREATE VIEW _v AS SELECT CAST(ident AS VECTOR) FROM ident
+1051	1051	engine	one_table@column	Priority/LOW_PRIORITY	CREATE VIEW _v AS SELECT LOW_PRIORITY *
+1051	1051	engine	one_table@column	Priority/HIGH_PRIORITY	CREATE VIEW _v AS SELECT HIGH_PRIORITY *
+1051	1051	engine	one_table@column	Priority/DELAYED	CREATE VIEW _v AS SELECT DELAYED *
+1051	1051	engine	one_table@column	SelectStmtFromDualTable/SelectStmtBasic_FromDual_WhereClauseOptional	CREATE VIEW _v AS SELECT * FROM DUAL
+ok:4fe8c538b71b	ok:4fe8c538b71b	engine	one_table@column	SelectStmtFromTable/SelectStmtBasic_FROM_TableRefsClause_WhereClauseOptional_SelectStmtGroup_HavingClause_WindowClauseOptional	CREATE VIEW _v AS SELECT * FROM ident
+ok:56f7a1418eb2	ok:56f7a1418eb2	engine	one_table@column	SelectStmtFromTable/SelectStmtBasic_FROM_TableRefsClause_WhereClauseOptional_SelectStmtGroup_HavingClause_WindowClauseOptional!insert	CREATE VIEW _v AS SELECT * FROM ident zzz
+ok:19ec178b0787	ok:19ec178b0787	engine	one_table@column	SelectStmt/TABLE_TableName_OrderByOptional_SelectStmtLimitOpt_SelectLockOpt_SelectStmtIntoOption	CREATE VIEW _v AS TABLE ident
+1051	1051	engine	one_table@column	SelectStmtWithClause/WithClause_SubSelect	CREATE VIEW _v AS WITH ident AS(SELECT *)(SELECT *)
+1051	1051	engine	one_table@column	WithClause/WITH_recursive_WithList	CREATE VIEW _v AS WITH RECURSIVE ident AS(SELECT *) SELECT *
+1066	1066	engine	one_table@column	WithList/WithList_,_CommonTableExpr	CREATE VIEW _v AS WITH ident AS(SELECT *), ident AS(SELECT *) SELECT *
+ok:32286e153681	ok:32286e153681	engine	one_table@column	WindowClauseOptional/WINDOW_WindowDefinitionList	CREATE VIEW _v AS SELECT * FROM ident WINDOW ident AS()
+3591	3591	engine	one_table@column	WindowDefinitionList/WindowDefinitionList_,_WindowDefinition	CREATE VIEW _v AS SELECT * FROM ident WINDOW ident AS(), ident AS()
+ok:cb5fa91448a8	ok:cb5fa91448a8	engine	one_table@column	WindowSpec/(_WindowSpecDetails_)	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER() FROM ident
+3579	3579	engine	one_table@column	WindowSpecDetails/OptExistingWindowName_OptPartitionClause_OptWindowOrderByClause_OptWindowFrameClause!insert	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(zzz) FROM ident
+3579	3579	engine	one_table@column	OptExistingWindowName/WindowName	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ident) FROM ident
+ok:ff1f0cd41175	ok:ff1f0cd41175	engine	one_table@column	OptPartitionClause/PARTITION_BY_ByList	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(PARTITION BY ident) FROM ident
+ok:e23f994dba15	ok:e23f994dba15	engine	one_table@column	OptWindowOrderByClause/ORDER_BY_ByList	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ORDER BY ident) FROM ident
+ok:2892b79aa3a8	ok:2892b79aa3a8	engine	one_table@column	OptWindowFrameClause/WindowFrameUnits_WindowFrameExtent	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS UNBOUNDED PRECEDING) FROM ident
+ok:002c50b671b7	ok:002c50b671b7	engine	one_table@column	WindowFrameUnits/RANGE	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(RANGE UNBOUNDED PRECEDING) FROM ident
+ok	1235	engine	one_table@column	WindowFrameUnits/GROUPS	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(GROUPS UNBOUNDED PRECEDING) FROM ident
+3585	3585	engine	one_table@column	WindowFrameExtent/WindowFrameBetween	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING) FROM ident
+ok:86d6337ca23d	ok:86d6337ca23d	engine	one_table@column	WindowFrameStart/NumLiteral_PRECEDING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS 1 PRECEDING) FROM ident
+1149	1149	engine	one_table@column	WindowFrameStart/paramMarker_PRECEDING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS ? PRECEDING) FROM ident
+3596	3596	engine	one_table@column	WindowFrameStart/INTERVAL_Expression_TimeUnit_PRECEDING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS INTERVAL ident MICROSECOND PRECEDING) FROM ident
+ok:98f860ed622b	ok:98f860ed622b	engine	one_table@column	WindowFrameStart/CURRENT_ROW	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS CURRENT ROW) FROM ident
+3584	3584	engine	one_table@column	WindowFrameBound/UNBOUNDED_FOLLOWING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING) FROM ident
+3585	3585	engine	one_table@column	WindowFrameBound/NumLiteral_FOLLOWING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED PRECEDING) FROM ident
+1149	1149	engine	one_table@column	WindowFrameBound/paramMarker_FOLLOWING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS BETWEEN ? FOLLOWING AND UNBOUNDED PRECEDING) FROM ident
+3585	3585	engine	one_table@column	WindowFrameBound/INTERVAL_Expression_TimeUnit_FOLLOWING	CREATE VIEW _v AS SELECT ROW_NUMBER() OVER(ROWS BETWEEN INTERVAL ident MICROSECOND FOLLOWING AND UNBOUNDED PRECEDING) FROM ident
+3579	3579	engine	one_table@column	OptWindowingClause/WindowingClause	CREATE VIEW _v AS SELECT AVG(ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/RANK_(_)_WindowingClause	CREATE VIEW _v AS SELECT RANK() OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/DENSE_RANK_(_)_WindowingClause	CREATE VIEW _v AS SELECT DENSE_RANK() OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/CUME_DIST_(_)_WindowingClause	CREATE VIEW _v AS SELECT CUME_DIST() OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/PERCENT_RANK_(_)_WindowingClause	CREATE VIEW _v AS SELECT PERCENT_RANK() OVER ident FROM ident
+1210	1210	engine	one_table@column	WindowFuncCall/NTILE_(_SimpleExpr_)_WindowingClause	CREATE VIEW _v AS SELECT NTILE(ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/LEAD_(_Expression_OptLeadLagInfo_)_OptNullTreatment_WindowingClause	CREATE VIEW _v AS SELECT LEAD(ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/LAG_(_Expression_OptLeadLagInfo_)_OptNullTreatment_WindowingClause	CREATE VIEW _v AS SELECT LAG(ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/FIRST_VALUE_(_Expression_)_OptNullTreatment_WindowingClause	CREATE VIEW _v AS SELECT FIRST_VALUE(ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	WindowFuncCall/LAST_VALUE_(_Expression_)_OptNullTreatment_WindowingClause	CREATE VIEW _v AS SELECT LAST_VALUE(ident) OVER ident FROM ident
+1210	1210	engine	one_table@column	WindowFuncCall/NTH_VALUE_(_Expression_,_SimpleExpr_)_OptFromFirstLast_OptNullTreatment_WindowingClause	CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	OptLeadLagInfo/,_NumLiteral_OptLLDefault	CREATE VIEW _v AS SELECT LEAD(ident, 1) OVER ident FROM ident
+1149	1149	engine	one_table@column	OptLeadLagInfo/,_paramMarker_OptLLDefault	CREATE VIEW _v AS SELECT LEAD(ident, ?) OVER ident FROM ident
+3579	3579	engine	one_table@column	OptLLDefault/,_Expression	CREATE VIEW _v AS SELECT LEAD(ident, 1, ident) OVER ident FROM ident
+3579	3579	engine	one_table@column	OptNullTreatment/RESPECT_NULLS	CREATE VIEW _v AS SELECT LEAD(ident) RESPECT NULLS OVER ident FROM ident
+3579	3579	engine	one_table@column	OptNullTreatment/IGNORE_NULLS	CREATE VIEW _v AS SELECT LEAD(ident) IGNORE NULLS OVER ident FROM ident
+1210	1210	engine	one_table@column	OptFromFirstLast/FROM_FIRST	CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) FROM FIRST OVER ident FROM ident
+1210	1210	engine	one_table@column	OptFromFirstLast/FROM_LAST	CREATE VIEW _v AS SELECT NTH_VALUE(ident, ident) FROM LAST OVER ident FROM ident
+1051	1051	engine	one_table@column	LimitOption/LengthNum	CREATE VIEW _v AS SELECT * LIMIT 1
+1149	1149	engine	one_table@column	LimitOption/paramMarker	CREATE VIEW _v AS SELECT * LIMIT ?
+1051	1051	engine	one_table@column	RowOrRows/ROW	CREATE VIEW _v AS SELECT * FETCH FIRST ROW ONLY
+1051	1051	engine	one_table@column	RowOrRows/ROWS	CREATE VIEW _v AS SELECT * FETCH FIRST ROWS ONLY
+1051	1051	engine	one_table@column	FirstOrNext/NEXT	CREATE VIEW _v AS SELECT * FETCH NEXT ROW ONLY
+1051	1051	engine	one_table@column	FetchFirstOpt/LimitOption	CREATE VIEW _v AS SELECT * FETCH FIRST 1 ROW ONLY
+1051	1051	engine	one_table@column	SelectStmtLimit/LIMIT_LimitOption_,_LimitOption	CREATE VIEW _v AS SELECT * LIMIT 1, 1
+1051	1051	engine	one_table@column	SelectStmtLimit/LIMIT_LimitOption_OFFSET_LimitOption	CREATE VIEW _v AS SELECT * LIMIT 1 OFFSET 1
+1051	1051	engine	one_table@column	SelectStmtOpt/SQL_SMALL_RESULT	CREATE VIEW _v AS SELECT SQL_SMALL_RESULT *
+1051	1051	engine	one_table@column	SelectStmtOpt/SQL_BIG_RESULT	CREATE VIEW _v AS SELECT SQL_BIG_RESULT *
+1051	1051	engine	one_table@column	SelectStmtOpt/SQL_BUFFER_RESULT	CREATE VIEW _v AS SELECT SQL_BUFFER_RESULT *
+1051	1051	engine	one_table@column	SelectStmtOpt/SelectStmtSQLCache	CREATE VIEW _v AS SELECT SQL_CACHE *
+1051	1235	engine	one_table@column	SelectStmtOpt/SQL_CALC_FOUND_ROWS	CREATE VIEW _v AS SELECT SQL_CALC_FOUND_ROWS *
+1051	1051	engine	one_table@column	SelectStmtOpt/STRAIGHT_JOIN	CREATE VIEW _v AS SELECT STRAIGHT_JOIN *
+1051	1051	engine	one_table@column	SelectStmtSQLCache/SQL_NO_CACHE	CREATE VIEW _v AS SELECT SQL_NO_CACHE *
+1350	1350	engine	one_table@column	SelectStmtIntoOption/INTO_OUTFILE_stringLit_Fields_Lines	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary'
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_UPDATE_OfTablesOpt	CREATE VIEW _v AS SELECT * FOR UPDATE
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_SHARE_OfTablesOpt	CREATE VIEW _v AS SELECT * FOR SHARE
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_UPDATE_OfTablesOpt_NOWAIT	CREATE VIEW _v AS SELECT * FOR UPDATE NOWAIT
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_UPDATE_OfTablesOpt_WAIT_NUM	CREATE VIEW _v AS SELECT * FOR UPDATE WAIT 1
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_SHARE_OfTablesOpt_NOWAIT	CREATE VIEW _v AS SELECT * FOR SHARE NOWAIT
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_UPDATE_OfTablesOpt_SKIP_LOCKED	CREATE VIEW _v AS SELECT * FOR UPDATE SKIP LOCKED
+1051	1051	engine	one_table@column	SelectLockOpt/FOR_SHARE_OfTablesOpt_SKIP_LOCKED	CREATE VIEW _v AS SELECT * FOR SHARE SKIP LOCKED
+1051	1051	engine	one_table@column	SelectLockOpt/LOCK_IN_SHARE_MODE	CREATE VIEW _v AS SELECT * LOCK IN SHARE MODE
+1051	1051	engine	one_table@column	OfTablesOpt/OF_TableNameList	CREATE VIEW _v AS SELECT * FOR UPDATE OF ident
+1051	1051	engine	one_table@column	SetOprStmt/WithClause_SetOprStmtWithLimitOrderBy	CREATE VIEW _v AS WITH ident AS(SELECT *)(SELECT *) LIMIT 1
+1051	1051	engine	one_table@column	SetOprStmt/WithClause_SetOprStmtWoutLimitOrderBy	CREATE VIEW _v AS WITH ident AS(SELECT *) SELECT * UNION SELECT *
+1051	1051	engine	one_table@column	SetOprStmtWoutLimitOrderBy/SetOprClauseList_SetOpr_SubSelect	CREATE VIEW _v AS SELECT * UNION(SELECT *)
+1051	1051	engine	one_table@column	SetOprStmtWithLimitOrderBy/SetOprClauseList_SetOpr_SubSelect_OrderBy	CREATE VIEW _v AS SELECT * UNION(SELECT *) ORDER BY ident
+1051	1051	engine	one_table@column	SetOprStmtWithLimitOrderBy/SetOprClauseList_SetOpr_SubSelect_SelectStmtLimit	CREATE VIEW _v AS SELECT * UNION(SELECT *) LIMIT 1
+1051	1051	engine	one_table@column	SetOprStmtWithLimitOrderBy/SetOprClauseList_SetOpr_SubSelect_OrderBy_SelectStmtLimit	CREATE VIEW _v AS SELECT * UNION(SELECT *) ORDER BY ident LIMIT 1
+1051	1051	engine	one_table@column	SetOprClauseList/SetOprClauseList_SetOpr_SetOprClause	CREATE VIEW _v AS SELECT * UNION SELECT * UNION SELECT *
+1051	1051	engine	one_table@column	SetOpr/EXCEPT_SetOprOpt	CREATE VIEW _v AS SELECT * EXCEPT SELECT *
+1051	1051	engine	one_table@column	SetOpr/INTERSECT_SetOprOpt	CREATE VIEW _v AS SELECT * INTERSECT SELECT *
+1351	1351	engine	one_table@column	Variable/UserVariable	CREATE VIEW _v AS SELECT @v FROM ident
+ok:b2b9ffdd95ae	ok:b2b9ffdd95ae	engine	one_table@column	OptInteger/INTEGER	CREATE VIEW _v AS SELECT CAST(ident AS SIGNED INTEGER) FROM ident
+ok:75fae155d6d5	ok:75fae155d6d5	engine	one_table@column	OptInteger/INT	CREATE VIEW _v AS SELECT CAST(ident AS SIGNED INT) FROM ident
+1064	1064	engine	one_table@column	UpdateStmt/WithClause_UpdateStmtNoWith	CREATE VIEW _v AS WITH ident AS(SELECT *) UPDATE ident SET ident = ident
+1051	1051	engine	one_table@column	WhereClause/WHERE_Expression	CREATE VIEW _v AS SELECT * WHERE ident
+1350	1350	engine	one_table@column	FieldItem/TERMINATED_BY_FieldTerminator	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' FIELDS TERMINATED BY 'binary'
+1350	1350	engine	one_table@column	FieldItem/DEFINED_NULL_BY_TextString	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' FIELDS DEFINED NULL BY 'binary'
+1350	1350	engine	one_table@column	FieldItem/DEFINED_NULL_BY_TextString_OPTIONALLY_ENCLOSED	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' FIELDS DEFINED NULL BY 'binary' OPTIONALLY ENCLOSED
+1350	1350	engine	one_table@column	FieldTerminator/hexLit	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' FIELDS OPTIONALLY ENCLOSED BY 0x1
+1350	1350	engine	one_table@column	FieldTerminator/bitLit	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' FIELDS OPTIONALLY ENCLOSED BY b'1'
+1350	1350	engine	one_table@column	Lines/LINES_Starting_LinesTerminated	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' LINES
+1350	1350	engine	one_table@column	Starting/STARTING_BY_FieldTerminator	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' LINES STARTING BY 'binary'
+1350	1350	engine	one_table@column	LinesTerminated/TERMINATED_BY_FieldTerminator	CREATE VIEW _v AS SELECT * INTO OUTFILE 'binary' LINES TERMINATED BY 'binary'
+ok	1051	engine	one_table@column	ValuesStmtList/ValuesStmtList_,_RowStmt	CREATE VIEW _v AS VALUES ROW(), ROW()

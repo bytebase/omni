@@ -301,7 +301,7 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 		p.advance() // consume MODIFY
 		setAlterMviewAction(stmt, "MODIFY")
 		return p.parseAlterMviewModifyColumns()
-	case p.cur.Type == kwMODIFY && !p.atNextWord("SCOPE") && !p.isAlterTablePartitioningStart() && !p.atNextWord("LOB"):
+	case p.cur.Type == kwMODIFY && !p.atNextWord("SCOPE") && !p.isAlterTablePartitioningStart() && !p.isAlterMviewModifyLobStart():
 		// modify_mv_column_clause: the pinned server reads ALTER TABLE's
 		// MODIFY here (MODIFY a, MODIFY (a ENCRYPT), MODIFY (a datatype)),
 		// and checks the column after the parse (ORA-22858).
@@ -311,7 +311,7 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 			stmt.Modify = cmd
 		}
 		return err
-	case p.cur.Type == kwMODIFY && p.atNextWord("LOB"):
+	case p.isAlterMviewModifyLobStart():
 		setAlterMviewAction(stmt, "MODIFY_LOB")
 		for {
 			p.advance() // consume MODIFY
@@ -361,6 +361,11 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 		cmd, err := p.parseAlterTablePartitioning()
 		_ = cmd // the AST keeps no partition operation of a view
 		return err
+	case p.atWord("MOVE"), p.cur.Type == kwRENAME, p.cur.Type == kwSET:
+		// MOVE, RENAME and SET open partition operations on ALTER MATERIALIZED
+		// VIEW; Oracle consumes the verb before refusing what follows it.
+		p.advance()
+		return p.syntaxErrorAtCur()
 	case p.isATPhysicalAttrStart():
 		return p.parseAlterMviewPhysicalAttrs(stmt)
 	case p.isCreateTablePartitionCompressionStart():
@@ -909,6 +914,17 @@ func (p *Parser) isAlterMviewBareExtentOption() bool {
 		return false
 	}
 	return toks[2].Type == kwSIZE || isCreateTableWordTok(toks[2], "DATAFILE") || isCreateTableWordTok(toks[2], "INSTANCE")
+}
+
+// isAlterMviewModifyLobStart reports MODIFY LOB ( ... ), matching ALTER TABLE's
+// MODIFY LOB dispatch so a bare MODIFY LOB col_type falls through to column
+// modification.
+func (p *Parser) isAlterMviewModifyLobStart() bool {
+	if p.cur.Type != kwMODIFY || !p.atNextWord("LOB") {
+		return false
+	}
+	ahead := p.peekAhead(2)
+	return len(ahead) == 2 && ahead[1].Type == '('
 }
 
 // isAlterMviewPartitionRefused reports DROP, TRUNCATE or EXCHANGE of a

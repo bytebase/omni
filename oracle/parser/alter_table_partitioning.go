@@ -40,12 +40,14 @@ func (p *Parser) isAlterTablePartitioningStart() bool {
 		return true
 	case p.cur.Type == kwDROP, p.cur.Type == kwRENAME:
 		return next.Type == kwPARTITION || next.Type == kwSUBPARTITION
-	case p.atWord("MOVE"), p.atWord("SPLIT"), p.atWord("EXCHANGE"):
+	case p.atWord("MOVE"):
 		return next.Type == kwPARTITION || next.Type == kwSUBPARTITION
+	case p.atWord("EXCHANGE"):
+		return !p.alterMview || next.Type == kwPARTITION || next.Type == kwSUBPARTITION
+	case p.atWord("SPLIT"), p.atWord("MERGE"):
+		return true
 	case p.atWord("COALESCE"):
 		return next.Type == kwPARTITION
-	case p.atWord("MERGE"):
-		return p.atNextWord("PARTITIONS") || p.atNextWord("SUBPARTITIONS")
 	}
 	return false
 }
@@ -692,6 +694,9 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 	p.advance() // SPLIT
 	cmd.Action = nodes.AT_SPLIT_PARTITION
 	cmd.Subtype = "PARTITION"
+	if p.cur.Type != kwPARTITION && p.cur.Type != kwSUBPARTITION {
+		return p.syntaxErrorAtCur()
+	}
 	sub := p.cur.Type == kwSUBPARTITION
 	if sub {
 		cmd.Action = nodes.AT_SPLIT_SUBPARTITION
@@ -782,7 +787,7 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 		}
 		p.atOption(cmd.Options, start)
 	}
-	return p.parseATClauses(atcSplitMerge|atcFilter, cmd.Options)
+	return p.parseATClauses(atcSplitMerge|atcSplitFilter, cmd.Options)
 }
 
 // parseATSplitNestedTablePart reads split_nested_table_part:
@@ -847,6 +852,9 @@ func (p *Parser) parseATMergePartitions(cmd *nodes.AlterTableCmd) error {
 	p.advance() // MERGE
 	cmd.Action = nodes.AT_MERGE_PARTITIONS
 	cmd.Subtype = "PARTITIONS"
+	if !p.atWord("PARTITIONS") && !p.atWord("SUBPARTITIONS") {
+		return p.syntaxErrorAtCur()
+	}
 	sub := p.atWord("SUBPARTITIONS")
 	if sub {
 		cmd.Action = nodes.AT_MERGE_SUBPARTITIONS
@@ -902,6 +910,9 @@ func (p *Parser) parseATMergePartitions(cmd *nodes.AlterTableCmd) error {
 func (p *Parser) parseATExchangePartition(cmd *nodes.AlterTableCmd) error {
 	p.advance() // EXCHANGE
 	cmd.Action = nodes.AT_EXCHANGE_PARTITION
+	if p.cur.Type != kwPARTITION && p.cur.Type != kwSUBPARTITION {
+		return p.syntaxErrorAtCur()
+	}
 	cmd.Subtype = p.cur.Str
 	p.advance() // PARTITION | SUBPARTITION
 	name, err := p.parseATPartitionName()

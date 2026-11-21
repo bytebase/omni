@@ -290,6 +290,29 @@ func TestCheckFailsAnotherPin(t *testing.T) {
 	}
 }
 
+func TestCheckUsesPinRole(t *testing.T) {
+	s := suite(t, "", map[string]string{"A": Accept})
+	write(t, s.Pins, testPin+"\nmongosh\tgithub.com/mongodb-js/mongosh@abc\tsha256:def\tv2.0.0\n")
+	write(t, s.Path, "# pin: mongosh github.com/mongodb-js/mongosh@abc sha256:def v2.0.0\n"+columnsHeader+"\naccept\taccept\tdocs\tr/A\tA\n")
+	s.PinRole = "mongosh"
+
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("replay with PinRole=mongosh: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the default row does not affect a PinRole=mongosh suite.
+	write(t, s.Pins, "default\timg:2\tsha256:999\tv2\nmongosh\tgithub.com/mongodb-js/mongosh@abc\tsha256:def\tv2.0.0\n")
+	if rec := run(t, s); len(rec.errors) > 0 || rec.fatal != "" {
+		t.Fatalf("changing default pin broke PinRole=mongosh: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the mongosh row fails replay with a pin mismatch.
+	write(t, s.Pins, testPin+"\nmongosh\tgithub.com/mongodb-js/mongosh@xyz\tsha256:999\tv2.1.0\n")
+	if rec := run(t, s); !rec.failed("was recorded at pin") {
+		t.Errorf("changed PinRole row passed: %q %q", rec.errors, rec.fatal)
+	}
+}
+
 // judgeOf answers from a map, and counts what it was asked.
 func judgeOf(answers map[string]string, asked *[]string) func(testing.TB, enginetest.Pin) func(string) (string, error) {
 	return func(testing.TB, enginetest.Pin) func(string) (string, error) {

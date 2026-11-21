@@ -122,6 +122,57 @@ CREATE TABLE [fid_b].[children] (
 GO
 `,
 		},
+		{
+			name: "transitive-early-functions",
+			sql: `CREATE SCHEMA [fid_trans_fn];
+GO
+CREATE FUNCTION [fid_trans_fn].[inner_value]()
+RETURNS INT
+AS
+BEGIN
+    RETURN 1
+END
+GO
+CREATE FUNCTION [fid_trans_fn].[outer_value]()
+RETURNS INT
+AS
+BEGIN
+    RETURN [fid_trans_fn].[inner_value]()
+END
+GO
+CREATE TABLE [fid_trans_fn].[items] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [DF_items_v] DEFAULT ([fid_trans_fn].[outer_value]()),
+    CONSTRAINT [PK_items] PRIMARY KEY ([id])
+);
+GO
+`,
+		},
+		{
+			name: "schemabound-function-prerequisite-table",
+			sql: `CREATE SCHEMA [fid_sb_fn];
+GO
+CREATE TABLE [fid_sb_fn].[lookup] (
+    [id] INT NOT NULL,
+    CONSTRAINT [PK_lookup] PRIMARY KEY ([id])
+);
+GO
+CREATE FUNCTION [fid_sb_fn].[lookup_value]()
+RETURNS INT
+WITH SCHEMABINDING
+AS
+BEGIN
+    RETURN (SELECT ISNULL(MAX([id]), 0) FROM [fid_sb_fn].[lookup])
+END
+GO
+CREATE TABLE [fid_sb_fn].[items] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [DF_items_v] DEFAULT ([fid_sb_fn].[lookup_value]()),
+    CONSTRAINT [PK_items] PRIMARY KEY ([id])
+);
+GO
+`,
+		},
 	}
 }
 
@@ -240,9 +291,37 @@ func dropScript(snapshot *metadata.DatabaseSchemaMetadata) string {
 	var lines []string
 	schemas := slices.Clone(snapshot.Schemas)
 	slices.SortFunc(schemas, func(a, b *metadata.SchemaMetadata) int { return strings.Compare(a.Name, b.Name) })
+	hasFunctions := false
+	for _, schema := range schemas {
+		if len(schema.Functions) > 0 {
+			hasFunctions = true
+			break
+		}
+	}
+	if hasFunctions {
+		// Drop table defaults and check constraints before functions so
+		// functions referenced by defaults or checks can be dropped ahead of
+		// prerequisite tables (including schema-bound functions).
+		for _, schema := range schemas {
+			tables := slices.Clone(schema.Tables)
+			slices.SortFunc(tables, func(a, b *metadata.TableMetadata) int { return strings.Compare(a.Name, b.Name) })
+			for _, table := range tables {
+				for _, col := range table.Columns {
+					if col.Default != "" && col.DefaultConstraintName != "" {
+						lines = append(lines, fmt.Sprintf("ALTER TABLE [%s].[%s] DROP CONSTRAINT IF EXISTS [%s];", schema.Name, table.Name, col.DefaultConstraintName))
+					}
+				}
+				checks := slices.Clone(table.CheckConstraints)
+				slices.SortFunc(checks, func(a, b *metadata.CheckConstraintMetadata) int { return strings.Compare(a.Name, b.Name) })
+				for _, ck := range checks {
+					lines = append(lines, fmt.Sprintf("ALTER TABLE [%s].[%s] DROP CONSTRAINT IF EXISTS [%s];", schema.Name, table.Name, ck.Name))
+				}
+			}
+		}
+	}
 	for _, schema := range schemas {
 		views := slices.Clone(schema.Views)
-		slices.SortFunc(views, func(a, b *metadata.ViewMetadata) int { return strings.Compare(a.Name, b.Name) })
+		slices.SortFunc(views, func(a, b *metadata.ViewMetadata) int { return strings.Compare(b.Name, a.Name) })
 		for _, view := range views {
 			lines = append(lines, fmt.Sprintf("DROP VIEW IF EXISTS [%s].[%s];", schema.Name, view.Name))
 		}
@@ -393,4 +472,150 @@ func columnChangeFidelity(t *testing.T, sourceSQL, targetSQL string) {
 	got, err := catalog.DatabaseDefinition(filterTo(restored, target), catalog.DefinitionOptions{})
 	require.NoError(t, err)
 	require.Equal(t, want, got, "migration %q", plan.SQL())
+}
+
+// TestChangedFunctionCheckFidelity round-trips replacing a function called by
+// a CHECK constraint whose expression also changes on SQL Server 2022.
+func TestChangedFunctionCheckFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_fn_ck1];
+GO
+CREATE FUNCTION [fid_fn_ck1].[f]() RETURNS INT AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [fid_fn_ck1].[t] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [CK_t_v] CHECK ([fid_fn_ck1].[f]() = 1),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`, `CREATE SCHEMA [fid_fn_ck1];
+GO
+CREATE FUNCTION [fid_fn_ck1].[f]() RETURNS INT AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [fid_fn_ck1].[t] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [CK_t_v] CHECK ([fid_fn_ck1].[f]() = 2),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`)
+}
+
+// TestUnchangedFunctionCheckFidelity round-trips replacing a function called
+// by an unchanged CHECK constraint on SQL Server 2022.
+func TestUnchangedFunctionCheckFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_fn_ck2];
+GO
+CREATE FUNCTION [fid_fn_ck2].[f]() RETURNS INT AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [fid_fn_ck2].[t] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [CK_t_v] CHECK ([fid_fn_ck2].[f]() > 0),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`, `CREATE SCHEMA [fid_fn_ck2];
+GO
+CREATE FUNCTION [fid_fn_ck2].[f]() RETURNS INT AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [fid_fn_ck2].[t] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [CK_t_v] CHECK ([fid_fn_ck2].[f]() > 0),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`)
+}
+
+// TestSchemaBoundViewReplacedFunctionFidelity round-trips replacing a
+// schema-bound function called by nested schema-bound views on SQL Server 2022.
+func TestSchemaBoundViewReplacedFunctionFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_sb_view];
+GO
+CREATE FUNCTION [fid_sb_view].[f]() RETURNS INT WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [fid_sb_view].[v1] WITH SCHEMABINDING AS SELECT [fid_sb_view].[f]() AS [n];
+GO
+CREATE VIEW [fid_sb_view].[v2] WITH SCHEMABINDING AS SELECT [n] FROM [fid_sb_view].[v1];
+GO
+`, `CREATE SCHEMA [fid_sb_view];
+GO
+CREATE FUNCTION [fid_sb_view].[f]() RETURNS INT WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [fid_sb_view].[v1] WITH SCHEMABINDING AS SELECT [fid_sb_view].[f]() AS [n];
+GO
+CREATE VIEW [fid_sb_view].[v2] WITH SCHEMABINDING AS SELECT [n] FROM [fid_sb_view].[v1];
+GO
+`)
+}
+
+// TestSchemaBoundFunctionDroppedTableFidelity round-trips dropping a table and
+// the schema-bound function that reads it on SQL Server 2022.
+func TestSchemaBoundFunctionDroppedTableFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_sb_drop];
+GO
+CREATE TABLE [fid_sb_drop].[t] (
+    [id] INT NOT NULL,
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+CREATE FUNCTION [fid_sb_drop].[f]()
+RETURNS INT
+WITH SCHEMABINDING
+AS
+BEGIN
+    RETURN (SELECT MAX([id]) FROM [fid_sb_drop].[t])
+END;
+GO
+`, `CREATE SCHEMA [fid_sb_drop];
+GO
+`)
+}
+
+// TestDefaultAndTypeNormalizationFidelity proves that a desired-state script
+// using omitted type precision and unparenthesized defaults diffs cleanly
+// against the live snapshot SQL Server 2022 stores.
+func TestDefaultAndTypeNormalizationFidelity(t *testing.T) {
+	db := testcontainer.Open(t)
+	ctx := context.Background()
+	ddl := `CREATE SCHEMA [fid_norm];
+GO
+CREATE TABLE [fid_norm].[t] (
+    [id] INTEGER NOT NULL,
+    [n] INT NOT NULL CONSTRAINT [DF_t_n] DEFAULT (0),
+    [neg] INT NOT NULL CONSTRAINT [DF_t_neg] DEFAULT (-1),
+    [tag] VARCHAR(20) NOT NULL CONSTRAINT [DF_t_tag] DEFAULT 'active',
+    [label] NVARCHAR(20) NOT NULL CONSTRAINT [DF_t_label] DEFAULT N'hi',
+    [created_at] DATETIME2 NOT NULL CONSTRAINT [DF_t_created_at] DEFAULT GETDATE(),
+    [utc_at] DATETIME2 NOT NULL CONSTRAINT [DF_t_utc_at] DEFAULT (SYSUTCDATETIME()),
+    [offset_at] DATETIMEOFFSET NULL,
+    [at_time] TIME NULL,
+    [amount] DECIMAL NULL,
+    [whole] DECIMAL(10) NULL,
+    [num_default] NUMERIC NULL,
+    [num_prec] NUMERIC(12) NULL,
+    [ratio] FLOAT NULL,
+    [single_ratio] REAL NULL,
+    [flag] VARCHAR NULL,
+    [uflag] NVARCHAR NULL,
+    [code] CHAR NULL,
+    [ucode] NCHAR NULL,
+    [raw_b] BINARY NULL,
+    [var_b] VARBINARY NULL,
+    CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([id])
+);
+GO
+`
+	execScript(t, db, ddl)
+	stored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+
+	from := catalog.New()
+	require.NoError(t, from.LoadMetadata(ctx, filterTo(stored, &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{{Name: "fid_norm"}},
+	})))
+	to, err := catalog.LoadSQL(ddl)
+	require.NoError(t, err)
+
+	diff := catalog.Diff(from, to)
+	require.True(t, diff.IsEmpty(), "unexpected diff against live SQL Server snapshot: %s", catalog.GenerateMigration(from, to, diff).SQL())
 }

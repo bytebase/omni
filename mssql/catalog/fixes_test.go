@@ -1120,3 +1120,890 @@ func TestGetTableDefinition(t *testing.T) {
 		require.Contains(t, got, "sp_addextendedproperty")
 	})
 }
+
+func TestMigrationIgnoresFunctionNameInsideDefaultLiteral(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [DF_v] DEFAULT ('foo'), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [DF_v] DEFAULT ('foo'), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "DROP CONSTRAINT [DF_v]")
+}
+
+func TestMigrationReaddsComputedColumnCommentAfterRebuild(t *testing.T) {
+	commentRebuildMetadata := func(computedType string) *metadata.DatabaseSchemaMetadata {
+		return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "a", Type: "int", Nullable: true},
+					{Name: "c", Type: computedType, Nullable: true, Comment: "note"},
+				},
+				Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			}},
+		}}}
+	}
+	from := New()
+	require.NoError(t, from.LoadMetadata(context.Background(), commentRebuildMetadata("AS ([a] + 1) PERSISTED")))
+	to := New()
+	require.NoError(t, to.LoadMetadata(context.Background(), commentRebuildMetadata("AS ([a] + 2) PERSISTED")))
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP COLUMN [c]")
+	require.Contains(t, sql, "sp_addextendedproperty")
+}
+
+func TestMigrationScopesFunctionDefaultCleanupBySchema(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE SCHEMA [a];
+CREATE SCHEMA [b];
+GO
+CREATE FUNCTION [a].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE FUNCTION [b].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [b].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_v] DEFAULT ([b].[f]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE SCHEMA [b];
+GO
+CREATE FUNCTION [b].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [b].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_v] DEFAULT ([b].[f]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "DROP CONSTRAINT [DF_v]")
+}
+
+func TestDefinitionHoistsTransitiveFunctionDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[outer_value]())"},
+			},
+			Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+		}},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "outer_value", Definition: "CREATE FUNCTION [dbo].[outer_value]() RETURNS int AS BEGIN RETURN [dbo].[inner_value]() END"},
+			{Name: "inner_value", Definition: "CREATE FUNCTION [dbo].[inner_value]() RETURNS int AS BEGIN RETURN 1 END"},
+		},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	innerAt := strings.Index(def, "CREATE FUNCTION [dbo].[inner_value]")
+	outerAt := strings.Index(def, "CREATE FUNCTION [dbo].[outer_value]")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, innerAt, 0)
+	require.GreaterOrEqual(t, outerAt, 0)
+	require.GreaterOrEqual(t, tableAt, 0)
+	require.Less(t, innerAt, outerAt)
+	require.Less(t, outerAt, tableAt)
+}
+
+func TestDefinitionHoistsCrossSchemaTransitiveFunctionDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{
+		{
+			Name: "app",
+			Tables: []*metadata.TableMetadata{{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "v", Type: "int", Nullable: false, Default: "([app].[outer_value]())"},
+				},
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "outer_value",
+				Definition: "CREATE FUNCTION [app].[outer_value]() RETURNS int AS BEGIN RETURN [core].[inner_value]() END",
+			}},
+		},
+		{
+			Name: "core",
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "inner_value",
+				Definition: "CREATE FUNCTION [core].[inner_value]() RETURNS int AS BEGIN RETURN 1 END",
+			}},
+		},
+	}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	innerAt := strings.Index(def, "CREATE FUNCTION [core].[inner_value]")
+	outerAt := strings.Index(def, "CREATE FUNCTION [app].[outer_value]")
+	tableAt := strings.Index(def, "CREATE TABLE [app].[t]")
+	require.GreaterOrEqual(t, innerAt, 0)
+	require.Less(t, innerAt, outerAt)
+	require.Less(t, outerAt, tableAt)
+}
+
+func TestDefinitionOrdersSchemaBoundFunctionAfterPrerequisiteTable(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{
+			{
+				Name:    "lookup",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+				Indexes: []*metadata.IndexMetadata{{Name: "PK_lookup", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			},
+			{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[lookup_value]())"},
+				},
+				Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			},
+		},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "lookup_value",
+			Definition: "CREATE FUNCTION [dbo].[lookup_value]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([id]) FROM [dbo].[lookup]) END",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	lookupAt := strings.Index(def, "CREATE TABLE [dbo].[lookup]")
+	functionAt := strings.Index(def, "CREATE FUNCTION [dbo].[lookup_value]")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, lookupAt, 0)
+	require.Less(t, lookupAt, functionAt)
+	require.Less(t, functionAt, tableAt)
+	// CREATE FUNCTION must start a new batch after CREATE TABLE.
+	require.Contains(t, def[lookupAt:functionAt], "GO")
+}
+
+func TestDefinitionDefersCyclicSchemaBoundFunctionDefault(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[self_val]())", DefaultConstraintName: "DF_t_v"},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "self_val",
+			Definition: "CREATE FUNCTION [dbo].[self_val]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT ISNULL(MAX([id]), 0) FROM [dbo].[t]) END",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	fnAt := strings.Index(def, "CREATE FUNCTION [dbo].[self_val]")
+	alterAt := strings.Index(def, "ALTER TABLE [dbo].[t] ADD CONSTRAINT [DF_t_v] DEFAULT ([dbo].[self_val]()) FOR [v];")
+	require.GreaterOrEqual(t, tableAt, 0)
+	require.Less(t, tableAt, fnAt)
+	require.Less(t, fnAt, alterAt)
+}
+
+func TestExpressionsEqualNormalizesDefaultParenthesizationAndCase(t *testing.T) {
+	require.True(t, expressionsEqual("(0)", "((0))"))
+	require.True(t, expressionsEqual("0", "((0))"))
+	require.True(t, expressionsEqual("GETDATE()", "(getdate())"))
+	require.True(t, expressionsEqual("(SYSUTCDATETIME())", "(sysutcdatetime())"))
+	require.True(t, expressionsEqual("'active'", "('active')"))
+	require.True(t, expressionsEqual("N'hi'", "(N'hi')"))
+	require.True(t, expressionsEqual("-1", "((-1))"))
+
+	require.False(t, expressionsEqual("(0)", "(1)"))
+	require.False(t, expressionsEqual("'pending'", "'PENDING'"))
+	require.False(t, expressionsEqual("(1 + 2) * 3", "1 + 2 * 3"))
+	require.False(t, expressionsEqual("", "(0)"))
+}
+
+func TestTypesEqualNormalizesImplicitParameters(t *testing.T) {
+	require.True(t, typesEqual("datetime2", "datetime2(7)"))
+	require.True(t, typesEqual("datetimeoffset", "datetimeoffset(7)"))
+	require.True(t, typesEqual("time", "time(7)"))
+	require.True(t, typesEqual("decimal", "decimal(18, 0)"))
+	require.True(t, typesEqual("decimal(10)", "decimal(10,0)"))
+	require.True(t, typesEqual("dec(10)", "decimal(10, 0)"))
+	require.True(t, typesEqual("numeric", "numeric(18,0)"))
+	require.True(t, typesEqual("numeric(12)", "numeric(12, 0)"))
+	require.True(t, typesEqual("float", "float(53)"))
+	require.True(t, typesEqual("real", "real(24)"))
+	require.True(t, typesEqual("varchar", "varchar(1)"))
+	require.True(t, typesEqual("nvarchar", "nvarchar(1)"))
+	require.True(t, typesEqual("char", "char(1)"))
+	require.True(t, typesEqual("nchar", "nchar(1)"))
+	require.True(t, typesEqual("binary", "binary(1)"))
+	require.True(t, typesEqual("varbinary", "varbinary(1)"))
+	require.True(t, typesEqual("integer", "int"))
+
+	require.False(t, typesEqual("datetime2", "datetime2(3)"))
+	require.False(t, typesEqual("decimal(10,2)", "decimal(10,0)"))
+	require.False(t, typesEqual("varchar(1)", "varchar(20)"))
+	require.False(t, typesEqual("real", "float"))
+
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] datetime2 NULL);`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] datetime2(7) NULL);`)
+	require.NoError(t, err)
+	require.Empty(t, GenerateMigration(from, to, Diff(from, to)).SQL())
+}
+
+func TestMigrationReplacesFunctionUsedByChangedCheckConstraint(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() = 1));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() = 2));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	dropCheck := strings.Index(sql, "DROP CONSTRAINT [CK_t_v]")
+	dropFn := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createFn := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	addCheck := strings.Index(sql, "ADD CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() = 2)")
+	require.GreaterOrEqual(t, dropCheck, 0)
+	require.Less(t, dropCheck, dropFn)
+	require.Less(t, dropFn, createFn)
+	require.Less(t, createFn, addCheck)
+}
+
+func TestMigrationReplacesFunctionUsedByUnchangedCheckConstraint(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() > 0));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() > 0));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	dropCheck := strings.Index(sql, "DROP CONSTRAINT [CK_t_v]")
+	dropFn := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createFn := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	addCheck := strings.Index(sql, "ADD CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() > 0)")
+	require.GreaterOrEqual(t, dropCheck, 0)
+	require.Less(t, dropCheck, dropFn)
+	require.Less(t, dropFn, createFn)
+	require.Less(t, createFn, addCheck)
+}
+
+func TestMigrationRebuildsSchemaBoundViewsCallingReplacedFunction(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [n] FROM [dbo].[v1];
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [n] FROM [dbo].[v1];
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	dropV2 := strings.Index(sql, "DROP VIEW [dbo].[v2]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropFn := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createFn := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createV2 := strings.Index(sql, "CREATE VIEW [dbo].[v2]")
+	require.GreaterOrEqual(t, dropV2, 0)
+	require.Less(t, dropV2, dropV1)
+	require.Less(t, dropV1, dropFn)
+	require.Less(t, dropFn, createFn)
+	require.Less(t, createFn, createV1)
+	require.Less(t, createV1, createV2)
+}
+
+func TestMigrationDropsSchemaBoundFunctionBeforeDroppedTable(t *testing.T) {
+	t.Run("both function and table dropped", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([id]) FROM [dbo].[t]) END;
+`)
+		require.NoError(t, err)
+		to := New()
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		dropFn := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropTable := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropFn, 0)
+		require.Less(t, dropFn, dropTable)
+	})
+
+	t.Run("function kept still blocks table drop", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([id]) FROM [dbo].[t]) END;
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([id]) FROM [dbo].[t]) END;
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "DROP TABLE [dbo].[t]")
+	})
+}
+
+func TestDefinitionHoistsUnicodeFunctionDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "(dbo.外层函数())"},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "外层函数", Definition: "CREATE FUNCTION dbo.外层函数() RETURNS int AS BEGIN RETURN dbo.内层函数() END"},
+			{Name: "内层函数", Definition: "CREATE FUNCTION dbo.内层函数() RETURNS int AS BEGIN RETURN 1 END"},
+		},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	innerAt := strings.Index(def, "CREATE FUNCTION dbo.内层函数")
+	outerAt := strings.Index(def, "CREATE FUNCTION dbo.外层函数")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, innerAt, 0)
+	require.Less(t, innerAt, outerAt)
+	require.Less(t, outerAt, tableAt)
+}
+
+func TestMigrationRebuildsMixedSchemaBoundFunctionAndViewGraph(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [dbo].[g]() AS [m];
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [dbo].[g]() AS [m];
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+
+	dropV2 := strings.Index(sql, "DROP VIEW [dbo].[v2]")
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	createV2 := strings.Index(sql, "CREATE VIEW [dbo].[v2]")
+
+	require.GreaterOrEqual(t, dropV2, 0)
+	require.Less(t, dropV2, dropG)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+	require.Less(t, createG, createV2)
+}
+
+func TestDefinitionHandlesNestedBlockCommentsInFunctionDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[outer_fn]())"},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{
+			{
+				Name:       "outer_fn",
+				Definition: "CREATE FUNCTION [dbo].[outer_fn]() RETURNS int AS BEGIN RETURN /* outer /* inner */ don't remove */ [dbo].[inner_fn]() END",
+			},
+			{
+				Name:       "inner_fn",
+				Definition: "CREATE FUNCTION [dbo].[inner_fn]() RETURNS int AS BEGIN RETURN 1 END",
+			},
+		},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	innerAt := strings.Index(def, "CREATE FUNCTION [dbo].[inner_fn]")
+	outerAt := strings.Index(def, "CREATE FUNCTION [dbo].[outer_fn]")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, innerAt, 0)
+	require.Less(t, innerAt, outerAt)
+	require.Less(t, outerAt, tableAt)
+}
+
+func TestMigrationDropsScheduledCheckBeforeEarlyFunctionDrop(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[g]() = 1));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[g]() = 2));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [CK_t_v]"), sql)
+	dropCheck := strings.Index(sql, "DROP CONSTRAINT [CK_t_v]")
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	addCheck := strings.Index(sql, "ADD CONSTRAINT [CK_t_v] CHECK ([dbo].[g]() = 2)")
+	require.GreaterOrEqual(t, dropCheck, 0)
+	require.Less(t, dropCheck, dropG)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+	require.Less(t, createG, addCheck)
+}
+
+func TestMigrationGuardsRebuiltFunctionUsedByUnchangedComputedColumn(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE FUNCTION [dbo].[g](@x int) RETURNS int WITH SCHEMABINDING AS BEGIN RETURN @x + [dbo].[f]() END;
+GO
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([dbo].[g]([a])) PERSISTED);
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE FUNCTION [dbo].[g](@x int) RETURNS int WITH SCHEMABINDING AS BEGIN RETURN @x + [dbo].[f]() END;
+GO
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([dbo].[g]([a])) PERSISTED);
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "UNSUPPORTED")
+	require.Contains(t, sql, "computed column")
+	require.NotContains(t, sql, "DROP FUNCTION [dbo].[g]")
+	require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
+}
+
+func TestMigrationRebuildsSchemaBoundFunctionReadingAlteredView(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() + 1 AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP VIEW [dbo].[v1]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "CREATE VIEW [dbo].[v1]"), sql)
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	require.GreaterOrEqual(t, dropG, 0)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+}
+
+func TestMigrationDefersChangedDefaultCallingViewDependentFunction(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]() + 1), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_t_v]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [DF_t_v]"), sql)
+	dropDF := strings.Index(sql, "DROP CONSTRAINT [DF_t_v]")
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	addDF := strings.Index(sql, "ADD CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]() + 1) FOR [v]")
+	require.GreaterOrEqual(t, dropDF, 0)
+	require.Less(t, dropDF, dropG)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+	require.Less(t, createG, addDF)
+}
+
+func TestMigrationDeduplicatesRestoredAndDeferredViewDependentDefault(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_t_v]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [DF_t_v]"), sql)
+	require.Less(t, strings.Index(sql, "CREATE FUNCTION [dbo].[g]"), strings.Index(sql, "ADD CONSTRAINT [DF_t_v]"))
+}
+
+func TestDefinitionExcludesCTEReferenceFromTableDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "c", Type: "AS ([dbo].[cte_fn]([id])) PERSISTED", Nullable: true},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "cte_fn",
+			Definition: "CREATE FUNCTION [dbo].[cte_fn](@x int) RETURNS int WITH SCHEMABINDING AS BEGIN DECLARE @r int; WITH t AS (SELECT @x + 1 AS n) SELECT @r = n FROM t; RETURN @r END",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	fnAt := strings.Index(def, "CREATE FUNCTION [dbo].[cte_fn]")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, fnAt, 0)
+	require.Less(t, fnAt, tableAt)
+}
+
+func TestMigrationGuardsNewComputedColumnCallingViewDependentFunction(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [c] AS ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "UNSUPPORTED")
+	require.Contains(t, sql, "computed column")
+	require.NotContains(t, sql, "ADD [c] AS")
+}
+
+func TestMigrationDropsSchemaBoundFunctionWithComputedConsumerAndPrerequisiteTable(t *testing.T) {
+	t.Run("drops consumer table, function, and prerequisite table in order", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		dropU := strings.Index(sql, "DROP TABLE [dbo].[u]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropU, 0)
+		require.Less(t, dropU, dropF)
+		require.Less(t, dropF, dropT)
+	})
+
+	t.Run("rejects dropping prerequisite table when altered table retains computed column", func(t *testing.T) {
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [extra] int NULL, [c] AS ([dbo].[f]()), CONSTRAINT [PK_u] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "DROP TABLE [dbo].[t]")
+	})
+
+	t.Run("drops independent consumer table directly in cycle fallback", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "t",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int", Nullable: false},
+						{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[f]())", DefaultConstraintName: "DF_t_v"},
+					},
+					Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+				},
+				{
+					Name: "u",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int", Nullable: false},
+						{Name: "c", Type: "AS ([dbo].[f]())", Nullable: true},
+					},
+					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_u_c", Expression: "([c]>=(0))"}},
+					Indexes:          []*metadata.IndexMetadata{{Name: "PK_u", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+				},
+			},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END",
+			}},
+		}}}))
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "ALTER TABLE [dbo].[u] DROP COLUMN [c]")
+		dropU := strings.Index(sql, "DROP TABLE [dbo].[u]")
+		dropDF := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP CONSTRAINT [DF_t_v]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropU, 0)
+		require.Less(t, dropU, dropF)
+		require.GreaterOrEqual(t, dropDF, 0)
+		require.Less(t, dropDF, dropF)
+		require.Less(t, dropF, dropT)
+	})
+
+	t.Run("drops checks before computed column on bound table in cycle fallback", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "c", Type: "AS ([dbo].[f]())", Nullable: true},
+				},
+				CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_t_c", Expression: "([c]>=(0))"}},
+				Indexes:          []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG(*) FROM [dbo].[t]) END",
+			}},
+		}}}))
+		to, err := LoadSQL(``)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.NotContains(t, sql, "UNSUPPORTED")
+		dropCK := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP CONSTRAINT [CK_t_c]")
+		dropCol := strings.Index(sql, "ALTER TABLE [dbo].[t] DROP COLUMN [c]")
+		dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+		dropT := strings.Index(sql, "DROP TABLE [dbo].[t]")
+		require.GreaterOrEqual(t, dropCK, 0)
+		require.Less(t, dropCK, dropCol)
+		require.Less(t, dropCol, dropF)
+		require.Less(t, dropF, dropT)
+	})
+}
+
+func TestMigrationGuardsSkipDumpSchemaBoundConsumers(t *testing.T) {
+	t.Run("rejects replacing function called by SkipDump schema-bound view", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_skip",
+				Definition: "CREATE VIEW [dbo].[v_skip] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n]",
+				SkipDump:   true,
+			}},
+		}}}))
+		to := New()
+		require.NoError(t, to.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_skip",
+				Definition: "CREATE VIEW [dbo].[v_skip] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n]",
+				SkipDump:   true,
+			}},
+		}}}))
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.Contains(t, sql, "SkipDump")
+		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
+	})
+
+	t.Run("rejects replacing function called by SkipDump schema-bound function", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END",
+				},
+				{
+					Name:       "g_skip",
+					Definition: "CREATE FUNCTION [dbo].[g_skip]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN [dbo].[f]() END",
+					SkipDump:   true,
+				},
+			},
+		}}}))
+		to := New()
+		require.NoError(t, to.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END",
+				},
+				{
+					Name:       "g_skip",
+					Definition: "CREATE FUNCTION [dbo].[g_skip]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN [dbo].[f]() END",
+					SkipDump:   true,
+				},
+			},
+		}}}))
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.Contains(t, sql, "SkipDump")
+		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
+	})
+}
+
+func TestMigrationDefersFunctionReadingAlteredTableBeforeDependentCheck(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [a] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG([a]) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [v] int NOT NULL, CONSTRAINT [PK_u] PRIMARY KEY ([id]), CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 0));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [a] int NOT NULL, [b] int NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG([b]) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [v] int NOT NULL, CONSTRAINT [PK_u] PRIMARY KEY ([id]), CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 1));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	dropCK := strings.Index(sql, "DROP CONSTRAINT [CK_u_v]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	alterT := strings.Index(sql, "ALTER TABLE [dbo].[t] ADD [b] int NULL")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	addCK := strings.Index(sql, "ADD CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 1)")
+	require.GreaterOrEqual(t, dropCK, 0)
+	require.Less(t, dropCK, dropF)
+	require.Less(t, dropF, alterT)
+	require.Less(t, alterT, createF)
+	require.Less(t, createF, addCK)
+}

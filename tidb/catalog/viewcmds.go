@@ -22,10 +22,14 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	}
 	key := toLower(stmt.Name.Name)
 	// A view body is judged before the view's name is looked up on the Exec
-	// path: TiDB resolves the body's names first, so `CREATE VIEW a AS SELECT *`
-	// is 1051 for the star even when a table a exists (1050). A synced view's
-	// body is the engine's already, so it is not judged here.
+	// path: TiDB preprocesses the body (INTO clause, variables, duplicate CTEs)
+	// and resolves its stars first, so `CREATE VIEW a AS SELECT *` is 1051 for
+	// the star even when a table a exists (1050). A synced view's body is the
+	// engine's already, so it is not judged here.
 	if checkBody {
+		if err := checkViewBodyPreprocess(stmt.Select); err != nil {
+			return err
+		}
 		if err := checkViewBodyStar(stmt.Select, source); err != nil {
 			return err
 		}
@@ -74,6 +78,9 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 				SQLState: "HY000",
 				Message:  "View's SELECT contains a '?' (parameter marker)",
 			}
+		}
+		if err := c.checkViewBodySemantics(stmt.Select, c.viewBodyDatabase(db), source); err != nil {
+			return err
 		}
 		if err := c.checkViewSelectCollations(stmt.Select, c.viewBodyDatabase(db), nil); err != nil {
 			return err

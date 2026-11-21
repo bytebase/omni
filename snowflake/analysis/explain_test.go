@@ -22,6 +22,8 @@ func TestExplainStatement(t *testing.T) {
 		{"EXPLAIN SELECT 1", false, "EXPLAIN SELECT 1"},
 		{"EXPLAIN USING JSON SELECT 1", false, "EXPLAIN SELECT 1"},
 		{"EXPLAIN SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},
+		{"EXPLAIN USING TABULAR SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},
+		{"EXPLAIN USING JSON SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},
 		{"  explain select 1", false, "EXPLAIN select 1"},
 		// Empty statements around the one planned are left out.
 		{"; EXPLAIN SELECT 1", true, "EXPLAIN USING JSON SELECT 1"},

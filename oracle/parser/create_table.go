@@ -801,22 +801,21 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			p.advance() // consume DEFAULT
 			// DEFAULT ON NULL [ FOR INSERT ONLY ] expr
 			if p.cur.Type == kwON {
-				next := p.peekNext()
-				if next.Type == kwNULL {
-					p.advance() // consume ON
-					p.advance() // consume NULL
-					col.DefaultOnNull = true
-					// FOR INSERT ONLY
-					if p.cur.Type == kwFOR {
-						p.advance() // consume FOR
-						if err := p.expectCreateTableToken(kwINSERT); err != nil {
-							return err
-						}
-						if err := p.expectCreateTableWord("ONLY"); err != nil {
-							return err
-						}
-						col.DefaultOnNullInsertOnly = true
+				p.advance() // consume ON
+				if err := p.expectCreateTableToken(kwNULL); err != nil {
+					return err
+				}
+				col.DefaultOnNull = true
+				// FOR INSERT ONLY
+				if p.cur.Type == kwFOR {
+					p.advance() // consume FOR
+					if err := p.expectCreateTableToken(kwINSERT); err != nil {
+						return err
 					}
+					if err := p.expectCreateTableWord("ONLY"); err != nil {
+						return err
+					}
+					col.DefaultOnNullInsertOnly = true
 				}
 			}
 			var parseErr501 error
@@ -831,10 +830,6 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 
 		case kwAS:
 			// GENERATED ALWAYS is optional for Oracle virtual columns.
-			next := p.peekNext()
-			if next.Type != '(' {
-				return nil
-			}
 			p.advance() // consume AS
 			if err := p.parseVirtualColumnExpression(col); err != nil {
 				return err
@@ -857,10 +852,9 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				byDefault = true
 				// ON NULL
 				if p.cur.Type == kwON {
-					next := p.peekNext()
-					if next.Type == kwNULL {
-						p.advance() // consume ON
-						p.advance() // consume NULL
+					p.advance() // consume ON
+					if err := p.expectCreateTableToken(kwNULL); err != nil {
+						return err
 					}
 				}
 			}
@@ -884,7 +878,8 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 						Options: &nodes.List{},
 						Loc:     nodes.Loc{Start: col.Loc.Start},
 					}
-					// ( identity_options )
+					// ( identity_options ) or bare identity_options (Oracle accepts
+					// sequence options after AS IDENTITY without outer parens too).
 					if p.cur.Type == '(' {
 						p.advance()
 						parseErr502 := p.parseIdentityOptions(identity)
@@ -893,6 +888,11 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 						}
 						if err := p.expectCreateTableToken(')'); err != nil {
 							return err
+						}
+					} else if p.isIdentityOptionStart() {
+						parseErr502 := p.parseIdentityOptions(identity)
+						if parseErr502 != nil {
+							return parseErr502
 						}
 					}
 					identity.Loc.End = p.prev.End
@@ -1325,7 +1325,9 @@ func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
 }
 
 func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
-	p.advance() // consume '('
+	if err := p.expectCreateTableToken('('); err != nil {
+		return err
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return err
@@ -1371,11 +1373,27 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
 	switch {
 	case p.isKeywordStr("SALT"):
 		p.advance()
-	case p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "SALT"):
+	case p.isKeywordStr("NO"):
 		p.advance() // consume NO
-		p.advance() // consume SALT
+		if err := p.expectCreateTableWord("SALT"); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// isIdentityOptionStart reports whether the current token starts an
+// identity_options keyword (for bare identity options without outer parens).
+func (p *Parser) isIdentityOptionStart() bool {
+	if !p.isIdentLike() || p.cur.Type == tokQIDENT {
+		return false
+	}
+	switch p.cur.Str {
+	case "START", "INCREMENT", "MAXVALUE", "MINVALUE", "CACHE",
+		"NOMAXVALUE", "NOMINVALUE", "CYCLE", "NOCYCLE", "NOCACHE", "ORDER", "NOORDER":
+		return true
+	}
+	return false
 }
 
 // parseIdentityOptions parses identity column options inside parentheses.
@@ -1862,14 +1880,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 	for {
 		switch p.cur.Type {
 		case kwTABLESPACE:
-			p.advance()
-			var // consume TABLESPACE
-			parseErr538 error
+			p.advance() // consume TABLESPACE
+			var parseErr538 error
 			stmt.Tablespace, parseErr538 = p.parseIdentifier()
 			if parseErr538 != nil {
-
-				// ON COMMIT { PRESERVE | DELETE } ROWS
 				return parseErr538
+			}
+			if stmt.Tablespace == "" {
+				return p.syntaxErrorAtCur()
 			}
 
 		case kwON:
@@ -1978,40 +1996,61 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 			}
 
 		case kwROW:
-			// ROW STORE COMPRESS [ BASIC | ADVANCED ]
-			next := p.peekNext()
-			if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "STORE" {
-				p.advance() // consume ROW
-				p.advance() // consume STORE
-				if p.cur.Type == kwCOMPRESS {
-					p.advance() // consume COMPRESS
-					stmt.Compress = "ROW STORE COMPRESS"
-					if p.isIdentLikeStr("BASIC") || p.isIdentLikeStr("ADVANCED") {
-						stmt.Compress += " " + p.cur.Str
-						p.advance()
-					}
+			// ROW STORE [ COMPRESS [ BASIC | ADVANCED ] ]
+			p.advance() // consume ROW
+			if err := p.expectCreateTableWord("STORE"); err != nil {
+				return err
+			}
+			if p.cur.Type == kwCOMPRESS {
+				p.advance() // consume COMPRESS
+				stmt.Compress = "ROW STORE COMPRESS"
+				if p.isIdentLikeStr("BASIC") || p.isIdentLikeStr("ADVANCED") {
+					stmt.Compress += " " + p.cur.Str
+					p.advance()
 				}
-			} else {
-				return nil
 			}
 
 		case kwREAD:
 			// READ ONLY | READ WRITE
-			next := p.peekNext()
-			if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "ONLY" {
-				p.advance() // consume READ
+			p.advance() // consume READ
+			if p.isIdentLikeStr("ONLY") {
 				p.advance() // consume ONLY
 				stmt.ReadOnly = "READ ONLY"
-			} else if next.Type == kwWRITE {
-				p.advance() // consume READ
+			} else if p.cur.Type == kwWRITE {
 				p.advance() // consume WRITE
 				stmt.ReadOnly = "READ WRITE"
 			} else {
-				return nil
+				return p.syntaxErrorAtCur()
 			}
 
+		case kwJSON:
+			optStart := p.pos()
+			p.advance() // consume JSON
+			if err := p.parseCreateTableColumnNames(); err != nil {
+				return err
+			}
+			if p.isKeywordStr("STORE") {
+				p.advance()
+			}
+			if err := p.expectCreateTableToken(kwAS); err != nil {
+				return err
+			}
+			if p.cur.Type == '(' {
+				if err := p.parseCreateTableLobStorageParameters(); err != nil {
+					return err
+				}
+			} else if p.isCreateTableNameStart() && !p.isCreateTableOptionBoundary() {
+				p.advance() // consume LOB_segname
+				if p.cur.Type == '(' {
+					if err := p.parseCreateTableLobStorageParameters(); err != nil {
+						return err
+					}
+				}
+			}
+			appendCreateTableOption(stmt, "JSON", p.createTableOptionValue(optStart+len("JSON")), nodes.Loc{Start: optStart, End: p.prev.End})
+
 		case kwENABLE:
-			// ENABLE ROW MOVEMENT or ENABLE VALIDATE/NOVALIDATE constraint
+			// ENABLE ROW MOVEMENT, ENABLE LOGICAL REPLICATION, or ENABLE constraint
 			next := p.peekNext()
 			if next.Type == kwROW {
 				p.advance() // consume ENABLE
@@ -2020,6 +2059,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 					return err
 				}
 				stmt.RowMovement = "ENABLE"
+			} else if isCreateTableWordTok(next, "LOGICAL") {
+				optStart := p.pos()
+				p.advance() // consume ENABLE
+				p.advance() // consume LOGICAL
+				if err := p.expectCreateTableWord("REPLICATION"); err != nil {
+					return err
+				}
+				appendCreateTableOption(stmt, "ENABLE LOGICAL REPLICATION", "", nodes.Loc{Start: optStart, End: p.prev.End})
 			} else {
 				p.createTableEngineCheck = true
 				parseErr542 :=
@@ -2039,6 +2086,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 					return err
 				}
 				stmt.RowMovement = "DISABLE"
+			} else if isCreateTableWordTok(next, "LOGICAL") {
+				optStart := p.pos()
+				p.advance() // consume DISABLE
+				p.advance() // consume LOGICAL
+				if err := p.expectCreateTableWord("REPLICATION"); err != nil {
+					return err
+				}
+				appendCreateTableOption(stmt, "DISABLE LOGICAL REPLICATION", "", nodes.Loc{Start: optStart, End: p.prev.End})
 			} else {
 				p.createTableEngineCheck = true
 				parseErr543 := p.parseEnableDisableClause()
@@ -2199,6 +2254,12 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						return err
 					}
 					appendCreateTableOption(stmt, "LOB", p.createTableOptionValue(optStart+len("LOB")), nodes.Loc{Start: optStart, End: p.prev.End})
+				case "XMLTYPE":
+					optStart := p.pos()
+					if err := p.parseATXMLTypeColumnProperties(); err != nil {
+						return err
+					}
+					appendCreateTableOption(stmt, "XMLTYPE", p.createTableOptionValue(optStart+len("XMLTYPE")), nodes.Loc{Start: optStart, End: p.prev.End})
 				case "VARRAY":
 					optStart := p.pos()
 					if err := p.parseCreateTableVarrayColProperties(hasColumns); err != nil {
@@ -2325,7 +2386,7 @@ func (p *Parser) collectCreateTableOptionValue() string {
 
 func (p *Parser) isCreateTableOptionBoundary() bool {
 	switch p.cur.Type {
-	case ';', tokEOF, kwAS, kwCACHE, kwDISABLE, kwENABLE, kwFLASHBACK, kwLOGGING,
+	case ';', tokEOF, kwAS, kwCACHE, kwDISABLE, kwENABLE, kwFLASHBACK, kwJSON, kwLOGGING,
 		kwNOLOGGING, kwON, kwPARALLEL, kwNOPARALLEL, kwPARTITION, kwREAD,
 		kwRESULT_CACHE, kwTABLESPACE:
 		return true
@@ -2337,7 +2398,7 @@ func (p *Parser) isCreateTableOptionBoundary() bool {
 			"MONITORING", "NESTED", "NO", "NOCACHE", "NOMAPPING", "NOMONITORING",
 			"NOROWDEPENDENCIES", "ORGANIZATION", "OVERFLOW", "PCTFREE", "PCTUSED",
 			"REJECT", "ROWDEPENDENCIES", "SEGMENT", "STORAGE", "SUPPLEMENTAL",
-			"VARRAY":
+			"VARRAY", "XMLTYPE":
 			return true
 		}
 	}

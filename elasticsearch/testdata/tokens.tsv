@@ -1,0 +1,10 @@
+# Token forms for elasticsearch/testdata/ElasticsearchConsole.g4.
+# Each row cites Kibana Dev Console's HTTP methods (elasticsearch/parser/parser.go
+# method()) and elastic/elasticsearch-specification (8.19).
+# columns: token, form, note
+GET	GET	Kibana Dev Console HTTP method (parser.go method)
+POST	POST	Kibana Dev Console HTTP method (parser.go method)
+PUT	PUT	Kibana Dev Console HTTP method (parser.go method)
+DELETE	DELETE	Kibana Dev Console HTTP method (parser.go method)
+HEAD	HEAD	Kibana Dev Console HTTP method (parser.go method)
+PATCH	PATCH	Kibana Dev Console HTTP method (parser.go method)

@@ -58,6 +58,9 @@ var Pins = func() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
 }()
 
+// Default is the pin row of the server redis/parser's compat.tsv is judged on.
+const Default = "default"
+
 // Driver is the pin row of the server the driver's tapes were recorded on.
 const Driver = "driver"
 
@@ -1056,16 +1059,94 @@ func checkDigest(ctx context.Context, container testcontainers.Container, digest
 	return fmt.Errorf("the Redis container runs an image with digests %v, but pins.tsv pins %s", image.RepoDigests, digest)
 }
 
-// Terminate removes the server this run started, so a recording leaves no
+// judgeServer holds the standalone Redis container used by compat.tsv judging
+// (OMNI_RECORD=1 or OMNI_RECORD=verify). Kept apart from liveServer so driver
+// tests keep their cluster-enabled server and parser judging starts in <1s.
+var judgeServer struct {
+	once      sync.Once
+	pin       enginetest.Pin
+	container testcontainers.Container
+	addr      string
+	err       error
+}
+
+// Judge returns a standalone *redis.Client connected to the pinned Redis server
+// named by pin, for judging compat.tsv. It runs only in a recording or
+// verification (OMNI_RECORD=1 or OMNI_RECORD=verify); a replay reaches no server.
+func Judge(t testing.TB, pin enginetest.Pin) *redis.Client {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	judgeServer.once.Do(func() {
+		judgeServer.pin = pin
+		judgeServer.container, judgeServer.addr, judgeServer.err = startStandalone(context.Background(), pin)
+	})
+	if judgeServer.err != nil {
+		t.Fatalf("start Redis judge: %v", judgeServer.err)
+	}
+	if judgeServer.pin != pin {
+		t.Fatalf("this run started Redis judge at %s, not %s", judgeServer.pin, pin)
+	}
+	client := redis.NewClient(&redis.Options{
+		Addr:     judgeServer.addr,
+		Protocol: 2,
+	})
+	t.Cleanup(func() { _ = client.Close() })
+	return client
+}
+
+// startStandalone starts a standalone pinned Redis server and checks its image
+// digest and reported redis_version.
+func startStandalone(ctx context.Context, pin enginetest.Pin) (container testcontainers.Container, addr string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("docker provider panic: %v", r)
+		}
+	}()
+	container, err = testcontainers.Run(ctx, pin.ImageRef(),
+		testcontainers.WithCmd("redis-server", "--save", "", "--appendonly", "no"),
+		testcontainers.WithExposedPorts("6379/tcp"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("Ready to accept connections").WithStartupTimeout(startupTimeout)),
+	)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := checkDigest(ctx, container, pin.Digest); err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
+	}
+	port, err := container.MappedPort(ctx, "6379/tcp")
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
+	}
+	host, err := container.Host(ctx)
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
+	}
+	addr = net.JoinHostPort(host, port.Port())
+	if err := checkVersion(ctx, addr, pin.Tag); err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, "", err
+	}
+	return container, addr, nil
+}
+
+// Terminate removes any server this run started, so a recording leaves no
 // container behind even when the reaper is disabled.
 func Terminate() {
-	if liveServer.container == nil {
-		return
+	if liveServer.container != nil {
+		liveServer.mu.Lock()
+		for _, client := range liveServer.clients {
+			_ = client.Close()
+		}
+		liveServer.mu.Unlock()
+		_ = testcontainers.TerminateContainer(liveServer.container)
 	}
-	liveServer.mu.Lock()
-	for _, client := range liveServer.clients {
-		_ = client.Close()
+	if judgeServer.container != nil {
+		_ = testcontainers.TerminateContainer(judgeServer.container)
 	}
-	liveServer.mu.Unlock()
-	_ = testcontainers.TerminateContainer(liveServer.container)
 }
