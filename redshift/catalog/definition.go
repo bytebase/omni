@@ -295,6 +295,10 @@ func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int 
 	if c == nil || len(c.entries) == 0 {
 		return nil
 	}
+	if call.schema == "" && hasMatchingBuiltinProc(call.name, call.argTypes) {
+		// Redshift searches pg_catalog before search_path for unqualified calls.
+		return nil
+	}
 	var candidates []int
 	if call.schema != "" {
 		candidates = c.byName[objectKey(call.schema, call.name)]
@@ -304,6 +308,32 @@ func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int 
 		candidates = c.byName[objectKey("public", call.name)]
 	}
 	return resolveFunctionOverload(c.entries, candidates, call.argTypes)
+}
+
+func redshiftTypeCompatScore(argType, paramType string) (int, bool) {
+	if argType == "" || paramType == "" {
+		return 0, true
+	}
+	if argType == "unknown_str" {
+		switch paramType {
+		case "varchar":
+			return 2, true
+		case "bpchar":
+			return 1, true
+		default:
+			return 0, false
+		}
+	}
+	if paramType == argType {
+		return 2, true
+	}
+	if argType == "bpchar" && paramType == "varchar" {
+		return 1, true
+	}
+	if argRank, paramRank := numericTypeRank(argType), numericTypeRank(paramType); argRank > 0 && paramRank >= argRank {
+		return 1, true
+	}
+	return 0, false
 }
 
 func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []string) []int {
@@ -337,21 +367,12 @@ func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []s
 		score := 0
 		compatible := true
 		for i, argType := range argTypes {
-			if argType == "" {
-				continue
-			}
-			paramType := fns[idx].params[i].typeName
-			if paramType == "" {
-				continue
-			}
-			if paramType == argType {
-				score += 2
-			} else if argRank, paramRank := numericTypeRank(argType), numericTypeRank(paramType); argRank > 0 && paramRank >= argRank {
-				score++
-			} else {
+			s, ok := redshiftTypeCompatScore(argType, fns[idx].params[i].typeName)
+			if !ok {
 				compatible = false
 				break
 			}
+			score += s
 		}
 		if !compatible {
 			continue
@@ -364,10 +385,6 @@ func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []s
 		}
 	}
 	return best
-}
-
-func isNumericType(t string) bool {
-	return numericTypeRank(t) > 0
 }
 
 func numericTypeRank(t string) int {
@@ -405,8 +422,10 @@ func normalizeTypeAlias(name string) string {
 		return "float8"
 	case "boolean", "bool":
 		return "bool"
-	case "varchar", "character varying", "text", "char", "character", "bpchar", "nvarchar":
-		return "text"
+	case "char", "character", "bpchar", "nchar":
+		return "bpchar"
+	case "varchar", "character varying", "text", "nvarchar":
+		return "varchar"
 	default:
 		return strings.ToLower(name)
 	}
@@ -630,6 +649,34 @@ func initBuiltinCatalog() {
 	})
 }
 
+func hasMatchingBuiltinProc(name string, argTypes []string) bool {
+	initBuiltinCatalog()
+	procs := builtinProcsByName[strings.ToLower(name)]
+	for _, p := range procs {
+		if int(p.NArgs) != len(argTypes) || len(p.ArgTypes) != len(argTypes) {
+			continue
+		}
+		compatible := true
+		for i, argType := range argTypes {
+			if argType == "" {
+				continue
+			}
+			paramType := builtinTypeByOID[p.ArgTypes[i]]
+			if paramType == "" || strings.HasPrefix(paramType, "any") {
+				continue
+			}
+			if _, ok := redshiftTypeCompatScore(argType, paramType); !ok {
+				compatible = false
+				break
+			}
+		}
+		if compatible {
+			return true
+		}
+	}
+	return false
+}
+
 func resolveBuiltinProcReturnType(schema, name string, argTypes []string) string {
 	if schema != "" && !strings.EqualFold(schema, "pg_catalog") {
 		return ""
@@ -656,14 +703,12 @@ func resolveBuiltinProcReturnType(schema, name string, argTypes []string) string
 			if paramType == "" || strings.HasPrefix(paramType, "any") {
 				continue
 			}
-			if paramType == argType {
-				score += 2
-			} else if isNumericType(argType) && isNumericType(paramType) {
-				score++
-			} else {
+			s, ok := redshiftTypeCompatScore(argType, paramType)
+			if !ok {
 				compatible = false
 				break
 			}
+			score += s
 		}
 		if !compatible {
 			continue
@@ -770,7 +815,7 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 		case *nodes.Float:
 			return "numeric"
 		case *nodes.String:
-			return "text"
+			return "unknown_str"
 		case *nodes.Boolean:
 			return "bool"
 		}
@@ -813,7 +858,7 @@ func inferExprType(node nodes.Node, callerSchema string, callerParams []function
 		case "=", "<>", "!=", "<", "<=", ">", ">=", "~", "~*", "!~", "!~*":
 			return "bool"
 		case "||":
-			return "text"
+			return "varchar"
 		case "+", "-", "*", "/", "%", "^":
 			if n.Lexpr == nil {
 				return inferExprType(n.Rexpr, callerSchema, callerParams, fnCat)
@@ -1002,16 +1047,19 @@ func scanCallRefs(body string) []functionCall {
 }
 
 func writeWithSchemaSearchPath(w io.StringWriter, schemaName, body string) error {
-	needsPath := schemaName != "" && schemaName != "public"
-	if needsPath {
-		if _, err := w.WriteString(fmt.Sprintf("SET search_path TO %s, public;\n", quoteDefinitionIdentifier(schemaName))); err != nil {
+	if schemaName != "" {
+		path := quoteDefinitionIdentifier(schemaName)
+		if schemaName != "public" {
+			path += ", public"
+		}
+		if _, err := w.WriteString(fmt.Sprintf("SET search_path TO %s;\n", path)); err != nil {
 			return err
 		}
 	}
 	if _, err := w.WriteString(body); err != nil {
 		return err
 	}
-	if needsPath {
+	if schemaName != "" {
 		if _, err := w.WriteString("RESET search_path;\n"); err != nil {
 			return err
 		}

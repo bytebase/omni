@@ -892,4 +892,18 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.tz_caller()"), strings.Index(tzAndChar, "CREATE FUNCTION s.tz_fn(t timestamp)"))
 	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(v varchar)"), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("))
 	assert.Less(t, strings.Index(tzAndChar, "CREATE FUNCTION s.chr_caller("), strings.Index(tzAndChar, "CREATE FUNCTION s.chr_fn(c char)"))
+
+	// FunctionMetadata.Signature parameter type mismatches fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "sig_fn",
+				Signature:  "(bigint)",
+				Definition: "CREATE FUNCTION s.sig_fn(v varchar) RETURNS varchar RETURN v",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "signature")
 }

@@ -169,13 +169,14 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 	mismatch := func() error {
 		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fn.Name, declName.String())
 	}
+	def := fn.Definition
 	switch len(parts) {
 	case 1:
 		if !strings.EqualFold(parts[0].Value, fn.Name) {
 			return "", mismatch()
 		}
 		if schemaName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
-			return fn.Definition[:declName.Loc.Start] + quoteIdentifier(schemaName) + "." + fn.Definition[declName.Loc.Start:], nil
+			def = fn.Definition[:declName.Loc.Start] + quoteIdentifier(schemaName) + "." + fn.Definition[declName.Loc.Start:]
 		}
 	case 2:
 		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
@@ -190,7 +191,44 @@ func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.Fu
 	default:
 		return "", mismatch()
 	}
-	return fn.Definition, nil
+	if err := validateTrinoFunctionSignature(schemaName, fn.Name, fn.Signature, cfs.Spec.Declaration.Parameters); err != nil {
+		return "", err
+	}
+	return def, nil
+}
+
+func validateTrinoFunctionSignature(schemaName, fnName, signature string, declParams []trinoparser.ParameterDeclaration) error {
+	sig := strings.TrimSpace(signature)
+	if sig == "" {
+		return nil
+	}
+	if open := strings.IndexByte(sig, '('); open >= 0 {
+		close := strings.LastIndexByte(sig, ')')
+		if close <= open {
+			return fmt.Errorf("function %s.%s metadata signature %q is malformed", schemaName, fnName, signature)
+		}
+		sig = strings.TrimSpace(sig[open+1 : close])
+	}
+	sigFile, err := trinoparser.Parse("CREATE FUNCTION _sig(" + sig + ") RETURNS int RETURN 1")
+	if err != nil || sigFile == nil || len(sigFile.Stmts) != 1 {
+		return nil
+	}
+	sigStmt, ok := sigFile.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	if !ok {
+		return nil
+	}
+	sigParams := sigStmt.Spec.Declaration.Parameters
+	if len(sigParams) != len(declParams) {
+		return fmt.Errorf("function %s.%s definition parameter count (%d) does not match signature %q", schemaName, fnName, len(declParams), signature)
+	}
+	for i := range sigParams {
+		st := normalizeTrinoDataType(sigParams[i].Type)
+		dt := normalizeTrinoDataType(declParams[i].Type)
+		if st != "" && dt != "" && st != dt {
+			return fmt.Errorf("function %s.%s parameter %d type %q does not match signature %q", schemaName, fnName, i+1, dt, signature)
+		}
+	}
+	return nil
 }
 
 func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {

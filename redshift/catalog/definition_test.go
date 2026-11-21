@@ -1452,6 +1452,64 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Indexes: []*metadatapb.IndexMetadata{{Name: "idx_t_id", Expressions: []string{"id"}}},
 	})
 	require.ErrorContains(t, err, "secondary index")
+
+	// pg_catalog precedes local UDFs for same-signature unqualified calls.
+	builtinPrec, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x int4) RETURNS int4 IMMUTABLE AS $$ SELECT s.builtin_caller(x) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "builtin_caller",
+					Definition: "CREATE FUNCTION s.builtin_caller(n int4) RETURNS int4 IMMUTABLE AS $$ SELECT abs(n) $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(builtinPrec, "CREATE FUNCTION s.builtin_caller("), strings.Index(builtinPrec, "CREATE FUNCTION s.abs("))
+
+	// public schema functions and procedures set/reset search_path too.
+	require.Contains(t, builtinPrec, "SET search_path TO \"s\", public;\nCREATE FUNCTION s.builtin_caller")
+	pubProcOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p_pub",
+				Definition: "CREATE PROCEDURE p_pub() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, pubProcOut, "SET search_path TO \"public\";\nCREATE PROCEDURE p_pub()")
+	require.Contains(t, pubProcOut, "RESET search_path;\n")
+
+	// CHAR (bpchar) stays distinct from VARCHAR so VARCHAR args do not match CHAR overloads.
+	charVsVarchar, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "str_fn",
+					Definition: "CREATE FUNCTION s.str_fn(c char(4)) RETURNS varchar IMMUTABLE AS $$ SELECT s.str_wrap('ok'::varchar) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "str_wrap",
+					Definition: "CREATE FUNCTION s.str_wrap(v varchar) RETURNS varchar IMMUTABLE AS $$ SELECT s.str_fn(v) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "str_fn",
+					Definition: "CREATE FUNCTION s.str_fn(v varchar) RETURNS varchar IMMUTABLE AS $$ SELECT v $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(v varchar)"), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("))
+	require.Less(t, strings.Index(charVsVarchar, "CREATE FUNCTION s.str_wrap("), strings.Index(charVsVarchar, "CREATE FUNCTION s.str_fn(c char(4))"))
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
