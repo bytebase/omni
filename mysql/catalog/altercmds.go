@@ -521,6 +521,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	applyAlterColumnChangesToIndexes(strippedGen, stmt.Commands)
 	restoreGeneratedFKIndexes(tbl, strippedGen)
 	if err := c.validateDroppedIndexesForFK(tbl, droppedIndexes); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
@@ -793,6 +794,63 @@ func alterExplicitIndexTargets(commands []*nodes.AlterTableCmd) map[string]bool 
 		}
 	}
 	return targets
+}
+
+// applyAlterColumnChangesToIndexes applies column renames and drops from
+// commands to indexes that were temporarily stripped during ALTER TABLE so
+// restored FK backing indexes stay consistent with the table's final columns.
+func applyAlterColumnChangesToIndexes(indexes []*Index, commands []*nodes.AlterTableCmd) {
+	if len(indexes) == 0 {
+		return
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATDropColumn:
+			dropKey := toLower(cmd.Name)
+			for _, idx := range indexes {
+				if idx == nil {
+					continue
+				}
+				kept := idx.Columns[:0]
+				for _, ic := range idx.Columns {
+					if ic != nil && toLower(ic.Name) != dropKey {
+						kept = append(kept, ic)
+					}
+				}
+				idx.Columns = kept
+			}
+		case nodes.ATRenameColumn:
+			oldKey := toLower(cmd.Name)
+			for _, idx := range indexes {
+				if idx == nil {
+					continue
+				}
+				for _, ic := range idx.Columns {
+					if ic != nil && toLower(ic.Name) == oldKey {
+						ic.Name = cmd.NewName
+					}
+				}
+			}
+		case nodes.ATChangeColumn:
+			if cmd.Column == nil || cmd.Column.Name == "" {
+				continue
+			}
+			oldKey := toLower(cmd.Name)
+			for _, idx := range indexes {
+				if idx == nil {
+					continue
+				}
+				for _, ic := range idx.Columns {
+					if ic != nil && toLower(ic.Name) == oldKey {
+						ic.Name = cmd.Column.Name
+					}
+				}
+			}
+		}
+	}
 }
 
 // tableHasFKAfterAlter reports whether tbl participates in any foreign key

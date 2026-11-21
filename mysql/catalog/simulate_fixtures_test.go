@@ -287,5 +287,30 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 		if !indexNameExists(tbl6, "idx_new") {
 			t.Errorf("expected idx_new index present")
 		}
+
+		// RENAME COLUMN on FK column + unrelated ADD KEY updates the restored backing index column name.
+		c7 := setup(t)
+		mustExec(t, c7, "ALTER TABLE child RENAME COLUMN pid TO pid2, ADD KEY idx_other (d)")
+		tbl7 := c7.GetDatabase("d").GetTable("child")
+		var renamedIdx *Index
+		for _, idx := range tbl7.Indexes {
+			if idx.Name == "fk_pid" {
+				renamedIdx = idx
+			}
+		}
+		if renamedIdx == nil || len(renamedIdx.Columns) != 1 || renamedIdx.Columns[0].Name != "pid2" {
+			t.Fatalf("expected restored fk_pid index on pid2, got %+v", renamedIdx)
+		}
+		if !renamedIdx.Generated {
+			t.Errorf("restored fk_pid index should remain Generated while FK survives")
+		}
+
+		// DROP FOREIGN KEY + DROP COLUMN + unrelated ADD KEY does not restore an index on the dropped column.
+		c8 := setup(t)
+		mustExec(t, c8, "ALTER TABLE child DROP FOREIGN KEY fk_pid, DROP COLUMN pid, ADD KEY idx_other (d)")
+		tbl8 := c8.GetDatabase("d").GetTable("child")
+		if indexNameExists(tbl8, "fk_pid") {
+			t.Errorf("expected fk_pid index dropped when its column pid is dropped")
+		}
 	})
 }
