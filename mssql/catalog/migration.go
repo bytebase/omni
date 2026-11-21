@@ -64,6 +64,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	rebuiltFunctions, rebuiltViews := rebuiltSchemaBoundDependencies(from, to, diff)
 	allFunctionDrops := collectFunctionDrops(diff, rebuiltFunctions)
 	allFunctionCreates := collectFunctionCreates(diff, rebuiltFunctions)
+	viewsToDrop := collectViewsToDrop(diff, rebuiltViews)
+	earlyFuncDrops, remainingFuncDrops := splitFunctionsBeforeViewDrops(allFunctionDrops, viewsToDrop)
+	if msg := blockingFunctionComputedColumn(from, diff, earlyFuncDrops, remainingFuncDrops); msg != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: function %s; drop and recreate the computed column manually.\n", msg)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	hasViewsToCreate := hasCreateViews(diff) || len(rebuiltViews) > 0
 	hasFunctionsToCreate := hasCreateFunctions(diff) || len(rebuiltFunctions) > 0
 
@@ -114,8 +120,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	droppedChecks := make(map[string]bool)
 	var restoreFunctionChecks []functionCheckRef
 
-	viewsToDrop := collectViewsToDrop(diff, rebuiltViews)
-	earlyFuncDrops, remainingFuncDrops := splitFunctionsBeforeViewDrops(allFunctionDrops, viewsToDrop)
 	if len(earlyFuncDrops) > 0 {
 		earlyDefaults, earlyRestoreDefaults := dropFunctionDefaults(from, diff, earlyFuncDrops, droppedDefaults, &buf)
 		for name := range earlyDefaults {
@@ -127,6 +131,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			droppedChecks[name] = true
 		}
 		restoreFunctionChecks = append(restoreFunctionChecks, earlyRestoreChecks...)
+		dropScheduledConstraintsForEarlyFunctions(diff, earlyFuncDrops, droppedDefaults, droppedChecks, &buf)
 		dropViewsAndFunctionsInOrder(viewsToDrop, earlyFuncDrops, &buf)
 	} else {
 		dropViewsInOrder(diff, rebuiltViews, &buf)
@@ -144,6 +149,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 		for _, checkDiff := range tableDiff.Checks {
 			if checkDiff.Action == DiffDrop {
+				if droppedChecks[checkKey(tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)] {
+					continue
+				}
 				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.OldCheckConstraint.Name))
 			}
 		}
@@ -187,7 +195,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			if i == 0 && hasDroppedIndex {
 				buf.WriteString("GO\n")
 			}
-			if getColumnDefaultValue(colDiff.OldColumn) != "" && colDiff.OldColumn.DefaultConstraintName != "" {
+			if getColumnDefaultValue(colDiff.OldColumn) != "" && colDiff.OldColumn.DefaultConstraintName != "" && !droppedDefaults[tableDiff.SchemaName+"."+colDiff.OldColumn.DefaultConstraintName] {
 				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.DefaultConstraintName))
 			}
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
@@ -339,7 +347,48 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
 	tableFunctions := migrationTableFunctions(diff, allFunctionCreates)
+	// A schema-bound function that reads a view being created/rebuilt (or calls
+	// one) cannot be created ahead of tables; keep it in the view/function phase
+	// and defer any altered-table CHECK constraints calling it until afterward.
+	viewDepFuncCreates := functionsDependingOnViews(allFunctionCreates, viewsToCreate)
+	for id := range viewDepFuncCreates {
+		delete(tableFunctions, id)
+	}
+	var deferredTableChecks []functionCheckRef
+	deferredTableCheckKeys := make(map[string]bool)
+	if len(viewDepFuncCreates) > 0 {
+		for _, tableDiff := range diff.Tables {
+			if tableDiff.Action != DiffAlter {
+				continue
+			}
+			for _, checkDiff := range tableDiff.Checks {
+				if checkDiff.Action != DiffCreate || checkDiff.NewCheckConstraint == nil {
+					continue
+				}
+				for _, fd := range allFunctionCreates {
+					if !viewDepFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
+						continue
+					}
+					if expressionReferencesFunction(checkDiff.NewCheckConstraint.Expression, tableDiff.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+						cKey := checkKey(tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint.Name)
+						if !deferredTableCheckKeys[cKey] {
+							deferredTableCheckKeys[cKey] = true
+							deferredTableChecks = append(deferredTableChecks, functionCheckRef{
+								schema:     tableDiff.SchemaName,
+								table:      tableDiff.TableName,
+								constraint: checkDiff.NewCheckConstraint.Name,
+								expression: checkDiff.NewCheckConstraint.Expression,
+							})
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
 	if len(tableFunctions) > 0 && createdFunctionsDependOnCreatedTables(diff, allFunctionCreates, tableFunctions) {
 		createTablesAndFunctionsInOrder(diff, allFunctionCreates, tableFunctions, &buf)
 	} else {
@@ -353,7 +402,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	for _, tableDiff := range diff.Tables {
 		if tableDiff.Action == DiffAlter {
-			alterTableSQL := generateAlterTable(tableDiff, droppedDefaults, droppedChecks)
+			alterTableSQL := generateAlterTable(tableDiff, droppedDefaults, droppedChecks, deferredTableCheckKeys)
 			buf.WriteString(alterTableSQL)
 			if alterTableSQL != "" {
 				buf.WriteString("\n")
@@ -507,7 +556,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
-	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
 	var postTableFuncCreates []*FunctionDiffEntry
 	for _, funcDiff := range allFunctionCreates {
 		if !tableFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
@@ -551,6 +599,11 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if !allFunctionsRecreated(allFunctionCreates, ref.functions) || !checkExistsUnchangedInTarget(to, diff, ref.schema, ref.table, ref.constraint) {
 			continue
 		}
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
+			quote(ref.schema), quote(ref.table), quote(ref.constraint), checkExpression(ref.expression))
+		restoredConstraint = true
+	}
+	for _, ref := range deferredTableChecks {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
 			quote(ref.schema), quote(ref.table), quote(ref.constraint), checkExpression(ref.expression))
 		restoredConstraint = true
@@ -814,7 +867,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 	return buf.String()
 }
 
-func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults, droppedChecks map[string]bool) string {
+func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults, droppedChecks, deferredChecks map[string]bool) string {
 	var buf strings.Builder
 	// A computed column cannot be changed with ALTER COLUMN. Drop the indexes
 	// that use it, drop the column, add the new expression, and rebuild them.
@@ -973,6 +1026,9 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults, droppedCheck
 	}
 	for _, checkDiff := range tableDiff.Checks {
 		if checkDiff.Action == DiffCreate {
+			if deferredChecks[checkKey(tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint.Name)] {
+				continue
+			}
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
 				quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.NewCheckConstraint.Name), checkExpression(checkDiff.NewCheckConstraint.Expression))
 		}
@@ -1343,6 +1399,134 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 	return rebuiltFunctions, rebuiltViews
 }
 
+// blockingFunctionComputedColumn checks whether any function scheduled for
+// dropping (explicitly or via implicit schema-bound rebuild) is still
+// referenced by a computed column in from when its DROP FUNCTION runs.
+func blockingFunctionComputedColumn(from *Catalog, diff *SchemaDiff, earlyFuncDrops, remainingFuncDrops []*FunctionDiffEntry) string {
+	if from == nil || (len(earlyFuncDrops) == 0 && len(remainingFuncDrops) == 0) {
+		return ""
+	}
+	droppedTables := make(map[string]bool)
+	droppedColumns := make(map[string]bool)
+	for _, tws := range collectDroppedTables(diff) {
+		droppedTables[strings.ToLower(objectID(tws.schema, tws.table.Name))] = true
+	}
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action != DiffAlter {
+			continue
+		}
+		tKey := strings.ToLower(objectID(tableDiff.SchemaName, tableDiff.TableName))
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop && colDiff.OldColumn != nil {
+				droppedColumns[tKey+"\x00"+strings.ToLower(colDiff.OldColumn.Name)] = true
+			}
+		}
+	}
+	for _, schema := range from.Metadata().Schemas {
+		for _, table := range schema.Tables {
+			tKey := strings.ToLower(objectID(schema.Name, table.Name))
+			tableDropped := droppedTables[tKey]
+			for _, col := range table.Columns {
+				if !isComputedColumnType(col.Type) {
+					continue
+				}
+				colDropped := droppedColumns[tKey+"\x00"+strings.ToLower(col.Name)]
+				// Early function drops run before DROP COLUMN and DROP TABLE, so
+				// any computed column in from still blocks them.
+				for _, fd := range earlyFuncDrops {
+					if expressionReferencesFunction(col.Type, schema.Name, fd.SchemaName, funcDiffBaseName(fd)) {
+						return fmt.Sprintf("%s.%s is used by computed column %s.%s.%s",
+							quote(fd.SchemaName), quote(fd.FunctionName), quote(schema.Name), quote(table.Name), quote(col.Name))
+					}
+				}
+				if tableDropped || colDropped {
+					continue
+				}
+				for _, fd := range remainingFuncDrops {
+					if expressionReferencesFunction(col.Type, schema.Name, fd.SchemaName, funcDiffBaseName(fd)) {
+						return fmt.Sprintf("%s.%s is used by computed column %s.%s.%s",
+							quote(fd.SchemaName), quote(fd.FunctionName), quote(schema.Name), quote(table.Name), quote(col.Name))
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// dropScheduledConstraintsForEarlyFunctions emits DROP CONSTRAINT before
+// dropViewsAndFunctionsInOrder for any scheduled CHECK/DEFAULT drop (on
+// altered tables, dropped columns, or dropped tables) that references an
+// early-dropped function, recording it so the later drop phase skips it.
+func dropScheduledConstraintsForEarlyFunctions(diff *SchemaDiff, earlyFuncDrops []*FunctionDiffEntry, droppedDefaults, droppedChecks map[string]bool, buf *strings.Builder) {
+	for _, tableDiff := range diff.Tables {
+		switch tableDiff.Action {
+		case DiffAlter:
+			for _, checkDiff := range tableDiff.Checks {
+				if checkDiff.Action != DiffDrop || checkDiff.OldCheckConstraint == nil {
+					continue
+				}
+				cKey := checkKey(tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+				if droppedChecks[cKey] {
+					continue
+				}
+				for _, fd := range earlyFuncDrops {
+					if expressionReferencesFunction(checkDiff.OldCheckConstraint.Expression, tableDiff.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.OldCheckConstraint.Name))
+						droppedChecks[cKey] = true
+						break
+					}
+				}
+			}
+			for _, colDiff := range tableDiff.Columns {
+				if colDiff.Action != DiffDrop || colDiff.OldColumn == nil {
+					continue
+				}
+				if getColumnDefaultValue(colDiff.OldColumn) == "" || colDiff.OldColumn.DefaultConstraintName == "" {
+					continue
+				}
+				dKey := tableDiff.SchemaName + "." + colDiff.OldColumn.DefaultConstraintName
+				if droppedDefaults[dKey] {
+					continue
+				}
+				for _, fd := range earlyFuncDrops {
+					if expressionReferencesFunction(colDiff.OldColumn.Default, tableDiff.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.DefaultConstraintName))
+						droppedDefaults[dKey] = true
+						break
+					}
+				}
+			}
+		case DiffDrop:
+			if tableDiff.OldTable == nil {
+				continue
+			}
+			for _, check := range tableDiff.OldTable.CheckConstraints {
+				if check.Name == "" || check.Expression == "" {
+					continue
+				}
+				for _, fd := range earlyFuncDrops {
+					if expressionReferencesFunction(check.Expression, tableDiff.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(check.Name))
+						break
+					}
+				}
+			}
+			for _, col := range tableDiff.OldTable.Columns {
+				if col.Default == "" || col.DefaultConstraintName == "" {
+					continue
+				}
+				for _, fd := range earlyFuncDrops {
+					if expressionReferencesFunction(col.Default, tableDiff.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(col.DefaultConstraintName))
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 func collectViewsToDrop(diff *SchemaDiff, rebuiltViews []viewWithSchema) []*ViewDiffEntry {
 	var views []*ViewDiffEntry
 	for _, viewDiff := range diff.Views {
@@ -1518,6 +1702,53 @@ func dropViewsAndFunctionsInOrder(viewsToDrop []*ViewDiffEntry, funcDrops []*Fun
 			fmt.Fprintf(buf, "DROP FUNCTION %s.%s;\nGO\n", quote(fd.SchemaName), quote(fd.FunctionName))
 		}
 	}
+}
+
+// functionsDependingOnViews returns the objectIDs of functions in funcCreates
+// that are schema-bound to a view in viewsToCreate, or transitively call one.
+func functionsDependingOnViews(funcCreates []*FunctionDiffEntry, viewsToCreate []*ViewDiffEntry) map[string]bool {
+	deps := make(map[string]bool)
+	if len(funcCreates) == 0 || len(viewsToCreate) == 0 {
+		return deps
+	}
+	for _, fd := range funcCreates {
+		if fd.NewFunction == nil || !isSchemaBound(fd.NewFunction.Definition) {
+			continue
+		}
+		for _, vd := range viewsToCreate {
+			if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+				deps[objectID(fd.SchemaName, fd.FunctionName)] = true
+				break
+			}
+		}
+	}
+	if len(deps) == 0 {
+		return deps
+	}
+	for {
+		added := false
+		for _, fd := range funcCreates {
+			id := objectID(fd.SchemaName, fd.FunctionName)
+			if deps[id] || fd.NewFunction == nil {
+				continue
+			}
+			for _, other := range funcCreates {
+				otherID := objectID(other.SchemaName, other.FunctionName)
+				if !deps[otherID] || otherID == id {
+					continue
+				}
+				if definitionReferencesFunction(fd.NewFunction.Definition, fd.SchemaName, other.SchemaName, funcDiffBaseName(other)) {
+					deps[id] = true
+					added = true
+					break
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return deps
 }
 
 func createdFunctionsDependOnCreatedViews(funcCreates []*FunctionDiffEntry, viewsToCreate []*ViewDiffEntry) bool {

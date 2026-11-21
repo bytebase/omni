@@ -254,7 +254,8 @@ func unquoteIdentifier(part string) string {
 
 func stripLiteralsAndComments(expression string) string {
 	var out strings.Builder
-	inSingle, inDouble, inBracket, inLine, inBlock := false, false, false, false, false
+	inSingle, inDouble, inBracket, inLine := false, false, false, false
+	blockDepth := 0
 	for i := 0; i < len(expression); i++ {
 		ch := expression[i]
 		switch {
@@ -263,11 +264,16 @@ func stripLiteralsAndComments(expression string) string {
 				inLine = false
 				out.WriteByte(' ')
 			}
-		case inBlock:
-			if ch == '*' && i+1 < len(expression) && expression[i+1] == '/' {
-				inBlock = false
+		case blockDepth > 0:
+			if ch == '/' && i+1 < len(expression) && expression[i+1] == '*' {
+				blockDepth++
 				i++
-				out.WriteByte(' ')
+			} else if ch == '*' && i+1 < len(expression) && expression[i+1] == '/' {
+				blockDepth--
+				i++
+				if blockDepth == 0 {
+					out.WriteByte(' ')
+				}
 			}
 		case inSingle:
 			if ch == '\'' {
@@ -304,7 +310,7 @@ func stripLiteralsAndComments(expression string) string {
 				inLine = true
 				i++
 			case ch == '/' && i+1 < len(expression) && expression[i+1] == '*':
-				inBlock = true
+				blockDepth = 1
 				i++
 			case ch == '\'':
 				inSingle = true
