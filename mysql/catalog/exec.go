@@ -313,6 +313,18 @@ func init() {
 			func(c *Catalog) bool { return c.session.DefaultTableEncryption },
 			func(c *Catalog, v bool) { c.session.DefaultTableEncryption = v },
 		),
+		"default_storage_engine": makeEngineSysvarSpec(
+			func(c *Catalog) string { return c.globalDefaultEngine },
+			func(c *Catalog, v string) { c.globalDefaultEngine = v },
+			func(c *Catalog) string { return c.session.DefaultStorageEngine },
+			func(c *Catalog, v string) { c.session.DefaultStorageEngine = v },
+		),
+		"default_tmp_storage_engine": makeEngineSysvarSpec(
+			func(c *Catalog) string { return c.globalDefaultTmpEngine },
+			func(c *Catalog, v string) { c.globalDefaultTmpEngine = v },
+			func(c *Catalog) string { return c.session.DefaultTmpStorageEngine },
+			func(c *Catalog, v string) { c.session.DefaultTmpStorageEngine = v },
+		),
 		"innodb_directories": {
 			kind: sysvarGlobalOnlyNonPersist,
 			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
@@ -462,6 +474,63 @@ func makeBoolSysvarSpec(factoryDefault bool, getG func(*Catalog) bool, setG func
 			}
 			return userVarValue{kind: userVarNumeric, str: "0"}
 		},
+	}
+}
+
+// makeEngineSysvarSpec models default_storage_engine and
+// default_tmp_storage_engine: a known engine, stored by its canonical name
+// (MERGE reads back MRG_MYISAM), "" for InnoDB; an unknown one is 1286, as on
+// mysql:8.0.46.
+func makeEngineSysvarSpec(getG func(*Catalog) string, setG func(*Catalog, string), getS func(*Catalog) string, setS func(*Catalog, string)) sysvarSpec {
+	show := func(v string) userVarValue {
+		switch {
+		case v == "":
+			v = "InnoDB"
+		case strings.EqualFold(v, "MRG_MyISAM"):
+			v = "MRG_MYISAM" // the variable reads the MERGE engine in capitals
+		}
+		return userVarValue{kind: userVarString, str: v}
+	}
+	return sysvarSpec{
+		kind: sysvarSessionAndGlobal,
+		assign: func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+			if isDefaultSetKeywordOrIdent(expr) {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { setG(c, "") }, nil
+				}
+				return applyScopedUpdate(scope, nil, func() { setS(c, getG(c)) }), nil
+			}
+			var val userVarValue
+			if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+				val = userVarValue{kind: userVarString, str: cr.Column}
+			} else {
+				var ok bool
+				var err error
+				val, ok, err = c.evalSetExprChecked(expr)
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return nil, errWrongValueForVar(varName, setExprText(expr))
+				}
+			}
+			if val.kind == userVarNull {
+				return nil, errWrongValueForVar(varName, "NULL")
+			}
+			if val.kind != userVarString {
+				return nil, errWrongTypeForVar(varName)
+			}
+			if err := validateStorageEngine(val.str, true); err != nil {
+				return nil, err
+			}
+			engine := storedEngineName(val.str)
+			if isInnoDBEngine(engine) {
+				engine = ""
+			}
+			return applyScopedUpdate(scope, func() { setG(c, engine) }, func() { setS(c, engine) }), nil
+		},
+		readGlobal: func(c *Catalog) userVarValue { return show(getG(c)) },
+		readSess:   func(c *Catalog) userVarValue { return show(getS(c)) },
 	}
 }
 
@@ -1456,6 +1525,60 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				n = p.day
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "sqrt", "exp", "ln", "log", "log2", "log10":
+			// Doubles: an argument out of the function's domain is NULL
+			// (SQRT(-1), LN(0), LOG(1, 100)), an overflow is 1690 (EXP(1000)),
+			// as on mysql:8.0.46. LOG(x) is LN(x), and LOG(b, x) is log base b.
+			fn := toLower(e.Name)
+			if len(e.Args) < 1 || len(e.Args) > 2 || (fn != "log" && len(e.Args) != 1) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			xs := make([]float64, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			x := xs[len(xs)-1]
+			var f float64
+			switch fn {
+			case "sqrt":
+				if x < 0 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				f = math.Sqrt(x)
+			case "exp":
+				f = math.Exp(x)
+			default:
+				if x <= 0 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				switch {
+				case fn == "log2":
+					f = math.Log2(x)
+				case fn == "log10":
+					f = math.Log10(x)
+				case len(xs) == 2:
+					b := xs[0]
+					if b <= 0 || b == 1 {
+						return userVarValue{kind: userVarNull}, true, nil
+					}
+					f = math.Log(x) / math.Log(b)
+				default:
+					f = math.Log(x)
+				}
+			}
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
 		case "power", "pow":
 			// POWER is a double; a result that is no finite double is 1690:
 			// POWER(-8, 0.5), POWER(10, 400) and POWER(0, -1) on mysql:8.0.46.
@@ -2047,6 +2170,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs", "sha1", "sha", "md5",
+				"sqrt", "exp", "ln", "log2", "log10",
 				"quarter", "month", "year", "dayofmonth", "day", "dayofweek", "weekday", "dayofyear",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
@@ -2079,6 +2203,10 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			case "truncate":
 				if argc != 2 {
 					err = errWrongParamCount("TRUNCATE")
+				}
+			case "log":
+				if argc < 1 || argc > 2 {
+					err = errWrongParamCount("LOG")
 				}
 			case "concat_ws", "elt":
 				if argc < 2 {

@@ -280,7 +280,8 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 		return errTempTablespaceNonTempTable()
 	case ts == "mysql":
 		return errReservedTablespaceName(tableName, "mysql")
-	case strings.HasPrefix(strings.ToLower(ts), "innodb_"):
+	case strings.HasPrefix(ts, "innodb_"):
+		// The prefix is case-sensitive: INNODB_X is an ordinary name.
 		return errReservedInnoDBTablespacePrefix()
 	case c.tablespaces[ts]:
 		if temporary {
@@ -477,7 +478,9 @@ func validateTablespaceCreateName(name string) error {
 	if strings.Contains(name, "/") {
 		return errTablespaceSlashInName()
 	}
-	if strings.HasPrefix(strings.ToLower(name), "innodb_") {
+	// The reserved prefix is lowercase innodb_ exactly (WL#6205):
+	// mysql:8.0.46 takes CREATE TABLESPACE INNODB_X and Innodb_z.
+	if strings.HasPrefix(name, "innodb_") {
 		return errReservedInnoDBTablespacePrefix()
 	}
 	if name == "mysql" {
@@ -612,9 +615,11 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 	if stmt.Name == "mysql" {
 		return c.alterMySQLTablespace(stmt)
 	}
-	lower := strings.ToLower(stmt.Name)
-	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
-	if !exists && !strings.HasPrefix(lower, "innodb_") && lower != "mysql" {
+	// Only the exact built-in names exist beside the general tablespaces:
+	// ALTER TABLESPACE innodb_nosuch and INNODB_SYSTEM are 3510 on
+	// mysql:8.0.46.
+	exists := c.tablespaces[stmt.Name] || stmt.Name == "innodb_system" || stmt.Name == "innodb_temporary"
+	if !exists {
 		return errTablespaceDoesNotExist(stmt.Name)
 	}
 	if exists && stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
@@ -766,19 +771,21 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 		delete(c.tablespaceFiles, stmt.Name)
 		return nil
 	}
-	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo && !strings.HasPrefix(strings.ToLower(stmt.Name), "innodb_") {
+	if _, isUndo := c.undoTablespaces[stmt.Name]; isUndo && !strings.HasPrefix(stmt.Name, "innodb_") {
 		return errWrongTablespaceKind("DROP TABLESPACE", stmt.Name, "an undo", "DROP UNDO TABLESPACE")
 	}
-	lower := strings.ToLower(stmt.Name)
-	exists := c.tablespaces[stmt.Name] || lower == "innodb_system" || lower == "innodb_temporary"
-	if !exists && !strings.HasPrefix(lower, "innodb_") {
+	// Only the exact built-in names exist beside the general tablespaces, and
+	// they are reserved: DROP TABLESPACE innodb_system is 3119, while
+	// innodb_nosuch and INNODB_SYSTEM are 3510 on mysql:8.0.46.
+	builtin := stmt.Name == "innodb_system" || stmt.Name == "innodb_temporary"
+	if !c.tablespaces[stmt.Name] && !builtin {
 		return errTablespaceDoesNotExist(stmt.Name)
 	}
-	if exists && stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
+	if stmt.Engine != "" && !strings.EqualFold(stmt.Engine, "InnoDB") {
 		return errTablespaceEngineMismatch(stmt.Engine, stmt.Name)
 	}
-	if strings.HasPrefix(lower, "innodb_") {
-		return errReservedInnoDBTablespacePrefix()
+	if builtin {
+		return errWrongTablespaceNameReserved(stmt.Name)
 	}
 	if !c.tablespaces[stmt.Name] {
 		return errTablespaceDoesNotExist(stmt.Name)

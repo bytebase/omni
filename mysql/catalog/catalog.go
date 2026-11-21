@@ -57,6 +57,8 @@ type Catalog struct {
 	globalShowGIPK            bool
 	globalExplicitDefaultsTS  bool
 	globalDefaultTableEncrypt bool
+	globalDefaultEngine       string
+	globalDefaultTmpEngine    string
 	currentDB                 string
 	defaultCharset            string
 	defaultCollation          string
@@ -78,6 +80,10 @@ type SessionState struct {
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
 	DefaultTableEncryption       bool
+	// DefaultStorageEngine and DefaultTmpStorageEngine are the engines a
+	// CREATE TABLE without ENGINE gets, "" for InnoDB.
+	DefaultStorageEngine    string
+	DefaultTmpStorageEngine string
 	SQLMode                      string
 	TimeZone                     string
 	SystemTimeZone               string

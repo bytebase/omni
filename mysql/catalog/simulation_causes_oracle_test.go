@@ -5174,8 +5174,51 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// A user variable's new value replaces its old one even when the catalog
 		// cannot compute it: no later SET reads the stale value.
 		{name: "SET sql_mode from a user variable reassigned a hash", setup: []string{"SET @m_stale = 1", "SET @m_stale = SHA1('x')"}, stmt: "SET sql_mode = @m_stale", code: 1231},
-		{name: "SET sql_mode from a user variable reassigned an uncomputed value", setup: []string{"SET @m_stale = 1", "SET @m_stale = UUID()"}, stmt: "SET sql_mode = @m_stale", code: 1231},
+		{name: "SET sql_mode from a user variable reassigned an uncomputed value", setup: []string{"SET @m_stale = 1", "SET @m_stale = SOUNDEX('Robert')"}, stmt: "SET sql_mode = @m_stale", code: 1231},
 		{name: "SET time_zone from a user variable reassigned a hash", setup: []string{"SET @tz_stale = '+08:00'", "SET @tz_stale = SHA1('x')"}, stmt: "SET time_zone = @tz_stale", code: 1298},
+		// The reserved innodb_ prefix is lowercase exactly, and only the exact
+		// built-in names exist beside the general tablespaces.
+		{name: "CREATE TABLESPACE INNODB_X", stmt: "CREATE TABLESPACE INNODB_X ADD DATAFILE 'innodb_x_u.ibd'", code: 0, cleanup: []string{"DROP TABLESPACE INNODB_X"}},
+		{name: "CREATE TABLESPACE Innodb_z", stmt: "CREATE TABLESPACE Innodb_z ADD DATAFILE 'innodb_z_m.ibd'", code: 0, cleanup: []string{"DROP TABLESPACE Innodb_z"}},
+		{name: "CREATE TABLESPACE innodb_y", stmt: "CREATE TABLESPACE innodb_y ADD DATAFILE 'innodb_y_l.ibd'", code: 3119},
+		{name: "CREATE TABLE TABLESPACE INNODB_SYSTEM", stmt: "CREATE TABLE z (a INT) TABLESPACE INNODB_SYSTEM", code: 3510},
+		{name: "CREATE TABLE TABLESPACE INNODB_NOSUCH", stmt: "CREATE TABLE z (a INT) TABLESPACE INNODB_NOSUCH", code: 3510},
+		{name: "CREATE TABLE TABLESPACE innodb_custom", stmt: "CREATE TABLE z (a INT) TABLESPACE innodb_custom", code: 3119},
+		{name: "DROP TABLESPACE INNODB_NOSUCH", stmt: "DROP TABLESPACE INNODB_NOSUCH", code: 3510},
+		{name: "DROP TABLESPACE innodb_nosuch", stmt: "DROP TABLESPACE innodb_nosuch", code: 3510},
+		{name: "DROP TABLESPACE INNODB_SYSTEM", stmt: "DROP TABLESPACE INNODB_SYSTEM", code: 3510},
+		{name: "DROP TABLESPACE innodb_system", stmt: "DROP TABLESPACE innodb_system", code: 3119},
+		{name: "ALTER TABLESPACE INNODB_NOSUCH", stmt: "ALTER TABLESPACE INNODB_NOSUCH ENCRYPTION='N'", code: 3510},
+		{name: "ALTER TABLESPACE innodb_nosuch", stmt: "ALTER TABLESPACE innodb_nosuch ENCRYPTION='N'", code: 3510},
+		{name: "ALTER TABLESPACE INNODB_SYSTEM", stmt: "ALTER TABLESPACE INNODB_SYSTEM ENCRYPTION='N'", code: 3510},
+		{name: "ALTER TABLESPACE RENAME TO the innodb_ prefix", setup: []string{"CREATE TABLESPACE Innodb_r ADD DATAFILE 'innodb_r_m.ibd'"}, stmt: "ALTER TABLESPACE Innodb_r RENAME TO innodb_q", code: 3119, cleanup: []string{"DROP TABLESPACE Innodb_r"}},
+		// A table without ENGINE takes the session's default engine.
+		{
+			name:     "default_storage_engine MyISAM and a missing tablespace",
+			session:  []string{"SET SESSION default_storage_engine = MyISAM"},
+			stmt:     "CREATE TABLE a (id INT) TABLESPACE no_such",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+			cleanup:  []string{"SET SESSION default_storage_engine = DEFAULT"},
+		},
+		{
+			name:     "default_storage_engine does not reach a TEMPORARY table",
+			session:  []string{"SET SESSION default_storage_engine = MEMORY"},
+			stmt:     "CREATE TEMPORARY TABLE a (id INT)",
+			code:     0,
+			contains: []string{"ENGINE=InnoDB"},
+			cleanup:  []string{"SET SESSION default_storage_engine = DEFAULT", "DROP TEMPORARY TABLE IF EXISTS a"},
+		},
+		{
+			name:     "default_tmp_storage_engine MyISAM for a TEMPORARY table",
+			session:  []string{"SET SESSION default_tmp_storage_engine = MyISAM"},
+			stmt:     "CREATE TEMPORARY TABLE a (id INT) TABLESPACE no_such",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+			cleanup:  []string{"SET SESSION default_tmp_storage_engine = DEFAULT", "DROP TEMPORARY TABLE IF EXISTS a"},
+		},
+		{name: "SET default_storage_engine to an unknown engine", stmt: "SET default_storage_engine = nosuch", code: 1286},
+		{name: "SET EXP overflow", stmt: "SET @x = EXP(1000)", code: 1690},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6293,6 +6336,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"POWER(2, 2)", "POW(2, -1)", "POWER(2, 0.5)", "POWER('3', 2)", "POWER(0, 0)", "POWER(1.5, 2)", "POWER(-2, 3)",
 		"SHA1('x')", "SHA('x')", "MD5('x')", "SHA2('x', 256)", "SHA2('x', 0)", "SHA2('x', 224)", "SHA2('x', 384)",
 		"SHA2('x', 512)", "SHA1(1)", "MD5('é')",
+		"SQRT(4)", "SQRT(2)", "SQRT('9')", "EXP(0)", "EXP(1)", "LN(1)", "LOG(100)", "LOG(10, 100)", "LOG2(8)", "LOG10(1000)",
+		"IFNULL(SQRT(-1), 'n')", "IFNULL(LN(0), 'n')", "IFNULL(LOG(1, 100), 'n')", "IFNULL(LOG(-1, 2), 'n')", "IFNULL(LOG10(0), 'n')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6410,7 +6455,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6589,6 +6634,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if !strings.Contains(create, "TABLESPACE `ts_mig2`") {
 			t.Fatalf("migrated %s is not in ts_mig2:\n%s\nplan:\n%s", tbl, create, plan.SQL())
 		}
+	}
+
+	// default_storage_engine reads back by its canonical name.
+	for _, stmt := range []string{"SET SESSION default_storage_engine = MERGE", "SET @eng = @@default_storage_engine", "SET SESSION default_storage_engine = DEFAULT"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		if stmt != "SET SESSION default_storage_engine = DEFAULT" {
+			execAlterClauses(t, castCat, stmt+";")
+		}
+	}
+	var srvEng string
+	if err := conn.QueryRowContext(ctx, "SELECT @eng").Scan(&srvEng); err != nil {
+		t.Fatalf("mysql SELECT @eng: %v", err)
+	}
+	execAlterClauses(t, castCat, "SET SESSION default_storage_engine = DEFAULT;")
+	if got := castCat.userVars["eng"].str; got != srvEng || srvEng != "MRG_MYISAM" {
+		t.Fatalf("@@default_storage_engine after MERGE: catalog %q, mysql %q, want MRG_MYISAM", got, srvEng)
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.

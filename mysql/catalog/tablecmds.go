@@ -92,7 +92,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 
 	if declared {
-		effEngine := ""
+		effEngine := c.session.DefaultStorageEngine
+		if stmt.Temporary {
+			effEngine = c.session.DefaultTmpStorageEngine
+		}
+		if effEngine == "" {
+			effEngine = "InnoDB"
+		}
 		effTS := ""
 		effEncryption := ""
 		effRowFormat := ""
@@ -185,6 +191,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		Collation:   db.Collation,
 		Engine:      "",
 		Temporary:   stmt.Temporary,
+	}
+	// A table without ENGINE takes the session's default engine,
+	// default_tmp_storage_engine for a TEMPORARY one: under
+	// default_storage_engine = MyISAM, mysql:8.0.46 stores ENGINE=MyISAM.
+	if declared {
+		if stmt.Temporary {
+			tbl.Engine = c.session.DefaultTmpStorageEngine
+		} else {
+			tbl.Engine = c.session.DefaultStorageEngine
+		}
 	}
 
 	// Apply table options.

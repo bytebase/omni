@@ -43625,12 +43625,12 @@
 | SET @m_stale = 1
 < ok 0 0
 > exec
-| SET @m_stale = UUID()
+| SET @m_stale = SOUNDEX('Robert')
 < ok 0 0
 > exec
 | SET sql_mode = @m_stale
 < error
-| 1231 42000 Variable 'sql_mode' can't be set to the value of '2c7d6ef1-e53c-11f1-969a-eac0d36f4f8f'
+| 1231 42000 Variable 'sql_mode' can't be set to the value of 'R163'
 > exec
 | SET NAMES utf8mb4
 < ok 0 0
@@ -43680,6 +43680,890 @@
 | SET time_zone = @tz_stale
 < error
 | 1298 HY000 Unknown or incorrect time zone: '11f6ad8ec52a2984abaafd7c3b516503785c2072'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE INNODB_X ADD DATAFILE 'innodb_x_u.ibd'
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_X
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE Innodb_z ADD DATAFILE 'innodb_z_m.ibd'
+< ok 0 0
+> exec
+| DROP TABLESPACE Innodb_z
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE innodb_y ADD DATAFILE 'innodb_y_l.ibd'
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT) TABLESPACE INNODB_SYSTEM
+< error
+| 3510 HY000 Tablespace INNODB_SYSTEM doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT) TABLESPACE INNODB_NOSUCH
+< error
+| 3510 HY000 Tablespace INNODB_NOSUCH doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT) TABLESPACE innodb_custom
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_NOSUCH
+< error
+| 3510 HY000 Tablespace INNODB_NOSUCH doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE innodb_nosuch
+< error
+| 3510 HY000 Tablespace innodb_nosuch doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE INNODB_SYSTEM
+< error
+| 3510 HY000 Tablespace INNODB_SYSTEM doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| DROP TABLESPACE innodb_system
+< error
+| 3119 42000 InnoDB: `innodb_system` is a reserved tablespace name.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| ALTER TABLESPACE INNODB_NOSUCH ENCRYPTION='N'
+< error
+| 3510 HY000 Tablespace INNODB_NOSUCH doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| ALTER TABLESPACE innodb_nosuch ENCRYPTION='N'
+< error
+| 3510 HY000 Tablespace innodb_nosuch doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| ALTER TABLESPACE INNODB_SYSTEM ENCRYPTION='N'
+< error
+| 3510 HY000 Tablespace INNODB_SYSTEM doesn't exist.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE Innodb_r ADD DATAFILE 'innodb_r_m.ibd'
+< ok 0 0
+> exec
+| ALTER TABLESPACE Innodb_r RENAME TO innodb_q
+< error
+| 3119 42000 InnoDB: Tablespace names starting with `innodb_` are reserved.
+> exec
+| DROP TABLESPACE Innodb_r
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MyISAM
+< ok 0 0
+> exec
+| CREATE TABLE a (id INT) TABLESPACE no_such
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `no_such` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = MEMORY
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (id INT)
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION default_tmp_storage_engine = MyISAM
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (id INT) TABLESPACE no_such
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `no_such` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET SESSION default_tmp_storage_engine = DEFAULT
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET default_storage_engine = nosuch
+< error
+| 1286 42000 Unknown storage engine 'nosuch'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET @x = EXP(1000)
+< error
+| 1690 22003 DOUBLE value is out of range in 'exp(1000)'
 > exec
 | SET NAMES utf8mb4
 < ok 0 0
@@ -51033,6 +51917,156 @@
 : bytes
 | 66ddcd97cfdeabb2f6fb8a999b4bc76f
 > exec
+| SET @x = SQRT(4)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = SQRT(2)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1.4142135623730951
+> exec
+| SET @x = SQRT('9')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = EXP(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = EXP(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2.718281828459045
+> exec
+| SET @x = LN(1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = LOG(100)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 4.605170185988092
+> exec
+| SET @x = LOG(10, 100)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = LOG2(8)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = LOG10(1000)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = IFNULL(SQRT(-1), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = IFNULL(LN(0), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = IFNULL(LOG(1, 100), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = IFNULL(LOG(-1, 2), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
+| SET @x = IFNULL(LOG10(0), 'n')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| n
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -51767,6 +52801,33 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = (SQRT(4) = 2)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = SQRT(4)
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -52048,6 +53109,22 @@
 | CREATE TABLE `n_ts` (
 |   `id` int DEFAULT NULL
 | ) /*!50100 TABLESPACE `ts_mig2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+> exec
+| SET SESSION default_storage_engine = MERGE
+< ok 0 0
+> exec
+| SET @eng = @@default_storage_engine
+< ok 0 0
+> exec
+| SET SESSION default_storage_engine = DEFAULT
+< ok 0 0
+> query
+| SELECT @eng
+< result
+< column "@eng" "LONGTEXT"
+< row
+: bytes
+| MRG_MYISAM
 > exec
 | SET SESSION sql_mode = ''
 < ok 0 0
