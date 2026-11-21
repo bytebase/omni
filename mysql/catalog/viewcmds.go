@@ -111,13 +111,17 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 	if sel == nil {
 		return nil, nil
 	}
-	if err := c.validateViewBodyPreAnalysis(sel, source); err != nil {
+	body := collectViewBody(sel, source)
+	blocks := body.reachableBlocks()
+	if err := c.validateViewBodyPreAnalysis(blocks); err != nil {
 		return nil, err
 	}
-	if err := checkViewBodyStar(sel, source); err != nil {
-		return nil, err
+	for _, block := range blocks {
+		if err := viewBlockStar(block, source); err != nil {
+			return nil, err
+		}
 	}
-	q, err := c.AnalyzeSelectStmt(sel)
+	q, err := c.analyzeSelectStmtIn(sel, nil, nil, body.reads)
 	if err != nil {
 		var refusal *Error
 		if errors.As(err, &refusal) {
@@ -129,7 +133,7 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 			}
 		}
 	}
-	if postErr := validateViewBodyPostAnalysis(sel, source); postErr != nil {
+	if postErr := validateViewBodyPostAnalysis(blocks); postErr != nil {
 		return nil, postErr
 	}
 	if err != nil {
@@ -180,15 +184,20 @@ func checkDuplicateViewColumns(cols []string) error {
 	return nil
 }
 
-// collectReachableViewBlocks returns the query blocks MySQL resolves for sel:
-// the view body's own blocks plus any CTEs reached from it.
-func collectReachableViewBlocks(sel *nodes.SelectStmt, source string) []*nodes.SelectStmt {
-	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
+// collectViewBody walks sel and computes the CTEs reachable from the view body.
+func collectViewBody(sel *nodes.SelectStmt, source string) *viewBody {
+	body := &viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
 	body.walk(sel, nil, nil, source)
 	body.reach()
-	out := make([]*nodes.SelectStmt, 0, len(body.blocks))
-	for _, b := range body.blocks {
-		if b.owner != nil && !body.reads[b.owner] {
+	return body
+}
+
+// reachableBlocks returns the query blocks MySQL resolves for this view body:
+// the body's own blocks plus any CTEs reached from it.
+func (v *viewBody) reachableBlocks() []*nodes.SelectStmt {
+	out := make([]*nodes.SelectStmt, 0, len(v.blocks))
+	for _, b := range v.blocks {
+		if b.owner != nil && !v.reads[b.owner] {
 			continue
 		}
 		out = append(out, b.block)
@@ -228,8 +237,7 @@ func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
 // validateViewBodyPreAnalysis checks view body restrictions that mysql:8.0.46
 // enforces ahead of column/table resolution (INTO clause, VALUES row errors,
 // LIMIT/NTILE variables, user variables, locking-clause table names).
-func (c *Catalog) validateViewBodyPreAnalysis(sel *nodes.SelectStmt, source string) error {
-	blocks := collectReachableViewBlocks(sel, source)
+func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt) error {
 	currentDB := c.CurrentDatabase()
 	for _, block := range blocks {
 		if block.Into != nil {
@@ -333,8 +341,7 @@ func validateBlockLocking(block *nodes.SelectStmt, currentDB string) error {
 // validateViewBodyPostAnalysis checks view body restrictions enforced after
 // column/table resolution: window names & frames, top-level ROW() in target
 // list, GROUPING() without WITH ROLLUP, and non-constant ESCAPE / AGAINST args.
-func validateViewBodyPostAnalysis(sel *nodes.SelectStmt, source string) error {
-	blocks := collectReachableViewBlocks(sel, source)
+func validateViewBodyPostAnalysis(blocks []*nodes.SelectStmt) error {
 	for _, block := range blocks {
 		if err := validateBlockWindows(block); err != nil {
 			return err
@@ -456,38 +463,14 @@ func isIntervalExpr(expr nodes.ExprNode) bool {
 	return ok
 }
 
-// checkViewBodyStar refuses a view body whose star has no table to expand. Every
-// query block MySQL resolves is judged: the blocks of the body itself, of a set
+// viewBody is a view body's query blocks and what its CTEs read. Every query
+// block MySQL resolves is judged: the blocks of the body itself, of a set
 // operation, of a parenthesis, of a derived table and of a subquery expression,
 // and the body of a CTE the body reaches. MySQL resolves a CTE only where it is
 // read, and only through the declarations its own scope holds — one declared
 // later in the same WITH is not visible, and a nearer one hides an outer one —
 // so the walk resolves each reference against the block's own scope and follows
-// the reads from the body rather than from every CTE. In a block with no table,
-// a bare star is 1096 "No tables used" and a qualified one is 1051 "Unknown
-// table 't'", whose table the block reads nowhere. Both answer before the view's
-// own name is looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an
-// existing table a (1050). A block naming no star is left alone: `CREATE VIEW v
-// AS SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
-func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
-	if sel == nil {
-		return nil
-	}
-	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
-	body.walk(sel, nil, nil, source)
-	body.reach()
-	for _, b := range body.blocks {
-		if b.owner != nil && !body.reads[b.owner] {
-			continue
-		}
-		if err := viewBlockStar(b.block, source); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// viewBody is a view body's query blocks and what its CTEs read.
+// the reads from the body rather than from every CTE.
 type viewBody struct {
 	blocks []viewBlock
 	// roots are the CTEs the body itself reads, which is where resolution
@@ -516,26 +499,38 @@ func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, 
 	v.blocks = append(v.blocks, viewBlock{block: block, owner: owner})
 	var children []*nodes.SelectStmt
 	var names []string
-	nodes.Inspect(block, func(n nodes.Node) bool {
-		switch e := n.(type) {
-		case *nodes.SelectStmt:
-			if e == block {
-				return true
+	inspectBlock := func(root nodes.Node) {
+		nodes.Inspect(root, func(n nodes.Node) bool {
+			switch e := n.(type) {
+			case *nodes.SelectStmt:
+				if e == block {
+					return true
+				}
+				// A nested block reads through its own scope: walked below.
+				children = append(children, e)
+				return false
+			case *nodes.CommonTableExpr:
+				// Walked below, with the CTE as the body's owner.
+				return false
+			case *nodes.TableRef:
+				// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+				if e.Schema == "" && e.Name != "" && !isDualRef(e, source) {
+					names = append(names, e.Name)
+				}
 			}
-			// A nested block reads through its own scope: walked below.
-			children = append(children, e)
-			return false
-		case *nodes.CommonTableExpr:
-			// Walked below, with the CTE as the body's owner.
-			return false
-		case *nodes.TableRef:
-			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
-			if e.Schema == "" && e.Name != "" && !isDualRef(e, source) {
-				names = append(names, e.Name)
+			return true
+		})
+	}
+	inspectBlock(block)
+	if block.ValuesSource != nil {
+		for _, row := range block.ValuesSource.Rows {
+			for _, item := range row {
+				if item != nil {
+					inspectBlock(item)
+				}
 			}
 		}
-		return true
-	})
+	}
 	for _, name := range names {
 		cte := visibleCte(visible, name)
 		if cte == nil {

@@ -252,7 +252,7 @@ func analyzeQuantifiedComparison(c *Catalog, expr *nodes.BinaryExpr, sub *nodes.
 	if err != nil {
 		return nil, err
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(sub.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(sub.Select, scope, scope.ctes, scope.reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +300,7 @@ func analyzeInExpr(c *Catalog, expr *nodes.InExpr, scope *analyzerScope) (Analyz
 
 	if expr.Select != nil {
 		// IN (SELECT ...) / NOT IN (SELECT ...)
-		innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+		innerQ, err := c.analyzeSelectStmtIn(expr.Select, scope, scope.ctes, scope.reachableCTEs)
 		if err != nil {
 			return nil, err
 		}
@@ -480,7 +480,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 
 // analyzeScalarSubquery resolves a scalar subquery expression: (SELECT ...).
 func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(subq.Select, scope, scope.ctes, scope.reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
@@ -492,7 +492,7 @@ func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzer
 
 // analyzeExistsSubquery resolves an EXISTS (SELECT ...) expression.
 func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+	innerQ, err := c.analyzeSelectStmtIn(expr.Select, scope, scope.ctes, scope.reachableCTEs)
 	if err != nil {
 		return nil, err
 	}

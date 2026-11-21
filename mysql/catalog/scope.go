@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"strings"
 
+	nodes "github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/scope"
 )
 
 // analyzerScope wraps scope.Scope and adds analyzer-specific features:
 // parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	base    *scope.Scope
-	rteMap  []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
-	cols    [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	dbNames []string    // parallel to base entries: database name for base tables/views (empty for CTEs/derived)
-	parent  *analyzerScope
+	base          *scope.Scope
+	rteMap        []int                       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	cols          [][]*Column                 // parallel to base entries: entry index -> catalog Column pointers
+	dbNames       []string                    // parallel to base entries: database name for base tables/views (empty for CTEs/derived)
+	parent        *analyzerScope
+	ctes          map[string]*CommonTableExprQ // CTEs visible in this scope (propagated to nested subqueries)
+	reachableCTEs map[*nodes.CommonTableExpr]bool
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.

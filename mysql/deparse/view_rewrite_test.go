@@ -76,6 +76,11 @@ func TestViewRewriteAndDeparseCanonicalForms(t *testing.T) {
 			"select cast(`t`.`a` as date) AS `DATE(a)`,cast(`t`.`a` as time) AS `TIME(a)`,cast(`t`.`a` as datetime) AS `TIMESTAMP(a)`,dayofmonth(`t`.`a`) AS `DAY(a)`,(`t`.`a` % `t`.`b`) AS `MOD(a, b)`,week(`t`.`a`,0) AS `WEEK(a)`,geomcollection() AS `GEOMETRYCOLLECTION()`,NULL AS `VALUES(a)` from `t`",
 		},
 		{
+			"schema_qualified_functions_not_rewritten",
+			"SELECT db.DAY(a), db.GEOMETRYCOLLECTION(), db.SUBSTRING(a, 1) FROM t",
+			"select db.day(`t`.`a`) AS `db.DAY(a)`,db.geometrycollection() AS `db.GEOMETRYCOLLECTION()`,db.substring(`t`.`a`,1) AS `db.SUBSTRING(a, 1)` from `t`",
+		},
+		{
 			"min_max_drop_distinct",
 			"SELECT MIN(DISTINCT a), MAX(DISTINCT b) FROM t",
 			"select min(`t`.`a`) AS `MIN(DISTINCT a)`,max(`t`.`b`) AS `MAX(DISTINCT b)` from `t`",

@@ -75,6 +75,7 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"dual_unknown_col", "CREATE VIEW v AS SELECT a FROM DUAL", ErrNoSuchColumn},
 		{"unknown_col_from_table", "CREATE VIEW v AS SELECT no_col FROM t", ErrNoSuchColumn},
 		{"wrong_schema_col", "CREATE VIEW v AS SELECT db2.t.a FROM t", ErrNoSuchColumn},
+		{"reachable_cte_unknown_col", "CREATE VIEW v AS WITH bad AS (SELECT missing_col), used AS (SELECT * FROM bad) SELECT * FROM used", ErrNoSuchColumn},
 	}
 
 	for _, tc := range refusals {
@@ -102,6 +103,14 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"explicit_cols_override_dup", "CREATE VIEW v (c1, c2) AS SELECT a, a FROM t"},
 		{"multi_schema_same_table_name", "CREATE VIEW v AS SELECT db1.t.a, db2.t.b FROM db1.t JOIN db2.t ON db1.t.id = db2.t.id"},
 		{"cte_chaining", "CREATE VIEW v AS WITH c1 AS (SELECT a FROM t), c2 AS (SELECT a FROM c1) SELECT a FROM c2"},
+		{"cte_in_scalar_subquery", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT (SELECT x FROM c) AS x"},
+		{"cte_in_derived_table", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT * FROM (SELECT x FROM c) d"},
+		{"cte_in_exists_subquery", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT EXISTS(SELECT x FROM c) AS ok"},
+		{"cte_in_in_subquery", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) SELECT a IN (SELECT x FROM c) AS ok FROM t"},
+		{"cte_in_paren_query", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) (SELECT x FROM c)"},
+		{"cte_in_values_subquery", "CREATE VIEW v AS WITH c AS (SELECT 1 AS x) VALUES ROW((SELECT x FROM c))"},
+		{"unused_cte_missing_column", "CREATE VIEW v AS WITH unused AS (SELECT missing_column) SELECT 1 AS x"},
+		{"unused_cte_missing_table", "CREATE VIEW v AS WITH unused AS (SELECT * FROM missing_tbl) SELECT 1 AS x"},
 		{"dual_literal", "CREATE VIEW v AS SELECT 1 FROM DUAL"},
 	}
 	for _, tc := range accepted {

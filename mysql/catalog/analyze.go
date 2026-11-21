@@ -21,21 +21,42 @@ func (c *Catalog) analyzeSelectStmtInternal(stmt *nodes.SelectStmt, parentScope 
 
 // analyzeSelectStmtWithCTEs is the full internal analysis routine.
 // inheritedCTEMap provides CTE definitions inherited from an enclosing context
-// (e.g., a recursive CTE body referencing itself).
+// (e.g., a recursive CTE body referencing itself or a subquery referencing an outer CTE).
 func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	return c.analyzeSelectStmtIn(stmt, parentScope, inheritedCTEMap, nil)
+}
+
+// analyzeSelectStmtIn analyzes stmt with optional inherited CTEs and an optional
+// reachableCTEs filter. When reachableCTEs is non-nil (view analysis), CTEs not
+// present in the set are skipped, matching MySQL's lazy CTE resolution.
+func (c *Catalog) analyzeSelectStmtIn(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (*Query, error) {
+	// Handle parenthesized query expressions: (SELECT ...) or WITH c AS (...) (SELECT ...).
+	if stmt.ParenSource != nil {
+		q := &Query{
+			CommandType: CmdSelect,
+			JoinTree:    &JoinTreeQ{},
+		}
+		cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap, reachableCTEs)
+		if err != nil {
+			return nil, err
+		}
+		cteMap = mergeCTEMaps(cteMap, inheritedCTEMap)
+		return c.analyzeSelectStmtIn(stmt.ParenSource, parentScope, cteMap, reachableCTEs)
+	}
+
 	// Handle set operations (UNION/INTERSECT/EXCEPT).
 	if stmt.SetOp != nodes.SetOpNone {
-		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
+		return c.analyzeSetOpIn(stmt, parentScope, inheritedCTEMap, reachableCTEs)
 	}
 
 	// A TABLE query primary is SELECT * FROM t, so analyze that: without it
 	// the node has no FROM and no target list, and a consumer reading the
 	// result columns (a view's column list, lineage) would see none.
 	if stmt.TableSource != nil {
-		return c.analyzeTableSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+		return c.analyzeTableSourceIn(stmt, parentScope, inheritedCTEMap, reachableCTEs)
 	}
 	if stmt.ValuesSource != nil {
-		return c.analyzeValuesSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+		return c.analyzeValuesSourceIn(stmt, parentScope, inheritedCTEMap, reachableCTEs)
 	}
 
 	q := &Query{
@@ -44,24 +65,17 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	}
 
 	scope := newScopeWithParent(parentScope)
+	scope.reachableCTEs = reachableCTEs
 
 	// Step 0: Process CTEs (WITH clause).
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
 
-	// Merge inherited CTE map (for recursive CTE self-references).
-	if inheritedCTEMap != nil {
-		if cteMap == nil {
-			cteMap = make(map[string]*CommonTableExprQ)
-		}
-		for k, v := range inheritedCTEMap {
-			if _, exists := cteMap[k]; !exists {
-				cteMap[k] = v
-			}
-		}
-	}
+	// Merge inherited CTE map (for recursive CTE self-references and enclosing CTEs).
+	cteMap = mergeCTEMaps(cteMap, inheritedCTEMap)
+	scope.ctes = cteMap
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
@@ -121,11 +135,26 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	return q, nil
 }
 
-// analyzeTableSourceWithCTEs analyzes a TABLE query primary as the SELECT *
+func mergeCTEMaps(local, inherited map[string]*CommonTableExprQ) map[string]*CommonTableExprQ {
+	if len(inherited) == 0 {
+		return local
+	}
+	if local == nil {
+		local = make(map[string]*CommonTableExprQ, len(inherited))
+	}
+	for k, v := range inherited {
+		if _, exists := local[k]; !exists {
+			local[k] = v
+		}
+	}
+	return local
+}
+
+// analyzeTableSourceIn analyzes a TABLE query primary as the SELECT *
 // FROM t it stands for. The clauses the node holds (CTEs, ORDER BY, LIMIT,
 // locking, INTO) come along unchanged; only the primary is rewritten, on a
 // copy, so the caller's AST is left alone.
-func (c *Catalog) analyzeTableSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+func (c *Catalog) analyzeTableSourceIn(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (*Query, error) {
 	if stmt.TableSource == nil || stmt.TableSource.Table == nil {
 		return nil, fmt.Errorf("TABLE query primary with no table")
 	}
@@ -133,10 +162,10 @@ func (c *Catalog) analyzeTableSourceWithCTEs(stmt *nodes.SelectStmt, parentScope
 	equivalent.TableSource = nil
 	equivalent.From = []nodes.TableExpr{stmt.TableSource.Table}
 	equivalent.TargetList = []nodes.ExprNode{&nodes.StarExpr{Loc: stmt.TableSource.Loc}}
-	return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
+	return c.analyzeSelectStmtIn(&equivalent, parentScope, inheritedCTEMap, reachableCTEs)
 }
 
-// analyzeValuesSourceWithCTEs analyzes a VALUES query primary as the query it
+// analyzeValuesSourceIn analyzes a VALUES query primary as the query it
 // stands for: one SELECT of a row's expressions per row, combined with
 // UNION ALL, which is what a table value constructor is. The clauses the node
 // holds (CTEs, ORDER BY, LIMIT, locking, INTO) ride on the result, and only
@@ -151,7 +180,7 @@ func (c *Catalog) analyzeTableSourceWithCTEs(stmt *nodes.SelectStmt, parentScope
 // cardinality. Analyzing only the first row dropped the rest; folding them
 // into the first as junk entries kept the dependency but still deparsed to one
 // row.
-func (c *Catalog) analyzeValuesSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+func (c *Catalog) analyzeValuesSourceIn(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (*Query, error) {
 	if stmt.ValuesSource == nil || len(stmt.ValuesSource.Rows) == 0 {
 		return nil, fmt.Errorf("VALUES query primary with no rows")
 	}
@@ -181,7 +210,7 @@ func (c *Catalog) analyzeValuesSourceWithCTEs(stmt *nodes.SelectStmt, parentScop
 	if len(arms) == 1 {
 		// One row is one SELECT; a union of one arm is not a union.
 		equivalent.TargetList = arms[0].TargetList
-		return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
+		return c.analyzeSelectStmtIn(&equivalent, parentScope, inheritedCTEMap, reachableCTEs)
 	}
 	// Left-deep, as the parser builds a UNION ALL chain.
 	left := arms[0]
@@ -192,7 +221,7 @@ func (c *Catalog) analyzeValuesSourceWithCTEs(stmt *nodes.SelectStmt, parentScop
 	equivalent.SetAll = true
 	equivalent.Left = left
 	equivalent.Right = arms[len(arms)-1]
-	return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
+	return c.analyzeSelectStmtIn(&equivalent, parentScope, inheritedCTEMap, reachableCTEs)
 }
 
 // analyzeFromClause processes the FROM clause, populating the query's
@@ -245,7 +274,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return node, err
 
 	case *nodes.SubqueryExpr:
-		return analyzeFromSubquery(c, ref, q, scope)
+		return analyzeFromSubquery(c, ref, q, scope, cteMap)
 
 	default:
 		return nil, fmt.Errorf("unsupported FROM clause element: %T", te)
@@ -476,14 +505,14 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 }
 
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
-func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
-	// Recursively analyze the inner SELECT. FROM subqueries are not correlated,
-	// so we pass nil as parent scope (unless LATERAL).
+func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
+	// Recursively analyze the inner SELECT. FROM subqueries are not correlated
+	// (unless LATERAL), but enclosing CTEs remain visible inside them.
 	var parentScope *analyzerScope
 	if subq.Lateral {
 		parentScope = scope
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
+	innerQ, err := c.analyzeSelectStmtIn(subq.Select, parentScope, cteMap, scope.reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
@@ -873,7 +902,7 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 }
 
 // analyzeCTEs processes WITH clause CTEs, returning a map for CTE name lookup.
-func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (map[string]*CommonTableExprQ, error) {
+func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (map[string]*CommonTableExprQ, error) {
 	if len(ctes) == 0 {
 		return nil, nil
 	}
@@ -883,6 +912,9 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		cteMap[k] = v
 	}
 	for i, cte := range ctes {
+		if reachableCTEs != nil && !reachableCTEs[cte] {
+			continue
+		}
 		if cte.Recursive {
 			q.IsRecursive = true
 		}
@@ -893,9 +925,9 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
 			// Recursive CTE: analyze the left arm first to establish columns,
 			// then register the CTE, then analyze the right arm.
-			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
+			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap, reachableCTEs)
 		} else {
-			innerQ, err = c.analyzeSelectStmtWithCTEs(cte.Select, parentScope, cteMap)
+			innerQ, err = c.analyzeSelectStmtIn(cte.Select, parentScope, cteMap, reachableCTEs)
 		}
 		if err != nil {
 			return nil, err
@@ -927,11 +959,11 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 // analyzeRecursiveCTE handles WITH RECURSIVE where the CTE body is a set
 // operation. The left arm establishes column signatures; the right arm may
 // reference the CTE itself.
-func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
+func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (*Query, error) {
 	stmt := cte.Select
 
 	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
+	larg, err := c.analyzeSelectStmtIn(stmt.Left, parentScope, cteMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
@@ -956,7 +988,7 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 	cteMap[strings.ToLower(cte.Name)] = tempCTE
 
 	// Analyze right arm with the CTE visible via inherited CTE map.
-	rarg, err := c.analyzeSelectStmtWithCTEs(stmt.Right, parentScope, cteMap)
+	rarg, err := c.analyzeSelectStmtIn(stmt.Right, parentScope, cteMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
@@ -1040,41 +1072,28 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 	return &RangeTableRefQ{RTIndex: idx}, nil
 }
 
-// analyzeSetOp processes a set operation (UNION/INTERSECT/EXCEPT).
-func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt, parentScope *analyzerScope) (*Query, error) {
-	return c.analyzeSetOpWithCTEs(stmt, parentScope, nil)
-}
-
-// analyzeSetOpWithCTEs processes a set operation with inherited CTE definitions.
-func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+// analyzeSetOpIn processes a set operation with inherited CTE definitions and
+// optional reachable-CTE filtering.
+func (c *Catalog) analyzeSetOpIn(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool) (*Query, error) {
 	// Process CTEs if present on the outer set-op node.
 	q := &Query{
 		CommandType: CmdSelect,
 		JoinTree:    &JoinTreeQ{},
 	}
 
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Merge inherited CTEs.
-	if inheritedCTEMap != nil {
-		if cteMap == nil {
-			cteMap = make(map[string]*CommonTableExprQ)
-		}
-		for k, v := range inheritedCTEMap {
-			if _, exists := cteMap[k]; !exists {
-				cteMap[k] = v
-			}
-		}
-	}
+	cteMap = mergeCTEMaps(cteMap, inheritedCTEMap)
 
-	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
+	larg, err := c.analyzeSelectStmtIn(stmt.Left, parentScope, cteMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}
-	rarg, err := c.analyzeSelectStmtWithCTEs(stmt.Right, parentScope, cteMap)
+	rarg, err := c.analyzeSelectStmtIn(stmt.Right, parentScope, cteMap, reachableCTEs)
 	if err != nil {
 		return nil, err
 	}

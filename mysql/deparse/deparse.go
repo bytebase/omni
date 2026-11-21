@@ -2545,11 +2545,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	// Determine the canonical function name. A spaced generic call names a
-	// routine of that literal name, not the builtin, so its name keeps its own
-	// spelling: substring (1) stays substring (1), never the builtin's substr.
+	// Determine the canonical function name. A spaced generic call or a
+	// schema-qualified call names a stored routine, not the builtin, so its
+	// name keeps its own spelling: `substring (1)` stays `substring (1)` and
+	// `db.DAY(1)` stays `db.day(1)`, never the builtin's alias.
 	canonical := strings.ToLower(n.Name)
-	if !n.SpacedParen {
+	if !n.SpacedParen && n.Schema == "" {
 		if rewrite, ok := funcNameRewrites[name]; ok {
 			canonical = rewrite
 		}
