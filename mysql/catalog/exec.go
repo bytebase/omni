@@ -1600,6 +1600,87 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
 			}
 			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "greatest", "least":
+			// GREATEST/LEAST: NULL if any argument is NULL; numbers compare as
+			// numbers, an integer result if all are integers, a decimal if any
+			// is one, a double if any is one; with any string among them
+			// every argument compares as a string under the collation, so
+			// GREATEST(10, '9') is '9' on mysql:8.0.46.
+			fn := toLower(e.Name)
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			args := make([]userVarValue, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			pick := func(cmp int) bool { return (fn == "greatest" && cmp > 0) || (fn == "least" && cmp < 0) }
+			anyString, anyBinary := false, false
+			for _, v := range args {
+				if v.kind == userVarString {
+					anyString = true
+					anyBinary = anyBinary || v.binary
+				}
+			}
+			if anyString {
+				strs := make([]userVarValue, len(args))
+				for i, v := range args {
+					sv := userVarValue{kind: userVarString, str: v.str, binary: anyBinary}
+					if v.kind == userVarNumeric && v.isFloat {
+						if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+							f, _ := r.Float64()
+							sv.str = setFormatDouble(f)
+						}
+					}
+					strs[i] = sv
+				}
+				best := strs[0]
+				for _, v := range strs[1:] {
+					if pick(c.compareSetValues(v, best)) {
+						best = v
+					}
+				}
+				return best, true, nil
+			}
+			anyFloat, anyDecimal := false, false
+			rats := make([]*big.Rat, len(args))
+			scales := make([]int, len(args))
+			for i, v := range args {
+				r, sc, kind, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				rats[i], scales[i] = r, sc
+				switch kind {
+				case 'f':
+					anyFloat = true
+				case 'd':
+					anyDecimal = true
+				}
+			}
+			bi := 0
+			for i := 1; i < len(rats); i++ {
+				if pick(rats[i].Cmp(rats[bi])) {
+					bi = i
+				}
+			}
+			switch {
+			case anyFloat:
+				f, _ := rats[bi].Float64()
+				return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+			case anyDecimal:
+				// A DECIMAL, at the chosen argument's own scale: GREATEST(2.5, 3)
+				// stores 3 and GREATEST(1, 2.5) stores 2.5.
+				return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(rats[bi], scales[bi]), isDecimal: true}, true, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: rats[bi].Num().String()}, true, nil
 		case "pi":
 			// PI() is the double π: SET sql_mode = (PI() > 3) sets mode 1 and
 			// SET @p = PI() stores 3.141592653589793 on mysql:8.0.46. The server
@@ -2284,6 +2365,10 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			case "trim_from":
 				if argc != 2 {
 					err = errWrongParamCount("TRIM")
+				}
+			case "greatest", "least":
+				if argc < 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "concat", "coalesce":
 				if argc == 0 {

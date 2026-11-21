@@ -104,11 +104,14 @@ func (c *Catalog) parseTableAutoextendSize(raw string, temporary bool, rawTS str
 	if temporary {
 		return 0, errAutoextendSizeTemporaryTablespace()
 	}
+	// The built-in names are exact: INNODB_SYSTEM and INNODB_FILE_PER_TABLE
+	// are general tablespaces, which refuse AUTOEXTEND_SIZE with 4024 on
+	// mysql:8.0.46.
 	ts := unquoteTableOption(strings.TrimSpace(rawTS))
-	if strings.EqualFold(ts, "innodb_system") {
+	if ts == "innodb_system" {
 		return 0, errAutoextendSizeSystemTablespace()
 	}
-	if ts != "" && !strings.EqualFold(ts, "innodb_file_per_table") {
+	if ts != "" && ts != "innodb_file_per_table" {
 		return 0, errAutoextendSizeGeneralTablespace()
 	}
 	return c.parseAutoextendSize(raw)
@@ -313,11 +316,11 @@ func (c *Catalog) validateInnoDBCompressedTableOption(tableName, rawTS, rowForma
 		return nil
 	}
 	ts := unquoteTableOption(strings.TrimSpace(rawTS))
-	if strings.EqualFold(ts, "innodb_system") {
+	if ts == "innodb_system" {
 		return &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain a COMPRESSED table", ts)}
 	}
-	if c.InnoDBPageSize() > 16384 && (ts == "" || strings.EqualFold(ts, "innodb_file_per_table")) {
+	if c.InnoDBPageSize() > 16384 && (ts == "" || ts == "innodb_file_per_table") {
 		if forAlter {
 			return errUnsupportedRowOption("ROW_TYPE")
 		}

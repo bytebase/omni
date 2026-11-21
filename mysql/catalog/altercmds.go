@@ -361,7 +361,7 @@ func applyAlteredAutoextendSize(tbl *Table, origEngine string, hasOpt bool, optB
 		return
 	}
 	ts := unquoteTableOption(strings.TrimSpace(tbl.Tablespace))
-	if ts != "" && !strings.EqualFold(ts, "innodb_file_per_table") {
+	if ts != "" && ts != "innodb_file_per_table" {
 		tbl.AutoExtendSize = 0
 	}
 }

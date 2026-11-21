@@ -5262,6 +5262,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"TABLESPACE `INNODB_FILE_PER_TABLE`"},
 			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE INNODB_FILE_PER_TABLE"},
 		},
+		// AUTOEXTEND_SIZE on a table: the exact built-in names take their own
+		// paths, and the same names in capitals are general tablespaces (4024).
+		{name: "AUTOEXTEND_SIZE in a general tablespace INNODB_FILE_PER_TABLE", setup: []string{"CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_a.ibd'"}, stmt: "CREATE TABLE z (id INT) TABLESPACE INNODB_FILE_PER_TABLE AUTOEXTEND_SIZE=4M", code: 4024, cleanup: []string{"DROP TABLESPACE INNODB_FILE_PER_TABLE"}},
+		{name: "AUTOEXTEND_SIZE in a general tablespace INNODB_SYSTEM", setup: []string{"CREATE TABLESPACE INNODB_SYSTEM ADD DATAFILE 'innodb_sys_a.ibd'"}, stmt: "CREATE TABLE z (id INT) TABLESPACE INNODB_SYSTEM AUTOEXTEND_SIZE=4M", code: 4024, cleanup: []string{"DROP TABLESPACE INNODB_SYSTEM"}},
+		{name: "AUTOEXTEND_SIZE in innodb_file_per_table", stmt: "CREATE TABLE z (id INT) TABLESPACE innodb_file_per_table AUTOEXTEND_SIZE=4M", code: 0},
+		{name: "AUTOEXTEND_SIZE in innodb_system", stmt: "CREATE TABLE z (id INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=4M", code: 1478},
+		{name: "SET GREATEST with one argument", stmt: "SET @x = GREATEST(1)", code: 1582},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6386,6 +6393,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"SIN(0)", "COS(0)", "TAN(0)", "ASIN(1)", "ACOS(1)", "ATAN(1)", "ATAN(1, 1)", "ATAN2(1, 1)",
 		"DEGREES(1)", "RADIANS(180)", "SIN('0')", "IFNULL(ASIN(2), 'n')", "IFNULL(ACOS(-2), 'n')", "SIN(1)", "COS(1)",
 		"(TAN(1) > 1.557)", "(COT(1) > 0.642)", "PI()", "(PI() > 3.14159)",
+		"GREATEST(0, 1)", "GREATEST(1, 2.5)", "GREATEST('a', 'B')", "GREATEST(1, '2')", "GREATEST(10, '9')",
+		"GREATEST('10', '9')", "GREATEST(1.5e0, 2)", "LEAST(3, 1, 2)", "LEAST('b', 'A')", "GREATEST(-1, '-2')",
+		"LEAST(1, 'abc')", "GREATEST(2, 'abc')", "GREATEST(2.5, 3)", "GREATEST(X'01', X'02')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6503,7 +6513,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
