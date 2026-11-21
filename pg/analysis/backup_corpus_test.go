@@ -5,9 +5,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/review"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -71,25 +71,6 @@ func fixedBackupMetadata() *metadata.DatabaseSchemaMetadata {
 	}
 }
 
-func offsetToRunePos(sql string, offset int) backupCorpusPos {
-	if offset > len(sql) {
-		offset = len(sql)
-	}
-	line := 1
-	col := 0
-	for i := 0; i < offset; {
-		r, size := utf8.DecodeRuneInString(sql[i:])
-		if r == '\n' {
-			line++
-			col = 0
-		} else {
-			col++
-		}
-		i += size
-	}
-	return backupCorpusPos{Line: line, Column: col + 1}
-}
-
 func TestBackupCorpus(t *testing.T) {
 	content, err := os.ReadFile("testdata/backup.yaml")
 	require.NoError(t, err)
@@ -111,17 +92,18 @@ func TestBackupCorpus(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			idx := review.Index(tc.Input)
 			got := make([]backupCorpusResult, 0, len(backups))
 			for _, b := range backups {
-				start := offsetToRunePos(tc.Input, b.StartOffset)
-				end := offsetToRunePos(tc.Input, b.EndOffset)
+				startLine, startCol := idx.Position(b.StartOffset)
+				endLine, endCol := idx.Position(b.EndOffset)
 				got = append(got, backupCorpusResult{
 					Statement:       b.Statement,
 					SourceSchema:    b.SourceSchema,
 					SourceTableName: b.SourceTableName,
 					TargetTableName: b.TargetTableName,
-					StartPosition:   backupCorpusPos{Line: start.Line, Column: start.Column - 1},
-					EndPosition:     end,
+					StartPosition:   backupCorpusPos{Line: startLine, Column: startCol - 1},
+					EndPosition:     backupCorpusPos{Line: endLine, Column: endCol},
 				})
 			}
 			slices.SortFunc(got, func(a, b backupCorpusResult) int {

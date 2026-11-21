@@ -179,20 +179,23 @@ func generateSQLForTable(statementInfoList []statementInfo, targetDatabase strin
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract suffix select statement: %w", err)
 		}
-		if len(item.table.Alias) == 0 {
-			if _, err := fmt.Fprintf(&buf, "  SELECT [%s].[%s].[%s].* ", item.table.Database, item.table.Schema, item.table.Table); err != nil {
-				return nil, fmt.Errorf("failed to write buffer: %w", err)
-			}
-		} else {
-			if _, err := fmt.Fprintf(&buf, "  SELECT [%s].* ", item.table.Alias); err != nil {
-				return nil, fmt.Errorf("failed to write buffer: %w", err)
-			}
+		if _, err := buf.WriteString("  SELECT "); err != nil {
+			return nil, fmt.Errorf("failed to write buffer: %w", err)
 		}
 		if len(topClause) > 0 {
 			if _, err := buf.WriteString(topClause); err != nil {
 				return nil, fmt.Errorf("failed to write buffer: %w", err)
 			}
 			if _, err := buf.WriteString(" "); err != nil {
+				return nil, fmt.Errorf("failed to write buffer: %w", err)
+			}
+		}
+		if len(item.table.Alias) == 0 {
+			if _, err := fmt.Fprintf(&buf, "[%s].[%s].[%s].* ", item.table.Database, item.table.Schema, item.table.Table); err != nil {
+				return nil, fmt.Errorf("failed to write buffer: %w", err)
+			}
+		} else {
+			if _, err := fmt.Fprintf(&buf, "[%s].* ", item.table.Alias); err != nil {
 				return nil, fmt.Errorf("failed to write buffer: %w", err)
 			}
 		}

@@ -303,3 +303,27 @@ func TestOracleVariableRows(t *testing.T) {
 		t.Errorf("SELECT @v in the next batch: got %v, want error 137", errs[1])
 	}
 }
+
+// TestOracleBackupTop verifies that the SELECT ... INTO generated for an
+// UPDATE TOP statement executes on SQL Server and copies at most the TOP rows.
+func TestOracleBackupTop(t *testing.T) {
+	conn := oracleConn(t)
+	database := testcontainer.Database(t)
+	oracleExec(t, conn, "CREATE TABLE dbo.test (c1 INT, c2 INT)")
+	oracleExec(t, conn, "INSERT dbo.test VALUES (1, 2), (2, 2), (3, 2), (4, 2)")
+
+	backups, err := TransformDMLToSelect(
+		parseScript(t, "UPDATE TOP (3) test SET c1 = 9 WHERE c2 = 2;"),
+		database, database, "rollback", false,
+	)
+	if err != nil {
+		t.Fatalf("TransformDMLToSelect: %v", err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("got %d backups, want 1", len(backups))
+	}
+	oracleExec(t, conn, backups[0].Statement)
+	if got := oracleQuery(t, conn, "SELECT COUNT(*) FROM dbo.["+backups[0].TargetTableName+"]"); len(got) != 1 || got[0][0] != "3" {
+		t.Errorf("backup row count: got %v, want 3", got)
+	}
+}

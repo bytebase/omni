@@ -83,11 +83,19 @@ func TestBackupBoundaryCases(t *testing.T) {
 		wantErrPart string
 	}{
 		{
+			name:  "update top",
+			input: "UPDATE TOP (3) test SET c1 = 1 WHERE c2 = 2;",
+			wantSQL: strings.Join([]string{
+				"SELECT * INTO [backupDB].[dbo].[rollback_test_db] FROM (",
+				"  SELECT TOP (3) [db].[dbo].[test].* FROM test WHERE c2 = 2) AS backup_table;",
+			}, "\n"),
+		},
+		{
 			name:  "update top option",
 			input: "UPDATE TOP (3) test SET c1 = 1 WHERE c2 = 2 OPTION (RECOMPILE);",
 			wantSQL: strings.Join([]string{
 				"SELECT * INTO [backupDB].[dbo].[rollback_test_db] FROM (",
-				"  SELECT [db].[dbo].[test].* TOP (3) FROM test WHERE c2 = 2 OPTION (RECOMPILE)) AS backup_table;",
+				"  SELECT TOP (3) [db].[dbo].[test].* FROM test WHERE c2 = 2 OPTION (RECOMPILE)) AS backup_table;",
 			}, "\n"),
 		},
 		{

@@ -5,9 +5,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/review"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -40,25 +40,6 @@ type restoreCorpusCase struct {
 	Result           string `yaml:"result"`
 }
 
-func offsetToZeroBasedColPos(sql string, offset int) backupCorpusPos {
-	if offset > len(sql) {
-		offset = len(sql)
-	}
-	line := 1
-	col := 0
-	for i := 0; i < offset; {
-		r, size := utf8.DecodeRuneInString(sql[i:])
-		if r == '\n' {
-			line++
-			col = 0
-		} else {
-			col++
-		}
-		i += size
-	}
-	return backupCorpusPos{Line: line, Column: col}
-}
-
 func TestBackupCorpus(t *testing.T) {
 	content, err := os.ReadFile("testdata/backup.yaml")
 	require.NoError(t, err)
@@ -71,15 +52,18 @@ func TestBackupCorpus(t *testing.T) {
 		t.Run(tc.Input, func(t *testing.T) {
 			backups, err := TransformDMLToSelect(tc.Input, opts)
 			require.NoError(t, err)
+			idx := review.Index(tc.Input)
 			got := make([]backupCorpusResult, 0, len(backups))
 			for _, b := range backups {
+				startLine, startCol := idx.Position(b.Start)
+				endLine, endCol := idx.Position(b.End)
 				got = append(got, backupCorpusResult{
 					Statement:       b.Statement,
 					SourceSchema:    b.SourceSchema,
 					SourceTableName: b.SourceTableName,
 					TargetTableName: b.TargetTableName,
-					StartPosition:   offsetToZeroBasedColPos(tc.Input, b.Start),
-					EndPosition:     offsetToZeroBasedColPos(tc.Input, b.End),
+					StartPosition:   backupCorpusPos{Line: startLine, Column: startCol - 1},
+					EndPosition:     backupCorpusPos{Line: endLine, Column: endCol - 1},
 				})
 			}
 			slices.SortFunc(got, func(a, b backupCorpusResult) int {
