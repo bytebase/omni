@@ -27,12 +27,17 @@ const (
 	ErrKeyDoesNotExist                   = 1176
 	ErrIncorrectUsage                    = 1221
 	ErrInvalidEncryption                 = 3184
+	ErrTablespaceEncryptionMismatch      = 3825
 	ErrStartTransactionInAlter           = 3979
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
 	ErrTableStorageEngineOption          = 1031
 	ErrUnknownStorageEngine              = 1286
+	ErrUnknownCharacterSet               = 1115
+	ErrUnknownCollation                  = 1273
+	ErrBigintOutOfRange                  = 1690
+	ErrInvalidJSONAttribute              = 3980
 	ErrInvalidPerformanceSchema          = 1683
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
@@ -84,6 +89,47 @@ const (
 	ErrDupPartitionField           = 1652
 	ErrSpatialColumnNotGeometrical = 1687
 	ErrSRSMissingAttribute         = 3708
+
+	ErrIncorrectPrefixKey                = 1089
+	ErrNotAllowedCommand                 = 1148
+	ErrWrongValueForVar                  = 1231
+	ErrWrongTypeForVar                   = 1232
+	ErrIncorrectGlobalLocalVar           = 1238
+	ErrWrongFkDef                        = 1239
+	ErrDuplicatedValueInType             = 1291
+	ErrRowIsReferenced2                  = 1451
+	ErrTablespaceMissing                 = 1812
+	ErrTablespaceExists                  = 1813
+	ErrTablespaceDiscarded               = 1814
+	ErrCannotDiscardImportTempTable      = 3007
+	ErrWrongTablespaceName               = 3119
+	ErrTablespaceIsNotEmpty              = 3120
+	ErrWrongTablespaceFileext            = 3121
+	ErrJSONUsedAsKey                     = 3152
+	ErrUnknownTimeZone                   = 1298
+	ErrIllegalValueForType               = 1367
+	ErrDropTablespaceFailed              = 1529
+	ErrTablespaceDoesNotExist            = 3510
+	ErrDupTablespaceDatafile             = 3606
+	ErrTablespaceNoSuchFile              = 3629
+	ErrTablespaceEngineMismatch          = 3642
+	ErrReservedTablespaceName            = 3723
+	ErrSpatialUniqueIndex                = 3728
+	ErrFunctionalIndexPrimaryKey         = 3756
+	ErrFunctionalIndexOnField            = 3762
+	ErrDependentByDefaultVal             = 3766
+	ErrFunctionalIndexColumnDep          = 3837
+	ErrWrongParamcountToNativeFct        = 1582
+	ErrDefaultValExprNamedFuncNotAllowed = 3767
+	ErrDefaultValExprRefAutoInc          = 3768
+	ErrDefaultValExprContainSubquery     = 3769
+	ErrDefaultValExprFuncIsNotAllowed    = 3770
+	ErrDefaultValExprRefVariable         = 3772
+	ErrSecondaryEngineNotDefined         = 3889
+	ErrAutoextendSizeNotMultiple         = 4023
+	ErrAutoextendSizeGeneralTablespace   = 4024
+	ErrAutoextendSizeOutOfRange          = 4025
+	ErrAutoextendSizeTemporaryTablespace = 4026
 )
 
 const (
@@ -116,6 +162,10 @@ var sqlStateMap = map[int]string{
 	ErrIncorrectTableDefinition:          "42000",
 	ErrTableStorageEngineOption:          "HY000",
 	ErrUnknownStorageEngine:              "42000",
+	ErrUnknownCharacterSet:               "42000",
+	ErrUnknownCollation:                  "HY000",
+	ErrBigintOutOfRange:                  "22003",
+	ErrInvalidJSONAttribute:              "HY000",
 	ErrInvalidPerformanceSchema:          "HY000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
@@ -156,6 +206,43 @@ var sqlStateMap = map[int]string{
 	ErrTableMustHaveColumns:              "HY000",
 	ErrSpatialColumnNotGeometrical:       "42000",
 	ErrSRSMissingAttribute:               "SR006",
+	ErrIncorrectPrefixKey:                "HY000",
+	ErrNotAllowedCommand:                 "42000",
+	ErrWrongValueForVar:                  "42000",
+	ErrWrongTypeForVar:                   "42000",
+	ErrIncorrectGlobalLocalVar:           "HY000",
+	ErrWrongFkDef:                        "42000",
+	ErrDuplicatedValueInType:             "HY000",
+	ErrRowIsReferenced2:                  "23000",
+	ErrTablespaceMissing:                 "HY000",
+	ErrTablespaceExists:                  "HY000",
+	ErrTablespaceDiscarded:               "HY000",
+	ErrCannotDiscardImportTempTable:      "HY000",
+	ErrWrongTablespaceName:               "42000",
+	ErrTablespaceIsNotEmpty:              "HY000",
+	ErrJSONUsedAsKey:                     "42000",
+	ErrTablespaceDoesNotExist:            "HY000",
+	ErrReservedTablespaceName:            "HY000",
+	ErrFunctionalIndexPrimaryKey:         "HY000",
+	ErrFunctionalIndexOnField:            "HY000",
+	ErrDependentByDefaultVal:             "HY000",
+	ErrDefaultValExprNamedFuncNotAllowed: "HY000",
+	ErrDefaultValExprRefAutoInc:          "HY000",
+	ErrDefaultValExprContainSubquery:     "HY000",
+	ErrDefaultValExprFuncIsNotAllowed:    "HY000",
+	ErrDefaultValExprRefVariable:         "HY000",
+	ErrSecondaryEngineNotDefined:         "HY000",
+	ErrAutoextendSizeNotMultiple:         "HY000",
+	ErrAutoextendSizeGeneralTablespace:   "HY000",
+	ErrAutoextendSizeOutOfRange:          "HY000",
+	ErrAutoextendSizeTemporaryTablespace: "HY000",
+	ErrUnknownTimeZone:                   "HY000",
+	ErrIllegalValueForType:               "22007",
+	ErrDropTablespaceFailed:              "HY000",
+	ErrWrongTablespaceFileext:            "HY000",
+	ErrDupTablespaceDatafile:             "HY000",
+	ErrTablespaceEngineMismatch:          "HY000",
+	ErrSpatialUniqueIndex:                "HY000",
 }
 
 func sqlState(code int) string {
@@ -564,4 +651,310 @@ func errWrongParametersToNativeFct(fn string) error {
 func errWrongParametersToStoredFct(fn string) error {
 	return &Error{Code: 1584, SQLState: "42000",
 		Message: fmt.Sprintf("Incorrect parameters in the call to stored function `%s`", strings.ToLower(fn))}
+}
+
+func errIncorrectPrefixKey() error {
+	return &Error{Code: ErrIncorrectPrefixKey, SQLState: sqlState(ErrIncorrectPrefixKey),
+		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+func errNotAllowedCommand() error {
+	return &Error{Code: ErrNotAllowedCommand, SQLState: sqlState(ErrNotAllowedCommand),
+		Message: "The used command is not allowed with this MySQL version"}
+}
+
+func errWrongFkDef(forStr, reason string) error {
+	return &Error{Code: ErrWrongFkDef, SQLState: sqlState(ErrWrongFkDef),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': %s", forStr, reason)}
+}
+
+func errDuplicatedValueInType(colName, val, typ string) error {
+	return &Error{Code: ErrDuplicatedValueInType, SQLState: sqlState(ErrDuplicatedValueInType),
+		Message: fmt.Sprintf("Column '%s' has duplicated value '%s' in %s", colName, val, typ)}
+}
+
+func errTablespaceMissing(db, table string) error {
+	return &Error{Code: ErrTablespaceMissing, SQLState: sqlState(ErrTablespaceMissing),
+		Message: fmt.Sprintf("Tablespace is missing for table `%s`.`%s`.", db, table)}
+}
+
+func errTablespaceExists(name string) error {
+	return &Error{Code: ErrTablespaceExists, SQLState: sqlState(ErrTablespaceExists),
+		Message: fmt.Sprintf("Tablespace '%s' exists.", name)}
+}
+
+func errTablespaceDiscarded(db, table string) error {
+	return &Error{Code: ErrTablespaceDiscarded, SQLState: sqlState(ErrTablespaceDiscarded),
+		Message: fmt.Sprintf("Tablespace has been discarded for table '%s/%s'", db, table)}
+}
+
+func errCannotDiscardImportTempTable() error {
+	return &Error{Code: ErrCannotDiscardImportTempTable, SQLState: sqlState(ErrCannotDiscardImportTempTable),
+		Message: "Cannot DISCARD/IMPORT tablespace associated with temporary table"}
+}
+
+// errWrongTablespaceNameReserved is what ALTER TABLESPACE mysql RENAME
+// answers: the data dictionary tablespace keeps its name.
+func errWrongTablespaceNameReserved(name string) error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: fmt.Sprintf("InnoDB: `%s` is a reserved tablespace name.", name)}
+}
+
+func errReservedInnoDBTablespacePrefix() error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: "InnoDB: Tablespace names starting with `innodb_` are reserved."}
+}
+
+func errTablespaceIsNotEmpty(name string) error {
+	return &Error{Code: ErrTablespaceIsNotEmpty, SQLState: sqlState(ErrTablespaceIsNotEmpty),
+		Message: fmt.Sprintf("Tablespace '%s' is not empty.", name)}
+}
+
+func errJSONUsedAsKey(colName string) error {
+	return &Error{Code: ErrJSONUsedAsKey, SQLState: sqlState(ErrJSONUsedAsKey),
+		Message: fmt.Sprintf("JSON column '%s' supports indexing only via generated columns on a specified JSON path.", colName)}
+}
+
+func errTablespaceDoesNotExist(name string) error {
+	return &Error{Code: ErrTablespaceDoesNotExist, SQLState: sqlState(ErrTablespaceDoesNotExist),
+		Message: fmt.Sprintf("Tablespace %s doesn't exist.", name)}
+}
+
+func errReservedTablespaceName(table, ts string) error {
+	return &Error{Code: ErrReservedTablespaceName, SQLState: sqlState(ErrReservedTablespaceName),
+		Message: fmt.Sprintf("The table '%s' may not be created in the reserved tablespace '%s'.", table, ts)}
+}
+
+func errTempTablespaceNonTempTable() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables."}
+}
+
+func errPartitionedTableSharedTablespace() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB : A partitioned table is not allowed in a shared tablespace."}
+}
+
+func errTablespaceUnsupportedEngine(engine, op string) error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine '%s' does not support the create option '%s'", engine, op)}
+}
+
+func errTablespaceEngineMismatch(engine, tsName string) error {
+	return &Error{Code: ErrTablespaceEngineMismatch, SQLState: sqlState(ErrTablespaceEngineMismatch),
+		Message: fmt.Sprintf("Engine '%s' does not match stored engine 'InnoDB' for tablespace '%s'", engine, tsName)}
+}
+
+func errIllegalValueForType(typeName, val string) error {
+	return &Error{Code: ErrIllegalValueForType, SQLState: sqlState(ErrIllegalValueForType),
+		Message: fmt.Sprintf("Illegal %s '%s' value found during parsing", typeName, val)}
+}
+
+func errDropUndoTablespaceFailed(name string) error {
+	return &Error{Code: ErrDropTablespaceFailed, SQLState: sqlState(ErrDropTablespaceFailed),
+		Message: fmt.Sprintf("Failed to drop UNDO TABLESPACE %s", name)}
+}
+
+func errUndoTablespaceDatafileExt() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The ADD DATAFILE filepath must end with '.ibu'."}
+}
+
+func errWrongTablespaceKind(op, name, actualKind, suggestOp string) error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: fmt.Sprintf("Cannot %s `%s` because it is %s tablespace.  Please use %s.", op, name, actualKind, suggestOp)}
+}
+
+func errSpatialUniqueIndex() error {
+	return &Error{Code: ErrSpatialUniqueIndex, SQLState: sqlState(ErrSpatialUniqueIndex),
+		Message: "Spatial indexes can't be primary or unique indexes."}
+}
+
+func errUnknownTimeZone(tz string) error {
+	return &Error{Code: ErrUnknownTimeZone, SQLState: sqlState(ErrUnknownTimeZone),
+		Message: fmt.Sprintf("Unknown or incorrect time zone: '%s'", tz)}
+}
+
+func errUnknownCharacterSet(cs string) error {
+	return &Error{Code: ErrUnknownCharacterSet, SQLState: sqlState(ErrUnknownCharacterSet),
+		Message: fmt.Sprintf("Unknown character set: '%s'", cs)}
+}
+
+func errUnknownCollation(coll string) error {
+	return &Error{Code: ErrUnknownCollation, SQLState: sqlState(ErrUnknownCollation),
+		Message: fmt.Sprintf("Unknown collation: '%s'", coll)}
+}
+
+func errBigintOutOfRange() error {
+	return &Error{Code: ErrBigintOutOfRange, SQLState: sqlState(ErrBigintOutOfRange),
+		Message: "BIGINT value is out of range"}
+}
+
+func errInvalidJSONAttribute(attr string) error {
+	return &Error{Code: ErrInvalidJSONAttribute, SQLState: sqlState(ErrInvalidJSONAttribute),
+		Message: fmt.Sprintf("Invalid json attribute: '%s'", attr)}
+}
+
+func errWrongValueForVar(varName, val string) error {
+	return &Error{Code: ErrWrongValueForVar, SQLState: sqlState(ErrWrongValueForVar),
+		Message: fmt.Sprintf("Variable '%s' can't be set to the value of '%s'", varName, val)}
+}
+
+func errWrongTypeForVar(varName string) error {
+	return &Error{Code: ErrWrongTypeForVar, SQLState: sqlState(ErrWrongTypeForVar),
+		Message: fmt.Sprintf("Incorrect argument type to variable '%s'", varName)}
+}
+
+// errLocalVariable is 1228, a session-only variable set at global scope.
+func errLocalVariable(varName string) error {
+	return &Error{Code: 1228, SQLState: "HY000",
+		Message: fmt.Sprintf("Variable '%s' is a SESSION variable and can't be used with SET GLOBAL", varName)}
+}
+
+// errGlobalVariable is 1229, a global-only variable set at session scope.
+func errGlobalVariable(varName string) error {
+	return &Error{Code: 1229, SQLState: "HY000",
+		Message: fmt.Sprintf("Variable '%s' is a GLOBAL variable and should be set with SET GLOBAL", varName)}
+}
+
+func errIncorrectGlobalLocalVar(varName, detail string) error {
+	return &Error{Code: ErrIncorrectGlobalLocalVar, SQLState: sqlState(ErrIncorrectGlobalLocalVar),
+		Message: fmt.Sprintf("Variable '%s' is a %s", varName, detail)}
+}
+
+func errDependentByDefaultValExpr(colName, tableName string) error {
+	return &Error{Code: ErrDependentByDefaultVal, SQLState: sqlState(ErrDependentByDefaultVal),
+		Message: fmt.Sprintf("Column '%s' of table '%s' has a default value expression dependency and cannot be dropped or renamed.", colName, tableName)}
+}
+
+func errFunctionalIndexPrimaryKey() error {
+	return &Error{Code: ErrFunctionalIndexPrimaryKey, SQLState: sqlState(ErrFunctionalIndexPrimaryKey),
+		Message: "The primary key cannot be a functional index"}
+}
+
+func errFulltextFunctionalIndex() error {
+	return &Error{Code: 3759, SQLState: "HY000", Message: "Fulltext functional index is not supported."}
+}
+
+func errSpatialFunctionalIndex() error {
+	return &Error{Code: 3760, SQLState: "HY000", Message: "Spatial functional index is not supported."}
+}
+
+func errFunctionalIndexOnField() error {
+	return &Error{Code: ErrFunctionalIndexOnField, SQLState: sqlState(ErrFunctionalIndexOnField),
+		Message: "Functional index on a column is not supported. Consider using a regular index instead."}
+}
+
+func errDefaultValExprForwardRef(colName string) error {
+	return &Error{Code: ErrDefaultValExprNamedFuncNotAllowed, SQLState: sqlState(ErrDefaultValExprNamedFuncNotAllowed),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to a column defined after it if that column is a generated column or has an expression as default value.", colName)}
+}
+
+func errDefaultValExprRefAutoInc(colName string) error {
+	return &Error{Code: ErrDefaultValExprRefAutoInc, SQLState: sqlState(ErrDefaultValExprRefAutoInc),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to an auto-increment column.", colName)}
+}
+
+func errDefaultValExprSubquery(colName string) error {
+	return &Error{Code: ErrDefaultValExprContainSubquery, SQLState: sqlState(ErrDefaultValExprContainSubquery),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot contain subqueries.", colName)}
+}
+
+func errDefaultValExprVariable(colName string) error {
+	return &Error{Code: ErrDefaultValExprRefVariable, SQLState: sqlState(ErrDefaultValExprRefVariable),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to user or system variables.", colName)}
+}
+
+func errRowIsReferenced2() error {
+	return &Error{Code: ErrRowIsReferenced2, SQLState: sqlState(ErrRowIsReferenced2),
+		Message: "Cannot delete or update a parent row: a foreign key constraint fails ()"}
+}
+
+func errTablespaceSlashInName() error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: "InnoDB: A general tablespace name cannot contain '/'."}
+}
+
+func errDefaultValExprDisallowedFunc(colName string) error {
+	return &Error{Code: ErrDefaultValExprFuncIsNotAllowed, SQLState: sqlState(ErrDefaultValExprFuncIsNotAllowed),
+		Message: fmt.Sprintf("Default value expression of column '%s' contains a disallowed function.", colName)}
+}
+
+func errSecondaryEngineNotDefined() error {
+	return &Error{Code: ErrSecondaryEngineNotDefined, SQLState: sqlState(ErrSecondaryEngineNotDefined),
+		Message: "Secondary engine operation failed. No secondary engine defined."}
+}
+
+func errAutoextendSizeNotMultiple(minBytes uint64) error {
+	return &Error{Code: ErrAutoextendSizeNotMultiple, SQLState: sqlState(ErrAutoextendSizeNotMultiple),
+		Message: fmt.Sprintf("AUTOEXTEND_SIZE should be a multiple of %dM", minBytes/(1024*1024))}
+}
+
+func errAutoextendSizeGeneralTablespace() error {
+	return &Error{Code: ErrAutoextendSizeGeneralTablespace, SQLState: sqlState(ErrAutoextendSizeGeneralTablespace),
+		Message: `InnoDB: "AUTOEXTEND_SIZE" not allowed with general tablespaces`}
+}
+
+func errAutoextendSizeOutOfRange(minBytes uint64) error {
+	return &Error{Code: ErrAutoextendSizeOutOfRange, SQLState: sqlState(ErrAutoextendSizeOutOfRange),
+		Message: fmt.Sprintf("AUTOEXTEND_SIZE value should be between %dM and 4096M", minBytes/(1024*1024))}
+}
+
+func errAutoextendSizeTemporaryTablespace() error {
+	return &Error{Code: ErrAutoextendSizeTemporaryTablespace, SQLState: sqlState(ErrAutoextendSizeTemporaryTablespace),
+		Message: "AUTOEXTEND_SIZE clause is not valid for temporary tablespace."}
+}
+
+func errAutoextendSizeSystemTablespace() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB : AUTOEXTEND_SIZE is not accepted for system tablespace."}
+}
+
+func errTablespaceDatafileExt(ext string) error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: fmt.Sprintf("The ADD DATAFILE filepath must end with '%s'.", ext)}
+}
+
+func errTablespaceDatafileProperFilename() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The ADD DATAFILE filepath does not have a proper filename."}
+}
+
+func errTablespaceDatafileKnownDir() error {
+	return &Error{Code: ErrWrongTablespaceFileext, SQLState: sqlState(ErrWrongTablespaceFileext),
+		Message: "The DATAFILE location must be in a known directory."}
+}
+
+func errDupTablespaceDatafile(tsName string) error {
+	return &Error{Code: ErrDupTablespaceDatafile, SQLState: sqlState(ErrDupTablespaceDatafile),
+		Message: fmt.Sprintf("Duplicate file name for tablespace '%s'", tsName)}
+}
+
+func errAlterTablespaceFailed(tsName string) error {
+	return &Error{Code: 1533, SQLState: "HY000",
+		Message: fmt.Sprintf("Failed to alter: TABLESPACE %s", tsName)}
+}
+
+func errTablespaceNoSuchFile(tsName, fileName string) error {
+	return &Error{Code: ErrTablespaceNoSuchFile, SQLState: sqlState(ErrTablespaceNoSuchFile),
+		Message: fmt.Sprintf("Tablespace '%s' does not have a file named '%s'", tsName, fileName)}
+}
+
+func errTablespaceEncryptionMismatch(tblEncrypted bool) error {
+	tblState, tsState := "unencrypted", "encrypted"
+	if tblEncrypted {
+		tblState, tsState = "encrypted", "unencrypted"
+	}
+	return &Error{Code: ErrTablespaceEncryptionMismatch, SQLState: sqlState(ErrTablespaceEncryptionMismatch),
+		Message: fmt.Sprintf("Request to create '%s' table while using an '%s' tablespace.", tblState, tsState)}
+}
+
+func errWrongParamCount(fnName string) error {
+	return &Error{Code: ErrWrongParamcountToNativeFct, SQLState: "42000",
+		Message: fmt.Sprintf("Incorrect parameter count in the call to native function '%s'", fnName)}
+}
+
+func errFunctionalIndexColumnDep(colName string) error {
+	return &Error{Code: ErrFunctionalIndexColumnDep, SQLState: sqlState(ErrFunctionalIndexColumnDep),
+		Message: fmt.Sprintf("Column '%s' has a functional index dependency and cannot be dropped or renamed.", colName)}
 }

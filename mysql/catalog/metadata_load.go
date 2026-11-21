@@ -65,6 +65,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	c.tablespacesPartial = true
 	c.selectMetadataDatabase(meta, database)
 	restore := c.loadSessionSettings()
 	defer restore()
@@ -443,6 +444,13 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
+		// The tablespace is an identifier: a doubled backtick in it is one.
+		{"TABLESPACE", unquoteIdent(createOption(t.GetCreateOptions(), "tablespace"))},
+		// ENCRYPTION='Y' is in the server's CREATE_OPTIONS, and it is what a
+		// general tablespace the table names is inferred to be.
+		{"ENCRYPTION", unquoteTableOption(createOption(t.GetCreateOptions(), "encryption"))},
+		{"SECONDARY_ENGINE", unquoteTableOption(createOption(t.GetCreateOptions(), "secondary_engine"))},
+		{"AUTOEXTEND_SIZE", createOption(t.GetCreateOptions(), "autoextend_size")},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -471,12 +479,50 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 // createOption returns the value of one CREATE_OPTIONS entry; sync keeps them
 // as space-separated name=value pairs.
 func createOption(options, name string) string {
-	for _, opt := range strings.Fields(options) {
+	for _, opt := range splitCreateOptions(options) {
 		if k, v, ok := strings.Cut(opt, "="); ok && strings.EqualFold(k, name) {
 			return v
 		}
 	}
 	return ""
+}
+
+// splitCreateOptions splits CREATE_OPTIONS at whitespace outside quotes, so a
+// quoted value keeps its spaces: tablespace=`hot data` is one option, a name
+// MySQL takes for a general tablespace.
+func splitCreateOptions(options string) []string {
+	var out []string
+	var cur strings.Builder
+	var quote byte
+	for i := 0; i < len(options); i++ {
+		ch := options[i]
+		switch {
+		case quote != 0:
+			cur.WriteByte(ch)
+			if ch == quote {
+				if i+1 < len(options) && options[i+1] == quote {
+					cur.WriteByte(options[i+1])
+					i++
+				} else {
+					quote = 0
+				}
+			}
+		case ch == '`' || ch == '\'' || ch == '"':
+			quote = ch
+			cur.WriteByte(ch)
+		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteByte(ch)
+		}
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,

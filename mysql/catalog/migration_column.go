@@ -303,6 +303,23 @@ func (l *columnLayout) place(name string) string {
 //
 // The clause ORDER follows MySQL's own SHOW CREATE rendering (show.go), which is also the
 // order MySQL accepts on input, so a rendered definition is both valid DDL and canonical.
+// formatMigrationDefault is formatDefault for generated DDL. A TIMESTAMP
+// literal default names an instant, which the catalog keeps in UTC, but the
+// session applying the migration reads an unqualified literal in its own
+// time_zone. So the literal is written as that instant in UTC with an explicit
+// +00:00 offset, which MySQL 8.0.19 and later take in a datetime literal:
+// `DEFAULT '2020-01-01 00:00:00+00:00'` stores the same instant under any
+// session time zone on mysql:8.0.46.
+func formatMigrationDefault(val string, c *Column) string {
+	if c.DefaultTimestampUTC != nil && strings.EqualFold(c.DataType, "timestamp") && c.DefaultKind == ColumnDefaultConstant {
+		q := formatDefaultForTZ(val, c, utcResolvedTimeZone())
+		if len(q) >= 2 && q[0] == '\'' && q[len(q)-1] == '\'' && !strings.HasPrefix(q, "'0000-00-00") {
+			return q[:len(q)-1] + "+00:00'"
+		}
+	}
+	return formatDefault(val, c)
+}
+
 func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 	var b strings.Builder
 	b.WriteString(migrationQuoteIdent(c.Name))
@@ -397,7 +414,7 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 	// declared to avoid emitting an injected default that a re-apply would also inject.
 	if c.Default != nil {
 		b.WriteString(" DEFAULT ")
-		b.WriteString(formatDefault(*c.Default, c))
+		b.WriteString(formatMigrationDefault(*c.Default, c))
 	}
 
 	// AUTO_INCREMENT.

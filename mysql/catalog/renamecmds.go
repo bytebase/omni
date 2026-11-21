@@ -23,10 +23,13 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			return errDupTable(pair.New.Name)
 		}
 
+		oldDBName := oldDB.Name
+		oldTableName := tbl.Name
 		delete(oldDB.Tables, oldKey)
 		tbl.Name = pair.New.Name
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
+		stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true, nil)
 	}
 	return nil
 }

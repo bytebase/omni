@@ -167,6 +167,18 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			col.Length = int(p.cur.Ival)
+			// A zero length is refused as the grammar reduces the key part,
+			// ER_KEY_PART_0, before the table or column is looked up:
+			// mysql:8.0.46 answers 1391 for CREATE INDEX i ON nosuch (s(0)).
+			//
+			// Ref: key_part in MySQL 8.0 sql/sql_yacc.yy.
+			if p.cur.Ival == 0 {
+				p.noteLookup(&ParseError{
+					Message:  "Key part '" + colName + "' length cannot be 0",
+					Position: p.cur.Loc,
+					Code:     1391,
+				})
+			}
 			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err

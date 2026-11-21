@@ -489,6 +489,19 @@ func (n *Normalizer) CanonicalDefault(c *Column) string {
 		// fall through to the generic handling so we never lose the default entirely.
 	}
 
+	// A TIMESTAMP literal names an instant: two defaults showing the same text
+	// under different session time zones differ, and the same instant shown
+	// two ways does not. A default the catalog took from a statement carries
+	// its UTC instant, so it keys by that instant written in UTC; one without
+	// (a synced snapshot's text) keys by its text, which matches when it was
+	// written under UTC, the catalog's default session time zone.
+	if c.DefaultTimestampUTC != nil && strings.EqualFold(c.DataType, "timestamp") && c.DefaultKind == ColumnDefaultConstant {
+		if q := formatDefaultForTZ(raw, c, utcResolvedTimeZone()); len(q) >= 2 && q[0] == '\'' && q[len(q)-1] == '\'' {
+			unq, _ := unquoteDefault(q)
+			return "str:" + unq
+		}
+	}
+
 	// Constant. Decide numeric vs string by the column's data type and the literal shape.
 	unq, wasQuoted := unquoteDefault(raw)
 

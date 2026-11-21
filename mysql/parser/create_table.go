@@ -784,6 +784,9 @@ func (p *Parser) parseNowFunction() (nodes.ExprNode, error) {
 // the word of a temporal type, each of which the expression reader takes as a primary. An
 // introducer takes a string, a hex or a bit literal: `_binary X'FF'` and `_binary 0b1`.
 func (p *Parser) startsPrefixedLiteral() bool {
+	if p.atNationalString() {
+		return true
+	}
 	next := p.peekNext().Type
 	switch p.cur.Type {
 	case kwDATE, kwTIME, kwTIMESTAMP:
@@ -1696,7 +1699,7 @@ func (p *Parser) consumeStringOptionValue() (string, error) {
 // consumeJSONAttribute reads json_attribute, the string ENGINE_ATTRIBUTE and
 // SECONDARY_ENGINE_ATTRIBUTE take on a table, a column and an index. The action
 // checks a string that is not empty is JSON while the statement parses (3980), so
-// `ENGINE_ATTRIBUTE 's'` is refused and `ENGINE_ATTRIBUTE ''` taken.
+// `ENGINE_ATTRIBUTE 's'` is refused and `ENGINE_ATTRIBUTE ”` taken.
 //
 // Ref: json_attribute in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) consumeJSONAttribute() (string, error) {

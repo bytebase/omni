@@ -474,6 +474,7 @@ type IndexColumn struct {
 	Loc        Loc
 	Expr       ExprNode // column name or expression
 	Length     int      // prefix length
+	HasPrefix  bool     // a (length) clause was written, even (0)
 	Desc       bool     // DESC ordering
 	Functional bool     // true when parsed from functional key-part syntax: (expr)
 }

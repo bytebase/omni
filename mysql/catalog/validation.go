@@ -48,7 +48,7 @@ func validateExpressionSemantics(node nodes.Node) error {
 	return err
 }
 
-func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, ignoreSpace bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
@@ -118,9 +118,8 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	// `DEFAULT (position (1))`. (Other disallowed functions in a general default
 	// expression are not validated here yet.)
 	for _, expr := range columnDefDefaultExprs(colDef) {
-		if exprHasSpacedFuncCall(expr) {
-			return &Error{Code: 3770, SQLState: "HY000",
-				Message: "Default value expression of column '" + colDef.Name + "' contains a disallowed function."}
+		if err := validateDefaultExprFuncs(expr, colDef.Name, ignoreSpace); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -437,10 +436,33 @@ var canonicalEngineNames = map[string]string{
 	"merge": "MRG_MyISAM",
 }
 
+// engineSubstituted reports whether MySQL substitutes another engine for an
+// ENGINE option's name: one the pinned server does not ship, which a sql_mode
+// without NO_ENGINE_SUBSTITUTION lets through with a warning. CREATE TABLE then
+// takes the session's default engine, default_tmp_storage_engine for a
+// TEMPORARY table, and ALTER TABLE keeps the table's own: under
+// default_storage_engine = MyISAM, `ENGINE = nosuch` creates a MyISAM table and
+// leaves a MEMORY one MEMORY (mysql:8.0.46).
+func engineSubstituted(name string) bool {
+	key := strings.ToLower(strings.TrimSpace(name))
+	return !storageEngines[key] && key != performanceSchemaEngine
+}
+
+// sessionDefaultEngine is the engine CREATE TABLE gives a table that names
+// none, or names one MySQL substitutes.
+func (c *Catalog) sessionDefaultEngine(temporary bool) string {
+	if temporary {
+		return c.session.DefaultTmpStorageEngine
+	}
+	return c.session.DefaultStorageEngine
+}
+
 // storedEngineName is the engine a table or partition keeps for an ENGINE
 // option: a name it may keep, with an alias written as MySQL stores it, and the
-// catalog's empty default — InnoDB — for `DEFAULT` and for a name MySQL
-// substitutes.
+// catalog's empty default — InnoDB — for `DEFAULT` (which names InnoDB on
+// mysql:8.0.46 whatever the session's default engine) and for a name MySQL
+// substitutes. A table-level caller handles a substituted name first, through
+// engineSubstituted.
 func storedEngineName(name string) string {
 	key := strings.ToLower(strings.TrimSpace(name))
 	if !storageEngines[key] || key == "default" {
@@ -457,6 +479,10 @@ func storedEngineName(name string) string {
 // and TRADITIONAL carries it where ANSI does not (both measured on
 // mysql:8.0.46).
 var compositeSQLModes = map[string][]string{
+	"DEFAULT": {
+		"ONLY_FULL_GROUP_BY", "STRICT_TRANS_TABLES", "NO_ZERO_IN_DATE",
+		"NO_ZERO_DATE", "ERROR_FOR_DIVISION_BY_ZERO", "NO_ENGINE_SUBSTITUTION",
+	},
 	"TRADITIONAL": {
 		"STRICT_TRANS_TABLES", "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE",
 		"NO_ZERO_DATE", "ERROR_FOR_DIVISION_BY_ZERO", "NO_ENGINE_SUBSTITUTION",
@@ -481,14 +507,34 @@ func (c *Catalog) noEngineSubstitution() bool {
 	return sqlModeHas(c.session.SQLMode, "NO_ENGINE_SUBSTITUTION")
 }
 
+func (c *Catalog) isStrictSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "STRICT_TRANS_TABLES") || sqlModeHas(c.session.SQLMode, "STRICT_ALL_TABLES")
+}
+
+func (c *Catalog) isIgnoreSpaceSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "IGNORE_SPACE")
+}
+
+func (c *Catalog) isNoZeroDateSQLMode() bool {
+	return c.isStrictSQLMode() && sqlModeHas(c.session.SQLMode, "NO_ZERO_DATE")
+}
+
+func (c *Catalog) isNoZeroInDateSQLMode() bool {
+	return c.isStrictSQLMode() && sqlModeHas(c.session.SQLMode, "NO_ZERO_IN_DATE")
+}
+
+func (c *Catalog) isAllowInvalidDatesSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "ALLOW_INVALID_DATES")
+}
+
+func (c *Catalog) isTimeTruncateFractionalSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "TIME_TRUNCATE_FRACTIONAL")
+}
+
 // sqlModeHas reports whether mode holds the flag, expanding a composite mode as
-// MySQL does. `DEFAULT` is the server's own mode list, which has
-// NO_ENGINE_SUBSTITUTION.
+// MySQL does. `DEFAULT` expands to MySQL 8.0's default mode list.
 func sqlModeHas(mode, flag string) bool {
 	mode = strings.ToUpper(strings.TrimSpace(mode))
-	if mode == "DEFAULT" {
-		return flag == "NO_ENGINE_SUBSTITUTION"
-	}
 	for _, part := range strings.Split(mode, ",") {
 		part = strings.ToUpper(strings.TrimSpace(part))
 		if part == flag {
@@ -672,7 +718,7 @@ func validateBareNowDefault(colDef *nodes.ColumnDef) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
-	var now bool
+	typeName := normalizedColumnDataType(colDef.TypeName)
 	for _, expr := range columnDefDefaultExprs(colDef) {
 		fn, ok := expr.(*nodes.FuncCallExpr)
 		if !ok {
@@ -680,17 +726,30 @@ func validateBareNowDefault(colDef *nodes.ColumnDef) error {
 		}
 		switch strings.ToLower(fn.Name) {
 		case "now", "current_timestamp", "localtime", "localtimestamp":
-			now = true
+			if err := validateExpressionSemantics(fn); err != nil {
+				return err
+			}
+			if typeName != "datetime" && typeName != "timestamp" {
+				return errInvalidDefault(colDef.Name)
+			}
+			if fsp, ok := temporalFuncFSP(fn); ok && fsp != colDef.TypeName.Length {
+				return errInvalidDefault(colDef.Name)
+			}
 		}
 	}
-	if !now {
+	return nil
+}
+
+// validateColumnOnUpdate rejects an ON UPDATE CURRENT_TIMESTAMP clause whose
+// column is neither DATETIME nor TIMESTAMP, or whose FSP mismatches the column,
+// at prepare time ahead of database/table lookup and duplicate-column checks
+// (measured on mysql:8.0.46).
+func validateColumnOnUpdate(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.TypeName == nil || colDef.OnUpdate == nil {
 		return nil
 	}
-	switch strings.ToLower(colDef.TypeName.Name) {
-	case "datetime", "timestamp":
-		return nil
-	}
-	return errInvalidDefault(colDef.Name)
+	typeName := normalizedColumnDataType(colDef.TypeName)
+	return validateTemporalExprForColumn(colDef.Name, typeName, colDef.TypeName.Length, colDef.OnUpdate, false)
 }
 
 func validateCheckExpr(name string, expr nodes.ExprNode) error {

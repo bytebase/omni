@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -132,6 +133,38 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 	// ROW_FORMAT — only when normalize-core deems the change significant (rowFormatChanged).
 	if rowFormatChanged(from, to, n) {
 		clauses = append(clauses, "ROW_FORMAT="+strings.ToUpper(canonicalRowFormatValue(to, n)))
+	}
+
+	if from.AutoExtendSize != to.AutoExtendSize {
+		clauses = append(clauses, "AUTOEXTEND_SIZE="+strconv.FormatUint(to.AutoExtendSize, 10))
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(from.SecondaryEngine), strings.TrimSpace(to.SecondaryEngine)) {
+		se := strings.TrimSpace(to.SecondaryEngine)
+		if se == "" {
+			se = "NULL"
+		}
+		clauses = append(clauses, "SECONDARY_ENGINE="+se)
+	}
+
+	// TABLESPACE — moving a table to another general tablespace, or back to
+	// its own file.
+	if from, to := canonicalTableTablespace(from), canonicalTableTablespace(to); from != to {
+		if to == "" {
+			clauses = append(clauses, "TABLESPACE=innodb_file_per_table")
+		} else {
+			clauses = append(clauses, "TABLESPACE="+quoteIdent(to))
+		}
+	}
+
+	// ENCRYPTION — with TABLESPACE in the same ALTER, so a move into an
+	// encrypted general tablespace carries the matching setting.
+	if canonicalTableEncryption(from) != canonicalTableEncryption(to) {
+		if canonicalTableEncryption(to) == "Y" {
+			clauses = append(clauses, "ENCRYPTION='Y'")
+		} else {
+			clauses = append(clauses, "ENCRYPTION='N'")
+		}
 	}
 
 	if len(clauses) == 0 {
@@ -371,6 +404,9 @@ func migrationIndexColumn(ic *IndexColumn) string {
 func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 	var parts []string
 
+	if ts := canonicalTableTablespace(tbl); ts != "" {
+		parts = append(parts, "TABLESPACE "+quoteIdent(ts))
+	}
 	parts = append(parts, "ENGINE="+tableEngineName(tbl))
 
 	if cs := foldCharset(tbl.Charset); cs != "" {
@@ -388,6 +424,18 @@ func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 
 	if c := n.CanonicalComment(tbl.Comment); c != "" {
 		parts = append(parts, "COMMENT="+quoteStringLiteral(c))
+	}
+
+	if tbl.AutoExtendSize > 0 {
+		parts = append(parts, "AUTOEXTEND_SIZE="+strconv.FormatUint(tbl.AutoExtendSize, 10))
+	}
+
+	if se := strings.TrimSpace(tbl.SecondaryEngine); se != "" {
+		parts = append(parts, "SECONDARY_ENGINE="+se)
+	}
+
+	if canonicalTableEncryption(tbl) == "Y" {
+		parts = append(parts, "ENCRYPTION='Y'")
 	}
 
 	return strings.Join(parts, " ")

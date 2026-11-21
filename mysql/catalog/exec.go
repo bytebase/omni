@@ -1,11 +1,24 @@
 package catalog
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
+	"hash/crc32"
+	"math"
+	"math/big"
+	"math/bits"
+	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
+	"github.com/bytebase/omni/mysql/validate"
 )
 
 type ExecOptions struct {
@@ -106,57 +119,3968 @@ func LoadSQL(sql string) (*Catalog, error) {
 // CHARACTER SET, sql_mode). Variables that affect DDL behavior (foreign_key_checks)
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
+	// MySQL evaluates and checks every assignment in a SET statement before
+	// applying any variable update, so a failure rolls back the whole SET and an
+	// RHS reading @var sees the value from before this statement.
+	var updates []func()
+	pendingNamesCharset := ""
+	activeScope := setScopeSession
 	for _, asgn := range stmt.Assignments {
+		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
+			pendingNamesCharset = ""
+			uName := toLower(strings.TrimPrefix(asgn.Column.Column, "@"))
+			val, ok, err := c.evalSetExprChecked(asgn.Value)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				// The server assigns a value the catalog cannot compute: the
+				// variable's old value is gone, so mark it unknown. After
+				// SET @m = 1; SET @m = <unevaluated>, SET sql_mode = @m must not
+				// read 1.
+				val = userVarValue{kind: userVarUnknown}
+			}
+			updates = append(updates, func() {
+				val.hexLit = false // a user variable holds a binary string, not a literal
+				c.userVars[uName] = val
+			})
+			continue
+		}
 		varName := normalizeSetVariableName(asgn.Column)
+		scope := resolveSetAssignmentScope(asgn, &activeScope)
+		if varName != "collate" {
+			pendingNamesCharset = ""
+		}
 		switch varName {
-		case "foreign_key_checks":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.foreignKeyChecks = v
-				c.session.ForeignKeyChecks = v
+		case "names":
+			raw, charset, isNull, err := c.resolveSetCharsetValueChecked(asgn.Value)
+			if err != nil {
+				return err
 			}
-		case "sql_generate_invisible_primary_key":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.generateGIPK = v
-				c.session.GenerateInvisiblePrimaryKey = v
+			if isNull {
+				return errWrongValueForVar("character_set_client", "NULL")
 			}
-		case "show_gipk_in_create_table_and_information_schema":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				c.showGIPK = v
-				c.session.ShowGIPK = v
+			coll, ok := defaultCollationForCharset[toLower(charset)]
+			if !ok {
+				return errUnknownCharacterSet(raw)
 			}
-		case "explicit_defaults_for_timestamp":
-			if isDefaultSetValue(asgn.Value) {
-				c.session.ExplicitDefaultsForTimestamp = true
-			} else if v, ok := parseSetBool(asgn.Value); ok {
-				c.session.ExplicitDefaultsForTimestamp = v
+			if !isPermissibleClientCharset(charset) {
+				return errWrongValueForVar("character_set_client", charset)
 			}
-		case "sql_mode":
-			c.session.SQLMode = nodeToSQLValue(asgn.Value)
-			if c.session.SQLMode == "" && isDefaultSetValue(asgn.Value) {
-				c.session.SQLMode = "DEFAULT"
-			}
-		case "names", "character set":
-			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
-			if strings.EqualFold(charset, "DEFAULT") || charset == "" {
-				charset = c.defaultCharset
-			}
-			c.charsetClient = charset
-			c.session.CharsetClient = charset
-			if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
+			pendingNamesCharset = charset
+			updates = append(updates, func() {
+				c.charsetClient = charset
+				c.session.CharsetClient = charset
 				c.collationConn = coll
 				c.session.CollationConnection = coll
+			})
+		case "character set":
+			raw, charset, isNull, err := c.resolveSetCharsetValueChecked(asgn.Value)
+			if err != nil {
+				return err
 			}
+			if isNull {
+				return errWrongValueForVar("character_set_client", "NULL")
+			}
+			if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
+				return errUnknownCharacterSet(raw)
+			}
+			if !isPermissibleClientCharset(charset) {
+				return errWrongValueForVar("character_set_client", charset)
+			}
+			dbCS := c.defaultCharset
+			dbColl := ""
+			if c.currentDB != "" {
+				if db := c.GetDatabase(c.currentDB); db != nil {
+					if db.Collation != "" {
+						dbColl = canonicalMySQLCollationName(db.Collation)
+					}
+					if db.Charset != "" {
+						dbCS = normalizeCharsetName(db.Charset)
+					}
+				}
+			}
+			if dbColl == "" {
+				dbColl = defaultCollationForCharset[toLower(dbCS)]
+			}
+			if dbColl == "" {
+				dbColl = defaultCollationForCharset[toLower(c.defaultCharset)]
+			}
+			updates = append(updates, func() {
+				c.charsetClient = charset
+				c.session.CharsetClient = charset
+				if dbColl != "" {
+					c.collationConn = dbColl
+					c.session.CollationConnection = dbColl
+				}
+			})
 		case "collate":
 			collation := nodeToSQLValue(asgn.Value)
 			if collation != "" {
-				c.collationConn = collation
-				c.session.CollationConnection = collation
+				if !isValidMySQLCollationName(collation) {
+					return errUnknownCollation(collation)
+				}
+				coll := canonicalMySQLCollationName(collation)
+				if pendingNamesCharset != "" && !charsetMatchesCollation(pendingNamesCharset, coll) {
+					return &Error{Code: 1253, SQLState: "42000",
+						Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", coll, pendingNamesCharset)}
+				}
+				pendingNamesCharset = ""
+				updates = append(updates, func() {
+					c.collationConn = coll
+					c.session.CollationConnection = coll
+				})
 			}
 		default:
-			// Silently accept all other SET variables (sql_mode, etc.).
+			if spec, ok := mysqlSysvarSpecs[varName]; ok {
+				upd, err := spec.assign(c, varName, scope, asgn.Value)
+				if err != nil {
+					return err
+				}
+				if upd != nil {
+					updates = append(updates, upd)
+				}
+			} else if err := checkUnmodeledSysvarScope(varName, scope); err != nil {
+				return err
+			}
+			// Silently accept all other SET variables.
 		}
 	}
+	for _, fn := range updates {
+		fn()
+	}
 	return nil
+}
+
+type setVarScope uint8
+
+const (
+	setScopeSession setVarScope = iota
+	setScopeGlobal
+	setScopePersist
+	setScopePersistOnly
+)
+
+type sysvarScopeKind uint8
+
+const (
+	sysvarSessionAndGlobal sysvarScopeKind = iota
+	sysvarGlobalOnlyStatic
+	sysvarGlobalOnlyNonPersist
+)
+
+type sysvarSpec struct {
+	kind       sysvarScopeKind
+	assign     func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error)
+	readGlobal func(c *Catalog) userVarValue
+	readSess   func(c *Catalog) userVarValue
+}
+
+var mysqlSysvarSpecs map[string]sysvarSpec
+
+func init() {
+	mysqlSysvarSpecs = map[string]sysvarSpec{
+		"foreign_key_checks": makeBoolSysvarSpec(
+			true,
+			func(c *Catalog) bool { return c.globalForeignKeyChecks },
+			func(c *Catalog, v bool) { c.globalForeignKeyChecks = v },
+			func(c *Catalog) bool { return c.session.ForeignKeyChecks },
+			func(c *Catalog, v bool) { c.foreignKeyChecks = v; c.session.ForeignKeyChecks = v },
+		),
+		"sql_generate_invisible_primary_key": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalGenerateGIPK },
+			func(c *Catalog, v bool) { c.globalGenerateGIPK = v },
+			func(c *Catalog) bool { return c.session.GenerateInvisiblePrimaryKey },
+			func(c *Catalog, v bool) { c.generateGIPK = v; c.session.GenerateInvisiblePrimaryKey = v },
+		),
+		"show_gipk_in_create_table_and_information_schema": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalShowGIPK },
+			func(c *Catalog, v bool) { c.globalShowGIPK = v },
+			func(c *Catalog) bool { return c.session.ShowGIPK },
+			func(c *Catalog, v bool) { c.showGIPK = v; c.session.ShowGIPK = v },
+		),
+		"explicit_defaults_for_timestamp": makeBoolSysvarSpec(
+			true,
+			func(c *Catalog) bool { return c.globalExplicitDefaultsTS },
+			func(c *Catalog, v bool) { c.globalExplicitDefaultsTS = v },
+			func(c *Catalog) bool { return c.session.ExplicitDefaultsForTimestamp },
+			func(c *Catalog, v bool) { c.session.ExplicitDefaultsForTimestamp = v },
+		),
+		"default_table_encryption": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalDefaultTableEncrypt },
+			func(c *Catalog, v bool) { c.globalDefaultTableEncrypt = v },
+			func(c *Catalog) bool { return c.session.DefaultTableEncryption },
+			func(c *Catalog, v bool) { c.session.DefaultTableEncryption = v },
+		),
+		"default_storage_engine": makeEngineSysvarSpec(
+			func(c *Catalog) string { return c.globalDefaultEngine },
+			func(c *Catalog, v string) { c.globalDefaultEngine = v },
+			func(c *Catalog) string { return c.session.DefaultStorageEngine },
+			func(c *Catalog, v string) { c.session.DefaultStorageEngine = v },
+		),
+		"default_tmp_storage_engine": makeEngineSysvarSpec(
+			func(c *Catalog) string { return c.globalDefaultTmpEngine },
+			func(c *Catalog, v string) { c.globalDefaultTmpEngine = v },
+			func(c *Catalog) string { return c.session.DefaultTmpStorageEngine },
+			func(c *Catalog, v string) { c.session.DefaultTmpStorageEngine = v },
+		),
+		"innodb_directories": {
+			kind: sysvarGlobalOnlyNonPersist,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, false)
+			},
+		},
+		"innodb_page_size": {
+			kind: sysvarGlobalOnlyNonPersist,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, false)
+			},
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(c.InnoDBPageSize(), 10)}
+			},
+		},
+		"system_time_zone": {
+			kind: sysvarGlobalOnlyNonPersist,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, false)
+			},
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.SystemTimeZone()}
+			},
+		},
+		"sql_mode": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignSQLModeSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.globalSQLMode)}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}
+			},
+		},
+		"time_zone": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignTimeZoneSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: effectiveNonEmpty(c.globalTimeZone, "SYSTEM")}
+			},
+			readSess: func(c *Catalog) userVarValue { return userVarValue{kind: userVarString, str: c.session.TimeZone} },
+		},
+		"character_set_client": {
+			kind:   sysvarSessionAndGlobal,
+			assign: makeCharsetSysvarAssign(true),
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalClientCharset()}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}
+			},
+		},
+		"character_set_connection": {
+			kind:   sysvarSessionAndGlobal,
+			assign: makeCharsetSysvarAssign(false),
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalConnCharset()}
+			},
+			readSess: func(c *Catalog) userVarValue { return userVarValue{kind: userVarString, str: c.effectiveConnCharset()} },
+		},
+		"collation_connection": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignCollationConnSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalCollationConn()}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveSessionCollationConn()}
+			},
+		},
+	}
+}
+
+func effectiveNonEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
+}
+
+func isPermissibleClientCharset(cs string) bool {
+	switch toLower(normalizeCharsetName(cs)) {
+	case "ucs2", "utf16", "utf16le", "utf32":
+		return false
+	default:
+		return true
+	}
+}
+
+func canonicalMySQLCollationName(raw string) string {
+	coll := toLower(strings.TrimSpace(raw))
+	if strings.HasPrefix(coll, "utf8_") {
+		return "utf8mb3_" + strings.TrimPrefix(coll, "utf8_")
+	}
+	return coll
+}
+
+// checkUnmodeledSysvarScope refuses assigning a variable the catalog does not
+// model at a scope it lacks, which MySQL checks before applying any assignment
+// of the statement: SET foreign_key_checks = 0, @@SESSION.max_connections = 1
+// is 1229 and SET GLOBAL sql_log_bin = 0 is 1228 on mysql:8.0.46, PERSIST and
+// PERSIST_ONLY counting as GLOBAL.
+func checkUnmodeledSysvarScope(varName string, scope setVarScope) error {
+	globalOnly, sessionOnly := validate.SystemVariableScope(varName)
+	if globalOnly && scope == setScopeSession {
+		return errGlobalVariable(varName)
+	}
+	if sessionOnly && scope != setScopeSession {
+		return errLocalVariable(varName)
+	}
+	return nil
+}
+
+func checkReadOnlySysvarWrite(varName string, scope setVarScope, allowPersistOnly bool) (func(), error) {
+	if allowPersistOnly {
+		if scope != setScopePersistOnly {
+			return nil, errIncorrectGlobalLocalVar(varName, "read only variable")
+		}
+		return nil, nil
+	}
+	return nil, errIncorrectGlobalLocalVar(varName, "non persistent read only variable")
+}
+
+func applyScopedUpdate(scope setVarScope, setGlobal, setSession func()) func() {
+	switch scope {
+	case setScopePersistOnly:
+		return nil
+	case setScopeGlobal, setScopePersist:
+		return setGlobal
+	default:
+		return setSession
+	}
+}
+
+func makeBoolSysvarSpec(factoryDefault bool, getG func(*Catalog) bool, setG func(*Catalog, bool), getS func(*Catalog) bool, setS func(*Catalog, bool)) sysvarSpec {
+	return sysvarSpec{
+		kind: sysvarSessionAndGlobal,
+		assign: func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+			if isDefaultSetKeywordOrIdent(expr) {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { setG(c, factoryDefault) }, nil
+				}
+				return applyScopedUpdate(scope, nil, func() { setS(c, getG(c)) }), nil
+			}
+			v, ok, err := c.evalSetBoolChecked(varName, expr)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, errWrongValueForVar(varName, setExprText(expr))
+			}
+			return applyScopedUpdate(scope, func() { setG(c, v) }, func() { setS(c, v) }), nil
+		},
+		readGlobal: func(c *Catalog) userVarValue {
+			if getG(c) {
+				return userVarValue{kind: userVarNumeric, str: "1"}
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}
+		},
+		readSess: func(c *Catalog) userVarValue {
+			if getS(c) {
+				return userVarValue{kind: userVarNumeric, str: "1"}
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}
+		},
+	}
+}
+
+// makeEngineSysvarSpec models default_storage_engine and
+// default_tmp_storage_engine: a known engine, stored by its canonical name
+// (MERGE reads back MRG_MYISAM), "" for InnoDB; an unknown one is 1286, as on
+// mysql:8.0.46.
+func makeEngineSysvarSpec(getG func(*Catalog) string, setG func(*Catalog, string), getS func(*Catalog) string, setS func(*Catalog, string)) sysvarSpec {
+	show := func(v string) userVarValue {
+		switch {
+		case v == "":
+			v = "InnoDB"
+		case strings.EqualFold(v, "MRG_MyISAM"):
+			v = "MRG_MYISAM" // the variable reads the MERGE engine in capitals
+		}
+		return userVarValue{kind: userVarString, str: v}
+	}
+	return sysvarSpec{
+		kind: sysvarSessionAndGlobal,
+		assign: func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+			if isDefaultSetKeywordOrIdent(expr) {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { setG(c, "") }, nil
+				}
+				return applyScopedUpdate(scope, nil, func() { setS(c, getG(c)) }), nil
+			}
+			var val userVarValue
+			if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+				val = userVarValue{kind: userVarString, str: cr.Column}
+			} else {
+				var ok bool
+				var err error
+				val, ok, err = c.evalSetExprChecked(expr)
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return nil, errWrongValueForVar(varName, setExprText(expr))
+				}
+			}
+			if val.kind == userVarNull {
+				return nil, errWrongValueForVar(varName, "NULL")
+			}
+			if val.kind != userVarString {
+				return nil, errWrongTypeForVar(varName)
+			}
+			if err := validateStorageEngine(val.str, true); err != nil {
+				return nil, err
+			}
+			engine := storedEngineName(val.str)
+			if isInnoDBEngine(engine) {
+				engine = ""
+			}
+			return applyScopedUpdate(scope, func() { setG(c, engine) }, func() { setS(c, engine) }), nil
+		},
+		readGlobal: func(c *Catalog) userVarValue { return show(getG(c)) },
+		readSess:   func(c *Catalog) userVarValue { return show(getS(c)) },
+	}
+}
+
+func assignSQLModeSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			return func() { c.globalSQLMode = "DEFAULT" }, nil
+		}
+		defMode := c.globalSQLMode
+		return applyScopedUpdate(scope, nil, func() { c.session.SQLMode = defMode }), nil
+	}
+	var val userVarValue
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		val = userVarValue{kind: userVarString, str: cr.Column}
+	} else {
+		var ok bool
+		var evalErr error
+		val, ok, evalErr = c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if !ok {
+			if c.isDefinedStoredFuncCall(expr) {
+				return nil, nil
+			}
+			return nil, errWrongValueForVar(varName, setExprText(expr))
+		}
+	}
+	mode, err := validateAndNormalizeSQLMode(val)
+	if err != nil {
+		return nil, err
+	}
+	return applyScopedUpdate(scope, func() { c.globalSQLMode = mode }, func() { c.session.SQLMode = mode }), nil
+}
+
+func assignTimeZoneSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			return func() { c.globalTimeZone = "SYSTEM" }, nil
+		}
+		defTZ := effectiveNonEmpty(c.globalTimeZone, "SYSTEM")
+		return applyScopedUpdate(scope, nil, func() { c.session.TimeZone = defTZ }), nil
+	}
+	var rawTZ string
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		rawTZ = cr.Column
+	} else {
+		val, ok, evalErr := c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if !ok {
+			return nil, errUnknownTimeZone(setExprText(expr))
+		}
+		switch val.kind {
+		case userVarNull:
+			return nil, errWrongValueForVar(varName, "NULL")
+		case userVarNumeric:
+			return nil, errWrongTypeForVar(varName)
+		case userVarString:
+			rawTZ = val.str
+		}
+	}
+	tz, err := c.validateAndNormalizeSessionTimeZone(rawTZ)
+	if err != nil {
+		return nil, err
+	}
+	return applyScopedUpdate(scope, func() { c.globalTimeZone = tz }, func() { c.session.TimeZone = tz }), nil
+}
+
+func makeCharsetSysvarAssign(isClient bool) func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	return func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+		if isDefaultSetKeywordOrIdent(expr) {
+			if isClient {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { c.globalCharsetClient = c.defaultCharset }, nil
+				}
+				target := c.effectiveGlobalClientCharset()
+				return applyScopedUpdate(scope, nil, func() {
+					c.charsetClient = target
+					c.session.CharsetClient = target
+				}), nil
+			}
+			if scope == setScopeGlobal || scope == setScopePersist {
+				defColl := defaultCollationForCharset[toLower(c.defaultCharset)]
+				return func() { c.globalCollationConn = defColl }, nil
+			}
+			targetColl := c.effectiveGlobalCollationConn()
+			return applyScopedUpdate(scope, nil, func() {
+				c.collationConn = targetColl
+				c.session.CollationConnection = targetColl
+			}), nil
+		}
+		raw, charset, isNull, err := c.resolveSetCharsetValueChecked(expr)
+		if err != nil {
+			return nil, err
+		}
+		if isNull {
+			return nil, errWrongValueForVar(varName, "NULL")
+		}
+		coll, ok := defaultCollationForCharset[toLower(charset)]
+		if !ok {
+			return nil, errUnknownCharacterSet(raw)
+		}
+		if isClient && !isPermissibleClientCharset(charset) {
+			return nil, errWrongValueForVar(varName, charset)
+		}
+		if isClient {
+			return applyScopedUpdate(
+				scope,
+				func() { c.globalCharsetClient = charset },
+				func() {
+					c.charsetClient = charset
+					c.session.CharsetClient = charset
+				},
+			), nil
+		}
+		return applyScopedUpdate(
+			scope,
+			func() { c.globalCollationConn = coll },
+			func() {
+				c.collationConn = coll
+				c.session.CollationConnection = coll
+			},
+		), nil
+	}
+}
+
+func assignCollationConnSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			defColl := effectiveNonEmpty(defaultCollationForCharset[toLower(c.defaultCharset)], "utf8mb4_0900_ai_ci")
+			return func() { c.globalCollationConn = defColl }, nil
+		}
+		targetColl := c.effectiveGlobalCollationConn()
+		return applyScopedUpdate(scope, nil, func() {
+			c.collationConn = targetColl
+			c.session.CollationConnection = targetColl
+		}), nil
+	}
+	var rawColl string
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		rawColl = cr.Column
+	} else {
+		val, ok, evalErr := c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if ok {
+			if val.kind == userVarNull {
+				return nil, errWrongValueForVar(varName, "NULL")
+			}
+			rawColl = val.str
+		} else {
+			rawColl = nodeToSQLValue(expr)
+		}
+	}
+	if !isValidMySQLCollationName(rawColl) {
+		return nil, errUnknownCollation(rawColl)
+	}
+	coll := canonicalMySQLCollationName(rawColl)
+	return applyScopedUpdate(
+		scope,
+		func() { c.globalCollationConn = coll },
+		func() {
+			c.collationConn = coll
+			c.session.CollationConnection = coll
+		},
+	), nil
+}
+
+func resolveSetAssignmentScope(asgn *nodes.Assignment, activeScope *setVarScope) setVarScope {
+	if asgn == nil {
+		return *activeScope
+	}
+	if asgn.Scope != "" {
+		switch strings.ToUpper(asgn.Scope) {
+		case "PERSIST_ONLY":
+			*activeScope = setScopePersistOnly
+		case "PERSIST":
+			*activeScope = setScopePersist
+		case "GLOBAL":
+			*activeScope = setScopeGlobal
+		case "SESSION", "LOCAL":
+			*activeScope = setScopeSession
+		}
+		return *activeScope
+	}
+	if asgn.Column != nil {
+		col := toLower(strings.TrimPrefix(asgn.Column.Column, "@@"))
+		if asgn.Column.Table != "" {
+			col = toLower(strings.TrimPrefix(asgn.Column.Table, "@@")) + "." + col
+		}
+		switch {
+		case strings.HasPrefix(col, "persist_only."):
+			return setScopePersistOnly
+		case strings.HasPrefix(col, "persist."):
+			return setScopePersist
+		case strings.HasPrefix(col, "global."):
+			return setScopeGlobal
+		case strings.HasPrefix(col, "session."), strings.HasPrefix(col, "local."):
+			return setScopeSession
+		}
+	}
+	return *activeScope
+}
+
+var validMySQL80SQLModes = map[string]string{
+	"REAL_AS_FLOAT":              "REAL_AS_FLOAT",
+	"PIPES_AS_CONCAT":            "PIPES_AS_CONCAT",
+	"ANSI_QUOTES":                "ANSI_QUOTES",
+	"IGNORE_SPACE":               "IGNORE_SPACE",
+	"NOT_USED":                   "NOT_USED",
+	"ONLY_FULL_GROUP_BY":         "ONLY_FULL_GROUP_BY",
+	"NO_UNSIGNED_SUBTRACTION":    "NO_UNSIGNED_SUBTRACTION",
+	"NO_DIR_IN_CREATE":           "NO_DIR_IN_CREATE",
+	"ANSI":                       "ANSI",
+	"NO_AUTO_VALUE_ON_ZERO":      "NO_AUTO_VALUE_ON_ZERO",
+	"NO_BACKSLASH_ESCAPES":       "NO_BACKSLASH_ESCAPES",
+	"STRICT_TRANS_TABLES":        "STRICT_TRANS_TABLES",
+	"STRICT_ALL_TABLES":          "STRICT_ALL_TABLES",
+	"NO_ZERO_IN_DATE":            "NO_ZERO_IN_DATE",
+	"NO_ZERO_DATE":               "NO_ZERO_DATE",
+	"ALLOW_INVALID_DATES":        "ALLOW_INVALID_DATES",
+	"ERROR_FOR_DIVISION_BY_ZERO": "ERROR_FOR_DIVISION_BY_ZERO",
+	"TRADITIONAL":                "TRADITIONAL",
+	"HIGH_NOT_PRECEDENCE":        "HIGH_NOT_PRECEDENCE",
+	"NO_ENGINE_SUBSTITUTION":     "NO_ENGINE_SUBSTITUTION",
+	"PAD_CHAR_TO_FULL_LENGTH":    "PAD_CHAR_TO_FULL_LENGTH",
+	"TIME_TRUNCATE_FRACTIONAL":   "TIME_TRUNCATE_FRACTIONAL",
+}
+
+var sqlModeBitFlags = []struct {
+	bit  uint64
+	name string
+}{
+	{1 << 0, "REAL_AS_FLOAT"},
+	{1 << 1, "PIPES_AS_CONCAT"},
+	{1 << 2, "ANSI_QUOTES"},
+	{1 << 3, "IGNORE_SPACE"},
+	{1 << 4, "NOT_USED"},
+	{1 << 5, "ONLY_FULL_GROUP_BY"},
+	{1 << 6, "NO_UNSIGNED_SUBTRACTION"},
+	{1 << 7, "NO_DIR_IN_CREATE"},
+	{1 << 18, "ANSI"},
+	{1 << 19, "NO_AUTO_VALUE_ON_ZERO"},
+	{1 << 20, "NO_BACKSLASH_ESCAPES"},
+	{1 << 21, "STRICT_TRANS_TABLES"},
+	{1 << 22, "STRICT_ALL_TABLES"},
+	{1 << 23, "NO_ZERO_IN_DATE"},
+	{1 << 24, "NO_ZERO_DATE"},
+	{1 << 25, "ALLOW_INVALID_DATES"},
+	{1 << 26, "ERROR_FOR_DIVISION_BY_ZERO"},
+	{1 << 27, "TRADITIONAL"},
+	{1 << 29, "HIGH_NOT_PRECEDENCE"},
+	{1 << 30, "NO_ENGINE_SUBSTITUTION"},
+	{1 << 31, "PAD_CHAR_TO_FULL_LENGTH"},
+	{1 << 32, "TIME_TRUNCATE_FRACTIONAL"},
+}
+
+const unsupportedMySQL80SQLModeBits uint64 = 0x1003FF00
+
+func expandSQLModeForRead(mode string) string {
+	trimmed := strings.TrimSpace(mode)
+	if trimmed == "" {
+		return ""
+	}
+	if strings.EqualFold(trimmed, "DEFAULT") {
+		return strings.Join(compositeSQLModes["DEFAULT"], ",")
+	}
+	seen := make(map[string]bool)
+	for _, part := range strings.Split(trimmed, ",") {
+		tok := strings.ToUpper(strings.TrimSpace(part))
+		if tok == "" {
+			continue
+		}
+		if expanded, isComp := compositeSQLModes[tok]; isComp {
+			for _, f := range expanded {
+				seen[f] = true
+			}
+			if tok == "DEFAULT" {
+				continue
+			}
+		}
+		seen[tok] = true
+	}
+	var out []string
+	for _, bf := range sqlModeBitFlags {
+		if seen[bf.name] {
+			out = append(out, bf.name)
+		}
+	}
+	return strings.Join(out, ",")
+}
+
+func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
+	switch val.kind {
+	case userVarNull:
+		return "", errWrongValueForVar("sql_mode", "NULL")
+	case userVarNumeric:
+		s := strings.TrimSpace(val.str)
+		if val.isFloat || val.isDecimal || strings.ContainsAny(s, ".eE") {
+			return "", errWrongTypeForVar("sql_mode")
+		}
+		if strings.HasPrefix(s, "-") {
+			digits := strings.TrimLeft(s[1:], "0")
+			if digits != "" {
+				return "", errWrongValueForVar("sql_mode", s)
+			}
+			return "", nil
+		}
+		u, err := strconv.ParseUint(strings.TrimPrefix(s, "+"), 10, 64)
+		if err != nil || u >= (uint64(1)<<33) {
+			return "", errWrongValueForVar("sql_mode", s)
+		}
+		if bad := u & unsupportedMySQL80SQLModeBits; bad != 0 {
+			return "", &Error{Code: 3899, SQLState: "HY000",
+				Message: fmt.Sprintf("sql_mode=0x%x is not supported.", bad)}
+		}
+		var names []string
+		for _, bf := range sqlModeBitFlags {
+			if (u & bf.bit) != 0 {
+				names = append(names, bf.name)
+			}
+		}
+		return strings.Join(names, ","), nil
+	case userVarString:
+		if strings.TrimSpace(val.str) == "" {
+			return "", nil
+		}
+		var out []string
+		for _, rawPart := range strings.Split(val.str, ",") {
+			tok := strings.ToUpper(strings.TrimSpace(rawPart))
+			if tok == "" {
+				continue
+			}
+			canon, ok := validMySQL80SQLModes[tok]
+			if !ok {
+				return "", errWrongValueForVar("sql_mode", val.str)
+			}
+			out = append(out, canon)
+		}
+		return strings.Join(out, ","), nil
+	default:
+		return "", errWrongValueForVar("sql_mode", val.str)
+	}
+}
+
+func isDefaultSetKeywordOrIdent(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.DefaultExpr:
+		return true
+	case *nodes.ColumnRef:
+		return e.Schema == "" && e.Table == "" && strings.EqualFold(e.Column, "DEFAULT")
+	default:
+		return false
+	}
+}
+
+var validMySQL80Collations = map[string]bool{
+	"armscii8_bin": true, "armscii8_general_ci": true, "ascii_bin": true, "ascii_general_ci": true,
+	"big5_bin": true, "big5_chinese_ci": true, "binary": true, "cp1250_bin": true,
+	"cp1250_croatian_ci": true, "cp1250_czech_cs": true, "cp1250_general_ci": true, "cp1250_polish_ci": true,
+	"cp1251_bin": true, "cp1251_bulgarian_ci": true, "cp1251_general_ci": true, "cp1251_general_cs": true,
+	"cp1251_ukrainian_ci": true, "cp1256_bin": true, "cp1256_general_ci": true, "cp1257_bin": true,
+	"cp1257_general_ci": true, "cp1257_lithuanian_ci": true, "cp850_bin": true, "cp850_general_ci": true,
+	"cp852_bin": true, "cp852_general_ci": true, "cp866_bin": true, "cp866_general_ci": true,
+	"cp932_bin": true, "cp932_japanese_ci": true, "dec8_bin": true, "dec8_swedish_ci": true,
+	"eucjpms_bin": true, "eucjpms_japanese_ci": true, "euckr_bin": true, "euckr_korean_ci": true,
+	"gb18030_bin": true, "gb18030_chinese_ci": true, "gb18030_unicode_520_ci": true, "gb2312_bin": true,
+	"gb2312_chinese_ci": true, "gbk_bin": true, "gbk_chinese_ci": true, "geostd8_bin": true,
+	"geostd8_general_ci": true, "greek_bin": true, "greek_general_ci": true, "hebrew_bin": true,
+	"hebrew_general_ci": true, "hp8_bin": true, "hp8_english_ci": true, "keybcs2_bin": true,
+	"keybcs2_general_ci": true, "koi8r_bin": true, "koi8r_general_ci": true, "koi8u_bin": true,
+	"koi8u_general_ci": true, "latin1_bin": true, "latin1_danish_ci": true, "latin1_general_ci": true,
+	"latin1_general_cs": true, "latin1_german1_ci": true, "latin1_german2_ci": true, "latin1_spanish_ci": true,
+	"latin1_swedish_ci": true, "latin2_bin": true, "latin2_croatian_ci": true, "latin2_czech_cs": true,
+	"latin2_general_ci": true, "latin2_hungarian_ci": true, "latin5_bin": true, "latin5_turkish_ci": true,
+	"latin7_bin": true, "latin7_estonian_cs": true, "latin7_general_ci": true, "latin7_general_cs": true,
+	"macce_bin": true, "macce_general_ci": true, "macroman_bin": true, "macroman_general_ci": true,
+	"sjis_bin": true, "sjis_japanese_ci": true, "swe7_bin": true, "swe7_swedish_ci": true,
+	"tis620_bin": true, "tis620_thai_ci": true, "ucs2_bin": true, "ucs2_croatian_ci": true,
+	"ucs2_czech_ci": true, "ucs2_danish_ci": true, "ucs2_esperanto_ci": true, "ucs2_estonian_ci": true,
+	"ucs2_general_ci": true, "ucs2_general_mysql500_ci": true, "ucs2_german2_ci": true, "ucs2_hungarian_ci": true,
+	"ucs2_icelandic_ci": true, "ucs2_latvian_ci": true, "ucs2_lithuanian_ci": true, "ucs2_persian_ci": true,
+	"ucs2_polish_ci": true, "ucs2_romanian_ci": true, "ucs2_roman_ci": true, "ucs2_sinhala_ci": true,
+	"ucs2_slovak_ci": true, "ucs2_slovenian_ci": true, "ucs2_spanish2_ci": true, "ucs2_spanish_ci": true,
+	"ucs2_swedish_ci": true, "ucs2_turkish_ci": true, "ucs2_unicode_520_ci": true, "ucs2_unicode_ci": true,
+	"ucs2_vietnamese_ci": true, "ujis_bin": true, "ujis_japanese_ci": true, "utf16le_bin": true,
+	"utf16le_general_ci": true, "utf16_bin": true, "utf16_croatian_ci": true, "utf16_czech_ci": true,
+	"utf16_danish_ci": true, "utf16_esperanto_ci": true, "utf16_estonian_ci": true, "utf16_general_ci": true,
+	"utf16_german2_ci": true, "utf16_hungarian_ci": true, "utf16_icelandic_ci": true, "utf16_latvian_ci": true,
+	"utf16_lithuanian_ci": true, "utf16_persian_ci": true, "utf16_polish_ci": true, "utf16_romanian_ci": true,
+	"utf16_roman_ci": true, "utf16_sinhala_ci": true, "utf16_slovak_ci": true, "utf16_slovenian_ci": true,
+	"utf16_spanish2_ci": true, "utf16_spanish_ci": true, "utf16_swedish_ci": true, "utf16_turkish_ci": true,
+	"utf16_unicode_520_ci": true, "utf16_unicode_ci": true, "utf16_vietnamese_ci": true, "utf32_bin": true,
+	"utf32_croatian_ci": true, "utf32_czech_ci": true, "utf32_danish_ci": true, "utf32_esperanto_ci": true,
+	"utf32_estonian_ci": true, "utf32_general_ci": true, "utf32_german2_ci": true, "utf32_hungarian_ci": true,
+	"utf32_icelandic_ci": true, "utf32_latvian_ci": true, "utf32_lithuanian_ci": true, "utf32_persian_ci": true,
+	"utf32_polish_ci": true, "utf32_romanian_ci": true, "utf32_roman_ci": true, "utf32_sinhala_ci": true,
+	"utf32_slovak_ci": true, "utf32_slovenian_ci": true, "utf32_spanish2_ci": true, "utf32_spanish_ci": true,
+	"utf32_swedish_ci": true, "utf32_turkish_ci": true, "utf32_unicode_520_ci": true, "utf32_unicode_ci": true,
+	"utf32_vietnamese_ci": true, "utf8mb3_bin": true, "utf8mb3_croatian_ci": true, "utf8mb3_czech_ci": true,
+	"utf8mb3_danish_ci": true, "utf8mb3_esperanto_ci": true, "utf8mb3_estonian_ci": true, "utf8mb3_general_ci": true,
+	"utf8mb3_general_mysql500_ci": true, "utf8mb3_german2_ci": true, "utf8mb3_hungarian_ci": true, "utf8mb3_icelandic_ci": true,
+	"utf8mb3_latvian_ci": true, "utf8mb3_lithuanian_ci": true, "utf8mb3_persian_ci": true, "utf8mb3_polish_ci": true,
+	"utf8mb3_romanian_ci": true, "utf8mb3_roman_ci": true, "utf8mb3_sinhala_ci": true, "utf8mb3_slovak_ci": true,
+	"utf8mb3_slovenian_ci": true, "utf8mb3_spanish2_ci": true, "utf8mb3_spanish_ci": true, "utf8mb3_swedish_ci": true,
+	"utf8mb3_tolower_ci": true, "utf8mb3_turkish_ci": true, "utf8mb3_unicode_520_ci": true, "utf8mb3_unicode_ci": true,
+	"utf8mb3_vietnamese_ci": true, "utf8mb4_0900_ai_ci": true, "utf8mb4_0900_as_ci": true, "utf8mb4_0900_as_cs": true,
+	"utf8mb4_0900_bin": true, "utf8mb4_bg_0900_ai_ci": true, "utf8mb4_bg_0900_as_cs": true, "utf8mb4_bin": true,
+	"utf8mb4_bs_0900_ai_ci": true, "utf8mb4_bs_0900_as_cs": true, "utf8mb4_croatian_ci": true, "utf8mb4_cs_0900_ai_ci": true,
+	"utf8mb4_cs_0900_as_cs": true, "utf8mb4_czech_ci": true, "utf8mb4_danish_ci": true, "utf8mb4_da_0900_ai_ci": true,
+	"utf8mb4_da_0900_as_cs": true, "utf8mb4_de_pb_0900_ai_ci": true, "utf8mb4_de_pb_0900_as_cs": true, "utf8mb4_eo_0900_ai_ci": true,
+	"utf8mb4_eo_0900_as_cs": true, "utf8mb4_esperanto_ci": true, "utf8mb4_estonian_ci": true, "utf8mb4_es_0900_ai_ci": true,
+	"utf8mb4_es_0900_as_cs": true, "utf8mb4_es_trad_0900_ai_ci": true, "utf8mb4_es_trad_0900_as_cs": true, "utf8mb4_et_0900_ai_ci": true,
+	"utf8mb4_et_0900_as_cs": true, "utf8mb4_general_ci": true, "utf8mb4_german2_ci": true, "utf8mb4_gl_0900_ai_ci": true,
+	"utf8mb4_gl_0900_as_cs": true, "utf8mb4_hr_0900_ai_ci": true, "utf8mb4_hr_0900_as_cs": true, "utf8mb4_hungarian_ci": true,
+	"utf8mb4_hu_0900_ai_ci": true, "utf8mb4_hu_0900_as_cs": true, "utf8mb4_icelandic_ci": true, "utf8mb4_is_0900_ai_ci": true,
+	"utf8mb4_is_0900_as_cs": true, "utf8mb4_ja_0900_as_cs": true, "utf8mb4_ja_0900_as_cs_ks": true, "utf8mb4_latvian_ci": true,
+	"utf8mb4_la_0900_ai_ci": true, "utf8mb4_la_0900_as_cs": true, "utf8mb4_lithuanian_ci": true, "utf8mb4_lt_0900_ai_ci": true,
+	"utf8mb4_lt_0900_as_cs": true, "utf8mb4_lv_0900_ai_ci": true, "utf8mb4_lv_0900_as_cs": true, "utf8mb4_mn_cyrl_0900_ai_ci": true,
+	"utf8mb4_mn_cyrl_0900_as_cs": true, "utf8mb4_nb_0900_ai_ci": true, "utf8mb4_nb_0900_as_cs": true, "utf8mb4_nn_0900_ai_ci": true,
+	"utf8mb4_nn_0900_as_cs": true, "utf8mb4_persian_ci": true, "utf8mb4_pl_0900_ai_ci": true, "utf8mb4_pl_0900_as_cs": true,
+	"utf8mb4_polish_ci": true, "utf8mb4_romanian_ci": true, "utf8mb4_roman_ci": true, "utf8mb4_ro_0900_ai_ci": true,
+	"utf8mb4_ro_0900_as_cs": true, "utf8mb4_ru_0900_ai_ci": true, "utf8mb4_ru_0900_as_cs": true, "utf8mb4_sinhala_ci": true,
+	"utf8mb4_sk_0900_ai_ci": true, "utf8mb4_sk_0900_as_cs": true, "utf8mb4_slovak_ci": true, "utf8mb4_slovenian_ci": true,
+	"utf8mb4_sl_0900_ai_ci": true, "utf8mb4_sl_0900_as_cs": true, "utf8mb4_spanish2_ci": true, "utf8mb4_spanish_ci": true,
+	"utf8mb4_sr_latn_0900_ai_ci": true, "utf8mb4_sr_latn_0900_as_cs": true, "utf8mb4_sv_0900_ai_ci": true, "utf8mb4_sv_0900_as_cs": true,
+	"utf8mb4_swedish_ci": true, "utf8mb4_tr_0900_ai_ci": true, "utf8mb4_tr_0900_as_cs": true, "utf8mb4_turkish_ci": true,
+	"utf8mb4_unicode_520_ci": true, "utf8mb4_unicode_ci": true, "utf8mb4_vietnamese_ci": true, "utf8mb4_vi_0900_ai_ci": true,
+	"utf8mb4_vi_0900_as_cs": true, "utf8mb4_zh_0900_as_cs": true,
+}
+
+func isValidMySQLCollationName(coll string) bool {
+	c := toLower(strings.TrimSpace(coll))
+	if c == "" {
+		return false
+	}
+	if strings.HasPrefix(c, "utf8_") {
+		c = "utf8mb3_" + strings.TrimPrefix(c, "utf8_")
+	}
+	return validMySQL80Collations[c]
+}
+
+func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
+	v, ok, err := c.evalSetExprChecked(expr)
+	if err != nil {
+		return userVarValue{}, false
+	}
+	return v, ok
+}
+
+func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, error) {
+	if err := c.validateSetExprStatic(expr); err != nil {
+		return userVarValue{}, false, err
+	}
+	return c.evalSetExprNode(expr)
+}
+
+func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, error) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return c.evalSetExprNode(e.Expr)
+	case *nodes.NullLit:
+		return userVarValue{kind: userVarNull}, true, nil
+	case *nodes.StringLit:
+		// A _binary introducer makes a binary string, compared bytewise:
+		// IF(_binary'a' = 'A', ...) is false on mysql:8.0.46.
+		if isBinaryIntroducer(e.Charset) {
+			return userVarValue{kind: userVarString, str: e.Value, binary: true}, true, nil
+		}
+		// Another introducer makes the literal's bytes a string of that
+		// charset: _ucs2 X'00E9' is one character, é, two bytes long, and
+		// _ucs2 'é' is the UCS-2 character C3A9. A UCS-2, UTF-16 or UTF-32
+		// literal short of a whole character is left-padded with zeros.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		switch cs {
+		case "", "utf8mb4", "utf8", "utf8mb3":
+			return userVarValue{kind: userVarString, str: e.Value}, true, nil
+		}
+		raw := e.Value
+		width := map[string]int{"ucs2": 2, "utf16": 2, "utf16le": 2, "utf32": 4}[cs]
+		if width > 0 && len(raw)%width != 0 {
+			raw = strings.Repeat("\x00", width-len(raw)%width) + raw
+		}
+		text, ok := decodeBytesInColumnCharset([]byte(raw), cs)
+		if !ok {
+			return userVarValue{}, false, nil
+		}
+		return userVarValue{kind: userVarString, str: text, cs: cs, raw: raw}, true, nil
+	case *nodes.HexLit:
+		raw, ok := decodeLiteralRawBytes(cleanHexDigits(e.Value), true)
+		if !ok {
+			return userVarValue{}, false, nil
+		}
+		return userVarValue{kind: userVarString, str: string(raw), binary: true, hexLit: true}, true, nil
+	case *nodes.IntLit:
+		if s, ok := exactIntLiteral(e, ""); ok {
+			return userVarValue{kind: userVarNumeric, str: s}, true, nil
+		}
+		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true, nil
+	case *nodes.FloatLit:
+		// A double literal reads as the double it is: 1.5e0 is 1.5 in
+		// CONCAT(1.5e0) and in any string comparison.
+		if strings.ContainsAny(e.Value, "eE") {
+			if r, _, _, ok := parseSetNumberPrefixRat(e.Value, true); ok {
+				f, _ := r.Float64()
+				return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+			}
+		}
+		return userVarValue{kind: userVarNumeric, str: e.Value, isFloat: strings.ContainsAny(e.Value, "eE")}, true, nil
+	case *nodes.BoolLit:
+		if e.Value {
+			return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
+		}
+		return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
+	case *nodes.BitLit:
+		raw, ok := decodeLiteralRawBytes(cleanBitDigits(e.Value), false)
+		if !ok {
+			return userVarValue{}, false, nil
+		}
+		return userVarValue{kind: userVarString, str: string(raw), binary: true, hexLit: true}, true, nil
+	case *nodes.UnaryExpr:
+		if e.Op == nodes.UnaryPlus || e.Op == nodes.UnaryMinus {
+			sign := ""
+			if e.Op == nodes.UnaryMinus {
+				sign = "-"
+			}
+			switch op := e.Operand.(type) {
+			case *nodes.IntLit:
+				if s, ok := exactIntLiteral(op, sign); ok {
+					return userVarValue{kind: userVarNumeric, str: s}, true, nil
+				}
+				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true, nil
+			case *nodes.FloatLit:
+				if strings.ContainsAny(op.Value, "eE") {
+					if r, _, _, ok := parseSetNumberPrefixRat(sign+op.Value, true); ok {
+						f, _ := r.Float64()
+						return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+					}
+				}
+				return userVarValue{kind: userVarNumeric, str: sign + op.Value, isFloat: strings.ContainsAny(op.Value, "eE")}, true, nil
+			}
+			v, ok, err := c.evalSetExprNode(e.Operand)
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v.kind == userVarNull {
+				return v, true, nil
+			}
+			n, ok := parseSetNumericInt64(v)
+			if ok && !v.isFloat {
+				if e.Op == nodes.UnaryMinus {
+					if n == math.MinInt64 {
+						return userVarValue{}, false, errBigintOutOfRange()
+					}
+					n = -n
+				}
+				return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
+			}
+			r, scale, ok := parseSetDecimalRat(v)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			if e.Op == nodes.UnaryMinus {
+				r.Neg(r)
+			}
+			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isFloat: v.isFloat}, true, nil
+		}
+		if e.Op == nodes.UnaryBitNot {
+			// ~ complements the operand as an unsigned 64-bit integer, read
+			// as CAST(... AS UNSIGNED) reads it: ~-2 is 1, ~1.6 and ~1.5e0 are
+			// 18446744073709551613, ~'x' is 18446744073709551615.
+			v, ok, err := c.evalSetExprNode(e.Operand)
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			if isBitwiseBinaryString(v) {
+				// ~ of a binary string complements its bytes: ~CAST(X'01' AS BINARY) is 0xFE.
+				out := []byte(v.str)
+				for i := range out {
+					out[i] = ^out[i]
+				}
+				return userVarValue{kind: userVarString, str: string(out), binary: true}, true, nil
+			}
+			u, ok := setBitwiseUint(v)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(^u, 10)}, true, nil
+		}
+		if e.Op == nodes.UnaryNot {
+			// NOT reads its operand as a truth value, a string by its numeric
+			// prefix, and keeps NULL: NOT 0 is 1, NOT 'abc' is 1, NOT '1x' is 0.
+			v, ok, err := c.evalSetExprNode(e.Operand)
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			return boolSetVar(!evalSetValueTruthy(v)), true, nil
+		}
+		return userVarValue{}, false, nil
+	case *nodes.BinaryExpr:
+		return c.evalSetBinaryExprNode(e)
+	case *nodes.CaseExpr:
+		return c.evalSetCaseExprNode(e)
+	case *nodes.CastExpr:
+		v, ok, err := c.evalSetExprNode(e.Expr)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		if err := c.setCastCharLengthError(e.TypeName); err != nil {
+			return userVarValue{}, false, err
+		}
+		out, ok := evalSetCastValue(v, e.TypeName, "")
+		return out, ok, nil
+	case *nodes.ConvertExpr:
+		v, ok, err := c.evalSetExprNode(e.Expr)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		if e.Charset == "" {
+			if err := c.setCastCharLengthError(e.TypeName); err != nil {
+				return userVarValue{}, false, err
+			}
+		}
+		out, ok := evalSetCastValue(v, e.TypeName, e.Charset)
+		return out, ok, nil
+	case *nodes.VariableRef:
+		if !e.System {
+			if v, exists := c.userVars[toLower(e.Name)]; exists {
+				if v.kind == userVarUnknown {
+					return userVarValue{}, false, nil
+				}
+				return v, true, nil
+			}
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		spec, ok, err := validateSetSysvarRef(e)
+		if err != nil {
+			return userVarValue{}, false, err
+		}
+		if !ok {
+			return userVarValue{}, false, nil
+		}
+		if spec.kind != sysvarSessionAndGlobal {
+			if spec.readGlobal != nil {
+				return spec.readGlobal(c), true, nil
+			}
+			return userVarValue{}, false, nil
+		}
+		if strings.EqualFold(e.Scope, "GLOBAL") {
+			return spec.readGlobal(c), true, nil
+		}
+		return spec.readSess(c), true, nil
+	case *nodes.FuncCallExpr:
+		if e.Schema != "" || (e.SpacedParen && !c.isIgnoreSpaceSQLMode()) {
+			targetDBName := e.Schema
+			if targetDBName == "" {
+				targetDBName = c.currentDB
+			}
+			if db := c.GetDatabase(targetDBName); db != nil && db.Functions[toLower(e.Name)] != nil {
+				for _, arg := range e.Args {
+					if _, _, err := c.evalSetExprNode(arg); err != nil {
+						return userVarValue{}, false, err
+					}
+				}
+				return userVarValue{}, false, nil
+			}
+			qual := e.Name
+			if targetDBName != "" {
+				qual = targetDBName + "." + e.Name
+			}
+			return userVarValue{}, false, errNoSuchFunction(qual)
+		}
+		switch toLower(e.Name) {
+		case "if":
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, errWrongParamCount("IF")
+			}
+			cond, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			chosen := e.Args[2]
+			if evalSetValueTruthy(cond) {
+				chosen = e.Args[1]
+			}
+			res, resOK, resErr := c.evalSetExprNode(chosen)
+			if resErr != nil || !resOK {
+				return res, resOK, resErr
+			}
+			return c.aggregateConditionalResultKind(res, e.Args[1], e.Args[2]), true, nil
+		case "nullif":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("NULLIF")
+			}
+			v0, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			v1, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v0.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			if v1.kind != userVarNull && c.compareSetValues(v0, v1) == 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			return v0, true, nil
+		case "isnull":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ISNULL")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v.kind == userVarNull {
+				return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
+		case "concat":
+			if len(e.Args) == 0 {
+				return userVarValue{}, false, errWrongParamCount("CONCAT")
+			}
+			var b strings.Builder
+			isBin := false
+			for _, arg := range e.Args {
+				v, ok, err := c.evalSetExprNode(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				if v.binary {
+					isBin = true
+				}
+				b.WriteString(v.str)
+			}
+			return userVarValue{kind: userVarString, str: b.String(), binary: isBin}, true, nil
+		case "coalesce":
+			if len(e.Args) == 0 {
+				return userVarValue{}, false, errWrongParamCount("COALESCE")
+			}
+			for _, arg := range e.Args {
+				v, ok, err := c.evalSetExprNode(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind != userVarNull {
+					return c.aggregateConditionalResultKind(v, e.Args...), true, nil
+				}
+			}
+			return userVarValue{kind: userVarNull}, true, nil
+		case "ifnull":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("IFNULL")
+			}
+			v0, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if v0.kind != userVarNull {
+				return c.aggregateConditionalResultKind(v0, e.Args...), true, nil
+			}
+			v1, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			return c.aggregateConditionalResultKind(v1, e.Args...), true, nil
+		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase", "reverse":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			s := v.str
+			switch toLower(e.Name) {
+			case "trim":
+				s = strings.Trim(s, " ")
+			case "ltrim":
+				s = strings.TrimLeft(s, " ")
+			case "rtrim":
+				s = strings.TrimRight(s, " ")
+			case "upper", "ucase":
+				if !v.binary {
+					s = strings.ToUpper(s)
+				}
+			case "lower", "lcase":
+				if !v.binary {
+					s = strings.ToLower(s)
+				}
+			case "reverse":
+				if v.binary {
+					bs := []byte(s)
+					for i, j := 0, len(bs)-1; i < j; i, j = i+1, j-1 {
+						bs[i], bs[j] = bs[j], bs[i]
+					}
+					s = string(bs)
+				} else {
+					runes := []rune(s)
+					for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+						runes[i], runes[j] = runes[j], runes[i]
+					}
+					s = string(runes)
+				}
+			}
+			return userVarValue{kind: userVarString, str: s, binary: v.binary}, true, nil
+		case "trim_leading", "trim_trailing", "trim_both", "trim_from":
+			if len(e.Args) < 1 || len(e.Args) > 2 {
+				return userVarValue{}, false, errWrongParamCount("TRIM")
+			}
+			rem := " "
+			remBin := false
+			strExpr := e.Args[0]
+			if len(e.Args) == 2 {
+				rv, ok, err := c.evalSetExprNode(e.Args[0])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if rv.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				rem = rv.str
+				remBin = rv.binary
+				strExpr = e.Args[1]
+			}
+			sv, ok, err := c.evalSetExprNode(strExpr)
+			if err != nil || !ok || sv.kind == userVarNull {
+				return sv, ok, err
+			}
+			return userVarValue{kind: userVarString, str: trimSetString(toLower(e.Name), sv.str, rem), binary: sv.binary || remBin}, true, nil
+		case "left", "right":
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			nv, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sv.kind == userVarNull || nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n, nok := setStringLengthArg(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n <= 0 {
+				return userVarValue{kind: userVarString, str: "", binary: sv.binary}, true, nil
+			}
+			if sv.binary {
+				if int(n) >= len(sv.str) {
+					return userVarValue{kind: userVarString, str: sv.str, binary: true}, true, nil
+				}
+				if toLower(e.Name) == "left" {
+					return userVarValue{kind: userVarString, str: sv.str[:n], binary: true}, true, nil
+				}
+				return userVarValue{kind: userVarString, str: sv.str[len(sv.str)-int(n):], binary: true}, true, nil
+			}
+			runes := []rune(sv.str)
+			if int(n) >= len(runes) {
+				return userVarValue{kind: userVarString, str: sv.str}, true, nil
+			}
+			if toLower(e.Name) == "left" {
+				return userVarValue{kind: userVarString, str: string(runes[:n])}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: string(runes[len(runes)-int(n):])}, true, nil
+		case "repeat":
+			// REPEAT(s, n): NULL if either is NULL, '' for n <= 0 or an empty
+			// s, NULL when the result's bytes pass max_allowed_packet (64 MiB
+			// by default: REPEAT('ab', 33554433) is NULL), and n rounds as a
+			// length does (REPEAT('a', 2.5) is 'aaa', REPEAT('a', 2.5e0) 'aa')
+			// on mysql:8.0.46.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("REPEAT")
+			}
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			nv, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sv.kind == userVarNull || nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			if sv.kind != userVarString && sv.kind != userVarNumeric {
+				return userVarValue{}, false, nil
+			}
+			n, nok := setStringLengthArg(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			str := sv.str
+			if sv.kind == userVarNumeric && sv.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(sv.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			byteLen := int64(len(str))
+			if sv.cs != "" {
+				byteLen = int64(len(sv.raw))
+			}
+			switch {
+			case n <= 0 || byteLen == 0:
+				return userVarValue{kind: userVarString, str: "", binary: sv.binary, cs: sv.cs}, true, nil
+			case n > 67108864/byteLen:
+				return userVarValue{kind: userVarNull}, true, nil
+			case n*byteLen > 1<<20:
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			out := userVarValue{kind: userVarString, str: strings.Repeat(str, int(n)), binary: sv.binary, cs: sv.cs}
+			if sv.cs != "" {
+				out.raw = strings.Repeat(sv.raw, int(n))
+			}
+			return out, true, nil
+		case "space":
+			// SPACE(N) is N spaces: '' for N <= 0, NULL past max_allowed_packet
+			// (64 MiB by default, counted at the character set's narrowest
+			// character), and N rounds as a length does (SPACE(2.5) is 3 spaces
+			// and SPACE(2.5e0) 2) on mysql:8.0.46.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("SPACE")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n, nok := setStringLengthArg(v)
+			switch {
+			case !nok:
+				return userVarValue{}, false, nil
+			case n <= 0:
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			case n > 67108864:
+				return userVarValue{kind: userVarNull}, true, nil
+			case n > 1<<20:
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarString, str: strings.Repeat(" ", int(n))}, true, nil
+		case "lpad", "rpad":
+			// LPAD/RPAD: NULL if an argument is NULL or the length is negative;
+			// a string at least that long is cut to it from the left; an empty
+			// pad gives ''; a result longer than max_allowed_packet (64 MiB by
+			// default, counted at the collation's widest character) is NULL.
+			// Lengths and the string count characters, bytes when either string
+			// is binary. On mysql:8.0.46 LPAD('x', 5, 'ab') is 'ababx',
+			// LPAD('abc', 2, '0') 'ab', LPAD('x', 3, '') '' and LPAD(1.5e0, 5,
+			// '0') '001.5'.
+			fn := toLower(e.Name)
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			var vals [3]userVarValue
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				vals[i] = v
+			}
+			for _, v := range vals {
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			}
+			n, nok := setStringLengthArg(vals[1])
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n < 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			strForm := func(v userVarValue) string {
+				if v.kind == userVarNumeric && v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						return setFormatDouble(f)
+					}
+				}
+				return v.str
+			}
+			binary := vals[0].binary || vals[2].binary
+			var src, pad []string
+			split := func(s string) []string {
+				if binary {
+					out := make([]string, len(s))
+					for i := range s {
+						out[i] = s[i : i+1]
+					}
+					return out
+				}
+				out := make([]string, 0, len(s))
+				for _, r := range s {
+					out = append(out, string(r))
+				}
+				return out
+			}
+			src = split(strForm(vals[0]))
+			if n <= int64(len(src)) {
+				return userVarValue{kind: userVarString, str: strings.Join(src[:n], ""), binary: binary}, true, nil
+			}
+			mbMax := int64(4)
+			if binary {
+				mbMax = 1
+			}
+			if n > 67108864/mbMax {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			pad = split(strForm(vals[2]))
+			if len(pad) == 0 {
+				return userVarValue{kind: userVarString, str: "", binary: binary}, true, nil
+			}
+			if n > 1<<20 {
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			var fill strings.Builder
+			for i := int64(0); i < n-int64(len(src)); i++ {
+				fill.WriteString(pad[i%int64(len(pad))])
+			}
+			out := fill.String() + strings.Join(src, "")
+			if fn == "rpad" {
+				out = strings.Join(src, "") + fill.String()
+			}
+			return userVarValue{kind: userVarString, str: out, binary: binary}, true, nil
+		case "substr", "substring", "mid":
+			if len(e.Args) < 2 || len(e.Args) > 3 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			pv, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			var lv userVarValue
+			hasLen := len(e.Args) == 3
+			if hasLen {
+				lv, ok, err = c.evalSetExprNode(e.Args[2])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+			}
+			if sv.kind == userVarNull || pv.kind == userVarNull || (hasLen && lv.kind == userVarNull) {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			pos, pok := setStringLengthArg(pv)
+			if !pok {
+				return userVarValue{}, false, nil
+			}
+			var length int64
+			if hasLen {
+				var lok bool
+				length, lok = setStringLengthArg(lv)
+				if !lok {
+					return userVarValue{}, false, nil
+				}
+			}
+			if sv.binary {
+				startIdx := 0
+				if pos > 0 {
+					startIdx = int(pos - 1)
+				} else if pos < 0 {
+					startIdx = len(sv.str) + int(pos)
+				} else {
+					return userVarValue{kind: userVarString, str: "", binary: true}, true, nil
+				}
+				if startIdx < 0 || startIdx >= len(sv.str) {
+					return userVarValue{kind: userVarString, str: "", binary: true}, true, nil
+				}
+				if !hasLen {
+					return userVarValue{kind: userVarString, str: sv.str[startIdx:], binary: true}, true, nil
+				}
+				if length <= 0 {
+					return userVarValue{kind: userVarString, str: "", binary: true}, true, nil
+				}
+				endIdx := len(sv.str)
+				if length < int64(endIdx-startIdx) {
+					endIdx = startIdx + int(length)
+				}
+				return userVarValue{kind: userVarString, str: sv.str[startIdx:endIdx], binary: true}, true, nil
+			}
+			runes := []rune(sv.str)
+			startIdx := 0
+			if pos > 0 {
+				startIdx = int(pos - 1)
+			} else if pos < 0 {
+				startIdx = len(runes) + int(pos)
+			} else {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			if startIdx < 0 || startIdx >= len(runes) {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			if !hasLen {
+				return userVarValue{kind: userVarString, str: string(runes[startIdx:])}, true, nil
+			}
+			if length <= 0 {
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			}
+			endIdx := len(runes)
+			if length < int64(endIdx-startIdx) {
+				endIdx = startIdx + int(length)
+			}
+			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "dayofweek", "weekday", "dayofyear":
+			// These need a whole calendar date: DAYOFWEEK('2008-01-06') is 1
+			// (Sunday) and sets sql_mode REAL_AS_FLOAT, WEEKDAY counts from
+			// Monday at 0, and a zero month or day, or no date, is NULL.
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			p, pok := setParseDateValue(v)
+			if !pok || p.month == 0 || p.day == 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			d := time.Date(p.year, time.Month(p.month), p.day, 0, 0, 0, 0, time.UTC)
+			n := 0
+			switch fn {
+			case "dayofweek":
+				n = int(d.Weekday()) + 1
+			case "weekday":
+				n = (int(d.Weekday()) + 6) % 7
+			default:
+				n = d.YearDay()
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "quarter", "month", "year", "dayofmonth", "day":
+			// The date parts of a DATE or DATETIME, read from a string or a
+			// number: QUARTER('2008-01-01') is 1 and sets sql_mode
+			// REAL_AS_FLOAT; a zero month is quarter 0, and a value that is
+			// no date ('2008-02-30', 'x', '') is NULL.
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			p, pok := setParseDateValue(v)
+			if !pok {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n := 0
+			switch fn {
+			case "quarter":
+				n = (p.month + 2) / 3
+			case "month":
+				n = p.month
+			case "year":
+				n = p.year
+			default:
+				n = p.day
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "sqrt", "exp", "ln", "log", "log2", "log10":
+			// Doubles: an argument out of the function's domain is NULL
+			// (SQRT(-1), LN(0), LOG(1, 100)), an overflow is 1690 (EXP(1000)),
+			// as on mysql:8.0.46. LOG(x) is LN(x), and LOG(b, x) is log base b.
+			fn := toLower(e.Name)
+			if len(e.Args) < 1 || len(e.Args) > 2 || (fn != "log" && len(e.Args) != 1) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			xs := make([]float64, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			x := xs[len(xs)-1]
+			var f float64
+			switch fn {
+			case "sqrt":
+				if x < 0 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				f = math.Sqrt(x)
+			case "exp":
+				f = math.Exp(x)
+			default:
+				if x <= 0 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				switch {
+				case fn == "log2":
+					f = math.Log2(x)
+				case fn == "log10":
+					f = math.Log10(x)
+				case len(xs) == 2:
+					b := xs[0]
+					if b <= 0 || b == 1 {
+						return userVarValue{kind: userVarNull}, true, nil
+					}
+					f = math.Log(x) / math.Log(b)
+				default:
+					f = math.Log(x)
+				}
+			}
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "greatest", "least":
+			// GREATEST/LEAST: NULL if any argument is NULL; numbers compare as
+			// numbers, an integer result if all are integers, a decimal if any
+			// is one, a double if any is one; with any string among them
+			// every argument compares as a string under the collation, so
+			// GREATEST(10, '9') is '9' on mysql:8.0.46.
+			fn := toLower(e.Name)
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			args := make([]userVarValue, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			pick := func(cmp int) bool { return (fn == "greatest" && cmp > 0) || (fn == "least" && cmp < 0) }
+			anyString, anyBinary := false, false
+			for _, v := range args {
+				if v.kind == userVarString {
+					anyString = true
+					anyBinary = anyBinary || v.binary
+				}
+			}
+			if anyString {
+				strs := make([]userVarValue, len(args))
+				for i, v := range args {
+					sv := userVarValue{kind: userVarString, str: v.str, binary: anyBinary}
+					if v.kind == userVarNumeric && v.isFloat {
+						if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+							f, _ := r.Float64()
+							sv.str = setFormatDouble(f)
+						}
+					}
+					strs[i] = sv
+				}
+				best := strs[0]
+				for _, v := range strs[1:] {
+					if pick(c.compareSetValues(v, best)) {
+						best = v
+					}
+				}
+				return best, true, nil
+			}
+			anyFloat, anyDecimal := false, false
+			rats := make([]*big.Rat, len(args))
+			scales := make([]int, len(args))
+			for i, v := range args {
+				r, sc, kind, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				rats[i], scales[i] = r, sc
+				switch kind {
+				case 'f':
+					anyFloat = true
+				case 'd':
+					anyDecimal = true
+				}
+			}
+			bi := 0
+			for i := 1; i < len(rats); i++ {
+				if pick(rats[i].Cmp(rats[bi])) {
+					bi = i
+				}
+			}
+			switch {
+			case anyFloat:
+				f, _ := rats[bi].Float64()
+				return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+			case anyDecimal:
+				// A DECIMAL, at the chosen argument's own scale: GREATEST(2.5, 3)
+				// stores 3 and GREATEST(1, 2.5) stores 2.5.
+				return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(rats[bi], scales[bi]), isDecimal: true}, true, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: rats[bi].Num().String()}, true, nil
+		case "field":
+			// FIELD(x, a, b, ...) is the 1-based position of the first argument
+			// equal to x, 0 when x is NULL or nothing matches; NULL arguments
+			// never match. Strings compare under the collation, binary when one
+			// is binary; with a number among them every argument compares as a
+			// number, a string by its numeric prefix. On mysql:8.0.46
+			// FIELD('A', 'a') is 1, FIELD(X'61', 'A') 0, FIELD(2, '2', 2) 1 and
+			// FIELD('abc', 0) 1, and SET sql_mode = FIELD('a', 'a') sets mode 1.
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount("FIELD")
+			}
+			args := make([]userVarValue, len(e.Args))
+			anyNumeric, anyBinary := false, false
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				switch v.kind {
+				case userVarNumeric:
+					anyNumeric = true
+				case userVarString:
+					anyBinary = anyBinary || v.binary
+				case userVarNull:
+				default:
+					return userVarValue{}, false, nil
+				}
+				args[i] = v
+			}
+			pos := 0
+			if args[0].kind != userVarNull {
+				for i := 1; i < len(args) && pos == 0; i++ {
+					if args[i].kind == userVarNull {
+						continue
+					}
+					var cmp int
+					if anyNumeric {
+						l, _, _, lok := setNumKind(args[0])
+						r, _, _, rok := setNumKind(args[i])
+						if !lok || !rok {
+							return userVarValue{}, false, nil
+						}
+						cmp = l.Cmp(r)
+					} else {
+						cmp = c.compareSetValues(
+							userVarValue{kind: userVarString, str: args[0].str, binary: anyBinary},
+							userVarValue{kind: userVarString, str: args[i].str, binary: anyBinary})
+					}
+					if cmp == 0 {
+						pos = i
+					}
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(pos)}, true, nil
+		case "pi":
+			// PI() is the double π: SET sql_mode = (PI() > 3) sets mode 1 and
+			// SET @p = PI() stores 3.141592653589793 on mysql:8.0.46. The server
+			// shows it with six decimals and compares it at that precision
+			// (PI() = 3.141593 is 1); the catalog compares the full double.
+			if len(e.Args) != 0 {
+				return userVarValue{}, false, errWrongParamCount("PI")
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(math.Pi), isFloat: true}, true, nil
+		case "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "cot", "degrees", "radians":
+			// Doubles: ASIN and ACOS out of [-1, 1] are NULL, a result that is
+			// no finite double is 1690 (COT(0)), as on mysql:8.0.46; ATAN takes
+			// one argument or two, and so does ATAN2: ATAN2(1) is ATAN(1) and
+			// ATAN2(1, 2, 3) is 1582. Go's math library can differ
+			// from the server's C library in the last digit of a result
+			// (TAN(1), COS(0.1)), which only an exact comparison of the two
+			// sees. PI() is left out: it compares at its six shown decimals
+			// (PI() = 3.141593 is 1).
+			fn := toLower(e.Name)
+			two := fn == "atan" || fn == "atan2"
+			if len(e.Args) < 1 || len(e.Args) > 2 || (!two && len(e.Args) != 1) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			xs := make([]float64, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			x := xs[0]
+			var f float64
+			switch fn {
+			case "sin":
+				f = math.Sin(x)
+			case "cos":
+				f = math.Cos(x)
+			case "tan":
+				f = math.Tan(x)
+			case "asin", "acos":
+				if x < -1 || x > 1 {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				if fn == "asin" {
+					f = math.Asin(x)
+				} else {
+					f = math.Acos(x)
+				}
+			case "atan", "atan2":
+				if len(xs) == 2 {
+					f = math.Atan2(xs[0], xs[1])
+				} else {
+					f = math.Atan(x)
+				}
+			case "cot":
+				f = 1 / math.Tan(x)
+			case "degrees":
+				f = x * 180 / math.Pi
+			case "radians":
+				f = x * math.Pi / 180
+			}
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "power", "pow":
+			// POWER is a double; a result that is no finite double is 1690:
+			// POWER(-8, 0.5), POWER(10, 400) and POWER(0, -1) on mysql:8.0.46.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			var xs [2]float64
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok || v.kind == userVarNull {
+					return v, ok, err
+				}
+				r, _, _, rok := setNumKind(v)
+				if !rok {
+					return userVarValue{}, false, nil
+				}
+				xs[i], _ = r.Float64()
+			}
+			f := math.Pow(xs[0], xs[1])
+			if math.IsNaN(f) || math.IsInf(f, 0) {
+				return userVarValue{}, false, &Error{Code: 1690, SQLState: "22003",
+					Message: fmt.Sprintf("DOUBLE value is out of range in 'pow(%s,%s)'", setFormatDouble(xs[0]), setFormatDouble(xs[1]))}
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "find_in_set":
+			// FIND_IN_SET(str, list) is str's 1-based place among list's
+			// comma-separated items, 0 when absent or when str holds a comma:
+			// FIND_IN_SET('a', 'a') is 1 and sets sql_mode REAL_AS_FLOAT. Items
+			// match under the collation (FIND_IN_SET('A', 'a,b') is 1 under a
+			// _ci one) with trailing spaces and accents kept ('a ' and 'é' do
+			// not match 'a' and 'e'), so only ASCII text is evaluated here.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("FIND_IN_SET")
+			}
+			args := make([]userVarValue, 2)
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			needle, list := args[0].str, args[1].str
+			if args[0].binary || args[1].binary || !isASCII(needle) || !isASCII(list) {
+				return userVarValue{}, false, nil
+			}
+			n := 0
+			if list != "" && !strings.Contains(needle, ",") {
+				ci := strings.HasSuffix(strings.ToLower(c.effectiveSessionCollationConn()), "_ci")
+				for i, item := range strings.Split(list, ",") {
+					if item == needle || (ci && strings.EqualFold(item, needle)) {
+						n = i + 1
+						break
+					}
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "sha1", "sha", "md5", "sha2":
+			// The hex digest of the value's string form, in lowercase:
+			// SET @m = SHA1('x') stores 11f6ad8e...; SHA2 takes 224, 256 (or
+			// 0), 384 or 512 bits and is NULL for any other length.
+			fn := toLower(e.Name)
+			want := 1
+			if fn == "sha2" {
+				want = 2
+			}
+			if len(e.Args) != want {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			str := v.str
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			var sum []byte
+			switch fn {
+			case "md5":
+				h := md5.Sum([]byte(str))
+				sum = h[:]
+			case "sha2":
+				bv, ok, err := c.evalSetExprNode(e.Args[1])
+				if err != nil || !ok || bv.kind == userVarNull {
+					return bv, ok, err
+				}
+				n, nok := setStringLengthArg(bv)
+				if !nok {
+					return userVarValue{}, false, nil
+				}
+				switch n {
+				case 0, 256:
+					h := sha256.Sum256([]byte(str))
+					sum = h[:]
+				case 224:
+					h := sha256.Sum224([]byte(str))
+					sum = h[:]
+				case 384:
+					h := sha512.Sum384([]byte(str))
+					sum = h[:]
+				case 512:
+					h := sha512.Sum512([]byte(str))
+					sum = h[:]
+				default:
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			default:
+				h := sha1.Sum([]byte(str))
+				sum = h[:]
+			}
+			return userVarValue{kind: userVarString, str: hex.EncodeToString(sum)}, true, nil
+		case "hex":
+			// HEX of a string is its bytes in uppercase hex digits. A number is
+			// taken as a BIGINT first and shown as its unsigned 64-bit pattern:
+			// a DECIMAL rounds half away from zero and saturates (HEX(2.5) is 3,
+			// HEX(-0.5) FFFFFFFFFFFFFFFF, HEX(99999999999999999999)
+			// 7FFFFFFFFFFFFFFF), a double rounds half to even (HEX(0.5e0) is 0)
+			// on mysql:8.0.46. A double past the BIGINT range saturates as a
+			// literal and is 1690 from an expression, which the catalog cannot
+			// tell apart, so it is left unevaluated.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("HEX")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			switch v.kind {
+			case userVarString:
+				// An introduced literal's bytes are those of its charset:
+				// HEX(_latin1 X'E9') is E9.
+				b := v.str
+				if v.cs != "" {
+					b = v.raw
+				}
+				return userVarValue{kind: userVarString, str: strings.ToUpper(hex.EncodeToString([]byte(b)))}, true, nil
+			case userVarNumeric:
+			default:
+				return userVarValue{}, false, nil
+			}
+			r, _, _, rok := parseSetNumberPrefixRat(v.str, true)
+			if !rok {
+				return userVarValue{}, false, nil
+			}
+			minInt, maxInt := big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)
+			var n *big.Int
+			switch {
+			case v.isFloat:
+				f, _ := r.Float64()
+				if f < -9.223372036854775808e18 || f >= 9.223372036854775808e18 {
+					return userVarValue{}, false, nil
+				}
+				n = big.NewInt(int64(math.RoundToEven(f)))
+			case v.isDecimal || !r.IsInt():
+				// Half away from zero: truncate |r| + 1/2.
+				abs := new(big.Rat).Abs(r)
+				abs.Add(abs, big.NewRat(1, 2))
+				n = new(big.Int).Quo(abs.Num(), abs.Denom())
+				if r.Sign() < 0 {
+					n.Neg(n)
+				}
+				if n.Cmp(maxInt) > 0 {
+					n = maxInt
+				} else if n.Cmp(minInt) < 0 {
+					n = minInt
+				}
+			default:
+				n = new(big.Int).Set(r.Num())
+				if n.Cmp(new(big.Int).SetUint64(math.MaxUint64)) > 0 {
+					n = maxInt
+				} else if n.Cmp(minInt) < 0 {
+					n = minInt
+				}
+			}
+			var u uint64
+			if n.Sign() < 0 {
+				u = uint64(n.Int64())
+			} else {
+				u = n.Uint64()
+			}
+			return userVarValue{kind: userVarString, str: strings.ToUpper(strconv.FormatUint(u, 16))}, true, nil
+		case "bin", "oct":
+			// BIN(N) and OCT(N) are CONV(N, 10, 2) and CONV(N, 10, 8): the
+			// argument's string form is read as a base-10 integer, MySQL's
+			// strntoull, so a number counts only its leading digits (BIN(5.5)
+			// and BIN(1e30) read 5 and 1), a negative wraps to 64 bits, a
+			// positive overflow is all ones and a negative one 0; a hex or bit
+			// literal is its bytes' integer instead (BIN(X'31') is 110001), and
+			// an empty string is NULL (mysql:8.0.46).
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			base := 2
+			if fn == "oct" {
+				base = 8
+			}
+			var u uint64
+			switch {
+			case v.hexLit:
+				if len(v.str) > 8 {
+					return userVarValue{}, false, nil
+				}
+				for i := 0; i < len(v.str); i++ {
+					u = u<<8 | uint64(v.str[i])
+				}
+			case v.kind == userVarString || v.kind == userVarNumeric:
+				s := v.str
+				if v.kind == userVarNumeric && v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						s = setFormatDouble(f)
+					}
+				}
+				if s == "" {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				u = mysqlStrntoull10(s)
+			default:
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarString, str: strconv.FormatUint(u, base)}, true, nil
+		case "unhex":
+			// UNHEX reads its argument's string form as hex digit pairs into a
+			// binary string; an odd count takes a leading 0, and any other
+			// character makes it NULL. On mysql:8.0.46 UNHEX('3') is 0x03,
+			// UNHEX('0x61') and UNHEX(1.5) are NULL, and UNHEX(616263) is 'abc'.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("UNHEX")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			digits := v.str
+			switch v.kind {
+			case userVarString:
+			case userVarNumeric:
+				if v.isFloat {
+					if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+						f, _ := r.Float64()
+						digits = setFormatDouble(f)
+					}
+				}
+			default:
+				return userVarValue{}, false, nil
+			}
+			if len(digits)%2 == 1 {
+				digits = "0" + digits
+			}
+			raw, herr := hex.DecodeString(digits)
+			if herr != nil {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: string(raw), binary: true}, true, nil
+		case "crc32":
+			// CRC32 is the IEEE checksum of the value's string form: a double
+			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("CRC32")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			str := v.str
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(uint64(crc32.ChecksumIEEE([]byte(str))), 10)}, true, nil
+		case "locate", "instr":
+			// LOCATE(sub, str[, pos]) and INSTR(str, sub) find sub's first
+			// position, from pos, in characters: LOCATE('a', 'a') is 1 and
+			// sets sql_mode REAL_AS_FLOAT. The match follows the collation
+			// (LOCATE('A', 'a') is 1 under a _ci one), and beyond ASCII its
+			// rules (LOCATE('ß', 'ss') is 1, LOCATE('é', 'e') is 0) are the
+			// server's, so only ASCII text is evaluated here.
+			fn := toLower(e.Name)
+			if (fn == "instr" && len(e.Args) != 2) || (fn == "locate" && (len(e.Args) < 2 || len(e.Args) > 3)) {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			args := make([]userVarValue, len(e.Args))
+			for i, a := range e.Args {
+				v, ok, err := c.evalSetExprNode(a)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				args[i] = v
+			}
+			for _, v := range args {
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+			}
+			sub, str := args[0], args[1]
+			if fn == "instr" {
+				sub, str = args[1], args[0]
+			}
+			if sub.binary || str.binary || !isASCII(sub.str) || !isASCII(str.str) {
+				return userVarValue{}, false, nil
+			}
+			pos := int64(1)
+			if len(args) == 3 {
+				p, ok := setStringLengthArg(args[2])
+				if !ok {
+					return userVarValue{}, false, nil
+				}
+				pos = p
+			}
+			n := int64(0)
+			switch {
+			case pos < 1 || pos > int64(len(str.str))+1:
+			case sub.str == "":
+				n = pos
+			default:
+				hay, needle := str.str[pos-1:], sub.str
+				coll := strings.ToLower(c.effectiveSessionCollationConn())
+				if strings.HasSuffix(coll, "_ci") {
+					hay, needle = strings.ToLower(hay), strings.ToLower(needle)
+				}
+				if i := strings.Index(hay, needle); i >= 0 {
+					n = pos + int64(i)
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
+		case "ord":
+			// ORD is the first character's bytes read big-endian, a binary
+			// string's first byte: ORD('é') is 50089, ORD(X'01') is 1.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ORD")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			var n uint64
+			if v.cs != "" && v.str != "" {
+				// The first character's bytes in the literal's charset:
+				// ORD(_ucs2 X'00E9') is 233, ORD(_utf16 X'D83DDE00') 3627933184.
+				r, _ := utf8.DecodeRuneInString(v.str)
+				for _, b := range encodeStringToCharsetBytes(string(r), v.cs) {
+					n = n<<8 | uint64(b)
+				}
+			} else if len(v.str) > 0 {
+				w := 1
+				if !v.binary {
+					if _, size := utf8.DecodeRuneInString(v.str); size > 1 {
+						w = size
+					}
+				}
+				for i := 0; i < w; i++ {
+					n = n<<8 | uint64(v.str[i])
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(n, 10)}, true, nil
+		case "ascii":
+			// ASCII is the first byte of the string form, 0 for an empty one:
+			// ASCII(X'01') is 1 and sets sql_mode REAL_AS_FLOAT.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ASCII")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n := 0
+			if len(v.str) > 0 {
+				n = int(v.str[0])
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "bit_count":
+			// BIT_COUNT counts a binary string's bits byte by byte and any other
+			// value's as CAST(... AS UNSIGNED) reads it: BIT_COUNT(-1) is 64,
+			// BIT_COUNT(1.6) is 1, BIT_COUNT(X'FF') is 8.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("BIT_COUNT")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n := 0
+			if v.kind == userVarString && v.binary {
+				for i := 0; i < len(v.str); i++ {
+					n += bits.OnesCount8(v.str[i])
+				}
+			} else {
+				us, ok := setCastInt(v, true)
+				if !ok {
+					return userVarValue{}, false, nil
+				}
+				u, perr := strconv.ParseUint(us, 10, 64)
+				if perr != nil {
+					return userVarValue{}, false, nil
+				}
+				n = bits.OnesCount64(u)
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "mod":
+			// MOD(a, b) is the % operator: MOD(5, 4) sets sql_mode 1.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("MOD")
+			}
+			return c.evalSetBinaryExprNode(&nodes.BinaryExpr{Op: nodes.BinOpMod, Left: e.Args[0], Right: e.Args[1]})
+		case "round", "truncate":
+			fn := strings.ToUpper(e.Name)
+			if len(e.Args) < 1 || len(e.Args) > 2 || (fn == "TRUNCATE" && len(e.Args) != 2) {
+				return userVarValue{}, false, errWrongParamCount(fn)
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			var d int64
+			if len(e.Args) == 2 {
+				dv, ok, err := c.evalSetExprNode(e.Args[1])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if dv.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				if d, ok = setStringLengthArg(dv); !ok {
+					return userVarValue{}, false, nil
+				}
+			}
+			if x.kind == userVarNull {
+				return x, true, nil
+			}
+			return setRoundValue(x, d, fn == "TRUNCATE")
+		case "floor", "ceil", "ceiling":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || x.kind == userVarNull {
+				return x, ok, err
+			}
+			return setFloorCeilValue(x, toLower(e.Name) != "floor")
+		case "sign":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("SIGN")
+			}
+			x, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || x.kind == userVarNull {
+				return x, ok, err
+			}
+			r, _, _, ok := setNumKind(x)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(r.Sign())}, true, nil
+		case "abs":
+			// ABS keeps an exact number exact and reads a string as a double by
+			// its numeric prefix: ABS('-4') is 4, ABS(' -3x') is 3, ABS('abc') 0.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("ABS")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			if v.kind == userVarNumeric && !v.isFloat {
+				t := strings.TrimSpace(v.str)
+				if t == "-9223372036854775808" && !v.isDecimal {
+					// MySQL answers 1690 for ABS of the smallest BIGINT, and the
+					// whole SET fails with it.
+					return userVarValue{}, false, errBigintOutOfRange()
+				}
+				return userVarValue{kind: userVarNumeric, str: strings.TrimPrefix(t, "-"), isDecimal: v.isDecimal}, true, nil
+			}
+			r, _, _, rok := parseSetNumberPrefixRat(v.str, false)
+			f := 0.0
+			if rok {
+				f, _ = r.Float64()
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(math.Abs(f)), isFloat: true}, true, nil
+		case "char_length", "character_length", "length", "octet_length", "bit_length":
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			str := v.str
+			if v.cs != "" && toLower(e.Name) != "char_length" && toLower(e.Name) != "character_length" {
+				str = v.raw // LENGTH counts the bytes in the literal's charset
+			}
+			// A double is measured in the form MySQL prints it: 1.5e0 is 1.5.
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			n := len(str)
+			switch toLower(e.Name) {
+			case "char_length", "character_length":
+				if !v.binary {
+					n = utf8.RuneCountInString(str)
+				}
+			case "bit_length":
+				// BIT_LENGTH('a') is 8 and sets sql_mode IGNORE_SPACE.
+				n *= 8
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
+		case "replace":
+			if len(e.Args) != 3 {
+				return userVarValue{}, false, errWrongParamCount("REPLACE")
+			}
+			args := make([]userVarValue, 3)
+			for i := 0; i < 3; i++ {
+				v, ok, err := c.evalSetExprNode(e.Args[i])
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					return userVarValue{kind: userVarNull}, true, nil
+				}
+				args[i] = v
+			}
+			// REPLACE takes its character set from the first argument only:
+			// REPLACE('ansi', X'78', '') = 'ANSI' compares case-insensitively.
+			isBin := args[0].binary
+			if args[1].str == "" {
+				return userVarValue{kind: userVarString, str: args[0].str, binary: isBin}, true, nil
+			}
+			return userVarValue{kind: userVarString, str: strings.ReplaceAll(args[0].str, args[1].str, args[2].str), binary: isBin}, true, nil
+		case "elt":
+			// ELT(N, str1, ...) evaluates N and then only strN; N below 1 or
+			// past the last string, or NULL, answers NULL.
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount("ELT")
+			}
+			nv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n, nok := setValInt(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			if n < 1 || n >= int64(len(e.Args)) {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[n])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			// The result's collation aggregates the strings, not N.
+			_, isBin := c.setExprResultIsStringOrBinary(e)
+			return userVarValue{kind: userVarString, str: v.str, binary: isBin || v.binary}, true, nil
+		case "concat_ws":
+			if len(e.Args) < 2 {
+				return userVarValue{}, false, errWrongParamCount("CONCAT_WS")
+			}
+			sep, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sep.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			isBin := sep.binary
+			var parts []string
+			for _, arg := range e.Args[1:] {
+				v, ok, err := c.evalSetExprNode(arg)
+				if err != nil || !ok {
+					return userVarValue{}, false, err
+				}
+				if v.kind == userVarNull {
+					continue
+				}
+				if v.binary {
+					isBin = true
+				}
+				parts = append(parts, v.str)
+			}
+			return userVarValue{kind: userVarString, str: strings.Join(parts, sep.str), binary: isBin}, true, nil
+		}
+	}
+	return userVarValue{}, false, nil
+}
+
+func (c *Catalog) isDefinedStoredFuncCall(expr nodes.ExprNode) bool {
+	fc, ok := expr.(*nodes.FuncCallExpr)
+	if !ok || fc == nil {
+		return false
+	}
+	targetDBName := fc.Schema
+	if targetDBName == "" {
+		targetDBName = c.currentDB
+	}
+	db := c.GetDatabase(targetDBName)
+	return db != nil && db.Functions[toLower(fc.Name)] != nil
+}
+
+func evalSetValueTruthy(v userVarValue) bool {
+	if v.kind == userVarNull {
+		return false
+	}
+	r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+	return ok && r.Sign() != 0
+}
+
+func validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
+	if strings.EqualFold(x.Scope, "PERSIST") || strings.EqualFold(x.Scope, "PERSIST_ONLY") {
+		return sysvarSpec{}, false, &Error{
+			Code:     1193,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Unknown system variable '%s.%s'", strings.ToUpper(x.Scope), x.Name),
+		}
+	}
+	lowerName := toLower(x.Name)
+	spec, ok := mysqlSysvarSpecs[lowerName]
+	if !ok {
+		if !validate.IsKnownSystemVariable(lowerName) {
+			return sysvarSpec{}, false, &Error{
+				Code:     1193,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Unknown system variable '%s'", x.Name),
+			}
+		}
+		// A variable the catalog does not model still has a scope the server
+		// checks: SET foreign_key_checks = 0, @x = @@SESSION.max_connections
+		// is 1238 and applies neither assignment on mysql:8.0.46.
+		globalOnly, sessionOnly := validate.SystemVariableScope(lowerName)
+		if globalOnly && (strings.EqualFold(x.Scope, "SESSION") || strings.EqualFold(x.Scope, "LOCAL")) {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "GLOBAL variable")
+		}
+		if sessionOnly && strings.EqualFold(x.Scope, "GLOBAL") {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "SESSION variable")
+		}
+		return sysvarSpec{}, false, nil
+	}
+	if spec.kind != sysvarSessionAndGlobal {
+		if strings.EqualFold(x.Scope, "SESSION") || strings.EqualFold(x.Scope, "LOCAL") {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "GLOBAL variable")
+		}
+	}
+	return spec, true, nil
+}
+
+func trimSetString(mode, s, rem string) string {
+	if rem == "" {
+		return s
+	}
+	if mode == "trim_leading" || mode == "trim_both" || mode == "trim_from" {
+		for strings.HasPrefix(s, rem) {
+			s = strings.TrimPrefix(s, rem)
+		}
+	}
+	if mode == "trim_trailing" || mode == "trim_both" || mode == "trim_from" {
+		for strings.HasSuffix(s, rem) {
+			s = strings.TrimSuffix(s, rem)
+		}
+	}
+	return s
+}
+
+func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
+	if n == nil {
+		return nil
+	}
+	var err error
+	nodes.Inspect(n, func(cur nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		switch x := cur.(type) {
+		case *nodes.VariableRef:
+			if !x.System {
+				return true
+			}
+			if _, _, err = validateSetSysvarRef(x); err != nil {
+				return false
+			}
+		case *nodes.FuncCallExpr:
+			if x.Schema != "" || (x.SpacedParen && !c.isIgnoreSpaceSQLMode()) {
+				targetDBName := x.Schema
+				if targetDBName == "" {
+					targetDBName = c.currentDB
+				}
+				if db := c.GetDatabase(targetDBName); db != nil && db.Functions[toLower(x.Name)] != nil {
+					return true
+				}
+				qual := x.Name
+				if targetDBName != "" {
+					qual = targetDBName + "." + x.Name
+				}
+				err = errNoSuchFunction(qual)
+				return false
+			}
+			fn := toLower(x.Name)
+			// A window function or an aggregate is refused in any branch:
+			// mysql:8.0.46 answers 3593 and 1111 for IF(1, 'ANSI', COUNT(1)).
+			if x.Over != nil || windowFuncs[fn] {
+				err = &Error{Code: 3593, SQLState: "HY000",
+					Message: fmt.Sprintf("You cannot use the window function '%s' in this context.'", fn)}
+				return false
+			}
+			if functionalIndexAggregates[fn] {
+				err = &Error{Code: 1111, SQLState: "HY000", Message: "Invalid use of group function"}
+				return false
+			}
+			// Any other name is a stored function of the current database,
+			// resolved before a branch is chosen: IF(1, 'ANSI', no_such()) is
+			// 1305, and 1046 with no database selected.
+			if !isBuiltinFunc(fn) {
+				if c.currentDB == "" {
+					err = errNoDatabaseSelected()
+					return false
+				}
+				if db := c.GetDatabase(c.currentDB); db != nil && db.Functions[fn] != nil {
+					return true
+				}
+				err = errNoSuchFunction(c.currentDB + "." + x.Name)
+				return false
+			}
+			argc := len(x.Args)
+			switch fn {
+			case "if":
+				if argc != 3 {
+					err = errWrongParamCount("IF")
+				}
+			case "nullif", "ifnull", "left", "right":
+				if argc != 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
+				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs", "sha1", "sha", "md5",
+				"sqrt", "exp", "ln", "log2", "log10", "sin", "cos", "tan", "asin", "acos", "cot", "degrees", "radians",
+				"quarter", "month", "year", "dayofmonth", "day", "dayofweek", "weekday", "dayofyear",
+				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
+				if argc != 1 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "trim_leading", "trim_trailing", "trim_both":
+				if argc < 1 || argc > 2 {
+					err = errWrongParamCount("TRIM")
+				}
+			case "trim_from":
+				if argc != 2 {
+					err = errWrongParamCount("TRIM")
+				}
+			case "greatest", "least", "field":
+				if argc < 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "concat", "coalesce":
+				if argc == 0 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "mod", "instr", "find_in_set", "power", "pow", "sha2":
+				if argc != 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "locate":
+				if argc < 2 || argc > 3 {
+					err = errWrongParamCount("LOCATE")
+				}
+			case "round":
+				if argc < 1 || argc > 2 {
+					err = errWrongParamCount("ROUND")
+				}
+			case "truncate":
+				if argc != 2 {
+					err = errWrongParamCount("TRUNCATE")
+				}
+			case "log", "atan", "atan2":
+				if argc < 1 || argc > 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "concat_ws", "elt":
+				if argc < 2 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "substr", "substring", "mid":
+				if argc < 2 || argc > 3 {
+					err = errWrongParamCount(strings.ToUpper(fn))
+				}
+			case "replace":
+				if argc != 3 {
+					err = errWrongParamCount("REPLACE")
+				}
+			}
+			if err != nil {
+				return false
+			}
+		}
+		return true
+	})
+	return err
+}
+
+func parseSetCoercedNumberRat(v userVarValue) *big.Rat {
+	r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+	if !ok {
+		return new(big.Rat)
+	}
+	return r
+}
+
+func (c *Catalog) compareSetValues(left, right userVarValue) int {
+	if left.kind == userVarNumeric || right.kind == userVarNumeric {
+		lr := parseSetCoercedNumberRat(left)
+		rr := parseSetCoercedNumberRat(right)
+		return lr.Cmp(rr)
+	}
+	if left.binary || right.binary {
+		return strings.Compare(left.str, right.str)
+	}
+	coll := c.effectiveSessionCollationConn()
+	cs := charsetForCollation(coll)
+	ls, rs := left.str, right.str
+	// A PAD SPACE collation, every one but the _0900_ family and binary,
+	// ignores trailing spaces: under utf8mb4_general_ci, latin1_swedish_ci
+	// and even utf8mb4_bin, mysql:8.0.46 answers 'a' = 'a ' with 1.
+	if lc := strings.ToLower(coll); !strings.Contains(lc, "_0900_") && lc != "binary" {
+		ls, rs = strings.TrimRight(ls, " "), strings.TrimRight(rs, " ")
+	}
+	lk := collationComparisonKey(ls, coll, cs)
+	rk := collationComparisonKey(rs, coll, cs)
+	return strings.Compare(lk, rk)
+}
+
+func boolSetVar(b bool) userVarValue {
+	if b {
+		return userVarValue{kind: userVarNumeric, str: "1"}
+	}
+	return userVarValue{kind: userVarNumeric, str: "0"}
+}
+
+// setCastCharLengthError refuses a CAST to CHAR(n) whose n characters, at its
+// character set's widest, pass 2^32-1 bytes: mysql:8.0.46 answers 1690 for
+// CAST('a' AS CHAR(4294967295)) under utf8mb4 and takes it under latin1.
+func (c *Catalog) setCastCharLengthError(dt *nodes.DataType) error {
+	if dt == nil || !dt.HasLength {
+		return nil
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar":
+	default:
+		return nil
+	}
+	cs := dt.Charset
+	if cs == "" {
+		cs = charsetForCollation(c.effectiveSessionCollationConn())
+	}
+	if strings.EqualFold(cs, "binary") {
+		return nil
+	}
+	if uint64(dt.Length)*uint64(max(charsetMaxBytes(cs), 1)) > math.MaxUint32 {
+		return &Error{Code: 1690, SQLState: "22003", Message: "char(n) value is out of range in 'cast_as_char'"}
+	}
+	return nil
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// setExprText is an unevaluated SET value as an error message shows it: a
+// user variable by its name, anything else as SQL.
+func setExprText(expr nodes.ExprNode) string {
+	if v, ok := expr.(*nodes.VariableRef); ok && !v.System {
+		return "@" + v.Name
+	}
+	return strings.TrimSpace(nodeToSQL(expr))
+}
+
+// isBinaryIntroducer reports a _binary charset introducer, however the parser
+// spells it.
+func isBinaryIntroducer(cs string) bool {
+	return strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(cs), "_"), "binary")
+}
+
+// setParseDateValue reads a value as a DATETIME the way the date-part
+// functions do, a string by its text and a number by its digits.
+func setParseDateValue(v userVarValue) (parsedMySQLDateTime, bool) {
+	var p parsedMySQLDateTime
+	var ok bool
+	if v.kind == userVarNumeric {
+		p, ok = parseMySQLNumberDateTime("datetime", 0, v.str, false)
+	} else {
+		p, ok = parseMySQLStringDateTime("datetime", 0, v.str, false)
+	}
+	// A day past its month's end is no date: QUARTER('2008-02-30') and
+	// DAYOFYEAR('2008-02-30') are NULL on mysql:8.0.46.
+	if ok && p.month >= 1 && p.month <= 12 && p.day > 0 {
+		if last := time.Date(p.year, time.Month(p.month)+1, 0, 0, 0, 0, 0, time.UTC).Day(); p.day > last {
+			return p, false
+		}
+	}
+	return p, ok
+}
+
+// isBitwiseBinaryString reports a binary string a bitwise operator combines
+// byte by byte: any but a hex or bit literal, which it reads as a number.
+func isBitwiseBinaryString(v userVarValue) bool {
+	return v.kind == userVarString && v.binary && !v.hexLit
+}
+
+// setBitwiseUint reads an operand of a bitwise operator as an unsigned 64-bit
+// integer: a hex or bit literal by its bytes, big-endian (X'0102' is 258),
+// anything else as CAST(... AS UNSIGNED) reads it.
+func setBitwiseUint(v userVarValue) (uint64, bool) {
+	if v.kind == userVarString && v.hexLit {
+		var u uint64
+		b := []byte(v.str)
+		if len(b) > 8 {
+			b = b[len(b)-8:]
+		}
+		for _, x := range b {
+			u = u<<8 | uint64(x)
+		}
+		return u, true
+	}
+	s, ok := setCastInt(v, true)
+	if !ok {
+		return 0, false
+	}
+	u, err := strconv.ParseUint(s, 10, 64)
+	return u, err == nil
+}
+
+// shiftBinaryString shifts a byte string as one bit string of fixed length.
+func shiftBinaryString(s string, n uint64, left bool) string {
+	b := []byte(s)
+	total := uint64(len(b)) * 8
+	out := make([]byte, len(b))
+	if n >= total {
+		return string(out)
+	}
+	for i := uint64(0); i < total; i++ {
+		var src uint64
+		if left {
+			src = i + n
+		} else {
+			if i < n {
+				continue
+			}
+			src = i - n
+		}
+		if src >= total {
+			continue
+		}
+		if b[src/8]&(0x80>>(src%8)) != 0 {
+			out[i/8] |= 0x80 >> (i % 8)
+		}
+	}
+	return string(out)
+}
+
+// setMaxAllowedPacket is max_allowed_packet's default on mysql:8.0.46.
+const setMaxAllowedPacket = 67108864
+
+func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (userVarValue, bool) {
+	if v.kind == userVarNull {
+		return userVarValue{kind: userVarNull}, true
+	}
+	if usingCharset != "" {
+		return userVarValue{
+			kind:   userVarString,
+			str:    v.str,
+			binary: strings.EqualFold(strings.TrimSpace(usingCharset), "binary"),
+		}, true
+	}
+	if dt == nil {
+		return userVarValue{}, false
+	}
+	// A result longer than max_allowed_packet is NULL with warning 1301:
+	// mysql:8.0.46, at its default 64 MiB, answers NULL for
+	// CAST('a' AS BINARY(67108865)) and CAST('a' AS CHAR(67108865)). The
+	// catalog does not track the variable and holds the default.
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar", "binary", "varbinary":
+		if dt.HasLength && dt.Length > setMaxAllowedPacket {
+			return userVarValue{kind: userVarNull}, true
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar":
+		isBin := strings.EqualFold(dt.Charset, "binary")
+		s := v.str
+		if dt.HasLength && dt.Length >= 0 {
+			if isBin {
+				if len(s) > dt.Length {
+					s = s[:dt.Length]
+				}
+			} else {
+				runes := []rune(s)
+				if len(runes) > dt.Length {
+					s = string(runes[:dt.Length])
+				}
+			}
+		}
+		return userVarValue{kind: userVarString, str: s, binary: isBin}, true
+	case "binary", "varbinary":
+		s := v.str
+		if dt.HasLength && dt.Length >= 0 {
+			if len(s) > dt.Length {
+				s = s[:dt.Length]
+			} else if strings.EqualFold(dt.Name, "binary") && len(s) < dt.Length {
+				s += strings.Repeat("\x00", dt.Length-len(s))
+			}
+		}
+		return userVarValue{kind: userVarString, str: s, binary: true}, true
+	case "signed", "unsigned":
+		s, ok := setCastInt(v, strings.EqualFold(strings.TrimSpace(dt.Name), "unsigned"))
+		if !ok {
+			return userVarValue{}, false
+		}
+		return userVarValue{kind: userVarNumeric, str: s}, true
+	case "double", "real", "float":
+		// A double keeps its value (CAST(2.5 AS DOUBLE) = 2.5); FLOAT is single
+		// precision, and past its range the cast is unevaluated here (1690 on
+		// the server).
+		r := parseSetCoercedNumberRat(v)
+		f, _ := r.Float64()
+		if strings.EqualFold(strings.TrimSpace(dt.Name), "float") {
+			if math.Abs(f) > math.MaxFloat32 {
+				return userVarValue{}, false
+			}
+			// The single-precision value, held as the double it widens to:
+			// SET @x = CAST(0.1 AS FLOAT) stores 0.10000000149011612.
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(float64(float32(f))), isFloat: true}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true
+	case "decimal", "numeric":
+		// DECIMAL(M,D) rounds to D places and clips to M digits: mysql:8.0.46
+		// gives CAST(998 AS DECIMAL(2,0)) = 99 and CAST(12345678901.5 AS
+		// DECIMAL) = 9999999999, M defaulting to 10.
+		r := parseSetCoercedNumberRat(v)
+		scale := dt.Scale
+		if scale < 0 {
+			scale = 0
+		}
+		prec := 10
+		if dt.Length > 0 {
+			prec = dt.Length
+		}
+		if rounded, ok := new(big.Rat).SetString(formatSetDecimalRat(r, scale)); ok {
+			r = rounded
+		}
+		if prec >= scale {
+			limit := new(big.Rat).Sub(setRatPow10(int64(prec-scale)), setRatPow10(int64(-scale)))
+			switch {
+			case r.Cmp(limit) > 0:
+				r = limit
+			case r.Cmp(new(big.Rat).Neg(limit)) < 0:
+				r = new(big.Rat).Neg(limit)
+			}
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isDecimal: true}, true
+	default:
+		return userVarValue{}, false
+	}
+}
+
+func (c *Catalog) setExprResultIsStringOrBinary(expr nodes.ExprNode) (isStr, isBin bool) {
+	switch e := expr.(type) {
+	case nil, *nodes.IntLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:
+		return false, false
+	case *nodes.ParenExpr:
+		return c.setExprResultIsStringOrBinary(e.Expr)
+	case *nodes.StringLit:
+		return true, isBinaryIntroducer(e.Charset)
+	case *nodes.HexLit, *nodes.BitLit:
+		return true, true
+	case *nodes.CastExpr:
+		if e.TypeName == nil {
+			return false, false
+		}
+		switch strings.ToLower(strings.TrimSpace(e.TypeName.Name)) {
+		case "binary", "varbinary":
+			return true, true
+		case "char", "nchar", "varchar":
+			return true, strings.EqualFold(e.TypeName.Charset, "binary")
+		}
+		return false, false
+	case *nodes.ConvertExpr:
+		if e.Charset != "" {
+			return true, strings.EqualFold(strings.TrimSpace(e.Charset), "binary")
+		}
+		if e.TypeName != nil {
+			return c.setExprResultIsStringOrBinary(&nodes.CastExpr{TypeName: e.TypeName})
+		}
+		return false, false
+	case *nodes.VariableRef:
+		if !e.System {
+			if v, exists := c.userVars[toLower(e.Name)]; exists {
+				return v.kind == userVarString, v.binary
+			}
+			return false, false
+		}
+		switch toLower(e.Name) {
+		case "sql_mode", "time_zone", "system_time_zone", "character_set_client", "collation_connection":
+			return true, false
+		}
+		return false, false
+	case *nodes.CaseExpr:
+		for _, w := range e.Whens {
+			if w != nil {
+				s, b := c.setExprResultIsStringOrBinary(w.Result)
+				isStr = isStr || s
+				isBin = isBin || b
+			}
+		}
+		if e.Default != nil {
+			s, b := c.setExprResultIsStringOrBinary(e.Default)
+			isStr = isStr || s
+			isBin = isBin || b
+		}
+		return isStr, isBin
+	case *nodes.FuncCallExpr:
+		switch toLower(e.Name) {
+		case "replace":
+			// REPLACE takes its character set from its first argument only.
+			if len(e.Args) > 0 {
+				_, b := c.setExprResultIsStringOrBinary(e.Args[0])
+				return true, b
+			}
+			return true, false
+		case "concat", "concat_ws", "trim", "ltrim", "rtrim", "upper", "lower",
+			"ucase", "lcase", "reverse", "trim_leading", "trim_trailing", "trim_both",
+			"trim_from", "left", "right", "substr", "substring", "mid":
+			for _, arg := range e.Args {
+				_, b := c.setExprResultIsStringOrBinary(arg)
+				isBin = isBin || b
+			}
+			return true, isBin
+		case "elt":
+			for i, arg := range e.Args {
+				if i > 0 {
+					_, b := c.setExprResultIsStringOrBinary(arg)
+					isBin = isBin || b
+				}
+			}
+			return true, isBin
+		case "if":
+			if len(e.Args) == 3 {
+				s1, b1 := c.setExprResultIsStringOrBinary(e.Args[1])
+				s2, b2 := c.setExprResultIsStringOrBinary(e.Args[2])
+				return s1 || s2, b1 || b2
+			}
+		case "ifnull", "coalesce":
+			for _, arg := range e.Args {
+				s, b := c.setExprResultIsStringOrBinary(arg)
+				isStr = isStr || s
+				isBin = isBin || b
+			}
+			return isStr, isBin
+		case "nullif":
+			if len(e.Args) >= 1 {
+				return c.setExprResultIsStringOrBinary(e.Args[0])
+			}
+		}
+	}
+	return false, false
+}
+
+func (c *Catalog) aggregateConditionalResultKind(v userVarValue, exprs ...nodes.ExprNode) userVarValue {
+	if v.kind == userVarNull {
+		return v
+	}
+	isStr, isBin := false, false
+	for _, ex := range exprs {
+		s, b := c.setExprResultIsStringOrBinary(ex)
+		isStr = isStr || s
+		isBin = isBin || b
+	}
+	if isStr || v.kind == userVarString {
+		v.kind = userVarString
+		if isBin {
+			v.binary = true
+		}
+	}
+	return v
+}
+
+func (c *Catalog) evalSetCaseExprNode(e *nodes.CaseExpr) (userVarValue, bool, error) {
+	if e == nil {
+		return userVarValue{}, false, nil
+	}
+	var hasOperand bool
+	var opVal userVarValue
+	if e.Operand != nil {
+		var ok bool
+		var err error
+		opVal, ok, err = c.evalSetExprNode(e.Operand)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		hasOperand = true
+	}
+	allResults := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+	for _, w := range e.Whens {
+		if w != nil {
+			allResults = append(allResults, w.Result)
+		}
+	}
+	if e.Default != nil {
+		allResults = append(allResults, e.Default)
+	}
+	for _, w := range e.Whens {
+		if w == nil {
+			continue
+		}
+		cond, ok, err := c.evalSetExprNode(w.Cond)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		matched := false
+		if hasOperand {
+			matched = opVal.kind != userVarNull && cond.kind != userVarNull && c.compareSetValues(opVal, cond) == 0
+		} else {
+			matched = evalSetValueTruthy(cond)
+		}
+		if matched {
+			res, resOK, resErr := c.evalSetExprNode(w.Result)
+			if resErr != nil || !resOK {
+				return res, resOK, resErr
+			}
+			return c.aggregateConditionalResultKind(res, allResults...), true, nil
+		}
+	}
+	if e.Default != nil {
+		res, resOK, resErr := c.evalSetExprNode(e.Default)
+		if resErr != nil || !resOK {
+			return res, resOK, resErr
+		}
+		return c.aggregateConditionalResultKind(res, allResults...), true, nil
+	}
+	return userVarValue{kind: userVarNull}, true, nil
+}
+
+func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool, error) {
+	if e == nil {
+		return userVarValue{}, false, nil
+	}
+	left, ok, err := c.evalSetExprNode(e.Left)
+	if err != nil || !ok {
+		return userVarValue{}, false, err
+	}
+	// AND and OR stop at a left operand that decides them, so the right one is
+	// never evaluated: mysql:8.0.46 takes SET sql_mode = 0 AND (@max + 1) and
+	// 1 OR (@max + 1), where 1 AND, NULL AND and XOR answer 1690.
+	switch e.Op {
+	case nodes.BinOpAnd:
+		if left.kind != userVarNull && !evalSetValueTruthy(left) {
+			return boolSetVar(false), true, nil
+		}
+	case nodes.BinOpOr:
+		if left.kind != userVarNull && evalSetValueTruthy(left) {
+			return boolSetVar(true), true, nil
+		}
+	}
+	right, ok, err := c.evalSetExprNode(e.Right)
+	if err != nil || !ok {
+		return userVarValue{}, false, err
+	}
+	switch e.Op {
+	case nodes.BinOpNullSafeEq:
+		if left.kind == userVarNull && right.kind == userVarNull {
+			return boolSetVar(true), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return boolSetVar(false), true, nil
+		}
+		return boolSetVar(c.compareSetValues(left, right) == 0), true, nil
+	case nodes.BinOpAnd:
+		if (left.kind != userVarNull && !evalSetValueTruthy(left)) || (right.kind != userVarNull && !evalSetValueTruthy(right)) {
+			return boolSetVar(false), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(true), true, nil
+	case nodes.BinOpOr:
+		if (left.kind != userVarNull && evalSetValueTruthy(left)) || (right.kind != userVarNull && evalSetValueTruthy(right)) {
+			return boolSetVar(true), true, nil
+		}
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(false), true, nil
+	case nodes.BinOpXor:
+		if left.kind == userVarNull || right.kind == userVarNull {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return boolSetVar(evalSetValueTruthy(left) != evalSetValueTruthy(right)), true, nil
+	}
+	if left.kind == userVarNull || right.kind == userVarNull {
+		return userVarValue{kind: userVarNull}, true, nil
+	}
+	switch e.Op {
+	case nodes.BinOpEq:
+		return boolSetVar(c.compareSetValues(left, right) == 0), true, nil
+	case nodes.BinOpNe:
+		return boolSetVar(c.compareSetValues(left, right) != 0), true, nil
+	case nodes.BinOpLt:
+		return boolSetVar(c.compareSetValues(left, right) < 0), true, nil
+	case nodes.BinOpLe:
+		return boolSetVar(c.compareSetValues(left, right) <= 0), true, nil
+	case nodes.BinOpGt:
+		return boolSetVar(c.compareSetValues(left, right) > 0), true, nil
+	case nodes.BinOpGe:
+		return boolSetVar(c.compareSetValues(left, right) >= 0), true, nil
+	case nodes.BinOpBitOr, nodes.BinOpBitAnd, nodes.BinOpBitXor, nodes.BinOpShiftLeft, nodes.BinOpShiftRight:
+		// Bitwise operators work on unsigned 64-bit integers read as
+		// CAST(... AS UNSIGNED) reads them, and answer one: mysql:8.0.46
+		// gives 1 << 63 = 9223372036854775808, so (1 << 63) > 0 is 1.
+		// Binary strings combine bytewise and keep the other path.
+		lBin, rBin := isBitwiseBinaryString(left), isBitwiseBinaryString(right)
+		switch {
+		case lBin && rBin && (e.Op == nodes.BinOpBitOr || e.Op == nodes.BinOpBitAnd || e.Op == nodes.BinOpBitXor):
+			// Two binary strings combine byte by byte and must be as long:
+			// CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY) is 0x03, and
+			// mismatched lengths are 3513.
+			if len(left.str) != len(right.str) {
+				return userVarValue{}, false, &Error{Code: 3513, SQLState: "HY000",
+					Message: "Binary operands of bitwise operators must be of equal length"}
+			}
+			out := []byte(left.str)
+			for i := range out {
+				switch e.Op {
+				case nodes.BinOpBitOr:
+					out[i] |= right.str[i]
+				case nodes.BinOpBitAnd:
+					out[i] &= right.str[i]
+				default:
+					out[i] ^= right.str[i]
+				}
+			}
+			return userVarValue{kind: userVarString, str: string(out), binary: true}, true, nil
+		case lBin && (e.Op == nodes.BinOpShiftLeft || e.Op == nodes.BinOpShiftRight):
+			// A binary string shifts as one bit string of its own length:
+			// CAST(X'01' AS BINARY) << 1 is 0x02.
+			ru, ok := setBitwiseUint(right)
+			if !ok {
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarString, str: shiftBinaryString(left.str, ru, e.Op == nodes.BinOpShiftLeft), binary: true}, true, nil
+		}
+		{
+			lu, lok := setBitwiseUint(left)
+			ru, rok := setBitwiseUint(right)
+			if !lok || !rok {
+				return userVarValue{}, false, nil
+			}
+			var u uint64
+			switch e.Op {
+			case nodes.BinOpBitOr:
+				u = lu | ru
+			case nodes.BinOpBitAnd:
+				u = lu & ru
+			case nodes.BinOpBitXor:
+				u = lu ^ ru
+			case nodes.BinOpShiftLeft:
+				if ru < 64 {
+					u = lu << ru
+				}
+			case nodes.BinOpShiftRight:
+				if ru < 64 {
+					u = lu >> ru
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(u, 10)}, true, nil
+		}
+	}
+	var ln, rn int64
+	var lok, rok bool
+	if !left.isFloat && !right.isFloat {
+		ln, lok = parseSetNumericInt64(left)
+		rn, rok = parseSetNumericInt64(right)
+	}
+	if !lok || !rok {
+		return evalSetDecimalBinaryExpr(e.Op, left, right)
+	}
+	var out int64
+	switch e.Op {
+	case nodes.BinOpAdd:
+		if (rn > 0 && ln > math.MaxInt64-rn) || (rn < 0 && ln < math.MinInt64-rn) {
+			return userVarValue{}, false, errBigintOutOfRange()
+		}
+		out = ln + rn
+	case nodes.BinOpSub:
+		if (rn < 0 && ln > math.MaxInt64+rn) || (rn > 0 && ln < math.MinInt64+rn) {
+			return userVarValue{}, false, errBigintOutOfRange()
+		}
+		out = ln - rn
+	case nodes.BinOpMul:
+		if ln != 0 && rn != 0 {
+			if (ln == -1 && rn == math.MinInt64) || (rn == -1 && ln == math.MinInt64) {
+				return userVarValue{}, false, errBigintOutOfRange()
+			}
+			prod := ln * rn
+			if prod/ln != rn {
+				return userVarValue{}, false, errBigintOutOfRange()
+			}
+			out = prod
+		}
+	case nodes.BinOpDiv:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		return userVarValue{kind: userVarNumeric, str: big.NewRat(ln, rn).FloatString(4)}, true, nil
+	case nodes.BinOpDivInt:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		if ln == math.MinInt64 && rn == -1 {
+			return userVarValue{}, false, errBigintOutOfRange()
+		}
+		out = ln / rn
+	case nodes.BinOpMod:
+		if rn == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out = ln % rn
+	case nodes.BinOpBitOr:
+		out = ln | rn
+	case nodes.BinOpBitAnd:
+		out = ln & rn
+	case nodes.BinOpBitXor:
+		out = ln ^ rn
+	case nodes.BinOpShiftLeft:
+		if rn < 0 || rn >= 64 {
+			out = 0
+		} else {
+			out = int64(uint64(ln) << uint(rn))
+		}
+	case nodes.BinOpShiftRight:
+		if rn < 0 || rn >= 64 {
+			out = 0
+		} else {
+			out = int64(uint64(ln) >> uint(rn))
+		}
+	default:
+		return userVarValue{}, false, nil
+	}
+	return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(out, 10)}, true, nil
+}
+
+var (
+	setInt64Min  = big.NewInt(math.MinInt64)
+	setInt64Max  = big.NewInt(math.MaxInt64)
+	setUint64Max = new(big.Int).SetUint64(math.MaxUint64)
+	setTwoTo64   = new(big.Int).Lsh(big.NewInt(1), 64)
+)
+
+// setCastInt is CAST(v AS SIGNED / UNSIGNED) as mysql:8.0.46 answers it. A
+// string is read by its integer prefix (CAST('3.6' AS SIGNED) is 3, '1e2' is
+// 1) and saturates at 2^64-1 or -2^63 before wrapping into the target. An
+// exact number rounds half away from zero (CAST(3.6 AS SIGNED) is 4,
+// CAST(-1.6 AS UNSIGNED) is 18446744073709551614); an integer up to 2^64-1
+// wraps (CAST(18446744073709551615 AS SIGNED) is -1), a decimal saturates
+// (CAST(9223372036854775807.5 AS SIGNED) is 9223372036854775807). A float
+// rounds half to even and saturates at the signed bounds, for UNSIGNED too
+// (CAST(1.5e19 AS UNSIGNED) is 9223372036854775807).
+func setCastInt(v userVarValue, unsigned bool) (string, bool) {
+	var n *big.Int
+	wrapPositive := false
+	switch v.kind {
+	case userVarString:
+		t := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(t) && (t[i] == '+' || t[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(t) && t[j] >= '0' && t[j] <= '9' {
+			j++
+		}
+		n = new(big.Int)
+		if j > i {
+			n.SetString(t[i:j], 10)
+			if t[0] == '-' {
+				n.Neg(n)
+			}
+		}
+		if n.Cmp(setUint64Max) > 0 {
+			n.Set(setUint64Max)
+		}
+		wrapPositive = true
+	case userVarNumeric:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return "", false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			switch {
+			case f >= math.MaxInt64:
+				n = new(big.Int).Set(setInt64Max)
+			case f <= math.MinInt64:
+				n = new(big.Int).Set(setInt64Min)
+			default:
+				n = big.NewInt(int64(f))
+			}
+			break
+		}
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		n = num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			n.Neg(n)
+		}
+		integral := r.IsInt() && !strings.ContainsAny(v.str, ".eE")
+		switch {
+		case unsigned && n.Cmp(setUint64Max) > 0:
+			n.Set(setUint64Max)
+		case !unsigned && n.Cmp(setInt64Max) > 0 && !(integral && n.Cmp(setUint64Max) <= 0):
+			n.Set(setInt64Max)
+		}
+		wrapPositive = integral
+	default:
+		return "", false
+	}
+	if n.Cmp(setInt64Min) < 0 {
+		n.Set(setInt64Min)
+	}
+	if unsigned {
+		if n.Sign() < 0 {
+			n.Add(n, setTwoTo64)
+		}
+		return n.String(), true
+	}
+	if wrapPositive && n.Cmp(setInt64Max) > 0 {
+		n.Sub(n, setTwoTo64)
+	}
+	return n.String(), true
+}
+
+// setValInt reads a value as MySQL's val_int does: a string by its integer
+// prefix (' 2' is 2, '1.6' and '1e1' are 1, 'x' is 0); an exact number
+// rounded half away from zero (1.5 is 2, 2.5 is 3); an approximate one
+// rounded half to even, as rint does (2.5e0 is 2).
+func setValInt(v userVarValue) (int64, bool) {
+	switch v.kind {
+	case userVarString:
+		s := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(s) && (s[i] == '+' || s[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+			j++
+		}
+		if j == i {
+			return 0, true
+		}
+		n, err := strconv.ParseInt(s[:j], 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return n, true
+	case userVarNumeric:
+		if n, err := strconv.ParseInt(strings.TrimSpace(v.str), 10, 64); err == nil {
+			return n, true
+		}
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return 0, false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			if f < math.MinInt64 || f >= math.MaxInt64 {
+				return 0, false
+			}
+			return int64(f), true
+		}
+		// Half away from zero, exactly: (2|num| + den) / 2den.
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		q := num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			q.Neg(q)
+		}
+		if !q.IsInt64() {
+			return 0, false
+		}
+		return q.Int64(), true
+	}
+	return 0, false
+}
+
+func parseSetNumericInt64(v userVarValue) (int64, bool) {
+	if v.kind != userVarNumeric && v.kind != userVarString {
+		return 0, false
+	}
+	s := strings.TrimSpace(v.str)
+	if s == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// setNumKind reads a value as a number and its MySQL type: 'i' an exact
+// integer, 'd' an exact decimal, 'f' a double. A string is a double read by its
+// numeric prefix, as the numeric functions take it.
+func setNumKind(v userVarValue) (*big.Rat, int, byte, bool) {
+	switch v.kind {
+	case userVarString:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+		if !ok {
+			r = new(big.Rat)
+		}
+		return r, 0, 'f', true
+	case userVarNumeric:
+		r, scale, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return nil, 0, 0, false
+		}
+		switch {
+		case v.isFloat:
+			return r, scale, 'f', true
+		case v.isDecimal || scale > 0 || strings.Contains(v.str, "."):
+			return r, scale, 'd', true
+		}
+		return r, 0, 'i', true
+	}
+	return nil, 0, 0, false
+}
+
+// setRatPow10 is 10^n for |n| up to 100; past that every DECIMAL rounds to 0
+// or keeps all its digits.
+func setRatPow10(n int64) *big.Rat {
+	n = max(min(n, 100), -100)
+	p := new(big.Int).Exp(big.NewInt(10), big.NewInt(abs64(n)), nil)
+	if n < 0 {
+		return new(big.Rat).SetFrac(big.NewInt(1), p)
+	}
+	return new(big.Rat).SetInt(p)
+}
+
+func abs64(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// setRatToInt rounds r to an integer: half away from zero, toward zero to
+// truncate, or toward -inf / +inf for FLOOR / CEIL.
+func setRatToInt(r *big.Rat, mode byte) *big.Int {
+	q, m := new(big.Int).QuoRem(r.Num(), r.Denom(), new(big.Int))
+	switch mode {
+	case 'r':
+		twice := new(big.Int).Abs(m)
+		twice.Lsh(twice, 1)
+		if twice.Cmp(r.Denom()) >= 0 {
+			if r.Sign() < 0 {
+				q.Sub(q, big.NewInt(1))
+			} else {
+				q.Add(q, big.NewInt(1))
+			}
+		}
+	case 'f':
+		if m.Sign() < 0 {
+			q.Sub(q, big.NewInt(1))
+		}
+	case 'c':
+		if m.Sign() > 0 {
+			q.Add(q, big.NewInt(1))
+		}
+	}
+	return q
+}
+
+// setFormatDouble renders a double as MySQL renders it in a string context
+// (mysql:8.0.46, CONCAT): the shortest round-trip digits, fixed unless the
+// integer part passes 15 digits, the value is below 1e-15, or the fixed
+// form passes 22 characters, and then d.ddde<exp> with no '+' or padding:
+// 1e15, 100, 0.00000015, 1.2345678901234568e-10, 1e-16.
+func setFormatDouble(f float64) string {
+	if f == 0 {
+		return "0" // no -0
+	}
+	sign := ""
+	if f < 0 {
+		sign, f = "-", -f
+	}
+	sci := strconv.FormatFloat(f, 'e', -1, 64)
+	mant, expStr, _ := strings.Cut(sci, "e")
+	e, _ := strconv.Atoi(expStr)
+	digits := strings.Replace(mant, ".", "", 1)
+	decpt := e + 1
+	if decpt > 15 || decpt < -14 || (decpt <= 0 && 2-decpt+len(digits) > 22) {
+		return sign + mant + "e" + strconv.Itoa(e)
+	}
+	switch {
+	case decpt <= 0:
+		return sign + "0." + strings.Repeat("0", -decpt) + digits
+	case decpt >= len(digits):
+		return sign + digits + strings.Repeat("0", decpt-len(digits))
+	}
+	return sign + digits[:decpt] + "." + digits[decpt:]
+}
+
+// setRoundValue is ROUND(x, d) or TRUNCATE(x, d) as mysql:8.0.46 answers it:
+// an integer stays an integer (ROUND(15, -1) = 20), a decimal rounds half away
+// from zero and keeps at most its own scale (ROUND(1.2345, 2) = 1.23,
+// ROUND(1.2, 3) = 1.2) as a DECIMAL, and a double or a string rounds half to
+// even as a double (ROUND(2.5e0) = 2, ROUND('3.6') = 4).
+func setRoundValue(x userVarValue, d int64, truncate bool) (userVarValue, bool, error) {
+	r, scale, kind, ok := setNumKind(x)
+	if !ok {
+		return userVarValue{}, false, nil
+	}
+	mode := byte('r')
+	if truncate {
+		mode = 't'
+	}
+	switch kind {
+	case 'f':
+		f, _ := r.Float64()
+		if d < 300 && d > -300 {
+			m := math.Pow(10, float64(d))
+			if truncate {
+				f = math.Trunc(f*m) / m
+			} else {
+				f = math.RoundToEven(f*m) / m
+			}
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+	case 'i':
+		if d >= 0 {
+			return userVarValue{kind: userVarNumeric, str: r.Num().String()}, true, nil
+		}
+		p := setRatPow10(-d)
+		q := setRatToInt(new(big.Rat).Quo(r, p), mode)
+		out := new(big.Rat).Mul(new(big.Rat).SetInt(q), p)
+		return userVarValue{kind: userVarNumeric, str: out.Num().String()}, true, nil
+	}
+	if d >= int64(scale) {
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isDecimal: true}, true, nil
+	}
+	p := setRatPow10(d)
+	q := setRatToInt(new(big.Rat).Mul(r, p), mode)
+	out := new(big.Rat).Quo(new(big.Rat).SetInt(q), p)
+	return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, int(max(d, 0))), isDecimal: true}, true, nil
+}
+
+// setFloorCeilValue is FLOOR(x) or CEIL(x): an integer stays one, a decimal of
+// at most 18 integer digits becomes an INT (FLOOR(3.5) = 3 sets sql_mode 3), a
+// longer one a DECIMAL, and a double or a string a double.
+func setFloorCeilValue(x userVarValue, ceil bool) (userVarValue, bool, error) {
+	r, _, kind, ok := setNumKind(x)
+	if !ok {
+		return userVarValue{}, false, nil
+	}
+	switch kind {
+	case 'f':
+		f, _ := r.Float64()
+		if ceil {
+			f = math.Ceil(f)
+		} else {
+			f = math.Floor(f)
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+	case 'i':
+		return userVarValue{kind: userVarNumeric, str: r.Num().String()}, true, nil
+	}
+	mode := byte('f')
+	if ceil {
+		mode = 'c'
+	}
+	intDigits := len(new(big.Int).Abs(setRatToInt(r, 't')).String())
+	q := setRatToInt(r, mode)
+	return userVarValue{kind: userVarNumeric, str: q.String(), isDecimal: intDigits > 18}, true, nil
+}
+
+// setStringLengthArg reads a LEFT, RIGHT or SUBSTRING position or length as
+// val_int does, clamped to int64: an exact number rounds half away from zero,
+// a float half to even, a string by its integer prefix, and a value past the
+// range saturates. mysql:8.0.46 answers LEFT('ANSI', 1.6) = 'AN',
+// LEFT('ANSI', '1.6') = 'A', SUBSTRING('ANSI', 2.5, 2.5e0) = 'SI' and
+// SUBSTRING('ANSI', 2, 18446744073709551615) = 'NSI'.
+func setStringLengthArg(v userVarValue) (int64, bool) {
+	var n *big.Int
+	switch v.kind {
+	case userVarString:
+		t := strings.TrimLeft(v.str, " \t")
+		i := 0
+		if i < len(t) && (t[i] == '+' || t[i] == '-') {
+			i++
+		}
+		j := i
+		for j < len(t) && t[j] >= '0' && t[j] <= '9' {
+			j++
+		}
+		n = new(big.Int)
+		if j > i {
+			n.SetString(t[i:j], 10)
+			if t[0] == '-' {
+				n.Neg(n)
+			}
+		}
+	case userVarNumeric:
+		r, _, _, ok := parseSetNumberPrefixRat(v.str, true)
+		if !ok {
+			return 0, false
+		}
+		if v.isFloat {
+			f, _ := r.Float64()
+			f = math.RoundToEven(f)
+			switch {
+			case f >= math.MaxInt64:
+				return math.MaxInt64, true
+			case f <= math.MinInt64:
+				return math.MinInt64, true
+			}
+			return int64(f), true
+		}
+		num := new(big.Int).Abs(r.Num())
+		num.Lsh(num, 1).Add(num, r.Denom())
+		n = num.Quo(num, new(big.Int).Lsh(r.Denom(), 1))
+		if r.Sign() < 0 {
+			n.Neg(n)
+		}
+	default:
+		return 0, false
+	}
+	switch {
+	case n.Cmp(setInt64Max) > 0:
+		return math.MaxInt64, true
+	case n.Cmp(setInt64Min) < 0:
+		return math.MinInt64, true
+	}
+	return n.Int64(), true
+}
+
+// mysqlStrntoull10 reads a base-10 integer as MySQL's my_strntoull does:
+// leading whitespace and one sign are skipped, digits are read up to the first
+// other character (none reads 0), a negative value wraps to 64 bits, and an
+// overflow is all ones for a positive value and 0 for a negative one
+// (CONV('-18446744073709551616', 10, 2) is 0 on mysql:8.0.46).
+func mysqlStrntoull10(s string) uint64 {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' || s[i] == '\v' || s[i] == '\f') {
+		i++
+	}
+	neg := false
+	if i < len(s) && (s[i] == '-' || s[i] == '+') {
+		neg = s[i] == '-'
+		i++
+	}
+	var u uint64
+	overflow := false
+	for ; i < len(s) && s[i] >= '0' && s[i] <= '9'; i++ {
+		d := uint64(s[i] - '0')
+		if u > (math.MaxUint64-d)/10 {
+			overflow = true
+			continue
+		}
+		u = u*10 + d
+	}
+	switch {
+	case overflow && neg:
+		return 0
+	case overflow:
+		return math.MaxUint64
+	case neg:
+		return -u
+	}
+	return u
+}
+
+// parseSetNumberPrefixRat parses a leading or full MySQL decimal/scientific
+// numeric literal (with exponent backtracking so '123euro' parses as 123).
+func parseSetNumberPrefixRat(raw string, strictFull bool) (*big.Rat, int, bool, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, 0, false, false
+	}
+	i := 0
+	neg := false
+	if s[i] == '+' || s[i] == '-' {
+		neg = s[i] == '-'
+		i++
+	}
+	var digits strings.Builder
+	sawDot := false
+	fracDigits := 0
+	for i < len(s) {
+		ch := s[i]
+		if ch >= '0' && ch <= '9' {
+			digits.WriteByte(ch)
+			if sawDot {
+				fracDigits++
+			}
+			i++
+			continue
+		}
+		if ch == '.' && !sawDot {
+			sawDot = true
+			i++
+			continue
+		}
+		break
+	}
+	if digits.Len() == 0 {
+		return nil, 0, false, false
+	}
+	hasExp := false
+	expVal := 0
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		expPos := i + 1
+		expNeg := false
+		if expPos < len(s) && (s[expPos] == '+' || s[expPos] == '-') {
+			expNeg = s[expPos] == '-'
+			expPos++
+		}
+		expDigitStart := expPos
+		for expPos < len(s) && s[expPos] >= '0' && s[expPos] <= '9' {
+			if expVal <= 1000 {
+				expVal = expVal*10 + int(s[expPos]-'0')
+			}
+			expPos++
+		}
+		if expPos > expDigitStart {
+			hasExp = true
+			if expNeg {
+				expVal = -expVal
+			}
+			i = expPos
+		}
+	}
+	if strictFull && i != len(s) {
+		return nil, 0, false, false
+	}
+	num, ok := new(big.Int).SetString(digits.String(), 10)
+	if !ok {
+		return nil, 0, false, false
+	}
+	if num.Sign() == 0 {
+		scale := fracDigits
+		if hasExp {
+			scale = 0
+		}
+		return new(big.Rat), scale, hasExp, true
+	}
+	totalExp := expVal - fracDigits
+	if hasExp {
+		if totalExp < -350 {
+			return new(big.Rat), 0, true, true
+		}
+		if totalExp > 350 {
+			totalExp = 350
+		}
+	}
+	ten := big.NewInt(10)
+	r := new(big.Rat)
+	if totalExp >= 0 {
+		pow := new(big.Int).Exp(ten, big.NewInt(int64(totalExp)), nil)
+		r.SetInt(new(big.Int).Mul(num, pow))
+	} else {
+		pow := new(big.Int).Exp(ten, big.NewInt(int64(-totalExp)), nil)
+		r.SetFrac(num, pow)
+	}
+	if neg {
+		r.Neg(r)
+	}
+	scale := fracDigits
+	if hasExp {
+		scale = 0
+	}
+	return r, scale, hasExp, true
+}
+
+func parseSetDecimalRat(v userVarValue) (*big.Rat, int, bool) {
+	if v.kind != userVarNumeric && v.kind != userVarString {
+		return nil, 0, false
+	}
+	r, scale, _, ok := parseSetNumberPrefixRat(v.str, true)
+	return r, scale, ok
+}
+
+func formatSetDecimalRat(r *big.Rat, scale int) string {
+	if r == nil {
+		return "0"
+	}
+	if scale < 0 {
+		scale = 0
+	}
+	return r.FloatString(scale)
+}
+
+func evalSetDecimalBinaryExpr(op nodes.BinaryOp, left, right userVarValue) (userVarValue, bool, error) {
+	if (left.kind != userVarNumeric && left.kind != userVarString) ||
+		(right.kind != userVarNumeric && right.kind != userVarString) {
+		return userVarValue{}, false, nil
+	}
+	lr, lScale, lFloat, lok := parseSetNumberPrefixRat(left.str, true)
+	rr, rScale, rFloat, rok := parseSetNumberPrefixRat(right.str, true)
+	if !lok || !rok {
+		return userVarValue{}, false, nil
+	}
+	isFloat := left.isFloat || right.isFloat || lFloat || rFloat
+	maxScale := lScale
+	if rScale > maxScale {
+		maxScale = rScale
+	}
+	out := new(big.Rat)
+	formatFloatOut := func(q *big.Rat) (userVarValue, bool, error) {
+		f, _ := q.Float64()
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+	}
+	switch op {
+	case nodes.BinOpAdd:
+		out.Add(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	case nodes.BinOpSub:
+		out.Sub(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	case nodes.BinOpMul:
+		out.Mul(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, lScale+rScale)}, true, nil
+	case nodes.BinOpDiv:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
+		divScale := lScale + 4
+		if divScale < 4 {
+			divScale = 4
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, divScale)}, true, nil
+	case nodes.BinOpDivInt:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		q := new(big.Int).Quo(out.Num(), out.Denom())
+		return userVarValue{kind: userVarNumeric, str: q.String()}, true, nil
+	case nodes.BinOpMod:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		q := new(big.Rat).SetInt(new(big.Int).Quo(out.Num(), out.Denom()))
+		q.Mul(q, rr)
+		out.Sub(lr, q)
+		if isFloat {
+			return formatFloatOut(out)
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	default:
+		return userVarValue{}, false, nil
+	}
 }
 
 func normalizeSetVariableName(col *nodes.ColumnRef) string {
@@ -173,21 +4097,6 @@ func normalizeSetVariableName(col *nodes.ColumnRef) string {
 		name = strings.TrimPrefix(name, prefix)
 	}
 	return name
-}
-
-func parseSetBool(expr nodes.ExprNode) (bool, bool) {
-	switch toLower(nodeToSQLValue(expr)) {
-	case "0", "off", "false":
-		return false, true
-	case "1", "on", "true":
-		return true, true
-	default:
-		return false, false
-	}
-}
-
-func isDefaultSetValue(expr nodes.ExprNode) bool {
-	return strings.EqualFold(nodeToSQLValue(expr), "DEFAULT")
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.
@@ -211,6 +4120,99 @@ func nodeToSQLValue(expr nodes.ExprNode) string {
 	default:
 		return ""
 	}
+}
+
+func (c *Catalog) evalSetBoolChecked(varName string, expr nodes.ExprNode) (bool, bool, error) {
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		switch toLower(cr.Column) {
+		case "on", "true":
+			return true, true, nil
+		case "off", "false":
+			return false, true, nil
+		default:
+			return false, false, nil
+		}
+	}
+	v, ok, err := c.evalSetExprChecked(expr)
+	if err != nil {
+		return false, false, err
+	}
+	if !ok {
+		return false, false, nil
+	}
+	if v.kind == userVarNull {
+		return false, false, errWrongValueForVar(varName, "NULL")
+	}
+	switch toLower(strings.TrimSpace(v.str)) {
+	case "0", "off", "false":
+		return false, true, nil
+	case "1", "on", "true":
+		return true, true, nil
+	default:
+		return false, false, errWrongValueForVar(varName, v.str)
+	}
+}
+
+func (c *Catalog) resolveSetCharsetValueChecked(expr nodes.ExprNode) (raw, norm string, isNull bool, err error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		return "DEFAULT", c.defaultCharset, false, nil
+	}
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		raw = cr.Column
+		return raw, normalizeCharsetName(raw), false, nil
+	}
+	ev, ok, evalErr := c.evalSetExprChecked(expr)
+	if evalErr != nil {
+		return "", "", false, evalErr
+	}
+	if ok {
+		if ev.kind == userVarNull {
+			return "NULL", "", true, nil
+		}
+		return ev.str, normalizeCharsetName(ev.str), false, nil
+	}
+	raw = nodeToSQLValue(expr)
+	if strings.EqualFold(raw, "DEFAULT") {
+		return raw, c.defaultCharset, false, nil
+	}
+	return raw, normalizeCharsetName(raw), false, nil
+}
+
+func (c *Catalog) effectiveGlobalClientCharset() string {
+	cs := ""
+	if c != nil {
+		cs = c.globalCharsetClient
+		if cs == "" {
+			cs = c.defaultCharset
+		}
+	}
+	return effectiveNonEmpty(strings.ToLower(strings.TrimSpace(normalizeCharsetName(cs))), "utf8mb4")
+}
+
+func (c *Catalog) effectiveGlobalCollationConn() string {
+	if c != nil && c.globalCollationConn != "" {
+		return c.globalCollationConn
+	}
+	return effectiveNonEmpty(defaultCollationForCharset[c.effectiveGlobalClientCharset()], "utf8mb4_0900_ai_ci")
+}
+
+func (c *Catalog) effectiveGlobalConnCharset() string {
+	if cs := strings.ToLower(strings.TrimSpace(normalizeCharsetName(charsetForCollation(c.effectiveGlobalCollationConn())))); cs != "" {
+		return cs
+	}
+	return "utf8mb4"
+}
+
+func (c *Catalog) effectiveSessionCollationConn() string {
+	if c != nil {
+		if c.collationConn != "" {
+			return c.collationConn
+		}
+		if c.session.CollationConnection != "" {
+			return c.session.CollationConnection
+		}
+	}
+	return effectiveNonEmpty(defaultCollationForCharset[c.effectiveConnCharset()], "utf8mb4_0900_ai_ci")
 }
 
 func isDML(stmt nodes.Node) bool {
@@ -275,6 +4277,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.CreateSpatialRefSysStmt:
 		return validateCreateSpatialRefSys(s)
+	case *nodes.CreateTablespaceStmt:
+		return c.createTablespace(s)
+	case *nodes.AlterTablespaceStmt:
+		return c.alterTablespace(s)
+	case *nodes.DropTablespaceStmt:
+		return c.dropTablespace(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
 	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,
@@ -368,6 +4376,14 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.AlterEventStmt:
 		return s.Loc.Start
 	case *nodes.DropEventStmt:
+		return s.Loc.Start
+	case *nodes.CreateSpatialRefSysStmt:
+		return s.Loc.Start
+	case *nodes.CreateTablespaceStmt:
+		return s.Loc.Start
+	case *nodes.AlterTablespaceStmt:
+		return s.Loc.Start
+	case *nodes.DropTablespaceStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
 		return s.Loc.Start

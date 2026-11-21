@@ -29,6 +29,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
 		return err
 	}
+	if err := validateNoColumnFunctionalParts(stmt.Columns); err != nil {
+		return err
+	}
 
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
@@ -55,18 +58,38 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
-			col.Expr = nodeToSQL(ic.Expr)
-			col.ExprNode = ic.Expr
+			expr := stripColumnQualifiers(ic.Expr)
+			col.Expr = nodeToSQL(expr)
+			col.ExprNode = expr
 		}
 		idxCols = append(idxCols, col)
 	}
 	// USING RTREE makes a plain CREATE INDEX a SPATIAL one, as it does in a table
-	// definition (mysql:8.0.46 stores `SPATIAL KEY g (g)`). A unique index is left as
-	// it was: MySQL refuses one that is spatial with 3728, which the catalog does not
-	// answer.
-	usingSpatial := !stmt.Unique && isSpatialIndexType(resolveIndexUsingType(stmt.IndexType, stmt.Options))
-	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial); err != nil {
+	// definition (mysql:8.0.46 stores `SPATIAL KEY g (g)`). On a UNIQUE index,
+	// MySQL checks that every key part is geometrical (1687) and then refuses a
+	// unique spatial index with 3728.
+	effUsingType := resolveIndexUsingType(stmt.IndexType, stmt.Options)
+	if stmt.Unique {
+		if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, effUsingType); err != nil {
+			return err
+		}
+	}
+	usingSpatial := !stmt.Unique && isSpatialIndexType(effUsingType)
+	if err := c.validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial, stmt.Unique); err != nil {
 		return err
+	}
+	seenCols := make(map[string]bool, len(stmt.Columns))
+	for _, ic := range stmt.Columns {
+		if ic == nil || ic.Functional {
+			continue
+		}
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && cr.Column != "" {
+			k := toLower(cr.Column)
+			if seenCols[k] {
+				return errDupColumn(cr.Column)
+			}
+			seenCols[k] = true
+		}
 	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
@@ -101,8 +124,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
 		return err
 	}
-	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+	if err := synthesizeFunctionalIndexColumns(tbl, idx, c.isIgnoreSpaceSQLMode()); err != nil {
 		return err
+	}
+	if !idx.Fulltext && !idx.Spatial && hasFunctionalIndexColumns(idx.Columns) {
+		if err := c.validateIndexTotalKeyWidth(tbl, idx.Columns); err != nil {
+			removeFunctionalIndexHiddenColumns(tbl, idx)
+			return err
+		}
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
@@ -145,6 +174,8 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	snapshot := cloneTable(tbl)
+
 	// Find and remove index.
 	key := toLower(stmt.Name)
 	found := false
@@ -168,6 +199,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
 		}
+	}
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
+		undoAlter(db, toLower(tableName), tbl, snapshot)
+		return err
 	}
 
 	return nil
