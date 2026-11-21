@@ -702,16 +702,8 @@ func restoreRebuiltTableDependents(from, to *Catalog, diff *SchemaDiff, entry Re
 		}
 	}
 
-	handledPol := make(map[string]bool)
-	for _, pe := range entry.Policies {
-		if pe.Action == DiffAdd || pe.Action == DiffModify {
-			handledPol[pe.Name] = true
-		}
-	}
 	for _, pol := range to.policiesByRel[rel.OID] {
-		if !handledPol[pol.Name] {
-			ops = append(ops, buildCreatePolicyOpForRel(entry.SchemaName, entry.Name, rel, pol))
-		}
+		ops = append(ops, buildCreatePolicyOpForRel(entry.SchemaName, entry.Name, rel, pol))
 	}
 
 	handledGrantSQL := make(map[string]bool)

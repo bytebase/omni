@@ -774,9 +774,18 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		return err
 	}
 
-	// Check name conflicts with existing types.
-	if c.typeByName[typeKey{ns: schema.OID, name: name}] != nil {
+	// Check name conflicts with existing defined types; allow filling an undefined shell type.
+	existing := c.typeByName[typeKey{ns: schema.OID, name: name}]
+	if existing != nil && existing.IsDefined {
 		return errDuplicateObject("type", name)
+	}
+	if existing != nil {
+		if shellOwner := c.typeOwners[existing.OID]; shellOwner != "" && shellOwner != c.currentOwner() {
+			return &Error{
+				Code:    CodeInsufficientPrivilege,
+				Message: fmt.Sprintf("must be owner of type %s", name),
+			}
+		}
 	}
 
 	// Parse params (DefElem list): subtype is required.
@@ -884,8 +893,11 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		}
 	}
 
-	// Allocate OIDs.
+	// Allocate OIDs (reuse shell OID when completing a shell type).
 	typeOID := c.oidGen.Next()
+	if existing != nil {
+		typeOID = existing.OID
+	}
 	arrayOID := c.oidGen.Next()
 	if rangeUserCollOID != 0 {
 		c.recordDependency('t', typeOID, 0, 'L', rangeUserCollOID, 0, DepNormal)
@@ -893,24 +905,37 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	c.recordTypeOwner(typeOID)
 	c.recordTypeOwner(arrayOID)
-	// Register the range type.
-	rangeType := &BuiltinType{
-		OID:       typeOID,
-		TypeName:  name,
-		Namespace: schema.OID,
-		Len:       -1,
-		ByVal:     false,
-		Type:      'r',
-		Category:  'R',
-		IsDefined: true,
-		Delim:     ',',
-		Array:     arrayOID,
-		Align:     align,
-		Storage:   'x',
-		TypeMod:   -1,
+	// Register or upgrade the range type.
+	if existing != nil {
+		existing.Len = -1
+		existing.ByVal = false
+		existing.Type = 'r'
+		existing.Category = 'R'
+		existing.IsDefined = true
+		existing.Delim = ','
+		existing.Array = arrayOID
+		existing.Align = align
+		existing.Storage = 'x'
+		existing.TypeMod = -1
+	} else {
+		rangeType := &BuiltinType{
+			OID:       typeOID,
+			TypeName:  name,
+			Namespace: schema.OID,
+			Len:       -1,
+			ByVal:     false,
+			Type:      'r',
+			Category:  'R',
+			IsDefined: true,
+			Delim:     ',',
+			Array:     arrayOID,
+			Align:     align,
+			Storage:   'x',
+			TypeMod:   -1,
+		}
+		c.typeByOID[typeOID] = rangeType
+		c.typeByName[typeKey{ns: schema.OID, name: name}] = rangeType
 	}
-	c.typeByOID[typeOID] = rangeType
-	c.typeByName[typeKey{ns: schema.OID, name: name}] = rangeType
 
 	// Move existing auto-generated array type if it collides.
 	// pg: src/backend/catalog/pg_type.c — moveArrayTypeName

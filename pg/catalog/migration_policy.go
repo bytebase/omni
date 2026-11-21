@@ -81,6 +81,10 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		// Policy add/drop/modify within a modified or added relation.
 		switch rel.Action {
 		case DiffModify:
+			if rel.From != nil && rel.To != nil && tableRebuilt(from, to, rel.From, rel.To) {
+				// DROP + CREATE rebuilds the table; restoreRebuiltTableDependents recreates its target policies.
+				continue
+			}
 			ops = append(ops, policyOpsForRelation(rel.SchemaName, rel.Name, targetRel, rel.Policies)...)
 		case DiffAdd:
 			// For newly added relations, emit ENABLE ROW LEVEL SECURITY / FORCE ROW LEVEL SECURITY

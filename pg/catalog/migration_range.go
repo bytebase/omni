@@ -37,6 +37,46 @@ func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) str
 	return fmt.Sprintf("CREATE TYPE %s AS RANGE (%s)", qualName, strings.Join(params, ", "))
 }
 
+func buildCreateRangeOps(to *Catalog, schemaName, name string, rt *RangeType) []MigrationOp {
+	qualName := migrationQualifiedName(schemaName, name)
+	if rt.Canonical != "" {
+		// Shell type lets canonical functions accept/return the range before full range definition.
+		return []MigrationOp{
+			{
+				Type:          OpCreateType,
+				SchemaName:    schemaName,
+				ObjectName:    name,
+				SQL:           fmt.Sprintf("CREATE TYPE %s", qualName),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        rt.OID,
+				Priority:      PriorityType,
+			},
+			{
+				Type:          OpCreateType,
+				SchemaName:    schemaName,
+				ObjectName:    name,
+				SQL:           formatCreateRange(to, schemaName, name, rt),
+				Transactional: true,
+				Phase:         PhaseMain,
+				Priority:      PriorityTable,
+			},
+		}
+	}
+	return []MigrationOp{{
+		Type:          OpCreateType,
+		SchemaName:    schemaName,
+		ObjectName:    name,
+		SQL:           formatCreateRange(to, schemaName, name, rt),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       't',
+		ObjOID:        rt.OID,
+		Priority:      PriorityType,
+	}}
+}
+
 // generateRangeDDL produces DDL operations for range type changes
 // (CREATE TYPE ... AS RANGE, DROP TYPE, and replacements/warnings for modified ranges).
 func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
@@ -47,18 +87,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.To == nil {
 				continue
 			}
-			sql := formatCreateRange(to, entry.SchemaName, entry.Name, entry.To)
-			ops = append(ops, MigrationOp{
-				Type:          OpCreateType,
-				SchemaName:    entry.SchemaName,
-				ObjectName:    entry.Name,
-				SQL:           sql,
-				Transactional: true,
-				Phase:         PhaseMain,
-				ObjType:       't',
-				ObjOID:        entry.To.OID,
-				Priority:      PriorityType,
-			})
+			ops = append(ops, buildCreateRangeOps(to, entry.SchemaName, entry.Name, entry.To)...)
 		case DiffDrop:
 			if entry.From == nil {
 				continue
@@ -110,18 +139,8 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjOID:        entry.From.OID,
 						Priority:      PriorityType,
 					},
-					MigrationOp{
-						Type:          OpCreateType,
-						SchemaName:    entry.SchemaName,
-						ObjectName:    entry.Name,
-						SQL:           formatCreateRange(to, entry.SchemaName, entry.Name, entry.To),
-						Transactional: true,
-						Phase:         PhaseMain,
-						ObjType:       't',
-						ObjOID:        entry.To.OID,
-						Priority:      PriorityType,
-					},
 				)
+				ops = append(ops, buildCreateRangeOps(to, entry.SchemaName, entry.Name, entry.To)...)
 				continue
 			}
 			fromColl := formatRangeCollation(entry.From)

@@ -6098,3 +6098,140 @@ func TestRound25Fixes(t *testing.T) {
 	require.Len(t, extLoaded.TriggersOf(extRel.OID), 1)
 	require.Equal(t, "tr_ext", extLoaded.TriggersOf(extRel.OID)[0].Name)
 }
+
+func TestRound26Fixes(t *testing.T) {
+	// 1. Canonical range uses shell-type -> function -> full CREATE TYPE AS RANGE sequence.
+	canonFrom := New()
+	canonTo := New()
+	canonRes, err := canonTo.Exec(`
+		CREATE TYPE public.c_range;
+		CREATE FUNCTION public.c_range_canon(public.c_range) RETURNS public.c_range LANGUAGE C AS '';
+		CREATE TYPE public.c_range AS RANGE (SUBTYPE = integer, CANONICAL = public.c_range_canon);
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range canonRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	canonDiff := Diff(canonFrom, canonTo)
+	canonSQL := GenerateMigration(canonFrom, canonTo, canonDiff).SQL()
+	require.Contains(t, canonSQL, `CREATE TYPE "public"."c_range";`)
+	require.Contains(t, canonSQL, `CANONICAL = public.c_range_canon`)
+	canonApplied := canonFrom.Clone()
+	execCanon, err := canonApplied.Exec(canonSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execCanon {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(canonApplied, canonTo).Ranges)
+	require.Empty(t, Diff(canonApplied, canonTo).Functions)
+
+	// 2. New FDW and Server restore default postgres owner when migration runs under another role.
+	ownFrom := New()
+	_, err = ownFrom.Exec(`CREATE ROLE alice;`, nil)
+	require.NoError(t, err)
+	ownTo := New()
+	_, err = ownTo.Exec(`
+		CREATE ROLE alice;
+		CREATE FOREIGN DATA WRAPPER w_def;
+		CREATE SERVER s_def FOREIGN DATA WRAPPER w_def;
+	`, nil)
+	require.NoError(t, err)
+	ownSQL := GenerateMigration(ownFrom, ownTo, Diff(ownFrom, ownTo)).SQL()
+	require.Contains(t, ownSQL, `ALTER FOREIGN DATA WRAPPER w_def OWNER TO postgres`)
+	require.Contains(t, ownSQL, `ALTER SERVER s_def OWNER TO postgres`)
+	ownApplied := ownFrom.Clone()
+	_, err = ownApplied.Exec(`SET ROLE alice;`, nil)
+	require.NoError(t, err)
+	execOwn, err := ownApplied.Exec(ownSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execOwn {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(ownApplied, ownTo).ForeignDataWrappers)
+	require.Empty(t, Diff(ownApplied, ownTo).ForeignServers)
+
+	// 3. Recreating a range without previous options clears those options in ApplyDiffToMetadata.
+	rangeMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			RangeTypes: []*metadatapb.RangeTypeMetadata{{
+				Name:           "r_opt",
+				Subtype:        "float8",
+				SubtypeOpclass: "float8_ops",
+				SubtypeDiff:    "public.r_diff",
+				Comment:        "keep comment",
+			}},
+		}},
+	}
+	rBefore := New()
+	_, err = rBefore.Exec(`
+		CREATE FUNCTION public.r_diff(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE TYPE public.r_opt AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, SUBTYPE_DIFF = public.r_diff);
+	`, nil)
+	require.NoError(t, err)
+	rAfter := rBefore.Clone()
+	_, err = rAfter.Exec(`
+		DROP TYPE public.r_opt;
+		CREATE TYPE public.r_opt AS RANGE (SUBTYPE = float8);
+	`, nil)
+	require.NoError(t, err)
+	rAppliedMeta := ApplyDiffToMetadata(rangeMeta, rBefore, rAfter, Diff(rBefore, rAfter))
+	rGot := findSchema(rAppliedMeta, "public").RangeTypes[0]
+	require.Empty(t, rGot.SubtypeOpclass)
+	require.Empty(t, rGot.SubtypeDiff)
+	require.Equal(t, "keep comment", rGot.Comment)
+
+	// 4. Table rebuild recreates modified RLS policy instead of emitting ALTER POLICY on dropped table.
+	polFrom := New()
+	_, err = polFrom.Exec(`
+		CREATE TABLE public.t_pol (id integer);
+		ALTER TABLE public.t_pol ENABLE ROW LEVEL SECURITY;
+		CREATE POLICY p_mod ON public.t_pol FOR SELECT USING (id > 0);
+	`, nil)
+	require.NoError(t, err)
+	polTo := New()
+	_, err = polTo.Exec(`
+		CREATE TABLE public.t_pol (id integer) PARTITION BY RANGE (id);
+		ALTER TABLE public.t_pol ENABLE ROW LEVEL SECURITY;
+		CREATE POLICY p_mod ON public.t_pol FOR SELECT USING (id > 10);
+	`, nil)
+	require.NoError(t, err)
+	polSQL := GenerateMigration(polFrom, polTo, Diff(polFrom, polTo)).SQL()
+	require.NotContains(t, polSQL, `ALTER POLICY`)
+	require.Contains(t, polSQL, `CREATE POLICY "p_mod"`)
+	polApplied := polFrom.Clone()
+	execPol, err := polApplied.Exec(polSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execPol {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(polApplied, polTo).Relations)
+
+	// 5. Dotted schema/function names in trigger identities are disambiguated.
+	trgFrom := New()
+	_, err = trgFrom.Exec(`
+		CREATE SCHEMA "a.b";
+		CREATE SCHEMA a;
+		CREATE FUNCTION "a.b".c() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE FUNCTION a."b.c"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE TABLE public.t_trig (id integer);
+		CREATE TRIGGER tr_dot BEFORE INSERT ON public.t_trig FOR EACH ROW EXECUTE FUNCTION "a.b".c();
+	`, nil)
+	require.NoError(t, err)
+	trgTo := New()
+	_, err = trgTo.Exec(`
+		CREATE SCHEMA "a.b";
+		CREATE SCHEMA a;
+		CREATE FUNCTION "a.b".c() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE FUNCTION a."b.c"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		CREATE TABLE public.t_trig (id integer);
+		CREATE TRIGGER tr_dot BEFORE INSERT ON public.t_trig FOR EACH ROW EXECUTE FUNCTION a."b.c"();
+	`, nil)
+	require.NoError(t, err)
+	trgDiff := Diff(trgFrom, trgTo)
+	require.Len(t, trgDiff.Relations, 1)
+	require.Len(t, trgDiff.Relations[0].Triggers, 1)
+	trgSQL := GenerateMigration(trgFrom, trgTo, trgDiff).SQL()
+	require.Contains(t, trgSQL, `"b.c"()`)
+}

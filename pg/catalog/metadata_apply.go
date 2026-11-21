@@ -3033,18 +3033,6 @@ func rangeTypeToProto(cat *Catalog, rt *RangeType, previous *metadatapb.RangeTyp
 		out.MultirangeName = qualifyWalkThroughAttributeType(cat, rt.MultirangeOID, cat.FormatType(rt.MultirangeOID, -1))
 	}
 	if previous != nil {
-		if out.SubtypeOpclass == "" {
-			out.SubtypeOpclass = previous.SubtypeOpclass
-		}
-		if out.Collation == "" {
-			out.Collation = previous.Collation
-		}
-		if out.Canonical == "" {
-			out.Canonical = previous.Canonical
-		}
-		if out.SubtypeDiff == "" {
-			out.SubtypeDiff = previous.SubtypeDiff
-		}
 		out.Comment = previous.Comment
 		out.SkipDump = previous.SkipDump
 	}

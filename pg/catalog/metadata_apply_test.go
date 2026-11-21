@@ -908,7 +908,6 @@ func TestApplyDiffToMetadataRound5Fixes(t *testing.T) {
 					Name:           "float8_range",
 					Subtype:        "float8",
 					SubtypeOpclass: "float8_ops",
-					Canonical:      "custom_canon",
 					Comment:        "range comment",
 					SkipDump:       true,
 				}},
@@ -933,7 +932,7 @@ func TestApplyDiffToMetadataRound5Fixes(t *testing.T) {
 	for _, stmt := range []string{
 		`CREATE FUNCTION public.et_fn() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END; $$;`,
 		`CREATE EVENT TRIGGER et_existing ON ddl_command_end EXECUTE FUNCTION public.et_fn();`,
-		`CREATE TYPE public.float8_range AS RANGE (subtype = float8);`,
+		`CREATE TYPE public.float8_range AS RANGE (subtype = float8, subtype_opclass = float8_ops);`,
 		`CREATE TABLE public.logs (id integer) PARTITION BY RANGE (id);`,
 		`CREATE TABLE archive.logs_2026 PARTITION OF public.logs FOR VALUES FROM (2026) TO (2027);`,
 	} {
@@ -967,7 +966,7 @@ func TestApplyDiffToMetadataRound5Fixes(t *testing.T) {
 	require.Equal(t, "f8_range", arch.RangeTypes[0].Name)
 	require.Equal(t, "range comment", arch.RangeTypes[0].Comment)
 	require.True(t, arch.RangeTypes[0].SkipDump)
-	require.Equal(t, "custom_canon", arch.RangeTypes[0].Canonical)
+	require.Equal(t, "float8_ops", arch.RangeTypes[0].SubtypeOpclass)
 
 	// 2. Event triggers updated, rename preserved Comment & SkipDump, Disable reflected.
 	require.Len(t, got.EventTriggers, 2)

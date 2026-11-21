@@ -37,18 +37,17 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityTable,
 			})
-			if owner := effectiveForeignOwner(entry.To.OwnerName); owner != "postgres" {
-				ops = append(ops, MigrationOp{
-					Type:          OpAlterTable,
-					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s OWNER TO %s", quoteIdentifier(entry.To.Name), quoteIdentifier(owner)),
-					Transactional: true,
-					Phase:         PhaseMain,
-					ObjType:       'F',
-					ObjOID:        entry.To.OID,
-					Priority:      PriorityMetadata,
-				})
-			}
+			owner := effectiveForeignOwner(entry.To.OwnerName)
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s OWNER TO %s", quoteIdentifier(entry.To.Name), quoteIdentifier(owner)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'F',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityMetadata,
+			})
 		case DiffDrop:
 			if entry.From == nil {
 				continue
@@ -206,6 +205,7 @@ func buildCreateForeignServerOps(srv *ForeignServer) []MigrationOp {
 	b.WriteString(" FOREIGN DATA WRAPPER ")
 	b.WriteString(quoteIdentifier(srv.FdwName))
 	b.WriteString(formatForeignOptionsCreateClause(srv.Options))
+	owner := effectiveForeignOwner(srv.OwnerName)
 	ops := []MigrationOp{{
 		Type:          OpCreateTable,
 		ObjectName:    srv.Name,
@@ -213,17 +213,14 @@ func buildCreateForeignServerOps(srv *ForeignServer) []MigrationOp {
 		Transactional: true,
 		Phase:         PhaseMain,
 		Priority:      PriorityTable,
+	}, {
+		Type:          OpAlterTable,
+		ObjectName:    srv.Name,
+		SQL:           fmt.Sprintf("ALTER SERVER %s OWNER TO %s", quoteIdentifier(srv.Name), quoteIdentifier(owner)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		Priority:      PriorityMetadata,
 	}}
-	if owner := effectiveForeignOwner(srv.OwnerName); owner != "postgres" {
-		ops = append(ops, MigrationOp{
-			Type:          OpAlterTable,
-			ObjectName:    srv.Name,
-			SQL:           fmt.Sprintf("ALTER SERVER %s OWNER TO %s", quoteIdentifier(srv.Name), quoteIdentifier(owner)),
-			Transactional: true,
-			Phase:         PhaseMain,
-			Priority:      PriorityMetadata,
-		})
-	}
 	return ops
 }
 
