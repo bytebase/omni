@@ -76,7 +76,8 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 			formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) ||
 			fi.rt.SubtypeOpclass != ti.rt.SubtypeOpclass ||
 			fi.rt.Canonical != ti.rt.Canonical ||
-			fi.rt.SubtypeDiff != ti.rt.SubtypeDiff {
+			fi.rt.SubtypeDiff != ti.rt.SubtypeDiff ||
+			rangeMultirangeName(from, fi.rt) != rangeMultirangeName(to, ti.rt) {
 			entries = append(entries, RangeDiffEntry{
 				Action:     DiffModify,
 				SchemaName: k.Schema,
@@ -96,4 +97,13 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 	})
 
 	return entries
+}
+
+func rangeMultirangeName(c *Catalog, rt *RangeType) string {
+	if c != nil && rt != nil && rt.MultirangeOID != 0 {
+		if bt := c.typeByOID[rt.MultirangeOID]; bt != nil {
+			return bt.TypeName
+		}
+	}
+	return ""
 }

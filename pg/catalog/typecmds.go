@@ -749,18 +749,22 @@ func (c *Catalog) DefineCompositeType(stmt *nodes.CompositeTypeStmt) error {
 
 // RangeType holds the metadata for a user-created range type.
 type RangeType struct {
-	OID              uint32
-	Name             string
-	Namespace        uint32
-	SubTypeOID       uint32
-	ArrayOID         uint32
-	MultirangeOID    uint32 // auto-generated multirange type
-	CollationSchema  string // explicit or user-collation schema (empty for unqualified built-in)
-	CollationName    string // explicit COLLATION name; empty = subtype default
-	UserCollationOID uint32 // OID of user-defined collation, or 0
-	SubtypeOpclass   string
-	Canonical        string
-	SubtypeDiff      string
+	OID               uint32
+	Name              string
+	Namespace         uint32
+	SubTypeOID        uint32
+	ArrayOID          uint32
+	MultirangeOID     uint32 // auto-generated multirange type
+	CollationSchema   string // explicit or user-collation schema (empty for unqualified built-in)
+	CollationName     string // explicit COLLATION name; empty = subtype default
+	UserCollationOID  uint32 // OID of user-defined collation, or 0
+	SubtypeOpclass    string
+	SubtypeOpclassOID uint32
+	Canonical         string
+	CanonicalOID      uint32
+	SubtypeDiff       string
+	SubtypeDiffOID    uint32
+	MultirangeName    string
 }
 
 // DefineRange creates a new range type from a parsed CREATE TYPE ... AS RANGE statement.
@@ -793,8 +797,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	var subtypeOID uint32
 	var hasCollation bool
 	var rangeCollList *nodes.List
-	var subtypeOpclass, canonical, subtypeDiff string
-	var canonicalDef, subtypeDiffDef *nodes.DefElem
+	var subtypeOpclass, canonical, subtypeDiff, multirangeTypeName string
+	var subtypeOpclassDef, canonicalDef, subtypeDiffDef, multirangeTypeNameDef *nodes.DefElem
 	seenParams := make(map[string]bool)
 	if stmt.Params != nil {
 		for _, item := range stmt.Params.Items {
@@ -835,12 +839,16 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 				}
 			case "subtype_opclass":
 				subtypeOpclass = formatCatalogOptionName(def)
+				subtypeOpclassDef = def
 			case "canonical":
 				canonical = formatCatalogOptionName(def)
 				canonicalDef = def
 			case "subtype_diff":
 				subtypeDiff = formatCatalogOptionName(def)
 				subtypeDiffDef = def
+			case "multirange_type_name":
+				multirangeTypeName = formatCatalogOptionName(def)
+				multirangeTypeNameDef = def
 			}
 		}
 	}
@@ -902,7 +910,21 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	if existing != nil {
 		typeOID = existing.OID
 	}
-	var canonicalOID, subtypeDiffOID uint32
+	var subtypeOpclassOID, canonicalOID, subtypeDiffOID uint32
+	if subtypeOpclassDef != nil && subtypeOpclass != "" {
+		opcSchema, opcName := splitDefElemQualifiedName(subtypeOpclassDef)
+		if opcName == "" {
+			return errUndefinedObject("operator class", subtypeOpclass+" for access method btree")
+		}
+		btreeAM := c.accessMethodByName["btree"]
+		opcRef := opClassRef{schema: opcSchema, name: opcName, typeOID: subtypeOID}
+		if err := c.validateIndexOpClass(opcRef, btreeAM, nil); err != nil {
+			return err
+		}
+		if btreeAM != nil {
+			subtypeOpclassOID = c.resolveOpClassOID(opcRef, btreeAM.OID)
+		}
+	}
 	if canonicalDef != nil && canonical != "" {
 		if existing == nil {
 			return &Error{
@@ -924,6 +946,24 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 			return err
 		}
 		subtypeDiff = resolved
+	}
+	multirangeName := name + "_multirange"
+	explicitMultirangeName := ""
+	if multirangeTypeNameDef != nil && multirangeTypeName != "" {
+		mrSchema, mrName := splitDefElemQualifiedName(multirangeTypeNameDef)
+		if mrSchema != "" && mrSchema != schema.Name {
+			return errInvalidObjectDefinition(fmt.Sprintf("multirange type must be in same schema as range type %q", name))
+		}
+		if mrName == "" {
+			return errInvalidParameterValue("multirange_type_name cannot be empty")
+		}
+		multirangeName = mrName
+		explicitMultirangeName = mrName
+	}
+	if existingMR := c.typeByName[typeKey{ns: schema.OID, name: multirangeName}]; existingMR != nil {
+		if existingMR.Category != 'A' || existingMR.Elem == 0 {
+			return errDuplicateObject("type", multirangeName)
+		}
 	}
 	arrayOID := c.oidGen.Next()
 	if rangeUserCollOID != 0 {
@@ -994,7 +1034,9 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	// pg: src/backend/commands/typecmds.c — DefineRange (multirange auto-creation)
 	multirangeOID := c.oidGen.Next()
 	multirangeArrayOID := c.oidGen.Next()
-	multirangeName := name + "_multirange"
+	if err := c.moveArrayTypeName(schema, multirangeName); err != nil {
+		return errDuplicateObject("type", multirangeName)
+	}
 
 	// Move conflicting array type name for multirange.
 	multirangeArrayName := fmt.Sprintf("_%s", multirangeName)
@@ -1042,22 +1084,29 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
-		OID:              typeOID,
-		Name:             name,
-		Namespace:        schema.OID,
-		SubTypeOID:       subtypeOID,
-		ArrayOID:         arrayOID,
-		MultirangeOID:    multirangeOID,
-		CollationSchema:  rangeCollSchema,
-		CollationName:    rangeCollName,
-		UserCollationOID: rangeUserCollOID,
-		SubtypeOpclass:   subtypeOpclass,
-		Canonical:        canonical,
-		SubtypeDiff:      subtypeDiff,
+		OID:               typeOID,
+		Name:              name,
+		Namespace:         schema.OID,
+		SubTypeOID:        subtypeOID,
+		ArrayOID:          arrayOID,
+		MultirangeOID:     multirangeOID,
+		CollationSchema:   rangeCollSchema,
+		CollationName:     rangeCollName,
+		UserCollationOID:  rangeUserCollOID,
+		SubtypeOpclass:    subtypeOpclass,
+		SubtypeOpclassOID: subtypeOpclassOID,
+		Canonical:         canonical,
+		CanonicalOID:      canonicalOID,
+		SubtypeDiff:       subtypeDiff,
+		SubtypeDiffOID:    subtypeDiffOID,
+		MultirangeName:    explicitMultirangeName,
 	}
 
-	// Range depends on subtype and any configured support functions.
+	// Range depends on subtype and any configured operator class / support functions.
 	c.recordDependency('t', typeOID, 0, 't', subtypeOID, 0, DepNormal)
+	if subtypeOpclassOID != 0 {
+		c.recordDependency('t', typeOID, 0, 'o', subtypeOpclassOID, 0, DepNormal)
+	}
 	if canonicalOID != 0 {
 		c.recordDependency('t', typeOID, 0, 'f', canonicalOID, 0, DepNormal)
 	}

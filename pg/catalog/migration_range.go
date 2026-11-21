@@ -34,6 +34,9 @@ func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) str
 	if rt.SubtypeDiff != "" {
 		params = append(params, "SUBTYPE_DIFF = "+formatCatalogIdentRef(rt.SubtypeDiff))
 	}
+	if mt := cat.TypeByOID(rt.MultirangeOID); mt != nil && mt.TypeName != "" && mt.TypeName != name+"_multirange" {
+		params = append(params, "MULTIRANGE_TYPE_NAME = "+migrationQualifiedName(schemaName, mt.TypeName))
+	}
 	return fmt.Sprintf("CREATE TYPE %s AS RANGE (%s)", qualName, strings.Join(params, ", "))
 }
 

@@ -58,8 +58,9 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeFdwObjects(stmt)
 	case nodes.OBJECT_FOREIGN_SERVER:
 		return c.removeForeignServerObjects(stmt)
+	case nodes.OBJECT_OPCLASS:
+		return c.removeOpClassObjects(stmt)
 	case nodes.OBJECT_CONVERSION,
-		nodes.OBJECT_OPCLASS,
 		nodes.OBJECT_OPFAMILY,
 		nodes.OBJECT_LANGUAGE,
 		nodes.OBJECT_PUBLICATION,
@@ -1209,6 +1210,65 @@ func (c *Catalog) removeAccessMethodObjects(stmt *nodes.DropStmt) error {
 	}
 	for _, am := range targets {
 		c.cascadeDropAccessMethod(am.OID)
+	}
+	return nil
+}
+
+func (c *Catalog) removeOpClassObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var targets []*OpClass
+	seen := make(map[uint32]bool)
+	for _, item := range stmt.Objects.Items {
+		amName, schemaName, className := extractOpClassObject(item)
+		am, err := c.lookupIndexAccessMethod(amName)
+		if err != nil {
+			if (stmt.Missing_ok || c.snapshot) && missingObject(err) {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("access method %q does not exist, skipping", amName))
+				}
+				continue
+			}
+			return err
+		}
+		opc, err := c.lookupOpClass(am, schemaName, className)
+		if err != nil {
+			if (stmt.Missing_ok || c.snapshot) && missingObject(err) {
+				if stmt.Missing_ok {
+					c.addWarning(CodeWarningSkip, fmt.Sprintf("operator class %q does not exist, skipping", className))
+				}
+				continue
+			}
+			return err
+		}
+		if c.isExtensionMember(opc.OID) {
+			return errDependentObjects("extension", c.extensionMembers[opc.OID])
+		}
+		if !seen[opc.OID] {
+			seen[opc.OID] = true
+			targets = append(targets, opc)
+		}
+	}
+	if !cascade {
+		for _, opc := range targets {
+			for _, refClass := range []byte{'o', 'q'} {
+				if len(c.findNormalDependents(refClass, opc.OID)) > 0 {
+					return errDependentObjects("operator class", opc.Name)
+				}
+			}
+		}
+	}
+	for _, opc := range targets {
+		if c.opClasses[opc.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.cascadeDropOpClass(opc.OID)
+		} else {
+			c.removeOpClass(opc.OID)
+		}
 	}
 	return nil
 }

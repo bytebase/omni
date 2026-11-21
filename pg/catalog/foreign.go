@@ -96,22 +96,29 @@ func (c *Catalog) resolveFdwFuncOptions(funcOpts *nodes.List) (handler, validato
 	return handler, validator, handlerOID, validatorOID, hasHandler, hasValidator, nil
 }
 
+func splitDefElemQualifiedName(de *nodes.DefElem) (schemaName, objName string) {
+	if de == nil || de.Arg == nil {
+		return "", ""
+	}
+	switch v := de.Arg.(type) {
+	case *nodes.List:
+		return qualifiedName(v)
+	case *nodes.TypeName:
+		if v.Names != nil {
+			return qualifiedName(v.Names)
+		}
+	case *nodes.String:
+		return "", v.Str
+	}
+	return "", ""
+}
+
 func (c *Catalog) resolveRoutineRef(de *nodes.DefElem, expectedArgs []uint32, expectedRet uint32, retTypeName string) (string, uint32, error) {
 	formatted := formatCatalogOptionName(de)
 	if formatted == "" {
 		return "", 0, nil
 	}
-	var schemaName, funcName string
-	switch v := de.Arg.(type) {
-	case *nodes.List:
-		schemaName, funcName = qualifiedName(v)
-	case *nodes.TypeName:
-		if v.Names != nil {
-			schemaName, funcName = qualifiedName(v.Names)
-		}
-	case *nodes.String:
-		funcName = v.Str
-	}
+	schemaName, funcName := splitDefElemQualifiedName(de)
 	if funcName == "" {
 		return "", 0, errUndefinedFunction(formatted, expectedArgs)
 	}
@@ -310,6 +317,17 @@ func (c *Catalog) updateSupportRoutineRefs(procOID uint32, schemaName, newName s
 			continue
 		}
 		up.Support = formatUpdatedRoutineRef(up.Support, schemaName, newName, schemaChanged)
+	}
+	for _, rt := range c.rangeTypes {
+		if rt == nil {
+			continue
+		}
+		if rt.CanonicalOID == procOID {
+			rt.Canonical = formatUpdatedRoutineRef(rt.Canonical, schemaName, newName, schemaChanged)
+		}
+		if rt.SubtypeDiffOID == procOID {
+			rt.SubtypeDiff = formatUpdatedRoutineRef(rt.SubtypeDiff, schemaName, newName, schemaChanged)
+		}
 	}
 }
 

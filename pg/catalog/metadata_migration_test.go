@@ -6334,3 +6334,88 @@ func TestRound27Fixes(t *testing.T) {
 	require.Empty(t, optDiff.ForeignTables)
 	require.Empty(t, GenerateMigration(optFrom, optTo, optDiff).Ops)
 }
+
+func TestRound28Fixes(t *testing.T) {
+	// 1. Validate SUBTYPE_OPCLASS and track dependency on user operator classes.
+	c := New()
+	var catErr *Error
+	res, err := c.Exec(`CREATE TYPE public.bad_opc_r AS RANGE (SUBTYPE = int4, SUBTYPE_OPCLASS = no_such_ops);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeUndefinedObject, catErr.Code)
+
+	res, err = c.Exec(`CREATE TYPE public.mismatch_opc_r AS RANGE (SUBTYPE = int4, SUBTYPE_OPCLASS = text_ops);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeDatatypeMismatch, catErr.Code)
+
+	_, err = c.Exec(`
+		CREATE OPERATOR CLASS public.custom_int4_ops FOR TYPE int4 USING btree AS OPERATOR 1 <, FUNCTION 1 btint4cmp(int4, int4);
+		CREATE TYPE public.custom_opc_r AS RANGE (SUBTYPE = int4, SUBTYPE_OPCLASS = public.custom_int4_ops);
+	`, nil)
+	require.NoError(t, err)
+	res, err = c.Exec(`DROP OPERATOR CLASS public.custom_int4_ops USING btree;`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeDependentObjects, catErr.Code)
+
+	// 2. ALTER FUNCTION RENAME TO and SET SCHEMA update range support routine names.
+	rCat := New()
+	_, err = rCat.Exec(`
+		CREATE SCHEMA s1;
+		CREATE TYPE public.ren_r;
+		CREATE FUNCTION public.ren_canon(public.ren_r) RETURNS public.ren_r LANGUAGE C AS 'internal', 'ren_canon';
+		CREATE FUNCTION public.ren_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE TYPE public.ren_r AS RANGE (SUBTYPE = int4, CANONICAL = public.ren_canon, SUBTYPE_DIFF = public.ren_diff);
+		ALTER FUNCTION public.ren_canon(public.ren_r) RENAME TO ren_canon2;
+		ALTER FUNCTION public.ren_diff(int4, int4) SET SCHEMA s1;
+	`, nil)
+	require.NoError(t, err)
+	rtOID, _, err := rCat.ResolveType(TypeName{Schema: "public", Name: "ren_r", TypeMod: -1})
+	require.NoError(t, err)
+	rtInfo := rCat.RangeInfo(rtOID)
+	require.NotNil(t, rtInfo)
+	require.Equal(t, "public.ren_canon2", rtInfo.Canonical)
+	require.Equal(t, "s1.ren_diff", rtInfo.SubtypeDiff)
+
+	empty := New()
+	renSQL := GenerateMigration(empty, rCat, Diff(empty, rCat)).SQL()
+	require.Contains(t, renSQL, `CANONICAL = public.ren_canon2`)
+	require.Contains(t, renSQL, `SUBTYPE_DIFF = s1.ren_diff`)
+	renApplied := empty.Clone()
+	renExec, err := renApplied.Exec(renSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range renExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(renApplied, rCat).Ranges)
+
+	// 3. Explicit MULTIRANGE_TYPE_NAME is created, serialized by ApplyDiffToMetadata, and migrated.
+	mrBefore := New()
+	_, err = mrBefore.Exec(`CREATE SCHEMA app;`, nil)
+	require.NoError(t, err)
+	mrAfter := mrBefore.Clone()
+	_, err = mrAfter.Exec(`
+		CREATE TYPE app.r_custom AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = app.custom_mr);
+		CREATE TABLE app.use_mr (m app.custom_mr);
+	`, nil)
+	require.NoError(t, err)
+	mrMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "app"}},
+	}, mrBefore, mrAfter, Diff(mrBefore, mrAfter))
+	appMeta := findSchema(mrMeta, "app")
+	require.NotNil(t, appMeta)
+	require.Len(t, appMeta.RangeTypes, 1)
+	require.Equal(t, "app.custom_mr", appMeta.RangeTypes[0].MultirangeName)
+
+	mrSQL := GenerateMigration(mrBefore, mrAfter, Diff(mrBefore, mrAfter)).SQL()
+	require.Contains(t, mrSQL, `MULTIRANGE_TYPE_NAME = "app"."custom_mr"`)
+	mrApplied := mrBefore.Clone()
+	mrExec, err := mrApplied.Exec(mrSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range mrExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(mrApplied, mrAfter).Ranges)
+	require.Empty(t, Diff(mrApplied, mrAfter).Relations)
+}
