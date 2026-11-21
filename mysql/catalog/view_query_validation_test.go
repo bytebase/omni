@@ -125,6 +125,9 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"preceding_select_alias_in_subquery", "CREATE VIEW v AS SELECT a + 1 AS x, (SELECT x + 1) AS y FROM t"},
 		{"preceding_select_alias_nested_subquery", "CREATE VIEW v AS SELECT a + 1 AS x, (SELECT (SELECT x + 1)) AS y FROM t"},
 		{"preceding_select_alias_in_having_subquery", "CREATE VIEW v AS SELECT a + 1 AS x FROM t GROUP BY a HAVING (SELECT x) > 0"},
+		{"recursive_cte_parenthesized", "CREATE VIEW v AS WITH RECURSIVE c(x) AS ((SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 3)) SELECT x FROM c"},
+		{"recursive_cte_parenthesized_arms", "CREATE VIEW v AS WITH RECURSIVE c(x) AS ((SELECT 1) UNION ALL (SELECT x + 1 FROM c WHERE x < 3)) SELECT x FROM c"},
+		{"recursive_cte_multi_arm", "CREATE VIEW v AS WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 3 UNION ALL SELECT x + 2 FROM c WHERE x < 3) SELECT x FROM c"},
 		{"dual_literal", "CREATE VIEW v AS SELECT 1 FROM DUAL"},
 	}
 	for _, tc := range accepted {

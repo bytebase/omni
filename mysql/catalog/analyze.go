@@ -934,9 +934,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		var innerQ *Query
 		var err error
 
-		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
-			// Recursive CTE: analyze the left arm first to establish columns,
-			// then register the CTE, then analyze the right arm.
+		if cte.Recursive && cte.Select != nil && nodes.UnwrapParenSource(cte.Select).SetOp != nodes.SetOpNone {
+			// Recursive CTE: unwrap any surrounding ParenSource wrappers,
+			// analyze the anchor arm(s) first to establish columns, register
+			// the CTE, then analyze recursive arm(s).
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap, reachableCTEs, source)
 		} else {
 			innerQ, err = c.analyzeSelectStmtIn(cte.Select, parentScope, cteMap, reachableCTEs, source)
@@ -968,39 +969,95 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 	return cteMap, nil
 }
 
-// analyzeRecursiveCTE handles WITH RECURSIVE where the CTE body is a set
-// operation. The left arm establishes column signatures; the right arm may
-// reference the CTE itself.
+// analyzeRecursiveCTE handles WITH RECURSIVE where the CTE body (possibly
+// parenthesized) is a set operation. The leftmost non-recursive arm establishes
+// column signatures; subsequent arms may reference the CTE itself.
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool, source string) (*Query, error) {
-	stmt := cte.Select
+	bodyCTEMap := make(map[string]*CommonTableExprQ, len(cteMap)+1)
+	for k, v := range cteMap {
+		bodyCTEMap[k] = v
+	}
 
-	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtIn(stmt.Left, parentScope, cteMap, reachableCTEs, source)
+	// Unwrap any outer ParenSource wrappers, analyzing CTEs attached to them.
+	stmt := cte.Select
+	var wrapperCTEs []*CommonTableExprQ
+	for stmt.ParenSource != nil {
+		if len(stmt.CTEs) > 0 {
+			tmpQ := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+			local, err := c.analyzeCTEs(stmt.CTEs, tmpQ, parentScope, bodyCTEMap, reachableCTEs, source)
+			if err != nil {
+				return nil, err
+			}
+			bodyCTEMap = mergeCTEMaps(local, bodyCTEMap)
+			wrapperCTEs = append(wrapperCTEs, tmpQ.CTEList...)
+		}
+		stmt = stmt.ParenSource
+	}
+
+	registered := false
+	q, err := c.analyzeRecursiveSetOp(cte, stmt, parentScope, bodyCTEMap, reachableCTEs, source, &registered)
+	if err != nil {
+		return nil, err
+	}
+	if len(wrapperCTEs) > 0 {
+		q.CTEList = append(wrapperCTEs, q.CTEList...)
+	}
+	return q, nil
+}
+
+// analyzeRecursiveSetOp analyzes a (possibly multi-arm left-deep) recursive CTE
+// set operation, registering cte in bodyCTEMap as soon as the leftmost anchor
+// arm has established the CTE's columns.
+func (c *Catalog) analyzeRecursiveSetOp(cte *nodes.CommonTableExpr, stmt *nodes.SelectStmt, parentScope *analyzerScope, bodyCTEMap map[string]*CommonTableExprQ, reachableCTEs map[*nodes.CommonTableExpr]bool, source string, registered *bool) (*Query, error) {
+	q := &Query{
+		CommandType: CmdSelect,
+		JoinTree:    &JoinTreeQ{},
+	}
+	if len(stmt.CTEs) > 0 {
+		local, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, bodyCTEMap, reachableCTEs, source)
+		if err != nil {
+			return nil, err
+		}
+		bodyCTEMap = mergeCTEMaps(local, bodyCTEMap)
+	}
+
+	// Analyze left arm: if it is itself a set operation, recurse so inner
+	// recursive arms see the CTE after the leftmost anchor arm is analyzed.
+	var larg *Query
+	var err error
+	leftUnwrapped := nodes.UnwrapParenSource(stmt.Left)
+	if leftUnwrapped != nil && leftUnwrapped.SetOp != nodes.SetOpNone {
+		larg, err = c.analyzeRecursiveSetOp(cte, leftUnwrapped, parentScope, bodyCTEMap, reachableCTEs, source, registered)
+	} else {
+		larg, err = c.analyzeSelectStmtIn(stmt.Left, parentScope, bodyCTEMap, reachableCTEs, source)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	// Derive column names from left arm (or explicit column list).
-	colNames := cte.Columns
-	if len(colNames) == 0 {
-		for _, te := range larg.TargetList {
-			if !te.ResJunk {
-				colNames = append(colNames, te.ResName)
+	// Register a temporary CTE entry (once, from the leftmost anchor arm) so
+	// subsequent arms can reference the CTE itself (shadowing any outer CTE of
+	// the same name).
+	if !*registered {
+		*registered = true
+		colNames := cte.Columns
+		if len(colNames) == 0 {
+			for _, te := range larg.TargetList {
+				if !te.ResJunk {
+					colNames = append(colNames, te.ResName)
+				}
 			}
+		}
+		bodyCTEMap[strings.ToLower(cte.Name)] = &CommonTableExprQ{
+			Name:        cte.Name,
+			ColumnNames: colNames,
+			Query:       larg, // temporary — replaced by analyzeCTEs
+			Recursive:   true,
 		}
 	}
 
-	// Register a temporary CTE entry so the right arm can reference it.
-	tempCTE := &CommonTableExprQ{
-		Name:        cte.Name,
-		ColumnNames: colNames,
-		Query:       larg, // temporary — will be replaced
-		Recursive:   true,
-	}
-	cteMap[strings.ToLower(cte.Name)] = tempCTE
-
 	// Analyze right arm with the CTE visible via inherited CTE map.
-	rarg, err := c.analyzeSelectStmtIn(stmt.Right, parentScope, cteMap, reachableCTEs, source)
+	rarg, err := c.analyzeSelectStmtIn(stmt.Right, parentScope, bodyCTEMap, reachableCTEs, source)
 	if err != nil {
 		return nil, err
 	}
@@ -1028,15 +1085,11 @@ func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *a
 		}
 	}
 
-	q := &Query{
-		CommandType: CmdSelect,
-		SetOp:       setOp,
-		AllSetOp:    stmt.SetAll,
-		LArg:        larg,
-		RArg:        rarg,
-		TargetList:  targetList,
-		JoinTree:    &JoinTreeQ{},
-	}
+	q.SetOp = setOp
+	q.AllSetOp = stmt.SetAll
+	q.LArg = larg
+	q.RArg = rarg
+	q.TargetList = targetList
 	return q, nil
 }
 
