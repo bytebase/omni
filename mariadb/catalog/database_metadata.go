@@ -112,9 +112,17 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		if v == nil {
 			continue
 		}
+		def := v.Definition
+		if opt := strings.ToUpper(strings.TrimSpace(v.CheckOption)); opt == "CASCADED" || opt == "LOCAL" {
+			// Match live MariaDB sync (and writeView/writeViewSDL, which emit Definition verbatim).
+			suffix := " WITH " + opt + " CHECK OPTION"
+			if !strings.HasSuffix(strings.ToUpper(strings.TrimSpace(def)), suffix) {
+				def += suffix
+			}
+		}
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
 			Name:        v.Name,
-			Definition:  v.Definition,
+			Definition:  def,
 			Columns:     c.viewColumnsToProto(db, v),
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
@@ -2122,8 +2130,9 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 		if col.Generated != nil {
 			if col.Generated.RowBound != "" {
 				// System-versioning period columns (GENERATED ALWAYS AS ROW START/END)
-				// are reported by MariaDB sync as stored generated columns whose
-				// expression is the bound keyword.
+				// are always NOT NULL in MariaDB (information_schema reports IS_NULLABLE = 'NO')
+				// and are reported as stored generated columns with the bound keyword.
+				colMeta.Nullable = false
 				colMeta.Generation = &metadata.GenerationMetadata{
 					Type:       metadata.GenerationMetadata_TYPE_STORED,
 					Expression: col.Generated.RowBound,

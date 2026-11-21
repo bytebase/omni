@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -234,15 +235,28 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Len(t, child.CheckConstraints, 1)
 	require.Equal(t, "chk_score", child.CheckConstraints[0].Name)
 
-	// View exports explicit columns and CHECK OPTION.
+	// View exports explicit columns and CHECK OPTION in both CheckOption and Definition.
 	require.Len(t, s.Views, 1)
 	require.Equal(t, "v_parent", s.Views[0].Name)
 	require.Equal(t, "CASCADED", s.Views[0].CheckOption)
+	require.True(t, strings.HasSuffix(s.Views[0].Definition, " WITH CASCADED CHECK OPTION"),
+		"Definition = %q", s.Views[0].Definition)
 	require.Len(t, s.Views[0].Columns, 2)
 	require.Equal(t, "vid", s.Views[0].Columns[0].Name)
 	require.Equal(t, "vcode", s.Views[0].Columns[1].Name)
 	require.Equal(t, "varchar(20)", s.Views[0].Columns[1].Type)
 	require.False(t, s.Views[0].Columns[1].Nullable)
+
+	// DatabaseDefinition and ViewDefinition preserve CHECK OPTION from DatabaseMetadata output.
+	viewDDL, err := ViewDefinition(s.Views[0])
+	require.NoError(t, err)
+	require.Contains(t, viewDDL, "WITH CASCADED CHECK OPTION")
+	dbDump, err := DatabaseDefinition(meta, DefinitionOptions{PrintHeader: true})
+	require.NoError(t, err)
+	require.Contains(t, dbDump, "WITH CASCADED CHECK OPTION")
+	dbSDL, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, dbSDL, "WITH CASCADED CHECK OPTION")
 
 	// Routines and events.
 	require.Len(t, s.Functions, 1)

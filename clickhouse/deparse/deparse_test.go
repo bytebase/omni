@@ -36,12 +36,13 @@ func TestDatabaseDefinitionTablesAndViews(t *testing.T) {
 						Name:        "events",
 						Engine:      "MergeTree",
 						SortingKeys: []string{"tenant_id", "created_at"},
-						Comment:     "raw events",
+						Comment:     "raw 'events'\\log",
 						Columns: []*metadatapb.ColumnMetadata{
-							{Name: "id", Type: "UUID", Default: "generateUUIDv4()", Comment: "event id"},
-							{Name: "tenant_id", Type: "UInt64"},
+							{Name: "id", Type: "UUID", Default: "generateUUIDv4()", Comment: "event's id"},
+							{Name: "tenant_id", Type: "UInt64", Default: "NULL"},
 							{Name: "payload", Type: "Nullable(String)", Nullable: true, Default: "NULL"},
-							{Name: "status", Type: "String", Default: "pending"},
+							{Name: "status", Type: "String", Default: "'pending'"},
+							{Name: "seen", Type: "Date", Default: "'2026-01-02'"},
 							{Name: "created_at", Type: "DateTime", Default: "now()"},
 						},
 						Indexes: []*metadatapb.IndexMetadata{
@@ -57,11 +58,11 @@ func TestDatabaseDefinitionTablesAndViews(t *testing.T) {
 						},
 					},
 					{
-						Name:   "mem_cache",
+						Name:   "odd-name `with` space",
 						Engine: "Memory",
 						Columns: []*metadatapb.ColumnMetadata{
-							{Name: "k", Type: "Int32"},
-							{Name: "v", Type: "String", Nullable: true},
+							{Name: "select", Type: "Int32"},
+							{Name: "v", Type: "Nullable(String)", Nullable: true},
 						},
 					},
 				},
@@ -69,11 +70,11 @@ func TestDatabaseDefinitionTablesAndViews(t *testing.T) {
 					{
 						Name:       "active_events",
 						Definition: "  SELECT id, tenant_id FROM events WHERE status = 'active' ; \n",
-						Comment:    "only active events",
+						Comment:    "only 'active' events",
 					},
 					{
-						Name:       "plain_view",
-						Definition: "SELECT k FROM scratch",
+						Name:       "synced_view",
+						Definition: "CREATE VIEW analytics.synced_view (`id` UUID, `tenant_id` UInt64) AS SELECT id, tenant_id FROM analytics.events",
 					},
 				},
 			},
@@ -86,45 +87,46 @@ func TestDatabaseDefinitionTablesAndViews(t *testing.T) {
 	want := `--
 -- Table structure for ` + "`events`" + `
 --
-CREATE TABLE events (
-  id UUID NOT NULL DEFAULT generateUUIDv4() COMMENT 'event id',
-  tenant_id UInt64 NOT NULL,
-  payload Nullable(String) DEFAULT NULL,
-  status String NOT NULL DEFAULT 'pending',
-  created_at DateTime NOT NULL DEFAULT now()
+CREATE TABLE ` + "`events`" + ` (
+  ` + "`id`" + ` UUID DEFAULT generateUUIDv4() COMMENT 'event\'s id',
+  ` + "`tenant_id`" + ` UInt64,
+  ` + "`payload`" + ` Nullable(String) DEFAULT NULL,
+  ` + "`status`" + ` String DEFAULT 'pending',
+  ` + "`seen`" + ` Date DEFAULT '2026-01-02',
+  ` + "`created_at`" + ` DateTime DEFAULT now()
 )
 ENGINE = MergeTree
 ORDER BY (tenant_id, created_at)
-PRIMARY KEY (tenant_id)
-COMMENT 'raw events';
+PRIMARY KEY tenant_id
+COMMENT 'raw \'events\'\\log';
 
 --
 -- Table structure for ` + "`scratch`" + `
 --
-CREATE TABLE scratch (
-  k Int32 NOT NULL
+CREATE TABLE ` + "`scratch`" + ` (
+  ` + "`k`" + ` Int32
 )
 ENGINE = MergeTree
 ORDER BY tuple();
 
 --
--- Table structure for ` + "`mem_cache`" + `
+-- Table structure for ` + "`odd-name \\`with\\` space`" + `
 --
-CREATE TABLE mem_cache (
-  k Int32 NOT NULL,
-  v String
+CREATE TABLE ` + "`odd-name \\`with\\` space`" + ` (
+  ` + "`select`" + ` Int32,
+  ` + "`v`" + ` Nullable(String)
 )
 ENGINE = Memory;
 
 --
 -- View structure for ` + "`active_events`" + `
 --
-CREATE OR REPLACE VIEW active_events AS (SELECT id, tenant_id FROM events WHERE status = 'active') COMMENT 'only active events';
+CREATE OR REPLACE VIEW ` + "`active_events`" + ` AS SELECT id, tenant_id FROM events WHERE status = 'active' COMMENT 'only \'active\' events';
 
 --
--- View structure for ` + "`plain_view`" + `
+-- View structure for ` + "`synced_view`" + `
 --
-CREATE OR REPLACE VIEW plain_view AS (SELECT k FROM scratch);
+CREATE VIEW analytics.synced_view (` + "`id`" + ` UUID, ` + "`tenant_id`" + ` UInt64) AS SELECT id, tenant_id FROM analytics.events;
 `
 	require.Equal(t, want, got)
 }
@@ -134,9 +136,9 @@ func TestGetTableAndViewDefinition(t *testing.T) {
 		Name:   "metrics",
 		Engine: "MergeTree",
 		Columns: []*metadatapb.ColumnMetadata{
-			{Name: "ts", Type: "DateTime", Default: "CURRENT_TIMESTAMP"},
-			{Name: "day", Type: "Date", Default: "today"},
-			{Name: "tag", Type: "String", Default: "default_tag"},
+			{Name: "ts", Type: "DateTime", Default: "now()"},
+			{Name: "day", Type: "Date", Default: "today()"},
+			{Name: "tag", Type: "String", Default: "'default_tag'"},
 		},
 	}
 
@@ -146,10 +148,10 @@ func TestGetTableAndViewDefinition(t *testing.T) {
 --
 -- Table structure for ` + "`metrics`" + `
 --
-CREATE TABLE metrics (
-  ts DateTime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  day Date NOT NULL DEFAULT today,
-  tag String NOT NULL DEFAULT 'default_tag'
+CREATE TABLE ` + "`metrics`" + ` (
+  ` + "`ts`" + ` DateTime DEFAULT now(),
+  ` + "`day`" + ` Date DEFAULT today(),
+  ` + "`tag`" + ` String DEFAULT 'default_tag'
 )
 ENGINE = MergeTree
 ORDER BY tuple();
@@ -159,7 +161,7 @@ ORDER BY tuple();
 	view := &metadatapb.ViewMetadata{
 		Name:       "recent_metrics",
 		Definition: "\n  SELECT ts, tag FROM metrics;  ",
-		Comment:    "recent",
+		Comment:    "recent\nmetrics",
 	}
 
 	gotView, err := GetViewDefinition("ignored_schema", view)
@@ -168,7 +170,7 @@ ORDER BY tuple();
 --
 -- View structure for ` + "`recent_metrics`" + `
 --
-CREATE OR REPLACE VIEW recent_metrics AS (SELECT ts, tag FROM metrics) COMMENT 'recent';
+CREATE OR REPLACE VIEW ` + "`recent_metrics`" + ` AS SELECT ts, tag FROM metrics COMMENT 'recent\nmetrics';
 `
 	require.Equal(t, wantView, gotView)
 }
@@ -205,33 +207,33 @@ func TestDatabaseDefinitionPreservesSchemaAndObjectOrder(t *testing.T) {
 	want := `--
 -- Table structure for ` + "`z_tbl`" + `
 --
-CREATE TABLE z_tbl (
-  a Int32 NOT NULL
+CREATE TABLE ` + "`z_tbl`" + ` (
+  ` + "`a`" + ` Int32
 );
 
 --
 -- Table structure for ` + "`a_tbl`" + `
 --
-CREATE TABLE a_tbl (
-  b Int32 NOT NULL
+CREATE TABLE ` + "`a_tbl`" + ` (
+  ` + "`b`" + ` Int32
 );
 
 --
 -- Table structure for ` + "`m_tbl`" + `
 --
-CREATE TABLE m_tbl (
-  c Int32 NOT NULL
+CREATE TABLE ` + "`m_tbl`" + ` (
+  ` + "`c`" + ` Int32
 );
 
 --
 -- View structure for ` + "`v1`" + `
 --
-CREATE OR REPLACE VIEW v1 AS (SELECT 1);
+CREATE OR REPLACE VIEW ` + "`v1`" + ` AS SELECT 1;
 
 --
 -- View structure for ` + "`v2`" + `
 --
-CREATE OR REPLACE VIEW v2 AS (SELECT 2);
+CREATE OR REPLACE VIEW ` + "`v2`" + ` AS SELECT 2;
 `
 	require.Equal(t, want, got)
 }

@@ -50,7 +50,7 @@ func GetTableDefinition(_ string, table *metadatapb.TableMetadata) (string, erro
 }
 
 // GetViewDefinition renders one ClickHouse view as its section banner and
-// CREATE OR REPLACE VIEW statement.
+// CREATE VIEW statement.
 func GetViewDefinition(_ string, view *metadatapb.ViewMetadata) (string, error) {
 	if view == nil {
 		return "", nil
@@ -140,11 +140,72 @@ func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state 
 }
 
 func getTableAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", name)
+	return fmt.Sprintf("\n--\n-- Table structure for %s\n--\n", quoteIdentifier(name))
 }
 
 func getViewAnnouncement(name string) string {
-	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", name)
+	return fmt.Sprintf("\n--\n-- View structure for %s\n--\n", quoteIdentifier(name))
+}
+
+// quoteIdentifier writes name in ClickHouse backquotes, escaping backslashes,
+// backquotes, and control characters so identifiers with spaces, keywords,
+// punctuation, or line breaks produce valid ClickHouse SQL and safe comments.
+func quoteIdentifier(name string) string {
+	var b strings.Builder
+	b.WriteByte('`')
+	for i := 0; i < len(name); i++ {
+		switch c := name[i]; c {
+		case '\\', '`':
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\f':
+			b.WriteString(`\f`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('`')
+	return b.String()
+}
+
+// quoteStringLiteral writes s as a ClickHouse single-quoted string literal,
+// escaping single quotes, backslashes, and control characters.
+func quoteStringLiteral(s string) string {
+	var b strings.Builder
+	b.WriteByte('\'')
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '\\', '\'':
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\f':
+			b.WriteString(`\f`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('\'')
+	return b.String()
 }
 
 type databaseState struct {
@@ -212,7 +273,7 @@ type tableState struct {
 }
 
 func (t *tableState) toString(buf *strings.Builder) error {
-	if _, err := fmt.Fprintf(buf, "CREATE TABLE %s (\n  ", t.name); err != nil {
+	if _, err := fmt.Fprintf(buf, "CREATE TABLE %s (\n  ", quoteIdentifier(t.name)); err != nil {
 		return err
 	}
 	columns := make([]*columnState, 0, len(t.columns))
@@ -245,7 +306,11 @@ func (t *tableState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
-	if len(t.sortingKeys) > 0 {
+	if len(t.sortingKeys) == 1 {
+		if _, err := fmt.Fprintf(buf, "\nORDER BY %s", t.sortingKeys[0]); err != nil {
+			return err
+		}
+	} else if len(t.sortingKeys) > 1 {
 		if _, err := fmt.Fprintf(buf, "\nORDER BY (%s)", strings.Join(t.sortingKeys, ", ")); err != nil {
 			return err
 		}
@@ -257,13 +322,17 @@ func (t *tableState) toString(buf *strings.Builder) error {
 			}
 		}
 	}
-	if len(t.primaryKeys) > 0 {
+	if len(t.primaryKeys) == 1 {
+		if _, err := fmt.Fprintf(buf, "\nPRIMARY KEY %s", t.primaryKeys[0]); err != nil {
+			return err
+		}
+	} else if len(t.primaryKeys) > 1 {
 		if _, err := fmt.Fprintf(buf, "\nPRIMARY KEY (%s)", strings.Join(t.primaryKeys, ", ")); err != nil {
 			return err
 		}
 	}
 	if t.comment != "" {
-		if _, err := fmt.Fprintf(buf, "\nCOMMENT '%s'", t.comment); err != nil {
+		if _, err := fmt.Fprintf(buf, "\nCOMMENT %s", quoteStringLiteral(t.comment)); err != nil {
 			return err
 		}
 	}
@@ -301,60 +370,26 @@ func convertToTableState(id int, table *metadatapb.TableMetadata) *tableState {
 	return state
 }
 
-type defaultValue interface {
-	toString() string
-}
-
-type defaultValueNull struct{}
-
-func (*defaultValueNull) toString() string {
-	return "NULL"
-}
-
-type defaultValueString struct {
-	value string
-}
-
-func (d *defaultValueString) toString() string {
-	return fmt.Sprintf("'%s'", d.value)
-}
-
-type defaultValueExpression struct {
-	value string
-}
-
-func (d *defaultValueExpression) toString() string {
-	return d.value
-}
-
 type columnState struct {
-	id           int
-	name         string
-	tp           string
-	defaultValue defaultValue
-	comment      string
-	nullable     bool
+	id         int
+	name       string
+	tp         string
+	defaultSQL string
+	comment    string
+	nullable   bool
 }
 
 func (c *columnState) toString(buf *strings.Builder) error {
-	if _, err := fmt.Fprintf(buf, "%s ", c.name); err != nil {
+	if _, err := fmt.Fprintf(buf, "%s %s", quoteIdentifier(c.name), c.tp); err != nil {
 		return err
 	}
-	if _, err := buf.WriteString(c.tp); err != nil {
-		return err
-	}
-	if !c.nullable {
-		if _, err := buf.WriteString(" NOT NULL"); err != nil {
-			return err
-		}
-	}
-	if c.defaultValue != nil {
-		if _, err := fmt.Fprintf(buf, " DEFAULT %s", c.defaultValue.toString()); err != nil {
+	if c.defaultSQL != "" {
+		if _, err := fmt.Fprintf(buf, " DEFAULT %s", c.defaultSQL); err != nil {
 			return err
 		}
 	}
 	if c.comment != "" {
-		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", c.comment); err != nil {
+		if _, err := fmt.Fprintf(buf, " COMMENT %s", quoteStringLiteral(c.comment)); err != nil {
 			return err
 		}
 	}
@@ -369,26 +404,19 @@ func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnStat
 		nullable: column.Nullable,
 		comment:  column.Comment,
 	}
-	if column.Default == "NULL" {
-		result.defaultValue = &defaultValueNull{}
-	} else if column.Default != "" {
-		if isExpression(column.Default) {
-			result.defaultValue = &defaultValueExpression{value: column.Default}
-		} else {
-			result.defaultValue = &defaultValueString{value: column.Default}
+	def := strings.TrimSpace(column.Default)
+	if strings.EqualFold(def, "NULL") {
+		// ClickHouse sync stores "NULL" when information_schema.columns.column_default
+		// is empty (even for non-nullable columns); only nullable columns accept DEFAULT NULL.
+		if column.Nullable {
+			result.defaultSQL = "NULL"
 		}
+	} else if def != "" {
+		// information_schema.columns.column_default holds a ClickHouse SQL expression
+		// (already quoted for string/date literals), so emit it verbatim.
+		result.defaultSQL = def
 	}
 	return result
-}
-
-// isExpression checks whether a column default should be emitted verbatim
-// rather than single-quoted as a string literal.
-func isExpression(value string) bool {
-	return strings.Contains(value, "(") || strings.Contains(value, ")") ||
-		strings.Contains(value, "NOW") || strings.Contains(value, "today") ||
-		strings.Contains(value, "CURRENT_") || strings.Contains(value, "UUID") ||
-		strings.Contains(value, "TIMESTAMP") || strings.Contains(value, "SEQUENCE") ||
-		strings.Contains(value, "generateUUIDv4") || strings.Contains(value, "rand")
 }
 
 type viewState struct {
@@ -408,15 +436,44 @@ func convertToViewState(id int, view *metadatapb.ViewMetadata) *viewState {
 }
 
 func (v *viewState) toString(buf io.StringWriter) error {
-	stmt := fmt.Sprintf("CREATE OR REPLACE VIEW %s AS (%s)", v.name, trimStatement(v.definition))
-	if v.comment != "" {
-		stmt += fmt.Sprintf(" COMMENT '%s'", v.comment)
+	trimmed := trimStatement(v.definition)
+	var stmt string
+	if isCreateViewStatement(trimmed) {
+		// clickhouse/driver.SyncDatabase populates ViewMetadata.Definition from
+		// system.tables.create_table_query, which is already a complete CREATE VIEW
+		// statement (including any COMMENT clause).
+		stmt = trimmed + ";\n"
+	} else {
+		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", quoteIdentifier(v.name), trimmed)
+		if v.comment != "" {
+			stmt += " COMMENT " + quoteStringLiteral(v.comment)
+		}
+		stmt += ";\n"
 	}
-	stmt += ";\n"
 	if _, err := buf.WriteString(stmt); err != nil {
 		return err
 	}
 	return nil
+}
+
+// isCreateViewStatement reports whether stmt is already a full CREATE ... VIEW
+// statement (as returned by ClickHouse's system.tables.create_table_query) rather
+// than a bare SELECT query body.
+func isCreateViewStatement(stmt string) bool {
+	words := strings.Fields(stmt)
+	if len(words) < 2 || !strings.EqualFold(words[0], "CREATE") {
+		return false
+	}
+	i := 1
+	if i+1 < len(words) && strings.EqualFold(words[i], "OR") && strings.EqualFold(words[i+1], "REPLACE") {
+		i += 2
+	}
+	if i < len(words) && (strings.EqualFold(words[i], "MATERIALIZED") ||
+		strings.EqualFold(words[i], "LIVE") ||
+		strings.EqualFold(words[i], "WINDOW")) {
+		i++
+	}
+	return i < len(words) && strings.EqualFold(words[i], "VIEW")
 }
 
 func trimStatement(statement string) string {
