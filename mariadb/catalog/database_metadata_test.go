@@ -649,3 +649,26 @@ func TestDatabaseMetadataDependentFallbackMixedSignAndHighScaleDecimal(t *testin
 	require.Equal(t, "decimal(42,38)", vHi.Columns[1].Type)
 	require.Equal(t, "decimal(44,38)", vHi.Columns[2].Type)
 }
+
+func TestDatabaseMetadataJSONNullableAndStringAbsDouble(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (x VARCHAR(20) NOT NULL);
+		CREATE VIEW v_json AS SELECT JSON_EXTRACT('{}', '$.missing') AS j;
+		CREATE VIEW v_abs AS SELECT ABS(x) AS a, CEIL(x) AS c, ROUND(x, 2) AS r FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	exported := c.DatabaseMetadata("app")
+	views := make(map[string]*metadata.ViewMetadata)
+	for _, v := range exported.Schemas[0].Views {
+		views[v.Name] = v
+	}
+
+	require.True(t, views["v_json"].Columns[0].Nullable)
+	require.Equal(t, "double", views["v_abs"].Columns[0].Type)
+	require.Equal(t, "double", views["v_abs"].Columns[1].Type)
+	require.Equal(t, "double", views["v_abs"].Columns[2].Type)
+}

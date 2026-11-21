@@ -650,7 +650,7 @@ func analyzedExprNullable(c *viewMetaResolver, db *Database, q *Query, opt map[i
 			return isAnalyzedExprNullable(c, db, q, opt, e.Args[1], widenOptionalJoin) ||
 				isAnalyzedExprNullable(c, db, q, opt, e.Args[2], widenOptionalJoin), true
 		}
-		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) {
+		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) || isViewDomainNullableFunc(e.Name) {
 			return true, true
 		}
 		for _, arg := range e.Args {
@@ -691,6 +691,31 @@ func isViewNullableAggregateFunc(name string) bool {
 		"std", "stddev", "stddev_pop", "stddev_samp",
 		"var_pop", "var_samp", "variance",
 		"json_arrayagg", "json_objectagg", "any_value":
+		return true
+	default:
+		return false
+	}
+}
+
+// isViewDomainNullableFunc reports built-in functions that MariaDB marks
+// maybe_null even when every argument is non-null (for example JSON path
+// lookups, domain-restricted math, regex extraction, and parsing/decoding).
+func isViewDomainNullableFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "json_extract", "json_value", "json_query", "json_unquote",
+		"json_search", "json_keys", "json_type", "json_length", "json_depth",
+		"json_contains", "json_contains_path", "json_exists", "json_equals",
+		"json_overlaps", "json_schema_valid",
+		"json_set", "json_insert", "json_replace", "json_remove",
+		"json_merge", "json_merge_patch", "json_merge_preserve",
+		"json_array_append", "json_array_insert",
+		"json_compact", "json_loose", "json_detailed", "json_normalize",
+		"sqrt", "ln", "log", "log2", "log10", "acos", "asin", "pow", "power", "exp", "cot",
+		"str_to_date", "convert_tz", "maketime", "makedate", "sec_to_time", "from_days", "last_day", "from_unixtime",
+		"regexp_substr", "regexp_replace", "regexp_instr",
+		"elt", "make_set", "export_set",
+		"unhex", "from_base64", "compress", "uncompress", "aes_encrypt", "aes_decrypt",
+		"inet_aton", "inet_ntoa", "inet6_aton", "inet6_ntoa", "load_file":
 		return true
 	default:
 		return false
@@ -1961,7 +1986,7 @@ func resolveNumericScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e
 	}
 	switch name {
 	case "abs":
-		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble || isArithmeticStringOperand(arg0) {
 			return &ResolvedType{BaseType: BaseTypeDouble}
 		}
 		if arg0.BaseType == BaseTypeDecimal {
@@ -1971,7 +1996,7 @@ func resolveNumericScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
 	case "ceil", "ceiling", "floor":
-		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble || isArithmeticStringOperand(arg0) {
 			return &ResolvedType{BaseType: BaseTypeDouble}
 		}
 		if arg0.BaseType == BaseTypeDecimal {
@@ -1984,7 +2009,7 @@ func resolveNumericScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
 	case "round", "truncate":
-		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble || isArithmeticStringOperand(arg0) {
 			return &ResolvedType{BaseType: BaseTypeDouble}
 		}
 		if isInt(arg0.BaseType) {
@@ -2014,8 +2039,8 @@ func resolveNumericScalarFuncType(c *viewMetaResolver, db *Database, q *Query, e
 	case "mod":
 		if len(e.Args) == 2 {
 			arg1 := resolveExprResolvedType(c, db, q, e.Args[1])
-			if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble ||
-				(arg1 != nil && (arg1.BaseType == BaseTypeFloat || arg1.BaseType == BaseTypeDouble)) {
+			if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble || isArithmeticStringOperand(arg0) ||
+				(arg1 != nil && (arg1.BaseType == BaseTypeFloat || arg1.BaseType == BaseTypeDouble || isArithmeticStringOperand(arg1))) {
 				return &ResolvedType{BaseType: BaseTypeDouble}
 			}
 			if arg0.BaseType == BaseTypeDecimal || (arg1 != nil && arg1.BaseType == BaseTypeDecimal) {
