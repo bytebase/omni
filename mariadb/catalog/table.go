@@ -201,8 +201,9 @@ type View struct {
 	CheckOption     string
 	Columns         []string // All column names (explicit or derived from SELECT)
 	ColumnMetadata  []ViewColumn
-	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
-	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	ExplicitColumns bool              // true if the user specified a column list in CREATE VIEW
+	SelectAST       *nodes.SelectStmt // parsed view body AST retained from CREATE/ALTER VIEW
+	AnalyzedQuery   *Query            // analyzed view body (populated on CREATE VIEW); nil if analysis failed
 	IsUpdatable     bool
 }
 

@@ -1,6 +1,7 @@
 package deparse
 
 import (
+	"strings"
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -295,4 +296,20 @@ func TestGetTableDefinitionEngineArguments(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, got, "ENGINE = CollapsingMergeTree(sign)\nORDER BY tuple();")
+}
+
+func TestDatabaseDefinitionOrdersCommaFromDependentViews(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "analytics",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "a_derived", Definition: "SELECT z_base.x FROM t AS t1, z_base"},
+				{Name: "z_base", Definition: "SELECT 1 AS x"},
+			},
+		}},
+	}
+
+	got, err := DatabaseDefinition(meta)
+	require.NoError(t, err)
+	require.Less(t, strings.Index(got, "View structure for `z_base`"), strings.Index(got, "View structure for `a_derived`"))
 }

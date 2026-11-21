@@ -672,3 +672,27 @@ func TestDatabaseMetadataJSONNullableAndStringAbsDouble(t *testing.T) {
 	require.Equal(t, "double", views["v_abs"].Columns[1].Type)
 	require.Equal(t, "double", views["v_abs"].Columns[2].Type)
 }
+
+func TestDatabaseMetadataSetOpArithmeticAndStringSumAvg(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE VIEW u AS SELECT 1 AS a UNION ALL SELECT 2.5 AS a;
+		CREATE VIEW v AS SELECT a + 1 AS n FROM u;
+		CREATE TABLE ts (s VARCHAR(20));
+		CREATE VIEW v_agg AS SELECT SUM(s) AS total, AVG(s) AS average FROM ts;
+	`, nil)
+	require.NoError(t, err)
+
+	exported := c.DatabaseMetadata("app")
+	views := make(map[string]*metadata.ViewMetadata)
+	for _, v := range exported.Schemas[0].Views {
+		views[v.Name] = v
+	}
+
+	require.Equal(t, "decimal(2,1)", views["u"].Columns[0].Type)
+	require.Equal(t, "decimal(3,1)", views["v"].Columns[0].Type)
+	require.Equal(t, "double", views["v_agg"].Columns[0].Type)
+	require.Equal(t, "double", views["v_agg"].Columns[1].Type)
+}

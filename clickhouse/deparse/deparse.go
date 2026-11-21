@@ -310,26 +310,92 @@ func referencedRelations(sql, dbName string) []string {
 	}
 
 	var refs []string
-	for i := 0; i < len(tokens)-1; i++ {
-		if tokens[i].quoted {
-			continue
+	readRelation := func(j int) int {
+		if j >= len(tokens) {
+			return j
 		}
-		if !strings.EqualFold(tokens[i].text, "FROM") && !strings.EqualFold(tokens[i].text, "JOIN") {
-			continue
-		}
-		j := i + 1
-		if tokens[j].text == "(" {
-			continue
+		if !tokens[j].quoted && tokens[j].text == "(" {
+			depth := 1
+			j++
+			for j < len(tokens) && depth > 0 {
+				if !tokens[j].quoted {
+					if tokens[j].text == "(" {
+						depth++
+					} else if tokens[j].text == ")" {
+						depth--
+					}
+				}
+				j++
+			}
+			return j
 		}
 		if j+2 < len(tokens) && !tokens[j+1].quoted && tokens[j+1].text == "." {
 			if dbName == "" || tokens[j].text == dbName {
 				refs = append(refs, tokens[j+2].text)
 			}
-		} else {
-			refs = append(refs, tokens[j].text)
+			return j + 3
+		}
+		refs = append(refs, tokens[j].text)
+		return j + 1
+	}
+
+	for i := 0; i < len(tokens)-1; i++ {
+		if tokens[i].quoted {
+			continue
+		}
+		isFrom := strings.EqualFold(tokens[i].text, "FROM")
+		isJoin := strings.EqualFold(tokens[i].text, "JOIN")
+		if !isFrom && !isJoin {
+			continue
+		}
+		j := readRelation(i + 1)
+		if !isFrom {
+			continue
+		}
+		// Scan comma-separated relations in the same FROM clause (e.g. FROM t1 a, db.v2 b).
+		for j < len(tokens) {
+			if !tokens[j].quoted {
+				t := tokens[j].text
+				if t == "," {
+					j = readRelation(j + 1)
+					continue
+				}
+				if t == ")" || t == ";" || isFromClauseTerminator(t) {
+					break
+				}
+				if t == "(" {
+					// Skip parenthesized table-function arguments or similar modifiers.
+					depth := 1
+					j++
+					for j < len(tokens) && depth > 0 {
+						if !tokens[j].quoted {
+							if tokens[j].text == "(" {
+								depth++
+							} else if tokens[j].text == ")" {
+								depth--
+							}
+						}
+						j++
+					}
+					continue
+				}
+			}
+			j++
 		}
 	}
 	return refs
+}
+
+func isFromClauseTerminator(word string) bool {
+	switch strings.ToUpper(word) {
+	case "WHERE", "PREWHERE", "GROUP", "HAVING", "WINDOW", "ORDER", "LIMIT",
+		"OFFSET", "SETTINGS", "UNION", "EXCEPT", "INTERSECT", "QUALIFY", "FORMAT",
+		"INTO", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "GLOBAL",
+		"ANY", "ALL", "ASOF", "SEMI", "ANTI", "ARRAY":
+		return true
+	default:
+		return false
+	}
 }
 
 func isIdentByte(c byte) bool {

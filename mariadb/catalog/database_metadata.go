@@ -1840,6 +1840,17 @@ func resolveQueryExprResolvedType(c *viewMetaResolver, db *Database, q *Query, i
 	if q == nil || idx < 0 {
 		return nil
 	}
+	resolve := func() *ResolvedType {
+		if q.SetOp != SetOpNone {
+			if meta, ok := resolveQueryTargetMeta(c, db, q, idx, true, outer...); ok && meta.colType != "" {
+				return parseColumnResolvedType(meta.colType)
+			}
+		}
+		if subTE := nthNonJunkTarget(q, idx); subTE != nil {
+			return resolveExprResolvedType(c, db, q, subTE.Expr, outer...)
+		}
+		return nil
+	}
 	if len(outer) == 0 && c != nil {
 		key := viewMetaResolvedKey{q: q, idx: idx}
 		if c.resolvedDone[key] {
@@ -1849,28 +1860,21 @@ func resolveQueryExprResolvedType(c *viewMetaResolver, db *Database, q *Query, i
 			return nil
 		}
 		c.resolvedAct[key] = true
-		var rt *ResolvedType
-		if subTE := nthNonJunkTarget(q, idx); subTE != nil {
-			rt = resolveExprResolvedType(c, db, q, subTE.Expr)
-		}
+		rt := resolve()
 		delete(c.resolvedAct, key)
 		c.resolvedDone[key] = true
 		c.resolvedCache[key] = rt
 		return rt
 	}
-	if subTE := nthNonJunkTarget(q, idx); subTE != nil {
-		return resolveExprResolvedType(c, db, q, subTE.Expr, outer...)
-	}
-	return nil
+	return resolve()
 }
 
-// viewASTFallbackTypes resolves target column types directly from the parsed
+// viewASTFallbackTypes resolves target column types directly from the retained
 // SELECT AST when semantic analysis left v.AnalyzedQuery nil (for example,
 // views containing COLLATE expressions).
 func (c *viewMetaResolver) viewASTFallbackTypes(db *Database, v *View) []string {
-	body, _ := cutViewCheckOption(v.Definition)
-	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
-	if err != nil || sel == nil {
+	sel := v.SelectAST
+	if sel == nil {
 		return nil
 	}
 	for sel.SetOp != 0 && sel.Left != nil {
@@ -2942,6 +2946,9 @@ func sumAvgResolvedType(c *viewMetaResolver, db *Database, q *Query, arg Analyze
 		}
 		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+22), Scale: s}
 	default:
+		if isArithmeticStringOperand(rt) {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
 		return nil
 	}
 }
