@@ -289,11 +289,19 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncC
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return definition
 	}
-	qs, ok := file.Stmts[0].(*trinoparser.QueryStmt)
-	if !ok || qs.Query == nil {
+	var query *trinoparser.Query
+	var inlineFns []trinoparser.FunctionSpecification
+	switch s := file.Stmts[0].(type) {
+	case *trinoparser.QueryStmt:
+		query = s.Query
+	case *trinoparser.WithFunctionStmt:
+		query = s.Query
+		inlineFns = s.Functions
+	}
+	if query == nil {
 		return definition
 	}
-	calls, unqualTables := collectTrinoQueryASTRefs(qs.Query, schemaName, cat)
+	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, cat)
 	type prefixEdit struct {
 		offset int
 		prefix string
@@ -1515,11 +1523,17 @@ func combineTrinoTypes(a, b string) string {
 	return ""
 }
 
+type trinoInlineFunc struct {
+	params     []trinoFuncParam
+	returnType string
+}
+
 type trinoASTWalker struct {
 	callerSchema string
 	cat          *trinoFuncCatalog
 	calls        []functionCallRef
 	unqualTables []*ast.QualifiedName
+	inlineFuncs  map[string][]trinoInlineFunc
 }
 
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
@@ -1534,9 +1548,9 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 	return w.calls
 }
 
-func collectTrinoQueryASTRefs(q *trinoparser.Query, callerSchema string, cat *trinoFuncCatalog) ([]functionCallRef, []*ast.QualifiedName) {
+func collectTrinoQueryASTRefs(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, callerSchema string, cat *trinoFuncCatalog) ([]functionCallRef, []*ast.QualifiedName) {
 	w := &trinoASTWalker{callerSchema: callerSchema, cat: cat}
-	w.walkQuery(q, nil, nil)
+	w.walkQueryWithInline(q, extraInline, nil, nil)
 	return w.calls, w.unqualTables
 }
 
@@ -1702,8 +1716,64 @@ func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[stri
 }
 
 func (w *trinoASTWalker) walkQuery(q *trinoparser.Query, curEnv map[string]string, ctes map[string]struct{}) string {
+	return w.walkQueryWithInline(q, nil, curEnv, ctes)
+}
+
+func (w *trinoASTWalker) walkQueryWithInline(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, curEnv map[string]string, ctes map[string]struct{}) string {
 	if q == nil {
 		return ""
+	}
+	totalInline := len(extraInline) + len(q.Functions)
+	if totalInline > 0 {
+		prevInline := w.inlineFuncs
+		nextInline := make(map[string][]trinoInlineFunc, len(prevInline)+totalInline)
+		for k, v := range prevInline {
+			nextInline[k] = slices.Clone(v)
+		}
+		registerInline := func(specs []trinoparser.FunctionSpecification) {
+			for _, fnSpec := range specs {
+				if fnSpec.Declaration.Name == nil || len(fnSpec.Declaration.Name.Parts) != 1 {
+					continue
+				}
+				key := strings.ToLower(fnSpec.Declaration.Name.Parts[0].Value)
+				params := make([]trinoFuncParam, len(fnSpec.Declaration.Parameters))
+				for i, p := range fnSpec.Declaration.Parameters {
+					name := ""
+					if p.Name != nil {
+						name = p.Name.Value
+					}
+					params[i] = trinoFuncParam{
+						name:     name,
+						typeName: normalizeTrinoDataType(p.Type),
+					}
+				}
+				nextInline[key] = append(nextInline[key], trinoInlineFunc{
+					params:     params,
+					returnType: normalizeTrinoDataType(fnSpec.ReturnType),
+				})
+			}
+		}
+		registerInline(extraInline)
+		registerInline(q.Functions)
+		w.inlineFuncs = nextInline
+		defer func() {
+			w.inlineFuncs = prevInline
+		}()
+		walkInlineBodies := func(specs []trinoparser.FunctionSpecification) {
+			for _, fnSpec := range specs {
+				fnEnv := make(map[string]string, len(fnSpec.Declaration.Parameters))
+				for _, p := range fnSpec.Declaration.Parameters {
+					if p.Name != nil && p.Name.Value != "" {
+						if pt := normalizeTrinoDataType(p.Type); pt != "" {
+							fnEnv[strings.ToLower(p.Name.Value)] = pt
+						}
+					}
+				}
+				w.walkStmt(fnSpec.Body, fnEnv)
+			}
+		}
+		walkInlineBodies(extraInline)
+		walkInlineBodies(q.Functions)
 	}
 	scope := make(map[string]struct{}, len(ctes))
 	for k := range ctes {
@@ -2097,6 +2167,9 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 				argTypes:  argTypes,
 				argCount:  len(argTypes),
 			}
+			if retType, isInline := w.resolveInlineFunc(ref); isInline {
+				return retType
+			}
 			w.calls = append(w.calls, ref)
 			if matches := w.cat.resolveCall(w.callerSchema, ref); len(matches) > 0 {
 				ret := w.cat.parsed[matches[0]].returnType
@@ -2126,6 +2199,46 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		}
 	}
 	return ""
+}
+
+func (w *trinoASTWalker) resolveInlineFunc(call functionCallRef) (string, bool) {
+	if call.catalog != "" || call.schema != "" || len(w.inlineFuncs) == 0 {
+		return "", false
+	}
+	cands := w.inlineFuncs[strings.ToLower(call.name)]
+	if len(cands) == 0 {
+		return "", false
+	}
+	var matches []trinoInlineFunc
+	for _, cand := range cands {
+		if len(cand.params) != call.argCount {
+			continue
+		}
+		argTypes, ok := reorderTrinoCallArgs(cand.params, call)
+		if !ok {
+			continue
+		}
+		compat := true
+		for i, argType := range argTypes {
+			if _, ok := trinoTypeCompatScore(argType, cand.params[i].typeName); !ok {
+				compat = false
+				break
+			}
+		}
+		if compat {
+			matches = append(matches, cand)
+		}
+	}
+	if len(matches) == 0 {
+		return "", false
+	}
+	ret := matches[0].returnType
+	for _, m := range matches[1:] {
+		if m.returnType != ret {
+			return "", true
+		}
+	}
+	return ret, true
 }
 
 func (w *trinoASTWalker) walkStmt(stmt trinoparser.RoutineStatement, curEnv map[string]string) {

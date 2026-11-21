@@ -1267,4 +1267,27 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "cyclic view")
+
+	// Inline WITH FUNCTION shadows unqualified calls while qualifying inner/schema calls.
+	inlineUDFView, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "helper", Definition: "CREATE FUNCTION s.helper(x bigint) RETURNS bigint RETURN x + 100"},
+				{Name: "cat_fn", Definition: "CREATE FUNCTION s.cat_fn(x bigint) RETURNS bigint RETURN x * 2"},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_inline",
+				Definition: "WITH FUNCTION helper(x bigint) RETURNS bigint RETURN cat_fn(x) + 1 SELECT helper(5), s.helper(5)",
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_inline",
+				Definition: "WITH FUNCTION helper(x bigint) RETURNS bigint RETURN cat_fn(x) + 2 SELECT helper(6), s.helper(6)",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, inlineUDFView, `WITH FUNCTION helper(x bigint) RETURNS bigint RETURN "cat"."s".cat_fn(x) + 1 SELECT helper(5), "cat".s.helper(5)`)
+	assert.Contains(t, inlineUDFView, `WITH FUNCTION helper(x bigint) RETURNS bigint RETURN "cat"."s".cat_fn(x) + 2 SELECT helper(6), "cat".s.helper(6)`)
 }

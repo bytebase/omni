@@ -1364,6 +1364,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 	var items []orderedObject
 	var fnEntries []functionEntry
 	var fnNodeIndices []int
+	seenFnSigs := make(map[string]struct{})
 
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
@@ -1434,6 +1435,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			if err != nil {
 				return err
 			}
+			sigKey := redshiftFunctionIdentityKey(schema.Name, fn.Name, fn.Signature, params, parsed, caseSensitive)
+			if _, exists := seenFnSigs[sigKey]; exists {
+				return fmt.Errorf("duplicate function %s in schema %s cannot be restored", fn.Name, quoteDefinitionIdentifier(schema.Name))
+			}
+			seenFnSigs[sigKey] = struct{}{}
 			entry := functionEntry{
 				schema:     schema.Name,
 				name:       fn.Name,
@@ -1591,12 +1597,17 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 			addDep(i, depIdx)
 		}
 	}
-	addCallDeps := func(i int, callerSchema string, calls []functionCall) {
+	addCallDeps := func(i int, callerSchema string, calls []functionCall) error {
 		for _, call := range calls {
 			for _, fnEntryIdx := range fnCat.resolveCall(callerSchema, call) {
-				addDep(i, fnCat.nodeIdx[fnEntryIdx])
+				depNode := fnCat.nodeIdx[fnEntryIdx]
+				if items[i].kind == objectKindFunc && depNode == i {
+					return fmt.Errorf("function %s is self-recursive and cannot be restored because Redshift requires callees to exist first", qualifyName(items[i].schema, items[i].name))
+				}
+				addDep(i, depNode)
 			}
 		}
+		return nil
 	}
 
 	for i, item := range items {
@@ -1608,7 +1619,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
 			}
-			addCallDeps(i, item.schema, collectFunctionCalls(item.fn.def, item.schema, item.fn.params, fnCat))
+			if err := addCallDeps(i, item.schema, collectFunctionCalls(item.fn.def, item.schema, item.fn.params, fnCat)); err != nil {
+				return err
+			}
 		case objectKindTable:
 			for _, fk := range item.table.foreignKeys {
 				refSchema := fk.referencedSchema
@@ -1639,7 +1652,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 					addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
 				}
 			}
-			addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat))
+			if err := addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat)); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1702,14 +1717,20 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 						return fmt.Errorf("foreign key %s on %s references nonexistent column %q on %s", fk.name, item.table.qualifiedName(), refCol, refTable.qualifiedName())
 					}
 				}
+				if !hasMatchingUniqueIndex(refTable, fk.referencedColumns, caseSensitive) {
+					return fmt.Errorf("foreign key %s on %s references %s(%s), which is not covered by a primary key or unique constraint", fk.name, item.table.qualifiedName(), refTable.qualifiedName(), strings.Join(fk.referencedColumns, ", "))
+				}
 			}
 		}
 	}
 
 	ordered, cyclic := topoOrder(len(items), dependencies)
 	for _, idx := range cyclic {
-		if items[idx].kind == objectKindFunc {
+		switch items[idx].kind {
+		case objectKindFunc:
 			return fmt.Errorf("cyclic function dependency involving %s cannot be restored because Redshift requires callees to exist first", qualifyName(items[idx].schema, items[idx].fn.name))
+		case objectKindView, objectKindMaterializedView:
+			return fmt.Errorf("cyclic view dependency involving %s cannot be restored because standard Redshift views require referenced relations to exist first", qualifyName(items[idx].schema, items[idx].name))
 		}
 	}
 	for _, idx := range ordered {
@@ -1999,7 +2020,7 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		if len(idx.keys) == 0 {
 			return fmt.Errorf("index %s on %s has no columns", idx.name, table.qualifiedName())
 		}
-		if slices.ContainsFunc(idx.lengths, func(n int64) bool { return n != 0 }) {
+		if slices.ContainsFunc(idx.lengths, func(n int64) bool { return n != -1 && n != 0 }) {
 			return fmt.Errorf("index %s on %s has key lengths, which Redshift constraints cannot restore", idx.name, table.qualifiedName())
 		}
 		if slices.Contains(idx.descending, true) {
@@ -2852,6 +2873,57 @@ func parseConstraintColumnName(key string) (string, bool) {
 		return "", false
 	}
 	return s.Str, true
+}
+
+func redshiftFunctionIdentityKey(schemaName, fnName, signature string, params []functionParam, parsed, caseSensitive bool) string {
+	var sigPart string
+	if parsed {
+		parts := make([]string, len(params))
+		for i, p := range params {
+			parts[i] = p.typeName
+		}
+		sigPart = strings.Join(parts, ",")
+	} else {
+		sigPart = strings.ToLower(strings.TrimSpace(signature))
+	}
+	return identKey(schemaName, caseSensitive) + "\x00" + identKey(fnName, caseSensitive) + "\x00" + sigPart
+}
+
+func hasMatchingUniqueIndex(table *tableState, cols []string, caseSensitive bool) bool {
+	if len(cols) == 0 {
+		return false
+	}
+	for _, idx := range table.indexes {
+		if (!idx.primary && !idx.unique) || len(idx.keys) != len(cols) {
+			continue
+		}
+		if sameConstraintColumns(idx.keys, cols, caseSensitive) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameConstraintColumns(idxKeys, fkCols []string, caseSensitive bool) bool {
+	if len(idxKeys) != len(fkCols) {
+		return false
+	}
+	remaining := make(map[string]int, len(idxKeys))
+	for _, k := range idxKeys {
+		col, ok := parseConstraintColumnName(k)
+		if !ok {
+			return false
+		}
+		remaining[identKey(col, caseSensitive)]++
+	}
+	for _, col := range fkCols {
+		key := identKey(col, caseSensitive)
+		if remaining[key] == 0 {
+			return false
+		}
+		remaining[key]--
+	}
+	return true
 }
 
 func hasTableColumn(cols map[string]*columnState, name string, caseSensitive bool) bool {

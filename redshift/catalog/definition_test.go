@@ -370,6 +370,9 @@ func TestDatabaseDefinitionDefersCyclicForeignKeys(t *testing.T) {
 							{Name: "id", Type: "integer"},
 							{Name: "beta_id", Type: "integer", Nullable: true},
 						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "alpha_pkey", Primary: true, Expressions: []string{"id"}},
+						},
 						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
 							{
 								Name:              "alpha_beta_fk",
@@ -385,6 +388,9 @@ func TestDatabaseDefinitionDefersCyclicForeignKeys(t *testing.T) {
 						Columns: []*metadatapb.ColumnMetadata{
 							{Name: "id", Type: "integer"},
 							{Name: "alpha_id", Type: "integer", Nullable: true},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "beta_pkey", Primary: true, Expressions: []string{"id"}},
 						},
 						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
 							{
@@ -408,7 +414,8 @@ func TestDatabaseDefinitionDefersCyclicForeignKeys(t *testing.T) {
 --
 CREATE TABLE "public"."alpha" (
   "id" integer NOT NULL,
-  "beta_id" integer
+  "beta_id" integer,
+  CONSTRAINT "alpha_pkey" PRIMARY KEY (id)
 );
 
 --
@@ -417,6 +424,7 @@ CREATE TABLE "public"."alpha" (
 CREATE TABLE "public"."beta" (
   "id" integer NOT NULL,
   "alpha_id" integer,
+  CONSTRAINT "beta_pkey" PRIMARY KEY (id),
   CONSTRAINT "beta_alpha_fk" FOREIGN KEY ("alpha_id") REFERENCES "public"."alpha"("id")
 );
 
@@ -1872,6 +1880,71 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_foo", Primary: true, Expressions: []string{"foo"}}},
 	})
 	require.ErrorContains(t, err, "not a table column")
+
+	// KeyLength -1 sentinel is accepted, while positive key lengths are rejected.
+	sentinelDDL, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_idx_sentinel",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_id", Primary: true, Expressions: []string{"id"}, KeyLength: []int64{-1}}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, sentinelDDL, `CONSTRAINT "pk_id" PRIMARY KEY (id)`)
+
+	// Self-recursive UDFs, duplicate function signatures, cyclic standard views, and
+	// FKs pointing to non-unique target columns fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "rec_fn",
+				Definition: "CREATE FUNCTION s.rec_fn(x int) RETURNS int STABLE AS $$ SELECT CASE WHEN $1 <= 0 THEN 0 ELSE s.rec_fn($1 - 1) END $$ LANGUAGE sql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "self-recursive")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "dup_fn", Definition: "CREATE FUNCTION s.dup_fn(x int) RETURNS int IMMUTABLE AS $$ SELECT $1 $$ LANGUAGE sql"},
+				{Name: "dup_fn", Definition: "CREATE FUNCTION s.dup_fn(y int4) RETURNS int IMMUTABLE AS $$ SELECT $1 + 1 $$ LANGUAGE sql"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate function")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v_a", Definition: "SELECT 1 FROM s.v_b"},
+				{Name: "v_b", Definition: "SELECT 1 FROM s.v_a"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "parent", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				{
+					Name:    "child",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "p_id", Type: "integer"}},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name:              "child_fk",
+						Columns:           []string{"p_id"},
+						ReferencedSchema:  "s",
+						ReferencedTable:   "parent",
+						ReferencedColumns: []string{"id"},
+					}},
+				},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "primary key or unique")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
