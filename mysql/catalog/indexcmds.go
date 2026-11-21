@@ -158,7 +158,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	tbl.Indexes = append(tbl.Indexes, idx)
 	tbl.ignoredGeneratedIndexes = nil
-	reconcileGeneratedFKIndexes(tbl, preGen)
+	droppedGen := reconcileGeneratedFKIndexes(tbl, preGen)
+	if err := c.validateDroppedIndexesForFK(tbl, droppedGen); err != nil {
+		return rollback(err)
+	}
 
 	// If unique, also add a UniqueKey constraint.
 	if stmt.Unique {

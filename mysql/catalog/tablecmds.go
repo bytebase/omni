@@ -2433,7 +2433,11 @@ func collectGeneratedFKIndexes(tbl *Table, keep map[string]bool) map[*Index]bool
 }
 
 // reconcileGeneratedFKIndexes reconciles pre-existing implicitly generated FK
-// backing indexes after CREATE INDEX or an ALTER TABLE that adds an index.
+// backing indexes after CREATE INDEX or an ALTER TABLE that adds an index, and
+// returns any generated indexes that were automatically dropped so the caller
+// can validate them with validateDroppedIndexesForFK (e.g. an incoming FK
+// referencing (pid, id) via the dropped index's InnoDB PK suffix still triggers
+// error 1553 on mysql:8.0.46).
 // Each such index is dropped if another surviving index now covers its columns
 // (including when the same ALTER also drops its FK, e.g.
 // `DROP FOREIGN KEY fk, ADD KEY idx_new (pid)`), and otherwise kept (clearing
@@ -2441,12 +2445,13 @@ func collectGeneratedFKIndexes(tbl *Table, keep map[string]bool) map[*Index]bool
 // `DROP FOREIGN KEY fk, ADD KEY idx_other (d)`). If a newly added index took
 // a surviving generated index's name, the surviving index is renamed to a free
 // unique name and moved after the newly added indexes. Verified on mysql:8.0.46.
-func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
+func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) []*Index {
 	if len(preGen) == 0 {
-		return
+		return nil
 	}
 	// First pass: drop preGen indexes now covered by another surviving index.
 	dropped := make(map[*Index]bool)
+	var droppedList []*Index
 	kept := make([]*Index, 0, len(tbl.Indexes))
 	for _, idx := range tbl.Indexes {
 		if idx != nil && preGen[idx] {
@@ -2470,6 +2475,7 @@ func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
 			}
 			if covered {
 				dropped[idx] = true
+				droppedList = append(droppedList, idx)
 				continue
 			}
 		}
@@ -2510,6 +2516,7 @@ func reconcileGeneratedFKIndexes(tbl *Table, preGen map[*Index]bool) {
 		final = append(final, g)
 	}
 	tbl.Indexes = append(final, relocated...)
+	return droppedList
 }
 
 // innodbClusteredIndex returns the clustered index InnoDB appends to secondary

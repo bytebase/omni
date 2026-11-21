@@ -355,5 +355,23 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 		if got := execErrorCode(t, c, "ALTER TABLE c3 DROP INDEX idx_a_id"); got != ErrDropIndexNeededInFK {
 			t.Errorf("drop child idx_a_id: got %d, want %d", got, ErrDropIndexNeededInFK)
 		}
+
+		// Adding a wider index (pid, other) on a table whose generated FK index (pid)
+		// backs an incoming FK on (pid, id) via InnoDB's PK suffix triggers 1553 on
+		// both CREATE INDEX and ALTER TABLE ADD KEY (verified on mysql:8.0.46),
+		// while an index on (pid) alone still covers (pid, id) and succeeds.
+		mustExec(t, c, "CREATE TABLE p3 (id INT PRIMARY KEY)")
+		mustExec(t, c, "CREATE TABLE mid (id INT PRIMARY KEY, pid INT, other INT, CONSTRAINT fk_p3 FOREIGN KEY (pid) REFERENCES p3 (id))")
+		mustExec(t, c, "CREATE TABLE leaf (id INT PRIMARY KEY, pid INT, mid_id INT, CONSTRAINT fk_mid FOREIGN KEY (pid, mid_id) REFERENCES mid (pid, id))")
+		if got := execErrorCode(t, c, "CREATE INDEX idx_po ON mid (pid, other)"); got != ErrDropIndexNeededInFK {
+			t.Errorf("CREATE INDEX (pid, other) breaking incoming FK: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+		if got := execErrorCode(t, c, "CREATE INDEX fk_p3 ON mid (pid, other)"); got != ErrDropIndexNeededInFK {
+			t.Errorf("CREATE INDEX fk_p3 (pid, other) breaking incoming FK: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+		if got := execErrorCode(t, c, "ALTER TABLE mid ADD KEY idx_po (pid, other)"); got != ErrDropIndexNeededInFK {
+			t.Errorf("ALTER TABLE ADD KEY (pid, other) breaking incoming FK: got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+		mustExec(t, c, "CREATE INDEX idx_pid_only ON mid (pid)")
 	})
 }
