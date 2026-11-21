@@ -22,20 +22,20 @@ type PgNamespaceRow struct {
 
 // PgClassRow mirrors pg_class (subset of columns relevant to DDL).
 type PgClassRow struct {
-	OID             uint32
-	RelName         string
-	RelNamespace    uint32
-	RelType         uint32 // composite type OID
-	RelKind         byte   // 'r', 'v', 'i', 'S'
-	RelNatts        int16
-	RelChecks       int16
-	RelHasTriggers  bool
-	RelHasIndex     bool
-	RelPersistence  byte   // 'p'=permanent, 'u'=unlogged, 't'=temp
-	ReplicaIdentity byte   // 'd'=default, 'f'=full, 'n'=nothing, 'i'=index
-	RelOfType          uint32 // reloftype — 0 if not a typed table
-	RelRowSecurity     bool   // relrowsecurity
-	RelForceRowSecurity bool  // relforcerowsecurity
+	OID                 uint32
+	RelName             string
+	RelNamespace        uint32
+	RelType             uint32 // composite type OID
+	RelKind             byte   // 'r', 'v', 'i', 'S'
+	RelNatts            int16
+	RelChecks           int16
+	RelHasTriggers      bool
+	RelHasIndex         bool
+	RelPersistence      byte   // 'p'=permanent, 'u'=unlogged, 't'=temp
+	ReplicaIdentity     byte   // 'd'=default, 'f'=full, 'n'=nothing, 'i'=index
+	RelOfType           uint32 // reloftype — 0 if not a typed table
+	RelRowSecurity      bool   // relrowsecurity
+	RelForceRowSecurity bool   // relforcerowsecurity
 }
 
 // PgAttributeRow mirrors pg_attribute.
@@ -236,6 +236,7 @@ const (
 	IndexRelationID      uint32 = 2610 // pg_index (catalog, not the index itself)
 	AttrDefaultRelID     uint32 = 2604 // pg_attrdef
 	SequenceRelationID   uint32 = 2224 // pg_sequence_rel (class of seq relations is pg_class)
+	ExtensionRelationID  uint32 = 3079 // pg_extension
 )
 
 // ---------------------------------------------------------------------------
@@ -288,16 +289,16 @@ func (c *Catalog) QueryPgClass(schemaName string) []PgClassRow {
 			}
 		}
 		row := PgClassRow{
-			OID:                rel.OID,
-			RelName:            rel.Name,
-			RelNamespace:       schema.OID,
-			RelType:            rel.RowTypeOID,
-			RelKind:            rel.RelKind,
-			RelNatts:           int16(len(rel.Columns)),
-			RelPersistence:     persistence,
-			ReplicaIdentity:    replicaIdentity,
-			RelOfType:          rel.OfTypeOID,
-			RelRowSecurity:     rel.RowSecurity,
+			OID:                 rel.OID,
+			RelName:             rel.Name,
+			RelNamespace:        schema.OID,
+			RelType:             rel.RowTypeOID,
+			RelKind:             rel.RelKind,
+			RelNatts:            int16(len(rel.Columns)),
+			RelPersistence:      persistence,
+			ReplicaIdentity:     replicaIdentity,
+			RelOfType:           rel.OfTypeOID,
+			RelRowSecurity:      rel.RowSecurity,
 			RelForceRowSecurity: rel.ForceRowSecurity,
 		}
 
@@ -962,6 +963,8 @@ func objTypeToClassOID(objType byte) uint32 {
 		return NamespaceRelationID
 	case 's': // sequence
 		return RelationRelationID // sequences are in pg_class too
+	case 'e': // extension
+		return ExtensionRelationID
 	default:
 		return 0
 	}

@@ -2124,3 +2124,829 @@
 | CREATE COLLATION c_no_loc (PROVIDER = icu)
 < error
 | 42P17 parameter "locale" must be specified
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER MATERIALIZED VIEW missing_sch.mv DEPENDS ON EXTENSION a
+< error
+| 3F000 schema "missing_sch" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+< error
+| 42809 "a" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE VIEW v_dep AS SELECT 1;
+| ALTER MATERIALIZED VIEW v_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "v_dep" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE SEQUENCE s_dep;
+| ALTER MATERIALIZED VIEW s_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "s_dep" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FOREIGN DATA WRAPPER fdw_dep;
+| CREATE SERVER srv_dep FOREIGN DATA WRAPPER fdw_dep;
+| CREATE FOREIGN TABLE ft_dep (id int) SERVER srv_dep;
+| ALTER MATERIALIZED VIEW ft_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "ft_dep" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| ALTER MATERIALIZED VIEW pt_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "pt_dep" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE ct_dep AS (id int);
+| ALTER MATERIALIZED VIEW ct_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "ct_dep" is not a materialized view
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;
+| ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;
+| ALTER MATERIALIZED VIEW mv_dep NO DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER INDEX a DEPENDS ON EXTENSION a
+< error
+| 42P01 relation "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER INDEX missing_sch.idx DEPENDS ON EXTENSION a
+< error
+| 3F000 schema "missing_sch" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER INDEX a DEPENDS ON EXTENSION a
+< error
+| 42809 "a" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;
+| ALTER INDEX mv_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "mv_dep" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE SEQUENCE s_dep;
+| ALTER INDEX s_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "s_dep" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE ct_dep AS (id int);
+| ALTER INDEX ct_dep DEPENDS ON EXTENSION a
+< error
+| 42809 "ct_dep" is not an index
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| ALTER INDEX a DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE INDEX pt_dep_idx ON pt_dep (id);
+| ALTER INDEX pt_dep_idx DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER TRIGGER tr ON missing_rel DEPENDS ON EXTENSION a
+< error
+| 42P01 relation "missing_rel" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER TRIGGER tr ON missing_sch.t DEPENDS ON EXTENSION a
+< error
+| 3F000 schema "missing_sch" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| ALTER TRIGGER tr ON a DEPENDS ON EXTENSION a
+< error
+| 42809 cannot open relation "a"
+| detail: This operation is not supported for indexes.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE INDEX pt_dep_idx ON pt_dep (id);
+| ALTER TRIGGER tr ON pt_dep_idx DEPENDS ON EXTENSION a
+< error
+| 42809 cannot open relation "pt_dep_idx"
+| detail: This operation is not supported for partitioned indexes.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TYPE ct_dep AS (id int);
+| ALTER TRIGGER tr ON ct_dep DEPENDS ON EXTENSION a
+< error
+| 42809 cannot open relation "ct_dep"
+| detail: This operation is not supported for composite types.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE SEQUENCE s_dep;
+| ALTER TRIGGER tr ON s_dep DEPENDS ON EXTENSION a
+< error
+| 42704 trigger "tr" for table "s_dep" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;
+| ALTER TRIGGER tr ON mv_dep DEPENDS ON EXTENSION a
+< error
+| 42704 trigger "tr" for table "mv_dep" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER TRIGGER tr ON a DEPENDS ON EXTENSION a
+< error
+| 42704 trigger "tr" for table "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| ALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION missing_ext
+< error
+| 42704 extension "missing_ext" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER FUNCTION missing_fn() DEPENDS ON EXTENSION a
+< error
+| 42883 function missing_fn() does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER FUNCTION missing_fn DEPENDS ON EXTENSION a
+< error
+| 42883 could not find a function named "missing_fn"
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER FUNCTION missing_sch.fn() DEPENDS ON EXTENSION a
+< error
+| 3F000 schema "missing_sch" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER FUNCTION fn(missing_type) DEPENDS ON EXTENSION a
+< error
+| 42704 type "missing_type" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION ovl_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION ovl_dep(text) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION ovl_dep DEPENDS ON EXTENSION a
+< error
+| 42725 function name "ovl_dep" is not unique
+| hint: Specify the argument list to select the function unambiguously.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION mix_dep DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';
+| ALTER PROCEDURE mix_dep DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';
+| ALTER ROUTINE mix_dep DEPENDS ON EXTENSION a
+< error
+| 42725 routine name "mix_dep" is not unique
+| hint: Specify the argument list to select the routine unambiguously.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE SCHEMA s1_dep;
+| CREATE SCHEMA s2_dep;
+| CREATE FUNCTION s1_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION s2_dep.sp_dep(text) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| SET search_path = s1_dep, s2_dep, public;
+| ALTER FUNCTION sp_dep DEPENDS ON EXTENSION a
+< error
+| 42725 function name "sp_dep" is not unique
+| hint: Specify the argument list to select the function unambiguously.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE SCHEMA s1_dep;
+| CREATE SCHEMA s2_dep;
+| CREATE FUNCTION s1_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION s2_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 2';
+| SET search_path = s1_dep, s2_dep, public;
+| ALTER FUNCTION sp_dep DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION pr_dep() DEPENDS ON EXTENSION a
+< error
+| 42809 pr_dep() is not a function
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION pr_dep DEPENDS ON EXTENSION a
+< error
+| 42883 could not find a function named "pr_dep"
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER PROCEDURE fn_dep() DEPENDS ON EXTENSION a
+< error
+| 42809 fn_dep() is not a procedure
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER PROCEDURE fn_dep DEPENDS ON EXTENSION a
+< error
+| 42883 could not find a procedure named "fn_dep"
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);
+| ALTER PROCEDURE agg_dep(int) DEPENDS ON EXTENSION a
+< error
+| 42809 agg_dep(integer) is not a procedure
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);
+| ALTER FUNCTION agg_dep(int) DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);
+| ALTER ROUTINE agg_dep(int) DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION a
+< error
+| 42704 extension "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE FUNCTION fn_idem() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION fn_idem() DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_idem() DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_idem() NO DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_idem() NO DEPENDS ON EXTENSION hstore
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION citext;
+| ALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION citext;
+| ALTER FUNCTION citext_eq(citext, citext) NO DEPENDS ON EXTENSION citext;
+| DROP FUNCTION citext_eq(citext, citext)
+< error
+| 2BP01 cannot drop function citext_eq(citext,citext) because extension citext requires it
+| hint: You can drop extension citext instead.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< error
+| 2BP01 cannot drop function now() because it is required by the database system
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION pg_catalog.now() NO DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE INDEX idx_dep ON a (c);
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;
+| CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| CREATE CONSTRAINT TRIGGER ctr_dep AFTER INSERT ON a DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| ALTER INDEX idx_dep DEPENDS ON EXTENSION hstore;
+| ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;
+| ALTER PROCEDURE pr_dep() DEPENDS ON EXTENSION hstore;
+| ALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION hstore;
+| ALTER TRIGGER ctr_dep ON a DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;
+| ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;
+| CREATE VIEW v_ext AS SELECT b FROM mv_dep;
+| DROP EXTENSION hstore
+< error
+| 2BP01 cannot drop extension hstore because other objects depend on it
+| detail: view v_ext depends on materialized view mv_dep
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;
+| CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;
+| CREATE VIEW v_ext AS SELECT b, fn_dep() AS x FROM mv_dep;
+| DROP EXTENSION hstore CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pk_dep (id int PRIMARY KEY);
+| ALTER INDEX pk_dep_pkey DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< error
+| 2BP01 cannot drop extension hstore because other objects depend on it
+| detail: constraint pk_dep_pkey on table pk_dep depends on extension hstore
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pk_dep (id int PRIMARY KEY);
+| ALTER INDEX pk_dep_pkey DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE p_dep (id int);
+| CREATE UNIQUE INDEX p_dep_uidx ON p_dep (id);
+| CREATE TABLE c_dep (pid int REFERENCES p_dep(id));
+| ALTER INDEX p_dep_uidx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< error
+| 2BP01 cannot drop extension hstore because other objects depend on it
+| detail: constraint c_dep_pid_fkey on table c_dep depends on index p_dep_uidx
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE p_dep (id int);
+| CREATE UNIQUE INDEX p_dep_uidx ON p_dep (id);
+| CREATE TABLE c_dep (pid int REFERENCES p_dep(id));
+| ALTER INDEX p_dep_uidx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
+| CREATE INDEX pt_dep_idx ON ONLY pt_dep (id);
+| CREATE INDEX pt_dep_1_idx ON pt_dep_1 (id);
+| ALTER INDEX pt_dep_idx ATTACH PARTITION pt_dep_1_idx;
+| ALTER INDEX pt_dep_1_idx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< error
+| 2BP01 cannot drop index pt_dep_1_idx because index pt_dep_idx requires it
+| hint: You can drop index pt_dep_idx instead.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
+| CREATE INDEX pt_dep_idx ON ONLY pt_dep (id);
+| CREATE INDEX pt_dep_1_idx ON pt_dep_1 (id);
+| ALTER INDEX pt_dep_idx ATTACH PARTITION pt_dep_1_idx;
+| ALTER INDEX pt_dep_idx DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore;
+| CREATE INDEX pt_dep_1_idx ON pt_dep_1 (id)
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);
+| CREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);
+| CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER pt_tr BEFORE INSERT ON pt_dep FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| ALTER TRIGGER pt_tr ON pt_dep_1 DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< error
+| 2BP01 cannot drop trigger pt_tr on table pt_dep_1 because trigger pt_tr on table pt_dep requires it
+| hint: You can drop trigger pt_tr on table pt_dep instead.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION citext;
+| CREATE EXTENSION hstore;
+| ALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore
+< error
+| 2BP01 cannot drop extension hstore because other objects depend on it
+| detail: extension citext depends on extension hstore
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION citext;
+| CREATE EXTENSION hstore;
+| ALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION hstore;
+| DROP EXTENSION hstore CASCADE
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE INDEX idx_dep ON a (c);
+| CREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;
+| CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION rt_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| ALTER INDEX idx_dep DEPENDS ON EXTENSION hstore;
+| ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;
+| ALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;
+| ALTER PROCEDURE pr_dep() DEPENDS ON EXTENSION hstore;
+| ALTER ROUTINE rt_dep() DEPENDS ON EXTENSION hstore;
+| ALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION hstore;
+| DROP INDEX idx_dep;
+| DROP MATERIALIZED VIEW mv_dep;
+| DROP FUNCTION fn_dep();
+| DROP PROCEDURE pr_dep();
+| DROP ROUTINE rt_dep();
+| DROP TRIGGER tr_dep ON a;
+| DROP EXTENSION hstore
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE EXTENSION hstore;
+| CREATE FUNCTION fn_rep() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER tr_rep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| ALTER FUNCTION fn_rep() DEPENDS ON EXTENSION hstore;
+| ALTER TRIGGER tr_rep ON a DEPENDS ON EXTENSION hstore;
+| CREATE OR REPLACE FUNCTION fn_rep() RETURNS int LANGUAGE sql AS 'SELECT 2';
+| CREATE OR REPLACE TRIGGER tr_rep AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();
+| DROP EXTENSION hstore;
+| DROP FUNCTION fn_rep();
+| DROP TRIGGER tr_rep ON a
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE ROLE dep_role SUPERUSER;
+| SET ROLE dep_role;
+| CREATE EXTENSION btree_gist;
+| RESET ROLE;
+| CREATE FUNCTION fn_on_role_ext() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION fn_on_role_ext() DEPENDS ON EXTENSION btree_gist;
+| DROP OWNED BY dep_role RESTRICT;
+| CREATE EXTENSION hstore;
+| SET ROLE dep_role;
+| CREATE FUNCTION role_fn() RETURNS int LANGUAGE sql AS 'SELECT 1';
+| ALTER FUNCTION role_fn() DEPENDS ON EXTENSION hstore;
+| RESET ROLE;
+| DROP OWNED BY dep_role RESTRICT;
+| DROP ROLE dep_role;
+| DROP EXTENSION hstore
+< ok 0 -

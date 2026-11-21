@@ -984,6 +984,38 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		extName := c.extensionMembers[oid]
 		return extName != "" && ownedExtNames[extName]
 	}
+	ownedExtOIDs := map[uint32]bool{}
+	for _, ext := range ownedExts {
+		ownedExtOIDs[ext.OID] = true
+	}
+	autoExtOIDs := map[uint32]bool{}
+	for changed := true; changed; {
+		changed = false
+		for _, d := range c.deps {
+			if d.RefType != 'e' || !ownedExtOIDs[d.RefOID] || d.DepType != DepAutoExtension {
+				continue
+			}
+			if d.ObjOID < FirstNormalObjectId {
+				return &Error{
+					Code:    CodeDependentObjects,
+					Message: "cannot drop system object because it is required by the database system",
+				}
+			}
+			autoExtOIDs[d.ObjOID] = true
+			if ownerExtName := c.extensionMembers[d.ObjOID]; ownerExtName != "" && !ownedExtNames[ownerExtName] {
+				if !cascade {
+					return errDependentObjects("extension", ownerExtName)
+				}
+				if ownerExt := c.extByName[ownerExtName]; ownerExt != nil {
+					ownedExtNames[ownerExtName] = true
+					ownedExtOIDs[ownerExt.OID] = true
+					ownedExts = append(ownedExts, ownerExt)
+					changed = true
+				}
+			}
+		}
+	}
+	sort.Slice(ownedExts, func(i, j int) bool { return ownedExts[i].OID < ownedExts[j].OID })
 	for _, schema := range c.schemas {
 		if schema.OID == PGCatalogNamespace || schema.OID == PGToastNamespace || ownedSchemaOIDs[schema.OID] {
 			continue
@@ -1106,7 +1138,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	ownedRelOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
-			if owners[rel.OwnerName] || inOwnedExt(rel.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
+			if owners[rel.OwnerName] || inOwnedExt(rel.OID) || autoExtOIDs[rel.OID] || (cascade && ownedSchemaOIDs[schema.OID]) {
 				rels = append(rels, ownedRel{schema: schema, rel: rel})
 				ownedRelOIDs[rel.OID] = true
 			}
@@ -1149,7 +1181,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				ownedIdxOIDs[idx.OID] = true
 				continue
 			}
-			if owners[idx.OwnerName] || inOwnedExt(idx.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
+			if owners[idx.OwnerName] || inOwnedExt(idx.OID) || autoExtOIDs[idx.OID] || (cascade && ownedSchemaOIDs[schema.OID]) {
 				indexes = append(indexes, ownedIdx{schema: schema, idx: idx})
 				ownedIdxOIDs[idx.OID] = true
 			}
@@ -1167,11 +1199,59 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	}
 	sort.Slice(indexes, func(i, j int) bool { return indexes[i].idx.OID < indexes[j].idx.OID })
 	sort.Slice(seqs, func(i, j int) bool { return seqs[i].seq.OID < seqs[j].seq.OID })
+	for changed := true; changed; {
+		changed = false
+		for oid, child := range c.indexes {
+			if child != nil && child.ParentIndexOID != 0 && ownedIdxOIDs[child.ParentIndexOID] && !ownedIdxOIDs[oid] {
+				ownedIdxOIDs[oid] = true
+				changed = true
+			}
+		}
+	}
+	for _, x := range indexes {
+		if x.idx.ParentIndexOID != 0 && !ownedIdxOIDs[x.idx.ParentIndexOID] && !ownedRelOIDs[x.idx.RelOID] {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop index %q because parent index requires it", x.idx.Name),
+			}
+		}
+	}
+
+	var autoExtTriggers []*Trigger
+	ownedTrigOIDs := map[uint32]bool{}
+	for oid, trig := range c.triggers {
+		if trig == nil {
+			continue
+		}
+		if ownedRelOIDs[trig.RelOID] {
+			ownedTrigOIDs[oid] = true
+			continue
+		}
+		if inOwnedExt(oid) || autoExtOIDs[oid] {
+			autoExtTriggers = append(autoExtTriggers, trig)
+			ownedTrigOIDs[oid] = true
+		}
+	}
+	sort.Slice(autoExtTriggers, func(i, j int) bool { return autoExtTriggers[i].OID < autoExtTriggers[j].OID })
+	for changed := true; changed; {
+		changed = false
+		for oid, child := range c.triggers {
+			if child != nil && child.ParentTriggerOID != 0 && ownedTrigOIDs[child.ParentTriggerOID] && !ownedTrigOIDs[oid] {
+				ownedTrigOIDs[oid] = true
+				changed = true
+			}
+		}
+	}
+	for _, trig := range autoExtTriggers {
+		if trig.ParentTriggerOID != 0 && !ownedTrigOIDs[trig.ParentTriggerOID] && !ownedRelOIDs[trig.RelOID] {
+			return errDependentObjects("trigger", trig.Name)
+		}
+	}
 
 	var procs []*UserProc
 	ownedProcOIDs := map[uint32]bool{}
 	for _, proc := range c.userProcs {
-		if owners[proc.OwnerName] || inOwnedExt(proc.OID) || (cascade && proc.Schema != nil && ownedSchemaOIDs[proc.Schema.OID]) {
+		if owners[proc.OwnerName] || inOwnedExt(proc.OID) || autoExtOIDs[proc.OID] || (cascade && proc.Schema != nil && ownedSchemaOIDs[proc.Schema.OID]) {
 			procs = append(procs, proc)
 			ownedProcOIDs[proc.OID] = true
 		}
@@ -1419,6 +1499,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			con := c.constraints[objOID]
 			return con != nil && ownedRelOIDs[con.RelOID]
 		case 'g':
+			if ownedTrigOIDs[objOID] {
+				return true
+			}
 			trig := c.triggers[objOID]
 			return trig != nil && ownedRelOIDs[trig.RelOID]
 		case 'p':
@@ -1531,6 +1614,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 					if !inDropSet(dep.ObjType, dep.ObjOID) {
 						return errDependentObjects("index", x.idx.Name)
 					}
+				}
+			}
+		}
+		for _, trig := range autoExtTriggers {
+			for _, dep := range c.findNormalDependents('g', trig.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("trigger", trig.Name)
 				}
 			}
 		}
@@ -1724,6 +1814,15 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		if owners[owner] && c.typeByOID[oid] == nil {
 			delete(c.typeOwners, oid)
 		}
+	}
+	for _, trig := range autoExtTriggers {
+		if c.triggers[trig.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.dropDependents('g', trig.OID)
+		}
+		c.removeTrigger(trig)
 	}
 	for _, ext := range ownedExts {
 		if c.extensions[ext.OID] != nil {

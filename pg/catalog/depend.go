@@ -6,11 +6,12 @@ import "strings"
 type DepType byte
 
 const (
-	DepNormal       DepType = 'n' // requires CASCADE to drop referent
-	DepAuto         DepType = 'a' // auto-dropped with referent
-	DepInternal     DepType = 'i' // inseparable from referent
-	DepPartitionPri DepType = 'P' // partition object → parent object
-	DepPartitionSec DepType = 'S' // partition object → partition table
+	DepNormal        DepType = 'n' // requires CASCADE to drop referent
+	DepAuto          DepType = 'a' // auto-dropped with referent
+	DepInternal      DepType = 'i' // inseparable from referent
+	DepPartitionPri  DepType = 'P' // partition object → parent object
+	DepPartitionSec  DepType = 'S' // partition object → partition table
+	DepAutoExtension DepType = 'x' // auto-dropped with extension (ALTER ... DEPENDS ON EXTENSION)
 )
 
 // DepEntry records a dependency between two catalog objects.

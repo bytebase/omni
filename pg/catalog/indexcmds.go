@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -687,6 +688,22 @@ func (c *Catalog) registerIndex(schema *Schema, idx *Index) {
 
 // removeIndex removes an index from all catalog maps and cleans up dependencies.
 func (c *Catalog) removeIndex(schema *Schema, name string, idx *Index) {
+	if idx == nil {
+		return
+	}
+	var children []*Index
+	for oid, child := range c.indexes {
+		if child != nil && child.ParentIndexOID == idx.OID && oid != idx.OID {
+			children = append(children, child)
+		}
+	}
+	sort.Slice(children, func(i, j int) bool { return children[i].OID < children[j].OID })
+	for _, child := range children {
+		if c.indexes[child.OID] == child && child.Schema != nil {
+			c.removeIndex(child.Schema, child.Name, child)
+		}
+	}
+
 	delete(schema.Indexes, name)
 	delete(c.indexes, idx.OID)
 
