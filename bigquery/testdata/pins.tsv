@@ -1,9 +1,18 @@
 # The project this engine's committed answers come from. BigQuery is a Google
-# Cloud service: there is no image and no container, so image names the project
-# and the dataset's location, digest is the SHA-256 of what `datasets.get`
-# states as `<id> <location> <creationTime>`, and the source tag is the day the
-# answers were recorded. A dataset recreated anywhere else answers another
-# creationTime, so its digest moves and the pin fails instead of quietly
-# replaying. The service account is never part of a pin.
+# Cloud service: there is no image and no container.
+#
+# default judges bigquery/parser/testdata/compat.tsv through live BigQuery
+# dry-run (no dataset is created or mutated): image names the project and job
+# location ("gcp:bigquery:<project>:<location>"), digest is the SHA-256 of that
+# string confirmed by a live `SELECT 1` dry-run job, and the source tag is the
+# day the answers were recorded.
+#
+# driver records bigquery/driver's tapes against a scratch dataset: image names
+# the project and the dataset's location, digest is the SHA-256 of what
+# `datasets.get` states as `<id> <location> <creationTime>`, and the source tag
+# is the day the answers were recorded. A dataset recreated anywhere else
+# answers another creationTime, so its digest moves and the pin fails instead of
+# quietly replaying. The service account is never part of a pin.
 # columns: role, image, digest, source tag
+default	gcp:bigquery:bytebase-dev:US	sha256:fef5b54092b50edbb5d7c363182e0cd578a2147d527595e968a26f5131429231	2026-11-21
 driver	gcp:bigquery:bytebase-dev:US	sha256:a38c0d3800b3dfd8d1c6e3f3644af8fd02fc0f8ed110efc924159d3415533cd7	2026-11-21
