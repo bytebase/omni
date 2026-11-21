@@ -42,7 +42,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		if t.Temporary {
 			continue
 		}
-		tableProto := tableToProto(t)
+		tableProto := tableToProto(db.Name, t)
 		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
 		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
 	}
@@ -557,7 +557,7 @@ func resolvedTypeToColumnType(rt *ResolvedType) string {
 	}
 }
 
-func tableToProto(t *Table) *metadata.TableMetadata {
+func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 	table := &metadata.TableMetadata{
 		Name:                  t.Name,
 		Engine:                t.Engine,
@@ -719,7 +719,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 				OnDelete:          onDelete,
 				MatchType:         matchType,
 			}
-			if con.RefDatabase != "" {
+			if con.RefDatabase != "" && !eqFoldStr(con.RefDatabase, dbName) {
 				fk.ReferencedSchema = con.RefDatabase
 			}
 			table.ForeignKeys = append(table.ForeignKeys, fk)

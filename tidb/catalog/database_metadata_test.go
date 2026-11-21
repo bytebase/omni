@@ -899,4 +899,49 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 		require.NoError(t, r.Error)
 	}
 	require.NotNil(t, restoredFn.GetDatabase("app").GetTable("fn_idx_t"))
+
+	// POSITION / LOCATE / INSTR export bigint and same-DB qualified FKs omit ReferencedSchema.
+	posCat := New()
+	_, err = posCat.Exec(`
+		CREATE DATABASE other_db;
+		CREATE TABLE other_db.ext_parent (id INT NOT NULL PRIMARY KEY);
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE fk_parent (id INT NOT NULL PRIMARY KEY);
+		CREATE TABLE fk_qualified (
+			id INT NOT NULL PRIMARY KEY,
+			pid INT,
+			eid INT,
+			CONSTRAINT fk_same_qual FOREIGN KEY (pid) REFERENCES app.fk_parent(id),
+			CONSTRAINT fk_cross_qual FOREIGN KEY (eid) REFERENCES other_db.ext_parent(id)
+		);
+		CREATE VIEW v_pos AS SELECT POSITION('x' IN 'xyz') AS p, LOCATE('x', 'xyz') AS l, INSTR('xyz', 'x') AS i;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	posMeta := posCat.DatabaseMetadata("app")
+	var posView *metadata.ViewMetadata
+	for _, v := range posMeta.Schemas[0].Views {
+		if v.Name == "v_pos" {
+			posView = v
+		}
+	}
+	require.NotNil(t, posView)
+	require.Len(t, posView.Columns, 3)
+	for _, col := range posView.Columns {
+		require.Equal(t, "bigint", col.Type, col.Name)
+	}
+	var qTbl *metadata.TableMetadata
+	for _, tbl := range posMeta.Schemas[0].Tables {
+		if tbl.Name == "fk_qualified" {
+			qTbl = tbl
+		}
+	}
+	require.NotNil(t, qTbl)
+	require.Len(t, qTbl.ForeignKeys, 2)
+	fkByName := map[string]*metadata.ForeignKeyMetadata{}
+	for _, fk := range qTbl.ForeignKeys {
+		fkByName[fk.Name] = fk
+	}
+	require.Empty(t, fkByName["fk_same_qual"].ReferencedSchema)
+	require.Equal(t, "other_db", fkByName["fk_cross_qual"].ReferencedSchema)
 }

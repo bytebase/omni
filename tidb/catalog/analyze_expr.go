@@ -145,8 +145,7 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 // neither expand the view nor carry its column lineage.
 //
 // TiDB v8.5.5 keeps POSITION in the form it stores, so that is the call this
-// records. Its result type is the one LOCATE already gets from the function
-// table, which is to say none: that table has no entry for either spelling.
+// records; functionReturnType resolves its BIGINT type.
 func analyzePositionExpr(c *Catalog, pe *nodes.PositionExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	substr, err := analyzeExpr(c, pe.Substr, scope)
 	if err != nil {

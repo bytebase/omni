@@ -361,9 +361,8 @@ func analyzeWindowDef(c *Catalog, wd *nodes.WindowDef, scope *analyzerScope, isD
 // neither expand the view nor carry its column lineage.
 //
 // MySQL 8.0, whose stored form this catalog follows, resolves
-// POSITION(a IN b) to locate(a, b), so that is the call this records. Its
-// result type is the one LOCATE already gets from the function table, which is
-// to say none: that table has no entry for either spelling.
+// POSITION(a IN b) to locate(a, b), so that is the call this records;
+// functionReturnType resolves its BIGINT type.
 func analyzePositionExpr(c *Catalog, pe *nodes.PositionExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	substr, err := analyzeExpr(c, pe.Substr, scope)
 	if err != nil {

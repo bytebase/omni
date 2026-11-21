@@ -83,6 +83,8 @@ func functionReturnType(name string, args []AnalyzedExpr) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeVarchar}
 	case "length", "char_length", "character_length", "bit_length", "octet_length":
 		return &ResolvedType{BaseType: BaseTypeInt}
+	case "locate", "instr", "position":
+		return &ResolvedType{BaseType: BaseTypeBigInt}
 	}
 	return nil
 }
