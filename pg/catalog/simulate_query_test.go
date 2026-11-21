@@ -177,7 +177,10 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"multiple_unnamed_subqueries", "CREATE VIEW _v AS SELECT 1 AS x FROM (SELECT 1), (SELECT 2)", "unnamed_subquery_1"},
 			{"aliased_join_deparse", "CREATE VIEW _v AS SELECT b FROM (a FULL JOIN b USING (b)) j", ") j"},
 			{"aliased_cross_join_deparse", "CREATE VIEW _v AS SELECT d, c FROM (a CROSS JOIN b) j", "j.d"},
+			{"aliased_join_dedup_col_refs", "CREATE VIEW _v(first, second, third, fourth, fifth) AS SELECT j.* FROM (a CROSS JOIN b) AS j(c)", "j.c_1 AS fifth"},
 			{"json_returning_bytea", "CREATE VIEW _v AS SELECT JSON_ARRAY(1 RETURNING bytea) AS j, JSON_OBJECT('k' : 1 RETURNING bytea) AS o, JSON_ARRAYAGG(b RETURNING bytea) AS ja FROM a", "RETURNING bytea"},
+			{"json_returning_typmod", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b RETURNING varchar(5)) AS ja, JSON_ARRAY(1 RETURNING varchar(10)) AS j FROM a", "RETURNING character varying(5)"},
+			{"unnamed_subquery_no_shadow_outer", "CREATE VIEW _v AS SELECT (SELECT unnamed_subquery.b FROM (SELECT 2 AS b)) AS z FROM a AS unnamed_subquery", "unnamed_subquery_1"},
 			{"pg17_integer_literals", "CREATE VIEW _v AS SELECT '0xFF'::integer AS h, '1_000'::bigint AS u, '0o77'::smallint AS o, '0b1010'::int AS b", "'0xFF'::integer"},
 		}
 		for _, tc := range cases {
@@ -208,7 +211,9 @@ func TestQuerySimulationFixes(t *testing.T) {
 					"json_objectagg_over_preserve", "xmltable_preserve",
 					"cross_schema_unaliased_same_name", "multiple_unnamed_subqueries",
 					"aliased_join_deparse", "aliased_cross_join_deparse",
-					"json_returning_bytea", "pg17_integer_literals":
+					"aliased_join_dedup_col_refs", "json_returning_bytea",
+					"json_returning_typmod", "unnamed_subquery_no_shadow_outer",
+					"pg17_integer_literals":
 					c2 := setup(t)
 					res2, err := c2.Exec("CREATE VIEW _v2 AS "+def, nil)
 					if err != nil {
@@ -221,6 +226,29 @@ func TestQuerySimulationFixes(t *testing.T) {
 					}
 				}
 			})
+		}
+	})
+
+	t.Run("quoted_merge_action_func", func(t *testing.T) {
+		c := setup(t)
+		res, err := c.Exec(`
+			CREATE FUNCTION public."merge_action"() RETURNS text LANGUAGE sql AS 'SELECT ''ok''::text';
+			CREATE VIEW _v AS SELECT "merge_action"() AS x;
+		`, nil)
+		if err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("stmt error: %v", r.Error)
+			}
+		}
+		def, err := c.GetViewDefinition("public", "_v")
+		if err != nil {
+			t.Fatalf("GetViewDefinition: %v", err)
+		}
+		if !strings.Contains(def, "merge_action()") {
+			t.Errorf("unexpected view def %q", def)
 		}
 	})
 

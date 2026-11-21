@@ -2232,6 +2232,15 @@ type SQLValueFunction struct {
 
 func (n *SQLValueFunction) Tag() NodeTag { return T_SQLValueFunction }
 
+// MergeSupportFunc represents MERGE_ACTION() in a MERGE RETURNING list.
+//
+// pg: src/include/nodes/primnodes.h — MergeSupportFunc (PG17+)
+type MergeSupportFunc struct {
+	Loc Loc // token location, or -1
+}
+
+func (n *MergeSupportFunc) Tag() NodeTag { return T_MergeSupportFunc }
+
 // SetToDefault represents a DEFAULT marker in expressions.
 type SetToDefault struct {
 	TypeId    Oid   // type for substituted value

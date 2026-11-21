@@ -162,6 +162,13 @@ func (e *querySpanExtractor) collectNestedPredicateColumns(queryStack []*catalog
 			if v.SubQuery != nil {
 				e.collectPredicateColumnsInStack(appendQuery(queryStack, v.SubQuery), visited)
 			}
+		case *catalog.JsonConstructorExprQ:
+			if v.Subquery != nil {
+				e.collectPredicateColumnsInStack(appendQuery(queryStack, v.Subquery), visited)
+			}
+			if v.AggFilter != nil {
+				inputs = []catalog.AnalyzedExpr{v.AggFilter}
+			}
 		case *catalog.AggExpr:
 			inputs = []catalog.AnalyzedExpr{v.AggFilter}
 		case *catalog.WindowFuncExpr:

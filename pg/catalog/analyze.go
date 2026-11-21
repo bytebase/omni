@@ -1196,11 +1196,9 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 	if rs.Alias != nil {
 		alias = rs.Alias.Aliasname
 	}
-	// pg: src/backend/parser/parse_clause.c — transformRangeSubselect (PG16+)
+	// Keep unaliased subqueries out of qualified lookup; ruleutils assigns
+	// synthetic "unnamed_subquery" aliases at deparse time.
 	eref := alias
-	if eref == "" {
-		eref = "unnamed_subquery"
-	}
 
 	outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
 	colNames := make([]string, len(outputTargetList))
@@ -1969,6 +1967,12 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 			Code:    CodeSyntaxError,
 			Message: "DEFAULT is not allowed in this context",
 		}
+	case *nodes.MergeSupportFunc:
+		// pg: src/backend/parser/parse_expr.c — transformMergeSupportFunc
+		return nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: "MERGE_ACTION() can only be used in the RETURNING list of a MERGE command",
+		}
 	case *nodes.JsonIsPredicate:
 		return ac.transformJsonIsPredicate(v)
 	case *nodes.JsonFuncExpr:
@@ -2697,15 +2701,6 @@ func parseBitStringLiteral(bsval string) (string, error) {
 func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error) {
 	fSchema, funcName := qualifiedName(fc.Funcname)
 	funcName = strings.ToLower(funcName)
-
-	// pg: src/backend/parser/parse_expr.c — transformMergeSupportFunc
-	// MERGE_ACTION() is only valid in the RETURNING list of a MERGE command.
-	if fSchema == "" && funcName == "merge_action" && !fc.AggStar && (fc.Args == nil || len(fc.Args.Items) == 0) {
-		return nil, &Error{
-			Code:    CodeSyntaxError,
-			Message: "MERGE_ACTION() can only be used in RETURNING lists of MERGE commands",
-		}
-	}
 
 	// Transform arguments.
 	var args []AnalyzedExpr
@@ -7164,13 +7159,13 @@ func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr
 // whether an explicit RETURNING type was specified.
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonOutput
-func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType uint32) (uint32, bool, error) {
+func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType uint32) (uint32, int32, bool, error) {
 	if output == nil || output.TypeName == nil {
-		return defaultType, false, nil
+		return defaultType, -1, false, nil
 	}
-	retOID, _, err := ac.catalog.resolveTypeName(output.TypeName)
+	retOID, retTypMod, err := ac.catalog.resolveTypeName(output.TypeName)
 	if err != nil {
-		return 0, false, err
+		return 0, -1, false, err
 	}
 	baseOID := retOID
 	for dt := ac.catalog.domainTypes[baseOID]; dt != nil; dt = ac.catalog.domainTypes[baseOID] {
@@ -7179,12 +7174,12 @@ func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType ui
 	// pg: src/backend/parser/parse_expr.c — transformJsonOutput:
 	// RETURNING bytea uses SQL/JSON binary serialization rather than a json->bytea cast.
 	if baseOID != BYTEAOID && !ac.catalog.CanCoerce(JSONOID, retOID, 'e') {
-		return 0, false, &Error{
+		return 0, -1, false, &Error{
 			Code:    CodeCannotCoerce,
 			Message: fmt.Sprintf("cannot cast type json to %s", ac.catalog.typeName(retOID)),
 		}
 	}
-	return retOID, true, nil
+	return retOID, retTypMod, true, nil
 }
 
 // transformJsonValueArg transforms a JsonValueExpr argument, retaining any
@@ -7206,7 +7201,7 @@ func (ac *analyzeCtx) transformJsonValueArg(jve *nodes.JsonValueExpr) (AnalyzedE
 
 // transformJsonObjectConstructor transforms JSON_OBJECT(...).
 func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstructor) (AnalyzedExpr, error) {
-	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, resultTypMod, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7238,12 +7233,13 @@ func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstruc
 		UniqueKeys:      n.UniqueKeys,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,
+		ResultTypeMod:   resultTypMod,
 	}, nil
 }
 
 // transformJsonArrayConstructor transforms JSON_ARRAY(...).
 func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructor) (AnalyzedExpr, error) {
-	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, resultTypMod, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7271,6 +7267,7 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 		AbsentOnNull:    n.AbsentOnNull,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,
+		ResultTypeMod:   resultTypMod,
 	}, nil
 }
 
@@ -7278,7 +7275,7 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonArrayQueryConstructor
 func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQueryConstructor) (AnalyzedExpr, error) {
-	resultType, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	resultType, resultTypMod, hasReturning, err := ac.resolveJsonOutput(n.Output, JSONOID)
 	if err != nil {
 		return nil, err
 	}
@@ -7303,19 +7300,21 @@ func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQuery
 		AbsentOnNull:    n.AbsentOnNull,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,
+		ResultTypeMod:   resultTypMod,
 	}, nil
 }
 
 // transformJsonAggClauses analyzes common FILTER / ORDER BY / OVER / RETURNING
 // clauses of JSON_ARRAYAGG and JSON_OBJECTAGG.
 func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (
-	resultType uint32, hasReturning bool, aggOrder []*AggSortBy, aggFilter AnalyzedExpr, hasOver bool, winRef uint32, err error,
+	resultType uint32, resultTypMod int32, hasReturning bool, aggOrder []*AggSortBy, aggFilter AnalyzedExpr, hasOver bool, winRef uint32, err error,
 ) {
 	resultType = JSONOID
+	resultTypMod = -1
 	if c == nil {
 		return
 	}
-	resultType, hasReturning, err = ac.resolveJsonOutput(c.Output, JSONOID)
+	resultType, resultTypMod, hasReturning, err = ac.resolveJsonOutput(c.Output, JSONOID)
 	if err != nil {
 		return
 	}
@@ -7353,7 +7352,7 @@ func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr
 		}
 		args = append(args, expr)
 	}
-	resultType, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
+	resultType, resultTypMod, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {
 		return nil, err
 	}
@@ -7370,6 +7369,7 @@ func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr
 		AbsentOnNull:    n.AbsentOnNull,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,
+		ResultTypeMod:   resultTypMod,
 	}, nil
 }
 
@@ -7394,7 +7394,7 @@ func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedEx
 			args = append(args, valExpr)
 		}
 	}
-	resultType, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
+	resultType, resultTypMod, hasReturning, aggOrder, aggFilter, hasOver, winRef, err := ac.transformJsonAggClauses(n.Constructor)
 	if err != nil {
 		return nil, err
 	}
@@ -7412,6 +7412,7 @@ func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedEx
 		UniqueKeys:      n.UniqueKeys,
 		HasReturning:    hasReturning,
 		ResultType:      resultType,
+		ResultTypeMod:   resultTypMod,
 	}, nil
 }
 
@@ -7442,6 +7443,7 @@ func (ac *analyzeCtx) transformJsonScalarExpr(n *nodes.JsonScalarExpr) (Analyzed
 		ConstructorType: JsonConstructorScalar,
 		Args:            []AnalyzedExpr{expr},
 		ResultType:      JSONOID,
+		ResultTypeMod:   -1,
 	}, nil
 }
 
@@ -7459,6 +7461,7 @@ func (ac *analyzeCtx) transformJsonParseExpr(n *nodes.JsonParseExpr) (AnalyzedEx
 		ConstructorType: JsonConstructorParse,
 		Args:            []AnalyzedExpr{inner},
 		ResultType:      JSONOID,
+		ResultTypeMod:   -1,
 	}, nil
 }
 
@@ -7476,6 +7479,7 @@ func (ac *analyzeCtx) transformJsonSerializeExpr(n *nodes.JsonSerializeExpr) (An
 		ConstructorType: JsonConstructorSerialize,
 		Args:            []AnalyzedExpr{inner},
 		ResultType:      TEXTOID,
+		ResultTypeMod:   -1,
 	}, nil
 }
 

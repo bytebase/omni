@@ -799,6 +799,18 @@ func (e *querySpanExtractor) walkExprWithVisited(queryStack []*catalog.Query, ex
 				}
 			}
 		}
+	case *catalog.JsonConstructorExprQ:
+		for _, child := range catalog.AnalyzedExprChildren(expr) {
+			e.walkExprWithVisited(queryStack, child, result, visited)
+		}
+		if v.Subquery != nil {
+			subQueryStack := appendQuery(queryStack, v.Subquery)
+			for _, te := range v.Subquery.TargetList {
+				if !te.ResJunk {
+					e.walkExprWithVisited(subQueryStack, te.Expr, result, visited)
+				}
+			}
+		}
 	case *catalog.SetOpColumnExpr:
 		// q is the set operation. EXCEPT returns only rows of its left branch.
 		branches := []*catalog.Query{q.LArg, q.RArg}

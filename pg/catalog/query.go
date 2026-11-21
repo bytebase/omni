@@ -1180,11 +1180,12 @@ type JsonConstructorExprQ struct {
 	UniqueKeys      bool         // WITH UNIQUE [KEYS]
 	HasReturning    bool         // explicit RETURNING type clause
 	ResultType      uint32
+	ResultTypeMod   int32
 	Collation       uint32
 }
 
 func (j *JsonConstructorExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonConstructorExprQ) exprTypMod() int32     { return -1 }
+func (j *JsonConstructorExprQ) exprTypMod() int32     { return j.ResultTypeMod }
 func (j *JsonConstructorExprQ) exprCollation() uint32 { return j.Collation }
 
 // JsonExprOp identifies the kind of JSON function expression.

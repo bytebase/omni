@@ -516,6 +516,10 @@ func (d *deparseCtx) rtePrintedColNames(rte *RangeTableEntry) []string {
 		if rte.Alias != "" && rte.aliasColumns > 0 {
 			return uniqueColumnAliases(rte.ColNames)
 		}
+	case RTEJoin:
+		if rte.Alias != "" && rte.aliasColumns > 0 {
+			return uniqueColumnAliases(rte.ColNames)
+		}
 	}
 	return rte.ColNames
 }
@@ -561,8 +565,22 @@ func (d *deparseCtx) rteRefName(query *Query, rte *RangeTableEntry) string {
 	if rte.Kind != RTESubquery {
 		return rte.ERef
 	}
-	// Reserve all explicit aliases and non-unnamed-subquery ERefs first.
+	// Reserve all explicit aliases and non-unnamed-subquery ERefs in this query
+	// and all enclosing queries so generated names never shadow correlated refs.
 	used := make(map[string]bool, len(query.RangeTable))
+	for p := d.parentCtx; p != nil; p = p.parentCtx {
+		if p.query == nil {
+			continue
+		}
+		for _, outer := range p.query.RangeTable {
+			if outer.Kind == RTEJoin && outer.Alias == "" {
+				continue
+			}
+			if name := p.rteRefName(p.query, outer); name != "" {
+				used[name] = true
+			}
+		}
+	}
 	for _, other := range query.RangeTable {
 		if other.Kind == RTESubquery && other.Alias == "" {
 			continue
@@ -2966,7 +2984,11 @@ func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
 				d.buf.WriteByte(' ')
 			}
 			d.buf.WriteString("RETURNING ")
-			d.buf.WriteString(d.catalog.formatType(j.ResultType, -1))
+			typMod := j.ResultTypeMod
+			if typMod == 0 && !j.HasReturning {
+				typMod = -1
+			}
+			d.buf.WriteString(d.catalog.formatType(j.ResultType, typMod))
 		}
 	}
 	writeAggSuffix := func() {

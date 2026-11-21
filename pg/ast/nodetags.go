@@ -60,6 +60,7 @@ const (
 	T_CoalesceExpr
 	T_MinMaxExpr
 	T_SQLValueFunction
+	T_MergeSupportFunc
 	T_XmlExpr
 	T_JsonFormat
 	T_JsonReturning
