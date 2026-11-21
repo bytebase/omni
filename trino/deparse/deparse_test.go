@@ -1358,4 +1358,22 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, specialForms, `SELECT coalesce(1, 0), if(true, 1, 2), nullif(1, 2), try(1), "cat".s.coalesce(1, 0);`)
+
+	// Table DEFAULT expressions qualify catalog UDF calls consistently.
+	defaultUDF, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "next_id",
+				Definition: "CREATE FUNCTION s.next_id() RETURNS bigint RETURN 42",
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t_def_udf",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint", Default: "next_id()"}},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, defaultUDF, `"id" bigint DEFAULT "cat"."s".next_id() NOT NULL`)
 }

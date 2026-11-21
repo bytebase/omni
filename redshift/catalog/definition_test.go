@@ -1987,6 +1987,40 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "duplicate constraint name")
+
+	// Duplicate procedure signatures, identity+default conflicts, and duplicate
+	// view columns fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{
+				{Name: "p_dup", Definition: "CREATE PROCEDURE s.p_dup(x int) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql"},
+				{Name: "p_dup", Definition: "CREATE PROCEDURE s.p_dup(y int4) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate procedure")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_ident_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:       "id",
+			Type:       "integer",
+			IsIdentity: true,
+			Default:    "1",
+		}},
+	})
+	require.ErrorContains(t, err, "default value")
+
+	_, err = GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v_dup_col",
+		Definition: "SELECT 1 AS a, 2 AS b",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "c", Type: "integer", Comment: "first"},
+			{Name: "c", Type: "integer", Comment: "second"},
+		},
+	})
+	require.ErrorContains(t, err, "duplicate column")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

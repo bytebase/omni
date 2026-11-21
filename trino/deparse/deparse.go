@@ -313,6 +313,10 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncC
 		return definition
 	}
 	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, cat)
+	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, cat)
+}
+
+func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables []*ast.QualifiedName, dbName, schemaName string, cat *trinoFuncCatalog) string {
 	type prefixEdit struct {
 		offset int
 		prefix string
@@ -320,7 +324,7 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncC
 	var edits []prefixEdit
 	seen := make(map[int]struct{})
 	addEdit := func(qnLoc ast.Loc, prefix string) {
-		if prefix == "" || qnLoc.Start < 0 || qnLoc.End <= qnLoc.Start || qnLoc.End > len(definition) {
+		if prefix == "" || qnLoc.Start < 0 || qnLoc.End <= qnLoc.Start || qnLoc.End > len(sql) {
 			return
 		}
 		if _, dup := seen[qnLoc.Start]; !dup {
@@ -345,10 +349,10 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncC
 		addEdit(ast.Loc{Start: call.nameStart, End: call.nameEnd}, prefix)
 	}
 	if len(edits) == 0 {
-		return definition
+		return sql
 	}
 	slices.SortFunc(edits, func(a, b prefixEdit) int { return b.offset - a.offset })
-	out := definition
+	out := sql
 	for _, ed := range edits {
 		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
 	}
@@ -482,6 +486,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 		}
 		buf.WriteString("\n\n")
 	}
+	funcCat := buildTrinoFuncCatalog(metadata)
 	for _, schema := range metadata.Schemas {
 		if schema == nil {
 			continue
@@ -490,7 +495,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			if table == nil {
 				continue
 			}
-			writeCreateTable(&buf, schema.Name, table)
+			writeCreateTableWithCatalog(&buf, metadata.Name, schema.Name, table, funcCat)
 			buf.WriteString("\n\n")
 		}
 	}
@@ -530,14 +535,19 @@ func writeCreateSchema(buf *strings.Builder, schemaName string) {
 	fmt.Fprintf(buf, "CREATE SCHEMA IF NOT EXISTS %s;", quoteIdentifier(schemaName))
 }
 
-func formatTrinoDefault(raw string) string {
+func qualifyTrinoDefault(dbName, schemaName, raw string, cat *trinoFuncCatalog) string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return ""
 	}
 	expr, errs := trinoparser.ParseExpression(trimmed)
 	if len(errs) == 0 && expr != nil && isTrinoDefaultAST(expr) {
-		return trimmed
+		if cat == nil {
+			return trimmed
+		}
+		w := &trinoASTWalker{callerSchema: schemaName, cat: cat}
+		w.walkExpr(expr, nil, nil)
+		return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, cat)
 	}
 	return fmt.Sprintf("'%s'", escapeStringLiteral(raw))
 }
@@ -2495,6 +2505,10 @@ func isIdentContChar(c byte) bool {
 // by schemaName) to buf. It does not append the inter-statement blank line; the
 // caller does.
 func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetadata) {
+	writeCreateTableWithCatalog(buf, "", schemaName, table, nil)
+}
+
+func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string, table *TableMetadata, funcCat *trinoFuncCatalog) {
 	fmt.Fprintf(buf, "CREATE TABLE IF NOT EXISTS %s.%s (\n", quoteIdentifier(schemaName), quoteIdentifier(table.Name))
 
 	columnDefs := make([]string, 0, len(table.Columns))
@@ -2504,7 +2518,7 @@ func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetad
 		}
 		colDef := fmt.Sprintf("    %s %s", quoteIdentifier(column.Name), column.Type)
 		if column.Default != "" {
-			colDef += " DEFAULT " + formatTrinoDefault(column.Default)
+			colDef += " DEFAULT " + qualifyTrinoDefault(dbName, schemaName, column.Default, funcCat)
 		}
 		if !column.Nullable {
 			colDef += " NOT NULL"

@@ -1120,6 +1120,13 @@ func writeWithSchemaSearchPath(w io.StringWriter, schemaName, body string) error
 }
 
 func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, caseSensitive bool) error {
+	type validatedProc struct {
+		schema string
+		name   string
+		def    string
+	}
+	var procs []validatedProc
+	seenProcSigs := make(map[string]struct{})
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -1136,15 +1143,24 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, c
 				return fmt.Errorf("procedure %s comment cannot be restored because Redshift does not support COMMENT ON PROCEDURE", qualifyName(schema.Name, proc.Name))
 			}
 			def = appendTerminator(def)
-			if _, _, _, err := validateRoutineIdentity("procedure", schema.Name, proc.Name, proc.Signature, def, true, caseSensitive); err != nil {
+			params, _, parsed, err := validateRoutineIdentity("procedure", schema.Name, proc.Name, proc.Signature, def, true, caseSensitive)
+			if err != nil {
 				return err
 			}
-			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name)); err != nil {
-				return err
+			sigKey := redshiftFunctionIdentityKey(schema.Name, proc.Name, proc.Signature, params, parsed, caseSensitive)
+			if _, exists := seenProcSigs[sigKey]; exists {
+				return fmt.Errorf("duplicate procedure %s in schema %s cannot be restored", proc.Name, quoteDefinitionIdentifier(schema.Name))
 			}
-			if err := writeWithSchemaSearchPath(w, schema.Name, def+"\n"); err != nil {
-				return err
-			}
+			seenProcSigs[sigKey] = struct{}{}
+			procs = append(procs, validatedProc{schema: schema.Name, name: proc.Name, def: def})
+		}
+	}
+	for _, proc := range procs {
+		if _, err := w.WriteString(getProcedureAnnouncement(proc.name)); err != nil {
+			return err
+		}
+		if err := writeWithSchemaSearchPath(w, proc.schema, proc.def+"\n"); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -2152,6 +2168,9 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 
 // writeView writes one view and the comments that belong to it and its columns.
 func writeView(w io.StringWriter, view *viewState) error {
+	if view.duplicateColumn != "" {
+		return fmt.Errorf("view %s has duplicate column %s", view.qualifiedName(), quoteDefinitionIdentifier(view.duplicateColumn))
+	}
 	if view.unsupportedReason != "" {
 		return fmt.Errorf("view %s %s", view.qualifiedName(), view.unsupportedReason)
 	}
@@ -2778,6 +2797,9 @@ func (c *columnState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
+	if c.isIdentity && c.defaultValue != nil {
+		return fmt.Errorf("column %s identity cannot also specify a default value", quoteDefinitionIdentifier(c.name))
+	}
 	if !c.isIdentity && c.defaultValue != nil {
 		if _, err := fmt.Fprintf(buf, " DEFAULT %s", c.defaultValue.toString()); err != nil {
 			return err
@@ -3047,6 +3069,7 @@ type viewState struct {
 	name              string
 	definition        string
 	comment           string
+	duplicateColumn   string
 	unsupportedReason string
 	columns           map[string]*columnState
 	caseSensitive     bool
@@ -3062,6 +3085,8 @@ func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView b
 		return fmt.Sprintf("column %s attributes cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
 	case !isView && column.IsIdentity && !isSupportedRedshiftIdentityType(column.Type):
 		return fmt.Sprintf("column %s identity is not supported on non-integer type %q", quoteDefinitionIdentifier(column.Name), column.Type)
+	case !isView && column.IsIdentity && column.Default != "":
+		return fmt.Sprintf("column %s identity cannot also specify a default value %q", quoteDefinitionIdentifier(column.Name), column.Default)
 	case !isView && (column.CollationSchema != "" || column.Collation != ""):
 		if _, ok := supportedRedshiftCollation(column.CollationSchema, column.Collation); !ok {
 			return fmt.Sprintf("column %s collation %s is not supported by Redshift CREATE TABLE", quoteDefinitionIdentifier(column.Name), qualifyName(column.CollationSchema, column.Collation))
@@ -3090,10 +3115,17 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 		unsupportedReason = "rules cannot be restored because Redshift does not support rules"
 	}
 	cols := make(map[string]*columnState, len(view.Columns))
+	seenCols := make(map[string]struct{}, len(view.Columns))
+	var duplicateColumn string
 	for i, col := range view.Columns {
 		if col == nil {
 			continue
 		}
+		key := identKey(col.Name, caseSensitive)
+		if _, exists := seenCols[key]; exists && duplicateColumn == "" {
+			duplicateColumn = col.Name
+		}
+		seenCols[key] = struct{}{}
 		if msg := unsupportedRedshiftColumnReason(col, true); msg != "" && unsupportedReason == "" {
 			unsupportedReason = msg
 		}
@@ -3105,6 +3137,7 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 		name:              view.Name,
 		definition:        view.Definition,
 		comment:           view.Comment,
+		duplicateColumn:   duplicateColumn,
 		unsupportedReason: unsupportedReason,
 		columns:           cols,
 		caseSensitive:     caseSensitive,
