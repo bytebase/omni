@@ -68,7 +68,10 @@ type SchemaMetadata struct {
 type FunctionMetadata struct {
 	Name       string
 	Definition string
-	Comment    string
+	// Signature carries optional parameter signature metadata when Definition
+	// is absent (e.g. externally managed SkipDump routines).
+	Signature string
+	Comment   string
 	// SkipDump keeps the function available for call qualification without
 	// emitting or dependency-ordering its CREATE FUNCTION statement.
 	SkipDump bool
@@ -94,6 +97,9 @@ type ViewMetadata struct {
 	// Dependencies records explicit view/table references used before falling
 	// back to query-span analysis.
 	Dependencies []ViewDependency
+	// SkipDump keeps the view's column types available for call resolution
+	// without emitting CREATE VIEW.
+	SkipDump bool
 }
 
 // TableMetadata is one table; it renders to a single CREATE TABLE statement.

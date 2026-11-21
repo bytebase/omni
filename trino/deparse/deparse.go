@@ -47,17 +47,22 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			var skippedTables []*TableMetadata
 			for _, t := range s.Tables {
-				if t != nil {
-					if st := convertSkippedTrinoTable(t); st != nil {
-						skippedTables = append(skippedTables, st)
-					}
+				if st := convertSkippedTrinoTable(t); st != nil {
+					skippedTables = append(skippedTables, st)
 				}
 			}
-			if len(skippedFns) > 0 || len(skippedTables) > 0 {
+			var skippedViews []*ViewMetadata
+			for _, v := range s.Views {
+				if sv := convertSkippedTrinoView(v); sv != nil {
+					skippedViews = append(skippedViews, sv)
+				}
+			}
+			if len(skippedFns) > 0 || len(skippedTables) > 0 || len(skippedViews) > 0 {
 				out.Schemas = append(out.Schemas, &SchemaMetadata{
 					Name:      s.Name,
 					Functions: skippedFns,
 					Tables:    skippedTables,
+					Views:     skippedViews,
 					SkipDump:  true,
 				})
 			}
@@ -166,7 +171,13 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			})
 		}
 		for _, v := range s.Views {
-			if v == nil || v.SkipDump {
+			if v == nil {
+				continue
+			}
+			if v.SkipDump {
+				if sv := convertSkippedTrinoView(v); sv != nil {
+					schemaMeta.Views = append(schemaMeta.Views, sv)
+				}
 				continue
 			}
 			if len(v.Triggers) > 0 || len(v.Rules) > 0 {
@@ -401,28 +412,21 @@ func qualifyTrinoFunctionHeaderLexically(dbName, schemaName, fnName, definition 
 }
 
 func convertSkippedTrinoFunction(fn *metadatapb.FunctionMetadata) *FunctionMetadata {
-	def := fn.Definition
-	if strings.TrimSpace(def) == "" && strings.TrimSpace(fn.Signature) != "" {
-		sig := strings.TrimSpace(fn.Signature)
-		if !strings.HasPrefix(sig, "(") {
-			sig = "(" + sig + ")"
-		}
-		def = "CREATE FUNCTION " + quoteIdentifier(fn.Name) + sig + " RETURNS varchar RETURN ''"
-	}
 	return &FunctionMetadata{
 		Name:       fn.Name,
-		Definition: def,
+		Definition: fn.Definition,
+		Signature:  fn.Signature,
 		Comment:    fn.Comment,
 		SkipDump:   true,
 	}
 }
 
-func convertSkippedTrinoTable(t *metadatapb.TableMetadata) *TableMetadata {
-	if t == nil || len(t.Columns) == 0 {
+func convertSkippedTrinoColumns(rawCols []*metadatapb.ColumnMetadata) []*ColumnMetadata {
+	if len(rawCols) == 0 {
 		return nil
 	}
-	cols := make([]*ColumnMetadata, 0, len(t.Columns))
-	for _, c := range t.Columns {
+	cols := make([]*ColumnMetadata, 0, len(rawCols))
+	for _, c := range rawCols {
 		if c == nil || c.Name == "" || strings.TrimSpace(c.Type) == "" {
 			continue
 		}
@@ -435,8 +439,34 @@ func convertSkippedTrinoTable(t *metadatapb.TableMetadata) *TableMetadata {
 	if len(cols) == 0 {
 		return nil
 	}
+	return cols
+}
+
+func convertSkippedTrinoTable(t *metadatapb.TableMetadata) *TableMetadata {
+	if t == nil {
+		return nil
+	}
+	cols := convertSkippedTrinoColumns(t.Columns)
+	if len(cols) == 0 {
+		return nil
+	}
 	return &TableMetadata{
 		Name:     t.Name,
+		Columns:  cols,
+		SkipDump: true,
+	}
+}
+
+func convertSkippedTrinoView(v *metadatapb.ViewMetadata) *ViewMetadata {
+	if v == nil {
+		return nil
+	}
+	cols := convertSkippedTrinoColumns(v.Columns)
+	if len(cols) == 0 {
+		return nil
+	}
+	return &ViewMetadata{
+		Name:     v.Name,
 		Columns:  cols,
 		SkipDump: true,
 	}
@@ -500,13 +530,13 @@ func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
 	}
 }
 
-func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDependency, cat *trinoFuncCatalog) string {
+func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDependency, cat *trinoFuncCatalog) (string, error) {
 	if strings.TrimSpace(definition) == "" {
-		return definition
+		return definition, nil
 	}
 	file, err := trinoparser.Parse(definition)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
-		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps)
+		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps), nil
 	}
 	var query *trinoparser.Query
 	var inlineFns []trinoparser.FunctionSpecification
@@ -518,7 +548,7 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDepe
 		inlineFns = s.Functions
 	}
 	if query == nil {
-		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps)
+		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps), nil
 	}
 	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, deps, cat)
 	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, deps, cat)
@@ -690,7 +720,7 @@ func resolveUnqualifiedRelationSchema(relName, defaultSchema string, deps []View
 	return defaultSchema
 }
 
-func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables []*ast.QualifiedName, dbName, schemaName string, deps []ViewDependency, cat *trinoFuncCatalog) string {
+func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables []*ast.QualifiedName, dbName, schemaName string, deps []ViewDependency, cat *trinoFuncCatalog) (string, error) {
 	type prefixEdit struct {
 		offset int
 		prefix string
@@ -715,6 +745,9 @@ func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables
 		addEdit(qn.Loc, qualifyTrinoObjectPrefix(dbName, targetSchema))
 	}
 	for _, call := range calls {
+		if err := checkTrinoCallAmbiguity(cat, schemaName, call); err != nil {
+			return "", err
+		}
 		if len(cat.resolveCall(schemaName, call)) == 0 || call.catalog != "" {
 			continue
 		}
@@ -727,14 +760,48 @@ func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables
 		addEdit(ast.Loc{Start: call.nameStart, End: call.nameEnd}, prefix)
 	}
 	if len(edits) == 0 {
-		return sql
+		return sql, nil
 	}
 	slices.SortFunc(edits, func(a, b prefixEdit) int { return b.offset - a.offset })
 	out := sql
 	for _, ed := range edits {
 		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
 	}
-	return out
+	return out, nil
+}
+
+func parseTrinoSignatureParams(signature string) ([]trinoFuncParam, bool) {
+	sig := strings.TrimSpace(signature)
+	if sig == "" {
+		return nil, false
+	}
+	if open := strings.IndexByte(sig, '('); open >= 0 {
+		close := strings.LastIndexByte(sig, ')')
+		if close <= open {
+			return nil, false
+		}
+		sig = strings.TrimSpace(sig[open+1 : close])
+	}
+	sigFile, err := trinoparser.Parse("CREATE FUNCTION _sig(" + sig + ") RETURNS int RETURN 1")
+	if err != nil || sigFile == nil || len(sigFile.Stmts) != 1 {
+		return nil, false
+	}
+	sigStmt, ok := sigFile.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	if !ok {
+		return nil, false
+	}
+	params := make([]trinoFuncParam, len(sigStmt.Spec.Declaration.Parameters))
+	for i, p := range sigStmt.Spec.Declaration.Parameters {
+		name := ""
+		if p.Name != nil {
+			name = p.Name.Value
+		}
+		params[i] = trinoFuncParam{
+			name:     name,
+			typeName: normalizeTrinoDataType(p.Type),
+		}
+	}
+	return params, true
 }
 
 func validateTrinoFunctionSignature(schemaName, fnName, signature string, declParams []trinoparser.ParameterDeclaration) error {
@@ -747,22 +814,16 @@ func validateTrinoFunctionSignature(schemaName, fnName, signature string, declPa
 		if close <= open {
 			return fmt.Errorf("function %s.%s metadata signature %q is malformed", schemaName, fnName, signature)
 		}
-		sig = strings.TrimSpace(sig[open+1 : close])
 	}
-	sigFile, err := trinoparser.Parse("CREATE FUNCTION _sig(" + sig + ") RETURNS int RETURN 1")
-	if err != nil || sigFile == nil || len(sigFile.Stmts) != 1 {
-		return nil
-	}
-	sigStmt, ok := sigFile.Stmts[0].(*trinoparser.CreateFunctionStmt)
+	sigParams, ok := parseTrinoSignatureParams(signature)
 	if !ok {
 		return nil
 	}
-	sigParams := sigStmt.Spec.Declaration.Parameters
 	if len(sigParams) != len(declParams) {
 		return fmt.Errorf("function %s.%s definition parameter count (%d) does not match signature %q", schemaName, fnName, len(declParams), signature)
 	}
 	for i := range sigParams {
-		st := normalizeTrinoDataType(sigParams[i].Type)
+		st := sigParams[i].typeName
 		dt := normalizeTrinoDataType(declParams[i].Type)
 		if st != "" && dt != "" && st != dt {
 			return fmt.Errorf("function %s.%s parameter %d type %q does not match signature %q", schemaName, fnName, i+1, dt, signature)
@@ -884,17 +945,19 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			}
 		}
 		for _, view := range schema.Views {
-			if view != nil {
-				if err := checkRelation("view", view.Name); err != nil {
-					return "", err
-				}
+			if view == nil || view.SkipDump {
+				continue
+			}
+			if err := checkRelation("view", view.Name); err != nil {
+				return "", err
 			}
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv != nil {
-				if err := checkRelation("materialized view", mv.Name); err != nil {
-					return "", err
-				}
+			if mv == nil || mv.SkipDump {
+				continue
+			}
+			if err := checkRelation("materialized view", mv.Name); err != nil {
+				return "", err
 			}
 		}
 	}
@@ -938,7 +1001,11 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	}
 	for _, view := range views {
 		viewCopy := *view.view
-		viewCopy.Definition = qualifyTrinoViewBody(metadata.Name, view.schema, view.view.Definition, view.view.Dependencies, funcCat)
+		var err error
+		viewCopy.Definition, err = qualifyTrinoViewBody(metadata.Name, view.schema, view.view.Definition, view.view.Dependencies, funcCat)
+		if err != nil {
+			return "", err
+		}
 		if err := writeCreateView(&buf, view.schema, &viewCopy, view.materialized); err != nil {
 			return "", err
 		}
@@ -985,7 +1052,7 @@ func qualifyTrinoDefault(dbName, schemaName, tableName, colName, raw string, cat
 			if cat == nil {
 				return trimmed, nil
 			}
-			return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat), nil
+			return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat)
 		}
 	}
 	return fmt.Sprintf("'%s'", escapeStringLiteral(raw)), nil
@@ -1294,10 +1361,11 @@ type trinoFuncParam struct {
 }
 
 type parsedTrinoFn struct {
-	params     []trinoFuncParam
-	returnType string
-	bodyStmt   trinoparser.RoutineStatement
-	parsed     bool
+	params        []trinoFuncParam
+	returnType    string
+	bodyStmt      trinoparser.RoutineStatement
+	parsed        bool
+	unknownReturn bool
 }
 
 type trinoFuncCatalog struct {
@@ -1323,6 +1391,24 @@ func parseTrinoColumnTypeString(raw string) string {
 	return normalizeTrinoTypeName(trimmed)
 }
 
+func indexTrinoRelationCols(schemaName, relName string, cols []*ColumnMetadata, tableCols map[string]map[string]string) {
+	if len(cols) == 0 {
+		return
+	}
+	colMap := make(map[string]string, len(cols))
+	for _, col := range cols {
+		if col == nil || col.Name == "" {
+			continue
+		}
+		if dt := parseTrinoColumnTypeString(col.Type); dt != "" {
+			colMap[strings.ToLower(col.Name)] = dt
+		}
+	}
+	if len(colMap) > 0 {
+		tableCols[objectKey(strings.ToLower(schemaName), strings.ToLower(relName))] = colMap
+	}
+}
+
 func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	var fns []orderedFunction
 	tableCols := make(map[string]map[string]string)
@@ -1342,20 +1428,18 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 				})
 			}
 			for _, tbl := range schema.Tables {
-				if tbl == nil || len(tbl.Columns) == 0 {
-					continue
+				if tbl != nil {
+					indexTrinoRelationCols(schema.Name, tbl.Name, tbl.Columns, tableCols)
 				}
-				cols := make(map[string]string, len(tbl.Columns))
-				for _, col := range tbl.Columns {
-					if col == nil || col.Name == "" {
-						continue
-					}
-					if dt := parseTrinoColumnTypeString(col.Type); dt != "" {
-						cols[strings.ToLower(col.Name)] = dt
-					}
+			}
+			for _, v := range schema.Views {
+				if v != nil {
+					indexTrinoRelationCols(schema.Name, v.Name, v.Columns, tableCols)
 				}
-				if len(cols) > 0 {
-					tableCols[objectKey(strings.ToLower(schema.Name), strings.ToLower(tbl.Name))] = cols
+			}
+			for _, mv := range schema.MaterializedViews {
+				if mv != nil {
+					indexTrinoRelationCols(schema.Name, mv.Name, mv.Columns, tableCols)
 				}
 			}
 		}
@@ -1388,6 +1472,14 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 				bodyStmt:   bodyStmt,
 				parsed:     true,
 			}
+		} else if params, ok := parseTrinoSignatureParams(f.fn.Signature); ok {
+			parsed[i] = parsedTrinoFn{
+				params:        params,
+				parsed:        true,
+				unknownReturn: f.skipped,
+			}
+		} else if f.skipped {
+			parsed[i] = parsedTrinoFn{unknownReturn: true}
 		}
 	}
 	dbName := ""
@@ -1518,6 +1610,9 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 		var edits []prefixEdit
 		seenEdit := make(map[int]struct{})
 		for _, call := range calls {
+			if err := checkTrinoCallAmbiguity(cat, f.schema, call); err != nil {
+				return nil, err
+			}
 			matches := cat.resolveCall(f.schema, call)
 			if len(matches) == 0 {
 				continue
@@ -1582,14 +1677,15 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 }
 
 type functionCallRef struct {
-	catalog   string
-	schema    string
-	name      string
-	nameStart int
-	nameEnd   int
-	argNames  []string
-	argTypes  []string
-	argCount  int
+	catalog       string
+	schema        string
+	name          string
+	nameStart     int
+	nameEnd       int
+	argNames      []string
+	argTypes      []string
+	argUnknownRet []bool
+	argCount      int
 }
 
 func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef) []int {
@@ -1662,7 +1758,31 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 	return best
 }
 
-func isTrinoSpecialFormCall(name string, call functionCallRef) bool {
+func checkTrinoCallAmbiguity(cat *trinoFuncCatalog, callerSchema string, call functionCallRef) error {
+	if cat == nil || call.catalog != "" || call.schema != "" || len(call.argUnknownRet) == 0 {
+		return nil
+	}
+	hasUnknownFnArg := false
+	for i, unknownRet := range call.argUnknownRet {
+		if unknownRet && i < len(call.argTypes) && call.argTypes[i] == "" {
+			hasUnknownFnArg = true
+			break
+		}
+	}
+	if !hasUnknownFnArg {
+		return nil
+	}
+	if len(cat.resolveCall(callerSchema, call)) > 0 && hasMatchingTrinoBuiltinWithOptions(call, true) {
+		return fmt.Errorf("cannot resolve call %s in schema %s unambiguously between built-in and catalog function because an argument type is unknown", call.name, callerSchema)
+	}
+	return nil
+}
+
+func trinoBuiltinArgMatches(argType, paramType string, allowUnknown bool) bool {
+	return (allowUnknown && argType == "") || trinoBuiltinTypeMatch(argType, paramType)
+}
+
+func isTrinoSpecialFormCall(name string, call functionCallRef, allowUnknown bool) bool {
 	firstArg := ""
 	if len(call.argTypes) > 0 {
 		firstArg = call.argTypes[0]
@@ -1671,9 +1791,9 @@ func isTrinoSpecialFormCall(name string, call functionCallRef) bool {
 	case "coalesce", "grouping":
 		return call.argCount >= 1
 	case "format":
-		return call.argCount >= 2 && trinoBuiltinTypeMatch(firstArg, "varchar")
+		return call.argCount >= 2 && trinoBuiltinArgMatches(firstArg, "varchar", allowUnknown)
 	case "if":
-		return (call.argCount == 2 || call.argCount == 3) && trinoBuiltinTypeMatch(firstArg, "boolean")
+		return (call.argCount == 2 || call.argCount == 3) && trinoBuiltinArgMatches(firstArg, "boolean", allowUnknown)
 	case "nullif":
 		return call.argCount == 2
 	case "try":
@@ -1684,13 +1804,17 @@ func isTrinoSpecialFormCall(name string, call functionCallRef) bool {
 }
 
 func hasMatchingTrinoBuiltin(call functionCallRef) bool {
+	return hasMatchingTrinoBuiltinWithOptions(call, false)
+}
+
+func hasMatchingTrinoBuiltinWithOptions(call functionCallRef, allowUnknown bool) bool {
 	for _, n := range call.argNames {
 		if n != "" {
 			return false
 		}
 	}
 	name := strings.ToLower(call.name)
-	if isTrinoSpecialFormCall(name, call) {
+	if isTrinoSpecialFormCall(name, call, allowUnknown) {
 		return true
 	}
 	sigs, ok := trinoBuiltinFunctions[name]
@@ -1700,6 +1824,9 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 	// SHOW FUNCTIONS lists variadic concat/greatest/least with a single element parameter.
 	switch name {
 	case "greatest", "least":
+		if allowUnknown && slices.Contains(call.argTypes, "") && call.argCount >= 1 {
+			return true
+		}
 		if isCompatibleTrinoOrderableCall(call.argTypes, call.argCount) {
 			return true
 		}
@@ -1711,7 +1838,7 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 				if i < len(call.argTypes) {
 					argType = call.argTypes[i]
 				}
-				if !trinoBuiltinTypeMatch(argType, "map(*,*)") {
+				if !trinoBuiltinArgMatches(argType, "map(*,*)", allowUnknown) {
 					allMaps = false
 					break
 				}
@@ -1726,14 +1853,14 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 			if len(call.argTypes) > 0 {
 				sepType = call.argTypes[0]
 			}
-			if trinoBuiltinTypeMatch(sepType, "varchar") {
+			if trinoBuiltinArgMatches(sepType, "varchar", allowUnknown) {
 				allVarchar := true
 				for i := 1; i < call.argCount; i++ {
 					argType := ""
 					if i < len(call.argTypes) {
 						argType = call.argTypes[i]
 					}
-					if !trinoBuiltinTypeMatch(argType, "varchar") {
+					if !trinoBuiltinArgMatches(argType, "varchar", allowUnknown) {
 						allVarchar = false
 						break
 					}
@@ -1752,7 +1879,7 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 					if i < len(call.argTypes) {
 						argType = call.argTypes[i]
 					}
-					if !trinoBuiltinTypeMatch(argType, elemType) {
+					if !trinoBuiltinArgMatches(argType, elemType, allowUnknown) {
 						allMatch = false
 						break
 					}
@@ -1773,7 +1900,7 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 			if i < len(call.argTypes) {
 				argType = call.argTypes[i]
 			}
-			if !trinoBuiltinTypeMatch(argType, paramType) {
+			if !trinoBuiltinArgMatches(argType, paramType, allowUnknown) {
 				matched = false
 				break
 			}
@@ -2202,6 +2329,7 @@ type trinoASTWalker struct {
 	fromSeen             map[string]struct{}
 	hasQuery             bool
 	hasUnboundColOrParam bool
+	usedUnknownSkippedFn bool
 }
 
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
@@ -2987,8 +3115,11 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		}
 	case *trinoparser.FuncCall:
 		argTypes := make([]string, len(e.Args))
+		var argUnknownRet []bool
 		var argNames []string
 		for j, a := range e.Args {
+			prevUnknown := w.usedUnknownSkippedFn
+			w.usedUnknownSkippedFn = false
 			if na, ok := a.(*trinoparser.NamedArgument); ok && na != nil {
 				argTypes[j] = w.walkExpr(na.Value, curEnv, ctes)
 				if na.Name != nil && na.Name.Value != "" {
@@ -3000,6 +3131,13 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 			} else {
 				argTypes[j] = w.walkExpr(a, curEnv, ctes)
 			}
+			if argTypes[j] == "" && w.usedUnknownSkippedFn {
+				if argUnknownRet == nil {
+					argUnknownRet = make([]bool, len(e.Args))
+				}
+				argUnknownRet[j] = true
+			}
+			w.usedUnknownSkippedFn = prevUnknown
 		}
 		for _, ob := range e.OrderBy {
 			w.walkExpr(ob.Expr, curEnv, ctes)
@@ -3026,20 +3164,26 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		}
 		if name != "" {
 			ref := functionCallRef{
-				catalog:   catalog,
-				schema:    schema,
-				name:      name,
-				nameStart: nameStart,
-				nameEnd:   nameEnd,
-				argNames:  argNames,
-				argTypes:  argTypes,
-				argCount:  len(argTypes),
+				catalog:       catalog,
+				schema:        schema,
+				name:          name,
+				nameStart:     nameStart,
+				nameEnd:       nameEnd,
+				argNames:      argNames,
+				argTypes:      argTypes,
+				argUnknownRet: argUnknownRet,
+				argCount:      len(argTypes),
 			}
 			if retType, isInline := w.resolveInlineFunc(ref); isInline {
 				return retType
 			}
 			w.calls = append(w.calls, ref)
 			if matches := w.cat.resolveCall(w.callerSchema, ref); len(matches) > 0 {
+				for _, m := range matches {
+					if w.cat.parsed[m].unknownReturn {
+						w.usedUnknownSkippedFn = true
+					}
+				}
 				ret := w.cat.parsed[matches[0]].returnType
 				same := ret != ""
 				for _, m := range matches[1:] {
@@ -3539,13 +3683,13 @@ func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 			continue
 		}
 		for _, view := range schema.Views {
-			if view == nil {
+			if view == nil || view.SkipDump {
 				continue
 			}
 			views = append(views, orderedView{schema: schema.Name, view: view})
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv == nil {
+			if mv == nil || mv.SkipDump {
 				continue
 			}
 			views = append(views, orderedView{schema: schema.Name, view: mv, materialized: true})

@@ -2212,6 +2212,18 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	idxCaller := strings.Index(derivedDepOut, "CREATE FUNCTION app.caller")
 	require.Greater(t, idxAbs, -1)
 	require.Greater(t, idxCaller, idxAbs)
+
+	seedOnlyOut, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_seed_only",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:         "id",
+			Type:         "integer",
+			IsIdentity:   true,
+			IdentitySeed: 10,
+		}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, seedOnlyOut, "IDENTITY(10, 1)")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

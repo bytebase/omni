@@ -1814,4 +1814,81 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "default cannot be restored")
+
+	// View columns (including skipped views) supply types for downstream call resolution,
+	// and definition-less skipped functions do not fabricate a return type that silently
+	// mis-binds ambiguous downstream overload resolution.
+	viewOnView, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Views: []*metadatapb.ViewMetadata{
+				{
+					Name:       "src_v",
+					Definition: "SELECT 1 AS n",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
+				},
+				{
+					Name:       "skip_v",
+					Definition: "SELECT 2 AS m",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "m", Type: "bigint"}},
+					SkipDump:   true,
+				},
+				{
+					Name:       "dst_v",
+					Definition: "SELECT abs(n), abs(m) FROM src_v, skip_v",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, viewOnView, `SELECT abs(n), abs(m) FROM "cat"."s".src_v, "cat"."s".skip_v;`)
+	assert.NotContains(t, viewOnView, `CREATE OR REPLACE VIEW "s"."skip_v"`)
+
+	// Unambiguous call to definition-less skipped function succeeds and qualifies;
+	// ambiguous call abs(ext_fn()) against built-in abs vs s.abs(varchar) fails explicitly.
+	extOnly, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:      "ext_fn",
+				Signature: "()",
+				SkipDump:  true,
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_ext",
+				Definition: "SELECT ext_fn()",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, extOnly, `SELECT "cat"."s".ext_fn();`)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "abs",
+					Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+				},
+				{
+					Name:      "ext_fn",
+					Signature: "()",
+					SkipDump:  true,
+				},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_ambig",
+				Definition: "SELECT abs(ext_fn())",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "unambiguously")
 }
