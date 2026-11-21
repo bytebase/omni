@@ -177,10 +177,10 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	funcCat := buildTrinoFuncCatalog(out)
 	for _, schemaMeta := range out.Schemas {
 		for _, v := range schemaMeta.Views {
-			v.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, v.Definition, funcCat)
+			v.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, v.Definition, v.Dependencies, funcCat)
 		}
 		for _, mv := range schemaMeta.MaterializedViews {
-			mv.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, mv.Definition, funcCat)
+			mv.Definition = qualifyTrinoViewBody(metadata.Name, schemaMeta.Name, mv.Definition, mv.Dependencies, funcCat)
 		}
 	}
 	return out, nil
@@ -291,7 +291,7 @@ func qualifyTrinoObjectPrefix(dbName, schemaName string) string {
 	}
 }
 
-func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncCatalog) string {
+func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDependency, cat *trinoFuncCatalog) string {
 	if strings.TrimSpace(definition) == "" {
 		return definition
 	}
@@ -312,10 +312,35 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, cat *trinoFuncC
 		return definition
 	}
 	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, cat)
-	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, cat)
+	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, deps, cat)
 }
 
-func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables []*ast.QualifiedName, dbName, schemaName string, cat *trinoFuncCatalog) string {
+func resolveUnqualifiedRelationSchema(relName, defaultSchema string, deps []ViewDependency) string {
+	if len(deps) == 0 {
+		return defaultSchema
+	}
+	var matched string
+	for _, dep := range deps {
+		if dep.Schema == "" || !strings.EqualFold(dep.Table, relName) {
+			continue
+		}
+		if matched == "" {
+			matched = dep.Schema
+		} else if !strings.EqualFold(matched, dep.Schema) {
+			// Ambiguous across schemas: keep the caller's own schema if it matches.
+			if strings.EqualFold(dep.Schema, defaultSchema) || strings.EqualFold(matched, defaultSchema) {
+				return defaultSchema
+			}
+			return ""
+		}
+	}
+	if matched != "" {
+		return matched
+	}
+	return defaultSchema
+}
+
+func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables []*ast.QualifiedName, dbName, schemaName string, deps []ViewDependency, cat *trinoFuncCatalog) string {
 	type prefixEdit struct {
 		offset int
 		prefix string
@@ -333,7 +358,11 @@ func applyTrinoCallPrefixEdits(sql string, calls []functionCallRef, unqualTables
 	}
 	relPrefix := qualifyTrinoObjectPrefix(dbName, schemaName)
 	for _, qn := range unqualTables {
-		addEdit(qn.Loc, relPrefix)
+		targetSchema := schemaName
+		if len(qn.Parts) == 1 {
+			targetSchema = resolveUnqualifiedRelationSchema(qn.Parts[0].Value, schemaName, deps)
+		}
+		addEdit(qn.Loc, qualifyTrinoObjectPrefix(dbName, targetSchema))
 	}
 	for _, call := range calls {
 		if len(cat.resolveCall(schemaName, call)) == 0 || call.catalog != "" {
@@ -555,7 +584,7 @@ func qualifyTrinoDefault(dbName, schemaName, raw string, cat *trinoFuncCatalog) 
 		}
 		w := &trinoASTWalker{callerSchema: schemaName, cat: cat}
 		w.walkExpr(expr, nil, nil)
-		return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, cat)
+		return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat)
 	}
 	return fmt.Sprintf("'%s'", escapeStringLiteral(raw))
 }

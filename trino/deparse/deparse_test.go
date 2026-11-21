@@ -1403,4 +1403,32 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "duplicate column")
+
+	// Unqualified view relations resolve from DependencyColumns when their actual
+	// schema differs from the view's own schema.
+	crossSchemaDep, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:    "t",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+				}},
+			},
+			{
+				Name: "app",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:       "v",
+					Definition: "SELECT id FROM t",
+					DependencyColumns: []*metadatapb.DependencyColumn{{
+						Schema: "public",
+						Table:  "t",
+					}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, crossSchemaDep, `SELECT id FROM "cat"."public".t;`)
 }
