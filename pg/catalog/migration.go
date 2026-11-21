@@ -252,6 +252,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops, extraViewTables, directViews = wrapModifiedCollationDependents(from, to, diff, ops)
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops, extraViewTables, directViews)
 	ops = reconcileRulesWithDroppedRelations(from, to, ops)
+	ops = reconcileCanonicalRangeDrops(from, ops)
 	ops = deferDropsOfTypesInUse(from, to, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.
@@ -727,11 +728,9 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 
 	// Build adjacency from catalog deps.
 	typeDependsOnFunc := make(map[[2]uint32]bool)
-	if !reverse {
-		for _, d := range c.deps {
-			if d.ObjType == 't' && d.RefType == 'f' && d.DepType != DepInternal {
-				typeDependsOnFunc[[2]uint32{d.ObjOID, d.RefOID}] = true
-			}
+	for _, d := range c.deps {
+		if d.ObjType == 't' && d.RefType == 'f' && d.DepType != DepInternal {
+			typeDependsOnFunc[[2]uint32{d.ObjOID, d.RefOID}] = true
 		}
 	}
 	adj := make([][]int, n)
@@ -742,9 +741,9 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 		if d.DepType == DepInternal {
 			continue
 		}
-		// Skip the function -> full-type edge of a shell-type/canonical-function pair:
-		// the shell op runs at PriorityType before functions, while the full type waits for the function.
-		if !reverse && d.ObjType == 'f' && d.RefType == 't' && typeDependsOnFunc[[2]uint32{d.RefOID, d.ObjOID}] {
+		// Skip the function -> type edge of a canonical range/function cycle:
+		// forward runs shell -> function -> full range; reverse drops range CASCADE before function.
+		if d.ObjType == 'f' && d.RefType == 't' && typeDependsOnFunc[[2]uint32{d.RefOID, d.ObjOID}] {
 			continue
 		}
 
@@ -971,6 +970,33 @@ func deferDropsOfTypesInUse(from, to *Catalog, ops []MigrationOp) []MigrationOp 
 	}
 	for i := range late {
 		ops[i].Phase = PhaseLateDrop
+	}
+	return ops
+}
+
+// reconcileCanonicalRangeDrops marks canonical function drops as IF EXISTS
+// when their range type is dropped with CASCADE in the same PhasePre.
+func reconcileCanonicalRangeDrops(from *Catalog, ops []MigrationOp) []MigrationOp {
+	if from == nil {
+		return ops
+	}
+	cascadedFuncs := make(map[uint32]bool)
+	for _, op := range ops {
+		if op.Phase == PhasePre && op.Type == OpDropType && op.ObjOID != 0 {
+			if rt := from.rangeTypes[op.ObjOID]; rt != nil && rt.CanonicalOID != 0 {
+				cascadedFuncs[rt.CanonicalOID] = true
+			}
+		}
+	}
+	if len(cascadedFuncs) == 0 {
+		return ops
+	}
+	for i := range ops {
+		if ops[i].Phase == PhasePre && ops[i].Type == OpDropFunction && cascadedFuncs[ops[i].ObjOID] {
+			if rest, ok := strings.CutPrefix(ops[i].SQL, "DROP FUNCTION "); ok && !strings.HasPrefix(rest, "IF EXISTS ") {
+				ops[i].SQL = "DROP FUNCTION IF EXISTS " + rest
+			}
+		}
 	}
 	return ops
 }
@@ -1962,7 +1988,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			Type:          OpDropType,
 			SchemaName:    sc.Name,
 			ObjectName:    rt.Name,
-			SQL:           fmt.Sprintf("DROP TYPE %s", qn),
+			SQL:           formatDropRangeTypeSQL(qn, rt),
 			Transactional: true,
 			Phase:         PhasePre,
 			ObjType:       't',
@@ -1971,17 +1997,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		})
 		if toOID := resolveTypeOIDByName(to, sc.Name, rt.Name); toOID != 0 {
 			if toRT := to.rangeTypes[toOID]; toRT != nil {
-				mainExtra = append(mainExtra, MigrationOp{
-					Type:          OpCreateType,
-					SchemaName:    sc.Name,
-					ObjectName:    rt.Name,
-					SQL:           formatCreateRange(to, sc.Name, rt.Name, toRT),
-					Transactional: true,
-					Phase:         PhaseMain,
-					ObjType:       't',
-					ObjOID:        toOID,
-					Priority:      PriorityType,
-				})
+				mainExtra = append(mainExtra, buildCreateRangeOps(to, sc.Name, rt.Name, toRT)...)
 				appendCommentRestoreOp('t', toOID, 0, key)
 			}
 		}

@@ -168,6 +168,8 @@ type Catalog struct {
 
 	// Dependencies.
 	deps []DepEntry
+	// droppingObjects guards recursive CASCADE drops against cyclic dependencies.
+	droppingObjects map[depKey]bool
 
 	// Session and current user names.
 	// pg: src/backend/utils/init/miscinit.c — SessionUserId, CurrentUserId

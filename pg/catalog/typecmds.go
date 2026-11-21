@@ -970,11 +970,9 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		if mrName == "" {
 			return errInvalidParameterValue("multirange_type_name cannot be empty")
 		}
-		if mrSchema != "" {
-			mrSchemaObj, err = c.resolveTargetSchema(mrSchema)
-			if err != nil {
-				return err
-			}
+		mrSchemaObj, err = c.resolveTargetSchema(mrSchema)
+		if err != nil {
+			return err
 		}
 		multirangeName = mrName
 		explicitMultirangeName = mrName
@@ -1143,13 +1141,34 @@ func (c *Catalog) RangeInfo(typeOID uint32) *RangeType {
 	return c.rangeTypes[typeOID]
 }
 
-// makeMultirangeTypeName mirrors PostgreSQL's makeMultirangeTypeName: replaces
-// the first occurrence of "range" with "multirange", or appends "_multirange".
-func makeMultirangeTypeName(rangeTypeName string) string {
-	if idx := strings.Index(rangeTypeName, "range"); idx >= 0 {
-		return rangeTypeName[:idx] + "multirange" + rangeTypeName[idx+len("range"):]
+const maxPGIdentifierBytes = 63
+
+func clipUTF8Bytes(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
 	}
-	return rangeTypeName + "_multirange"
+	if len(s) <= maxBytes {
+		return s
+	}
+	n := 0
+	for i := range s {
+		if i > maxBytes {
+			break
+		}
+		n = i
+	}
+	return s[:n]
+}
+
+// makeMultirangeTypeName mirrors PostgreSQL's makeMultirangeTypeName: replaces
+// the first occurrence of "range" with "multirange" or appends "_multirange",
+// clipping within PG's 63-byte identifier limit on a UTF-8 boundary.
+func makeMultirangeTypeName(rangeTypeName string) string {
+	const suffix = "_multirange"
+	if idx := strings.Index(rangeTypeName, "range"); idx >= 0 {
+		return clipUTF8Bytes(rangeTypeName[:idx]+"multirange"+rangeTypeName[idx+len("range"):], maxPGIdentifierBytes)
+	}
+	return clipUTF8Bytes(rangeTypeName, maxPGIdentifierBytes-len(suffix)) + suffix
 }
 
 func (c *Catalog) resolveDefaultBtreeOpClass(subtypeOID uint32) (uint32, bool) {

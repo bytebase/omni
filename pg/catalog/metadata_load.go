@@ -143,6 +143,7 @@ const (
 	metadataMatView
 	metadataIndex
 	metadataConstraint
+	metadataTrigger
 )
 
 // metadataObject is one install step. Every kind but a schema sets the metadata
@@ -168,6 +169,7 @@ type metadataObject struct {
 	fk         *metadata.ForeignKeyMetadata
 	check      *metadata.CheckConstraintMetadata
 	exclude    *metadata.ExcludeConstraintMetadata
+	trigger    *metadata.TriggerMetadata
 
 	// procedure marks a function that is a procedure.
 	procedure bool
@@ -176,6 +178,9 @@ type metadataObject struct {
 	// createStmt is a function's parsed definition, or nil when the snapshot
 	// has none that parses.
 	createStmt *nodes.CreateFunctionStmt
+	// triggerStmt is a trigger's parsed CREATE TRIGGER AST, or nil when bodyErr explains why.
+	triggerStmt    *nodes.CreateTrigStmt
+	triggerBodyErr error
 	// body is a view's parsed query, or nil with bodyErr saying why.
 	body    *nodes.SelectStmt
 	bodyErr error
@@ -213,6 +218,8 @@ func (o *metadataObject) key() string {
 		return "func:" + o.schema + "." + o.name + "|" + metadataFunctionIdentity(o.function)
 	case metadataIndex:
 		return "idx:" + o.schema + "." + o.parent + "." + o.name
+	case metadataTrigger:
+		return "trg:" + o.schema + "." + o.parent + "." + o.name
 	default:
 		return "con:" + o.schema + "." + o.parent + "." + o.name
 	}
@@ -295,7 +302,6 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 					Name:             et.GetName(),
 					Columns:          et.GetColumns(),
 					CheckConstraints: et.GetCheckConstraints(),
-					Triggers:         et.GetTriggers(),
 				},
 			})
 		}
@@ -342,6 +348,25 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		}
 		for _, et := range s.GetExternalTables() {
 			out = appendConstraintObjects(out, schema, et.GetName(), nil, et.GetCheckConstraints(), nil)
+			for _, tr := range et.GetTriggers() {
+				var trigStmt *nodes.CreateTrigStmt
+				var bodyErr error
+				if strings.TrimSpace(tr.GetBody()) == "" {
+					bodyErr = errors.New("trigger has no body")
+				} else {
+					trigStmt, bodyErr = parseStatement[*nodes.CreateTrigStmt](tr.GetBody())
+				}
+				out = append(out, &metadataObject{
+					kind:           metadataTrigger,
+					schema:         schema,
+					name:           tr.GetName(),
+					parent:         et.GetName(),
+					trigger:        tr,
+					triggerStmt:    trigStmt,
+					triggerBodyErr: bodyErr,
+					skipDump:       tr.GetSkipDump(),
+				})
+			}
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			out = appendIndexObjects(out, schema, mv.GetName(), mv.GetIndexes())
@@ -707,6 +732,22 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 			}
 			add(metadataRelationKey(refSchema, o.fk.GetReferencedTable()))
 		}
+	case metadataTrigger:
+		add(metadataRelationKey(o.schema, o.parent))
+		if o.triggerStmt != nil && o.triggerStmt.Funcname != nil {
+			funcSchema, funcName := qualifiedName(o.triggerStmt.Funcname)
+			if funcSchema != "" {
+				for _, key := range functionKeys[funcSchema+"."+funcName] {
+					add(key)
+				}
+			} else {
+				for _, cand := range []string{o.schema, "public"} {
+					for _, key := range functionKeys[cand+"."+funcName] {
+						add(key)
+					}
+				}
+			}
+		}
 	default:
 	}
 	return deps
@@ -908,6 +949,37 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 			return err
 		}
 		return c.AlterTableStmt(stmt)
+	case metadataTrigger:
+		if o.triggerBodyErr != nil {
+			return o.triggerBodyErr
+		}
+		if o.triggerStmt == nil {
+			return errors.New("trigger has no body")
+		}
+		stmt := o.triggerStmt
+		if stmt.Relation == nil {
+			stmt.Relation = &nodes.RangeVar{Schemaname: o.schema, Relname: o.parent}
+		} else if stmt.Relation.Schemaname == "" {
+			stmt.Relation.Schemaname = o.schema
+		}
+		if o.name != "" && stmt.Trigname == "" {
+			stmt.Trigname = o.name
+		}
+		if err := c.CreateTriggerStmt(stmt); err != nil {
+			return err
+		}
+		if o.trigger != nil && o.trigger.GetComment() != "" {
+			if rel := c.GetRelation(o.schema, o.parent); rel != nil {
+				trigName := cmp.Or(stmt.Trigname, o.name)
+				for _, installed := range c.TriggersOf(rel.OID) {
+					if installed.Name == trigName && installed.ParentTriggerOID == 0 {
+						c.comments[commentKey{ObjType: 'g', ObjOID: installed.OID}] = o.trigger.GetComment()
+						break
+					}
+				}
+			}
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
 	}

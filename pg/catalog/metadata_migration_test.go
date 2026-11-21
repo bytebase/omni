@@ -5887,8 +5887,11 @@ func TestRound24Fixes(t *testing.T) {
 	fdwDiff := Diff(fdwFrom, fdwTo)
 	require.NotEmpty(t, fdwDiff.ForeignDataWrappers)
 	require.NotEmpty(t, fdwDiff.ForeignServers)
-	fdwSQL := GenerateMigration(fdwFrom, fdwTo, fdwDiff).SQL()
+	fdwPlan := GenerateMigration(fdwFrom, fdwTo, fdwDiff)
+	fdwSQL := fdwPlan.SQL()
 	require.NotContains(t, fdwSQL, `COMMENT ON FOREIGN TABLE "public"."ft_drop" IS NULL`)
+	require.NotContains(t, fdwSQL, `DROP SERVER "srv_rebuild" CASCADE`)
+	require.NotEmpty(t, fdwPlan.Warnings())
 
 	fdwApplied := fdwFrom.Clone()
 	execRes, err := fdwApplied.Exec(fdwSQL, &ExecOptions{ContinueOnError: true})
@@ -5898,9 +5901,11 @@ func TestRound24Fixes(t *testing.T) {
 	}
 	remFdw := Diff(fdwApplied, fdwTo)
 	require.Empty(t, remFdw.ForeignDataWrappers)
-	require.Empty(t, remFdw.ForeignServers)
 	require.Empty(t, remFdw.ForeignTables)
 	require.Empty(t, remFdw.Functions)
+	// srv_keep and srv_new converged; only unalterable srv_rebuild remains in diff.
+	require.Len(t, remFdw.ForeignServers, 1)
+	require.Equal(t, "srv_rebuild", remFdw.ForeignServers[0].Name)
 
 	// 2. Foreign table server switch preserves dependent views and single retained trigger;
 	// column type change + modified CHECK constraint avoids duplicate drop; NOT VALID is preserved.
@@ -6082,11 +6087,19 @@ func TestRound25Fixes(t *testing.T) {
 	catLoaded := New()
 	_, err = catLoaded.LoadMetadata(context.Background(), extFrom, LoadMetadataOptions{Full: true})
 	require.NoError(t, err)
+	catLoadedExtRel := catLoaded.GetRelation("public", "ext_t")
+	require.NotNil(t, catLoadedExtRel)
+	require.Len(t, catLoaded.TriggersOf(catLoadedExtRel.OID), 1)
+	require.Equal(t, "tr_ext", catLoaded.TriggersOf(catLoadedExtRel.OID)[0].Name)
 	catAfterCheck := catLoaded.Clone()
-	_, err = catAfterCheck.Exec(`ALTER FOREIGN TABLE public.ext_t DROP CONSTRAINT chk_id;`, nil)
+	_, err = catAfterCheck.Exec(`
+		ALTER FOREIGN TABLE public.ext_t DROP CONSTRAINT chk_id;
+		DROP TRIGGER tr_ext ON public.ext_t;
+	`, nil)
 	require.NoError(t, err)
 	appliedExt := ApplyDiffToMetadata(extFrom, catLoaded, catAfterCheck, Diff(catLoaded, catAfterCheck))
 	require.Empty(t, findSchema(appliedExt, "public").ExternalTables[0].CheckConstraints)
+	require.Empty(t, findSchema(appliedExt, "public").ExternalTables[0].Triggers)
 
 	extLoaded, extReport, err := loadMetadataForMigration(context.Background(), extFrom, nil)
 	require.NoError(t, err)
@@ -6515,4 +6528,112 @@ func TestRound29Fixes(t *testing.T) {
 	}
 	require.Empty(t, Diff(xApplied, xAfter).Ranges)
 	require.Empty(t, Diff(xApplied, xAfter).Relations)
+}
+
+func TestRound30Fixes(t *testing.T) {
+	// 1. Canonical range rebuilt via modified collation (no retained column) emits shell CREATE TYPE -> CREATE FUNCTION -> full CREATE TYPE AS RANGE.
+	canonColFrom := New()
+	_, err := canonColFrom.Exec(`
+		CREATE COLLATION public.r_coll (LOCALE = 'en_US.utf8');
+		CREATE TYPE public.canon_coll_r;
+		CREATE FUNCTION public.canon_coll_fn(public.canon_coll_r) RETURNS public.canon_coll_r LANGUAGE C IMMUTABLE AS 'internal', 'canon_coll_fn';
+		CREATE TYPE public.canon_coll_r AS RANGE (SUBTYPE = text, COLLATION = public.r_coll, CANONICAL = public.canon_coll_fn);
+	`, nil)
+	require.NoError(t, err)
+	canonColTo := New()
+	_, err = canonColTo.Exec(`
+		CREATE COLLATION public.r_coll (LOCALE = 'C.utf8');
+		CREATE TYPE public.canon_coll_r;
+		CREATE FUNCTION public.canon_coll_fn(public.canon_coll_r) RETURNS public.canon_coll_r LANGUAGE C IMMUTABLE AS 'internal', 'canon_coll_fn';
+		CREATE TYPE public.canon_coll_r AS RANGE (SUBTYPE = text, COLLATION = public.r_coll, CANONICAL = public.canon_coll_fn);
+	`, nil)
+	require.NoError(t, err)
+	canonColSQL := GenerateMigration(canonColFrom, canonColTo, Diff(canonColFrom, canonColTo)).SQL()
+	require.Contains(t, canonColSQL, `CREATE TYPE "public"."canon_coll_r";`)
+	canonColApplied := canonColFrom.Clone()
+	ccRes, err := canonColApplied.Exec(canonColSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range ccRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(canonColApplied, canonColTo).Ranges)
+	require.Empty(t, Diff(canonColApplied, canonColTo).Functions)
+
+	// 2. Quoted identifiers with dots in multirange schema/name are compared structurally in diffRanges.
+	dotA := New()
+	_, err = dotA.Exec(`
+		CREATE SCHEMA "a.b";
+		CREATE SCHEMA "a";
+		CREATE TYPE "a".r_dot AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = "a.b"."c");
+	`, nil)
+	require.NoError(t, err)
+	dotB := New()
+	_, err = dotB.Exec(`
+		CREATE SCHEMA "a.b";
+		CREATE SCHEMA "a";
+		CREATE TYPE "a".r_dot AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = "a"."b.c");
+	`, nil)
+	require.NoError(t, err)
+	dotDiff := Diff(dotA, dotB)
+	require.Len(t, dotDiff.Ranges, 1)
+	require.Equal(t, DiffModify, dotDiff.Ranges[0].Action)
+
+	// 3. Unqualified MULTIRANGE_TYPE_NAME with qualified range resolves via search_path, not range's schema.
+	spBefore := New()
+	_, err = spBefore.Exec(`CREATE SCHEMA range_ns; CREATE SCHEMA mr_ns; SET search_path = mr_ns, public;`, nil)
+	require.NoError(t, err)
+	spAfter := spBefore.Clone()
+	_, err = spAfter.Exec(`
+		CREATE TYPE range_ns.r_sp AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = mr_unqual);
+	`, nil)
+	require.NoError(t, err)
+	require.Zero(t, resolveTypeOIDByName(spAfter, "range_ns", "mr_unqual"))
+	require.NotZero(t, resolveTypeOIDByName(spAfter, "mr_ns", "mr_unqual"))
+	spSQL := GenerateMigration(spBefore, spAfter, Diff(spBefore, spAfter)).SQL()
+	require.Contains(t, spSQL, `MULTIRANGE_TYPE_NAME = "mr_ns"."mr_unqual"`)
+	spApplied := spBefore.Clone()
+	spRes, err := spApplied.Exec(spSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range spRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(spApplied, spAfter).Ranges)
+
+	// 4. Auto-generated multirange names respect PostgreSQL's 63-byte identifier limit.
+	longNoRange := strings.Repeat("x", 63)
+	mrLong := makeMultirangeTypeName(longNoRange)
+	require.Equal(t, 63, len(mrLong))
+	require.Equal(t, strings.Repeat("x", 52)+"_multirange", mrLong)
+
+	longWithRange := strings.Repeat("y", 58) + "range"
+	mrWithRange := makeMultirangeTypeName(longWithRange)
+	require.Equal(t, 63, len(mrWithRange))
+	require.Equal(t, strings.Repeat("y", 58)+"multi", mrWithRange)
+
+	mbName := strings.Repeat("\u00e9", 26) + "x" // 53 bytes
+	mrMB := makeMultirangeTypeName(mbName)
+	require.LessOrEqual(t, len(mrMB), 63)
+	require.True(t, strings.HasSuffix(mrMB, "_multirange"))
+
+	// 5. Foreign server FDW change refuses DROP SERVER CASCADE and preserves foreign tables.
+	srvFdwFrom := New()
+	_, err = srvFdwFrom.Exec(`
+		CREATE FOREIGN DATA WRAPPER w1;
+		CREATE FOREIGN DATA WRAPPER w2;
+		CREATE SERVER srv_fdw FOREIGN DATA WRAPPER w1;
+		CREATE FOREIGN TABLE public.ft_keep (id integer) SERVER srv_fdw;
+	`, nil)
+	require.NoError(t, err)
+	srvFdwTo := New()
+	_, err = srvFdwTo.Exec(`
+		CREATE FOREIGN DATA WRAPPER w1;
+		CREATE FOREIGN DATA WRAPPER w2;
+		CREATE SERVER srv_fdw FOREIGN DATA WRAPPER w2;
+		CREATE FOREIGN TABLE public.ft_keep (id integer) SERVER srv_fdw;
+	`, nil)
+	require.NoError(t, err)
+	srvPlan := GenerateMigration(srvFdwFrom, srvFdwTo, Diff(srvFdwFrom, srvFdwTo))
+	require.NotEmpty(t, srvPlan.Warnings())
+	require.NotContains(t, srvPlan.SQL(), "DROP SERVER")
+	require.NotContains(t, srvPlan.SQL(), "CREATE FOREIGN TABLE")
 }

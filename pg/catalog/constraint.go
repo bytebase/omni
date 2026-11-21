@@ -1303,6 +1303,27 @@ func (c *Catalog) lookupFKSupportingIndex(relOID uint32, cols []int16) uint32 {
 	return 0
 }
 
+// beginDrop marks an object (and any companion OIDs) as currently dropping for
+// the active CASCADE traversal. Returns ok=false if already in progress.
+func (c *Catalog) beginDrop(objType byte, objOID uint32, extraOIDs ...uint32) (done func(), ok bool) {
+	isRoot := c.droppingObjects == nil
+	if isRoot {
+		c.droppingObjects = make(map[depKey]bool)
+	}
+	k := depKey{objType: objType, objOID: objOID}
+	if c.droppingObjects[k] {
+		return nil, false
+	}
+	c.droppingObjects[k] = true
+	for _, oid := range extraOIDs {
+		c.droppingObjects[depKey{objType: objType, objOID: oid}] = true
+	}
+	if !isRoot {
+		return func() {}, true
+	}
+	return func() { c.droppingObjects = nil }, true
+}
+
 // dropDependents drops all objects that have a DepNormal dependency on the given referent.
 // This is used for CASCADE behavior (e.g., dropping FK constraints from referencing tables).
 // The referent's entries on itself (a generated column reading another column
@@ -1320,6 +1341,23 @@ func (c *Catalog) dropDependents(refType byte, refOID uint32) {
 // dropDependentObject drops one dependent found by dropDependents or
 // relationDependents, with the objects that depend on it in turn.
 func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
+	if objType == 't' {
+		bt := c.typeByOID[objOID]
+		if bt == nil {
+			return
+		}
+		done, ok := c.beginDrop('t', objOID, c.typeFamilyOIDs(bt)...)
+		if !ok {
+			return
+		}
+		defer done()
+	} else {
+		done, ok := c.beginDrop(objType, objOID)
+		if !ok {
+			return
+		}
+		defer done()
+	}
 	switch objType {
 	case 'c':
 		con := c.constraints[objOID]

@@ -140,15 +140,16 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 				continue
 			}
 			if entry.From.FdwName != entry.To.FdwName || !stringPtrEqual(entry.From.Type, entry.To.Type) {
+				// DROP SERVER ... CASCADE would destroy unmodeled user mappings outside the catalog/snapshot.
 				ops = append(ops, MigrationOp{
-					Type:          OpDropTable,
+					Type:          OpAlterTable,
 					ObjectName:    entry.Name,
-					SQL:           fmt.Sprintf("DROP SERVER %s CASCADE", quoteIdentifier(entry.From.Name)),
+					SQL:           fmt.Sprintf("-- foreign server %s FDW or TYPE changed; cannot alter in place without losing dependent user mappings", quoteIdentifier(entry.To.Name)),
+					Warning:       fmt.Sprintf("foreign server %s cannot be ALTERed in place: FDW or TYPE changed and DROP SERVER CASCADE would remove dependent user mappings", quoteIdentifier(entry.To.Name)),
 					Transactional: true,
-					Phase:         PhasePre,
+					Phase:         PhaseMain,
 					Priority:      PriorityTable,
 				})
-				ops = append(ops, buildCreateForeignServerOps(entry.To)...)
 				continue
 			}
 			var clauses []string
@@ -223,18 +224,11 @@ func buildCreateForeignServerOps(srv *ForeignServer) []MigrationOp {
 	return ops
 }
 
-func rebuiltForeignServerNames(diff *SchemaDiff) map[string]bool {
-	rebuilt := make(map[string]bool)
-	if diff == nil {
-		return rebuilt
-	}
-	for _, entry := range diff.ForeignServers {
-		if entry.Action == DiffModify && entry.From != nil && entry.To != nil &&
-			(entry.From.FdwName != entry.To.FdwName || !stringPtrEqual(entry.From.Type, entry.To.Type)) {
-			rebuilt[entry.Name] = true
-		}
-	}
-	return rebuilt
+// rebuiltForeignServerNames returns servers replaced via DROP + CREATE during
+// migration. Foreign server FDW/TYPE changes refuse CASCADE rebuild to preserve
+// unmodeled user mappings, so no server is rebuilt here.
+func rebuiltForeignServerNames(_ *SchemaDiff) map[string]bool {
+	return nil
 }
 
 func formatCatalogIdentRef(ref string) string {
@@ -247,11 +241,8 @@ func formatCatalogIdentRef(ref string) string {
 
 func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
-	rebuiltServers := rebuiltForeignServerNames(diff)
-	diffFTKeys := make(map[string]bool, len(diff.ForeignTables))
 
 	for _, entry := range diff.ForeignTables {
-		diffFTKeys[entry.SchemaName+"\x00"+entry.Name] = true
 		switch entry.Action {
 		case DiffAdd:
 			if entry.To == nil || entry.To.RelKind != 'f' {
@@ -281,21 +272,19 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 				continue
 			}
 			qn := formatRelationTargetName(entry.SchemaName, entry.To)
-			if entry.From.ForeignServer != entry.To.ForeignServer || rebuiltServers[entry.From.ForeignServer] {
-				if !rebuiltServers[entry.From.ForeignServer] {
-					fromQN := formatRelationTargetName(entry.SchemaName, entry.From)
-					ops = append(ops, MigrationOp{
-						Type:          OpDropTable,
-						SchemaName:    entry.SchemaName,
-						ObjectName:    entry.Name,
-						SQL:           fmt.Sprintf("DROP FOREIGN TABLE %s CASCADE", fromQN),
-						Transactional: true,
-						Phase:         PhasePre,
-						ObjType:       'r',
-						ObjOID:        entry.From.OID,
-						Priority:      PriorityColumn,
-					})
-				}
+			if entry.From.ForeignServer != entry.To.ForeignServer {
+				fromQN := formatRelationTargetName(entry.SchemaName, entry.From)
+				ops = append(ops, MigrationOp{
+					Type:          OpDropTable,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("DROP FOREIGN TABLE %s CASCADE", fromQN),
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityColumn,
+				})
 				ops = append(ops, buildCreateForeignTableOps(to, entry.SchemaName, entry.Name, entry.To)...)
 				ops = append(ops, restoreForeignTableDependents(to, diff, entry)...)
 				continue
@@ -453,40 +442,6 @@ func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp 
 			}
 
 			ops = append(ops, triggerOpsForRelation(to, entry.SchemaName, entry.Name, entry.From, entry.Triggers)...)
-		}
-	}
-
-	if from != nil && to != nil && len(rebuiltServers) > 0 {
-		var untouched []RelationDiffEntry
-		for _, s := range to.schemas {
-			if s == nil {
-				continue
-			}
-			for _, toRel := range s.Relations {
-				if toRel == nil || toRel.RelKind != 'f' || diffFTKeys[s.Name+"\x00"+toRel.Name] {
-					continue
-				}
-				fromRel := from.GetRelation(s.Name, toRel.Name)
-				if fromRel != nil && fromRel.RelKind == 'f' && rebuiltServers[fromRel.ForeignServer] {
-					untouched = append(untouched, RelationDiffEntry{
-						Action:     DiffModify,
-						SchemaName: s.Name,
-						Name:       toRel.Name,
-						From:       fromRel,
-						To:         toRel,
-					})
-				}
-			}
-		}
-		sort.Slice(untouched, func(i, j int) bool {
-			if untouched[i].SchemaName != untouched[j].SchemaName {
-				return untouched[i].SchemaName < untouched[j].SchemaName
-			}
-			return untouched[i].Name < untouched[j].Name
-		})
-		for _, entry := range untouched {
-			ops = append(ops, buildCreateForeignTableOps(to, entry.SchemaName, entry.Name, entry.To)...)
-			ops = append(ops, restoreForeignTableDependents(to, diff, entry)...)
 		}
 	}
 

@@ -46,6 +46,14 @@ func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) str
 	return fmt.Sprintf("CREATE TYPE %s AS RANGE (%s)", qualName, strings.Join(params, ", "))
 }
 
+func formatDropRangeTypeSQL(qualName string, rt *RangeType) string {
+	if rt != nil && rt.CanonicalOID != 0 {
+		// Canonical ranges and functions depend on each other; CASCADE breaks the drop cycle.
+		return fmt.Sprintf("DROP TYPE %s CASCADE", qualName)
+	}
+	return fmt.Sprintf("DROP TYPE %s", qualName)
+}
+
 func buildCreateRangeOps(to *Catalog, schemaName, name string, rt *RangeType) []MigrationOp {
 	qualName := migrationQualifiedName(schemaName, name)
 	if rt.Canonical != "" {
@@ -106,7 +114,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpDropType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
+				SQL:           formatDropRangeTypeSQL(qualName, entry.From),
 				Transactional: true,
 				Phase:         PhasePre,
 				ObjType:       't',
@@ -141,7 +149,7 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Type:          OpDropType,
 						SchemaName:    entry.SchemaName,
 						ObjectName:    entry.Name,
-						SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
+						SQL:           formatDropRangeTypeSQL(qualName, entry.From),
 						Transactional: true,
 						Phase:         PhasePre,
 						ObjType:       't',

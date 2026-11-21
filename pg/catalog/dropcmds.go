@@ -343,6 +343,7 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			continue
 		}
 		if cascade {
+			done, _ := c.beginDrop('t', t.bt.OID, c.typeFamilyOIDs(t.bt)...)
 			for _, relOID := range c.typeRelationDependents(t.bt) {
 				if dropRelOIDs[relOID] {
 					continue
@@ -352,6 +353,9 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 				}
 			}
 			c.dropTypeDependents(t.bt)
+			if done != nil {
+				done()
+			}
 		}
 		if t.compRel != nil {
 			if c.relationByOID[t.compRel.OID] != nil {
@@ -580,7 +584,11 @@ func (c *Catalog) removeFunctionObjects(stmt *nodes.DropStmt) error {
 			continue
 		}
 		if cascade && len(c.findNormalDependents('f', t.bp.OID)) > 0 {
+			done, _ := c.beginDrop('f', t.bp.OID)
 			c.dropDependents('f', t.bp.OID)
+			if done != nil {
+				done()
+			}
 		}
 		if c.userProcs[t.bp.OID] != nil {
 			c.removeFunction(t.bp.OID, t.name)
