@@ -1631,4 +1631,19 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "no data type")
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Tables: []*TableMetadata{{
+				Name: "t_dup_col",
+				Columns: []*ColumnMetadata{
+					{Name: "id", Type: "bigint"},
+					{Name: "ID", Type: "varchar"},
+				},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate column")
 }

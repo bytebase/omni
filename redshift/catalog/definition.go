@@ -189,7 +189,16 @@ func hasUpperQuotedIdent(sql string) bool {
 	return false
 }
 
-func depsHasUpperIdentifier(deps []*metadatapb.DependencyColumn) bool {
+func depsHaveUpperIdentifier(deps []*metadatapb.DependencyColumn) bool {
+	for _, dep := range deps {
+		if dep != nil && (hasUpperASCII(dep.Schema) || hasUpperASCII(dep.Table)) {
+			return true
+		}
+	}
+	return false
+}
+
+func depTablesHaveUpperIdentifier(deps []*metadatapb.DependencyTable) bool {
 	for _, dep := range deps {
 		if dep != nil && (hasUpperASCII(dep.Schema) || hasUpperASCII(dep.Table)) {
 			return true
@@ -199,7 +208,7 @@ func depsHasUpperIdentifier(deps []*metadatapb.DependencyColumn) bool {
 }
 
 func viewHasUpperIdentifier(view *metadatapb.ViewMetadata) bool {
-	if hasUpperASCII(view.Name) || hasUpperQuotedIdent(view.Definition) || depsHasUpperIdentifier(view.DependencyColumns) {
+	if hasUpperASCII(view.Name) || hasUpperQuotedIdent(view.Definition) || depsHaveUpperIdentifier(view.DependencyColumns) {
 		return true
 	}
 	for _, col := range view.Columns {
@@ -267,12 +276,12 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 			}
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv != nil && !mv.SkipDump && (hasUpperASCII(mv.Name) || hasUpperQuotedIdent(mv.Definition) || depsHasUpperIdentifier(mv.DependencyColumns)) {
+			if mv != nil && !mv.SkipDump && (hasUpperASCII(mv.Name) || hasUpperQuotedIdent(mv.Definition) || depsHaveUpperIdentifier(mv.DependencyColumns)) {
 				return true
 			}
 		}
 		for _, fn := range schema.Functions {
-			if fn != nil && !fn.SkipDump && (hasUpperASCII(fn.Name) || hasUpperQuotedIdent(fn.Definition)) {
+			if fn != nil && !fn.SkipDump && (hasUpperASCII(fn.Name) || hasUpperQuotedIdent(fn.Definition) || depTablesHaveUpperIdentifier(fn.DependencyTables)) {
 				return true
 			}
 		}
@@ -1049,8 +1058,14 @@ func scanCallTokens(body string, skipHeader bool) []functionCall {
 	}
 	startIdx := 0
 	if skipHeader {
-		// Skip `CREATE [OR REPLACE] FUNCTION name(params)` so the declaration site
-		// itself is not mistaken for a self-recursive call in unparsed DDL.
+		// Unparsed DDL often wraps its SQL body in `AS $$...$$`, which the lexer
+		// returns as a single string-literal token; extract and scan that body directly.
+		if bodyTok, ok := findFunctionASBodyToken(body, toks); ok {
+			if parsedCalls := collectSQLFunctionCalls(bodyTok.Str, "", nil); len(parsedCalls) > 0 {
+				return parsedCalls
+			}
+			return scanCallTokens(bodyTok.Str, false)
+		}
 		depth := 0
 		for k := 0; k < len(toks); k++ {
 			if toks[k].Type == '(' {
@@ -1064,16 +1079,6 @@ func scanCallTokens(body string, skipHeader bool) []functionCall {
 			}
 		}
 		toks = toks[startIdx:]
-		// Unparsed DDL often wraps its SQL body in `AS $$...$$`, which pgparser
-		// lexes as a single SCONST token; extract and scan that body directly.
-		for k := 0; k+1 < len(toks); k++ {
-			if strings.EqualFold(toks[k].Str, "as") && toks[k+1].Type == pgparser.SCONST {
-				if parsedCalls := collectSQLFunctionCalls(toks[k+1].Str, "", nil); len(parsedCalls) > 0 {
-					return parsedCalls
-				}
-				return scanCallTokens(toks[k+1].Str, false)
-			}
-		}
 	}
 	countArgs := func(openIdx int) int {
 		if openIdx+1 < len(toks) && toks[openIdx+1].Type == ')' {
@@ -1635,7 +1640,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 
 	dependencies := make([]map[int]struct{}, len(items))
 	addDep := func(i, dep int) {
-		if dep == i {
+		if dep == i && items[i].kind != objectKindView && items[i].kind != objectKindMaterializedView {
 			return
 		}
 		if dependencies[i] == nil {
@@ -1684,6 +1689,10 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
 			}
+			if len(item.fn.depTables) > 0 {
+				item.fn.def = qualifyRedshiftFunctionDependencies(item.fn.def, item.schema, item.fn.depTables, caseSensitive)
+				items[i].fn.def = item.fn.def
+			}
 			if err := addCallDeps(i, item.schema, collectFunctionCalls(item.fn.def, item.schema, item.fn.params, fnCat)); err != nil {
 				return err
 			}
@@ -1713,7 +1722,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 					}
 					addRelDep(i, item.schema, "", dep.Schema, dep.Table)
 				}
-				for _, ref := range collectViewRelationRefs(item.view.definition) {
+				for _, ref := range collectRelationRefs(item.view.definition) {
 					addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
 				}
 			}
@@ -1868,16 +1877,35 @@ type relationRef struct {
 	loc     int
 }
 
-func collectViewRelationRefs(definition string) []relationRef {
-	if strings.TrimSpace(definition) == "" {
+func collectRelationRefs(sql string) []relationRef {
+	if strings.TrimSpace(sql) == "" {
 		return nil
 	}
-	stmts, err := pgparser.Parse(definition)
-	if err != nil || stmts == nil {
+	stmts, err := pgparser.Parse(sql)
+	if err != nil || stmts == nil || len(stmts.Items) == 0 {
 		return nil
 	}
 	var refs []relationRef
-	nodes.Walk(&scopedRelVisitor{refs: &refs}, stmts)
+	for _, item := range stmts.Items {
+		root := item
+		if raw, ok := root.(*nodes.RawStmt); ok {
+			root = raw.Stmt
+		}
+		var walkRoot nodes.Node
+		switch s := root.(type) {
+		case *nodes.ViewStmt:
+			walkRoot = s.Query
+		case *nodes.CreateTableAsStmt:
+			walkRoot = s.Query
+		case *nodes.CreateFunctionStmt:
+			walkRoot = s.SqlBody
+		default:
+			walkRoot = root
+		}
+		if walkRoot != nil {
+			nodes.Walk(&scopedRelVisitor{refs: &refs}, walkRoot)
+		}
+	}
 	return refs
 }
 
@@ -3118,6 +3146,8 @@ func unsupportedRedshiftColumnReason(column *metadatapb.ColumnMetadata, isView b
 		return fmt.Sprintf("column %s identity is not supported on non-integer type %q", quoteDefinitionIdentifier(column.Name), column.Type)
 	case !isView && column.IsIdentity && column.Default != "":
 		return fmt.Sprintf("column %s identity cannot also specify a default value %q", quoteDefinitionIdentifier(column.Name), column.Default)
+	case !isView && !column.IsIdentity && (column.IdentityGeneration != 0 || column.IdentitySeed != 0 || column.IdentityIncrement != 0):
+		return fmt.Sprintf("column %s specifies identity attributes without IsIdentity", quoteDefinitionIdentifier(column.Name))
 	case !isView && (column.CollationSchema != "" || column.Collation != ""):
 		if _, ok := supportedRedshiftCollation(column.CollationSchema, column.Collation); !ok {
 			return fmt.Sprintf("column %s collation %s is not supported by Redshift CREATE TABLE", quoteDefinitionIdentifier(column.Name), qualifyName(column.CollationSchema, column.Collation))
@@ -3212,16 +3242,21 @@ func (v *viewState) validateTarget(kind string, rel *nodes.RangeVar) error {
 	return nil
 }
 
-func resolveRedshiftDepSchema(relName, defaultSchema string, deps []*metadatapb.DependencyColumn, caseSensitive bool) string {
+type redshiftDepTarget struct {
+	schema string
+	table  string
+}
+
+func resolveRedshiftDepTargetSchema(relName, defaultSchema string, deps []redshiftDepTarget, caseSensitive bool) string {
 	var matched string
 	for _, dep := range deps {
-		if dep == nil || dep.Schema == "" || !identEqual(dep.Table, relName, caseSensitive) {
+		if dep.schema == "" || !identEqual(dep.table, relName, caseSensitive) {
 			continue
 		}
 		if matched == "" {
-			matched = dep.Schema
-		} else if !identEqual(matched, dep.Schema, caseSensitive) {
-			if identEqual(dep.Schema, defaultSchema, caseSensitive) || identEqual(matched, defaultSchema, caseSensitive) {
+			matched = dep.schema
+		} else if !identEqual(matched, dep.schema, caseSensitive) {
+			if identEqual(dep.schema, defaultSchema, caseSensitive) || identEqual(matched, defaultSchema, caseSensitive) {
 				return defaultSchema
 			}
 			return ""
@@ -3230,32 +3265,14 @@ func resolveRedshiftDepSchema(relName, defaultSchema string, deps []*metadatapb.
 	return matched
 }
 
-func qualifyRedshiftViewDependencies(stmt, schemaName string, deps []*metadatapb.DependencyColumn, caseSensitive bool) string {
+func qualifyRedshiftRelationDeps(stmt, schemaName string, deps []redshiftDepTarget, caseSensitive bool) string {
 	if len(deps) == 0 {
 		return stmt
 	}
-	stmts, err := pgparser.Parse(stmt)
-	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+	refs := collectRelationRefs(stmt)
+	if len(refs) == 0 {
 		return stmt
 	}
-	root := stmts.Items[0]
-	if raw, ok := root.(*nodes.RawStmt); ok {
-		root = raw.Stmt
-	}
-	var walkRoot nodes.Node
-	switch s := root.(type) {
-	case *nodes.ViewStmt:
-		walkRoot = s.Query
-	case *nodes.CreateTableAsStmt:
-		walkRoot = s.Query
-	default:
-		walkRoot = root
-	}
-	if walkRoot == nil {
-		return stmt
-	}
-	var refs []relationRef
-	nodes.Walk(&scopedRelVisitor{refs: &refs}, walkRoot)
 	type prefixEdit struct {
 		offset int
 		prefix string
@@ -3266,7 +3283,7 @@ func qualifyRedshiftViewDependencies(stmt, schemaName string, deps []*metadatapb
 		if ref.catalog != "" || ref.schema != "" || ref.loc < 0 || ref.loc >= len(stmt) {
 			continue
 		}
-		depSchema := resolveRedshiftDepSchema(ref.name, schemaName, deps, caseSensitive)
+		depSchema := resolveRedshiftDepTargetSchema(ref.name, schemaName, deps, caseSensitive)
 		if depSchema == "" || identEqual(depSchema, schemaName, caseSensitive) {
 			continue
 		}
@@ -3284,6 +3301,92 @@ func qualifyRedshiftViewDependencies(stmt, schemaName string, deps []*metadatapb
 		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
 	}
 	return out
+}
+
+func qualifyRedshiftViewDependencies(stmt, schemaName string, deps []*metadatapb.DependencyColumn, caseSensitive bool) string {
+	if len(deps) == 0 {
+		return stmt
+	}
+	targets := make([]redshiftDepTarget, 0, len(deps))
+	for _, dep := range deps {
+		if dep != nil {
+			targets = append(targets, redshiftDepTarget{schema: dep.Schema, table: dep.Table})
+		}
+	}
+	return qualifyRedshiftRelationDeps(stmt, schemaName, targets, caseSensitive)
+}
+
+var redshiftLexSCONST = pgparser.NewLexer("''").NextToken().Type
+
+func findFunctionASBodyToken(src string, toks []pgparser.Token) (pgparser.Token, bool) {
+	depth := 0
+	afterParams := 0
+	for i, tok := range toks {
+		if tok.Type == '(' {
+			depth++
+		} else if tok.Type == ')' && depth > 0 {
+			depth--
+			if depth == 0 {
+				afterParams = i + 1
+				break
+			}
+		}
+	}
+	for i := afterParams; i+1 < len(toks); i++ {
+		if strings.EqualFold(toks[i].Str, "as") && toks[i+1].Type == redshiftLexSCONST {
+			bodyTok := toks[i+1]
+			if bodyTok.Loc >= 0 && bodyTok.End <= len(src) && bodyTok.Loc < bodyTok.End {
+				return bodyTok, true
+			}
+			break
+		}
+	}
+	return pgparser.Token{}, false
+}
+
+func qualifyRedshiftFunctionDependencies(def, schemaName string, deps []*metadatapb.DependencyTable, caseSensitive bool) string {
+	if len(deps) == 0 {
+		return def
+	}
+	targets := make([]redshiftDepTarget, 0, len(deps))
+	for _, dep := range deps {
+		if dep != nil {
+			targets = append(targets, redshiftDepTarget{schema: dep.Schema, table: dep.Table})
+		}
+	}
+	lex := pgparser.NewLexer(def)
+	var toks []pgparser.Token
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		toks = append(toks, tok)
+	}
+	if bodyTok, ok := findFunctionASBodyToken(def, toks); ok {
+		newBody := qualifyRedshiftRelationDeps(bodyTok.Str, schemaName, targets, caseSensitive)
+		if newBody == bodyTok.Str {
+			return def
+		}
+		raw := def[bodyTok.Loc:bodyTok.End]
+		var quoted string
+		switch {
+		case strings.HasPrefix(raw, "$"):
+			if tagEnd := strings.IndexByte(raw[1:], '$'); tagEnd >= 0 {
+				tag := raw[:tagEnd+2]
+				if strings.HasSuffix(raw, tag) {
+					quoted = tag + newBody + tag
+				}
+			}
+		case strings.HasPrefix(raw, "'"):
+			quoted = "'" + strings.ReplaceAll(newBody, "'", "''") + "'"
+		}
+		if quoted == "" {
+			return def
+		}
+		return def[:bodyTok.Loc] + quoted + def[bodyTok.End:]
+	}
+	return qualifyRedshiftRelationDeps(def, schemaName, targets, caseSensitive)
 }
 
 func (v *viewState) toString(buf io.StringWriter) error {

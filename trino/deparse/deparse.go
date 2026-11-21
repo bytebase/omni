@@ -3031,10 +3031,16 @@ func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetad
 }
 
 func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string, table *TableMetadata, funcCat *trinoFuncCatalog) error {
+	seenCols := make(map[string]struct{}, len(table.Columns))
 	for _, column := range table.Columns {
 		if column == nil {
 			continue
 		}
+		colKey := strings.ToLower(column.Name)
+		if _, exists := seenCols[colKey]; exists {
+			return fmt.Errorf("table %s.%s has duplicate column %s", schemaName, table.Name, quoteIdentifier(column.Name))
+		}
+		seenCols[colKey] = struct{}{}
 		if strings.TrimSpace(column.Type) == "" {
 			return fmt.Errorf("table %s.%s column %s has no data type", schemaName, table.Name, column.Name)
 		}

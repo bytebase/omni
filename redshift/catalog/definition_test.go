@@ -2095,6 +2095,45 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	require.NoError(t, err)
 	require.Contains(t, mixedDepView, "SET enable_case_sensitive_identifier TO true;")
 	require.Contains(t, mixedDepView, `CREATE OR REPLACE VIEW "app"."v_mixed_dep" AS SELECT id FROM "Shared"."T";`)
+
+	// Self-referential views, orphaned identity attributes, and cross-schema SQL
+	// function DependencyTables are handled explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:  "s",
+			Views: []*metadatapb.ViewMetadata{{Name: "self_v", Definition: "SELECT * FROM s.self_v"}},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
+
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_orphan_ident",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:               "id",
+			Type:               "integer",
+			IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT,
+		}},
+	})
+	require.ErrorContains(t, err, "IsIdentity")
+
+	crossFnOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:   "shared",
+				Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			},
+			{
+				Name: "app",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:             "fn_cross",
+					Definition:       "CREATE FUNCTION app.fn_cross() RETURNS integer IMMUTABLE AS $$ SELECT id FROM t $$ LANGUAGE sql",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "shared", Table: "t"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossFnOut, `CREATE FUNCTION app.fn_cross() RETURNS integer IMMUTABLE AS $$ SELECT id FROM "shared".t $$ LANGUAGE sql;`)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
