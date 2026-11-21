@@ -331,6 +331,18 @@ func (c *Catalog) updateSupportRoutineRefs(procOID uint32, schemaName, newName s
 	}
 }
 
+func (c *Catalog) updateRangeOpclassRefs(opcOID uint32, schemaName, newName string, schemaChanged bool) {
+	if opcOID == 0 || newName == "" {
+		return
+	}
+	for _, rt := range c.rangeTypes {
+		if rt == nil || rt.SubtypeOpclassOID != opcOID || rt.SubtypeOpclass == "" {
+			continue
+		}
+		rt.SubtypeOpclass = formatUpdatedRoutineRef(rt.SubtypeOpclass, schemaName, newName, schemaChanged)
+	}
+}
+
 // formatCatalogOptionName formats a qualified/unqualified object reference
 // from a DefElem argument, returning "" when NONE or nil.
 func formatCatalogOptionName(de *nodes.DefElem) string {

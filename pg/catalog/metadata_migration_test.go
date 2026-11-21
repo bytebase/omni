@@ -6976,3 +6976,100 @@ func TestRound33Fixes(t *testing.T) {
 	require.NoError(t, resOK[0].Error)
 	require.Error(t, resOK[1].Error)
 }
+
+func TestRound34Fixes(t *testing.T) {
+	// 1. Companion/multirange array collision aborts DefineRange before registering the range type.
+	mrCat := New()
+	_, err := mrCat.Exec(`
+		CREATE SCHEMA a;
+		CREATE SCHEMA b;
+		CREATE TYPE b._mr AS ENUM ('x');
+	`, nil)
+	require.NoError(t, err)
+	mrRes, err := mrCat.Exec(`CREATE TYPE a.r AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = b.mr);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.Len(t, mrRes, 1)
+	require.Error(t, mrRes[0].Error)
+	require.Zero(t, resolveTypeOIDByName(mrCat, "a", "r"))
+	require.Zero(t, resolveTypeOIDByName(mrCat, "a", "_r"))
+
+	// 2. Synced metadata with unqualified SUPPORT resolves through configured search_path.
+	supMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "app",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "f",
+					Signature:  "f(integer)",
+					Definition: `CREATE FUNCTION app.f(x integer) RETURNS integer LANGUAGE sql IMMUTABLE SUPPORT helper AS 'SELECT x'`,
+				}},
+			},
+			{
+				Name: "custom",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "helper",
+					Signature:  "helper(internal)",
+					Definition: `CREATE FUNCTION custom.helper(internal) RETURNS internal LANGUAGE internal STRICT AS 'int4pl'`,
+				}},
+			},
+		},
+	}
+	supCat := New()
+	supCat.SetSearchPath([]string{"custom", "public"})
+	supReport, err := supCat.LoadMetadata(context.Background(), supMeta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, supReport.Degraded)
+	supMigSQL, err := MetadataMigration(context.Background(), &metadatapb.DatabaseSchemaMetadata{}, supMeta, MetadataMigrationOptions{
+		TargetSearchPath: []string{"custom", "public"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, supMigSQL, `CREATE FUNCTION app.f`)
+	require.Contains(t, supMigSQL, `CREATE FUNCTION "custom"."helper"`)
+	require.Less(t, strings.Index(supMigSQL, `"custom"."helper"`), strings.Index(supMigSQL, `CREATE FUNCTION app.f`))
+
+	// 3. SQL-standard function bodies (RETURN / BEGIN ATOMIC) record relation dependencies directly from AST.
+	sqlBodyFrom := New()
+	sqlBodyTo := New()
+	_, err = sqlBodyTo.Exec(`
+		CREATE TABLE public.z_src (id int);
+		CREATE FUNCTION public.a_ret() RETURNS int LANGUAGE sql RETURN (SELECT id FROM public.z_src LIMIT 1);
+		CREATE FUNCTION public.a_blk() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN (SELECT id FROM public.z_src LIMIT 1); END;
+	`, nil)
+	require.NoError(t, err)
+	sqlBodyPlan := GenerateMigration(sqlBodyFrom, sqlBodyTo, Diff(sqlBodyFrom, sqlBodyTo))
+	sqlBodySQL := sqlBodyPlan.SQL()
+	tblIdx := strings.Index(sqlBodySQL, `CREATE TABLE "public"."z_src"`)
+	retIdx := strings.Index(sqlBodySQL, `CREATE FUNCTION "public"."a_ret"`)
+	blkIdx := strings.Index(sqlBodySQL, `CREATE FUNCTION "public"."a_blk"`)
+	require.NotEqual(t, -1, tblIdx)
+	require.Less(t, tblIdx, retIdx)
+	require.Less(t, tblIdx, blkIdx)
+	sqlBodyApplied := sqlBodyFrom.Clone()
+	sqlBodyExec, err := sqlBodyApplied.Exec(sqlBodySQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range sqlBodyExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(sqlBodyApplied, sqlBodyTo).Functions)
+	require.Empty(t, Diff(sqlBodyApplied, sqlBodyTo).Relations)
+
+	// 4. Renaming / moving schema of a range SUBTYPE_OPCLASS refreshes stored SubtypeOpclass references.
+	opcFrom := New()
+	_, err = opcFrom.Exec(`
+		CREATE SCHEMA op_dst;
+		CREATE OPERATOR FAMILY public.my_fam USING btree;
+		CREATE OPERATOR CLASS public.my_opc FOR TYPE int4 USING btree FAMILY public.my_fam AS
+			OPERATOR 1 <, OPERATOR 2 <=, OPERATOR 3 =, OPERATOR 4 >=, OPERATOR 5 >, FUNCTION 1 btint4cmp(int4, int4);
+		CREATE TYPE public.r_opc AS RANGE (SUBTYPE = int4, SUBTYPE_OPCLASS = public.my_opc);
+	`, nil)
+	require.NoError(t, err)
+	opcTo := opcFrom.Clone()
+	_, err = opcTo.Exec(`
+		ALTER OPERATOR CLASS public.my_opc USING btree RENAME TO my_opc2;
+		ALTER OPERATOR CLASS public.my_opc2 USING btree SET SCHEMA op_dst;
+	`, nil)
+	require.NoError(t, err)
+	rtOID := resolveTypeOIDByName(opcTo, "public", "r_opc")
+	require.NotZero(t, rtOID)
+	require.Equal(t, `op_dst.my_opc2`, opcTo.RangeInfo(rtOID).SubtypeOpclass)
+}

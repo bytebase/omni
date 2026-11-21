@@ -74,7 +74,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if opts.Full {
 		c.installForeignWrappersAndServers(meta)
 	}
-	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
+	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full), c.searchPath...) {
 		if err := c.installGroup(ctx, group, opts.Full, report); err != nil {
 			return report, err
 		}
@@ -519,7 +519,7 @@ func sequenceOwners(s *metadata.SchemaMetadata) (owned map[string]map[string]*me
 // orderMetadataObjects groups objects into the strongly connected components
 // of their dependencies, each sorted by compareMetadataObjects, and orders the
 // groups so each one follows the groups it depends on.
-func orderMetadataObjects(objects []*metadataObject) [][]*metadataObject {
+func orderMetadataObjects(objects []*metadataObject, searchPath ...string) [][]*metadataObject {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -527,7 +527,7 @@ func orderMetadataObjects(objects []*metadataObject) [][]*metadataObject {
 	for _, o := range objects {
 		byKey[o.key()] = o
 	}
-	edges := metadataDependencies(objects, byKey)
+	edges := metadataDependencies(objects, byKey, searchPath)
 	sccs := stronglyConnectedObjects(objects, byKey, edges)
 
 	sccOf := make(map[string]int, len(objects))
@@ -599,7 +599,7 @@ func (q *componentQueue) Pop() any {
 
 // metadataDependencies maps each object's key to the keys of the objects it
 // needs installed first. It records only dependencies the snapshot contains.
-func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject) map[string][]string {
+func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject, searchPath []string) map[string][]string {
 	// functionKeys maps "schema.name" to the keys of the function's overloads.
 	functionKeys := make(map[string][]string)
 	for _, o := range objects {
@@ -610,14 +610,14 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 
 	edges := make(map[string][]string, len(objects))
 	for _, o := range objects {
-		if deps := o.dependencies(byKey, functionKeys); len(deps) > 0 {
+		if deps := o.dependencies(byKey, functionKeys, searchPath); len(deps) > 0 {
 			edges[o.key()] = deps
 		}
 	}
 	return edges
 }
 
-func (o *metadataObject) dependencies(byKey map[string]*metadataObject, functionKeys map[string][]string) []string {
+func (o *metadataObject) dependencies(byKey map[string]*metadataObject, functionKeys map[string][]string, searchPath []string) []string {
 	self := o.key()
 	var deps []string
 	add := func(key string) {
@@ -643,6 +643,33 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 		name, nameOK := tn.Names.Items[1].(*nodes.String)
 		if schemaOK && nameOK {
 			addRef(schema.Str, name.Str)
+		}
+	}
+	addRoutineRef := func(funcSchema, funcName string) {
+		if funcSchema != "" {
+			for _, key := range functionKeys[funcSchema+"."+funcName] {
+				add(key)
+			}
+			return
+		}
+		var cands []string
+		for _, sp := range searchPath {
+			if sp != "" && sp != "$user" && sp != "pg_catalog" && sp != "pg_temp" && !slices.Contains(cands, sp) {
+				cands = append(cands, sp)
+			}
+		}
+		for _, fallback := range []string{o.schema, "public"} {
+			if fallback != "" && !slices.Contains(cands, fallback) {
+				cands = append(cands, fallback)
+			}
+		}
+		for _, cand := range cands {
+			if keys := functionKeys[cand+"."+funcName]; len(keys) > 0 {
+				for _, key := range keys {
+					add(key)
+				}
+				return
+			}
 		}
 	}
 	if o.kind != metadataSchema {
@@ -706,17 +733,7 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 				}
 				if formatted := formatCatalogOptionName(de); formatted != "" {
 					s, fn := parseRoutineRefName(formatted)
-					if s != "" {
-						for _, key := range functionKeys[s+"."+fn] {
-							add(key)
-						}
-					} else {
-						for _, cand := range []string{o.schema, "public"} {
-							for _, key := range functionKeys[cand+"."+fn] {
-								add(key)
-							}
-						}
-					}
+					addRoutineRef(s, fn)
 				}
 			}
 		}
@@ -736,17 +753,7 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 		add(metadataRelationKey(o.schema, o.parent))
 		if o.triggerStmt != nil && o.triggerStmt.Funcname != nil {
 			funcSchema, funcName := qualifiedName(o.triggerStmt.Funcname)
-			if funcSchema != "" {
-				for _, key := range functionKeys[funcSchema+"."+funcName] {
-					add(key)
-				}
-			} else {
-				for _, cand := range []string{o.schema, "public"} {
-					for _, key := range functionKeys[cand+"."+funcName] {
-						add(key)
-					}
-				}
-			}
+			addRoutineRef(funcSchema, funcName)
 		}
 	default:
 	}

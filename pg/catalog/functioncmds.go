@@ -719,8 +719,12 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// For LANGUAGE sql functions, parse the body and extract table/function
 	// references so the migration toposort orders tables before functions
 	// that reference them.
-	if strings.EqualFold(language, "sql") && body != "" {
-		c.recordFuncBodyDeps(procOID, body)
+	if strings.EqualFold(language, "sql") {
+		if sqlStandardBody && stmt.SqlBody != nil {
+			c.recordDepsFromNode('f', procOID, stmt.SqlBody)
+		} else if body != "" {
+			c.recordFuncBodyDeps(procOID, body)
+		}
 	}
 
 	return nil
@@ -832,13 +836,49 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 	switch v := n.(type) {
 	case *nodes.RangeVar:
 		c.recordDepsOnRangeVar(objType, objOID, v)
-	case *nodes.SelectStmt:
-		if v.FromClause != nil {
-			for _, from := range v.FromClause.Items {
-				c.recordDepsFromNode(objType, objOID, from)
+	case *nodes.ReturnStmt:
+		c.recordDepsFromNode(objType, objOID, v.Returnval)
+	case *nodes.List:
+		if v != nil {
+			for _, item := range v.Items {
+				c.recordDepsFromNode(objType, objOID, item)
 			}
 		}
+	case *nodes.ResTarget:
+		c.recordDepsFromNode(objType, objOID, v.Val)
+	case *nodes.FuncCall:
+		c.recordDepsFromNode(objType, objOID, v.Args)
+		c.recordDepsFromNode(objType, objOID, v.AggOrder)
+		c.recordDepsFromNode(objType, objOID, v.AggFilter)
+		if wd, ok := v.Over.(*nodes.WindowDef); ok && wd != nil {
+			c.recordDepsFromNode(objType, objOID, wd.PartitionClause)
+			c.recordDepsFromNode(objType, objOID, wd.OrderClause)
+		}
+	case *nodes.A_Expr:
+		c.recordDepsFromNode(objType, objOID, v.Lexpr)
+		c.recordDepsFromNode(objType, objOID, v.Rexpr)
+	case *nodes.BoolExpr:
+		c.recordDepsFromNode(objType, objOID, v.Args)
+	case *nodes.NullTest:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
+	case *nodes.TypeCast:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
+	case *nodes.CoalesceExpr:
+		c.recordDepsFromNode(objType, objOID, v.Args)
+	case *nodes.CaseExpr:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
+		c.recordDepsFromNode(objType, objOID, v.Args)
+		c.recordDepsFromNode(objType, objOID, v.Defresult)
+	case *nodes.CaseWhen:
+		c.recordDepsFromNode(objType, objOID, v.Expr)
+		c.recordDepsFromNode(objType, objOID, v.Result)
+	case *nodes.SelectStmt:
+		c.recordDepsFromNode(objType, objOID, v.TargetList)
+		c.recordDepsFromNode(objType, objOID, v.FromClause)
 		c.recordDepsFromNode(objType, objOID, v.WhereClause)
+		c.recordDepsFromNode(objType, objOID, v.GroupClause)
+		c.recordDepsFromNode(objType, objOID, v.HavingClause)
+		c.recordDepsFromNode(objType, objOID, v.SortClause)
 		if v.Larg != nil {
 			c.recordDepsFromNode(objType, objOID, v.Larg)
 		}
@@ -846,31 +886,43 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 			c.recordDepsFromNode(objType, objOID, v.Rarg)
 		}
 		if v.WithClause != nil {
-			for _, cte := range v.WithClause.Ctes.Items {
-				c.recordDepsFromNode(objType, objOID, cte)
-			}
+			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
 		}
 	case *nodes.CommonTableExpr:
 		c.recordDepsFromNode(objType, objOID, v.Ctequery)
 	case *nodes.JoinExpr:
 		c.recordDepsFromNode(objType, objOID, v.Larg)
 		c.recordDepsFromNode(objType, objOID, v.Rarg)
+		c.recordDepsFromNode(objType, objOID, v.Quals)
 	case *nodes.RangeSubselect:
 		c.recordDepsFromNode(objType, objOID, v.Subquery)
 	case *nodes.SubLink:
 		c.recordDepsFromNode(objType, objOID, v.Subselect)
+		c.recordDepsFromNode(objType, objOID, v.Testexpr)
 	case *nodes.InsertStmt:
 		c.recordDepsFromNode(objType, objOID, v.Relation)
 		c.recordDepsFromNode(objType, objOID, v.SelectStmt)
+		c.recordDepsFromNode(objType, objOID, v.ReturningList)
+		if v.WithClause != nil {
+			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
+		}
 	case *nodes.UpdateStmt:
 		c.recordDepsFromNode(objType, objOID, v.Relation)
-		if v.FromClause != nil {
-			for _, from := range v.FromClause.Items {
-				c.recordDepsFromNode(objType, objOID, from)
-			}
+		c.recordDepsFromNode(objType, objOID, v.TargetList)
+		c.recordDepsFromNode(objType, objOID, v.FromClause)
+		c.recordDepsFromNode(objType, objOID, v.WhereClause)
+		c.recordDepsFromNode(objType, objOID, v.ReturningList)
+		if v.WithClause != nil {
+			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
 		}
 	case *nodes.DeleteStmt:
 		c.recordDepsFromNode(objType, objOID, v.Relation)
+		c.recordDepsFromNode(objType, objOID, v.UsingClause)
+		c.recordDepsFromNode(objType, objOID, v.WhereClause)
+		c.recordDepsFromNode(objType, objOID, v.ReturningList)
+		if v.WithClause != nil {
+			c.recordDepsFromNode(objType, objOID, v.WithClause.Ctes)
+		}
 	}
 }
 

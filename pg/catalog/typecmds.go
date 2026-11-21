@@ -27,6 +27,19 @@ type EnumType struct {
 	labelMap map[string]*EnumValue
 }
 
+// canMoveArrayTypeName checks whether arrayName in schema is free or held by a
+// movable auto-generated array type, without mutating catalog state.
+func (c *Catalog) canMoveArrayTypeName(schema *Schema, arrayName string) error {
+	existing := c.typeByName[typeKey{ns: schema.OID, name: arrayName}]
+	if existing == nil {
+		return nil
+	}
+	if existing.Category != 'A' || existing.Elem == 0 {
+		return errDuplicateObject("type", arrayName)
+	}
+	return nil
+}
+
 // moveArrayTypeName renames an existing auto-generated array type to avoid collision.
 //
 // pg: src/backend/catalog/pg_type.c — moveArrayTypeName
@@ -977,10 +990,19 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 		multirangeName = mrName
 		explicitMultirangeName = mrName
 	}
-	if existingMR := c.typeByName[typeKey{ns: mrSchemaObj.OID, name: multirangeName}]; existingMR != nil {
-		if existingMR.Category != 'A' || existingMR.Elem == 0 {
-			return errDuplicateObject("type", multirangeName)
-		}
+	arrayTypeName := fmt.Sprintf("_%s", name)
+	if err := c.canMoveArrayTypeName(schema, arrayTypeName); err != nil {
+		return err
+	}
+	if schema.OID == mrSchemaObj.OID && multirangeName == name {
+		return errDuplicateObject("type", multirangeName)
+	}
+	if err := c.canMoveArrayTypeName(mrSchemaObj, multirangeName); err != nil {
+		return errDuplicateObject("type", multirangeName)
+	}
+	multirangeArrayName := fmt.Sprintf("_%s", multirangeName)
+	if err := c.canMoveArrayTypeName(mrSchemaObj, multirangeArrayName); err != nil {
+		return err
 	}
 	arrayOID := c.oidGen.Next()
 	if rangeUserCollOID != 0 {
@@ -1023,7 +1045,6 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Move existing auto-generated array type if it collides.
 	// pg: src/backend/catalog/pg_type.c — moveArrayTypeName
-	arrayTypeName := fmt.Sprintf("_%s", name)
 	if err := c.moveArrayTypeName(schema, arrayTypeName); err != nil {
 		return err
 	}
@@ -1056,7 +1077,6 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 
 	// Move conflicting array type name for multirange.
-	multirangeArrayName := fmt.Sprintf("_%s", multirangeName)
 	if err := c.moveArrayTypeName(mrSchemaObj, multirangeArrayName); err != nil {
 		return err
 	}
