@@ -697,14 +697,26 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 				}
 			}
 		case ConForeignKey:
+			onUpdate := con.OnUpdate
+			if onUpdate == "" {
+				onUpdate = "NO ACTION"
+			}
+			onDelete := con.OnDelete
+			if onDelete == "" {
+				onDelete = "NO ACTION"
+			}
+			matchType := con.MatchType
+			if matchType == "" {
+				matchType = "NONE"
+			}
 			fk := &metadata.ForeignKeyMetadata{
 				Name:              con.Name,
 				Columns:           slices.Clone(con.Columns),
 				ReferencedTable:   con.RefTable,
 				ReferencedColumns: slices.Clone(con.RefColumns),
-				OnUpdate:          con.OnUpdate,
-				OnDelete:          con.OnDelete,
-				MatchType:         con.MatchType,
+				OnUpdate:          onUpdate,
+				OnDelete:          onDelete,
+				MatchType:         matchType,
 			}
 			if con.RefDatabase != "" {
 				fk.ReferencedSchema = con.RefDatabase

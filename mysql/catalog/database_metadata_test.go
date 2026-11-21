@@ -845,3 +845,76 @@ func TestDatabaseMetadataDecimalArithmeticAndSkipDumpRoundTrip(t *testing.T) {
 	require.True(t, out.Schemas[0].Functions[0].SkipDump)
 	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
 }
+
+func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE ref_db;
+		USE ref_db;
+		CREATE TABLE ref_t (
+			id INT NOT NULL PRIMARY KEY,
+			code VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+			note VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+		);
+
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE parent (id INT PRIMARY KEY);
+		CREATE TABLE child (
+			id INT PRIMARY KEY,
+			pid INT,
+			FOREIGN KEY (pid) REFERENCES parent(id)
+		);
+		CREATE TABLE local_t (
+			id INT NOT NULL PRIMARY KEY,
+			code VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+			note VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+		);
+		CREATE VIEW v_star AS SELECT * FROM local_t;
+		CREATE VIEW v_qual_star AS SELECT local_t.* FROM local_t;
+		CREATE VIEW v_cross_star AS SELECT * FROM ref_db.ref_t;
+		CREATE VIEW v_left_star AS SELECT a.id AS aid, b.* FROM local_t a LEFT JOIN ref_db.ref_t b ON a.id = b.id;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	var childProto *metadata.TableMetadata
+	for _, tbl := range meta.Schemas[0].Tables {
+		if tbl.Name == "child" {
+			childProto = tbl
+		}
+	}
+	require.NotNil(t, childProto)
+	require.Len(t, childProto.ForeignKeys, 1)
+	require.Equal(t, "NONE", childProto.ForeignKeys[0].MatchType)
+	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnDelete)
+	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnUpdate)
+
+	viewByName := map[string]*metadata.ViewMetadata{}
+	for _, v := range meta.Schemas[0].Views {
+		viewByName[v.Name] = v
+	}
+	for _, vName := range []string{"v_star", "v_qual_star", "v_cross_star"} {
+		v := viewByName[vName]
+		require.NotNil(t, v, vName)
+		require.Len(t, v.Columns, 3, vName)
+		require.Equal(t, "int", v.Columns[0].Type, vName)
+		require.False(t, v.Columns[0].Nullable, vName)
+		require.Empty(t, v.Columns[0].CharacterSet, vName)
+		require.Equal(t, "varchar(16)", v.Columns[1].Type, vName)
+		require.False(t, v.Columns[1].Nullable, vName)
+		require.Equal(t, "utf8mb4", v.Columns[1].CharacterSet, vName)
+		require.Equal(t, "utf8mb4_unicode_ci", v.Columns[1].Collation, vName)
+		require.Equal(t, "varchar(32)", v.Columns[2].Type, vName)
+		require.True(t, v.Columns[2].Nullable, vName)
+		require.Equal(t, "utf8mb4", v.Columns[2].CharacterSet, vName)
+		require.Equal(t, "utf8mb4_unicode_ci", v.Columns[2].Collation, vName)
+	}
+	leftV := viewByName["v_left_star"]
+	require.Len(t, leftV.Columns, 4)
+	require.False(t, leftV.Columns[0].Nullable)
+	require.True(t, leftV.Columns[1].Nullable)
+	require.True(t, leftV.Columns[2].Nullable)
+	require.Equal(t, "utf8mb4", leftV.Columns[2].CharacterSet)
+	require.Equal(t, "utf8mb4_unicode_ci", leftV.Columns[2].Collation)
+}

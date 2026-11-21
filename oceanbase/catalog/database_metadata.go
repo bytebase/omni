@@ -160,9 +160,10 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 }
 
 func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMetadata {
+	leftQ := leftmostAnalyzedQuery(v.AnalyzedQuery)
 	var nonJunkTargets []*TargetEntryQ
-	if v.AnalyzedQuery != nil {
-		for _, te := range v.AnalyzedQuery.TargetList {
+	if leftQ != nil {
+		for _, te := range leftQ.TargetList {
 			if te != nil && !te.ResJunk {
 				nonJunkTargets = append(nonJunkTargets, te)
 			}
@@ -187,9 +188,60 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			}
 		}
 		if te.Expr != nil {
-			return resolveAnalyzedExprColumnType(c, db, v.AnalyzedQuery, te.Expr)
+			return resolveAnalyzedExprColumnType(c, db, leftQ, te.Expr)
 		}
 		return ""
+	}
+	resolveSourceAttrs := func(i int) (colType string, nullable bool, charset, collation string, ok bool) {
+		if i < 0 || i >= len(nonJunkTargets) {
+			return "", false, "", "", false
+		}
+		return resolveTargetColumnMetadata(c, db, leftQ, nonJunkTargets[i])
+	}
+	fillTargetCol := func(col *metadata.ColumnMetadata, i int, te *TargetEntryQ) {
+		if colType, nullable, charset, collation, ok := resolveSourceAttrs(i); ok {
+			if col.Type == "" {
+				col.Type = colType
+			}
+			col.Nullable = nullable
+			if charset != "" {
+				col.CharacterSet = charset
+			}
+			if collation != "" {
+				col.Collation = collation
+			}
+		}
+		if col.Type == "" {
+			col.Type = resolveTargetType(i)
+		}
+		if te != nil && (col.Name == "" || col.Name == "*" || strings.HasSuffix(col.Name, ".*")) && te.ResName != "" {
+			col.Name = te.ResName
+		}
+	}
+	if len(nonJunkTargets) > len(v.ColumnMetadata) && (!v.ExplicitColumns || len(v.Columns) == len(nonJunkTargets)) {
+		cols := make([]*metadata.ColumnMetadata, 0, len(nonJunkTargets))
+		for i, te := range nonJunkTargets {
+			name := te.ResName
+			if i < len(v.Columns) && v.Columns[i] != "" && v.Columns[i] != "*" && !strings.HasSuffix(v.Columns[i], ".*") {
+				name = v.Columns[i]
+			}
+			col := &metadata.ColumnMetadata{
+				Name:     name,
+				Position: int32(i + 1),
+			}
+			if i < len(v.ColumnMetadata) && v.ColumnMetadata[i].Name == name {
+				cm := v.ColumnMetadata[i]
+				col.Nullable = cm.Nullable
+				col.CharacterSet = cm.Charset
+				col.Collation = cm.Collation
+				if cm.Type != nil {
+					col.Type = resolvedTypeToColumnType(cm.Type)
+				}
+			}
+			fillTargetCol(col, i, te)
+			cols = append(cols, col)
+		}
+		return cols
 	}
 	if len(v.ColumnMetadata) > 0 {
 		cols := make([]*metadata.ColumnMetadata, 0, len(v.ColumnMetadata))
@@ -204,9 +256,11 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			if cm.Type != nil {
 				col.Type = resolvedTypeToColumnType(cm.Type)
 			}
-			if col.Type == "" {
-				col.Type = resolveTargetType(i)
+			var te *TargetEntryQ
+			if i < len(nonJunkTargets) {
+				te = nonJunkTargets[i]
 			}
+			fillTargetCol(col, i, te)
 			cols = append(cols, col)
 		}
 		return cols
@@ -216,13 +270,91 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 	}
 	cols := make([]*metadata.ColumnMetadata, 0, len(v.Columns))
 	for i, name := range v.Columns {
-		cols = append(cols, &metadata.ColumnMetadata{
+		col := &metadata.ColumnMetadata{
 			Name:     name,
 			Position: int32(i + 1),
-			Type:     resolveTargetType(i),
-		})
+		}
+		var te *TargetEntryQ
+		if i < len(nonJunkTargets) {
+			te = nonJunkTargets[i]
+		}
+		fillTargetCol(col, i, te)
+		cols = append(cols, col)
 	}
 	return cols
+}
+
+func leftmostAnalyzedQuery(q *Query) *Query {
+	for q != nil && q.SetOp != SetOpNone && q.LArg != nil {
+		q = q.LArg
+	}
+	return q
+}
+
+func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, te *TargetEntryQ) (colType string, nullable bool, charset, collation string, ok bool) {
+	if te == nil {
+		return "", false, "", "", false
+	}
+	if te.ResOrigTable != "" && te.ResOrigCol != "" {
+		origDB := db
+		if te.ResOrigDB != "" && c != nil {
+			origDB = c.GetDatabase(te.ResOrigDB)
+		}
+		if origDB != nil {
+			if tbl := origDB.GetTable(te.ResOrigTable); tbl != nil {
+				if srcCol := tbl.GetColumn(te.ResOrigCol); srcCol != nil {
+					ci := viewColumnCollation(srcCol)
+					return srcCol.ColumnType, srcCol.Nullable, ci.charset, ci.collation, true
+				}
+			}
+		}
+	}
+	ve, isVar := te.Expr.(*VarExprQ)
+	if !isVar || q == nil || ve.LevelsUp != 0 || ve.RangeIdx < 0 || ve.RangeIdx >= len(q.RangeTable) {
+		return "", false, "", "", false
+	}
+	rte := q.RangeTable[ve.RangeIdx]
+	switch rte.Kind {
+	case RTERelation:
+		if ve.AttNum < 1 || ve.AttNum > len(rte.ColNames) {
+			return "", false, "", "", false
+		}
+		origDB := db
+		if rte.DBName != "" && c != nil {
+			origDB = c.GetDatabase(rte.DBName)
+		}
+		if origDB == nil {
+			return "", false, "", "", false
+		}
+		if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+			if srcCol := tbl.GetColumn(rte.ColNames[ve.AttNum-1]); srcCol != nil {
+				ci := viewColumnCollation(srcCol)
+				return srcCol.ColumnType, srcCol.Nullable, ci.charset, ci.collation, true
+			}
+		}
+		if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil {
+			if innerQ := leftmostAnalyzedQuery(sv.AnalyzedQuery); innerQ != nil {
+				if subTE := nthNonJunkTarget(innerQ, ve.AttNum-1); subTE != nil {
+					if ct, nl, cs, cl, found := resolveTargetColumnMetadata(c, origDB, innerQ, subTE); found {
+						return ct, nl, cs, cl, true
+					}
+				}
+			}
+			if ve.AttNum-1 < len(sv.ColumnMetadata) {
+				cm := sv.ColumnMetadata[ve.AttNum-1]
+				return resolvedTypeToColumnType(cm.Type), cm.Nullable, cm.Charset, cm.Collation, true
+			}
+		}
+	case RTESubquery:
+		if innerQ := leftmostAnalyzedQuery(rte.Subquery); innerQ != nil {
+			if subTE := nthNonJunkTarget(innerQ, ve.AttNum-1); subTE != nil {
+				if ct, nl, cs, cl, found := resolveTargetColumnMetadata(c, db, innerQ, subTE); found {
+					return ct, nl, cs, cl, true
+				}
+			}
+		}
+	}
+	return "", false, "", "", false
 }
 
 func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) string {
@@ -644,14 +776,26 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 	for _, con := range t.Constraints {
 		switch con.Type {
 		case ConForeignKey:
+			onUpdate := con.OnUpdate
+			if onUpdate == "" {
+				onUpdate = "RESTRICT"
+			}
+			onDelete := con.OnDelete
+			if onDelete == "" {
+				onDelete = "RESTRICT"
+			}
+			matchType := con.MatchType
+			if matchType == "" {
+				matchType = "NONE"
+			}
 			fk := &metadata.ForeignKeyMetadata{
 				Name:              con.Name,
 				Columns:           slices.Clone(con.Columns),
 				ReferencedTable:   con.RefTable,
 				ReferencedColumns: slices.Clone(con.RefColumns),
-				OnUpdate:          con.OnUpdate,
-				OnDelete:          con.OnDelete,
-				MatchType:         con.MatchType,
+				OnUpdate:          onUpdate,
+				OnDelete:          onDelete,
+				MatchType:         matchType,
 			}
 			if con.RefDatabase != "" {
 				fk.ReferencedSchema = con.RefDatabase

@@ -848,3 +848,31 @@ func TestDatabaseMetadataDecimalSessionContextBacktickAlterAndSkipDump(t *testin
 	require.Contains(t, def, "SET sql_mode = 'PIPES_AS_CONCAT'")
 	require.Contains(t, def, "SET time_zone = '+08:00'")
 }
+
+func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE parent (id INT PRIMARY KEY);
+		CREATE TABLE child (
+			id INT PRIMARY KEY,
+			pid INT,
+			FOREIGN KEY (pid) REFERENCES parent(id)
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	var childProto *metadata.TableMetadata
+	for _, tbl := range meta.Schemas[0].Tables {
+		if tbl.Name == "child" {
+			childProto = tbl
+		}
+	}
+	require.NotNil(t, childProto)
+	require.Len(t, childProto.ForeignKeys, 1)
+	require.Equal(t, "NONE", childProto.ForeignKeys[0].MatchType)
+	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnDelete)
+	require.Equal(t, "NO ACTION", childProto.ForeignKeys[0].OnUpdate)
+}
