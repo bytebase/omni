@@ -1265,4 +1265,91 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.True(t, ctrlCols["case_ti_noelse"].Nullable)
 	require.Equal(t, "varchar(3)", ctrlCols["case_str"].Type)
 	require.Equal(t, "double", ctrlCols["case_f_d"].Type)
+
+	// Scalar function view columns resolve types matching mysql:8.0.46.
+	fnCat := New()
+	_, err = fnCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_fn (
+			i INT NOT NULL,
+			f FLOAT NOT NULL,
+			dbl DOUBLE NOT NULL,
+			d DECIMAL(10,2) NOT NULL,
+			c CHAR(4) NOT NULL,
+			v VARCHAR(32) NOT NULL,
+			txt TEXT NOT NULL,
+			j JSON NOT NULL
+		);
+		CREATE VIEW v_fn AS SELECT
+			JSON_UNQUOTE(JSON_EXTRACT(j, '$.a')) AS ju,
+			JSON_EXTRACT(j, '$.a') AS je,
+			JSON_TYPE(j) AS jt,
+			LOWER(v) AS lw_v,
+			UPPER(c) AS up_c,
+			TRIM(txt) AS tr_txt,
+			REPLACE(v, 'a', 'bb') AS rp_v,
+			SUBSTRING(v, 2, 5) AS sub_v,
+			SUBSTRING(v, 2) AS sub_v2,
+			LEFT(v, 5) AS lf_v,
+			RIGHT(c, 2) AS rg_c,
+			LPAD(v, 10, 'x') AS lp_v,
+			REPEAT(c, 3) AS rep_c,
+			CONCAT(c, v) AS cc_cv,
+			CONCAT_WS(',', c, v) AS ccw,
+			SPACE(5) AS sp_5,
+			FORMAT(d, 2) AS fmt_d,
+			ABS(i) AS abs_i,
+			ABS(f) AS abs_f,
+			ABS(dbl) AS abs_dbl,
+			ABS(d) AS abs_d,
+			CEIL(d) AS ceil_d,
+			FLOOR(d) AS fl_d,
+			ROUND(d, 1) AS rnd_d,
+			ROUND(dbl, 2) AS rnd_dbl,
+			TRUNCATE(d, 1) AS trn_d,
+			MOD(i, 3) AS mod_i,
+			MOD(d, 3) AS mod_d,
+			LENGTH(v) AS len_v,
+			JSON_VALID(v) AS jv
+		FROM t_fn;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	fnCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range fnCat.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		fnCols[col.Name] = col
+	}
+	require.Equal(t, "longtext", fnCols["ju"].Type)
+	require.Equal(t, "json", fnCols["je"].Type)
+	require.Equal(t, "varchar(17)", fnCols["jt"].Type)
+	require.Equal(t, "varchar(32)", fnCols["lw_v"].Type)
+	require.Equal(t, "varchar(4)", fnCols["up_c"].Type)
+	require.Equal(t, "mediumtext", fnCols["tr_txt"].Type)
+	require.Equal(t, "varchar(32)", fnCols["rp_v"].Type)
+	require.Equal(t, "varchar(5)", fnCols["sub_v"].Type)
+	require.Equal(t, "varchar(31)", fnCols["sub_v2"].Type)
+	require.Equal(t, "varchar(5)", fnCols["lf_v"].Type)
+	require.Equal(t, "varchar(2)", fnCols["rg_c"].Type)
+	require.Equal(t, "varchar(10)", fnCols["lp_v"].Type)
+	require.Equal(t, "varchar(12)", fnCols["rep_c"].Type)
+	require.Equal(t, "varchar(36)", fnCols["cc_cv"].Type)
+	require.Equal(t, "varchar(37)", fnCols["ccw"].Type)
+	require.Equal(t, "varchar(5)", fnCols["sp_5"].Type)
+	require.Equal(t, "varchar(48)", fnCols["fmt_d"].Type)
+	require.Equal(t, "bigint", fnCols["abs_i"].Type)
+	require.False(t, fnCols["abs_i"].Nullable)
+	require.Equal(t, "double", fnCols["abs_f"].Type)
+	require.Equal(t, "double", fnCols["abs_dbl"].Type)
+	require.Equal(t, "decimal(10,2)", fnCols["abs_d"].Type)
+	require.Equal(t, "bigint", fnCols["ceil_d"].Type)
+	require.Equal(t, "bigint", fnCols["fl_d"].Type)
+	require.Equal(t, "decimal(10,1)", fnCols["rnd_d"].Type)
+	require.Equal(t, "double", fnCols["rnd_dbl"].Type)
+	require.Equal(t, "decimal(9,1)", fnCols["trn_d"].Type)
+	require.Equal(t, "bigint", fnCols["mod_i"].Type)
+	require.True(t, fnCols["mod_i"].Nullable)
+	require.Equal(t, "decimal(10,2)", fnCols["mod_d"].Type)
+	require.True(t, fnCols["mod_d"].Nullable)
+	require.Equal(t, "bigint", fnCols["len_v"].Type)
+	require.Equal(t, "bigint", fnCols["jv"].Type)
 }

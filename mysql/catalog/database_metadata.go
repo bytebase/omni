@@ -424,7 +424,7 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		if strings.EqualFold(e.Name, "count") {
 			return false
 		}
-		if strings.EqualFold(e.Name, "nullif") {
+		if strings.EqualFold(e.Name, "nullif") || strings.EqualFold(e.Name, "mod") {
 			return true
 		}
 		if strings.EqualFold(e.Name, "if") && len(e.Args) == 3 {
@@ -967,6 +967,10 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			if len(e.Args) >= 1 {
 				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[0]}, false)
 			}
+		default:
+			if ct := resolveScalarFuncColumnType(c, db, q, e, false); ct != "" {
+				return ct
+			}
 		}
 	}
 	if cn, ok := expr.(*ConstExprQ); ok {
@@ -1122,6 +1126,10 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		case "if", "nullif":
 			if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
 				return parseColumnResolvedType(ct)
+			}
+		case "abs", "ceil", "ceiling", "floor", "round", "truncate", "mod":
+			if rt := resolveNumericScalarFuncType(c, db, q, e); rt != nil {
+				return rt
 			}
 		case "min", "max":
 			if len(e.Args) == 1 {
@@ -1284,6 +1292,328 @@ func parseColumnResolvedType(colType string) *ResolvedType {
 	default:
 		return nil
 	}
+}
+
+func constIntScalarArg(expr AnalyzedExpr) (int, bool) {
+	switch e := expr.(type) {
+	case *ConstExprQ:
+		if e.IsNull || e.IsString {
+			return 0, false
+		}
+		v, err := strconv.Atoi(strings.TrimSpace(e.Value))
+		return v, err == nil
+	case *OpExprQ:
+		if e.Left == nil && (e.Op == "+" || e.Op == "-") {
+			v, ok := constIntScalarArg(e.Right)
+			if !ok {
+				return 0, false
+			}
+			if e.Op == "-" {
+				return -v, true
+			}
+			return v, true
+		}
+	}
+	return 0, false
+}
+
+func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) *ResolvedType {
+	if e == nil || len(e.Args) == 0 {
+		return nil
+	}
+	name := strings.ToLower(e.Name)
+	arg0 := resolveExprResolvedType(c, db, q, e.Args[0])
+	if arg0 == nil {
+		return nil
+	}
+	isInt := func(bt MySQLBaseType) bool {
+		switch bt {
+		case BaseTypeTinyInt, BaseTypeTinyIntBool, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt:
+			return true
+		}
+		return false
+	}
+	switch name {
+	case "abs":
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
+		if arg0.BaseType == BaseTypeDecimal {
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: arg0.Precision, Scale: arg0.Scale}
+		}
+		if isInt(arg0.BaseType) {
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+	case "ceil", "ceiling", "floor":
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
+		if arg0.BaseType == BaseTypeDecimal {
+			if arg0.Precision <= 0 || arg0.Precision-arg0.Scale <= 18 {
+				return &ResolvedType{BaseType: BaseTypeBigInt}
+			}
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, arg0.Precision-arg0.Scale+1), Scale: 0}
+		}
+		if isInt(arg0.BaseType) {
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+	case "round", "truncate":
+		if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble {
+			return &ResolvedType{BaseType: BaseTypeDouble}
+		}
+		if isInt(arg0.BaseType) {
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+		if arg0.BaseType == BaseTypeDecimal {
+			d := 0
+			if len(e.Args) >= 2 {
+				if v, ok := constIntScalarArg(e.Args[1]); ok {
+					d = v
+				}
+			}
+			intDigits := max(0, arg0.Precision-arg0.Scale)
+			if arg0.Precision == 0 {
+				intDigits = 10
+			}
+			targetScale := max(0, min(arg0.Scale, d))
+			if name == "truncate" {
+				return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, max(1, intDigits+targetScale)), Scale: targetScale}
+			}
+			extra := 0
+			if targetScale < arg0.Scale {
+				extra = 1
+			}
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, max(1, intDigits+extra+targetScale)), Scale: targetScale}
+		}
+	case "mod":
+		if len(e.Args) == 2 {
+			arg1 := resolveExprResolvedType(c, db, q, e.Args[1])
+			if arg0.BaseType == BaseTypeFloat || arg0.BaseType == BaseTypeDouble ||
+				(arg1 != nil && (arg1.BaseType == BaseTypeFloat || arg1.BaseType == BaseTypeDouble)) {
+				return &ResolvedType{BaseType: BaseTypeDouble}
+			}
+			if arg0.BaseType == BaseTypeDecimal || (arg1 != nil && arg1.BaseType == BaseTypeDecimal) {
+				if dt := combineDecimalArithmetic("MOD", arg0, e.Args[0], arg1, e.Args[1]); dt != nil {
+					return dt
+				}
+				return &ResolvedType{BaseType: BaseTypeDecimal}
+			}
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+	}
+	return nil
+}
+
+func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ, isTiDB bool) string {
+	if e == nil {
+		return ""
+	}
+	strType := func(w int) string {
+		if isTiDB {
+			return fmt.Sprintf("var_string(%d)", w)
+		}
+		return fmt.Sprintf("varchar(%d)", w)
+	}
+	argWidth := func(arg AnalyzedExpr) (parsedSetOpType, int, bool) {
+		ct := resolveAnalyzedExprColumnType(c, db, q, arg)
+		if ct == "" {
+			return parsedSetOpType{}, 0, false
+		}
+		p := parseSetOpColType(ct)
+		return p, p.width, true
+	}
+	name := strings.ToLower(e.Name)
+	switch name {
+	case "json_type":
+		if isTiDB {
+			return "var_string(51)"
+		}
+		return "varchar(17)"
+	case "uuid":
+		return strType(36)
+	case "version", "database", "schema", "charset", "collation":
+		return strType(64)
+	case "user", "current_user", "session_user", "system_user":
+		if isTiDB {
+			return "var_string(64)"
+		}
+		return "varchar(288)"
+	case "lower", "lcase", "upper", "ucase", "trim", "btrim", "ltrim", "rtrim", "reverse":
+		if len(e.Args) >= 1 {
+			if p, w, ok := argWidth(e.Args[0]); ok {
+				if p.cat == "text" {
+					if isTiDB {
+						return fmt.Sprintf("var_string(%d)", w)
+					}
+					if p.rank >= 3 {
+						return p.raw
+					}
+					return "mediumtext"
+				}
+				return strType(w)
+			}
+		}
+	case "replace":
+		if len(e.Args) == 3 {
+			if p, w, ok := argWidth(e.Args[0]); ok {
+				if isTiDB {
+					if fromC, ok1 := e.Args[1].(*ConstExprQ); ok1 && fromC.IsString {
+						if toC, ok2 := e.Args[2].(*ConstExprQ); ok2 && toC.IsString {
+							fl := max(1, utf8.RuneCountInString(fromC.Value))
+							tl := utf8.RuneCountInString(toC.Value)
+							if tl > fl {
+								w = w * tl / fl
+							}
+						}
+					}
+				}
+				if p.cat == "text" {
+					if p.rank >= 3 {
+						return p.raw
+					}
+					return "mediumtext"
+				}
+				return strType(w)
+			}
+		}
+	case "left", "right":
+		if len(e.Args) >= 2 {
+			if p, w, ok := argWidth(e.Args[0]); ok {
+				if !isTiDB {
+					if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
+						w = min(w, n)
+					}
+				}
+				if p.cat == "text" && !isTiDB {
+					if w <= 65535 {
+						return fmt.Sprintf("varchar(%d)", w)
+					}
+					return p.raw
+				}
+				return strType(w)
+			}
+		}
+	case "substring", "substr":
+		if len(e.Args) >= 2 {
+			if p, w, ok := argWidth(e.Args[0]); ok {
+				if !isTiDB {
+					if len(e.Args) >= 3 {
+						if n, okN := constIntScalarArg(e.Args[2]); okN && n >= 0 {
+							w = min(w, n)
+						}
+					} else if pos, okP := constIntScalarArg(e.Args[1]); okP && pos > 0 {
+						w = max(0, w-(pos-1))
+					}
+				}
+				if p.cat == "text" && !isTiDB {
+					if w <= 65535 {
+						return fmt.Sprintf("varchar(%d)", w)
+					}
+					return p.raw
+				}
+				return strType(w)
+			}
+		}
+	case "lpad", "rpad":
+		if len(e.Args) >= 2 {
+			if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
+				if isTiDB {
+					return fmt.Sprintf("var_string(%d)", n*4)
+				}
+				return fmt.Sprintf("varchar(%d)", n)
+			}
+		}
+	case "repeat":
+		if len(e.Args) == 2 {
+			if isTiDB {
+				return "longtext"
+			}
+			if _, w, ok := argWidth(e.Args[0]); ok {
+				if n, okN := constIntScalarArg(e.Args[1]); okN && n >= 0 {
+					return fmt.Sprintf("varchar(%d)", w*n)
+				}
+			}
+		}
+	case "space":
+		if len(e.Args) == 1 {
+			if isTiDB {
+				return "longtext"
+			}
+			if n, okN := constIntScalarArg(e.Args[0]); okN && n >= 0 {
+				return fmt.Sprintf("varchar(%d)", n)
+			}
+		}
+	case "format":
+		if isTiDB {
+			return "longtext"
+		}
+		return "varchar(48)"
+	case "concat", "concat_ws":
+		if len(e.Args) == 0 {
+			return ""
+		}
+		total := 0
+		hasText := false
+		maxRank := 0
+		if name == "concat_ws" {
+			if len(e.Args) < 2 {
+				return ""
+			}
+			sp, sw, sok := argWidth(e.Args[0])
+			if !sok {
+				return ""
+			}
+			if sp.cat == "text" {
+				hasText = true
+				maxRank = max(maxRank, sp.rank)
+			}
+			nonNull := 0
+			for _, arg := range e.Args[1:] {
+				ap, aw, aok := argWidth(arg)
+				if !aok {
+					return ""
+				}
+				if ap.cat == "null" {
+					continue
+				}
+				if ap.cat == "text" {
+					hasText = true
+					maxRank = max(maxRank, ap.rank)
+				}
+				total += aw
+				nonNull++
+			}
+			if nonNull > 1 {
+				total += sw * (nonNull - 1)
+			}
+		} else {
+			for _, arg := range e.Args {
+				ap, aw, aok := argWidth(arg)
+				if !aok {
+					return ""
+				}
+				if ap.cat == "null" {
+					return "binary(0)"
+				}
+				if ap.cat == "text" {
+					hasText = true
+					maxRank = max(maxRank, ap.rank)
+				}
+				total += aw
+			}
+		}
+		if hasText || total > 65535 {
+			if maxRank <= 2 {
+				return "mediumtext"
+			}
+			if maxRank == 3 {
+				return "mediumtext"
+			}
+			return "longtext"
+		}
+		return strType(total)
+	}
+	return ""
 }
 
 func resolvedTypeToColumnType(rt *ResolvedType) string {

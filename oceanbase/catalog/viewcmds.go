@@ -612,7 +612,7 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		}
 		return false
 	case *nodes.FuncCallExpr:
-		if strings.EqualFold(e.Name, "nullif") {
+		if strings.EqualFold(e.Name, "nullif") || strings.EqualFold(e.Name, "mod") {
 			return true
 		}
 		if (strings.EqualFold(e.Name, "coalesce") || strings.EqualFold(e.Name, "ifnull")) && len(e.Args) > 0 {

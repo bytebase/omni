@@ -717,7 +717,7 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 	require.Equal(t, "bigint", viewCols["next_id"].Type)
 	require.Equal(t, "bigint", viewCols["cnt"].Type)
 	require.Equal(t, "bigint", viewCols["is_pos"].Type)
-	require.Equal(t, "varchar", viewCols["label"].Type)
+	require.Equal(t, "var_string(5)", viewCols["label"].Type)
 	require.Equal(t, "bigint", viewCols["lit_int"].Type)
 	require.Equal(t, "var_string(1)", viewCols["lit_str"].Type)
 	require.Equal(t, "var_string(0)", viewCols["lit_empty"].Type)
@@ -1124,4 +1124,124 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "tinyint", ctrlCols["case_ti_noelse"].Type)
 	require.Equal(t, "varchar(3)", ctrlCols["case_str"].Type)
 	require.Equal(t, "double", ctrlCols["case_f_d"].Type)
+
+	// Scalar function view columns resolve types matching TiDB v8.5.5.
+	scalarFnCat := New()
+	_, err = scalarFnCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_fn (
+			i INT NOT NULL,
+			f FLOAT NOT NULL,
+			dbl DOUBLE NOT NULL,
+			d DECIMAL(10,2) NOT NULL,
+			c CHAR(4) NOT NULL,
+			v VARCHAR(32) NOT NULL,
+			txt TEXT NOT NULL,
+			j JSON NOT NULL
+		);
+		CREATE VIEW v_fn AS SELECT
+			JSON_UNQUOTE(JSON_EXTRACT(j, '$.a')) AS ju,
+			JSON_EXTRACT(j, '$.a') AS je,
+			JSON_TYPE(j) AS jt,
+			LOWER(v) AS lw_v,
+			UPPER(c) AS up_c,
+			TRIM(txt) AS tr_txt,
+			REPLACE(v, 'a', 'bb') AS rp_v,
+			SUBSTRING(v, 2, 5) AS sub_v,
+			LEFT(v, 5) AS lf_v,
+			RIGHT(c, 2) AS rg_c,
+			LPAD(v, 10, 'x') AS lp_v,
+			REPEAT(c, 3) AS rep_c,
+			CONCAT(c, v) AS cc_cv,
+			CONCAT_WS(',', c, v) AS ccw,
+			SPACE(5) AS sp_5,
+			FORMAT(d, 2) AS fmt_d,
+			ABS(i) AS abs_i,
+			ABS(f) AS abs_f,
+			ABS(dbl) AS abs_dbl,
+			ABS(d) AS abs_d,
+			CEIL(d) AS ceil_d,
+			FLOOR(d) AS fl_d,
+			ROUND(d, 1) AS rnd_d,
+			ROUND(dbl, 2) AS rnd_dbl,
+			TRUNCATE(d, 1) AS trn_d,
+			MOD(i, 3) AS mod_i,
+			MOD(d, 3) AS mod_d,
+			LENGTH(v) AS len_v,
+			JSON_VALID(v) AS jv
+		FROM t_fn;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	scalarFnCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range scalarFnCat.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		scalarFnCols[col.Name] = col
+	}
+	require.Equal(t, "longtext", scalarFnCols["ju"].Type)
+	require.Equal(t, "json", scalarFnCols["je"].Type)
+	require.Equal(t, "var_string(51)", scalarFnCols["jt"].Type)
+	require.Equal(t, "var_string(32)", scalarFnCols["lw_v"].Type)
+	require.Equal(t, "var_string(4)", scalarFnCols["up_c"].Type)
+	require.Equal(t, "var_string(65535)", scalarFnCols["tr_txt"].Type)
+	require.Equal(t, "var_string(64)", scalarFnCols["rp_v"].Type)
+	require.Equal(t, "var_string(32)", scalarFnCols["sub_v"].Type)
+	require.Equal(t, "var_string(32)", scalarFnCols["lf_v"].Type)
+	require.Equal(t, "var_string(4)", scalarFnCols["rg_c"].Type)
+	require.Equal(t, "var_string(40)", scalarFnCols["lp_v"].Type)
+	require.Equal(t, "longtext", scalarFnCols["rep_c"].Type)
+	require.Equal(t, "var_string(36)", scalarFnCols["cc_cv"].Type)
+	require.Equal(t, "var_string(37)", scalarFnCols["ccw"].Type)
+	require.Equal(t, "longtext", scalarFnCols["sp_5"].Type)
+	require.Equal(t, "longtext", scalarFnCols["fmt_d"].Type)
+	require.Equal(t, "bigint", scalarFnCols["abs_i"].Type)
+	require.Equal(t, "double", scalarFnCols["abs_f"].Type)
+	require.Equal(t, "double", scalarFnCols["abs_dbl"].Type)
+	require.Equal(t, "decimal(10,2)", scalarFnCols["abs_d"].Type)
+	require.Equal(t, "bigint", scalarFnCols["ceil_d"].Type)
+	require.Equal(t, "bigint", scalarFnCols["fl_d"].Type)
+	require.Equal(t, "decimal(10,1)", scalarFnCols["rnd_d"].Type)
+	require.Equal(t, "double", scalarFnCols["rnd_dbl"].Type)
+	require.Equal(t, "decimal(9,1)", scalarFnCols["trn_d"].Type)
+	require.Equal(t, "bigint", scalarFnCols["mod_i"].Type)
+	require.Equal(t, "decimal(10,2)", scalarFnCols["mod_d"].Type)
+	require.Equal(t, "bigint", scalarFnCols["len_v"].Type)
+	require.Equal(t, "bigint", scalarFnCols["jv"].Type)
+
+	// LoadMetadata -> DatabaseMetadata round-trip preserves TiDB routine ENUM, SET,
+	// COLLATE, and BINARY type modifiers without dropping them.
+	rtCat := New()
+	rtReport, err := rtCat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "fn_rich",
+				Definition: "CREATE FUNCTION `fn_rich`(a ENUM('Alpha','b'), b VARCHAR(10) CHARSET latin1 COLLATE latin1_bin, c CHAR(4) BINARY) RETURNS set('r','w') CHARSET utf8mb4 COLLATE utf8mb4_bin DETERMINISTIC RETURN 'r'",
+			}},
+			Procedures: []*metadata.ProcedureMetadata{{
+				Name:       "sp_rich",
+				Definition: "CREATE PROCEDURE `sp_rich`(IN p1 SET('x','y'), IN p2 CHAR(8) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci) BEGIN SELECT 1; END",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Empty(t, rtReport.Missing)
+	require.Empty(t, rtReport.Degraded)
+	rtMeta := rtCat.DatabaseMetadata("app")
+	require.Len(t, rtMeta.Schemas[0].Functions, 1)
+	require.Len(t, rtMeta.Schemas[0].Procedures, 1)
+	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "ENUM('Alpha','b')")
+	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "CHARSET latin1 COLLATE latin1_bin")
+	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "CHAR(4) binary")
+	require.Contains(t, rtMeta.Schemas[0].Functions[0].Definition, "RETURNS set('r','w') CHARSET utf8mb4 COLLATE utf8mb4_bin")
+	require.Contains(t, rtMeta.Schemas[0].Procedures[0].Definition, "IN p1 SET('x','y')")
+	require.Contains(t, rtMeta.Schemas[0].Procedures[0].Definition, "CHAR(8) CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci")
+
+	rtCat2 := New()
+	rtReport2, err := rtCat2.LoadMetadata(context.Background(), rtMeta)
+	require.NoError(t, err)
+	require.Empty(t, rtReport2.Missing)
+	require.Empty(t, rtReport2.Degraded)
+	rtMeta2 := rtCat2.DatabaseMetadata("app")
+	require.Equal(t, rtMeta.Schemas[0].Functions[0].Definition, rtMeta2.Schemas[0].Functions[0].Definition)
+	require.Equal(t, rtMeta.Schemas[0].Procedures[0].Definition, rtMeta2.Schemas[0].Procedures[0].Definition)
 }

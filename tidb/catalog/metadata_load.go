@@ -1354,16 +1354,33 @@ func parseMySQLFirst[T mysqlast.Node](sql string) (T, error) {
 	return zero, fmt.Errorf("no %T statement", zero)
 }
 
+func formatTiDBDefiner(definer string) string {
+	if definer == "" || strings.HasPrefix(definer, "`") || strings.HasPrefix(definer, "'") || strings.EqualFold(definer, "CURRENT_USER") {
+		return definer
+	}
+	if user, host, ok := strings.Cut(definer, "@"); ok {
+		return fmt.Sprintf("`%s`@`%s`", strings.ReplaceAll(user, "`", "``"), strings.ReplaceAll(host, "`", "``"))
+	}
+	return definer
+}
+
 func toTiDBDataType(dt *mysqlast.DataType) *nodes.DataType {
 	if dt == nil {
 		return nil
 	}
 	return &nodes.DataType{
-		Name:     dt.Name,
-		Length:   dt.Length,
-		Scale:    dt.Scale,
-		Unsigned: dt.Unsigned,
-		Charset:  dt.Charset,
+		Name:       dt.Name,
+		Length:     dt.Length,
+		Scale:      dt.Scale,
+		HasScale:   dt.Scale > 0,
+		Unsigned:   dt.Unsigned,
+		Zerofill:   dt.Zerofill,
+		Charset:    dt.Charset,
+		Collate:    dt.Collate,
+		Binary:     dt.Binary,
+		EnumValues: append([]string(nil), dt.EnumValues...),
+		ArrayDim:   dt.ArrayDim,
+		SRID:       dt.SRID,
 	}
 }
 
@@ -1390,7 +1407,7 @@ func parseTiDBRoutine(definition string, isProcedure bool) (*nodes.CreateFunctio
 	}
 	return &nodes.CreateFunctionStmt{
 		IsProcedure:     isProcedure,
-		Definer:         src.Definer,
+		Definer:         formatTiDBDefiner(src.Definer),
 		Name:            name,
 		Params:          params,
 		Returns:         toTiDBDataType(src.Returns),
@@ -1409,7 +1426,7 @@ func parseTiDBEvent(definition string) (*nodes.CreateEventStmt, error) {
 		schedule = &nodes.EventSchedule{RawText: src.Schedule.RawText}
 	}
 	return &nodes.CreateEventStmt{
-		Definer:      src.Definer,
+		Definer:      formatTiDBDefiner(src.Definer),
 		Name:         src.Name,
 		Schedule:     schedule,
 		OnCompletion: src.OnCompletion,

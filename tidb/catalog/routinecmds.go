@@ -119,14 +119,24 @@ func formatDataType(dt *nodes.DataType) string {
 		name = "json"
 	case "bool", "boolean":
 		name = "tinyint"
+	case "enum", "set":
+		// keep as-is; the member list is rendered below.
 	}
 
 	var b strings.Builder
 	b.WriteString(name)
 
-	// Length/precision.
-	if dt.Length > 0 {
-		if dt.Scale > 0 {
+	if len(dt.EnumValues) > 0 {
+		b.WriteString("(")
+		for i, v := range dt.EnumValues {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString("'" + escapeEnumValue(v) + "'")
+		}
+		b.WriteString(")")
+	} else if dt.Length > 0 {
+		if dt.Scale > 0 || dt.HasScale {
 			b.WriteString(fmt.Sprintf("(%d,%d)", dt.Length, dt.Scale))
 		} else {
 			b.WriteString(fmt.Sprintf("(%d)", dt.Length))
@@ -136,22 +146,42 @@ func formatDataType(dt *nodes.DataType) string {
 	if dt.Unsigned {
 		b.WriteString(" unsigned")
 	}
+	if dt.Zerofill {
+		b.WriteString(" zerofill")
+	}
+	if dt.Binary {
+		b.WriteString(" binary")
+	}
 
 	return b.String()
 }
 
 // formatParamType formats a DataType for display in a routine parameter list.
-// MySQL 8.0 shows parameter types in UPPERCASE (INT, VARCHAR(100), etc.)
 func formatParamType(dt *nodes.DataType) string {
 	raw := formatDataType(dt)
-	return strings.ToUpper(raw)
+	if open := strings.IndexByte(raw, '('); open >= 0 {
+		raw = strings.ToUpper(raw[:open]) + raw[open:]
+	} else {
+		raw = strings.ToUpper(raw)
+	}
+	if dt == nil {
+		return raw
+	}
+	if dt.Charset != "" {
+		raw += " CHARSET " + dt.Charset
+	}
+	if dt.Collate != "" {
+		raw += " COLLATE " + dt.Collate
+	}
+	return raw
 }
 
 // formatReturnType formats a DataType for display in the RETURNS clause.
-// MySQL 8.0 shows return types in lowercase but adds CHARSET for string types.
 func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 	raw := formatDataType(dt)
-	// MySQL 8.0 appends CHARSET for string return types.
+	if dt == nil {
+		return raw
+	}
 	name := strings.ToLower(dt.Name)
 	if isStringRoutineType(name) {
 		charset := dt.Charset
@@ -162,6 +192,11 @@ func formatReturnType(dt *nodes.DataType, dbCharset string) string {
 			charset = "utf8mb4"
 		}
 		raw += " CHARSET " + charset
+	} else if dt.Charset != "" {
+		raw += " CHARSET " + dt.Charset
+	}
+	if dt.Collate != "" {
+		raw += " COLLATE " + dt.Collate
 	}
 	return raw
 }
