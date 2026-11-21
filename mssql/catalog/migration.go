@@ -661,6 +661,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	restoredConstraint := false
 	for _, ref := range restoreFunctionDefaults {
+		if deferredTableDefaultCols[checkKey(ref.schema, ref.table, ref.column)] {
+			continue
+		}
 		if !allFunctionsRecreated(allFunctionCreates, ref.functions) || columnDefaultChanged(diff, ref.schema, ref.table, ref.column) {
 			continue
 		}
@@ -669,6 +672,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		restoredConstraint = true
 	}
 	for _, ref := range restoreFunctionChecks {
+		if deferredTableCheckKeys[checkKey(ref.schema, ref.table, ref.constraint)] {
+			continue
+		}
 		if !allFunctionsRecreated(allFunctionCreates, ref.functions) || !checkExistsUnchangedInTarget(to, diff, ref.schema, ref.table, ref.constraint) {
 			continue
 		}

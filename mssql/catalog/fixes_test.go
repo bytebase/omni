@@ -1709,3 +1709,31 @@ CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] 
 	require.Less(t, createV1, createG)
 	require.Less(t, createG, addDF)
 }
+
+func TestMigrationDeduplicatesRestoredAndDeferredViewDependentDefault(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_t_v] DEFAULT ([dbo].[g]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_t_v]"), sql)
+	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [DF_t_v]"), sql)
+	require.Less(t, strings.Index(sql, "CREATE FUNCTION [dbo].[g]"), strings.Index(sql, "ADD CONSTRAINT [DF_t_v]"))
+}
