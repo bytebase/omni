@@ -11,7 +11,8 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldKey := toLower(pair.Old.Name)
 		tbl := oldDB.Tables[oldKey]
 		seq := oldDB.Sequences[oldKey]
-		if tbl == nil && seq == nil {
+		view := oldDB.Views[oldKey]
+		if tbl == nil && seq == nil && view == nil {
 			return errNoSuchTable(oldDB.Name, pair.Old.Name)
 		}
 
@@ -22,6 +23,16 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		newKey := toLower(pair.New.Name)
 		if newDB.Tables[newKey] != nil || newDB.Sequences[newKey] != nil || newDB.Views[newKey] != nil {
 			return errDupTable(pair.New.Name)
+		}
+		if view != nil {
+			if oldDB != newDB {
+				return errChangeSchemaNotAllowed(oldDB.Name, newDB.Name)
+			}
+			delete(oldDB.Views, oldKey)
+			view.Name = pair.New.Name
+			view.Database = newDB
+			newDB.Views[newKey] = view
+			continue
 		}
 		if seq != nil {
 			delete(oldDB.Sequences, oldKey)

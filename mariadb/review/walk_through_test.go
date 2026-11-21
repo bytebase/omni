@@ -547,6 +547,58 @@ var walkForms = []walktest.Form{
 	{SQL: "GRANT SELECT ON shop.t TO 'u'@'%';"},
 }
 
+func TestWalkThroughMariaDBFKGeneratedIndex(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				{
+					Name:    "parent",
+					Columns: []*metadata.ColumnMetadata{{Name: "b"}},
+					Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Expressions: []string{"b"}, Primary: true, Unique: true}},
+				},
+				{
+					Name:    "a",
+					Columns: []*metadata.ColumnMetadata{{Name: "b"}, {Name: "a"}, {Name: "d"}},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Expressions: []string{"b"}, Primary: true, Unique: true},
+						{Name: "idx_d", Expressions: []string{"d"}},
+						{Name: "a", Expressions: []string{"a"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "a", Columns: []string{"a"}, ReferencedTable: "parent"},
+					},
+				},
+			},
+		}},
+	}
+	target := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+
+	// MariaDB silently drops an InnoDB auto-generated FK backing index when an
+	// explicit BTREE/default index covers its columns, even under the same name.
+	noFinding(t, "CREATE INDEX a ON a (a);", target)
+	noFinding(t, "CREATE UNIQUE INDEX a ON a (a);", target)
+	noFinding(t, "ALTER TABLE a ADD KEY a (a);", target)
+	noFinding(t, "ALTER TABLE a ADD KEY a (a, d);", target)
+	noFinding(t, "ALTER TABLE a ADD UNIQUE a TYPE BTREE (a);", target)
+
+	// Once replaced by an explicit index, a second index of the same name fails (1061).
+	oneFinding(t, "CREATE INDEX a ON a (a);\nCREATE INDEX a ON a (a);", 1, "Index `a` already exists in `a`.", target)
+
+	// Non-covering, HASH, or unrelated existing indexes still report 1061.
+	oneFinding(t, "ALTER TABLE a ADD KEY a (d);", 0, "Index `a` already exists in `a`.", target)
+	oneFinding(t, "CREATE INDEX a USING HASH ON a (a);", 0, "Index `a` already exists in `a`.", target)
+	oneFinding(t, "CREATE INDEX idx_d ON a (d);", 0, "Index `idx_d` already exists in `a`.", target)
+
+	// Tracking survives column rename and table rename.
+	noFinding(t, "ALTER TABLE a RENAME COLUMN a TO x;\nCREATE INDEX a ON a (x);", target)
+	noFinding(t, "RENAME TABLE a TO c;\nCREATE INDEX a ON c (a);", target)
+
+	// Adding a different covering index may drop the implicit FK index `a`, so
+	// a follow-up ADD KEY a (d) is no longer certain to collide.
+	noFinding(t, "ALTER TABLE a ADD KEY zzz (a);\nALTER TABLE a ADD KEY a (d);", target)
+}
+
 func TestWalkThroughMariaDBLowersEveryForm(t *testing.T) {
 	walktest.Coverage(t, walkForms, func(t *testing.T, sql string) (n, lowered int, last bool) {
 		t.Helper()

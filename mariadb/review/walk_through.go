@@ -215,21 +215,26 @@ type walker struct {
 	// their columns are Unknown, and an ALTER TABLE of one ends the walk
 	// (MariaDB spec §2.3), as a precaution.
 	versioned map[walk.Key]bool
+	// fkGeneratedIdx lists synced index keys that may be InnoDB auto-generated
+	// foreign-key backing indexes, mapped to their lowercased column names (nil
+	// when unknown). See mariadbSnapshot.fkGeneratedIdx.
+	fkGeneratedIdx map[walk.Key][]string
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	fold := t.LowerCaseTableNames != 0
 	snap := newMariaDBSnapshot(t.Schema, fold)
 	w := &walker{
-		sql:        sql,
-		stmts:      stmts,
-		snap:       snap,
-		foldTables: fold,
-		current:    snap.db,
-		fkChecks:   t.ForeignKeyChecks,
-		triggered:  make(map[walk.Key]bool),
-		ignoresFKs: make(map[walk.Key]bool),
-		versioned:  make(map[walk.Key]bool),
+		sql:            sql,
+		stmts:          stmts,
+		snap:           snap,
+		foldTables:     fold,
+		current:        snap.db,
+		fkChecks:       t.ForeignKeyChecks,
+		triggered:      make(map[walk.Key]bool),
+		ignoresFKs:     make(map[walk.Key]bool),
+		versioned:      make(map[walk.Key]bool),
+		fkGeneratedIdx: make(map[walk.Key][]string),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
@@ -239,6 +244,11 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	}
 	for name := range snap.versioned {
 		w.versioned[relKey(snap.db, name)] = true
+	}
+	for tbl, idxs := range snap.fkGeneratedIdx {
+		for idx, cols := range idxs {
+			w.fkGeneratedIdx[idxKey(snap.db, tbl, idx)] = cols
+		}
 	}
 	return w
 }

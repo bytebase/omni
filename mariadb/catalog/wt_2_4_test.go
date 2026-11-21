@@ -81,7 +81,9 @@ func TestWalkThrough_2_4_AlterTableDropColumnUsedInFK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	// Error code 1828: Cannot drop column needed in FK constraint.
+	// With foreign_key_checks=1, MariaDB returns 1553 (cannot drop index needed
+	// in FK constraint); with foreign_key_checks=0, it returns 1828 (cannot drop
+	// column needed in FK constraint).
 	if results[0].Error == nil {
 		t.Fatal("expected error when dropping column used in FK, got nil")
 	}
@@ -89,9 +91,15 @@ func TestWalkThrough_2_4_AlterTableDropColumnUsedInFK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *catalog.Error, got %T: %v", results[0].Error, results[0].Error)
 	}
-	if catErr.Code != 1828 {
-		t.Errorf("expected error code 1828, got %d: %s", catErr.Code, catErr.Message)
+	if catErr.Code != 1553 {
+		t.Errorf("expected error code 1553, got %d: %s", catErr.Code, catErr.Message)
 	}
+	wtExec(t, c, "SET foreign_key_checks = 0")
+	results, err = c.Exec("ALTER TABLE child DROP COLUMN pid", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	assertError(t, results[0].Error, 1828)
 }
 
 // TestWalkThrough_2_4_AlterTableAddFKMissingIndex tests that ALTER TABLE ADD FK

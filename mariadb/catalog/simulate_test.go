@@ -48,12 +48,15 @@ func TestSimulation(t *testing.T) {
 	})
 }
 
-// simulationFixtures are the starting schemas, in testdata/fixtures: one
-// table under four namings. A compat.tsv statement writes a for every name it
-// holds, the table's, a column's and an index's alike, so what a statement
-// finds is set by what the fixture names a: nothing, the table, a column of
-// it too, and an index of it too.
-var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_table@column", "one_table@index"}
+// simulationFixtures are the starting schemas, in testdata/fixtures. A
+// compat.tsv statement writes a for every name it holds, so what a statement
+// finds is set by what the fixture names a: nothing, a table, a column, an
+// index, a view, a partition of a RANGE-partitioned table, or a foreign key on
+// a constrained table.
+var simulationFixtures = []string{
+	"one_table@missing", "one_table@table", "one_table@column", "one_table@index",
+	"objects@view", "objects@partitioned", "objects@fk",
+}
 
 // simulatedStatement matches the statements the file holds: DDL on tables,
 // indexes and views, whose whole effect is in the database a row reads back.
@@ -196,6 +199,10 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 
 	var stored strings.Builder
 	stored.WriteString(database)
+	// engine.Forms are in name order, so a child table (e.g. a) can precede
+	// its FK parent (e.g. parent). Disable FK checks while loading SHOW CREATE
+	// forms from MariaDB.
+	stored.WriteString("SET FOREIGN_KEY_CHECKS = 0;\n")
 	for _, kind := range []string{"TABLE", "VIEW"} { // a view reads the tables
 		for _, f := range engine.Forms {
 			if f.Kind == kind {

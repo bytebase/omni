@@ -31,15 +31,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	tbl := db.Tables[key]
 	if tbl == nil {
-		// IF EXISTS makes a missing table a note (1146 as a warning).
-		if stmt.IfExists {
+		// A partition maintenance command is not an error on a missing table or
+		// a view: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
+		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and
+		// REMOVE [FORCE] PARTITIONING answer 1146 / 1347.
+		if onlyPartitionMaintenance(stmt.Commands) {
 			return nil
 		}
-		// A partition maintenance command is not an error on a table that is not
-		// there: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
-		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and
-		// REMOVE [FORCE] PARTITIONING answer 1146.
-		if onlyPartitionMaintenance(stmt.Commands) {
+		if db.Views[key] != nil {
+			// TRUNCATE PARTITION checks partitioning before table-vs-view,
+			// answering 1505 even with IF EXISTS; every other ALTER TABLE on a
+			// view answers 1347, IF EXISTS included (measured on mariadb:11.8.8).
+			if len(stmt.Commands) == 1 && stmt.Commands[0] != nil && stmt.Commands[0].Type == nodes.ATTruncatePartition {
+				return errPartitionMgmtOnNonpartitioned()
+			}
+			return errWrongObject(db.Name, tableName, "BASE TABLE")
+		}
+		// IF EXISTS makes a missing table a note (1146 as a warning).
+		if stmt.IfExists {
 			return nil
 		}
 		return errNoSuchTable(db.Name, tableName)
@@ -245,6 +254,21 @@ func autoIncrementKeyed(tbl *Table, name string) bool {
 // table's unique keys after them.
 func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	repartition := alterRepartition(stmt.Commands)
+	// Partitioning a table that has or is referenced by a foreign key fails
+	// with 1217 before system-versioning (4124) is checked (measured on
+	// mariadb:11.8.8).
+	if repartition != nil {
+		refChild, _ := c.findFKReference(db.Name, tbl.Name)
+		if tableHasForeignKey(tbl) || refChild != nil {
+			return errRowIsReferencedOld()
+		}
+	}
+	// Foreign key operations (ADD FOREIGN KEY, column REFERENCES, DROP FOREIGN
+	// KEY) on a partitioned table are refused with 1506 before column or
+	// constraint lookups (measured on mariadb:11.8.8).
+	if tbl.Partitioning != nil && alterTouchesForeignKey(stmt.Commands) {
+		return errForeignKeyOnPartitioned()
+	}
 	// SYSTEM_TIME partitioning is a versioned table's: measured on
 	// mariadb:11.8.8, `ALTER TABLE a PARTITION BY SYSTEM_TIME` over a table
 	// that is not system-versioned answers 4124.
@@ -378,6 +402,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		origTableName:  origTableName,
 		dropsPK:        alterDropsPrimaryKey(stmt.Commands),
 		droppedColumns: alterDroppedColumns(stmt.Commands),
+		droppedFKs:     alterDroppedFKs(stmt.Commands),
 		declaredChecks: alterDeclaredCheckNames(stmt.Commands),
 		skippedColumns: skippedColumns,
 		skippedKeys:    skippedKeys,
@@ -395,10 +420,11 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// dropped/modified/renamed ROW START/END or period column), so route the
 		// command through post-mutation validation when the table is already
 		// versioned or the command itself carries versioning metadata. So does
-		// a table with an IGNORED index, which a dropped key or a column made
-		// NOT NULL can promote to the implicit primary key. Plain tables keep
-		// the no-clone fast path.
-		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
+		// a table with an IGNORED index, an implicit FK backing index (which
+		// ADD KEY may drop before later validation fails), or a DROP INDEX on
+		// a table with FKs (which needs post-drop FK coverage validation).
+		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) && !hasImplicitFKIndex(tbl) &&
+			!(c.foreignKeyChecks && tableHasForeignKey(tbl) && (cmd.Type == nodes.ATDropIndex || cmd.Type == nodes.ATDropConstraint)) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
 			return c.execAlterCmd(db, tbl, cmd, actx)
 		}
@@ -409,6 +435,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if err := c.execAlterCmd(db, tbl, cmd, actx); err != nil {
 			*tbl = snapshot
 			return err
+		}
+		if c.foreignKeyChecks && len(actx.droppedIndexes) > 0 && !checkFKIndexCoverage(tbl) {
+			*tbl = snapshot
+			return errDropIndexFK(actx.droppedIndexes[0])
 		}
 		if charsetPlan.hasConvert {
 			if err := c.applyAlterConvertCharset(tbl, charsetPlan); err != nil {
@@ -460,6 +490,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			rollback()
 			return err
 		}
+	}
+	if c.foreignKeyChecks && len(actx.droppedIndexes) > 0 && !checkFKIndexCoverage(tbl) {
+		rollback()
+		return errDropIndexFK(actx.droppedIndexes[0])
 	}
 	// Validate system-versioning consistency across the atomic ALTER as a whole
 	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
@@ -561,6 +595,8 @@ type alterExecCtx struct {
 	origTableName  string
 	dropsPK        bool
 	droppedColumns map[string]bool
+	droppedFKs     map[string]bool
+	droppedIndexes []string
 	declaredChecks map[string]bool
 	skippedColumns map[*nodes.ColumnDef]bool
 	skippedKeys    map[*nodes.Constraint]bool
@@ -587,7 +623,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd, actx)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns)
+		return c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns, actx.droppedFKs)
 	case nodes.ATModifyColumn:
 		return c.alterModifyColumn(tbl, cmd, actx)
 	case nodes.ATChangeColumn:
@@ -595,9 +631,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
 		return c.alterAddConstraint(tbl, cmd, actx.declaredChecks, actx.skippedKeys, actx.checkNames)
 	case nodes.ATDropIndex:
-		return c.alterDropIndex(tbl, cmd)
+		return c.alterDropIndex(tbl, cmd, actx)
 	case nodes.ATDropConstraint:
-		return c.alterDropConstraint(tbl, cmd)
+		return c.alterDropConstraint(tbl, cmd, actx)
 	case nodes.ATRenameColumn:
 		return c.alterRenameColumn(tbl, cmd)
 	case nodes.ATRenameIndex:
@@ -1178,7 +1214,60 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	return out
 }
 
-func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
+// alterDroppedFKs returns the lower-cased constraint names dropped by DROP
+// FOREIGN KEY or DROP CONSTRAINT in the same ALTER TABLE.
+func alterDroppedFKs(cmds []*nodes.AlterTableCmd) map[string]bool {
+	out := make(map[string]bool)
+	for _, cmd := range cmds {
+		if cmd != nil && cmd.Type == nodes.ATDropConstraint && !strings.EqualFold(cmd.Name, "PRIMARY") {
+			out[toLower(cmd.Name)] = true
+		}
+	}
+	return out
+}
+
+// alterTouchesForeignKey reports whether any command in an ALTER TABLE adds
+// or drops a foreign key (including inline column REFERENCES).
+func alterTouchesForeignKey(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddConstraint:
+			if cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrForeignKey {
+				return true
+			}
+		case nodes.ATDropConstraint:
+			if cmd.DropForeignKey {
+				return true
+			}
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+			for _, con := range cmd.Constraints {
+				if con != nil && con.Type == nodes.ConstrForeignKey {
+					return true
+				}
+			}
+			cols := cmd.Columns
+			if cmd.Column != nil {
+				cols = append([]*nodes.ColumnDef{cmd.Column}, cols...)
+			}
+			for _, col := range cols {
+				if col == nil {
+					continue
+				}
+				for _, cc := range col.Constraints {
+					if cc != nil && cc.Type == nodes.ColConstrReferences {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool, droppedFKs map[string]bool) error {
 	colKey := toLower(cmd.Name)
 	if _, exists := tbl.colByName[colKey]; !exists {
 		if cmd.IfExists {
@@ -1201,11 +1290,19 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, dropping
 		}
 	}
 
-	// Check if column is referenced by a foreign key constraint.
+	// Check if column is referenced by a foreign key constraint that is not
+	// also dropped in the same ALTER TABLE. With foreign_key_checks=1, MariaDB
+	// 11.8.8 rejects dropping the backing index first (1553); with
+	// foreign_key_checks=0 (or when no backing index exists), it reports 1828.
 	for _, con := range tbl.Constraints {
-		if con.Type == ConForeignKey {
+		if con.Type == ConForeignKey && !droppedFKs[toLower(con.Name)] {
 			for _, col := range con.Columns {
 				if toLower(col) == colKey {
+					if c.foreignKeyChecks {
+						if backing := findCoveringIndex(tbl, con.Columns); backing != nil {
+							return errDropIndexFK(backing.Name)
+						}
+					}
 					return &Error{
 						Code:     1828,
 						SQLState: "HY000",
@@ -1415,6 +1512,11 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDefInDB(tbl, actx.origDBName, colDef, plan.tableCharset, plan.tableCollation)
+	// Every column of a PRIMARY KEY remains NOT NULL across MODIFY/CHANGE
+	// unless the same ALTER drops the primary key (measured on mariadb:11.8.8).
+	if !actx.dropsPK && columnInPrimaryKey(tbl, oldName) {
+		col.Nullable = false
+	}
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
@@ -1725,6 +1827,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
 		}
+		dropImplicitFKIndexesCoveredBy(tbl, idxCols, "", false, false, false)
 		// Mark PK columns as NOT NULL.
 		for _, colName := range cols {
 			col := tbl.GetColumn(colName)
@@ -1757,21 +1860,26 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		})
 
 	case nodes.ConstrUnique:
+		idxCols := buildIndexColumns(con)
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" {
+		if idxName != "" {
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
 			}
-			if indexNameExists(tbl, idxName) {
-				return errDupKeyName(idxName)
-			}
 		}
-		idxCols := buildIndexColumns(con)
 		long, err := validateUniqueIndexColumns(tbl, idxCols)
 		if err != nil {
 			return err
+		}
+		resolvedType := resolveConstraintIndexType(con)
+		if long {
+			resolvedType = "HASH"
+		}
+		dropImplicitFKIndexesCoveredBy(tbl, idxCols, resolvedType, false, false, false)
+		if idxName == "" && len(cols) > 0 {
+			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 			return err
@@ -1781,11 +1889,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
-			IndexType: resolveConstraintIndexType(con),
+			IndexType: resolvedType,
 			Visible:   true,
-		}
-		if long {
-			uqIdx.IndexType = "HASH"
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
@@ -1873,18 +1978,19 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		})
 
 	case nodes.ConstrIndex:
+		idxCols := buildIndexColumns(con)
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" {
+		if idxName != "" {
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
 			}
-			if indexNameExists(tbl, idxName) {
-				return errDupKeyName(idxName)
-			}
 		}
-		idxCols := buildIndexColumns(con)
+		dropImplicitFKIndexesCoveredBy(tbl, idxCols, resolveConstraintIndexType(con), false, false, false)
+		if idxName == "" && len(cols) > 0 {
+			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
+		}
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
@@ -2004,13 +2110,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 }
 
 // alterDropIndex removes an index (and any associated constraint) by name.
-func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	name := cmd.Name
 	key := toLower(name)
 
 	found := false
+	droppedName := name
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			droppedName = idx.Name
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -2026,6 +2134,9 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			return nil
 		}
 		return errCantDropKey("INDEX", name)
+	}
+	if actx != nil {
+		actx.droppedIndexes = append(actx.droppedIndexes, droppedName)
 	}
 
 	// Also remove any constraint that references this index.
@@ -2120,7 +2231,7 @@ func indexedColumnsOf(tbl *Table) map[string]bool {
 }
 
 // alterDropConstraint removes a constraint by name.
-func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	name := cmd.Name
 	key := toLower(name)
 
@@ -2162,6 +2273,9 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	if !isForeignKey {
 		for i, idx := range tbl.Indexes {
 			if toLower(idx.Name) == key {
+				if actx != nil {
+					actx.droppedIndexes = append(actx.droppedIndexes, idx.Name)
+				}
 				tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 				break
 			}
@@ -2346,6 +2460,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd, plan al
 		tbl.Transactional = choiceValue(opt.Value)
 	case "sequence":
 		if opt.Value == "1" {
+			if tbl.Partitioning != nil {
+				return &Error{Code: 1478, SQLState: "HY000", Message: "Table storage engine 'partition' does not support the create option 'SEQUENCE'"}
+			}
 			return errSequenceInvalidTableStructure(tbl.Database.Name, tbl.Name)
 		}
 	}
@@ -2776,6 +2893,11 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
 	}
+	if strings.HasPrefix(tbl.Partitioning.Type, "RANGE") || strings.HasPrefix(tbl.Partitioning.Type, "LIST") {
+		if len(cmd.PartitionDefs) == 0 {
+			return errPartitionsMustBeDefined(tbl.Partitioning.Type)
+		}
+	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
 		if start == 0 {
@@ -2826,9 +2948,27 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
 	}
-	dropSet := make(map[string]bool)
+	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") && tbl.Partitioning.Type != "SYSTEM_TIME" {
+		return errOnlyOnRangeListPartitioning("DROP PARTITION")
+	}
+	// MariaDB checks whether the requested drop count would remove all
+	// partitions before checking for duplicate or missing names (measured on
+	// mariadb:11.8.8: DROP PARTITION a, a on a 2-partition table answers 1508,
+	// and on a 3-partition table answers 1507).
+	if len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
+		return errDropLastPartition()
+	}
+	existing := make(map[string]bool, len(tbl.Partitioning.Partitions))
+	for _, pd := range tbl.Partitioning.Partitions {
+		existing[toLower(pd.Name)] = true
+	}
+	dropSet := make(map[string]bool, len(cmd.PartitionNames))
 	for _, name := range cmd.PartitionNames {
-		dropSet[toLower(name)] = true
+		k := toLower(name)
+		if !existing[k] || dropSet[k] {
+			return errDropPartitionNonExistent()
+		}
+		dropSet[k] = true
 	}
 	var remaining []*PartitionDefInfo
 	for _, pd := range tbl.Partitioning.Partitions {
@@ -2837,6 +2977,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 	}
 	tbl.Partitioning.Partitions = remaining
+	tbl.Partitioning.NumParts = len(remaining)
 	return nil
 }
 
@@ -2853,6 +2994,9 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
+	}
+	if tbl.Partitioning.Type != "HASH" && tbl.Partitioning.Type != "KEY" {
+		return errCoalesceOnlyOnHashPartition()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -2874,6 +3018,15 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
+	}
+	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 {
+		if tbl.Partitioning.Type != "HASH" && tbl.Partitioning.Type != "KEY" {
+			return errReorgNoParam()
+		}
+		return nil
+	}
+	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)

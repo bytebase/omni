@@ -124,16 +124,37 @@ func mariadbCatalogToMetadata(c *mariadbcatalog.Catalog, dbName string) *metadat
 			if idx.Primary {
 				name = "PRIMARY"
 			}
+			var exprs []string
+			var keyLengths []int64
+			for _, ic := range idx.Columns {
+				if ic == nil {
+					continue
+				}
+				if ic.Expr != "" {
+					exprs = append(exprs, ic.Expr)
+				} else {
+					exprs = append(exprs, ic.Name)
+				}
+				if ic.Length > 0 {
+					keyLengths = append(keyLengths, int64(ic.Length))
+				} else {
+					keyLengths = append(keyLengths, -1)
+				}
+			}
 			tm.Indexes = append(tm.Indexes, &metadata.IndexMetadata{
-				Name:    name,
-				Unique:  idx.Unique,
-				Primary: idx.Primary,
+				Name:        name,
+				Expressions: exprs,
+				KeyLength:   keyLengths,
+				Type:        idx.IndexType,
+				Unique:      idx.Unique,
+				Primary:     idx.Primary,
 			})
 		}
 		for _, con := range t.Constraints {
 			if con.Type == mariadbcatalog.ConForeignKey {
 				tm.ForeignKeys = append(tm.ForeignKeys, &metadata.ForeignKeyMetadata{
 					Name:            con.Name,
+					Columns:         append([]string(nil), con.Columns...),
 					ReferencedTable: con.RefTable,
 				})
 			}

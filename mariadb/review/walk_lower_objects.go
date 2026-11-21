@@ -47,13 +47,17 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
+	replacedFKIdx := false
+	if !v.Fulltext && !v.Spatial && !v.Vector && indexTypeSupportsFK(v.IndexType, v.Options) {
+		replacedFKIdx = b.replaceFKGeneratedIndexes(r, ik, v.Columns)
+	}
 	switch {
 	case v.OrReplace:
 		// It replaces an index of the name (verified).
 	case v.IfNotExists:
 		b.Next()
 		b.Optional()
-	default:
+	case !replacedFKIdx:
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")

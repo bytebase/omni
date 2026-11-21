@@ -79,9 +79,8 @@ func TestWalkThrough_6_2_DropChildThenParent(t *testing.T) {
 	}
 }
 
-// Scenario 4: DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 1828
-// (Already covered by TestWalkThrough_2_4_AlterTableDropColumnUsedInFK; included
-// here for section completeness.)
+// Scenario 4: DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 1553
+// (and error 1828 with foreign_key_checks=0; measured on mariadb:11.8.8).
 func TestWalkThrough_6_2_DropColumnUsedInFK(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -98,9 +97,15 @@ func TestWalkThrough_6_2_DropColumnUsedInFK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *Error, got %T", results[0].Error)
 	}
-	if catErr.Code != 1828 {
-		t.Errorf("expected error code 1828, got %d", catErr.Code)
+	if catErr.Code != 1553 {
+		t.Errorf("expected error code 1553, got %d", catErr.Code)
 	}
+	wtExec(t, c, "SET foreign_key_checks = 0")
+	results, err = c.Exec("ALTER TABLE child DROP COLUMN pid", &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	assertError(t, results[0].Error, 1828)
 }
 
 // Scenario 5: CREATE TABLE with FK referencing nonexistent table, foreign_key_checks=0 — succeeds.

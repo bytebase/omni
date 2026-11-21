@@ -323,6 +323,9 @@ type AlterTableCmd struct {
 	Option      *TableOption // for table options
 	DefaultExpr ExprNode     // for ALTER COLUMN SET DEFAULT expr
 	IfExists    bool
+	// DropForeignKey distinguishes DROP FOREIGN KEY from DROP CONSTRAINT, both
+	// of which use ATDropConstraint.
+	DropForeignKey bool
 	// IfNotExists is ADD [COLUMN] IF NOT EXISTS, MariaDB's
 	// opt_if_not_exists_table_element before a column: a column already there
 	// is skipped with a note (1060) instead of failing the statement.

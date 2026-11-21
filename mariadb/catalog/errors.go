@@ -232,6 +232,42 @@ func errDropLastPartition() error {
 	return &Error{Code: 1508, SQLState: "HY000", Message: "Cannot remove all partitions, use DROP TABLE instead"}
 }
 
+// errCoalesceOnlyOnHashPartition is 1509, COALESCE PARTITION on a non-HASH/KEY table.
+func errCoalesceOnlyOnHashPartition() error {
+	return &Error{Code: 1509, SQLState: "HY000", Message: "COALESCE PARTITION can only be used on HASH/KEY partitions"}
+}
+
+// errReorgNoParam is 1511, REORGANIZE PARTITION without parameters on a non-HASH/KEY table.
+func errReorgNoParam() error {
+	return &Error{Code: 1511, SQLState: "HY000", Message: "REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs"}
+}
+
+// errPartitionsMustBeDefined is 1492, ADD PARTITION without definitions on a RANGE/LIST table.
+func errPartitionsMustBeDefined(kind string) error {
+	return &Error{Code: 1492, SQLState: "HY000", Message: fmt.Sprintf("For %s partitions each partition must be defined", kind)}
+}
+
+// errForeignKeyOnPartitioned is 1506, foreign key operations on a partitioned table.
+func errForeignKeyOnPartitioned() error {
+	return &Error{Code: 1506, SQLState: "HY000", Message: "Foreign keys are not yet supported in conjunction with partitioning"}
+}
+
+// errDropIndexFK is 1553, dropping an index or column whose backing index is needed by an FK.
+func errDropIndexFK(name string) error {
+	return &Error{Code: 1553, SQLState: "HY000", Message: fmt.Sprintf("Cannot drop index '%s': needed in a foreign key constraint", name)}
+}
+
+// errRowIsReferencedOld is 1217, what MariaDB reports when partitioning a table
+// that has or is referenced by a foreign key constraint.
+func errRowIsReferencedOld() error {
+	return &Error{Code: 1217, SQLState: "23000", Message: "Cannot delete or update a parent row: a foreign key constraint fails"}
+}
+
+// errChangeSchemaNotAllowed is 1450, renaming a view into another database.
+func errChangeSchemaNotAllowed(fromDB, toDB string) error {
+	return &Error{Code: 1450, SQLState: "HY000", Message: fmt.Sprintf("Changing schema from '%s' to '%s' is not allowed", fromDB, toDB)}
+}
+
 // errSameNamePartition is 1517, a partition name the table already has.
 func errSameNamePartition(name string) error {
 	return &Error{Code: 1517, SQLState: "HY000", Message: fmt.Sprintf("Duplicate partition name %s", name)}
@@ -436,8 +472,8 @@ func errFKDupName(name string) error {
 }
 
 func errCheckConstraintDupName(name string) error {
-	return &Error{Code: ErrCheckConstraintDupName, SQLState: sqlState(ErrCheckConstraintDupName),
-		Message: fmt.Sprintf("Duplicate check constraint name '%s'.", name)}
+	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
+		Message: fmt.Sprintf("Duplicate CHECK constraint name '%s'", name)}
 }
 
 func errCheckConstraintNotAllowed(name string) error {

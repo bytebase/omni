@@ -349,6 +349,14 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		} else if !old {
 			delete(b.w.versioned, k)
 		}
+		if !old {
+			tblPath := tablePath(r.db, r.name)
+			for ik := range b.w.fkGeneratedIdx {
+				if ik.Parent == tblPath {
+					delete(b.w.fkGeneratedIdx, ik)
+				}
+			}
+		}
 	})
 	if old {
 		b.Next()

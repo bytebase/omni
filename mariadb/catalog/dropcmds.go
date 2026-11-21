@@ -23,6 +23,9 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 			if stmt.IfExists {
 				continue
 			}
+			if !stmt.Temporary && db.Views[key] != nil {
+				return errIsAView(db.Name, ref.Name)
+			}
 			return errUnknownTable(db.Name, ref.Name)
 		}
 		// Check if any other table in any database has a FK referencing this table
