@@ -1,11 +1,14 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
 	nodes "github.com/bytebase/omni/mysql/ast"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 // DefaultSDLDatabase is the synthetic database name LoadSDLInDatabase and
@@ -38,9 +41,11 @@ type SDLMigrationOptions struct {
 // LoadSDL is the canonical, dependency-aware path. LoadSQL is tried only as a
 // fallback for raw dumps containing non-SDL statements (e.g. SET, SELECT,
 // LOCK TABLES) that LoadSDL rejects; its session defaults already match MySQL
-// 8.0 (including explicit_defaults_for_timestamp). When both fail, the LoadSDL
-// error is returned because it is more diagnostic than LoadSQL's
-// order-dependent failures.
+// 8.0 (including explicit_defaults_for_timestamp). CREATE TABLE ... AS SELECT
+// is never accepted via the raw-SQL fallback because createTable cannot
+// materialize its schema and would silently omit the table. When both paths
+// fail, the LoadSDL error is returned because it is more diagnostic than
+// LoadSQL's order-dependent failures.
 func LoadSDLInDatabase(sql, dbName string) (*Catalog, error) {
 	if dbName == "" {
 		dbName = DefaultSDLDatabase
@@ -49,15 +54,32 @@ func LoadSDLInDatabase(sql, dbName string) (*Catalog, error) {
 	if sdlErr == nil {
 		return c, nil
 	}
+	if errors.Is(sdlErr, errSDLDisallowedCTAS) {
+		return nil, sdlErr
+	}
 	if c, err := loadSQLInDatabase(sql, dbName); err == nil {
 		return c, nil
+	} else if errors.Is(err, errSDLDisallowedCTAS) {
+		return nil, err
 	}
 	return nil, sdlErr
 }
 
 // loadSQLInDatabase pre-creates and selects dbName, then executes sql via
-// Catalog.Exec. It is the LoadSQL fallback paired with loadSDL.
+// Catalog.Exec. It rejects CREATE TABLE ... AS SELECT so the raw-SQL fallback
+// cannot silently omit tables that loadSDL refused.
 func loadSQLInDatabase(sql, dbName string) (*Catalog, error) {
+	list, err := mysqlparser.Parse(sql)
+	if err != nil {
+		return nil, err
+	}
+	if list != nil {
+		for _, stmt := range list.Items {
+			if ct, ok := stmt.(*nodes.CreateTableStmt); ok && ct.Select != nil {
+				return nil, errSDLDisallowedCTAS
+			}
+		}
+	}
 	c := New()
 	if dbName != "" {
 		if err := c.createDatabase(&nodes.CreateDatabaseStmt{Name: dbName, IfNotExists: true}); err != nil {
@@ -158,46 +180,166 @@ func SessionContextMapFromMetadata(meta *metadata.DatabaseSchemaMetadata) *Sessi
 }
 
 // StripDatabaseContext removes the synthetic database qualifier (`<dbName>`. )
-// from generated DDL in identifier positions while preserving string literals
-// and non-executable comments. Empty dbName defaults to DefaultSDLDatabase.
-//
-// Executable comments (/*!...*/) are scanned as live SQL; non-executable
-// comments (#..., -- ..., /*...*/) are copied opaquely so unbalanced quotes
-// inside routine comments cannot swallow subsequent qualifiers.
+// from generated DDL in database-qualifier AST positions while preserving
+// string literals, comments, and table or alias qualifiers that happen to share
+// dbName. Empty dbName defaults to DefaultSDLDatabase.
 func StripDatabaseContext(sql, dbName string) string {
 	if dbName == "" {
 		dbName = DefaultSDLDatabase
 	}
-	quoted := "`" + strings.ReplaceAll(dbName, "`", "``") + "`"
-	if !strings.Contains(sql, quoted+".") {
+	qualifier := quoteIdent(dbName) + "."
+	if !strings.Contains(sql, qualifier) {
 		return sql
 	}
+
+	segs := mysqlparser.Split(sql)
+	if len(segs) == 0 {
+		return sql
+	}
+
+	var starts []int
+	seen := make(map[int]bool)
+	record := func(pos int) {
+		if pos >= 0 && pos+len(qualifier) <= len(sql) && strings.HasPrefix(sql[pos:], qualifier) && !seen[pos] {
+			seen[pos] = true
+			starts = append(starts, pos)
+		}
+	}
+
+	for _, seg := range segs {
+		if seg.Empty() || !strings.Contains(seg.Text, qualifier) {
+			continue
+		}
+		list, err := mysqlparser.Parse(seg.Text)
+		if err != nil || list == nil {
+			continue
+		}
+		base := seg.ByteStart
+		for _, stmt := range list.Items {
+			collectDatabaseQualifierStarts(stmt, seg.Text, base, dbName, qualifier, record)
+		}
+	}
+
+	if len(starts) == 0 {
+		return sql
+	}
+	slices.Sort(starts)
+
 	var out strings.Builder
-	out.Grow(len(sql))
-	for i := 0; i < len(sql); {
-		c := sql[i]
-		if isViewBodySpaceByte(c) {
-			out.WriteByte(c)
+	out.Grow(len(sql) - len(starts)*len(qualifier))
+	prev := 0
+	for _, start := range starts {
+		if start < prev {
+			continue
+		}
+		out.WriteString(sql[prev:start])
+		prev = start + len(qualifier)
+	}
+	out.WriteString(sql[prev:])
+	return out.String()
+}
+
+// collectDatabaseQualifierStarts walks a parsed statement AST and invokes
+// record(absOffset) for each database qualifier matching dbName. Because
+// 2-part table/alias column references populate ColumnRef.Table (leaving
+// ColumnRef.Schema empty), aliases and tables named dbName are preserved.
+func collectDatabaseQualifierStarts(stmt nodes.Node, segText string, base int, dbName, qualifier string, record func(int)) {
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		switch n := n.(type) {
+		case *nodes.TableRef:
+			if strings.EqualFold(n.Schema, dbName) && n.Loc.Start >= 0 {
+				record(base + n.Loc.Start)
+			}
+		case *nodes.ColumnRef:
+			if strings.EqualFold(n.Schema, dbName) && n.Loc.Start >= 0 {
+				record(base + n.Loc.Start)
+			}
+		case *nodes.FuncCallExpr:
+			if strings.EqualFold(n.Schema, dbName) && n.Loc.Start >= 0 {
+				record(base + n.Loc.Start)
+			}
+		case *nodes.CreateTriggerStmt:
+			if strings.EqualFold(n.Schema, dbName) {
+				limit := n.Loc.End
+				if n.Table != nil && n.Table.Loc.Start >= 0 && n.Table.Loc.Start < limit {
+					limit = n.Table.Loc.Start
+				}
+				if pos := findQualifiedIdent(segText, n.Loc.Start, limit, qualifier, n.Name); pos >= 0 {
+					record(base + pos)
+				}
+			}
+		case *nodes.CreateEventStmt:
+			if strings.EqualFold(n.Schema, dbName) {
+				if pos := findQualifiedIdent(segText, n.Loc.Start, n.Loc.End, qualifier, n.Name); pos >= 0 {
+					record(base + pos)
+				}
+			}
+		case *nodes.AlterEventStmt:
+			renameStart := n.Loc.Start
+			if strings.EqualFold(n.Schema, dbName) {
+				if pos := findQualifiedIdent(segText, n.Loc.Start, n.Loc.End, qualifier, n.Name); pos >= 0 {
+					record(base + pos)
+					renameStart = pos + len(qualifier)
+				}
+			}
+			if strings.EqualFold(n.RenameSchema, dbName) {
+				if pos := findQualifiedIdent(segText, renameStart, n.Loc.End, qualifier, n.RenameTo); pos >= 0 {
+					record(base + pos)
+				}
+			}
+		case *nodes.DropEventStmt:
+			if strings.EqualFold(n.Schema, dbName) {
+				if pos := findQualifiedIdent(segText, n.Loc.Start, n.Loc.End, qualifier, n.Name); pos >= 0 {
+					record(base + pos)
+				}
+			}
+		}
+		return true
+	})
+}
+
+// findQualifiedIdent locates qualifier followed by name (quoted or bare) in
+// sql[start:end], skipping string literals and non-executable comments. Used
+// for trigger/event statements whose Schema/Name fields do not carry a separate
+// name Loc.
+func findQualifiedIdent(sql string, start, end int, qualifier, name string) int {
+	if start < 0 {
+		start = 0
+	}
+	if end <= start || end > len(sql) {
+		end = len(sql)
+	}
+	quotedDB := strings.TrimSuffix(qualifier, ".")
+	quotedName := quoteIdent(name)
+	for i := start; i < end; {
+		if isViewBodySpaceByte(sql[i]) {
 			i++
 			continue
 		}
-		if end, isComment := scanMySQLComment(sql, i); isComment {
-			out.WriteString(sql[i:end])
-			i = end
+		if cEnd, isComment := scanMySQLComment(sql, i); isComment {
+			i = cEnd
 			continue
 		}
-		end := scanViewBodyToken(sql, i)
-		tok := sql[i:end]
-		if tok == quoted && end < len(sql) && sql[end] == '.' && end+1 < len(sql) && sql[end+1] == '`' {
-			identEnd := scanViewBodyToken(sql, end+1)
-			out.WriteString(sql[end+1 : identEnd])
-			i = identEnd
-			continue
+		tokEnd := scanViewBodyToken(sql, i)
+		if tokEnd > end {
+			tokEnd = end
 		}
-		out.WriteString(tok)
-		i = end
+		if sql[i:tokEnd] == quotedDB && tokEnd < end && sql[tokEnd] == '.' {
+			nextStart := tokEnd + 1
+			if nextStart < end {
+				nextEnd := scanViewBodyToken(sql, nextStart)
+				if nextEnd > end {
+					nextEnd = end
+				}
+				nextTok := sql[nextStart:nextEnd]
+				if nextTok == quotedName || strings.EqualFold(nextTok, name) {
+					return i
+				}
+			}
+		}
+		i = tokEnd
 	}
-	return out.String()
+	return -1
 }
 
 // scanMySQLComment reports whether a non-executable MySQL comment starts at i

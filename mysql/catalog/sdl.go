@@ -2,12 +2,15 @@ package catalog
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"sort"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
+
+var errSDLDisallowedCTAS = errors.New("SDL does not allow CREATE TABLE ... AS SELECT statements")
 
 // LoadSDL parses a declarative MySQL schema (SDL) and loads it into a new
 // Catalog order-tolerantly. Unlike LoadSQL — which applies statements in textual
@@ -177,7 +180,7 @@ func validateSDLStmt(stmt nodes.Node) error {
 		// table. Reject it so the loader never reports success while omitting an
 		// object.
 		if s.Select != nil {
-			return fmt.Errorf("SDL does not allow CREATE TABLE ... AS SELECT statements")
+			return errSDLDisallowedCTAS
 		}
 		return nil
 	case *nodes.CreateDatabaseStmt,

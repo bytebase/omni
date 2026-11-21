@@ -3219,9 +3219,10 @@ func TestSDLDeepExoticIdempotence(t *testing.T) {
 //   - Dumper emits a spelling the omni parser can't reload (HARD error): spatial_types
 //     (`geomcollection`), json_multivalue_index_80 (charset introducer in the functional key).
 //
-// SKIPPED so the suite stays green; remove the Skip to reproduce all gaps at once.
+// TestSDLDeepExoticKnownGaps checks every exoticCase marked with bGap: true and
+// fails if a recorded gap no longer reproduces (so the bGap flag is cleared and
+// the case moves under TestSDLDeepExoticIdempotence).
 func TestSDLDeepExoticKnownGaps(t *testing.T) {
-	t.Skip("Pins confirmed (B) exotic-type normalization/dumper gaps; remove Skip to reproduce")
 	ctx := context.Background()
 
 	for _, srv := range liveOracleServers(t) {

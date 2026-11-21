@@ -79,6 +79,24 @@ func TestBuildSDLMigrationPlan_EmptyTargetDropsEverything(t *testing.T) {
 	require.NotContains(t, sql, DefaultSDLDatabase)
 }
 
+func TestBuildSDLMigrationPlan_RejectsCTAS(t *testing.T) {
+	source := "CREATE TABLE `t` (`id` int PRIMARY KEY) ENGINE=InnoDB;\n"
+
+	// Bare CTAS must be rejected rather than falling back to LoadSQL and silently
+	// omitting `t` (which would emit DROP TABLE `t`).
+	plan, err := BuildSDLMigrationPlan(source, "CREATE TABLE t AS SELECT 1 AS id;\n", SDLMigrationOptions{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "CREATE TABLE ... AS SELECT")
+	require.Nil(t, plan)
+
+	// CTAS mixed with non-SDL statements (LOCK TABLES) must also be rejected.
+	mixed := "LOCK TABLES `t` WRITE;\nCREATE TABLE t AS SELECT 1 AS id;\nUNLOCK TABLES;\n"
+	plan, err = BuildSDLMigrationPlan(source, mixed, SDLMigrationOptions{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "CREATE TABLE ... AS SELECT")
+	require.Nil(t, plan)
+}
+
 func TestBuildSDLMigrationPlan_NoOpReturnsNil(t *testing.T) {
 	sdl := "CREATE TABLE `t` (`id` int NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n"
 	plan, err := BuildSDLMigrationPlan(sdl, sdl, SDLMigrationOptions{})
@@ -210,8 +228,8 @@ func TestStripDatabaseContext(t *testing.T) {
 		},
 		{
 			name: "hash_comment_opaque_and_executable_comment_scanned",
-			in:   "CREATE TABLE `bbcatalog`.`t` (\n  `pt` point NOT NULL /*!80003 SRID 0 */\n) # trailing 'note\n/* block 'c' */ ALTER TABLE `bbcatalog`.`t` COMMENT ''",
-			want: "CREATE TABLE `t` (\n  `pt` point NOT NULL /*!80003 SRID 0 */\n) # trailing 'note\n/* block 'c' */ ALTER TABLE `t` COMMENT ''",
+			in:   "CREATE TABLE `bbcatalog`.`t` (\n  `pt` point NOT NULL /*!80003 SRID 0 */\n); # trailing 'note\n/* block 'c' */ ALTER TABLE `bbcatalog`.`t` COMMENT ''",
+			want: "CREATE TABLE `t` (\n  `pt` point NOT NULL /*!80003 SRID 0 */\n); # trailing 'note\n/* block 'c' */ ALTER TABLE `t` COMMENT ''",
 		},
 		{
 			name: "no_qualifier_untouched",
@@ -223,6 +241,26 @@ func TestStripDatabaseContext(t *testing.T) {
 			dbName: "custom_db",
 			in:     "ALTER TABLE `custom_db`.`t` ADD COLUMN `c` int",
 			want:   "ALTER TABLE `t` ADD COLUMN `c` int",
+		},
+		{
+			name: "table_alias_named_bbcatalog_preserved_in_view",
+			in:   "CREATE OR REPLACE VIEW `bbcatalog`.`v` AS select `bbcatalog`.`id` AS `id`,`u`.`id` AS `uid` from (`bbcatalog`.`t1` `bbcatalog` join `bbcatalog`.`t2` `u` on((`bbcatalog`.`id` = `u`.`id`)))",
+			want: "CREATE OR REPLACE VIEW `v` AS select `bbcatalog`.`id` AS `id`,`u`.`id` AS `uid` from (`t1` `bbcatalog` join `t2` `u` on((`bbcatalog`.`id` = `u`.`id`)))",
+		},
+		{
+			name: "table_named_bbcatalog_column_ref_preserved_and_3part_stripped",
+			in:   "select `bbcatalog`.`id`, `bbcatalog`.`bbcatalog`.`name` from `bbcatalog`.`bbcatalog`",
+			want: "select `bbcatalog`.`id`, `bbcatalog`.`name` from `bbcatalog`",
+		},
+		{
+			name: "trigger_and_event_qualifiers_stripped_while_body_alias_preserved",
+			in:   "CREATE TRIGGER `bbcatalog`.`trg` BEFORE INSERT ON `bbcatalog`.`t` FOR EACH ROW BEGIN UPDATE `bbcatalog`.`t` AS `bbcatalog` SET `bbcatalog`.`c` = 1; END;\nCREATE EVENT `bbcatalog`.`ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM `bbcatalog`.`t`;\nALTER EVENT `bbcatalog`.`ev` RENAME TO `bbcatalog`.`ev2`;\nDROP EVENT IF EXISTS `bbcatalog`.`ev2`",
+			want: "CREATE TRIGGER `trg` BEFORE INSERT ON `t` FOR EACH ROW BEGIN UPDATE `t` AS `bbcatalog` SET `bbcatalog`.`c` = 1; END;\nCREATE EVENT `ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM `t`;\nALTER EVENT `ev` RENAME TO `ev2`;\nDROP EVENT IF EXISTS `ev2`",
+		},
+		{
+			name: "function_call_qualifier_stripped",
+			in:   "SELECT `bbcatalog`.`fn`(1)",
+			want: "SELECT `fn`(1)",
 		},
 	}
 	for _, tc := range cases {
