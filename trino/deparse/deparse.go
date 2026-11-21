@@ -711,7 +711,9 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			if table == nil {
 				continue
 			}
-			writeCreateTableWithCatalog(&buf, metadata.Name, schema.Name, table, funcCat)
+			if err := writeCreateTableWithCatalog(&buf, metadata.Name, schema.Name, table, funcCat); err != nil {
+				return "", err
+			}
 			buf.WriteString("\n\n")
 		}
 	}
@@ -1926,6 +1928,11 @@ type trinoInlineFunc struct {
 	returnType string
 }
 
+type trinoProjCol struct {
+	name string
+	typ  string
+}
+
 type trinoASTWalker struct {
 	callerSchema string
 	deps         []ViewDependency
@@ -1934,6 +1941,7 @@ type trinoASTWalker struct {
 	unqualTables []*ast.QualifiedName
 	inlineFuncs  map[string][]trinoInlineFunc
 	aliasCols    map[string]map[string]string
+	cteCols      map[string]map[string]string
 	fromSeen     map[string]struct{}
 	hasQuery     bool
 }
@@ -1957,16 +1965,25 @@ func collectTrinoQueryASTRefs(q *trinoparser.Query, extraInline []trinoparser.Fu
 }
 
 func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map[string]struct{}) (string, map[string]string) {
-	if qn == nil || len(qn.Parts) == 0 || w.cat == nil || len(w.cat.tableCols) == 0 {
+	if qn == nil || len(qn.Parts) == 0 {
+		return "", nil
+	}
+	if len(qn.Parts) == 1 {
+		tblLower := strings.ToLower(qn.Parts[0].Value)
+		if _, isCTE := ctes[tblLower]; isCTE {
+			if w.cteCols != nil {
+				return tblLower, w.cteCols[tblLower]
+			}
+			return tblLower, nil
+		}
+	}
+	if w.cat == nil || len(w.cat.tableCols) == 0 {
 		return "", nil
 	}
 	var schema, tbl string
 	switch len(qn.Parts) {
 	case 1:
 		tbl = qn.Parts[0].Value
-		if _, isCTE := ctes[strings.ToLower(tbl)]; isCTE {
-			return "", nil
-		}
 		schema = resolveUnqualifiedRelationSchema(tbl, w.callerSchema, w.deps)
 	case 2:
 		schema, tbl = qn.Parts[0].Value, qn.Parts[1].Value
@@ -2119,9 +2136,9 @@ func (w *trinoASTWalker) walkJSONTableColumns(cols []trinoparser.JSONTableColumn
 	}
 }
 
-func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[string]string, ctes map[string]struct{}) string {
+func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[string]string, ctes map[string]struct{}) (string, []trinoProjCol) {
 	if qn == nil {
-		return ""
+		return "", nil
 	}
 	switch n := qn.(type) {
 	case *trinoparser.QuerySpec:
@@ -2163,27 +2180,52 @@ func (w *trinoASTWalker) walkQueryNode(qn trinoparser.QueryNode, curEnv map[stri
 			w.walkWindowParts(win.Spec.PartitionBy, win.Spec.OrderBy, win.Spec.Frame, specEnv, ctes)
 		}
 		var singleType string
+		proj := make([]trinoProjCol, 0, len(n.Items))
 		for idx, item := range n.Items {
 			it := w.walkExpr(item.Expr, specEnv, ctes)
 			if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
 				singleType = it
 			}
+			if item.Kind == trinoparser.SelectSingle {
+				colName := ""
+				switch {
+				case item.Alias != nil && item.Alias.Value != "":
+					colName = strings.ToLower(item.Alias.Value)
+				case item.Expr != nil:
+					switch e := item.Expr.(type) {
+					case *trinoparser.ColumnRef:
+						if e.Name != nil {
+							colName = strings.ToLower(e.Name.Value)
+						}
+					case *trinoparser.Dereference:
+						if e.FieldName != nil {
+							colName = strings.ToLower(e.FieldName.Value)
+						}
+					}
+				}
+				proj = append(proj, trinoProjCol{name: colName, typ: it})
+			}
 		}
-		return singleType
+		return singleType, proj
 	case *trinoparser.TableQuery:
 		w.recordUnqualTable(n.Name, ctes)
 	case *trinoparser.SetOperation:
-		lt := w.walkQueryNode(n.Left, curEnv, ctes)
-		rt := w.walkQueryNode(n.Right, curEnv, ctes)
-		return combineTrinoTypes(lt, rt)
+		lt, lcols := w.walkQueryNodeCols(n.Left, curEnv, ctes)
+		rt, rcols := w.walkQueryNodeCols(n.Right, curEnv, ctes)
+		if len(lcols) > 0 && len(lcols) == len(rcols) {
+			for i := range lcols {
+				lcols[i].typ = combineTrinoTypes(lcols[i].typ, rcols[i].typ)
+			}
+		}
+		return combineTrinoTypes(lt, rt), lcols
 	case *trinoparser.ParenQuery:
-		return w.walkQuery(n.Inner, curEnv, ctes)
+		return w.walkQueryWithCols(n.Inner, nil, curEnv, ctes)
 	case *trinoparser.ValuesQuery:
 		for _, row := range n.Rows {
 			w.walkExpr(row, curEnv, ctes)
 		}
 	}
-	return ""
+	return "", nil
 }
 
 func (w *trinoASTWalker) walkQuery(q *trinoparser.Query, curEnv map[string]string, ctes map[string]struct{}) string {
@@ -2191,8 +2233,13 @@ func (w *trinoASTWalker) walkQuery(q *trinoparser.Query, curEnv map[string]strin
 }
 
 func (w *trinoASTWalker) walkQueryWithInline(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, curEnv map[string]string, ctes map[string]struct{}) string {
+	ret, _ := w.walkQueryWithCols(q, extraInline, curEnv, ctes)
+	return ret
+}
+
+func (w *trinoASTWalker) walkQueryWithCols(q *trinoparser.Query, extraInline []trinoparser.FunctionSpecification, curEnv map[string]string, ctes map[string]struct{}) (string, []trinoProjCol) {
 	if q == nil {
-		return ""
+		return "", nil
 	}
 	w.hasQuery = true
 	totalInline := len(extraInline) + len(q.Functions)
@@ -2251,18 +2298,39 @@ func (w *trinoASTWalker) walkQueryWithInline(q *trinoparser.Query, extraInline [
 	for k := range ctes {
 		scope[k] = struct{}{}
 	}
+	prevCTECols := w.cteCols
+	nextCTECols := make(map[string]map[string]string, len(prevCTECols))
+	for k, v := range prevCTECols {
+		nextCTECols[k] = v
+	}
+	w.cteCols = nextCTECols
+	defer func() {
+		w.cteCols = prevCTECols
+	}()
 	if q.With != nil {
 		for _, cte := range q.With.CTEs {
 			if q.With.Recursive && cte.Name != nil && cte.Name.Value != "" {
 				scope[strings.ToLower(cte.Name.Value)] = struct{}{}
 			}
-			w.walkQuery(cte.Query, curEnv, scope)
+			_, proj := w.walkQueryWithCols(cte.Query, nil, curEnv, scope)
 			if cte.Name != nil && cte.Name.Value != "" {
-				scope[strings.ToLower(cte.Name.Value)] = struct{}{}
+				cteKey := strings.ToLower(cte.Name.Value)
+				scope[cteKey] = struct{}{}
+				colsMap := make(map[string]string, len(proj))
+				for idx, pc := range proj {
+					colName := pc.name
+					if idx < len(cte.ColumnAliases) && cte.ColumnAliases[idx] != nil && cte.ColumnAliases[idx].Value != "" {
+						colName = strings.ToLower(cte.ColumnAliases[idx].Value)
+					}
+					if colName != "" && pc.typ != "" {
+						colsMap[colName] = pc.typ
+					}
+				}
+				nextCTECols[cteKey] = colsMap
 			}
 		}
 	}
-	ret := w.walkQueryNode(q.Body, curEnv, scope)
+	ret, proj := w.walkQueryNodeCols(q.Body, curEnv, scope)
 	for _, ob := range q.OrderBy {
 		w.walkExpr(ob.Expr, curEnv, scope)
 	}
@@ -2275,7 +2343,7 @@ func (w *trinoASTWalker) walkQueryWithInline(q *trinoparser.Query, extraInline [
 	if q.Fetch != nil {
 		w.walkExpr(q.Fetch.Count, curEnv, scope)
 	}
-	return ret
+	return ret, proj
 }
 
 func (w *trinoASTWalker) walkJSONPath(path *trinoparser.JSONPathInvocation, curEnv map[string]string, ctes map[string]struct{}) {
@@ -2959,10 +3027,18 @@ func isIdentContChar(c byte) bool {
 // by schemaName) to buf. It does not append the inter-statement blank line; the
 // caller does.
 func writeCreateTable(buf *strings.Builder, schemaName string, table *TableMetadata) {
-	writeCreateTableWithCatalog(buf, "", schemaName, table, nil)
+	_ = writeCreateTableWithCatalog(buf, "", schemaName, table, nil)
 }
 
-func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string, table *TableMetadata, funcCat *trinoFuncCatalog) {
+func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string, table *TableMetadata, funcCat *trinoFuncCatalog) error {
+	for _, column := range table.Columns {
+		if column == nil {
+			continue
+		}
+		if strings.TrimSpace(column.Type) == "" {
+			return fmt.Errorf("table %s.%s column %s has no data type", schemaName, table.Name, column.Name)
+		}
+	}
 	fmt.Fprintf(buf, "CREATE TABLE IF NOT EXISTS %s.%s (\n", quoteIdentifier(schemaName), quoteIdentifier(table.Name))
 
 	columnDefs := make([]string, 0, len(table.Columns))
@@ -2986,9 +3062,10 @@ func writeCreateTableWithCatalog(buf *strings.Builder, dbName, schemaName string
 	buf.WriteString(strings.Join(columnDefs, ",\n"))
 	if table.Comment != "" {
 		fmt.Fprintf(buf, "\n) COMMENT '%s';", escapeStringLiteral(table.Comment))
-		return
+		return nil
 	}
 	buf.WriteString("\n);")
+	return nil
 }
 
 func escapeStringLiteral(s string) string {

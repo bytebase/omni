@@ -189,8 +189,17 @@ func hasUpperQuotedIdent(sql string) bool {
 	return false
 }
 
+func depsHasUpperIdentifier(deps []*metadatapb.DependencyColumn) bool {
+	for _, dep := range deps {
+		if dep != nil && (hasUpperASCII(dep.Schema) || hasUpperASCII(dep.Table)) {
+			return true
+		}
+	}
+	return false
+}
+
 func viewHasUpperIdentifier(view *metadatapb.ViewMetadata) bool {
-	if hasUpperASCII(view.Name) || hasUpperQuotedIdent(view.Definition) {
+	if hasUpperASCII(view.Name) || hasUpperQuotedIdent(view.Definition) || depsHasUpperIdentifier(view.DependencyColumns) {
 		return true
 	}
 	for _, col := range view.Columns {
@@ -258,7 +267,7 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 			}
 		}
 		for _, mv := range schema.MaterializedViews {
-			if mv != nil && !mv.SkipDump && (hasUpperASCII(mv.Name) || hasUpperQuotedIdent(mv.Definition)) {
+			if mv != nil && !mv.SkipDump && (hasUpperASCII(mv.Name) || hasUpperQuotedIdent(mv.Definition) || depsHasUpperIdentifier(mv.DependencyColumns)) {
 				return true
 			}
 		}

@@ -2084,6 +2084,17 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 
 	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Name: "dev", DefaultSchema: "app"})
 	require.ErrorContains(t, err, "unsupported")
+
+	// Standalone GetViewDefinition activates enable_case_sensitive_identifier
+	// when DependencyColumns resolves to a mixed-case target schema or table.
+	mixedDepView, err := GetViewDefinition("app", &metadatapb.ViewMetadata{
+		Name:              "v_mixed_dep",
+		Definition:        `SELECT id FROM "T"`,
+		DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "Shared", Table: "T"}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, mixedDepView, "SET enable_case_sensitive_identifier TO true;")
+	require.Contains(t, mixedDepView, `CREATE OR REPLACE VIEW "app"."v_mixed_dep" AS SELECT id FROM "Shared"."T";`)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

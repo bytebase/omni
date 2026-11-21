@@ -1603,4 +1603,32 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "cyclic view")
+
+	// CTE output types propagate to outer SELECT built-in matching, and direct-model
+	// table columns with empty types fail explicitly.
+	cteBuiltin, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_cte",
+				Definition: "WITH x(n) AS (SELECT 1) SELECT abs(n) FROM x",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, cteBuiltin, `WITH x(n) AS (SELECT 1) SELECT abs(n) FROM x;`)
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name:   "s",
+			Tables: []*TableMetadata{{Name: "t_empty_coltype", Columns: []*ColumnMetadata{{Name: "c", Type: " "}}}},
+		}},
+	})
+	require.ErrorContains(t, err, "no data type")
 }
