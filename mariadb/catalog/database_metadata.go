@@ -358,7 +358,17 @@ type viewTargetMeta struct {
 	expr      AnalyzedExpr
 }
 
-func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOptionalJoin bool) (viewTargetMeta, bool) {
+func queryAtLevel(q *Query, outer []*Query, levelsUp int) (*Query, []*Query) {
+	if levelsUp == 0 {
+		return q, outer
+	}
+	if levelsUp > 0 && levelsUp <= len(outer) {
+		return outer[levelsUp-1], outer[levelsUp:]
+	}
+	return nil, nil
+}
+
+func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOptionalJoin bool, outer ...*Query) (viewTargetMeta, bool) {
 	if q == nil {
 		return viewTargetMeta{}, false
 	}
@@ -372,13 +382,13 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 			opt = optionalJoinRangeIndices(q)
 		}
 		meta := viewTargetMeta{expr: te.Expr}
-		if ct, nl, cs, cl, ok := resolveTargetColumnMetadata(c, db, q, opt, te, widenOptionalJoin); ok {
+		if ct, nl, cs, cl, ok := resolveTargetColumnMetadata(c, db, q, opt, te, widenOptionalJoin, outer...); ok {
 			meta.colType = ct
 			meta.nullable = nl
 			meta.charset = cs
 			meta.collation = cl
 		} else {
-			meta.nullable = isAnalyzedExprNullable(c, db, q, opt, te.Expr, widenOptionalJoin)
+			meta.nullable = isAnalyzedExprNullable(c, db, q, opt, te.Expr, widenOptionalJoin, outer...)
 		}
 		if meta.colType == "" {
 			if te.ResOrigTable != "" && te.ResOrigCol != "" {
@@ -395,7 +405,7 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 				}
 			}
 			if meta.colType == "" && te.Expr != nil {
-				meta.colType = resolveAnalyzedExprColumnType(c, db, q, te.Expr)
+				meta.colType = resolveAnalyzedExprColumnType(c, db, q, te.Expr, outer...)
 			}
 		}
 		if meta.charset == "" {
@@ -407,8 +417,8 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 		return meta, true
 	}
 
-	leftMeta, lok := resolveQueryTargetMeta(c, db, q.LArg, idx, widenOptionalJoin)
-	rightMeta, rok := resolveQueryTargetMeta(c, db, q.RArg, idx, widenOptionalJoin)
+	leftMeta, lok := resolveQueryTargetMeta(c, db, q.LArg, idx, widenOptionalJoin, outer...)
+	rightMeta, rok := resolveQueryTargetMeta(c, db, q.RArg, idx, widenOptionalJoin, outer...)
 	if !lok && !rok {
 		return viewTargetMeta{}, false
 	}
@@ -441,12 +451,12 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 	}, true
 }
 
-func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool) bool {
-	nullable, _ := analyzedExprNullable(c, db, q, opt, expr, widenOptionalJoin)
+func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) bool {
+	nullable, _ := analyzedExprNullable(c, db, q, opt, expr, widenOptionalJoin, outer...)
 	return nullable
 }
 
-func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool) (bool, bool) {
+func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, expr AnalyzedExpr, widenOptionalJoin bool, outer ...*Query) (bool, bool) {
 	if expr == nil {
 		return false, false
 	}
@@ -454,11 +464,12 @@ func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, 
 	case *ConstExprQ:
 		return e.IsNull, true
 	case *VarExprQ:
-		if widenOptionalJoin && opt[e.RangeIdx] {
+		if e.LevelsUp == 0 && widenOptionalJoin && opt[e.RangeIdx] {
 			return true, true
 		}
-		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
-			rte := q.RangeTable[e.RangeIdx]
+		targetQ, targetOuter := queryAtLevel(q, outer, e.LevelsUp)
+		if targetQ != nil && e.RangeIdx >= 0 && e.RangeIdx < len(targetQ.RangeTable) {
+			rte := targetQ.RangeTable[e.RangeIdx]
 			if rte.Kind == RTERelation && c != nil && e.AttNum >= 1 && e.AttNum <= len(rte.ColNames) {
 				origDB := db
 				if rte.DBName != "" {
@@ -477,15 +488,15 @@ func analyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool, 
 					}
 				}
 			}
-			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
-				if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, widenOptionalJoin); ok {
+			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != targetQ {
+				if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, widenOptionalJoin, targetOuter...); ok {
 					return meta.nullable, true
 				}
 			}
 		}
 		return false, false
 	case *CastExprQ:
-		return analyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin)
+		return analyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin, outer...)
 	case *OpExprQ:
 		if e.Op == "/" || e.Op == "%" || strings.EqualFold(e.Op, "DIV") || strings.EqualFold(e.Op, "MOD") {
 			return true, true
@@ -732,9 +743,80 @@ func parseSetOpColType(colType string) parsedSetOpType {
 			w = 1
 		}
 		return parsedSetOpType{cat: "bit", raw: raw, prec: w, width: w}
+	case "enum":
+		if members, ok := parseEnumSetMembers(raw); ok {
+			maxW := 0
+			for _, m := range members {
+				if n := utf8.RuneCountInString(m); n > maxW {
+					maxW = n
+				}
+			}
+			return parsedSetOpType{cat: "string", raw: raw, width: maxW}
+		}
+		return parsedSetOpType{cat: "other", raw: raw}
+	case "set":
+		if members, ok := parseEnumSetMembers(raw); ok {
+			totalW := 0
+			for _, m := range members {
+				totalW += utf8.RuneCountInString(m)
+			}
+			if len(members) > 1 {
+				totalW += len(members) - 1
+			}
+			return parsedSetOpType{cat: "string", raw: raw, width: totalW}
+		}
+		return parsedSetOpType{cat: "other", raw: raw}
 	default:
 		return parsedSetOpType{cat: "other", raw: raw}
 	}
+}
+
+func parseEnumSetMembers(typeText string) ([]string, bool) {
+	open := strings.IndexByte(typeText, '(')
+	closeIdx := strings.LastIndexByte(typeText, ')')
+	if open < 0 || closeIdx <= open {
+		return nil, false
+	}
+	body := typeText[open+1 : closeIdx]
+	var members []string
+	for i := 0; i < len(body); {
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == ',') {
+			i++
+		}
+		if i >= len(body) {
+			break
+		}
+		if body[i] != '\'' {
+			return nil, false
+		}
+		i++
+		var sb strings.Builder
+		closed := false
+		for i < len(body) {
+			if body[i] == '\\' && i+1 < len(body) {
+				sb.WriteByte(body[i+1])
+				i += 2
+				continue
+			}
+			if body[i] == '\'' {
+				i++
+				if i < len(body) && body[i] == '\'' {
+					sb.WriteByte('\'')
+					i++
+					continue
+				}
+				closed = true
+				break
+			}
+			sb.WriteByte(body[i])
+			i++
+		}
+		if !closed {
+			return nil, false
+		}
+		members = append(members, sb.String())
+	}
+	return members, len(members) > 0
 }
 
 func isConstString(cn *ConstExprQ) bool {
@@ -971,7 +1053,7 @@ func exprUsesOptionalJoin(expr AnalyzedExpr, optionalRT map[int]bool) bool {
 	return false
 }
 
-func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT map[int]bool, te *TargetEntryQ, widenOptionalJoin bool) (colType string, nullable bool, charset, collation string, ok bool) {
+func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT map[int]bool, te *TargetEntryQ, widenOptionalJoin bool, outer ...*Query) (colType string, nullable bool, charset, collation string, ok bool) {
 	if te == nil {
 		return "", false, "", "", false
 	}
@@ -991,10 +1073,14 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 		}
 	}
 	ve, isVar := te.Expr.(*VarExprQ)
-	if !isVar || q == nil || ve.LevelsUp != 0 || ve.RangeIdx < 0 || ve.RangeIdx >= len(q.RangeTable) {
+	if !isVar {
 		return "", false, "", "", false
 	}
-	rte := q.RangeTable[ve.RangeIdx]
+	targetQ, targetOuter := queryAtLevel(q, outer, ve.LevelsUp)
+	if targetQ == nil || ve.RangeIdx < 0 || ve.RangeIdx >= len(targetQ.RangeTable) {
+		return "", false, "", "", false
+	}
+	rte := targetQ.RangeTable[ve.RangeIdx]
 	switch rte.Kind {
 	case RTERelation:
 		if ve.AttNum < 1 || ve.AttNum > len(rte.ColNames) {
@@ -1025,8 +1111,8 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 			}
 		}
 	case RTESubquery, RTECTE:
-		if rte.Subquery != nil && rte.Subquery != q {
-			if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, ve.AttNum-1, widenOptionalJoin); ok {
+		if rte.Subquery != nil && rte.Subquery != targetQ {
+			if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, ve.AttNum-1, widenOptionalJoin, targetOuter...); ok {
 				return meta.colType, meta.nullable || opt, meta.charset, meta.collation, true
 			}
 		}
@@ -1034,11 +1120,15 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 	return "", false, "", "", false
 }
 
-func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ) string {
-	if e == nil || q == nil || e.LevelsUp != 0 || e.RangeIdx < 0 || e.RangeIdx >= len(q.RangeTable) {
+func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ, outer ...*Query) string {
+	if e == nil {
 		return ""
 	}
-	rte := q.RangeTable[e.RangeIdx]
+	targetQ, targetOuter := queryAtLevel(q, outer, e.LevelsUp)
+	if targetQ == nil || e.RangeIdx < 0 || e.RangeIdx >= len(targetQ.RangeTable) {
+		return ""
+	}
+	rte := targetQ.RangeTable[e.RangeIdx]
 	if rte.Kind == RTERelation && c != nil && e.AttNum >= 1 && e.AttNum <= len(rte.ColNames) {
 		origDB := db
 		if rte.DBName != "" {
@@ -1057,20 +1147,20 @@ func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ) s
 			}
 		}
 	}
-	if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
-		if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, true); ok && meta.colType != "" {
+	if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != targetQ {
+		if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, true, targetOuter...); ok && meta.colType != "" {
 			return meta.colType
 		}
 	}
 	return ""
 }
 
-func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) string {
+func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) string {
 	if expr == nil {
 		return ""
 	}
 	if vr, isVar := expr.(*VarExprQ); isVar {
-		if colType := resolveVarExprColumnType(c, db, q, vr); colType != "" {
+		if colType := resolveVarExprColumnType(c, db, q, vr, outer...); colType != "" {
 			return colType
 		}
 	}
@@ -1085,11 +1175,11 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 		if e.Default != nil {
 			branches = append(branches, e.Default)
 		}
-		return combineControlFlowColumnTypes(c, db, q, branches)
+		return combineControlFlowColumnTypes(c, db, q, branches, outer...)
 	case *CoalesceExprQ:
-		return combineControlFlowColumnTypes(c, db, q, e.Args)
+		return combineControlFlowColumnTypes(c, db, q, e.Args, outer...)
 	case *SubLinkExprQ:
-		if ct := resolveSubLinkColumnType(c, db, e); ct != "" {
+		if ct := resolveSubLinkColumnType(c, db, q, e, outer...); ct != "" {
 			return ct
 		}
 	case *OpExprQ:
@@ -1105,18 +1195,18 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 		switch strings.ToLower(e.Name) {
 		case "min", "max":
 			if len(e.Args) == 1 {
-				return resolveAnalyzedExprColumnType(c, db, q, e.Args[0])
+				return resolveAnalyzedExprColumnType(c, db, q, e.Args[0], outer...)
 			}
 		case "if":
 			if len(e.Args) == 3 {
-				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[1], e.Args[2]})
+				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[1], e.Args[2]}, outer...)
 			}
 		case "nullif":
 			if len(e.Args) >= 1 {
-				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[0]})
+				return combineControlFlowColumnTypes(c, db, q, []AnalyzedExpr{e.Args[0]}, outer...)
 			}
 		default:
-			if ct := resolveScalarFuncColumnType(c, db, q, e); ct != "" {
+			if ct := resolveScalarFuncColumnType(c, db, q, e, outer...); ct != "" {
 				return ct
 			}
 			if e.ResultType == nil {
@@ -1138,7 +1228,7 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			return fmt.Sprintf("varchar(%d)", n)
 		}
 	}
-	if rt := resolveExprResolvedType(c, db, q, expr); rt != nil {
+	if rt := resolveExprResolvedType(c, db, q, expr, outer...); rt != nil {
 		if rt.BaseType == BaseTypeTinyIntBool {
 			return "int"
 		}
@@ -1147,11 +1237,11 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 	return ""
 }
 
-func combineControlFlowColumnTypes(c *Catalog, db *Database, q *Query, branches []AnalyzedExpr) string {
+func combineControlFlowColumnTypes(c *Catalog, db *Database, q *Query, branches []AnalyzedExpr, outer ...*Query) string {
 	var combinedType string
 	var combinedExpr AnalyzedExpr
 	for _, b := range branches {
-		bt := resolveAnalyzedExprColumnType(c, db, q, b)
+		bt := resolveAnalyzedExprColumnType(c, db, q, b, outer...)
 		if bt == "" {
 			continue
 		}
@@ -1193,7 +1283,7 @@ func normalizeControlFlowColumnType(colType string) string {
 	return colType
 }
 
-func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) *ResolvedType {
+func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr, outer ...*Query) *ResolvedType {
 	if expr == nil {
 		return nil
 	}
@@ -1226,8 +1316,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		if e.Type != nil {
 			return e.Type
 		}
-		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
-			rte := q.RangeTable[e.RangeIdx]
+		targetQ, targetOuter := queryAtLevel(q, outer, e.LevelsUp)
+		if targetQ != nil && e.RangeIdx >= 0 && e.RangeIdx < len(targetQ.RangeTable) {
+			rte := targetQ.RangeTable[e.RangeIdx]
 			if e.AttNum >= 1 && e.AttNum <= len(rte.ColTypes) && rte.ColTypes[e.AttNum-1] != nil {
 				return rte.ColTypes[e.AttNum-1]
 			}
@@ -1249,9 +1340,9 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 					}
 				}
 			}
-			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != q {
+			if (rte.Kind == RTESubquery || rte.Kind == RTECTE) && rte.Subquery != nil && rte.Subquery != targetQ {
 				if subTE := nthNonJunkTarget(rte.Subquery, e.AttNum-1); subTE != nil {
-					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr)
+					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr, targetOuter...)
 				}
 			}
 		}
@@ -1264,10 +1355,10 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 	case *OpExprQ:
 		opUpper := strings.ToUpper(e.Op)
 		if e.Left == nil && opUpper == "+" {
-			return resolveExprResolvedType(c, db, q, e.Right)
+			return resolveExprResolvedType(c, db, q, e.Right, outer...)
 		}
 		if e.Left == nil && opUpper == "-" {
-			rt := resolveExprResolvedType(c, db, q, e.Right)
+			rt := resolveExprResolvedType(c, db, q, e.Right, outer...)
 			if rt == nil {
 				return nil
 			}
@@ -1295,8 +1386,8 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			// (unlike MySQL 8's binary-string bitwise results).
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
 		case "+", "-", "*", "/", "%", "MOD":
-			lt := resolveExprResolvedType(c, db, q, e.Left)
-			rt := resolveExprResolvedType(c, db, q, e.Right)
+			lt := resolveExprResolvedType(c, db, q, e.Left, outer...)
+			rt := resolveExprResolvedType(c, db, q, e.Right, outer...)
 			if (lt != nil && (lt.BaseType == BaseTypeDouble || lt.BaseType == BaseTypeFloat)) ||
 				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) ||
 				isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
@@ -1312,8 +1403,8 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			}
 			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: (lt != nil && lt.Unsigned) || (rt != nil && rt.Unsigned)}
 		case "DIV":
-			lt := resolveExprResolvedType(c, db, q, e.Left)
-			rt := resolveExprResolvedType(c, db, q, e.Right)
+			lt := resolveExprResolvedType(c, db, q, e.Left, outer...)
+			rt := resolveExprResolvedType(c, db, q, e.Right, outer...)
 			if isArithmeticStringOperand(lt) || isArithmeticStringOperand(rt) {
 				return &ResolvedType{BaseType: BaseTypeBigInt}
 			}
@@ -1321,12 +1412,12 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		return e.ResultType
 	case *CaseExprQ, *CoalesceExprQ:
-		if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+		if ct := resolveAnalyzedExprColumnType(c, db, q, expr, outer...); ct != "" {
 			return parseColumnResolvedType(ct)
 		}
 		return expr.exprType()
 	case *SubLinkExprQ:
-		if ct := resolveSubLinkColumnType(c, db, e); ct != "" {
+		if ct := resolveSubLinkColumnType(c, db, q, e, outer...); ct != "" {
 			return parseColumnResolvedType(ct)
 		}
 		return e.ResultType
@@ -1339,11 +1430,11 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		switch strings.ToLower(e.Name) {
 		case "if", "nullif":
-			if ct := resolveAnalyzedExprColumnType(c, db, q, expr); ct != "" {
+			if ct := resolveAnalyzedExprColumnType(c, db, q, expr, outer...); ct != "" {
 				return parseColumnResolvedType(ct)
 			}
 		case "timediff", "addtime", "subtime":
-			if ct := resolveScalarFuncColumnType(c, db, q, e); ct != "" {
+			if ct := resolveScalarFuncColumnType(c, db, q, e, outer...); ct != "" {
 				return parseColumnResolvedType(ct)
 			}
 		case "abs", "ceil", "ceiling", "floor", "round", "truncate", "mod":
@@ -1357,7 +1448,7 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			}
 		case "min", "max":
 			if len(e.Args) == 1 {
-				return resolveExprResolvedType(c, db, q, e.Args[0])
+				return resolveExprResolvedType(c, db, q, e.Args[0], outer...)
 			}
 		case "sum":
 			if len(e.Args) == 1 {
@@ -1699,7 +1790,7 @@ func resolveNumericScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCal
 	return nil
 }
 
-func resolveSubLinkColumnType(c *Catalog, db *Database, s *SubLinkExprQ) string {
+func resolveSubLinkColumnType(c *Catalog, db *Database, q *Query, s *SubLinkExprQ, outer ...*Query) string {
 	if s == nil {
 		return ""
 	}
@@ -1708,7 +1799,12 @@ func resolveSubLinkColumnType(c *Catalog, db *Database, s *SubLinkExprQ) string 
 		if s.Subquery == nil {
 			return ""
 		}
-		if meta, ok := resolveQueryTargetMeta(c, db, s.Subquery, 0, true); ok && meta.colType != "" {
+		scopes := make([]*Query, 0, len(outer)+1)
+		if q != nil {
+			scopes = append(scopes, q)
+		}
+		scopes = append(scopes, outer...)
+		if meta, ok := resolveQueryTargetMeta(c, db, s.Subquery, 0, true, scopes...); ok && meta.colType != "" {
 			return normalizeScalarSubqueryColumnType(meta.colType)
 		}
 	case SubLinkExists, SubLinkIn, SubLinkAny, SubLinkAll:
@@ -1895,16 +1991,19 @@ func resolveTemporalScalarFuncType(c *Catalog, db *Database, q *Query, e *FuncCa
 	return nil
 }
 
-func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ) string {
+func resolveScalarFuncColumnType(c *Catalog, db *Database, q *Query, e *FuncCallExprQ, outer ...*Query) string {
 	if e == nil {
 		return ""
 	}
 	argWidth := func(arg AnalyzedExpr) (parsedSetOpType, int, bool) {
-		ct := resolveAnalyzedExprColumnType(c, db, q, arg)
+		ct := resolveAnalyzedExprColumnType(c, db, q, arg, outer...)
 		if ct == "" {
 			return parsedSetOpType{}, 0, false
 		}
 		p := parseSetOpColType(ct)
+		if p.cat == "other" {
+			return parsedSetOpType{}, 0, false
+		}
 		return p, p.width, true
 	}
 	name := strings.ToLower(e.Name)
