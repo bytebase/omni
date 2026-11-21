@@ -35,7 +35,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 // execute runs script as one job and returns its DML row count, which BigQuery
 // reports as zero for DDL and for a multi-statement script.
 func (d *Driver) execute(ctx context.Context, script string) (int64, error) {
-	job, err := d.query(script).Run(ctx)
+	job, err := d.client.Run(ctx, d.databaseName, script)
 	if err != nil {
 		return 0, err
 	}
@@ -43,14 +43,16 @@ func (d *Driver) execute(ctx context.Context, script string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if err := status.Err(); err != nil {
-		return 0, err
+	if status == nil {
+		return 0, nil
+	}
+	if status.Err != nil {
+		return 0, status.Err
 	}
 	// The statistics block is absent for a job the service finished without one,
 	// and the count is then zero rather than a failure: the script ran.
-	stats, ok := statisticsOf(status)
-	if !ok {
+	if status.Stats == nil {
 		return 0, nil
 	}
-	return stats.NumDMLAffectedRows, nil
+	return status.Stats.NumDMLAffectedRows, nil
 }

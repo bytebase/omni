@@ -6,4 +6,4 @@
 # creationTime, so its digest moves and the pin fails instead of quietly
 # replaying. The service account is never part of a pin.
 # columns: role, image, digest, source tag
-driver	gcp:bigquery:bytebase-dev:US	sha256:c74c7e884f7ecc98f2efd6c3378029f23aa00cbc0e46a0ca0d8e1f7a88ac7d75	2026-11-17
+driver	gcp:bigquery:bytebase-dev:US	sha256:a38c0d3800b3dfd8d1c6e3f3644af8fd02fc0f8ed110efc924159d3415533cd7	2026-11-21

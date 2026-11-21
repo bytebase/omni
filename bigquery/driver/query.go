@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
-	"google.golang.org/api/iterator"
 
 	"github.com/bytebase/omni/driver"
 	googlesqlanalysis "github.com/bytebase/omni/googlesql/analysis"
@@ -117,7 +117,7 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 
 // queryStatement reads one statement's rows.
 func (s *session) queryStatement(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
-	it, err := s.driver.query(statement).Read(ctx)
+	it, err := s.driver.client.Read(ctx, s.driver.databaseName, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -128,29 +128,29 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 // opts.MaxResultBytes bytes, and carries the plan of the job that returned them.
 // A query the analysis read was rewritten to cap its own rows; a statement it
 // could not classify runs as it was written, so the cap is applied here too.
-func (s *session) readRows(ctx context.Context, it *bigquery.RowIterator, opts driver.QueryOptions) (*driver.Result, error) {
+func (s *session) readRows(ctx context.Context, it rowIterator, opts driver.QueryOptions) (*driver.Result, error) {
 	result := &driver.Result{}
 	var totalBytes int64
 	for {
-		var values []bigquery.Value
-		err := it.Next(&values)
-		if err == iterator.Done {
+		values, err := it.Next()
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
+		schema := it.Schema()
 		// The schema arrives with the first row the client decodes, not with the
 		// iterator.
-		if result.Columns == nil && len(it.Schema) > 0 {
-			result.Columns = columnsOf(it.Schema)
+		if result.Columns == nil && len(schema) > 0 {
+			result.Columns = columnsOf(schema)
 			totalBytes = driver.HeaderByteSize(result.Columns)
 		}
 		row := make([]driver.Value, 0, len(values))
 		for i, value := range values {
 			var fieldType bigquery.FieldType
-			if i < len(it.Schema) {
-				fieldType = it.Schema[i].Type
+			if i < len(schema) {
+				fieldType = schema[i].Type
 			}
 			row = append(row, convertValue(value, fieldType))
 		}
@@ -168,8 +168,8 @@ func (s *session) readRows(ctx context.Context, it *bigquery.RowIterator, opts d
 	}
 	// A query that returned no rows has no row to learn the schema from, and its
 	// columns are still the ones the statement declares.
-	if result.Columns == nil && len(it.Schema) > 0 {
-		result.Columns = columnsOf(it.Schema)
+	if result.Columns == nil && len(it.Schema()) > 0 {
+		result.Columns = columnsOf(it.Schema())
 	}
 
 	// The job that returned these rows reports the stages it ran as it goes;
@@ -201,7 +201,7 @@ func columnsOf(schema bigquery.Schema) []driver.Column {
 // none reports the rows it affected, and reading the job's result is what tells the
 // two apart.
 func (s *session) command(ctx context.Context, statement string, opts driver.QueryOptions, unclassified bool) (*driver.Result, error) {
-	job, err := s.driver.query(statement).Run(ctx)
+	job, err := s.driver.client.Run(ctx, s.driver.databaseName, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -209,21 +209,23 @@ func (s *session) command(ctx context.Context, statement string, opts driver.Que
 	if err != nil {
 		return nil, err
 	}
-	if err := status.Err(); err != nil {
-		return nil, err
+	if status == nil {
+		return nil, errors.New("the job's status carries no query statistics")
 	}
-	stats, ok := statisticsOf(status)
-	if !ok {
+	if status.Err != nil {
+		return nil, status.Err
+	}
+	if status.Stats == nil {
 		return nil, errors.New("the job's status carries no query statistics")
 	}
 	it, err := job.Read(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if jobReturnsRows(stats.StatementType, len(it.Schema) > 0, unclassified) {
+	if jobReturnsRows(status.Stats.StatementType, len(it.Schema()) > 0, unclassified) {
 		return s.readRows(ctx, it, opts)
 	}
-	affected := stats.NumDMLAffectedRows
+	affected := status.Stats.NumDMLAffectedRows
 	return &driver.Result{AffectedRows: &affected}, nil
 }
 
@@ -287,23 +289,18 @@ func (s *session) dryRun(ctx context.Context, script string) ([]*driver.Result, 
 
 // dryRunStatement asks the service to validate one statement.
 func (s *session) dryRunStatement(ctx context.Context, statement string) (*driver.Result, error) {
-	q := s.driver.query(statement)
-	q.DryRun = true
-	job, err := q.Run(ctx)
+	status, err := s.driver.client.DryRun(ctx, s.driver.databaseName, statement)
 	if err != nil {
 		return nil, err
 	}
-	// A dry run completes before Run returns, so its status is the finished one.
-	status := job.LastStatus()
 	if status == nil {
 		return nil, errors.New("failed to read the dry run's job status")
 	}
-	if err := status.Err(); err != nil {
-		return nil, err
+	if status.Err != nil {
+		return nil, status.Err
 	}
 	result := &driver.Result{}
-	stats, ok := statisticsOf(status)
-	if !ok {
+	if status.Stats == nil {
 		return result, nil
 	}
 	result.Columns = []driver.Column{{Name: "Validation Result", TypeName: "STRING"}}
@@ -312,8 +309,8 @@ func (s *session) dryRunStatement(ctx context.Context, statement string) (*drive
 		String: fmt.Sprintf(
 			"Query successfully validated. Assuming the tables are not modified, "+
 				"running this query will process %d bytes (%.2f MB).",
-			stats.TotalBytesProcessed,
-			float64(stats.TotalBytesProcessed)/(1024*1024),
+			status.Stats.TotalBytesProcessed,
+			float64(status.Stats.TotalBytesProcessed)/(1024*1024),
 		),
 	}}}
 	return result, nil

@@ -6,30 +6,30 @@ is missing, the project and account to pin, the corpus, the tests to record in
 order, the parity harness that holds this package to Bytebase's, and what to do
 when one of them disagrees.
 
-Nothing in this plan runs in CI. BigQuery has no image omni can start and no
-emulator that answers its API — there is no local BigQuery — so every live test
-skips with `BIGQUERY_CREDENTIALS`' name, and no tape, golden, `testdata` fixture or
-pin row exists beside this package. Unlike `redshift/driver`, the obstacle is not
-proprietary catalog views but the service itself: a recording needs a Google Cloud
-project, a service account and a dataset. The run on 2026-11-17 has all three and
-answers every live test; what it answered, and what is left, is in [the project
-this run used](#the-project-this-run-used-on-2026-11-17) below.
+BigQuery has no image omni can start and no emulator that answers its API — there
+is no local BigQuery — so recording needs a Google Cloud project, a service
+account and a scratch dataset. All six driver tests now replay offline in CI from
+committed tapes under `testdata/tapes/` through `bigquery/internal/testcontainer`
+and the unexported `client` seam in `client.go`, needing no credentials and no
+network access. The run on 2026-11-17 verified the live paths and fixed six
+defects; the run on 2026-11-21 built step 4's seam and recorded all six
+deterministic tapes.
 
 ## What is here, and what is missing
 
 | capability | state |
 | --- | --- |
-| `SyncInstance` (the project's datasets) | ported from `backend/plugin/db/bigquery`, run against a real project |
-| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, run against a real dataset; `testdata/sync/omni_record.json` is what it built |
-| `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, run against a real project |
-| `Execute` (one job for the whole script) | ported, run against a real dataset |
+| `SyncInstance` (the project's datasets) | ported from `backend/plugin/db/bigquery`, recorded and replayed from `testdata/tapes/TestSyncInstance.tape` |
+| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, recorded and replayed from `testdata/tapes/TestSyncDatabase.tape`; `testdata/sync/omni_record.json` is what it built |
+| `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, recorded and replayed from `testdata/tapes/TestQuery.tape` and `testdata/tapes/TestQueryWrites.tape` |
+| `Execute` (one job for the whole script) | ported, recorded and replayed from `testdata/tapes/TestExecute.tape` |
 | `Dump` | ported as a **no-op**: `googlesql` has no catalog, and Bytebase's BigQuery `Dump` wrote nothing |
 | row-estimate (`CountAffectedRows`) | **not ported**: BigQuery has no EXPLAIN to read one from, and Bytebase counted none |
-| client seam for tapes | **absent**: `Open` builds the real `*bigquery.Client`; step 4 adds the seam |
-| tapes (`testdata/tapes`) | **none**: they need step 4's seam, which is not built |
-| sync goldens (`testdata/sync`) | `omni_record.json`, what the dataset's sync built on 2026-11-17, compared with `proto.Equal` by `TestLiveSyncDatabase` |
-| `driver` row in `bigquery/testdata/pins.tsv` | **added**: `bytebase-dev`, `US`, digests of the dataset `datasets.get` stated |
-| live tests (`live_test.go`) | **all seven pass** against `bytebase-dev:omni_record` on 2026-11-17, after the six defects they found were fixed |
+| client seam for tapes | **built**: `client.go` holds the unexported `client`/`job`/`rowIterator` seam; `bigquery/internal/testcontainer` holds `tape.OpenRaw`'s server, live config validation, and pin verification |
+| tapes (`testdata/tapes`) | **committed**: all six driver tests replay offline with zero credentials (`TestSyncInstance`, `TestSyncDatabase`, `TestSyncDatabaseMissing`, `TestQuery`, `TestQueryWrites`, `TestExecute`) |
+| sync goldens (`testdata/sync`) | `omni_record.json`, compared with `proto.Equal` by `TestSyncDatabase` |
+| `driver` row in `bigquery/testdata/pins.tsv` | **pinned and verified**: `bytebase-dev`, `US`, SHA-256 digest of `<id> <location> <creationTime>` checked by `testcontainer.VerifyPin` during `OMNI_RECORD=1` |
+| driver tests (`live_test.go`) | **all six pass offline** from committed tapes and record live against `bytebase-dev:omni_record` with `OMNI_RECORD=1` |
 
 The unit tests that do run cover the client configuration and the four credential
 document types, statement classification, the result-limit wrap, the cell
@@ -248,9 +248,9 @@ honestly instead of stopping at the first `CREATE TABLE`.
 - A dataset that exists and cannot be read: the sync should report the service's
   `403`, not `driver.ErrNotFound`. Unverified, because the run's account could read
   everything it opened.
-- Step 4's seam and the tapes it would allow: not built, so CI still runs none of
-  this. It is the one piece of the plan a project is not needed for, and the run
-  left the answers it would hold in this file.
+- Step 4's seam and the tapes: **now built and committed** (recorded on
+  2026-11-21 against `bytebase-dev:omni_record`, verified byte-identical across
+  two consecutive recordings from one compiled binary, and replayed offline in CI).
 - Two of step 8's seven mutations: the service states no plan stage for the queries
   asked, and states the text `NULL` rather than an absent default, so neither is
   observable on this project.
@@ -317,22 +317,22 @@ since a dataset recreated anywhere else answers another `creationTime` and so
 another digest instead of quietly replaying. The source tag is the day the answers
 were recorded. The service account is never part of a pin.
 
-The dataset was dropped after the run, so the digest cannot be re-read; a later
-recording creates `omni_record` again, its `creationTime` moves, and its pin row
-moves with it. Nothing in this package reads the row today.
+The dataset was created, recorded, and dropped cleanly; `testcontainer.VerifyPin`
+checks this row on every `OMNI_RECORD=1` recording. A later recording that
+recreates `omni_record` gets a new `creationTime`, so its pin row moves with it.
 
-## Step 4 — the tape harness, which needs a seam first
+## Step 4 — the tape harness and client seam
 
-## Step 4 — the tape harness, which needs a seam first
-
-`Open` builds the real client, so there is nothing to tape through. The recording
-PR therefore adds what `spanner/driver`, `cosmosdb/driver` and `dynamodb/driver`
-each added: a `client` interface in this package holding the calls the driver
-makes, with the live implementation the one call per method it takes to reach
-`*bigquery.Client`, and `bigquery/internal/testcontainer` holding
-`tape.OpenRaw`'s server, the pin, and a `Live` that **fails** when
-`BIGQUERY_CREDENTIALS` is unset — a recording with no project must not skip, or
-`OMNI_RECORD=1` would write an empty tape and call it a pass.
+`client.go` defines the unexported `client`, `job`, and `rowIterator` seam holding
+the calls the driver makes, with `liveClient` as the thin adapter over
+`*bigquery.Client`. `bigquery/internal/testcontainer` holds `tape.OpenRaw`'s
+server, the pin check (`VerifyPin`), and `Live` which **fails** (never skips)
+when `BIGQUERY_CREDENTIALS`, `BIGQUERY_PROJECT` (for `default`), or
+`BIGQUERY_DATASET` is unset — so `OMNI_RECORD=1` can never write an empty tape
+and call it a pass. `tape_test.go` implements `tapeClient` over `tape.OpenRaw`,
+preserving exact `*googleapi.Error` and `*bigquery.Error` types, lossless Go cell
+values, deterministic per-stream job ID stand-ins (`job-1`, `job-2`, ...), sorted
+listings, and normalized query plan timings. `main_test.go` calls `tape.Main(m)`.
 
 The calls the seam must carry, because they are what the driver asks of the
 service:
@@ -364,30 +364,25 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 | 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows and its own `Limit` cap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
 | 4 | `TestQueryWrites` | the command path against a table: a `CREATE TABLE`'s zero affected rows, the dry run of that table, and the error the service states for a table it does not have |
 | 5 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
-| 6 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
+| 6 | `TestSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
 
-Commands, one test at a time so a failure is attributable. The table names each
-test by what it records, which is the name it takes once it replays a tape;
-`live_test.go` holds `TestLiveSyncDatabase`, `TestLiveSyncInstance`,
-`TestLiveQuery`, `TestLiveQueryWrites`, `TestLiveExecute` and
-`TestLiveSyncDatabaseMissing` today, so the commands below name those and step 4's
-seam conversion renames them. The query path is two tests on purpose: the reads
-need no table and the writes need one, so a project with no dataset still records
-the half it can. They name the tests that exist: a `-run` pattern that matches
-nothing exits 0 and records nothing, which reads as a pass.
+Commands, one test at a time so a failure is attributable. The query path is two
+tests on purpose: the reads need no table and the writes need one. Every `-run`
+pattern names a test that exists in `live_test.go`.
 
 ```bash
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveQuery$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveQueryWrites$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveExecute$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabaseMissing$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestSyncInstance$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestQuery$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestQueryWrites$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestExecute$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestSyncDatabaseMissing$' -count=1 -v
 ```
 
-`liveConfig` derives `BIGQUERY_PROJECT` from the key's `project_id`; export it
-too when the recording's project is not the one the key was made in, and export
-`BIGQUERY_DATASET`, which has no default and fails the test rather than skip it.
+`testcontainer.ResolveLiveConfig` derives `BIGQUERY_PROJECT` from a key file's
+`project_id`; export `BIGQUERY_PROJECT` explicitly when using
+`BIGQUERY_CREDENTIALS=default` or recording against another project, and always
+export `BIGQUERY_DATASET`.
 
 Then record everything twice from one compiled test binary and require
 byte-identical tapes. Two runs of one binary are deterministic; two `go test` runs
@@ -395,11 +390,15 @@ are byte-identical in the tapes but not in a protojson golden, so compare the sy
 goldens as protos:
 
 ```bash
-go test -c -o /tmp/bigquery-driver.test ./bigquery/driver/
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" /tmp/bigquery-driver.test -test.count=1
-sha256sum bigquery/driver/testdata/tapes/*.tape > /tmp/bigquery-tapes.a
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" /tmp/bigquery-driver.test -test.count=1
-sha256sum bigquery/driver/testdata/tapes/*.tape | diff /tmp/bigquery-tapes.a -
+(
+  cd bigquery/driver
+  go test -c -o ./bigquery-driver.test .
+  OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" ./bigquery-driver.test -test.count=1
+  sha256sum testdata/tapes/*.tape > ./bigquery-tapes.a
+  OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_PROJECT="$BIGQUERY_PROJECT" BIGQUERY_DATASET="$BIGQUERY_DATASET" ./bigquery-driver.test -test.count=1
+  sha256sum testdata/tapes/*.tape | diff ./bigquery-tapes.a -
+  rm -f ./bigquery-driver.test ./bigquery-tapes.a
+)
 ```
 
 A tape that is not reproducible is a nondeterminism in what the test sends or in
@@ -603,7 +602,7 @@ settled by the run on 2026-11-17.
 | a missing dataset is `driver.ErrNotFound`, from a `datasets.get` the sync asks for first *(recorded)* | the service answers a read of a missing dataset's `INFORMATION_SCHEMA` with `403 accessDenied`, so the mapping could never fire from the columns query alone; a caller that drops a database on `ErrNotFound` never dropped one |
 | a NUMERIC and a BIGNUMERIC cell is its exact decimal text, and a TIMESTAMP and a DATETIME are the contract's `TimestampTZ` and `Timestamp` *(recorded)* | the client renders a `*big.Rat` as a ratio (`25/2` for `NUMERIC '12.50'`) and a timestamp as Go's text (`2026-01-02 03:04:05 +0000 UTC`), which a viewer cannot read as either |
 | a RANGE is the half-open literal the service states, and an ARRAY or a RECORD is its elements in order *(recorded)* | Go's rendering of the client's values is `&{2026-01-01 2026-02-01}` for a range and `[0x27d0b631da40]` for an array of one — an address, which is neither readable nor reproducible in a tape |
-| the read half of the query path is `TestLiveQuery` and the write half `TestLiveQueryWrites` | the reads need no table, so a project with no dataset records the half it can; one test's `Fatalf` on the first `CREATE TABLE` used to hide the rest |
+| the read half of the query path is `TestQuery` and the write half `TestQueryWrites` | the reads need no table, so a project with no dataset records the half it can; one test's `Fatalf` on the first `CREATE TABLE` used to hide the rest |
 
 ## What would unblock it
 

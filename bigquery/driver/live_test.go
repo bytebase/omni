@@ -2,15 +2,13 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -18,191 +16,16 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-// The live tests ask a real BigQuery project and are the only tests in this
-// package that do. They skip with the gate's name when it is unset, because no CI
-// machine has a project: BIGQUERY_CREDENTIALS names the credential, and the
-// project and dataset come from BIGQUERY_PROJECT and BIGQUERY_DATASET.
-//
-// Nothing here has been recorded. It is the shape the day-of recording runs, and
-// VERIFY.md says what to do when one fails.
+// The recorded driver tests replay offline from testdata/tapes/*.tape with no
+// Google Cloud credentials. With OMNI_RECORD=1 and BIGQUERY_CREDENTIALS,
+// BIGQUERY_PROJECT and BIGQUERY_DATASET set, they record against the pinned
+// project and dataset in bigquery/testdata/pins.tsv.
 
-// liveVariables are the settings a live test needs, in the order the skip message
-// names them. BIGQUERY_CREDENTIALS gates all of them: without a credential there
-// is nothing to ask and nothing to record.
-const (
-	credentialVariable = "BIGQUERY_CREDENTIALS"
-	projectVariable    = "BIGQUERY_PROJECT"
-	datasetVariable    = "BIGQUERY_DATASET"
-)
-
-// credentialDefault is the BIGQUERY_CREDENTIALS value that means the credential is
-// the Google authentication library's own default chain: the environment, the
-// well-known file, or an attached service account read from the metadata server.
-// It names no key, so it carries no project and BIGQUERY_PROJECT has to name one.
-// The value is reserved for this meaning, so a key file cannot be called
-// "default"; every other value is a path to a key or the key's JSON document.
-const credentialDefault = "default"
-
-// errNoCredential reports that nothing names a credential at all. A live test
-// skips on it, because a machine with no project is a machine that runs the unit
-// tests, and a machine that named a credential of some kind fails instead.
-var errNoCredential = errors.New("no " + credentialVariable)
-
-// liveConfig reads the recording's connection settings out of the environment and
-// skips the test when the gate is unset.
-func liveConfig(t *testing.T) driver.Config {
-	t.Helper()
-	cfg, err := liveConfigFrom(os.Getenv)
-	if errors.Is(err, errNoCredential) {
-		t.Skipf("%v: the live tests need a Google Cloud project and a dataset, and skip rather than ask a stand-in", err)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return cfg
-}
-
-// liveConfigFrom resolves the settings a live test asks with out of lookup, which
-// is os.Getenv in a live test and a map in the gate's own test.
-func liveConfigFrom(lookup func(string) string) (driver.Config, error) {
-	credentials := strings.TrimSpace(lookup(credentialVariable))
-	if credentials == "" {
-		return driver.Config{}, errNoCredential
-	}
-	project := strings.TrimSpace(lookup(projectVariable))
-	var document string
-	if credentials == credentialDefault {
-		// The default chain resolves the credential, so no document arrives here
-		// and Config.Password stays empty, which is how Open reads "the library
-		// reads one".
-		if project == "" {
-			return driver.Config{}, fmt.Errorf("%s is %q and names no key to read a project from, so %s has to name the project", credentialVariable, credentialDefault, projectVariable)
-		}
-	} else {
-		document = credentials
-		if !strings.HasPrefix(credentials, "{") {
-			key, err := os.ReadFile(credentials)
-			if err != nil {
-				return driver.Config{}, fmt.Errorf("%s names a file that cannot be read: %w", credentialVariable, err)
-			}
-			document = string(key)
-		}
-		if project == "" {
-			// A service-account key names its project, which is the one the
-			// recording bills.
-			var key struct {
-				ProjectID string `json:"project_id"`
-			}
-			if err := json.Unmarshal([]byte(document), &key); err != nil {
-				return driver.Config{}, fmt.Errorf("%s does not parse as a credential: %w", credentialVariable, err)
-			}
-			project = key.ProjectID
-			if project == "" {
-				return driver.Config{}, fmt.Errorf("%s is not set and the key names no project_id", projectVariable)
-			}
-		}
-	}
-	dataset := strings.TrimSpace(lookup(datasetVariable))
-	if dataset == "" {
-		return driver.Config{}, fmt.Errorf("%s is not set: a recording runs against a scratch dataset of its own", datasetVariable)
-	}
-	return driver.Config{
-		Database: dataset,
-		Password: document,
-		Params:   map[string]string{ParamProject: project},
-	}, nil
-}
-
-// TestLiveConfigResolution covers the gate without a project, which is the one
-// thing about these tests CI can check: an unset BIGQUERY_CREDENTIALS skips, so a
-// machine with no credential runs nothing, and the sentinel that means the default
-// chain still yields the project and dataset a live test needs.
-func TestLiveConfigResolution(t *testing.T) {
-	environment := func(values map[string]string) func(string) string {
-		return func(name string) string { return values[name] }
-	}
-
-	_, err := liveConfigFrom(environment(nil))
-	require.ErrorIs(t, err, errNoCredential)
-
-	_, err = liveConfigFrom(environment(map[string]string{credentialVariable: "  "}))
-	require.ErrorIs(t, err, errNoCredential)
-
-	// The sentinel names no key, so the project has to arrive beside it.
-	_, err = liveConfigFrom(environment(map[string]string{
-		credentialVariable: credentialDefault,
-		datasetVariable:    "omni_record",
-	}))
-	require.ErrorContains(t, err, projectVariable)
-
-	cfg, err := liveConfigFrom(environment(map[string]string{
-		credentialVariable: credentialDefault,
-		projectVariable:    "  example-project ",
-		datasetVariable:    "omni_record",
-	}))
-	require.NoError(t, err)
-	require.Equal(t, driver.Config{
-		Database: "omni_record",
-		Params:   map[string]string{ParamProject: "example-project"},
-	}, cfg)
-
-	// An inline document is the credential, and it names the project.
-	document := `{"type":"service_account","project_id":"key-project"}`
-	cfg, err = liveConfigFrom(environment(map[string]string{
-		credentialVariable: document,
-		datasetVariable:    "omni_record",
-	}))
-	require.NoError(t, err)
-	require.Equal(t, document, cfg.Password)
-	require.Equal(t, "key-project", cfg.Params[ParamProject])
-
-	// A path is read, and an explicit project wins over the key's.
-	path := filepath.Join(t.TempDir(), "key.json")
-	require.NoError(t, os.WriteFile(path, []byte(document), 0o600))
-	cfg, err = liveConfigFrom(environment(map[string]string{
-		credentialVariable: path,
-		projectVariable:    "example-project",
-		datasetVariable:    "omni_record",
-	}))
-	require.NoError(t, err)
-	require.Equal(t, document, cfg.Password)
-	require.Equal(t, "example-project", cfg.Params[ParamProject])
-
-	_, err = liveConfigFrom(environment(map[string]string{
-		credentialVariable: filepath.Join(t.TempDir(), "missing.json"),
-		projectVariable:    "example-project",
-		datasetVariable:    "omni_record",
-	}))
-	require.ErrorContains(t, err, "cannot be read")
-
-	// A credential of some kind but no dataset is a misconfiguration, not a skip:
-	// a golden recorded from a dataset nobody named cannot be read.
-	_, err = liveConfigFrom(environment(map[string]string{
-		credentialVariable: credentialDefault,
-		projectVariable:    "example-project",
-	}))
-	require.ErrorContains(t, err, datasetVariable)
-}
-
-// openLive returns an open driver for the project the environment names.
-func openLive(t *testing.T) *Driver {
-	t.Helper()
-	d, err := Open(context.Background(), liveConfig(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	t.Cleanup(func() { _ = d.Close() })
-	if err := d.Ping(context.Background()); err != nil {
-		t.Fatalf("Ping: %v", err)
-	}
-	return d
-}
-
-// TestLiveSyncInstance lists the project's datasets: the sync's listing, the order
+// TestSyncInstance lists the project's datasets: the sync's listing, the order
 // it reports, and that the dataset the driver is open on is among them.
-func TestLiveSyncInstance(t *testing.T) {
+func TestSyncInstance(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	d := openTape(t)
 
 	instance, err := d.SyncInstance(ctx)
 	if err != nil {
@@ -231,12 +54,12 @@ func TestLiveSyncInstance(t *testing.T) {
 	}
 }
 
-// TestLiveSyncDatabase reads the schema of the dataset the driver is open on. The
+// TestSyncDatabase reads the schema of the dataset the driver is open on. The
 // table it expects is one the recording's corpus creates, so a replay of this test
 // is a replay of that corpus.
-func TestLiveSyncDatabase(t *testing.T) {
+func TestSyncDatabase(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	d := openTape(t)
 
 	database, err := d.SyncDatabase(ctx)
 	if err != nil {
@@ -300,35 +123,30 @@ func TestLiveSyncDatabase(t *testing.T) {
 
 // missingDataset is the dataset name the not-found test asks for. It is fixed
 // rather than made up from the clock because a tape replays byte for byte, and
-// the name is part of the INFORMATION_SCHEMA query the recording holds.
+// the name is part of the request the recording holds.
 const missingDataset = "omni_driver_missing_dataset"
 
-// TestLiveSyncDatabaseMissing opens a driver on a dataset the project does not
-// have and requires the contract's not-found, which is what a caller uses to tell
-// a database it may drop from a request that failed.
-func TestLiveSyncDatabaseMissing(t *testing.T) {
+// TestSyncDatabaseMissing opens a driver on a dataset the project does not have
+// and requires the contract's not-found, which is what a caller uses to tell a
+// database it may drop from a request that failed.
+func TestSyncDatabaseMissing(t *testing.T) {
 	ctx := context.Background()
-	cfg := liveConfig(t)
-	cfg.Database = missingDataset
-	d, err := Open(ctx, cfg)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = d.Close() }()
+	d := openTapeDataset(t, missingDataset)
 
 	if _, err := d.SyncDatabase(ctx); !errors.Is(err, driver.ErrNotFound) {
 		t.Fatalf("SyncDatabase error = %v, want driver.ErrNotFound", err)
 	}
 }
 
-// TestLiveQuery runs the statements of a session that need no table: a query that
-// returns rows, a statement omni's parser does not read, the limit wrap, the
-// result-size cap, the dry run that stands in for EXPLAIN, and a statement the
-// service refuses. Everything that needs a table is TestLiveQueryWrites, so a
-// project whose dataset is missing still reads its failures honestly here.
-func TestLiveQuery(t *testing.T) {
+// TestQuery runs the statements of a session that need no table: a query that
+// returns rows, every BigQuery cell kind, a statement omni's parser does not
+// read, the limit wrap, the result-size cap, the dry run that stands in for
+// EXPLAIN, and a statement the service refuses. Everything that needs a table is
+// TestQueryWrites, so a project whose dataset is missing still reads its
+// failures honestly here.
+func TestQuery(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	d := openTape(t)
 
 	session, err := d.Session(ctx)
 	if err != nil {
@@ -352,6 +170,61 @@ func TestLiveQuery(t *testing.T) {
 	}
 	if len(result.Rows) != 1 || len(result.Rows[0]) != 1 || result.Rows[0][0].Kind != driver.Int64 || result.Rows[0][0].Int64 != 1 {
 		t.Errorf("Rows = %+v, want one row holding int64 1", result.Rows)
+	}
+	if result.Plan == nil || !result.Plan.Executed || result.Plan.Format != "JSON" || !strings.Contains(result.Plan.Content, "S00: Output") {
+		t.Errorf("Plan = %+v, want executed JSON plan holding S00: Output", result.Plan)
+	}
+
+	// Pin every BigQuery cell kind directly from the service's answer.
+	allTypes, err := session.Query(ctx, `SELECT
+		NUMERIC '12.50' AS num,
+		BIGNUMERIC '-7.25' AS bn,
+		DATE '2026-01-02' AS d,
+		DATETIME '2026-01-02 03:04:05.123' AS dt,
+		TIME '03:04:05' AS t,
+		TIMESTAMP '2026-01-02 03:04:05.120000 UTC' AS ts,
+		JSON '{"a":1}' AS j,
+		[1, 2] AS arr,
+		STRUCT(1 AS a, 'x' AS b) AS st,
+		ST_GEOGPOINT(1, 2) AS g,
+		INTERVAL 1 DAY AS iv,
+		RANGE<DATE> '[2026-01-01, 2026-02-01)' AS r,
+		b'ab' AS bin,
+		TRUE AS flag,
+		1.5 AS flt`, driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query of all cell kinds: %v", err)
+	}
+	if len(allTypes) != 1 || allTypes[0].Err != nil || len(allTypes[0].Rows) != 1 {
+		t.Fatalf("allTypes = %+v", allTypes)
+	}
+	row := allTypes[0].Rows[0]
+	wantRow := []driver.Value{
+		{Kind: driver.String, String: "12.5"},
+		{Kind: driver.String, String: "-7.25"},
+		{Kind: driver.String, String: "2026-01-02"},
+		{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 3, 4, 5, 123000000, time.UTC), Precision: bigqueryFractionalDigits},
+		{Kind: driver.String, String: "03:04:05"},
+		{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 3, 4, 5, 120000000, time.UTC), Precision: bigqueryFractionalDigits},
+		{Kind: driver.String, String: `{"a":1}`},
+		{Kind: driver.String, String: "[1, 2]"},
+		{Kind: driver.String, String: "[1, x]"},
+		{Kind: driver.String, String: "POINT(1 2)"},
+		{Kind: driver.String, String: "0-0 1 0:0:0"},
+		{Kind: driver.String, String: "[2026-01-01, 2026-02-01)"},
+		{Kind: driver.Bytes, Bytes: []byte("ab")},
+		{Kind: driver.Bool, Bool: true},
+		{Kind: driver.Float64, Float64: 1.5},
+	}
+	if len(row) != len(wantRow) {
+		t.Fatalf("got %d cells, want %d: %+v", len(row), len(wantRow), row)
+	}
+	for i := range wantRow {
+		got, want := row[i], wantRow[i]
+		if got.Kind != want.Kind || got.String != want.String || got.Int64 != want.Int64 || got.Float64 != want.Float64 ||
+			got.Bool != want.Bool || string(got.Bytes) != string(want.Bytes) || !got.Time.Equal(want.Time) || got.Precision != want.Precision {
+			t.Errorf("cell[%d] (%s) = %+v, want %+v", i, allTypes[0].Columns[i].Name, got, want)
+		}
 	}
 
 	// A pipe query is valid BigQuery and one omni's parser does not read yet, so
@@ -441,13 +314,12 @@ func TestLiveQuery(t *testing.T) {
 	}
 }
 
-// TestLiveQueryWrites runs the statements of the query path that need a table: a
+// TestQueryWrites runs the statements of the query path that need a table: a
 // command's affected rows, a dry run of that command's table, and the error the
-// service states for a table it does not have. It needs the dataset the driver is
-// open on, so a project that has none fails here rather than hiding these.
-func TestLiveQueryWrites(t *testing.T) {
+// service states for a table it does not have.
+func TestQueryWrites(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	d := openTape(t)
 
 	session, err := d.Session(ctx)
 	if err != nil {
@@ -510,10 +382,10 @@ func requireValidated(t *testing.T, ctx context.Context, session driver.Session,
 	}
 }
 
-// TestLiveExecute runs a script as one job, and one that the service refuses.
-func TestLiveExecute(t *testing.T) {
+// TestExecute runs a script as one job, and one that the service refuses.
+func TestExecute(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	d := openTape(t)
 
 	if _, err := d.Execute(ctx, "CREATE TABLE omni_execute_probe (a INT64)", driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute: %v", err)

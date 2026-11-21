@@ -114,7 +114,7 @@ func toQueryStages(stages []*bigquery.ExplainQueryStage) []queryStage {
 // from no job of its own has none; neither does a job still without statistics,
 // nor a failure to read them, which leaves the rows the caller asked for exactly
 // as they were.
-func queryPlan(ctx context.Context, job *bigquery.Job) *driver.Plan {
+func queryPlan(ctx context.Context, job job) *driver.Plan {
 	if job == nil {
 		return nil
 	}
@@ -123,11 +123,10 @@ func queryPlan(ctx context.Context, job *bigquery.Job) *driver.Plan {
 		slog.Debug("failed to read the job status for its query plan", "error", err)
 		return nil
 	}
-	stats, ok := statisticsOf(status)
-	if !ok || len(stats.QueryPlan) == 0 {
+	if status == nil || status.Stats == nil || len(status.Stats.QueryPlan) == 0 {
 		return nil
 	}
-	content, err := json.Marshal(toQueryStages(stats.QueryPlan))
+	content, err := json.Marshal(toQueryStages(status.Stats.QueryPlan))
 	if err != nil {
 		slog.Debug("failed to encode the query plan", "error", err)
 		return nil
