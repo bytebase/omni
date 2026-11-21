@@ -44,15 +44,22 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	hasPreamble := hasSynonyms(to.Schemas) || hasSequences(to.Schemas)
 
 	tableFunctions := functionsReferencedByTables(to.Schemas)
-	if len(tableFunctions) > 0 {
-		if hasPreamble {
-			buf.WriteString("GO\n\n")
+	lastWasFunction := false
+	if len(tableFunctions) > 0 && tableFunctionsDependOnTables(to.Schemas, tableFunctions) {
+		lastWasFunction = writeTablesAndFunctionsInOrder(&buf, to.Schemas, tableFunctions, hasPreamble)
+	} else {
+		if len(tableFunctions) > 0 {
+			if hasPreamble {
+				buf.WriteString("GO\n\n")
+			}
+			writeReferencedFunctions(&buf, to.Schemas, tableFunctions)
+			lastWasFunction = true
 		}
-		writeReferencedFunctions(&buf, to.Schemas, tableFunctions)
-	}
 
-	if hasTables(to.Schemas) {
-		writeAllTablesInOrder(&buf, to.Schemas)
+		if hasTables(to.Schemas) {
+			writeAllTablesInOrder(&buf, to.Schemas)
+			lastWasFunction = false
+		}
 	}
 
 	viewFunctions := functionsReferencedByViews(to.Schemas)
@@ -60,20 +67,22 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 		delete(viewFunctions, name)
 	}
 	if len(viewFunctions) > 0 {
-		if hasTables(to.Schemas) || hasPreamble || len(tableFunctions) > 0 {
+		if !lastWasFunction && (hasTables(to.Schemas) || hasPreamble) {
 			buf.WriteString("GO\n\n")
 		}
 		writeReferencedFunctions(&buf, to.Schemas, viewFunctions)
+		lastWasFunction = true
 	}
 
 	if hasViews(to.Schemas) {
-		if len(viewFunctions) == 0 && (hasTables(to.Schemas) || hasPreamble) {
+		if len(viewFunctions) == 0 && !lastWasFunction && (hasTables(to.Schemas) || hasPreamble) {
 			buf.WriteString("GO\n\n")
 		}
 		writeAllViewsInOrder(&buf, to.Schemas)
+		lastWasFunction = false
 	}
 
-	if !hasViews(to.Schemas) && (hasTables(to.Schemas) || hasPreamble) && (hasRoutines(to.Schemas) || hasTriggers(to.Schemas)) {
+	if !hasViews(to.Schemas) && !lastWasFunction && (hasTables(to.Schemas) || hasPreamble) && (hasRoutines(to.Schemas) || hasTriggers(to.Schemas)) {
 		buf.WriteString("GO\n\n")
 	}
 
@@ -93,17 +102,66 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	return buf.String(), nil
 }
 
+type functionWithSchema struct {
+	schema   string
+	function *metadata.FunctionMetadata
+}
+
 func writeReferencedFunctions(out *strings.Builder, schemas []*metadata.SchemaMetadata, names map[string]bool) {
+	for _, fws := range sortFunctionsAcrossSchemas(schemas, names) {
+		writeFunction(out, fws.schema, fws.function)
+	}
+}
+
+// sortFunctionsAcrossSchemas topologically orders functions across all schemas
+// so a callee is always created before any function that calls it.
+func sortFunctionsAcrossSchemas(schemas []*metadata.SchemaMetadata, filter map[string]bool) []functionWithSchema {
+	var all []functionWithSchema
 	for _, schema := range schemas {
-		for _, function := range sortFunctions(schema.Name, schema.Functions) {
+		for _, function := range schema.Functions {
 			if function.GetSkipDump() {
 				continue
 			}
-			if names[objectID(schema.Name, function.Name)] {
-				writeFunction(out, schema.Name, function)
+			id := objectID(schema.Name, function.Name)
+			if filter != nil && !filter[id] {
+				continue
+			}
+			all = append(all, functionWithSchema{schema: schema.Name, function: function})
+		}
+	}
+	if len(all) <= 1 {
+		return all
+	}
+	graph := newGraph()
+	byID := make(map[string]functionWithSchema, len(all))
+	for _, fws := range all {
+		id := objectID(fws.schema, fws.function.Name)
+		graph.addNode(id)
+		byID[id] = fws
+	}
+	for _, fws := range all {
+		id := objectID(fws.schema, fws.function.Name)
+		for _, other := range all {
+			otherID := objectID(other.schema, other.function.Name)
+			if otherID == id {
+				continue
+			}
+			if definitionReferencesFunction(fws.function.Definition, fws.schema, other.schema, other.function.Name) {
+				graph.addEdge(otherID, id)
 			}
 		}
 	}
+	order, err := graph.topologicalSort()
+	if err != nil {
+		return all
+	}
+	result := make([]functionWithSchema, 0, len(all))
+	for _, id := range order {
+		if fws, ok := byID[id]; ok {
+			result = append(result, fws)
+		}
+	}
+	return result
 }
 
 // sortFunctions puts a function after any function its body names.
@@ -127,7 +185,7 @@ func sortFunctions(schemaName string, functions []*metadata.FunctionMetadata) []
 			if other == function || other.GetSkipDump() {
 				continue
 			}
-			if strings.Contains(strings.ToLower(function.Definition), strings.ToLower(other.Name)) {
+			if definitionReferencesFunction(function.Definition, schemaName, schemaName, other.Name) {
 				graph.addEdge(objectID(schemaName, other.Name), id)
 			}
 		}
@@ -145,55 +203,386 @@ func sortFunctions(schemaName string, functions []*metadata.FunctionMetadata) []
 	return result
 }
 
-// functionsReferencedByTables names the functions a column default or computed
-// expression mentions, so a table can install them before it needs them.
-func functionsReferencedByTables(schemas []*metadata.SchemaMetadata) map[string]bool {
-	var expressions []string
-	for _, schema := range schemas {
-		for _, table := range schema.Tables {
-			for _, column := range table.Columns {
-				expressions = append(expressions, column.Default, column.Type)
-			}
-			for _, check := range table.CheckConstraints {
-				expressions = append(expressions, check.Expression)
-			}
-		}
+// expandFunctionDependencies adds every function transitively called by the
+// functions in seeds across all schemas.
+func expandFunctionDependencies(schemas []*metadata.SchemaMetadata, seeds map[string]bool) map[string]bool {
+	if len(seeds) == 0 {
+		return seeds
 	}
-	referenced := make(map[string]bool)
+	var all []functionWithSchema
+	byID := make(map[string]functionWithSchema)
 	for _, schema := range schemas {
 		for _, function := range schema.Functions {
-			for _, expression := range expressions {
-				if strings.Contains(strings.ToLower(expression), strings.ToLower(function.Name)) {
-					referenced[objectID(schema.Name, function.Name)] = true
-					break
-				}
+			if function.GetSkipDump() {
+				continue
+			}
+			id := objectID(schema.Name, function.Name)
+			fws := functionWithSchema{schema: schema.Name, function: function}
+			all = append(all, fws)
+			byID[id] = fws
+		}
+	}
+	result := make(map[string]bool, len(seeds))
+	var queue []string
+	for id := range seeds {
+		result[id] = true
+		queue = append(queue, id)
+	}
+	slices.Sort(queue)
+	for len(queue) > 0 {
+		curID := queue[0]
+		queue = queue[1:]
+		cur, ok := byID[curID]
+		if !ok {
+			continue
+		}
+		for _, other := range all {
+			otherID := objectID(other.schema, other.function.Name)
+			if result[otherID] || otherID == curID {
+				continue
+			}
+			if definitionReferencesFunction(cur.function.Definition, cur.schema, other.schema, other.function.Name) {
+				result[otherID] = true
+				queue = append(queue, otherID)
 			}
 		}
 	}
-	return referenced
+	return result
 }
 
-// functionsReferencedByViews names the functions a view body mentions, so they
-// are created before the view that resolves them.
-func functionsReferencedByViews(schemas []*metadata.SchemaMetadata) map[string]bool {
-	var definitions []string
+// functionsReferencedByTables names the functions a column default, computed
+// expression, or check constraint mentions, together with their transitive
+// function dependencies.
+func functionsReferencedByTables(schemas []*metadata.SchemaMetadata) map[string]bool {
+	type exprCtx struct {
+		schema string
+		expr   string
+	}
+	var expressions []exprCtx
 	for _, schema := range schemas {
-		for _, view := range schema.Views {
-			definitions = append(definitions, view.Definition)
+		for _, table := range schema.Tables {
+			if table.GetSkipDump() {
+				continue
+			}
+			for _, column := range table.Columns {
+				if column.Default != "" {
+					expressions = append(expressions, exprCtx{schema: schema.Name, expr: column.Default})
+				}
+				if isComputedColumnType(column.Type) {
+					expressions = append(expressions, exprCtx{schema: schema.Name, expr: column.Type})
+				}
+			}
+			for _, check := range table.CheckConstraints {
+				if check.Expression != "" {
+					expressions = append(expressions, exprCtx{schema: schema.Name, expr: check.Expression})
+				}
+			}
 		}
 	}
 	referenced := make(map[string]bool)
 	for _, schema := range schemas {
 		for _, function := range schema.Functions {
-			for _, definition := range definitions {
-				if strings.Contains(strings.ToLower(definition), strings.ToLower(function.Name)) {
+			if function.GetSkipDump() {
+				continue
+			}
+			for _, item := range expressions {
+				if expressionReferencesFunction(item.expr, item.schema, schema.Name, function.Name) {
 					referenced[objectID(schema.Name, function.Name)] = true
 					break
 				}
 			}
 		}
 	}
-	return referenced
+	return expandFunctionDependencies(schemas, referenced)
+}
+
+// functionsReferencedByViews names the functions a view body mentions, together
+// with their transitive function dependencies.
+func functionsReferencedByViews(schemas []*metadata.SchemaMetadata) map[string]bool {
+	type viewCtx struct {
+		schema string
+		def    string
+	}
+	var definitions []viewCtx
+	for _, schema := range schemas {
+		for _, view := range schema.Views {
+			if view.GetSkipDump() {
+				continue
+			}
+			definitions = append(definitions, viewCtx{schema: schema.Name, def: view.Definition})
+		}
+	}
+	referenced := make(map[string]bool)
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			if function.GetSkipDump() {
+				continue
+			}
+			for _, item := range definitions {
+				if expressionReferencesFunction(item.def, item.schema, schema.Name, function.Name) {
+					referenced[objectID(schema.Name, function.Name)] = true
+					break
+				}
+			}
+		}
+	}
+	return expandFunctionDependencies(schemas, referenced)
+}
+
+// tableFunctionsDependOnTables reports whether any hoisted table function is
+// schema-bound to a table in schemas, requiring tables and functions to be
+// interleaved in dependency order.
+func tableFunctionsDependOnTables(schemas []*metadata.SchemaMetadata, tableFunctions map[string]bool) bool {
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			if function.GetSkipDump() || !tableFunctions[objectID(schema.Name, function.Name)] {
+				continue
+			}
+			if !isSchemaBound(function.Definition) {
+				continue
+			}
+			for _, ts := range schemas {
+				for _, table := range ts.Tables {
+					if table.GetSkipDump() {
+						continue
+					}
+					if definitionReferencesTable(function.Definition, schema.Name, ts.Name, table.Name) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// writeTablesAndFunctionsInOrder interleaves tables and table-referenced
+// functions in dependency order so a schema-bound function follows the table it
+// reads while still preceding any table default/check/computed column that
+// calls it. Returns true if the last statement emitted was a function (already
+// terminated by GO).
+func writeTablesAndFunctionsInOrder(out *strings.Builder, schemas []*metadata.SchemaMetadata, tableFunctions map[string]bool, hasPreamble bool) bool {
+	var allTables []tableWithSchema
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			if table.GetSkipDump() {
+				continue
+			}
+			allTables = append(allTables, tableWithSchema{schema: schema.Name, table: table})
+		}
+	}
+	var allFuncs []functionWithSchema
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			if function.GetSkipDump() || !tableFunctions[objectID(schema.Name, function.Name)] {
+				continue
+			}
+			allFuncs = append(allFuncs, functionWithSchema{schema: schema.Name, function: function})
+		}
+	}
+
+	buildGraph := func(includeFKs bool) (*graph, map[string]tableWithSchema, map[string]functionWithSchema) {
+		g := newGraph()
+		tableMap := make(map[string]tableWithSchema, len(allTables))
+		tableIDByObj := make(map[string]string, len(allTables))
+		funcMap := make(map[string]functionWithSchema, len(allFuncs))
+		for _, tws := range allTables {
+			obj := objectID(tws.schema, tws.table.Name)
+			node := "T\x00" + obj
+			g.addNode(node)
+			tableMap[node] = tws
+			tableIDByObj[obj] = node
+		}
+		for _, fws := range allFuncs {
+			node := "F\x00" + objectID(fws.schema, fws.function.Name)
+			g.addNode(node)
+			funcMap[node] = fws
+		}
+		if includeFKs {
+			for _, tws := range allTables {
+				tNode := "T\x00" + objectID(tws.schema, tws.table.Name)
+				for _, fk := range tws.table.ForeignKeys {
+					refObj := objectID(fk.ReferencedSchema, fk.ReferencedTable)
+					if refNode, ok := tableIDByObj[refObj]; ok && refNode != tNode {
+						g.addEdge(refNode, tNode)
+					}
+				}
+			}
+		}
+		// Function -> Function edges.
+		for _, fws := range allFuncs {
+			fNode := "F\x00" + objectID(fws.schema, fws.function.Name)
+			for _, other := range allFuncs {
+				otherNode := "F\x00" + objectID(other.schema, other.function.Name)
+				if otherNode == fNode {
+					continue
+				}
+				if definitionReferencesFunction(fws.function.Definition, fws.schema, other.schema, other.function.Name) {
+					g.addEdge(otherNode, fNode)
+				}
+			}
+		}
+		// Schema-bound Function reads Table -> Table must precede Function.
+		for _, fws := range allFuncs {
+			if !isSchemaBound(fws.function.Definition) {
+				continue
+			}
+			fNode := "F\x00" + objectID(fws.schema, fws.function.Name)
+			for _, tws := range allTables {
+				if definitionReferencesTable(fws.function.Definition, fws.schema, tws.schema, tws.table.Name) {
+					g.addEdge("T\x00"+objectID(tws.schema, tws.table.Name), fNode)
+				}
+			}
+		}
+		// Table uses Function -> Function must precede Table.
+		for _, tws := range allTables {
+			tNode := "T\x00" + objectID(tws.schema, tws.table.Name)
+			for _, fws := range allFuncs {
+				if tableReferencesFunction(tws.schema, tws.table, fws.schema, fws.function.Name) {
+					g.addEdge("F\x00"+objectID(fws.schema, fws.function.Name), tNode)
+				}
+			}
+		}
+		return g, tableMap, funcMap
+	}
+
+	g, tableMap, funcMap := buildGraph(true)
+	order, err := g.topologicalSort()
+	deferFKs := false
+	if err != nil {
+		g, tableMap, funcMap = buildGraph(false)
+		order, err = g.topologicalSort()
+		deferFKs = true
+	}
+
+	needGoBeforeFn := hasPreamble
+	lastWasFunction := false
+	if err == nil {
+		for _, node := range order {
+			if tws, ok := tableMap[node]; ok {
+				if deferFKs {
+					writeTableWithoutForeignKeys(out, tws.schema, tws.table)
+				} else {
+					writeTable(out, tws.schema, tws.table)
+				}
+				needGoBeforeFn = true
+				lastWasFunction = false
+			} else if fws, ok := funcMap[node]; ok {
+				if needGoBeforeFn {
+					out.WriteString("GO\n\n")
+				}
+				writeFunction(out, fws.schema, fws.function)
+				needGoBeforeFn = false
+				lastWasFunction = true
+			}
+		}
+		if deferFKs {
+			for _, tws := range allTables {
+				for _, fk := range tws.table.ForeignKeys {
+					writeDeferredForeignKey(out, tws.schema, tws.table.Name, fk)
+					lastWasFunction = false
+				}
+			}
+		}
+		return lastWasFunction
+	}
+
+	// Cycle involves a table's DEFAULT/CHECK constraint and a schema-bound
+	// function reading the same table (or cycle of tables). Emit tables without
+	// function-referencing defaults/checks (and without FKs if cyclic), emit
+	// functions, then attach deferred defaults, checks, and FKs via ALTER TABLE.
+	sortedTables, fkCyclic := sortTablesByDependencies(allTables)
+	type deferredDefault struct {
+		schema string
+		table  string
+		column *metadata.ColumnMetadata
+	}
+	type deferredCheck struct {
+		schema string
+		table  string
+		check  *metadata.CheckConstraintMetadata
+	}
+	var deferredDefaults []deferredDefault
+	var deferredChecks []deferredCheck
+	for _, tws := range sortedTables {
+		deferDefaultCols := make(map[string]bool)
+		for _, col := range tws.table.Columns {
+			if col.GetDefault() != "" && expressionReferencesAnyFunction(col.GetDefault(), tws.schema, allFuncs) {
+				deferDefaultCols[col.Name] = true
+				deferredDefaults = append(deferredDefaults, deferredDefault{schema: tws.schema, table: tws.table.Name, column: col})
+			}
+		}
+		deferCheckNames := make(map[string]bool)
+		for _, check := range tws.table.CheckConstraints {
+			if expressionReferencesAnyFunction(check.Expression, tws.schema, allFuncs) {
+				deferCheckNames[check.Name] = true
+				deferredChecks = append(deferredChecks, deferredCheck{schema: tws.schema, table: tws.table.Name, check: check})
+			}
+		}
+		writeTableBodyFiltered(out, tws.schema, tws.table, !fkCyclic, deferDefaultCols, deferCheckNames)
+		needGoBeforeFn = true
+		lastWasFunction = false
+	}
+	if len(allFuncs) > 0 {
+		if needGoBeforeFn {
+			out.WriteString("GO\n\n")
+		}
+		writeReferencedFunctions(out, schemas, tableFunctions)
+		lastWasFunction = true
+	}
+	for _, dd := range deferredDefaults {
+		if dd.column.DefaultConstraintName != "" {
+			fmt.Fprintf(out, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n\n",
+				quote(dd.schema), quote(dd.table), quote(dd.column.DefaultConstraintName), dd.column.GetDefault(), quote(dd.column.Name))
+		} else {
+			fmt.Fprintf(out, "ALTER TABLE %s.%s ADD DEFAULT %s FOR %s;\n\n",
+				quote(dd.schema), quote(dd.table), dd.column.GetDefault(), quote(dd.column.Name))
+		}
+		lastWasFunction = false
+	}
+	for _, dc := range deferredChecks {
+		fmt.Fprintf(out, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n\n",
+			quote(dc.schema), quote(dc.table), quote(dc.check.Name), checkExpression(dc.check.Expression))
+		lastWasFunction = false
+	}
+	if fkCyclic {
+		for _, tws := range sortedTables {
+			for _, fk := range tws.table.ForeignKeys {
+				writeDeferredForeignKey(out, tws.schema, tws.table.Name, fk)
+				lastWasFunction = false
+			}
+		}
+	}
+	return lastWasFunction
+}
+
+func tableReferencesFunction(tableSchema string, table *metadata.TableMetadata, fnSchema, fnName string) bool {
+	if table == nil {
+		return false
+	}
+	for _, column := range table.Columns {
+		if column.Default != "" && expressionReferencesFunction(column.Default, tableSchema, fnSchema, fnName) {
+			return true
+		}
+		if isComputedColumnType(column.Type) && expressionReferencesFunction(column.Type, tableSchema, fnSchema, fnName) {
+			return true
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		if check.Expression != "" && expressionReferencesFunction(check.Expression, tableSchema, fnSchema, fnName) {
+			return true
+		}
+	}
+	return false
+}
+
+func expressionReferencesAnyFunction(expression, defaultSchema string, funcs []functionWithSchema) bool {
+	for _, fws := range funcs {
+		if expressionReferencesFunction(expression, defaultSchema, fws.schema, fws.function.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasSynonyms(schemas []*metadata.SchemaMetadata) bool {
@@ -531,12 +920,16 @@ func writeTableWithoutForeignKeys(out *strings.Builder, schemaName string, table
 }
 
 func writeTableBody(out *strings.Builder, schemaName string, table *metadata.TableMetadata, includeForeignKeys bool) {
+	writeTableBodyFiltered(out, schemaName, table, includeForeignKeys, nil, nil)
+}
+
+func writeTableBodyFiltered(out *strings.Builder, schemaName string, table *metadata.TableMetadata, includeForeignKeys bool, omitDefaultCols, omitCheckNames map[string]bool) {
 	fmt.Fprintf(out, "CREATE TABLE %s.%s (\n", quote(schemaName), quote(table.Name))
 	for i, column := range table.Columns {
 		if i != 0 {
 			out.WriteString(",\n")
 		}
-		writeColumn(out, column)
+		writeColumnFiltered(out, column, !omitDefaultCols[column.Name])
 	}
 	for _, key := range table.Indexes {
 		if !key.IsConstraint {
@@ -552,6 +945,9 @@ func writeTableBody(out *strings.Builder, schemaName string, table *metadata.Tab
 		}
 	}
 	for _, check := range table.CheckConstraints {
+		if omitCheckNames[check.Name] {
+			continue
+		}
 		out.WriteString(",\n")
 		writeCheck(out, check)
 	}
@@ -834,7 +1230,7 @@ func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
 	out.WriteString(")")
 }
 
-func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
+func writeColumnFiltered(out *strings.Builder, column *metadata.ColumnMetadata, includeDefault bool) {
 	fmt.Fprintf(out, "    %s %s", quote(column.Name), column.Type)
 	if isComputedColumnType(column.Type) {
 		if !column.Nullable && strings.Contains(strings.ToUpper(column.Type), "PERSISTED") {
@@ -848,7 +1244,7 @@ func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 	if column.Collation != "" {
 		fmt.Fprintf(out, " COLLATE %s", column.Collation)
 	}
-	if column.GetDefault() != "" {
+	if includeDefault && column.GetDefault() != "" {
 		if column.DefaultConstraintName != "" {
 			fmt.Fprintf(out, " CONSTRAINT %s DEFAULT %s", quote(column.DefaultConstraintName), column.GetDefault())
 		} else {
