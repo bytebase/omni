@@ -1863,6 +1863,15 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		Indexes: []*metadatapb.IndexMetadata{{Name: "uq_id", Unique: true, Expressions: []string{"id"}, Type: "hash"}},
 	})
 	require.ErrorContains(t, err, "unsupported type")
+
+	// When case-sensitive identifiers are active, constraint column validation
+	// must not accept a case-only mismatch like "foo" for "Foo".
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name:    "t_case_col",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "Foo", Type: "integer"}},
+		Indexes: []*metadatapb.IndexMetadata{{Name: "pk_foo", Primary: true, Expressions: []string{"foo"}}},
+	})
+	require.ErrorContains(t, err, "not a table column")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

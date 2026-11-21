@@ -1227,4 +1227,44 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	assert.Contains(t, jsonTableAndIntervals, `DEFAULT "cat".s.nested_fn() ON ERROR`)
 	assert.Contains(t, jsonTableAndIntervals, `"cat".s.fmt_iv(INTERVAL '1-2' YEAR TO MONTH)`)
 	assert.Less(t, strings.Index(jsonTableAndIntervals, `CREATE FUNCTION "cat".s.tag_ds(`), strings.Index(jsonTableAndIntervals, `CREATE FUNCTION "cat".s.fmt_iv(x INTERVAL DAY TO SECOND)`))
+
+	// MATCH_RECOGNIZE relation qualification, variadic map_concat/concat_ws built-ins,
+	// and cyclic view rejection.
+	mrAndVariadic, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "events",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}, {Name: "ts", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "score_fn", Definition: "CREATE FUNCTION s.score_fn(v bigint) RETURNS bigint RETURN v + 1"},
+				{Name: "map_concat", Definition: "CREATE FUNCTION s.map_concat(a map(varchar, integer)) RETURNS map(varchar, integer) RETURN a"},
+				{Name: "concat_ws", Definition: "CREATE FUNCTION s.concat_ws(sep varchar, a varchar) RETURNS varchar RETURN a"},
+			},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_mr_var",
+				Definition: "SELECT m.id, m.sc, map_concat(MAP(ARRAY['a'], ARRAY[1]), MAP(ARRAY['b'], ARRAY[2])), concat_ws(',', 'x', 'y', 'z') FROM events MATCH_RECOGNIZE (ORDER BY ts MEASURES A.id AS id, s.score_fn(A.id) AS sc ONE ROW PER MATCH PATTERN (A) DEFINE A AS A.id > 0 AND s.score_fn(A.id) > 0) AS m",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, mrAndVariadic, `FROM "cat"."s".events MATCH_RECOGNIZE`)
+	assert.Contains(t, mrAndVariadic, `"cat".s.score_fn(A.id) AS sc`)
+	assert.Contains(t, mrAndVariadic, `DEFINE A AS A.id > 0 AND "cat".s.score_fn(A.id) > 0`)
+	assert.Contains(t, mrAndVariadic, `, map_concat(MAP(`)
+	assert.Contains(t, mrAndVariadic, `, concat_ws(',', 'x', 'y', 'z')`)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "v1", Definition: "SELECT * FROM v2"},
+				{Name: "v2", Definition: "SELECT * FROM v1"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "cyclic view")
 }

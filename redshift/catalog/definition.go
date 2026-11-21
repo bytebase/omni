@@ -79,13 +79,14 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 	if table == nil || table.SkipDump {
 		return "", nil
 	}
+	caseSensitive := hasUpperASCII(schemaName) || tableHasUpperIdentifier(table)
 	var sb strings.Builder
-	if hasUpperASCII(schemaName) || tableHasUpperIdentifier(table) {
+	if caseSensitive {
 		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
 			return "", err
 		}
 	}
-	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, true, true); err != nil {
+	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, true, true, caseSensitive); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
@@ -1697,7 +1698,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		for _, fk := range item.table.foreignKeys {
 			if refTable := findTableInItems(items, fk.referencedSchema, fk.referencedTable, caseSensitive); refTable != nil {
 				for _, refCol := range fk.referencedColumns {
-					if !hasTableColumn(refTable.columns, refCol) {
+					if !hasTableColumn(refTable.columns, refCol, caseSensitive) {
 						return fmt.Errorf("foreign key %s on %s references nonexistent column %q on %s", fk.name, item.table.qualifiedName(), refCol, refTable.qualifiedName())
 					}
 				}
@@ -1741,7 +1742,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 				inlineFKs = append(inlineFKs, fk)
 			}
-			if err := writeTableWithOptions(w, item.table, inlineFKs, false, false); err != nil {
+			if err := writeTableWithOptions(w, item.table, inlineFKs, false, false, caseSensitive); err != nil {
 				return err
 			}
 			emittedTables[tableKey] = true
@@ -1968,7 +1969,7 @@ func findTableInItems(items []orderedObject, schemaName, tableName string, caseS
 // named key/FK constraints), and optionally its ownership transfer. Column
 // comments follow the column order the CREATE TABLE body uses so output is
 // deterministic across runs.
-func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState, allFKs, emitOwner bool) error {
+func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*foreignKeyState, allFKs, emitOwner, caseSensitive bool) error {
 	if allFKs {
 		foreignKeys = sortedForeignKeys(table.foreignKeys)
 	}
@@ -2012,7 +2013,7 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 		}
 		for _, key := range idx.keys {
 			colName, ok := parseConstraintColumnName(key)
-			if !ok || !hasTableColumn(table.columns, colName) {
+			if !ok || !hasTableColumn(table.columns, colName, caseSensitive) {
 				return fmt.Errorf("index %s on %s key %q is not a table column", idx.name, table.qualifiedName(), key)
 			}
 		}
@@ -2022,7 +2023,7 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 			return fmt.Errorf("foreign key %s on %s has %d columns and %d referenced columns", fk.name, table.qualifiedName(), len(fk.columns), len(fk.referencedColumns))
 		}
 		for _, col := range fk.columns {
-			if !hasTableColumn(table.columns, col) {
+			if !hasTableColumn(table.columns, col, caseSensitive) {
 				return fmt.Errorf("foreign key %s on %s column %q is not a table column", fk.name, table.qualifiedName(), col)
 			}
 		}
@@ -2853,9 +2854,12 @@ func parseConstraintColumnName(key string) (string, bool) {
 	return s.Str, true
 }
 
-func hasTableColumn(cols map[string]*columnState, name string) bool {
+func hasTableColumn(cols map[string]*columnState, name string, caseSensitive bool) bool {
 	if _, ok := cols[name]; ok {
 		return true
+	}
+	if caseSensitive {
+		return false
 	}
 	for k := range cols {
 		if strings.EqualFold(k, name) {

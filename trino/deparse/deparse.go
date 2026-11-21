@@ -453,6 +453,10 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	views, err := orderedViews(metadata)
+	if err != nil {
+		return "", err
+	}
 	for _, fn := range fns {
 		if err := writeCreateFunction(&buf, fn.schema, fn.fn); err != nil {
 			return "", err
@@ -471,7 +475,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			buf.WriteString("\n\n")
 		}
 	}
-	for _, view := range orderedViews(metadata) {
+	for _, view := range views {
 		if err := writeCreateView(&buf, view.schema, view.view, view.materialized); err != nil {
 			return "", err
 		}
@@ -1067,6 +1071,46 @@ func hasMatchingTrinoBuiltin(call functionCallRef) bool {
 		if call.argCount >= 1 {
 			return true
 		}
+	case "map_concat":
+		if call.argCount >= 1 {
+			allMaps := true
+			for i := 0; i < call.argCount; i++ {
+				argType := ""
+				if i < len(call.argTypes) {
+					argType = call.argTypes[i]
+				}
+				if !trinoBuiltinTypeMatch(argType, "map(*,*)") {
+					allMaps = false
+					break
+				}
+			}
+			if allMaps {
+				return true
+			}
+		}
+	case "concat_ws":
+		if call.argCount >= 2 {
+			sepType := ""
+			if len(call.argTypes) > 0 {
+				sepType = call.argTypes[0]
+			}
+			if trinoBuiltinTypeMatch(sepType, "varchar") {
+				allVarchar := true
+				for i := 1; i < call.argCount; i++ {
+					argType := ""
+					if i < len(call.argTypes) {
+						argType = call.argTypes[i]
+					}
+					if !trinoBuiltinTypeMatch(argType, "varchar") {
+						allVarchar = false
+						break
+					}
+				}
+				if allVarchar {
+					return true
+				}
+			}
+		}
 	case "concat":
 		if call.argCount >= 2 {
 			for _, elemType := range []string{"varchar", "varbinary", "array(*)"} {
@@ -1557,6 +1601,20 @@ func (w *trinoASTWalker) walkRelation(rel trinoparser.Relation, curEnv map[strin
 		}
 	case *trinoparser.JSONTableRelation:
 		w.walkJSONTable(r, curEnv, ctes)
+	case *trinoparser.PatternRecognition:
+		w.walkRelation(r.Input, curEnv, ctes)
+		for _, pb := range r.PartitionBy {
+			w.walkExpr(pb, curEnv, ctes)
+		}
+		for _, ob := range r.OrderBy {
+			w.walkExpr(ob.Expr, curEnv, ctes)
+		}
+		for _, m := range r.Measures {
+			w.walkExpr(m.Expr, curEnv, ctes)
+		}
+		for _, d := range r.Definitions {
+			w.walkExpr(d.Condition, curEnv, ctes)
+		}
 	}
 }
 
@@ -2429,7 +2487,7 @@ type orderedView struct {
 // snapshot order. A definition the local parser cannot read contributes no
 // edges rather than failing the dump; Trino accepted it, and a dependency the
 // local parser cannot see is no reason to lose the statement.
-func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
+func orderedViews(metadata *DatabaseSchemaMetadata) ([]orderedView, error) {
 	var views []orderedView
 	for _, schema := range metadata.Schemas {
 		if schema == nil {
@@ -2449,7 +2507,7 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 		}
 	}
 	if len(views) < 2 {
-		return views
+		return views, nil
 	}
 
 	index := make(map[string]int, len(views))
@@ -2485,12 +2543,15 @@ func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
 			addDep(i, access.Schema, access.Table)
 		}
 	}
-	indices, _ := topoOrder(len(views), dependencies)
+	indices, cyclic := topoOrder(len(views), dependencies)
+	if len(cyclic) > 0 {
+		return nil, fmt.Errorf("cyclic view dependency involving %s.%s cannot be restored", views[cyclic[0]].schema, views[cyclic[0]].view.Name)
+	}
 	ordered := make([]orderedView, len(indices))
 	for i, idx := range indices {
 		ordered[i] = views[idx]
 	}
-	return ordered
+	return ordered, nil
 }
 
 // objectKey identifies a schema-scoped object by its owning schema and its name.
