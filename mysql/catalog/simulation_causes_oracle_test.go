@@ -5240,6 +5240,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "key of LOWER(int) beside a binary column past 3072 bytes in latin1", stmt: "CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i))))) DEFAULT CHARSET=latin1", code: 1071},
 		{name: "key of LOWER(int) beside a binary column past 3072 bytes in utf8mb4", stmt: "CREATE TABLE z (b VARBINARY(3029), i INT, KEY (b, ((LOWER(i)))))", code: 1071},
 		{name: "SET COT(0)", stmt: "SET @x = COT(0)", code: 1690},
+		// A geometry result is a spatial functional index (3760); a WKT or WKB
+		// result is a LOB (3757) and a GeoJSON one JSON (3753).
+		{name: "functional key part over ST_CENTROID(g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_CENTROID(g))))", code: 3760},
+		{name: "functional key part over ST_BUFFER(g, 1)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_BUFFER(g, 1))))", code: 3760},
+		{name: "functional key part over POINT(1, 1)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((POINT(1, 1))))", code: 3760},
+		{name: "functional key part over ST_SRID(g, 4326)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_SRID(g, 4326))))", code: 3760},
+		{name: "functional key part over ST_GEOMFROMTEXT('POINT(1 1)')", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_GEOMFROMTEXT('POINT(1 1)'))))", code: 3760},
+		{name: "functional key part over ST_X(p)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_X(p))))", code: 0},
+		{name: "functional key part over ST_SRID(g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_SRID(g))))", code: 0},
+		{name: "functional key part over ST_DISTANCE(g, g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_DISTANCE(g, g))))", code: 0},
+		{name: "functional key part over ST_ASTEXT(g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_ASTEXT(g))))", code: 3757},
+		{name: "functional key part over ST_ASBINARY(g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_ASBINARY(g))))", code: 3757},
+		{name: "functional key part over ST_ASGEOJSON(g)", stmt: "CREATE TABLE z (g GEOMETRY, p POINT, KEY ((ST_ASGEOJSON(g))))", code: 3753},
+		// INNODB_FILE_PER_TABLE in capitals names a general tablespace.
+		{
+			name:     "table in a general tablespace named INNODB_FILE_PER_TABLE",
+			setup:    []string{"CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'innodb_fpt_u.ibd'"},
+			stmt:     "CREATE TABLE a (id INT) TABLESPACE INNODB_FILE_PER_TABLE",
+			code:     0,
+			contains: []string{"TABLESPACE `INNODB_FILE_PER_TABLE`"},
+			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE INNODB_FILE_PER_TABLE"},
+		},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6363,7 +6385,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"ORD(_ucs2 'a')", "ORD(_utf16 X'D83DDE00')", "CHAR_LENGTH(_utf32 X'0001F600')", "LENGTH(_latin1 X'E9')", "ORD(_ucs2 'é')",
 		"SIN(0)", "COS(0)", "TAN(0)", "ASIN(1)", "ACOS(1)", "ATAN(1)", "ATAN(1, 1)", "ATAN2(1, 1)",
 		"DEGREES(1)", "RADIANS(180)", "SIN('0')", "IFNULL(ASIN(2), 'n')", "IFNULL(ACOS(-2), 'n')", "SIN(1)", "COS(1)",
-		"(TAN(1) > 1.557)", "(COT(1) > 0.642)",
+		"(TAN(1) > 1.557)", "(COT(1) > 0.642)", "PI()", "(PI() > 3.14159)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6481,7 +6503,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

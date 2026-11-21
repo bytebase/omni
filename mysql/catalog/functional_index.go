@@ -808,6 +808,35 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		// An integer result: mysql:8.0.46 holds KEY ((ASCII(c1)), ..., (ASCII(c13)))
 		// to 13 small integer parts, not to placeholder strings.
 		return &ResolvedType{BaseType: BaseTypeBigInt}
+	case "st_centroid", "st_buffer", "st_envelope", "st_startpoint", "st_endpoint", "st_exteriorring",
+		"st_geometryn", "st_interiorringn", "st_pointn", "st_union", "st_intersection", "st_difference",
+		"st_symdifference", "st_convexhull", "st_simplify", "st_swapxy", "st_transform", "st_makeenvelope",
+		"st_geomfromgeojson", "st_lineinterpolatepoint", "st_lineinterpolatepoints", "st_pointatdistance",
+		"st_pointfromgeohash", "st_validate", "st_geomfromtext", "st_geometryfromtext", "st_geomfromwkb",
+		"st_geometryfromwkb", "st_pointfromtext", "st_pointfromwkb", "st_linefromtext", "st_linestringfromtext",
+		"st_linefromwkb", "st_linestringfromwkb", "st_polyfromtext", "st_polygonfromtext", "st_polyfromwkb",
+		"st_polygonfromwkb", "st_mpointfromtext", "st_multipointfromtext", "st_mpointfromwkb",
+		"st_multipointfromwkb", "st_mlinefromtext", "st_multilinestringfromtext", "st_mlinefromwkb",
+		"st_multilinestringfromwkb", "st_mpolyfromtext", "st_multipolygonfromtext", "st_mpolyfromwkb",
+		"st_multipolygonfromwkb", "st_geomcollfromtext", "st_geometrycollectionfromtext", "st_geomcollfromtxt",
+		"st_geomcollfromwkb", "st_geometrycollectionfromwkb", "point", "linestring", "polygon", "multipoint",
+		"multilinestring", "multipolygon", "geometrycollection", "geomcollection":
+		// A geometry result, which mysql:8.0.46 refuses as a spatial
+		// functional index (3760): KEY ((ST_CENTROID(g))), KEY ((POINT(1, 1))).
+		return &ResolvedType{BaseType: BaseTypeGeometry}
+	case "st_srid", "st_x", "st_y", "st_latitude", "st_longitude":
+		// With a second argument these set a coordinate or the SRID and
+		// return the geometry (3760); with one they read a number.
+		if len(e.Args) >= 2 {
+			return &ResolvedType{BaseType: BaseTypeGeometry}
+		}
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	case "st_astext", "st_aswkt":
+		return &ResolvedType{BaseType: BaseTypeLongText} // 3757
+	case "st_asbinary", "st_aswkb":
+		return &ResolvedType{BaseType: BaseTypeLongBlob} // 3757
+	case "st_asgeojson":
+		return &ResolvedType{BaseType: BaseTypeJSON} // 3753
 	case "space":
 		// SPACE(n) is n characters, and SPACE of anything but a constant
 		// is as long as a LOB: mysql:8.0.46 takes KEY ((SPACE(512))) and
@@ -1065,6 +1094,11 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 	}
 	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
 	// KEY ((JSON_VALUE(a,'$.x' RETURNING JSON))) and KEY ((CAST(a->'$.x' AS JSON))).
+	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexGeometryType(rt) {
+		// A geometry result is a spatial functional index: mysql:8.0.46
+		// answers 3760 for KEY ((ST_CENTROID(g))).
+		return errSpatialFunctionalIndex()
+	}
 	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexJSONOrGeometryType(rt) {
 		return &Error{
 			Code:     3753,
@@ -1258,6 +1292,15 @@ var functionalIndexDisallowedBuiltins = map[string]bool{
 	"statement_digest": true, "statement_digest_text": true, "sysdate": true, "system_user": true,
 	"unix_timestamp": true, "user": true, "utc_date": true, "utc_time": true,
 	"utc_timestamp": true, "uuid": true, "uuid_short": true,
+}
+
+func isFunctionalIndexGeometryType(rt *ResolvedType) bool {
+	switch rt.BaseType {
+	case BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
+		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
+		return true
+	}
+	return false
 }
 
 func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {

@@ -44,3 +44,25 @@ func TestMigrationCarriesTableEncryption(t *testing.T) {
 		t.Fatalf("ENCRYPTION='N' against none produced:\n%s", p.SQL())
 	}
 }
+
+// TestMigrationUppercaseFilePerTableTablespace moves a table into a general
+// tablespace named INNODB_FILE_PER_TABLE in capitals, an ordinary name on
+// mysql:8.0.46: only the lowercase innodb_file_per_table is the built-in.
+func TestMigrationUppercaseFilePerTableTablespace(t *testing.T) {
+	base := "CREATE DATABASE d; USE d; CREATE TABLESPACE INNODB_FILE_PER_TABLE ADD DATAFILE 'u.ibd';"
+	from, to := New(), New()
+	execAlterClauses(t, from, base+" CREATE TABLE m (id INT);")
+	execAlterClauses(t, to, base+" CREATE TABLE m (id INT) TABLESPACE INNODB_FILE_PER_TABLE; CREATE TABLE n (id INT) TABLESPACE INNODB_FILE_PER_TABLE;")
+	plan := GenerateMigration(from, to, Diff(from, to))
+	for _, table := range []string{"`m`", "`n`"} {
+		found := false
+		for _, op := range plan.Ops {
+			if strings.Contains(op.SQL, table) && strings.Contains(op.SQL, "`INNODB_FILE_PER_TABLE`") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("no TABLESPACE INNODB_FILE_PER_TABLE for %s in:\n%s", table, plan.SQL())
+		}
+	}
+}

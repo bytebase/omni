@@ -1600,6 +1600,15 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 					Message: fmt.Sprintf("DOUBLE value is out of range in '%s(%s)'", fn, setFormatDouble(x))}
 			}
 			return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+		case "pi":
+			// PI() is the double π: SET sql_mode = (PI() > 3) sets mode 1 and
+			// SET @p = PI() stores 3.141592653589793 on mysql:8.0.46. The server
+			// shows it with six decimals and compares it at that precision
+			// (PI() = 3.141593 is 1); the catalog compares the full double.
+			if len(e.Args) != 0 {
+				return userVarValue{}, false, errWrongParamCount("PI")
+			}
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(math.Pi), isFloat: true}, true, nil
 		case "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "cot", "degrees", "radians":
 			// Doubles: ASIN and ACOS out of [-1, 1] are NULL, a result that is
 			// no finite double is 1690 (COT(0)), as on mysql:8.0.46; ATAN takes
