@@ -167,7 +167,13 @@ func getQuerySpanFromFile(file *ast.File, queryType QueryType, vs *viewState) (*
 	// direct base-table references untouched. Base tables read through views
 	// resolved during the pass are collected into this statement's
 	// AccessTables.
-	qs, _ := file.Stmts[0].(*parser.QueryStmt)
+	var qs *parser.QueryStmt
+	switch s := file.Stmts[0].(type) {
+	case *parser.QueryStmt:
+		qs = s
+	case *parser.WithFunctionStmt:
+		qs = &parser.QueryStmt{Query: s.Query}
+	}
 	finishQuerySpan(qs, span, vs)
 	return span, nil
 }

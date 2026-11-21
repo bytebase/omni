@@ -222,11 +222,13 @@ func isReadOnlyAST(node ast.Node) bool {
 // isExplainableInner reports whether `node` is a shape that EXPLAIN can
 // legitimately wrap (SELECT family or DML). DDL inside EXPLAIN is rejected:
 // StarRocks only supports EXPLAIN on query and DML statements. Queries are
-// classified by isReadOnlyQuery, the one export gate.
+// classified by isReadOnlyQuery, the one export gate, so EXPLAIN/DESC cannot
+// accept an INTO OUTFILE export that is refused when asked directly.
 func isExplainableInner(node ast.Node) bool {
 	switch node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect,
-		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		return isReadOnlyQuery(node)
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
 		*ast.TruncateTableStmt:
 		return true
 	}

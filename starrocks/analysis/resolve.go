@@ -161,16 +161,18 @@ func isMixedQuery(resources SourceColumnSet, ignoreCaseSensitive bool) (bool, bo
 	return !hasUser && hasSystem, false
 }
 
-// systemDatabases contains StarRocks system databases: the information schema
-// and the read-only `sys` metadatabase. StarRocks does not have Doris's
-// `mysql` or `__internal_schema`, and it has no `_statistics_` database
-// either: the pinned 3.4.10 server answers SHOW DATABASES with
-// information_schema and sys only, and ANALYZE TABLE does not create one
-// (starrocks/testdata/pins.tsv). Reference:
+// systemDatabases contains StarRocks system databases: the information schema,
+// the read-only `sys` metadatabase, and `_statistics_`. StatisticsMetaManager
+// sleeps statistic_manager_sleep_time_sec (60s) before creating `_statistics_`,
+// so a fresh server can miss it in SHOW DATABASES (starrocks/testdata/pins.tsv),
+// while starrocks/driver/sync.go excludes it and CBO queries join `_statistics_`
+// with `information_schema`. StarRocks does not have Doris's `mysql` or
+// `__internal_schema`. Reference:
 // https://docs.starrocks.io/docs/administration/management/system_catalogs/sys/
 var systemDatabases = map[string]bool{
 	"information_schema": true,
 	"sys":                true,
+	"_statistics_":       true,
 }
 
 // IsSystemDatabase reports whether name is one of the engine's system

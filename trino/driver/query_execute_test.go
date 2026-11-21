@@ -700,3 +700,57 @@ func TestReportsCount(t *testing.T) {
 		})
 	}
 }
+
+func TestWithFunctionRowCapAndExplain(t *testing.T) {
+	const baseSQL = "WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(1)"
+
+	if !returnsRows(baseSQL) {
+		t.Errorf("returnsRows(%q) = false, want true", baseSQL)
+	}
+	if !limitable(baseSQL) {
+		t.Errorf("limitable(%q) = false, want true", baseSQL)
+	}
+	if got := applyLimit(baseSQL, 10); got != baseSQL+" LIMIT 10" {
+		t.Errorf("applyLimit(%q, 10) = %q, want %q", baseSQL, got, baseSQL+" LIMIT 10")
+	}
+	if got := applyLimit(baseSQL+" -- note", 10); got != baseSQL+" LIMIT 10 -- note" {
+		t.Errorf("applyLimit with trailing comment = %q", got)
+	}
+	for _, capped := range []string{
+		baseSQL + " LIMIT 3",
+		baseSQL + " FETCH FIRST 2 ROWS ONLY",
+	} {
+		hasCap, known := rowCap(capped)
+		if !known || !hasCap {
+			t.Errorf("rowCap(%q) = (%v, %v), want (true, true)", capped, hasCap, known)
+		}
+		if got := applyLimit(capped, 10); got != capped {
+			t.Errorf("applyLimit(%q, 10) = %q, want unchanged", capped, got)
+		}
+	}
+
+	if limitable("EXPLAIN " + baseSQL) {
+		t.Errorf("limitable(EXPLAIN ...) = true, want false")
+	}
+	if limitable("EXPLAIN ANALYZE " + baseSQL) {
+		t.Errorf("limitable(EXPLAIN ANALYZE ...) = true, want false")
+	}
+
+	explained, err := explainStatement(baseSQL, "JSON")
+	if err != nil {
+		t.Fatalf("explainStatement: %v", err)
+	}
+	if explained != "EXPLAIN (FORMAT JSON) "+baseSQL {
+		t.Errorf("explainStatement = %q", explained)
+	}
+	reexplained, err := explainStatement("EXPLAIN "+baseSQL, "TEXT")
+	if err != nil {
+		t.Fatalf("explainStatement(EXPLAIN ...): %v", err)
+	}
+	if reexplained != "EXPLAIN "+baseSQL {
+		t.Errorf("explainStatement(EXPLAIN ...) = %q", reexplained)
+	}
+	if _, err := explainStatement("EXPLAIN ANALYZE "+baseSQL, "TEXT"); err == nil {
+		t.Errorf("explainStatement(EXPLAIN ANALYZE ...) succeeded, want error")
+	}
+}
