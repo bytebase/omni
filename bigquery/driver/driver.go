@@ -9,29 +9,20 @@
 // The package is a port of Bytebase's backend/plugin/db/bigquery, whose tests
 // reached one pure helper and no service, and BigQuery has no image omni can start
 // in a container and no emulator that answers its REST API. The Google Cloud
-// project bytebase-dev answered every live test on 2026-11-17, against a scratch
-// dataset the run created for the corpus in VERIFY.md: the instance listing, the
-// dataset's synced columns, comments, row counts and sizes, every read the session
-// sends (a query's rows, a pipe query's rows, the result limit, MaxResultBytes, a
-// dry run, a refused statement and the plan of a finished read), a command's
-// affected rows, Execute's script and its DML count, and the not-found mapping. The
-// six defects those runs found are fixed, and testdata/sync/omni_record.json holds
-// the synced metadata the service stated.
+// project bytebase-dev answered every live test against a scratch dataset holding
+// the corpus in VERIFY.md: the instance listing, the dataset's synced columns,
+// comments, row counts and sizes, every read the session sends (a query's rows,
+// every cell kind, a pipe query's rows, the result limit, MaxResultBytes, a dry
+// run, a refused statement and the plan of a finished read), a command's affected
+// rows, Execute's script and its DML count, and the not-found mapping.
 //
-// What CI still cannot check is all of it: no tape records these answers, because
-// the seam that would hold one (VERIFY.md's step 4) is not built, so a live test
-// skips while BIGQUERY_CREDENTIALS is unset and nothing here replays. VERIFY.md
-// holds the recording plan and what that run answered.
-//
-// Its tests cover everything that needs no project: the client configuration and
-// the credential types it accepts, the live gate itself, statement
-// classification, the result-limit rewrite, the value conversions, the query-plan
-// rendering, the column mapping and the not-found mapping. Everything that reaches
-// the service is behind one environment gate: BIGQUERY_CREDENTIALS names the
-// credential a live test uses — a key file's path, the key's JSON, or "default"
-// for the Google authentication library's own chain — with BIGQUERY_PROJECT and
-// BIGQUERY_DATASET beside it. Unset, a live test skips naming the gate; set and
-// incomplete, it fails, so a recording cannot read as a pass.
+// All six driver tests replay offline in CI from committed tapes under
+// testdata/tapes through bigquery/internal/testcontainer and the unexported client
+// seam, requiring no Google Cloud credentials or network access. Recording with
+// OMNI_RECORD=1 requires BIGQUERY_CREDENTIALS (a key path, key JSON, or "default"
+// for the default credential chain), BIGQUERY_PROJECT and BIGQUERY_DATASET, and
+// verifies the live dataset's pin in bigquery/testdata/pins.tsv. VERIFY.md holds
+// the recording plan and corpus.
 //
 // # Where it lives
 //
@@ -175,7 +166,6 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/iterator"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -192,7 +182,7 @@ var (
 // Driver is an open BigQuery driver: one client to one project, and the dataset
 // it is open on.
 type Driver struct {
-	client *bigquery.Client
+	client client
 
 	// project is the Google Cloud project every request is signed for.
 	project string
@@ -207,12 +197,12 @@ func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := bigquery.NewClient(ctx, built.project, built.options...)
+	bq, err := bigquery.NewClient(ctx, built.project, built.options...)
 	if err != nil {
 		return nil, err
 	}
 	return &Driver{
-		client:       client,
+		client:       &liveClient{bq: bq},
 		project:      built.project,
 		databaseName: cfg.Database,
 	}, nil
@@ -220,7 +210,7 @@ func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 
 // Ping runs one statement as a connectivity check.
 func (d *Driver) Ping(ctx context.Context) error {
-	if _, err := d.client.Query("SELECT 1").Read(ctx); err != nil {
+	if err := d.client.Ping(ctx); err != nil {
 		return fmt.Errorf("bigquery: bad connection: %w", err)
 	}
 	return nil
@@ -238,27 +228,16 @@ func (d *Driver) Close() error {
 // No version and no roles are reported: BigQuery has neither a version to ask
 // for nor a role the API states, which is what Bytebase's driver answered.
 func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
-	var databases []*metadatapb.DatabaseSchemaMetadata
-	it := d.client.Datasets(ctx)
-	for {
-		dataset, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		databases = append(databases, &metadatapb.DatabaseSchemaMetadata{Name: dataset.DatasetID})
+	ids, err := d.client.ListDatasets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	databases := make([]*metadatapb.DatabaseSchemaMetadata, 0, len(ids))
+	for _, id := range ids {
+		databases = append(databases, &metadatapb.DatabaseSchemaMetadata{Name: id})
 	}
 	sort.Slice(databases, func(i, j int) bool { return databases[i].Name < databases[j].Name })
 	return &driver.Instance{Databases: databases}, nil
-}
-
-// query returns a query job for statement, on the dataset the driver is open on.
-func (d *Driver) query(statement string) *bigquery.Query {
-	q := d.client.Query(statement)
-	q.DefaultDatasetID = d.databaseName
-	return q
 }
 
 // statisticsOf returns the query statistics of a finished job. JobStatus

@@ -2,11 +2,12 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 
 	"cloud.google.com/go/bigquery"
-	"google.golang.org/api/iterator"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -33,7 +34,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	// table's absence only to a caller that may read it. The dataset's own
 	// metadata does say not found, so a caller that may list the project learns
 	// which of the two happened, and one that may not gets accessDenied for both.
-	if _, err := d.client.Dataset(d.databaseName).Metadata(ctx); err != nil {
+	if _, err := d.client.DatasetMetadata(ctx, d.databaseName); err != nil {
 		return nil, notFoundError(err)
 	}
 	columns, err := d.columns(ctx)
@@ -68,7 +69,7 @@ type columnRow struct {
 // columns reads every column of every table in the dataset, grouped by table
 // name and ordered by table and position.
 func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMetadata, error) {
-	q := d.query(fmt.Sprintf(`
+	statement := fmt.Sprintf(`
 		SELECT
 			table_name,
 			column_name,
@@ -77,18 +78,21 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 			data_type,
 			collation_name,
 			column_default
-		FROM %s.INFORMATION_SCHEMA.COLUMNS ORDER BY table_name, ordinal_position;`, quoteIdentifier(d.databaseName)))
-	it, err := q.Read(ctx)
+		FROM %s.INFORMATION_SCHEMA.COLUMNS ORDER BY table_name, ordinal_position;`, quoteIdentifier(d.databaseName))
+	it, err := d.client.Read(ctx, d.databaseName, statement)
 	if err != nil {
 		return nil, err
 	}
 	columns := make(map[string][]*metadatapb.ColumnMetadata)
 	for {
-		var row columnRow
-		err := it.Next(&row)
-		if err == iterator.Done {
+		values, err := it.Next()
+		if errors.Is(err, io.EOF) {
 			break
 		}
+		if err != nil {
+			return nil, err
+		}
+		row, err := decodeColumnRow(values)
 		if err != nil {
 			return nil, err
 		}
@@ -104,6 +108,63 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 		columns[row.TableName] = append(columns[row.TableName], column)
 	}
 	return columns, nil
+}
+
+// decodeColumnRow reads the seven columns selected from INFORMATION_SCHEMA.COLUMNS
+// into a columnRow.
+func decodeColumnRow(values []bigquery.Value) (columnRow, error) {
+	if len(values) < 7 {
+		return columnRow{}, fmt.Errorf("INFORMATION_SCHEMA.COLUMNS row holds %d values, want 7", len(values))
+	}
+	tableName, ok := values[0].(string)
+	if !ok {
+		return columnRow{}, fmt.Errorf("unexpected table_name value %T", values[0])
+	}
+	columnName, ok := values[1].(string)
+	if !ok {
+		return columnRow{}, fmt.Errorf("unexpected column_name value %T", values[1])
+	}
+	var ordinalPosition bigquery.NullInt64
+	if values[2] != nil {
+		pos, ok := values[2].(int64)
+		if !ok {
+			return columnRow{}, fmt.Errorf("unexpected ordinal_position value %T", values[2])
+		}
+		ordinalPosition = bigquery.NullInt64{Int64: pos, Valid: true}
+	}
+	isNullable, ok := values[3].(string)
+	if !ok {
+		return columnRow{}, fmt.Errorf("unexpected is_nullable value %T", values[3])
+	}
+	dataType, ok := values[4].(string)
+	if !ok {
+		return columnRow{}, fmt.Errorf("unexpected data_type value %T", values[4])
+	}
+	var collationName bigquery.NullString
+	if values[5] != nil {
+		s, ok := values[5].(string)
+		if !ok {
+			return columnRow{}, fmt.Errorf("unexpected collation_name value %T", values[5])
+		}
+		collationName = bigquery.NullString{StringVal: s, Valid: true}
+	}
+	var columnDefault bigquery.NullString
+	if values[6] != nil {
+		s, ok := values[6].(string)
+		if !ok {
+			return columnRow{}, fmt.Errorf("unexpected column_default value %T", values[6])
+		}
+		columnDefault = bigquery.NullString{StringVal: s, Valid: true}
+	}
+	return columnRow{
+		TableName:       tableName,
+		ColumnName:      columnName,
+		OrdinalPosition: ordinalPosition,
+		IsNullable:      isNullable,
+		DataType:        dataType,
+		CollationName:   collationName,
+		ColumnDefault:   columnDefault,
+	}, nil
 }
 
 // columnMetadata maps one INFORMATION_SCHEMA row onto a synced column.
@@ -149,31 +210,28 @@ func convertYesNo(value string) (bool, error) {
 }
 
 // tables reads every table of the dataset with its columns, comment, row count
-// and data size, ordered by name.
+// and data size, ordered by name. Table IDs are sorted before reading each
+// table's metadata so metadata requests happen in deterministic name order.
 func (d *Driver) tables(ctx context.Context, columns map[string][]*metadatapb.ColumnMetadata) ([]*metadatapb.TableMetadata, error) {
-	var tables []*metadatapb.TableMetadata
-	it := d.client.Dataset(d.databaseName).Tables(ctx)
-	for {
-		table, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		metadata, err := table.Metadata(ctx)
+	tableIDs, err := d.client.ListTables(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(tableIDs)
+	tables := make([]*metadatapb.TableMetadata, 0, len(tableIDs))
+	for _, tableID := range tableIDs {
+		metadata, err := d.client.TableMetadata(ctx, d.databaseName, tableID)
 		if err != nil {
 			return nil, err
 		}
 		tables = append(tables, &metadatapb.TableMetadata{
-			Name:     table.TableID,
-			Columns:  columns[table.TableID],
+			Name:     tableID,
+			Columns:  columns[tableID],
 			RowCount: int64(metadata.NumRows),
 			Comment:  metadata.Description,
 			DataSize: metadata.NumBytes,
 		})
 	}
-	sort.Slice(tables, func(i, j int) bool { return tables[i].Name < tables[j].Name })
 	return tables, nil
 }
 
