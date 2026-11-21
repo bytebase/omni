@@ -2456,6 +2456,22 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, escaped, "SELECT E'it\\'s' AS txt -- note\n;")
+
+	// An unqualified reference resolved to another schema by DependencyColumns
+	// orders against that schema, not as a self-reference.
+	crossDep, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "shared", Tables: []*metadatapb.TableMetadata{{Name: "v", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}}},
+			{Name: "app", Views: []*metadatapb.ViewMetadata{{
+				Name:              "v",
+				Definition:        "SELECT id FROM v",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "v"}},
+			}}},
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, crossDep, `FROM "shared".v`)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

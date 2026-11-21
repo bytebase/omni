@@ -1946,8 +1946,20 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 						return err
 					}
 				}
+				targets := make([]redshiftDepTarget, 0, len(depCols))
+				for _, dep := range depCols {
+					if dep != nil {
+						targets = append(targets, redshiftDepTarget{schema: dep.Schema, table: dep.Table})
+					}
+				}
 				for _, ref := range collectRelationRefs(item.view.definition) {
-					if err := addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name); err != nil {
+					refSchema := ref.schema
+					if refSchema == "" && ref.catalog == "" {
+						// Resolve an unqualified reference the way the emitted SQL is
+						// qualified: through the view's recorded dependencies.
+						refSchema = resolveRedshiftDepTargetSchema(ref.name, item.schema, targets, caseSensitive)
+					}
+					if err := addRelDep(i, item.schema, ref.catalog, refSchema, ref.name); err != nil {
 						return err
 					}
 				}

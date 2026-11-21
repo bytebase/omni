@@ -1117,7 +1117,8 @@ func writeCreateSchema(buf *strings.Builder, schemaName string) {
 func qualifyTrinoDefault(dbName, schemaName, tableName, colName, raw string, cat *trinoFuncCatalog) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return "", nil
+		// A whitespace-only raw default is a string value, not an empty expression.
+		return fmt.Sprintf("'%s'", escapeStringLiteral(raw)), nil
 	}
 	expr, errs := trinoparser.ParseExpression(trimmed)
 	if len(errs) == 0 && expr != nil {
@@ -1136,10 +1137,19 @@ func qualifyTrinoDefault(dbName, schemaName, tableName, colName, raw string, cat
 			return "", fmt.Errorf("table %s.%s column %s default %q cannot reference columns or parameters", schemaName, tableName, colName, raw)
 		}
 		if isTrinoDefaultAST(expr) {
-			if cat == nil {
-				return trimmed, nil
+			out := trimmed
+			if cat != nil {
+				var err error
+				if out, err = applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat); err != nil {
+					return "", err
+				}
 			}
-			return applyTrinoCallPrefixEdits(trimmed, w.calls, w.unqualTables, dbName, schemaName, nil, cat)
+			// End a trailing line comment so the column's NOT NULL, COMMENT and
+			// separator stay outside it.
+			if _, inLineComment := scanTrinoStatementEnd(out); inLineComment {
+				out += "\n"
+			}
+			return out, nil
 		}
 	}
 	return fmt.Sprintf("'%s'", escapeStringLiteral(raw)), nil
@@ -1868,6 +1878,20 @@ func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef
 		}
 	}
 	return best
+}
+
+// isInferredTrinoExpr reports whether arg's type comes from inference over
+// the expression itself (a call, operator or other computed value) rather than
+// from column metadata, so an unknown type there is an inference gap.
+func isInferredTrinoExpr(arg trinoparser.Expr) bool {
+	if na, ok := arg.(*trinoparser.NamedArgument); ok && na != nil {
+		arg = na.Value
+	}
+	switch arg.(type) {
+	case nil, *trinoparser.ColumnRef, *trinoparser.Dereference, *trinoparser.Parameter, *trinoparser.LambdaExpr, *trinoparser.Literal:
+		return false
+	}
+	return true
 }
 
 func checkTrinoCallAmbiguity(cat *trinoFuncCatalog, callerSchema string, call functionCallRef) error {
@@ -3707,7 +3731,7 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 			} else {
 				argTypes[j] = w.walkExpr(a, curEnv, ctes)
 			}
-			if argTypes[j] == "" && w.usedUnknownSkippedFn {
+			if argTypes[j] == "" && (w.usedUnknownSkippedFn || isInferredTrinoExpr(a)) {
 				if argUnknownRet == nil {
 					argUnknownRet = make([]bool, len(e.Args))
 				}
@@ -4171,6 +4195,19 @@ func escapeStringLiteral(s string) string {
 // statement terminator, placing it on a new line if stmt ends inside a "--"
 // line comment.
 func appendTerminator(stmt string) string {
+	lastCodeByte, inLineComment := scanTrinoStatementEnd(stmt)
+	if lastCodeByte == ';' {
+		return stmt
+	}
+	if inLineComment {
+		return stmt + "\n;"
+	}
+	return stmt + ";"
+}
+
+// scanTrinoStatementEnd returns the last byte of stmt outside strings,
+// identifiers and comments, and whether stmt ends inside a "--" line comment.
+func scanTrinoStatementEnd(stmt string) (byte, bool) {
 	var (
 		inSingleQuote  bool
 		inDoubleQuote  bool
@@ -4242,13 +4279,7 @@ func appendTerminator(stmt string) string {
 			i++
 		}
 	}
-	if lastCodeByte == ';' {
-		return stmt
-	}
-	if inLineComment {
-		return stmt + "\n;"
-	}
-	return stmt + ";"
+	return lastCodeByte, inLineComment
 }
 
 // writeCreateView appends a single CREATE OR REPLACE VIEW (or CREATE

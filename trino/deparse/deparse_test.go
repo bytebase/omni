@@ -2267,4 +2267,35 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, unqualifiedCrossDep, `SELECT id FROM "cat"."shared".v;`)
+
+	// A whitespace-only raw default stays a string, and a default ending in a
+	// line comment is closed before NOT NULL.
+	defaults, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_defaults",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "blank", Type: "varchar", Nullable: true, Default: "   "},
+					{Name: "noted", Type: "bigint", Default: "1 -- note"},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, defaults, `"blank" varchar DEFAULT '   ',`)
+	assert.Contains(t, defaults, "\"noted\" bigint DEFAULT 1 -- note\n NOT NULL")
+
+	// A nested built-in whose result type is not inferred cannot be told apart
+	// from a same-schema UDF, so the call fails instead of being rewritten.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "s",
+			Functions: []*metadatapb.FunctionMetadata{{Name: "abs", Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x"}},
+			Views:     []*metadatapb.ViewMetadata{{Name: "v_nested_unknown", Definition: "SELECT abs(bit_count(7, 64)) AS a"}},
+		}},
+	})
+	require.ErrorContains(t, err, "cannot resolve call abs")
 }
