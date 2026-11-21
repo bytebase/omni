@@ -35,14 +35,19 @@ func TestCompatibility(t *testing.T) {
 }
 
 // omniVerdict is Parse's answer as a compat.tsv cell: accept or reject.
-// Neither CockroachDB's wire-protocol errors (PgError.Position is 0) nor
-// cockroachdb-parser expose a structured byte offset, so verdicts are plain
-// accept/reject.
+// CockroachDB's wire-protocol errors leave PgError.Position at 0, so compat.tsv
+// verdicts are plain accept/reject while Parse itself still surfaces *ParseError
+// with a byte-offset Position extracted from CockroachDB's error detail.
 func omniVerdict(sql string) string {
-	if _, err := Parse(sql); err != nil {
-		return compat.Reject
+	_, err := Parse(sql)
+	if err == nil {
+		return compat.Accept
 	}
-	return compat.Accept
+	var pe *ParseError
+	if !errors.As(err, &pe) {
+		panic(fmt.Sprintf("cockroachdb/parser.Parse(%q) returned %T, want *ParseError", sql, err))
+	}
+	return compat.Reject
 }
 
 // compatJudge asks the pinned CockroachDB whether its parser accepts each

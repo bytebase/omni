@@ -1,7 +1,8 @@
 # CockroachDB parser test data
 
 `compat.tsv` holds a statement per row, with omni's verdict (`cockroachdb/parser`,
-wrapping `github.com/cockroachdb/cockroachdb-parser`) and the pinned
+delegating through `cockroachdb/analysis` to `github.com/cockroachdb/cockroachdb-parser`
+and normalizing failures into `*ParseError`) and the pinned
 CockroachDB's (`../../testdata/pins.tsv`, `cockroachdb/cockroach:v25.2.3`).
 `TestCompatibility` (`../compat_test.go`) reads it through `enginetest/compat`,
 which describes the columns and what passes, and starts no server.
@@ -50,10 +51,11 @@ the first, so:
   `0A000` (`unimplemented: this syntax`, e.g., `DEFERRABLE` constraints or
   unimplemented routine/attribute clauses), and `22023` (out-of-range type
   modifiers or visibility values checked in grammar actions).
-- **Plain `accept` / `reject` (no byte offset).** CockroachDB reports parse
-  error positions as a caret diagram in `PgError.Detail` while leaving
-  `PgError.Position` at `0`, and `cockroachdb-parser` does not expose a
-  structured byte offset either. Verdicts therefore carry no `@<byte>` suffix.
+- **Plain `accept` / `reject` (no byte offset in `compat.tsv`).** CockroachDB's
+  wire protocol reports parse error locations as a caret diagram in
+  `PgError.Detail` while leaving `PgError.Position` at `0`, so the live judge
+  emits plain `accept` / `reject` (while `cockroachdb/parser.Parse` extracts
+  the byte offset from the error detail into `ParseError.Position` for callers).
 - **Operational errors fail the recording.** `nil` error (probe did not fail),
   non-`PgError` transport errors, and operational SQLSTATE classes (`08`
   connection, `53` insufficient resources, `57` operator intervention /
