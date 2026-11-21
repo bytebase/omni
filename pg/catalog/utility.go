@@ -128,12 +128,19 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		if s.Base.Relation != nil {
 			schemaName, relName = s.Base.Relation.Schemaname, s.Base.Relation.Relname
 		}
-		existed := s.Base.IfNotExists && c.GetRelation(schemaName, relName) != nil
+		targetSchema, _ := c.resolveTargetSchema(schemaName)
+		existed := s.Base.IfNotExists && targetSchema != nil && targetSchema.Relations[relName] != nil
 		if err := c.DefineRelation(&s.Base, 'f'); err != nil {
 			return err
 		}
 		if !existed {
-			if rel := c.GetRelation(schemaName, relName); rel != nil && rel.RelKind == 'f' {
+			var rel *Relation
+			if targetSchema != nil {
+				rel = targetSchema.Relations[relName]
+			} else {
+				rel = c.GetRelation(schemaName, relName)
+			}
+			if rel != nil && rel.RelKind == 'f' {
 				rel.ForeignServer = s.Servername
 				if s.Options != nil {
 					for _, item := range s.Options.Items {
@@ -830,9 +837,10 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 		c.SetSearchPath([]string{"$user", "public"})
 		c.defaultTablespace = ""
 		c.defaultTableAccessMethod = ""
+		clear(c.sessionSettings)
 		return nil
 	}
-	switch s.Name {
+	switch strings.ToLower(s.Name) {
 	case "search_path":
 		return c.processSetSearchPath(s)
 	case "default_tablespace":
@@ -842,7 +850,20 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 	case "role":
 		return c.processSetRole(s)
 	}
-	// All other SET/RESET commands: no-op for pgddl.
+	key := strings.ToLower(s.Name)
+	if key != "" {
+		if c.sessionSettings == nil {
+			c.sessionSettings = make(map[string]string)
+		}
+		switch s.Kind {
+		case nodes.VAR_SET_VALUE:
+			if val := formatFuncSetArgs(s.Args); val != "" {
+				c.sessionSettings[key] = val
+			}
+		case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+			delete(c.sessionSettings, key)
+		}
+	}
 	return nil
 }
 

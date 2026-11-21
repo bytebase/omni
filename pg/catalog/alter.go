@@ -10,6 +10,55 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
+func applyForeignOptionChanges(existing []string, opts *nodes.List, snapshot bool) ([]string, error) {
+	updated := slices.Clone(existing)
+	indexOf := func(name string) int {
+		prefix := name + "="
+		for i, entry := range updated {
+			if strings.HasPrefix(entry, prefix) {
+				return i
+			}
+		}
+		return -1
+	}
+	for _, item := range opts.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok || de.Defname == "" {
+			continue
+		}
+		idx := indexOf(de.Defname)
+		switch nodes.DefElemAction(de.Defaction) {
+		case nodes.DEFELEM_DROP:
+			if idx < 0 {
+				if snapshot {
+					continue
+				}
+				return nil, errUndefinedObject("option", de.Defname)
+			}
+			updated = append(updated[:idx], updated[idx+1:]...)
+		case nodes.DEFELEM_SET:
+			if idx < 0 {
+				if !snapshot {
+					return nil, errUndefinedObject("option", de.Defname)
+				}
+				updated = append(updated, de.Defname+"="+defElemString(de))
+			} else {
+				updated[idx] = de.Defname + "=" + defElemString(de)
+			}
+		default: // DEFELEM_ADD or DEFELEM_UNSPEC
+			if idx >= 0 {
+				if !snapshot {
+					return nil, errDuplicateObject("option", de.Defname)
+				}
+				updated[idx] = de.Defname + "=" + defElemString(de)
+			} else {
+				updated = append(updated, de.Defname+"="+defElemString(de))
+			}
+		}
+	}
+	return updated, nil
+}
+
 // atCmdPass maps AlterTableType to execution pass.
 // PG executes ALTER TABLE subcommands in pass order, not statement order.
 // Mirrors PG's AT_PASS_* constants:
@@ -1096,6 +1145,13 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 	case nodes.AT_GenericOptions:
 		if rel.RelKind != 'f' {
 			return errWrongObjectType(relName, "a foreign table")
+		}
+		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
+			updated, err := applyForeignOptionChanges(rel.ForeignOptions, opts, c.snapshot)
+			if err != nil {
+				return err
+			}
+			rel.ForeignOptions = updated
 		}
 		return nil
 

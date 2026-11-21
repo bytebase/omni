@@ -121,6 +121,7 @@ type metadataObject struct {
 	composite  *metadata.CompositeTypeMetadata
 	sequence   *metadata.SequenceMetadata
 	table      *metadata.TableMetadata
+	external   *metadata.ExternalTableMetadata
 	view       *metadata.ViewMetadata
 	matView    *metadata.MaterializedViewMetadata
 	function   *metadata.FunctionMetadata
@@ -242,12 +243,20 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, o)
 			out = appendPartitionTables(out, schema, t)
 		}
-		// A foreign table loads as a plain table: query analysis needs only its columns.
+		// Foreign tables install with relkind 'f' so ALTER FOREIGN TABLE and
+		// walk-through option updates operate on their foreign metadata.
 		for _, et := range s.GetExternalTables() {
-			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: et.GetName(), table: &metadata.TableMetadata{
-				Name:    et.GetName(),
-				Columns: et.GetColumns(),
-			}})
+			out = append(out, &metadataObject{
+				kind:     metadataTable,
+				schema:   schema,
+				name:     et.GetName(),
+				external: et,
+				skipDump: et.GetSkipDump(),
+				table: &metadata.TableMetadata{
+					Name:    et.GetName(),
+					Columns: et.GetColumns(),
+				},
+			})
 		}
 		for _, v := range s.GetViews() {
 			body, err := parseSelect(v.GetDefinition())
@@ -774,8 +783,18 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err != nil {
 			return err
 		}
-		if err := c.DefineRelation(stmt, 'r'); err != nil {
+		relKind := byte('r')
+		if o.external != nil {
+			relKind = 'f'
+		}
+		if err := c.DefineRelation(stmt, relKind); err != nil {
 			return err
+		}
+		if o.external != nil {
+			if rel := c.GetRelation(o.schema, o.name); rel != nil && rel.RelKind == 'f' {
+				rel.ForeignServer = o.external.GetExternalServerName()
+				rel.ForeignOptions = slices.Clone(o.external.GetOptions())
+			}
 		}
 		c.ownSerialSequences(o)
 		c.setSnapshotTableOwner(o)

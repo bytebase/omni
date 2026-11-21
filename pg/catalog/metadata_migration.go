@@ -3919,15 +3919,31 @@ func dependencyKeys(dependencies []*metadatapb.DependencyColumn) []string {
 	return keys
 }
 
-func isSkippedReportKey(key string, skipSchemas map[string]bool) bool {
-	if len(skipSchemas) == 0 {
-		return false
-	}
+func reportKeySchemaName(key string, knownSchemas map[string]bool) string {
 	if index := strings.IndexByte(key, ':'); index >= 0 {
 		key = key[index+1:]
 	}
+	if knownSchemas[key] {
+		return key
+	}
+	best := ""
+	for schema := range knownSchemas {
+		if len(schema) > len(best) && strings.HasPrefix(key, schema+".") {
+			best = schema
+		}
+	}
+	if best != "" {
+		return best
+	}
 	schemaName, _, _ := strings.Cut(key, ".")
-	return skipSchemas[key] || skipSchemas[schemaName]
+	return schemaName
+}
+
+func isSkippedReportKey(key string, skipSchemas, knownSchemas map[string]bool) bool {
+	if len(skipSchemas) == 0 {
+		return false
+	}
+	return skipSchemas[reportKeySchemaName(key, knownSchemas)]
 }
 
 func reportedRelKey(key string) string {
@@ -4432,9 +4448,20 @@ func unloadableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, sour
 		return nil
 	}
 	oldObjects, newObjects := snapshotObjects(oldMeta), snapshotObjects(newMeta)
+	knownSchemas := make(map[string]bool, len(skipSchemas))
+	for s := range skipSchemas {
+		knownSchemas[s] = true
+	}
+	for _, meta := range []*metadatapb.DatabaseSchemaMetadata{oldMeta, newMeta} {
+		for _, s := range meta.GetSchemas() {
+			if name := s.GetName(); name != "" {
+				knownSchemas[name] = true
+			}
+		}
+	}
 	var changed []string
 	for key, err := range reasons {
-		if isSkippedReportKey(key, skipSchemas) {
+		if isSkippedReportKey(key, skipSchemas, knownSchemas) {
 			continue
 		}
 		if newObjects[key] == nil && (standIns[key] || sourceDrops[key].Type != "") {

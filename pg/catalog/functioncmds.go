@@ -172,7 +172,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				rowsSet = true
 			case "set":
 				if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
-					setConfig = applyFuncSetConfig(setConfig, vs)
+					setConfig = c.applyFuncSetConfig(setConfig, vs)
 				}
 			}
 		}
@@ -1271,7 +1271,7 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			case "set":
 				if up != nil {
 					if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
-						up.SetConfig = applyFuncSetConfig(up.SetConfig, vs)
+						up.SetConfig = c.applyFuncSetConfig(up.SetConfig, vs)
 					}
 				}
 			case "support":
@@ -1306,7 +1306,7 @@ func defElemNumeric(d *nodes.DefElem) (string, float64, bool) {
 	return extract(d.Arg)
 }
 
-func applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
+func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
 	if vs == nil {
 		return existing
 	}
@@ -1332,6 +1332,9 @@ func applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
 	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
 		return out
 	case nodes.VAR_SET_CURRENT:
+		if resolved, ok := c.resolveCurrentSettingValue(key); ok {
+			return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), resolved))
+		}
 		return append(out, fmt.Sprintf("SET %s FROM CURRENT", quoteIdentAlways(vs.Name)))
 	case nodes.VAR_SET_VALUE:
 		val := formatFuncSetArgs(vs.Args)
@@ -1342,6 +1345,39 @@ func applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
 	default:
 		return out
 	}
+}
+
+func (c *Catalog) resolveCurrentSettingValue(key string) (string, bool) {
+	if c == nil {
+		return "", false
+	}
+	switch key {
+	case "search_path":
+		if len(c.searchPath) == 0 {
+			return "'$user', 'public'", true
+		}
+		parts := make([]string, 0, len(c.searchPath))
+		for _, s := range c.searchPath {
+			parts = append(parts, quoteLiteral(s))
+		}
+		return strings.Join(parts, ", "), true
+	case "default_tablespace":
+		return quoteLiteral(c.defaultTablespace), true
+	case "default_table_access_method":
+		if c.defaultTableAccessMethod == "" {
+			return "'heap'", true
+		}
+		return quoteLiteral(c.defaultTableAccessMethod), true
+	case "role":
+		if c.currentUser == "" {
+			return "'none'", true
+		}
+		return quoteLiteral(c.currentUser), true
+	}
+	if val, ok := c.sessionSettings[key]; ok {
+		return val, true
+	}
+	return "", false
 }
 
 func funcSetConfigVarName(clause string) (string, bool) {

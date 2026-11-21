@@ -1708,3 +1708,110 @@ func TestApplyDiffToMetadataRound10Fixes(t *testing.T) {
 		require.True(t, coll.SkipDump)
 	})
 }
+
+func TestApplyDiffToMetadataRound11Fixes(t *testing.T) {
+	// 1. SET ... FROM CURRENT resolves session GUC values instead of replaying FROM CURRENT.
+	t.Run("routine_set_from_current", func(t *testing.T) {
+		catBefore := New()
+		catBefore.SetSearchPath([]string{"app", "public"})
+		results, err := catBefore.Exec(`
+			CREATE SCHEMA app;
+			SET timezone = 'UTC';
+			CREATE FUNCTION public.fn_cur() RETURNS integer LANGUAGE sql SET search_path FROM CURRENT SET timezone FROM CURRENT AS $$ SELECT 1 $$;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}
+		catAfter := catBefore.Clone()
+		catAfter.SetSearchPath([]string{"archive", "public"})
+		results, err = catAfter.Exec(`
+			SET timezone = 'Asia/Tokyo';
+			CREATE FUNCTION public.fn_new() RETURNS integer LANGUAGE sql SET search_path FROM CURRENT SET timezone FROM CURRENT AS $$ SELECT 2 $$;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, New(), catBefore, Diff(New(), catBefore))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Len(t, pub.Functions, 1)
+		require.Contains(t, pub.Functions[0].Definition, `SET "search_path" = 'app', 'public'`)
+		require.Contains(t, pub.Functions[0].Definition, `SET "timezone" = 'UTC'`)
+		require.NotContains(t, pub.Functions[0].Definition, `FROM CURRENT`)
+
+		// Also verify GenerateMigration emits COST/ROWS/WINDOW/SET on direct diff.
+		catCostBefore := New()
+		_, err = catCostBefore.Exec(`CREATE FUNCTION public.fn_c() RETURNS integer LANGUAGE sql COST 10 AS $$ SELECT 1 $$;`, nil)
+		require.NoError(t, err)
+		catCostAfter := catCostBefore.Clone()
+		_, err = catCostAfter.Exec(`ALTER FUNCTION public.fn_c() COST 5 SET search_path = public;`, nil)
+		require.NoError(t, err)
+		plan := GenerateMigration(catCostBefore, catCostAfter, Diff(catCostBefore, catCostAfter))
+		require.Contains(t, plan.SQL(), "COST 5")
+		require.Contains(t, plan.SQL(), `SET "search_path" = 'public'`)
+	})
+
+	// 2. ALTER FOREIGN TABLE ... OPTIONS and CREATE FOREIGN TABLE IF NOT EXISTS target schema lookup.
+	t.Run("foreign_table_options_and_if_not_exists", func(t *testing.T) {
+		catBefore := New()
+		results, err := catBefore.Exec(`
+			CREATE SCHEMA app;
+			CREATE SCHEMA fallback;
+			SET search_path = app, fallback, public;
+			CREATE FOREIGN TABLE fallback.ft (id integer) SERVER srv_fallback OPTIONS (table_name 'fb');
+			CREATE FOREIGN TABLE app.ft_loaded (id integer) SERVER srv_app OPTIONS (schema_name 's0', table_name 't0');
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "app",
+					ExternalTables: []*metadatapb.ExternalTableMetadata{{
+						Name:               "ft_loaded",
+						ExternalServerName: "srv_app",
+						Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Options:            []string{"schema_name=s0", "table_name=t0"},
+					}},
+				},
+				{
+					Name: "fallback",
+					ExternalTables: []*metadatapb.ExternalTableMetadata{{
+						Name:               "ft",
+						ExternalServerName: "srv_fallback",
+						Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Options:            []string{"table_name=fb"},
+					}},
+				},
+			},
+		}
+
+		catAfter := catBefore.Clone()
+		results, err = catAfter.Exec(`
+			ALTER FOREIGN TABLE app.ft_loaded OPTIONS (SET schema_name 's1', DROP table_name, ADD batch_size '100');
+			CREATE FOREIGN TABLE IF NOT EXISTS ft (id integer) SERVER srv_app OPTIONS (table_name 'app_ft');
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		appSM := findSchema(got, "app")
+		require.NotNil(t, appSM)
+		ftLoaded := findExternalTable(appSM, "ft_loaded")
+		require.NotNil(t, ftLoaded)
+		require.Equal(t, []string{"schema_name=s1", "batch_size=100"}, ftLoaded.Options)
+
+		ftNew := findExternalTable(appSM, "ft")
+		require.NotNil(t, ftNew, "IF NOT EXISTS must check target schema rather than search_path")
+		require.Equal(t, "srv_app", ftNew.ExternalServerName)
+		require.Equal(t, []string{"table_name=app_ft"}, ftNew.Options)
+	})
+}

@@ -95,11 +95,17 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	b.WriteString("\nLANGUAGE ")
 	b.WriteString(proc.Language)
 
-	// Attributes (functions only), or SECURITY DEFINER for procedures.
+	// Attributes (functions only), or SECURITY DEFINER and SET options for procedures.
 	if proc.Kind != 'p' {
 		b.WriteString(formatFuncAttributes(proc))
-	} else if proc.SecDef {
-		b.WriteString("\nSECURITY DEFINER")
+	} else {
+		if proc.SecDef {
+			b.WriteString("\nSECURITY DEFINER")
+		}
+		for _, sc := range proc.SetConfig {
+			b.WriteByte('\n')
+			b.WriteString(sc)
+		}
 	}
 
 	// Body.
@@ -320,6 +326,17 @@ func formatFuncAttributes(proc *UserProc) string {
 		// 'u' (UNSAFE) is default, omit.
 	}
 
+	if proc.IsWindow {
+		parts = append(parts, "WINDOW")
+	}
+	if proc.Cost != "" {
+		parts = append(parts, "COST "+proc.Cost)
+	}
+	if proc.Rows != "" {
+		parts = append(parts, "ROWS "+proc.Rows)
+	}
+	parts = append(parts, proc.SetConfig...)
+
 	if len(parts) == 0 {
 		return ""
 	}
@@ -342,6 +359,10 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	if proc.SecDef {
 		b.WriteString("\nSECURITY DEFINER")
+	}
+	for _, sc := range proc.SetConfig {
+		b.WriteByte('\n')
+		b.WriteString(sc)
 	}
 
 	b.WriteString("\nAS ")

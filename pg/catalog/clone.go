@@ -456,6 +456,10 @@ func (c *Catalog) Clone() *Catalog {
 	}
 	clone.defaultTablespace = c.defaultTablespace
 	clone.defaultTableAccessMethod = c.defaultTableAccessMethod
+	clone.sessionSettings = make(map[string]string, len(c.sessionSettings))
+	for k, v := range c.sessionSettings {
+		clone.sessionSettings[k] = v
+	}
 	clone.snapshot = c.snapshot
 	clone.installingSnapshot = c.installingSnapshot
 	clone.roles = make(map[string]bool, len(c.roles))

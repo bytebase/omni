@@ -4836,3 +4836,33 @@ func TestRound10CommentAndRangeMigrations(t *testing.T) {
 	require.Contains(t, sql, `COMMENT ON CONSTRAINT "chk_part_pos" ON "public"."logs_p0" IS 'pchk doc'`)
 	require.Contains(t, sql, `COMMENT ON TRIGGER "trg_child" ON "public"."child" IS 'trig doc'`)
 }
+
+func TestDottedSkipSchemaIgnoresDegradedObjects(t *testing.T) {
+	makeMeta := func(viewDef string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "app",
+					Tables: []*metadatapb.TableMetadata{{
+						Name:    "t",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					}},
+				},
+				{
+					Name: "app.data",
+					Views: []*metadatapb.ViewMetadata{{
+						Name:       "broken",
+						Definition: viewDef,
+					}},
+				},
+			},
+		}
+	}
+
+	// Unparseable view in skipped dotted schema must not cause unloadableChanges failure.
+	sql, err := MetadataMigration(context.Background(), makeMeta("SELECT FROM"), makeMeta("SELECT +"), MetadataMigrationOptions{
+		SkipSchemas: []string{"app.data"},
+	})
+	require.NoError(t, err)
+	require.Empty(t, sql)
+}

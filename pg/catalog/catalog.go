@@ -142,6 +142,9 @@ type Catalog struct {
 	// defaultTableAccessMethod is the session's default_table_access_method
 	// setting, "" for the server default (heap).
 	defaultTableAccessMethod string
+	// sessionSettings records non-built-in session GUC values set via SET/RESET
+	// so CREATE/ALTER FUNCTION ... SET var FROM CURRENT can freeze them.
+	sessionSettings map[string]string
 	// snapshot marks a catalog loaded from a live schema. A snapshot carries
 	// no tablespace or access-method objects, so a name it does not hold may
 	// still exist on the server the snapshot came from.
@@ -236,6 +239,7 @@ func New() *Catalog {
 		opFamilies:         make(map[uint32]*OpFamily),
 		opClasses:          make(map[uint32]*OpClass),
 		opClassByKey:       make(map[opClassKey]*OpClass),
+		sessionSettings:    make(map[string]string),
 	}
 
 	// Index types.

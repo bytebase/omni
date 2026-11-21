@@ -858,6 +858,7 @@
 | CREATE FUNCTION "f"("x" integer)
 | RETURNS integer
 | LANGUAGE sql
+| SET "search_path" = 'public', 'pg_temp'
 | AS $$SELECT x + 1$$
 < ok 0 -
 > exec
