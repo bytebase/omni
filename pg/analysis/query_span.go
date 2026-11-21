@@ -872,6 +872,27 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		if rel.RelKind == 'c' {
 			return
 		}
+		// A whole-row reference (AttNum == 0, e.g. to_jsonb(t1)) reads every
+		// column of the relation.
+		if v.AttNum == 0 {
+			if len(rel.Columns) == 0 {
+				result[ColumnResource{
+					Database: e.defaultDatabase,
+					Schema:   rel.Schema.Name,
+					Table:    rel.Name,
+				}] = true
+				return
+			}
+			for _, col := range rel.Columns {
+				result[ColumnResource{
+					Database: e.defaultDatabase,
+					Schema:   rel.Schema.Name,
+					Table:    rel.Name,
+					Column:   col.Name,
+				}] = true
+			}
+			return
+		}
 		// The table's own column name, which an alias column list may hide.
 		colName := ""
 		if colIdx >= 0 && colIdx < len(rel.Columns) {
@@ -885,25 +906,68 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}] = true
 
 	case catalog.RTESubquery:
+		if v.AttNum == 0 && rte.Subquery != nil {
+			subStack := appendQuery(effectiveStack, rte.Subquery)
+			for _, te := range rte.Subquery.TargetList {
+				if !te.ResJunk {
+					e.walkExprWithVisited(subStack, te.Expr, result, visited)
+				}
+			}
+			return
+		}
 		if te := outputColumn(rte.Subquery, int(v.AttNum)); te != nil {
 			e.walkExprWithVisited(appendQuery(effectiveStack, rte.Subquery), te.Expr, result, visited)
 		}
 
 	case catalog.RTECTE:
 		if cte, level := findCTEForRangeTableEntry(effectiveStack, rte); cte != nil {
+			cteStack := appendQuery(effectiveStack[:level+1], cte.Query)
+			if v.AttNum == 0 {
+				for _, te := range cte.Query.TargetList {
+					if !te.ResJunk {
+						e.walkExprWithVisited(cteStack, te.Expr, result, visited)
+					}
+				}
+				return
+			}
 			if te := outputColumn(cte.Query, int(v.AttNum)); te != nil {
 				// The CTE's query sees the scopes of the query that defines it.
-				e.walkExprWithVisited(appendQuery(effectiveStack[:level+1], cte.Query), te.Expr, result, visited)
+				e.walkExprWithVisited(cteStack, te.Expr, result, visited)
 			}
 		}
 
 	case catalog.RTEJoin:
+		if v.AttNum == 0 {
+			for _, aliasVar := range rte.JoinAliasVars {
+				e.walkExprWithVisited(effectiveStack, aliasVar, result, visited)
+			}
+			return
+		}
 		// Only a column that FULL JOIN USING merges is read through the join.
 		if colIdx >= 0 && colIdx < len(rte.JoinAliasVars) {
 			e.walkExprWithVisited(effectiveStack, rte.JoinAliasVars[colIdx], result, visited)
 		}
 
 	case catalog.RTEFunction:
+		if v.AttNum == 0 {
+			for _, expr := range rte.FuncExprs {
+				fc, ok := expr.(*catalog.FuncCallExpr)
+				if !ok {
+					continue
+				}
+				for _, arg := range fc.Args {
+					e.walkExprWithVisited(effectiveStack, arg, result, visited)
+				}
+				for _, proc := range e.userProcsCalled(fc) {
+					for _, bodySet := range e.analyzeFunctionBody(proc) {
+						for k, val := range bodySet {
+							result[k] = val
+						}
+					}
+				}
+			}
+			return
+		}
 		// An output reads the arguments of the call that produces it, as
 		// jsonb_each(a) reads a, and for a user function also what its body
 		// returns there. The body's parameters carry no lineage, so the
