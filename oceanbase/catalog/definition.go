@@ -482,6 +482,34 @@ func writeFunction(out io.Writer, function *metadata.FunctionMetadata) error {
 	return err
 }
 
+func writeCreateViewPrefix(out io.Writer, view *metadata.ViewMetadata) error {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
+		return err
+	}
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS")
+	return err
+}
+
+func viewCheckOptionClause(view *metadata.ViewMetadata) string {
+	if view.CheckOption == "" || strings.EqualFold(view.CheckOption, "NONE") {
+		return ""
+	}
+	if strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		return ""
+	}
+	return " WITH " + strings.ToUpper(view.CheckOption) + " CHECK OPTION"
+}
+
 func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	// Header.
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -498,28 +526,10 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
+	if err := writeCreateViewPrefix(out, view); err != nil {
 		return err
 	}
-	if view.Algorithm != "" {
-		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
-			return err
-		}
-	}
-	if view.SqlSecurity != "" {
-		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "+view.Definition); err != nil {
-		return err
-	}
-	if view.CheckOption != "" && !strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
-		if _, err := fmt.Fprintf(out, " WITH %s CHECK OPTION", strings.ToUpper(view.CheckOption)); err != nil {
-			return err
-		}
-	}
-	_, err := io.WriteString(out, ";\n\n")
+	_, err := io.WriteString(out, " "+view.Definition+viewCheckOptionClause(view)+";\n\n")
 	return err
 }
 
@@ -2238,18 +2248,27 @@ func writeMaterializedViewSDL(buf *strings.Builder, dbName string, view *metadat
 // pretty-printed by formatViewBodySDL — a whitespace-only, deterministic rewrite, so
 // the omni no-op invariant and the dump-cycle byte stability both hold.
 func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetadata) error {
+	if err := writeCreateViewPrefix(buf, view); err != nil {
+		return err
+	}
 	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
 	if body == "" {
 		// Defensive: an empty definition keeps the historical inline framing.
-		if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS ;\n\n", quoteIdent(view.Name)); err != nil {
+		if _, err := io.WriteString(buf, " ;\n\n"); err != nil {
 			return err
 		}
 		return nil
 	}
-	if _, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s%s AS\n%s;\n\n", quoteIdent(view.Name), viewColumnListClause(view), body); err != nil {
+	if _, err := io.WriteString(buf, "\n"+body); err != nil {
 		return err
 	}
-	return nil
+	if checkClause := viewCheckOptionClause(view); checkClause != "" {
+		if _, err := io.WriteString(buf, "\n"+strings.TrimSpace(checkClause)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(buf, ";\n\n")
+	return err
 }
 
 // stripViewBodyDatabaseQualifier removes the dumped database's own qualifier from the

@@ -1633,3 +1633,47 @@ func TestDatabaseDefinitionPreservesTablespaceQuotesAndParenColumnIndex(t *testi
 	require.True(t, foundEmptyQuoteTS)
 	require.True(t, foundIdx)
 }
+
+func TestViewLikeExprMetadata(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (
+			id INT NOT NULL PRIMARY KEY,
+			s_nn VARCHAR(20) NOT NULL,
+			s_null VARCHAR(20) NULL
+		);
+		CREATE VIEW v_like AS SELECT
+			s_nn LIKE 'a%' AS l_nn,
+			s_null LIKE 'a%' AS l_null,
+			s_nn NOT LIKE 'a%' AS nl_nn,
+			s_null NOT LIKE 'a%' AS nl_null,
+			s_nn LIKE s_null AS l_pat_null,
+			s_nn LIKE 'a!%' ESCAPE '!' AS l_esc_nn,
+			s_null LIKE 'a!%' ESCAPE '!' AS l_esc_null
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.GetSchemas()[0].GetViews()[0].GetColumns() {
+		cols[col.Name] = col
+	}
+
+	require.Equal(t, "int", cols["l_nn"].Type)
+	require.False(t, cols["l_nn"].Nullable)
+	require.Equal(t, "int", cols["l_null"].Type)
+	require.True(t, cols["l_null"].Nullable)
+	require.Equal(t, "int", cols["nl_nn"].Type)
+	require.False(t, cols["nl_nn"].Nullable)
+	require.Equal(t, "int", cols["nl_null"].Type)
+	require.True(t, cols["nl_null"].Nullable)
+	require.Equal(t, "int", cols["l_pat_null"].Type)
+	require.True(t, cols["l_pat_null"].Nullable)
+	require.Equal(t, "int", cols["l_esc_nn"].Type)
+	require.False(t, cols["l_esc_nn"].Nullable)
+	require.Equal(t, "int", cols["l_esc_null"].Type)
+	require.True(t, cols["l_esc_null"].Nullable)
+}

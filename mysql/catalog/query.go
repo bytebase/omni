@@ -987,6 +987,18 @@ func (*BetweenExprQ) analyzedExprTag()        {}
 func (*BetweenExprQ) exprType() *ResolvedType { return BoolType }
 func (*BetweenExprQ) exprCollation() string   { return "" }
 
+// LikeExprQ is `x [NOT] LIKE pattern [ESCAPE escape]`.
+type LikeExprQ struct {
+	Arg     AnalyzedExpr
+	Pattern AnalyzedExpr
+	Escape  AnalyzedExpr
+	Negated bool
+}
+
+func (*LikeExprQ) analyzedExprTag()        {}
+func (*LikeExprQ) exprType() *ResolvedType { return BoolType }
+func (*LikeExprQ) exprCollation() string   { return "" }
+
 // ----------------------------------------------------------------------------
 // RowExprQ — ROW(...) constructor.
 // ----------------------------------------------------------------------------
@@ -1056,8 +1068,6 @@ func (*IntervalExprQ) exprCollation() string   { return "" }
 // scope manageable. Listed here so reviewers can challenge the omissions
 // explicitly:
 //
-//   - LikeExprQ:        `x LIKE pattern ESCAPE c`. The 3-operand ESCAPE form
-//                       does not fit OpExprQ; deferred to Phase 3.
 //   - MatchAgainstExprQ: `MATCH (col) AGAINST ('text' IN NATURAL LANGUAGE MODE)`.
 //                       MySQL fulltext predicate. Deferred to Phase 4 (deparse
 //                       fidelity for fulltext indexes).

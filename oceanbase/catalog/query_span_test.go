@@ -84,6 +84,12 @@ func collectVarExprs(q *Query, expr AnalyzedExpr, out *[]columnLineage) {
 		collectVarExprs(q, e.Arg, out)
 		collectVarExprs(q, e.Lower, out)
 		collectVarExprs(q, e.Upper, out)
+	case *LikeExprQ:
+		collectVarExprs(q, e.Arg, out)
+		collectVarExprs(q, e.Pattern, out)
+		if e.Escape != nil {
+			collectVarExprs(q, e.Escape, out)
+		}
 	case *SubLinkExprQ:
 		if e.Subquery != nil {
 			for _, innerTE := range e.Subquery.TargetList {

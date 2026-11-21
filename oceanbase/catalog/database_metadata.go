@@ -10,8 +10,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytebase/omni/metadata"
-	"google.golang.org/protobuf/proto"
 )
+
+func boolPtr(v bool) *bool { return &v }
 
 // DatabaseMetadata converts the named database in the catalog to a
 // DatabaseSchemaMetadata snapshot matching the MySQL-mode OceanBase sync and
@@ -450,6 +451,10 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 		return isAnalyzedExprNullable(c, db, q, e.Arg) ||
 			isAnalyzedExprNullable(c, db, q, e.Lower) ||
 			isAnalyzedExprNullable(c, db, q, e.Upper)
+	case *LikeExprQ:
+		return isAnalyzedExprNullable(c, db, q, e.Arg) ||
+			isAnalyzedExprNullable(c, db, q, e.Pattern) ||
+			(e.Escape != nil && isAnalyzedExprNullable(c, db, q, e.Escape))
 	case *InListExprQ:
 		if isAnalyzedExprNullable(c, db, q, e.Arg) {
 			return true
@@ -2029,10 +2034,10 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 			Comment:      formatSyncedComment(col.Comment),
 		}
 		if col.Charset != "" {
-			colMeta.CharsetInherited = proto.Bool(!col.CharsetExplicit)
+			colMeta.CharsetInherited = boolPtr(!col.CharsetExplicit)
 		}
 		if col.Collation != "" {
-			colMeta.CollationInherited = proto.Bool(!col.CollationExplicit)
+			colMeta.CollationInherited = boolPtr(!col.CollationExplicit)
 		}
 		switch {
 		case col.AutoIncrement:

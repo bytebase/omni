@@ -710,6 +710,10 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Expr, relations) ||
 			inferViewExprNullable(e.Low, relations) ||
 			inferViewExprNullable(e.High, relations)
+	case *nodes.LikeExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Pattern, relations) ||
+			(e.Escape != nil && inferViewExprNullable(e.Escape, relations))
 	case *nodes.IsExpr:
 		return false
 	case *nodes.SubqueryExpr:

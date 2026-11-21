@@ -741,6 +741,8 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		}
 	case *BetweenExprQ:
 		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Lower) || exprContainsAggregate(e.Upper)
+	case *LikeExprQ:
+		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Pattern) || exprContainsAggregate(e.Escape)
 	case *NullTestExprQ:
 		return exprContainsAggregate(e.Arg)
 	case *IntervalExprQ:

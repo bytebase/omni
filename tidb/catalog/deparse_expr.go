@@ -46,6 +46,8 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeInListExprQ(b, e, q)
 	case *BetweenExprQ:
 		writeBetweenExprQ(b, e, q)
+	case *LikeExprQ:
+		writeLikeExprQ(b, e, q)
 	case *SubLinkExprQ:
 		writeSubLinkExprQ(b, e, q)
 	case *CastExprQ:
@@ -298,6 +300,27 @@ func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *deparseScope) {
 	writeAnalyzedExpr(b, be.Lower, q)
 	b.WriteString(" and ")
 	writeAnalyzedExpr(b, be.Upper, q)
+	b.WriteString(")")
+}
+
+func writeLikeExprQ(b *strings.Builder, le *LikeExprQ, q *deparseScope) {
+	b.WriteString("(")
+	writeAnalyzedExpr(b, le.Arg, q)
+	switch {
+	case le.Negated && le.ILike:
+		b.WriteString(" not ilike ")
+	case le.ILike:
+		b.WriteString(" ilike ")
+	case le.Negated:
+		b.WriteString(" not like ")
+	default:
+		b.WriteString(" like ")
+	}
+	writeAnalyzedExpr(b, le.Pattern, q)
+	if le.Escape != nil {
+		b.WriteString(" escape ")
+		writeAnalyzedExpr(b, le.Escape, q)
+	}
 	b.WriteString(")")
 }
 

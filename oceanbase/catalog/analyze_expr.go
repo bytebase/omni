@@ -74,6 +74,8 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeInExpr(c, n, scope)
 	case *nodes.BetweenExpr:
 		return analyzeBetweenExpr(c, n, scope)
+	case *nodes.LikeExpr:
+		return analyzeLikeExpr(c, n, scope)
 	case *nodes.IsExpr:
 		return analyzeIsExpr(c, n, scope)
 	case *nodes.CaseExpr:
@@ -521,6 +523,25 @@ func analyzeBetweenExpr(c *Catalog, expr *nodes.BetweenExpr, scope *analyzerScop
 	}
 
 	return &BetweenExprQ{Arg: arg, Lower: lower, Upper: upper, Negated: expr.Not}, nil
+}
+
+func analyzeLikeExpr(c *Catalog, expr *nodes.LikeExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := analyzeExpr(c, expr.Pattern, scope)
+	if err != nil {
+		return nil, err
+	}
+	var escape AnalyzedExpr
+	if expr.Escape != nil {
+		escape, err = analyzeExpr(c, expr.Escape, scope)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &LikeExprQ{Arg: arg, Pattern: pattern, Escape: escape, Negated: expr.Not}, nil
 }
 
 // analyzeIsExpr resolves an IS expression.

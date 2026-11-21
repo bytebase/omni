@@ -1228,3 +1228,35 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 	require.Contains(t, def, `COMMENT 'O\'Brien'`)
 	require.Contains(t, def, `COMMENT 'C:\\x'`)
 }
+
+func TestSDLViewPreservesOptions(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "d",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "d",
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: true}},
+				Engine:  "InnoDB", Charset: "utf8mb4", Collation: "utf8mb4_general_ci",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:        "v_opts",
+				Algorithm:   "TEMPTABLE",
+				SqlSecurity: "INVOKER",
+				CheckOption: "LOCAL",
+				Definition:  "select `d`.`t`.`id` AS `id` from `d`.`t` where (`d`.`t`.`id` > 0)",
+			}},
+		}},
+	}
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, sdl, "CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `v_opts` AS")
+	require.Contains(t, sdl, "WITH LOCAL CHECK OPTION;")
+
+	loaded, err := LoadSDL("CREATE DATABASE `d`;\nUSE `d`;\n" + sdl)
+	require.NoError(t, err)
+	source := New()
+	_, err = source.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.True(t, Diff(source, loaded).IsEmpty(), "SDL round trip diff: %+v", Diff(source, loaded).Views)
+}

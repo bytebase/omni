@@ -9,8 +9,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytebase/omni/metadata"
-	"google.golang.org/protobuf/proto"
 )
+
+func boolPtr(v bool) *bool { return &v }
 
 // DatabaseMetadata converts the named database in the catalog to a
 // DatabaseSchemaMetadata snapshot matching the MySQL driver sync and
@@ -438,6 +439,10 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin) ||
 			isAnalyzedExprNullable(c, db, q, opt, e.Lower, widenOptionalJoin) ||
 			isAnalyzedExprNullable(c, db, q, opt, e.Upper, widenOptionalJoin)
+	case *LikeExprQ:
+		return isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin) ||
+			isAnalyzedExprNullable(c, db, q, opt, e.Pattern, widenOptionalJoin) ||
+			(e.Escape != nil && isAnalyzedExprNullable(c, db, q, opt, e.Escape, widenOptionalJoin))
 	case *InListExprQ:
 		if isAnalyzedExprNullable(c, db, q, opt, e.Arg, widenOptionalJoin) {
 			return true
@@ -2060,10 +2065,10 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 			IsGeneratedInvisiblePrimaryKey: col.GeneratedInvisiblePrimaryKey,
 		}
 		if col.Charset != "" {
-			colMeta.CharsetInherited = proto.Bool(!col.CharsetExplicit)
+			colMeta.CharsetInherited = boolPtr(!col.CharsetExplicit)
 		}
 		if col.Collation != "" {
-			colMeta.CollationInherited = proto.Bool(!col.CollationExplicit)
+			colMeta.CollationInherited = boolPtr(!col.CollationExplicit)
 		}
 		switch {
 		case col.AutoIncrement:

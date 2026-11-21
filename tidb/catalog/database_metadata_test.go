@@ -1427,3 +1427,37 @@ func TestIndexColumnWithParenthesisAndBacktickRoundTrip(t *testing.T) {
 	require.Equal(t, []string{"a(b"}, reMeta.GetSchemas()[0].GetTables()[0].GetIndexes()[0].GetExpressions())
 	require.Equal(t, []string{"x`y"}, reMeta.GetSchemas()[0].GetTables()[0].GetIndexes()[1].GetExpressions())
 }
+
+func TestViewLikeExprMetadata(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (
+			id INT NOT NULL PRIMARY KEY,
+			s_nn VARCHAR(20) NOT NULL,
+			s_null VARCHAR(20) NULL
+		);
+		CREATE VIEW v_like AS SELECT
+			s_nn LIKE 'a%' AS l_nn,
+			s_null LIKE 'a%' AS l_null,
+			s_nn NOT LIKE 'a%' AS nl_nn,
+			s_null NOT LIKE 'a%' AS nl_null,
+			s_nn LIKE s_null AS l_pat_null,
+			s_nn LIKE 'a!%' ESCAPE '!' AS l_esc_nn,
+			s_null LIKE 'a!%' ESCAPE '!' AS l_esc_null
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.GetSchemas()[0].GetViews()[0].GetColumns() {
+		cols[col.Name] = col
+	}
+
+	for _, name := range []string{"l_nn", "l_null", "nl_nn", "nl_null", "l_pat_null", "l_esc_nn", "l_esc_null"} {
+		require.Equal(t, "bigint", cols[name].Type, name)
+		require.True(t, cols[name].Nullable, name)
+	}
+}
