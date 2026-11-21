@@ -439,7 +439,34 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 		if e.Op == "/" || strings.EqualFold(e.Op, "DIV") {
 			return true
 		}
+		switch strings.ToUpper(e.Op) {
+		case "<=>", "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+			return false
+		}
 		return isAnalyzedExprNullable(c, db, q, e.Left) || isAnalyzedExprNullable(c, db, q, e.Right)
+	case *NullTestExprQ:
+		return false
+	case *BetweenExprQ:
+		return isAnalyzedExprNullable(c, db, q, e.Arg) ||
+			isAnalyzedExprNullable(c, db, q, e.Lower) ||
+			isAnalyzedExprNullable(c, db, q, e.Upper)
+	case *InListExprQ:
+		if isAnalyzedExprNullable(c, db, q, e.Arg) {
+			return true
+		}
+		for _, item := range e.List {
+			if isAnalyzedExprNullable(c, db, q, item) {
+				return true
+			}
+		}
+		return false
+	case *BoolExprQ:
+		for _, arg := range e.Args {
+			if isAnalyzedExprNullable(c, db, q, arg) {
+				return true
+			}
+		}
+		return false
 	case *IntervalExprQ:
 		return isAnalyzedExprNullable(c, db, q, e.Value)
 	case *SubLinkExprQ:
@@ -1984,15 +2011,17 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 		table.CreateOptions = opts
 	}
 
+	pos := int32(0)
 	for _, col := range t.Columns {
 		if col.Hidden == ColumnHiddenSystem {
 			// System-hidden columns (e.g. backing columns of functional
 			// indexes) are not reported by information_schema.
 			continue
 		}
+		pos++
 		colMeta := &metadata.ColumnMetadata{
 			Name:         col.Name,
-			Position:     int32(col.Position),
+			Position:     pos,
 			Type:         col.ColumnType,
 			Nullable:     col.Nullable,
 			CharacterSet: col.Charset,

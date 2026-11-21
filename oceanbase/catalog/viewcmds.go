@@ -656,14 +656,28 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		if _, ok := e.Right.(*nodes.IntervalExpr); ok {
 			return true
 		}
+		if e.Op == nodes.BinOpNullSafeEq {
+			return false
+		}
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.BetweenExpr:
+		return inferViewExprNullable(e.Expr, relations) ||
+			inferViewExprNullable(e.Low, relations) ||
+			inferViewExprNullable(e.High, relations)
+	case *nodes.IsExpr:
+		return false
 	case *nodes.SubqueryExpr:
 		return true
 	case *nodes.InExpr:
-		if e.Select != nil {
+		if e.Select != nil || inferViewExprNullable(e.Expr, relations) {
 			return true
 		}
-		return inferViewExprNullable(e.Expr, relations)
+		for _, item := range e.List {
+			if inferViewExprNullable(item, relations) {
+				return true
+			}
+		}
+		return false
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
 	case *nodes.WeightStringExpr:

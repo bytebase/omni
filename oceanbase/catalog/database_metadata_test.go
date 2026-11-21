@@ -1571,3 +1571,56 @@ func TestViewMetadataScalarSubqueryAndTemporalArithmetic(t *testing.T) {
 	require.Equal(t, "bigint", cols["sq_coalesce"].Type)
 	require.Equal(t, "date", cols["sq_interval"].Type)
 }
+
+func TestViewPredicateNullability(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE p_t (id INT NOT NULL, nc INT NULL, nn INT NOT NULL);
+		CREATE VIEW v_pred AS SELECT
+			nc BETWEEN 1 AND 2 AS b_nc,
+			nn BETWEEN 1 AND 2 AS b_nn,
+			1 BETWEEN NULL AND 2 AS b_null,
+			nc IN (1, 2) AS in_nc,
+			nn IN (1, 2) AS in_nn,
+			1 IN (NULL, 2) AS in_null,
+			nc AND TRUE AS and_nc,
+			nn AND TRUE AS and_nn,
+			TRUE OR NULL AS or_null,
+			NOT nc AS not_nc,
+			NOT nn AS not_nn,
+			nc IS NULL AS isnull_nc,
+			nc IS TRUE AS istrue_nc,
+			nc <=> 1 AS ns_nc
+		FROM p_t;
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	var vp *metadata.ViewMetadata
+	for _, vm := range meta.GetSchemas()[0].GetViews() {
+		if vm.Name == "v_pred" {
+			vp = vm
+		}
+	}
+	require.NotNil(t, vp)
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range vp.GetColumns() {
+		cols[col.Name] = col
+	}
+	require.True(t, cols["b_nc"].Nullable)
+	require.False(t, cols["b_nn"].Nullable)
+	require.True(t, cols["b_null"].Nullable)
+	require.True(t, cols["in_nc"].Nullable)
+	require.False(t, cols["in_nn"].Nullable)
+	require.True(t, cols["in_null"].Nullable)
+	require.True(t, cols["and_nc"].Nullable)
+	require.False(t, cols["and_nn"].Nullable)
+	require.True(t, cols["or_null"].Nullable)
+	require.True(t, cols["not_nc"].Nullable)
+	require.False(t, cols["not_nn"].Nullable)
+	require.False(t, cols["isnull_nc"].Nullable)
+	require.False(t, cols["istrue_nc"].Nullable)
+	require.False(t, cols["ns_nc"].Nullable)
+}
