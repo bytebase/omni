@@ -2793,3 +2793,93 @@ func TestApplyDiffToMetadataRound20Fixes(t *testing.T) {
 		require.NoError(t, r.Error, r.SQL)
 	}
 }
+
+func TestApplyDiffToMetadataImplicitPostgresOwnerOmitted(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name:    "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "existing", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}}}}}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	catAfter := catBefore.Clone()
+	execRes, err := catAfter.Exec(`
+		CREATE TABLE public.implicit_owner (id integer);
+		ALTER TABLE public.existing ADD COLUMN note text;
+	`, nil)
+	require.NoError(t, err)
+	for _, r := range execRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+	require.Empty(t, findTable(pub, "implicit_owner").Owner)
+	require.Empty(t, findTable(pub, "existing").Owner)
+}
+
+func TestApplyDiffToMetadataRound23Fixes(t *testing.T) {
+	// 1. Detaching a partitioned partition preserves its Subpartitions under the promoted table.
+	partMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "parent",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "a", Type: "integer", Position: 1}, {Name: "b", Type: "integer", Position: 2}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{
+					Name:       "child",
+					Expression: "RANGE (a)",
+					Value:      "FOR VALUES FROM (0) TO (100)",
+					Type:       metadatapb.TablePartitionMetadata_RANGE,
+					Subpartitions: []*metadatapb.TablePartitionMetadata{{
+						Name:       "leaf",
+						Expression: "LIST (b)",
+						Value:      "FOR VALUES IN (1)",
+						Type:       metadatapb.TablePartitionMetadata_LIST,
+					}},
+				}},
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), partMeta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	catAfter := catBefore.Clone()
+	detRes, err := catAfter.Exec(`ALTER TABLE public.parent DETACH PARTITION public.child;`, nil)
+	require.NoError(t, err)
+	for _, r := range detRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	detGot := ApplyDiffToMetadata(partMeta, catBefore, catAfter, Diff(catBefore, catAfter))
+	pub := findSchema(detGot, "public")
+	require.NotNil(t, pub)
+	childTbl := findTable(pub, "child")
+	require.NotNil(t, childTbl)
+	require.Len(t, childTbl.Partitions, 1)
+	require.Equal(t, "leaf", childTbl.Partitions[0].Name)
+
+	// Reattaching preserves Subpartitions back onto the partition entry.
+	catReattach := catAfter.Clone()
+	attRes, err := catReattach.Exec(`ALTER TABLE public.parent ATTACH PARTITION public.child FOR VALUES FROM (0) TO (100);`, nil)
+	require.NoError(t, err)
+	for _, r := range attRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	attGot := ApplyDiffToMetadata(detGot, catAfter, catReattach, Diff(catAfter, catReattach))
+	attPub := findSchema(attGot, "public")
+	require.Nil(t, findTable(attPub, "child"))
+	parentTbl := findTable(attPub, "parent")
+	require.Len(t, parentTbl.Partitions, 1)
+	require.Len(t, parentTbl.Partitions[0].Subpartitions, 1)
+	require.Equal(t, "leaf", parentTbl.Partitions[0].Subpartitions[0].Name)
+
+	// 2. Untracked SET ... FROM CURRENT is rejected instead of preserving symbolic FROM CURRENT.
+	gucCat := New()
+	gucRes, err := gucCat.Exec(`CREATE FUNCTION public.fn_untracked() RETURNS integer LANGUAGE sql SET work_mem FROM CURRENT AS $$ SELECT 1 $$;`, nil)
+	require.NoError(t, err)
+	require.Len(t, gucRes, 1)
+	require.Error(t, gucRes[0].Error)
+}

@@ -140,11 +140,15 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 // multiple ALTER statements; when a type change is combined with an existing
 // default, the sequence is DROP DEFAULT → ALTER TYPE → SET DEFAULT.
 func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, col ColumnDiffEntry) []MigrationOp {
+	return columnModifyOpsForStmt(from, to, "ALTER TABLE", tableName, schemaName, relName, col)
+}
+
+func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName, relName string, col ColumnDiffEntry) []MigrationOp {
 	oldCol := col.From
 	newCol := col.To
 	var ops []MigrationOp
 
-	colRef := fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s", tableName, quoteIdentifier(newCol.Name))
+	colRef := fmt.Sprintf("%s %s ALTER COLUMN %s", alterStmt, tableName, quoteIdentifier(newCol.Name))
 
 	addingIdentity := oldCol.Identity == 0 && newCol.Identity != 0
 	droppingIdentity := oldCol.Identity != 0 && newCol.Identity == 0
@@ -181,7 +185,7 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 			Type:          OpDropConstraint,
 			SchemaName:    schemaName,
 			ObjectName:    relName,
-			SQL:           fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", tableName, quoteIdentifier(con.Name)),
+			SQL:           fmt.Sprintf("%s %s DROP CONSTRAINT %s", alterStmt, tableName, quoteIdentifier(con.Name)),
 			Transactional: true,
 		})
 	}
@@ -248,7 +252,7 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 			Type:          OpAddConstraint,
 			SchemaName:    schemaName,
 			ObjectName:    relName,
-			SQL:           fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s CHECK (%s)", tableName, quoteIdentifier(oldCon.Name), checkExpr),
+			SQL:           fmt.Sprintf("%s %s ADD CONSTRAINT %s CHECK (%s)", alterStmt, tableName, quoteIdentifier(oldCon.Name), checkExpr),
 			Transactional: true,
 		})
 	}

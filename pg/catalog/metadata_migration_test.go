@@ -5755,3 +5755,99 @@ func TestRound22Fixes(t *testing.T) {
 	require.Empty(t, afterRebuildDiff.Grants)
 	require.Empty(t, afterRebuildDiff.Comments)
 }
+
+func TestRound23Fixes(t *testing.T) {
+	// 1. MetadataMigration retains unchanged indexes and index comments when rebuilding a materialized view
+	// (including when rebuilt via restoreUnloadableDependentViews).
+	mvFrom := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "src",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+			}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+				Name:       "mv_items",
+				Definition: "SELECT id FROM public.src",
+				DependencyColumns: []*metadatapb.DependencyColumn{{
+					Schema: "public", Table: "src", Column: "id",
+				}},
+				Indexes: []*metadatapb.IndexMetadata{{
+					Name:        "mv_items_id_idx",
+					Definition:  `CREATE INDEX "mv_items_id_idx" ON "public"."mv_items" USING btree (id) WITH (fillfactor = 70)`,
+					Expressions: []string{"id"},
+					Type:        "btree",
+					Comment:     "mv index doc",
+				}},
+			}},
+		}},
+	}
+	mvTo := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "src",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}},
+			}},
+			MaterializedViews: mvFrom.Schemas[0].MaterializedViews,
+		}},
+	}
+	mvSQL, err := testMetadataMigration(mvFrom, mvTo)
+	require.NoError(t, err)
+	require.Contains(t, mvSQL, `DROP MATERIALIZED VIEW`)
+	require.Contains(t, mvSQL, `CREATE MATERIALIZED VIEW`)
+	require.Contains(t, mvSQL, `WITH (fillfactor = 70)`)
+	require.Contains(t, mvSQL, `COMMENT ON INDEX "public"."mv_items_id_idx" IS 'mv index doc'`)
+	createMVPos := strings.Index(mvSQL, `CREATE MATERIALIZED VIEW`)
+	createIdxPos := strings.Index(mvSQL, `CREATE INDEX`)
+	require.NotEqual(t, -1, createMVPos)
+	require.NotEqual(t, -1, createIdxPos)
+	require.Less(t, createMVPos, createIdxPos, mvSQL)
+
+	// 2. Direct GenerateMigration generates DDL for Diff.ForeignTables (add, alter, server switch, drop)
+	// and converges when executed.
+	setupFT := func(sql string) *Catalog {
+		c := New()
+		res, execErr := c.Exec(`
+			CREATE FOREIGN DATA WRAPPER fdw_a;
+			CREATE FOREIGN DATA WRAPPER fdw_b;
+			CREATE SERVER srv_a FOREIGN DATA WRAPPER fdw_a;
+			CREATE SERVER srv_b FOREIGN DATA WRAPPER fdw_b;
+		`+sql, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, execErr)
+		for _, r := range res {
+			require.NoError(t, r.Error, r.SQL)
+		}
+		return c
+	}
+	ftFrom := setupFT(`
+		CREATE FOREIGN TABLE public.ft_mod (id integer OPTIONS (column_name 'id'), drop_me text) SERVER srv_a OPTIONS (schema_name 's1', old_opt 'v');
+		CREATE FOREIGN TABLE public.ft_srv (id integer) SERVER srv_a;
+		COMMENT ON FOREIGN TABLE public.ft_srv IS 'kept ft comment';
+		CREATE FOREIGN TABLE public.ft_drop (id integer) SERVER srv_a;
+	`)
+	ftTo := setupFT(`
+		CREATE FOREIGN TABLE public.ft_mod (id bigint OPTIONS (column_name 'id_new', extra '1') NOT NULL, note text) SERVER srv_a OPTIONS (schema_name 's2', new_opt 'x');
+		CREATE FOREIGN TABLE public.ft_srv (id integer) SERVER srv_b;
+		COMMENT ON FOREIGN TABLE public.ft_srv IS 'kept ft comment';
+		CREATE FOREIGN TABLE public.ft_add (id integer) SERVER srv_a OPTIONS (table_name 't1');
+	`)
+	ftDiff := Diff(ftFrom, ftTo)
+	require.NotEmpty(t, ftDiff.ForeignTables)
+	ftSQL := GenerateMigration(ftFrom, ftTo, ftDiff).SQL()
+	require.Contains(t, ftSQL, `DROP FOREIGN TABLE "public"."ft_drop" CASCADE`)
+	require.Contains(t, ftSQL, `CREATE FOREIGN TABLE "public"."ft_add"`)
+	require.Contains(t, ftSQL, `ALTER FOREIGN TABLE "public"."ft_mod" OPTIONS (DROP old_opt, SET schema_name 's2', ADD new_opt 'x')`)
+	require.Contains(t, ftSQL, `ALTER FOREIGN TABLE "public"."ft_mod" ALTER COLUMN id OPTIONS (SET column_name 'id_new', ADD extra '1')`)
+	require.Contains(t, ftSQL, `COMMENT ON FOREIGN TABLE "public"."ft_srv" IS 'kept ft comment'`)
+
+	ftApplied := ftFrom.Clone()
+	ftExecRes, err := ftApplied.Exec(ftSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range ftExecRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	remFT := Diff(ftApplied, ftTo)
+	require.Empty(t, remFT.ForeignTables)
+	require.Empty(t, remFT.Comments)
+}

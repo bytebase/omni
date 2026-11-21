@@ -229,6 +229,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateFunctionDDL(from, to, diff)...)
 	ops = append(ops, generateAccessMethodDDL(from, to, diff)...)
 	ops = append(ops, generateTableDDL(from, to, diff)...)
+	ops = append(ops, generateForeignTableDDL(from, to, diff)...)
 	ops = append(ops, generateColumnDDL(from, to, diff)...)
 	ops = append(ops, generateConstraintDDL(from, to, diff)...)
 	ops = append(ops, generateViewDDL(from, to, diff)...)

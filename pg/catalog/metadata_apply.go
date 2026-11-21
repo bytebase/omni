@@ -1405,6 +1405,7 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 			tbl := relationToTableProto(cat, rel.To)
 			if prevPart != nil {
 				tbl.Comment = prevPart.Comment
+				tbl.Partitions = prevPart.Subpartitions
 				preserveIndexMetadata(tbl.Indexes, prevPart.Indexes)
 				preserveConstraintComments(tbl, &metadatapb.TableMetadata{CheckConstraints: prevPart.CheckConstraints})
 			}
@@ -1415,15 +1416,18 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 			var prevComment string
 			var prevIndexes []*metadatapb.IndexMetadata
 			var prevChecks []*metadatapb.CheckConstraintMetadata
+			var prevSubpartitions []*metadatapb.TablePartitionMetadata
 			if prevTbl, remaining := popTableByName(sm.Tables, rel.Name); prevTbl != nil {
 				sm.Tables = remaining
 				prevComment = prevTbl.Comment
 				prevIndexes = prevTbl.Indexes
 				prevChecks = prevTbl.CheckConstraints
+				prevSubpartitions = prevTbl.Partitions
 			} else if prevPart := popPartitionInSchema(result, sm.Name, rel.Name); prevPart != nil {
 				prevComment = prevPart.Comment
 				prevIndexes = prevPart.Indexes
 				prevChecks = prevPart.CheckConstraints
+				prevSubpartitions = prevPart.Subpartitions
 			}
 			parentRel := cat.GetRelationByOID(rel.To.PartitionOf)
 			parentSchemaName := rel.SchemaName
@@ -1433,6 +1437,9 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 			part := relationToPartitionProto(cat, rel.To, parentRel, parentSchemaName)
 			if prevComment != "" {
 				part.Comment = prevComment
+			}
+			if len(prevSubpartitions) > 0 {
+				part.Subpartitions = prevSubpartitions
 			}
 			preserveIndexMetadata(part.Indexes, prevIndexes)
 			preserveConstraintComments(&metadatapb.TableMetadata{CheckConstraints: part.CheckConstraints}, &metadatapb.TableMetadata{CheckConstraints: prevChecks})
@@ -1455,7 +1462,9 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
 		applyTriggerDiffs(&tbl.Triggers, cat, rel)
 		applyRuleDiffs(&tbl.Rules, cat, rel)
-		if (rel.From != nil && rel.From.OwnerName != rel.To.OwnerName) || (rel.To.OwnerName != "" && tbl.Owner != rel.To.OwnerName) {
+		if (rel.From != nil && rel.From.OwnerName != rel.To.OwnerName) ||
+			(rel.To.OwnerExplicit && tbl.Owner != rel.To.OwnerName) ||
+			(rel.To.OwnerName != "" && rel.To.OwnerName != "postgres" && tbl.Owner != rel.To.OwnerName) {
 			tbl.Owner = rel.To.OwnerName
 		}
 	case 'v':
@@ -2840,9 +2849,13 @@ func wtIsSystemSchema(s string) bool {
 
 // relationToTableProto converts an omni Relation to a metadatapb.TableMetadata.
 func relationToTableProto(c *Catalog, rel *Relation) *metadatapb.TableMetadata {
+	owner := ""
+	if rel.OwnerExplicit || (rel.OwnerName != "" && rel.OwnerName != "postgres") {
+		owner = rel.OwnerName
+	}
 	table := &metadatapb.TableMetadata{
 		Name:  rel.Name,
-		Owner: rel.OwnerName,
+		Owner: owner,
 	}
 
 	for _, col := range rel.Columns {

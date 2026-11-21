@@ -179,7 +179,11 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				rowsSet = true
 			case "set":
 				if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
-					setConfig = c.applyFuncSetConfig(setConfig, vs)
+					nextSet, err := c.applyFuncSetConfig(setConfig, vs)
+					if err != nil {
+						return err
+					}
+					setConfig = nextSet
 				}
 			case "support":
 				if isProcedure {
@@ -1299,7 +1303,11 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 			case "set":
 				if up != nil {
 					if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
-						nextSetConfig = c.applyFuncSetConfig(nextSetConfig, vs)
+						nextSet, err := c.applyFuncSetConfig(nextSetConfig, vs)
+						if err != nil {
+							return err
+						}
+						nextSetConfig = nextSet
 					}
 				}
 			case "support":
@@ -1379,16 +1387,16 @@ func defElemNumeric(d *nodes.DefElem) (string, float64, bool) {
 	return extract(d.Arg)
 }
 
-func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) []string {
+func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStmt) ([]string, error) {
 	if vs == nil {
-		return existing
+		return existing, nil
 	}
 	if vs.Kind == nodes.VAR_RESET_ALL {
-		return nil
+		return nil, nil
 	}
 	key := strings.ToLower(vs.Name)
 	if key == "" {
-		return existing
+		return existing, nil
 	}
 	removeVar := func(items []string) []string {
 		out := make([]string, 0, len(items))
@@ -1403,20 +1411,24 @@ func (c *Catalog) applyFuncSetConfig(existing []string, vs *nodes.VariableSetStm
 	out := removeVar(existing)
 	switch vs.Kind {
 	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
-		return out
+		return out, nil
 	case nodes.VAR_SET_CURRENT:
-		if resolved, ok := c.resolveCurrentSettingValue(key); ok {
-			return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), resolved))
+		resolved, ok := c.resolveCurrentSettingValue(key)
+		if !ok {
+			return nil, &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: fmt.Sprintf("untracked configuration parameter %q in SET ... FROM CURRENT", vs.Name),
+			}
 		}
-		return append(out, fmt.Sprintf("SET %s FROM CURRENT", quoteIdentAlways(vs.Name)))
+		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), resolved)), nil
 	case nodes.VAR_SET_VALUE:
 		val := formatFuncSetArgs(vs.Args)
 		if val == "" {
-			return out
+			return out, nil
 		}
-		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), val))
+		return append(out, fmt.Sprintf("SET %s = %s", quoteIdentAlways(vs.Name), val)), nil
 	default:
-		return out
+		return out, nil
 	}
 }
 

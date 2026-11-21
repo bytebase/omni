@@ -114,6 +114,8 @@ func commentObjectTarget(c *Catalog, entry CommentDiffEntry) string {
 			return fmt.Sprintf("VIEW %s", targetRelName)
 		case 'm':
 			return fmt.Sprintf("MATERIALIZED VIEW %s", targetRelName)
+		case 'f':
+			return fmt.Sprintf("FOREIGN TABLE %s", targetRelName)
 		default:
 			return fmt.Sprintf("TABLE %s", targetRelName)
 		}

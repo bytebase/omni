@@ -102,6 +102,7 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	if err := releaseCompositeBeforeTableDrop(plan, oldMeta, newMeta, restored, releasedRoutines, sourceSearchPath, targetSearchPath); err != nil {
 		return "", err
 	}
+	restoreRebuiltMatViewIndexes(plan, newMeta)
 	restoreRecreatedViewComments(plan, newMeta)
 	appendUnloadedCommentOps(plan, extraComments)
 	plan.Ops = append(plan.Ops, extraDatabaseOps...)
@@ -1588,6 +1589,79 @@ func restoreIndexDefinitions(plan *MigrationPlan, meta *metadatapb.DatabaseSchem
 			continue
 		}
 		plan.Ops[i].SQL = strings.TrimRight(strings.TrimSpace(index.GetDefinition()), ";")
+	}
+}
+
+func restoreRebuiltMatViewIndexes(plan *MigrationPlan, meta *metadatapb.DatabaseSchemaMetadata) {
+	existingIndexes := make(map[string]bool)
+	commentedTargets := make(map[string]bool)
+	for _, op := range plan.Ops {
+		switch op.Type {
+		case OpCreateIndex:
+			ownerSchema, ownerObject := indexOwnerFromSQL(op.SQL)
+			if ownerSchema != "" && ownerObject != "" {
+				existingIndexes[objectKey(ownerSchema, ownerObject)+"\x00"+op.ObjectName] = true
+			} else if op.SchemaName != "" && op.ObjectName != "" {
+				existingIndexes[op.SchemaName+"\x00"+op.ObjectName] = true
+			}
+		case OpComment:
+			if target, _, ok := strings.Cut(op.SQL, " IS "); ok {
+				commentedTargets[target] = true
+			}
+		default:
+		}
+	}
+
+	for _, schema := range meta.GetSchemas() {
+		schemaName := schema.GetName()
+		for _, mv := range schema.GetMaterializedViews() {
+			mvKey := objectKey(schemaName, mv.GetName())
+			createIdx := findCreateOp(plan.Ops, mvKey)
+			if createIdx < 0 {
+				continue
+			}
+			insertAt := createIdx + 1
+			for _, idx := range mv.GetIndexes() {
+				if idx.GetDefinition() == "" {
+					continue
+				}
+				ownerKey := mvKey + "\x00" + idx.GetName()
+				schemaKey := schemaName + "\x00" + idx.GetName()
+				if !existingIndexes[ownerKey] && !existingIndexes[schemaKey] {
+					existingIndexes[ownerKey] = true
+					existingIndexes[schemaKey] = true
+					plan.Ops = slices.Insert(plan.Ops, insertAt, MigrationOp{
+						Type:          OpCreateIndex,
+						SchemaName:    schemaName,
+						ObjectName:    idx.GetName(),
+						SQL:           trimDefinition(idx.GetDefinition()),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'i',
+						Priority:      PriorityIndex,
+					})
+					insertAt++
+				}
+				if idx.GetComment() != "" {
+					commentSQL := fmt.Sprintf("COMMENT ON INDEX %s IS %s", quoteQualified(schemaName, idx.GetName()), quoteLiteral(idx.GetComment()))
+					commentTarget, _, _ := strings.Cut(commentSQL, " IS ")
+					if !commentedTargets[commentTarget] {
+						commentedTargets[commentTarget] = true
+						plan.Ops = slices.Insert(plan.Ops, insertAt, MigrationOp{
+							Type:          OpComment,
+							SchemaName:    schemaName,
+							ObjectName:    objectKey(schemaName, idx.GetName()),
+							SQL:           commentSQL,
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'i',
+							Priority:      PriorityMetadata,
+						})
+						insertAt++
+					}
+				}
+			}
+		}
 	}
 }
 
