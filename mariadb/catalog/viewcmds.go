@@ -91,6 +91,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
+		SelectAST:       stmt.Select,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
@@ -296,6 +297,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		Columns:         viewCols,
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
+		SelectAST:       stmt.Select,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
