@@ -50,6 +50,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	opts := buildSessionOptions(ctx, cfg)
 	raw := Complete(sql, pos, nil, opts...)
 	caretInQuotes := CaretInsideDoubleQuotes(sql, pos)
+	inFuncCall := isOracleFunctionCallContext(sql, pos)
 
 	type candKey struct {
 		typ        CandidateType
@@ -60,7 +61,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	for _, c := range raw {
 		candidate := Candidate{
 			Type:       c.Type,
-			Text:       formatSessionCandidateText(c, caretInQuotes),
+			Text:       formatSessionCandidateText(c, caretInQuotes, inFuncCall),
 			Definition: c.Definition,
 			Comment:    c.Comment,
 		}
@@ -172,7 +173,7 @@ var oracleBuiltinDataTypeSet = func() map[string]struct{} {
 	return set
 }()
 
-func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
+func formatSessionCandidateText(c Candidate, caretInQuotes, inFuncCall bool) string {
 	switch c.Type {
 	case CandidateKeyword:
 		return c.Text
@@ -188,6 +189,9 @@ func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 		if caretInQuotes {
 			return QuoteIdentifierIfNeeded(name, true)
 		}
+		if !inFuncCall {
+			return QuoteIdentifierIfNeeded(name, false)
+		}
 		if !oracleBuiltinFunctionKeywords[strings.ToUpper(name)] {
 			name = QuoteIdentifierIfNeeded(name, false)
 		}
@@ -195,6 +199,58 @@ func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)
 	}
+}
+
+// isOracleFunctionCallContext reports whether a function candidate at pos
+// should receive a trailing "()" call suffix (false in DDL/DCL object-reference
+// contexts like DROP/ALTER FUNCTION or GRANT/REVOKE ... ON, or when an opening
+// parenthesis already follows the caret).
+func isOracleFunctionCallContext(sql string, pos int) bool {
+	pos = max(0, min(pos, len(sql)))
+	if hasFollowingOpenParen(sql, pos) {
+		return false
+	}
+	collectOffset := pos
+	for collectOffset > 0 && isOracleIdentByte(sql[collectOffset-1]) {
+		collectOffset--
+	}
+	tokens := parser.Tokenize(sql[:collectOffset])
+	start := currentStatementStartTokenIndex(tokens, collectOffset)
+	if start >= len(tokens) {
+		return true
+	}
+	stmtToks := tokens[start:]
+	firstKw := strings.ToUpper(parser.TokenName(stmtToks[0].Type))
+	if firstKw == "GRANT" || firstKw == "REVOKE" || firstKw == "COMMENT" {
+		for _, tok := range stmtToks[1:] {
+			if strings.EqualFold(parser.TokenName(tok.Type), "ON") {
+				return false
+			}
+		}
+	}
+	// Walk back past optional qualifier chain ("schema.") before the caret.
+	idx := len(stmtToks) - 1
+	for idx >= 1 && stmtToks[idx].Type == '.' {
+		idx -= 2
+	}
+	if idx >= 1 && strings.EqualFold(parser.TokenName(stmtToks[idx].Type), "FUNCTION") {
+		prev := strings.ToUpper(parser.TokenName(stmtToks[idx-1].Type))
+		if prev == "DROP" || prev == "ALTER" || prev == "CREATE" || prev == "REPLACE" {
+			return false
+		}
+	}
+	return true
+}
+
+func hasFollowingOpenParen(sql string, pos int) bool {
+	i := pos
+	for i < len(sql) && isOracleIdentByte(sql[i]) {
+		i++
+	}
+	for i < len(sql) && (sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r') {
+		i++
+	}
+	return i < len(sql) && sql[i] == '('
 }
 
 func compareSessionCandidates(a, b Candidate) int {

@@ -227,10 +227,11 @@ func TestCompleteSession_StatementIsolationAndTrailingBrokenSQL(t *testing.T) {
 	gotFinalSemi := CompleteSession(context.Background(), cfg, stmtFinalSemi, lineFS, colFS)
 	require.True(t, hasSessionCandidate(gotFinalSemi, "SELECT", CandidateKeyword), "got %v", gotFinalSemi)
 
-	// Quoted user-defined functions are quoted before appending "()".
-	require.Equal(t, `"CalculateTotal"()`, formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, false))
-	require.Equal(t, "CalculateTotal", formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, true))
-	require.Equal(t, "my_func()", formatSessionCandidateText(Candidate{Text: "my_func", Type: CandidateFunction}, false))
+	// Quoted user-defined functions are quoted before appending "()", and omit "()" in DDL contexts.
+	require.Equal(t, `"CalculateTotal"()`, formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, false, true))
+	require.Equal(t, `"CalculateTotal"`, formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, false, false))
+	require.Equal(t, "CalculateTotal", formatSessionCandidateText(Candidate{Text: "CalculateTotal", Type: CandidateFunction}, true, true))
+	require.Equal(t, "my_func()", formatSessionCandidateText(Candidate{Text: "my_func", Type: CandidateFunction}, false, true))
 
 	// UTF-16 caret after emoji resolves columns accurately.
 	stmtEmoji, lineE, colE := catchCaretUTF16(t, "SELECT '😀', | FROM orders")
@@ -270,5 +271,14 @@ func TestCompleteSession_NilOrFailedMetadata(t *testing.T) {
 				CandidateMaterializedView, CandidateColumn, CandidateSequence,
 			}, c.Type)
 		}
+
+		// Statement-local scopes (CTEs and alias columns) remain available without metadata.
+		stmtCTE, lineC, colC := catchCaretUTF16(t, "WITH c(x) AS (SELECT 1) SELECT | FROM c")
+		gotCTE := CompleteSession(context.Background(), cfg, stmtCTE, lineC, colC)
+		require.True(t, hasSessionCandidate(gotCTE, "x", CandidateColumn), "got %v", gotCTE)
+
+		stmtCTERel, lineR, colR := catchCaretUTF16(t, "WITH c(x) AS (SELECT 1) SELECT * FROM |")
+		gotCTERel := CompleteSession(context.Background(), cfg, stmtCTERel, lineR, colR)
+		require.True(t, hasSessionCandidate(gotCTERel, "c", CandidateTable), "got %v", gotCTERel)
 	}
 }

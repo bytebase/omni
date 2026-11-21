@@ -250,7 +250,24 @@ func TestCompleteSession_QuotingAndFunctions(t *testing.T) {
 	require.True(t, hasSessionCandidate(gotFInQ, "CalculateTotal", CandidateFunction), "got %v", gotFInQ)
 
 	// Built-in keyword functions remain unquoted.
-	require.Equal(t, "CAST()", formatSessionCandidateText(Candidate{Text: "CAST", Type: CandidateFunction}, false))
+	require.Equal(t, "CAST()", formatSessionCandidateText(Candidate{Text: "CAST", Type: CandidateFunction}, false, true))
+
+	// DDL/DCL object-reference contexts omit "()" on function names.
+	stmtDropFn, lineDF, colDF := catchCaretUTF16(t, "DROP FUNCTION |")
+	gotDropFn := CompleteSession(context.Background(), cfg, stmtDropFn, lineDF, colDF)
+	require.True(t, hasSessionCandidate(gotDropFn, "GET_TOTAL", CandidateFunction), "got %v", gotDropFn)
+	require.False(t, hasSessionCandidate(gotDropFn, "GET_TOTAL()", CandidateFunction), "got %v", gotDropFn)
+	require.True(t, hasSessionCandidate(gotDropFn, `"CalculateTotal"`, CandidateFunction), "got %v", gotDropFn)
+
+	stmtGrantFn, lineGF, colGF := catchCaretUTF16(t, "GRANT EXECUTE ON |")
+	gotGrantFn := CompleteSession(context.Background(), cfg, stmtGrantFn, lineGF, colGF)
+	require.True(t, hasSessionCandidate(gotGrantFn, "GET_TOTAL", CandidateFunction), "got %v", gotGrantFn)
+	require.False(t, hasSessionCandidate(gotGrantFn, "GET_TOTAL()", CandidateFunction), "got %v", gotGrantFn)
+
+	stmtGrantQual, lineGQ, colGQ := catchCaretUTF16(t, "GRANT EXECUTE ON SCHEMA1.|")
+	gotGrantQual := CompleteSession(context.Background(), cfg, stmtGrantQual, lineGQ, colGQ)
+	require.True(t, hasSessionCandidate(gotGrantQual, "GET_TOTAL", CandidateFunction), "got %v", gotGrantQual)
+	require.False(t, hasSessionCandidate(gotGrantQual, "GET_TOTAL()", CandidateFunction), "got %v", gotGrantQual)
 
 	// Metadata-backed composite types are quoted when needed, while built-in data types stay unquoted.
 	stmtType, lineT, colT := catchCaretUTF16(t, "DROP TYPE |")

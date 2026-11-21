@@ -246,5 +246,14 @@ func TestCompleteSession_NilOrFailedMetadata(t *testing.T) {
 				CandidateMaterializedView, CandidateColumn, CandidateSequence,
 			}, c.Type)
 		}
+
+		// Statement-local scopes (CTEs and alias columns) remain available without metadata.
+		stmtCTE, lineC, colC := catchCaretUTF16(t, "WITH c(x) AS (SELECT 1) SELECT | FROM c")
+		gotCTE := CompleteSession(context.Background(), cfg, stmtCTE, lineC, colC)
+		require.True(t, hasSessionCandidate(gotCTE, "x", CandidateColumn), "got %v", gotCTE)
+
+		stmtCTERel, lineR, colR := catchCaretUTF16(t, "WITH c(x) AS (SELECT 1) SELECT * FROM |")
+		gotCTERel := CompleteSession(context.Background(), cfg, stmtCTERel, lineR, colR)
+		require.True(t, hasSessionCandidate(gotCTERel, "c", CandidateTable), "got %v", gotCTERel)
 	}
 }

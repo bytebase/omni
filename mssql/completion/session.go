@@ -34,6 +34,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 
 	cat := buildSessionCatalog(ctx, cfg, stmt)
 	quoteDelim := caretQuoteDelimiter(stmt, pos)
+	inFuncCall := isMSSQLFunctionCallContext(stmt, pos)
 	raw := Complete(stmt, pos, cat)
 
 	type candKey struct {
@@ -45,7 +46,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	for _, c := range raw {
 		candidate := Candidate{
 			Type:       c.Type,
-			Text:       formatSessionCandidateText(c, quoteDelim),
+			Text:       formatSessionCandidateText(c, quoteDelim, inFuncCall),
 			Definition: c.Definition,
 			Comment:    c.Comment,
 		}
@@ -228,7 +229,7 @@ var niladicBuiltinFunctions = map[string]bool{
 	"USER":              true,
 }
 
-func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
+func formatSessionCandidateText(c Candidate, quoteDelim byte, inFuncCall bool) string {
 	switch {
 	case c.Type == CandidateKeyword || c.Type == CandidateType_:
 		return c.Text
@@ -236,6 +237,9 @@ func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
 		name := strings.TrimSuffix(c.Text, "()")
 		if quoteDelim != 0 {
 			return formatQuotedIdentifier(name, quoteDelim)
+		}
+		if !inFuncCall {
+			return formatQuotedIdentifier(name, 0)
 		}
 		if niladicBuiltinFunctions[strings.ToUpper(name)] {
 			return name
@@ -251,13 +255,62 @@ func formatSessionCandidateText(c Candidate, quoteDelim byte) string {
 	}
 }
 
+// isMSSQLFunctionCallContext reports whether a function candidate at pos
+// should receive a trailing "()" call suffix (false in DDL/DCL object-reference
+// contexts like DROP/ALTER FUNCTION or GRANT/REVOKE/DENY ... ON, or when an
+// opening parenthesis already follows the caret).
+func isMSSQLFunctionCallContext(sql string, pos int) bool {
+	pos = max(0, min(pos, len(sql)))
+	if hasFollowingOpenParen(sql, pos) {
+		return false
+	}
+	prefix := extractPrefix(sql, pos)
+	collectOffset := pos - len(prefix)
+	tokens := parser.Tokenize(sql[:collectOffset])
+	if len(tokens) == 0 {
+		return true
+	}
+	firstKw := strings.ToUpper(parser.TokenName(tokens[0].Type))
+	switch firstKw {
+	case "DROP", "ALTER":
+		if len(tokens) >= 2 && strings.EqualFold(parser.TokenName(tokens[1].Type), "FUNCTION") {
+			return false
+		}
+	case "GRANT", "REVOKE", "DENY":
+		for _, tok := range tokens[1:] {
+			if strings.EqualFold(parser.TokenName(tok.Type), "ON") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func hasFollowingOpenParen(sql string, pos int) bool {
+	i := pos
+	for i < len(sql) {
+		c := sql[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
+			i++
+			continue
+		}
+		break
+	}
+	for i < len(sql) && (sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r') {
+		i++
+	}
+	return i < len(sql) && sql[i] == '('
+}
+
 func isRegularIdentifier(identifier string) bool {
 	if identifier == "" || !utf8.ValidString(identifier) {
 		return false
 	}
 
 	first, size := utf8.DecodeRuneInString(identifier)
-	if !unicode.IsLetter(first) && first != '_' && first != '@' && first != '#' {
+	// A leading '@' is lexed as a T-SQL local variable rather than an object
+	// identifier, so metadata names starting with '@' must be delimited.
+	if !unicode.IsLetter(first) && first != '_' && first != '#' {
 		return false
 	}
 	for _, r := range identifier[size:] {

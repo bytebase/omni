@@ -36,6 +36,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	bytePos := LineOffsetToBytePos(statement, caretLine, caretOffset)
 	stmt, pos := statementAtCaret(statement, bytePos)
 	caretInQuotes := CaretInsideDoubleQuotes(stmt, pos)
+	inFuncCall := isPGFunctionCallContext(stmt, pos)
 	raw := Complete(stmt, pos, cat)
 
 	type candKey struct {
@@ -47,7 +48,7 @@ func CompleteSession(ctx context.Context, cfg SessionConfig, statement string, c
 	result := make([]Candidate, 0, len(raw))
 	for _, c := range raw {
 		candidate := Candidate{
-			Text:       formatSessionCandidateText(c, caretInQuotes),
+			Text:       formatSessionCandidateText(c, caretInQuotes, inFuncCall),
 			Type:       c.Type,
 			Definition: c.Definition,
 			Comment:    c.Comment,
@@ -172,20 +173,58 @@ func buildSessionCatalog(ctx context.Context, cfg SessionConfig) *catalog.Catalo
 	return cat
 }
 
-func formatSessionCandidateText(c Candidate, caretInQuotes bool) string {
+func formatSessionCandidateText(c Candidate, caretInQuotes, inFuncCall bool) string {
 	switch c.Type {
 	case CandidateKeyword, CandidateType_:
 		return c.Text
 	case CandidateFunction:
 		name := strings.TrimSuffix(c.Text, "()")
 		quoted := QuoteIdentifierIfNeeded(name, caretInQuotes)
-		if caretInQuotes {
+		if caretInQuotes || !inFuncCall {
 			return quoted
 		}
 		return quoted + "()"
 	default:
 		return QuoteIdentifierIfNeeded(c.Text, caretInQuotes)
 	}
+}
+
+func isPGFunctionCallContext(sql string, pos int) bool {
+	pos = max(0, min(pos, len(sql)))
+	if hasFollowingOpenParen(sql, pos) {
+		return false
+	}
+	prefix := extractPrefix(sql, pos)
+	collectOffset := pos - len(prefix)
+	tokens := parser.Tokenize(sql[:collectOffset])
+	if len(tokens) == 0 {
+		return true
+	}
+	firstKw := strings.ToUpper(parser.TokenName(tokens[0].Type))
+	switch firstKw {
+	case "DROP", "ALTER":
+		if len(tokens) >= 2 && strings.EqualFold(parser.TokenName(tokens[1].Type), "FUNCTION") {
+			return false
+		}
+	case "GRANT", "REVOKE", "COMMENT":
+		for _, tok := range tokens[1:] {
+			if strings.EqualFold(parser.TokenName(tok.Type), "ON") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func hasFollowingOpenParen(sql string, pos int) bool {
+	i := pos
+	for i < len(sql) && isPGIdentCont(sql[i]) {
+		i++
+	}
+	for i < len(sql) && (sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r') {
+		i++
+	}
+	return i < len(sql) && sql[i] == '('
 }
 
 func quoteIdent(name string) string {
