@@ -210,7 +210,14 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 	}
 	b.WriteString(" EXECUTE FUNCTION ")
 	b.WriteString(quoteIdentAlways(funcName))
-	b.WriteString("()")
+	b.WriteString("(")
+	for i, arg := range trig.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(quoteLiteral(arg))
+	}
+	b.WriteString(")")
 
 	return MigrationOp{
 		Type:          OpCreateTrigger,

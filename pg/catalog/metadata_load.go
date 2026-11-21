@@ -1059,6 +1059,17 @@ func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) 
 		if col.GetCollation() != "" {
 			def.CollClause = &nodes.CollateClause{Collname: metadataNameList(col.GetCollationSchema(), unquoteIdent(col.GetCollation()))}
 		}
+		if opts := col.GetOptions(); len(opts) > 0 {
+			fdwItems := make([]nodes.Node, 0, len(opts))
+			for _, opt := range opts {
+				if k, v, ok := strings.Cut(opt, "="); ok {
+					fdwItems = append(fdwItems, &nodes.DefElem{Defname: k, Arg: &nodes.String{Str: v}})
+				}
+			}
+			if len(fdwItems) > 0 {
+				def.Fdwoptions = &nodes.List{Items: fdwItems}
+			}
+		}
 		if full {
 			setColumnValueProperties(schema, def, col, o.ownedSequences[col.GetName()])
 		}

@@ -122,7 +122,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 
 	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
 
-	applyEventTriggerDiffs(result, catAfter, diff.EventTriggers)
+	applyEventTriggerDiffs(result, catBefore, catAfter, diff.EventTriggers)
 	applyForeignDataWrapperDiffs(result, diff.ForeignDataWrappers)
 	applyForeignServerDiffs(result, diff.ForeignServers)
 	applyExtensionDiffs(result, catBefore, catAfter, diff.Extensions, canonicalSchema)
@@ -941,7 +941,7 @@ func upsertRangeType(sm *metadatapb.SchemaMetadata, updated *metadatapb.RangeTyp
 	sm.RangeTypes = append(sm.RangeTypes, updated)
 }
 
-func applyEventTriggerDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, entries []EventTriggerDiffEntry) {
+func applyEventTriggerDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, entries []EventTriggerDiffEntry) {
 	if len(entries) == 0 {
 		return
 	}
@@ -964,7 +964,7 @@ func applyEventTriggerDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter 
 		}
 		var prev *metadatapb.EventTriggerMetadata
 		prev, result.EventTriggers = popEventTriggerByName(result.EventTriggers, e.Name)
-		upsertEventTrigger(result, eventTriggerToProto(catAfter, add.To, prev))
+		upsertEventTrigger(result, eventTriggerToProto(catBefore, catAfter, e.From, add.To, prev))
 		handledDropOIDs[e.From.OID] = true
 		handledAddOIDs[add.To.OID] = true
 	}
@@ -983,32 +983,40 @@ func applyEventTriggerDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter 
 			if e.To == nil {
 				continue
 			}
-			upsertEventTrigger(result, eventTriggerToProto(catAfter, e.To, findEventTrigger(result, e.Name)))
+			upsertEventTrigger(result, eventTriggerToProto(catBefore, catAfter, e.From, e.To, findEventTrigger(result, e.Name)))
 		default:
 		}
 	}
 }
 
-func eventTriggerToProto(cat *Catalog, evt *EventTrigger, previous *metadatapb.EventTriggerMetadata) *metadatapb.EventTriggerMetadata {
+func eventTriggerToProto(catBefore, catAfter *Catalog, fromEvt, toEvt *EventTrigger, previous *metadatapb.EventTriggerMetadata) *metadatapb.EventTriggerMetadata {
 	out := &metadatapb.EventTriggerMetadata{
-		Name:    evt.Name,
-		Event:   evt.EventName,
-		Tags:    slices.Clone(evt.Tags),
-		Enabled: evt.Enabled != 'D',
+		Name:    toEvt.Name,
+		Event:   toEvt.EventName,
+		Tags:    slices.Clone(toEvt.Tags),
+		Enabled: toEvt.Enabled != 'D',
 	}
-	if cat != nil {
-		if up := cat.userProcs[evt.FuncOID]; up != nil {
+	if catAfter != nil {
+		if up := catAfter.userProcs[toEvt.FuncOID]; up != nil {
 			if up.Schema != nil {
 				out.FunctionSchema = up.Schema.Name
 			}
 			out.FunctionName = up.Name
-		} else if p := cat.procByOID[evt.FuncOID]; p != nil {
+		} else if p := catAfter.procByOID[toEvt.FuncOID]; p != nil {
 			out.FunctionName = p.Name
 		}
 	}
 	if previous != nil {
 		out.Comment = previous.Comment
 		out.SkipDump = previous.SkipDump
+		if previous.Definition != "" && fromEvt != nil && fromEvt.Name == toEvt.Name && !structuralEventTriggerChange(catBefore, catAfter, fromEvt, toEvt) {
+			out.Definition = previous.Definition
+		}
+	}
+	if out.Definition == "" && catAfter != nil {
+		if ops := buildCreateEventTriggerOps(catAfter, toEvt); len(ops) > 0 {
+			out.Definition = ops[0].SQL
+		}
 	}
 	return out
 }
@@ -1837,7 +1845,9 @@ func mergeColumnProto(cat *Catalog, existing *metadatapb.ColumnMetadata, fromCol
 	updated := columnToProto(cat, toCol)
 	updated.Comment = existing.Comment
 	updated.CharacterSet = existing.CharacterSet
-	updated.Options = existing.Options
+	if len(toCol.ForeignOptions) == 0 && (fromCol == nil || len(fromCol.ForeignOptions) == 0) && len(existing.Options) > 0 {
+		updated.Options = slices.Clone(existing.Options)
+	}
 	if fromCol != nil &&
 		fromCol.CollationName == toCol.CollationName &&
 		columnCollationProtoSchema(cat, fromCol) == columnCollationProtoSchema(cat, toCol) {
@@ -1881,7 +1891,7 @@ func preserveColumnMetadata(dst, src []*metadatapb.ColumnMetadata, fromRel, toRe
 					if col.CharacterSet == "" {
 						col.CharacterSet = existing.CharacterSet
 					}
-					if len(col.Options) == 0 {
+					if len(col.Options) == 0 && len(fc.ForeignOptions) == 0 && len(tc.ForeignOptions) == 0 {
 						col.Options = existing.Options
 					}
 					if fc.CollationName == tc.CollationName {
@@ -2073,6 +2083,7 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 		Type:     cat.FormatType(col.TypeOID, col.TypeMod),
 		Nullable: !col.NotNull,
 		Default:  col.Default,
+		Options:  slices.Clone(col.ForeignOptions),
 	}
 	if col.CollationName != "" {
 		cm.Collation = col.CollationName

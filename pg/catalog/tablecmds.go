@@ -508,6 +508,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			CollationSchema:  collSchema,
 			CollationName:    cd.CollationName,
 			UserCollationOID: colUserCollOIDs[i],
+			ForeignOptions:   slices.Clone(cd.ForeignOptions),
 		}
 	}
 
@@ -1246,6 +1247,13 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	// Handle generated column (ColumnDef.Generated field).
 	if cd.Generated == 's' {
 		result.Generated = 's'
+	}
+	if cd.Fdwoptions != nil && len(cd.Fdwoptions.Items) > 0 {
+		fdwOpts, err := applyForeignOptionChanges(nil, cd.Fdwoptions, c.snapshot)
+		if err != nil {
+			return ColumnDef{}, nil, err
+		}
+		result.ForeignOptions = fdwOpts
 	}
 
 	// Process inline column constraints.

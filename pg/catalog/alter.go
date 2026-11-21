@@ -1159,8 +1159,16 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if rel.RelKind != 'f' {
 			return errWrongObjectType(relName, "a foreign table")
 		}
-		if _, exists := rel.colByName[atc.Name]; !exists {
+		idx, exists := rel.colByName[atc.Name]
+		if !exists {
 			return errUndefinedColumn(atc.Name)
+		}
+		if opts, ok := atc.Def.(*nodes.List); ok && opts != nil {
+			updated, err := applyForeignOptionChanges(rel.Columns[idx].ForeignOptions, opts, c.snapshot)
+			if err != nil {
+				return err
+			}
+			rel.Columns[idx].ForeignOptions = updated
 		}
 		return nil
 
@@ -2118,6 +2126,7 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		CollationSchema:  collSchema,
 		CollationName:    colDef.CollationName,
 		UserCollationOID: userCollOID,
+		ForeignOptions:   slices.Clone(colDef.ForeignOptions),
 	}
 	if colDef.Default != "" || colDef.RawDefault != nil {
 		col.HasDefault = true

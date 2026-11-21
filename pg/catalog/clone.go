@@ -115,6 +115,7 @@ func (c *Catalog) Clone() *Catalog {
 			cr.Columns = make([]*Column, len(r.Columns))
 			for i, col := range r.Columns {
 				cc := *col
+				cc.ForeignOptions = slices.Clone(col.ForeignOptions)
 				cr.Columns[i] = &cc
 			}
 		}

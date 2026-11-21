@@ -2218,4 +2218,91 @@ func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
 		require.Len(t, pub.ExternalTables, 1)
 		require.Equal(t, "srv_two", pub.ExternalTables[0].ExternalServerName)
 	})
+
+	// 5. Explicit empty server VERSION ''/TYPE '', cascading DROP SERVER, and foreign column OPTIONS.
+	t.Run("server_empty_version_cascade_and_foreign_column_options", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "et_fn",
+					Signature:  "et_fn()",
+					Definition: "CREATE FUNCTION public.et_fn() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END; $$",
+				}},
+			}},
+			EventTriggers: []*metadatapb.EventTriggerMetadata{{
+				Name:           "et_keep_def",
+				Event:          "ddl_command_end",
+				FunctionSchema: "public",
+				FunctionName:   "et_fn",
+				Enabled:        true,
+				Definition:     "CREATE EVENT TRIGGER et_keep_def ON ddl_command_end EXECUTE FUNCTION public.et_fn()",
+			}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+		_, err = catBefore.Exec(`
+			CREATE EVENT TRIGGER et_keep_def ON ddl_command_end EXECUTE FUNCTION public.et_fn();
+			CREATE SERVER s_drop FOREIGN DATA WRAPPER pg_fdw;
+			CREATE FOREIGN TABLE public.ft_drop (id integer OPTIONS (column_name 'id')) SERVER s_drop;
+			CREATE VIEW public.v_drop AS SELECT id FROM public.ft_drop;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		meta.Schemas[0].ExternalTables = []*metadatapb.ExternalTableMetadata{{
+			Name:               "ft_drop",
+			ExternalServerName: "s_drop",
+			Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1, Options: []string{"column_name=id"}}},
+		}}
+		meta.Schemas[0].Views = []*metadatapb.ViewMetadata{{
+			Name:       "v_drop",
+			Definition: "SELECT id FROM public.ft_drop",
+		}}
+		meta.ForeignServers = []*metadatapb.ForeignServerMetadata{{Name: "s_drop", Fdw: "pg_fdw"}}
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			ALTER EVENT TRIGGER et_keep_def DISABLE;
+			CREATE EVENT TRIGGER et_added ON sql_drop EXECUTE FUNCTION public.et_fn();
+			CREATE SERVER s_empty TYPE '' VERSION '' FOREIGN DATA WRAPPER pg_fdw;
+			DROP SERVER s_drop CASCADE;
+			CREATE FOREIGN TABLE public.ft_keep (id integer OPTIONS (column_name 'orig')) SERVER s_empty;
+			ALTER FOREIGN TABLE public.ft_keep ALTER COLUMN id OPTIONS (SET column_name 'updated', ADD schema_name 'ext');
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		var keepEt, addedEt *metadatapb.EventTriggerMetadata
+		for _, et := range got.EventTriggers {
+			switch et.Name {
+			case "et_keep_def":
+				keepEt = et
+			case "et_added":
+				addedEt = et
+			}
+		}
+		require.NotNil(t, keepEt)
+		require.False(t, keepEt.Enabled)
+		require.Equal(t, "CREATE EVENT TRIGGER et_keep_def ON ddl_command_end EXECUTE FUNCTION public.et_fn()", keepEt.Definition)
+		require.NotNil(t, addedEt)
+		require.Contains(t, addedEt.Definition, `CREATE EVENT TRIGGER "et_added" ON "sql_drop"`)
+
+		require.Len(t, got.ForeignServers, 1)
+		srvEmpty := got.ForeignServers[0]
+		require.Equal(t, "s_empty", srvEmpty.Name)
+		require.NotNil(t, srvEmpty.Type)
+		require.Equal(t, "", *srvEmpty.Type)
+		require.NotNil(t, srvEmpty.Version)
+		require.Equal(t, "", *srvEmpty.Version)
+
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Empty(t, pub.Views, "view depending on dropped server's foreign table must be cascaded")
+		require.Len(t, pub.ExternalTables, 1)
+		require.Equal(t, "ft_keep", pub.ExternalTables[0].Name)
+		require.Equal(t, []string{"column_name=updated", "schema_name=ext"}, pub.ExternalTables[0].Columns[0].Options)
+	})
 }

@@ -210,11 +210,11 @@ func (c *Catalog) CreateForeignServerStmt(stmt *nodes.CreateForeignServerStmt) e
 		FdwName:   stmt.Fdwname,
 		Options:   opts,
 	}
-	if stmt.Servertype != "" {
+	if stmt.HasServertype || stmt.Servertype != "" {
 		t := stmt.Servertype
 		srv.Type = &t
 	}
-	if stmt.Version != "" {
+	if stmt.HasVersion || stmt.Version != "" {
 		v := stmt.Version
 		srv.Version = &v
 	}
@@ -335,11 +335,16 @@ func (c *Catalog) dropForeignServer(srv *ForeignServer, cascade bool) error {
 		return errDependentObjects("server", srv.Name)
 	}
 	for _, rel := range depTables {
-		schema := rel.Schema
-		if schema == nil {
+		if c.relationByOID[rel.OID] == nil {
 			continue
 		}
-		c.removeRelation(schema, rel.Name, rel)
+		if cascade {
+			c.cascadeDropRelation(rel)
+			continue
+		}
+		if rel.Schema != nil {
+			c.removeRelation(rel.Schema, rel.Name, rel)
+		}
 	}
 	delete(c.foreignServers, srv.Name)
 	delete(c.extensionMembers, srv.OID)

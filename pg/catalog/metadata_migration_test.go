@@ -4957,7 +4957,7 @@ func TestRound14Fixes(t *testing.T) {
 				Name:   "trg_view",
 				Timing: "INSTEAD OF",
 				Event:  "INSERT",
-				Body:   `CREATE TRIGGER trg_view INSTEAD OF INSERT ON public.v_events FOR EACH ROW EXECUTE FUNCTION public.audit_fn()`,
+				Body:   `CREATE TRIGGER trg_view INSTEAD OF INSERT ON public.v_events FOR EACH ROW EXECUTE FUNCTION public.audit_fn('tenant', 'ops')`,
 			}}
 		}
 		mv := &metadatapb.MaterializedViewMetadata{
@@ -4990,6 +4990,7 @@ func TestRound14Fixes(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, trigSQL, `DROP TRIGGER "trg_events" ON "public"."events"`)
 	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_view" INSTEAD OF INSERT ON "public"."v_events"`)
+	require.Contains(t, trigSQL, `EXECUTE FUNCTION "audit_fn"('tenant', 'ops')`)
 	require.Contains(t, trigSQL, `DROP TRIGGER "trg_mv" ON "public"."mv_events"`)
 	require.Contains(t, trigSQL, `CREATE TRIGGER "trg_mv" AFTER TRUNCATE ON "public"."mv_events"`)
 

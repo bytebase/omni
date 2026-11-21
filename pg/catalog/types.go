@@ -37,6 +37,7 @@ type ColumnDef struct {
 	CollClause       *nodes.CollateClause // raw COLLATE clause for resolution check
 	StorageName      string               // explicit STORAGE directive; empty = default
 	Compression      string               // explicit COMPRESSION directive; empty = default
+	ForeignOptions   []string             // per-column FDW options
 	IsFromType       bool                 // true if column came from OF TYPE (typed table)
 }
 

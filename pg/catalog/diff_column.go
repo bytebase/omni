@@ -1,6 +1,9 @@
 package catalog
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // diffColumns compares columns between two versions of a relation.
 // Identity key is the column Name within the relation.
@@ -93,6 +96,9 @@ func columnsChanged(from, to *Catalog, a, b *Column) bool {
 		return true
 	}
 	if a.Compression != b.Compression {
+		return true
+	}
+	if !slices.Equal(a.ForeignOptions, b.ForeignOptions) {
 		return true
 	}
 	return false

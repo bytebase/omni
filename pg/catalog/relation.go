@@ -49,6 +49,7 @@ type Column struct {
 	CollationSchema  string       // explicit collation schema when outside public/pg_catalog
 	CollationName    string       // explicit collation name (empty = type default)
 	UserCollationOID uint32       // user collation OID when CollationName names a user collation
+	ForeignOptions   []string     // per-column FDW options
 	Ndims            int16        // attndims — declared array dimensions
 }
 

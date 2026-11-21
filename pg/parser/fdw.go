@@ -237,11 +237,11 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	servertype, err := p.parseOptType()
+	servertype, hasServertype, err := p.parseOptType()
 	if err != nil {
 		return nil, err
 	}
-	version, err := p.parseOptForeignServerVersion()
+	version, hasVersion, err := p.parseOptForeignServerVersion()
 	if err != nil {
 		return nil, err
 	}
@@ -263,13 +263,15 @@ func (p *Parser) parseCreateForeignServerStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	return &nodes.CreateForeignServerStmt{
-		Servername:  name,
-		Servertype:  servertype,
-		Version:     version,
-		Fdwname:     fdwname,
-		IfNotExists: ifNotExists,
-		Options:     options,
-		Loc:         nodes.Loc{Start: p.stmtStart, End: p.prev.End},
+		Servername:    name,
+		Servertype:    servertype,
+		HasServertype: hasServertype,
+		Version:       version,
+		HasVersion:    hasVersion,
+		Fdwname:       fdwname,
+		IfNotExists:   ifNotExists,
+		Options:       options,
+		Loc:           nodes.Loc{Start: p.stmtStart, End: p.prev.End},
 	}, nil
 }
 
@@ -346,16 +348,16 @@ func (p *Parser) parseAlterForeignServerStmt() (nodes.Node, error) {
 }
 
 // parseOptType parses opt_type: TYPE_P Sconst | /*EMPTY*/.
-func (p *Parser) parseOptType() (string, error) {
+func (p *Parser) parseOptType() (string, bool, error) {
 	if p.cur.Type != TYPE_P {
-		return "", nil
+		return "", false, nil
 	}
 	p.advance()
 	tok, err := p.expect(SCONST)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return tok.Str, nil
+	return tok.Str, true, nil
 }
 
 // parseForeignServerVersion parses foreign_server_version:
@@ -375,11 +377,12 @@ func (p *Parser) parseForeignServerVersion() (string, error) {
 	return tok.Str, nil
 }
 
-func (p *Parser) parseOptForeignServerVersion() (string, error) {
+func (p *Parser) parseOptForeignServerVersion() (string, bool, error) {
 	if p.cur.Type == VERSION_P {
-		return p.parseForeignServerVersion()
+		v, err := p.parseForeignServerVersion()
+		return v, err == nil, err
 	}
-	return "", nil
+	return "", false, nil
 }
 
 func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
