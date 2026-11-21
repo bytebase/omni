@@ -1,0 +1,375 @@
+# Redis 7.4.12 command table snapshot from COMMAND on the pinned default server.
+# Source: redis:7.4.12-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe (7.4.12)
+# Regenerate with: go run ./redis/parser/cmd/commandgrammar -from-live
+#
+# Arity follows Redis's COMMAND convention: positive N means exact total token
+# count N (command + subcommand + arguments); negative -N means at least N.
+# Container commands that require a subcommand (arity -2) appear only via their
+# subcommand rows; COMMAND (arity -1) also has a standalone row with empty
+# subcommand.
+# columns: command, subcommand, arity
+acl	cat	-2
+acl	deluser	-3
+acl	dryrun	-4
+acl	genpass	-2
+acl	getuser	3
+acl	help	2
+acl	list	2
+acl	load	2
+acl	log	-2
+acl	save	2
+acl	setuser	-3
+acl	users	2
+acl	whoami	2
+append		3
+asking		1
+auth		-2
+bgrewriteaof		1
+bgsave		-1
+bitcount		-2
+bitfield		-2
+bitfield_ro		-2
+bitop		-4
+bitpos		-3
+blmove		6
+blmpop		-5
+blpop		-3
+brpop		-3
+brpoplpush		4
+bzmpop		-5
+bzpopmax		-3
+bzpopmin		-3
+client	caching	3
+client	getname	2
+client	getredir	2
+client	help	2
+client	id	2
+client	info	2
+client	kill	-3
+client	list	-2
+client	no-evict	3
+client	no-touch	3
+client	pause	-3
+client	reply	3
+client	setinfo	4
+client	setname	3
+client	tracking	-3
+client	trackinginfo	2
+client	unblock	-3
+client	unpause	2
+cluster	addslots	-3
+cluster	addslotsrange	-4
+cluster	bumpepoch	2
+cluster	count-failure-reports	3
+cluster	countkeysinslot	3
+cluster	delslots	-3
+cluster	delslotsrange	-4
+cluster	failover	-2
+cluster	flushslots	2
+cluster	forget	3
+cluster	getkeysinslot	4
+cluster	help	2
+cluster	info	2
+cluster	keyslot	3
+cluster	links	2
+cluster	meet	-4
+cluster	myid	2
+cluster	myshardid	2
+cluster	nodes	2
+cluster	replicas	3
+cluster	replicate	3
+cluster	reset	-2
+cluster	saveconfig	2
+cluster	set-config-epoch	3
+cluster	setslot	-4
+cluster	shards	2
+cluster	slaves	3
+cluster	slots	2
+command		-1
+command	count	2
+command	docs	-2
+command	getkeys	-3
+command	getkeysandflags	-3
+command	help	2
+command	info	-2
+command	list	-2
+config	get	-3
+config	help	2
+config	resetstat	2
+config	rewrite	2
+config	set	-4
+copy		-3
+dbsize		1
+debug		-2
+decr		2
+decrby		3
+del		-2
+discard		1
+dump		2
+echo		2
+eval		-3
+eval_ro		-3
+evalsha		-3
+evalsha_ro		-3
+exec		1
+exists		-2
+expire		-3
+expireat		-3
+expiretime		2
+failover		-1
+fcall		-3
+fcall_ro		-3
+flushall		-1
+flushdb		-1
+function	delete	3
+function	dump	2
+function	flush	-2
+function	help	2
+function	kill	2
+function	list	-2
+function	load	-3
+function	restore	-3
+function	stats	2
+geoadd		-5
+geodist		-4
+geohash		-2
+geopos		-2
+georadius		-6
+georadius_ro		-6
+georadiusbymember		-5
+georadiusbymember_ro		-5
+geosearch		-7
+geosearchstore		-8
+get		2
+getbit		3
+getdel		2
+getex		-2
+getrange		4
+getset		3
+hdel		-3
+hello		-1
+hexists		3
+hexpire		-6
+hexpireat		-6
+hexpiretime		-5
+hget		3
+hgetall		2
+hincrby		4
+hincrbyfloat		4
+hkeys		2
+hlen		2
+hmget		-3
+hmset		-4
+hpersist		-5
+hpexpire		-6
+hpexpireat		-6
+hpexpiretime		-5
+hpttl		-5
+hrandfield		-2
+hscan		-3
+hset		-4
+hsetnx		4
+hstrlen		3
+httl		-5
+hvals		2
+incr		2
+incrby		3
+incrbyfloat		3
+info		-1
+keys		2
+lastsave		1
+latency	doctor	2
+latency	graph	3
+latency	help	2
+latency	histogram	-2
+latency	history	3
+latency	latest	2
+latency	reset	-2
+lcs		-3
+lindex		3
+linsert		5
+llen		2
+lmove		5
+lmpop		-4
+lolwut		-1
+lpop		-2
+lpos		-3
+lpush		-3
+lpushx		-3
+lrange		4
+lrem		4
+lset		4
+ltrim		4
+memory	doctor	2
+memory	help	2
+memory	malloc-stats	2
+memory	purge	2
+memory	stats	2
+memory	usage	-3
+mget		-2
+migrate		-6
+module	help	2
+module	list	2
+module	load	-3
+module	loadex	-3
+module	unload	3
+monitor		1
+move		3
+mset		-3
+msetnx		-3
+multi		1
+object	encoding	3
+object	freq	3
+object	help	2
+object	idletime	3
+object	refcount	3
+persist		2
+pexpire		-3
+pexpireat		-3
+pexpiretime		2
+pfadd		-2
+pfcount		-2
+pfdebug		3
+pfmerge		-2
+pfselftest		1
+ping		-1
+psetex		4
+psubscribe		-2
+psync		-3
+pttl		2
+publish		3
+pubsub	channels	-2
+pubsub	help	2
+pubsub	numpat	2
+pubsub	numsub	-2
+pubsub	shardchannels	-2
+pubsub	shardnumsub	-2
+punsubscribe		-1
+quit		-1
+randomkey		1
+readonly		1
+readwrite		1
+rename		3
+renamenx		3
+replconf		-1
+replicaof		3
+reset		1
+restore		-4
+restore-asking		-4
+role		1
+rpop		-2
+rpoplpush		3
+rpush		-3
+rpushx		-3
+sadd		-3
+save		1
+scan		-2
+scard		2
+script	debug	3
+script	exists	-3
+script	flush	-2
+script	help	2
+script	kill	2
+script	load	3
+sdiff		-2
+sdiffstore		-3
+select		2
+set		-3
+setbit		4
+setex		4
+setnx		3
+setrange		4
+shutdown		-1
+sinter		-2
+sintercard		-3
+sinterstore		-3
+sismember		3
+slaveof		3
+slowlog	get	-2
+slowlog	help	2
+slowlog	len	2
+slowlog	reset	2
+smembers		2
+smismember		-3
+smove		4
+sort		-2
+sort_ro		-2
+spop		-2
+spublish		3
+srandmember		-2
+srem		-3
+sscan		-3
+ssubscribe		-2
+strlen		2
+subscribe		-2
+substr		4
+sunion		-2
+sunionstore		-3
+sunsubscribe		-1
+swapdb		3
+sync		1
+time		1
+touch		-2
+ttl		2
+type		2
+unlink		-2
+unsubscribe		-1
+unwatch		1
+wait		3
+waitaof		4
+watch		-2
+xack		-4
+xadd		-5
+xautoclaim		-6
+xclaim		-6
+xdel		-3
+xgroup	create	-5
+xgroup	createconsumer	5
+xgroup	delconsumer	5
+xgroup	destroy	4
+xgroup	help	2
+xgroup	setid	-5
+xinfo	consumers	4
+xinfo	groups	3
+xinfo	help	2
+xinfo	stream	-3
+xlen		2
+xpending		-3
+xrange		-4
+xread		-4
+xreadgroup		-7
+xrevrange		-4
+xsetid		-3
+xtrim		-4
+zadd		-4
+zcard		2
+zcount		4
+zdiff		-3
+zdiffstore		-4
+zincrby		4
+zinter		-3
+zintercard		-3
+zinterstore		-4
+zlexcount		4
+zmpop		-4
+zmscore		-3
+zpopmax		-2
+zpopmin		-2
+zrandmember		-2
+zrange		-4
+zrangebylex		-4
+zrangebyscore		-4
+zrangestore		-5
+zrank		-3
+zrem		-3
+zremrangebylex		4
+zremrangebyrank		4
+zremrangebyscore		4
+zrevrange		-4
+zrevrangebylex		-4
+zrevrangebyscore		-4
+zrevrank		-3
+zscan		-3
+zscore		3
+zunion		-3
+zunionstore		-4
