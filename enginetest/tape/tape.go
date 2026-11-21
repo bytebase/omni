@@ -4,7 +4,9 @@
 // A test calls its engine's testcontainer.Open(t), which calls Open here
 // and gets an ordinary *sql.DB. In a replay, the default, that connection
 // answers from testdata/tapes/<top-level test>.tape. With OMNI_RECORD=1 it
-// talks to the pinned server and writes the tape.
+// talks to the pinned server and writes the tape. With OMNI_RECORD=verify it
+// talks to the pinned server, fails on any difference from the committed tape,
+// and writes or deletes nothing on disk.
 //
 // An engine whose client library is not database/sql calls OpenRaw instead and
 // writes the exchange itself: a request and its answer are opaque text, which
@@ -67,8 +69,9 @@ type Server struct {
 	// package of the engine use it.
 	Pins string
 	// Live connects to the pinned server, starting it on first use. It is
-	// called only in a recording. The connector must inline arguments, since
-	// a tape refuses driver-level prepared statements.
+	// called only in a recording (OMNI_RECORD=1) or verification
+	// (OMNI_RECORD=verify). The connector must inline arguments, since a tape
+	// refuses driver-level prepared statements.
 	Live func(t testing.TB, pin enginetest.Pin) driver.Connector
 	// Codec renders the driver's errors.
 	Codec Codec
@@ -145,19 +148,20 @@ func (f *fileState) poison() error {
 }
 
 // Open returns t's connection to the server in pin row role: a replay of
-// its tape, or, in a recording, the pinned server with every exchange
-// written down. Each call is one stream, named by t, role and how many
-// connections t opened before; the pool holds one connection, so session
-// state (USE, SET SESSION) holds as it would on one live connection. A
-// connection the engine refuses is recorded as a connect exchange, and a replay
-// answers the pool's use of it with that error. The package's TestMain must run
-// tests through Main.
+// its tape, or, in a recording (OMNI_RECORD=1), the pinned server with every
+// exchange written down, or, in a verification (OMNI_RECORD=verify), the pinned
+// server compared against the committed tape with nothing written to disk. Each
+// call is one stream, named by t, role and how many connections t opened before;
+// the pool holds one connection, so session state (USE, SET SESSION) holds as
+// it would on one live connection. A connection the engine refuses is recorded
+// as a connect exchange, and a replay answers the pool's use of it with that
+// error. The package's TestMain must run tests through Main.
 func Open(t testing.TB, s *Server, role string) *sql.DB {
 	t.Helper()
-	ses, f, pin, recording := begin(t, s, role)
+	ses, f, pin, mode := begin(t, s, role)
 
 	c := &connector{s: ses}
-	if recording {
+	if mode != enginetest.ModeReplay {
 		c.live = s.Live(t, pin)
 	}
 
@@ -166,17 +170,21 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 	db.SetMaxIdleConns(1)
 	t.Cleanup(func() {
 		_ = db.Close()
-		end(t, f, ses, role, pin, recording)
+		end(t, f, ses, role, pin, mode)
 	})
 	return db
 }
 
-// begin opens t's stream in pin row role: a replay of its tape, or, in a
-// recording, a stream that will be written down. Each stream is named by t,
-// role and how many streams t opened before.
-func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginetest.Pin, bool) {
+// begin opens t's stream in pin row role: a replay of its tape, a recording
+// stream that will be written down, or a verification stream compared against
+// the committed tape without writing. Each stream is named by t, role and how
+// many streams t opened before.
+func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginetest.Pin, enginetest.Mode) {
 	t.Helper()
-	recording := enginetest.Recording(t)
+	mode, err := enginetest.RunMode()
+	if err != nil {
+		t.Fatalf("tape: %v", err)
+	}
 	pin, err := enginetest.LoadPin(s.Pins, role)
 	if err != nil {
 		t.Fatalf("tape: %v", err)
@@ -195,12 +203,15 @@ func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginete
 	reg.Unlock()
 
 	// A recording replaces a tape that does not parse, such as one left with
-	// merge conflict markers; anything else wrong with the file stops here.
-	if f.err != nil && !(recording && f.existed) {
+	// merge conflict markers; replay and verify stop on any parse or read error.
+	if f.err != nil && !(mode == enginetest.ModeRecord && f.existed) {
 		t.Fatalf("tape: %v", f.err)
 	}
-	ses := &session{t: t, name: name, codec: s.Codec, rec: recording, poison: f.poison}
-	if r, ok := s.Codec.(Renamer); ok && recording {
+	ses := &session{t: t, name: name, codec: s.Codec, mode: mode}
+	if mode == enginetest.ModeRecord {
+		ses.poison = f.poison
+	}
+	if r, ok := s.Codec.(Renamer); ok && mode != enginetest.ModeReplay {
 		ses.renamer, ses.names = r, f.names
 	}
 	var committed *stream
@@ -211,7 +222,7 @@ func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginete
 		ses.want = committed.exchanges
 	}
 
-	if !recording {
+	if mode != enginetest.ModeRecord {
 		switch {
 		case f.old == nil:
 			t.Fatalf("tape: no tape %s. Record it:\n  %s", f.path, recordCommand(t))
@@ -222,15 +233,21 @@ func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginete
 			t.Fatalf("tape: %s has no stream %q. Record it:\n  %s", f.path, name, recordCommand(t))
 		}
 	}
-	return ses, f, pin, recording
+	return ses, f, pin, mode
 }
 
 // end accounts for one stream once its test is done: a replay fails on
-// answers no request asked for, and a recording replaces the file it opened.
-func end(t testing.TB, f *fileState, ses *session, role string, pin enginetest.Pin, recording bool) {
+// answers no request asked for, a verification checks every live request and
+// answer against the committed stream without writing, and a recording replaces
+// the file it opened.
+func end(t testing.TB, f *fileState, ses *session, role string, pin enginetest.Pin, mode enginetest.Mode) {
 	t.Helper()
-	if !recording {
+	switch mode {
+	case enginetest.ModeReplay:
 		ses.finish()
+		return
+	case enginetest.ModeVerify:
+		ses.verify()
 		return
 	}
 	ses.reproduces()
@@ -246,17 +263,20 @@ func end(t testing.TB, f *fileState, ses *session, role string, pin enginetest.P
 	}
 }
 
-// OpenRaw returns t's stream in pin row role. live, when the run records,
-// answers a request from the pinned server; a replay never calls it and may
-// pass nil.
+// OpenRaw returns t's stream in pin row role. live, when the run records or
+// verifies, answers a request from the pinned server; a replay never calls it
+// and may pass nil.
 func OpenRaw(t testing.TB, s *Server, role string, live func(req string) (string, error)) *Raw {
 	t.Helper()
-	ses, f, pin, recording := begin(t, s, role)
-	t.Cleanup(func() { end(t, f, ses, role, pin, recording) })
+	ses, f, pin, mode := begin(t, s, role)
 	r := &Raw{ses: ses}
-	if recording {
+	if mode != enginetest.ModeReplay {
+		if live == nil {
+			t.Fatalf("tape: OpenRaw needs a live function in %s mode", mode)
+		}
 		r.live = live
 	}
+	t.Cleanup(func() { end(t, f, ses, role, pin, mode) })
 	return r
 }
 
@@ -315,23 +335,29 @@ func (f *fileState) write() error {
 	return os.WriteFile(f.path, []byte(out.encode()), 0o644)
 }
 
-// Live skips t outside a recording. It is for the few tests with nothing to
-// replay: a test whose input is the engine's own data that the repo may not
-// hold, as Oracle's PL/SQL dictionary test reads the source Oracle ships
-// with. In a recording it runs against the live server and records nothing.
-// It is the only environment gate (§4.5 of
+// Live skips t outside a recording (OMNI_RECORD=1), including in replay and
+// verification (OMNI_RECORD=verify). It is for the few tests with nothing to
+// replay and no committed tape to verify: a test whose input is the engine's
+// own data that the repo may not hold, as Oracle's PL/SQL dictionary test reads
+// the source Oracle ships with. In a recording it runs against the live server
+// and records nothing. It is the only environment gate (§4.5 of
 // docs/specs/2026-11-11-engine-compatibility-without-servers-design.md).
 func Live(t testing.TB) {
 	t.Helper()
-	if !enginetest.Recording(t) {
+	mode, err := enginetest.RunMode()
+	if err != nil {
+		t.Fatalf("tape: %v", err)
+	}
+	if mode != enginetest.ModeRecord {
 		t.Skipf("tape: %s has nothing to replay and runs only against the pinned server:\n  %s", t.Name(), enginetest.RecordCommand(t))
 	}
 }
 
 // Main runs the package's tests, as TestMain's m.Run does, and returns the
 // exit code. A passing run of every test also accounts for every tape: a
-// replay fails on a tape or stream no test opened, which a deleted or
-// renamed test leaves behind, and a recording deletes such tapes.
+// replay or verification fails on a tape or stream no test opened, which a
+// deleted or renamed test leaves behind, and only a recording deletes such
+// tapes.
 func Main(m *testing.M) int {
 	reg.Lock()
 	reg.main = true
@@ -347,12 +373,12 @@ func account(code int, partial bool, stderr io.Writer) int {
 	if code != 0 || partial {
 		return code
 	}
-	recording, err := enginetest.RecordingMode()
+	mode, err := enginetest.RunMode()
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if problems := leftovers(recording); len(problems) > 0 {
+	if problems := leftovers(mode); len(problems) > 0 {
 		fmt.Fprintf(stderr, "tape: %s\n", strings.Join(problems, "\ntape: "))
 		return 1
 	}
@@ -378,8 +404,8 @@ func partialRun(flagValue func(name string) string) bool {
 }
 
 // leftovers reports the tapes and streams no test opened, and in a
-// recording deletes the tapes.
-func leftovers(recording bool) []string {
+// recording deletes the tapes. In replay and verification it deletes nothing.
+func leftovers(mode enginetest.Mode) []string {
 	reg.Lock()
 	defer reg.Unlock()
 	paths, _ := filepath.Glob(filepath.Join(dir, "*.tape"))
@@ -387,7 +413,7 @@ func leftovers(recording bool) []string {
 	for _, p := range paths {
 		f, ok := reg.files[p]
 		if !ok {
-			if recording {
+			if mode == enginetest.ModeRecord {
 				if err := os.Remove(p); err != nil {
 					problems = append(problems, err.Error())
 				}
@@ -396,7 +422,7 @@ func leftovers(recording bool) []string {
 			problems = append(problems, fmt.Sprintf("%s belongs to no test that ran; delete it if its test is gone", p))
 			continue
 		}
-		if recording || f.old == nil {
+		if mode == enginetest.ModeRecord || f.old == nil {
 			continue
 		}
 		for _, s := range f.old.streams {

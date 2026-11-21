@@ -1,7 +1,8 @@
 // Package enginetest holds what every engine's compatibility tests share: the
-// pinned servers an engine's answers come from, and the switch between a
-// replay, which reads committed answers, and a recording, which asks the
-// judge and writes them. It knows no engine.
+// pinned servers an engine's answers come from, and the switch among a replay
+// (reading committed answers), a recording (asking the judge and writing them),
+// and a verification (asking the judge again without writing). It knows no
+// engine.
 //
 // The design is docs/specs/2026-11-11-engine-compatibility-without-servers-design.md.
 package enginetest
@@ -93,12 +94,66 @@ func FilesDigest(paths ...string) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// RecordEnv is the environment variable that turns a run into a recording.
+// RecordEnv is the environment variable that selects a live run mode: "1" to
+// record answers, "verify" to verify committed answers against the pinned
+// server without writing, or unset to replay committed answers.
 const RecordEnv = "OMNI_RECORD"
 
-// Recording reports whether this run records answers: OMNI_RECORD=1. It fails
-// t on any other non-empty value, and when CI is set, because CI never
-// writes answers.
+// Mode is how a test run handles committed engine answers.
+type Mode int
+
+const (
+	// ModeReplay reads committed answers and reaches no server (OMNI_RECORD unset).
+	ModeReplay Mode = iota
+	// ModeRecord asks the pinned server or judge and writes committed answers (OMNI_RECORD=1).
+	ModeRecord
+	// ModeVerify asks the pinned server or judge again, fails on any difference
+	// from committed answers, and writes or deletes nothing on disk (OMNI_RECORD=verify).
+	ModeVerify
+)
+
+// String names m for diagnostics.
+func (m Mode) String() string {
+	switch m {
+	case ModeReplay:
+		return "replay"
+	case ModeRecord:
+		return "record"
+	case ModeVerify:
+		return "verify"
+	default:
+		return fmt.Sprintf("Mode(%d)", int(m))
+	}
+}
+
+// RunMode returns the run mode selected by OMNI_RECORD: ModeReplay when unset,
+// ModeRecord for "1", and ModeVerify for "verify". It fails on any other
+// non-empty value, and on OMNI_RECORD=1 when CI is set because CI never writes
+// answers. OMNI_RECORD=verify is allowed when CI is set so a self-hosted verify
+// lane can check committed answers against pinned servers without writing.
+func RunMode() (Mode, error) {
+	switch v := os.Getenv(RecordEnv); v {
+	case "":
+		return ModeReplay, nil
+	case "1":
+		if os.Getenv("CI") != "" {
+			return ModeReplay, fmt.Errorf("%s=1 with CI set: CI replays committed answers and never records them", RecordEnv)
+		}
+		return ModeRecord, nil
+	case "verify":
+		return ModeVerify, nil
+	default:
+		return ModeReplay, fmt.Errorf("%s=%q: want 1 to record, verify to verify against the pinned server, or unset to replay", RecordEnv, v)
+	}
+}
+
+// Recording reports whether this run talks to the pinned server or judge rather
+// than replaying committed answers: OMNI_RECORD=1 (record) or OMNI_RECORD=verify
+// (verify). Callers that prepare or query the live server (such as testcontainer
+// Reset and Judge helpers) use this so both recording and verification run
+// against the pinned server. Callers that write or delete committed files must
+// check RunMode or Verifying so OMNI_RECORD=verify stays strictly read-only.
+// It fails t on an unknown OMNI_RECORD value, and on OMNI_RECORD=1 when CI is set.
 func Recording(t testing.TB) bool {
 	t.Helper()
 	on, err := RecordingMode()
@@ -108,19 +163,34 @@ func Recording(t testing.TB) bool {
 	return on
 }
 
-// RecordingMode is Recording for code that has no test, such as TestMain.
+// RecordingMode is Recording for code that has no test, such as TestMain: it
+// returns true for both OMNI_RECORD=1 and OMNI_RECORD=verify. Callers that
+// write or delete files must call RunMode instead.
 func RecordingMode() (bool, error) {
-	switch v := os.Getenv(RecordEnv); v {
-	case "":
-		return false, nil
-	case "1":
-		if os.Getenv("CI") != "" {
-			return false, fmt.Errorf("%s=1 with CI set: CI replays committed answers and never records them", RecordEnv)
-		}
-		return true, nil
-	default:
-		return false, fmt.Errorf("%s=%q: want 1 to record, or unset to replay", RecordEnv, v)
+	m, err := RunMode()
+	if err != nil {
+		return false, err
 	}
+	return m != ModeReplay, nil
+}
+
+// UseLive reports whether this run talks to the pinned server or judge
+// (OMNI_RECORD=1 or OMNI_RECORD=verify).
+func UseLive(t testing.TB) bool {
+	t.Helper()
+	return Recording(t)
+}
+
+// Verifying reports whether this run is in read-only verification mode
+// (OMNI_RECORD=verify). It fails t on an unknown OMNI_RECORD value, and on
+// OMNI_RECORD=1 when CI is set.
+func Verifying(t testing.TB) bool {
+	t.Helper()
+	m, err := RunMode()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return m == ModeVerify
 }
 
 // RunCommand is the go test command that reruns t's top-level test from the

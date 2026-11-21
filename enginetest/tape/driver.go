@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/enginetest"
 )
 
 // errPrepared is what a test gets for a driver-level prepared statement. A
@@ -20,12 +22,12 @@ import (
 var errPrepared = errors.New("tape: prepared statements are not recorded; send the statement with its arguments, which the live connector inlines")
 
 // A session is one stream's state while its test runs: the answers it replays,
-// or the exchanges it records.
+// or the exchanges it records or verifies.
 type session struct {
 	t     testing.TB
 	name  string
 	codec Codec
-	rec   bool
+	mode  enginetest.Mode
 
 	// poison ends the recording of this stream's file. Recording only.
 	poison func() error
@@ -37,10 +39,10 @@ type session struct {
 	names   *names
 
 	mu     sync.Mutex
-	want   []exchange // replay: the tape; recording: the committed stream, if any
+	want   []exchange // replay/verify: the tape; recording: the committed stream, if any
 	next   int
 	broken error
-	got    []exchange // recording
+	got    []exchange // recording and verify
 }
 
 // replay answers req from the tape, or fails the test when the tape holds
@@ -121,6 +123,38 @@ func (s *session) reproduces() {
 				s.name, i+1, s.got[i].req.describe(), was.render(), now.render())
 			return
 		}
+	}
+}
+
+// verify fails a verification run if the live exchanges differ from the
+// committed stream in any way: a different request, a different answer,
+// an extra request, or a recorded request the test never sent.
+func (s *session) verify() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := 0; i < len(s.got) && i < len(s.want); i++ {
+		if s.got[i].req.render() != s.want[i].req.render() {
+			s.t.Errorf("stream %q: request %d differs from the committed tape: test sent %s; the tape holds %s. Record it:\n  %s",
+				s.name, i+1, s.got[i].req.describe(), s.want[i].req.describe(), recordCommand(s.t))
+			return
+		}
+		was, now := normalizedAnswer(s.spelledNow(s.want[i].ans)), normalizedAnswer(s.got[i].ans)
+		normalizeScans(&was, &now)
+		normalizePrecisions(&was, &now)
+		if was.render() != now.render() {
+			s.t.Errorf("stream %q: the engine answered request %d (%s) differently than the committed tape.\nwas:\n%snow:\n%s",
+				s.name, i+1, s.got[i].req.describe(), was.render(), now.render())
+			return
+		}
+	}
+	if len(s.got) > len(s.want) {
+		s.t.Errorf("stream %q: test sent %d more requests than the committed tape holds, starting with %s. Record it:\n  %s",
+			s.name, len(s.got)-len(s.want), s.got[len(s.want)].req.describe(), recordCommand(s.t))
+		return
+	}
+	if len(s.got) < len(s.want) {
+		s.t.Errorf("stream %q holds %d recorded requests the test never sent, starting with %s. Record it:\n  %s",
+			s.name, len(s.want)-len(s.got), s.want[len(s.got)].req.describe(), recordCommand(s.t))
 	}
 }
 
@@ -276,9 +310,15 @@ func (s *session) errorAnswer(err error) answer {
 	}
 	text, ok := s.codec.EncodeError(err)
 	if !ok {
-		s.t.Errorf("stream %q: %v is not an answer from the engine, so it can't be recorded", s.name, err)
-		if perr := s.poison(); perr != nil {
-			s.t.Errorf("tape: %v", perr)
+		if s.mode == enginetest.ModeVerify {
+			s.t.Errorf("stream %q: %v is not an answer from the engine, so it can't be verified", s.name, err)
+		} else {
+			s.t.Errorf("stream %q: %v is not an answer from the engine, so it can't be recorded", s.name, err)
+		}
+		if s.poison != nil {
+			if perr := s.poison(); perr != nil {
+				s.t.Errorf("tape: %v", perr)
+			}
 		}
 		return answer{kind: "error", err: err.Error(), raw: err}
 	}

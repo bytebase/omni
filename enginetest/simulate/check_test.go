@@ -142,6 +142,12 @@ func recording(t *testing.T) {
 	t.Setenv("CI", "")
 }
 
+func verifying(t *testing.T) {
+	t.Helper()
+	t.Setenv(enginetest.RecordEnv, "verify")
+	t.Setenv("CI", "true")
+}
+
 var ok1, ok2 = stored1.Outcome(nil), stored2.Outcome(nil)
 
 func TestCheckPassesAgreementsAndKnownDifferences(t *testing.T) {
@@ -462,5 +468,108 @@ func TestGuard(t *testing.T) {
 	}
 	if !PinChanged(parse(pin1), parse(pin2)) || PinChanged(parse(pin1), parse(pin1)) {
 		t.Errorf("PinChanged does not read the pin line")
+	}
+}
+
+func TestVerifyPassesAndWritesNothing(t *testing.T) {
+	verifying(t)
+	var asked []string
+	rows := ok1 + "\t" + ok1 + "\tengine\tfx\tr/A\tA\n1060\t1060\tengine\tfx\tr/B\tB\n"
+	s := suite(t, rows,
+		map[string]Answer{"A": stored1, "B": refused},
+		map[string]Omni{"A": {Same: true}, "B": {Code: "1060"}}, &asked)
+	before := read(t, s.Path)
+
+	if rec := run(t, s); !rec.passed() {
+		t.Fatalf("verify: %q %q", rec.errors, rec.fatal)
+	}
+	if got := strings.Join(asked, ","); got != "A,B" {
+		t.Errorf("verify asked engine %q, want A,B", got)
+	}
+	if read(t, s.Path) != before {
+		t.Errorf("verify modified %s", s.Path)
+	}
+}
+
+func TestVerifyFailsOnTamperedExpectedAndWritesNothing(t *testing.T) {
+	verifying(t)
+	s := suite(t, "1060\t1060\tengine\tfx\tr/B\tB\n",
+		map[string]Answer{"B": {Code: "1061"}},
+		map[string]Omni{"B": {Code: "1060"}}, nil)
+	before := read(t, s.Path)
+
+	rec := run(t, s)
+	if !rec.failed("the engine's answer differs from the committed expected cell") || !rec.failed("the engine now answers 1061, and the row records 1060") {
+		t.Errorf("tampered expected passed verify: %q %q", rec.errors, rec.fatal)
+	}
+	if read(t, s.Path) != before {
+		t.Errorf("verify modified %s on tampered expected", s.Path)
+	}
+}
+
+func TestVerifyRejectsUpdateCompatMissingPinRowsAndUnjudged(t *testing.T) {
+	verifying(t)
+
+	// -update-compat cannot be combined with OMNI_RECORD=verify.
+	var asked []string
+	s := suite(t, "ok\t"+ok2+"\tengine\tfx\tr/C\tC\n",
+		map[string]Answer{"C": stored2},
+		map[string]Omni{"C": {Same: true}}, &asked)
+	before := read(t, s.Path)
+	updating(t)
+	rec := run(t, s)
+	if err := flag.Set("update-compat", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(rec.fatal, "-update-compat cannot be combined with OMNI_RECORD=verify") {
+		t.Errorf("-update-compat + verify: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, s.Path) != before {
+		t.Errorf("-update-compat + verify asked %q or modified file", asked)
+	}
+
+	// Missing simulate.tsv fails and creates nothing.
+	missing := suite(t, "", nil, nil, nil)
+	missing.Rows = []Generated{{"fx", "r/A", "A"}}
+	if rec := run(t, missing); !strings.Contains(rec.fatal, "no ") {
+		t.Errorf("missing file: %q %q", rec.errors, rec.fatal)
+	}
+	if _, err := os.Stat(missing.Path); !os.IsNotExist(err) {
+		t.Errorf("verify created missing %s", missing.Path)
+	}
+
+	// Pin mismatch fails without asking the engine and writes nothing.
+	asked = nil
+	pinMismatch := suite(t, "1060\t1060\tengine\tfx\tr/B\tB\n", map[string]Answer{"B": refused}, map[string]Omni{"B": {Code: "1060"}}, &asked)
+	write(t, pinMismatch.Pins, "default\timg:2\tsha256:def\tv2\n")
+	beforePin := read(t, pinMismatch.Path)
+	if rec := run(t, pinMismatch); !strings.Contains(rec.fatal, "was recorded at pin") {
+		t.Errorf("pin mismatch: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, pinMismatch.Path) != beforePin {
+		t.Errorf("pin mismatch asked %q or modified file", asked)
+	}
+
+	// Generated rows mismatch fails without asking the engine and writes nothing.
+	asked = nil
+	gen := suite(t, "1060\t1060\tengine\tfx\tr/B\tB\n", map[string]Answer{"B": refused}, map[string]Omni{"B": {Code: "1060"}}, &asked)
+	gen.Rows = []Generated{{"fx", "r/A", "A"}, {"fx", "r/B", "B"}}
+	beforeGen := read(t, gen.Path)
+	if rec := run(t, gen); !strings.Contains(rec.fatal, "1 to add, 0 to remove") {
+		t.Errorf("generated rows mismatch: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, gen.Path) != beforeGen {
+		t.Errorf("generated rows mismatch asked %q or modified file", asked)
+	}
+
+	// Unjudged row fails without asking the engine and writes nothing.
+	asked = nil
+	unjudged := suite(t, "?\t?\t-\tfx\tissue:BYT-1\tA\n", map[string]Answer{"A": refused}, nil, &asked)
+	beforeUnjudged := read(t, unjudged.Path)
+	if rec := run(t, unjudged); !strings.Contains(rec.fatal, "not judged yet") {
+		t.Errorf("unjudged row: %q %q", rec.errors, rec.fatal)
+	}
+	if len(asked) != 0 || read(t, unjudged.Path) != beforeUnjudged {
+		t.Errorf("unjudged row asked %q or modified file", asked)
 	}
 }

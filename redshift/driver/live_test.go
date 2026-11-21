@@ -140,7 +140,7 @@ func TestSyncDatabase(t *testing.T) {
 func checkSyncGolden(t *testing.T, database *metadatapb.DatabaseSchemaMetadata) {
 	t.Helper()
 	path := filepath.Join("testdata", "sync", database.Name+".json")
-	if enginetest.Recording(t) {
+	if enginetest.Recording(t) && !enginetest.Verifying(t) {
 		b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(database)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", path, err)
