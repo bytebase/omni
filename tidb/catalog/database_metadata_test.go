@@ -1403,3 +1403,27 @@ func TestViewMetadataScalarSubqueryAndTemporalArithmetic(t *testing.T) {
 	require.Equal(t, "int", cols["sq_coalesce_int"].Type)
 	require.Equal(t, "date", cols["sq_interval"].Type)
 }
+
+func TestIndexColumnWithParenthesisAndBacktickRoundTrip(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE idx_t (`a(b` INT, `x``y` INT, INDEX `i` (`a(b`), INDEX `ib` (`x``y`));", nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "KEY `i` (`a(b`)")
+	require.Contains(t, def, "KEY `ib` (`x``y`)")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Incomplete)
+
+	reMeta := reloaded.DatabaseMetadata("app")
+	require.Len(t, reMeta.GetSchemas()[0].GetTables()[0].GetIndexes(), 2)
+	require.Equal(t, []string{"a(b"}, reMeta.GetSchemas()[0].GetTables()[0].GetIndexes()[0].GetExpressions())
+	require.Equal(t, []string{"x`y"}, reMeta.GetSchemas()[0].GetTables()[0].GetIndexes()[1].GetExpressions())
+}

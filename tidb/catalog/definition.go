@@ -1202,13 +1202,7 @@ func printIndexKeyPart(buf *strings.Builder, expr string, length int64, descendi
 			return err
 		}
 	} else {
-		if _, err := buf.WriteString("`"); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(expr); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString("`"); err != nil {
+		if _, err := buf.WriteString(quoteIdent(expr)); err != nil {
 			return err
 		}
 	}

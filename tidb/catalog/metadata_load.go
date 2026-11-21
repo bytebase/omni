@@ -590,11 +590,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
+	tableCols := tableColumnSet(t.GetColumns())
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx)
+		con, err := metadataIndexConstraint(idx, tableCols)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 			continue
@@ -822,7 +823,7 @@ func typeTakesDefault(typ string) bool {
 // holds either the kind, FULLTEXT, or the access method. Sync reports the
 // access method a key without USING gets too, and TiDB's is BTREE, so that one
 // stays unwritten. It fails on a key expression that does not parse.
-func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, tableCols map[string]bool) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == "BTREE" {
 		indexType = ""
@@ -847,7 +848,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	if c.Columns, c.IndexColumns, err = indexKeyParts(idx); err != nil {
+	if c.Columns, c.IndexColumns, err = indexKeyParts(idx, tableCols); err != nil {
 		return nil, err
 	}
 	// A primary key is always visible.
@@ -869,7 +870,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) (*nodes.Constraint, er
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // It fails on a key expression that does not parse.
-func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, tableCols map[string]bool) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -879,7 +880,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpressionKey(expr, tableCols) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -896,7 +897,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpressionKey(expr, tableCols) {
 			// Unlike MySQL's, TiDB's EXPRESSION is SQL as written: quotes are
 			// doubled, not backslash-escaped, so it parses as it is.
 			parsed, err := parseExpr(expr)
@@ -910,9 +911,22 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn,
 	return nil, keys, nil
 }
 
+func tableColumnSet(cols []*metadata.ColumnMetadata) map[string]bool {
+	set := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		if name := col.GetName(); name != "" {
+			set[strings.ToLower(name)] = true
+		}
+	}
+	return set
+}
+
 // isExpressionKey reports whether a key part is a functional expression, as
-// in "(lower(name))" or "lower(`name`)", rather than a column.
-func isExpressionKey(s string) bool {
+// in "(lower(name))" or "lower(`name`)", rather than an existing column.
+func isExpressionKey(s string, tableCols map[string]bool) bool {
+	if tableCols[strings.ToLower(unquoteIdent(s))] {
+		return false
+	}
 	return strings.Contains(s, "(")
 }
 

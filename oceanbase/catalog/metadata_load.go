@@ -538,11 +538,12 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		}
 		stmt.Columns = append(stmt.Columns, def)
 	}
+	tableCols := tableColumnSet(t.GetColumns())
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx, t.GetEngine())
+		con, err := metadataIndexConstraint(idx, t.GetEngine(), tableCols)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 			continue
@@ -591,7 +592,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"PACK_KEYS", createOption(opts, "pack_keys")},
 		{"CHECKSUM", createOption(opts, "checksum")},
 		{"DELAY_KEY_WRITE", createOption(opts, "delay_key_write")},
-		{"TABLESPACE", unquoteTableOption(t.GetTablespace())},
+		{"TABLESPACE", t.GetTablespace()},
 	} {
 		if opt.value != "" {
 			stmt.Options = append(stmt.Options, &nodes.TableOption{Name: opt.name, Value: opt.value})
@@ -735,7 +736,7 @@ func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index 
 				Length:     length,
 				Descending: desc,
 			}
-			if isExpressionKey(expr) {
+			if isExpressionKey(expr, nil) {
 				if _, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err != nil && parseErr == nil {
 					parseErr = err
 				}
@@ -861,7 +862,7 @@ func typeTakesDefault(typ string) bool {
 // the access method a key without USING gets too, so the engine's default one
 // stays unwritten. The error is a key expression that did not parse; the index
 // still comes back, with that key part as a column.
-func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string, tableCols map[string]bool) (*nodes.Constraint, error) {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == defaultIndexType(engine) {
 		indexType = ""
@@ -887,7 +888,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex)
+	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex, tableCols)
 	// A primary key is always visible.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
@@ -947,7 +948,7 @@ func parsePropertyNode(val string) nodes.Node {
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // A SPATIAL key takes no length, though sync reports one (32) for it.
-func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, spatial bool, tableCols map[string]bool) ([]string, []*nodes.IndexColumn, error) {
 	length := func(i int) int {
 		if !spatial && i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -957,7 +958,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpressionKey(expr, tableCols) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -975,7 +976,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpressionKey(expr, tableCols) {
 			// Sync reports the expression as information_schema stores it,
 			// with its quotes escaped. Charset introducers stay: they can
 			// change what the expression computes. On a parse failure the key
@@ -999,9 +1000,22 @@ func defaultIndexType(engine string) string {
 	return "BTREE"
 }
 
+func tableColumnSet(cols []*metadata.ColumnMetadata) map[string]bool {
+	set := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		if name := col.GetName(); name != "" {
+			set[strings.ToLower(name)] = true
+		}
+	}
+	return set
+}
+
 // isExpressionKey reports whether a key part is a functional expression, as
-// in "(lower(name))" or "lower(`name`)", rather than a column.
-func isExpressionKey(s string) bool {
+// in "(lower(name))" or "lower(`name`)", rather than an existing column.
+func isExpressionKey(s string, tableCols map[string]bool) bool {
+	if tableCols[strings.ToLower(unquoteIdent(s))] {
+		return false
+	}
 	return strings.Contains(s, "(")
 }
 

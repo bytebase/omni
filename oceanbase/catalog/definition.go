@@ -769,8 +769,8 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 			return err
 		}
 	}
-	if ts := unquoteTableOption(table.Tablespace); ts != "" {
-		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(ts)); err != nil {
+	if table.Tablespace != "" {
+		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(table.Tablespace)); err != nil {
 			return err
 		}
 	}

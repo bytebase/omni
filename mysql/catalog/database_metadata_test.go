@@ -1575,3 +1575,61 @@ func TestViewPredicateNullabilityAndTableOptionsRoundTrip(t *testing.T) {
 	require.False(t, cols["istrue_nc"].Nullable)
 	require.False(t, cols["ns_nc"].Nullable)
 }
+
+func TestDatabaseDefinitionPreservesTablespaceQuotesAndParenColumnIndex(t *testing.T) {
+	tsMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:       "ts_tbl",
+				Engine:     "InnoDB",
+				Tablespace: "`ts_bt`",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int"},
+					{Name: "a(b", Position: 2, Type: "int", Nullable: true},
+				},
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "idx_paren", Expressions: []string{"a(b"}, Type: "BTREE", Visible: true},
+				},
+			}, {
+				Name:       "ts_only_quotes",
+				Engine:     "InnoDB",
+				Tablespace: "\"\"",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int"},
+				},
+			}},
+		}},
+	}
+	def, err := DatabaseDefinition(tsMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "/*!50100 TABLESPACE ```ts_bt``` */")
+	require.Contains(t, def, "/*!50100 TABLESPACE `\"\"` */")
+	require.Contains(t, def, "KEY `idx_paren` (`a(b`)")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), tsMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Incomplete)
+
+	reMeta := reloaded.DatabaseMetadata("app")
+	var foundTS, foundEmptyQuoteTS, foundIdx bool
+	for _, tbl := range reMeta.GetSchemas()[0].GetTables() {
+		if tbl.Name == "ts_tbl" && tbl.Tablespace == "`ts_bt`" {
+			foundTS = true
+			for _, idx := range tbl.GetIndexes() {
+				if idx.Name == "idx_paren" && len(idx.Expressions) == 1 && idx.Expressions[0] == "a(b" {
+					foundIdx = true
+				}
+			}
+		}
+		if tbl.Name == "ts_only_quotes" && tbl.Tablespace == "\"\"" {
+			foundEmptyQuoteTS = true
+		}
+	}
+	require.True(t, foundTS)
+	require.True(t, foundEmptyQuoteTS)
+	require.True(t, foundIdx)
+}
