@@ -1904,3 +1904,106 @@ CREATE TABLE [dbo].[u] ([id] int NOT NULL, [extra] int NULL, [c] AS ([dbo].[f]()
 		require.Less(t, dropF, dropT)
 	})
 }
+
+func TestMigrationGuardsSkipDumpSchemaBoundConsumers(t *testing.T) {
+	t.Run("rejects replacing function called by SkipDump schema-bound view", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_skip",
+				Definition: "CREATE VIEW [dbo].[v_skip] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n]",
+				SkipDump:   true,
+			}},
+		}}}))
+		to := New()
+		require.NoError(t, to.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{{
+				Name:       "f",
+				Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_skip",
+				Definition: "CREATE VIEW [dbo].[v_skip] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n]",
+				SkipDump:   true,
+			}},
+		}}}))
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.Contains(t, sql, "SkipDump")
+		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
+	})
+
+	t.Run("rejects replacing function called by SkipDump schema-bound function", func(t *testing.T) {
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END",
+				},
+				{
+					Name:       "g_skip",
+					Definition: "CREATE FUNCTION [dbo].[g_skip]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN [dbo].[f]() END",
+					SkipDump:   true,
+				},
+			},
+		}}}))
+		to := New()
+		require.NoError(t, to.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Functions: []*metadata.FunctionMetadata{
+				{
+					Name:       "f",
+					Definition: "CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END",
+				},
+				{
+					Name:       "g_skip",
+					Definition: "CREATE FUNCTION [dbo].[g_skip]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN [dbo].[f]() END",
+					SkipDump:   true,
+				},
+			},
+		}}}))
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.Contains(t, sql, "SkipDump")
+		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
+	})
+}
+
+func TestMigrationDefersFunctionReadingAlteredTableBeforeDependentCheck(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [a] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG([a]) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [v] int NOT NULL, CONSTRAINT [PK_u] PRIMARY KEY ([id]), CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 0));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [a] int NOT NULL, [b] int NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT COUNT_BIG([b]) FROM [dbo].[t]) END;
+GO
+CREATE TABLE [dbo].[u] ([id] int NOT NULL, [v] int NOT NULL, CONSTRAINT [PK_u] PRIMARY KEY ([id]), CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 1));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+	dropCK := strings.Index(sql, "DROP CONSTRAINT [CK_u_v]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	alterT := strings.Index(sql, "ALTER TABLE [dbo].[t] ADD [b] int NULL")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	addCK := strings.Index(sql, "ADD CONSTRAINT [CK_u_v] CHECK ([dbo].[f]() >= 1)")
+	require.GreaterOrEqual(t, dropCK, 0)
+	require.Less(t, dropCK, dropF)
+	require.Less(t, dropF, alterT)
+	require.Less(t, alterT, createF)
+	require.Less(t, createF, addCK)
+}

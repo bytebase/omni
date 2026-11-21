@@ -71,12 +71,16 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	viewsToDrop := collectViewsToDrop(diff, rebuiltViews)
 	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
 	earlyFuncDrops, remainingFuncDrops := splitFunctionsBeforeViewDrops(allFunctionDrops, viewsToDrop)
+	if msg := blockingSkipDumpSchemaBoundConsumer(from, allFunctionDrops, viewsToDrop, collectDroppedTables(diff)); msg != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: %s; update the skipped object manually.\n", msg)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	if msg := blockingFunctionComputedColumn(from, diff, earlyFuncDrops, remainingFuncDrops); msg != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: function %s; drop and recreate the computed column manually.\n", msg)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
-	viewDepFuncCreates := functionsDependingOnViews(allFunctionCreates, viewsToCreate)
-	if msg := blockingViewDependentComputedColumn(diff, allFunctionCreates, viewDepFuncCreates); msg != "" {
+	deferredFuncCreates := functionsDeferredPastTables(diff, allFunctionCreates, viewsToCreate)
+	if msg := blockingDeferredComputedColumn(diff, allFunctionCreates, deferredFuncCreates); msg != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: computed column %s; apply this change manually.\n", msg)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
@@ -358,17 +362,18 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	tableFunctions := migrationTableFunctions(diff, allFunctionCreates)
-	// A schema-bound function that reads a view being created/rebuilt (or calls
-	// one) cannot be created ahead of tables; keep it in the view/function phase
-	// and defer any table DEFAULT or CHECK additions calling it until afterward.
-	for id := range viewDepFuncCreates {
+	// Functions that depend on a view being created/rebuilt or on a table whose
+	// columns are being altered cannot be created ahead of tables; keep them in
+	// the post-table view/function phase and defer any table DEFAULT or CHECK
+	// additions calling them until afterward.
+	for id := range deferredFuncCreates {
 		delete(tableFunctions, id)
 	}
 	var deferredTableChecks []functionCheckRef
 	deferredTableCheckKeys := make(map[string]bool)
 	var deferredTableDefaults []functionDefaultRef
 	deferredTableDefaultCols := make(map[string]bool)
-	if len(viewDepFuncCreates) > 0 {
+	if len(deferredFuncCreates) > 0 {
 		for _, tableDiff := range diff.Tables {
 			switch tableDiff.Action {
 			case DiffCreate:
@@ -376,7 +381,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 					continue
 				}
 				for _, col := range tableDiff.NewTable.Columns {
-					if col.GetDefault() == "" || !exprReferencesAnyViewDepFunc(col.GetDefault(), tableDiff.SchemaName, allFunctionCreates, viewDepFuncCreates) {
+					if col.GetDefault() == "" || !exprReferencesAnyDeferredFunc(col.GetDefault(), tableDiff.SchemaName, allFunctionCreates, deferredFuncCreates) {
 						continue
 					}
 					colKey := checkKey(tableDiff.SchemaName, tableDiff.TableName, col.Name)
@@ -396,7 +401,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 					}
 				}
 				for _, check := range tableDiff.NewTable.CheckConstraints {
-					if check.Expression == "" || !exprReferencesAnyViewDepFunc(check.Expression, tableDiff.SchemaName, allFunctionCreates, viewDepFuncCreates) {
+					if check.Expression == "" || !exprReferencesAnyDeferredFunc(check.Expression, tableDiff.SchemaName, allFunctionCreates, deferredFuncCreates) {
 						continue
 					}
 					cKey := checkKey(tableDiff.SchemaName, tableDiff.TableName, check.Name)
@@ -416,7 +421,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 						continue
 					}
 					newDefault := getColumnDefaultValue(colDiff.NewColumn)
-					if newDefault == "" || !exprReferencesAnyViewDepFunc(newDefault, tableDiff.SchemaName, allFunctionCreates, viewDepFuncCreates) {
+					if newDefault == "" || !exprReferencesAnyDeferredFunc(newDefault, tableDiff.SchemaName, allFunctionCreates, deferredFuncCreates) {
 						continue
 					}
 					if colDiff.Action == DiffAlter && !columnRequiresRebuild(colDiff) {
@@ -448,7 +453,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 					if checkDiff.Action != DiffCreate || checkDiff.NewCheckConstraint == nil {
 						continue
 					}
-					if !exprReferencesAnyViewDepFunc(checkDiff.NewCheckConstraint.Expression, tableDiff.SchemaName, allFunctionCreates, viewDepFuncCreates) {
+					if !exprReferencesAnyDeferredFunc(checkDiff.NewCheckConstraint.Expression, tableDiff.SchemaName, allFunctionCreates, deferredFuncCreates) {
 						continue
 					}
 					cKey := checkKey(tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint.Name)
@@ -1541,11 +1546,70 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 	return rebuiltFunctions, rebuiltViews
 }
 
-// blockingViewDependentComputedColumn checks whether any created or altered
-// table adds or rebuilds a computed column calling a function whose creation
-// waits for a view being created/rebuilt.
-func blockingViewDependentComputedColumn(diff *SchemaDiff, creates []*FunctionDiffEntry, viewDepFuncCreates map[string]bool) string {
-	if len(viewDepFuncCreates) == 0 {
+// blockingSkipDumpSchemaBoundConsumer checks whether any schema-bound view or
+// function marked SkipDump in from depends on a function, view, or table being
+// dropped/replaced. Because SkipDump objects are excluded from migration, they
+// cannot be rebuilt automatically and would cause SQL Server to reject the drop.
+func blockingSkipDumpSchemaBoundConsumer(from *Catalog, functionDrops []*FunctionDiffEntry, viewsToDrop []*ViewDiffEntry, droppedTables []tableWithSchema) string {
+	if from == nil || (len(functionDrops) == 0 && len(viewsToDrop) == 0 && len(droppedTables) == 0) {
+		return ""
+	}
+	for _, schema := range from.Metadata().Schemas {
+		for _, fn := range schema.Functions {
+			if !fn.GetSkipDump() || !isSchemaBound(fn.Definition) {
+				continue
+			}
+			for _, fd := range functionDrops {
+				if definitionReferencesFunction(fn.Definition, schema.Name, fd.SchemaName, funcDiffBaseName(fd)) {
+					return fmt.Sprintf("schema-bound function %s.%s (marked SkipDump) calls %s.%s",
+						quote(schema.Name), quote(fn.Name), quote(fd.SchemaName), quote(fd.FunctionName))
+				}
+			}
+			for _, vd := range viewsToDrop {
+				if definitionReferencesTable(fn.Definition, schema.Name, vd.SchemaName, vd.ViewName) {
+					return fmt.Sprintf("schema-bound function %s.%s (marked SkipDump) reads view %s.%s",
+						quote(schema.Name), quote(fn.Name), quote(vd.SchemaName), quote(vd.ViewName))
+				}
+			}
+			for _, tws := range droppedTables {
+				if definitionReferencesTable(fn.Definition, schema.Name, tws.schema, tws.table.Name) {
+					return fmt.Sprintf("schema-bound function %s.%s (marked SkipDump) reads table %s.%s",
+						quote(schema.Name), quote(fn.Name), quote(tws.schema), quote(tws.table.Name))
+				}
+			}
+		}
+		for _, view := range schema.Views {
+			if !view.GetSkipDump() || !isSchemaBound(view.Definition) {
+				continue
+			}
+			for _, fd := range functionDrops {
+				if expressionReferencesFunction(view.Definition, schema.Name, fd.SchemaName, funcDiffBaseName(fd)) {
+					return fmt.Sprintf("schema-bound view %s.%s (marked SkipDump) calls %s.%s",
+						quote(schema.Name), quote(view.Name), quote(fd.SchemaName), quote(fd.FunctionName))
+				}
+			}
+			for _, vd := range viewsToDrop {
+				if definitionReferencesTable(view.Definition, schema.Name, vd.SchemaName, vd.ViewName) {
+					return fmt.Sprintf("schema-bound view %s.%s (marked SkipDump) reads view %s.%s",
+						quote(schema.Name), quote(view.Name), quote(vd.SchemaName), quote(vd.ViewName))
+				}
+			}
+			for _, tws := range droppedTables {
+				if definitionReferencesTable(view.Definition, schema.Name, tws.schema, tws.table.Name) {
+					return fmt.Sprintf("schema-bound view %s.%s (marked SkipDump) reads table %s.%s",
+						quote(schema.Name), quote(view.Name), quote(tws.schema), quote(tws.table.Name))
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// blockingDeferredComputedColumn checks whether any created or altered table
+// adds or rebuilds a computed column calling a function whose creation must
+// wait until after table alterations or view creation.
+func blockingDeferredComputedColumn(diff *SchemaDiff, creates []*FunctionDiffEntry, deferredFuncCreates map[string]bool) string {
+	if len(deferredFuncCreates) == 0 {
 		return ""
 	}
 	checkColumn := func(schemaName, tableName string, col *metadata.ColumnMetadata) string {
@@ -1553,11 +1617,11 @@ func blockingViewDependentComputedColumn(diff *SchemaDiff, creates []*FunctionDi
 			return ""
 		}
 		for _, fd := range creates {
-			if !viewDepFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
+			if !deferredFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
 				continue
 			}
 			if expressionReferencesFunction(col.Type, schemaName, fd.SchemaName, funcDiffBaseName(fd)) {
-				return fmt.Sprintf("%s.%s.%s calls view-dependent function %s.%s",
+				return fmt.Sprintf("%s.%s.%s calls deferred function %s.%s",
 					quote(schemaName), quote(tableName), quote(col.Name), quote(fd.SchemaName), quote(fd.FunctionName))
 			}
 		}
@@ -1911,19 +1975,50 @@ func dropViewsAndFunctionsInOrder(viewsToDrop []*ViewDiffEntry, funcDrops []*Fun
 	}
 }
 
-// functionsDependingOnViews returns the objectIDs of functions in funcCreates
-// that are schema-bound to a view in viewsToCreate, or transitively call one.
-func functionsDependingOnViews(funcCreates []*FunctionDiffEntry, viewsToCreate []*ViewDiffEntry) map[string]bool {
+func tableHasColumnCreateOrAlter(tableDiff *TableDiffEntry) bool {
+	if tableDiff.Action != DiffAlter {
+		return false
+	}
+	for _, colDiff := range tableDiff.Columns {
+		if colDiff.Action == DiffCreate || colDiff.Action == DiffAlter {
+			return true
+		}
+	}
+	return false
+}
+
+// functionsDeferredPastTables returns the objectIDs of functions in funcCreates
+// that must be created after table creation/alteration because they are
+// schema-bound to a view in viewsToCreate, read a table whose columns are being
+// created or altered, or transitively call such a function.
+func functionsDeferredPastTables(diff *SchemaDiff, funcCreates []*FunctionDiffEntry, viewsToCreate []*ViewDiffEntry) map[string]bool {
 	deps := make(map[string]bool)
-	if len(funcCreates) == 0 || len(viewsToCreate) == 0 {
+	if len(funcCreates) == 0 {
 		return deps
 	}
+	var alteredTables []*TableDiffEntry
+	for _, tableDiff := range diff.Tables {
+		if tableHasColumnCreateOrAlter(tableDiff) {
+			alteredTables = append(alteredTables, tableDiff)
+		}
+	}
 	for _, fd := range funcCreates {
-		if fd.NewFunction == nil || !isSchemaBound(fd.NewFunction.Definition) {
+		if fd.NewFunction == nil {
 			continue
 		}
-		for _, vd := range viewsToCreate {
-			if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+		if isSchemaBound(fd.NewFunction.Definition) {
+			for _, vd := range viewsToCreate {
+				if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+					deps[objectID(fd.SchemaName, fd.FunctionName)] = true
+					break
+				}
+			}
+		}
+		if deps[objectID(fd.SchemaName, fd.FunctionName)] {
+			continue
+		}
+		for _, td := range alteredTables {
+			if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, td.SchemaName, td.TableName) {
 				deps[objectID(fd.SchemaName, fd.FunctionName)] = true
 				break
 			}
@@ -2760,9 +2855,9 @@ func createdFunctionsDependOnCreatedTables(diff *SchemaDiff, creates []*Function
 	return false
 }
 
-func exprReferencesAnyViewDepFunc(expr, ownerSchema string, creates []*FunctionDiffEntry, viewDepFuncCreates map[string]bool) bool {
+func exprReferencesAnyDeferredFunc(expr, ownerSchema string, creates []*FunctionDiffEntry, deferredFuncCreates map[string]bool) bool {
 	for _, fd := range creates {
-		if !viewDepFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
+		if !deferredFuncCreates[objectID(fd.SchemaName, fd.FunctionName)] {
 			continue
 		}
 		if expressionReferencesFunction(expr, ownerSchema, fd.SchemaName, funcDiffBaseName(fd)) {
