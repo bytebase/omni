@@ -1825,3 +1825,29 @@ func TestDatabaseMetadataCollateViewColumns(t *testing.T) {
 	require.True(t, cols[1].Nullable)
 	require.Equal(t, "utf8mb4_bin", cols[1].Collation)
 }
+
+// TestDatabaseMetadataQuotesPartitionColumns pins a KEY or COLUMNS
+// partitioning's column list as oceanbase-ce 4.3.5.6's information_schema.PARTITIONS reports
+// it, each name quoted, and that it reloads and renders as one column named a,b.
+func TestDatabaseMetadataQuotesPartitionColumns(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE pk (`a,b` INT, c INT) PARTITION BY KEY (`a,b`, c) PARTITIONS 2;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	meta := c.DatabaseMetadata("app")
+	parts := meta.Schemas[0].Tables[0].Partitions
+	require.NotEmpty(t, parts)
+	require.Equal(t, "`a,b`, `c`", parts[0].Expression)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Incomplete)
+	require.NotNil(t, reloaded.GetDatabase("app").GetTable("pk").Partitioning)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	restored := New()
+	_, err = restored.Exec("CREATE DATABASE app; USE app; "+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.Equal(t, "`a,b`, `c`", restored.DatabaseMetadata("app").Schemas[0].Tables[0].Partitions[0].Expression)
+}

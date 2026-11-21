@@ -388,7 +388,9 @@ CREATE TABLE t_cmp_bt (
 func TestDumpRestoresAllocationOptions(t *testing.T) {
 	const setup = `CREATE TABLE t_cache (id BIGINT AUTO_INCREMENT PRIMARY KEY) AUTO_ID_CACHE = 1;
 
-CREATE TABLE t_split (id INT) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 2;`
+CREATE TABLE t_split (id INT) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 2;
+
+CREATE TABLE p_quoted (` + "`a,b`" + ` INT, c INT) PARTITION BY KEY (` + "`a,b`" + `, c) PARTITIONS 2;`
 	source, restored := dumpAndRestore(t, "omni_alloc_roundtrip", setup)
 	tables := map[string]*metadatapb.TableMetadata{}
 	for _, tbl := range source.Schemas[0].Tables {

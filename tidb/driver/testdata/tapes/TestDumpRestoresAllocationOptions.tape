@@ -10,6 +10,9 @@
 > exec
 | CREATE TABLE t_split (id INT) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS = 2;
 < ok 0 0
+> exec
+| CREATE TABLE p_quoted (`a,b` INT, c INT) PARTITION BY KEY (`a,b`, c) PARTITIONS 2;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -86,6 +89,48 @@
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
 < column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
+< row
+: bytes
+| p_quoted
+: bytes
+| a,b
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| c
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
 < row
 : bytes
 | t_cache
@@ -264,6 +309,38 @@
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
 < column "PARTITION_COMMENT" "VARCHAR"
+< row
+: bytes
+| p_quoted
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`,`c`
+: null
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`,`c`
+: null
+: bytes
+|
+: bytes
+|
 > query
 |
 | 		SELECT
@@ -299,6 +376,29 @@
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
+< row
+: bytes
+| p_quoted
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | t_cache
@@ -345,6 +445,20 @@
 | NONCLUSTERED
 : bytes
 |
+> query
+| SHOW CREATE TABLE `omni_alloc_roundtrip`.`p_quoted`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p_quoted
+: bytes
+| CREATE TABLE `p_quoted` (
+|   `a,b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY KEY (`a,b`,`c`) PARTITIONS 2
 > query
 | SHOW CREATE TABLE `omni_alloc_roundtrip`.`t_cache`
 < result
@@ -405,6 +519,15 @@
 < ok 0 0
 > exec
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
+< ok 0 0
+> exec
+| CREATE TABLE `p_quoted` (
+|   `a,b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| /*!50100 PARTITION BY KEY (`a,b`,`c`)
+| (PARTITION p0 ENGINE=InnoDB,
+|  PARTITION p1 ENGINE=InnoDB) */
 < ok 0 0
 > exec
 | CREATE TABLE `t_cache` (
@@ -501,6 +624,48 @@
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
+| p_quoted
+: bytes
+| a,b
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| c
+: int64 2
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | t_cache
 : bytes
 | id
@@ -677,6 +842,38 @@
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
 < column "PARTITION_COMMENT" "VARCHAR"
+< row
+: bytes
+| p_quoted
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`,`c`
+: null
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`,`c`
+: null
+: bytes
+|
+: bytes
+|
 > query
 |
 | 		SELECT
@@ -712,6 +909,29 @@
 < column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < column "IFNULL(TIDB_PLACEMENT_POLICY_NAME, '')" "VARCHAR" "string"
+< row
+: bytes
+| p_quoted
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+: bytes
+|
 < row
 : bytes
 | t_cache
@@ -758,6 +978,20 @@
 | NONCLUSTERED
 : bytes
 |
+> query
+| SHOW CREATE TABLE `omni_alloc_roundtrip`.`p_quoted`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| p_quoted
+: bytes
+| CREATE TABLE `p_quoted` (
+|   `a,b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY KEY (`a,b`,`c`) PARTITIONS 2
 > query
 | SHOW CREATE TABLE `omni_alloc_roundtrip`.`t_cache`
 < result

@@ -235,7 +235,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		FROM information_schema.STATISTICS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`
-	if atLeast8013 && !isMariaDB {
+	// OceanBase reports a 5.7 version but has EXPRESSION and IS_VISIBLE, which
+	// a functional key part needs: without EXPRESSION the sync would name the
+	// hidden column holding it.
+	if (atLeast8013 && !isMariaDB) || isOceanBase {
 		indexQuery = `
 			SELECT
 				TABLE_NAME,
@@ -279,10 +282,13 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		); err != nil {
 			return nil, err
 		}
-		if columnName.Valid {
-			expression = columnName.String
-		} else if expressionName.Valid {
+		// A functional key part has its expression in EXPRESSION; oceanbase-ce
+		// 4.3.5.6 also names the hidden column that holds it in COLUMN_NAME
+		// (SYS_NC17$), which a restore cannot index.
+		if expressionName.Valid && expressionName.String != "" {
 			expression = fmt.Sprintf("(%s)", expressionName.String)
+		} else if columnName.Valid {
+			expression = columnName.String
 		}
 		desc := collation.Valid && collation.String == "D"
 		if _, ok := indexMap[tableName]; !ok {

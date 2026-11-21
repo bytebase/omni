@@ -92,21 +92,21 @@
 | 5.7.25-OceanBase_CE-v4.3.5.6
 > query
 |
-| 		SELECT
-| 			TABLE_NAME,
-| 			INDEX_NAME,
-| 			COLUMN_NAME,
-| 			COLLATION,
-| 			IFNULL(SUB_PART, -1),
-| 			'',
-| 			SEQ_IN_INDEX,
-| 			INDEX_TYPE,
-| 			NON_UNIQUE,
-| 			1,
-| 			INDEX_COMMENT
-| 		FROM information_schema.STATISTICS
-| 		WHERE TABLE_SCHEMA = ?
-| 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+| 			SELECT
+| 				TABLE_NAME,
+| 				INDEX_NAME,
+| 				COLUMN_NAME,
+| 				COLLATION,
+| 				IFNULL(SUB_PART, -1),
+| 				EXPRESSION,
+| 				SEQ_IN_INDEX,
+| 				INDEX_TYPE,
+| 				NON_UNIQUE,
+| 				CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END,
+| 				INDEX_COMMENT
+| 			FROM information_schema.STATISTICS
+| 			WHERE TABLE_SCHEMA = ?
+| 			ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 : string
 | omni_sync_corpus
 < result
@@ -115,11 +115,11 @@
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR" "string"
+< column "EXPRESSION" "VARBINARY" "[]uint8"
 < column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT" "int64"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "BIGINT" "int64"
 < column "INDEX_COMMENT" "TEXT" "string"
 < row
 : bytes
@@ -131,8 +131,7 @@
 : bytes
 | A
 : int64 32
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -150,8 +149,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -169,8 +167,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -188,8 +185,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -207,8 +203,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -226,8 +221,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE

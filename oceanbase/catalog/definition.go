@@ -1418,28 +1418,12 @@ func printIndexKeyPart(buf *strings.Builder, expr string, length int64, descendi
 // omni's functional-index normalizer then canonicalizes the dumped and user forms identically,
 // yielding an empty no-op. The transform is string-literal aware: the introducer is removed
 // only when it immediately precedes a string literal, and literal contents are left untouched.
+//
+// Unlike MySQL, oceanbase-ce 4.3.5.6 reports EXPRESSION as plain SQL:
+// KEY ((CONCAT(code, 'a\'b'))) reads back as CONCAT(`code`,'a\'b'), so its
+// quotes are not unescaped.
 func normalizeFunctionalIndexExpr(expr string) string {
-	return stripIndexExprCharsetIntroducers(unescapeFunctionalIndexQuotes(expr))
-}
-
-// unescapeFunctionalIndexQuotes undoes the backslash escaping that
-// information_schema.STATISTICS.EXPRESSION applies to single quotes (\' -> ') and backslashes
-// (\\ -> \). MySQL stores the expression text escaped; the omni lexer wants the raw SQL.
-func unescapeFunctionalIndexQuotes(expr string) string {
-	if !strings.Contains(expr, `\`) {
-		return expr
-	}
-	var b strings.Builder
-	b.Grow(len(expr))
-	for i := 0; i < len(expr); i++ {
-		if expr[i] == '\\' && i+1 < len(expr) && (expr[i+1] == '\'' || expr[i+1] == '\\') {
-			b.WriteByte(expr[i+1])
-			i++
-			continue
-		}
-		b.WriteByte(expr[i])
-	}
-	return b.String()
+	return stripIndexExprCharsetIntroducers(expr)
 }
 
 // stripIndexExprCharsetIntroducers removes a MySQL charset introducer token (an underscore-prefixed

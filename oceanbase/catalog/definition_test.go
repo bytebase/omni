@@ -196,15 +196,22 @@ func TestNormalizeFunctionalIndexExpr(t *testing.T) {
 		want string
 	}{
 		{
-			name: "multi-valued json index with utf8mb4 introducer and escaped quotes",
-			// The form synced from information_schema.STATISTICS.EXPRESSION.
-			expr: "(cast(json_extract(`tags`,_utf8mb4\\'$.ids\\') as unsigned array))",
+			name: "utf8mb4 introducer",
+			expr: "(cast(json_extract(`tags`,_utf8mb4'$.ids') as unsigned array))",
 			want: "(cast(json_extract(`tags`,'$.ids') as unsigned array))",
 		},
 		{
 			name: "latin1 introducer",
-			expr: "(json_extract(`c`,_latin1\\'$.a\\'))",
+			expr: "(json_extract(`c`,_latin1'$.a'))",
 			want: "(json_extract(`c`,'$.a'))",
+		},
+		{
+			// oceanbase-ce 4.3.5.6 reports EXPRESSION as plain SQL: KEY
+			// ((CONCAT(code, 'a\\'b'))) reads back as CONCAT(`code`,'a\\'b'), and
+			// its escape stays.
+			name: "escaped quote in a literal is kept",
+			expr: "(CONCAT(`code`,'a\\'b'))",
+			want: "(CONCAT(`code`,'a\\'b'))",
 		},
 		{
 			name: "no introducer no escaping is unchanged",
@@ -215,7 +222,7 @@ func TestNormalizeFunctionalIndexExpr(t *testing.T) {
 			name: "introducer-like underscore inside string literal is preserved",
 			// _utf8mb4 appears INSIDE the literal here; only a real introducer (before the
 			// opening quote) must be stripped.
-			expr: "(concat(`c`,_utf8mb4\\'_utf8mb4 is text\\'))",
+			expr: "(concat(`c`,_utf8mb4'_utf8mb4 is text'))",
 			want: "(concat(`c`,'_utf8mb4 is text'))",
 		},
 		{
@@ -225,7 +232,7 @@ func TestNormalizeFunctionalIndexExpr(t *testing.T) {
 		},
 		{
 			name: "backticked identifier with underscore is untouched",
-			expr: "(json_extract(`my_col`,_utf8mb4\\'$.k\\'))",
+			expr: "(json_extract(`my_col`,_utf8mb4'$.k'))",
 			want: "(json_extract(`my_col`,'$.k'))",
 		},
 	}
@@ -241,12 +248,11 @@ func TestPrintIndexClauseFunctionalExprNormalized(t *testing.T) {
 	index := &metadata.IndexMetadata{
 		Name:        "idx_tags",
 		Visible:     true,
-		Expressions: []string{"(cast(json_extract(`tags`,_utf8mb4\\'$.ids\\') as unsigned array))"},
+		Expressions: []string{"(cast(json_extract(`tags`,_utf8mb4'$.ids') as unsigned array))"},
 	}
 	require.NoError(t, printIndexClause(&buf, index, "InnoDB"))
 	require.Equal(t, ",\n  KEY `idx_tags` ((cast(json_extract(`tags`,'$.ids') as unsigned array)))", buf.String())
 	require.NotContains(t, buf.String(), "_utf8mb4")
-	require.NotContains(t, buf.String(), `\'`)
 }
 
 // TestPrintIndexClauseWritesComment pins the index COMMENT a sync reads from

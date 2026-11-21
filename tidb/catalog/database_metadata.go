@@ -1886,12 +1886,12 @@ func tableToProto(dbName string, t *Table) *metadata.TableMetadata {
 func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 	expr := p.Expr
 	if expr == "" && len(p.Columns) > 0 {
-		expr = strings.Join(p.Columns, ",")
+		expr = joinPartitionColumns(p.Columns)
 	}
 	partType := partitionTypeToProto(p.Type, p.Linear)
 	subExpr := p.SubExpr
 	if subExpr == "" && len(p.SubColumns) > 0 {
-		subExpr = strings.Join(p.SubColumns, ",")
+		subExpr = joinPartitionColumns(p.SubColumns)
 	}
 	subType := partitionTypeToProto(p.SubType, p.SubLinear)
 
@@ -2078,4 +2078,15 @@ func sortedMapKeys[V any](m map[string]V) []string {
 	}
 	slices.Sort(keys)
 	return keys
+}
+
+// joinPartitionColumns is a KEY or COLUMNS partitioning's column list as
+// information_schema.PARTITIONS reports it, each name quoted, which the
+// metadata's readers parse as SQL: TiDB v8.5.5 reports PARTITION BY KEY (`a,b`, c) as `a,b`,`c`.
+func joinPartitionColumns(cols []string) string {
+	quoted := make([]string, len(cols))
+	for i, c := range cols {
+		quoted[i] = "`" + strings.ReplaceAll(c, "`", "``") + "`"
+	}
+	return strings.Join(quoted, ",")
 }

@@ -303,7 +303,11 @@ CREATE TABLE t_myisam (a INT, KEY ka (a) KEY_BLOCK_SIZE=1024) ENGINE=MyISAM;
 
 CREATE TABLE p_key (a INT) PARTITION BY KEY ALGORITHM=1 (a) PARTITIONS 2;
 
-CREATE TABLE p_sub (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY KEY ALGORITHM=1 (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10));`
+CREATE TABLE p_sub (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY KEY ALGORITHM=1 (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10));
+
+CREATE TABLE p_quoted (` + "`a,b`" + ` INT, c INT) PARTITION BY KEY (` + "`a,b`" + `, c) PARTITIONS 2;
+
+CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));`
 	for _, role := range []string{testcontainer.Default, testcontainer.MySQL84} {
 		t.Run(role, func(t *testing.T) {
 			const dbName = "omni_sync_show_create_roundtrip"

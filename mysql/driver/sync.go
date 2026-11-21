@@ -581,7 +581,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, fmt.Errorf("failed to execute query %q: %w", tableQuery, err)
 	}
 	_ = tableRows.Close()
-	if err := d.reconcileTablesFromShowCreate(ctx, d.databaseName, schemaMetadata.Tables); err != nil {
+	if err := d.reconcileTablesFromShowCreate(ctx, d.databaseName, schemaMetadata.Tables, atLeast803 && !isMariaDB); err != nil {
 		return nil, err
 	}
 
@@ -1107,10 +1107,16 @@ func parsePartitionDetails(createTable string) partitionDetails {
 // general tablespace or innodb_system. TABLESPACE innodb_file_per_table, which
 // SHOW CREATE TABLE also shows, puts the table where InnoDB puts it anyway, and
 // is not looked for.
-func (d *Driver) reconcileTablesFromShowCreate(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) error {
-	shared, err := d.tablesInSharedTablespaces(ctx, databaseName)
-	if err != nil {
-		return err
+//
+// INNODB_TABLES and INNODB_TABLESPACES are MySQL 8.0.3's names; before them,
+// and on MariaDB, the tables in a shared tablespace are not looked up.
+func (d *Driver) reconcileTablesFromShowCreate(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata, hasInnoDBTablesView bool) error {
+	var shared sharedTablespaceTables
+	if hasInnoDBTablesView {
+		var err error
+		if shared, err = d.tablesInSharedTablespaces(ctx, databaseName); err != nil {
+			return err
+		}
 	}
 	for _, t := range tables {
 		if !showCreateCandidate(t, shared) {

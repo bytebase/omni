@@ -748,7 +748,7 @@ func metadataMVIndexes(idxs []*metadata.IndexMetadata, mvCols map[string]bool, o
 				Descending: desc,
 			}
 			if isExpressionKey(expr, mvCols) {
-				if _, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err != nil && parseErr == nil {
+				if _, err := parseExpr(expr); err != nil && parseErr == nil {
 					parseErr = err
 				}
 				col.Expr = expr
@@ -989,10 +989,11 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool, tableCols map[stri
 		}
 		if isExpressionKey(expr, tableCols) {
 			// Sync reports the expression as information_schema stores it,
-			// with its quotes escaped. Charset introducers stay: they can
-			// change what the expression computes. On a parse failure the key
-			// stays a column, and the caller leaves the index out.
-			if parsed, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err == nil {
+			// which on oceanbase-ce 4.3.5.6 is plain SQL, quotes unescaped.
+			// Charset introducers stay: they can change what the expression
+			// computes. On a parse failure the key stays a column, and the
+			// caller leaves the index out.
+			if parsed, err := parseExpr(expr); err == nil {
 				key.Expr = parsed
 			} else if firstErr == nil {
 				firstErr = err

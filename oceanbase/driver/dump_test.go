@@ -288,7 +288,11 @@ func TestDumpRestoresColumnGroupsAndVectorIndexes(t *testing.T) {
 
 CREATE TABLE t_each (a INT) WITH COLUMN GROUP(each column);
 
-CREATE TABLE t_vec (id INT PRIMARY KEY, v VECTOR(3), VECTOR INDEX vi(v) WITH (distance=l2, type=hnsw));`
+CREATE TABLE t_vec (id INT PRIMARY KEY, v VECTOR(3), VECTOR INDEX vi(v) WITH (distance=l2, type=hnsw));
+
+CREATE TABLE p_quoted (` + "`a,b`" + ` INT, c INT) PARTITION BY KEY (` + "`a,b`" + `, c) PARTITIONS 2;
+
+CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));`
 	source, restored, err := dumpAndRestore(t, "omni_ob_show_create_roundtrip", setup)
 	if err != nil {
 		t.Fatalf("restoring OceanBase dump: %v", err)

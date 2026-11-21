@@ -10,6 +10,12 @@
 > exec
 | CREATE TABLE t_vec (id INT PRIMARY KEY, v VECTOR(3), VECTOR INDEX vi(v) WITH (distance=l2, type=hnsw));
 < ok 0 0
+> exec
+| CREATE TABLE p_quoted (`a,b` INT, c INT) PARTITION BY KEY (`a,b`, c) PARTITIONS 2;
+< ok 0 0
+> exec
+| CREATE TABLE t_fn (code VARCHAR(10), KEY k1 ((CONCAT(code, 'a\'b'))), KEY k2 ((CONCAT(code, 'c\\d'))));
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -19,21 +25,21 @@
 | 5.7.25-OceanBase_CE-v4.3.5.6
 > query
 |
-| 		SELECT
-| 			TABLE_NAME,
-| 			INDEX_NAME,
-| 			COLUMN_NAME,
-| 			COLLATION,
-| 			IFNULL(SUB_PART, -1),
-| 			'',
-| 			SEQ_IN_INDEX,
-| 			INDEX_TYPE,
-| 			NON_UNIQUE,
-| 			1,
-| 			INDEX_COMMENT
-| 		FROM information_schema.STATISTICS
-| 		WHERE TABLE_SCHEMA = ?
-| 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+| 			SELECT
+| 				TABLE_NAME,
+| 				INDEX_NAME,
+| 				COLUMN_NAME,
+| 				COLLATION,
+| 				IFNULL(SUB_PART, -1),
+| 				EXPRESSION,
+| 				SEQ_IN_INDEX,
+| 				INDEX_TYPE,
+| 				NON_UNIQUE,
+| 				CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END,
+| 				INDEX_COMMENT
+| 			FROM information_schema.STATISTICS
+| 			WHERE TABLE_SCHEMA = ?
+| 			ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 : string
 | omni_ob_show_create_roundtrip
 < result
@@ -42,12 +48,50 @@
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR" "string"
+< column "EXPRESSION" "VARBINARY" "[]uint8"
 < column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT" "int64"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "BIGINT" "int64"
 < column "INDEX_COMMENT" "TEXT" "string"
+< row
+: bytes
+| t_fn
+: bytes
+| k1
+: bytes
+| SYS_NC17$
+: bytes
+| A
+: int64 -1
+: bytes
+| CONCAT(`code`,'a\'b')
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_fn
+: bytes
+| k2
+: bytes
+| SYS_NC18$
+: bytes
+| A
+: int64 -1
+: bytes
+| CONCAT(`code`,'c\\d')
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
 < row
 : bytes
 | t_vec
@@ -58,8 +102,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -77,8 +120,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -92,12 +134,11 @@
 : bytes
 | vi
 : bytes
-| __vid_1795252803366522
+| __vid_1795253830199697
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -111,12 +152,11 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795252803366867
+| __type_17_1795253830199989
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -130,12 +170,11 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795252803366522
+| __vid_1795253830199697
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -149,12 +188,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795252803368403
+| __scn_17_1795253830201387
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -168,12 +206,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795252803366522
+| __vid_1795253830199697
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -187,12 +224,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795252803366867
+| __type_17_1795253830199989
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 3
 : bytes
 | BTREE
@@ -206,12 +242,11 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795252803369141
+| __key_17_1795253830202157
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -229,8 +264,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -271,6 +305,50 @@
 < column "convert(GENERATION_EXPRESSION using BINARY)" "VARBINARY" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "NULL" "NULL" "*interface {}"
+< row
+: bytes
+| p_quoted
+: bytes
+| a,b
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_quoted
+: bytes
+| c
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 < row
 : bytes
 | t_cg
@@ -330,6 +408,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_fn
+: bytes
+| code
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -581,6 +681,29 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
 < row
 : bytes
+| p_quoted
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_cg
 : bytes
 | BASE TABLE
@@ -605,6 +728,29 @@
 < row
 : bytes
 | t_each
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_fn
 : bytes
 | BASE TABLE
 : bytes
@@ -672,6 +818,22 @@
 < column "MASTER" "VARCHAR" "string"
 < column "LOG_TABLE" "VARCHAR" "string"
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`p_quoted`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_quoted
+: bytes
+| CREATE TABLE `p_quoted` (
+|   `a,b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by key(`a,b`, `c`)
+| (partition `p0`,
+| partition `p1`)
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_cg`
 < result
 < column "Table" "VARCHAR" "string"
@@ -696,6 +858,20 @@
 | CREATE TABLE `t_each` (
 |   `a` int(11) DEFAULT NULL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 WITH COLUMN GROUP(each column)
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_fn`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_fn
+: bytes
+| CREATE TABLE `t_fn` (
+|   `code` varchar(10) DEFAULT NULL,
+|   KEY `k1` ((CONCAT(`code`,'a\'b'))) BLOCK_SIZE 16384 LOCAL,
+|   KEY `k2` ((CONCAT(`code`,'c\\d'))) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_vec`
 < result
@@ -752,6 +928,12 @@
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
 < ok 0 0
 > exec
+| CREATE TABLE `p_quoted` (
+|   `a,b` int DEFAULT NULL,
+|   `c` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
 | CREATE TABLE `t_cg` (
 |   `a` int DEFAULT NULL,
 |   `b` int DEFAULT NULL
@@ -761,6 +943,13 @@
 | CREATE TABLE `t_each` (
 |   `a` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH COLUMN GROUP(each column)
+< ok 0 0
+> exec
+| CREATE TABLE `t_fn` (
+|   `code` varchar(10) DEFAULT NULL,
+|   KEY `k1` ((CONCAT(`code`,'a\'b'))),
+|   KEY `k2` ((CONCAT(`code`,'c\\d')))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 < ok 0 0
 > exec
 | CREATE TABLE `t_vec` (
@@ -785,21 +974,21 @@
 | 5.7.25-OceanBase_CE-v4.3.5.6
 > query
 |
-| 		SELECT
-| 			TABLE_NAME,
-| 			INDEX_NAME,
-| 			COLUMN_NAME,
-| 			COLLATION,
-| 			IFNULL(SUB_PART, -1),
-| 			'',
-| 			SEQ_IN_INDEX,
-| 			INDEX_TYPE,
-| 			NON_UNIQUE,
-| 			1,
-| 			INDEX_COMMENT
-| 		FROM information_schema.STATISTICS
-| 		WHERE TABLE_SCHEMA = ?
-| 		ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
+| 			SELECT
+| 				TABLE_NAME,
+| 				INDEX_NAME,
+| 				COLUMN_NAME,
+| 				COLLATION,
+| 				IFNULL(SUB_PART, -1),
+| 				EXPRESSION,
+| 				SEQ_IN_INDEX,
+| 				INDEX_TYPE,
+| 				NON_UNIQUE,
+| 				CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END,
+| 				INDEX_COMMENT
+| 			FROM information_schema.STATISTICS
+| 			WHERE TABLE_SCHEMA = ?
+| 			ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 : string
 | omni_ob_show_create_roundtrip_restored
 < result
@@ -808,12 +997,50 @@
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR" "string"
+< column "EXPRESSION" "VARBINARY" "[]uint8"
 < column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT" "int64"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "BIGINT" "int64"
 < column "INDEX_COMMENT" "TEXT" "string"
+< row
+: bytes
+| t_fn
+: bytes
+| k1
+: bytes
+| SYS_NC17$
+: bytes
+| A
+: int64 -1
+: bytes
+| CONCAT(`code`,'a\'b')
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_fn
+: bytes
+| k2
+: bytes
+| SYS_NC18$
+: bytes
+| A
+: int64 -1
+: bytes
+| CONCAT(`code`,'c\\d')
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
 < row
 : bytes
 | t_vec
@@ -824,8 +1051,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -843,8 +1069,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -858,12 +1083,11 @@
 : bytes
 | vi
 : bytes
-| __vid_1795252804865216
+| __vid_1795253832165205
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -877,12 +1101,11 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795252804865520
+| __type_17_1795253832165461
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -896,12 +1119,11 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795252804865216
+| __vid_1795253832165205
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -915,12 +1137,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795252804866897
+| __scn_17_1795253832166870
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -934,12 +1155,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795252804865216
+| __vid_1795253832165205
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -953,12 +1173,11 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795252804865520
+| __type_17_1795253832165461
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 3
 : bytes
 | BTREE
@@ -972,12 +1191,11 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795252804867688
+| __key_17_1795253832167580
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 1
 : bytes
 | BTREE
@@ -995,8 +1213,7 @@
 : bytes
 | A
 : int64 -1
-: bytes
-|
+: null
 : uint64 2
 : bytes
 | BTREE
@@ -1037,6 +1254,50 @@
 < column "convert(GENERATION_EXPRESSION using BINARY)" "VARBINARY" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "NULL" "NULL" "*interface {}"
+< row
+: bytes
+| p_quoted
+: bytes
+| a,b
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_quoted
+: bytes
+| c
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 < row
 : bytes
 | t_cg
@@ -1096,6 +1357,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_fn
+: bytes
+| code
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -1347,6 +1630,29 @@
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
 < row
 : bytes
+| p_quoted
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_cg
 : bytes
 | BASE TABLE
@@ -1371,6 +1677,29 @@
 < row
 : bytes
 | t_each
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| t_fn
 : bytes
 | BASE TABLE
 : bytes
@@ -1438,6 +1767,19 @@
 < column "MASTER" "VARCHAR" "string"
 < column "LOG_TABLE" "VARCHAR" "string"
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`p_quoted`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_quoted
+: bytes
+| CREATE TABLE `p_quoted` (
+|   `a,b` int(11) DEFAULT NULL,
+|   `c` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_cg`
 < result
 < column "Table" "VARCHAR" "string"
@@ -1462,6 +1804,20 @@
 | CREATE TABLE `t_each` (
 |   `a` int(11) DEFAULT NULL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0 WITH COLUMN GROUP(each column)
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_fn`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_fn
+: bytes
+| CREATE TABLE `t_fn` (
+|   `code` varchar(10) DEFAULT NULL,
+|   KEY `k1` ((CONCAT(`code`,'a\'b'))) BLOCK_SIZE 16384 LOCAL,
+|   KEY `k2` ((CONCAT(`code`,'c\\d'))) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_vec`
 < result
