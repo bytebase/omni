@@ -77,6 +77,8 @@ func TestValidateQuery(t *testing.T) {
 		{`SELECT * FROM t1; SELECT * FROM t2;`, true, true},
 		{`SELECT * FROM t1; SELECT * FROM t2; SHOW search_path;`, true, true},
 		{`SET work_mem = '128MB'; SELECT * FROM t1;`, true, false},
+		{`SELECT * FROM t1; INSERT INTO t2 VALUES (1);`, false, false},
+		{`SELECT * FROM t1; CREATE TABLE t2 (a int);`, false, false},
 		{`EXPLAIN SELECT * FROM t1; SELECT * FROM t2;`, true, true},
 	}
 	for _, tc := range tests {
