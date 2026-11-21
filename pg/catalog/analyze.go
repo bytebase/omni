@@ -3458,6 +3458,8 @@ func (ac *analyzeCtx) transformTypeCast(tc *nodes.TypeCast) (AnalyzedExpr, error
 	// pg: coerce_type_typmod applies length coercion after type coercion.
 	if targetTypMod != -1 {
 		switch r := result.(type) {
+		case *ConstExpr:
+			r.TypeMod = targetTypMod
 		case *RelabelExpr:
 			r.TypeMod = targetTypMod
 		case *FuncCallExpr:
@@ -7005,7 +7007,6 @@ func (ac *analyzeCtx) transformRangeTableSample(rts *nodes.RangeTableSample, rte
 // pg: src/backend/parser/parse_clause.c — transformRangeTableSample
 func (c *Catalog) validateTablesampleMethod(method *nodes.List) error {
 	fSchema, fName := qualifiedName(method)
-	fName = strings.ToLower(fName)
 	var searchNS []uint32
 	if fSchema != "" {
 		ns := c.schemaByName[fSchema]
@@ -7328,6 +7329,10 @@ func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (
 	}
 	if c.Agg_filter != nil {
 		aggFilter, err = ac.transformExpr(c.Agg_filter)
+		if err != nil {
+			return
+		}
+		aggFilter, err = ac.catalog.coerceToBoolean(aggFilter, "FILTER")
 		if err != nil {
 			return
 		}

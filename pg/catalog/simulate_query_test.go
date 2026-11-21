@@ -112,6 +112,8 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"json_arrayagg_over_in_default", "CREATE TABLE t_def_jaaw (j json DEFAULT JSON_ARRAYAGG(1) OVER ())", CodeWindowingError},
 			{"json_objectagg_in_default", "CREATE TABLE t_def_joa (j json DEFAULT JSON_OBJECTAGG('k' : 1))", CodeGroupingError},
 			{"json_arrayagg_missing_col", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(nonexistent)", CodeUndefinedColumn},
+			{"json_arrayagg_nonbool_filter", "CREATE VIEW _v AS SELECT JSON_ARRAYAGG(b) FILTER (WHERE 1) AS j FROM a", CodeDatatypeMismatch},
+			{"json_objectagg_nonbool_filter", "CREATE VIEW _v AS SELECT JSON_OBJECTAGG('k' : b) FILTER (WHERE 1) AS j FROM a", CodeDatatypeMismatch},
 			{"json_objectagg_missing_col", "CREATE VIEW _v AS SELECT JSON_OBJECTAGG(nonexistent VALUE 1)", CodeUndefinedColumn},
 			{"json_object_bad_returning", "CREATE VIEW _v AS SELECT JSON_OBJECT(RETURNING a)", CodeCannotCoerce},
 			{"json_query_bool_behavior", "CREATE VIEW _v AS SELECT JSON_QUERY(a, a TRUE ON EMPTY)", CodeSyntaxError},
@@ -163,7 +165,7 @@ func TestQuerySimulationFixes(t *testing.T) {
 			{"hex_bit_literal", "CREATE VIEW _v AS SELECT X'1F'", `'00011111'::"bit"`},
 			{"typed_empty_array", "CREATE VIEW _v AS SELECT ARRAY[]::int[]", "ARRAY[]::integer[]"},
 			{"nested_typed_empty_array", "CREATE VIEW _v AS SELECT ARRAY[[]]::int[]", "ARRAY[ARRAY[]::integer[]]"},
-			{"valid_bit_hex_literal", "CREATE VIEW _v AS SELECT BIT 'x1F'", `'x1F'::"bit"`},
+			{"valid_bit_hex_literal", "CREATE VIEW _v AS SELECT BIT(8) 'x1F'", `'x1F'::bit(8)`},
 			{"array_sublink_deparse", "CREATE VIEW _v AS SELECT ARRAY(SELECT 1)", `ARRAY( SELECT 1) AS "array"`},
 			{"array_type_with_typmod", "CREATE VIEW _v AS SELECT NULL::varchar(10)[]", "character varying[]"},
 			{"named_window_refs", "CREATE VIEW _v AS SELECT count(*) OVER w AS c, sum(a) OVER w AS s FROM a WINDOW w AS (ORDER BY b)", "OVER w"},
@@ -257,6 +259,46 @@ func TestQuerySimulationFixes(t *testing.T) {
 		}
 		if !strings.Contains(def, "merge_action()") {
 			t.Errorf("unexpected view def %q", def)
+		}
+	})
+
+	t.Run("array_subquery_typmod_and_collation", func(t *testing.T) {
+		c := setup(t)
+		res, err := c.Exec(`CREATE VIEW _v AS SELECT ARRAY(SELECT 'x'::varchar(5) COLLATE "C") AS arr`, nil)
+		if err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("stmt error: %v", r.Error)
+			}
+		}
+		rel := c.GetRelation("public", "_v")
+		if rel == nil || len(rel.Columns) != 1 {
+			t.Fatalf("expected 1 column on view _v")
+		}
+		col := rel.Columns[0]
+		if col.TypeMod != 9 { // varchar(5) typmod is 5 + VARHDRSZ(4) = 9
+			t.Errorf("got typmod %d, want 9", col.TypeMod)
+		}
+		if col.Collation != C_COLLATION_OID {
+			t.Errorf("got collation %d, want %d", col.Collation, C_COLLATION_OID)
+		}
+	})
+
+	t.Run("quoted_tablesample_handler", func(t *testing.T) {
+		c := setup(t)
+		res, err := c.Exec(`
+			CREATE FUNCTION public."MySample"(internal) RETURNS tsm_handler LANGUAGE internal AS 'tsm_bernoulli_handler';
+			CREATE VIEW _v AS SELECT b FROM a TABLESAMPLE "MySample"(10);
+		`, nil)
+		if err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("stmt error: %v", r.Error)
+			}
 		}
 	})
 

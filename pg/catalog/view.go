@@ -863,7 +863,7 @@ func (c *Catalog) lacksCollationIn(levels *queryLevels, expr AnalyzedExpr, memo 
 		}
 		return c.lacksCollationIn(&queryLevels{query: sub, outer: owner}, te.Expr, memo)
 	case *SubLinkExpr:
-		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
+		if (v.SubLinkType != SubLinkExprType && v.SubLinkType != SubLinkArrayType) || v.SubQuery == nil {
 			return false
 		}
 		te := nonJunkTargetEntry(v.SubQuery.TargetList, 1)

@@ -344,14 +344,18 @@ type SubLinkExpr struct {
 
 func (s *SubLinkExpr) exprType() uint32 { return s.ResultType }
 func (s *SubLinkExpr) exprTypMod() int32 {
-	if s.SubLinkType == SubLinkExprType && s.SubQuery != nil && len(s.SubQuery.TargetList) > 0 {
-		return s.SubQuery.TargetList[0].Expr.exprTypMod()
+	if (s.SubLinkType == SubLinkExprType || s.SubLinkType == SubLinkArrayType) && s.SubQuery != nil {
+		if te := nonJunkTargetEntry(s.SubQuery.TargetList, 1); te != nil {
+			return te.Expr.exprTypMod()
+		}
 	}
 	return -1
 }
 func (s *SubLinkExpr) exprCollation() uint32 {
-	if s.SubLinkType == SubLinkExprType && s.SubQuery != nil && len(s.SubQuery.TargetList) > 0 {
-		return s.SubQuery.TargetList[0].Expr.exprCollation()
+	if (s.SubLinkType == SubLinkExprType || s.SubLinkType == SubLinkArrayType) && s.SubQuery != nil {
+		if te := nonJunkTargetEntry(s.SubQuery.TargetList, 1); te != nil {
+			return te.Expr.exprCollation()
+		}
 	}
 	return 0
 }
