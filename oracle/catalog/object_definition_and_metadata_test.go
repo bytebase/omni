@@ -1,9 +1,13 @@
 package catalog
 
 import (
+	"context"
+	"fmt"
+	"slices"
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/internal/testcontainer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -129,11 +133,12 @@ func TestGetObjectDefinition(t *testing.T) {
 			get: func() (string, error) {
 				return GetViewDefinition("", &metadatapb.ViewMetadata{
 					Name:       "DEPT_EMPLOYEE_COUNT",
-					Definition: "SELECT D.ID AS DEPT_ID, COUNT(E.ID) AS EMP_COUNT\nFROM DEPARTMENTS D",
+					Definition: "SELECT D.ID AS DEPT_ID, COUNT(E.ID) AS EMP_COUNT\nFROM DEPARTMENTS D LEFT JOIN EMPLOYEES E ON E.DEPT_ID = D.ID\nGROUP BY D.ID",
 				})
 			},
 			want: `CREATE VIEW "DEPT_EMPLOYEE_COUNT" AS SELECT D.ID AS DEPT_ID, COUNT(E.ID) AS EMP_COUNT
-FROM DEPARTMENTS D;
+FROM DEPARTMENTS D LEFT JOIN EMPLOYEES E ON E.DEPT_ID = D.ID
+GROUP BY D.ID;
 
 `,
 		},
@@ -215,6 +220,104 @@ END;
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// TestObjectDefinitionsRunOnOracle executes the single-object definitions
+// produced by GetTableDefinition, GetViewDefinition, GetMaterializedViewDefinition,
+// GetFunctionDefinition, and GetProcedureDefinition against the pinned Oracle
+// server. The tape replays it in CI; record with OMNI_RECORD=1.
+func TestObjectDefinitionsRunOnOracle(t *testing.T) {
+	db := testcontainer.Open(t, "system")
+	defer db.Close()
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	const schema = "OMNI_OBJ_DEF"
+	execScript(t, conn, fmt.Sprintf(`CREATE USER "%s" IDENTIFIED BY "%s" QUOTA UNLIMITED ON USERS`, schema, testcontainer.Password))
+	execScript(t, conn, fmt.Sprintf(`GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE PROCEDURE, CREATE TRIGGER, CREATE MATERIALIZED VIEW TO "%s"`, schema))
+	execScript(t, conn, fmt.Sprintf(`ALTER SESSION SET CURRENT_SCHEMA = "%s"`, schema))
+
+	// Base tables referenced by the single-object definitions below.
+	execScript(t, conn, `
+CREATE TABLE "T2" ("C1" NUMBER PRIMARY KEY);
+CREATE TABLE "DEPARTMENTS" ("ID" NUMBER PRIMARY KEY);
+CREATE TABLE "EMPLOYEES" ("ID" NUMBER PRIMARY KEY, "EMP_ID" NUMBER, "DEPT_ID" NUMBER, "EMAIL" VARCHAR2(100));
+CREATE TABLE "ORDERS" ("ID" NUMBER PRIMARY KEY, "PRODUCT_ID" NUMBER);
+`)
+
+	tableDDL, err := GetTableDefinition("", &metadatapb.TableMetadata{
+		Name: "T1",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "C1", Type: "NUMBER", Nullable: false},
+			{Name: "C2", Type: "NUMBER(1)", Default: "0", Nullable: false},
+		},
+		Indexes: []*metadatapb.IndexMetadata{
+			{Name: "T1_PK", Expressions: []string{"C1"}, Primary: true, Unique: true, IsConstraint: true},
+		},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{
+			{Name: "T1_CK", Expression: `"C2" IN (0, 1)`},
+		},
+		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+			{Name: "T1_FK", Columns: []string{"C1"}, ReferencedTable: "T2", ReferencedColumns: []string{"C1"}},
+		},
+	}, nil)
+	require.NoError(t, err)
+	execScript(t, conn, tableDDL)
+
+	viewDDL, err := GetViewDefinition("", &metadatapb.ViewMetadata{
+		Name:       "DEPT_EMPLOYEE_COUNT",
+		Definition: "SELECT D.ID AS DEPT_ID, COUNT(E.ID) AS EMP_COUNT\nFROM DEPARTMENTS D LEFT JOIN EMPLOYEES E ON E.DEPT_ID = D.ID\nGROUP BY D.ID",
+	})
+	require.NoError(t, err)
+	execScript(t, conn, viewDDL)
+
+	triggerViewDDL, err := GetViewDefinition("", &metadatapb.ViewMetadata{
+		Name:       "EMPLOYEE_VIEW",
+		Definition: "SELECT EMP_ID, EMAIL FROM EMPLOYEES",
+		Triggers: []*metadatapb.TriggerMetadata{{
+			Name: "EMPLOYEE_VIEW_INSERT_TRG",
+			Body: "CREATE OR REPLACE TRIGGER EMPLOYEE_VIEW_INSERT_TRG\nINSTEAD OF INSERT ON EMPLOYEE_VIEW\nFOR EACH ROW\nBEGIN\n    NULL;\nEND;",
+		}},
+	})
+	require.NoError(t, err)
+	execScript(t, conn, triggerViewDDL)
+
+	mvDDL, err := GetMaterializedViewDefinition("", &metadatapb.MaterializedViewMetadata{
+		Name:       "PRODUCT_STATS",
+		Definition: "SELECT PRODUCT_ID, COUNT(*) AS ORDER_COUNT FROM ORDERS GROUP BY PRODUCT_ID",
+	})
+	require.NoError(t, err)
+	execScript(t, conn, mvDDL)
+
+	fnDDL, err := GetFunctionDefinition("", &metadatapb.FunctionMetadata{
+		Name:       "CALCULATE_DISCOUNT",
+		Definition: "FUNCTION CALCULATE_DISCOUNT(AMOUNT NUMBER)\nRETURN NUMBER\nIS\nBEGIN\n    RETURN AMOUNT * 0.1;\nEND;",
+	})
+	require.NoError(t, err)
+	execScript(t, conn, fnDDL)
+
+	procDDL, err := GetProcedureDefinition("", &metadatapb.ProcedureMetadata{
+		Name:       "LOG_AUDIT",
+		Definition: "PROCEDURE LOG_AUDIT(P_TABLE_NAME VARCHAR2)\nIS\nBEGIN\n    NULL;\nEND;",
+	})
+	require.NoError(t, err)
+	execScript(t, conn, procDDL)
+
+	got := readObjects(t, conn, schema)
+	for _, want := range []string{
+		"TABLE/T1",
+		"INDEX/T1_PK",
+		"VIEW/DEPT_EMPLOYEE_COUNT",
+		"VIEW/EMPLOYEE_VIEW",
+		"TRIGGER/EMPLOYEE_VIEW_INSERT_TRG",
+		"MATERIALIZED VIEW/PRODUCT_STATS",
+		"FUNCTION/CALCULATE_DISCOUNT",
+		"PROCEDURE/LOG_AUDIT",
+	} {
+		require.True(t, slices.Contains(got, want), "expected %s in %v", want, got)
 	}
 }
 

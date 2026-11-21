@@ -2,11 +2,14 @@ package catalog
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v3"
@@ -127,4 +130,45 @@ func TestDatabaseMetadataParsesPrettyView(t *testing.T) {
 	require.Len(t, meta.Schemas[0].Views, 1)
 	require.Equal(t, "v_pretty", meta.Schemas[0].Views[0].Name)
 	require.NotContains(t, meta.Schemas[0].Views[0].Definition, "\n")
+}
+
+// TestDatabaseDefinitionCorpusRunsOnMySQL executes every generated definition in
+// testdata/get_database_definition.yaml against the pinned MySQL 8.0 server
+// using mysql-client DELIMITER splitting. The tape replays it in CI; record with
+// OMNI_RECORD=1.
+func TestDatabaseDefinitionCorpusRunsOnMySQL(t *testing.T) {
+	content, err := os.ReadFile("testdata/get_database_definition.yaml")
+	require.NoError(t, err)
+	var cases []definitionCorpusCase
+	require.NoError(t, yaml.Unmarshal(content, &cases))
+	require.NotEmpty(t, cases)
+
+	ctx := context.Background()
+	conn, err := testcontainer.OpenRoot(t, testcontainer.Options{MultiStatements: true}).Conn(ctx)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	for i, tc := range cases {
+		t.Run(tc.Description, func(t *testing.T) {
+			var meta metadatapb.DatabaseSchemaMetadata
+			require.NoError(t, unmarshaler.Unmarshal([]byte(tc.Metadata), &meta))
+
+			definition, err := DatabaseDefinition(&meta, DefinitionOptions{PrintHeader: true})
+			require.NoError(t, err)
+
+			dbName := fmt.Sprintf("def_corpus_%d", i)
+			_, err = conn.ExecContext(ctx, "DROP DATABASE IF EXISTS "+dbName)
+			require.NoError(t, err)
+			_, err = conn.ExecContext(ctx, "CREATE DATABASE "+dbName)
+			require.NoError(t, err)
+			_, err = conn.ExecContext(ctx, "USE "+dbName)
+			require.NoError(t, err)
+
+			for _, stmt := range splitLikeMySQLClient(definition) {
+				_, err = conn.ExecContext(ctx, stmt)
+				require.NoError(t, err, "MySQL rejected statement:\n%s", stmt)
+			}
+		})
+	}
 }
