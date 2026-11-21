@@ -293,7 +293,11 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 			if err != nil {
 				return nil, err
 			}
-			if q.JoinTree == nil {
+			if q.JoinTree != nil {
+				if err := ac.checkFromConflicts(q.JoinTree.FromList, []JoinNode{jn}); err != nil {
+					return nil, err
+				}
+			} else {
 				q.JoinTree = &JoinTree{}
 			}
 			q.JoinTree.FromList = append(q.JoinTree.FromList, jn)
@@ -556,14 +560,33 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 				Strength:   LockClauseStrength(lc.Strength),
 				WaitPolicy: LockWaitPolicy(lc.WaitPolicy),
 			}
-			if lc.LockedRels != nil {
+			if lc.LockedRels != nil && len(lc.LockedRels.Items) > 0 {
 				for _, rel := range lc.LockedRels.Items {
-					if rv, ok := rel.(*nodes.RangeVar); ok && rv != nil {
-						lcq.Tables = append(lcq.Tables, rv.Relname)
+					rv, ok := rel.(*nodes.RangeVar)
+					if !ok || rv == nil {
+						continue
 					}
+					if rv.Schemaname != "" {
+						return nil, &Error{
+							Code:    CodeFeatureNotSupported,
+							Message: "FOR UPDATE/SHARE must specify unqualified relation names",
+						}
+					}
+					if !ac.hasFromRelationName(rv.Relname) {
+						return nil, &Error{
+							Code:    CodeUndefinedTable,
+							Message: fmt.Sprintf("relation %q in FOR UPDATE/SHARE clause not found in FROM clause", rv.Relname),
+						}
+					}
+					lcq.Tables = append(lcq.Tables, rv.Relname)
 				}
+				q.LockingClauses = append(q.LockingClauses, lcq)
+			} else if q.JoinTree != nil && len(q.JoinTree.FromList) > 0 {
+				// pg: src/backend/parser/parse_clause.c — transformLockingClause
+				// An unqualified locking clause applies to the FROM relations;
+				// when FROM is empty, no row marks are generated.
+				q.LockingClauses = append(q.LockingClauses, lcq)
 			}
-			q.LockingClauses = append(q.LockingClauses, lcq)
 		}
 	}
 
@@ -671,11 +694,83 @@ func (ac *analyzeCtx) transformFromClauseItem(n nodes.Node) (JoinNode, error) {
 		return ac.transformRangeSubselect(v)
 	case *nodes.RangeFunction:
 		return ac.transformRangeFunction(v)
+	case *nodes.RangeTableFunc:
+		return ac.transformRangeTableFunc(v)
 	case *nodes.RangeTableSample:
 		return ac.transformRangeTableSampleItem(v)
 	default:
 		return nil, fmt.Errorf("unsupported FROM clause item: %T", n)
 	}
+}
+
+// hasFromRelationName reports whether any exposed FROM item in the current
+// query has name relname (respecting join aliases that hide inner tables).
+func (ac *analyzeCtx) hasFromRelationName(relname string) bool {
+	if ac.query.JoinTree == nil {
+		return false
+	}
+	var names []string
+	for _, jn := range ac.query.JoinTree.FromList {
+		names = ac.collectExposedNames(jn, names)
+	}
+	return slices.Contains(names, relname)
+}
+
+// collectExposedNames appends the exposed FROM table/alias names of jn.
+//
+// pg: src/backend/parser/parse_relation.c — checkNameSpaceConflicts
+func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []string) []string {
+	switch v := jn.(type) {
+	case *RangeTableRef:
+		if v.RTIndex < 0 || v.RTIndex >= len(ac.query.RangeTable) {
+			return dst
+		}
+		rte := ac.query.RangeTable[v.RTIndex]
+		// Unaliased subqueries do not expose a conflicting table name.
+		if rte.Kind == RTESubquery && rte.Alias == "" {
+			return dst
+		}
+		if rte.ERef != "" {
+			return append(dst, rte.ERef)
+		}
+		return dst
+	case *JoinExprNode:
+		if v.RTIndex >= 0 && v.RTIndex < len(ac.query.RangeTable) {
+			if alias := ac.query.RangeTable[v.RTIndex].Alias; alias != "" {
+				return append(dst, alias)
+			}
+		}
+		dst = ac.collectExposedNames(v.Left, dst)
+		return ac.collectExposedNames(v.Right, dst)
+	}
+	return dst
+}
+
+// checkFromConflicts verifies that no exposed table/alias name appears in both
+// left and right FROM namespaces.
+//
+// pg: src/backend/parser/parse_relation.c — checkNameSpaceConflicts
+func (ac *analyzeCtx) checkFromConflicts(left, right []JoinNode) error {
+	var leftNames []string
+	for _, jn := range left {
+		leftNames = ac.collectExposedNames(jn, leftNames)
+	}
+	if len(leftNames) == 0 {
+		return nil
+	}
+	var rightNames []string
+	for _, jn := range right {
+		rightNames = ac.collectExposedNames(jn, rightNames)
+	}
+	for _, rn := range rightNames {
+		if slices.Contains(leftNames, rn) {
+			return &Error{
+				Code:    CodeDuplicateAlias,
+				Message: fmt.Sprintf("table name %q specified more than once", rn),
+			}
+		}
+	}
+	return nil
 }
 
 // transformRangeVar processes a table reference in FROM.
@@ -776,6 +871,19 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (checkNameSpaceConflicts)
+	if err := ac.checkFromConflicts([]JoinNode{left}, []JoinNode{right}); err != nil {
+		return nil, err
+	}
+	if je.JoinUsing != nil && je.JoinUsing.Aliasname != "" {
+		exposed := ac.collectExposedNames(left, ac.collectExposedNames(right, nil))
+		if slices.Contains(exposed, je.JoinUsing.Aliasname) {
+			return nil, &Error{
+				Code:    CodeDuplicateAlias,
+				Message: fmt.Sprintf("table name %q specified more than once", je.JoinUsing.Aliasname),
+			}
+		}
+	}
 
 	jt := convertJoinType(je.Jointype)
 	lRT, rRT := joinNodeRTIndex(left), joinNodeRTIndex(right)
@@ -865,7 +973,11 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 	}
 
 	rtIdx := len(ac.query.RangeTable)
-	rte := &RangeTableEntry{Kind: RTEJoin, JoinType: jt}
+	joinAlias := ""
+	if je.Alias != nil {
+		joinAlias = je.Alias.Aliasname
+	}
+	rte := &RangeTableEntry{Kind: RTEJoin, JoinType: jt, Alias: joinAlias, ERef: joinAlias}
 	addColumn := func(name string, alias AnalyzedExpr) {
 		rte.ColNames = append(rte.ColNames, name)
 		rte.ColTypes = append(rte.ColTypes, alias.exprType())
@@ -1049,6 +1161,11 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 	if rs.Alias != nil {
 		alias = rs.Alias.Aliasname
 	}
+	// pg: src/backend/parser/parse_clause.c — transformRangeSubselect (PG16+)
+	eref := alias
+	if eref == "" {
+		eref = "unnamed_subquery"
+	}
 
 	outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
 	colNames := make([]string, len(outputTargetList))
@@ -1061,7 +1178,7 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 		colTypMods[i] = -1 // typmod lost through subquery
 		colCollations[i] = te.Expr.exprCollation()
 	}
-	aliasColumns, err := applyColumnAliases(rs.Alias, alias, colNames)
+	aliasColumns, err := applyColumnAliases(rs.Alias, eref, colNames)
 	if err != nil {
 		return nil, err
 	}
@@ -1070,7 +1187,7 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 	rte := &RangeTableEntry{
 		Kind:          RTESubquery,
 		Alias:         alias,
-		ERef:          alias,
+		ERef:          eref,
 		ColNames:      colNames,
 		ColTypes:      colTypes,
 		ColTypMods:    colTypMods,
@@ -1141,7 +1258,7 @@ func (ac *analyzeCtx) transformRangeFunction(rf *nodes.RangeFunction) (JoinNode,
 			return nil, err
 		}
 		funcExprs = append(funcExprs, analyzed)
-		funcNames = append(funcNames, figureColname(fexpr))
+		funcNames = append(funcNames, figureColName(fexpr))
 		var coldeflist *nodes.List
 		if len(funcItem.Items) > 1 {
 			coldeflist, _ = funcItem.Items[1].(*nodes.List)
@@ -1229,6 +1346,14 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 			// ROWS FROM and WITH ORDINALITY place columns after this
 			// function's, whose number is unknown.
 			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("function %s, whose columns are unknown, needs a column definition list in ROWS FROM or WITH ORDINALITY", funcNames[i])}
+		}
+
+		if cls != typeFuncRecord && recordFunctionColdefList(rf, funcColdefLists, i, len(funcExprs)) != nil {
+			// pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
+			return nil, &Error{
+				Code:    CodeSyntaxError,
+				Message: `a column definition list is only allowed for functions returning "record"`,
+			}
 		}
 
 		switch cls {
@@ -1554,22 +1679,6 @@ func (ac *analyzeCtx) funcResultName(fexpr AnalyzedExpr) string {
 	return result
 }
 
-// figureColname extracts the function name from a raw expression for FROM alias.
-//
-// pg: src/backend/parser/parse_target.c — FigureColname
-func figureColname(n nodes.Node) string {
-	if n == nil {
-		return "?column?"
-	}
-	switch v := n.(type) {
-	case *nodes.FuncCall:
-		if v.Funcname != nil && len(v.Funcname.Items) > 0 {
-			return stringVal(v.Funcname.Items[len(v.Funcname.Items)-1])
-		}
-	}
-	return "?column?"
-}
-
 // transformTargetEntry processes a single SELECT target list entry.
 // A star expression expands into multiple entries.
 //
@@ -1732,7 +1841,7 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 		if tableName != "" {
 			return nil, errUndefinedTable(tableName)
 		}
-		return nil, &Error{Code: CodeFeatureNotSupported, Message: "SELECT * with no tables specified is not valid"}
+		return nil, &Error{Code: CodeSyntaxError, Message: "SELECT * with no tables specified is not valid"}
 	}
 
 	return entries, nil
@@ -1826,6 +1935,12 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 		return ac.transformXmlExpr(v)
 	case *nodes.XmlSerialize:
 		return ac.transformXmlSerialize(v)
+	case *nodes.SetToDefault:
+		// pg: src/backend/parser/parse_expr.c — transformExprRecurse (T_SetToDefault)
+		return nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: "DEFAULT is not allowed in this context",
+		}
 	case *nodes.JsonIsPredicate:
 		return ac.transformJsonIsPredicate(v)
 	case *nodes.JsonFuncExpr:
@@ -1834,6 +1949,12 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 		return ac.transformJsonObjectConstructor(v)
 	case *nodes.JsonArrayConstructor:
 		return ac.transformJsonArrayConstructor(v)
+	case *nodes.JsonArrayQueryConstructor:
+		return ac.transformJsonArrayQueryConstructor(v)
+	case *nodes.JsonArrayAgg:
+		return ac.transformJsonArrayAgg(v)
+	case *nodes.JsonObjectAgg:
+		return ac.transformJsonObjectAgg(v)
 	case *nodes.JsonValueExpr:
 		return ac.transformJsonValueExpr(v)
 	case *nodes.JsonScalarExpr:
@@ -2479,8 +2600,66 @@ func (ac *analyzeCtx) transformAConst(ac2 *nodes.A_Const) (AnalyzedExpr, error) 
 			val = "true"
 		}
 		return &ConstExpr{TypeOID: BOOLOID, TypeMod: -1, Value: val}, nil
+	case *nodes.BitString:
+		// pg: src/backend/parser/parse_node.c — make_const (T_BitString)
+		bits, err := parseBitStringLiteral(v.Bsval)
+		if err != nil {
+			return nil, err
+		}
+		return &ConstExpr{TypeOID: BITOID, TypeMod: -1, Value: bits}, nil
 	default:
 		return &ConstExpr{TypeOID: UNKNOWNOID, TypeMod: -1}, nil
+	}
+}
+
+// parseBitStringLiteral converts a lexer BitString value ("b..." or "x...") to
+// its canonical binary digit string, matching PostgreSQL's bit_in().
+func parseBitStringLiteral(bsval string) (string, error) {
+	if len(bsval) == 0 {
+		return "", nil
+	}
+	switch bsval[0] {
+	case 'b', 'B':
+		digits := bsval[1:]
+		for i := 0; i < len(digits); i++ {
+			if digits[i] != '0' && digits[i] != '1' {
+				return "", &Error{
+					Code:    CodeInvalidTextRepresentation,
+					Message: fmt.Sprintf("%q is not a valid binary digit", string(digits[i])),
+				}
+			}
+		}
+		return digits, nil
+	case 'x', 'X':
+		hex := bsval[1:]
+		var sb strings.Builder
+		sb.Grow(len(hex) * 4)
+		for i := 0; i < len(hex); i++ {
+			var nibble byte
+			switch c := hex[i]; {
+			case c >= '0' && c <= '9':
+				nibble = c - '0'
+			case c >= 'a' && c <= 'f':
+				nibble = c - 'a' + 10
+			case c >= 'A' && c <= 'F':
+				nibble = c - 'A' + 10
+			default:
+				return "", &Error{
+					Code:    CodeInvalidTextRepresentation,
+					Message: fmt.Sprintf("%q is not a valid hexadecimal digit", string(c)),
+				}
+			}
+			for bit := 3; bit >= 0; bit-- {
+				if (nibble>>bit)&1 != 0 {
+					sb.WriteByte('1')
+				} else {
+					sb.WriteByte('0')
+				}
+			}
+		}
+		return sb.String(), nil
+	default:
+		return bsval, nil
 	}
 }
 
@@ -2490,6 +2669,15 @@ func (ac *analyzeCtx) transformAConst(ac2 *nodes.A_Const) (AnalyzedExpr, error) 
 func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error) {
 	fSchema, funcName := qualifiedName(fc.Funcname)
 	funcName = strings.ToLower(funcName)
+
+	// pg: src/backend/parser/parse_expr.c — transformMergeSupportFunc
+	// MERGE_ACTION() is only valid in the RETURNING list of a MERGE command.
+	if fSchema == "" && funcName == "merge_action" && !fc.AggStar && (fc.Args == nil || len(fc.Args.Items) == 0) {
+		return nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: "MERGE_ACTION() can only be used in RETURNING lists of MERGE commands",
+		}
+	}
 
 	// Transform arguments.
 	var args []AnalyzedExpr
@@ -3191,12 +3379,19 @@ func (ac *analyzeCtx) transformAExpr(ae *nodes.A_Expr) (AnalyzedExpr, error) {
 //
 // pg: src/backend/parser/parse_expr.c — transformTypeCast
 func (ac *analyzeCtx) transformTypeCast(tc *nodes.TypeCast) (AnalyzedExpr, error) {
-	arg, err := ac.transformExpr(tc.Arg)
+	// pg: src/backend/parser/parse_expr.c — transformTypeCast resolves the
+	// target type first so empty ARRAY[] constructors know their target type.
+	targetOID, targetTypMod, err := ac.catalog.resolveTypeName(tc.TypeName)
 	if err != nil {
 		return nil, err
 	}
 
-	targetOID, targetTypMod, err := ac.catalog.resolveTypeName(tc.TypeName)
+	var arg AnalyzedExpr
+	if ae, isArr := tc.Arg.(*nodes.A_ArrayExpr); isArr {
+		arg, err = ac.transformAArrayExprWithTarget(ae, targetOID)
+	} else {
+		arg, err = ac.transformExpr(tc.Arg)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3212,6 +3407,13 @@ func (ac *analyzeCtx) transformTypeCast(tc *nodes.TypeCast) (AnalyzedExpr, error
 	}
 
 	srcType := arg.exprType()
+	if srcType == UNKNOWNOID {
+		if ce, ok := arg.(*ConstExpr); ok && !ce.IsNull {
+			if err := ac.catalog.validateLiteralForType(ce.Value, targetOID); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if srcType == targetOID {
 		// Same type — may still need typmod coercion.
 		if targetTypMod != -1 {
@@ -3446,6 +3648,16 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 		return nil, err
 	}
 
+	checkSingleColumn := func(outputTargetList []*TargetEntry) error {
+		if len(outputTargetList) < 1 {
+			return &Error{Code: CodeSyntaxError, Message: "subquery must return a column"}
+		}
+		if len(outputTargetList) > 1 {
+			return &Error{Code: CodeSyntaxError, Message: "subquery must return only one column"}
+		}
+		return nil
+	}
+
 	switch nodes.SubLinkType(sl.SubLinkType) {
 	case nodes.EXISTS_SUBLINK:
 		return &SubLinkExpr{
@@ -3454,16 +3666,18 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 			ResultType:  BOOLOID,
 		}, nil
 	case nodes.ANY_SUBLINK:
-		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
-		if len(outputTargetList) != 1 {
-			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
-		}
+		// pg: src/backend/parser/parse_expr.c — transformSubLink
+		// Transform testexpr before checking the subquery's output columns.
 		var testExpr AnalyzedExpr
 		if sl.Testexpr != nil {
 			testExpr, err = ac.transformExpr(sl.Testexpr)
 			if err != nil {
 				return nil, err
 			}
+		}
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if err := checkSingleColumn(outputTargetList); err != nil {
+			return nil, err
 		}
 		return &SubLinkExpr{
 			SubLinkType: SubLinkAnyType,
@@ -3472,10 +3686,6 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 			ResultType:  BOOLOID,
 		}, nil
 	case nodes.ALL_SUBLINK:
-		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
-		if len(outputTargetList) != 1 {
-			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
-		}
 		var testExpr AnalyzedExpr
 		if sl.Testexpr != nil {
 			testExpr, err = ac.transformExpr(sl.Testexpr)
@@ -3483,17 +3693,36 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 				return nil, err
 			}
 		}
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if err := checkSingleColumn(outputTargetList); err != nil {
+			return nil, err
+		}
 		return &SubLinkExpr{
 			SubLinkType: SubLinkAllType,
 			TestExpr:    testExpr,
 			SubQuery:    subQuery,
 			ResultType:  BOOLOID,
 		}, nil
+	case nodes.ARRAY_SUBLINK:
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if err := checkSingleColumn(outputTargetList); err != nil {
+			return nil, err
+		}
+		elemType := outputTargetList[0].Expr.exprType()
+		arrType := ac.catalog.findArrayType(elemType)
+		if arrType == 0 {
+			arrType = elemType
+		}
+		return &SubLinkExpr{
+			SubLinkType: SubLinkArrayType,
+			SubQuery:    subQuery,
+			ResultType:  arrType,
+		}, nil
 	default:
 		// EXPR_SUBLINK (scalar subquery)
 		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
-		if len(outputTargetList) != 1 {
-			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
+		if err := checkSingleColumn(outputTargetList); err != nil {
+			return nil, err
 		}
 		return &SubLinkExpr{
 			SubLinkType: SubLinkExprType,
@@ -3552,7 +3781,11 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 			if err != nil {
 				return nil, err
 			}
-			if q.JoinTree == nil {
+			if q.JoinTree != nil {
+				if err := subAc.checkFromConflicts(q.JoinTree.FromList, []JoinNode{jn}); err != nil {
+					return nil, err
+				}
+			} else {
 				q.JoinTree = &JoinTree{}
 			}
 			q.JoinTree.FromList = append(q.JoinTree.FromList, jn)
@@ -4205,11 +4438,21 @@ func (ac *analyzeCtx) transformAExprOpAll(ae *nodes.A_Expr) (AnalyzedExpr, error
 //
 // pg: src/backend/parser/parse_expr.c — transformArrayExpr
 func (ac *analyzeCtx) transformAArrayExpr(ae *nodes.A_ArrayExpr) (AnalyzedExpr, error) {
+	return ac.transformAArrayExprWithTarget(ae, 0)
+}
+
+func (ac *analyzeCtx) transformAArrayExprWithTarget(ae *nodes.A_ArrayExpr, targetArrayOID uint32) (AnalyzedExpr, error) {
 	var elems []AnalyzedExpr
 
 	if ae.Elements != nil {
 		for _, item := range ae.Elements.Items {
-			expr, err := ac.transformExpr(item)
+			var expr AnalyzedExpr
+			var err error
+			if subArr, ok := item.(*nodes.A_ArrayExpr); ok && targetArrayOID != 0 {
+				expr, err = ac.transformAArrayExprWithTarget(subArr, targetArrayOID)
+			} else {
+				expr, err = ac.transformExpr(item)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -4226,7 +4469,20 @@ func (ac *analyzeCtx) transformAArrayExpr(ae *nodes.A_ArrayExpr) (AnalyzedExpr, 
 			return nil, err
 		}
 	} else {
-		elemType = TEXTOID
+		if targetArrayOID != 0 {
+			if targetElem := ac.catalog.getBaseElementType(targetArrayOID); targetElem != 0 {
+				return &ArrayExprQ{
+					ElementType: targetElem,
+					ArrayType:   targetArrayOID,
+					Elements:    elems,
+				}, nil
+			}
+		}
+		// pg: src/backend/parser/parse_expr.c — transformArrayExpr
+		return nil, &Error{
+			Code:    CodeIndeterminateDatatype,
+			Message: "cannot determine type of empty array",
+		}
 	}
 
 	// Coerce elements to common type.
@@ -4430,6 +4686,12 @@ func (ac *analyzeCtx) transformNamedArgExpr(nae *nodes.NamedArgExpr) (AnalyzedEx
 //
 // pg: src/backend/parser/parse_param.c — variable_paramref_hook
 func (ac *analyzeCtx) transformParamRef(pr *nodes.ParamRef) (AnalyzedExpr, error) {
+	if ac.opts.DisallowParams {
+		return nil, &Error{
+			Code:    CodeUndefinedParameter,
+			Message: fmt.Sprintf("there is no parameter $%d", pr.Number),
+		}
+	}
 	paramType := uint32(UNKNOWNOID)
 	if pr.Number > 0 && pr.Number <= len(ac.opts.ParamTypes) && ac.opts.ParamTypes[pr.Number-1] != 0 {
 		paramType = ac.opts.ParamTypes[pr.Number-1]
@@ -4474,6 +4736,19 @@ func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
 	wd, ok := overNode.(*nodes.WindowDef)
 	if !ok {
 		return 0, fmt.Errorf("unsupported OVER clause type: %T", overNode)
+	}
+
+	// Reject duplicate named window definitions.
+	// pg: src/backend/parser/parse_clause.c — transformWindowDefinitions
+	if wd.Name != "" {
+		for _, existing := range ac.query.WindowClause {
+			if existing.Name == wd.Name {
+				return 0, &Error{
+					Code:    CodeWindowingError,
+					Message: fmt.Sprintf("window %q is already defined", wd.Name),
+				}
+			}
+		}
 	}
 
 	// If referencing a named window, find it.
@@ -4533,6 +4808,23 @@ func (ac *analyzeCtx) resolveWindowDef(overNode nodes.Node) (uint32, error) {
 				Descending:      desc,
 				NullsFirst:      nullsFirst,
 			})
+		}
+	}
+
+	// Validate frame options before analyzing offset expressions.
+	// pg: src/backend/parser/parse_clause.c — transformWindowDefinitions / transformFrameOffset
+	if wc.FrameOptions&nodes.FRAMEOPTION_GROUPS != 0 && len(wc.OrderBy) == 0 {
+		return 0, &Error{
+			Code:    CodeWindowingError,
+			Message: "GROUPS mode requires an ORDER BY clause",
+		}
+	}
+	if wc.FrameOptions&nodes.FRAMEOPTION_RANGE != 0 &&
+		wc.FrameOptions&(nodes.FRAMEOPTION_START_OFFSET|nodes.FRAMEOPTION_END_OFFSET) != 0 &&
+		len(wc.OrderBy) != 1 {
+		return 0, &Error{
+			Code:    CodeWindowingError,
+			Message: "RANGE with offset PRECEDING/FOLLOWING requires exactly one ORDER BY column",
 		}
 	}
 
@@ -5637,14 +5929,21 @@ func figureColName(n nodes.Node) string {
 	case *nodes.A_Expr:
 		return "?column?"
 	case *nodes.SubLink:
-		// scalar subquery — use the subquery's first column name
-		if sub, ok := v.Subselect.(*nodes.SelectStmt); ok {
-			if sub.TargetList != nil && len(sub.TargetList.Items) > 0 {
-				if rt, ok := sub.TargetList.Items[0].(*nodes.ResTarget); ok {
-					if rt.Name != "" {
-						return rt.Name
+		switch nodes.SubLinkType(v.SubLinkType) {
+		case nodes.EXISTS_SUBLINK:
+			return "exists"
+		case nodes.ARRAY_SUBLINK:
+			return "array"
+		case nodes.EXPR_SUBLINK:
+			// scalar subquery — use the subquery's first column name
+			if sub, ok := v.Subselect.(*nodes.SelectStmt); ok {
+				if sub.TargetList != nil && len(sub.TargetList.Items) > 0 {
+					if rt, ok := sub.TargetList.Items[0].(*nodes.ResTarget); ok {
+						if rt.Name != "" {
+							return rt.Name
+						}
+						return figureColName(rt.Val)
 					}
-					return figureColName(rt.Val)
 				}
 			}
 		}
@@ -5677,7 +5976,7 @@ func figureColName(n nodes.Node) string {
 		case nodes.SVFOP_CURRENT_USER:
 			return "current_user"
 		case nodes.SVFOP_USER:
-			return "current_user"
+			return "user"
 		case nodes.SVFOP_SESSION_USER:
 			return "session_user"
 		case nodes.SVFOP_CURRENT_CATALOG:
@@ -5993,6 +6292,8 @@ type AnalyzeOptions struct {
 	// ParamTypes supplies resolved parameter type OIDs for $1..$N when
 	// analyzing a prepared query (e.g. CREATE TABLE ... AS EXECUTE).
 	ParamTypes []uint32
+	// DisallowParams rejects $N parameter references with 42P02 (used for views).
+	DisallowParams bool
 }
 
 // AnalyzeSelectStmtWithOptions is AnalyzeSelectStmt with the relaxations
@@ -6426,6 +6727,110 @@ func (ac *analyzeCtx) transformRangeTableSampleItem(rts *nodes.RangeTableSample)
 	return jn, nil
 }
 
+// transformRangeTableFunc processes an XMLTABLE(...) FROM clause item.
+//
+// pg: src/backend/parser/parse_clause.c — transformRangeTableFunc
+func (ac *analyzeCtx) transformRangeTableFunc(rtf *nodes.RangeTableFunc) (JoinNode, error) {
+	if rtf.Docexpr != nil {
+		if _, err := ac.transformExpr(rtf.Docexpr); err != nil {
+			return nil, err
+		}
+	}
+	if rtf.Rowexpr != nil {
+		if _, err := ac.transformExpr(rtf.Rowexpr); err != nil {
+			return nil, err
+		}
+	}
+	if rtf.Namespaces != nil {
+		for _, item := range rtf.Namespaces.Items {
+			if rt, ok := item.(*nodes.ResTarget); ok && rt != nil && rt.Val != nil {
+				if _, err := ac.transformExpr(rt.Val); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	var colNames []string
+	var colTypes []uint32
+	var colTypMods []int32
+	var colCollations []uint32
+	if rtf.Columns != nil {
+		seen := make(map[string]bool, len(rtf.Columns.Items))
+		for _, item := range rtf.Columns.Items {
+			col, ok := item.(*nodes.RangeTableFuncCol)
+			if !ok || col == nil {
+				continue
+			}
+			if seen[col.Colname] {
+				return nil, &Error{
+					Code:    CodeDuplicateColumn,
+					Message: fmt.Sprintf("column name %q is not unique", col.Colname),
+				}
+			}
+			seen[col.Colname] = true
+			if col.ForOrdinality {
+				colNames = append(colNames, col.Colname)
+				colTypes = append(colTypes, INT4OID)
+				colTypMods = append(colTypMods, -1)
+				colCollations = append(colCollations, 0)
+				continue
+			}
+			var typeOID uint32 = TEXTOID
+			var typMod int32 = -1
+			if col.TypeName != nil {
+				var err error
+				typeOID, typMod, err = ac.catalog.resolveTypeName(col.TypeName)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if col.Colexpr != nil {
+				if _, err := ac.transformExpr(col.Colexpr); err != nil {
+					return nil, err
+				}
+			}
+			if col.Coldefexpr != nil {
+				if _, err := ac.transformExpr(col.Coldefexpr); err != nil {
+					return nil, err
+				}
+			}
+			colNames = append(colNames, col.Colname)
+			colTypes = append(colTypes, typeOID)
+			colTypMods = append(colTypMods, typMod)
+			colCollations = append(colCollations, ac.catalog.typeCollation(typeOID))
+		}
+	}
+
+	alias := ""
+	if rtf.Alias != nil {
+		alias = rtf.Alias.Aliasname
+	}
+	eref := alias
+	if eref == "" {
+		eref = "xmltable"
+	}
+	aliasColumns, err := applyColumnAliases(rtf.Alias, eref, colNames)
+	if err != nil {
+		return nil, err
+	}
+
+	rtIdx := len(ac.query.RangeTable)
+	rte := &RangeTableEntry{
+		Kind:          RTEFunction,
+		Alias:         alias,
+		ERef:          eref,
+		ColNames:      colNames,
+		ColTypes:      colTypes,
+		ColTypMods:    colTypMods,
+		ColCollations: colCollations,
+		Lateral:       rtf.Lateral,
+		aliasColumns:  aliasColumns,
+	}
+	ac.query.RangeTable = append(ac.query.RangeTable, rte)
+	return &RangeTableRef{RTIndex: rtIdx}, nil
+}
+
 // transformRangeTableSample processes a TABLESAMPLE clause and attaches it to the RTE.
 //
 // pg: src/backend/parser/parse_clause.c — transformRangeTableSample
@@ -6438,6 +6843,9 @@ func (ac *analyzeCtx) transformRangeTableSample(rts *nodes.RangeTableSample, rte
 			if s, ok := item.(*nodes.String); ok {
 				ts.Method = s.Str
 			}
+		}
+		if err := ac.catalog.validateTablesampleMethod(rts.Method); err != nil {
+			return err
 		}
 	}
 
@@ -6463,6 +6871,58 @@ func (ac *analyzeCtx) transformRangeTableSample(rts *nodes.RangeTableSample, rte
 
 	rte.Tablesample = ts
 	return nil
+}
+
+// validateTablesampleMethod checks that the TABLESAMPLE method exists as a
+// tsm_handler function.
+//
+// pg: src/backend/parser/parse_clause.c — transformRangeTableSample
+func (c *Catalog) validateTablesampleMethod(method *nodes.List) error {
+	fSchema, fName := qualifiedName(method)
+	fName = strings.ToLower(fName)
+	var searchNS []uint32
+	if fSchema != "" {
+		ns := c.schemaByName[fSchema]
+		if ns == nil {
+			return errUndefinedSchema(fSchema)
+		}
+		searchNS = []uint32{ns.OID}
+	} else {
+		searchNS = c.routineSearchPathWithCatalog()
+	}
+	shown := fName
+	if fSchema != "" {
+		shown = fSchema + "." + fName
+	}
+	for _, nsOID := range searchNS {
+		for _, p := range c.procByName[fName] {
+			if p.Kind == 'p' || len(p.ArgTypes) != 1 || p.ArgTypes[0] != INTERNALOID {
+				continue
+			}
+			pNS := uint32(PGCatalogNamespace)
+			if p.OID >= FirstNormalObjectId {
+				up := c.userProcs[p.OID]
+				if up == nil || up.Schema == nil {
+					continue
+				}
+				pNS = up.Schema.OID
+			}
+			if pNS != nsOID {
+				continue
+			}
+			if p.RetType != TSMHANDLEROID {
+				return &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("function %s must return type tsm_handler", shown),
+				}
+			}
+			return nil
+		}
+	}
+	return &Error{
+		Code:    CodeUndefinedObject,
+		Message: fmt.Sprintf("tablesample method %s does not exist", shown),
+	}
 }
 
 // setOpKeyword returns the SQL keyword for a set operation.
@@ -6501,6 +6961,23 @@ func (ac *analyzeCtx) transformJsonIsPredicate(n *nodes.JsonIsPredicate) (Analyz
 //
 // pg: src/backend/parser/parse_expr.c — transformJsonFuncExpr
 func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr, error) {
+	// pg: src/backend/parser/parse_expr.c — transformJsonFuncExpr / transformJsonBehavior
+	// TRUE/FALSE/UNKNOWN behaviors are only valid for JSON_EXISTS.
+	if n.Op == nodes.JSON_QUERY_OP || n.Op == nodes.JSON_VALUE_OP {
+		for _, bh := range []*nodes.JsonBehavior{n.OnEmpty, n.OnError} {
+			if bh == nil {
+				continue
+			}
+			switch bh.Btype {
+			case nodes.JSON_BEHAVIOR_TRUE, nodes.JSON_BEHAVIOR_FALSE, nodes.JSON_BEHAVIOR_UNKNOWN:
+				return nil, &Error{
+					Code:    CodeSyntaxError,
+					Message: "invalid ON EMPTY/ON ERROR behavior for JSON function",
+				}
+			}
+		}
+	}
+
 	var expr AnalyzedExpr
 	if n.ContextItem != nil {
 		var err error
@@ -6551,8 +7028,33 @@ func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr
 	}, nil
 }
 
+// resolveJsonOutput validates an optional SQL/JSON RETURNING output clause
+// and returns the resolved output type OID (defaulting to defaultType).
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonOutput
+func (ac *analyzeCtx) resolveJsonOutput(output *nodes.JsonOutput, defaultType uint32) (uint32, error) {
+	if output == nil || output.TypeName == nil {
+		return defaultType, nil
+	}
+	retOID, _, err := ac.catalog.resolveTypeName(output.TypeName)
+	if err != nil {
+		return 0, err
+	}
+	if !ac.catalog.CanCoerce(JSONOID, retOID, 'e') {
+		return 0, &Error{
+			Code:    CodeCannotCoerce,
+			Message: fmt.Sprintf("cannot cast type json to %s", ac.catalog.typeName(retOID)),
+		}
+	}
+	return retOID, nil
+}
+
 // transformJsonObjectConstructor transforms JSON_OBJECT(...).
 func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstructor) (AnalyzedExpr, error) {
+	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	if err != nil {
+		return nil, err
+	}
 	var args []AnalyzedExpr
 	if n.Exprs != nil {
 		for _, item := range n.Exprs.Items {
@@ -6577,12 +7079,16 @@ func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstruc
 	return &JsonConstructorExprQ{
 		ConstructorType: JsonConstructorObject,
 		Args:            args,
-		ResultType:      JSONOID,
+		ResultType:      resultType,
 	}, nil
 }
 
 // transformJsonArrayConstructor transforms JSON_ARRAY(...).
 func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructor) (AnalyzedExpr, error) {
+	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	if err != nil {
+		return nil, err
+	}
 	var args []AnalyzedExpr
 	if n.Exprs != nil {
 		for _, item := range n.Exprs.Items {
@@ -6604,7 +7110,124 @@ func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructo
 	return &JsonConstructorExprQ{
 		ConstructorType: JsonConstructorArray,
 		Args:            args,
-		ResultType:      JSONOID,
+		ResultType:      resultType,
+	}, nil
+}
+
+// transformJsonArrayQueryConstructor transforms JSON_ARRAY(subquery).
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonArrayQueryConstructor
+func (ac *analyzeCtx) transformJsonArrayQueryConstructor(n *nodes.JsonArrayQueryConstructor) (AnalyzedExpr, error) {
+	resultType, err := ac.resolveJsonOutput(n.Output, JSONOID)
+	if err != nil {
+		return nil, err
+	}
+	sub, ok := n.Query.(*nodes.SelectStmt)
+	if !ok {
+		return nil, fmt.Errorf("JSON_ARRAY subquery is not a SELECT")
+	}
+	subQuery, err := ac.analyzeSubSelect(sub)
+	if err != nil {
+		return nil, err
+	}
+	outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+	if len(outputTargetList) < 1 {
+		return nil, &Error{Code: CodeSyntaxError, Message: "subquery must return a column"}
+	}
+	if len(outputTargetList) > 1 {
+		return nil, &Error{Code: CodeSyntaxError, Message: "subquery must return only one column"}
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorArray,
+		Args:            []AnalyzedExpr{&SubLinkExpr{SubLinkType: SubLinkExprType, SubQuery: subQuery, ResultType: outputTargetList[0].Expr.exprType()}},
+		ResultType:      resultType,
+	}, nil
+}
+
+// transformJsonAggClauses analyzes common FILTER / ORDER BY / OVER / RETURNING
+// clauses of JSON_ARRAYAGG and JSON_OBJECTAGG.
+func (ac *analyzeCtx) transformJsonAggClauses(c *nodes.JsonAggConstructor) (uint32, error) {
+	resultType := uint32(JSONOID)
+	if c == nil {
+		return resultType, nil
+	}
+	var err error
+	resultType, err = ac.resolveJsonOutput(c.Output, JSONOID)
+	if err != nil {
+		return 0, err
+	}
+	if c.Agg_filter != nil {
+		if _, err := ac.transformExpr(c.Agg_filter); err != nil {
+			return 0, err
+		}
+	}
+	if c.Agg_order != nil {
+		if _, err := ac.transformAggOrder(c.Agg_order); err != nil {
+			return 0, err
+		}
+	}
+	if c.Over != nil {
+		if _, err := ac.resolveWindowDef(c.Over); err != nil {
+			return 0, err
+		}
+	}
+	return resultType, nil
+}
+
+// transformJsonArrayAgg transforms JSON_ARRAYAGG(...).
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonArrayAgg
+func (ac *analyzeCtx) transformJsonArrayAgg(n *nodes.JsonArrayAgg) (AnalyzedExpr, error) {
+	var args []AnalyzedExpr
+	if n.Arg != nil {
+		expr, err := ac.transformExpr(n.Arg.RawExpr)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, expr)
+	}
+	resultType, err := ac.transformJsonAggClauses(n.Constructor)
+	if err != nil {
+		return nil, err
+	}
+	ac.query.HasAggs = true
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorArray,
+		Args:            args,
+		ResultType:      resultType,
+	}, nil
+}
+
+// transformJsonObjectAgg transforms JSON_OBJECTAGG(...).
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonObjectAgg
+func (ac *analyzeCtx) transformJsonObjectAgg(n *nodes.JsonObjectAgg) (AnalyzedExpr, error) {
+	var args []AnalyzedExpr
+	if n.Arg != nil {
+		if n.Arg.Key != nil {
+			keyExpr, err := ac.transformExpr(n.Arg.Key)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, keyExpr)
+		}
+		if n.Arg.Value != nil {
+			valExpr, err := ac.transformExpr(n.Arg.Value.RawExpr)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, valExpr)
+		}
+	}
+	resultType, err := ac.transformJsonAggClauses(n.Constructor)
+	if err != nil {
+		return nil, err
+	}
+	ac.query.HasAggs = true
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorObject,
+		Args:            args,
+		ResultType:      resultType,
 	}, nil
 }
 

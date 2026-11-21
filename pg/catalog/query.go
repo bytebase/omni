@@ -364,6 +364,7 @@ const (
 	SubLinkExistsType                    // EXISTS subquery
 	SubLinkAnyType                       // ANY/IN subquery
 	SubLinkAllType                       // ALL subquery
+	SubLinkArrayType                     // ARRAY(subquery)
 )
 
 // NullIfExprQ represents an analyzed NULLIF expression.

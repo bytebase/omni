@@ -3,6 +3,7 @@ package catalog
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -474,18 +475,38 @@ func (d *deparseCtx) relationColumnsRenamed(rte *RangeTableEntry) bool {
 }
 
 // writeColumnAliasList prints a FROM item's column alias list, which names
-// every column of the item.
+// every column of the item, disambiguating duplicate names as PostgreSQL does.
 //
-// pg: src/backend/utils/adt/ruleutils.c — get_column_alias_list
+// pg: src/backend/utils/adt/ruleutils.c — get_column_alias_list / make_colname_unique
 func (d *deparseCtx) writeColumnAliasList(colNames []string) {
 	d.buf.WriteByte('(')
-	for i, cn := range colNames {
+	for i, cn := range uniqueColumnAliases(colNames) {
 		if i > 0 {
 			d.buf.WriteString(", ")
 		}
 		d.buf.WriteString(quoteIdentifier(cn))
 	}
 	d.buf.WriteByte(')')
+}
+
+func uniqueColumnAliases(colNames []string) []string {
+	out := make([]string, len(colNames))
+	used := make(map[string]bool, len(colNames))
+	for i, cn := range colNames {
+		name := cn
+		if used[name] {
+			for n := 1; ; n++ {
+				cand := fmt.Sprintf("%s_%d", cn, n)
+				if !used[cand] && !slices.Contains(colNames[i+1:], cand) {
+					name = cand
+					break
+				}
+			}
+		}
+		used[name] = true
+		out[i] = name
+	}
+	return out
 }
 
 // getFromClauseItem deparses a single FROM clause item.
@@ -521,9 +542,13 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			subCtx.getQueryDef(rte.Subquery)
 			d.indentLevel = subCtx.indentLevel
 			d.buf.WriteByte(')')
-			if rte.Alias != "" {
+			refname := rte.Alias
+			if refname == "" {
+				refname = rte.ERef
+			}
+			if refname != "" {
 				d.buf.WriteByte(' ')
-				d.buf.WriteString(quoteIdentifier(rte.Alias))
+				d.buf.WriteString(quoteIdentifier(refname))
 				if rte.aliasColumns > 0 {
 					d.writeColumnAliasList(rte.ColNames)
 				}
@@ -589,14 +614,7 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 					// The column definition list is also the alias list.
 					d.getColDefList(colNames[:min(len(def.types), len(colNames))], def)
 				} else if len(colNames) > 0 {
-					d.buf.WriteByte('(')
-					for i, cn := range colNames {
-						if i > 0 {
-							d.buf.WriteString(", ")
-						}
-						d.buf.WriteString(quoteIdentifier(cn))
-					}
-					d.buf.WriteByte(')')
+					d.writeColumnAliasList(colNames)
 				}
 			}
 		}
@@ -1335,6 +1353,15 @@ func (d *deparseCtx) getSubLink(s *SubLinkExpr) {
 		} else {
 			d.buf.WriteByte(')')
 		}
+	case SubLinkArrayType:
+		// pg: get_sublink_expr — ARRAY( subquery )
+		d.buf.WriteString("ARRAY(")
+		subCtx := d.subContext()
+		subCtx.hasParentNamespace = true
+		subCtx.colNamesVisible = false
+		subCtx.getQueryDef(s.SubQuery)
+		d.indentLevel = subCtx.indentLevel
+		d.buf.WriteByte(')')
 	default:
 		// EXPR_SUBLINK (scalar subquery)
 		d.buf.WriteByte('(')
@@ -1435,7 +1462,7 @@ func (d *deparseCtx) getSQLValueFunc(s *SQLValueFuncExpr) {
 	case SVFCurrentUser:
 		d.buf.WriteString("CURRENT_USER")
 	case SVFUser:
-		d.buf.WriteString("CURRENT_USER")
+		d.buf.WriteString("USER")
 	case SVFSessionUser:
 		d.buf.WriteString("SESSION_USER")
 	case SVFCurrentCatalog:

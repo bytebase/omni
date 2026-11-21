@@ -71,7 +71,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	// PG loops over Query.targetList calling exprType/exprTypmod/exprCollation.
 	var analyzedQuery *Query
 	if selStmt != nil {
-		analyzedQuery, err = c.analyzeSelectStmt(selStmt)
+		analyzedQuery, err = c.analyzeSelectStmtWithOptions(selStmt, AnalyzeOptions{DisallowParams: true})
 		if err != nil {
 			return err
 		}
@@ -181,6 +181,14 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		colByName[rc.Name] = i
 
 		typ := c.typeByOID[rc.TypeOID]
+		// pg: src/backend/catalog/heap.c — CheckAttributeType
+		// View columns cannot have pseudo-types such as record (e.g. SELECT ROW()).
+		if typ != nil && typ.Type == 'p' {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("column %q has pseudo-type %s", rc.Name, typ.TypeName),
+			}
+		}
 		coll := rc.Collation
 		if coll == 0 {
 			coll = c.typeCollation(rc.TypeOID)

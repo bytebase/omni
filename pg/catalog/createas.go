@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -444,10 +445,46 @@ func (c *Catalog) validateLiteralForType(val string, targetType uint32) error {
 		default:
 			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type boolean: %q", val)}
 		}
+	case BITOID, VARBITOID:
+		if len(val) > 0 && (val[0] == 'b' || val[0] == 'B' || val[0] == 'x' || val[0] == 'X') {
+			if _, err := parseBitStringLiteral(val); err != nil {
+				return err
+			}
+			return nil
+		}
+		for i := 0; i < len(val); i++ {
+			if val[i] != '0' && val[i] != '1' {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("%q is not a valid binary digit", string(val[i]))}
+			}
+		}
+	case JSONOID, JSONBOID:
+		if !json.Valid([]byte(val)) {
+			return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input syntax for type %s", c.typeName(targetType))}
+		}
+	case TIMESTAMPOID, TIMESTAMPTZOID:
+		switch strings.ToLower(trimmed) {
+		case "now", "epoch", "infinity", "+infinity", "-infinity", "today", "tomorrow", "yesterday", "allballs":
+			return nil
+		}
+		if !strings.ContainsAny(trimmed, "0123456789") {
+			return &Error{Code: CodeInvalidDatetimeFormat, Message: fmt.Sprintf("invalid input syntax for type %s: %q", c.typeName(targetType), val)}
+		}
+	case INTERVALOID:
+		switch strings.ToLower(trimmed) {
+		case "infinity", "+infinity", "-infinity":
+			return nil
+		}
+		if !strings.ContainsAny(trimmed, "0123456789") {
+			return &Error{Code: CodeInvalidDatetimeFormat, Message: fmt.Sprintf("invalid input syntax for type interval: %q", val)}
+		}
 	default:
 		if et := c.enumTypes[targetType]; et != nil {
 			if et.labelMap[val] == nil {
 				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("invalid input value for enum %s: %q", c.typeName(targetType), val)}
+			}
+		} else if bt := c.typeByOID[targetType]; bt != nil && bt.Type == 'c' {
+			if len(trimmed) < 2 || trimmed[0] != '(' || trimmed[len(trimmed)-1] != ')' {
+				return &Error{Code: CodeInvalidTextRepresentation, Message: fmt.Sprintf("malformed record literal: %q", val)}
 			}
 		}
 	}
