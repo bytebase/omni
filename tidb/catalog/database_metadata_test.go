@@ -1030,4 +1030,31 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "int", reExt.Columns[0].Type)
 	require.Equal(t, "name", reExt.Columns[1].Name)
 	require.Equal(t, "varchar(32)", reExt.Columns[1].Type)
+
+	// SUM/AVG view columns derive result types from their arguments matching TiDB v8.5.5.
+	aggCat := New()
+	_, err = aggCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_agg (i INT NOT NULL, b BIGINT NOT NULL, f FLOAT NOT NULL, d DOUBLE NOT NULL, dec1 DECIMAL(10,2) NOT NULL);
+		CREATE VIEW v_agg AS SELECT
+			SUM(i) AS s_i, SUM(b) AS s_b, SUM(f) AS s_f, SUM(d) AS s_d, SUM(dec1) AS s_dec,
+			AVG(i) AS a_i, AVG(b) AS a_b, AVG(f) AS a_f, AVG(d) AS a_d, AVG(dec1) AS a_dec
+		FROM t_agg;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	aggCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range aggCat.DatabaseMetadata("app").Schemas[0].Views[0].Columns {
+		aggCols[col.Name] = col
+	}
+	require.Equal(t, "decimal(32,0)", aggCols["s_i"].Type)
+	require.Equal(t, "decimal(41,0)", aggCols["s_b"].Type)
+	require.Equal(t, "double", aggCols["s_f"].Type)
+	require.Equal(t, "double", aggCols["s_d"].Type)
+	require.Equal(t, "decimal(32,2)", aggCols["s_dec"].Type)
+	require.Equal(t, "decimal(11,0)", aggCols["a_i"].Type)
+	require.Equal(t, "decimal(20,0)", aggCols["a_b"].Type)
+	require.Equal(t, "double", aggCols["a_f"].Type)
+	require.Equal(t, "double", aggCols["a_d"].Type)
+	require.Equal(t, "decimal(10,2)", aggCols["a_dec"].Type)
 }

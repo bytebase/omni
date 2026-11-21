@@ -613,7 +613,7 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		return false
 	case *nodes.FuncCallExpr:
 		// COUNT reads nullable in a view of OceanBase's, where MySQL's reads NOT NULL.
-		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
+		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -1109,6 +1109,15 @@ func viewDerivationName(derivation viewCollationDerivation) string {
 func isViewStringMetadataNullableFunc(name string) bool {
 	switch strings.ToLower(name) {
 	case "concat", "concat_ws", "ifnull", "coalesce":
+		return true
+	default:
+		return false
+	}
+}
+
+func isViewNullableAggregateFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "sum", "avg", "min", "max", "group_concat":
 		return true
 	default:
 		return false

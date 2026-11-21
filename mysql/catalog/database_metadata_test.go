@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -1123,4 +1124,64 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.True(t, reExt.Columns[1].Nullable)
 	require.Equal(t, "utf8mb4", reExt.Columns[1].CharacterSet)
 	require.Equal(t, "utf8mb4_unicode_ci", reExt.Columns[1].Collation)
+
+	// Aggregate types (SUM/AVG) and nullability (SUM/AVG/MIN/MAX/GROUP_CONCAT nullable, COUNT not null),
+	// typed temporal defaults (SET DEFAULT DATE '...'), and routine normalization (no DEFINER / RETURNS CHARSET).
+	aggCat := New()
+	_, err = aggCat.Exec(`
+		CREATE DATABASE app DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+		USE app;
+		CREATE TABLE t_agg (
+			i INT NOT NULL,
+			b BIGINT NOT NULL,
+			f FLOAT NOT NULL,
+			d DOUBLE NOT NULL,
+			dec1 DECIMAL(10,2) NOT NULL,
+			dt DATE DEFAULT NULL
+		);
+		ALTER TABLE t_agg ALTER COLUMN dt SET DEFAULT DATE '2020-01-01';
+		CREATE VIEW v_agg AS SELECT
+			SUM(i) AS s_i, SUM(b) AS s_b, SUM(f) AS s_f, SUM(d) AS s_d, SUM(dec1) AS s_dec,
+			AVG(i) AS a_i, AVG(b) AS a_b, AVG(f) AS a_f, AVG(d) AS a_d, AVG(dec1) AS a_dec,
+			MIN(i) AS mn_i, MAX(i) AS mx_i, COUNT(*) AS cnt, GROUP_CONCAT(i) AS gc_i
+		FROM t_agg;
+		CREATE FUNCTION fn_str(s VARCHAR(10)) RETURNS VARCHAR(10) CHARSET utf8mb4 DETERMINISTIC RETURN s;
+		CREATE PROCEDURE sp_noop() BEGIN SELECT 1; END;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	aggMeta := aggCat.DatabaseMetadata("app")
+	aggViewCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range aggMeta.Schemas[0].Views[0].Columns {
+		aggViewCols[col.Name] = col
+	}
+	require.Equal(t, "decimal(32,0)", aggViewCols["s_i"].Type)
+	require.True(t, aggViewCols["s_i"].Nullable)
+	require.Equal(t, "decimal(41,0)", aggViewCols["s_b"].Type)
+	require.Equal(t, "double", aggViewCols["s_f"].Type)
+	require.Equal(t, "double", aggViewCols["s_d"].Type)
+	require.Equal(t, "decimal(32,2)", aggViewCols["s_dec"].Type)
+	require.Equal(t, "decimal(14,4)", aggViewCols["a_i"].Type)
+	require.True(t, aggViewCols["a_i"].Nullable)
+	require.Equal(t, "decimal(23,4)", aggViewCols["a_b"].Type)
+	require.Equal(t, "double", aggViewCols["a_f"].Type)
+	require.Equal(t, "double", aggViewCols["a_d"].Type)
+	require.Equal(t, "decimal(14,6)", aggViewCols["a_dec"].Type)
+	require.True(t, aggViewCols["mn_i"].Nullable)
+	require.True(t, aggViewCols["mx_i"].Nullable)
+	require.False(t, aggViewCols["cnt"].Nullable)
+	require.True(t, aggViewCols["gc_i"].Nullable)
+
+	dtCol := aggMeta.Schemas[0].Tables[0].Columns[5]
+	require.Equal(t, "'2020-01-01'", dtCol.Default)
+	aggDef, err := DatabaseDefinition(aggMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, aggDef, "DEFAULT '2020-01-01'")
+
+	fnDefSQL := aggMeta.Schemas[0].Functions[0].Definition
+	require.True(t, strings.HasPrefix(fnDefSQL, "CREATE FUNCTION "))
+	require.NotContains(t, fnDefSQL, "DEFINER=")
+	require.NotContains(t, fnDefSQL, "CHARSET utf8mb4")
+	spDefSQL := aggMeta.Schemas[0].Procedures[0].Definition
+	require.True(t, strings.HasPrefix(spDefSQL, "CREATE PROCEDURE "))
+	require.NotContains(t, spDefSQL, "DEFINER=")
 }

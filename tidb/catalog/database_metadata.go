@@ -721,15 +721,52 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		return e.ResultType
 	case *FuncCallExprQ:
-		if e.ResultType != nil {
-			return e.ResultType
+		switch strings.ToLower(e.Name) {
+		case "min", "max":
+			if len(e.Args) == 1 {
+				return resolveExprResolvedType(c, db, q, e.Args[0])
+			}
+		case "sum":
+			if len(e.Args) == 1 {
+				if rt := sumAvgResolvedType(c, db, q, e.Args[0], false); rt != nil {
+					return rt
+				}
+			}
+		case "avg":
+			if len(e.Args) == 1 {
+				if rt := sumAvgResolvedType(c, db, q, e.Args[0], true); rt != nil {
+					return rt
+				}
+			}
 		}
-		if (strings.EqualFold(e.Name, "min") || strings.EqualFold(e.Name, "max")) && len(e.Args) == 1 {
-			return resolveExprResolvedType(c, db, q, e.Args[0])
-		}
-		return nil
+		return e.ResultType
 	default:
 		return expr.exprType()
+	}
+}
+
+func sumAvgResolvedType(c *Catalog, db *Database, q *Query, arg AnalyzedExpr, isAvg bool) *ResolvedType {
+	rt := resolveExprResolvedType(c, db, q, arg)
+	if rt == nil {
+		return nil
+	}
+	switch rt.BaseType {
+	case BaseTypeFloat, BaseTypeDouble:
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	case BaseTypeTinyInt, BaseTypeTinyIntBool, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt, BaseTypeDecimal:
+		p, s, ok := decimalOperandPrecisionScale(rt, arg)
+		if !ok {
+			return nil
+		}
+		if isAvg {
+			if rt.BaseType == BaseTypeDecimal {
+				return &ResolvedType{BaseType: BaseTypeDecimal, Precision: p, Scale: s}
+			}
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+1), Scale: 0}
+		}
+		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+22), Scale: s}
+	default:
+		return nil
 	}
 }
 

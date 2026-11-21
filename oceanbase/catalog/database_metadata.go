@@ -109,7 +109,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		f := db.Functions[fName]
 		fnMeta := &metadata.FunctionMetadata{
 			Name:              f.Name,
-			Definition:        c.ShowCreateFunction(dbName, f.Name),
+			Definition:        normalizeRoutineDefinition(c.ShowCreateFunction(dbName, f.Name), false),
 			DatabaseCollation: db.Collation,
 			Comment:           f.Characteristics["COMMENT"],
 			SkipDump:          f.SkipDump,
@@ -126,7 +126,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		p := db.Procedures[pName]
 		procMeta := &metadata.ProcedureMetadata{
 			Name:              p.Name,
-			Definition:        c.ShowCreateProcedure(dbName, p.Name),
+			Definition:        normalizeRoutineDefinition(c.ShowCreateProcedure(dbName, p.Name), true),
 			DatabaseCollation: db.Collation,
 			Comment:           p.Characteristics["COMMENT"],
 			SkipDump:          p.SkipDump,
@@ -433,7 +433,7 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 		}
 		return isAnalyzedExprNullable(c, db, q, e.Left) || isAnalyzedExprNullable(c, db, q, e.Right)
 	case *FuncCallExprQ:
-		if isViewStringMetadataNullableFunc(e.Name) || strings.EqualFold(e.Name, "count") {
+		if isViewStringMetadataNullableFunc(e.Name) || isViewNullableAggregateFunc(e.Name) || strings.EqualFold(e.Name, "count") {
 			return true
 		}
 		for _, arg := range e.Args {
@@ -990,13 +990,25 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		}
 		return e.ResultType
 	case *FuncCallExprQ:
-		if e.ResultType != nil {
-			return e.ResultType
+		switch strings.ToLower(e.Name) {
+		case "min", "max":
+			if len(e.Args) == 1 {
+				return resolveExprResolvedType(c, db, q, e.Args[0])
+			}
+		case "sum":
+			if len(e.Args) == 1 {
+				if rt := sumAvgResolvedType(c, db, q, e.Args[0], false); rt != nil {
+					return rt
+				}
+			}
+		case "avg":
+			if len(e.Args) == 1 {
+				if rt := sumAvgResolvedType(c, db, q, e.Args[0], true); rt != nil {
+					return rt
+				}
+			}
 		}
-		if (strings.EqualFold(e.Name, "min") || strings.EqualFold(e.Name, "max")) && len(e.Args) == 1 {
-			return resolveExprResolvedType(c, db, q, e.Args[0])
-		}
-		return nil
+		return e.ResultType
 	default:
 		return expr.exprType()
 	}
@@ -1413,11 +1425,83 @@ func tableCreateOptions(t *Table) string {
 	return strings.Join(opts, " ")
 }
 
+func normalizeRoutineDefinition(def string, isProcedure bool) string {
+	if def == "" {
+		return ""
+	}
+	keyword := " FUNCTION "
+	if isProcedure {
+		keyword = " PROCEDURE "
+	}
+	if idx := strings.Index(def, keyword); idx >= 0 {
+		def = "CREATE" + def[idx:]
+	}
+	if !isProcedure {
+		def = stripReturnsCharset(def)
+	}
+	return def
+}
+
+func stripReturnsCharset(def string) string {
+	returnsIdx := strings.Index(def, " RETURNS ")
+	if returnsIdx == -1 {
+		return def
+	}
+	lineEnd := strings.Index(def[returnsIdx:], "\n")
+	if lineEnd == -1 {
+		return def
+	}
+	charsetIdx := strings.Index(def[returnsIdx:returnsIdx+lineEnd], " CHARSET ")
+	if charsetIdx == -1 {
+		return def
+	}
+	return def[:returnsIdx+charsetIdx] + def[returnsIdx+lineEnd:]
+}
+
+func sumAvgResolvedType(c *Catalog, db *Database, q *Query, arg AnalyzedExpr, isAvg bool) *ResolvedType {
+	rt := resolveExprResolvedType(c, db, q, arg)
+	if rt == nil {
+		return nil
+	}
+	switch rt.BaseType {
+	case BaseTypeFloat, BaseTypeDouble:
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	case BaseTypeTinyInt, BaseTypeTinyIntBool, BaseTypeSmallInt, BaseTypeMediumInt, BaseTypeInt, BaseTypeBigInt, BaseTypeDecimal:
+		p, s, ok := decimalOperandPrecisionScale(rt, arg)
+		if !ok {
+			return nil
+		}
+		if isAvg {
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+4), Scale: min(30, s+4)}
+		}
+		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: min(65, p+22), Scale: s}
+	default:
+		return nil
+	}
+}
+
+func typedTemporalLiteralValue(value string) (string, bool) {
+	trimmed := strings.TrimSpace(value)
+	upper := strings.ToUpper(trimmed)
+	for _, kw := range []string{"TIMESTAMP", "DATE", "TIME"} {
+		if strings.HasPrefix(upper, kw) {
+			rest := strings.TrimSpace(trimmed[len(kw):])
+			if len(rest) >= 2 && rest[0] == '\'' && rest[len(rest)-1] == '\'' {
+				return rest, true
+			}
+		}
+	}
+	return "", false
+}
+
 func normalizeDefault(value string, kind ColumnDefaultKind) string {
 	switch kind {
 	case ColumnDefaultConstant:
 		if strings.EqualFold(value, "NULL") {
 			return "NULL"
+		}
+		if scalar, ok := typedTemporalLiteralValue(value); ok {
+			return scalar
 		}
 		if strings.HasPrefix(value, "b'") || strings.HasPrefix(value, "B'") ||
 			strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") ||
