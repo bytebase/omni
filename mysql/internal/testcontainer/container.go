@@ -24,7 +24,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"net"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -442,49 +441,6 @@ func Judge(t testing.TB, pin enginetest.Pin, label string) *sql.DB {
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
 	return db
-}
-
-// LiveServerConfig holds connection parameters for a live pinned MySQL server
-// started outside any tape (see OpenLiveConfig).
-type LiveServerConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Version  string
-}
-
-// OpenLiveConfig returns connection parameters to the pinned MySQL server for
-// role outside any tape, for live oracle, stress, or fuzz tests that cannot be
-// replayed from a tape. It skips t outside a recording (tape.Live).
-func OpenLiveConfig(t testing.TB, role string) LiveServerConfig {
-	t.Helper()
-	tape.Live(t)
-	if role == "" {
-		role = Default
-	}
-	server := servers[role]
-	if server == nil {
-		t.Fatalf("testcontainer: no server of role %q", role)
-	}
-	pin, err := enginetest.LoadPin(Pins, role)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if err := server.start(context.Background(), pin); err != nil {
-		t.Fatalf("MySQL (%s): %v", role, err)
-	}
-	host, port, err := net.SplitHostPort(server.config.Addr)
-	if err != nil {
-		t.Fatalf("MySQL (%s) addr %q: %v", role, server.config.Addr, err)
-	}
-	return LiveServerConfig{
-		Host:     host,
-		Port:     port,
-		User:     server.config.User,
-		Password: server.config.Passwd,
-		Version:  strings.TrimPrefix(pin.Tag, "mysql-"),
-	}
 }
 
 // Terminate removes every server this process started.

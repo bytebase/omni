@@ -770,10 +770,14 @@ func entFzAtoi(s string) int {
 // entFuzzScratchDB creates an eagerly-droppable scratch database (fuzz + minimization
 // churn through many databases inside a single test, so cleanup cannot wait for test
 // end).
-func entFuzzScratchDB(ctx context.Context, t *testing.T, srv liveServer) (string, func()) {
+func entFuzzScratchDB(ctx context.Context, t *testing.T, srv *liveServer) (string, func()) {
 	t.Helper()
 	dbName := newLiveDatabase(ctx, t, srv, "entsdl_fz")
 	drop := func() {
+		if srv.simulated {
+			delete(srv.simDBs, dbName)
+			return
+		}
 		c, err := createLiveMySQLDriver(ctx, srv, "")
 		if err != nil {
 			return
@@ -788,7 +792,7 @@ func entFuzzScratchDB(ctx context.Context, t *testing.T, srv liveServer) (string
 // database. Infrastructure failures (server down, base DDL broken, mutation anchors
 // missing) fail the test hard; ORACLE violations (diff error, apply error, residual
 // after apply, non-idempotent dump) are returned as errors so the caller can minimize.
-func entFuzzTrial(ctx context.Context, t *testing.T, srv liveServer, baseDDL string, muts []entFzMutation) error {
+func entFuzzTrial(ctx context.Context, t *testing.T, srv *liveServer, baseDDL string, muts []entFzMutation) error {
 	t.Helper()
 	dbName, drop := entFuzzScratchDB(ctx, t, srv)
 	defer drop()
@@ -836,7 +840,7 @@ func entFuzzTrial(ctx context.Context, t *testing.T, srv liveServer, baseDDL str
 // entFuzzMinimize greedily shrinks a failing mutation set (ddmin-lite: drop one mutation
 // at a time, keep the removal whenever the rest still fails). Returns the minimized set
 // and its error.
-func entFuzzMinimize(ctx context.Context, t *testing.T, srv liveServer, baseDDL string, muts []entFzMutation, firstErr error) ([]entFzMutation, error) {
+func entFuzzMinimize(ctx context.Context, t *testing.T, srv *liveServer, baseDDL string, muts []entFzMutation, firstErr error) ([]entFzMutation, error) {
 	t.Helper()
 	minimized := muts
 	lastErr := firstErr
@@ -869,7 +873,7 @@ func entFzDescs(muts []entFzMutation) []string {
 func TestSDLEnterpriseFuzz(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		const seedCount = 20
 		t.Run(srv.name, func(t *testing.T) {
@@ -2120,7 +2124,7 @@ func entSfGenerate(t *testing.T, kind string, m *entSfSchema, rng *rand.Rand, st
 
 // entSfScratchDB creates an eagerly-droppable scratch database (minimization churns
 // through many databases inside a single test).
-func entSfScratchDB(ctx context.Context, t *testing.T, srv liveServer, prefix string) (string, func()) {
+func entSfScratchDB(ctx context.Context, t *testing.T, srv *liveServer, prefix string) (string, func()) {
 	t.Helper()
 	dbName := newLiveDatabase(ctx, t, srv, prefix)
 	drop := func() {
@@ -2139,7 +2143,7 @@ func entSfScratchDB(ctx context.Context, t *testing.T, srv liveServer, prefix st
 // guards — (a) the fresh dump reloads through the STRICT LoadSDL path, (c) object counts
 // match want. Infrastructure failures fail t hard; protocol violations return an error
 // so the caller can ddmin. Returns the fresh canonical dump.
-func entSfRound(ctx context.Context, t *testing.T, srv liveServer, dbName, source string, muts []entSfMutation, want entSfCounts) (string, error) {
+func entSfRound(ctx context.Context, t *testing.T, srv *liveServer, dbName, source string, muts []entSfMutation, want entSfCounts) (string, error) {
 	t.Helper()
 	target := source
 	for _, m := range muts {
@@ -2185,7 +2189,7 @@ func entSfRound(ctx context.Context, t *testing.T, srv liveServer, dbName, sourc
 
 // entSfTrial reproduces one round from scratch: load baseSDL (a canonical dump) into a
 // fresh database and run entSfRound over it. Used by ddmin.
-func entSfTrial(ctx context.Context, t *testing.T, srv liveServer, baseSDL string, muts []entSfMutation) error {
+func entSfTrial(ctx context.Context, t *testing.T, srv *liveServer, baseSDL string, muts []entSfMutation) error {
 	t.Helper()
 	dbName, drop := entSfScratchDB(ctx, t, srv, "entsdl_sf")
 	defer drop()
@@ -2209,7 +2213,7 @@ func entSfTrial(ctx context.Context, t *testing.T, srv liveServer, baseSDL strin
 
 // entSfMinimize greedily shrinks a failing round's mutation set (ddmin-lite, mirroring
 // entFuzzMinimize but over the stateful trial).
-func entSfMinimize(ctx context.Context, t *testing.T, srv liveServer, baseSDL string, muts []entSfMutation, firstErr error) ([]entSfMutation, error) {
+func entSfMinimize(ctx context.Context, t *testing.T, srv *liveServer, baseSDL string, muts []entSfMutation, firstErr error) ([]entSfMutation, error) {
 	t.Helper()
 	minimized := muts
 	lastErr := firstErr
@@ -2270,7 +2274,7 @@ func entSfStmtKeys(t *testing.T, dump string) map[string]string {
 // is byte-identical across the round — the sharp form of the accretion guard (the
 // historical paren-accretion bug regenerated untouched objects with one extra wrapper
 // per cycle while converging and self-diffing empty).
-func entSfAssertUntouchedStable(t *testing.T, srv liveServer, seed int64, r int, prev, after string, muts []entSfMutation) {
+func entSfAssertUntouchedStable(t *testing.T, srv *liveServer, seed int64, r int, prev, after string, muts []entSfMutation) {
 	t.Helper()
 	touched := map[string]bool{}
 	for _, m := range muts {
@@ -2298,7 +2302,7 @@ func entSfAssertUntouchedStable(t *testing.T, srv liveServer, seed int64, r int,
 // The stateful fuzz test: 12 seeds, 5 rounds each.
 // ----------------------------------------------------------------------------
 
-func entSfRunSeed(ctx context.Context, t *testing.T, srv liveServer, baseDDL string, seed int64) {
+func entSfRunSeed(ctx context.Context, t *testing.T, srv *liveServer, baseDDL string, seed int64) {
 	t.Helper()
 	rng := rand.New(rand.NewSource(seed))
 
@@ -2361,7 +2365,7 @@ func entSfRunSeed(ctx context.Context, t *testing.T, srv liveServer, baseDDL str
 func TestSDLEnterpriseStatefulFuzz(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		const seedCount = 12
 		t.Run(srv.name, func(t *testing.T) {

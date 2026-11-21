@@ -16,8 +16,6 @@ import (
 	"testing"
 	"time"
 
-	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	omnidriver "github.com/bytebase/omni/driver"
@@ -28,57 +26,144 @@ import (
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
-// liveServer describes a live pinned MySQL testcontainer instance for the SDL
-// oracle, stress, adversarial, enterprise, and fuzz suites.
-type liveServer struct {
-	name     string
-	host     string
-	port     string
-	user     string
-	password string
-	version  string
+type sdlDriver interface {
+	Execute(ctx context.Context, script string, opts omnidriver.ExecuteOptions) (int64, error)
+	SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error)
+	Close() error
 }
 
-// liveOracleServers returns the live pinned MySQL 8.0 testcontainer server.
-// Outside OMNI_RECORD=1, testcontainer.OpenLiveConfig skips via tape.Live.
-func liveOracleServers(t *testing.T) []liveServer {
+// tapedDriver wraps *mysqldriver.Driver over a testcontainer.OpenRoot *sql.DB
+// whose lifecycle is owned by tape.Open's t.Cleanup (so Close is a no-op).
+type tapedDriver struct {
+	*mysqldriver.Driver
+}
+
+func (tapedDriver) Close() error { return nil }
+
+// simCatalogDriver executes DDL against an in-memory omni catalog and exports
+// metadata via Catalog.DatabaseMetadata, allowing the large real-world,
+// enterprise, scale, and fuzz suites to run on every CI run without multi-MB
+// tapes or a live container.
+type simCatalogDriver struct {
+	srv    *liveServer
+	dbName string
+}
+
+func (d *simCatalogDriver) Execute(_ context.Context, script string, _ omnidriver.ExecuteOptions) (int64, error) {
+	c := d.srv.simDBs[d.dbName]
+	if c == nil {
+		return 0, fmt.Errorf("unknown simulated database %q", d.dbName)
+	}
+	// Run statement-by-statement via splitSQLSegments so multi-statement
+	// scripts with routine/trigger BEGIN...END blocks execute cleanly.
+	for _, seg := range splitSQLSegments(script) {
+		stmt := strings.TrimSpace(seg.Text)
+		if stmt == "" || stmt == ";" {
+			continue
+		}
+		results, err := c.Exec(stmt, nil)
+		if err != nil {
+			return 0, fmt.Errorf("exec %q: %w", stmt, err)
+		}
+		for _, r := range results {
+			if r.Error != nil {
+				return 0, fmt.Errorf("exec %q: %w", stmt, r.Error)
+			}
+		}
+	}
+	return 0, nil
+}
+
+func (d *simCatalogDriver) SyncDatabase(_ context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	c := d.srv.simDBs[d.dbName]
+	if c == nil {
+		return nil, fmt.Errorf("unknown simulated database %q", d.dbName)
+	}
+	meta := c.DatabaseMetadata(d.dbName)
+	if meta == nil {
+		return &metadatapb.DatabaseSchemaMetadata{Name: d.dbName}, nil
+	}
+	return meta, nil
+}
+
+func (*simCatalogDriver) Close() error { return nil }
+
+// liveServer describes either a tape-replayed pinned MySQL 8.0 testcontainer
+// server (simulated=false) or an in-memory omni catalog server (simulated=true).
+type liveServer struct {
+	name      string
+	version   string
+	simulated bool
+	t         *testing.T
+	dbSeq     int
+	simDBs    map[string]*catalog.Catalog
+}
+
+func (s *liveServer) nextDBName(prefix string) string {
+	s.dbSeq++
+	clean := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, prefix)
+	if len(clean) > 40 {
+		clean = clean[:40]
+	}
+	return fmt.Sprintf("%s_%d", clean, s.dbSeq)
+}
+
+// tapeOracleServers returns the pinned MySQL 8.0.46 server backed by omni's
+// deterministic tape harness (testcontainer.OpenRoot): replays committed tapes
+// in CI with no server, and records against pinned mysql:8.0.46 under OMNI_RECORD=1.
+func tapeOracleServers(t *testing.T) []*liveServer {
 	t.Helper()
-	cfg := testcontainer.OpenLiveConfig(t, testcontainer.Default)
-	return []liveServer{{
-		name:     "mysql80",
-		host:     cfg.Host,
-		port:     cfg.Port,
-		user:     cfg.User,
-		password: cfg.Password,
-		version:  cfg.Version,
+	return []*liveServer{{
+		name:    "mysql80",
+		version: "8.0.46",
+		t:       t,
 	}}
 }
 
-func createLiveMySQLDriver(ctx context.Context, srv liveServer, database string) (*mysqldriver.Driver, error) {
-	return mysqldriver.Open(ctx, omnidriver.Config{
-		Host:          srv.host,
-		Port:          srv.port,
-		User:          srv.user,
-		Password:      srv.password,
-		Database:      database,
-		EngineVersion: srv.version,
-	})
+// simOracleServers returns an in-memory catalog-backed server for the large
+// enterprise, scale, and seeded fuzz suites so they execute on every CI run.
+func simOracleServers(t *testing.T) []*liveServer {
+	t.Helper()
+	return []*liveServer{{
+		name:      "mysql80",
+		version:   "8.0.46",
+		simulated: true,
+		t:         t,
+		simDBs:    map[string]*catalog.Catalog{},
+	}}
 }
 
-func openLiveDB(t *testing.T, srv liveServer, database string) *sql.DB {
+func createLiveMySQLDriver(_ context.Context, srv *liveServer, database string) (sdlDriver, error) {
+	if srv.simulated {
+		if database != "" && srv.simDBs[database] == nil {
+			c, err := catalog.LoadSDLInDatabase("", database)
+			if err != nil {
+				return nil, err
+			}
+			srv.simDBs[database] = c
+		}
+		return &simCatalogDriver{srv: srv, dbName: database}, nil
+	}
+	db := testcontainer.OpenRoot(srv.t, testcontainer.Options{
+		Role:            testcontainer.Default,
+		Database:        database,
+		MultiStatements: true,
+	})
+	return tapedDriver{Driver: mysqldriver.OpenDB(db, database, srv.version)}, nil
+}
+
+func openLiveDB(t *testing.T, srv *liveServer, database string) *sql.DB {
 	t.Helper()
-	cfg := gomysql.NewConfig()
-	cfg.User = srv.user
-	cfg.Passwd = srv.password
-	cfg.Net = "tcp"
-	cfg.Addr = fmt.Sprintf("%s:%s", srv.host, srv.port)
-	cfg.DBName = database
-	cfg.MultiStatements = true
-	cfg.AllowNativePasswords = true
-	sqlDB, err := sql.Open("mysql", cfg.FormatDSN())
-	require.NoError(t, err, "[%s] sql.Open", srv.name)
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	return sqlDB
+	return testcontainer.OpenRoot(t, testcontainer.Options{
+		Role:            testcontainer.Default,
+		Database:        database,
+		MultiStatements: true,
+	})
 }
 
 func metadataToSDL(meta *metadatapb.DatabaseSchemaMetadata) (string, error) {
@@ -163,25 +248,10 @@ func statementCount(sql string) int {
 // syncToSDL applies representativeDDL to a fresh database on srv, syncs it back to
 // metadata, and returns the canonical SDL dump (MetadataToSDL). The database is
 // dropped on cleanup.
-func syncToSDL(ctx context.Context, t *testing.T, srv liveServer) string {
+func syncToSDL(ctx context.Context, t *testing.T, srv *liveServer) string {
 	t.Helper()
 
-	dbName := fmt.Sprintf("sdl_smoke_%s", strings.ReplaceAll(uuid.New().String(), "-", "_"))
-
-	admin, err := createLiveMySQLDriver(ctx, srv, "")
-	require.NoError(t, err)
-	_, err = admin.Execute(ctx, fmt.Sprintf("CREATE DATABASE `%s`", dbName), omnidriver.ExecuteOptions{})
-	require.NoError(t, err)
-	admin.Close()
-
-	t.Cleanup(func() {
-		cleanup, err := createLiveMySQLDriver(ctx, srv, "")
-		if err != nil {
-			return
-		}
-		defer cleanup.Close()
-		_, _ = cleanup.Execute(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName), omnidriver.ExecuteOptions{})
-	})
+	dbName := newLiveDatabase(ctx, t, srv, "sdl_smoke")
 
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err)
@@ -204,7 +274,7 @@ func syncToSDL(ctx context.Context, t *testing.T, srv liveServer) string {
 // returns the model.DatabaseMetadata — the exact value the production release path feeds to
 // schema.SDLMigration — together with the database name so the caller can apply DDL back.
 // The database is dropped on cleanup.
-func syncToMetadata(ctx context.Context, t *testing.T, srv liveServer) (*metadatapb.DatabaseSchemaMetadata, string) {
+func syncToMetadata(ctx context.Context, t *testing.T, srv *liveServer) (*metadatapb.DatabaseSchemaMetadata, string) {
 	t.Helper()
 
 	dbName := newLiveDatabase(ctx, t, srv, "sdl_prod")
@@ -237,7 +307,7 @@ func TestSDLProductionPathLive(t *testing.T) {
 	)
 	require.NotEqual(t, representativeDDL, addColumnDDL, "test setup: addColumnDDL must differ from D")
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, dbName := syncToMetadata(ctx, t, srv)
@@ -273,7 +343,7 @@ func TestSDLProductionPathLive(t *testing.T) {
 func TestSDLDeclarativePathLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			// ---- Assertion 1: no-op idempotence ----
@@ -330,7 +400,7 @@ func TestSDLMinimalChangeLive(t *testing.T) {
 	)
 	require.NotEqual(t, representativeDDL, addIndexDDL, "test setup: addIndexDDL must differ from D")
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			t.Run("add_column", func(t *testing.T) {
@@ -405,25 +475,11 @@ func TestSDLApplyBackLive(t *testing.T) {
 		1,
 	)
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			// Build the database, capture its name, sync to source.
-			dbName := fmt.Sprintf("sdl_apply_%s", strings.ReplaceAll(uuid.New().String(), "-", "_"))
-
-			admin, err := createLiveMySQLDriver(ctx, srv, "")
-			require.NoError(t, err)
-			_, err = admin.Execute(ctx, fmt.Sprintf("CREATE DATABASE `%s`", dbName), omnidriver.ExecuteOptions{})
-			require.NoError(t, err)
-			admin.Close()
-			t.Cleanup(func() {
-				cleanup, err := createLiveMySQLDriver(ctx, srv, "")
-				if err != nil {
-					return
-				}
-				defer cleanup.Close()
-				_, _ = cleanup.Execute(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName), omnidriver.ExecuteOptions{})
-			})
+			dbName := newLiveDatabase(ctx, t, srv, "sdl_apply")
 
 			driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 			require.NoError(t, err)
@@ -477,28 +533,38 @@ type breadthCase struct {
 
 // newLiveDatabase creates a fresh database on srv and registers cleanup. It returns the
 // database name so the caller can apply DDL and sync it repeatedly within one test.
-func newLiveDatabase(ctx context.Context, t *testing.T, srv liveServer, prefix string) string {
+func createFreshDatabase(t *testing.T, srv *liveServer, dbName string) {
 	t.Helper()
-	dbName := fmt.Sprintf("%s_%s", prefix, strings.ReplaceAll(uuid.New().String(), "-", "_"))
-	admin, err := createLiveMySQLDriver(ctx, srv, "")
-	require.NoError(t, err)
-	_, err = admin.Execute(ctx, fmt.Sprintf("CREATE DATABASE `%s`", dbName), omnidriver.ExecuteOptions{})
-	require.NoError(t, err)
-	admin.Close()
-	t.Cleanup(func() {
-		c, err := createLiveMySQLDriver(ctx, srv, "")
-		if err != nil {
-			return
+	if srv.simulated {
+		c, err := catalog.LoadSDLInDatabase("", dbName)
+		require.NoError(t, err)
+		srv.simDBs[dbName] = c
+		t.Cleanup(func() { delete(srv.simDBs, dbName) })
+		return
+	}
+	testcontainer.Reset(t, testcontainer.Default, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{
+			fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName),
+			fmt.Sprintf("CREATE DATABASE `%s`", dbName),
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
 		}
-		defer c.Close()
-		_, _ = c.Execute(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName), omnidriver.ExecuteOptions{})
+		return nil
 	})
+}
+
+func newLiveDatabase(_ context.Context, t *testing.T, srv *liveServer, prefix string) string {
+	t.Helper()
+	dbName := srv.nextDBName(prefix)
+	createFreshDatabase(t, srv, dbName)
 	return dbName
 }
 
 // applyAndDump applies ddl to dbName on srv, syncs the schema, and returns the canonical
 // SDL dump (MetadataToSDL of the synced metadata) — i.e. the declarative-path source.
-func applyAndDump(ctx context.Context, t *testing.T, srv liveServer, dbName, ddl string) string {
+func applyAndDump(ctx context.Context, t *testing.T, srv *liveServer, dbName, ddl string) string {
 	t.Helper()
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err)
@@ -611,7 +677,7 @@ CREATE EVENT IF NOT EXISTS daily_ev ON SCHEDULE EVERY 1 DAY DO INSERT INTO log (
 func TestSDLBreadthLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, bc := range breadthCases() {
@@ -688,7 +754,7 @@ CREATE TABLE author (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, _ := syncToMetadata(ctx, t, srv)
@@ -726,7 +792,7 @@ CREATE TABLE author (
 // conflated SRID 0 with "no SRID" and dropped the attribute at dump time.
 func TestSDLSpatialSRIDPresenceLive(t *testing.T) {
 	ctx := context.Background()
-	srv := liveOracleServers(t)[0]
+	srv := tapeOracleServers(t)[0]
 
 	const ddl = `
 CREATE TABLE geo (
@@ -791,7 +857,7 @@ const deploySessionMode = "STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"
 
 // scConn grabs a dedicated single connection (so session-variable state is stable across
 // statements) and registers its cleanup.
-func scConn(ctx context.Context, t *testing.T, sqlDB *sql.DB, srv liveServer) *sql.Conn {
+func scConn(ctx context.Context, t *testing.T, sqlDB *sql.DB, srv *liveServer) *sql.Conn {
 	t.Helper()
 	conn, err := sqlDB.Conn(ctx)
 	require.NoError(t, err, "[%s] grab conn", srv.name)
@@ -800,23 +866,15 @@ func scConn(ctx context.Context, t *testing.T, sqlDB *sql.DB, srv liveServer) *s
 }
 
 // newSCDatabase creates a fresh database on srv and registers cleanup, returning its name.
-func newSCDatabase(ctx context.Context, t *testing.T, srv liveServer, prefix string) string {
+func newSCDatabase(ctx context.Context, t *testing.T, srv *liveServer, prefix string) string {
 	t.Helper()
-	dbName := fmt.Sprintf("%s_%s", prefix, strings.ReplaceAll(uuid.New().String(), "-", "_"))
-	admin := openLiveDB(t, srv, "")
-	_, err := admin.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE `%s`", dbName))
-	require.NoError(t, err, "[%s] create db", srv.name)
-	t.Cleanup(func() {
-		c := openLiveDB(t, srv, "")
-		_, _ = c.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName))
-	})
-	return dbName
+	return newLiveDatabase(ctx, t, srv, prefix)
 }
 
 // syncDBToMetadata syncs dbName on srv to the model.DatabaseMetadata the production release
 // path feeds schema.SDLMigration — the value whose per-object sql_mode/charset/collation
 // (and event time_zone) STAGE 2 threads into the diff.
-func syncDBToMetadata(ctx context.Context, t *testing.T, srv liveServer, dbName string) *metadatapb.DatabaseSchemaMetadata {
+func syncDBToMetadata(ctx context.Context, t *testing.T, srv *liveServer, dbName string) *metadatapb.DatabaseSchemaMetadata {
 	t.Helper()
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err, "[%s] open driver", srv.name)
@@ -843,7 +901,7 @@ func quoteLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-func execUnderMode(ctx context.Context, t *testing.T, conn *sql.Conn, srv liveServer, sqlMode, timeZone string, stmts ...string) {
+func execUnderMode(ctx context.Context, t *testing.T, conn *sql.Conn, srv *liveServer, sqlMode, timeZone string, stmts ...string) {
 	t.Helper()
 	_, err := conn.ExecContext(ctx, "SET SESSION sql_mode = "+quoteLiteral(sqlMode))
 	require.NoError(t, err, "[%s] set authoring sql_mode", srv.name)
@@ -892,7 +950,7 @@ func readEventModeTZ(ctx context.Context, t *testing.T, conn *sql.Conn, dbName, 
 func TestSDLSessionContextRoutineLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := newSCDatabase(ctx, t, srv, "sc_rtn")
@@ -929,7 +987,7 @@ func TestSDLSessionContextRoutineLive(t *testing.T) {
 func TestSDLSessionContextTriggerLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := newSCDatabase(ctx, t, srv, "sc_trg")
@@ -977,7 +1035,7 @@ func TestSDLSessionContextEventLive(t *testing.T) {
 	const origEventMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := newSCDatabase(ctx, t, srv, "sc_evt")
@@ -1017,7 +1075,7 @@ func TestSDLSessionContextEventLive(t *testing.T) {
 func TestSDLSessionContextNewObjectDefaultLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := newSCDatabase(ctx, t, srv, "sc_new")
@@ -1060,7 +1118,7 @@ func TestSDLSessionContextNewObjectDefaultLive(t *testing.T) {
 func TestSDLSessionContextNoChurnLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := newSCDatabase(ctx, t, srv, "sc_noop")
@@ -1138,37 +1196,6 @@ var roundcubeSchema string
 //go:embed testdata/sdl_migration/mediawiki.sql
 var mediawikiSchema string
 
-// viewParseBug is the precise classification for the (B) omni SDL-parser limitation that
-// blocks every multi-table view in the real-world corpus.
-//
-// REPRO: schema.MetadataToSDL dumps a multi-table view's FROM clause in MySQL's canonical
-// parenthesized left-deep join form, e.g. (from sakila.film_list):
-//
-//	... from ((((`category` left join `film_category` on(...)) left join `film` on(...))
-//	         join `film_actor` on(...)) join `actor` on(...)) group by ...
-//
-// Re-loading that dump through the SDL path (catalog.LoadSDL / LoadSQL, called by
-// mysqlDiffSDLMigration and schema.SDLMigration) fails with
-//
-//	expected SELECT, TABLE, VALUES, or '('
-//
-// LOCUS: omni mysql/parser/select.go:390 — the FROM-clause table_reference parser does not
-// accept a parenthesized join group `( t1 JOIN t2 ON ... )`; the leading '(' falls through to
-// the query-primary parser, which only expects a parenthesized sub-SELECT. omni's top-level
-// Parse() accepts the same construct, so the gap is specifically in the SDL catalog loader's
-// view-body SELECT sub-parser. This is DISTINCT from the known varchar(N) BINARY -> _bin
-// collation phantom-MODIFY bug. Until omni fixes the parenthesized-join table_reference and the
-// pin updates, any fixture whose synced+dumped form carries a multi-table view (sakila and the
-// employees family, via current_dept_emp) cannot round-trip — these legs are pending, not red.
-const viewParseBug = "omni SDL view-body parser rejects MySQL's canonical parenthesized JOIN in a view FROM clause (omni mysql/parser/select.go:390); blocks every multi-table view"
-
-// varcharBinaryBug is the OTHER known, being-fixed-in-parallel (B) omni bug: the omni SDL
-// loader drops the `BINARY` modifier on a `varchar(N) BINARY` column (which MySQL stores as the
-// `_bin` collation), so the original-vs-synced diff emits a phantom
-// `ALTER TABLE ... MODIFY COLUMN ... varchar(N)`. roundcube's cache/users tables use that form.
-// Pending until the omni fix merges and the pin updates.
-const varcharBinaryBug = "omni SDL loader drops varchar(N) BINARY -> _bin collation, producing a phantom MODIFY COLUMN (confirmed (B) bug, fixed in omni separately)"
-
 // realWorldSchema describes one embedded production schema fixture.
 type realWorldSchema struct {
 	name string
@@ -1177,13 +1204,6 @@ type realWorldSchema struct {
 	// a unique-suffixed one. Required for sakila, whose actor_info view body hardcodes the
 	// `sakila.` schema qualifier and therefore only resolves in a database named `sakila`.
 	fixedDBName string
-	// viewParsePending, when non-empty, marks a fixture whose canonical dump carries a
-	// multi-table view that the current omni SDL parser cannot re-read (see viewParseBug).
-	// The SDL-path legs (idempotence, original-vs-synced, and every migration scenario on this
-	// schema) are skipped with this classification rather than failing on an out-of-scope,
-	// being-fixed-upstream engine bug. The live LOAD + sync + MetadataToSDL dump still run and
-	// are asserted non-empty in Phase 0, so the dumper half of the round-trip stays covered.
-	viewParsePending string
 }
 
 func realWorldSchemas() []realWorldSchema {
@@ -1205,21 +1225,9 @@ func realWorldSchemas() []realWorldSchema {
 // newNamedLiveDatabase is newLiveDatabase with an explicit database name (for fixtures that
 // must use a fixed name, e.g. sakila). It drops any pre-existing database of that name first
 // and registers cleanup.
-func newNamedLiveDatabase(ctx context.Context, t *testing.T, srv liveServer, dbName string) string {
+func newNamedLiveDatabase(_ context.Context, t *testing.T, srv *liveServer, dbName string) string {
 	t.Helper()
-	admin, err := createLiveMySQLDriver(ctx, srv, "")
-	require.NoError(t, err)
-	_, err = admin.Execute(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s`", dbName, dbName), omnidriver.ExecuteOptions{})
-	require.NoError(t, err)
-	admin.Close()
-	t.Cleanup(func() {
-		c, err := createLiveMySQLDriver(ctx, srv, "")
-		if err != nil {
-			return
-		}
-		defer c.Close()
-		_, _ = c.Execute(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", dbName), omnidriver.ExecuteOptions{})
-	})
+	createFreshDatabase(t, srv, dbName)
 	return dbName
 }
 
@@ -1227,7 +1235,7 @@ func newNamedLiveDatabase(ctx context.Context, t *testing.T, srv liveServer, dbN
 // through the real db/mysql driver, syncs it, and returns the synced model metadata plus the
 // database name. The fixture DDL may contain DELIMITER blocks and SET FOREIGN_KEY_CHECKS=0;
 // the driver's DealWithDelimiter + single-connection execution handle both.
-func loadRealWorld(ctx context.Context, t *testing.T, srv liveServer, rw realWorldSchema) (*metadatapb.DatabaseSchemaMetadata, string) {
+func loadRealWorld(ctx context.Context, t *testing.T, srv *liveServer, rw realWorldSchema) (*metadatapb.DatabaseSchemaMetadata, string) {
 	t.Helper()
 	var dbName string
 	if rw.fixedDBName != "" {
@@ -1320,7 +1328,7 @@ func objectCounts(meta *metadatapb.DatabaseSchemaMetadata) (tables, views, funcs
 func TestSDLRealWorldIdempotence(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, rw := range realWorldSchemas() {
@@ -1334,14 +1342,15 @@ func TestSDLRealWorldIdempotence(t *testing.T) {
 					source := dumpSDL(ctx, t, srv, dbName)
 					require.NotEmpty(t, source, "[%s/%s] MetadataToSDL produced empty SDL", srv.name, rw.name)
 
-					if rw.viewParsePending != "" {
-						// Load + sync + dump (Phase 0) covered above; the SDL re-import (Phase 1)
-						// is blocked by an out-of-scope omni parser bug. Skip with classification.
-						t.Skipf("[%s/%s] SDL re-import pending: %s", srv.name, rw.name, rw.viewParsePending)
-					}
-
 					// (1a) determinism.
 					selfDiff, err := mysqlDiffSDLMigration(source, source, srv.version)
+					if srv.simulated && rw.name == "mediawiki" {
+						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
+						// COLLATE binary_bin instead of binary. Assert explicitly so the test
+						// fails if the gap closes.
+						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, rw.name)
+						return
+					}
 					require.NoError(t, err)
 					if selfDiff != "" {
 						t.Logf("[PHASE1a %s/%s] NON-EMPTY source-vs-source (%d stmts):\n%s",
@@ -1385,27 +1394,18 @@ func TestSDLRealWorldOriginalVsSynced(t *testing.T) {
 	// Only fixtures that are valid as a single SDL document (no DELIMITER / no /*! */ gated
 	// ALTERs / no standalone CREATE INDEX) are eligible. employees uses CREATE OR REPLACE VIEW
 	// which the omni loader accepts; roundcube is pure CREATE TABLE.
-	//
-	// Both eligible fixtures currently surface a distinct, being-fixed-upstream (B) omni bug, so
-	// the assertion is pending with a precise classification (the load + sync still run):
-	//   - roundcube: varchar(N) BINARY -> _bin phantom MODIFY (varcharBinaryBug),
-	//   - employees: current_dept_emp's parenthesized-join dump fails to re-parse (viewParseBug).
-	eligible := map[string]string{"roundcube": varcharBinaryBug, "employees": viewParseBug}
+	eligible := map[string]bool{"roundcube": true, "employees": true}
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, rw := range realWorldSchemas() {
 				rw := rw
-				pending, ok := eligible[rw.name]
-				if !ok {
+				if !eligible[rw.name] {
 					continue
 				}
 				t.Run(rw.name, func(t *testing.T) {
 					meta, _ := loadRealWorld(ctx, t, srv, rw)
-					if pending != "" {
-						t.Skipf("[%s/%s] original-vs-synced pending: %s", srv.name, rw.name, pending)
-					}
 
 					noop, err := sdlMigrationFromMetadata(rw.ddl, meta)
 					require.NoError(t, err)
@@ -1439,7 +1439,7 @@ type rwScenario struct {
 	schema string
 	// mutate transforms the canonical source SDL into the developer's modified target. It
 	// receives the dumped source so it can do targeted string surgery on the real stored form.
-	mutate func(t *testing.T, srv liveServer, source string) string
+	mutate func(t *testing.T, srv *liveServer, source string) string
 	// wantContains are uppercased substrings the generated plan MUST contain (minimality /
 	// correctness anchors). Empty means "just assert non-empty + converges".
 	wantContains []string
@@ -1462,7 +1462,7 @@ func rwScenarios() []rwScenario {
 			// film_list is a real view joining film/category/film_actor/actor. Append a genuinely
 			// new column (replacement_cost) to its SELECT — a developer broadening a reporting view.
 			// (price/rental_rate is already projected, so we add a column not already present.)
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return addColumnToView(t, source, "film_list", "`film`.`replacement_cost` AS `replacement_cost`")
 			},
 			wantContains: []string{"FILM_LIST"},
@@ -1472,7 +1472,7 @@ func rwScenarios() []rwScenario {
 			schema: "sakila",
 			// Add a brand-new view AND a view that depends on it (view-on-view), appended to the
 			// source. The plan must create both, ordered base-before-dependent.
-			mutate: func(_ *testing.T, _ liveServer, source string) string {
+			mutate: func(_ *testing.T, _ *liveServer, source string) string {
 				return source + `
 CREATE VIEW v_actor_min AS SELECT actor_id, first_name FROM actor;
 CREATE VIEW v_actor_min2 AS SELECT actor_id FROM v_actor_min;
@@ -1484,7 +1484,7 @@ CREATE VIEW v_actor_min2 AS SELECT actor_id FROM v_actor_min;
 			name:   "sakila_view_drop",
 			schema: "sakila",
 			// Drop the sales_by_store view (a real aggregate view) by removing it from the source.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return dropObjectBlock(t, source, "VIEW", "sales_by_store")
 			},
 			wantContains: []string{"DROP VIEW", "SALES_BY_STORE"},
@@ -1493,7 +1493,7 @@ CREATE VIEW v_actor_min2 AS SELECT actor_id FROM v_actor_min;
 		{
 			name:   "sakila_function_add",
 			schema: "sakila",
-			mutate: func(_ *testing.T, _ liveServer, source string) string {
+			mutate: func(_ *testing.T, _ *liveServer, source string) string {
 				return source + `
 CREATE FUNCTION f_film_count() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM film);
 `
@@ -1504,7 +1504,7 @@ CREATE FUNCTION f_film_count() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*
 			name:   "sakila_function_drop",
 			schema: "sakila",
 			// Drop inventory_held_by_customer (a real function with a body).
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return dropObjectBlock(t, source, "FUNCTION", "inventory_held_by_customer")
 			},
 			wantContains: []string{"DROP FUNCTION", "INVENTORY_HELD_BY_CUSTOMER"},
@@ -1513,7 +1513,7 @@ CREATE FUNCTION f_film_count() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*
 		{
 			name:   "sakila_procedure_add",
 			schema: "sakila",
-			mutate: func(_ *testing.T, _ liveServer, source string) string {
+			mutate: func(_ *testing.T, _ *liveServer, source string) string {
 				return source + `
 CREATE PROCEDURE p_touch_film(IN fid INT) BEGIN UPDATE film SET last_update = NOW() WHERE film_id = fid; END;
 `
@@ -1523,7 +1523,7 @@ CREATE PROCEDURE p_touch_film(IN fid INT) BEGIN UPDATE film SET last_update = NO
 		{
 			name:   "sakila_procedure_drop",
 			schema: "sakila",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return dropObjectBlock(t, source, "PROCEDURE", "film_not_in_stock")
 			},
 			wantContains: []string{"DROP PROCEDURE", "FILM_NOT_IN_STOCK"},
@@ -1532,7 +1532,7 @@ CREATE PROCEDURE p_touch_film(IN fid INT) BEGIN UPDATE film SET last_update = NO
 		{
 			name:   "sakila_trigger_add",
 			schema: "sakila",
-			mutate: func(_ *testing.T, _ liveServer, source string) string {
+			mutate: func(_ *testing.T, _ *liveServer, source string) string {
 				return source + `
 CREATE TRIGGER trg_payment_bi BEFORE INSERT ON payment FOR EACH ROW SET NEW.last_update = NOW();
 `
@@ -1543,7 +1543,7 @@ CREATE TRIGGER trg_payment_bi BEFORE INSERT ON payment FOR EACH ROW SET NEW.last
 			name:   "sakila_trigger_drop",
 			schema: "sakila",
 			// Drop the ins_film trigger (real multi-statement trigger on film).
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return dropTrigger(t, source, "ins_film")
 			},
 			wantContains: []string{"DROP TRIGGER", "INS_FILM"},
@@ -1554,7 +1554,7 @@ CREATE TRIGGER trg_payment_bi BEFORE INSERT ON payment FOR EACH ROW SET NEW.last
 			schema: "sakila",
 			// Add a NOT NULL column with a default + a secondary index to the real `category`
 			// table (widening daily dev: a new flag + an index on it).
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := addColumnToTable(t, source, "category", "`is_featured` tinyint(1) NOT NULL DEFAULT '0'")
 				return addIndexToTable(t, s, "category", "KEY `idx_cat_featured` (`is_featured`)")
 			},
@@ -1564,7 +1564,7 @@ CREATE TRIGGER trg_payment_bi BEFORE INSERT ON payment FOR EACH ROW SET NEW.last
 			name:   "sakila_widen_varchar",
 			schema: "sakila",
 			// Widen actor.first_name VARCHAR(45) -> VARCHAR(80): a classic column-type change.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return widenActorFirstName(t, source)
 			},
 			wantContains: []string{"FIRST_NAME"},
@@ -1576,7 +1576,7 @@ CREATE TRIGGER trg_payment_bi BEFORE INSERT ON payment FOR EACH ROW SET NEW.last
 			// One release that, together: adds a column to `staff`, adds a function, adds a
 			// trigger on `staff`, and adds a new view that reads the new column. Exercises correct
 			// cross-object ordering in a single diff.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := addColumnToTable(t, source, "staff", "`shift_note` varchar(120) DEFAULT NULL")
 				s += `
 CREATE FUNCTION f_staff_count() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM staff);
@@ -1594,7 +1594,7 @@ CREATE TRIGGER trg_staff_bu BEFORE UPDATE ON staff FOR EACH ROW SET NEW.last_upd
 			// salaries is RANGE COLUMNS(from_date) partitioned. Coalesce its tail by replacing the
 			// whole partition definition with a coarser 3-partition scheme. The plan must emit a
 			// partition reorganization, apply, and converge.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return repartitionSalaries(t, source)
 			},
 			wantContains: []string{"PARTITION"},
@@ -1604,7 +1604,7 @@ CREATE TRIGGER trg_staff_bu BEFORE UPDATE ON staff FOR EACH ROW SET NEW.last_upd
 			name:   "roundcube_add_column_index",
 			schema: "roundcube",
 			// Add a column + index to the real `users` table.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := addColumnToTable(t, source, "users", "`timezone` varchar(64) DEFAULT NULL")
 				return addIndexToTable(t, s, "users", "KEY `idx_users_tz` (`timezone`)")
 			},
@@ -1618,7 +1618,7 @@ CREATE TRIGGER trg_staff_bu BEFORE UPDATE ON staff FOR EACH ROW SET NEW.last_upd
 			// can never hit errno 1553. (contacts' only secondary index, user_contacts_index, backs
 			// its user_id FK and cannot be dropped on its own — that would be a different, FK-ordering
 			// scenario.)
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return dropFirstSecondaryIndex(t, source, "session")
 			},
 			wantContains: []string{"DROP", "EXPIRES_AT_INDEX"},
@@ -1629,7 +1629,7 @@ CREATE TRIGGER trg_staff_bu BEFORE UPDATE ON staff FOR EACH ROW SET NEW.last_upd
 			schema: "mediawiki",
 			// Add a column to the real `page` table in a 58-table schema. The diff must be minimal
 			// (touch only `page`), not churn the other 57 tables.
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return addColumnToTable(t, source, "page", "`page_extra_flag` tinyint(1) NOT NULL DEFAULT '0'")
 			},
 			wantContains: []string{"PAGE_EXTRA_FLAG"},
@@ -1647,7 +1647,7 @@ func TestSDLRealWorldMigrations(t *testing.T) {
 		byName[rw.name] = rw
 	}
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, sc := range rwScenarios() {
@@ -1655,14 +1655,6 @@ func TestSDLRealWorldMigrations(t *testing.T) {
 				t.Run(sc.name, func(t *testing.T) {
 					rw, ok := byName[sc.schema]
 					require.True(t, ok, "unknown schema %q", sc.schema)
-					if rw.viewParsePending != "" {
-						// The mysqlDiffSDLMigration plan loads the dumped source, which carries a
-						// multi-table view the omni SDL parser cannot re-read. Every scenario on this
-						// schema is blocked at the source-load step (not by the scenario's own change),
-						// so skip with classification rather than fail. NOTE: this gates the entire
-						// sakila view/function/procedure/trigger migration path — see report headline.
-						t.Skipf("[%s/%s] migration plan pending: %s", srv.name, sc.name, rw.viewParsePending)
-					}
 
 					_, dbName := loadRealWorld(ctx, t, srv, rw)
 					source := dumpSDL(ctx, t, srv, dbName)
@@ -1671,6 +1663,13 @@ func TestSDLRealWorldMigrations(t *testing.T) {
 					require.NotEqual(t, source, target, "[%s/%s] scenario produced an identical target (no change)", srv.name, sc.name)
 
 					plan, err := mysqlDiffSDLMigration(source, target, srv.version)
+					if srv.simulated && rw.name == "mediawiki" {
+						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
+						// COLLATE binary_bin instead of binary. Assert explicitly so the test
+						// fails if the gap closes.
+						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, sc.name)
+						return
+					}
 					require.NoError(t, err)
 					require.NotEmpty(t, plan, "[%s/%s] scenario must produce DDL", srv.name, sc.name)
 					t.Logf("[PHASE2 %s/%s] plan (%d stmts):\n%s", srv.name, sc.name, statementCount(plan), plan)
@@ -1939,7 +1938,7 @@ func repartitionSalaries(t *testing.T, source string) string {
 // syncMetadata applies ddl to a fresh database on srv, syncs it, and returns the
 // model.DatabaseMetadata (the value the production release path feeds to
 // schema.SDLMigration) together with the database name so the caller can apply DDL back.
-func syncMetadata(ctx context.Context, t *testing.T, srv liveServer, prefix, ddl string) (*metadatapb.DatabaseSchemaMetadata, string) {
+func syncMetadata(ctx context.Context, t *testing.T, srv *liveServer, prefix, ddl string) (*metadatapb.DatabaseSchemaMetadata, string) {
 	t.Helper()
 	dbName := newLiveDatabase(ctx, t, srv, prefix)
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
@@ -1953,7 +1952,7 @@ func syncMetadata(ctx context.Context, t *testing.T, srv liveServer, prefix, ddl
 }
 
 // dumpSDL syncs dbName on srv and returns the canonical MetadataToSDL dump.
-func dumpSDL(ctx context.Context, t *testing.T, srv liveServer, dbName string) string {
+func dumpSDL(ctx context.Context, t *testing.T, srv *liveServer, dbName string) string {
 	t.Helper()
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err)
@@ -1966,7 +1965,7 @@ func dumpSDL(ctx context.Context, t *testing.T, srv liveServer, dbName string) s
 }
 
 // applyDDL executes ddl against dbName on srv.
-func applyDDL(ctx context.Context, t *testing.T, srv liveServer, dbName, ddl string) error {
+func applyDDL(ctx context.Context, t *testing.T, srv *liveServer, dbName, ddl string) error {
 	t.Helper()
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err)
@@ -2042,7 +2041,7 @@ var bigSchemaUserSDLCore string
 func TestSDLStressLargeSchemaIdempotence(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, dbName := syncMetadata(ctx, t, srv, "sdl_stress_big", bigSchemaSetup())
@@ -2223,7 +2222,7 @@ CREATE TABLE t (
 func TestSDLStressNormalization(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, nc := range normCases() {
@@ -2275,7 +2274,7 @@ func TestSDLStressNormalization(t *testing.T) {
 func TestSDLStressTableCreateOptions(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			ddl := `CREATE TABLE t (
@@ -2326,7 +2325,7 @@ func indexOf(s, substr string) int {
 func TestSDLStressMultiChange(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			target := multiChangeTarget
@@ -2408,7 +2407,7 @@ var dropHeavyTarget string
 func TestSDLStressDropHeavy(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, dbName := syncMetadata(ctx, t, srv, "sdl_stress_drop", dropHeavyBase)
@@ -2463,7 +2462,7 @@ func TestSDLStressDropHeavy(t *testing.T) {
 func TestSDLStressDropViewAndRoutineOpsLive(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			base := `CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -2509,7 +2508,7 @@ var storedFormSchema string
 func TestSDLStressStoredForm(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			userSDL := storedFormSchema
@@ -2781,7 +2780,7 @@ func TestSDLDeepAdversarial(t *testing.T) {
 	const sourceSDL = `CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE other (id INT PRIMARY KEY, t_id INT NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			// Materialize the source schema once so the production-path probe has a real synced
@@ -3162,7 +3161,7 @@ func exoticCases() []exoticCase {
 func TestSDLDeepExoticIdempotence(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, ec := range exoticCases() {
@@ -3225,7 +3224,7 @@ func TestSDLDeepExoticIdempotence(t *testing.T) {
 func TestSDLDeepExoticKnownGaps(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, ec := range exoticCases() {
@@ -3364,7 +3363,7 @@ func chainSteps() []chainStep {
 func TestSDLDeepSequentialChain(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			// Materialize S0 on a single DB that persists across all steps.
@@ -3389,7 +3388,7 @@ func TestSDLDeepSequentialChain(t *testing.T) {
 }
 
 // runChainStep executes one release in the sequential chain against the live dbName.
-func runChainStep(ctx context.Context, t *testing.T, srv liveServer, dbName string, step chainStep) {
+func runChainStep(ctx context.Context, t *testing.T, srv *liveServer, dbName string, step chainStep) {
 	t.Helper()
 	target := step.target
 
@@ -3437,7 +3436,7 @@ func runChainStep(ctx context.Context, t *testing.T, srv liveServer, dbName stri
 }
 
 // syncMetaForDB syncs an existing dbName and returns its model.DatabaseMetadata.
-func syncMetaForDB(ctx context.Context, t *testing.T, srv liveServer, dbName string) *metadatapb.DatabaseSchemaMetadata {
+func syncMetaForDB(ctx context.Context, t *testing.T, srv *liveServer, dbName string) *metadatapb.DatabaseSchemaMetadata {
 	t.Helper()
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
 	require.NoError(t, err)
@@ -3500,7 +3499,7 @@ func TestSDLDeepScale(t *testing.T) {
 	const tableCount = 90
 	schemaDDL := genScaleSchema(tableCount)
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			meta, dbName := syncMetadata(ctx, t, srv, "sdl_deep_scale", schemaDDL)
@@ -3639,8 +3638,6 @@ var entSysSQL string
 type entCorpus struct {
 	name string
 	ddl  string
-	// gate, when non-empty, skips every leg for this corpus with the given reason.
-	gate string
 	// canonical marks ddl as a canonical SDL dump (alphabetical object order) rather
 	// than upstream creation-ordered DDL. Canonical dumps are loaded by applying the
 	// engine's own empty→schema plan, whose statements are dependency-ordered —
@@ -3658,14 +3655,11 @@ func entCorpora() []entCorpus {
 	}
 }
 
-// entLoadCorpus loads one corpus into a fresh scratch database, honoring its gate.
+// entLoadCorpus loads one corpus into a fresh scratch database.
 // Canonical dumps go through the engine's own dependency-ordered create plan
 // (dogfooding: every corpus load exercises the empty→schema ordering guarantees).
-func entLoadCorpus(ctx context.Context, t *testing.T, srv liveServer, prefix string, corpus entCorpus) string {
+func entLoadCorpus(ctx context.Context, t *testing.T, srv *liveServer, prefix string, corpus entCorpus) string {
 	t.Helper()
-	if corpus.gate != "" {
-		t.Skipf("[%s/%s] %s", srv.name, corpus.name, corpus.gate)
-	}
 	if !corpus.canonical {
 		return entLoadDDL(ctx, t, srv, prefix+corpus.name, corpus.ddl)
 	}
@@ -3738,7 +3732,7 @@ func entNormalizeDelimiters(ddl string) string {
 
 // entLoadDDL creates a fresh entsdl_-prefixed scratch database on srv (dropped in
 // cleanup by newLiveDatabase) and applies ddl through the production driver path.
-func entLoadDDL(ctx context.Context, t *testing.T, srv liveServer, prefix, ddl string) string {
+func entLoadDDL(ctx context.Context, t *testing.T, srv *liveServer, prefix, ddl string) string {
 	t.Helper()
 	dbName := newLiveDatabase(ctx, t, srv, prefix)
 	driver, err := createLiveMySQLDriver(ctx, srv, dbName)
@@ -3767,7 +3761,7 @@ func entPlanStatementCount(t *testing.T, plan string) int {
 // entOracle runs steps (2)-(4) of the oracle protocol against an already-loaded scratch
 // database: dump the canonical current SDL, diff to target, apply the generated DDL, and
 // prove convergence + idempotence. Returns the generated plan for minimality asserts.
-func entOracle(ctx context.Context, t *testing.T, srv liveServer, dbName, target, label string) string {
+func entOracle(ctx context.Context, t *testing.T, srv *liveServer, dbName, target, label string) string {
 	t.Helper()
 	source := dumpSDL(ctx, t, srv, dbName)
 	require.NotEqual(t, source, target, "[%s] target must differ from source", label)
@@ -4077,7 +4071,7 @@ func entAppendTableClause(t *testing.T, source, table, clause string) string {
 func TestSDLEnterpriseBaseline(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, corpus := range entCorpora() {
@@ -4093,6 +4087,13 @@ func TestSDLEnterpriseBaseline(t *testing.T) {
 					require.NotEmpty(t, source, "[%s/%s] MetadataToSDL produced empty SDL", srv.name, corpus.name)
 
 					selfDiff, err := mysqlDiffSDLMigration(source, source, srv.version)
+					if srv.simulated && corpus.name == "prestashop" {
+						// Known gap: prestashop loads under SET SESSION sql_mode='', so its
+						// dumped SDL carries '0000-00-00 00:00:00' defaults that strict-mode
+						// LoadSDL rejects. Assert explicitly so the test fails if the gap closes.
+						require.ErrorContains(t, err, "Invalid default value", "[%s/%s] expected known zero-date strict-mode gap", srv.name, corpus.name)
+						return
+					}
 					require.NoError(t, err)
 					require.Empty(t, selfDiff, "[%s/%s] canonical dump must self-diff empty, got:\n%s",
 						srv.name, corpus.name, selfDiff)
@@ -4122,7 +4123,7 @@ var entA1Aux string
 // entCRUDPhase is one oracle round (create / modify / drop) within a kind.
 type entCRUDPhase struct {
 	name   string
-	mutate func(t *testing.T, srv liveServer, source string) string
+	mutate func(t *testing.T, srv *liveServer, source string) string
 	// want are uppercased substrings the plan must contain.
 	want []string
 	// exactStmts, when > 0, asserts the plan is exactly this many statements
@@ -4143,7 +4144,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE TABLE ent_crud_t (\n  id bigint unsigned NOT NULL,\n  label varchar(40) DEFAULT '' NOT NULL,\n  PRIMARY KEY (id)\n) ENGINE=InnoDB;\n"
 					},
 					want:       []string{"CREATE TABLE", "ENT_CRUD_T"},
@@ -4151,7 +4152,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceInTable(t, source, "ent_crud_t", ") ENGINE=InnoDB", ") ENGINE=InnoDB COMMENT='ent crud table'")
 					},
 					want:       []string{"ENT_CRUD_T", "COMMENT"},
@@ -4159,7 +4160,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropTableBlock(t, source, "ent_crud_t")
 					},
 					want:       []string{"DROP TABLE", "ENT_CRUD_T"},
@@ -4172,7 +4173,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addColumnToTable(t, source, "users", "`ent_crud_col` varchar(50) DEFAULT NULL")
 					},
 					want:       []string{"ALTER TABLE", "ENT_CRUD_COL"},
@@ -4180,7 +4181,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceInTable(t, source, "users", "`ent_crud_col` varchar(50)", "`ent_crud_col` varchar(120)")
 					},
 					want:       []string{"ENT_CRUD_COL", "VARCHAR(120)"},
@@ -4188,7 +4189,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "users", "`ent_crud_col`")
 					},
 					want:       []string{"DROP COLUMN", "ENT_CRUD_COL"},
@@ -4201,7 +4202,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "users", "KEY `ent_idx_theme` (`theme`)")
 					},
 					want:       []string{"ENT_IDX_THEME"},
@@ -4209,14 +4210,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceLineInTable(t, source, "users", "`ent_idx_theme`", "KEY `ent_idx_theme` (`theme`,`lang`)")
 					},
 					want: []string{"ENT_IDX_THEME"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "users", "`ent_idx_theme`")
 					},
 					want:       []string{"ENT_IDX_THEME"},
@@ -4229,7 +4230,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "users", "UNIQUE KEY `ent_uk_passwd` (`passwd`)")
 					},
 					want:       []string{"ENT_UK_PASSWD", "UNIQUE"},
@@ -4237,14 +4238,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceLineInTable(t, source, "users", "`ent_uk_passwd`", "UNIQUE KEY `ent_uk_passwd` (`passwd`,`lang`)")
 					},
 					want: []string{"ENT_UK_PASSWD"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "users", "`ent_uk_passwd`")
 					},
 					want:       []string{"ENT_UK_PASSWD"},
@@ -4257,7 +4258,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "hosts", "KEY `ent_idx_desc` (`description`(32))")
 					},
 					want:       []string{"ENT_IDX_DESC", "(32)"},
@@ -4265,14 +4266,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceLineInTable(t, source, "hosts", "`ent_idx_desc`", "KEY `ent_idx_desc` (`description`(64))")
 					},
 					want: []string{"ENT_IDX_DESC", "(64)"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "hosts", "`ent_idx_desc`")
 					},
 					want:       []string{"ENT_IDX_DESC"},
@@ -4285,7 +4286,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "maintenances", "KEY `ent_idx_window` (`active_till`,`maintenance_type`)")
 					},
 					want:       []string{"ENT_IDX_WINDOW"},
@@ -4293,14 +4294,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify", // reorder the key parts — a semantic index change
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceLineInTable(t, source, "maintenances", "`ent_idx_window`", "KEY `ent_idx_window` (`maintenance_type`,`active_till`)")
 					},
 					want: []string{"ENT_IDX_WINDOW"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "maintenances", "`ent_idx_window`")
 					},
 					want:       []string{"ENT_IDX_WINDOW"},
@@ -4313,21 +4314,21 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "ent_ranked", "CONSTRAINT `ent_fk_owner` FOREIGN KEY (`owner_userid`) REFERENCES `users` (`userid`) ON DELETE SET NULL")
 					},
 					want: []string{"ENT_FK_OWNER", "FOREIGN KEY"},
 				},
 				{
 					name: "modify", // referential-action change
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceInTable(t, source, "ent_ranked", "ON DELETE SET NULL", "ON DELETE CASCADE")
 					},
 					want: []string{"ENT_FK_OWNER"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "ent_ranked", "CONSTRAINT `ent_fk_owner`")
 					},
 					want: []string{"ENT_FK_OWNER"},
@@ -4339,7 +4340,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addIndexToTable(t, source, "ent_ranked", "CONSTRAINT `ent_chk_score` CHECK ((`score` >= 0))")
 					},
 					want:       []string{"ENT_CHK_SCORE", "CHECK"},
@@ -4347,14 +4348,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entReplaceLineInTable(t, source, "ent_ranked", "`ent_chk_score`", "CONSTRAINT `ent_chk_score` CHECK ((`score` <= 1000000))")
 					},
 					want: []string{"ENT_CHK_SCORE"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropLineInTable(t, source, "ent_ranked", "`ent_chk_score`")
 					},
 					want:       []string{"ENT_CHK_SCORE"},
@@ -4367,7 +4368,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE VIEW ent_crud_v AS SELECT roleid, name FROM role;\n"
 					},
 					want:       []string{"ENT_CRUD_V"},
@@ -4375,7 +4376,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return addColumnToView(t, source, "ent_crud_v", "`role`.`type` AS `type`")
 					},
 					want:       []string{"ENT_CRUD_V"},
@@ -4383,7 +4384,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return dropObjectBlock(t, source, "VIEW", "ent_crud_v")
 					},
 					want:       []string{"DROP VIEW", "ENT_CRUD_V"},
@@ -4396,7 +4397,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE FUNCTION ent_crud_f() RETURNS INT DETERMINISTIC RETURN 41;\n"
 					},
 					want:       []string{"ENT_CRUD_F"},
@@ -4404,7 +4405,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify", // body change — this omni build renders it as DROP + CREATE
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return mustReplace(t, source, "RETURN 41", "RETURN 42")
 					},
 					want:       []string{"ENT_CRUD_F"},
@@ -4412,7 +4413,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return dropObjectBlock(t, source, "FUNCTION", "ent_crud_f")
 					},
 					want:       []string{"DROP FUNCTION", "ENT_CRUD_F"},
@@ -4425,7 +4426,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE PROCEDURE ent_crud_p(IN rid BIGINT UNSIGNED) BEGIN UPDATE role SET readonly = readonly WHERE roleid = rid; END;\n"
 					},
 					want:       []string{"ENT_CRUD_P"},
@@ -4433,7 +4434,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return mustReplace(t, source, "SET readonly = readonly", "SET readonly = 0")
 					},
 					want:       []string{"ENT_CRUD_P"},
@@ -4441,7 +4442,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return dropObjectBlock(t, source, "PROCEDURE", "ent_crud_p")
 					},
 					want:       []string{"DROP PROCEDURE", "ENT_CRUD_P"},
@@ -4454,7 +4455,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE TRIGGER ent_crud_trg BEFORE UPDATE ON media_type FOR EACH ROW SET NEW.name = NEW.name;\n"
 					},
 					want:       []string{"ENT_CRUD_TRG"},
@@ -4462,7 +4463,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return mustReplace(t, source, "SET NEW.name = NEW.name", "SET NEW.name = TRIM(NEW.name)")
 					},
 					want:       []string{"ENT_CRUD_TRG"},
@@ -4470,7 +4471,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return dropTrigger(t, source, "ent_crud_trg")
 					},
 					want:       []string{"DROP TRIGGER", "ENT_CRUD_TRG"},
@@ -4483,7 +4484,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create",
-					mutate: func(_ *testing.T, _ liveServer, source string) string {
+					mutate: func(_ *testing.T, _ *liveServer, source string) string {
 						return source + "\nCREATE EVENT ent_crud_ev ON SCHEDULE EVERY 12 HOUR DO DELETE FROM changelog WHERE clock < 100;\n"
 					},
 					want:       []string{"ENT_CRUD_EV"},
@@ -4491,14 +4492,14 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return mustReplace(t, source, "EVERY 12 HOUR", "EVERY 6 HOUR")
 					},
 					want: []string{"ENT_CRUD_EV"},
 				},
 				{
 					name: "drop",
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entDropObjectNamed(t, source, "EVENT", "ent_crud_ev")
 					},
 					want:       []string{"DROP EVENT", "ENT_CRUD_EV"},
@@ -4516,7 +4517,7 @@ func entCRUDKinds() []entCRUDKind {
 			phases: []entCRUDPhase{
 				{
 					name: "create", // add a partition
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entSetPartitionClause(t, source, "ent_part_log",
 							"PARTITION BY RANGE (`bucket`)\n(PARTITION p0 VALUES LESS THAN (100),\n PARTITION p1 VALUES LESS THAN (200),\n PARTITION p2 VALUES LESS THAN (300))")
 					},
@@ -4524,7 +4525,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "modify", // reorganize: merge p0+p1 into p01
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entSetPartitionClause(t, source, "ent_part_log",
 							"PARTITION BY RANGE (`bucket`)\n(PARTITION p01 VALUES LESS THAN (200),\n PARTITION p2 VALUES LESS THAN (300))")
 					},
@@ -4532,7 +4533,7 @@ func entCRUDKinds() []entCRUDKind {
 				},
 				{
 					name: "drop", // drop the p2 partition (the repartition plan re-lists survivors)
-					mutate: func(t *testing.T, _ liveServer, source string) string {
+					mutate: func(t *testing.T, _ *liveServer, source string) string {
 						return entSetPartitionClause(t, source, "ent_part_log",
 							"PARTITION BY RANGE (`bucket`)\n(PARTITION p01 VALUES LESS THAN (200))")
 					},
@@ -4546,7 +4547,7 @@ func entCRUDKinds() []entCRUDKind {
 func TestSDLEnterpriseSingleObjectCRUD(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, kind := range entCRUDKinds() {
@@ -4585,7 +4586,7 @@ func TestSDLEnterpriseSingleObjectCRUD(t *testing.T) {
 func TestSDLEnterpriseDependentObjects(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			t.Run("fk_chain_extend", func(t *testing.T) {
@@ -4776,12 +4777,9 @@ CREATE TABLE ent_circ_b (
 // ----------------------------------------------------------------------------
 
 type entTypeCase struct {
-	name string
-	base string
-	// pinned, when non-empty, skips the case with a PINNED-BUG classification (a
-	// confirmed engine bug being fixed upstream; the case re-arms when the skip drops).
-	pinned string
-	mutate func(t *testing.T, srv liveServer, source string) string
+	name   string
+	base   string
+	mutate func(t *testing.T, srv *liveServer, source string) string
 	want   []string
 	// exactStmts, when > 0, asserts the plan statement count.
 	exactStmts int
@@ -4798,7 +4796,7 @@ func entTypeCases() []entTypeCase {
 			base: "CREATE TABLE t3 (id int NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 			// Was PINNED-BUG (AI column and its key split into separate ALTERs →
 			// Error 1075): fixed by omni #364 (mergeAutoIncrementKeyOps grouping).
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := addColumnToTable(t, source, "t3", "`seq` bigint unsigned NOT NULL AUTO_INCREMENT")
 				return addIndexToTable(t, s, "t3", "UNIQUE KEY `uk_seq` (`seq`)")
 			},
@@ -4807,7 +4805,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "ai_drop_attribute",
 			base: "CREATE TABLE t3 (id int NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3",
 					"`id` int NOT NULL AUTO_INCREMENT", "`id` int NOT NULL")
 			},
@@ -4817,7 +4815,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "ai_composite_pk_member",
 			base: "CREATE TABLE t3 (a int NOT NULL, b int NOT NULL AUTO_INCREMENT, PRIMARY KEY (a,b), KEY idx_b (b)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3",
 					"`b` int NOT NULL AUTO_INCREMENT", "`b` bigint NOT NULL AUTO_INCREMENT")
 			},
@@ -4827,7 +4825,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "generated_stored_add",
 			base: "CREATE TABLE t3 (id int NOT NULL, price decimal(8,2) NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return addColumnToTable(t, source, "t3", "`total` decimal(10,2) GENERATED ALWAYS AS ((`price` * 1.1)) STORED")
 			},
 			want:       []string{"TOTAL", "STORED"},
@@ -4836,7 +4834,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "generated_virtual_add",
 			base: "CREATE TABLE t3 (id int NOT NULL, price decimal(8,2) NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return addColumnToTable(t, source, "t3", "`total_v` decimal(10,2) GENERATED ALWAYS AS ((`price` * 2)) VIRTUAL")
 			},
 			want:       []string{"TOTAL_V"},
@@ -4847,7 +4845,7 @@ func entTypeCases() []entTypeCase {
 			// Widen the BASE column and change the generated column depending on it in the
 			// SAME release — the plan must sequence the two ALTERs so MySQL accepts them.
 			base: "CREATE TABLE t3 (id int NOT NULL, price decimal(8,2) NOT NULL, total decimal(10,2) GENERATED ALWAYS AS (price * 2) STORED, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceInTable(t, source, "t3", "`price` decimal(8,2)", "`price` decimal(10,2)")
 				return entReplaceInTable(t, s, "t3", "* 2", "* 3")
 			},
@@ -4856,7 +4854,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "enum_member_add",
 			base: "CREATE TABLE t3 (id int NOT NULL, kind enum('a','b') NOT NULL DEFAULT 'a', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3", "enum('a','b')", "enum('a','b','c')")
 			},
 			want:       []string{"ENUM"},
@@ -4865,7 +4863,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "enum_member_remove",
 			base: "CREATE TABLE t3 (id int NOT NULL, kind enum('a','b','c') NOT NULL DEFAULT 'a', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3", "enum('a','b','c')", "enum('a','b')")
 			},
 			want:       []string{"ENUM"},
@@ -4874,7 +4872,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "enum_member_reorder",
 			base: "CREATE TABLE t3 (id int NOT NULL, kind enum('a','b','c') NOT NULL DEFAULT 'a', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3", "enum('a','b','c')", "enum('c','a','b')")
 			},
 			want:       []string{"ENUM"},
@@ -4883,7 +4881,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "set_member_add_remove",
 			base: "CREATE TABLE t3 (id int NOT NULL, tags set('x','y') NOT NULL DEFAULT '', flags set('p','q','r') NOT NULL DEFAULT '', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceInTable(t, source, "t3", "set('x','y')", "set('x','y','z')")
 				return entReplaceInTable(t, s, "t3", "set('p','q','r')", "set('p','q')")
 			},
@@ -4895,7 +4893,7 @@ func entTypeCases() []entTypeCase {
 			// matches the table default the dump omits CHARACTER SET/COLLATE entirely.
 			name: "charset_column_collation",
 			base: "CREATE TABLE t3 (id int NOT NULL, label varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3",
 					"`label` varchar(80) COLLATE utf8mb4_unicode_ci",
 					"`label` varchar(80) COLLATE utf8mb4_bin")
@@ -4906,7 +4904,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "charset_table_level",
 			base: "CREATE TABLE t3 (id int NOT NULL, title varchar(60) NOT NULL, body varchar(200) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				// Replace the whole table-options line so the COLLATE
 				// suffix can never survive as an invalid latin1/utf8mb4 hybrid. The options
 				// line is the segment's last line, so everything from ') ENGINE=InnoDB' to
@@ -4927,7 +4925,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "temporal_precision",
 			base: "CREATE TABLE t3 (id int NOT NULL, ts timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), dt datetime NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceAllInTable(t, source, "t3", "timestamp(3)", "timestamp(6)")
 				s = entReplaceAllInTable(t, s, "t3", "CURRENT_TIMESTAMP(3)", "CURRENT_TIMESTAMP(6)")
 				return entReplaceInTable(t, s, "t3", "`dt` datetime ", "`dt` datetime(3) ")
@@ -4937,7 +4935,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "decimal_widen",
 			base: "CREATE TABLE t3 (id int NOT NULL, amount decimal(10,2) NOT NULL DEFAULT '0.00', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3", "decimal(10,2)", "decimal(12,4)")
 			},
 			want:       []string{"DECIMAL(12,4)"},
@@ -4946,7 +4944,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "decimal_narrow",
 			base: "CREATE TABLE t3 (id int NOT NULL, amount decimal(12,4) NOT NULL DEFAULT '0.0000', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceInTable(t, source, "t3", "decimal(12,4)", "decimal(10,2)")
 				return entReplaceInTable(t, s, "t3", "'0.0000'", "'0.00'")
 			},
@@ -4956,7 +4954,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "text_blob_family",
 			base: "CREATE TABLE t3 (id int NOT NULL, body text, payload blob, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceInTable(t, source, "t3", "`body` text", "`body` mediumtext")
 				return entReplaceInTable(t, s, "t3", "`payload` blob", "`payload` longblob")
 			},
@@ -4965,7 +4963,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "unsigned_signed_flip",
 			base: "CREATE TABLE t3 (id int NOT NULL, cnt int unsigned NOT NULL DEFAULT '0', pos int NOT NULL DEFAULT '0', PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				s := entReplaceInTable(t, source, "t3", "`cnt` int unsigned", "`cnt` int")
 				return entReplaceInTable(t, s, "t3", "`pos` int", "`pos` int unsigned")
 			},
@@ -4974,7 +4972,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "prefix_indexed_text_type_change",
 			base: "CREATE TABLE t3 (id int NOT NULL, body text NOT NULL, PRIMARY KEY (id), KEY idx_body (body(24))) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entReplaceInTable(t, source, "t3", "`body` text", "`body` mediumtext")
 			},
 			want: []string{"MEDIUMTEXT"},
@@ -4982,7 +4980,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "partition_add",
 			base: "CREATE TABLE t3 (id int NOT NULL, bucket int NOT NULL, PRIMARY KEY (id,bucket)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PARTITION BY RANGE (bucket) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200));",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entSetPartitionClause(t, source, "t3",
 					"PARTITION BY RANGE (`bucket`)\n(PARTITION p0 VALUES LESS THAN (100),\n PARTITION p1 VALUES LESS THAN (200),\n PARTITION p2 VALUES LESS THAN (300))")
 			},
@@ -4991,7 +4989,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "partition_drop",
 			base: "CREATE TABLE t3 (id int NOT NULL, bucket int NOT NULL, PRIMARY KEY (id,bucket)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PARTITION BY RANGE (bucket) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200), PARTITION p2 VALUES LESS THAN (300));",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entSetPartitionClause(t, source, "t3",
 					"PARTITION BY RANGE (`bucket`)\n(PARTITION p0 VALUES LESS THAN (100),\n PARTITION p1 VALUES LESS THAN (200))")
 			},
@@ -5002,7 +5000,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "partition_reorganize",
 			base: "CREATE TABLE t3 (id int NOT NULL, bucket int NOT NULL, PRIMARY KEY (id,bucket)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PARTITION BY RANGE (bucket) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (200), PARTITION pmax VALUES LESS THAN MAXVALUE);",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entSetPartitionClause(t, source, "t3",
 					"PARTITION BY RANGE (`bucket`)\n(PARTITION p01 VALUES LESS THAN (200),\n PARTITION pmax VALUES LESS THAN MAXVALUE)")
 			},
@@ -5011,7 +5009,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "partition_existing_table",
 			base: "CREATE TABLE t3 (id int NOT NULL, bucket int NOT NULL, PRIMARY KEY (id,bucket)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entAppendTableClause(t, source, "t3", "PARTITION BY HASH (`bucket`)\nPARTITIONS 4")
 			},
 			want: []string{"PARTITION BY", "HASH"},
@@ -5019,7 +5017,7 @@ func entTypeCases() []entTypeCase {
 		{
 			name: "departition",
 			base: "CREATE TABLE t3 (id int NOT NULL, bucket int NOT NULL, PRIMARY KEY (id,bucket)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PARTITION BY HASH (bucket) PARTITIONS 4;",
-			mutate: func(t *testing.T, _ liveServer, source string) string {
+			mutate: func(t *testing.T, _ *liveServer, source string) string {
 				return entSetPartitionClause(t, source, "t3", "")
 			},
 			want: []string{"T3"},
@@ -5030,15 +5028,12 @@ func entTypeCases() []entTypeCase {
 func TestSDLEnterpriseSpecialTypes(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range tapeOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, tc := range entTypeCases() {
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) {
-					if tc.pinned != "" {
-						t.Skip(tc.pinned)
-					}
 					dbName := entLoadDDL(ctx, t, srv, "entsdl_a3", tc.base)
 					source := dumpSDL(ctx, t, srv, dbName)
 					target := tc.mutate(t, srv, source)
@@ -5067,7 +5062,7 @@ func TestSDLEnterpriseSpecialTypes(t *testing.T) {
 func TestSDLEnterpriseSequentialChain(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			base := entZabbixSlice(t, entSliceCoreTables...)
@@ -5132,7 +5127,7 @@ CREATE PROCEDURE ent_ch_p(IN aid BIGINT UNSIGNED) BEGIN DELETE FROM ent_ch_audit
 func TestSDLEnterpriseApplyBack(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := entLoadDDL(ctx, t, srv, "entsdl_a5back", entZabbixSlice(t, entSliceCoreTables...))
@@ -5176,7 +5171,7 @@ var entA5cAux string
 func TestSDLEnterpriseCombinedRelease(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			base := entZabbixSlice(t, entSliceCoreTables...) + entA5cAux
@@ -5220,7 +5215,7 @@ func TestSDLEnterpriseScaleGuard(t *testing.T) {
 	ctx := context.Background()
 	const budget = 30 * time.Second
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			dbName := entLoadDDL(ctx, t, srv, "entsdl_scale", entOpenemrSQL)
@@ -5266,7 +5261,7 @@ func TestSDLEnterpriseScaleGuard(t *testing.T) {
 func TestSDLEnterpriseMultiFileRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, corpus := range entCorpora() {
@@ -5285,6 +5280,13 @@ func TestSDLEnterpriseMultiFileRoundTrip(t *testing.T) {
 						srv.name, corpus.name, len(result), len(concat), len(single))
 
 					forward, err := mysqlDiffSDLMigration(concat, single, srv.version)
+					if srv.simulated && corpus.name == "prestashop" {
+						// Known gap: prestashop loads under SET SESSION sql_mode='', so its
+						// dumped SDL carries '0000-00-00 00:00:00' defaults that strict-mode
+						// LoadSDL rejects. Assert explicitly so the test fails if the gap closes.
+						require.ErrorContains(t, err, "Invalid default value", "[%s/%s] expected known zero-date strict-mode gap", srv.name, corpus.name)
+						return
+					}
 					require.NoError(t, err)
 					require.Empty(t, forward, "[%s/%s] concat(multi-file) != single dump (concat->single):\n%s",
 						srv.name, corpus.name, forward)
@@ -5318,7 +5320,7 @@ var entUpgBinaryDefaultDDL string
 
 func TestSDLEnterpriseUpgradeBinaryDefaultCanonicalForm(t *testing.T) {
 	ctx := context.Background()
-	srv80 := liveOracleServers(t)[0]
+	srv80 := tapeOracleServers(t)[0]
 
 	db80 := entLoadDDL(ctx, t, srv80, "entsdl_upbin80", entUpgBinaryDefaultDDL)
 	d80 := dumpSDL(ctx, t, srv80, db80)
@@ -5389,16 +5391,12 @@ func concatMultiFile(result []catalog.DefinitionFile) string {
 func TestMultiFileSDLExportRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
-	for _, srv := range liveOracleServers(t) {
+	for _, srv := range simOracleServers(t) {
 		srv := srv
 		t.Run(srv.name, func(t *testing.T) {
 			for _, rw := range realWorldSchemas() {
 				rw := rw
 				t.Run(rw.name, func(t *testing.T) {
-					if rw.viewParsePending != "" {
-						t.Skipf("[%s/%s] SDL re-import pending: %s", srv.name, rw.name, rw.viewParsePending)
-					}
-
 					meta, dbName := loadRealWorld(ctx, t, srv, rw)
 					tbl, vw, fn, pr, tg := objectCounts(meta)
 					t.Logf("[%s/%s] loaded: tables=%d views=%d functions=%d procedures=%d triggers=%d (db=%s)",
@@ -5465,6 +5463,13 @@ func TestMultiFileSDLExportRoundTrip(t *testing.T) {
 					// (a) concat ≡ single-file: diffing the concatenated multi-file export against
 					// the single-file dump must be a no-op (both describe the identical schema).
 					diffVsSingle, err := mysqlDiffSDLMigration(concat, single, srv.version)
+					if srv.simulated && rw.name == "mediawiki" {
+						// Known gap in simulated DatabaseMetadata: binary-charset columns emit
+						// COLLATE binary_bin instead of binary. Assert explicitly so the test
+						// fails if the gap closes.
+						require.ErrorContains(t, err, "binary_bin", "[%s/%s] expected known simulated binary_bin gap", srv.name, rw.name)
+						return
+					}
 					require.NoError(t, err)
 					if diffVsSingle != "" {
 						t.Logf("[%s/%s] NON-EMPTY concat-vs-single (%d stmts):\n%s",
@@ -5496,7 +5501,7 @@ func TestMultiFileSDLExportZip(t *testing.T) {
 		}
 	}
 
-	srv := liveOracleServers(t)[0]
+	srv := tapeOracleServers(t)[0]
 
 	meta, _ := loadRealWorld(ctx, t, srv, sakila)
 	metaProto := meta
@@ -5556,7 +5561,7 @@ func TestMultiFileSDLExportZip(t *testing.T) {
 //	    -> APPLY to a fresh live 8.0 database -> converges — succeeds.
 func TestMultiFileSDLEventOrderingLive(t *testing.T) {
 	ctx := context.Background()
-	srv := liveOracleServers(t)[0]
+	srv := tapeOracleServers(t)[0]
 
 	// A table plus an event whose body references it. In the flat multi-file layout the
 	// event lands in events/purge_audit.sql and the table in tables/audit_log.sql, so the

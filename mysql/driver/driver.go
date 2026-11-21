@@ -199,6 +199,16 @@ func (d *Driver) killQueryOnCancel(err error, connID uint64) {
 	}
 }
 
+// OpenDB wraps an existing *sql.DB (such as a testcontainer tape connection)
+// as a Driver scoped to database. The caller retains ownership of db.
+func OpenDB(db *sql.DB, database, engineVersion string) *Driver {
+	return &Driver{
+		db:            db,
+		databaseName:  database,
+		engineVersion: engineVersion,
+	}
+}
+
 // Ping reaches the server.
 func (d *Driver) Ping(ctx context.Context) error {
 	return d.db.PingContext(ctx)
