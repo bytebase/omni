@@ -178,10 +178,138 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 					}
 				}
 			}
+			if col.Type == "" && te.Expr != nil {
+				col.Type = resolvedExprColumnType(te.Expr)
+			}
 		}
 		cols = append(cols, col)
 	}
 	return cols
+}
+
+func resolvedExprColumnType(expr AnalyzedExpr) string {
+	if expr == nil {
+		return ""
+	}
+	if rt := expr.exprType(); rt != nil {
+		return resolvedTypeToColumnType(rt)
+	}
+	if op, ok := expr.(*OpExprQ); ok {
+		switch strings.ToUpper(op.Op) {
+		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
+			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
+			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+			return "tinyint(1)"
+		case "/":
+			return "decimal"
+		case "+", "-", "*", "%", "DIV":
+			if leftType := resolvedExprColumnType(op.Left); leftType == "double" || leftType == "float" {
+				return "double"
+			}
+			if rightType := resolvedExprColumnType(op.Right); rightType == "double" || rightType == "float" {
+				return "double"
+			}
+			return "bigint"
+		}
+	}
+	return ""
+}
+
+func resolvedTypeToColumnType(rt *ResolvedType) string {
+	if rt == nil {
+		return ""
+	}
+	unsigned := ""
+	if rt.Unsigned {
+		unsigned = " unsigned"
+	}
+	switch rt.BaseType {
+	case BaseTypeTinyInt:
+		return "tinyint" + unsigned
+	case BaseTypeTinyIntBool:
+		return "tinyint(1)"
+	case BaseTypeSmallInt:
+		return "smallint" + unsigned
+	case BaseTypeMediumInt:
+		return "mediumint" + unsigned
+	case BaseTypeInt:
+		return "int" + unsigned
+	case BaseTypeBigInt:
+		return "bigint" + unsigned
+	case BaseTypeDecimal:
+		if rt.Precision > 0 {
+			return fmt.Sprintf("decimal(%d,%d)%s", rt.Precision, rt.Scale, unsigned)
+		}
+		return "decimal" + unsigned
+	case BaseTypeFloat:
+		return "float" + unsigned
+	case BaseTypeDouble:
+		return "double" + unsigned
+	case BaseTypeBit:
+		if rt.Length > 0 {
+			return fmt.Sprintf("bit(%d)", rt.Length)
+		}
+		return "bit(1)"
+	case BaseTypeDate:
+		return "date"
+	case BaseTypeDateTime:
+		if rt.Precision > 0 {
+			return fmt.Sprintf("datetime(%d)", rt.Precision)
+		}
+		return "datetime"
+	case BaseTypeTimestamp:
+		if rt.Precision > 0 {
+			return fmt.Sprintf("timestamp(%d)", rt.Precision)
+		}
+		return "timestamp"
+	case BaseTypeTime:
+		if rt.Precision > 0 {
+			return fmt.Sprintf("time(%d)", rt.Precision)
+		}
+		return "time"
+	case BaseTypeYear:
+		return "year"
+	case BaseTypeChar:
+		if rt.Length > 0 {
+			return fmt.Sprintf("char(%d)", rt.Length)
+		}
+		return "char"
+	case BaseTypeVarchar:
+		if rt.Length > 0 {
+			return fmt.Sprintf("varchar(%d)", rt.Length)
+		}
+		return "varchar"
+	case BaseTypeBinary:
+		if rt.Length > 0 {
+			return fmt.Sprintf("binary(%d)", rt.Length)
+		}
+		return "binary"
+	case BaseTypeVarBinary:
+		if rt.Length > 0 {
+			return fmt.Sprintf("varbinary(%d)", rt.Length)
+		}
+		return "varbinary"
+	case BaseTypeTinyText:
+		return "tinytext"
+	case BaseTypeText:
+		return "text"
+	case BaseTypeMediumText:
+		return "mediumtext"
+	case BaseTypeLongText:
+		return "longtext"
+	case BaseTypeTinyBlob:
+		return "tinyblob"
+	case BaseTypeBlob:
+		return "blob"
+	case BaseTypeMediumBlob:
+		return "mediumblob"
+	case BaseTypeLongBlob:
+		return "longblob"
+	case BaseTypeJSON:
+		return "json"
+	default:
+		return ""
+	}
 }
 
 func tableToProto(t *Table) *metadata.TableMetadata {

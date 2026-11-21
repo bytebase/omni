@@ -77,7 +77,7 @@ func TestScenario_C25(t *testing.T) {
 		for _, r := range rows {
 			got[asString(r[0])] = strings.ToLower(asString(r[1]))
 		}
-		assertStringEq(t, "oracle d5",  got["d5"],  "decimal(5,0)")
+		assertStringEq(t, "oracle d5", got["d5"], "decimal(5,0)")
 		assertStringEq(t, "oracle d15", got["d15"], "decimal(15,0)")
 		assertStringEq(t, "oracle d65", got["d65"], "decimal(65,0)")
 

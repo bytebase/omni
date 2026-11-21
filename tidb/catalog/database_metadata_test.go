@@ -669,3 +669,64 @@ func TestDatabaseMetadataTriggerActionOrderAndBacktickQuoting(t *testing.T) {
 	require.Equal(t, "z`_precedes", loadMeta.Schemas[0].Tables[0].Triggers[0].Name)
 	require.Equal(t, "a_base", loadMeta.Schemas[0].Tables[0].Triggers[1].Name)
 }
+
+func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE vdb;
+		USE vdb;
+		CREATE TABLE vt (id INT PRIMARY KEY);
+		CREATE VIEW v_comp AS
+			SELECT id + 1 AS next_id, COUNT(*) AS cnt, id > 0 AS is_pos, CONCAT('x', CAST(id AS CHAR(4))) AS label
+			FROM vt GROUP BY id;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	require.NoError(t, c.DefineFunction(&nodes.CreateFunctionStmt{
+		Name:     &nodes.TableRef{Name: "fn`1"},
+		Params:   []*nodes.FuncParam{{Name: "p`a", TypeName: &nodes.DataType{Name: "int"}}},
+		Returns:  &nodes.DataType{Name: "int"},
+		BodyText: "RETURN 1",
+	}))
+	require.NoError(t, c.DefineProcedure(&nodes.CreateFunctionStmt{
+		IsProcedure: true,
+		Name:        &nodes.TableRef{Name: "sp`1"},
+		Params:      []*nodes.FuncParam{{Direction: "IN", Name: "in`x", TypeName: &nodes.DataType{Name: "int"}}},
+		BodyText:    "SELECT 1",
+	}))
+	require.NoError(t, c.DefineEvent(&nodes.CreateEventStmt{
+		Name:     "ev`1",
+		Schedule: &nodes.EventSchedule{RawText: "EVERY 1 HOUR"},
+		BodyText: "SELECT 1",
+	}))
+
+	meta := c.DatabaseMetadata("vdb")
+	var compView *metadata.ViewMetadata
+	for _, v := range meta.Schemas[0].Views {
+		if v.Name == "v_comp" {
+			compView = v
+		}
+	}
+	require.NotNil(t, compView)
+	viewCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range compView.Columns {
+		viewCols[col.Name] = col
+	}
+	require.Equal(t, "bigint", viewCols["next_id"].Type)
+	require.Equal(t, "bigint", viewCols["cnt"].Type)
+	require.Equal(t, "tinyint(1)", viewCols["is_pos"].Type)
+	require.Equal(t, "varchar", viewCols["label"].Type)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "FUNCTION `fn``1`(`p``a` INT)")
+	require.Contains(t, def, "PROCEDURE `sp``1`(IN `in``x` INT)")
+	require.Contains(t, def, "EVENT `ev``1`")
+}

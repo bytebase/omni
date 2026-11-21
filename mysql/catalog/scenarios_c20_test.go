@@ -11,10 +11,10 @@ import (
 // the scenario's DDL on both a MySQL 8.0 container and omni's catalog, then
 // asserts:
 //
-//   1. The catalog state (Column.Default pointer, Nullable) — no implicit
-//      default synthesized into the AST.
-//   2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
-//      rendering match between oracle and omni.
+//  1. The catalog state (Column.Default pointer, Nullable) — no implicit
+//     default synthesized into the AST.
+//  2. information_schema.COLUMNS.COLUMN_DEFAULT and SHOW CREATE TABLE
+//     rendering match between oracle and omni.
 //
 // For sections 20.6 / 20.8 (error scenarios), both the oracle and omni
 // must reject the DDL — we compare only the fact that an error is raised,

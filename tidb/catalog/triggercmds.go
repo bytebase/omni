@@ -174,8 +174,8 @@ func showCreateTrigger(tr *Trigger) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", tr.Definer))
 	}
 
-	b.WriteString(fmt.Sprintf(" TRIGGER `%s` %s %s ON `%s` FOR EACH ROW",
-		tr.Name, tr.Timing, tr.Event, tr.Table))
+	b.WriteString(fmt.Sprintf(" TRIGGER %s %s %s ON %s FOR EACH ROW",
+		quoteIdent(tr.Name), tr.Timing, tr.Event, quoteIdent(tr.Table)))
 
 	// Note: MySQL 8.0 SHOW CREATE TRIGGER does NOT include FOLLOWS/PRECEDES.
 

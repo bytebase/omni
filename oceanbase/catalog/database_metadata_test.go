@@ -776,3 +776,40 @@ func TestDatabaseMetadataQuotedHexDefaultRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, execd.GetDatabase("app").GetTable("hex_t"))
 }
+
+func TestDatabaseMetadataBacktickRoutineEventTriggerIdentifiers(t *testing.T) {
+	c := New()
+	_, err := c.Exec(""+
+		"CREATE DATABASE app; USE app;\n"+
+		"CREATE TABLE `t``1` (id INT PRIMARY KEY);\n"+
+		"CREATE FUNCTION `fn``1`(`p``a` INT) RETURNS INT DETERMINISTIC RETURN 1;\n"+
+		"CREATE PROCEDURE `sp``1`(IN `in``x` INT) SELECT 1;\n"+
+		"CREATE EVENT `ev``1` ON SCHEDULE EVERY 1 HOUR DO SELECT 1;\n"+
+		"CREATE TRIGGER `tr``1` BEFORE INSERT ON `t``1` FOR EACH ROW SET NEW.id = NEW.id;\n",
+		&ExecOptions{ContinueOnError: false},
+	)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "FUNCTION `fn``1`(`p``a` INT)")
+	require.Contains(t, def, "PROCEDURE `sp``1`(IN `in``x` INT)")
+	require.Contains(t, def, "EVENT `ev``1`")
+
+	restored := New()
+	_, err = restored.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	reDB := restored.GetDatabase("app")
+	require.NotNil(t, reDB.Functions["fn`1"])
+	require.NotNil(t, reDB.Procedures["sp`1"])
+	require.NotNil(t, reDB.Events["ev`1"])
+	require.NotNil(t, reDB.Triggers["tr`1"])
+}
