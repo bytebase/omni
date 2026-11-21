@@ -120,22 +120,22 @@ DELIMITER ;
 --
 -- View structure for `v_named_cols`
 --
-CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`;
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`;
 
 --
 -- View structure for `v_named_cols_ref`
 --
-CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`;
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`;
 
 --
 -- View structure for `v_open_accounts`
 --
-CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open');
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open');
 
 --
 -- View structure for `v_order_totals`
 --
-CREATE OR REPLACE VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`;
+CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_order_totals` AS select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`;
 
 --
 -- Procedure structure for `sp_touch_order`

@@ -13,6 +13,8 @@ import (
 
 func boolPtr(v bool) *bool { return &v }
 
+func stringPtr(v string) *string { return &v }
+
 // DatabaseMetadata converts the named database in the catalog to a
 // DatabaseSchemaMetadata snapshot matching the MySQL driver sync and
 // LoadMetadata round-trip contract.
@@ -2379,6 +2381,9 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 			Comment:    pd.Comment,
 			Algorithm:  int32(p.Algorithm),
 		}
+		if pd.Tablespace != "" {
+			part.Tablespace = stringPtr(pd.Tablespace)
+		}
 		if p.SubType != "" {
 			switch {
 			case p.UseDefaultSubpartitions && p.UseDefaultNumSubpartitions:
@@ -2391,14 +2396,18 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 				}}
 			case len(pd.SubPartitions) > 0:
 				for _, spd := range pd.SubPartitions {
-					part.Subpartitions = append(part.Subpartitions, &metadata.TablePartitionMetadata{
+					spMeta := &metadata.TablePartitionMetadata{
 						Name:       spd.Name,
 						Type:       subType,
 						Expression: subExpr,
 						UseDefault: subUseDefault,
 						Comment:    spd.Comment,
 						Algorithm:  int32(p.SubAlgo),
-					})
+					}
+					if spd.Tablespace != "" {
+						spMeta.Tablespace = stringPtr(spd.Tablespace)
+					}
+					part.Subpartitions = append(part.Subpartitions, spMeta)
 				}
 			case subUseDefault != "":
 				part.Subpartitions = []*metadata.TablePartitionMetadata{{

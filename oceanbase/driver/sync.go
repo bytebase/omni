@@ -204,6 +204,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	atLeast8016 := sv.atLeast(8, 0, 16)
 	atLeast570 := sv.atLeast(5, 7, 0)
 	isMariaDB := strings.Contains(rest, "MariaDB")
+	isOceanBase := strings.Contains(rest, "OceanBase")
 	stockMySQL := isStockMySQL(rest)
 
 	binaryDefaultFmt := binaryDefaultVerbatim
@@ -397,7 +398,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 
 	checkMap := make(map[string][]*metadatapb.CheckConstraintMetadata)
-	if atLeast8016 {
+	if atLeast8016 || isOceanBase {
 		checkQuery := getCheckConstraintQuery(isMariaDB)
 		checkRows, err := d.db.QueryContext(ctx, checkQuery, d.databaseName)
 		if err != nil {
@@ -406,11 +407,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		defer checkRows.Close()
 		for checkRows.Next() {
 			check := &metadatapb.CheckConstraintMetadata{}
-			var tableName string
-			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression); err != nil {
+			var tableName, enforced string
+			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression, &enforced); err != nil {
 				return nil, err
 			}
 			check.Expression = unescapeCheckClause(check.Expression)
+			check.NotEnforced = strings.EqualFold(enforced, "NO")
 			checkMap[tableName] = append(checkMap[tableName], check)
 		}
 		if err := checkRows.Err(); err != nil {
@@ -423,7 +425,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	const viewQuery = `
 		SELECT
 			TABLE_NAME,
-			VIEW_DEFINITION
+			VIEW_DEFINITION,
+			IFNULL(CHECK_OPTION, '')
 		FROM information_schema.VIEWS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME`
@@ -434,9 +437,14 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	defer viewRows.Close()
 	for viewRows.Next() {
 		view := &metadatapb.ViewMetadata{}
-		if err := viewRows.Scan(&view.Name, &view.Definition); err != nil {
+		var checkOption string
+		if err := viewRows.Scan(&view.Name, &view.Definition, &checkOption); err != nil {
 			return nil, err
 		}
+		if checkOption != "" && !strings.EqualFold(checkOption, "NONE") {
+			view.CheckOption = strings.ToUpper(checkOption)
+		}
+		view.Definition = stripViewCheckOptionSuffix(view.Definition)
 		view.Columns = columnMap[view.Name]
 		viewMap[view.Name] = view
 		viewNames = append(viewNames, view.Name)
@@ -589,6 +597,19 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	// database, and the view's own CREATE makes a container again.
 	schemaMetadata.Tables = withoutTables(schemaMetadata.Tables, containerTables)
 
+	hasMVLog, mvLogTables, err := d.listMaterializedViewLogs(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
+	}
+	if hasMVLog != nil {
+		// Each materialized view log creates an mlog$_<table> backing table that is
+		// recreated automatically by CREATE MATERIALIZED VIEW LOG ON <table>.
+		schemaMetadata.Tables = withoutTables(schemaMetadata.Tables, mvLogTables)
+		for _, table := range schemaMetadata.Tables {
+			table.HasMaterializedViewLog = proto.Bool(hasMVLog[table.Name])
+		}
+	}
+
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
@@ -659,6 +680,42 @@ func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string,
 		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	return views, containerNames, nil
+}
+
+// listMaterializedViewLogs reads materialized view logs from oceanbase.DBA_MVIEW_LOGS,
+// returning nil maps when the account lacks SELECT on the oceanbase catalog so
+// callers leave HasMaterializedViewLog unset (unknown).
+func (d *Driver) listMaterializedViewLogs(ctx context.Context, databaseName string) (map[string]bool, []string, error) {
+	const query = `
+		SELECT MASTER, LOG_TABLE
+		FROM oceanbase.DBA_MVIEW_LOGS
+		WHERE LOG_OWNER = ?
+		ORDER BY MASTER`
+	rows, err := d.db.QueryContext(ctx, query, databaseName)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, nil, ctx.Err()
+		}
+		return nil, nil, nil
+	}
+	defer rows.Close()
+
+	hasLog := make(map[string]bool)
+	var logTables []string
+	for rows.Next() {
+		var master, logTable string
+		if err := rows.Scan(&master, &logTable); err != nil {
+			return nil, nil, err
+		}
+		hasLog[master] = true
+		if logTable != "" {
+			logTables = append(logTables, logTable)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return hasLog, logTables, nil
 }
 
 // withoutTables drops the named tables, keeping the order of the rest.
@@ -1181,13 +1238,29 @@ func unescapeCheckClause(clause string) string {
 	return strings.ReplaceAll(clause, `\'`, `'`)
 }
 
+func stripViewCheckOptionSuffix(def string) string {
+	trimmed := strings.TrimSpace(def)
+	upper := strings.ToUpper(trimmed)
+	for _, suffix := range []string{
+		" WITH CASCADED CHECK OPTION",
+		" WITH LOCAL CHECK OPTION",
+		" WITH CHECK OPTION",
+	} {
+		if strings.HasSuffix(upper, suffix) {
+			return strings.TrimSpace(trimmed[:len(trimmed)-len(suffix)])
+		}
+	}
+	return def
+}
+
 func getCheckConstraintQuery(isMariaDB bool) string {
 	if isMariaDB {
 		return `
 			SELECT
 				TABLE_NAME,
 				CONSTRAINT_NAME,
-				CHECK_CLAUSE
+				CHECK_CLAUSE,
+				'YES'
 			FROM information_schema.CHECK_CONSTRAINTS
 			WHERE CONSTRAINT_SCHEMA = ?
 			ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1197,7 +1270,8 @@ func getCheckConstraintQuery(isMariaDB bool) string {
 			SELECT
 				tc.TABLE_NAME,
 				cc.CONSTRAINT_NAME,
-				cc.CHECK_CLAUSE
+				cc.CHECK_CLAUSE,
+				tc.ENFORCED
 			FROM information_schema.CHECK_CONSTRAINTS cc
 				JOIN information_schema.TABLE_CONSTRAINTS tc
 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME

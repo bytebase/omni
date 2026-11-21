@@ -74,9 +74,31 @@
 < column "NULL" "NULL" "*interface {}"
 > query
 |
+| 			SELECT
+| 				tc.TABLE_NAME,
+| 				cc.CONSTRAINT_NAME,
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
+| 			FROM information_schema.CHECK_CONSTRAINTS cc
+| 				JOIN information_schema.TABLE_CONSTRAINTS tc
+| 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 					AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 			WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ?
+| 			ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		
+: string
+| omni_no_such_database
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR"
+> query
+|
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -85,6 +107,7 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR"
 > query
 |
 | 	SELECT
@@ -259,6 +282,17 @@
 < column "MVIEW_NAME" "VARCHAR" "string"
 < column "CONTAINER_NAME" "VARCHAR" "string"
 < column "QUERY" "TEXT" "string"
+> query
+|
+| 		SELECT MASTER, LOG_TABLE
+| 		FROM oceanbase.DBA_MVIEW_LOGS
+| 		WHERE LOG_OWNER = ?
+| 		ORDER BY MASTER
+: string
+| omni_no_such_database
+< result
+< column "MASTER" "VARCHAR" "string"
+< column "LOG_TABLE" "VARCHAR" "string"
 > query
 |
 | 		SELECT

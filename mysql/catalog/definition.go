@@ -783,7 +783,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 				}
 			}
 
-			if err := writePartitionOptions(buf, engine, partition.Comment); err != nil {
+			if err := writePartitionOptions(buf, engine, partition.GetTablespace(), partition.Comment); err != nil {
 				return err
 			}
 
@@ -795,7 +795,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", quoteIdent(subPartition.Name)); err != nil {
 						return err
 					}
-					if err := writePartitionOptions(buf, engine, subPartition.Comment); err != nil {
+					if err := writePartitionOptions(buf, engine, subPartition.GetTablespace(), subPartition.Comment); err != nil {
 						return err
 					}
 					if j == len(partition.Subpartitions)-1 {
@@ -842,36 +842,12 @@ func getPrepositionByType(tp metadata.TablePartitionMetadata_Type) (string, erro
 	}
 }
 
-func writePartitionOptions(buf io.StringWriter, engine string, comment string) error {
-	/*
-		int err = 0;
-		err += add_space(fptr);
-		if (p_elem->tablespace_name) {
-			err += add_string(fptr, "TABLESPACE = ");
-			err += add_ident_string(fptr, p_elem->tablespace_name);
-			err += add_space(fptr);
+func writePartitionOptions(buf io.StringWriter, engine string, tablespace string, comment string) error {
+	if tablespace != "" {
+		if _, err := buf.WriteString(" TABLESPACE = " + quoteIdent(tablespace)); err != nil {
+			return err
 		}
-		if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
-			err += add_keyword_int(fptr, "NODEGROUP", (longlong)p_elem->nodegroup_id);
-		if (p_elem->part_max_rows)
-			err += add_keyword_int(fptr, "MAX_ROWS", (longlong)p_elem->part_max_rows);
-		if (p_elem->part_min_rows)
-			err += add_keyword_int(fptr, "MIN_ROWS", (longlong)p_elem->part_min_rows);
-		if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)) {
-			if (p_elem->data_file_name)
-			err += add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
-			if (p_elem->index_file_name)
-			err += add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
-		}
-		if (p_elem->part_comment)
-			err += add_keyword_string(fptr, "COMMENT", true, p_elem->part_comment);
-		return err + add_engine(fptr, p_elem->engine_type);
-	*/
-	// TODO(zp): Get all the partition options from the metadata is too complex, just write
-	// the engine for now. It must be the table's own engine: MySQL rejects a partitioned
-	// table whose partitions name a different one with "ERROR 1497: The mix of handlers in
-	// the partitions is not allowed in this version of MySQL", and partitioning a
-	// non-InnoDB table is still legal on 5.7.
+	}
 	if engine == "" {
 		engine = "InnoDB"
 	}

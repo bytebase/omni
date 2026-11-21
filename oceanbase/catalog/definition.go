@@ -809,7 +809,7 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 			}
 		}
 	}
-	if table.HasMaterializedViewLog {
+	if table.GetHasMaterializedViewLog() {
 		if _, err := fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW LOG ON %s;\n\n", quoteIdent(table.Name)); err != nil {
 			return err
 		}

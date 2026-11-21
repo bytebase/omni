@@ -77,7 +77,8 @@
 | 			SELECT
 | 				tc.TABLE_NAME,
 | 				cc.CONSTRAINT_NAME,
-| 				cc.CHECK_CLAUSE
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
 | 			FROM information_schema.CHECK_CONSTRAINTS cc
 | 				JOIN information_schema.TABLE_CONSTRAINTS tc
 | 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
@@ -91,6 +92,7 @@
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR" "string"
 > query
 |
 | 		SELECT

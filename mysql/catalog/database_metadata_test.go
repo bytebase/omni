@@ -1677,3 +1677,130 @@ func TestViewLikeExprMetadata(t *testing.T) {
 	require.Equal(t, "int", cols["l_esc_null"].Type)
 	require.True(t, cols["l_esc_null"].Nullable)
 }
+
+func TestPartitionAndSubpartitionTablespaceRoundTrip(t *testing.T) {
+	c := New()
+	results, err := c.Exec(`
+		CREATE TABLESPACE ts_p0 ADD DATAFILE 'ts_p0.ibd';
+		CREATE TABLESPACE ts_sp0 ADD DATAFILE 'ts_sp0.ibd';
+		CREATE TABLESPACE ts_sp1 ADD DATAFILE 'ts_sp1.ibd';
+		CREATE DATABASE app;
+		USE app;
+	`, nil)
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error)
+	}
+
+	// MySQL InnoDB permits innodb_file_per_table on partitioned tables via DDL,
+	// while DefineTable / LoadMetadata also preserve custom partition tablespaces.
+	partSQL := `CREATE TABLE part_ts (
+		id INT NOT NULL,
+		yr INT NOT NULL,
+		PRIMARY KEY (id, yr)
+	) PARTITION BY RANGE (yr) (
+		PARTITION p0 VALUES LESS THAN (2025) TABLESPACE = innodb_file_per_table,
+		PARTITION p1 VALUES LESS THAN MAXVALUE
+	)`
+	subpartMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "app",
+			Tables: []*metadata.TableMetadata{{
+				Name:   "subpart_ts",
+				Engine: "InnoDB",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Position: 1, Type: "int"},
+					{Name: "yr", Position: 2, Type: "int"},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{
+						Name:       "p0",
+						Type:       metadata.TablePartitionMetadata_RANGE,
+						Expression: "yr",
+						Value:      "2025",
+						Subpartitions: []*metadata.TablePartitionMetadata{
+							{
+								Name:       "sp0",
+								Type:       metadata.TablePartitionMetadata_HASH,
+								Expression: "id",
+								Tablespace: stringPtr("ts_sp0"),
+							},
+							{
+								Name:       "sp1",
+								Type:       metadata.TablePartitionMetadata_HASH,
+								Expression: "id",
+								Tablespace: stringPtr("ts_sp1"),
+							},
+						},
+					},
+					{
+						Name:       "p1",
+						Type:       metadata.TablePartitionMetadata_RANGE,
+						Expression: "yr",
+						Value:      "MAXVALUE",
+						Tablespace: stringPtr("ts_p0"),
+						Subpartitions: []*metadata.TablePartitionMetadata{
+							{
+								Name:       "sp2",
+								Type:       metadata.TablePartitionMetadata_HASH,
+								Expression: "id",
+								Tablespace: stringPtr("ts_p0"),
+							},
+							{
+								Name:       "sp3",
+								Type:       metadata.TablePartitionMetadata_HASH,
+								Expression: "id",
+								Tablespace: stringPtr("ts_p0"),
+							},
+						},
+					},
+				},
+			}},
+		}},
+	}
+	res, err := c.Exec(partSQL, nil)
+	require.NoError(t, err)
+	for _, r := range res {
+		require.NoError(t, r.Error)
+	}
+	_, err = c.LoadMetadataInto(context.Background(), subpartMeta, "app")
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	tables := map[string]*metadata.TableMetadata{}
+	for _, tbl := range meta.GetSchemas()[0].GetTables() {
+		tables[tbl.Name] = tbl
+	}
+	require.Equal(t, "innodb_file_per_table", tables["part_ts"].Partitions[0].GetTablespace())
+	require.Nil(t, tables["part_ts"].Partitions[1].Tablespace)
+	require.Equal(t, "ts_sp0", tables["subpart_ts"].Partitions[0].Subpartitions[0].GetTablespace())
+	require.Equal(t, "ts_sp1", tables["subpart_ts"].Partitions[0].Subpartitions[1].GetTablespace())
+	require.Equal(t, "ts_p0", tables["subpart_ts"].Partitions[1].GetTablespace())
+	require.Equal(t, "ts_p0", tables["subpart_ts"].Partitions[1].Subpartitions[0].GetTablespace())
+
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "TABLESPACE = `innodb_file_per_table`")
+	require.Contains(t, def, "TABLESPACE = `ts_sp0`")
+	require.Contains(t, def, "TABLESPACE = `ts_sp1`")
+	require.Contains(t, def, "TABLESPACE = `ts_p0`")
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Incomplete)
+
+	reMeta := reloaded.DatabaseMetadata("app")
+	reTables := map[string]*metadata.TableMetadata{}
+	for _, tbl := range reMeta.GetSchemas()[0].GetTables() {
+		reTables[tbl.Name] = tbl
+	}
+	require.Equal(t, "innodb_file_per_table", reTables["part_ts"].Partitions[0].GetTablespace())
+	require.Nil(t, reTables["part_ts"].Partitions[1].Tablespace)
+	require.Equal(t, "ts_sp0", reTables["subpart_ts"].Partitions[0].Subpartitions[0].GetTablespace())
+	require.Equal(t, "ts_sp1", reTables["subpart_ts"].Partitions[0].Subpartitions[1].GetTablespace())
+	require.Equal(t, "ts_p0", reTables["subpart_ts"].Partitions[1].GetTablespace())
+}

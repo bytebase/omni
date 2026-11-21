@@ -2391,7 +2391,7 @@ type TableMetadata struct {
 	// MySQL / OceanBase table tablespace name.
 	Tablespace string `protobuf:"bytes,38,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
 	// OceanBase materialized view log state on this base table (CREATE MATERIALIZED VIEW LOG).
-	HasMaterializedViewLog bool `protobuf:"varint,39,opt,name=has_materialized_view_log,json=hasMaterializedViewLog,proto3" json:"has_materialized_view_log,omitempty"`
+	HasMaterializedViewLog *bool `protobuf:"varint,39,opt,name=has_materialized_view_log,json=hasMaterializedViewLog,proto3,oneof" json:"has_materialized_view_log,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2679,8 +2679,8 @@ func (x *TableMetadata) GetTablespace() string {
 }
 
 func (x *TableMetadata) GetHasMaterializedViewLog() bool {
-	if x != nil {
-		return x.HasMaterializedViewLog
+	if x != nil && x.HasMaterializedViewLog != nil {
+		return *x.HasMaterializedViewLog
 	}
 	return false
 }
@@ -3031,8 +3031,10 @@ type TablePartitionMetadata struct {
 	// OceanBase SUBPARTITION TEMPLATE definitions. Present on the first partition entry
 	// when the table retains an explicit subpartition template.
 	SubpartitionTemplate []*TablePartitionMetadata `protobuf:"bytes,16,rep,name=subpartition_template,json=subpartitionTemplate,proto3" json:"subpartition_template,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Partition- or subpartition-level TABLESPACE name (when explicitly assigned).
+	Tablespace    *string `protobuf:"bytes,17,opt,name=tablespace,proto3,oneof" json:"tablespace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TablePartitionMetadata) Reset() {
@@ -3175,6 +3177,13 @@ func (x *TablePartitionMetadata) GetSubpartitionTemplate() []*TablePartitionMeta
 		return x.SubpartitionTemplate
 	}
 	return nil
+}
+
+func (x *TablePartitionMetadata) GetTablespace() string {
+	if x != nil && x.Tablespace != nil {
+		return *x.Tablespace
+	}
+	return ""
 }
 
 // ColumnMetadata is the metadata for columns.
@@ -5579,7 +5588,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fMODE_DEFAULT\x10\x01\x12\x14\n" +
 	"\x10MODE_APPEND_ONLY\x10\x02\x12\x14\n" +
-	"\x10MODE_INSERT_ONLY\x10\x03\"\xa6\f\n" +
+	"\x10MODE_INSERT_ONLY\x10\x03\"\xc9\f\n" +
 	"\rTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\acolumns\x18\x02 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\x126\n" +
@@ -5624,8 +5633,9 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x17tiflash_location_labels\x18% \x03(\tR\x15tiflashLocationLabels\x12\x1e\n" +
 	"\n" +
 	"tablespace\x18& \x01(\tR\n" +
-	"tablespace\x129\n" +
-	"\x19has_materialized_view_log\x18' \x01(\bR\x16hasMaterializedViewLogJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
+	"tablespace\x12>\n" +
+	"\x19has_materialized_view_log\x18' \x01(\bH\x00R\x16hasMaterializedViewLog\x88\x01\x01B\x1c\n" +
+	"\x1a_has_materialized_view_logJ\x04\b\r\x10\x0f\"\x8a\x01\n" +
 	"\x17CheckConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5651,7 +5661,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
 	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
-	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\x96\a\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xca\a\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5673,7 +5683,10 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\tauto_size\x18\r \x01(\tR\bautoSize\x12\x1c\n" +
 	"\talgorithm\x18\x0e \x01(\x05R\talgorithm\x12'\n" +
 	"\x0finterval_clause\x18\x0f \x01(\tR\x0eintervalClause\x12Z\n" +
-	"\x15subpartition_template\x18\x10 \x03(\v2%.omni.metadata.TablePartitionMetadataR\x14subpartitionTemplate\"\x8a\x01\n" +
+	"\x15subpartition_template\x18\x10 \x03(\v2%.omni.metadata.TablePartitionMetadataR\x14subpartitionTemplate\x12#\n" +
+	"\n" +
+	"tablespace\x18\x11 \x01(\tH\x00R\n" +
+	"tablespace\x88\x01\x01\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +
@@ -5684,7 +5697,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vLINEAR_HASH\x10\x06\x12\a\n" +
 	"\x03KEY\x10\a\x12\x0e\n" +
 	"\n" +
-	"LINEAR_KEY\x10\b\"\x9c\t\n" +
+	"LINEAR_KEY\x10\bB\r\n" +
+	"\v_tablespace\"\x9c\t\n" +
 	"\x0eColumnMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x05R\bposition\x12\x18\n" +
@@ -6062,6 +6076,8 @@ func file_omni_metadata_database_proto_init() {
 	}
 	file_omni_metadata_database_proto_msgTypes[2].OneofWrappers = []any{}
 	file_omni_metadata_database_proto_msgTypes[6].OneofWrappers = []any{}
+	file_omni_metadata_database_proto_msgTypes[17].OneofWrappers = []any{}
+	file_omni_metadata_database_proto_msgTypes[21].OneofWrappers = []any{}
 	file_omni_metadata_database_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

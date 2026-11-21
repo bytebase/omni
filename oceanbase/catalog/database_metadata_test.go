@@ -633,7 +633,8 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	defCatalog.GetDatabase("def_ob").Views["v_ob"].SqlSecurity = "INVOKER"
 
 	obDefMeta := defCatalog.DatabaseMetadata("def_ob")
-	require.True(t, obDefMeta.Schemas[0].Tables[0].HasMaterializedViewLog)
+	require.NotNil(t, obDefMeta.Schemas[0].Tables[0].HasMaterializedViewLog)
+	require.True(t, obDefMeta.Schemas[0].Tables[0].GetHasMaterializedViewLog())
 
 	reloadedOB := New()
 	report, err = reloadedOB.LoadMetadata(context.Background(), obDefMeta)
@@ -682,7 +683,7 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 		Schemas: []*metadata.SchemaMetadata{{
 			Tables: []*metadata.TableMetadata{{
 				Name:                   "fb_tbl",
-				HasMaterializedViewLog: true,
+				HasMaterializedViewLog: boolPtr(true),
 				Columns:                []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
 				Partitions: []*metadata.TablePartitionMetadata{
 					{Type: metadata.TablePartitionMetadata_RANGE, Expression: "missing_col", Name: "p0", Value: "10"},
@@ -881,12 +882,15 @@ func TestDatabaseMetadataDecimalArithmeticMVLogAbsenceAndSkipDump(t *testing.T) 
 		Schemas: []*metadata.SchemaMetadata{{
 			Tables: []*metadata.TableMetadata{{
 				Name:                   "no_mvlog_t",
-				HasMaterializedViewLog: false,
+				HasMaterializedViewLog: boolPtr(false),
 				SkipDump:               true,
 				Columns:                []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
 				Triggers: []*metadata.TriggerMetadata{{
 					Name: "tr_skip", Event: "INSERT", Timing: "BEFORE", Body: "BEGIN END", SkipDump: true,
 				}},
+			}, {
+				Name:    "unknown_mvlog_t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
 			}},
 			Views: []*metadata.ViewMetadata{
 				{Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true},
@@ -911,6 +915,8 @@ func TestDatabaseMetadataDecimalArithmeticMVLogAbsenceAndSkipDump(t *testing.T) 
 	db := loaded.GetDatabase("mv_skip_db")
 	require.True(t, db.MaterializedViewLogsKnown["no_mvlog_t"])
 	require.False(t, db.MaterializedViewLogs["no_mvlog_t"])
+	require.False(t, db.MaterializedViewLogsKnown["unknown_mvlog_t"])
+	require.Nil(t, loaded.DatabaseMetadata("mv_skip_db").Schemas[0].Tables[1].HasMaterializedViewLog)
 	dropRes, err := loaded.Exec("DROP MATERIALIZED VIEW LOG ON no_mvlog_t;", &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
 	require.Len(t, dropRes, 1)

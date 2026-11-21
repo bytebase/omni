@@ -896,9 +896,31 @@
 : null
 > query
 |
+| 			SELECT
+| 				tc.TABLE_NAME,
+| 				cc.CONSTRAINT_NAME,
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
+| 			FROM information_schema.CHECK_CONSTRAINTS cc
+| 				JOIN information_schema.TABLE_CONSTRAINTS tc
+| 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 					AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 			WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ?
+| 			ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR"
+> query
+|
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -907,26 +929,35 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR"
 < row
 : bytes
 | v_mv_emails
 : bytes
 | select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip`.`mv_accounts` `mv_accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `renamed_id` from `omni_dump_roundtrip`.`accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| NONE
 < row
 : bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
+: bytes
+| NONE
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_mv_emails`
 < result
@@ -1628,6 +1659,17 @@
 | __mv_container_0000000000000002
 : bytes
 | select `omni_dump_roundtrip`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip`.`v_open_accounts`
+> query
+|
+| 		SELECT MASTER, LOG_TABLE
+| 		FROM oceanbase.DBA_MVIEW_LOGS
+| 		WHERE LOG_OWNER = ?
+| 		ORDER BY MASTER
+: string
+| omni_dump_roundtrip
+< result
+< column "MASTER" "VARCHAR" "string"
+< column "LOG_TABLE" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -2685,9 +2727,31 @@
 : null
 > query
 |
+| 			SELECT
+| 				tc.TABLE_NAME,
+| 				cc.CONSTRAINT_NAME,
+| 				cc.CHECK_CLAUSE,
+| 				tc.ENFORCED
+| 			FROM information_schema.CHECK_CONSTRAINTS cc
+| 				JOIN information_schema.TABLE_CONSTRAINTS tc
+| 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 					AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 			WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ?
+| 			ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		
+: string
+| omni_dump_roundtrip_restored
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+< column "ENFORCED" "VARCHAR"
+> query
+|
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -2696,26 +2760,35 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR"
 < row
 : bytes
 | v_mv_emails
 : bytes
 | select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`mv_accounts` `mv_accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols
 : bytes
 | select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `renamed_id` from `omni_dump_roundtrip_restored`.`accounts`
+: bytes
+| NONE
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | select `omni_dump_roundtrip_restored`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip_restored`.`v_named_cols`
+: bytes
+| NONE
 < row
 : bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
+: bytes
+| NONE
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip_restored`.`v_mv_emails`
 < result
@@ -3419,6 +3492,17 @@
 | __mv_container_0000000000000004
 : bytes
 | select `omni_dump_roundtrip_restored`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip_restored`.`v_open_accounts`
+> query
+|
+| 		SELECT MASTER, LOG_TABLE
+| 		FROM oceanbase.DBA_MVIEW_LOGS
+| 		WHERE LOG_OWNER = ?
+| 		ORDER BY MASTER
+: string
+| omni_dump_roundtrip_restored
+< result
+< column "MASTER" "VARCHAR" "string"
+< column "LOG_TABLE" "VARCHAR" "string"
 > query
 |
 | 		SELECT

@@ -405,13 +405,15 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		o.incomplete = omitted
 		finishInstall := func() {
 			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
-			if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
-				key := toLower(o.table.GetName())
-				db.MaterializedViewLogsKnown[key] = true
-				if o.table.GetHasMaterializedViewLog() {
-					db.MaterializedViewLogs[key] = true
-				} else {
-					delete(db.MaterializedViewLogs, key)
+			if o.table.HasMaterializedViewLog != nil {
+				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+					key := toLower(o.table.GetName())
+					db.MaterializedViewLogsKnown[key] = true
+					if o.table.GetHasMaterializedViewLog() {
+						db.MaterializedViewLogs[key] = true
+					} else {
+						delete(db.MaterializedViewLogs, key)
+					}
 				}
 			}
 		}

@@ -349,7 +349,9 @@
               "nullable":  true,
               "type":  "bigint"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         },
         {
           "name":  "v_named_cols_ref",
@@ -362,7 +364,9 @@
               "nullable":  true,
               "type":  "bigint"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         },
         {
           "name":  "v_open_accounts",
@@ -382,7 +386,9 @@
               "nullable":  true,
               "type":  "varchar(190)"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         }
       ],
       "sequences":  [

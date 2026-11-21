@@ -708,7 +708,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -717,21 +719,83 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 < row
 : bytes
 | v_named_cols
 : bytes
 | SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_open_accounts
 : bytes
 | SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| DEFINER
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` (`renamed_id`) AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_open_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_open_accounts` (`acct_id`, `acct_email`) AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
 | 		SELECT
@@ -790,22 +854,15 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY CONSTRAINT_NAME
 | 	
 : string
 | omni_dump_roundtrip
-: string
-| omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
 > query
@@ -1255,19 +1312,19 @@
 | DROP VIEW IF EXISTS `v_named_cols`
 < ok 0 0
 > exec
-| CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_named_cols_ref`
 < ok 0 0
 > exec
-| CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_open_accounts`
 < ok 0 0
 > exec
-| CREATE VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+| CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_open_accounts` AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
@@ -1914,7 +1971,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -1923,21 +1982,83 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 < row
 : bytes
 | v_named_cols
 : bytes
 | SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_named_cols_ref
 : bytes
 | SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| DEFINER
+: bytes
+| CASCADED
 < row
 : bytes
 | v_open_accounts
 : bytes
 | SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| DEFINER
+: bytes
+| CASCADED
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` (`renamed_id`) AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| v_open_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_open_accounts` (`acct_id`, `acct_email`) AS SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_dump_roundtrip`.`accounts` WHERE `status`=_UTF8MB4'open'
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
 | 		SELECT
@@ -1996,22 +2117,15 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY CONSTRAINT_NAME
 | 	
 : string
 | omni_dump_roundtrip
-: string
-| omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
 > query

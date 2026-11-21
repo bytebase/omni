@@ -19,6 +19,7 @@ import (
 	mysqlast "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 	gomysql "github.com/go-sql-driver/mysql"
+	"google.golang.org/protobuf/proto"
 )
 
 const erBadDBError = 1049
@@ -407,11 +408,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		defer checkRows.Close()
 		for checkRows.Next() {
 			check := &metadatapb.CheckConstraintMetadata{}
-			var tableName string
-			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression); err != nil {
+			var tableName, enforced string
+			if err := checkRows.Scan(&tableName, &check.Name, &check.Expression, &enforced); err != nil {
 				return nil, err
 			}
 			check.Expression = unescapeCheckClause(check.Expression)
+			check.NotEnforced = strings.EqualFold(enforced, "NO")
 			checkMap[tableName] = append(checkMap[tableName], check)
 		}
 		if err := checkRows.Err(); err != nil {
@@ -446,12 +448,22 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, fmt.Errorf("failed to execute query %q: %w", viewQuery, err)
 	}
 	for _, viewName := range viewNames {
-		def, err := d.reconcileViewDefinition(ctx, d.databaseName, viewName)
+		def, algorithm, sqlSecurity, checkOption, err := d.reconcileViewDefinition(ctx, d.databaseName, viewName)
 		if err != nil {
 			return nil, err
 		}
+		v := viewMap[viewName]
 		if def != "" {
-			viewMap[viewName].Definition = def
+			v.Definition = def
+		}
+		if algorithm != "" {
+			v.Algorithm = algorithm
+		}
+		if sqlSecurity != "" {
+			v.SqlSecurity = sqlSecurity
+		}
+		if checkOption != "" {
+			v.CheckOption = checkOption
 		}
 	}
 
@@ -834,20 +846,42 @@ func (d *Driver) showCreateColumn(ctx context.Context, query, colName string) (s
 	return "", nil
 }
 
-func (d *Driver) reconcileViewDefinition(ctx context.Context, databaseName, viewName string) (string, error) {
+func (d *Driver) reconcileViewDefinition(ctx context.Context, databaseName, viewName string) (def, algorithm, sqlSecurity, checkOption string, err error) {
 	query := fmt.Sprintf("SHOW CREATE VIEW %s.%s", quoteBacktick(databaseName), quoteBacktick(viewName))
 	var viewCol, createStmt, csClient, collConn sql.NullString
 	if err := d.db.QueryRowContext(ctx, query).Scan(&viewCol, &createStmt, &csClient, &collConn); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
+			return "", "", "", "", nil
 		}
-		return "", fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+		return "", "", "", "", fmt.Errorf("failed to scan row for query: %s: %w", query, err)
 	}
-	def, err := getViewDefFromCreateView(createStmt.String)
-	if err != nil {
-		return "", nil
+	def, _ = getViewDefFromCreateView(createStmt.String)
+	if list, parseErr := mysqlparser.Parse(createStmt.String); parseErr == nil && list != nil && len(list.Items) == 1 {
+		if stmt, ok := list.Items[0].(*mysqlast.CreateViewStmt); ok {
+			algorithm = strings.ToUpper(stmt.Algorithm)
+			sqlSecurity = strings.ToUpper(stmt.SqlSecurity)
+			checkOption = strings.ToUpper(stmt.CheckOption)
+			if def != "" && checkOption != "" {
+				def = stripViewCheckOptionSuffix(def)
+			}
+		}
 	}
-	return def, nil
+	return def, algorithm, sqlSecurity, checkOption, nil
+}
+
+func stripViewCheckOptionSuffix(def string) string {
+	trimmed := strings.TrimSpace(def)
+	upper := strings.ToUpper(trimmed)
+	for _, suffix := range []string{
+		" WITH CASCADED CHECK OPTION",
+		" WITH LOCAL CHECK OPTION",
+		" WITH CHECK OPTION",
+	} {
+		if strings.HasSuffix(upper, suffix) {
+			return strings.TrimSpace(trimmed[:len(trimmed)-len(suffix)])
+		}
+	}
+	return def
 }
 
 func getViewDefFromCreateView(createView string) (string, error) {
@@ -968,14 +1002,20 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 				_ = showRows.Close()
 				return nil, fmt.Errorf("failed to scan row for %q: %w", showQuery, err)
 			}
-			partitionNum, subPartitionNum := parsePartitionCounts(createTable)
+			partitionNum, subPartitionNum, partTablespaces, subPartTablespaces := parsePartitionDetails(createTable)
 			for _, p := range partitions {
 				if partitionNum != 0 {
 					p.UseDefault = strconv.Itoa(partitionNum)
 				}
+				if ts := partTablespaces[strings.ToLower(p.Name)]; ts != "" {
+					p.Tablespace = proto.String(ts)
+				}
 				for _, sp := range p.Subpartitions {
 					if subPartitionNum != 0 {
 						sp.UseDefault = strconv.Itoa(subPartitionNum)
+					}
+					if ts := subPartTablespaces[strings.ToLower(sp.Name)]; ts != "" {
+						sp.Tablespace = proto.String(ts)
 					}
 				}
 			}
@@ -989,19 +1029,45 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 	return result, nil
 }
 
-// parsePartitionCounts extracts explicit PARTITIONS N and SUBPARTITIONS N
-// counts from a SHOW CREATE TABLE definition the server already accepted; a
-// definition the parser cannot read leaves both counts unset.
 func parsePartitionCounts(createTable string) (partitions, subpartitions int) {
+	p, sp, _, _ := parsePartitionDetails(createTable)
+	return p, sp
+}
+
+// parsePartitionDetails extracts explicit PARTITIONS/SUBPARTITIONS counts and
+// partition/subpartition TABLESPACE assignments from SHOW CREATE TABLE.
+func parsePartitionDetails(createTable string) (partitions, subpartitions int, partTablespaces, subPartTablespaces map[string]string) {
 	list, err := mysqlparser.Parse(createTable)
 	if err != nil || list == nil || len(list.Items) != 1 {
-		return 0, 0
+		return 0, 0, nil, nil
 	}
 	stmt, ok := list.Items[0].(*mysqlast.CreateTableStmt)
 	if !ok || stmt.Partitions == nil {
-		return 0, 0
+		return 0, 0, nil, nil
 	}
-	return stmt.Partitions.NumParts, stmt.Partitions.NumSubParts
+	partTablespaces = make(map[string]string)
+	subPartTablespaces = make(map[string]string)
+	for _, pd := range stmt.Partitions.Partitions {
+		if pd == nil {
+			continue
+		}
+		for _, opt := range pd.Options {
+			if strings.EqualFold(opt.Name, "TABLESPACE") && opt.Value != "" {
+				partTablespaces[strings.ToLower(pd.Name)] = opt.Value
+			}
+		}
+		for _, spd := range pd.SubPartitions {
+			if spd == nil {
+				continue
+			}
+			for _, opt := range spd.Options {
+				if strings.EqualFold(opt.Name, "TABLESPACE") && opt.Value != "" {
+					subPartTablespaces[strings.ToLower(spd.Name)] = opt.Value
+				}
+			}
+		}
+	}
+	return stmt.Partitions.NumParts, stmt.Partitions.NumSubParts, partTablespaces, subPartTablespaces
 }
 
 func convertPartitionType(tp string) metadatapb.TablePartitionMetadata_Type {
@@ -1122,7 +1188,8 @@ func getCheckConstraintQuery(isMariaDB bool) string {
 			SELECT
 				TABLE_NAME,
 				CONSTRAINT_NAME,
-				CHECK_CLAUSE
+				CHECK_CLAUSE,
+				'YES'
 			FROM information_schema.CHECK_CONSTRAINTS
 			WHERE CONSTRAINT_SCHEMA = ?
 			ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1132,7 +1199,8 @@ func getCheckConstraintQuery(isMariaDB bool) string {
 			SELECT
 				tc.TABLE_NAME,
 				cc.CONSTRAINT_NAME,
-				cc.CHECK_CLAUSE
+				cc.CHECK_CLAUSE,
+				tc.ENFORCED
 			FROM information_schema.CHECK_CONSTRAINTS cc
 				JOIN information_schema.TABLE_CONSTRAINTS tc
 					ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME

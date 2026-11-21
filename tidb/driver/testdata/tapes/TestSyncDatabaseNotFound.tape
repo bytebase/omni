@@ -68,7 +68,9 @@
 |
 | 		SELECT
 | 			TABLE_NAME,
-| 			VIEW_DEFINITION
+| 			VIEW_DEFINITION,
+| 			IFNULL(SECURITY_TYPE, ''),
+| 			IFNULL(CHECK_OPTION, '')
 | 		FROM information_schema.VIEWS
 | 		WHERE TABLE_SCHEMA = ?
 | 		ORDER BY TABLE_NAME
@@ -77,6 +79,8 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< column "IFNULL(SECURITY_TYPE, '')" "VARCHAR" "string"
+< column "IFNULL(CHECK_OPTION, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -114,22 +118,15 @@
 > query
 |
 | 		SELECT
-| 			tc.TABLE_NAME,
-| 			cc.CONSTRAINT_NAME,
-| 			cc.CHECK_CLAUSE
-| 		FROM information_schema.CHECK_CONSTRAINTS cc
-| 			JOIN information_schema.TABLE_CONSTRAINTS tc
-| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-| 		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 			CONSTRAINT_NAME,
+| 			CHECK_CLAUSE
+| 		FROM information_schema.CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ?
+| 		ORDER BY CONSTRAINT_NAME
 | 	
 : string
 | omni_no_such_database
-: string
-| omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
 < column "CONSTRAINT_NAME" "VARCHAR" "string"
 < column "CHECK_CLAUSE" "TEXT" "string"
 > query

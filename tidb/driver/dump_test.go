@@ -169,3 +169,70 @@ func splitLikeMySQLClient(script string) []string {
 	flush()
 	return stmts
 }
+
+func TestDumpRestoresCheckNotEnforcedAndViewOptions(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t, "omni_options_roundtrip")
+	if _, err := d.db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = 1"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_, _ = d.db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = 0")
+	}()
+
+	const setup = `CREATE TABLE t_chk (
+	id INT PRIMARY KEY,
+	x INT NOT NULL,
+	CONSTRAINT chk_enf CHECK (x > 0),
+	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
+);
+
+CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_opts AS
+	SELECT id, x FROM t_chk WHERE x > 0 WITH LOCAL CHECK OPTION;`
+	execCorpus(t, d.db, setup)
+
+	source, err := d.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(source.Schemas[0].Tables) != 1 || len(source.Schemas[0].Tables[0].CheckConstraints) != 2 {
+		t.Fatalf("unexpected TiDB check constraints: %+v", source.Schemas[0].Tables)
+	}
+	chk := source.Schemas[0].Tables[0].CheckConstraints
+	if chk[0].NotEnforced || !chk[1].NotEnforced {
+		t.Fatalf("unexpected TiDB NotEnforced flags: %+v", chk)
+	}
+	if len(source.Schemas[0].Views) != 1 {
+		t.Fatalf("unexpected TiDB views: %+v", source.Schemas[0].Views)
+	}
+	v := source.Schemas[0].Views[0]
+	if v.Algorithm != "MERGE" || v.SqlSecurity != "INVOKER" || v.CheckOption != "LOCAL" {
+		t.Fatalf("unexpected TiDB view options: %+v", v)
+	}
+
+	var dumpBuf strings.Builder
+	if err := d.Dump(ctx, &dumpBuf, source); err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []string{
+		"DROP DATABASE `omni_options_roundtrip`",
+		"CREATE DATABASE `omni_options_roundtrip`",
+		"USE `omni_options_roundtrip`",
+	} {
+		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	for _, stmt := range splitLikeMySQLClient(dumpBuf.String()) {
+		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("restoring statement:\n%s\nerr: %v", stmt, err)
+		}
+	}
+	restored, err := d.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("restored TiDB database differs from source (-source +restored):\n%s", diff)
+	}
+}

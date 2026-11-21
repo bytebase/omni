@@ -236,3 +236,45 @@ func splitLikeMySQLClient(script string) []string {
 	flush()
 	return stmts
 }
+
+func TestDumpRestoresCheckNotEnforcedAndViewOptions(t *testing.T) {
+	const setup = `CREATE TABLE t_chk (
+	id INT PRIMARY KEY,
+	x INT NOT NULL,
+	CONSTRAINT chk_enf CHECK (x > 0),
+	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
+);
+
+CREATE MATERIALIZED VIEW LOG ON t_chk;
+
+CREATE VIEW v_opts AS
+	SELECT id, x FROM t_chk WHERE x > 0 WITH LOCAL CHECK OPTION;`
+	source, restored, err := dumpAndRestore(t, "omni_ob_options_roundtrip", setup)
+	if err != nil {
+		t.Fatalf("restoring OceanBase dump: %v", err)
+	}
+	if len(source.Schemas[0].Tables) != 1 || len(source.Schemas[0].Tables[0].CheckConstraints) != 2 {
+		t.Fatalf("unexpected OceanBase check constraints: %+v", source.Schemas[0].Tables)
+	}
+	tbl := source.Schemas[0].Tables[0]
+	if tbl.HasMaterializedViewLog == nil || !*tbl.HasMaterializedViewLog {
+		t.Fatalf("expected HasMaterializedViewLog=true on t_chk, got %v", tbl.HasMaterializedViewLog)
+	}
+	chk := tbl.CheckConstraints
+	if chk[0].NotEnforced || !chk[1].NotEnforced {
+		t.Fatalf("unexpected OceanBase NotEnforced flags: %+v", chk)
+	}
+	if len(source.Schemas[0].Views) != 1 {
+		t.Fatalf("unexpected OceanBase views: %+v", source.Schemas[0].Views)
+	}
+	v := source.Schemas[0].Views[0]
+	if v.CheckOption != "LOCAL" {
+		t.Fatalf("unexpected OceanBase view CheckOption: %+v", v)
+	}
+	if strings.Contains(strings.ToUpper(v.Definition), "CHECK OPTION") {
+		t.Fatalf("expected normalized Definition without CHECK OPTION, got %q", v.Definition)
+	}
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("restored OceanBase database differs from source (-source +restored):\n%s", diff)
+	}
+}

@@ -217,3 +217,57 @@ func splitLikeMySQLClient(script string) []string {
 	flush()
 	return stmts
 }
+
+func TestDumpRestoresCheckNotEnforcedAndViewOptions(t *testing.T) {
+	const setup = `CREATE TABLE t_chk (
+	id INT PRIMARY KEY,
+	x INT NOT NULL,
+	CONSTRAINT chk_enf CHECK (x > 0),
+	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
+);
+
+CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_opts AS
+	SELECT id, x FROM t_chk WHERE x > 0 WITH LOCAL CHECK OPTION;
+
+CREATE TABLE part_ts (
+	id INT NOT NULL,
+	yr INT NOT NULL,
+	PRIMARY KEY (id, yr)
+) PARTITION BY RANGE (yr) (
+	PARTITION p0 VALUES LESS THAN (2025) TABLESPACE = innodb_file_per_table,
+	PARTITION p1 VALUES LESS THAN MAXVALUE
+);`
+	for _, role := range []string{testcontainer.Default, testcontainer.MySQL84} {
+		t.Run(role, func(t *testing.T) {
+			source, restored, err := dumpAndRestore(t, role, "omni_sync_options_roundtrip", setup)
+			if err != nil {
+				t.Fatalf("restoring dump on %s: %v", role, err)
+			}
+			tables := map[string]*metadatapb.TableMetadata{}
+			for _, tbl := range source.Schemas[0].Tables {
+				tables[tbl.Name] = tbl
+			}
+			chk := tables["t_chk"].CheckConstraints
+			if len(chk) != 2 || chk[0].NotEnforced || !chk[1].NotEnforced {
+				t.Fatalf("unexpected check constraints on %s: %+v", role, chk)
+			}
+			parts := tables["part_ts"].Partitions
+			if len(parts) != 2 || parts[0].GetTablespace() != "innodb_file_per_table" || parts[1].GetTablespace() != "innodb_file_per_table" {
+				t.Fatalf("unexpected partition tablespaces on %s: %+v", role, parts)
+			}
+			if len(source.Schemas[0].Views) != 1 {
+				t.Fatalf("unexpected views on %s: %+v", role, source.Schemas[0].Views)
+			}
+			v := source.Schemas[0].Views[0]
+			if v.Algorithm != "MERGE" || v.SqlSecurity != "INVOKER" || v.CheckOption != "LOCAL" {
+				t.Fatalf("unexpected view options on %s: %+v", role, v)
+			}
+			if strings.Contains(strings.ToUpper(v.Definition), "CHECK OPTION") {
+				t.Fatalf("expected normalized Definition without CHECK OPTION, got %q", v.Definition)
+			}
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("restored database on %s differs from source (-source +restored):\n%s", role, diff)
+			}
+		})
+	}
+}

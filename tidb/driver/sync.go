@@ -15,6 +15,8 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	tidbast "github.com/bytebase/omni/tidb/ast"
+	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 const (
@@ -308,10 +310,13 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 
 	viewMap := make(map[string]*metadatapb.ViewMetadata)
+	var viewNames []string
 	const viewQuery = `
 		SELECT
 			TABLE_NAME,
-			VIEW_DEFINITION
+			VIEW_DEFINITION,
+			IFNULL(SECURITY_TYPE, ''),
+			IFNULL(CHECK_OPTION, '')
 		FROM information_schema.VIEWS
 		WHERE TABLE_SCHEMA = ?
 		ORDER BY TABLE_NAME`
@@ -322,14 +327,45 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	defer viewRows.Close()
 	for viewRows.Next() {
 		view := &metadatapb.ViewMetadata{}
-		if err := viewRows.Scan(&view.Name, &view.Definition); err != nil {
+		var securityType, checkOption string
+		if err := viewRows.Scan(&view.Name, &view.Definition, &securityType, &checkOption); err != nil {
 			return nil, err
 		}
+		if securityType != "" && !strings.EqualFold(securityType, "NONE") {
+			view.SqlSecurity = strings.ToUpper(securityType)
+		}
+		// TiDB's view model has no NONE for CHECK_OPTION and reports CASCADED
+		// even when no WITH CHECK OPTION clause was written (while SHOW CREATE
+		// VIEW omits the clause either way); preserve LOCAL, which is only set
+		// when written explicitly.
+		if strings.EqualFold(checkOption, "LOCAL") {
+			view.CheckOption = "LOCAL"
+		}
+		view.Definition = stripViewCheckOptionSuffix(view.Definition)
 		view.Columns = columnMap[view.Name]
 		viewMap[view.Name] = view
+		viewNames = append(viewNames, view.Name)
 	}
 	if err := viewRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", viewQuery, err)
+	}
+	_ = viewRows.Close()
+
+	for _, viewName := range viewNames {
+		alg, sec, chk, err := d.readViewOptionsFromShowCreate(ctx, d.databaseName, viewName)
+		if err != nil {
+			return nil, err
+		}
+		v := viewMap[viewName]
+		if alg != "" {
+			v.Algorithm = alg
+		}
+		if v.SqlSecurity == "" && sec != "" {
+			v.SqlSecurity = sec
+		}
+		if v.CheckOption == "" && chk != "" {
+			v.CheckOption = chk
+		}
 	}
 
 	foreignKeysMap, err := d.getForeignKeyList(ctx, d.databaseName)
@@ -337,9 +373,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 
-	var checkMap map[string][]*metadatapb.CheckConstraintMetadata
+	var checkClauses map[string]string
 	if supportsCheckConstraintTable(version) {
-		checkMap, err = d.getCheckConstraintList(ctx, d.databaseName)
+		checkClauses, err = d.getCheckConstraintClauses(ctx, d.databaseName)
 		if err != nil {
 			return nil, err
 		}
@@ -378,6 +414,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	defer tableRows.Close()
 
+	var baseTableNames []string
+	var baseTables []*metadatapb.TableMetadata
 	for tableRows.Next() {
 		var tableName, tableType, engine, collation, createOptions, comment, shardingInfo, pkType string
 		var rowCount, dataSize, indexSize, dataFree int64
@@ -427,22 +465,21 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 			}
 
 			tableMetadata := &metadatapb.TableMetadata{
-				Name:             tableName,
-				Columns:          columns,
-				ForeignKeys:      foreignKeysMap[tableName],
-				Engine:           engine,
-				Collation:        collation,
-				RowCount:         rowCount,
-				DataSize:         dataSize,
-				IndexSize:        indexSize,
-				DataFree:         dataFree,
-				CreateOptions:    createOptions,
-				Comment:          comment,
-				Charset:          convertCollationToCharset(collation),
-				Partitions:       partitionTables[tableName],
-				CheckConstraints: checkMap[tableName],
-				ShardingInfo:     shardingInfo,
-				PrimaryKeyType:   pkType,
+				Name:           tableName,
+				Columns:        columns,
+				ForeignKeys:    foreignKeysMap[tableName],
+				Engine:         engine,
+				Collation:      collation,
+				RowCount:       rowCount,
+				DataSize:       dataSize,
+				IndexSize:      indexSize,
+				DataFree:       dataFree,
+				CreateOptions:  createOptions,
+				Comment:        comment,
+				Charset:        convertCollationToCharset(collation),
+				Partitions:     partitionTables[tableName],
+				ShardingInfo:   shardingInfo,
+				PrimaryKeyType: pkType,
 			}
 			if indexes, ok := indexMap[tableName]; ok {
 				indexNames := make([]string, 0, len(indexes))
@@ -454,6 +491,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 					tableMetadata.Indexes = append(tableMetadata.Indexes, indexes[indexName])
 				}
 			}
+			baseTableNames = append(baseTableNames, tableName)
+			baseTables = append(baseTables, tableMetadata)
 			schemaMetadata.Tables = append(schemaMetadata.Tables, tableMetadata)
 		case viewTableType:
 			if view, ok := viewMap[tableName]; ok {
@@ -463,6 +502,17 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	if err := tableRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", tableQuery, err)
+	}
+	_ = tableRows.Close()
+
+	if len(checkClauses) > 0 && len(baseTableNames) > 0 {
+		for i, tbl := range baseTableNames {
+			checks, err := d.readCheckConstraintsFromShowCreate(ctx, d.databaseName, tbl, checkClauses)
+			if err != nil {
+				return nil, err
+			}
+			baseTables[i].CheckConstraints = checks
+		}
 	}
 	schemaMetadata.Sequences = sequences
 
@@ -712,38 +762,107 @@ func (d *Driver) getForeignKeyList(ctx context.Context, databaseName string) (ma
 	return foreignKeysMap, nil
 }
 
-func (d *Driver) getCheckConstraintList(ctx context.Context, databaseName string) (map[string][]*metadatapb.CheckConstraintMetadata, error) {
+func (d *Driver) getCheckConstraintClauses(ctx context.Context, databaseName string) (map[string]string, error) {
 	const checkQuery = `
 		SELECT
-			tc.TABLE_NAME,
-			cc.CONSTRAINT_NAME,
-			cc.CHECK_CLAUSE
-		FROM information_schema.CHECK_CONSTRAINTS cc
-			JOIN information_schema.TABLE_CONSTRAINTS tc
-				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
-		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = ?
-		ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME
+			CONSTRAINT_NAME,
+			CHECK_CLAUSE
+		FROM information_schema.CHECK_CONSTRAINTS
+		WHERE CONSTRAINT_SCHEMA = ?
+		ORDER BY CONSTRAINT_NAME
 	`
-	checkRows, err := d.db.QueryContext(ctx, checkQuery, databaseName, databaseName)
+	checkRows, err := d.db.QueryContext(ctx, checkQuery, databaseName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", checkQuery, err)
 	}
 	defer checkRows.Close()
 
-	checkMap := make(map[string][]*metadatapb.CheckConstraintMetadata)
+	clauses := make(map[string]string)
 	for checkRows.Next() {
-		check := &metadatapb.CheckConstraintMetadata{}
-		var tableName string
-		if err := checkRows.Scan(&tableName, &check.Name, &check.Expression); err != nil {
+		var name, clause string
+		if err := checkRows.Scan(&name, &clause); err != nil {
 			return nil, err
 		}
-		checkMap[tableName] = append(checkMap[tableName], check)
+		clauses[strings.ToLower(name)] = clause
 	}
 	if err := checkRows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", checkQuery, err)
 	}
-	return checkMap, nil
+	return clauses, nil
+}
+
+func (d *Driver) readCheckConstraintsFromShowCreate(ctx context.Context, databaseName, tableName string, checkClauses map[string]string) ([]*metadatapb.CheckConstraintMetadata, error) {
+	query := fmt.Sprintf("SHOW CREATE TABLE %s.%s", quoteBacktick(databaseName), quoteBacktick(tableName))
+	var tblCol, createStmt sql.NullString
+	if err := d.db.QueryRowContext(ctx, query).Scan(&tblCol, &createStmt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+	}
+	list, err := tidbparser.Parse(createStmt.String)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return nil, nil
+	}
+	stmt, ok := list.Items[0].(*tidbast.CreateTableStmt)
+	if !ok {
+		return nil, nil
+	}
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, con := range stmt.Constraints {
+		if con == nil || con.Type != tidbast.ConstrCheck {
+			continue
+		}
+		expr := checkClauses[strings.ToLower(con.Name)]
+		checks = append(checks, &metadatapb.CheckConstraintMetadata{
+			Name:        con.Name,
+			Expression:  expr,
+			NotEnforced: con.NotEnforced,
+		})
+	}
+	slices.SortFunc(checks, func(a, b *metadatapb.CheckConstraintMetadata) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return checks, nil
+}
+
+func (d *Driver) readViewOptionsFromShowCreate(ctx context.Context, databaseName, viewName string) (algorithm, sqlSecurity, checkOption string, err error) {
+	query := fmt.Sprintf("SHOW CREATE VIEW %s.%s", quoteBacktick(databaseName), quoteBacktick(viewName))
+	var viewCol, createStmt, csClient, collConn sql.NullString
+	if err := d.db.QueryRowContext(ctx, query).Scan(&viewCol, &createStmt, &csClient, &collConn); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", nil
+		}
+		return "", "", "", fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+	}
+	list, parseErr := tidbparser.Parse(createStmt.String)
+	if parseErr != nil || list == nil || len(list.Items) != 1 {
+		return "", "", "", nil
+	}
+	stmt, ok := list.Items[0].(*tidbast.CreateViewStmt)
+	if !ok {
+		return "", "", "", nil
+	}
+	algorithm = strings.ToUpper(stmt.Algorithm)
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	return algorithm, strings.ToUpper(stmt.SqlSecurity), strings.ToUpper(stmt.CheckOption), nil
+}
+
+func stripViewCheckOptionSuffix(def string) string {
+	trimmed := strings.TrimSpace(def)
+	upper := strings.ToUpper(trimmed)
+	for _, suffix := range []string{
+		" WITH CASCADED CHECK OPTION",
+		" WITH LOCAL CHECK OPTION",
+		" WITH CHECK OPTION",
+	} {
+		if strings.HasSuffix(upper, suffix) {
+			return strings.TrimSpace(trimmed[:len(trimmed)-len(suffix)])
+		}
+	}
+	return def
 }
 
 func supportsCheckConstraintTable(rawVersion string) bool {

@@ -571,7 +571,9 @@
               "default":  "'0'",
               "type":  "bigint"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         },
         {
           "name":  "v_named_cols_ref",
@@ -583,7 +585,9 @@
               "default":  "'0'",
               "type":  "bigint"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         },
         {
           "name":  "v_open_accounts",
@@ -602,7 +606,9 @@
               "characterSet":  "utf8mb4",
               "collation":  "utf8mb4_0900_ai_ci"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         },
         {
           "name":  "v_order_totals",
@@ -620,7 +626,9 @@
               "default":  "'0'",
               "type":  "bigint"
             }
-          ]
+          ],
+          "algorithm":  "UNDEFINED",
+          "sqlSecurity":  "DEFINER"
         }
       ],
       "functions":  [
