@@ -358,6 +358,13 @@ func TestForeignKeyPartitionAndGeneratedBackingIndex(t *testing.T) {
 		if got := execErrorCode(t, c, "ALTER TABLE p1 DROP PRIMARY KEY"); got != ErrDropIndexNeededInFK {
 			t.Errorf("drop PRIMARY KEY: got %d, want %d", got, ErrDropIndexNeededInFK)
 		}
+		// Replacing PRIMARY KEY with a different column removes id from idx_a's PK suffix -> 1553.
+		mustExec(t, c, "ALTER TABLE p1 ADD COLUMN other INT NOT NULL DEFAULT 0")
+		if got := execErrorCode(t, c, "ALTER TABLE p1 DROP PRIMARY KEY, ADD PRIMARY KEY (other)"); got != ErrDropIndexNeededInFK {
+			t.Errorf("replace PRIMARY KEY with (other): got %d, want %d", got, ErrDropIndexNeededInFK)
+		}
+		// Replacing PRIMARY KEY with (id, other) still covers (a, id) via idx_a's PK suffix -> succeeds.
+		mustExec(t, c, "ALTER TABLE p1 DROP PRIMARY KEY, ADD PRIMARY KEY (id, other)")
 
 		// Creating a child referencing parent(a, id) backed only by idx_a(a) + PK(id) succeeds.
 		mustExec(t, c, "CREATE TABLE p2 (id INT PRIMARY KEY, a INT, KEY idx_a (a))")

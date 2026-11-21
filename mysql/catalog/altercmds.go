@@ -527,7 +527,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	tbl.ignoredGeneratedIndexes = nil
 	droppedIndexes = append(droppedIndexes, reconcileGeneratedFKIndexes(tbl, preGen)...)
-	if err := c.validateDroppedIndexesForFK(tbl, droppedIndexes); err != nil {
+	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedIndexes); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}

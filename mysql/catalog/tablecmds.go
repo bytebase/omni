@@ -2613,31 +2613,33 @@ func hasParentIndexCoveringColumns(tbl *Table, refCols []string) bool {
 	return false
 }
 
-// validateDroppedIndexesForFK checks that none of the dropped indexes is still
-// required to back a foreign key on tbl or a foreign key on another table
-// referencing tbl (MySQL 8.0 error 1553). InnoDB enforces 1553 for both child
-// and parent indexes even when foreign_key_checks = 0 (verified on mysql:8.0.46).
-func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) error {
-	if len(dropped) == 0 || !isInnoDBEngine(tbl.Engine) {
+// validateDroppedIndexesForFK checks that none of the dropped indexes (or a
+// replaced/dropped InnoDB clustered key) is still required to back a foreign
+// key on tbl or a foreign key on another table referencing tbl (MySQL 8.0
+// error 1553). InnoDB enforces 1553 for both child and parent indexes even
+// when foreign_key_checks = 0 (verified on mysql:8.0.46).
+func (c *Catalog) validateDroppedIndexesForFK(tbl, oldTbl *Table, dropped []*Index) error {
+	if !isInnoDBEngine(tbl.Engine) {
 		return nil
 	}
-	pk := innodbClusteredIndex(tbl)
-	var droppedClustered *Index
-	if pk == nil || !pk.Primary {
-		for _, d := range dropped {
-			if d != nil && d.Primary {
-				droppedClustered = d
-				break
-			}
-		}
-		if droppedClustered == nil && pk == nil {
+	oldPK := innodbClusteredIndex(oldTbl)
+	newPK := innodbClusteredIndex(tbl)
+	clusteredChanged := false
+	if oldPK != nil {
+		oldPKKey := toLower(oldPK.Name)
+		if newPK == nil || toLower(newPK.Name) != oldPKKey {
+			clusteredChanged = true
+		} else {
 			for _, d := range dropped {
-				if d != nil && d.Unique {
-					droppedClustered = d
+				if d != nil && toLower(d.Name) == oldPKKey {
+					clusteredChanged = true
 					break
 				}
 			}
 		}
+	}
+	if len(dropped) == 0 && !clusteredChanged {
+		return nil
 	}
 	for _, d := range dropped {
 		if d == nil {
@@ -2651,34 +2653,37 @@ func (c *Catalog) validateDroppedIndexesForFK(tbl *Table, dropped []*Index) erro
 				return errDropIndexNeededInFK(d.Name)
 			}
 		}
-		if tbl.Database == nil {
-			continue
-		}
-		dbKey := toLower(tbl.Database.Name)
-		tblKey := toLower(tbl.Name)
-		for _, db := range c.databases {
-			for _, other := range db.Tables {
-				for _, con := range other.Constraints {
-					if con == nil || con.Type != ConForeignKey || len(con.RefColumns) == 0 {
-						continue
+	}
+	if tbl.Database == nil {
+		return nil
+	}
+	dbKey := toLower(tbl.Database.Name)
+	tblKey := toLower(tbl.Name)
+	for _, db := range c.databases {
+		for _, other := range db.Tables {
+			for _, con := range other.Constraints {
+				if con == nil || con.Type != ConForeignKey || len(con.RefColumns) == 0 {
+					continue
+				}
+				refDB := con.RefDatabase
+				if refDB == "" {
+					refDB = db.Name
+				}
+				if toLower(refDB) != dbKey || toLower(con.RefTable) != tblKey {
+					continue
+				}
+				if hasParentIndexCoveringColumns(tbl, con.RefColumns) {
+					continue
+				}
+				for _, d := range dropped {
+					if d != nil && fkIndexCoversWithPK(d, oldPK, con.RefColumns) {
+						return errDropIndexNeededInFK(d.Name)
 					}
-					refDB := con.RefDatabase
-					if refDB == "" {
-						refDB = db.Name
-					}
-					if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
-						if hasParentIndexCoveringColumns(tbl, con.RefColumns) {
-							continue
-						}
-						if fkIndexCoversWithPK(d, pk, con.RefColumns) || (droppedClustered != nil && fkIndexCoversWithPK(d, droppedClustered, con.RefColumns)) {
-							return errDropIndexNeededInFK(d.Name)
-						}
-						if d == droppedClustered {
-							for _, rem := range tbl.Indexes {
-								if fkIndexCoversWithPK(rem, d, con.RefColumns) {
-									return errDropIndexNeededInFK(rem.Name)
-								}
-							}
+				}
+				if clusteredChanged {
+					for _, rem := range tbl.Indexes {
+						if fkIndexCoversWithPK(rem, oldPK, con.RefColumns) {
+							return errDropIndexNeededInFK(rem.Name)
 						}
 					}
 				}

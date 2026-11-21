@@ -159,7 +159,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	tbl.Indexes = append(tbl.Indexes, idx)
 	tbl.ignoredGeneratedIndexes = nil
 	droppedGen := reconcileGeneratedFKIndexes(tbl, preGen)
-	if err := c.validateDroppedIndexesForFK(tbl, droppedGen); err != nil {
+	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, droppedGen); err != nil {
 		return rollback(err)
 	}
 
@@ -231,7 +231,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 			break
 		}
 	}
-	if err := c.validateDroppedIndexesForFK(tbl, []*Index{dropped}); err != nil {
+	if err := c.validateDroppedIndexesForFK(tbl, &snapshot, []*Index{dropped}); err != nil {
 		undoAlter(db, tableKey, tbl, snapshot)
 		return err
 	}
