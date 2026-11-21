@@ -471,6 +471,21 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpDiv:
 			return &ResolvedType{BaseType: BaseTypeDecimal}
+		case nodes.BinOpBitAnd, nodes.BinOpBitOr, nodes.BinOpBitXor, nodes.BinOpShiftLeft, nodes.BinOpShiftRight:
+			// A bitwise result is a BIGINT unless & | ^ join two binary
+			// strings, which gives a binary string as long as the longer:
+			// mysql:8.0.46 answers 1071 for KEY (varbinary_3065, ((i & 1)))
+			// and takes KEY (varbinary_3065, ((vb3 & vb3))).
+			if e.Op == nodes.BinOpBitAnd || e.Op == nodes.BinOpBitOr || e.Op == nodes.BinOpBitXor {
+				l, r := inferFunctionalIndexExprType(tbl, e.Left), inferFunctionalIndexExprType(tbl, e.Right)
+				if isResolvedBinaryType(l) && isResolvedBinaryType(r) {
+					if !functionalTypeWidthKnown(l) || !functionalTypeWidthKnown(r) {
+						return &ResolvedType{BaseType: BaseTypeVarBinary, Length: 255, widthUnknown: true}
+					}
+					return &ResolvedType{BaseType: BaseTypeVarBinary, Length: max(l.Length, r.Length)}
+				}
+			}
+			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpJsonExtract:
 			return &ResolvedType{BaseType: BaseTypeJSON}
 		case nodes.BinOpJsonUnquote:
@@ -499,6 +514,18 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			if len(e.Args) == 2 {
 				return aggregateFunctionalIndexBranchTypes(tbl, e.Args[:1])
 			}
+		case "any_value":
+			// ANY_VALUE is its argument: mysql:8.0.46 answers 3757 for
+			// KEY ((ANY_VALUE(blob_col))) and takes KEY ((ANY_VALUE(i))).
+			if len(e.Args) == 1 {
+				return inferFunctionalIndexExprType(tbl, e.Args[0])
+			}
+		case "json_set", "json_insert", "json_replace", "json_remove", "json_array", "json_object",
+			"json_merge_patch", "json_merge_preserve", "json_array_append", "json_array_insert",
+			"json_keys", "json_extract", "json_search":
+			// These return JSON, which a functional key part refuses with
+			// 3753 on mysql:8.0.46 (KEY ((JSON_SET(j, '$.x', 1)))).
+			return &ResolvedType{BaseType: BaseTypeJSON}
 		}
 		if rt := inferFunctionalIndexFuncType(tbl, e); rt != nil {
 			return rt

@@ -5320,6 +5320,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET UNHEX with no argument", stmt: "SET @x = UNHEX()", code: 1582},
 		{name: "SET BIN with two arguments", stmt: "SET @x = BIN(1, 2)", code: 1582},
 		{name: "SET SPACE with no argument", stmt: "SET @x = SPACE()", code: 1582},
+		// ATAN2 takes one argument or two, as ATAN does.
+		{name: "SET ATAN2 with one argument", stmt: "SET @x = ATAN2(1)", code: 0},
+		{name: "SET ATAN2 with three arguments", stmt: "SET @x = ATAN2(1, 2, 3)", code: 1582},
+		{name: "DEFAULT ATAN2 with three arguments", stmt: "CREATE TABLE a (x DOUBLE DEFAULT (ATAN2(1, 2, 3)))", code: 1582},
+		// A functional key part over a JSON-returning function is 3753,
+		// ANY_VALUE is its argument, and a numeric bitwise result is a BIGINT.
+		{name: "functional index over JSON_SET(j, '$.x', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_SET(j, '$.x', 1))))", code: 3753},
+		{name: "functional index over JSON_INSERT(j, '$.x', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_INSERT(j, '$.x', 1))))", code: 3753},
+		{name: "functional index over JSON_REPLACE(j, '$.x', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_REPLACE(j, '$.x', 1))))", code: 3753},
+		{name: "functional index over JSON_REMOVE(j, '$.x')", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_REMOVE(j, '$.x'))))", code: 3753},
+		{name: "functional index over JSON_ARRAY(1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_ARRAY(1))))", code: 3753},
+		{name: "functional index over JSON_OBJECT('a', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_OBJECT('a', 1))))", code: 3753},
+		{name: "functional index over JSON_MERGE_PATCH(j, j)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_MERGE_PATCH(j, j))))", code: 3753},
+		{name: "functional index over JSON_MERGE_PRESERVE(j, j)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_MERGE_PRESERVE(j, j))))", code: 3753},
+		{name: "functional index over JSON_ARRAY_APPEND(j, '$', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_ARRAY_APPEND(j, '$', 1))))", code: 3753},
+		{name: "functional index over JSON_ARRAY_INSERT(j, '$[0]', 1)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_ARRAY_INSERT(j, '$[0]', 1))))", code: 3753},
+		{name: "functional index over JSON_KEYS(j)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_KEYS(j))))", code: 3753},
+		{name: "functional index over JSON_SEARCH(j, 'one', 'a')", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_SEARCH(j, 'one', 'a'))))", code: 3753},
+		{name: "functional index over JSON_QUOTE('a')", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((JSON_QUOTE('a'))))", code: 0},
+		{name: "functional index over ANY_VALUE(b)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((ANY_VALUE(b))))", code: 3757},
+		{name: "functional index over ANY_VALUE(i)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((ANY_VALUE(i))))", code: 0},
+		{name: "functional index over ANY_VALUE(j)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((ANY_VALUE(j))))", code: 3753},
+		{name: "functional index over ANY_VALUE(v)", stmt: "CREATE TABLE a (j JSON, b BLOB, i INT, v VARCHAR(10), KEY k ((ANY_VALUE(v))))", code: 0},
+		{name: "key of varbinary(3065) and (i & 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i & 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (i & 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i & 1))))", code: 0},
+		{name: "key of varbinary(3065) and (i | 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i | 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (i | 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i | 1))))", code: 0},
+		{name: "key of varbinary(3065) and (i ^ 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i ^ 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (i ^ 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i ^ 1))))", code: 0},
+		{name: "key of varbinary(3065) and (i << 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i << 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (i << 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i << 1))))", code: 0},
+		{name: "key of varbinary(3065) and (i >> 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i >> 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (i >> 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((i >> 1))))", code: 0},
+		{name: "key of varbinary(3065) and (v & 1)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((v & 1))))", code: 1071},
+		{name: "key of varbinary(3064) and (v & 1)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((v & 1))))", code: 0},
+		{name: "key of varbinary(3065) and (vb & vb)", stmt: "CREATE TABLE a (b VARBINARY(3065), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((vb & vb))))", code: 0},
+		{name: "key of varbinary(3064) and (vb & vb)", stmt: "CREATE TABLE a (b VARBINARY(3064), i INT, v VARCHAR(10), vb VARBINARY(3), KEY k (b, ((vb & vb))))", code: 0},
 		// A tablespace name keeps a backtick at either end.
 		{
 			name:     "CREATE TABLE in a tablespace whose name ends in a backtick",
@@ -6589,6 +6626,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"OCT(8)", "OCT(-1)", "OCT('12')", "OCT(5.5)", "OCT(2.5e0)", "OCT(NULL)",
 		"SPACE(3)", "SPACE(0)", "SPACE(-1)", "SPACE(NULL)", "SPACE(2.5)", "SPACE('3')", "SPACE(1.5e0)", "SPACE(2.5e0)", "SPACE('abc')",
 		"SPACE(70000000)", "SPACE(67108865)",
+		"REPEAT('ab', 3)", "REPEAT('ab', 0)", "REPEAT('ab', -1)", "REPEAT(NULL, 2)", "REPEAT('a', NULL)", "REPEAT('', 100000000)",
+		"REPEAT('a', 2.5)", "REPEAT('a', 2.5e0)", "REPEAT('a', '3')", "REPEAT(5, 2)", "REPEAT(1.5e0, 2)", "REPEAT(X'01', 2)",
+		"REPEAT('a', 67108865)", "REPEAT('ab', 33554433)", "REPEAT('é', 2)", "REPEAT('a', 18446744073709551615)",
+		"HEX(_latin1 X'E9')", "HEX(_latin1'é')", "HEX(_utf8mb4'é')", "HEX(_binary'é')", "HEX(REPEAT(_latin1 X'E9', 2))",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6706,7 +6747,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "(BIN(1) = '1')", "(OCT(8) = '10')", "(SPACE(1) = ' ')", "IFNULL(SPACE(67108865), 'ANSI')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "(BIN(1) = '1')", "(OCT(8) = '10')", "(SPACE(1) = ' ')", "IFNULL(SPACE(67108865), 'ANSI')", "(REPEAT('1', 1) = '1')", "(HEX(_latin1 X'E9') = 'E9')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

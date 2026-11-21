@@ -1426,6 +1426,58 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{kind: userVarString, str: string(runes[:n])}, true, nil
 			}
 			return userVarValue{kind: userVarString, str: string(runes[len(runes)-int(n):])}, true, nil
+		case "repeat":
+			// REPEAT(s, n): NULL if either is NULL, '' for n <= 0 or an empty
+			// s, NULL when the result's bytes pass max_allowed_packet (64 MiB
+			// by default: REPEAT('ab', 33554433) is NULL), and n rounds as a
+			// length does (REPEAT('a', 2.5) is 'aaa', REPEAT('a', 2.5e0) 'aa')
+			// on mysql:8.0.46.
+			if len(e.Args) != 2 {
+				return userVarValue{}, false, errWrongParamCount("REPEAT")
+			}
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			nv, ok, err := c.evalSetExprNode(e.Args[1])
+			if err != nil || !ok {
+				return userVarValue{}, false, err
+			}
+			if sv.kind == userVarNull || nv.kind == userVarNull {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			if sv.kind != userVarString && sv.kind != userVarNumeric {
+				return userVarValue{}, false, nil
+			}
+			n, nok := setStringLengthArg(nv)
+			if !nok {
+				return userVarValue{}, false, nil
+			}
+			str := sv.str
+			if sv.kind == userVarNumeric && sv.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(sv.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			byteLen := int64(len(str))
+			if sv.cs != "" {
+				byteLen = int64(len(sv.raw))
+			}
+			switch {
+			case n <= 0 || byteLen == 0:
+				return userVarValue{kind: userVarString, str: "", binary: sv.binary, cs: sv.cs}, true, nil
+			case n > 67108864/byteLen:
+				return userVarValue{kind: userVarNull}, true, nil
+			case n*byteLen > 1<<20:
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			out := userVarValue{kind: userVarString, str: strings.Repeat(str, int(n)), binary: sv.binary, cs: sv.cs}
+			if sv.cs != "" {
+				out.raw = strings.Repeat(sv.raw, int(n))
+			}
+			return out, true, nil
 		case "space":
 			// SPACE(N) is N spaces: '' for N <= 0, NULL past max_allowed_packet
 			// (64 MiB by default, counted at the character set's narrowest
@@ -1876,7 +1928,8 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		case "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "cot", "degrees", "radians":
 			// Doubles: ASIN and ACOS out of [-1, 1] are NULL, a result that is
 			// no finite double is 1690 (COT(0)), as on mysql:8.0.46; ATAN takes
-			// one argument or two, as ATAN2 does. Go's math library can differ
+			// one argument or two, and so does ATAN2: ATAN2(1) is ATAN(1) and
+			// ATAN2(1, 2, 3) is 1582. Go's math library can differ
 			// from the server's C library in the last digit of a result
 			// (TAN(1), COS(0.1)), which only an exact comparison of the two
 			// sees. PI() is left out: it compares at its six shown decimals
@@ -2070,7 +2123,13 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			switch v.kind {
 			case userVarString:
-				return userVarValue{kind: userVarString, str: strings.ToUpper(hex.EncodeToString([]byte(v.str)))}, true, nil
+				// An introduced literal's bytes are those of its charset:
+				// HEX(_latin1 X'E9') is E9.
+				b := v.str
+				if v.cs != "" {
+					b = v.raw
+				}
+				return userVarValue{kind: userVarString, str: strings.ToUpper(hex.EncodeToString([]byte(b)))}, true, nil
 			case userVarNumeric:
 			default:
 				return userVarValue{}, false, nil
