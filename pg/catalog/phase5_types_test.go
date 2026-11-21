@@ -195,18 +195,18 @@ func TestPhase5_MultirangeAutoCreation(t *testing.T) {
 	}
 
 	// The multirange type should be auto-created.
-	mrType := c.typeByName[typeKey{ns: nsOID, name: "intrange_multirange"}]
+	mrType := c.typeByName[typeKey{ns: nsOID, name: "intmultirange"}]
 	if mrType == nil {
-		t.Fatal("multirange type 'intrange_multirange' not found")
+		t.Fatal("multirange type 'intmultirange' not found")
 	}
 	if mrType.Type != 'm' {
 		t.Errorf("expected multirange type kind 'm', got %c", mrType.Type)
 	}
 
 	// The multirange array type should exist.
-	mrArrayType := c.typeByName[typeKey{ns: nsOID, name: "_intrange_multirange"}]
+	mrArrayType := c.typeByName[typeKey{ns: nsOID, name: "_intmultirange"}]
 	if mrArrayType == nil {
-		t.Fatal("multirange array type '_intrange_multirange' not found")
+		t.Fatal("multirange array type '_intmultirange' not found")
 	}
 	if mrArrayType.Category != 'A' {
 		t.Errorf("expected array category 'A', got %c", mrArrayType.Category)
@@ -232,7 +232,7 @@ func TestPhase5_MultirangeArrayLink(t *testing.T) {
 	}
 
 	nsOID := defaultSchemaOID(t, c)
-	mrType := c.typeByName[typeKey{ns: nsOID, name: "floatrange_multirange"}]
+	mrType := c.typeByName[typeKey{ns: nsOID, name: "floatmultirange"}]
 	if mrType == nil {
 		t.Fatal("multirange type not found")
 	}
@@ -260,7 +260,7 @@ func TestPhase5_MultirangeDependency(t *testing.T) {
 
 	nsOID := defaultSchemaOID(t, c)
 	rangeType := c.typeByName[typeKey{ns: nsOID, name: "textrange"}]
-	mrType := c.typeByName[typeKey{ns: nsOID, name: "textrange_multirange"}]
+	mrType := c.typeByName[typeKey{ns: nsOID, name: "textmultirange"}]
 	if rangeType == nil || mrType == nil {
 		t.Fatal("types not found")
 	}
@@ -344,7 +344,7 @@ func TestPhase5_ExistingRangeStillWorks(t *testing.T) {
 	}
 
 	// Check that multirange was also created.
-	mrType := c.typeByName[typeKey{ns: nsOID, name: "numrange2_multirange"}]
+	mrType := c.typeByName[typeKey{ns: nsOID, name: "nummultirange2"}]
 	if mrType == nil {
 		t.Error("multirange type not auto-created for range")
 	}

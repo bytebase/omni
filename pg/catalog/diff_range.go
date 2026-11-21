@@ -102,6 +102,9 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 func rangeMultirangeName(c *Catalog, rt *RangeType) string {
 	if c != nil && rt != nil && rt.MultirangeOID != 0 {
 		if bt := c.typeByOID[rt.MultirangeOID]; bt != nil {
+			if s := c.schemas[bt.Namespace]; s != nil && s.Name != "" {
+				return s.Name + "." + bt.TypeName
+			}
 			return bt.TypeName
 		}
 	}

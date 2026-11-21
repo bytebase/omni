@@ -2144,8 +2144,8 @@ func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
 		catAfter := catBefore.Clone()
 		_, err = catAfter.Exec(`
 			CREATE TYPE public.f8_range;
-			CREATE FUNCTION public.canon_fn(public.f8_range) RETURNS public.f8_range LANGUAGE C AS 'internal', 'canon_fn';
-			CREATE FUNCTION public.diff_fn(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+			CREATE FUNCTION public.canon_fn(public.f8_range) RETURNS public.f8_range LANGUAGE C IMMUTABLE AS 'internal', 'canon_fn';
+			CREATE FUNCTION public.diff_fn(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
 			CREATE TYPE public.f8_range AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, CANONICAL = public.canon_fn, SUBTYPE_DIFF = public.diff_fn);
 		`, nil)
 		require.NoError(t, err)

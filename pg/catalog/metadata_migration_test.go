@@ -5995,23 +5995,23 @@ func TestRound25Fixes(t *testing.T) {
 		CREATE FOREIGN TABLE public.ft_add_part PARTITION OF public.part_parent FOR VALUES FROM (20) TO (30) SERVER s_own;
 		CREATE FOREIGN TABLE public.ft_col_grant (id integer) SERVER s_own;
 		GRANT SELECT (id) ON public.ft_col_grant TO alice;
-		CREATE FUNCTION public.r_canon(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
-		CREATE FUNCTION public.r_canon2(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
-		CREATE FUNCTION public.f_diff(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.r_canon(int4range) RETURNS int4range LANGUAGE sql IMMUTABLE AS 'SELECT $1';
+		CREATE FUNCTION public.r_canon2(int4range) RETURNS int4range LANGUAGE sql IMMUTABLE AS 'SELECT $1';
+		CREATE FUNCTION public.f_diff(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
 		CREATE TYPE public.f8range AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.f_diff);
 	`)
 	// Range modification case via standalone subtype_diff change.
 	rDiffFrom := New()
 	_, err := rDiffFrom.Exec(`
-		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
-		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
 		CREATE TYPE public.myfloatrange AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.d1);
 	`, nil)
 	require.NoError(t, err)
 	rDiffTo := New()
 	_, err = rDiffTo.Exec(`
-		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
-		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
 		CREATE TYPE public.myfloatrange AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, SUBTYPE_DIFF = public.d2);
 	`, nil)
 	require.NoError(t, err)
@@ -6105,7 +6105,7 @@ func TestRound26Fixes(t *testing.T) {
 	canonTo := New()
 	canonRes, err := canonTo.Exec(`
 		CREATE TYPE public.c_range;
-		CREATE FUNCTION public.c_range_canon(public.c_range) RETURNS public.c_range LANGUAGE C AS '';
+		CREATE FUNCTION public.c_range_canon(public.c_range) RETURNS public.c_range LANGUAGE C IMMUTABLE AS '';
 		CREATE TYPE public.c_range AS RANGE (SUBTYPE = integer, CANONICAL = public.c_range_canon);
 	`, &ExecOptions{ContinueOnError: true})
 	require.NoError(t, err)
@@ -6166,7 +6166,7 @@ func TestRound26Fixes(t *testing.T) {
 	}
 	rBefore := New()
 	_, err = rBefore.Exec(`
-		CREATE FUNCTION public.r_diff(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.r_diff(float8, float8) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT $1 - $2';
 		CREATE TYPE public.r_opt AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, SUBTYPE_DIFF = public.r_diff);
 	`, nil)
 	require.NoError(t, err)
@@ -6265,7 +6265,7 @@ func TestRound27Fixes(t *testing.T) {
 
 	_, err = c.Exec(`
 		CREATE TYPE public.bad_canon_r;
-		CREATE FUNCTION public.bad_canon_fn(public.bad_canon_r) RETURNS integer LANGUAGE C AS 'internal', 'bad_canon_fn';
+		CREATE FUNCTION public.bad_canon_fn(public.bad_canon_r) RETURNS integer LANGUAGE C IMMUTABLE AS 'internal', 'bad_canon_fn';
 	`, nil)
 	require.NoError(t, err)
 	res, err = c.Exec(`CREATE TYPE public.bad_canon_r AS RANGE (SUBTYPE = int4, CANONICAL = public.bad_canon_fn);`, &ExecOptions{ContinueOnError: true})
@@ -6277,8 +6277,8 @@ func TestRound27Fixes(t *testing.T) {
 
 	_, err = c.Exec(`
 		CREATE TYPE public.good_r;
-		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C AS 'internal', 'good_canon';
-		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C IMMUTABLE AS 'internal', 'good_canon';
+		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT ($1 - $2)::float8';
 		CREATE TYPE public.good_r AS RANGE (SUBTYPE = int4, CANONICAL = public.good_canon, SUBTYPE_DIFF = public.good_diff);
 	`, nil)
 	require.NoError(t, err)
@@ -6297,8 +6297,8 @@ func TestRound27Fixes(t *testing.T) {
 	crTo := New()
 	_, err = crTo.Exec(`
 		CREATE TYPE public.good_r;
-		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C AS 'internal', 'good_canon';
-		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE FUNCTION public.good_canon(public.good_r) RETURNS public.good_r LANGUAGE C IMMUTABLE AS 'internal', 'good_canon';
+		CREATE FUNCTION public.good_diff(int4, int4) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT ($1 - $2)::float8';
 		CREATE TYPE public.good_r AS RANGE (SUBTYPE = int4, CANONICAL = public.good_canon, SUBTYPE_DIFF = public.good_diff);
 		CREATE TABLE public.t_good_r (r public.good_r);
 	`, nil)
@@ -6364,8 +6364,8 @@ func TestRound28Fixes(t *testing.T) {
 	_, err = rCat.Exec(`
 		CREATE SCHEMA s1;
 		CREATE TYPE public.ren_r;
-		CREATE FUNCTION public.ren_canon(public.ren_r) RETURNS public.ren_r LANGUAGE C AS 'internal', 'ren_canon';
-		CREATE FUNCTION public.ren_diff(int4, int4) RETURNS float8 LANGUAGE sql AS 'SELECT ($1 - $2)::float8';
+		CREATE FUNCTION public.ren_canon(public.ren_r) RETURNS public.ren_r LANGUAGE C IMMUTABLE AS 'internal', 'ren_canon';
+		CREATE FUNCTION public.ren_diff(int4, int4) RETURNS float8 LANGUAGE sql IMMUTABLE AS 'SELECT ($1 - $2)::float8';
 		CREATE TYPE public.ren_r AS RANGE (SUBTYPE = int4, CANONICAL = public.ren_canon, SUBTYPE_DIFF = public.ren_diff);
 		ALTER FUNCTION public.ren_canon(public.ren_r) RENAME TO ren_canon2;
 		ALTER FUNCTION public.ren_diff(int4, int4) SET SCHEMA s1;
@@ -6418,4 +6418,101 @@ func TestRound28Fixes(t *testing.T) {
 	}
 	require.Empty(t, Diff(mrApplied, mrAfter).Ranges)
 	require.Empty(t, Diff(mrApplied, mrAfter).Relations)
+}
+
+func TestRound29Fixes(t *testing.T) {
+	// 1. Subtypes without a default btree operator class (e.g. json) are rejected unless supplied.
+	c := New()
+	var catErr *Error
+	res, err := c.Exec(`CREATE TYPE public.json_r AS RANGE (SUBTYPE = json);`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeUndefinedObject, catErr.Code)
+
+	// Custom default btree operator class allows range creation and records dependency.
+	_, err = c.Exec(`
+		CREATE TYPE public.custom_base;
+		CREATE FUNCTION public.cb_in(cstring) RETURNS public.custom_base LANGUAGE C STRICT IMMUTABLE AS 'internal', 'cb_in';
+		CREATE FUNCTION public.cb_out(public.custom_base) RETURNS cstring LANGUAGE C STRICT IMMUTABLE AS 'internal', 'cb_out';
+		CREATE TYPE public.custom_base (INPUT = public.cb_in, OUTPUT = public.cb_out);
+		CREATE FUNCTION public.cb_cmp(public.custom_base, public.custom_base) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT 0';
+		CREATE OPERATOR CLASS public.cb_default_ops DEFAULT FOR TYPE public.custom_base USING btree AS FUNCTION 1 public.cb_cmp(public.custom_base, public.custom_base);
+		CREATE TYPE public.cb_r AS RANGE (SUBTYPE = public.custom_base);
+	`, nil)
+	require.NoError(t, err)
+	res, err = c.Exec(`DROP OPERATOR CLASS public.cb_default_ops USING btree;`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	require.ErrorAs(t, res[0].Error, &catErr)
+	require.Equal(t, CodeDependentObjects, catErr.Code)
+
+	// 2. Non-immutable CANONICAL and SUBTYPE_DIFF functions are rejected.
+	vCat := New()
+	_, err = vCat.Exec(`
+		CREATE FUNCTION public.mut_diff(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.st_diff(float8, float8) RETURNS float8 LANGUAGE sql STABLE AS 'SELECT $1 - $2';
+		CREATE TYPE public.mut_canon_r;
+		CREATE FUNCTION public.mut_canon(public.mut_canon_r) RETURNS public.mut_canon_r LANGUAGE C AS 'internal', 'mut_canon';
+	`, nil)
+	require.NoError(t, err)
+	for _, ddl := range []string{
+		`CREATE TYPE public.r_mut_d AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.mut_diff);`,
+		`CREATE TYPE public.r_st_d AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.st_diff);`,
+		`CREATE TYPE public.mut_canon_r AS RANGE (SUBTYPE = int4, CANONICAL = public.mut_canon);`,
+	} {
+		vRes, vErr := vCat.Exec(ddl, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, vErr)
+		require.ErrorAs(t, vRes[0].Error, &catErr, ddl)
+		require.Equal(t, CodeInvalidObjectDefinition, catErr.Code, ddl)
+	}
+
+	// 3. Generated multirange name follows PostgreSQL makeMultirangeTypeName rules.
+	mBefore := New()
+	mAfter := mBefore.Clone()
+	_, err = mAfter.Exec(`
+		CREATE TYPE public.price_range AS RANGE (SUBTYPE = int4);
+		CREATE TABLE public.price_tbl (p public.price_multirange);
+	`, nil)
+	require.NoError(t, err)
+	mMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}, mBefore, mAfter, Diff(mBefore, mAfter))
+	pubMeta := findSchema(mMeta, "public")
+	require.Len(t, pubMeta.RangeTypes, 1)
+	require.Equal(t, "public.price_multirange", pubMeta.RangeTypes[0].MultirangeName)
+	mSQL := GenerateMigration(mBefore, mAfter, Diff(mBefore, mAfter)).SQL()
+	require.NotContains(t, mSQL, `MULTIRANGE_TYPE_NAME`)
+	mApplied := mBefore.Clone()
+	mExec, err := mApplied.Exec(mSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range mExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(mApplied, mAfter).Ranges)
+
+	// 4. Cross-schema MULTIRANGE_TYPE_NAME is created in target schema, serialized, and migrated.
+	xBefore := New()
+	_, err = xBefore.Exec(`CREATE SCHEMA a; CREATE SCHEMA b;`, nil)
+	require.NoError(t, err)
+	xAfter := xBefore.Clone()
+	_, err = xAfter.Exec(`
+		CREATE TYPE a.r_cross AS RANGE (SUBTYPE = int4, MULTIRANGE_TYPE_NAME = b.mr_cross);
+		CREATE TABLE b.t_cross (c b.mr_cross);
+	`, nil)
+	require.NoError(t, err)
+	xMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "a"}, {Name: "b"}},
+	}, xBefore, xAfter, Diff(xBefore, xAfter))
+	aMeta := findSchema(xMeta, "a")
+	require.Len(t, aMeta.RangeTypes, 1)
+	require.Equal(t, "b.mr_cross", aMeta.RangeTypes[0].MultirangeName)
+	xSQL := GenerateMigration(xBefore, xAfter, Diff(xBefore, xAfter)).SQL()
+	require.Contains(t, xSQL, `MULTIRANGE_TYPE_NAME = "b"."mr_cross"`)
+	xApplied := xBefore.Clone()
+	xExec, err := xApplied.Exec(xSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range xExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(xApplied, xAfter).Ranges)
+	require.Empty(t, Diff(xApplied, xAfter).Relations)
 }
