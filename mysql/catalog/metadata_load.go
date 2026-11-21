@@ -635,14 +635,24 @@ func metadataColumnDef(t *metadata.TableMetadata, col *metadata.ColumnMetadata) 
 	if err != nil {
 		return nil, nil, err
 	}
-	// The type text may carry its own character set and collation.
-	// When inherited flags are present, false marks an explicit column clause even
-	// if it matches the table default; when absent (legacy live sync), matching the
-	// table default stays inherited.
+	// The type text may carry its own character set and collation. A value
+	// that differs from the table's current default is the column's own,
+	// whatever the inherited flag says: after ALTER TABLE ... DEFAULT CHARACTER
+	// SET latin1 a column that inherited utf8mb4 keeps it, as SHOW CREATE TABLE
+	// shows on mysql:8.0.46 and oceanbase-ce 4.3.5.6. An inherited flag of false
+	// marks an explicit clause even when the value matches the default; an
+	// absent flag (legacy live sync) leaves a matching value inherited.
 	charsetExplicit := col.CharsetInherited != nil && !*col.CharsetInherited ||
-		col.CharsetInherited == nil && t != nil && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+		t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	// With the flags present, a collation that differs only because the
+	// charset does, its charset's default, comes with the charset rather than
+	// from a clause of its own; a legacy snapshot keeps any differing
+	// collation as its own.
+	charsetDiffers := t != nil && col.GetCharacterSet() != "" && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	impliedCollation := col.CollationInherited != nil && charsetDiffers &&
+		strings.EqualFold(col.GetCollation(), defaultCollationForCharset[toLower(col.GetCharacterSet())])
 	collationExplicit := col.CollationInherited != nil && !*col.CollationInherited ||
-		col.CollationInherited == nil && t != nil && !strings.EqualFold(col.GetCollation(), t.GetCollation())
+		t != nil && col.GetCollation() != "" && !strings.EqualFold(col.GetCollation(), t.GetCollation()) && !impliedCollation
 	if typeName.Charset == "" && col.GetCharacterSet() != "" && charsetExplicit {
 		typeName.Charset = col.GetCharacterSet()
 	}

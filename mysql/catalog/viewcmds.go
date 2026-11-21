@@ -705,6 +705,11 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		if e.Op == nodes.BinOpNullSafeEq {
 			return false
 		}
+		// Division and modulo are NULL for a zero divisor (see
+		// isAnalyzedExprNullable).
+		if e.Op == nodes.BinOpDiv || e.Op == nodes.BinOpDivInt || e.Op == nodes.BinOpMod {
+			return true
+		}
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.BetweenExpr:
 		return inferViewExprNullable(e.Expr, relations) ||

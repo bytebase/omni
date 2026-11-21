@@ -480,7 +480,9 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	diff := Diff(reloaded, target)
 	require.True(t, diff.IsEmpty(), "unexpected diff after reload: %s", GenerateMigration(reloaded, target, diff).SQL())
 
-	// Inherited column collation must propagate when table collation changes after reload.
+	// A table collation change after reload changes no existing column:
+	// mysql:8.0.46 keeps name on utf8mb4_unicode_ci after ALTER TABLE ...
+	// COLLATE = utf8mb4_0900_ai_ci and shows it with its own COLLATE.
 	reloadedAlt := New()
 	_, err = reloadedAlt.LoadMetadata(context.Background(), meta)
 	require.NoError(t, err)
@@ -490,7 +492,7 @@ func TestDatabaseMetadataViewCheckOptionGIPKNotSecondaryAndCharsetExplicit(t *te
 	altTbl := reloadedAlt.GetDatabase("app").GetTable("gipk_tbl")
 	_, nameColl := n.ResolveColumnCharsetCollation(altTbl, altTbl.GetColumn("name"))
 	_, csColl := n.ResolveColumnCharsetCollation(altTbl, altTbl.GetColumn("cs_col"))
-	require.Equal(t, "utf8mb4_0900_ai_ci", nameColl)
+	require.Equal(t, "utf8mb4_unicode_ci", nameColl)
 	require.Equal(t, "latin1_swedish_ci", csColl)
 }
 
@@ -1997,4 +1999,42 @@ func TestDatabaseMetadataKeepsExplicitHashPartitions(t *testing.T) {
 	require.Len(t, reParts, 2)
 	require.Equal(t, "pa", reParts[0].Name)
 	require.Equal(t, "first", reParts[0].Comment)
+}
+
+// TestLoadMetadataKeepsColumnCharsetAfterDefaultChange pins a column that
+// inherited its table's charset and kept it when the table default changed:
+// mysql:8.0.46 shows it with its own CHARACTER SET afterwards, and a reload keeps it.
+func TestLoadMetadataKeepsColumnCharsetAfterDefaultChange(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE TABLE tc (s VARCHAR(20)) CHARSET=utf8mb4; ALTER TABLE tc DEFAULT CHARACTER SET latin1; "+
+		"CREATE TABLE tc2 (s VARCHAR(20)) CHARSET=utf8mb4; ALTER TABLE tc2 DEFAULT COLLATE utf8mb4_bin;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	reloaded := New()
+	_, err = reloaded.LoadMetadata(context.Background(), c.DatabaseMetadata("app"))
+	require.NoError(t, err)
+	for _, name := range []string{"tc", "tc2"} {
+		want := c.GetDatabase("app").GetTable(name).GetColumn("s")
+		got := reloaded.GetDatabase("app").GetTable(name).GetColumn("s")
+		require.Equal(t, want.Charset, got.Charset, name)
+		require.Equal(t, want.Collation, got.Collation, name)
+	}
+	require.Equal(t, "utf8mb4", reloaded.GetDatabase("app").GetTable("tc").GetColumn("s").Charset)
+	d := Diff(c, reloaded)
+	require.True(t, d.IsEmpty(), GenerateMigration(c, reloaded, d).SQL())
+}
+
+// TestDatabaseMetadataModuloViewNullability pins modulo over NOT NULL
+// operands as mysql:8.0.46 reports it: every form is IS_NULLABLE YES, even n % 2.
+func TestDatabaseMetadataModuloViewNullability(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE tm (n INT NOT NULL, d INT NOT NULL); "+
+		"CREATE VIEW vm AS SELECT n % d AS m1, n MOD d AS m2, MOD(n, d) AS m3, n % 2 AS m4, n + d AS m5 FROM tm;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	cols := c.DatabaseMetadata("app").Schemas[0].Views[0].Columns
+	require.Len(t, cols, 5)
+	for _, col := range cols[:4] {
+		require.True(t, col.Nullable, col.Name)
+	}
+	require.False(t, cols[4].Nullable)
 }

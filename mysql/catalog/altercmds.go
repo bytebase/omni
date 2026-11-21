@@ -1959,8 +1959,10 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if defColl, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
 			tbl.Collation = defColl
 		}
+		pinInheritedColumnCharsets(tbl)
 	case "collate", "default collate":
 		tbl.Collation = opt.Value
+		pinInheritedColumnCharsets(tbl)
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -2673,4 +2675,23 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// pinInheritedColumnCharsets makes a column's charset and collation its own
+// once the table's default no longer gives them: ALTER TABLE ... DEFAULT
+// CHARACTER SET or COLLATE changes no existing column, so a column that
+// inherited utf8mb4 keeps it, and mysql:8.0.46 shows it with its own
+// CHARACTER SET (and COLLATE) from then on.
+func pinInheritedColumnCharsets(tbl *Table) {
+	for _, col := range tbl.Columns {
+		if col == nil || col.Charset == "" {
+			continue
+		}
+		if !col.CharsetExplicit && !strings.EqualFold(col.Charset, tbl.Charset) {
+			col.CharsetExplicit = true
+		}
+		if !col.CollationExplicit && col.Collation != "" && !strings.EqualFold(col.Collation, tbl.Collation) {
+			col.CollationExplicit = true
+		}
+	}
 }

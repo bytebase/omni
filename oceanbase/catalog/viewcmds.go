@@ -613,7 +613,9 @@ func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) b
 		return false
 	case *nodes.FuncCallExpr:
 		switch strings.ToLower(e.Name) {
-		case "nullif", "mod",
+		// MOD follows its operands on oceanbase-ce 4.3.5.6 (see
+		// isAnalyzedExprNullable).
+		case "nullif",
 			"date_add", "date_sub", "adddate", "subdate",
 			"timestampadd", "timestampdiff", "datediff", "timediff", "addtime", "subtime":
 			return true

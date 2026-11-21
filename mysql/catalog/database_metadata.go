@@ -437,7 +437,10 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		if _, rok := e.Right.(*IntervalExprQ); rok {
 			return true
 		}
-		if e.Op == "/" || strings.EqualFold(e.Op, "DIV") {
+		// A zero divisor makes these NULL, so mysql:8.0.46 reports them
+		// nullable over NOT NULL operands: n / d, n DIV d, n % d, n MOD d and
+		// even n % 2 are IS_NULLABLE YES.
+		if e.Op == "/" || e.Op == "%" || strings.EqualFold(e.Op, "DIV") || strings.EqualFold(e.Op, "MOD") {
 			return true
 		}
 		switch strings.ToUpper(e.Op) {

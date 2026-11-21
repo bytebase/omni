@@ -497,7 +497,9 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 		}
 		return false
 	case *FuncCallExprQ:
-		if strings.EqualFold(e.Name, "nullif") || strings.EqualFold(e.Name, "mod") {
+		// MOD follows its operands on oceanbase-ce 4.3.5.6, unlike MySQL:
+		// MOD(n, d), n % d and n MOD d over NOT NULL columns are IS_NULLABLE NO.
+		if strings.EqualFold(e.Name, "nullif") {
 			return true
 		}
 		switch strings.ToLower(e.Name) {

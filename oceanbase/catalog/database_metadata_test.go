@@ -479,12 +479,17 @@ func TestDatabaseMetadataViewOptionsTablespaceAndCharsetExplicit(t *testing.T) {
 	require.Equal(t, "INVOKER", reLocal.SqlSecurity)
 	require.Equal(t, "CASCADED", reloaded.GetDatabase("app").Views["v_cascaded"].CheckOption)
 
+	// A table collation change changes no existing column: oceanbase-ce
+	// 4.3.5.6 keeps a column on its collation after ALTER TABLE ... COLLATE =
+	// utf8mb4_bin and shows it with its own COLLATE.
+	n := NormalizerFor(MySQL80)
+	_, bareBefore := n.ResolveColumnCharsetCollation(reTbl, reTbl.GetColumn("bare_col"))
 	_, err = reloaded.Exec(`ALTER TABLE t_cs COLLATE = utf8mb4_bin;`, nil)
 	require.NoError(t, err)
-	n := NormalizerFor(MySQL80)
 	_, bareColl := n.ResolveColumnCharsetCollation(reTbl, reTbl.GetColumn("bare_col"))
 	_, csColl := n.ResolveColumnCharsetCollation(reTbl, reTbl.GetColumn("cs_col"))
-	require.Equal(t, "utf8mb4_bin", bareColl)
+	require.NotEqual(t, "utf8mb4_bin", bareBefore)
+	require.Equal(t, bareBefore, bareColl)
 	require.Equal(t, "latin1_swedish_ci", csColl)
 }
 
@@ -1451,9 +1456,11 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "double", fnCols["rnd_dbl"].Type)
 	require.Equal(t, "decimal(9,1)", fnCols["trn_d"].Type)
 	require.Equal(t, "bigint", fnCols["mod_i"].Type)
-	require.True(t, fnCols["mod_i"].Nullable)
+	// MOD follows its operands on oceanbase-ce 4.3.5.6: MOD(i, 3) and MOD(d, 3)
+	// over NOT NULL columns are IS_NULLABLE NO (MySQL reports YES).
+	require.False(t, fnCols["mod_i"].Nullable)
 	require.Equal(t, "decimal(10,2)", fnCols["mod_d"].Type)
-	require.True(t, fnCols["mod_d"].Nullable)
+	require.False(t, fnCols["mod_d"].Nullable)
 	require.Equal(t, "bigint", fnCols["len_v"].Type)
 	require.Equal(t, "bigint", fnCols["jv"].Type)
 	require.Equal(t, "datetime(6)", fnCols["fn_now6"].Type)
@@ -1905,4 +1912,42 @@ func TestDatabaseDefinitionSDLKeepsMaterializedViewLog(t *testing.T) {
 	loaded, err := LoadSDL("CREATE DATABASE app; USE app;\n" + sdl)
 	require.NoError(t, err)
 	require.True(t, loaded.DatabaseMetadata("app").Schemas[0].Tables[0].GetHasMaterializedViewLog())
+}
+
+// TestLoadMetadataKeepsColumnCharsetAfterDefaultChange pins a column that
+// inherited its table's charset and kept it when the table default changed:
+// oceanbase-ce 4.3.5.6 shows it with its own CHARACTER SET afterwards, and a reload keeps it.
+func TestLoadMetadataKeepsColumnCharsetAfterDefaultChange(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; "+
+		"CREATE TABLE tc (s VARCHAR(20)) CHARSET=utf8mb4; ALTER TABLE tc DEFAULT CHARACTER SET latin1; "+
+		"CREATE TABLE tc2 (s VARCHAR(20)) CHARSET=utf8mb4; ALTER TABLE tc2 DEFAULT COLLATE utf8mb4_bin;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	reloaded := New()
+	_, err = reloaded.LoadMetadata(context.Background(), c.DatabaseMetadata("app"))
+	require.NoError(t, err)
+	for _, name := range []string{"tc", "tc2"} {
+		want := c.GetDatabase("app").GetTable(name).GetColumn("s")
+		got := reloaded.GetDatabase("app").GetTable(name).GetColumn("s")
+		require.Equal(t, want.Charset, got.Charset, name)
+		require.Equal(t, want.Collation, got.Collation, name)
+	}
+	require.Equal(t, "utf8mb4", reloaded.GetDatabase("app").GetTable("tc").GetColumn("s").Charset)
+	d := Diff(c, reloaded)
+	require.True(t, d.IsEmpty(), GenerateMigration(c, reloaded, d).SQL())
+}
+
+// TestDatabaseMetadataModuloViewNullability pins modulo over NOT NULL
+// operands as oceanbase-ce 4.3.5.6 reports it: MOD follows its operands, so each is IS_NULLABLE NO.
+func TestDatabaseMetadataModuloViewNullability(t *testing.T) {
+	c := New()
+	_, err := c.Exec("CREATE DATABASE app; USE app; CREATE TABLE tm (n INT NOT NULL, d INT NOT NULL); "+
+		"CREATE VIEW vm AS SELECT n % d AS m1, n MOD d AS m2, MOD(n, d) AS m3, n % 2 AS m4, n + d AS m5 FROM tm;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	cols := c.DatabaseMetadata("app").Schemas[0].Views[0].Columns
+	require.Len(t, cols, 5)
+	for _, col := range cols[:4] {
+		require.False(t, col.Nullable, col.Name)
+	}
+	require.False(t, cols[4].Nullable)
 }
