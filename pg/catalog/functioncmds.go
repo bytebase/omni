@@ -31,6 +31,7 @@ type UserProc struct {
 	SetConfig    []string
 	Language     string
 	Body         string
+	HasSqlBody   bool     // SQL-standard body (RETURN / BEGIN ATOMIC) without AS '...'
 	ArgNames     []string // all parameter names (IN+OUT+INOUT+TABLE)
 	ArgModes     []byte   // 'i','o','b','v','t' per parameter; nil if all IN
 	AllArgTypes  []uint32 // all parameter types (IN+OUT+INOUT); nil if no OUT params
@@ -207,6 +208,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// ---------------------------------------------------------------
 	if !hasAsClause && !hasSqlBody {
 		return errInvalidFunctionDefinition("no function body specified")
+	}
+	sqlStandardBody := hasSqlBody && !hasAsClause
+	if sqlStandardBody {
+		body = c.deparseSqlBody(stmt.SqlBody)
 	}
 
 	// ---------------------------------------------------------------
@@ -560,6 +565,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.SetConfig = slices.Clone(setConfig)
 			up.Language = language
 			up.Body = body
+			up.HasSqlBody = sqlStandardBody
 		}
 		existing.Volatile = volatile
 		existing.Parallel = parallel
@@ -639,6 +645,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		SetConfig:    slices.Clone(setConfig),
 		Language:     language,
 		Body:         body,
+		HasSqlBody:   sqlStandardBody,
 		ArgNames:     allArgNames,
 		ArgModes:     storedArgModes,
 		AllArgTypes:  storedAllArgTypes,
@@ -1440,4 +1447,41 @@ func formatFuncSetArgs(args *nodes.List) string {
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+func (c *Catalog) deparseSqlBody(sqlBody nodes.Node) string {
+	if sqlBody == nil {
+		return ""
+	}
+	d := &ruleDeparser{cat: c}
+	switch n := sqlBody.(type) {
+	case *nodes.ReturnStmt:
+		return "RETURN " + d.deparseExpr(n.Returnval)
+	case *nodes.List:
+		stmts := n.Items
+		if len(n.Items) == 1 {
+			if inner, ok := n.Items[0].(*nodes.List); ok {
+				stmts = inner.Items
+			}
+		}
+		var b strings.Builder
+		b.WriteString("BEGIN ATOMIC\n")
+		for _, item := range stmts {
+			var stmtSQL string
+			if ret, ok := item.(*nodes.ReturnStmt); ok {
+				stmtSQL = "RETURN " + d.deparseExpr(ret.Returnval)
+			} else {
+				stmtSQL = d.deparseActionStmt(item)
+			}
+			if stmtSQL != "" {
+				b.WriteByte(' ')
+				b.WriteString(stmtSQL)
+				b.WriteString(";\n")
+			}
+		}
+		b.WriteString("END")
+		return b.String()
+	default:
+		return d.deparseActionStmt(sqlBody)
+	}
 }

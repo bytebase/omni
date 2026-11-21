@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/pg/ast"
 	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
@@ -42,6 +43,9 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 			continue
 		}
 		schemaName := canonicalSchema(rel.SchemaName)
+		if isTempRelation(rel.SchemaName, rel.From) || isTempRelation(rel.SchemaName, rel.To) || isTempSchemaName(schemaName) {
+			continue
+		}
 		if rel.Action == DiffDrop {
 			dropRelation(result, schemaName, rel)
 			continue
@@ -174,8 +178,11 @@ func hasRelationOwnerChange(catBefore, catAfter *Catalog) bool {
 		return false
 	}
 	for _, s := range catAfter.UserSchemas() {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		for _, rel := range s.Relations {
-			if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			if rel.Persistence == 't' || (rel.RelKind != 'r' && rel.RelKind != 'p') {
 				continue
 			}
 			prev := catBefore.GetRelationByOID(rel.OID)
@@ -195,8 +202,11 @@ func applyRelationOwnerChanges(result *metadatapb.DatabaseSchemaMetadata, catBef
 		return
 	}
 	for _, s := range catAfter.UserSchemas() {
+		if isTempSchemaName(s.Name) {
+			continue
+		}
 		for _, rel := range s.Relations {
-			if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			if rel.Persistence == 't' || (rel.RelKind != 'r' && rel.RelKind != 'p') {
 				continue
 			}
 			prev := catBefore.GetRelationByOID(rel.OID)
@@ -219,6 +229,9 @@ func applyFunctionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 	droppedByOID := make(map[uint32]FunctionDiffEntry)
 	addedByOID := make(map[uint32]FunctionDiffEntry)
 	for _, f := range functions {
+		if isTempSchemaName(f.SchemaName) || isTempSchemaName(canonicalSchema(f.SchemaName)) {
+			continue
+		}
 		if f.Action == DiffDrop && f.From != nil && f.From.OID != 0 {
 			droppedByOID[f.From.OID] = f
 		} else if f.Action == DiffAdd && f.To != nil && f.To.OID != 0 {
@@ -236,9 +249,12 @@ func applyFunctionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 		dstSchema := canonicalSchema(addEntry.SchemaName)
 		srcSM := findSchema(result, srcSchema)
 		dstSM := findOrCreateSchema(result, dstSchema)
-		upsertRoutineFromDiff(srcSM, dstSM, catAfter, dropEntry.Identity, addEntry.Identity, addEntry.To)
+		upsertRoutineFromDiff(srcSM, dstSM, catAfter, dropEntry.SchemaName, dropEntry.Identity, addEntry.Identity, dropEntry.From, addEntry.To)
 	}
 	for _, f := range functions {
+		if isTempSchemaName(f.SchemaName) || isTempSchemaName(canonicalSchema(f.SchemaName)) {
+			continue
+		}
 		if (f.From != nil && f.From.OID != 0 && handledOIDs[f.From.OID]) ||
 			(f.To != nil && f.To.OID != 0 && handledOIDs[f.To.OID]) {
 			continue
@@ -248,34 +264,34 @@ func applyFunctionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 		case DiffDrop:
 			if sm := findSchema(result, schemaName); sm != nil {
 				if f.From != nil && f.From.Kind == 'p' {
-					_, sm.Procedures = popProcedureByIdentity(sm.Procedures, f.Identity)
+					_, sm.Procedures = popProcedureMatchingIdentity(sm.Procedures, f.SchemaName, f.Identity)
 				} else {
-					_, sm.Functions = popFunctionByIdentity(sm.Functions, f.Identity)
+					_, sm.Functions = popFunctionMatchingIdentity(sm.Functions, f.SchemaName, f.Identity)
 				}
 			}
 		case DiffAdd:
 			if f.To != nil {
 				sm := findOrCreateSchema(result, schemaName)
-				upsertRoutineFromDiff(nil, sm, catAfter, "", f.Identity, f.To)
+				upsertRoutineFromDiff(nil, sm, catAfter, f.SchemaName, "", f.Identity, nil, f.To)
 			}
 		case DiffModify:
 			if f.To != nil {
 				sm := findOrCreateSchema(result, schemaName)
-				upsertRoutineFromDiff(sm, sm, catAfter, f.Identity, f.Identity, f.To)
+				upsertRoutineFromDiff(sm, sm, catAfter, f.SchemaName, f.Identity, f.Identity, f.From, f.To)
 			}
 		default:
 		}
 	}
 }
 
-func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Catalog, oldIdentity, newIdentity string, to *UserProc) {
+func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Catalog, srcSchema, oldIdentity, newIdentity string, from, to *UserProc) {
 	if to == nil || dstSM == nil {
 		return
 	}
 	if to.Kind == 'p' {
 		var prev *metadatapb.ProcedureMetadata
 		if srcSM != nil && oldIdentity != "" {
-			prev, srcSM.Procedures = popProcedureByIdentity(srcSM.Procedures, oldIdentity)
+			prev, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
 		}
 		p := procedureToProto(catAfter, to, newIdentity)
 		if prev != nil {
@@ -287,13 +303,18 @@ func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Ca
 	}
 	var prev *metadatapb.FunctionMetadata
 	if srcSM != nil && oldIdentity != "" {
-		prev, srcSM.Functions = popFunctionByIdentity(srcSM.Functions, oldIdentity)
+		prev, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
 	}
 	fn := functionToProto(catAfter, to, newIdentity)
+	bodyChanged := from == nil || from.Body != to.Body || from.Language != to.Language || from.HasSqlBody != to.HasSqlBody
+	if bodyChanged {
+		fn.DependencyTables = extractFunctionDependencyTables(catAfter, to)
+	} else if prev != nil {
+		fn.DependencyTables = prev.DependencyTables
+	}
 	if prev != nil {
 		fn.Comment = prev.Comment
 		fn.SkipDump = prev.SkipDump
-		fn.DependencyTables = prev.DependencyTables
 	}
 	dstSM.Functions = append(dstSM.Functions, fn)
 }
@@ -626,19 +647,10 @@ func removeExtensionMembers(result *metadatapb.DatabaseSchemaMetadata, catBefore
 		if up := catBefore.userProcs[oid]; up != nil && up.Schema != nil {
 			if sm := findSchema(result, canonicalSchema(up.Schema.Name)); sm != nil {
 				identity := funcIdentity(catBefore, up)
-				shortIdentity := strings.TrimPrefix(identity, up.Schema.Name+".")
 				if up.Kind == 'p' {
-					var popped *metadatapb.ProcedureMetadata
-					popped, sm.Procedures = popProcedureByIdentity(sm.Procedures, identity)
-					if popped == nil && shortIdentity != identity {
-						_, sm.Procedures = popProcedureByIdentity(sm.Procedures, shortIdentity)
-					}
+					_, sm.Procedures = popProcedureMatchingIdentity(sm.Procedures, up.Schema.Name, identity)
 				} else {
-					var popped *metadatapb.FunctionMetadata
-					popped, sm.Functions = popFunctionByIdentity(sm.Functions, identity)
-					if popped == nil && shortIdentity != identity {
-						_, sm.Functions = popFunctionByIdentity(sm.Functions, shortIdentity)
-					}
+					_, sm.Functions = popFunctionMatchingIdentity(sm.Functions, up.Schema.Name, identity)
 				}
 			}
 		}
@@ -917,6 +929,9 @@ func applySequenceDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 	droppedByOID := make(map[uint32]SequenceDiffEntry)
 	addedByOID := make(map[uint32]SequenceDiffEntry)
 	for _, seq := range sequences {
+		if isTempSequenceDiff(seq, canonicalSchema) {
+			continue
+		}
 		if seq.Action == DiffDrop && seq.From != nil && seq.From.OID != 0 {
 			droppedByOID[seq.From.OID] = seq
 		} else if seq.Action == DiffAdd && seq.To != nil && seq.To.OID != 0 {
@@ -941,6 +956,9 @@ func applySequenceDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 		upsertSequence(findOrCreateSchema(result, dstSchema), updated)
 	}
 	for _, seq := range sequences {
+		if isTempSequenceDiff(seq, canonicalSchema) {
+			continue
+		}
 		if (seq.From != nil && seq.From.OID != 0 && handledOIDs[seq.From.OID]) ||
 			(seq.To != nil && seq.To.OID != 0 && handledOIDs[seq.To.OID]) {
 			continue
@@ -1345,6 +1363,9 @@ func applyForeignTableDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore
 			continue
 		}
 		schemaName := canonicalSchema(rel.SchemaName)
+		if isTempRelation(rel.SchemaName, rel.From) || isTempRelation(rel.SchemaName, rel.To) || isTempSchemaName(schemaName) {
+			continue
+		}
 		if rel.Action == DiffDrop {
 			if sm := findSchema(result, schemaName); sm != nil {
 				sm.ExternalTables = slices.DeleteFunc(sm.ExternalTables, func(ext *metadatapb.ExternalTableMetadata) bool {
@@ -2279,10 +2300,146 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteString(sc)
 		b.WriteByte('\n')
 	}
-	b.WriteString("AS $function$")
-	b.WriteString(up.Body)
-	b.WriteString("$function$\n")
+	if up.HasSqlBody {
+		b.WriteString(up.Body)
+		b.WriteByte('\n')
+	} else {
+		b.WriteString("AS ")
+		b.WriteString(dollarQuoteWithDefault(up.Body, "$function$"))
+		b.WriteByte('\n')
+	}
 	return b.String()
+}
+
+func isTempRelation(schemaName string, rel *Relation) bool {
+	if isTempSchemaName(schemaName) {
+		return true
+	}
+	if rel == nil {
+		return false
+	}
+	return rel.Persistence == 't' || (rel.Schema != nil && isTempSchemaName(rel.Schema.Name))
+}
+
+func isTempSequenceDiff(seq SequenceDiffEntry, canonicalSchema func(string) string) bool {
+	if isTempSchemaName(seq.SchemaName) || isTempSchemaName(canonicalSchema(seq.SchemaName)) {
+		return true
+	}
+	if seq.From != nil && (seq.From.Persistence == 't' || (seq.From.Schema != nil && isTempSchemaName(seq.From.Schema.Name))) {
+		return true
+	}
+	if seq.To != nil && (seq.To.Persistence == 't' || (seq.To.Schema != nil && isTempSchemaName(seq.To.Schema.Name))) {
+		return true
+	}
+	return false
+}
+
+func extractFunctionDependencyTables(cat *Catalog, up *UserProc) []*metadatapb.DependencyTable {
+	if cat == nil || up == nil || (!up.HasSqlBody && !strings.EqualFold(up.Language, "sql")) {
+		return nil
+	}
+	sqlText := functionSQLBodyForDeps(up)
+	if sqlText == "" {
+		return nil
+	}
+	list, err := pgparser.Parse(sqlText)
+	if err != nil || list == nil {
+		return nil
+	}
+	cteNames := make(map[string]bool)
+	nodes.Inspect(list, func(n nodes.Node) bool {
+		if cte, ok := n.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
+			cteNames[cte.Ctename] = true
+		}
+		return true
+	})
+	seen := make(map[string]bool)
+	var deps []*metadatapb.DependencyTable
+	nodes.Inspect(list, func(n nodes.Node) bool {
+		rv, ok := n.(*nodes.RangeVar)
+		if !ok || rv.Relname == "" || (rv.Schemaname == "" && cteNames[rv.Relname]) {
+			return true
+		}
+		var rel *Relation
+		if rv.Schemaname != "" {
+			rel = cat.GetRelation(rv.Schemaname, rv.Relname)
+		} else {
+			rel = cat.GetRelation("", rv.Relname)
+		}
+		if rel == nil || rel.Persistence == 't' || rel.Schema == nil {
+			return true
+		}
+		if rel.Schema.OID == PGCatalogNamespace || rel.Schema.OID == PGToastNamespace || isTempSchemaName(rel.Schema.Name) {
+			return true
+		}
+		key := rel.Schema.Name + "." + rel.Name
+		if !seen[key] {
+			seen[key] = true
+			deps = append(deps, &metadatapb.DependencyTable{
+				Schema: rel.Schema.Name,
+				Table:  rel.Name,
+			})
+		}
+		return true
+	})
+	slices.SortFunc(deps, func(a, b *metadatapb.DependencyTable) int {
+		if a.Schema != b.Schema {
+			return strings.Compare(a.Schema, b.Schema)
+		}
+		return strings.Compare(a.Table, b.Table)
+	})
+	return deps
+}
+
+func functionSQLBodyForDeps(up *UserProc) string {
+	trimmed := strings.TrimSpace(up.Body)
+	if trimmed == "" {
+		return ""
+	}
+	if !up.HasSqlBody {
+		return trimmed
+	}
+	upper := strings.ToUpper(trimmed)
+	if strings.HasPrefix(upper, "RETURN ") {
+		return "SELECT " + strings.TrimSpace(trimmed[len("RETURN "):])
+	}
+	if strings.HasPrefix(upper, "BEGIN ATOMIC") && strings.HasSuffix(upper, "END") {
+		inner := strings.TrimSpace(trimmed[len("BEGIN ATOMIC") : len(trimmed)-len("END")])
+		// Convert any RETURN <expr> lines inside BEGIN ATOMIC into SELECT <expr> so pgparser parses them.
+		var rewritten []string
+		for _, stmt := range strings.Split(inner, ";") {
+			s := strings.TrimSpace(stmt)
+			if s == "" {
+				continue
+			}
+			if strings.HasPrefix(strings.ToUpper(s), "RETURN ") {
+				s = "SELECT " + strings.TrimSpace(s[len("RETURN "):])
+			}
+			rewritten = append(rewritten, s)
+		}
+		return strings.Join(rewritten, "; ")
+	}
+	return trimmed
+}
+
+func popProcedureMatchingIdentity(procs []*metadatapb.ProcedureMetadata, schemaName, identity string) (*metadatapb.ProcedureMetadata, []*metadatapb.ProcedureMetadata) {
+	popped, rest := popProcedureByIdentity(procs, identity)
+	if popped == nil && schemaName != "" {
+		if shortID := strings.TrimPrefix(identity, schemaName+"."); shortID != identity {
+			popped, rest = popProcedureByIdentity(rest, shortID)
+		}
+	}
+	return popped, rest
+}
+
+func popFunctionMatchingIdentity(funcs []*metadatapb.FunctionMetadata, schemaName, identity string) (*metadatapb.FunctionMetadata, []*metadatapb.FunctionMetadata) {
+	popped, rest := popFunctionByIdentity(funcs, identity)
+	if popped == nil && schemaName != "" {
+		if shortID := strings.TrimPrefix(identity, schemaName+"."); shortID != identity {
+			popped, rest = popFunctionByIdentity(rest, shortID)
+		}
+	}
+	return popped, rest
 }
 
 func popProcedureByIdentity(procs []*metadatapb.ProcedureMetadata, identity string) (*metadatapb.ProcedureMetadata, []*metadatapb.ProcedureMetadata) {

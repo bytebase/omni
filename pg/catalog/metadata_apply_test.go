@@ -1919,3 +1919,174 @@ func TestApplyDiffToMetadataRound12Fixes(t *testing.T) {
 		require.Equal(t, "target_role", findSchema(got, "s_reassign").Owner)
 	})
 }
+
+func TestApplyDiffToMetadataRound13Fixes(t *testing.T) {
+	// 1 & 3. SQL-standard routine bodies and safe dollar-quoting tags.
+	t.Run("sql_standard_bodies_and_dollar_quoting", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE FUNCTION public.f_ret(x int) RETURNS int LANGUAGE sql RETURN x + 1;
+			CREATE FUNCTION public.f_atomic(x int) RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN x * 2; END;
+			CREATE FUNCTION public.f_dollar() RETURNS text LANGUAGE sql AS $tag$ SELECT '$function$'; $tag$;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+
+		var retDef, atomicDef, dollarDef string
+		for _, fn := range pub.Functions {
+			switch fn.Name {
+			case "f_ret":
+				retDef = fn.Definition
+			case "f_atomic":
+				atomicDef = fn.Definition
+			case "f_dollar":
+				dollarDef = fn.Definition
+			}
+		}
+		require.Contains(t, retDef, "RETURN (x + 1)")
+		require.NotContains(t, retDef, "$function$$function$")
+		require.Contains(t, atomicDef, "BEGIN ATOMIC")
+		require.Contains(t, atomicDef, "RETURN (x * 2);")
+		require.NotContains(t, atomicDef, "$function$$function$")
+		require.Contains(t, dollarDef, "AS $fn$ SELECT '$function$'; $fn$")
+
+		// Re-loading the applied snapshot must succeed cleanly without syntax errors.
+		reloaded := New()
+		report, err := reloaded.LoadMetadata(context.Background(), got, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+		require.Empty(t, report.Degraded)
+		require.Empty(t, report.Missing)
+	})
+
+	// 2. Replacing a function body updates DependencyTables; metadata-only updates preserve them.
+	t.Run("refresh_function_dependency_tables_on_body_replacement", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "a", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}}},
+					{Name: "b", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}}},
+				},
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:             "read_rel",
+						Signature:        "read_rel()",
+						Definition:       "CREATE FUNCTION public.read_rel() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM public.a $$",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "a"}},
+					},
+					{
+						Name:             "keep_rel",
+						Signature:        "keep_rel()",
+						Definition:       "CREATE FUNCTION public.keep_rel() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM public.a $$",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "a"}},
+					},
+				},
+			}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE OR REPLACE FUNCTION public.read_rel() RETURNS bigint LANGUAGE sql AS $$ SELECT count(*) FROM public.b $$;
+			ALTER FUNCTION public.keep_rel() COST 50;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		for _, fn := range pub.Functions {
+			switch fn.Name {
+			case "read_rel":
+				require.Len(t, fn.DependencyTables, 1)
+				require.Equal(t, "b", fn.DependencyTables[0].Table)
+			case "keep_rel":
+				require.Len(t, fn.DependencyTables, 1)
+				require.Equal(t, "a", fn.DependencyTables[0].Table)
+			}
+		}
+	})
+
+	// 4. Temp relations/views/sequences must not enter persistent applied metadata.
+	t.Run("exclude_temporary_relations_from_metadata", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			CREATE TEMP TABLE tmp_items (id serial);
+			CREATE TEMP VIEW tmp_v AS SELECT 1 AS v;
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		for _, sm := range got.Schemas {
+			require.False(t, isTempSchemaName(sm.Name), "unexpected temp schema %q in metadata", sm.Name)
+		}
+		require.Len(t, got.Schemas, 1)
+		require.Equal(t, "public", got.Schemas[0].Name)
+	})
+
+	// 5. Dropping routines with schema-local signatures removes them cleanly.
+	t.Run("drop_routines_with_schema_local_signature", func(t *testing.T) {
+		meta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "f",
+					Signature:  "f(integer)",
+					Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
+				}},
+				Procedures: []*metadatapb.ProcedureMetadata{{
+					Name:       "p",
+					Signature:  "p(integer)",
+					Definition: "CREATE PROCEDURE public.p(x integer) LANGUAGE sql AS $$ SELECT 1 $$",
+				}},
+			}},
+		}
+		catBefore := New()
+		_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+		require.NoError(t, err)
+
+		catAfter := catBefore.Clone()
+		results, err := catAfter.Exec(`
+			DROP FUNCTION public.f(integer);
+			DROP PROCEDURE public.p(integer);
+		`, &ExecOptions{ContinueOnError: true})
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NoError(t, r.Error, r.SQL)
+		}
+
+		got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+		pub := findSchema(got, "public")
+		require.NotNil(t, pub)
+		require.Empty(t, pub.Functions)
+		require.Empty(t, pub.Procedures)
+	})
+}

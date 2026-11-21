@@ -109,8 +109,13 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	}
 
 	// Body.
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	if proc.HasSqlBody {
+		b.WriteByte('\n')
+		b.WriteString(proc.Body)
+	} else {
+		b.WriteString("\nAS ")
+		b.WriteString(dollarQuote(proc.Body))
+	}
 
 	return MigrationOp{
 		Type:          OpCreateFunction,
@@ -152,8 +157,13 @@ func buildReplaceeFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	b.WriteString(formatFuncAttributes(proc))
 
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	if proc.HasSqlBody {
+		b.WriteByte('\n')
+		b.WriteString(proc.Body)
+	} else {
+		b.WriteString("\nAS ")
+		b.WriteString(dollarQuote(proc.Body))
+	}
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -365,8 +375,13 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		b.WriteString(sc)
 	}
 
-	b.WriteString("\nAS ")
-	b.WriteString(dollarQuote(proc.Body))
+	if proc.HasSqlBody {
+		b.WriteByte('\n')
+		b.WriteString(proc.Body)
+	} else {
+		b.WriteString("\nAS ")
+		b.WriteString(dollarQuote(proc.Body))
+	}
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -446,11 +461,22 @@ func formatReturnsTable(c *Catalog, proc *UserProc) string {
 	return "TABLE(" + strings.Join(cols, ", ") + ")"
 }
 
-// dollarQuote wraps a function body in dollar-quoting.
-// If the body contains $$, uses $fn$...$fn$ instead.
+// dollarQuote wraps a function body in dollar-quoting using $$ when absent
+// from body, or another safe dollar tag.
 func dollarQuote(body string) string {
-	if strings.Contains(body, "$$") {
-		return fmt.Sprintf("$fn$%s$fn$", body)
+	return dollarQuoteWithDefault(body, "$$")
+}
+
+func dollarQuoteWithDefault(body, preferred string) string {
+	for _, tag := range []string{preferred, "$fn$", "$body$"} {
+		if tag != "" && !strings.Contains(body, tag) {
+			return tag + body + tag
+		}
 	}
-	return fmt.Sprintf("$$%s$$", body)
+	for i := 1; ; i++ {
+		tag := fmt.Sprintf("$fn%d$", i)
+		if !strings.Contains(body, tag) {
+			return tag + body + tag
+		}
+	}
 }
