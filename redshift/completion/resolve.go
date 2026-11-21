@@ -28,11 +28,9 @@ func resolve(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOf
 		result = append(result, Candidate{Text: word, Type: CandidateKeyword})
 	}
 
-	// Rule candidates -> catalog objects
-	if cat != nil {
-		for _, rc := range cs.Rules {
-			result = append(result, resolveRule(rc.Rule, cat, sql, cursorOffset)...)
-		}
+	// Rule candidates -> catalog objects and statement-local scopes (CTEs/aliases).
+	for _, rc := range cs.Rules {
+		result = append(result, resolveRule(rc.Rule, cat, sql, cursorOffset)...)
 	}
 
 	return dedup(result)
@@ -59,20 +57,32 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, offset int) []Ca
 
 func resolveRelations(cat *catalog.Catalog, sql string, offset int) []Candidate {
 	if schema := qualifierBeforeCursor(sql, offset); schema != "" {
+		if cat == nil {
+			return nil
+		}
 		return resolveRelationsInSchema(cat, schema)
 	}
 
 	var result []Candidate
-	for _, s := range cat.UserSchemas() {
-		result = append(result, Candidate{Text: s.Name, Type: CandidateSchema})
-		result = append(result, relationCandidatesForSchema(s)...)
+	if cat != nil {
+		for _, s := range cat.UserSchemas() {
+			result = append(result, Candidate{Text: s.Name, Type: CandidateSchema})
+			result = append(result, relationCandidatesForSchema(s)...)
+		}
+		// Include CTE names from the query as table candidates.
+		refs := extractTableRefs(sql, offset)
+		for _, ref := range refs {
+			if ref.Schema == "" && cat.GetRelation("", ref.Table) == nil {
+				// This ref is not a real table — likely a CTE.
+				result = append(result, Candidate{Text: ref.Table, Type: CandidateTable})
+			}
+		}
 	}
-	// Include CTE names from the query as table candidates.
-	refs := extractTableRefs(sql, offset)
-	for _, ref := range refs {
-		if ref.Schema == "" && cat.GetRelation("", ref.Table) == nil {
-			// This ref is not a real table — likely a CTE.
-			result = append(result, Candidate{Text: ref.Table, Type: CandidateTable})
+	if ctx := parser.CollectCompletion(sql, offset); ctx != nil {
+		for _, cte := range ctx.CTEs {
+			if cte.Name != "" && (cat == nil || cat.GetRelation("", cte.Name) == nil) {
+				result = append(result, Candidate{Text: cte.Name, Type: CandidateTable})
+			}
 		}
 	}
 	return result
@@ -129,15 +139,17 @@ func qualifierBeforeCursor(sql string, offset int) string {
 }
 
 func resolveColumns(cat *catalog.Catalog, sql string, offset int) []Candidate {
-	refs := extractTableRefs(sql, offset)
 	var result []Candidate
-	for _, ref := range refs {
-		rel := cat.GetRelation(ref.Schema, ref.Table)
-		if rel == nil {
-			continue
-		}
-		for _, col := range rel.Columns {
-			result = append(result, Candidate{Text: col.Name, Type: CandidateColumn})
+	if cat != nil {
+		refs := extractTableRefs(sql, offset)
+		for _, ref := range refs {
+			rel := cat.GetRelation(ref.Schema, ref.Table)
+			if rel == nil {
+				continue
+			}
+			for _, col := range rel.Columns {
+				result = append(result, Candidate{Text: col.Name, Type: CandidateColumn})
+			}
 		}
 	}
 	result = append(result, resolveVirtualColumns(sql, offset)...)
@@ -221,6 +233,9 @@ func columnRefOutputName(n ast.Node) string {
 }
 
 func resolveFunctions(cat *catalog.Catalog) []Candidate {
+	if cat == nil {
+		return nil
+	}
 	names := cat.AllProcNames()
 	result := make([]Candidate, 0, len(names))
 	for _, name := range names {
