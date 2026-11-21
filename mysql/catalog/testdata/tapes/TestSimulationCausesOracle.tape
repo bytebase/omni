@@ -46540,6 +46540,227 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET @x = SPACE()
+< error
+| 1582 42000 Incorrect parameter count in the call to native function 'SPACE'
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE `ts_bt``` ADD DATAFILE 'ts_bt_a.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT) TABLESPACE `ts_bt```
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `ts_bt``` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLESPACE `ts_bt```
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE ```bt_lead` ADD DATAFILE 'ts_bt_b.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT) TABLESPACE ```bt_lead`
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int DEFAULT NULL
+| ) /*!50100 TABLESPACE ```bt_lead` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLESPACE ```bt_lead`
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLESPACE `ts_bt2``` ADD DATAFILE 'ts_bt_c.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT) TABLESPACE ts_bt2
+< error
+| 3510 HY000 Tablespace ts_bt2 doesn't exist.
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLESPACE `ts_bt2```
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, b, b))))
 < error
 | 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
@@ -57130,6 +57351,113 @@
 < row
 : null
 > exec
+| SET @x = SPACE(3)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|    
+> exec
+| SET @x = SPACE(0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = SPACE(-1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = SPACE(NULL)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = SPACE(2.5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|    
+> exec
+| SET @x = SPACE('3')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|    
+> exec
+| SET @x = SPACE(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|   
+> exec
+| SET @x = SPACE(2.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|   
+> exec
+| SET @x = SPACE('abc')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+|
+> exec
+| SET @x = SPACE(70000000)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
+| SET @x = SPACE(67108865)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: null
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -58087,6 +58415,32 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = (SPACE(1) = ' ')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IFNULL(SPACE(67108865), 'ANSI')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -58597,6 +58951,50 @@
 | SET SESSION time_zone = DEFAULT
 < ok 0 0
 > exec
+| SET SESSION time_zone = '+00:00'
+< ok 0 0
+> exec
+| CREATE TABLE x_tz (a TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00')
+< ok 0 0
+> exec
+| ALTER TABLE `d_qual_own`.`x_tz` MODIFY COLUMN `a` timestamp NULL DEFAULT '2019-12-31 21:00:00+00:00'
+< ok 0 0
+> query
+| SHOW CREATE TABLE x_tz
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| x_tz
+: bytes
+| CREATE TABLE `x_tz` (
+|   `a` timestamp NULL DEFAULT '2019-12-31 21:00:00'
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
+| CREATE TABLESPACE `ts_mig``bt``` ADD DATAFILE 'ts_mig_bt.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE `d_qual_own`.`m_bt` (
+|   `id` int
+| ) TABLESPACE `ts_mig``bt``` ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE m_bt
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| m_bt
+: bytes
+| CREATE TABLE `m_bt` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `ts_mig``bt``` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+> exec
 | SET SESSION time_zone = '+1:0'
 < ok 0 0
 > query
@@ -58804,7 +59202,20 @@
 > exec
 | SET SESSION time_zone = DEFAULT
 < ok 0 0
-> exec ^
+> exec
+| DROP TABLE IF EXISTS m_bt
+< ok 0 0
+> exec
+| DROP TABLESPACE `ts_mig``bt```
+< ok 0 0
+> exec
+| SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x_tz
+< ok 0 0
+> exec
+| SET SESSION time_zone = DEFAULT
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS m_tz

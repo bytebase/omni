@@ -369,7 +369,7 @@ func applyAlteredAutoextendSize(tbl *Table, origEngine string, hasOpt bool, optB
 		tbl.AutoExtendSize = 0
 		return
 	}
-	ts := unquoteTableOption(strings.TrimSpace(tbl.Tablespace))
+	ts := strings.TrimSpace(tbl.Tablespace)
 	if ts != "" && ts != "innodb_file_per_table" {
 		tbl.AutoExtendSize = 0
 	}
@@ -2438,7 +2438,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 			case "engine", "storage engine":
 				pdi.Engine = storedEngineName(opt.Value)
 			case "tablespace":
-				pdi.Tablespace = unquoteTableOption(opt.Value)
+				pdi.Tablespace = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -2455,7 +2455,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 				case "engine", "storage engine":
 					spdi.Engine = storedEngineName(opt.Value)
 				case "tablespace":
-					spdi.Tablespace = unquoteTableOption(opt.Value)
+					spdi.Tablespace = opt.Value
 				case "comment":
 					spdi.Comment = opt.Value
 				}
@@ -2583,7 +2583,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 			case "engine", "storage engine":
 				pdi.Engine = storedEngineName(opt.Value)
 			case "tablespace":
-				pdi.Tablespace = unquoteTableOption(opt.Value)
+				pdi.Tablespace = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -2600,7 +2600,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 				case "engine", "storage engine":
 					spdi.Engine = storedEngineName(opt.Value)
 				case "tablespace":
-					spdi.Tablespace = unquoteTableOption(opt.Value)
+					spdi.Tablespace = opt.Value
 				case "comment":
 					spdi.Comment = opt.Value
 				}

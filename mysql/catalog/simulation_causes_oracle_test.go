@@ -5319,6 +5319,31 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "SET LPAD with two arguments", stmt: "SET @x = LPAD('x', 2)", code: 1582},
 		{name: "SET UNHEX with no argument", stmt: "SET @x = UNHEX()", code: 1582},
 		{name: "SET BIN with two arguments", stmt: "SET @x = BIN(1, 2)", code: 1582},
+		{name: "SET SPACE with no argument", stmt: "SET @x = SPACE()", code: 1582},
+		// A tablespace name keeps a backtick at either end.
+		{
+			name:     "CREATE TABLE in a tablespace whose name ends in a backtick",
+			setup:    []string{"CREATE TABLESPACE `ts_bt``` ADD DATAFILE 'ts_bt_a.ibd'"},
+			stmt:     "CREATE TABLE a (b INT) TABLESPACE `ts_bt```",
+			code:     0,
+			contains: []string{"/*!50100 TABLESPACE `ts_bt``` */"},
+			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE `ts_bt```"},
+		},
+		{
+			name:     "CREATE TABLE in a tablespace whose name starts with a backtick",
+			setup:    []string{"CREATE TABLESPACE ```bt_lead` ADD DATAFILE 'ts_bt_b.ibd'"},
+			stmt:     "CREATE TABLE a (b INT) TABLESPACE ```bt_lead`",
+			code:     0,
+			contains: []string{"/*!50100 TABLESPACE ```bt_lead` */"},
+			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ```bt_lead`"},
+		},
+		{
+			name:    "CREATE TABLE naming a backtick tablespace without its backtick",
+			setup:   []string{"CREATE TABLESPACE `ts_bt2``` ADD DATAFILE 'ts_bt_c.ibd'"},
+			stmt:    "CREATE TABLE z (a INT) TABLESPACE ts_bt2",
+			code:    3510,
+			cleanup: []string{"DROP TABLE IF EXISTS z", "DROP TABLESPACE `ts_bt2```"},
+		},
 		// IF, IFNULL, COALESCE, NULLIF and CASE take the type their branches
 		// aggregate to.
 		{name: "functional index over IF(1, b, b)", stmt: "CREATE TABLE a (b BLOB, t TEXT, v VARCHAR(10), v2 VARCHAR(600), j JSON, g GEOMETRY NOT NULL SRID 0, p POINT NOT NULL SRID 0, i INT, d DATETIME, KEY k ((IF(1, b, b))))", code: 3757},
@@ -6562,6 +6587,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIN(' 7')", "BIN('1e3')", "BIN(X'31')", "BIN(b'101')", "BIN('')", "BIN('   ')", "BIN('0x10')", "BIN(true)", "BIN('-18446744073709551616')",
 		"BIN('-18446744073709551615')", "BIN('+5')", "BIN('--5')", "BIN('-0.5')", "BIN(1e16)", "BIN(_binary'7')",
 		"OCT(8)", "OCT(-1)", "OCT('12')", "OCT(5.5)", "OCT(2.5e0)", "OCT(NULL)",
+		"SPACE(3)", "SPACE(0)", "SPACE(-1)", "SPACE(NULL)", "SPACE(2.5)", "SPACE('3')", "SPACE(1.5e0)", "SPACE(2.5e0)", "SPACE('abc')",
+		"SPACE(70000000)", "SPACE(67108865)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6679,7 +6706,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
 		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
-		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "(BIN(1) = '1')", "(OCT(8) = '10')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "FIND_IN_SET('a', 'a')", "(POWER(2, 2) > 0)", "POWER(2, 2)", "(SQRT(4) = 2)", "SQRT(4)", "(ORD(_ucs2 X'00E9') = 233)", "(SIN(0) = 0)", "(PI() > 3)", "GREATEST(0, 1)", "GREATEST(1, 2.5)", "FIELD('a', 'a')", "FIELD('z', 'a')", "(HEX('1') = '31')", "(HEX(255) = 'FF')", "(LPAD('x', 2, '0') = '0x')", "(RPAD('x', 2, '0') = 'x0')", "(UNHEX('31') = '1')", "(UNHEX('61') = 'A')", "(BIN(1) = '1')", "(OCT(8) = '10')", "(SPACE(1) = ' ')", "IFNULL(SPACE(67108865), 'ANSI')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6965,6 +6992,76 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT"); err != nil {
 		t.Fatalf("mysql SET time_zone: %v", err)
+	}
+
+	// TIMESTAMP defaults compare by instant: the same text written under
+	// +00:00 and +03:00 is two instants, and the migration moves the server's
+	// default to the target's; the same instant written both ways is no change.
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT")
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS x_tz")
+	})
+	for _, stmt := range []string{"SET SESSION time_zone = '+00:00'", "CREATE TABLE x_tz (a TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00')"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	xBase := "CREATE DATABASE `" + curDB + "`; USE `" + curDB + "`;"
+	xFrom, xTo, xSame := New(), New(), New()
+	execAlterClauses(t, xFrom, xBase+" SET time_zone = '+00:00'; CREATE TABLE x_tz (a TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00');")
+	execAlterClauses(t, xTo, xBase+" SET time_zone = '+03:00'; CREATE TABLE x_tz (a TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00');")
+	execAlterClauses(t, xSame, xBase+" SET time_zone = '+03:00'; CREATE TABLE x_tz (a TIMESTAMP NULL DEFAULT '2020-01-01 03:00:00');")
+	if same := GenerateMigration(xFrom, xSame, Diff(xFrom, xSame)); len(same.Ops) != 0 {
+		t.Fatalf("one TIMESTAMP default instant written under two time zones diffed:\n%s", same.SQL())
+	}
+	xPlan := GenerateMigration(xFrom, xTo, Diff(xFrom, xTo))
+	if len(xPlan.Ops) == 0 {
+		t.Fatal("TIMESTAMP defaults three hours apart produced no migration")
+	}
+	for _, op := range xPlan.Ops {
+		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+			t.Fatalf("mysql migration %s: %v", op.SQL, err)
+		}
+	}
+	{
+		var name, create string
+		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE x_tz").Scan(&name, &create); err != nil {
+			t.Fatalf("mysql SHOW CREATE TABLE x_tz: %v", err)
+		}
+		if !strings.Contains(create, "DEFAULT '2019-12-31 21:00:00'") {
+			t.Fatalf("migrated x_tz does not hold the target instant:\n%s\nplan:\n%s", create, xPlan.SQL())
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET SESSION time_zone = DEFAULT"); err != nil {
+		t.Fatalf("mysql SET time_zone: %v", err)
+	}
+
+	// A tablespace name with a backtick in it migrates under its own name.
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS m_bt")
+		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE `ts_mig``bt```")
+	})
+	if _, err := conn.ExecContext(ctx, "CREATE TABLESPACE `ts_mig``bt``` ADD DATAFILE 'ts_mig_bt.ibd'"); err != nil {
+		t.Fatalf("mysql CREATE TABLESPACE: %v", err)
+	}
+	btBase := xBase + " CREATE TABLESPACE `ts_mig``bt``` ADD DATAFILE 'ts_mig_bt.ibd';"
+	btFrom, btTo := New(), New()
+	execAlterClauses(t, btFrom, btBase)
+	execAlterClauses(t, btTo, btBase+" CREATE TABLE m_bt (id INT) TABLESPACE `ts_mig``bt```;")
+	btPlan := GenerateMigration(btFrom, btTo, Diff(btFrom, btTo))
+	for _, op := range btPlan.Ops {
+		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+			t.Fatalf("mysql migration %s: %v", op.SQL, err)
+		}
+	}
+	{
+		var name, create string
+		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE m_bt").Scan(&name, &create); err != nil {
+			t.Fatalf("mysql SHOW CREATE TABLE m_bt: %v\nplan:\n%s", err, btPlan.SQL())
+		}
+		if !strings.Contains(create, "TABLESPACE `ts_mig``bt```") {
+			t.Fatalf("migrated m_bt is not in ts_mig`bt`:\n%s\nplan:\n%s", create, btPlan.SQL())
+		}
 	}
 
 	// MySQL takes an offset's hour and minute with any number of digits and

@@ -107,7 +107,7 @@ func (c *Catalog) parseTableAutoextendSize(raw string, temporary bool, rawTS str
 	// The built-in names are exact: INNODB_SYSTEM and INNODB_FILE_PER_TABLE
 	// are general tablespaces, which refuse AUTOEXTEND_SIZE with 4024 on
 	// mysql:8.0.46.
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts == "innodb_system" {
 		return 0, errAutoextendSizeSystemTablespace()
 	}
@@ -265,7 +265,7 @@ func (c *Catalog) resolveTablespaceDatafileDir(df string) (string, bool) {
 // partition (measured on mysql:8.0.46). Non-InnoDB engines ignore TABLESPACE.
 // General tablespace names are instance-wide and case-sensitive.
 func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, rawTS string) error {
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts == "" {
 		return nil
 	}
@@ -315,7 +315,7 @@ func (c *Catalog) validateInnoDBCompressedTableOption(tableName, rawTS, rowForma
 	if !rfCompressed && keyBlockSize <= 0 {
 		return nil
 	}
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts == "innodb_system" {
 		return &Error{Code: 1478, SQLState: "HY000",
 			Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain a COMPRESSED table", ts)}
@@ -330,7 +330,7 @@ func (c *Catalog) validateInnoDBCompressedTableOption(tableName, rawTS, rowForma
 }
 
 func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlockSize int) error {
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts == "" || ts == "innodb_file_per_table" || ts == "innodb_system" || ts == "innodb_temporary" {
 		return nil
 	}
@@ -366,7 +366,7 @@ func (c *Catalog) validateInnoDBTableBlockSize(rawTS, rowFormat string, keyBlock
 // validateInnoDBTablespaceEncryption checks that an InnoDB table's effective
 // ENCRYPTION setting matches the general tablespace's ENCRYPTION state (3825).
 func (c *Catalog) validateInnoDBTablespaceEncryption(rawTS, tblEncryption string) error {
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts == "" || !c.tablespaces[ts] {
 		return nil
 	}
@@ -394,7 +394,7 @@ func (c *Catalog) validateInnoDBTablespaceEncryption(rawTS, tblEncryption string
 func (c *Catalog) updateTablespaceTablesEncryption(tsName string, encrypted bool) {
 	for _, db := range c.databases {
 		for _, tbl := range db.Tables {
-			if tbl == nil || !isInnoDBEngine(tbl.Engine) || unquoteTableOption(tbl.Tablespace) != tsName {
+			if tbl == nil || !isInnoDBEngine(tbl.Engine) || tbl.Tablespace != tsName {
 				continue
 			}
 			if encrypted {
@@ -407,7 +407,7 @@ func (c *Catalog) updateTablespaceTablesEncryption(tsName string, encrypted bool
 }
 
 func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
-	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	ts := strings.TrimSpace(rawTS)
 	if ts != "" && ts != "innodb_file_per_table" {
 		return errPartitionedTableSharedTablespace()
 	}
@@ -432,7 +432,7 @@ func tableUsesTablespace(tbl *Table, tsName string) bool {
 	if tbl == nil {
 		return false
 	}
-	if isInnoDBEngine(tbl.Engine) && unquoteTableOption(tbl.Tablespace) == tsName {
+	if isInnoDBEngine(tbl.Engine) && tbl.Tablespace == tsName {
 		return true
 	}
 	if tbl.Partitioning != nil {
@@ -440,11 +440,11 @@ func tableUsesTablespace(tbl *Table, tsName string) bool {
 			if pd == nil {
 				continue
 			}
-			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && unquoteTableOption(pd.Tablespace) == tsName {
+			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && pd.Tablespace == tsName {
 				return true
 			}
 			for _, spd := range pd.SubPartitions {
-				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && unquoteTableOption(spd.Tablespace) == tsName {
+				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && spd.Tablespace == tsName {
 					return true
 				}
 			}
@@ -457,7 +457,7 @@ func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
 	if tbl == nil {
 		return
 	}
-	if isInnoDBEngine(tbl.Engine) && unquoteTableOption(tbl.Tablespace) == oldName {
+	if isInnoDBEngine(tbl.Engine) && tbl.Tablespace == oldName {
 		tbl.Tablespace = newName
 	}
 	if tbl.Partitioning != nil {
@@ -465,11 +465,11 @@ func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
 			if pd == nil {
 				continue
 			}
-			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && unquoteTableOption(pd.Tablespace) == oldName {
+			if isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, "")) && pd.Tablespace == oldName {
 				pd.Tablespace = newName
 			}
 			for _, spd := range pd.SubPartitions {
-				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && unquoteTableOption(spd.Tablespace) == oldName {
+				if spd != nil && isInnoDBEngine(effectivePartEngine(tbl.Engine, pd.Engine, spd.Engine)) && spd.Tablespace == oldName {
 					spd.Tablespace = newName
 				}
 			}
@@ -850,7 +850,7 @@ func (c *Catalog) registerMetadataTableTablespaces(tbl *Table) {
 		return
 	}
 	registerTS := func(raw string, encrypted bool) {
-		ts := unquoteTableOption(strings.TrimSpace(raw))
+		ts := strings.TrimSpace(raw)
 		if isBuiltinTablespaceName(ts) {
 			return
 		}
@@ -911,7 +911,7 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, partitionNames []stri
 	}
 	// Only the exact built-in name is file-per-table: a general tablespace named
 	// INNODB_FILE_PER_TABLE answers 1148 on mysql:8.0.46.
-	if tbl.Tablespace != "" && unquoteTableOption(tbl.Tablespace) != "innodb_file_per_table" {
+	if tbl.Tablespace != "" && tbl.Tablespace != "innodb_file_per_table" {
 		return errNotAllowedCommand()
 	}
 	dbName := ""

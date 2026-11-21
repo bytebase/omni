@@ -1426,6 +1426,31 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return userVarValue{kind: userVarString, str: string(runes[:n])}, true, nil
 			}
 			return userVarValue{kind: userVarString, str: string(runes[len(runes)-int(n):])}, true, nil
+		case "space":
+			// SPACE(N) is N spaces: '' for N <= 0, NULL past max_allowed_packet
+			// (64 MiB by default, counted at the character set's narrowest
+			// character), and N rounds as a length does (SPACE(2.5) is 3 spaces
+			// and SPACE(2.5e0) 2) on mysql:8.0.46.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("SPACE")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n, nok := setStringLengthArg(v)
+			switch {
+			case !nok:
+				return userVarValue{}, false, nil
+			case n <= 0:
+				return userVarValue{kind: userVarString, str: ""}, true, nil
+			case n > 67108864:
+				return userVarValue{kind: userVarNull}, true, nil
+			case n > 1<<20:
+				// Too long to build here; the catalog leaves it unevaluated.
+				return userVarValue{}, false, nil
+			}
+			return userVarValue{kind: userVarString, str: strings.Repeat(" ", int(n))}, true, nil
 		case "lpad", "rpad":
 			// LPAD/RPAD: NULL if an argument is NULL or the length is negative;
 			// a string at least that long is cut to it from the left; an empty

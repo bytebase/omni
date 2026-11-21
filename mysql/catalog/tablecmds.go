@@ -1292,7 +1292,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 			case "engine":
 				pdi.Engine = partitionEngineName(opt.Value, declared)
 			case "tablespace":
-				pdi.Tablespace = unquoteTableOption(opt.Value)
+				pdi.Tablespace = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1316,7 +1316,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 				case "engine":
 					spdi.Engine = partitionEngineName(opt.Value, declared)
 				case "tablespace":
-					spdi.Tablespace = unquoteTableOption(opt.Value)
+					spdi.Tablespace = opt.Value
 				case "comment":
 					spdi.Comment = opt.Value
 				}

@@ -826,5 +826,5 @@ func partitionEngine(engine string) string {
 // showTablespaceIdent quotes a tablespace name as SHOW CREATE TABLE does, a
 // backtick in it doubled.
 func showTablespaceIdent(ts string) string {
-	return "`" + strings.ReplaceAll(unquoteTableOption(ts), "`", "``") + "`"
+	return "`" + strings.ReplaceAll(ts, "`", "``") + "`"
 }

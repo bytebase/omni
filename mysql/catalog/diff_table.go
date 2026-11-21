@@ -181,7 +181,7 @@ func canonicalTableEncryption(t *Table) string {
 func canonicalTableTablespace(t *Table) string {
 	// Only the exact lowercase name is the built-in: INNODB_FILE_PER_TABLE is
 	// an ordinary general tablespace name on mysql:8.0.46.
-	ts := unquoteTableOption(strings.TrimSpace(t.Tablespace))
+	ts := strings.TrimSpace(t.Tablespace)
 	if ts == "innodb_file_per_table" {
 		return ""
 	}
