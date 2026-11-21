@@ -114,6 +114,7 @@ func TestAnalyzeCollectionWrite(t *testing.T) {
 	methods := []string{
 		"insertOne", "insertMany", "updateOne", "updateMany",
 		"deleteOne", "deleteMany", "replaceOne",
+		"findOneAndUpdate", "findOneAndReplace", "findOneAndDelete",
 	}
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
@@ -129,7 +130,10 @@ func TestAnalyzeCollectionWrite(t *testing.T) {
 }
 
 func TestAnalyzeCollectionAdmin(t *testing.T) {
-	methods := []string{"createIndex", "dropIndex", "drop"}
+	methods := []string{
+		"createIndex", "createIndexes", "dropIndex", "dropIndexes",
+		"drop", "renameCollection",
+	}
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
 			sa := mustAnalyze(t, "db.users."+method+"({})")
@@ -141,12 +145,26 @@ func TestAnalyzeCollectionAdmin(t *testing.T) {
 }
 
 func TestAnalyzeCollectionRead(t *testing.T) {
-	methods := []string{"getIndexes", "stats", "storageSize"}
+	methods := []string{
+		"getIndexes", "stats", "storageSize",
+		"dataSize", "totalIndexSize", "totalSize", "validate", "latencyStats",
+	}
 	for _, method := range methods {
 		t.Run(method, func(t *testing.T) {
 			sa := mustAnalyze(t, "db.users."+method+"()")
 			if sa.Operation != analysis.OpRead {
 				t.Errorf("%s: Operation = %v, want OpRead", method, sa.Operation)
+			}
+		})
+	}
+}
+
+func TestAnalyzeCollectionUnknown(t *testing.T) {
+	for _, method := range []string{"isCapped", "someUnknownMethod"} {
+		t.Run(method, func(t *testing.T) {
+			sa := mustAnalyze(t, "db.users."+method+"()")
+			if sa.Operation != analysis.OpUnknown {
+				t.Errorf("%s: Operation = %v, want OpUnknown", method, sa.Operation)
 			}
 		})
 	}
@@ -175,12 +193,20 @@ func TestAnalyzeCollectionDistinct(t *testing.T) {
 }
 
 func TestAnalyzeCollectionExplain(t *testing.T) {
-	sa := mustAnalyze(t, `db.users.explain().find()`)
-	if sa.Operation != analysis.OpExplain {
-		t.Errorf("Operation = %v, want OpExplain", sa.Operation)
-	}
-	if sa.Collection != "users" {
-		t.Errorf("Collection = %q, want %q", sa.Collection, "users")
+	for _, input := range []string{
+		`db.users.explain().find()`,
+		`db.users.find({}).explain()`,
+		`db.users.find({}).sort({a: 1}).explain()`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			sa := mustAnalyze(t, input)
+			if sa.Operation != analysis.OpExplain {
+				t.Errorf("Operation = %v, want OpExplain", sa.Operation)
+			}
+			if sa.Collection != "users" {
+				t.Errorf("Collection = %q, want %q", sa.Collection, "users")
+			}
+		})
 	}
 }
 
@@ -447,12 +473,66 @@ func TestAnalyzeDatabaseGetCollectionNames(t *testing.T) {
 }
 
 func TestAnalyzeDatabaseServerStatus(t *testing.T) {
-	sa := mustAnalyze(t, `db.serverStatus()`)
-	if sa == nil {
-		t.Fatal("nil")
+	for _, method := range []string{
+		"getCollectionInfos", "stats", "serverStatus",
+		"serverBuildInfo", "version", "hostInfo", "listCommands",
+		"someUnknownDbMethod",
+	} {
+		t.Run(method, func(t *testing.T) {
+			sa := mustAnalyze(t, "db."+method+"()")
+			if sa == nil {
+				t.Fatal("nil")
+			}
+			if sa.Operation != analysis.OpInfo {
+				t.Errorf("%s: got %v, want OpInfo", method, sa.Operation)
+			}
+			if sa.MethodName != method {
+				t.Errorf("%s: MethodName = %q, want %q", method, sa.MethodName, method)
+			}
+		})
 	}
-	if sa.Operation != analysis.OpInfo {
-		t.Errorf("got %v, want OpInfo", sa.Operation)
+}
+
+func TestAnalyzeAggregateOutAndMerge(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		input     string
+		wantStage string
+	}{
+		{
+			name:      "aggregate with $out",
+			input:     `db.users.aggregate([{$match: {}}, {$out: "output"}])`,
+			wantStage: "$out",
+		},
+		{
+			name:      "aggregate with $merge",
+			input:     `db.users.aggregate([{$match: {}}, {$merge: {into: "output"}}])`,
+			wantStage: "$merge",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sa := mustAnalyze(t, tc.input)
+			if sa.Operation != analysis.OpAggregate {
+				t.Errorf("Operation = %v, want OpAggregate", sa.Operation)
+			}
+			if !slices.Contains(sa.PipelineStages, tc.wantStage) {
+				t.Errorf("PipelineStages = %v, want %q", sa.PipelineStages, tc.wantStage)
+			}
+			if sa.UnsupportedStage != tc.wantStage {
+				t.Errorf("UnsupportedStage = %q, want %q", sa.UnsupportedStage, tc.wantStage)
+			}
+		})
+	}
+}
+
+func TestAnalyzeRsAndShHelp(t *testing.T) {
+	for _, input := range []string{`rs.help()`, `sh.help()`} {
+		t.Run(input, func(t *testing.T) {
+			sa := mustAnalyze(t, input)
+			if sa.Operation != analysis.OpWrite {
+				t.Errorf("%s: Operation = %v, want OpWrite", input, sa.Operation)
+			}
+		})
 	}
 }
 
@@ -604,6 +684,14 @@ func TestAnalyzeMaskingParity(t *testing.T) {
 		{
 			name:           "findOne with dot path key",
 			input:          `db.users.findOne({"contact.phone": "123"})`,
+			wantOp:         analysis.OpFindOne,
+			wantMethod:     "findOne",
+			wantCollection: "users",
+			wantPredicates: []string{"contact.phone"},
+		},
+		{
+			name:           "findOne with bracket collection access and dot path key",
+			input:          `db["users"].findOne({"contact.phone": "123"})`,
 			wantOp:         analysis.OpFindOne,
 			wantMethod:     "findOne",
 			wantCollection: "users",
