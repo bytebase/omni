@@ -65,7 +65,6 @@ func TestPhase1_NewNoOpDispatch(t *testing.T) {
 		{"DropdbStmt", "DROP DATABASE test_db"},
 
 		// Misc DDL
-		{"AlterObjectDependsStmt", "ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION test_ext"},
 		{"CreatePLangStmt", "CREATE LANGUAGE plpgsql"},
 		{"AlterSystemStmt", "ALTER SYSTEM SET max_connections = 200"},
 		{"DropOwnedStmt", "DROP OWNED BY postgres"},
@@ -100,6 +99,24 @@ func TestPhase1_NewNoOpDispatch(t *testing.T) {
 				t.Errorf("expected no error for %s, got: %v", tc.name, err)
 			}
 		})
+	}
+}
+
+// TestPhase1_AlterObjectDepends tests ALTER ... [NO] DEPENDS ON EXTENSION dispatch.
+func TestPhase1_AlterObjectDepends(t *testing.T) {
+	c := New()
+	stmt := parseOne(t, "ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION test_ext")
+	assertErrorCode(t, c.ProcessUtility(stmt), CodeUndefinedObject)
+
+	for _, sql := range []string{
+		"CREATE EXTENSION hstore",
+		"ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION hstore",
+		"ALTER FUNCTION pg_catalog.now() NO DEPENDS ON EXTENSION hstore",
+		"DROP EXTENSION hstore",
+	} {
+		if err := c.ProcessUtility(parseOne(t, sql)); err != nil {
+			t.Fatalf("%s failed: %v", sql, err)
+		}
 	}
 }
 

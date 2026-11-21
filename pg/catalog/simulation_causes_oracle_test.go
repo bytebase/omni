@@ -270,6 +270,80 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE COLLATION FROM missing source rejected with 42704", "missing", "CREATE COLLATION c_bad FROM missing_coll", CodeUndefinedObject},
 		{"CREATE COLLATION FROM default rejected with 42P16", "missing", "CREATE COLLATION c_bad_dfl FROM \"default\"", CodeInvalidObjectDefinition},
 		{"CREATE COLLATION without locale rejected with 42P16", "missing", "CREATE COLLATION c_no_loc (PROVIDER = icu)", CodeInvalidObjectDefinition},
+
+		// AlterObjectDependsStmt: target object resolution before extension lookup.
+		{"ALTER MATERIALIZED VIEW missing DEPENDS ON missing extension", "missing", "ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a", CodeUndefinedTable},
+		{"ALTER MATERIALIZED VIEW missing schema DEPENDS ON missing extension", "missing", "ALTER MATERIALIZED VIEW missing_sch.mv DEPENDS ON EXTENSION a", CodeUndefinedSchema},
+		{"ALTER MATERIALIZED VIEW on table DEPENDS ON missing extension", "table", "ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on index DEPENDS ON missing extension", "index", "ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on view DEPENDS ON missing extension", "missing", "CREATE VIEW v_dep AS SELECT 1;\nALTER MATERIALIZED VIEW v_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on sequence DEPENDS ON missing extension", "missing", "CREATE SEQUENCE s_dep;\nALTER MATERIALIZED VIEW s_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on foreign table DEPENDS ON missing extension", "missing", "CREATE FOREIGN DATA WRAPPER fdw_dep;\nCREATE SERVER srv_dep FOREIGN DATA WRAPPER fdw_dep;\nCREATE FOREIGN TABLE ft_dep (id int) SERVER srv_dep;\nALTER MATERIALIZED VIEW ft_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on partitioned table DEPENDS ON missing extension", "missing", "CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nALTER MATERIALIZED VIEW pt_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW on composite type DEPENDS ON missing extension", "missing", "CREATE TYPE ct_dep AS (id int);\nALTER MATERIALIZED VIEW ct_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER MATERIALIZED VIEW valid DEPENDS ON missing extension", "missing", "CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;\nALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER MATERIALIZED VIEW valid NO DEPENDS ON missing extension", "missing", "CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;\nALTER MATERIALIZED VIEW mv_dep NO DEPENDS ON EXTENSION a", CodeUndefinedObject},
+
+		{"ALTER INDEX missing DEPENDS ON missing extension", "missing", "ALTER INDEX a DEPENDS ON EXTENSION a", CodeUndefinedTable},
+		{"ALTER INDEX missing schema DEPENDS ON missing extension", "missing", "ALTER INDEX missing_sch.idx DEPENDS ON EXTENSION a", CodeUndefinedSchema},
+		{"ALTER INDEX on table DEPENDS ON missing extension", "table", "ALTER INDEX a DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER INDEX on matview DEPENDS ON missing extension", "missing", "CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;\nALTER INDEX mv_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER INDEX on sequence DEPENDS ON missing extension", "missing", "CREATE SEQUENCE s_dep;\nALTER INDEX s_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER INDEX on composite type DEPENDS ON missing extension", "missing", "CREATE TYPE ct_dep AS (id int);\nALTER INDEX ct_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER INDEX valid DEPENDS ON missing extension", "index", "ALTER INDEX a DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER INDEX partitioned DEPENDS ON missing extension", "missing", "CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE INDEX pt_dep_idx ON pt_dep (id);\nALTER INDEX pt_dep_idx DEPENDS ON EXTENSION a", CodeUndefinedObject},
+
+		{"ALTER TRIGGER on missing relation DEPENDS ON missing extension", "missing", "ALTER TRIGGER tr ON missing_rel DEPENDS ON EXTENSION a", CodeUndefinedTable},
+		{"ALTER TRIGGER on missing schema DEPENDS ON missing extension", "missing", "ALTER TRIGGER tr ON missing_sch.t DEPENDS ON EXTENSION a", CodeUndefinedSchema},
+		{"ALTER TRIGGER on index DEPENDS ON missing extension", "index", "ALTER TRIGGER tr ON a DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER TRIGGER on partitioned index DEPENDS ON missing extension", "missing", "CREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE INDEX pt_dep_idx ON pt_dep (id);\nALTER TRIGGER tr ON pt_dep_idx DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER TRIGGER on composite type DEPENDS ON missing extension", "missing", "CREATE TYPE ct_dep AS (id int);\nALTER TRIGGER tr ON ct_dep DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER TRIGGER missing on sequence DEPENDS ON missing extension", "missing", "CREATE SEQUENCE s_dep;\nALTER TRIGGER tr ON s_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER TRIGGER missing on matview DEPENDS ON missing extension", "missing", "CREATE MATERIALIZED VIEW mv_dep AS SELECT 1 AS id;\nALTER TRIGGER tr ON mv_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER TRIGGER missing on table DEPENDS ON missing extension", "table", "ALTER TRIGGER tr ON a DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER TRIGGER valid DEPENDS ON missing extension", "table", "CREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\nCREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION missing_ext", CodeUndefinedObject},
+
+		{"ALTER FUNCTION missing with parens DEPENDS ON missing extension", "missing", "ALTER FUNCTION missing_fn() DEPENDS ON EXTENSION a", CodeUndefinedFunction},
+		{"ALTER FUNCTION missing without parens DEPENDS ON missing extension", "missing", "ALTER FUNCTION missing_fn DEPENDS ON EXTENSION a", CodeUndefinedFunction},
+		{"ALTER FUNCTION missing schema DEPENDS ON missing extension", "missing", "ALTER FUNCTION missing_sch.fn() DEPENDS ON EXTENSION a", CodeUndefinedSchema},
+		{"ALTER FUNCTION missing parameter type DEPENDS ON missing extension", "missing", "ALTER FUNCTION fn(missing_type) DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER FUNCTION overloaded without args rejected with 42725", "missing", "CREATE FUNCTION ovl_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION ovl_dep(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION ovl_dep DEPENDS ON EXTENSION a", CodeAmbiguousFunction},
+		{"ALTER FUNCTION disambiguates function vs procedure without args", "missing", "CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION mix_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER PROCEDURE disambiguates procedure vs function without args", "missing", "CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';\nALTER PROCEDURE mix_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER ROUTINE ambiguous across function and procedure without args", "missing", "CREATE FUNCTION mix_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE PROCEDURE mix_dep(text) LANGUAGE sql AS 'SELECT 1';\nALTER ROUTINE mix_dep DEPENDS ON EXTENSION a", CodeAmbiguousFunction},
+		{"ALTER FUNCTION without args across schemas with distinct signatures rejected with 42725", "missing", "CREATE SCHEMA s1_dep;\nCREATE SCHEMA s2_dep;\nCREATE FUNCTION s1_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION s2_dep.sp_dep(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nSET search_path = s1_dep, s2_dep, public;\nALTER FUNCTION sp_dep DEPENDS ON EXTENSION a", CodeAmbiguousFunction},
+		{"ALTER FUNCTION without args masks identical signature in later schema", "missing", "CREATE SCHEMA s1_dep;\nCREATE SCHEMA s2_dep;\nCREATE FUNCTION s1_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION s2_dep.sp_dep(int) RETURNS int LANGUAGE sql AS 'SELECT 2';\nSET search_path = s1_dep, s2_dep, public;\nALTER FUNCTION sp_dep DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER FUNCTION on procedure with parens rejected with 42809", "missing", "CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION pr_dep() DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER FUNCTION on procedure without parens rejected with 42883", "missing", "CREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION pr_dep DEPENDS ON EXTENSION a", CodeUndefinedFunction},
+		{"ALTER PROCEDURE on function with parens rejected with 42809", "missing", "CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER PROCEDURE fn_dep() DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER PROCEDURE on function without parens rejected with 42883", "missing", "CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER PROCEDURE fn_dep DEPENDS ON EXTENSION a", CodeUndefinedFunction},
+		{"ALTER PROCEDURE on aggregate rejected with 42809", "missing", "CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);\nALTER PROCEDURE agg_dep(int) DEPENDS ON EXTENSION a", CodeWrongObjectType},
+		{"ALTER FUNCTION on aggregate resolves before missing extension", "missing", "CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);\nALTER FUNCTION agg_dep(int) DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER ROUTINE on aggregate resolves before missing extension", "missing", "CREATE AGGREGATE agg_dep(int) (SFUNC = int4pl, STYPE = int);\nALTER ROUTINE agg_dep(int) DEPENDS ON EXTENSION a", CodeUndefinedObject},
+		{"ALTER FUNCTION on builtin resolves before missing extension", "missing", "ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION a", CodeUndefinedObject},
+
+		// AlterObjectDependsStmt: idempotency, lifecycle, DROP EXTENSION, direct DROP, and DROP OWNED.
+		{"ALTER DEPENDS and NO DEPENDS are idempotent on PG17", "missing", "CREATE EXTENSION hstore;\nCREATE FUNCTION fn_idem() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION fn_idem() DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_idem() DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_idem() NO DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_idem() NO DEPENDS ON EXTENSION hstore", "0"},
+		{"ALTER DEPENDS and NO DEPENDS on direct extension member keeps extension membership", "missing", "CREATE EXTENSION citext;\nALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION citext;\nALTER FUNCTION citext_eq(citext, citext) NO DEPENDS ON EXTENSION citext;\nDROP FUNCTION citext_eq(citext, citext)", CodeDependentObjects},
+		{"ALTER DEPENDS on builtin blocks DROP EXTENSION CASCADE until NO DEPENDS", "missing", "CREATE EXTENSION hstore;\nALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", CodeDependentObjects},
+		{"ALTER NO DEPENDS on builtin unblocks DROP EXTENSION", "missing", "CREATE EXTENSION hstore;\nALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION hstore;\nALTER FUNCTION pg_catalog.now() NO DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", "0"},
+		{"DROP EXTENSION auto-drops matview index function procedure trigger without CASCADE", "table", "CREATE EXTENSION hstore;\nCREATE INDEX idx_dep ON a (c);\nCREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;\nCREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\nCREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nCREATE CONSTRAINT TRIGGER ctr_dep AFTER INSERT ON a DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nALTER INDEX idx_dep DEPENDS ON EXTENSION hstore;\nALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;\nALTER PROCEDURE pr_dep() DEPENDS ON EXTENSION hstore;\nALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION hstore;\nALTER TRIGGER ctr_dep ON a DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", "0"},
+		{"DROP EXTENSION RESTRICT blocked by view on auto-extension matview", "table", "CREATE EXTENSION hstore;\nCREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;\nALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;\nCREATE VIEW v_ext AS SELECT b FROM mv_dep;\nDROP EXTENSION hstore", CodeDependentObjects},
+		{"DROP EXTENSION CASCADE drops view on auto-extension matview and function", "table", "CREATE EXTENSION hstore;\nCREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;\nCREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;\nCREATE VIEW v_ext AS SELECT b, fn_dep() AS x FROM mv_dep;\nDROP EXTENSION hstore CASCADE", "0"},
+		{"DROP EXTENSION RESTRICT blocked by constraint-backed index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pk_dep (id int PRIMARY KEY);\nALTER INDEX pk_dep_pkey DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", CodeDependentObjects},
+		{"DROP EXTENSION CASCADE drops constraint on constraint-backed index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pk_dep (id int PRIMARY KEY);\nALTER INDEX pk_dep_pkey DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", "0"},
+		{"DROP EXTENSION RESTRICT blocked by FK on auto-extension unique index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE p_dep (id int);\nCREATE UNIQUE INDEX p_dep_uidx ON p_dep (id);\nCREATE TABLE c_dep (pid int REFERENCES p_dep(id));\nALTER INDEX p_dep_uidx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", CodeDependentObjects},
+		{"DROP EXTENSION CASCADE drops FK on auto-extension unique index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE p_dep (id int);\nCREATE UNIQUE INDEX p_dep_uidx ON p_dep (id);\nCREATE TABLE c_dep (pid int REFERENCES p_dep(id));\nALTER INDEX p_dep_uidx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", "0"},
+		{"DROP EXTENSION CASCADE blocked on partition child index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);\nCREATE INDEX pt_dep_idx ON ONLY pt_dep (id);\nCREATE INDEX pt_dep_1_idx ON pt_dep_1 (id);\nALTER INDEX pt_dep_idx ATTACH PARTITION pt_dep_1_idx;\nALTER INDEX pt_dep_1_idx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", CodeDependentObjects},
+		{"DROP EXTENSION RESTRICT drops parent partitioned index and child index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);\nCREATE INDEX pt_dep_idx ON ONLY pt_dep (id);\nCREATE INDEX pt_dep_1_idx ON pt_dep_1 (id);\nALTER INDEX pt_dep_idx ATTACH PARTITION pt_dep_1_idx;\nALTER INDEX pt_dep_idx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore;\nCREATE INDEX pt_dep_1_idx ON pt_dep_1 (id)", "0"},
+		{"DROP EXTENSION RESTRICT blocked by FK on partition child index of auto-extension parent index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);\nCREATE UNIQUE INDEX pt_dep_uidx ON ONLY pt_dep (id);\nCREATE UNIQUE INDEX pt_dep_1_uidx ON pt_dep_1 (id);\nALTER INDEX pt_dep_uidx ATTACH PARTITION pt_dep_1_uidx;\nCREATE TABLE fk_child (pid int REFERENCES pt_dep_1(id));\nALTER INDEX pt_dep_uidx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", CodeDependentObjects},
+		{"DROP EXTENSION CASCADE drops FK on partition child index of auto-extension parent index", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);\nCREATE UNIQUE INDEX pt_dep_uidx ON ONLY pt_dep (id);\nCREATE UNIQUE INDEX pt_dep_1_uidx ON pt_dep_1 (id);\nALTER INDEX pt_dep_uidx ATTACH PARTITION pt_dep_1_uidx;\nCREATE TABLE fk_child (pid int REFERENCES pt_dep_1(id));\nALTER INDEX pt_dep_uidx DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", "0"},
+		{"DROP EXTENSION CASCADE blocked on partition child trigger", "missing", "CREATE EXTENSION hstore;\nCREATE TABLE pt_dep (id int) PARTITION BY RANGE (id);\nCREATE TABLE pt_dep_1 PARTITION OF pt_dep FOR VALUES FROM (0) TO (10);\nCREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\nCREATE TRIGGER pt_tr BEFORE INSERT ON pt_dep FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nALTER TRIGGER pt_tr ON pt_dep_1 DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", CodeDependentObjects},
+		{"DROP EXTENSION RESTRICT blocked when member of another extension depends on it", "missing", "CREATE EXTENSION citext;\nCREATE EXTENSION hstore;\nALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore", CodeDependentObjects},
+		{"DROP EXTENSION CASCADE cascades to extension whose member depends on it", "missing", "CREATE EXTENSION citext;\nCREATE EXTENSION hstore;\nALTER FUNCTION citext_eq(citext, citext) DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore CASCADE", "0"},
+		{"direct DROP of auto-extension objects succeeds and cleans up before DROP EXTENSION", "table", "CREATE EXTENSION hstore;\nCREATE INDEX idx_dep ON a (c);\nCREATE MATERIALIZED VIEW mv_dep AS SELECT b FROM a;\nCREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE PROCEDURE pr_dep() LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION rt_dep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\nCREATE TRIGGER tr_dep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nALTER INDEX idx_dep DEPENDS ON EXTENSION hstore;\nALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore;\nALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore;\nALTER PROCEDURE pr_dep() DEPENDS ON EXTENSION hstore;\nALTER ROUTINE rt_dep() DEPENDS ON EXTENSION hstore;\nALTER TRIGGER tr_dep ON a DEPENDS ON EXTENSION hstore;\nDROP INDEX idx_dep;\nDROP MATERIALIZED VIEW mv_dep;\nDROP FUNCTION fn_dep();\nDROP PROCEDURE pr_dep();\nDROP ROUTINE rt_dep();\nDROP TRIGGER tr_dep ON a;\nDROP EXTENSION hstore", "0"},
+		{"CREATE OR REPLACE FUNCTION and TRIGGER clear auto-extension dependency", "table", "CREATE EXTENSION hstore;\nCREATE FUNCTION fn_rep() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION tr_fn_dep() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\nCREATE TRIGGER tr_rep BEFORE INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nALTER FUNCTION fn_rep() DEPENDS ON EXTENSION hstore;\nALTER TRIGGER tr_rep ON a DEPENDS ON EXTENSION hstore;\nCREATE OR REPLACE FUNCTION fn_rep() RETURNS int LANGUAGE sql AS 'SELECT 2';\nCREATE OR REPLACE TRIGGER tr_rep AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION tr_fn_dep();\nDROP EXTENSION hstore;\nDROP FUNCTION fn_rep();\nDROP TRIGGER tr_rep ON a", "0"},
+		{"DROP OWNED auto-drops dependents of owned extension and drops owned auto-extension objects", "missing", "CREATE ROLE dep_role SUPERUSER;\nSET ROLE dep_role;\nCREATE EXTENSION btree_gist;\nRESET ROLE;\nCREATE FUNCTION fn_on_role_ext() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION fn_on_role_ext() DEPENDS ON EXTENSION btree_gist;\nDROP OWNED BY dep_role RESTRICT;\nCREATE EXTENSION hstore;\nSET ROLE dep_role;\nCREATE FUNCTION role_fn() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION role_fn() DEPENDS ON EXTENSION hstore;\nRESET ROLE;\nDROP OWNED BY dep_role RESTRICT;\nDROP ROLE dep_role;\nDROP EXTENSION hstore", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -5707,6 +5781,44 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rem := GenerateMigration(c125From, c125To, Diff(c125From, c125To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c125From->c125To, got:\n%s", rem.SQL())
+		}
+
+		// AlterObjectDependsStmt: Clone() isolates DepAutoExtension state and
+		// ALTER EXTENSION SET SCHEMA leaves auto-extension objects in place.
+		cDep := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION hstore",
+			"CREATE SCHEMA s_ext_target",
+			"CREATE TABLE t_dep (id int)",
+			"CREATE INDEX idx_dep ON t_dep (id)",
+			"CREATE MATERIALIZED VIEW mv_dep AS SELECT id FROM t_dep",
+			"CREATE FUNCTION fn_dep() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"ALTER INDEX idx_dep DEPENDS ON EXTENSION hstore",
+			"ALTER MATERIALIZED VIEW mv_dep DEPENDS ON EXTENSION hstore",
+			"ALTER FUNCTION fn_dep() DEPENDS ON EXTENSION hstore",
+		} {
+			if code := simulationCatalogCode(t, cDep, stmt); code != "0" {
+				t.Fatalf("cDep %s: %s", stmt, code)
+			}
+		}
+		cloned := cDep.Clone()
+		if code := simulationCatalogCode(t, cloned, "ALTER FUNCTION fn_dep() NO DEPENDS ON EXTENSION hstore;\nDROP EXTENSION hstore"); code != "0" {
+			t.Fatalf("cloned DROP EXTENSION: %s", code)
+		}
+		if len(cloned.userProcs) == 0 || cloned.GetRelation("public", "mv_dep") != nil || cloned.GetSchema("public").Indexes["idx_dep"] != nil {
+			t.Fatalf("cloned DROP EXTENSION did not drop only remaining auto-extension objects")
+		}
+		if code := simulationCatalogCode(t, cDep, "ALTER EXTENSION hstore SET SCHEMA s_ext_target"); code != "0" {
+			t.Fatalf("cDep ALTER EXTENSION SET SCHEMA: %s", code)
+		}
+		if cDep.GetRelation("public", "mv_dep") == nil || cDep.GetSchema("public").Indexes["idx_dep"] == nil {
+			t.Fatalf("expected ALTER EXTENSION SET SCHEMA not to relocate auto-extension objects")
+		}
+		if code := simulationCatalogCode(t, cDep, "DROP EXTENSION hstore"); code != "0" {
+			t.Fatalf("cDep DROP EXTENSION: %s", code)
+		}
+		if cDep.GetRelation("public", "mv_dep") != nil || cDep.GetSchema("public").Indexes["idx_dep"] != nil {
+			t.Fatalf("expected original cDep to retain DepAutoExtension across Clone mutation")
 		}
 	})
 

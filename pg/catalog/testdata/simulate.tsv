@@ -248,8 +248,8 @@ ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_MATERI
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
 42P01	42P01	engine	one_table@missing	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
 42P01	42P01	engine	one_table@missing	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
-ok	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
-ok	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+42P01	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42P01	42P01	engine	one_table@missing	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
 42P01	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
 42P01	42P01	engine	one_table@missing	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
@@ -519,8 +519,8 @@ ok:a2f9524d0d08	ok:a2f9524d0d08	engine	one_table@table	index_elem/(_a_expr_)_ind
 42704	42704	engine	one_table@table	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
 42703	42703	engine	one_table@table	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
 42703	42703	engine	one_table@table	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
-ok	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
-ok	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+42809	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	one_table@table	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
 3F000	3F000	engine	one_table@table	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
 3F000	3F000	engine	one_table@table	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
 42809	42809	engine	one_table@table	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
@@ -790,8 +790,8 @@ ok:01a2a42ac091	ok:01a2a42ac091	engine	one_table@column	index_including_params/i
 42704	42704	engine	one_table@column	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
 ok:ab5714256edb	ok:ab5714256edb	engine	one_table@column	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
 42P16	42P16	engine	one_table@column	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
-ok	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
-ok	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+42809	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42809	42809	engine	one_table@column	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
 3F000	3F000	engine	one_table@column	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
 3F000	3F000	engine	one_table@column	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
 42809	42809	engine	one_table@column	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a
@@ -1061,8 +1061,8 @@ ok:d8f1625d47fc	ok:d8f1625d47fc	engine	one_table@index	object_type_any_name/INDE
 42704	42704	engine	one_table@index	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE IF EXISTS a RENAME CONSTRAINT a TO a
 42809	42809	engine	one_table@index	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
 42809	42809	engine	one_table@index	opt_set_data/SET_DATA_P	ALTER TABLE a ALTER a SET DATA TYPE a
-ok	42809	engine	one_table@index	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
-ok	42704	engine	one_table@index	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
+42809	42809	engine	one_table@index	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+42704	42704	engine	one_table@index	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
 42809	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_TABLE_relation_expr_SET_SCHEMA_name	ALTER TABLE a SET SCHEMA a
 42809	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_SET_SCHEMA_name	ALTER TABLE IF EXISTS a SET SCHEMA a
 42809	42809	engine	one_table@index	AlterObjectSchemaStmt/ALTER_SEQUENCE_qualified_name_SET_SCHEMA_name	ALTER SEQUENCE a SET SCHEMA a

@@ -284,6 +284,23 @@ func New() *Catalog {
 	c.addBuiltinSchema(PGToastNamespace, "pg_toast")
 	c.addBuiltinSchema(PublicNamespace, "public")
 
+	// Register the built-in plpgsql extension pre-installed by initdb.
+	// Like addBuiltinSchema above, OwnerName stays "" because initdb creates
+	// plpgsql (oid < FirstNormalObjectId) with zero pg_shdepend rows and pins
+	// BOOTSTRAP_SUPERUSERID, so DROP OWNED / REASSIGN OWNED never drop or
+	// reassign the built-in plpgsql extension.
+	// pg: src/bin/initdb/initdb.c — setup_plpgsql
+	// pg: src/backend/catalog/pg_shdepend.c — shdepDropOwned, shdepReassignOwned
+	plpgsqlExt := &Extension{
+		OID:         13667,
+		Name:        "plpgsql",
+		SchemaOID:   PGCatalogNamespace,
+		Relocatable: false,
+		Version:     "1.0",
+	}
+	c.extensions[plpgsqlExt.OID] = plpgsqlExt
+	c.extByName[plpgsqlExt.Name] = plpgsqlExt
+
 	// Register built-in access methods using PG's real OIDs.
 	// pg: src/include/catalog/pg_am.dat
 	for _, am := range []AccessMethod{

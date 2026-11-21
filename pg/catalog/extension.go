@@ -29,10 +29,12 @@ type Extension struct {
 // pg: src/backend/commands/extension.c — CreateExtension
 func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	// IF NOT EXISTS check.
-	if c.extByName[stmt.Extname] != nil {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip,
-				fmt.Sprintf("extension %q already exists, skipping", stmt.Extname))
+	if existing := c.extByName[stmt.Extname]; existing != nil {
+		if stmt.IfNotExists || (c.installingSnapshot && existing.OID < FirstNormalObjectId) {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip,
+					fmt.Sprintf("extension %q already exists, skipping", stmt.Extname))
+			}
 			return nil
 		}
 		return errDuplicateObject("extension", stmt.Extname)
@@ -61,10 +63,16 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	}
 
 	// Resolve target schema.
-	// Default: first in search path (typically "public").
-	targetSchema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return err
+	// Default: first in search path (typically "public"), or pg_catalog for plpgsql.
+	var targetSchema *Schema
+	var err error
+	if schemaName == "" && stmt.Extname == "plpgsql" {
+		targetSchema = c.schemas[PGCatalogNamespace]
+	} else {
+		targetSchema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// An extension without a bundled script is registered with no objects.
@@ -145,7 +153,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		Name:        stmt.Extname,
 		SchemaOID:   targetSchema.OID,
 		OwnerName:   c.currentOwner(),
-		Relocatable: true,
+		Relocatable: stmt.Extname != "plpgsql",
 		Version:     version,
 	}
 	c.extensions[ext.OID] = ext
@@ -163,6 +171,7 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
 	var exts []*Extension
 	dropExtNames := map[string]bool{}
+	dropExtOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		_, extName := extractDropObjectName(obj)
 		ext := c.extByName[extName]
@@ -178,11 +187,40 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		}
 		if !dropExtNames[ext.Name] {
 			dropExtNames[ext.Name] = true
+			dropExtOIDs[ext.OID] = true
 			exts = append(exts, ext)
 		}
 	}
 	if len(exts) == 0 {
 		return nil
+	}
+
+	autoExtOIDs := map[uint32]bool{}
+	for changed := true; changed; {
+		changed = false
+		for _, d := range c.deps {
+			if d.RefType != 'e' || !dropExtOIDs[d.RefOID] || d.DepType != DepAutoExtension {
+				continue
+			}
+			if d.ObjOID < FirstNormalObjectId {
+				return &Error{
+					Code:    CodeDependentObjects,
+					Message: "cannot drop system object because it is required by the database system",
+				}
+			}
+			autoExtOIDs[d.ObjOID] = true
+			if ownerExtName := c.extensionMembers[d.ObjOID]; ownerExtName != "" && !dropExtNames[ownerExtName] {
+				if !cascade {
+					return errDependentObjects("extension", exts[0].Name)
+				}
+				if ownerExt := c.extByName[ownerExtName]; ownerExt != nil {
+					dropExtNames[ownerExtName] = true
+					dropExtOIDs[ownerExt.OID] = true
+					exts = append(exts, ownerExt)
+					changed = true
+				}
+			}
+		}
 	}
 
 	inExtDrop := func(oid uint32) bool {
@@ -217,13 +255,13 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			extSchemaOIDs[s.OID] = true
 		}
 		for _, rel := range s.Relations {
-			if inExtDrop(rel.OID) {
+			if inExtDrop(rel.OID) || autoExtOIDs[rel.OID] {
 				rels = append(rels, memberRel{schema: s, rel: rel})
 				relOIDs[rel.OID] = true
 			}
 		}
 		for _, idx := range s.Indexes {
-			if inExtDrop(idx.OID) {
+			if inExtDrop(idx.OID) || autoExtOIDs[idx.OID] {
 				idxs = append(idxs, memberIdx{schema: s, idx: idx})
 				idxOIDs[idx.OID] = true
 			}
@@ -235,14 +273,61 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			}
 		}
 	}
+	sort.Slice(rels, func(i, j int) bool { return rels[i].rel.OID < rels[j].rel.OID })
+	sort.Slice(idxs, func(i, j int) bool { return idxs[i].idx.OID < idxs[j].idx.OID })
+	sort.Slice(seqs, func(i, j int) bool { return seqs[i].seq.OID < seqs[j].seq.OID })
+	for changed := true; changed; {
+		changed = false
+		for oid, child := range c.indexes {
+			if child != nil && child.Schema != nil && child.ParentIndexOID != 0 && idxOIDs[child.ParentIndexOID] && !idxOIDs[oid] {
+				idxOIDs[oid] = true
+				idxs = append(idxs, memberIdx{schema: child.Schema, idx: child})
+				changed = true
+			}
+		}
+	}
+	sort.Slice(idxs, func(i, j int) bool { return idxs[i].idx.OID < idxs[j].idx.OID })
+	var trigs []*Trigger
+	trigOIDs := map[uint32]bool{}
+	for oid, trig := range c.triggers {
+		if trig != nil && (inExtDrop(oid) || autoExtOIDs[oid]) {
+			trigs = append(trigs, trig)
+			trigOIDs[oid] = true
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for oid, child := range c.triggers {
+			if child != nil && child.ParentTriggerOID != 0 && trigOIDs[child.ParentTriggerOID] && !trigOIDs[oid] {
+				trigOIDs[oid] = true
+				trigs = append(trigs, child)
+				changed = true
+			}
+		}
+	}
+	sort.Slice(trigs, func(i, j int) bool { return trigs[i].OID < trigs[j].OID })
+	for _, x := range idxs {
+		if x.idx.ParentIndexOID != 0 && !idxOIDs[x.idx.ParentIndexOID] && !relOIDs[x.idx.RelOID] {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop index %q because parent index requires it", x.idx.Name),
+			}
+		}
+	}
+	for _, trig := range trigs {
+		if trig.ParentTriggerOID != 0 && !trigOIDs[trig.ParentTriggerOID] && !relOIDs[trig.RelOID] {
+			return errDependentObjects("trigger", trig.Name)
+		}
+	}
 	var procs []*UserProc
 	procOIDs := map[uint32]bool{}
 	for _, proc := range c.userProcs {
-		if inExtDrop(proc.OID) {
+		if inExtDrop(proc.OID) || autoExtOIDs[proc.OID] {
 			procs = append(procs, proc)
 			procOIDs[proc.OID] = true
 		}
 	}
+	sort.Slice(procs, func(i, j int) bool { return procs[i].OID < procs[j].OID })
 	var types []*BuiltinType
 	typeOIDs := map[uint32]bool{}
 	seenPrimary := map[uint32]bool{}
@@ -290,6 +375,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			extAccessMethodOIDs = append(extAccessMethodOIDs, oid)
 		}
 		if c.userProcs[oid] != nil {
+			extFunctionOIDs = append(extFunctionOIDs, oid)
+		}
+	}
+	for oid := range procOIDs {
+		if !inExtDrop(oid) {
 			extFunctionOIDs = append(extFunctionOIDs, oid)
 		}
 	}
@@ -380,7 +470,8 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		if owner := c.extensionCasts[key]; owner != "" && dropExtNames[owner] {
 			continue // the cast goes with the extension that created it
 		}
-		if inExtDrop(cast.Source) || inExtDrop(cast.Target) || (cast.Func != 0 && inExtDrop(cast.Func)) {
+		if inExtDrop(cast.Source) || typeOIDs[cast.Source] || inExtDrop(cast.Target) || typeOIDs[cast.Target] ||
+			(cast.Func != 0 && (inExtDrop(cast.Func) || procOIDs[cast.Func])) {
 			externalCasts = append(externalCasts, key)
 		}
 	}
@@ -409,9 +500,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		case 'c':
 			return domConOIDs[objOID] || (c.constraints[objOID] != nil && relOIDs[c.constraints[objOID].RelOID])
 		case 'g':
-			return c.triggers[objOID] != nil && relOIDs[c.triggers[objOID].RelOID]
+			return trigOIDs[objOID] || (c.triggers[objOID] != nil && relOIDs[c.triggers[objOID].RelOID])
 		case 'p':
 			return c.policies[objOID] != nil && relOIDs[c.policies[objOID].RelOID]
+		case 'R':
+			return c.rules[objOID] != nil && relOIDs[c.rules[objOID].OwnerRelOID]
 		case 'm':
 			return inExtDrop(objOID)
 		case 'q':
@@ -447,6 +540,25 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 							return errDependentObjects("extension", extLabel)
 						}
 					}
+				}
+			}
+		}
+		for _, x := range idxs {
+			if x.idx.ConstraintOID != 0 && !inDropSet('c', x.idx.ConstraintOID) {
+				return errDependentObjects("extension", extLabel)
+			}
+			for _, refClass := range []byte{'r', 'i'} {
+				for _, dep := range c.findNormalDependents(refClass, x.idx.OID) {
+					if !inDropSet(dep.ObjType, dep.ObjOID) {
+						return errDependentObjects("extension", extLabel)
+					}
+				}
+			}
+		}
+		for _, trig := range trigs {
+			for _, dep := range c.findNormalDependents('g', trig.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
 				}
 			}
 		}
@@ -686,6 +798,15 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			c.cascadeDropSchemaContents(s)
 		}
 	}
+	for _, trig := range trigs {
+		if c.triggers[trig.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.dropDependents('g', trig.OID)
+		}
+		c.removeTrigger(trig)
+	}
 	for _, ext := range exts {
 		c.removeExtensionMetadata(ext)
 	}
@@ -701,6 +822,7 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 	delete(c.extensions, ext.OID)
 	delete(c.extByName, ext.Name)
 	c.removeComments('e', ext.OID)
+	c.removeDepsOn('e', ext.OID)
 	for key, extName := range c.extensionCasts {
 		if extName != ext.Name {
 			continue
@@ -973,4 +1095,292 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 	}
 	ext.SchemaOID = newSchema.OID
 	return nil
+}
+
+// ExecAlterObjectDependsStmt handles ALTER ... [NO] DEPENDS ON EXTENSION.
+//
+// pg: src/backend/commands/alter.c — ExecAlterObjectDependsStmt
+func (c *Catalog) ExecAlterObjectDependsStmt(stmt *nodes.AlterObjectDependsStmt) error {
+	var objType byte
+	var objOID uint32
+
+	switch stmt.ObjectType {
+	case nodes.OBJECT_MATVIEW:
+		var schemaName, relName string
+		if stmt.Relation != nil {
+			schemaName = stmt.Relation.Schemaname
+			relName = stmt.Relation.Relname
+		}
+		_, rel, err := c.findRelation(schemaName, relName)
+		if err != nil {
+			return err
+		}
+		if rel.RelKind != 'm' {
+			return errWrongObjectType(relName, "a materialized view")
+		}
+		objType, objOID = 'r', rel.OID
+
+	case nodes.OBJECT_INDEX:
+		var schemaName, relName string
+		if stmt.Relation != nil {
+			schemaName = stmt.Relation.Schemaname
+			relName = stmt.Relation.Relname
+		}
+		_, idx, err := c.findIndexRelation(schemaName, relName)
+		if err != nil {
+			return err
+		}
+		objType, objOID = 'i', idx.OID
+
+	case nodes.OBJECT_TRIGGER:
+		var schemaName, relName string
+		if stmt.Relation != nil {
+			schemaName = stmt.Relation.Schemaname
+			relName = stmt.Relation.Relname
+		}
+		rel, err := c.findTriggerTargetRelation(schemaName, relName)
+		if err != nil {
+			return err
+		}
+		_, trigName := extractObjectName(stmt.Object)
+		var found *Trigger
+		if rel != nil {
+			for _, trig := range c.triggersByRel[rel.OID] {
+				if trig.Name == trigName {
+					found = trig
+					break
+				}
+			}
+		}
+		if found == nil {
+			return errUndefinedTrigger(trigName, relName)
+		}
+		objType, objOID = 'g', found.OID
+
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE:
+		owa, ok := stmt.Object.(*nodes.ObjectWithArgs)
+		if !ok {
+			return errInvalidParameterValue("ALTER ... DEPENDS ON EXTENSION requires a routine specification")
+		}
+		bp, err := c.lookupFuncWithArgs(stmt.ObjectType, owa)
+		if err != nil {
+			return err
+		}
+		objType, objOID = 'f', bp.OID
+
+	default:
+		return errInvalidParameterValue(fmt.Sprintf("unsupported AlterObjectDependsStmt object type: %d", stmt.ObjectType))
+	}
+
+	_, extName := extractObjectName(stmt.Extname)
+	ext := c.extByName[extName]
+	if ext == nil {
+		return errUndefinedObject("extension", extName)
+	}
+
+	if stmt.Remove {
+		n := 0
+		for _, d := range c.deps {
+			if d.ObjType == objType && d.ObjOID == objOID && d.ObjSubID == 0 &&
+				d.RefType == 'e' && d.RefOID == ext.OID && d.DepType == DepAutoExtension {
+				continue
+			}
+			c.deps[n] = d
+			n++
+		}
+		c.deps = c.deps[:n]
+		return nil
+	}
+
+	for _, d := range c.deps {
+		if d.ObjType == objType && d.ObjOID == objOID && d.ObjSubID == 0 &&
+			d.RefType == 'e' && d.RefOID == ext.OID && d.DepType == DepAutoExtension {
+			return nil
+		}
+	}
+	c.recordDependency(objType, objOID, 0, 'e', ext.OID, 0, DepAutoExtension)
+	return nil
+}
+
+// findTriggerTargetRelation implements PostgreSQL's table_openrv check in
+// get_object_address_relobject: missing schema is 3F000, missing relation is
+// 42P01, indexes and composite types are 42809, and sequences pass table_open
+// with nil *Relation so get_trigger_oid reports 42704.
+//
+// pg: src/backend/catalog/objectaddress.c — get_object_address_relobject
+// pg: src/backend/access/table/table.c — validate_relation_kind
+func (c *Catalog) findTriggerTargetRelation(schemaName, relName string) (*Relation, error) {
+	checkInSchema := func(s *Schema) (*Relation, bool, error) {
+		if s.Indexes[relName] != nil {
+			return nil, true, errWrongObjectType(relName, "a table")
+		}
+		if r := s.Relations[relName]; r != nil {
+			if r.RelKind == 'c' {
+				return nil, true, errWrongObjectType(relName, "a table")
+			}
+			return r, true, nil
+		}
+		if s.Sequences[relName] != nil {
+			return nil, true, nil
+		}
+		return nil, false, nil
+	}
+
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, errUndefinedSchema(schemaName)
+		}
+		rel, found, err := checkInSchema(s)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, errUndefinedTable(relName)
+		}
+		return rel, nil
+	}
+
+	for _, nsOID := range c.searchPathWithCatalog() {
+		s := c.schemas[nsOID]
+		if s == nil {
+			continue
+		}
+		rel, found, err := checkInSchema(s)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			return rel, nil
+		}
+	}
+	return nil, errUndefinedTable(relName)
+}
+
+// lookupFuncWithArgs resolves an ObjectWithArgs across user-defined and
+// built-in routines using PostgreSQL's LookupFuncWithArgs rules.
+//
+// pg: src/backend/parser/parse_func.c — LookupFuncWithArgs
+func (c *Catalog) lookupFuncWithArgs(objType nodes.ObjectType, owa *nodes.ObjectWithArgs) (*BuiltinProc, error) {
+	kindStr := "function"
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
+		kindStr = "procedure"
+	case nodes.OBJECT_ROUTINE:
+		kindStr = "routine"
+	case nodes.OBJECT_AGGREGATE:
+		kindStr = "aggregate"
+	}
+
+	schemaName, funcName := qualifiedName(owa.Objname)
+	argOIDs, err := c.routineArgOIDs(owa)
+	if err != nil {
+		return nil, err
+	}
+
+	var nsOIDs []uint32
+	if schemaName != "" {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return nil, err
+		}
+		nsOIDs = []uint32{schema.OID}
+	} else {
+		nsOIDs = c.routineSearchPathWithCatalog()
+	}
+
+	if argOIDs != nil {
+		var bp *BuiltinProc
+		for _, nsOID := range nsOIDs {
+			for _, p := range c.procByName[funcName] {
+				if c.procInNamespace(p, nsOID) && slices.Equal(p.ArgTypes, argOIDs) {
+					bp = p
+					break
+				}
+			}
+			if bp != nil {
+				break
+			}
+		}
+		if bp == nil {
+			return nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+		}
+		switch objType {
+		case nodes.OBJECT_PROCEDURE:
+			if bp.Kind != 'p' {
+				return nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a procedure", funcName)}
+			}
+		case nodes.OBJECT_FUNCTION:
+			if bp.Kind == 'p' {
+				return nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a function", funcName)}
+			}
+		case nodes.OBJECT_AGGREGATE:
+			if bp.Kind != PROKIND_AGGREGATE {
+				return nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not an aggregate", funcName)}
+			}
+		}
+		return bp, nil
+	}
+
+	// ArgsUnspecified: FuncnameGetCandidates collects visible candidates across
+	// nsOIDs, masking identical argument-type signatures from later schemas, and
+	// LookupFuncWithArgs filters by objType.
+	var visible []*BuiltinProc
+	for _, nsOID := range nsOIDs {
+		var inNS []*BuiltinProc
+		for _, p := range c.procByName[funcName] {
+			if !c.procInNamespace(p, nsOID) {
+				continue
+			}
+			masked := false
+			for _, prev := range visible {
+				if slices.Equal(prev.ArgTypes, p.ArgTypes) {
+					masked = true
+					break
+				}
+			}
+			if !masked {
+				inNS = append(inNS, p)
+			}
+		}
+		visible = append(visible, inNS...)
+	}
+
+	var matched []*BuiltinProc
+	for _, p := range visible {
+		switch objType {
+		case nodes.OBJECT_PROCEDURE:
+			if p.Kind == 'p' {
+				matched = append(matched, p)
+			}
+		case nodes.OBJECT_FUNCTION:
+			if p.Kind != 'p' {
+				matched = append(matched, p)
+			}
+		case nodes.OBJECT_AGGREGATE:
+			if p.Kind == PROKIND_AGGREGATE {
+				matched = append(matched, p)
+			}
+		default:
+			matched = append(matched, p)
+		}
+	}
+
+	if len(matched) == 0 {
+		return nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("could not find a %s named %q", kindStr, funcName)}
+	}
+	if len(matched) > 1 {
+		return nil, &Error{Code: CodeAmbiguousFunction, Message: fmt.Sprintf("%s name %q is not unique", kindStr, funcName)}
+	}
+	return matched[0], nil
+}
+
+func (c *Catalog) procInNamespace(p *BuiltinProc, nsOID uint32) bool {
+	if p == nil {
+		return false
+	}
+	if up := c.userProcs[p.OID]; up != nil {
+		return up.Schema != nil && up.Schema.OID == nsOID
+	}
+	return nsOID == PGCatalogNamespace
 }

@@ -302,8 +302,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	// ---- Misc DDL ----
 	case *nodes.AlterObjectDependsStmt:
-		// ALTER ... DEPENDS ON EXTENSION: no-op for pgddl
-		return nil
+		return c.ExecAlterObjectDependsStmt(s)
 	case *nodes.CreatePLangStmt:
 		// CREATE LANGUAGE: no-op for pgddl
 		return nil
