@@ -744,6 +744,7 @@ func diffForeignDataWrappers(from, to *Catalog) []ForeignDataWrapperDiffEntry {
 		}
 		if fromFdw.Handler != toFdw.Handler ||
 			fromFdw.Validator != toFdw.Validator ||
+			effectiveForeignOwner(fromFdw.OwnerName) != effectiveForeignOwner(toFdw.OwnerName) ||
 			!slices.Equal(fromFdw.Options, toFdw.Options) {
 			out = append(out, ForeignDataWrapperDiffEntry{Action: DiffModify, Name: name, From: fromFdw, To: toFdw})
 		}
@@ -789,6 +790,7 @@ func diffForeignServers(from, to *Catalog) []ForeignServerDiffEntry {
 		if fromSrv.FdwName != toSrv.FdwName ||
 			!stringPtrEqual(fromSrv.Type, toSrv.Type) ||
 			!stringPtrEqual(fromSrv.Version, toSrv.Version) ||
+			effectiveForeignOwner(fromSrv.OwnerName) != effectiveForeignOwner(toSrv.OwnerName) ||
 			!slices.Equal(fromSrv.Options, toSrv.Options) {
 			out = append(out, ForeignServerDiffEntry{Action: DiffModify, Name: name, From: fromSrv, To: toSrv})
 		}
@@ -800,4 +802,11 @@ func diffForeignServers(from, to *Catalog) []ForeignServerDiffEntry {
 		return out[i].Action < out[j].Action
 	})
 	return out
+}
+
+func effectiveForeignOwner(owner string) string {
+	if owner == "" {
+		return "postgres"
+	}
+	return owner
 }

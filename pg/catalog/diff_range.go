@@ -72,7 +72,11 @@ func diffRanges(from, to *Catalog) []RangeDiffEntry {
 		if !ok {
 			continue
 		}
-		if fi.subtype != ti.subtype || formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) {
+		if fi.subtype != ti.subtype ||
+			formatRangeCollation(fi.rt) != formatRangeCollation(ti.rt) ||
+			fi.rt.SubtypeOpclass != ti.rt.SubtypeOpclass ||
+			fi.rt.Canonical != ti.rt.Canonical ||
+			fi.rt.SubtypeDiff != ti.rt.SubtypeDiff {
 			entries = append(entries, RangeDiffEntry{
 				Action:     DiffModify,
 				SchemaName: k.Schema,

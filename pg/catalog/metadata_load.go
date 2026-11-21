@@ -292,8 +292,10 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 				external: et,
 				skipDump: et.GetSkipDump(),
 				table: &metadata.TableMetadata{
-					Name:    et.GetName(),
-					Columns: et.GetColumns(),
+					Name:             et.GetName(),
+					Columns:          et.GetColumns(),
+					CheckConstraints: et.GetCheckConstraints(),
+					Triggers:         et.GetTriggers(),
 				},
 			})
 		}
@@ -337,6 +339,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: fk.GetName(), parent: t.GetName(), fk: fk})
 			}
 			out = appendPartitionConstraintObjects(out, schema, t.GetName(), t.GetPartitions())
+		}
+		for _, et := range s.GetExternalTables() {
+			out = appendConstraintObjects(out, schema, et.GetName(), nil, et.GetCheckConstraints(), nil)
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			out = appendIndexObjects(out, schema, mv.GetName(), mv.GetIndexes())
@@ -1355,6 +1360,9 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 		}
 		for _, et := range s.GetExternalTables() {
 			columns(et.GetName(), et.GetColumns())
+			for _, chk := range et.GetCheckConstraints() {
+				comment("CONSTRAINT "+quoteIdent(chk.GetName())+" ON "+qualified(et.GetName()), chk.GetComment())
+			}
 		}
 		for _, fn := range s.GetFunctions() {
 			if fn.GetSignature() == "" {

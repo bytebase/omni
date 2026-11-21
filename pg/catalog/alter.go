@@ -2271,6 +2271,7 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	rel.Columns = append(rel.Columns[:idx], rel.Columns[idx+1:]...)
 	c.renumberColumns(rel)
 	c.shiftAttnumsAfterDrop(rel, attNum)
+	c.stripDroppedColumnGrants(rel.OID, colName)
 
 	// AlterTableStmt hands the drop to rel's children; a child passes it on
 	// to its own, one level at a time as PostgreSQL does.
@@ -2285,6 +2286,26 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) stripDroppedColumnGrants(relOID uint32, colName string) {
+	kept := c.grants[:0]
+	for _, g := range c.grants {
+		if g.ObjType == 'r' && g.ObjOID == relOID && len(g.Columns) > 0 && slices.Contains(g.Columns, colName) {
+			filtered := make([]string, 0, len(g.Columns)-1)
+			for _, col := range g.Columns {
+				if col != colName {
+					filtered = append(filtered, col)
+				}
+			}
+			if len(filtered) == 0 {
+				continue
+			}
+			g.Columns = filtered
+		}
+		kept = append(kept, g)
+	}
+	c.grants = kept
 }
 
 // atDropConstraint drops a constraint from a relation.

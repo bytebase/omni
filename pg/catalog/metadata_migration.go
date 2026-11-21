@@ -633,6 +633,11 @@ func (c *Catalog) installMigrationBehaviorObjects(meta *metadatapb.DatabaseSchem
 				installTrigger(schemaName, mv.GetName(), tr)
 			}
 		}
+		for _, et := range s.GetExternalTables() {
+			for _, tr := range et.GetTriggers() {
+				installTrigger(schemaName, et.GetName(), tr)
+			}
+		}
 	}
 	for _, et := range meta.GetEventTriggers() {
 		key := "evtrig:" + et.GetName()

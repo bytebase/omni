@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // formatRangeCollation formats the explicit COLLATION option of a range type,
@@ -20,10 +21,20 @@ func formatRangeCollation(rt *RangeType) string {
 func formatCreateRange(cat *Catalog, schemaName, name string, rt *RangeType) string {
 	subTypeName := cat.FormatType(rt.SubTypeOID, -1)
 	qualName := migrationQualifiedName(schemaName, name)
-	if coll := formatRangeCollation(rt); coll != "" {
-		return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s, COLLATION = %s)", qualName, subTypeName, coll)
+	params := []string{"SUBTYPE = " + subTypeName}
+	if rt.SubtypeOpclass != "" {
+		params = append(params, "SUBTYPE_OPCLASS = "+formatCatalogIdentRef(rt.SubtypeOpclass))
 	}
-	return fmt.Sprintf("CREATE TYPE %s AS RANGE (SUBTYPE = %s)", qualName, subTypeName)
+	if coll := formatRangeCollation(rt); coll != "" {
+		params = append(params, "COLLATION = "+coll)
+	}
+	if rt.Canonical != "" {
+		params = append(params, "CANONICAL = "+formatCatalogIdentRef(rt.Canonical))
+	}
+	if rt.SubtypeDiff != "" {
+		params = append(params, "SUBTYPE_DIFF = "+formatCatalogIdentRef(rt.SubtypeDiff))
+	}
+	return fmt.Sprintf("CREATE TYPE %s AS RANGE (%s)", qualName, strings.Join(params, ", "))
 }
 
 // generateRangeDDL produces DDL operations for range type changes
@@ -121,12 +132,16 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if toColl == "" {
 				toColl = "default"
 			}
+			changeDesc := fmt.Sprintf("collation changed from %s to %s", fromColl, toColl)
+			if fromColl == toColl {
+				changeDesc = "definition changed"
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
-				SQL:           fmt.Sprintf("-- range type %s collation changed from %s to %s; requires DROP + CREATE", qualName, fromColl, toColl),
-				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: collation changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromColl, toColl),
+				SQL:           fmt.Sprintf("-- range type %s %s; requires DROP + CREATE", qualName, changeDesc),
+				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: %s; DROP + CREATE would break dependent columns", qualName, changeDesc),
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       't',

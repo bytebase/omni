@@ -20,11 +20,11 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 			b.WriteString(quoteIdentifier(entry.To.Name))
 			if entry.To.Handler != "" {
 				b.WriteString(" HANDLER ")
-				b.WriteString(formatFdwRoutineRef(entry.To.Handler))
+				b.WriteString(formatCatalogIdentRef(entry.To.Handler))
 			}
 			if entry.To.Validator != "" {
 				b.WriteString(" VALIDATOR ")
-				b.WriteString(formatFdwRoutineRef(entry.To.Validator))
+				b.WriteString(formatCatalogIdentRef(entry.To.Validator))
 			}
 			b.WriteString(formatForeignOptionsCreateClause(entry.To.Options))
 			ops = append(ops, MigrationOp{
@@ -37,6 +37,18 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 				ObjOID:        entry.To.OID,
 				Priority:      PriorityTable,
 			})
+			if owner := effectiveForeignOwner(entry.To.OwnerName); owner != "postgres" {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s OWNER TO %s", quoteIdentifier(entry.To.Name), quoteIdentifier(owner)),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'F',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityMetadata,
+				})
+			}
 		case DiffDrop:
 			if entry.From == nil {
 				continue
@@ -60,14 +72,14 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 				if entry.To.Handler == "" {
 					clauses = append(clauses, "NO HANDLER")
 				} else {
-					clauses = append(clauses, "HANDLER "+formatFdwRoutineRef(entry.To.Handler))
+					clauses = append(clauses, "HANDLER "+formatCatalogIdentRef(entry.To.Handler))
 				}
 			}
 			if entry.From.Validator != entry.To.Validator {
 				if entry.To.Validator == "" {
 					clauses = append(clauses, "NO VALIDATOR")
 				} else {
-					clauses = append(clauses, "VALIDATOR "+formatFdwRoutineRef(entry.To.Validator))
+					clauses = append(clauses, "VALIDATOR "+formatCatalogIdentRef(entry.To.Validator))
 				}
 			}
 			if !slices.Equal(entry.From.Options, entry.To.Options) {
@@ -87,6 +99,18 @@ func generateForeignDataWrapperDDL(from, to *Catalog, diff *SchemaDiff) []Migrat
 					Priority:      PriorityTable,
 				})
 			}
+			if effectiveForeignOwner(entry.From.OwnerName) != effectiveForeignOwner(entry.To.OwnerName) {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER FOREIGN DATA WRAPPER %s OWNER TO %s", quoteIdentifier(entry.To.Name), quoteIdentifier(effectiveForeignOwner(entry.To.OwnerName))),
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'F',
+					ObjOID:        entry.To.OID,
+					Priority:      PriorityMetadata,
+				})
+			}
 		}
 	}
 	return ops
@@ -100,7 +124,7 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 			if entry.To == nil {
 				continue
 			}
-			ops = append(ops, buildCreateForeignServerOp(entry.To))
+			ops = append(ops, buildCreateForeignServerOps(entry.To)...)
 		case DiffDrop:
 			if entry.From == nil {
 				continue
@@ -126,7 +150,7 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 					Phase:         PhasePre,
 					Priority:      PriorityTable,
 				})
-				ops = append(ops, buildCreateForeignServerOp(entry.To))
+				ops = append(ops, buildCreateForeignServerOps(entry.To)...)
 				continue
 			}
 			var clauses []string
@@ -152,12 +176,22 @@ func generateForeignServerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp
 					Priority:      PriorityTable,
 				})
 			}
+			if effectiveForeignOwner(entry.From.OwnerName) != effectiveForeignOwner(entry.To.OwnerName) {
+				ops = append(ops, MigrationOp{
+					Type:          OpAlterTable,
+					ObjectName:    entry.Name,
+					SQL:           fmt.Sprintf("ALTER SERVER %s OWNER TO %s", quoteIdentifier(entry.To.Name), quoteIdentifier(effectiveForeignOwner(entry.To.OwnerName))),
+					Transactional: true,
+					Phase:         PhaseMain,
+					Priority:      PriorityMetadata,
+				})
+			}
 		}
 	}
 	return ops
 }
 
-func buildCreateForeignServerOp(srv *ForeignServer) MigrationOp {
+func buildCreateForeignServerOps(srv *ForeignServer) []MigrationOp {
 	var b strings.Builder
 	b.WriteString("CREATE SERVER ")
 	b.WriteString(quoteIdentifier(srv.Name))
@@ -172,14 +206,25 @@ func buildCreateForeignServerOp(srv *ForeignServer) MigrationOp {
 	b.WriteString(" FOREIGN DATA WRAPPER ")
 	b.WriteString(quoteIdentifier(srv.FdwName))
 	b.WriteString(formatForeignOptionsCreateClause(srv.Options))
-	return MigrationOp{
+	ops := []MigrationOp{{
 		Type:          OpCreateTable,
 		ObjectName:    srv.Name,
 		SQL:           b.String(),
 		Transactional: true,
 		Phase:         PhaseMain,
 		Priority:      PriorityTable,
+	}}
+	if owner := effectiveForeignOwner(srv.OwnerName); owner != "postgres" {
+		ops = append(ops, MigrationOp{
+			Type:          OpAlterTable,
+			ObjectName:    srv.Name,
+			SQL:           fmt.Sprintf("ALTER SERVER %s OWNER TO %s", quoteIdentifier(srv.Name), quoteIdentifier(owner)),
+			Transactional: true,
+			Phase:         PhaseMain,
+			Priority:      PriorityMetadata,
+		})
 	}
+	return ops
 }
 
 func rebuiltForeignServerNames(diff *SchemaDiff) map[string]bool {
@@ -196,12 +241,12 @@ func rebuiltForeignServerNames(diff *SchemaDiff) map[string]bool {
 	return rebuilt
 }
 
-func formatFdwRoutineRef(ref string) string {
-	schemaName, funcName := parseRoutineRefName(ref)
+func formatCatalogIdentRef(ref string) string {
+	schemaName, objName := parseRoutineRefName(ref)
 	if schemaName != "" {
-		return quoteIdentifier(schemaName) + "." + quoteIdentifier(funcName)
+		return quoteIdentifier(schemaName) + "." + quoteIdentifier(objName)
 	}
-	return quoteIdentifier(funcName)
+	return quoteIdentifier(objName)
 }
 
 func generateForeignTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {

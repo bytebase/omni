@@ -5959,3 +5959,142 @@ func TestRound24Fixes(t *testing.T) {
 	require.Empty(t, remFT2.Relations)
 	require.Empty(t, remFT2.Comments)
 }
+
+func TestRound25Fixes(t *testing.T) {
+	// 1. Foreign table partitions (add partition, detach, bound change) + grant revokes suppressed on dropped/altered foreign tables
+	// + FDW/Server ownership changes + range type support functions.
+	setupR25 := func(ddl string) *Catalog {
+		c := New()
+		_, err := c.Exec(`
+			CREATE ROLE alice;
+			CREATE FOREIGN DATA WRAPPER w_own;
+			CREATE SERVER s_own FOREIGN DATA WRAPPER w_own;
+			CREATE TABLE public.part_parent (id integer) PARTITION BY RANGE (id);
+			CREATE TABLE public.part_other (id integer) PARTITION BY RANGE (id);
+		`+ddl, nil)
+		require.NoError(t, err)
+		return c
+	}
+
+	rFrom := setupR25(`
+		CREATE FOREIGN TABLE public.ft_detach PARTITION OF public.part_parent FOR VALUES FROM (0) TO (10) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_rebind PARTITION OF public.part_parent FOR VALUES FROM (10) TO (20) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_drop_grant (id integer, secret text) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_col_grant (id integer, drop_secret text) SERVER s_own;
+		GRANT SELECT ON public.ft_drop_grant TO alice;
+		GRANT SELECT (id, drop_secret) ON public.ft_drop_grant TO alice;
+		GRANT SELECT (id, drop_secret) ON public.ft_col_grant TO alice;
+		CREATE FUNCTION public.r_canon(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
+		CREATE FUNCTION public.r_canon2(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
+	`)
+	rTo := setupR25(`
+		ALTER FOREIGN DATA WRAPPER w_own OWNER TO alice;
+		ALTER SERVER s_own OWNER TO alice;
+		CREATE FOREIGN TABLE public.ft_detach (id integer) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_rebind PARTITION OF public.part_other FOR VALUES FROM (100) TO (200) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_add_part PARTITION OF public.part_parent FOR VALUES FROM (20) TO (30) SERVER s_own;
+		CREATE FOREIGN TABLE public.ft_col_grant (id integer) SERVER s_own;
+		GRANT SELECT (id) ON public.ft_col_grant TO alice;
+		CREATE FUNCTION public.r_canon(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
+		CREATE FUNCTION public.r_canon2(int4range) RETURNS int4range LANGUAGE sql AS 'SELECT $1';
+		CREATE FUNCTION public.f_diff(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE TYPE public.f8range AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.f_diff);
+	`)
+	// Range modification case via standalone subtype_diff change.
+	rDiffFrom := New()
+	_, err := rDiffFrom.Exec(`
+		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE TYPE public.myfloatrange AS RANGE (SUBTYPE = float8, SUBTYPE_DIFF = public.d1);
+	`, nil)
+	require.NoError(t, err)
+	rDiffTo := New()
+	_, err = rDiffTo.Exec(`
+		CREATE FUNCTION public.d1(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE FUNCTION public.d2(float8, float8) RETURNS float8 LANGUAGE sql AS 'SELECT $1 - $2';
+		CREATE TYPE public.myfloatrange AS RANGE (SUBTYPE = float8, SUBTYPE_OPCLASS = float8_ops, SUBTYPE_DIFF = public.d2);
+	`, nil)
+	require.NoError(t, err)
+	rDiff := Diff(rDiffFrom, rDiffTo)
+	require.Len(t, rDiff.Ranges, 1)
+	rSQL := GenerateMigration(rDiffFrom, rDiffTo, rDiff).SQL()
+	require.Contains(t, rSQL, "SUBTYPE_OPCLASS = float8_ops")
+	require.Contains(t, rSQL, `SUBTYPE_DIFF = public.d2`)
+	rApplied := rDiffFrom.Clone()
+	execRange, err := rApplied.Exec(rSQL, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range execRange {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(rApplied, rDiffTo).Ranges)
+
+	diff25 := Diff(rFrom, rTo)
+	require.NotEmpty(t, diff25.ForeignDataWrappers)
+	require.NotEmpty(t, diff25.ForeignServers)
+	sql25 := GenerateMigration(rFrom, rTo, diff25).SQL()
+	require.Contains(t, sql25, `ALTER FOREIGN DATA WRAPPER w_own OWNER TO alice`)
+	require.Contains(t, sql25, `ALTER SERVER s_own OWNER TO alice`)
+	require.Contains(t, sql25, `DETACH PARTITION "public"."ft_detach"`)
+	require.Contains(t, sql25, `ATTACH PARTITION "public"."ft_add_part" FOR VALUES FROM ('20') TO ('30')`)
+	require.Contains(t, sql25, `SUBTYPE_DIFF = public.f_diff`)
+	require.NotContains(t, sql25, `ON TABLE "public"."ft_drop_grant"`)
+	require.NotContains(t, sql25, `REVOKE SELECT ("drop_secret") ON TABLE "public"."ft_col_grant"`)
+
+	applied25 := rFrom.Clone()
+	exec25, err := applied25.Exec(sql25, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range exec25 {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	rem25 := Diff(applied25, rTo)
+	require.Empty(t, rem25.ForeignDataWrappers)
+	require.Empty(t, rem25.ForeignServers)
+	require.Empty(t, rem25.ForeignTables)
+	require.Empty(t, rem25.Ranges)
+	require.Empty(t, rem25.Grants)
+
+	// 2. External table check constraints & triggers in LoadMetadata + MetadataMigration.
+	extFrom := &metadatapb.DatabaseSchemaMetadata{
+		Name:                "postgres",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{Name: "w1"}},
+		ForeignServers:      []*metadatapb.ForeignServerMetadata{{Name: "srv1", Fdw: "w1"}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "ext_trig_fn",
+				Signature:  "ext_trig_fn()",
+				Definition: "CREATE FUNCTION public.ext_trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$",
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ext_t",
+				ExternalServerName: "srv1",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				CheckConstraints:   []*metadatapb.CheckConstraintMetadata{{Name: "chk_id", Expression: "(id > 0)"}},
+				Triggers: []*metadatapb.TriggerMetadata{{
+					Name:   "tr_ext",
+					Timing: "BEFORE",
+					Event:  "INSERT",
+					Body:   "CREATE TRIGGER tr_ext BEFORE INSERT ON public.ext_t FOR EACH ROW EXECUTE FUNCTION public.ext_trig_fn()",
+				}},
+			}},
+		}},
+	}
+	catLoaded := New()
+	_, err = catLoaded.LoadMetadata(context.Background(), extFrom, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	catAfterCheck := catLoaded.Clone()
+	_, err = catAfterCheck.Exec(`ALTER FOREIGN TABLE public.ext_t DROP CONSTRAINT chk_id;`, nil)
+	require.NoError(t, err)
+	appliedExt := ApplyDiffToMetadata(extFrom, catLoaded, catAfterCheck, Diff(catLoaded, catAfterCheck))
+	require.Empty(t, findSchema(appliedExt, "public").ExternalTables[0].CheckConstraints)
+
+	extLoaded, extReport, err := loadMetadataForMigration(context.Background(), extFrom, nil)
+	require.NoError(t, err)
+	require.Empty(t, extReport.Missing)
+	extRel := extLoaded.GetRelation("public", "ext_t")
+	require.NotNil(t, extRel)
+	require.Len(t, extLoaded.ConstraintsOf(extRel.OID), 1)
+	require.Equal(t, "chk_id", extLoaded.ConstraintsOf(extRel.OID)[0].Name)
+	require.Len(t, extLoaded.TriggersOf(extRel.OID), 1)
+	require.Equal(t, "tr_ext", extLoaded.TriggersOf(extRel.OID)[0].Name)
+}

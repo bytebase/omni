@@ -1006,6 +1006,12 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Range depends on subtype.
 	c.recordDependency('t', typeOID, 0, 't', subtypeOID, 0, DepNormal)
+	if subtypeDiff != "" {
+		sName, fName := parseRoutineRefName(subtypeDiff)
+		if oid, derr := c.resolveRoutineRefByName(sName, fName, subtypeDiff, []uint32{subtypeOID, subtypeOID}, FLOAT8OID, "double precision"); derr == nil && oid != 0 {
+			c.recordDependency('t', typeOID, 0, 'f', oid, 0, DepNormal)
+		}
+	}
 	// Multirange is an internal companion of its range type.
 	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepInternal)
 

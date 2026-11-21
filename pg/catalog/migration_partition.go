@@ -95,6 +95,55 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	diffFTKeys := make(map[string]bool, len(diff.ForeignTables))
+	for _, entry := range diff.ForeignTables {
+		diffFTKeys[entry.SchemaName+"\x00"+entry.Name] = true
+		switch entry.Action {
+		case DiffAdd:
+			if entry.To != nil && entry.To.RelKind == 'f' && entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
+				if op, ok := buildForeignTableAttachOp(to, entry.SchemaName, entry.Name, entry.To); ok {
+					ops = append(ops, op)
+				}
+			}
+		case DiffModify:
+			if entry.From == nil || entry.To == nil || entry.From.RelKind != 'f' || entry.To.RelKind != 'f' {
+				continue
+			}
+			ftRebuilt := entry.From.ForeignServer != entry.To.ForeignServer || rebuiltServers[entry.From.ForeignServer]
+			if ftRebuilt {
+				if entry.To.PartitionOf != 0 {
+					if op, ok := buildForeignTableAttachOp(to, entry.SchemaName, entry.Name, entry.To); ok {
+						ops = append(ops, op)
+					}
+				}
+				continue
+			}
+			if (isPartitionRelation(entry.From) || isPartitionRelation(entry.To)) &&
+				(!inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) || !partitionBoundEqual(entry.From.PartitionBound, entry.To.PartitionBound)) {
+				ops = append(ops, generatePartitionAttachmentOps(from, to, entry)...)
+			}
+		}
+	}
+	if from != nil && to != nil && len(rebuiltServers) > 0 {
+		for _, s := range to.schemas {
+			if s == nil {
+				continue
+			}
+			for _, toRel := range s.Relations {
+				if toRel == nil || toRel.RelKind != 'f' || toRel.PartitionOf == 0 || diffFTKeys[s.Name+"\x00"+toRel.Name] {
+					continue
+				}
+				fromRel := from.GetRelation(s.Name, toRel.Name)
+				if fromRel != nil && fromRel.RelKind == 'f' && rebuiltServers[fromRel.ForeignServer] {
+					if op, ok := buildForeignTableAttachOp(to, s.Name, toRel.Name, toRel); ok {
+						ops = append(ops, op)
+					}
+				}
+			}
+		}
+	}
+
 	// Deterministic ordering within Phase/Priority so table creation precedes post-create ALTERs.
 	sort.SliceStable(ops, func(i, j int) bool {
 		if ops[i].Phase != ops[j].Phase {
@@ -149,29 +198,41 @@ func generatePartitionAttachmentOps(from, to *Catalog, entry RelationDiffEntry) 
 	}
 
 	if entry.To != nil && entry.To.PartitionOf != 0 {
-		if parentRel := to.GetRelationByOID(entry.To.PartitionOf); parentRel != nil {
-			parentSchema := relationSchemaOrDefault(parentRel, entry.SchemaName)
-			boundClause := formatPartitionBound(entry.To.PartitionBound)
-			sql := fmt.Sprintf("ALTER TABLE %s ATTACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN)
-			if boundClause != "" {
-				sql += " " + boundClause
-			}
-			ops = append(ops, MigrationOp{
-				Type:            OpAlterTable,
-				SchemaName:      parentSchema,
-				ObjectName:      parentRel.Name,
-				SQL:             sql,
-				Transactional:   true,
-				Phase:           PhaseMain,
-				ObjType:         'r',
-				ObjOID:          entry.To.OID,
-				Priority:        PriorityIndex,
-				secondarySchema: entry.SchemaName,
-			})
+		if op, ok := buildForeignTableAttachOp(to, entry.SchemaName, entry.Name, entry.To); ok {
+			ops = append(ops, op)
 		}
 	}
 
 	return ops
+}
+
+func buildForeignTableAttachOp(to *Catalog, schemaName, relName string, rel *Relation) (MigrationOp, bool) {
+	if to == nil || rel == nil || rel.PartitionOf == 0 {
+		return MigrationOp{}, false
+	}
+	parentRel := to.GetRelationByOID(rel.PartitionOf)
+	if parentRel == nil {
+		return MigrationOp{}, false
+	}
+	childQN := migrationQualifiedName(schemaName, relName)
+	parentSchema := relationSchemaOrDefault(parentRel, schemaName)
+	boundClause := formatPartitionBound(rel.PartitionBound)
+	sql := fmt.Sprintf("ALTER TABLE %s ATTACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN)
+	if boundClause != "" {
+		sql += " " + boundClause
+	}
+	return MigrationOp{
+		Type:            OpAlterTable,
+		SchemaName:      parentSchema,
+		ObjectName:      parentRel.Name,
+		SQL:             sql,
+		Transactional:   true,
+		Phase:           PhaseMain,
+		ObjType:         'r',
+		ObjOID:          rel.OID,
+		Priority:        PriorityIndex,
+		secondarySchema: schemaName,
+	}, true
 }
 
 // tableRebuilt reports whether the plan drops and recreates a table: its kind

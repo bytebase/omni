@@ -29,6 +29,9 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 		case DiffDrop:
 			g := entry.From
+			if grantDroppedWithForeignTable(from, diff, g) {
+				continue
+			}
 			objName := resolveGrantObjName(from, g.ObjType, g.ObjOID)
 			sql := formatRevokeSQL(g, objName)
 			ops = append(ops, MigrationOp{
@@ -85,6 +88,46 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+func grantDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, g Grant) bool {
+	if g.ObjType != 'r' || diff == nil || (len(diff.ForeignTables) == 0 && len(diff.ForeignServers) == 0) {
+		return false
+	}
+	rebuiltServers := rebuiltForeignServerNames(diff)
+	for _, ft := range diff.ForeignTables {
+		if ft.From == nil || ft.From.OID != g.ObjOID {
+			continue
+		}
+		switch ft.Action {
+		case DiffDrop:
+			return true
+		case DiffModify:
+			if ft.To == nil || ft.From.ForeignServer != ft.To.ForeignServer || rebuiltServers[ft.From.ForeignServer] {
+				return true
+			}
+			if len(g.Columns) > 0 {
+				droppedCols := make(map[string]bool)
+				for _, col := range ft.Columns {
+					if col.Action == DiffDrop {
+						droppedCols[col.Name] = true
+					}
+				}
+				for _, colName := range g.Columns {
+					if droppedCols[colName] {
+						return true
+					}
+				}
+			}
+			return false
+		}
+	}
+	if from != nil && len(rebuiltServers) > 0 {
+		if rel := from.GetRelationByOID(g.ObjOID); rel != nil && rel.RelKind == 'f' && rebuiltServers[rel.ForeignServer] {
+			return true
+		}
+	}
+	return false
 }
 
 // restoreGrantOps grants again every privilege an object holds in c. A
