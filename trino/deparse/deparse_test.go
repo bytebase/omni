@@ -1718,4 +1718,61 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "subquery")
+
+	// Nested column references in table defaults fail explicitly, and skipped
+	// tables still supply column types for view built-in vs UDF resolution.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_nested_colref_def",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:    "id",
+					Type:    "bigint",
+					Default: "abs(other_col)",
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "column")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name: "t_nested_cast_def",
+				Columns: []*metadatapb.ColumnMetadata{{
+					Name:    "id",
+					Type:    "bigint",
+					Default: "CAST(other_col AS bigint)",
+				}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "column")
+
+	skipTableRes, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Tables: []*metadatapb.TableMetadata{{
+				Name:     "ext_t",
+				SkipDump: true,
+				Columns:  []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v_skip_tbl",
+				Definition: "SELECT abs(n) FROM ext_t",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, skipTableRes, `CREATE TABLE IF NOT EXISTS "s"."ext_t"`)
+	assert.Contains(t, skipTableRes, `SELECT abs(n) FROM "cat"."s".ext_t;`)
 }

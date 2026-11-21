@@ -39,20 +39,27 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			continue
 		}
 		if s.SkipDump {
-			if len(s.Functions) > 0 {
-				skippedFns := make([]*FunctionMetadata, 0, len(s.Functions))
-				for _, fn := range s.Functions {
-					if fn != nil {
-						skippedFns = append(skippedFns, convertSkippedTrinoFunction(fn))
+			var skippedFns []*FunctionMetadata
+			for _, fn := range s.Functions {
+				if fn != nil {
+					skippedFns = append(skippedFns, convertSkippedTrinoFunction(fn))
+				}
+			}
+			var skippedTables []*TableMetadata
+			for _, t := range s.Tables {
+				if t != nil {
+					if st := convertSkippedTrinoTable(t); st != nil {
+						skippedTables = append(skippedTables, st)
 					}
 				}
-				if len(skippedFns) > 0 {
-					out.Schemas = append(out.Schemas, &SchemaMetadata{
-						Name:      s.Name,
-						Functions: skippedFns,
-						SkipDump:  true,
-					})
-				}
+			}
+			if len(skippedFns) > 0 || len(skippedTables) > 0 {
+				out.Schemas = append(out.Schemas, &SchemaMetadata{
+					Name:      s.Name,
+					Functions: skippedFns,
+					Tables:    skippedTables,
+					SkipDump:  true,
+				})
 			}
 			continue
 		}
@@ -122,7 +129,13 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
 		for _, t := range s.Tables {
-			if t == nil || t.SkipDump {
+			if t == nil {
+				continue
+			}
+			if t.SkipDump {
+				if st := convertSkippedTrinoTable(t); st != nil {
+					schemaMeta.Tables = append(schemaMeta.Tables, st)
+				}
 				continue
 			}
 			relKey := strings.ToLower(t.Name)
@@ -401,6 +414,31 @@ func convertSkippedTrinoFunction(fn *metadatapb.FunctionMetadata) *FunctionMetad
 		Definition: def,
 		Comment:    fn.Comment,
 		SkipDump:   true,
+	}
+}
+
+func convertSkippedTrinoTable(t *metadatapb.TableMetadata) *TableMetadata {
+	if t == nil || len(t.Columns) == 0 {
+		return nil
+	}
+	cols := make([]*ColumnMetadata, 0, len(t.Columns))
+	for _, c := range t.Columns {
+		if c == nil || c.Name == "" || strings.TrimSpace(c.Type) == "" {
+			continue
+		}
+		cols = append(cols, &ColumnMetadata{
+			Name:     c.Name,
+			Type:     c.Type,
+			Nullable: c.Nullable,
+		})
+	}
+	if len(cols) == 0 {
+		return nil
+	}
+	return &TableMetadata{
+		Name:     t.Name,
+		Columns:  cols,
+		SkipDump: true,
 	}
 }
 
@@ -694,13 +732,14 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			return nil
 		}
 		for _, table := range schema.Tables {
-			if table != nil {
-				if table.Owner != "" {
-					return "", fmt.Errorf("table %s.%s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", schema.Name, table.Name, table.Owner)
-				}
-				if err := checkRelation("table", table.Name); err != nil {
-					return "", err
-				}
+			if table == nil || table.SkipDump {
+				continue
+			}
+			if table.Owner != "" {
+				return "", fmt.Errorf("table %s.%s owner %q cannot be restored unambiguously because Trino SET AUTHORIZATION requires user vs role distinction", schema.Name, table.Name, table.Owner)
+			}
+			if err := checkRelation("table", table.Name); err != nil {
+				return "", err
 			}
 		}
 		for _, view := range schema.Views {
@@ -747,7 +786,7 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			continue
 		}
 		for _, table := range schema.Tables {
-			if table == nil {
+			if table == nil || table.SkipDump {
 				continue
 			}
 			if err := writeCreateTableWithCatalog(&buf, metadata.Name, schema.Name, table, funcCat); err != nil {
@@ -787,10 +826,19 @@ func qualifyTrinoDefault(dbName, schemaName, tableName, colName, raw string, cat
 	}
 	expr, errs := trinoparser.ParseExpression(trimmed)
 	if len(errs) == 0 && expr != nil {
+		if _, isBareCol := expr.(*trinoparser.ColumnRef); isBareCol {
+			return fmt.Sprintf("'%s'", escapeStringLiteral(raw)), nil
+		}
+		if _, isParam := expr.(*trinoparser.Parameter); isParam {
+			return "", fmt.Errorf("table %s.%s column %s default %q cannot contain a parameter", schemaName, tableName, colName, raw)
+		}
 		w := &trinoASTWalker{callerSchema: schemaName, cat: cat}
 		w.walkExpr(expr, nil, nil)
 		if w.hasQuery {
 			return "", fmt.Errorf("table %s.%s column %s default %q cannot contain a subquery", schemaName, tableName, colName, raw)
+		}
+		if w.hasUnboundColOrParam {
+			return "", fmt.Errorf("table %s.%s column %s default %q cannot reference columns or parameters", schemaName, tableName, colName, raw)
 		}
 		if isTrinoDefaultAST(expr) {
 			if cat == nil {
@@ -1151,9 +1199,6 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 					fn:      fn,
 					skipped: schema.SkipDump || fn.SkipDump,
 				})
-			}
-			if schema.SkipDump {
-				continue
 			}
 			for _, tbl := range schema.Tables {
 				if tbl == nil || len(tbl.Columns) == 0 {
@@ -2005,16 +2050,17 @@ type trinoProjCol struct {
 }
 
 type trinoASTWalker struct {
-	callerSchema string
-	deps         []ViewDependency
-	cat          *trinoFuncCatalog
-	calls        []functionCallRef
-	unqualTables []*ast.QualifiedName
-	inlineFuncs  map[string][]trinoInlineFunc
-	aliasCols    map[string]map[string]string
-	cteCols      map[string]map[string]string
-	fromSeen     map[string]struct{}
-	hasQuery     bool
+	callerSchema         string
+	deps                 []ViewDependency
+	cat                  *trinoFuncCatalog
+	calls                []functionCallRef
+	unqualTables         []*ast.QualifiedName
+	inlineFuncs          map[string][]trinoInlineFunc
+	aliasCols            map[string]map[string]string
+	cteCols              map[string]map[string]string
+	fromSeen             map[string]struct{}
+	hasQuery             bool
+	hasUnboundColOrParam bool
 }
 
 func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchema string, params []trinoFuncParam, cat *trinoFuncCatalog) []functionCallRef {
@@ -2505,8 +2551,14 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		return w.walkExpr(e.Value, curEnv, ctes)
 	case *trinoparser.ColumnRef:
 		if e.Name != nil {
-			return curEnv[strings.ToLower(e.Name.Value)]
+			key := strings.ToLower(e.Name.Value)
+			if typ, bound := curEnv[key]; bound {
+				return typ
+			}
+			w.hasUnboundColOrParam = true
 		}
+	case *trinoparser.Parameter:
+		w.hasUnboundColOrParam = true
 	case *trinoparser.Dereference:
 		baseType := w.walkExpr(e.Base, curEnv, ctes)
 		if e.FieldName != nil && e.FieldName.Value != "" {
@@ -2742,16 +2794,13 @@ func (w *trinoASTWalker) walkExpr(expr trinoparser.Expr, curEnv map[string]strin
 		w.walkExpr(e.Filter, curEnv, ctes)
 		return "varchar"
 	case *trinoparser.LambdaExpr:
-		lambdaEnv := curEnv
-		if len(e.Params) > 0 {
-			lambdaEnv = make(map[string]string, len(curEnv))
-			for k, v := range curEnv {
-				lambdaEnv[k] = v
-			}
-			for _, p := range e.Params {
-				if p != nil {
-					delete(lambdaEnv, strings.ToLower(p.Value))
-				}
+		lambdaEnv := make(map[string]string, len(curEnv)+len(e.Params))
+		for k, v := range curEnv {
+			lambdaEnv[k] = v
+		}
+		for _, p := range e.Params {
+			if p != nil {
+				lambdaEnv[strings.ToLower(p.Value)] = ""
 			}
 		}
 		w.walkExpr(e.Body, lambdaEnv, ctes)

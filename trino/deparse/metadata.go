@@ -59,8 +59,8 @@ type SchemaMetadata struct {
 	// MaterializedViews are the schema's materialized views, in snapshot order;
 	// each becomes one CREATE MATERIALIZED VIEW statement in dependency order.
 	MaterializedViews []*ViewMetadata
-	// SkipDump keeps the schema's functions available for call qualification
-	// without emitting the schema or its objects.
+	// SkipDump keeps the schema's functions and table column types available for
+	// call resolution without emitting the schema or its objects.
 	SkipDump bool
 }
 
@@ -107,6 +107,9 @@ type TableMetadata struct {
 	Columns []*ColumnMetadata
 	// Comment is the optional table comment, emitted as COMMENT '...'.
 	Comment string
+	// SkipDump keeps the table's column types available for call resolution
+	// without emitting or validating CREATE TABLE.
+	SkipDump bool
 }
 
 // ColumnMetadata is one column of a table.
