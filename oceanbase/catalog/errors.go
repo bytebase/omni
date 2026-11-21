@@ -339,3 +339,56 @@ func errKeyColumnNotExist(name string) error {
 func errNotPartitioned() error {
 	return &Error{Code: 1505, SQLState: "HY000", Message: "Partition management on a not partitioned table is not possible"}
 }
+
+// errNotBaseTable is 1347: a table operation targeting a view.
+func errNotBaseTable(db, name string) error {
+	return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not BASE TABLE", db, name)}
+}
+
+// errColumnUsedInFK is OceanBase's 5320: dropping or changing the type of a
+// column referenced by a foreign key constraint.
+func errColumnUsedInFK(col string) error {
+	return &Error{Code: 5320, SQLState: "HY000", Message: fmt.Sprintf("'%s': used in a foreign key constraint", col)}
+}
+
+// errAlterConstraintEnforcementNotSupported is 3941: ALTER CONSTRAINT [NOT]
+// ENFORCED on a non-CHECK constraint (PRIMARY, UNIQUE, or FOREIGN KEY).
+func errAlterConstraintEnforcementNotSupported(name string) error {
+	return &Error{Code: 3941, SQLState: "HY000",
+		Message: fmt.Sprintf("Altering constraint enforcement is not supported for the constraint '%s'. Enforcement state alter is not supported for the PRIMARY, UNIQUE and FOREIGN KEY type constraints.", name)}
+}
+
+// errColumnUsedInPartition is 3855: dropping or renaming a column referenced
+// by the table's partitioning function.
+func errColumnUsedInPartition(col string) error {
+	return &Error{Code: 3855, SQLState: "HY000",
+		Message: fmt.Sprintf("Column '%s' has a partitioning function dependency and cannot be dropped or renamed.", col)}
+}
+
+// errNotCompositePartitioned is 5875: a subpartition management operation on a
+// partitioned table that has no subpartitioning.
+func errNotCompositePartitioned() error {
+	return &Error{Code: 5875, SQLState: "HY000", Message: "table is not partitioned by composite partition method"}
+}
+
+// errDupPartitionName is 1517: duplicate partition name in CREATE/ALTER TABLE.
+func errDupPartitionName(name string) error {
+	return &Error{Code: 1517, SQLState: "HY000", Message: fmt.Sprintf("Duplicate partition name '%s'", name)}
+}
+
+// errDropPartitionNotFound is 1507: DROP/TRUNCATE PARTITION names a partition
+// the table does not have.
+func errDropPartitionNotFound() error {
+	return &Error{Code: 1507, SQLState: "HY000", Message: "Error in list of partitions to DROP"}
+}
+
+// errDropAllPartitions is 1508: DROP PARTITION would remove all partitions.
+func errDropAllPartitions() error {
+	return &Error{Code: 1508, SQLState: "HY000", Message: "Cannot remove all partitions, use DROP TABLE instead"}
+}
+
+// errPartitionColumnListInconsistency is 1653: partition bound tuple arity
+// does not match the partitioning column list.
+func errPartitionColumnListInconsistency() error {
+	return &Error{Code: 1653, SQLState: "HY000", Message: "Inconsistency in usage of column lists for partitioning"}
+}

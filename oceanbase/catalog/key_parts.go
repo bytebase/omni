@@ -30,6 +30,10 @@ const (
 //
 // A column the table lacks ends the parts read here; validateIndexColumns answers it.
 func checkKeyParts(tbl *Table, parts []*IndexColumn, kind keyKind, opts []*nodes.IndexOption) error {
+	return checkKeyPartsMode(tbl, parts, kind, opts, false)
+}
+
+func checkKeyPartsMode(tbl *Table, parts []*IndexColumn, kind keyKind, opts []*nodes.IndexOption, isView bool) error {
 	for _, opt := range opts {
 		if strings.EqualFold(opt.Name, "BLOCK_SIZE") {
 			if lit, ok := opt.Value.(*nodes.IntLit); ok && (lit.Value < 1024 || lit.Value > 1048576) {
@@ -64,7 +68,7 @@ func checkKeyParts(tbl *Table, parts []*IndexColumn, kind keyKind, opts []*nodes
 			return nil
 		}
 		typ := toLower(col.DataType)
-		if p.Length > 0 && !isStringKeyType(typ) {
+		if !isView && p.Length > 0 && !isStringKeyType(typ) {
 			return &Error{Code: 1089, SQLState: "HY000", Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
 		}
 		switch kind {

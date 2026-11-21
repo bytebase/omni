@@ -79,7 +79,7 @@ func TestWalkThrough_6_2_DropChildThenParent(t *testing.T) {
 	}
 }
 
-// Scenario 4: DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 1828
+// Scenario 4: DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 5320
 // (Already covered by TestWalkThrough_2_4_AlterTableDropColumnUsedInFK; included
 // here for section completeness.)
 func TestWalkThrough_6_2_DropColumnUsedInFK(t *testing.T) {
@@ -98,8 +98,8 @@ func TestWalkThrough_6_2_DropColumnUsedInFK(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *Error, got %T", results[0].Error)
 	}
-	if catErr.Code != 1828 {
-		t.Errorf("expected error code 1828, got %d", catErr.Code)
+	if catErr.Code != 5320 {
+		t.Errorf("expected error code 5320, got %d", catErr.Code)
 	}
 }
 
