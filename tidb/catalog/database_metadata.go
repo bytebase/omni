@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/metadata"
 )
@@ -191,7 +192,20 @@ func resolvedExprColumnType(expr AnalyzedExpr) string {
 	if expr == nil {
 		return ""
 	}
+	if c, ok := expr.(*ConstExprQ); ok {
+		if c.IsNull {
+			return "binary(0)"
+		}
+		if c.IsString {
+			return fmt.Sprintf("var_string(%d)", utf8.RuneCountInString(c.Value))
+		}
+	}
 	if rt := expr.exprType(); rt != nil {
+		if rt.BaseType == BaseTypeTinyIntBool {
+			// TiDB information_schema.COLUMNS reports comparisons and boolean
+			// expressions in views as bigint rather than tinyint(1).
+			return "bigint"
+		}
 		return resolvedTypeToColumnType(rt)
 	}
 	if op, ok := expr.(*OpExprQ); ok {
@@ -199,7 +213,7 @@ func resolvedExprColumnType(expr AnalyzedExpr) string {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
 			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
-			return "tinyint(1)"
+			return "bigint"
 		case "/":
 			return "decimal"
 		case "+", "-", "*", "%", "DIV":

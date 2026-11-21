@@ -745,3 +745,36 @@ func TestDatabaseMetadataBacktickRoutineEventTriggerIdentifiers(t *testing.T) {
 	require.NotNil(t, reDB.Events["ev`1"])
 	require.NotNil(t, reDB.Triggers["tr`1"])
 }
+
+func TestDatabaseMetadataViewColumnTypes(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE vdb;
+		USE vdb;
+		CREATE TABLE vt (id INT PRIMARY KEY, name VARCHAR(20));
+		CREATE VIEW v_types AS
+			SELECT id, name, id + 1 AS next_id, COUNT(*) AS cnt, id > 0 AS cmp,
+				1 AS lit_int, 2147483648 AS lit_big, 'x' AS lit_str, '' AS lit_empty,
+				NULL AS lit_null, TRUE AS lit_bool, 1.5 AS lit_dec
+			FROM vt GROUP BY id, name;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("vdb")
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.Schemas[0].Views[0].Columns {
+		cols[col.Name] = col
+	}
+	require.Equal(t, "int", cols["id"].Type)
+	require.Equal(t, "varchar(20)", cols["name"].Type)
+	require.Equal(t, "bigint", cols["next_id"].Type)
+	require.Equal(t, "bigint", cols["cnt"].Type)
+	require.Equal(t, "int", cols["cmp"].Type)
+	require.Equal(t, "int", cols["lit_int"].Type)
+	require.Equal(t, "bigint", cols["lit_big"].Type)
+	require.Equal(t, "varchar(1)", cols["lit_str"].Type)
+	require.Equal(t, "char(0)", cols["lit_empty"].Type)
+	require.Equal(t, "binary(0)", cols["lit_null"].Type)
+	require.Equal(t, "int", cols["lit_bool"].Type)
+	require.Equal(t, "decimal(2,1)", cols["lit_dec"].Type)
+}

@@ -1,8 +1,10 @@
 package catalog
 
 import (
+	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/deparse"
@@ -14,18 +16,28 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ColumnRef:
 		return analyzeColumnRef(n, scope)
 	case *nodes.IntLit:
-		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
-	case *nodes.StringLit:
-		return &ConstExprQ{Value: n.Value, IsString: true, Introducer: n.Charset}, nil
-	case *nodes.FloatLit:
-		return &ConstExprQ{Value: n.Value}, nil
-	case *nodes.NullLit:
-		return &ConstExprQ{IsNull: true, Value: "NULL"}, nil
-	case *nodes.BoolLit:
-		if n.Value {
-			return &ConstExprQ{Value: "TRUE"}, nil
+		bt := BaseTypeBigInt
+		if n.Value >= math.MinInt32 && n.Value <= math.MaxInt32 {
+			bt = BaseTypeInt
 		}
-		return &ConstExprQ{Value: "FALSE"}, nil
+		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10), Type: &ResolvedType{BaseType: bt}}, nil
+	case *nodes.StringLit:
+		return &ConstExprQ{
+			Value:      n.Value,
+			IsString:   true,
+			Introducer: n.Charset,
+			Type:       &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)},
+		}, nil
+	case *nodes.FloatLit:
+		return &ConstExprQ{Value: n.Value, Type: floatLitResolvedType(n.Value)}, nil
+	case *nodes.NullLit:
+		return &ConstExprQ{IsNull: true, Value: "NULL", Type: &ResolvedType{BaseType: BaseTypeBinary}}, nil
+	case *nodes.BoolLit:
+		val := "FALSE"
+		if n.Value {
+			val = "TRUE"
+		}
+		return &ConstExprQ{Value: val, Type: &ResolvedType{BaseType: BaseTypeInt}}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
@@ -69,6 +81,22 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			SQLState: "HY000",
 			Message:  "unsupported expression type in analyzer",
 		}
+	}
+}
+
+func floatLitResolvedType(raw string) *ResolvedType {
+	if strings.ContainsAny(raw, "eE") {
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	}
+	digits := strings.TrimLeft(raw, "+-")
+	intPart, fracPart, hasDot := strings.Cut(digits, ".")
+	if !hasDot {
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	}
+	return &ResolvedType{
+		BaseType:  BaseTypeDecimal,
+		Precision: len(intPart) + len(fracPart),
+		Scale:     len(fracPart),
 	}
 }
 

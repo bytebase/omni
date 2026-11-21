@@ -3,6 +3,7 @@ package catalog
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
@@ -13,18 +14,23 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ColumnRef:
 		return analyzeColumnRef(n, scope)
 	case *nodes.IntLit:
-		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
+		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10), Type: &ResolvedType{BaseType: BaseTypeBigInt}}, nil
 	case *nodes.StringLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{
+			Value:    n.Value,
+			IsString: true,
+			Type:     &ResolvedType{BaseType: BaseTypeVarchar, Length: utf8.RuneCountInString(n.Value)},
+		}, nil
 	case *nodes.FloatLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{Value: n.Value, Type: floatLitResolvedType(n.Value)}, nil
 	case *nodes.NullLit:
-		return &ConstExprQ{IsNull: true, Value: "NULL"}, nil
+		return &ConstExprQ{IsNull: true, Value: "NULL", Type: &ResolvedType{BaseType: BaseTypeBinary}}, nil
 	case *nodes.BoolLit:
+		val := "FALSE"
 		if n.Value {
-			return &ConstExprQ{Value: "TRUE"}, nil
+			val = "TRUE"
 		}
-		return &ConstExprQ{Value: "FALSE"}, nil
+		return &ConstExprQ{Value: val, Type: &ResolvedType{BaseType: BaseTypeBigInt}}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.ParamMarkerExpr:
@@ -68,6 +74,22 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			SQLState: "HY000",
 			Message:  "unsupported expression type in analyzer",
 		}
+	}
+}
+
+func floatLitResolvedType(raw string) *ResolvedType {
+	if strings.ContainsAny(raw, "eE") {
+		return &ResolvedType{BaseType: BaseTypeDouble}
+	}
+	digits := strings.TrimLeft(raw, "+-")
+	intPart, fracPart, hasDot := strings.Cut(digits, ".")
+	if !hasDot {
+		return &ResolvedType{BaseType: BaseTypeBigInt}
+	}
+	return &ResolvedType{
+		BaseType:  BaseTypeDecimal,
+		Precision: len(intPart) + len(fracPart),
+		Scale:     len(fracPart),
 	}
 }
 

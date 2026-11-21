@@ -677,7 +677,8 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 		USE vdb;
 		CREATE TABLE vt (id INT PRIMARY KEY);
 		CREATE VIEW v_comp AS
-			SELECT id + 1 AS next_id, COUNT(*) AS cnt, id > 0 AS is_pos, CONCAT('x', CAST(id AS CHAR(4))) AS label
+			SELECT id + 1 AS next_id, COUNT(*) AS cnt, id > 0 AS is_pos, CONCAT('x', CAST(id AS CHAR(4))) AS label,
+				1 AS lit_int, 'x' AS lit_str, '' AS lit_empty, NULL AS lit_null, TRUE AS lit_bool, 1.5 AS lit_dec
 			FROM vt GROUP BY id;
 	`, &ExecOptions{ContinueOnError: false})
 	require.NoError(t, err)
@@ -714,8 +715,14 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 	}
 	require.Equal(t, "bigint", viewCols["next_id"].Type)
 	require.Equal(t, "bigint", viewCols["cnt"].Type)
-	require.Equal(t, "tinyint(1)", viewCols["is_pos"].Type)
+	require.Equal(t, "bigint", viewCols["is_pos"].Type)
 	require.Equal(t, "varchar", viewCols["label"].Type)
+	require.Equal(t, "bigint", viewCols["lit_int"].Type)
+	require.Equal(t, "var_string(1)", viewCols["lit_str"].Type)
+	require.Equal(t, "var_string(0)", viewCols["lit_empty"].Type)
+	require.Equal(t, "binary(0)", viewCols["lit_null"].Type)
+	require.Equal(t, "bigint", viewCols["lit_bool"].Type)
+	require.Equal(t, "decimal(2,1)", viewCols["lit_dec"].Type)
 
 	reloaded := New()
 	report, err := reloaded.LoadMetadata(context.Background(), meta)
@@ -729,4 +736,5 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 	require.Contains(t, def, "FUNCTION `fn``1`(`p``a` INT)")
 	require.Contains(t, def, "PROCEDURE `sp``1`(IN `in``x` INT)")
 	require.Contains(t, def, "EVENT `ev``1`")
+	require.Less(t, strings.Index(def, "Function structure for `fn``1`"), strings.Index(def, "View structure for `v_comp`"))
 }

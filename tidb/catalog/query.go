@@ -724,6 +724,8 @@ type ConstExprQ struct {
 	// lineage, like any constant, but deparse must not quote it: the engine
 	// lexes the position as a keyword and rejects timestampdiff('SECOND',...).
 	Keyword bool
+	// IsString marks a string literal so export distinguishes '1' from 1.
+	IsString bool
 }
 
 func (*ConstExprQ) analyzedExprTag()          {}

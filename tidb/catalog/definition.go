@@ -114,16 +114,16 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
-	// Construct views.
-	for _, view := range schema.Views {
-		if err := writeView(&buf, view); err != nil {
+	// Construct functions before views: views may invoke stored functions.
+	for _, function := range schema.Functions {
+		if err := writeFunction(&buf, function); err != nil {
 			return "", err
 		}
 	}
 
-	// Construct functions.
-	for _, function := range schema.Functions {
-		if err := writeFunction(&buf, function); err != nil {
+	// Construct views.
+	for _, view := range schema.Views {
+		if err := writeView(&buf, view); err != nil {
 			return "", err
 		}
 	}
