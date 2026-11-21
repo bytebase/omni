@@ -18,7 +18,7 @@ import (
 // clone of the original metadata proto, producing the post-DDL metadata.
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
-	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasSchemaOwnerChange(catBefore, catAfter) && !hasDatabaseOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) {
+	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) && !hasSchemaOwnerChange(catBefore, catAfter) && !hasDatabaseOwnerChange(catBefore, catAfter) && !hasExtensionMemberChange(catBefore, catAfter) && !hasColumnManagedSequenceChange(catBefore, catAfter) {
 		return proto.CloneOf(original)
 	}
 	if diff == nil {
@@ -450,11 +450,7 @@ func applyFunctionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 		switch f.Action {
 		case DiffDrop:
 			if sm := findSchema(result, schemaName); sm != nil {
-				if f.From != nil && f.From.Kind == 'p' {
-					_, sm.Procedures = popProcedureMatchingIdentity(sm.Procedures, f.SchemaName, f.Identity)
-				} else {
-					_, sm.Functions = popFunctionMatchingIdentity(sm.Functions, f.SchemaName, f.Identity)
-				}
+				popRoutineMatchingIdentity(sm, f.SchemaName, f.Identity, f.From != nil && f.From.Kind == 'p')
 			}
 		case DiffAdd:
 			if f.To != nil {
@@ -476,28 +472,29 @@ func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Ca
 		return
 	}
 	if to.Kind == 'p' {
-		var prev *metadatapb.ProcedureMetadata
+		var prevFn *metadatapb.FunctionMetadata
+		var prevProc *metadatapb.ProcedureMetadata
 		if srcSM != nil && oldIdentity != "" {
-			if from != nil && from.Kind != 'p' {
-				_, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
-			} else {
-				prev, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
-			}
+			prevFn, prevProc = popRoutineMatchingIdentity(srcSM, srcSchema, oldIdentity, from == nil || from.Kind == 'p')
 		}
 		p := procedureToProto(catAfter, to, newIdentity)
-		if prev != nil {
-			p.Comment = prev.Comment
-			p.SkipDump = prev.SkipDump
+		switch {
+		case prevProc != nil:
+			p.Comment, p.SkipDump = prevProc.Comment, prevProc.SkipDump
+		case prevFn != nil && (from == nil || from.Kind == 'p'):
+			// Sync listed this procedure among functions.
+			p.Comment, p.SkipDump = prevFn.Comment, prevFn.SkipDump
 		}
 		dstSM.Procedures = append(dstSM.Procedures, p)
 		return
 	}
 	var prev *metadatapb.FunctionMetadata
 	if srcSM != nil && oldIdentity != "" {
-		if from != nil && from.Kind == 'p' {
-			_, srcSM.Procedures = popProcedureMatchingIdentity(srcSM.Procedures, srcSchema, oldIdentity)
-		} else {
-			prev, srcSM.Functions = popFunctionMatchingIdentity(srcSM.Functions, srcSchema, oldIdentity)
+		wasProcedure := from != nil && from.Kind == 'p'
+		fn, _ := popRoutineMatchingIdentity(srcSM, srcSchema, oldIdentity, wasProcedure)
+		if !wasProcedure {
+			// A procedure turned function carries none of its metadata over.
+			prev = fn
 		}
 	}
 	if to.Kind == PROKIND_AGGREGATE {
@@ -1194,8 +1191,32 @@ func applySequenceDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Cat
 // column, changed with ALTER SEQUENCE or SET GENERATED options, removed with
 // their column.
 func syncColumnManagedSequences(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, canonicalSchema func(string) string) {
+	removed, changed := columnManagedSequenceChanges(catBefore, catAfter)
+	for _, prev := range removed {
+		if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
+			sm.Sequences = removeSequenceByName(sm.Sequences, prev.Name)
+		}
+	}
+	for _, cur := range changed {
+		var existing *metadatapb.SequenceMetadata
+		if prev := catBefore.GetSequenceByOID(cur.OID); prev != nil && prev.Schema != nil {
+			if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
+				existing, sm.Sequences = popSequenceByName(sm.Sequences, prev.Name)
+			}
+		}
+		updated := sequenceToProto(catAfter, cur)
+		mergeSequenceMetadata(updated, existing)
+		upsertSequence(findOrCreateSchema(result, canonicalSchema(cur.Schema.Name)), updated)
+	}
+}
+
+// columnManagedSequenceChanges returns the serial and identity sequences
+// catAfter no longer has, and those it adds or changes (options, name, schema,
+// or owner), in OID order. A sequence its column released counts as changed:
+// the diff skips it as well.
+func columnManagedSequenceChanges(catBefore, catAfter *Catalog) (removed, changed []*Sequence) {
 	if catBefore == nil || catAfter == nil {
-		return
+		return nil, nil
 	}
 	managed := func(c *Catalog) map[uint32]*Sequence {
 		out := make(map[uint32]*Sequence)
@@ -1212,44 +1233,39 @@ func syncColumnManagedSequences(result *metadatapb.DatabaseSchemaMetadata, catBe
 		return out
 	}
 	before, after := managed(catBefore), managed(catAfter)
-	// A sequence its column released (DROP IDENTITY keeps none, but OWNED BY
-	// NONE on a serial's does) is no longer column-managed; the diff skips it
-	// too, so refresh it here.
 	for oid := range before {
 		if seq := catAfter.GetSequenceByOID(oid); seq != nil && seq.Schema != nil && after[oid] == nil {
 			after[oid] = seq
 		}
 	}
-	for oid, prev := range before {
-		if _, kept := after[oid]; kept || catAfter.GetSequenceByOID(oid) != nil {
-			continue
+	sortedOIDs := func(m map[uint32]*Sequence) []uint32 {
+		oids := make([]uint32, 0, len(m))
+		for oid := range m {
+			oids = append(oids, oid)
 		}
-		if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
-			sm.Sequences = removeSequenceByName(sm.Sequences, prev.Name)
+		slices.Sort(oids)
+		return oids
+	}
+	for _, oid := range sortedOIDs(before) {
+		if after[oid] == nil && catAfter.GetSequenceByOID(oid) == nil {
+			removed = append(removed, before[oid])
 		}
 	}
-	oids := make([]uint32, 0, len(after))
-	for oid := range after {
-		oids = append(oids, oid)
-	}
-	slices.Sort(oids)
-	for _, oid := range oids {
+	for _, oid := range sortedOIDs(after) {
 		cur := after[oid]
 		prev := catBefore.GetSequenceByOID(oid)
 		if prev != nil && prev.Schema != nil && prev.Schema.Name == cur.Schema.Name && prev.Name == cur.Name &&
 			!sequencesChanged(catBefore, catAfter, prev, cur) && sequenceOwner(catBefore, prev) == sequenceOwner(catAfter, cur) {
 			continue
 		}
-		var existing *metadatapb.SequenceMetadata
-		if prev != nil && prev.Schema != nil {
-			if sm := findSchema(result, canonicalSchema(prev.Schema.Name)); sm != nil {
-				existing, sm.Sequences = popSequenceByName(sm.Sequences, prev.Name)
-			}
-		}
-		updated := sequenceToProto(catAfter, cur)
-		mergeSequenceMetadata(updated, existing)
-		upsertSequence(findOrCreateSchema(result, canonicalSchema(cur.Schema.Name)), updated)
+		changed = append(changed, cur)
 	}
+	return removed, changed
+}
+
+func hasColumnManagedSequenceChange(catBefore, catAfter *Catalog) bool {
+	removed, changed := columnManagedSequenceChanges(catBefore, catAfter)
+	return len(removed) > 0 || len(changed) > 0
 }
 
 func upsertEnum(sm *metadatapb.SchemaMetadata, name string, values []string) {
@@ -2760,11 +2776,36 @@ func functionSQLBodyForDeps(up *UserProc) string {
 	return trimmed
 }
 
+// popRoutineMatchingIdentity removes the routine with identity from sm,
+// looking first in its own kind's collection and then in the other: sync can
+// list a procedure among functions. It returns what it removed.
+func popRoutineMatchingIdentity(sm *metadatapb.SchemaMetadata, schemaName, identity string, procedure bool) (*metadatapb.FunctionMetadata, *metadatapb.ProcedureMetadata) {
+	var fn *metadatapb.FunctionMetadata
+	var proc *metadatapb.ProcedureMetadata
+	if procedure {
+		if proc, sm.Procedures = popProcedureMatchingIdentity(sm.Procedures, schemaName, identity); proc == nil {
+			fn, sm.Functions = popFunctionMatchingIdentity(sm.Functions, schemaName, identity)
+		}
+		return fn, proc
+	}
+	if fn, sm.Functions = popFunctionMatchingIdentity(sm.Functions, schemaName, identity); fn == nil {
+		proc, sm.Procedures = popProcedureMatchingIdentity(sm.Procedures, schemaName, identity)
+	}
+	return fn, proc
+}
+
 func popProcedureMatchingIdentity(procs []*metadatapb.ProcedureMetadata, schemaName, identity string) (*metadatapb.ProcedureMetadata, []*metadatapb.ProcedureMetadata) {
 	popped, rest := popProcedureByIdentity(procs, identity)
 	if popped == nil && schemaName != "" {
 		if shortID := strings.TrimPrefix(identity, schemaName+"."); shortID != identity {
 			popped, rest = popProcedureByIdentity(rest, shortID)
+		}
+	}
+	if popped == nil {
+		for i, p := range rest {
+			if syncSignatureMatchesIdentity(p.Name, p.Signature, schemaName, identity) {
+				return p, slices.Delete(slices.Clone(rest), i, i+1)
+			}
 		}
 	}
 	return popped, rest
@@ -2777,7 +2818,30 @@ func popFunctionMatchingIdentity(funcs []*metadatapb.FunctionMetadata, schemaNam
 			popped, rest = popFunctionByIdentity(rest, shortID)
 		}
 	}
+	if popped == nil {
+		for i, f := range rest {
+			if syncSignatureMatchesIdentity(f.Name, f.Signature, schemaName, identity) {
+				return f, slices.Delete(slices.Clone(rest), i, i+1)
+			}
+		}
+	}
 	return popped, rest
+}
+
+// syncSignatureMatchesIdentity reports whether a signature as sync writes it,
+// with argument names and modes (pg_get_function_identity_arguments), names
+// the routine the diff identifies as schema.name(type,type).
+func syncSignatureMatchesIdentity(name, signature, schemaName, identity string) bool {
+	rest := strings.TrimPrefix(identity, schemaName+".")
+	if name == "" || !strings.HasPrefix(rest, name+"(") || !strings.HasSuffix(rest, ")") {
+		return false
+	}
+	inner := rest[len(name)+1 : len(rest)-1]
+	var expected []string
+	if inner != "" {
+		expected = strings.Split(inner, ",")
+	}
+	return routineSignatureMatches(name, signature, expected)
 }
 
 func popProcedureByIdentity(procs []*metadatapb.ProcedureMetadata, identity string) (*metadatapb.ProcedureMetadata, []*metadatapb.ProcedureMetadata) {

@@ -7843,6 +7843,49 @@ func TestRound37Fixes(t *testing.T) {
 		sqLeft = append(sqLeft, seq.Name)
 	}
 	require.Equal(t, []string{"sq_n_seq"}, sqLeft)
+
+	// 22. A change only to a serial sequence still reaches the metadata.
+	ssBefore := New()
+	_, err = ssBefore.Exec(`CREATE TABLE public.ss (id serial);`, nil)
+	require.NoError(t, err)
+	emptyBefore := New()
+	ssMeta := ApplyDiffToMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}}}, emptyBefore, ssBefore, Diff(emptyBefore, ssBefore))
+	ssAfter := ssBefore.Clone()
+	_, err = ssAfter.Exec(`ALTER SEQUENCE public.ss_id_seq CACHE 20;`, nil)
+	require.NoError(t, err)
+	require.True(t, Diff(ssBefore, ssAfter).IsEmpty())
+	ssUpdated := ApplyDiffToMetadata(ssMeta, ssBefore, ssAfter, Diff(ssBefore, ssAfter))
+	require.Len(t, ssUpdated.Schemas[0].Sequences, 1)
+	require.Equal(t, "20", ssUpdated.Schemas[0].Sequences[0].CacheSize)
+
+	// 23. Dropping or replacing a procedure that sync listed among functions removes that entry.
+	prBefore := New()
+	_, err = prBefore.Exec(`
+		CREATE PROCEDURE public.p(a integer) LANGUAGE sql AS 'SELECT 1';
+		CREATE PROCEDURE public.q(a integer) LANGUAGE sql AS 'SELECT 1';
+	`, nil)
+	require.NoError(t, err)
+	prMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{Name: "p", Signature: "p(a integer)", Definition: "CREATE OR REPLACE PROCEDURE public.p(a integer)\n LANGUAGE sql\nAS $procedure$SELECT 1$procedure$\n"},
+				{Name: "q", Signature: "q(a integer)", Definition: "CREATE OR REPLACE PROCEDURE public.q(a integer)\n LANGUAGE sql\nAS $procedure$SELECT 1$procedure$\n", Comment: "kept"},
+			},
+		}},
+	}
+	prAfter := prBefore.Clone()
+	_, err = prAfter.Exec(`
+		DROP PROCEDURE public.p(integer);
+		CREATE OR REPLACE PROCEDURE public.q(a integer) LANGUAGE sql AS 'SELECT 2';
+	`, nil)
+	require.NoError(t, err)
+	prUpdated := ApplyDiffToMetadata(prMeta, prBefore, prAfter, Diff(prBefore, prAfter))
+	require.Empty(t, prUpdated.Schemas[0].Functions)
+	require.Len(t, prUpdated.Schemas[0].Procedures, 1)
+	require.Equal(t, "q", prUpdated.Schemas[0].Procedures[0].Name)
+	require.Equal(t, "kept", prUpdated.Schemas[0].Procedures[0].Comment)
 }
 
 // round37ExecErr runs sql and returns its first error, statement errors included.
