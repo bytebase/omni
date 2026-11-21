@@ -1466,3 +1466,71 @@ CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELE
 		require.NotContains(t, sql, "DROP TABLE [dbo].[t]")
 	})
 }
+
+func TestDefinitionHoistsUnicodeFunctionDependencies(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "v", Type: "int", Nullable: false, Default: "(dbo.外层函数())"},
+			},
+		}},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "外层函数", Definition: "CREATE FUNCTION dbo.外层函数() RETURNS int AS BEGIN RETURN dbo.内层函数() END"},
+			{Name: "内层函数", Definition: "CREATE FUNCTION dbo.内层函数() RETURNS int AS BEGIN RETURN 1 END"},
+		},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	innerAt := strings.Index(def, "CREATE FUNCTION dbo.内层函数")
+	outerAt := strings.Index(def, "CREATE FUNCTION dbo.外层函数")
+	tableAt := strings.Index(def, "CREATE TABLE [dbo].[t]")
+	require.GreaterOrEqual(t, innerAt, 0)
+	require.Less(t, innerAt, outerAt)
+	require.Less(t, outerAt, tableAt)
+}
+
+func TestMigrationRebuildsMixedSchemaBoundFunctionAndViewGraph(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [dbo].[g]() AS [m];
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS [n];
+GO
+CREATE FUNCTION [dbo].[g]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([n]) FROM [dbo].[v1]) END;
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [dbo].[g]() AS [m];
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "UNSUPPORTED")
+
+	dropV2 := strings.Index(sql, "DROP VIEW [dbo].[v2]")
+	dropG := strings.Index(sql, "DROP FUNCTION [dbo].[g]")
+	dropV1 := strings.Index(sql, "DROP VIEW [dbo].[v1]")
+	dropF := strings.Index(sql, "DROP FUNCTION [dbo].[f]")
+	createF := strings.Index(sql, "CREATE FUNCTION [dbo].[f]")
+	createV1 := strings.Index(sql, "CREATE VIEW [dbo].[v1]")
+	createG := strings.Index(sql, "CREATE FUNCTION [dbo].[g]")
+	createV2 := strings.Index(sql, "CREATE VIEW [dbo].[v2]")
+
+	require.GreaterOrEqual(t, dropV2, 0)
+	require.Less(t, dropV2, dropG)
+	require.Less(t, dropG, dropV1)
+	require.Less(t, dropV1, dropF)
+	require.Less(t, dropF, createF)
+	require.Less(t, createF, createV1)
+	require.Less(t, createV1, createG)
+	require.Less(t, createG, createV2)
+}

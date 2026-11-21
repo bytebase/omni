@@ -9,12 +9,19 @@ import (
 	"github.com/bytebase/omni/mssql/ast"
 )
 
+const (
+	// Match bracketed, double-quoted, or unquoted T-SQL identifiers, including
+	// non-ASCII Unicode characters accepted by the lexer (isIdentStart: byte >= 128).
+	identPartExpr = `(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#\x{0080}-\x{10FFFF}][A-Za-z0-9_@#$\x{0080}-\x{10FFFF}]*)`
+	multipartExpr = identPartExpr + `(?:\s*\.\s*` + identPartExpr + `)*`
+)
+
 var (
 	schemaBindingPattern = regexp.MustCompile(`(?i)\bSCHEMABINDING\b`)
-	functionHeaderPrefix = regexp.MustCompile(`(?is)^\s*(?:CREATE\s+OR\s+ALTER|CREATE|ALTER)\s+FUNCTION\s+((?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*)(?:\s*\.\s*(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*))*)`)
-	functionCallPattern  = regexp.MustCompile(`(?i)((?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*)(?:\s*\.\s*(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*))*)\s*\(`)
-	multipartIdent       = regexp.MustCompile(`(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*)(?:\s*\.\s*(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*))*`)
-	identPartPattern     = regexp.MustCompile(`\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_@#][A-Za-z0-9_@#$]*`)
+	functionHeaderPrefix = regexp.MustCompile(`(?is)^\s*(?:CREATE\s+OR\s+ALTER|CREATE|ALTER)\s+FUNCTION\s+(` + multipartExpr + `)`)
+	functionCallPattern  = regexp.MustCompile(`(?i)(` + multipartExpr + `)\s*\(`)
+	multipartIdent       = regexp.MustCompile(multipartExpr)
+	identPartPattern     = regexp.MustCompile(identPartExpr)
 )
 
 // isSchemaBound reports whether a view or function definition carries

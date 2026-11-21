@@ -109,7 +109,28 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
-	dropViewsInOrder(diff, rebuiltViews, &buf)
+	droppedDefaults := make(map[string]bool)
+	var restoreFunctionDefaults []functionDefaultRef
+	droppedChecks := make(map[string]bool)
+	var restoreFunctionChecks []functionCheckRef
+
+	viewsToDrop := collectViewsToDrop(diff, rebuiltViews)
+	earlyFuncDrops, remainingFuncDrops := splitFunctionsBeforeViewDrops(allFunctionDrops, viewsToDrop)
+	if len(earlyFuncDrops) > 0 {
+		earlyDefaults, earlyRestoreDefaults := dropFunctionDefaults(from, diff, earlyFuncDrops, droppedDefaults, &buf)
+		for name := range earlyDefaults {
+			droppedDefaults[name] = true
+		}
+		restoreFunctionDefaults = append(restoreFunctionDefaults, earlyRestoreDefaults...)
+		earlyChecks, earlyRestoreChecks := dropFunctionChecks(from, diff, earlyFuncDrops, droppedChecks, &buf)
+		for name := range earlyChecks {
+			droppedChecks[name] = true
+		}
+		restoreFunctionChecks = append(restoreFunctionChecks, earlyRestoreChecks...)
+		dropViewsAndFunctionsInOrder(viewsToDrop, earlyFuncDrops, &buf)
+	} else {
+		dropViewsInOrder(diff, rebuiltViews, &buf)
+	}
 
 	for _, procDiff := range diff.Procedures {
 		if procDiff.Action == DiffDrop {
@@ -187,25 +208,25 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	droppedTables := collectDroppedTables(diff)
-	droppedDefaults := make(map[string]bool)
-	var restoreFunctionDefaults []functionDefaultRef
-	var droppedChecks map[string]bool
-	var restoreFunctionChecks []functionCheckRef
 	hasTableDrops := false
 
-	if droppedFunctionsDependOnDroppedTables(allFunctionDrops, droppedTables) {
-		var droppedFnDefaults map[string]bool
-		droppedFnDefaults, restoreFunctionDefaults = dropFunctionDefaults(from, diff, allFunctionDrops, &buf)
+	if droppedFunctionsDependOnDroppedTables(remainingFuncDrops, droppedTables) {
+		droppedFnDefaults, moreRestoreDefaults := dropFunctionDefaults(from, diff, remainingFuncDrops, droppedDefaults, &buf)
 		for name := range droppedFnDefaults {
 			droppedDefaults[name] = true
 		}
-		droppedChecks, restoreFunctionChecks = dropFunctionChecks(from, diff, allFunctionDrops, &buf)
+		restoreFunctionDefaults = append(restoreFunctionDefaults, moreRestoreDefaults...)
+		droppedFnChecks, moreRestoreChecks := dropFunctionChecks(from, diff, remainingFuncDrops, droppedChecks, &buf)
+		for name := range droppedFnChecks {
+			droppedChecks[name] = true
+		}
+		restoreFunctionChecks = append(restoreFunctionChecks, moreRestoreChecks...)
 		for _, funcDiff := range diff.Functions {
 			if funcDiff.Action == DiffDrop && functionReplacementUsedByComputed(diff, funcDiff) {
 				fmt.Fprintf(&buf, "-- UNSUPPORTED: function %s.%s is used by a computed column; left unchanged.\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 			}
 		}
-		hasTableDrops = dropTablesAndFunctionsInOrder(droppedTables, allFunctionDrops, hasTableAlterations, &buf)
+		hasTableDrops = dropTablesAndFunctionsInOrder(droppedTables, remainingFuncDrops, hasTableAlterations, &buf)
 	} else {
 		for _, tableDiff := range diff.Tables {
 			if tableDiff.Action != DiffDrop {
@@ -239,18 +260,22 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			}
 		}
 
-		var droppedFnDefaults map[string]bool
-		droppedFnDefaults, restoreFunctionDefaults = dropFunctionDefaults(from, diff, allFunctionDrops, &buf)
+		droppedFnDefaults, moreRestoreDefaults := dropFunctionDefaults(from, diff, remainingFuncDrops, droppedDefaults, &buf)
 		for name := range droppedFnDefaults {
 			droppedDefaults[name] = true
 		}
-		droppedChecks, restoreFunctionChecks = dropFunctionChecks(from, diff, allFunctionDrops, &buf)
+		restoreFunctionDefaults = append(restoreFunctionDefaults, moreRestoreDefaults...)
+		droppedFnChecks, moreRestoreChecks := dropFunctionChecks(from, diff, remainingFuncDrops, droppedChecks, &buf)
+		for name := range droppedFnChecks {
+			droppedChecks[name] = true
+		}
+		restoreFunctionChecks = append(restoreFunctionChecks, moreRestoreChecks...)
 		for _, funcDiff := range diff.Functions {
 			if funcDiff.Action == DiffDrop && functionReplacementUsedByComputed(diff, funcDiff) {
 				fmt.Fprintf(&buf, "-- UNSUPPORTED: function %s.%s is used by a computed column; left unchanged.\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 			}
 		}
-		for _, funcDiff := range orderedFunctionDrops(allFunctionDrops) {
+		for _, funcDiff := range orderedFunctionDrops(remainingFuncDrops) {
 			fmt.Fprintf(&buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 		}
 	}
@@ -482,24 +507,35 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
-	earlyFunctions := migrationEarlyFunctions(diff, rebuiltViews, allFunctionCreates)
-	for name := range tableFunctions {
-		delete(earlyFunctions, name)
-	}
-	for _, funcDiff := range orderedFunctionDiffs(allFunctionCreates) {
-		if !earlyFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
-			continue
+	viewsToCreate := collectViewsToCreate(diff, rebuiltViews)
+	var postTableFuncCreates []*FunctionDiffEntry
+	for _, funcDiff := range allFunctionCreates {
+		if !tableFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
+			postTableFuncCreates = append(postTableFuncCreates, funcDiff)
 		}
-		writeFunctionMigration(&buf, funcDiff)
 	}
-
-	createViewsInOrder(diff, rebuiltViews, &buf)
-
-	for _, funcDiff := range orderedFunctionDiffs(allFunctionCreates) {
-		if earlyFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] || tableFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
-			continue
+	if createdFunctionsDependOnCreatedViews(postTableFuncCreates, viewsToCreate) {
+		createViewsAndFunctionsInOrder(viewsToCreate, postTableFuncCreates, &buf)
+	} else {
+		earlyFunctions := migrationEarlyFunctions(diff, rebuiltViews, allFunctionCreates)
+		for name := range tableFunctions {
+			delete(earlyFunctions, name)
 		}
-		writeFunctionMigration(&buf, funcDiff)
+		for _, funcDiff := range orderedFunctionDiffs(allFunctionCreates) {
+			if !earlyFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
+				continue
+			}
+			writeFunctionMigration(&buf, funcDiff)
+		}
+
+		createViewsInOrder(diff, rebuiltViews, &buf)
+
+		for _, funcDiff := range orderedFunctionDiffs(allFunctionCreates) {
+			if earlyFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] || tableFunctions[objectID(funcDiff.SchemaName, funcDiff.FunctionName)] {
+				continue
+			}
+			writeFunctionMigration(&buf, funcDiff)
+		}
 	}
 
 	restoredConstraint := false
@@ -1214,9 +1250,20 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 		return nil, nil
 	}
 
-	// Fixpoint over unchanged schema-bound functions in from.
+	// Views already scheduled for DROP or ALTER in diff.Views.
+	diffViews := make(map[string]bool)
+	for _, viewDiff := range diff.Views {
+		if viewDiff.Action == DiffDrop || viewDiff.Action == DiffAlter {
+			diffViews[strings.ToLower(objectID(viewDiff.SchemaName, viewDiff.ViewName))] = true
+		}
+	}
+
+	// Unified fixpoint over unchanged schema-bound functions and views in from
+	// so mixed chains (e.g. f -> v -> g -> v2) are discovered completely.
 	var rebuiltFunctions []functionWithSchema
 	rebuiltFnSet := make(map[string]bool)
+	var rebuiltViews []viewWithSchema
+	rebuiltViewSet := make(map[string]bool)
 	for {
 		added := false
 		slices.Sort(affectedKeys)
@@ -1232,39 +1279,29 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 				if to != nil && !functionExistsInCatalog(to, schema.Name, fn.Name) {
 					continue
 				}
+				depends := false
 				for _, targetKey := range affectedKeys {
 					target := affected[targetKey]
 					if definitionReferencesFunction(fn.Definition, schema.Name, target.schema, target.function.Name) {
-						rebuiltFnSet[key] = true
-						rebuiltFunctions = append(rebuiltFunctions, functionWithSchema{schema: schema.Name, function: fn})
-						addAffected(schema.Name, fn)
-						added = true
+						depends = true
 						break
 					}
 				}
+				if !depends {
+					for _, vws := range rebuiltViews {
+						if definitionReferencesTable(fn.Definition, schema.Name, vws.schema, vws.view.Name) {
+							depends = true
+							break
+						}
+					}
+				}
+				if depends {
+					rebuiltFnSet[key] = true
+					rebuiltFunctions = append(rebuiltFunctions, functionWithSchema{schema: schema.Name, function: fn})
+					addAffected(schema.Name, fn)
+					added = true
+				}
 			}
-		}
-		if !added {
-			break
-		}
-	}
-
-	// Views already scheduled for DROP or ALTER in diff.Views.
-	diffViews := make(map[string]bool)
-	for _, viewDiff := range diff.Views {
-		if viewDiff.Action == DiffDrop || viewDiff.Action == DiffAlter {
-			diffViews[strings.ToLower(objectID(viewDiff.SchemaName, viewDiff.ViewName))] = true
-		}
-	}
-
-	// Fixpoint over unchanged schema-bound views in from calling any affected
-	// function or depending on another rebuilt schema-bound view.
-	var rebuiltViews []viewWithSchema
-	rebuiltViewSet := make(map[string]bool)
-	slices.Sort(affectedKeys)
-	for {
-		added := false
-		for _, schema := range from.Metadata().Schemas {
 			for _, view := range schema.Views {
 				if view.GetSkipDump() || !isSchemaBound(view.Definition) {
 					continue
@@ -1304,6 +1341,290 @@ func rebuiltSchemaBoundDependencies(from, to *Catalog, diff *SchemaDiff) ([]func
 		}
 	}
 	return rebuiltFunctions, rebuiltViews
+}
+
+func collectViewsToDrop(diff *SchemaDiff, rebuiltViews []viewWithSchema) []*ViewDiffEntry {
+	var views []*ViewDiffEntry
+	for _, viewDiff := range diff.Views {
+		if viewDiff.Action == DiffDrop || viewDiff.Action == DiffAlter {
+			views = append(views, viewDiff)
+		}
+	}
+	for _, vws := range rebuiltViews {
+		views = append(views, &ViewDiffEntry{
+			Action:     DiffDrop,
+			SchemaName: vws.schema,
+			ViewName:   vws.view.Name,
+			OldView:    vws.view,
+		})
+	}
+	slices.SortFunc(views, func(a, b *ViewDiffEntry) int {
+		return strings.Compare(objectID(a.SchemaName, a.ViewName), objectID(b.SchemaName, b.ViewName))
+	})
+	return views
+}
+
+func collectViewsToCreate(diff *SchemaDiff, rebuiltViews []viewWithSchema) []*ViewDiffEntry {
+	var views []*ViewDiffEntry
+	for _, viewDiff := range diff.Views {
+		if viewDiff.Action == DiffCreate || viewDiff.Action == DiffAlter {
+			views = append(views, viewDiff)
+		}
+	}
+	for _, vws := range rebuiltViews {
+		views = append(views, &ViewDiffEntry{
+			Action:     DiffCreate,
+			SchemaName: vws.schema,
+			ViewName:   vws.view.Name,
+			NewView:    vws.view,
+		})
+	}
+	slices.SortFunc(views, func(a, b *ViewDiffEntry) int {
+		return strings.Compare(objectID(a.SchemaName, a.ViewName), objectID(b.SchemaName, b.ViewName))
+	})
+	return views
+}
+
+// splitFunctionsBeforeViewDrops separates dropped functions that must run
+// before or interleaved with view drops (schema-bound functions reading a
+// dropped view, plus any dropped functions calling them) from functions that
+// stay in the normal post-table function drop phase.
+func splitFunctionsBeforeViewDrops(functionDrops []*FunctionDiffEntry, viewsToDrop []*ViewDiffEntry) (early, remaining []*FunctionDiffEntry) {
+	if len(functionDrops) == 0 || len(viewsToDrop) == 0 {
+		return nil, functionDrops
+	}
+	earlySet := make(map[string]bool)
+	for _, fd := range functionDrops {
+		if fd.OldFunction == nil || !isSchemaBound(fd.OldFunction.Definition) {
+			continue
+		}
+		for _, vd := range viewsToDrop {
+			if definitionReferencesTable(fd.OldFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+				earlySet[objectID(fd.SchemaName, fd.FunctionName)] = true
+				break
+			}
+		}
+	}
+	if len(earlySet) == 0 {
+		return nil, functionDrops
+	}
+	// Transitively include any dropped function that calls an early-dropped function.
+	for {
+		added := false
+		for _, fd := range functionDrops {
+			id := objectID(fd.SchemaName, fd.FunctionName)
+			if earlySet[id] || fd.OldFunction == nil {
+				continue
+			}
+			for _, other := range functionDrops {
+				otherID := objectID(other.SchemaName, other.FunctionName)
+				if !earlySet[otherID] || otherID == id {
+					continue
+				}
+				if definitionReferencesFunction(fd.OldFunction.Definition, fd.SchemaName, other.SchemaName, funcDiffBaseName(other)) {
+					earlySet[id] = true
+					added = true
+					break
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	for _, fd := range functionDrops {
+		if earlySet[objectID(fd.SchemaName, fd.FunctionName)] {
+			early = append(early, fd)
+		} else {
+			remaining = append(remaining, fd)
+		}
+	}
+	return early, remaining
+}
+
+func dropViewsAndFunctionsInOrder(viewsToDrop []*ViewDiffEntry, funcDrops []*FunctionDiffEntry, buf *strings.Builder) {
+	g := newGraph()
+	viewMap := make(map[string]*ViewDiffEntry, len(viewsToDrop))
+	viewNodeByFold := make(map[string]string, len(viewsToDrop))
+	funcMap := make(map[string]*FunctionDiffEntry, len(funcDrops))
+	for _, vd := range viewsToDrop {
+		obj := objectID(vd.SchemaName, vd.ViewName)
+		node := "V\x00" + obj
+		g.addNode(node)
+		viewMap[node] = vd
+		viewNodeByFold[strings.ToLower(obj)] = node
+	}
+	for _, fd := range funcDrops {
+		node := "F\x00" + objectID(fd.SchemaName, fd.FunctionName)
+		g.addNode(node)
+		funcMap[node] = fd
+	}
+	// View depends on View -> dependent view drops first.
+	// View calls Function -> view drops before function.
+	for _, vd := range viewsToDrop {
+		if vd.OldView == nil || vd.OldView.Definition == "" {
+			continue
+		}
+		vNode := "V\x00" + objectID(vd.SchemaName, vd.ViewName)
+		for _, dep := range viewTableDependencies(vd.OldView.Definition, vd.SchemaName) {
+			if targetNode, ok := viewNodeByFold[strings.ToLower(dep)]; ok && targetNode != vNode {
+				g.addEdge(vNode, targetNode)
+			}
+		}
+		for _, fd := range funcDrops {
+			if expressionReferencesFunction(vd.OldView.Definition, vd.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+				g.addEdge(vNode, "F\x00"+objectID(fd.SchemaName, fd.FunctionName))
+			}
+		}
+	}
+	// Schema-bound Function reads View -> function drops before view.
+	// Function calls Function -> caller drops before callee.
+	for _, fd := range funcDrops {
+		if fd.OldFunction == nil {
+			continue
+		}
+		fNode := "F\x00" + objectID(fd.SchemaName, fd.FunctionName)
+		if isSchemaBound(fd.OldFunction.Definition) {
+			for _, vd := range viewsToDrop {
+				if definitionReferencesTable(fd.OldFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+					g.addEdge(fNode, "V\x00"+objectID(vd.SchemaName, vd.ViewName))
+				}
+			}
+		}
+		for _, other := range funcDrops {
+			otherNode := "F\x00" + objectID(other.SchemaName, other.FunctionName)
+			if otherNode == fNode {
+				continue
+			}
+			if definitionReferencesFunction(fd.OldFunction.Definition, fd.SchemaName, other.SchemaName, funcDiffBaseName(other)) {
+				g.addEdge(fNode, otherNode)
+			}
+		}
+	}
+	order, err := g.topologicalSort()
+	if err != nil {
+		for _, fd := range orderedFunctionDrops(funcDrops) {
+			fmt.Fprintf(buf, "DROP FUNCTION %s.%s;\nGO\n", quote(fd.SchemaName), quote(fd.FunctionName))
+		}
+		for _, vd := range viewsToDrop {
+			fmt.Fprintf(buf, "DROP VIEW %s.%s;\nGO\n", quote(vd.SchemaName), quote(vd.ViewName))
+		}
+		return
+	}
+	for _, node := range order {
+		if vd, ok := viewMap[node]; ok {
+			fmt.Fprintf(buf, "DROP VIEW %s.%s;\nGO\n", quote(vd.SchemaName), quote(vd.ViewName))
+		} else if fd, ok := funcMap[node]; ok {
+			fmt.Fprintf(buf, "DROP FUNCTION %s.%s;\nGO\n", quote(fd.SchemaName), quote(fd.FunctionName))
+		}
+	}
+}
+
+func createdFunctionsDependOnCreatedViews(funcCreates []*FunctionDiffEntry, viewsToCreate []*ViewDiffEntry) bool {
+	if len(funcCreates) == 0 || len(viewsToCreate) == 0 {
+		return false
+	}
+	for _, fd := range funcCreates {
+		if fd.NewFunction == nil || !isSchemaBound(fd.NewFunction.Definition) {
+			continue
+		}
+		for _, vd := range viewsToCreate {
+			if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates []*FunctionDiffEntry, buf *strings.Builder) {
+	g := newGraph()
+	viewMap := make(map[string]*ViewDiffEntry, len(viewsToCreate))
+	viewNodeByFold := make(map[string]string, len(viewsToCreate))
+	funcMap := make(map[string]*FunctionDiffEntry, len(funcCreates))
+	for _, vd := range viewsToCreate {
+		obj := objectID(vd.SchemaName, vd.ViewName)
+		node := "V\x00" + obj
+		g.addNode(node)
+		viewMap[node] = vd
+		viewNodeByFold[strings.ToLower(obj)] = node
+	}
+	for _, fd := range funcCreates {
+		node := "F\x00" + objectID(fd.SchemaName, fd.FunctionName)
+		g.addNode(node)
+		funcMap[node] = fd
+	}
+	// Prerequisite View -> dependent View; Function -> View calling it.
+	for _, vd := range viewsToCreate {
+		if vd.NewView == nil || vd.NewView.Definition == "" {
+			continue
+		}
+		vNode := "V\x00" + objectID(vd.SchemaName, vd.ViewName)
+		for _, dep := range viewTableDependencies(vd.NewView.Definition, vd.SchemaName) {
+			if targetNode, ok := viewNodeByFold[strings.ToLower(dep)]; ok && targetNode != vNode {
+				g.addEdge(targetNode, vNode)
+			}
+		}
+		for _, fd := range funcCreates {
+			if expressionReferencesFunction(vd.NewView.Definition, vd.SchemaName, fd.SchemaName, funcDiffBaseName(fd)) {
+				g.addEdge("F\x00"+objectID(fd.SchemaName, fd.FunctionName), vNode)
+			}
+		}
+	}
+	// View -> schema-bound Function reading it; Callee Function -> Caller Function.
+	for _, fd := range funcCreates {
+		if fd.NewFunction == nil {
+			continue
+		}
+		fNode := "F\x00" + objectID(fd.SchemaName, fd.FunctionName)
+		if isSchemaBound(fd.NewFunction.Definition) {
+			for _, vd := range viewsToCreate {
+				if definitionReferencesTable(fd.NewFunction.Definition, fd.SchemaName, vd.SchemaName, vd.ViewName) {
+					g.addEdge("V\x00"+objectID(vd.SchemaName, vd.ViewName), fNode)
+				}
+			}
+		}
+		for _, other := range funcCreates {
+			otherNode := "F\x00" + objectID(other.SchemaName, other.FunctionName)
+			if otherNode == fNode {
+				continue
+			}
+			if definitionReferencesFunction(fd.NewFunction.Definition, fd.SchemaName, other.SchemaName, funcDiffBaseName(other)) {
+				g.addEdge(otherNode, fNode)
+			}
+		}
+	}
+	writeViewEntry := func(viewDiff *ViewDiffEntry) {
+		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
+		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
+			buf.WriteString(";")
+		}
+		buf.WriteString("\nGO\n")
+		if viewDiff.NewView.Comment != "" {
+			buf.WriteString(generateViewCommentSQL("ADD", viewDiff.SchemaName, viewDiff.ViewName, viewDiff.NewView.Comment))
+			buf.WriteString(";\nGO\n")
+		}
+		for _, trigger := range viewDiff.NewView.Triggers {
+			writeTriggerMigration(buf, trigger)
+		}
+	}
+	order, err := g.topologicalSort()
+	if err != nil {
+		for _, fd := range orderedFunctionDiffs(funcCreates) {
+			writeFunctionMigration(buf, fd)
+		}
+		for _, vd := range viewsToCreate {
+			writeViewEntry(vd)
+		}
+		return
+	}
+	for _, node := range order {
+		if vd, ok := viewMap[node]; ok {
+			writeViewEntry(vd)
+		} else if fd, ok := funcMap[node]; ok {
+			writeFunctionMigration(buf, fd)
+		}
+	}
 }
 
 func functionExistsInCatalog(c *Catalog, schemaName, fnName string) bool {
@@ -1540,7 +1861,7 @@ func columnDefaultChanged(diff *SchemaDiff, schemaName, tableName, columnName st
 	return false
 }
 
-func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, functionDrops []*FunctionDiffEntry, buf *strings.Builder) (map[string]bool, []functionDefaultRef) {
+func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, functionDrops []*FunctionDiffEntry, alreadyDropped map[string]bool, buf *strings.Builder) (map[string]bool, []functionDefaultRef) {
 	removed := make(map[string]bool)
 	var restore []functionDefaultRef
 	if from == nil || len(functionDrops) == 0 {
@@ -1568,6 +1889,9 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, functionDrops []*Func
 				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[tKey+"\x00"+strings.ToLower(column.Name)] {
 					continue
 				}
+				if alreadyDropped[schema.Name+"."+column.DefaultConstraintName] {
+					continue
+				}
 				var matched []string
 				for _, funcDiff := range functionDrops {
 					if expressionReferencesFunction(column.Default, schema.Name, funcDiff.SchemaName, funcDiffBaseName(funcDiff)) {
@@ -1589,7 +1913,7 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, functionDrops []*Func
 	return removed, restore
 }
 
-func dropFunctionChecks(from *Catalog, diff *SchemaDiff, functionDrops []*FunctionDiffEntry, buf *strings.Builder) (map[string]bool, []functionCheckRef) {
+func dropFunctionChecks(from *Catalog, diff *SchemaDiff, functionDrops []*FunctionDiffEntry, alreadyDropped map[string]bool, buf *strings.Builder) (map[string]bool, []functionCheckRef) {
 	removed := make(map[string]bool)
 	var restore []functionCheckRef
 	if from == nil || len(functionDrops) == 0 {
@@ -1622,7 +1946,7 @@ func dropFunctionChecks(from *Catalog, diff *SchemaDiff, functionDrops []*Functi
 					continue
 				}
 				cKey := checkKey(schema.Name, table.Name, check.Name)
-				if droppedChecks[cKey] {
+				if droppedChecks[cKey] || alreadyDropped[cKey] {
 					continue
 				}
 				var matched []string
