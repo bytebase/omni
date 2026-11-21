@@ -92,7 +92,7 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 		return nil, fmt.Errorf("failed to parse Trino statement: %s", single)
 	}
 	node := file.Stmts[0]
-	queryType, _ := spanQueryType(node)
+	queryType, _ := QueryTypeOf(node)
 	// Promote a user SELECT/EXPLAIN that references a system schema, matching the
 	// legacy containsSystemSchema heuristic.
 	switch queryType {

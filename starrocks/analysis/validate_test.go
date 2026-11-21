@@ -76,15 +76,32 @@ func TestValidateQuerySubmitTask(t *testing.T) {
 	}
 }
 
-// A plan-only DESC accepts a SELECT that carries INTO OUTFILE: the plan does
-// not perform the export.
-func TestValidateQueryPlanOnlyOutfile(t *testing.T) {
-	readOnly, returnsData, err := ValidateQuery("DESC SELECT 1 INTO OUTFILE 'x'")
-	if err != nil {
-		t.Fatalf("ValidateQuery: %v", err)
-	}
-	if !readOnly || !returnsData {
-		t.Errorf("DESC SELECT INTO OUTFILE = (readOnly %v, returnsData %v), want (true, true)", readOnly, returnsData)
+// EXPLAIN and DESC reject queries that carry INTO OUTFILE: the editor refuses
+// by way of EXPLAIN/DESC what it refuses when asked directly. EXPLAIN ANALYZE
+// still returns its profile result set when run outside read-only mode.
+func TestValidateQueryExplainDescOutfile(t *testing.T) {
+	for _, tc := range []struct {
+		sql         string
+		returnsData bool
+	}{
+		{`EXPLAIN SELECT a FROM t INTO OUTFILE "s3://b/x"`, false},
+		{`EXPLAIN VERBOSE SELECT a FROM t INTO OUTFILE "s3://b/x"`, false},
+		{`EXPLAIN (SELECT a FROM t) INTO OUTFILE "s3://b/x"`, false},
+		{`DESC SELECT 1 INTO OUTFILE 'x'`, false},
+		{`DESCRIBE SELECT a FROM t INTO OUTFILE "s3://b/x"`, false},
+		{`DESC VERBOSE SELECT a FROM t INTO OUTFILE "s3://b/x"`, false},
+		{`EXPLAIN ANALYZE SELECT a FROM t INTO OUTFILE "s3://b/x"`, true},
+		{`EXPLAIN ANALYZE SELECT 1 UNION SELECT a FROM t INTO OUTFILE "s3://b/x"`, true},
+		{`EXPLAIN ANALYZE (SELECT 1) INTO OUTFILE "s3://b/x"`, true},
+	} {
+		readOnly, returnsData, err := ValidateQuery(tc.sql)
+		if err != nil {
+			t.Errorf("%q: %v", tc.sql, err)
+			continue
+		}
+		if readOnly || returnsData != tc.returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (false, %v)", tc.sql, readOnly, returnsData, tc.returnsData)
+		}
 	}
 }
 

@@ -24,6 +24,10 @@ func TestValidateQuery(t *testing.T) {
 		{name: "EXPLAIN ANALYZE SELECT", sql: "EXPLAIN ANALYZE SELECT * FROM users", wantReadOnly: true, wantData: true},
 		// EXPLAIN ANALYZE EXECUTES the inner UPDATE, so it is NOT read-only.
 		{name: "EXPLAIN ANALYZE UPDATE", sql: "EXPLAIN ANALYZE UPDATE users SET name = 'John' WHERE id = 1"},
+		{name: "WITH FUNCTION SELECT", sql: "WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(1)", wantReadOnly: true, wantData: true},
+		{name: "EXPLAIN WITH FUNCTION SELECT", sql: "EXPLAIN WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(1)", wantReadOnly: true, wantData: true},
+		{name: "EXPLAIN FORMAT JSON WITH FUNCTION SELECT", sql: "EXPLAIN (FORMAT JSON) WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(1)", wantReadOnly: true, wantData: true},
+		{name: "EXPLAIN ANALYZE WITH FUNCTION SELECT", sql: "EXPLAIN ANALYZE WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(1)", wantReadOnly: true, wantData: true},
 		{name: "SHOW TABLES", sql: "SHOW TABLES", wantReadOnly: true, wantData: true},
 		// Session statements rebind the connection; they return no data.
 		{name: "USE", sql: "USE hive.default", wantReadOnly: true},
