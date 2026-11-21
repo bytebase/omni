@@ -238,8 +238,8 @@ CREATE VIEW archive.v AS SELECT id FROM public.t;
 	if err == nil {
 		t.Fatalf("expected dependency conflict error, got plan:\n%s", plan.SQL())
 	}
-	if !strings.Contains(err.Error(), "archive") {
-		t.Fatalf("expected error mentioning skipped schema archive, got: %v", err)
+	if !strings.Contains(err.Error(), "used by a view or rule") {
+		t.Fatalf("expected view/rule dependency error, got: %v", err)
 	}
 }
 
@@ -368,5 +368,94 @@ CREATE TRIGGER trg_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION arc
 	})
 	if err == nil {
 		t.Fatalf("expected error when retained trigger depends on newly created skipped function, got plan:\n%s", plan.SQL())
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsTableUsingSkippedEnumType(t *testing.T) {
+	source := `CREATE SCHEMA archive;`
+	target := `
+CREATE SCHEMA archive;
+CREATE TYPE archive.state AS ENUM ('ready');
+CREATE TABLE public.jobs (id integer PRIMARY KEY, state archive.state);
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected error when retained table uses newly created skipped enum type, got plan:\n%s", plan.SQL())
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsFunctionUsingSkippedCompositeType(t *testing.T) {
+	source := `CREATE SCHEMA archive;`
+	target := `
+CREATE SCHEMA archive;
+CREATE TYPE archive.pair AS (x integer);
+CREATE FUNCTION public.f(x archive.pair) RETURNS integer LANGUAGE sql AS 'SELECT 1';
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected error when retained function uses newly created skipped composite type, got plan:\n%s", plan.SQL())
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasRejectsDefaultUsingSkippedEnumValue(t *testing.T) {
+	source := `
+CREATE SCHEMA archive;
+CREATE TYPE archive.state AS ENUM ('old');
+`
+	target := `
+CREATE SCHEMA archive;
+CREATE TYPE archive.state AS ENUM ('old', 'new');
+CREATE TABLE public.jobs (id integer PRIMARY KEY, state archive.state DEFAULT 'new');
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err == nil {
+		t.Fatalf("expected error when retained column default uses skipped enum value addition, got plan:\n%s", plan.SQL())
+	}
+
+	// Using the pre-existing enum value 'old' must still succeed when 'new' is skipped.
+	targetExisting := `
+CREATE SCHEMA archive;
+CREATE TYPE archive.state AS ENUM ('old', 'new');
+CREATE TABLE public.jobs (id integer PRIMARY KEY, state archive.state DEFAULT 'old');
+`
+	safePlan, err := BuildSDLMigrationPlan(source, targetExisting, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err != nil {
+		t.Fatalf("expected pre-existing enum value default to succeed, got error: %v", err)
+	}
+	if safePlan == nil || !strings.Contains(safePlan.SQL(), "CREATE TABLE") || strings.Contains(safePlan.SQL(), "ADD VALUE") {
+		t.Fatalf("unexpected plan: %v", safePlan)
+	}
+}
+
+func TestBuildSDLMigrationPlan_SkipSchemasAllowsPartitionDetachWithSkippedView(t *testing.T) {
+	source := `
+CREATE SCHEMA archive;
+CREATE TABLE public.parent (id integer) PARTITION BY RANGE (id);
+CREATE TABLE public.child PARTITION OF public.parent FOR VALUES FROM (1) TO (100);
+CREATE VIEW archive.v AS SELECT id FROM public.child;
+`
+	target := `
+CREATE SCHEMA archive;
+CREATE TABLE archive.extra (id integer);
+CREATE TABLE public.parent (id integer) PARTITION BY RANGE (id);
+CREATE TABLE public.child (id integer);
+CREATE VIEW archive.v AS SELECT id FROM public.child;
+`
+	plan, err := BuildSDLMigrationPlan(source, target, SDLMigrationOptions{
+		SkipSchemas: []string{"archive"},
+	})
+	if err != nil {
+		t.Fatalf("expected partition detach to succeed despite skipped view on child, got error: %v", err)
+	}
+	if plan == nil || !strings.Contains(plan.SQL(), "DETACH PARTITION") || strings.Contains(plan.SQL(), "archive") {
+		t.Fatalf("unexpected plan: %v", plan)
 	}
 }
