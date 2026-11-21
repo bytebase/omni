@@ -39,9 +39,12 @@ const maxUnanswered = 10
 type Suite struct {
 	// Path is the compat.tsv.
 	Path string
-	// Pins is the engine's pins.tsv; the default row is the pin Expected
-	// was recorded at.
+	// Pins is the engine's pins.tsv; the PinRole row (defaulting to
+	// "default") is the pin Expected was recorded at.
 	Pins string
+	// PinRole selects which row of Pins this suite checks against. When
+	// empty, it defaults to "default".
+	PinRole string
 	// Grammar is the vendor's grammar, bison (.y) or ANTLR 4 (.g4), and
 	// Tokens the engine's tokens.tsv. The generated rows of Path must be
 	// what they generate.
@@ -114,7 +117,11 @@ func check(t testing.TB, s Suite) {
 	if mode == enginetest.ModeVerify && *updateCompat {
 		t.Fatalf("-update-compat cannot be combined with %s=verify: verification writes nothing", enginetest.RecordEnv)
 	}
-	pin, err := enginetest.LoadPin(s.Pins, "default")
+	role := s.PinRole
+	if role == "" {
+		role = "default"
+	}
+	pin, err := enginetest.LoadPin(s.Pins, role)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -326,8 +333,8 @@ func check(t testing.TB, s Suite) {
 	}
 }
 
-// recordedPin is the pin the suite's file records: the engine's default
-// pin, and the judge's revision where it has one.
+// recordedPin is the pin the suite's file records: the suite's pin, and
+// the judge's revision where it has one.
 func (s Suite) recordedPin(pin enginetest.Pin) string {
 	if s.JudgeRevision > 0 {
 		return pin.String() + " judge " + strconv.Itoa(s.JudgeRevision)

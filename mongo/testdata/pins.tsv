@@ -1,9 +1,13 @@
-# The servers this engine's committed answers come from. default records the
-# tapes and holds the version every test reads: MongoDB 8.0, the 8.0 LTS line.
-# MongoDB's server cannot judge the mongosh grammar a driver sends, so unlike
-# the other engines' pins there is no compat.tsv judged by this server; the
-# driver's tapes are what its answers are committed as. Bytebase supports
-# MongoDB 4.4 and later, which mongo/driver pins with the wire-version refusal
-# its client sends, not with a second server.
+# The servers and vendor specs this engine's committed answers come from.
+# default records mongo/driver's tapes and holds the server version every
+# driver test reads: MongoDB 8.0, the 8.0 LTS line. Bytebase supports MongoDB
+# 4.4 and later, which mongo/driver pins with the wire-version refusal its
+# client sends, not with a second server.
+# mongosh judges mongo/parser's compat.tsv and is no server: MongoDB's server
+# does not parse mongosh syntax. It pins mongodb-js/mongosh (Apache-2.0) at
+# the release commit in the source tag; the digest is the SHA-256 of the
+# shell-api and shell-bson TypeScript files mongo/parser/cmd/mongoshgrammar
+# reads to generate mongo/testdata/MongoShell.g4.
 # columns: role, image, digest, source tag
 default	mongo:8.0.38	sha256:d97fea17ccb8d004cd137be8dab54d70d0df11be69c9f422aefe4484c8414ab7	r8.0.38
+mongosh	github.com/mongodb-js/mongosh@82c228b597c3221de59bdbfaff4c346622780cdd	sha256:8a62b35159f7080fd1defc4fd63c4b0f75f91a62e50e56cc1855b9e62f27e087	v2.14.3
