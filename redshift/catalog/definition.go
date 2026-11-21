@@ -63,10 +63,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
-	if err := writeOrderedObjects(&sb, to, toState, caseSensitive); err != nil {
+	seenRoutineSigs := make(map[string]struct{})
+	if err := writeOrderedObjects(&sb, to, toState, caseSensitive, seenRoutineSigs); err != nil {
 		return "", err
 	}
-	if err := writeProcedures(&sb, to, caseSensitive); err != nil {
+	if err := writeProcedures(&sb, to, caseSensitive, seenRoutineSigs); err != nil {
 		return "", err
 	}
 	if err := writeOwners(&sb, to); err != nil {
@@ -86,13 +87,17 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 		return "", nil
 	}
 	caseSensitive := hasUpperASCII(schemaName) || tableHasUpperIdentifier(table)
+	ts := convertToTableState(0, schemaName, table)
+	if err := validateTableDefaultExprs(ts, nil); err != nil {
+		return "", err
+	}
 	var sb strings.Builder
 	if caseSensitive {
 		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
 			return "", err
 		}
 	}
-	if err := writeTableWithOptions(&sb, convertToTableState(0, schemaName, table), nil, true, true, caseSensitive); err != nil {
+	if err := writeTableWithOptions(&sb, ts, nil, true, true, caseSensitive); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
@@ -327,8 +332,9 @@ func (c *funcCatalog) resolveCall(callerSchema string, call functionCall) []int 
 	if c == nil || len(c.entries) == 0 {
 		return nil
 	}
-	if call.schema == "" && hasMatchingBuiltinProc(call.name, call.argTypes) {
-		// Redshift searches pg_catalog before search_path for unqualified calls.
+	if call.schema == "" && !slices.Contains(call.argTypes, "") && hasMatchingBuiltinProc(call.name, call.argTypes) {
+		// Redshift searches pg_catalog before search_path for unqualified calls,
+		// but only suppress catalog lookup when all argument types are known.
 		return nil
 	}
 	var candidates []int
@@ -1139,14 +1145,16 @@ func writeWithSchemaSearchPath(w io.StringWriter, schemaName, body string) error
 	return nil
 }
 
-func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, caseSensitive bool) error {
+func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, caseSensitive bool, seenRoutineSigs map[string]struct{}) error {
 	type validatedProc struct {
 		schema string
 		name   string
 		def    string
 	}
 	var procs []validatedProc
-	seenProcSigs := make(map[string]struct{})
+	if seenRoutineSigs == nil {
+		seenRoutineSigs = make(map[string]struct{})
+	}
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -1168,10 +1176,10 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, c
 				return err
 			}
 			sigKey := redshiftFunctionIdentityKey(schema.Name, proc.Name, proc.Signature, params, parsed, caseSensitive)
-			if _, exists := seenProcSigs[sigKey]; exists {
-				return fmt.Errorf("duplicate procedure %s in schema %s cannot be restored", proc.Name, quoteDefinitionIdentifier(schema.Name))
+			if _, exists := seenRoutineSigs[sigKey]; exists {
+				return fmt.Errorf("duplicate procedure or routine %s in schema %s cannot be restored", proc.Name, quoteDefinitionIdentifier(schema.Name))
 			}
-			seenProcSigs[sigKey] = struct{}{}
+			seenRoutineSigs[sigKey] = struct{}{}
 			procs = append(procs, validatedProc{schema: schema.Name, name: proc.Name, def: def})
 		}
 	}
@@ -1453,11 +1461,13 @@ func validationOnlyFunctionEntry(schemaName string, fn *metadatapb.FunctionMetad
 // writeOrderedObjects emits functions, tables, views, and materialized views
 // in one topological order so cross-kind dependencies (such as view-dependent
 // UDFs) always follow their prerequisites.
-func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState, caseSensitive bool) error {
+func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState, caseSensitive bool, seenFnSigs map[string]struct{}) error {
 	var items []orderedObject
 	var fnEntries []functionEntry
 	var fnNodeIndices []int
-	seenFnSigs := make(map[string]struct{})
+	if seenFnSigs == nil {
+		seenFnSigs = make(map[string]struct{})
+	}
 
 	for _, schema := range to.Schemas {
 		if schema == nil {
@@ -1780,13 +1790,8 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		if item.kind != objectKindTable {
 			continue
 		}
-		for _, expr := range item.table.defaultExprs {
-			for _, call := range collectSQLFunctionCalls("SELECT "+expr, item.schema, fnCat) {
-				if matches := fnCat.resolveCall(item.schema, call); len(matches) > 0 {
-					fnEntry := fnCat.entries[matches[0]]
-					return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", item.table.qualifiedName(), qualifyName(fnEntry.schema, fnEntry.name))
-				}
-			}
+		if err := validateTableDefaultExprs(item.table, fnCat); err != nil {
+			return err
 		}
 	}
 
@@ -1919,6 +1924,24 @@ type relationRef struct {
 	schema  string
 	name    string
 	loc     int
+}
+
+func validateTableDefaultExprs(table *tableState, fnCat *funcCatalog) error {
+	if table == nil {
+		return nil
+	}
+	for _, expr := range table.defaultExprs {
+		for _, call := range collectSQLFunctionCalls("SELECT "+expr, table.schema, fnCat) {
+			if matches := fnCat.resolveCall(table.schema, call); len(matches) > 0 {
+				fnEntry := fnCat.entries[matches[0]]
+				return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", table.qualifiedName(), qualifyName(fnEntry.schema, fnEntry.name))
+			}
+			if call.schema != "" && !strings.EqualFold(call.schema, "pg_catalog") && !strings.EqualFold(call.schema, "information_schema") {
+				return fmt.Errorf("table %s column default cannot call user-defined function %s because Redshift disallows UDFs in default_expr", table.qualifiedName(), qualifyName(call.schema, call.name))
+			}
+		}
+	}
+	return nil
 }
 
 func collectRelationRefs(sql string) []relationRef {

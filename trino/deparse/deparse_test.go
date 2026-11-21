@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	trinoparser "github.com/bytebase/omni/trino/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1775,4 +1776,42 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	require.NoError(t, err)
 	assert.NotContains(t, skipTableRes, `CREATE TABLE IF NOT EXISTS "s"."ext_t"`)
 	assert.Contains(t, skipTableRes, `SELECT abs(n) FROM "cat"."s".ext_t;`)
+
+	// Unparseable views still qualify explicit cross-schema dependencies, and
+	// direct-model views reject column defaults.
+	unparseableDef := "SELECT id FROM t AS OF TIMESTAMP '2024-01-01 00:00:00'"
+	_, parseErr := trinoparser.Parse(unparseableDef)
+	require.Error(t, parseErr)
+	downgraded, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name:   "shared",
+				Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+			},
+			{
+				Name: "app",
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v_downgraded",
+					Definition:        unparseableDef,
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "shared", Table: "t"}},
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, downgraded, `FROM "cat"."shared".t AS OF TIMESTAMP`)
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Views: []*ViewMetadata{{
+				Name:       "v_direct_col_def",
+				Definition: "SELECT 1 AS id",
+				Columns:    []*ColumnMetadata{{Name: "id", Default: "1"}},
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "default cannot be restored")
 }

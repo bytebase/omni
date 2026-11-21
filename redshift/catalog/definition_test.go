@@ -2160,6 +2160,58 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 		}},
 	})
 	require.ErrorContains(t, err, "default_expr")
+
+	// Standalone GetTableDefinition rejects schema-qualified UDF defaults,
+	// cross-kind function/procedure signature collisions fail explicitly, and
+	// unknown-typed derived arguments conservatively keep UDF dependencies.
+	_, err = GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "t_standalone_udf_def",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name:    "v",
+			Type:    "integer",
+			Default: "ext.next_id()",
+		}},
+	})
+	require.ErrorContains(t, err, "default_expr")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "do_work",
+				Signature:  "(integer)",
+				Definition: "CREATE FUNCTION app.do_work(a integer) RETURNS integer IMMUTABLE AS $$ SELECT a $$ LANGUAGE sql",
+			}},
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "do_work",
+				Signature:  "(integer)",
+				Definition: "CREATE PROCEDURE app.do_work(a integer) AS $$ BEGIN END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate")
+
+	derivedDepOut, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "caller",
+					Definition: "CREATE FUNCTION app.caller() RETURNS integer IMMUTABLE AS $$ SELECT abs(n) FROM (SELECT 'x'::varchar AS n) q $$ LANGUAGE sql",
+				},
+				{
+					Name:       "abs",
+					Signature:  "(character varying)",
+					Definition: "CREATE FUNCTION app.abs(s varchar) RETURNS integer IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE sql",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	idxAbs := strings.Index(derivedDepOut, "CREATE FUNCTION app.abs")
+	idxCaller := strings.Index(derivedDepOut, "CREATE FUNCTION app.caller")
+	require.Greater(t, idxAbs, -1)
+	require.Greater(t, idxCaller, idxAbs)
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the

@@ -506,7 +506,7 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDepe
 	}
 	file, err := trinoparser.Parse(definition)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
-		return definition
+		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps)
 	}
 	var query *trinoparser.Query
 	var inlineFns []trinoparser.FunctionSpecification
@@ -518,10 +518,151 @@ func qualifyTrinoViewBody(dbName, schemaName, definition string, deps []ViewDepe
 		inlineFns = s.Functions
 	}
 	if query == nil {
-		return definition
+		return qualifyTrinoViewBodyLexically(dbName, schemaName, definition, deps)
 	}
 	calls, unqualTables := collectTrinoQueryASTRefs(query, inlineFns, schemaName, deps, cat)
 	return applyTrinoCallPrefixEdits(definition, calls, unqualTables, dbName, schemaName, deps, cat)
+}
+
+func qualifyTrinoViewBodyLexically(dbName, schemaName, sql string, deps []ViewDependency) string {
+	if len(deps) == 0 {
+		return sql
+	}
+	type lexTok struct {
+		isIdent bool
+		ident   string
+		punct   byte
+		start   int
+	}
+	var toks []lexTok
+	for i := 0; i < len(sql); {
+		ch := sql[i]
+		switch {
+		case ch == '-' && i+1 < len(sql) && sql[i+1] == '-':
+			i += 2
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+		case ch == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i += 2
+			for i+1 < len(sql) && (sql[i] != '*' || sql[i+1] != '/') {
+				i++
+			}
+			if i+1 < len(sql) {
+				i += 2
+			} else {
+				i = len(sql)
+			}
+		case ch == '\'':
+			i++
+			for i < len(sql) {
+				if sql[i] == '\'' {
+					i++
+					if i < len(sql) && sql[i] == '\'' {
+						i++
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case ch == '"':
+			start := i
+			i++
+			var sb strings.Builder
+			for i < len(sql) {
+				if sql[i] == '"' {
+					i++
+					if i < len(sql) && sql[i] == '"' {
+						sb.WriteByte('"')
+						i++
+						continue
+					}
+					break
+				}
+				sb.WriteByte(sql[i])
+				i++
+			}
+			toks = append(toks, lexTok{isIdent: true, ident: sb.String(), start: start})
+		case isIdentStartChar(ch):
+			start := i
+			i++
+			for i < len(sql) && isIdentContChar(sql[i]) {
+				i++
+			}
+			toks = append(toks, lexTok{isIdent: true, ident: sql[start:i], start: start})
+		case ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n':
+			i++
+		default:
+			toks = append(toks, lexTok{punct: ch, start: i})
+			i++
+		}
+	}
+
+	type prefixEdit struct {
+		offset int
+		prefix string
+	}
+	var edits []prefixEdit
+	depth := 0
+	fromActive := map[int]bool{}
+	expectRel := false
+	for i, tok := range toks {
+		if !tok.isIdent {
+			switch tok.punct {
+			case '(':
+				depth++
+				expectRel = false
+			case ')':
+				delete(fromActive, depth)
+				if depth > 0 {
+					depth--
+				}
+				expectRel = false
+			case ',':
+				expectRel = fromActive[depth]
+			case ';':
+				fromActive[depth] = false
+				expectRel = false
+			}
+			continue
+		}
+		if i > 0 && !toks[i-1].isIdent && toks[i-1].punct == '.' {
+			expectRel = false
+			continue
+		}
+		if expectRel {
+			expectRel = false
+			if i+1 < len(toks) && !toks[i+1].isIdent && (toks[i+1].punct == '.' || toks[i+1].punct == '(') {
+				continue
+			}
+			targetSchema := resolveUnqualifiedRelationSchema(tok.ident, schemaName, deps)
+			if targetSchema != "" && !strings.EqualFold(targetSchema, schemaName) {
+				if prefix := qualifyTrinoObjectPrefix(dbName, targetSchema); prefix != "" {
+					edits = append(edits, prefixEdit{offset: tok.start, prefix: prefix})
+				}
+			}
+			continue
+		}
+		switch strings.ToUpper(tok.ident) {
+		case "FROM":
+			fromActive[depth] = true
+			expectRel = true
+		case "JOIN":
+			expectRel = true
+		case "WHERE", "GROUP", "HAVING", "WINDOW", "QUALIFY", "ORDER", "LIMIT", "OFFSET", "FETCH", "UNION", "INTERSECT", "EXCEPT", "ON", "USING", "SET", "SELECT":
+			fromActive[depth] = false
+		}
+	}
+	if len(edits) == 0 {
+		return sql
+	}
+	slices.SortFunc(edits, func(a, b prefixEdit) int { return b.offset - a.offset })
+	out := sql
+	for _, ed := range edits {
+		out = out[:ed.offset] + ed.prefix + out[ed.offset:]
+	}
+	return out
 }
 
 func resolveUnqualifiedRelationSchema(relName, defaultSchema string, deps []ViewDependency) string {
@@ -3344,6 +3485,9 @@ func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata
 			return fmt.Errorf("view %s.%s has duplicate column %s", schemaName, view.Name, quoteIdentifier(col.Name))
 		}
 		seenCols[colKey] = struct{}{}
+		if col.Default != "" {
+			return fmt.Errorf("column %s.%s.%s default cannot be restored on a view by Trino SDL renderer", schemaName, view.Name, col.Name)
+		}
 	}
 	definition := strings.TrimSpace(view.Definition)
 	if definition == "" {
