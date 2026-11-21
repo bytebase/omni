@@ -1315,7 +1315,7 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, lambdaAndUnparsed, "SELECT transform(ARRAY[1, 2], x -> x + 1);")
-	assert.Contains(t, lambdaAndUnparsed, `CREATE FUNCTION s.ext_fn(x bigint)`)
+	assert.Contains(t, lambdaAndUnparsed, `CREATE FUNCTION "cat".s.ext_fn(x bigint)`)
 
 	directQualified, err := GetDatabaseDefinition(&DatabaseSchemaMetadata{
 		Name: "cat",
@@ -1431,6 +1431,34 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 	})
 	require.NoError(t, err)
 	assert.Contains(t, crossSchemaDep, `SELECT id FROM "cat"."public".t;`)
+
+	// Direct GetDatabaseDefinition rejects duplicate function signatures while
+	// distinguishing interval overloads.
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Functions: []*FunctionMetadata{
+				{Name: "dup_f", Definition: "CREATE FUNCTION s.dup_f(x int) RETURNS int RETURN x"},
+				{Name: "dup_f", Definition: "CREATE FUNCTION s.dup_f(y integer) RETURNS integer RETURN y + 1"},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate function")
+
+	directIntervalOK, err := GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*SchemaMetadata{{
+			Name: "s",
+			Functions: []*FunctionMetadata{
+				{Name: "iv_f", Definition: "CREATE FUNCTION iv_f(x INTERVAL YEAR TO MONTH) RETURNS varchar RETURN 'ym'"},
+				{Name: "iv_f", Definition: "CREATE FUNCTION iv_f(x INTERVAL DAY TO SECOND) RETURNS varchar RETURN 'ds'"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, directIntervalOK, `CREATE FUNCTION "cat"."s".iv_f(x INTERVAL YEAR TO MONTH)`)
+	assert.Contains(t, directIntervalOK, `CREATE FUNCTION "cat"."s".iv_f(x INTERVAL DAY TO SECOND)`)
 
 	// Row-pattern MEASURES/DEFINE inside both inline OVER (...) and named WINDOW w AS (...) qualify UDF calls.
 	windowPattern, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{

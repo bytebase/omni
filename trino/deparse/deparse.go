@@ -189,7 +189,8 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 func qualifyTrinoFunctionDeclaration(dbName, schemaName, fnName, definition string) (*trinoparser.CreateFunctionStmt, string, bool, error) {
 	cfs, hasSQLBody, _, ok := parseTrinoCreateFunction(definition)
 	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
-		return nil, definition, false, nil
+		def, err := qualifyTrinoFunctionHeaderLexically(dbName, schemaName, fnName, definition)
+		return nil, def, false, err
 	}
 	if hasSQLBody && cfs.Spec.Body != nil {
 		w := &trinoASTWalker{callerSchema: schemaName}
@@ -231,6 +232,142 @@ func qualifyTrinoFunctionDeclaration(dbName, schemaName, fnName, definition stri
 		return nil, "", false, mismatch()
 	}
 	return cfs, def, true, nil
+}
+
+func scanTrinoDeclIdentParts(definition string) ([]struct {
+	text  string
+	start int
+	end   int
+}, int, bool) {
+	type identSpan struct {
+		text  string
+		start int
+		end   int
+	}
+	readIdent := func(pos int) (identSpan, int, bool) {
+		pos = skipSQLWhitespaceAndComments(definition, pos)
+		if pos >= len(definition) {
+			return identSpan{}, pos, false
+		}
+		if definition[pos] == '"' {
+			start := pos
+			pos++
+			var sb strings.Builder
+			for pos < len(definition) {
+				if definition[pos] == '"' {
+					if pos+1 < len(definition) && definition[pos+1] == '"' {
+						sb.WriteByte('"')
+						pos += 2
+						continue
+					}
+					pos++
+					return identSpan{text: sb.String(), start: start, end: pos}, pos, true
+				}
+				sb.WriteByte(definition[pos])
+				pos++
+			}
+			return identSpan{}, pos, false
+		}
+		if !isIdentStartChar(definition[pos]) {
+			return identSpan{}, pos, false
+		}
+		start := pos
+		pos++
+		for pos < len(definition) && isIdentContChar(definition[pos]) {
+			pos++
+		}
+		return identSpan{text: definition[start:pos], start: start, end: pos}, pos, true
+	}
+
+	pos := 0
+	kw1, nextPos, ok := readIdent(pos)
+	if !ok || !strings.EqualFold(kw1.text, "CREATE") {
+		return nil, 0, false
+	}
+	pos = nextPos
+	kw2, nextPos, ok := readIdent(pos)
+	if !ok {
+		return nil, 0, false
+	}
+	pos = nextPos
+	if strings.EqualFold(kw2.text, "OR") {
+		kwReplace, p2, ok := readIdent(pos)
+		if !ok || !strings.EqualFold(kwReplace.text, "REPLACE") {
+			return nil, 0, false
+		}
+		kwFunc, p3, ok := readIdent(p2)
+		if !ok || !strings.EqualFold(kwFunc.text, "FUNCTION") {
+			return nil, 0, false
+		}
+		pos = p3
+	} else if !strings.EqualFold(kw2.text, "FUNCTION") {
+		return nil, 0, false
+	}
+
+	var parts []struct {
+		text  string
+		start int
+		end   int
+	}
+	for len(parts) < 3 {
+		part, pNext, ok := readIdent(pos)
+		if !ok {
+			return nil, 0, false
+		}
+		parts = append(parts, struct {
+			text  string
+			start int
+			end   int
+		}(part))
+		pos = skipSQLWhitespaceAndComments(definition, pNext)
+		if pos < len(definition) && definition[pos] == '.' {
+			pos++
+			continue
+		}
+		break
+	}
+	pos = skipSQLWhitespaceAndComments(definition, pos)
+	if pos >= len(definition) || definition[pos] != '(' {
+		return nil, 0, false
+	}
+	return parts, pos, true
+}
+
+func qualifyTrinoFunctionHeaderLexically(dbName, schemaName, fnName, definition string) (string, error) {
+	parts, _, ok := scanTrinoDeclIdentParts(definition)
+	if !ok || len(parts) == 0 {
+		return "", fmt.Errorf("function %s.%s definition must be a CREATE FUNCTION statement", schemaName, fnName)
+	}
+	mismatch := func() error {
+		return fmt.Errorf("function %s.%s definition name does not match metadata identity", schemaName, fnName)
+	}
+	switch len(parts) {
+	case 1:
+		if !strings.EqualFold(parts[0].text, fnName) {
+			return "", mismatch()
+		}
+		if prefix := qualifyTrinoObjectPrefix(dbName, schemaName); prefix != "" {
+			return definition[:parts[0].start] + prefix + definition[parts[0].start:], nil
+		}
+		return definition, nil
+	case 2:
+		if !strings.EqualFold(parts[0].text, schemaName) || !strings.EqualFold(parts[1].text, fnName) {
+			return "", mismatch()
+		}
+		if dbName != "" {
+			return definition[:parts[0].start] + quoteIdentifier(dbName) + "." + definition[parts[0].start:], nil
+		}
+		return definition, nil
+	case 3:
+		if (dbName != "" && !strings.EqualFold(parts[0].text, dbName)) ||
+			!strings.EqualFold(parts[1].text, schemaName) ||
+			!strings.EqualFold(parts[2].text, fnName) {
+			return "", mismatch()
+		}
+		return definition, nil
+	default:
+		return "", mismatch()
+	}
 }
 
 func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, string, error) {
@@ -961,6 +1098,74 @@ func buildTrinoFuncCatalog(metadata *DatabaseSchemaMetadata) *trinoFuncCatalog {
 	}
 }
 
+func trinoFunctionSignatureKey(fnName, definition string, parsedFn parsedTrinoFn) string {
+	if parsedFn.parsed {
+		paramTypes := make([]string, len(parsedFn.params))
+		for i, p := range parsedFn.params {
+			paramTypes[i] = p.typeName
+		}
+		return strings.ToLower(fnName) + "(" + strings.Join(paramTypes, ",") + ")"
+	}
+	if _, openParen, ok := scanTrinoDeclIdentParts(definition); ok {
+		depth := 0
+		inSingle := false
+		inDouble := false
+		closeParen := -1
+		for i := openParen; i < len(definition); i++ {
+			ch := definition[i]
+			if inSingle {
+				if ch == '\'' {
+					if i+1 < len(definition) && definition[i+1] == '\'' {
+						i++
+					} else {
+						inSingle = false
+					}
+				}
+				continue
+			}
+			if inDouble {
+				if ch == '"' {
+					if i+1 < len(definition) && definition[i+1] == '"' {
+						i++
+					} else {
+						inDouble = false
+					}
+				}
+				continue
+			}
+			switch ch {
+			case '\'':
+				inSingle = true
+			case '"':
+				inDouble = true
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 {
+					closeParen = i
+				}
+			}
+			if closeParen >= 0 {
+				break
+			}
+		}
+		if closeParen > openParen {
+			inner := strings.TrimSpace(definition[openParen+1 : closeParen])
+			if sigFile, err := trinoparser.Parse("CREATE FUNCTION _sig(" + inner + ") RETURNS int RETURN 1"); err == nil && sigFile != nil && len(sigFile.Stmts) == 1 {
+				if cfs, ok := sigFile.Stmts[0].(*trinoparser.CreateFunctionStmt); ok {
+					paramTypes := make([]string, len(cfs.Spec.Declaration.Parameters))
+					for i, p := range cfs.Spec.Declaration.Parameters {
+						paramTypes[i] = normalizeTrinoDataType(p.Type)
+					}
+					return strings.ToLower(fnName) + "(" + strings.Join(paramTypes, ",") + ")"
+				}
+			}
+		}
+	}
+	return strings.ToLower(fnName)
+}
+
 func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, error) {
 	cat := buildTrinoFuncCatalog(metadata)
 	fns := cat.fns
@@ -968,6 +1173,15 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) ([]orderedFunction, erro
 		return fns, nil
 	}
 	parsed := cat.parsed
+	seenSigs := make(map[string]struct{}, len(fns))
+	for i, f := range fns {
+		sigKey := trinoFunctionSignatureKey(f.fn.Name, f.fn.Definition, parsed[i])
+		fullKey := strings.ToLower(f.schema) + "\x00" + sigKey
+		if _, exists := seenSigs[fullKey]; exists {
+			return nil, fmt.Errorf("schema %s has duplicate function signature %s", f.schema, sigKey)
+		}
+		seenSigs[fullKey] = struct{}{}
+	}
 
 	type prefixEdit struct {
 		offset int
