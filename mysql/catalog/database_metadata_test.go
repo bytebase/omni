@@ -1804,3 +1804,36 @@ func TestPartitionAndSubpartitionTablespaceRoundTrip(t *testing.T) {
 	require.Equal(t, "ts_sp1", reTables["subpart_ts"].Partitions[0].Subpartitions[1].GetTablespace())
 	require.Equal(t, "ts_p0", reTables["subpart_ts"].Partitions[1].GetTablespace())
 }
+
+func TestViewNonArithmeticOperatorMetadata(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, ch CHAR(5), txt TEXT, doc JSON NOT NULL);
+		CREATE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id XOR 1 AS c_lxor,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote,
+			BINARY name AS c_bin_vc,
+			BINARY ch AS c_bin_c,
+			BINARY txt AS c_bin_txt
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range c.DatabaseMetadata("app").GetSchemas()[0].GetViews()[0].GetColumns() {
+		cols[col.Name] = col
+	}
+	require.Equal(t, "bigint unsigned", cols["c_band"].Type)
+	require.Equal(t, "int", cols["c_lxor"].Type)
+	require.Equal(t, "json", cols["c_jextract"].Type)
+	require.True(t, cols["c_jextract"].Nullable)
+	require.Equal(t, "longtext", cols["c_junquote"].Type)
+	require.True(t, cols["c_junquote"].Nullable)
+	require.Equal(t, "varbinary(80)", cols["c_bin_vc"].Type)
+	require.Equal(t, "varbinary(20)", cols["c_bin_c"].Type)
+	require.Equal(t, "mediumblob", cols["c_bin_txt"].Type)
+}

@@ -344,9 +344,14 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int, widenOp
 				meta.colType = resolveAnalyzedExprColumnType(c, db, q, te.Expr)
 			}
 		}
-		if meta.charset == "" && isStringColumnType(meta.colType) && db != nil && db.Charset != "" {
-			meta.charset = db.Charset
-			meta.collation = db.Collation
+		if meta.charset == "" {
+			if op, ok := te.Expr.(*OpExprQ); ok && op.Op == "->>" {
+				meta.charset = "utf8mb4"
+				meta.collation = "utf8mb4_bin"
+			} else if isStringColumnType(meta.colType) && db != nil && db.Charset != "" {
+				meta.charset = db.Charset
+				meta.collation = db.Collation
+			}
 		}
 		return meta, true
 	}
@@ -433,6 +438,8 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, opt map[int]bool
 		switch strings.ToUpper(e.Op) {
 		case "<=>", "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
 			return false
+		case "->", "->>", "BINARY":
+			return true
 		}
 		return isAnalyzedExprNullable(c, db, q, opt, e.Left, widenOptionalJoin) || isAnalyzedExprNullable(c, db, q, opt, e.Right, widenOptionalJoin)
 	case *NullTestExprQ:
@@ -1013,6 +1020,11 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			return ct
 		}
 	case *OpExprQ:
+		if strings.EqualFold(e.Op, "BINARY") {
+			if ct := resolveBinaryUnaryColumnType(c, db, q, e.Right); ct != "" {
+				return ct
+			}
+		}
 		if ct := resolveIntervalOpColumnType(c, db, q, e, false); ct != "" {
 			return ct
 		}
@@ -1160,8 +1172,15 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		switch opUpper {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
-			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN",
+			"XOR":
 			return BoolType
+		case "&", "|", "^", "<<", ">>", "~":
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
+		case "->":
+			return &ResolvedType{BaseType: BaseTypeJSON}
+		case "->>":
+			return &ResolvedType{BaseType: BaseTypeLongText}
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)
@@ -1617,6 +1636,79 @@ func resolveIntervalArithmeticColumnType(c *Catalog, db *Database, q *Query, bas
 		return "varchar(29)"
 	}
 	return ""
+}
+
+func resolveBinaryUnaryColumnType(c *Catalog, db *Database, q *Query, operand AnalyzedExpr) string {
+	if operand == nil {
+		return ""
+	}
+	if cn, ok := operand.(*ConstExprQ); ok {
+		if cn.IsNull {
+			return "binary(0)"
+		}
+		if cn.IsString {
+			cs := ""
+			if db != nil {
+				cs = db.Charset
+			}
+			if cs == "" {
+				cs = "utf8mb4"
+			}
+			return fmt.Sprintf("varbinary(%d)", utf8.RuneCountInString(cn.Value)*charsetMaxBytes(cs))
+		}
+	}
+	ct := resolveAnalyzedExprColumnType(c, db, q, operand)
+	if ct == "" {
+		return ""
+	}
+	p := parseSetOpColType(ct)
+	switch {
+	case p.cat == "blob", p.cat == "binary":
+		return p.raw
+	case p.cat == "string", p.cat == "text":
+		bytes := p.width * exprCharsetMaxBytes(c, db, q, operand)
+		if bytes <= 65535 {
+			return fmt.Sprintf("varbinary(%d)", bytes)
+		}
+		if bytes <= 16777215 {
+			return "mediumblob"
+		}
+		return "longblob"
+	case p.cat == "json":
+		return "longblob"
+	default:
+		if w := setOpStringWidth(p, operand, false); w > 0 {
+			return fmt.Sprintf("varbinary(%d)", w)
+		}
+	}
+	return ""
+}
+
+func exprCharsetMaxBytes(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) int {
+	cs := ""
+	if ve, ok := expr.(*VarExprQ); ok && q != nil && ve.LevelsUp == 0 && ve.RangeIdx >= 0 && ve.RangeIdx < len(q.RangeTable) {
+		rte := q.RangeTable[ve.RangeIdx]
+		if rte.Kind == RTERelation && c != nil && ve.AttNum >= 1 && ve.AttNum <= len(rte.ColNames) {
+			origDB := db
+			if rte.DBName != "" {
+				origDB = c.GetDatabase(rte.DBName)
+			}
+			if origDB != nil {
+				if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+					if col := tbl.GetColumn(rte.ColNames[ve.AttNum-1]); col != nil {
+						cs = col.Charset
+					}
+				}
+			}
+		}
+	}
+	if cs == "" && db != nil {
+		cs = db.Charset
+	}
+	if cs == "" {
+		cs = "utf8mb4"
+	}
+	return charsetMaxBytes(cs)
 }
 
 func resolveIntervalOpColumnType(c *Catalog, db *Database, q *Query, e *OpExprQ, isTiDB bool) string {

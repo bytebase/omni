@@ -137,3 +137,71 @@ func TestViewNestedQuantifiedMySQLDiffers(t *testing.T) {
 		t.Errorf("catalog stored %s, want it to contain %q", got, want)
 	}
 }
+
+func TestOracle_ViewOperatorColumnTypes(t *testing.T) {
+	ctr, cleanup := startContainer(t)
+	defer cleanup()
+
+	setup := []string{
+		"CREATE TABLE t_ops (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, ch CHAR(5), txt TEXT, doc JSON)",
+		`CREATE OR REPLACE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id | 1 AS c_bor,
+			id ^ 1 AS c_bxor,
+			id << 1 AS c_shl,
+			id >> 1 AS c_shr,
+			~id AS c_bnot,
+			id XOR 1 AS c_lxor,
+			BINARY name AS c_bin_vc,
+			BINARY ch AS c_bin_c,
+			BINARY id AS c_bin_int,
+			BINARY txt AS c_bin_txt,
+			BINARY 'abc' AS c_bin_lit,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote
+		FROM t_ops`,
+	}
+	for _, s := range setup {
+		if err := ctr.execSQL(s); err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+	}
+
+	rows, err := ctr.db.QueryContext(ctr.ctx, `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v_ops' ORDER BY ORDINAL_POSITION`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	engineTypes := map[string]string{}
+	engineNullable := map[string]bool{}
+	for rows.Next() {
+		var name, colType, nullable string
+		if err := rows.Scan(&name, &colType, &nullable); err != nil {
+			t.Fatal(err)
+		}
+		engineTypes[name] = colType
+		engineNullable[name] = nullable == "YES"
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; "+strings.Join(setup, "; "), nil); err != nil {
+		t.Fatal(err)
+	}
+	meta := c.DatabaseMetadata("test")
+	for _, col := range meta.GetSchemas()[0].GetViews()[0].GetColumns() {
+		wantType, ok := engineTypes[col.GetName()]
+		if !ok {
+			t.Fatalf("missing engine column %q", col.GetName())
+		}
+		if col.GetType() != wantType {
+			t.Errorf("MySQL v_ops.%s type: catalog=%q, engine=%q", col.GetName(), col.GetType(), wantType)
+		}
+		if col.GetNullable() != engineNullable[col.GetName()] {
+			t.Errorf("MySQL v_ops.%s nullable: catalog=%v, engine=%v", col.GetName(), col.GetNullable(), engineNullable[col.GetName()])
+		}
+	}
+}

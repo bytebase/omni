@@ -1732,3 +1732,74 @@ func TestViewLikeExprMetadata(t *testing.T) {
 	require.Equal(t, "int", cols["l_esc_null"].Type)
 	require.True(t, cols["l_esc_null"].Nullable)
 }
+
+func TestMaterializedViewParenColumnIndexRoundTrip(t *testing.T) {
+	c := New()
+	mvMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "app",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "src",
+				Engine:  "InnoDB",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Position: 1, Type: "int"}, {Name: "a(b", Position: 2, Type: "int", Nullable: true}},
+				Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Visible: true, Expressions: []string{"id"}, KeyLength: []int64{-1}, Descending: []bool{false}}},
+			}},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name:       "mv_paren",
+				Definition: "select `app`.`src`.`id` AS `id`,`app`.`src`.`a(b` AS `a(b` from `app`.`src`",
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "PRIMARY", Primary: true, Unique: true, Visible: true, Type: "BTREE", Expressions: []string{"id"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+					{Name: "idx_paren", Visible: true, Type: "BTREE", Expressions: []string{"a(b"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+				},
+			}},
+		}},
+	}
+
+	report, err := c.LoadMetadata(context.Background(), mvMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Incomplete)
+
+	reMV := c.GetDatabase("app").Views["mv_paren"]
+	require.NotNil(t, reMV)
+	require.Len(t, reMV.Indexes, 2)
+	require.Equal(t, "a(b", reMV.Indexes[1].Columns[0].Name)
+	require.Empty(t, reMV.Indexes[1].Columns[0].Expr)
+
+	reMeta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(reMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE INDEX `idx_paren` ON `mv_paren` (`a(b`)")
+}
+
+func TestViewNonArithmeticOperatorMetadata(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, txt TEXT, doc JSON NOT NULL);
+		CREATE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id XOR 1 AS c_lxor,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote,
+			BINARY name AS c_bin_vc,
+			BINARY txt AS c_bin_txt
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range c.DatabaseMetadata("app").GetSchemas()[0].GetViews()[0].GetColumns() {
+		cols[col.Name] = col
+	}
+	require.Equal(t, "bigint unsigned", cols["c_band"].Type)
+	require.Equal(t, "int", cols["c_lxor"].Type)
+	require.Equal(t, "json", cols["c_jextract"].Type)
+	require.True(t, cols["c_jextract"].Nullable)
+	require.Equal(t, "longtext", cols["c_junquote"].Type)
+	require.True(t, cols["c_junquote"].Nullable)
+	require.Equal(t, "varbinary(20)", cols["c_bin_vc"].Type)
+	require.Equal(t, "varbinary(65535)", cols["c_bin_txt"].Type)
+}

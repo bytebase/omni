@@ -372,6 +372,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		if stockMySQL && isInvisibleColumnExtra(extra) {
 			column.IsInvisible = true
 		}
+		if stockMySQL && isNotSecondaryColumnExtra(extra) {
+			column.NotSecondary = true
+		}
 		columnMap[tableName] = append(columnMap[tableName], column)
 
 		text := string(generationExpr)
@@ -1338,6 +1341,10 @@ func isInvisibleColumnExtra(extra string) bool {
 		}
 	}
 	return false
+}
+
+func isNotSecondaryColumnExtra(extra string) bool {
+	return strings.Contains(strings.ToUpper(extra), "NOT SECONDARY")
 }
 
 func unescapeExpressionDefault(s string) string {

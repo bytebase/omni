@@ -1211,6 +1211,84 @@
 : bytes
 | NONCLUSTERED
 > query
+| SHOW CREATE TABLE `omni_sync_corpus`.`accounts`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` bigint NOT NULL AUTO_INCREMENT,
+|   `email` varchar(190) NOT NULL,
+|   `bio` text DEFAULT NULL,
+|   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (lower(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (concat(`email`, _utf8mb4':', _utf8mb4'v1')) STORED,
+|   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `note` varchar(100) DEFAULT NULL COMMENT 'owner''s note',
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   UNIQUE KEY `uk_email` (`email`),
+|   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_expr` ((lower(`status`)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='customer accounts'
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT 'first',
+|  PARTITION `p_high` VALUES LESS THAN (MAXVALUE) COMMENT 'last')
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_shard`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_shard
+: bytes
+| CREATE TABLE `metrics_shard` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ts`)
+| (PARTITION `p10` VALUES LESS THAN (10) COMMENT 'first tenth',
+|  PARTITION `p2` VALUES LESS THAN (20),
+|  PARTITION `p1` VALUES LESS THAN (30))
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`sharded_events`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| sharded_events
+: bytes
+| CREATE TABLE `sharded_events` (
+|   `id` bigint NOT NULL /*T![auto_rand] AUTO_RANDOM(5) */,
+|   `account_id` bigint NOT NULL,
+|   `payload` varchar(128) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_account` (`account_id`),
+|   CONSTRAINT `fk_events_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,

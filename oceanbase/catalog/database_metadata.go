@@ -359,9 +359,14 @@ func resolveQueryTargetMeta(c *Catalog, db *Database, q *Query, idx int) (viewTa
 				meta.colType = resolveAnalyzedExprColumnType(c, db, q, te.Expr)
 			}
 		}
-		if meta.charset == "" && isStringColumnType(meta.colType) && db != nil && db.Charset != "" {
-			meta.charset = db.Charset
-			meta.collation = db.Collation
+		if meta.charset == "" {
+			if op, ok := te.Expr.(*OpExprQ); ok && op.Op == "->>" {
+				meta.charset = "utf8mb4"
+				meta.collation = "utf8mb4_bin"
+			} else if isStringColumnType(meta.colType) && db != nil && db.Charset != "" {
+				meta.charset = db.Charset
+				meta.collation = db.Collation
+			}
 		}
 		return meta, true
 	}
@@ -445,6 +450,8 @@ func isAnalyzedExprNullable(c *Catalog, db *Database, q *Query, expr AnalyzedExp
 		switch strings.ToUpper(e.Op) {
 		case "<=>", "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
 			return false
+		case "->", "->>":
+			return true
 		}
 		return isAnalyzedExprNullable(c, db, q, e.Left) || isAnalyzedExprNullable(c, db, q, e.Right)
 	case *NullTestExprQ:
@@ -983,6 +990,11 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			return ct
 		}
 	case *OpExprQ:
+		if strings.EqualFold(e.Op, "BINARY") {
+			if ct := resolveBinaryUnaryColumnType(c, db, q, e.Right); ct != "" {
+				return ct
+			}
+		}
 		if ct := resolveIntervalOpColumnType(c, db, q, e, false); ct != "" {
 			return ct
 		}
@@ -1023,6 +1035,44 @@ func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr Anal
 			return "int"
 		}
 		return resolvedTypeToColumnType(rt)
+	}
+	return ""
+}
+
+func resolveBinaryUnaryColumnType(c *Catalog, db *Database, q *Query, operand AnalyzedExpr) string {
+	if operand == nil {
+		return ""
+	}
+	if cn, ok := operand.(*ConstExprQ); ok {
+		if cn.IsNull {
+			return "binary(0)"
+		}
+		if cn.IsString {
+			return fmt.Sprintf("varbinary(%d)", len(cn.Value))
+		}
+	}
+	ct := resolveAnalyzedExprColumnType(c, db, q, operand)
+	if ct == "" {
+		return ""
+	}
+	p := parseSetOpColType(ct)
+	switch {
+	case p.cat == "blob", p.cat == "binary":
+		return p.raw
+	case p.cat == "string", p.cat == "text":
+		if p.width <= 65535 {
+			return fmt.Sprintf("varbinary(%d)", p.width)
+		}
+		if p.rank == 3 {
+			return "mediumblob"
+		}
+		return "longblob"
+	case p.cat == "json":
+		return "longblob"
+	default:
+		if w := setOpStringWidth(p, operand, false); w > 0 {
+			return fmt.Sprintf("varbinary(%d)", w)
+		}
 	}
 	return ""
 }
@@ -1130,8 +1180,15 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		switch opUpper {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
-			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN",
+			"XOR":
 			return BoolType
+		case "&", "|", "^", "<<", ">>", "~":
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
+		case "->":
+			return &ResolvedType{BaseType: BaseTypeJSON}
+		case "->>":
+			return &ResolvedType{BaseType: BaseTypeLongText}
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)

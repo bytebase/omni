@@ -6,6 +6,7 @@
 | CREATE TABLE t_chk (
 | 	id INT PRIMARY KEY,
 | 	x INT NOT NULL,
+| 	note VARCHAR(20) NOT SECONDARY,
 | 	CONSTRAINT chk_enf CHECK (x > 0),
 | 	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
 | );
@@ -236,6 +237,28 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| t_chk
+: bytes
+| note
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+| NOT SECONDARY
 : null
 < row
 : bytes
@@ -698,6 +721,7 @@
 | CREATE TABLE `t_chk` (
 |   `id` int NOT NULL,
 |   `x` int NOT NULL,
+|   `note` varchar(20) NOT SECONDARY DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `chk_enf` CHECK (`x` > 0),
 |   CONSTRAINT `chk_ne` CHECK (`x` < 10) NOT ENFORCED
@@ -924,6 +948,28 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| t_chk
+: bytes
+| note
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+| NOT SECONDARY
 : null
 < row
 : bytes
@@ -1358,6 +1404,7 @@
 | CREATE TABLE t_chk (
 | 	id INT PRIMARY KEY,
 | 	x INT NOT NULL,
+| 	note VARCHAR(20) NOT SECONDARY,
 | 	CONSTRAINT chk_enf CHECK (x > 0),
 | 	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
 | );
@@ -1588,6 +1635,28 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| t_chk
+: bytes
+| note
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+| NOT SECONDARY
 : null
 < row
 : bytes
@@ -2050,6 +2119,7 @@
 | CREATE TABLE `t_chk` (
 |   `id` int NOT NULL,
 |   `x` int NOT NULL,
+|   `note` varchar(20) NOT SECONDARY DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `chk_enf` CHECK (`x` > 0),
 |   CONSTRAINT `chk_ne` CHECK (`x` < 10) NOT ENFORCED
@@ -2276,6 +2346,28 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| t_chk
+: bytes
+| note
+: int64 3
+: null
+: bytes
+| YES
+: bytes
+| varchar(20)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_ai_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+| NOT SECONDARY
 : null
 < row
 : bytes

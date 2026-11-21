@@ -16,6 +16,12 @@
 | );
 < ok 0 0
 > exec
+| CREATE TABLE t_ttl (
+| 	id INT PRIMARY KEY,
+| 	ts DATETIME NOT NULL
+| ) TTL = ts + INTERVAL 1 DAY TTL_ENABLE = 'OFF' TTL_JOB_INTERVAL = '2h';
+< ok 0 0
+> exec
 | CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_opts AS
 | 	SELECT id, x FROM t_chk WHERE x > 0 WITH LOCAL CHECK OPTION;
 < ok 0 0
@@ -54,6 +60,19 @@
 < row
 : bytes
 | t_chk
+: bytes
+| PRIMARY
+: bytes
+| id
+: int64 1
+: int64 0
+: bytes
+|
+: null
+: null
+< row
+: bytes
+| t_ttl
 : bytes
 | PRIMARY
 : bytes
@@ -127,6 +146,48 @@
 | NO
 : bytes
 | int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t_ttl
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| NO
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t_ttl
+: bytes
+| ts
+: int64 2
+: null
+: bytes
+| NO
+: bytes
+| datetime
 : bytes
 |
 : bytes
@@ -388,6 +449,27 @@
 | CLUSTERED
 < row
 : bytes
+| t_ttl
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| NOT_SHARDED(PK_IS_HANDLE)
+: bytes
+| CLUSTERED
+< row
+: bytes
 | v_opts
 : bytes
 | VIEW
@@ -423,6 +505,20 @@
 |   CONSTRAINT `chk_enf` CHECK ((`x` > 0)),
 |   CONSTRAINT `chk_ne` CHECK ((`x` < 10)) /*!80016 NOT ENFORCED */
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `omni_options_roundtrip`.`t_ttl`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_ttl
+: bytes
+| CREATE TABLE `t_ttl` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![ttl] TTL=`ts` + INTERVAL 1 DAY */ /*T![ttl] TTL_ENABLE='OFF' */ /*T![ttl] TTL_JOB_INTERVAL='2h' */
 > query
 |
 | 		SELECT
@@ -468,6 +564,13 @@
 |   CONSTRAINT `chk_enf` CHECK (`x` > 0),
 |   CONSTRAINT `chk_ne` CHECK (`x` < 10) NOT ENFORCED
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+< ok 0 0
+> exec
+| CREATE TABLE `t_ttl` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![ttl] TTL=`ts` + INTERVAL 1 DAY */ /*T![ttl] TTL_ENABLE='OFF' */ /*T![ttl] TTL_JOB_INTERVAL='2h' */
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_opts`
@@ -526,6 +629,19 @@
 |
 : null
 : null
+< row
+: bytes
+| t_ttl
+: bytes
+| PRIMARY
+: bytes
+| id
+: int64 1
+: int64 0
+: bytes
+|
+: null
+: null
 > query
 |
 | 		SELECT
@@ -589,6 +705,48 @@
 | NO
 : bytes
 | int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t_ttl
+: bytes
+| id
+: int64 1
+: null
+: bytes
+| NO
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| t_ttl
+: bytes
+| ts
+: int64 2
+: null
+: bytes
+| NO
+: bytes
+| datetime
 : bytes
 |
 : bytes
@@ -850,6 +1008,27 @@
 | CLUSTERED
 < row
 : bytes
+| t_ttl
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| NOT_SHARDED(PK_IS_HANDLE)
+: bytes
+| CLUSTERED
+< row
+: bytes
 | v_opts
 : bytes
 | VIEW
@@ -885,6 +1064,20 @@
 |   CONSTRAINT `chk_enf` CHECK ((`x` > 0)),
 |   CONSTRAINT `chk_ne` CHECK ((`x` < 10)) /*!80016 NOT ENFORCED */
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `omni_options_roundtrip`.`t_ttl`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t_ttl
+: bytes
+| CREATE TABLE `t_ttl` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![ttl] TTL=`ts` + INTERVAL 1 DAY */ /*T![ttl] TTL_ENABLE='OFF' */ /*T![ttl] TTL_JOB_INTERVAL='2h' */
 > query
 |
 | 		SELECT

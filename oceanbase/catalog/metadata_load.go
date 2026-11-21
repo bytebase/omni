@@ -443,25 +443,34 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 			if err := c.DefineMaterializedView(stmt); err != nil {
 				return err
 			}
-			if inst := c.installedView(o.name); inst != nil && o.mview != nil {
-				inst.Comment = syncedComment(o.mview.GetComment())
-				inst.Indexes = metadataMVIndexes(o.mview.GetIndexes(), &o.incomplete)
-			}
 		} else {
 			if err := c.DefineView(stmt); err != nil {
 				return err
 			}
-			if inst := c.installedView(o.name); inst != nil {
-				if o.view.GetAlgorithm() != "" {
-					inst.Algorithm = o.view.GetAlgorithm()
-				}
-				if o.view.GetSqlSecurity() != "" {
-					inst.SqlSecurity = o.view.GetSqlSecurity()
+		}
+		inst := c.installedView(o.name)
+		nameViewColumns(inst, metadataViewColumnNames(o.view))
+		preserveMetadataViewColumns(inst, o.view.GetColumns())
+		if inst != nil && o.materialized && o.mview != nil {
+			mvCols := make(map[string]bool, len(inst.Columns))
+			for _, colName := range inst.Columns {
+				mvCols[toLower(colName)] = true
+			}
+			for _, colMeta := range o.view.GetColumns() {
+				if name := colMeta.GetName(); name != "" {
+					mvCols[toLower(name)] = true
 				}
 			}
+			inst.Comment = syncedComment(o.mview.GetComment())
+			inst.Indexes = metadataMVIndexes(o.mview.GetIndexes(), mvCols, &o.incomplete)
+		} else if inst != nil && !o.materialized {
+			if o.view.GetAlgorithm() != "" {
+				inst.Algorithm = o.view.GetAlgorithm()
+			}
+			if o.view.GetSqlSecurity() != "" {
+				inst.SqlSecurity = o.view.GetSqlSecurity()
+			}
 		}
-		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
-		preserveMetadataViewColumns(c.installedView(o.name), o.view.GetColumns())
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
@@ -693,7 +702,7 @@ func metadataSubpartitionTemplate(partMeta *metadata.TablePartitionMetadata) ([]
 	return stmt.Partitions.SubPartTemplate, nil
 }
 
-func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index {
+func metadataMVIndexes(idxs []*metadata.IndexMetadata, mvCols map[string]bool, omitted *error) []*Index {
 	if len(idxs) == 0 {
 		return nil
 	}
@@ -738,7 +747,7 @@ func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index 
 				Length:     length,
 				Descending: desc,
 			}
-			if isExpressionKey(expr, nil) {
+			if isExpressionKey(expr, mvCols) {
 				if _, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err != nil && parseErr == nil {
 					parseErr = err
 				}

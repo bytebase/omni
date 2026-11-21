@@ -804,8 +804,17 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 		switch opUpper {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
-			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
+			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN",
+			"XOR":
 			return BoolType
+		case "&", "|", "^", "<<", ">>", "~":
+			return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: true}
+		case "->":
+			return &ResolvedType{BaseType: BaseTypeJSON}
+		case "->>":
+			return &ResolvedType{BaseType: BaseTypeLongText}
+		case "BINARY":
+			return &ResolvedType{BaseType: BaseTypeBinary, Length: 1}
 		case "+", "-", "*", "/", "%", "MOD":
 			lt := resolveExprResolvedType(c, db, q, e.Left)
 			rt := resolveExprResolvedType(c, db, q, e.Right)

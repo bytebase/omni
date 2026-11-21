@@ -222,6 +222,7 @@ func TestDumpRestoresCheckNotEnforcedAndViewOptions(t *testing.T) {
 	const setup = `CREATE TABLE t_chk (
 	id INT PRIMARY KEY,
 	x INT NOT NULL,
+	note VARCHAR(20) NOT SECONDARY,
 	CONSTRAINT chk_enf CHECK (x > 0),
 	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
 );
@@ -250,6 +251,15 @@ CREATE TABLE part_ts (
 			chk := tables["t_chk"].CheckConstraints
 			if len(chk) != 2 || chk[0].NotEnforced || !chk[1].NotEnforced {
 				t.Fatalf("unexpected check constraints on %s: %+v", role, chk)
+			}
+			var noteNotSecondary bool
+			for _, col := range tables["t_chk"].Columns {
+				if col.Name == "note" {
+					noteNotSecondary = col.NotSecondary
+				}
+			}
+			if !noteNotSecondary {
+				t.Fatalf("expected t_chk.note NotSecondary=true on %s, got %+v", role, tables["t_chk"].Columns)
 			}
 			parts := tables["part_ts"].Partitions
 			if len(parts) != 2 || parts[0].GetTablespace() != "innodb_file_per_table" || parts[1].GetTablespace() != "innodb_file_per_table" {

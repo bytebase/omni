@@ -1461,3 +1461,30 @@ func TestViewLikeExprMetadata(t *testing.T) {
 		require.True(t, cols[name].Nullable, name)
 	}
 }
+
+func TestViewNonArithmeticOperatorMetadata(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(20) NOT NULL, doc JSON);
+		CREATE VIEW v_ops AS SELECT
+			id & 1 AS c_band,
+			id XOR 1 AS c_lxor,
+			doc->'$.x' AS c_jextract,
+			doc->>'$.x' AS c_junquote,
+			BINARY name AS c_bin
+		FROM t;
+	`, nil)
+	require.NoError(t, err)
+
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range c.DatabaseMetadata("app").GetSchemas()[0].GetViews()[0].GetColumns() {
+		cols[col.Name] = col
+	}
+	require.Equal(t, "bigint unsigned", cols["c_band"].Type)
+	require.Equal(t, "bigint", cols["c_lxor"].Type)
+	require.Equal(t, "json", cols["c_jextract"].Type)
+	require.Equal(t, "longtext", cols["c_junquote"].Type)
+	require.Equal(t, "binary(1)", cols["c_bin"].Type)
+}

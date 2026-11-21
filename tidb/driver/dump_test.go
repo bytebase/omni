@@ -187,6 +187,11 @@ func TestDumpRestoresCheckNotEnforcedAndViewOptions(t *testing.T) {
 	CONSTRAINT chk_ne CHECK (x < 10) NOT ENFORCED
 );
 
+CREATE TABLE t_ttl (
+	id INT PRIMARY KEY,
+	ts DATETIME NOT NULL
+) TTL = ts + INTERVAL 1 DAY TTL_ENABLE = 'OFF' TTL_JOB_INTERVAL = '2h';
+
 CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_opts AS
 	SELECT id, x FROM t_chk WHERE x > 0 WITH LOCAL CHECK OPTION;`
 	execCorpus(t, d.db, setup)
@@ -195,12 +200,20 @@ CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_opts AS
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(source.Schemas[0].Tables) != 1 || len(source.Schemas[0].Tables[0].CheckConstraints) != 2 {
+	tables := map[string]*metadatapb.TableMetadata{}
+	for _, tbl := range source.Schemas[0].Tables {
+		tables[tbl.Name] = tbl
+	}
+	if tables["t_chk"] == nil || len(tables["t_chk"].CheckConstraints) != 2 {
 		t.Fatalf("unexpected TiDB check constraints: %+v", source.Schemas[0].Tables)
 	}
-	chk := source.Schemas[0].Tables[0].CheckConstraints
+	chk := tables["t_chk"].CheckConstraints
 	if chk[0].NotEnforced || !chk[1].NotEnforced {
 		t.Fatalf("unexpected TiDB NotEnforced flags: %+v", chk)
+	}
+	ttl := tables["t_ttl"]
+	if ttl == nil || ttl.TtlColumn != "ts" || ttl.TtlInterval != "interval 1 day" || ttl.TtlEnable || ttl.TtlJobInterval != "2h" {
+		t.Fatalf("unexpected TiDB TTL metadata: %+v", ttl)
 	}
 	if len(source.Schemas[0].Views) != 1 {
 		t.Fatalf("unexpected TiDB views: %+v", source.Schemas[0].Views)

@@ -16,6 +16,7 @@ import (
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	tidbast "github.com/bytebase/omni/tidb/ast"
+	tidbdeparse "github.com/bytebase/omni/tidb/deparse"
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
@@ -505,13 +506,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	_ = tableRows.Close()
 
-	if len(checkClauses) > 0 && len(baseTableNames) > 0 {
-		for i, tbl := range baseTableNames {
-			checks, err := d.readCheckConstraintsFromShowCreate(ctx, d.databaseName, tbl, checkClauses)
-			if err != nil {
-				return nil, err
-			}
-			baseTables[i].CheckConstraints = checks
+	for i, tbl := range baseTableNames {
+		if err := d.populateTableDetailsFromShowCreate(ctx, d.databaseName, tbl, baseTables[i], checkClauses); err != nil {
+			return nil, err
 		}
 	}
 	schemaMetadata.Sequences = sequences
@@ -791,39 +788,87 @@ func (d *Driver) getCheckConstraintClauses(ctx context.Context, databaseName str
 	return clauses, nil
 }
 
-func (d *Driver) readCheckConstraintsFromShowCreate(ctx context.Context, databaseName, tableName string, checkClauses map[string]string) ([]*metadatapb.CheckConstraintMetadata, error) {
+func (d *Driver) populateTableDetailsFromShowCreate(ctx context.Context, databaseName, tableName string, table *metadatapb.TableMetadata, checkClauses map[string]string) error {
 	query := fmt.Sprintf("SHOW CREATE TABLE %s.%s", quoteBacktick(databaseName), quoteBacktick(tableName))
 	var tblCol, createStmt sql.NullString
 	if err := d.db.QueryRowContext(ctx, query).Scan(&tblCol, &createStmt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil
 		}
-		return nil, fmt.Errorf("failed to scan row for query: %s: %w", query, err)
+		return fmt.Errorf("failed to scan row for query: %s: %w", query, err)
 	}
 	list, err := tidbparser.Parse(createStmt.String)
 	if err != nil || list == nil || len(list.Items) != 1 {
-		return nil, nil
+		return nil
 	}
 	stmt, ok := list.Items[0].(*tidbast.CreateTableStmt)
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	var checks []*metadatapb.CheckConstraintMetadata
-	for _, con := range stmt.Constraints {
-		if con == nil || con.Type != tidbast.ConstrCheck {
+	if len(checkClauses) > 0 {
+		var checks []*metadatapb.CheckConstraintMetadata
+		for _, con := range stmt.Constraints {
+			if con == nil || con.Type != tidbast.ConstrCheck {
+				continue
+			}
+			expr := checkClauses[strings.ToLower(con.Name)]
+			checks = append(checks, &metadatapb.CheckConstraintMetadata{
+				Name:        con.Name,
+				Expression:  expr,
+				NotEnforced: con.NotEnforced,
+			})
+		}
+		slices.SortFunc(checks, func(a, b *metadatapb.CheckConstraintMetadata) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+		table.CheckConstraints = checks
+	}
+
+	ttlEnableSeen := false
+	for _, opt := range stmt.Options {
+		if opt == nil {
 			continue
 		}
-		expr := checkClauses[strings.ToLower(con.Name)]
-		checks = append(checks, &metadatapb.CheckConstraintMetadata{
-			Name:        con.Name,
-			Expression:  expr,
-			NotEnforced: con.NotEnforced,
-		})
+		switch strings.ToLower(opt.Name) {
+		case "ttl":
+			if col, interval, ok := extractTTLParts(opt.Value); ok {
+				table.TtlColumn = col
+				table.TtlInterval = interval
+				if !ttlEnableSeen {
+					table.TtlEnable = true
+				}
+			}
+		case "ttl_enable":
+			table.TtlEnable = strings.EqualFold(opt.Value, "ON")
+			ttlEnableSeen = true
+		case "ttl_job_interval":
+			table.TtlJobInterval = opt.Value
+		}
 	}
-	slices.SortFunc(checks, func(a, b *metadatapb.CheckConstraintMetadata) int {
-		return strings.Compare(a.Name, b.Name)
-	})
-	return checks, nil
+	return nil
+}
+
+func extractTTLParts(val string) (string, string, bool) {
+	expr, err := tidbparser.ParseExpr(val)
+	if err != nil {
+		return "", "", false
+	}
+	switch e := expr.(type) {
+	case *tidbast.BinaryExpr:
+		if e.Op == tidbast.BinOpAdd {
+			if col, ok := e.Left.(*tidbast.ColumnRef); ok {
+				return col.Column, tidbdeparse.Deparse(e.Right), true
+			}
+		}
+	case *tidbast.FuncCallExpr:
+		name := strings.ToUpper(e.Name)
+		if (name == "DATE_ADD" || name == "ADDDATE") && len(e.Args) == 2 {
+			if col, ok := e.Args[0].(*tidbast.ColumnRef); ok {
+				return col.Column, tidbdeparse.Deparse(e.Args[1]), true
+			}
+		}
+	}
+	return "", "", false
 }
 
 func (d *Driver) readViewOptionsFromShowCreate(ctx context.Context, databaseName, viewName string) (algorithm, sqlSecurity, checkOption string, err error) {
