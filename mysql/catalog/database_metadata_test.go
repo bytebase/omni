@@ -778,3 +778,70 @@ func TestDatabaseMetadataViewColumnTypes(t *testing.T) {
 	require.Equal(t, "int", cols["lit_bool"].Type)
 	require.Equal(t, "decimal(2,1)", cols["lit_dec"].Type)
 }
+
+func TestDatabaseMetadataDecimalArithmeticAndSkipDumpRoundTrip(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE ddb;
+		USE ddb;
+		CREATE TABLE dec_t (id INT PRIMARY KEY, d1 DECIMAL(5,2), d2 DECIMAL(3,1));
+		CREATE VIEW v_dec AS SELECT
+			d1 + d2 AS p,
+			d1 - d2 AS m,
+			d1 * d2 AS mul,
+			d1 / d2 AS dv,
+			d1 % d2 AS md,
+			-d1 AS neg_d,
+			CAST(1 AS DECIMAL(5,2)) + CAST(2 AS DECIMAL(3,1)) AS cp
+		FROM dec_t;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("ddb")
+	vcols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.Schemas[0].Views[0].Columns {
+		vcols[col.Name] = col
+	}
+	require.Equal(t, "decimal(6,2)", vcols["p"].Type)
+	require.Equal(t, "decimal(6,2)", vcols["m"].Type)
+	require.Equal(t, "decimal(8,3)", vcols["mul"].Type)
+	require.Equal(t, "decimal(10,6)", vcols["dv"].Type)
+	require.Equal(t, "decimal(5,2)", vcols["md"].Type)
+	require.Equal(t, "decimal(5,2)", vcols["neg_d"].Type)
+	require.Equal(t, "decimal(6,2)", vcols["cp"].Type)
+
+	// SkipDump round-trips across LoadMetadata -> DatabaseMetadata.
+	skipMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "skip_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:     "t_skip",
+				SkipDump: true,
+				Columns:  []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+				Triggers: []*metadata.TriggerMetadata{{
+					Name: "tr_skip", Event: "INSERT", Timing: "BEFORE", Body: "BEGIN END", SkipDump: true,
+				}},
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true,
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name: "fn_skip", Definition: "CREATE FUNCTION fn_skip() RETURNS INT DETERMINISTIC RETURN 1", SkipDump: true,
+			}},
+			Procedures: []*metadata.ProcedureMetadata{{
+				Name: "sp_skip", Definition: "CREATE PROCEDURE sp_skip() BEGIN END", SkipDump: true,
+			}},
+		}},
+	}
+	skipCat := New()
+	report, err := skipCat.LoadMetadata(context.Background(), skipMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	out := skipCat.DatabaseMetadata("skip_db")
+	require.True(t, out.Schemas[0].Tables[0].SkipDump)
+	require.True(t, out.Schemas[0].Tables[0].Triggers[0].SkipDump)
+	require.True(t, out.Schemas[0].Views[0].SkipDump)
+	require.True(t, out.Schemas[0].Functions[0].SkipDump)
+	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
+}

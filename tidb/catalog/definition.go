@@ -560,13 +560,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if _, err := io.WriteString(out, tableHeader); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, table.Name); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "`\n"); err != nil {
+	if _, err := io.WriteString(out, quoteIdent(table.Name)+"\n"); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
@@ -578,7 +572,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	if table.IsGlobalTemporary {
 		createPrefix = "CREATE GLOBAL TEMPORARY TABLE"
 	}
-	if _, err := fmt.Fprintf(out, "%s `%s` (\n", createPrefix, table.Name); err != nil {
+	if _, err := fmt.Fprintf(out, "%s %s (\n", createPrefix, quoteIdent(table.Name)); err != nil {
 		return err
 	}
 
@@ -713,7 +707,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 
 	for _, col := range table.Columns {
 		if col.GetDefaultDropped() {
-			if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` ALTER COLUMN `%s` DROP DEFAULT;\n\n", table.Name, col.Name); err != nil {
+			if _, err := fmt.Fprintf(out, "ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;\n\n", quoteIdent(table.Name), quoteIdent(col.Name)); err != nil {
 				return err
 			}
 		}
@@ -721,7 +715,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 
 	// TiFlash replica precedes CACHE because a cached table rejects other ALTER TABLE statements (8242).
 	if table.TiflashReplica > 0 || len(table.TiflashLocationLabels) > 0 {
-		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` SET TIFLASH REPLICA %d", table.Name, table.TiflashReplica); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE %s SET TIFLASH REPLICA %d", quoteIdent(table.Name), table.TiflashReplica); err != nil {
 			return err
 		}
 		if err := writeTiFlashLocationLabels(out, table.TiflashLocationLabels); err != nil {
@@ -733,7 +727,7 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName stri
 	}
 
 	if isCachedCreateOptions(table.CreateOptions) {
-		if _, err := fmt.Fprintf(out, "ALTER TABLE `%s` CACHE;\n\n", table.Name); err != nil {
+		if _, err := fmt.Fprintf(out, "ALTER TABLE %s CACHE;\n\n", quoteIdent(table.Name)); err != nil {
 			return err
 		}
 	}

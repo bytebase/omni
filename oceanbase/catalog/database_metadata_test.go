@@ -846,3 +846,75 @@ func TestDatabaseMetadataViewColumnTypes(t *testing.T) {
 	require.Equal(t, "int", cols["lit_bool"].Type)
 	require.Equal(t, "decimal(2,1)", cols["lit_dec"].Type)
 }
+
+func TestDatabaseMetadataDecimalArithmeticMVLogAbsenceAndSkipDump(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE ddb;
+		USE ddb;
+		CREATE TABLE dec_t (id INT PRIMARY KEY, d1 DECIMAL(5,2), d2 DECIMAL(3,1));
+		CREATE VIEW v_dec AS SELECT
+			d1 + d2 AS p,
+			d1 * d2 AS mul,
+			d1 / d2 AS dv,
+			d1 % d2 AS md,
+			CAST(1 AS DECIMAL(5,2)) - CAST(2 AS DECIMAL(3,1)) AS cm
+		FROM dec_t;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("ddb")
+	vcols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.Schemas[0].Views[0].Columns {
+		vcols[col.Name] = col
+	}
+	require.Equal(t, "decimal(6,2)", vcols["p"].Type)
+	require.Equal(t, "decimal(8,3)", vcols["mul"].Type)
+	require.Equal(t, "decimal(10,6)", vcols["dv"].Type)
+	require.Equal(t, "decimal(5,2)", vcols["md"].Type)
+	require.Equal(t, "decimal(6,2)", vcols["cm"].Type)
+
+	// LoadMetadata records known absence of MV log when HasMaterializedViewLog is false, and preserves SkipDump.
+	loadMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "mv_skip_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:                   "no_mvlog_t",
+				HasMaterializedViewLog: false,
+				SkipDump:               true,
+				Columns:                []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+				Triggers: []*metadata.TriggerMetadata{{
+					Name: "tr_skip", Event: "INSERT", Timing: "BEFORE", Body: "BEGIN END", SkipDump: true,
+				}},
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true,
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name: "fn_skip", Definition: "CREATE FUNCTION fn_skip() RETURNS INT DETERMINISTIC RETURN 1", SkipDump: true,
+			}},
+			Procedures: []*metadata.ProcedureMetadata{{
+				Name: "sp_skip", Definition: "CREATE PROCEDURE sp_skip() BEGIN END", SkipDump: true,
+			}},
+		}},
+	}
+	loaded := New()
+	report, err := loaded.LoadMetadata(context.Background(), loadMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+	db := loaded.GetDatabase("mv_skip_db")
+	require.True(t, db.MaterializedViewLogsKnown["no_mvlog_t"])
+	require.False(t, db.MaterializedViewLogs["no_mvlog_t"])
+	dropRes, err := loaded.Exec("DROP MATERIALIZED VIEW LOG ON no_mvlog_t;", &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	require.Len(t, dropRes, 1)
+	require.Error(t, dropRes[0].Error)
+
+	out := loaded.DatabaseMetadata("mv_skip_db")
+	require.True(t, out.Schemas[0].Tables[0].SkipDump)
+	require.True(t, out.Schemas[0].Tables[0].Triggers[0].SkipDump)
+	require.True(t, out.Schemas[0].Views[0].SkipDump)
+	require.True(t, out.Schemas[0].Functions[0].SkipDump)
+	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
+}

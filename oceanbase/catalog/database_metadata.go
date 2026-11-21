@@ -82,6 +82,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 				Name:       v.Name,
 				Definition: v.Definition,
 				Comment:    formatSyncedComment(v.Comment),
+				SkipDump:   v.SkipDump,
 			}
 			sortedMVIndexes := slices.Clone(v.Indexes)
 			slices.SortStableFunc(sortedMVIndexes, func(a, b *Index) int {
@@ -100,6 +101,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Algorithm:   v.Algorithm,
 			SqlSecurity: v.SqlSecurity,
 			CheckOption: v.CheckOption,
+			SkipDump:    v.SkipDump,
 		})
 	}
 
@@ -110,6 +112,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Definition:        c.ShowCreateFunction(dbName, f.Name),
 			DatabaseCollation: db.Collation,
 			Comment:           f.Characteristics["COMMENT"],
+			SkipDump:          f.SkipDump,
 		}
 		if f.HasSessionContext {
 			fnMeta.SqlMode = f.SQLMode
@@ -126,6 +129,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Definition:        c.ShowCreateProcedure(dbName, p.Name),
 			DatabaseCollation: db.Collation,
 			Comment:           p.Characteristics["COMMENT"],
+			SkipDump:          p.SkipDump,
 		}
 		if p.HasSessionContext {
 			procMeta.SqlMode = p.SQLMode
@@ -183,7 +187,7 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 			}
 		}
 		if te.Expr != nil {
-			return resolvedExprColumnType(te.Expr)
+			return resolveAnalyzedExprColumnType(c, db, v.AnalyzedQuery, te.Expr)
 		}
 		return ""
 	}
@@ -221,47 +225,248 @@ func (c *Catalog) viewColumnsToProto(db *Database, v *View) []*metadata.ColumnMe
 	return cols
 }
 
-func resolvedExprColumnType(expr AnalyzedExpr) string {
+func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) string {
 	if expr == nil {
 		return ""
 	}
-	if c, ok := expr.(*ConstExprQ); ok {
-		if c.IsNull {
+	if cn, ok := expr.(*ConstExprQ); ok {
+		if cn.IsNull {
 			return "binary(0)"
 		}
-		if c.IsString {
-			n := utf8.RuneCountInString(c.Value)
+		if cn.IsString {
+			n := utf8.RuneCountInString(cn.Value)
 			if n == 0 {
 				return "char(0)"
 			}
 			return fmt.Sprintf("varchar(%d)", n)
 		}
 	}
-	if rt := expr.exprType(); rt != nil {
+	if rt := resolveExprResolvedType(c, db, q, expr); rt != nil {
 		if rt.BaseType == BaseTypeTinyIntBool {
 			return "int"
 		}
 		return resolvedTypeToColumnType(rt)
 	}
-	if op, ok := expr.(*OpExprQ); ok {
-		switch strings.ToUpper(op.Op) {
+	return ""
+}
+
+func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) *ResolvedType {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *VarExprQ:
+		if e.Type != nil {
+			return e.Type
+		}
+		if q != nil && e.LevelsUp == 0 && e.RangeIdx >= 0 && e.RangeIdx < len(q.RangeTable) {
+			rte := q.RangeTable[e.RangeIdx]
+			if e.AttNum >= 1 && e.AttNum <= len(rte.ColTypes) && rte.ColTypes[e.AttNum-1] != nil {
+				return rte.ColTypes[e.AttNum-1]
+			}
+			if rte.Kind == RTERelation && c != nil && e.AttNum >= 1 && e.AttNum <= len(rte.ColNames) {
+				origDB := db
+				if rte.DBName != "" {
+					origDB = c.GetDatabase(rte.DBName)
+				}
+				if origDB != nil {
+					if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+						if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
+							return parseColumnResolvedType(col.ColumnType)
+						}
+					}
+					if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
+						if subTE := nthNonJunkTarget(sv.AnalyzedQuery, e.AttNum-1); subTE != nil {
+							return resolveExprResolvedType(c, origDB, sv.AnalyzedQuery, subTE.Expr)
+						}
+					}
+				}
+			}
+			if rte.Kind == RTESubquery && rte.Subquery != nil {
+				if subTE := nthNonJunkTarget(rte.Subquery, e.AttNum-1); subTE != nil {
+					return resolveExprResolvedType(c, db, rte.Subquery, subTE.Expr)
+				}
+			}
+		}
+		return nil
+	case *CastExprQ:
+		if e.TargetType != nil && e.TargetType.BaseType == BaseTypeDecimal && e.TargetType.Precision == 0 {
+			return &ResolvedType{BaseType: BaseTypeDecimal, Precision: 10, Scale: 0}
+		}
+		return e.TargetType
+	case *OpExprQ:
+		opUpper := strings.ToUpper(e.Op)
+		if e.Left == nil && (opUpper == "+" || opUpper == "-") {
+			return resolveExprResolvedType(c, db, q, e.Right)
+		}
+		switch opUpper {
 		case "=", "!=", "<>", "<", "<=", ">", ">=", "<=>",
 			"LIKE", "NOT LIKE", "REGEXP", "RLIKE", "NOT REGEXP", "NOT RLIKE",
 			"IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE", "IS UNKNOWN", "IS NOT UNKNOWN":
-			return "int"
-		case "/":
-			return "decimal"
-		case "+", "-", "*", "%", "DIV":
-			if leftType := resolvedExprColumnType(op.Left); leftType == "double" || leftType == "float" {
-				return "double"
+			return BoolType
+		case "+", "-", "*", "/", "%", "MOD":
+			lt := resolveExprResolvedType(c, db, q, e.Left)
+			rt := resolveExprResolvedType(c, db, q, e.Right)
+			if (lt != nil && (lt.BaseType == BaseTypeDouble || lt.BaseType == BaseTypeFloat)) ||
+				(rt != nil && (rt.BaseType == BaseTypeDouble || rt.BaseType == BaseTypeFloat)) {
+				return &ResolvedType{BaseType: BaseTypeDouble}
 			}
-			if rightType := resolvedExprColumnType(op.Right); rightType == "double" || rightType == "float" {
-				return "double"
+			if opUpper == "/" ||
+				(lt != nil && lt.BaseType == BaseTypeDecimal) ||
+				(rt != nil && rt.BaseType == BaseTypeDecimal) {
+				if dt := combineDecimalArithmetic(opUpper, lt, e.Left, rt, e.Right); dt != nil {
+					return dt
+				}
+				return &ResolvedType{BaseType: BaseTypeDecimal}
 			}
-			return "bigint"
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		case "DIV":
+			return &ResolvedType{BaseType: BaseTypeBigInt}
+		}
+		return e.ResultType
+	default:
+		return expr.exprType()
+	}
+}
+
+func nthNonJunkTarget(q *Query, idx int) *TargetEntryQ {
+	if q == nil || idx < 0 {
+		return nil
+	}
+	pos := 0
+	for _, te := range q.TargetList {
+		if te == nil || te.ResJunk {
+			continue
+		}
+		if pos == idx {
+			return te
+		}
+		pos++
+	}
+	return nil
+}
+
+func combineDecimalArithmetic(op string, lt *ResolvedType, le AnalyzedExpr, rt *ResolvedType, re AnalyzedExpr) *ResolvedType {
+	lp, ls, lok := decimalOperandPrecisionScale(lt, le)
+	rp, rs, rok := decimalOperandPrecisionScale(rt, re)
+	if !lok || !rok {
+		return nil
+	}
+	var prec, scale int
+	switch op {
+	case "+", "-":
+		scale = max(ls, rs)
+		prec = min(65, max(lp-ls, rp-rs)+1+scale)
+	case "*":
+		scale = min(30, ls+rs)
+		prec = min(65, lp+rp)
+	case "%", "MOD":
+		scale = max(ls, rs)
+		prec = min(65, max(lp-ls, rp-rs)+scale)
+	case "/":
+		scale = min(30, ls+4)
+		prec = min(65, max(lp-ls, 0)+rs+scale)
+	default:
+		return nil
+	}
+	return &ResolvedType{
+		BaseType:  BaseTypeDecimal,
+		Precision: prec,
+		Scale:     scale,
+	}
+}
+
+func decimalOperandPrecisionScale(rt *ResolvedType, expr AnalyzedExpr) (precision, scale int, ok bool) {
+	if c, okConst := expr.(*ConstExprQ); okConst && !c.IsNull && !c.IsString && rt != nil &&
+		(rt.BaseType == BaseTypeBigInt || rt.BaseType == BaseTypeInt || rt.BaseType == BaseTypeTinyIntBool) {
+		if c.Value == "TRUE" || c.Value == "FALSE" {
+			return 1, 0, true
+		}
+		digits := len(strings.TrimLeft(c.Value, "+-"))
+		if digits == 0 {
+			digits = 1
+		}
+		return digits, 0, true
+	}
+	if rt == nil {
+		return 0, 0, false
+	}
+	switch rt.BaseType {
+	case BaseTypeDecimal:
+		if rt.Precision > 0 {
+			return rt.Precision, rt.Scale, true
+		}
+		return 10, 0, true
+	case BaseTypeTinyInt:
+		return 3, 0, true
+	case BaseTypeTinyIntBool:
+		return 1, 0, true
+	case BaseTypeSmallInt:
+		return 5, 0, true
+	case BaseTypeMediumInt:
+		if rt.Unsigned {
+			return 8, 0, true
+		}
+		return 7, 0, true
+	case BaseTypeInt:
+		return 10, 0, true
+	case BaseTypeBigInt:
+		if rt.Unsigned {
+			return 20, 0, true
+		}
+		return 19, 0, true
+	default:
+		return 0, 0, false
+	}
+}
+
+func parseColumnResolvedType(colType string) *ResolvedType {
+	s := strings.ToLower(strings.TrimSpace(colType))
+	if s == "" {
+		return nil
+	}
+	unsigned := strings.Contains(s, "unsigned")
+	s = strings.ReplaceAll(s, " unsigned", "")
+	s = strings.ReplaceAll(s, " zerofill", "")
+	s = strings.TrimSpace(s)
+
+	base := s
+	var p, sc int
+	if open := strings.IndexByte(s, '('); open >= 0 {
+		base = strings.TrimSpace(s[:open])
+		if closeIdx := strings.IndexByte(s[open+1:], ')'); closeIdx >= 0 {
+			args := strings.Split(s[open+1:open+1+closeIdx], ",")
+			if len(args) >= 1 {
+				p, _ = strconv.Atoi(strings.TrimSpace(args[0]))
+			}
+			if len(args) >= 2 {
+				sc, _ = strconv.Atoi(strings.TrimSpace(args[1]))
+			}
 		}
 	}
-	return ""
+	switch base {
+	case "decimal", "numeric", "dec", "fixed":
+		if p == 0 {
+			p = 10
+		}
+		return &ResolvedType{BaseType: BaseTypeDecimal, Precision: p, Scale: sc, Unsigned: unsigned}
+	case "tinyint":
+		return &ResolvedType{BaseType: BaseTypeTinyInt, Unsigned: unsigned}
+	case "smallint":
+		return &ResolvedType{BaseType: BaseTypeSmallInt, Unsigned: unsigned}
+	case "mediumint":
+		return &ResolvedType{BaseType: BaseTypeMediumInt, Unsigned: unsigned}
+	case "int", "integer":
+		return &ResolvedType{BaseType: BaseTypeInt, Unsigned: unsigned}
+	case "bigint":
+		return &ResolvedType{BaseType: BaseTypeBigInt, Unsigned: unsigned}
+	case "float":
+		return &ResolvedType{BaseType: BaseTypeFloat, Unsigned: unsigned}
+	case "double", "real":
+		return &ResolvedType{BaseType: BaseTypeDouble, Unsigned: unsigned}
+	default:
+		return nil
+	}
 }
 
 func resolvedTypeToColumnType(rt *ResolvedType) string {
@@ -370,6 +575,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Comment:      formatSyncedComment(t.Comment),
 		ColumnGroups: t.ColumnGroups.String(),
 		Tablespace:   t.Tablespace,
+		SkipDump:     t.SkipDump,
 	}
 	if opts := tableCreateOptions(t); opts != "" {
 		table.CreateOptions = opts
@@ -720,10 +926,11 @@ func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata
 
 func triggerToProto(tr *Trigger) *metadata.TriggerMetadata {
 	tm := &metadata.TriggerMetadata{
-		Name:   tr.Name,
-		Event:  tr.Event,
-		Timing: tr.Timing,
-		Body:   tr.Body,
+		Name:     tr.Name,
+		Event:    tr.Event,
+		Timing:   tr.Timing,
+		Body:     tr.Body,
+		SkipDump: tr.SkipDump,
 	}
 	if tr.HasSessionContext {
 		tm.SqlMode = tr.SQLMode

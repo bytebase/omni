@@ -91,7 +91,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	c.SetCheckConstraints(true)
 	defer c.SetCheckConstraints(checks)
 
-	var views []*metadataObject
+	var views, installed []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
 		if err := ctx.Err(); err != nil {
 			return report, err
@@ -101,6 +101,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			if o.incomplete != nil {
 				report.Incomplete[o.key()] = o.incomplete
 			}
+			installed = append(installed, o)
 			if o.kind == metadataView {
 				views = append(views, o)
 			}
@@ -119,9 +120,102 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 			}
 			continue
 		}
+		installed = append(installed, o)
 		report.Degraded[o.key()] = err
 	}
-	return report, c.reanalyzeViews(ctx, views)
+	if err := c.reanalyzeViews(ctx, views); err != nil {
+		return report, err
+	}
+	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+		for _, o := range installed {
+			applyObjectSessionContext(db, o)
+			applyObjectSkipDump(db, o)
+		}
+	}
+	return report, nil
+}
+
+func applyObjectSessionContext(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			sqlMode, cs, col := o.function.GetSqlMode(), o.function.GetCharacterSetClient(), o.function.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				fn.SQLMode = sqlMode
+				fn.CharacterSetClient = cs
+				fn.CollationConnection = col
+				fn.HasSessionContext = true
+			}
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			sqlMode, cs, col := o.procedure.GetSqlMode(), o.procedure.GetCharacterSetClient(), o.procedure.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				p.SQLMode = sqlMode
+				p.CharacterSetClient = cs
+				p.CollationConnection = col
+				p.HasSessionContext = true
+			}
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			sqlMode, cs, col := o.trigger.GetSqlMode(), o.trigger.GetCharacterSetClient(), o.trigger.GetCollationConnection()
+			if sqlMode != "" || cs != "" || col != "" {
+				tr.SQLMode = sqlMode
+				tr.CharacterSetClient = cs
+				tr.CollationConnection = col
+				tr.HasSessionContext = true
+			}
+		}
+	case metadataEvent:
+		if ev := db.Events[key]; ev != nil && o.event != nil {
+			sqlMode, cs, col, tz := o.event.GetSqlMode(), o.event.GetCharacterSetClient(), o.event.GetCollationConnection(), o.event.GetTimeZone()
+			if sqlMode != "" || cs != "" || col != "" || tz != "" {
+				ev.SQLMode = sqlMode
+				ev.CharacterSetClient = cs
+				ev.CollationConnection = col
+				ev.TimeZone = tz
+				ev.HasSessionContext = true
+			}
+		}
+	}
+}
+
+func applyObjectSkipDump(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataSequence:
+		if s := db.Sequences[key]; s != nil && o.sequence != nil {
+			s.SkipDump = o.sequence.GetSkipDump()
+		}
+	case metadataTable:
+		if tbl := db.Tables[key]; tbl != nil && o.table != nil {
+			tbl.SkipDump = o.table.GetSkipDump()
+		}
+	case metadataView:
+		if v := db.Views[key]; v != nil && o.view != nil {
+			v.SkipDump = o.view.GetSkipDump()
+		}
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			fn.SkipDump = o.function.GetSkipDump()
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			p.SkipDump = o.procedure.GetSkipDump()
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			tr.SkipDump = o.trigger.GetSkipDump()
+		}
+	}
 }
 
 // reanalyzeViews reinstalls each view whose body did not analyze while a pass

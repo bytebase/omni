@@ -28,6 +28,7 @@ type Table struct {
 	Checksum         string
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
+	SkipDump         bool
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -158,6 +159,7 @@ type View struct {
 	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
 	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
 	IsUpdatable     bool
+	SkipDump        bool
 }
 
 type ViewColumn struct {
@@ -198,6 +200,7 @@ type Routine struct {
 	// generator distinguishes "context applied, modes empty" (emit SET sql_mode='') from
 	// "no context" (bare CREATE).
 	HasSessionContext bool
+	SkipDump          bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -235,6 +238,7 @@ type Trigger struct {
 	HasSessionContext bool
 	ActionOrder       int // 1-based position among triggers on the same (table, timing, event)
 	Order             *TriggerOrderInfo
+	SkipDump          bool
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.

@@ -58,6 +58,7 @@ type Table struct {
 	TTLJobInterval        string   // e.g., "1h"
 	TiFlashReplica        int      // number of TiFlash replicas (0 = none)
 	TiFlashLocationLabels []string // optional label list for replica placement
+	SkipDump              bool
 }
 
 // PartitionInfo holds partition metadata for a table.
@@ -147,6 +148,7 @@ type View struct {
 	// NULL for both). Both are empty for a column that is not a string or
 	// whose derivation the catalog does not model (see view_collation.go).
 	ColumnMetadata []ViewColumn
+	SkipDump       bool
 }
 
 // ViewColumn is what the catalog derives for one column of a view.
@@ -158,14 +160,19 @@ type ViewColumn struct {
 
 // Routine represents a stored function or procedure in the catalog.
 type Routine struct {
-	Name            string
-	Database        *Database
-	IsProcedure     bool
-	Definer         string
-	Params          []*RoutineParam
-	Returns         string // return type string for functions (empty for procedures)
-	Body            string
-	Characteristics map[string]string // name -> value (DETERMINISTIC, COMMENT, etc.)
+	Name                string
+	Database            *Database
+	IsProcedure         bool
+	Definer             string
+	Params              []*RoutineParam
+	Returns             string // return type string for functions (empty for procedures)
+	Body                string
+	Characteristics     map[string]string // name -> value (DETERMINISTIC, COMMENT, etc.)
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	HasSessionContext   bool
+	SkipDump            bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -177,15 +184,20 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name        string
-	Database    *Database
-	Table       string // table name the trigger is on
-	Timing      string // BEFORE, AFTER
-	Event       string // INSERT, UPDATE, DELETE
-	Definer     string
-	Body        string
-	Order       *TriggerOrderInfo
-	ActionOrder int
+	Name                string
+	Database            *Database
+	Table               string // table name the trigger is on
+	Timing              string // BEFORE, AFTER
+	Event               string // INSERT, UPDATE, DELETE
+	Definer             string
+	Body                string
+	Order               *TriggerOrderInfo
+	ActionOrder         int
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	HasSessionContext   bool
+	SkipDump            bool
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
@@ -196,14 +208,19 @@ type TriggerOrderInfo struct {
 
 // Event represents a scheduled event in the catalog.
 type Event struct {
-	Name         string
-	Database     *Database
-	Definer      string
-	Schedule     string // raw schedule text (e.g. "EVERY 1 HOUR", "AT '2024-01-01 00:00:00'")
-	OnCompletion string // PRESERVE, NOT PRESERVE, or "" (default NOT PRESERVE)
-	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
-	Comment      string
-	Body         string
+	Name                string
+	Database            *Database
+	Definer             string
+	Schedule            string // raw schedule text (e.g. "EVERY 1 HOUR", "AT '2024-01-01 00:00:00'")
+	OnCompletion        string // PRESERVE, NOT PRESERVE, or "" (default NOT PRESERVE)
+	Enable              string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
+	Comment             string
+	Body                string
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	TimeZone            string
+	HasSessionContext   bool
 }
 
 // cloneTable returns a deep copy of the table's mutable state.

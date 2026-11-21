@@ -738,3 +738,113 @@ func TestDatabaseMetadataComputedViewColumnTypesAndBacktickRoutines(t *testing.T
 	require.Contains(t, def, "EVENT `ev``1`")
 	require.Less(t, strings.Index(def, "Function structure for `fn``1`"), strings.Index(def, "View structure for `v_comp`"))
 }
+
+func TestDatabaseMetadataDecimalSessionContextBacktickAlterAndSkipDump(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE ddb;
+		USE ddb;
+		CREATE TABLE dec_t (id INT PRIMARY KEY, d1 DECIMAL(5,2), d2 DECIMAL(3,1));
+		CREATE VIEW v_dec AS SELECT
+			d1 + d2 AS p,
+			d1 * d2 AS mul,
+			d1 / d2 AS dv,
+			d1 % d2 AS md,
+			CAST(1 AS DECIMAL(5,2)) + CAST(2 AS DECIMAL(3,1)) AS cp
+		FROM dec_t;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	decMeta := c.DatabaseMetadata("ddb")
+	vcols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range decMeta.Schemas[0].Views[0].Columns {
+		vcols[col.Name] = col
+	}
+	require.Equal(t, "decimal(6,2)", vcols["p"].Type)
+	require.Equal(t, "decimal(8,3)", vcols["mul"].Type)
+	require.Equal(t, "decimal(10,6)", vcols["dv"].Type)
+	require.Equal(t, "decimal(5,2)", vcols["md"].Type)
+	require.Equal(t, "decimal(6,2)", vcols["cp"].Type)
+
+	srcMeta := &metadata.DatabaseSchemaMetadata{
+		Name: "ctx_db",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:           "t`1",
+				TiflashReplica: 1,
+				CreateOptions:  "cached=on",
+				SkipDump:       true,
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "c`1", Type: "int", Nullable: false, DefaultDropped: true},
+				},
+				Triggers: []*metadata.TriggerMetadata{{
+					Name:                "tr`1",
+					Event:               "INSERT",
+					Timing:              "BEFORE",
+					Body:                "BEGIN END",
+					SqlMode:             "PIPES_AS_CONCAT",
+					CharacterSetClient:  "utf8mb4",
+					CollationConnection: "utf8mb4_bin",
+					SkipDump:            true,
+				}},
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name: "v_skip", Definition: "SELECT 1 AS c", SkipDump: true,
+			}},
+			Sequences: []*metadata.SequenceMetadata{{
+				Name: "seq_skip", Start: "1", MinValue: "1", MaxValue: "100", Increment: "1", CacheSize: "1", SkipDump: true,
+			}},
+			Functions: []*metadata.FunctionMetadata{{
+				Name:                "fn_ctx",
+				Definition:          "CREATE FUNCTION fn_ctx() RETURNS INT DETERMINISTIC RETURN 1",
+				SqlMode:             "ANSI_QUOTES",
+				CharacterSetClient:  "utf8mb4",
+				CollationConnection: "utf8mb4_unicode_ci",
+				SkipDump:            true,
+			}},
+			Procedures: []*metadata.ProcedureMetadata{{
+				Name:                "sp_ctx",
+				Definition:          "CREATE PROCEDURE sp_ctx() BEGIN END",
+				SqlMode:             "STRICT_TRANS_TABLES",
+				CharacterSetClient:  "utf8mb4",
+				CollationConnection: "utf8mb4_general_ci",
+				SkipDump:            true,
+			}},
+			Events: []*metadata.EventMetadata{{
+				Name:                "ev_ctx",
+				Definition:          "CREATE EVENT ev_ctx ON SCHEDULE EVERY 1 HOUR DO SELECT 1",
+				SqlMode:             "NO_AUTO_VALUE_ON_ZERO",
+				CharacterSetClient:  "utf8mb4",
+				CollationConnection: "utf8mb4_bin",
+				TimeZone:            "+08:00",
+			}},
+		}},
+	}
+	loaded := New()
+	report, err := loaded.LoadMetadata(context.Background(), srcMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Degraded)
+
+	out := loaded.DatabaseMetadata("ctx_db")
+	tbl := out.Schemas[0].Tables[0]
+	require.True(t, tbl.SkipDump)
+	require.True(t, tbl.Triggers[0].SkipDump)
+	require.Equal(t, "PIPES_AS_CONCAT", tbl.Triggers[0].SqlMode)
+	require.True(t, out.Schemas[0].Views[0].SkipDump)
+	require.True(t, out.Schemas[0].Sequences[0].SkipDump)
+	require.True(t, out.Schemas[0].Functions[0].SkipDump)
+	require.Equal(t, "ANSI_QUOTES", out.Schemas[0].Functions[0].SqlMode)
+	require.True(t, out.Schemas[0].Procedures[0].SkipDump)
+	require.Equal(t, "STRICT_TRANS_TABLES", out.Schemas[0].Procedures[0].SqlMode)
+	require.Equal(t, "+08:00", out.Schemas[0].Events[0].TimeZone)
+
+	def, err := DatabaseDefinition(out, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TABLE `t``1`")
+	require.Contains(t, def, "ALTER TABLE `t``1` ALTER COLUMN `c``1` DROP DEFAULT;")
+	require.Contains(t, def, "ALTER TABLE `t``1` SET TIFLASH REPLICA 1;")
+	require.Contains(t, def, "ALTER TABLE `t``1` CACHE;")
+	require.Contains(t, def, "SET sql_mode = 'PIPES_AS_CONCAT'")
+	require.Contains(t, def, "SET time_zone = '+08:00'")
+}

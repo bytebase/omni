@@ -35,6 +35,7 @@ type Table struct {
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
 	ColumnGroups     ColumnGroups // WITH COLUMN GROUP (...), and what ALTER TABLE adds and drops
+	SkipDump         bool
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -197,6 +198,7 @@ type View struct {
 	Materialized bool
 	Comment      string
 	Indexes      []*Index
+	SkipDump     bool
 }
 
 type ViewColumn struct {
@@ -237,6 +239,7 @@ type Routine struct {
 	// generator distinguishes "context applied, modes empty" (emit SET sql_mode='') from
 	// "no context" (bare CREATE).
 	HasSessionContext bool
+	SkipDump          bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -274,6 +277,7 @@ type Trigger struct {
 	HasSessionContext bool
 	ActionOrder       int // 1-based position among triggers on the same (table, timing, event)
 	Order             *TriggerOrderInfo
+	SkipDump          bool
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.

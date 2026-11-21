@@ -103,8 +103,44 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
 		applyDatabaseSessionContext(db, sessionContexts(installed))
+		for _, o := range installed {
+			applyObjectSkipDump(db, o)
+		}
 	}
 	return report, nil
+}
+
+func applyObjectSkipDump(db *Database, o *metadataObject) {
+	if db == nil || o == nil {
+		return
+	}
+	key := toLower(o.name)
+	switch o.kind {
+	case metadataTable:
+		if tbl := db.Tables[key]; tbl != nil && o.table != nil {
+			tbl.SkipDump = o.table.GetSkipDump()
+		}
+	case metadataView:
+		if v := db.Views[key]; v != nil {
+			if o.materialized && o.mview != nil {
+				v.SkipDump = o.mview.GetSkipDump()
+			} else if o.view != nil {
+				v.SkipDump = o.view.GetSkipDump()
+			}
+		}
+	case metadataFunction:
+		if fn := db.Functions[key]; fn != nil && o.function != nil {
+			fn.SkipDump = o.function.GetSkipDump()
+		}
+	case metadataProcedure:
+		if p := db.Procedures[key]; p != nil && o.procedure != nil {
+			p.SkipDump = o.procedure.GetSkipDump()
+		}
+	case metadataTrigger:
+		if tr := db.Triggers[key]; tr != nil && o.trigger != nil {
+			tr.SkipDump = o.trigger.GetSkipDump()
+		}
+	}
 }
 
 // selectMetadataDatabase creates the database named name where the catalog
@@ -369,11 +405,13 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		o.incomplete = omitted
 		finishInstall := func() {
 			applyDroppedColumnDefaults(c.installedTable(o.name), o.table)
-			if o.table.GetHasMaterializedViewLog() {
-				if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
-					key := toLower(o.table.GetName())
+			if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+				key := toLower(o.table.GetName())
+				db.MaterializedViewLogsKnown[key] = true
+				if o.table.GetHasMaterializedViewLog() {
 					db.MaterializedViewLogs[key] = true
-					db.MaterializedViewLogsKnown[key] = true
+				} else {
+					delete(db.MaterializedViewLogs, key)
 				}
 			}
 		}
