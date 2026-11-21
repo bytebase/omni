@@ -99,7 +99,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, "b'101'", cols["bit_col"].Default)
 	require.Equal(t, "'A'", cols["hex_str"].Default)
 	require.Equal(t, "'65'", cols["hex_int"].Default)
-	require.Empty(t, cols["nullable_col"].Default, "TiDB leaves nullable column without default empty")
+	require.Equal(t, "NULL", cols["nullable_col"].Default, "TiDB exports implicit NULL default on nullable columns matching live sync")
 	require.Equal(t, "CURRENT_TIMESTAMP", cols["ts"].Default)
 	require.Equal(t, "CURRENT_TIMESTAMP", cols["ts"].OnUpdate)
 	require.Equal(t, metadata.GenerationMetadata_TYPE_STORED, cols["gen_col"].Generation.Type)
@@ -387,7 +387,7 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	}
 	require.Equal(t, "NULL", cols["s"].Default)
 	require.Equal(t, "NULL", cols["n"].Default)
-	require.Empty(t, cols["bare"].Default)
+	require.Equal(t, "NULL", cols["bare"].Default)
 
 	reloaded := New()
 	report, err := reloaded.LoadMetadata(context.Background(), meta)
@@ -401,7 +401,8 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Equal(t, "NULL", *reTbl.GetColumn("s").Default)
 	require.NotNil(t, reTbl.GetColumn("n").Default)
 	require.Equal(t, "NULL", *reTbl.GetColumn("n").Default)
-	require.Nil(t, reTbl.GetColumn("bare").Default)
+	require.NotNil(t, reTbl.GetColumn("bare").Default)
+	require.Equal(t, "NULL", *reTbl.GetColumn("bare").Default)
 
 	reExport := reloaded.DatabaseMetadata("app")
 	reCols := map[string]*metadata.ColumnMetadata{}
@@ -410,7 +411,7 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	}
 	require.Equal(t, "NULL", reCols["s"].Default)
 	require.Equal(t, "NULL", reCols["n"].Default)
-	require.Empty(t, reCols["bare"].Default)
+	require.Equal(t, "NULL", reCols["bare"].Default)
 
 	// Per-index KEY_BLOCK_SIZE round-trips cleanly.
 	kbsCatalog := New()
@@ -973,4 +974,37 @@ func TestDatabaseMetadataImplicitFKDefaults(t *testing.T) {
 	require.Equal(t, "char(4)", uViews["v_except"].Columns[1].Type)
 	require.Equal(t, "int", uViews["v_intersect"].Columns[0].Type)
 	require.Equal(t, "char(4)", uViews["v_intersect"].Columns[1].Type)
+
+	// MIN/MAX view columns derive their types from their arguments, and implicit
+	// nullable TiDB columns export Default="NULL" unless DefaultDropped is set.
+	mmCat := New()
+	_, err = mmCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_mm (id INT NOT NULL, nn_nod INT NOT NULL, nul INT NULL, d_drop INT DEFAULT 1, s VARCHAR(20) NOT NULL, d DATE NOT NULL, dec1 DECIMAL(10,2) NOT NULL);
+		ALTER TABLE t_mm ALTER COLUMN d_drop DROP DEFAULT;
+		CREATE VIEW v_mm AS SELECT MIN(id) AS min_id, MAX(s) AS max_s, MIN(d) AS min_d, MAX(dec1) AS max_dec FROM t_mm;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	mmMeta := mmCat.DatabaseMetadata("app")
+	var vMM *metadata.ViewMetadata
+	for _, v := range mmMeta.Schemas[0].Views {
+		if v.Name == "v_mm" {
+			vMM = v
+		}
+	}
+	require.NotNil(t, vMM)
+	require.Equal(t, "int", vMM.Columns[0].Type)
+	require.Equal(t, "varchar(20)", vMM.Columns[1].Type)
+	require.Equal(t, "date", vMM.Columns[2].Type)
+	require.Equal(t, "decimal(10,2)", vMM.Columns[3].Type)
+
+	mmCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range mmMeta.Schemas[0].Tables[0].Columns {
+		mmCols[col.Name] = col
+	}
+	require.Equal(t, "NULL", mmCols["nul"].Default)
+	require.Empty(t, mmCols["nn_nod"].Default)
+	require.Empty(t, mmCols["d_drop"].Default)
+	require.True(t, mmCols["d_drop"].DefaultDropped)
 }

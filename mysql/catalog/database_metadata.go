@@ -878,9 +878,48 @@ func resolveTargetColumnMetadata(c *Catalog, db *Database, q *Query, optionalRT 
 	return "", false, "", "", false
 }
 
+func resolveVarExprColumnType(c *Catalog, db *Database, q *Query, e *VarExprQ) string {
+	if e == nil || q == nil || e.LevelsUp != 0 || e.RangeIdx < 0 || e.RangeIdx >= len(q.RangeTable) {
+		return ""
+	}
+	rte := q.RangeTable[e.RangeIdx]
+	if rte.Kind == RTERelation && c != nil && e.AttNum >= 1 && e.AttNum <= len(rte.ColNames) {
+		origDB := db
+		if rte.DBName != "" {
+			origDB = c.GetDatabase(rte.DBName)
+		}
+		if origDB != nil {
+			if tbl := origDB.GetTable(rte.TableName); tbl != nil {
+				if col := tbl.GetColumn(rte.ColNames[e.AttNum-1]); col != nil {
+					return col.ColumnType
+				}
+			}
+			if sv := origDB.Views[strings.ToLower(rte.TableName)]; sv != nil && sv.AnalyzedQuery != nil {
+				if meta, ok := resolveQueryTargetMeta(c, origDB, sv.AnalyzedQuery, e.AttNum-1, true); ok && meta.colType != "" {
+					return meta.colType
+				}
+			}
+		}
+	}
+	if rte.Kind == RTESubquery && rte.Subquery != nil {
+		if meta, ok := resolveQueryTargetMeta(c, db, rte.Subquery, e.AttNum-1, true); ok && meta.colType != "" {
+			return meta.colType
+		}
+	}
+	return ""
+}
+
 func resolveAnalyzedExprColumnType(c *Catalog, db *Database, q *Query, expr AnalyzedExpr) string {
 	if expr == nil {
 		return ""
+	}
+	if fc, ok := expr.(*FuncCallExprQ); ok && (strings.EqualFold(fc.Name, "min") || strings.EqualFold(fc.Name, "max")) && len(fc.Args) == 1 {
+		if vr, isVar := fc.Args[0].(*VarExprQ); isVar {
+			if colType := resolveVarExprColumnType(c, db, q, vr); colType != "" {
+				return colType
+			}
+		}
+		return resolveAnalyzedExprColumnType(c, db, q, fc.Args[0])
 	}
 	if cn, ok := expr.(*ConstExprQ); ok {
 		if cn.IsNull {
@@ -977,6 +1016,14 @@ func resolveExprResolvedType(c *Catalog, db *Database, q *Query, expr AnalyzedEx
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		}
 		return e.ResultType
+	case *FuncCallExprQ:
+		if e.ResultType != nil {
+			return e.ResultType
+		}
+		if (strings.EqualFold(e.Name, "min") || strings.EqualFold(e.Name, "max")) && len(e.Args) == 1 {
+			return resolveExprResolvedType(c, db, q, e.Args[0])
+		}
+		return nil
 	default:
 		return expr.exprType()
 	}

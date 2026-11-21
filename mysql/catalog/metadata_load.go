@@ -477,7 +477,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		if col.GetName() == "" {
 			continue
 		}
-		def, colOmitted, err := metadataColumnDef(col)
+		def, colOmitted, err := metadataColumnDef(t, col)
 		if err != nil {
 			return nil, nil, fmt.Errorf("column %q: %w", col.GetName(), err)
 		}
@@ -578,18 +578,23 @@ func createOption(options, name string) string {
 // metadataColumnDef fails on a type that does not parse. A default, ON UPDATE,
 // or generation expression that does not parse is left out, and omitted is the
 // first such error.
-func metadataColumnDef(col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
+func metadataColumnDef(t *metadata.TableMetadata, col *metadata.ColumnMetadata) (def *nodes.ColumnDef, omitted error, err error) {
 	typeName, err := parseTypeName(col.GetType())
 	if err != nil {
 		return nil, nil, err
 	}
 	// The type text may carry its own character set and collation.
-	// Inherited flags skip copying table-derived defaults onto the type so
-	// subsequent table-level collation changes still propagate.
-	if typeName.Charset == "" && !col.GetCharsetInherited() {
+	// When inherited flags are present, false marks an explicit column clause even
+	// if it matches the table default; when absent (legacy live sync), matching the
+	// table default stays inherited.
+	charsetExplicit := col.CharsetInherited != nil && !*col.CharsetInherited ||
+		col.CharsetInherited == nil && t != nil && !strings.EqualFold(col.GetCharacterSet(), t.GetCharset())
+	collationExplicit := col.CollationInherited != nil && !*col.CollationInherited ||
+		col.CollationInherited == nil && t != nil && !strings.EqualFold(col.GetCollation(), t.GetCollation())
+	if typeName.Charset == "" && col.GetCharacterSet() != "" && charsetExplicit {
 		typeName.Charset = col.GetCharacterSet()
 	}
-	if typeName.Collate == "" && !col.GetCollationInherited() {
+	if typeName.Collate == "" && col.GetCollation() != "" && collationExplicit {
 		typeName.Collate = col.GetCollation()
 	}
 	// SRID 0 is a valid SRID, so presence decides.

@@ -1110,4 +1110,51 @@ func TestDatabaseMetadataStarViewColumnsAndImplicitFKDefaults(t *testing.T) {
 
 	require.Equal(t, "bigint", uViews["v_intersect"].Columns[0].Type)
 	require.False(t, uViews["v_intersect"].Columns[0].Nullable)
+
+	// MIN/MAX view columns derive their types from their arguments, and unflagged
+	// LoadMetadata columns matching table defaults remain inherited.
+	mmCat := New()
+	_, err = mmCat.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_mm (id INT NOT NULL, s VARCHAR(20) NOT NULL, d DATE NOT NULL, dec1 DECIMAL(10,2) NOT NULL);
+		CREATE VIEW v_mm AS SELECT MIN(id) AS min_id, MAX(s) AS max_s, MIN(d) AS min_d, MAX(dec1) AS max_dec FROM t_mm;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	var vMM *metadata.ViewMetadata
+	for _, v := range mmCat.DatabaseMetadata("app").Schemas[0].Views {
+		if v.Name == "v_mm" {
+			vMM = v
+		}
+	}
+	require.NotNil(t, vMM)
+	require.Equal(t, "int(11)", vMM.Columns[0].Type)
+	require.Equal(t, "varchar(20)", vMM.Columns[1].Type)
+	require.Equal(t, "date", vMM.Columns[2].Type)
+	require.Equal(t, "decimal(10,2)", vMM.Columns[3].Type)
+
+	unflaggedCat := New()
+	_, err = unflaggedCat.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+		Name:         "app",
+		CharacterSet: "utf8mb4",
+		Collation:    "utf8mb4_unicode_ci",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:      "t_unflagged",
+				Engine:    "oceanbase",
+				Charset:   "utf8mb4",
+				Collation: "utf8mb4_unicode_ci",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "inh", Position: 1, Type: "varchar(20)", Nullable: true, CharacterSet: "utf8mb4", Collation: "utf8mb4_unicode_ci"},
+					{Name: "exp", Position: 2, Type: "varchar(20)", Nullable: true, CharacterSet: "latin1", Collation: "latin1_swedish_ci"},
+				},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	unTbl := unflaggedCat.GetDatabase("app").GetTable("t_unflagged")
+	require.False(t, unTbl.GetColumn("inh").CharsetExplicit)
+	require.False(t, unTbl.GetColumn("inh").CollationExplicit)
+	require.True(t, unTbl.GetColumn("exp").CharsetExplicit)
+	require.True(t, unTbl.GetColumn("exp").CollationExplicit)
 }
