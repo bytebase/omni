@@ -36,6 +36,17 @@ func TestValidateQuery(t *testing.T) {
 		{"DELETE FROM t RETURNING id", false, true},
 		{"UPDATE t SET a = 1", false, false},
 		{"SELECT 1; DELETE FROM t", false, false},
+		{"SHOW CREATE TABLE bytebase;", true, true},
+		{"DESC bytebase;", true, true},
+		{"SELECT * FROM t1 WHERE c1 = 1; SELECT * FROM t2;", true, true},
+		{"CREATE TABLE t1 (c1 INT);", false, false},
+		{"EXPLAIN FORMAT=JSON DELETE FROM t1;", true, true},
+		{"select* from t", true, true},
+		{"analyze select * from t", false, true},
+		{"analyze update t set a = 5", false, true},
+		{"select * from t where a = 'klasjdfkljsa$tag$; -- lkjdlkfajslkdfj'", true, true},
+		{"With t as (select * from t1 where a = 'insert'), tx as (select * from `delete`) /* UPDATE */ select `update` from t;", true, true},
+		{"SET max_execution_time = 1000; select * from t", true, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.statement, func(t *testing.T) {
@@ -52,10 +63,12 @@ func TestStatementTypeOf(t *testing.T) {
 		want      analysis.StatementType
 	}{
 		{"CREATE TABLE t (a INT)", analysis.CreateTable},
+		{"CREATE OR REPLACE TABLE u (a INT)", analysis.CreateTable},
 		{"CREATE DATABASE d", analysis.CreateDatabase},
 		{"CREATE INDEX i ON t (a)", analysis.CreateIndex},
 		{"DROP TABLE t", analysis.DropTable},
 		{"ALTER TABLE t ADD COLUMN b INT", analysis.AlterTable},
+		{"ALTER TABLE t DROP COLUMN IF EXISTS b", analysis.AlterTable},
 		{"TRUNCATE TABLE t", analysis.Truncate},
 		{"RENAME TABLE t TO u", analysis.Rename},
 		{"INSERT INTO t VALUES (1)", analysis.Insert},
