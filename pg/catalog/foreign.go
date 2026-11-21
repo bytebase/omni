@@ -195,6 +195,9 @@ func (c *Catalog) CreateForeignServerStmt(stmt *nodes.CreateForeignServerStmt) e
 		}
 		return errDuplicateObject("server", stmt.Servername)
 	}
+	if stmt.Fdwname == "" || c.fdws[stmt.Fdwname] == nil {
+		return errUndefinedObject("foreign-data wrapper", stmt.Fdwname)
+	}
 	var opts []string
 	if stmt.Options != nil {
 		var err error
@@ -214,7 +217,9 @@ func (c *Catalog) CreateForeignServerStmt(stmt *nodes.CreateForeignServerStmt) e
 		t := stmt.Servertype
 		srv.Type = &t
 	}
-	if stmt.HasVersion || stmt.Version != "" {
+	if stmt.HasVersionNull {
+		srv.Version = nil
+	} else if stmt.HasVersion || stmt.Version != "" {
 		v := stmt.Version
 		srv.Version = &v
 	}
@@ -232,8 +237,12 @@ func (c *Catalog) AlterForeignServerStmt(stmt *nodes.AlterForeignServerStmt) err
 		return errUndefinedObject("server", stmt.Servername)
 	}
 	if stmt.HasVersion {
-		v := stmt.Version
-		srv.Version = &v
+		if stmt.HasVersionNull {
+			srv.Version = nil
+		} else {
+			v := stmt.Version
+			srv.Version = &v
+		}
 	}
 	if stmt.Options != nil {
 		opts, err := applyForeignOptionChanges(srv.Options, stmt.Options, c.snapshot)

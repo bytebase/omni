@@ -97,8 +97,9 @@ type Catalog struct {
 	eventTriggerByName map[string]*EventTrigger
 
 	// Foreign data wrappers and servers.
-	fdws           map[string]*ForeignDataWrapper
-	foreignServers map[string]*ForeignServer
+	fdws                       map[string]*ForeignDataWrapper
+	foreignServers             map[string]*ForeignServer
+	allowImplicitForeignServer bool
 
 	// Comments.
 	comments map[commentKey]string

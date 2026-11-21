@@ -126,7 +126,13 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 	if !slices.Equal(fp.SetConfig, tp.SetConfig) {
 		return true
 	}
+	if fp.Support != tp.Support {
+		return true
+	}
 	if fp.Language != tp.Language {
+		return true
+	}
+	if fp.LinkSymbol != tp.LinkSymbol {
 		return true
 	}
 	if from.FormatType(fp.RetType, -1) != to.FormatType(tp.RetType, -1) {

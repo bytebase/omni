@@ -1373,6 +1373,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		c6 := New()
 		for _, stmt := range []string{
 			"SET default_tablespace = pg_global",
+			"CREATE FOREIGN DATA WRAPPER dummy",
+			"CREATE SERVER srv FOREIGN DATA WRAPPER dummy",
 			"CREATE FOREIGN TABLE ft_chk (a int CHECK (a > 0)) SERVER srv",
 		} {
 			if code := simulationCatalogCode(t, c6, stmt); code != "0" {

@@ -685,7 +685,11 @@ func TestApplyDiffToMetadataExtensionsExternalTablesRenamesTriggersAndDefaults(t
 	catBefore := New()
 	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
 	require.NoError(t, err)
-	_, err = catBefore.Exec(`CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.fn_a();`, nil)
+	_, err = catBefore.Exec(`
+		CREATE FOREIGN DATA WRAPPER dummy;
+		CREATE SERVER fsrv FOREIGN DATA WRAPPER dummy;
+		CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.fn_a();
+	`, nil)
 	require.NoError(t, err)
 
 	catAfter := catBefore.Clone()
@@ -1252,6 +1256,7 @@ func TestApplyDiffToMetadataRound8Fixes(t *testing.T) {
 	catBefore := New()
 	for _, stmt := range []string{
 		`CREATE SCHEMA archive;`,
+		`CREATE FOREIGN DATA WRAPPER dummy;`,
 		`CREATE SERVER srv FOREIGN DATA WRAPPER dummy;`,
 		`CREATE TABLE public.events (id integer) PARTITION BY RANGE (id);`,
 		`CREATE INDEX events_id_idx ON public.events (id);`,
@@ -1412,6 +1417,7 @@ func TestApplyDiffToMetadataRound9Fixes(t *testing.T) {
 	catBefore := New()
 	for _, stmt := range []string{
 		`CREATE EXTENSION test_r9_ext;`,
+		`CREATE FOREIGN DATA WRAPPER dummy;`,
 		`CREATE SERVER srv FOREIGN DATA WRAPPER dummy;`,
 		`CREATE FOREIGN TABLE public.ft_events (id integer) SERVER srv;`,
 		`CREATE FUNCTION public.ft_trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;`,
@@ -1762,6 +1768,9 @@ func TestApplyDiffToMetadataRound11Fixes(t *testing.T) {
 			CREATE SCHEMA app;
 			CREATE SCHEMA fallback;
 			SET search_path = app, fallback, public;
+			CREATE FOREIGN DATA WRAPPER dummy;
+			CREATE SERVER srv_fallback FOREIGN DATA WRAPPER dummy;
+			CREATE SERVER srv_app FOREIGN DATA WRAPPER dummy;
 			CREATE FOREIGN TABLE fallback.ft (id integer) SERVER srv_fallback OPTIONS (table_name 'fb');
 			CREATE FOREIGN TABLE app.ft_loaded (id integer) SERVER srv_app OPTIONS (schema_name 's0', table_name 't0');
 		`, &ExecOptions{ContinueOnError: true})
@@ -2244,6 +2253,7 @@ func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
 		require.NoError(t, err)
 		_, err = catBefore.Exec(`
 			CREATE EVENT TRIGGER et_keep_def ON ddl_command_end EXECUTE FUNCTION public.et_fn();
+			CREATE FOREIGN DATA WRAPPER pg_fdw;
 			CREATE SERVER s_drop FOREIGN DATA WRAPPER pg_fdw;
 			CREATE FOREIGN TABLE public.ft_drop (id integer OPTIONS (column_name 'id')) SERVER s_drop;
 			CREATE VIEW public.v_drop AS SELECT id FROM public.ft_drop;
@@ -2305,4 +2315,75 @@ func TestApplyDiffToMetadataRound14Fixes(t *testing.T) {
 		require.Equal(t, "ft_keep", pub.ExternalTables[0].Name)
 		require.Equal(t, []string{"column_name=updated", "schema_name=ext"}, pub.ExternalTables[0].Columns[0].Options)
 	})
+}
+
+func TestApplyDiffToMetadataRound16Fixes(t *testing.T) {
+	cat := New()
+	_, err := cat.Exec(`CREATE FOREIGN DATA WRAPPER pg_fdw;`, nil)
+	require.NoError(t, err)
+
+	// Missing FDW or missing server must be rejected rather than succeeding silently.
+	res, err := cat.Exec(`CREATE SERVER bad_srv FOREIGN DATA WRAPPER missing_fdw;`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.ErrorContains(t, res[0].Error, `foreign-data wrapper "missing_fdw" does not exist`)
+	require.Nil(t, cat.foreignServers["bad_srv"])
+	res, err = cat.Exec(`CREATE FOREIGN TABLE public.bad_ft (id integer) SERVER missing_srv;`, nil)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.ErrorContains(t, res[0].Error, `server "missing_srv" does not exist`)
+	require.Nil(t, cat.GetRelation("public", "bad_ft"))
+
+	// VERSION NULL clears Version to nil (unlike VERSION '' which keeps non-nil ""), and SUPPORT + two-part AS survive DDL.
+	v1 := "1.0"
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name:                "postgres",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{Name: "pg_fdw"}},
+		ForeignServers:      []*metadatapb.ForeignServerMetadata{{Name: "srv_null", Fdw: "pg_fdw", Version: &v1}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "my_c_fn",
+				Signature:  "my_c_fn()",
+				Definition: "CREATE FUNCTION public.my_c_fn() RETURNS integer LANGUAGE c SUPPORT sup_old AS '$libdir/foo', 'foo_entry'",
+			}},
+		}},
+	}
+	catBefore := New()
+	_, err = catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		CREATE SERVER srv_create_null VERSION NULL FOREIGN DATA WRAPPER pg_fdw;
+		ALTER SERVER srv_null VERSION NULL;
+		ALTER FUNCTION public.my_c_fn() SUPPORT public.sup_new;
+		CREATE FUNCTION public.c_new() RETURNS integer LANGUAGE c AS '$libdir/bar', 'bar_sym';
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+	bySrv := make(map[string]*metadatapb.ForeignServerMetadata)
+	for _, srv := range got.ForeignServers {
+		bySrv[srv.Name] = srv
+	}
+	require.Contains(t, bySrv, "srv_null")
+	require.Nil(t, bySrv["srv_null"].Version)
+	require.Contains(t, bySrv, "srv_create_null")
+	require.Nil(t, bySrv["srv_create_null"].Version)
+
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+	byFn := make(map[string]*metadatapb.FunctionMetadata)
+	for _, fn := range pub.Functions {
+		byFn[fn.Name] = fn
+	}
+	require.Contains(t, byFn, "my_c_fn")
+	require.Contains(t, byFn["my_c_fn"].Definition, `SUPPORT public.sup_new`)
+	require.Contains(t, byFn["my_c_fn"].Definition, `AS '$libdir/foo', 'foo_entry'`)
+	require.Contains(t, byFn, "c_new")
+	require.Contains(t, byFn["c_new"].Definition, `AS '$libdir/bar', 'bar_sym'`)
 }

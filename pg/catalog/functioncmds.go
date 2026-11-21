@@ -29,8 +29,10 @@ type UserProc struct {
 	Cost         string
 	Rows         string
 	SetConfig    []string
+	Support      string
 	Language     string
 	Body         string
+	LinkSymbol   string
 	HasSqlBody   bool     // SQL-standard body (RETURN / BEGIN ATOMIC) without AS '...'
 	ArgNames     []string // all parameter names (IN+OUT+INOUT+TABLE)
 	ArgModes     []byte   // 'i','o','b','v','t' per parameter; nil if all IN
@@ -66,7 +68,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// Process options.
 	// pg: src/backend/commands/functioncmds.c — compute_function_attributes
 	// ---------------------------------------------------------------
-	var language, body string
+	var language, body, linkSymbol, support string
 	var volatile, parallel byte
 	var isStrict, secDef, isLeakProof bool
 	var isWindowFunc bool
@@ -86,13 +88,15 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				language = defElemString(de)
 			case "as":
 				hasAsClause = true
-				// Arg is a String or a List of Strings; use first string.
 				switch v := de.Arg.(type) {
 				case *nodes.String:
 					body = v.Str
 				case *nodes.List:
 					if len(v.Items) > 0 {
 						body = stringVal(v.Items[0])
+					}
+					if len(v.Items) > 1 {
+						linkSymbol = stringVal(v.Items[1])
 					}
 				}
 			case "volatility":
@@ -175,6 +179,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				if vs, ok := de.Arg.(*nodes.VariableSetStmt); ok {
 					setConfig = c.applyFuncSetConfig(setConfig, vs)
 				}
+			case "support":
+				support = formatCatalogOptionName(de)
 			}
 		}
 	}
@@ -563,8 +569,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.Cost = costStr
 			up.Rows = rowsStr
 			up.SetConfig = slices.Clone(setConfig)
+			up.Support = support
 			up.Language = language
 			up.Body = body
+			up.LinkSymbol = linkSymbol
 			up.HasSqlBody = sqlStandardBody
 		}
 		existing.Volatile = volatile
@@ -643,8 +651,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		Cost:         costStr,
 		Rows:         rowsStr,
 		SetConfig:    slices.Clone(setConfig),
+		Support:      support,
 		Language:     language,
 		Body:         body,
+		LinkSymbol:   linkSymbol,
 		HasSqlBody:   sqlStandardBody,
 		ArgNames:     allArgNames,
 		ArgModes:     storedArgModes,
@@ -1282,7 +1292,9 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 					}
 				}
 			case "support":
-				// No-op: not tracked in pgddl.
+				if up != nil {
+					up.Support = formatCatalogOptionName(de)
+				}
 			}
 		}
 	}

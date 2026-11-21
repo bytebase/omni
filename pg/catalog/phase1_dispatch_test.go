@@ -108,6 +108,8 @@ func TestPhase1_DropForeignTable(t *testing.T) {
 	c := New()
 	// Setup: create a foreign table via ProcessUtility.
 	for _, sql := range []string{
+		"CREATE FOREIGN DATA WRAPPER test_fdw",
+		"CREATE SERVER test_srv FOREIGN DATA WRAPPER test_fdw",
 		"CREATE FOREIGN TABLE ft (id int, name text) SERVER test_srv",
 	} {
 		stmt := parseOne(t, sql)

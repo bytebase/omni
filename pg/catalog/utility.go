@@ -130,6 +130,11 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		}
 		targetSchema, _ := c.resolveTargetSchema(schemaName)
 		existed := s.Base.IfNotExists && targetSchema != nil && targetSchema.Relations[relName] != nil
+		if !existed && !c.allowImplicitForeignServer {
+			if s.Servername == "" || c.foreignServers[s.Servername] == nil {
+				return errUndefinedObject("server", s.Servername)
+			}
+		}
 		if err := c.DefineRelation(&s.Base, 'f'); err != nil {
 			return err
 		}

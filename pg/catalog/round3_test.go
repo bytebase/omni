@@ -791,9 +791,15 @@ func TestCommentOnMatview(t *testing.T) {
 
 func TestCommentOnForeignTable(t *testing.T) {
 	c := New()
+	if err := c.CreateFdwStmt(&nodes.CreateFdwStmt{Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.CreateForeignServerStmt(&nodes.CreateForeignServerStmt{Servername: "srv", Fdwname: "dummy"}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a foreign table.
-	c.ProcessUtility(&nodes.CreateForeignTableStmt{
+	if err := c.ProcessUtility(&nodes.CreateForeignTableStmt{
 		Base: nodes.CreateStmt{
 			Relation: &nodes.RangeVar{Relname: "ft_c"},
 			TableElts: &nodes.List{Items: []nodes.Node{
@@ -801,7 +807,9 @@ func TestCommentOnForeignTable(t *testing.T) {
 			}},
 		},
 		Servername: "srv",
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	err := c.CommentObject(&nodes.CommentStmt{
 		Objtype: nodes.OBJECT_FOREIGN_TABLE,

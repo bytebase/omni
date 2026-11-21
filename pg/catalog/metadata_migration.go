@@ -185,6 +185,11 @@ func refuseUnsupportedExternalTableChanges(oldMeta, newMeta *metadatapb.Database
 							tr.Comment = ""
 						}
 					}
+					for _, chk := range cp.GetCheckConstraints() {
+						if chk != nil {
+							chk.Comment = ""
+						}
+					}
 				}
 				out = append(out, namedProtoMessage{name: ext.GetName(), msg: cp})
 			}
@@ -4517,6 +4522,9 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 			}
 			for _, ext := range s.GetExternalTables() {
 				collectTriggers(ext.GetName(), ext.GetTriggers())
+				for _, chk := range ext.GetCheckConstraints() {
+					out[unloadedCommentKey{objType: 'C', schema: schemaName, relation: ext.GetName(), name: chk.GetName()}] = chk.GetComment()
+				}
 			}
 			for _, v := range s.GetViews() {
 				collectTriggers(v.GetName(), v.GetTriggers())
@@ -4590,6 +4598,18 @@ func unloadedCommentOps(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, ski
 				Transactional: true,
 				Phase:         PhaseMain,
 				ObjType:       'g',
+				Priority:      PriorityMetadata,
+			})
+		case 'C':
+			ops = append(ops, MigrationOp{
+				Type:          OpComment,
+				SchemaName:    k.schema,
+				ObjectName:    k.schema + "." + k.relation + "." + k.name,
+				ParentObject:  k.relation,
+				SQL:           fmt.Sprintf("COMMENT ON CONSTRAINT %s ON %s IS %s", quoteIdentAlways(k.name), quoteQualified(k.schema, k.relation), commentValueSQL(newComment)),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'c',
 				Priority:      PriorityMetadata,
 			})
 		case 'E':

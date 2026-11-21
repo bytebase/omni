@@ -5163,3 +5163,52 @@ func TestRound14Fixes(t *testing.T) {
 	require.NotContains(t, dropSchemaSQL, `DROP FUNCTION "legacy"."broken_fn"`)
 	require.NotContains(t, dropSchemaSQL, `DROP INDEX "legacy"."broken_idx"`)
 }
+
+func TestRound16Fixes(t *testing.T) {
+	// 1. Foreign-table check constraint comment-only changes emit COMMENT ON CONSTRAINT; structural changes remain refused.
+	extChkMeta := func(expr, chkComment string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "public",
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:               "ext_events",
+					ExternalServerName: "srv",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					CheckConstraints:   []*metadatapb.CheckConstraintMetadata{{Name: "chk_id", Expression: expr, Comment: chkComment}},
+				}},
+			}},
+		}
+	}
+	extChkSQL, err := testMetadataMigration(extChkMeta("id > 0", ""), extChkMeta("id > 0", "ext chk doc"))
+	require.NoError(t, err)
+	require.Contains(t, extChkSQL, `COMMENT ON CONSTRAINT "chk_id" ON "public"."ext_events" IS 'ext chk doc'`)
+	_, err = testMetadataMigration(extChkMeta("id > 0", ""), extChkMeta("id > 1", ""))
+	require.ErrorContains(t, err, "external tables")
+
+	// 2. Routine SUPPORT and two-part C AS 'object_file', 'link_symbol' round-trip cleanly.
+	oldFnMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
+	}
+	newFnMeta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "c_add",
+					Signature:  "c_add(integer)",
+					Definition: `CREATE FUNCTION public.c_add(integer) RETURNS integer LANGUAGE c SUPPORT public.sup_fn AS '$libdir/mylib', 'c_add_entry'`,
+				},
+				{
+					Name:       "c_entry",
+					Signature:  "c_entry(integer)",
+					Definition: `CREATE FUNCTION public.c_entry(integer) RETURNS integer LANGUAGE c AS '$libdir/libfoo', 'foo_entry'`,
+				},
+			},
+		}},
+	}
+	fnSQL, err := testMetadataMigration(oldFnMeta, newFnMeta)
+	require.NoError(t, err)
+	require.Contains(t, fnSQL, `SUPPORT public.sup_fn`)
+	require.Contains(t, fnSQL, `AS '$libdir/mylib', 'c_add_entry'`)
+	require.Contains(t, fnSQL, `AS '$libdir/libfoo', 'foo_entry'`)
+}

@@ -292,6 +292,27 @@ func TestAlterServerVersion(t *testing.T) {
 	if !stmt.HasVersion {
 		t.Error("expected HasVersion to be true")
 	}
+	if stmt.HasVersionNull {
+		t.Error("expected HasVersionNull to be false")
+	}
+}
+
+func TestAlterServerVersionNull(t *testing.T) {
+	input := "ALTER SERVER myserver VERSION NULL"
+	result, err := parse(input)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	stmt, ok := result.Items[0].(*nodes.AlterForeignServerStmt)
+	if !ok {
+		t.Fatalf("expected *nodes.AlterForeignServerStmt, got %T", result.Items[0])
+	}
+	if !stmt.HasVersion || !stmt.HasVersionNull {
+		t.Errorf("expected HasVersion=true and HasVersionNull=true, got %v/%v", stmt.HasVersion, stmt.HasVersionNull)
+	}
+	if stmt.Version != "" {
+		t.Errorf("expected empty Version string for NULL, got %q", stmt.Version)
+	}
 }
 
 // TestAlterServerOptions tests: ALTER SERVER myserver OPTIONS (SET host 'newhost')

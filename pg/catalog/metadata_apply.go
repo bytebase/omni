@@ -2470,8 +2470,19 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteString(sc)
 		b.WriteByte('\n')
 	}
+	if up.Support != "" {
+		b.WriteString(" SUPPORT ")
+		b.WriteString(up.Support)
+		b.WriteByte('\n')
+	}
 	if up.HasSqlBody {
 		b.WriteString(up.Body)
+		b.WriteByte('\n')
+	} else if up.LinkSymbol != "" {
+		b.WriteString("AS ")
+		b.WriteString(quoteLiteral(up.Body))
+		b.WriteString(", ")
+		b.WriteString(quoteLiteral(up.LinkSymbol))
 		b.WriteByte('\n')
 	} else {
 		b.WriteString("AS ")

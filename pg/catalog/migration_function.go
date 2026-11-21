@@ -109,13 +109,7 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 	}
 
 	// Body.
-	if proc.HasSqlBody {
-		b.WriteByte('\n')
-		b.WriteString(proc.Body)
-	} else {
-		b.WriteString("\nAS ")
-		b.WriteString(dollarQuote(proc.Body))
-	}
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpCreateFunction,
@@ -157,13 +151,7 @@ func buildReplaceeFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 
 	b.WriteString(formatFuncAttributes(proc))
 
-	if proc.HasSqlBody {
-		b.WriteByte('\n')
-		b.WriteString(proc.Body)
-	} else {
-		b.WriteString("\nAS ")
-		b.WriteString(dollarQuote(proc.Body))
-	}
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
@@ -346,11 +334,24 @@ func formatFuncAttributes(proc *UserProc) string {
 		parts = append(parts, "ROWS "+proc.Rows)
 	}
 	parts = append(parts, proc.SetConfig...)
+	if proc.Support != "" {
+		parts = append(parts, "SUPPORT "+proc.Support)
+	}
 
 	if len(parts) == 0 {
 		return ""
 	}
 	return "\n" + strings.Join(parts, "\n")
+}
+
+func formatFunctionBodyClause(proc *UserProc) string {
+	if proc.HasSqlBody {
+		return "\n" + proc.Body
+	}
+	if proc.LinkSymbol != "" {
+		return "\nAS " + quoteLiteral(proc.Body) + ", " + quoteLiteral(proc.LinkSymbol)
+	}
+	return "\nAS " + dollarQuote(proc.Body)
 }
 
 // buildReplaceProcedureOp generates a CREATE OR REPLACE PROCEDURE op.
@@ -375,13 +376,7 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		b.WriteString(sc)
 	}
 
-	if proc.HasSqlBody {
-		b.WriteByte('\n')
-		b.WriteString(proc.Body)
-	} else {
-		b.WriteString("\nAS ")
-		b.WriteString(dollarQuote(proc.Body))
-	}
+	b.WriteString(formatFunctionBodyClause(proc))
 
 	return MigrationOp{
 		Type:          OpAlterFunction,
