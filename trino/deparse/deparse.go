@@ -69,6 +69,9 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			continue
 		}
 		schemaKey := strings.ToLower(s.Name)
+		if s.Name == "" {
+			return nil, fmt.Errorf("database %s has schema with empty name", quoteIdentifier(metadata.Name))
+		}
 		if _, exists := seenSchemas[schemaKey]; exists {
 			return nil, fmt.Errorf("database %s has duplicate schema %s", quoteIdentifier(metadata.Name), quoteIdentifier(s.Name))
 		}
@@ -976,6 +979,9 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			continue
 		}
 		schemaKey := strings.ToLower(schema.Name)
+		if schema.Name == "" {
+			return "", fmt.Errorf("database %s has schema with empty name", metadata.Name)
+		}
 		if _, exists := seenSchemas[schemaKey]; exists {
 			return "", fmt.Errorf("database %s has duplicate schema %s", metadata.Name, quoteIdentifier(schema.Name))
 		}
@@ -2395,6 +2401,7 @@ type trinoASTWalker struct {
 	unqualTables         []*ast.QualifiedName
 	inlineFuncs          map[string][]trinoInlineFunc
 	aliasCols            map[string]map[string]string
+	aliasOrder           map[string][]trinoProjCol
 	cteCols              map[string]trinoRelationCols
 	fromSeen             map[string]struct{}
 	hasQuery             bool
@@ -2459,6 +2466,13 @@ func (w *trinoASTWalker) lookupTableRelationCols(qn *ast.QualifiedName, ctes map
 }
 
 func (w *trinoASTWalker) bindRelationCols(alias string, cols map[string]string, curEnv map[string]string) {
+	w.bindRelationOrderedCols(alias, cols, nil, curEnv)
+}
+
+func (w *trinoASTWalker) bindRelationOrderedCols(alias string, cols map[string]string, ordered []trinoProjCol, curEnv map[string]string) {
+	if alias != "" && len(ordered) > 0 && w.aliasOrder != nil {
+		w.aliasOrder[strings.ToLower(alias)] = ordered
+	}
 	if len(cols) == 0 {
 		return
 	}
@@ -2518,11 +2532,14 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		if !bind {
 			joinEnv = make(map[string]string)
 			prevAliasCols := w.aliasCols
+			prevAliasOrder := w.aliasOrder
 			prevFromSeen := w.fromSeen
 			w.aliasCols = make(map[string]map[string]string)
+			w.aliasOrder = make(map[string][]trinoProjCol)
 			w.fromSeen = make(map[string]struct{})
 			defer func() {
 				w.aliasCols = prevAliasCols
+				w.aliasOrder = prevAliasOrder
 				w.fromSeen = prevFromSeen
 			}()
 		}
@@ -2556,7 +2573,7 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 				cols = projColsToMap(proj, nil)
 			}
 			if bind {
-				w.bindRelationCols(alias, cols, curEnv)
+				w.bindRelationOrderedCols(alias, cols, proj, curEnv)
 			}
 		} else {
 			proj = w.walkRelationBound(r.Inner, curEnv, ctes, false)
@@ -2575,7 +2592,7 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 				proj = realiased
 			}
 			if bind {
-				w.bindRelationCols(alias, projColsToMap(proj, nil), curEnv)
+				w.bindRelationOrderedCols(alias, projColsToMap(proj, nil), proj, curEnv)
 			}
 		}
 		if r.Sample != nil {
@@ -2589,7 +2606,7 @@ func (w *trinoASTWalker) walkRelationBound(rel trinoparser.Relation, curEnv map[
 		}
 		alias, relCols := w.lookupTableRelationCols(r.Name, ctes)
 		if bind {
-			w.bindRelationCols(alias, relCols.byName, curEnv)
+			w.bindRelationOrderedCols(alias, relCols.byName, relCols.ordered, curEnv)
 		}
 		return relCols.ordered
 	case *trinoparser.NearestRelation:
@@ -2688,16 +2705,24 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 		for k, v := range prevAliasCols {
 			specAliasCols[k] = v
 		}
+		prevAliasOrder := w.aliasOrder
+		specAliasOrder := make(map[string][]trinoProjCol, len(prevAliasOrder))
+		for k, v := range prevAliasOrder {
+			specAliasOrder[k] = v
+		}
 		prevFromSeen := w.fromSeen
 		w.aliasCols = specAliasCols
+		w.aliasOrder = specAliasOrder
 		w.fromSeen = make(map[string]struct{})
 		defer func() {
 			w.aliasCols = prevAliasCols
+			w.aliasOrder = prevAliasOrder
 			w.fromSeen = prevFromSeen
 		}()
 
+		var fromProj []trinoProjCol
 		for _, rel := range n.From {
-			w.walkRelation(rel, specEnv, ctes)
+			fromProj = append(fromProj, w.walkRelationBound(rel, specEnv, ctes, true)...)
 		}
 		w.walkExpr(n.Where, specEnv, ctes)
 		if n.GroupBy != nil {
@@ -2720,10 +2745,11 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 		proj := make([]trinoProjCol, 0, len(n.Items))
 		for idx, item := range n.Items {
 			it := w.walkExpr(item.Expr, specEnv, ctes)
-			if idx == 0 && len(n.Items) == 1 && item.Kind == trinoparser.SelectSingle {
-				singleType = it
-			}
-			if item.Kind == trinoparser.SelectSingle {
+			switch item.Kind {
+			case trinoparser.SelectSingle:
+				if idx == 0 && len(n.Items) == 1 {
+					singleType = it
+				}
 				colName := ""
 				switch {
 				case item.Alias != nil && item.Alias.Value != "":
@@ -2741,11 +2767,44 @@ func (w *trinoASTWalker) walkQueryNodeCols(qn trinoparser.QueryNode, curEnv map[
 					}
 				}
 				proj = append(proj, trinoProjCol{name: colName, typ: it})
+			case trinoparser.SelectAll:
+				proj = append(proj, fromProj...)
+			case trinoparser.SelectAllFrom:
+				var expanded []trinoProjCol
+				switch ref := item.Expr.(type) {
+				case *trinoparser.ColumnRef:
+					if ref.Name != nil {
+						expanded = w.aliasOrder[strings.ToLower(ref.Name.Value)]
+					}
+				case *trinoparser.Dereference:
+					if ref.FieldName != nil {
+						expanded = w.aliasOrder[strings.ToLower(ref.FieldName.Value)]
+					}
+				}
+				if len(expanded) > 0 {
+					expandedCopy := slices.Clone(expanded)
+					for aIdx := range expandedCopy {
+						if aIdx < len(item.Aliases) && item.Aliases[aIdx] != nil && item.Aliases[aIdx].Value != "" {
+							expandedCopy[aIdx].name = strings.ToLower(item.Aliases[aIdx].Value)
+						}
+					}
+					proj = append(proj, expandedCopy...)
+				} else if base, inner, ok := splitParameterizedType(it); ok && base == "row" {
+					for fIdx, part := range splitTopLevelComma(inner) {
+						colName, colType := splitRowField(part)
+						if fIdx < len(item.Aliases) && item.Aliases[fIdx] != nil && item.Aliases[fIdx].Value != "" {
+							colName = strings.ToLower(item.Aliases[fIdx].Value)
+						}
+						proj = append(proj, trinoProjCol{name: colName, typ: colType})
+					}
+				}
 			}
 		}
 		return singleType, proj
 	case *trinoparser.TableQuery:
 		w.recordUnqualTable(n.Name, ctes)
+		_, relCols := w.lookupTableRelationCols(n.Name, ctes)
+		return "", relCols.ordered
 	case *trinoparser.SetOperation:
 		lt, lcols := w.walkQueryNodeCols(n.Left, curEnv, ctes)
 		rt, rcols := w.walkQueryNodeCols(n.Right, curEnv, ctes)

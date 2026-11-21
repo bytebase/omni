@@ -1992,4 +1992,45 @@ COMMENT ON COLUMN "s"."v_top"."id" IS 'computed id';
 		}},
 	})
 	require.ErrorContains(t, err, "comment cannot be restored")
+
+	// Wildcard derived projections propagate column types, and empty schema names fail explicitly.
+	wildcardProj, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "source",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "n", Type: "bigint"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "abs",
+				Definition: "CREATE FUNCTION s.abs(x varchar) RETURNS varchar RETURN x",
+			}},
+			Views: []*metadatapb.ViewMetadata{
+				{
+					Name:       "v_star",
+					Definition: "SELECT abs(q.n) FROM (SELECT * FROM source) q",
+				},
+				{
+					Name:       "v_star_from",
+					Definition: "SELECT abs(q.n) FROM (SELECT src.* FROM source src) q",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, wildcardProj, `SELECT abs(q.n) FROM (SELECT * FROM "cat"."s".source) q;`)
+	assert.Contains(t, wildcardProj, `SELECT abs(q.n) FROM (SELECT src.* FROM "cat"."s".source src) q;`)
+
+	_, err = GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name:    "cat",
+		Schemas: []*SchemaMetadata{{Name: ""}},
+	})
+	require.ErrorContains(t, err, "empty name")
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name:    "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{Name: ""}},
+	})
+	require.ErrorContains(t, err, "empty name")
 }

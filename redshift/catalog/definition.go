@@ -1693,33 +1693,38 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 	}
 
 	dependencies := make([]map[int]struct{}, len(items))
-	addDep := func(i, dep int) {
+	addDep := func(i, dep int) error {
+		if items[i].kind == objectKindMaterializedView && items[dep].kind == objectKindView {
+			return fmt.Errorf("materialized view %s cannot reference standard view %s because Redshift disallows materialized views referencing views", qualifyName(items[i].schema, items[i].name), qualifyName(items[dep].schema, items[dep].name))
+		}
 		if dep == i && items[i].kind != objectKindView && items[i].kind != objectKindMaterializedView {
-			return
+			return nil
 		}
 		if dependencies[i] == nil {
 			dependencies[i] = map[int]struct{}{}
 		}
 		dependencies[i][dep] = struct{}{}
+		return nil
 	}
-	addRelDep := func(i int, defaultSchema, relCatalog, relSchema, relName string) {
+	addRelDep := func(i int, defaultSchema, relCatalog, relSchema, relName string) error {
 		if relName == "" {
-			return
+			return nil
 		}
 		if relCatalog != "" && (to.Name == "" || !strings.EqualFold(relCatalog, to.Name)) {
-			return
+			return nil
 		}
 		if relSchema != "" {
 			if depIdx, ok := relIndex[objectKey(relSchema, relName)]; ok {
-				addDep(i, depIdx)
+				return addDep(i, depIdx)
 			}
-			return
+			return nil
 		}
 		if depIdx, ok := relIndex[objectKey(defaultSchema, relName)]; ok {
-			addDep(i, depIdx)
+			return addDep(i, depIdx)
 		} else if depIdx, ok := relIndex[objectKey("public", relName)]; ok {
-			addDep(i, depIdx)
+			return addDep(i, depIdx)
 		}
+		return nil
 	}
 	addCallDeps := func(i int, callerSchema string, calls []functionCall) error {
 		for _, call := range calls {
@@ -1731,7 +1736,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				if items[i].kind == objectKindFunc && depNode == i {
 					return fmt.Errorf("function %s is self-recursive and cannot be restored because Redshift requires callees to exist first", qualifyName(items[i].schema, items[i].name))
 				}
-				addDep(i, depNode)
+				if err := addDep(i, depNode); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -1744,7 +1751,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				if dep == nil {
 					continue
 				}
-				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
+				if err := addRelDep(i, item.schema, "", dep.Schema, dep.Table); err != nil {
+					return err
+				}
 			}
 			if len(item.fn.depTables) > 0 {
 				item.fn.def = qualifyRedshiftFunctionDependencies(item.fn.def, item.schema, item.fn.depTables, caseSensitive)
@@ -1760,7 +1769,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 					refSchema = item.schema
 				}
 				if depIdx, ok := relIndex[objectKey(refSchema, fk.referencedTable)]; ok {
-					addDep(i, depIdx)
+					if err := addDep(i, depIdx); err != nil {
+						return err
+					}
 				}
 			}
 		case objectKindView, objectKindMaterializedView:
@@ -1777,10 +1788,14 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 					if dep == nil {
 						continue
 					}
-					addRelDep(i, item.schema, "", dep.Schema, dep.Table)
+					if err := addRelDep(i, item.schema, "", dep.Schema, dep.Table); err != nil {
+						return err
+					}
 				}
 				for _, ref := range collectRelationRefs(item.view.definition) {
-					addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
+					if err := addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name); err != nil {
+						return err
+					}
 				}
 			}
 			if err := addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat)); err != nil {

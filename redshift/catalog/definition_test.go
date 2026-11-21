@@ -2257,6 +2257,16 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	})
 	require.NoError(t, err)
 	require.Contains(t, skipTrigOut, `CREATE TABLE "public"."t_skip_trig"`)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "dev",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:              "public",
+			Views:             []*metadatapb.ViewMetadata{{Name: "v_src", Definition: "SELECT 1 AS id"}},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "mv_bad", Definition: "SELECT id FROM v_src"}},
+		}},
+	})
+	require.ErrorContains(t, err, "standard view")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
