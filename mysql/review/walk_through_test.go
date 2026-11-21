@@ -442,6 +442,33 @@ func TestWalkThroughMySQLFKGeneratedIndex(t *testing.T) {
 	// in the same ALTER still succeeds without a false positive.
 	oneFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid;\nCREATE INDEX fk_pid ON child (pid);", 1, "Index `fk_pid` already exists in `child`.", target)
 	noFinding(t, "ALTER TABLE child DROP FOREIGN KEY fk_pid, ADD KEY fk_pid (pid);", target)
+
+	// RENAME TABLE rewrites generated <tbl>_ibfk_<n> FK owner names when moving
+	// index candidates so dropping the renamed FK retires the candidate.
+	schemaIbfk := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				schema.Schemas[0].Tables[0],
+				{
+					Name: "child",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id"},
+						{Name: "pid"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}},
+						{Name: "pid", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "child_ibfk_1", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+			},
+		}},
+	}
+	targetIbfk := review.Target{Schema: schemaIbfk, ForeignKeyChecks: review.SwitchOn}
+	oneFinding(t, "RENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nCREATE INDEX pid ON kid (pid);", 2, "Index `pid` already exists in `kid`.", targetIbfk)
 }
 
 // formLowering walks a form on the schema, as walktest.Coverage asks.

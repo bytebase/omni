@@ -69,6 +69,19 @@ func TestViewDDLObjectKindAndRename(t *testing.T) {
 		if db.Views["v"] != nil || db.Views["v2"] == nil || db.Views["v2"].Name != "v2" {
 			t.Fatalf("expected view v renamed to v2, got views=%v", db.Views)
 		}
+		// Multi-pair RENAME TABLE rolls back earlier view/table renames on failure.
+		if got := execErrorCode(t, c, "RENAME TABLE v2 TO v3, missing TO x"); got != ErrNoSuchTable {
+			t.Errorf("RENAME TABLE v2 TO v3, missing TO x: got error %d, want %d", got, ErrNoSuchTable)
+		}
+		if db.Views["v2"] == nil || db.Views["v2"].Name != "v2" || db.Views["v3"] != nil {
+			t.Fatalf("expected failed multi-pair RENAME TABLE to roll back view v2, got views=%v", db.Views)
+		}
+		if got := execErrorCode(t, c, "RENAME TABLE t TO t2, v2 TO v3, missing TO x"); got != ErrNoSuchTable {
+			t.Errorf("RENAME TABLE t TO t2, v2 TO v3, missing TO x: got error %d, want %d", got, ErrNoSuchTable)
+		}
+		if db.Tables["t"] == nil || db.Tables["t2"] != nil || db.Views["v2"] == nil || db.Views["v3"] != nil {
+			t.Fatalf("expected failed multi-pair RENAME TABLE to roll back both table t and view v2")
+		}
 	})
 }
 

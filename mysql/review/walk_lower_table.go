@@ -556,7 +556,14 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 			}
 		}
 		for _, entry := range movedGen {
-			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, entry.name)] = entry.owners
+			rewritten := make(map[string]bool, len(entry.owners))
+			for fkName := range entry.owners {
+				if old != "" && renamed != "" && strings.HasPrefix(fkName, old) {
+					fkName = renamed + strings.TrimPrefix(fkName, old)
+				}
+				rewritten[fkName] = true
+			}
+			b.w.fkGeneratedIndexes[idxKey(to.db, to.name, entry.name)] = rewritten
 		}
 	})
 }
