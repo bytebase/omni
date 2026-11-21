@@ -7073,3 +7073,130 @@ func TestRound34Fixes(t *testing.T) {
 	require.NotZero(t, rtOID)
 	require.Equal(t, `op_dst.my_opc2`, opcTo.RangeInfo(rtOID).SubtypeOpclass)
 }
+
+func TestRound35Fixes(t *testing.T) {
+	// 1. CREATE OR REPLACE FUNCTION refreshes default-expression dependencies.
+	defCat := New()
+	_, err := defCat.Exec(`
+		CREATE FUNCTION public.old_helper() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
+		CREATE FUNCTION public.new_helper() RETURNS integer LANGUAGE sql AS $$ SELECT 2 $$;
+		CREATE FUNCTION public.f_def(x integer DEFAULT public.old_helper()) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;
+		CREATE OR REPLACE FUNCTION public.f_def(x integer DEFAULT public.new_helper()) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;
+	`, nil)
+	require.NoError(t, err)
+
+	// Dropping old_helper must now succeed without CASCADE, while new_helper is blocked.
+	dropNewRes, err := defCat.Exec(`DROP FUNCTION public.new_helper()`, nil)
+	require.NoError(t, err)
+	require.Len(t, dropNewRes, 1)
+	require.Error(t, dropNewRes[0].Error)
+
+	dropOldRes, err := defCat.Exec(`DROP FUNCTION public.old_helper()`, nil)
+	require.NoError(t, err)
+	require.Len(t, dropOldRes, 1)
+	require.NoError(t, dropOldRes[0].Error)
+
+	// Migration from old_helper default to new_helper default executes cleanly (replaces f_def before dropping old_helper).
+	migDefFrom := New()
+	_, err = migDefFrom.Exec(`
+		CREATE FUNCTION public.old_helper() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
+		CREATE FUNCTION public.f_def(x integer DEFAULT public.old_helper()) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;
+	`, nil)
+	require.NoError(t, err)
+	migDefTo := New()
+	_, err = migDefTo.Exec(`
+		CREATE FUNCTION public.new_helper() RETURNS integer LANGUAGE sql AS $$ SELECT 2 $$;
+		CREATE FUNCTION public.f_def(x integer DEFAULT public.new_helper()) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;
+	`, nil)
+	require.NoError(t, err)
+	defSQL := GenerateMigration(migDefFrom, migDefTo, Diff(migDefFrom, migDefTo)).SQL()
+	defApplied := migDefFrom.Clone()
+	execRes, err := defApplied.Exec(defSQL, nil)
+	require.NoError(t, err)
+	for _, r := range execRes {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	require.Empty(t, Diff(defApplied, migDefTo).Functions)
+
+	// 2. WINDOW attribute sets routine kind 'w' on both UserProc and BuiltinProc and enforces kind on replace.
+	winCat := New()
+	_, err = winCat.Exec(`
+		CREATE FUNCTION public.my_win() RETURNS integer LANGUAGE internal WINDOW AS 'window_row_number';
+	`, nil)
+	require.NoError(t, err)
+	var winProc *UserProc
+	for _, up := range winCat.userProcs {
+		if up.Name == "my_win" {
+			winProc = up
+			break
+		}
+	}
+	require.NotNil(t, winProc)
+	require.Equal(t, byte('w'), winProc.Kind)
+	require.Equal(t, byte('w'), winCat.procByOID[winProc.OID].Kind)
+	var foundRow bool
+	for _, r := range winCat.QueryPgProc("public") {
+		if r.ProName == "my_win" {
+			foundRow = true
+			require.Equal(t, byte('w'), r.ProKind)
+		}
+	}
+	require.True(t, foundRow)
+
+	okView, err := winCat.Exec(`CREATE VIEW public.v_win_ok AS SELECT public.my_win() OVER () AS w`, nil)
+	require.NoError(t, err)
+	require.NoError(t, okView[0].Error)
+
+	badView, err := winCat.Exec(`CREATE VIEW public.v_win_bad AS SELECT public.my_win() AS w`, nil)
+	require.NoError(t, err)
+	require.Error(t, badView[0].Error)
+
+	badReplace, err := winCat.Exec(`CREATE OR REPLACE FUNCTION public.my_win() RETURNS integer LANGUAGE internal AS 'window_row_number'`, nil)
+	require.NoError(t, err)
+	require.Error(t, badReplace[0].Error)
+
+	okReplace, err := winCat.Exec(`CREATE OR REPLACE FUNCTION public.my_win() RETURNS integer LANGUAGE internal WINDOW AS 'window_row_number'`, nil)
+	require.NoError(t, err)
+	require.NoError(t, okReplace[0].Error)
+
+	// 3. Multiple inheritance parent replacement preserves retained later parents without NO INHERIT/INHERIT churn.
+	inhFrom := New()
+	_, err = inhFrom.Exec(`
+		CREATE TABLE public.p1 (a int);
+		CREATE TABLE public.p2 (a int);
+		CREATE TABLE public.kept (k int);
+		CREATE TABLE public.child () INHERITS (public.p1, public.kept);
+	`, nil)
+	require.NoError(t, err)
+	inhTo := New()
+	_, err = inhTo.Exec(`
+		CREATE TABLE public.p1 (a int);
+		CREATE TABLE public.p2 (a int);
+		CREATE TABLE public.kept (k int);
+		CREATE TABLE public.child () INHERITS (public.p2, public.kept);
+	`, nil)
+	require.NoError(t, err)
+	inhSQL := GenerateMigration(inhFrom, inhTo, Diff(inhFrom, inhTo)).SQL()
+	require.Contains(t, inhSQL, `NO INHERIT`)
+	require.Contains(t, inhSQL, `INHERIT`)
+	require.NotContains(t, inhSQL, `kept`)
+
+	inhApplied := inhFrom.Clone()
+	inhExec, err := inhApplied.Exec(inhSQL, nil)
+	require.NoError(t, err)
+	for _, r := range inhExec {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	// Columns from kept remain non-local with InhCount=1, so dropping kept.k removes child.k too.
+	childRel := inhApplied.GetRelation("public", "child")
+	require.NotNil(t, childRel)
+	kCol := childRel.Columns[childRel.colByName["k"]]
+	require.False(t, kCol.IsLocal)
+	require.Equal(t, 1, kCol.InhCount)
+	dropK, err := inhApplied.Exec(`ALTER TABLE public.kept DROP COLUMN k`, nil)
+	require.NoError(t, err)
+	require.NoError(t, dropK[0].Error)
+	for _, col := range childRel.Columns {
+		require.NotEqual(t, "k", col.Name)
+	}
+}

@@ -527,6 +527,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	kind := byte('f')
 	if isProcedure {
 		kind = 'p'
+	} else if isWindowFunc {
+		kind = PROKIND_WINDOW
 	}
 
 	if volatile == 0 {
@@ -544,6 +546,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	if existing != nil {
 		if !orReplace {
 			return errDuplicateFunction(name)
+		}
+		if existing.Kind != kind {
+			return errInvalidFunctionDefinition(fmt.Sprintf(
+				"cannot change routine kind of existing function %q", name))
 		}
 		// OrReplace: verify return type and setof flag match.
 		if existing.RetType != retOID || existing.RetSet != returnSet {
@@ -572,7 +578,6 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.NArgDefaults = nArgDefaults
 			up.ArgDefaultTypes = defaultTypes
 			up.ArgDefaults = argDefaults
-			up.ArgDefaults = argDefaults
 			existing.NArgDefaults = nArgDefaults
 			up.Volatile = volatile
 			up.Parallel = parallel
@@ -583,10 +588,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			up.Cost = costStr
 			up.Rows = rowsStr
 			up.SetConfig = slices.Clone(setConfig)
-			oldSupportOID := up.SupportOID
 			up.Support = support
 			up.SupportOID = supportOID
-			c.updateSupportDep(up.OID, oldSupportOID, supportOID)
 			up.Language = language
 			up.Body = body
 			up.LinkSymbol = linkSymbol
@@ -597,6 +600,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		existing.IsStrict = isStrict
 		existing.SecDef = secDef
 		existing.LeakProof = isLeakProof
+		// Rebuild all normal dependencies (arg/return types, support, defaults, SQL body)
+		// so dropped helpers/tables from replaced defaults or bodies are detached.
+		c.removeDepsOf('f', existing.OID)
+		c.recordFunctionDependencies(existing.OID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
 		return nil
 	}
 
@@ -651,37 +658,55 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 
 	// Create UserProc metadata.
 	up := &UserProc{
-		OID:          procOID,
-		Name:         name,
-		Schema:       schema,
-		OwnerName:    c.currentOwner(),
-		Kind:         kind,
-		ArgTypes:     argOIDs,
-		RetType:      retOID,
-		RetSet:       returnSet,
-		Volatile:     volatile,
-		Parallel:     parallel,
-		IsStrict:     isStrict,
-		SecDef:       secDef,
-		LeakProof:    isLeakProof,
-		IsWindow:     isWindowFunc,
-		Cost:         costStr,
-		Rows:         rowsStr,
-		SetConfig:    slices.Clone(setConfig),
-		Support:      support,
-		SupportOID:   supportOID,
-		Language:     language,
-		Body:         body,
-		LinkSymbol:   linkSymbol,
-		HasSqlBody:   sqlStandardBody,
-		ArgNames:     allArgNames,
-		ArgModes:     storedArgModes,
-		AllArgTypes:  storedAllArgTypes,
-		NArgDefaults: nArgDefaults,
+		OID:             procOID,
+		Name:            name,
+		Schema:          schema,
+		OwnerName:       c.currentOwner(),
+		Kind:            kind,
+		ArgTypes:        argOIDs,
+		RetType:         retOID,
+		RetSet:          returnSet,
+		Volatile:        volatile,
+		Parallel:        parallel,
+		IsStrict:        isStrict,
+		SecDef:          secDef,
+		LeakProof:       isLeakProof,
+		IsWindow:        isWindowFunc,
+		Cost:            costStr,
+		Rows:            rowsStr,
+		SetConfig:       slices.Clone(setConfig),
+		Support:         support,
+		SupportOID:      supportOID,
+		Language:        language,
+		Body:            body,
+		LinkSymbol:      linkSymbol,
+		HasSqlBody:      sqlStandardBody,
+		ArgNames:        allArgNames,
+		ArgModes:        storedArgModes,
+		AllArgTypes:     storedAllArgTypes,
+		ArgDefaultTypes: defaultTypes,
+		ArgDefaults:     argDefaults,
+		NArgDefaults:    nArgDefaults,
 	}
 	c.userProcs[procOID] = up
 
-	// Record dependencies on arg/return types.
+	c.recordFunctionDependencies(procOID, argOIDs, retOID, supportOID, stmt.Parameters, language, body, sqlStandardBody, stmt.SqlBody)
+
+	return nil
+}
+
+func (c *Catalog) recordFunctionDependencies(
+	procOID uint32,
+	argOIDs []uint32,
+	retOID uint32,
+	supportOID uint32,
+	params *nodes.List,
+	language string,
+	body string,
+	sqlStandardBody bool,
+	sqlBody nodes.Node,
+) {
+	// Record dependencies on arg/return/support types/routines.
 	for _, aoid := range argOIDs {
 		if aoid >= FirstNormalObjectId {
 			c.recordDependency('f', procOID, 0, 't', aoid, 0, DepNormal)
@@ -696,8 +721,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 
 	// Record dependencies from default expressions.
 	// pg: src/backend/commands/functioncmds.c — CreateFunction (recordDependencyOnExpr for defaults)
-	if stmt.Parameters != nil {
-		for _, item := range stmt.Parameters.Items {
+	if params != nil {
+		for _, item := range params.Items {
 			fp, ok := item.(*nodes.FunctionParameter)
 			if !ok || fp.Defexpr == nil {
 				continue
@@ -708,8 +733,6 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			}
 		}
 	}
-	up.ArgDefaultTypes = defaultTypes
-	up.ArgDefaults = argDefaults
 
 	// Record dependencies from SQL function body.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate
@@ -720,14 +743,12 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// references so the migration toposort orders tables before functions
 	// that reference them.
 	if strings.EqualFold(language, "sql") {
-		if sqlStandardBody && stmt.SqlBody != nil {
-			c.recordDepsFromNode('f', procOID, stmt.SqlBody)
+		if sqlStandardBody && sqlBody != nil {
+			c.recordDepsFromNode('f', procOID, sqlBody)
 		} else if body != "" {
 			c.recordFuncBodyDeps(procOID, body)
 		}
 	}
-
-	return nil
 }
 
 // paramDefaultTypes returns the type of each parameter default, in order,

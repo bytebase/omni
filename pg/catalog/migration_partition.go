@@ -244,6 +244,10 @@ func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
 }
 
 func generateTableInheritOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
+	type parentKey struct {
+		schema string
+		name   string
+	}
 	type inheritParent struct {
 		schema string
 		name   string
@@ -270,11 +274,18 @@ func generateTableInheritOps(from, to *Catalog, entry RelationDiffEntry) []Migra
 	fromChildQN := formatRelationName(entry.SchemaName, entry.Name, entry.From)
 	toChildQN := formatRelationName(entry.SchemaName, entry.Name, entry.To)
 
-	var ops []MigrationOp
-	j := 0
+	toSet := make(map[parentKey]bool, len(toParents))
+	for _, tp := range toParents {
+		toSet[parentKey{tp.schema, tp.name}] = true
+	}
+	fromSet := make(map[parentKey]bool, len(fromParents))
 	for _, fp := range fromParents {
-		if j < len(toParents) && fp.schema == toParents[j].schema && fp.name == toParents[j].name {
-			j++
+		fromSet[parentKey{fp.schema, fp.name}] = true
+	}
+
+	var ops []MigrationOp
+	for _, fp := range fromParents {
+		if toSet[parentKey{fp.schema, fp.name}] {
 			continue
 		}
 		ops = append(ops, MigrationOp{
@@ -290,8 +301,10 @@ func generateTableInheritOps(from, to *Catalog, entry RelationDiffEntry) []Migra
 			secondarySchema: fp.schema,
 		})
 	}
-	for k := j; k < len(toParents); k++ {
-		tp := toParents[k]
+	for _, tp := range toParents {
+		if fromSet[parentKey{tp.schema, tp.name}] {
+			continue
+		}
 		ops = append(ops, MigrationOp{
 			Type:            OpAlterTable,
 			SchemaName:      entry.SchemaName,
