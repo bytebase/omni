@@ -1,4 +1,4 @@
-package mysqlcomplete
+package completion
 
 import (
 	"slices"
@@ -15,7 +15,7 @@ type qualToken struct {
 }
 
 func scanQualTokens(statement string) []qualToken {
-	s := StripStringsAndComments(statement)
+	s := stripStringsAndComments(statement)
 	var toks []qualToken
 	n := len(s)
 	for i := 0; i < n; {
@@ -112,14 +112,12 @@ type aliasMap struct {
 	lower map[string][]string
 }
 
-// DatabaseQualifiersInStatement returns the non-default database qualifiers
-// referenced in statement.
-func DatabaseQualifiersInStatement(statement, defaultDB string, caseSensitive bool) []string {
-	qualifiers, _ := AnalyzeStatementQualifiers(statement, 0, defaultDB, caseSensitive)
+func databaseQualifiersInStatement(statement, defaultDB string, caseSensitive bool) []string {
+	qualifiers, _ := analyzeStatementQualifiers(statement, 0, defaultDB, caseSensitive)
 	return qualifiers
 }
 
-// AnalyzeStatementQualifiers extracts database qualifiers referenced in
+// analyzeStatementQualifiers extracts database qualifiers referenced in
 // statement (excluding defaultDB), distinguishing them from ordinary
 // table/alias qualifiers such as `SELECT a. FROM users a`, and resolves the
 // databases associated with any qualifier or table/alias active at pos:
@@ -127,7 +125,7 @@ func DatabaseQualifiersInStatement(statement, defaultDB string, caseSensitive bo
 //   - Two-part chains (`db.obj` or `db.`) only identify `db` inside table/object
 //     positions (FROM, JOIN, UPDATE, INSERT/REPLACE [INTO], DELETE, USING,
 //     DDL object headers, REFERENCES, CALL, CREATE ... LIKE, etc.).
-func AnalyzeStatementQualifiers(statement string, pos int, defaultDB string, caseSensitive bool) ([]string, []string) {
+func analyzeStatementQualifiers(statement string, pos int, defaultDB string, caseSensitive bool) ([]string, []string) {
 	if !strings.Contains(statement, ".") {
 		return nil, nil
 	}
@@ -687,7 +685,7 @@ func StatementReferencesDatabase(statement, dbName string) bool {
 	if dbName == "" {
 		return false
 	}
-	s := strings.ToLower(StripStringsAndComments(statement))
+	s := strings.ToLower(stripStringsAndComments(statement))
 	name := strings.ToLower(dbName)
 	for _, q := range []string{name, "`" + name + "`"} {
 		from := 0
@@ -729,7 +727,7 @@ func isMultiTableStatementVerb(verb string) bool {
 // qualifier chain active at pos (e.g. `Foo` for `Foo.t.` or `Foo.`), or "".
 func databaseQualifierAtCaret(statement string, pos int) string {
 	pos = max(0, min(pos, len(statement)))
-	prefix := StripStringsAndComments(statement[:pos])
+	prefix := stripStringsAndComments(statement[:pos])
 	toks := scanQualTokens(prefix)
 	if len(toks) < 2 {
 		return ""

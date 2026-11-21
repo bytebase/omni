@@ -1,4 +1,4 @@
-package mysqlcomplete
+package completion
 
 import (
 	"strings"
@@ -50,21 +50,41 @@ func isObjectIdentifierCandidate(t CandidateType) bool {
 // inserts valid SQL. When the caret already sits inside a backtick-quoted
 // identifier the user is typing, outer delimiters are omitted while embedded
 // backticks are still doubled so they cannot prematurely close the identifier.
-func QuoteIdentifierIfNeeded(name string, caretInBacktick bool, isReservedKeyword func(string) bool) string {
+func QuoteIdentifierIfNeeded(name string, caretInBacktick bool) string {
+	return quoteIdentifierIfNeeded(name, caretInBacktick, isReservedKeyword)
+}
+
+func quoteIdentifierIfNeeded(name string, caretInBacktick bool, isReserved func(string) bool) string {
 	if caretInBacktick {
 		return strings.ReplaceAll(name, "`", "``")
 	}
-	if !identifierNeedsQuoting(name, isReservedKeyword) {
+	if !identifierNeedsQuoting(name, isReserved) {
 		return name
 	}
 	return backtickIdentifier(name)
 }
 
-// IdentBeforeDot scans left from pos expecting (optional whitespace) '.'
+func identifierNeedsQuoting(name string, isReserved func(string) bool) bool {
+	if name == "" {
+		return true
+	}
+	for _, r := range name {
+		if !isIdentRune(r) {
+			return true
+		}
+	}
+	firstRune, _ := utf8.DecodeRuneInString(name)
+	if unicode.IsDigit(firstRune) {
+		return true
+	}
+	return isReserved != nil && isReserved(name)
+}
+
+// identBeforeDot scans left from pos expecting (optional whitespace) '.'
 // (optional whitespace) <identifier>, returning the identifier text, the byte
 // index where it starts, and whether the pattern matched. The identifier may
 // be bare or backtick-quoted (with doubled “ unescaped).
-func IdentBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
+func identBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
 	pos = max(0, min(pos, len(sql)))
 	i := pos
 	for i > 0 && isSpaceByte(sql[i-1]) {
@@ -116,27 +136,9 @@ func IdentBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
 	return sql[i:end], i, true
 }
 
-func identifierNeedsQuoting(name string, isReservedKeyword func(string) bool) bool {
-	if name == "" {
-		return true
-	}
-	for _, r := range name {
-		if !isIdentRune(r) {
-			return true
-		}
-	}
-	firstRune, _ := utf8.DecodeRuneInString(name)
-	if unicode.IsDigit(firstRune) {
-		return true
-	}
-	return isReservedKeyword != nil && isReservedKeyword(name)
-}
-
-// CaretAtStatementStart reports whether pos in statement sits at the start of a
-// statement (or after a semicolon or completed WITH CTE list).
-func CaretAtStatementStart(statement string, pos int) bool {
+func caretAtStatementStart(statement string, pos int) bool {
 	pos = max(0, min(pos, len(statement)))
-	before := StripStringsAndComments(statement)[:pos]
+	before := stripStringsAndComments(statement)[:pos]
 	before = strings.TrimRightFunc(before, isIdentRune)
 	before = strings.TrimRight(before, " \t\r\n")
 	if before == "" || before[len(before)-1] == ';' {
@@ -208,11 +210,12 @@ func caretAfterWithClause(before string) bool {
 	return sawCTEBody
 }
 
-// CaretInsideBacktickIdentifier reports whether the caret sits inside an open
-// backtick-quoted identifier (an odd number of backticks precede it).
+// CaretInsideBacktickIdentifier reports whether byte offset pos in statement
+// sits inside an open backtick-quoted identifier (an odd number of backticks
+// precede it).
 func CaretInsideBacktickIdentifier(statement string, pos int) bool {
 	pos = max(0, min(pos, len(statement)))
-	masked := StripStringsAndComments(statement)
+	masked := stripStringsAndComments(statement)
 	count := 0
 	for i := 0; i < pos; i++ {
 		if masked[i] == '`' {
@@ -222,11 +225,11 @@ func CaretInsideBacktickIdentifier(statement string, pos int) bool {
 	return count%2 == 1
 }
 
-// StripStringsAndComments returns statement with the contents of string literals
+// stripStringsAndComments returns statement with the contents of string literals
 // ('...', "..."), line comments (-- , #), and block comments (/* */) replaced by
 // spaces, preserving byte length (newlines kept) so caret offsets stay valid.
 // Backtick-quoted identifiers are left intact.
-func StripStringsAndComments(statement string) string {
+func stripStringsAndComments(statement string) string {
 	out := []byte(statement)
 	n := len(out)
 	blank := func(i int) {

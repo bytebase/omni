@@ -40,6 +40,16 @@ func TestCompleteSession_ReservedWordIdentifiersSurface(t *testing.T) {
 	got2 := CompleteSession(context.Background(), cfg, "SELECT  FROM `order`", 1, len("SELECT "))
 	require.True(t, containsCandidate(got2, "`select`", CandidateColumn), "got %v", got2)
 	require.True(t, containsCandidate(got2, "`key`", CandidateColumn), "got %v", got2)
+
+	gotRoutine := CompleteSession(context.Background(), SessionConfig{
+		DefaultDatabase: "testdb",
+		LoadDatabase: sessionMetaLoader(&metadatapb.DatabaseSchemaMetadata{
+			Name:    "testdb",
+			Schemas: []*metadatapb.SchemaMetadata{{Functions: []*metadatapb.FunctionMetadata{{Name: "my_udf", Definition: "CREATE FUNCTION my_udf() RETURNS INT RETURN 1"}}}},
+		}, true),
+	}, "DROP FUNCTION ", 1, len("DROP FUNCTION "))
+	require.True(t, containsCandidate(gotRoutine, "my_udf", CandidateFunction), "got %v", gotRoutine)
+	require.False(t, containsCandidate(gotRoutine, "my_udf()", CandidateFunction), "got %v", gotRoutine)
 }
 
 func TestCompleteSession_ReadOnlyFiltersWriteKeywords(t *testing.T) {

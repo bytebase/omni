@@ -124,6 +124,10 @@ func TestCompleteSession_QualifiedTableAcrossDatabases(t *testing.T) {
 	got := CompleteSession(context.Background(), cfg, "SELECT * FROM otherdb.", 1, len("SELECT * FROM otherdb."))
 	require.True(t, containsCandidate(got, "t2", CandidateTable), "got %v", got)
 	require.False(t, containsCandidate(got, "t1", CandidateTable), "got %v", got)
+
+	gotFuncParen := CompleteSession(context.Background(), cfg, "SELECT CO(c1) FROM t1", 1, len("SELECT CO"))
+	require.True(t, containsCandidate(gotFuncParen, "COUNT", CandidateFunction), "got %v", gotFuncParen)
+	require.False(t, containsCandidate(gotFuncParen, "COUNT()", CandidateFunction), "got %v", gotFuncParen)
 }
 
 func TestCaretInsideBacktickIdentifier(t *testing.T) {

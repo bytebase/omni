@@ -1,7 +1,6 @@
 package completion
 
 import (
-	"github.com/bytebase/omni/internal/mysqlcomplete"
 	"github.com/bytebase/omni/oceanbase/catalog"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
@@ -158,7 +157,7 @@ func resolveTargetDB(cat *catalog.Catalog, sql string, cursorOffset int) (*catal
 	if cat == nil {
 		return nil, false
 	}
-	if dbName, _, ok := mysqlcomplete.IdentBeforeDot(sql, cursorOffset); ok {
+	if dbName, _, ok := identBeforeDot(sql, cursorOffset); ok {
 		return cat.GetDatabase(dbName), true
 	}
 	return currentDB(cat), false

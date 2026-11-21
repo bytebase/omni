@@ -3,7 +3,6 @@ package completion
 import (
 	"strings"
 
-	"github.com/bytebase/omni/internal/mysqlcomplete"
 	"github.com/bytebase/omni/tidb/catalog"
 	"github.com/bytebase/omni/tidb/parser"
 )
@@ -158,7 +157,7 @@ func resolveTargetDB(cat *catalog.Catalog, sql string, cursorOffset int) (*catal
 	if cat == nil {
 		return nil, false
 	}
-	if dbName, _, ok := mysqlcomplete.IdentBeforeDot(sql, cursorOffset); ok {
+	if dbName, _, ok := identBeforeDot(sql, cursorOffset); ok {
 		return cat.GetDatabase(dbName), true
 	}
 	return currentDB(cat), false
@@ -489,11 +488,11 @@ func currentDB(cat *catalog.Catalog) *catalog.Database {
 // The caller passes the collect offset, which sits at the start of the partial
 // column name.
 func columnQualifier(sql string, offset int) (db, name string) {
-	n, start, ok := mysqlcomplete.IdentBeforeDot(sql, offset)
+	n, start, ok := identBeforeDot(sql, offset)
 	if !ok {
 		return "", ""
 	}
-	if d, _, ok2 := mysqlcomplete.IdentBeforeDot(sql, start); ok2 {
+	if d, _, ok2 := identBeforeDot(sql, start); ok2 {
 		db = d
 	}
 	return db, n
