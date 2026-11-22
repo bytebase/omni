@@ -53,6 +53,7 @@ const (
 	tokWord tokenKind = iota + 1
 	tokIdent
 	tokLiteral
+	tokNumber
 	tokLParen
 	tokRParen
 	tokComma
@@ -143,6 +144,11 @@ func tokenizeStatements(script string) ([][]token, error) {
 		case c == '|':
 			cur = append(cur, token{kind: tokBar})
 			i++
+		case c >= '0' && c <= '9':
+			for i < len(script) && script[i] >= '0' && script[i] <= '9' {
+				i++
+			}
+			cur = append(cur, token{kind: tokNumber})
 		case isWordStart(c):
 			start := i
 			i++
@@ -456,8 +462,7 @@ func isReadOnlyPipeTail(tokens []token, pairs []int, start, end int) bool {
 					if isReadOnlyPipeOperator(tokens[i+1].val) {
 						break
 					}
-					isCall := i+2 < end && tokens[i+2].kind == tokLParen
-					if !isCall && (isNonReadOnlyLeadKeyword(tokens[i+1].val) || tokens[i+1].val == "EXPORT") {
+					if isPipeWriteStage(tokens, i+1, end) {
 						return false
 					}
 				}
@@ -506,6 +511,40 @@ func isReadOnlyParenFragment(tokens []token, pairs []int, start, end int) bool {
 	return !isNonReadOnlyLeadKeyword(tokens[start].val)
 }
 
+// isPipeWriteStage reports whether tokens[idx:end] starts a multi-token
+// write-stage construct after `|`, rather than a bitwise OR operand whose
+// unquoted column name happens to be a non-reserved keyword such as `update`.
+func isPipeWriteStage(tokens []token, idx, end int) bool {
+	if idx+1 >= end || tokens[idx].kind != tokWord {
+		return false
+	}
+	w0 := tokens[idx].val
+	if w0 == "CALL" {
+		return (tokens[idx+1].kind == tokWord || tokens[idx+1].kind == tokIdent) &&
+			idx+2 < end && tokens[idx+2].kind == tokLParen
+	}
+	if tokens[idx+1].kind != tokWord {
+		return false
+	}
+	w1 := tokens[idx+1].val
+	switch w0 {
+	case "INSERT":
+		return w1 == "INTO" || w1 == "OVERWRITE" || w1 == "TABLE"
+	case "DELETE":
+		return w1 == "FROM"
+	case "MERGE", "COPY":
+		return w1 == "INTO"
+	case "EXPORT":
+		return w1 == "DATA"
+	case "CREATE":
+		return w1 == "TABLE" || w1 == "VIEW" || w1 == "OR" || w1 == "TEMP" || w1 == "TEMPORARY"
+	case "UPDATE":
+		return idx+2 < end && tokens[idx+2].kind == tokWord && tokens[idx+2].val == "SET"
+	default:
+		return false
+	}
+}
+
 func isInsertClause(tokens []token, idx, end int) bool {
 	if tokens[idx].kind != tokWord || tokens[idx].val != "INSERT" || idx+1 >= end || tokens[idx+1].kind != tokWord {
 		return false
@@ -533,7 +572,7 @@ func isReadOnlyPipeOperator(word string) bool {
 }
 
 // isReadOnlyWith validates a CTE query:
-// WITH [RECURSIVE] name [(cols)] AS ([NOT] MATERIALIZED) (query) [, ...] main_query
+// WITH [RECURSIVE] name [(cols)] [MAX RECURSION LEVEL n] [AS [[NOT] MATERIALIZED]] (query) [, ...] main_query
 // Both each CTE body and the trailing main query must be read-only queries.
 func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
 	i := start + 1
@@ -545,23 +584,41 @@ func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
 			return false
 		}
 		i++
-		// Optional CTE column list: (c1, c2, ...)
+		// Optional CTE column list: (c1, c2, ...). Distinguish it from a
+		// Spark/Databricks CTE body written without AS (`WITH c (SELECT 1)`).
 		if i < end && tokens[i].kind == tokLParen {
-			closeCols := pairs[i]
-			if closeCols < 0 || closeCols >= end {
+			closeIdx := pairs[i]
+			if closeIdx < 0 || closeIdx >= end {
 				return false
 			}
-			i = closeCols + 1
+			afterParen := closeIdx + 1
+			if afterParen < end && tokens[afterParen].kind == tokWord &&
+				(tokens[afterParen].val == "AS" || isMaxRecursionLevel(tokens, afterParen, end)) {
+				i = afterParen
+			} else {
+				if !isReadOnlyQuery(tokens, pairs, i+1, closeIdx) {
+					return false
+				}
+				i = afterParen
+				if i < end && tokens[i].kind == tokComma {
+					i++
+					continue
+				}
+				break
+			}
 		}
-		if i >= end || tokens[i].kind != tokWord || tokens[i].val != "AS" {
-			return false
+		// Optional Databricks Runtime 17.0+ MAX RECURSION LEVEL <n> clause.
+		if isMaxRecursionLevel(tokens, i, end) {
+			i += 4
 		}
-		i++
-		if i+1 < end && tokens[i].kind == tokWord && tokens[i].val == "NOT" &&
-			tokens[i+1].kind == tokWord && tokens[i+1].val == "MATERIALIZED" {
-			i += 2
-		} else if i < end && tokens[i].kind == tokWord && tokens[i].val == "MATERIALIZED" {
+		if i < end && tokens[i].kind == tokWord && tokens[i].val == "AS" {
 			i++
+			if i+1 < end && tokens[i].kind == tokWord && tokens[i].val == "NOT" &&
+				tokens[i+1].kind == tokWord && tokens[i+1].val == "MATERIALIZED" {
+				i += 2
+			} else if i < end && tokens[i].kind == tokWord && tokens[i].val == "MATERIALIZED" {
+				i++
+			}
 		}
 		if i >= end || tokens[i].kind != tokLParen {
 			return false
@@ -581,6 +638,14 @@ func isReadOnlyWith(tokens []token, pairs []int, start, end int) bool {
 		break
 	}
 	return isReadOnlyQuery(tokens, pairs, i, end)
+}
+
+func isMaxRecursionLevel(tokens []token, idx, end int) bool {
+	return idx+3 < end &&
+		tokens[idx].kind == tokWord && tokens[idx].val == "MAX" &&
+		tokens[idx+1].kind == tokWord && tokens[idx+1].val == "RECURSION" &&
+		tokens[idx+2].kind == tokWord && tokens[idx+2].val == "LEVEL" &&
+		tokens[idx+3].kind == tokNumber
 }
 
 func isNonReadOnlyLeadKeyword(word string) bool {
