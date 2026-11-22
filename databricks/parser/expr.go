@@ -648,7 +648,7 @@ func (p *Parser) parsePrimaryAtom() (bool, error) {
 
 	// CASE ... END (searched or simple) vs ordinary function call CASE(...) or column `case`.
 	if k == kwCASE {
-		if p.peek(1).Kind == kwWHEN {
+		if p.peek(1).Kind == kwWHEN && (p.openCasesAtCurrentParenDepth() == 0 || p.hasCaseWhenAndEndAhead()) {
 			return false, p.parseCaseExpression()
 		}
 		if p.peek(1).Kind == tokLParen {
@@ -846,7 +846,8 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		// Handle optional DISTINCT/ALL followed by arguments, or Spark's
 		// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
 		// without reparsing the argument expression.
-		hasQuantifier := p.isFunctionSetQuantifier()
+		hasQuantifier := p.isFunctionSetQuantifier() &&
+			!(p.peek(1).Kind == kwIGNORE && p.peek(2).Kind == kwNULLS && p.peek(3).Kind == tokRParen)
 		if hasQuantifier {
 			p.advance()
 		}

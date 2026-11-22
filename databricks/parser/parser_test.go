@@ -581,6 +581,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtDeclare,
 		},
 		{
+			name: "simple CASE with unquoted case column operand and nested searched CASE",
+			sql:  `SELECT CASE case WHEN 1 THEN 2 END, CASE CASE WHEN true THEN 1 END WHEN 1 THEN 2 END, CASE CASE case WHEN 1 THEN 2 END WHEN 2 THEN 3 END, CASE x WHEN 1 THEN case WHEN 2 THEN 3 END FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "first, last, and any_value with all/distinct operands before IGNORE NULLS",
+			sql:  `SELECT FIRST(all IGNORE NULLS), LAST(distinct IGNORE NULLS), ANY_VALUE(all IGNORE NULLS), FIRST(DISTINCT x), FIRST(DISTINCT ignore) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
