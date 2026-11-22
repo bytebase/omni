@@ -537,10 +537,14 @@ func (p *Parser) parseCreateTableLobStorageClause() error {
 	seen := map[string]bool{}
 	for {
 		tok := p.cur
-		if err := p.parseCreateTableItem(); err != nil {
+		item, err := p.parseColumnPath()
+		if err != nil {
 			return err
 		}
-		key := strings.ToUpper(p.source[tok.Loc:p.prev.End])
+		key := item.Str
+		if parts, ok := p.attributePaths[item]; ok {
+			key = strings.Join(parts, "\x00")
+		}
 		if seen[key] {
 			return p.syntaxErrorAtTok(tok)
 		}

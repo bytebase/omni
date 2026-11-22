@@ -1161,10 +1161,10 @@ func (p *Parser) parseATLobItemList() error {
 	seen := map[string]bool{}
 	for {
 		tok := p.cur
-		if err := p.parseATItemPath(); err != nil {
+		key, err := p.parseATItemPathKey()
+		if err != nil {
 			return err
 		}
-		key := strings.ToUpper(p.source[tok.Loc:p.prev.End])
 		if seen[key] {
 			return p.syntaxErrorAtTok(tok)
 		}
@@ -1175,6 +1175,28 @@ func (p *Parser) parseATLobItemList() error {
 		p.advance()
 	}
 	return p.atExpect(')')
+}
+
+// parseATItemPathKey reads a LOB or collection item path and returns a
+// normalized duplicate-detection key preserving quoted identifier case.
+func (p *Parser) parseATItemPathKey() (string, error) {
+	first, err := p.parseATNameString()
+	if err != nil {
+		return "", err
+	}
+	if p.cur.Type != '.' {
+		return first, nil
+	}
+	parts := []string{first}
+	for p.cur.Type == '.' {
+		p.advance()
+		part, err := p.parseATNameString()
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, "\x00"), nil
 }
 
 // parseATItemPath reads a LOB or collection item: a column, or an
