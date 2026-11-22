@@ -189,3 +189,44 @@ func TestBigQueryConsecutiveJoinConditions(t *testing.T) {
 		}
 	}
 }
+
+func TestUnionModeRev3Rejections(t *testing.T) {
+	// Genuinely invalid GoogleSQL syntax rejected in union mode (DialectDefault),
+	// exposed by Spanner emulator judge revision 3.
+	invalid := []string{
+		"|> EXPORT",
+		"|> EXPORT AS",
+		"a : BEGIN END zzz",
+		"LOAD DATA INTO a() FROM FILES()",
+		"|> INSERT REPLACE a",
+		"|> INSERT UPDATE a",
+	}
+	for _, sql := range invalid {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) expected error, got nil", sql)
+		}
+	}
+
+	// Valid forms that must remain accepted in union mode (DialectDefault).
+	valid := []string{
+		"|> EXPORT DATA",
+		"|> EXPORT DATA OPTIONS(uri='gs://b/*.csv', format='CSV')",
+		"a : BEGIN END",
+		"a : BEGIN END a",
+		"a : BEGIN END A",
+		"LOAD DATA INTO a (x INT64) FROM FILES()",
+		"LOAD DATA INTO a FROM FILES()",
+		"CREATE TABLE a () PRIMARY KEY ()",
+		"|> INSERT OR REPLACE a",
+		"|> INSERT OR UPDATE a",
+		"|> INSERT IGNORE a",
+		"|> INSERT OR IGNORE a",
+		"INSERT REPLACE INTO t (a) VALUES (1)",
+		"INSERT UPDATE INTO t (a) VALUES (1)",
+	}
+	for _, sql := range valid {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) unexpected error: %v", sql, err)
+		}
+	}
+}

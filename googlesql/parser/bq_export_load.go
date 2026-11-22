@@ -161,12 +161,8 @@ func (p *Parser) parseExportData() (ast.Node, error) {
 // pipe EXPORT DATA operator, nothing: the exported rows are the pipe input.
 func (p *Parser) parseExportDataNoQuery() (*ast.ExportDataStmt, error) {
 	export := p.advance() // EXPORT
-	if p.isBigQuery() || p.isSpanner() {
-		if _, err := p.expect(kwDATA); err != nil {
-			return nil, err
-		}
-	} else {
-		p.advance() // DATA
+	if _, err := p.expect(kwDATA); err != nil {
+		return nil, err
 	}
 
 	stmt := &ast.ExportDataStmt{}
@@ -303,7 +299,7 @@ func (p *Parser) parseLoadData() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.isSpanner() && len(cols) == 0 && len(cons) == 0 {
+		if len(cols) == 0 && len(cons) == 0 {
 			// googlesql.tm:3295 — A table must define at least one column.
 			return nil, &ParseError{
 				Position: openTok.Loc.Start, End: p.prev.Loc.End,

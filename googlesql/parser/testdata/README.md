@@ -18,10 +18,10 @@ with zero differences.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,176 | 0 | 438 | 83.24% |
-| Near-misses | 6,223 | 6,175 | 1 | 47 | 99.23% |
+| One per alternative | 2,614 | 2,181 | 0 | 433 | 83.44% |
+| Near-misses | 6,223 | 6,178 | 1 | 44 | 99.28% |
 | Suites (`suite:*`) | 626 | 577 | 0 | 49 | 92.17% |
-| **All** | **9,463** | **8,928** | **1** | **534** | **94.35%** |
+| **All** | **9,463** | **8,936** | **1** | **526** | **94.43%** |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -58,15 +58,19 @@ bringing agreement to **8,928 / 9,463 = 94.35%**):
   `CREATE VIEW a AS SELECT`) reject on syntax while valid view bodies
   (`CREATE VIEW a AS SELECT NULL`) stay accepted.
 
-Most of the 534 `Only omni accepts` rows are intentional BigQuery-only syntax
+Most of the 526 `Only omni accepts` rows are intentional BigQuery-only syntax
 that `googlesql/parser` accepts in union mode (`DialectDefault`) — scripting
 (`DECLARE`, `IF`, `CASE`, `BEGIN ... END`, etc.), BigQuery DDL, `QUALIFY`,
 `IS [NOT] DISTINCT FROM`, `|> MATCH_RECOGNIZE(...)`, `LOAD DATA` with
 `PARTITIONS(...)` / `TEMP TABLE`, etc. (The 451 rows present at judge rev 2 are
-catalogued below; the 76 generated + 7 suite rows exposed by judge rev 3 are
-BigQuery scripting/pipe/`LOAD DATA` forms plus a small set of invalid
-union-mode forms such as truncated `|> EXPORT` and bare `|> INSERT
-REPLACE|UPDATE`.)
+catalogued below.) Eight genuinely invalid union-mode forms exposed by judge
+rev 3 were closed in `DialectDefault` without removing any BigQuery syntax
+(**8,928 → 8,936 / 9,463 = 94.43%**):
+
+- Truncated `|> EXPORT` / `|> EXPORT AS` without `DATA` (2 rows; `googlesql.tm:4273`)
+- Mismatched end label `a : BEGIN END zzz` (1 row; `googlesql.tm:1242-1249`)
+- Empty `()` column list in `LOAD DATA INTO a() FROM FILES()` (1 row; `googlesql.tm:3295`)
+- Bare `|> INSERT REPLACE a` / `|> INSERT UPDATE a` without `OR` in pipe `INSERT` (4 rows; standalone `INSERT REPLACE|UPDATE INTO t ...` remains accepted in union mode)
 
 ## Historical notes (judge revision 2)
 
