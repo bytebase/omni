@@ -455,7 +455,7 @@ func (p *Parser) parseCreateView() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isTemp && strings.ContainsRune(target, '.') {
+	if isTemp && isQualifiedIdent(target) {
 		return nil, p.errorf("temporary view name %q cannot be qualified", target)
 	}
 	if p.cur().Kind == tokLParen {
@@ -540,7 +540,7 @@ func (p *Parser) parseCreateTempViewUsing() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if strings.ContainsRune(target, '.') {
+	if isQualifiedIdent(target) {
 		return nil, p.errorf("temporary view name %q cannot be qualified", target)
 	}
 	if p.match(tokLParen) {
@@ -589,7 +589,7 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isTemp && strings.ContainsRune(target, '.') {
+	if isTemp && isQualifiedIdent(target) {
 		return nil, p.errorf("temporary function name %q cannot be qualified", target)
 	}
 

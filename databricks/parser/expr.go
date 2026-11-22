@@ -649,7 +649,7 @@ func (p *Parser) parseUnaryExpression() error {
 		if p.depth+ops > maxNestingDepth {
 			return p.errorf("maximum nesting depth exceeded")
 		}
-		negated = k == tokMinus && ops == 1
+		negated = k == tokMinus
 	}
 	return p.parsePrimaryExpressionNeg(negated)
 }

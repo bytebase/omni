@@ -410,19 +410,26 @@ func (p *Parser) parseDataTypeWithKind() (TokenKind, error) {
 		}
 	case kwINTERVAL:
 		p.advance()
-		if p.match(kwYEAR, kwMONTH) {
+		if p.cur().Kind == kwYEAR || p.cur().Kind == kwMONTH {
+			startUnit := p.advance().Kind
 			if p.match(kwTO) {
+				if startUnit != kwYEAR {
+					return tokEOF, p.errorf("INTERVAL MONTH TO ... is not supported")
+				}
 				if _, err := p.expect(kwMONTH); err != nil {
 					return tokEOF, err
 				}
 			}
 			return kwINTERVAL, nil
 		}
-		if p.match(kwDAY, kwHOUR, kwMINUTE, kwSECOND) {
+		if startRank, ok := dayTimeIntervalRank(p.cur().Kind); ok {
+			p.advance()
 			if p.match(kwTO) {
-				if !p.match(kwHOUR, kwMINUTE, kwSECOND) {
-					return tokEOF, p.errorf("expected HOUR, MINUTE, or SECOND after TO")
+				endRank, endOK := dayTimeIntervalRank(p.cur().Kind)
+				if !endOK || endRank <= startRank {
+					return tokEOF, p.errorf("invalid DAY-TIME interval range; ending field must be less significant than starting field")
 				}
+				p.advance()
 			}
 			return kwINTERVAL, nil
 		}
@@ -436,6 +443,20 @@ func (p *Parser) parseDataTypeWithKind() (TokenKind, error) {
 		return tokEOF, err
 	}
 	return kind, p.parseOptionalTypeParams(kind, maxParams, requireParams, typeName)
+}
+
+func dayTimeIntervalRank(k TokenKind) (int, bool) {
+	switch k {
+	case kwDAY:
+		return 0, true
+	case kwHOUR:
+		return 1, true
+	case kwMINUTE:
+		return 2, true
+	case kwSECOND:
+		return 3, true
+	}
+	return 0, false
 }
 
 func (p *Parser) parsePrimitiveTypeName() (TokenKind, int, bool, string, error) {

@@ -928,8 +928,16 @@ func (p *Parser) parseGrantRevoke() (Statement, error) {
 	if p.isStatementEnd() {
 		return nil, p.errorf("expected principal in GRANT/REVOKE")
 	}
-	for !p.isStatementEnd() {
+	// Parse principal: optional USER/GROUP/ROLE prefix followed by a single
+	// identifier or string literal, leaving any trailing tokens for strict
+	// top-level validation.
+	if (p.cur().Kind == kwUSER || p.cur().Kind == kwGROUP || p.cur().Kind == kwROLE) && !p.isStatementEndAt(1) {
 		p.advance()
+	}
+	if p.isStringLit() {
+		p.advance()
+	} else if _, err := p.parseIdentifier(); err != nil {
+		return nil, err
 	}
 	return &ParsedStmt{Kind: StmtHiveNative, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

@@ -6559,3 +6559,21 @@ accept	accept	engine	suite:keywords	SELECT NOT LATERAL VIEW a() a
 accept	accept	engine	suite:keywords	SELECT INTERVAL + zzz a
 accept	accept	engine	suite:keywords	SELECT ~ zzz ELSE
 accept	accept	engine	suite:keywords	SELECT ~ zzz END
+accept	accept	engine	suite:spark-astbuilder	SELECT +-128Y
+accept	accept	engine	suite:spark-astbuilder	SELECT ~-128Y
+reject	reject	engine	suite:spark-astbuilder	SELECT -+128Y
+accept	accept	engine	suite:spark-astbuilder	SELECT +-32768S
+accept	accept	engine	suite:spark-astbuilder	SELECT +-9223372036854775808L
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP '1997-01-31 09:26:56.66666666UTC+08:00'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '2020-01-01 12:00:00+garbage'
+accept	accept	engine	suite:spark-astbuilder	SELECT TIMESTAMP '2020-01-01 12:00:00 America/Los_Angeles'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '2020-01-01 12:00:00 Invalid/Zone'
+reject	reject	engine	suite:spark-astbuilder	SELECT TIMESTAMP '2020-01-01 12:00:00 UTC+25:00'
+accept	accept	engine	suite:spark-astbuilder	CREATE TEMP VIEW `a.b` AS SELECT 1
+accept	accept	engine	suite:spark-astbuilder	CREATE TEMP VIEW `a.b` USING parquet
+accept	accept	engine	suite:spark-astbuilder	CREATE TEMP FUNCTION `a.b`() RETURNS INT RETURN 1
+accept	accept	engine	suite:spark-astbuilder	BEGIN `a.b`: LOOP LEAVE `a.b`; END LOOP `a.b`; END
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL SECOND TO HOUR)
+reject	reject	engine	suite:spark-astbuilder	SELECT CAST(NULL AS INTERVAL MINUTE TO HOUR)
+reject	reject	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL MONTH TO MONTH)
+accept	accept	engine	suite:spark-astbuilder	CREATE TABLE t (i INTERVAL HOUR TO SECOND)

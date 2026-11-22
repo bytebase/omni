@@ -438,7 +438,7 @@ func (p *Parser) parseOptionalBeginLabel() (string, error) {
 		return "", nil
 	}
 	p.advance()
-	if strings.ContainsRune(name, '.') {
+	if isQualifiedIdent(name) {
 		return "", p.errorf("qualified label name %q is not allowed", name)
 	}
 	norm := normalizeIdentName(name)
@@ -456,7 +456,7 @@ func (p *Parser) parseOptionalEndLabel(beginLabel string) error {
 	if err != nil {
 		return err
 	}
-	if strings.ContainsRune(name, '.') {
+	if isQualifiedIdent(name) {
 		return p.errorf("qualified end label %q is not allowed", name)
 	}
 	if beginLabel == "" {
@@ -570,7 +570,7 @@ func (p *Parser) parseCompoundStatement(allowDecls bool, phase int) (int, error)
 		if err != nil {
 			return 2, err
 		}
-		if strings.ContainsRune(name, '.') {
+		if isQualifiedIdent(name) {
 			return 2, p.errorf("qualified label %q is not allowed in LEAVE", name)
 		}
 		if found, _ := p.findActiveLabel(normalizeIdentName(name)); !found {
@@ -583,7 +583,7 @@ func (p *Parser) parseCompoundStatement(allowDecls bool, phase int) (int, error)
 		if err != nil {
 			return 2, err
 		}
-		if strings.ContainsRune(name, '.') {
+		if isQualifiedIdent(name) {
 			return 2, p.errorf("qualified label %q is not allowed in ITERATE", name)
 		}
 		found, isLoop := p.findActiveLabel(normalizeIdentName(name))
@@ -684,7 +684,7 @@ func (p *Parser) parseDeclareConditionStatement() error {
 	if err != nil {
 		return err
 	}
-	if strings.ContainsRune(name, '.') {
+	if isQualifiedIdent(name) {
 		return p.errorf("condition name %q cannot be qualified", name)
 	}
 	if _, err := p.expect(kwCONDITION); err != nil {
@@ -985,7 +985,7 @@ func (p *Parser) parseForStatement() error {
 	forVar := ""
 	cp := p.save()
 	if name, err := p.parseMultipartIdentifier(); err == nil && p.match(kwAS) {
-		if !strings.ContainsRune(name, '.') {
+		if !isQualifiedIdent(name) {
 			norm := normalizeIdentName(name)
 			if norm == beginLabel || p.hasActiveLabelOrForVar(norm) {
 				return p.errorf("FOR variable %q already exists in scope", name)

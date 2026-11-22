@@ -5,7 +5,28 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
+	_ "time/tzdata"
 )
+
+// isQualifiedIdent reports whether a parsed multipart identifier string
+// contains a qualification dot outside backtick-quoted segments (e.g.
+// `db.tbl` returns true, while “ `a.b` “ returns false).
+func isQualifiedIdent(s string) bool {
+	inBacktick := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '`' {
+			if inBacktick && i+1 < len(s) && s[i+1] == '`' {
+				i++
+				continue
+			}
+			inBacktick = !inBacktick
+		} else if s[i] == '.' && !inBacktick {
+			return true
+		}
+	}
+	return false
+}
 
 // exactIdentName unquotes a backtick-quoted identifier (unescaping “) while
 // preserving case, matching Spark v4.0.5's case-sensitive CTE and property checks.
@@ -389,18 +410,28 @@ func isValidSparkTimestamp(s string) bool {
 	if timePart == "" {
 		return true
 	}
-	// Strip optional trailing timezone (Z, +HH:MM, -HH:MM, +HH, -HH, or named zone after space).
-	if idx := strings.IndexByte(timePart, ' '); idx >= 0 {
-		timePart = timePart[:idx]
+	// Separate the clock prefix (digits, ':', '.') from any trailing timezone
+	// suffix (e.g. `Z`, `+08:00`, `UTC+08:00`, ` America/Los_Angeles`, ` PST`).
+	clockEnd := 0
+	for clockEnd < len(timePart) {
+		c := timePart[clockEnd]
+		if (c >= '0' && c <= '9') || c == ':' || c == '.' {
+			clockEnd++
+		} else {
+			break
+		}
 	}
-	if strings.HasSuffix(timePart, "Z") || strings.HasSuffix(timePart, "z") {
-		timePart = timePart[:len(timePart)-1]
-	} else if idx := strings.IndexAny(timePart, "+-"); idx > 0 {
-		timePart = timePart[:idx]
+	clockPart := timePart[:clockEnd]
+	tzPart := strings.TrimSpace(timePart[clockEnd:])
+	if clockPart == "" {
+		return false
+	}
+	if tzPart != "" && !isValidSparkTimezone(tzPart) {
+		return false
 	}
 	// Optional fractional seconds.
-	if idx := strings.IndexByte(timePart, '.'); idx >= 0 {
-		frac := timePart[idx+1:]
+	if idx := strings.IndexByte(clockPart, '.'); idx >= 0 {
+		frac := clockPart[idx+1:]
 		if len(frac) == 0 || len(frac) > 9 {
 			return false
 		}
@@ -409,9 +440,9 @@ func isValidSparkTimestamp(s string) bool {
 				return false
 			}
 		}
-		timePart = timePart[:idx]
+		clockPart = clockPart[:idx]
 	}
-	tparts := strings.Split(timePart, ":")
+	tparts := strings.Split(clockPart, ":")
 	if len(tparts) < 1 || len(tparts) > 3 {
 		return false
 	}
@@ -432,6 +463,111 @@ func isValidSparkTimestamp(s string) bool {
 		}
 	}
 	return true
+}
+
+// sparkShortZoneIDs mirrors Java's java.time.ZoneId.SHORT_IDS accepted by
+// Apache Spark's SparkDateTimeUtils.getZoneId.
+var sparkShortZoneIDs = map[string]struct{}{
+	"ACT": {}, "AET": {}, "AGT": {}, "ART": {}, "AST": {}, "BET": {}, "BST": {},
+	"CAT": {}, "CNT": {}, "CST": {}, "CTT": {}, "EAT": {}, "ECT": {}, "EST": {},
+	"HST": {}, "IET": {}, "IST": {}, "JST": {}, "MIT": {}, "MST": {}, "NET": {},
+	"NST": {}, "PLT": {}, "PNT": {}, "PRT": {}, "PST": {}, "SST": {}, "VST": {},
+}
+
+func isValidSparkTimezone(tz string) bool {
+	if tz == "" {
+		return false
+	}
+	if tz == "Z" || tz == "z" {
+		return true
+	}
+	// Prefix UTC / GMT / UT with optional offset (e.g. `UTC`, `UTC+08:00`, `GMT-5`).
+	for _, prefix := range []string{"UTC", "GMT", "UT"} {
+		if strings.HasPrefix(tz, prefix) {
+			rest := tz[len(prefix):]
+			if rest == "" {
+				return true
+			}
+			return isValidSparkZoneOffset(rest)
+		}
+	}
+	if tz[0] == '+' || tz[0] == '-' {
+		return isValidSparkZoneOffset(tz)
+	}
+	if _, ok := sparkShortZoneIDs[tz]; ok {
+		return true
+	}
+	// Reject Go's special "Local" sentinel and check IANA zone names.
+	if strings.EqualFold(tz, "Local") {
+		return false
+	}
+	_, err := time.LoadLocation(tz)
+	return err == nil
+}
+
+// isValidSparkZoneOffset validates Java ZoneOffset / Spark timezone offsets:
+// ±H, ±HH, ±H:MM, ±HH:MM, ±HHMM, ±HH:MM:SS, ±HHMMSS within [-18:00:00, +18:00:00].
+func isValidSparkZoneOffset(s string) bool {
+	if len(s) < 2 || (s[0] != '+' && s[0] != '-') {
+		return false
+	}
+	body := s[1:]
+	var h, m, sec int
+	var ok bool
+	if strings.ContainsRune(body, ':') {
+		parts := strings.Split(body, ":")
+		if len(parts) < 2 || len(parts) > 3 {
+			return false
+		}
+		h, ok = parseDigits(parts[0], 1, 2)
+		if !ok {
+			return false
+		}
+		m, ok = parseDigits(parts[1], 2, 2)
+		if !ok || m > 59 {
+			return false
+		}
+		if len(parts) == 3 {
+			sec, ok = parseDigits(parts[2], 2, 2)
+			if !ok || sec > 59 {
+				return false
+			}
+		}
+	} else {
+		switch len(body) {
+		case 1, 2:
+			h, ok = parseDigits(body, 1, 2)
+			if !ok {
+				return false
+			}
+		case 4:
+			h, ok = parseDigits(body[:2], 2, 2)
+			if !ok {
+				return false
+			}
+			m, ok = parseDigits(body[2:], 2, 2)
+			if !ok || m > 59 {
+				return false
+			}
+		case 6:
+			h, ok = parseDigits(body[:2], 2, 2)
+			if !ok {
+				return false
+			}
+			m, ok = parseDigits(body[2:4], 2, 2)
+			if !ok || m > 59 {
+				return false
+			}
+			sec, ok = parseDigits(body[4:], 2, 2)
+			if !ok || sec > 59 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	total := h*3600 + m*60 + sec
+	return total <= 18*3600
 }
 
 func parseDigits(s string, minLen, maxLen int) (int, bool) {
