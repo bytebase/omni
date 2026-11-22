@@ -80,6 +80,28 @@ func Open(t testing.TB, database string) *sql.DB {
 	return tape.Open(t, &tape.Server{Pins: Pins, Live: live(database), Codec: Codec{}}, Default)
 }
 
+// Judge returns a direct connection to the pinned Hive server outside any tape,
+// for the compat.tsv judge during OMNI_RECORD=1 or OMNI_RECORD=verify runs.
+// Errors from HiveServer2 are normalized to *Error so callers can inspect the
+// Hive error code and message without reflection.
+func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
+	t.Helper()
+	if !enginetest.Recording(t) {
+		t.Fatalf("testcontainer.Judge outside a recording: a replay reaches no server")
+	}
+	st := started(t, pin)
+	db := sql.OpenDB(&connector{live: gohive.NewConnector(gohive.Config{
+		Host:     st.host,
+		Port:     st.port,
+		Auth:     "NONE",
+		Username: user,
+		Database: "default",
+		Service:  "hive",
+	})})
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
 // live connects to the pinned server, starting it on the first call. It is
 // called only in a recording.
 func live(database string) func(testing.TB, enginetest.Pin) sqldriver.Connector {
@@ -272,7 +294,10 @@ func start(ctx context.Context, pin enginetest.Pin) (err error) {
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        pin.ImageRef(),
 			ExposedPorts: []string{"10000/tcp"},
-			Env:          map[string]string{"SERVICE_NAME": "hiveserver2"},
+			Env: map[string]string{
+				"SERVICE_NAME": "hiveserver2",
+				"SERVICE_OPTS": "-Xmx2G",
+			},
 			Files: []testcontainers.ContainerFile{{
 				HostFilePath:      siteFile,
 				ContainerFilePath: "/opt/hive/conf/hive-site.xml",
