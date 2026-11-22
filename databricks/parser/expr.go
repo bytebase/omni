@@ -54,6 +54,9 @@ func (p *Parser) canBeImplicitExprAlias() bool {
 		return false
 	}
 	if k == tokIdent || k == tokBackquoted || k == tokDoubleQuoted {
+		if k == tokIdent && isWord(p.cur(), "QUALIFY") && !p.isStatementEnd() && p.peek(1).Kind != tokRParen {
+			return false
+		}
 		return true
 	}
 	// If the next token ends the current expression list / statement / paren,
@@ -149,16 +152,23 @@ func (p *Parser) parseAndExpression() error {
 }
 
 func (p *Parser) parseNotExpression() error {
-	if p.cur().Kind == kwNOT {
-		cp := p.save()
-		p.advance()
-		if err := p.parseNotExpression(); err == nil {
-			return nil
+	ops := 0
+	for p.cur().Kind == kwNOT || p.cur().Kind == tokBang {
+		if p.cur().Kind == kwNOT && ops == 0 {
+			// NOT is in Spark's nonReserved list, so bare `SELECT NOT` (with no
+			// operand following) is a column reference rather than unary NOT.
+			next := p.peek(1).Kind
+			if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen ||
+				next == kwFROM || next == kwWHERE || next == kwGROUP || next == kwHAVING ||
+				next == kwORDER || next == kwLIMIT || next == kwOFFSET || next == kwAS {
+				break
+			}
 		}
-		// NOT is in Spark's nonReserved list, so bare `SELECT NOT` is a column reference.
-		p.restore(cp)
-	} else if p.match(tokBang) {
-		return p.parseNotExpression()
+		ops++
+		if p.depth+ops > maxNestingDepth {
+			return p.errorf("maximum nesting depth exceeded")
+		}
+		p.advance()
 	}
 	if p.cur().Kind == kwEXISTS && p.peek(1).Kind == tokLParen {
 		cp := p.save()
@@ -395,8 +405,12 @@ func (p *Parser) parseMulExpression() error {
 }
 
 func (p *Parser) parseUnaryExpression() error {
-	if p.match(tokMinus, tokPlus, tokTilde) {
-		return p.parseUnaryExpression()
+	ops := 0
+	for p.match(tokMinus, tokPlus, tokTilde) {
+		ops++
+		if p.depth+ops > maxNestingDepth {
+			return p.errorf("maximum nesting depth exceeded")
+		}
 	}
 	return p.parsePrimaryExpression()
 }
@@ -537,19 +551,54 @@ func (p *Parser) parsePrimaryAtom() error {
 			}
 
 		case kwFIRST, kwANY_VALUE, kwLAST:
-			cp := p.save()
 			p.advance()
 			p.advance()
-			if err := p.parseExpression(); err == nil {
-				if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS {
-					p.advance()
-					p.advance()
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			// Handle optional DISTINCT/ALL followed by arguments, or Spark's
+			// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
+			// without reparsing the argument expression.
+			if p.cur().Kind == kwDISTINCT || p.cur().Kind == kwALL {
+				cpQuant := p.save()
+				p.advance()
+				if err := p.parseFunctionArgument(); err == nil {
+					if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
+						p.advance()
+						p.advance()
+						p.advance()
+						return p.parseFunctionCallSuffixes()
+					}
+					for p.match(tokComma) {
+						if err := p.parseFunctionArgument(); err != nil {
+							return err
+						}
+					}
+					if _, err := p.expect(tokRParen); err != nil {
+						return err
+					}
+					return p.parseFunctionCallSuffixes()
 				}
-				if _, err := p.expect(tokRParen); err == nil {
-					return nil
+				p.restore(cpQuant)
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
+				p.advance()
+				p.advance()
+				p.advance()
+				return p.parseFunctionCallSuffixes()
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwPOSITION:
 			cp := p.save()
@@ -578,43 +627,112 @@ func (p *Parser) parsePrimaryAtom() error {
 			p.restore(cp)
 
 		case kwSUBSTR, kwSUBSTRING:
-			cp := p.save()
+			// Single-pass parsing for both SQL SUBSTRING(s FROM pos [FOR len])
+			// and normal function calls SUBSTR(s, pos [, len]) without reparsing.
 			p.advance()
 			p.advance()
-			if err := p.parseValueExpression(); err == nil && p.match(kwFROM, tokComma) {
-				if err := p.parseValueExpression(); err == nil {
-					if p.match(kwFOR, tokComma) {
-						if err := p.parseValueExpression(); err != nil {
-							p.restore(cp)
-							goto afterSpecial
-						}
-					}
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
-					}
-				}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
 			}
-			p.restore(cp)
-
-		case kwTRIM:
-			cp := p.save()
-			p.advance()
-			p.advance()
-			p.match(kwBOTH, kwLEADING, kwTRAILING)
-			if p.cur().Kind != kwFROM {
-				if err := p.parseValueExpression(); err != nil {
-					p.restore(cp)
-					goto afterSpecial
-				}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
 			}
 			if p.match(kwFROM) {
-				if err := p.parseValueExpression(); err == nil {
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if p.match(kwFOR, tokComma) {
+					if err := p.parseValueExpression(); err != nil {
+						return err
+					}
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			if p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+				if p.match(kwFOR) {
+					if err := p.parseValueExpression(); err != nil {
+						return err
+					}
+					if _, err := p.expect(tokRParen); err != nil {
+						return err
+					}
+					return p.parseFunctionCallSuffixes()
+				}
+				for p.match(tokComma) {
+					if err := p.parseFunctionArgument(); err != nil {
+						return err
 					}
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+
+		case kwTRIM:
+			// Single-pass parsing for both SQL TRIM([BOTH|LEADING|TRAILING] [chars] FROM str)
+			// and ordinary function calls TRIM(str [, chars]) to avoid exponential reparsing
+			// on deeply nested TRIM(TRIM(...)) expressions.
+			p.advance()
+			p.advance()
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if p.match(kwBOTH, kwLEADING, kwTRAILING) {
+				if p.cur().Kind != kwFROM {
+					if err := p.parseValueExpression(); err != nil {
+						return err
+					}
+				}
+				if _, err := p.expect(kwFROM); err != nil {
+					return err
+				}
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+				p.advance()
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+				p.advance()
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwOVERLAY:
 			cp := p.save()
@@ -860,6 +978,10 @@ func (p *Parser) parseFunctionCall() error {
 		}
 	}
 afterArgs:
+	return p.parseFunctionCallSuffixes()
+}
+
+func (p *Parser) parseFunctionCallSuffixes() error {
 	// Optional WITHIN GROUP (ORDER BY sortItem (COMMA sortItem)*)
 	if p.cur().Kind == kwWITHIN && p.peek(1).Kind == kwGROUP {
 		p.advance()

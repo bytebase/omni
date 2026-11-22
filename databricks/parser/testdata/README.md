@@ -12,9 +12,9 @@ recognizer again on every run with no server, credentials, or network.
 
 | Rows | Total | Agree | Only the grammar accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,229 | 2,229 | 0 | 0 |
-| Near-misses | 4,209 | 4,191 | 18 | 0 |
-| **All** | **6,438** | **6,420** | **18** | **0** |
+| One per alternative | 2,229 | 2,226 | 3 | 0 |
+| Near-misses | 4,209 | 4,187 | 22 | 0 |
+| **All** | **6,438** | **6,413** | **25** | **0** |
 
 - **The grammar** is `../../testdata/SqlBaseParser.g4` with its lexer grammar
   `../../testdata/SqlBaseLexer.g4`: Apache Spark's official ANTLR 4 SQL grammar
@@ -70,14 +70,16 @@ grammar rows.
 - **Grammar judge (`SourceGrammar`), 6,438 rows.** A recognizer over
   `SqlBaseParser.g4` + `SqlBaseLexer.g4` accepts any statement the grammar
   derives and rejects every other row.
-- **Agreement: 6,420 / 6,438 (99.72%), with 2,229 / 2,229 (100%) on all
-  generated grammar alternatives and 0 `omni-only` gaps.**
+- **Agreement: 6,413 / 6,438 (99.61%), with 2,226 / 2,229 (99.87%) on
+  generated grammar alternatives (the only 3 excluded alternatives are Spark's
+  `errorCapturingIdentifierExtra` error-capturing rules for unquoted hyphens)
+  and 0 `omni-only` gaps.**
 
-## Remaining tail (18 `judge-only` near-misses)
+## Remaining tail (25 `judge-only` rows)
 
-All 18 remaining discrepancies are near-miss rows that `databricks/parser`
-intentionally rejects while the grammar recognizer accepts them due to two
-known properties of the offline recognizer:
+All 25 remaining discrepancies are invalid SQL forms that `databricks/parser`
+intentionally rejects while the grammar recognizer accepts them due to three
+known properties of the offline recognizer and upstream error-capturing rules:
 
 1. **9 malformed optimizer hint near-misses** (`SELECT /*+ */ a`,
    `SELECT /*+(a) */ a`, `SELECT /*+ a a) */ a`, `SELECT /*+ a() */ a`,
@@ -96,6 +98,13 @@ known properties of the offline recognizer:
    recognizer, whereas `databricks/parser` parses `SHOW CREATE TABLE`,
    `CREATE INDEX`, `DROP INDEX`, `ALTER TABLE ... REPLACE COLUMNS`, `SET`, and
    `RESET` strictly and rejects these malformed near-misses.
+3. **7 unquoted hyphenated identifier (`errorCapturingIdentifierExtra`) rows**
+   (3 alternatives `FROM a - a`, `FROM a - a - a` and 4 near-misses including
+   `DESC FUNCTION - zzz`): `SqlBaseParser.g4:1479` parses `(MINUS identifier)+`
+   solely so Spark's `AstBuilder` can reject unquoted hyphenated names like
+   `my-table` with a tailored diagnostic requiring backticks. `databricks/parser`
+   rejects these directly with a positioned `ParseError` while accepting
+   backtick-quoted identifiers.
 
 ## What the judge cannot decide
 

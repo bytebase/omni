@@ -214,24 +214,23 @@ func (p *Parser) parseConfigKeyUnquoted() (bool, error) {
 	return hasDot, nil
 }
 
-func (p *Parser) parseConfigValue(allowIdent bool) error {
+func (p *Parser) parseConfigValue(allowRawTail bool) error {
+	if allowRawTail {
+		// Dotted Spark configuration properties (e.g.
+		// `SET spark.sql.session.timeZone = America/Los_Angeles` or URI paths)
+		// capture the unquoted configuration value through the statement boundary,
+		// matching SqlBaseParser.g4's `SET .*?`.
+		for !p.isStatementEnd() {
+			p.advance()
+		}
+		return nil
+	}
 	switch p.cur().Kind {
 	case tokBackquoted, tokString, tokDoubleQuoted, kwTRUE, kwFALSE,
 		tokInt, tokDecimal, tokExponent, tokBigInt, tokSmallInt, tokTinyInt,
 		tokFloat, tokDouble, tokBigDecimal:
 		p.advance()
 		return nil
-	case tokIdent:
-		if allowIdent {
-			p.advance()
-			for p.match(tokDot, tokMinus) {
-				if !p.cur().Kind.isIdentifier() && p.cur().Kind != tokInt {
-					return p.errorf("expected token in configuration value")
-				}
-				p.advance()
-			}
-			return nil
-		}
 	}
 	return p.errorf("expected configuration value, got %q", p.cur().Text)
 }

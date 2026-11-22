@@ -355,6 +355,7 @@ func scanNumberOrIdent(src string, start int) Token {
 	i := start
 	hasDot := false
 	hasExp := false
+	hasExpSign := false
 
 	if src[i] == '.' {
 		hasDot = true
@@ -384,11 +385,14 @@ func scanNumberOrIdent(src string, start int) Token {
 	// Optional exponent: E[+-]?DIGIT+
 	if i < n && (src[i] == 'E' || src[i] == 'e') {
 		j := i + 1
+		signed := false
 		if j < n && (src[j] == '+' || src[j] == '-') {
+			signed = true
 			j++
 		}
 		if j < n && isASCIIDigit(src[j]) {
 			hasExp = true
+			hasExpSign = signed
 			i = j
 			for i < n && isASCIIDigit(src[i]) {
 				i++
@@ -424,8 +428,9 @@ func scanNumberOrIdent(src string, start int) Token {
 		}
 	}
 
-	// If no dot and no exp and followed by identifier characters, Spark lexes it as IDENTIFIER (e.g. 123abc).
-	if !hasDot && !hasExp && isIdentPartAt(src, i) {
+	// If no dot and no sign in exponent and followed by identifier characters,
+	// Spark's IDENTIFIER rule wins by longest match (e.g. 123abc, 1e2data).
+	if !hasDot && !hasExpSign && isIdentPartAt(src, i) {
 		for i < n {
 			r, sz := utf8.DecodeRuneInString(src[i:])
 			if isIdentPartRune(r) {

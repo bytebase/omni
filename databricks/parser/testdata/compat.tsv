@@ -4382,7 +4382,7 @@ accept	accept	grammar	comparisonOperator/NSEQ	DESC FUNCTION <=>
 reject	reject	grammar	comparisonOperator/NSEQ!insert	DESC FUNCTION <=> zzz
 accept	accept	grammar	arithmeticOperator/PLUS	DESC FUNCTION +
 accept	accept	grammar	arithmeticOperator/MINUS	DESC FUNCTION -
-accept	accept	grammar	arithmeticOperator/MINUS!insert	DESC FUNCTION - zzz
+reject	accept	grammar	arithmeticOperator/MINUS!insert	DESC FUNCTION - zzz
 accept	accept	grammar	arithmeticOperator/ASTERISK	DESC FUNCTION *
 reject	reject	grammar	arithmeticOperator/ASTERISK!insert	DESC FUNCTION * zzz
 accept	accept	grammar	arithmeticOperator/SLASH	DESC FUNCTION /
@@ -5147,17 +5147,17 @@ reject	reject	grammar	qualifiedName(DOT_identifier)*/DOT_identifier_(DOT_identif
 reject	reject	grammar	qualifiedName(DOT_identifier)*/DOT_identifier_(DOT_identifier)*!drop-2	SELECT a..*
 reject	reject	grammar	qualifiedName(DOT_identifier)*/DOT_identifier_(DOT_identifier)*!insert	SELECT a.a zzz.*
 accept	accept	grammar	errorCapturingIdentifier/identifier_errorCapturingIdentifierExtra	FROM a
-accept	accept	grammar	errorCapturingIdentifierExtra/(MINUS_identifier)+	FROM a - a
+reject	accept	grammar	errorCapturingIdentifierExtra/(MINUS_identifier)+	FROM a - a
 reject	reject	grammar	errorCapturingIdentifierExtra/(MINUS_identifier)+!drop-2	FROM a -
-accept	accept	grammar	errorCapturingIdentifierExtra/(MINUS_identifier)+!insert	FROM a - a zzz
+reject	accept	grammar	errorCapturingIdentifierExtra/(MINUS_identifier)+!insert	FROM a - a zzz
 accept	accept	grammar	errorCapturingIdentifierExtra/%empty	FROM a
-accept	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier	FROM a - a
-accept	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+	FROM a - a - a
+reject	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier	FROM a - a
+reject	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+	FROM a - a - a
 reject	reject	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!drop-1	FROM a a - a
 reject	reject	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!drop-2	FROM a - - a
-accept	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!drop-3	FROM a - a a
+reject	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!drop-3	FROM a - a a
 reject	reject	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!drop-4	FROM a - a -
-accept	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!insert	FROM a - a - a zzz
+reject	accept	grammar	errorCapturingIdentifierExtra(MINUS_identifier)+/MINUS_identifier_(MINUS_identifier)+!insert	FROM a - a - a zzz
 accept	accept	grammar	identifier/strictIdentifier	SELECT a
 accept	accept	grammar	identifier/strictNonReserved	SELECT ANTI
 accept	accept	grammar	identifier/strictNonReserved!insert	SELECT ANTI zzz

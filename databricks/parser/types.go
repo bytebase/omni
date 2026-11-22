@@ -22,29 +22,19 @@ func (p *Parser) parseStrictIdentifier() (string, error) {
 	return tok.Text, nil
 }
 
-// parseErrorCapturingIdentifier parses:
-//
-//	errorCapturingIdentifier : identifier (MINUS identifier)* ;
+// parseErrorCapturingIdentifier parses Spark's errorCapturingIdentifier rule
+// (SqlBaseParser.g4:1479): an identifier, rejecting the error-capturing
+// unquoted hyphenated alternative (`a-b`) with a positioned ParseError just as
+// Spark's AstBuilder does.
 func (p *Parser) parseErrorCapturingIdentifier() (string, error) {
 	first, err := p.parseIdentifier()
 	if err != nil {
 		return "", err
 	}
-	if p.cur().Kind != tokMinus || !p.peek(1).Kind.isIdentifier() {
-		return first, nil
+	if p.cur().Kind == tokMinus && p.peek(1).Kind.isIdentifier() {
+		return "", p.errorf("unquoted identifier cannot contain '-'; quote it with backticks")
 	}
-	var b strings.Builder
-	b.WriteString(first)
-	for p.cur().Kind == tokMinus && p.peek(1).Kind.isIdentifier() {
-		p.advance()
-		part, err := p.parseIdentifier()
-		if err != nil {
-			return "", err
-		}
-		b.WriteByte('-')
-		b.WriteString(part)
-	}
-	return b.String(), nil
+	return first, nil
 }
 
 // parseQualifiedName parses: identifier (DOT identifier)*

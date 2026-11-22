@@ -32,6 +32,46 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "select qualify after unaliased expression",
+			sql:  `SELECT row_number() OVER () QUALIFY row_number() OVER () = 1`,
+			kind: StmtQuery,
+		},
+		{
+			name: "select qualify after group by",
+			sql:  `SELECT k, count(*) FROM t GROUP BY k QUALIFY row_number() OVER (ORDER BY k) = 1`,
+			kind: StmtQuery,
+		},
+		{
+			name: "first last any_value with window and filter suffixes",
+			sql:  `SELECT first(x) OVER (ORDER BY x), last(x) OVER (), any_value(x) FILTER (WHERE x > 0), first(x IGNORE NULLS) OVER (PARTITION BY k) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "digit-leading identifier with exponent prefix",
+			sql:  `CREATE TABLE 1e2data (id INT)`,
+			kind: StmtCreateTable,
+		},
+		{
+			name: "select from digit-leading identifier with exponent prefix",
+			sql:  `SELECT * FROM 1e2data`,
+			kind: StmtQuery,
+		},
+		{
+			name: "backtick-quoted hyphenated table name",
+			sql:  "CREATE TABLE `my-table` (a INT)",
+			kind: StmtCreateTable,
+		},
+		{
+			name: "set spark timezone with path separator",
+			sql:  `SET spark.sql.session.timeZone = America/Los_Angeles`,
+			kind: StmtSet,
+		},
+		{
+			name: "set spark uri config value",
+			sql:  `SET fs.s3a.endpoint = https://s3.amazonaws.com/bucket`,
+			kind: StmtSet,
+		},
+		{
 			name: "select lateral view and pivot",
 			sql:  `SELECT * FROM sales LATERAL VIEW EXPLODE(items) t AS item PIVOT (SUM(amount) FOR quarter IN ('Q1', 'Q2'))`,
 			kind: StmtQuery,
@@ -272,6 +312,8 @@ func TestParseErrors(t *testing.T) {
 		{"incomplete set catalog", "SET CATALOG"},
 		{"incomplete set variable", "SET VARIABLE (a = (SELECT 1)"},
 		{"dangling comma in partition by", "FROM f(TABLE t PARTITION BY a,)"},
+		{"unquoted hyphenated create table", "CREATE TABLE my-table (a INT)"},
+		{"unquoted hyphenated select from", "SELECT * FROM my-table"},
 	}
 
 	for _, tc := range bad {
@@ -285,8 +327,41 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestNestingLimit(t *testing.T) {
-	deep := "SELECT " + strings.Repeat("(", maxNestingDepth+50) + "1" + strings.Repeat(")", maxNestingDepth+50)
-	if _, err := Parse(deep); err == nil {
-		t.Fatalf("expected nesting depth error for deeply nested expression")
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "deep parens",
+			sql:  "SELECT " + strings.Repeat("(", maxNestingDepth+50) + "1" + strings.Repeat(")", maxNestingDepth+50),
+		},
+		{
+			name: "deep unary minus",
+			sql:  "SELECT " + strings.Repeat("-", maxNestingDepth+50) + "1",
+		},
+		{
+			name: "deep unary not",
+			sql:  "SELECT " + strings.Repeat("NOT ", maxNestingDepth+50) + "a",
+		},
+		{
+			name: "deep unary bang",
+			sql:  "SELECT " + strings.Repeat("!", maxNestingDepth+50) + "a",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err == nil {
+				t.Fatalf("expected nesting depth error for %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestDeepNestedTrimLinear(t *testing.T) {
+	// 50 nested TRIM(...) calls must parse in linear time without exponential reparsing.
+	const depth = 50
+	sql := "SELECT " + strings.Repeat("TRIM(", depth) + "x" + strings.Repeat(")", depth)
+	if _, err := Parse(sql); err != nil {
+		t.Fatalf("Parse nested TRIM failed: %v", err)
 	}
 }
