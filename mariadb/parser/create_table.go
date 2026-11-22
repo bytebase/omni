@@ -48,8 +48,14 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	}
 	stmt.Table = ref
 	outer := p.ddlTable
+	outerFieldDBs := p.ddlFieldDBs
 	p.ddlTable = ref
-	defer func() { p.ddlTable = outer }()
+	p.ddlFieldDBs = nil
+	defer func() {
+		stmt.FieldDBs = p.ddlFieldDBs
+		p.ddlTable = outer
+		p.ddlFieldDBs = outerFieldDBs
+	}()
 
 	// CREATE TABLE ... LIKE
 	if p.cur.Type == kwLIKE {
@@ -493,8 +499,11 @@ func (p *Parser) parseRowBound() (nodes.RowBoundKind, error) {
 // case and all, and refuses another while it parses: 1103 for the table, 1102 for the
 // database. A leading dot, `.a`, is the name alone.
 //
-// A database qualifier passes only when the statement's table names its database too:
-// one that does not stands for the current database, which the parser does not know.
+// When the statement's table names no database, its database is the session's current
+// database, which the parser does not know. A 3-part field_ident is still checked for
+// database-name syntax and matching table name, and its database qualifier is recorded
+// on the statement (FieldDBs) so a caller with a current database (such as the
+// catalog) can hold it to the session database (1102).
 //
 // Ref: field_ident in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) parseFieldIdent() (string, error) {
@@ -525,11 +534,23 @@ func (p *Parser) parseFieldIdent() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if table == nil || table.Schema == "" || table.Schema != first {
+	if table == nil {
 		return "", &ParseError{Message: "Incorrect database name '" + first + "'", Position: pos}
+	}
+	if table.Schema != "" {
+		if table.Schema != first {
+			return "", &ParseError{Message: "Incorrect database name '" + first + "'", Position: pos}
+		}
+	} else {
+		if err := refuseDatabaseName(first, pos); err != nil {
+			return "", err
+		}
 	}
 	if table.Name != second {
 		return "", &ParseError{Message: "Incorrect table name '" + second + "'", Position: pos}
+	}
+	if table.Schema == "" {
+		p.ddlFieldDBs = append(p.ddlFieldDBs, first)
 	}
 	return third, nil
 }

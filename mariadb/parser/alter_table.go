@@ -68,8 +68,14 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	}
 	stmt.Table = ref
 	outer := p.ddlTable
+	outerFieldDBs := p.ddlFieldDBs
 	p.ddlTable = ref
-	defer func() { p.ddlTable = outer }()
+	p.ddlFieldDBs = nil
+	defer func() {
+		stmt.FieldDBs = p.ddlFieldDBs
+		p.ddlTable = outer
+		p.ddlFieldDBs = outerFieldDBs
+	}()
 
 	// Completion: after ALTER TABLE table-name, offer sub-command keywords.
 	p.checkCursor()

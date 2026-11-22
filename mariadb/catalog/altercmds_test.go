@@ -391,3 +391,66 @@ func TestAlterTableMultiCommandSuccess(t *testing.T) {
 		t.Error("column 'score' not found")
 	}
 }
+
+func TestQualifiedFieldIdentDatabaseCheck(t *testing.T) {
+	t.Run("matching current DB drops column", func(t *testing.T) {
+		c := setupTestTable(t)
+		mustExec(t, c, "ALTER TABLE t1 DROP test.t1.age")
+		tbl := c.GetDatabase("test").GetTable("t1")
+		if tbl.GetColumn("age") != nil {
+			t.Fatal("expected column age to be dropped")
+		}
+	})
+
+	t.Run("mismatched current DB returns 1102", func(t *testing.T) {
+		c := setupTestTable(t)
+		for _, sql := range []string{
+			"ALTER TABLE t1 DROP other.t1.age",
+			"ALTER TABLE t1 DROP TEST.t1.age", // MariaDB compares db case-sensitively
+			"ALTER TABLE missing DROP other.missing.age",
+			"CREATE TABLE t2 (other.t2.id INT)",
+		} {
+			results, err := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+			if err != nil {
+				t.Fatalf("%q: unexpected parse error: %v", sql, err)
+			}
+			if len(results) != 1 || results[0].Error == nil {
+				t.Fatalf("%q: expected error, got %+v", sql, results)
+			}
+			catErr, ok := results[0].Error.(*Error)
+			if !ok || catErr.Code != ErrWrongDBName {
+				t.Fatalf("%q: got %v, want error code %d", sql, results[0].Error, ErrWrongDBName)
+			}
+		}
+	})
+
+	t.Run("no database selected returns 1102 before 1046", func(t *testing.T) {
+		c := New()
+		results, err := c.Exec("ALTER TABLE a DROP a.a.a", &ExecOptions{ContinueOnError: true})
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok || catErr.Code != ErrWrongDBName {
+			t.Fatalf("got %v, want error code %d", results[0].Error, ErrWrongDBName)
+		}
+	})
+
+	t.Run("matching current DB creates table with 3-part column", func(t *testing.T) {
+		c := setupTestTable(t)
+		mustExec(t, c, "CREATE TABLE t2 (test.t2.id INT)")
+		if c.GetDatabase("test").GetTable("t2").GetColumn("id") == nil {
+			t.Fatal("expected column id on t2")
+		}
+	})
+
+	t.Run("explicit table schema ignores current DB", func(t *testing.T) {
+		c := setupTestTable(t)
+		mustExec(t, c, "CREATE DATABASE other")
+		c.SetCurrentDatabase("other")
+		mustExec(t, c, "ALTER TABLE test.t1 DROP test.t1.age")
+		if c.GetDatabase("test").GetTable("t1").GetColumn("age") != nil {
+			t.Fatal("expected column age to be dropped on test.t1")
+		}
+	})
+}

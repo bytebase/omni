@@ -94,6 +94,7 @@ const (
 	ErrPeriodFieldsDifferentTypes = 4153
 	ErrKeyDoesNotExist            = 1176
 	ErrPKIndexCantBeIgnored       = 4174
+	ErrWrongDBName                = 1102
 )
 
 var sqlStateMap = map[int]string{
@@ -167,6 +168,7 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintDupName:            "HY000",
 	ErrKeyDoesNotExist:                   "42000",
 	ErrPKIndexCantBeIgnored:              "HY000",
+	ErrWrongDBName:                       "42000",
 }
 
 func sqlState(code int) string {
@@ -189,6 +191,14 @@ func errUnknownDatabase(name string) error {
 func errNoDatabaseSelected() error {
 	return &Error{Code: ErrNoDatabaseSelected, SQLState: sqlState(ErrNoDatabaseSelected),
 		Message: "No database selected"}
+}
+
+// errWrongDBName is 1102, what MariaDB answers when a 3-part field_ident's
+// database qualifier does not match the target table's database (including the
+// session's current database for an unqualified table).
+func errWrongDBName(name string) error {
+	return &Error{Code: ErrWrongDBName, SQLState: sqlState(ErrWrongDBName),
+		Message: fmt.Sprintf("Incorrect database name '%s'", name)}
 }
 
 func errDupTable(name string) error {
