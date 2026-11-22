@@ -1051,6 +1051,26 @@ func (p *Parser) parseFunctionTable() error {
 					return err
 				}
 			}
+			return p.parseTableAlias()
+		}
+		if singlePlainArg {
+			// IDENTIFIER(expr) without a second `(...)` is an identifierReference
+			// tableName, which accepts temporalClause?, optionsClause?, sample?, tableAlias.
+			if p.isTemporalClauseStart() {
+				if err := p.parseTemporalClause(); err != nil {
+					return err
+				}
+			}
+			if p.cur().Kind == kwWITH && p.peek(1).Kind == tokLParen {
+				if err := p.parseOptionsClause(); err != nil {
+					return err
+				}
+			}
+			if p.cur().Kind == kwTABLESAMPLE {
+				if err := p.parseSample(); err != nil {
+					return err
+				}
+			}
 		}
 		return p.parseTableAlias()
 	}
@@ -1311,15 +1331,8 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 			return err
 		}
 		if p.cur().Kind == tokLParen && p.isParenthesizedPartitionList(true) {
-			cpParen := p.save()
-			p.advance()
-			if err := p.parseExpressionSeq(); err == nil && p.match(tokRParen) {
-				// parenthesized partition expression list
-			} else {
-				p.restore(cpParen)
-				if err := p.parseExpression(); err != nil {
-					return err
-				}
+			if err := p.parseParenthesizedExprOrRow(false); err != nil {
+				return err
 			}
 		} else {
 			if err := p.parseExpression(); err != nil {
@@ -1341,15 +1354,8 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 		p.advance()
 		p.advance()
 		if p.cur().Kind == tokLParen && p.isParenthesizedPartitionList(false) {
-			cpParen := p.save()
-			p.advance()
-			if err := p.parseSortItemList(); err == nil && p.match(tokRParen) {
-				// parenthesized sort item list
-			} else {
-				p.restore(cpParen)
-				if err := p.parseSortItem(); err != nil {
-					return err
-				}
+			if err := p.parseParenthesizedSortOrRow(); err != nil {
+				return err
 			}
 		} else {
 			if err := p.parseSortItem(); err != nil {
@@ -1918,18 +1924,131 @@ func (p *Parser) parseGroupingElement() error {
 
 func (p *Parser) parseGroupingSet() error {
 	if p.cur().Kind == tokLParen && p.isParenthesizedGroupingSet() {
-		cp := p.save()
-		p.advance()
-		if p.match(tokRParen) {
-			return nil
-		}
-		if err := p.parseExpressionSeq(); err == nil && p.cur().Kind == tokRParen {
-			p.advance()
-			return nil
-		}
-		p.restore(cp)
+		return p.parseParenthesizedExprOrRow(true)
 	}
 	return p.parseExpression()
+}
+
+// parseParenthesizedExprOrRow parses `()` (when allowEmpty), `(expr)`,
+// `(expr, expr+)`, or a multi-element row constructor `(namedExpr, namedExpr+)`
+// in a single pass without ever reparsing the first element.
+func (p *Parser) parseParenthesizedExprOrRow(allowEmpty bool) error {
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if allowEmpty && p.match(tokRParen) {
+		return nil
+	}
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
+		return nil
+	}
+	if p.cur().Kind != tokComma {
+		before := p.pos
+		if err := p.parseOptionalNamedExprAlias(); err != nil {
+			return err
+		}
+		if p.pos == before {
+			return p.errorf("expected ')' or ',', got %q", p.cur().Text)
+		}
+		if !p.match(tokComma) {
+			return p.errorf("expected ',' after aliased row constructor element")
+		}
+	} else {
+		p.advance() // ','
+	}
+	for {
+		if err := p.parseNamedExpression(); err != nil {
+			return err
+		}
+		if !p.match(tokComma) {
+			break
+		}
+	}
+	_, err := p.expect(tokRParen)
+	return err
+}
+
+// parseParenthesizedSortOrRow parses `(sortItem, sortItem*)` or a row
+// constructor `(namedExpr, namedExpr+)` inside `ORDER BY (...)` in a single
+// pass without reparsing the first element.
+func (p *Parser) parseParenthesizedSortOrRow() error {
+	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	hasSortDir := false
+	hasAlias := false
+	parseSortDir := func() (bool, error) {
+		matched := false
+		if p.match(kwASC, kwDESC) {
+			matched = true
+		}
+		if p.match(kwNULLS) {
+			if !p.match(kwFIRST, kwLAST) {
+				return false, p.errorf("expected FIRST or LAST after NULLS")
+			}
+			matched = true
+		}
+		return matched, nil
+	}
+	var err error
+	if hasSortDir, err = parseSortDir(); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
+		return nil
+	}
+	if !hasSortDir && p.cur().Kind != tokComma {
+		before := p.pos
+		if err := p.parseOptionalNamedExprAlias(); err != nil {
+			return err
+		}
+		if p.pos == before {
+			return p.errorf("expected ')' or ',', got %q", p.cur().Text)
+		}
+		hasAlias = true
+		if !p.match(tokComma) {
+			return p.errorf("expected ',' after aliased row constructor element")
+		}
+	} else if !p.match(tokComma) {
+		return p.errorf("expected ')' or ',', got %q", p.cur().Text)
+	}
+	for {
+		if err := p.parseExpression(); err != nil {
+			return err
+		}
+		if !hasAlias {
+			sd, err := parseSortDir()
+			if err != nil {
+				return err
+			}
+			if sd {
+				hasSortDir = true
+			} else if !hasSortDir && p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
+				before := p.pos
+				if err := p.parseOptionalNamedExprAlias(); err != nil {
+					return err
+				}
+				if p.pos > before {
+					hasAlias = true
+				}
+			}
+		} else if p.cur().Kind != tokComma && p.cur().Kind != tokRParen {
+			if err := p.parseOptionalNamedExprAlias(); err != nil {
+				return err
+			}
+		}
+		if !p.match(tokComma) {
+			break
+		}
+	}
+	_, err = p.expect(tokRParen)
+	return err
 }
 
 // isParenthesizedGroupingSet reports whether '(' at p.cur() closes directly

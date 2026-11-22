@@ -386,6 +386,26 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "dynamic identifier table with temporal options and sample suffixes",
+			sql:  `SELECT * FROM IDENTIFIER('t') VERSION AS OF 1 WITH ('x'='y') TABLESAMPLE (10 PERCENT) AS s`,
+			kind: StmtQuery,
+		},
+		{
+			name: "set backquoted config key with numeric boolean and string values",
+			sql:  "SET `spark.sql.shuffle.partitions` = 8",
+			kind: StmtSet,
+		},
+		{
+			name: "set backquoted config key with boolean value",
+			sql:  "SET `spark.sql.ansi.enabled` = true",
+			kind: StmtSet,
+		},
+		{
+			name: "qualified star on multi-part identifier",
+			sql:  `SELECT t.*, t.x.*, db.t.* EXCEPT (a) FROM db.t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,
@@ -454,6 +474,10 @@ func TestParseErrors(t *testing.T) {
 		{"pipe where with window", "FROM t |> WHERE x > 0 WINDOW w AS (PARTITION BY x)"},
 		{"pipe pivot with unpivot", "FROM t |> PIVOT(SUM(a) FOR b IN (1)) UNPIVOT(v FOR k IN (c))"},
 		{"pipe set dotted target", "FROM t |> SET a.b = 1"},
+		{"qualified star on parenthesized expression", "SELECT (a + b).* FROM t"},
+		{"qualified star on star", "SELECT *.* FROM t"},
+		{"qualified star on qualified star", "SELECT t.*.* FROM t"},
+		{"qualified star on function call", "SELECT f().* FROM t"},
 	}
 
 	for _, tc := range bad {
@@ -608,6 +632,10 @@ func TestDeepNestedLinearParsing(t *testing.T) {
 		{
 			name: "nested rollup function call with arithmetic in group by",
 			sql:  strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP((", 25) + "SELECT 1" + strings.Repeat(")) + 1", 25),
+		},
+		{
+			name: "nested rollup named row constructor",
+			sql:  strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP(((", 25) + "SELECT 1" + strings.Repeat(") AS a, 1))", 25),
 		},
 		{
 			name: "nested parens",

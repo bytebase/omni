@@ -143,14 +143,14 @@ func (p *Parser) parseSetResetStatement() (Statement, error) {
 		return &ParsedStmt{Kind: StmtSet, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
 
-	// SET configKey (= configValue | = unquotedTokens)?
+	// SET configKey (= configValue | = .*?)?
 	if p.cur().Kind == tokBackquoted || p.cur().Kind == tokDoubleQuoted {
 		p.advance()
 		if p.match(tokEq) {
 			if p.cur().Kind == tokBackquoted {
 				p.advance()
 			} else {
-				for p.cur().Kind == tokIdent {
+				for !p.isStatementEnd() {
 					p.advance()
 				}
 			}

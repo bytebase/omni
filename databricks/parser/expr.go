@@ -451,11 +451,12 @@ func (p *Parser) parsePrimaryExpression() error {
 	}
 	defer p.leave()
 
-	if err := p.parsePrimaryAtom(); err != nil {
+	isQualifiedIdent, err := p.parsePrimaryAtom()
+	if err != nil {
 		return err
 	}
 
-	// Postfix loop: COLLATE, :: dataType, [index], .field (or .* [EXCEPT (...)]).
+	// Postfix loop: COLLATE, :: dataType, [index], .field (or .* [EXCEPT (...)] on qualified identifiers).
 	for {
 		switch p.cur().Kind {
 		case kwCOLLATE:
@@ -464,11 +465,13 @@ func (p *Parser) parsePrimaryExpression() error {
 				p.restore(cp)
 				return nil
 			}
+			isQualifiedIdent = false
 		case tokDoubleColon:
 			p.advance()
 			if err := p.parseDataType(); err != nil {
 				return err
 			}
+			isQualifiedIdent = false
 		case tokLBracket:
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
@@ -477,14 +480,20 @@ func (p *Parser) parsePrimaryExpression() error {
 			if _, err := p.expect(tokRBracket); err != nil {
 				return err
 			}
+			isQualifiedIdent = false
 		case tokDot:
 			p.advance()
-			if p.match(tokAsterisk) {
+			if p.cur().Kind == tokAsterisk {
+				if !isQualifiedIdent {
+					return p.errorf("qualified star '.*' is only allowed on a qualified identifier")
+				}
+				p.advance()
 				if p.cur().Kind == kwEXCEPT && p.peek(1).Kind == tokLParen {
 					if err := p.parseExceptClause(); err != nil {
 						return err
 					}
 				}
+				isQualifiedIdent = false
 			} else {
 				if _, err := p.parseIdentifier(); err != nil {
 					return err
@@ -510,14 +519,14 @@ func (p *Parser) parseExceptClause() error {
 	return err
 }
 
-func (p *Parser) parsePrimaryAtom() error {
+func (p *Parser) parsePrimaryAtom() (bool, error) {
 	k := p.cur().Kind
 
 	// Lambda: identifier -> expression
 	if k.isIdentifier() && p.peek(1).Kind == tokArrow {
 		p.advance()
 		p.advance()
-		return p.parseExpression()
+		return false, p.parseExpression()
 	}
 
 	// Parenthesized forms:
@@ -526,396 +535,44 @@ func (p *Parser) parsePrimaryAtom() error {
 	// - (namedExpr, namedExpr+)         (row constructor)
 	// - (expression)                    (parenthesized expression)
 	if k == tokLParen {
-		return p.parseParenthesizedPrimary()
+		return false, p.parseParenthesizedPrimary()
 	}
 
 	// Star: * [EXCEPT (...)]
 	if k == tokAsterisk {
 		p.advance()
 		if p.cur().Kind == kwEXCEPT && p.peek(1).Kind == tokLParen {
-			return p.parseExceptClause()
+			return false, p.parseExceptClause()
 		}
-		return nil
+		return false, nil
 	}
 
 	// CASE ... END (searched or simple) vs ordinary function call CASE(...) or column `case`.
 	if k == kwCASE {
 		if p.peek(1).Kind == kwWHEN {
-			return p.parseCaseExpression()
+			return false, p.parseCaseExpression()
 		}
 		if p.peek(1).Kind == tokLParen {
 			if p.hasCaseWhenAndEndAhead() {
-				return p.parseCaseExpression()
+				return false, p.parseCaseExpression()
 			}
-			return p.parseCaseOrCaseFuncCall()
+			return false, p.parseCaseOrCaseFuncCall()
 		}
 		if !p.isCaseColumnReference() && p.hasCaseWhenAndEndAhead() {
-			return p.parseCaseExpression()
+			return false, p.parseCaseExpression()
 		}
 	}
 
 	// Special keyword expressions that take parentheses.
-	if p.peek(1).Kind == tokLParen {
-		switch k {
-		case kwCAST, kwTRY_CAST:
-			// Single-pass parsing for CAST/TRY_CAST(expr AS dataType) and ordinary function calls.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			hasQuantifier := p.isFunctionSetQuantifier()
-			if hasQuantifier {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if !hasQuantifier && p.match(kwAS) {
-				if err := p.parseDataType(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwSTRUCT:
-			// Single-pass parsing for STRUCT(namedExpr | key => expr, ...) so nested
-			// STRUCT(..., k => 1) calls never backtrack exponentially.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.isFunctionSetQuantifier() {
-				p.advance()
-			}
-			for {
-				if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
-					p.advance()
-					p.advance()
-					if err := p.parseExpression(); err != nil {
-						return err
-					}
-				} else {
-					if err := p.parseNamedExpression(); err != nil {
-						return err
-					}
-				}
-				if !p.match(tokComma) {
-					break
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwFIRST, kwANY_VALUE, kwLAST:
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			// Handle optional DISTINCT/ALL followed by arguments, or Spark's
-			// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
-			// without reparsing the argument expression.
-			if p.isFunctionSetQuantifier() {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
-				p.advance()
-				p.advance()
-				p.advance()
-				return p.parseFunctionCallSuffixes()
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwPOSITION:
-			// Single-pass parsing for SQL POSITION(substr IN str) and ordinary POSITION(a, b) calls.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			hasQuantifier := p.isFunctionSetQuantifier()
-			if hasQuantifier {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if !hasQuantifier && p.match(kwIN) {
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwEXTRACT:
-			// Single-pass parsing for SQL EXTRACT(field FROM src) and ordinary EXTRACT(a, b) calls.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFROM {
-				p.advance()
-				p.advance()
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.isFunctionSetQuantifier() {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwSUBSTR, kwSUBSTRING:
-			// Single-pass parsing for both SQL SUBSTRING(s FROM pos [FOR len])
-			// and normal function calls SUBSTR(s, pos [, len]) without reparsing.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			hasQuantifier := p.isFunctionSetQuantifier()
-			if hasQuantifier {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if !hasQuantifier && p.match(kwFROM) {
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if p.match(kwFOR, tokComma) {
-					if err := p.parseValueExpression(); err != nil {
-						return err
-					}
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-				if !hasQuantifier && p.match(kwFOR) {
-					if err := p.parseValueExpression(); err != nil {
-						return err
-					}
-					if _, err := p.expect(tokRParen); err != nil {
-						return err
-					}
-					return p.parseFunctionCallSuffixes()
-				}
-				for p.match(tokComma) {
-					if err := p.parseFunctionArgument(); err != nil {
-						return err
-					}
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwTRIM:
-			// Single-pass parsing for both SQL TRIM([BOTH|LEADING|TRAILING] [chars] FROM str)
-			// and ordinary function calls TRIM(str [, chars]) to avoid exponential reparsing
-			// on deeply nested TRIM(TRIM(...)) expressions and preserve columns named
-			// `leading`, `trailing`, or `both`.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			if (p.cur().Kind == kwBOTH || p.cur().Kind == kwLEADING || p.cur().Kind == kwTRAILING) &&
-				p.startsTrimOptionForm() {
-				p.advance()
-				if p.cur().Kind != kwFROM {
-					if err := p.parseValueExpression(); err != nil {
-						return err
-					}
-				}
-				if _, err := p.expect(kwFROM); err != nil {
-					return err
-				}
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
-				p.advance()
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			hasQuantifier := p.isFunctionSetQuantifier()
-			if hasQuantifier {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if !hasQuantifier && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
-				p.advance()
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwOVERLAY:
-			// Single-pass parsing for SQL OVERLAY(input PLACING replace FROM pos [FOR len])
-			// and ordinary comma-separated OVERLAY(input, replace, pos [, len]) calls
-			// without reparsing the first argument.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			hasQuantifier := p.isFunctionSetQuantifier() && p.peek(1).Kind != kwPLACING
-			if hasQuantifier {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			if !hasQuantifier && p.match(kwPLACING) {
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if _, err := p.expect(kwFROM); err != nil {
-					return err
-				}
-				if err := p.parseValueExpression(); err != nil {
-					return err
-				}
-				if p.match(kwFOR) {
-					if err := p.parseValueExpression(); err != nil {
-						return err
-					}
-				}
-				if _, err := p.expect(tokRParen); err != nil {
-					return err
-				}
-				return p.parseFunctionCallSuffixes()
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-
-		case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
-			// Single-pass parsing for both 3-arg SQL TIMESTAMPADD/DATEDIFF(unit, a, b)
-			// and 2-arg function calls DATE_ADD(d, n) / DATEDIFF(d1, d2) without reparsing.
-			p.advance()
-			p.advance()
-			if p.match(tokRParen) {
-				return p.parseFunctionCallSuffixes()
-			}
-			if p.isFunctionSetQuantifier() {
-				p.advance()
-			}
-			if err := p.parseFunctionArgument(); err != nil {
-				return err
-			}
-			for p.match(tokComma) {
-				if err := p.parseFunctionArgument(); err != nil {
-					return err
-				}
-			}
-			if _, err := p.expect(tokRParen); err != nil {
-				return err
-			}
-			return p.parseFunctionCallSuffixes()
-		}
+	if p.peek(1).Kind == tokLParen && isSpecialKeywordCall(k) {
+		return false, p.parseSpecialKeywordCall(k)
 	}
 
 	// Function call: functionName (...) [WITHIN GROUP (...)] [FILTER (WHERE ...)] [(IGNORE|RESPECT) NULLS] [OVER windowSpec]
 	if p.canStartFunctionCall() {
 		cp := p.save()
 		if err := p.parseFunctionCall(); err == nil {
-			return nil
+			return false, nil
 		}
 		p.restore(cp)
 	}
@@ -924,7 +581,7 @@ func (p *Parser) parsePrimaryAtom() error {
 	if p.canStartConstant() {
 		cp := p.save()
 		if err := p.parseConstant(); err == nil {
-			return nil
+			return false, nil
 		}
 		p.restore(cp)
 	}
@@ -932,16 +589,383 @@ func (p *Parser) parsePrimaryAtom() error {
 	// currentLike keywords: CURRENT_DATE | CURRENT_TIMESTAMP | CURRENT_USER | USER | SESSION_USER
 	if k == kwCURRENT_DATE || k == kwCURRENT_TIMESTAMP || k == kwCURRENT_USER || k == kwUSER || k == kwSESSION_USER {
 		p.advance()
-		return nil
+		return k.isIdentifier() && p.cur().Kind == tokDot, nil
 	}
 
 	// Column reference (identifier).
 	if k.isIdentifier() {
 		p.advance()
-		return nil
+		return true, nil
 	}
 
-	return p.errorf("unexpected token %q in expression", p.cur().Text)
+	return false, p.errorf("unexpected token %q in expression", p.cur().Text)
+}
+
+func isSpecialKeywordCall(k TokenKind) bool {
+	switch k {
+	case kwCAST, kwTRY_CAST, kwSTRUCT, kwFIRST, kwANY_VALUE, kwLAST,
+		kwPOSITION, kwEXTRACT, kwSUBSTR, kwSUBSTRING, kwTRIM, kwOVERLAY,
+		kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
+	switch k {
+	case kwCAST, kwTRY_CAST:
+		// Single-pass parsing for CAST/TRY_CAST(expr AS dataType) and ordinary function calls.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if !hasQuantifier && p.match(kwAS) {
+			if err := p.parseDataType(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwSTRUCT:
+		// Single-pass parsing for STRUCT(namedExpr | key => expr, ...) so nested
+		// STRUCT(..., k => 1) calls never backtrack exponentially.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.isFunctionSetQuantifier() {
+			p.advance()
+		}
+		for {
+			if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
+				p.advance()
+				p.advance()
+				if err := p.parseExpression(); err != nil {
+					return err
+				}
+			} else {
+				if err := p.parseNamedExpression(); err != nil {
+					return err
+				}
+			}
+			if !p.match(tokComma) {
+				break
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwFIRST, kwANY_VALUE, kwLAST:
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		// Handle optional DISTINCT/ALL followed by arguments, or Spark's
+		// `FIRST(expr IGNORE NULLS)` / `LAST(expr IGNORE NULLS)` / `ANY_VALUE(expr IGNORE NULLS)`,
+		// without reparsing the argument expression.
+		if p.isFunctionSetQuantifier() {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if p.cur().Kind == kwIGNORE && p.peek(1).Kind == kwNULLS && p.peek(2).Kind == tokRParen {
+			p.advance()
+			p.advance()
+			p.advance()
+			return p.parseFunctionCallSuffixes()
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwPOSITION:
+		// Single-pass parsing for SQL POSITION(substr IN str) and ordinary POSITION(a, b) calls.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if !hasQuantifier && p.match(kwIN) {
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwEXTRACT:
+		// Single-pass parsing for SQL EXTRACT(field FROM src) and ordinary EXTRACT(a, b) calls.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFROM {
+			p.advance()
+			p.advance()
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.isFunctionSetQuantifier() {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwSUBSTR, kwSUBSTRING:
+		// Single-pass parsing for both SQL SUBSTRING(s FROM pos [FOR len])
+		// and normal function calls SUBSTR(s, pos [, len]) without reparsing.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if !hasQuantifier && p.match(kwFROM) {
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if p.match(kwFOR, tokComma) {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if !hasQuantifier && p.match(kwFOR) {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwTRIM:
+		// Single-pass parsing for both SQL TRIM([BOTH|LEADING|TRAILING] [chars] FROM str)
+		// and ordinary function calls TRIM(str [, chars]) to avoid exponential reparsing
+		// on deeply nested TRIM(TRIM(...)) expressions and preserve columns named
+		// `leading`, `trailing`, or `both`.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		if (p.cur().Kind == kwBOTH || p.cur().Kind == kwLEADING || p.cur().Kind == kwTRAILING) &&
+			p.startsTrimOptionForm() {
+			p.advance()
+			if p.cur().Kind != kwFROM {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+			}
+			if _, err := p.expect(kwFROM); err != nil {
+				return err
+			}
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+			p.advance()
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		hasQuantifier := p.isFunctionSetQuantifier()
+		if hasQuantifier {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if !hasQuantifier && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+			p.advance()
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwOVERLAY:
+		// Single-pass parsing for SQL OVERLAY(input PLACING replace FROM pos [FOR len])
+		// and ordinary comma-separated OVERLAY(input, replace, pos [, len]) calls
+		// without reparsing the first argument.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		hasQuantifier := p.isFunctionSetQuantifier() && p.peek(1).Kind != kwPLACING
+		if hasQuantifier {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		if !hasQuantifier && p.match(kwPLACING) {
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if _, err := p.expect(kwFROM); err != nil {
+				return err
+			}
+			if err := p.parseValueExpression(); err != nil {
+				return err
+			}
+			if p.match(kwFOR) {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+
+	case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
+		// Single-pass parsing for both 3-arg SQL TIMESTAMPADD/DATEDIFF(unit, a, b)
+		// and 2-arg function calls DATE_ADD(d, n) / DATEDIFF(d1, d2) without reparsing.
+		p.advance()
+		p.advance()
+		if p.match(tokRParen) {
+			return p.parseFunctionCallSuffixes()
+		}
+		if p.isFunctionSetQuantifier() {
+			p.advance()
+		}
+		if err := p.parseFunctionArgument(); err != nil {
+			return err
+		}
+		for p.match(tokComma) {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return err
+		}
+		return p.parseFunctionCallSuffixes()
+	}
+	return p.errorf("unexpected special keyword %q", p.cur().Text)
 }
 
 func (p *Parser) parseParenthesizedPrimary() error {
