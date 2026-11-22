@@ -456,19 +456,19 @@ func (p *parser) parseSystemStmt() (*SystemStmt, error) {
 		}
 	case KwStart, KwStop:
 		verb := strings.ToUpper(p.advance().Val)
-		switch p.cur().Type {
-		case KwDistributed:
+		switch {
+		case p.cur().Type == KwDistributed && p.peek(1).Type == KwSends:
 			p.advance()
-			if _, err := p.expect(KwSends); err != nil {
-				return nil, err
-			}
-			db, tbl, err := p.parseTableIdentifier()
-			if err != nil {
-				return nil, err
-			}
+			p.advance()
 			stmt.Action = verb + " DISTRIBUTED SENDS"
-			stmt.Target = joinDB(db, tbl)
-		case KwFetches:
+			if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
+				db, tbl, err := p.parseTableIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Target = joinDB(db, tbl)
+			}
+		case p.cur().Type == KwFetches:
 			p.advance()
 			stmt.Action = verb + " FETCHES"
 			if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
@@ -478,11 +478,9 @@ func (p *parser) parseSystemStmt() (*SystemStmt, error) {
 				}
 				stmt.Target = joinDB(db, tbl)
 			}
-		case KwTtl:
+		case p.cur().Type == KwTtl && p.peek(1).Type == KwMerges:
 			p.advance()
-			if _, err := p.expect(KwMerges); err != nil {
-				return nil, err
-			}
+			p.advance()
 			stmt.Action = verb + " TTL MERGES"
 			if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
 				db, tbl, err := p.parseTableIdentifier()
@@ -491,7 +489,7 @@ func (p *parser) parseSystemStmt() (*SystemStmt, error) {
 				}
 				stmt.Target = joinDB(db, tbl)
 			}
-		case KwMerges:
+		case p.cur().Type == KwMerges:
 			p.advance()
 			stmt.Action = verb + " MERGES"
 			if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
@@ -501,11 +499,9 @@ func (p *parser) parseSystemStmt() (*SystemStmt, error) {
 				}
 				stmt.Target = joinDB(db, tbl)
 			}
-		case KwReplicated:
+		case p.cur().Type == KwReplicated && p.peek(1).Type == KwSends:
 			p.advance()
-			if _, err := p.expect(KwSends); err != nil {
-				return nil, err
-			}
+			p.advance()
 			stmt.Action = verb + " REPLICATED SENDS"
 			if isIdentifier(p.cur()) && !p.isStatementEndOrOutput() {
 				db, tbl, err := p.parseTableIdentifier()
@@ -514,6 +510,15 @@ func (p *parser) parseSystemStmt() (*SystemStmt, error) {
 				}
 				stmt.Target = joinDB(db, tbl)
 			}
+		case isIdentifier(p.cur()):
+			// ClickHouse's ParserSystemQuery falls back to SYSTEM START|STOP [db.]table
+			// (e.g. starting/stopping a view or table target by identifier).
+			db, tbl, err := p.parseTableIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Action = verb
+			stmt.Target = joinDB(db, tbl)
 		default:
 			return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after SYSTEM %s", p.cur().Raw, verb))
 		}
@@ -835,23 +840,15 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 			return nil, err
 		}
 		stmt.Kind = "ROW POLICIES"
-		if p.match(KwOn) {
-			db, tbl, err := p.parseTableIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Target = joinDB(db, tbl)
+		if err := p.parseShowPoliciesTarget(stmt); err != nil {
+			return nil, err
 		}
 
 	case KwPolicies:
 		p.advance()
 		stmt.Kind = "POLICIES"
-		if p.match(KwOn) {
-			db, tbl, err := p.parseTableIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Target = joinDB(db, tbl)
+		if err := p.parseShowPoliciesTarget(stmt); err != nil {
+			return nil, err
 		}
 
 	case KwQuotas:
@@ -970,6 +967,43 @@ func (p *parser) parseShowStmt() (*ShowStmt, error) {
 
 	stmt.End = p.peek(-1).End
 	return stmt, nil
+}
+
+// parseShowPoliciesTarget parses the optional target of `SHOW [ROW] POLICIES`:
+//   - `ON [db.]table` (or `ON *`, `ON *.*`, `ON db.*`)
+//   - a single identifier or string literal policy short name (ClickHouse's
+//     ParserShowAccessEntitiesQuery accepts `SHOW [ROW] POLICIES <short_name>`
+//     as well as `ON <target>`, treating a bare trailing `ON` as `<short_name>`).
+func (p *parser) parseShowPoliciesTarget(stmt *ShowStmt) error {
+	if p.isStatementEndOrOutput() {
+		return nil
+	}
+	if p.cur().Type == KwOn {
+		p.advance() // ON
+		if p.cur().Type == TokEOF || p.cur().Type == TokSemicolon {
+			stmt.Target = p.peek(-1).Val
+			return nil
+		}
+		target, err := p.parsePrivilegeTarget()
+		if err != nil {
+			return err
+		}
+		stmt.Target = target
+		return nil
+	}
+	if isStringTok(p.cur().Type) {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return err
+		}
+		stmt.Target = lit.Val
+		return nil
+	}
+	if p.cur().Type == TokIdent || p.cur().Type == TokQuotedIdent || p.cur().IsKeyword() {
+		stmt.Target = p.advance().Val
+		return nil
+	}
+	return nil
 }
 
 func (p *parser) parseIdentList() ([]string, error) {

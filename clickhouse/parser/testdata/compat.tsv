@@ -1263,7 +1263,7 @@ reject	reject	engine	projectionSelectStmt(groupByClause)?/%empty!insert	ALTER TA
 accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ALL)
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!drop-1	ALTER TABLE a ADD PROJECTION a(SELECT * BY ALL)
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!drop-2	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP ALL)
-reject	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause!drop-3	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY)
+accept	accept	engine	projectionSelectStmt(groupByClause)?/groupByClause!drop-3	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY)
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!truncate	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!insert	ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ALL zzz)
 reject	reject	engine	projectionSelectStmt(groupByClause)?/groupByClause!swap	ALTER TABLE a ADD PROJECTION a(SELECT * GROUPING BY ALL)
@@ -1746,7 +1746,7 @@ reject	reject	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!drop
 reject	reject	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!drop-2	SELECT a() OVER(PARTITION *)
 reject	reject	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!drop-3	SELECT a() OVER(PARTITION BY)
 reject	reject	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!truncate	SELECT a() OVER(PARTITION BY
-reject	accept	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!insert	SELECT a() OVER(PARTITION BY * zzz)
+accept	accept	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!insert	SELECT a() OVER(PARTITION BY * zzz)
 reject	reject	engine	windowExpr(winPartitionByClause)?/winPartitionByClause!swap	SELECT a() OVER(PIPELINE BY *)
 accept	accept	engine	windowExpr(winOrderByClause)?/%empty	SELECT a() OVER()
 accept	accept	engine	windowExpr(winOrderByClause)?/winOrderByClause	SELECT a() OVER(ORDER BY 1e1)
@@ -1754,7 +1754,7 @@ reject	reject	engine	windowExpr(winOrderByClause)?/winOrderByClause!drop-1	SELEC
 reject	reject	engine	windowExpr(winOrderByClause)?/winOrderByClause!drop-2	SELECT a() OVER(ORDER 1e1)
 reject	reject	engine	windowExpr(winOrderByClause)?/winOrderByClause!drop-3	SELECT a() OVER(ORDER BY)
 reject	reject	engine	windowExpr(winOrderByClause)?/winOrderByClause!truncate	SELECT a() OVER(ORDER BY
-reject	accept	engine	windowExpr(winOrderByClause)?/winOrderByClause!insert	SELECT a() OVER(ORDER BY 1e1 zzz)
+accept	accept	engine	windowExpr(winOrderByClause)?/winOrderByClause!insert	SELECT a() OVER(ORDER BY 1e1 zzz)
 reject	reject	engine	windowExpr(winOrderByClause)?/winOrderByClause!swap	SELECT a() OVER(OUTER BY 1e1)
 accept	accept	engine	windowExpr(winFrameClause)?/%empty	SELECT a() OVER()
 accept	accept	engine	windowExpr(winFrameClause)?/winFrameClause	SELECT a() OVER(ROWS CURRENT ROW)
@@ -1762,7 +1762,7 @@ reject	reject	engine	windowExpr(winFrameClause)?/winFrameClause!drop-1	SELECT a(
 reject	reject	engine	windowExpr(winFrameClause)?/winFrameClause!drop-2	SELECT a() OVER(ROWS ROW)
 reject	reject	engine	windowExpr(winFrameClause)?/winFrameClause!drop-3	SELECT a() OVER(ROWS CURRENT)
 reject	reject	engine	windowExpr(winFrameClause)?/winFrameClause!truncate	SELECT a() OVER(ROWS CURRENT
-reject	accept	engine	windowExpr(winFrameClause)?/winFrameClause!insert	SELECT a() OVER(ROWS CURRENT ROW zzz)
+accept	accept	engine	windowExpr(winFrameClause)?/winFrameClause!insert	SELECT a() OVER(ROWS CURRENT ROW zzz)
 reject	reject	engine	windowExpr(winFrameClause)?/winFrameClause!swap	SELECT a() OVER(SAMPLE CURRENT ROW)
 accept	accept	engine	winPartitionByClause/PARTITION_BY_columnExprList	SELECT a() OVER(PARTITION BY *)
 accept	accept	engine	winOrderByClause/ORDER_BY_orderExprList	SELECT a() OVER(ORDER BY 1e1)
@@ -1774,16 +1774,16 @@ accept	accept	engine	winFrameClause(ROWS|RANGE)/RANGE	SELECT a() OVER(RANGE CURR
 reject	reject	engine	winFrameClause(ROWS|RANGE)/RANGE!insert	SELECT a() OVER(RANGE zzz CURRENT ROW)
 reject	reject	engine	winFrameClause(ROWS|RANGE)/RANGE!swap	SELECT a() OVER(RECURSIVE CURRENT ROW)
 accept	accept	engine	winFrameExtend/winFrameBound	SELECT a() OVER(ROWS CURRENT ROW)
-reject	accept	engine	winFrameExtend/winFrameBound!swap	SELECT a() OVER(ROWS CURRENT_USER ROW)
+accept	accept	engine	winFrameExtend/winFrameBound!swap	SELECT a() OVER(ROWS CURRENT_USER ROW)
 accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-1	SELECT a() OVER(ROWS CURRENT ROW AND CURRENT ROW)
-reject	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-2	SELECT a() OVER(ROWS BETWEEN ROW AND CURRENT ROW)
-reject	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-3	SELECT a() OVER(ROWS BETWEEN CURRENT AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-2	SELECT a() OVER(ROWS BETWEEN ROW AND CURRENT ROW)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-3	SELECT a() OVER(ROWS BETWEEN CURRENT AND CURRENT ROW)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-4	SELECT a() OVER(ROWS BETWEEN CURRENT ROW CURRENT ROW)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-5	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND ROW)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!drop-6	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!truncate	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT
-reject	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!insert	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW zzz)
+accept	accept	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!insert	SELECT a() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW zzz)
 reject	reject	engine	winFrameExtend/BETWEEN_winFrameBound_AND_winFrameBound!swap	SELECT a() OVER(ROWS BOTH CURRENT ROW AND CURRENT ROW)
 accept	accept	engine	winFrameBound/(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)	SELECT a() OVER(ROWS CURRENT ROW)
 accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/CURRENT_ROW	SELECT a() OVER(ROWS CURRENT ROW)
@@ -1791,20 +1791,20 @@ accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!drop-1	SELECT a() OVER(ROWS PRECEDING)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!drop-2	SELECT a() OVER(ROWS UNBOUNDED)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!truncate	SELECT a() OVER(ROWS UNBOUNDED
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!insert	SELECT a() OVER(ROWS UNBOUNDED PRECEDING zzz)
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!swap	SELECT a() OVER(ROWS UNION PRECEDING)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!insert	SELECT a() OVER(ROWS UNBOUNDED PRECEDING zzz)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_PRECEDING!swap	SELECT a() OVER(ROWS UNION PRECEDING)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING	SELECT a() OVER(ROWS UNBOUNDED FOLLOWING)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING!drop-1	SELECT a() OVER(ROWS FOLLOWING)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING!insert	SELECT a() OVER(ROWS UNBOUNDED FOLLOWING zzz)
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING!swap	SELECT a() OVER(ROWS UNION FOLLOWING)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/UNBOUNDED_FOLLOWING!swap	SELECT a() OVER(ROWS UNION FOLLOWING)
 accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING	SELECT a() OVER(ROWS 1e1 PRECEDING)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!drop-2	SELECT a() OVER(ROWS 1e1)
 reject	reject	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!truncate	SELECT a() OVER(ROWS 1e1
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!insert	SELECT a() OVER(ROWS 1e1 PRECEDING zzz)
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!swap	SELECT a() OVER(ROWS 1e1 PREWHERE)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!insert	SELECT a() OVER(ROWS 1e1 PRECEDING zzz)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_PRECEDING!swap	SELECT a() OVER(ROWS 1e1 PREWHERE)
 accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING	SELECT a() OVER(ROWS 1e1 FOLLOWING)
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING!insert	SELECT a() OVER(ROWS 1e1 FOLLOWING zzz)
-reject	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING!swap	SELECT a() OVER(ROWS 1e1 FOR)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING!insert	SELECT a() OVER(ROWS 1e1 FOLLOWING zzz)
+accept	accept	engine	winFrameBound(CURRENT_ROW|UNBOUNDED_PRECEDING|UNBO~d5e8cc64)/numberLiteral_FOLLOWING!swap	SELECT a() OVER(ROWS 1e1 FOR)
 accept	accept	engine	setStmt/SET_settingExprList	SET a = 1e1
 accept	accept	engine	showStmt/SHOW_(CREATE)?_DATABASE_databaseIdentifier	SHOW DATABASE a
 reject	reject	engine	showStmt/SHOW_(CREATE)?_DATABASE_databaseIdentifier!drop-3	SHOW DATABASE
@@ -1898,7 +1898,7 @@ reject	reject	engine	showStmt/SHOW_(SETTINGS)?_PROFILES!insert	SHOW PROFILES zzz
 reject	reject	engine	showStmt/SHOW_(SETTINGS)?_PROFILES!swap	SOURCE PROFILES
 accept	accept	engine	showStmt/SHOW_(ROW)?_POLICIES_(ON_tableIdentifier)?	SHOW POLICIES
 reject	reject	engine	showStmt/SHOW_(ROW)?_POLICIES_(ON_tableIdentifier)?!drop-1	POLICIES
-reject	accept	engine	showStmt/SHOW_(ROW)?_POLICIES_(ON_tableIdentifier)?!insert	SHOW POLICIES zzz
+accept	accept	engine	showStmt/SHOW_(ROW)?_POLICIES_(ON_tableIdentifier)?!insert	SHOW POLICIES zzz
 reject	reject	engine	showStmt/SHOW_(ROW)?_POLICIES_(ON_tableIdentifier)?!swap	SOURCE POLICIES
 accept	accept	engine	showStmt/SHOW_QUOTAS	SHOW QUOTAS
 reject	reject	engine	showStmt/SHOW_QUOTAS!drop-1	QUOTAS
@@ -2107,8 +2107,8 @@ reject	reject	engine	showStmt(CURRENT|ENABLED)?/ENABLED!insert	SHOW ENABLED zzz 
 reject	reject	engine	showStmt(CURRENT|ENABLED)?/ENABLED!swap	SHOW END ROLES
 accept	accept	engine	showStmt(ON_tableIdentifier)?/%empty	SHOW POLICIES
 accept	accept	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier	SHOW POLICIES ON a
-reject	accept	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!drop-1	SHOW POLICIES a
-reject	accept	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!drop-2	SHOW POLICIES ON
+accept	accept	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!drop-1	SHOW POLICIES a
+accept	accept	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!drop-2	SHOW POLICIES ON
 reject	reject	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!insert	SHOW POLICIES ON a zzz
 reject	reject	engine	showStmt(ON_tableIdentifier)?/ON_tableIdentifier!swap	SHOW POLICIES OPTIMIZE a
 accept	accept	engine	showStmt(CURRENT)?/%empty	SHOW QUOTA
@@ -2168,15 +2168,15 @@ reject	reject	engine	systemStmt/SYSTEM_RELOAD_DICTIONARY_tableIdentifier!swap	TA
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8	SYSTEM START FETCHES a
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!drop-1	START FETCHES a
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!drop-2	SYSTEM FETCHES a
-reject	accept	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!drop-3	SYSTEM START a
+accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!drop-3	SYSTEM START a
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!drop-4	SYSTEM START FETCHES
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!insert	SYSTEM START FETCHES a zzz
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_(DISTRIBUTED_SENDS|FETCHES|TTL?_MER~bba34bd8!swap	TABLE START FETCHES a
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS	SYSTEM START REPLICATED SENDS
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-1	START REPLICATED SENDS
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-2	SYSTEM REPLICATED SENDS
-reject	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-3	SYSTEM START SENDS
-reject	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-4	SYSTEM START REPLICATED
+accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-3	SYSTEM START SENDS
+accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!drop-4	SYSTEM START REPLICATED
 accept	accept	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!insert	SYSTEM START REPLICATED SENDS zzz
 reject	reject	engine	systemStmt/SYSTEM_(START|STOP)_REPLICATED_SENDS!swap	TABLE START REPLICATED SENDS
 accept	accept	engine	systemStmt/SYSTEM_SYNC_REPLICA_tableIdentifier	SYSTEM SYNC REPLICA a
@@ -2196,7 +2196,7 @@ reject	reject	engine	systemStmt(START|STOP)/STOP!swap	SYSTEM SUBSTRING FETCHES a
 accept	accept	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS	SYSTEM START DISTRIBUTED SENDS a
 reject	reject	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!drop-1	SYSTEM START SENDS a
 reject	reject	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!drop-2	SYSTEM START DISTRIBUTED a
-reject	accept	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!truncate	SYSTEM START DISTRIBUTED
+accept	accept	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!truncate	SYSTEM START DISTRIBUTED
 reject	reject	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!insert	SYSTEM START DISTRIBUTED SENDS zzz a
 reject	reject	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/DISTRIBUTED_SENDS!swap	SYSTEM START DROP SENDS a
 accept	accept	engine	systemStmt(DISTRIBUTED_SENDS|FETCHES|TTL?_MERGES)/FETCHES	SYSTEM START FETCHES a
@@ -2354,8 +2354,8 @@ reject	reject	engine	columnExpr/EXTRACT_LPAREN_interval_FROM_columnExpr_RPAREN!d
 accept	accept	engine	columnExpr/EXTRACT_LPAREN_interval_FROM_columnExpr_RPAREN!insert	SELECT EXTRACT(NANOSECOND FROM 1e1) zzz
 reject	reject	engine	columnExpr/EXTRACT_LPAREN_interval_FROM_columnExpr_RPAREN!swap	SELECT FALSE(NANOSECOND FROM 1e1)
 accept	accept	engine	columnExpr/INTERVAL_columnExpr_interval	SELECT INTERVAL 1e1 NANOSECOND
-reject	accept	engine	columnExpr/INTERVAL_columnExpr_interval!drop-1	SELECT 1e1 NANOSECOND
-reject	accept	engine	columnExpr/INTERVAL_columnExpr_interval!drop-2	SELECT INTERVAL NANOSECOND
+accept	accept	engine	columnExpr/INTERVAL_columnExpr_interval!drop-1	SELECT 1e1 NANOSECOND
+accept	accept	engine	columnExpr/INTERVAL_columnExpr_interval!drop-2	SELECT INTERVAL NANOSECOND
 reject	reject	engine	columnExpr/INTERVAL_columnExpr_interval!drop-3	SELECT INTERVAL 1e1
 accept	accept	engine	columnExpr/INTERVAL_columnExpr_interval!insert	SELECT INTERVAL 1e1 NANOSECOND zzz
 reject	reject	engine	columnExpr/INTERVAL_columnExpr_interval!swap	SELECT INTO 1e1 NANOSECOND
@@ -2439,9 +2439,9 @@ reject	reject	engine	columnExpr/columnExpr_(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|
 reject	reject	engine	columnExpr/columnExpr_(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b48387~b86064ba!drop-3	SELECT 1e1 ==
 accept	accept	engine	columnExpr/columnExpr_(EQ_DOUBLE|EQ_SINGLE|NOT_EQ|LE|GE|LT|~b48387~b86064ba!insert	SELECT 1e1 == 1e1 zzz
 accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL	SELECT 1e1 IS NULL
-reject	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-1	SELECT IS NULL
-reject	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-2	SELECT 1e1 NULL
-reject	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-3	SELECT 1e1 IS
+accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-1	SELECT IS NULL
+accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-2	SELECT 1e1 NULL
+accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!drop-3	SELECT 1e1 IS
 accept	accept	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!insert	SELECT 1e1 IS NULL zzz
 reject	reject	engine	columnExpr/columnExpr_IS_(NOT)?_NULL_SQL!swap	SELECT 1e1 IS_OBJECT_ID NULL
 accept	accept	engine	columnExpr/columnExpr_AND_columnExpr	SELECT 1e1 AND 1e1
