@@ -894,6 +894,9 @@ func (p *Parser) parseRelationPrimary() error {
 	switch p.cur().Kind {
 	case kwVALUES:
 		if p.isValuesQueryAt(0, false) {
+			if p.peek(1).Kind == tokLParen {
+				return p.parseInlineTable()
+			}
 			cp := p.save()
 			if err := p.parseInlineTable(); err == nil {
 				return nil
@@ -1376,14 +1379,10 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 			if err := p.parseExpression(); err != nil {
 				return err
 			}
-			for {
-				cp := p.save()
-				if !p.match(tokComma) {
-					break
-				}
+			for p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
+				p.advance()
 				if err := p.parseExpression(); err != nil {
-					p.restore(cp)
-					break
+					return err
 				}
 			}
 		}
@@ -1399,19 +1398,26 @@ func (p *Parser) parseTableArgumentPartitioning() error {
 			if err := p.parseSortItem(); err != nil {
 				return err
 			}
-			for {
-				cp := p.save()
-				if !p.match(tokComma) {
-					break
-				}
+			for p.cur().Kind == tokComma && !p.startsNextFunctionTableArgAfterComma() {
+				p.advance()
 				if err := p.parseSortItem(); err != nil {
-					p.restore(cp)
-					break
+					return err
 				}
 			}
 		}
 	}
 	return nil
+}
+
+// startsNextFunctionTableArgAfterComma reports whether the token(s) after a
+// comma in an unparenthesized tableArgumentPartitioning list unambiguously
+// begin a subsequent functionTableArgument (a named argument `k => ...` or a
+// `TABLE ...` argument) rather than another partition/sort expression.
+func (p *Parser) startsNextFunctionTableArgAfterComma() bool {
+	if p.peek(1).Kind.isIdentifier() && p.peek(2).Kind == tokFatArrow {
+		return true
+	}
+	return p.isTableSubqueryArgAt(1)
 }
 
 // isParenthesizedPartitionList reports whether a '(' after PARTITION/DISTRIBUTE BY
@@ -2024,6 +2030,13 @@ func (p *Parser) parseParenthesizedExprOrRow(allowEmpty bool) error {
 // pass without reparsing the first element.
 func (p *Parser) parseParenthesizedSortOrRow() error {
 	if _, err := p.expect(tokLParen); err != nil {
+		return err
+	}
+	if p.startsWithCompleteParenQuery() {
+		if err := p.parseQuery(); err != nil {
+			return err
+		}
+		_, err := p.expect(tokRParen)
 		return err
 	}
 	if err := p.parseExpression(); err != nil {

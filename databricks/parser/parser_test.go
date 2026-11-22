@@ -431,6 +431,16 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "position IN with parenthesized valueExpression continuations and ordinary IN predicates",
+			sql:  `SELECT POSITION('a' IN ('abc') || 'def'), POSITION('a' IN ('abc')::STRING), POSITION('a' IN ('a', 'b')[0]), POSITION(a IN (1, 2)), POSITION(a IN (1, 2), s), POSITION(a IN (1, 2) AND b, s), POSITION(a IN (1, 2)) OVER () FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "function table partition and order clauses followed by named and table args",
+			sql:  `SELECT * FROM f(TABLE(t) PARTITION BY a, b ORDER BY c DESC, k => 1, TABLE(t2) PARTITION BY d)`,
+			kind: StmtQuery,
+		},
+		{
 			name: "rollup with subquery and nested parenthesized row constructor",
 			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
 			kind: StmtQuery,
@@ -528,6 +538,11 @@ func TestParseErrors(t *testing.T) {
 		{"nested malformed from subquery", strings.Repeat("SELECT * FROM ((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
 		{"nested malformed rollup grouping analytics", strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP(((", 25) + "SELECT 1 +" + strings.Repeat(")))", 25)},
 		{"nested malformed grouping sets rollup analytics", strings.Repeat("SELECT 1 FROM t GROUP BY GROUPING SETS(ROLLUP(((", 25) + "SELECT 1 +" + strings.Repeat("))))", 25)},
+		{"nested malformed table partition expression", strings.Repeat("SELECT * FROM f(TABLE(t) PARTITION BY x, (", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"nested malformed table order expression", strings.Repeat("SELECT * FROM f(TABLE(t) PARTITION BY x ORDER BY y, (", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"nested malformed values inline table", strings.Repeat("SELECT * FROM VALUES((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"position parenthesized continuation with OVER suffix", "SELECT POSITION('a' IN ('abc') || 'def') OVER () FROM t"},
+		{"position IN with trailing IS NULL", "SELECT POSITION('a' IN (1) IS NULL)"},
 		{"cast AS with OVER suffix", "SELECT CAST(x AS INT) OVER () FROM t"},
 		{"trim FROM with OVER suffix", "SELECT TRIM(x FROM s) OVER () FROM t"},
 		{"extract FROM with OVER suffix", "SELECT EXTRACT(YEAR FROM d) OVER () FROM t"},

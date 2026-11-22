@@ -160,6 +160,10 @@ func (p *Parser) parseOrExpressionWithKind() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return p.parseOrTailWithKind(isVal)
+}
+
+func (p *Parser) parseOrTailWithKind(isVal bool) (bool, error) {
 	for p.cur().Kind == kwOR {
 		cp := p.save()
 		p.advance()
@@ -177,6 +181,10 @@ func (p *Parser) parseAndExpressionWithKind() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return p.parseAndTailWithKind(isVal)
+}
+
+func (p *Parser) parseAndTailWithKind(isVal bool) (bool, error) {
 	for p.cur().Kind == kwAND {
 		cp := p.save()
 		p.advance()
@@ -648,6 +656,48 @@ func isSpecialKeywordCall(k TokenKind) bool {
 	return false
 }
 
+// isPositionInValueExpr reports whether `IN` at p.cur() inside POSITION(...)
+// introduces SQL `POSITION(substr IN valueExpression)` rather than an
+// `IN (list|query)` membership predicate of an ordinary function call argument.
+// When `IN` is followed by `(...)` and then a valueExpression postfix or binary
+// operator (such as `||`, `::`, `[`, `.`, `+`, `COLLATE`), the operand can only
+// be a complete valueExpression in the SQL-specific POSITION form.
+func (p *Parser) isPositionInValueExpr() bool {
+	if p.cur().Kind != kwIN {
+		return false
+	}
+	if p.peek(1).Kind != tokLParen {
+		return true
+	}
+	depth := 0
+	closeIdx := -1
+	for i := 1; ; i++ {
+		k := p.peek(i).Kind
+		if k == tokEOF || k == tokSemicolon {
+			return false
+		}
+		if k == tokLParen || k == tokLBracket {
+			depth++
+		} else if k == tokRParen || k == tokRBracket {
+			depth--
+			if depth == 0 {
+				closeIdx = i
+				break
+			}
+		}
+	}
+	switch p.peek(closeIdx + 1).Kind {
+	case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokPlus, tokMinus, tokConcatPipe,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokAmpersand, tokHat, tokPipe,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 	switch k {
 	case kwCAST, kwTRY_CAST:
@@ -772,16 +822,41 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
-		isVal, err := p.parseFunctionArgumentWithKind()
-		if err != nil {
-			return err
+		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
+		startsBoolOnly := p.cur().Kind == tokBang ||
+			(p.cur().Kind == kwNOT && !p.isNotIdentifierContinuation())
+		if !startsBoolOnly && p.cur().Kind == kwEXISTS && p.peek(1).Kind == tokLParen {
+			cpExists := p.save()
+			p.advance()
+			p.advance()
+			startsBoolOnly = p.startsWithCompleteParenQuery()
+			p.restore(cpExists)
 		}
-		if !hasQuantifier && isVal && p.match(kwIN) {
+		if hasQuantifier || isNamed || startsBoolOnly {
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+		} else {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
-			_, err := p.expect(tokRParen)
-			return err
+			if p.isPositionInValueExpr() {
+				p.advance() // IN
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				_, err := p.expect(tokRParen)
+				return err
+			}
+			if err := p.parseOptionalPredicate(); err != nil {
+				return err
+			}
+			if _, err := p.parseAndTailWithKind(false); err != nil {
+				return err
+			}
+			if _, err := p.parseOrTailWithKind(false); err != nil {
+				return err
+			}
 		}
 		for p.match(tokComma) {
 			if err := p.parseFunctionArgument(); err != nil {
