@@ -65,14 +65,21 @@ const (
 // JudgeFixture builds the scratch schema's objects again after every
 // statement that ran: the table t, on which a trigger row's header stands
 // (tokens.tsv's TRIGGER_SOURCE), so the trigger's body reaches the PL/SQL
-// compiler, and the materialized view v on it. Neither is named a, the
-// name every other row gives, so the rows on a table a find none, and
-// answer at once. compat.OracleVerdict asks ALTER TABLE a and ALTER
-// MATERIALIZED VIEW a again on t and v, since Oracle looks those up before
-// it reads the rest.
+// compiler; the materialized view v on it; the object type y and varray type w
+// for ALTER TYPE; and the dimensions d (without level/hierarchy a, for ADD)
+// and e (with unreferenced level a and hierarchy a, for DROP/COMPILE/ATTRIBUTE)
+// for ALTER DIMENSION. None is named a, the name every other row gives, so the
+// rows on an object a find none and answer at once. compat.OracleVerdict asks
+// ALTER TABLE a, ALTER MATERIALIZED VIEW a, ALTER TYPE a, ALTER DIMENSION a,
+// and INMEMORY JOIN GROUP again on these fixture objects, since Oracle looks
+// them up before it reads the rest.
 const JudgeFixture = `BEGIN
-  EXECUTE IMMEDIATE 'CREATE TABLE t (a NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE TABLE t (a NUMBER, b NUMBER, c NUMBER, d NUMBER)';
   EXECUTE IMMEDIATE 'CREATE MATERIALIZED VIEW v AS SELECT a FROM t';
+  EXECUTE IMMEDIATE 'CREATE TYPE y AS OBJECT (b NUMBER)';
+  EXECUTE IMMEDIATE 'CREATE TYPE w AS VARRAY(1) OF VARCHAR2(1)';
+  EXECUTE IMMEDIATE 'CREATE DIMENSION d LEVEL l IS (t.d)';
+  EXECUTE IMMEDIATE 'CREATE DIMENSION e LEVEL a IS (t.a) LEVEL b IS (t.b) LEVEL c IS (t.c) HIERARCHY a (b CHILD OF c)';
 END;`
 
 // Open returns t's connection to Oracle as user, SYSTEM or a user the test
@@ -172,6 +179,14 @@ func start(ctx context.Context, pin enginetest.Pin) error {
 	return startServer(ctx, &server, pin, false)
 }
 
+// sameServerPin reports whether two pins name the same Oracle server image
+// and release, regardless of pin role or judge revision. That lets roles such
+// as "default" (tapes) and "parser" (compat.tsv judge) share one container
+// when they run in the same test binary.
+func sameServerPin(a, b enginetest.Pin) bool {
+	return a.Image == b.Image && a.Digest == b.Digest && a.Tag == b.Tag
+}
+
 func startServer(ctx context.Context, srv *oracleServer, pin enginetest.Pin, extended bool) error {
 	srv.once.Do(func() {
 		srv.pin = pin
@@ -181,7 +196,7 @@ func startServer(ctx context.Context, srv *oracleServer, pin enginetest.Pin, ext
 	if srv.err != nil {
 		return srv.err
 	}
-	if srv.pin != pin {
+	if !sameServerPin(srv.pin, pin) {
 		return fmt.Errorf("this run started %s, not %s", srv.pin, pin)
 	}
 	return nil
@@ -421,17 +436,19 @@ func checkDigest(ctx context.Context, c testcontainers.Container, digest string)
 // with a scratch schema holding JudgeFixture, and returns what opens a
 // session as that account: the session, and what ends it however it stands
 // (Cuttable, and the server process killed). It runs in a recording only,
-// and starts the server.
+// and starts the pinned server with MAX_STRING_SIZE=EXTENDED so COLLATE and
+// DEFAULT COLLATION clauses are parsed rather than rejected with ORA-43929,
+// leaving the standard-mode default server used by tapes untouched.
 func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 	t.Helper()
 	if !enginetest.Recording(t) {
 		t.Fatalf("testcontainer: the judge runs in a recording only")
 	}
 	ctx := context.Background()
-	if err := start(ctx, pin); err != nil {
+	if err := startServer(ctx, &extendedServer, pin, true); err != nil {
 		t.Fatalf("Oracle: %v", err)
 	}
-	admin := sql.OpenDB(connector("system", Password))
+	admin := sql.OpenDB(serverConnector(&extendedServer, "system", Password))
 	t.Cleanup(func() { _ = admin.Close() })
 	var users int
 	if err := admin.QueryRowContext(ctx, "SELECT COUNT(*) FROM dba_users WHERE username = :1", judgeUser).Scan(&users); err != nil {
@@ -444,14 +461,14 @@ func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 	stmts = append(stmts,
 		fmt.Sprintf("CREATE USER %s IDENTIFIED BY %s QUOTA UNLIMITED ON users", judgeUser, judgeSecret),
 		"GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE MATERIALIZED VIEW, "+
-			"CREATE PROCEDURE, CREATE TYPE, CREATE TRIGGER TO "+judgeUser)
+			"CREATE PROCEDURE, CREATE TYPE, CREATE TRIGGER, CREATE DIMENSION TO "+judgeUser)
 	for _, stmt := range stmts {
 		if _, err := admin.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("Oracle: %s: %v", stmt, err)
 		}
 	}
-	port, _ := strconv.Atoi(server.port)
-	url := go_ora.BuildUrl(server.host, port, service, judgeUser, judgeSecret, nil)
+	port, _ := strconv.Atoi(extendedServer.port)
+	url := go_ora.BuildUrl(extendedServer.host, port, service, judgeUser, judgeSecret, nil)
 	open := func() (*sql.DB, func()) {
 		db, cut := Cuttable(url)
 		var sid, audsid string
@@ -466,7 +483,7 @@ func Judge(t testing.TB, pin enginetest.Pin) func() (*sql.DB, func()) {
 			if err := admin.QueryRowContext(ctx, `SELECT p.spid FROM v$session s JOIN v$process p ON p.addr = s.paddr WHERE s.sid = :1 AND s.audsid = :2`, sid, audsid).Scan(&spid); err != nil {
 				return // gone already
 			}
-			if code, _, err := server.container.Exec(ctx, []string{"bash", "-c", "kill -9 " + spid}); err != nil || code != 0 {
+			if code, _, err := extendedServer.container.Exec(ctx, []string{"bash", "-c", "kill -9 " + spid}); err != nil || code != 0 {
 				t.Fatalf("Oracle: kill the judge's server process %s: exit %d, %v", spid, code, err)
 			}
 		}
