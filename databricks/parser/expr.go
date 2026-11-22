@@ -23,6 +23,10 @@ func (p *Parser) parseNamedExpression() error {
 	if err := p.parseExpression(); err != nil {
 		return err
 	}
+	return p.parseOptionalNamedExprAlias()
+}
+
+func (p *Parser) parseOptionalNamedExprAlias() error {
 	if p.match(kwAS) {
 		if p.cur().Kind == tokLParen {
 			return p.parseIdentifierList()
@@ -523,17 +527,33 @@ func (p *Parser) parsePrimaryAtom() error {
 	if p.peek(1).Kind == tokLParen {
 		switch k {
 		case kwCAST, kwTRY_CAST:
-			cp := p.save()
+			// Single-pass parsing for CAST/TRY_CAST(expr AS dataType) and ordinary function calls.
 			p.advance()
 			p.advance()
-			if err := p.parseExpression(); err == nil && p.match(kwAS) {
-				if err := p.parseDataType(); err == nil {
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
-					}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if p.match(kwAS) {
+				if err := p.parseDataType(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwSTRUCT:
 			cp := p.save()
@@ -601,17 +621,33 @@ func (p *Parser) parsePrimaryAtom() error {
 			return p.parseFunctionCallSuffixes()
 
 		case kwPOSITION:
-			cp := p.save()
+			// Single-pass parsing for SQL POSITION(substr IN str) and ordinary POSITION(a, b) calls.
 			p.advance()
 			p.advance()
-			if err := p.parseValueExpression(); err == nil && p.match(kwIN) {
-				if err := p.parseValueExpression(); err == nil {
-					if _, err := p.expect(tokRParen); err == nil {
-						return nil
-					}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if p.match(kwIN) {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
+			}
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
 				}
 			}
-			p.restore(cp)
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwEXTRACT:
 			cp := p.save()
@@ -735,25 +771,46 @@ func (p *Parser) parsePrimaryAtom() error {
 			return p.parseFunctionCallSuffixes()
 
 		case kwOVERLAY:
-			cp := p.save()
+			// Single-pass parsing for SQL OVERLAY(input PLACING replace FROM pos [FOR len])
+			// and ordinary comma-separated OVERLAY(input, replace, pos [, len]) calls
+			// without reparsing the first argument.
 			p.advance()
 			p.advance()
-			if err := p.parseValueExpression(); err == nil && p.match(kwPLACING) {
-				if err := p.parseValueExpression(); err == nil && p.match(kwFROM) {
-					if err := p.parseValueExpression(); err == nil {
-						if p.match(kwFOR) {
-							if err := p.parseValueExpression(); err != nil {
-								p.restore(cp)
-								goto afterSpecial
-							}
-						}
-						if _, err := p.expect(tokRParen); err == nil {
-							return nil
-						}
+			if p.match(tokRParen) {
+				return p.parseFunctionCallSuffixes()
+			}
+			if err := p.parseFunctionArgument(); err != nil {
+				return err
+			}
+			if p.match(kwPLACING) {
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if _, err := p.expect(kwFROM); err != nil {
+					return err
+				}
+				if err := p.parseValueExpression(); err != nil {
+					return err
+				}
+				if p.match(kwFOR) {
+					if err := p.parseValueExpression(); err != nil {
+						return err
 					}
 				}
+				if _, err := p.expect(tokRParen); err != nil {
+					return err
+				}
+				return p.parseFunctionCallSuffixes()
 			}
-			p.restore(cp)
+			for p.match(tokComma) {
+				if err := p.parseFunctionArgument(); err != nil {
+					return err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return err
+			}
+			return p.parseFunctionCallSuffixes()
 
 		case kwTIMESTAMPADD, kwDATEADD, kwDATE_ADD, kwTIMESTAMPDIFF, kwDATEDIFF, kwDATE_DIFF, kwTIMEDIFF:
 			cp := p.save()
@@ -774,7 +831,6 @@ func (p *Parser) parsePrimaryAtom() error {
 			p.restore(cp)
 		}
 	}
-afterSpecial:
 
 	// Function call: functionName (...) [WITHIN GROUP (...)] [FILTER (WHERE ...)] [(IGNORE|RESPECT) NULLS] [OVER windowSpec]
 	if p.canStartFunctionCall() {
@@ -835,9 +891,9 @@ func (p *Parser) parseParenthesizedPrimary() error {
 	}
 	p.restore(cp)
 
-	// 2. Subquery: (query)
+	// 2. Subquery: (query) — only attempt when a query keyword follows any leading '('.
 	p.advance() // '('
-	if p.looksLikeQueryStart() {
+	if p.startsWithQueryKeywordAfterParens() {
 		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
 			p.advance()
 			return nil
@@ -846,17 +902,15 @@ func (p *Parser) parseParenthesizedPrimary() error {
 		p.advance() // '('
 	}
 
-	// 3. Row constructor (namedExpr, namedExpr+) or parenthesized expression (expr).
-	// Try parenthesized single expression first if followed by ')'.
-	cpInner := p.save()
-	if err := p.parseExpression(); err == nil && p.cur().Kind == tokRParen {
-		p.advance()
+	// 3. Single-pass parenthesized expression `(expr)` OR row constructor
+	// `(namedExpr, namedExpr+)` without reparsing the first element.
+	if err := p.parseExpression(); err != nil {
+		return err
+	}
+	if p.match(tokRParen) {
 		return nil
 	}
-	p.restore(cpInner)
-
-	// Row constructor: namedExpression (COMMA namedExpression)+
-	if err := p.parseNamedExpression(); err != nil {
+	if err := p.parseOptionalNamedExprAlias(); err != nil {
 		return err
 	}
 	if !p.match(tokComma) {

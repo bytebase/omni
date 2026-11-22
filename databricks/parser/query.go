@@ -21,8 +21,20 @@ func (p *Parser) parseQuery() error {
 }
 
 func (p *Parser) looksLikeQueryStart() bool {
-	switch p.cur().Kind {
-	case kwWITH, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE, tokLParen:
+	return p.startsWithQueryKeywordAfterParens()
+}
+
+// startsWithQueryKeywordAfterParens scans iteratively past any leading '('
+// tokens and reports whether a query-introducing keyword follows. Scanning
+// iteratively avoids exponential backtracking on deeply nested parenthesized
+// expressions or parenthesized table relations.
+func (p *Parser) startsWithQueryKeywordAfterParens() bool {
+	i := 0
+	for p.peek(i).Kind == tokLParen {
+		i++
+	}
+	switch p.peek(i).Kind {
+	case kwWITH, kwSELECT, kwFROM, kwTABLE, kwVALUES, kwMAP, kwREDUCE:
 		return true
 	}
 	return false
@@ -526,6 +538,11 @@ func (p *Parser) parseFromClause() error {
 }
 
 func (p *Parser) parseRelation() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
 	if p.cur().Kind == kwLATERAL && p.peek(1).Kind != kwVIEW {
 		p.advance()
 	}
@@ -626,18 +643,20 @@ func (p *Parser) parseRelationPrimary() error {
 	case tokLParen:
 		cp := p.save()
 		p.advance()
-		// Try (query) first, then (relation).
-		if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
-			p.advance()
-			if p.cur().Kind == kwTABLESAMPLE {
-				if err := p.parseSample(); err != nil {
-					return err
+		// Try (query) only when a query-introducing keyword follows any leading '('.
+		if p.startsWithQueryKeywordAfterParens() {
+			if err := p.parseQuery(); err == nil && p.cur().Kind == tokRParen {
+				p.advance()
+				if p.cur().Kind == kwTABLESAMPLE {
+					if err := p.parseSample(); err != nil {
+						return err
+					}
 				}
+				return p.parseTableAlias()
 			}
-			return p.parseTableAlias()
+			p.restore(cp)
+			p.advance()
 		}
-		p.restore(cp)
-		p.advance()
 		if err := p.parseRelation(); err != nil {
 			return err
 		}
@@ -1176,7 +1195,9 @@ func (p *Parser) parseUnpivotClause() error {
 			if _, err := p.expect(tokRParen); err != nil {
 				return err
 			}
-			p.parseOptionalUnpivotAlias()
+			if err := p.parseOptionalUnpivotAlias(); err != nil {
+				return err
+			}
 			if !p.match(tokComma) {
 				break
 			}
@@ -1205,7 +1226,9 @@ func (p *Parser) parseUnpivotClause() error {
 			if _, err := p.parseMultipartIdentifier(); err != nil {
 				return err
 			}
-			p.parseOptionalUnpivotAlias()
+			if err := p.parseOptionalUnpivotAlias(); err != nil {
+				return err
+			}
 			if !p.match(tokComma) {
 				break
 			}
@@ -1228,14 +1251,16 @@ func (p *Parser) parseUnpivotClause() error {
 	return nil
 }
 
-func (p *Parser) parseOptionalUnpivotAlias() {
+func (p *Parser) parseOptionalUnpivotAlias() error {
 	if p.match(kwAS) {
-		_, _ = p.parseErrorCapturingIdentifier()
-		return
+		_, err := p.parseErrorCapturingIdentifier()
+		return err
 	}
 	if p.cur().Kind != tokComma && p.cur().Kind != tokRParen && p.cur().Kind.isIdentifier() {
-		_, _ = p.parseErrorCapturingIdentifier()
+		_, err := p.parseErrorCapturingIdentifier()
+		return err
 	}
+	return nil
 }
 
 func (p *Parser) parseWhereClause() error {
@@ -1313,6 +1338,11 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 }
 
 func (p *Parser) parseGroupingAnalytics() error {
+	if err := p.enter(); err != nil {
+		return err
+	}
+	defer p.leave()
+
 	if p.match(kwROLLUP, kwCUBE) {
 		if _, err := p.expect(tokLParen); err != nil {
 			return err

@@ -314,6 +314,8 @@ func TestParseErrors(t *testing.T) {
 		{"dangling comma in partition by", "FROM f(TABLE t PARTITION BY a,)"},
 		{"unquoted hyphenated create table", "CREATE TABLE my-table (a INT)"},
 		{"unquoted hyphenated select from", "SELECT * FROM my-table"},
+		{"unpivot incomplete single alias", "SELECT * FROM t UNPIVOT (v FOR k IN (a AS))"},
+		{"unpivot incomplete multi alias", "SELECT * FROM t UNPIVOT ((v1, v2) FOR k IN ((a, b) AS))"},
 	}
 
 	for _, tc := range bad {
@@ -334,6 +336,14 @@ func TestNestingLimit(t *testing.T) {
 		{
 			name: "deep parens",
 			sql:  "SELECT " + strings.Repeat("(", maxNestingDepth+50) + "1" + strings.Repeat(")", maxNestingDepth+50),
+		},
+		{
+			name: "deep parenthesized relation",
+			sql:  "SELECT * FROM " + strings.Repeat("(", maxNestingDepth+50) + "t" + strings.Repeat(")", maxNestingDepth+50),
+		},
+		{
+			name: "deep grouping sets",
+			sql:  "SELECT a FROM t GROUP BY " + strings.Repeat("GROUPING SETS(", maxNestingDepth+50) + "a" + strings.Repeat(")", maxNestingDepth+50),
 		},
 		{
 			name: "deep unary minus",
@@ -357,11 +367,40 @@ func TestNestingLimit(t *testing.T) {
 	}
 }
 
-func TestDeepNestedTrimLinear(t *testing.T) {
-	// 50 nested TRIM(...) calls must parse in linear time without exponential reparsing.
+func TestDeepNestedLinearParsing(t *testing.T) {
+	// Deeply nested TRIM, OVERLAY, POSITION, and row constructors must parse in
+	// linear time without exponential backtracking.
 	const depth = 50
-	sql := "SELECT " + strings.Repeat("TRIM(", depth) + "x" + strings.Repeat(")", depth)
-	if _, err := Parse(sql); err != nil {
-		t.Fatalf("Parse nested TRIM failed: %v", err)
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "nested trim",
+			sql:  "SELECT " + strings.Repeat("TRIM(", depth) + "x" + strings.Repeat(")", depth),
+		},
+		{
+			name: "nested overlay",
+			sql:  "SELECT " + strings.Repeat("OVERLAY(", depth) + "'abc'" + strings.Repeat(", 'x', 1, 1)", depth),
+		},
+		{
+			name: "nested position",
+			sql:  "SELECT " + strings.Repeat("POSITION(", depth) + "'a'" + strings.Repeat(", 'abc')", depth),
+		},
+		{
+			name: "nested row constructor",
+			sql:  "SELECT " + strings.Repeat("(", depth) + "1" + strings.Repeat(", 2)", depth),
+		},
+		{
+			name: "nested parens",
+			sql:  "SELECT " + strings.Repeat("(", depth) + "1" + strings.Repeat(")", depth),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err != nil {
+				t.Fatalf("Parse %s failed: %v", tc.name, err)
+			}
+		})
 	}
 }
