@@ -161,6 +161,20 @@ func (p *Parser) parseAlterTableAction() (*nodes.AlterTableCmd, error) {
 		return p.parseAlterTableInmemory()
 	case p.atWord("ILM"):
 		return p.parseAlterTableClause("ILM", p.parseATIlmClause)
+	case p.atWord("NESTED"), p.atWord("VARRAY"):
+		// Oracle enters top-level NESTED TABLE / VARRAY column_properties on
+		// ALTER TABLE (expecting STORE AS / SUBSTITUTABLE) before refusing
+		// clauses that require MODIFY (e.g., RETURN AS LOCATOR or (RETENTION)).
+		start := p.pos()
+		opts := &nodes.List{}
+		if err := p.parseATColumnProperties(opts); err != nil {
+			return nil, err
+		}
+		return withAlterTableOptions(&nodes.AlterTableCmd{
+			Action:  nodes.AT_ALTER_PROPERTY,
+			Subtype: "COLUMN_PROPERTIES",
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, opts), nil
 	case p.atWord("ALLOCATE"):
 		return p.parseAlterTableClause("ALLOCATE EXTENT", p.parseATAllocateExtent)
 	case p.atWord("DEALLOCATE"):
@@ -599,6 +613,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		for {
 			var err error
 			colTok := p.cur
+			if p.isATNameStart() && named[colTok.Str] {
+				return nil, p.syntaxErrorAtTok(colTok)
+			}
 			col, err = p.parseATModifyColumn(true)
 			if err != nil {
 				return nil, err

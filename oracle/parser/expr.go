@@ -754,9 +754,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
 		}
-		// CURRENT is reserved and starts no expression: Oracle 23ai
-		// fails at it as a column or a function (ORA-00936).
-		if p.cur.Type == kwCURRENT {
+		// CURRENT and ADD are reserved and start no SQL expression: Oracle 23ai
+		// fails at them as a column or a function (ORA-00936).
+		if p.cur.Type == kwCURRENT || (p.cur.Type == kwADD && !p.plsqlCode) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if p.isIdentLike() {

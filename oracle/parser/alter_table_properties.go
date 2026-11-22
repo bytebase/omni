@@ -189,7 +189,7 @@ func (p *Parser) parseATColumnProperties(opts *nodes.List) error {
 		case p.cur.Type == kwNESTED:
 			err = p.parseATNestedTableStorage()
 		case p.isATLobStorageStart() || p.atWord("LOB"):
-			if err = p.parseATLobStorage(); err == nil && p.cur.Type == '(' && p.peekNext().Type == kwPARTITION {
+			if err = p.parseATLobStorage(); err == nil && p.cur.Type == '(' {
 				err = p.parseATLobPartitionStorage()
 			}
 		case p.atWord("XMLTYPE"):

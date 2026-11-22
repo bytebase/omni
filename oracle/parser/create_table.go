@@ -255,6 +255,22 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			case "CONTROLFILE":
 				p.advance() // consume CONTROLFILE
 				return p.parseCreateControlfileStmt(start)
+			case "SNAPSHOT":
+				if p.cur.Type == tokQIDENT {
+					return nil, p.syntaxErrorAtCur()
+				}
+				// Oracle treats CREATE [OR REPLACE] SNAPSHOT as a legacy synonym
+				// for CREATE [OR REPLACE] MATERIALIZED VIEW (and SNAPSHOT LOG).
+				p.advance() // consume SNAPSHOT
+				if p.cur.Type == kwLOG {
+					p.advance() // consume LOG
+					return p.parseCreateMviewLogStmt(start)
+				}
+				return p.parseCreateMaterializedViewStmt(&nodes.CreateViewStmt{
+					OrReplace:    orReplace,
+					Materialized: true,
+					Loc:          nodes.Loc{Start: start},
+				})
 			}
 		}
 		// Check for MULTIVALUE INDEX
@@ -808,8 +824,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 		// A user-defined type name (not a built-in parameterized type) cannot
 		// take a parenthesized modifier; Oracle rejects at the type name
-		// (ORA-03060: MODIFY (a LOB(a) ...), MODIFY (a AS(1), a(1))).
-		if (p.alterTableModifyColumn || p.createTableColumns) && p.cur.Type == '(' && !isOracleTypeToken(typeTok.Type) &&
+		// (ORA-03060: MODIFY (a LOB(a) ...), MODIFY (a AS(1), a(1)), ADD LOG DATA(ALL)).
+		if (p.alterTableModifyColumn || p.createTableColumns || p.alterTableAddColumn || p.alterTableAddList) &&
+			p.cur.Type == '(' && !isOracleTypeToken(typeTok.Type) &&
 			col.TypeName != nil && !col.TypeName.IsPercType && !col.TypeName.IsPercRowtype {
 			return nil, p.syntaxErrorAtTok(typeTok)
 		}

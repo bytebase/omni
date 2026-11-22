@@ -671,7 +671,11 @@ func (k *keyManagementClauses) moveKeysWithIdentifier() error {
 		if p.cur.Type != tokSCONST && !k.isName() {
 			return p.syntaxErrorAtCur()
 		}
-		items.Items = append(items.Items, &nodes.String{Str: p.advance().Str})
+		tok := p.advance()
+		if tok.Type != tokSCONST && p.cur.Type == ')' {
+			return p.syntaxErrorAtTok(tok)
+		}
+		items.Items = append(items.Items, &nodes.String{Str: tok.Str})
 		if p.cur.Type != ',' {
 			break
 		}

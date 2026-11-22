@@ -641,7 +641,9 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 	}
 	if p.isKeywordStr("XMLSCHEMA") {
 		p.advance() // consume XMLSCHEMA
-		if err := p.expectCreateTableToken(tokSCONST); err != nil {
+		// Oracle refuses a string literal here (ORA-02000 at XMLSCHEMA 's'),
+		// matching alter_table_properties.go's parseATXMLTypeColumnProperties.
+		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
 	}
@@ -673,12 +675,6 @@ func (p *Parser) parseMviewXmltypeColumnProperties() error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-	}
-	for _, word := range []string{"NONSCHEMA", "ANYSCHEMA"} {
-		if (p.isKeywordStr("ALLOW") || p.isKeywordStr("DISALLOW")) && isCreateTableWordTok(p.peekNext(), word) {
-			p.advance() // consume ALLOW / DISALLOW
-			p.advance() // consume NONSCHEMA / ANYSCHEMA
-		}
 	}
 	return nil
 }

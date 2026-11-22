@@ -1453,7 +1453,7 @@ reject@100	reject@100	engine	administerKeyManagement_key_management_clauses/admi
 reject@102	reject@102	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-15	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a IDENTIFIER IN(a)
 reject@107	reject@107	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-16	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IN(a)
 reject@117	reject@117	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-17	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER(a)
-reject@122	reject@121	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-18	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER IN a)
+reject@121	reject@121	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-18	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER IN a)
 reject@122	reject@122	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-19	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER IN()
 reject@122	reject@122	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!drop-20	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER IN(a
 reject@127	reject@127	engine	administerKeyManagement_key_management_clauses/administerKeyManagement_move_keys!insert	ADMINISTER KEY MANAGEMENT MOVE KEYS TO NEW KEYSTORE 's' IDENTIFIED BY a FROM KEYSTORE IDENTIFIED BY a WITH IDENTIFIER IN(a) zzz
@@ -5631,7 +5631,7 @@ reject@61	reject@61	engine	alterIndextype_array_dml_clause(ID_.)?/ID_.!insert	AL
 accept	accept	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/%empty	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a)
 accept	accept	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a),(a, a)
 reject@60	reject@60	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-1	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a)(a, a)
-reject@60	reject@62	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-2	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a), a, a)
+reject@62	reject@62	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-2	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a), a, a)
 reject@62	reject@62	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-3	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a),(, a)
 reject@64	reject@64	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-4	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a),(a a)
 reject@64	reject@64	engine	alterIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-5	ALTER INDEXTYPE a ADD a(NUMBER) USING a WITH ARRAY DML(a, a),(a,)
@@ -6796,7 +6796,7 @@ reject@59	reject@59	engine	alterMaterializedViewLog_split_table_partition(,_EXPR
 accept	accept	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/%empty	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1)
 accept	accept	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO(PARTITION, PARTITION)
 reject@56	reject@56	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-1	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1)(PARTITION, PARTITION)
-reject@82	reject@62	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-2	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO PARTITION, PARTITION)
+reject@62	reject@62	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-2	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO PARTITION, PARTITION)
 reject@62	reject@62	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-3	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO(, PARTITION)
 accept	accept	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-4	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO(PARTITION PARTITION)
 reject@72	reject@72	engine	alterMaterializedViewLog_split_table_partition(INTO_(_alterMaterializedViewLog_part~2b7f5d4b)?/INTO_(_alterMaterializedViewLog_partition_spec_,_alterM~e111d34e!drop-5	ALTER MATERIALIZED VIEW LOG ON a SPLIT PARTITION a AT(1) INTO(PARTITION,)
@@ -9736,7 +9736,7 @@ accept	accept	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterM
 reject@51	reject@51	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterMaterializedView_subpartition_spec)?/INTO_alterMaterializedView_subpartition_spec!drop-1	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a SUBPARTITION
 reject@55	reject@55	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterMaterializedView_subpartition_spec)?/INTO_alterMaterializedView_subpartition_spec!drop-2	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a INTO
 accept	accept	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterMaterializedView_subpartition_spec)?/INTO_alterMaterializedView_subpartition_spec!insert	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a INTO SUBPARTITION zzz
-reject@51	reject@62	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterMaterializedView_subpartition_spec)?/INTO_alterMaterializedView_subpartition_spec!swap	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a INVALIDATE SUBPARTITION
+reject@62	reject@62	engine	alterMaterializedView_merge_table_subpartitions(INTO_alterMaterializedView_subpartition_spec)?/INTO_alterMaterializedView_subpartition_spec!swap	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a INVALIDATE SUBPARTITION
 accept	accept	engine	alterMaterializedView_merge_table_subpartitions(alterMaterializedView_filter_condition)?/%empty	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a
 reject@51	reject@51	engine	alterMaterializedView_merge_table_subpartitions(alterMaterializedView_filter_condition)?/alterMaterializedView_filter_condition	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a INCLUDING ROWS WHERE 1 = 1
 reject@51	reject@51	engine	alterMaterializedView_merge_table_subpartitions(alterMaterializedView_filter_condition)?/alterMaterializedView_filter_condition!drop-1	ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a ROWS WHERE 1 = 1
@@ -13518,7 +13518,7 @@ reject@32	reject@32	engine	alterTable_column_clauses(alterTable_add_column_claus
 reject@35	reject@0	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_rename_column_clause!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
 reject@14	reject@14	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_rename_column_clause!swap	ALTER TABLE a REPAIR COLUMN a TO a
 accept	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval	ALTER TABLE a MODIFY NESTED TABLE a RETURN AS LOCATOR
-reject@14	reject@29	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!drop-1	ALTER TABLE a NESTED TABLE a RETURN AS LOCATOR
+reject@29	reject@29	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!drop-1	ALTER TABLE a NESTED TABLE a RETURN AS LOCATOR
 reject@21	reject@21	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!drop-2	ALTER TABLE a MODIFY TABLE a RETURN AS LOCATOR
 reject@28	reject@28	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!drop-3	ALTER TABLE a MODIFY NESTED a RETURN AS LOCATOR
 reject@41	reject@41	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_collection_retrieval!drop-4	ALTER TABLE a MODIFY NESTED TABLE RETURN AS LOCATOR
@@ -13539,7 +13539,7 @@ reject@37	reject@37	engine	alterTable_column_clauses(alterTable_add_column_claus
 reject@39	reject@39	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!insert	ALTER TABLE a MODIFY LOB(a)(RETENTION) zzz
 reject@14	reject@14	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_modify_lob_storage_clause!swap	ALTER TABLE a MODULE LOB(a)(RETENTION)
 accept	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties	ALTER TABLE a MODIFY VARRAY a(RETENTION)
-reject@14	reject@22	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties!drop-1	ALTER TABLE a VARRAY a(RETENTION)
+reject@22	reject@22	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties!drop-1	ALTER TABLE a VARRAY a(RETENTION)
 reject@22	reject@22	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties!drop-2	ALTER TABLE a MODIFY a(RETENTION)
 reject@27	reject@27	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties!drop-3	ALTER TABLE a MODIFY VARRAY(RETENTION)
 reject@30	reject@30	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_alter_varray_col_properties!drop-4	ALTER TABLE a MODIFY VARRAY a RETENTION)
@@ -14062,7 +14062,7 @@ reject@18	reject@18	engine	alterTable_ilm_clause(ADD_POLICY_alterTable_ilm_polic
 accept	accept	engine	alterTable_supplemental_table_logging/(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)	ALTER TABLE a DROP SUPPLEMENTAL LOG GROUP a
 accept	accept	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363	ALTER TABLE a ADD SUPPLEMENTAL LOG DATA(ALL) COLUMNS
 reject@14	reject@14	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-1	ALTER TABLE a SUPPLEMENTAL LOG DATA(ALL) COLUMNS
-reject@26	reject@22	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-2	ALTER TABLE a ADD LOG DATA(ALL) COLUMNS
+reject@22	reject@22	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-2	ALTER TABLE a ADD LOG DATA(ALL) COLUMNS
 reject@31	reject@31	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-3	ALTER TABLE a ADD SUPPLEMENTAL DATA(ALL) COLUMNS
 reject@34	reject@34	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-4	ALTER TABLE a ADD SUPPLEMENTAL LOG(ALL) COLUMNS
 reject@40	reject@40	engine	alterTable_supplemental_table_logging(ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PR~9d6c5694)/ADD_SUPPLEMENTAL_LOG_(DATA_(_(ALL|PRIMARY_KEY|UNIQUE|FO~d6a74363!drop-5	ALTER TABLE a ADD SUPPLEMENTAL LOG DATA ALL) COLUMNS
@@ -14402,13 +14402,13 @@ reject@29	reject@29	engine	alterTable_modify_column_clauses(,_alterTable_modify_
 reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a	ALTER TABLE a MODIFY(a AS(1), a AS(1))
 reject@29	reject@29	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-1	ALTER TABLE a MODIFY(a AS(1) a AS(1))
 reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-2	ALTER TABLE a MODIFY(a AS(1), AS(1))
-reject@31	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-3	ALTER TABLE a MODIFY(a AS(1), a(1))
-reject@35	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-4	ALTER TABLE a MODIFY(a AS(1), a AS 1))
-reject@35	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-5	ALTER TABLE a MODIFY(a AS(1), a AS())
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-3	ALTER TABLE a MODIFY(a AS(1), a(1))
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-4	ALTER TABLE a MODIFY(a AS(1), a AS 1))
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-5	ALTER TABLE a MODIFY(a AS(1), a AS())
 reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!drop-6	ALTER TABLE a MODIFY(a AS(1), a AS(1)
-reject@36	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!truncate	ALTER TABLE a MODIFY(a AS(1), a AS(1
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!truncate	ALTER TABLE a MODIFY(a AS(1), a AS(1
 reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!insert	ALTER TABLE a MODIFY(a AS(1), a AS(1) zzz)
-reject@32	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!swap	ALTER TABLE a MODIFY(a AS(1), a ASC(1))
+reject@30	reject@30	engine	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a!swap	ALTER TABLE a MODIFY(a AS(1), a ASC(1))
 accept	accept	engine	alterTable_drop_column_clause/(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)	ALTER TABLE a DROP COLUMN a
 accept	accept	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
 reject@14	reject@14	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2!drop-1	ALTER TABLE a UNUSED COLUMN a
@@ -15621,7 +15621,7 @@ reject@36	reject@36	engine	alterTable_table_partitioning_clauses(alterTable_rang
 reject@33	reject@33	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-3	ALTER TABLE a MODIFY PARTITION BY(a)(PARTITION VALUES LESS THAN(1))
 reject@40	reject@40	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-4	ALTER TABLE a MODIFY PARTITION BY RANGE a)(PARTITION VALUES LESS THAN(1))
 reject@40	reject@40	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-5	ALTER TABLE a MODIFY PARTITION BY RANGE()(PARTITION VALUES LESS THAN(1))
-reject@41	reject@52	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(1))
+reject@52	reject@52	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(1))
 reject@43	reject@43	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-7	ALTER TABLE a MODIFY PARTITION BY RANGE(a) PARTITION VALUES LESS THAN(1))
 reject@43	reject@43	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-8	ALTER TABLE a MODIFY PARTITION BY RANGE(a)(VALUES LESS THAN(1))
 reject@58	reject@58	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_range_partitions!drop-9	ALTER TABLE a MODIFY PARTITION BY RANGE(a)(PARTITION LESS THAN(1))
@@ -15638,7 +15638,7 @@ reject@35	reject@35	engine	alterTable_table_partitioning_clauses(alterTable_rang
 reject@33	reject@33	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-3	ALTER TABLE a MODIFY PARTITION BY(a)(PARTITION VALUES(1))
 reject@39	reject@39	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-4	ALTER TABLE a MODIFY PARTITION BY LIST a)(PARTITION VALUES(1))
 reject@39	reject@39	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-5	ALTER TABLE a MODIFY PARTITION BY LIST()(PARTITION VALUES(1))
-reject@40	reject@51	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a(PARTITION VALUES(1))
+reject@51	reject@51	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a(PARTITION VALUES(1))
 reject@42	reject@42	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-7	ALTER TABLE a MODIFY PARTITION BY LIST(a) PARTITION VALUES(1))
 reject@42	reject@42	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-8	ALTER TABLE a MODIFY PARTITION BY LIST(a)(VALUES(1))
 reject@51	reject@51	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_list_partitions!drop-9	ALTER TABLE a MODIFY PARTITION BY LIST(a)(PARTITION(1))
@@ -15670,7 +15670,7 @@ reject@56	reject@56	engine	alterTable_table_partitioning_clauses(alterTable_rang
 reject@58	reject@58	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-9	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY(a)(PARTITION VALUES LESS THAN(1))
 reject@65	reject@65	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-10	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE a)(PARTITION VALUES LESS THAN(1))
 reject@65	reject@65	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-11	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE()(PARTITION VALUES LESS THAN(1))
-reject@66	reject@77	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-12	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a(PARTITION VALUES LESS THAN(1))
+reject@77	reject@77	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-12	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a(PARTITION VALUES LESS THAN(1))
 reject@68	reject@68	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-13	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a) PARTITION VALUES LESS THAN(1))
 reject@68	reject@68	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-14	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a)(VALUES LESS THAN(1))
 reject@83	reject@83	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_range_partitions!drop-15	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a)(PARTITION LESS THAN(1))
@@ -15693,7 +15693,7 @@ reject@55	reject@55	engine	alterTable_table_partitioning_clauses(alterTable_rang
 reject@57	reject@57	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-9	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY(a)(PARTITION VALUES(1))
 reject@64	reject@64	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-10	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE a)(PARTITION VALUES(1))
 reject@64	reject@64	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-11	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE()(PARTITION VALUES(1))
-reject@65	reject@76	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-12	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a(PARTITION VALUES(1))
+reject@76	reject@76	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-12	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a(PARTITION VALUES(1))
 reject@67	reject@67	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-13	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a) PARTITION VALUES(1))
 reject@67	reject@67	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-14	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(VALUES(1))
 reject@76	reject@76	engine	alterTable_table_partitioning_clauses(alterTable_range_partitions|alterTab~076007dd)/alterTable_composite_list_partitions!drop-15	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY RANGE(a)(PARTITION(1))
@@ -15849,7 +15849,7 @@ reject@37	reject@37	engine	alterTable_column_properties(alterTable_varray_col_pr
 accept	accept	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 accept	accept	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a)
 reject@61	reject@61	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a PARTITION a VARRAY a STORE AS LOB a)
-reject@60	reject@61	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(a VARRAY a STORE AS LOB a)
+reject@61	reject@61	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(a VARRAY a STORE AS LOB a)
 reject@78	reject@78	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION VARRAY a STORE AS LOB a)
 reject@73	reject@73	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a a STORE AS LOB a)
 reject@86	reject@86	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-5	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY STORE AS LOB a)
@@ -15859,7 +15859,7 @@ reject@91	reject@91	engine	alterTable_column_properties((_alterTable_lob_partiti
 reject@94	reject@94	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-9	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB)
 reject@96	reject@96	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!drop-10	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a
 reject@98	reject@98	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a) zzz
-reject@60	reject@61	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!swap	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITIONING a VARRAY a STORE AS LOB a)
+reject@61	reject@61	engine	alterTable_column_properties((_alterTable_lob_partition_storage_(~474730f3)?/(_alterTable_lob_partition_storage_(,_alterTable_lob_pa~9a1bf382!swap	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITIONING a VARRAY a STORE AS LOB a)
 accept	accept	engine	alterTable_column_properties(,_alterTable_lob_partition_storage)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a)
 reject@97	reject@97	engine	alterTable_column_properties(,_alterTable_lob_partition_storage)*/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a zzz)
 accept	accept	engine	alterTable_column_properties(,_alterTable_lob_partition_storage)*/,_alterTable_lob_partition_storage_(,_alterTable_lob_pa~fb820b8b	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a, PARTITION a VARRAY a STORE AS LOB a)
@@ -17178,7 +17178,7 @@ reject@43	reject@43	engine	alterTable_composite_range_partitions(alterTable_subp
 reject@56	reject@56	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-2	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION LIST(a)(PARTITION VALUES LESS THAN(1))
 reject@64	reject@64	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-4	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST a)(PARTITION VALUES LESS THAN(1))
 reject@64	reject@64	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-5	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST()(PARTITION VALUES LESS THAN(1))
-reject@65	reject@76	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST(a(PARTITION VALUES LESS THAN(1))
+reject@76	reject@76	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST(a(PARTITION VALUES LESS THAN(1))
 reject@65	reject@65	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!truncate	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST(a
 reject@67	reject@67	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!insert	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY LIST(a) zzz(PARTITION VALUES LESS THAN(1))
 reject@43	reject@43	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!swap	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITIONS BY LIST(a)(PARTITION VALUES LESS THAN(1))
@@ -17187,7 +17187,7 @@ reject@43	reject@43	engine	alterTable_composite_range_partitions(alterTable_subp
 reject@56	reject@56	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-2	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION HASH(a)(PARTITION VALUES LESS THAN(1))
 reject@64	reject@64	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-4	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH a)(PARTITION VALUES LESS THAN(1))
 reject@64	reject@64	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-5	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH()(PARTITION VALUES LESS THAN(1))
-reject@65	reject@76	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH(a(PARTITION VALUES LESS THAN(1))
+reject@76	reject@76	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-6	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH(a(PARTITION VALUES LESS THAN(1))
 reject@65	reject@65	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!truncate	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH(a
 reject@67	reject@67	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!insert	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITION BY HASH(a) zzz(PARTITION VALUES LESS THAN(1))
 reject@43	reject@43	engine	alterTable_composite_range_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!swap	ALTER TABLE a MODIFY PARTITION BY RANGE(a) SUBPARTITIONS BY HASH(a)(PARTITION VALUES LESS THAN(1))
@@ -17262,7 +17262,7 @@ reject@42	reject@42	engine	alterTable_composite_list_partitions(alterTable_subpa
 reject@55	reject@55	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-2	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION LIST(a)(PARTITION VALUES(1))
 reject@63	reject@63	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-4	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST a)(PARTITION VALUES(1))
 reject@63	reject@63	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-5	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST()(PARTITION VALUES(1))
-reject@64	reject@75	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST(a(PARTITION VALUES(1))
+reject@75	reject@75	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST(a(PARTITION VALUES(1))
 reject@64	reject@64	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!truncate	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST(a
 reject@66	reject@66	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!insert	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY LIST(a) zzz(PARTITION VALUES(1))
 reject@42	reject@42	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_list!swap	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITIONS BY LIST(a)(PARTITION VALUES(1))
@@ -17271,7 +17271,7 @@ reject@42	reject@42	engine	alterTable_composite_list_partitions(alterTable_subpa
 reject@55	reject@55	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-2	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION HASH(a)(PARTITION VALUES(1))
 reject@63	reject@63	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-4	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH a)(PARTITION VALUES(1))
 reject@63	reject@63	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-5	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH()(PARTITION VALUES(1))
-reject@64	reject@75	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH(a(PARTITION VALUES(1))
+reject@75	reject@75	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!drop-6	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH(a(PARTITION VALUES(1))
 reject@64	reject@64	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!truncate	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH(a
 reject@66	reject@66	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!insert	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITION BY HASH(a) zzz(PARTITION VALUES(1))
 reject@42	reject@42	engine	alterTable_composite_list_partitions(alterTable_subpartition_by_range|alt~437694ce)/alterTable_subpartition_by_hash!swap	ALTER TABLE a MODIFY PARTITION BY LIST(a) SUBPARTITIONS BY HASH(a)(PARTITION VALUES(1))
@@ -17580,8 +17580,8 @@ reject@59	reject@59	engine	alterTable_varray_col_properties(ID?_(_alterTable_lob
 reject@59	reject@59	engine	alterTable_varray_col_properties(ID?_(_alterTable_lob_storage_parameters_)|ID)/(ID)?_(_alterTable_lob_storage_parameters_)!swap	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(LOGICAL)
 accept	accept	engine	alterTable_varray_col_properties(ID?_(_alterTable_lob_storage_parameters_)|ID)/ID	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a
 reject@59	reject@59	engine	alterTable_varray_col_properties(ID)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(LOGGING)
-reject@62	reject@63	engine	alterTable_varray_col_properties(ID)?/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB zzz(LOGGING)
-reject@60	reject@61	engine	alterTable_varray_col_properties(ID)?/ID	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(LOGGING)
+reject@63	reject@63	engine	alterTable_varray_col_properties(ID)?/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB zzz(LOGGING)
+reject@61	reject@61	engine	alterTable_varray_col_properties(ID)?/ID	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(LOGGING)
 reject@61	reject@61	engine	alterTable_varray_col_properties(ID)?/ID!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a zzz(LOGGING)
 reject@53	reject@53	engine	alterTable_lob_storage_clause/LOB_(_ID_(,_ID)*_)_STORE_AS_(ID)?_(_alterTable_lob_stor~da8e2d65	ALTER TABLE a UPGRADE INCLUDING DATA LOB(a) STORE AS(LOGGING)
 reject@53	reject@53	engine	alterTable_lob_storage_clause(,_ID)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA LOB(a) STORE AS(LOGGING)
@@ -17617,8 +17617,8 @@ reject@118	reject@118	engine	alterTable_lob_partition_storage(alterTable_lob_sto
 reject@121	reject@121	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)+/(alterTable_lob_storage_clause|alterT~08723e71)_(alterT~d0005fb3!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAY a STORE AS LOB a VARRAY a STORE AS LOB a zzz)
 reject@73	reject@73	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)+/(alterTable_lob_storage_clause|alterT~08723e71)_(alterT~d0005fb3!swap	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a VARRAYS a STORE AS LOB a VARRAY a STORE AS LOB a)
 reject@89	reject@89	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB(a) STORE AS(LOGGING))
-reject@72	reject@73	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a(a) STORE AS(LOGGING))
-reject@73	reject@77	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB a) STORE AS(LOGGING))
+reject@73	reject@73	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a(a) STORE AS(LOGGING))
+reject@77	reject@77	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB a) STORE AS(LOGGING))
 reject@77	reject@77	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB() STORE AS(LOGGING))
 reject@79	reject@79	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB(a STORE AS(LOGGING))
 reject@80	reject@80	engine	alterTable_lob_partition_storage(alterTable_lob_storage_clause|alterT~08723e71)/alterTable_lob_storage_clause!drop-5	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB a(PARTITION a LOB(a) AS(LOGGING))
@@ -24347,7 +24347,7 @@ reject@80	reject@80	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_c
 reject@42	reject@42	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-1	CREATE INDEX a ON a(a) GLOBAL PARTITION BY(a)(PARTITION VALUES LESS THAN(a))
 reject@49	reject@49	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-2	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE a)(PARTITION VALUES LESS THAN(a))
 reject@49	reject@49	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-3	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE()(PARTITION VALUES LESS THAN(a))
-reject@50	reject@61	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-4	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(a))
+reject@61	reject@61	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-4	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE(a(PARTITION VALUES LESS THAN(a))
 reject@52	reject@52	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-5	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE(a) PARTITION VALUES LESS THAN(a))
 reject@52	reject@52	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-6	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE(a)(VALUES LESS THAN(a))
 reject@67	reject@67	engine	createIndex_global_partitioned_index(RANGE_(_ID_)_(_createIndex_index_par~da8e3291)/RANGE_(_ID_)_(_createIndex_index_partitioning_clause_(,~a17ad3d1!drop-7	CREATE INDEX a ON a(a) GLOBAL PARTITION BY RANGE(a)(PARTITION LESS THAN(a))
@@ -24782,7 +24782,7 @@ reject@53	reject@53	engine	createIndextype(createIndextype_storage_table_clause)
 reject@61	reject@61	engine	createIndextype(createIndextype_storage_table_clause)?/createIndextype_storage_table_clause!drop-4	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH SYSTEM MANAGED TABLES
 reject@68	reject@68	engine	createIndextype(createIndextype_storage_table_clause)?/createIndextype_storage_table_clause!drop-5	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH SYSTEM MANAGED STORAGE
 reject@76	reject@76	engine	createIndextype(createIndextype_storage_table_clause)?/createIndextype_storage_table_clause!insert	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH SYSTEM MANAGED STORAGE TABLES zzz
-reject@41	reject@49	engine	createIndextype(createIndextype_storage_table_clause)?/createIndextype_storage_table_clause!swap	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITHOUT SYSTEM MANAGED STORAGE TABLES
+reject@49	reject@49	engine	createIndextype(createIndextype_storage_table_clause)?/createIndextype_storage_table_clause!swap	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITHOUT SYSTEM MANAGED STORAGE TABLES
 accept	accept	engine	createIndextype(createIndextype_array_dml_clause)?/%empty	CREATE INDEXTYPE a FOR a(NUMBER) USING a
 accept	accept	engine	createIndextype(createIndextype_array_dml_clause)?/createIndextype_array_dml_clause	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML
 reject@41	reject@41	engine	createIndextype(createIndextype_array_dml_clause)?/createIndextype_array_dml_clause!drop-1	CREATE INDEXTYPE a FOR a(NUMBER) USING a ARRAY DML
@@ -24833,7 +24833,7 @@ reject@62	reject@62	engine	createIndextype_array_dml_clause(ID_.)?/ID_.!insert	C
 accept	accept	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/%empty	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a)
 accept	accept	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a),(a, a)
 reject@61	reject@61	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-1	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a)(a, a)
-reject@61	reject@63	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-2	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a), a, a)
+reject@63	reject@63	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-2	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a), a, a)
 reject@63	reject@63	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-3	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a),(, a)
 reject@65	reject@65	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-4	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a),(a a)
 reject@65	reject@65	engine	createIndextype_array_dml_clause(,_(_(ID_.)?_ID_,_(ID_.)?_ID_))?/,_(_(ID_.)?_ID_,_(ID_.)?_ID_)!drop-5	CREATE INDEXTYPE a FOR a(NUMBER) USING a WITH ARRAY DML(a, a),(a,)
@@ -26120,7 +26120,7 @@ reject@121	reject@121	engine	createMaterializedViewLog_list_subpartition_desc(cr
 reject@121	reject@121	engine	createMaterializedViewLog_list_subpartition_desc(createMaterializedViewLog_partitioni~c9b8f40e)?/%empty	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1
 reject@121	reject@121	engine	createMaterializedViewLog_list_subpartition_desc(createMaterializedViewLog_partitioni~c9b8f40e)?/createMaterializedViewLog_partitioning_storage_clause	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1
 reject@114	reject@114	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION) PARTITIONS 1
-reject@102	accept	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4!drop-1	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1
+accept	accept	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4!drop-1	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1
 reject@102	reject@102	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4!truncate	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(
 reject@118	reject@118	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4!insert	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION zzz) PARTITIONS 1
 reject@102	reject@102	engine	createMaterializedViewLog_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedViewLog_read_only~7eccf7d4!swap	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITIONS) PARTITIONS 1
@@ -27019,7 +27019,7 @@ reject@27	reject@27	engine	createMaterializedView(createMaterializedView_unusabl
 reject@27	reject@27	engine	createMaterializedView(createMaterializedView_unusable_edit~4a3c84b2)?/createMaterializedView_unusable_editions_clause!swap	CREATE MATERIALIZED VIEW a UNUSED EDITIONS AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView(createMaterializedView_annotations_clause)?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual
 reject@60	reject@60	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual ANNOTATIONS(ADD a)
-reject@53	reject@49	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause!drop-1	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual(ADD a)
+reject@49	reject@49	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause!drop-1	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual(ADD a)
 reject@61	reject@61	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause!drop-2	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual ANNOTATIONS ADD a)
 reject@60	reject@60	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause!drop-3	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual ANNOTATIONS(a)
 reject@60	reject@60	engine	createMaterializedView(createMaterializedView_annotations_clause)?/createMaterializedView_annotations_clause!drop-4	CREATE MATERIALIZED VIEW a AS SELECT 1 FROM dual ANNOTATIONS(ADD)
@@ -27806,9 +27806,9 @@ reject@62	reject@62	engine	createMaterializedView_nested_table_col_properties(cr
 reject@70	reject@70	engine	createMaterializedView_nested_table_col_properties(createMaterializedView_substitutable~cd1b3d9f)?/createMaterializedView_substitutable_column_clause!insert	CREATE MATERIALIZED VIEW a NESTED TABLE a SUBSTITUTABLE AT ALL LEVELS zzz STORE AS a AS SELECT 1 FROM dual
 reject@42	reject@42	engine	createMaterializedView_nested_table_col_properties(createMaterializedView_substitutable~cd1b3d9f)?/createMaterializedView_substitutable_column_clause!swap	CREATE MATERIALIZED VIEW a NESTED TABLE a SUCCESSFUL AT ALL LEVELS STORE AS a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/%empty	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a AS SELECT 1 FROM dual
-accept	reject@42	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL	CREATE MATERIALIZED VIEW a NESTED TABLE a LOCAL STORE AS a AS SELECT 1 FROM dual
+reject@42	reject@42	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL	CREATE MATERIALIZED VIEW a NESTED TABLE a LOCAL STORE AS a AS SELECT 1 FROM dual
 reject@41	reject@41	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!truncate	CREATE MATERIALIZED VIEW a NESTED TABLE a
-reject@48	reject@42	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!insert	CREATE MATERIALIZED VIEW a NESTED TABLE a LOCAL zzz STORE AS a AS SELECT 1 FROM dual
+reject@42	reject@42	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!insert	CREATE MATERIALIZED VIEW a NESTED TABLE a LOCAL zzz STORE AS a AS SELECT 1 FROM dual
 reject@42	reject@42	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!swap	CREATE MATERIALIZED VIEW a NESTED TABLE a LOCATION STORE AS a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/GLOBAL	CREATE MATERIALIZED VIEW a NESTED TABLE a GLOBAL STORE AS a AS SELECT 1 FROM dual
 reject@49	reject@49	engine	createMaterializedView_nested_table_col_properties(LOCAL|GLOBAL)?/GLOBAL!insert	CREATE MATERIALIZED VIEW a NESTED TABLE a GLOBAL zzz STORE AS a AS SELECT 1 FROM dual
@@ -28722,11 +28722,11 @@ reject@53	reject@53	engine	createMaterializedView_xmltype_storage((_createMateri
 accept	accept	engine	createMaterializedView_xmlschema_spec/(XMLSCHEMA_STRING)?_ELEMENT_ID_(STORE_ALL_VARRAYS_AS_(L~f73e4b68	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/%empty	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a AS SELECT 1 FROM dual
 reject@37	reject@37	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/%empty!insert	CREATE MATERIALIZED VIEW a XMLTYPE a zzz ELEMENT a AS SELECT 1 FROM dual
-accept	reject@47	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
 reject@37	reject@37	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!drop-1	CREATE MATERIALIZED VIEW a XMLTYPE a 's' ELEMENT a AS SELECT 1 FROM dual
-reject@47	reject@55	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!drop-2	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA ELEMENT a AS SELECT 1 FROM dual
+reject@55	reject@55	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!drop-2	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA ELEMENT a AS SELECT 1 FROM dual
 reject@46	reject@46	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!truncate	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA
-reject@51	reject@47	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!insert	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA 's' zzz ELEMENT a AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!insert	CREATE MATERIALIZED VIEW a XMLTYPE a XMLSCHEMA 's' zzz ELEMENT a AS SELECT 1 FROM dual
 reject@45	reject@45	engine	createMaterializedView_xmlschema_spec(XMLSCHEMA_STRING)?/XMLSCHEMA_STRING!swap	CREATE MATERIALIZED VIEW a XMLTYPE a XMLTYPE 's' ELEMENT a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmlschema_spec(STORE_ALL_VARRAYS_AS_(LOBS|TABLES))?/%empty	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmlschema_spec(STORE_ALL_VARRAYS_AS_(LOBS|TABLES))?/STORE_ALL_VARRAYS_AS_(LOBS|TABLES)	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a STORE ALL VARRAYS AS LOBS AS SELECT 1 FROM dual
@@ -28744,22 +28744,22 @@ accept	accept	engine	createMaterializedView_xmlschema_spec(LOBS|TABLES)/TABLES	C
 reject@75	reject@75	engine	createMaterializedView_xmlschema_spec(LOBS|TABLES)/TABLES!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a STORE ALL VARRAYS AS TABLES zzz AS SELECT 1 FROM dual
 reject@68	reject@68	engine	createMaterializedView_xmlschema_spec(LOBS|TABLES)/TABLES!swap	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a STORE ALL VARRAYS AS TABLESPACE AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/%empty	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a AS SELECT 1 FROM dual
-accept	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!drop-1	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a NONSCHEMA AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!drop-2	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!truncate	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW
-reject@63	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA zzz AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA zzz AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_NONSCHEMA)?/(ALLOW|DISALLOW)_NONSCHEMA!swap	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALTER NONSCHEMA AS SELECT 1 FROM dual
-accept	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/ALLOW	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/ALLOW	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW NONSCHEMA AS SELECT 1 FROM dual
 reject@46	reject@46	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/ALLOW!truncate	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/ALLOW!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW zzz NONSCHEMA AS SELECT 1 FROM dual
-accept	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/DISALLOW	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a DISALLOW NONSCHEMA AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/DISALLOW	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a DISALLOW NONSCHEMA AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/DISALLOW!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a DISALLOW zzz NONSCHEMA AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec(ALLOW|DISALLOW)/DISALLOW!swap	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a DISASSOCIATE NONSCHEMA AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/%empty	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a AS SELECT 1 FROM dual
-accept	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW ANYSCHEMA AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW ANYSCHEMA AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA!drop-1	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ANYSCHEMA AS SELECT 1 FROM dual
-reject@63	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW ANYSCHEMA zzz AS SELECT 1 FROM dual
+reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALLOW ANYSCHEMA zzz AS SELECT 1 FROM dual
 reject@47	reject@47	engine	createMaterializedView_xmlschema_spec((ALLOW|DISALLOW)_ANYSCHEMA)?/(ALLOW|DISALLOW)_ANYSCHEMA!swap	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a ALTER ANYSCHEMA AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_values_clause/VALUES_LESS_THAN_(_(EXPR|MAXVALUE)_(,_(EXPR|MAXVALUE))*_)	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@77	reject@77	engine	createMaterializedView_range_values_clause/VALUES_LESS_THAN_(_(EXPR|MAXVALUE)_(,_(EXPR|MAXVALUE))*_)!truncate	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1
@@ -28994,7 +28994,7 @@ reject@114	reject@114	engine	createMaterializedView_list_subpartition_desc(creat
 reject@114	reject@114	engine	createMaterializedView_list_subpartition_desc(createMaterializedView_partitioning_~2a0e8e03)?/%empty	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1 AS SELECT 1 FROM dual
 reject@114	reject@114	engine	createMaterializedView_list_subpartition_desc(createMaterializedView_partitioning_~2a0e8e03)?/createMaterializedView_partitioning_storage_clause	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1 AS SELECT 1 FROM dual
 reject@107	reject@107	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION) PARTITIONS 1 AS SELECT 1 FROM dual
-reject@95	accept	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1 AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1 AS SELECT 1 FROM dual
 reject@95	reject@95	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02!truncate	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(
 reject@111	reject@111	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02!insert	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION zzz) PARTITIONS 1 AS SELECT 1 FROM dual
 reject@95	reject@95	engine	createMaterializedView_individual_hash_subparts/SUBPARTITION_(ID)?_(createMaterializedView_read_only_cl~e4f96a02!swap	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITIONS) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -33483,7 +33483,7 @@ reject@35	reject@35	engine	createTable_annotations_clause(EXPR)?/%empty!insert	C
 reject@35	reject@35	engine	createTable_annotations_clause(EXPR)?/EXPR	CREATE TABLE a(a ANNOTATIONS(ADD a 1))
 reject@35	reject@35	engine	createTable_annotations_clause(EXPR)?/EXPR!insert	CREATE TABLE a(a ANNOTATIONS(ADD a 1 zzz))
 accept	accept	engine	createTable_annotations_clause(,_ID_EXPR?)*/%empty	CREATE TABLE a(a ANNOTATIONS(ADD a))
-reject@37	reject@38	engine	createTable_annotations_clause(,_ID_EXPR?)*/,_ID_(EXPR)?_(,_ID_EXPR?)*	CREATE TABLE a(a ANNOTATIONS(ADD a, a))
+reject@38	reject@38	engine	createTable_annotations_clause(,_ID_EXPR?)*/,_ID_(EXPR)?_(,_ID_EXPR?)*	CREATE TABLE a(a ANNOTATIONS(ADD a, a))
 reject@35	reject@35	engine	createTable_annotations_clause(,_ID_EXPR?)*/,_ID_(EXPR)?_(,_ID_EXPR?)*!drop-1	CREATE TABLE a(a ANNOTATIONS(ADD a a))
 reject@35	reject@35	engine	createTable_annotations_clause(,_ID_EXPR?)*/,_ID_(EXPR)?_(,_ID_EXPR?)*!drop-2	CREATE TABLE a(a ANNOTATIONS(ADD a,))
 reject@35	reject@35	engine	createTable_annotations_clause(,_ID_EXPR?)*/,_ID_(EXPR)?_(,_ID_EXPR?)*!truncate	CREATE TABLE a(a ANNOTATIONS(ADD a,
@@ -33780,9 +33780,9 @@ reject@50	reject@50	engine	createTable_nested_table_col_properties(createTable_s
 reject@58	reject@58	engine	createTable_nested_table_col_properties(createTable_substitutable_column_clause)?/createTable_substitutable_column_clause!insert	CREATE TABLE a NESTED TABLE a SUBSTITUTABLE AT ALL LEVELS zzz STORE AS a
 reject@30	reject@30	engine	createTable_nested_table_col_properties(createTable_substitutable_column_clause)?/createTable_substitutable_column_clause!swap	CREATE TABLE a NESTED TABLE a SUCCESSFUL AT ALL LEVELS STORE AS a
 reject@15	reject@15	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/%empty	CREATE TABLE a NESTED TABLE a STORE AS a
-reject@15	reject@30	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL	CREATE TABLE a NESTED TABLE a LOCAL STORE AS a
+reject@30	reject@30	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL	CREATE TABLE a NESTED TABLE a LOCAL STORE AS a
 reject@29	reject@29	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!truncate	CREATE TABLE a NESTED TABLE a
-reject@36	reject@30	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!insert	CREATE TABLE a NESTED TABLE a LOCAL zzz STORE AS a
+reject@30	reject@30	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!insert	CREATE TABLE a NESTED TABLE a LOCAL zzz STORE AS a
 reject@30	reject@30	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/LOCAL!swap	CREATE TABLE a NESTED TABLE a LOCATION STORE AS a
 reject@15	reject@15	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/GLOBAL	CREATE TABLE a NESTED TABLE a GLOBAL STORE AS a
 reject@37	reject@37	engine	createTable_nested_table_col_properties(LOCAL|GLOBAL)?/GLOBAL!insert	CREATE TABLE a NESTED TABLE a GLOBAL zzz STORE AS a
@@ -35163,7 +35163,7 @@ reject@102	reject@102	engine	createTable_list_subpartition_desc(createTable_inde
 reject@102	reject@102	engine	createTable_list_subpartition_desc(createTable_partitioning_storage_clause)?/%empty	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1
 reject@102	reject@102	engine	createTable_list_subpartition_desc(createTable_partitioning_storage_clause)?/createTable_partitioning_storage_clause	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES(1)) PARTITIONS 1
 reject@95	reject@95	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION) PARTITIONS 1
-reject@83	reject@15	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7!drop-1	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1
+reject@15	reject@15	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7!drop-1	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE() PARTITIONS 1
 reject@83	reject@83	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7!truncate	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(
 reject@99	reject@99	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7!insert	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION zzz) PARTITIONS 1
 reject@83	reject@83	engine	createTable_individual_hash_subparts/SUBPARTITION_(ID)?_(createTable_read_only_clause)?_(cre~69b966a7!swap	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITIONS) PARTITIONS 1
@@ -36376,7 +36376,7 @@ reject@15	reject@15	engine	createTablespace(BIGFILE|SMALLFILE)?/BIGFILE!insert	C
 reject@7	reject@7	engine	createTablespace(BIGFILE|SMALLFILE)?/BIGFILE!swap	CREATE BINARY TABLESPACE a
 accept	accept	engine	createTablespace(BIGFILE|SMALLFILE)?/SMALLFILE	CREATE SMALLFILE TABLESPACE a
 reject@17	reject@17	engine	createTablespace(BIGFILE|SMALLFILE)?/SMALLFILE!insert	CREATE SMALLFILE zzz TABLESPACE a
-reject@7	reject@27	engine	createTablespace(BIGFILE|SMALLFILE)?/SMALLFILE!swap	CREATE SNAPSHOT TABLESPACE a
+reject@27	reject@27	engine	createTablespace(BIGFILE|SMALLFILE)?/SMALLFILE!swap	CREATE SNAPSHOT TABLESPACE a
 accept	accept	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_permanent_tablespace_clause	CREATE TABLESPACE a
 reject@7	reject@7	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_permanent_tablespace_clause!swap	CREATE TAG a
 accept	accept	engine	createTablespace(createTablespace_permanent_tablespac~f56be543)/createTablespace_temporary_tablespace_clause	CREATE TEMPORARY TABLESPACE a
@@ -37785,7 +37785,7 @@ accept	accept	engine	delete(delete_where_clause)?/delete_where_clause	DELETE a W
 reject@9	reject@9	engine	delete(delete_where_clause)?/delete_where_clause!drop-1	DELETE a 1 = 1
 reject@14	reject@14	engine	delete(delete_where_clause)?/delete_where_clause!drop-2	DELETE a WHERE
 reject@21	reject@21	engine	delete(delete_where_clause)?/delete_where_clause!insert	DELETE a WHERE 1 = 1 zzz
-reject@9	reject@16	engine	delete(delete_where_clause)?/delete_where_clause!swap	DELETE a WINDOW 1 = 1
+reject@16	reject@16	engine	delete(delete_where_clause)?/delete_where_clause!swap	DELETE a WINDOW 1 = 1
 accept	accept	engine	delete(delete_returning_clause)?/%empty	DELETE a
 accept	accept	engine	delete(delete_returning_clause)?/delete_returning_clause	DELETE a RETURNING 1 INTO a
 reject@9	reject@9	engine	delete(delete_returning_clause)?/delete_returning_clause!drop-1	DELETE a 1 INTO a
@@ -37862,7 +37862,7 @@ reject@27	reject@27	engine	delete_from_using_clause(delete_table_reference|LATER
 reject@14	reject@14	engine	delete_from_using_clause(LATERAL)?/%empty	DELETE a FROM SELECT 1 FROM dual
 reject@18	reject@18	engine	delete_from_using_clause(LATERAL)?/%empty!insert	DELETE a FROM zzz SELECT 1 FROM dual
 reject@22	reject@22	engine	delete_from_using_clause(LATERAL)?/LATERAL	DELETE a FROM LATERAL SELECT 1 FROM dual
-reject@22	reject@26	engine	delete_from_using_clause(LATERAL)?/LATERAL!insert	DELETE a FROM LATERAL zzz SELECT 1 FROM dual
+reject@26	reject@26	engine	delete_from_using_clause(LATERAL)?/LATERAL!insert	DELETE a FROM LATERAL zzz SELECT 1 FROM dual
 reject@23	reject@23	engine	delete_from_using_clause(LATERAL)?/LATERAL!swap	DELETE a FROM LEAD_CDB SELECT 1 FROM dual
 reject@14	reject@14	engine	delete_from_using_clause(delete_join_clause)?/%empty	DELETE a FROM SELECT 1 FROM dual
 reject@14	reject@14	engine	delete_from_using_clause(delete_join_clause)?/delete_join_clause	DELETE a FROM SELECT 1 FROM dual a CROSS JOIN a
@@ -37951,7 +37951,7 @@ reject@26	reject@26	engine	delete_table_reference(delete_query_table_expression|
 reject@28	reject@28	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/(_delete_join_clause_)!drop-6	DELETE a FROM(a CROSS JOIN a
 reject@30	reject@30	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/(_delete_join_clause_)!insert	DELETE a FROM(a CROSS JOIN a) zzz
 reject@27	reject@27	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/(_delete_join_clause_)!swap	DELETE a FROM(a CUBE JOIN a)
-accept	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@17	reject@17	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-1	DELETE a FROM((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@23	reject@23	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-2	DELETE a FROM EXTERNAL(a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@24	reject@24	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-4	DELETE a FROM EXTERNAL((NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -37959,14 +37959,14 @@ reject@25	reject@25	engine	delete_table_reference(delete_query_table_expression|
 reject@33	reject@33	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-6	DELETE a FROM EXTERNAL((a NUMBER TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@34	reject@34	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-7	DELETE a FROM EXTERNAL((a NUMBER) a DEFAULT DIRECTORY a LOCATION('s'))
 reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-8	DELETE a FROM EXTERNAL((a NUMBER) TYPE DEFAULT DIRECTORY a LOCATION('s'))
-reject@41	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-9	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DIRECTORY a LOCATION('s'))
-reject@49	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-10	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT a LOCATION('s'))
-reject@67	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-11	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY LOCATION('s'))
-reject@60	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-12	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a('s'))
-reject@70	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-13	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION 's'))
-reject@70	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-14	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION())
-reject@74	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-15	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')
-accept	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')) zzz
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-9	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-10	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT a LOCATION('s'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-11	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY LOCATION('s'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-12	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a('s'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-13	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION 's'))
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-14	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION())
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!drop-15	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')
+reject@39	reject@39	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')) zzz
 reject@28	reject@28	engine	delete_table_reference(delete_query_table_expression|(_dele~1822f80f)/delete_inline_external_table!swap	DELETE a FROM EXTERNALLY((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 accept	accept	engine	delete_table_reference(ID)?/%empty	DELETE a FROM a
 accept	accept	engine	delete_table_reference(ID)?/ID	DELETE a FROM a a
@@ -38116,10 +38116,10 @@ reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/
 reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!drop-4	DELETE a FROM a SHARDS(a
 reject@22	reject@22	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!insert	DELETE a FROM a SHARDS(a) zzz
 reject@26	reject@26	engine	delete_query_table_expression(delete_shards_clause)?/delete_shards_clause!swap	DELETE a FROM a SHARDSPACE(a)
-accept	reject@39	engine	delete_inline_external_table/EXTERNAL_(_(_delete_column_definition_(,_delete_column_~4f613c46	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_inline_external_table(,_delete_column_definition)*/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table/EXTERNAL_(_(_delete_column_definition_(,_delete_column_~4f613c46	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table(,_delete_column_definition)*/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_external_table(,_delete_column_definition)*/%empty!insert	DELETE a FROM EXTERNAL((a NUMBER zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@34	engine	delete_inline_external_table(,_delete_column_definition)*/,_delete_column_definition_(,_delete_column_definition)*	DELETE a FROM EXTERNAL((a NUMBER, a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@49	reject@34	engine	delete_inline_external_table(,_delete_column_definition)*/,_delete_column_definition_(,_delete_column_definition)*	DELETE a FROM EXTERNAL((a NUMBER, a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_external_table(,_delete_column_definition)*/,_delete_column_definition_(,_delete_column_definition)*!drop-1	DELETE a FROM EXTERNAL((a NUMBER a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@34	reject@34	engine	delete_inline_external_table(,_delete_column_definition)*/,_delete_column_definition_(,_delete_column_definition)*!drop-2	DELETE a FROM EXTERNAL((a NUMBER, NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@35	reject@34	engine	delete_inline_external_table(,_delete_column_definition)*/,_delete_column_definition_(,_delete_column_definition)*!drop-3	DELETE a FROM EXTERNAL((a NUMBER, a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -38176,7 +38176,7 @@ reject@29	reject@29	engine	delete_outer_join_clause(delete_query_partition_claus
 reject@29	reject@29	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_query_partition_clause_delete_outer_join_type_JO~b8feff94!swap	DELETE a FROM a PARTITIONING BY 1 LEFT JOIN a ON 1 = 1
 reject@36	reject@36	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883	DELETE a FROM a LEFT JOIN PARTITION BY 1 a ON 1 = 1
 reject@31	reject@31	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-1	DELETE a FROM a JOIN PARTITION BY 1 a ON 1 = 1
-reject@21	reject@34	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-2	DELETE a FROM a LEFT PARTITION BY 1 a ON 1 = 1
+reject@34	reject@34	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-2	DELETE a FROM a LEFT PARTITION BY 1 a ON 1 = 1
 reject@26	reject@26	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-3	DELETE a FROM a LEFT JOIN BY 1 a ON 1 = 1
 reject@36	reject@36	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-4	DELETE a FROM a LEFT JOIN PARTITION 1 a ON 1 = 1
 reject@36	reject@36	engine	delete_outer_join_clause(delete_query_partition_clause_delete~203e25b8)/delete_outer_join_type_JOIN_delete_query_partition_clau~2e387883!drop-5	DELETE a FROM a LEFT JOIN PARTITION BY a ON 1 = 1
@@ -38233,7 +38233,7 @@ reject@42	reject@42	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|T
 accept	accept	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!insert	DELETE a FROM a VERSIONS BETWEEN SCN 1 AND 1 zzz
 reject@23	reject@23	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!swap	DELETE a FROM a VERTEX BETWEEN SCN 1 AND 1
 accept	accept	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR	DELETE a FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1
-reject@16	reject@23	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-1	DELETE a FROM a PERIOD FOR a BETWEEN 1 AND 1
+reject@23	reject@23	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-1	DELETE a FROM a PERIOD FOR a BETWEEN 1 AND 1
 reject@25	reject@25	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-2	DELETE a FROM a VERSIONS FOR a BETWEEN 1 AND 1
 reject@32	reject@32	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-3	DELETE a FROM a VERSIONS PERIOD a BETWEEN 1 AND 1
 reject@36	reject@36	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-4	DELETE a FROM a VERSIONS PERIOD FOR BETWEEN 1 AND 1
@@ -38502,29 +38502,29 @@ reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.	DELETE a FROM a SHAR
 reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-1	DELETE a FROM a SHARDS(.a)
 reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!drop-2	DELETE a FROM a SHARDS(a a)
 reject@22	reject@22	engine	delete_shards_clause(ID_.)?/ID_.!insert	DELETE a FROM a SHARDS(a.zzz a)
-accept	reject@39	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@25	reject@25	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121!truncate	DELETE a FROM EXTERNAL((a
 reject@26	reject@26	engine	delete_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~36c96121!swap	DELETE a FROM EXTERNAL((a OBJECT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(COLLATE_ID)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(COLLATE_ID)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID	DELETE a FROM EXTERNAL((a NUMBER COLLATE a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID!drop-1	DELETE a FROM EXTERNAL((a NUMBER a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	DELETE a FROM EXTERNAL((a NUMBER COLLATE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID!truncate	DELETE a FROM EXTERNAL((a NUMBER COLLATE
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID!insert	DELETE a FROM EXTERNAL((a NUMBER COLLATE a zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(COLLATE_ID)?/COLLATE_ID!swap	DELETE a FROM EXTERNAL((a NUMBER COLLATION a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(SORT)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(SORT)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(SORT)?/SORT	DELETE a FROM EXTERNAL((a NUMBER SORT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@32	reject@32	engine	delete_column_definition(SORT)?/SORT!truncate	DELETE a FROM EXTERNAL((a NUMBER
 reject@33	reject@33	engine	delete_column_definition(SORT)?/SORT!insert	DELETE a FROM EXTERNAL((a NUMBER SORT zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(SORT)?/SORT!swap	DELETE a FROM EXTERNAL((a NUMBER SOURCE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(VISIBLE|INVISIBLE)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(VISIBLE|INVISIBLE)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	DELETE a FROM EXTERNAL((a NUMBER VISIBLE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/VISIBLE!insert	DELETE a FROM EXTERNAL((a NUMBER VISIBLE zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/VISIBLE!swap	DELETE a FROM EXTERNAL((a NUMBER VOLUME) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	DELETE a FROM EXTERNAL((a NUMBER INVISIBLE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE!insert	DELETE a FROM EXTERNAL((a NUMBER INVISIBLE zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE!swap	DELETE a FROM EXTERNAL((a NUMBER IS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(DEFAULT_(ON_NULL)?_EXPR|delete_ident~479e61cf)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(DEFAULT_(ON_NULL)?_EXPR|delete_ident~479e61cf)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(DEFAULT_(ON_NULL)?_EXPR|delete_ident~479e61cf)?/DEFAULT_(ON_NULL)?_EXPR	DELETE a FROM EXTERNAL((a NUMBER DEFAULT 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(DEFAULT_(ON_NULL)?_EXPR|delete_ident~479e61cf)?/DEFAULT_(ON_NULL)?_EXPR!drop-1	DELETE a FROM EXTERNAL((a NUMBER 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(DEFAULT_(ON_NULL)?_EXPR|delete_ident~479e61cf)?/DEFAULT_(ON_NULL)?_EXPR!drop-2	DELETE a FROM EXTERNAL((a NUMBER DEFAULT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -38547,22 +38547,22 @@ reject@33	reject@33	engine	delete_column_definition(ON_NULL)?/ON_NULL!drop-2	DEL
 reject@33	reject@33	engine	delete_column_definition(ON_NULL)?/ON_NULL!truncate	DELETE a FROM EXTERNAL((a NUMBER DEFAULT ON
 reject@33	reject@33	engine	delete_column_definition(ON_NULL)?/ON_NULL!insert	DELETE a FROM EXTERNAL((a NUMBER DEFAULT ON NULL zzz 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(ON_NULL)?/ON_NULL!swap	DELETE a FROM EXTERNAL((a NUMBER DEFAULT ONE NULL 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(ENCRYPT_delete_encryption_spec)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(ENCRYPT_delete_encryption_spec)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(ENCRYPT_delete_encryption_spec)?/ENCRYPT_delete_encryption_spec	DELETE a FROM EXTERNAL((a NUMBER ENCRYPT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(ENCRYPT_delete_encryption_spec)?/ENCRYPT_delete_encryption_spec!insert	DELETE a FROM EXTERNAL((a NUMBER ENCRYPT zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(ENCRYPT_delete_encryption_spec)?/ENCRYPT_delete_encryption_spec!swap	DELETE a FROM EXTERNAL((a NUMBER ENCRYPTION) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(delete_inline_constraint)*/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(delete_inline_constraint)*/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_constraint)*/delete_inline_constraint_(delete_inline_constraint)*	DELETE a FROM EXTERNAL((a NUMBER NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_constraint)*/delete_inline_constraint_(delete_inline_constraint)*!insert	DELETE a FROM EXTERNAL((a NUMBER NULL zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_constraint)*/delete_inline_constraint_(delete_inline_constraint)*!swap	DELETE a FROM EXTERNAL((a NUMBER NULLS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(delete_inline_ref_constraint)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(delete_inline_ref_constraint)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint	DELETE a FROM EXTERNAL((a NUMBER WITH ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint!drop-1	DELETE a FROM EXTERNAL((a NUMBER ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint!drop-2	DELETE a FROM EXTERNAL((a NUMBER WITH) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint!truncate	DELETE a FROM EXTERNAL((a NUMBER WITH
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint!insert	DELETE a FROM EXTERNAL((a NUMBER WITH ROWID zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_inline_ref_constraint)?/delete_inline_ref_constraint!swap	DELETE a FROM EXTERNAL((a NUMBER WITHOUT ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_column_definition(delete_annotations_clause)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_column_definition(delete_annotations_clause)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause!drop-1	DELETE a FROM EXTERNAL((a NUMBER(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause!drop-2	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -38572,33 +38572,33 @@ reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause!truncate	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause!insert	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a) zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_column_definition(delete_annotations_clause)?/delete_annotations_clause!swap	DELETE a FROM EXTERNAL((a NUMBER ANY(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@73	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'
-reject@75	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') zzz)
+reject@39	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'
+reject@39	reject@39	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') zzz)
 reject@34	reject@34	engine	delete_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~51448eb1!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPES a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@61	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/%empty!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a zzz LOCATION('s'))
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
-reject@61	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
-reject@68	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-2	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS USING CLOB SELECT 1 FROM dual LOCATION('s'))
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-3	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS CLOB SELECT 1 FROM dual LOCATION('s'))
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-4	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING SELECT 1 FROM dual LOCATION('s'))
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-5	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB LOCATION('s'))
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB
-reject@79	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT 1 FROM dual zzz LOCATION('s'))
-reject@61	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESSED PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
-accept	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
-reject@75	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') LIMIT 1)
-reject@82	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-2	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT 1)
-reject@87	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT)
-reject@87	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT
-reject@90	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1 zzz)
-reject@75	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REKEY LIMIT 1)
-accept	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/NUMBER	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
-accept	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED)
-reject@98	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED zzz)
-accept	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLOCK)
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/%empty!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a zzz LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-2	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS USING CLOB SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-3	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS CLOB SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-4	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!drop-5	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT 1 FROM dual zzz LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_QUERY)?/ACCESS_PARAMETERS_USING_CLOB_QUERY!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESSED PARAMETERS USING CLOB SELECT 1 FROM dual LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/%empty	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-1	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') LIMIT 1)
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-2	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT 1)
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT)
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!truncate	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1 zzz)
+reject@39	reject@39	engine	delete_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REKEY LIMIT 1)
+reject@39	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/NUMBER	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
+reject@39	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED)
+reject@39	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!insert	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED zzz)
+reject@39	reject@39	engine	delete_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!swap	DELETE a FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLOCK)
 reject@29	reject@29	engine	delete_query_partition_clause/PARTITION_BY_(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))	DELETE a FROM a PARTITION BY 1 LEFT JOIN a ON 1 = 1
 reject@28	reject@28	engine	delete_query_partition_clause/PARTITION_BY_(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))!truncate	DELETE a FROM a PARTITION BY
 reject@29	reject@29	engine	delete_query_partition_clause/PARTITION_BY_(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))!insert	DELETE a FROM a PARTITION BY 1 zzz LEFT JOIN a ON 1 = 1
@@ -38889,7 +38889,7 @@ reject@33	reject@33	engine	delete_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY
 reject@33	reject@33	engine	delete_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)!insert	DELETE a FROM EXTERNAL((a NUMBER CHECK(1 = 1) zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)!swap	DELETE a FROM EXTERNAL((a NUMBER CHECKPOINT(1 = 1)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_constraint(NOT)?/%empty	DELETE a FROM EXTERNAL((a NUMBER NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@48	engine	delete_inline_constraint(NOT)?/NOT	DELETE a FROM EXTERNAL((a NUMBER NOT NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@48	reject@48	engine	delete_inline_constraint(NOT)?/NOT	DELETE a FROM EXTERNAL((a NUMBER NOT NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@37	reject@37	engine	delete_inline_constraint(NOT)?/NOT!insert	DELETE a FROM EXTERNAL((a NUMBER NOT zzz NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_constraint(NOT)?/NOT!swap	DELETE a FROM EXTERNAL((a NUMBER NOTHING NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_inline_constraint(ID_.)?/%empty	DELETE a FROM EXTERNAL((a NUMBER REFERENCES a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -41878,7 +41878,7 @@ reject@26	reject@26	engine	select_table_reference(select_query_table_expression|
 reject@28	reject@28	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/(_select_join_clause_)!drop-6	SELECT * FROM(a CROSS JOIN a
 reject@30	reject@30	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/(_select_join_clause_)!insert	SELECT * FROM(a CROSS JOIN a) zzz
 reject@27	reject@27	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/(_select_join_clause_)!swap	SELECT * FROM(a CUBE JOIN a)
-accept	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@17	reject@17	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-1	SELECT * FROM((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@23	reject@23	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-2	SELECT * FROM EXTERNAL(a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@24	reject@24	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-4	SELECT * FROM EXTERNAL((NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -41886,14 +41886,14 @@ reject@25	reject@25	engine	select_table_reference(select_query_table_expression|
 reject@33	reject@33	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-6	SELECT * FROM EXTERNAL((a NUMBER TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@34	reject@34	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-7	SELECT * FROM EXTERNAL((a NUMBER) a DEFAULT DIRECTORY a LOCATION('s'))
 reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-8	SELECT * FROM EXTERNAL((a NUMBER) TYPE DEFAULT DIRECTORY a LOCATION('s'))
-reject@41	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-9	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DIRECTORY a LOCATION('s'))
-reject@49	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-10	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT a LOCATION('s'))
-reject@67	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-11	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY LOCATION('s'))
-reject@60	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-12	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a('s'))
-reject@70	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-13	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION 's'))
-reject@70	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-14	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION())
-reject@74	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-15	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')
-accept	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')) zzz
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-9	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-10	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT a LOCATION('s'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-11	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY LOCATION('s'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-12	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a('s'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-13	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION 's'))
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-14	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION())
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!drop-15	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')
+reject@39	reject@39	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s')) zzz
 reject@28	reject@28	engine	select_table_reference(select_query_table_expression|(_sele~c75286c6)/select_inline_external_table!swap	SELECT * FROM EXTERNALLY((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 accept	accept	engine	select_table_reference(ID)?/%empty	SELECT * FROM a
 accept	accept	engine	select_table_reference(ID)?/ID	SELECT * FROM a a
@@ -42181,10 +42181,10 @@ reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/
 reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!drop-4	SELECT * FROM a SHARDS(a
 reject@22	reject@22	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!insert	SELECT * FROM a SHARDS(a) zzz
 reject@26	reject@26	engine	select_query_table_expression(select_shards_clause)?/select_shards_clause!swap	SELECT * FROM a SHARDSPACE(a)
-accept	reject@39	engine	select_inline_external_table/EXTERNAL_(_(_select_column_definition_(,_select_column_~7dda8b52	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_inline_external_table(,_select_column_definition)*/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table/EXTERNAL_(_(_select_column_definition_(,_select_column_~7dda8b52	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table(,_select_column_definition)*/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_external_table(,_select_column_definition)*/%empty!insert	SELECT * FROM EXTERNAL((a NUMBER zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@34	engine	select_inline_external_table(,_select_column_definition)*/,_select_column_definition_(,_select_column_definition)*	SELECT * FROM EXTERNAL((a NUMBER, a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@49	reject@34	engine	select_inline_external_table(,_select_column_definition)*/,_select_column_definition_(,_select_column_definition)*	SELECT * FROM EXTERNAL((a NUMBER, a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_external_table(,_select_column_definition)*/,_select_column_definition_(,_select_column_definition)*!drop-1	SELECT * FROM EXTERNAL((a NUMBER a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@34	reject@34	engine	select_inline_external_table(,_select_column_definition)*/,_select_column_definition_(,_select_column_definition)*!drop-2	SELECT * FROM EXTERNAL((a NUMBER, NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@35	reject@34	engine	select_inline_external_table(,_select_column_definition)*/,_select_column_definition_(,_select_column_definition)*!drop-3	SELECT * FROM EXTERNAL((a NUMBER, a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -42241,7 +42241,7 @@ reject@29	reject@29	engine	select_outer_join_clause(select_query_partition_claus
 reject@29	reject@29	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_query_partition_clause_select_outer_join_type_JO~0936cfa2!swap	SELECT * FROM a PARTITIONING BY 1 LEFT JOIN a ON 1 = 1
 reject@36	reject@36	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7	SELECT * FROM a LEFT JOIN PARTITION BY 1 a ON 1 = 1
 reject@31	reject@31	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-1	SELECT * FROM a JOIN PARTITION BY 1 a ON 1 = 1
-reject@21	reject@34	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-2	SELECT * FROM a LEFT PARTITION BY 1 a ON 1 = 1
+reject@34	reject@34	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-2	SELECT * FROM a LEFT PARTITION BY 1 a ON 1 = 1
 reject@26	reject@26	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-3	SELECT * FROM a LEFT JOIN BY 1 a ON 1 = 1
 reject@36	reject@36	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-4	SELECT * FROM a LEFT JOIN PARTITION 1 a ON 1 = 1
 reject@36	reject@36	engine	select_outer_join_clause(select_query_partition_clause_select~336916d6)/select_outer_join_type_JOIN_select_query_partition_clau~98befbb7!drop-5	SELECT * FROM a LEFT JOIN PARTITION BY a ON 1 = 1
@@ -42464,7 +42464,7 @@ reject@42	reject@42	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|T
 accept	accept	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!insert	SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1 zzz
 reject@23	reject@23	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!swap	SELECT * FROM a VERTEX BETWEEN SCN 1 AND 1
 accept	accept	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR	SELECT * FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1
-reject@16	reject@27	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-1	SELECT * FROM a PERIOD FOR a BETWEEN 1 AND 1
+reject@27	reject@27	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-1	SELECT * FROM a PERIOD FOR a BETWEEN 1 AND 1
 reject@29	reject@29	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-2	SELECT * FROM a VERSIONS FOR a BETWEEN 1 AND 1
 reject@32	reject@32	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-3	SELECT * FROM a VERSIONS PERIOD a BETWEEN 1 AND 1
 reject@36	reject@36	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!drop-4	SELECT * FROM a VERSIONS PERIOD FOR BETWEEN 1 AND 1
@@ -42733,29 +42733,29 @@ reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.	SELECT * FROM a SHAR
 reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-1	SELECT * FROM a SHARDS(.a)
 reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!drop-2	SELECT * FROM a SHARDS(a a)
 reject@22	reject@22	engine	select_shards_clause(ID_.)?/ID_.!insert	SELECT * FROM a SHARDS(a.zzz a)
-accept	reject@39	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@25	reject@25	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5!truncate	SELECT * FROM EXTERNAL((a
 reject@26	reject@26	engine	select_column_definition/ID_DATA_TYPE_(COLLATE_ID)?_(SORT)?_(VISIBLE|INVISIBLE)?~16160ec5!swap	SELECT * FROM EXTERNAL((a OBJECT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(COLLATE_ID)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(COLLATE_ID)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID	SELECT * FROM EXTERNAL((a NUMBER COLLATE a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID!drop-1	SELECT * FROM EXTERNAL((a NUMBER a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID!drop-2	SELECT * FROM EXTERNAL((a NUMBER COLLATE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID!truncate	SELECT * FROM EXTERNAL((a NUMBER COLLATE
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID!insert	SELECT * FROM EXTERNAL((a NUMBER COLLATE a zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(COLLATE_ID)?/COLLATE_ID!swap	SELECT * FROM EXTERNAL((a NUMBER COLLATION a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(SORT)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(SORT)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(SORT)?/SORT	SELECT * FROM EXTERNAL((a NUMBER SORT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@32	reject@32	engine	select_column_definition(SORT)?/SORT!truncate	SELECT * FROM EXTERNAL((a NUMBER
 reject@33	reject@33	engine	select_column_definition(SORT)?/SORT!insert	SELECT * FROM EXTERNAL((a NUMBER SORT zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(SORT)?/SORT!swap	SELECT * FROM EXTERNAL((a NUMBER SOURCE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(VISIBLE|INVISIBLE)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(VISIBLE|INVISIBLE)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	SELECT * FROM EXTERNAL((a NUMBER VISIBLE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/VISIBLE!insert	SELECT * FROM EXTERNAL((a NUMBER VISIBLE zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/VISIBLE!swap	SELECT * FROM EXTERNAL((a NUMBER VOLUME) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	SELECT * FROM EXTERNAL((a NUMBER INVISIBLE) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE!insert	SELECT * FROM EXTERNAL((a NUMBER INVISIBLE zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE!swap	SELECT * FROM EXTERNAL((a NUMBER IS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(DEFAULT_(ON_NULL)?_EXPR|select_ident~748edaa1)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(DEFAULT_(ON_NULL)?_EXPR|select_ident~748edaa1)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(DEFAULT_(ON_NULL)?_EXPR|select_ident~748edaa1)?/DEFAULT_(ON_NULL)?_EXPR	SELECT * FROM EXTERNAL((a NUMBER DEFAULT 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(DEFAULT_(ON_NULL)?_EXPR|select_ident~748edaa1)?/DEFAULT_(ON_NULL)?_EXPR!drop-1	SELECT * FROM EXTERNAL((a NUMBER 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(DEFAULT_(ON_NULL)?_EXPR|select_ident~748edaa1)?/DEFAULT_(ON_NULL)?_EXPR!drop-2	SELECT * FROM EXTERNAL((a NUMBER DEFAULT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -42778,22 +42778,22 @@ reject@33	reject@33	engine	select_column_definition(ON_NULL)?/ON_NULL!drop-2	SEL
 reject@33	reject@33	engine	select_column_definition(ON_NULL)?/ON_NULL!truncate	SELECT * FROM EXTERNAL((a NUMBER DEFAULT ON
 reject@33	reject@33	engine	select_column_definition(ON_NULL)?/ON_NULL!insert	SELECT * FROM EXTERNAL((a NUMBER DEFAULT ON NULL zzz 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(ON_NULL)?/ON_NULL!swap	SELECT * FROM EXTERNAL((a NUMBER DEFAULT ONE NULL 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(ENCRYPT_select_encryption_spec)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(ENCRYPT_select_encryption_spec)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(ENCRYPT_select_encryption_spec)?/ENCRYPT_select_encryption_spec	SELECT * FROM EXTERNAL((a NUMBER ENCRYPT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(ENCRYPT_select_encryption_spec)?/ENCRYPT_select_encryption_spec!insert	SELECT * FROM EXTERNAL((a NUMBER ENCRYPT zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(ENCRYPT_select_encryption_spec)?/ENCRYPT_select_encryption_spec!swap	SELECT * FROM EXTERNAL((a NUMBER ENCRYPTION) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(select_inline_constraint)*/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(select_inline_constraint)*/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_constraint)*/select_inline_constraint_(select_inline_constraint)*	SELECT * FROM EXTERNAL((a NUMBER NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_constraint)*/select_inline_constraint_(select_inline_constraint)*!insert	SELECT * FROM EXTERNAL((a NUMBER NULL zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_constraint)*/select_inline_constraint_(select_inline_constraint)*!swap	SELECT * FROM EXTERNAL((a NUMBER NULLS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(select_inline_ref_constraint)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(select_inline_ref_constraint)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint	SELECT * FROM EXTERNAL((a NUMBER WITH ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint!drop-1	SELECT * FROM EXTERNAL((a NUMBER ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint!drop-2	SELECT * FROM EXTERNAL((a NUMBER WITH) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint!truncate	SELECT * FROM EXTERNAL((a NUMBER WITH
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint!insert	SELECT * FROM EXTERNAL((a NUMBER WITH ROWID zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_inline_ref_constraint)?/select_inline_ref_constraint!swap	SELECT * FROM EXTERNAL((a NUMBER WITHOUT ROWID) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_column_definition(select_annotations_clause)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_column_definition(select_annotations_clause)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause	SELECT * FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause!drop-1	SELECT * FROM EXTERNAL((a NUMBER(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause!drop-2	SELECT * FROM EXTERNAL((a NUMBER ANNOTATIONS ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -42803,34 +42803,34 @@ reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause!truncate	SELECT * FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause!insert	SELECT * FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a) zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_column_definition(select_annotations_clause)?/select_annotations_clause!swap	SELECT * FROM EXTERNAL((a NUMBER ANY(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@73	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'
-reject@75	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') zzz)
+reject@39	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'
+reject@39	reject@39	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') zzz)
 reject@34	reject@34	engine	select_inline_external_table_properties/TYPE_ID_DEFAULT_DIRECTORY_ID_(ACCESS_PARAMETERS_USING_C~6c39e917!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPES a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@61	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/%empty!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a zzz LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT * LOCATION('s'))
-reject@61	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-1	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a PARAMETERS USING CLOB SELECT * LOCATION('s'))
-reject@68	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-2	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS USING CLOB SELECT * LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-3	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS CLOB SELECT * LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-4	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING SELECT * LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-5	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB * LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-6	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT LOCATION('s'))
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT
-reject@79	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT * zzz LOCATION('s'))
-reject@61	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESSED PARAMETERS USING CLOB SELECT * LOCATION('s'))
-accept	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
-reject@75	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-1	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') LIMIT 1)
-reject@82	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-2	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT 1)
-reject@87	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT)
-reject@87	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT
-reject@90	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1 zzz)
-reject@75	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REKEY LIMIT 1)
-accept	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/NUMBER	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
-accept	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED)
-reject@98	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED zzz)
-accept	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLOCK)
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/%empty!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a zzz LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-1	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a PARAMETERS USING CLOB SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-2	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS USING CLOB SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-3	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS CLOB SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-4	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-5	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!drop-6	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESS PARAMETERS USING CLOB SELECT * zzz LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(ACCESS_PARAMETERS_USING_CLOB_select_subquery)?/ACCESS_PARAMETERS_USING_CLOB_select_subquery!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a ACCESSED PARAMETERS USING CLOB SELECT * LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/%empty	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-1	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') LIMIT 1)
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-2	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT 1)
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!drop-3	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT)
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!truncate	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1 zzz)
+reject@39	reject@39	engine	select_inline_external_table_properties(REJECT_LIMIT_(NUMBER|UNLIMITED))?/REJECT_LIMIT_(NUMBER|UNLIMITED)!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REKEY LIMIT 1)
+reject@39	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/NUMBER	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT 1)
+reject@39	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED)
+reject@39	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!insert	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLIMITED zzz)
+reject@39	reject@39	engine	select_inline_external_table_properties(NUMBER|UNLIMITED)/UNLIMITED!swap	SELECT * FROM EXTERNAL((a NUMBER) TYPE a DEFAULT DIRECTORY a LOCATION('s') REJECT LIMIT UNLOCK)
 accept	accept	engine	select_query_partition_clause/PARTITION_BY_(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))	SELECT * WINDOW a AS(PARTITION BY 1)
 accept	accept	engine	select_query_partition_clause(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))/EXPR_(,_EXPR)*	SELECT * WINDOW a AS(PARTITION BY 1)
 accept	accept	engine	select_query_partition_clause(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	SELECT * WINDOW a AS(PARTITION BY(1))
@@ -43282,7 +43282,7 @@ reject@33	reject@33	engine	select_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY
 reject@33	reject@33	engine	select_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)!insert	SELECT * FROM EXTERNAL((a NUMBER CHECK(1 = 1) zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)!swap	SELECT * FROM EXTERNAL((a NUMBER CHECKPOINT(1 = 1)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_constraint(NOT)?/%empty	SELECT * FROM EXTERNAL((a NUMBER NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-accept	reject@48	engine	select_inline_constraint(NOT)?/NOT	SELECT * FROM EXTERNAL((a NUMBER NOT NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@48	reject@48	engine	select_inline_constraint(NOT)?/NOT	SELECT * FROM EXTERNAL((a NUMBER NOT NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@37	reject@37	engine	select_inline_constraint(NOT)?/NOT!insert	SELECT * FROM EXTERNAL((a NUMBER NOT zzz NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_constraint(NOT)?/NOT!swap	SELECT * FROM EXTERNAL((a NUMBER NOTHING NULL) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	select_inline_constraint(ID_.)?/%empty	SELECT * FROM EXTERNAL((a NUMBER REFERENCES a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -44387,7 +44387,7 @@ reject@39	reject@39	engine	update_outer_join_clause(update_query_partition_claus
 reject@39	reject@39	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_query_partition_clause_update_outer_join_type_JO~2b10bb64!swap	UPDATE a SET a = 1 FROM a PARTITIONING BY 1 LEFT JOIN a ON 1 = 1
 reject@46	reject@46	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292	UPDATE a SET a = 1 FROM a LEFT JOIN PARTITION BY 1 a ON 1 = 1
 reject@41	reject@41	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-1	UPDATE a SET a = 1 FROM a JOIN PARTITION BY 1 a ON 1 = 1
-reject@31	reject@44	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-2	UPDATE a SET a = 1 FROM a LEFT PARTITION BY 1 a ON 1 = 1
+reject@44	reject@44	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-2	UPDATE a SET a = 1 FROM a LEFT PARTITION BY 1 a ON 1 = 1
 reject@36	reject@36	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-3	UPDATE a SET a = 1 FROM a LEFT JOIN BY 1 a ON 1 = 1
 reject@46	reject@46	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-4	UPDATE a SET a = 1 FROM a LEFT JOIN PARTITION 1 a ON 1 = 1
 reject@46	reject@46	engine	update_outer_join_clause(update_query_partition_clause_update~0123a6de)/update_outer_join_type_JOIN_update_query_partition_clau~0a55a292!drop-5	UPDATE a SET a = 1 FROM a LEFT JOIN PARTITION BY a ON 1 = 1

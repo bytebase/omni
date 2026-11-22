@@ -1008,6 +1008,13 @@ func (p *Parser) parseAlterMviewMergeSubpartitions() error {
 		}
 		return p.syntaxErrorAtCur()
 	}
+	if p.atWord("INVALIDATE") {
+		p.advance() // consume INVALIDATE
+		if err := p.atExpectWord("GLOBAL"); err != nil {
+			return err
+		}
+		return p.atExpectWord("INDEXES")
+	}
 	if p.cur.Type == kwPARALLEL || p.cur.Type == kwNOPARALLEL {
 		return p.parseATParallel()
 	}

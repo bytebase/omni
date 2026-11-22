@@ -1516,6 +1516,9 @@ func (p *Parser) parseMVLogSplit(stmt *nodes.AlterMviewLogStmt) error {
 	if p.cur.Type == kwINTO {
 		p.advance()
 		if p.cur.Type != '(' {
+			if !sub {
+				return p.syntaxErrorAtCur()
+			}
 			// Oracle reads the list without its parentheses, and the
 			// closing one left over at the end (compat.tsv's
 			// ALTER MATERIALIZED VIEW LOG ... AT(1) INTO SUBPARTITION,

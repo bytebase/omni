@@ -653,7 +653,7 @@ func (p *Parser) ixGlobalPartitioned() error {
 	switch {
 	case p.isKeywordStr("RANGE"):
 		p.advance()
-		if err := p.ixColumnList(); err != nil {
+		if err := p.ixPartitionColumnList(); err != nil {
 			return err
 		}
 		if p.cur.Type != '(' {
@@ -695,6 +695,44 @@ func (p *Parser) ixGlobalPartitioned() error {
 		return nil
 	}
 	return p.syntaxErrorAtCur()
+}
+
+// ixPartitionColumnList reads ( column [, column ]... ) for GLOBAL PARTITION BY
+// RANGE/HASH. When a name is followed by '(' (e.g. a missing ')' before
+// "(PARTITION VALUES ...)"), parseExpr enters the group to match Oracle's error
+// token while rejecting completed function-call expressions.
+func (p *Parser) ixPartitionColumnList() error {
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	for {
+		if !p.isIxName() {
+			return p.syntaxErrorAtCur()
+		}
+		if p.peekNext().Type == '(' {
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if expr != nil {
+				return p.syntaxErrorAtCur()
+			}
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.ixName(); err != nil {
+			return err
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // ixColumnList reads ( column [, column ]... ).
