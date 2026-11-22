@@ -78,6 +78,11 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 			JoinTree:    &JoinTreeQ{},
 		}
 		scope := newScopeWithParent(parentScope)
+		cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
+		if err != nil {
+			return nil, err
+		}
+		scope.ctes = mergeCTEMaps(cteMap, inheritedCTEMap)
 		for rowIdx, row := range stmt.ValuesSource.Rows {
 			for colIdx, expr := range row {
 				analyzed, err := analyzeExpr(c, expr, scope)
@@ -109,8 +114,9 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		return nil, err
 	}
 
-	// Merge inherited CTE map (for recursive CTE self-references).
+	// Merge inherited CTE map (for recursive CTE self-references and nested queries).
 	cteMap = mergeCTEMaps(cteMap, inheritedCTEMap)
+	scope.ctes = cteMap
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
@@ -465,7 +471,7 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 	if subq.Lateral {
 		parentScope = scope
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, parentScope, scope.visibleCTEs())
 	if err != nil {
 		return nil, err
 	}

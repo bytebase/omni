@@ -62,11 +62,12 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		// Introduced hex/bit literals (e.g. `_utf8mb4 0x41`) are parsed into a
 		// StringLit with Charset set, but MariaDB names them after their source
 		// text (`_utf8mb4 0x41`), not their decoded byte value (`A`). Plain
-		// quoted strings (including `_utf8mb4'hello'`) name themselves after
-		// their string value.
+		// quoted strings (including `_utf8mb4'hello'` and
+		// `_utf8mb4 /* comment */ 'hello'`) name themselves after their string
+		// value.
 		if n.Charset != "" {
 			if raw, ok := nodeText(source, n); ok {
-				rest := strings.TrimSpace(strings.TrimPrefix(raw, n.Charset))
+				rest := skipSpacesAndComments(strings.TrimPrefix(raw, n.Charset))
 				if len(rest) > 0 && rest[0] != '\'' && rest[0] != '"' {
 					return "", false
 				}
@@ -122,6 +123,35 @@ func itemText(source string, expr ast.ExprNode) (string, bool) {
 
 func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
+}
+
+// skipSpacesAndComments advances past leading whitespace and SQL comments
+// (block comments, skipped/executable comment openers, `#` and `-- ` line
+// comments) so callers can inspect the next token in source text.
+func skipSpacesAndComments(s string) string {
+	for i := 0; i < len(s); {
+		switch {
+		case isSpace(s[i]):
+			i++
+		case skippedComment(s, i):
+			if j := skippedCommentEnd(s, i); j >= 0 {
+				i = j
+			} else {
+				return ""
+			}
+		case execOpenerAt(s, i) > 0:
+			i = execOpenerAt(s, i)
+		case s[i] == '/' && i+1 < len(s) && s[i+1] == '*':
+			i = commentEnd(s, i+2)
+		case s[i] == '#' || isDashComment(s, i):
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+		default:
+			return s[i:]
+		}
+	}
+	return ""
 }
 
 // nodeText returns the source text a node's Loc covers.

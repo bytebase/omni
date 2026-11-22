@@ -26,12 +26,17 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 	switch n := item.(type) {
 	case *nodes.ResTarget:
 		// Aliased expression: SELECT expr AS alias
+		if row, ok := unwrapParenExpr(n.Val).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			for _, item := range row.Items {
+				if _, err := analyzeExpr(c, item, scope); err != nil {
+					return nil, err
+				}
+			}
+			return nil, errOperandColumns(1)
+		}
 		analyzed, err := analyzeExpr(c, n.Val, scope)
 		if err != nil {
 			return nil, err
-		}
-		if row, ok := unwrapParenExpr(n.Val).(*nodes.RowExpr); ok && len(row.Items) != 1 {
-			return nil, errOperandColumns(1)
 		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,
@@ -67,12 +72,17 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	default:
 		// Bare expression (literal, function call, etc.)
+		if row, ok := unwrapParenExpr(item).(*nodes.RowExpr); ok && len(row.Items) != 1 {
+			for _, elem := range row.Items {
+				if _, err := analyzeExpr(c, elem, scope); err != nil {
+					return nil, err
+				}
+			}
+			return nil, errOperandColumns(1)
+		}
 		analyzed, err := analyzeExpr(c, item, scope)
 		if err != nil {
 			return nil, err
-		}
-		if row, ok := unwrapParenExpr(item).(*nodes.RowExpr); ok && len(row.Items) != 1 {
-			return nil, errOperandColumns(1)
 		}
 		te := &TargetEntryQ{
 			Expr:    analyzed,

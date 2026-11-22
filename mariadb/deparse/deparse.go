@@ -2848,7 +2848,7 @@ func weightStringLevelFlags(levels string) uint64 {
 		if part == "" {
 			continue
 		}
-		// Range form: lo - hi
+		// Range form: lo - hi (clamped to MariaDB's 6 supported collation levels)
 		if dash := strings.IndexByte(part, '-'); dash >= 0 {
 			lo, err1 := strconv.Atoi(strings.TrimSpace(part[:dash]))
 			hi, err2 := strconv.Atoi(strings.TrimSpace(part[dash+1:]))
@@ -2856,10 +2856,10 @@ func weightStringLevelFlags(levels string) uint64 {
 				if lo > hi {
 					lo, hi = hi, lo
 				}
+				lo = max(lo, 1)
+				hi = min(hi, 6)
 				for k := lo; k <= hi; k++ {
-					if k >= 1 && k <= 6 {
-						flags |= uint64(1) << (k - 1)
-					}
+					flags |= uint64(1) << (k - 1)
 				}
 			}
 			continue

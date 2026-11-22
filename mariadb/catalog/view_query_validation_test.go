@@ -68,6 +68,15 @@ func TestViewQueryValidation(t *testing.T) {
 		// Qualified DEFAULT(tbl.col) round-trip.
 		{"default_col_ok", "CREATE VIEW _v AS SELECT DEFAULT(a) FROM a", 0},
 		{"default_qual_col_ok", "CREATE VIEW _v AS SELECT DEFAULT(a.a) FROM a", 0},
+
+		// Enclosing CTE visible inside scalar, EXISTS, IN, quantified, and derived subqueries.
+		{"cte_in_scalar_subquery", "CREATE VIEW _v AS WITH c AS (SELECT 1 AS x) SELECT (SELECT x FROM c) AS x", 0},
+		{"cte_in_exists_subquery", "CREATE VIEW _v AS WITH c AS (SELECT 1 AS x) SELECT EXISTS(SELECT x FROM c) AS e", 0},
+		{"cte_in_in_subquery", "CREATE VIEW _v AS WITH c AS (SELECT 1 AS x) SELECT a IN (SELECT x FROM c) AS m FROM a", 0},
+		{"cte_in_derived_subquery", "CREATE VIEW _v AS WITH c AS (SELECT 1 AS x) SELECT * FROM (SELECT x FROM c) d", 0},
+
+		// Huge WEIGHT_STRING LEVEL range must be clamped and complete instantly.
+		{"weight_string_huge_level_range", "CREATE VIEW _v AS SELECT WEIGHT_STRING('a' LEVEL 1 - 4294967295) AS w", 0},
 	}
 
 	for _, tc := range cases {
@@ -146,6 +155,11 @@ func TestViewDeparseCanonicalization(t *testing.T) {
 			sql:  "CREATE VIEW _v AS SELECT _utf8mb4 0x41, DEFAULT(a) FROM a",
 			want: "select _utf8mb4'A' AS `_utf8mb4 0x41`,default(`a`.`a`) AS `DEFAULT(a)` from `a`",
 		},
+		{
+			name: "introduced_string_with_comment_keeps_string_value_alias",
+			sql:  "CREATE VIEW _v AS SELECT _utf8mb4 /* comment */ 'hello' FROM a",
+			want: "select _utf8mb4'hello' AS `hello` from `a`",
+		},
 	}
 
 	for _, tc := range cases {
@@ -163,5 +177,36 @@ func TestViewDeparseCanonicalization(t *testing.T) {
 				t.Errorf("ShowCreateView:\n got: %s\nwant substring: AS %s", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestViewConvertPreservesCastIR(t *testing.T) {
+	c, err := LoadSQL("CREATE DATABASE test; USE test; CREATE TABLE t (a VARCHAR(10));")
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	// CONVERT(a, UNSIGNED) must produce a CastExprQ (not a bare VarExprQ with VARCHAR provenance).
+	if results, err := c.Exec("CREATE VIEW v1 AS SELECT CONVERT(a, UNSIGNED) AS c FROM t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v1 failed: parse=%v results=%+v", err, results)
+	}
+	v1 := c.GetDatabase("test").Views["v1"]
+	if v1.AnalyzedQuery == nil || len(v1.AnalyzedQuery.TargetList) != 1 {
+		t.Fatalf("v1.AnalyzedQuery = %+v, want 1 target", v1.AnalyzedQuery)
+	}
+	castQ, ok := v1.AnalyzedQuery.TargetList[0].Expr.(*CastExprQ)
+	if !ok || castQ.TargetType == nil || castQ.TargetType.BaseType != BaseTypeBigInt || !castQ.TargetType.Unsigned {
+		t.Fatalf("v1 target expr = %#v, want CastExprQ(BIGINT UNSIGNED)", v1.AnalyzedQuery.TargetList[0].Expr)
+	}
+	if v1.AnalyzedQuery.TargetList[0].ResOrigCol != "" {
+		t.Errorf("v1 target ResOrigCol = %q, want empty (conversion must not assign direct column provenance)", v1.AnalyzedQuery.TargetList[0].ResOrigCol)
+	}
+
+	// CONVERT(a USING utf8mb4) has no IR node yet, so AnalyzedQuery must stay nil rather than unwrap to VarExprQ.
+	if results, err := c.Exec("CREATE VIEW v2 AS SELECT CONVERT(a USING utf8mb4) AS c FROM t", nil); err != nil || results[0].Error != nil {
+		t.Fatalf("CREATE VIEW v2 failed: parse=%v results=%+v", err, results)
+	}
+	v2 := c.GetDatabase("test").Views["v2"]
+	if v2.AnalyzedQuery != nil {
+		t.Errorf("v2.AnalyzedQuery = %+v, want nil for unsupported CONVERT(... USING ...)", v2.AnalyzedQuery)
 	}
 }

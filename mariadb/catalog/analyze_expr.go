@@ -37,12 +37,14 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.VariableRef:
 		return &ConstExprQ{Value: n.Name}, nil
 	case *nodes.NextValueForExpr, *nodes.PreviousValueForExpr:
-		return &ConstExprQ{}, nil
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.DefaultExpr:
 		if n.Column != "" {
-			return analyzeColumnRef(&nodes.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}, scope)
+			if _, err := analyzeColumnRef(&nodes.ColumnRef{Schema: n.Schema, Table: n.Table, Column: n.Column}, scope); err != nil {
+				return nil, err
+			}
 		}
-		return &ConstExprQ{Value: "DEFAULT"}, nil
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.LikeExpr:
 		left, err := analyzeExpr(c, n.Expr, scope)
 		if err != nil {
@@ -56,6 +58,7 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			if _, err := analyzeExpr(c, n.Escape, scope); err != nil {
 				return nil, err
 			}
+			return nil, unsupportedAnalyzerExpr()
 		}
 		op := "LIKE"
 		if n.Not {
@@ -63,23 +66,36 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		}
 		return &OpExprQ{Op: op, Left: left, Right: pat}, nil
 	case *nodes.ExtractExpr:
-		return analyzeExpr(c, n.Expr, scope)
+		if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.IntervalExpr:
-		return analyzeExpr(c, n.Value, scope)
+		if _, err := analyzeExpr(c, n.Value, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.CollateExpr:
-		return analyzeExpr(c, n.Expr, scope)
+		if _, err := analyzeExpr(c, n.Expr, scope); err != nil {
+			return nil, err
+		}
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.ConvertExpr:
-		return analyzeExpr(c, n.Expr, scope)
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		if n.TypeName != nil && n.Charset == "" {
+			return &CastExprQ{Arg: arg, TargetType: dataTypeToResolvedType(n.TypeName)}, nil
+		}
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.RowExpr:
-		var last AnalyzedExpr = &ConstExprQ{}
 		for _, item := range n.Items {
-			a, err := analyzeExpr(c, item, scope)
-			if err != nil {
+			if _, err := analyzeExpr(c, item, scope); err != nil {
 				return nil, err
 			}
-			last = a
 		}
-		return last, nil
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.MatchExpr:
 		for _, col := range n.Columns {
 			if _, err := analyzeColumnRef(col, scope); err != nil {
@@ -91,7 +107,7 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 				return nil, err
 			}
 		}
-		return &ConstExprQ{}, nil
+		return nil, unsupportedAnalyzerExpr()
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.
@@ -128,11 +144,15 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ExistsExpr:
 		return analyzeExistsSubquery(c, n, scope)
 	default:
-		return nil, &Error{
-			Code:     0,
-			SQLState: "HY000",
-			Message:  "unsupported expression type in analyzer",
-		}
+		return nil, unsupportedAnalyzerExpr()
+	}
+}
+
+func unsupportedAnalyzerExpr() error {
+	return &Error{
+		Code:     0,
+		SQLState: "HY000",
+		Message:  "unsupported expression type in analyzer",
 	}
 }
 
@@ -348,7 +368,7 @@ func analyzeQuantifiedComparison(c *Catalog, expr *nodes.BinaryExpr, sub *nodes.
 	if err != nil {
 		return nil, err
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(sub.Select, scope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(sub.Select, scope, scope.visibleCTEs())
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +416,7 @@ func analyzeInExpr(c *Catalog, expr *nodes.InExpr, scope *analyzerScope) (Analyz
 
 	if expr.Select != nil {
 		// IN (SELECT ...) / NOT IN (SELECT ...)
-		innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+		innerQ, err := c.analyzeSelectStmtWithCTEs(expr.Select, scope, scope.visibleCTEs())
 		if err != nil {
 			return nil, err
 		}
@@ -571,7 +591,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 
 // analyzeScalarSubquery resolves a scalar subquery expression: (SELECT ...).
 func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, scope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, scope, scope.visibleCTEs())
 	if err != nil {
 		return nil, err
 	}
@@ -583,7 +603,7 @@ func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzer
 
 // analyzeExistsSubquery resolves an EXISTS (SELECT ...) expression.
 func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(expr.Select, scope, scope.visibleCTEs())
 	if err != nil {
 		return nil, err
 	}
