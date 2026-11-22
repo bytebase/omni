@@ -96,15 +96,17 @@ func (p *Parser) parseInlineAnalyticViewRef(start int) (nodes.TableExpr, error) 
 		ref.Loc.End = p.prev.End
 		return p.parsePivotSuffix(ref)
 	}
-	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
-		p.engineCrash = p.cur.Loc
-		return nil, p.syntaxErrorAtCur()
-	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
+		mrTok := p.cur
+		hasParen := p.peekNext().Type == '('
 		ref.Loc.End = p.prev.End
 		mrRef, err := p.parseMatchRecognize(ref.Loc.Start)
 		if err != nil {
 			return nil, err
+		}
+		if p.dmlFromClause && hasParen {
+			p.engineCrash = mrTok.Loc
+			return nil, p.syntaxErrorAtTok(mrTok)
 		}
 		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
 			mrClause.Source = ref

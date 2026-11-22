@@ -1279,20 +1279,24 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parsePivotSuffix(tr)
 	}
 
-	// Nor does it match patterns: Oracle 23ai fails in its own code on
-	// MATCH_RECOGNIZE there, so the byte its judge recorded is the engine's
-	// crash position and not a token this grammar cannot take (ParseRange).
-	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
-		p.engineCrash = p.cur.Loc
-		return nil, p.syntaxErrorAtCur()
-	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
+		mrTok := p.cur
+		hasParen := p.peekNext().Type == '('
 		// The clause wraps the table it reads, so it starts where the table
 		// does, and the table ends before it.
 		tr.Loc.End = p.prev.End
 		mrRef, parseErr976 := p.parseMatchRecognize(tr.Loc.Start)
 		if parseErr976 != nil {
 			return nil, parseErr976
+		}
+		// Oracle 23ai parses MATCH_RECOGNIZE(...) inside a DML FROM clause and
+		// reports syntax errors within it, then fails in its own code on a
+		// syntactically valid clause (ORA-00600 -> bare reject in compat.tsv).
+		// Without '(', MATCH_RECOGNIZE is a table alias, so let the caller
+		// report any unexpected trailing token (e.g. PATTERN without '(').
+		if p.dmlFromClause && hasParen {
+			p.engineCrash = mrTok.Loc
+			return nil, p.syntaxErrorAtTok(mrTok)
 		}
 		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
 			mrClause.Source = tr
