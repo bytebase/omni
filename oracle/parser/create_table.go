@@ -2917,7 +2917,7 @@ func (p *Parser) parseEnableDisableClause(stmt *nodes.CreateTableStmt) error {
 		if !createTableHasPrimaryKey(stmt) && !p.isStatementEnd() {
 			return p.syntaxErrorAtCur()
 		}
-	case kwCONSTRAINT:
+	case kwCONSTRAINT, kwCONSTRAINTS:
 		p.advance()
 		constraintName := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {

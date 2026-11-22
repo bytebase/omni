@@ -302,10 +302,11 @@ func (p *Parser) parseRoleIdentifiedClause(
 		setType(nodes.ROLE_IDENTIFIED_GLOBALLY)
 		if p.cur.Type == kwAS {
 			p.advance()
-			if p.cur.Type == tokSCONST {
-				setValue(p.cur.Str)
-				p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
 			}
+			setValue(p.cur.Str)
+			p.advance()
 		}
 	default:
 		return p.syntaxErrorAtCur()

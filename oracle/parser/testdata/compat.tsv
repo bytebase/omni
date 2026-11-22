@@ -12393,7 +12393,7 @@ accept	reject@0	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/
 reject@13	reject@13	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!drop-1	ALTER ROLE a GLOBALLY AS 's'
 reject@24	reject@24	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!drop-2	ALTER ROLE a IDENTIFIED AS 's'
 reject@33	reject@0	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!drop-3	ALTER ROLE a IDENTIFIED GLOBALLY 's'
-accept	reject@0	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!drop-4	ALTER ROLE a IDENTIFIED GLOBALLY AS
+reject@35	reject@0	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!drop-4	ALTER ROLE a IDENTIFIED GLOBALLY AS
 reject@40	reject@0	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!insert	ALTER ROLE a IDENTIFIED GLOBALLY AS 's' zzz
 reject@13	reject@13	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_GLOBALLY_AS_STRING!swap	ALTER ROLE a IDENTIFIER GLOBALLY AS 's'
 accept	accept	engine	alterRole(NOT_IDENTIFIED|IDENTIFIED_BY_ID|IDEN~0bf07f21)/IDENTIFIED_USING_(ID_.)?_ID	ALTER ROLE a IDENTIFIED USING a
@@ -31452,7 +31452,7 @@ reject@37	reject@37	engine	createRole(ID_.)?/ID_.!insert	CREATE ROLE a IDENTIFIE
 accept	reject@0	engine	createRole(AS_STRING)?/%empty	CREATE ROLE a IDENTIFIED GLOBALLY
 accept	reject@0	engine	createRole(AS_STRING)?/AS_STRING	CREATE ROLE a IDENTIFIED GLOBALLY AS 's'
 reject@34	reject@0	engine	createRole(AS_STRING)?/AS_STRING!drop-1	CREATE ROLE a IDENTIFIED GLOBALLY 's'
-accept	reject@0	engine	createRole(AS_STRING)?/AS_STRING!drop-2	CREATE ROLE a IDENTIFIED GLOBALLY AS
+reject@36	reject@0	engine	createRole(AS_STRING)?/AS_STRING!drop-2	CREATE ROLE a IDENTIFIED GLOBALLY AS
 reject@41	reject@0	engine	createRole(AS_STRING)?/AS_STRING!insert	CREATE ROLE a IDENTIFIED GLOBALLY AS 's' zzz
 reject@34	reject@0	engine	createRole(AS_STRING)?/AS_STRING!swap	CREATE ROLE a IDENTIFIED GLOBALLY ASC 's'
 accept	accept	engine	createRole(CONTAINER_=_(ALL|CURRENT))?/%empty	CREATE ROLE a
@@ -33158,7 +33158,7 @@ reject@34	reject@34	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*
 reject@22	reject@22	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!drop-1	CREATE TABLE a ENABLE a
 reject@32	reject@32	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!drop-2	CREATE TABLE a ENABLE CONSTRAINT
 reject@35	reject@35	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!insert	CREATE TABLE a ENABLE CONSTRAINT a zzz
-reject@22	reject@35	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!swap	CREATE TABLE a ENABLE CONSTRAINTS a
+reject@35	reject@35	engine	createTable_enable_disable_clause(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY|CO~ef9d8c78)/CONSTRAINT_ID!swap	CREATE TABLE a ENABLE CONSTRAINTS a
 accept	accept	engine	createTable_enable_disable_clause(,_ID)*/%empty	CREATE TABLE a ENABLE UNIQUE(a)
 reject@31	reject@31	engine	createTable_enable_disable_clause(,_ID)*/%empty!insert	CREATE TABLE a ENABLE UNIQUE(a zzz)
 reject@32	reject@32	engine	createTable_enable_disable_clause(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a ENABLE UNIQUE(a, a)
@@ -37445,15 +37445,15 @@ reject@25	reject@25	engine	createView(createView_object_view_clause|create~ee228
 reject@24	reject@24	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_object_view_clause!truncate	CREATE VIEW a OF a UNDER
 reject@27	reject@27	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_object_view_clause!insert	CREATE VIEW a OF a UNDER a zzz AS SELECT 1 FROM dual
 reject@14	reject@14	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_object_view_clause!swap	CREATE VIEW a OFF a UNDER a AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
 reject@14	reject@14	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-1	CREATE VIEW a XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
 reject@27	reject@27	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-2	CREATE VIEW a OF XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@25	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-3	CREATE VIEW a OF XMLTYPE 's' ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@43	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-4	CREATE VIEW a OF XMLTYPE XMLSCHEMA ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-5	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' a AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-6	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT
-reject@14	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a zzz AS SELECT 1 FROM dual
+reject@25	reject@25	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-3	CREATE VIEW a OF XMLTYPE 's' ELEMENT a AS SELECT 1 FROM dual
+reject@43	reject@43	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-4	CREATE VIEW a OF XMLTYPE XMLSCHEMA ELEMENT a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-5	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!drop-6	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT
+reject@35	reject@35	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a zzz AS SELECT 1 FROM dual
 reject@14	reject@14	engine	createView(createView_object_view_clause|create~ee228d3e)?/createView_xmltype_view_clause!swap	CREATE VIEW a OFF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
 accept	accept	engine	createView(createView_annotations_clause)?/%empty	CREATE VIEW a AS SELECT 1 FROM dual
 accept	accept	engine	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
@@ -37714,31 +37714,31 @@ reject@44	reject@44	engine	createView_object_view_clause(,_ID)*/,_ID_(,_ID)*!dro
 reject@44	reject@44	engine	createView_object_view_clause(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE VIEW a OF a WITH OBJECT IDENTIFIER(a,) AS SELECT 1 FROM dual
 reject@44	reject@44	engine	createView_object_view_clause(,_ID)*/,_ID_(,_ID)*!truncate	CREATE VIEW a OF a WITH OBJECT IDENTIFIER(a,
 reject@47	reject@47	engine	createView_object_view_clause(,_ID)*/,_ID_(,_ID)*!insert	CREATE VIEW a OF a WITH OBJECT IDENTIFIER(a, a zzz) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause/OF_XMLTYPE_createView_xmlschema_spec_(WITH_OBJECT_IDENT~4e9a6249	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/%empty	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH IDENTIFIER DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-3	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-4	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT zzz AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!swap	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITHOUT OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/DEFAULT	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/DEFAULT!swap	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT_COLLATION AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER 1) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER() AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-3	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1
-reject@14	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) zzz AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/%empty	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/%empty!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 zzz) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1, 1) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 1) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1,) AS SELECT 1 FROM dual
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1,
-reject@14	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1, 1 zzz) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause/OF_XMLTYPE_createView_xmlschema_spec_(WITH_OBJECT_IDENT~4e9a6249	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/%empty	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH IDENTIFIER DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-3	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!drop-4	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT zzz AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EX~c7311bdb)?/WITH_OBJECT_IDENTIFIER_(DEFAULT|(_EXPR_(,_EXPR)*_))!swap	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITHOUT OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/DEFAULT	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/DEFAULT!swap	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER DEFAULT_COLLATION AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER 1) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER() AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!drop-3	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1
+reject@35	reject@35	engine	createView_xmltype_view_clause(DEFAULT|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) zzz AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/%empty	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/%empty!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 zzz) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1, 1) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1 1) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1,) AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!truncate	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1,
+reject@35	reject@35	engine	createView_xmltype_view_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a WITH OBJECT IDENTIFIER(1, 1 zzz) AS SELECT 1 FROM dual
 accept	accept	engine	createView_annotations_clause/ANNOTATIONS_(_ID_(EXPR)?_(,_ID_EXPR?)*_)	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 accept	accept	engine	createView_annotations_clause(EXPR)?/%empty	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
 reject@28	reject@28	engine	createView_annotations_clause(EXPR)?/%empty!insert	CREATE VIEW a ANNOTATIONS(a zzz) AS SELECT 1 FROM dual
@@ -37764,8 +37764,8 @@ reject@51	reject@51	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)
 reject@61	reject@61	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT
 reject@64	reject@64	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a zzz
 accept	accept	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINTS a
-reject@14	reject@35	engine	createView_xmlschema_spec/XMLSCHEMA_STRING_ELEMENT_ID	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
-reject@14	reject@25	engine	createView_xmlschema_spec/XMLSCHEMA_STRING_ELEMENT_ID!swap	CREATE VIEW a OF XMLTYPE XMLTYPE 's' ELEMENT a AS SELECT 1 FROM dual
+reject@35	reject@35	engine	createView_xmlschema_spec/XMLSCHEMA_STRING_ELEMENT_ID	CREATE VIEW a OF XMLTYPE XMLSCHEMA 's' ELEMENT a AS SELECT 1 FROM dual
+reject@25	reject@25	engine	createView_xmlschema_spec/XMLSCHEMA_STRING_ELEMENT_ID!swap	CREATE VIEW a OF XMLTYPE XMLTYPE 's' ELEMENT a AS SELECT 1 FROM dual
 accept	accept	engine	delete/DELETE_(HINT)?_(FROM)?_delete_dml_table_expression_clau~76448948	DELETE a
 accept	accept	engine	delete(HINT)?/%empty	DELETE a
 accept	accept	engine	delete(HINT)?/%empty!insert	DELETE zzz a
@@ -38090,15 +38090,15 @@ reject@22	reject@22	engine	delete_query_table_expression(delete_pivot_clause|del
 accept	accept	engine	delete_query_table_expression(delete_row_pattern_clause)?/%empty	DELETE a FROM a
 reject@16	reject	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@27	reject@27	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-1	DELETE a FROM a(PATTERN(a) DEFINE a AS 1 = 1)
-reject@60	reject@32	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-2	DELETE a FROM a MATCH_RECOGNIZE PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-3	DELETE a FROM a MATCH_RECOGNIZE((a) DEFINE a AS 1 = 1)
-reject@60	reject@40	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN a) DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN() DEFINE a AS 1 = 1)
-reject@60	reject@51	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-7	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) a AS 1 = 1)
-reject@16	reject@50	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-8	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE AS 1 = 1)
-reject@16	reject@52	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-9	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a 1 = 1)
-reject@16	reject@54	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-10	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS)
+reject@32	reject@32	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-2	DELETE a FROM a MATCH_RECOGNIZE PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-3	DELETE a FROM a MATCH_RECOGNIZE((a) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN a) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN() DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-7	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) a AS 1 = 1)
+reject@50	reject@50	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-8	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE AS 1 = 1)
+reject@52	reject@52	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-9	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a 1 = 1)
+reject@54	reject@54	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-10	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS)
 reject@60	reject@60	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!drop-11	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1
 reject@16	reject	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1) zzz
 reject@27	reject@27	engine	delete_query_table_expression(delete_row_pattern_clause)?/delete_row_pattern_clause!swap	DELETE a FROM a MATERIALIZE(PATTERN(a) DEFINE a AS 1 = 1)
@@ -38334,160 +38334,160 @@ reject@27	reject@27	engine	delete_unpivot_clause(,_ID)*/,_ID_(,_ID)*!truncate	DE
 reject@30	reject@30	engine	delete_unpivot_clause(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM a UNPIVOT((a, a zzz) FOR a IN(a))
 reject@16	reject	engine	delete_row_pattern_clause/MATCH_RECOGNIZE_(_(PARTITION_BY_ID_(,_ID)?)*_(ORDER_BY_~a5a3c488	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(zzz PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-1	DELETE a FROM a MATCH_RECOGNIZE(BY a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PARTITION a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@52	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-1	DELETE a FROM a MATCH_RECOGNIZE(BY a PATTERN(a) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PARTITION a PATTERN(a) DEFINE a AS 1 = 1)
+reject@52	reject@52	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY PATTERN(a) DEFINE a AS 1 = 1)
 reject@44	reject@44	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY
-reject@16	reject@47	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!swap	DELETE a FROM a MATCH_RECOGNIZE(PARTITIONING BY a PATTERN(a) DEFINE a AS 1 = 1)
+reject@47	reject@47	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*!swap	DELETE a FROM a MATCH_RECOGNIZE(PARTITIONING BY a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_ID)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_ID)?/,_ID	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a, a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@47	engine	delete_row_pattern_clause(,_ID)?/,_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@55	engine	delete_row_pattern_clause(,_ID)?/,_ID!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a, PATTERN(a) DEFINE a AS 1 = 1)
+reject@47	reject@47	engine	delete_row_pattern_clause(,_ID)?/,_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a a PATTERN(a) DEFINE a AS 1 = 1)
+reject@55	reject@55	engine	delete_row_pattern_clause(,_ID)?/,_ID!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a, PATTERN(a) DEFINE a AS 1 = 1)
 reject@47	reject@47	engine	delete_row_pattern_clause(,_ID)?/,_ID!truncate	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a,
-reject@16	reject@50	engine	delete_row_pattern_clause(,_ID)?/,_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@50	reject@50	engine	delete_row_pattern_clause(,_ID)?/,_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(PARTITION BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@38	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ORDER a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@48	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY PATTERN(a) DEFINE a AS 1 = 1)
+reject@38	reject@38	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ORDER a PATTERN(a) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY PATTERN(a) DEFINE a AS 1 = 1)
 reject@40	reject@40	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!truncate	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY
-reject@16	reject@43	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!swap	DELETE a FROM a MATCH_RECOGNIZE(ORGANIZATION BY a PATTERN(a) DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e!swap	DELETE a FROM a MATCH_RECOGNIZE(ORGANIZATION BY a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ASC|DESC)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ASC|DESC)?/ASC	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a ASC PATTERN(a) DEFINE a AS 1 = 1)
 reject@42	reject@42	engine	delete_row_pattern_clause(ASC|DESC)?/ASC!truncate	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a
-reject@16	reject@47	engine	delete_row_pattern_clause(ASC|DESC)?/ASC!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a ASC zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(ASC|DESC)?/ASC!swap	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a ASSOCIATE PATTERN(a) DEFINE a AS 1 = 1)
+reject@47	reject@47	engine	delete_row_pattern_clause(ASC|DESC)?/ASC!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a ASC zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(ASC|DESC)?/ASC!swap	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a ASSOCIATE PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ASC|DESC)?/DESC	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a DESC PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@48	engine	delete_row_pattern_clause(ASC|DESC)?/DESC!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a DESC zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(ASC|DESC)?/DESC!swap	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a DESCRIPTION PATTERN(a) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_clause(ASC|DESC)?/DESC!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a DESC zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(ASC|DESC)?/DESC!swap	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a DESCRIPTION PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, PATTERN(a) DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a a PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, PATTERN(a) DEFINE a AS 1 = 1)
 reject@43	reject@43	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!truncate	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a,
-reject@16	reject@46	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@46	reject@46	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-1	DELETE a FROM a MATCH_RECOGNIZE(1 AS a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@41	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-2	DELETE a FROM a MATCH_RECOGNIZE(MEASURES AS a PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-1	DELETE a FROM a MATCH_RECOGNIZE(1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+reject@41	reject@41	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-2	DELETE a FROM a MATCH_RECOGNIZE(MEASURES AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-3	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@53	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-4	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS PATTERN(a) DEFINE a AS 1 = 1)
+reject@53	reject@53	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-4	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS PATTERN(a) DEFINE a AS 1 = 1)
 reject@45	reject@45	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!truncate	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS
-reject@16	reject@48	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!insert	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!swap	DELETE a FROM a MATCH_RECOGNIZE(MEDIUM 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!insert	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!swap	DELETE a FROM a MATCH_RECOGNIZE(MEDIUM 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@48	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-1	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-2	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, AS a PATTERN(a) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-1	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-2	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-3	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-4	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS PATTERN(a) DEFINE a AS 1 = 1)
+reject@61	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!drop-4	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS PATTERN(a) DEFINE a AS 1 = 1)
 reject@53	reject@53	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!truncate	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS
-reject@16	reject@56	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!insert	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!swap	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 ASC a PATTERN(a) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!insert	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause(,_delete_row_pattern_measure_column)?/,_delete_row_pattern_measure_column!swap	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 ASC a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@36	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ONE PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@44	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-4	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@36	reject@36	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ONE PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@44	reject@44	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!drop-4	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER PATTERN(a) DEFINE a AS 1 = 1)
 reject@43	reject@43	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!truncate	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER
-reject@16	reject@50	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!insert	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER MATCH zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!swap	DELETE a FROM a MATCH_RECOGNIZE(ONLINE ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@50	reject@50	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!insert	DELETE a FROM a MATCH_RECOGNIZE(ONE ROW PER MATCH zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH!swap	DELETE a FROM a MATCH_RECOGNIZE(ONLINE ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@36	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ALL PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@41	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS MATCH PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@45	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-4	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@36	reject@36	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ALL PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@41	reject@41	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@45	reject@45	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!drop-4	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER PATTERN(a) DEFINE a AS 1 = 1)
 reject@44	reject@44	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!truncate	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER
-reject@16	reject@51	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!swap	DELETE a FROM a MATCH_RECOGNIZE(ALLOCATE ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?!swap	DELETE a FROM a MATCH_RECOGNIZE(ALLOCATE ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@56	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW MATCHES PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@62	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-1	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@62	reject@62	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!drop-3	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY PATTERN(a) DEFINE a AS 1 = 1)
 reject@61	reject@61	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!truncate	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY
-reject@16	reject@70	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!swap	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHRINK EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@70	reject@70	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES!swap	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHRINK EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(SHOW|OMIT)/SHOW	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
 reject@50	reject@50	engine	delete_row_pattern_clause(SHOW|OMIT)/SHOW!truncate	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH
-reject@16	reject@56	engine	delete_row_pattern_clause(SHOW|OMIT)/SHOW!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW zzz EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_row_pattern_clause(SHOW|OMIT)/SHOW!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW zzz EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(SHOW|OMIT)/OMIT	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH OMIT EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@56	engine	delete_row_pattern_clause(SHOW|OMIT)/OMIT!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH OMIT zzz EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause(SHOW|OMIT)/OMIT!swap	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH ON EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_row_pattern_clause(SHOW|OMIT)/OMIT!insert	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH OMIT zzz EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause(SHOW|OMIT)/OMIT!swap	DELETE a FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH ON EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-1	DELETE a FROM a MATCH_RECOGNIZE(MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@38	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@44	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH TO a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-4	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@59	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-5	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-1	DELETE a FROM a MATCH_RECOGNIZE(MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
+reject@38	reject@38	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
+reject@44	reject@44	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH TO a PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-4	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP a PATTERN(a) DEFINE a AS 1 = 1)
+reject@59	reject@59	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!drop-5	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO PATTERN(a) DEFINE a AS 1 = 1)
 reject@51	reject@51	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!truncate	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO
-reject@16	reject@54	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@32	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!swap	DELETE a FROM a MATCH_RECOGNIZE(AGENT MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
+reject@54	reject@54	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@32	reject@32	engine	delete_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)!swap	DELETE a FROM a MATCH_RECOGNIZE(AGENT MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@54	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@59	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@54	reject@54	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@59	reject@59	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST PATTERN(a) DEFINE a AS 1 = 1)
 reject@58	reject@58	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!truncate	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST
-reject@16	reject@63	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PATCH LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@63	reject@63	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PATCH LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@52	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO ROW PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@57	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@52	reject@52	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-2	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@57	reject@57	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT PATTERN(a) DEFINE a AS 1 = 1)
 reject@56	reject@56	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!truncate	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT
-reject@16	reject@61	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
+reject@61	reject@61	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP FIRST a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@65	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP FIRST a PATTERN(a) DEFINE a AS 1 = 1)
+reject@65	reject@65	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST PATTERN(a) DEFINE a AS 1 = 1)
 reject@57	reject@57	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!truncate	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST
-reject@16	reject@60	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL FIRST a PATTERN(a) DEFINE a AS 1 = 1)
+reject@60	reject@60	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL FIRST a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@64	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!drop-1	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP LAST a PATTERN(a) DEFINE a AS 1 = 1)
+reject@64	reject@64	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!drop-3	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST PATTERN(a) DEFINE a AS 1 = 1)
 reject@56	reject@56	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!truncate	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST
-reject@16	reject@59	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a zzz PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL LAST a PATTERN(a) DEFINE a AS 1 = 1)
+reject@59	reject@59	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!insert	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL LAST a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_ID	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL a PATTERN(a) DEFINE a AS 1 = 1)
+reject@49	reject@49	engine	delete_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TOPLEVEL a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) zzz DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) zzz DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) a =(a) DEFINE a AS 1 = 1)
-reject@16	reject@50	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET =(a) DEFINE a AS 1 = 1)
-reject@16	reject@51	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a(a) DEFINE a AS 1 = 1)
-reject@74	reject@54	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a = a) DEFINE a AS 1 = 1)
-reject@16	reject@54	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =() DEFINE a AS 1 = 1)
-reject@74	reject@56	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) a =(a) DEFINE a AS 1 = 1)
+reject@50	reject@50	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET =(a) DEFINE a AS 1 = 1)
+reject@51	reject@51	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a(a) DEFINE a AS 1 = 1)
+reject@54	reject@54	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a = a) DEFINE a AS 1 = 1)
+reject@54	reject@54	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =() DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a DEFINE a AS 1 = 1)
 reject@55	reject@55	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a
-reject@16	reject@57	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) zzz DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSTITUTABLE a =(a) DEFINE a AS 1 = 1)
+reject@57	reject@57	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) zzz DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_clause(SUBSET_delete_subset_item_(,_delete_~8b503499)*/SUBSET_delete_subset_item_(,_delete_subset_item)?_(SUBS~bb5936df!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSTITUTABLE a =(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_subset_item)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a) DEFINE a AS 1 = 1)
-reject@16	reject@57	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) a =(a) DEFINE a AS 1 = 1)
-reject@16	reject@58	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), =(a) DEFINE a AS 1 = 1)
-reject@16	reject@59	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a(a) DEFINE a AS 1 = 1)
-reject@82	reject@62	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a = a) DEFINE a AS 1 = 1)
-reject@16	reject@62	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =() DEFINE a AS 1 = 1)
-reject@82	reject@64	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a DEFINE a AS 1 = 1)
+reject@57	reject@57	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) a =(a) DEFINE a AS 1 = 1)
+reject@58	reject@58	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), =(a) DEFINE a AS 1 = 1)
+reject@59	reject@59	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a(a) DEFINE a AS 1 = 1)
+reject@62	reject@62	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a = a) DEFINE a AS 1 = 1)
+reject@62	reject@62	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-5	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =() DEFINE a AS 1 = 1)
+reject@64	reject@64	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!drop-6	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a DEFINE a AS 1 = 1)
 reject@63	reject@63	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a
-reject@16	reject@65	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a) zzz DEFINE a AS 1 = 1)
+reject@65	reject@65	engine	delete_row_pattern_clause(,_delete_subset_item)?/,_delete_subset_item!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a) zzz DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1 zzz)
+reject@61	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1 zzz)
 reject@16	reject	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1)
-reject@16	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1 a AS 1 = 1)
-reject@16	reject@62	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, AS 1 = 1)
-reject@16	reject@64	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a 1 = 1)
-reject@16	reject@66	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS)
+reject@61	reject@61	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1 a AS 1 = 1)
+reject@62	reject@62	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, AS 1 = 1)
+reject@64	reject@64	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a 1 = 1)
+reject@66	reject@66	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS)
 reject@66	reject@66	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS
-reject@16	reject@73	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1 zzz)
-reject@16	reject@64	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a ASC 1 = 1)
+reject@73	reject@73	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1 zzz)
+reject@64	reject@64	engine	delete_row_pattern_clause(,_delete_row_pattern_definition)*/,_delete_row_pattern_definition_(,_delete_row_pattern_d~9829bbae!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a ASC 1 = 1)
 reject@26	reject@26	engine	delete_containers_clause/CONTAINERS_(_(ID_.)?_ID_)	DELETE a FROM a CONTAINERS(a)
 reject@26	reject@26	engine	delete_containers_clause(ID_.)?/%empty	DELETE a FROM a CONTAINERS(a)
 reject@26	reject@26	engine	delete_containers_clause(ID_.)?/%empty!insert	DELETE a FROM a CONTAINERS(zzz a)
@@ -38783,26 +38783,26 @@ reject@37	reject@37	engine	delete_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(E
 reject@37	reject@37	engine	delete_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?_(~a02f9a00!truncate	DELETE a FROM a UNPIVOT(a FOR a IN(a,
 reject@40	reject@40	engine	delete_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?_(~a02f9a00!insert	DELETE a FROM a UNPIVOT(a FOR a IN(a, a zzz))
 reject@16	reject	engine	delete_row_pattern_measure_column/EXPR_AS_ID	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@43	engine	delete_row_pattern_measure_column/EXPR_AS_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 ASC a PATTERN(a) DEFINE a AS 1 = 1)
+reject@43	reject@43	engine	delete_row_pattern_measure_column/EXPR_AS_ID!swap	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 ASC a PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern/delete_row_pattern_term_('|'_delete_row_pattern_term)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@40	reject@40	engine	delete_row_pattern/delete_row_pattern_term_('|'_delete_row_pattern_term)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(
 reject@16	reject	engine	delete_row_pattern/delete_row_pattern_term_('|'_delete_row_pattern_term)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern('|'_delete_row_pattern_term)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|' a) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|') DEFINE a AS 1 = 1)
-reject@45	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|'
-reject@16	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|' a zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|' a) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|'
+reject@42	reject@42	engine	delete_row_pattern('|'_delete_row_pattern_term)*/'|'_delete_row_pattern_term_('|'_delete_row_pattern_term)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '|' a zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_subset_item/ID_=_(_ID_(,_ID)*_)	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_subset_item(,_ID)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
-reject@16	reject@56	engine	delete_subset_item(,_ID)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a zzz) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_subset_item(,_ID)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a, a) DEFINE a AS 1 = 1)
-reject@16	reject@56	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a a) DEFINE a AS 1 = 1)
-reject@16	reject@56	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a,) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a a) DEFINE a AS 1 = 1)
+reject@56	reject@56	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a,) DEFINE a AS 1 = 1)
 reject@56	reject@56	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a,
-reject@16	reject@59	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a, a zzz) DEFINE a AS 1 = 1)
+reject@59	reject@59	engine	delete_subset_item(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a, a zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_definition/ID_AS_CONDITION	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@54	reject@54	engine	delete_row_pattern_definition/ID_AS_CONDITION!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS
-reject@16	reject@52	engine	delete_row_pattern_definition/ID_AS_CONDITION!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a ASC 1 = 1)
+reject@52	reject@52	engine	delete_row_pattern_definition/ID_AS_CONDITION!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a ASC 1 = 1)
 reject@33	reject@33	engine	delete_identity_clause/GENERATED_(ALWAYS|BY_DEFAULT_(ON_NULL)?)_AS_IDENTITY_((~0b924e8f	DELETE a FROM EXTERNAL((a NUMBER GENERATED ALWAYS AS IDENTITY) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_identity_clause(ALWAYS|BY_DEFAULT_(ON_NULL)?)/ALWAYS	DELETE a FROM EXTERNAL((a NUMBER GENERATED ALWAYS AS IDENTITY) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_identity_clause(ALWAYS|BY_DEFAULT_(ON_NULL)?)/ALWAYS!truncate	DELETE a FROM EXTERNAL((a NUMBER GENERATED
@@ -39175,8 +39175,8 @@ reject@57	reject@57	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_
 reject@51	reject@51	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a ASC(1)))
 reject@16	reject	engine	delete_row_pattern_factor/delete_row_pattern_primary_(delete_row_pattern_quantifier)?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/delete_row_pattern_quantifier	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/delete_row_pattern_quantifier!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/delete_row_pattern_quantifier	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/delete_row_pattern_quantifier!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' zzz) DEFINE a AS 1 = 1)
 reject@33	reject@33	engine	delete_using_index_clause/USING_INDEX_((ID_.)?_ID|delete_index_attributes)	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_using_index_clause((ID_.)?_ID|delete_index_attributes)/(ID_.)?_ID	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_using_index_clause((ID_.)?_ID|delete_index_attributes)/(ID_.)?_ID!truncate	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX
@@ -39218,25 +39218,25 @@ reject@51	reject@51	engine	delete_base_meas_clause(delete_meas_aggregate_clause)
 reject@51	reject@51	engine	delete_base_meas_clause(delete_meas_aggregate_clause)?/delete_meas_aggregate_clause!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT zzz))
 accept	accept	engine	delete_calc_meas_clause/AS_(_EXPR_)	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
 reject@16	reject	engine	delete_row_pattern_primary/ID	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'$'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$') DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'$'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'^'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('^') DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'^'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('^' zzz) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'$'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$') DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'$'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$' zzz) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'^'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('^') DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'^'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('^' zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(()) DEFINE a AS 1 = 1)
-reject@60	reject@40	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN()) DEFINE a AS 1 = 1)
-reject@61	reject@52	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(() DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN()) DEFINE a AS 1 = 1)
+reject@52	reject@52	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(() DEFINE a AS 1 = 1)
 reject@41	reject@41	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN((
 reject@16	reject	engine	delete_row_pattern_primary/(_(delete_row_pattern)?_)!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(() zzz) DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a '-}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '-}') DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' '-}') DEFINE a AS 1 = 1)
-reject@16	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a) DEFINE a AS 1 = 1)
-reject@46	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a
-reject@16	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a '-}' zzz) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a '-}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '-}') DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' '-}') DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a) DEFINE a AS 1 = 1)
+reject@40	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a
+reject@40	reject@40	engine	delete_row_pattern_primary/'{-'_delete_row_pattern_'-}'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('{-' a '-}' zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a)) DEFINE a AS 1 = 1)
-reject@69	reject@48	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE a)) DEFINE a AS 1 = 1)
-reject@16	reject@48	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE()) DEFINE a AS 1 = 1)
-reject@69	reject@60	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE a)) DEFINE a AS 1 = 1)
+reject@48	reject@48	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE()) DEFINE a AS 1 = 1)
+reject@60	reject@60	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a) DEFINE a AS 1 = 1)
 reject@49	reject@49	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a
 reject@16	reject	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a) zzz) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_primary/PERMUTE_(_delete_row_pattern_(,_delete_row_pattern)*_)!swap	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PFILE(a)) DEFINE a AS 1 = 1)
@@ -39248,39 +39248,39 @@ reject@16	reject	engine	delete_row_pattern_primary(,_delete_row_pattern)*/%empty
 reject@16	reject	engine	delete_row_pattern_primary(,_delete_row_pattern)*/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a zzz)) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a)) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a a)) DEFINE a AS 1 = 1)
-reject@16	reject@50	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a,)) DEFINE a AS 1 = 1)
+reject@50	reject@50	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a,)) DEFINE a AS 1 = 1)
 reject@50	reject@50	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a,
 reject@16	reject	engine	delete_row_pattern_primary(,_delete_row_pattern)*/,_delete_row_pattern_(,_delete_row_pattern)*!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a zzz)) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/('*'|'+'|'?')_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a 1 '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1) DEFINE a AS 1 = 1)
-reject@47	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1 '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a ',' 1 '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1) DEFINE a AS 1 = 1)
-reject@51	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1
-reject@16	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1 '}' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'*'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'+'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '+') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'+'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '+' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'?'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '?') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'?'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '?' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('?')?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' '?') DEFINE a AS 1 = 1)
-reject@45	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*'
-reject@16	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' '?' zzz) DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 zzz '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/','_(NUMBER)?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/','_(NUMBER)?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' zzz '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' '}') DEFINE a AS 1 = 1)
-reject@16	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' 1 '}') DEFINE a AS 1 = 1)
-reject@51	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ','
-reject@16	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' 1 zzz '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/('*'|'+'|'?')_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_NUMBER_(','_NUMBER?)?_'}'_('?')?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-1	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a ',' 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-3	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!drop-4	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1
+reject@42	reject@42	engine	delete_row_pattern_quantifier/'{'_','_NUMBER_'}'_('?')?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' ',' 1 '}' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'*'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'+'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '+') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'+'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '+' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'?'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '?') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('*'|'+'|'?')/'?'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '?' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('?')?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' '?') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*'
+reject@42	reject@42	engine	delete_row_pattern_quantifier('?')?/'?'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*' '?' zzz) DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/%empty!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 zzz '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/','_(NUMBER)?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(','_NUMBER?)?/','_(NUMBER)?!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' zzz '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' 1 '}') DEFINE a AS 1 = 1)
+reject@42	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER!truncate	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ','
+reject@42	reject@42	engine	delete_row_pattern_quantifier(NUMBER)?/NUMBER!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '{' 1 ',' 1 zzz '}') DEFINE a AS 1 = 1)
 reject@33	reject@33	engine	delete_index_attributes/(delete_physical_attributes_clause|TA~e6eacc22)+	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_index_attributes(delete_physical_attributes_clause|TA~e6eacc22)+/(delete_physical_attributes_clause|TA~e6eacc22)	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_index_attributes(delete_physical_attributes_clause|TA~e6eacc22)+/(delete_physical_attributes_clause|TA~e6eacc22)_(delete~32c0b49e	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))

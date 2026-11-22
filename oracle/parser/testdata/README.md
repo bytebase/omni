@@ -18,17 +18,20 @@ grammar readings), Wave 6 (hash-cluster partitioning, IOT primary key, TDE
 algorithms, extent/cluster size units, OMF tablespace-set datafiles, index/cluster
 INITRANS, XMLTYPE OBJECT RELATIONAL, zonemap SCALE, MV system partitioning,
 multi-table INSERT duplicates, 3-part ASSOCIATE STATISTICS columns, and
-`suite:lexer`/`suite:reference` exact byte offsets), and Wave 7 (`CREATE TABLE`
+`suite:lexer`/`suite:reference` exact byte offsets), Wave 7 (`CREATE TABLE`
 `ENABLE`/`DISABLE` primary-key & constraint checks, self-referencing `PARENT`,
 bare `CREATE SHARDED TABLE`, `COLLATE` missing name, MV `XMLTYPE BINARY XML`,
 subpartition `LOB RETENTION`, nameless `PARTITION NOCOMPRESS`, tablespace ILM
-`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets):
+`COMPRESS ROW`, and `GRANT`/`CALL`/PL/SQL exact byte offsets), and Wave 8
+(`DELETE ... FROM ... MATCH_RECOGNIZE` syntax-error parsing, `CREATE VIEW ... OF
+XMLTYPE` per `CREATE-VIEW.bnf`, `CREATE TABLE ENABLE CONSTRAINTS`, and
+`CREATE`/`ALTER ROLE IDENTIFIED GLOBALLY AS` required string literal):
 45,852 generated rows and 1,010 hand rows, 46,862 in all.
 
 | Rows | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,534 | 14,072 | 174 | 3 | 285 |
-| Near-misses | 31,318 | 30,090 | 1,107 | 100 | 21 |
+| One per alternative | 14,534 | 14,098 | 148 | 3 | 285 |
+| Near-misses | 31,318 | 30,265 | 934 | 100 | 19 |
 | Hand rows | 1,010 | 921 | 70 | 17 | 2 |
 
 At the recording, most of what only Oracle accepts was materialized views
@@ -539,23 +542,36 @@ to 99.09% (`46,434 / 46,862`)):
 | `CALL a() INTO a` bare identifier target | 1 | EOF (15) |
 | `CREATE`/`ALTER TABLESPACE [SET] ... DEFAULT ILM ADD POLICY COMPRESS ROW ...` (`ORA-38336`) and `ALTER TABLE ... ADD (... COLLATE)` missing collation name | 4 verdict rows | `ROW` / `)` (closed from `only_omni` to reject; Oracle reports `reject@0`) |
 
-The remaining 1,779 disagreeing rows are non-grammar causes (89 `suite:*` corpus
-rows, 337 bare `reject` without position, 563 `reject@0` lookups/sub-parsers,
-120 measured `only_oracle` lookups/checks, 308 measured `only_omni`
-engine/setup/lookup/duplicate checks including `CREATE TABLE`/`ALTER TABLE ADD`/`DROP`
-and `CREATE INDEX` duplicates intentionally left to semantic review, and ~362
-`another_byte` rows from the documented engine checks below). These are the
-largest, and a row may be one of several, so the counts are not disjoint.
+Wave 8 moved 201 more rows to Oracle's exact cell (184 fewer `omni_first`, 15
+fewer `oracle_first`, and 2 fewer only-omni-accepts closed onto Oracle's
+`reject@0`, bringing exact byte match from 96.20% (`45,083 / 46,862`) to 96.63%
+(`45,284 / 46,862`) and verdict agreement from `46,434 / 46,862` to
+`46,436 / 46,862` (99.09%)):
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `DELETE ... FROM ... MATCH_RECOGNIZE(...)` near-misses | 166 | exact offending token inside `MATCH_RECOGNIZE(...)` (or `PATTERN` at byte 32 when `(` is missing), matching `SELECT ... MATCH_RECOGNIZE(...)`; syntactically valid `MATCH_RECOGNIZE(...)` in DML `FROM` still refuses at `MATCH_RECOGNIZE` (byte 16) for Oracle's engine crash |
+| `CREATE VIEW ... OF XMLTYPE ...` (`XMLType_view_clause` per `CREATE-VIEW.bnf`) | 34 | `'s'` (35) after `XMLSCHEMA` (Oracle expects an identifier / double-quoted URL, matching `mview_clauses.go` and `alter_table_properties.go`), missing `XMLSCHEMA` (`'s'` / `XMLTYPE` at 25), or missing `ELEMENT` (`a` at 43), while valid `OF XMLTYPE XMLSCHEMA "url" ELEMENT "elem" [WITH OBJECT IDENTIFIER ...]` now parses |
+| `CREATE TABLE ... ENABLE CONSTRAINTS <name>` | 1 | EOF (35): accepts plural `CONSTRAINTS` synonym alongside `CONSTRAINT` (matching `ALTER TABLE` and `CREATE VIEW`) |
+| `CREATE`/`ALTER ROLE ... IDENTIFIED GLOBALLY AS` without string literal | 2 verdict rows | EOF (36 / 35): requires directory/domain string literal after `AS` (matching `user_clauses.go` and `CREATE-ROLE.bnf` / `ALTER-ROLE.bnf`; closed from `only_omni` to reject, Oracle reports `reject@0`) |
+
+The remaining 1,578 disagreeing rows are non-grammar causes (89 `suite:*` corpus
+rows, 332 non-suite bare `reject` without position, 446 non-suite `reject@0`
+lookups/sub-parsers, 103 non-suite measured `only_oracle` lookups/checks, 304
+non-suite measured `only_omni` engine/setup/lookup/duplicate checks including
+`CREATE TABLE`/`ALTER TABLE ADD`/`DROP` and `CREATE INDEX` duplicates
+intentionally left to semantic review, and 304 `another_byte` rows from the
+documented engine checks below). These are the largest, and a row may be one of
+several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |
-| `DELETE ... MATCH_RECOGNIZE (...)` | 235 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
-| rows whose cell is `reject@0` | 444 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| `DELETE ... MATCH_RECOGNIZE (...)` (valid clauses) | 69 | bare `reject` with no position: Oracle 23ai parses `MATCH_RECOGNIZE(...)` in a DML `FROM` clause (its 166 near-misses now agree at Oracle's exact byte), then fails in its own code on a syntactically valid clause (`Parser.engineCrash`) |
+| rows whose cell is `reject@0` | 446 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 111 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
 | `suite:reference` | 72 | these statements are the corpus's, so their cells move only with the corpus |
-| `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 62 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
-| `CREATE VIEW a OF XMLTYPE ...` | 34 | `'s'` (35) on the 31 `XMLSCHEMA 's'` rows (`ORA-19002`, the schema URL looked up before `WITH OBJECT IDENTIFIER` or `AS subquery` is read, so even the page's valid forms carry `reject@35`), and 25 or 43 on the 3 near-misses without `'s'` (`CREATE VIEW a OF XMLTYPE WITH OBJECT IDENTIFIER DEFAULT AS SELECT 1 FROM dual`, with no `XMLSCHEMA`, parses to `ORA-22980`) |
+| `CREATE FLASHBACK ARCHIVE ...` and `ALTER FLASHBACK ARCHIVE ...` | 59 | the token after the offending one, or the end of the statement: Oracle's archive parser advances past the token it refuses before raising `ORA-55603` or `ORA-55613` (`ALTER FLASHBACK ARCHIVE a SETS DEFAULT` at `DEFAULT`, 31; `... QUOTA 1 K RETENTION 1 DAY` at `RETENTION`, 50), as `FLASHBACK TABLE` (`ORA-02000`) and `LOCK TABLE ... IN ... MODE` (`ORA-01737`) do on theirs |
 | `ALTER DIMENSION ...` | 70 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 70 `ALTER DIMENSION` rows here, 30 carry `reject@0` (a clause word Oracle has no form for) |
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 6 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see above) |
 | `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 59 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
