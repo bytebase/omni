@@ -673,7 +673,7 @@ func (p *Parser) parseRefresh() (Statement, error) {
 		return &ParsedStmt{Kind: StmtRefresh, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 	}
 	// REFRESH <unquoted resource path> (or bare REFRESH)
-	for p.cur().Kind == tokIdent {
+	for !p.isStatementEnd() {
 		p.advance()
 	}
 	return &ParsedStmt{Kind: StmtRefresh, Loc: Loc{Start: start, End: p.prevEnd()}}, nil

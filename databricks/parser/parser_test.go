@@ -271,6 +271,26 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtComment,
 		},
 		{
+			name: "refresh unquoted resource path",
+			sql:  `REFRESH /mnt/data/events.parquet`,
+			kind: StmtRefresh,
+		},
+		{
+			name: "refresh quoted resource path",
+			sql:  `REFRESH '/mnt/data/events.parquet'`,
+			kind: StmtRefresh,
+		},
+		{
+			name: "not identifier postfix forms",
+			sql:  `SELECT not.x, not[0], not::STRING, NOT not.x FROM t AS not`,
+			kind: StmtQuery,
+		},
+		{
+			name: "count all and distinct star",
+			sql:  `SELECT count(ALL *), count(DISTINCT *), f(all * 2) FROM t`,
+			kind: StmtQuery,
+		},
+		{
 			name: "refresh cache repair",
 			sql:  `MSCK REPAIR TABLE main.default.events SYNC PARTITIONS`,
 			kind: StmtRepair,

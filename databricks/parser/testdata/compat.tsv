@@ -63,7 +63,7 @@ accept	accept	grammar	compoundBody/(compoundStatement_SEMICOLON)+	BEGIN REFRESH;
 accept	accept	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON	BEGIN REFRESH; END
 accept	accept	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+	BEGIN REFRESH; REFRESH; END
 reject	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!drop-1	BEGIN; REFRESH; END
-reject	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!drop-2	BEGIN REFRESH REFRESH; END
+accept	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!drop-2	BEGIN REFRESH REFRESH; END
 reject	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!drop-3	BEGIN REFRESH;; END
 reject	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!drop-4	BEGIN REFRESH; REFRESH END
 reject	reject	grammar	compoundBody(compoundStatement_SEMICOLON)+/compoundStatement_SEMICOLON_(compoundStatement_SEMICOLON)+!truncate	BEGIN REFRESH; REFRESH
@@ -323,7 +323,7 @@ reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/W
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-2	BEGIN CASE WHEN THEN REFRESH; WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-3	BEGIN CASE WHEN a REFRESH; WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-4	BEGIN CASE WHEN a THEN; WHEN a THEN REFRESH; END CASE; END
-reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-5	BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END
+accept	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-5	BEGIN CASE WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-6	BEGIN CASE WHEN a THEN REFRESH; a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-7	BEGIN CASE WHEN a THEN REFRESH; WHEN THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_booleanExpression_THEN_compoundBody)+/WHEN_booleanExpression_THEN_compoundBody_(WHEN_booleanE~80fcc2b9!drop-8	BEGIN CASE WHEN a THEN REFRESH; WHEN a REFRESH; END CASE; END
@@ -349,7 +349,7 @@ reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_exp
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-2	BEGIN CASE a WHEN THEN REFRESH; WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-3	BEGIN CASE a WHEN a REFRESH; WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-4	BEGIN CASE a WHEN a THEN; WHEN a THEN REFRESH; END CASE; END
-reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-5	BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END
+accept	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-5	BEGIN CASE a WHEN a THEN REFRESH WHEN a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-6	BEGIN CASE a WHEN a THEN REFRESH; a THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-7	BEGIN CASE a WHEN a THEN REFRESH; WHEN THEN REFRESH; END CASE; END
 reject	reject	grammar	caseStatement(WHEN_expression_THEN_compoundBody)+/WHEN_expression_THEN_compoundBody_(WHEN_expression_THEN~45d9593d!drop-8	BEGIN CASE a WHEN a THEN REFRESH; WHEN a REFRESH; END CASE; END

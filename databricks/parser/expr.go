@@ -158,15 +158,12 @@ func (p *Parser) parseAndExpression() error {
 func (p *Parser) parseNotExpression() error {
 	ops := 0
 	for p.cur().Kind == kwNOT || p.cur().Kind == tokBang {
-		if p.cur().Kind == kwNOT && ops == 0 {
-			// NOT is in Spark's nonReserved list, so bare `SELECT NOT` (with no
-			// operand following) is a column reference rather than unary NOT.
-			next := p.peek(1).Kind
-			if next == tokEOF || next == tokSemicolon || next == tokComma || next == tokRParen ||
-				next == kwFROM || next == kwWHERE || next == kwGROUP || next == kwHAVING ||
-				next == kwORDER || next == kwLIMIT || next == kwOFFSET || next == kwAS {
-				break
-			}
+		if p.cur().Kind == kwNOT && p.isNotIdentifierContinuation() {
+			// NOT is in Spark's nonReserved list, so `not` followed by a clause
+			// boundary, postfix operator (`.`, `[`, `::`, `COLLATE`), or
+			// non-unary binary/predicate operator is an identifier expression
+			// rather than unary NOT.
+			break
 		}
 		ops++
 		if p.depth+ops > maxNestingDepth {
@@ -191,6 +188,29 @@ func (p *Parser) parseNotExpression() error {
 		return err
 	}
 	return p.parseOptionalPredicate()
+}
+
+func (p *Parser) isNotIdentifierContinuation() bool {
+	next := p.peek(1).Kind
+	switch next {
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokOperatorPipe,
+		tokDot, tokLBracket, tokDoubleColon,
+		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+		tokShiftLeft, tokShiftRight, tokShiftRightU,
+		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+		kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+		tokArrow, tokFatArrow,
+		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwOFFSET, kwAS,
+		kwTHEN, kwELSE, kwEND, kwWHEN, kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwINTO:
+		return true
+	case kwCOLLATE:
+		// `not COLLATE utf8_binary` is a postfix COLLATE on column `not`,
+		// whereas `NOT collate FROM t` negates a column named `collate`.
+		after := p.peek(2).Kind
+		return after == tokIdent || after == tokBackquoted || after == tokDoubleQuoted
+	}
+	return false
 }
 
 func (p *Parser) parseOptionalPredicate() error {
@@ -1207,9 +1227,15 @@ func (p *Parser) isFunctionSetQuantifier() bool {
 	}
 	next := p.peek(1).Kind
 	switch next {
+	case tokAsterisk:
+		// Distinguish a standalone star argument (`count(ALL *)`,
+		// `f(DISTINCT *, x)`) from multiplication on a column named `all` or
+		// `distinct` (`f(all * 2)`).
+		afterStar := p.peek(2).Kind
+		return afterStar == tokRParen || afterStar == tokComma
 	case tokRParen, tokComma, tokEOF, tokSemicolon,
 		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
-		tokAsterisk, tokSlash, tokPercent, kwDIV,
+		tokSlash, tokPercent, kwDIV,
 		tokConcatPipe, tokPipe, tokAmpersand, tokHat,
 		tokShiftLeft, tokShiftRight, tokShiftRightU,
 		tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
