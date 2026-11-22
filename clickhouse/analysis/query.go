@@ -3,345 +3,136 @@ package analysis
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"strings"
-	"unicode"
+
+	"github.com/bytebase/omni/clickhouse/parser"
 )
 
-var (
-	explainRe      = regexp.MustCompile(`^EXPLAIN\s+?`)
-	explainAnalyze = regexp.MustCompile(`^EXPLAIN\s+ANALYZE\s+?`)
-	cteRe          = regexp.MustCompile(`^WITH\s+?`)
-)
-
-// ValidateQuery reports whether statement is a read-only query that returns
-// rows. It strips quoted text and comments, then classifies the leading
-// keyword: SELECT, parenthesized SELECT, SHOW/DESCRIBE/DESC/EXISTS/CHECK,
-// EXPLAIN (excluding EXPLAIN ANALYZE), or a WITH query without top-level DML.
+// ValidateQuery reports whether statement is a single read-only ClickHouse
+// query that returns rows.
+//
+// Classification uses clickhouse/parser's lexer and AST: SELECT (including
+// parenthesized, FROM-first, WITH/CTE, UNION/INTERSECT/EXCEPT, FORMAT, and
+// SETTINGS queries, excluding INTO OUTFILE), SHOW, DESCRIBE/DESC, EXISTS,
+// CHECK, and non-executing EXPLAIN statements are allowed. Empty/comment-only
+// inputs and multi-statement batches return (false, false, nil). EXPLAIN
+// ANALYZE (which executes what it plans) and all DDL/DML/admin statements
+// return (false, false, nil). Lexical and syntax errors from clickhouse/parser
+// are propagated with statement-relative byte offsets.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
-	text, err := removeQuotedTextAndComment(statement)
-	if err != nil {
-		return false, false, err
+	seg, ok := singleNonEmptySegment(statement)
+	if !ok {
+		return false, false, nil
 	}
-	ok := CheckStatementWithoutQuotedTextAndComment(text)
-	return ok, ok, nil
+	stmts, err := parser.Parse(seg.Text)
+	if err != nil {
+		return false, false, wrapLexError(offsetParseError(err, seg.ByteStart))
+	}
+	if len(stmts) != 1 || !isReadOnlyAST(stmts[0]) {
+		return false, false, nil
+	}
+	return true, true, nil
 }
 
 // StatementReadsRows reports whether the server answers statement with rows.
 // EXPLAIN ANALYZE is classified as non-read-only by ValidateQuery because it
 // executes what it plans, yet the server still returns the plan as rows.
+// Lexical and syntax errors from clickhouse/parser are propagated with
+// statement-relative byte offsets rather than downgraded to a non-row command.
 func StatementReadsRows(statement string) (bool, error) {
-	readOnly, _, err := ValidateQuery(statement)
-	if err != nil {
-		return false, err
+	seg, ok := singleNonEmptySegment(statement)
+	if !ok {
+		return false, nil
 	}
-	return readOnly || StartsWithExplain(statement), nil
+	stmts, err := parser.Parse(seg.Text)
+	if err != nil {
+		return false, wrapLexError(offsetParseError(err, seg.ByteStart))
+	}
+	if len(stmts) != 1 {
+		return false, nil
+	}
+	return astReadsRows(stmts[0]), nil
 }
 
-// CheckStatementWithoutQuotedTextAndComment classifies a single statement
-// whose quoted text and comments have already been removed.
+// CheckStatementWithoutQuotedTextAndComment classifies a single statement as a
+// read-only query. Retained for API compatibility; classification now uses
+// clickhouse/parser directly.
 func CheckStatementWithoutQuotedTextAndComment(statement string) bool {
-	formatted := strings.ToUpper(strings.TrimSpace(statement))
-	// Leading-keyword classification speaks for one statement only, and the
-	// line-oriented splitter leaves a one-line batch whole: "SELECT 1; DROP
-	// TABLE t" would otherwise pass on its SELECT.
-	if strings.Contains(strings.TrimSuffix(formatted, ";"), ";") {
+	readOnly, _, err := ValidateQuery(statement)
+	return err == nil && readOnly
+}
+
+func singleNonEmptySegment(script string) (parser.Segment, bool) {
+	var found parser.Segment
+	count := 0
+	for _, seg := range parser.Split(script) {
+		if seg.Empty() {
+			continue
+		}
+		found = seg
+		count++
+		if count > 1 {
+			return parser.Segment{}, false
+		}
+	}
+	return found, count == 1
+}
+
+func isReadOnlyAST(stmt parser.Statement) bool {
+	switch s := stmt.(type) {
+	case *parser.SelectUnionStmt:
+		return !hasOutfile(s.Output)
+	case *parser.ShowStmt:
+		return !hasOutfile(s.Output)
+	case *parser.DescribeStmt:
+		return !hasOutfile(s.Output)
+	case *parser.ExistsStmt:
+		return !hasOutfile(s.Output)
+	case *parser.CheckStmt:
+		return !hasOutfile(s.Output)
+	case *parser.ExplainStmt:
+		if hasOutfile(s.Output) {
+			return false
+		}
+		return s.Kind != "ANALYZE"
+	default:
 		return false
 	}
-	for _, keyword := range []string{"SHOW", "DESCRIBE", "DESC", "EXISTS", "CHECK"} {
-		if startsWithKeyword(formatted, keyword) {
-			return true
-		}
-	}
-	if startsWithKeyword(formatted, "SELECT") || strings.HasPrefix(formatted, "(") {
-		return true
-	}
-	if explainRe.MatchString(formatted) {
-		return !explainAnalyze.MatchString(formatted)
-	}
-	if cteRe.MatchString(formatted) {
-		return withStatementIsQuery(formatted)
-	}
-	return false
 }
 
-// withStatementIsQuery reads the statement a WITH clause runs, ignoring words
-// inside its CTE bodies and the aliases they define.
-func withStatementIsQuery(statement string) bool {
-	tokens := keywordTokens(statement)
-	depth := 0
-	for i, token := range tokens {
-		switch token.text {
-		case "(":
-			depth++
-			continue
-		case ")":
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
-		if depth != 0 || !token.word {
-			continue
-		}
-		switch token.text {
-		case "SELECT":
-			if previousWord(tokens, i) == "AS" {
-				continue
-			}
-			if nextWord(tokens, i) == "AS" {
-				switch previousToken(tokens, i) {
-				case "WITH", ",", "(":
-					continue
-				}
-			}
-			return true
-		case "INSERT":
-			if nextWord(tokens, i) == "INTO" {
-				return false
-			}
-		case "UPDATE":
-			next := nextWord(tokens, i)
-			if next != "" && next != "SELECT" && next != "SET" && next != "AS" {
-				return false
-			}
-		case "DELETE":
-			if nextWord(tokens, i) == "FROM" {
-				return false
-			}
-		}
-	}
-	return false
-}
-
-type keywordToken struct {
-	text string
-	word bool
-}
-
-func keywordTokens(s string) []keywordToken {
-	runes := []rune(s)
-	var tokens []keywordToken
-	for i := 0; i < len(runes); {
-		c := runes[i]
-		switch {
-		case isWordRune(c):
-			start := i
-			for i < len(runes) && isWordRune(runes[i]) {
-				i++
-			}
-			tokens = append(tokens, keywordToken{text: strings.ToUpper(string(runes[start:i])), word: true})
-		case unicode.IsSpace(c):
-			i++
-		default:
-			tokens = append(tokens, keywordToken{text: string(c)})
-			i++
-		}
-	}
-	return tokens
-}
-
-func isWordRune(c rune) bool {
-	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
-}
-
-func previousWord(tokens []keywordToken, i int) string {
-	for j := i - 1; j >= 0; j-- {
-		if tokens[j].word {
-			return tokens[j].text
-		}
-	}
-	return ""
-}
-
-func previousToken(tokens []keywordToken, i int) string {
-	if i == 0 {
-		return ""
-	}
-	return tokens[i-1].text
-}
-
-func nextWord(tokens []keywordToken, i int) string {
-	for j := i + 1; j < len(tokens); j++ {
-		if tokens[j].word {
-			return tokens[j].text
-		}
-	}
-	return ""
-}
-
-func removeQuotedTextAndComment(statement string) (string, error) {
-	runes := []rune(statement)
-	var buf strings.Builder
-	i := 0
-	for i < len(runes) && unicode.IsSpace(runes[i]) {
-		i++
-	}
-	start := i
-	for {
-		switch {
-		case i+1 < len(runes) && runes[i] == '/' && runes[i+1] == '*':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanComment(runes, &i); err != nil {
-				return "", err
-			}
-			buf.WriteByte(' ')
-			start = i
-		case i+1 < len(runes) && runes[i] == '-' && runes[i+1] == '-':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanComment(runes, &i); err != nil {
-				return "", err
-			}
-			buf.WriteByte(' ')
-			start = i
-		case i < len(runes) && runes[i] == '#':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanComment(runes, &i); err != nil {
-				return "", err
-			}
-			buf.WriteByte(' ')
-			start = i
-		case i < len(runes) && runes[i] == '\'':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanString(runes, &i); err != nil {
-				return "'", err
-			}
-			buf.WriteString(" x ")
-			start = i
-		case i < len(runes) && runes[i] == '"':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanIdentifier(runes, &i, '"'); err != nil {
-				return "", err
-			}
-			buf.WriteString(" x ")
-			start = i
-		case i < len(runes) && runes[i] == '`':
-			buf.WriteString(string(runes[start:i]))
-			if err := scanIdentifier(runes, &i, '`'); err != nil {
-				return "", err
-			}
-			buf.WriteString(" x ")
-			start = i
-		case i < len(runes) && runes[i] == '$' && isHeredocStart(runes, i):
-			buf.WriteString(string(runes[start:i]))
-			if err := scanHeredoc(runes, &i); err != nil {
-				return "", err
-			}
-			buf.WriteString(" x ")
-			start = i
-		case i >= len(runes):
-			buf.WriteString(string(runes[start:]))
-			return buf.String(), nil
-		default:
-			i++
-		}
-	}
-}
-
-func isHeredocStart(runes []rune, i int) bool {
-	_, ok := heredocTag(runes, i)
-	return ok
-}
-
-func heredocTag(runes []rune, i int) (string, bool) {
-	if i >= len(runes) || runes[i] != '$' {
-		return "", false
-	}
-	j := i + 1
-	for j < len(runes) && isWordRune(runes[j]) {
-		j++
-	}
-	if j >= len(runes) || runes[j] != '$' {
-		return "", false
-	}
-	return string(runes[i : j+1]), true
-}
-
-func scanHeredoc(runes []rune, i *int) error {
-	tag, ok := heredocTag(runes, *i)
-	if !ok {
-		return nil
-	}
-	tagRunes := []rune(tag)
-	*i += len(tagRunes)
-	for *i < len(runes) {
-		if *i+len(tagRunes) <= len(runes) && string(runes[*i:*i+len(tagRunes)]) == tag {
-			*i += len(tagRunes)
-			return nil
-		}
-		*i++
-	}
-	return fmt.Errorf("invalid heredoc: not found delimiter: %s, but found EOF", tag)
-}
-
-func scanComment(runes []rune, i *int) error {
-	switch {
-	case *i+1 < len(runes) && runes[*i] == '/' && runes[*i+1] == '*':
-		*i += 2
-		for {
-			switch {
-			case *i+1 < len(runes) && runes[*i] == '*' && runes[*i+1] == '/':
-				*i += 2
-				return nil
-			case *i >= len(runes):
-				return errors.New("invalid comment: not found */, but found EOF")
-			default:
-				*i++
-			}
-		}
-	case *i+1 < len(runes) && runes[*i] == '-' && runes[*i+1] == '-':
-		*i += 2
-		for *i < len(runes) && runes[*i] != '\n' {
-			*i++
-		}
-		if *i < len(runes) {
-			*i++
-		}
-		return nil
-	case *i < len(runes) && runes[*i] == '#':
-		*i++
-		for *i < len(runes) && runes[*i] != '\n' {
-			*i++
-		}
-		if *i < len(runes) {
-			*i++
-		}
-		return nil
+func astReadsRows(stmt parser.Statement) bool {
+	switch s := stmt.(type) {
+	case *parser.ExplainStmt:
+		return !hasOutfile(s.Output)
 	default:
-		return errors.New("no comment found")
+		return isReadOnlyAST(stmt)
 	}
 }
 
-func scanString(runes []rune, i *int) error {
-	*i++
-	for {
-		switch {
-		case *i >= len(runes):
-			return errors.New("invalid string: not found delimiter: ', but found EOF")
-		case runes[*i] == '\'':
-			*i++
-			return nil
-		case runes[*i] == '\\':
-			*i += 2
-		default:
-			*i++
-		}
-	}
+func hasOutfile(out *parser.OutputClause) bool {
+	return out != nil && out.Outfile != ""
 }
 
-func scanIdentifier(runes []rune, i *int, delimiter rune) error {
-	*i++
-	for {
-		switch {
-		case *i >= len(runes):
-			return fmt.Errorf("invalid indentifier: not found delimiter: %c, but found EOF", delimiter)
-		case runes[*i] == '\\':
-			*i += 2
-		case runes[*i] == delimiter:
-			*i++
-			return nil
-		default:
-			*i++
+func offsetParseError(err error, base int) error {
+	if base == 0 {
+		return err
+	}
+	var pe *parser.ParseError
+	if errors.As(err, &pe) {
+		return &parser.ParseError{
+			Message:  pe.Message,
+			Position: pe.Position + base,
 		}
 	}
+	return err
+}
+
+// wrapLexError preserves *parser.ParseError unwrapping while keeping the
+// "invalid string" phrase expected by legacy callers for unterminated string
+// literals.
+func wrapLexError(err error) error {
+	var pe *parser.ParseError
+	if errors.As(err, &pe) && pe.Message == "unterminated string literal" {
+		return fmt.Errorf("invalid string: %w", err)
+	}
+	return err
 }

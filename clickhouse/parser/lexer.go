@@ -6,13 +6,65 @@ import (
 	"strings"
 )
 
-type lexer struct {
+// Lexer tokenizes ClickHouse SQL source text one token at a time.
+type Lexer struct {
 	src string
 	pos int
+	err error
+}
+
+// NewLexer creates a streaming ClickHouse SQL lexer over src.
+func NewLexer(src string) *Lexer {
+	return &Lexer{src: src}
+}
+
+// Err returns the first lexical error encountered by the lexer, if any.
+func (l *Lexer) Err() error {
+	return l.err
+}
+
+// NextToken scans and returns the next ClickHouse SQL token. On a lexical
+// error, NextToken records the first error (retrievable via Err), advances
+// past the malformed span so callers always terminate, and returns a
+// TokIllegal token.
+func (l *Lexer) NextToken() Token {
+	before := l.pos
+	tok, err := l.nextToken()
+	if err == nil {
+		return tok
+	}
+	if l.err == nil {
+		l.err = err
+	}
+	pos := before
+	if pe, ok := err.(*ParseError); ok {
+		pos = pe.Position
+	}
+	if l.pos <= before && l.pos < len(l.src) {
+		l.pos = before + 1
+	}
+	if l.pos <= pos && l.pos < len(l.src) {
+		l.pos = pos + 1
+	}
+	if pos > l.pos {
+		pos = l.pos
+	}
+	return Token{
+		Type: TokIllegal,
+		Raw:  l.src[pos:l.pos],
+		Pos:  pos,
+		End:  l.pos,
+	}
+}
+
+// Tokenize scans all tokens in src up to and including TokEOF, returning the
+// first lexical error if any.
+func Tokenize(src string) ([]Token, error) {
+	return tokenize(src)
 }
 
 func tokenize(src string) ([]Token, error) {
-	l := &lexer{src: src}
+	l := &Lexer{src: src}
 	var out []Token
 	for {
 		tok, err := l.nextToken()
@@ -26,7 +78,7 @@ func tokenize(src string) ([]Token, error) {
 	}
 }
 
-func (l *lexer) nextToken() (Token, error) {
+func (l *Lexer) nextToken() (Token, error) {
 	if err := l.skipWhitespaceAndComments(); err != nil {
 		return Token{}, err
 	}
@@ -45,6 +97,7 @@ func (l *lexer) nextToken() (Token, error) {
 		if tok, ok, err := l.tryScanDollarQuoted(); ok || err != nil {
 			return tok, err
 		}
+		l.pos++
 		return Token{}, &ParseError{Message: "unexpected '$'", Position: start}
 	}
 	// Backtick or double-quoted identifiers
@@ -153,7 +206,7 @@ func (l *lexer) nextToken() (Token, error) {
 	return Token{Type: tt, Raw: raw, Val: raw, Pos: start, End: l.pos}, nil
 }
 
-func (l *lexer) skipWhitespaceAndComments() error {
+func (l *Lexer) skipWhitespaceAndComments() error {
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
 		// Whitespace
@@ -203,7 +256,7 @@ func (l *lexer) skipWhitespaceAndComments() error {
 	return nil
 }
 
-func (l *lexer) scanSingleQuoted() (Token, error) {
+func (l *Lexer) scanSingleQuoted() (Token, error) {
 	start := l.pos
 	l.pos++ // skip opening '
 	var b strings.Builder
@@ -236,7 +289,7 @@ func (l *lexer) scanSingleQuoted() (Token, error) {
 	return Token{}, &ParseError{Message: "unterminated string literal", Position: start}
 }
 
-func (l *lexer) tryScanDollarQuoted() (Token, bool, error) {
+func (l *Lexer) tryScanDollarQuoted() (Token, bool, error) {
 	start := l.pos
 	i := l.pos + 1
 	for i < len(l.src) && isIdentPart(l.src[i]) {
@@ -249,6 +302,7 @@ func (l *lexer) tryScanDollarQuoted() (Token, bool, error) {
 	l.pos = i + 1
 	endIdx := strings.Index(l.src[l.pos:], tag)
 	if endIdx < 0 {
+		l.pos = len(l.src)
 		return Token{}, true, &ParseError{Message: fmt.Sprintf("unterminated dollar-quoted string %s", tag), Position: start}
 	}
 	val := l.src[l.pos : l.pos+endIdx]
@@ -262,7 +316,7 @@ func (l *lexer) tryScanDollarQuoted() (Token, bool, error) {
 	}, true, nil
 }
 
-func (l *lexer) scanQuotedIdent(quote byte) (Token, error) {
+func (l *Lexer) scanQuotedIdent(quote byte) (Token, error) {
 	start := l.pos
 	l.pos++ // skip opening quote
 	var b strings.Builder
@@ -296,8 +350,9 @@ func (l *lexer) scanQuotedIdent(quote byte) (Token, error) {
 }
 
 // scanEscape decodes a ClickHouse backslash escape sequence starting at l.pos ('\\').
-func (l *lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg string) error {
+func (l *Lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg string) error {
 	if l.pos+1 >= len(l.src) {
+		l.pos = len(l.src)
 		return &ParseError{Message: unterminatedMsg, Position: tokenStart}
 	}
 	l.pos++ // skip '\\'
@@ -351,26 +406,38 @@ func (l *lexer) scanEscape(b *strings.Builder, tokenStart int, unterminatedMsg s
 	return nil
 }
 
-func (l *lexer) scanPrefixedString(prefix byte) (Token, error) {
+func (l *Lexer) scanPrefixedString(prefix byte) (Token, error) {
 	start := l.pos
 	isHex := prefix == 'X' || prefix == 'x'
 	l.pos += 2 // skip prefix and '
 	valStart := l.pos
+	badPos := -1
+	var badChar byte
 	for l.pos < len(l.src) && l.src[l.pos] != '\'' {
 		c := l.src[l.pos]
-		if isHex && !isHexDigit(c) {
-			return Token{}, &ParseError{Message: fmt.Sprintf("invalid hex digit %q in hex string literal", c), Position: l.pos}
-		}
-		if !isHex && c != '0' && c != '1' {
-			return Token{}, &ParseError{Message: fmt.Sprintf("invalid binary digit %q in binary string literal", c), Position: l.pos}
+		if badPos < 0 && ((isHex && !isHexDigit(c)) || (!isHex && c != '0' && c != '1')) {
+			badPos = l.pos
+			badChar = c
 		}
 		l.pos++
 	}
 	if l.pos >= len(l.src) {
+		if badPos >= 0 {
+			if isHex {
+				return Token{}, &ParseError{Message: fmt.Sprintf("invalid hex digit %q in hex string literal", badChar), Position: badPos}
+			}
+			return Token{}, &ParseError{Message: fmt.Sprintf("invalid binary digit %q in binary string literal", badChar), Position: badPos}
+		}
 		return Token{}, &ParseError{Message: "unterminated string literal", Position: start}
 	}
 	val := l.src[valStart:l.pos]
 	l.pos++ // skip closing '
+	if badPos >= 0 {
+		if isHex {
+			return Token{}, &ParseError{Message: fmt.Sprintf("invalid hex digit %q in hex string literal", badChar), Position: badPos}
+		}
+		return Token{}, &ParseError{Message: fmt.Sprintf("invalid binary digit %q in binary string literal", badChar), Position: badPos}
+	}
 	tt := TokBinString
 	if isHex {
 		tt = TokHexString
@@ -384,7 +451,7 @@ func (l *lexer) scanPrefixedString(prefix byte) (Token, error) {
 	}, nil
 }
 
-func (l *lexer) scanNumber() (Token, error) {
+func (l *Lexer) scanNumber() (Token, error) {
 	start := l.pos
 	isFloat := false
 

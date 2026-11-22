@@ -557,7 +557,7 @@ func (*DescribeStmt) stmtNode() {}
 
 type ExplainStmt struct {
 	span
-	Kind     string // "", "AST", "SYNTAX", "QUERY TREE", "PLAN", "PIPELINE", "ESTIMATE", "TABLE OVERRIDE"
+	Kind     string // "", "AST", "SYNTAX", "QUERY TREE", "PLAN", "PIPELINE", "ESTIMATE", "TABLE OVERRIDE", "ANALYZE"
 	Settings []*SettingExpr
 	Table    string // target table for EXPLAIN TABLE OVERRIDE
 	Inner    Statement

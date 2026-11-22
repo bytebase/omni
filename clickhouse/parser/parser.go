@@ -13,7 +13,7 @@ import (
 func Parse(sql string) ([]Statement, error) {
 	p := &parser{
 		src: sql,
-		lex: &lexer{src: sql},
+		lex: NewLexer(sql),
 	}
 	if p.cur().Type == TokIllegal && p.lexErr != nil {
 		return nil, p.lexErr
@@ -42,7 +42,7 @@ func Parse(sql string) ([]Statement, error) {
 
 type parser struct {
 	src            string
-	lex            *lexer
+	lex            *Lexer
 	tokens         []Token
 	pos            int
 	depth          int
@@ -435,7 +435,7 @@ func isBareAlias(tok Token) bool {
 		KwIlike, KwIn, KwInner, KwInterpolate, KwIntersect, KwInterval,
 		KwInto, KwIs, KwJoin, KwLast, KwLeft, KwLike, KwLimit, KwLocal,
 		KwNot, KwNulls, KwOffset, KwOn, KwOr, KwOrder, KwOuter,
-		KwPrewhere, KwQualify, KwRight, KwSample, KwSemi, KwSettings,
+		KwPrewhere, KwQualify, KwRight, KwSample, KwSelect, KwSemi, KwSettings,
 		KwStep, KwThen, KwTo, KwTop, KwUnion, KwUsing, KwWhen, KwWhere,
 		KwWindow, KwWith,
 		// Interval units (ambiguous with INTERVAL 1 DAY etc.)
