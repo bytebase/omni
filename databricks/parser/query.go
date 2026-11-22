@@ -46,8 +46,13 @@ func (p *Parser) startsWithCompleteParenQuery() bool {
 	if p.cur().Kind != tokLParen {
 		return true
 	}
-	depth := 0
-	for i := 0; ; i++ {
+	leadingParens := 0
+	for p.peek(leadingParens).Kind == tokLParen {
+		leadingParens++
+	}
+	depth := leadingParens
+	minDepth := leadingParens
+	for i := leadingParens; ; i++ {
 		k := p.peek(i).Kind
 		if k == tokEOF || k == tokSemicolon {
 			return false
@@ -56,13 +61,19 @@ func (p *Parser) startsWithCompleteParenQuery() bool {
 			depth++
 		} else if k == tokRParen || k == tokRBracket {
 			depth--
-			if depth == 0 {
+			if depth < minDepth {
+				if k != tokRParen {
+					return false
+				}
 				after := p.peek(i + 1).Kind
 				switch after {
 				case tokRParen, tokOperatorPipe,
 					kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
 					kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT, kwWINDOW, kwLIMIT, kwOFFSET:
-					return true
+					minDepth = depth
+					if depth == 0 {
+						return true
+					}
 				default:
 					return false
 				}
@@ -1803,16 +1814,15 @@ func (p *Parser) parseAggregationClause() error {
 		return err
 	}
 	// First item could be groupingAnalytics or namedExpression / expression.
+	// Once isGroupingAnalyticsStart identifies a grouping analytics clause
+	// (GROUPING SETS(...) or ROLLUP/CUBE(...) without function-call-only args
+	// or expression/alias continuations), commit directly without restoring
+	// and retrying through parseNamedExpression so malformed nested queries
+	// fail in linear time.
 	for {
 		if p.isGroupingAnalyticsStart() {
-			cpGA := p.save()
-			if err := p.parseGroupingAnalytics(); err == nil && !p.canBeImplicitExprAlias() {
-				// parsed groupingAnalytics cleanly
-			} else {
-				p.restore(cpGA)
-				if err := p.parseNamedExpression(); err != nil {
-					return err
-				}
+			if err := p.parseGroupingAnalytics(); err != nil {
+				return err
 			}
 		} else {
 			if err := p.parseNamedExpression(); err != nil {
@@ -1862,7 +1872,7 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 	if inner == tokRParen || inner == tokAsterisk {
 		return false
 	}
-	if (inner == kwDISTINCT || inner == kwALL) && p.peek(3).Kind != tokRParen && p.peek(3).Kind != tokComma {
+	if p.isFunctionSetQuantifierAt(2) {
 		return false
 	}
 	depth := 0
@@ -1885,13 +1895,20 @@ func (p *Parser) isGroupingAnalyticsStart() bool {
 		}
 	}
 	after := p.peek(closeIdx + 1).Kind
+	after2 := p.peek(closeIdx + 2).Kind
 	switch after {
-	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe,
-		kwWITH, kwGROUPING, kwHAVING, kwWINDOW, kwORDER, kwCLUSTER, kwDISTRIBUTE,
-		kwSORT, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+	case tokEOF, tokSemicolon, tokComma, tokRParen, tokOperatorPipe:
 		return true
+	case kwWITH:
+		return after2 == kwROLLUP || after2 == kwCUBE
+	case kwGROUPING:
+		return after2 == kwSETS && p.peek(closeIdx+3).Kind == tokLParen
+	case kwORDER, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return after2 == kwBY
+	case kwHAVING, kwWINDOW, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		return after2 != tokEOF && after2 != tokSemicolon && after2 != tokComma && after2 != tokRParen
 	case tokIdent:
-		return isWord(p.peek(closeIdx+1), "QUALIFY") && p.peek(closeIdx+2).Kind != tokEOF && p.peek(closeIdx+2).Kind != tokSemicolon && p.peek(closeIdx+2).Kind != tokRParen
+		return isWord(p.peek(closeIdx+1), "QUALIFY") && after2 != tokEOF && after2 != tokSemicolon && after2 != tokComma && after2 != tokRParen
 	}
 	return false
 }
@@ -1940,11 +1957,7 @@ func (p *Parser) parseGroupingAnalytics() error {
 
 func (p *Parser) parseGroupingElement() error {
 	if p.isGroupingAnalyticsStart() {
-		cp := p.save()
-		if err := p.parseGroupingAnalytics(); err == nil {
-			return nil
-		}
-		p.restore(cp)
+		return p.parseGroupingAnalytics()
 	}
 	return p.parseGroupingSet()
 }
@@ -1956,15 +1969,23 @@ func (p *Parser) parseGroupingSet() error {
 	return p.parseExpression()
 }
 
-// parseParenthesizedExprOrRow parses `()` (when allowEmpty), `(expr)`,
-// `(expr, expr+)`, or a multi-element row constructor `(namedExpr, namedExpr+)`
-// in a single pass without ever reparsing the first element.
+// parseParenthesizedExprOrRow parses `()` (when allowEmpty), `(query)`,
+// `(expr)`, `(expr, expr+)`, or a multi-element row constructor
+// `(namedExpr, namedExpr+)` in a single pass without ever reparsing the first
+// element.
 func (p *Parser) parseParenthesizedExprOrRow(allowEmpty bool) error {
 	if _, err := p.expect(tokLParen); err != nil {
 		return err
 	}
 	if allowEmpty && p.match(tokRParen) {
 		return nil
+	}
+	if p.startsWithCompleteParenQuery() {
+		if err := p.parseQuery(); err != nil {
+			return err
+		}
+		_, err := p.expect(tokRParen)
+		return err
 	}
 	if err := p.parseExpression(); err != nil {
 		return err

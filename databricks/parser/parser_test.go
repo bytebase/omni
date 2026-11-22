@@ -411,8 +411,38 @@ func TestParseStatements(t *testing.T) {
 			kind: StmtQuery,
 		},
 		{
+			name: "non-reserved keywords as named window references",
+			sql:  `SELECT count(*) OVER window, count(*) OVER order, count(*) OVER from, count(*) OVER group, count(*) OVER limit, count(*) OVER window c FROM t WINDOW window AS (), order AS (), from AS (), group AS (), limit AS ()`,
+			kind: StmtQuery,
+		},
+		{
+			name: "implicit over alias before window and order clauses",
+			sql:  `SELECT count(*) over WINDOW w AS () UNION ALL SELECT count(*) over ORDER BY 1`,
+			kind: StmtQuery,
+		},
+		{
 			name: "ordinary named arguments on special-named functions",
 			sql:  `SELECT CAST(k => 1), POSITION(a => 'x', b => 'xy'), SUBSTRING(str => s, pos => 1), OVERLAY(a => s, b => 'x', c => 1) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "parenthesized boolean operands in SQL-specific functions and unparenthesized in ordinary calls",
+			sql:  `SELECT SUBSTRING((a AND b) FROM 1), TRIM((a AND b) FROM s), POSITION((a AND b) IN s), OVERLAY((a AND b) PLACING 'x' FROM 1), SUBSTRING(a AND b, 1, 2), TRIM(a AND b, s), POSITION(a AND b, s), OVERLAY(a AND b, 'x', 1) FROM t`,
+			kind: StmtQuery,
+		},
+		{
+			name: "rollup with subquery and nested parenthesized row constructor",
+			sql:  `SELECT 1 FROM t GROUP BY ROLLUP((SELECT 1), ()), ROLLUP((((SELECT 1) AS a, 1)))`,
+			kind: StmtQuery,
+		},
+		{
+			name: "group by rollup function call with keyword implicit alias",
+			sql:  `SELECT 1 FROM t GROUP BY ROLLUP(a) limit`,
+			kind: StmtQuery,
+		},
+		{
+			name: "double parenthesized row constructor with subquery",
+			sql:  `SELECT (((SELECT 1), 1))`,
 			kind: StmtQuery,
 		},
 		{
@@ -496,6 +526,8 @@ func TestParseErrors(t *testing.T) {
 		{"nested malformed dynamic identifier table", strings.Repeat("SELECT * FROM IDENTIFIER((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
 		{"nested malformed parenthesized query", strings.Repeat("SELECT ((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
 		{"nested malformed from subquery", strings.Repeat("SELECT * FROM ((", 25) + "SELECT 1 +" + strings.Repeat("))", 25)},
+		{"nested malformed rollup grouping analytics", strings.Repeat("SELECT 1 FROM t GROUP BY ROLLUP(((", 25) + "SELECT 1 +" + strings.Repeat(")))", 25)},
+		{"nested malformed grouping sets rollup analytics", strings.Repeat("SELECT 1 FROM t GROUP BY GROUPING SETS(ROLLUP(((", 25) + "SELECT 1 +" + strings.Repeat("))))", 25)},
 		{"cast AS with OVER suffix", "SELECT CAST(x AS INT) OVER () FROM t"},
 		{"trim FROM with OVER suffix", "SELECT TRIM(x FROM s) OVER () FROM t"},
 		{"extract FROM with OVER suffix", "SELECT EXTRACT(YEAR FROM d) OVER () FROM t"},
@@ -503,6 +535,15 @@ func TestParseErrors(t *testing.T) {
 		{"substring FROM with OVER suffix", "SELECT SUBSTRING(s FROM 1) OVER () FROM t"},
 		{"overlay PLACING with OVER suffix", "SELECT OVERLAY(s PLACING 'a' FROM 1) OVER () FROM t"},
 		{"first IGNORE NULLS with OVER suffix", "SELECT FIRST(x IGNORE NULLS) OVER () FROM t"},
+		{"substring boolean arg with FROM", "SELECT SUBSTRING(a AND b FROM 1)"},
+		{"substring boolean first arg with FOR", "SELECT SUBSTRING(a AND b, 1 FOR 2)"},
+		{"substring boolean second arg with FOR", "SELECT SUBSTRING(s, a AND b FOR 2)"},
+		{"trim boolean arg with FROM", "SELECT TRIM(a AND b FROM s)"},
+		{"trim not arg with FROM", "SELECT TRIM(NOT a FROM s)"},
+		{"position boolean arg with IN", "SELECT POSITION(a AND b IN s)"},
+		{"position predicate arg with IN", "SELECT POSITION(a IS NULL IN s)"},
+		{"overlay boolean arg with PLACING", "SELECT OVERLAY(a AND b PLACING 'x' FROM 1)"},
+		{"overlay not arg with PLACING", "SELECT OVERLAY(NOT a PLACING 'x' FROM 1)"},
 	}
 
 	for _, tc := range bad {

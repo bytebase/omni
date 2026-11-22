@@ -123,54 +123,73 @@ func (p *Parser) parseNamedExpressionSeq() error {
 }
 
 func (p *Parser) parseFunctionArgument() error {
+	_, err := p.parseFunctionArgumentWithKind()
+	return err
+}
+
+// parseFunctionArgumentWithKind parses a functionArgument and reports whether
+// it is a plain valueExpression (not a named argument, logical NOT/AND/OR,
+// EXISTS, or predicated expression). SQL-specific forms like POSITION(a IN b),
+// SUBSTRING(s FROM pos [FOR len]), TRIM(c FROM s), and OVERLAY(s PLACING r ...)
+// require valueExpression operands in SqlBaseParser.g4.
+func (p *Parser) parseFunctionArgumentWithKind() (bool, error) {
 	if p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow {
 		p.advance()
 		p.advance()
-		return p.parseExpression()
+		return false, p.parseExpression()
 	}
-	return p.parseExpression()
+	return p.parseBooleanExpressionWithKind()
 }
 
 // booleanExpression precedence: OR < AND < NOT/! < EXISTS / predicated.
 func (p *Parser) parseBooleanExpression() error {
-	if err := p.enter(); err != nil {
-		return err
-	}
-	defer p.leave()
-	return p.parseOrExpression()
+	_, err := p.parseBooleanExpressionWithKind()
+	return err
 }
 
-func (p *Parser) parseOrExpression() error {
-	if err := p.parseAndExpression(); err != nil {
-		return err
+func (p *Parser) parseBooleanExpressionWithKind() (bool, error) {
+	if err := p.enter(); err != nil {
+		return false, err
+	}
+	defer p.leave()
+	return p.parseOrExpressionWithKind()
+}
+
+func (p *Parser) parseOrExpressionWithKind() (bool, error) {
+	isVal, err := p.parseAndExpressionWithKind()
+	if err != nil {
+		return false, err
 	}
 	for p.cur().Kind == kwOR {
 		cp := p.save()
 		p.advance()
-		if err := p.parseAndExpression(); err != nil {
+		if _, err := p.parseAndExpressionWithKind(); err != nil {
 			p.restore(cp)
 			break
 		}
+		isVal = false
 	}
-	return nil
+	return isVal, nil
 }
 
-func (p *Parser) parseAndExpression() error {
-	if err := p.parseNotExpression(); err != nil {
-		return err
+func (p *Parser) parseAndExpressionWithKind() (bool, error) {
+	isVal, err := p.parseNotExpressionWithKind()
+	if err != nil {
+		return false, err
 	}
 	for p.cur().Kind == kwAND {
 		cp := p.save()
 		p.advance()
-		if err := p.parseNotExpression(); err != nil {
+		if _, err := p.parseNotExpressionWithKind(); err != nil {
 			p.restore(cp)
 			break
 		}
+		isVal = false
 	}
-	return nil
+	return isVal, nil
 }
 
-func (p *Parser) parseNotExpression() error {
+func (p *Parser) parseNotExpressionWithKind() (bool, error) {
 	ops := 0
 	for p.cur().Kind == kwNOT || p.cur().Kind == tokBang {
 		if p.cur().Kind == kwNOT && p.isNotIdentifierContinuation() {
@@ -182,7 +201,7 @@ func (p *Parser) parseNotExpression() error {
 		}
 		ops++
 		if p.depth+ops > maxNestingDepth {
-			return p.errorf("maximum nesting depth exceeded")
+			return false, p.errorf("maximum nesting depth exceeded")
 		}
 		p.advance()
 	}
@@ -192,17 +211,21 @@ func (p *Parser) parseNotExpression() error {
 		p.advance()
 		if p.startsWithCompleteParenQuery() {
 			if err := p.parseQuery(); err != nil {
-				return err
+				return false, err
 			}
 			_, err := p.expect(tokRParen)
-			return err
+			return false, err
 		}
 		p.restore(cp)
 	}
 	if err := p.parseValueExpression(); err != nil {
-		return err
+		return false, err
 	}
-	return p.parseOptionalPredicate()
+	beforePred := p.pos
+	if err := p.parseOptionalPredicate(); err != nil {
+		return false, err
+	}
+	return ops == 0 && p.pos == beforePred, nil
 }
 
 func (p *Parser) isNotIdentifierContinuation() bool {
@@ -749,11 +772,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
-		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-		if err := p.parseFunctionArgument(); err != nil {
+		isVal, err := p.parseFunctionArgumentWithKind()
+		if err != nil {
 			return err
 		}
-		if !hasQuantifier && !isNamed && p.match(kwIN) {
+		if !hasQuantifier && isVal && p.match(kwIN) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -814,11 +837,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
-		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-		if err := p.parseFunctionArgument(); err != nil {
+		isVal1, err := p.parseFunctionArgumentWithKind()
+		if err != nil {
 			return err
 		}
-		if !hasQuantifier && !isNamed && p.match(kwFROM) {
+		if !hasQuantifier && isVal1 && p.match(kwFROM) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -831,11 +854,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 			return err
 		}
 		if p.match(tokComma) {
-			isNamed2 := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-			if err := p.parseFunctionArgument(); err != nil {
+			isVal2, err := p.parseFunctionArgumentWithKind()
+			if err != nil {
 				return err
 			}
-			if !hasQuantifier && !isNamed && !isNamed2 && p.match(kwFOR) {
+			if !hasQuantifier && isVal1 && isVal2 && p.match(kwFOR) {
 				if err := p.parseValueExpression(); err != nil {
 					return err
 				}
@@ -892,11 +915,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
-		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-		if err := p.parseFunctionArgument(); err != nil {
+		isVal, err := p.parseFunctionArgumentWithKind()
+		if err != nil {
 			return err
 		}
-		if !hasQuantifier && !isNamed && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
+		if !hasQuantifier && isVal && p.cur().Kind == kwFROM && p.peek(1).Kind != tokRParen {
 			p.advance()
 			if err := p.parseValueExpression(); err != nil {
 				return err
@@ -927,11 +950,11 @@ func (p *Parser) parseSpecialKeywordCall(k TokenKind) error {
 		if hasQuantifier {
 			p.advance()
 		}
-		isNamed := p.cur().Kind.isIdentifier() && p.peek(1).Kind == tokFatArrow
-		if err := p.parseFunctionArgument(); err != nil {
+		isVal, err := p.parseFunctionArgumentWithKind()
+		if err != nil {
 			return err
 		}
-		if !hasQuantifier && !isNamed && p.match(kwPLACING) {
+		if !hasQuantifier && isVal && p.match(kwPLACING) {
 			if err := p.parseValueExpression(); err != nil {
 				return err
 			}
@@ -1406,16 +1429,21 @@ func (p *Parser) parseFunctionCallArgList() error {
 // function call argument list acts as a set quantifier (e.g. COUNT(DISTINCT x))
 // rather than an ordinary column/expression named `distinct` or `all`.
 func (p *Parser) isFunctionSetQuantifier() bool {
-	if p.cur().Kind != kwDISTINCT && p.cur().Kind != kwALL {
+	return p.isFunctionSetQuantifierAt(0)
+}
+
+func (p *Parser) isFunctionSetQuantifierAt(offset int) bool {
+	k := p.peek(offset).Kind
+	if k != kwDISTINCT && k != kwALL {
 		return false
 	}
-	next := p.peek(1).Kind
+	next := p.peek(offset + 1).Kind
 	switch next {
 	case tokAsterisk:
 		// Distinguish a standalone star argument (`count(ALL *)`,
 		// `f(DISTINCT *, x)`) from multiplication on a column named `all` or
 		// `distinct` (`f(all * 2)`).
-		afterStar := p.peek(2).Kind
+		afterStar := p.peek(offset + 2).Kind
 		return afterStar == tokRParen || afterStar == tokComma
 	case tokRParen, tokComma, tokEOF, tokSemicolon,
 		tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
@@ -1472,14 +1500,12 @@ func (p *Parser) parseFunctionCallSuffixes() error {
 		p.advance()
 	}
 	// Optional OVER windowSpec (skip when OVER is immediately followed by a
-	// clause boundary or delimiter, e.g. `SELECT count(*) over FROM t`).
+	// clause boundary or delimiter, e.g. `SELECT count(*) over FROM t`, while
+	// still allowing non-reserved keywords like `window` or `order` as named
+	// window references such as `SELECT count(*) OVER window FROM t WINDOW window AS ()`).
 	if p.cur().Kind == kwOVER {
 		next := p.peek(1).Kind
-		canStartWindow := next == tokLParen || (next.isIdentifier() && next != kwFROM && next != kwWHERE &&
-			next != kwGROUP && next != kwHAVING && next != kwWINDOW && next != kwORDER &&
-			next != kwCLUSTER && next != kwDISTRIBUTE && next != kwSORT && next != kwLIMIT &&
-			next != kwOFFSET && next != kwUNION && next != kwINTERSECT && next != kwEXCEPT &&
-			next != kwMINUS && next != kwLATERAL)
+		canStartWindow := next == tokLParen || (next.isIdentifier() && !p.isClauseAfterOverAlias())
 		if canStartWindow {
 			cpOver := p.save()
 			p.advance()
@@ -1493,6 +1519,86 @@ func (p *Parser) parseFunctionCallSuffixes() error {
 		}
 	}
 	return nil
+}
+
+// isClauseAfterOverAlias reports whether the tokens starting at p.peek(1)
+// (immediately after `OVER`) introduce a following SQL clause — meaning `OVER`
+// serves as an implicit column alias (e.g. `SELECT count(*) over FROM t` or
+// `SELECT count(*) over ORDER BY 1`) rather than `OVER windowRef` (e.g.
+// `SELECT count(*) OVER window FROM t WINDOW window AS ()`).
+func (p *Parser) isClauseAfterOverAlias() bool {
+	next := p.peek(1).Kind
+	after := p.peek(2).Kind
+	isBoundaryOrClause := func(k TokenKind, tok Token) bool {
+		switch k {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokOperatorPipe,
+			kwAS, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwWINDOW, kwORDER,
+			kwCLUSTER, kwDISTRIBUTE, kwSORT, kwLIMIT, kwOFFSET,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS, kwLATERAL,
+			kwTHEN, kwELSE, kwELSEIF, kwEND, kwWHEN:
+			return true
+		case tokIdent:
+			return isWord(tok, "QUALIFY")
+		}
+		return false
+	}
+	isBinaryOrPostfixOp := func(k TokenKind) bool {
+		switch k {
+		case tokDot, tokLBracket, tokDoubleColon, kwCOLLATE,
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat,
+			tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+			return true
+		}
+		return false
+	}
+	switch next {
+	case kwORDER, kwGROUP, kwCLUSTER, kwDISTRIBUTE, kwSORT:
+		return after == kwBY
+	case kwLATERAL:
+		return after == kwVIEW
+	case kwWINDOW:
+		return after.isIdentifier() && p.peek(3).Kind == kwAS
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		switch after {
+		case kwSELECT, kwTABLE, kwVALUES, kwWITH, tokLParen, kwALL, kwDISTINCT:
+			return true
+		case kwBY:
+			return p.peek(3).Kind == kwNAME
+		}
+		return false
+	case kwFROM:
+		if isBoundaryOrClause(after, p.peek(2)) || isBinaryOrPostfixOp(after) ||
+			after == tokPlus || after == tokMinus || after == tokTilde || after == tokBang {
+			return false
+		}
+		if after.isIdentifier() && p.peek(3).Kind == kwFROM {
+			return false
+		}
+		return true
+	case kwWHERE, kwHAVING, kwLIMIT, kwOFFSET:
+		if isBoundaryOrClause(after, p.peek(2)) || isBinaryOrPostfixOp(after) {
+			return false
+		}
+		if after.isIdentifier() && p.peek(3).Kind == kwFROM {
+			return false
+		}
+		return true
+	case tokIdent:
+		if !isWord(p.peek(1), "QUALIFY") {
+			return false
+		}
+		if isBoundaryOrClause(after, p.peek(2)) || isBinaryOrPostfixOp(after) {
+			return false
+		}
+		if after.isIdentifier() && p.peek(3).Kind == kwFROM {
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 func (p *Parser) isStringLitAt(offset int) bool {
