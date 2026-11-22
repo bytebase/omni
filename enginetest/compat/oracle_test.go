@@ -799,3 +799,9 @@ func TestOracleVerdictOnlySchemaCustomScratchUser(t *testing.T) {
 		})
 	}
 }
+
+func TestOracleParseDropMLEEnv(t *testing.T) {
+	if !strings.Contains(OracleParse, "WHEN 'MLE ENVIRONMENT' THEN 'MLE ENV'") {
+		t.Fatal("OracleParse cleanup must map USER_OBJECTS object_type 'MLE ENVIRONMENT' to DROP MLE ENV")
+	}
+}
