@@ -2669,49 +2669,89 @@ func formatPartitionKeyIdentifier(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
-func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionClause) []*metadatapb.TablePartitionMetadata {
-	if clause == nil {
-		return nil
-	}
-	var partType metadatapb.TablePartitionMetadata_Type
-	switch clause.Type {
+func partitionTypeFromAST(t ast.PartitionType) metadatapb.TablePartitionMetadata_Type {
+	switch t {
 	case ast.PARTITION_RANGE:
-		partType = metadatapb.TablePartitionMetadata_RANGE
+		return metadatapb.TablePartitionMetadata_RANGE
 	case ast.PARTITION_LIST:
-		partType = metadatapb.TablePartitionMetadata_LIST
+		return metadatapb.TablePartitionMetadata_LIST
 	case ast.PARTITION_HASH:
-		partType = metadatapb.TablePartitionMetadata_HASH
+		return metadatapb.TablePartitionMetadata_HASH
 	default:
-		return nil
+		return metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED
 	}
+}
+
+func (e *oracleMetadataExtractor) extractPartitionKeyExpr(cols *ast.List) string {
 	var keyCols []string
-	for _, item := range listItems(clause.Columns) {
+	for _, item := range listItems(cols) {
 		if colRef, ok := item.(*ast.ColumnRef); ok && colRef.Column != "" {
 			keyCols = append(keyCols, formatPartitionKeyIdentifier(colRef.Column))
 		} else if txt := strings.TrimSpace(e.nodeText(item)); txt != "" {
 			keyCols = append(keyCols, txt)
 		}
 	}
-	keyExpr := strings.Join(keyCols, ", ")
+	return strings.Join(keyCols, ", ")
+}
+
+func (e *oracleMetadataExtractor) extractPartitionValues(values *ast.List) string {
+	var vals []string
+	for _, val := range listItems(values) {
+		if txt := strings.TrimSpace(e.nodeText(val)); txt != "" {
+			vals = append(vals, txt)
+		}
+	}
+	return strings.Join(vals, ", ")
+}
+
+func (e *oracleMetadataExtractor) extractTablePartitions(clause *ast.PartitionClause) []*metadatapb.TablePartitionMetadata {
+	if clause == nil {
+		return nil
+	}
+	partType := partitionTypeFromAST(clause.Type)
+	if partType == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+		return nil
+	}
+	keyExpr := e.extractPartitionKeyExpr(clause.Columns)
 	intervalExpr := strings.TrimSpace(e.nodeText(clause.Interval))
+	var subType metadatapb.TablePartitionMetadata_Type
+	var subKeyExpr string
+	var templateSubs []ast.Node
+	if clause.Subpartition != nil {
+		subType = partitionTypeFromAST(clause.Subpartition.Type)
+		subKeyExpr = e.extractPartitionKeyExpr(clause.Subpartition.Columns)
+		templateSubs = listItems(clause.Subpartition.Partitions)
+	}
 	var partitions []*metadatapb.TablePartitionMetadata
 	for _, item := range listItems(clause.Partitions) {
 		def, ok := item.(*ast.PartitionDef)
 		if !ok {
 			continue
 		}
-		var vals []string
-		for _, val := range listItems(def.Values) {
-			if txt := strings.TrimSpace(e.nodeText(val)); txt != "" {
-				vals = append(vals, txt)
-			}
-		}
 		pm := &metadatapb.TablePartitionMetadata{
 			Name:           def.Name,
 			Type:           partType,
 			Expression:     keyExpr,
-			Value:          strings.Join(vals, ", "),
+			Value:          e.extractPartitionValues(def.Values),
 			IntervalClause: intervalExpr,
+		}
+		if subType != metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			subItems := listItems(def.Subpartitions)
+			if len(subItems) == 0 {
+				subItems = templateSubs
+			}
+			for _, subItem := range subItems {
+				subDef, ok := subItem.(*ast.PartitionDef)
+				if !ok {
+					continue
+				}
+				pm.Subpartitions = append(pm.Subpartitions, &metadatapb.TablePartitionMetadata{
+					Name:       subDef.Name,
+					Type:       subType,
+					Expression: subKeyExpr,
+					Value:      e.extractPartitionValues(subDef.Values),
+				})
+			}
 		}
 		partitions = append(partitions, pm)
 	}

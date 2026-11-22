@@ -454,7 +454,8 @@ func (p *Parser) parseCreateTablePartitionDesc(bound createTablePartitionKind, c
 	if composite {
 		switch {
 		case p.cur.Type == '(':
-			if err := p.parseCreateTableSubpartitionDescs(sub, &nodes.List{}); err != nil {
+			def.Subpartitions = &nodes.List{}
+			if err := p.parseCreateTableSubpartitionDescs(sub, def.Subpartitions); err != nil {
 				return nil, err
 			}
 		case sub == createTableHashBound && p.isKeywordStr("SUBPARTITIONS"):

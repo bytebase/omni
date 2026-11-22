@@ -93,6 +93,21 @@ END PKG;
 		require.NoError(t, err)
 		require.Len(t, c1.Metadata().Schemas[0].Packages, 1)
 		require.Equal(t, 1, strings.Count(c1.Metadata().Schemas[0].Packages[0].Definition, "PACKAGE BODY"))
+		require.Empty(t, GenerateMigration(c1, cAltered, nil).SQL(), "CREATE PACKAGE target should converge after CREATE OR REPLACE migration")
+
+		// Synced spec-only package (no CREATE prefix) equals its dumped CREATE OR REPLACE definition
+		syncedSpec := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Packages: []*metadatapb.PackageMetadata{{
+				Name:       "PKG",
+				Definition: "PACKAGE PKG AS PROCEDURE P; END PKG;",
+			}},
+		}))
+		dumpedSpec, err := DatabaseDefinition(syncedSpec.Metadata())
+		require.NoError(t, err)
+		loadedSpec, err := LoadSQL(dumpedSpec)
+		require.NoError(t, err)
+		require.Empty(t, GenerateMigration(syncedSpec, loadedSpec, nil).SQL())
 
 		dropPlan := GenerateMigration(c1, empty, nil)
 		require.Contains(t, dropPlan.SQL(), `DROP PACKAGE "PKG";`)
@@ -361,6 +376,35 @@ END PKG;
 		require.NoError(t, err)
 		require.True(t, strings.Contains(def, `PARTITION BY RANGE ("Y") SUBPARTITION BY LIST ("R")`), def)
 		require.True(t, strings.Contains(def, `SUBPARTITION "P2025_US" VALUES ('US')`), def)
+
+		// Composite RANGE-LIST definition survives LoadSQL round-trip and initial migration
+		cComp, err := LoadSQL(def)
+		require.NoError(t, err)
+		defComp2, err := DatabaseDefinition(cComp.Metadata())
+		require.NoError(t, err)
+		require.Equal(t, def, defComp2)
+		initCompMig := GenerateMigration(New(), cComp, nil).SQL()
+		require.Contains(t, initCompMig, `PARTITION BY RANGE ("Y") SUBPARTITION BY LIST ("R")`)
+		require.Contains(t, initCompMig, `SUBPARTITION "P2025_US" VALUES ('US')`)
+		require.Contains(t, initCompMig, `SUBPARTITION "P2025_OTHER" VALUES (DEFAULT)`)
+
+		// Composite RANGE-LIST with SUBPARTITION TEMPLATE
+		cTemplate, err := LoadSQL(`
+CREATE TABLE comp_tpl (
+  y NUMBER,
+  r VARCHAR2(10)
+) PARTITION BY RANGE (y) SUBPARTITION BY LIST (r) SUBPARTITION TEMPLATE (
+  SUBPARTITION sp_us VALUES ('US'),
+  SUBPARTITION sp_other VALUES (DEFAULT)
+) (
+  PARTITION p2025 VALUES LESS THAN (2026)
+)`)
+		require.NoError(t, err)
+		defTpl, err := DatabaseDefinition(cTemplate.Metadata())
+		require.NoError(t, err)
+		require.Contains(t, defTpl, `PARTITION BY RANGE ("Y") SUBPARTITION BY LIST ("R")`)
+		require.Contains(t, defTpl, `SUBPARTITION "SP_US" VALUES ('US')`)
+		require.Contains(t, defTpl, `SUBPARTITION "SP_OTHER" VALUES (DEFAULT)`)
 
 		// Quoted partition and subpartition key column containing a comma
 		cComma, err := LoadSQL(`CREATE TABLE p_comma ("A,B" NUMBER) PARTITION BY RANGE ("A,B") (PARTITION p1 VALUES LESS THAN (10))`)

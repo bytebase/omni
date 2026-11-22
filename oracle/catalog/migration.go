@@ -2643,7 +2643,7 @@ func writePackageDiff(out *strings.Builder, pkgDiff *PackageDiff) {
 		newSpec, newBody := splitPackageUnits(definition)
 		if oldBody != "" && newBody == "" {
 			writeDropPackageBody(out, pkgDiff.SchemaName, pkgDiff.PackageName)
-			if newSpec == "" || newSpec == oldSpec {
+			if newSpec == "" || normalizePackageUnitForCompare(newSpec) == normalizePackageUnitForCompare(oldSpec) {
 				return
 			}
 			definition = newSpec

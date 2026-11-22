@@ -484,7 +484,7 @@ func compareSchemaObjects(diff *MetadataDiff, schemaName string, oldSchema, newS
 		oldPkg, ok := oldPkgs[name]
 		if !ok {
 			diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionCreate, SchemaName: schemaName, PackageName: name, NewPackage: newPkg})
-		} else if oldPkg.GetDefinition() != newPkg.GetDefinition() {
+		} else if !packageEqual(oldPkg, newPkg) {
 			diff.PackageChanges = append(diff.PackageChanges, &PackageDiff{Action: DiffActionAlter, SchemaName: schemaName, PackageName: name, OldPackage: oldPkg, NewPackage: newPkg})
 		}
 	}
@@ -958,6 +958,40 @@ func normalizeTriggers(triggers []*metadatapb.TriggerMetadata) string {
 
 func functionEqual(a, b *metadatapb.FunctionMetadata) bool {
 	return a.GetDefinition() == b.GetDefinition() && a.GetComment() == b.GetComment()
+}
+
+func packageEqual(a, b *metadatapb.PackageMetadata) bool {
+	return normalizePackageDefinitionForCompare(a.GetDefinition()) == normalizePackageDefinitionForCompare(b.GetDefinition())
+}
+
+func normalizePackageDefinitionForCompare(definition string) string {
+	spec, body := splitPackageUnits(definition)
+	var parts []string
+	if spec != "" {
+		parts = append(parts, normalizePackageUnitForCompare(spec))
+	}
+	if body != "" {
+		parts = append(parts, normalizePackageUnitForCompare(body))
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+func normalizePackageUnitForCompare(unit string) string {
+	trimmed := strings.TrimSpace(unit)
+	if trimmed == "" {
+		return ""
+	}
+	words, ends := leadingWords(trimmed, 3)
+	switch {
+	case len(words) >= 3 && words[0] == "CREATE" && words[1] == "OR" && words[2] == "REPLACE":
+		trimmed = strings.TrimSpace(trimmed[ends[2]:])
+	case len(words) >= 1 && words[0] == "CREATE":
+		trimmed = strings.TrimSpace(trimmed[ends[0]:])
+	}
+	if !strings.HasSuffix(trimmed, ";") {
+		trimmed += ";"
+	}
+	return trimmed
 }
 
 func sequenceEqual(a, b *metadatapb.SequenceMetadata) bool {
