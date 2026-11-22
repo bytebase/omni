@@ -113,6 +113,7 @@ type WindowDef struct {
 
 type WindowSpec struct {
 	span
+	BaseWindow  string // optional inherited window name in OVER (base_win ...)
 	PartitionBy []Expr
 	OrderBy     []*OrderByItem
 	FrameUnits  string // "ROWS" or "RANGE"
@@ -355,8 +356,12 @@ func (*AlterTableStmt) stmtNode() {}
 
 type AlterClause struct {
 	span
-	Action string
-	Name   string
+	Action  string
+	Name    string
+	NewName string        // for RENAME COLUMN
+	Element *TableElement // column, index, projection, or constraint definition
+	After   string        // for ADD ... AFTER col
+	First   bool          // for ADD ... FIRST
 }
 
 type DropStmt struct {

@@ -334,3 +334,31 @@ func TestParseQualifiedStarSpan(t *testing.T) {
 		t.Errorf("func-arg star span text = %q, want %q", got, "db.t.*")
 	}
 }
+
+func TestParseAlterColumnElementAndWindowBaseName(t *testing.T) {
+	stmts, err := Parse("ALTER TABLE t ADD COLUMN c UInt64 DEFAULT 1 AFTER b, MODIFY COLUMN c LowCardinality(String)")
+	if err != nil {
+		t.Fatalf("Parse ALTER failed: %v", err)
+	}
+	at := stmts[0].(*AlterTableStmt)
+	if len(at.Clauses) != 2 {
+		t.Fatalf("got %d clauses, want 2", len(at.Clauses))
+	}
+	c0 := at.Clauses[0]
+	if c0.Element == nil || c0.Element.Type == nil || c0.Element.Type.Name != "UInt64" || c0.Element.DefaultKind != "DEFAULT" || c0.After != "b" {
+		t.Errorf("ADD COLUMN clause = %+v, element = %+v", c0, c0.Element)
+	}
+	c1 := at.Clauses[1]
+	if c1.Element == nil || c1.Element.Type == nil || c1.Element.Type.Name != "LowCardinality" {
+		t.Errorf("MODIFY COLUMN clause = %+v, element = %+v", c1, c1.Element)
+	}
+
+	wstmts, err := Parse("SELECT sum(v) OVER (w ORDER BY x) FROM t WINDOW w AS (PARTITION BY k)")
+	if err != nil {
+		t.Fatalf("Parse OVER (w ...) failed: %v", err)
+	}
+	fc := wstmts[0].(*SelectUnionStmt).Items[0].Columns[0].(*FuncCallExpr)
+	if fc.Over == nil || fc.Over.BaseWindow != "w" || len(fc.Over.OrderBy) != 1 {
+		t.Errorf("OVER spec = %+v, want BaseWindow=\"w\" with 1 OrderBy", fc.Over)
+	}
+}

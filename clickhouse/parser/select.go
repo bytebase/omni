@@ -508,7 +508,7 @@ func (p *parser) parseWindowSpec() (*WindowSpec, error) {
 		!(p.cur().Type == KwPartition && p.peek(1).Type == KwBy) &&
 		!(p.cur().Type == KwOrder && p.peek(1).Type == KwBy) &&
 		p.cur().Type != KwRows && p.cur().Type != KwRange {
-		p.advance()
+		spec.BaseWindow = p.advance().Val
 	}
 	if p.cur().Type == KwPartition && p.peek(1).Type == KwBy {
 		p.advance()
