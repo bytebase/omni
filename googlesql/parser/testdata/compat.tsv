@@ -108,7 +108,7 @@ reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unla
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!drop-2	a BEGIN END
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!drop-3	a : END
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!drop-4	a : BEGIN
-accept	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!insert	a : BEGIN END zzz
+reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!insert	a : BEGIN END zzz
 reject	reject	engine	unterminated_script_statement/label_COLON_unterminated_unlabeled_script_statement_opt~ae0196b9!swap	a : BETWEEN END
 accept	accept	engine	sql_statement_body/sql_statement_body_no_pipe_suffix	BEGIN
 accept	accept	engine	sql_statement_body/sql_statement_body_maybe_pipe_suffix_(pipe_and_pipe_operator)*	DESCRIBE a
@@ -1891,7 +1891,7 @@ reject	reject	engine	maybe_dashed_path_expression_with_scope/maybe_dashed_path_e
 reject	reject	engine	maybe_dashed_path_expression_with_scope/maybe_dashed_path_expression!insert	LOAD DATA INTO a zzz FROM FILES()
 accept	accept	engine	aux_load_data_statement/LOAD_DATA_append_or_overwrite_maybe_dashed_path_express~021b578f	LOAD DATA INTO a FROM FILES()
 accept	accept	engine	aux_load_data_statement(table_element_list)?/%empty	LOAD DATA INTO a FROM FILES()
-accept	reject	engine	aux_load_data_statement(table_element_list)?/table_element_list	LOAD DATA INTO a() FROM FILES()
+reject	reject	engine	aux_load_data_statement(table_element_list)?/table_element_list	LOAD DATA INTO a() FROM FILES()
 reject	reject	engine	aux_load_data_statement(table_element_list)?/table_element_list!drop-1	LOAD DATA INTO a) FROM FILES()
 reject	reject	engine	aux_load_data_statement(table_element_list)?/table_element_list!drop-2	LOAD DATA INTO a(FROM FILES()
 reject	reject	engine	aux_load_data_statement(table_element_list)?/table_element_list!truncate	LOAD DATA INTO a(
@@ -2588,7 +2588,7 @@ accept	accept	engine	from_path_expression/FROM_maybe_slashed_or_dashed_path_expr
 accept	accept	engine	explain_statement/EXPLAIN_unterminated_sql_statement	EXPLAIN BEGIN
 accept	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list	|> EXPORT DATA
 reject	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!drop-1	|> DATA
-accept	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!drop-2	|> EXPORT
+reject	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!drop-2	|> EXPORT
 reject	reject	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!insert	|> EXPORT DATA zzz
 accept	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!swap	|> EXTEND DATA
 accept	accept	engine	export_data_statement/export_data_no_query_as_query	EXPORT DATA AS SELECT NULL
@@ -3486,7 +3486,7 @@ reject	reject	engine	pipe_with(,)?/,!insert	|> WITH a AS(SELECT NULL), zzz
 accept	accept	engine	pipe_export_data/export_data_no_query	|> EXPORT DATA
 reject	reject	engine	pipe_export_data/export_data_no_query_AS	|> EXPORT DATA AS
 reject	reject	engine	pipe_export_data/export_data_no_query_AS!drop-1	|> DATA AS
-accept	reject	engine	pipe_export_data/export_data_no_query_AS!drop-2	|> EXPORT AS
+reject	reject	engine	pipe_export_data/export_data_no_query_AS!drop-2	|> EXPORT AS
 reject	reject	engine	pipe_export_data/export_data_no_query_AS!insert	|> EXPORT DATA AS zzz
 reject	reject	engine	pipe_export_data/export_data_no_query_AS!swap	|> EXTEND DATA AS
 accept	accept	engine	pipe_create_table/create_table_statement_prefix	|> CREATE TABLE a
@@ -8071,10 +8071,10 @@ reject	reject	engine	on_conflict_clause(where_expression)?/where_expression!swap
 accept	accept	engine	insert_mode/(OR)?_IGNORE	|> INSERT IGNORE a
 reject	reject	engine	insert_mode/(OR)?_IGNORE!insert	|> INSERT IGNORE zzz a
 reject	reject	engine	insert_mode/(OR)?_IGNORE!swap	|> INSERT IMMEDIATE a
-accept	reject	engine	insert_mode/(KW_REPLACE_AFTER_INSERT|OR_REPLACE)	|> INSERT REPLACE a
+reject	reject	engine	insert_mode/(KW_REPLACE_AFTER_INSERT|OR_REPLACE)	|> INSERT REPLACE a
 reject	reject	engine	insert_mode/(KW_REPLACE_AFTER_INSERT|OR_REPLACE)!insert	|> INSERT REPLACE zzz a
 reject	reject	engine	insert_mode/(KW_REPLACE_AFTER_INSERT|OR_REPLACE)!swap	|> INSERT REPLACE_FIELDS a
-accept	reject	engine	insert_mode/(KW_UPDATE_AFTER_INSERT|OR_UPDATE)	|> INSERT UPDATE a
+reject	reject	engine	insert_mode/(KW_UPDATE_AFTER_INSERT|OR_UPDATE)	|> INSERT UPDATE a
 reject	reject	engine	insert_mode/(KW_UPDATE_AFTER_INSERT|OR_UPDATE)!insert	|> INSERT UPDATE zzz a
 reject	reject	engine	insert_mode/(KW_UPDATE_AFTER_INSERT|OR_UPDATE)!swap	|> INSERT USING a
 accept	accept	engine	insert_mode(OR)?/%empty	|> INSERT IGNORE a
@@ -8082,13 +8082,13 @@ reject	reject	engine	insert_mode(OR)?/%empty!insert	|> INSERT zzz IGNORE a
 accept	accept	engine	insert_mode(OR)?/OR	|> INSERT OR IGNORE a
 reject	reject	engine	insert_mode(OR)?/OR!insert	|> INSERT OR zzz IGNORE a
 reject	reject	engine	insert_mode(OR)?/OR!swap	|> INSERT ORDER IGNORE a
-accept	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/KW_REPLACE_AFTER_INSERT	|> INSERT REPLACE a
+reject	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/KW_REPLACE_AFTER_INSERT	|> INSERT REPLACE a
 accept	accept	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/OR_REPLACE	|> INSERT OR REPLACE a
 reject	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/OR_REPLACE!drop-2	|> INSERT OR a
 reject	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/OR_REPLACE!truncate	|> INSERT OR
 reject	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/OR_REPLACE!insert	|> INSERT OR REPLACE zzz a
 reject	reject	engine	insert_mode(KW_REPLACE_AFTER_INSERT|OR_REPLACE)/OR_REPLACE!swap	|> INSERT ORDER REPLACE a
-accept	reject	engine	insert_mode(KW_UPDATE_AFTER_INSERT|OR_UPDATE)/KW_UPDATE_AFTER_INSERT	|> INSERT UPDATE a
+reject	reject	engine	insert_mode(KW_UPDATE_AFTER_INSERT|OR_UPDATE)/KW_UPDATE_AFTER_INSERT	|> INSERT UPDATE a
 accept	accept	engine	insert_mode(KW_UPDATE_AFTER_INSERT|OR_UPDATE)/OR_UPDATE	|> INSERT OR UPDATE a
 reject	reject	engine	insert_mode(KW_UPDATE_AFTER_INSERT|OR_UPDATE)/OR_UPDATE!insert	|> INSERT OR UPDATE zzz a
 reject	reject	engine	insert_mode(KW_UPDATE_AFTER_INSERT|OR_UPDATE)/OR_UPDATE!swap	|> INSERT ORDER UPDATE a

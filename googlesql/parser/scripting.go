@@ -929,7 +929,8 @@ func (p *Parser) parseLabeledStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.isBigQuery() && !strings.EqualFold(endName, name) {
+		// googlesql.tm:1242-1249 — end label must match start label (case-insensitive).
+		if !strings.EqualFold(endName, name) {
 			return nil, &ParseError{
 				Position: endTok.Loc.Start, End: endTok.Loc.End,
 				Message: "syntax error: mismatched end label; expected " + name + ", got " + endName,

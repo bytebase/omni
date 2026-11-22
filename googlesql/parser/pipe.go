@@ -381,11 +381,8 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		return &ast.PipeWith{With: wc, Loc: loc(wc.Loc.End)}, nil
 
 	case kwEXPORT:
-		// export_data_no_query is `EXPORT DATA …`. The helper does not require
-		// DATA here: compat.tsv records the emulator accepting the truncated
-		// `|> EXPORT` and `|> EXPORT AS` (its pipe statement answers are not a
-		// parse verdict; see testdata/README.md), and requiring DATA would
-		// regress those two recorded rows without a re-record.
+		// export_data_no_query: EXPORT DATA opt_with_connection_clause opt_options_list
+		// (googlesql.tm:4273, pipe_export_data googlesql.tm:5487).
 		stmt, err := p.parseExportDataNoQuery()
 		if err != nil {
 			return nil, err

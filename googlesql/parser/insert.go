@@ -79,8 +79,10 @@ func (p *Parser) parseInsertPrefix(pipe bool) (*ast.InsertStmt, error) {
 	stmt := &ast.InsertStmt{Loc: ast.Loc{Start: start}}
 
 	// opt_or_ignore_replace_update: [OR] IGNORE | [OR] REPLACE | [OR] UPDATE.
-	// The bare forms (no OR) are accepted by the grammar and the emulator.
-	stmt.OrAction = p.parseInsertOrAction()
+	// Bare REPLACE/UPDATE (without OR) is accepted in standalone DML in union
+	// mode (`INSERT REPLACE INTO t ...`), but rejected in pipe INSERT (`|> INSERT
+	// REPLACE a`), BigQuery, and Spanner.
+	stmt.OrAction = p.parseInsertOrAction(pipe)
 
 	// opt_into.
 	if _, ok := p.match(kwINTO); ok {
@@ -147,7 +149,7 @@ func (p *Parser) parseInsertTail(stmt *ast.InsertStmt) error {
 // canonical action spelling ("" when absent). All six forms are valid:
 //
 //	OR IGNORE | IGNORE | OR REPLACE | REPLACE | OR UPDATE | UPDATE
-func (p *Parser) parseInsertOrAction() string {
+func (p *Parser) parseInsertOrAction(pipe bool) string {
 	if p.cur.Type == kwOR {
 		// OR (IGNORE | REPLACE | UPDATE)
 		switch p.peekNext().Type {
@@ -169,18 +171,19 @@ func (p *Parser) parseInsertOrAction() string {
 		return ""
 	}
 	// Bare IGNORE | REPLACE | UPDATE (no OR).
-	// BigQuery and Spanner do not accept bare INSERT REPLACE / INSERT UPDATE (require OR).
+	// Pipe INSERT, BigQuery, and Spanner do not accept bare INSERT REPLACE /
+	// INSERT UPDATE (require OR).
 	switch p.cur.Type {
 	case kwIGNORE:
 		p.advance()
 		return "IGNORE"
 	case kwREPLACE:
-		if !p.isBigQuery() && !p.isSpanner() {
+		if !pipe && !p.isBigQuery() && !p.isSpanner() {
 			p.advance()
 			return "REPLACE"
 		}
 	case kwUPDATE:
-		if !p.isBigQuery() && !p.isSpanner() {
+		if !pipe && !p.isBigQuery() && !p.isSpanner() {
 			p.advance()
 			return "UPDATE"
 		}
